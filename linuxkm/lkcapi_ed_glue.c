@@ -161,9 +161,49 @@ static int ed448_loaded = 0;
 #endif /* LINUXKM_LKCAPI_REGISTER_ED448 */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ED25519
+/* The kernel crypto API permits concurrent operations on a single tfm,
+ * with no serialization by the core, so the tfm context must be
+ * effectively read-only after setkey: it holds only the raw RFC 8032
+ * key octets, and each operation deserializes them into a
+ * heap-transient ed25519_key of its own (cf. the ML-DSA glue, the
+ * model for this pattern).  This also confines the
+ * WOLFSSL_ED25519_PERSISTENT_SHA hash state, which sign and verify
+ * advance inside the key, to the per-operation key -- no live key
+ * structs are shared or copied. */
 struct km_ed25519_ctx {
-    ed25519_key * key;
+    /* raw RFC 8032 compressed public key -- from set_pub, or derived
+     * at set_priv time. */
+    byte pub[ED25519_PUB_KEY_SIZE];
+    /* raw RFC 8032 private key (the "seed"). */
+    byte priv[ED25519_KEY_SIZE];
+    byte pub_set;
+    byte priv_set;
 };
+
+/* Build a transient ed25519_key for one operation.  Returns the key,
+ * or NULL.  The caller must pass it to km_ed25519_del_key() when
+ * done. */
+static ed25519_key *km_ed25519_new_key(void)
+{
+    ed25519_key *key = (ed25519_key *)malloc(sizeof(*key));
+
+    if (key == NULL)
+        return NULL;
+    if (wc_ed25519_init(key) != 0) {
+        free(key);
+        return NULL;
+    }
+    return key;
+}
+
+static void km_ed25519_del_key(ed25519_key *key)
+{
+    if (key == NULL)
+        return;
+    wc_ed25519_free(key);
+    ForceZero(key, sizeof(*key));
+    free(key);
+}
 
 static void         km_ed25519_exit(struct eddsa_tfm_type *tfm);
 static int          km_ed25519_init(struct eddsa_tfm_type *tfm);
@@ -189,9 +229,42 @@ static int          km_ed25519_sign(struct akcipher_request *req);
 #endif /* LINUXKM_LKCAPI_REGISTER_ED25519 */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ED448
+/* see the analogous comment on struct km_ed25519_ctx: raw RFC 8032 key
+ * octets only, deserialized into a heap-transient ed448_key per
+ * operation. */
 struct km_ed448_ctx {
-    ed448_key * key;
+    /* raw RFC 8032 compressed public key -- from set_pub, or derived
+     * at set_priv time. */
+    byte pub[ED448_PUB_KEY_SIZE];
+    /* raw RFC 8032 private key (the "seed"). */
+    byte priv[ED448_KEY_SIZE];
+    byte pub_set;
+    byte priv_set;
 };
+
+/* Build a transient ed448_key for one operation.  Returns the key, or
+ * NULL.  The caller must pass it to km_ed448_del_key() when done. */
+static ed448_key *km_ed448_new_key(void)
+{
+    ed448_key *key = (ed448_key *)malloc(sizeof(*key));
+
+    if (key == NULL)
+        return NULL;
+    if (wc_ed448_init(key) != 0) {
+        free(key);
+        return NULL;
+    }
+    return key;
+}
+
+static void km_ed448_del_key(ed448_key *key)
+{
+    if (key == NULL)
+        return;
+    wc_ed448_free(key);
+    ForceZero(key, sizeof(*key));
+    free(key);
+}
 
 static void         km_ed448_exit(struct eddsa_tfm_type *tfm);
 static int          km_ed448_init(struct eddsa_tfm_type *tfm);
@@ -303,20 +376,18 @@ static int km_ed25519_set_pub(struct eddsa_tfm_type *tfm, const void *key,
 {
     int                     err = 0;
     struct km_ed25519_ctx * ctx = NULL;
+    ed25519_key *           probe_key = NULL;
 
     ctx = eddsa_tfm_ctx_cb(tfm);
-
-    if (ctx->key == NULL)
-        return -EINVAL;
 
     /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
      * entire old key before parsing the new one), destroy the resident key
      * state up front -- a rejected key must leave the transform keyless,
      * not verifying against the previously installed key. */
-    wc_ed25519_free(ctx->key);
-    err = wc_ed25519_init(ctx->key);
-    if (unlikely(err))
-        return -ENOMEM;
+    ctx->pub_set = 0;
+    ctx->priv_set = 0;
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+    XMEMSET(ctx->pub, 0, sizeof(ctx->pub));
 
     if (keylen != ED25519_PUB_KEY_SIZE) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -328,9 +399,25 @@ static int km_ed25519_set_pub(struct eddsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
-    /* import, and as an untrusted import validate, the compressed public
-     * key. */
-    err = wc_ed25519_import_public((const byte *)key, keylen, ctx->key);
+    /* validate the compressed public key by a transient untrusted
+     * import, destroyed immediately -- the ctx stores only the octets,
+     * and each operation re-imports them locally (as trusted, having
+     * been validated here). */
+    probe_key = km_ed25519_new_key();
+    if (probe_key == NULL)
+        return -ENOMEM;
+
+    err = wc_ed25519_import_public((const byte *)key, keylen, probe_key);
+
+    if ((err == 0) && (! probe_key->pubKeySet)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: wc_ed25519_import_public: pubKeySet not set\n",
+               WOLFKM_ED25519_DRIVER);
+        #endif
+        err = WC_NO_ERR_TRACE(WC_FAILURE);
+    }
+
+    km_ed25519_del_key(probe_key);
 
     if (unlikely(err)) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -340,18 +427,13 @@ static int km_ed25519_set_pub(struct eddsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
-    if (! ctx->key->pubKeySet) {
-        #ifdef WOLFKM_DEBUG_EDDSA
-        pr_err("%s: wc_ed25519_import_public: pubKeySet not set\n",
-               WOLFKM_ED25519_DRIVER);
-        #endif
-        return -EINVAL;
-    }
+    XMEMCPY(ctx->pub, key, ED25519_PUB_KEY_SIZE);
+    ctx->pub_set = 1;
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed25519_set_pub %d\n", keylen);
     #endif
-    return err;
+    return 0;
 }
 
 /*
@@ -368,12 +450,18 @@ static int km_ed25519_set_priv(struct eddsa_tfm_type *tfm, const void *key,
 {
     int                     err = 0;
     struct km_ed25519_ctx * ctx = NULL;
+    ed25519_key *           probe_key = NULL;
     byte                    pub[ED25519_PUB_KEY_SIZE];
 
     ctx = eddsa_tfm_ctx_cb(tfm);
 
-    if (ctx->key == NULL)
-        return -EINVAL;
+    /* destroy-first, per kernel setkey semantics (see
+     * km_ed25519_set_pub()).  The flags are set only after full
+     * success, so a rejected key can't leave the ctx half-set. */
+    ctx->pub_set = 0;
+    ctx->priv_set = 0;
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+    XMEMSET(ctx->pub, 0, sizeof(ctx->pub));
 
     if (keylen != ED25519_KEY_SIZE) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -385,40 +473,35 @@ static int km_ed25519_set_priv(struct eddsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
+    /* validate the seed, and derive the public key, on a transient key
+     * destroyed immediately -- the ctx stores only the octets.
+     * Ed25519 signing binds the public key into the hash (RFC 8032
+     * section 5.1.6 step 2); deriving it once here lets sign
+     * operations re-import it as trusted rather than re-deriving per
+     * operation. */
+    probe_key = km_ed25519_new_key();
+    if (probe_key == NULL)
+        return -ENOMEM;
+
     err = wc_ed25519_import_private_only((const byte *)key, keylen,
-                                         ctx->key);
-    if (unlikely(err)) {
-        #ifdef WOLFKM_DEBUG_EDDSA
-        pr_err("%s: wc_ed25519_import_private_only failed: %d\n",
-               WOLFKM_ED25519_DRIVER, err);
-        #endif
-        return -EINVAL;
-    }
-
-    /* Ed25519 signing binds the public key into the hash (RFC 8032
-     * section 5.1.6 step 2), so derive and install it.  The derived
-     * key is trusted by construction. */
-    err = wc_ed25519_make_public(ctx->key, pub, (word32)sizeof(pub));
+                                         probe_key);
     if (err == 0)
-        err = wc_ed25519_import_public_ex(pub, (word32)sizeof(pub),
-                                          ctx->key, 1 /* trusted */);
+        err = wc_ed25519_make_public(probe_key, pub, (word32)sizeof(pub));
 
-    if ((err == 0) &&
-        ((! ctx->key->privKeySet) || (! ctx->key->pubKeySet)))
-    {
-        err = WC_NO_ERR_TRACE(WC_FAILURE);
-    }
+    km_ed25519_del_key(probe_key);
 
     if (unlikely(err)) {
         #ifdef WOLFKM_DEBUG_EDDSA
-        pr_err("%s: ed25519 public key derivation failed: %d\n",
+        pr_err("%s: ed25519 private key import/derivation failed: %d\n",
                WOLFKM_ED25519_DRIVER, err);
         #endif
-        /* don't leave the key half-set. */
-        wc_ed25519_free(ctx->key);
-        (void)wc_ed25519_init(ctx->key);
         return -EINVAL;
     }
+
+    XMEMCPY(ctx->priv, key, ED25519_KEY_SIZE);
+    XMEMCPY(ctx->pub, pub, ED25519_PUB_KEY_SIZE);
+    ctx->priv_set = 1;
+    ctx->pub_set = 1;
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed25519_set_priv %d\n", keylen);
@@ -486,11 +569,9 @@ static void km_ed25519_exit(struct eddsa_tfm_type *tfm)
 
     ctx = eddsa_tfm_ctx_cb(tfm);
 
-    if (ctx->key) {
-        wc_ed25519_free(ctx->key);
-        free(ctx->key);
-        ctx->key = NULL;
-    }
+    /* the ctx holds the raw private key octets whenever the tfm holds a
+     * signing key, so scrub it; nothing is heap-resident. */
+    ForceZero(ctx, sizeof(*ctx));
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed25519_exit\n");
@@ -501,20 +582,8 @@ static void km_ed25519_exit(struct eddsa_tfm_type *tfm)
 static int km_ed25519_init(struct eddsa_tfm_type *tfm)
 {
     struct km_ed25519_ctx *ctx = eddsa_tfm_ctx_cb(tfm);
-    int ret = 0;
 
     XMEMSET(ctx, 0, sizeof(struct km_ed25519_ctx));
-
-    ctx->key = (ed25519_key *)malloc(sizeof(ed25519_key));
-    if (!ctx->key)
-        return -ENOMEM;
-
-    ret = wc_ed25519_init(ctx->key);
-    if (ret < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
-    }
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed25519_init\n");
@@ -543,9 +612,6 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
                              const void *digest, unsigned int dlen)
 {
     struct km_ed25519_ctx *ctx = crypto_sig_ctx(tfm);
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    ed25519_key          key_copy;
-#endif
     ed25519_key         *key = NULL;
     int                  result = -1;
     int                  err = -1;
@@ -555,29 +621,32 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
     if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
-    if ((ctx->key == NULL) || (! ctx->key->pubKeySet))
+    if (! ctx->pub_set)
         return -EINVAL;
 
     if (slen != ED25519_SIG_SIZE)
         return -EINVAL;
 
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WC_SHA2_NO_SMALL_STACK)
-        #error Unsupported kernel module configuration -- missing WC_SHA2_NO_SMALL_STACK.
-    #endif
-    /* wc_ed25519_verify_msg() advances the key's persistent SHA-512 state,
-     * but callers of the kernel crypto API are entitled to issue concurrent
-     * verifies on a single tfm, so operate on a transient copy of the
-     * tfm's imported key.  ed25519_key is pure POD as configured for
-     * linuxkm (no owned allocations), making the struct copy sound, and
-     * the copy includes any private key material the tfm holds, so it
-     * is scrubbed at the exit label.
-     */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    key = ctx->key;
-#endif
+    /* per-operation key, deserialized locally from the ctx octets --
+     * under WOLFSSL_ED25519_PERSISTENT_SHA, wc_ed25519_verify_msg()
+     * advances SHA-512 state inside the key, and callers of the kernel
+     * crypto API are entitled to issue concurrent verifies on a single
+     * tfm.  The octets were validated at set time, so the import is
+     * trusted. */
+    key = km_ed25519_new_key();
+    if (key == NULL)
+        return -ENOMEM;
+    err = wc_ed25519_import_public_ex(ctx->pub,
+                                      (word32)sizeof(ctx->pub), key,
+                                      1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed25519_import_public_ex failed: %d\n",
+               WOLFKM_ED25519_DRIVER, err);
+        #endif
+        err = -EINVAL;
+        goto ed25519_verify_end;
+    }
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     /* mitigate null pointer deref defect in old FIPS */
@@ -609,12 +678,7 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
 
 ed25519_verify_end:
 
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    /* The transient copy includes k[] -- live private key bytes
-     * whenever the tfm holds a signing key -- so scrub it on every
-     * exit, as the sign paths do. */
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
+    km_ed25519_del_key(key);
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed25519_verify dlen %d, slen %d, "
@@ -645,9 +709,6 @@ static int km_ed25519_sign(struct crypto_sig *tfm,
                    void *dst, unsigned int dlen)
 {
     struct km_ed25519_ctx *ctx = crypto_sig_ctx(tfm);
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    ed25519_key          key_copy;
-#endif
     ed25519_key         *key = NULL;
     word32               out_len = ED25519_SIG_SIZE;
     int                  err = -1;
@@ -657,29 +718,32 @@ static int km_ed25519_sign(struct crypto_sig *tfm,
     if (((src == NULL) && (slen != 0)) || (dst == NULL))
         return -EINVAL;
 
-    if ((ctx->key == NULL) ||
-        (! ctx->key->privKeySet) ||
-        (! ctx->key->pubKeySet))
-    {
+    if (! ctx->priv_set)
         return -EINVAL;
-    }
 
     if (dlen < ED25519_SIG_SIZE)
         return -EOVERFLOW;
 
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    /* as in km_ed25519_verify(), wc_ed25519_sign_msg() advances the key's
-     * persistent SHA-512 state, so operate on a transient copy of the
-     * tfm's key.  Unlike the verify path, the copy holds private
-     * material, so it's zeroized before return.
-     */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    /* without a persistent SHA-512, wc_ed25519_sign_msg() leaves the key
-     * unmodified, so the shared tfm key can be used directly. */
-    key = ctx->key;
-#endif
+    /* per-operation key, deserialized locally from the ctx octets --
+     * see the analogous comment in km_ed25519_verify().  The seed was
+     * validated and the public key derived at set_priv time, so the
+     * one-shot import is trusted. */
+    key = km_ed25519_new_key();
+    if (key == NULL)
+        return -ENOMEM;
+    err = wc_ed25519_import_private_key_ex(ctx->priv,
+                                           (word32)sizeof(ctx->priv),
+                                           ctx->pub,
+                                           (word32)sizeof(ctx->pub),
+                                           key, 1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed25519_import_private_key_ex failed: "
+               "%d\n", WOLFKM_ED25519_DRIVER, err);
+        #endif
+        km_ed25519_del_key(key);
+        return -EINVAL;
+    }
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     /* mitigate null pointer deref defect in old FIPS */
@@ -690,9 +754,7 @@ static int km_ed25519_sign(struct crypto_sig *tfm,
     err = wc_ed25519_sign_msg((const byte *)src, (word32)slen,
                               (byte *)dst, &out_len, key);
 
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
+    km_ed25519_del_key(key);
 
     if (err || (out_len != ED25519_SIG_SIZE)) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -740,9 +802,6 @@ static int km_ed25519_verify(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_ed25519_ctx *  ctx = NULL;
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    ed25519_key              key_copy;
-#endif
     ed25519_key *            key = NULL;
     byte *                   sig = NULL;
     word32                   sig_len = 0;
@@ -758,7 +817,8 @@ static int km_ed25519_verify(struct akcipher_request *req)
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
 
-    if ((ctx->key == NULL) || (! ctx->key->pubKeySet)) {
+    /* keyless reject, ahead of the copy-buffer allocation. */
+    if (! ctx->pub_set) {
         return -EINVAL;
     }
 
@@ -788,14 +848,25 @@ static int km_ed25519_verify(struct akcipher_request *req)
     /* copy sig and msg from req->src to sig and contiguous msg buffer. */
     scatterwalk_map_and_copy(sig, req->src, 0, sig_len + msg_len, 0);
 
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    /* see the analogous comment in the sig_alg edition of
+    /* per-operation key, deserialized locally from the ctx octets --
+     * see the analogous comment in the sig_alg edition of
      * km_ed25519_verify(). */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    key = ctx->key;
-#endif
+    key = km_ed25519_new_key();
+    if (key == NULL) {
+        err = -ENOMEM;
+        goto ed25519_verify_end;
+    }
+    err = wc_ed25519_import_public_ex(ctx->pub,
+                                      (word32)sizeof(ctx->pub), key,
+                                      1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed25519_import_public_ex failed: %d\n",
+               WOLFKM_ED25519_DRIVER, err);
+        #endif
+        err = -EINVAL;
+        goto ed25519_verify_end;
+    }
 
     err = wc_ed25519_verify_msg(sig, sig_len, msg, msg_len, &result, key);
 
@@ -819,13 +890,7 @@ static int km_ed25519_verify(struct akcipher_request *req)
 
 ed25519_verify_end:
 
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    /* The transient copy includes k[] -- live private key bytes
-     * whenever the tfm holds a signing key -- so scrub it on every
-     * exit, as the sign paths do. */
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
-
+    km_ed25519_del_key(key);
     free(sig);
 
     #ifdef WOLFKM_DEBUG_EDDSA
@@ -852,9 +917,6 @@ static int km_ed25519_sign(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_ed25519_ctx *  ctx = NULL;
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    ed25519_key              key_copy;
-#endif
     ed25519_key *            key = NULL;
     byte *                   msg = NULL;
     word32                   msg_len = 0;
@@ -871,10 +933,8 @@ static int km_ed25519_sign(struct akcipher_request *req)
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
 
-    if ((ctx->key == NULL) ||
-        (! ctx->key->privKeySet) ||
-        (! ctx->key->pubKeySet))
-    {
+    /* keyless reject, ahead of the copy-buffer allocation. */
+    if (! ctx->priv_set) {
         return -EINVAL;
     }
 
@@ -896,20 +956,29 @@ static int km_ed25519_sign(struct akcipher_request *req)
     /* copy the message from req->src to the contiguous msg buffer. */
     scatterwalk_map_and_copy(msg, req->src, 0, msg_len, 0);
 
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    /* see the analogous comment in the sig_alg edition of
+    /* per-operation key, deserialized locally from the ctx octets --
+     * see the analogous comment in the sig_alg edition of
      * km_ed25519_sign(). */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    key = ctx->key;
-#endif
+    key = km_ed25519_new_key();
+    if (key == NULL) {
+        err = -ENOMEM;
+        goto ed25519_sign_end;
+    }
+    err = wc_ed25519_import_private_key_ex(ctx->priv,
+                                           (word32)sizeof(ctx->priv),
+                                           ctx->pub,
+                                           (word32)sizeof(ctx->pub),
+                                           key, 1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed25519_import_private_key_ex failed: "
+               "%d\n", WOLFKM_ED25519_DRIVER, err);
+        #endif
+        err = -EINVAL;
+        goto ed25519_sign_end;
+    }
 
     err = wc_ed25519_sign_msg(msg, msg_len, sig, &out_len, key);
-
-#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
 
     if (err || (out_len != ED25519_SIG_SIZE)) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -927,6 +996,7 @@ static int km_ed25519_sign(struct akcipher_request *req)
 
 ed25519_sign_end:
 
+    km_ed25519_del_key(key);
     free(msg);
 
     #ifdef WOLFKM_DEBUG_EDDSA
@@ -964,20 +1034,18 @@ static int km_ed448_set_pub(struct eddsa_tfm_type *tfm, const void *key,
 {
     int                   err = 0;
     struct km_ed448_ctx * ctx = NULL;
+    ed448_key *           probe_key = NULL;
 
     ctx = eddsa_tfm_ctx_cb(tfm);
-
-    if (ctx->key == NULL)
-        return -EINVAL;
 
     /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
      * entire old key before parsing the new one), destroy the resident key
      * state up front -- a rejected key must leave the transform keyless,
      * not verifying against the previously installed key. */
-    wc_ed448_free(ctx->key);
-    err = wc_ed448_init(ctx->key);
-    if (unlikely(err))
-        return -ENOMEM;
+    ctx->pub_set = 0;
+    ctx->priv_set = 0;
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+    XMEMSET(ctx->pub, 0, sizeof(ctx->pub));
 
     if (keylen != ED448_PUB_KEY_SIZE) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -989,9 +1057,25 @@ static int km_ed448_set_pub(struct eddsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
-    /* import, and as an untrusted import validate, the compressed public
-     * key. */
-    err = wc_ed448_import_public((const byte *)key, keylen, ctx->key);
+    /* validate the compressed public key by a transient untrusted
+     * import, destroyed immediately -- the ctx stores only the octets,
+     * and each operation re-imports them locally (as trusted, having
+     * been validated here). */
+    probe_key = km_ed448_new_key();
+    if (probe_key == NULL)
+        return -ENOMEM;
+
+    err = wc_ed448_import_public((const byte *)key, keylen, probe_key);
+
+    if ((err == 0) && (! probe_key->pubKeySet)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: wc_ed448_import_public: pubKeySet not set\n",
+               WOLFKM_ED448_DRIVER);
+        #endif
+        err = WC_NO_ERR_TRACE(WC_FAILURE);
+    }
+
+    km_ed448_del_key(probe_key);
 
     if (unlikely(err)) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -1001,18 +1085,13 @@ static int km_ed448_set_pub(struct eddsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
-    if (! ctx->key->pubKeySet) {
-        #ifdef WOLFKM_DEBUG_EDDSA
-        pr_err("%s: wc_ed448_import_public: pubKeySet not set\n",
-               WOLFKM_ED448_DRIVER);
-        #endif
-        return -EINVAL;
-    }
+    XMEMCPY(ctx->pub, key, ED448_PUB_KEY_SIZE);
+    ctx->pub_set = 1;
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed448_set_pub %d\n", keylen);
     #endif
-    return err;
+    return 0;
 }
 
 /*
@@ -1029,12 +1108,18 @@ static int km_ed448_set_priv(struct eddsa_tfm_type *tfm, const void *key,
 {
     int                     err = 0;
     struct km_ed448_ctx * ctx = NULL;
+    ed448_key *             probe_key = NULL;
     byte                    pub[ED448_PUB_KEY_SIZE];
 
     ctx = eddsa_tfm_ctx_cb(tfm);
 
-    if (ctx->key == NULL)
-        return -EINVAL;
+    /* destroy-first, per kernel setkey semantics (see
+     * km_ed448_set_pub()).  The flags are set only after full success,
+     * so a rejected key can't leave the ctx half-set. */
+    ctx->pub_set = 0;
+    ctx->priv_set = 0;
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+    XMEMSET(ctx->pub, 0, sizeof(ctx->pub));
 
     if (keylen != ED448_KEY_SIZE) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -1046,40 +1131,34 @@ static int km_ed448_set_priv(struct eddsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
+    /* validate the seed, and derive the public key, on a transient key
+     * destroyed immediately -- the ctx stores only the octets.  Ed448
+     * signing binds the public key into the hash (RFC 8032 section
+     * 5.2.6 step 2); deriving it once here lets sign operations
+     * re-import it as trusted rather than re-deriving per operation. */
+    probe_key = km_ed448_new_key();
+    if (probe_key == NULL)
+        return -ENOMEM;
+
     err = wc_ed448_import_private_only((const byte *)key, keylen,
-                                         ctx->key);
-    if (unlikely(err)) {
-        #ifdef WOLFKM_DEBUG_EDDSA
-        pr_err("%s: wc_ed448_import_private_only failed: %d\n",
-               WOLFKM_ED448_DRIVER, err);
-        #endif
-        return -EINVAL;
-    }
-
-    /* Ed448 signing binds the public key into the hash (RFC 8032
-     * section 5.2.6 step 2), so derive and install it.  The derived
-     * key is trusted by construction. */
-    err = wc_ed448_make_public(ctx->key, pub, (word32)sizeof(pub));
+                                       probe_key);
     if (err == 0)
-        err = wc_ed448_import_public_ex(pub, (word32)sizeof(pub),
-                                          ctx->key, 1 /* trusted */);
+        err = wc_ed448_make_public(probe_key, pub, (word32)sizeof(pub));
 
-    if ((err == 0) &&
-        ((! ctx->key->privKeySet) || (! ctx->key->pubKeySet)))
-    {
-        err = WC_NO_ERR_TRACE(WC_FAILURE);
-    }
+    km_ed448_del_key(probe_key);
 
     if (unlikely(err)) {
         #ifdef WOLFKM_DEBUG_EDDSA
-        pr_err("%s: ed448 public key derivation failed: %d\n",
+        pr_err("%s: ed448 private key import/derivation failed: %d\n",
                WOLFKM_ED448_DRIVER, err);
         #endif
-        /* don't leave the key half-set. */
-        wc_ed448_free(ctx->key);
-        (void)wc_ed448_init(ctx->key);
         return -EINVAL;
     }
+
+    XMEMCPY(ctx->priv, key, ED448_KEY_SIZE);
+    XMEMCPY(ctx->pub, pub, ED448_PUB_KEY_SIZE);
+    ctx->priv_set = 1;
+    ctx->pub_set = 1;
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed448_set_priv %d\n", keylen);
@@ -1137,11 +1216,9 @@ static void km_ed448_exit(struct eddsa_tfm_type *tfm)
 
     ctx = eddsa_tfm_ctx_cb(tfm);
 
-    if (ctx->key) {
-        wc_ed448_free(ctx->key);
-        free(ctx->key);
-        ctx->key = NULL;
-    }
+    /* the ctx holds the raw private key octets whenever the tfm holds a
+     * signing key, so scrub it; nothing is heap-resident. */
+    ForceZero(ctx, sizeof(*ctx));
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed448_exit\n");
@@ -1152,20 +1229,8 @@ static void km_ed448_exit(struct eddsa_tfm_type *tfm)
 static int km_ed448_init(struct eddsa_tfm_type *tfm)
 {
     struct km_ed448_ctx *ctx = eddsa_tfm_ctx_cb(tfm);
-    int ret = 0;
 
     XMEMSET(ctx, 0, sizeof(struct km_ed448_ctx));
-
-    ctx->key = (ed448_key *)malloc(sizeof(ed448_key));
-    if (!ctx->key)
-        return -ENOMEM;
-
-    ret = wc_ed448_init(ctx->key);
-    if (ret < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
-    }
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed448_init\n");
@@ -1195,9 +1260,6 @@ static int km_ed448_verify(struct crypto_sig *tfm,
                            const void *digest, unsigned int dlen)
 {
     struct km_ed448_ctx *ctx = crypto_sig_ctx(tfm);
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    ed448_key            key_copy;
-#endif
     ed448_key           *key = NULL;
     int                  result = -1;
     int                  err = -1;
@@ -1207,29 +1269,31 @@ static int km_ed448_verify(struct crypto_sig *tfm,
     if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
-    if ((ctx->key == NULL) || (! ctx->key->pubKeySet))
+    if (! ctx->pub_set)
         return -EINVAL;
 
     if (slen != ED448_SIG_SIZE)
         return -EINVAL;
 
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    /* wc_ed448_verify_msg() advances the key's persistent SHAKE256 state,
-     * but callers of the kernel crypto API are entitled to issue concurrent
-     * verifies on a single tfm, so operate on a transient copy of the
-     * tfm's imported key.  ed448_key is pure POD as configured for linuxkm
-     * (no owned allocations), making the struct copy sound, and the copy
-     * includes any private key material the tfm holds, so it is
-     * scrubbed at the exit label.
-     *
-     * Note that wc_Sha3 has no suballocated members, so the transient copy here
-     * is unconditionally safe.
-     */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    key = ctx->key;
-#endif
+    /* per-operation key, deserialized locally from the ctx octets --
+     * under WOLFSSL_ED448_PERSISTENT_SHA, wc_ed448_verify_msg()
+     * advances SHAKE256 state inside the key, and callers of the kernel
+     * crypto API are entitled to issue concurrent verifies on a single
+     * tfm.  The octets were validated at set time, so the import is
+     * trusted. */
+    key = km_ed448_new_key();
+    if (key == NULL)
+        return -ENOMEM;
+    err = wc_ed448_import_public_ex(ctx->pub, (word32)sizeof(ctx->pub),
+                                    key, 1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed448_import_public_ex failed: %d\n",
+               WOLFKM_ED448_DRIVER, err);
+        #endif
+        err = -EINVAL;
+        goto ed448_verify_end;
+    }
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     /* mitigate null pointer deref defect in old FIPS */
@@ -1262,12 +1326,7 @@ static int km_ed448_verify(struct crypto_sig *tfm,
 
 ed448_verify_end:
 
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    /* The transient copy includes k[] -- live private key bytes
-     * whenever the tfm holds a signing key -- so scrub it on every
-     * exit, as the sign paths do. */
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
+    km_ed448_del_key(key);
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed448_verify dlen %d, slen %d, "
@@ -1299,10 +1358,7 @@ static int km_ed448_sign(struct crypto_sig *tfm,
                  void *dst, unsigned int dlen)
 {
     struct km_ed448_ctx *ctx = crypto_sig_ctx(tfm);
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    ed448_key          key_copy;
-#endif
-    ed448_key         *key = NULL;
+    ed448_key           *key = NULL;
     word32               out_len = ED448_SIG_SIZE;
     int                  err = -1;
 
@@ -1311,29 +1367,32 @@ static int km_ed448_sign(struct crypto_sig *tfm,
     if (((src == NULL) && (slen != 0)) || (dst == NULL))
         return -EINVAL;
 
-    if ((ctx->key == NULL) ||
-        (! ctx->key->privKeySet) ||
-        (! ctx->key->pubKeySet))
-    {
+    if (! ctx->priv_set)
         return -EINVAL;
-    }
 
     if (dlen < ED448_SIG_SIZE)
         return -EOVERFLOW;
 
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    /* as in km_ed448_verify(), wc_ed448_sign_msg() advances the key's
-     * persistent SHAKE256 state, so operate on a transient copy of the
-     * tfm's key.  Unlike the verify path, the copy holds private
-     * material, so it's zeroized before return.
-     */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    /* without a persistent SHAKE256, wc_ed448_sign_msg() leaves the key
-     * unmodified, so the shared tfm key can be used directly. */
-    key = ctx->key;
-#endif
+    /* per-operation key, deserialized locally from the ctx octets --
+     * see the analogous comment in km_ed448_verify().  The seed was
+     * validated and the public key derived at set_priv time, so the
+     * one-shot import is trusted. */
+    key = km_ed448_new_key();
+    if (key == NULL)
+        return -ENOMEM;
+    err = wc_ed448_import_private_key_ex(ctx->priv,
+                                         (word32)sizeof(ctx->priv),
+                                         ctx->pub,
+                                         (word32)sizeof(ctx->pub),
+                                         key, 1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed448_import_private_key_ex failed: "
+               "%d\n", WOLFKM_ED448_DRIVER, err);
+        #endif
+        km_ed448_del_key(key);
+        return -EINVAL;
+    }
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     /* mitigate null pointer deref defect in old FIPS */
@@ -1345,9 +1404,7 @@ static int km_ed448_sign(struct crypto_sig *tfm,
                             (byte *)dst, &out_len, key,
                             NULL, 0);
 
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
+    km_ed448_del_key(key);
 
     if (err || (out_len != ED448_SIG_SIZE)) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -1395,9 +1452,6 @@ static int km_ed448_verify(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_ed448_ctx *    ctx = NULL;
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    ed448_key                key_copy;
-#endif
     ed448_key *              key = NULL;
     byte *                   sig = NULL;
     word32                   sig_len = 0;
@@ -1413,7 +1467,8 @@ static int km_ed448_verify(struct akcipher_request *req)
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
 
-    if ((ctx->key == NULL) || (! ctx->key->pubKeySet)) {
+    /* keyless reject, ahead of the copy-buffer allocation. */
+    if (! ctx->pub_set) {
         return -EINVAL;
     }
 
@@ -1443,14 +1498,24 @@ static int km_ed448_verify(struct akcipher_request *req)
     /* copy sig and msg from req->src to sig and contiguous msg buffer. */
     scatterwalk_map_and_copy(sig, req->src, 0, sig_len + msg_len, 0);
 
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    /* see the analogous comment in the sig_alg edition of
+    /* per-operation key, deserialized locally from the ctx octets --
+     * see the analogous comment in the sig_alg edition of
      * km_ed448_verify(). */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    key = ctx->key;
-#endif
+    key = km_ed448_new_key();
+    if (key == NULL) {
+        err = -ENOMEM;
+        goto ed448_verify_end;
+    }
+    err = wc_ed448_import_public_ex(ctx->pub, (word32)sizeof(ctx->pub),
+                                    key, 1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed448_import_public_ex failed: %d\n",
+               WOLFKM_ED448_DRIVER, err);
+        #endif
+        err = -EINVAL;
+        goto ed448_verify_end;
+    }
 
     /* NULL/0: the RFC 8032 default (empty) Ed448 context. */
     err = wc_ed448_verify_msg(sig, sig_len, msg, msg_len, &result, key,
@@ -1476,13 +1541,7 @@ static int km_ed448_verify(struct akcipher_request *req)
 
 ed448_verify_end:
 
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    /* The transient copy includes k[] -- live private key bytes
-     * whenever the tfm holds a signing key -- so scrub it on every
-     * exit, as the sign paths do. */
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
-
+    km_ed448_del_key(key);
     free(sig);
 
     #ifdef WOLFKM_DEBUG_EDDSA
@@ -1509,11 +1568,8 @@ ed448_verify_end:
 static int km_ed448_sign(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
-    struct km_ed448_ctx *  ctx = NULL;
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    ed448_key              key_copy;
-#endif
-    ed448_key *            key = NULL;
+    struct km_ed448_ctx *    ctx = NULL;
+    ed448_key *              key = NULL;
     byte *                   msg = NULL;
     word32                   msg_len = 0;
     byte                     sig[ED448_SIG_SIZE];
@@ -1529,10 +1585,8 @@ static int km_ed448_sign(struct akcipher_request *req)
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
 
-    if ((ctx->key == NULL) ||
-        (! ctx->key->privKeySet) ||
-        (! ctx->key->pubKeySet))
-    {
+    /* keyless reject, ahead of the copy-buffer allocation. */
+    if (! ctx->priv_set) {
         return -EINVAL;
     }
 
@@ -1554,21 +1608,30 @@ static int km_ed448_sign(struct akcipher_request *req)
     /* copy the message from req->src to the contiguous msg buffer. */
     scatterwalk_map_and_copy(msg, req->src, 0, msg_len, 0);
 
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    /* see the analogous comment in the sig_alg edition of
+    /* per-operation key, deserialized locally from the ctx octets --
+     * see the analogous comment in the sig_alg edition of
      * km_ed448_sign(). */
-    key_copy = *ctx->key;
-    key = &key_copy;
-#else
-    key = ctx->key;
-#endif
+    key = km_ed448_new_key();
+    if (key == NULL) {
+        err = -ENOMEM;
+        goto ed448_sign_end;
+    }
+    err = wc_ed448_import_private_key_ex(ctx->priv,
+                                         (word32)sizeof(ctx->priv),
+                                         ctx->pub,
+                                         (word32)sizeof(ctx->pub),
+                                         key, 1 /* trusted */);
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_EDDSA
+        pr_err("%s: per-op wc_ed448_import_private_key_ex failed: "
+               "%d\n", WOLFKM_ED448_DRIVER, err);
+        #endif
+        err = -EINVAL;
+        goto ed448_sign_end;
+    }
 
     err = wc_ed448_sign_msg(msg, msg_len, sig, &out_len, key,
                           NULL, 0);
-
-#ifdef WOLFSSL_ED448_PERSISTENT_SHA
-    ForceZero(&key_copy, sizeof(key_copy));
-#endif
 
     if (err || (out_len != ED448_SIG_SIZE)) {
         #ifdef WOLFKM_DEBUG_EDDSA
@@ -1586,6 +1649,7 @@ static int km_ed448_sign(struct akcipher_request *req)
 
 ed448_sign_end:
 
+    km_ed448_del_key(key);
     free(msg);
 
     #ifdef WOLFKM_DEBUG_EDDSA
@@ -1838,6 +1902,40 @@ static int linuxkm_test_eddsa_driver(const char * driver,
         goto test_eddsa_end;
     }
 
+    /* restore the signature for the probes below. */
+    sig_copy[0] ^= 1U;
+
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * verification against the previously installed key. */
+    ret = crypto_sig_set_pubkey(tfm, pub, pub_len - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_set_pubkey (short) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+    ret = crypto_sig_verify(tfm, sig_copy, sig_len, msg, msg_len);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_verify after rejected set_pubkey "
+               "returned %d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+    ret = crypto_sig_set_pubkey(tfm, pub, pub_len);
+    if (ret) {
+        pr_err("error: crypto_sig_set_pubkey (restore) returned: %d\n",
+               ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+    ret = crypto_sig_verify(tfm, sig_copy, sig_len, msg, msg_len);
+    if (ret) {
+        pr_err("error: crypto_sig_verify after restored set_pubkey "
+               "returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+
     /* sign tests.  set the priv key; on verify-only builds of this glue
      * the set_priv_key callback is an -EOPNOTSUPP stub (per the
      * convention of the in-tree ML-DSA), which is itself checked. */
@@ -2023,6 +2121,46 @@ static int linuxkm_test_eddsa_driver(const char * driver,
     if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify returned %d, expected %d\n",
                ret, -EBADMSG);
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * verification against the previously installed key. */
+    ret = crypto_akcipher_set_pub_key(tfm, pub, pub_len - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_set_pub_key (short) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+    sg_init_table(src_tab, 2);
+    sg_set_buf(&src_tab[0], sig, sig_len);
+    sg_set_buf(&src_tab[1], msg, msg_len);
+    akcipher_request_set_crypt(req, src_tab, NULL, sig_len, msg_len);
+    ret = crypto_akcipher_verify(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_verify after rejected "
+               "set_pub_key returned %d, expected %d\n",
+               ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+    ret = crypto_akcipher_set_pub_key(tfm, pub, pub_len);
+    if (ret) {
+        pr_err("error: crypto_akcipher_set_pub_key (restore) "
+               "returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_eddsa_end;
+    }
+    sg_init_table(src_tab, 2);
+    sg_set_buf(&src_tab[0], sig, sig_len);
+    sg_set_buf(&src_tab[1], msg, msg_len);
+    akcipher_request_set_crypt(req, src_tab, NULL, sig_len, msg_len);
+    ret = crypto_akcipher_verify(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_verify after restored "
+               "set_pub_key returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
         goto test_eddsa_end;
     }
