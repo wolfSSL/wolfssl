@@ -47,11 +47,15 @@
  *     to bits); digest_size is not set, so crypto/sig.c defaults it to
  *     the public key size in bytes in both eras.
  *
- *   - signature sizes are the fixed padded encodings (666/1280 bytes):
- *     wc_falcon_sign_msg() always emits exactly the level's size, so
- *     the exact-size conventions of the ML-DSA glue carry over
- *     unchanged: a verify size mismatch and a verification failure both
- *     return -EBADMSG.
+ *   - signatures use the compressed (variable-length) encoding:
+ *     wc_falcon_sign_msg() emits a header byte, the 40-byte nonce, and
+ *     a variable-length compressed payload, bounded above by the
+ *     level's nominal size (666/1280 bytes), so the ML-DSA glue's
+ *     exact-size conventions become range checks
+ *     (KM_FALCON_SIG_MIN_LEN up to the level's nominal size).  A verify
+ *     size out of range and a verification failure both return
+ *     -EBADMSG; callers size buffers by the nominal (maximum) size, and
+ *     sign reports the actually emitted size.
  *
  *   - signing is randomized; rng is drawn from the module's default RNG
  *     (LKCAPI_INITRNG).  A short sign dst returns -EOVERFLOW (following
@@ -176,6 +180,14 @@ static int km_falcon_sizes(byte level, word32 *pub_len, word32 *sig_len,
         *priv_len = priv_l;
     return 0;
 }
+
+/* wc_falcon_sign_msg() emits the compressed (variable-length) signature
+ * encoding: a header byte, the 40-byte nonce, and a variable-length
+ * compressed payload, with the level's nominal signature size
+ * (FALCON_LEVEL1_SIG_SIZE/FALCON_LEVEL5_SIG_SIZE, 666/1280) as the
+ * MAXIMUM, not a fixed size.  The floor below mirrors
+ * wc_falcon_verify_msg()'s own argcheck (at least one payload byte). */
+#define KM_FALCON_SIG_MIN_LEN ((word32)(1 + FALCON_NONCE_SIZE + 1))
 
 /* Build a transient falcon_key for one operation.  Returns the key, or
  * NULL.  The caller must pass it to km_falcon_del_key() when done. */
@@ -511,9 +523,10 @@ static int km_falcon_verify_common(struct km_falcon_ctx *ctx,
     if (km_falcon_sizes(ctx->level, &pub_len, &exp_sig_len, NULL) != 0)
         return -EINVAL;
 
-    /* exact signature size: wc_falcon_sign_msg() always emits the
-     * fixed padded encoding for the level (-EBADMSG on mismatch). */
-    if (sig_len != exp_sig_len)
+    /* the compressed encoding is variable-length, with the level's
+     * nominal size as the maximum: range-check (-EBADMSG when out of
+     * range), mirroring wc_falcon_verify_msg()'s own bounds. */
+    if ((sig_len > exp_sig_len) || (sig_len < KM_FALCON_SIG_MIN_LEN))
         return -EBADMSG;
 
     key = km_falcon_new_key(ctx->level);
@@ -552,7 +565,9 @@ static int km_falcon_verify_common(struct km_falcon_ctx *ctx,
  * -ENOMEM -- heap failure
  * -EINVAL -- any other failure.
  *
- * *out_len is set to the signature size.
+ * *out_len is set to the emitted signature size: the compressed
+ * encoding is variable-length, at most the level's nominal size and at
+ * least KM_FALCON_SIG_MIN_LEN.
  */
 static int km_falcon_sign_common(struct km_falcon_ctx *ctx,
                                  const byte *msg, word32 msg_len,
@@ -593,7 +608,9 @@ static int km_falcon_sign_common(struct km_falcon_ctx *ctx,
 
     km_falcon_del_key(key);
 
-    if (err || (*out_len != exp_sig_len)) {
+    if (err || (*out_len > exp_sig_len) ||
+        (*out_len < KM_FALCON_SIG_MIN_LEN))
+    {
         #ifdef WOLFKM_DEBUG_FALCON
         pr_err("error: falcon sign: sign_msg returned: %d, out_len %u\n",
                err, *out_len);
@@ -609,8 +626,9 @@ static int km_falcon_sign_common(struct km_falcon_ctx *ctx,
  * Verify a Falcon signature (linux 6.13+ struct sig_alg edition).
  *
  * src:
- *   - the raw Falcon signature (padded encoding); slen must equal the
- *     signature size for the level (666/1280).
+ *   - the raw Falcon signature (compressed encoding, variable-length);
+ *     slen must be at most the level's nominal signature size (666/1280)
+ *     and at least KM_FALCON_SIG_MIN_LEN.
  *
  * digest:
  *   - the raw message; no prehashing occurs, and dlen is unrestricted.
@@ -646,11 +664,13 @@ static int km_falcon_verify(struct crypto_sig *tfm,
  *   - the raw message; no prehashing occurs, and slen is unrestricted.
  *
  * dst:
- *   - receives the raw Falcon signature (padded encoding).
- *   - dlen must be >= the signature size for the level, else -EOVERFLOW
- *     (following the convention of rsassa_pkcs1_sign()).
+ *   - receives the raw Falcon signature (compressed encoding,
+ *     variable-length).
+ *   - dlen must be >= the level's nominal (maximum) signature size,
+ *     else -EOVERFLOW (following the convention of
+ *     rsassa_pkcs1_sign()).
  *
- * Returns the signature size on success, per the crypto_sig_sign()
+ * Returns the emitted signature size on success, per the crypto_sig_sign()
  * contract.  Signing is randomized, with rng drawn from the module's
  * default RNG.
  */
@@ -692,8 +712,9 @@ static int km_falcon_sign(struct crypto_sig *tfm,
  * Verify a Falcon signature (pre-6.13 akcipher edition).
  *
  * req->src:
- *   - src_len: signature (exact size for the level, 666/1280),
- *     immediately followed by the message (raw, unhashed, any length).
+ *   - src_len: signature (compressed encoding, variable-length: at most
+ *     the level's nominal size, 666/1280), immediately followed by the
+ *     message (raw, unhashed, any length).
  *   - the signature and message segment lengths are req->src_len and
  *     req->dst_len respectively, per the legacy akcipher verify
  *     convention.
@@ -722,7 +743,9 @@ static int km_falcon_verify(struct akcipher_request *req)
     if (km_falcon_sizes(ctx->level, NULL, &exp_sig_len, NULL) != 0)
         return -EINVAL;
 
-    if (sig_len != exp_sig_len)
+    /* range-check before allocating (wrong-size-reject-before-alloc,
+     * adapted to the compressed encoding's valid range). */
+    if ((sig_len > exp_sig_len) || (sig_len < KM_FALCON_SIG_MIN_LEN))
         return -EBADMSG;
 
     /* Guard the allocation-size addition against overflow of the
@@ -760,9 +783,10 @@ static int km_falcon_verify(struct akcipher_request *req)
  * req->src:
  *   - src_len: message (raw, unhashed, any length)
  * req->dst:
- *   - dst_len: receives the raw Falcon signature (padded encoding);
- *     must be >= the signature size for the level, else -EOVERFLOW
- *     with dst_len set to the required size.
+ *   - dst_len: receives the raw Falcon signature (compressed encoding,
+ *     variable-length); must be >= the level's nominal (maximum)
+ *     signature size, else -EOVERFLOW with dst_len set to that
+ *     requirement.
  *
  * On success, returns 0 and updates req->dst_len to the signature
  * size.  Signing is randomized, with rng drawn from the module's
@@ -863,6 +887,10 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     word32           sig_len = 0;
     word32           priv_len = 0;
     word32           out_len = 0;
+    word32           sig_buf_len = 0;
+#ifdef LINUXKM_FALCON_SIG_ALG
+    word32           sig_empty_len = 0;
+#endif
     const byte *     msg = linuxkm_falcon_test_msg;
     word32           msg_len = (word32)sizeof(linuxkm_falcon_test_msg);
     int              ret;
@@ -880,7 +908,9 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
 
     pub = (byte *)malloc(pub_len);
     priv = (byte *)malloc(priv_len);
-    sig_buf = (byte *)malloc(sig_len);
+    /* one extra byte backs the oversize-signature rejection probe
+     * (sig_len + 1 passed as the signature length). */
+    sig_buf = (byte *)malloc(sig_len + 1);
     sig_empty = (byte *)malloc(sig_len);
     if ((pub == NULL) || (priv == NULL) || (sig_buf == NULL) ||
         (sig_empty == NULL))
@@ -888,6 +918,11 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         pr_err("error: allocating falcon test buffers failed.\n");
         goto test_falcon_end;
     }
+    /* the compressed encoding is variable-length, so bytes past the
+     * emitted signature can otherwise remain uninitialized when the
+     * probes below pass larger lengths. */
+    XMEMSET(sig_buf, 0, sig_len + 1);
+    XMEMSET(sig_empty, 0, sig_len);
 
     /* generate a keypair for the test. */
     gen_key = km_falcon_new_key(level);
@@ -940,18 +975,20 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         goto test_falcon_end;
     }
     ret = crypto_sig_sign(tfm, msg, msg_len, sig_buf, sig_len);
-    if (ret != (int)sig_len) {
-        pr_err("error: crypto_sig_sign returned %d, expected %d\n",
-               ret, (int)sig_len);
+    if ((ret < (int)KM_FALCON_SIG_MIN_LEN) || (ret > (int)sig_len)) {
+        pr_err("error: crypto_sig_sign returned %d, expected %u..%u\n",
+               ret, KM_FALCON_SIG_MIN_LEN, sig_len);
         goto test_falcon_end;
     }
+    sig_buf_len = (word32)ret;
     /* empty message, passed as (NULL, 0). */
     ret = crypto_sig_sign(tfm, NULL, 0, sig_empty, sig_len);
-    if (ret != (int)sig_len) {
+    if ((ret < (int)KM_FALCON_SIG_MIN_LEN) || (ret > (int)sig_len)) {
         pr_err("error: crypto_sig_sign (empty msg) returned %d, "
-               "expected %d\n", ret, (int)sig_len);
+               "expected %u..%u\n", ret, KM_FALCON_SIG_MIN_LEN, sig_len);
         goto test_falcon_end;
     }
+    sig_empty_len = (word32)ret;
     /* a short dst must be rejected with -EOVERFLOW. */
     ret = crypto_sig_sign(tfm, msg, msg_len, sig_buf, sig_len - 1);
     if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
@@ -963,11 +1000,12 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
      * being reached with a partially-written buffer.  (it isn't --
      * -EOVERFLOW precedes any write -- but don't depend on that.) */
     ret = crypto_sig_sign(tfm, msg, msg_len, sig_buf, sig_len);
-    if (ret != (int)sig_len) {
-        pr_err("error: crypto_sig_sign (regen) returned %d, expected %d\n",
-               ret, (int)sig_len);
+    if ((ret < (int)KM_FALCON_SIG_MIN_LEN) || (ret > (int)sig_len)) {
+        pr_err("error: crypto_sig_sign (regen) returned %d, "
+               "expected %u..%u\n", ret, KM_FALCON_SIG_MIN_LEN, sig_len);
         goto test_falcon_end;
     }
+    sig_buf_len = (word32)ret;
 
     /* install the public key (destroys the resident private key, per
      * kernel setkey semantics) and verify both signatures. */
@@ -1004,30 +1042,39 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         goto test_falcon_end;
     }
 
-    ret = crypto_sig_verify(tfm, sig_buf, sig_len, msg, msg_len);
+    ret = crypto_sig_verify(tfm, sig_buf, sig_buf_len, msg, msg_len);
     if (ret) {
         pr_err("error: crypto_sig_verify returned: %d\n", ret);
         goto test_falcon_end;
     }
     /* empty message, passed as (NULL, 0). */
-    ret = crypto_sig_verify(tfm, sig_empty, sig_len, NULL, 0);
+    ret = crypto_sig_verify(tfm, sig_empty, sig_empty_len, NULL, 0);
     if (ret) {
         pr_err("error: crypto_sig_verify (empty msg) returned: %d\n", ret);
         goto test_falcon_end;
     }
     /* a corrupted signature must be rejected with -EBADMSG. */
-    sig_buf[sig_len / 2] ^= 1;
-    ret = crypto_sig_verify(tfm, sig_buf, sig_len, msg, msg_len);
+    sig_buf[sig_buf_len / 2] ^= 1;
+    ret = crypto_sig_verify(tfm, sig_buf, sig_buf_len, msg, msg_len);
     if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify (corrupted) returned %d, "
                "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         goto test_falcon_end;
     }
-    sig_buf[sig_len / 2] ^= 1;
-    /* a short signature must be rejected with -EBADMSG. */
-    ret = crypto_sig_verify(tfm, sig_buf, sig_len - 1, msg, msg_len);
+    sig_buf[sig_buf_len / 2] ^= 1;
+    /* a truncated signature must be rejected with -EBADMSG. */
+    ret = crypto_sig_verify(tfm, sig_buf, sig_buf_len - 1, msg, msg_len);
     if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify (short sig) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
+        goto test_falcon_end;
+    }
+    /* a signature length above the level maximum must be rejected with
+     * -EBADMSG (wrong-size-reject, adapted to the compressed encoding's
+     * valid range; sig_buf holds sig_len + 1 bytes). */
+    ret = crypto_sig_verify(tfm, sig_buf, sig_len + 1, msg, msg_len);
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
+        pr_err("error: crypto_sig_verify (oversize sig) returned %d, "
                "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         goto test_falcon_end;
     }
@@ -1039,7 +1086,7 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
                "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
         goto test_falcon_end;
     }
-    ret = crypto_sig_verify(tfm, sig_buf, sig_len, msg, msg_len);
+    ret = crypto_sig_verify(tfm, sig_buf, sig_buf_len, msg, msg_len);
     if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
         pr_err("error: crypto_sig_verify after rejected set_pubkey "
                "returned %d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
@@ -1051,7 +1098,7 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
                ret);
         goto test_falcon_end;
     }
-    ret = crypto_sig_verify(tfm, sig_buf, sig_len, msg, msg_len);
+    ret = crypto_sig_verify(tfm, sig_buf, sig_buf_len, msg, msg_len);
     if (ret) {
         pr_err("error: crypto_sig_verify after restored set_pubkey "
                "returned: %d\n", ret);
@@ -1093,11 +1140,14 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         pr_err("error: crypto_akcipher_sign returned: %d\n", ret);
         goto test_falcon_end;
     }
-    if (req->dst_len != sig_len) {
-        pr_err("error: crypto_akcipher_sign dst_len %u, expected %u\n",
-               req->dst_len, sig_len);
+    if ((req->dst_len > sig_len) ||
+        (req->dst_len < KM_FALCON_SIG_MIN_LEN))
+    {
+        pr_err("error: crypto_akcipher_sign dst_len %u, expected %u..%u\n",
+               req->dst_len, KM_FALCON_SIG_MIN_LEN, sig_len);
         goto test_falcon_end;
     }
+    sig_buf_len = req->dst_len;
 
     /* install the public key (destroys the resident private key, per
      * kernel setkey semantics) and verify: src is sig || msg, with the
@@ -1109,23 +1159,37 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         goto test_falcon_end;
     }
     sg_init_table(src_sg, 2);
-    sg_set_buf(&src_sg[0], sig_buf, sig_len);
+    sg_set_buf(&src_sg[0], sig_buf, sig_buf_len);
     sg_set_buf(&src_sg[1], msg, msg_len);
-    akcipher_request_set_crypt(req, src_sg, NULL, sig_len, msg_len);
+    akcipher_request_set_crypt(req, src_sg, NULL, sig_buf_len, msg_len);
     ret = crypto_akcipher_verify(req);
     if (ret) {
         pr_err("error: crypto_akcipher_verify returned: %d\n", ret);
         goto test_falcon_end;
     }
     /* a corrupted signature must be rejected with -EBADMSG. */
-    sig_buf[sig_len / 2] ^= 1;
+    sig_buf[sig_buf_len / 2] ^= 1;
     ret = crypto_akcipher_verify(req);
     if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify (corrupted) returned %d, "
                "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         goto test_falcon_end;
     }
-    sig_buf[sig_len / 2] ^= 1;
+    sig_buf[sig_buf_len / 2] ^= 1;
+    /* a signature length above the level maximum must be rejected with
+     * -EBADMSG before the copy buffer is even allocated
+     * (wrong-size-reject-before-alloc, adapted to the compressed
+     * encoding's valid range; sig_buf holds sig_len + 1 bytes). */
+    sg_init_table(src_sg, 2);
+    sg_set_buf(&src_sg[0], sig_buf, sig_len + 1);
+    sg_set_buf(&src_sg[1], msg, msg_len);
+    akcipher_request_set_crypt(req, src_sg, NULL, sig_len + 1, msg_len);
+    ret = crypto_akcipher_verify(req);
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
+        pr_err("error: crypto_akcipher_verify (oversize sig) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
+        goto test_falcon_end;
+    }
 
 #endif /* !LINUXKM_FALCON_SIG_ALG */
 
