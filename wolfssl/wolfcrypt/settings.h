@@ -5687,6 +5687,11 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef WOLFSSL_SHAKE256
 #endif
 
+#if defined(V523_NONFIPS_SHAKE) && \
+    (!defined(HAVE_FIPS) || !FIPS_VERSION3_EQ(5,2,1))
+    #error "V523_NONFIPS_SHAKE requires FIPS v5 cert4718 (5.2.1)"
+#endif
+
 
 /* Encrypted Client Hello - requires HPKE */
 #if defined(HAVE_ECH) && !defined(HAVE_HPKE)

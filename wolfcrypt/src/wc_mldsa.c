@@ -182,6 +182,10 @@
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
+#if defined(WOLFSSL_SHA3) && defined(V523_NONFIPS_SHAKE)
+    #include <fips/v5.2.3-custom-shake-pq/shake.h>
+#endif
+
 #if FIPS_VERSION3_GE(7,0,0)
     #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$nc")
