@@ -24,7 +24,7 @@
 
 #include <tests/api/api_decl.h>
 
-#if defined(HAVE_PKCS11) && defined(HAVE_ECC) && \
+#if defined(HAVE_PKCS11) && defined(HAVE_ECC) && !defined(NO_PKCS11_ECC) && \
     defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG) && \
     !defined(NO_ECC256) && !defined(NO_ECC_SECP)
 
