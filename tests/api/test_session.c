@@ -1913,6 +1913,336 @@ int test_wolfSSL_ticket_keys_threaded(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_TLS) && !defined(SINGLE_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+
+#define TEST_TICKET_ENC_CB_THREADS 3
+#define TEST_TICKET_ENC_CB_ROUNDS  200
+#define TEST_TICKET_ENC_CB_WAIT_MS 10
+
+static WOLFSSL_CTX* ticket_enc_cb_ctx = NULL;
+/* Index 0 is the thread that sets the keys, the rest are workers. Worker 1
+ * goes first and sets up the keys. */
+static WOLFSSL* ticket_enc_cb_ssl[TEST_TICKET_ENC_CB_THREADS + 1];
+static int ticket_enc_cb_fail[TEST_TICKET_ENC_CB_THREADS + 1];
+
+/* A ticket encrypted with a context's callback. */
+typedef struct test_ticket_enc_cb_ticket {
+    byte name[WOLFSSL_TICKET_NAME_SZ];
+    byte iv[WOLFSSL_TICKET_IV_SZ];
+    byte mac[WOLFSSL_TICKET_MAC_SZ];
+    byte data[WOLFSSL_INTERNAL_TICKET_LEN];
+} test_ticket_enc_cb_ticket;
+
+/* Encrypt a ticket of known bytes with the context's callback. */
+static int test_ticket_enc_cb_enc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+    test_ticket_enc_cb_ticket* t)
+{
+    int len = (int)sizeof(t->data);
+    int ret;
+
+    XMEMSET(t->data, 0x3c, sizeof(t->data));
+    ret = ctx->ticketEncCb(ssl, t->name, t->iv, t->mac, 1, t->data, len, &len,
+        ctx->ticketEncCtx);
+    if ((ret != WOLFSSL_TICKET_RET_OK) || (len != (int)sizeof(t->data))) {
+        return -1;
+    }
+    return 0;
+}
+
+/* Decrypt a ticket with the context's callback and check the bytes. */
+static int test_ticket_enc_cb_dec(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+    test_ticket_enc_cb_ticket* t)
+{
+    byte plain[WOLFSSL_INTERNAL_TICKET_LEN];
+    int len = (int)sizeof(t->data);
+    int ret;
+
+    XMEMSET(plain, 0x3c, sizeof(plain));
+    ret = ctx->ticketEncCb(ssl, t->name, t->iv, t->mac, 0, t->data, len, &len,
+        ctx->ticketEncCtx);
+    if (((ret != WOLFSSL_TICKET_RET_OK) &&
+            (ret != WOLFSSL_TICKET_RET_CREATE)) ||
+            (len != (int)sizeof(plain)) ||
+            (XMEMCMP(t->data, plain, sizeof(plain)) != 0)) {
+        return -1;
+    }
+    return 0;
+}
+
+/* Encrypt a ticket with the context's callback and decrypt it back. */
+static int test_ticket_enc_cb_round(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+{
+    test_ticket_enc_cb_ticket t;
+
+    if (test_ticket_enc_cb_enc(ctx, ssl, &t) != 0) {
+        return -1;
+    }
+    return test_ticket_enc_cb_dec(ctx, ssl, &t);
+}
+
+static THREAD_RETURN WOLFSSL_THREAD test_ticket_enc_cb_worker(void* args)
+{
+    int tno = ((func_args*)args)->argc;
+    int i;
+
+    /* Start once worker 1 has set up the keys. Sleep rather than wait on a
+     * lock, which would order this thread after the set up. */
+    if (tno > 1) {
+        XSLEEP_MS(TEST_TICKET_ENC_CB_WAIT_MS);
+    }
+    for (i = 0; i < TEST_TICKET_ENC_CB_ROUNDS; i++) {
+        if (test_ticket_enc_cb_round(ticket_enc_cb_ctx,
+                ticket_enc_cb_ssl[tno]) != 0) {
+            ticket_enc_cb_fail[tno]++;
+        }
+        /* Worker 1 pauses after the round that sets up the keys, or its later
+         * accesses push the set up out of TSAN's history too early. */
+        if ((tno == 1) && (i == 0)) {
+            XSLEEP_MS(2 * TEST_TICKET_ENC_CB_WAIT_MS);
+        }
+    }
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* Sets the keys the context already has, over and over. */
+static THREAD_RETURN WOLFSSL_THREAD test_ticket_enc_cb_setter(void* args)
+{
+    int tno = ((func_args*)args)->argc;
+    byte keys[WOLFSSL_TICKET_KEYS_SZ];
+    int i;
+
+    XSLEEP_MS(TEST_TICKET_ENC_CB_WAIT_MS);
+    /* This round sets up the keys if worker 1 has not yet. */
+    if ((test_ticket_enc_cb_round(ticket_enc_cb_ctx,
+            ticket_enc_cb_ssl[tno]) != 0) ||
+            (wolfSSL_CTX_get_tlsext_ticket_keys(ticket_enc_cb_ctx, keys,
+                (int)sizeof(keys)) != WOLFSSL_SUCCESS)) {
+        ticket_enc_cb_fail[tno]++;
+    }
+    for (i = 0; (ticket_enc_cb_fail[tno] == 0) &&
+            (i < TEST_TICKET_ENC_CB_ROUNDS); i++) {
+        if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_enc_cb_ctx, keys,
+                (int)sizeof(keys)) != WOLFSSL_SUCCESS) {
+            ticket_enc_cb_fail[tno]++;
+        }
+    }
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* Threads use one context's default ticket callback. The first use sets up
+ * the keys; then tickets are made while another thread sets the keys. */
+int test_wolfSSL_ticket_enc_cb_threaded(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_TLS) && !defined(SINGLE_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL* ssl_c = NULL;
+    THREAD_TYPE threads[TEST_TICKET_ENC_CB_THREADS + 1];
+    func_args args[TEST_TICKET_ENC_CB_THREADS + 1];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(args, 0, sizeof(args));
+    XMEMSET(ticket_enc_cb_ssl, 0, sizeof(ticket_enc_cb_ssl));
+    XMEMSET(ticket_enc_cb_fail, 0, sizeof(ticket_enc_cb_fail));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ticket_enc_cb_ctx,
+        &ssl_c, &ticket_enc_cb_ssl[0], wolfSSLv23_client_method,
+        wolfSSLv23_server_method), 0);
+    for (i = 1; i <= TEST_TICKET_ENC_CB_THREADS; i++) {
+        ExpectNotNull(ticket_enc_cb_ssl[i] = wolfSSL_new(ticket_enc_cb_ctx));
+    }
+    /* wolfCrypt sets its CPU feature flags on first use without a lock: run the
+     * cipher once on the client context first */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_ticket_enc_cb_round(ctx_c, ssl_c), 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        for (i = 0; i <= TEST_TICKET_ENC_CB_THREADS; i++) {
+            args[i].argc = i;
+            start_thread((i == 0) ? test_ticket_enc_cb_setter :
+                test_ticket_enc_cb_worker, &args[i], &threads[i]);
+        }
+        for (i = 0; i <= TEST_TICKET_ENC_CB_THREADS; i++) {
+            join_thread(threads[i]);
+        }
+    }
+
+    for (i = 0; i <= TEST_TICKET_ENC_CB_THREADS; i++) {
+        ExpectIntEQ(ticket_enc_cb_fail[i], 0);
+        wolfSSL_free(ticket_enc_cb_ssl[i]);
+        ticket_enc_cb_ssl[i] = NULL;
+    }
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ticket_enc_cb_ctx);
+    ticket_enc_cb_ctx = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_TLS) && !defined(SINGLE_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+
+#define TEST_TICKET_KEYGEN_THREADS 4
+#define TEST_TICKET_KEYGEN_ROUNDS  50
+
+/* Offsets in the keys of wolfSSL_CTX_get_tlsext_ticket_keys(). */
+#define TEST_TICKET_KEY0_OFF WOLFSSL_TICKET_NAME_SZ
+#define TEST_TICKET_KEY1_OFF (TEST_TICKET_KEY0_OFF + WOLFSSL_TICKET_KEY_SZ)
+#define TEST_TICKET_EXP0_OFF (TEST_TICKET_KEY1_OFF + WOLFSSL_TICKET_KEY_SZ)
+#define TEST_TICKET_EXP1_OFF (TEST_TICKET_EXP0_OFF + OPAQUE32_LEN)
+
+static WOLFSSL_CTX* ticket_keygen_ctx = NULL;
+static WOLFSSL* ticket_keygen_ssl[TEST_TICKET_KEYGEN_THREADS];
+static int ticket_keygen_fail[TEST_TICKET_KEYGEN_THREADS];
+/* First ticket of each thread, decrypted again once all are done. */
+static test_ticket_enc_cb_ticket
+    ticket_keygen_first[TEST_TICKET_KEYGEN_THREADS];
+
+static THREAD_RETURN WOLFSSL_THREAD test_ticket_keygen_worker(void* args)
+{
+    int tno = ((func_args*)args)->argc;
+    test_ticket_enc_cb_ticket t;
+    int i;
+
+    for (i = 0; i < TEST_TICKET_KEYGEN_ROUNDS; i++) {
+        if (test_ticket_enc_cb_enc(ticket_keygen_ctx, ticket_keygen_ssl[tno],
+                &t) != 0) {
+            ticket_keygen_fail[tno]++;
+            continue;
+        }
+        /* Every ticket is made with the one new key 1. */
+        if ((t.name[WOLFSSL_TICKET_NAME_SZ - 1] & 1) != 1) {
+            ticket_keygen_fail[tno]++;
+        }
+        if (i == 0) {
+            XMEMCPY(&ticket_keygen_first[tno], &t, sizeof(t));
+        }
+        if (test_ticket_enc_cb_dec(ticket_keygen_ctx, ticket_keygen_ssl[tno],
+                &t) != 0) {
+            ticket_keygen_fail[tno]++;
+        }
+    }
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* Threads find no key valid for encryption and race for the write lock to
+ * make one. Only the first makes a key, and every ticket still decrypts. */
+int test_wolfSSL_ticket_enc_cb_keygen_threaded(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_TLS) && !defined(SINGLE_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL* ssl_c = NULL;
+    THREAD_TYPE threads[TEST_TICKET_KEYGEN_THREADS];
+    func_args args[TEST_TICKET_KEYGEN_THREADS];
+    byte keys[WOLFSSL_TICKET_KEYS_SZ];
+    byte keysAfter[WOLFSSL_TICKET_KEYS_SZ];
+    word32 now = 0;
+    word32 exp = 0;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(args, 0, sizeof(args));
+    XMEMSET(keys, 0, sizeof(keys));
+    XMEMSET(keysAfter, 0, sizeof(keysAfter));
+    XMEMSET(ticket_keygen_ssl, 0, sizeof(ticket_keygen_ssl));
+    XMEMSET(ticket_keygen_fail, 0, sizeof(ticket_keygen_fail));
+    XMEMSET(ticket_keygen_first, 0, sizeof(ticket_keygen_first));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ticket_keygen_ctx,
+        &ssl_c, &ticket_keygen_ssl[0], wolfSSLv23_client_method,
+        wolfSSLv23_server_method), 0);
+    for (i = 1; i < TEST_TICKET_KEYGEN_THREADS; i++) {
+        ExpectNotNull(ticket_keygen_ssl[i] = wolfSSL_new(ticket_keygen_ctx));
+    }
+    /* Set up the keys before the threads start. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_ticket_enc_cb_round(ticket_keygen_ctx,
+            ticket_keygen_ssl[0]), 0);
+    }
+
+    /* Leave key 0 valid for decryption only and expire key 1. Half the ticket
+     * hint is left for the seconds that pass while the test runs. */
+    ExpectIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ticket_keygen_ctx, keys,
+        (int)sizeof(keys)), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ato32(keys + TEST_TICKET_EXP0_OFF, &exp);
+        now = exp - WOLFSSL_TICKET_KEY_LIFETIME;
+        c32toa(now + (word32)ticket_keygen_ctx->ticketHint / 2,
+            keys + TEST_TICKET_EXP0_OFF);
+        c32toa(0, keys + TEST_TICKET_EXP1_OFF);
+    }
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keygen_ctx, keys,
+        (int)sizeof(keys)), WOLFSSL_SUCCESS);
+
+    /* Hold the write lock while the threads start, so they find no key for
+     * encryption under the read lock at the same time. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_LockRwLock_Wr(&ticket_keygen_ctx->ticketKeyCtx.lock),
+            0);
+    }
+    if (EXPECT_SUCCESS()) {
+        for (i = 0; i < TEST_TICKET_KEYGEN_THREADS; i++) {
+            args[i].argc = i;
+            start_thread(test_ticket_keygen_worker, &args[i], &threads[i]);
+        }
+        XSLEEP_MS(TEST_TICKET_ENC_CB_WAIT_MS);
+        ExpectIntEQ(wc_UnLockRwLock(&ticket_keygen_ctx->ticketKeyCtx.lock),
+            0);
+        for (i = 0; i < TEST_TICKET_KEYGEN_THREADS; i++) {
+            join_thread(threads[i]);
+        }
+    }
+
+    for (i = 0; i < TEST_TICKET_KEYGEN_THREADS; i++) {
+        ExpectIntEQ(ticket_keygen_fail[i], 0);
+        /* Made with the new key 1. A second key made would replace it. */
+        ExpectIntEQ(ticket_keygen_first[i].name[WOLFSSL_TICKET_NAME_SZ - 1] &
+            1, 1);
+        ExpectIntEQ(test_ticket_enc_cb_dec(ticket_keygen_ctx,
+            ticket_keygen_ssl[i], &ticket_keygen_first[i]), 0);
+    }
+
+    /* Only key 1 and its expirary changed. */
+    ExpectIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ticket_keygen_ctx,
+        keysAfter, (int)sizeof(keysAfter)), WOLFSSL_SUCCESS);
+    ExpectBufEQ(keysAfter, keys, TEST_TICKET_KEY1_OFF);
+    ExpectBufNE(keysAfter + TEST_TICKET_KEY1_OFF, keys + TEST_TICKET_KEY1_OFF,
+        WOLFSSL_TICKET_KEY_SZ);
+    ExpectBufEQ(keysAfter + TEST_TICKET_EXP0_OFF, keys + TEST_TICKET_EXP0_OFF,
+        OPAQUE32_LEN);
+    if (EXPECT_SUCCESS()) {
+        ato32(keysAfter + TEST_TICKET_EXP1_OFF, &exp);
+        ExpectTrue(exp >= now + WOLFSSL_TICKET_KEY_LIFETIME);
+    }
+
+    for (i = 0; i < TEST_TICKET_KEYGEN_THREADS; i++) {
+        wolfSSL_free(ticket_keygen_ssl[i]);
+        ticket_keygen_ssl[i] = NULL;
+    }
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ticket_keygen_ctx);
+    ticket_keygen_ctx = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*/
 /* SESSION ex_data new index                                                  */
 /*----------------------------------------------------------------------------*/

@@ -46555,7 +46555,7 @@ cleanup:
  * @param [in]  ctx     SSL context.
  * @param [in]  keyCtx  Context for session ticket encryption.
  * @return  0 on success.
- * @return  BAD_MUTEX_E when initializing mutex fails.
+ * @return  BAD_MUTEX_E when initializing the lock fails.
  */
 static int TicketEncCbCtx_Init(WOLFSSL_CTX* ctx, TicketEncCbCtx* keyCtx)
 {
@@ -46574,7 +46574,7 @@ static int TicketEncCbCtx_Init(WOLFSSL_CTX* ctx, TicketEncCbCtx* keyCtx)
 #endif
 
 #ifndef SINGLE_THREADED
-    ret = wc_InitMutex(&keyCtx->mutex);
+    ret = wc_InitRwLock(&keyCtx->lock);
 #endif
 
     return ret;
@@ -46583,7 +46583,7 @@ static int TicketEncCbCtx_Init(WOLFSSL_CTX* ctx, TicketEncCbCtx* keyCtx)
 /* Setup the session ticket encryption context for this.
  *
  * Initialize RNG, generate name, generate primary key and set primary key
- * expirary.
+ * expirary. Call with the write lock held.
  *
  * @param [in]  keyCtx  Context for session ticket encryption.
  * @param [in]  heap    Dynamic memory allocation hint.
@@ -46595,29 +46595,21 @@ static int TicketEncCbCtx_Setup(TicketEncCbCtx* keyCtx, void* heap, int devId)
 {
     int ret;
 
-#ifndef SINGLE_THREADED
-    ret = 0;
+    ret = wc_InitRng_ex(&keyCtx->rng, heap, devId);
+    if (ret == 0) {
+        ret = wc_RNG_GenerateBlock(&keyCtx->rng, keyCtx->name,
+                                   sizeof(keyCtx->name));
+    }
+    if (ret == 0) {
+        /* Mask of the bottom bit - used for index of key. */
+        keyCtx->name[WOLFSSL_TICKET_NAME_SZ - 1] &= 0xfe;
 
-    /* Check that key wasn't set up while waiting. */
-    if (keyCtx->expirary[0] == 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&keyCtx->rng, heap, devId);
-        if (ret == 0) {
-            ret = wc_RNG_GenerateBlock(&keyCtx->rng, keyCtx->name,
-                                       sizeof(keyCtx->name));
-        }
-        if (ret == 0) {
-            /* Mask of the bottom bit - used for index of key. */
-            keyCtx->name[WOLFSSL_TICKET_NAME_SZ - 1] &= 0xfe;
-
-            /* Generate initial primary key. */
-            ret = wc_RNG_GenerateBlock(&keyCtx->rng, keyCtx->key[0],
-                                       WOLFSSL_TICKET_KEY_SZ);
-        }
-        if (ret == 0) {
-            keyCtx->expirary[0] = LowResTimer() + WOLFSSL_TICKET_KEY_LIFETIME;
-        }
+        /* Generate initial primary key. */
+        ret = wc_RNG_GenerateBlock(&keyCtx->rng, keyCtx->key[0],
+                                   WOLFSSL_TICKET_KEY_SZ);
+    }
+    if (ret == 0) {
+        keyCtx->expirary[0] = LowResTimer() + WOLFSSL_TICKET_KEY_LIFETIME;
     }
 
     return ret;
@@ -46642,7 +46634,7 @@ static void TicketEncCbCtx_Free(TicketEncCbCtx* keyCtx)
 #endif
 
 #ifndef SINGLE_THREADED
-    wc_FreeMutex(&keyCtx->mutex);
+    wc_FreeRwLock(&keyCtx->lock);
 #endif
     wc_FreeRng(&keyCtx->rng);
 }
@@ -46931,7 +46923,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
  *
  * Generate a new key if the current ones are expired.
  * If the secondary key has not been used and the primary key has expired then
- * generate a new primary key.
+ * generate a new primary key. Call with the write lock held.
  *
  * @param [in]   Ticket encryption callback context.
  * @param [in]   Session ticket lifetime.
@@ -46983,6 +46975,119 @@ static int TicketEncCbCtx_ChooseKey(TicketEncCbCtx* keyCtx, int ticketHint,
     return ret;
 }
 
+/* Find a key valid for encryption, without generating one. Call with the key
+ * context locked. Returns its index, or -1. */
+static int TicketEncCbCtx_FindKey(const TicketEncCbCtx* keyCtx, int ticketHint)
+{
+    word32 now = LowResTimer();
+
+    /* Use a key while its encryption expirary isn't imminent. */
+    if (keyCtx->expirary[0] > now + ticketHint) {
+        return 0;
+    }
+    if (keyCtx->expirary[1] > now + ticketHint) {
+        return 1;
+    }
+    return -1;
+}
+
+/* Copy key keyIdx. Call with the key context locked. Encrypting: also return
+ * the key name. Decrypting: check the name and expiry first. */
+static int TicketEncCbCtx_CopyKey(const TicketEncCbCtx* keyCtx, int enc,
+                                  byte* key_name, int keyIdx, byte* key)
+{
+    if (enc) {
+        XMEMCPY(key_name, keyCtx->name, WOLFSSL_TICKET_NAME_SZ);
+    }
+    else {
+        /* Mask of last bit that is the key index. */
+        byte lastByte = key_name[WOLFSSL_TICKET_NAME_SZ - 1] & 0xfe;
+
+        /* For decryption, see if we know this key - check all but last byte. */
+        if (XMEMCMP(key_name, keyCtx->name, WOLFSSL_TICKET_NAME_SZ - 1) != 0) {
+            return WOLFSSL_TICKET_RET_FATAL;
+        }
+        /* Ensure last byte without index bit matches too. */
+        if (lastByte != keyCtx->name[WOLFSSL_TICKET_NAME_SZ - 1]) {
+            return WOLFSSL_TICKET_RET_FATAL;
+        }
+        /* Check expirary */
+        if (keyCtx->expirary[keyIdx] <= LowResTimer()) {
+            return WOLFSSL_TICKET_RET_REJECT;
+        }
+    }
+
+    XMEMCPY(key, keyCtx->key[keyIdx], WOLFSSL_TICKET_KEY_SZ);
+
+    return 0;
+}
+
+/* Get a copy of the key for a ticket, under the read lock. The write lock is
+ * taken only to set up the keys or generate one, and the state checked again
+ * under it: another thread may have done it. */
+static int TicketEncCbCtx_GetKey(WOLFSSL* ssl, TicketEncCbCtx* keyCtx,
+                                 int enc, byte* key_name, int* keyIdx,
+                                 byte* key)
+{
+    int ret = 0;
+    int found = 0;
+    WOLFSSL_CTX* ctx = keyCtx->ctx;
+
+#ifndef SINGLE_THREADED
+    if (wc_LockRwLock_Rd(&keyCtx->lock) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context");
+        return WOLFSSL_TICKET_RET_REJECT;
+    }
+#endif
+    /* Keys are set up once the primary key has an expirary. */
+    if (keyCtx->expirary[0] != 0) {
+        if (enc) {
+            *keyIdx = TicketEncCbCtx_FindKey(keyCtx, ctx->ticketHint);
+        }
+        if (*keyIdx >= 0) {
+            ret = TicketEncCbCtx_CopyKey(keyCtx, enc, key_name, *keyIdx, key);
+            found = 1;
+        }
+    }
+#ifndef SINGLE_THREADED
+    wc_UnLockRwLock(&keyCtx->lock);
+#endif
+    if (found) {
+        return ret;
+    }
+
+#ifndef SINGLE_THREADED
+    if (wc_LockRwLock_Wr(&keyCtx->lock) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context");
+        return WOLFSSL_TICKET_RET_REJECT;
+    }
+#endif
+    ret = 0;
+    /* Check again: another thread may have set up the keys or generated a
+     * key while no lock was held. */
+    if (keyCtx->expirary[0] == 0) {
+        /* Sets expirary of primary key in setup. */
+        ret = TicketEncCbCtx_Setup(keyCtx, ssl->ctx->heap, ssl->ctx->devId);
+    }
+    if ((ret == 0) && enc) {
+        *keyIdx = TicketEncCbCtx_FindKey(keyCtx, ctx->ticketHint);
+        if (*keyIdx < 0) {
+            ret = TicketEncCbCtx_ChooseKey(keyCtx, ctx->ticketHint, keyIdx);
+            if (ret != 0) {
+                ret = WOLFSSL_TICKET_RET_REJECT;
+            }
+        }
+    }
+    if (ret == 0) {
+        ret = TicketEncCbCtx_CopyKey(keyCtx, enc, key_name, *keyIdx, key);
+    }
+#ifndef SINGLE_THREADED
+    wc_UnLockRwLock(&keyCtx->lock);
+#endif
+
+    return ret;
+}
+
 /* Default Session Ticket encryption/decryption callback.
  *
  * Use ChaCha20-Poly1305, AES-GCM or SM4-GCM to encrypt/decrypt the ticket.
@@ -47002,6 +47107,8 @@ static int TicketEncCbCtx_ChooseKey(TicketEncCbCtx* keyCtx, int ticketHint,
  * that if one ticket is only valid for decryption, then the other will be
  * valid for encryption.
  * AAD = key_name | iv | ticket len (16-bits network order)
+ * The key is copied under the key context's lock. The ticket is encrypted or
+ * decrypted with the copy, outside the lock.
  *
  * @param [in]      ssl       SSL connection.
  * @param [in,out]  key_name  Name of key from client.
@@ -47029,11 +47136,11 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 {
     int ret;
     TicketEncCbCtx* keyCtx = (TicketEncCbCtx*)userCtx;
-    WOLFSSL_CTX* ctx = keyCtx->ctx;
     word16 sLen = XHTONS((word16)inLen);
     byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + sizeof(sLen)];
     int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + sizeof(sLen);
     byte* p = aad;
+    byte key[WOLFSSL_TICKET_KEY_SZ];
     int keyIdx = 0;
 
     WOLFSSL_ENTER("DefTicketEncCb");
@@ -47043,29 +47150,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         return BUFFER_E;
     }
 
-    /* Check we have setup the RNG, name and primary key. */
-    if (keyCtx->expirary[0] == 0) {
-#ifndef SINGLE_THREADED
-        /* Lock around access to expirary and key - stop initial key being
-         * generated twice at the same time. */
-        if (wc_LockMutex(&keyCtx->mutex) != 0) {
-            WOLFSSL_MSG("Couldn't lock key context mutex");
-            return WOLFSSL_TICKET_RET_REJECT;
-        }
-#endif
-        /* Sets expirary of primary key in setup. */
-        ret = TicketEncCbCtx_Setup(keyCtx, ssl->ctx->heap, ssl->ctx->devId);
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&keyCtx->mutex);
-#endif
-        if (ret != 0)
-            return ret;
-    }
-
     if (enc) {
-        /* Return the name of the key - missing key index. */
-        XMEMCPY(key_name, keyCtx->name, WOLFSSL_TICKET_NAME_SZ);
-
         /* Generate a new IV into buffer to be returned.
          * Don't use the RNG in keyCtx as it's for generating private data. */
         ret = wc_RNG_GenerateBlock(ssl->rng, iv, WOLFSSL_TICKET_IV_SZ);
@@ -47074,105 +47159,47 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         }
     }
     else {
-        /* Mask of last bit that is the key index. */
-        byte lastByte = key_name[WOLFSSL_TICKET_NAME_SZ - 1] & 0xfe;
-
-        /* For decryption, see if we know this key - check all but last byte. */
-        if (XMEMCMP(key_name, keyCtx->name, WOLFSSL_TICKET_NAME_SZ - 1) != 0) {
-            return WOLFSSL_TICKET_RET_FATAL;
-        }
-        /* Ensure last byte without index bit matches too. */
-        if (lastByte != keyCtx->name[WOLFSSL_TICKET_NAME_SZ - 1]) {
-            return WOLFSSL_TICKET_RET_FATAL;
-        }
-    }
-
-    /* Build AAD from: key name, iv, and length of ticket. */
-    XMEMCPY(p, keyCtx->name, WOLFSSL_TICKET_NAME_SZ);
-    p += WOLFSSL_TICKET_NAME_SZ;
-    XMEMCPY(p, iv, WOLFSSL_TICKET_IV_SZ);
-    p += WOLFSSL_TICKET_IV_SZ;
-    XMEMCPY(p, &sLen, sizeof(sLen));
-
-    /* Encrypt ticket. */
-    if (enc) {
-        word32 now;
-
-        now = LowResTimer();
-        /* As long as encryption expirary isn't imminent - no lock. */
-        if (keyCtx->expirary[0] > now + ctx->ticketHint) {
-            keyIdx = 0;
-        }
-        else if (keyCtx->expirary[1] > now + ctx->ticketHint) {
-            keyIdx = 1;
-        }
-        else {
-#ifndef SINGLE_THREADED
-            /* Lock around access to expirary and key - stop key being generated
-             * twice at the same time. */
-            if (wc_LockMutex(&keyCtx->mutex) != 0) {
-                WOLFSSL_MSG("Couldn't lock key context mutex");
-                return WOLFSSL_TICKET_RET_REJECT;
-            }
-#endif
-            ret = TicketEncCbCtx_ChooseKey(keyCtx, ctx->ticketHint, &keyIdx);
-#ifndef SINGLE_THREADED
-            wc_UnLockMutex(&keyCtx->mutex);
-#endif
-            if (ret != 0) {
-                return WOLFSSL_TICKET_RET_REJECT;
-            }
-        }
-        /* Set the name of the key to the index chosen. */
-        key_name[WOLFSSL_TICKET_NAME_SZ - 1] |= keyIdx;
-        /* Update AAD too. */
-        aad[WOLFSSL_TICKET_NAME_SZ - 1] |= keyIdx;
-
-        /* Encrypt ticket data. */
-        ret = TicketEncDec(keyCtx->key[keyIdx], WOLFSSL_TICKET_KEY_SZ, iv, aad,
-                           aadSz, ticket, inLen, ticket, outLen, mac, ssl->heap,
-                           1);
-        if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
-    }
-    /* Decrypt ticket. */
-    else {
         /* Get index of key from name. */
         keyIdx = key_name[WOLFSSL_TICKET_NAME_SZ - 1] & 0x1;
-        /* Update AAD with index. */
-        aad[WOLFSSL_TICKET_NAME_SZ - 1] |= keyIdx;
-
-#ifndef SINGLE_THREADED
-        /* Hold the lock over the key/expiry read so a concurrent regen can't swap the key mid-decrypt. */
-        if (wc_LockMutex(&keyCtx->mutex) != 0) {
-            WOLFSSL_MSG("Couldn't lock key context mutex");
-            return WOLFSSL_TICKET_RET_REJECT;
-        }
-#endif
-        /* Check expirary */
-        if (keyCtx->expirary[keyIdx] <= LowResTimer()) {
-#ifndef SINGLE_THREADED
-            wc_UnLockMutex(&keyCtx->mutex);
-#endif
-            return WOLFSSL_TICKET_RET_REJECT;
-        }
-
-        /* Decrypt ticket data. */
-        ret = TicketEncDec(keyCtx->key[keyIdx], WOLFSSL_TICKET_KEY_SZ, iv, aad,
-                           aadSz, ticket, inLen, ticket, outLen, mac, ssl->heap,
-                           0);
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&keyCtx->mutex);
-#endif
-        if (ret != 0) {
-            return WOLFSSL_TICKET_RET_REJECT;
-        }
     }
 
-#ifndef WOLFSSL_TICKET_DECRYPT_NO_CREATE
-    if (!IsAtLeastTLSv1_3(ssl->version) && !enc)
-        return WOLFSSL_TICKET_RET_CREATE;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("DefTicketEncCb key", key, sizeof(key));
 #endif
-    return WOLFSSL_TICKET_RET_OK;
+    ret = TicketEncCbCtx_GetKey(ssl, keyCtx, enc, key_name, &keyIdx, key);
+    if (ret == 0) {
+        if (enc) {
+            /* Set the name of the key to the index chosen. */
+            key_name[WOLFSSL_TICKET_NAME_SZ - 1] |= keyIdx;
+        }
+
+        /* Build AAD from: key name, iv, and length of ticket. The key name is
+         * the context's name with the key index. */
+        XMEMCPY(p, key_name, WOLFSSL_TICKET_NAME_SZ);
+        p += WOLFSSL_TICKET_NAME_SZ;
+        XMEMCPY(p, iv, WOLFSSL_TICKET_IV_SZ);
+        p += WOLFSSL_TICKET_IV_SZ;
+        XMEMCPY(p, &sLen, sizeof(sLen));
+
+        /* Encrypt/decrypt ticket data. */
+        ret = TicketEncDec(key, WOLFSSL_TICKET_KEY_SZ, iv, aad, aadSz, ticket,
+                           inLen, ticket, outLen, mac, ssl->heap, enc);
+        if (ret != 0) {
+            ret = WOLFSSL_TICKET_RET_REJECT;
+        }
+    }
+    ForceZero(key, sizeof(key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key, sizeof(key));
+#endif
+
+#ifndef WOLFSSL_TICKET_DECRYPT_NO_CREATE
+    if ((ret == WOLFSSL_TICKET_RET_OK) && !enc &&
+            !IsAtLeastTLSv1_3(ssl->version)) {
+        ret = WOLFSSL_TICKET_RET_CREATE;
+    }
+#endif
+    return ret;
 }
 
 #endif /* !WOLFSSL_NO_DEF_TICKET_ENC_CB */

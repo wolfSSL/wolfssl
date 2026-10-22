@@ -4179,11 +4179,12 @@ typedef struct TicketEncCbCtx {
     byte key[2][WOLFSSL_TICKET_KEY_SZ];
     /* Expirary date of keys. */
     word32 expirary[2];
-    /* Random number generator to use for generating name, keys and IV. */
+    /* Random number generator to use for generating name and keys. */
     WC_RNG rng;
 #ifndef SINGLE_THREADED
-    /* Mutex for access to changing keys. */
-    wolfSSL_Mutex mutex;
+    /* Read lock to use the name, keys and expirary. Write lock to change
+     * them; the RNG is only used while changing them. */
+    wolfSSL_RwLock lock;
 #endif
     /* Pointer back to SSL_CTX. */
     WOLFSSL_CTX* ctx;

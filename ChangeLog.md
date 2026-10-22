@@ -130,6 +130,15 @@
 
 ## Bug Fixes
 
+* **Fix (data races on the default session ticket key context)**:
+  `DefTicketEncCb()` read whether the context's ticket keys were set up, and
+  chose the encryption key, without the context's lock, racing the thread
+  that set them up and `wolfSSL_CTX_set_tlsext_ticket_keys()` replacing them.
+  The lock is now a `wolfSSL_RwLock`: readers copy the key under the read
+  lock and run the AEAD on the copy, writers take the write lock. Tickets run
+  in parallel with `--enable-rwlock`; otherwise the lock is a mutex held only
+  for the copy.
+
 * Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
 
 * Fixed `wc_AsconAEAD128_SetAD` called more than once: the function
