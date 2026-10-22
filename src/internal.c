@@ -16419,7 +16419,7 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
 #if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 /* Verify result for a failed revocation check. */
-int RevocationVerifyErr(int err)
+static int RevocationVerifyErr(int err)
 {
     int x509Err;
 
@@ -17157,17 +17157,22 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     return ret;
 }
 
+/* Run the verify callback on ret, then on a CRL error held for a staple, and
+ * store its verdict there. Returns the verdict without the held error. */
+static int DoVerifyCallbackHeldCrl(WOLFSSL* ssl, ProcPeerCertArgs* args,
+    int ret, int* heldCrlRet)
+{
 #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                           defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-/* Offer a CRL error held for a staple to the verify callback, and store its
- * verdict there. Returns the certificate's verdict without that error. */
-static int DoHeldCrlVerifyCallback(WOLFSSL* ssl, ProcPeerCertArgs* args,
-    int* heldCrlRet)
-{
-    int ret = 0;
     int cbRet;
-    word16 verifyErr = args->verifyErr;
+    word16 verifyErr;
 
+    if (ret != 0 || *heldCrlRet == 0)
+        ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+    if (ret != 0 || *heldCrlRet == 0)
+        return ret;
+
+    verifyErr = args->verifyErr;
     args->verifyErr = 0;
     cbRet = DoVerifyCallback(SSL_CM(ssl), ssl, *heldCrlRet, args);
     if (cbRet != 0 && cbRet != *heldCrlRet) {
@@ -17186,8 +17191,11 @@ static int DoHeldCrlVerifyCallback(WOLFSSL* ssl, ProcPeerCertArgs* args,
         args->verifyErr = 1;
 
     return ret;
-}
+#else
+    (void)heldCrlRet;
+    return DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
 #endif
+}
 
 #ifdef HAVE_CRL
 void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
@@ -17215,7 +17223,8 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         if (ret == 1 && userCrl != NULL) {
             /* Point to current cm to be able to verify CRL */
             userCrl->cm = SSL_CM(ssl);
-            *outRet = CheckCertCRLSync(userCrl, args->dCert);
+            *outRet = CheckCertCRLFromCm(SSL_CM(ssl), userCrl,
+                    args->dCert);
         }
         else
             *outRet = CRL_MISSING;
@@ -19163,6 +19172,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                               defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
         /* A new certificate list; never apply the previous one's verdicts. */
+        ssl->deferredCrlRet = 0;
         ssl->deferredCrlDone = 0;
         XMEMSET(ssl->deferredChainCrlRet, 0,
                 sizeof(ssl->deferredChainCrlRet));
@@ -19529,11 +19539,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     int ocspNoUrl = 0;
                     int ocspStapleDeferred = 0;
                 #endif
+                    int heldCrlRet = 0;
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
                     (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
                     int holdCrl = 0;
-                    int heldCrlRet = 0;
                 #endif
 
                     /* select last certificate */
@@ -19870,23 +19880,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     SetRevocationVerifyRet(ssl, ret);
                     /* Do verify callback */
-                #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
-                    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-                    if (ret != 0 || heldCrlRet == 0)
-                #endif
-                    {
-                        ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
-                    }
-                #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
-                    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-                    /* The callback rules on a held CRL error now, while the
-                     * certificate is still at hand. */
-                    if (ret == 0 && heldCrlRet != 0) {
-                        ret = DoHeldCrlVerifyCallback(ssl, args, &heldCrlRet);
-                    }
-                #endif
+                    ret = DoVerifyCallbackHeldCrl(ssl, args, ret, &heldCrlRet);
                     if (CrlErrWaived(ssl, ret))
                         ret = ssl->error = 0;
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
@@ -20624,21 +20618,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #if defined(HAVE_CRL) && \
                 (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-                if (ret != 0 || !ssl->deferredCrlDone ||
-                        ssl->deferredCrlRet == 0)
-            #endif
-                {
-                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
-                }
-            #if defined(HAVE_CRL) && \
-                (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-                 defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-                /* The callback rules on the held leaf CRL error as well. */
-                if (ret == 0 && ssl->deferredCrlDone &&
-                        ssl->deferredCrlRet != 0) {
-                    ret = DoHeldCrlVerifyCallback(ssl, args,
-                        &ssl->deferredCrlRet);
-                }
+                ret = DoVerifyCallbackHeldCrl(ssl, args, ret,
+                    &ssl->deferredCrlRet);
+            #else
+                ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
             #endif
             }
 
@@ -20811,20 +20794,12 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             endCertificateOK = (ret == 0);
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP)
             if (ret == 0 && statusReqV2) {
-                OcspRequest* request;
-                byte idx;
-
             #ifdef WOLFSSL_NONBLOCK_OCSP
                 ssl->csrLookupDone[0] = 1;
             #endif
                 /* An offered ocsp_multi made the chain skip its own lookups. */
-                for (idx = 1; ret == 0 && idx <= MAX_CHAIN_DEPTH &&
-                        (request = (OcspRequest*)TLSX_CSR2_GetRequest(
-                            ssl->extensions, WOLFSSL_CSR2_OCSP_MULTI,
-                            idx)) != NULL; idx++) {
-                    ret = CsrDoChainFallbackLookup(ssl, request, (int)idx);
-                    fallbackErr = (ret != 0);
-                }
+                ret = TLSX_CSR2_ChainFallback(ssl, 1);
+                fallbackErr = (ret != 0);
             }
         #endif
             break;
@@ -20963,12 +20938,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
 
             /* A short list leaves the rest of the chain uncovered too. */
-            while (ret == 0 && endCertificateOK && idx <= MAX_CHAIN_DEPTH &&
-                   (request = (OcspRequest*)TLSX_CSR2_GetRequest(
-                        ssl->extensions, status_type, (byte)idx)) != NULL) {
-                ret = CsrDoChainFallbackLookup(ssl, request, (int)idx);
+            if (ret == 0 && endCertificateOK) {
+                ret = TLSX_CSR2_ChainFallback(ssl, idx);
                 fallbackErr = (ret != 0);
-                idx++;
             }
 
             ssl->status_request_v2 = 0;
@@ -45464,7 +45436,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             #endif
             #ifdef HAVE_CRL
                 if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
-                    ret = CheckCertCRLSync(SSL_CM(ssl)->crl, dCert);
+                    ret = CheckCertCRLFromCm(SSL_CM(ssl), SSL_CM(ssl)->crl,
+                            dCert);
                 }
             #endif
                 if (ret == 0) {
