@@ -242,14 +242,17 @@ static void pkcs11_dump_template(const char* name, CK_ATTRIBUTE* templ,
         switch (format) {
         case PKCS11_FMT_BOOLEAN:
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
-           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
+           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
+           !defined(NO_HMAC) || defined(WOLFSSL_HAVE_MLDSA) || \
+           defined(WOLFSSL_HAVE_MLKEM)
             if (templ[i].pValue == &ckTrue) {
                 XSNPRINTF(line, sizeof(line), "%25s: TRUE", type);
                 WOLFSSL_MSG(line);
             }
             else
 #endif
-#if defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)
+#if (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)) || \
+    defined(WOLFSSL_HAVE_MLKEM)
             if (templ[i].pValue == &ckFalse) {
                 XSNPRINTF(line, sizeof(line), "%25s: FALSE", type);
                 WOLFSSL_MSG(line);
@@ -2285,7 +2288,8 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
-           !defined(NO_HMAC) || !defined(NO_CERTS)
+           !defined(NO_HMAC) || !defined(NO_CERTS) || \
+           defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM)
 
 /**
  * Find the PKCS#11 object containing key data using template.
