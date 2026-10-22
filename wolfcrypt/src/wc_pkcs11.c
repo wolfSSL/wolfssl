@@ -52,6 +52,14 @@
 #if defined(NO_PKCS11_ECC) && defined(HAVE_ECC)
     #undef HAVE_ECC
 #endif
+#if defined(HAVE_ECC) && !defined(HAVE_ECC_DHE)
+    #ifndef NO_PKCS11_EC_KEYGEN
+        #define NO_PKCS11_EC_KEYGEN
+    #endif
+    #ifndef NO_PKCS11_ECDH
+        #define NO_PKCS11_ECDH
+    #endif
+#endif
 #if defined(NO_PKCS11_AES) && !defined(NO_AES)
     #define NO_AES
 #endif
