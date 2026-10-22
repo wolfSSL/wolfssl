@@ -957,10 +957,42 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->userPin = NULL_PTR;
         token->userPinSz = 0;
         token->userPinLogin = 0;
+        token->pinCopy = NULL_PTR;
+        token->pinCopySz = 0;
         token->version = dev->version;
+        token->heap = dev->heap;
     }
 
     XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/**
+ * Keep a copy of the user's PIN in the token for logging in.
+ *
+ * @param  [in]  token      Token object.
+ * @param  [in]  userPin    PIN to use to login as user.
+ * @param  [in]  userPinSz  Number of bytes in PIN. Not negative.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  0 on success.
+ */
+static int Pkcs11Token_SetPin(Pkcs11Token* token, const unsigned char* userPin,
+    int userPinSz)
+{
+    int ret = 0;
+
+    token->pinCopy = (CK_UTF8CHAR_PTR)XMALLOC(userPinSz > 0 ? userPinSz : 1,
+        token->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (token->pinCopy == NULL)
+        ret = MEMORY_E;
+    if (ret == 0) {
+        XMEMCPY(token->pinCopy, userPin, (size_t)userPinSz);
+        token->pinCopySz = (CK_ULONG)userPinSz;
+        token->userPin = token->pinCopy;
+        token->userPinSz = token->pinCopySz;
+        token->userPinLogin = 1;
+    }
 
     return ret;
 }
@@ -976,6 +1008,8 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
  * @param  [in]  userPin    PIN to use to login as user.
  * @param  [in]  userPinSz  Number of bytes in PIN.
  * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  BAD_FUNC_ARG when userPinSz is negative.
+ * @return  MEMORY_E when copying the PIN fails.
  * @return  WC_INIT_E when initializing token fails.
  * @return  WC_HW_E when another PKCS#11 library call fails.
  * @return  0 on success.
@@ -989,12 +1023,12 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
     if (tokenName != NULL) {
         tokenNameSz = XSTRLEN(tokenName);
     }
-    ret = Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
-    if (ret == 0 && userPin != NULL) {
-        token->userPin = (CK_UTF8CHAR_PTR)userPin;
-        token->userPinSz = (CK_ULONG)userPinSz;
-        token->userPinLogin = 1;
-    }
+    if (userPin != NULL && userPinSz < 0)
+        ret = BAD_FUNC_ARG;
+    else
+        ret = Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
+    if (ret == 0 && userPin != NULL)
+        ret = Pkcs11Token_SetPin(token, userPin, userPinSz);
 
     return ret;
 }
@@ -1032,6 +1066,8 @@ int wc_Pkcs11Token_Init_NoLogin(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
  * @param  [in]  userPin     PIN to use to login as user.
  * @param  [in]  userPinSz   Number of bytes in PIN.
  * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  BAD_FUNC_ARG when userPinSz is negative.
+ * @return  MEMORY_E when copying the PIN fails.
  * @return  WC_INIT_E when initializing token fails.
  * @return  WC_HW_E when another PKCS#11 library call fails.
  * @return  0 on success.
@@ -1040,12 +1076,14 @@ int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
     const char* tokenName, int tokenNameSz,
     const unsigned char* userPin, int userPinSz)
 {
-    int ret = Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
-    if (ret == 0 && userPin != NULL) {
-        token->userPin = (CK_UTF8CHAR_PTR)userPin;
-        token->userPinSz = (CK_ULONG)userPinSz;
-        token->userPinLogin = 1;
-    }
+    int ret;
+
+    if (userPin != NULL && userPinSz < 0)
+        ret = BAD_FUNC_ARG;
+    else
+        ret = Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
+    if (ret == 0 && userPin != NULL)
+        ret = Pkcs11Token_SetPin(token, userPin, userPinSz);
 
     return ret;
 }
@@ -1071,6 +1109,25 @@ int wc_Pkcs11Token_InitName_NoLogin(Pkcs11Token* token, Pkcs11Dev* dev,
 }
 
 /**
+ * Zeroize and free the token's copy of the user's PIN.
+ * A PIN the application set in the token itself is only forgotten.
+ *
+ * @param  [in]  token  Token object.
+ */
+static void Pkcs11Token_ClearPin(Pkcs11Token* token)
+{
+    if (token->pinCopy != NULL) {
+        ForceZero(token->pinCopy, (word32)token->pinCopySz);
+        XFREE(token->pinCopy, token->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    token->pinCopy = NULL_PTR;
+    token->pinCopySz = 0;
+    token->userPin = NULL_PTR;
+    token->userPinSz = 0;
+    token->userPinLogin = 0;
+}
+
+/**
  * Finalize token.
  * Closes all sessions on token.
  *
@@ -1081,7 +1138,7 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token)
     if (token != NULL && token->func != NULL) {
         token->func->C_CloseAllSessions(token->slotId);
         token->handle = NULL_PTR;
-        ForceZero(token->userPin, (word32)token->userPinSz);
+        Pkcs11Token_ClearPin(token);
     }
 }
 
