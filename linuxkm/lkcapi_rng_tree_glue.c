@@ -551,6 +551,8 @@ static int RngGiveBack(void)
 }
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
 
+static int wc_linuxkm_drbg_cleanup(void);
+
 static int wc_linuxkm_drbg_startup(void)
 {
     int ret;
@@ -614,8 +616,12 @@ static int wc_linuxkm_drbg_startup(void)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     ret = RngTakeOver();
-    if (ret != 0)
+    if (ret != 0) {
+        /* Nothing outside undoes this when stdrng is the only algorithm. */
+        if (wc_linuxkm_drbg_cleanup() != 0)
+            pr_err("ERROR: wc_linuxkm_drbg startup not undone.\n");
         return ret;
+    }
     pr_info("libwolfssl: to unload module, first echo 1 > "
             "/sys/module/libwolfssl/deinstall_algs\n");
 #endif
