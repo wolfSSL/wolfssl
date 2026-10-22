@@ -78287,8 +78287,10 @@ static wc_test_ret_t slhdsa_cert_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         sigSz = WC_SLHDSA_SHAKE128S_SIG_LEN;
+        PRIVATE_KEY_UNLOCK();
         ret = wc_SlhDsaKey_Sign(priv, NULL, 0, msg, (word32)sizeof(msg), sig,
             &sigSz, &rng);
+        PRIVATE_KEY_LOCK();
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         ret = wc_SlhDsaKey_Verify(pub, NULL, 0, msg, (word32)sizeof(msg), sig,
