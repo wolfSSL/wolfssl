@@ -111,6 +111,51 @@ int wc_Pkcs11StoreKey_ex(Pkcs11Token* token, int type, int clear,
 
 /*!
     \ingroup PKCS11
+
+    \brief Makes a private or secret key that lives in a session object
+    persistent. The session object, from key generation or wc_Pkcs11StoreKey,
+    is copied with C_CopyObject to a token object with the key's id and label
+    and then destroyed. RSA, ECC, ML-DSA and ML-KEM keys that hold their
+    public key also get a token object with the public key, which for ECC,
+    ML-DSA and ML-KEM replaces any session public key with the same names. An
+    ECC, ML-DSA or ML-KEM key without its public key gets a token copy of that
+    session public key instead. As in wc_Pkcs11StoreKey_ex, an ECC public key
+    is stored only when the token has ECDSA, and is left out when it cannot be
+    created for a key that cannot sign. RSA, ECC, ML-DSA and ML-KEM keys refer
+    to the new private object through devCtx. Freeing the key does not remove
+    token objects. The token session must be read/write and logged in, and
+    stay open from key generation until this call.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG when token or key is NULL, the key has neither an
+    id nor a label, or an Hmac has no hash type.
+    \return BAD_STATE_E when the token already holds a key with the same id
+    or label, or the key already refers to a token object.
+    \return NOT_COMPILED_IN when the key type is not supported.
+    \return WC_HW_E when no session object is found or a PKCS#11 call fails.
+
+    \param token Token holding the key.
+    \param type PKCS11_KEY_TYPE_RSA, PKCS11_KEY_TYPE_EC, PKCS11_KEY_TYPE_MLDSA,
+    PKCS11_KEY_TYPE_MLKEM, PKCS11_KEY_TYPE_AES_GCM, PKCS11_KEY_TYPE_AES_CBC
+    or PKCS11_KEY_TYPE_HMAC.
+    \param key RsaKey, ecc_key, wc_MlDsaKey, MlKemKey, Aes or Hmac with an id
+    or label. An Hmac needs its hash type (macType), as wc_HmacSetKey sets.
+
+    _Example_
+    \code
+    ecc_key key;
+    wc_ecc_init_id(&key, id, idLen, NULL, devId);
+    wc_ecc_make_key_ex(&rng, 32, &key, ECC_SECP256R1);
+    // use the key, for example to sign a CSR, then keep it
+    wc_Pkcs11PersistKey(&token, PKCS11_KEY_TYPE_EC, &key);
+    \endcode
+
+    \sa wc_Pkcs11StoreKey_ex
+*/
+int wc_Pkcs11PersistKey(Pkcs11Token* token, int type, void* key);
+
+/*!
+    \ingroup PKCS11
  */
 int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info,
     void* ctx);
