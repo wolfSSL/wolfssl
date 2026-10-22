@@ -9570,6 +9570,14 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             /* Free ECC private key */
             if (ecc_group == WOLFSSL_ECC_X25519) {
             #ifdef HAVE_CURVE25519
+                #if defined(WC_X25519_NONBLOCK) && \
+                    defined(WOLFSSL_ASYNC_CRYPT_SW)
+                if (current->key != NULL &&
+                        ((curve25519_key*)current->key)->nb_ctx != NULL) {
+                    XFREE(((curve25519_key*)current->key)->nb_ctx, heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                }
+                #endif
                 wc_curve25519_free((curve25519_key*)current->key);
             #endif
             }
