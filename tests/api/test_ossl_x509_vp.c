@@ -74,9 +74,11 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
         (int)XSTRLEN(testhostName1)), 1);
 
     X509_VERIFY_PARAM_set_hostflags(NULL, 0x00);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(NULL), 0);
 
     X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x01);
     ExpectIntEQ(0x01, paramFrom->hostFlags);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(paramFrom), 0x01);
 
     ExpectIntEQ(X509_VERIFY_PARAM_set1_ip_asc(NULL, testIPv4), 0);
 
@@ -96,10 +98,12 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     ExpectIntEQ(X509_VERIFY_PARAM_set1(NULL, NULL), 0);
 
     /* inherit flags test : VPARAM_DEFAULT */
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(paramTo), 0);
     ExpectIntEQ(X509_VERIFY_PARAM_set1(paramTo, paramFrom), 1);
     ExpectIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1,
                                     (int)XSTRLEN(testhostName1)));
     ExpectIntEQ(0x01, paramTo->hostFlags);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(paramTo), 0x01);
     ExpectIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* inherit flags test : VPARAM OVERWRITE */
