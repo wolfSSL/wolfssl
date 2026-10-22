@@ -618,9 +618,11 @@ struct WC_RNG {
   #endif /* WC_RNG_HAVE_LOCK */
 #endif
     /* Both lock facilities use this one mutex, so it is declared once here.
-     * The fork handler build holds a wc_ForkLock instead and needs no mutex. */
+     * The fork handler build holds a wc_ForkLock instead and needs no mutex.
+     * Tree builds carry both, so the size does not follow the entropy timer. */
 #if defined(WC_RNG_HAVE_LOCK_FULL_MUTEX) || \
-    (defined(WC_RNG_HAVE_AUTO_LOCK) && !defined(WC_RNG_LOCK_ATFORK))
+    (defined(WC_RNG_HAVE_AUTO_LOCK) && \
+     (!defined(WC_RNG_LOCK_ATFORK) || defined(WC_RNG_TREE)))
     wolfSSL_Mutex mutex;
 #endif
 #ifdef WC_RNG_HAVE_LOCK
@@ -741,12 +743,15 @@ struct WC_RNG {
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
-#ifdef WC_RNG_LOCK_ATFORK
+#if defined(WC_RNG_LOCK_ATFORK) || \
+    (defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WC_RNG_TREE))
     /* NULL until wc_InitRng succeeds.  Initialize only a new or freed WC_RNG:
      * wc_InitRng over a live one leaks this and grows the fork registry that
      * every fork() walks. */
     struct wc_ForkLock* autoLock;   /* defined in wc_port.c */
-#elif defined(WC_RNG_HAVE_AUTO_LOCK)
+#endif
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && \
+    (!defined(WC_RNG_LOCK_ATFORK) || defined(WC_RNG_TREE))
     byte autoLockInited;      /* nonzero once lock exists */
     int autoLockCancel;       /* the holder's cancel state, back on exit */
 #endif
