@@ -9490,22 +9490,48 @@ void wc_RNG_TreeInvalidate(void)
 #endif
 }
 
-/* Instantiate the root from its entropy source and every leaf from the root;
- * each wipes the state it replaces.  The caller holds tree.seeding. */
-static int TreeRebuild(void)
+/* Instantiate every leaf from the root, each wiping the state it replaces;
+ * one failure does not stop the others.  The caller holds tree.seeding. */
+static int TreeInstantiateLeaves(void)
 {
     word32 i, count;
-    int ret;
+    int ret = 0;
 
-    ret = TreeInstantiateRoot();
     count = TreeIsLive() ? (word32)tree.ncpu * WC_RNG_TREE_LANES : 0;
-    for (i = 0; ret == 0 && i < count; i++) {
+    for (i = 0; i < count; i++) {
+        int one;
+
         /* Leaf holders run one generate and never sleep. */
         while (TreeTryLock(&tree.leaves[i].busy) != 0)
             WC_RELAX_LONG_LOOP();
-        ret = TreeInstantiateLeaf(&tree.leaves[i], i);
+        one = TreeInstantiateLeaf(&tree.leaves[i], i);
         TreeUnlock(&tree.leaves[i].busy);
+        if (ret == 0)
+            ret = one;
     }
+    return ret;
+}
+
+/* A leaf a failed rebuild left down or on an old epoch. */
+static int TreeLeavesStale(int epoch)
+{
+    word32 i, count;
+
+    count = TreeIsLive() ? (word32)tree.ncpu * WC_RNG_TREE_LANES : 0;
+    for (i = 0; i < count; i++) {
+        if (!tree.leaves[i].up || tree.leaves[i].epoch != epoch)
+            return 1;
+    }
+    return 0;
+}
+
+/* The root from its entropy source, then every leaf from the root. */
+static int TreeRebuild(void)
+{
+    int ret = TreeInstantiateRoot();
+
+    if (ret == 0)
+        ret = TreeInstantiateLeaves();
     return ret;
 }
 
@@ -9539,6 +9565,9 @@ int wc_RNG_TreeReseed(int force)
         /* A VM clone, restore or resume: copied state is wiped and built again,
          * never reseeded in place (SP 800-90C A.3.2; ISO/IEC 19790 7.9.7). */
         ret = TreeRebuild();
+    }
+    else if (ret == 0 && TreeLeavesStale(epoch)) {
+        ret = TreeInstantiateLeaves();
     }
     else if (ret == 0 && (force || TreeRootStale(epoch))) {
         /* Gathered outside the root lock: it can take milliseconds. */

@@ -29810,7 +29810,7 @@ static wc_test_ret_t rng_tree_services_test(void)
     wc_test_ret_t ret = 0;
     int r;
 
-    r = wc_RNG_TreeInit(1, NULL);
+    r = wc_RNG_TreeInit(1, HEAP_HINT);
     if (r != 0)
         return WC_TEST_RET_ENC_EC(r);
     r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK, NULL, 0, a, sizeof(a));
@@ -32457,7 +32457,7 @@ static wc_test_ret_t rng_tree_fork_test(void)
     /* A seeder that has not gathered within 10 s failed first. */
     for (i = 0; i < 10000 && !WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering);
          i++) {
-        if (nanosleep(&d, NULL) != 0)
+        if (nanosleep(&d, NULL) != 0 && errno != EINTR)
             break;
     }
     if (!WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering)) {

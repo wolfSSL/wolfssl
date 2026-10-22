@@ -531,10 +531,10 @@ int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     the wolfCrypt RNG.  In RBGC tree builds a new callback re-instantiates the
     tree root (SP 800-90C 7.3.1 item 9).
 
-    \return 0 On success
-    \return BAD_FUNC_ARG If cb is NULL
-    \return BAD_STATE_E In RBGC tree builds, if the kernel tree is serving or
-    the old root could not be wiped
+    \return 0 On success; cb may be NULL, leaving no seed source until one
+    is set
+    \return BAD_STATE_E In RBGC tree builds, if a tree is live or the old
+    root could not be wiped
 
     \param cb Seed callback function
 
