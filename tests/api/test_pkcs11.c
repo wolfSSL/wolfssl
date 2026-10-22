@@ -36,6 +36,7 @@ static int         test_pkcs11_verify_init_calls = 0;
 static int         test_pkcs11_verify_calls = 0;
 static const byte* test_pkcs11_expected_sig = NULL;
 static word32      test_pkcs11_expected_sig_len = 0;
+static CK_OBJECT_HANDLE test_pkcs11_verify_key = 0;
 
 static CK_RV test_pkcs11_get_mechanism_info(CK_SLOT_ID slotId,
     CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR info)
@@ -78,9 +79,9 @@ static CK_RV test_pkcs11_verify_init(CK_SESSION_HANDLE session,
 {
     (void)session;
     (void)mechanism;
-    (void)key;
 
     test_pkcs11_verify_init_calls++;
+    test_pkcs11_verify_key = key;
     return CKR_OK;
 }
 
@@ -102,26 +103,55 @@ static CK_RV test_pkcs11_verify(CK_SESSION_HANDLE session, CK_BYTE_PTR data,
 }
 
 #ifdef WOLF_PRIVATE_KEY_ID
+#define TEST_PKCS11_PRIV_OBJ 3
+#define TEST_PKCS11_PUB_OBJ  2
+
+static CK_OBJECT_CLASS test_pkcs11_find_class;
+static int             test_pkcs11_find_class_set = 0;
+static int             test_pkcs11_find_idx = 0;
+
 static CK_RV test_pkcs11_find_objects_init(CK_SESSION_HANDLE session,
     CK_ATTRIBUTE_PTR template, CK_ULONG count)
 {
-    (void)session;
-    (void)template;
-    (void)count;
+    CK_ULONG i;
 
+    (void)session;
+
+    test_pkcs11_find_class_set = 0;
+    test_pkcs11_find_idx = 0;
+    for (i = 0; i < count; i++) {
+        if (template[i].type == CKA_CLASS) {
+            test_pkcs11_find_class = *(CK_OBJECT_CLASS*)template[i].pValue;
+            test_pkcs11_find_class_set = 1;
+        }
+    }
     return CKR_OK;
 }
 
 static CK_RV test_pkcs11_find_objects(CK_SESSION_HANDLE session,
     CK_OBJECT_HANDLE_PTR objects, CK_ULONG maxCount, CK_ULONG_PTR count)
 {
+    static const CK_OBJECT_HANDLE handles[] = {
+        TEST_PKCS11_PRIV_OBJ, TEST_PKCS11_PUB_OBJ
+    };
+    static const CK_OBJECT_CLASS classes[] = {
+        CKO_PRIVATE_KEY, CKO_PUBLIC_KEY
+    };
+
     (void)session;
 
     if (objects == NULL || maxCount == 0 || count == NULL)
         return CKR_MECHANISM_INVALID;
 
-    objects[0] = 2;
-    *count = 1;
+    *count = 0;
+    while (test_pkcs11_find_idx < 2 && *count == 0) {
+        if (!test_pkcs11_find_class_set ||
+                classes[test_pkcs11_find_idx] == test_pkcs11_find_class) {
+            objects[0] = handles[test_pkcs11_find_idx];
+            *count = 1;
+        }
+        test_pkcs11_find_idx++;
+    }
     return CKR_OK;
 }
 
@@ -139,16 +169,25 @@ static CK_RV test_pkcs11_get_attribute_value(CK_SESSION_HANDLE session,
     static const byte p256Params[] = {
         0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
     };
+    CK_ULONG i;
 
     (void)session;
-    (void)object;
 
-    if (count != 1 || template[0].type != CKA_EC_PARAMS ||
-            template[0].ulValueLen < sizeof(p256Params)) {
-        return CKR_MECHANISM_INVALID;
+    for (i = 0; i < count; i++) {
+        if (template[i].type == CKA_EC_PARAMS &&
+                template[i].ulValueLen >= sizeof(p256Params)) {
+            XMEMCPY(template[i].pValue, p256Params, sizeof(p256Params));
+            template[i].ulValueLen = sizeof(p256Params);
+        }
+        else if (template[i].type == CKA_CLASS) {
+            *(CK_OBJECT_CLASS*)template[i].pValue =
+                (object == TEST_PKCS11_PUB_OBJ) ? CKO_PUBLIC_KEY :
+                                                  CKO_PRIVATE_KEY;
+        }
+        else {
+            return CKR_MECHANISM_INVALID;
+        }
     }
-    XMEMCPY(template[0].pValue, p256Params, sizeof(p256Params));
-    template[0].ulValueLen = sizeof(p256Params);
     return CKR_OK;
 }
 #endif
@@ -334,6 +373,7 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
         res = 0;
         ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
         ExpectIntEQ(res, 1);
+        ExpectIntEQ(test_pkcs11_verify_key, TEST_PKCS11_PUB_OBJ);
         wc_ecc_free(&idKey);
     }
 
@@ -342,8 +382,10 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
             0);
         info.pk.eccverify.key = &lblKey;
         res = 0;
+        test_pkcs11_verify_key = 0;
         ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
         ExpectIntEQ(res, 1);
+        ExpectIntEQ(test_pkcs11_verify_key, TEST_PKCS11_PUB_OBJ);
         wc_ecc_free(&lblKey);
     }
 #endif
