@@ -64,6 +64,7 @@ typedef struct Pkcs11Token {
     CK_ULONG          pinCopySz;        /* Size of the PIN copy in bytes      */
     WC_BITFIELD       userPinLogin:1;   /* Login with User's PIN              */
     WC_BITFIELD       pinDropped:1;     /* PIN discarded after logging in     */
+    WC_BITFIELD       keyGenOnToken:1;  /* Generate keys as token objects     */
     int               version;          /* Pkcs11InterfaceVersionType         */
     void*             heap;             /* Heap for the copy of the PIN       */
 } Pkcs11Token;
@@ -112,6 +113,8 @@ WOLFSSL_API int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite);
 WOLFSSL_API int wc_Pkcs11Token_Open_ex(Pkcs11Token* token, int readWrite,
     int discardPin);
 WOLFSSL_API void wc_Pkcs11Token_Close(Pkcs11Token* token);
+WOLFSSL_API int wc_Pkcs11Token_SetKeyGenPersistent(Pkcs11Token* token,
+    int persistent);
 
 WOLFSSL_API int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear,
     void* key);
