@@ -1440,6 +1440,8 @@ then
         ca_file=${CERT_DIR}/client-cert.pem
         openssl_suite="RSAPSS"
         start_openssl_server
+        server_name="OpenSSL_$openssl_suite"
+        check_server_ready
 
         cert="${CERT_DIR}/client-cert.pem"
         key="${CERT_DIR}/client-key.pem"
