@@ -59,7 +59,7 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token);
     stored too.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG when token is NULL.
+    \return BAD_FUNC_ARG when token or key is NULL.
     \return BAD_STATE_E when no session was opened with wc_Pkcs11Token_Open.
     \return MEMORY_E when memory allocation fails.
     \return NOT_COMPILED_IN when the key type is not supported, or the token
@@ -76,6 +76,38 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token);
  */
 int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear,
     void* key);
+
+/*!
+    \ingroup PKCS11
+
+    \brief Stores a private key on the token like wc_Pkcs11StoreKey. With
+    persistent set, the objects are created with CKA_TOKEN set and stay on
+    the token after the session closes; this needs a read/write session and
+    a logged in token, but not wc_Pkcs11Token_Open. A persistent private or
+    secret key also gets CKA_PRIVATE and CKA_SENSITIVE set and
+    CKA_EXTRACTABLE cleared, and needs an id or label that no token key of
+    the type has, or the call fails with BAD_FUNC_ARG or BAD_STATE_E.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG when token or key is NULL, or a persistent key has
+    neither id nor label.
+    \return BAD_STATE_E when persistent is 0 and no session was opened with
+    wc_Pkcs11Token_Open, or a token key of the type already has the
+    persistent key's id or label.
+    \return MEMORY_E when a memory allocation fails.
+    \return NOT_COMPILED_IN when the key type or mechanism is not available.
+    \return WC_HW_E when a PKCS#11 call fails.
+
+    \param token Token to store the key on.
+    \param type One of the PKCS11_KEY_TYPE_* values.
+    \param clear Clear the private key data from the software key.
+    \param key Key object of the type.
+    \param persistent Store the key as token objects when non-zero.
+
+    \sa wc_Pkcs11StoreKey
+*/
+int wc_Pkcs11StoreKey_ex(Pkcs11Token* token, int type, int clear,
+    void* key, int persistent);
 
 /*!
     \ingroup PKCS11
