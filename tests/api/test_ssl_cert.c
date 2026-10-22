@@ -474,6 +474,81 @@ int test_wolfSSL_cmp_peer_cert_to_file(void)
     return EXPECT_RESULT();
 }
 
+/* Setting a chain via SSL_CTRL_CHAIN must fail if any certificate cannot be
+ * added, instead of reporting success with inconsistent DER and X509 chains.
+ */
+int test_wolfSSL_CTX_set0_chain_bad_cert(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)) && \
+    defined(SESSION_CERTS) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* goodChain = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* goodCa = NULL;
+    WOLFSSL_X509* empty = NULL;
+    int ret = 0;
+
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+    /* Load the leaf first so the stack entries are added as chain certs. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* Set a valid chain first so the failure path must release it. */
+    ExpectNotNull(goodChain = sk_X509_new_null());
+    ExpectNotNull(goodCa = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntGT(sk_X509_push(goodChain, goodCa), 0);
+    if (EXPECT_FAIL()) {
+        X509_free(goodCa);
+    }
+    ret = (int)SSL_CTX_set0_chain(ctx, goodChain);
+    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    /* ctx owns goodChain on success */
+    if (ret != WOLFSSL_SUCCESS) {
+        sk_X509_pop_free(goodChain, X509_free);
+    }
+
+    ExpectNotNull(chain = sk_X509_new_null());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntGT(sk_X509_push(chain, ca), 0);
+    if (EXPECT_FAIL()) {
+        X509_free(ca);
+    }
+    /* An allocated but unpopulated X509 has no DER and cannot be added. */
+    ExpectNotNull(empty = X509_new());
+    ExpectIntGT(sk_X509_push(chain, empty), 0);
+    if (EXPECT_FAIL()) {
+        X509_free(empty);
+    }
+
+    ret = (int)SSL_CTX_set0_chain(ctx, chain);
+    ExpectIntNE(ret, WOLFSSL_SUCCESS);
+    /* On failure, the ctx must not keep a partially built chain. */
+    if (ctx != NULL) {
+        ExpectNull(ctx->certChain);
+        ExpectNull(ctx->x509Chain);
+    }
+
+    /* The ctx takes ownership of the stack only on success. */
+    if (ret != WOLFSSL_SUCCESS) {
+        sk_X509_pop_free(chain, X509_free);
+    }
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Guarded to match its only caller, test_wolfSSL_CTX_set_client_cert_cb(),
  * which needs OPENSSL_EXTRA for the ctx->CBClientCert field. */
 #if defined(WOLFSSL_CERT_SETUP_CB) && defined(OPENSSL_EXTRA) && \
