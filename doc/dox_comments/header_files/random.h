@@ -817,19 +817,43 @@ int wc_RNG_HealthTest_SHA512_ex(int reseed, const byte* nonce, word32 nonceSz,
 /*!
     \ingroup Random
 
-    \brief Disables the SHA-256 Hash_DRBG at runtime.  When disabled,
-    newly initialized WC_RNG instances will not use the SHA-256 DRBG.
-    If the SHA-512 DRBG is enabled (WOLFSSL_DRBG_SHA512), new RNG
-    instances will use SHA-512 instead.  Requires HAVE_HASHDRBG.
+    \brief Disables the SHA-256 Hash_DRBG in the process-wide runtime setting.  The setting decides the DRBG flavor of every WC_RNG whose
+    constructor was not told one explicitly: all of the constructors with no
+    flags argument, and the flags-bearing ones (wc_InitRng_ex2() and the
+    others taking WC_RNG_INIT_FLAG_* flags) when neither
+    WC_RNG_INIT_FLAG_DRBG_SHA256 nor WC_RNG_INIT_FLAG_DRBG_SHA512 is given;
+    either of those flags overrides the setting for that instance.  The
+    setting is read once, at instantiation, so instances already alive are
+    unaffected.  Both compiled-in flavors start enabled, with SHA-512
+    preferred where WOLFSSL_DRBG_SHA512 is defined, except that
+    WOLFSSL_NO_SHA256_DRBG starts SHA-256 disabled (still compiled in, and
+    enable-able); after this call the setting is SHA-512 only.  The last
+    enabled flavor cannot be disabled.
+
+    The setting is an atomic word, and the enable/disable calls update it
+    by compare-and-swap, so concurrent calls serialize: the guard against
+    disabling the last enabled flavor is evaluated against the value the
+    update replaces, never a stale one, and no call's effect can be lost to
+    another's.  A constructor reads the setting once, at instantiation, so
+    a change made while another thread is constructing an instance applies
+    to that instance or not according to which happened first; nothing
+    orders the two.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
+    \return BAD_STATE_E SHA-256 is the only enabled flavor, so it stays
+    enabled.
+    \return NOT_COMPILED_IN WOLFSSL_DRBG_SHA512 is not defined, so there is
+    no other flavor to leave enabled.
 
     _Example_
     \code
     wc_Sha256Drbg_Disable();
-    // New WC_RNG instances will now use SHA-512 DRBG if available
+    // New instances without an explicit flavor flag now use SHA-512 ...
     WC_RNG rng;
     wc_InitRng(&rng);
+    // ... unless the constructor is told otherwise.
+    WC_RNG rng2;
+    wc_InitRng_ex2(&rng2, NULL, INVALID_DEVID, WC_RNG_INIT_FLAG_DRBG_SHA256);
     \endcode
 
     \sa wc_Sha256Drbg_Enable
@@ -841,8 +865,10 @@ int wc_Sha256Drbg_Disable(void);
 /*!
     \ingroup Random
 
-    \brief Re-enables the SHA-256 Hash_DRBG at runtime after a prior
-    call to wc_Sha256Drbg_Disable().  Requires HAVE_HASHDRBG.
+    \brief Re-enables the SHA-256 Hash_DRBG in the process-wide runtime setting after a prior call to wc_Sha256Drbg_Disable().  Affects only
+    instances created after the call, and not those whose constructor was
+    given an explicit flavor flag; see wc_Sha256Drbg_Disable() for the
+    setting's scope and concurrency.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
 
@@ -862,8 +888,11 @@ int wc_Sha256Drbg_Enable(void);
 /*!
     \ingroup Random
 
-    \brief Returns whether the SHA-256 Hash_DRBG is currently disabled.
-    Requires HAVE_HASHDRBG.
+    \brief Returns whether the SHA-256 Hash_DRBG is currently disabled in
+    the process-wide runtime setting (see wc_Sha256Drbg_Disable()).  Says
+    nothing about instances already alive, or about ones whose constructor
+    was given an explicit flavor flag.  In a build without SHA-256 it is
+    always 1.  Requires HAVE_HASHDRBG.
 
     \return 1 SHA-256 DRBG is disabled
     \return 0 SHA-256 DRBG is enabled (not disabled)
@@ -883,13 +912,19 @@ int wc_Sha256Drbg_IsDisabled(void);
 /*!
     \ingroup Random
 
-    \brief Disables the SHA-512 Hash_DRBG at runtime.  When disabled,
-    newly initialized WC_RNG instances will not use the SHA-512 DRBG.
-    If the SHA-256 DRBG is still enabled, new RNG instances will fall
-    back to SHA-256.  Available when WOLFSSL_DRBG_SHA512 is defined.
-    Requires HAVE_HASHDRBG.
+    \brief Disables the SHA-512 Hash_DRBG in the process-wide runtime setting, so that instances created after the call without an explicit
+    flavor flag use SHA-256.  The setting's scope -- that it is read once at
+    instantiation, and that WC_RNG_INIT_FLAG_DRBG_SHA256 /
+    WC_RNG_INIT_FLAG_DRBG_SHA512 override it per instance -- and its
+    concurrency are described at wc_Sha256Drbg_Disable().  The last
+    enabled flavor cannot be disabled.  Available when WOLFSSL_DRBG_SHA512
+    is defined.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
+    \return BAD_STATE_E SHA-512 is the only enabled flavor, so it stays
+    enabled.
+    \return NOT_COMPILED_IN NO_SHA256 is defined, so there is no other
+    flavor to leave enabled.
 
     _Example_
     \code
@@ -908,9 +943,11 @@ int wc_Sha512Drbg_Disable(void);
 /*!
     \ingroup Random
 
-    \brief Re-enables the SHA-512 Hash_DRBG at runtime after a prior
-    call to wc_Sha512Drbg_Disable().  Available when WOLFSSL_DRBG_SHA512
-    is defined.  Requires HAVE_HASHDRBG.
+    \brief Re-enables the SHA-512 Hash_DRBG in the process-wide runtime setting after a prior call to wc_Sha512Drbg_Disable().  Affects only
+    instances created after the call, and not those whose constructor was
+    given an explicit flavor flag; see wc_Sha256Drbg_Disable() for the
+    setting's scope and concurrency.  Available when
+    WOLFSSL_DRBG_SHA512 is defined.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
 
@@ -930,8 +967,11 @@ int wc_Sha512Drbg_Enable(void);
 /*!
     \ingroup Random
 
-    \brief Returns whether the SHA-512 Hash_DRBG is currently disabled.
-    Available when WOLFSSL_DRBG_SHA512 is defined.  Requires HAVE_HASHDRBG.
+    \brief Returns whether the SHA-512 Hash_DRBG is currently disabled in
+    the process-wide runtime setting (see wc_Sha256Drbg_Disable()).  Says
+    nothing about instances already alive, or about ones whose constructor
+    was given an explicit flavor flag.  Available when WOLFSSL_DRBG_SHA512
+    is defined.  Requires HAVE_HASHDRBG.
 
     \return 1 SHA-512 DRBG is disabled
     \return 0 SHA-512 DRBG is enabled (not disabled)
@@ -1035,10 +1075,28 @@ int wc_Sha512Drbg_IsDisabled(void);
     WC_RNG_INIT_FLAG_TEST_USER_SEED qualifies caller-supplied seed material
     only (see wc_InitRngNonce_UserSeed()); here, with none, it is refused.
 
+    Two flags fix the Hash_DRBG flavor for this instance:
+    WC_RNG_INIT_FLAG_DRBG_SHA512 selects the SHA-512 DRBG
+    (WOLFSSL_DRBG_SHA512) and WC_RNG_INIT_FLAG_DRBG_SHA256 the SHA-256 DRBG,
+    each overriding the process-wide runtime setting for this instance
+    alone, whatever any thread has done to the setting with
+    wc_Sha256Drbg_Disable() or wc_Sha512Drbg_Disable().  Naming neither
+    leaves the choice to that setting, exactly as every constructor did
+    before these flags existed: SHA-512 where it is compiled in and enabled,
+    SHA-256 otherwise, and BAD_STATE_E if nothing is enabled.  The override
+    reaches any compiled-in flavor, including one the setting has disabled
+    -- by a runtime call, or initially by WOLFSSL_NO_SHA256_DRBG, which
+    starts SHA-256 disabled but still builds it.  Naming both is
+    BAD_FUNC_ARG, and naming a flavor the build lacks (NO_SHA256, or no
+    WOLFSSL_DRBG_SHA512) is NOT_COMPILED_IN.
+
     \return 0 Success
     \return BAD_FUNC_ARG rng is null, or the flags contradict each other,
-    or WC_RNG_INIT_FLAG_TEST_USER_SEED with no user seed.
-    \return NOT_COMPILED_IN A requested flag is not compiled in.
+    or WC_RNG_INIT_FLAG_TEST_USER_SEED with no user seed, or both DRBG
+    flavor flags.
+    \return NOT_COMPILED_IN A requested flag is not compiled in, including a
+    DRBG flavor flag for a flavor the build lacks.
+    \return BAD_STATE_E No DRBG flavor flag was given and the runtime setting has none enabled.
     \return OBJECT_NOT_LOCKED_E WC_RNG_INIT_FLAG_PRESERVE_LOCK with
     WC_RNG_INIT_FLAG_LOCK_REQUIRED, but the lock is not held.
     \return UNEXPECTED_STATE_E WC_RNG_INIT_FLAG_PRESERVE_LOCK, but the lock
