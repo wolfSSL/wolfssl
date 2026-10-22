@@ -15786,8 +15786,10 @@ static int test_dtls13_mask_server_sv(void)
 }
 
 #ifdef HAVE_SESSION_TICKET
-/* A DTLS 1.3 session set before or after the mask is not resumed. */
-static int test_dtls13_mask_session(int sessionFirst)
+/* A session made with firstOpts and set before or after secondOpts, which
+ * mask its version, is not resumed and expVersion is negotiated instead. */
+static int test_dtls13_mask_session(int sessionFirst, long firstOpts,
+    long secondOpts, int expVersion)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -15799,8 +15801,10 @@ static int test_dtls13_mask_session(int sessionFirst)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLS_client_method, wolfDTLS_server_method), 0);
+    if (ssl_c != NULL && firstOpts != 0)
+        (void)wolfSSL_set_options(ssl_c, firstOpts);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_3_VERSION);
+    ExpectIntNE(wolfSSL_version(ssl_c), expVersion);
     ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
@@ -15816,18 +15820,18 @@ static int test_dtls13_mask_session(int sessionFirst)
     if (sessionFirst)
         ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
     if (ssl_c != NULL)
-        (void)wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_TLSv1_3);
+        (void)wolfSSL_set_options(ssl_c, secondOpts);
     if (!sessionFirst)
         ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
-    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
+    ExpectIntEQ(wolfSSL_version(ssl_c), expVersion);
     if (ssl_c != NULL)
         ExpectIntEQ(ssl_c->options.tls1_3, 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
-    ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_2_VERSION);
+    ExpectIntEQ(wolfSSL_version(ssl_c), expVersion);
+    ExpectIntEQ(wolfSSL_version(ssl_s), expVersion);
     ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
 
     wolfSSL_SESSION_free(sess);
@@ -15928,15 +15932,21 @@ int test_dtls13_no_tls13_option(void)
         WOLFSSL_DTLSV1_3, 0), TEST_SUCCESS);
 #ifndef OPENSSL_COEXIST
     ExpectIntEQ(test_dtls13_mask_case(0, 0, SSL_OP_NO_DTLSv1_3,
-        SSL_OP_NO_DTLSv1_2, SSL_OP_NO_DTLSv1, 0, 0), TEST_SUCCESS);
+        SSL_OP_NO_DTLSv1_2, WOLFSSL_OP_NO_TLSv1_1, 0, 0), TEST_SUCCESS);
 #endif
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(test_dtls13_mask_server_walk(), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_mask_client_check(), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_mask_negotiate(), TEST_SUCCESS);
 #ifdef HAVE_SESSION_TICKET
-    ExpectIntEQ(test_dtls13_mask_session(0), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_mask_session(1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_session(0, 0, WOLFSSL_OP_NO_TLSv1_3,
+        DTLS1_2_VERSION), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_session(1, 0, WOLFSSL_OP_NO_TLSv1_3,
+        DTLS1_2_VERSION), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_session(0, WOLFSSL_OP_NO_TLSv1_3,
+        WOLFSSL_OP_NO_TLSv1_2, DTLS1_3_VERSION), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_session(1, WOLFSSL_OP_NO_TLSv1_3,
+        WOLFSSL_OP_NO_TLSv1_2, DTLS1_3_VERSION), TEST_SUCCESS);
 #endif
     ExpectIntEQ(test_dtls13_mask_server_sv(), TEST_SUCCESS);
 #endif
