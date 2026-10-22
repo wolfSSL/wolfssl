@@ -32920,10 +32920,12 @@ static int test_wolfSSL_X509_print_mldsa(void)
 static int test_wolfSSL_X509_print_eddsa(void)
 {
     EXPECT_DECLS;
+/* Under WOLFSSL_OLD_OID_SUM, ED448k equals WC_NID_md4. */
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
     defined(XSNPRINTF) && \
     ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) || \
-     (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)))
+     (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+      (!defined(WOLFSSL_OLD_OID_SUM) || defined(NO_MD4))))
     static const struct {
         const char* file;
         const char* key;
@@ -32939,7 +32941,8 @@ static int test_wolfSSL_X509_print_eddsa(void)
           "                    53:78\n",
           "Signature Algorithm: ED25519" },
     #endif
-    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+        (!defined(WOLFSSL_OLD_OID_SUM) || defined(NO_MD4))
         { "./certs/ed448/server-ed448.der",
           "            Public Key Algorithm: ED448\n"
           "                ED448 Public-Key:\n"
