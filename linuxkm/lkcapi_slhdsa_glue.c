@@ -2357,7 +2357,13 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
     akcipher_request_set_crypt(req, &src_tab[0], &dst_sg, msg_len,
                                sig_len);
     ret = crypto_akcipher_sign(req);
-    if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
+        /* RHEL akcipher crippled sign ops return -ENOSYS from the API
+         * shim, ahead of any dispatch to the registered stub (cf. the
+         * ML-DSA and EdDSA testers' tolerance of the same). */
+        pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
+    }
+    else if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
         pr_err("error: crypto_akcipher_sign returned %d, expected %d\n",
                ret, -EOPNOTSUPP);
         test_rc = BAD_FUNC_ARG;
