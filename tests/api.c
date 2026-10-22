@@ -37408,6 +37408,17 @@ static int test_CryptoCb_AesDev_Func(int thisDevId, wc_CryptoInfo* info,
     wc_AesFree(&tmp);
     return ret;
 }
+
+#ifdef WOLF_CRYPTO_CB_FIND
+static int test_CryptoCb_AesDev_FindCb(int currentId, int algoType)
+{
+    (void)algoType;
+    if (currentId == INVALID_DEVID) {
+        return TEST_CRYPTOCB_AES_DEV_DEVID;
+    }
+    return currentId;
+}
+#endif
 #endif /* TEST_CRYPTOCB_AES_DEV */
 
 /* These callback helpers are only referenced by test_wc_CryptoCb_registry,
@@ -38306,6 +38317,64 @@ static int test_wc_CryptoCb_Aes_SetKey_Declined(void)
     if (aesInit) {
         wc_AesFree(&aes);
     }
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DEV_DEVID);
+#else
+    return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Regression: a key set on an INVALID_DEVID object that a find callback maps
+ * onto a device must be offered to that device. */
+static int test_wc_CryptoCb_Aes_SetKey_Find(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CRYPTOCB_AES_DEV) && defined(WOLF_CRYPTO_CB_FIND)
+    AesDev     dev;
+    Aes        aes;
+    int        aesInit = 0;
+    const byte keyA[AES_128_KEY_SIZE] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    const byte keyB[AES_128_KEY_SIZE] = {
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+        0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+    };
+
+    XMEMSET(&dev, 0, sizeof(dev));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AES_DEV_DEVID,
+        test_CryptoCb_AesDev_Func, &dev), 0);
+    if (EXPECT_SUCCESS()) {
+        wc_CryptoCb_SetDeviceFindCb(test_CryptoCb_AesDev_FindCb);
+    }
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        aesInit = 1;
+    }
+
+    ExpectIntEQ(wc_AesSetKey(&aes, keyA, sizeof(keyA), NULL, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(dev.setKeyCount, 1);
+    ExpectBufEQ(dev.key, keyA, sizeof(keyA));
+#ifdef WOLFSSL_AES_DIRECT
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, keyB, sizeof(keyB), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(dev.setKeyCount, 2);
+    ExpectBufEQ(dev.key, keyB, sizeof(keyB));
+#else
+    (void)keyB;
+#endif
+
+    if (aesInit) {
+        wc_AesFree(&aes);
+    }
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
     wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DEV_DEVID);
 #else
     return TEST_SKIPPED;
@@ -46153,6 +46222,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_CryptoCb_Hmac_Find),
     TEST_DECL(test_wc_CryptoCb_AesGcm_SetKey),
     TEST_DECL(test_wc_CryptoCb_Aes_SetKey_Declined),
+    TEST_DECL(test_wc_CryptoCb_Aes_SetKey_Find),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
     TEST_DECL(test_wolfSSL_set_SSL_CTX_static_heap),
