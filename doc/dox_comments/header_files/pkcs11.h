@@ -42,6 +42,14 @@ int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite);
 
 /*!
     \ingroup PKCS11
+
+    \brief Closes the session opened with wc_Pkcs11Token_Open. It does not log
+    out, so the application stays logged in while another of its sessions on
+    the token is open.
+
+    \param token Token whose session to close.
+
+    \sa wc_Pkcs11Token_Open
  */
 void wc_Pkcs11Token_Close(Pkcs11Token* token);
 
