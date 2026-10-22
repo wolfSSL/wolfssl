@@ -3181,6 +3181,60 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 #endif /* WOLFSSL_KEY_GEN */
 #endif /* !NO_RSA */
 
+#if (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)) || \
+    defined(WOLFSSL_HAVE_MLKEM)
+/**
+ * Extracts the secret key data from the PKCS#11 object.
+ *
+ * @param  [in]      session  Session object.
+ * @param  [in]      secret   PKCS#11 object with the secret key data.
+ * @param  [in]      out      Buffer to hold secret data.
+ * @param  [in,out]  outLen   On in, length of buffer.
+ *                            On out, the length of data in buffer.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
+    byte* out, word32* outLen)
+{
+    int ret = 0;
+    CK_ATTRIBUTE tmpl[] = {
+      {CKA_VALUE, NULL_PTR, 0}
+    };
+    CK_ULONG     tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+    CK_RV rv;
+
+    PKCS11_DUMP_TEMPLATE("Get Secret Length", tmpl, tmplCnt);
+    rv = session->func->C_GetAttributeValue(session->handle, secret, tmpl,
+                                                                       tmplCnt);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if (rv != CKR_OK) {
+        ret = WC_HW_E;
+    }
+    PKCS11_DUMP_TEMPLATE("Secret Length", tmpl, tmplCnt);
+    if (ret == 0) {
+        if (tmpl[0].ulValueLen == CK_UNAVAILABLE_INFORMATION)
+            ret = WC_HW_E;
+        else if (tmpl[0].ulValueLen > *outLen)
+            ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        tmpl[0].pValue = out;
+        PKCS11_DUMP_TEMPLATE("Get Secret", tmpl, tmplCnt);
+        rv = session->func->C_GetAttributeValue(session->handle, secret,
+                                                                 tmpl, tmplCnt);
+        PKCS11_RV("C_GetAttributeValue", rv);
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+        PKCS11_DUMP_TEMPLATE("Secret", tmpl, tmplCnt);
+        *outLen = (word32)tmpl[0].ulValueLen;
+    }
+
+    return ret;
+}
+#endif
+
 #ifdef HAVE_ECC
 /**
  * Find the PKCS#11 object containing the ECC public or private key data.
@@ -3459,57 +3513,6 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 #endif
 
 #ifndef NO_PKCS11_ECDH
-/**
- * Extracts the secret key data from the PKCS#11 object.
- *
- * @param  [in]      session  Session object.
- * @param  [in]      secret   PKCS#11 object with the secret key data.
- * @param  [in]      out      Buffer to hold secret data.
- * @param  [in,out]  outLen   On in, length of buffer.
- *                            On out, the length of data in buffer.
- * @return  WC_HW_E when a PKCS#11 library call fails.
- * @return  0 on success.
- */
-static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
-    byte* out, word32* outLen)
-{
-    int ret = 0;
-    CK_ATTRIBUTE tmpl[] = {
-      {CKA_VALUE, NULL_PTR, 0}
-    };
-    CK_ULONG     tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
-    CK_RV rv;
-
-    PKCS11_DUMP_TEMPLATE("Get Secret Length", tmpl, tmplCnt);
-    rv = session->func->C_GetAttributeValue(session->handle, secret, tmpl,
-                                                                       tmplCnt);
-    PKCS11_RV("C_GetAttributeValue", rv);
-    if (rv != CKR_OK) {
-        ret = WC_HW_E;
-    }
-    PKCS11_DUMP_TEMPLATE("Secret Length", tmpl, tmplCnt);
-    if (ret == 0) {
-        if (tmpl[0].ulValueLen == CK_UNAVAILABLE_INFORMATION)
-            ret = WC_HW_E;
-        else if (tmpl[0].ulValueLen > *outLen)
-            ret = BUFFER_E;
-    }
-    if (ret == 0) {
-        tmpl[0].pValue = out;
-        PKCS11_DUMP_TEMPLATE("Get Secret", tmpl, tmplCnt);
-        rv = session->func->C_GetAttributeValue(session->handle, secret,
-                                                                 tmpl, tmplCnt);
-        PKCS11_RV("C_GetAttributeValue", rv);
-        if (rv != CKR_OK) {
-            ret = WC_HW_E;
-        }
-        PKCS11_DUMP_TEMPLATE("Secret", tmpl, tmplCnt);
-        *outLen = (word32)tmpl[0].ulValueLen;
-    }
-
-    return ret;
-}
-
 /**
  * Performs the ECDH secret generation operation.
  *
