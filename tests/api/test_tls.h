@@ -68,6 +68,8 @@ int test_tls13_psk_clear_restores_verify_peer(void);
 int test_tls12_resume_ticket_mutual_auth(void);
 int test_tls13_resume_psk_post_handshake_auth(void);
 int test_tls13_resume_psk_client_auth(void);
+int test_tls13_resume_ticket_fail_except_psk(void);
+int test_tls13_resume_psk_ticket_fail_except_psk(void);
 int test_tls13_resume_psk_client_auth_ok(void);
 int test_tls12_ext_cache_client_auth_resume(void);
 int test_tls12_resume_ticket_client_auth(void);
@@ -167,6 +169,9 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_mutual_auth),          \
         TEST_DECL_GROUP("tls", test_tls13_resume_psk_post_handshake_auth),     \
         TEST_DECL_GROUP("tls", test_tls13_resume_psk_client_auth),             \
+        TEST_DECL_GROUP("tls", test_tls13_resume_ticket_fail_except_psk),      \
+        TEST_DECL_GROUP("tls",                                                \
+            test_tls13_resume_psk_ticket_fail_except_psk),                     \
         TEST_DECL_GROUP("tls", test_tls13_resume_psk_client_auth_ok),          \
         TEST_DECL_GROUP("tls", test_tls12_ext_cache_client_auth_resume),       \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_client_auth),          \

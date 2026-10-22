@@ -7095,10 +7095,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             #endif
             }
         #endif
-            /* This is the PSK path, so failNoCertxPSK excuses it. Ahead of
-             * DoClientTicketFinalize(), like the checks above, so a ticket
-             * this connection will not use leaves nothing on the session. */
-            if (ret == 0 && ClientAuthRequired(ssl, 1) &&
+            /* A ticket is not the PSK failNoCertxPSK excuses. Before
+             * Finalize, so a declined ticket leaves nothing on the session. */
+            if (ret == 0 && ClientAuthRequired(ssl, 0) &&
             #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
                     /* Deferred, so this handshake asks for nothing. */
                     !ssl->options.verifyPostHandshake &&
