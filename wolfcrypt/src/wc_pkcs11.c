@@ -3633,6 +3633,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 #endif
 
+#ifdef HAVE_ECC_SIGN
 /**
  * Encode, in place, the ECDSA signature.
  * Two fixed width values into ASN.1 DER encoded SEQ { INT, INT }
@@ -3691,7 +3692,9 @@ static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
 
     return seqLen + sigSz;
 }
+#endif
 
+#ifdef HAVE_ECC_VERIFY
 /**
  * Decode the ECDSA signature.
  * ASN.1 DER encode SEQ { INT, INT } converted to two fixed with values.
@@ -3789,6 +3792,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
 
     return ret;
 }
+#endif
 
 /**
  * Get the parameters from the private key on the device.
@@ -3831,6 +3835,7 @@ static int Pkcs11GetEccParams(Pkcs11Session* session, CK_OBJECT_HANDLE privKey,
     return ret;
 }
 
+#ifdef HAVE_ECC_SIGN
 /**
  * Performs the ECDSA signing operation.
  *
@@ -3937,7 +3942,9 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
 
     return ret;
 }
+#endif
 
+#ifdef HAVE_ECC_VERIFY
 /**
  * Performs the ECDSA verification operation.
  *
@@ -4049,6 +4056,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
 
     return ret;
 }
+#endif
 #endif
 
 #ifndef NO_RSA
@@ -6451,6 +6459,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     }
                     break;
         #endif
+        #ifdef HAVE_ECC_SIGN
                 case WC_PK_TYPE_ECDSA_SIGN:
                     ret = Pkcs11OpenSession(token, &session, readWrite);
                     if (ret == 0) {
@@ -6458,6 +6467,8 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                         Pkcs11CloseSession(token, &session);
                     }
                     break;
+        #endif
+        #ifdef HAVE_ECC_VERIFY
                 case WC_PK_TYPE_ECDSA_VERIFY:
                     ret = Pkcs11OpenSession(token, &session, readWrite);
                     if (ret == 0) {
@@ -6465,6 +6476,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                         Pkcs11CloseSession(token, &session);
                     }
                     break;
+        #endif
                 case WC_PK_TYPE_EC_CHECK_PRIV_KEY:
                     ret = Pkcs11OpenSession(token, &session, readWrite);
                     if (ret == 0) {
