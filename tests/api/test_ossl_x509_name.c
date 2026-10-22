@@ -979,6 +979,10 @@ int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
     X509_NAME* legit = NULL;
     X509_NAME* spoof = NULL;
     X509_NAME* escaped = NULL;
+    /* oneline() does not allocate under WOLFSSL_STATIC_MEMORY. */
+    char legitBuf[64];
+    char spoofBuf[64];
+    char escapedBuf[64];
     char* legitLine = NULL;
     char* spoofLine = NULL;
     char* escapedLine = NULL;
@@ -999,8 +1003,10 @@ int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
     ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_organizationName,
         V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
 
-    ExpectNotNull(legitLine = X509_NAME_oneline(legit, NULL, 0));
-    ExpectNotNull(spoofLine = X509_NAME_oneline(spoof, NULL, 0));
+    ExpectNotNull(legitLine = X509_NAME_oneline(legit, legitBuf,
+        (int)sizeof(legitBuf)));
+    ExpectNotNull(spoofLine = X509_NAME_oneline(spoof, spoofBuf,
+        (int)sizeof(spoofBuf)));
     ExpectStrEQ(legitLine, "/C=US/CN=admin/O=Corp");
     ExpectStrNE(spoofLine, legitLine);
     ExpectStrEQ(spoofLine, "/C=US/CN=admin\\x00.evil.com/O=Corp");
@@ -1017,14 +1023,12 @@ int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
     ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_organizationName,
         V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
 
-    ExpectNotNull(escapedLine = X509_NAME_oneline(escaped, NULL, 0));
+    ExpectNotNull(escapedLine = X509_NAME_oneline(escaped, escapedBuf,
+        (int)sizeof(escapedBuf)));
     ExpectStrNE(escapedLine, spoofLine);
     ExpectStrEQ(escapedLine, "/C=US/CN=admin\\\\x00.evil.com/O=Corp");
     ExpectIntNE(X509_NAME_cmp(escaped, spoof), 0);
 
-    XFREE(legitLine, NULL, DYNAMIC_TYPE_OPENSSL);
-    XFREE(spoofLine, NULL, DYNAMIC_TYPE_OPENSSL);
-    XFREE(escapedLine, NULL, DYNAMIC_TYPE_OPENSSL);
     X509_NAME_free(legit);
     X509_NAME_free(spoof);
     X509_NAME_free(escaped);
