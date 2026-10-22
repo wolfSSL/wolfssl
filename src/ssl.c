@@ -7722,6 +7722,8 @@ int ResetSuitesForVersion(WOLFSSL* ssl)
 static int DtlsMaskVersion(WOLFSSL* ssl)
 {
     byte maxMinor = ssl->version.minor;
+    byte resuming = (byte)(ssl->options.resuming &&
+        ssl->options.side != WOLFSSL_SERVER_END);
     byte minor;
 
     /* A minimum of DTLS_MINOR tests the mask alone. */
@@ -7734,7 +7736,7 @@ static int DtlsMaskVersion(WOLFSSL* ssl)
         return 0;
     }
     /* A resumed session lowered the version to its own. */
-    if (ssl->options.resuming)
+    if (resuming)
         maxMinor = ssl->ctx->method->version.minor;
     minor = DtlsAllowedMinor(ssl, maxMinor, ssl->options.minDowngrade);
     if (minor == 0) {
@@ -7744,7 +7746,7 @@ static int DtlsMaskVersion(WOLFSSL* ssl)
     }
     ssl->version.minor = minor;
     ssl->options.tls1_3 = 0;
-    if (ssl->options.resuming && ssl->session != NULL &&
+    if (resuming && ssl->session != NULL &&
             ssl->session->version.minor != minor) {
         ssl->options.resuming = 0;
     #ifdef HAVE_EXTENDED_MASTER
@@ -7815,9 +7817,9 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 #endif
 
 #ifdef WOLFSSL_DTLS
-    (void)DtlsMaskVersion(ssl);
+    if (!ssl->msgsReceived.got_client_hello)
+        (void)DtlsMaskVersion(ssl);
 #endif
-
 
     /* in the case of a version change the cipher suites should be reset */
     if (ResetSuitesForVersion(ssl) != 0)
@@ -7825,7 +7827,6 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 
     return (long)ssl->options.mask;
 }
-
 
 
 long wolfSSL_get_options(const WOLFSSL* ssl)
