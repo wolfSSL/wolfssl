@@ -3969,7 +3969,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_OBJECT_HANDLE       publicKey = NULL_PTR;
     unsigned char*         sig = NULL;
     ecc_key*               key = info->pk.eccverify.key;
-    word32                 sz = key->dp->size;
+    word32                 sz = 0;
 
     /* Check operation is supported. */
     ret = Pkcs11MechAvail(session, CKM_ECDSA, &mechInfo);
@@ -4016,6 +4016,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
     }
 
     if (ret == 0) {
+        sz = key->dp->size;
         sig = (unsigned char *)XMALLOC(sz * 2, key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (sig == NULL)

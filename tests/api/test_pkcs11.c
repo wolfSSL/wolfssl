@@ -101,6 +101,58 @@ static CK_RV test_pkcs11_verify(CK_SESSION_HANDLE session, CK_BYTE_PTR data,
     return CKR_OK;
 }
 
+#ifdef WOLF_PRIVATE_KEY_ID
+static CK_RV test_pkcs11_find_objects_init(CK_SESSION_HANDLE session,
+    CK_ATTRIBUTE_PTR template, CK_ULONG count)
+{
+    (void)session;
+    (void)template;
+    (void)count;
+
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_find_objects(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE_PTR objects, CK_ULONG maxCount, CK_ULONG_PTR count)
+{
+    (void)session;
+
+    if (objects == NULL || maxCount == 0 || count == NULL)
+        return CKR_MECHANISM_INVALID;
+
+    objects[0] = 2;
+    *count = 1;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_find_objects_final(CK_SESSION_HANDLE session)
+{
+    (void)session;
+
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_get_attribute_value(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE object, CK_ATTRIBUTE_PTR template, CK_ULONG count)
+{
+    /* DER encoded OID of SECP256R1. */
+    static const byte p256Params[] = {
+        0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+    };
+
+    (void)session;
+    (void)object;
+
+    if (count != 1 || template[0].type != CKA_EC_PARAMS ||
+            template[0].ulValueLen < sizeof(p256Params)) {
+        return CKR_MECHANISM_INVALID;
+    }
+    XMEMCPY(template[0].pValue, p256Params, sizeof(p256Params));
+    template[0].ulValueLen = sizeof(p256Params);
+    return CKR_OK;
+}
+#endif
+
 int test_wc_Pkcs11_EcdsaSigDecode(void)
 {
     static const byte emptyR[] = {
@@ -118,6 +170,11 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
     CK_FUNCTION_LIST func;
     wc_CryptoInfo info;
     ecc_key key;
+#ifdef WOLF_PRIVATE_KEY_ID
+    ecc_key idKey;
+    ecc_key lblKey;
+    unsigned char id[] = { 0x01 };
+#endif
     WC_RNG rng;
     int ret;
     int res = 0;
@@ -129,6 +186,10 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
     XMEMSET(&func, 0, sizeof(func));
     XMEMSET(&info, 0, sizeof(info));
     XMEMSET(&key, 0, sizeof(key));
+#ifdef WOLF_PRIVATE_KEY_ID
+    XMEMSET(&idKey, 0, sizeof(idKey));
+    XMEMSET(&lblKey, 0, sizeof(lblKey));
+#endif
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(oversizedR, 0, sizeof(oversizedR));
     oversizedR[0] = 0x30;
@@ -166,6 +227,12 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
     func.C_DestroyObject = test_pkcs11_destroy_object;
     func.C_VerifyInit = test_pkcs11_verify_init;
     func.C_Verify = test_pkcs11_verify;
+#ifdef WOLF_PRIVATE_KEY_ID
+    func.C_FindObjectsInit = test_pkcs11_find_objects_init;
+    func.C_FindObjects = test_pkcs11_find_objects;
+    func.C_FindObjectsFinal = test_pkcs11_find_objects_final;
+    func.C_GetAttributeValue = test_pkcs11_get_attribute_value;
+#endif
     token.func = &func;
     token.slotId = 1;
     token.handle = 1;
@@ -258,6 +325,28 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
         ExpectIntEQ(test_pkcs11_verify_init_calls, 1);
         ExpectIntEQ(test_pkcs11_verify_calls, 1);
     }
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    if (ret == 0) {
+        ExpectIntEQ(wc_ecc_init_id(&idKey, id, (int)sizeof(id), NULL,
+            INVALID_DEVID), 0);
+        info.pk.eccverify.key = &idKey;
+        res = 0;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+        ExpectIntEQ(res, 1);
+        wc_ecc_free(&idKey);
+    }
+
+    if (ret == 0) {
+        ExpectIntEQ(wc_ecc_init_label(&lblKey, "lbl", NULL, INVALID_DEVID),
+            0);
+        info.pk.eccverify.key = &lblKey;
+        res = 0;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+        ExpectIntEQ(res, 1);
+        wc_ecc_free(&lblKey);
+    }
+#endif
 
     test_pkcs11_expected_sig = NULL;
     test_pkcs11_expected_sig_len = 0;
