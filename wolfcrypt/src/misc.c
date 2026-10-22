@@ -784,38 +784,187 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 #endif /* !WOLFSSL_NO_XOR_OPS */
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
+/* GCC and Clang on x86 zero up to WC_FORCE_ZERO_INLINE_MAX bytes with
+ * volatile stores, which the compiler must emit. They store from general
+ * registers, as SSE stores are very slow after AVX code that leaves the upper
+ * halves of the vector registers dirty. With USE_INTEL_SPEEDUP, x86_64 CPUs
+ * with AVX2 zero from WC_FORCE_ZERO_AVX2_MIN bytes with 32-byte AVX2 stores,
+ * which have no such penalty. Wipes over WC_FORCE_ZERO_INLINE_MAX bytes use
+ * XMEMSET, as libc's memset is as fast there and is tuned for each CPU.
+ * Other builds use XMEMSET for all lengths. WC_FORCE_ZERO_LOOP makes x86 use
+ * XMEMSET too. */
+#if !defined(WC_FORCE_ZERO_FAST) && !defined(WC_FORCE_ZERO_LOOP) && \
+    defined(__GNUC__) && !defined(__CC_ARM) && !defined(WOLFSSL_NO_ASM) && \
+    !defined(WOLFSSL_KERNEL_MODE) && \
+    (defined(__x86_64__) || defined(__i386__))
+    #define WC_FORCE_ZERO_FAST
+#endif
+#ifndef WC_FORCE_ZERO_INLINE_MAX
+    /* x86 zeroes up to this many bytes inline, and more with XMEMSET. Define
+     * to override. */
+    #define WC_FORCE_ZERO_INLINE_MAX 256
+#endif
+
+/* The AVX2 path asks cpuid.c for the CPU features. Only library code built
+ * with USE_INTEL_SPEEDUP uses it, as cpuid.c is always linked there. Kernel
+ * code may not touch vector registers without saving them first. */
+#if defined(WC_FORCE_ZERO_FAST) && defined(__x86_64__) && \
+    defined(USE_INTEL_SPEEDUP) && defined(BUILDING_WOLFSSL) && \
+    !defined(WOLFSSL_NO_ASM) && !defined(WOLFSSL_KERNEL_MODE) && \
+    (defined(__clang__) || __GNUC_PREREQ(4, 9))
+    #include <wolfssl/wolfcrypt/cpuid.h>
+    #ifdef HAVE_CPUID_INTEL
+        #define WC_FORCE_ZERO_AVX2
+    #endif
+#endif
+
+#ifdef WC_FORCE_ZERO_AVX2
+#ifndef WC_FORCE_ZERO_AVX2_MIN
+    /* AVX2 zeroes from this many bytes. Define to override. */
+    #define WC_FORCE_ZERO_AVX2_MIN 128
+#endif
+#if WC_FORCE_ZERO_AVX2_MIN < 32
+    #error WC_FORCE_ZERO_AVX2_MIN must be at least 32
+#endif
+
+#ifdef __clang__
+    #define WC_FZ_AVX2_ATTR __attribute__((target("avx2")))
+#else
+    /* No clones: GCC would check a clone's stores against a constant buffer
+     * even where the length rules the call out. */
+    #define WC_FZ_AVX2_ATTR __attribute__((target("avx2"), noclone))
+#endif
+
+/* Zeroes len bytes at zb with 32-byte AVX2 stores. len must be at least 32. */
+static WC_INLINE WC_FZ_AVX2_ATTR void ForceZero_AVX2(byte* zb, size_t len)
+{
+    typedef word64 MAYBE_UNALIGNED fz_v32 __attribute__((vector_size(32),
+        may_alias));
+    const fz_v32 zv = { 0 };
+    byte *ze = zb + len;
+
+    /* The two ends cover up to 64 bytes. */
+    *(volatile fz_v32 *)zb = zv;
+    *(volatile fz_v32 *)(ze - 32) = zv;
+    if (len > 64) {
+        /* 64 bytes per pass from the next 32-byte boundary, then 32 if
+         * left. */
+        zb = (byte *)(((wc_ptr_t)zb + 32) & ~(wc_ptr_t)31);
+        while (zb < ze - 64) {
+            *(volatile fz_v32 *)zb = zv;
+            *(volatile fz_v32 *)(zb + 32) = zv;
+            zb += 64;
+        }
+        if (zb < ze - 32) {
+            *(volatile fz_v32 *)zb = zv;
+        }
+    }
+}
+#undef WC_FZ_AVX2_ATTR
+
+/* Returns whether the CPU and OS support AVX2. Each file caches the flags.
+ * Once they are cached, this is one atomic load. */
+static WC_INLINE int ForceZero_HaveAVX2(void)
+{
+    static cpuid_flags_atomic_t fz_cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
+    cpuid_flags_t flags = WOLFSSL_ATOMIC_LOAD(fz_cpuid_flags);
+
+    if (flags == WC_CPUID_INITIALIZER) {
+        /* Threads that race here store the same flags. */
+        flags = cpuid_get_flags();
+        WOLFSSL_ATOMIC_STORE(fz_cpuid_flags, flags);
+    }
+    return IS_INTEL_AVX2(flags) != 0;
+}
+#endif /* WC_FORCE_ZERO_AVX2 */
+
 /* This routine fills the first len bytes of the memory area pointed by mem
    with zeros. It ensures compiler optimization doesn't skip it. */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
+#ifdef WC_FORCE_ZERO_FAST
+    typedef word64 MAYBE_UNALIGNED fz_w64 __attribute__((may_alias));
+    typedef word32 MAYBE_UNALIGNED fz_w32 __attribute__((may_alias));
+    typedef word16 MAYBE_UNALIGNED fz_w16 __attribute__((may_alias));
+    /* WC_FZ_ZERO16(p) zeroes 16 bytes at p. */
+    #define WC_FZ_ZERO16(p) do {               \
+        *(volatile fz_w64 *)(p) = 0;           \
+        *(volatile fz_w64 *)((p) + 8) = 0;     \
+    } while (0)
     byte *zb = (byte *)mem;
-    unsigned long *zl;
+    byte *ze;
+#endif
 
     /* Make the compiler put the buffer's current contents at mem, so the
      * wipe below hits the memory that holds them and not a copy. */
     WC_BARRIER_DATA(mem);
 
-    /* No early return here: a short unaligned buffer must still reach the
-     * trailing barrier, or its wipe can be dropped as a dead store. */
-    while ((len != 0) &&
-            ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U))) {
-        *zb++ = 0;
-        --len;
+#ifdef WC_FORCE_ZERO_FAST
+    /* Each branch tests len as passed in, so a known len picks one when
+     * ForceZero is inlined. Stores at the start and at the end may overlap. */
+    if (len > WC_FORCE_ZERO_INLINE_MAX) {
+    #ifndef WC_FORCE_ZERO_SHOW_LEN
+        /* For a known len, GCC's default x86 tuning makes memset an inline
+         * rep stosq, much slower than libc's memset. Hiding len makes it a
+         * call. Define WC_FORCE_ZERO_SHOW_LEN to show len. */
+        size_t n = len;
+
+        __asm__ __volatile__("" : "+r"(n));
+        XMEMSET(mem, 0, n);
+    #else
+        XMEMSET(mem, 0, len);
+    #endif
     }
-
-    zl = (unsigned long *)zb;
-
-    while (len >= sizeof(unsigned long)) {
-        *zl++ = 0;
-        len -= sizeof(unsigned long);
+    else if (len > 32) {
+        ze = zb + len;
+    #ifdef WC_FORCE_ZERO_AVX2
+        if (len >= WC_FORCE_ZERO_AVX2_MIN && ForceZero_HaveAVX2()) {
+            ForceZero_AVX2(zb, len);
+        }
+        else
+    #endif
+        {
+            WC_FZ_ZERO16(zb);
+            WC_FZ_ZERO16(ze - 32);
+            WC_FZ_ZERO16(ze - 16);
+            /* Above 48 bytes, zero the middle from the next 16-byte boundary:
+             * 32 bytes per pass, then 16 if left. */
+            if (len > 48) {
+                zb = (byte *)(((wc_ptr_t)zb + 16) & ~(wc_ptr_t)15);
+                while (zb + 16 < ze - 32) {
+                    WC_FZ_ZERO16(zb);
+                    WC_FZ_ZERO16(zb + 16);
+                    zb += 32;
+                }
+                if (zb < ze - 32) {
+                    WC_FZ_ZERO16(zb);
+                }
+            }
+        }
     }
-
-    zb = (byte *)zl;
-
-    while (len) {
-        *zb++ = 0;
-        --len;
+    else if (len > 16) {
+        WC_FZ_ZERO16(zb);
+        WC_FZ_ZERO16(zb + len - 16);
     }
+    else if (len >= 8) {
+        *(volatile fz_w64 *)zb = 0;
+        *(volatile fz_w64 *)(zb + len - 8) = 0;
+    }
+    else if (len >= 4) {
+        *(volatile fz_w32 *)zb = 0;
+        *(volatile fz_w32 *)(zb + len - 4) = 0;
+    }
+    else if (len >= 2) {
+        *(volatile fz_w16 *)zb = 0;
+        *(volatile fz_w16 *)(zb + len - 2) = 0;
+    }
+    else if (len == 1) {
+        *(volatile byte *)zb = 0;
+    }
+    #undef WC_FZ_ZERO16
+#else
+    XMEMSET(mem, 0, len);
+#endif
 
     /* The caller is done with the buffer, so the compiler may drop the
      * stores above as dead. The barrier makes the buffer look read by
@@ -1003,6 +1152,9 @@ WC_MISC_STATIC WC_INLINE void* ctMaskSelPtr(byte mask, void* a, void* b)
         volatile word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
         word32 r = (a & ~gte_mask);
         r |= (b & gte_mask);
+        /* The volatile mask hides that r is a or b. Give the compiler the
+         * bound. */
+        WC_ASSUME(r <= a && r <= b);
         return r;
 #else /* WOLFSSL_NO_CT_OPS */
         return a > b ? b : a;
@@ -1020,7 +1172,9 @@ WC_MISC_STATIC WC_INLINE void* ctMaskSelPtr(byte mask, void* a, void* b)
 #if !defined(WOLFSSL_NO_CT_OPS) && !defined(WOLFSSL_NO_CT_MAX_MIN) && \
     defined(WORD64_AVAILABLE)
         volatile word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
-        return (a & gte_mask) | (b & ~gte_mask);
+        word32 r = (a & gte_mask) | (b & ~gte_mask);
+        WC_ASSUME(r >= a && r >= b);
+        return r;
 #else /* WOLFSSL_NO_CT_OPS */
         return a > b ? a : b;
 #endif /* WOLFSSL_NO_CT_OPS */
