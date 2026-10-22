@@ -202,6 +202,7 @@ extern "C" {
 #define CKR_OK                                0x00000000UL
 #define CKR_MECHANISM_INVALID                 0x00000070UL
 #define CKR_SIGNATURE_INVALID                 0x000000C0UL
+#define CKR_USER_ALREADY_LOGGED_IN            0x00000100UL
 #define CKR_CRYPTOKI_ALREADY_INITIALIZED      0x00000191UL
 
 #define CKD_NULL                              0x00000001UL

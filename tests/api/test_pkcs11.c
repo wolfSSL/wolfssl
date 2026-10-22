@@ -733,7 +733,6 @@ int test_wc_Pkcs11_FreeKeepsTokenKey(void)
     return EXPECT_RESULT();
 }
 
-#ifdef TEST_PKCS11_EC_KEYGEN
 static int test_pkcs11_make_ecc(ecc_key* key, WC_RNG* rng, const byte* id,
     int idLen)
 {
@@ -747,7 +746,6 @@ static int test_pkcs11_make_ecc(ecc_key* key, WC_RNG* rng, const byte* id,
 #endif
     return ret;
 }
-#endif
 
 #if defined(TEST_PKCS11_EC_KEYGEN) && defined(HAVE_ECC_KEY_IMPORT)
 static CK_OBJECT_HANDLE test_pkcs11_find_obj(CK_OBJECT_CLASS cls,
@@ -1151,6 +1149,10 @@ int test_wc_Pkcs11_EcKeyUsage(void)
     return EXPECT_RESULT();
 }
 
+static CK_RV test_pkcs11_login_rv = CKR_OK;
+static int   test_pkcs11_logins = 0;
+static int   test_pkcs11_logouts = 0;
+static int   test_pkcs11_closes = 0;
 static int   test_pkcs11_opens = 0;
 
 static CK_RV test_pkcs11_open_session(CK_SLOT_ID slotId, CK_FLAGS flags,
@@ -1166,11 +1168,115 @@ static CK_RV test_pkcs11_open_session(CK_SLOT_ID slotId, CK_FLAGS flags,
     return CKR_OK;
 }
 
+static CK_RV test_pkcs11_login(CK_SESSION_HANDLE session, CK_USER_TYPE type,
+    CK_UTF8CHAR_PTR pin, CK_ULONG pinLen)
+{
+    (void)session;
+    (void)type;
+    (void)pin;
+    (void)pinLen;
+
+    test_pkcs11_logins++;
+    return test_pkcs11_login_rv;
+}
+
+static CK_RV test_pkcs11_logout(CK_SESSION_HANDLE session)
+{
+    (void)session;
+
+    test_pkcs11_logouts++;
+    return CKR_OK;
+}
+
 static CK_RV test_pkcs11_close_session(CK_SESSION_HANDLE session)
 {
     (void)session;
 
+    test_pkcs11_closes++;
     return CKR_OK;
+}
+
+#ifdef HAVE_ECC_SIGN
+static int test_pkcs11_sign_login(Pkcs11Token* token, ecc_key* key,
+    WC_RNG* rng, CK_RV loginRv)
+{
+    wc_CryptoInfo info;
+    byte hash[32];
+    byte sig[ECC_MAX_SIG_SIZE];
+    word32 sigLen = sizeof(sig);
+
+    test_pkcs11_reset();
+    test_pkcs11_login_rv = loginRv;
+    test_pkcs11_logouts = 0;
+    test_pkcs11_closes = 0;
+    XMEMSET(hash, 0x11, sizeof(hash));
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_ECDSA_SIGN;
+    info.pk.eccsign.in = hash;
+    info.pk.eccsign.inlen = sizeof(hash);
+    info.pk.eccsign.out = sig;
+    info.pk.eccsign.outlen = &sigLen;
+    info.pk.eccsign.rng = rng;
+    info.pk.eccsign.key = key;
+    return wc_Pkcs11_CryptoDevCb(1, &info, token);
+}
+#endif
+
+int test_wc_Pkcs11_LoginShared(void)
+{
+    static const byte id[] = { 0x12 };
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    ecc_key key;
+    WC_RNG rng;
+    EXPECT_DECLS;
+
+    test_pkcs11_store_setup(&token, &func);
+    func.C_OpenSession = test_pkcs11_open_session;
+    func.C_Login = test_pkcs11_login;
+    func.C_Logout = test_pkcs11_logout;
+    func.C_CloseSession = test_pkcs11_close_session;
+    token.handle = 0;
+    ExpectNotNull(token.userPin = (CK_UTF8CHAR_PTR)XMALLOC(4, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (token.userPin != NULL)
+        XMEMCPY(token.userPin, "1234", 4);
+    token.userPinSz = 4;
+    token.userPinLogin = 1;
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(test_pkcs11_make_ecc(&key, &rng, id, (int)sizeof(id)), 0);
+
+#ifdef HAVE_ECC_SIGN
+    ExpectIntEQ(test_pkcs11_sign_login(&token, &key, &rng,
+        CKR_USER_ALREADY_LOGGED_IN), 0);
+    ExpectIntEQ(test_pkcs11_logouts, 0);
+    ExpectIntEQ(test_pkcs11_closes, 1);
+
+    ExpectIntEQ(test_pkcs11_sign_login(&token, &key, &rng, CKR_OK), 0);
+    ExpectIntEQ(test_pkcs11_logouts, 0);
+    ExpectIntEQ(test_pkcs11_closes, 1);
+
+    ExpectIntEQ(test_pkcs11_sign_login(&token, &key, &rng,
+        TEST_CKR_GENERAL_ERROR), WC_NO_ERR_TRACE(WC_HW_E));
+#endif
+
+    test_pkcs11_login_rv = CKR_USER_ALREADY_LOGGED_IN;
+    test_pkcs11_logouts = 0;
+    ExpectIntEQ(wc_Pkcs11Token_Open(&token, 1), 0);
+    wc_Pkcs11Token_Close(&token);
+    ExpectIntEQ(test_pkcs11_logouts, 0);
+
+    test_pkcs11_login_rv = CKR_OK;
+    ExpectIntEQ(wc_Pkcs11Token_Open(&token, 1), 0);
+    wc_Pkcs11Token_Close(&token);
+    ExpectIntEQ(test_pkcs11_logouts, 0);
+
+    wc_ecc_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    return EXPECT_RESULT();
 }
 
 int test_wc_Pkcs11_FreeNoObject(void)

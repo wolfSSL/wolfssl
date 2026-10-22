@@ -1125,7 +1125,8 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
                 rv = token->func->C_Login(session->handle, CKU_USER,
                                               token->userPin, token->userPinSz);
                 PKCS11_RV("C_Login", rv);
-                if (rv != CKR_OK) {
+                /* Another token in this process may have logged in already. */
+                if (rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN) {
                     ret = WC_HW_E;
                 }
             }
@@ -1151,8 +1152,6 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
 static void Pkcs11CloseSession(Pkcs11Token* token, Pkcs11Session* session)
 {
     if (token != NULL && session != NULL && token->handle != session->handle) {
-        if (token->userPin != NULL)
-            session->func->C_Logout(session->handle);
         session->func->C_CloseSession(session->handle);
     }
 }
