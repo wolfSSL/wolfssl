@@ -1276,7 +1276,11 @@ int wolfCrypt_Cleanup(void)
         (void)wc_RNG_global_fallback_free();
     #endif
     #ifdef WC_RNG_TREE
-        ret = wc_RNG_TreeZeroize();
+        {
+            int ret2 = wc_RNG_TreeZeroize();
+            if (ret == 0)
+                ret = ret2;
+        }
     #endif
 
     #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)

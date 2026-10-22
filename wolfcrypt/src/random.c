@@ -6333,6 +6333,10 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
         #ifdef WC_RNG_TREE
             /* A child reseeds from the tree's root (SP 800-90C 7.2.3.2.1). */
             ret = TreeChildSeed(&rng->seed, newSeed, SEED_SZ + SEED_BLOCK_SZ);
+    #ifdef WC_RNG_DEBUG_STATS
+            if (ret != 0)
+                ++rng->_stats_seed_failures;
+    #endif
         #elif defined(WC_RNG_SEED_CB)
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
@@ -8889,6 +8893,7 @@ typedef struct TreeNode {
     wolfSSL_Atomic_Int   busy;
     int                  epoch;     /* tree epoch when last seeded */
     int                  up;        /* leaves only: instantiated */
+    WC_RNG_PID_ARG       pid;       /* leaves only: process that seeded it */
 } TreeNode;
 
 typedef struct Tree {
@@ -8900,6 +8905,7 @@ typedef struct Tree {
     wolfSSL_Atomic_Int seeding;     /* one root seeder at a time */
     wolfSSL_Atomic_Int failed;      /* error state: no output */
     int                rootUp;      /* root instantiated */
+    wolfSSL_Atomic_Int wipeFailed;  /* a DRBG did not zeroize */
     WC_RNG_PID_ARG     pid;         /* process that last seeded the root */
     byte               seed[MAX_SEED_SZ]; /* root seed, used under seeding */
 #if !defined(WOLFSSL_LINUXKM) && !defined(WC_RNG_LOCK_ATFORK) && \
@@ -9052,6 +9058,8 @@ static void TreeSetReseedAt(TreeNode* leaf, const byte* jitter)
      * shift stays defined when the counter is 32 bits. */
     if (span < 0xFFFFFFFFU)
         off = j % ((word32)span + 1);
+    else if (span == 0xFFFFFFFFU)
+        off = j;
     else
         off = ((span >> 16) >> 16) * j;
     leaf->reseedAt = half - (span / 2) + off;
@@ -9145,13 +9153,15 @@ static int TreeRootStale(int epoch)
 }
 
 /* Uninstantiate a node (SP 800-90A 9.4); the caller holds it.  It frees, so
- * never from NMI: a failed leaf waits for the next reseed's wipe. */
+ * never from NMI. */
 static int TreeWipeNode(TreeNode* node, int* up)
 {
     int ret = 0;
 
-    if (*up && Hash512_DRBG_Uninstantiate(&node->drbg) != DRBG_SUCCESS)
+    if (*up && Hash512_DRBG_Uninstantiate(&node->drbg) != DRBG_SUCCESS) {
+        WOLFSSL_ATOMIC_STORE(tree.wipeFailed, 1);
         ret = BAD_STATE_E;
+    }
     *up = 0;
     return ret;
 }
@@ -9166,6 +9176,9 @@ static int TreeFreeLeaves(TreeNode* leaves, int count)
         if (TreeWipeNode(&leaves[i], &leaves[i].up) != 0)
             ret = BAD_STATE_E;
     }
+    /* An earlier failed wipe left a leaf down but not zeroized. */
+    if (WOLFSSL_ATOMIC_LOAD(tree.wipeFailed))
+        ret = BAD_STATE_E;
     if (ret == 0)
         XFREE(leaves, tree.heap, DYNAMIC_TYPE_RNG);
     return ret;
@@ -9292,6 +9305,7 @@ static int TreeInstantiateLeaf(TreeNode* leaf, word32 index)
     }
     if (ret == 0) {
         leaf->epoch = epoch;
+        leaf->pid = WC_RNG_GETPID();
         leaf->up = 1;
         TreeSetReseedAt(leaf, seed + TREE_INST_SZ);
     }
@@ -9369,14 +9383,18 @@ static int TreeDropRoot(void)
  * tree call is running or will start. */
 int wc_RNG_TreeZeroize(void)
 {
-    TreeNode* leaves = tree.leaves;
+    TreeNode* leaves;
     int ret = 0;
     int drop;
 
-    if (leaves != NULL) {
-        tree.leaves = NULL;
+    /* A wipe in flight walks the leaves under tree.seeding. */
+    while (TreeTryLock(&tree.seeding) != 0)
+        WC_RELAX_LONG_LOOP();
+    leaves = tree.leaves;
+    tree.leaves = NULL;
+    TreeUnlock(&tree.seeding);
+    if (leaves != NULL)
         ret = TreeFreeLeaves(leaves, tree.ncpu * WC_RNG_TREE_LANES);
-    }
     drop = TreeDropRoot();   /* BAD_STATE_E: a wipe failed */
 
     if (drop != 0 && ret == 0)
@@ -9544,6 +9562,7 @@ int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
 {
     TreeNode* leaf;
     byte seed[TREE_RESEED_SZ + TREE_JITTER_SZ];
+    WC_RNG_PID_ARG pid = WC_RNG_GETPID();
     int epoch;
     int ret = 0;
 
@@ -9575,7 +9594,8 @@ int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
     }
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
-    if (leaf->epoch != epoch || leaf->reseedCtr >= leaf->reseedAt) {
+    if (leaf->epoch != epoch || leaf->pid != pid ||
+            leaf->reseedCtr >= leaf->reseedAt) {
         ret = TreeDraw(epoch, seed, sizeof(seed));
         if (ret == 0) {
             ret = TreeDrbgResult(Hash512_DRBG_Reseed(&leaf->drbg,
@@ -9583,14 +9603,16 @@ int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
         }
         if (ret == 0) {
             leaf->epoch = epoch;
+            leaf->pid = pid;
             TreeSetReseedAt(leaf, seed + TREE_RESEED_SZ);
         }
         ForceZero(seed, sizeof(seed));
 
         /* SP 800-90C 7.3.1 req 12: serve on while the root is unavailable,
-         * but never across a VM fork (SP 800-90C A.3.2). */
+         * but never across a VM fork or fork() (SP 800-90C A.3.2). */
         if ((ret == WC_NO_ERR_TRACE(BUSY_E) ||
-             ret == WC_NO_ERR_TRACE(NOT_READY_E)) && leaf->epoch == epoch)
+             ret == WC_NO_ERR_TRACE(NOT_READY_E)) && leaf->epoch == epoch &&
+             leaf->pid == pid)
             ret = 0;
     }
 

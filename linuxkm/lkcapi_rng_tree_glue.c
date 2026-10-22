@@ -52,13 +52,9 @@ static struct delayed_work rngRootWork;
 static int rngReady = 0;
 static int wc_linuxkm_drbg_loaded = 0;
 static int rngUnregistered = 0;
-/* cra_refcnt with no holder once unregistered: 6.16 drops the registration's
- * own reference in crypto_unregister_alg() (crypto/algapi.c). */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
-    #define RNG_UNHELD_REFCNT 0
-#else
-    #define RNG_UNHELD_REFCNT 1
-#endif
+/* Live tfms: unregistered, cra_refcnt with no holder is 0 or 1 by kernel
+ * build (crypto_unregister_alg(), crypto/algapi.c), so count them here. */
+static atomic_t rngTfms = ATOMIC_INIT(0);
 
 static void RngRootWork(struct work_struct* work)
 {
@@ -72,8 +68,8 @@ static void RngRootWork(struct work_struct* work)
     if (ret == WC_NO_ERR_TRACE(ENTROPY_RT_E) ||
         ret == WC_NO_ERR_TRACE(ENTROPY_APT_E) ||
         ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) {
-        pr_err("libwolfssl: RNG error state (%d), stopped until reload\n",
-               ret);
+        pr_err_ratelimited("libwolfssl: RNG error state (%d), stopped until "
+                           "reload\n", ret);
         return;
     }
     if (ret == WC_NO_ERR_TRACE(BUSY_E)) {
@@ -241,6 +237,19 @@ static int RngTfmSeed(struct crypto_rng* tfm, const u8* seed,
     return 0;
 }
 
+static int RngTfmInit(struct crypto_tfm* tfm)
+{
+    (void)tfm;
+    atomic_inc(&rngTfms);
+    return 0;
+}
+
+static void RngTfmExit(struct crypto_tfm* tfm)
+{
+    (void)tfm;
+    atomic_dec(&rngTfms);
+}
+
 static struct rng_alg wc_linuxkm_drbg = {
     .generate = RngTfmGenerate,
     .seed     = RngTfmSeed,
@@ -250,6 +259,8 @@ static struct rng_alg wc_linuxkm_drbg = {
         .cra_driver_name = WOLFKM_STDRNG_DRIVER,
         .cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
         .cra_ctxsize     = 0,
+        .cra_init        = RngTfmInit,
+        .cra_exit        = RngTfmExit,
         .cra_module      = THIS_MODULE
     }
 };
@@ -423,6 +434,9 @@ static int RngMixPoolBytes(const void* buf, size_t len)
     return 0;
 }
 
+/* Reseeds the root from its registered entropy source only (wolfEntropy,
+ * RDSEED or the seed callback); each leaf reseeds from it at its own count.
+ * SP 800-90C 7.2.3.1, 7.2.3.2.1: reseeding from a parent adds no entropy */
 static int RngCrngReseed(void)
 {
     RngKickRoot();
@@ -599,8 +613,8 @@ static int wc_linuxkm_drbg_startup(void)
         crypto_unregister_rng(&wc_linuxkm_drbg);
         /* A holder keeps the tree; cleanup frees it once released.  A failed
          * module init frees the module anyway (kernel/module/main.c). */
-        if (WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt) !=
-                RNG_UNHELD_REFCNT) {
+        if (atomic_read(&rngTfms) != 0) {
+            rngReady = 0;   /* no reseeds or VM-fork checks are armed */
             rngUnregistered = 1;
             wc_linuxkm_drbg_loaded = 1;
             return ret;
@@ -671,11 +685,10 @@ static int wc_linuxkm_drbg_cleanup(void)
             return -EBUSY;
         }
     }
-    /* Unregistered, the count only drops: to RNG_UNHELD_REFCNT once the last
-     * user frees its tfm. */
-    ret = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
-    if (ret != RNG_UNHELD_REFCNT) {
-        pr_err("ERROR: wc_linuxkm_drbg still held, refcnt %d\n", ret);
+    /* Unregistered, no new tfm can start; wait for the last one to go. */
+    ret = atomic_read(&rngTfms);
+    if (ret != 0) {
+        pr_err("ERROR: wc_linuxkm_drbg still held, %d tfms\n", ret);
         return -EBUSY;
     }
 

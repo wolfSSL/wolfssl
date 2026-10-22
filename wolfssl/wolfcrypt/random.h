@@ -67,7 +67,7 @@
  * the pooled and banked bytes it inherited, which the handlers themselves do
  * not touch.
  * Tree builds keep wolfEntropy, not its counter thread (a fork() child has none):
- * tree gathers take the turn lock; its two test APIs do not (a known limit). */
+ * tree gathers take the turn lock; wolfEntropy's APIs called directly do not. */
 #if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WOLFSSL_PTHREADS) && \
     defined(WC_RNG_AUTOFORK) && !defined(__APPLE__) && \
     defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
@@ -1211,6 +1211,8 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     #endif
     /* Not fork safe: fork() only with no thread in a tree call; the child calls
      * wc_RNG_TreeInvalidate() and wc_RNG_TreeReseed() before generating. */
+
+    /* Once, with no other tree call running. */
     WC_RNG_TREE_API int wc_RNG_TreeInit(int ncpu, void* heap);
     /* Library cleanup: frees the leaves and zeroizes the root. */
     WC_RNG_TREE_API int wc_RNG_TreeZeroize(void);

@@ -32405,7 +32405,7 @@ static wolfSSL_Atomic_Int rng_tree_fork_gathering =
     WOLFSSL_ATOMIC_INITIALIZER(0);
 static pid_t rng_tree_fork_parent = 0;
 
-/* The parent's root gather lasts long enough for fork() to land inside it. */
+/* A slow root gather, so fork() waits behind it on the turn lock. */
 static int rng_tree_fork_seed(OS_Seed* os, byte* out, word32 sz)
 {
     struct timespec d = { 0, 300000000 };
@@ -32446,8 +32446,10 @@ static wc_test_ret_t rng_tree_fork_test(void)
     WOLFSSL_ATOMIC_STORE(rng_tree_fork_gathering, 0);
     /* A new callback drops the root, so the seeder's wc_InitRng() gathers. */
     cb = wc_SetSeed_Cb(rng_tree_fork_seed);
-    if (cb != 0)
-        return WC_TEST_RET_ENC_EC(cb);
+    if (cb != 0) {
+        ret = WC_TEST_RET_ENC_EC(cb);
+        goto out;
+    }
     if (wolfSSL_NewThread(&seeder, &rng_tree_fork_seeder, &seedRet) != 0) {
         ret = WC_TEST_RET_ENC_NC;
         goto out;
