@@ -557,7 +557,10 @@ static wc_RngSeed_Cb seedCb = NULL;
 int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 {
 #ifdef WC_RNG_TREE
-    /* SP 800-90C 7.3.1 item 9: a new source needs a new root instantiation. */
+    /* SP 800-90C 7.3.1 item 9: a new source needs a new root instantiation;
+     * the same one does not. */
+    if (cb == seedCb)
+        return 0;
     if (TreeIsLive())
         return BAD_STATE_E;
 #endif
