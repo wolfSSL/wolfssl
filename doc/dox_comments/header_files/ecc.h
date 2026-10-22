@@ -2465,6 +2465,11 @@ const char* wc_ecc_get_name(int curve_id);
     \brief Makes ECC key with extended options.
 
     \return 0 on success
+    \return BAD_STATE_E when the key has an id or label and its PKCS#11 token
+    has no session from wc_Pkcs11Token_Open; a key with neither is generated
+    in software instead
+    \return WC_HW_E when a PKCS#11 token cannot give a key with an id or label
+    the usages its flags ask for
     \return negative on error
 
     \param rng Random number generator
