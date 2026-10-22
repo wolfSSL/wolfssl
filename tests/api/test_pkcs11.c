@@ -107,6 +107,10 @@ static CK_RV test_pkcs11_verify(CK_SESSION_HANDLE session, CK_BYTE_PTR data,
 #define TEST_PKCS11_PUB_OBJ  2
 
 static CK_OBJECT_CLASS test_pkcs11_find_class;
+static byte            test_pkcs11_params_tag = 0x06;
+static byte            test_pkcs11_params_oid_len = 0x08;
+static CK_ULONG        test_pkcs11_params_sz = 10;
+static CK_ULONG        test_pkcs11_class_len = sizeof(CK_OBJECT_CLASS);
 static int             test_pkcs11_find_class_set = 0;
 static int             test_pkcs11_find_idx = 0;
 
@@ -177,12 +181,15 @@ static CK_RV test_pkcs11_get_attribute_value(CK_SESSION_HANDLE session,
         if (template[i].type == CKA_EC_PARAMS &&
                 template[i].ulValueLen >= sizeof(p256Params)) {
             XMEMCPY(template[i].pValue, p256Params, sizeof(p256Params));
-            template[i].ulValueLen = sizeof(p256Params);
+            ((byte*)template[i].pValue)[0] = test_pkcs11_params_tag;
+            ((byte*)template[i].pValue)[1] = test_pkcs11_params_oid_len;
+            template[i].ulValueLen = test_pkcs11_params_sz;
         }
         else if (template[i].type == CKA_CLASS) {
             *(CK_OBJECT_CLASS*)template[i].pValue =
                 (object == TEST_PKCS11_PUB_OBJ) ? CKO_PUBLIC_KEY :
                                                   CKO_PRIVATE_KEY;
+            template[i].ulValueLen = test_pkcs11_class_len;
         }
         else {
             return CKR_MECHANISM_INVALID;
@@ -191,6 +198,634 @@ static CK_RV test_pkcs11_get_attribute_value(CK_SESSION_HANDLE session,
     return CKR_OK;
 }
 #endif
+
+#if defined(HAVE_ECC_DHE) && !defined(NO_PKCS11_ECDH)
+    #define TEST_PKCS11_RD_ECDH
+#endif
+#if defined(HAVE_ECC_DHE) && !defined(NO_PKCS11_EC_KEYGEN)
+    #define TEST_PKCS11_RD_ECGEN
+#endif
+#if !defined(NO_RSA) && !defined(NO_PKCS11_RSA) && defined(WOLF_PRIVATE_KEY_ID)
+    #define TEST_PKCS11_RD_RSA
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(NO_PKCS11_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_DSA_44)
+    #define TEST_PKCS11_RD_MLDSA
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(NO_PKCS11_MLKEM) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_768)
+    #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+        #define TEST_PKCS11_RD_MLKEM_GEN
+    #endif
+    #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && defined(WOLF_PRIVATE_KEY_ID)
+        #define TEST_PKCS11_RD_MLKEM_ENC
+    #endif
+    #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+        #define TEST_PKCS11_RD_MLKEM_DEC
+    #endif
+#endif
+#ifndef NO_CERTS
+    #define TEST_PKCS11_RD_CERT
+#endif
+
+#if defined(TEST_PKCS11_RD_ECDH) || defined(TEST_PKCS11_RD_ECGEN) || \
+    defined(TEST_PKCS11_RD_RSA) || defined(TEST_PKCS11_RD_MLDSA) || \
+    defined(TEST_PKCS11_RD_MLKEM_GEN) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
+    defined(TEST_PKCS11_RD_MLKEM_DEC) || defined(TEST_PKCS11_RD_CERT)
+    #define TEST_PKCS11_VALUE_READ
+#endif
+
+#ifdef TEST_PKCS11_VALUE_READ
+#define TEST_PKCS11_RD_DEVID 0x7032
+
+static CK_ULONG test_pkcs11_rd_len = 0;
+static CK_ULONG test_pkcs11_rd_ret_len = 0;
+static CK_ULONG test_pkcs11_rd_exp_short = 0;
+static CK_ULONG test_pkcs11_rd_exp_len = 0;
+static const byte* test_pkcs11_rd_data = NULL;
+static CK_RV    test_pkcs11_rd_rv = CKR_OK;
+
+static CK_RV test_pkcs11_rd_mech_info(CK_SLOT_ID slotId,
+    CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR info)
+{
+    (void)slotId;
+    (void)type;
+
+    XMEMSET(info, 0, sizeof(*info));
+    info->ulMaxKeySize = 0xffff;
+    info->flags = CKF_DERIVE | CKF_GENERATE_KEY_PAIR | CKF_ENCAPSULATE |
+                  CKF_DECAPSULATE;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_rd_derive(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE baseKey,
+    CK_ATTRIBUTE_PTR template, CK_ULONG count, CK_OBJECT_HANDLE_PTR key)
+{
+    (void)session;
+    (void)mechanism;
+    (void)baseKey;
+    (void)template;
+    (void)count;
+
+    *key = 2;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_rd_keygen(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR pubTmpl, CK_ULONG pubCnt,
+    CK_ATTRIBUTE_PTR privTmpl, CK_ULONG privCnt, CK_OBJECT_HANDLE_PTR pub,
+    CK_OBJECT_HANDLE_PTR priv)
+{
+    (void)session;
+    (void)mechanism;
+    (void)pubTmpl;
+    (void)pubCnt;
+    (void)privTmpl;
+    (void)privCnt;
+
+    *pub = 3;
+    *priv = 4;
+    return CKR_OK;
+}
+
+#if defined(TEST_PKCS11_RD_RSA) || defined(TEST_PKCS11_RD_CERT) || \
+    (defined(TEST_PKCS11_RD_ECDH) && defined(WOLF_PRIVATE_KEY_ID)) || \
+    defined(TEST_PKCS11_RD_MLKEM_ENC)
+    #define TEST_PKCS11_RD_FIND
+#endif
+
+#ifdef TEST_PKCS11_RD_FIND
+static int test_pkcs11_rd_found = 0;
+
+static CK_RV test_pkcs11_rd_find_init(CK_SESSION_HANDLE session,
+    CK_ATTRIBUTE_PTR template, CK_ULONG count)
+{
+    (void)session;
+    (void)template;
+    (void)count;
+
+    test_pkcs11_rd_found = 0;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_rd_find(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE_PTR objects, CK_ULONG maxCount, CK_ULONG_PTR count)
+{
+    (void)session;
+    (void)maxCount;
+
+    *count = 0;
+    if (!test_pkcs11_rd_found) {
+        objects[0] = 5;
+        *count = 1;
+        test_pkcs11_rd_found = 1;
+    }
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_rd_find_final(CK_SESSION_HANDLE session)
+{
+    (void)session;
+
+    return CKR_OK;
+}
+#endif
+
+#ifdef TEST_PKCS11_RD_RSA
+static CK_RV test_pkcs11_rd_sign_init(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE key)
+{
+    (void)session;
+    (void)mechanism;
+    (void)key;
+
+    return CKR_MECHANISM_INVALID;
+}
+#endif
+
+#ifdef TEST_PKCS11_RD_MLKEM_ENC
+static CK_RV test_pkcs11_rd_encaps(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE pubKey,
+    CK_ATTRIBUTE_PTR template, CK_ULONG count, CK_BYTE_PTR ct,
+    CK_ULONG_PTR ctLen, CK_OBJECT_HANDLE_PTR key)
+{
+    (void)session;
+    (void)mechanism;
+    (void)pubKey;
+    (void)template;
+    (void)count;
+
+    XMEMSET(ct, 0, *ctLen);
+    *key = 2;
+    return CKR_OK;
+}
+#endif
+
+#ifdef TEST_PKCS11_RD_MLKEM_DEC
+static CK_RV test_pkcs11_rd_decaps(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE privKey,
+    CK_ATTRIBUTE_PTR template, CK_ULONG count, CK_BYTE_PTR ct,
+    CK_ULONG ctLen, CK_OBJECT_HANDLE_PTR key)
+{
+    (void)session;
+    (void)mechanism;
+    (void)privKey;
+    (void)template;
+    (void)count;
+    (void)ct;
+    (void)ctLen;
+
+    *key = 2;
+    return CKR_OK;
+}
+#endif
+
+static CK_RV test_pkcs11_rd_get_attr(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE object, CK_ATTRIBUTE_PTR template, CK_ULONG count)
+{
+    CK_RV rv = CKR_OK;
+    CK_ULONG i;
+
+    (void)session;
+    (void)object;
+
+    for (i = 0; i < count; i++) {
+        if (template[i].type == CKA_VALUE || template[i].type == CKA_EC_POINT ||
+                template[i].type == CKA_MODULUS ||
+                template[i].type == CKA_PUBLIC_EXPONENT) {
+            if (template[i].pValue == NULL) {
+                template[i].ulValueLen = test_pkcs11_rd_len;
+                if (template[i].type == CKA_PUBLIC_EXPONENT &&
+                        test_pkcs11_rd_exp_len != 0) {
+                    template[i].ulValueLen = test_pkcs11_rd_exp_len;
+                }
+            }
+            else {
+                if (template[i].ulValueLen < test_pkcs11_rd_len)
+                    return CKR_MECHANISM_INVALID;
+                if (test_pkcs11_rd_data != NULL) {
+                    XMEMCPY(template[i].pValue, test_pkcs11_rd_data,
+                        test_pkcs11_rd_len);
+                }
+                else {
+                    XMEMSET(template[i].pValue, 0xa5, test_pkcs11_rd_len);
+                }
+                template[i].ulValueLen = test_pkcs11_rd_ret_len;
+                if (template[i].type == CKA_PUBLIC_EXPONENT)
+                    template[i].ulValueLen -= test_pkcs11_rd_exp_short;
+                if (template[i].type == CKA_PUBLIC_EXPONENT &&
+                        test_pkcs11_rd_exp_len != 0) {
+                    template[i].ulValueLen = test_pkcs11_rd_exp_len;
+                }
+                rv = test_pkcs11_rd_rv;
+            }
+        }
+    #ifdef WOLFSSL_HAVE_MLKEM
+        else if (template[i].type == CKA_PARAMETER_SET) {
+            *(CK_ML_KEM_PARAMETER_SET_TYPE*)template[i].pValue =
+                CKP_ML_KEM_768;
+        }
+    #endif
+        else {
+            return CKR_MECHANISM_INVALID;
+        }
+    }
+    return rv;
+}
+#endif
+
+int test_wc_Pkcs11_ValueRead(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_VALUE_READ
+    Pkcs11Token token;
+    CK_FUNCTION_LIST_3_2 func;
+    WC_RNG rng;
+#if defined(TEST_PKCS11_RD_ECDH) || defined(TEST_PKCS11_RD_RSA) || \
+    defined(TEST_PKCS11_RD_CERT) || defined(TEST_PKCS11_RD_MLKEM_ENC)
+    wc_CryptoInfo info;
+#endif
+#ifdef TEST_PKCS11_RD_ECDH
+    static const byte zero[32] = { 0 };
+    ecc_key key;
+    byte secret[32];
+    word32 secretLen = sizeof(secret);
+#ifdef WOLF_PRIVATE_KEY_ID
+    ecc_key lblKey;
+    byte lblSecret[64];
+    word32 lblSecretLen = sizeof(lblSecret);
+#endif
+#endif
+#ifdef TEST_PKCS11_RD_ECGEN
+    ecc_key genKey;
+#endif
+#ifdef TEST_PKCS11_RD_RSA
+    RsaKey rsa;
+    byte in[256];
+    byte out[256];
+    word32 outLen = sizeof(out);
+    int modSz = 0;
+#endif
+#ifdef TEST_PKCS11_RD_MLDSA
+    wc_MlDsaKey dsa;
+#endif
+#if defined(TEST_PKCS11_RD_MLKEM_GEN) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
+    defined(TEST_PKCS11_RD_MLKEM_DEC)
+    MlKemKey kem;
+#endif
+#ifdef TEST_PKCS11_RD_MLKEM_GEN
+    MlKemKey swKem;
+    byte kemPub[WC_ML_KEM_768_PUBLIC_KEY_SIZE];
+#endif
+#if defined(TEST_PKCS11_RD_MLKEM_ENC) || defined(TEST_PKCS11_RD_MLKEM_DEC)
+    static const byte ssZero[WC_ML_KEM_SS_SZ] = { 0 };
+    byte ss[WC_ML_KEM_SS_SZ];
+#endif
+#ifdef TEST_PKCS11_RD_MLKEM_ENC
+    byte encCt[WC_ML_KEM_768_CIPHER_TEXT_SIZE];
+#endif
+#ifdef TEST_PKCS11_RD_MLKEM_DEC
+    static const byte ct[WC_ML_KEM_768_CIPHER_TEXT_SIZE] = { 0 };
+#endif
+#ifdef TEST_PKCS11_RD_CERT
+    static const byte certId[] = { 0x01 };
+    byte* cert = NULL;
+    word32 certSz = 0;
+#endif
+
+    XMEMSET(&token, 0, sizeof(token));
+    XMEMSET(&func, 0, sizeof(func));
+    XMEMSET(&rng, 0, sizeof(rng));
+#ifdef TEST_PKCS11_RD_ECGEN
+    XMEMSET(&genKey, 0, sizeof(genKey));
+#endif
+#ifdef TEST_PKCS11_RD_RSA
+    XMEMSET(&rsa, 0, sizeof(rsa));
+#endif
+#ifdef TEST_PKCS11_RD_MLDSA
+    XMEMSET(&dsa, 0, sizeof(dsa));
+#endif
+#if defined(TEST_PKCS11_RD_MLKEM_GEN) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
+    defined(TEST_PKCS11_RD_MLKEM_DEC)
+    XMEMSET(&kem, 0, sizeof(kem));
+#endif
+    func.C_GetMechanismInfo = test_pkcs11_rd_mech_info;
+    func.C_CreateObject = test_pkcs11_create_object;
+    func.C_DestroyObject = test_pkcs11_destroy_object;
+    func.C_DeriveKey = test_pkcs11_rd_derive;
+    func.C_GenerateKeyPair = test_pkcs11_rd_keygen;
+    func.C_GetAttributeValue = test_pkcs11_rd_get_attr;
+#ifdef TEST_PKCS11_RD_FIND
+    func.C_FindObjectsInit = test_pkcs11_rd_find_init;
+    func.C_FindObjects = test_pkcs11_rd_find;
+    func.C_FindObjectsFinal = test_pkcs11_rd_find_final;
+#endif
+#ifdef TEST_PKCS11_RD_RSA
+    func.C_SignInit = test_pkcs11_rd_sign_init;
+#endif
+#ifdef TEST_PKCS11_RD_MLKEM_ENC
+    func.C_EncapsulateKey = test_pkcs11_rd_encaps;
+#endif
+#ifdef TEST_PKCS11_RD_MLKEM_DEC
+    func.C_DecapsulateKey = test_pkcs11_rd_decaps;
+#endif
+    token.func = (CK_FUNCTION_LIST*)&func;
+    token.slotId = 1;
+    token.handle = 1;
+    token.version = WC_PCKS11VERSION_2_40;
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_RD_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+#ifdef TEST_PKCS11_RD_ECDH
+    XMEMSET(&info, 0, sizeof(info));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(secret, 0xff, sizeof(secret));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_ECDH;
+    info.pk.ecdh.private_key = &key;
+    info.pk.ecdh.public_key = &key;
+    info.pk.ecdh.out = secret;
+    info.pk.ecdh.outlen = &secretLen;
+    test_pkcs11_rd_len = sizeof(secret);
+    test_pkcs11_rd_ret_len = sizeof(secret);
+    test_pkcs11_rd_rv = CKR_MECHANISM_INVALID;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(secretLen, sizeof(secret));
+    ExpectBufEQ(secret, zero, sizeof(secret));
+
+    XMEMSET(secret, 0xff, sizeof(secret));
+    test_pkcs11_rd_ret_len = sizeof(secret) + 1;
+    test_pkcs11_rd_rv = CKR_OK;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(secretLen, sizeof(secret));
+    ExpectBufEQ(secret, zero, sizeof(secret));
+
+    XMEMSET(secret, 0xff, sizeof(secret));
+    test_pkcs11_rd_len = sizeof(secret) - 1;
+    test_pkcs11_rd_ret_len = sizeof(secret) - 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(secretLen, sizeof(secret));
+    ExpectBufEQ(secret, zero, sizeof(secret));
+
+    XMEMSET(secret, 0xff, sizeof(secret));
+    test_pkcs11_rd_ret_len = sizeof(secret);
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(secretLen, sizeof(secret));
+    ExpectBufEQ(secret, zero, sizeof(secret));
+
+    test_pkcs11_rd_len = CK_UNAVAILABLE_INFORMATION;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_len = sizeof(secret) + 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(secretLen, sizeof(secret));
+    test_pkcs11_rd_len = sizeof(secret) - 1;
+    test_pkcs11_rd_ret_len = sizeof(secret) - 1;
+    secretLen = sizeof(secret) - 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(secretLen, sizeof(secret) - 1);
+    secretLen = sizeof(secret);
+
+    test_pkcs11_rd_len = sizeof(secret);
+    test_pkcs11_rd_ret_len = sizeof(secret);
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(secretLen, sizeof(secret));
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    XMEMSET(&lblKey, 0, sizeof(lblKey));
+    ExpectIntEQ(wc_ecc_init_label(&lblKey, "rd", NULL, INVALID_DEVID), 0);
+    info.pk.ecdh.private_key = &lblKey;
+    info.pk.ecdh.out = lblSecret;
+    info.pk.ecdh.outlen = &lblSecretLen;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(lblSecretLen, sizeof(secret));
+    wc_ecc_free(&lblKey);
+#endif
+    wc_ecc_free(&key);
+#endif
+
+#ifdef TEST_PKCS11_RD_ECGEN
+    test_pkcs11_rd_len = 2 + 65;
+    test_pkcs11_rd_ret_len = 2 + 64;
+    test_pkcs11_rd_rv = CKR_OK;
+    ExpectIntEQ(wc_ecc_init_ex(&genKey, NULL, TEST_PKCS11_RD_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex(&rng, 32, &genKey, ECC_SECP256R1),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    wc_ecc_free(&genKey);
+#endif
+#ifdef TEST_PKCS11_RD_RSA
+    test_pkcs11_rd_len = sizeof(in);
+    test_pkcs11_rd_ret_len = sizeof(in) - 1;
+    test_pkcs11_rd_rv = CKR_OK;
+    XMEMSET(in, 0, sizeof(in));
+    XMEMSET(&info, 0, sizeof(info));
+    ExpectIntEQ(wc_InitRsaKey_Label(&rsa, "rd", NULL, TEST_PKCS11_RD_DEVID),
+        0);
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_RSA;
+    info.pk.rsa.in = in;
+    info.pk.rsa.inLen = sizeof(in);
+    info.pk.rsa.out = out;
+    info.pk.rsa.outLen = &outLen;
+    info.pk.rsa.type = RSA_PRIVATE_DECRYPT;
+    info.pk.rsa.key = &rsa;
+    info.pk.rsa.rng = &rng;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectTrue(mp_iszero(&rsa.n));
+
+    test_pkcs11_rd_ret_len = sizeof(in);
+    test_pkcs11_rd_exp_short = 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectTrue(mp_iszero(&rsa.n));
+    test_pkcs11_rd_exp_short = 0;
+    test_pkcs11_rd_len = RSA_MAX_SIZE / 8 + 1;
+    test_pkcs11_rd_ret_len = RSA_MAX_SIZE / 8 + 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectTrue(mp_iszero(&rsa.n));
+    test_pkcs11_rd_len = sizeof(in);
+    test_pkcs11_rd_ret_len = sizeof(in);
+    test_pkcs11_rd_exp_len = RSA_MAX_SIZE / 8 + 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectTrue(mp_iszero(&rsa.n));
+    test_pkcs11_rd_exp_len = 0;
+
+    test_pkcs11_rd_len = CK_UNAVAILABLE_INFORMATION;
+    info.pk.type = WC_PK_TYPE_RSA_GET_SIZE;
+    info.pk.rsa_get_size.key = &rsa;
+    info.pk.rsa_get_size.keySize = &modSz;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(modSz, 0);
+    test_pkcs11_rd_len = 0;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(modSz, 0);
+    if (sizeof(CK_ULONG) > sizeof(word32)) {
+        test_pkcs11_rd_len = (CK_ULONG)0xFFFFFFFFUL + 1 + sizeof(in);
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectIntEQ(modSz, 0);
+    }
+    test_pkcs11_rd_len = RSA_MAX_SIZE / 8 + 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(modSz, 0);
+    test_pkcs11_rd_len = RSA_MAX_SIZE / 8;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(modSz, RSA_MAX_SIZE / 8);
+    test_pkcs11_rd_len = sizeof(in);
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(modSz, sizeof(in));
+
+    test_pkcs11_rd_ret_len = sizeof(in);
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_RSA;
+    info.pk.rsa.in = in;
+    info.pk.rsa.inLen = sizeof(in);
+    info.pk.rsa.out = out;
+    info.pk.rsa.outLen = &outLen;
+    info.pk.rsa.type = RSA_PRIVATE_DECRYPT;
+    info.pk.rsa.key = &rsa;
+    info.pk.rsa.rng = &rng;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectFalse(mp_iszero(&rsa.n));
+    wc_FreeRsaKey(&rsa);
+#endif
+#ifdef TEST_PKCS11_RD_MLDSA
+    test_pkcs11_rd_len = WC_MLDSA_44_PUB_KEY_SIZE;
+    test_pkcs11_rd_ret_len = WC_MLDSA_44_PUB_KEY_SIZE - 1;
+    test_pkcs11_rd_rv = CKR_OK;
+    ExpectIntEQ(wc_MlDsaKey_Init(&dsa, NULL, TEST_PKCS11_RD_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&dsa, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_len = CK_UNAVAILABLE_INFORMATION;
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_len = MLDSA_MAX_PUB_KEY_SIZE + 1;
+    test_pkcs11_rd_ret_len = MLDSA_MAX_PUB_KEY_SIZE + 1;
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_len = WC_MLDSA_44_PUB_KEY_SIZE;
+    test_pkcs11_rd_ret_len = WC_MLDSA_44_PUB_KEY_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), 0);
+    wc_MlDsaKey_Free(&dsa);
+#endif
+#ifdef TEST_PKCS11_RD_MLKEM_GEN
+    test_pkcs11_rd_len = WC_ML_KEM_768_PUBLIC_KEY_SIZE;
+    test_pkcs11_rd_ret_len = WC_ML_KEM_768_PUBLIC_KEY_SIZE - 1;
+    test_pkcs11_rd_rv = CKR_OK;
+    ExpectIntEQ(wc_MlKemKey_Init(&kem, WC_ML_KEM_768, NULL,
+        TEST_PKCS11_RD_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_len = CK_UNAVAILABLE_INFORMATION;
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_len = WC_ML_KEM_768_PUBLIC_KEY_SIZE + 1;
+    test_pkcs11_rd_ret_len = WC_ML_KEM_768_PUBLIC_KEY_SIZE + 1;
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    XMEMSET(&swKem, 0, sizeof(swKem));
+    ExpectIntEQ(wc_MlKemKey_Init(&swKem, WC_ML_KEM_768, NULL, INVALID_DEVID),
+        0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&swKem, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(&swKem, kemPub, sizeof(kemPub)),
+        0);
+    wc_MlKemKey_Free(&swKem);
+    test_pkcs11_rd_len = sizeof(kemPub);
+    test_pkcs11_rd_ret_len = sizeof(kemPub);
+    test_pkcs11_rd_data = kemPub;
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng), 0);
+    test_pkcs11_rd_data = NULL;
+    wc_MlKemKey_Free(&kem);
+#endif
+
+#ifdef TEST_PKCS11_RD_CERT
+    test_pkcs11_rd_len = 100;
+    test_pkcs11_rd_ret_len = 99;
+    test_pkcs11_rd_rv = CKR_OK;
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_CERT;
+    info.cert.id = certId;
+    info.cert.idLen = sizeof(certId);
+    info.cert.certDataOut = &cert;
+    info.cert.certSz = &certSz;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectNull(cert);
+    test_pkcs11_rd_ret_len = 100;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectNotNull(cert);
+    ExpectIntEQ(certSz, 100);
+    XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+#endif
+
+#ifdef TEST_PKCS11_RD_MLKEM_ENC
+    token.version = WC_PCKS11VERSION_3_2;
+    test_pkcs11_rd_len = WC_ML_KEM_SS_SZ - 1;
+    test_pkcs11_rd_ret_len = WC_ML_KEM_SS_SZ - 1;
+    test_pkcs11_rd_rv = CKR_OK;
+    XMEMSET(ss, 0xff, sizeof(ss));
+    ExpectIntEQ(wc_MlKemKey_Init_Label(&kem, WC_ML_KEM_768, "rd", NULL,
+        TEST_PKCS11_RD_DEVID), 0);
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_PQC_KEM_ENCAPS;
+    info.pk.pqc_encaps.ciphertext = encCt;
+    info.pk.pqc_encaps.ciphertextLen = sizeof(encCt);
+    info.pk.pqc_encaps.sharedSecret = ss;
+    info.pk.pqc_encaps.sharedSecretLen = sizeof(ss);
+    info.pk.pqc_encaps.rng = &rng;
+    info.pk.pqc_encaps.key = &kem;
+    info.pk.pqc_encaps.type = WC_PQC_KEM_TYPE_MLKEM;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectBufEQ(ss, ssZero, sizeof(ss));
+    test_pkcs11_rd_len = WC_ML_KEM_SS_SZ;
+    test_pkcs11_rd_ret_len = WC_ML_KEM_SS_SZ;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(ss[0], 0xa5);
+    ExpectIntEQ(ss[WC_ML_KEM_SS_SZ - 1], 0xa5);
+    wc_MlKemKey_Free(&kem);
+#endif
+
+#ifdef TEST_PKCS11_RD_MLKEM_DEC
+    token.version = WC_PCKS11VERSION_3_2;
+    test_pkcs11_rd_len = WC_ML_KEM_SS_SZ - 1;
+    test_pkcs11_rd_ret_len = WC_ML_KEM_SS_SZ - 1;
+    test_pkcs11_rd_rv = CKR_OK;
+    XMEMSET(ss, 0xff, sizeof(ss));
+    ExpectIntEQ(wc_MlKemKey_Init(&kem, WC_ML_KEM_768, NULL,
+        TEST_PKCS11_RD_DEVID), 0);
+    kem.devCtx = (void*)(wc_ptr_t)4;
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(&kem, ss, ct, sizeof(ct)),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectBufEQ(ss, ssZero, sizeof(ss));
+    test_pkcs11_rd_len = WC_ML_KEM_SS_SZ;
+    test_pkcs11_rd_ret_len = WC_ML_KEM_SS_SZ;
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(&kem, ss, ct, sizeof(ct)), 0);
+    ExpectIntEQ(ss[0], 0xa5);
+    ExpectIntEQ(ss[WC_ML_KEM_SS_SZ - 1], 0xa5);
+    kem.devCtx = NULL;
+    wc_MlKemKey_Free(&kem);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_RD_DEVID);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
 
 int test_wc_Pkcs11_EcdsaSigDecode(void)
 {
@@ -370,10 +1005,31 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
         ExpectIntEQ(wc_ecc_init_id(&idKey, id, (int)sizeof(id), NULL,
             INVALID_DEVID), 0);
         info.pk.eccverify.key = &idKey;
+        test_pkcs11_params_tag = 0x04;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        test_pkcs11_params_tag = 0x06;
+        test_pkcs11_params_oid_len = 0x07;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        test_pkcs11_params_oid_len = 0x08;
+        test_pkcs11_params_sz = 1;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        test_pkcs11_params_sz = 17;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        test_pkcs11_params_sz = 10;
         res = 0;
         ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
         ExpectIntEQ(res, 1);
         ExpectIntEQ(test_pkcs11_verify_key, TEST_PKCS11_PUB_OBJ);
+    #ifdef WC_PKCS11_FIND_WITH_ID_ONLY
+        test_pkcs11_class_len = sizeof(CK_OBJECT_CLASS) - 1;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        test_pkcs11_class_len = sizeof(CK_OBJECT_CLASS);
+    #endif
         wc_ecc_free(&idKey);
     }
 
