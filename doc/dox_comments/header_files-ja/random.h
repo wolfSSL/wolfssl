@@ -1,57 +1,6 @@
 /*!
     \ingroup Random
 
-    \brief グローバルWhitewood netRandomコンテキストを初期化します
-
-    \return 0 成功
-    \return BAD_FUNC_ARG configFileがnullまたはtimeoutが負の値の場合。
-    \return RNG_FAILURE_E rngの初期化に失敗しました。
-
-    \param configFile 設定ファイルへのパス
-    \param hmac_cb HMACコールバックを作成するためのオプション。
-    \param timeout タイムアウト期間。
-
-    _Example_
-    \code
-    char* config = "path/to/config/example.conf";
-    int time = // 十分なタイムアウト値;
-
-    if (wc_InitNetRandom(config, NULL, time) != 0)
-    {
-        // エラーが発生しました
-    }
-    \endcode
-
-    \sa wc_FreeNetRandom
-*/
-int  wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout);
-
-/*!
-    \ingroup Random
-
-    \brief グローバルWhitewood netRandomコンテキストを解放します。
-
-    \return 0 成功
-    \return BAD_MUTEX_E wnr_mutexのミューテックスロックエラー
-
-    \param none 戻り値なし。
-
-    _Example_
-    \code
-    int ret = wc_FreeNetRandom();
-    if(ret != 0)
-    {
-        // エラーを処理
-    }
-    \endcode
-
-    \sa wc_InitNetRandom
-*/
-int  wc_FreeNetRandom(void);
-
-/*!
-    \ingroup Random
-
     \brief rng用のシード(OSから)と鍵暗号を取得します。rng->drbg(決定論的乱数ビット生成器)が割り当てられます(wc_FreeRngで割り当て解除する必要があります)。これはブロッキング操作です。
 
     \return 0 成功時。

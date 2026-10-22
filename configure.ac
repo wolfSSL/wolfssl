@@ -9711,46 +9711,14 @@ then
     esac
 fi
 
-# Whitewood netRandom client library
-ENABLED_WNR="no"
-trywnrdir=""
+# Reject the retired option instead of silently ignoring it.
 AC_ARG_WITH([wnr],
-    [AS_HELP_STRING([--with-wnr=PATH],[Path to Whitewood netRandom install (default /usr/local)])],
-    [
-        AC_MSG_CHECKING([for Whitewood netRandom])
-        LIBS="$LIBS -lwnr"
-
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
-
-        if test "x$wnr_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                trywnrdir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                trywnrdir="/usr/local"
-            fi
-
-            CPPFLAGS="$AM_CPPFLAGS -DHAVE_WNR -I$trywnrdir/include"
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$trywnrdir/lib"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
-
-            if test "x$wnr_linked" = "xno" ; then
-                AC_MSG_ERROR([Whitewood netRandom isn't found.
-                If it's already installed, specify its path using --with-wnr=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            AM_CPPFLAGS="$CPPFLAGS"
-            AM_LDFLAGS="$AM_LDFLAGS -L$trywnrdir/lib"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_WNR"
-        ENABLED_WNR="yes"
-    ]
-)
-
+    [AS_HELP_STRING([--with-wnr=PATH],
+        [Whitewood netRandom support has been removed])],
+    [if test "x$withval" != "xno"; then
+        AC_MSG_ERROR([Whitewood netRandom support has been removed])
+    fi],
+    [])
 
 # SNI
 # enable SNI automatically for x86_64/x86/aarch64/amd64
@@ -14144,10 +14112,10 @@ then
     esac
     if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
        test "$ENABLED_ENTROPY_MEMUSE" != "no" || \
-       test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
+       test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, static memory, netRandom, memory zero checking or memory tracking"
+        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, static memory, memory zero checking or memory tracking"
     fi
     if test -z "$RNG_AUTOFORK_NEEDS"
     then
@@ -14578,7 +14546,6 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING_MULTI],[test "x$ENABLED_CERTIFICATE_STATUS_R
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
-AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
 AM_CONDITIONAL([BUILD_MD4],[test "x$ENABLED_MD4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -15194,7 +15161,6 @@ echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
 echo "   * Falcon:                     $ENABLED_FALCON"
-echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"

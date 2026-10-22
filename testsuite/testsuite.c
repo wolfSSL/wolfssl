@@ -168,13 +168,6 @@ int testsuite_test(int argc, char** argv)
     tempName_Xnum = 6;
 #endif /* !USE_WINDOWS_API */
 
-#ifdef HAVE_WNR
-    if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
-        err_sys("Whitewood netRandom global config failed");
-        return -1237;
-    }
-#endif /* HAVE_WNR */
-
     StartTCP();
 
     server_args.argc = argc;
@@ -297,11 +290,6 @@ int testsuite_test(int argc, char** argv)
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
-
-#ifdef HAVE_WNR
-    if (wc_FreeNetRandom() < 0)
-        err_sys("Failed to free netRandom context");
-#endif /* HAVE_WNR */
 
     printf("\nAll tests passed!\n");
 
