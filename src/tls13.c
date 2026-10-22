@@ -6732,7 +6732,13 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 #endif
 
 #ifdef WOLFSSL_CERT_SETUP_CB
-    if ((ret = CertSetupCbWrapper(ssl)) != 0)
+    if (
+    #ifdef HAVE_ECH
+        /* no client cert is sent when ECH is rejected */
+        !(ssl->echConfigs != NULL && !ssl->options.disableECH &&
+          !ssl->options.echAccepted) &&
+    #endif
+        (ret = CertSetupCbWrapper(ssl)) != 0)
         return ret;
 #endif
 
@@ -10801,6 +10807,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_SETUP_CB)
     /* call client cert callback if no cert has been loaded */
     if ((ssl->ctx->CBClientCert != NULL) &&
+    #ifdef HAVE_ECH
+        /* no client cert is sent when ECH is rejected */
+        !(ssl->echConfigs != NULL && !ssl->options.disableECH &&
+          !ssl->options.echAccepted) &&
+    #endif
         (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer)) {
         ret = ssl->ctx->CBClientCert(ssl, &x509, &pkey);
         if (ret == 1) {

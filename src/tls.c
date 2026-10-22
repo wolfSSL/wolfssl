@@ -17177,6 +17177,14 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     TLSX_SetResponse(ssl, TLSX_ECH);
             }
         }
+        else if (!isServer && ssl->echConfigs != NULL &&
+                !ssl->options.disableECH) {
+            /* An ECH client has configs but is instead setup to use TLS1.2 or
+             * lower, this is incompatible with ECH so fail instead */
+            WOLFSSL_MSG("ECH configs set but TLS 1.3 not negotiable");
+            WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+            ret = BAD_STATE_E;
+        }
 #endif
 
 #endif
