@@ -817,6 +817,9 @@ static void test_pkcs11_store_setup(Pkcs11Token* token, CK_FUNCTION_LIST* func)
     test_pkcs11_fail_copy = 0;
     test_pkcs11_fail_destroy = 0;
     test_pkcs11_fail_session_info = 0;
+    test_pkcs11_sign_key = 0;
+    test_pkcs11_pq_pub_len = 0;
+    test_pkcs11_pq_param = 0;
     test_pkcs11_reset();
 }
 
@@ -1652,6 +1655,11 @@ int test_wc_Pkcs11_KeyGenSessionClosed(void)
     ecc_key key;
     WC_RNG rng;
     word32 len = sizeof(test_pkcs11_ec_point) - 2;
+#ifdef HAVE_ECC_SIGN
+    byte hash[32];
+    byte sig[ECC_MAX_SIG_SIZE];
+    word32 sigLen = sizeof(sig);
+#endif
 #ifdef TEST_PKCS11_RSA_KEYGEN
     RsaKey rsa;
     wc_CryptoInfo info;
@@ -1660,6 +1668,9 @@ int test_wc_Pkcs11_KeyGenSessionClosed(void)
     test_pkcs11_store_setup(&token, &func);
     func.C_OpenSession = test_pkcs11_open_session;
     func.C_CloseSession = test_pkcs11_close_session;
+#ifdef HAVE_ECC_SIGN
+    XMEMSET(hash, 0x5a, sizeof(hash));
+#endif
     XMEMSET(&soft, 0, sizeof(soft));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(test_pkcs11_make_ecc(&soft, &rng, id, (int)sizeof(id)), 0);
@@ -1725,8 +1736,29 @@ int test_wc_Pkcs11_KeyGenSessionClosed(void)
 #endif
     ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
 
-    /* A session key made in the open session is kept. */
+    /* A token key outlives the session and is then found by its id. */
     test_pkcs11_reset();
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 1), 0);
+    ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_NONE), 0);
+    ExpectNull(key.devCtx);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+#ifdef HAVE_ECC_SIGN
+    test_pkcs11_sign_key = 0;
+    ExpectIntEQ(wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigLen, &rng, &key),
+        0);
+#ifndef WC_PKCS11_FIND_WITH_ID_ONLY
+    ExpectIntEQ(test_pkcs11_sign_key,
+        test_pkcs11_find_obj(CKO_PRIVATE_KEY, CK_TRUE));
+#endif
+#endif
+    wc_ecc_free(&key);
+
+    /* So does a session key made in the open session. */
+    test_pkcs11_reset();
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 0), 0);
     token.handle = 1;
     ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id, (int)sizeof(id),
         NULL, TEST_PKCS11_DEVID), 0);
@@ -1976,6 +2008,163 @@ int test_wc_Pkcs11_PqcPersistDelete(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_Pkcs11_PqcKeyGen(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_PKCS11_MLDSA_44) || defined(TEST_PKCS11_MLKEM_768)
+    static const unsigned char id[] = { 0xb1 };
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    WC_RNG rng;
+#ifdef TEST_PKCS11_MLDSA_44
+    wc_MlDsaKey soft;
+    wc_MlDsaKey dsa;
+    word32 dsaLen = sizeof(test_pkcs11_pq_pub);
+#endif
+#ifdef TEST_PKCS11_MLKEM_768
+    MlKemKey softKem;
+    MlKemKey kem;
+    word32 kemLen = 0;
+#endif
+
+    test_pkcs11_store_setup(&token, &func);
+    func.C_OpenSession = test_pkcs11_open_session;
+    func.C_CloseSession = test_pkcs11_close_session;
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+#ifdef TEST_PKCS11_MLDSA_44
+    XMEMSET(&soft, 0, sizeof(soft));
+    ExpectIntEQ(wc_MlDsaKey_Init(&soft, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&soft, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&soft, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&soft, test_pkcs11_pq_pub, &dsaLen),
+        0);
+    test_pkcs11_pq_pub_len = dsaLen;
+    test_pkcs11_pq_param = CKP_ML_DSA_44;
+    wc_MlDsaKey_Free(&soft);
+
+    /* A named key becomes a token key with its public key. */
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 1), 0);
+    XMEMSET(&dsa, 0, sizeof(dsa));
+    ExpectIntEQ(wc_MlDsaKey_InitId(&dsa, id, (int)sizeof(id), NULL,
+        TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&dsa, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectIntEQ(test_pkcs11_token_keys_protected(), 1);
+    ExpectPtrEq(dsa.devCtx,
+        (void*)(wc_ptr_t)test_pkcs11_find_obj(CKO_PRIVATE_KEY, CK_TRUE));
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    dsa.devCtx = NULL;
+    wc_MlDsaKey_Free(&dsa);
+
+    /* A named session key in a session that closes is refused. */
+    test_pkcs11_reset();
+    token.handle = 0;
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 0), 0);
+    ExpectIntEQ(wc_MlDsaKey_InitId(&dsa, id, (int)sizeof(id), NULL,
+        TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&dsa, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectNull(dsa.devCtx);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    wc_MlDsaKey_Free(&dsa);
+
+    /* A named token key in a session that closes stays on the token. */
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 1), 0);
+    ExpectIntEQ(wc_MlDsaKey_InitId(&dsa, id, (int)sizeof(id), NULL,
+        TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&dsa, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), 0);
+    ExpectNull(dsa.devCtx);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    wc_MlDsaKey_Free(&dsa);
+    test_pkcs11_reset();
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 0), 0);
+
+    /* A key without a name is generated in software. */
+    ExpectIntEQ(wc_MlDsaKey_Init(&dsa, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&dsa, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), 0);
+    ExpectNull(dsa.devCtx);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    wc_MlDsaKey_Free(&dsa);
+    token.handle = 1;
+#endif
+
+#ifdef TEST_PKCS11_MLKEM_768
+    test_pkcs11_reset();
+    XMEMSET(&softKem, 0, sizeof(softKem));
+    ExpectIntEQ(wc_MlKemKey_Init(&softKem, WC_ML_KEM_768, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&softKem, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(&softKem, &kemLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(&softKem, test_pkcs11_pq_pub,
+        kemLen), 0);
+    test_pkcs11_pq_pub_len = kemLen;
+    test_pkcs11_pq_param = CKP_ML_KEM_768;
+    wc_MlKemKey_Free(&softKem);
+
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 1), 0);
+    XMEMSET(&kem, 0, sizeof(kem));
+    ExpectIntEQ(wc_MlKemKey_Init_Id(&kem, WC_ML_KEM_768, (unsigned char*)id,
+        (int)sizeof(id), NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectIntEQ(test_pkcs11_token_keys_protected(), 1);
+    ExpectPtrEq(kem.devCtx,
+        (void*)(wc_ptr_t)test_pkcs11_find_obj(CKO_PRIVATE_KEY, CK_TRUE));
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    kem.devCtx = NULL;
+    wc_MlKemKey_Free(&kem);
+
+    test_pkcs11_reset();
+    token.handle = 0;
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 0), 0);
+    ExpectIntEQ(wc_MlKemKey_Init_Id(&kem, WC_ML_KEM_768, (unsigned char*)id,
+        (int)sizeof(id), NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectNull(kem.devCtx);
+    ExpectIntEQ(kem.flags & MLKEM_FLAG_PRIV_SET, 0);
+    wc_MlKemKey_Free(&kem);
+
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 1), 0);
+    ExpectIntEQ(wc_MlKemKey_Init_Id(&kem, WC_ML_KEM_768, (unsigned char*)id,
+        (int)sizeof(id), NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng), 0);
+    ExpectNull(kem.devCtx);
+    ExpectIntNE(kem.flags & MLKEM_FLAG_PRIV_SET, 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    wc_MlKemKey_Free(&kem);
+    test_pkcs11_reset();
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 0), 0);
+
+    ExpectIntEQ(wc_MlKemKey_Init(&kem, WC_ML_KEM_768, NULL,
+        TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(&kem, &rng), 0);
+    ExpectNull(kem.devCtx);
+    ExpectIntNE(kem.flags & MLKEM_FLAG_PRIV_SET, 0);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    wc_MlKemKey_Free(&kem);
+    token.handle = 1;
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_Pkcs11_PersistPaths(void)
 {
     EXPECT_DECLS;
@@ -2214,6 +2403,130 @@ int test_wc_Pkcs11_RsaKeyGenError(void)
     test_pkcs11_fail_keygen = 0;
 
     wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Pkcs11_KeyGenPersistent(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_EC_KEYGEN
+    static const byte id[] = { 0x21, 0x22 };
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    ecc_key soft;
+    ecc_key key;
+    WC_RNG rng;
+    word32 len = sizeof(test_pkcs11_ec_point) - 2;
+    TestPkcs11Obj* priv = NULL;
+    TestPkcs11Obj* pub = NULL;
+#ifdef TEST_PKCS11_RSA_KEYGEN
+    RsaKey rsa;
+#endif
+
+    test_pkcs11_store_setup(&token, &func);
+    XMEMSET(&soft, 0, sizeof(soft));
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(test_pkcs11_make_ecc(&soft, &rng, id, (int)sizeof(id)), 0);
+    test_pkcs11_ec_point[0] = ASN_OCTET_STRING;
+    test_pkcs11_ec_point[1] = (byte)len;
+    ExpectIntEQ(wc_ecc_export_x963(&soft, test_pkcs11_ec_point + 2, &len), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(NULL, 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* A token that only reports the public point of token objects. */
+    test_pkcs11_session_no_point = 1;
+    ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 1), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_token_keys_protected(), 1);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectNotNull(priv = test_pkcs11_obj((CK_OBJECT_HANDLE)(wc_ptr_t)
+        key.devCtx));
+    if (priv != NULL) {
+        ExpectIntEQ(priv->cls, CKO_PRIVATE_KEY);
+        ExpectIntEQ(priv->onToken, CK_TRUE);
+        ExpectIntEQ(priv->idLen, sizeof(id));
+    }
+    ExpectNotNull(pub = test_pkcs11_obj(test_pkcs11_find_obj(CKO_PUBLIC_KEY,
+        CK_TRUE)));
+    if (pub != NULL)
+        ExpectIntEQ(pub->idLen, sizeof(id));
+    wc_ecc_free(&key);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+
+    /* The id is taken now. */
+    ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), WC_NO_ERR_TRACE(BAD_STATE_E));
+    wc_ecc_free(&key);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+
+    /* A key without a name, like a TLS ephemeral key, is a session key. */
+    test_pkcs11_session_no_point = 0;
+    ExpectIntEQ(wc_ecc_init_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+    wc_ecc_free(&key);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+
+#ifdef TEST_PKCS11_RSA_KEYGEN
+    test_pkcs11_reset();
+    ExpectIntEQ(wc_InitRsaKey_Id(&rsa, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&rsa, 2048, WC_RSA_EXPONENT, &rng), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectNotNull(pub = test_pkcs11_obj(test_pkcs11_find_obj(CKO_PUBLIC_KEY,
+        CK_TRUE)));
+    if (pub != NULL)
+        ExpectIntEQ(pub->idLen, sizeof(id));
+    ExpectIntEQ(test_pkcs11_token_keys_protected(), 1);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectIntEQ(wc_FreeRsaKey(&rsa), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+
+    /* A token key outlives a session that closes. */
+    test_pkcs11_reset();
+    func.C_OpenSession = test_pkcs11_open_session;
+    func.C_CloseSession = test_pkcs11_close_session;
+    token.handle = 0;
+    ExpectIntEQ(wc_InitRsaKey_Id(&rsa, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&rsa, 2048, WC_RSA_EXPONENT, &rng), 0);
+    ExpectNull(rsa.devCtx);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectIntEQ(wc_FreeRsaKey(&rsa), 0);
+    token.handle = 1;
+#endif
+
+    test_pkcs11_reset();
+    test_pkcs11_session_no_point = 0;
+    ExpectIntEQ(wc_Pkcs11Token_SetKeyGenPersistent(&token, 0), 0);
+    ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+    wc_ecc_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
+    wc_ecc_free(&soft);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
