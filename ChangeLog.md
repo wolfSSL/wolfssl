@@ -84,6 +84,40 @@
   compile error; the ATECC508A/608A gating is identical, and on the TA100 the
   helper was declared without a definition, so that build failed at link.
 
+* **Behavioral change (`WOLFSSL_MP_INVMOD_CONSTANT_TIME` removed)**: DSA
+  signing and RSA key generation now always use their blinded or Fermat
+  inverse, as builds without the macro already did.  Builds that defined it
+  switch from a direct `mp_invmod()` to the blinded (DSA) or Fermat (RSA)
+  inverse, and DSA signing draws one extra random value for the blinding
+  factor; defining it has no effect. by @stenslae (PR 11159)
+
+* **Behavioral change (`FP_ECC` with `ECC_TIMING_RESISTANT`)**:
+  `wc_ecc_mulmod_ex()`/`_ex2()` no longer use the fixed-point cache, so key
+  generation, ECDH and signing run at uncached speed. Only `ecc_mul2add()`
+  still uses it (ECDSA verify with Shamir's trick, and `wolfSSL_EC_POINT_mul()`
+  given both scalars). Without `ECC_SHAMIR` nothing uses the cache, so it and
+  its lock are compiled out and `--enable-fpecc` has no effect. by @stenslae
+  (PR 11159)
+
+* **Behavioral change (`wc_MakeSakkeRsk()` needs an RNG)**: the RSK inverse
+  is now blinded, so `wc_MakeSakkeRsk()` instantiates a random number
+  generator on every call and fails if one cannot be seeded. The new
+  `wc_MakeSakkeRsk_ex()` takes an existing `WC_RNG` instead. SAKKE with
+  `WC_NO_RNG` now stops with `#error`; it never linked. configure and CMake
+  reject SAKKE without an RNG, and `--enable-all-crypto` leaves it off with
+  `--disable-rng`. by @stenslae (PR 11159)
+
+* **Behavioral change (heap-math `mp_addmod_ct()`, `mp_submod_ct()`,
+  `mp_div_2_mod_ct()`)**: these now return `MP_VAL` for a negative operand or
+  one wider than the modulus, instead of computing a result. by @stenslae
+  (PR 11159)
+
+* **Behavioral change (`WOLFSSL_NO_CONST_CMP`)**: no longer defined
+  automatically. The minimal `WOLFCRYPT_ONLY` builds that got it now define
+  `WC_NO_CONST_CMP_API` instead, which leaves out only the exported
+  `wc_ConstantCompare()`; the internal `ConstantCompare()` stays available to
+  RSA, ECC and its other callers. by @stenslae (PR 11159)
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -96,6 +130,10 @@
 ## Bug Fixes
 
 * Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
+* ECCSI signing (`wc_SignEccsiHash()`) now blinds its modular inverse instead of inverting the secret value directly. by @stenslae (PR 11159)
+* SAKKE RSK derivation now blinds the inverse of a + z_T, which involves the KMS master secret. by @stenslae (PR 11159)
+* Heap-math (`--enable-heapmath`) `mp_addmod_ct()`, `mp_submod_ct()` and `mp_div_2_mod_ct()` no longer branch on the values or limb counts of reduced operands. by @stenslae (PR 11159)
+* The ATECC GCM tag check now compares in constant time with `ConstantCompare()`, whose loads are now volatile so it cannot be compiled to an early-exit compare. by @stenslae (PR 11159)
 
 * Fixed `wc_AsconAEAD128_SetAD` called more than once: the function
   absorbs the key, nonce and associated data into the sponge state and then

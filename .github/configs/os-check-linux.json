@@ -601,5 +601,12 @@
  "run": [["./wolfcrypt/test/testwolfcrypt"]]},
 {"name": "postauth-no-compat",
  "comment": "Post-handshake auth without OPENSSL_EXTRA, which otherwise compiles out the handshake-end unload of SSL-owned certs and keys.",
- "configure": ["--enable-postauth", "--enable-sessioncerts"]}
+ "configure": ["--enable-postauth", "--enable-sessioncerts"]},
+{"name": "fpecc-no-shamir",
+ "comment": "FP_ECC with ECC_TIMING_RESISTANT but no ECC_SHAMIR: nothing consumes the fixed-point cache, so its table, lock and helpers are compiled out.",
+ "configure": ["--enable-fpecc", "--disable-eccshamir"]},
+{"name": "sp-math-sakke",
+ "comment": "SAKKE on WOLFSSL_SP_MATH without RSA, DH, or ECCSI: its blinded RSK inverse needs sp_mulmod, which nothing else builds in this shape.",
+ "configure": ["--enable-cryptonly", "--enable-sp-math", "--enable-sp",
+  "--disable-rsa", "--disable-dh", "--enable-sakke"]}
 ]

@@ -40,35 +40,38 @@
  *
  * Guards covered (line : owning function):
  *
- * sakke.c:411  sakke_mulmod_base_add() "(err == 0) && map" -- every in-tree
+ * sakke.c:423  sakke_mulmod_base_add() "(err == 0) && map" -- every in-tree
  *     caller (sakke_compute_point_i()) hardcodes map=1, so map=0 is
  *     otherwise unreachable. Both values driven directly.
- * sakke.c:1483 sakke_addmod() "(err == 0) && (mp_cmp(r, m) != MP_LT)" --
+ * sakke.c:1076 wc_MakeSakkeRsk_ex() "(err == 0) && mp_iszero(a)" -- the
+ *     identity q - z_T makes a + z_T == 0 mod q; must fail with MP_VAL
+ *     rather than return the point at infinity.
+ * sakke.c:1604 sakke_addmod() "(err == 0) && (mp_cmp(r, m) != MP_LT)" --
  *     pure mp_int helper, no key state needed. r < m and r >= m both driven.
- * sakke.c:1505/1508/1511 sakke_tplmod() -- same shape, three sequential
+ * sakke.c:1626/1629/1632 sakke_tplmod() -- same shape, three sequential
  *     reduction checks; a/m chosen so each of the three independently sees
  *     both "still >= m" and "already < m" across the four calls made.
- * sakke.c:2454 wc_ValidateSakkeRsk() "(err == 0) && (idSz <=
+ * sakke.c:2585 wc_ValidateSakkeRsk() "(err == 0) && (idSz <=
  *     SAKKE_ID_MAX_SIZE)" -- unlike wc_SetSakkeIdentity()/
  *     wc_MakeSakkePointI(), this public wrapper never bounds idSz before
  *     computing point I, so idSz > SAKKE_ID_MAX_SIZE is reachable directly
  *     through the public API; driven here to isolate the guard that keeps
  *     the fixed 128-byte key->i.id copy from overflowing.
- * sakke.c:2466 wc_ValidateSakkeRsk() "*valid = ((err == 0) &&
+ * sakke.c:2597 wc_ValidateSakkeRsk() "*valid = ((err == 0) &&
  *     (mp_cmp(a, &key->params.g) == MP_EQ))" -- true (matching RSK/identity
  *     pair) and false (RSK computed for a different identity) both driven.
- * sakke.c:6653 sakke_compute_point_r() "(key->i.idSz == 0) ||
+ * sakke.c:6784 sakke_compute_point_r() "(key->i.idSz == 0) ||
  *     (key->i.idSz != idSz) || (XMEMCMP(id, key->i.id, idSz) != 0)" -- each
  *     operand toggled independently by controlling key->i.* state directly
  *     (never-cached, size-mismatch, content-mismatch, cache-hit).
- * sakke.c:6657 sakke_compute_point_r() "(err == 0) && (idSz <=
- *     SAKKE_ID_MAX_SIZE)" -- same shape/reason as 2454, driven as an
- *     idSz > SAKKE_ID_MAX_SIZE call that also forces the 6653 recompute
+ * sakke.c:6788 sakke_compute_point_r() "(err == 0) && (idSz <=
+ *     SAKKE_ID_MAX_SIZE)" -- same shape/reason as 2585, driven as an
+ *     idSz > SAKKE_ID_MAX_SIZE call that also forces the 6784 recompute
  *     path.
  *
- * Loop decisions at sakke.c:2282, 2302, 2646 and 6289 (bit/byte iteration
+ * Loop decisions at sakke.c:2413, 2433, 2777 and 6420 (bit/byte iteration
  * bounded by mp_count_bits(&params->q) or a digest size) are exercised for
- * both loop-continue and loop-exit, and (2302) both mp_is_bit_set()
+ * both loop-continue and loop-exit, and (2433) both mp_is_bit_set()
  * outcomes, as a side effect of the full key-generation / RSK / validate /
  * encapsulate / derive round trip this file performs to reach the guards
  * above -- the loop bound and q's bit pattern are fixed curve parameters,
@@ -81,8 +84,8 @@
  * documented for test_aes_whitebox.c in
  * iso26262/mcdc-per-module/reports/aes/RESIDUALS.md).
  *
- * Residual (not forced): sakke.c:536 "while ((err == 0) &&
- * mp_iszero(wc_ecc_key_get_priv(&key->ecc)))" in wc_MakeSakkeKey() only
+ * Residual (not forced): sakke.c:524 "while ((err == 0) &&
+ * mp_iszero(r))" in sakke_rand_nonzero_mod_q() only
  * re-rolls when a freshly-generated 1024-bit random scalar is exactly 0 --
  * cryptographically negligible, and not reachable without a corrupted or
  * mocked RNG.
@@ -145,7 +148,34 @@ int main(void)
     if (wc_MakeSakkeRsk(&key, id2, (word16)sizeof(id2), rsk2) != 0)
         wb_fail = 1;
 
-    /* --- sakke.c:411 sakke_mulmod_base_add(): "(err == 0) && map" ---
+    /* --- sakke.c:1076 wc_MakeSakkeRsk_ex(): "mp_iszero(a)" ---
+     * Identity q - z_T makes a + z_T == 0 mod q, which has no inverse.
+     * Drives the guard's TRUE outcome; mp_invmod() of the blinded zero
+     * would also return MP_VAL, so this pins the result, not the guard.
+     * Needs the real master secret, so runs here. */
+    {
+        mp_int idZ;
+        byte idZero[128];
+        int idZeroSz = 0;
+
+        if (mp_init(&idZ) != MP_OKAY) wb_fail = 1;
+        if (mp_sub(&key.params.q, wc_ecc_key_get_priv(&key.ecc), &idZ)
+                != MP_OKAY) wb_fail = 1;
+        idZeroSz = mp_unsigned_bin_size(&idZ);
+        if ((idZeroSz <= 0) || (idZeroSz > (int)sizeof(idZero)) ||
+                (mp_to_unsigned_bin(&idZ, idZero) != MP_OKAY)) {
+            wb_fail = 1;
+        }
+        else if (wc_MakeSakkeRsk(&key, idZero, (word16)idZeroSz, rsk) !=
+                WC_NO_ERR_TRACE(MP_VAL)) {
+            wb_fail = 1;
+        }
+        mp_forcezero(&idZ);
+        mp_free(&idZ);
+        WB_NOTE("wc_MakeSakkeRsk() zero a + z_T (line 1076) exercised");
+    }
+
+    /* --- sakke.c:423 sakke_mulmod_base_add(): "(err == 0) && map" ---
      * Only exists without WOLFSSL_HAVE_SP_ECC. Every in-tree caller
      * hardcodes map=1 (sakke_compute_point_i()); map=0 is otherwise
      * unreachable. Uses the real public key computed by wc_MakeSakkeKey()
@@ -173,11 +203,11 @@ int main(void)
         }
 
         mp_free(&scalarN);
-        WB_NOTE("sakke_mulmod_base_add() map==0/map==1 (line 411) "
+        WB_NOTE("sakke_mulmod_base_add() map==0/map==1 (line 423) "
             "exercised");
     }
 
-    /* --- sakke.c:1483 sakke_addmod() / 1505,1508,1511 sakke_tplmod() ---
+    /* --- sakke.c:1604 sakke_addmod() / 1626,1629,1632 sakke_tplmod() ---
      * Pure mp_int reduction helpers -- no key state needed at all. */
     {
         mp_int a, b, m, r;
@@ -193,7 +223,7 @@ int main(void)
         /* sakke_addmod(): r >= m (guard true, one subtraction). */
         mp_set(&a, 60); mp_set(&b, 70); mp_set(&m, 100);
         if (sakke_addmod(&a, &b, &m, &r) != 0) wb_fail = 1; /* r = 130 */
-        WB_NOTE("sakke_addmod() r<m / r>=m (line 1483) exercised");
+        WB_NOTE("sakke_addmod() r<m / r>=m (line 1604) exercised");
 
         /* sakke_tplmod(): 3*10=30 < 100 -- all three checks false. */
         mp_set(&a, 10); mp_set(&m, 100);
@@ -208,7 +238,7 @@ int main(void)
         /* 3*11=33 -> 23 -> 13 -> 3 -- all three checks true. */
         mp_set(&a, 11); mp_set(&m, 10);
         if (sakke_tplmod(&a, &m, &r) != 0) wb_fail = 1;
-        WB_NOTE("sakke_tplmod() 3-stage reduction (lines 1505/1508/1511) "
+        WB_NOTE("sakke_tplmod() 3-stage reduction (lines 1626/1629/1632) "
             "all true/false combinations exercised");
 
         mp_free(&a);
@@ -222,27 +252,27 @@ int main(void)
         "(SP-math substitutes single-shot sp_ecc_* calls); skipped");
 #endif
 
-    /* --- sakke.c:2454/2466 wc_ValidateSakkeRsk() --- */
-    /* Matching RSK/identity pair: valid == 1 (line 2466 true). Also
-     * exercises the loops at 2282/2302 (sakke_pairing()) with real data. */
+    /* --- sakke.c:2585/2597 wc_ValidateSakkeRsk() --- */
+    /* Matching RSK/identity pair: valid == 1 (line 2597 true). Also
+     * exercises the loops at 2413/2433 (sakke_pairing()) with real data. */
     valid = -1;
     if (wc_ValidateSakkeRsk(&key, id, (word16)sizeof(id), rsk, &valid) != 0)
         wb_fail = 1;
     if (valid != 1) wb_fail = 1;
 
     /* Mismatched pair: rsk2 was computed for id2, checked here against id.
-     * Isolates line 2466's mp_cmp(...) == MP_EQ operand to false while err
+     * Isolates line 2597's mp_cmp(...) == MP_EQ operand to false while err
      * stays 0. */
     valid = -1;
     if (wc_ValidateSakkeRsk(&key, id, (word16)sizeof(id), rsk2, &valid) != 0)
         wb_fail = 1;
     if (valid != 0) wb_fail = 1;
-    WB_NOTE("wc_ValidateSakkeRsk() valid==1/valid==0 (line 2466) exercised");
+    WB_NOTE("wc_ValidateSakkeRsk() valid==1/valid==0 (line 2597) exercised");
 
     /* idSz > SAKKE_ID_MAX_SIZE: wc_ValidateSakkeRsk() never bounds idSz
      * before computing point I (unlike wc_SetSakkeIdentity()/
      * wc_MakeSakkePointI()), so this is reachable directly through the
-     * public API. Isolates line 2454's "idSz <= SAKKE_ID_MAX_SIZE" operand
+     * public API. Isolates line 2585's "idSz <= SAKKE_ID_MAX_SIZE" operand
      * to false while err stays 0, confirming the fixed 128-byte key->i.id
      * copy is skipped rather than overflowed. From this call on, "key"'s
      * ecc private-key mp_int has been repurposed as scratch by
@@ -250,10 +280,10 @@ int main(void)
     valid = -1;
     if (wc_ValidateSakkeRsk(&key, idBig, (word16)sizeof(idBig), rsk, &valid)
             != 0) wb_fail = 1;
-    WB_NOTE("wc_ValidateSakkeRsk() idSz > SAKKE_ID_MAX_SIZE (line 2454) "
+    WB_NOTE("wc_ValidateSakkeRsk() idSz > SAKKE_ID_MAX_SIZE (line 2585) "
         "exercised");
 
-    /* --- sakke.c:6653/6657 sakke_compute_point_r() ---
+    /* --- sakke.c:6784/6788 sakke_compute_point_r() ---
      * Called directly (it is file-static) so key->i.* cache state can be
      * controlled precisely; none of these calls need the master secret. */
     {
@@ -288,18 +318,18 @@ int main(void)
          * skipped entirely. */
         if (sakke_compute_point_r(&key, idC, (word16)sizeof(idC), &rScalar,
                 128, out) != 0) wb_fail = 1;
-        WB_NOTE("sakke_compute_point_r() cache-state guard (line 6653) all "
+        WB_NOTE("sakke_compute_point_r() cache-state guard (line 6784) all "
             "four operand combinations exercised");
 
         /* idSz > SAKKE_ID_MAX_SIZE, with key->i.idSz reset to 0 to force
-         * the recompute branch: isolates line 6657's bound to false while
+         * the recompute branch: isolates line 6788's bound to false while
          * err stays 0, confirming the copy into the fixed 128-byte
          * key->i.id is skipped instead of overflowed. */
         key.i.idSz = 0;
         if (sakke_compute_point_r(&key, idBig, (word16)sizeof(idBig),
                 &rScalar, 128, out) != 0) wb_fail = 1;
         WB_NOTE("sakke_compute_point_r() idSz > SAKKE_ID_MAX_SIZE (line "
-            "6657) exercised");
+            "6788) exercised");
 
         mp_free(&rScalar);
     }

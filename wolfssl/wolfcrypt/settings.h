@@ -5310,10 +5310,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WOLFSSL_NO_CT_OPS
 #endif
 
+/* Minimal wolfCrypt-only builds leave out the exported wc_ConstantCompare().
+ * The internal ConstantCompare() stays available to its callers. */
 #if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(HAVE_CURVE25519) && \
         !defined(HAVE_CURVE448) && defined(WC_NO_RNG) && defined(WC_NO_RSA_OAEP)
-    #undef  WOLFSSL_NO_CONST_CMP
-    #define WOLFSSL_NO_CONST_CMP
+    #undef  WC_NO_CONST_CMP_API
+    #define WC_NO_CONST_CMP_API
 #endif
 
 #if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(WOLFSSL_SHA384) && \

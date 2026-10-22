@@ -1737,7 +1737,7 @@ void wc_ForceZero(void *mem, size_t len)
 }
 #endif
 
-#ifndef WOLFSSL_NO_CONST_CMP
+#if !defined(WOLFSSL_NO_CONST_CMP) && !defined(WC_NO_CONST_CMP_API)
 /* Exported version of ConstantCompare(). */
 int wc_ConstantCompare(const byte* a, const byte* b, int length)
 
