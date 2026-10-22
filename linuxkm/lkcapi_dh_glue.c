@@ -153,16 +153,41 @@ static int ffdhe6144_loaded = 0;
 static int ffdhe8192_loaded = 0;
 #endif /* HAVE_FFDHE_8192 */
 
+/* The kernel crypto API permits concurrent operations on a single tfm,
+ * with no serialization by the core, so the tfm context must be
+ * effectively read-only after set_secret (cf. the ML-DSA glue, the
+ * model for this pattern).  The former tfm-resident DhKey and WC_RNG
+ * violated that: km_dh_gen_pub() lazily derived the public key into the
+ * ctx on first call, wc_DhImportKeyPair() left the private scalar
+ * parked in the resident DhKey as an mp_int, and km_dh_max_size() and
+ * wc_DhAgree() read the resident key's parameters live.  The ctx now
+ * holds only octet strings -- the group parameters (plain dh only;
+ * ffdhe groups are reloaded by name), the private scalar, and the
+ * public value, the latter two both captured at set_secret time -- and
+ * each operation needing a DhKey deserializes a heap-transient one,
+ * with its own transient WC_RNG where needed (struct km_dh_op_state
+ * below). */
 struct km_dh_ctx {
-    WC_RNG   rng; /* needed for keypair gen and timing resistance*/
-    DhKey *  key;
+    byte *   p;        /* plain dh (name == 0) only: modulus octets,
+                        * verbatim from set_secret. */
+    byte *   g;        /* plain dh only: generator octets, verbatim. */
     byte *   priv_key;
     byte *   pub_key;
     int      name; /* the finite-field group name */
     word32   nbits;
+    word32   p_len;
+    word32   g_len;
     word32   priv_len;
     word32   pub_len;
-    byte     has_pub_key;
+    byte     key_set; /* nonzero: priv_key and pub_key are populated. */
+};
+
+/* Per-operation state: a transient DhKey loaded with the ctx's group
+ * parameters, plus its own WC_RNG where the operation needs one. */
+struct km_dh_op_state {
+    DhKey   key;
+    WC_RNG  rng;
+    byte    rng_inited;
 };
 
 /* shared misc functions */
@@ -381,6 +406,8 @@ static int km_dh_decode_secret(const u8 * buf, unsigned int len,
 
 static inline void km_dh_clear_keys(struct km_dh_ctx * ctx)
 {
+    ctx->key_set = 0;
+
     if (ctx->priv_key) {
         ForceZero(ctx->priv_key, ctx->priv_len);
         free(ctx->priv_key);
@@ -394,7 +421,142 @@ static inline void km_dh_clear_keys(struct km_dh_ctx * ctx)
         ctx->pub_len = 0;
     }
 
+    if (ctx->p) {
+        free(ctx->p);
+        ctx->p = NULL;
+        ctx->p_len = 0;
+    }
+
+    if (ctx->g) {
+        free(ctx->g);
+        ctx->g = NULL;
+        ctx->g_len = 0;
+    }
+
     return;
+}
+
+/* The modulus length in bytes: from the named group's bit size for
+ * ffdhe, from the stored modulus octets for plain dh (whose ctx->nbits
+ * is the compile-time maximum, not the group size). */
+static inline word32 km_dh_mod_len(const struct km_dh_ctx * ctx)
+{
+    if (ctx->name)
+        return ctx->nbits / WOLFSSL_BIT_SIZE;
+    else
+        return ctx->p_len;
+}
+
+static void km_dh_op_free(struct km_dh_op_state *op)
+{
+    if (op == NULL)
+        return;
+    wc_FreeDhKey(&op->key);
+    if (op->rng_inited)
+        wc_FreeRng(&op->rng);
+    ForceZero(op, sizeof(*op));
+    free(op);
+}
+
+/* Allocate per-operation state: a transient DhKey loaded with the
+ * ctx's group parameters (by name for ffdhe, from the stored octets
+ * for plain dh).  need_rng selects whether a transient WC_RNG is
+ * initialized.  Returns 0, -EINVAL, or -ENOMEM; *op_out is non-NULL
+ * only on success, and must be passed to km_dh_op_free() when done. */
+static int km_dh_op_new(const struct km_dh_ctx *ctx, int need_rng,
+                        struct km_dh_op_state **op_out)
+{
+    struct km_dh_op_state *op = NULL;
+    int                    err;
+
+    *op_out = NULL;
+
+    op = (struct km_dh_op_state *)malloc(sizeof(*op));
+    if (unlikely(op == NULL))
+        return -ENOMEM;
+    XMEMSET(op, 0, sizeof(*op));
+
+    err = wc_InitDhKey(&op->key);
+    if (unlikely(err)) {
+        free(op);
+        return -ENOMEM;
+    }
+
+    if (ctx->name) {
+        err = wc_DhSetNamedKey(&op->key, ctx->name);
+    }
+    else if (ctx->p && ctx->g) {
+        err = wc_DhSetKey(&op->key, ctx->p, ctx->p_len, ctx->g, ctx->g_len);
+    }
+    else {
+        /* plain dh with no parameters stored: no secret has been set. */
+        err = WC_NO_ERR_TRACE(WC_FAILURE);
+    }
+
+    if ((err == 0) && need_rng) {
+        err = LKCAPI_INITRNG(&op->rng);
+        if (err == 0)
+            op->rng_inited = 1;
+    }
+
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_DH
+        pr_err("%s: per-op key materialization failed: %d\n",
+               WOLFKM_DH_DRIVER, err);
+        #endif /* WOLFKM_DEBUG_DH */
+        km_dh_op_free(op);
+        if (err == WC_NO_ERR_TRACE(MEMORY_E))
+            return -ENOMEM;
+        else
+            return -EINVAL;
+    }
+
+    *op_out = op;
+    return 0;
+}
+
+/* Derive the public value from the stored private scalar into
+ * ctx->pub_key, zero-padded on the left to the modulus length: the
+ * kernel crypto/testmgr.c kpp test assumes the same fixed width for
+ * all pub keys and doesn't check for updates to req->dst_len if the
+ * pub key is shorter because of leading zeros (and the kernel's own
+ * dh-generic emits modulus-width values). */
+static int km_dh_store_pub(struct km_dh_ctx * ctx,
+                           struct km_dh_op_state * op)
+{
+    int    err;
+    word32 mod_len = km_dh_mod_len(ctx);
+
+    /* ctx->pub_len is the buffer capacity here (nbits/8, from
+     * km_dh_alloc_keys()), passed as the in/out length below exactly as
+     * the former lazy derivation in km_dh_gen_pub() did; mod_len cannot
+     * exceed it (enforced at set_secret for plain dh, and equal to it
+     * for ffdhe). */
+    XMEMSET(ctx->pub_key, 0, ctx->pub_len);
+
+    PRIVATE_KEY_UNLOCK();
+    err = wc_DhGeneratePublic(&op->key, ctx->priv_key, ctx->priv_len,
+                              ctx->pub_key, &ctx->pub_len);
+    PRIVATE_KEY_LOCK();
+
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_DH
+        pr_err("%s: wc_DhGeneratePublic failed: %d\n",
+               WOLFKM_DH_DRIVER, err);
+        #endif
+        return -EINVAL;
+    }
+
+    if (ctx->pub_len < mod_len) {
+        word32 pad_len = mod_len - ctx->pub_len;
+
+        memmove(ctx->pub_key + pad_len, ctx->pub_key, ctx->pub_len);
+        XMEMSET(ctx->pub_key, 0, pad_len);
+
+        ctx->pub_len += pad_len;
+    }
+
+    return 0;
 }
 
 static int km_dh_alloc_keys(struct km_dh_ctx * ctx)
@@ -435,36 +597,12 @@ alloc_keys_end:
 
 static int km_dh_reset_ctx(struct km_dh_ctx * ctx)
 {
-    int err = 0;
-
-    /* reset old dh key. */
-    if (ctx->priv_key) {
-        wc_FreeDhKey(ctx->key);
-        err = wc_InitDhKey(ctx->key);
-
-        if (unlikely(err)) {
-            err = -ENOMEM;
-            goto reset_ctx_end;
-        }
-
-        if (ctx->name) {
-            err = wc_DhSetNamedKey(ctx->key, ctx->name);
-            if (err) {
-                #ifdef WOLFKM_DEBUG_DH
-                pr_err("%s: wc_DhSetNamedKey returned: %d\n", WOLFKM_DH_DRIVER,
-                       err);
-                #endif /* WOLFKM_DEBUG_DH */
-                err = -ENOMEM;
-                goto reset_ctx_end;
-            }
-        }
-    }
-
-reset_ctx_end:
-    /* clear old priv and public key arrays. */
+    /* destroy-first, per kernel setkey semantics: release all stored
+     * key material and parameters up front, so a rejected secret
+     * leaves the transform keyless. */
     km_dh_clear_keys(ctx);
 
-    return err;
+    return 0;
 }
 
 #ifdef LINUXKM_DH
@@ -480,9 +618,10 @@ reset_ctx_end:
 static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
                             unsigned int len)
 {
-    int                err = -1;
-    struct km_dh_ctx * ctx = NULL;
-    struct dh          params;
+    int                     err = -1;
+    struct km_dh_ctx *      ctx = NULL;
+    struct km_dh_op_state * op = NULL;
+    struct dh               params;
 
     ctx = kpp_tfm_ctx(tfm);
     XMEMSET(&params, 0, sizeof(params));
@@ -513,6 +652,18 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
         goto dh_secret_end;
     }
 
+    /* the priv/pub octet buffers are sized from ctx->nbits
+     * (DH_MAX_SIZE for plain dh): a larger modulus cannot be
+     * accommodated. */
+    if (params.p_size > (ctx->nbits / WOLFSSL_BIT_SIZE)) {
+        #ifdef WOLFKM_DEBUG_DH
+        pr_err("%s: dh_set_secret: modulus too large: %d\n",
+               WOLFKM_DH_DRIVER, params.p_size);
+        #endif
+        err = -EINVAL;
+        goto dh_secret_end;
+    }
+
     err = km_dh_reset_ctx(ctx);
     if (err) {
         goto dh_secret_end;
@@ -523,20 +674,28 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
         goto dh_secret_end;
     }
 
-    /* set dh params */
-    err = wc_DhSetKey(ctx->key, params.p, params.p_size,
-                      params.g, params.g_size);
+    /* store the group parameters verbatim: per-op transient keys are
+     * loaded from these. */
+    ctx->p = malloc(params.p_size);
+    ctx->g = malloc(params.g_size);
+    if (unlikely((ctx->p == NULL) || (ctx->g == NULL))) {
+        err = -ENOMEM;
+        goto dh_secret_end;
+    }
+    XMEMCPY(ctx->p, params.p, params.p_size);
+    ctx->p_len = params.p_size;
+    XMEMCPY(ctx->g, params.g, params.g_size);
+    ctx->g_len = params.g_size;
 
+    /* transient key with the stored params (see struct
+     * km_dh_op_state), for scalar validation and pub derivation. */
+    err = km_dh_op_new(ctx, 0 /* need_rng */, &op);
     if (err) {
-        #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: wc_DhSetKey failed: %d\n", WOLFKM_DH_DRIVER, err);
-        #endif
-        err = -EINVAL;
         goto dh_secret_end;
     }
 
     /* import private key */
-    err = wc_DhImportKeyPair(ctx->key, params.key, params.key_size,
+    err = wc_DhImportKeyPair(&op->key, params.key, params.key_size,
                              NULL, 0);
 
     if (err) {
@@ -547,7 +706,7 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
         goto dh_secret_end;
     }
 
-    err = wc_DhExportKeyPair(ctx->key, ctx->priv_key, &ctx->priv_len,
+    err = wc_DhExportKeyPair(&op->key, ctx->priv_key, &ctx->priv_len,
                              NULL, NULL);
 
     if (err) {
@@ -559,8 +718,16 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
         goto dh_secret_end;
     }
 
-    ctx->has_pub_key = 0;
+    /* derive and store the public value now, so km_dh_gen_pub() is a
+     * straight copy with no shared-state writes. */
+    err = km_dh_store_pub(ctx, op);
+    if (err) {
+        goto dh_secret_end;
+    }
+
+    ctx->key_set = 1;
 dh_secret_end:
+    km_dh_op_free(op);
 
     if (err != 0)
         km_dh_reset_ctx(ctx);
@@ -586,9 +753,10 @@ dh_secret_end:
 static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
                                unsigned int len)
 {
-    int                err = -1;
-    struct km_dh_ctx * ctx = NULL;
-    struct dh          params;
+    int                     err = -1;
+    struct km_dh_ctx *      ctx = NULL;
+    struct km_dh_op_state * op = NULL;
+    struct dh               params;
 
     ctx = kpp_tfm_ctx(tfm);
     XMEMSET(&params, 0, sizeof(params));
@@ -628,12 +796,18 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
     }
 
     if (!params.key_size) {
-        /* generate the ffdhe key pair*/
+        /* generate the ffdhe key pair, on a transient key (see struct
+         * km_dh_op_state), and store the raw octets. */
         #ifdef WOLFKM_DEBUG_DH
         pr_info("ffdhe gen key pair\n");
         #endif
+        err = km_dh_op_new(ctx, 1 /* need_rng */, &op);
+        if (err) {
+            goto ffdhe_secret_end;
+        }
+
         PRIVATE_KEY_UNLOCK();
-        err = wc_DhGenerateKeyPair(ctx->key, &ctx->rng,
+        err = wc_DhGenerateKeyPair(&op->key, &op->rng,
                                    ctx->priv_key, &ctx->priv_len,
                                    ctx->pub_key, &ctx->pub_len);
         PRIVATE_KEY_LOCK();
@@ -663,13 +837,17 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
 
             ctx->pub_len += pad_len;
         }
-
-        /* already has the pub key generated. */
-        ctx->has_pub_key = 1;
     }
     else {
+        /* transient key with the named group's params (see struct
+         * km_dh_op_state), for scalar validation and pub derivation. */
+        err = km_dh_op_new(ctx, 0 /* need_rng */, &op);
+        if (err) {
+            goto ffdhe_secret_end;
+        }
+
         /* import the private key. */
-        err = wc_DhImportKeyPair(ctx->key, params.key, params.key_size,
+        err = wc_DhImportKeyPair(&op->key, params.key, params.key_size,
                                  NULL, 0);
 
         if (err) {
@@ -681,7 +859,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
             goto ffdhe_secret_end;
         }
 
-        err = wc_DhExportKeyPair(ctx->key, ctx->priv_key, &ctx->priv_len,
+        err = wc_DhExportKeyPair(&op->key, ctx->priv_key, &ctx->priv_len,
                                  NULL, NULL);
 
         if (err) {
@@ -693,11 +871,19 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
             goto ffdhe_secret_end;
         }
 
-        /* needs pub key generation */
-        ctx->has_pub_key = 0;
+        /* derive and store the public value now, so km_dh_gen_pub() is
+         * a straight copy with no shared-state writes. */
+        err = km_dh_store_pub(ctx, op);
+        if (err) {
+            goto ffdhe_secret_end;
+        }
     }
 
+    ctx->key_set = 1;
+
 ffdhe_secret_end:
+    km_dh_op_free(op);
+
     if (unlikely(err)) {
         km_dh_reset_ctx(ctx);
     }
@@ -719,7 +905,7 @@ static unsigned int km_dh_max_size(struct crypto_kpp *tfm)
     unsigned int       max_size = 0;
 
     ctx = kpp_tfm_ctx(tfm);
-    max_size = mp_unsigned_bin_size(&ctx->key->p);
+    max_size = (unsigned int)km_dh_mod_len(ctx);
 
     #ifdef WOLFKM_DEBUG_DH
     pr_info("info: exiting km_dh_max_size: %d\n", max_size);
@@ -733,14 +919,7 @@ static void km_dh_exit(struct crypto_kpp *tfm)
 
     ctx = kpp_tfm_ctx(tfm);
 
-    if (ctx->key) {
-        wc_FreeDhKey(ctx->key);
-        free(ctx->key);
-        ctx->key = NULL;
-    }
-
     km_dh_clear_keys(ctx);
-    wc_FreeRng(&ctx->rng);
 
     #ifdef WOLFKM_DEBUG_DH
     pr_info("info: exiting km_dh_exit\n");
@@ -757,45 +936,26 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
 {
     struct km_dh_ctx * ctx = NULL;
     int                err = 0;
-    int key_inited = 0;
 
     ctx = kpp_tfm_ctx(tfm);
     XMEMSET(ctx, 0, sizeof(struct km_dh_ctx));
     ctx->name = name;
     ctx->nbits = nbits;
 
-    err = LKCAPI_INITRNG(&ctx->rng);
-    if (err) {
-        #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: init rng returned: %d\n", WOLFKM_DH_DRIVER, err);
-        #endif /* WOLFKM_DEBUG_DH */
-        return -ENOMEM;
-    }
-
-    ctx->key = (DhKey *)malloc(sizeof(DhKey));
-    if (!ctx->key) {
-        err = -ENOMEM;
-        goto out;
-    }
-
-    err = wc_InitDhKey(ctx->key);
-    if (err < 0) {
-        err = -ENOMEM;
-        goto out;
-    }
-
-    key_inited = 1;
-
     if (ctx->name) {
-        err = wc_DhSetNamedKey(ctx->key, ctx->name);
+        /* probe the named group on a transient key, preserving the old
+         * behavior of failing tfm init for an unloadable group. */
+        struct km_dh_op_state * op = NULL;
+
+        err = km_dh_op_new(ctx, 0 /* need_rng */, &op);
         if (err) {
             #ifdef WOLFKM_DEBUG_DH
-            pr_err("%s: wc_DhSetNamedKey returned: %d\n", WOLFKM_DH_DRIVER,
-                   err);
+            pr_err("%s: named group %d probe failed: %d\n", WOLFKM_DH_DRIVER,
+                   ctx->name, err);
             #endif /* WOLFKM_DEBUG_DH */
-            err = -ENOMEM;
-            goto out;
+            return err;
         }
+        km_dh_op_free(op);
     }
 
     #ifdef WOLFKM_DEBUG_DH
@@ -803,19 +963,7 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
             ctx->name, ctx->nbits);
     #endif /* WOLFKM_DEBUG_DH */
 
-out:
-
-    if (err != 0) {
-        if (ctx->key) {
-            if (key_inited)
-                wc_FreeDhKey(ctx->key);
-            free(ctx->key);
-            ctx->key = NULL;
-        }
-        wc_FreeRng(&ctx->rng);
-    }
-
-    return err;
+    return 0;
 }
 
 #ifdef LINUXKM_DH
@@ -879,26 +1027,9 @@ static int km_dh_gen_pub(struct kpp_request *req)
     tfm = crypto_kpp_reqtfm(req);
     ctx = kpp_tfm_ctx(tfm);
 
-    if (!ctx->priv_key || !ctx->pub_key) {
+    if (! ctx->key_set) {
         /* key not set or invalid key state. */
         return -EINVAL;
-    }
-
-    if (ctx->has_pub_key == 0) {
-        XMEMSET(ctx->pub_key, 0, ctx->pub_len);
-
-        err = wc_DhGeneratePublic(ctx->key, ctx->priv_key, ctx->priv_len,
-                                  ctx->pub_key, &ctx->pub_len);
-
-        if (unlikely(err)) {
-            #ifdef WOLFKM_DEBUG_DH
-            pr_err("%s: wc_dh_make_key_ex failed: %d\n",
-                   WOLFKM_DH_DRIVER, err);
-            #endif
-            return -EINVAL;
-        }
-
-        ctx->has_pub_key = 1;
     }
 
     if (ctx->pub_len > req->dst_len) {
@@ -926,13 +1057,14 @@ static int km_dh_gen_pub(struct kpp_request *req)
  * */
 static int km_dh_compute_shared_secret(struct kpp_request *req)
 {
-    struct crypto_kpp * tfm = NULL;
-    struct km_dh_ctx *  ctx = NULL;
-    int                 err = -1;
-    byte *              pub = NULL;
-    word32              pub_len = 0;
-    byte *              shared_secret = NULL;
-    word32              shared_secret_len = 0;
+    struct crypto_kpp *     tfm = NULL;
+    struct km_dh_ctx *      ctx = NULL;
+    struct km_dh_op_state * op = NULL;
+    int                     err = -1;
+    byte *                  pub = NULL;
+    word32                  pub_len = 0;
+    byte *                  shared_secret = NULL;
+    word32                  shared_secret_len = 0;
 
     if (req->src == NULL || req->dst == NULL) {
         err = -EINVAL;
@@ -942,7 +1074,7 @@ static int km_dh_compute_shared_secret(struct kpp_request *req)
     tfm = crypto_kpp_reqtfm(req);
     ctx = kpp_tfm_ctx(tfm);
 
-    if (!ctx->priv_key || !ctx->pub_key) {
+    if (! ctx->key_set) {
         /* key not set or invalid key state. */
         err = -EINVAL;
         goto dh_shared_secret_end;
@@ -970,11 +1102,11 @@ static int km_dh_compute_shared_secret(struct kpp_request *req)
     /* copy req->src to pub */
     scatterwalk_map_and_copy(pub, req->src, 0, req->src_len, 0);
 
-    /* Note, shared_secret_len must use the canonical length of ctx->key, not
+    /* Note, shared_secret_len must use the canonical modulus length, not
      * the untrustworthy req->src_len, to prevent underallocation of
      * shared_secret.
      */
-    shared_secret_len = mp_unsigned_bin_size(&ctx->key->p);
+    shared_secret_len = km_dh_mod_len(ctx);
     if (shared_secret_len < req->src_len) {
         err = -EINVAL;
         goto dh_shared_secret_end;
@@ -985,8 +1117,15 @@ static int km_dh_compute_shared_secret(struct kpp_request *req)
         goto dh_shared_secret_end;
     }
 
+    /* per-operation key, loaded locally with the ctx's group parameters
+     * (see struct km_dh_op_state); the private scalar is passed to
+     * wc_DhAgree() as octets straight from the ctx. */
+    err = km_dh_op_new(ctx, 0 /* need_rng */, &op);
+    if (err)
+        goto dh_shared_secret_end;
+
     PRIVATE_KEY_UNLOCK();
-    err = wc_DhAgree(ctx->key, shared_secret, &shared_secret_len,
+    err = wc_DhAgree(&op->key, shared_secret, &shared_secret_len,
                      ctx->priv_key, ctx->priv_len, pub, pub_len);
     PRIVATE_KEY_LOCK();
 
@@ -1019,6 +1158,8 @@ dh_shared_secret_end:
         shared_secret = NULL;
     }
     if (pub) { free(pub); pub = NULL; }
+
+    km_dh_op_free(op);
 
     #ifdef WOLFKM_DEBUG_DH
     pr_info("info: exiting km_dh_compute_shared_secret: %d\n",
