@@ -5381,8 +5381,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     static int AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
-        /* Reject invalid AES key lengths early (FIPS 197: 128/192/256 only);
-         * wc_AesSetKeyDirect only bounds-checks keylen. */
+        /* Reject invalid AES key lengths early (FIPS 197: 128/192/256 only). */
         if (userKey == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
             return BAD_FUNC_ARG;
         }
@@ -5533,14 +5532,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                            const byte* iv, int dir)
     {
-        if (aes == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        if (keylen > sizeof(aes->key)) {
-            return BAD_FUNC_ARG;
-        }
-
-        return AesSetKey(aes, userKey, keylen, iv, dir);
+        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))

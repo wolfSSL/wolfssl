@@ -38295,6 +38295,14 @@ static int test_wc_CryptoCb_Aes_SetKey_Declined(void)
     ExpectIntEQ(wc_AesSetKey(&aes, keyB, sizeof(keyB), in, AES_ENCRYPTION), 0);
     ExpectBufEQ((byte*)aes.reg, in, WC_AES_BLOCK_SIZE);
 
+#ifdef WOLFSSL_AES_DIRECT
+    dev.setKeyCount = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, keyA, sizeof(keyA), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(dev.setKeyCount, 1);
+    ExpectBufEQ(dev.key, keyA, sizeof(keyA));
+#endif
+
     if (aesInit) {
         wc_AesFree(&aes);
     }
