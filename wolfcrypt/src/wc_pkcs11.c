@@ -6779,8 +6779,11 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_RSA) {
-                if (Pkcs11OpenSession(token, &session, readWrite) == 0) {
-                    Pkcs11RsaDeletePrivKey(&session, (RsaKey*)info->free.obj);
+                RsaKey* rsaKey = (RsaKey*)info->free.obj;
+
+                if (rsaKey != NULL && rsaKey->devCtx != NULL &&
+                        Pkcs11OpenSession(token, &session, readWrite) == 0) {
+                    Pkcs11RsaDeletePrivKey(&session, rsaKey);
                     Pkcs11CloseSession(token, &session);
                 }
                 ret = CRYPTOCB_UNAVAILABLE;
@@ -6790,10 +6793,12 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #ifdef HAVE_ECC
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_EC_KEYGEN) {
-                ret = Pkcs11OpenSession(token, &session, readWrite);
-                if (ret == 0) {
-                    ret = Pkcs11EccDeletePrivKey(&session,
-                                                 (ecc_key*)info->free.obj);
+                ecc_key* eccKey = (ecc_key*)info->free.obj;
+
+                if (eccKey != NULL && eccKey->devCtx != NULL)
+                    ret = Pkcs11OpenSession(token, &session, readWrite);
+                if (ret == 0 && eccKey != NULL && eccKey->devCtx != NULL) {
+                    ret = Pkcs11EccDeletePrivKey(&session, eccKey);
                     Pkcs11CloseSession(token, &session);
                 }
             }
@@ -6803,10 +6808,12 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN &&
                 info->free.subType == WC_PQC_SIG_TYPE_MLDSA) {
-                ret = Pkcs11OpenSession(token, &session, readWrite);
-                if (ret == 0) {
-                    ret = Pkcs11MldsaDeletePrivKey(&session,
-                                                   (wc_MlDsaKey*)info->free.obj);
+                wc_MlDsaKey* mldsaKey = (wc_MlDsaKey*)info->free.obj;
+
+                if (mldsaKey != NULL && mldsaKey->devCtx != NULL)
+                    ret = Pkcs11OpenSession(token, &session, readWrite);
+                if (ret == 0 && mldsaKey != NULL && mldsaKey->devCtx != NULL) {
+                    ret = Pkcs11MldsaDeletePrivKey(&session, mldsaKey);
                     Pkcs11CloseSession(token, &session);
                 }
             }
@@ -6816,10 +6823,12 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_PQC_KEM_KEYGEN &&
                 info->free.subType == WC_PQC_KEM_TYPE_MLKEM) {
-                ret = Pkcs11OpenSession(token, &session, readWrite);
-                if (ret == 0) {
-                    ret = Pkcs11MlKemDeletePrivKey(&session,
-                                                   (MlKemKey*)info->free.obj);
+                MlKemKey* mlkemKey = (MlKemKey*)info->free.obj;
+
+                if (mlkemKey != NULL && mlkemKey->devCtx != NULL)
+                    ret = Pkcs11OpenSession(token, &session, readWrite);
+                if (ret == 0 && mlkemKey != NULL && mlkemKey->devCtx != NULL) {
+                    ret = Pkcs11MlKemDeletePrivKey(&session, mlkemKey);
                     Pkcs11CloseSession(token, &session);
                 }
             }
