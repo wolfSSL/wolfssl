@@ -36447,7 +36447,14 @@ static int IsTls13CipherSuite(byte first, byte second)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
         /* A server negotiating TLS 1.2 or older answers the outer hello. */
-        ret = TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
+        if (ssl->options.echAccepted) {
+            WOLFSSL_MSG("ECH accepted in HelloRetryRequest, ServerHello is "
+                        "not TLS 1.3");
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+        ret = TLSX_EchReplaceExtensions(ssl, 0);
         if (ret != 0)
             return ret;
 #endif

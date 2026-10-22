@@ -7601,14 +7601,15 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
             ssl->version.minor = TLSv1_2_MINOR;
     #ifdef WOLFSSL_DTLS13
         else if (ssl->version.major == DTLS_MAJOR && ssl->options.downgrade &&
+                ssl->options.handShakeState == NULL_STATE &&
                 (ssl->version.minor == DTLSv1_3_MINOR ||
                  (ssl->version.minor == DTLSv1_2_MINOR &&
                   (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) ==
                     WOLFSSL_OP_NO_TLSv1_2))) {
             byte minor = Dtls13DowngradeMinor(ssl,
                 ssl->options.minDowngrade);
-            if (minor != 0)
-                ssl->version.minor = minor;
+            /* With no older version left, DTLS 1.3 fails the handshake. */
+            ssl->version.minor = (minor != 0) ? minor : DTLSv1_3_MINOR;
         }
     #endif
     }

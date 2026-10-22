@@ -15652,6 +15652,9 @@ static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
             ExpectIntEQ(ret, 0);
             ExpectIntEQ(wolfSSL_version(ssl_c), expVersion);
             ExpectIntEQ(wolfSSL_version(ssl_s), expVersion);
+            (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_2 |
+                WOLFSSL_OP_NO_TLSv1_1);
+            ExpectIntEQ(wolfSSL_version(ssl), expVersion);
         }
         else {
             ExpectIntNE(ret, 0);
@@ -15714,9 +15717,15 @@ int test_dtls13_no_tls13_option(void)
         ExpectIntEQ(test_dtls13_mask_case(0, onCtx,
             WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2 |
             WOLFSSL_OP_NO_TLSv1_1, 0, 0, 0), TEST_SUCCESS);
+        ExpectIntEQ(test_dtls13_mask_case(0, onCtx, WOLFSSL_OP_NO_TLSv1_3,
+            WOLFSSL_OP_NO_TLSv1_2 | WOLFSSL_OP_NO_TLSv1_1, 0, 0), TEST_SUCCESS);
         ExpectIntEQ(test_dtls13_mask_case(0, onCtx, WOLFSSL_OP_NO_TLSv1_3, 0,
             WOLFSSL_DTLSV1_3, 0), TEST_SUCCESS);
     }
+#ifndef OPENSSL_COEXIST
+    ExpectIntEQ(test_dtls13_mask_case(0, 0, SSL_OP_NO_DTLSv1_3,
+        SSL_OP_NO_DTLSv1_2 | SSL_OP_NO_DTLSv1, 0, 0), TEST_SUCCESS);
+#endif
 
     /* A DTLS 1.3-only method cannot move down. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
