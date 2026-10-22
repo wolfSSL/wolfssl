@@ -36465,8 +36465,8 @@ static int IsTls13CipherSuite(byte first, byte second)
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-        if (ssl->options.echAccepted && ssl->options.serverState ==
-                SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+        if (ssl->options.echAccepted &&
+                ssl->msgsReceived.got_hello_retry_request) {
             WOLFSSL_MSG("ECH accepted in HelloRetryRequest, ServerHello is "
                         "not TLS 1.3");
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
@@ -43165,30 +43165,16 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
     #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls && ssl->options.downgrade &&
-                !ssl->options.handShakeDone &&
-                DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) !=
-                    ssl->version.minor) {
-            byte dtlsMinor = DtlsAllowedMinor(ssl, ssl->version.minor,
-                ssl->options.minDowngrade);
-
-            if (dtlsMinor == 0) {
-                WOLFSSL_MSG("\tNo DTLS version left that the options allow");
-                ret = VERSION_ERROR;
-                /* propagate socket errors to avoid re-calling send alert */
-                if (SendAlert(ssl, alert_fatal,
-                        wolfssl_alert_protocol_version)
-                        == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
-                    ret = SOCKET_ERROR_E;
-                }
-                goto out;
+        ret = DtlsCheckVersionMask(ssl);
+        if (ret == WC_NO_ERR_TRACE(VERSION_ERROR)) {
+            /* propagate socket errors to avoid re-calling send alert */
+            if (SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version)
+                    == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                ret = SOCKET_ERROR_E;
             }
-            ssl->options.tls1_3 = 0;
-            ssl->version.minor = dtlsMinor;
-            ret = ResetSuitesForVersion(ssl);
-            if (ret != 0)
-                goto out;
         }
+        if (ret != 0)
+            goto out;
     #endif
 
         /* Version the record layer is on before the mask walk below steps it

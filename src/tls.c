@@ -7480,6 +7480,12 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
                 if (versionIsLesser(isDtls, minor, ssl->options.minDowngrade))
                     continue;
             }
+        #ifdef WOLFSSL_DTLS
+            if (isDtls && ssl->options.downgrade &&
+                    DtlsAllowedMinor(ssl, minor, DTLS_MINOR) != minor) {
+                continue;
+            }
+        #endif
             if (versionIsGreater(isDtls, minor, clientGreatestMinor))
                 clientGreatestMinor = minor;
 
