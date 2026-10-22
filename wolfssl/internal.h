@@ -158,13 +158,6 @@
     #include <signal.h>
 #endif
 
-#ifdef WOLFSSL_APACHE_MYNEWT
-    #if !defined(WOLFSSL_LWIP)
-        void mynewt_ctx_clear(void *ctx);
-        void* mynewt_ctx_new();
-    #endif
-#endif
-
 #if !defined(WOLFCRYPT_ONLY) && !defined(INT_MAX)
     /* Needed for TLS/DTLS limit checking (Added in 91aad90c59 Jan 24, 2025) */
     #include <limits.h>
@@ -7288,9 +7281,6 @@ struct WOLFSSL {
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
 #endif
-#if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-    void*           mnCtx;             /* mynewt mn_socket IO Context */
-#endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 #ifdef WOLFSSL_GNRC
     struct gnrc_wolfssl_ctx *gnrcCtx;  /* Riot-OS GNRC UDP/IP context */
 #endif
