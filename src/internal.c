@@ -8090,26 +8090,34 @@ int InitSSL_Suites(WOLFSSL* ssl)
  * mask and minDowngrade allow, or 0. DTLS minors count down. */
 byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
 {
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
+    unsigned long mask = ssl->options.mask;
+#else
+    unsigned long mask = 0;
+#endif
+
 #ifdef WOLFSSL_DTLS13
     if (maxMinor <= DTLSv1_3_MINOR &&
-            (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == 0) {
+            (mask & WOLFSSL_OP_NO_TLSv1_3) == 0) {
         return DTLSv1_3_MINOR;
     }
 #endif
 #ifndef WOLFSSL_NO_TLS12
     if (maxMinor <= DTLSv1_2_MINOR &&
-            (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == 0 &&
+            (mask & WOLFSSL_OP_NO_TLSv1_2) == 0 &&
             minDowngrade >= DTLSv1_2_MINOR) {
         return DTLSv1_2_MINOR;
     }
 #endif
 #ifndef NO_OLD_TLS
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == 0 &&
+    if ((mask & WOLFSSL_OP_NO_TLSv1_1) == 0 &&
             minDowngrade >= DTLS_MINOR) {
         return DTLS_MINOR;
     }
 #endif
     (void)ssl;
+    (void)mask;
     (void)maxMinor;
     (void)minDowngrade;
     return 0;
