@@ -2386,6 +2386,11 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     };
     CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
+#ifdef WC_PKCS11_FIND_WITH_ID_ONLY
+    (void)keyClass;
+    (void)keyType;
+#endif
+
     WOLFSSL_MSG("PKCS#11: Find Key By Id");
 
     ret = Pkcs11FindKeyByTemplate(key, session, keyTemplate, keyTmplCnt,
