@@ -81,6 +81,7 @@ int test_wc_EccDecisionCoverage3(void);
 int test_wc_EccDecisionCoverage4(void);
 int test_wc_EccPublicKeyDecode_explicit_curve_size(void);
 int test_wc_EccPublicKeyDecode_specifiedOverflow(void);
+int test_wc_ecc_make_key_id_dev(void);
 
 #define TEST_ECC_DECLS                                                  \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_size_from_name),       \
@@ -140,6 +141,7 @@ int test_wc_EccPublicKeyDecode_specifiedOverflow(void);
     TEST_DECL_GROUP("ecc", test_wc_EccDecisionCoverage4),             \
     TEST_DECL_GROUP("ecc",                                          \
         test_wc_EccPublicKeyDecode_explicit_curve_size),            \
-    TEST_DECL_GROUP("ecc", test_wc_EccPublicKeyDecode_specifiedOverflow)
+    TEST_DECL_GROUP("ecc", test_wc_EccPublicKeyDecode_specifiedOverflow), \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_make_key_id_dev)
 
 #endif /* WOLFCRYPT_TEST_ECC_H */

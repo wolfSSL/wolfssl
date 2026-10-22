@@ -32867,3 +32867,77 @@ int test_mldsa_make_key_rej_ntt_fail(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    !defined(HAVE_FIPS)
+static int mldsa_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_MlDsaKey_MakeKey() on an id or label key whose device declines
+ * keygen.
+ */
+int test_mldsa_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    !defined(HAVE_FIPS)
+    int devId = 2405;
+    wc_MlDsaKey* key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+#ifndef WOLFSSL_NO_ML_DSA_44
+    byte level = WC_ML_DSA_44;
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    byte level = WC_ML_DSA_65;
+#else
+    byte level = WC_ML_DSA_87;
+#endif
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, mldsa_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_InitId(key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_MlDsaKey_Free(key);
+
+    ExpectIntEQ(wc_MlDsaKey_InitLabel(key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_MlDsaKey_Free(key);
+
+#if defined(WC_MLDSA_HAVE_NATIVE) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_MlDsaKey_InitId(key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
+    wc_MlDsaKey_Free(key);
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, devId), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
+    wc_MlDsaKey_Free(key);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}

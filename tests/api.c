@@ -36372,15 +36372,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
         #endif /* ifdef WOLF_CRYPTO_CB_RSA_PAD */
     #endif /* !NO_RSA */
     #ifdef HAVE_ECC
-        if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
-            /* mark this key as ephemeral */
-            if (info->pk.eckg.key != NULL) {
-                XSTRNCPY(info->pk.eckg.key->label, "ephemeral",
-                    sizeof(info->pk.eckg.key->label));
-                info->pk.eckg.key->labelLen = (int)XSTRLEN(info->pk.eckg.key->label);
-            }
-        }
-        else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+        if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
             ecc_key key;
 
             /* perform software based ECC sign */
@@ -36389,11 +36381,11 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
         #endif
 
             if (info->pk.eccsign.key != NULL &&
-                XSTRCMP(info->pk.eccsign.key->label, "ephemeral") == 0) {
-                /* this is an empheral key */
+                info->pk.eccsign.key->type == ECC_PRIVATEKEY) {
+                /* generated in software, not the key this device holds */
             #ifdef DEBUG_WOLFSSL
                 fprintf(stderr, "test_CryptoCb_Func: skipping signing op on "
-                    "ephemeral key\n");
+                    "software key\n");
             #endif
                 return CRYPTOCB_UNAVAILABLE;
             }
