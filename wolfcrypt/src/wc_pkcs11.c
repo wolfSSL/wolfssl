@@ -3991,8 +3991,8 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
             sessionKey = 1;
         }
         else
-            ret = Pkcs11FindEccKey(&publicKey, CKO_PUBLIC_KEY, session,
-                                   info->pk.eccsign.key, CKA_VERIFY);
+            ret = Pkcs11FindEccKey(&publicKey, CKO_PUBLIC_KEY, session, key,
+                                   CKA_VERIFY);
 
         /* keygen destroys the token public key, so fall back to the point. */
         if (ret != 0 && (key->labelLen > 0 || key->idLen > 0) &&
