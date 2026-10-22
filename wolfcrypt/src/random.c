@@ -620,6 +620,19 @@ static WARN_UNUSED_RESULT int Hash512_DRBG_Instantiate(
 static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg);
 #endif
 
+#ifdef WC_RNG_TREE
+#ifndef NO_SHA256
+static WARN_UNUSED_RESULT int Hash_DRBG_Instantiate(DRBG_internal* drbg,
+                                 wc_drbg_reseed_ctr_t *reseedCtr,
+                                 const byte* seed, word32 seedSz,
+                                 const byte* nonce, word32 nonceSz,
+                                 const byte* perso, word32 persoSz,
+                                 void* heap, int devId);
+static int Hash_DRBG_Uninstantiate(DRBG_internal* drbg);
+#endif
+static int TreeChildSeed(OS_Seed* os, byte* out, word32 sz);
+#endif
+
 /* Runtime DRBG default flavor.  This facility provides control over which DRBG
  * type is used for new WC_RNG instances; it may be switched at runtime
  * (e.g. NSA Suite 2.0 threads disable SHA-256).  _InitRng's choice of DRBG is
@@ -1181,6 +1194,11 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
 #ifdef WC_RNG_HAVE_LOCK
     WC_RNG_lock_arg_t cur_lock;
 #endif
+#ifdef WC_RNG_TREE
+    byte* inst = NULL;   /* seed for a new instantiation, from the root */
+    int rebuild = 0;
+    int devId = INVALID_DEVID;
+#endif
 
 #ifndef WC_RNG_HAVE_ENTROPY_EPOCH
     (void)cur_epoch;
@@ -1233,6 +1251,31 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
         return ret;
     }
 #endif /* WC_RNG_HAVE_LOCK */
+
+#ifdef WC_RNG_TREE
+    /* A recovery ends the copied instantiation and makes a new one from the
+     * root; only an interval reseed reseeds in place (SP 800-90C 7.3.1 req 11,
+     * A.3.2).  The new seed is drawn as wc_InitRng() draws it (7.2.1.2). */
+  #ifdef WC_RNG_HAVE_LOCK
+    if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        rebuild = 1;
+  #endif
+    if (rng->entropy_epoch != cur_epoch)
+        rebuild = 1;
+    if (rebuild) {
+  #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
+        devId = rng->devId;
+  #endif
+        inst = (byte*)XMALLOC(MAX_SEED_SZ, rng->heap, DYNAMIC_TYPE_SEED);
+        if (inst == NULL) {
+            ret = MEMORY_E;
+            goto out;
+        }
+        ret = TreeChildSeed(&rng->seed, inst, MAX_SEED_SZ);
+        if (ret != 0)
+            goto out;
+    }
+#endif
 
 #ifdef WC_RNG_HAVE_POOL
     /* Purge the pool when recovering from invalidation, or if reseeding without
@@ -1315,8 +1358,21 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
             goto out;
         }
 
-        ret = Hash256_DRBG_Reseed(drbg, &rng->reseedCtr, seed, seedSz,
-                                  additional, additionalSz);
+#ifdef WC_RNG_TREE
+        if (rebuild) {
+            ret = Hash_DRBG_Uninstantiate(drbg);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Instantiate(drbg, &rng->reseedCtr,
+                            inst + SEED_BLOCK_SZ, MAX_SEED_SZ - SEED_BLOCK_SZ,
+                            seed, seedSz, additional, additionalSz, rng->heap,
+                            devId);
+        }
+        else
+#endif
+        {
+            ret = Hash256_DRBG_Reseed(drbg, &rng->reseedCtr, seed, seedSz,
+                                      additional, additionalSz);
+        }
 #ifdef WC_RNG_DEBUG_STATS
         if (ret == 0) {
             ++rng->_stats_reseeds;
@@ -1343,8 +1399,21 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
             goto out;
         }
 
-        ret = Hash512_DRBG_Reseed(drbg512, &rng->reseedCtr, seed, seedSz,
-                                  additional, additionalSz);
+#ifdef WC_RNG_TREE
+        if (rebuild) {
+            ret = Hash512_DRBG_Uninstantiate(drbg512);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash512_DRBG_Instantiate(drbg512, &rng->reseedCtr,
+                            inst + SEED_BLOCK_SZ, MAX_SEED_SZ - SEED_BLOCK_SZ,
+                            seed, seedSz, additional, additionalSz, rng->heap,
+                            devId);
+        }
+        else
+#endif
+        {
+            ret = Hash512_DRBG_Reseed(drbg512, &rng->reseedCtr, seed, seedSz,
+                                      additional, additionalSz);
+        }
 #ifdef WC_RNG_DEBUG_STATS
         if (ret == 0) {
             ++rng->_stats_reseeds;
@@ -1366,6 +1435,13 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
     ret = WRONG_TYPE_OBJECT_E;
 
     out:
+
+#ifdef WC_RNG_TREE
+    if (inst != NULL) {
+        ForceZero(inst, MAX_SEED_SZ);
+        XFREE(inst, rng->heap, DYNAMIC_TYPE_SEED);
+    }
+#endif
 
 #ifdef WC_RNG_HAVE_LOCK
     /* The _RECOVERING bit functions as a mutex -- if it's set here, *we*
@@ -3278,10 +3354,6 @@ static void RngInitWipe(WC_RNG* rng)
  * _LOCK_INITIALLY (born held at both layers).  wc_FreeRng() releases (if the
  * latch is held) and frees the mutex.
  */
-#ifdef WC_RNG_TREE
-static int TreeChildSeed(OS_Seed* os, byte* out, word32 sz);
-#endif
-
 static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                     const byte* nonce, word32 nonceSz,
                     const byte *perso, word32 persoSz,
@@ -9435,15 +9507,7 @@ int wc_RNG_TreeReseed(int force)
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
     if (ret == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E)) {
-        ret = TreeInstantiateRoot();
-        count = TreeIsLive() ? (word32)tree.ncpu * WC_RNG_TREE_LANES : 0;
-        for (i = 0; ret == 0 && i < count; i++) {
-            /* Leaf holders run one generate and never sleep. */
-            while (TreeTryLock(&tree.leaves[i].busy) != 0)
-                WC_RELAX_LONG_LOOP();
-            ret = TreeInstantiateLeaf(&tree.leaves[i], i);
-            TreeUnlock(&tree.leaves[i].busy);
-        }
+        ret = TreeRebuild();
         /* Only the CAST error is cleared; one set meanwhile stays. */
         if (ret == 0 &&
                 !wolfSSL_Atomic_Int_CompareExchange(&tree.failed, &expected, 0))
@@ -9451,6 +9515,11 @@ int wc_RNG_TreeReseed(int force)
     }
     else if (ret == 0 && !tree.rootUp) {
         ret = TreeInstantiateRoot();
+    }
+    else if (ret == 0 && tree.root.epoch != epoch) {
+        /* A VM clone, restore or resume: copied state is wiped and built again,
+         * never reseeded in place (SP 800-90C A.3.2; ISO/IEC 19790 7.9.7). */
+        ret = TreeRebuild();
     }
     else if (ret == 0 && (force || TreeRootStale(epoch))) {
         /* Gathered outside the root lock: it can take milliseconds. */
@@ -9594,25 +9663,27 @@ int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
     }
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
-    if (leaf->epoch != epoch || leaf->pid != pid ||
-            leaf->reseedCtr >= leaf->reseedAt) {
+    if (leaf->epoch != epoch) {
+        /* Copied state: only wc_RNG_TreeReseed() rebuilds it, never a reseed
+         * in place here (SP 800-90C A.3.2). */
+        ret = NOT_READY_E;
+    }
+    else if (leaf->pid != pid || leaf->reseedCtr >= leaf->reseedAt) {
         ret = TreeDraw(epoch, seed, sizeof(seed));
         if (ret == 0) {
             ret = TreeDrbgResult(Hash512_DRBG_Reseed(&leaf->drbg,
                         &leaf->reseedCtr, seed, TREE_RESEED_SZ, NULL, 0));
         }
         if (ret == 0) {
-            leaf->epoch = epoch;
             leaf->pid = pid;
             TreeSetReseedAt(leaf, seed + TREE_RESEED_SZ);
         }
         ForceZero(seed, sizeof(seed));
 
         /* SP 800-90C 7.3.1 req 12: serve on while the root is unavailable,
-         * but never across a VM fork or fork() (SP 800-90C A.3.2). */
+         * but never across a fork() (SP 800-90C A.3.2). */
         if ((ret == WC_NO_ERR_TRACE(BUSY_E) ||
-             ret == WC_NO_ERR_TRACE(NOT_READY_E)) && leaf->epoch == epoch &&
-             leaf->pid == pid)
+             ret == WC_NO_ERR_TRACE(NOT_READY_E)) && leaf->pid == pid)
             ret = 0;
     }
 
