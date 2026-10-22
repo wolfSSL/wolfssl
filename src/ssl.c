@@ -8756,6 +8756,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             }
         } else {
             FreeDer(&ctx->certChain);
+            ctx->certChainCnt = 0;
         }
     }
 #else
