@@ -33,6 +33,7 @@ int test_wc_Pkcs11_FreeKeepsTokenKey(void);
 int test_wc_Pkcs11_RsaIdNoLeak(void);
 int test_wc_Pkcs11_EcKeyUsage(void);
 int test_wc_Pkcs11_RsaKeyGenError(void);
+int test_wc_Pkcs11_RsaKeyGenExponent(void);
 int test_wc_Pkcs11_FreeNoObject(void);
 int test_wc_Pkcs11_KeyGenSessionClosed(void);
 
@@ -42,6 +43,7 @@ int test_wc_Pkcs11_KeyGenSessionClosed(void);
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaIdNoLeak),                  \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcKeyUsage),                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenError),               \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenExponent),            \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeNoObject),                 \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed)
 

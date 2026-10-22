@@ -3231,12 +3231,12 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_ULONG          bits = info->pk.rsakg.size;
     CK_OBJECT_HANDLE  pubKey = NULL_PTR, privKey = NULL_PTR;
     CK_MECHANISM      mech;
-    static CK_BYTE    pub_exp[] = { 0x01, 0x00, 0x01, 0x00 };
+    CK_BYTE           pubExp[sizeof(long)];
     CK_ATTRIBUTE      pubKeyTmpl[] = {
         { CKA_MODULUS_BITS,    &bits,    sizeof(bits)    },
         { CKA_ENCRYPT,         &ckTrue,  sizeof(ckTrue)  },
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
-        { CKA_PUBLIC_EXPONENT, &pub_exp, sizeof(pub_exp) }
+        { CKA_PUBLIC_EXPONENT, pubExp,   sizeof(pubExp)  }
     };
     CK_ULONG          pubTmplCnt = sizeof(pubKeyTmpl)/sizeof(*pubKeyTmpl);
     /* Empty entries for optional label/ID. */
@@ -3256,14 +3256,15 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: RSA Key Generation Operation");
 
-        /* Most commonly used public exponent value (array initialized). */
-        if (info->pk.rsakg.e != WC_RSA_EXPONENT) {
-            for (i = 0; i < (int)sizeof(pub_exp); i++)
-                pub_exp[i] = (info->pk.rsakg.e >> (8 * i)) & 0xff;
+        /* Big-endian without leading zeros. */
+        for (i = 0; i < (int)sizeof(pubExp); i++) {
+            pubExp[i] = (CK_BYTE)(info->pk.rsakg.e >>
+                                  (8 * ((int)sizeof(pubExp) - 1 - i)));
         }
-        for (i = (int)sizeof(pub_exp) - 1; pub_exp[i] == 0; i--) {
+        for (i = 0; i < (int)sizeof(pubExp) - 1 && pubExp[i] == 0; i++) {
         }
-        pubKeyTmpl[3].ulValueLen = i + 1;
+        pubKeyTmpl[3].pValue = pubExp + i;
+        pubKeyTmpl[3].ulValueLen = sizeof(pubExp) - (CK_ULONG)i;
 
         if (key->labelLen != 0) {
             privKeyTmpl[privTmplCnt].type       = CKA_LABEL;

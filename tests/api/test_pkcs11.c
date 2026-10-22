@@ -300,6 +300,8 @@ typedef struct TestPkcs11Obj {
 
 static const byte test_pkcs11_modulus[256] = { 0xc0, 0x01 };
 static const byte test_pkcs11_exponent[3] = { 0x01, 0x00, 0x01 };
+static byte       test_pkcs11_keygen_exp[8];
+static CK_ULONG   test_pkcs11_keygen_exp_len = 0;
 
 static TestPkcs11Obj test_pkcs11_objs[TEST_PKCS11_MAX_OBJS];
 static TestPkcs11Obj test_pkcs11_find;
@@ -620,11 +622,20 @@ static CK_RV test_pkcs11_store_keygen(CK_SESSION_HANDLE session,
 {
     CK_RV rv;
     CK_KEY_TYPE keyType = CKK_EC;
+    CK_ULONG i;
 
     if (test_pkcs11_fail_keygen)
         return TEST_CKR_GENERAL_ERROR;
     if (mechanism->mechanism == CKM_RSA_PKCS_KEY_PAIR_GEN)
         keyType = CKK_RSA;
+    for (i = 0; i < pubCnt; i++) {
+        if (pubTmpl[i].type == CKA_PUBLIC_EXPONENT &&
+                pubTmpl[i].ulValueLen <= sizeof(test_pkcs11_keygen_exp)) {
+            XMEMCPY(test_pkcs11_keygen_exp, pubTmpl[i].pValue,
+                pubTmpl[i].ulValueLen);
+            test_pkcs11_keygen_exp_len = pubTmpl[i].ulValueLen;
+        }
+    }
     rv = test_pkcs11_store_create(session, pubTmpl, pubCnt, pub);
     if (rv == CKR_OK) {
         test_pkcs11_objs[*pub - 1].cls = CKO_PUBLIC_KEY;
@@ -1281,6 +1292,41 @@ int test_wc_Pkcs11_KeyGenSessionClosed(void)
 
     wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
     wc_ecc_free(&soft);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Pkcs11_RsaKeyGenExponent(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_RSA_KEYGEN
+    static const byte exp65539[] = { 0x01, 0x00, 0x03 };
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    RsaKey key;
+    WC_RNG rng;
+
+    test_pkcs11_store_setup(&token, &func);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, 65539, &rng), 0);
+    ExpectIntEQ(test_pkcs11_keygen_exp_len, sizeof(exp65539));
+    ExpectBufEQ(test_pkcs11_keygen_exp, exp65539, sizeof(exp65539));
+    ExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    /* The next key gets the default exponent again. */
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng), 0);
+    ExpectIntEQ(test_pkcs11_keygen_exp_len, sizeof(test_pkcs11_exponent));
+    ExpectBufEQ(test_pkcs11_keygen_exp, test_pkcs11_exponent,
+        sizeof(test_pkcs11_exponent));
+    ExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
