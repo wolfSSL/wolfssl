@@ -112,6 +112,7 @@ WOLFSSL_API int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear,
 WOLFSSL_API int wc_Pkcs11StoreKey_ex(Pkcs11Token* token, int type, int clear,
     void* key, int persistent);
 WOLFSSL_API int wc_Pkcs11PersistKey(Pkcs11Token* token, int type, void* key);
+WOLFSSL_API int wc_Pkcs11DeleteKey(Pkcs11Token* token, int type, void* key);
 
 WOLFSSL_API int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info,
     void* ctx);
