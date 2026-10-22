@@ -8260,14 +8260,15 @@ WOLFSSL_LOCAL int DtlsUpdateWindow(WOLFSSL* ssl);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor,
+    byte minDowngrade);
+WOLFSSL_LOCAL int DtlsCheckVersionMask(WOLFSSL* ssl);
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int DtlsNoCookieChGood(WOLFSSL* ssl);
 #endif
 #endif
 
 #ifdef WOLFSSL_DTLS13
-WOLFSSL_LOCAL byte Dtls13DowngradeMinor(const WOLFSSL* ssl,
-    byte minDowngrade);
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define Dtls13GetEpoch wolfSSL_Dtls13GetEpoch
         #define Dtls13NewEpoch wolfSSL_Dtls13NewEpoch

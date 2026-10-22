@@ -15606,10 +15606,10 @@ int test_dtls_max_fragment_write(void)
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_DTLS13) && defined(OPENSSL_EXTRA)
-/* Sets opts, then opts2 in a second call, and minVer when not 0, on the client
- * or server SSL or CTX. An expVersion of 0 means no DTLS version is left. */
+/* Sets opts, opts2 and opts3 in separate calls, and minVer when not 0, on the
+ * client or server SSL or CTX. An expVersion of 0 means no version is left. */
 static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
-    long opts2, int minVer, int expVersion)
+    long opts2, long opts3, int minVer, int expVersion)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -15628,6 +15628,7 @@ static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
     if (onCtx) {
         (void)wolfSSL_CTX_set_options(ctx, opts);
         (void)wolfSSL_CTX_set_options(ctx, opts2);
+        (void)wolfSSL_CTX_set_options(ctx, opts3);
     }
     ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLS_client_method, wolfDTLS_server_method);
@@ -15638,14 +15639,15 @@ static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
     else {
         ExpectIntEQ(ret, 0);
         ssl = onServer ? ssl_s : ssl_c;
+        if (onCtx)
+            ExpectIntEQ(wolfSSL_version(ssl), expVersion);
         if (!onCtx && minVer != 0)
             ExpectIntEQ(wolfSSL_SetMinVersion(ssl, minVer), WOLFSSL_SUCCESS);
         if (!onCtx && ssl != NULL) {
             (void)wolfSSL_set_options(ssl, opts);
             (void)wolfSSL_set_options(ssl, opts2);
+            (void)wolfSSL_set_options(ssl, opts3);
         }
-        ExpectIntEQ(wolfSSL_version(ssl),
-            expVersion != 0 ? expVersion : DTLS1_3_VERSION);
 
         ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
         if (expVersion != 0) {
@@ -15658,6 +15660,8 @@ static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
         }
         else {
             ExpectIntNE(ret, 0);
+            ExpectIntEQ(wolfSSL_get_error(ssl, ret),
+                WC_NO_ERR_TRACE(VERSION_ERROR));
         }
     }
 
@@ -15667,6 +15671,34 @@ static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+
+#ifndef WOLFSSL_NO_TLS12
+/* A DTLS server whose mask drops DTLS 1.2 refuses a DTLS 1.2-only client. */
+static int test_dtls13_mask_server_walk(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLS_server_method), 0);
+    if (ssl_s != NULL) {
+        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_2 |
+            WOLFSSL_OP_NO_TLSv1_1);
+    }
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(VERSION_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
 #endif
 
 /* WOLFSSL_OP_NO_TLSv1_3 moves a DTLS 1.3 client or server to the newest older
@@ -15681,56 +15713,57 @@ int test_dtls13_no_tls13_option(void)
     defined(WOLFSSL_DTLS13) && defined(OPENSSL_EXTRA)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-#ifndef WOLFSSL_NO_TLS12
     int onServer;
-#endif
     int onCtx;
 #ifndef NO_OLD_TLS
     int dtls10 = DTLS1_VERSION;
 #else
     int dtls10 = 0;
 #endif
-
 #ifndef WOLFSSL_NO_TLS12
+    int dtls12 = DTLS1_2_VERSION;
+#else
+    int dtls12 = 0;
+#endif
+
     for (onServer = 0; onServer <= 1; onServer++) {
         for (onCtx = 0; onCtx <= 1; onCtx++) {
             ExpectIntEQ(test_dtls13_mask_case(onServer, onCtx,
-                WOLFSSL_OP_NO_TLSv1_3, 0, 0, DTLS1_2_VERSION), TEST_SUCCESS);
+                WOLFSSL_OP_NO_TLSv1_3, 0, 0, 0, dtls12), TEST_SUCCESS);
+            ExpectIntEQ(test_dtls13_mask_case(onServer, onCtx,
+                WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2, 0, 0, 0,
+                dtls10), TEST_SUCCESS);
+            ExpectIntEQ(test_dtls13_mask_case(onServer, onCtx,
+                WOLFSSL_OP_NO_TLSv1_3, WOLFSSL_OP_NO_TLSv1_2, 0, 0, dtls10),
+                TEST_SUCCESS);
+            ExpectIntEQ(test_dtls13_mask_case(onServer, onCtx,
+                WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2 |
+                WOLFSSL_OP_NO_TLSv1_1, 0, 0, 0, 0), TEST_SUCCESS);
+            ExpectIntEQ(test_dtls13_mask_case(onServer, onCtx,
+                WOLFSSL_OP_NO_TLSv1_3, WOLFSSL_OP_NO_TLSv1_2 |
+                WOLFSSL_OP_NO_TLSv1_1, 0, 0, 0), TEST_SUCCESS);
+            ExpectIntEQ(test_dtls13_mask_case(onServer, onCtx,
+                WOLFSSL_OP_NO_TLSv1_3, WOLFSSL_OP_NO_TLSv1_2,
+                WOLFSSL_OP_NO_TLSv1_1, 0, 0), TEST_SUCCESS);
         }
+        ExpectIntEQ(test_dtls13_mask_case(onServer, 0, WOLFSSL_OP_NO_TLSv1_3,
+            0, 0, WOLFSSL_DTLSV1_3, 0), TEST_SUCCESS);
     }
-#else
-    ExpectIntEQ(test_dtls13_mask_case(0, 0, WOLFSSL_OP_NO_TLSv1_3, 0, 0, 0),
-        TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_mask_case(0, 1, WOLFSSL_OP_NO_TLSv1_3, 0, 0, 0),
-        TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_mask_case(1, 1, WOLFSSL_OP_NO_TLSv1_3, 0, 0, 0),
-        TEST_SUCCESS);
-#endif
-    for (onCtx = 0; onCtx <= 1; onCtx++) {
-        ExpectIntEQ(test_dtls13_mask_case(0, onCtx,
-            WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2, 0, 0, dtls10),
-            TEST_SUCCESS);
-#ifndef NO_OLD_TLS
-        ExpectIntEQ(test_dtls13_mask_case(0, onCtx, WOLFSSL_OP_NO_TLSv1_3,
-            WOLFSSL_OP_NO_TLSv1_2, 0, DTLS1_VERSION), TEST_SUCCESS);
-#endif
-        ExpectIntEQ(test_dtls13_mask_case(0, onCtx,
-            WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2 |
-            WOLFSSL_OP_NO_TLSv1_1, 0, 0, 0), TEST_SUCCESS);
-        ExpectIntEQ(test_dtls13_mask_case(0, onCtx, WOLFSSL_OP_NO_TLSv1_3,
-            WOLFSSL_OP_NO_TLSv1_2 | WOLFSSL_OP_NO_TLSv1_1, 0, 0), TEST_SUCCESS);
-        ExpectIntEQ(test_dtls13_mask_case(0, onCtx, WOLFSSL_OP_NO_TLSv1_3, 0,
-            WOLFSSL_DTLSV1_3, 0), TEST_SUCCESS);
-    }
+    ExpectIntEQ(test_dtls13_mask_case(0, 1, WOLFSSL_OP_NO_TLSv1_3, 0, 0,
+        WOLFSSL_DTLSV1_3, 0), TEST_SUCCESS);
 #ifndef OPENSSL_COEXIST
     ExpectIntEQ(test_dtls13_mask_case(0, 0, SSL_OP_NO_DTLSv1_3,
-        SSL_OP_NO_DTLSv1_2 | SSL_OP_NO_DTLSv1, 0, 0), TEST_SUCCESS);
+        SSL_OP_NO_DTLSv1_2, SSL_OP_NO_DTLSv1, 0, 0), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_dtls13_mask_server_walk(), TEST_SUCCESS);
 #endif
 
     /* A DTLS 1.3-only method cannot move down. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_3);
+    (void)wolfSSL_connect(ssl);
     ExpectIntEQ(wolfSSL_version(ssl), DTLS1_3_VERSION);
     wolfSSL_free(ssl);
     ssl = NULL;
@@ -15746,6 +15779,7 @@ int test_dtls13_no_tls13_option(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_require_psk(ssl), 0);
     (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_3);
+    (void)wolfSSL_connect(ssl);
     ExpectIntEQ(wolfSSL_version(ssl), DTLS1_3_VERSION);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

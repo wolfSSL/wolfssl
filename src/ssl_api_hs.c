@@ -394,6 +394,15 @@ int wolfSSL_connect(WOLFSSL* ssl)
     #endif
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
+    #ifdef WOLFSSL_DTLS
+    if (ssl->options.connectState == CONNECT_BEGIN &&
+            (ret = DtlsCheckVersionMask(ssl)) != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    #endif
+
     #if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && \
         defined(WOLFSSL_TLS13)
     return wolfSSL_connect_TLSv13(ssl);
@@ -870,6 +879,15 @@ int wolfSSL_accept(WOLFSSL* ssl)
         ssl->error = 0; /* expected to be zero here */
     }
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
+
+    #ifdef WOLFSSL_DTLS
+    if (ssl->options.acceptState == ACCEPT_BEGIN &&
+            (ret = DtlsCheckVersionMask(ssl)) != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    #endif
 
     #if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && \
         defined(WOLFSSL_TLS13)
