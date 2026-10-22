@@ -306,6 +306,7 @@ static TestPkcs11Obj test_pkcs11_find;
 static CK_ULONG      test_pkcs11_find_mask;
 static CK_ULONG      test_pkcs11_find_next;
 static int           test_pkcs11_destroy_calls = 0;
+static int           test_pkcs11_find_calls = 0;
 static int           test_pkcs11_fail_pub_create = 0;
 static int           test_pkcs11_no_ecdh = 0;
 static int           test_pkcs11_no_ecdsa = 0;
@@ -515,6 +516,7 @@ static CK_RV test_pkcs11_store_find_init(CK_SESSION_HANDLE session,
 {
     (void)session;
 
+    test_pkcs11_find_calls++;
     XMEMSET(&test_pkcs11_find, 0, sizeof(test_pkcs11_find));
     test_pkcs11_find_mask = test_pkcs11_apply(&test_pkcs11_find, tmpl, cnt);
     test_pkcs11_find_next = 0;
@@ -782,7 +784,12 @@ static void* test_pkcs11_realloc(void* p, size_t n)
         test_pkcs11_live++;
     return r;
 }
+#endif
 
+#if defined(TEST_PKCS11_RSA_KEYGEN) || (!defined(NO_RSA) && \
+    !defined(NO_PKCS11_RSA) && defined(HAVE_WOLF_BIGINT) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY))
 static int test_pkcs11_rsa_decrypt(Pkcs11Token* token, RsaKey* key)
 {
     byte in[sizeof(test_pkcs11_modulus)];
@@ -1134,16 +1141,45 @@ int test_wc_Pkcs11_RsaKeyGenError(void)
     ecc_key ecc;
 #endif
     WC_RNG rng;
+#if defined(HAVE_WOLF_BIGINT) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+    int haveAlloc = 0;
+#endif
 
     test_pkcs11_store_setup(&token, &func);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
         wc_Pkcs11_CryptoDevCb, &token), 0);
 
+#if defined(HAVE_WOLF_BIGINT) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+    /* Freeing the key on the device must still free its software parts. */
+    ExpectIntEQ(wolfSSL_GetAllocators(&test_pkcs11_mf, &test_pkcs11_ff,
+        &test_pkcs11_rf), 0);
+    if (EXPECT_SUCCESS()) {
+        test_pkcs11_live = 0;
+        ExpectIntEQ(wolfSSL_SetAllocators(test_pkcs11_malloc,
+            test_pkcs11_free, test_pkcs11_realloc), 0);
+        haveAlloc = EXPECT_SUCCESS();
+    }
+#endif
     ExpectIntEQ(wc_InitRsaKey_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
     ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng), 0);
     ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+    ExpectNotNull(key.devCtx);
+    test_pkcs11_find_calls = 0;
+    ExpectIntEQ(test_pkcs11_rsa_decrypt(&token, &key), 0);
+    ExpectIntEQ(test_pkcs11_find_calls, 0);
     ExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+#if defined(HAVE_WOLF_BIGINT) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+    if (haveAlloc) {
+        (void)wolfSSL_SetAllocators(test_pkcs11_mf, test_pkcs11_ff,
+            test_pkcs11_rf);
+        ExpectIntEQ(test_pkcs11_live, 0);
+    }
+#endif
 
     /* A failed read of the public key fails keygen and leaves no object. */
     test_pkcs11_reset();
