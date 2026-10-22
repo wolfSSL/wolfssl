@@ -484,6 +484,7 @@ int test_wolfSSL_CTX_set0_chain_bad_cert(void)
      defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)) && \
     defined(SESSION_CERTS) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    defined(WOLFSSL_PEM_TO_DER) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     WOLFSSL_CTX* ctx = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
@@ -537,6 +538,7 @@ int test_wolfSSL_CTX_set0_chain_bad_cert(void)
     if (ctx != NULL) {
         ExpectNull(ctx->certChain);
         ExpectNull(ctx->x509Chain);
+        ExpectIntEQ(ctx->certChainCnt, 0);
     }
 
     /* The ctx takes ownership of the stack only on success. */
