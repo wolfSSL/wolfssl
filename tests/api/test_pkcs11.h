@@ -32,24 +32,36 @@ int test_wc_Pkcs11_EcdsaSigDecode(void);
 int test_wc_Pkcs11_FreeKeepsTokenKey(void);
 int test_wc_Pkcs11_StoreKeyPersistent(void);
 int test_wc_Pkcs11_PersistKey(void);
+int test_wc_Pkcs11_DeleteKey(void);
 int test_wc_Pkcs11_RsaIdNoLeak(void);
 int test_wc_Pkcs11_EcKeyUsage(void);
 int test_wc_Pkcs11_RsaKeyGenError(void);
 int test_wc_Pkcs11_RsaKeyGenExponent(void);
+int test_wc_Pkcs11_KeyNames(void);
 int test_wc_Pkcs11_FreeNoObject(void);
 int test_wc_Pkcs11_KeyGenSessionClosed(void);
+int test_wc_Pkcs11_SecretKeyPersist(void);
+int test_wc_Pkcs11_RsaPersistDelete(void);
+int test_wc_Pkcs11_PqcPersistDelete(void);
+int test_wc_Pkcs11_PersistPaths(void);
 
 #define TEST_PKCS11_DECLS                                                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeKeepsTokenKey),            \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_StoreKeyPersistent),           \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_PersistKey),                   \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_DeleteKey),                    \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaIdNoLeak),                  \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcKeyUsage),                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenError),               \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenExponent),            \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyNames),                     \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeNoObject),                 \
-    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed)
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed),          \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_SecretKeyPersist),             \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaPersistDelete),             \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_PqcPersistDelete),             \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_PersistPaths)
 
 #else
 

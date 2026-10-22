@@ -7294,6 +7294,210 @@ int wc_Pkcs11PersistKey(Pkcs11Token* token, int type, void* key)
     return ret;
 }
 
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_MLKEM) || (!defined(NO_AES) && \
+    (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
+/**
+ * Check that the user is logged in, so the session sees private objects.
+ *
+ * @param  [in]  session  Session object.
+ * @return  BAD_STATE_E when the user is not logged in.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11CheckUserSession(Pkcs11Session* session)
+{
+    int             ret = 0;
+    CK_RV           rv;
+    CK_SESSION_INFO info;
+
+    rv = session->func->C_GetSessionInfo(session->handle, &info);
+    PKCS11_RV("C_GetSessionInfo", rv);
+    if (rv != CKR_OK)
+        ret = WC_HW_E;
+    else if (info.state != CKS_RO_USER_FUNCTIONS &&
+             info.state != CKS_RW_USER_FUNCTIONS)
+        ret = BAD_STATE_E;
+
+    return ret;
+}
+
+/**
+ * Destroy all token objects of a key type with the key's id and label.
+ *
+ * @param  [in]  session   Session object.
+ * @param  [in]  keyType   Key type.
+ * @param  [in]  id        Identifier of key.
+ * @param  [in]  idLen     Length of identifier.
+ * @param  [in]  label     Label of key.
+ * @param  [in]  labelLen  Length of label.
+ * @return  BAD_FUNC_ARG when the key has neither id nor label.
+ * @return  BAD_STATE_E when the user is not logged in.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11DeleteTokenKey(Pkcs11Session* session, CK_KEY_TYPE keyType,
+    byte* id, int idLen, char* label, int labelLen)
+{
+    int ret = 0;
+
+    if (idLen <= 0 && labelLen <= 0)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0)
+        ret = Pkcs11CheckUserSession(session);
+    if (ret == 0) {
+        ret = Pkcs11DestroyKeyObjects(session, NULL, keyType, CK_TRUE, id,
+                                      idLen, label, labelLen);
+    }
+
+    return ret;
+}
+#endif
+
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_MLKEM)
+/**
+ * Release the key object a key refers to after deleting its token objects.
+ *
+ * @param  [in]      session  Session object.
+ * @param  [in, out] devCtx   Device context of the key.
+ * @param  [in]      result   Result of deleting the token objects.
+ */
+static void Pkcs11DeleteDevCtx(Pkcs11Session* session, void** devCtx,
+    int result)
+{
+    CK_OBJECT_HANDLE handle;
+    CK_BBOOL         onToken;
+
+    if (*devCtx != NULL) {
+        handle = (CK_OBJECT_HANDLE)(wc_ptr_t)*devCtx;
+        if (result == 0) {
+            Pkcs11DestroySessionKey(session, handle);
+            *devCtx = NULL;
+        }
+        else if (result == WC_NO_ERR_TRACE(WC_HW_E) &&
+                 Pkcs11KeyOnToken(session, handle, &onToken) != 0) {
+            *devCtx = NULL;
+        }
+    }
+}
+#endif
+
+/**
+ * Remove a key's token objects from the token.
+ *
+ * @param  [in]  token  Token holding the key.
+ * @param  [in]  type   PKCS11_KEY_TYPE_RSA, _EC, _MLDSA, _MLKEM, _AES_GCM,
+ *                      _AES_CBC or _HMAC.
+ * @param  [in]  key    Key with an id or label.
+ * @return  BAD_FUNC_ARG when token or key is NULL, the key has neither id
+ *          nor label, or an HMAC key has no hash type.
+ * @return  BAD_STATE_E when the user is not logged in.
+ * @return  NOT_COMPILED_IN when the key type is not supported.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+int wc_Pkcs11DeleteKey(Pkcs11Token* token, int type, void* key)
+{
+    int           ret = 0;
+    Pkcs11Session session;
+
+    if (token == NULL || key == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0)
+        ret = Pkcs11OpenSession(token, &session, 1);
+    if (ret == 0) {
+        switch (type) {
+    #if !defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))
+            case PKCS11_KEY_TYPE_AES_GCM:
+            case PKCS11_KEY_TYPE_AES_CBC: {
+                Aes* aes = (Aes*)key;
+
+                ret = Pkcs11DeleteTokenKey(&session, CKK_AES, (byte*)aes->id,
+                                           aes->idLen, aes->label,
+                                           aes->labelLen);
+                break;
+            }
+    #endif
+    #ifndef NO_HMAC
+            case PKCS11_KEY_TYPE_HMAC: {
+                Hmac* hmac = (Hmac*)key;
+                int   mechType;
+                int   keyType;
+
+                if (hmac->macType == WC_HASH_TYPE_NONE)
+                    ret = BAD_FUNC_ARG;
+                else
+                    ret = Pkcs11HmacTypes(hmac->macType, &mechType, &keyType);
+                if (ret == 0) {
+                    ret = Pkcs11DeleteTokenKey(&session, (CK_KEY_TYPE)keyType,
+                                               (byte*)hmac->id, hmac->idLen,
+                                               hmac->label, hmac->labelLen);
+                }
+                if (ret == 0) {
+                    ret = Pkcs11DeleteTokenKey(&session, CKK_GENERIC_SECRET,
+                                               (byte*)hmac->id, hmac->idLen,
+                                               hmac->label, hmac->labelLen);
+                }
+                break;
+            }
+    #endif
+    #ifndef NO_RSA
+            case PKCS11_KEY_TYPE_RSA: {
+                RsaKey* rsaKey = (RsaKey*)key;
+
+                ret = Pkcs11DeleteTokenKey(&session, CKK_RSA, rsaKey->id,
+                                           rsaKey->idLen, rsaKey->label,
+                                           rsaKey->labelLen);
+                Pkcs11DeleteDevCtx(&session, &rsaKey->devCtx, ret);
+                break;
+            }
+    #endif
+    #ifdef HAVE_ECC
+            case PKCS11_KEY_TYPE_EC: {
+                ecc_key* eccKey = (ecc_key*)key;
+
+                ret = Pkcs11DeleteTokenKey(&session, CKK_EC, eccKey->id,
+                                           eccKey->idLen, eccKey->label,
+                                           eccKey->labelLen);
+                Pkcs11DeleteDevCtx(&session, &eccKey->devCtx, ret);
+                break;
+            }
+    #endif
+    #ifdef WOLFSSL_HAVE_MLDSA
+            case PKCS11_KEY_TYPE_MLDSA: {
+                wc_MlDsaKey* mldsaKey = (wc_MlDsaKey*)key;
+
+                ret = Pkcs11DeleteTokenKey(&session, CKK_ML_DSA,
+                                           mldsaKey->id, mldsaKey->idLen,
+                                           mldsaKey->label,
+                                           mldsaKey->labelLen);
+                Pkcs11DeleteDevCtx(&session, &mldsaKey->devCtx, ret);
+                break;
+            }
+    #endif
+    #ifdef WOLFSSL_HAVE_MLKEM
+            case PKCS11_KEY_TYPE_MLKEM: {
+                MlKemKey* mlkemKey = (MlKemKey*)key;
+
+                ret = Pkcs11DeleteTokenKey(&session, CKK_ML_KEM,
+                                           mlkemKey->id, mlkemKey->idLen,
+                                           mlkemKey->label,
+                                           mlkemKey->labelLen);
+                Pkcs11DeleteDevCtx(&session, &mlkemKey->devCtx, ret);
+                break;
+            }
+    #endif
+            default:
+                ret = NOT_COMPILED_IN;
+                break;
+        }
+        Pkcs11CloseSession(token, &session);
+    }
+
+    return ret;
+}
+
 /**
  * Perform a cryptographic operation using PKCS#11 device.
  *

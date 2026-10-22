@@ -156,6 +156,37 @@ int wc_Pkcs11PersistKey(Pkcs11Token* token, int type, void* key);
 
 /*!
     \ingroup PKCS11
+
+    \brief Removes a key from the token: every token object of the key type
+    with the key's id and label is destroyed. The user must be logged in to
+    see private objects. For RSA, ECC, ML-DSA and ML-KEM keys a session
+    object in devCtx is destroyed as well and devCtx is cleared; when a
+    PKCS#11 call fails part way, devCtx is kept only while its object still
+    exists. An HMAC key is removed under its HMAC key type and as a generic
+    secret. Finding nothing to remove is not an error. A token key with only
+    the same id or only the same label is kept, and still keeps a new key
+    from using that id or label.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG when token or key is NULL, the key has neither an
+    id nor a label, or an Hmac has no hash type.
+    \return BAD_STATE_E when the user is not logged in.
+    \return NOT_COMPILED_IN when the key type is not supported.
+    \return WC_HW_E when a PKCS#11 call fails.
+
+    \param token Token holding the key.
+    \param type PKCS11_KEY_TYPE_RSA, PKCS11_KEY_TYPE_EC, PKCS11_KEY_TYPE_MLDSA,
+    PKCS11_KEY_TYPE_MLKEM, PKCS11_KEY_TYPE_AES_GCM, PKCS11_KEY_TYPE_AES_CBC
+    or PKCS11_KEY_TYPE_HMAC.
+    \param key RsaKey, ecc_key, wc_MlDsaKey, MlKemKey, Aes or Hmac with an id
+    or label. An Hmac needs its hash type (macType), as wc_HmacSetKey sets.
+
+    \sa wc_Pkcs11PersistKey
+*/
+int wc_Pkcs11DeleteKey(Pkcs11Token* token, int type, void* key);
+
+/*!
+    \ingroup PKCS11
  */
 int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info,
     void* ctx);
