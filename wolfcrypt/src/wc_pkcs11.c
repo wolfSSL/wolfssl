@@ -116,6 +116,9 @@ static CK_KEY_TYPE mldsaKeyType = CKK_ML_DSA;
     defined(WOLFSSL_HAVE_MLKEM)
 /* Pointer to public key class required for templates. */
 static CK_OBJECT_CLASS pubKeyClass     = CKO_PUBLIC_KEY;
+#endif
+#if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || defined(HAVE_ECC) || \
+    defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM)
 /* Pointer to private key class required for templates. */
 static CK_OBJECT_CLASS privKeyClass    = CKO_PRIVATE_KEY;
 #endif
