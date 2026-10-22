@@ -16690,8 +16690,12 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             WOLFSSL_ERROR(ssl->error);
             return WOLFSSL_FATAL_ERROR;
         }
-        if (ssl->version.minor != minor)
+        if (ssl->version.minor != minor) {
+        #ifdef WOLFSSL_EARLY_DATA
+            ssl->earlyData = no_early_data;
+        #endif
             return wolfSSL_connect(ssl);
+        }
     }
 #endif
 

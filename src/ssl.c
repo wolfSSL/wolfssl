@@ -7667,8 +7667,7 @@ int ResetSuitesForVersion(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS
 /* Moves a DTLS SSL that may downgrade, before its first handshake, to the
- * newest version its mask allows. Returns 1 when it moved, 0 when it did not
- * and VERSION_ERROR when no version is left. */
+ * newest version its mask allows. Returns 1 when it moved, or VERSION_ERROR. */
 static int DtlsMaskVersion(WOLFSSL* ssl)
 {
     byte maxMinor = ssl->version.minor;
@@ -7697,6 +7696,9 @@ static int DtlsMaskVersion(WOLFSSL* ssl)
     if (ssl->options.resuming && ssl->session != NULL &&
             ssl->session->version.minor != minor) {
         ssl->options.resuming = 0;
+    #ifdef HAVE_EXTENDED_MASTER
+        ssl->options.haveEMS = !ssl->options.disableEMS;
+    #endif
     }
     return 1;
 }
