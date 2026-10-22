@@ -308,9 +308,12 @@ static CK_ULONG      test_pkcs11_find_next;
 static int           test_pkcs11_destroy_calls = 0;
 static int           test_pkcs11_fail_pub_create = 0;
 static int           test_pkcs11_no_ecdh = 0;
+static int           test_pkcs11_no_ecdsa = 0;
 static int           test_pkcs11_ecdsa_verify_only = 0;
 static int           test_pkcs11_fail_modulus = 0;
 static byte          test_pkcs11_ec_point[2 + 65];
+static TestPkcs11Obj test_pkcs11_last_priv;
+static const byte    test_pkcs11_secret[32] = { 0x5a, 0x5a };
 
 #define TEST_PKCS11_FIND_CLASS  0x01
 #define TEST_PKCS11_FIND_TYPE   0x02
@@ -412,6 +415,8 @@ static CK_RV test_pkcs11_store_create(CK_SESSION_HANDLE session,
             test_pkcs11_objs[i].cls == CKO_PUBLIC_KEY)
         return TEST_CKR_GENERAL_ERROR;
     test_pkcs11_objs[i].used = 1;
+    if (test_pkcs11_objs[i].cls == CKO_PRIVATE_KEY)
+        test_pkcs11_last_priv = test_pkcs11_objs[i];
     *object = i + 1;
     return CKR_OK;
 }
@@ -470,6 +475,10 @@ static CK_RV test_pkcs11_store_get_attr(CK_SESSION_HANDLE session,
         else if (tmpl[i].type == CKA_EC_POINT) {
             val = test_pkcs11_ec_point;
             len = sizeof(test_pkcs11_ec_point);
+        }
+        else if (tmpl[i].type == CKA_VALUE) {
+            val = test_pkcs11_secret;
+            len = sizeof(test_pkcs11_secret);
         }
         else {
             return TEST_CKR_GENERAL_ERROR;
@@ -539,13 +548,15 @@ static CK_RV test_pkcs11_store_mech_info(CK_SLOT_ID slotId,
     if (info == NULL || (type != CKM_ECDSA && type != CKM_RSA_X_509 &&
             type != CKM_EC_KEY_PAIR_GEN && type != CKM_ECDH1_DERIVE &&
             type != CKM_RSA_PKCS_KEY_PAIR_GEN) ||
-            (type == CKM_ECDH1_DERIVE && test_pkcs11_no_ecdh))
+            (type == CKM_ECDH1_DERIVE && test_pkcs11_no_ecdh) ||
+            (type == CKM_ECDSA && test_pkcs11_no_ecdsa))
         return CKR_MECHANISM_INVALID;
 
     XMEMSET(info, 0, sizeof(*info));
     info->flags = CKF_SIGN | CKF_VERIFY | CKF_DECRYPT;
+    /* Some modules leave CKF_DERIVE out for CKM_ECDH1_DERIVE. */
     if (type == CKM_ECDH1_DERIVE)
-        info->flags = CKF_DERIVE;
+        info->flags = 0;
     else if (type == CKM_ECDSA && test_pkcs11_ecdsa_verify_only)
         info->flags = CKF_VERIFY;
     return CKR_OK;
@@ -571,6 +582,31 @@ static CK_RV test_pkcs11_store_decrypt(CK_SESSION_HANDLE session,
     XMEMSET(out, 0, inLen);
     *outLen = inLen;
     return CKR_OK;
+}
+
+static CK_RV test_pkcs11_store_sign(CK_SESSION_HANDLE session,
+    CK_BYTE_PTR data, CK_ULONG dataLen, CK_BYTE_PTR sig, CK_ULONG_PTR sigLen)
+{
+    (void)session;
+    (void)data;
+    (void)dataLen;
+
+    if (*sigLen < 64)
+        return TEST_CKR_GENERAL_ERROR;
+    XMEMSET(sig, 0x01, 64);
+    *sigLen = 64;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_store_derive(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE base, CK_ATTRIBUTE_PTR tmpl,
+    CK_ULONG cnt, CK_OBJECT_HANDLE_PTR key)
+{
+    (void)mechanism;
+
+    if (test_pkcs11_obj(base) == NULL)
+        return TEST_CKR_GENERAL_ERROR;
+    return test_pkcs11_store_create(session, tmpl, cnt, key);
 }
 
 static CK_RV test_pkcs11_store_keygen(CK_SESSION_HANDLE session,
@@ -610,11 +646,15 @@ static void test_pkcs11_store_setup(Pkcs11Token* token, CK_FUNCTION_LIST* func)
     func->C_GenerateKeyPair = test_pkcs11_store_keygen;
     func->C_DecryptInit = test_pkcs11_store_decrypt_init;
     func->C_Decrypt = test_pkcs11_store_decrypt;
+    func->C_SignInit = test_pkcs11_store_decrypt_init;
+    func->C_Sign = test_pkcs11_store_sign;
+    func->C_DeriveKey = test_pkcs11_store_derive;
     token->func = func;
     token->slotId = 1;
     token->handle = 1;
     token->version = WC_PCKS11VERSION_2_40;
     test_pkcs11_no_ecdh = 0;
+    test_pkcs11_no_ecdsa = 0;
     test_pkcs11_ecdsa_verify_only = 0;
     test_pkcs11_reset();
 }
@@ -672,6 +712,35 @@ int test_wc_Pkcs11_FreeKeepsTokenKey(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(TEST_PKCS11_EC_KEYGEN) && defined(HAVE_ECC_KEY_IMPORT)
+static int test_pkcs11_make_ecc(ecc_key* key, WC_RNG* rng, const byte* id,
+    int idLen)
+{
+    int ret = wc_ecc_init_id(key, (unsigned char*)id, idLen, NULL,
+        INVALID_DEVID);
+    if (ret == 0)
+        ret = wc_ecc_make_key(rng, 32, key);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    return ret;
+}
+
+static CK_OBJECT_HANDLE test_pkcs11_find_obj(CK_OBJECT_CLASS cls,
+    CK_BBOOL onToken)
+{
+    int i;
+
+    for (i = 0; i < TEST_PKCS11_MAX_OBJS; i++) {
+        if (test_pkcs11_objs[i].used && test_pkcs11_objs[i].cls == cls &&
+                test_pkcs11_objs[i].onToken == onToken)
+            return (CK_OBJECT_HANDLE)(i + 1);
+    }
+    return 0;
+}
+#endif
 
 #if !defined(NO_RSA) && !defined(NO_PKCS11_RSA) && \
     defined(HAVE_WOLF_BIGINT) && \
@@ -774,6 +843,278 @@ int test_wc_Pkcs11_RsaIdNoLeak(void)
         (void)wolfSSL_SetAllocators(test_pkcs11_mf, test_pkcs11_ff,
             test_pkcs11_rf);
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+#define TEST_PKCS11_DEVID 0x7031
+
+#ifndef NO_PKCS11_ECDH
+    #define TEST_PKCS11_DFLT_DERIVE CK_TRUE
+    #define TEST_PKCS11_NONAME_SIGN CK_FALSE
+#else
+    #define TEST_PKCS11_DFLT_DERIVE CK_FALSE
+    #define TEST_PKCS11_NONAME_SIGN CK_TRUE
+#endif
+
+#if defined(TEST_PKCS11_EC_KEYGEN) && defined(HAVE_ECC_KEY_IMPORT)
+static int test_pkcs11_ec_usage(Pkcs11Token* token, WC_RNG* rng,
+    const char* label, int flags, CK_BBOOL sign, CK_BBOOL derive,
+    CK_BBOOL decrypt)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    TestPkcs11Obj* obj = NULL;
+    CK_OBJECT_HANDLE h = 0;
+
+    test_pkcs11_reset();
+    XMEMSET(&key, 0, sizeof(key));
+    if (label == NULL)
+        ExpectIntEQ(wc_ecc_init_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    else
+        ExpectIntEQ(wc_ecc_init_label(&key, label, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(rng, 32, &key, ECC_SECP256R1, flags), 0);
+    if (EXPECT_SUCCESS())
+        h = (CK_OBJECT_HANDLE)(wc_ptr_t)key.devCtx;
+    ExpectNotNull(obj = test_pkcs11_obj(h));
+    if (obj != NULL) {
+        ExpectIntEQ(obj->cls, CKO_PRIVATE_KEY);
+        ExpectIntEQ(obj->sign, sign);
+        ExpectIntEQ(obj->derive, derive);
+        ExpectIntEQ(obj->decrypt, decrypt);
+    }
+    wc_ecc_free(&key);
+    (void)token;
+
+    return EXPECT_RESULT();
+}
+
+static int test_pkcs11_store_private_only(Pkcs11Token* token, ecc_key* src)
+{
+    static unsigned char id[] = { 0x13 };
+    byte priv[MAX_ECC_BYTES];
+    word32 privSz = sizeof(priv);
+    ecc_key key;
+    int ret;
+
+    ret = wc_ecc_export_private_only(src, priv, &privSz);
+    if (ret == 0)
+        ret = wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_ecc_import_private_key_ex(priv, privSz, NULL, 0, &key,
+            ECC_SECP256R1);
+        if (ret == 0)
+            ret = wc_Pkcs11StoreKey(token, PKCS11_KEY_TYPE_EC, 0, &key);
+        wc_ecc_free(&key);
+    }
+    wc_ForceZero(priv, sizeof(priv));
+    return ret;
+}
+#endif
+
+int test_wc_Pkcs11_EcKeyUsage(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_PKCS11_EC_KEYGEN) && defined(HAVE_ECC_KEY_IMPORT)
+    static const byte id[] = { 0x11 };
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    ecc_key soft;
+    ecc_key gen;
+    WC_RNG rng;
+    word32 len = sizeof(test_pkcs11_ec_point) - 2;
+    TestPkcs11Obj* priv = NULL;
+#if defined(HAVE_ECC_SIGN) || !defined(NO_PKCS11_ECDH)
+    wc_CryptoInfo info;
+#endif
+#ifdef HAVE_ECC_SIGN
+    byte hash[32];
+    byte sig[ECC_MAX_SIG_SIZE];
+    word32 sigLen = sizeof(sig);
+#endif
+#ifndef NO_PKCS11_ECDH
+    byte secret[sizeof(test_pkcs11_secret)];
+    word32 secretLen = sizeof(secret);
+#endif
+
+    test_pkcs11_store_setup(&token, &func);
+    XMEMSET(&soft, 0, sizeof(soft));
+    XMEMSET(&gen, 0, sizeof(gen));
+#ifdef HAVE_ECC_SIGN
+    XMEMSET(hash, 0x11, sizeof(hash));
+#endif
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(test_pkcs11_make_ecc(&soft, &rng, id, (int)sizeof(id)), 0);
+    test_pkcs11_ec_point[0] = ASN_OCTET_STRING;
+    test_pkcs11_ec_point[1] = (byte)len;
+    ExpectIntEQ(wc_ecc_export_x963(&soft, test_pkcs11_ec_point + 2, &len), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+    ExpectIntEQ(test_pkcs11_ec_usage(&token, &rng, NULL, WC_ECC_FLAG_NONE,
+        TEST_PKCS11_NONAME_SIGN, TEST_PKCS11_DFLT_DERIVE, CK_FALSE),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_pkcs11_ec_usage(&token, &rng, "usage", WC_ECC_FLAG_NONE,
+        CK_TRUE, TEST_PKCS11_DFLT_DERIVE, CK_FALSE), TEST_SUCCESS);
+    ExpectIntEQ(test_pkcs11_ec_usage(&token, &rng, NULL, WC_ECC_FLAG_DEC_SIGN,
+        CK_TRUE, CK_FALSE, CK_TRUE), TEST_SUCCESS);
+    ExpectIntEQ(test_pkcs11_ec_usage(&token, &rng, NULL, WC_ECC_FLAG_DERIVE,
+        CK_FALSE, CK_TRUE, CK_FALSE), TEST_SUCCESS);
+    ExpectIntEQ(test_pkcs11_ec_usage(&token, &rng, NULL,
+        WC_ECC_FLAG_DEC_SIGN | WC_ECC_FLAG_DERIVE, CK_TRUE, CK_TRUE, CK_TRUE),
+        TEST_SUCCESS);
+    test_pkcs11_no_ecdh = 1;
+    ExpectIntEQ(test_pkcs11_ec_usage(&token, &rng, "usage", WC_ECC_FLAG_NONE,
+        CK_TRUE, CK_FALSE, CK_FALSE), TEST_SUCCESS);
+#ifndef NO_PKCS11_ECDH
+    ExpectIntEQ(wc_ecc_init_ex(&gen, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &gen, ECC_SECP256R1,
+        WC_ECC_FLAG_NONE), 0);
+    ExpectNull(gen.devCtx);
+    ExpectIntEQ(gen.type, ECC_PRIVATEKEY);
+    wc_ecc_free(&gen);
+#endif
+
+    /* A usage needs a mechanism that can do it. */
+    test_pkcs11_reset();
+    soft.flags = WC_ECC_FLAG_DERIVE;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    soft.flags = WC_ECC_FLAG_DEC_SIGN | WC_ECC_FLAG_DERIVE;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectIntEQ(wc_ecc_init_id(&gen, (unsigned char*)id, (int)sizeof(id), NULL,
+        TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &gen, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN | WC_ECC_FLAG_DERIVE), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectNull(gen.devCtx);
+    wc_ecc_free(&gen);
+    test_pkcs11_no_ecdh = 0;
+    test_pkcs11_ecdsa_verify_only = 1;
+#ifndef NO_PKCS11_ECDH
+    ExpectIntEQ(test_pkcs11_ec_usage(&token, &rng, "usage", WC_ECC_FLAG_NONE,
+        CK_FALSE, CK_TRUE, CK_FALSE), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(wc_ecc_init_ex(&gen, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &gen, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), 0);
+    ExpectNull(gen.devCtx);
+    ExpectIntEQ(gen.type, ECC_PRIVATEKEY);
+    wc_ecc_free(&gen);
+    ExpectIntEQ(wc_ecc_init_id(&gen, (unsigned char*)id, (int)sizeof(id), NULL,
+        TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &gen, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectNull(gen.devCtx);
+    wc_ecc_free(&gen);
+    ExpectIntEQ(wc_ecc_init_label(&gen, "usage", NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &gen, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectNull(gen.devCtx);
+    wc_ecc_free(&gen);
+    soft.flags = WC_ECC_FLAG_DEC_SIGN;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    test_pkcs11_ecdsa_verify_only = 0;
+    soft.flags = 0;
+
+    /* An import makes one private object and the public one. */
+    test_pkcs11_no_ecdh = 0;
+    test_pkcs11_reset();
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft), 0);
+    ExpectNotNull(priv = test_pkcs11_obj(test_pkcs11_find_obj(CKO_PRIVATE_KEY,
+        CK_FALSE)));
+    if (priv != NULL) {
+        ExpectIntEQ(priv->sign, CK_TRUE);
+        ExpectIntEQ(priv->derive, TEST_PKCS11_DFLT_DERIVE);
+    }
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 2);
+
+    /* A failed public object takes the private one with it. */
+    test_pkcs11_reset();
+    test_pkcs11_fail_pub_create = 1;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    test_pkcs11_fail_pub_create = 0;
+
+    test_pkcs11_reset();
+    soft.flags = WC_ECC_FLAG_DERIVE;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft), 0);
+    ExpectNotNull(priv = test_pkcs11_obj(test_pkcs11_find_obj(CKO_PRIVATE_KEY,
+        CK_FALSE)));
+    if (priv != NULL) {
+        ExpectIntEQ(priv->sign, CK_FALSE);
+        ExpectIntEQ(priv->derive, CK_TRUE);
+    }
+    ExpectIntNE(test_pkcs11_find_obj(CKO_PUBLIC_KEY, CK_FALSE), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 2);
+    test_pkcs11_reset();
+    test_pkcs11_fail_pub_create = 1;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+    test_pkcs11_fail_pub_create = 0;
+
+#ifndef NO_PKCS11_ECDH
+    /* Without ECDSA on the token, a key gets derive and no public object. */
+    test_pkcs11_reset();
+    test_pkcs11_no_ecdsa = 1;
+    soft.flags = 0;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft), 0);
+    ExpectNotNull(priv = test_pkcs11_obj(test_pkcs11_find_obj(CKO_PRIVATE_KEY,
+        CK_FALSE)));
+    if (priv != NULL) {
+        ExpectIntEQ(priv->sign, CK_FALSE);
+        ExpectIntEQ(priv->derive, CK_TRUE);
+    }
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+    test_pkcs11_no_ecdsa = 0;
+#endif
+
+    /* A key with only its private half gets no public object. */
+    test_pkcs11_reset();
+    soft.flags = 0;
+    ExpectIntEQ(test_pkcs11_store_private_only(&token, &soft), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+
+    /* A software key gets only the usage of its operation on the token. */
+#ifdef HAVE_ECC_SIGN
+    test_pkcs11_reset();
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_ECDSA_SIGN;
+    info.pk.eccsign.in = hash;
+    info.pk.eccsign.inlen = sizeof(hash);
+    info.pk.eccsign.out = sig;
+    info.pk.eccsign.outlen = &sigLen;
+    info.pk.eccsign.rng = &rng;
+    info.pk.eccsign.key = &soft;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(test_pkcs11_last_priv.sign, CK_TRUE);
+    ExpectIntEQ(test_pkcs11_last_priv.derive, CK_FALSE);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+#endif
+#ifndef NO_PKCS11_ECDH
+    test_pkcs11_reset();
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_ECDH;
+    info.pk.ecdh.private_key = &soft;
+    info.pk.ecdh.public_key = &soft;
+    info.pk.ecdh.out = secret;
+    info.pk.ecdh.outlen = &secretLen;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectBufEQ(secret, test_pkcs11_secret, sizeof(test_pkcs11_secret));
+    ExpectIntEQ(test_pkcs11_last_priv.sign, CK_FALSE);
+    ExpectIntEQ(test_pkcs11_last_priv.derive, CK_TRUE);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
+    wc_ecc_free(&soft);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
 }

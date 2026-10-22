@@ -2471,7 +2471,11 @@ const char* wc_ecc_get_name(int curve_id);
     \param keysize Key size in bytes
     \param key ECC key structure
     \param curve_id Curve identifier
-    \param flags Additional flags
+    \param flags WC_ECC_FLAG_* flags. For a key generated on a PKCS#11 token,
+    WC_ECC_FLAG_DEC_SIGN asks for sign and WC_ECC_FLAG_DERIVE for derive. With
+    neither it gets derive, plus sign when the key has an id or label, or only
+    sign when PKCS#11 ECDH is not compiled in, as far as the token supports
+    them.
 
     _Example_
     \code
