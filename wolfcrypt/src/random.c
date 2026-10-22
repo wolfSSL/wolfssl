@@ -9209,12 +9209,16 @@ static int TreeTerminateIfFailed(int ret)
 }
 
 /* The DRBG CAST runs only where waiting is allowed, never with a tree lock
- * held, so the wipe can wait for each node's holder. */
+ * held, so this waits out a reseed in flight: its CAST recovery cannot clear
+ * this failure.  SP 800-90C 7.3.1 item 5 */
 void wc_RNG_TreeCastFailed(void)
 {
+    while (TreeTryLock(&tree.seeding) != 0)
+        WC_RELAX_LONG_LOOP();
     TreeSetFailed(DRBG_SHA512_KAT_FIPS_E);
     if (TreeWipeAll() != 0)
         WOLFSSL_MSG("RNG tree: a DRBG did not zeroize");
+    TreeUnlock(&tree.seeding);
 }
 
 /* Root: entropy and nonce from the entropy source. */
