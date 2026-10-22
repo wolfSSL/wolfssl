@@ -3247,7 +3247,7 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
                                                        &pubKey, &privKey);
         PKCS11_RV("C_GenerateKeyPair", rv);
         if (rv != CKR_OK) {
-            ret = -1;
+            ret = WC_HW_E;
         }
     }
 
@@ -3255,9 +3255,9 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         ret = Pkcs11GetRsaPublicKey(key, session, pubKey);
 
     if (pubKey != NULL_PTR)
-        ret = (int)session->func->C_DestroyObject(session->handle, pubKey);
+        session->func->C_DestroyObject(session->handle, pubKey);
     if (ret != 0 && privKey != NULL_PTR)
-        ret = (int)session->func->C_DestroyObject(session->handle, privKey);
+        session->func->C_DestroyObject(session->handle, privKey);
 
     return ret;
 }
@@ -3513,7 +3513,7 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
                                                        &pubKey, &privKey);
         PKCS11_RV("C_GenerateKeyPair", rv);
         if (rv != CKR_OK) {
-            ret = -1;
+            ret = WC_HW_E;
         }
     }
 
