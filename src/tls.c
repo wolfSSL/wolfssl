@@ -5841,8 +5841,8 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
             keep = (i < count);
 #if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_SERVER)
-            /* RFC 7919 Section 4 (see above): one unsupported FFDHE codepoint
-             * is enough to keep the restriction. */
+            /* RFC 7919 Section 4: any FFDHE codepoint offered restricts DHE
+             * to named groups; keep the first unsupported one to record it. */
             if (!keep && !ffdhe && isRequest &&
                     WOLFSSL_NAMED_GROUP_IS_FFDHE(name) &&
                     !TLSX_IsGroupSupported(name, ssl->options.side)) {
