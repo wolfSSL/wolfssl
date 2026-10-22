@@ -2997,6 +2997,33 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
     }
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT && !NO_CERTS */
 
+    /*
+     *  test Ed448 key holding only the private seed: no public key to print
+     */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    {
+        static const unsigned char seed[ED448_KEY_SIZE] = { 1 };
+
+        ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_private_key(
+            WC_EVP_PKEY_ED448, NULL, seed, sizeof(seed)));
+        if (pkey != NULL) {
+            ExpectNotNull(pkey->ed448);
+            if (pkey->ed448 != NULL) {
+                ExpectIntEQ(pkey->ed448->pubKeySet, 0);
+            }
+        }
+        ExpectNotNull(wbio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(EVP_PKEY_print_public(wbio, pkey, 0, NULL),
+            WC_NO_ERR_TRACE(WOLFSSL_UNKNOWN));
+        ExpectIntEQ(BIO_pending(wbio), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+        BIO_free(wbio);
+        wbio = NULL;
+    }
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
+
     /* to prevent "unused variable" warning */
     (void)pkey;
     (void)wbio;

@@ -13826,23 +13826,31 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519:
-            if (pkey->ed25519 == NULL || !pkey->ed25519->pubKeySet) {
+            if (pkey->ed25519 == NULL) {
                 res = WOLFSSL_FAILURE;
-                break;
             }
-            res = PrintPubKeyRaw(out, ED25519k, pkey->ed25519->p,
-                ED25519_PUB_KEY_SIZE, indent);
+            else if (!pkey->ed25519->pubKeySet) {
+                res = WOLFSSL_UNKNOWN;
+            }
+            else {
+                res = PrintPubKeyRaw(out, ED25519k, pkey->ed25519->p,
+                    ED25519_PUB_KEY_SIZE, indent);
+            }
             break;
 #endif
 
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448:
-            if (pkey->ed448 == NULL || !pkey->ed448->pubKeySet) {
+            if (pkey->ed448 == NULL) {
                 res = WOLFSSL_FAILURE;
-                break;
             }
-            res = PrintPubKeyRaw(out, ED448k, pkey->ed448->p,
-                ED448_PUB_KEY_SIZE, indent);
+            else if (!pkey->ed448->pubKeySet) {
+                res = WOLFSSL_UNKNOWN;
+            }
+            else {
+                res = PrintPubKeyRaw(out, ED448k, pkey->ed448->p,
+                    ED448_PUB_KEY_SIZE, indent);
+            }
             break;
 #endif
 
