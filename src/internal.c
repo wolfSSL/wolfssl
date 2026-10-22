@@ -43166,6 +43166,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls && ssl->options.downgrade &&
+                !ssl->options.handShakeDone &&
                 DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) !=
                     ssl->version.minor) {
             byte dtlsMinor = DtlsAllowedMinor(ssl, ssl->version.minor,

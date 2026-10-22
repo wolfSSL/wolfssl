@@ -395,7 +395,7 @@ int wolfSSL_connect(WOLFSSL* ssl)
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
     #ifdef WOLFSSL_DTLS
-    if (ssl->options.connectState == CONNECT_BEGIN &&
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
             (ret = DtlsCheckVersionMask(ssl)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);
@@ -881,7 +881,7 @@ int wolfSSL_accept(WOLFSSL* ssl)
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
     #ifdef WOLFSSL_DTLS
-    if (ssl->options.acceptState == ACCEPT_BEGIN &&
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
             (ret = DtlsCheckVersionMask(ssl)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);

@@ -7665,6 +7665,54 @@ int ResetSuitesForVersion(WOLFSSL* ssl)
     return 0;
 }
 
+#ifdef WOLFSSL_DTLS
+/* Moves a DTLS SSL that may downgrade, before its first handshake, to the
+ * newest version its mask allows. Returns 1 when it moved, 0 when it did not
+ * and VERSION_ERROR when no version is left. */
+static int DtlsMaskVersion(WOLFSSL* ssl)
+{
+    byte maxMinor = ssl->version.minor;
+    byte minor;
+
+    /* A minimum of DTLS_MINOR tests the mask alone. */
+    if (ssl->version.major != DTLS_MAJOR || !ssl->options.downgrade ||
+            ssl->options.handShakeDone ||
+            ssl->options.connectState != CONNECT_BEGIN ||
+            ssl->options.acceptState != ACCEPT_BEGIN ||
+            DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) ==
+                ssl->version.minor) {
+        return 0;
+    }
+    /* A resumed session lowered the version to its own. */
+    if (ssl->options.resuming)
+        maxMinor = ssl->ctx->method->version.minor;
+    minor = DtlsAllowedMinor(ssl, maxMinor, ssl->options.minDowngrade);
+    if (minor == 0) {
+        WOLFSSL_MSG("No DTLS version left that the options allow");
+        WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+        return VERSION_ERROR;
+    }
+    ssl->version.minor = minor;
+    ssl->options.tls1_3 = 0;
+    if (ssl->options.resuming && ssl->session != NULL &&
+            ssl->session->version.minor != minor) {
+        ssl->options.resuming = 0;
+    }
+    return 1;
+}
+
+/* Applies the DTLS version mask at the start of a handshake. Returns
+ * VERSION_ERROR when no version is left. */
+int DtlsCheckVersionMask(WOLFSSL* ssl)
+{
+    int ret = DtlsMaskVersion(ssl);
+
+    if (ret == 1)
+        ret = ResetSuitesForVersion(ssl);
+    return ret;
+}
+#endif
+
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     WOLFSSL_ENTER("wolfSSL_set_options");
@@ -7714,8 +7762,7 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 #endif
 
 #ifdef WOLFSSL_DTLS
-    /* The handshake start checks again and fails when no version is left. */
-    (void)DtlsCheckVersionMask(ssl);
+    (void)DtlsMaskVersion(ssl);
 #endif
 
 
@@ -7727,38 +7774,6 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 }
 
 
-#ifdef WOLFSSL_DTLS
-/* Moves a DTLS SSL that may downgrade, before its first handshake, to the
- * newest version its mask allows. Returns VERSION_ERROR when none is left. */
-int DtlsCheckVersionMask(WOLFSSL* ssl)
-{
-    byte minor;
-
-    /* A minimum of DTLS_MINOR tests the mask alone. */
-    if (ssl->version.major != DTLS_MAJOR || !ssl->options.downgrade ||
-            ssl->options.handShakeDone ||
-            ssl->options.connectState != CONNECT_BEGIN ||
-            ssl->options.acceptState != ACCEPT_BEGIN ||
-            DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) ==
-                ssl->version.minor) {
-        return 0;
-    }
-    minor = DtlsAllowedMinor(ssl, ssl->version.minor,
-        ssl->options.minDowngrade);
-    if (minor == 0) {
-        WOLFSSL_MSG("No DTLS version left that the options allow");
-        WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
-        return VERSION_ERROR;
-    }
-    ssl->version.minor = minor;
-    ssl->options.tls1_3 = 0;
-    if (ssl->options.resuming && ssl->session != NULL &&
-            ssl->session->version.minor != minor) {
-        ssl->options.resuming = 0;
-    }
-    return ResetSuitesForVersion(ssl);
-}
-#endif
 
 long wolfSSL_get_options(const WOLFSSL* ssl)
 {
