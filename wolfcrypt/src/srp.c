@@ -399,8 +399,8 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
      * public value. 0, 1 and N - 1 have order at most 2, so with them
      * v = g ^ x % N stops depending on the password. */
     if (!r) r = mp_cmp_d(&srp->g, 2) == MP_LT ? BAD_FUNC_ARG : MP_OKAY;
-    if (!r) r = mp_sub_d(&srp->N, 2, t);
-    if (!r) r = mp_cmp(&srp->g, t) == MP_GT ? BAD_FUNC_ARG : MP_OKAY;
+    if (!r) r = mp_sub(&srp->N, &srp->g, t);
+    if (!r) r = mp_cmp_d(t, 1) == MP_GT ? MP_OKAY : BAD_FUNC_ARG;
 
     mp_clear(t);
     WC_FREE_VAR_EX(t, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
