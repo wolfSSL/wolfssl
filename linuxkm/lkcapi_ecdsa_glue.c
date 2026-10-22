@@ -715,7 +715,7 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
         /* -EKEYREJECTED is testmgr-mandated here, as the exception to
          * the branch's -EBADMSG convention for verification failure:
          * crypto/testmgr.h's x962_ecdsa_nist_p192/p256 suites each pin
-         * a bad-signature vector to verify_error == -EKEYREJECTED, and
+         * a bad-signature vector to verify_error is -EKEYREJECTED, and
          * test_sig_one() requires an exact errno match.  (The in-tree
          * crypto/ecdsa.c draws the same line: -EBADMSG for out-of-range
          * r/s, -EKEYREJECTED for a well-formed signature that fails.) */
