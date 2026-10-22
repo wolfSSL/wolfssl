@@ -3921,12 +3921,12 @@ int wolfSSL_RAND_egd(const char* nm)
             break;
         }
         if (ret > 0 && buf[idx] > 0) {
-            bytes += buf[idx]; /* egd stores amount sent in first byte */
-            if (bytes + idx > 255 || buf[idx] > ret) {
+            if (buf[idx] > 255 - bytes || buf[idx] > ret - 1) {
                 WOLFSSL_MSG("Buffer error");
                 ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
+            bytes += buf[idx]; /* egd stores amount sent in first byte */
             XMEMMOVE(buf + idx, buf + idx + 1, buf[idx]);
             idx = bytes;
             ret = WOLFSSL_SUCCESS;
@@ -4006,7 +4006,7 @@ int wolfSSL_RAND_egd(const char* nm)
         }
     }
 
-    ForceZero(buf, bytes);
+    ForceZero(buf, 256);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -4549,4 +4549,3 @@ cleanup:
 #endif /* !WOLFCRYPT_ONLY */
 
 #endif /* WOLFSSL_SSL_CRYPTO_INCLUDED */
-
