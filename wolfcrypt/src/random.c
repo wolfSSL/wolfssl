@@ -1255,7 +1255,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
 #ifdef WC_RNG_TREE
     /* A recovery ends the copied instantiation and makes a new one from the
      * root; only an interval reseed reseeds in place (SP 800-90C 7.3.1 req 11,
-     * A.3.2).  The new seed is drawn as wc_InitRng() draws it (7.2.1.2). */
+     * A.3.2).  Entropy and nonce are drawn as wc_InitRng() draws them
+     * (7.2.1.2): seed may be the DRBG's own buffer, which the wipe clears. */
   #ifdef WC_RNG_HAVE_LOCK
     if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
         rebuild = 1;
@@ -1364,7 +1365,7 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Instantiate(drbg, &rng->reseedCtr,
                             inst + SEED_BLOCK_SZ, MAX_SEED_SZ - SEED_BLOCK_SZ,
-                            seed, seedSz, additional, additionalSz, rng->heap,
+                            NULL, 0, additional, additionalSz, rng->heap,
                             devId);
         }
         else
@@ -1405,7 +1406,7 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
             if (ret == DRBG_SUCCESS)
                 ret = Hash512_DRBG_Instantiate(drbg512, &rng->reseedCtr,
                             inst + SEED_BLOCK_SZ, MAX_SEED_SZ - SEED_BLOCK_SZ,
-                            seed, seedSz, additional, additionalSz, rng->heap,
+                            NULL, 0, additional, additionalSz, rng->heap,
                             devId);
         }
         else

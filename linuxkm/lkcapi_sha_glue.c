@@ -2700,6 +2700,7 @@ static WC_INLINE int rng_invalidation_post_check(const char *caller, int genret)
 #endif
 #endif /* CONFIG_ACPI && !IS_BUILTIN(CONFIG_VMGENID) */
 #endif /* WC_LINUXKM_HAVE_RNG_REGISTRY && WC_LINUXKM_HAVE_RNG_INVALIDATION */
+#endif /* !WC_LINUXKM_NO_ENTROPY_DAEMON */
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG && !WC_RNG_TREE */
 
 /* The ACPI VM Generation ID counter, shared with the tree glue. */
@@ -2797,6 +2798,7 @@ static WC_MAYBE_UNUSED void wc_linuxkm_vmgenid_poll_teardown(
 #endif /* WC_LINUXKM_HAVE_VMGENID_ACPI */
 
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && !defined(WC_RNG_TREE)
+#ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
 #if defined(WC_LINUXKM_HAVE_RNG_REGISTRY) && defined(WC_LINUXKM_HAVE_RNG_INVALIDATION)
 #ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
 static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
