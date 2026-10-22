@@ -1195,8 +1195,8 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token)
     }
 }
 
-#if defined(HAVE_ECC) || defined(WOLFSSL_HAVE_MLDSA) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+#if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || defined(HAVE_ECC) || \
+    defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM)
 /**
  * Destroy a key object only when it is a session object.
  * Token objects, and objects whose CKA_TOKEN cannot be read, are kept.
@@ -2696,6 +2696,10 @@ static int Pkcs11RsaPrivateKey(Pkcs11Session* session, RsaKey* rsaKey,
         ret = NOT_COMPILED_IN;
     #endif
     }
+    else if (rsaKey->devCtx != NULL) {
+        *privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)rsaKey->devCtx;
+        ret = 0;
+    }
     else if (rsaKey->labelLen > 0) {
         ret = Pkcs11FindKeyByLabel(privateKey, CKO_PRIVATE_KEY, CKK_RSA,
                                    session, rsaKey->label, rsaKey->labelLen);
@@ -3256,10 +3260,30 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (pubKey != NULL_PTR)
         session->func->C_DestroyObject(session->handle, pubKey);
-    if (ret != 0 && privKey != NULL_PTR)
+    if (ret == 0 && privKey != NULL_PTR)
+        key->devCtx = (void*)(wc_ptr_t)privKey;
+    else if (ret != 0 && privKey != NULL_PTR)
         session->func->C_DestroyObject(session->handle, privKey);
 
     return ret;
+}
+
+/**
+ * Deletes the RSA private key if it is a session object.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  key      RSA key.
+ * @return  0 on success.
+ */
+static int Pkcs11RsaDeletePrivKey(Pkcs11Session* session, RsaKey* key)
+{
+    if (key != NULL && key->devCtx != NULL) {
+        Pkcs11DestroySessionKey(session,
+            (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx);
+        key->devCtx = NULL;
+    }
+
+    return 0;
 }
 #endif /* WOLFSSL_KEY_GEN */
 #endif /* !NO_RSA */
@@ -6752,6 +6776,17 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #endif
         }
         else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+    #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+            if (info->free.algo == WC_ALGO_TYPE_PK &&
+                info->free.type == WC_PK_TYPE_RSA) {
+                if (Pkcs11OpenSession(token, &session, readWrite) == 0) {
+                    Pkcs11RsaDeletePrivKey(&session, (RsaKey*)info->free.obj);
+                    Pkcs11CloseSession(token, &session);
+                }
+                ret = CRYPTOCB_UNAVAILABLE;
+            }
+            else
+    #endif
     #ifdef HAVE_ECC
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_EC_KEYGEN) {
