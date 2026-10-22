@@ -271,7 +271,9 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
     release any key it holds for this object and set aes->devCtx to NULL.
     wolfCrypt sets the new key up in software and leaves aes->devCtx alone,
     so a stale handle would keep the operations the callback accepts on the
-    old key.
+    old key. A WOLF_CRYPTO_CB_SETKEY callback must do the same before it
+    returns an error, since wolfCrypt clears aes->devCtx only after an
+    error from this request.
 
     \param aes          AES context
     \param key          Pointer to raw AES key material

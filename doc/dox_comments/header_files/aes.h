@@ -3,8 +3,13 @@
     \brief This function initializes an AES structure by setting the key and
     then setting the initialization vector.
 
+    If a crypto callback device claims the key without a software key
+    schedule, a mode the callback does not handle returns MISSING_KEY when
+    WOLFSSL_AES_REQUIRE_KEY_SET is in effect (the default).
+
     \return 0 On successfully setting key and initialization vector.
     \return BAD_FUNC_ARG Returned if key length is invalid.
+    \return other negative values An error from a crypto callback device.
 
     \param aes pointer to the AES structure to modify
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -644,9 +649,13 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     \ingroup AES
     \brief This function sets the key for an AES object using CCM
     (Counter with CBC-MAC). It takes a pointer to an AES structure and
-    initializes it with supplied key.
+    initializes it with supplied key. A nonce cached with
+    wc_AesCcmSetNonce() is kept.
 
-    \return none
+    \return 0 On successfully setting the key.
+    \return BAD_FUNC_ARG Returned if aes or key is NULL, or if the given key
+    is an invalid length.
+    \return other negative values An error from a crypto callback device.
 
     \param aes aes structure in which to store the supplied key
     \param key 16, 24, or 32 byte secret key for encryption and decryption
