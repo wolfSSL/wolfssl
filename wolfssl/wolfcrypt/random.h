@@ -1210,7 +1210,8 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     /* May spin, so never from interrupt context.  With force 0, reseeds the
      * root only after wc_RNG_TreeInvalidate() or at its reseed interval. */
     WC_RNG_TREE_API int wc_RNG_TreeReseed(int force);
-    /* After a VM fork or resume: nothing is output until the root reseeds. */
+    /* Call after a VM fork, snapshot restore or resume (the platform's
+     * restore hook): every leaf and WC_RNG reseeds before its next output. */
     WC_RNG_TREE_API void wc_RNG_TreeInvalidate(void);
     /* The SHA-512 DRBG CAST failed: the tree stays in an error state until
      * it is re-instantiated (SP 800-90A 11.4.2). */
