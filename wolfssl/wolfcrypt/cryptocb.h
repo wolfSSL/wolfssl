@@ -1204,6 +1204,13 @@ WOLFSSL_API int  wc_CryptoCb_UnRegisterDeviceEx(int devId);
 WOLFSSL_API int wc_CryptoCb_DefaultDevID(void);
 WOLFSSL_API int wc_CryptoCb_IsDeviceRegistered(int devId);
 
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_LOCAL int wc_CryptoCb_HasPkDevice(int devId);
+#define WC_CRYPTOCB_IS_DEV_KEY(key) \
+    ((((key)->idLen > 0) || ((key)->labelLen > 0)) && \
+     wc_CryptoCb_HasPkDevice((key)->devId))
+#endif
+
 #ifdef WOLF_CRYPTO_CB_FIND
 typedef int (*CryptoDevCallbackFind)(int devId, int algoType);
 WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);

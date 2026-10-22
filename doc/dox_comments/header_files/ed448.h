@@ -52,6 +52,8 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,
     specified key size is not 57 bytes (Ed448 has 57 byte keys).
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
+    \return NO_VALID_DEVID if the key was initialized with an id or label for a
+    registered device and that device did not generate it.
 
     \param [in] rng Pointer to an initialized RNG object with which to
     generate the key.

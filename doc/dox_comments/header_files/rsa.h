@@ -1519,6 +1519,8 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
     library used while generating the RSA key
     \return MP_ZERO_E May be returned if there is an error in the math
     library used while generating the RSA key
+    \return NO_VALID_DEVID if the key was initialized with an id or label for a
+    registered device and that device did not generate it.
 
     \param key pointer to the RsaKey structure in which to store the
     generated private key

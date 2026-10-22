@@ -51,6 +51,8 @@ int test_wc_LmsDecisionCoverage(void);
 int test_wc_LmsFeatureCoverage(void);
 int test_wc_XmssDecisionCoverage(void);
 int test_wc_XmssFeatureCoverage(void);
+int test_wc_LmsKey_make_key_id_dev(void);
+int test_wc_XmssKey_make_key_id_dev(void);
 
 /* LMS, and RFC 9802 (HSS/LMS and XMSS/XMSS^MT in X.509). */
 #define TEST_LMS_XMSS_DECLS                                                  \
@@ -80,6 +82,8 @@ int test_wc_XmssFeatureCoverage(void);
     TEST_DECL_GROUP("lms", test_wc_LmsDecisionCoverage),               \
     TEST_DECL_GROUP("lms", test_wc_LmsFeatureCoverage),               \
     TEST_DECL_GROUP("xmss", test_wc_XmssDecisionCoverage),            \
-    TEST_DECL_GROUP("xmss", test_wc_XmssFeatureCoverage)
+    TEST_DECL_GROUP("xmss", test_wc_XmssFeatureCoverage),             \
+    TEST_DECL_GROUP("lms", test_wc_LmsKey_make_key_id_dev),        \
+    TEST_DECL_GROUP("xmss", test_wc_XmssKey_make_key_id_dev)
 
 #endif /* WOLFCRYPT_TEST_LMS_XMSS_H */
