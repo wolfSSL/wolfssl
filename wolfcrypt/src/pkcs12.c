@@ -1095,7 +1095,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
         XMEMCPY(&buf[idx], pkcs12->safe->data, pkcs12->safe->dataSz);
         idx += pkcs12->safe->dataSz;
 
-        if (pkcs12->signData != NULL) {
+        if (sdBuf != NULL) {
             XMEMCPY(&buf[idx], sdBuf, sdBufSz);
         }
 
