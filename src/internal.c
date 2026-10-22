@@ -8114,27 +8114,6 @@ byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
     (void)minDowngrade;
     return 0;
 }
-
-/* Moves a DTLS SSL that may downgrade to the newest version its mask allows.
- * Returns VERSION_ERROR when none is left. */
-int DtlsCheckVersionMask(WOLFSSL* ssl)
-{
-    byte minor;
-
-    if (ssl->version.major != DTLS_MAJOR || !ssl->options.downgrade ||
-            ssl->options.mask == 0) {
-        return 0;
-    }
-    minor = DtlsAllowedMinor(ssl, ssl->version.minor,
-        ssl->options.minDowngrade);
-    if (minor == 0) {
-        WOLFSSL_MSG("No DTLS version left that the options allow");
-        WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
-        return VERSION_ERROR;
-    }
-    ssl->version.minor = minor;
-    return 0;
-}
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -36390,6 +36369,16 @@ static int IsTls13CipherSuite(byte first, byte second)
                     return VERSION_ERROR;
                 }
         }
+
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls && ssl->options.downgrade &&
+                DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) !=
+                    ssl->version.minor) {
+            WOLFSSL_MSG("\tOption set to not allow this DTLS version");
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+            return VERSION_ERROR;
+        }
+    #endif
 
         /* check if option is set to not allow the current version
          * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */

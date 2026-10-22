@@ -15606,6 +15606,18 @@ int test_dtls_max_fragment_write(void)
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_DTLS13) && defined(OPENSSL_EXTRA)
+static int test_dtls13_has_tls13_suite(WOLFSSL* ssl)
+{
+    const Suites* suites = WOLFSSL_SUITES(ssl);
+    word16 i;
+
+    for (i = 0; suites != NULL && i < suites->suiteSz; i += SUITE_LEN) {
+        if (suites->suites[i] == TLS13_BYTE)
+            return 1;
+    }
+    return 0;
+}
+
 /* Sets opts, opts2 and opts3 in separate calls, and minVer when not 0, on the
  * client or server SSL or CTX. An expVersion of 0 means no version is left. */
 static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
@@ -15654,6 +15666,8 @@ static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
             ExpectIntEQ(ret, 0);
             ExpectIntEQ(wolfSSL_version(ssl_c), expVersion);
             ExpectIntEQ(wolfSSL_version(ssl_s), expVersion);
+            if (expVersion != DTLS1_3_VERSION && ssl != NULL)
+                ExpectIntEQ(test_dtls13_has_tls13_suite(ssl), 0);
             (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_2 |
                 WOLFSSL_OP_NO_TLSv1_1);
             ExpectIntEQ(wolfSSL_version(ssl), expVersion);
@@ -15698,6 +15712,65 @@ static int test_dtls13_mask_server_walk(void)
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+
+/* A DTLS client whose mask drops DTLS 1.2 refuses a DTLS 1.2-only server. */
+static int test_dtls13_mask_client_check(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLS_client_method, wolfDTLSv1_2_server_method), 0);
+    if (ssl_c != NULL)
+        (void)wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_TLSv1_2);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(VERSION_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_negotiate() applies the mask too, on the server here. */
+static int test_dtls13_mask_negotiate(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int retC = WOLFSSL_FATAL_ERROR;
+    int retS = WOLFSSL_FATAL_ERROR;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLS_client_method, wolfDTLS_server_method), 0);
+    if (ssl_s != NULL)
+        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_3);
+    for (i = 0; EXPECT_SUCCESS() && i < 10 &&
+            (retC != WOLFSSL_SUCCESS || retS != WOLFSSL_SUCCESS); i++) {
+        if (retC != WOLFSSL_SUCCESS)
+            retC = wolfSSL_negotiate(ssl_c);
+        if (retS != WOLFSSL_SUCCESS)
+            retS = wolfSSL_negotiate(ssl_s);
+    }
+    ExpectIntEQ(retC, WOLFSSL_SUCCESS);
+    ExpectIntEQ(retS, WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
+    ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_2_VERSION);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
 #endif
 #endif
 
@@ -15723,7 +15796,7 @@ int test_dtls13_no_tls13_option(void)
 #ifndef WOLFSSL_NO_TLS12
     int dtls12 = DTLS1_2_VERSION;
 #else
-    int dtls12 = 0;
+    int dtls12 = dtls10;
 #endif
 
     for (onServer = 0; onServer <= 1; onServer++) {
@@ -15757,6 +15830,8 @@ int test_dtls13_no_tls13_option(void)
 #endif
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(test_dtls13_mask_server_walk(), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_client_check(), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_negotiate(), TEST_SUCCESS);
 #endif
 
     /* A DTLS 1.3-only method cannot move down. */
