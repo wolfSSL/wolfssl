@@ -48,6 +48,34 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token);
 /*!
     \ingroup PKCS11
 
+    \brief Makes the crypto callback generate RSA, ECC, ML-DSA and ML-KEM
+    keys that have an id or label as token objects (CKA_TOKEN set).
+
+    Use it for tokens that cannot make a session key persistent later with
+    wc_Pkcs11PersistKey. The public key is kept as a token object too. Key
+    generation fails with BAD_STATE_E when a token key of the type already
+    has the id or label. A key without a name, such as a TLS ephemeral key,
+    stays a session object, or is generated in software when no session
+    from wc_Pkcs11Token_Open is open.
+
+    The private key gets CKA_PRIVATE, so the session must be logged in, and
+    a session from wc_Pkcs11Token_Open must be read/write. Without such a
+    session a token key is later found by its id or label.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG when token is NULL.
+
+    \param token Token used by the crypto callback.
+    \param persistent Generate token objects when non-zero.
+
+    \sa wc_Pkcs11PersistKey
+    \sa wc_Pkcs11DeleteKey
+*/
+int wc_Pkcs11Token_SetKeyGenPersistent(Pkcs11Token* token, int persistent);
+
+/*!
+    \ingroup PKCS11
+
     \brief Creates the key on the token as a session object in the session
     opened with wc_Pkcs11Token_Open, so it lasts until that session closes.
     An ECC key

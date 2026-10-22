@@ -39,6 +39,7 @@ int test_wc_Pkcs11_RsaIdNoLeak(void);
 int test_wc_Pkcs11_EcKeyUsage(void);
 int test_wc_Pkcs11_RsaKeyGenError(void);
 int test_wc_Pkcs11_RsaKeyGenExponent(void);
+int test_wc_Pkcs11_KeyGenPersistent(void);
 int test_wc_Pkcs11_KeyNames(void);
 int test_wc_Pkcs11_FreeNoObject(void);
 int test_wc_Pkcs11_KeyGenSessionClosed(void);
@@ -46,6 +47,7 @@ int test_wc_Pkcs11_SecretKeyPersist(void);
 int test_wc_Pkcs11_RsaPersistDelete(void);
 int test_wc_Pkcs11_PqcPersistDelete(void);
 int test_wc_Pkcs11_PersistPaths(void);
+int test_wc_Pkcs11_PqcKeyGen(void);
 
 #define TEST_PKCS11_DECLS                                                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
@@ -57,6 +59,7 @@ int test_wc_Pkcs11_PersistPaths(void);
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcKeyUsage),                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenError),               \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenExponent),            \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenPersistent),             \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyNames),                     \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeNoObject),                 \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed),          \
@@ -64,6 +67,7 @@ int test_wc_Pkcs11_PersistPaths(void);
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaPersistDelete),             \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_PqcPersistDelete),             \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_PersistPaths),                 \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_PqcKeyGen),                    \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_ValueRead)
 
 #else
