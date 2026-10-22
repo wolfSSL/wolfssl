@@ -883,14 +883,13 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     byte *           priv = NULL;
     byte *           sig_buf = NULL;
     byte *           sig_empty = NULL;
+    byte *           msg_copy = NULL;
     word32           pub_len = 0;
     word32           sig_len = 0;
     word32           priv_len = 0;
     word32           out_len = 0;
     word32           sig_buf_len = 0;
-#ifdef LINUXKM_FALCON_SIG_ALG
     word32           sig_empty_len = 0;
-#endif
     const byte *     msg = linuxkm_falcon_test_msg;
     word32           msg_len = (word32)sizeof(linuxkm_falcon_test_msg);
     int              ret;
@@ -901,6 +900,7 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     struct akcipher_request * req = NULL;
     struct scatterlist        src_sg[2];
     struct scatterlist        dst_sg;
+    int                       lkcapi_sign_ok = 1;
 #endif
 
     if (km_falcon_sizes(level, &pub_len, &sig_len, &priv_len) != 0)
@@ -912,12 +912,24 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
      * (sig_len + 1 passed as the signature length). */
     sig_buf = (byte *)malloc(sig_len + 1);
     sig_empty = (byte *)malloc(sig_len);
+    /* The static test message must be heap-copied before any use in a
+     * scatterlist (cf. the param_copy pattern in the ecdsa, EdDSA, and
+     * ML-DSA testers): scatterlists require linearly-mapped buffers,
+     * and module-resident static data is not.  virt_to_page() on a
+     * module address yields a bogus but deterministic alias, so a
+     * scatterlist over the module image reads the wrong bytes --
+     * self-consistently for this tester's sign/verify round trip, which
+     * passes anyway on most memory maps, and faulting outright where
+     * the alias is unmapped. */
+    msg_copy = (byte *)malloc(msg_len);
     if ((pub == NULL) || (priv == NULL) || (sig_buf == NULL) ||
-        (sig_empty == NULL))
+        (sig_empty == NULL) || (msg_copy == NULL))
     {
         pr_err("error: allocating falcon test buffers failed.\n");
         goto test_falcon_end;
     }
+    XMEMCPY(msg_copy, msg, msg_len);
+    msg = msg_copy;
     /* the compressed encoding is variable-length, so bytes past the
      * emitted signature can otherwise remain uninitialized when the
      * probes below pass larger lengths. */
@@ -1109,8 +1121,8 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
 
     tfm = crypto_alloc_akcipher(driver, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
-               driver, PTR_ERR(tfm));
+        pr_err("error: allocating akcipher algorithm %s failed: %d\n",
+               driver, (int)PTR_ERR(tfm));
         tfm = NULL;
         goto test_falcon_end;
     }
@@ -1136,7 +1148,30 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     sg_init_one(&dst_sg, sig_buf, sig_len);
     akcipher_request_set_crypt(req, &src_sg[0], &dst_sg, msg_len, sig_len);
     ret = crypto_akcipher_sign(req);
-    if (ret) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
+        /* RHEL akcipher crippled sign ops: trace, as the ML-DSA and
+         * EdDSA testers do -- but where those skip out, the generated
+         * key is at hand here, so produce the signature directly in
+         * wolfCrypt and continue, keeping the verify-side probes below
+         * running against the registered algorithm. */
+        out_len = sig_len;
+
+        pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
+
+        lkcapi_sign_ok = 0;
+
+        ret = wc_falcon_sign_msg(msg, msg_len, sig_buf, &out_len,
+                                 gen_key, &rng);
+        if ((ret != 0) || (out_len > sig_len) ||
+            (out_len < KM_FALCON_SIG_MIN_LEN))
+        {
+            pr_err("error: wc_falcon_sign_msg fallback returned: %d, "
+                   "out_len %u\n", ret, out_len);
+            goto test_falcon_end;
+        }
+        req->dst_len = out_len;
+    }
+    else if (ret) {
         pr_err("error: crypto_akcipher_sign returned: %d\n", ret);
         goto test_falcon_end;
     }
@@ -1148,6 +1183,62 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         goto test_falcon_end;
     }
     sig_buf_len = req->dst_len;
+
+    if (lkcapi_sign_ok) {
+        /* a short dst must be rejected with -EOVERFLOW, with dst_len
+         * updated to the requirement (kernel-sign path only: with the
+         * -ENOSYS fallback in effect there is no LKCAPI sign to
+         * probe). */
+        sg_init_one(&dst_sg, sig_buf, sig_len - 1);
+        akcipher_request_set_crypt(req, &src_sg[0], &dst_sg, msg_len,
+                                   sig_len - 1);
+        ret = crypto_akcipher_sign(req);
+        if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
+            pr_err("error: crypto_akcipher_sign (short dst) returned %d, "
+                   "expected %d\n", ret, -WC_NO_ERR_TRACE(EOVERFLOW));
+            goto test_falcon_end;
+        }
+        if (req->dst_len != sig_len) {
+            pr_err("error: crypto_akcipher_sign (short dst) dst_len %u, "
+                   "expected %u\n", req->dst_len, sig_len);
+            goto test_falcon_end;
+        }
+
+        /* sign the empty message, passed as (NULL, 0). */
+        sg_init_one(&dst_sg, sig_empty, sig_len);
+        akcipher_request_set_crypt(req, NULL, &dst_sg, 0, sig_len);
+        ret = crypto_akcipher_sign(req);
+        if (ret) {
+            pr_err("error: crypto_akcipher_sign (empty msg) returned: "
+                   "%d\n", ret);
+            goto test_falcon_end;
+        }
+        if ((req->dst_len > sig_len) ||
+            (req->dst_len < KM_FALCON_SIG_MIN_LEN))
+        {
+            pr_err("error: crypto_akcipher_sign (empty msg) dst_len %u, "
+                   "expected %u..%u\n", req->dst_len,
+                   KM_FALCON_SIG_MIN_LEN, sig_len);
+            goto test_falcon_end;
+        }
+        sig_empty_len = req->dst_len;
+    }
+    else {
+        /* -ENOSYS fallback for the empty-message signature, as for the
+         * message signature above. */
+        word32 empty_out_len = sig_len;
+
+        ret = wc_falcon_sign_msg(NULL, 0, sig_empty, &empty_out_len,
+                                 gen_key, &rng);
+        if ((ret != 0) || (empty_out_len > sig_len) ||
+            (empty_out_len < KM_FALCON_SIG_MIN_LEN))
+        {
+            pr_err("error: wc_falcon_sign_msg (empty msg) fallback "
+                   "returned: %d, out_len %u\n", ret, empty_out_len);
+            goto test_falcon_end;
+        }
+        sig_empty_len = empty_out_len;
+    }
 
     /* install the public key (destroys the resident private key, per
      * kernel setkey semantics) and verify: src is sig || msg, with the
@@ -1167,6 +1258,22 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         pr_err("error: crypto_akcipher_verify returned: %d\n", ret);
         goto test_falcon_end;
     }
+    /* verify the empty-message signature: src is just the signature,
+     * with msg_len 0 (a zero-length sg segment is not representable, so
+     * a single-segment src). */
+    sg_init_one(&src_sg[0], sig_empty, sig_empty_len);
+    akcipher_request_set_crypt(req, &src_sg[0], NULL, sig_empty_len, 0);
+    ret = crypto_akcipher_verify(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_verify (empty msg) returned: "
+               "%d\n", ret);
+        goto test_falcon_end;
+    }
+    /* restore the signature || message request layout. */
+    sg_init_table(src_sg, 2);
+    sg_set_buf(&src_sg[0], sig_buf, sig_buf_len);
+    sg_set_buf(&src_sg[1], msg, msg_len);
+    akcipher_request_set_crypt(req, src_sg, NULL, sig_buf_len, msg_len);
     /* a corrupted signature must be rejected with -EBADMSG. */
     sig_buf[sig_buf_len / 2] ^= 1;
     ret = crypto_akcipher_verify(req);
@@ -1176,6 +1283,18 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         goto test_falcon_end;
     }
     sig_buf[sig_buf_len / 2] ^= 1;
+    /* a truncated signature must be rejected with -EBADMSG. */
+    sg_init_table(src_sg, 2);
+    sg_set_buf(&src_sg[0], sig_buf, sig_buf_len - 1);
+    sg_set_buf(&src_sg[1], msg, msg_len);
+    akcipher_request_set_crypt(req, src_sg, NULL, sig_buf_len - 1,
+                               msg_len);
+    ret = crypto_akcipher_verify(req);
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
+        pr_err("error: crypto_akcipher_verify (short sig) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
+        goto test_falcon_end;
+    }
     /* a signature length above the level maximum must be rejected with
      * -EBADMSG before the copy buffer is even allocated
      * (wrong-size-reject-before-alloc, adapted to the compressed
@@ -1188,6 +1307,39 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify (oversize sig) returned %d, "
                "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
+        goto test_falcon_end;
+    }
+
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * verification against the previously installed key -- and a
+     * restored key must verify again. */
+    ret = crypto_akcipher_set_pub_key(tfm, pub, pub_len - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_set_pub_key (short) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        goto test_falcon_end;
+    }
+    sg_init_table(src_sg, 2);
+    sg_set_buf(&src_sg[0], sig_buf, sig_buf_len);
+    sg_set_buf(&src_sg[1], msg, msg_len);
+    akcipher_request_set_crypt(req, src_sg, NULL, sig_buf_len, msg_len);
+    ret = crypto_akcipher_verify(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_verify after rejected set_pub_key "
+               "returned %d, expected %d\n", ret,
+               -WC_NO_ERR_TRACE(EINVAL));
+        goto test_falcon_end;
+    }
+    ret = crypto_akcipher_set_pub_key(tfm, pub, pub_len);
+    if (ret) {
+        pr_err("error: crypto_akcipher_set_pub_key (restore) returned: "
+               "%d\n", ret);
+        goto test_falcon_end;
+    }
+    ret = crypto_akcipher_verify(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_verify after restored set_pub_key "
+               "returned: %d\n", ret);
         goto test_falcon_end;
     }
 
@@ -1216,6 +1368,7 @@ test_falcon_end:
     free(pub);
     free(sig_buf);
     free(sig_empty);
+    free(msg_copy);
 
     if (test_rc == 0)
         pr_info("info: self-test for %s succeeded\n", driver);
