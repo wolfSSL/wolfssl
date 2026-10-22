@@ -29,9 +29,11 @@
     !defined(NO_ECC256) && !defined(NO_ECC_SECP)
 
 int test_wc_Pkcs11_EcdsaSigDecode(void);
+int test_wc_Pkcs11_FreeKeepsTokenKey(void);
 
 #define TEST_PKCS11_DECLS                                                   \
-    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode)
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeKeepsTokenKey)
 
 #else
 

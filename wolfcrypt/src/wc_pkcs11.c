@@ -1193,6 +1193,34 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token)
     }
 }
 
+#if defined(HAVE_ECC) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_MLKEM)
+/**
+ * Destroy a key object only when it is a session object.
+ * Token objects, and objects whose CKA_TOKEN cannot be read, are kept.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  handle   Handle of key object.
+ */
+static void Pkcs11DestroySessionKey(Pkcs11Session* session,
+                                    CK_OBJECT_HANDLE handle)
+{
+    CK_RV        rv;
+    CK_BBOOL     onToken = CK_TRUE;
+    CK_ATTRIBUTE tmpl[] = {
+        { CKA_TOKEN, &onToken, sizeof(onToken) }
+    };
+
+    rv = session->func->C_GetAttributeValue(session->handle, handle, tmpl, 1);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if (rv == CKR_OK && tmpl[0].ulValueLen == sizeof(onToken) &&
+            onToken == CK_FALSE) {
+        rv = session->func->C_DestroyObject(session->handle, handle);
+        PKCS11_RV("C_DestroyObject", rv);
+    }
+}
+#endif
+
 
 #if (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
                                                                !defined(NO_HMAC)
@@ -4277,7 +4305,7 @@ static int Pkcs11EccCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 
 /**
- * Deletes the ECC private key.
+ * Deletes the ECC private key if it is a session object.
  *
  * @param  [in]  session  Session object.
  * @param  [in]  key      ECC key.
@@ -4290,7 +4318,7 @@ static int Pkcs11EccDeletePrivKey(Pkcs11Session* session, ecc_key* key)
     if (key != NULL && key->devCtx != NULL) {
         privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx;
 
-        session->func->C_DestroyObject(session->handle, privateKey);
+        Pkcs11DestroySessionKey(session, privateKey);
 
         key->devCtx = NULL;
     }
@@ -4748,7 +4776,7 @@ static int Pkcs11MlKemDeletePrivKey(Pkcs11Session* session, MlKemKey* key)
 
     if (key != NULL && key->devCtx != NULL) {
         privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx;
-        session->func->C_DestroyObject(session->handle, privateKey);
+        Pkcs11DestroySessionKey(session, privateKey);
         key->devCtx = NULL;
     }
 
@@ -5448,7 +5476,7 @@ static int Pkcs11MldsaCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 
 /**
- * Deletes the ML-DSA private key.
+ * Deletes the ML-DSA private key if it is a session object.
  *
  * @param  [in]  session  Session object.
  * @param  [in]  key      ML-DSA key.
@@ -5461,7 +5489,7 @@ static int Pkcs11MldsaDeletePrivKey(Pkcs11Session* session, wc_MlDsaKey* key)
     if (key != NULL && key->devCtx != NULL) {
         privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx;
 
-        session->func->C_DestroyObject(session->handle, privateKey);
+        Pkcs11DestroySessionKey(session, privateKey);
 
         key->devCtx = NULL;
     }
