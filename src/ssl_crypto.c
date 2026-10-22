@@ -3984,10 +3984,18 @@ int wolfSSL_RAND_egd(const char* nm)
                 }
             }
 #else
-            if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
-                    != 0) {
-                WOLFSSL_MSG("Error with reseeding DRBG structure");
-                ret = WOLFSSL_FATAL_ERROR;
+            /* Service 3.45 reseeds from the module's own source; a standing
+             * recovery obligation is met by the next generate, not here. */
+            {
+                int rs = wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf,
+                                            bytes);
+                if ((rs != 0) &&
+                    (rs != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                    (rs != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)))
+                {
+                    WOLFSSL_MSG("Error with reseeding DRBG structure");
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
             }
 #endif
             wc_UnLockMutex(&globalRNGMutex);
@@ -4518,11 +4526,19 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
             }
         }
 #else
-        if (wc_RNG_DRBG_Reseed(&globalRNG, buf, (word32)n) != 0) {
-            wc_UnLockMutex(&globalRNGMutex);
-            WOLFSSL_MSG("RAND_load_file: DRBG reseed failed");
-            ret = WOLFSSL_FATAL_ERROR;
-            break;
+        /* Service 3.45 reseeds from the module's own source; a standing
+         * recovery obligation is met by the next generate (see RAND_egd). */
+        {
+            int rs = wc_RNG_DRBG_Reseed(&globalRNG, buf, (word32)n);
+            if ((rs != 0) &&
+                (rs != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (rs != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)))
+            {
+                wc_UnLockMutex(&globalRNGMutex);
+                WOLFSSL_MSG("RAND_load_file: DRBG reseed failed");
+                ret = WOLFSSL_FATAL_ERROR;
+                break;
+            }
         }
 #endif
         wc_UnLockMutex(&globalRNGMutex);

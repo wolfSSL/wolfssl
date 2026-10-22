@@ -9058,7 +9058,7 @@ static int TreeTurnGive(void)
 
 static int TreeTryLock(wolfSSL_Atomic_Int* busy)
 {
-    int expected = 0;
+    WC_ATOMIC_INT_ARG expected = 0;
 
     if (wolfSSL_Atomic_Int_CompareExchange(busy, &expected, 1))
         return 0;
@@ -9093,8 +9093,8 @@ static int TreeError(int ret)
  * replaces one only a reload clears (SP 800-90A 11.4.2, SP 800-90B 4.3 item 2). */
 static void TreeSetFailed(int err)
 {
-    int kat = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
-    int cur = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    WC_ATOMIC_INT_ARG kat = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
+    WC_ATOMIC_INT_ARG cur = WOLFSSL_ATOMIC_LOAD(tree.failed);
 
     /* Replace no error, or a CAST error with a harder one. */
     while (cur == 0 || (cur == kat && err != kat)) {
@@ -9489,14 +9489,32 @@ void wc_RNG_TreeInvalidate(void)
 #endif
 }
 
+/* Instantiate the root from its entropy source and every leaf from the root;
+ * each wipes the state it replaces.  The caller holds tree.seeding. */
+static int TreeRebuild(void)
+{
+    word32 i, count;
+    int ret;
+
+    ret = TreeInstantiateRoot();
+    count = TreeIsLive() ? (word32)tree.ncpu * WC_RNG_TREE_LANES : 0;
+    for (i = 0; ret == 0 && i < count; i++) {
+        /* Leaf holders run one generate and never sleep. */
+        while (TreeTryLock(&tree.leaves[i].busy) != 0)
+            WC_RELAX_LONG_LOOP();
+        ret = TreeInstantiateLeaf(&tree.leaves[i], i);
+        TreeUnlock(&tree.leaves[i].busy);
+    }
+    return ret;
+}
+
 /* A latched error leaves no DRBG instantiated.  A CAST error is left by
  * re-instantiating the root and every leaf once the CAST passes (SP 800-90A
  * 11.4.2); the others stay until reload. */
 int wc_RNG_TreeReseed(int force)
 {
     byte* seed = tree.seed;
-    int expected = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
-    word32 i, count;
+    WC_ATOMIC_INT_ARG expected = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
     int epoch;
     int ret;
 

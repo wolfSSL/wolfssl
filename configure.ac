@@ -3061,7 +3061,7 @@ then
     AC_MSG_ERROR([--enable-rng-tree requires --enable-rng])
 fi
 if test "$ENABLED_RNG_TREE" = "yes" && test "$ENABLED_FIPS" = "yes" && \
-   test "$HAVE_FIPS_VERSION_MAJOR" -lt 7
+   test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7
 then
     AC_MSG_ERROR([--enable-rng-tree requires FIPS v7 or later])
 fi

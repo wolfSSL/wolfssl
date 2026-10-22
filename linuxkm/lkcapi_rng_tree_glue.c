@@ -206,11 +206,11 @@ static int RngGetBytesAddl(const u8* addl, size_t addlSz, void* buf,
     }
 
     if (ret != 0) {
-        /* A stale root waits for this kick, not the next 60 s reseed.
-         * Queueing work is not NMI safe. */
-        if (ret == WC_NO_ERR_TRACE(NOT_READY_E) && !in_nmi())
+        /* The root's renewal, wipe or recovery waits for this kick, not the
+         * next 60 s reseed.  Queueing work is not NMI safe. */
+        if (!in_nmi())
             RngKickRoot();
-        memzero_explicit(buf, len);
+        ForceZero(buf, len);
         return -EIO;
     }
     return 0;
@@ -480,6 +480,12 @@ static int RngCheckRegistered(void)
     return ret;
 }
 
+static void RngZeroize(void)
+{
+    if (wc_RNG_TreeZeroize() != 0)
+        pr_err("ERROR: wc_RNG_TreeZeroize() could not zeroize every DRBG.\n");
+}
+
 static void RngStop(void)
 {
 #ifdef CONFIG_PM_SLEEP
@@ -498,8 +504,7 @@ static void RngStop(void)
 #endif
     rngReady = 0;
     cancel_delayed_work_sync(&rngRootWork);
-    if (wc_RNG_TreeZeroize() != 0)
-        pr_err("ERROR: wc_RNG_TreeZeroize() could not zeroize every DRBG.\n");
+    RngZeroize();
 }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
@@ -591,6 +596,7 @@ static int wc_linuxkm_drbg_startup(void)
     ret = wc_RNG_TreeInit((int)nr_cpu_ids, NULL);
     if (ret != 0) {
         pr_err("ERROR: wc_RNG_TreeInit() failed: %d\n", ret);
+        RngZeroize();   /* a root it instantiated before the failure */
         return -ECANCELED;
     }
     INIT_DELAYED_WORK(&rngRootWork, RngRootWork);
