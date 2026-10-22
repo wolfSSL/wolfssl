@@ -794,7 +794,8 @@ static int test_wc_AesCbcEncryptDecrypt_WithKey(Aes* aes, byte* key,
             ExpectIntEQ(cipher[i], 0x00);
     }
 #endif
-#if !defined(WOLFSSL_AES_CBC_LENGTH_CHECKS) && defined(WOLFSSL_AESNI)
+#if !defined(WOLFSSL_AES_CBC_LENGTH_CHECKS) && defined(WOLFSSL_AESNI) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     /* Without length checks only whole blocks are encrypted; the partial
      * trailing block must not be rounded up and written. */
     XMEMSET(cipher, 0x00, WC_AES_BLOCK_SIZE * 2);
