@@ -17513,6 +17513,11 @@ PRAGMA_GCC_DIAG_POP
     if (ret == 0 || (sigRet != 0 && IsPostSigParseErr(ret))) {
         ret = sigRet;
     }
+    /* ParseCertRelative() ran with VERIFY_NAME and left the signature to
+     * wc_CheckCertSignature() above, so it could not record the result. */
+    if (args->dCert != NULL) {
+        args->dCert->sigVerified = (verify == VERIFY_NAME) && (sigRet == 0);
+    }
 #endif
 
     if (pSubjectHash)
@@ -19545,13 +19550,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      * a trusted anchor stays out of the cache even when the
                      * verify callback waved it through: cached CAs are trust
                      * anchors for every later connection and the callback only
-                     * runs on an error. The errors left out here were raised
-                     * after the signature verified, so the key is authentic and
-                     * the rest of the chain needs the cached entry. */
-                    if (preCbRet == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)   ||
-                        preCbRet == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E) ||
-                        preCbRet == WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) ||
-                        preCbRet == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) {
+                     * runs on an error. A failure raised after the signature
+                     * verified leaves the key authentic, and the rest of the
+                     * chain needs the cached entry. */
+                    if (preCbRet != 0 && !args->dCert->sigVerified) {
                         skipAddCA = 1;
                     }
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
