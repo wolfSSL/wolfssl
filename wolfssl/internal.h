@@ -2380,6 +2380,7 @@ WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);
 WOLFSSL_LOCAL void InitSSL_CTX_Suites(const WOLFSSL_CTX* ctx,
     Suites* suites);
 WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
+WOLFSSL_LOCAL int ResetSuitesForVersion(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
 
