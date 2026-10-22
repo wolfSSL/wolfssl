@@ -4039,8 +4039,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
             #include "services/sys/uio.h"
         #elif !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)    && \
               !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_ROWLEY_ARM) && \
-              !defined(WOLFSSL_EMBOS)   && !defined(WOLFSSL_FROSTED)    && \
-              !defined(WOLFSSL_CHIBIOS) && !defined(WOLFSSL_CONTIKI)    && \
+              !defined(WOLFSSL_EMBOS)   && !defined(WOLFSSL_CHIBIOS)    && \
+              !defined(WOLFSSL_CONTIKI) && \
               !defined(WOLFSSL_ZEPHYR)  && !defined(NETOS) && \
               !defined(WOLFSSL_NDS)
             #include <sys/uio.h>
