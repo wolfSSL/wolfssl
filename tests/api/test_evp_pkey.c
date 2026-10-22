@@ -2954,6 +2954,49 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
 
 #endif /* !NO_DH && WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
 
+    /*
+     *  test Ed25519 public key print from a SubjectPublicKeyInfo
+     */
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+    !defined(NO_CERTS)
+    {
+        WOLFSSL_X509* x509 = NULL;
+        const unsigned char* p = ca_ed25519_cert;
+        unsigned char spki[64];
+        int spkiSz = (int)sizeof(spki);
+
+        ExpectNotNull(x509 = wolfSSL_d2i_X509(NULL, &p,
+            (int)sizeof_ca_ed25519_cert));
+        ExpectIntEQ(wolfSSL_X509_get_pubkey_buffer(x509, spki, &spkiSz),
+            WOLFSSL_SUCCESS);
+        wolfSSL_X509_free(x509);
+        p = spki;
+        ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, spkiSz));
+        ExpectNotNull(wbio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(EVP_PKEY_print_public(wbio, pkey, 2, NULL), 1);
+
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line, "  ED25519 Public-Key:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line, "  pub:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line,
+            "      42:3B:7A:F9:82:CF:F9:DF:19:DD:F3:F0:32:29:6D:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line,
+            "      FA:FD:76:4F:68:C2:C2:E0:6C:47:AE:C2:55:68:AC:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line, "      0D:4D\n");
+        /* should reach EOF */
+        ExpectIntLE(BIO_gets(wbio, line, sizeof(line)), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+        BIO_free(wbio);
+        wbio = NULL;
+    }
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT && !NO_CERTS */
+
     /* to prevent "unused variable" warning */
     (void)pkey;
     (void)wbio;

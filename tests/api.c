@@ -32916,34 +32916,65 @@ static int test_wolfSSL_X509_print_mldsa(void)
     return EXPECT_RESULT();
 }
 
-/* X509_print() renders the rest of the certificate when the subject key is
- * not one this build can print */
-static int test_wolfSSL_X509_print_unsupported(void)
+/* X509_print() renders a certificate whose subject key is EdDSA */
+static int test_wolfSSL_X509_print_eddsa(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-    defined(XSNPRINTF) && defined(HAVE_ED25519) && \
-    defined(HAVE_ED25519_KEY_IMPORT)
-    X509* x509 = NULL;
-    BIO* bio = NULL;
-    char* data = NULL;
-    char* p = NULL;
+    defined(XSNPRINTF) && \
+    ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) || \
+     (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)))
+    static const struct {
+        const char* file;
+        const char* key;
+        const char* sigAlg;
+    } certs[] = {
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        { "./certs/ed25519/server-ed25519.der",
+          "            Public Key Algorithm: ED25519\n"
+          "                ED25519 Public-Key:\n"
+          "                pub:\n"
+          "                    23:AA:4D:60:50:E0:13:D3:3A:ED:AB:F6:A9:CC:4A:\n"
+          "                    FE:D7:4D:2F:D2:5B:1A:10:05:EF:5A:41:25:CE:1B:\n"
+          "                    53:78\n",
+          "Signature Algorithm: ED25519" },
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+        { "./certs/ed448/server-ed448.der",
+          "            Public Key Algorithm: ED448\n"
+          "                ED448 Public-Key:\n"
+          "                pub:\n"
+          "                    54:81:39:01:EB:37:D9:A9:07:CD:01:BC:9D:70:16:\n"
+          "                    C2:2C:2B:75:5B:63:DB:EE:3A:2D:44:92:46:B4:7B:\n"
+          "                    07:03:4F:A2:AE:86:86:DC:8B:4B:2C:7F:E8:6B:14:\n"
+          "                    8D:58:DD:6D:E7:6F:3A:05:95:A8:EF:00\n",
+          "Signature Algorithm: ED448" },
+    #endif
+    };
+    size_t i;
 
-    ExpectNotNull(x509 = X509_load_certificate_file(
-        "./certs/ed25519/server-ed25519.der", SSL_FILETYPE_ASN1));
-    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
-    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
-    X509_free(x509);
-    /* Memory BIO data is not NUL-terminated, terminate it to search in place */
-    ExpectIntEQ(BIO_write(bio, "", 1), 1);
-    ExpectIntGT(BIO_get_mem_data(bio, &data), 0);
-    if (data != NULL) {
-        ExpectNotNull(p = XSTRSTR(data, "Public Key Algorithm: ED25519"));
-        ExpectNotNull(p = XSTRSTR(p, "print not supported"));
-        /* the rest of the certificate is still printed */
-        ExpectNotNull(p = XSTRSTR(p, "Signature Algorithm: ED25519"));
+    for (i = 0; i < sizeof(certs) / sizeof(certs[0]); i++) {
+        X509* x509 = NULL;
+        BIO* bio = NULL;
+        char* data = NULL;
+        char* p = NULL;
+
+        ExpectNotNull(x509 = X509_load_certificate_file(certs[i].file,
+            SSL_FILETYPE_ASN1));
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+        X509_free(x509);
+        /* Memory BIO data is not NUL-terminated, terminate it to search in
+         * place */
+        ExpectIntEQ(BIO_write(bio, "", 1), 1);
+        ExpectIntGT(BIO_get_mem_data(bio, &data), 0);
+        if (data != NULL) {
+            ExpectNotNull(p = XSTRSTR(data, certs[i].key));
+            ExpectNull(XSTRSTR(data, "print not supported"));
+            ExpectNotNull(p = XSTRSTR(p, certs[i].sigAlg));
+        }
+        BIO_free(bio);
     }
-    BIO_free(bio);
 #endif
     return EXPECT_RESULT();
 }
@@ -45292,7 +45323,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
     TEST_DECL(test_wolfSSL_X509_print_dir_altname),
     TEST_DECL(test_wolfSSL_X509_print_mldsa),
-    TEST_DECL(test_wolfSSL_X509_print_unsupported),
+    TEST_DECL(test_wolfSSL_X509_print_eddsa),
     TEST_DECL(test_wolfSSL_X509_print_dual_alg),
     TEST_DECL(test_wolfSSL_X509_print_dual_alg_mldsa),
     TEST_DECL(test_wolfSSL_X509_print_dual_alg_unsupported),

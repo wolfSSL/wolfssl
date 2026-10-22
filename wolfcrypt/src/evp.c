@@ -13600,6 +13600,54 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 }
 #endif /* WOLFSSL_DH_EXTRA */
 
+#if (defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+     defined(WC_ENABLE_ASYM_KEY_IMPORT)) || \
+    (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT))
+/* PrintPubKeyRaw is a helper function for wolfSSL_EVP_PKEY_print_public
+ * to print a public key held as a single byte string.
+ * Parameters:
+ * out     bio to output dump data
+ * keyType key OID sum, used for the name
+ * pub     public key data
+ * pubSz   public key data size
+ * indent  the number of spaces for indent
+ * Returns 1 on success, 0 on failure.
+*/
+static int PrintPubKeyRaw(WOLFSSL_BIO* out, int keyType, const byte* pub,
+    word32 pubSz, int indent)
+{
+    const char* nameStr;
+    int res;
+
+    nameStr = wolfSSL_OBJ_nid2ln(oid2nid((word32)keyType, oidKeyType));
+    res = nameStr != NULL;
+    if (res == WOLFSSL_SUCCESS) {
+        res = Indent(out, indent) >= 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = wolfSSL_BIO_write(out, nameStr, (int)XSTRLEN(nameStr)) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = wolfSSL_BIO_write(out, " Public-Key:\n", 13) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = Indent(out, indent) >= 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        /* print pub element */
+        res = wolfSSL_BIO_write(out, "pub:\n", 5) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        /* upper case */
+        res = PrintHexWithColon(out, pub, (int)pubSz, indent + 4, 0);
+    }
+
+    return res;
+}
+#endif
+
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT)
@@ -13617,12 +13665,10 @@ static int PrintPubKeyMlDsa(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, WOLFSSL_ASN1_PCTX* pctx)
 {
     const byte* pub = NULL;
-    const char* nameStr = NULL;
     word32  pubSz = 0;
     word32  inOutIdx = 0;
     int     keyType = ANONk;
     int     res = WOLFSSL_SUCCESS;
-    char    line[32] = { 0 };
     (void)pctx;
 
     if (out == NULL || pkey == NULL || pkeySz <= 0) {
@@ -13646,30 +13692,7 @@ static int PrintPubKeyMlDsa(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
               ;
     }
     if (res == WOLFSSL_SUCCESS) {
-        nameStr = wolfSSL_OBJ_nid2ln(oid2nid((word32)keyType, oidKeyType));
-        res = nameStr != NULL;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        res = Indent(out, indent) >= 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        res = wolfSSL_BIO_write(out, nameStr, (int)XSTRLEN(nameStr)) > 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        XSTRNCPY(line, " Public-Key:\n", sizeof(line));
-        res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        res = Indent(out, indent) >= 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        /* print pub element */
-        XSTRNCPY(line, "pub:\n", sizeof(line));
-        res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        /* upper case */
-        res = PrintHexWithColon(out, pub, (int)pubSz, indent + 4, 0);
+        res = PrintPubKeyRaw(out, keyType, pub, pubSz, indent);
     }
 
     return res;
@@ -13709,7 +13732,9 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     defined(WOLFSSL_DH_EXTRA) || \
     (defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
      !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
-     defined(WC_ENABLE_ASYM_KEY_IMPORT))
+     defined(WC_ENABLE_ASYM_KEY_IMPORT)) || \
+    (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT))
     if (indent < 0) {
         indent = 0;
     }
@@ -13798,6 +13823,28 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
             res = WOLFSSL_UNKNOWN;       /* not supported algo */
 #endif
             break;
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        case WC_EVP_PKEY_ED25519:
+            if (pkey->ed25519 == NULL || !pkey->ed25519->pubKeySet) {
+                res = WOLFSSL_FAILURE;
+                break;
+            }
+            res = PrintPubKeyRaw(out, ED25519k, pkey->ed25519->p,
+                ED25519_PUB_KEY_SIZE, indent);
+            break;
+#endif
+
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+        case WC_EVP_PKEY_ED448:
+            if (pkey->ed448 == NULL || !pkey->ed448->pubKeySet) {
+                res = WOLFSSL_FAILURE;
+                break;
+            }
+            res = PrintPubKeyRaw(out, ED448k, pkey->ed448->p,
+                ED448_PUB_KEY_SIZE, indent);
+            break;
+#endif
 
         default:
             res = WOLFSSL_UNKNOWN;      /* not supported algo */

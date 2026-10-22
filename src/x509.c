@@ -6860,6 +6860,12 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 key->type = WC_EVP_PKEY_ED25519;
             }
         #endif
+        #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+            (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+            else if (x509->pubKeyOID == ED448k) {
+                key->type = WC_EVP_PKEY_ED448;
+            }
+        #endif
             else {
                 key->type = WC_EVP_PKEY_EC;
             }
@@ -6973,6 +6979,26 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 }
             }
             #endif /* HAVE_ED25519 */
+
+            #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+                (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+            if (key->type == WC_EVP_PKEY_ED448) {
+                key->ed448 = wolfSSL_ED448_new(x509->heap, INVALID_DEVID);
+                if (key->ed448 == NULL) {
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+                key->ownEd448 = 1;
+
+                if (wc_ed448_import_public(
+                            (const unsigned char*)key->pkey.ptr,
+                            (word32)key->pkey_sz, key->ed448) != 0) {
+                    WOLFSSL_MSG("wc_ed448_import_public failed");
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+            }
+            #endif /* HAVE_ED448 */
 
             /* re-encode ML-DSA key */
             #if defined(WOLFSSL_HAVE_MLDSA) && \
