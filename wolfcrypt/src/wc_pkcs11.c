@@ -2374,6 +2374,71 @@ static int Pkcs11FindKeyByLabel(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     return ret;
 }
 
+#ifdef WC_PKCS11_FIND_WITH_ID_ONLY
+/**
+ * Find the first object matching the template with the key class.
+ *
+ * @param  [out]  key         Handle to key object.
+ * @param  [in]   keyClass    Public or private key class.
+ * @param  [in]   session     Session object.
+ * @param  [in]   keyTemplate PKCS #11 template to use in search.
+ * @param  [in]   keyTmplCnt  Count of entries in PKCS #11 template.
+ * @return  WC_HW_E when a PKCS#11 library call fails or no key is found.
+ * @return  0 on success.
+ */
+static int Pkcs11FindKeyOfClass(CK_OBJECT_HANDLE* key,
+                                CK_OBJECT_CLASS keyClass,
+                                Pkcs11Session* session,
+                                CK_ATTRIBUTE* keyTemplate, CK_ULONG keyTmplCnt)
+{
+    int              ret = 0;
+    CK_RV            rv;
+    CK_ULONG         count = 1;
+    CK_OBJECT_HANDLE handle = NULL_PTR;
+    CK_OBJECT_CLASS  objClass;
+    CK_ATTRIBUTE     tmpl[] = {
+        { CKA_CLASS, &objClass, sizeof(objClass) }
+    };
+    CK_ULONG         tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+
+    *key = NULL_PTR;
+    PKCS11_DUMP_TEMPLATE("Find Key", keyTemplate, keyTmplCnt);
+    rv = session->func->C_FindObjectsInit(session->handle, keyTemplate,
+                                                                    keyTmplCnt);
+    PKCS11_RV("C_FindObjectsInit", rv);
+    if (rv != CKR_OK) {
+        ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        while (ret == 0 && count > 0 && *key == NULL_PTR) {
+            rv = session->func->C_FindObjects(session->handle, &handle, 1,
+                                              &count);
+            PKCS11_RV("C_FindObjects", rv);
+            if (rv != CKR_OK) {
+                ret = WC_HW_E;
+            }
+            if (ret == 0 && count > 0) {
+                tmpl[0].ulValueLen = sizeof(objClass);
+                rv = session->func->C_GetAttributeValue(session->handle,
+                                                        handle, tmpl, tmplCnt);
+                PKCS11_RV("C_GetAttributeValue", rv);
+                if (rv == CKR_OK && objClass == keyClass)
+                    *key = handle;
+            }
+        }
+        rv = session->func->C_FindObjectsFinal(session->handle);
+        PKCS11_RV("C_FindObjectsFinal", rv);
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0 && *key == NULL_PTR)
+        ret = WC_HW_E;
+
+    return ret;
+}
+#endif
+
 /**
  * Find the PKCS#11 object containing the private key data by ID.
  *
@@ -2391,7 +2456,9 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
                              byte* id, int idLen)
 {
     int             ret = 0;
+#ifndef WC_PKCS11_FIND_WITH_ID_ONLY
     CK_ULONG        count;
+#endif
     CK_ATTRIBUTE    keyTemplate[] = {
 #ifndef WC_PKCS11_FIND_WITH_ID_ONLY
         { CKA_CLASS,           &keyClass, sizeof(keyClass) },
@@ -2402,16 +2469,20 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
 #ifdef WC_PKCS11_FIND_WITH_ID_ONLY
-    (void)keyClass;
     (void)keyType;
 #endif
 
     WOLFSSL_MSG("PKCS#11: Find Key By Id");
 
+#ifndef WC_PKCS11_FIND_WITH_ID_ONLY
     ret = Pkcs11FindKeyByTemplate(key, session, keyTemplate, keyTmplCnt,
                                                                         &count);
     if (ret == 0 && count == 0)
         ret = WC_HW_E;
+#else
+    ret = Pkcs11FindKeyOfClass(key, keyClass, session, keyTemplate,
+                               keyTmplCnt);
+#endif
 
     return ret;
 }
