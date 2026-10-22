@@ -1135,6 +1135,7 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
         session->func = token->func;
         session->slotId = token->slotId;
         session->version = token->version;
+        session->closes = (session->handle != token->handle);
     }
 
     return ret;
@@ -1155,6 +1156,32 @@ static void Pkcs11CloseSession(Pkcs11Token* token, Pkcs11Session* session)
         session->func->C_CloseSession(session->handle);
     }
 }
+
+#if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
+    (defined(HAVE_ECC) && !defined(NO_PKCS11_EC_KEYGEN)) || \
+    defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA)
+/**
+ * Check that a key generated in the session outlives the operation.
+ *
+ * @param  [in]  session   Session object.
+ * @param  [in]  idLen     Length of the key's id.
+ * @param  [in]  labelLen  Length of the key's label.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
+ * @return  0 when the session stays open.
+ */
+static int Pkcs11KeyGenSessionCheck(Pkcs11Session* session, int idLen,
+                                    int labelLen)
+{
+    int ret = 0;
+
+    if (session->closes)
+        ret = (idLen > 0 || labelLen > 0) ? BAD_STATE_E : CRYPTOCB_UNAVAILABLE;
+
+    return ret;
+}
+#endif
 
 /**
  * Open a session on the token to be used for all operations.
@@ -2148,7 +2175,12 @@ static int Pkcs11HmacTypes(int macType, int* mechType, int* keyType)
  * @param  [in]  type   Key type.
  * @param  [in]  clear  Clear out the private data from software key.
  * @param  [in]  key    Key type specific object.
+ * @return  BAD_FUNC_ARG when token is NULL.
+ * @return  BAD_STATE_E when the token has no session from
+ *          wc_Pkcs11Token_Open, so the key would go with this call's session.
+ * @return  MEMORY_E when a memory allocation fails.
  * @return  NOT_COMPILED_IN when mechanism not available.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
 int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
@@ -2157,7 +2189,12 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
     Pkcs11Session     session;
     CK_OBJECT_HANDLE  privKey = NULL_PTR;
 
-    ret = Pkcs11OpenSession(token, &session, 1);
+    if (token == NULL)
+        ret = BAD_FUNC_ARG;
+    else if (token->handle == NULL_PTR)
+        ret = BAD_STATE_E;
+    else
+        ret = Pkcs11OpenSession(token, &session, 1);
     if (ret == 0) {
         switch (type) {
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
@@ -3188,6 +3225,9 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
  *
  * @param  [in]  session  Session object.
  * @param  [in]  info     Cryptographic operation data.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
@@ -3219,6 +3259,8 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     int               i;
 
     ret = Pkcs11MechAvail(session, CKM_RSA_PKCS_KEY_PAIR_GEN, NULL);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: RSA Key Generation Operation");
 
@@ -3457,6 +3499,9 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
  *
  * @param  [in]  session  Session object.
  * @param  [in]  info     Cryptographic operation data.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
  * @return  NOT_COMPILED_IN when the token cannot give a key with no id or
  *          label the usages its flags ask for.
  * @return  WC_HW_E when a PKCS#11 library call fails, or the token cannot
@@ -3489,6 +3534,8 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     int               usage = 0;
 
     ret = Pkcs11MechAvail(session, CKM_EC_KEY_PAIR_GEN, NULL);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Key Generation Operation");
 
@@ -4554,6 +4601,8 @@ static int Pkcs11MlKemKeyGen(Pkcs11Session* session, MlKemKey* key)
         sizeof(privKeyTmpl) / sizeof(*privKeyTmpl) - 2;
 
     ret = Pkcs11MechAvail(session, CKM_ML_KEM_KEY_PAIR_GEN, &mechInfo);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         switch (key->type) {
         #ifndef WOLFSSL_NO_ML_KEM
@@ -5088,6 +5137,9 @@ static int Pkcs11GetMldsaPreHash(int hashType,
  * @param  [in]  session  Session object.
  * @param  [in]  key      ML-DSA key. Already configured with the desired
  *                         level and parameters.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
@@ -5124,6 +5176,8 @@ static int Pkcs11MldsaKeyGen(Pkcs11Session* session, wc_MlDsaKey* key)
     CK_ULONG        privTmplCnt = sizeof(privKeyTmpl)/sizeof(*privKeyTmpl) - 2;
 
     ret = Pkcs11MechAvail(session, CKM_ML_DSA_KEY_PAIR_GEN, &mechInfo);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         if ((key->level == WC_ML_DSA_44) &&
             (mechInfo.ulMinKeySize <= WC_MLDSA_44_PUB_KEY_SIZE) &&
@@ -6713,6 +6767,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 session.version = token->version;
                 session.handle  =
                     (CK_SESSION_HANDLE)(wc_ptr_t)hmac->devCtx;
+                session.closes = 0;
                 ret = Pkcs11Hmac(&session, info);
                 if (ret != 0 ||
                         hmac->innerHashKeyed

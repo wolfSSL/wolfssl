@@ -23,6 +23,20 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token);
 
 /*!
     \ingroup PKCS11
+
+    \brief Opens a session on the token that all later operations use, until
+    wc_Pkcs11Token_Close. Without it, wc_Pkcs11StoreKey and generating a key
+    with an id or label on the token return BAD_STATE_E, and a key with
+    neither is generated in software.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG when token is NULL.
+    \return WC_HW_E when opening the session fails.
+
+    \param token Token to open the session on.
+    \param readWrite 1 for a read-write session, 0 for read-only.
+
+    \sa wc_Pkcs11Token_Close
  */
 int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite);
 
@@ -34,8 +48,9 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token);
 /*!
     \ingroup PKCS11
 
-    \brief Creates the key on the token as a session object, so it lasts only
-    while a session opened with wc_Pkcs11Token_Open stays open. An ECC key
+    \brief Creates the key on the token as a session object in the session
+    opened with wc_Pkcs11Token_Open, so it lasts until that session closes.
+    An ECC key
     gets the usages its flags ask for: sign for WC_ECC_FLAG_DEC_SIGN and
     derive for WC_ECC_FLAG_DERIVE. With neither flag it gets derive, plus sign
     when the key has an id or label, or only sign when PKCS#11 ECDH is not
@@ -45,6 +60,7 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token);
 
     \return 0 on success.
     \return BAD_FUNC_ARG when token is NULL.
+    \return BAD_STATE_E when no session was opened with wc_Pkcs11Token_Open.
     \return MEMORY_E when memory allocation fails.
     \return NOT_COMPILED_IN when the key type is not supported, or the token
     lacks the mechanism for it or for a usage the key's flags ask for.

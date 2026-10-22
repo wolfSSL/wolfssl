@@ -719,7 +719,7 @@ int test_wc_Pkcs11_FreeKeepsTokenKey(void)
     return EXPECT_RESULT();
 }
 
-#if defined(TEST_PKCS11_EC_KEYGEN) && defined(HAVE_ECC_KEY_IMPORT)
+#ifdef TEST_PKCS11_EC_KEYGEN
 static int test_pkcs11_make_ecc(ecc_key* key, WC_RNG* rng, const byte* id,
     int idLen)
 {
@@ -733,7 +733,9 @@ static int test_pkcs11_make_ecc(ecc_key* key, WC_RNG* rng, const byte* id,
 #endif
     return ret;
 }
+#endif
 
+#if defined(TEST_PKCS11_EC_KEYGEN) && defined(HAVE_ECC_KEY_IMPORT)
 static CK_OBJECT_HANDLE test_pkcs11_find_obj(CK_OBJECT_CLASS cls,
     CK_BBOOL onToken)
 {
@@ -1186,6 +1188,101 @@ int test_wc_Pkcs11_FreeNoObject(void)
 
     wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
 
+    return EXPECT_RESULT();
+}
+
+int test_wc_Pkcs11_KeyGenSessionClosed(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_EC_KEYGEN
+    static const byte id[] = { 0x61 };
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    ecc_key soft;
+    ecc_key key;
+    WC_RNG rng;
+    word32 len = sizeof(test_pkcs11_ec_point) - 2;
+#ifdef TEST_PKCS11_RSA_KEYGEN
+    RsaKey rsa;
+    wc_CryptoInfo info;
+#endif
+
+    test_pkcs11_store_setup(&token, &func);
+    func.C_OpenSession = test_pkcs11_open_session;
+    func.C_CloseSession = test_pkcs11_close_session;
+    XMEMSET(&soft, 0, sizeof(soft));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(test_pkcs11_make_ecc(&soft, &rng, id, (int)sizeof(id)), 0);
+    test_pkcs11_ec_point[0] = ASN_OCTET_STRING;
+    test_pkcs11_ec_point[1] = (byte)len;
+    ExpectIntEQ(wc_ecc_export_x963(&soft, test_pkcs11_ec_point + 2, &len), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+    /* A named session key would go with a session that closes. */
+    token.handle = 0;
+    ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_NONE), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectNull(key.devCtx);
+    wc_ecc_free(&key);
+    ExpectIntEQ(wc_ecc_init_label(&key, "closes", NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_NONE), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectNull(key.devCtx);
+    wc_ecc_free(&key);
+    test_pkcs11_opens = 0;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &soft),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(test_pkcs11_opens, 0);
+#ifdef TEST_PKCS11_RSA_KEYGEN
+    ExpectIntEQ(wc_InitRsaKey_Id(&rsa, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&rsa, 2048, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectNull(rsa.devCtx);
+    ExpectIntEQ(wc_FreeRsaKey(&rsa), 0);
+#endif
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+
+    /* A key without a name is generated in software. */
+    ExpectIntEQ(wc_ecc_init_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_NONE), 0);
+    ExpectNull(key.devCtx);
+    ExpectIntEQ(key.type, ECC_PRIVATEKEY);
+    wc_ecc_free(&key);
+#ifdef TEST_PKCS11_RSA_KEYGEN
+    ExpectIntEQ(wc_InitRsaKey_ex(&rsa, NULL, TEST_PKCS11_DEVID), 0);
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_RSA_KEYGEN;
+    info.pk.rsakg.key = &rsa;
+    info.pk.rsakg.size = 2048;
+    info.pk.rsakg.e = WC_RSA_EXPONENT;
+    info.pk.rsakg.rng = &rng;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(TEST_PKCS11_DEVID, &info, &token),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectNull(rsa.devCtx);
+    ExpectIntEQ(wc_FreeRsaKey(&rsa), 0);
+#endif
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+
+    /* A session key made in the open session is kept. */
+    test_pkcs11_reset();
+    token.handle = 1;
+    ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id, (int)sizeof(id),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_NONE), 0);
+    ExpectNotNull(key.devCtx);
+    wc_ecc_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
+    wc_ecc_free(&soft);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
     return EXPECT_RESULT();
 }
 
