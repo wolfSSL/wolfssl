@@ -1370,7 +1370,12 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
 
     n_diff = ConstantCompare(sig, msg, dec_len);
     if (unlikely(n_diff != 0)) {
-        err = -EKEYREJECTED;
+        /* -EBADMSG for the recovered-digest mismatch, same as for the
+         * padding-level failure above: the branch convention for
+         * verification failure, matching the kernel's modern
+         * rsassa-pkcs1.c (the legacy rsa-pkcs1pad.c distinguished this
+         * case as -EKEYREJECTED; no testmgr vector exercises it). */
+        err = -EBADMSG;
         goto pkcs1pad_verify_out;
     }
 
@@ -1642,7 +1647,10 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
         pr_err("error: %s: recovered msg did not match digest: %d\n",
                WOLFKM_RSA_DRIVER, n_diff);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EKEYREJECTED;
+        /* -EBADMSG, as in km_pkcs1pad_verify(): the branch convention
+         * for verification failure, matching the kernel's modern
+         * rsassa-pkcs1.c. */
+        err = -EBADMSG;
         goto pkcs1_verify_out;
     }
 

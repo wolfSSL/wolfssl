@@ -712,6 +712,13 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
         pr_err("info: %s: ecdsa verify: verify fail: %d\n",
                WOLFKM_ECDSA_DRIVER, result);
         #endif /* WOLFKM_DEBUG_ECDSA */
+        /* -EKEYREJECTED is testmgr-mandated here, as the exception to
+         * the branch's -EBADMSG convention for verification failure:
+         * crypto/testmgr.h's x962_ecdsa_nist_p192/p256 suites each pin
+         * a bad-signature vector to verify_error == -EKEYREJECTED, and
+         * test_sig_one() requires an exact errno match.  (The in-tree
+         * crypto/ecdsa.c draws the same line: -EBADMSG for out-of-range
+         * r/s, -EKEYREJECTED for a well-formed signature that fails.) */
         err = -EKEYREJECTED;
         goto ecdsa_verify_end;
     }
@@ -1221,14 +1228,15 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         goto test_ecdsa_nist_end;
     }
 
-    /* corrupt the signature -- verify should now fail. */
+    /* corrupt the signature -- verify should now fail, with the
+     * testmgr-mandated -EKEYREJECTED (see km_ecdsa_verify()). */
     raw_sig->r[0] ^= 1U;
 
     ret = crypto_sig_verify(tfm, raw_sig, (unsigned int)sizeof(*raw_sig),
                             hash, hash_len);
-    if ((ret != -WC_NO_ERR_TRACE(EBADMSG)) && (ret != -WC_NO_ERR_TRACE(EKEYREJECTED))) {
-        pr_err("error: crypto_sig_verify returned %d, expected %d or %d\n",
-               ret, -EBADMSG, -EKEYREJECTED);
+    if (ret != -WC_NO_ERR_TRACE(EKEYREJECTED)) {
+        pr_err("error: crypto_sig_verify returned %d, expected %d\n",
+               ret, -EKEYREJECTED);
         test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }
