@@ -73,11 +73,6 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Hardware */
 /* ------------------------------------------------------------------------- */
-/* CryptoCell support */
-#if 0
-    //#define WOLFSSL_CRYPTOCELL
-    //#define WOLFSSL_CRYPTOCELL_AES
-#endif
 /* PSA support */
 #ifdef CONFIG_MBEDTLS_PSA_CRYPTO_C
     #define WOLFSSL_HAVE_PSA

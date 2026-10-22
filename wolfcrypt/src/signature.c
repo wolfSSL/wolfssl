@@ -67,13 +67,6 @@ static int wc_SignatureCheckHashStrength(enum wc_HashType hash_type)
 }
 
 
-#if !defined(NO_RSA) && defined(WOLFSSL_CRYPTOCELL)
-    extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
-                                RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
-    extern int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                    word32 outLen, RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
-#endif
-
 #if !defined(NO_RSA) && !defined(NO_ASN)
 static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte* hash_data,
     word32 hash_len, word32* hash_enc_len)
@@ -256,20 +249,6 @@ int wc_SignatureVerifyHash(
         case WC_SIGNATURE_TYPE_RSA:
         {
 #ifndef NO_RSA
-    #ifdef WOLFSSL_CRYPTOCELL
-        if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
-            ret = cc310_RsaSSL_Verify(hash_data, hash_len, (byte*)sig,
-                (RsaKey*)key, cc310_hashModeRSA(hash_type, 0));
-        }
-        else {
-            ret = cc310_RsaSSL_Verify(hash_data, hash_len, (byte*)sig,
-                (RsaKey*)key, cc310_hashModeRSA(hash_type, 1));
-        }
-        if (ret != 0) {
-            ret = SIG_VERIFY_E;
-        }
-    #else
-
             word32 plain_len = hash_len;
         #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             byte *plain_data;
@@ -317,7 +296,6 @@ int wc_SignatureVerifyHash(
             else {
                 ret = MEMORY_E;
             }
-    #endif /* WOLFSSL_CRYPTOCELL */
             if (ret != 0) {
                 WOLFSSL_MSG("RSA Signature Verify failed!");
             }
@@ -485,18 +463,6 @@ int wc_SignatureGenerateHash_ex(
         case WC_SIGNATURE_TYPE_RSA:
 #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY)
-    #ifdef WOLFSSL_CRYPTOCELL
-            /* use expected signature size (incoming sig_len could be larger buffer */
-            *sig_len = wc_SignatureGetSize(sig_type, key, key_len);
-            if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
-                ret = cc310_RsaSSL_Sign(hash_data, hash_len, sig, *sig_len,
-                    (RsaKey*)key, cc310_hashModeRSA(hash_type, 0));
-            }
-            else {
-                ret = cc310_RsaSSL_Sign(hash_data, hash_len, sig, *sig_len,
-                    (RsaKey*)key, cc310_hashModeRSA(hash_type, 1));
-           }
-    #else
             /* Create signature using provided RSA key */
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
@@ -507,7 +473,6 @@ int wc_SignatureGenerateHash_ex(
                     ret = wc_RsaSSL_Sign(hash_data, hash_len, sig, *sig_len,
                         (RsaKey*)key, rng);
             } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
-    #endif /* WOLFSSL_CRYPTOCELL */
             if (ret >= 0) {
                 *sig_len = (word32)ret;
                 ret = 0; /* Success */

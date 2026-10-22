@@ -174,10 +174,6 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #include <psa/crypto.h>
 #endif
 
-#if defined(WOLFSSL_CRYPTOCELL)
-    #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
-#endif
-
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
@@ -204,7 +200,6 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     defined(FREESCALE_LTC) || \
     defined(FREESCALE_MMCAU) || \
     (defined(MAX3266X_AES) && !defined(MAX3266X_CB)) || \
-    (defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)) || \
     (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || \
     defined(WOLFSSL_TI_CRYPT) || \
@@ -482,9 +477,6 @@ struct Aes {
 #if defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     WC_CRYPTODEV ctx;
-#endif
-#if defined(WOLFSSL_CRYPTOCELL)
-    aes_context_t ctx;
 #endif
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\

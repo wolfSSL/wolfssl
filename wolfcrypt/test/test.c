@@ -17372,11 +17372,9 @@ static wc_test_ret_t aes_key_size_test(void)
 #endif
     byte   key16[] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
                        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66 };
-#ifndef WOLFSSL_CRYPTOCELL
     byte   key24[] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
                        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
                        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37 };
-#endif
     byte   key32[] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
                        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
                        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -17433,8 +17431,7 @@ static wc_test_ret_t aes_key_size_test(void)
     ret = wc_AesSetKey(aes, key32, sizeof(key32) - 1, iv, AES_ENCRYPTION);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-/* CryptoCell handles rounds internally */
-#if !defined(HAVE_FIPS) && !defined(WOLFSSL_CRYPTOCELL)
+#if !defined(HAVE_FIPS)
     /* PSA don't use aes->rounds */
 #if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_AES)
     /* Force invalid rounds */
@@ -17457,8 +17454,6 @@ static wc_test_ret_t aes_key_size_test(void)
     if (ret != 0 || keySize != sizeof(key16))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
-#ifndef WOLFSSL_CRYPTOCELL
-/* Cryptocell only supports AES-128 key size */
     ret = wc_AesSetKey(aes, key24, sizeof(key24), iv, AES_ENCRYPTION);
 #ifdef WOLFSSL_AES_192
     if (ret != 0)
@@ -17484,7 +17479,6 @@ static wc_test_ret_t aes_key_size_test(void)
     if (ret != 0 || keySize != sizeof(key32))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
-#endif /* !WOLFSSL_CRYPTOCELL */
     ret = 0; /* success */
   out:
 
@@ -39903,7 +39897,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     if (ret != 0)
 #elif defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY)
     if (ret != WC_NO_ERR_TRACE(SIG_TYPE_E))
-#elif defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050)
     /* RNG is handled by hardware */
     if (ret != 0)
 #elif defined(WOLFSSL_MICROCHIP_TA100)
@@ -41988,7 +41982,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #else
     byte der[1280];
 #endif
-#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
+#if !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_MICROCHIP)
     word32 idx = 0;
 #endif
@@ -42068,7 +42062,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     ret = wc_InitRsaKey(genKey, HEAP_HINT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
-#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
+#if !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_MICROCHIP)
     idx = 0;
     /* The private key part of key pairs generated inside a secure element
@@ -42078,7 +42072,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     ret = wc_RsaPrivateKeyDecode(der, &idx, genKey, (word32)derSz);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
-#endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_SE050 && !WOLFSSL_MICROCHIP */
+#endif /* !WOLFSSL_SE050 && !WOLFSSL_MICROCHIP */
 #endif /* !WC_TEST_SKIP_RSA_PRIVATE_EXPORT && !WOLFSSL_MICROCHIP */
 exit_rsa:
 
@@ -42202,9 +42196,8 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
 #if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
-    /* label is unused in cryptocell and SE050 so it won't detect decrypt error
-     * due to label */
+    !defined(WOLFSSL_SE050)
+    /* Label is unused in SE050 so it won't detect decrypt error. */
     idx = (word32)ret;
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
@@ -42251,7 +42244,7 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
 #if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
+    !defined(WOLFSSL_SE050)
         idx = (word32)ret;
         WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
             wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
@@ -42572,21 +42565,7 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
         if (ret >= 0) {
 #ifndef WOLFSSL_RSA_VERIFY_INLINE
 
-#if defined(WOLFSSL_CRYPTOCELL)
-        /*
-        Cryptocell requires the input data and signature byte array to verify.
-
-        first argument must be the input data
-        second argument must be the length of input data
-        third argument must be the signature byte array or the output from
-                                                                wc_RsaSSL_Sign()
-        fourth argument must be the length of the signature byte array
-        */
-
-        ret = wc_RsaSSL_Verify(in, inLen, out, outSz, key);
-#else
         ret = wc_RsaSSL_Verify(out, idx, plain, plainSz, key);
-#endif /* WOLFSSL_CRYPTOCELL */
 #else
             byte* dec = NULL;
             ret = wc_RsaSSL_VerifyInline(out, idx, &dec, key);
@@ -53478,17 +53457,16 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
     if (pubPoint == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     }
-/* WOLFSSL_NO_ECC_SW leaves out the software base-point multiply, so
- * ecc_make_pub_ex() reports NOT_COMPILED_IN the same way it does for
- * CryptoCell. The fresh key made below covers the rest of this test. */
-#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
+/* WOLFSSL_NO_ECC_SW leaves out the software base-point multiply, so the fresh
+ * key made below covers the rest of this test. */
+#if !defined(WOLFSSL_NO_ECC_SW)
     ret = wc_ecc_make_pub(key, pubPoint);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-#endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_NO_ECC_SW */
+#endif /* !WOLFSSL_NO_ECC_SW */
     TEST_SLEEP();
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -53503,7 +53481,7 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
 #endif /* !NO_ECC256 */
 
     /* create a new key since above test for loading key is not supported */
-#if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256) || \
+#if defined(NO_ECC256) || \
     defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SE050) || \
     defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
@@ -54839,7 +54817,7 @@ done:
 /* wc_ecc_mulmod is a raw math primitive stripped by WOLF_CRYPTO_CB_ONLY_ECC;
  * swdev operates at the cryptocb dispatch layer and cannot rescue it. */
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP) && !defined(WOLFSSL_NO_ECC_SW)
 static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
@@ -54947,7 +54925,7 @@ done:
     defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_NO_ECC_SW)
 static wc_test_ret_t ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 {
@@ -55046,7 +55024,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
     #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
        !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-       !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP) && \
+       !defined(WOLFSSL_MICROCHIP) && \
        !defined(WOLFSSL_NO_ECC_SW)
     ret = ecc_ssh_test(key, rng);
     if (ret < 0)
@@ -55100,7 +55078,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
         goto done;
 #endif
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP) && !defined(WOLFSSL_NO_ECC_SW)
     ret = ecc_mulmod_test(key);
@@ -103912,7 +103890,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_PKA) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(NO_ECC_SECP) && !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(NO_ECC256) && \
+    !defined(NO_ECC256) && \
     defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(HAVE_FIPS) && !defined(WOLFSSL_NO_ECC_SW)
     if (ret == 0 && myCtx.eccMakePubCount == 0)
@@ -103929,7 +103907,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_PKA) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_SWDEV) && !defined(NO_ECC_SECP) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     !defined(WOLFSSL_SE050) && \
     !defined(NO_ECC256) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
     !defined(HAVE_FIPS)
