@@ -16821,12 +16821,9 @@ static int TLSX_EchSplitSupportedGroups(WOLFSSL* ssl)
         ret = TLSX_PopulateSupportedGroups(ssl, &innerList);
         ssl->options.downgrade = downgrade;
     }
-    if (ret == WOLFSSL_SUCCESS) {
+    if (ret == WOLFSSL_SUCCESS)
         innerX = TLSX_Find(innerList, TLSX_SUPPORTED_GROUPS);
-        if (innerX == NULL)
-            ret = BAD_STATE_E;
-    }
-    if (ret == WOLFSSL_SUCCESS) {
+    if (innerX != NULL) {
         /* Swap only the data so the outer hello keeps the GREASE ECH order. */
         data = groupsX->data;
         groupsX->data = innerX->data;

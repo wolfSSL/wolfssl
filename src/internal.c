@@ -8085,13 +8085,20 @@ int InitSSL_Suites(WOLFSSL* ssl)
    writeDup flag indicating this is a write dup only
 
    WOLFSSL_SUCCESS return value on success */
-#ifdef WOLFSSL_DTLS13
-/* Returns the newest DTLS minor before 1.3 that the version mask and
- * minDowngrade allow, or 0. DTLS minors count down. */
-byte Dtls13DowngradeMinor(const WOLFSSL* ssl, byte minDowngrade)
+#ifdef WOLFSSL_DTLS
+/* Returns the newest built DTLS minor, no newer than maxMinor, that the version
+ * mask and minDowngrade allow, or 0. DTLS minors count down. */
+byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
 {
+#ifdef WOLFSSL_DTLS13
+    if (maxMinor <= DTLSv1_3_MINOR &&
+            (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == 0) {
+        return DTLSv1_3_MINOR;
+    }
+#endif
 #ifndef WOLFSSL_NO_TLS12
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == 0 &&
+    if (maxMinor <= DTLSv1_2_MINOR &&
+            (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == 0 &&
             minDowngrade >= DTLSv1_2_MINOR) {
         return DTLSv1_2_MINOR;
     }
@@ -8103,7 +8110,29 @@ byte Dtls13DowngradeMinor(const WOLFSSL* ssl, byte minDowngrade)
     }
 #endif
     (void)ssl;
+    (void)maxMinor;
     (void)minDowngrade;
+    return 0;
+}
+
+/* Moves a DTLS SSL that may downgrade to the newest version its mask allows.
+ * Returns VERSION_ERROR when none is left. */
+int DtlsCheckVersionMask(WOLFSSL* ssl)
+{
+    byte minor;
+
+    if (ssl->version.major != DTLS_MAJOR || !ssl->options.downgrade ||
+            ssl->options.mask == 0) {
+        return 0;
+    }
+    minor = DtlsAllowedMinor(ssl, ssl->version.minor,
+        ssl->options.minDowngrade);
+    if (minor == 0) {
+        WOLFSSL_MSG("No DTLS version left that the options allow");
+        WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+        return VERSION_ERROR;
+    }
+    ssl->version.minor = minor;
     return 0;
 }
 #endif
@@ -8134,7 +8163,7 @@ static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         byte minor = 0;
 
         if (ctx->method->downgrade)
-            minor = Dtls13DowngradeMinor(ssl, ctx->minDowngrade);
+            minor = DtlsAllowedMinor(ssl, DTLSv1_2_MINOR, ctx->minDowngrade);
         if (minor == 0) {
             WOLFSSL_MSG("\tInconsistent protocol options. DTLS 1.3 set but "
                         "not allowed and no lower DTLS version allowed.");
@@ -36461,14 +36490,15 @@ static int IsTls13CipherSuite(byte first, byte second)
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-        /* A server negotiating TLS 1.2 or older answers the outer hello. */
-        if (ssl->options.echAccepted) {
+        if (ssl->options.echAccepted && ssl->options.serverState ==
+                SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
             WOLFSSL_MSG("ECH accepted in HelloRetryRequest, ServerHello is "
                         "not TLS 1.3");
             SendAlert(ssl, alert_fatal, illegal_parameter);
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
         }
+        /* A server negotiating TLS 1.2 or older answers the outer hello. */
         ret = TLSX_EchReplaceExtensions(ssl, 0);
         if (ret != 0)
             return ret;
@@ -43087,6 +43117,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         if (lesserVersion) {
             byte   belowMinDowngrade;
+        #ifdef WOLFSSL_DTLS
+            byte   dtlsMinor;
+        #endif
             word16 haveRSA = 0;
             word16 havePSK = 0;
             int    keySz   = 0;
@@ -43160,6 +43193,23 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                     ssl->options.tls1_3 = 0;
                     ssl->version.minor = DTLS_MINOR;
                 }
+            #ifdef WOLFSSL_DTLS
+                dtlsMinor = DtlsAllowedMinor(ssl, ssl->version.minor,
+                    ssl->options.minDowngrade);
+                if (dtlsMinor == 0) {
+                    WOLFSSL_MSG("\tNo DTLS version left that the options "
+                                "allow");
+                    ret = VERSION_ERROR;
+                    /* propagate socket errors to avoid re-calling send alert */
+                    if (SendAlert(ssl, alert_fatal,
+                            wolfssl_alert_protocol_version)
+                            == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                        ret = SOCKET_ERROR_E;
+                    }
+                    goto out;
+                }
+                ssl->version.minor = dtlsMinor;
+            #endif
             }
 #ifndef NO_RSA
             haveRSA = 1;

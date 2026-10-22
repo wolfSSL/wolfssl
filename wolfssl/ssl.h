@@ -3075,7 +3075,9 @@ enum {
 /* DTLS 1.0 is masked by the TLS 1.1 option. */
 #define SSL_OP_NO_DTLSv1      WOLFSSL_OP_NO_TLSv1_1
 #define SSL_OP_NO_DTLSv1_2    WOLFSSL_OP_NO_TLSv1_2
+#ifdef WOLFSSL_DTLS13
 #define SSL_OP_NO_DTLSv1_3    WOLFSSL_OP_NO_TLSv1_3
+#endif
 
 #ifdef HAVE_SESSION_TICKET
 #define SSL_OP_NO_TICKET WOLFSSL_OP_NO_TICKET
