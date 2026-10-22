@@ -45,19 +45,20 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#serial 6.1
+#serial 6.2
 #
 # Added tweak for git. The base repo's .git is a directory. Any worktree's
 # .git is a file. Use -e to check for either dir or file.
+# Check $srcdir so out-of-tree builds of a checkout count too.
 
 AC_DEFUN([AX_VCS_SYSTEM],
     [AC_PREREQ([2.63])dnl
     AC_CACHE_CHECK([for vcs system], [ac_cv_vcs_system],
       [ac_cv_vcs_system="none"
-      AS_IF([test -d ".bzr"],[ac_cv_vcs_system="bazaar"])
-      AS_IF([test -d ".svn"],[ac_cv_vcs_system="svn"])
-      AS_IF([test -d ".hg"],[ac_cv_vcs_system="mercurial"])
-      AS_IF([test -e ".git"],[ac_cv_vcs_system="git"])
+      AS_IF([test -d "$srcdir/.bzr"],[ac_cv_vcs_system="bazaar"])
+      AS_IF([test -d "$srcdir/.svn"],[ac_cv_vcs_system="svn"])
+      AS_IF([test -d "$srcdir/.hg"],[ac_cv_vcs_system="mercurial"])
+      AS_IF([test -e "$srcdir/.git"],[ac_cv_vcs_system="git"])
       ])
     AC_DEFINE_UNQUOTED([VCS_SYSTEM],["$ac_cv_vcs_system"],[VCS system])
     ])
