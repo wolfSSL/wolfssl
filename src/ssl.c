@@ -7582,7 +7582,7 @@ static int FindHashSig(const Suites* suites, byte first, byte second)
 }
 
 /* Rebuilds the cipher suites for the current protocol version. */
-static int ResetSuitesForVersion(WOLFSSL* ssl)
+int ResetSuitesForVersion(WOLFSSL* ssl)
 {
     word16 haveRSA = 1;
     word16 havePSK = 0;
@@ -7713,6 +7713,11 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     }
 #endif
 
+#ifdef WOLFSSL_DTLS
+    /* The handshake start checks again and fails when no version is left. */
+    (void)DtlsCheckVersionMask(ssl);
+#endif
+
 
     /* in the case of a version change the cipher suites should be reset */
     if (ResetSuitesForVersion(ssl) != 0)
@@ -7732,6 +7737,8 @@ int DtlsCheckVersionMask(WOLFSSL* ssl)
     /* A minimum of DTLS_MINOR tests the mask alone. */
     if (ssl->version.major != DTLS_MAJOR || !ssl->options.downgrade ||
             ssl->options.handShakeDone ||
+            ssl->options.connectState != CONNECT_BEGIN ||
+            ssl->options.acceptState != ACCEPT_BEGIN ||
             DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) ==
                 ssl->version.minor) {
         return 0;
@@ -7744,6 +7751,11 @@ int DtlsCheckVersionMask(WOLFSSL* ssl)
         return VERSION_ERROR;
     }
     ssl->version.minor = minor;
+    ssl->options.tls1_3 = 0;
+    if (ssl->options.resuming && ssl->session != NULL &&
+            ssl->session->version.minor != minor) {
+        ssl->options.resuming = 0;
+    }
     return ResetSuitesForVersion(ssl);
 }
 #endif

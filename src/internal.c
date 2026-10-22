@@ -36372,6 +36372,7 @@ static int IsTls13CipherSuite(byte first, byte second)
 
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls && ssl->options.downgrade &&
+                !ssl->options.handShakeDone &&
                 DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) !=
                     ssl->version.minor) {
             WOLFSSL_MSG("\tOption set to not allow this DTLS version");
@@ -36483,8 +36484,11 @@ static int IsTls13CipherSuite(byte first, byte second)
                 SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
             WOLFSSL_MSG("ECH accepted in HelloRetryRequest, ServerHello is "
                         "not TLS 1.3");
-            SendAlert(ssl, alert_fatal, illegal_parameter);
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            if (SendAlert(ssl, alert_fatal, illegal_parameter) ==
+                    WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                return SOCKET_ERROR_E;
+            }
             return INVALID_PARAMETER;
         }
         /* A server negotiating TLS 1.2 or older answers the outer hello. */
@@ -43106,9 +43110,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         if (lesserVersion) {
             byte   belowMinDowngrade;
-        #ifdef WOLFSSL_DTLS
-            byte   dtlsMinor;
-        #endif
             word16 haveRSA = 0;
             word16 havePSK = 0;
             int    keySz   = 0;
@@ -43182,23 +43183,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                     ssl->options.tls1_3 = 0;
                     ssl->version.minor = DTLS_MINOR;
                 }
-            #ifdef WOLFSSL_DTLS
-                dtlsMinor = DtlsAllowedMinor(ssl, ssl->version.minor,
-                    ssl->options.minDowngrade);
-                if (dtlsMinor == 0) {
-                    WOLFSSL_MSG("\tNo DTLS version left that the options "
-                                "allow");
-                    ret = VERSION_ERROR;
-                    /* propagate socket errors to avoid re-calling send alert */
-                    if (SendAlert(ssl, alert_fatal,
-                            wolfssl_alert_protocol_version)
-                            == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
-                        ret = SOCKET_ERROR_E;
-                    }
-                    goto out;
-                }
-                ssl->version.minor = dtlsMinor;
-            #endif
             }
 #ifndef NO_RSA
             haveRSA = 1;
@@ -43218,6 +43202,32 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                        ssl->options.useAnon,
                        TRUE, TRUE, TRUE, TRUE, ssl->options.side);
         }
+
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls && ssl->options.downgrade &&
+                DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) !=
+                    ssl->version.minor) {
+            byte dtlsMinor = DtlsAllowedMinor(ssl, ssl->version.minor,
+                ssl->options.minDowngrade);
+
+            if (dtlsMinor == 0) {
+                WOLFSSL_MSG("\tNo DTLS version left that the options allow");
+                ret = VERSION_ERROR;
+                /* propagate socket errors to avoid re-calling send alert */
+                if (SendAlert(ssl, alert_fatal,
+                        wolfssl_alert_protocol_version)
+                        == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                    ret = SOCKET_ERROR_E;
+                }
+                goto out;
+            }
+            ssl->options.tls1_3 = 0;
+            ssl->version.minor = dtlsMinor;
+            ret = ResetSuitesForVersion(ssl);
+            if (ret != 0)
+                goto out;
+        }
+    #endif
 
         /* Version the record layer is on before the mask walk below steps it
          * down. It is one the client offered (or the server's own maximum
