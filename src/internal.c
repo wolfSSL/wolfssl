@@ -20681,7 +20681,14 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             /* Drop the unverified ticket (SetTicket() made the session
              * unique, so this cannot clear one shared with the app). */
             if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                    ssl->msgsReceived.got_session_ticket) {
+                    ssl->msgsReceived.got_session_ticket
+    #ifdef HAVE_ECH
+                    /* no ticket was stored when ECH is rejected */
+                    && !(ssl->echConfigs != NULL &&
+                         !ssl->options.disableECH &&
+                         !ssl->options.echAccepted)
+    #endif
+                    ) {
                 ForceZero(ssl->session->ticket, ssl->session->ticketLen);
                 if (ssl->session->ticketLenAlloc > 0) {
                     XFREE(ssl->session->ticket, ssl->heap,
@@ -20739,7 +20746,13 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
                 || (ssl->msgsReceived.got_session_ticket &&
                     ssl->session->ticketLen > 0)
 #endif
-                )) {
+                )
+#ifdef HAVE_ECH
+                /* ignore the session when ECH is rejected */
+                && !(ssl->echConfigs != NULL && !ssl->options.disableECH &&
+                     !ssl->options.echAccepted)
+#endif
+                ) {
             SetupSession(ssl);
 #ifndef NO_SESSION_CACHE
             AddSession(ssl);
@@ -36939,6 +36952,15 @@ static int IsTls13CipherSuite(byte first, byte second)
             return ret;
     #endif
 
+    #if defined(HAVE_ECH)
+        /* RFC 9849 s6.1.7: ECH was offered but rejected by the server...
+         * the client MUST respond with an empty Certificate message. */
+        if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
+                !ssl->options.echAccepted) {
+            ssl->options.sendVerify = SEND_BLANK_CERT;
+        }
+        else
+    #endif
         /* don't send client cert or cert verify if user hasn't provided
            cert and private key */
         if (ssl->buffers.certificate && ssl->buffers.certificate->buffer) {
@@ -40007,6 +40029,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ERROR_VERBOSE(SESSION_TICKET_EXPECT_E);
         return SESSION_TICKET_EXPECT_E;
     }
+
+#ifdef HAVE_ECH
+    /* ignore session ticket when ECH is rejected */
+    if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
+            !ssl->options.echAccepted) {
+        ssl->expect_session_ticket = 0;
+        *inOutIdx += size;
+        return 0;
+    }
+#endif
 
     /* A renewed ticket while resuming confirms resumption; check before the
      * SetupSession() in DoFinished refreshes the cached suite/EMS and masks a
