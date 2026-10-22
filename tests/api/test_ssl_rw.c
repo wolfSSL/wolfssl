@@ -1517,6 +1517,7 @@ static int test_ssl_rw_shutdown_bad_record(method_provider method_c,
     struct test_memio_ctx test_ctx;
     char buf[16];
     int sentLen = 0;
+    int retryRet = WOLFSSL_FATAL_ERROR;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -1529,13 +1530,15 @@ static int test_ssl_rw_shutdown_bad_record(method_provider method_c,
         WOLFSSL_ERROR_WANT_READ);
 
     if (peerAlert) {
-        /* The server fails on a corrupted record and sends a fatal alert. */
+        /* An unknown record type gets a fatal alert with any cipher. */
         ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+        ExpectIntEQ(test_ctx.s_buff[0], application_data);
         if (EXPECT_SUCCESS()) {
-            test_ctx.s_buff[test_ctx.s_len - 1] ^= 0xff;
+            test_ctx.s_buff[0] = no_type;
         }
         ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
             WOLFSSL_FATAL_ERROR);
+        ExpectIntGT(test_ctx.c_len, 0);
     }
     else {
         ExpectIntEQ(wolfSSL_write(ssl_s, "hello", 5), 5);
@@ -1550,8 +1553,14 @@ static int test_ssl_rw_shutdown_bad_record(method_provider method_c,
     ExpectIntLT(ssl_c->error, 0);
     ExpectIntNE(ssl_c->error, WC_NO_ERR_TRACE(WANT_READ));
     sentLen = test_ctx.s_len;
-    /* Trying again reports the same failure and sends nothing more. */
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+#ifdef WOLFSSL_SHUTDOWNONCE
+    if ((ssl_c != NULL) &&
+            (ssl_c->options.isClosed || ssl_c->options.connReset)) {
+        retryRet = WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E);
+    }
+#endif
+    /* Trying again still fails and sends nothing more. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), retryRet);
     ExpectIntLT(ssl_c->error, 0);
     ExpectIntEQ(test_ctx.s_len, sentLen);
 
