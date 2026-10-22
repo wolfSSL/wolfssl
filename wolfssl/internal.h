@@ -3865,6 +3865,7 @@ WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert,
 #endif
 WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type,
                                                                     byte idx);
+WOLFSSL_LOCAL int   TLSX_CSR2_ChainFallback(WOLFSSL* ssl, int idx);
 WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 
 #endif
@@ -8418,9 +8419,6 @@ WOLFSSL_LOCAL int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int GetX509Error(int e);
-#if defined(HAVE_OCSP) || defined(HAVE_CRL)
-WOLFSSL_LOCAL int RevocationVerifyErr(int err);
-#endif
 #endif
 WOLFSSL_LOCAL void SetRevocationVerifyRet(WOLFSSL* ssl, int err);
 WOLFSSL_LOCAL int CrlErrWaived(const WOLFSSL* ssl, int err);

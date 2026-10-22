@@ -813,23 +813,6 @@ int wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(WOLFSSL_CERT_MANAGER* cm,
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
 #ifdef HAVE_CRL
-/* Check the CRL for a parsed certificate that passed or failed only its date.
- *
- * @param [in] cm    Certificate manager.
- * @param [in] cert  Decoded certificate.
- * @return  The CRL result, with a fetch that would block as CRL_MISSING.
- */
-static int cm_cert_crl_result(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
-{
-    int crlRet;
-
-    crlRet = CheckCertCRLSync(cm->crl, cert);
-    if (crlRet != 0) {
-        WOLFSSL_MSG("CheckCertCRL failed");
-    }
-    return crlRet;
-}
-
 /* Combine a certificate's date result with its CRL result.
  *
  * @param [in] ret     0 or the certificate's date error.
@@ -905,9 +888,8 @@ static int cm_verify_err_overridable(int err)
  * @param [in] format    Format of encoding. Valid values:
  *                         WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] prev_err  Previous error. Passed to callback.
- * @param [out] crlErr   CRL result the callback did not see, not merged into
- *                       the return value. One it rejected is returned instead.
- *                       May be NULL.
+ * @param [out] crlErr   CRL result, not merged into the return value. May be
+ *                       NULL.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when converting from PEM to DER is not a feature of
@@ -979,7 +961,10 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     if (cm->crlEnabled && ((ret == 0) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
-        crlRet = cm_cert_crl_result(cm, cert);
+        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert);
+        if (crlRet != 0) {
+            WOLFSSL_MSG("CheckCertCRL failed");
+        }
     }
 #endif
 
@@ -1053,7 +1038,13 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 #ifdef HAVE_CRL
     if (!fatal) {
         if (crlErr != NULL) {
-            /* Only a CRL result the callback has not seen is handed out. */
+            if ((crlRet == 0) && ((ret == WC_NO_ERR_TRACE(CRL_MISSING)) ||
+                    (ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) ||
+                    (ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)))) {
+                /* The callback rejected it. */
+                crlRet = ret;
+                ret = 0;
+            }
             *crlErr = crlRet;
         }
         else {
@@ -2153,7 +2144,8 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
             else {
                 /* A date error is returned only after the parse completed,
                  * so still answer the revocation question that was asked. */
-                ret = cm_crl_merge(ret, cm_cert_crl_result(cm, cert));
+                ret = cm_crl_merge(ret,
+                    CheckCertCRLFromCm(cm, cm->crl, cert));
             }
 
             /* Dispose of dynamically allocated memory. */

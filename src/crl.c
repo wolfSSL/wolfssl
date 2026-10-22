@@ -750,13 +750,6 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     return CheckDecodedCertCRL(crl, cert, crl->cm, 1);
 }
 
-/* As CheckCertCRL() for a caller that cannot retry a fetch that would block,
- * which then counts as a missing CRL. */
-int CheckCertCRLSync(WOLFSSL_CRL* crl, DecodedCert* cert)
-{
-    return CheckDecodedCertCRL(crl, cert, crl->cm, 0);
-}
-
 /* Check cert against crl using cm for CRL signature verification. Does not
  * modify crl, so crl can be a caller-owned object shared between threads.
  * Return 0 on success. */

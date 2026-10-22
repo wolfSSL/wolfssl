@@ -591,15 +591,6 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
                     ctx->current_cert->derCert->buffer,
                     ctx->current_cert->derCert->length,
                     WOLFSSL_FILETYPE_ASN1, 0, &crlRet);
-#ifdef HAVE_CRL
-        /* A CRL verdict the CertManager callback rejected is returned in ret. */
-        if ((crlRet == 0) && ((ret == WC_NO_ERR_TRACE(CRL_MISSING)) ||
-                (ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) ||
-                (ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)))) {
-            crlRet = ret;
-            ret = WOLFSSL_SUCCESS;
-        }
-#endif
         datesChecked = (ret == WOLFSSL_SUCCESS) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));

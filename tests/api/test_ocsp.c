@@ -2424,6 +2424,44 @@ int test_ocsp_must_staple_acked_no_status(void)
        /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && !WOLFSSL_NO_TLS12 && */
        /* !NO_RSA && !NO_SHA */
 
+#if defined(HAVE_OCSP) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+/* Status callback test_ocsp_srv_ctx_ready() installs. */
+static WC_MAYBE_UNUSED tlsextStatusCb test_ocsp_srv_status_cb;
+
+/* Staples a copy of der as the response at index idx. */
+static WC_MAYBE_UNUSED int test_ocsp_set_staple(WOLFSSL* ssl, const byte* der,
+    int sz, word32 idx)
+{
+    byte* staple;
+
+    staple = (byte*)XMALLOC((size_t)sz, NULL, 0);
+    if (staple == NULL)
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    XMEMCPY(staple, der, (size_t)sz);
+    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, staple, sz, idx) !=
+            WOLFSSL_SUCCESS) {
+        XFREE(staple, NULL, 0);
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    }
+
+    return WOLFSSL_OCSP_STATUS_CB_OK;
+}
+
+static WC_MAYBE_UNUSED int test_ocsp_srv_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(test_ocsp_srv_status_cb);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
+            test_ocsp_srv_status_cb), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
@@ -2450,43 +2488,12 @@ static int test_ocsp_checkall_staple_crl_verify_cb(int preverify,
 /* Staples both chain entries, so every certificate's status comes from OCSP. */
 static int test_ocsp_checkall_staple_crl_status_cb(WOLFSSL* ssl, void* arg)
 {
-    unsigned char* leaf;
-    unsigned char* inter;
-
     (void)arg;
-    leaf = (unsigned char*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
-    inter = (unsigned char*)XMALLOC(sizeof(resp_intermediate1_cert), NULL, 0);
-    if (leaf == NULL || inter == NULL) {
-        XFREE(leaf, NULL, 0);
-        XFREE(inter, NULL, 0);
+    if (test_ocsp_set_staple(ssl, resp_server1_cert,
+            (int)sizeof(resp_server1_cert), 0) != WOLFSSL_OCSP_STATUS_CB_OK)
         return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-    XMEMCPY(leaf, resp_server1_cert, sizeof(resp_server1_cert));
-    XMEMCPY(inter, resp_intermediate1_cert, sizeof(resp_intermediate1_cert));
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf,
-            (int)sizeof(resp_server1_cert), 0) == WOLFSSL_SUCCESS)
-        leaf = NULL;
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, inter,
-            (int)sizeof(resp_intermediate1_cert), 1) == WOLFSSL_SUCCESS)
-        inter = NULL;
-    if (leaf != NULL || inter != NULL) {
-        XFREE(leaf, NULL, 0);
-        XFREE(inter, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-
-    return WOLFSSL_OCSP_STATUS_CB_OK;
-}
-
-static int test_ocsp_checkall_staple_crl_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-            test_ocsp_checkall_staple_crl_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
+    return test_ocsp_set_staple(ssl, resp_intermediate1_cert,
+        (int)sizeof(resp_intermediate1_cert), 1);
 }
 
 static int test_ocsp_checkall_staple_crl_ctx_ready(WOLFSSL_CTX* ctx)
@@ -2527,12 +2534,14 @@ static int test_ocsp_checkall_staple_crl_run(struct test_ssl_memio_ctx* ctx)
     ctx->s_cb.method = wolfTLSv1_3_server_method;
     ctx->s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     ctx->s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    ctx->s_cb.ctx_ready = test_ocsp_checkall_staple_crl_srv_ctx_ready;
+    test_ocsp_srv_status_cb = test_ocsp_checkall_staple_crl_status_cb;
+    ctx->s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     ctx->c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     ctx->c_cb.ctx_ready = test_ocsp_checkall_staple_crl_ctx_ready;
     ctx->c_cb.ssl_ready = test_ocsp_checkall_staple_crl_ssl_ready;
     ExpectIntEQ(test_ssl_memio_setup(ctx), TEST_SUCCESS);
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -2613,7 +2622,8 @@ int test_ocsp_staple_crl_no_checkall(void)
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_checkall_staple_crl_srv_ctx_ready;
+    test_ocsp_srv_status_cb = test_ocsp_checkall_staple_crl_status_cb;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_staple_crl_no_checkall_ctx_ready;
     test_ctx.c_cb.ssl_ready = test_ocsp_checkall_staple_crl_ssl_ready;
@@ -2624,6 +2634,7 @@ int test_ocsp_staple_crl_no_checkall(void)
         WC_NO_ERR_TRACE(CRL_MISSING));
     test_ssl_memio_cleanup(&test_ctx);
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -2699,35 +2710,15 @@ static int test_ocsp_ca_above_make_resp(WOLFSSL_CERT_MANAGER* cm,
 static int test_ocsp_ca_above_status_cb(WOLFSSL* ssl, void* arg)
 {
     int i;
-    unsigned char* buf;
+    int ret = WOLFSSL_OCSP_STATUS_CB_OK;
 
     (void)arg;
-    for (i = 0; i < 2; i++) {
-        buf = (unsigned char*)XMALLOC(test_ocsp_ca_above_resp_sz[i], NULL, 0);
-        if (buf == NULL)
-            return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-        XMEMCPY(buf, test_ocsp_ca_above_resp[i],
-            test_ocsp_ca_above_resp_sz[i]);
-        if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, buf,
-                (int)test_ocsp_ca_above_resp_sz[i], (word32)i) !=
-                WOLFSSL_SUCCESS) {
-            XFREE(buf, NULL, 0);
-            return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-        }
+    for (i = 0; i < 2 && ret == WOLFSSL_OCSP_STATUS_CB_OK; i++) {
+        ret = test_ocsp_set_staple(ssl, test_ocsp_ca_above_resp[i],
+            (int)test_ocsp_ca_above_resp_sz[i], (word32)i);
     }
 
-    return WOLFSSL_OCSP_STATUS_CB_OK;
-}
-
-static int test_ocsp_ca_above_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-            test_ocsp_ca_above_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
+    return ret;
 }
 
 static int test_ocsp_ca_above_ctx_ready(WOLFSSL_CTX* ctx)
@@ -2806,7 +2797,8 @@ int test_ocsp_checkall_staple_crl_ca_above(void)
         test_ctx.s_cb.certPemFile =
             "./certs/intermediate/server-chain-short.pem";
         test_ctx.s_cb.keyPemFile = "./certs/server-key.pem";
-        test_ctx.s_cb.ctx_ready = test_ocsp_ca_above_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_ca_above_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.caPemFile = "./certs/ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_ca_above_ctx_ready;
         test_ctx.c_cb.ssl_ready = test_ocsp_checkall_staple_crl_ssl_ready;
@@ -2831,6 +2823,7 @@ int test_ocsp_checkall_staple_crl_ca_above(void)
         test_ocsp_ca_above_resp[i] = NULL;
     }
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 #else
@@ -3339,34 +3332,11 @@ static int test_ocsp_crl_ca_walk_verify_cb(int preverify,
 /* Staples the leaf, or acknowledges status_request and sends nothing. */
 static int test_ocsp_crl_ca_walk_status_cb(WOLFSSL* ssl, void* arg)
 {
-    unsigned char* leaf;
-
     (void)arg;
     if (!test_ocsp_crl_ca_walk_opts.staple)
         return WOLFSSL_OCSP_STATUS_CB_NOACK;
-
-    leaf = (unsigned char*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
-    if (leaf == NULL)
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    XMEMCPY(leaf, resp_server1_cert, sizeof(resp_server1_cert));
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf,
-            (int)sizeof(resp_server1_cert), 0) != WOLFSSL_SUCCESS) {
-        XFREE(leaf, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-
-    return WOLFSSL_OCSP_STATUS_CB_OK;
-}
-
-static int test_ocsp_crl_ca_walk_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-            test_ocsp_crl_ca_walk_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
+    return test_ocsp_set_staple(ssl, resp_server1_cert,
+        (int)sizeof(resp_server1_cert), 0);
 }
 
 static int test_ocsp_crl_ca_walk_ctx_ready(WOLFSSL_CTX* ctx)
@@ -3468,7 +3438,8 @@ int test_ocsp_acked_no_status_crl_ca_walk(void)
         }
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-leaf.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-        test_ctx.s_cb.ctx_ready = test_ocsp_crl_ca_walk_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_crl_ca_walk_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_crl_ca_walk_ctx_ready;
         if (params[i].request) {
@@ -3509,6 +3480,7 @@ int test_ocsp_acked_no_status_crl_ca_walk(void)
     XMEMSET(&test_ocsp_crl_ca_walk_opts, 0,
         sizeof(test_ocsp_crl_ca_walk_opts));
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -3533,7 +3505,8 @@ int test_ocsp_staple_crl_verify_cb_reject(void)
         test_ctx.s_cb.method = wolfTLSv1_2_server_method;
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-leaf.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-        test_ctx.s_cb.ctx_ready = test_ocsp_crl_ca_walk_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_crl_ca_walk_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_crl_ca_walk_ctx_ready;
         test_ctx.c_cb.ssl_ready = test_ocsp_acked_no_leaf_staple_crl_ssl_ready;
@@ -3564,6 +3537,7 @@ int test_ocsp_staple_crl_verify_cb_reject(void)
     XMEMSET(&test_ocsp_crl_ca_walk_opts, 0,
         sizeof(test_ocsp_crl_ca_walk_opts));
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -3613,9 +3587,8 @@ static int test_ocsp_staple_crl_policy_ssl_ready(WOLFSSL* ssl)
 static int test_ocsp_staple_crl_policy_status_cb(WOLFSSL* ssl, void* ctx)
 {
     unsigned char* src;
-    unsigned char* staple;
     int sz;
-    int idx;
+    word32 idx;
 
     (void)ctx;
     if (test_ocsp_staple_crl_policy_leaf) {
@@ -3629,28 +3602,7 @@ static int test_ocsp_staple_crl_policy_status_cb(WOLFSSL* ssl, void* ctx)
         idx = 1;
     }
 
-    staple = (unsigned char*)XMALLOC((size_t)sz, NULL, 0);
-    if (staple == NULL)
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    XMEMCPY(staple, src, (size_t)sz);
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, staple, sz, idx)
-            != WOLFSSL_SUCCESS) {
-        XFREE(staple, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-
-    return WOLFSSL_OCSP_STATUS_CB_OK;
-}
-
-static int test_ocsp_staple_crl_policy_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-                    test_ocsp_staple_crl_policy_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
+    return test_ocsp_set_staple(ssl, src, sz, idx);
 }
 
 static int test_ocsp_staple_crl_policy_nostaple_ctx_ready(WOLFSSL_CTX* ctx)
@@ -3763,6 +3715,8 @@ int test_ocsp_staple_crl_policy(void)
     struct test_ssl_memio_ctx test_ctx;
     WOLFSSL_ALERT_HISTORY h;
 
+    test_ocsp_srv_status_cb = test_ocsp_staple_crl_policy_status_cb;
+
     /* A validated leaf staple answers the leaf's revocation status, so a CRL
      * store holding nothing for its issuer must not reject the handshake. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -3771,7 +3725,7 @@ int test_ocsp_staple_crl_policy(void)
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_staple_crl_policy_srv_ctx_ready;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_staple_crl_policy_ctx_ready;
     test_ctx.c_cb.ssl_ready = test_ocsp_staple_crl_policy_ssl_ready;
@@ -3788,7 +3742,7 @@ int test_ocsp_staple_crl_policy(void)
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_staple_crl_policy_srv_ctx_ready;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_staple_crl_policy_badresp_ctx_ready;
     test_ctx.c_cb.ssl_ready = test_ocsp_staple_crl_policy_ssl_ready;
@@ -3808,7 +3762,7 @@ int test_ocsp_staple_crl_policy(void)
     test_ctx.s_cb.method = wolfTLSv1_2_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_staple_crl_policy_srv_ctx_ready;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_staple_crl_policy_ctx_ready;
     test_ctx.c_cb.ssl_ready = test_ocsp_staple_crl_policy_ssl_ready;
@@ -3825,7 +3779,7 @@ int test_ocsp_staple_crl_policy(void)
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_staple_crl_policy_srv_ctx_ready;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_staple_crl_policy_revoked_ctx_ready;
     test_ctx.c_cb.ssl_ready = test_ocsp_staple_crl_policy_ssl_ready;
@@ -3857,7 +3811,7 @@ int test_ocsp_staple_crl_policy(void)
     test_ctx.s_cb.method = wolfTLSv1_2_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_staple_crl_policy_srv_ctx_ready;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_staple_crl_policy_revoked_ctx_ready;
     test_ctx.c_cb.ssl_ready = test_ocsp_staple_crl_policy_ssl_ready;
@@ -3900,6 +3854,7 @@ int test_ocsp_staple_crl_policy(void)
         WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
     test_ssl_memio_cleanup(&test_ctx);
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -3992,7 +3947,8 @@ int test_ocsp_leaf_staple_crl_would_block(void)
         test_ctx.s_cb.method = wolfTLSv1_3_server_method;
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-        test_ctx.s_cb.ctx_ready = test_ocsp_staple_crl_policy_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_staple_crl_policy_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_leaf_staple_crl_io_ctx_ready;
         test_ctx.c_cb.ssl_ready = test_ocsp_staple_crl_policy_ssl_ready;
@@ -4064,6 +4020,7 @@ int test_ocsp_leaf_staple_crl_would_block(void)
     wolfSSL_CertManagerFree(cm);
 #endif
 #endif
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -4123,20 +4080,9 @@ static int test_ocsp_acked_no_leaf_staple_ocsp_io_cb(void* ioCtx,
 /* Staple for the intermediate only, leaving the leaf's slot empty. */
 static int test_ocsp_acked_no_leaf_staple_status_cb(WOLFSSL* ssl, void* ctx)
 {
-    unsigned char* staple;
-
     (void)ctx;
-    staple = (unsigned char*)XMALLOC(sizeof(resp_intermediate1_cert), NULL, 0);
-    if (staple == NULL)
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    XMEMCPY(staple, resp_intermediate1_cert, sizeof(resp_intermediate1_cert));
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, staple,
-            (int)sizeof(resp_intermediate1_cert), 1) != WOLFSSL_SUCCESS) {
-        XFREE(staple, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-
-    return WOLFSSL_OCSP_STATUS_CB_OK;
+    return test_ocsp_set_staple(ssl, resp_intermediate1_cert,
+        (int)sizeof(resp_intermediate1_cert), 1);
 }
 
 static int test_ocsp_acked_no_leaf_staple_ocsp_ctx_ready(WOLFSSL_CTX* ctx)
@@ -4168,17 +4114,6 @@ static int test_ocsp_acked_no_leaf_staple_ocsp_ctx_ready(WOLFSSL_CTX* ctx)
     return EXPECT_RESULT();
 }
 
-static int test_ocsp_acked_no_leaf_staple_ocsp_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-                    test_ocsp_acked_no_leaf_staple_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
-}
-
 int test_ocsp_acked_no_leaf_staple_ocsp(void)
 {
     EXPECT_DECLS;
@@ -4197,7 +4132,8 @@ int test_ocsp_acked_no_leaf_staple_ocsp(void)
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_acked_no_leaf_staple_ocsp_srv_ctx_ready;
+    test_ocsp_srv_status_cb = test_ocsp_acked_no_leaf_staple_status_cb;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_acked_no_leaf_staple_ocsp_ctx_ready;
     test_ctx.c_cb.ssl_ready = test_ocsp_acked_no_leaf_staple_ocsp_ssl_ready;
@@ -4221,8 +4157,8 @@ int test_ocsp_acked_no_leaf_staple_ocsp(void)
         test_ctx.s_cb.method = wolfTLSv1_3_server_method;
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-        test_ctx.s_cb.ctx_ready =
-            test_ocsp_acked_no_leaf_staple_ocsp_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_acked_no_leaf_staple_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_acked_no_leaf_staple_ocsp_ctx_ready;
         test_ctx.c_cb.ssl_ready = test_ocsp_acked_no_leaf_staple_ocsp_ssl_ready;
@@ -4240,6 +4176,7 @@ int test_ocsp_acked_no_leaf_staple_ocsp(void)
     test_ocsp_acked_no_leaf_staple_ocsp_crl = NULL;
 #endif
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -4479,23 +4416,11 @@ static int test_ocsp_unstapled_chain_crl_cm_verify_cb(int preverify,
 /* Index 1, intermediate1, is deliberately left unstapled. */
 static int test_ocsp_unstapled_chain_crl_status_cb(WOLFSSL* ssl, void* arg)
 {
-    unsigned char* leaf;
-
     (void)arg;
     if (!test_ocsp_unstapled_chain_crl_opts.staple)
         return WOLFSSL_OCSP_STATUS_CB_NOACK;
-
-    leaf = (unsigned char*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
-    if (leaf == NULL)
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    XMEMCPY(leaf, resp_server1_cert, sizeof(resp_server1_cert));
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf,
-            (int)sizeof(resp_server1_cert), 0) != WOLFSSL_SUCCESS) {
-        XFREE(leaf, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-
-    return WOLFSSL_OCSP_STATUS_CB_OK;
+    return test_ocsp_set_staple(ssl, resp_server1_cert,
+        (int)sizeof(resp_server1_cert), 0);
 }
 
 /* The leaf is good, the intermediate is unknown to the responder. */
@@ -4525,17 +4450,6 @@ static int test_ocsp_unstapled_chain_crl_io_cb(void* ioCtx, const char* url,
         return (int)sizeof(resp_cert_unknown);
     }
     return -1;
-}
-
-static int test_ocsp_unstapled_chain_crl_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-            test_ocsp_unstapled_chain_crl_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
 }
 
 static int test_ocsp_unstapled_chain_crl_ctx_ready(WOLFSSL_CTX* ctx)
@@ -4677,7 +4591,8 @@ int test_ocsp_unstapled_chain_crl(void)
         test_ctx.s_cb.method = params[i].server_meth;
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-        test_ctx.s_cb.ctx_ready = test_ocsp_unstapled_chain_crl_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_unstapled_chain_crl_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.method = params[i].client_meth;
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_unstapled_chain_crl_ctx_ready;
@@ -4717,6 +4632,7 @@ int test_ocsp_unstapled_chain_crl(void)
         test_ssl_memio_cleanup(&test_ctx);
     }
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -4803,8 +4719,8 @@ int test_ocsp_unstapled_chain_crl_would_block(void)
             test_ctx.s_cb.method = params[i].server_meth;
             test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
             test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-            test_ctx.s_cb.ctx_ready =
-                test_ocsp_unstapled_chain_crl_srv_ctx_ready;
+            test_ocsp_srv_status_cb = test_ocsp_unstapled_chain_crl_status_cb;
+            test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
             test_ctx.c_cb.method = params[i].client_meth;
             test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
             test_ctx.c_cb.ctx_ready =
@@ -4839,6 +4755,7 @@ int test_ocsp_unstapled_chain_crl_would_block(void)
         }
     }
 #endif
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -4852,31 +4769,9 @@ static struct {
 /* server6's own response; intermediate4 is left unstapled. */
 static int test_ocsp_no_url_status_cb(WOLFSSL* ssl, void* arg)
 {
-    byte* staple;
-
     (void)arg;
-    staple = (byte*)XMALLOC((size_t)test_ocsp_no_url_stapleSz, NULL, 0);
-    if (staple == NULL)
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    XMEMCPY(staple, test_ocsp_no_url_staple, (size_t)test_ocsp_no_url_stapleSz);
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, staple,
-            test_ocsp_no_url_stapleSz, 0) != WOLFSSL_SUCCESS) {
-        XFREE(staple, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-
-    return WOLFSSL_OCSP_STATUS_CB_OK;
-}
-
-static int test_ocsp_no_url_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-            test_ocsp_no_url_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
+    return test_ocsp_set_staple(ssl, test_ocsp_no_url_staple,
+        test_ocsp_no_url_stapleSz, 0);
 }
 
 static int test_ocsp_no_url_ctx_ready(WOLFSSL_CTX* ctx)
@@ -4960,7 +4855,8 @@ int test_ocsp_unstapled_chain_no_url(void)
         test_ctx.s_cb.method = params[i].server_meth;
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server6-chain-noroot.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server6-key.pem";
-        test_ctx.s_cb.ctx_ready = test_ocsp_no_url_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_no_url_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.method = params[i].client_meth;
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_no_url_ctx_ready;
@@ -4994,6 +4890,7 @@ int test_ocsp_unstapled_chain_no_url(void)
         test_ssl_memio_cleanup(&test_ctx);
     }
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -5007,8 +4904,7 @@ static int test_ocsp_multi_waived_leaf_srv_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
 
-    ExpectIntEQ(test_ocsp_unstapled_chain_crl_srv_ctx_ready(ctx),
-        TEST_SUCCESS);
+    ExpectIntEQ(test_ocsp_srv_ctx_ready(ctx), TEST_SUCCESS);
     if (test_ocsp_multi_waived_leaf_chain != NULL) {
         ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
                 test_ocsp_multi_waived_leaf_chain,
@@ -5096,6 +4992,7 @@ int test_ocsp_multi_fallback_waived_leaf(void)
         test_ctx.s_cb.method = wolfTLSv1_2_server_method;
         test_ctx.s_cb.certPemFile = "./certs/intermediate/server-chain.pem";
         test_ctx.s_cb.keyPemFile = "./certs/server-key.pem";
+        test_ocsp_srv_status_cb = test_ocsp_unstapled_chain_crl_status_cb;
         test_ctx.s_cb.ctx_ready = test_ocsp_multi_waived_leaf_srv_ctx_ready;
         test_ctx.c_cb.method = wolfTLSv1_2_client_method;
         test_ctx.c_cb.caPemFile = "./certs/ca-cert.pem";
@@ -5119,6 +5016,7 @@ int test_ocsp_multi_fallback_waived_leaf(void)
     test_ocsp_multi_waived_leaf_chain = NULL;
     XFREE(chain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 #else
@@ -5261,17 +5159,6 @@ static int test_ocsp_no_cdp_io_cb(void* ioCtx, const char* url, int urlSz,
     return -1;
 }
 
-static int test_ocsp_no_cdp_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-            test_ocsp_no_cdp_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
-}
-
 static int test_ocsp_no_cdp_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
@@ -5308,7 +5195,8 @@ int test_ocsp_multi_fallback_no_cdp(void)
     test_ctx.s_cb.method = wolfTLSv1_2_server_method;
     test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
     test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-    test_ctx.s_cb.ctx_ready = test_ocsp_no_cdp_srv_ctx_ready;
+    test_ocsp_srv_status_cb = test_ocsp_no_cdp_status_cb;
+    test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
     test_ctx.c_cb.method = wolfTLSv1_2_client_method;
     test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
     test_ctx.c_cb.ctx_ready = test_ocsp_no_cdp_ctx_ready;
@@ -5320,6 +5208,7 @@ int test_ocsp_multi_fallback_no_cdp(void)
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
         WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN));
     test_ssl_memio_cleanup(&test_ctx);
+    test_ocsp_srv_status_cb = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -5386,23 +5275,12 @@ static int test_ocsp_checkall_staple_nonce(const unsigned char* req,
 
 static int test_ocsp_checkall_staple_status_cb(WOLFSSL* ssl, void* arg)
 {
-    byte* leaf;
     (void)arg;
-
     if (!test_ocsp_checkall_staple_opts.staple)
         return WOLFSSL_OCSP_STATUS_CB_NOACK;
-
-    leaf = (byte*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
-    if (leaf == NULL)
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    XMEMCPY(leaf, resp_server1_cert, sizeof(resp_server1_cert));
     /* Index 1, intermediate1, is deliberately left unstapled. */
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf,
-            (int)sizeof(resp_server1_cert), 0) != WOLFSSL_SUCCESS) {
-        XFREE(leaf, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-    return WOLFSSL_OCSP_STATUS_CB_OK;
+    return test_ocsp_set_staple(ssl, resp_server1_cert,
+        (int)sizeof(resp_server1_cert), 0);
 }
 
 static int test_ocsp_checkall_staple_io_cb(void* ioCtx, const char* url,
@@ -5454,17 +5332,6 @@ static int test_ocsp_checkall_staple_io_cb(void* ioCtx, const char* url,
         return (int)sizeof(resp_intermediate1_cert);
     }
     return -1;
-}
-
-static int test_ocsp_checkall_staple_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-            test_ocsp_checkall_staple_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
 }
 
 /* Stapling lookups for the stock server: the leaf succeeds, the intermediate
@@ -5634,9 +5501,10 @@ int test_ocsp_checkall_staple_missing_chain(void)
             test_ctx.s_cb.method = params[i].server_meth;
             test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
             test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+            test_ocsp_srv_status_cb = test_ocsp_checkall_staple_status_cb;
             test_ctx.s_cb.ctx_ready = params[i].stock ?
                 test_ocsp_checkall_staple_srv_stock_ctx_ready :
-                test_ocsp_checkall_staple_srv_ctx_ready;
+                test_ocsp_srv_ctx_ready;
             test_ctx.c_cb.method = params[i].client_meth;
             test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
             test_ctx.c_cb.ctx_ready = params[i].useV2 == 2 ?
@@ -5740,7 +5608,8 @@ int test_ocsp_checkall_staple_missing_chain(void)
         test_ctx.s_cb.method = wolfTLSv1_2_server_method;
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-        test_ctx.s_cb.ctx_ready = test_ocsp_checkall_staple_srv_ctx_ready;
+        test_ocsp_srv_status_cb = test_ocsp_checkall_staple_status_cb;
+        test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
         test_ctx.c_cb.method = wolfTLSv1_2_client_method;
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
         test_ctx.c_cb.ctx_ready = test_ocsp_checkall_staple_noleafcrl_ctx_ready;
@@ -5757,6 +5626,7 @@ int test_ocsp_checkall_staple_missing_chain(void)
     }
 #endif
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 
@@ -5976,31 +5846,9 @@ static int test_ocsp_status_verify_block_cb(WOLFSSL* ssl, int err,
 
 static int test_ocsp_status_verify_block_status_cb(WOLFSSL* ssl, void* ctx)
 {
-    unsigned char* staple;
-
     (void)ctx;
-    staple = (unsigned char*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
-    if (staple == NULL)
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    XMEMCPY(staple, resp_server1_cert, sizeof(resp_server1_cert));
-    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, staple,
-            (int)sizeof(resp_server1_cert), 0) != WOLFSSL_SUCCESS) {
-        XFREE(staple, NULL, 0);
-        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
-    }
-
-    return WOLFSSL_OCSP_STATUS_CB_OK;
-}
-
-static int test_ocsp_status_verify_block_srv_ctx_ready(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-                    test_ocsp_status_verify_block_status_cb), WOLFSSL_SUCCESS);
-
-    return EXPECT_RESULT();
+    return test_ocsp_set_staple(ssl, resp_server1_cert,
+        (int)sizeof(resp_server1_cert), 0);
 }
 
 static int test_ocsp_status_verify_block_ctx_ready(WOLFSSL_CTX* ctx)
@@ -6057,8 +5905,8 @@ int test_ocsp_status_verify_cb_would_block(void)
             test_ctx.s_cb.method = wolfTLSv1_2_server_method;
             test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
             test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
-            test_ctx.s_cb.ctx_ready =
-                test_ocsp_status_verify_block_srv_ctx_ready;
+            test_ocsp_srv_status_cb = test_ocsp_status_verify_block_status_cb;
+            test_ctx.s_cb.ctx_ready = test_ocsp_srv_ctx_ready;
             test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
             test_ctx.c_cb.ctx_ready = test_ocsp_status_verify_block_ctx_ready;
             test_ctx.c_cb.ssl_ready = test_ocsp_status_verify_block_ssl_ready;
@@ -6073,6 +5921,7 @@ int test_ocsp_status_verify_cb_would_block(void)
         }
     }
 
+    test_ocsp_srv_status_cb = NULL;
     return EXPECT_RESULT();
 }
 #else

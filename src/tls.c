@@ -3452,10 +3452,9 @@ static int TLSX_CSR_LeafCrlCheck(WOLFSSL* ssl, int ocspRet, int ocspAnswered)
 
     /* A clean CRL must not clear OCSP_LOOKUP_FAIL, which also marks that no
      * lookup was made, or must-staple would pass without a staple. */
-    if (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
-            (!ocspAnswered && (ret == 0 ||
-                ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
-                (ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) && crlRet != 0)))) {
+    if (!ocspAnswered && (ret == 0 ||
+            ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
+            (ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) && crlRet != 0))) {
         ret = crlRet;
         if (ret != 0) {
             WOLFSSL_ERROR_VERBOSE(ret);
@@ -4616,6 +4615,22 @@ void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte idx)
     return NULL;
 }
 
+/* Revocation check for the ocsp_multi chain entries from staple index idx on,
+ * which the peer stapled nothing for. */
+int TLSX_CSR2_ChainFallback(WOLFSSL* ssl, int idx)
+{
+    OcspRequest* request;
+    int ret = 0;
+
+    for (; ret == 0 && idx <= MAX_CHAIN_DEPTH &&
+            (request = (OcspRequest*)TLSX_CSR2_GetRequest(ssl->extensions,
+                WOLFSSL_CSR2_OCSP_MULTI, (byte)idx)) != NULL; idx++) {
+        ret = CsrDoChainFallbackLookup(ssl, request, idx);
+    }
+
+    return ret;
+}
+
 /* The leaf revocation lookups were skipped in favour of the stapled response.
  * Called when no CertificateStatus arrived: do them now. */
 int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
@@ -4623,7 +4638,6 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
     TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
     CertificateStatusRequestItemV2* csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
-    CertificateStatusRequestItemV2* multi = TLSX_CSR2_GetMulti(ssl->extensions);
     int ret = 0;
 
     if (csr2) {
@@ -4634,16 +4648,10 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
             case WOLFSSL_CSR2_OCSP_MULTI:
                 ret = TLSX_CSR_LeafFallback(ssl, csr2->requests >= 1 ?
                     &csr2->request.ocsp[csr2->requests - 1] : NULL);
-                if (ret == 0 && multi != NULL) {
-                    int i;
-                    /* The chain certificates' own lookups were skipped in
-                     * favour of staples that never arrived. */
-                    for (i = (int)multi->requests - 2; ret == 0 && i >= 0; i--) {
-                        ret = CsrDoChainFallbackLookup(ssl,
-                                &multi->request.ocsp[i],
-                                (int)multi->requests - 1 - i);
-                    }
-                }
+                /* The chain certificates' own lookups were skipped in favour
+                 * of staples that never arrived. */
+                if (ret == 0)
+                    ret = TLSX_CSR2_ChainFallback(ssl, 1);
                 break;
         }
     }
