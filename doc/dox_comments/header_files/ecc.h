@@ -3405,13 +3405,14 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp);
     \return ecEncCtx pointer on success
     \return NULL on failure
 
-    \param flags Context flags
+    \param flags Either REQ_RESP_CLIENT or REQ_RESP_SERVER; any other
+    value fails and NULL is returned
     \param rng Random number generator
 
     _Example_
     \code
     WC_RNG rng;
-    ecEncCtx* ctx = wc_ecc_ctx_new(0, &rng);
+    ecEncCtx* ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
     \endcode
 
     \sa wc_ecc_ctx_free
@@ -3425,14 +3426,15 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
     \return ecEncCtx pointer on success
     \return NULL on failure
 
-    \param flags Context flags
+    \param flags Either REQ_RESP_CLIENT or REQ_RESP_SERVER; any other
+    value fails and NULL is returned
     \param rng Random number generator
     \param heap Heap hint
 
     _Example_
     \code
     WC_RNG rng;
-    ecEncCtx* ctx = wc_ecc_ctx_new_ex(0, &rng, NULL);
+    ecEncCtx* ctx = wc_ecc_ctx_new_ex(REQ_RESP_CLIENT, &rng, NULL);
     \endcode
 
     \sa wc_ecc_ctx_new

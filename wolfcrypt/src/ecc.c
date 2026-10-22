@@ -15710,9 +15710,14 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap)
 {
     int       ret = 0;
-    ecEncCtx* ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), heap,
-                                                              DYNAMIC_TYPE_ECC);
+    ecEncCtx* ctx;
 
+    if (flags != REQ_RESP_SERVER && flags != REQ_RESP_CLIENT) {
+        WOLFSSL_MSG("Bad flag passed to wc_ecc_ctx_new_ex");
+        return NULL;
+    }
+
+    ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), heap, DYNAMIC_TYPE_ECC);
     if (ctx) {
         ctx->protocol = (byte)flags;
         ctx->heap     = heap;
