@@ -344,6 +344,12 @@ static int swdev_ed25519_check_key(wc_CryptoInfo* info)
 #endif /* HAVE_ED25519 */
 
 #ifdef HAVE_ED448
+static int swdev_ed448_keygen(wc_CryptoInfo* info)
+{
+    return wc_ed448_make_key(info->pk.ed448kg.rng,
+        info->pk.ed448kg.size, info->pk.ed448kg.key);
+}
+
 #ifdef HAVE_ED448_SIGN
 static int swdev_ed448_sign(wc_CryptoInfo* info)
 {
@@ -2283,6 +2289,8 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_curve448_generic(info);
     #endif /* HAVE_CURVE448 */
     #ifdef HAVE_ED448
+        case WC_PK_TYPE_ED448_KEYGEN:
+            return swdev_ed448_keygen(info);
         #ifdef HAVE_ED448_SIGN
         case WC_PK_TYPE_ED448:
             return swdev_ed448_sign(info);

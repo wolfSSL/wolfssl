@@ -415,11 +415,38 @@ int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 /*!
     \ingroup CryptoCb
 
+    \brief Offload Ed448 key generation to a CryptoCB device.
+
+    Used by wc_ed448_make_key. The device receives wc_CryptoInfo.pk.ed448kg
+    (\c rng, \c size, \c key). On success it stores the private key followed
+    by the public key in key->k, the public key in key->p, and sets
+    key->privKeySet and key->pubKeySet. For a key bound by id or label, the
+    device may keep the private key and leave key->k and key->privKeySet
+    clear. No make-public callback follows a device-generated key.
+
+    \param rng     random number generator for the device to use
+    \param keySize private key size, ED448_KEY_SIZE
+    \param key     Ed448 key providing the device id, receives the new key
+
+    \return 0 on success
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation (wolfCrypt
+            falls back to software key generation)
+    \return other negative values are device errors, returned to the caller
+            without a software fallback
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ed448_make_key
+*/
+int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize, ed448_key* key);
+
+/*!
+    \ingroup CryptoCb
+
     \brief Offload deriving an Ed448 public key from its private key to a
     CryptoCB device.
 
-    Used by wc_ed448_make_public (and so by key generation and private-key
-    import). The device writes the compressed public key into
+    Used by wc_ed448_make_public (and so by software key generation and
+    private-key import). The device writes the compressed public key into
     wc_CryptoInfo.pk.ed448makepub (\c pubOut / \c pubOutSz, always
     ED448_PUB_KEY_SIZE).
 

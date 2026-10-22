@@ -183,6 +183,7 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_ED448_VERIFY: return "ED448-Verify";
         case WC_PK_TYPE_ED448_MAKE_PUB: return "ED448 MakePub";
         case WC_PK_TYPE_ED448_CHECK_KEY: return "ED448 CheckKey";
+        case WC_PK_TYPE_ED448_KEYGEN: return "ED448 KeyGen";
         case WC_PK_TYPE_CURVE25519: return "CURVE25519";
         case WC_PK_TYPE_RSA_KEYGEN: return "RSA KeyGen";
         case WC_PK_TYPE_EC_KEYGEN: return "ECC KeyGen";
@@ -1859,6 +1860,31 @@ int wc_CryptoCb_Curve448Generic(int devId, int public_size, byte* pub,
 #endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
+int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize, ed448_key* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED448_KEYGEN;
+        cryptoInfo.pk.ed448kg.rng = rng;
+        cryptoInfo.pk.ed448kg.size = keySize;
+        cryptoInfo.pk.ed448kg.key = key;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
 int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen, byte* out,
     word32 *outLen, ed448_key* key, byte type, const byte* context,
     byte contextLen)
