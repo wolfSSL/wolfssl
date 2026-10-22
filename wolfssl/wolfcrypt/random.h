@@ -576,6 +576,10 @@ wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
     #endif
 #endif
 
+/* wc_RNG_TreeInvalidate() reaches every WC_RNG through the epoch. */
+#if defined(WC_RNG_TREE) && !defined(WC_RNG_WANT_ENTROPY_EPOCH)
+    #define WC_RNG_WANT_ENTROPY_EPOCH
+#endif
 #if ((defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)) || \
      defined(WC_RNG_WANT_ENTROPY_EPOCH)) && \
     !defined(WC_RNG_NO_ENTROPY_EPOCH) && !defined(WC_NO_RNG)
@@ -1163,6 +1167,9 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     #endif
     #if defined(WOLFSSL_NO_ATOMICS) && !defined(SINGLE_THREADED)
         #error WC_RNG_TREE needs atomics or SINGLE_THREADED.
+    #endif
+    #ifndef WC_RNG_HAVE_ENTROPY_EPOCH
+        #error WC_RNG_TREE needs the entropy epoch (WC_RNG_NO_ENTROPY_EPOCH).
     #endif
     #ifdef WC_RNG_EXTRAS
         #error WC_RNG_TREE and WC_RNG_EXTRAS are alternatives.
