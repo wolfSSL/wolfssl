@@ -271,14 +271,21 @@ int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng* rng)
 #define RNG_VMGEN_DELAY (HZ / 10)
 static struct wc_linuxkm_vmgenid_poll_state rngVmGen;
 static struct delayed_work rngVmGenWork;
+/* The poll and the vmfork notifier share rngVmGen; both may sleep. */
+static DEFINE_MUTEX(rngVmGenLock);
 
 static void RngVmGenWork(struct work_struct* work)
 {
+    int changed, watching;
+
     (void)work;
-    if (wc_linuxkm_vmgenid_changed(&rngVmGen))
+    mutex_lock(&rngVmGenLock);
+    changed = wc_linuxkm_vmgenid_changed(&rngVmGen);
+    watching = (rngVmGen.state == 1);   /* 0 on bare metal: nothing to watch */
+    mutex_unlock(&rngVmGenLock);
+    if (changed)
         RngInvalidate();
-    /* No device (bare metal): nothing to watch. */
-    if (rngVmGen.state == 1)
+    if (watching)
         queue_delayed_work(system_highpri_wq, &rngVmGenWork, RNG_VMGEN_DELAY);
 }
 #endif
@@ -287,12 +294,19 @@ static void RngVmGenWork(struct work_struct* work)
 static int RngVmForkNotify(struct notifier_block* nb, unsigned long action,
                            void* data)
 {
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    int seen;
+#endif
+
     (void)nb;
     (void)action;
     (void)data;
 #ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
     /* The poll may have seen this change first: one clone invalidates once. */
-    if (rngVmGen.state == 1 && !wc_linuxkm_vmgenid_changed(&rngVmGen))
+    mutex_lock(&rngVmGenLock);
+    seen = (rngVmGen.state == 1 && !wc_linuxkm_vmgenid_changed(&rngVmGen));
+    mutex_unlock(&rngVmGenLock);
+    if (seen)
         return NOTIFY_OK;
 #endif
     RngInvalidate();
