@@ -10697,6 +10697,9 @@ out:
 int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
 {
     int ret = 0;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    int idKey = 0;
+#endif
 
     if ((key == NULL) || (rng == NULL)) {
         return BAD_FUNC_ARG;
@@ -10712,6 +10715,9 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
     falcon_cache_clear(key);
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+#endif
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -10724,6 +10730,10 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
         /* fall-through when unavailable */
         ret = 0;
     }
+    #ifdef WOLF_PRIVATE_KEY_ID
+    if (idKey)
+        return NO_VALID_DEVID;
+    #endif
 #endif /* WOLF_CRYPTO_CB */
 
 #ifdef WOLF_CRYPTO_CB_ONLY_FALCON

@@ -2417,3 +2417,65 @@ int test_wc_CryptoCb_RsaPssVerifyRecover(void)
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCb_RsaPssVerifyRecover */
 
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_SE050) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int rsa_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_MakeRsaKey() on an id or label key whose device declines keygen.
+ */
+int test_wc_MakeRsaKey_id_dev(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_SE050) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    int devId = 2402;
+    int ret;
+    RsaKey key;
+    WC_RNG rng;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, rsa_keygen_decline_cb, NULL),
+        0);
+
+    ExpectIntEQ(wc_InitRsaKey_Id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    ExpectIntEQ(wc_InitRsaKey_Label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_InitRsaKey_Id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

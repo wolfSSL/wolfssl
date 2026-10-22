@@ -707,12 +707,20 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 #ifndef WC_NO_RNG
     int ret = 0;
     unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    int idKey = 0;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    if (ret == 0) {
+        idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB
 #ifndef WOLF_CRYPTO_CB_FIND
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
@@ -728,6 +736,11 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         /* fall-through when unavailable */
         ret = 0;
     }
+#ifdef WOLF_PRIVATE_KEY_ID
+    if ((ret == 0) && idKey) {
+        ret = NO_VALID_DEVID;
+    }
+#endif
 #endif
 
     if (ret == 0) {

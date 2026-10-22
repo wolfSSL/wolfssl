@@ -1604,3 +1604,65 @@ int test_wc_ed25519_make_public_dev_key(void)
     return EXPECT_RESULT();
 } /* END test_wc_ed25519_make_public_dev_key */
 
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+static int ed25519_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_ed25519_make_key() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_ed25519_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    int devId = 2403;
+    ed25519_key key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed25519_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed25519_free(&key);
+
+    ExpectIntEQ(wc_ed25519_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed25519_free(&key);
+
+#if !defined(WOLF_CRYPTO_CB_ONLY_ED25519) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, (int)sizeof(id), NULL,
+        devId + 100), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    wc_ed25519_free(&key);
+
+    ExpectIntEQ(wc_ed25519_init_ex(&key, NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    wc_ed25519_free(&key);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

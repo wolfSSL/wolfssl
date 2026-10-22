@@ -5974,6 +5974,9 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         int curve_id, int flags)
 {
     int err = 0;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    int idKey;
+#endif
 #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_ATECC608A)
@@ -6022,6 +6025,9 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     #endif
     key->flags = (byte)flags;
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+#endif
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC_DHE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -6032,6 +6038,10 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
             return err;
         /* fall-through when unavailable */
     }
+#endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    if (idKey)
+        return NO_VALID_DEVID;
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_ECC
