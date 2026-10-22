@@ -7581,60 +7581,13 @@ static int FindHashSig(const Suites* suites, byte first, byte second)
     return MATCH_SUITE_ERROR;
 }
 
-long wolfSSL_set_options(WOLFSSL* ssl, long op)
+/* Rebuilds the cipher suites for the current protocol version. */
+static int ResetSuitesForVersion(WOLFSSL* ssl)
 {
     word16 haveRSA = 1;
     word16 havePSK = 0;
     int    keySz   = 0;
 
-    WOLFSSL_ENTER("wolfSSL_set_options");
-
-    if (ssl == NULL) {
-        return 0;
-    }
-
-    ssl->options.mask = (unsigned long)wolf_set_options((long)ssl->options.mask, op);
-
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
-        WOLFSSL_MSG("Disabling TLS 1.3");
-        if (ssl->version.minor == TLSv1_3_MINOR)
-            ssl->version.minor = TLSv1_2_MINOR;
-    }
-
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2) {
-        WOLFSSL_MSG("Disabling TLS 1.2");
-        if (ssl->version.minor == TLSv1_2_MINOR)
-            ssl->version.minor = TLSv1_1_MINOR;
-    }
-
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == WOLFSSL_OP_NO_TLSv1_1) {
-        WOLFSSL_MSG("Disabling TLS 1.1");
-        if (ssl->version.minor == TLSv1_1_MINOR)
-            ssl->version.minor = TLSv1_MINOR;
-    }
-
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == WOLFSSL_OP_NO_TLSv1) {
-        WOLFSSL_MSG("Disabling TLS 1.0");
-        if (ssl->version.minor == TLSv1_MINOR)
-            ssl->version.minor = SSLv3_MINOR;
-    }
-
-    if ((ssl->options.mask & WOLFSSL_OP_NO_COMPRESSION)
-        == WOLFSSL_OP_NO_COMPRESSION) {
-    #ifdef HAVE_LIBZ
-        ssl->options.usingCompression = 0;
-    #endif
-    }
-
-#if defined(HAVE_SESSION_TICKET) && (defined(OPENSSL_EXTRA) \
-        || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL))
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) == WOLFSSL_OP_NO_TICKET) {
-      ssl->options.noTicketTls12 = 1;
-    }
-#endif
-
-
-    /* in the case of a version change the cipher suites should be reset */
 #ifndef NO_PSK
     havePSK = ssl->options.havePSK;
 #endif
@@ -7647,7 +7600,7 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 
     if (ssl->options.side != WOLFSSL_NEITHER_END) {
         if (AllocateSuites(ssl) != 0)
-            return 0;
+            return MEMORY_E;
         if (!ssl->suites->setSuites) {
             /* Client side won't set DH params, so it needs haveDH set to TRUE. */
             if (ssl->options.side == WOLFSSL_CLIENT_END)
@@ -7709,9 +7662,91 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         }
     }
 
+    return 0;
+}
+
+long wolfSSL_set_options(WOLFSSL* ssl, long op)
+{
+    WOLFSSL_ENTER("wolfSSL_set_options");
+
+    if (ssl == NULL) {
+        return 0;
+    }
+
+    ssl->options.mask = (unsigned long)wolf_set_options((long)ssl->options.mask, op);
+
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
+        WOLFSSL_MSG("Disabling TLS 1.3");
+        if (ssl->version.minor == TLSv1_3_MINOR)
+            ssl->version.minor = TLSv1_2_MINOR;
+    }
+
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2) {
+        WOLFSSL_MSG("Disabling TLS 1.2");
+        if (ssl->version.minor == TLSv1_2_MINOR)
+            ssl->version.minor = TLSv1_1_MINOR;
+    }
+
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == WOLFSSL_OP_NO_TLSv1_1) {
+        WOLFSSL_MSG("Disabling TLS 1.1");
+        if (ssl->version.minor == TLSv1_1_MINOR)
+            ssl->version.minor = TLSv1_MINOR;
+    }
+
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == WOLFSSL_OP_NO_TLSv1) {
+        WOLFSSL_MSG("Disabling TLS 1.0");
+        if (ssl->version.minor == TLSv1_MINOR)
+            ssl->version.minor = SSLv3_MINOR;
+    }
+
+    if ((ssl->options.mask & WOLFSSL_OP_NO_COMPRESSION)
+        == WOLFSSL_OP_NO_COMPRESSION) {
+    #ifdef HAVE_LIBZ
+        ssl->options.usingCompression = 0;
+    #endif
+    }
+
+#if defined(HAVE_SESSION_TICKET) && (defined(OPENSSL_EXTRA) \
+        || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL))
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) == WOLFSSL_OP_NO_TICKET) {
+      ssl->options.noTicketTls12 = 1;
+    }
+#endif
+
+
+    /* in the case of a version change the cipher suites should be reset */
+    if (ResetSuitesForVersion(ssl) != 0)
+        return 0;
+
     return (long)ssl->options.mask;
 }
 
+
+#ifdef WOLFSSL_DTLS
+/* Moves a DTLS SSL that may downgrade, before its first handshake, to the
+ * newest version its mask allows. Returns VERSION_ERROR when none is left. */
+int DtlsCheckVersionMask(WOLFSSL* ssl)
+{
+    byte minor;
+
+    /* A minimum of DTLS_MINOR tests the mask alone. */
+    if (ssl->version.major != DTLS_MAJOR || !ssl->options.downgrade ||
+            ssl->options.handShakeDone ||
+            DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) ==
+                ssl->version.minor) {
+        return 0;
+    }
+    minor = DtlsAllowedMinor(ssl, ssl->version.minor,
+        ssl->options.minDowngrade);
+    if (minor == 0) {
+        WOLFSSL_MSG("No DTLS version left that the options allow");
+        WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+        return VERSION_ERROR;
+    }
+    ssl->version.minor = minor;
+    return ResetSuitesForVersion(ssl);
+}
+#endif
 
 long wolfSSL_get_options(const WOLFSSL* ssl)
 {
