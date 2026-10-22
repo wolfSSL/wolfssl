@@ -36,6 +36,7 @@ int test_wc_Pkcs11_RsaKeyGenError(void);
 int test_wc_Pkcs11_RsaKeyGenExponent(void);
 int test_wc_Pkcs11_FreeNoObject(void);
 int test_wc_Pkcs11_KeyGenSessionClosed(void);
+int test_wc_Pkcs11_ValueRead(void);
 
 #define TEST_PKCS11_DECLS                                                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
@@ -45,7 +46,8 @@ int test_wc_Pkcs11_KeyGenSessionClosed(void);
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenError),               \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenExponent),            \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeNoObject),                 \
-    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed)
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed),          \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_ValueRead)
 
 #else
 
