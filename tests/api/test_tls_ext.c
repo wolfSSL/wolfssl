@@ -3542,6 +3542,68 @@ static int test_brainpool_ech_hrr(int accept, int* tls13Cnt, int* tls12Cnt)
     wolfSSL_CTX_free(ctx_o);
     return EXPECT_RESULT();
 }
+
+/* Lists the extension types of the first ClientHello with real ECH, or with
+ * GREASE ECH when real is 0. */
+static int test_bp_ech_ch_types(int real, word16* types, int* typeCnt)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    static const char pubName[] = "ech-public-name.com";
+    static const char privName[] = "ech-private-name.com";
+    byte configs[512];
+    word32 configsLen = (word32)sizeof(configs);
+    const byte* groups = NULL;
+    word16 groupsLen = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    if (real) {
+        ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, pubName, 0, 0, 0),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx_s, configs, &configsLen),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, configs, configsLen),
+                    WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, privName,
+                (word16)XSTRLEN(privName)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_bp_parse_ch(test_ctx.s_buff, test_ctx.s_len, types,
+                typeCnt, &groups, &groupsLen), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* A real ECH outer ClientHello orders its extensions like a GREASE one. */
+static int test_brainpool_ech_order(void)
+{
+    EXPECT_DECLS;
+    word16 realTypes[TEST_BP_MAX_EXTS];
+    word16 greaseTypes[TEST_BP_MAX_EXTS];
+    int realCnt = 0;
+    int greaseCnt = 0;
+
+    ExpectIntEQ(test_bp_ech_ch_types(1, realTypes, &realCnt), TEST_SUCCESS);
+    ExpectIntEQ(test_bp_ech_ch_types(0, greaseTypes, &greaseCnt),
+                TEST_SUCCESS);
+    ExpectIntEQ(realCnt, greaseCnt);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(XMEMCMP(realTypes, greaseTypes,
+                    (size_t)realCnt * sizeof(word16)), 0);
+    }
+    return EXPECT_RESULT();
+}
 #endif
 #endif
 
@@ -3671,6 +3733,8 @@ int test_TLSX_SupportedCurve_brainpool_downgrade(void)
                 TEST_SUCCESS);
     ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
     ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+
+    ExpectIntEQ(test_brainpool_ech_order(), TEST_SUCCESS);
 #endif
 #endif
     return EXPECT_RESULT();

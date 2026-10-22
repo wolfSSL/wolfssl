@@ -16799,12 +16799,16 @@ static int TLSX_EchSplitSupportedGroups(WOLFSSL* ssl)
     int ret;
     byte downgrade;
     TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+    TLSX* groupsX = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    TLSX* innerList = NULL;
+    TLSX* innerX = NULL;
+    void* data;
     WOLFSSL_ECH* ech;
 
     /* After a HelloRetryRequest the lists stay as the first hello sent them. */
-    if (echX == NULL || echX->data == NULL || ssl->options.userCurves ||
+    if (echX == NULL || echX->data == NULL || groupsX == NULL ||
+            ssl->options.userCurves ||
             ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE ||
-            TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) == NULL ||
             !TLSX_PreTls13Reachable(ssl)) {
         return 0;
     }
@@ -16812,12 +16816,23 @@ static int TLSX_EchSplitSupportedGroups(WOLFSSL* ssl)
     ech = (WOLFSSL_ECH*)echX->data;
     ret = TLSX_PopulateSupportedGroups(ssl, &ech->extensions);
     if (ret == WOLFSSL_SUCCESS) {
-        TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
         downgrade = ssl->options.downgrade;
         ssl->options.downgrade = 0;
-        ret = TLSX_PopulateSupportedGroups(ssl, &ssl->extensions);
+        ret = TLSX_PopulateSupportedGroups(ssl, &innerList);
         ssl->options.downgrade = downgrade;
     }
+    if (ret == WOLFSSL_SUCCESS) {
+        innerX = TLSX_Find(innerList, TLSX_SUPPORTED_GROUPS);
+        if (innerX == NULL)
+            ret = BAD_STATE_E;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Swap only the data so the outer hello keeps the GREASE ECH order. */
+        data = groupsX->data;
+        groupsX->data = innerX->data;
+        innerX->data = data;
+    }
+    TLSX_FreeAll(innerList, ssl->heap);
 
     return (ret == WOLFSSL_SUCCESS) ? 0 : ret;
 }
