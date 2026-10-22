@@ -9455,7 +9455,7 @@ int wc_RNG_TreeReseed(int force)
 }
 
 /* Seed material for a WC_RNG child of the root (SP 800-90C 7.2.3).  Where the
- * caller can wait, an absent, stale or latched root is renewed first. */
+ * caller can wait, the root reseeds from its entropy source first (7.2.3.1). */
 static int TreeChildDraw(OS_Seed* os, byte* out, word32 sz, int sha512Off)
 {
     int seedRet = 0;
@@ -9467,7 +9467,7 @@ static int TreeChildDraw(OS_Seed* os, byte* out, word32 sz, int sha512Off)
     if (sha512Off)
         return TreeSourceSeed(os, out, sz);
     if (WC_CAN_BLOCK())
-        seedRet = wc_RNG_TreeReseed(0);
+        seedRet = wc_RNG_TreeReseed(1);
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
     ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
     if (ret == 0)
