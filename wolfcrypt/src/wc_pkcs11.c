@@ -4930,7 +4930,7 @@ static int Pkcs11GetMldsaPublicKey(wc_MlDsaKey* key,
             ret = WC_KEY_SIZE_E;
     }
     if (ret == 0)
-        ret = wc_MlDsaKey_ImportPubRaw(key, pubKey, pubKeySize);
+        ret = wc_MlDsaKey_ImportPubRaw(key, pubKey, (word32)pubKeySize);
 
     if (pubKey != NULL)
         XFREE(pubKey, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5242,7 +5242,7 @@ static int Pkcs11MldsaSign(Pkcs11Session* session, wc_CryptoInfo* info)
     }
 
     if (ret == 0) {
-        *info->pk.pqc_sign.outlen = outLen;
+        *info->pk.pqc_sign.outlen = (word32)outLen;
     }
 
     if (sessionKey)
