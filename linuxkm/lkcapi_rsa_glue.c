@@ -2376,6 +2376,37 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
         goto test_rsa_end;
     }
 
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * operation against the previously installed key -- and a restored
+     * key must work again.  (raw RSA encryption is deterministic, so
+     * the re-encrypt below reproduces enc byte-for-byte for the
+     * cross-checks that follow.) */
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24 - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_set_pub_key (truncated) returned "
+               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        goto test_rsa_end;
+    }
+    ret = crypto_akcipher_encrypt(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_encrypt after rejected "
+               "set_pub_key returned %d, expected %d\n", ret,
+               -WC_NO_ERR_TRACE(EINVAL));
+        goto test_rsa_end;
+    }
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24);
+    if (ret) {
+        pr_err("error: crypto_akcipher_set_pub_key (restore) returned: "
+               "%d\n", ret);
+        goto test_rsa_end;
+    }
+    ret = crypto_akcipher_encrypt(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_encrypt after restored "
+               "set_pub_key returned: %d\n", ret);
+        goto test_rsa_end;
+    }
+
     /* wolfcrypt private decrypt */
     XMEMSET(dec, 0, key_len + 1);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
@@ -2864,6 +2895,39 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     ret = crypto_akcipher_verify(req);
     if (ret) {
         pr_err("error: crypto_akcipher_verify returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * verification against the previously installed key -- and a
+     * restored key must verify again. */
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24 - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_set_pub_key (truncated) returned "
+               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_akcipher_verify(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_verify after rejected "
+               "set_pub_key returned %d, expected %d\n", ret,
+               -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24);
+    if (ret) {
+        pr_err("error: crypto_akcipher_set_pub_key (restore) returned: "
+               "%d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_akcipher_verify(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_verify after restored "
+               "set_pub_key returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
@@ -3358,6 +3422,39 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = crypto_sig_verify(tfm, sig, sig_len, hash, hash_len);
     if (ret) {
         pr_err("error: crypto_sig_verify returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+
+    /* a rejected set_pubkey must leave the transform keyless -- no
+     * verification against the previously installed key -- and a
+     * restored key must verify again. */
+    ret = crypto_sig_set_pubkey(tfm, pub + 24, pub_len - 24 - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_set_pubkey (truncated) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_sig_verify(tfm, sig, sig_len, hash, hash_len);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_verify after rejected set_pubkey "
+               "returned %d, expected %d\n", ret,
+               -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_sig_set_pubkey(tfm, pub + 24, pub_len - 24);
+    if (ret) {
+        pr_err("error: crypto_sig_set_pubkey (restore) returned: %d\n",
+               ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_sig_verify(tfm, sig, sig_len, hash, hash_len);
+    if (ret) {
+        pr_err("error: crypto_sig_verify after restored set_pubkey "
+               "returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
