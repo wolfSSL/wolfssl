@@ -311,6 +311,7 @@ static int           test_pkcs11_no_ecdh = 0;
 static int           test_pkcs11_no_ecdsa = 0;
 static int           test_pkcs11_ecdsa_verify_only = 0;
 static int           test_pkcs11_fail_modulus = 0;
+static int           test_pkcs11_fail_keygen = 0;
 static byte          test_pkcs11_ec_point[2 + 65];
 static TestPkcs11Obj test_pkcs11_last_priv;
 static const byte    test_pkcs11_secret[32] = { 0x5a, 0x5a };
@@ -327,6 +328,7 @@ static void test_pkcs11_reset(void)
     test_pkcs11_destroy_calls = 0;
     test_pkcs11_fail_pub_create = 0;
     test_pkcs11_fail_modulus = 0;
+    test_pkcs11_fail_keygen = 0;
 }
 
 static TestPkcs11Obj* test_pkcs11_obj(CK_OBJECT_HANDLE h)
@@ -617,6 +619,8 @@ static CK_RV test_pkcs11_store_keygen(CK_SESSION_HANDLE session,
     CK_RV rv;
     CK_KEY_TYPE keyType = CKK_EC;
 
+    if (test_pkcs11_fail_keygen)
+        return TEST_CKR_GENERAL_ERROR;
     if (mechanism->mechanism == CKM_RSA_PKCS_KEY_PAIR_GEN)
         keyType = CKK_RSA;
     rv = test_pkcs11_store_create(session, pubTmpl, pubCnt, pub);
@@ -1114,6 +1118,57 @@ int test_wc_Pkcs11_EcKeyUsage(void)
 
     wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
     wc_ecc_free(&soft);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Pkcs11_RsaKeyGenError(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_RSA_KEYGEN
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    RsaKey key;
+#ifdef TEST_PKCS11_EC_KEYGEN
+    ecc_key ecc;
+#endif
+    WC_RNG rng;
+
+    test_pkcs11_store_setup(&token, &func);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+    ExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    /* A failed read of the public key fails keygen and leaves no object. */
+    test_pkcs11_reset();
+    test_pkcs11_fail_modulus = 1;
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    test_pkcs11_reset();
+    test_pkcs11_fail_keygen = 1;
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(wc_FreeRsaKey(&key), 0);
+#ifdef TEST_PKCS11_EC_KEYGEN
+    ExpectIntEQ(wc_ecc_init_ex(&ecc, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &ecc, ECC_SECP256R1,
+        WC_ECC_FLAG_NONE), WC_NO_ERR_TRACE(WC_HW_E));
+    wc_ecc_free(&ecc);
+#endif
+    test_pkcs11_fail_keygen = 0;
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
