@@ -626,6 +626,14 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
     ctx = kpp_tfm_ctx(tfm);
     XMEMSET(&params, 0, sizeof(params));
 
+    /* destroy-first, per kernel setkey semantics, and ahead of all
+     * validation including the secret decode, matching the other glues'
+     * setters: any rejected set_secret leaves the transform keyless. */
+    err = km_dh_reset_ctx(ctx);
+    if (err) {
+        goto dh_secret_end;
+    }
+
     if (km_dh_decode_secret(buf, len, &params) < 0) {
         #ifdef WOLFKM_DEBUG_DH
         pr_err("%s: dh_set_secret: decode secret failed: %d\n",
@@ -661,11 +669,6 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
                WOLFKM_DH_DRIVER, params.p_size);
         #endif
         err = -EINVAL;
-        goto dh_secret_end;
-    }
-
-    err = km_dh_reset_ctx(ctx);
-    if (err) {
         goto dh_secret_end;
     }
 
@@ -761,6 +764,14 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
     ctx = kpp_tfm_ctx(tfm);
     XMEMSET(&params, 0, sizeof(params));
 
+    /* destroy-first, per kernel setkey semantics, and ahead of all
+     * validation including the secret decode, matching the other glues'
+     * setters: any rejected set_secret leaves the transform keyless. */
+    err = km_dh_reset_ctx(ctx);
+    if (err) {
+        goto ffdhe_secret_end;
+    }
+
     /* buf is optional for ffdhe */
     if (buf) {
         err = km_dh_decode_secret((u8*)buf, len, &params);
@@ -783,11 +794,6 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
             err = -EINVAL;
             goto ffdhe_secret_end;
         }
-    }
-
-    err = km_dh_reset_ctx(ctx);
-    if (err) {
-        goto ffdhe_secret_end;
     }
 
     err = km_dh_alloc_keys(ctx);
@@ -3126,6 +3132,50 @@ static int linuxkm_test_kpp_driver(const char * driver,
 
     if (memcmp(shared_secret, sg_virt(req->dst), shared_s_len)) {
         pr_err("error: shared secret does not match\n");
+        test_rc = BAD_FUNC_ARG;
+        goto test_kpp_end;
+    }
+
+    /* a rejected set_secret must leave the transform keyless -- no
+     * operation against the previously installed key -- and a restored
+     * secret must work again.  the truncated blob fails the secret
+     * decode, which with the destroy-first ordering still clears the
+     * resident key octets. */
+    err = crypto_kpp_set_secret(tfm, a_secret, secret_len - 1);
+    if (err != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_kpp_set_secret (truncated) returned %d, "
+               "expected %d\n", err, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_kpp_end;
+    }
+    kpp_request_set_input(req, NULL, 0);
+    sg_init_one(&dst, dst_buf, dst_len);
+    kpp_request_set_output(req, &dst, dst_len);
+    err = crypto_kpp_generate_public_key(req);
+    if (err != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_kpp_generate_public_key after rejected "
+               "set_secret returned %d, expected %d\n", err,
+               -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_kpp_end;
+    }
+    err = crypto_kpp_set_secret(tfm, a_secret, secret_len);
+    if (err) {
+        pr_err("error: crypto_kpp_set_secret (restore) returned: %d\n",
+               err);
+        test_rc = BAD_FUNC_ARG;
+        goto test_kpp_end;
+    }
+    err = crypto_kpp_generate_public_key(req);
+    if (err) {
+        pr_err("error: crypto_kpp_generate_public_key after restored "
+               "set_secret returned: %d\n", err);
+        test_rc = BAD_FUNC_ARG;
+        goto test_kpp_end;
+    }
+    if (memcmp(expected_a_pub, sg_virt(req->dst), pub_len)) {
+        pr_err("error: crypto_kpp_generate_public_key after restored "
+               "set_secret: wrong output\n");
         test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }

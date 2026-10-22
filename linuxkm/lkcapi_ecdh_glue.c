@@ -408,6 +408,13 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
         return -EINVAL;
     }
 
+    /* destroy-first, per kernel setkey semantics, and ahead of all
+     * validation including the secret decode, matching the other glues'
+     * setters: any rejected set_secret leaves the transform keyless. */
+    ctx->key_set = 0;
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+    ForceZero(ctx->pub, sizeof(ctx->pub));
+
     if (km_ecdh_decode_secret(buf, len, &params) < 0) {
         #ifdef WOLFKM_DEBUG_ECDH
         pr_err("%s: ecdh_set_secret: decode secret failed: %d\n",
@@ -415,12 +422,6 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
         #endif /* WOLFKM_DEBUG_ECDH */
         return -EINVAL;
     }
-
-    /* destroy-first, per kernel setkey semantics: a rejected secret
-     * leaves the transform keyless. */
-    ctx->key_set = 0;
-    ForceZero(ctx->priv, sizeof(ctx->priv));
-    ForceZero(ctx->pub, sizeof(ctx->pub));
 
     if (!params.key || !params.key_size) {
         /* Empty secret payload. Generate our own ecc key pair, on a
@@ -1236,6 +1237,50 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
 
     if (memcmp(shared_secret, sg_virt(req->dst), shared_s_len)) {
         pr_err("error: shared secret does not match\n");
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+
+    /* a rejected set_secret must leave the transform keyless -- no
+     * operation against the previously installed key -- and a restored
+     * secret must work again.  the truncated blob fails the secret
+     * decode, which with the destroy-first ordering still clears the
+     * resident key octets. */
+    err = crypto_kpp_set_secret(tfm, secret, secret_len - 1);
+    if (err != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_kpp_set_secret (truncated) returned %d, "
+               "expected %d\n", err, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    kpp_request_set_input(req, NULL, 0);
+    sg_init_one(&dst, dst_buf, dst_len);
+    kpp_request_set_output(req, &dst, dst_len);
+    err = crypto_kpp_generate_public_key(req);
+    if (err != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_kpp_generate_public_key after rejected "
+               "set_secret returned %d, expected %d\n", err,
+               -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    err = crypto_kpp_set_secret(tfm, secret, secret_len);
+    if (err) {
+        pr_err("error: crypto_kpp_set_secret (restore) returned: %d\n",
+               err);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    err = crypto_kpp_generate_public_key(req);
+    if (err) {
+        pr_err("error: crypto_kpp_generate_public_key after restored "
+               "set_secret returned: %d\n", err);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    if (memcmp(expected_a_pub, sg_virt(req->dst), pub_len)) {
+        pr_err("error: crypto_kpp_generate_public_key after restored "
+               "set_secret: wrong output\n");
         test_rc = BAD_FUNC_ARG;
         goto test_ecdh_nist_end;
     }
