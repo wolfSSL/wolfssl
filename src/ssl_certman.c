@@ -1177,7 +1177,9 @@ typedef struct {
 
    The Signer is rebuilt from the DER on restore so that everything FillSigner
    takes from the certificate (key usage, path length, name constraints, ...)
-   is restored, not only the public key and name hashes.
+   is restored, not only the public key and name hashes. The path length a CA
+   inherits from its issuer is not in the certificate. After every CA is
+   rebuilt, that limit is applied from the new table.
 
    update WOLFSSL_CACHE_CERT_VERSION if change layout for the following
    PERSIST_CERT_CACHE functions
@@ -1327,6 +1329,16 @@ static int cm_restore_signer(WOLFSSL_CERT_MANAGER* cm, const byte* derBuf,
             ret = MEMORY_E;
         }
         if (ret == 0) {
+            /* ParseCert can tighten maxPathLen from an issuer already in the
+             * live table. That table is replaced by this restore, so keep
+             * only the path length stored in this certificate. The inherited
+             * limit is applied once every restored CA is present. */
+            if (cert->pathLengthSet) {
+                cert->maxPathLen = cert->pathLength;
+            }
+            else {
+                cert->maxPathLen = (word16)WOLFSSL_MAX_PATH_LEN;
+            }
             ret = FillSigner(signer, cert, type, der);
         }
         FreeDecodedCert(cert);
@@ -1682,6 +1694,232 @@ int CM_MemSaveCertCache(WOLFSSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
 }
 
 
+/* Issuer name hash is present on Signer when any of these are enabled.
+ * The same condition gates issuerNameHash in wolfcrypt/asn.h. */
+#if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME) || \
+    !defined(IGNORE_NAME_CONSTRAINTS)
+    #define CM_SIGNER_HAS_ISSUER_HASH
+#endif
+
+#if !defined(NO_SKID) && !defined(IGNORE_NAME_CONSTRAINTS)
+/* Find a signer in table by subject key identifier.
+ *
+ * Does not lock. table is private to the restore.
+ *
+ * @param [in] table  CA table to search.
+ * @param [in] skid   Subject key identifier hash.
+ * @return  Matching signer, or NULL.
+ */
+static Signer* cm_table_find_skid(Signer** table, const byte* skid)
+{
+    Signer* s = table[HashSigner(skid)];
+
+    while (s != NULL) {
+        if (XMEMCMP(skid, s->subjectKeyIdHash, SIGNER_DIGEST_SIZE) == 0) {
+            return s;
+        }
+        s = s->next;
+    }
+
+    return NULL;
+}
+#endif /* !NO_SKID && !IGNORE_NAME_CONSTRAINTS */
+
+#ifdef CM_SIGNER_HAS_ISSUER_HASH
+/* Find a signer in table by subject name hash.
+ *
+ * The row is selected by the subject key identifier when SKID is enabled,
+ * so the name hash can sit in any row.
+ *
+ * Does not lock. table is private to the restore.
+ *
+ * @param [in] table     CA table to search.
+ * @param [in] nameHash  Subject name hash.
+ * @return  Matching signer, or NULL.
+ */
+static Signer* cm_table_find_name(Signer** table, const byte* nameHash)
+{
+    int row;
+
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        Signer* s = table[row];
+
+        while (s != NULL) {
+            if (XMEMCMP(nameHash, s->subjectNameHash, SIGNER_DIGEST_SIZE) == 0) {
+                return s;
+            }
+            s = s->next;
+        }
+    }
+
+    return NULL;
+}
+#endif
+
+/* Return 1 when the signer is self-issued.
+ *
+ * A self-issued CA loaded as CA_TYPE does not inherit a path length.
+ * ParseCert skips the issuer lookup for that case.
+ *
+ * @param [in] s  Signer to test.
+ * @return  1 when self-issued.
+ * @return  0 otherwise.
+ */
+static int cm_signer_is_self_issued(Signer* s)
+{
+#ifdef CM_SIGNER_HAS_ISSUER_HASH
+    return XMEMCMP(s->subjectNameHash, s->issuerNameHash,
+                   SIGNER_DIGEST_SIZE) == 0;
+#else
+    return s->selfSigned;
+#endif
+}
+
+/* Find the issuer of s in table.
+ *
+ * Matches the CA_TYPE lookup in ParseCert: an authority key identifier is
+ * authoritative, and the name is used only when that identifier is absent.
+ * Does not lock.
+ *
+ * @param [in] table  CA table to search.
+ * @param [in] s      Signer whose issuer is required.
+ * @return  Issuer signer, or NULL.
+ */
+static Signer* cm_table_find_issuer(Signer** table, Signer* s)
+{
+    Signer* issuer = NULL;
+
+#if !defined(NO_SKID) && !defined(IGNORE_NAME_CONSTRAINTS)
+    if (s->authKeyIdSet) {
+        issuer = cm_table_find_skid(table, s->authKeyIdHash);
+#ifdef CM_SIGNER_HAS_ISSUER_HASH
+        if ((issuer != NULL) &&
+                (XMEMCMP(issuer->subjectNameHash, s->issuerNameHash,
+                         SIGNER_DIGEST_SIZE) != 0)) {
+            issuer = NULL;
+        }
+#endif
+        /* AKID is authoritative. Do not fall back to the name. */
+        return issuer;
+    }
+#endif
+
+#ifdef CM_SIGNER_HAS_ISSUER_HASH
+    issuer = cm_table_find_name(table, s->issuerNameHash);
+#else
+    (void)table;
+    (void)s;
+#endif
+
+    return issuer;
+}
+
+/* Apply each restored CA's inherited path length.
+ *
+ * ParseCert records the issuer's path length on the signer when the issuer
+ * is already in the live table. Restore parses every CA before that table
+ * is installed, so each signer still has only its own path length. Recompute
+ * the RFC 5280 limit from the restored signers. A path length of 0 is stored
+ * and not rejected, matching ParseCert with NO_VERIFY.
+ *
+ * Repeat until the values stop changing so a child is limited by its
+ * issuer's final value, independent of hash-bucket order.
+ *
+ * Does not lock.
+ *
+ * @param [in, out] table  Restored CA table.
+ * @param [in]      heap   Dynamic memory hint.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int cm_restore_apply_pathlen(Signer** table, void* heap)
+{
+    int count = 0;
+    int i;
+    int row;
+    int guard;
+    int changed;
+    struct {
+        Signer* signer;
+        word16  base;
+    }* refs;
+
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        Signer* s = table[row];
+
+        while (s != NULL) {
+            count++;
+            s = s->next;
+        }
+    }
+    if (count == 0) {
+        return 0;
+    }
+
+    refs = XMALLOC(sizeof(*refs) * (size_t)count, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (refs == NULL) {
+        return MEMORY_E;
+    }
+
+    i = 0;
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        Signer* s = table[row];
+
+        while (s != NULL) {
+            refs[i].signer = s;
+            refs[i].base = s->maxPathLen;
+            i++;
+            s = s->next;
+        }
+    }
+
+    for (guard = 0; guard < count; guard++) {
+        changed = 0;
+        for (i = 0; i < count; i++) {
+            Signer* s = refs[i].signer;
+            Signer* issuer;
+            word16  next;
+
+            /* Absent key usage is stored as all uses, including keyCertSign.
+             * ParseCert skips the path length check when that bit is clear. */
+            if ((s->keyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+                continue;
+            }
+            if (cm_signer_is_self_issued(s)) {
+                continue;
+            }
+
+            issuer = cm_table_find_issuer(table, s);
+            if ((issuer == NULL) || (issuer == s)) {
+                continue;
+            }
+
+            if (issuer->maxPathLen == 0) {
+                next = 0;
+            }
+            else {
+                next = (word16)((word32)issuer->maxPathLen - 1U);
+                if (next > refs[i].base) {
+                    next = refs[i].base;
+                }
+            }
+            if (next != s->maxPathLen) {
+                s->maxPathLen = next;
+                changed = 1;
+            }
+        }
+        if (!changed) {
+            break;
+        }
+    }
+
+    XFREE(refs, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return 0;
+}
+
+#undef CM_SIGNER_HAS_ISSUER_HASH
+
+
 /* Restore CA certificate table from memory,
  *
  * Locks CA table.
@@ -1746,6 +1984,15 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
             }
             /* Update pointer to data of next row. */
             current += added;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Inherited path length needs every issuer in the new table. */
+        int pathRet = cm_restore_apply_pathlen(table, cm->heap);
+
+        if (pathRet != 0) {
+            ret = pathRet;
         }
     }
 
