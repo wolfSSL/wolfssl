@@ -47,7 +47,7 @@
  * naming one level has to be #ifdef-guarded.
  *
  * Tests that need key generation or signing are gated on
- * WC_FALCON_HAVE_NATIVE_SIGN; argument-sanitising tests only need the
+ * TEST_FALCON_HAVE_SIGN; argument-sanitising tests only need the
  * always-present entry points and run under HAVE_FALCON.
  */
 
@@ -152,7 +152,7 @@ int test_wc_falcon_sizes(void)
 int test_wc_falcon_make_key(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     int li;
@@ -182,7 +182,7 @@ int test_wc_falcon_make_key(void)
     }
 
     wc_FreeRng(&rng);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -194,7 +194,7 @@ int test_wc_falcon_make_key(void)
 int test_wc_falcon_sign_vfy(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     byte* sig = NULL;
@@ -264,7 +264,7 @@ int test_wc_falcon_sign_vfy(void)
 
     wc_FreeRng(&rng);
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -276,7 +276,7 @@ int test_wc_falcon_sign_vfy(void)
 int test_wc_falcon_import_export(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     falcon_key key2;
     WC_RNG rng;
@@ -431,7 +431,7 @@ int test_wc_falcon_import_export(void)
     XFREE(prvpub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -443,7 +443,7 @@ int test_wc_falcon_import_export(void)
 int test_wc_falcon_check_key(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     byte* pub = NULL;
@@ -533,7 +533,7 @@ int test_wc_falcon_check_key(void)
     wc_FreeRng(&rng);
     XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -547,7 +547,7 @@ int test_wc_falcon_check_key(void)
 int test_wc_falcon_der(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     falcon_key key2;
     WC_RNG rng;
@@ -644,7 +644,7 @@ int test_wc_falcon_der(void)
     wc_FreeRng(&rng);
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -820,7 +820,7 @@ int test_wc_falcon_error_paths(void)
  * SHA-256 and SHA-512 Hash_DRBG take different seed sizes, so one seed gives
  * two unrelated streams. Hence the SHA-512 requirement below and the run-time
  * check for wc_Sha512Drbg_Disable(); anything bypassing the DRBG is excluded. */
-#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+#if defined(TEST_FALCON_HAVE_SIGN) && defined(WC_RNG_SEED_CB) && \
     defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
@@ -876,7 +876,7 @@ static int falcon_det_digest(const byte* buf, word32 sz, byte* out)
 int test_wc_falcon_deterministic(void)
 {
     EXPECT_DECLS;
-#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+#if defined(TEST_FALCON_HAVE_SIGN) && defined(WC_RNG_SEED_CB) && \
     defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
@@ -1021,7 +1021,7 @@ int test_wc_falcon_deterministic(void)
 int test_wc_falcon_key_reuse(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     falcon_key other;
     WC_RNG rng;
@@ -1140,7 +1140,7 @@ int test_wc_falcon_key_reuse(void)
 int test_wc_falcon_level_overwrite(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     byte* sig = NULL;
@@ -1237,7 +1237,8 @@ int test_wc_falcon_level_overwrite(void)
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 #define FALCON_OOM_TEST
 #endif
-#ifndef WOLFSSL_NO_MALLOC
+/* swdev verifies in its own copy of wolfCrypt, out of the hook's reach. */
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_SWDEV)
 #define FALCON_VERIFY_OOM_TEST
 #endif
 #endif

@@ -23,6 +23,16 @@
 #define WOLFCRYPT_TEST_FALCON_H
 
 #include <tests/api/api_decl.h>
+#ifdef HAVE_FALCON
+    #include <wolfssl/wolfcrypt/falcon.h>
+#endif
+
+/* Native signing, or swdev in its place. */
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) || \
+    (defined(HAVE_FALCON) && defined(WOLFSSL_SWDEV) && \
+     !defined(WOLFSSL_FALCON_VERIFY_ONLY))
+    #define TEST_FALCON_HAVE_SIGN
+#endif
 
 int test_wc_falcon_sizes(void);
 int test_wc_falcon_make_key(void);

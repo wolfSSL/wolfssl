@@ -74808,6 +74808,14 @@ static wc_test_ret_t mldsa_decode_test(void)
 
 #ifdef HAVE_FALCON
 
+/* Native core, or swdev in its place. */
+#if !defined(WOLF_CRYPTO_CB_ONLY_FALCON) || defined(WOLFSSL_SWDEV)
+    #define FALCON_TEST_HAVE_IMPL
+#endif
+#if defined(FALCON_TEST_HAVE_IMPL) && !defined(WOLFSSL_FALCON_VERIFY_ONLY)
+    #define FALCON_TEST_HAVE_SIGN
+#endif
+
 /* Differential Falcon verify test.
  *
  * The public keys and signatures below are KNOWN-ANSWER VECTORS that were
@@ -74832,9 +74840,7 @@ static wc_test_ret_t mldsa_decode_test(void)
  * then drop pk / sig / siglen into the arrays below. (liboqs >= 0.11 API.)
  */
 
-/* The KAT vectors and their verifier exercise the software verify path, which
- * is not present in a WOLF_CRYPTO_CB_ONLY_FALCON build. */
-#ifndef WOLF_CRYPTO_CB_ONLY_FALCON
+#ifdef FALCON_TEST_HAVE_IMPL
 #define FALCON_KAT_MSG "wolfSSL Falcon differential KAT"
 
 #ifndef WOLFSSL_NO_FALCON_LEVEL1
@@ -75305,13 +75311,22 @@ out:
     WC_FREE_VAR(badSig, HEAP_HINT);
     return ret;
 }
-#endif /* !WOLF_CRYPTO_CB_ONLY_FALCON */
+#endif /* FALCON_TEST_HAVE_IMPL */
+
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+/* swdev serves keys with no device, so use an id with none registered. */
+#ifdef WOLFSSL_SWDEV
+    #define FALCON_NO_DEV_DEVID  0x4e4f4456 /* 'NODV' */
+#else
+    #define FALCON_NO_DEV_DEVID  INVALID_DEVID
+#endif
+#endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
 {
     wc_test_ret_t ret = 0;
 
-#ifndef WOLF_CRYPTO_CB_ONLY_FALCON
+#ifdef FALCON_TEST_HAVE_IMPL
 #ifndef WOLFSSL_NO_FALCON_LEVEL1
     ret = falcon_verify_kat(FALCON_LEVEL1, FALCON512_pk,
             (word32)sizeof(FALCON512_pk), FALCON512_sig, FALCON512_SIGLEN);
@@ -75326,7 +75341,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
         return ret;
 #endif
 
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef FALCON_TEST_HAVE_SIGN
     {
         /* Native keygen -> sign -> verify round-trip (no liboqs). */
         /* Only the levels this build has: wc_falcon_set_level() rejects one
@@ -75431,13 +75446,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
         if (ret != 0)
             return ret;
     }
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
-#else /* WOLF_CRYPTO_CB_ONLY_FALCON */
-    /* Software Falcon is compiled out. Confirm the public API refuses an
-     * operation when no crypto-callback device is available (INVALID_DEVID),
-     * rather than silently doing nothing. */
+#endif /* FALCON_TEST_HAVE_SIGN */
+#endif /* FALCON_TEST_HAVE_IMPL */
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* With no device behind the key, the API must refuse, not do nothing. */
     {
         WC_DECLARE_VAR(k, falcon_key, 1, HEAP_HINT);
+        byte sig[1];
+        word32 sigLen = (word32)sizeof(sig);
         int k_inited = 0;
         int res = 0;
         int r;
@@ -75446,7 +75462,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
         if (!WC_VAR_OK(k))
             ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         if (ret == 0)
-            ret = wc_falcon_init(k);
+            ret = wc_falcon_init_ex(k, HEAP_HINT, FALCON_NO_DEV_DEVID);
         if (ret == 0) {
             k_inited = 1;
             ret = wc_falcon_set_level(k, FALCON_MAX_LEVEL);
@@ -75457,13 +75473,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
             if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
                 ret = WC_TEST_RET_ENC_NC;
         }
+        if (ret == 0) {
+            r = wc_falcon_sign_msg((const byte*)"m", 1, sig, &sigLen, k, NULL);
+            if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+                ret = WC_TEST_RET_ENC_NC;
+        }
         if (k_inited)
             wc_falcon_free(k);
         WC_FREE_VAR(k, HEAP_HINT);
         if (ret != 0)
             return ret;
     }
-#endif /* !WOLF_CRYPTO_CB_ONLY_FALCON */
+#endif /* WOLF_CRYPTO_CB_ONLY_FALCON */
 
     return 0;
 }
@@ -99093,12 +99114,12 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* WOLFSSL_HAVE_SLHDSA */
-    #if defined(HAVE_FALCON) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
+    #ifdef FALCON_TEST_HAVE_IMPL
     #ifndef WOLFSSL_FALCON_VERIFY_ONLY
         if (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN &&
                 info->pk.pqc_sig_kg.type == WC_PQC_SIG_TYPE_FALCON) {
             falcon_key* fk = (falcon_key*)info->pk.pqc_sig_kg.key;
-            /* set devId invalid so the software path is used (no recursion) */
+            /* set devId invalid so the call does not come back here */
             fk->devId = INVALID_DEVID;
             ret = wc_falcon_make_key(fk, info->pk.pqc_sig_kg.rng);
             fk->devId = devIdArg;
@@ -99131,7 +99152,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             ret = verifyRet;
             myCtx->exampleVar++;
         }
-    #endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
+    #endif /* FALCON_TEST_HAVE_IMPL */
     #ifdef HAVE_FALCON
         /* Software check runs in the caller when this is unavailable. */
         if (info->pk.type == WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY &&
@@ -104522,7 +104543,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         myCtx.exampleVar = baseline;
     }
 #endif
-#if defined(HAVE_FALCON) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
+#ifdef FALCON_TEST_HAVE_IMPL
     if (ret == 0) {
         /* Route Falcon through the crypto callback (global devId is set) and
          * confirm the cb path was actually exercised via the hit counter, so a
@@ -104535,7 +104556,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             ret = WC_TEST_RET_ENC_NC;
         myCtx.exampleVar = baseline;
     }
-#endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
+#endif /* FALCON_TEST_HAVE_IMPL */
 #ifdef HAVE_FALCON
     /* wc_falcon_check_key() dispatches to callback and returns its result */
     if (ret == 0) {
@@ -104622,8 +104643,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             else if (myCtx.exampleVar == prev)
                 ret = WC_TEST_RET_ENC_NC;
         }
-    #if !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
+    #ifdef FALCON_TEST_HAVE_SIGN
         /* Local key: public key is passed, then software check on fallback */
         if (ret == 0) {
             WC_DECLARE_VAR(falconRng, WC_RNG, 1, HEAP_HINT);
@@ -104659,7 +104679,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
                 wc_FreeRng(falconRng);
             WC_FREE_VAR(falconRng, HEAP_HINT);
         }
-    #endif /* !WOLFSSL_FALCON_VERIFY_ONLY && !WOLF_CRYPTO_CB_ONLY_FALCON */
+    #endif /* FALCON_TEST_HAVE_SIGN */
         myCtx.falconCheckRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
         if (key_inited)
             wc_falcon_free(key);
