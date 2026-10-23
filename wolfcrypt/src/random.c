@@ -9341,6 +9341,8 @@ void wc_RNG_TreeCastFailed(void)
     TreeSetFailed(DRBG_SHA512_KAT_FIPS_E);
     if (TreeWipeAll() != 0)
         WOLFSSL_MSG("RNG tree: a DRBG did not zeroize");
+    /* Every WC_RNG child is instantiated again before its next output. */
+    wc_RNG_global_invalidate_entropy();
     TreeSeedingGive();
 }
 
