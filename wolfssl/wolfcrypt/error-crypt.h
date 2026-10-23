@@ -366,8 +366,10 @@ enum wolfCrypt_ErrorCodes {
     HWPUF_GET_KEY_E     = -1041, /* HWPUF get key failed */
     HWPUF_ZEROIZE_E     = -1042, /* HWPUF zeroize failed */
 
-    WC_SPAN2_LAST_E     = -1042, /* Update to indicate last used error code */
-    WC_LAST_E           = -1042, /* the last code used either here or in
+    ASN_OID_ARC_TOO_BIG_E = -1043, /* OID arc too big */
+
+    WC_SPAN2_LAST_E     = -1043, /* Update to indicate last used error code */
+    WC_LAST_E           = -1043, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

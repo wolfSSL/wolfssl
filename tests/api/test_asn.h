@@ -53,6 +53,12 @@ int test_ParseCert_critical_qc_statements(void);
 int test_ParseCert_nc_before_basic_constraints(void);
 int test_wc_DecodeObjectId(void);
 int test_SetCertificatePolicies_no_empty_qualifiers(void);
+int test_EncodePolicyOID(void);
+int test_EncodePolicyOID_certgen(void);
+int test_wolfSSL_X509_get_certPoliciesTruncated(void);
+int test_ParseCert_policies_past_max(void);
+int test_wolfSSL_X509_print_nonminimal_ext_oid(void);
+int test_wc_SetCustomExtension_mutated_oid(void);
 int test_ToTraditional_ex_handcrafted(void);
 int test_ToTraditional_ex_roundtrip(void);
 int test_ToTraditional_ex_negative(void);
@@ -98,6 +104,12 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_ParseCert_nc_before_basic_constraints), \
     TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
     TEST_DECL_GROUP("asn", test_SetCertificatePolicies_no_empty_qualifiers), \
+    TEST_DECL_GROUP("asn", test_EncodePolicyOID),                   \
+    TEST_DECL_GROUP("asn", test_EncodePolicyOID_certgen),           \
+    TEST_DECL_GROUP("x509", test_wolfSSL_X509_get_certPoliciesTruncated), \
+    TEST_DECL_GROUP("asn", test_ParseCert_policies_past_max),       \
+    TEST_DECL_GROUP("x509", test_wolfSSL_X509_print_nonminimal_ext_oid), \
+    TEST_DECL_GROUP("asn", test_wc_SetCustomExtension_mutated_oid), \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_negative),         \
