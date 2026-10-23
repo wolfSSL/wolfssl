@@ -4806,6 +4806,10 @@ int test_wolfSSL_CertManagerPathLen_cert_cache(void)
         "./certs/test-pathlen/chainJ-ICA1-no_pathlen.pem";
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    /* A new context can have verification off. Path length is then stored
+     * and the load still succeeds. Turn verification on so a path length
+     * of 0 is rejected, as CertManagerLoadCA does. */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, root_cert, NULL),
                 WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, ica4_cert, NULL),
@@ -4831,6 +4835,7 @@ int test_wolfSSL_CertManagerPathLen_cert_cache(void)
 
     /* Restore into a context that has never loaded the CAs. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
     ExpectIntEQ(wolfSSL_CTX_memrestore_cert_cache(ctx, cache, used),
                 WOLFSSL_SUCCESS);
     ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
