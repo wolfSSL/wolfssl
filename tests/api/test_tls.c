@@ -4168,38 +4168,46 @@ int test_tls13_session_resumption_sni_mismatch(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_SNI) && \
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)) && \
     !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    #define TEST_CB_CTX_CERT_LOAD
+#endif
+
+#ifdef TEST_CB_CTX_CERT_LOAD
 enum {
-    SNI_LOAD_CTX_CERT,
-    SNI_LOAD_CTX_KEY,
-    SNI_LOAD_SSL_CERT,
-    SNI_SWITCH_CTX
+    CB_SNI,
+    CB_CERT_SETUP
 };
 
-typedef struct SniLoadCase {
+enum {
+    CB_LOAD_CTX_CERT,
+    CB_LOAD_CTX_KEY,
+    CB_LOAD_SSL_CERT,
+    CB_SWITCH_CTX
+};
+
+typedef struct CbLoadCase {
     WOLFSSL_CTX* ctx2;
     int action;
     int loadRet;
-} SniLoadCase;
+} CbLoadCase;
 
-static int sni_load_cb(WOLFSSL* ssl, int* ad, void* arg)
+static void cb_load_run(WOLFSSL* ssl, CbLoadCase* c)
 {
-    SniLoadCase* c = (SniLoadCase*)arg;
     WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
 
-    (void)ad;
     switch (c->action) {
-        case SNI_LOAD_CTX_CERT:
+        case CB_LOAD_CTX_CERT:
             c->loadRet = wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
                 CERT_FILETYPE);
             break;
-        case SNI_LOAD_CTX_KEY:
+        case CB_LOAD_CTX_KEY:
             c->loadRet = wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
                 CERT_FILETYPE);
             break;
     #ifdef OPENSSL_EXTRA
-        case SNI_SWITCH_CTX:
+        case CB_SWITCH_CTX:
             c->loadRet = (wolfSSL_set_SSL_CTX(ssl, c->ctx2) == c->ctx2) ?
                 WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
             break;
@@ -4209,17 +4217,92 @@ static int sni_load_cb(WOLFSSL* ssl, int* ad, void* arg)
                 CERT_FILETYPE);
             break;
     }
+}
+
+#ifdef HAVE_SNI
+static int sni_load_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    (void)ad;
+    cb_load_run(ssl, (CbLoadCase*)arg);
     return 0;
 }
 #endif
 
-/* Replacing the certificate or key on the context from the SNI callback fails
- * the handshake. Loading one on the session is allowed. */
-int test_tls_sni_cb_ctx_cert_load(void)
+#ifdef WOLFSSL_CERT_SETUP_CB
+static int cert_setup_load_cb(WOLFSSL* ssl, void* arg)
+{
+    cb_load_run(ssl, (CbLoadCase*)arg);
+    return 1;
+}
+#endif
+
+static int test_cb_ctx_cert_load_one(int cb, method_provider client,
+    method_provider server, int action, int err)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_SNI) && \
-    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    CbLoadCase c;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&c, 0, sizeof(c));
+    c.action = action;
+    ExpectNotNull(c.ctx2 = wolfSSL_CTX_new(server()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(c.ctx2, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(c.ctx2, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client, server), 0);
+#ifdef HAVE_SNI
+    if (cb == CB_SNI) {
+        const char* host = "example.com";
+
+        wolfSSL_CTX_set_servername_callback(ctx_s, sni_load_cb);
+        ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &c),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+            (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+    }
+#endif
+#ifdef WOLFSSL_CERT_SETUP_CB
+    if (cb == CB_CERT_SETUP) {
+        wolfSSL_CTX_set_cert_cb(ctx_s, cert_setup_load_cb, &c);
+    }
+#endif
+    if (err == 0) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+    else {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR), err);
+    }
+    ExpectIntEQ(c.loadRet, WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(c.ctx2);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_CB_CTX_CERT_LOAD */
+
+/* Replacing the certificate or key on the context from the SNI or certificate
+ * setup callback fails the handshake. Loading one on the session is allowed. */
+int test_tls_cb_ctx_cert_load(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CB_CTX_CERT_LOAD
+    static const int cbs[] = {
+    #ifdef HAVE_SNI
+        CB_SNI,
+    #endif
+    #ifdef WOLFSSL_CERT_SETUP_CB
+        CB_CERT_SETUP,
+    #endif
+    };
     static const struct {
         method_provider client;
         method_provider server;
@@ -4236,61 +4319,70 @@ int test_tls_sni_cb_ctx_cert_load(void)
         int err;
     } cases[] = {
     #ifndef WOLFSSL_COPY_CERT
-        { SNI_LOAD_CTX_CERT, WC_NO_ERR_TRACE(BAD_STATE_E) },
+        { CB_LOAD_CTX_CERT, WC_NO_ERR_TRACE(BAD_STATE_E) },
     #endif
     #if !defined(WOLFSSL_COPY_KEY) && !defined(WOLFSSL_BLIND_PRIVATE_KEY)
-        { SNI_LOAD_CTX_KEY, WC_NO_ERR_TRACE(BAD_STATE_E) },
+        { CB_LOAD_CTX_KEY, WC_NO_ERR_TRACE(BAD_STATE_E) },
     #endif
-        { SNI_LOAD_SSL_CERT, 0 },
+        { CB_LOAD_SSL_CERT, 0 },
     #ifdef OPENSSL_EXTRA
-        { SNI_SWITCH_CTX, 0 },
+        { CB_SWITCH_CTX, 0 },
     #endif
     };
-    const char* host = "example.com";
     size_t i;
     size_t j;
+    size_t k;
 
-    for (i = 0; i < XELEM_CNT(methods); i++) {
-        for (j = 0; j < XELEM_CNT(cases); j++) {
-            WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-            WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-            struct test_memio_ctx test_ctx;
-            SniLoadCase c;
-
-            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-            XMEMSET(&c, 0, sizeof(c));
-            c.action = cases[j].action;
-            ExpectNotNull(c.ctx2 = wolfSSL_CTX_new(methods[i].server()));
-            ExpectIntEQ(wolfSSL_CTX_use_certificate_file(c.ctx2, svrCertFile,
-                CERT_FILETYPE), WOLFSSL_SUCCESS);
-            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(c.ctx2, svrKeyFile,
-                CERT_FILETYPE), WOLFSSL_SUCCESS);
-            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
-                &ssl_s, methods[i].client, methods[i].server), 0);
-            wolfSSL_CTX_set_servername_callback(ctx_s, sni_load_cb);
-            ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &c),
-                WOLFSSL_SUCCESS);
-            ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
-                (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
-            if (cases[j].err == 0) {
-                ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL),
-                    0);
+    for (k = 0; k < XELEM_CNT(cbs); k++) {
+        for (i = 0; i < XELEM_CNT(methods); i++) {
+            for (j = 0; j < XELEM_CNT(cases); j++) {
+                ExpectIntEQ(test_cb_ctx_cert_load_one(cbs[k],
+                    methods[i].client, methods[i].server, cases[j].action,
+                    cases[j].err), TEST_SUCCESS);
             }
-            else {
-                ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL),
-                    0);
-                ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
-                    cases[j].err);
-            }
-            ExpectIntEQ(c.loadRet, WOLFSSL_SUCCESS);
-
-            wolfSSL_free(ssl_c);
-            wolfSSL_free(ssl_s);
-            wolfSSL_CTX_free(ctx_c);
-            wolfSSL_CTX_free(ctx_s);
-            wolfSSL_CTX_free(c.ctx2);
         }
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The alternative key swapped in to sign is still the context's buffer. */
+int test_tls_ctx_alt_key_swap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(WOLFSSL_TLS13) && \
+    (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && defined(HAVE_ECC) && !defined(WOLFSSL_COPY_KEY) && \
+    !defined(WOLFSSL_BLIND_PRIVATE_KEY)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_AltPrivateKey_file(ctx, eccKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
+
+    /* Same swap as SendTls13CertificateVerify with the alternative key. */
+    if (ssl != NULL) {
+        ssl->buffers.key = ssl->buffers.altKey;
+        ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
+        ssl->buffers.weOwnAltKey = 0;
+    }
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_use_AltPrivateKey_file(ctx, eccKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }
