@@ -2746,7 +2746,8 @@ static int Pkcs11RsaPrivateKey(Pkcs11Session* session, RsaKey* rsaKey,
         ret = Pkcs11FindRsaKey(privateKey, CKO_PRIVATE_KEY, session, rsaKey);
     }
 
-    if ((ret == 0) && (!sessionKey)) {
+    if ((ret == 0) && (!sessionKey) &&
+            (mp_iszero(&rsaKey->n) || mp_iszero(&rsaKey->e))) {
         ret = Pkcs11GetRsaPublicKey(rsaKey, session, *privateKey);
     }
 
