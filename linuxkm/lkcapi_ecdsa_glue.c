@@ -38,14 +38,6 @@
     #undef LINUXKM_LKCAPI_REGISTER_ECDSA
 #endif
 
-#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
-    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
-        /* only register p192 if specifically enabled, and if not fips. */
-        #define LINUXKM_ECC192
-    #endif
-#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
     /*
      * note: In linux 6.13 the sign/verify callbacks were removed from
@@ -127,18 +119,93 @@ static int ecdsa_nist_p192_loaded = 0;
 #endif /* LINUXKM_ECC192 */
 static int ecdsa_nist_p256_loaded = 0;
 static int ecdsa_nist_p384_loaded = 0;
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int ecdsa_nist_p521_loaded = 0;
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
+#if defined(LINUXKM_ECC521)
+    #define KM_ECDSA_MAX_CURVE_LEN 66U /* NIST P-521 */
+#else
+    #define KM_ECDSA_MAX_CURVE_LEN 48U /* NIST P-384 */
+#endif
+
+/* The kernel crypto API permits concurrent operations on a single tfm,
+ * with no serialization by the core, so the tfm context must be
+ * effectively read-only after setkey: it holds only the raw public key
+ * octets (validated at set time by a transient import), and each
+ * operation deserializes them into a heap-transient ecc_key of its own
+ * (cf. the ML-DSA glue, the model for this pattern). */
 struct km_ecdsa_ctx {
-    ecc_key *    key;
     int          curve_id;
     word32       curve_len;
 #ifdef LINUXKM_ECDSA_SIG_ALG
     word32       curve_nbits;
 #endif /* LINUXKM_ECDSA_SIG_ALG */
+    byte         pub_set;
+    /* raw unsigned public key coordinates (x || y), as received from
+     * setkey, sans the leading 0x04 format byte. */
+    byte         pub[2U * KM_ECDSA_MAX_CURVE_LEN];
 };
+
+/* Build a transient ecc_key for one operation.  Returns the key, or
+ * NULL.  The caller must pass it to km_ecdsa_del_key() when done. */
+static ecc_key *km_ecdsa_new_key(void)
+{
+    ecc_key *key = (ecc_key *)malloc(sizeof(*key));
+
+    if (key == NULL)
+        return NULL;
+    if (wc_ecc_init(key) != 0) {
+        free(key);
+        return NULL;
+    }
+    return key;
+}
+
+static void km_ecdsa_del_key(ecc_key *key)
+{
+    if (key == NULL)
+        return;
+    wc_ecc_free(key);
+    ForceZero(key, sizeof(*key));
+    free(key);
+}
+
+/* Deserialize the tfm's stored public key octets into a transient
+ * ecc_key.  Returns 0, -EINVAL, or -ENOMEM; *key_out is non-NULL only
+ * on success. */
+static int km_ecdsa_key_from_ctx(const struct km_ecdsa_ctx *ctx,
+                                 ecc_key **key_out)
+{
+    ecc_key *key = NULL;
+    int      err;
+
+    *key_out = NULL;
+
+    if (! ctx->pub_set)
+        return -EINVAL;
+
+    key = km_ecdsa_new_key();
+    if (key == NULL)
+        return -ENOMEM;
+
+    err = wc_ecc_import_unsigned(key, ctx->pub,
+                                 ctx->pub + ctx->curve_len, NULL,
+                                 ctx->curve_id);
+    if ((err == 0) && (key->type != ECC_PUBLICKEY))
+        err = WC_NO_ERR_TRACE(WC_FAILURE);
+    if (err) {
+        #ifdef WOLFKM_DEBUG_ECDSA
+        pr_err("%s: per-op wc_ecc_import_unsigned failed: %d\n",
+               WOLFKM_ECDSA_DRIVER, err);
+        #endif
+        km_ecdsa_del_key(key);
+        return -EINVAL;
+    }
+
+    *key_out = key;
+    return 0;
+}
 
 /* shared ecdsa callbacks */
 static void         km_ecdsa_exit(struct ecdsa_tfm_type *tfm);
@@ -161,9 +228,9 @@ static int          km_ecdsa_nist_p192_init(struct ecdsa_tfm_type *tfm);
 #endif /* LINUXKM_ECC192 */
 static int          km_ecdsa_nist_p256_init(struct ecdsa_tfm_type *tfm);
 static int          km_ecdsa_nist_p384_init(struct ecdsa_tfm_type *tfm);
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int          km_ecdsa_nist_p521_init(struct ecdsa_tfm_type *tfm);
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 #if defined(LINUXKM_ECC192)
 #ifdef LINUXKM_ECDSA_SIG_ALG
@@ -254,7 +321,7 @@ static struct akcipher_alg ecdsa_nist_p384 = {
 };
 #endif /* !LINUXKM_ECDSA_SIG_ALG */
 
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 #ifdef LINUXKM_ECDSA_SIG_ALG
 static struct sig_alg ecdsa_nist_p521 = {
     .base.cra_name        = WOLFKM_ECDSA_P521_NAME,
@@ -283,7 +350,7 @@ static struct akcipher_alg ecdsa_nist_p521 = {
     .exit                 = km_ecdsa_exit,
 };
 #endif /* !LINUXKM_ECDSA_SIG_ALG */
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 /**
  * Decodes and sets the ECDSA pub key.
@@ -301,8 +368,16 @@ static int km_ecdsa_set_pub(struct ecdsa_tfm_type *tfm, const void *key,
     int                   err = 0;
     struct km_ecdsa_ctx * ctx = NULL;
     const byte *          pub = key;
+    ecc_key *             probe_key = NULL;
 
     ctx = ecdsa_tfm_ctx_cb(tfm);
+
+    /* Per kernel setkey semantics (cf. rsa_set_pub_key(), and the ed/
+     * ML-DSA/SLH-DSA glues), destroy the resident key state up front --
+     * a rejected key must leave the transform keyless, not verifying
+     * against the previously installed key. */
+    ctx->pub_set = 0;
+    XMEMSET(ctx->pub, 0, sizeof(ctx->pub));
 
     switch (ctx->curve_len) {
     #if defined(LINUXKM_ECC192)
@@ -310,7 +385,7 @@ static int km_ecdsa_set_pub(struct ecdsa_tfm_type *tfm, const void *key,
     #endif
     case 32: /* p256 */
     case 48: /* p384 */
-    #if defined(HAVE_ECC521)
+    #if defined(LINUXKM_ECC521)
     case 66: /* p521 */
     #endif
         break;
@@ -339,9 +414,25 @@ static int km_ecdsa_set_pub(struct ecdsa_tfm_type *tfm, const void *key,
 
     pub += 1;
 
-    /* import raw public key x,y coordinates. */
-    err = wc_ecc_import_unsigned(ctx->key, pub, (pub + ctx->curve_len),
+    /* validate the raw public key x,y coordinates by a transient
+     * import, destroyed immediately -- the ctx stores only the octets,
+     * and each operation re-imports them locally. */
+    probe_key = km_ecdsa_new_key();
+    if (probe_key == NULL)
+        return -ENOMEM;
+
+    err = wc_ecc_import_unsigned(probe_key, pub, (pub + ctx->curve_len),
                                  NULL, ctx->curve_id);
+
+    if ((err == 0) && (probe_key->type != ECC_PUBLICKEY)) {
+        #ifdef WOLFKM_DEBUG_ECDSA
+        pr_err("%s: wc_ecc_import_unsigned bad key type: %d\n",
+               WOLFKM_ECDSA_DRIVER, probe_key->type);
+        #endif
+        err = WC_NO_ERR_TRACE(WC_FAILURE);
+    }
+
+    km_ecdsa_del_key(probe_key);
 
     if (unlikely(err)) {
         #ifdef WOLFKM_DEBUG_ECDSA
@@ -351,19 +442,13 @@ static int km_ecdsa_set_pub(struct ecdsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
-    /* We should get back ecc pub key type. */
-    if (ctx->key->type != ECC_PUBLICKEY) {
-        #ifdef WOLFKM_DEBUG_ECDSA
-        pr_err("%s: wc_ecc_import_unsigned bad key type: %d\n",
-               WOLFKM_ECDSA_DRIVER, ctx->key->type);
-        #endif
-        return -EINVAL;
-    }
+    XMEMCPY(ctx->pub, pub, (size_t)(2U * ctx->curve_len));
+    ctx->pub_set = 1;
 
     #ifdef WOLFKM_DEBUG_ECDSA
     pr_info("info: exiting km_ecdsa_set_pub %d\n", keylen);
     #endif /* WOLFKM_DEBUG_ECDSA */
-    return err;
+    return 0;
 }
 
 #ifdef LINUXKM_ECDSA_SIG_ALG
@@ -406,11 +491,9 @@ static void km_ecdsa_exit(struct ecdsa_tfm_type *tfm)
 
     ctx = ecdsa_tfm_ctx_cb(tfm);
 
-    if (ctx->key) {
-        wc_ecc_free(ctx->key);
-        free(ctx->key);
-        ctx->key = NULL;
-    }
+    /* the ctx holds only public octets and curve parameters -- nothing
+     * heap-resident. */
+    ForceZero(ctx, sizeof(*ctx));
 
     #ifdef WOLFKM_DEBUG_ECDSA
     pr_info("info: exiting km_ecdsa_exit\n");
@@ -446,15 +529,11 @@ static int km_ecdsa_init(struct ecdsa_tfm_type *tfm, int curve_id)
                        (ctx->curve_len * WOLFSSL_BIT_SIZE);
     #endif /* LINUXKM_ECDSA_SIG_ALG */
 
-    ctx->key = (ecc_key *)malloc(sizeof(ecc_key));
-    if (!ctx->key)
-        return -ENOMEM;
-
-    ret = wc_ecc_init(ctx->key);
-    if (ret < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
+    if (ctx->curve_len > KM_ECDSA_MAX_CURVE_LEN) {
+        /* can't happen for the curves registered here; guards the
+         * ctx->pub dimensioning against future curve additions. */
+        ctx->curve_len = 0;
+        return -EINVAL;
     }
 
     #ifdef WOLFKM_DEBUG_ECDSA
@@ -481,12 +560,12 @@ static int km_ecdsa_nist_p384_init(struct ecdsa_tfm_type *tfm)
     return km_ecdsa_init(tfm, ECC_SECP384R1);
 }
 
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int km_ecdsa_nist_p521_init(struct ecdsa_tfm_type *tfm)
 {
     return km_ecdsa_init(tfm, ECC_SECP521R1);
 }
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 #ifdef LINUXKM_ECDSA_SIG_ALG
 
@@ -534,6 +613,7 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
     struct km_ecdsa_ctx *ctx = crypto_sig_ctx(tfm);
     const struct km_ecdsa_raw_sig
                         *raw_sig = (const struct km_ecdsa_raw_sig *)src;
+    ecc_key             *key = NULL;
     byte                *work_buffer = NULL;
     byte                *r_buf = NULL;
     byte                *s_buf = NULL;
@@ -545,7 +625,7 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
     if (src == NULL || digest == NULL)
         return -EINVAL;
 
-    if ((ctx->key == NULL) || (ctx->key->type != ECC_PUBLICKEY))
+    if (! ctx->pub_set)
         return -EINVAL;
 
     if (slen != sizeof(struct km_ecdsa_raw_sig))
@@ -607,8 +687,16 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
         goto ecdsa_verify_end;
     }
 
+    /* per-operation key, deserialized locally from the ctx octets --
+     * wc_ecc_verify_hash() runs a state machine inside the key, so a
+     * tfm-resident key is not safe under the kernel API's concurrent-
+     * operations contract. */
+    err = km_ecdsa_key_from_ctx(ctx, &key);
+    if (err)
+        goto ecdsa_verify_end;
+
     err = wc_ecc_verify_hash(der_sig, der_sig_len, digest, dlen, &result,
-                             ctx->key);
+                             key);
 
     if (err) {
         #ifdef WOLFKM_DEBUG_ECDSA
@@ -624,12 +712,20 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
         pr_err("info: %s: ecdsa verify: verify fail: %d\n",
                WOLFKM_ECDSA_DRIVER, result);
         #endif /* WOLFKM_DEBUG_ECDSA */
+        /* -EKEYREJECTED is testmgr-mandated here, as the exception to
+         * the branch's -EBADMSG convention for verification failure:
+         * crypto/testmgr.h's x962_ecdsa_nist_p192/p256 suites each pin
+         * a bad-signature vector to verify_error is -EKEYREJECTED, and
+         * test_sig_one() requires an exact errno match.  (The in-tree
+         * crypto/ecdsa.c draws the same line: -EBADMSG for out-of-range
+         * r/s, -EKEYREJECTED for a well-formed signature that fails.) */
         err = -EKEYREJECTED;
         goto ecdsa_verify_end;
     }
 
 ecdsa_verify_end:
 
+    km_ecdsa_del_key(key);
     free(work_buffer);
 
     #ifdef WOLFKM_DEBUG_ECDSA
@@ -656,6 +752,7 @@ static int km_ecdsa_verify(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_ecdsa_ctx *    ctx = NULL;
+    ecc_key *                key = NULL;
     byte *                   sig = NULL;
     word32                   sig_len = 0;
     byte *                   hash = NULL;
@@ -669,6 +766,10 @@ static int km_ecdsa_verify(struct akcipher_request *req)
 
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
+
+    /* keyless reject, ahead of the copy-buffer allocation. */
+    if (! ctx->pub_set)
+        return -EINVAL;
 
     sig_len = req->src_len;
     hash_len = req->dst_len;
@@ -712,7 +813,15 @@ static int km_ecdsa_verify(struct akcipher_request *req)
     /* copy sig and hash from req->src to sig and contiguous hash buffer. */
     scatterwalk_map_and_copy(sig, req->src, 0, sig_len + hash_len, 0);
 
-    err = wc_ecc_verify_hash(sig, sig_len, hash, hash_len, &result, ctx->key);
+    /* per-operation key, deserialized locally from the ctx octets --
+     * wc_ecc_verify_hash() runs a state machine inside the key, so a
+     * tfm-resident key is not safe under the kernel API's concurrent-
+     * operations contract. */
+    err = km_ecdsa_key_from_ctx(ctx, &key);
+    if (err)
+        goto ecdsa_verify_end;
+
+    err = wc_ecc_verify_hash(sig, sig_len, hash, hash_len, &result, key);
 
     if (err) {
         #ifdef WOLFKM_DEBUG_ECDSA
@@ -734,6 +843,7 @@ static int km_ecdsa_verify(struct akcipher_request *req)
 
 ecdsa_verify_end:
 
+    km_ecdsa_del_key(key);
     free(sig);
 
     #ifdef WOLFKM_DEBUG_ECDSA
@@ -912,7 +1022,7 @@ static int linuxkm_test_ecdsa_nist_p384(void)
     return rc;
 }
 
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int linuxkm_test_ecdsa_nist_p521(void)
 {
     int rc = 0;
@@ -987,7 +1097,7 @@ static int linuxkm_test_ecdsa_nist_p521(void)
     return rc;
 
 }
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 #ifdef LINUXKM_ECDSA_SIG_ALG
 
@@ -1118,14 +1228,51 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         goto test_ecdsa_nist_end;
     }
 
-    /* corrupt the signature -- verify should now fail. */
+    /* corrupt the signature -- verify should now fail, with the
+     * testmgr-mandated -EKEYREJECTED (see km_ecdsa_verify()). */
     raw_sig->r[0] ^= 1U;
 
     ret = crypto_sig_verify(tfm, raw_sig, (unsigned int)sizeof(*raw_sig),
                             hash, hash_len);
-    if ((ret != -WC_NO_ERR_TRACE(EBADMSG)) && (ret != -WC_NO_ERR_TRACE(EKEYREJECTED))) {
-        pr_err("error: crypto_sig_verify returned %d, expected %d or %d\n",
-               ret, -EBADMSG, -EKEYREJECTED);
+    if (ret != -WC_NO_ERR_TRACE(EKEYREJECTED)) {
+        pr_err("error: crypto_sig_verify returned %d, expected %d\n",
+               ret, -EKEYREJECTED);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+
+    /* restore the signature for the probes below. */
+    raw_sig->r[0] ^= 1U;
+
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * verification against the previously installed key. */
+    ret = crypto_sig_set_pubkey(tfm, pub, pub_len - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_set_pubkey (short) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+    ret = crypto_sig_verify(tfm, raw_sig, (unsigned int)sizeof(*raw_sig),
+                            hash, hash_len);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_verify after rejected set_pubkey "
+               "returned %d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+    ret = crypto_sig_set_pubkey(tfm, pub, pub_len);
+    if (ret) {
+        pr_err("error: crypto_sig_set_pubkey (restore) returned: %d\n",
+               ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+    ret = crypto_sig_verify(tfm, raw_sig, (unsigned int)sizeof(*raw_sig),
+                            hash, hash_len);
+    if (ret) {
+        pr_err("error: crypto_sig_verify after restored set_pubkey "
+               "returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }
@@ -1272,6 +1419,46 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify returned %d, expected %d\n",
                ret, -EBADMSG);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * verification against the previously installed key. */
+    ret = crypto_akcipher_set_pub_key(tfm, pub, pub_len - 1);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_set_pub_key (short) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+    sg_init_table(src_tab, 2);
+    sg_set_buf(&src_tab[0], sig, sig_len);
+    sg_set_buf(&src_tab[1], hash, hash_len);
+    akcipher_request_set_crypt(req, src_tab, NULL, sig_len, hash_len);
+    ret = crypto_akcipher_verify(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_verify after rejected "
+               "set_pub_key returned %d, expected %d\n",
+               ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+    ret = crypto_akcipher_set_pub_key(tfm, pub, pub_len);
+    if (ret) {
+        pr_err("error: crypto_akcipher_set_pub_key (restore) "
+               "returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdsa_nist_end;
+    }
+    sg_init_table(src_tab, 2);
+    sg_set_buf(&src_tab[0], sig, sig_len);
+    sg_set_buf(&src_tab[1], hash, hash_len);
+    akcipher_request_set_crypt(req, src_tab, NULL, sig_len, hash_len);
+    ret = crypto_akcipher_verify(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_verify after restored "
+               "set_pub_key returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }

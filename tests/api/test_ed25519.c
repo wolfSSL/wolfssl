@@ -1158,7 +1158,6 @@ int test_wc_ed25519_verify_streaming(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
     };
     byte badSig[ED25519_SIG_SIZE];
-    byte ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -1205,14 +1204,26 @@ int test_wc_ed25519_verify_streaming(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
-    /* init: context==NULL/contextLen!=0 compound, explicit both-sides
-     * pairing within this function (type left as plain Ed25519 so the
-     * context is never actually consumed by the hash math either way,
-     * isolating the argument-check decision itself). */
+    /* init: context==NULL/contextLen!=0 compound (TRUE side), and the
+     * pure-type context rejection: RFC 8032 defines no context for pure
+     * Ed25519, so a non-empty context with type Ed25519 is rejected
+     * outright rather than silently discarded -- formerly this returned
+     * 0 and verified without binding the context. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
         NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* the pure-type non-empty-context rejection is absent from frozen
+     * FIPS module sources before v7. */
+    {
+        static const byte ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+        ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
+            ctx, sizeof(ctx)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+    /* the rejected inits happen ahead of any hash-state work, so a fresh
+     * pure roundtrip on the same key must still verify. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
-        ctx, sizeof(ctx)), 0);
+        NULL, 0), 0);
     ExpectIntEQ(wc_ed25519_verify_msg_update(msg, sizeof(msg), &key), 0);
     verify_ok = 0;
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, &key),

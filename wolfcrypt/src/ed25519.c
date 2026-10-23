@@ -508,16 +508,26 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 {
     int    ret;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* This path signs pure Ed25519 only: the SE050 callout takes no type
+     * and no context, so an Ed25519ctx or Ed25519ph request, or any
+     * non-empty context, cannot be honored here -- reject it rather than
+     * producing a signature for the wrong algorithm (cf. the
+     * WOLFSSL_SE050_ONLY_KEY_ID rejection on the software path). */
+    if ((type == Ed25519ctx) || (type == Ed25519ph) || (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     (void)context;
-    (void)contextLen;
-    (void)type;
     ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
 #elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
     (void)ed25519Ctx;
     ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
     if (((in == NULL) && (inLen != 0)) || out == NULL || outLen == NULL ||
-            key == NULL || (context == NULL && contextLen != 0)) {
+            key == NULL || (context == NULL && contextLen != 0))
+    {
+        return BAD_FUNC_ARG;
+    }
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
         return BAD_FUNC_ARG;
     }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
@@ -561,6 +571,16 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     /* sanity check on arguments */
     if (((in == NULL) && (inLen != 0)) || out == NULL || outLen == NULL ||
             key == NULL || (context == NULL && contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+    /* RFC 8032 defines no context for pure Ed25519 -- only Ed25519ctx
+     * and Ed25519ph take one, bound via dom2 -- so a non-empty context
+     * with type Ed25519 cannot be honored.  Reject it rather than
+     * signing without it, which would silently void the caller's
+     * intended domain separation.  The pure path is every type other
+     * than Ed25519ctx/Ed25519ph (the type parameter is a byte, so the
+     * Ed25519 enumerator, -1, is not directly representable in it). */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
         return BAD_FUNC_ARG;
     }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
@@ -1097,6 +1117,10 @@ int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen) {
     if (key == NULL)
         return BAD_FUNC_ARG;
+    /* see wc_ed25519_sign_msg_ex(): RFC 8032 defines no context for
+     * pure Ed25519. */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0))
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
                                         type, context, contextLen);
 }
@@ -1135,9 +1159,12 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 {
     int ret;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
-    (void)type;
+    /* see wc_ed25519_sign_msg_ex(): this path verifies pure Ed25519
+     * only. */
+    if ((type == Ed25519ctx) || (type == Ed25519ph) || (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     (void)context;
-    (void)contextLen;
     (void)ed25519Ctx;
     ret = se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
 #elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
@@ -1147,6 +1174,9 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     if (sig == NULL || ((msg == NULL) && (msgLen != 0)) || res == NULL ||
             key == NULL || (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
@@ -1196,6 +1226,12 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     if (sig == NULL || ((msg == NULL) && (msgLen != 0)) || res == NULL ||
             key == NULL || (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+    /* see wc_ed25519_sign_msg_ex(): RFC 8032 defines no context for
+     * pure Ed25519, so reject a non-empty one rather than silently
+     * verifying without it. */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */

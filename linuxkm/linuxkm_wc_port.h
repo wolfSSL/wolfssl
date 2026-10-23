@@ -2395,6 +2395,10 @@
     #endif
     #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
+    /* Scatterlist-safe allocation -- see wc_linuxkm_sg_malloc() in
+     * module_hooks.c.  Pairs with free() in all configurations. */
+    void *wc_linuxkm_sg_malloc(size_t size);
+
     #ifndef static_assert
         #define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)
         #define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
