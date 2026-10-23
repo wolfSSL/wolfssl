@@ -239,7 +239,7 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
 #include "lkcapi_dh_glue.c"
 
 static int linuxkm_lkcapi_register(void);
-static int linuxkm_lkcapi_unregister(void);
+static int linuxkm_lkcapi_unregister(int going);
 
 #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && defined(WC_LINUX_CONFIG_SELFTESTS)
 static int enabled_kernel_fips_enabled = 0;
@@ -280,7 +280,7 @@ static ssize_t deinstall_algs_handler(WC_MODULE_ATTR_CONST struct module_attribu
 
     pr_info("wolfCrypt: Deinstalling algorithms\n");
 
-    ret = linuxkm_lkcapi_unregister();
+    ret = linuxkm_lkcapi_unregister(0);
     if (ret != 0)
         return ret;
 
@@ -855,7 +855,7 @@ out_without_sig_ignored:
     return ret;
 }
 
-static int linuxkm_lkcapi_unregister(void)
+static int linuxkm_lkcapi_unregister(int going)
 {
     int seen_err = 0;
     int n_deregistered = 0;
@@ -876,7 +876,8 @@ static int linuxkm_lkcapi_unregister(void)
         goto out_without_sig_ignored;
     }
 
-    if (linuxkm_lkcapi_n_registered == 0) {
+    /* A going module (failed init, exit) is freed whatever the count says. */
+    if (linuxkm_lkcapi_n_registered == 0 && !going) {
         ret = -ENOENT;
         goto out;
     }
@@ -1111,11 +1112,15 @@ static int linuxkm_lkcapi_unregister(void)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
     /* special deinstallation handler for wc_linuxkm_drbg, to deinstall it as
-     * the system-wide default rng.  Last, and only when every algorithm whose
-     * tfms hold a WC_RNG is gone: those RNGs seed from the DRBG's tree.
+     * the system-wide default rng.  Last, after every other algorithm is gone:
+     * their tfms hold WC_RNGs seeded from the DRBG's tree.
      */
-    if (wc_linuxkm_drbg_loaded && (seen_err == 0)) {
+    if (wc_linuxkm_drbg_loaded && (going || (seen_err == 0))) {
         ret = wc_linuxkm_drbg_cleanup();
+#ifdef WC_RNG_TREE
+        if (ret != 0 && going)
+            ret = wc_linuxkm_drbg_abandon();
+#endif /* WC_RNG_TREE */
         if (ret == 0)
             ++n_deregistered;
         else

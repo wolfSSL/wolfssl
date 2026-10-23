@@ -1712,7 +1712,7 @@ static int wolfssl_init(void)
 
     if (ret) {
         pr_err("ERROR: linuxkm_lkcapi_register() failed with return code %d.\n", ret);
-        linuxkm_lkcapi_unregister();
+        linuxkm_lkcapi_unregister(1);
         (void)libwolfssl_cleanup();
         msleep(10);
         return -ECANCELED;
@@ -1784,7 +1784,7 @@ static void wc_linuxkm_deinstall(void) {
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
-    (void)linuxkm_lkcapi_unregister();
+    (void)linuxkm_lkcapi_unregister(1);
     (void)linuxkm_lkcapi_sysfs_deinstall();
 #endif
 }

@@ -485,6 +485,10 @@ static void RngZeroize(void)
         pr_err("ERROR: wc_RNG_TreeZeroize() could not zeroize every DRBG.\n");
 }
 
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+static int RngGiveBack(void);
+#endif
+
 static void RngStop(void)
 {
 #ifdef CONFIG_PM_SLEEP
@@ -503,6 +507,12 @@ static void RngStop(void)
 #endif
     rngReady = 0;
     cancel_delayed_work_sync(&rngRootWork);
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    /* Stopped: stuck handler callers return, so retry a refused unregister. */
+    if (rngDefault && RngGiveBack() != 0)
+        pr_err("ERROR: default rng or get_random_bytes handlers left in a "
+               "stopped tree.\n");
+#endif
     RngZeroize();
 }
 
@@ -703,6 +713,19 @@ static int wc_linuxkm_drbg_cleanup(void)
     rngUnregistered = 0;
     wc_linuxkm_drbg_loaded = 0;
     return 0;
+}
+
+/* The kernel frees a going module whatever holds it (kernel/module/main.c,
+ * do_init_module fail:): after a refused cleanup, stop what it armed anyway. */
+static int wc_linuxkm_drbg_abandon(void)
+{
+    int ret;
+
+    RngStop();
+    ret = wc_linuxkm_drbg_cleanup();   /* stopped, so a stuck caller is gone */
+    if (ret != 0)
+        wc_linuxkm_drbg_loaded = 0;    /* still held: freed under the holder */
+    return ret;
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG && WC_RNG_TREE */
