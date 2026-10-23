@@ -2792,6 +2792,9 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     if (buffer == NULL)
         return MEMORY_E;
 #endif
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+    wc_MemZero_Add("wc_Sha512Transform buffer", buffer, WC_SHA512_BLOCK_SIZE);
+#endif
 
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
@@ -2820,8 +2823,11 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
     XMEMCPY(sha->buffer, buffer, WC_SHA512_BLOCK_SIZE);
 #endif
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     ForceZero(buffer, WC_SHA512_BLOCK_SIZE);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(buffer, WC_SHA512_BLOCK_SIZE);
+#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     XFREE(buffer, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return ret;
@@ -3291,6 +3297,10 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
 
     WC_CALLOC_VAR_EX(tmpSha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("Sha512_Family_GetHash tmpSha512", tmpSha512,
+        sizeof(*tmpSha512));
+#endif
 
     /* copy this sha512 into tmpSha */
     ret = wc_Sha512Copy(sha512, tmpSha512);
@@ -3298,6 +3308,11 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
         ret = finalfp(tmpSha512, hash);
         wc_Sha512Free(tmpSha512);
     }
+
+    ForceZero(tmpSha512, sizeof(*tmpSha512));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha512, sizeof(*tmpSha512));
+#endif
 
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -3344,7 +3359,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
-        XMEMSET(dst, 0, sizeof(wc_Sha512));
+        ForceZero(dst, sizeof(wc_Sha512));
         return MEMORY_E;
     }
 #endif
@@ -3737,6 +3752,10 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
 
     WC_CALLOC_VAR_EX(tmpSha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Sha384GetHash tmpSha384", tmpSha384,
+        sizeof(*tmpSha384));
+#endif
 
     /* copy this sha384 into tmpSha */
     ret = wc_Sha384Copy(sha384, tmpSha384);
@@ -3744,6 +3763,11 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
         ret = wc_Sha384Final(tmpSha384, hash);
         wc_Sha384Free(tmpSha384);
     }
+
+    ForceZero(tmpSha384, sizeof(*tmpSha384));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha384, sizeof(*tmpSha384));
+#endif
 
     WC_FREE_VAR_EX(tmpSha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -3786,7 +3810,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA384_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
-        XMEMSET(dst, 0, sizeof(wc_Sha384));
+        ForceZero(dst, sizeof(wc_Sha384));
         return MEMORY_E;
     }
 #endif

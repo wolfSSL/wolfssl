@@ -491,7 +491,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 
     static int Transform(wc_Sha* sha, const byte* data)
     {
-        word32 W[WC_SHA_BLOCK_SIZE / sizeof(word32)];
+        word32* W = sha->W;
 
         /* Copy context->state[] to working vars */
         word32 a = sha->digest[0];
@@ -834,6 +834,10 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
     if (sha == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(LITTLE_ENDIAN_ORDER) && \
+    !defined(WOLFSSL_WIDE_BYTE)
+    wc_MemZero_Add("wc_ShaFinalRaw digest", digest, sizeof(digest));
+#endif
 
 #if defined(WOLFSSL_WIDE_BYTE)
     /* CHAR_BIT != 8: write the digest words as big-endian octets. */
@@ -854,6 +858,10 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
         ByteReverseWords((word32*)digest, (word32*)sha->digest, WC_SHA_DIGEST_SIZE);
     }
     XMEMCPY(hash, (byte *)&digest[0], WC_SHA_DIGEST_SIZE);
+    ForceZero(digest, sizeof(digest));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+#endif
 #else
     XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
@@ -1186,6 +1194,10 @@ void wc_ShaFree(wc_Sha* sha)
 #if defined(PSOC6_HASH_SHA1)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* digest and buffer hold keyed material for HMAC-SHA1 and the SSH KDF
+     * (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(sha, sizeof(*sha));
 }
 
 #endif /* !MAX3266X_SHA */
@@ -1217,12 +1229,20 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
 
     WC_CALLOC_VAR_EX(tmpSha, wc_Sha, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ShaGetHash tmpSha", tmpSha, sizeof(*tmpSha));
+#endif
 
     ret = wc_ShaCopy(sha, tmpSha);
     if (ret == 0) {
         ret = wc_ShaFinal(tmpSha, hash);
+        wc_ShaFree(tmpSha);
     }
 
+    ForceZero(tmpSha, sizeof(*tmpSha));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha, sizeof(*tmpSha));
+#endif
     WC_FREE_VAR_EX(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;

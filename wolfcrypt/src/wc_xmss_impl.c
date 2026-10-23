@@ -673,6 +673,9 @@ static WC_INLINE void wc_xmss_hash(XmssState* state, const byte* in,
     /* Partial SHA-256 digest. */
     else if (params->hash == WC_HASH_TYPE_SHA256) {
         byte buf[WC_SHA256_DIGEST_SIZE];
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_xmss_hash buf", buf, sizeof(buf));
+#endif
         ret = wc_Sha256Update(&state->digest.sha256, in, inlen);
         if (ret == 0) {
             ret = wc_Sha256Final(&state->digest.sha256, buf);
@@ -680,6 +683,12 @@ static WC_INLINE void wc_xmss_hash(XmssState* state, const byte* in,
         if (ret == 0) {
             XMEMCPY(out, buf, params->n);
         }
+        /* Prefix may be a WOTS+ secret element
+         * (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(buf, sizeof(buf));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(buf, sizeof(buf));
+#endif
     }
 #endif
     else

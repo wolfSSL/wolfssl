@@ -536,7 +536,7 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
         if (hashes_copied >= 3)
             HmacKeyFreeHash(src->macType, &dst->o_hash);
 #endif
-        XMEMSET(dst, 0, sizeof(*dst));
+        ForceZero(dst, sizeof(*dst));
     }
     return ret;
 }
@@ -1138,6 +1138,20 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
 #ifdef WOLFSSL_HMAC_COPY_HASH
     if (ret == 0) {
         ret = _HmacInitIOHashes(hmac);
+    }
+#endif
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+    if (ret != 0) {
+    #ifdef WOLF_CRYPTO_CB
+        int devId = hmac->devId;
+    #endif
+        /* The key entered the object; clear it (ISO/IEC 19790 7.9.7). */
+        wc_HmacFree(hmac);
+        hmac->heap = heap;
+    #ifdef WOLF_CRYPTO_CB
+        hmac->devId = devId;
+    #endif
     }
 #endif
 
@@ -1981,6 +1995,10 @@ int wolfSSL_GetHmacMaxSize(void)
 
             outIdx += left;
             n++;
+        }
+        if (ret != 0) {
+            /* Partial OKM is not released (ISO/IEC 19790 7.9.7). */
+            ForceZero(out, outSz);
         }
 
         ForceZero(tmp, WC_MAX_DIGEST_SIZE);
