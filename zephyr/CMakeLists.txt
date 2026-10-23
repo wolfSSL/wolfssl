@@ -19,6 +19,16 @@ if(CONFIG_WOLFSSL)
         )
 
     zephyr_library()
+    # Library sources only, never the application, as the top-level CMake does.
+    # The v5 kdf.c predates libwolfssl_sources.h: without this, types.h pulls
+    # in wc_compat.h, which reaches fips.h before kdf.c sets FIPS_NO_WRAPPERS,
+    # and kdf.c then defines the wc_*_fips wrappers a second time.
+    zephyr_library_compile_definitions(BUILDING_WOLFSSL)
+    # The v5 random.c predates the zephyr/ include prefix; map its
+    # <random/rand32.h> and <posix/time.h> onto the current headers.
+    if(CONFIG_WOLFCRYPT_FIPS_V5)
+      zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/fips-v5-compat)
+    endif()
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/zephyr_init.c)
 
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/crl.c)
