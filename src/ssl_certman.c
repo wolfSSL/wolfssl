@@ -1256,7 +1256,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 #if defined(PERSIST_CERT_CACHE)
 
 /* Version of layout of cache of CA certificates. */
-#define WOLFSSL_CACHE_CERT_VERSION 2
+#define WOLFSSL_CACHE_CERT_VERSION 3
 
 /* CA certificates cache information. */
 typedef struct {
@@ -1275,20 +1275,37 @@ typedef struct {
    1) CertCacheHeader
    2) caTable, each Signer stored as:
         a) DER length (word32)
-        b) Signer type (byte)
-        c) DER encoding of CA certificate
+        b) effective path length (word16)
+        c) Signer type (byte)
+        d) issuer key hash (KEYID_SIZE bytes, only when HAVE_OCSP is set)
+        e) DER encoding of CA certificate
 
    The Signer is rebuilt from the DER on restore so that everything FillSigner
    takes from the certificate (key usage, path length, name constraints, ...)
    is restored, not only the public key and name hashes. The path length a CA
    inherits from its issuer is not in the certificate. After every CA is
-   rebuilt, that limit is applied from the new table.
+   rebuilt, that limit is applied from the new table. The saved path length
+   is then applied as a ceiling, so a missing issuer cannot raise the limit.
+   When HAVE_OCSP is set, the issuer key hash is copied from the restored
+   issuer. If that issuer is not in the cache, the saved hash is kept.
 
    update WOLFSSL_CACHE_CERT_VERSION if change layout for the following
    PERSIST_CERT_CACHE functions
 */
 
 static WC_INLINE word32 HashSigner(const byte* hash);
+
+
+/* Bytes stored before the DER in one cache entry. */
+static WC_INLINE int cm_cache_entry_prefix(void)
+{
+    int sz = (int)sizeof(word32) + (int)sizeof(word16) + 1;
+
+#ifdef HAVE_OCSP
+    sz += KEYID_SIZE;
+#endif
+    return sz;
+}
 
 
 /* Return number of bytes of memory needed to persist this signer.
@@ -1305,7 +1322,7 @@ static WC_INLINE int cm_get_signer_memory(Signer* signer)
     /* Signers without a DER copy can't be rebuilt and are not stored.
      * FillSigner always keeps one when PERSIST_CERT_CACHE is defined. */
     if ((signer->derCert != NULL) && (signer->derCert->buffer != NULL)) {
-        sz = (int)sizeof(word32) + 1 + (int)signer->derCert->length;
+        sz = cm_cache_entry_prefix() + (int)signer->derCert->length;
     }
 
     return sz;
@@ -1467,7 +1484,9 @@ static int cm_restore_signer(WOLFSSL_CERT_MANAGER* cm, const byte* derBuf,
  * @param [in]      current  Buffer containing rows.
  * @param [in]      listSz   Number of entries in row.
  * @param [in]      end      End of data in buffer.
- * @param [in, out] table    Table of signers to add restored signers to.
+ * @param [in, out] table      Table of signers to add restored signers to.
+ * @param [out]     savedPath  Effective path length of each restored signer.
+ * @param [in, out] savedCount Number of path lengths written.
  * @return  Number of bytes consumed on success.
  * @return  PARSE_ERROR when listSz is less than zero.
  * @return  BUFFER_E when buffer is too small.
@@ -1475,7 +1494,8 @@ static int cm_restore_signer(WOLFSSL_CERT_MANAGER* cm, const byte* derBuf,
  * @return  Negative value on error.
  */
 static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
-    const byte* current, int listSz, const byte* end, Signer** table)
+    const byte* current, int listSz, const byte* end, Signer** table,
+    word16* savedPath, int* savedCount)
 {
     int ret = 0;
     int idx = 0;
@@ -1490,10 +1510,14 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
     while ((ret == 0) && (listSz > 0)) {
         Signer* signer = NULL;
         word32  derSz;
+        word16  pathLen;
         byte    type;
+    #ifdef HAVE_OCSP
+        byte    issuerKeyHash[KEYID_SIZE];
+    #endif
 
-        /* Check bytes available for DER length and Signer type. */
-        if ((word32)(end - (current + idx)) < (word32)sizeof(word32) + 1) {
+        /* Check bytes available for the fields that precede the DER. */
+        if ((word32)(end - (current + idx)) < (word32)cm_cache_entry_prefix()) {
             WOLFSSL_MSG("Would overread restore buffer");
             ret = BUFFER_E;
         }
@@ -1501,9 +1525,16 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
             /* Copy in DER length. */
             XMEMCPY(&derSz, current + idx, sizeof(derSz));
             idx += (int)sizeof(derSz);
+            /* Copy in the path length that was in use at save time. */
+            XMEMCPY(&pathLen, current + idx, sizeof(pathLen));
+            idx += (int)sizeof(pathLen);
             /* Copy in Signer type. */
             type = current[idx];
             idx += 1;
+        #ifdef HAVE_OCSP
+            XMEMCPY(issuerKeyHash, current + idx, KEYID_SIZE);
+            idx += KEYID_SIZE;
+        #endif
 
             /* Check bytes available for DER. */
             if ((derSz == 0) || ((word32)(end - (current + idx)) < derSz)) {
@@ -1516,8 +1547,22 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
             ret = cm_restore_signer(cm, current + idx, derSz, type, &signer);
         }
         if (ret == 0) {
-            Signer** last;
             idx += (int)derSz;
+
+            if (savedPath == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                savedPath[*savedCount] = pathLen;
+                (*savedCount)++;
+            #ifdef HAVE_OCSP
+                /* Keep the saved hash when the issuer is not restored. */
+                XMEMCPY(signer->issuerKeyHash, issuerKeyHash, KEYID_SIZE);
+            #endif
+            }
+        }
+        if (ret == 0) {
+            Signer** last;
 
             /* Append to row of table, keeping the order it was stored in. */
         #ifndef NO_SKID
@@ -1529,9 +1574,13 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
                 last = &(*last)->next;
             }
             *last = signer;
+            signer = NULL;
 
             /* Done one more Signer. */
             --listSz;
+        }
+        if (signer != NULL) {
+            FreeSigner(signer, cm->heap);
         }
     }
 
@@ -1564,14 +1613,24 @@ static WC_INLINE int cm_store_cert_row(WOLFSSL_CERT_MANAGER* cm, byte* current,
     while (list != NULL) {
         if (cm_get_signer_memory(list) > 0) {
             word32 derSz = list->derCert->length;
+            word16 pathLen = list->maxPathLen;
 
             /* DER length. */
             XMEMCPY(current + added, &derSz, sizeof(derSz));
             added += (int)sizeof(derSz);
 
+            /* Path length in use. Restore must not raise this value. */
+            XMEMCPY(current + added, &pathLen, sizeof(pathLen));
+            added += (int)sizeof(pathLen);
+
             /* Signer type. */
             current[added] = list->type;
             added += 1;
+
+        #ifdef HAVE_OCSP
+            XMEMCPY(current + added, list->issuerKeyHash, KEYID_SIZE);
+            added += KEYID_SIZE;
+        #endif
 
             /* DER encoding of certificate. */
             XMEMCPY(current + added, list->derCert->buffer, derSz);
@@ -2020,6 +2079,55 @@ static int cm_restore_apply_pathlen(Signer** table, void* heap)
     return 0;
 }
 
+
+/* Do not let restore raise a path length above the value saved with the CA.
+ * The issuer that produced the saved value may be absent from this cache. */
+static void cm_restore_clamp_pathlen(Signer** table, const word16* saved)
+{
+    int i = 0;
+    int row;
+
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        Signer* s = table[row];
+
+        while (s != NULL) {
+            if (s->maxPathLen > saved[i]) {
+                s->maxPathLen = saved[i];
+            }
+            i++;
+            s = s->next;
+        }
+    }
+}
+
+
+#ifdef HAVE_OCSP
+/* A non-self-issued CA takes its issuer key hash from the restored issuer.
+ * The hash saved in the cache stays when that issuer is not in the table. */
+static void cm_restore_apply_issuer_key_hash(Signer** table)
+{
+    int row;
+
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        Signer* s = table[row];
+
+        while (s != NULL) {
+            Signer* issuer;
+
+            if (!cm_signer_is_self_issued(s)) {
+                issuer = cm_table_find_issuer(table, s);
+                if ((issuer != NULL) && (issuer != s)) {
+                    XMEMCPY(s->issuerKeyHash, issuer->subjectKeyHash,
+                        KEYID_SIZE);
+                }
+            }
+            s = s->next;
+        }
+    }
+}
+#endif
+
+
 #undef CM_SIGNER_HAS_ISSUER_HASH
 
 
@@ -2043,6 +2151,9 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
     const byte*      current = (const byte*)mem + sizeof(CertCacheHeader);
     const byte*      end     = (const byte*)mem + sz;  /* don't go over */
     Signer**         table = NULL;
+    word16*          savedPath = NULL;
+    int              savedCount = 0;
+    int              signerCount = 0;
 
     WOLFSSL_ENTER("CM_MemRestoreCertCache");
 
@@ -2074,11 +2185,28 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         }
     }
     if (ret == WOLFSSL_SUCCESS) {
+        for (i = 0; i < CA_TABLE_SIZE; ++i) {
+            if (hdr->columns[i] < 0) {
+                WOLFSSL_MSG("Row header corrupted, negative value");
+                ret = PARSE_ERROR;
+                break;
+            }
+            signerCount += hdr->columns[i];
+        }
+    }
+    if ((ret == WOLFSSL_SUCCESS) && (signerCount > 0)) {
+        savedPath = (word16*)XMALLOC(sizeof(word16) * (size_t)signerCount,
+            cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (savedPath == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS) {
         /* Each row. */
         for (i = 0; i < CA_TABLE_SIZE; ++i) {
             /* Restore a row from memory. */
             int added = cm_restore_cert_row(cm, current, hdr->columns[i], end,
-                table);
+                table, savedPath, &savedCount);
             /* Bail on error. */
             if (added < 0) {
                 WOLFSSL_MSG("cm_restore_cert_row error");
@@ -2090,6 +2218,11 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         }
     }
 
+    if ((ret == WOLFSSL_SUCCESS) && (savedCount != signerCount)) {
+        WOLFSSL_MSG("Restored CA count does not match the cache header");
+        ret = PARSE_ERROR;
+    }
+
     if (ret == WOLFSSL_SUCCESS) {
         /* Inherited path length needs every issuer in the new table. */
         int pathRet = cm_restore_apply_pathlen(table, cm->heap);
@@ -2097,6 +2230,14 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         if (pathRet != 0) {
             ret = pathRet;
         }
+    }
+#ifdef HAVE_OCSP
+    if (ret == WOLFSSL_SUCCESS) {
+        cm_restore_apply_issuer_key_hash(table);
+    }
+#endif
+    if ((ret == WOLFSSL_SUCCESS) && (savedPath != NULL)) {
+        cm_restore_clamp_pathlen(table, savedPath);
     }
 
     /* Lock CA table. */
@@ -2121,6 +2262,7 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         FreeSignerTable(table, CA_TABLE_SIZE, cm->heap);
         XFREE(table, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
+    XFREE(savedPath, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
