@@ -2364,6 +2364,7 @@ struct Signer {
     byte    extKeyUsage;
     word16  maxPathLen;
     WC_BITFIELD selfSigned:1;        /* Own key verified the signature */
+    WC_BITFIELD extExtKeyUsageSet:1; /* EKU extension present */
 #ifndef IGNORE_NAME_CONSTRAINTS
     /*!
      * \brief Mirrors DecodedCert::extNameConstraintCrit and
@@ -2666,6 +2667,10 @@ WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* findSignerByKeyHash(Signer *list, byte *hash);
 WOLFSSL_LOCAL Signer* findSignerByName(Signer *list, byte *hash);
+#ifndef IGNORE_NAME_CONSTRAINTS
+WOLFSSL_LOCAL Signer* wolfssl_local_FindSignerByAkidOrName(
+    WOLFSSL_CERT_MANAGER* cm, Signer* extraCAList, Signer* cert);
+#endif
 WOLFSSL_TEST_VIS int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der);
 WOLFSSL_TEST_VIS Signer* MakeSigner(void* heap);
 WOLFSSL_TEST_VIS void    FreeSigner(Signer* signer, void* heap);
