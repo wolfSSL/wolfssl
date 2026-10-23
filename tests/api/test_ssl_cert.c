@@ -3303,6 +3303,275 @@ int test_wolfSSL_small_cert_verify_sig_error(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a chain CA whose signature never verified is not cached as a trust
+ * anchor when the application's verify callback overrides the error.
+ *
+ * The intermediate names the test root as its issuer and carries the root's
+ * authority key identifier, so the signer lookup finds the root, but it is
+ * signed with a key the root does not hold and fails with ASN_SIG_CONFIRM_E.
+ * Nothing about that certificate has been authenticated. Overriding the error
+ * decides this handshake and nothing else. Caching the key would hand every
+ * later connection from the same context a trust anchor the root never signed,
+ * and the verify callback only runs on an error, so nothing would ask the
+ * application about it again.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_forged_chain_ca_not_cached(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    struct test_memio_ctx test_ctx;
+    byte* caDer = NULL;
+    byte* leafDer = NULL;
+    byte* chainDer = NULL;
+    RsaKey attackerKey;
+    RsaKey leafKey;
+    WC_RNG rng;
+    int attackerInit = 0;
+    int leafInit = 0;
+    int rngInit = 0;
+    int caSz = 0;
+    int leafSz = 0;
+    int chainSz = 0;
+    word32 idx = 0;
+
+    ExpectNotNull(caDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(chainDer = (byte*)XMALLOC(2 * TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    /* Any key the root does not hold serves as the attacker's. */
+    ExpectIntEQ(wc_InitRsaKey(&attackerKey, NULL), 0);
+    if (EXPECT_SUCCESS()) attackerInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &attackerKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    /* The intermediate claims the root as its issuer but is signed with the
+     * attacker's key, so the signer lookup succeeds and the signature check
+     * does not. */
+    ExpectIntGT((caSz = test_eku_gen_ca(caDer, TEST_EKU_CERT_BUF_SZ,
+        &attackerKey, ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        &attackerKey, &rng, "serverAuth,clientAuth", "Forged Intermediate", 0,
+        NULL)), 0);
+    ExpectIntGT((leafSz = test_eku_gen_leaf(leafDer, TEST_EKU_CERT_BUF_SZ,
+        &leafKey, caDer, caSz, &attackerKey, &rng)), 0);
+    ExpectIntLE(leafSz + caSz, 2 * TEST_EKU_CERT_BUF_SZ);
+
+    if (EXPECT_SUCCESS()) {
+        /* The chain buffer holds the leaf first, then its issuer. */
+        XMEMCPY(chainDer, leafDer, (size_t)leafSz);
+        XMEMCPY(chainDer + leafSz, caDer, (size_t)caSz);
+        chainSz = leafSz + caSz;
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        chainDer, chainSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx_c));
+    /* The leaf chains to nothing the client holds yet, so the same check after
+     * the handshake reports a change and not a constant. */
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, leafDer, (long)leafSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_eku_override_cb);
+    /* The override carries the handshake past the forged intermediate. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The forged key must not have become a trust anchor. */
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, leafDer, (long)leafSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    if (rngInit)      wc_FreeRng(&rng);
+    if (attackerInit) wc_FreeRsaKey(&attackerKey);
+    if (leafInit)     wc_FreeRsaKey(&leafKey);
+    XFREE(caDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Accept the chain CA and leave the leaf to the library. */
+static int test_chain_ca_only_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    if (store->error_depth > 0)
+        return 1;
+    return preverify;
+}
+
+/* Run one handshake against the generated chain. Reports the handshake result
+ * and whether the chain CA ended up usable as a trust anchor afterwards. */
+static int test_chain_ca_scope_run(const byte* chainDer, int chainSz,
+    const byte* leafDer, int leafSz, VerifyCallback cb, int* hsRet,
+    int* leafVerifies)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        (byte*)chainDer, chainSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, cb);
+    if (EXPECT_SUCCESS()) {
+        *hsRet = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+        if (*hsRet != 0) {
+            *hsRet = wolfSSL_get_error(ssl_c,
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        }
+    }
+
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx_c));
+    if (EXPECT_SUCCESS()) {
+        *leafVerifies = (wolfSSL_CertManagerVerifyBuffer(cm, leafDer,
+            (long)leafSz, WOLFSSL_FILETYPE_ASN1) == WOLFSSL_SUCCESS);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that accepting an unverifiable chain CA in the verify callback decides
+ * that handshake alone.
+ *
+ * The chain CA is not cached, so the certificate it signed has no signer and
+ * is reported to the application in its own turn rather than being verified
+ * against a key the callback merely waved through. An application that means
+ * to accept the chain says so for each certificate, and either way the CA does
+ * not become a trust anchor for later connections from the same context.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_chain_ca_override_is_handshake_scoped(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    byte* caDer = NULL;
+    byte* leafDer = NULL;
+    byte* chainDer = NULL;
+    RsaKey untrustedKey;
+    RsaKey leafKey;
+    WC_RNG rng;
+    int untrustedInit = 0;
+    int leafInit = 0;
+    int rngInit = 0;
+    int caSz = 0;
+    int leafSz = 0;
+    int chainSz = 0;
+    int hsRet = 0;
+    int leafVerifies = 1;
+    word32 idx = 0;
+
+    ExpectNotNull(caDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(chainDer = (byte*)XMALLOC(2 * TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    /* Any key the test root does not hold stands in for the untrusted CA. */
+    ExpectIntEQ(wc_InitRsaKey(&untrustedKey, NULL), 0);
+    if (EXPECT_SUCCESS()) untrustedInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx,
+        &untrustedKey, (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    /* A self-signed CA the client does not trust, and a leaf it did sign. */
+    ExpectIntGT((caSz = test_eku_gen_ca(caDer, TEST_EKU_CERT_BUF_SZ,
+        &untrustedKey, NULL, 0, &untrustedKey, &rng, "serverAuth,clientAuth",
+        "Untrusted Root", 0, NULL)), 0);
+    ExpectIntGT((leafSz = test_eku_gen_leaf(leafDer, TEST_EKU_CERT_BUF_SZ,
+        &leafKey, caDer, caSz, &untrustedKey, &rng)), 0);
+    ExpectIntLE(leafSz + caSz, 2 * TEST_EKU_CERT_BUF_SZ);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chainDer, leafDer, (size_t)leafSz);
+        XMEMCPY(chainDer + leafSz, caDer, (size_t)caSz);
+        chainSz = leafSz + caSz;
+    }
+
+    /* Accepting the CA alone is not enough: the leaf has no signer and the
+     * application is asked about it rather than told it verified. */
+    ExpectIntEQ(test_chain_ca_scope_run(chainDer, chainSz, leafDer, leafSz,
+        test_chain_ca_only_cb, &hsRet, &leafVerifies), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(leafVerifies, 0);
+
+    /* Accepting the leaf in its turn completes the handshake, and the CA still
+     * does not become a trust anchor. */
+    leafVerifies = 1;
+    ExpectIntEQ(test_chain_ca_scope_run(chainDer, chainSz, leafDer, leafSz,
+        test_eku_override_cb, &hsRet, &leafVerifies), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    ExpectIntEQ(leafVerifies, 0);
+
+    if (rngInit)       wc_FreeRng(&rng);
+    if (untrustedInit) wc_FreeRsaKey(&untrustedKey);
+    if (leafInit)      wc_FreeRsaKey(&leafKey);
+    XFREE(caDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
@@ -5259,6 +5528,101 @@ int test_wolfSSL_dtls_api_more_guards(void)
 
     wolfSSL_free(dssl);
     wolfSSL_CTX_free(dctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Accept every certificate the way an application that makes its own trust
+ * decision about the peer does. */
+static int test_chain_ca_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* s)
+{
+    (void)preverify;
+    (void)s;
+    return 1;
+}
+#endif
+
+/* Test that a chain certificate which failed verification is not cached as a
+ * CA when the application's verify callback overrides the error.
+ *
+ * The client trusts the test root but not the intermediate that issued the
+ * server's chain certificate, so that certificate fails with ASN_NO_SIGNER_E.
+ * A callback returning 1 carries this handshake past the failure, which is
+ * what the application asked for. It must not also leave the certificate in
+ * the context's certificate manager: entries there are trust anchors for every
+ * later connection out of the same context, and the verify callback only runs
+ * on an error, so nothing would ask the application about it again.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_chain_ca_not_cached_on_override(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    struct test_memio_ctx test_ctx;
+    /* The leaf and the intermediate that signed it. The issuer of that
+     * intermediate is a second intermediate the client does not hold, so the
+     * chain certificate has no signer. */
+    const char* svrChain = "./certs/intermediate/server-chain-short.pem";
+    const char* svrKey = "./certs/server-key.pem";
+    const char* leafCert = "./certs/intermediate/server-int-cert.pem";
+    const char* rootCert = "./certs/ca-cert.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Build both contexts here so that test_memio_setup() only creates the
+     * objects: the client gets the root alone and the server presents the
+     * chain rather than the default certificate. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    if ((ctx_c != NULL) && (ctx_s != NULL)) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, rootCert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrChain),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx_c));
+    /* The leaf does not chain to anything the client holds yet, so the check
+     * after the handshake is reporting a change and not a constant. */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, leafCert, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_chain_ca_override_cb);
+
+    /* The override carries the handshake past the unverifiable chain cert. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* That certificate must not have become a trust anchor: a leaf it issued
+     * still has no signer in the client context's certificate manager. */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, leafCert, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

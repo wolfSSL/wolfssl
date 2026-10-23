@@ -3200,6 +3200,31 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
     mode has no effect on any of the other flags.
 
+    A non-zero return from verify_callback accepts a certificate the library
+    rejected. Without such a callback, or when it returns preverify_ok, the
+    rejection stands and the handshake ends with a fatal alert as before.
+
+    How far the acceptance reaches depends on why the certificate was
+    rejected. A chain certificate whose signature was confirmed against a
+    trusted anchor, and which failed a later check such as its validity
+    dates, its revocation status or its key usage, is still added to the
+    certificate manager: accepting it also makes it a trust anchor for later
+    connections from the same context, and verify_callback is not consulted
+    about it again. A certificate whose signature was never confirmed is not
+    added, so that acceptance applies to this handshake alone. It is then not
+    available as the signer of the next certificate in the chain, which is
+    reported to verify_callback in its turn, and accepting each one in turn
+    completes the handshake.
+
+    OCSP is the exception. A stapled response is verified against the
+    certificate manager, which does not hold the accepted certificate, so the
+    responder's own certificate cannot be verified; the handshake ends with
+    BAD_CERTIFICATE_STATUS_ERROR and a fatal alert without consulting
+    verify_callback, and only a callback set with
+    wolfSSL_CTX_SetOCSP_StatusVerifyCb() can accept that result. A live OCSP
+    lookup fails for the same reason, but its error does reach
+    verify_callback and can be accepted there.
+
     \return none No return.
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
@@ -3251,6 +3276,31 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
     act on it, does not store it, and wolfSSL_get_verify_mode() /
     wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
     mode has no effect on any of the other flags.
+
+    A non-zero return from verify_callback accepts a certificate the library
+    rejected. Without such a callback, or when it returns preverify_ok, the
+    rejection stands and the handshake ends with a fatal alert as before.
+
+    How far the acceptance reaches depends on why the certificate was
+    rejected. A chain certificate whose signature was confirmed against a
+    trusted anchor, and which failed a later check such as its validity
+    dates, its revocation status or its key usage, is still added to the
+    certificate manager: accepting it also makes it a trust anchor for later
+    connections from the same session's context, and verify_callback is not
+    consulted about it again. A certificate whose signature was never
+    confirmed is not added, so that acceptance applies to this handshake
+    alone. It is then not available as the signer of the next certificate in
+    the chain, which is reported to verify_callback in its turn, and
+    accepting each one in turn completes the handshake.
+
+    OCSP is the exception. A stapled response is verified against the
+    certificate manager, which does not hold the accepted certificate, so the
+    responder's own certificate cannot be verified; the handshake ends with
+    BAD_CERTIFICATE_STATUS_ERROR and a fatal alert without consulting
+    verify_callback, and only a callback set with
+    wolfSSL_CTX_SetOCSP_StatusVerifyCb() can accept that result. A live OCSP
+    lookup fails for the same reason, but its error does reach
+    verify_callback and can be accepted there.
 
     \return none No return.
 

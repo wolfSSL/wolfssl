@@ -2328,6 +2328,7 @@ struct DecodedCert {
     WOLFSSL_AIA_ENTRY extAuthInfoList[WOLFSSL_MAX_AIA_ENTRIES];
     WC_BITFIELD extAuthInfoListSz:7;
     WC_BITFIELD extAuthInfoListOverflow:1;
+    WC_BITFIELD sigVerified:1;          /* Issuer's key verified the signature */
     /* Appended to preserve the offsets of existing members. */
     word32  extExtKeyUsageOidCnt;    /* Number of EKU KeyPurposeIds seen,
                                       * recognized or not                */

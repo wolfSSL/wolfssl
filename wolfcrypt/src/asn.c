@@ -26264,6 +26264,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                     }
                 }
             #endif /* WOLFSSL_DUAL_ALG_CERTS */
+
+                /* Every signature this certificate needed has been confirmed
+                 * against the issuer found in the certificate manager. */
+                cert->sigVerified = 1;
             }
         } /* cert->ca */
 #ifdef WOLFSSL_CERT_REQ
