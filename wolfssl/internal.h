@@ -2418,26 +2418,13 @@ WOLFSSL_LOCAL int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret,
 WOLFSSL_LOCAL int CookiePolicyEnable(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #endif
-/* Is this connection authenticating with a PSK? TLS 1.3 uses the extension,
- * earlier versions a PSK cipher suite. */
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
-    !defined(NO_PSK))
-    #define SSL_USING_PSK(ssl) \
-        ((ssl)->options.usingPSK_cipher || (ssl)->options.pskNegotiated)
-#else
-    #define SSL_USING_PSK(ssl) ((ssl)->options.usingPSK_cipher)
-#endif
-/* A verified client certificate with proof of possession. Nothing is verified
- * under verifyNone. */
+/* A verified client certificate with proof of possession, on this connection
+ * or the one it resumed. Nothing is verified under verifyNone. */
 #define SSL_PEER_CERT_VERIFIED(ssl) \
-    ((ssl)->options.havePeerCert && (ssl)->options.havePeerVerify && \
-     !(ssl)->options.verifyNone)
-#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+    (((ssl)->options.havePeerCert && (ssl)->options.havePeerVerify && \
+      !(ssl)->options.verifyNone) || \
+     ((ssl)->options.resuming && (ssl)->session->peerAuthOk))
 WOLFSSL_LOCAL int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk);
-#else
-/* Only a TLS server asks for a certificate, so only it can require one. */
-#define ClientAuthRequired(ssl, usingPsk) 0
-#endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
 #ifdef WOLFSSL_TLS13
@@ -4025,6 +4012,7 @@ typedef struct InternalTicket {
     byte            timestamp[TIMESTAMP_LEN];          /* born on */
     byte            haveEMS:1;             /* have extended master secret */
     byte            peerAuthOk:1;          /* client cert was verified */
+    byte            isPSK:1;               /* a PSK authenticated the client */
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
@@ -5429,8 +5417,10 @@ struct WOLFSSL_SESSION {
 #endif /* HAVE_MAX_FRAGMENT */
     byte               isSetup:1;
     /* Client presented a certificate and proved key possession. Server
-     * sessions only; shares isSetup's byte so the layout is unchanged. */
+     * sessions only. */
     byte               peerAuthOk:1;
+    /* A PSK authenticated the client. Server sessions only. */
+    byte               isPSK:1;
 };
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
@@ -5810,7 +5800,6 @@ struct Options {
 #ifdef HAVE_SECURE_RENEGOTIATION
     word16            resumed:1;          /* resuming may be reset on SCR */
 #endif
-    word16            isPSK:1;
     word16            haveSessionId:1;    /* server may not send */
     word16            tls:1;              /* using TLS ? */
     word16            tls1_1:1;           /* using TLSv1.1+ ? */

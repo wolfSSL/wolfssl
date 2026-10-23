@@ -6917,16 +6917,15 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
         if (ret == 0) {
             /* PSK negotiation has succeeded */
 #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
-            /* RFC 9973 pairs the PSK with a certificate, so the PSK is not
-             * the client's authentication. Read before the extension is
-             * resolved for the connection. */
-            if (!ssl->options.certWithExternPsk)
+            /* RFC 9973 applies only if the client sent the extension; the
+             * server opting in is not enough. */
+            if (TLSX_Find(ssl->extensions, TLSX_CERT_WITH_EXTERN_PSK) == NULL)
 #endif
             {
                 /* SERVER: using PSK for peer authentication, so no
                  * certificate is requested below. */
                 ssl->options.peerAuthGood = 1;
-                ssl->options.isPSK = 1;
+                ssl->options.usingPSK_cipher = 1;
             }
         }
     }
@@ -7094,9 +7093,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             #endif
             }
         #endif
-            /* A ticket is not the PSK failNoCertxPSK excuses. Before
+            /* failNoCertxPSK excuses only a ticket from a PSK session. Before
              * Finalize, so a declined ticket leaves nothing on the session. */
-            if (ret == 0 && ClientAuthRequired(ssl, 0) &&
+            if (ret == 0 && ClientAuthRequired(ssl, current->it->isPSK) &&
             #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
                     /* Deferred, so this handshake asks for nothing. */
                     !ssl->options.verifyPostHandshake &&
@@ -13719,9 +13718,9 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     !defined(NO_WOLFSSL_SERVER)
     /* verify the client sent certificate if required */
     if ((!ssl->options.resuming || TLS13_AFTER_HANDSHAKE(ssl)) &&
-            ClientAuthRequired(ssl, SSL_USING_PSK(ssl))) {
+            ClientAuthRequired(ssl, ssl->options.usingPSK_cipher)) {
 #ifdef OPENSSL_COMPATIBLE_DEFAULTS
-        if (ssl->options.isPSK && !TLS13_AFTER_HANDSHAKE(ssl)) {
+        if (ssl->options.usingPSK_cipher && !TLS13_AFTER_HANDSHAKE(ssl)) {
             WOLFSSL_MSG("TLS v1.3 client used PSK but cert required. Allowing "
                         "for OpenSSL compatibility");
         }
@@ -18269,7 +18268,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_SERVER_EXTENSIONS_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming) {
-                if (ssl->options.verifyPeer && !ssl->options.isPSK
+                if (ssl->options.verifyPeer && !ssl->options.usingPSK_cipher
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
                     && !ssl->options.verifyPostHandshake
     #endif
@@ -18338,7 +18337,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
 #ifdef HAVE_SESSION_TICKET
     #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
-            if ((!ssl->options.verifyPeer || ssl->options.isPSK) &&
+            if ((!ssl->options.verifyPeer || ssl->options.usingPSK_cipher) &&
                     !ssl->options.noTicketTls13 &&
                     ssl->ctx->ticketEncCb != NULL &&
                     ssl->options.maxTicketTls13 > 0) {
@@ -18395,7 +18394,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 !ssl->options.verifyPostHandshake &&
         #endif
                 !ssl->options.havePeerCert &&
-                !ClientAuthRequired(ssl, SSL_USING_PSK(ssl))) {
+                !ClientAuthRequired(ssl, ssl->options.usingPSK_cipher)) {
                 ssl->options.peerAuthGood = 1;
             }
             /* SERVER: check peer authentication. */

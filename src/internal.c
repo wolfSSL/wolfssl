@@ -19118,7 +19118,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (args->count == 0) {
                 /* Empty certificate message. Only mutualAuth fails here
                  * before TLS 1.2; the later check catches the rest. */
-                if (ClientAuthRequired(ssl, SSL_USING_PSK(ssl)) &&
+                if (ClientAuthRequired(ssl, ssl->options.usingPSK_cipher) &&
                         (ssl->options.mutualAuth || IsAtLeastTLSv1_2(ssl))) {
                     WOLFSSL_MSG("No peer cert from Client");
                     ret = NO_PEER_CERT;
@@ -40336,6 +40336,26 @@ const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
         return MATCH_SUITE_ERROR;
     }
 
+/* Does a full handshake on this connection require a client certificate?
+ * usingPsk is whether the suite in question authenticates with a PSK, which
+ * only the caller knows. verifyPostHandshake is deliberately absent: it defers
+ * the demand, not the policy, so the callers that care apply it. */
+int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
+{
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+    if (ssl->options.side != WOLFSSL_SERVER_END)
+        return 0;
+    if (ssl->options.verifyNone)
+        return 0;
+    return ssl->options.mutualAuth || ssl->options.failNoCert ||
+           (ssl->options.failNoCertxPSK && !usingPsk);
+#else
+    /* Only a TLS server asks for a certificate, so only it can require one. */
+    (void)ssl;
+    (void)usingPsk;
+    return 0;
+#endif
+}
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
@@ -42675,22 +42695,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #endif /* OLD_HELLO_ALLOWED */
 
-#ifndef NO_CERTS
-/* Does a full handshake on this connection require a client certificate?
- * usingPsk is whether the suite in question authenticates with a PSK, which
- * only the caller knows. verifyPostHandshake is deliberately absent: it defers
- * the demand, not the policy, so the callers that care apply it. */
-int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
-{
-    if (ssl->options.side != WOLFSSL_SERVER_END)
-        return 0;
-    if (ssl->options.verifyNone)
-        return 0;
-    return ssl->options.mutualAuth || ssl->options.failNoCert ||
-           (ssl->options.failNoCertxPSK && !usingPsk);
-}
-#endif /* !NO_CERTS */
-
 #ifndef WOLFSSL_NO_TLS12
 
     /**
@@ -44501,10 +44505,9 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
         it->suite[0] = ssl->options.cipherSuite0;
         it->suite[1] = ssl->options.cipherSuite;
 
-        /* Post-handshake auth can add a certificate to a resumed connection,
-         * so fresh proof wins over what was resumed. */
-        it->peerAuthOk = (byte)(SSL_PEER_CERT_VERIFIED(ssl) ||
-            (ssl->options.resuming && ssl->session->peerAuthOk));
+        it->peerAuthOk = (byte)SSL_PEER_CERT_VERIFIED(ssl);
+        it->isPSK = (byte)(ssl->options.usingPSK_cipher ||
+            (ssl->options.resuming && ssl->session->isPSK));
 
     #ifdef WOLFSSL_EARLY_DATA
         c32toa(ssl->options.maxEarlyDataSz, it->maxEarlyDataSz);
@@ -45081,6 +45084,7 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
 #endif
         /* After the DupSession above, which would otherwise overwrite it. */
         ssl->session->peerAuthOk = it->peerAuthOk;
+        ssl->session->isPSK = it->isPSK;
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             if (ssl->arrays == NULL)
@@ -45171,6 +45175,7 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
 #endif
         it->haveEMS = (byte)sess->haveEMS;
         it->peerAuthOk = sess->peerAuthOk;
+        it->isPSK = sess->isPSK;
         c32toa(sess->ticketAdd, it->ageAdd);
         c16toa(sess->namedGroup, it->namedGroup);
         if (sess->ticketNonce.len <= MAX_TICKET_NONCE_STATIC_SZ) {
@@ -46684,7 +46689,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 }
 
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
-                if (ClientAuthRequired(ssl, SSL_USING_PSK(ssl)) &&
+                if (ClientAuthRequired(ssl, ssl->options.usingPSK_cipher) &&
                         !ssl->options.havePeerCert) {
                     WOLFSSL_MSG("client didn't present peer cert");
                     ERROR_OUT(NO_PEER_CERT, exit_dcke);

@@ -22708,8 +22708,10 @@ static int test_wolfSSL_i2d_SSL_SESSION_peer_auth(void)
     /* Round trip keeps it, and consumes exactly the session. */
     ptr = der;
     ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz));
-    if (restored != NULL)
+    if (restored != NULL) {
         ExpectIntEQ(restored->peerAuthOk, 1);
+        ExpectIntEQ(restored->isPSK, 0);
+    }
     ExpectPtrEq(ptr, der + sz);
     wolfSSL_SESSION_free(restored);
     restored = NULL;
@@ -22735,6 +22737,22 @@ static int test_wolfSSL_i2d_SSL_SESSION_peer_auth(void)
     if (restored != NULL)
         ExpectIntEQ(restored->peerAuthOk, 1);
     ExpectPtrEq(ptr, der + (2 * sz));
+    wolfSSL_SESSION_free(restored);
+    restored = NULL;
+
+    /* isPSK shares the byte, and each flag decodes on its own. */
+    if (sess != NULL) {
+        sess->peerAuthOk = 0;
+        sess->isPSK = 1;
+    }
+    pp = der;
+    ExpectIntEQ(wolfSSL_i2d_SSL_SESSION(sess, &pp), sz);
+    ptr = der;
+    ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz));
+    if (restored != NULL) {
+        ExpectIntEQ(restored->peerAuthOk, 0);
+        ExpectIntEQ(restored->isPSK, 1);
+    }
     wolfSSL_SESSION_free(restored);
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -5810,6 +5810,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             ssl->session->haveAltSessionID = 0;
             ForceZero(ssl->session->altSessionID, ID_LEN);
             ssl->session->peerAuthOk = 0;
+            ssl->session->isPSK = 0;
         #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
             ssl->session->ticketNonce.len = 0;
         #endif
@@ -5859,8 +5860,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.peerAuthGood = 0;
         ssl->options.usingPSK_cipher = 0;
         ssl->options.usingAnon_cipher = 0;
-        /* Left set, the next client here is never asked for a certificate. */
-        ssl->options.isPSK = 0;
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
         ssl->options.pskNegotiated = 0;
 #endif
