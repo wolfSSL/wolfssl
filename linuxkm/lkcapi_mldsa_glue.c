@@ -1435,6 +1435,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
         if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
             /* RHEL akcipher crippled sign ops */
             pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
+            free(sig_out);
             test_rc = 0;
             goto test_mldsa_end;
         }
