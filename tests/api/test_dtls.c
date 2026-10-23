@@ -16217,6 +16217,107 @@ static int test_dtls13_ctx_min_proto_zero(void)
     return EXPECT_RESULT();
 }
 
+/* The TLS 1.3 entry points hand an SSL already at DTLS 1.2 to the DTLS 1.2
+ * handshake, whether the SSL or the CTX mask moved it. */
+static int test_dtls13_mask_tls13_entry(int onCtx)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int retC = WOLFSSL_FATAL_ERROR;
+    int retS = WOLFSSL_FATAL_ERROR;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfDTLS_client_method, wolfDTLS_server_method), 0);
+    if (onCtx) {
+        (void)wolfSSL_CTX_set_options(ctx_c, WOLFSSL_OP_NO_TLSv1_3);
+        (void)wolfSSL_CTX_set_options(ctx_s, WOLFSSL_OP_NO_TLSv1_3);
+    }
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLS_client_method, wolfDTLS_server_method), 0);
+    if (!onCtx && ssl_c != NULL && ssl_s != NULL) {
+        (void)wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_TLSv1_3);
+        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_3);
+    }
+    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
+    for (i = 0; EXPECT_SUCCESS() && i < 10 &&
+            (retC != WOLFSSL_SUCCESS || retS != WOLFSSL_SUCCESS); i++) {
+        if (retC != WOLFSSL_SUCCESS) {
+            retC = wolfSSL_connect_TLSv13(ssl_c);
+            if (ssl_c != NULL)
+                ExpectIntEQ(ssl_c->options.tls1_3, 0);
+        }
+        if (retS != WOLFSSL_SUCCESS)
+            retS = wolfSSL_accept_TLSv13(ssl_s);
+    }
+    ExpectIntEQ(retC, WOLFSSL_SUCCESS);
+    ExpectIntEQ(retS, WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
+    ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_2_VERSION);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+#ifdef HAVE_SESSION_TICKET
+/* Setting a DTLS 1.3 session and then a DTLS 1.2 one leaves tls1_3 set on a
+ * DTLS 1.2 SSL; the hand-off between the entry points must not loop. */
+static int test_dtls13_stale_tls13_session(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess13 = NULL, *sess12 = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLS_client_method, wolfDTLS_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectNotNull(sess13 = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLS_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess12 = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLS_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess13), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess12), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
+
+    wolfSSL_SESSION_free(sess13);
+    wolfSSL_SESSION_free(sess12);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
 /* wolfSSL_negotiate() applies the mask too, on the server here. */
 static int test_dtls13_mask_negotiate(void)
 {
@@ -16342,6 +16443,11 @@ int test_dtls13_no_tls13_option(void)
             DTLS1_VERSION), TEST_SUCCESS);
     #endif
     }
+    for (onCtx = 0; onCtx <= 1; onCtx++)
+        ExpectIntEQ(test_dtls13_mask_tls13_entry(onCtx), TEST_SUCCESS);
+#ifdef HAVE_SESSION_TICKET
+    ExpectIntEQ(test_dtls13_stale_tls13_session(), TEST_SUCCESS);
+#endif
     ExpectIntEQ(test_dtls13_ctx_min_proto_zero(), TEST_SUCCESS);
 #ifdef HAVE_SNI
     ExpectIntEQ(test_dtls13_mask_in_client_hello(), TEST_SUCCESS);
