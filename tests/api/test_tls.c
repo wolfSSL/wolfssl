@@ -4168,6 +4168,133 @@ int test_tls13_session_resumption_sni_mismatch(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_SNI) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+enum {
+    SNI_LOAD_CTX_CERT,
+    SNI_LOAD_CTX_KEY,
+    SNI_LOAD_SSL_CERT,
+    SNI_SWITCH_CTX
+};
+
+typedef struct SniLoadCase {
+    WOLFSSL_CTX* ctx2;
+    int action;
+    int loadRet;
+} SniLoadCase;
+
+static int sni_load_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    SniLoadCase* c = (SniLoadCase*)arg;
+    WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
+
+    (void)ad;
+    switch (c->action) {
+        case SNI_LOAD_CTX_CERT:
+            c->loadRet = wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                CERT_FILETYPE);
+            break;
+        case SNI_LOAD_CTX_KEY:
+            c->loadRet = wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                CERT_FILETYPE);
+            break;
+    #ifdef OPENSSL_EXTRA
+        case SNI_SWITCH_CTX:
+            c->loadRet = (wolfSSL_set_SSL_CTX(ssl, c->ctx2) == c->ctx2) ?
+                WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+            break;
+    #endif
+        default:
+            c->loadRet = wolfSSL_use_certificate_file(ssl, svrCertFile,
+                CERT_FILETYPE);
+            break;
+    }
+    return 0;
+}
+#endif
+
+/* Replacing the certificate or key on the context from the SNI callback fails
+ * the handshake. Loading one on the session is allowed. */
+int test_tls_sni_cb_ctx_cert_load(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_SNI) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    static const struct {
+        method_provider client;
+        method_provider server;
+    } methods[] = {
+    #ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+    #endif
+    #ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+    #endif
+    };
+    static const struct {
+        int action;
+        int err;
+    } cases[] = {
+    #ifndef WOLFSSL_COPY_CERT
+        { SNI_LOAD_CTX_CERT, WC_NO_ERR_TRACE(BAD_STATE_E) },
+    #endif
+    #if !defined(WOLFSSL_COPY_KEY) && !defined(WOLFSSL_BLIND_PRIVATE_KEY)
+        { SNI_LOAD_CTX_KEY, WC_NO_ERR_TRACE(BAD_STATE_E) },
+    #endif
+        { SNI_LOAD_SSL_CERT, 0 },
+    #ifdef OPENSSL_EXTRA
+        { SNI_SWITCH_CTX, 0 },
+    #endif
+    };
+    const char* host = "example.com";
+    size_t i;
+    size_t j;
+
+    for (i = 0; i < XELEM_CNT(methods); i++) {
+        for (j = 0; j < XELEM_CNT(cases); j++) {
+            WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+            WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+            struct test_memio_ctx test_ctx;
+            SniLoadCase c;
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            XMEMSET(&c, 0, sizeof(c));
+            c.action = cases[j].action;
+            ExpectNotNull(c.ctx2 = wolfSSL_CTX_new(methods[i].server()));
+            ExpectIntEQ(wolfSSL_CTX_use_certificate_file(c.ctx2, svrCertFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(c.ctx2, svrKeyFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s, methods[i].client, methods[i].server), 0);
+            wolfSSL_CTX_set_servername_callback(ctx_s, sni_load_cb);
+            ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &c),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+                (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+            if (cases[j].err == 0) {
+                ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL),
+                    0);
+            }
+            else {
+                ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL),
+                    0);
+                ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    cases[j].err);
+            }
+            ExpectIntEQ(c.loadRet, WOLFSSL_SUCCESS);
+
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+            wolfSSL_CTX_free(c.ctx2);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Regression test for the post-ALPN_Select PSK-head check.
  * When ALPN_Select runs before CheckPreSharedKeys (so the per-PSK
  * binding check has the negotiated ALPN available), TLSX_SetALPN
