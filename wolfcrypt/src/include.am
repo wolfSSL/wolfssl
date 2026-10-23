@@ -84,6 +84,14 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/ti/ti-ccm.c \
               wolfcrypt/src/port/ti/ti-c2000-aes.c \
               wolfcrypt/src/port/ti/ti-c2000-entropy.c \
+              wolfcrypt/src/port/ti/integrity/rng_devtree_driver.c \
+              wolfcrypt/src/port/ti/integrity/rng_driver.c \
+              wolfcrypt/src/port/ti/integrity/rng_iodevice_server.c \
+              wolfcrypt/src/port/ti/integrity/rng_port.c \
+              wolfcrypt/src/port/ti/integrity/sa2ul_devtree_driver.c \
+              wolfcrypt/src/port/ti/integrity/sa2ul_driver.c \
+              wolfcrypt/src/port/ti/integrity/sa2ul_iodevice_server.c \
+              wolfcrypt/src/port/ti/integrity/sa2ul_port.c \
               wolfcrypt/src/port/pic32/pic32mz-crypt.c \
               wolfcrypt/src/port/nrf51.c \
               wolfcrypt/src/port/aria/aria-crypt.c \
