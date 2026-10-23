@@ -508,9 +508,15 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 {
     int    ret;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* This path signs pure Ed25519 only: the SE050 callout takes no type
+     * and no context, so an Ed25519ctx or Ed25519ph request, or any
+     * non-empty context, cannot be honored here -- reject it rather than
+     * producing a signature for the wrong algorithm (cf. the
+     * WOLFSSL_SE050_ONLY_KEY_ID rejection on the software path). */
+    if ((type == Ed25519ctx) || (type == Ed25519ph) || (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     (void)context;
-    (void)contextLen;
-    (void)type;
     ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
 #elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
     (void)ed25519Ctx;
@@ -1153,9 +1159,12 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 {
     int ret;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
-    (void)type;
+    /* see wc_ed25519_sign_msg_ex(): this path verifies pure Ed25519
+     * only. */
+    if ((type == Ed25519ctx) || (type == Ed25519ph) || (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     (void)context;
-    (void)contextLen;
     (void)ed25519Ctx;
     ret = se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
 #elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
