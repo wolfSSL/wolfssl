@@ -202,6 +202,45 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+/* Marks the key installed after a key setup, unless it is WC_KEY_HW_STORED.
+ * Not every platform key setup calls this, so it may go unused.
+ * Returns 0, or BAD_FUNC_ARG when aes is NULL. */
+static WC_MAYBE_UNUSED int AesMarkKeyInstalled(Aes* aes)
+{
+    if (aes == NULL) {
+        return BAD_FUNC_ARG;
+    }
+#ifdef WC_AES_HAVE_KEY_LOCATION
+    if (aes->keyLocation == WC_KEY_HW_STORED) {
+        return 0;
+    }
+#endif
+    aes->keyInstalled = WC_AES_KEY_INSTALLED;
+    return 0;
+}
+
+#ifdef WC_AES_HAVE_KEY_LOCATION
+/* Records where the key is kept, for wc_CryptoCb_SetKeyLocation().
+ * WC_KEY_HW_STORED clears keyInstalled, rounds and the GCM key flag.
+ * Returns 0, or BAD_FUNC_ARG for an unknown location. */
+int wc_AesSetKeyLocation(Aes* aes, int location)
+{
+    if (location == WC_KEY_SW_STORED) {
+        aes->keyLocation = WC_KEY_SW_STORED;
+    }
+    else if (location == WC_KEY_HW_STORED) {
+        aes->keyLocation = WC_KEY_HW_STORED;
+        aes->keyInstalled = WC_AES_KEY_NOT_INSTALLED;
+        aes->rounds = 0;
+        WC_AES_GCM_UNKEY(aes);
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+#endif
+
 #ifdef WOLFSSL_NXP_HASHCRYPT_AES
     #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
@@ -5384,6 +5423,10 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 
     #ifdef WOLF_CRYPTO_CB
+        #ifdef WC_AES_HAVE_KEY_LOCATION
+        /* Before both hooks, so neither keeps an old key's location */
+        aes->keyLocation = WC_KEY_SW_STORED;
+        #endif
         if (aes->devId != INVALID_DEVID) {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
@@ -5411,9 +5454,10 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                 if (cbRet == 0) {
                     /* Callback succeeded - the device owns the key, so mark it
-                     * installed like the AES_SETKEY path above. */
+                     * installed like the AES_SETKEY path above, unless the
+                     * callback stored it on the device only. */
                     aes->keylen = (int)keylen;
-                    aes->keyInstalled = 1;
+                    cbRet = AesMarkKeyInstalled(aes);
                 }
                 return cbRet;
             }
@@ -5938,8 +5982,16 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             return BAD_FUNC_ARG;
 
         aes->keyInstalled = 0;
+    #ifdef WC_AES_HAVE_KEY_LOCATION
+        aes->keyLocation = WC_KEY_SW_STORED;
+    #endif
         ret = AesSetKeyLocal_body(aes, userKey, keylen, iv, dir, checkKeyLen);
-        aes->keyInstalled = (ret == 0) ? 1 : 0;
+        if (ret == 0) {
+            ret = AesMarkKeyInstalled(aes);
+        }
+        if (ret != 0) {
+            aes->keyInstalled = WC_AES_KEY_NOT_INSTALLED;
+        }
 
 /* A new key drops the old one's tag length. Built out entirely unless a mode
  * that carries one is on, so plain AES pays nothing. */
@@ -9240,6 +9292,19 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
 #ifdef WOLFSSL_AESGCM_STREAM
     aes->gcmKeySet = 1;
+#endif
+#ifdef WC_AES_HAVE_KEY_LOCATION
+    /* The key is on the device only: there is no schedule to derive H from
+     * and software GCM is refused, so drop any H left by an older key. */
+    if (ret == 0 && aes->keyLocation == WC_KEY_HW_STORED) {
+        /* Streaming GCM has no device path, so it must see no key. */
+        WC_AES_GCM_UNKEY(aes);
+        ForceZero(aes->gcm.H, sizeof(aes->gcm.H));
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+        ForceZero(local, sizeof(local));
+    #endif
+        return ret;
+    }
 #endif
     #if defined(WOLFSSL_SECO_CAAM)
         if (aes->devId == WOLFSSL_SECO_DEVID) {
@@ -15110,6 +15175,12 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     if ((ret == 0) && (key != NULL)) {
         ret = wc_AesGcmSetKey(aes, key, len);
     }
+#ifdef WC_AES_HAVE_KEY_LOCATION
+    /* Streaming GCM has no device path, so a HW-stored key cannot be used. */
+    if ((ret == 0) && (aes->keyLocation == WC_KEY_HW_STORED)) {
+        ret = MISSING_KEY;
+    }
+#endif
 
 #if defined(WOLFSSL_ARM32_AES_DISPATCH) && defined(WOLFSSL_AESGCM_STREAM)
     /* Streaming AES-GCM drives the counter through the base AES_ECB_encrypt,
@@ -16853,6 +16924,9 @@ void wc_AesFree(Aes* aes)
         /* This path skips the ForceZero below, so clear the flag here or a
          * reused context passes the key-set guard with a freed key. */
         aes->keyInstalled = 0;
+    #ifdef WC_AES_HAVE_KEY_LOCATION
+        aes->keyLocation = WC_KEY_SW_STORED;
+    #endif
         /* If callback wants standard free, it can set devId to INVALID_DEVID.
          * Otherwise assume the callback handled cleanup. */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))

@@ -229,6 +229,19 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     #define WOLFSSL_AES_REQUIRE_KEY_SET
 #endif
 
+/* Aes.keyInstalled values */
+#define WC_AES_KEY_NOT_INSTALLED    0
+#define WC_AES_KEY_INSTALLED        1
+
+/* Aes.keyLocation is set by SetKey callbacks with wc_CryptoCb_SetKeyLocation()
+ * (WC_KEY_* in cryptocb.h). It needs the key-set check, so it is compiled out
+ * by WOLFSSL_NO_AES_KEY_SET_CHECK as well as WOLFSSL_NO_AES_KEY_LOCATION. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(WOLFSSL_NO_AES_KEY_LOCATION) && \
+    !defined(WOLFSSL_NO_AES_KEY_SET_CHECK)
+    #define WC_AES_HAVE_KEY_LOCATION
+#endif
+
 #ifdef WOLFSSL_AES_REQUIRE_KEY_SET
     #define WC_AES_KEY_IS_SET(aes)  ((aes)->keyInstalled != 0)
 #else
@@ -556,6 +569,12 @@ struct Aes {
      * path, which is exactly the case that would otherwise encrypt with an
      * all-zero key. */
     WC_BITFIELD keyInstalled:1;
+#ifdef WC_AES_HAVE_KEY_LOCATION
+    /* WC_KEY_SW_STORED (default) or WC_KEY_HW_STORED, set with
+     * wc_CryptoCb_SetKeyLocation(). HW stored keeps keyInstalled clear.
+     * Reset to SW stored by every key setup, wc_AesInit() and wc_AesFree(). */
+    WC_BITFIELD keyLocation:1;
+#endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
     /* tag length associated with the key, at the end so offsets do not move.
@@ -937,6 +956,9 @@ WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
 #endif
 
 WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
+#ifdef WC_AES_HAVE_KEY_LOCATION
+WOLFSSL_LOCAL int wc_AesSetKeyLocation(Aes* aes, int location);
+#endif
 
 WOLFSSL_API int  wc_AesInit(Aes* aes, void* heap, int devId);
 #ifdef WOLF_PRIVATE_KEY_ID

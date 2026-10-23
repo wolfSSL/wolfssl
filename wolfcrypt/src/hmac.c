@@ -713,6 +713,9 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
 
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+    hmac->keyLocation = WC_KEY_SW_STORED;
+#endif
 
     ret = _InitHmac(hmac, type, heap);
     if (ret != 0)
@@ -1156,6 +1159,20 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     return wc_HmacSetKey_ex(hmac, type, key, length, allowFlag);
 }
 
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+/* Records where the key is kept, for wc_CryptoCb_SetKeyLocation().
+ * WC_KEY_HW_STORED makes software Update and Final fail with MISSING_KEY.
+ * Returns 0, or BAD_FUNC_ARG for an unknown location. */
+int wc_HmacSetKeyLocation(Hmac* hmac, int location)
+{
+    if (location != WC_KEY_SW_STORED && location != WC_KEY_HW_STORED) {
+        return BAD_FUNC_ARG;
+    }
+    hmac->keyLocation = (byte)location;
+    return 0;
+}
+#endif
+
 int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
@@ -1173,6 +1190,12 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
+    }
+#endif
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+    /* The key is on the device only: software has no ipad/opad to use. */
+    if (hmac->keyLocation == WC_KEY_HW_STORED) {
+        return MISSING_KEY;
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
@@ -1309,6 +1332,12 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
+    }
+#endif
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+    /* The key is on the device only: software has no ipad/opad to use. */
+    if (hmac->keyLocation == WC_KEY_HW_STORED) {
+        return MISSING_KEY;
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
