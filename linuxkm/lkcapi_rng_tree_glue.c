@@ -869,31 +869,31 @@ static int wc_linuxkm_drbg_startup(void)
     if (wc_linuxkm_drbg_loaded)
         return -EBUSY;
 
-    ret = wc_RNG_TreeInit((int)nr_cpu_ids, NULL);
-    if (ret != 0) {
-        pr_err("ERROR: wc_RNG_TreeInit() failed: %d\n", ret);
-        RngZeroize();   /* a root it instantiated before the failure */
-        return -ECANCELED;
-    }
     INIT_DELAYED_WORK(&rngRootWork, RngRootWork);
 #ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
     INIT_DELAYED_WORK(&rngVmGenWork, RngVmGenWork);
-    /* Found before the first request, so that request already compares. */
     mutex_lock(&rngVmGenLock);
     RngGenDiscover();
     mutex_unlock(&rngVmGenLock);
 #endif
-    atomic_set(&rngReady, 1);
-    /* Armed before the tree can serve: a clone or restore from here on is
-     * seen.  RngStop() undoes them on every failure path below. */
-#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
-    queue_delayed_work(system_highpri_wq, &rngVmGenWork, 0);
-#endif
+    /* Armed before the tree is seeded, so a clone during seeding is seen.
+     * RngStop() undoes them on every failure path below. */
 #if IS_ENABLED(CONFIG_VMGENID)
     if (register_random_vmfork_notifier(&rngVmForkNb) != 0)
         pr_warn("libwolfssl: no VM-fork notifier, VM clones go undetected.\n");
     else
         rngVmForkNbUp = 1;
+#endif
+
+    ret = wc_RNG_TreeInit((int)nr_cpu_ids, NULL);
+    if (ret != 0) {
+        pr_err("ERROR: wc_RNG_TreeInit() failed: %d\n", ret);
+        RngStop();
+        return -ECANCELED;
+    }
+    atomic_set(&rngReady, 1);
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    queue_delayed_work(system_highpri_wq, &rngVmGenWork, 0);
 #endif
 #ifdef CONFIG_PM_SLEEP
     if (register_pm_notifier(&rngPmNb) != 0)
