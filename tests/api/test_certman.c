@@ -4776,10 +4776,43 @@ int test_wolfSSL_CertManagerNameConstraint_cert_cache(void)
     return EXPECT_RESULT();
 }
 
+#if defined(PERSIST_CERT_CACHE) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
+    (!defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_OCSP) || \
+     defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME))
+/* Find a loaded CA by its common name. */
+static Signer* test_cm_find_signer(WOLFSSL_CERT_MANAGER* cm, const char* cn)
+{
+    int row;
+    int cnLen = (int)XSTRLEN(cn);
+
+    if (cm == NULL) {
+        return NULL;
+    }
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        Signer* s = cm->caTable[row];
+
+        while (s != NULL) {
+            if ((s->name != NULL) && (s->nameLen == cnLen) &&
+                    (XMEMCMP(s->name, cn, (size_t)cnLen) == 0)) {
+                return s;
+            }
+            s = s->next;
+        }
+    }
+    return NULL;
+}
+#endif
+
 /* A CA restored from the cache keeps the path length it inherited from its
  * issuer. chainJ-ICA4 allows two CA certificates below it. ICA3 and ICA2
  * have no path length of their own, so ICA2's effective limit becomes 0.
- * A further CA (ICA1) is rejected before the save and after the restore. */
+ * A further CA (ICA1) is rejected before the save and after the restore.
+ * A second save drops ICA4. The limit already inherited by ICA2, and the
+ * OCSP issuer key hash of ICA3, must still be present after that restore. */
 int test_wolfSSL_CertManagerPathLen_cert_cache(void)
 {
     EXPECT_DECLS;
@@ -4793,8 +4826,15 @@ int test_wolfSSL_CertManagerPathLen_cert_cache(void)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_CERT_MANAGER* cm = NULL;
     byte* cache = NULL;
+    byte* cache2 = NULL;
     int cacheSz = 0;
+    int cacheSz2 = 0;
     int used = 0;
+    int used2 = 0;
+#ifdef HAVE_OCSP
+    byte ica4Key[KEYID_SIZE];
+    byte ica3Key[KEYID_SIZE];
+#endif
     const char* root_cert = "./certs/ca-cert.pem";
     const char* ica4_cert =
         "./certs/test-pathlen/chainJ-ICA4-pathlen2.pem";
@@ -4830,6 +4870,35 @@ int test_wolfSSL_CertManagerPathLen_cert_cache(void)
     ExpectIntEQ(wolfSSL_CTX_memsave_cert_cache(ctx, cache, cacheSz, &used),
                 WOLFSSL_SUCCESS);
     ExpectIntEQ(used, cacheSz);
+
+    /* Remove the CA that carries the path length extension. Descendants
+     * keep the limit they already inherited. That limit is what the cache
+     * must restore when the issuer itself is not stored. */
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
+    if (cm != NULL) {
+        Signer* ica4 = test_cm_find_signer(cm, "chainJ-ICA4-pathlen2");
+        Signer* ica3 = test_cm_find_signer(cm, "chainJ-ICA3-no_pathlen");
+
+        ExpectNotNull(ica4);
+        ExpectNotNull(ica3);
+        if ((ica4 != NULL) && (ica3 != NULL)) {
+            ica4->type = WOLFSSL_CHAIN_CA;
+#ifdef HAVE_OCSP
+            XMEMCPY(ica4Key, ica4->subjectKeyHash, KEYID_SIZE);
+            XMEMCPY(ica3Key, ica3->subjectKeyHash, KEYID_SIZE);
+            ExpectIntEQ(XMEMCMP(ica3->issuerKeyHash, ica4Key, KEYID_SIZE), 0);
+#endif
+        }
+        ExpectIntEQ(wolfSSL_CertManagerUnloadIntermediateCerts(cm),
+                    WOLFSSL_SUCCESS);
+        ExpectNull(test_cm_find_signer(cm, "chainJ-ICA4-pathlen2"));
+    }
+    ExpectIntGT(cacheSz2 = wolfSSL_CTX_get_cert_cache_memsize(ctx), 0);
+    ExpectNotNull(cache2 = (byte*)XMALLOC((size_t)cacheSz2, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wolfSSL_CTX_memsave_cert_cache(ctx, cache2, cacheSz2, &used2),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(used2, cacheSz2);
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
@@ -4850,7 +4919,39 @@ int test_wolfSSL_CertManagerPathLen_cert_cache(void)
                        WC_NO_ERR_TRACE(WOLFSSL_FAILURE)));
 
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Restore the cache that no longer contains ICA4. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
+    ExpectIntEQ(wolfSSL_CTX_memrestore_cert_cache(ctx, cache2, used2),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
+    ExpectNull(test_cm_find_signer(cm, "chainJ-ICA4-pathlen2"));
+#ifdef HAVE_OCSP
+    if (cm != NULL) {
+        Signer* ica3 = test_cm_find_signer(cm, "chainJ-ICA3-no_pathlen");
+        Signer* ica2 = test_cm_find_signer(cm, "chainJ-ICA2-no_pathlen");
+
+        /* ICA4 is absent, so ICA3 keeps the issuer key hash from the save. */
+        ExpectNotNull(ica3);
+        if (ica3 != NULL) {
+            ExpectIntEQ(XMEMCMP(ica3->issuerKeyHash, ica4Key, KEYID_SIZE), 0);
+        }
+        /* ICA3 is present, so ICA2 takes that issuer's subject key hash. */
+        ExpectNotNull(ica2);
+        if (ica2 != NULL) {
+            ExpectIntEQ(XMEMCMP(ica2->issuerKeyHash, ica3Key, KEYID_SIZE), 0);
+        }
+    }
+#endif
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, ica1_cert, NULL),
+        WS_RETURN_CODE(WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E),
+                       WC_NO_ERR_TRACE(WOLFSSL_FAILURE)));
+
+    wolfSSL_CTX_free(ctx);
     XFREE(cache, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cache2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
