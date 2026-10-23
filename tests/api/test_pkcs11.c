@@ -41,6 +41,9 @@
     #if defined(HAVE_ECC_DHE) && !defined(NO_PKCS11_EC_KEYGEN)
         #define TEST_PKCS11_RD_ECGEN
     #endif
+    #ifdef HAVE_ECC_SIGN
+        #define TEST_PKCS11_RD_ECSIGN
+    #endif
 #endif
 #if !defined(NO_RSA) && !defined(NO_PKCS11_RSA) && defined(WOLF_PRIVATE_KEY_ID)
     #define TEST_PKCS11_RD_RSA
@@ -66,6 +69,7 @@
 #endif
 
 #if defined(TEST_PKCS11_RD_ECDH) || defined(TEST_PKCS11_RD_ECGEN) || \
+    defined(TEST_PKCS11_RD_ECSIGN) || \
     defined(TEST_PKCS11_RD_RSA) || defined(TEST_PKCS11_RD_MLDSA) || \
     defined(TEST_PKCS11_RD_MLKEM_GEN) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
     defined(TEST_PKCS11_RD_MLKEM_DEC) || defined(TEST_PKCS11_RD_CERT)
@@ -264,7 +268,7 @@ static CK_RV test_pkcs11_rd_mech_info(CK_SLOT_ID slotId,
     XMEMSET(info, 0, sizeof(*info));
     info->ulMaxKeySize = 0xffff;
     info->flags = CKF_DERIVE | CKF_GENERATE_KEY_PAIR | CKF_ENCAPSULATE |
-                  CKF_DECAPSULATE;
+                  CKF_DECAPSULATE | CKF_SIGN;
     return CKR_OK;
 }
 
@@ -301,8 +305,14 @@ static CK_RV test_pkcs11_rd_keygen(CK_SESSION_HANDLE session,
 
 #if defined(TEST_PKCS11_RD_RSA) || defined(TEST_PKCS11_RD_CERT) || \
     (defined(TEST_PKCS11_RD_ECDH) && defined(WOLF_PRIVATE_KEY_ID)) || \
+    (defined(TEST_PKCS11_RD_ECSIGN) && defined(WOLF_PRIVATE_KEY_ID)) || \
+    (defined(TEST_PKCS11_RD_MLDSA) && defined(WOLF_PRIVATE_KEY_ID)) || \
     defined(TEST_PKCS11_RD_MLKEM_ENC)
     #define TEST_PKCS11_RD_FIND
+#endif
+#if defined(TEST_PKCS11_RD_RSA) || defined(TEST_PKCS11_RD_ECSIGN) || \
+    defined(TEST_PKCS11_RD_MLDSA)
+    #define TEST_PKCS11_RD_SIGN
 #endif
 
 #ifdef TEST_PKCS11_RD_FIND
@@ -342,7 +352,9 @@ static CK_RV test_pkcs11_rd_find_final(CK_SESSION_HANDLE session)
 }
 #endif
 
-#ifdef TEST_PKCS11_RD_RSA
+#ifdef TEST_PKCS11_RD_SIGN
+static CK_ULONG test_pkcs11_rd_sig_len = 0;
+
 static CK_RV test_pkcs11_rd_sign_init(CK_SESSION_HANDLE session,
     CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE key)
 {
@@ -350,11 +362,26 @@ static CK_RV test_pkcs11_rd_sign_init(CK_SESSION_HANDLE session,
     (void)mechanism;
     (void)key;
 
-    return CKR_MECHANISM_INVALID;
+    return (test_pkcs11_rd_sig_len == 0) ? CKR_MECHANISM_INVALID : CKR_OK;
+}
+
+static CK_RV test_pkcs11_rd_sign(CK_SESSION_HANDLE session, CK_BYTE_PTR data,
+    CK_ULONG dataLen, CK_BYTE_PTR sig, CK_ULONG_PTR sigLen)
+{
+    (void)session;
+    (void)data;
+    (void)dataLen;
+
+    XMEMSET(sig, 0xa5, (*sigLen < test_pkcs11_rd_sig_len) ? *sigLen :
+        test_pkcs11_rd_sig_len);
+    *sigLen = test_pkcs11_rd_sig_len;
+    return CKR_OK;
 }
 #endif
 
 #ifdef TEST_PKCS11_RD_MLKEM_ENC
+static CK_ULONG test_pkcs11_rd_ct_extra = 0;
+
 static CK_RV test_pkcs11_rd_encaps(CK_SESSION_HANDLE session,
     CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE pubKey,
     CK_ATTRIBUTE_PTR template, CK_ULONG count, CK_BYTE_PTR ct,
@@ -367,6 +394,7 @@ static CK_RV test_pkcs11_rd_encaps(CK_SESSION_HANDLE session,
     (void)count;
 
     XMEMSET(ct, 0, *ctLen);
+    *ctLen += test_pkcs11_rd_ct_extra;
     *key = 2;
     return CKR_OK;
 }
@@ -394,6 +422,12 @@ static CK_RV test_pkcs11_rd_decaps(CK_SESSION_HANDLE session,
 static CK_RV test_pkcs11_rd_get_attr(CK_SESSION_HANDLE session,
     CK_OBJECT_HANDLE object, CK_ATTRIBUTE_PTR template, CK_ULONG count)
 {
+#if defined(TEST_PKCS11_RD_ECSIGN) && defined(WOLF_PRIVATE_KEY_ID)
+    /* DER encoded OID of SECP256R1. */
+    static const byte p256Params[] = {
+        0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+    };
+#endif
     CK_RV rv = CKR_OK;
     CK_ULONG i;
 
@@ -431,6 +465,13 @@ static CK_RV test_pkcs11_rd_get_attr(CK_SESSION_HANDLE session,
                 rv = test_pkcs11_rd_rv;
             }
         }
+    #if defined(TEST_PKCS11_RD_ECSIGN) && defined(WOLF_PRIVATE_KEY_ID)
+        else if (template[i].type == CKA_EC_PARAMS &&
+                template[i].ulValueLen >= sizeof(p256Params)) {
+            XMEMCPY(template[i].pValue, p256Params, sizeof(p256Params));
+            template[i].ulValueLen = sizeof(p256Params);
+        }
+    #endif
     #ifdef WOLFSSL_HAVE_MLKEM
         else if (template[i].type == CKA_PARAMETER_SET) {
             *(CK_ML_KEM_PARAMETER_SET_TYPE*)template[i].pValue =
@@ -454,8 +495,18 @@ int test_wc_Pkcs11_ValueRead(void)
     CK_FUNCTION_LIST_3_2 func;
     WC_RNG rng;
 #if defined(TEST_PKCS11_RD_ECDH) || defined(TEST_PKCS11_RD_RSA) || \
-    defined(TEST_PKCS11_RD_CERT) || defined(TEST_PKCS11_RD_MLKEM_ENC)
+    defined(TEST_PKCS11_RD_CERT) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
+    defined(TEST_PKCS11_RD_SIGN)
     wc_CryptoInfo info;
+#endif
+#ifdef TEST_PKCS11_RD_ECSIGN
+    static const byte ecHash[32] = { 0 };
+    ecc_key signKey;
+    byte ecSig[80];
+    word32 ecSigLen = sizeof(ecSig);
+#ifdef WOLF_PRIVATE_KEY_ID
+    ecc_key lblSignKey;
+#endif
 #endif
 #ifdef TEST_PKCS11_RD_ECDH
     static const byte zero[32] = { 0 };
@@ -480,6 +531,12 @@ int test_wc_Pkcs11_ValueRead(void)
 #endif
 #ifdef TEST_PKCS11_RD_MLDSA
     wc_MlDsaKey dsa;
+    static const byte dsaMsg[32] = { 0 };
+    byte dsaSig[WC_MLDSA_44_SIG_SIZE];
+    word32 dsaSigLen = sizeof(dsaSig);
+#ifdef WOLF_PRIVATE_KEY_ID
+    wc_MlDsaKey lblDsa;
+#endif
 #endif
 #if defined(TEST_PKCS11_RD_MLKEM_GEN) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
     defined(TEST_PKCS11_RD_MLKEM_DEC)
@@ -532,8 +589,9 @@ int test_wc_Pkcs11_ValueRead(void)
     func.C_FindObjects = test_pkcs11_rd_find;
     func.C_FindObjectsFinal = test_pkcs11_rd_find_final;
 #endif
-#ifdef TEST_PKCS11_RD_RSA
+#ifdef TEST_PKCS11_RD_SIGN
     func.C_SignInit = test_pkcs11_rd_sign_init;
+    func.C_Sign = test_pkcs11_rd_sign;
 #endif
 #ifdef TEST_PKCS11_RD_MLKEM_ENC
     func.C_EncapsulateKey = test_pkcs11_rd_encaps;
@@ -634,6 +692,45 @@ int test_wc_Pkcs11_ValueRead(void)
         WC_NO_ERR_TRACE(WC_HW_E));
     wc_ecc_free(&genKey);
 #endif
+#ifdef TEST_PKCS11_RD_ECSIGN
+    XMEMSET(&signKey, 0, sizeof(signKey));
+    ExpectIntEQ(wc_ecc_init(&signKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &signKey), 0);
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_ECDSA_SIGN;
+    info.pk.eccsign.in = ecHash;
+    info.pk.eccsign.inlen = sizeof(ecHash);
+    info.pk.eccsign.out = ecSig;
+    info.pk.eccsign.outlen = &ecSigLen;
+    info.pk.eccsign.rng = &rng;
+    info.pk.eccsign.key = &signKey;
+    test_pkcs11_rd_sig_len = 2 * 32 - 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_sig_len = 2 * 32 + 2;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_rd_sig_len = 2 * 32;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(ecSigLen, 72);
+    ecSigLen = sizeof(ecSig);
+    test_pkcs11_rd_sig_len = 2 * 31;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(ecSigLen, 70);
+#ifdef WOLF_PRIVATE_KEY_ID
+    XMEMSET(&lblSignKey, 0, sizeof(lblSignKey));
+    ExpectIntEQ(wc_ecc_init_label(&lblSignKey, "rd", NULL, INVALID_DEVID), 0);
+    info.pk.eccsign.key = &lblSignKey;
+    ecSigLen = sizeof(ecSig);
+    test_pkcs11_rd_sig_len = 2 * 32;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(ecSigLen, 72);
+    wc_ecc_free(&lblSignKey);
+#endif
+    test_pkcs11_rd_sig_len = 0;
+    wc_ecc_free(&signKey);
+#endif
 #ifdef TEST_PKCS11_RD_RSA
     test_pkcs11_rd_len = sizeof(in);
     test_pkcs11_rd_ret_len = sizeof(in) - 1;
@@ -733,6 +830,33 @@ int test_wc_Pkcs11_ValueRead(void)
     test_pkcs11_rd_len = WC_MLDSA_44_PUB_KEY_SIZE;
     test_pkcs11_rd_ret_len = WC_MLDSA_44_PUB_KEY_SIZE;
     ExpectIntEQ(wc_MlDsaKey_MakeKey(&dsa, &rng), 0);
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_PK;
+    info.pk.type = WC_PK_TYPE_PQC_SIG_SIGN;
+    info.pk.pqc_sign.in = dsaMsg;
+    info.pk.pqc_sign.inlen = sizeof(dsaMsg);
+    info.pk.pqc_sign.out = dsaSig;
+    info.pk.pqc_sign.outlen = &dsaSigLen;
+    info.pk.pqc_sign.rng = &rng;
+    info.pk.pqc_sign.key = &dsa;
+    info.pk.pqc_sign.type = WC_PQC_SIG_TYPE_MLDSA;
+    info.pk.pqc_sign.preHashType = WC_HASH_TYPE_NONE;
+    test_pkcs11_rd_sig_len = sizeof(dsaSig) + 1;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(dsaSigLen, sizeof(dsaSig));
+    test_pkcs11_rd_sig_len = sizeof(dsaSig);
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(dsaSigLen, sizeof(dsaSig));
+#ifdef WOLF_PRIVATE_KEY_ID
+    XMEMSET(&lblDsa, 0, sizeof(lblDsa));
+    ExpectIntEQ(wc_MlDsaKey_InitLabel(&lblDsa, "rd", NULL, INVALID_DEVID), 0);
+    info.pk.pqc_sign.key = &lblDsa;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+    ExpectIntEQ(dsaSigLen, sizeof(dsaSig));
+    wc_MlDsaKey_Free(&lblDsa);
+#endif
+    test_pkcs11_rd_sig_len = 0;
     wc_MlDsaKey_Free(&dsa);
 #endif
 #ifdef TEST_PKCS11_RD_MLKEM_GEN
@@ -808,6 +932,12 @@ int test_wc_Pkcs11_ValueRead(void)
     ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
     ExpectIntEQ(ss[0], 0xa5);
     ExpectIntEQ(ss[WC_ML_KEM_SS_SZ - 1], 0xa5);
+    if (sizeof(CK_ULONG) > sizeof(word32)) {
+        test_pkcs11_rd_ct_extra = (CK_ULONG)0xFFFFFFFFUL + 1;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        test_pkcs11_rd_ct_extra = 0;
+    }
     wc_MlKemKey_Free(&kem);
 #endif
 

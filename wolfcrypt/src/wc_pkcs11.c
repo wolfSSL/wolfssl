@@ -3980,7 +3980,8 @@ static int Pkcs11GetEccParams(Pkcs11Session* session, CK_OBJECT_HANDLE privKey,
  *
  * @param  session  [in]  Session object.
  * @param  info     [in]  Cryptographic operation data.
- * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  WC_HW_E when a PKCS#11 library call fails or the signature has
+ *          the wrong length.
  * @return  0 on success.
  */
 static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
@@ -4012,8 +4013,7 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
             privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)
                          info->pk.eccsign.key->devCtx;
         }
-        else if ((sessionKey = !mp_iszero(
-                wc_ecc_key_get_priv(info->pk.eccsign.key))))
+        else if ((sessionKey = PKCS11_ECC_HAS_PRIV(info->pk.eccsign.key)))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
                                                 info->pk.eccsign.key, CKA_SIGN);
         else if (info->pk.eccsign.key->labelLen > 0) {
@@ -4066,14 +4066,15 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
                                    info->pk.eccsign.inlen, info->pk.eccsign.out,
                                    &outLen);
         PKCS11_RV("C_Sign", rv);
-        if (rv != CKR_OK) {
+        if (rv != CKR_OK || outLen == 0 || (outLen % 2) != 0 ||
+                outLen > (CK_ULONG)sz * 2) {
             ret = WC_HW_E;
         }
     }
 
     if (ret == 0) {
         *info->pk.eccsign.outlen = Pkcs11ECDSASig_Encode(info->pk.eccsign.out,
-                                                         sz);
+                                                         (word32)outLen / 2);
     }
 
     if (sessionKey && privateKey != NULL_PTR)
@@ -4800,7 +4801,7 @@ static int Pkcs11MlKemEncapsulate(Pkcs11Session* session, wc_CryptoInfo* info)
                                             &sharedKey);
         PKCS11_RV("C_EncapsulateKey", rv);
         if (rv != CKR_OK ||
-            (word32)ctLen != info->pk.pqc_encaps.ciphertextLen) {
+            ctLen != (CK_ULONG)info->pk.pqc_encaps.ciphertextLen) {
             ret = WC_HW_E;
         }
     }
@@ -5304,7 +5305,8 @@ static int Pkcs11MldsaKeyGen(Pkcs11Session* session, wc_MlDsaKey* key)
  *
  * @param  session  [in]  Session object.
  * @param  info     [in]  Cryptographic operation data.
- * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  WC_HW_E when a PKCS#11 library call fails or the signature is
+ *          longer than the output buffer.
  * @return  0 on success.
  */
 static int Pkcs11MldsaSign(Pkcs11Session* session, wc_CryptoInfo* info)
@@ -5427,7 +5429,7 @@ static int Pkcs11MldsaSign(Pkcs11Session* session, wc_CryptoInfo* info)
                                    info->pk.pqc_sign.out,
                                    &outLen);
         PKCS11_RV("C_Sign", rv);
-        if (rv != CKR_OK) {
+        if (rv != CKR_OK || outLen > *info->pk.pqc_sign.outlen) {
             ret = WC_HW_E;
         }
     }
