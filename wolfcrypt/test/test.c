@@ -33810,6 +33810,24 @@ out:
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+/* Is generate serviced by the local DRBG rather than a crypto callback? */
+static int rng_test_generate_is_local(const WC_RNG* rng)
+{
+    int local = 1;
+
+    (void)rng;
+#ifdef WOLF_CRYPTO_CB
+    #ifdef WOLF_CRYPTO_CB_FIND
+    local = 0;
+    #else
+    if (rng != NULL && rng->devId != INVALID_DEVID)
+        local = 0;
+    #endif
+#endif
+
+    return local;
+}
+
 /* Coverage for the DRBG state accessor / reseed scheduling services and the
  * per-key RNG clear APIs.  Probes that observe DRBG internals via the
  * accessors are gated at runtime on wc_RNG_DRBG_Present(), so the test also
@@ -33865,18 +33883,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
 #endif
 
     present = wc_RNG_DRBG_Present(root);
-
-    /* A crypto callback services wc_RNG_GenerateBlock() off-instance, so the
-     * local DRBG's counter and stats only move when generate stays local. */
-    gen_local = present;
-#ifdef WOLF_CRYPTO_CB
-    #ifdef WOLF_CRYPTO_CB_FIND
-    gen_local = 0;
-    #else
-    if (root->devId != INVALID_DEVID)
-        gen_local = 0;
-    #endif
-#endif
+    gen_local = present && rng_test_generate_is_local(root);
 
     /* generate advances the reseed counter */
     if (gen_local) {
@@ -36443,6 +36450,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
     api_ret = wc_RNG_Status(rng);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* recovery below needs the local DRBG to service generate */
+    if (!rng_test_generate_is_local(rng))
+        goto out_l;
 
     /* one generate recovers: exactly one credited reseed, then a clean
      * verdict with a current stamp. */
