@@ -24,14 +24,55 @@
 #include <tests/api/api.h>
 #include <tests/api/test_pkcs11.h>
 
-#if defined(HAVE_PKCS11) && defined(HAVE_ECC) && !defined(NO_PKCS11_ECC) && \
-    defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG) && \
-    !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+#if defined(HAVE_PKCS11) && !defined(WC_NO_RNG)
 
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/wc_pkcs11.h>
 
+#if defined(HAVE_ECC) && !defined(NO_PKCS11_ECC) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+    #ifdef HAVE_ECC_VERIFY
+        #define TEST_PKCS11_ECDSA
+    #endif
+    #if defined(HAVE_ECC_DHE) && !defined(NO_PKCS11_ECDH)
+        #define TEST_PKCS11_RD_ECDH
+    #endif
+    #if defined(HAVE_ECC_DHE) && !defined(NO_PKCS11_EC_KEYGEN)
+        #define TEST_PKCS11_RD_ECGEN
+    #endif
+#endif
+#if !defined(NO_RSA) && !defined(NO_PKCS11_RSA) && defined(WOLF_PRIVATE_KEY_ID)
+    #define TEST_PKCS11_RD_RSA
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(NO_PKCS11_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_DSA_44)
+    #define TEST_PKCS11_RD_MLDSA
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(NO_PKCS11_MLKEM) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_768)
+    #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+        #define TEST_PKCS11_RD_MLKEM_GEN
+    #endif
+    #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && defined(WOLF_PRIVATE_KEY_ID)
+        #define TEST_PKCS11_RD_MLKEM_ENC
+    #endif
+    #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+        #define TEST_PKCS11_RD_MLKEM_DEC
+    #endif
+#endif
+#ifndef NO_CERTS
+    #define TEST_PKCS11_RD_CERT
+#endif
+
+#if defined(TEST_PKCS11_RD_ECDH) || defined(TEST_PKCS11_RD_ECGEN) || \
+    defined(TEST_PKCS11_RD_RSA) || defined(TEST_PKCS11_RD_MLDSA) || \
+    defined(TEST_PKCS11_RD_MLKEM_GEN) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
+    defined(TEST_PKCS11_RD_MLKEM_DEC) || defined(TEST_PKCS11_RD_CERT)
+    #define TEST_PKCS11_VALUE_READ
+#endif
+
+#ifdef TEST_PKCS11_ECDSA
 static int         test_pkcs11_verify_init_calls = 0;
 static int         test_pkcs11_verify_calls = 0;
 static const byte* test_pkcs11_expected_sig = NULL;
@@ -50,7 +91,9 @@ static CK_RV test_pkcs11_get_mechanism_info(CK_SLOT_ID slotId,
     info->flags = CKF_VERIFY;
     return CKR_OK;
 }
+#endif
 
+#if defined(TEST_PKCS11_ECDSA) || defined(TEST_PKCS11_VALUE_READ)
 static CK_RV test_pkcs11_create_object(CK_SESSION_HANDLE session,
     CK_ATTRIBUTE_PTR template, CK_ULONG count, CK_OBJECT_HANDLE_PTR object)
 {
@@ -73,7 +116,9 @@ static CK_RV test_pkcs11_destroy_object(CK_SESSION_HANDLE session,
 
     return CKR_OK;
 }
+#endif
 
+#ifdef TEST_PKCS11_ECDSA
 static CK_RV test_pkcs11_verify_init(CK_SESSION_HANDLE session,
     CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE key)
 {
@@ -198,42 +243,7 @@ static CK_RV test_pkcs11_get_attribute_value(CK_SESSION_HANDLE session,
     return CKR_OK;
 }
 #endif
-
-#if defined(HAVE_ECC_DHE) && !defined(NO_PKCS11_ECDH)
-    #define TEST_PKCS11_RD_ECDH
-#endif
-#if defined(HAVE_ECC_DHE) && !defined(NO_PKCS11_EC_KEYGEN)
-    #define TEST_PKCS11_RD_ECGEN
-#endif
-#if !defined(NO_RSA) && !defined(NO_PKCS11_RSA) && defined(WOLF_PRIVATE_KEY_ID)
-    #define TEST_PKCS11_RD_RSA
-#endif
-#if defined(WOLFSSL_HAVE_MLDSA) && !defined(NO_PKCS11_MLDSA) && \
-    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_DSA_44)
-    #define TEST_PKCS11_RD_MLDSA
-#endif
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(NO_PKCS11_MLKEM) && \
-    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_768)
-    #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
-        #define TEST_PKCS11_RD_MLKEM_GEN
-    #endif
-    #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && defined(WOLF_PRIVATE_KEY_ID)
-        #define TEST_PKCS11_RD_MLKEM_ENC
-    #endif
-    #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
-        #define TEST_PKCS11_RD_MLKEM_DEC
-    #endif
-#endif
-#ifndef NO_CERTS
-    #define TEST_PKCS11_RD_CERT
-#endif
-
-#if defined(TEST_PKCS11_RD_ECDH) || defined(TEST_PKCS11_RD_ECGEN) || \
-    defined(TEST_PKCS11_RD_RSA) || defined(TEST_PKCS11_RD_MLDSA) || \
-    defined(TEST_PKCS11_RD_MLKEM_GEN) || defined(TEST_PKCS11_RD_MLKEM_ENC) || \
-    defined(TEST_PKCS11_RD_MLKEM_DEC) || defined(TEST_PKCS11_RD_CERT)
-    #define TEST_PKCS11_VALUE_READ
-#endif
+#endif /* TEST_PKCS11_ECDSA */
 
 #ifdef TEST_PKCS11_VALUE_READ
 #define TEST_PKCS11_RD_DEVID 0x7032
@@ -433,7 +443,8 @@ static CK_RV test_pkcs11_rd_get_attr(CK_SESSION_HANDLE session,
     }
     return rv;
 }
-#endif
+#endif /* TEST_PKCS11_VALUE_READ */
+#endif /* HAVE_PKCS11 && !WC_NO_RNG */
 
 int test_wc_Pkcs11_ValueRead(void)
 {
@@ -829,6 +840,8 @@ int test_wc_Pkcs11_ValueRead(void)
 
 int test_wc_Pkcs11_EcdsaSigDecode(void)
 {
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_ECDSA
     static const byte emptyR[] = {
         0x30, 0x05, 0x02, 0x00, 0x02, 0x01, 0x01
     };
@@ -854,7 +867,6 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
     int res = 0;
     int haveKey = 0;
     int haveRng = 0;
-    EXPECT_DECLS;
 
     XMEMSET(&token, 0, sizeof(token));
     XMEMSET(&func, 0, sizeof(func));
@@ -1052,8 +1064,7 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
         wc_ecc_free(&key);
     if (haveRng)
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
 
     return EXPECT_RESULT();
 }
-
-#endif
