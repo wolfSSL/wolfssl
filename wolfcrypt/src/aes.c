@@ -110,7 +110,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_DEVCRYPTO_CBC:   /dev/crypto AES-CBC acceleration      default: off
  * WOLFSSL_KCAPI_AES:       Linux kernel crypto API for AES       default: off
  * WOLFSSL_NO_KCAPI_AES_CBC: Disable KCAPI AES-CBC                default: off
- * WOLFSSL_NRF51_AES:       nRF51 hardware AES                    default: off
  * WOLFSSL_PSA_NO_AES:      Disable PSA AES                       default: off
  * WOLFSSL_SCE_NO_AES:      Disable Renesas SCE AES               default: off
  * NO_IMX6_CAAM_AES:        Disable i.MX6 CAAM AES               default: off
@@ -777,34 +776,6 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
             PIC32_DECRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_RECB);
     }
     #endif
-
-#elif defined(WOLFSSL_NRF51_AES)
-    /* Use built-in AES hardware - AES 128 ECB Encrypt Only */
-    #include "wolfssl/wolfcrypt/port/nrf51.h"
-
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(
-        Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-        int ret;
-
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-        if (ret < 0)
-            return ret;
-#endif
-
-        ret = wolfSSL_CryptHwMutexLock();
-        if (ret == 0) {
-            ret = nrf51_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds,
-                                    outBlock);
-            wolfSSL_CryptHwMutexUnLock();
-        }
-        return ret;
-    }
-
-    #ifdef HAVE_AES_DECRYPT
-        #error nRF51 AES Hardware does not support decrypt
-    #endif /* HAVE_AES_DECRYPT */
 
 #elif defined(WOLFSSL_ESP32_CRYPT) && \
      !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
@@ -5174,44 +5145,6 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
-    }
-
-    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                        const byte* iv, int dir)
-    {
-        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
-    }
-#elif defined(WOLFSSL_NRF51_AES)
-    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
-        const byte* iv, int dir)
-    {
-        int ret;
-
-        (void)dir;
-        (void)iv;
-
-        if (aes == NULL || keylen != 16)
-            return BAD_FUNC_ARG;
-
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-        if (ret < 0)
-            return ret;
-#endif
-
-        aes->keylen = keylen;
-        aes->keyInstalled = 1;
-        aes->rounds = keylen/4 + 6;
-        XMEMCPY(aes->key, userKey, keylen);
-        ret = nrf51_aes_set_key(userKey);
-
-    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
-        defined(WOLFSSL_AES_CTS)
-        aes->left = 0;
-    #endif
-
-        return ret;
     }
 
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,

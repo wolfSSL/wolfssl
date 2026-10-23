@@ -1708,6 +1708,10 @@
         #define NO_SESSION_CACHE
 #endif
 
+#ifdef WOLFSSL_NRF51_AES
+    #error "WOLFSSL_NRF51_AES support has been removed"
+#endif
+
 /* For platforms where the target OS is not Windows, but compilation is
  * done on Windows/Visual Studio, enable a way to disable USE_WINDOWS_API.
  * Examples: Micrium, TenAsus INtime, uTasker, FreeRTOS simulator */
