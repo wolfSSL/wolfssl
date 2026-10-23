@@ -9121,7 +9121,8 @@ static int TreeError(int ret)
 }
 
 /* Latch an error state.  A CAST error, which a re-instantiation clears, never
- * replaces one only a reload clears (SP 800-90A 11.4.2, SP 800-90B 4.3 item 2). */
+ * replaces one only a reload clears (SP 800-90A 11.4.2, SP 800-90B 4.3 item 2).
+ * Every WC_RNG child meets it at its next output (SP 800-90C 8.1.2, p. 94). */
 static void TreeSetFailed(int err)
 {
     WC_ATOMIC_INT_ARG kat = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
@@ -9129,8 +9130,10 @@ static void TreeSetFailed(int err)
 
     /* Replace no error, or a CAST error with a harder one. */
     while (cur == 0 || (cur == kat && err != kat)) {
-        if (wolfSSL_Atomic_Int_CompareExchange(&tree.failed, &cur, err))
+        if (wolfSSL_Atomic_Int_CompareExchange(&tree.failed, &cur, err)) {
+            wc_RNG_global_invalidate_entropy();
             break;
+        }
     }
 }
 
@@ -9341,8 +9344,6 @@ void wc_RNG_TreeCastFailed(void)
     TreeSetFailed(DRBG_SHA512_KAT_FIPS_E);
     if (TreeWipeAll() != 0)
         WOLFSSL_MSG("RNG tree: a DRBG did not zeroize");
-    /* Every WC_RNG child is instantiated again before its next output. */
-    wc_RNG_global_invalidate_entropy();
     TreeSeedingGive();
 }
 
