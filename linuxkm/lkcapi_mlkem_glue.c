@@ -881,7 +881,7 @@ static int linuxkm_test_mlkem_driver(const char * driver, int type)
         goto test_mlkem_end;
     }
 
-    work = (byte *)malloc(ek_len + (2 * ct_len) + (2 * ss_len));
+    work = (byte *)wc_linuxkm_sg_malloc(ek_len + (2 * ct_len) + (2 * ss_len));
     if (! work) {
         test_rc = MEMORY_E;
         goto test_mlkem_end;

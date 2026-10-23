@@ -1946,6 +1946,24 @@ static const struct wc_reloc_table_segments seg_map = {
 
 #endif /* !WC_SYM_RELOC_TABLES && HAVE_FIPS */
 
+/* Scatterlist-safe allocation: scatterlists require linearly-mapped
+ * (virt_to_page()-valid) backing memory, which the kvmalloc()-based
+ * malloc() configurations (USE_KVMALLOC and WC_LINUXKM_USE_HEAP_WRAPPERS)
+ * may not return for allocations whose rounded size exceeds PAGE_SIZE.
+ * Buffers destined for sg_set_buf()/sg_init_one() -- currently the
+ * LKCAPI self-testers' larger signature and KEM working buffers --
+ * allocate here instead: the same guards as malloc(), but always
+ * kmalloc().  free(), kvfree()-based in all configurations, releases
+ * these. */
+void *wc_linuxkm_sg_malloc(size_t size)
+{
+    if (in_nmi())
+        return NULL;
+    else
+        return kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size),
+                       (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC));
+}
+
 #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
 
 #ifndef USE_KVREALLOC

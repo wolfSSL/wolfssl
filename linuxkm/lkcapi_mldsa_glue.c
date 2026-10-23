@@ -1289,7 +1289,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
     /* Allocate param_copy -- scatterwalk_map_and_copy() unmaps the buffers in
      * the sg list, so we can't safely use the passed pointers directly.
      */
-    param_copy = (byte *)malloc(sig_len + msg_len);
+    param_copy = (byte *)wc_linuxkm_sg_malloc(sig_len + msg_len);
     if (! param_copy) {
         pr_err("error: allocating param_copy buffer failed.\n");
         test_rc = MEMORY_E;
@@ -1361,7 +1361,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
     }
 
     /* prepare a bad signature */
-    bad_sig = malloc(sig_len);
+    bad_sig = wc_linuxkm_sg_malloc(sig_len);
     if (bad_sig == NULL) {
         pr_err("error: alloc sig failed\n");
         test_rc = MEMORY_E;
@@ -1411,7 +1411,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
             goto test_mldsa_end;
         }
 
-        sig_out = (byte *)malloc(sig_len);
+        sig_out = (byte *)wc_linuxkm_sg_malloc(sig_len);
         if (! sig_out) {
             pr_err("error: allocating sig_out buffer failed.\n");
             test_rc = MEMORY_E;

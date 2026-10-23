@@ -2216,7 +2216,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
     }
 
     /* one allocation: mutable signature + message + sign output. */
-    work = (byte *)malloc((2 * (size_t)sig_len) + msg_len);
+    work = (byte *)wc_linuxkm_sg_malloc((2 * (size_t)sig_len) + msg_len);
     if (! work) {
         pr_err("error: allocating work buffer failed.\n");
         test_rc = MEMORY_E;

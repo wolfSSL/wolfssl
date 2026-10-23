@@ -643,7 +643,7 @@ static int linuxkm_test_lms_driver(const char * driver,
     byte *                    bad_sig = NULL;
     byte                      dummy[1] = { 0 };
 
-    param_copy = (byte *)malloc(sig_len + msg_len);
+    param_copy = (byte *)wc_linuxkm_sg_malloc(sig_len + msg_len);
     if (! param_copy) {
         pr_err("error: allocating param_copy buffer failed.\n");
         test_rc = MEMORY_E;
@@ -703,7 +703,7 @@ static int linuxkm_test_lms_driver(const char * driver,
         goto test_lms_end;
     }
 
-    bad_sig = malloc(sig_len);
+    bad_sig = wc_linuxkm_sg_malloc(sig_len);
     if (bad_sig == NULL) {
         pr_err("error: alloc sig failed\n");
         test_rc = MEMORY_E;

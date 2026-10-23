@@ -1041,7 +1041,7 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
         goto test_frodokem_end;
     }
 
-    work = (byte *)malloc(pk_len + (2 * ct_len) + (2 * ss_len));
+    work = (byte *)wc_linuxkm_sg_malloc(pk_len + (2 * ct_len) + (2 * ss_len));
     if (! work) {
         test_rc = MEMORY_E;
         goto test_frodokem_end;
