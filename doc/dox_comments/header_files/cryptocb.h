@@ -252,18 +252,28 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
     (WOLF_CRYPTO_CB_AES_SETKEY), wolfCrypt routes AES-GCM operations
     through the CryptoCB interface.
 
-    **TLS Builds (Default):**
-    - Key bytes ARE stored in wolfCrypt memory (devKey) for fallback
-    - GCM tables ARE generated for software fallback
-    - Provides hardware acceleration with automatic fallback
+    If the callback returns success (0), the device owns the key. A callback
+    that keeps the key only on the device must leave aes->rounds at 0:
+    wolfCrypt takes a non-zero aes->rounds to mean the callback also built a
+    software key schedule, by calling wc_AesSetKey() on the same object with
+    aes->devId set to a devId no device is registered under, then restoring
+    it. INVALID_DEVID only works without WOLF_CRYPTO_CB_FIND, whose find
+    callback can map it back to the device. Without a schedule, wolfCrypt
+    keeps no copy in devKey and derives no GCM hash subkey or tables, so the
+    callback must handle SetKey, Encrypt, Decrypt, and Free. The streaming
+    GCM API then returns MISSING_KEY, and so does a mode the callback
+    declines when WOLFSSL_AES_REQUIRE_KEY_SET is in effect (the default). The
+    same applies to a WOLF_CRYPTO_CB_SETKEY callback for WC_SETKEY_AES. Only
+    that request carries the key direction, so only such a callback can build
+    a software key schedule.
 
-    **Crypto-Only Builds (--disable-tls):**
-    - Key bytes NOT stored in wolfCrypt memory (true key isolation)
-    - GCM tables skipped (true hardware offload)
-    - Callback must handle all GCM operations (SetKey, Encrypt, Decrypt, Free)
-
-    If the callback returns success (0), full AES-GCM offload is assumed.
-    The callback must handle SetKey, Encrypt, Decrypt, and Free operations.
+    A callback that returns CRYPTOCB_UNAVAILABLE for a new key must first
+    release any key it holds for this object and set aes->devCtx to NULL.
+    wolfCrypt sets the new key up in software and leaves aes->devCtx alone,
+    so a stale handle would keep the operations the callback accepts on the
+    old key. A WOLF_CRYPTO_CB_SETKEY callback must do the same before it
+    returns an error, since wolfCrypt clears aes->devCtx only after an
+    error from this request.
 
     \param aes          AES context
     \param key          Pointer to raw AES key material

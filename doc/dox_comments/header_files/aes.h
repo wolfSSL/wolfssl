@@ -3,8 +3,13 @@
     \brief This function initializes an AES structure by setting the key and
     then setting the initialization vector.
 
+    If a crypto callback device claims the key without a software key
+    schedule, a mode the callback does not handle returns MISSING_KEY when
+    WOLFSSL_AES_REQUIRE_KEY_SET is in effect (the default).
+
     \return 0 On successfully setting key and initialization vector.
     \return BAD_FUNC_ARG Returned if key length is invalid.
+    \return other negative values An error from a crypto callback device.
 
     \param aes pointer to the AES structure to modify
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -353,6 +358,13 @@ int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
     given key. It is only enabled if the configure option
     HAVE_AESGCM is enabled at compile time.
 
+    A new key drops the streaming state, so wc_AesGcmInit() must be called
+    again before wc_AesGcmEncryptUpdate() or wc_AesGcmDecryptUpdate(),
+    which return MISSING_IV until then. A nonce cached with
+    wc_AesGcmSetIV() or wc_AesGcmSetExtIV() is kept. If a crypto callback
+    device claims the key without a software key schedule, the streaming
+    API returns MISSING_KEY.
+
     \return 0 On successfully setting the key.
     \return BAD_FUNC_ARG Returned if the given key is an invalid length.
 
@@ -637,9 +649,13 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     \ingroup AES
     \brief This function sets the key for an AES object using CCM
     (Counter with CBC-MAC). It takes a pointer to an AES structure and
-    initializes it with supplied key.
+    initializes it with supplied key. A nonce cached with
+    wc_AesCcmSetNonce() is kept.
 
-    \return none
+    \return 0 On successfully setting the key.
+    \return BAD_FUNC_ARG Returned if aes or key is NULL, or if the given key
+    is an invalid length.
+    \return other negative values An error from a crypto callback device.
 
     \param aes aes structure in which to store the supplied key
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -2454,10 +2470,13 @@ int wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup);
     \ingroup AES
     \brief This function initializes an AES GCM cipher with key and IV.
     It can be called with NULL key to only set the IV, or with NULL IV
-    to only set the key.
+    to only set the key. An IV given before the key is kept, and the first
+    wc_AesGcmInit() call after the key is set uses it.
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
     \return MEMORY_E If dynamic memory allocation fails.
 
     \param aes pointer to the AES structure to initialize
@@ -2494,6 +2513,8 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer, or NULL to skip key setting
@@ -2659,6 +2680,8 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz);
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer, or NULL to skip key setting
