@@ -1151,7 +1151,7 @@ enum {
             #define XSTRCASECMP(s1,s2) _stricmp((s1),(s2))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
@@ -1185,7 +1185,7 @@ enum {
             #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
