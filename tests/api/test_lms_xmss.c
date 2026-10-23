@@ -2381,8 +2381,10 @@ int test_wc_LmsFeatureCoverage(void)
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    /* Default SHA-256/256 family is compiled into every LMS build. */
+#ifndef WOLFSSL_NO_LMS_SHA256_256
+    /* Default SHA-256/256 family. */
     ExpectIntEQ(lms_mc_family_roundtrip(&rng, LMS_SHA256), TEST_SUCCESS);
+#endif
 
 #ifdef WOLFSSL_LMS_SHA256_192
     /* Truncated 192-bit SHA-256 family: exercises the wc_lms_*sha256_192*
@@ -2396,8 +2398,10 @@ int test_wc_LmsFeatureCoverage(void)
 
     /* Multi-level HSS (L2): drives the wc_hss_* subtree init / auth-path /
      * presign helpers and the level>1 branches that a single-level key skips.
-     * Guarded on the compiled-in level bound. */
-#if !defined(WOLFSSL_LMS_MAX_LEVELS) || (WOLFSSL_LMS_MAX_LEVELS >= 2)
+     * Guarded on the compiled-in level bound, and on the SHA-256/256 family,
+     * the only one with an L2/H5/W8 parameter set. */
+#if !defined(WOLFSSL_NO_LMS_SHA256_256) && \
+    (!defined(WOLFSSL_LMS_MAX_LEVELS) || (WOLFSSL_LMS_MAX_LEVELS >= 2))
     {
         LmsKey key;
         byte   msg[] = "lms hss L2 message";
