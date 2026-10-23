@@ -8685,11 +8685,11 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
     case SSL_CTRL_CHAIN:
 #ifdef SESSION_CERTS
     {
-        /*
-         * We don't care about opt here because a copy of the certificate is
-         * stored anyway so increasing the reference counter is not necessary.
-         * Just check to make sure that it is set to one of the correct values.
-         */
+        /* Build ctx->certChain (DER copies) from sk. A reference is taken on
+         * each certificate because wolfSSL_CTX_add_extra_chain_cert() consumes
+         * one on success. The ctx takes ownership of sk only on success; on
+         * failure no chain is set and the caller still owns sk.
+         * opt: 0 = set0, 1 = set1. */
         WOLF_STACK_OF(WOLFSSL_X509)* sk = (WOLF_STACK_OF(WOLFSSL_X509)*) pt;
         WOLFSSL_X509* x509;
         int i;
@@ -8702,32 +8702,46 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         if (sk) {
             for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
                 x509 = wolfSSL_sk_X509_value(sk, i);
+                if (x509 == NULL) {
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
                 /* Prevent wolfSSL_CTX_add_extra_chain_cert from freeing cert */
                 if (wolfSSL_X509_up_ref(x509) != 1) {
                     WOLFSSL_MSG("Error increasing reference count");
-                    continue;
+                    ret = WOLFSSL_FAILURE;
+                    break;
                 }
                 if (wolfSSL_CTX_add_extra_chain_cert(ctx, x509) !=
                         WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Error adding certificate to context");
                     /* Decrease reference count on failure */
                     wolfSSL_X509_free(x509);
-                    x509 = NULL;
+                    ret = WOLFSSL_FAILURE;
+                    break;
                 }
             }
+            x509 = NULL;
         }
-        /* Free previous chain */
+
+        /* Free previous chain. On failure the ctx is left with no chain */
         wolfSSL_sk_X509_pop_free(ctx->x509Chain, NULL);
-        ctx->x509Chain = sk;
-        if (sk && opt == 1) {
-            /* up all refs when opt == 1 */
-            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
-                x509 = wolfSSL_sk_X509_value(sk, i);
-                if (wolfSSL_X509_up_ref(x509) != 1) {
-                    WOLFSSL_MSG("Error increasing reference count");
-                    continue;
+        ctx->x509Chain = NULL;
+        if (ret == WOLFSSL_SUCCESS) {
+            ctx->x509Chain = sk;
+            if (sk && opt == 1) {
+                /* up all refs when opt == 1 */
+                for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                    x509 = wolfSSL_sk_X509_value(sk, i);
+                    if (wolfSSL_X509_up_ref(x509) != 1) {
+                        WOLFSSL_MSG("Error increasing reference count");
+                        continue;
+                    }
                 }
             }
+        } else {
+            FreeDer(&ctx->certChain);
+            ctx->certChainCnt = 0;
         }
     }
 #else
