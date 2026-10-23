@@ -1446,18 +1446,20 @@ int test_x509_REQ_print_unknown_attr_oid(void)
     const char expected[] =
         "        1.3.6.1.4.1.99999.4294967295.4294967295.4294967295:pw\n";
     /* Same OID with two more 4294967295 arcs: 72 characters of text, past
-     * the print buffer, so the column is truncated rather than failing. */
+     * the stack name buffer, so it is printed in full. */
     static const byte longOid[] = { 0x06, 0x21, 0x2b, 0x06, 0x01, 0x04,
         0x01, 0x86, 0x8d, 0x1f, 0x8f, 0xff, 0xff, 0xff, 0x7f, 0x8f, 0xff,
         0xff, 0xff, 0x7f, 0x8f, 0xff, 0xff, 0xff, 0x7f, 0x8f, 0xff, 0xff,
         0xff, 0x7f, 0x8f, 0xff, 0xff, 0xff, 0x7f };
     const char expectedLong[] =
         "        1.3.6.1.4.1.99999.4294967295.4294967295.4294967295."
-        "4294967295.4:pw\n";
+        "4294967295.4294967295:pw\n";
     /* Long enough that the 72-character name no longer leaves room for it
      * on an 80-column line. */
     const char longValue[] = "0123456789abcdef";
-    const char expectedValue[] = ":0123456789abcdef\n";
+    const char expectedValueLine[] =
+        "        1.3.6.1.4.1.99999.4294967295.4294967295.4294967295."
+        "4294967295.4294967295:0123456789abcdef\n";
     char* mem = NULL;
     char* out = NULL;
     int memSz = 0;
@@ -1509,7 +1511,7 @@ int test_x509_REQ_print_unknown_attr_oid(void)
     wolfSSL_BIO_free(bio);
     bio = NULL;
 
-    /* An OID too long for the name column truncates, it does not fail. */
+    /* An OID too long for the name column is printed in full. */
     if (attr != NULL && attr->object != NULL) {
         attr->object->obj = longOid;
         attr->object->objSz = (unsigned int)sizeof(longOid);
@@ -1533,8 +1535,7 @@ int test_x509_REQ_print_unknown_attr_oid(void)
     bio = NULL;
 
     /* The same long OID with a value long enough that name and value
-     * together would overrun the line: the name column gives way so the
-     * whole print still succeeds and the value is kept whole. */
+     * together would overrun the line: both are kept whole. */
     if (attr != NULL && attr->value != NULL) {
         ExpectIntEQ(wolfSSL_ASN1_STRING_set(attr->value->value.asn1_string,
             longValue, (int)XSTRLEN(longValue)), WOLFSSL_SUCCESS);
@@ -1548,11 +1549,8 @@ int test_x509_REQ_print_unknown_attr_oid(void)
         if (out != NULL) {
             XMEMCPY(out, mem, (size_t)memSz);
             out[memSz] = '\0';
-            /* Value whole, name present but cut short of its 72 characters.
-             * How short depends on NAME_SZ, so only the prefix is checked. */
-            ExpectNotNull(XSTRSTR(out, expectedValue));
-            ExpectNotNull(XSTRSTR(out, "        1.3.6.1.4.1.99999.4294967295"));
-            ExpectNull(XSTRSTR(out, expectedLong));
+            /* Name and value both whole. */
+            ExpectNotNull(XSTRSTR(out, expectedValueLine));
         }
     }
 
@@ -1663,18 +1661,21 @@ int test_x509_REQ_print_long_attr(void)
 #endif
 
 #ifdef TEST_X509_OOM
-/* One-shot allocator: refuses the first malloc of test_x509_refuse_size
- * bytes, then disarms. Everything else delegates to the previous allocators
+/* Allocator that refuses the first test_x509_refuse_left mallocs of
+ * test_x509_refuse_size bytes, then disarms. Everything else delegates to the previous allocators
  * so their blocks (e.g. WOLFSSL_TRACK_MEMORY) stay with their owner. */
 static wolfSSL_Malloc_cb  test_x509_prev_malloc  = NULL;
 static wolfSSL_Free_cb    test_x509_prev_free    = NULL;
 static wolfSSL_Realloc_cb test_x509_prev_realloc = NULL;
 static size_t test_x509_refuse_size = 0;
 static int test_x509_refused = 0;
+static int test_x509_refuse_left = 0;
 static void* test_x509_size_malloc(size_t size)
 {
     if ((test_x509_refuse_size != 0) && (size == test_x509_refuse_size)) {
-        test_x509_refuse_size = 0;
+        if (--test_x509_refuse_left <= 0) {
+            test_x509_refuse_size = 0;
+        }
         test_x509_refused++;
         return NULL;
     }
@@ -1880,7 +1881,7 @@ int test_x509_REQ_print_long_attr_oid(void)
 #endif
 
 #ifdef TEST_X509_OOM
-    /* Refuse only the name buffer (113 + NUL bytes, one-shot): the print
+    /* Refuse only the name buffer (113 + NUL bytes): the print
      * must fail cleanly, and the refusal must have happened. */
     {
         wolfSSL_Malloc_cb prevM = NULL;
@@ -1895,6 +1896,10 @@ int test_x509_REQ_print_long_attr_oid(void)
             test_x509_prev_free = prevF;
             test_x509_prev_realloc = prevR;
             test_x509_refuse_size = XSTRLEN(longTxt) + 1;
+            /* wolfSSL_OBJ_obj2txt() sizes scratch space the same way and
+             * falls back to truncating when refused, so refuse that and
+             * then the print's own buffer. */
+            test_x509_refuse_left = 2;
             test_x509_refused = 0;
             installed = (wolfSSL_SetAllocators(test_x509_size_malloc,
                 test_x509_pass_free, test_x509_pass_realloc) == 0);
@@ -1907,7 +1912,7 @@ int test_x509_REQ_print_long_attr_oid(void)
 
             ExpectIntEQ(wolfSSL_X509_REQ_print(bio, req),
                 WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
-            ExpectIntEQ(test_x509_refused, 1);
+            ExpectIntEQ(test_x509_refused, 2);
             ExpectIntEQ(test_x509_refuse_size, 0);
             (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
 
@@ -1960,7 +1965,8 @@ static int test_x509_memfind(const char* hay, int haySz, const char* needle,
 }
 #endif
 
-/* Values are written by ASN1_STRING length, so an embedded NUL prints. */
+/* Values are written by ASN1_STRING length, so an embedded NUL prints
+ * (escaped). */
 int test_x509_REQ_print_attr_embedded_nul(void)
 {
     EXPECT_DECLS;
@@ -1974,8 +1980,10 @@ int test_x509_REQ_print_attr_embedded_nul(void)
     WOLFSSL_BIO*      bio  = NULL;
     const unsigned char* ecPub  = ecc_clikeypub_der_256;
     const char value[] = { 'p', '\0', 'w' };
-    /* indent, name padded to NAME_SZ/4, ':', 3 value bytes, newline */
-    char expected[8 + NAME_SZ/4 + 1 + 3 + 1 + 1];
+    /* The value is escaped: the NUL prints as "\00". */
+    const char escValue[] = "p\\00w";
+    /* indent, name padded to NAME_SZ/4, ':', escaped value, newline */
+    char expected[8 + NAME_SZ/4 + 1 + sizeof(escValue) + 1];
     int expectedSz;
     char* mem = NULL;
     int memSz = 0;
@@ -1984,10 +1992,10 @@ int test_x509_REQ_print_attr_embedded_nul(void)
         NAME_SZ/4, "challengePassword");
     ExpectIntGT(expectedSz, 0);
     /* snprintf returns the wanted length; the rest must still fit. */
-    ExpectIntLE(expectedSz, (int)sizeof(expected) - (int)sizeof(value) - 1);
+    ExpectIntLE(expectedSz, (int)sizeof(expected) - (int)sizeof(escValue) - 1);
     if (EXPECT_SUCCESS()) {
-        XMEMCPY(expected + expectedSz, value, sizeof(value));
-        expectedSz += (int)sizeof(value);
+        XMEMCPY(expected + expectedSz, escValue, sizeof(escValue) - 1);
+        expectedSz += (int)sizeof(escValue) - 1;
         expected[expectedSz++] = '\n';
     }
 
@@ -2113,7 +2121,7 @@ int test_wolfSSL_X509_print_long_ext_oid(void)
 #endif
 
 #ifdef TEST_X509_OOM
-    /* Refuse only the name buffer (113 + NUL bytes, one-shot): the print
+    /* Refuse only the name buffer (113 + NUL bytes): the print
      * must fail cleanly, and the refusal must have happened. */
     {
         wolfSSL_Malloc_cb prevM = NULL;
@@ -2128,6 +2136,10 @@ int test_wolfSSL_X509_print_long_ext_oid(void)
             test_x509_prev_free = prevF;
             test_x509_prev_realloc = prevR;
             test_x509_refuse_size = XSTRLEN(oid) + 1;
+            /* wolfSSL_OBJ_obj2txt() sizes scratch space the same way and
+             * falls back to truncating when refused, so refuse that and
+             * then the print's own buffer. */
+            test_x509_refuse_left = 2;
             test_x509_refused = 0;
             installed = (wolfSSL_SetAllocators(test_x509_size_malloc,
                 test_x509_pass_free, test_x509_pass_realloc) == 0);
@@ -2140,7 +2152,7 @@ int test_wolfSSL_X509_print_long_ext_oid(void)
 
             ExpectIntEQ(wolfSSL_X509_print(bio, x509),
                 WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
-            ExpectIntEQ(test_x509_refused, 1);
+            ExpectIntEQ(test_x509_refused, 2);
             ExpectIntEQ(test_x509_refuse_size, 0);
             (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
 
