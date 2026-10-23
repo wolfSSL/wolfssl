@@ -2610,6 +2610,8 @@ typedef struct test_eku_case {
     int expectRet;             /* expected handshake result */
     const char* keyUsage;      /* Key Usage on the CA under test, NULL uses
                                 * keyCertSign,cRLSign */
+    int leafOnly;              /* peer sends only the leaf; with extraLevel
+                                * the middle CA is also loaded to verify */
 } test_eku_case;
 
 /* Stand in for an application that knowingly accepts a rejected certificate. */
@@ -2743,7 +2745,8 @@ static int test_eku_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
  * through hsRet and verifyRet. */
 static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
     const byte* rootDer, int rootSz, const byte* pinnedDer, int pinnedSz,
-    const test_eku_case* tc, int* hsRet, long* verifyRet)
+    const byte* pinned2Der, int pinned2Sz, const test_eku_case* tc,
+    int* hsRet, long* verifyRet)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx_c = NULL;
@@ -2798,6 +2801,10 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
     if (pinnedDer != NULL) {
         ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(verifyCtx, pinnedDer,
             (long)pinnedSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
+    if (pinned2Der != NULL) {
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(verifyCtx, pinned2Der,
+            (long)pinned2Sz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     }
 
     /* The harness only reports pass or fail, so read the reason from the side
@@ -2869,18 +2876,21 @@ static int test_eku_chain_case(const test_eku_fixture* f,
 
     if (EXPECT_SUCCESS()) {
         chainSz = leafSz;
-        if (tc->extraLevel) {
+        if (tc->extraLevel && !tc->leafOnly) {
             XMEMCPY(f->chainDer + chainSz, f->midDer, (size_t)midSz);
             chainSz += midSz;
         }
-        XMEMCPY(f->chainDer + chainSz, f->interDer, (size_t)caSz);
-        chainSz += caSz;
+        if (!tc->leafOnly) {
+            XMEMCPY(f->chainDer + chainSz, f->interDer, (size_t)caSz);
+            chainSz += caSz;
+        }
         if (tc->selfSignedCa) {
             rootDer = f->interDer;
             rootSz = caSz;
         }
         ExpectIntEQ(test_eku_chain_handshake(f->chainDer, chainSz,
-            rootDer, rootSz, tc->pinCa ? f->interDer : NULL, caSz, tc,
+            rootDer, rootSz, tc->pinCa ? f->interDer : NULL, caSz,
+            (tc->leafOnly && tc->extraLevel) ? f->midDer : NULL, midSz, tc,
             &hsRet, &verifyRet), TEST_SUCCESS);
     }
 
@@ -2921,54 +2931,76 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
     defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
     static const test_eku_case cases[] = {
         /* eku, selfSigned, selfIssued, clientPresents, pinCa, extraLevel,
-         * overrideCb, verifyDepth, expected handshake result, keyUsage. */
+         * overrideCb, verifyDepth, expected handshake result, keyUsage,
+         * leafOnly. */
 
         /* Server authentication: a CA restricted to code signing, or to
          * client authentication, must be refused. */
         { "codeSigning",  0, 0, 0, 0, 0, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
+                                          NULL, 0 },
         { "clientAuth",   0, 0, 0, 0, 0, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
+                                          NULL, 0 },
         /* A CA that carries the purpose, or leaves it unrestricted, must not
          * be over-rejected. */
-        { "serverAuth",   0, 0, 0, 0, 0, 0, 0, 0, NULL },
-        { NULL,           0, 0, 0, 0, 0, 0, 0, 0, NULL },
-        { "any",          0, 0, 0, 0, 0, 0, 0, 0, NULL },
+        { "serverAuth",   0, 0, 0, 0, 0, 0, 0, 0, NULL, 0 },
+        { NULL,           0, 0, 0, 0, 0, 0, 0, 0, NULL, 0 },
+        { "any",          0, 0, 0, 0, 0, 0, 0, 0, NULL, 0 },
         /* The rule applies to a CA the certificate manager already holds, not
          * only to one seen for the first time. */
         { "codeSigning",  0, 0, 0, 1, 0, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
-        { "serverAuth",   0, 0, 0, 1, 0, 0, 0, 0, NULL },
+                                          NULL, 0 },
+        { "serverAuth",   0, 0, 0, 1, 0, 0, 0, 0, NULL, 0 },
+        /* The peer sends only the leaf, so the CA comes from the certificate
+         * manager. The result must match the case where the CA is sent. */
+        { "codeSigning",  0, 0, 0, 1, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, 1 },
+        { "clientAuth",   0, 0, 0, 1, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, 1 },
+        { "serverAuth",   0, 0, 0, 1, 0, 0, 0, 0, NULL, 1 },
+        { NULL,           0, 0, 0, 1, 0, 0, 0, 0, NULL, 1 },
+        { "any",          0, 0, 0, 1, 0, 0, 0, 0, NULL, 1 },
+        { "codeSigning",  0, 0, 0, 1, 0, 1, 0, 0, NULL, 1 },
+        { "codeSigning",  0, 0, 0, 1, 0, 2, 0, 0, NULL, 1 },
+        { "codeSigning",  1, 0, 0, 0, 0, 0, 0, 0, NULL, 1 },
+#ifndef IGNORE_NAME_CONSTRAINTS
+        /* The CA under test is above the middle CA and neither is sent. */
+        { "codeSigning",  0, 0, 0, 1, 1, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, 1 },
+        { "serverAuth",   0, 0, 0, 1, 1, 0, 0, 0, NULL, 1 },
+#endif
         /* A self-signed trust anchor is exempt: here it is the anchor test,
          * not the Extended Key Usage, that decides. */
-        { "codeSigning",  1, 0, 0, 0, 0, 0, 0, 0, NULL },
+        { "codeSigning",  1, 0, 0, 0, 0, 0, 0, 0, NULL, 0 },
         /* A self-issued CA key rollover certificate is not an anchor. It
          * carries the anchor's issuer and subject names, so DecodedCert's
          * selfIssued flag is set, but it holds a different key and is signed
          * by the anchor. The Extended Key Usage must still be enforced. */
         { "codeSigning",  0, 1, 0, 0, 0, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
-        { "serverAuth",   0, 1, 0, 0, 0, 0, 0, 0, NULL },
+                                          NULL, 0 },
+        { "serverAuth",   0, 1, 0, 0, 0, 0, 0, 0, NULL, 0 },
         /* Key Usage, not Extended Key Usage: the same rollover certificate
          * cannot sign the leaf when its Key Usage omits keyCertSign. */
 #ifndef ALLOW_INVALID_CERTSIGN
         { "serverAuth",   0, 1, 0, 0, 0, 0, 0,
                                           WC_NO_ERR_TRACE(NOT_CA_ERROR),
-                                          "digitalSignature" },
+                                          "digitalSignature", 0 },
 #endif
         /* Enforcement is not limited to the CA directly above the leaf: here
          * the CA under test issues "EKU Middle CA", which issues the leaf. */
         { "codeSigning",  0, 0, 0, 0, 1, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
-        { "serverAuth",   0, 0, 0, 0, 1, 0, 0, 0, NULL },
+                                          NULL, 0 },
+        { "serverAuth",   0, 0, 0, 0, 1, 0, 0, 0, NULL, 0 },
         /* An application that installs a verify callback keeps the last word,
          * as it does for every other chain error. */
-        { "codeSigning",  0, 0, 0, 0, 0, 1, 0, 0, NULL },
+        { "codeSigning",  0, 0, 0, 0, 0, 1, 0, 0, NULL, 0 },
 #ifdef OPENSSL_EXTRA
         /* The purpose check must not stand in for the checks that run before
          * it. With the depth limit pinned below the chain, a callback that
@@ -2976,29 +3008,43 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
          * rejection, whether or not the CA under test carries the purpose. */
         { "serverAuth",   0, 0, 0, 0, 1, 2, 1,
                                           WC_NO_ERR_TRACE(MAX_CHAIN_ERROR),
-                                          NULL },
+                                          NULL, 0 },
         { "codeSigning",  0, 0, 0, 0, 1, 2, 1,
                                           WC_NO_ERR_TRACE(MAX_CHAIN_ERROR),
-                                          NULL },
+                                          NULL, 0 },
 #endif
 #ifndef WOLFSSL_NO_CLIENT_AUTH
         /* Client authentication: the server applies the same rule with the
          * clientAuth purpose. */
         { "codeSigning",  0, 0, 1, 0, 0, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
+                                          NULL, 0 },
         { "serverAuth",   0, 0, 1, 0, 0, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
-        { "clientAuth",   0, 0, 1, 0, 0, 0, 0, 0, NULL },
-        { NULL,           0, 0, 1, 0, 0, 0, 0, 0, NULL },
-        { "any",          0, 0, 1, 0, 0, 0, 0, 0, NULL },
+                                          NULL, 0 },
+        { "clientAuth",   0, 0, 1, 0, 0, 0, 0, 0, NULL, 0 },
+        { NULL,           0, 0, 1, 0, 0, 0, 0, 0, NULL, 0 },
+        { "any",          0, 0, 1, 0, 0, 0, 0, 0, NULL, 0 },
+        { "codeSigning",  0, 0, 1, 1, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, 1 },
+        { "serverAuth",   0, 0, 1, 1, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, 1 },
+        { "clientAuth",   0, 0, 1, 1, 0, 0, 0, 0, NULL, 1 },
+        { NULL,           0, 0, 1, 1, 0, 0, 0, 0, NULL, 1 },
+#ifndef IGNORE_NAME_CONSTRAINTS
+        { "codeSigning",  0, 0, 1, 1, 1, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, 1 },
+        { "clientAuth",   0, 0, 1, 1, 1, 0, 0, 0, NULL, 1 },
+#endif
         /* The rollover shape is rejected in the client authentication
          * direction too. */
         { "serverAuth",   0, 1, 1, 0, 0, 0, 0,
                                           WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
-                                          NULL },
-        { "clientAuth",   0, 1, 1, 0, 0, 0, 0, 0, NULL },
+                                          NULL, 0 },
+        { "clientAuth",   0, 1, 1, 0, 0, 0, 0, 0, NULL, 0 },
 #endif
     };
     test_eku_fixture fixture;
