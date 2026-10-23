@@ -474,23 +474,41 @@ static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
 }
 #endif /* NO_ASN_TIME */
 
+/* Convert X509_V_FLAG CRL bits to wolfSSL_CertManagerEnableCRL options.
+ * WOLFSSL_CRL_CHECKALL is also accepted as its value is not a verify flag. */
+static int X509StoreCrlOptions(unsigned long flags)
+{
+    int options = 0;
+
+    if (flags & WOLFSSL_X509_V_FLAG_CRL_CHECK) {
+        options |= WOLFSSL_CRL_CHECK;
+    }
+    if (flags & (WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL | WOLFSSL_CRL_CHECKALL)) {
+        options |= WOLFSSL_CRL_CHECKALL;
+    }
+
+    return options;
+}
+
 #ifdef HAVE_CRL
 /* Check ctx->current_cert against the CRLs set with
- * X509_STORE_CTX_set0_crls.
- * Returns WOLFSSL_SUCCESS if a CRL for the cert's issuer is in the stack and
- * the cert is not revoked. Returns CRL_MISSING if the stack has no CRL for
- * the issuer. Returns a negative error on revocation or CRL failure. */
-static int X509StoreCheckCtxCrls(WOLFSSL_X509_STORE_CTX* ctx)
+ * X509_STORE_CTX_set0_crls, and also against the CertManager's CRLs when
+ * <useCm> is set.
+ * Returns WOLFSSL_SUCCESS if a CRL for the cert's issuer is found and the
+ * cert is not revoked. Returns CRL_MISSING if there is no CRL for the issuer.
+ * Returns a negative error on revocation or CRL failure. */
+static int X509StoreCheckCrls(WOLFSSL_X509_STORE_CTX* ctx, int useCm)
 {
     int ret = WC_NO_ERR_TRACE(CRL_MISSING);
     int found = 0;
     int dateErr = 0;
     int i;
     int numCrls;
+    WOLFSSL_X509_CRL* cmCrl = useCm ? ctx->store->cm->crl : NULL;
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
     numCrls = wolfSSL_sk_X509_CRL_num(ctx->crls);
-    if (numCrls <= 0)
+    if (numCrls <= 0 && cmCrl == NULL)
         return ret;
 
     WC_ALLOC_VAR_EX(cert, DecodedCert, 1, ctx->heap, DYNAMIC_TYPE_DCERT,
@@ -503,9 +521,11 @@ static int X509StoreCheckCtxCrls(WOLFSSL_X509_STORE_CTX* ctx)
     if (ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, ctx->store->cm, NULL)
             == 0) {
         /* Check all CRLs in the stack. A revocation in any of them wins over
-         * a CRL that does not list the cert, like in the CertManager. */
-        for (i = 0; i < numCrls; i++) {
-            WOLFSSL_X509_CRL* crl = wolfSSL_sk_X509_CRL_value(ctx->crls, i);
+         * a CRL that does not list the cert, like in the CertManager.
+         * Index -1 is the CertManager's CRLs. */
+        for (i = (cmCrl != NULL) ? -1 : 0; i < numCrls; i++) {
+            WOLFSSL_X509_CRL* crl = (i < 0) ? cmCrl :
+                wolfSSL_sk_X509_CRL_value(ctx->crls, i);
             if (crl == NULL)
                 continue;
             /* Use the store's cm to verify the CRL. The caller-owned crl is
@@ -574,6 +594,9 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+#ifdef HAVE_CRL
+    int ctxCrlOnly;
+#endif
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
@@ -588,18 +611,22 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         ret = X509StoreVerifyCertDate(ctx, ret);
     #endif
 #ifdef HAVE_CRL
+        /* CRL checking requested only in the ctx verify flags is done here,
+         * so that it does not change the CertManager shared by the store. */
+        ctxCrlOnly = !ctx->store->cm->crlEnabled && ctx->param != NULL &&
+            X509StoreCrlOptions(ctx->param->flags) != 0;
+
         /* Consult the CRLs set with X509_STORE_CTX_set0_crls after the date
          * overrides. They can revoke a cert the CertManager accepted, also
          * one whose date error was overridden, and can satisfy a CRL
          * requirement the CertManager's own CRL store could not. */
-        if (ctx->crls != NULL && ctx->store->cm->crlEnabled &&
+        if ((ctxCrlOnly ||
+                (ctx->crls != NULL && ctx->store->cm->crlEnabled)) &&
                 (ret == WOLFSSL_SUCCESS ||
                  ret == WC_NO_ERR_TRACE(CRL_MISSING))) {
-            int crlRet = X509StoreCheckCtxCrls(ctx);
-            if (crlRet == WOLFSSL_SUCCESS) {
-                ret = WOLFSSL_SUCCESS;
-            }
-            else if (crlRet != WC_NO_ERR_TRACE(CRL_MISSING)) {
+            int crlRet = X509StoreCheckCrls(ctx, ctxCrlOnly);
+            /* When the CertManager checked, a missing CRL is already in ret */
+            if (ctxCrlOnly || crlRet != WC_NO_ERR_TRACE(CRL_MISSING)) {
                 ret = crlRet;
             }
         }
@@ -942,6 +969,9 @@ static int X509StoreCertPartialChainEnabled(WOLFSSL_X509_STORE_CTX* ctx)
 {
     /* PARTIAL_CHAIN lets any trusted cert end the path */
     if (ctx->flags & WOLFSSL_PARTIAL_CHAIN) {
+        return 1;
+    }
+    if (ctx->param != NULL && (ctx->param->flags & WOLFSSL_PARTIAL_CHAIN)) {
         return 1;
     }
     if (ctx->store->param != NULL &&
@@ -1461,12 +1491,20 @@ int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
 
 #ifdef OPENSSL_EXTRA
 
+/* CRL flags are applied in X509StoreVerifyCert, not in the shared store */
 void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
         unsigned long flags)
 {
-    if ((ctx != NULL) && (flags & WOLFSSL_PARTIAL_CHAIN)){
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_flags");
+
+    if (ctx == NULL) {
+        return;
+    }
+
+    if (flags & WOLFSSL_PARTIAL_CHAIN) {
         ctx->flags |= WOLFSSL_PARTIAL_CHAIN;
     }
+    (void)wolfSSL_X509_VERIFY_PARAM_set_flags(ctx->param, flags);
 }
 
 /* set X509_STORE_CTX ex_data, max idx is MAX_EX_DATA. Return WOLFSSL_SUCCESS
@@ -2334,33 +2372,34 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
 {
     int ret = WOLFSSL_SUCCESS;
-    int crlOpts = 0;
+    int crlOptions = X509StoreCrlOptions(flag);
+    const unsigned long timeFlags =
+        WOLFSSL_USE_CHECK_TIME | WOLFSSL_NO_CHECK_TIME;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_set_flags");
 
     if (store == NULL)
         return WOLFSSL_FAILURE;
 
-    /* X509_V_FLAG_CRL_CHECK(_ALL), and the native WOLFSSL_CRL_CHECK(ALL)
-     * options for compatibility. */
-    if (flag & (WOLFSSL_X509_V_FLAG_CRL_CHECK | WOLFSSL_CRL_CHECK)) {
-        crlOpts |= WOLFSSL_CRL_CHECK;
+    /* Native WOLFSSL_CRL_CHECK option, for compatibility */
+    if (flag & WOLFSSL_CRL_CHECK) {
+        crlOptions |= WOLFSSL_CRL_CHECK;
     }
-    if (flag & (WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL | WOLFSSL_CRL_CHECKALL)) {
-        crlOpts |= WOLFSSL_CRL_CHECKALL;
-    }
-
-    if (crlOpts != 0) {
-        ret = wolfSSL_CertManagerEnableCRL(store->cm, crlOpts);
+    if (crlOptions != 0) {
+        ret = wolfSSL_CertManagerEnableCRL(store->cm, crlOptions);
     }
 #if defined(OPENSSL_COMPATIBLE_DEFAULTS)
     else if (flag == 0) {
         ret = wolfSSL_CertManagerDisableCRL(store->cm);
+        /* A ctx inherits these and would check CRLs itself */
+        (void)wolfSSL_X509_VERIFY_PARAM_clear_flags(store->param,
+            WOLFSSL_X509_V_FLAG_CRL_CHECK | WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL |
+            WOLFSSL_CRL_CHECKALL);
     }
 #endif
-    if (flag & WOLFSSL_PARTIAL_CHAIN) {
-        store->param->flags |= WOLFSSL_PARTIAL_CHAIN;
-    }
+    /* USE_CHECK_TIME has the same value as CRL_CHECK, and NO_CHECK_TIME
+     * would also skip date checks when loading certs into the store. */
+    (void)wolfSSL_X509_VERIFY_PARAM_set_flags(store->param, flag & ~timeFlags);
     return ret;
 }
 
