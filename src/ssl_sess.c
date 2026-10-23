@@ -2953,7 +2953,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
-    /* peerAuthOk */
+    /* peerAuthOk and isPSK */
     size += OPAQUE8_LEN;
 
     if (p != NULL) {
@@ -3050,7 +3050,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
-        data[idx++] = sess->peerAuthOk;
+        data[idx++] = (byte)(sess->peerAuthOk | (sess->isPSK << 1));
     }
 #endif
 
@@ -3366,7 +3366,9 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         ret = BUFFER_ERROR;
         goto end;
     }
-    s->peerAuthOk = (data[idx++] != 0);
+    s->peerAuthOk = (data[idx] & 0x01) != 0;
+    s->isPSK = (data[idx] & 0x02) != 0;
+    idx++;
 
     if (sess != NULL) {
         wolfSSL_FreeSession(NULL, *sess);
@@ -3945,10 +3947,16 @@ void SetupSession(WOLFSSL* ssl)
      * own outcome; a resumed one keeps what it inherited unless post-handshake
      * auth added a certificate. */
     if (ssl->options.side == WOLFSSL_SERVER_END) {
-        if (!ssl->options.resuming)
+        if (!ssl->options.resuming) {
             session->peerAuthOk = 0;
+            session->isPSK = ssl->options.usingPSK_cipher;
+        }
         if (SSL_PEER_CERT_VERIFIED(ssl))
             session->peerAuthOk = 1;
+    }
+    else {
+        session->peerAuthOk = 0;
+        session->isPSK = 0;
     }
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
