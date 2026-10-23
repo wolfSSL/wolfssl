@@ -8075,17 +8075,19 @@ int InitSSL_Suites(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
-/* This function inherits a WOLFSSL_CTX's fields into an SSL object.
-   It is used during initialization and to switch an ssl's CTX with
-   wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
-   unless writeDup is on.
-
-   ssl      object to initialize
-   ctx      parent factory
-   writeDup flag indicating this is a write dup only
-
-   WOLFSSL_SUCCESS return value on success */
 #ifdef WOLFSSL_DTLS
+/* Maps a TLS minimum to the DTLS version that shares its mask bit. */
+byte DtlsMinDowngrade(byte minDowngrade)
+{
+    if (minDowngrade == TLSv1_3_MINOR)
+        return DTLSv1_3_MINOR;
+    if (minDowngrade == TLSv1_2_MINOR)
+        return DTLSv1_2_MINOR;
+    if (minDowngrade < DTLSv1_3_MINOR)
+        return DTLS_MINOR;
+    return minDowngrade;
+}
+
 /* Returns the newest built DTLS minor, no newer than maxMinor, that the version
  * mask and minDowngrade allow, or 0. DTLS minors count down. */
 byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
@@ -8124,6 +8126,16 @@ byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
 }
 #endif
 
+/* This function inherits a WOLFSSL_CTX's fields into an SSL object.
+   It is used during initialization and to switch an ssl's CTX with
+   wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
+   unless writeDup is on.
+
+   ssl      object to initialize
+   ctx      parent factory
+   writeDup flag indicating this is a write dup only
+
+   WOLFSSL_SUCCESS return value on success */
 #ifdef OPENSSL_EXTRA
 /* Apply the protocol version mask and downgrade rules. Returns VERSION_ERROR
  * when the requested options are inconsistent, 0 otherwise. */

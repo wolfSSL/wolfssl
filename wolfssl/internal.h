@@ -8261,6 +8261,7 @@ WOLFSSL_LOCAL int DtlsUpdateWindow(WOLFSSL* ssl);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsMinDowngrade(byte minDowngrade);
 WOLFSSL_LOCAL byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor,
     byte minDowngrade);
 WOLFSSL_LOCAL int DtlsCheckVersionMask(WOLFSSL* ssl);
