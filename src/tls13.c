@@ -14510,11 +14510,20 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
 #ifndef WOLFSSL_RW_THREADED
-        return SendTls13KeyUpdate(ssl);
-#else
+        /* RFC 8446 Section 4.6.3: the response is due before the next
+         * application data record, and one KeyUpdate answers every request
+         * received while we are silent. While earlier output is still waiting
+         * for the peer to read it, don't queue a response per request behind
+         * it; leave one for SendData() to send. DTLS has at most one KeyUpdate
+         * in flight, see above. */
+        if (ssl->options.dtls || ssl->buffers.outputBuffer.length == 0) {
+            /* This response answers a deferred request as well. */
+            ssl->options.sendKeyUpdate = 0;
+            return SendTls13KeyUpdate(ssl);
+        }
+#endif
         ssl->options.sendKeyUpdate = 1;
         return 0;
-#endif
     }
 
     WOLFSSL_LEAVE("DoTls13KeyUpdate", ret);
