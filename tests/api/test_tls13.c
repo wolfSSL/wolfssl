@@ -17317,3 +17317,113 @@ int test_tls13_cks_hrr_reparse(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MAX_FRAGMENT)
+/* Ticket encryption callback that pads every ticket to the largest size the
+ * server allows, so the NewSessionTicket length does not depend on the
+ * build. */
+static int test_tls13_nst_max_frag_ticketEncCb(WOLFSSL* ssl,
+        byte key_name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
+        byte mac[WOLFSSL_TICKET_MAC_SZ], int enc, byte* ticket, int inLen,
+        int* outLen, void* userCtx)
+{
+    int i;
+
+    (void)ssl;
+    (void)userCtx;
+
+    if (enc) {
+        XMEMSET(key_name, 0x5A, WOLFSSL_TICKET_NAME_SZ);
+        XMEMSET(iv, 0x5A, WOLFSSL_TICKET_IV_SZ);
+        XMEMSET(mac, 0x5A, WOLFSSL_TICKET_MAC_SZ);
+        XMEMSET(ticket + inLen, 0, (size_t)(WOLFSSL_TICKET_ENC_SZ - inLen));
+        inLen = WOLFSSL_TICKET_ENC_SZ;
+    }
+    for (i = 0; i < inLen; i++)
+        ticket[i] = (byte)(ticket[i] ^ 0xA5);
+    *outLen = inLen;
+    return WOLFSSL_TICKET_RET_OK;
+}
+#endif
+
+/* A NewSessionTicket larger than the maximum fragment length must be split
+ * across records (RFC 8446 Section 5.1). The ticket is padded to its largest
+ * size and the server send limit is lowered below it, so the ticket is always
+ * fragmented. */
+int test_tls13_new_session_ticket_max_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MAX_FRAGMENT)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char readBuf[64];
+    const word16 sendLimit = 128;
+    int off;
+    int recSz = 0;
+    int recCnt = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_TicketEncCb(ctx_s,
+        test_tls13_nst_max_frag_ticketEncCb), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_8),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Process the ticket sent at the end of the handshake. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_len, 0);
+
+    /* The padded ticket alone exceeds the lowered limit. */
+    ExpectIntGT(SESSION_TICKET_LEN, sendLimit);
+    if (EXPECT_SUCCESS()) {
+        ssl_s->max_fragment = sendLimit;
+    }
+
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    /* Each record holds at most the limit plus content type and AEAD tag. */
+    for (off = 0; EXPECT_SUCCESS() && off + RECORD_HEADER_SZ <= test_ctx.c_len;
+            off += RECORD_HEADER_SZ + recSz) {
+        ExpectIntEQ(test_ctx.c_buff[off], application_data);
+        recSz = (test_ctx.c_buff[off + 3] << 8) | test_ctx.c_buff[off + 4];
+        ExpectIntLE(recSz, sendLimit + 1 + 16);
+        recCnt++;
+    }
+    ExpectIntEQ(off, test_ctx.c_len);
+    ExpectIntGE(recCnt, 2);
+
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c->session->ticketLen, SESSION_TICKET_LEN);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Resume with the reassembled ticket. */
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_8),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
