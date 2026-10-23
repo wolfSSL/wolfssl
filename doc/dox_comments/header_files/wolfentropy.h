@@ -15,10 +15,55 @@
     int ret = wc_Entropy_GetRawEntropy(raw, sizeof(raw));
     \endcode
 
+    \sa wc_Entropy_GetRawEntropy64
     \sa wc_Entropy_Get
     \sa wc_Entropy_GetVersion
 */
 int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
+
+/*!
+    \ingroup wolfEntropy
+    \brief Gets full-width raw noise samples for SP 800-90B assessment.
+
+    Same collection path as wc_Entropy_GetRawEntropy(), but each sample is
+    the complete 64-bit time delta rather than its 8 least-significant bits.
+    Samples are raw and unconditioned, and are not passed through the health
+    tests. They are stored in host byte order; serialize explicitly (for
+    example to little-endian) before writing assessment files.
+
+    Only available when the time source is a free-running 64-bit counter
+    (x86 rdtsc, aarch64 CNTVCT_EL0, 32-bit Arm CNTVCT, Apple or Windows).
+    Other time sources return NOT_COMPILED_IN: those that wrap early, such as
+    POSIX tv_nsec or a 32-bit custom counter, and the counter thread, whose
+    reads are not coherent on 32-bit CPUs. A custom
+    CUSTOM_ENTROPY_TIMEHIRES that is a free-running 64-bit counter can opt in
+    by defining WOLFSSL_ENTROPY_TIMEHIRES_64BIT.
+
+    raw[0] spans the interval since the previous sample taken by any caller,
+    so it is not representative of a single measurement. Discard it, or
+    collect in large contiguous blocks, when assessing.
+
+    \return 0 On success
+    \return BAD_FUNC_ARG If raw is NULL or cnt is not positive
+    \return NOT_COMPILED_IN If the time source is not a free-running 64-bit
+    counter
+    \return BAD_MUTEX_E If the entropy mutex cannot be locked
+    \return negative On initialization or hash failure (for example when the
+    FIPS module is not operational), or if the counter thread cannot start
+
+    \param raw Buffer for samples
+    \param cnt Number of 64-bit samples to retrieve (not bytes)
+
+    _Example_
+    \code
+    word64 raw[1024];
+    int ret = wc_Entropy_GetRawEntropy64(raw, 1024);
+    \endcode
+
+    \sa wc_Entropy_GetRawEntropy
+    \sa wc_Entropy_Get
+*/
+int wc_Entropy_GetRawEntropy64(word64* raw, int cnt);
 
 /*!
     \ingroup wolfEntropy
@@ -39,6 +84,7 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
     \endcode
 
     \sa wc_Entropy_GetRawEntropy
+    \sa wc_Entropy_GetRawEntropy64
     \sa wc_Entropy_GetVersion
 
     \par Supplying your own counter

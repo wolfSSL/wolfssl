@@ -39,9 +39,10 @@
 
 /* Public MC/DC coverage for wolfcrypt/src/wolfentropy.c (SP800-90B MemUse
  * jitter entropy source). Only the exported surface is reachable from
- * tests/api: wc_Entropy_GetRawEntropy(), wc_Entropy_Get() and
- * wc_Entropy_OnDemandTest(). The file-static SP800-90B health tests
- * (Repetition/Proportion/Startup) and the MemUse index math are driven in the
+ * tests/api: wc_Entropy_GetRawEntropy(), wc_Entropy_GetRawEntropy64(),
+ * wc_Entropy_Get() and wc_Entropy_OnDemandTest(). The file-static SP800-90B
+ * health tests (Repetition/Proportion/Startup) and the MemUse index math, and
+ * the full-width store of wc_Entropy_GetRawEntropy64(), are driven in the
  * tests/unit-mcdc white-box (test_wolfentropy_whitebox.c). The module is
  * gated by HAVE_ENTROPY_MEMUSE so every body auto-skips when it is compiled
  * out. wolfCrypt_Init() (unit.test setup) already ran Entropy_Init(), so the
@@ -66,6 +67,54 @@ int test_wc_Entropy_GetRawEntropy(void)
 
     /* Valid: collect a bounded amount of raw jitter noise. */
     ExpectIntEQ(wc_Entropy_GetRawEntropy(raw, (int)sizeof(raw)), 0);
+#endif /* HAVE_ENTROPY_MEMUSE */
+    return EXPECT_RESULT();
+}
+
+/* Full-width raw-entropy assessment API: argument checks, then either
+ * NOT_COMPILED_IN (time source is not a free-running 64-bit counter) or a
+ * valid collection that stays in bounds. Sample width depends on the counter
+ * frequency, so it is checked deterministically in the white-box instead. */
+int test_wc_Entropy_GetRawEntropy64(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_ENTROPY_MEMUSE
+    word64 raw[65];
+    int ret = 0;
+    int i;
+    int nonZero = 0;
+
+    XMEMSET(raw, 0, sizeof(raw));
+    raw[64] = W64LIT(0xA5A5A5A5A5A5A5A5); /* overrun guard */
+
+    /* "raw == NULL || cnt <= 0": drive each operand alone. */
+    ExpectIntEQ(wc_Entropy_GetRawEntropy64(NULL, 64),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                 /* raw NULL */
+    ExpectIntEQ(wc_Entropy_GetRawEntropy64(raw, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                 /* cnt == 0 */
+    ExpectIntEQ(wc_Entropy_GetRawEntropy64(raw, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                 /* cnt < 0 */
+
+    /* cnt counts 64-bit samples, not bytes. */
+    ret = wc_Entropy_GetRawEntropy64(raw, 64);
+#if (defined(__GNUC__) || defined(__clang__)) && \
+    !defined(CUSTOM_ENTROPY_TIMEHIRES) && !defined(ENTROPY_MEMUSE_THREAD) && \
+    (defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+     defined(__APPLE__))
+    /* These hosts use a free-running 64-bit hardware counter: a refusal here
+     * means the gate regressed. */
+    ExpectIntNE(ret, WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+#endif
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+        ExpectIntEQ(ret, 0);
+        ExpectTrue(raw[64] == W64LIT(0xA5A5A5A5A5A5A5A5));
+        /* Skip raw[0]: it spans the gap since the previous sample. */
+        for (i = 1; i < 64; i++) {
+            if (raw[i] != 0)
+                nonZero = 1;
+        }
+        ExpectIntEQ(nonZero, 1);
+    }
 #endif /* HAVE_ENTROPY_MEMUSE */
     return EXPECT_RESULT();
 }
