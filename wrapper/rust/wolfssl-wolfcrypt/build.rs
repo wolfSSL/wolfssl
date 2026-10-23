@@ -676,6 +676,8 @@ fn scan_cfg() -> Result<()> {
             && version("HAVE_FIPS_VERSION_MINOR") == Some(2)
             && version("HAVE_FIPS_VERSION_PATCH") == Some(3) {
         println!("cargo::rustc-cfg=fips_v5_2_3");
+        // Crates that depend on this one see it as DEP_WOLFSSL_FIPS_V5_2_3.
+        println!("cargo::metadata=FIPS_V5_2_3=1");
     }
 
     /* hkdf */
