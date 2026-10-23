@@ -25351,8 +25351,8 @@ Signer* findSignerByName(Signer *list, byte *hash)
 /* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
  * with name-hash validation. Fall back to name-only when AKID is
  * absent. */
-static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
-                                      Signer* extraCAList, Signer* cert)
+Signer* wolfssl_local_FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                                             Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -26372,7 +26372,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             /* Stop at trust anchor (self-signed). */
             if (ncSigner->selfSigned)
                 break;
-            ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
+            ncParent = wolfssl_local_FindSignerByAkidOrName(cm, extraCAList,
+                ncSigner);
             /* Stop on missing parent, self-loop, or A->B->A cycle. */
             if (ncParent == NULL || ncParent == ncSigner ||
                     ncParent == ncPrev)
@@ -26456,6 +26457,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
         }
         signer->maxPathLen     = cert->maxPathLen;
         signer->selfSigned     = cert->selfSigned;
+        signer->extExtKeyUsageSet = cert->extExtKeyUsageSet;
     #ifndef IGNORE_NAME_CONSTRAINTS
         signer->permittedNames = cert->permittedNames;
         signer->excludedNames  = cert->excludedNames;

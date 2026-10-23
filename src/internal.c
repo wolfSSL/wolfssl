@@ -17941,6 +17941,45 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
 
     return 0;
 }
+
+/* Check the Extended Key Usage of each CA from ca up to the self-signed trust
+ * anchor against the TLS purpose. With IGNORE_NAME_CONSTRAINTS there is no
+ * issuer lookup, so only ca is checked.
+ * Returns 0, EXTKEYUSE_AUTH_E or MAX_CHAIN_ERROR. */
+static int CheckSignerExtKeyUsage(const WOLFSSL* ssl, Signer* ca)
+{
+    byte purpose;
+    Signer* prev = NULL;
+    Signer* parent;
+    int depth = 0;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        purpose = EXTKEYUSE_SERVER_AUTH;
+    else
+        purpose = EXTKEYUSE_CLIENT_AUTH;
+
+    while (ca != NULL && !ca->selfSigned) {
+        if (ca->extExtKeyUsageSet &&
+                (ca->extKeyUsage & (EXTKEYUSE_ANY | purpose)) == 0) {
+            WOLFSSL_MSG("Issuer CA ExtKeyUse doesn't allow TLS peer auth");
+            return EXTKEYUSE_AUTH_E;
+        }
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        parent = wolfssl_local_FindSignerByAkidOrName(SSL_CM(ssl), NULL, ca);
+    #else
+        parent = NULL;
+    #endif
+        /* Stop on missing parent, self-loop, or A->B->A cycle. */
+        if (parent == NULL || parent == ca || parent == prev)
+            break;
+        if (++depth >= WOLFSSL_MAX_CHAIN_DEPTH)
+            return MAX_CHAIN_ERROR;
+        prev = ca;
+        ca = parent;
+    }
+
+    return 0;
+}
 #endif /* IGNORE_KEY_EXTENSIONS */
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
@@ -20094,6 +20133,29 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = EXTKEYUSE_AUTH_E;
                             WOLFSSL_ERROR_VERBOSE(ret);
                         }
+                    }
+                }
+
+                /* CAs the peer did not send were not covered by
+                 * CheckChainCAExtKeyUsage(). */
+                if (ret == 0 && !ssl->options.verifyNone &&
+                    #ifdef WOLFSSL_TRUST_PEER_CERT
+                        !args->haveTrustPeer &&
+                    #endif
+                        !UsingChainVerifyCb(ssl)) {
+                    ret = CheckSignerExtKeyUsage(ssl, args->dCert->ca);
+                    if (ret != 0) {
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        /* Return first cert error here */
+                        if (ssl->peerVerifyRet == 0) {
+                            ssl->peerVerifyRet =
+                                (ret == WC_NO_ERR_TRACE(MAX_CHAIN_ERROR)) ?
+                                WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG :
+                                WOLFSSL_X509_V_ERR_INVALID_PURPOSE;
+                        }
+                    #endif
                     }
                 }
             #endif /* IGNORE_KEY_EXTENSIONS */
