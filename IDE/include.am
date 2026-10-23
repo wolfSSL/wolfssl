@@ -25,7 +25,6 @@ EXTRA_DIST+= IDE/HEXIWEAR
 EXTRA_DIST+= IDE/IAR-EWARM
 EXTRA_DIST+= IDE/IAR-MSP430
 EXTRA_DIST+= IDE/Infineon
-EXTRA_DIST+= IDE/INTEGRITY
 EXTRA_DIST+= IDE/INTIME-RTOS
 EXTRA_DIST+= IDE/iotsafe
 EXTRA_DIST+= IDE/KDS
@@ -67,6 +66,7 @@ EXTRA_DIST+= IDE/zephyr
 # IDE configs, .gitkeep placeholders, helper scripts), so they stay
 # enumerated file-by-file rather than shipped wholesale.
 include IDE/apple-universal/include.am
+include IDE/INTEGRITY/include.am
 include IDE/MPLABX16/include.am
 include IDE/MPLABX16/wolfcrypt_test.X/nbproject/include.am
 include IDE/MPLABX16/wolfssl.X/nbproject/include.am
