@@ -29,13 +29,16 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_info.h>
 
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
 typedef struct PemStreamState {
     size_t offset;
+    size_t bufLen;
     size_t limit;
+    int overRead;
     int readAtLimit;
 } PemStreamState;
 
@@ -43,21 +46,38 @@ static int PemStreamRead(WOLFSSL_BIO* bio, char* out, int len)
 {
     PemStreamState* state = (PemStreamState*)wolfSSL_BIO_get_data(bio);
     int count = 0;
+    size_t offset;
 
-    if (state->offset == state->limit) {
-        state->readAtLimit = 1;
-        return 0;
-    }
-
-    while (count < len && state->offset < state->limit) {
-        size_t offset = state->offset++;
-
-        if (offset < sizeof("-----BEGIN ") - 1)
-            out[count] = "-----BEGIN "[offset];
-        else if (offset >= state->limit - 5)
-            out[count] = '-';
-        else
-            out[count] = 'A';
+    while (count < len) {
+        offset = state->offset;
+        if (state->bufLen != 0) {
+            /* Known-length case: the read at offset bufLen lands one byte
+             * past the pem[bufLen] heap buffer. */
+            if (offset > state->bufLen)
+                break;
+            if (offset == state->bufLen) {
+                state->overRead = 1;
+                out[count] = '\n';
+            }
+            else if (offset < sizeof("-----BEGIN ") - 1)
+                out[count] = "-----BEGIN "[offset];
+            else if (offset >= state->bufLen - 5)
+                out[count] = '-';
+            else
+                out[count] = 'A';
+        }
+        else {
+            /* Streaming case: never completes, scanner must stop at its cap. */
+            if (offset >= state->limit) {
+                state->readAtLimit = 1;
+                break;
+            }
+            if (offset < sizeof("-----BEGIN ") - 1)
+                out[count] = "-----BEGIN "[offset];
+            else
+                out[count] = 'A';
+        }
+        state->offset++;
         count++;
     }
 
@@ -76,12 +96,14 @@ static long PemStreamCtrl(WOLFSSL_BIO* bio, int cmd, long arg, void* ptr)
         return 0;
     switch (cmd) {
         case WOLFSSL_BIO_CTRL_EOF:
-            return state->offset == state->limit;
+            return state->bufLen != 0 ? (state->offset > state->bufLen)
+                                      : (state->offset >= state->limit);
         case WOLFSSL_BIO_CTRL_PENDING:
-            /* This streaming BIO has no bytes buffered ahead of a read. */
-            return 0;
+            /* Nonzero declares a known length; zero forces the stream cap. */
+            return (long)state->bufLen;
         case WOLFSSL_BIO_CTRL_RESET:
             state->offset = 0;
+            state->overRead = 0;
             state->readAtLimit = 0;
             return 1;
         case WOLFSSL_BIO_CTRL_WPENDING:
@@ -98,8 +120,12 @@ int test_wolfSSL_PEM_X509_INFO_stream_limit(void)
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
     WOLFSSL_BIO_METHOD* method = NULL;
     WOLFSSL_BIO* bio = NULL;
-    /* The normal scanner cap is at most 9 KB * 16. */
-    PemStreamState state = {0, (size_t)1024 * 1024, 0};
+    /* Boundary case: buffer sized so the BEGIN line's closing "-----" ends on
+     * the final byte, so a missing guard writes the newline to pem[bufLen]. */
+    PemStreamState boundary = {0, 256, 0, 0, 0};
+    /* Streaming case: unknown length, scanner must stop at its read cap, so a
+     * read at the cap itself (MAX_X509_SIZE * 16) means it over-ran. */
+    PemStreamState stream = {0, 0, (size_t)MAX_X509_SIZE * 16, 0, 0};
 
     ExpectNotNull(method = wolfSSL_BIO_meth_new(WOLFSSL_BIO_UNDEF,
             "pem_stream_limit"));
@@ -107,13 +133,20 @@ int test_wolfSSL_PEM_X509_INFO_stream_limit(void)
             WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_BIO_meth_set_ctrl(method, PemStreamCtrl),
             WOLFSSL_SUCCESS);
+
     ExpectNotNull(bio = wolfSSL_BIO_new(method));
-    wolfSSL_BIO_set_data(bio, &state);
-
+    wolfSSL_BIO_set_data(bio, &boundary);
     ExpectNull(wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL));
-    ExpectIntEQ(state.readAtLimit, 0);
-
+    ExpectIntEQ(boundary.overRead, 0);
     wolfSSL_BIO_free(bio);
+    bio = NULL;
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(method));
+    wolfSSL_BIO_set_data(bio, &stream);
+    ExpectNull(wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL));
+    ExpectIntEQ(stream.readAtLimit, 0);
+    wolfSSL_BIO_free(bio);
+
     wolfSSL_BIO_meth_free(method);
 #endif
     return EXPECT_RESULT();
