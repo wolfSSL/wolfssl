@@ -1158,7 +1158,6 @@ int test_wc_ed25519_verify_streaming(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
     };
     byte badSig[ED25519_SIG_SIZE];
-    byte ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -1215,8 +1214,11 @@ int test_wc_ed25519_verify_streaming(void)
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* the pure-type non-empty-context rejection is absent from frozen
      * FIPS module sources before v7. */
-    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
-        ctx, sizeof(ctx)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    {
+        static const byte ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+        ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
+            ctx, sizeof(ctx)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
 #endif
     /* the rejected inits happen ahead of any hash-state work, so a fresh
      * pure roundtrip on the same key must still verify. */
