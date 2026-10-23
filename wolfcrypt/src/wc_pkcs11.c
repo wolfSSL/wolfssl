@@ -6514,6 +6514,8 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
         &certHandle, session, certTemplate, certTmplCnt, &count);
     if (ret == 0 && count == 0) {
         ret = WC_HW_E;
+    }
+    if (ret != 0) {
         goto exit;
     }
 

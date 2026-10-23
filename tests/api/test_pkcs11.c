@@ -317,6 +317,7 @@ static CK_RV test_pkcs11_rd_keygen(CK_SESSION_HANDLE session,
 
 #ifdef TEST_PKCS11_RD_FIND
 static int test_pkcs11_rd_found = 0;
+static CK_RV test_pkcs11_rd_find_rv = CKR_OK;
 
 static CK_RV test_pkcs11_rd_find_init(CK_SESSION_HANDLE session,
     CK_ATTRIBUTE_PTR template, CK_ULONG count)
@@ -326,7 +327,7 @@ static CK_RV test_pkcs11_rd_find_init(CK_SESSION_HANDLE session,
     (void)count;
 
     test_pkcs11_rd_found = 0;
-    return CKR_OK;
+    return test_pkcs11_rd_find_rv;
 }
 
 static CK_RV test_pkcs11_rd_find(CK_SESSION_HANDLE session,
@@ -904,6 +905,12 @@ int test_wc_Pkcs11_ValueRead(void)
     ExpectNotNull(cert);
     ExpectIntEQ(certSz, 100);
     XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+    cert = NULL;
+    test_pkcs11_rd_find_rv = CKR_MECHANISM_INVALID;
+    ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectNull(cert);
+    test_pkcs11_rd_find_rv = CKR_OK;
 #endif
 
 #ifdef TEST_PKCS11_RD_MLKEM_ENC
