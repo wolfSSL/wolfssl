@@ -13,3 +13,23 @@ tests:
     platform_allow: qemu_x86
     integration_platforms:
       - qemu_x86
+  sample.crypto.wolfssl_benchmark_els_pkc:
+    # Measures each algorithm in software and on the hardware. Not in
+    # boards/frdm_rw612.conf, which every build for the board would merge.
+    timeout: 1200
+    platform_allow: frdm_rw612
+    extra_configs:
+      - CONFIG_WOLFSSL_ELS_PKC=y
+      # wc_port.c calls clock_gettime(). POSIX_TIMERS is gated behind
+      # POSIX_SYSTEM_INTERFACES and silently does nothing without it.
+      - CONFIG_POSIX_SYSTEM_INTERFACES=y
+      - CONFIG_POSIX_TIMERS=y
+      # The board has a real entropy source, so drop prj.conf's placeholder.
+      - CONFIG_TEST_RANDOM_GENERATOR=n
+      - CONFIG_ENTROPY_GENERATOR=y
+      # The arena carries the HAVE_STACK_SIZE benchmark thread stack on top of
+      # the benchmark's own allocations.
+      - CONFIG_MAIN_STACK_SIZE=32768
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=131072
+    integration_platforms:
+      - frdm_rw612

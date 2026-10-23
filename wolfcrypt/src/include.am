@@ -93,6 +93,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/nxp/se050_port.c \
               wolfcrypt/src/port/nxp/ele_rng.c \
               wolfcrypt/src/port/nxp/ele_cryptocb.c \
+              wolfcrypt/src/port/nxp/els_pkc_port.c \
               wolfcrypt/src/port/nxp/README.md \
               wolfcrypt/src/port/nxp/sec_qoriq.c \
               wolfcrypt/src/port/nxp/sec_qoriq_cb.c \
@@ -363,6 +364,10 @@ endif
 
 if BUILD_SE050
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/se050_port.c
+endif
+
+if BUILD_ELS_PKC
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/els_pkc_port.c
 endif
 
 if BUILD_STSAFE
