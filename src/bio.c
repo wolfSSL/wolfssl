@@ -1112,7 +1112,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 return WOLFSSL_BIO_ERROR;
             }
 
-            #if defined(MICRIUM) || defined(LSR_FS) || defined(EBSNET)
+            #if defined(MICRIUM) || defined(EBSNET)
             WOLFSSL_MSG("XFGETS not ported for this system yet");
             ret = XFGETS(buf, sz, bio->ptr.fh);
             #else
