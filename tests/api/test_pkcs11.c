@@ -309,6 +309,7 @@ static CK_ULONG      test_pkcs11_find_mask;
 static CK_ULONG      test_pkcs11_find_next;
 static int           test_pkcs11_destroy_calls = 0;
 static int           test_pkcs11_find_calls = 0;
+static int           test_pkcs11_modulus_reads = 0;
 static int           test_pkcs11_fail_pub_create = 0;
 static int           test_pkcs11_no_ecdh = 0;
 static int           test_pkcs11_no_ecdsa = 0;
@@ -454,6 +455,8 @@ static CK_RV test_pkcs11_store_get_attr(CK_SESSION_HANDLE session,
         const byte* val = NULL;
         CK_ULONG    len = 0;
 
+        if (tmpl[i].type == CKA_MODULUS)
+            test_pkcs11_modulus_reads++;
         if (tmpl[i].type == CKA_TOKEN) {
             val = &obj->onToken;
             len = sizeof(obj->onToken);
@@ -858,8 +861,13 @@ int test_wc_Pkcs11_RsaIdNoLeak(void)
 
     ExpectIntEQ(wc_InitRsaKey_Id(&key, id, (int)sizeof(id), NULL,
         INVALID_DEVID), 0);
+    /* Without e the public key is read again, over the n the key holds. */
+    ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(test_pkcs11_modulus,
+        sizeof(test_pkcs11_modulus), test_pkcs11_exponent, 0, &key), 0);
     ExpectIntEQ(test_pkcs11_rsa_decrypt(&token, &key), 0);
+    test_pkcs11_modulus_reads = 0;
     ExpectIntEQ(test_pkcs11_rsa_decrypt(&token, &key), 0);
+    ExpectIntEQ(test_pkcs11_modulus_reads, 0);
     ExpectIntEQ(wc_FreeRsaKey(&key), 0);
     ExpectIntEQ(test_pkcs11_live, 0);
 
@@ -1370,8 +1378,10 @@ int test_wc_Pkcs11_RsaKeyGenError(void)
     ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
     ExpectNotNull(key.devCtx);
     test_pkcs11_find_calls = 0;
+    test_pkcs11_modulus_reads = 0;
     ExpectIntEQ(test_pkcs11_rsa_decrypt(&token, &key), 0);
     ExpectIntEQ(test_pkcs11_find_calls, 0);
+    ExpectIntEQ(test_pkcs11_modulus_reads, 0);
     ExpectIntEQ(wc_FreeRsaKey(&key), 0);
     ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
 #if defined(HAVE_WOLF_BIGINT) && defined(USE_WOLFSSL_MEMORY) && \
