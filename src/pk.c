@@ -1610,6 +1610,9 @@ int wolfssl_dsa_do_sign(const unsigned char* d, int dLen,
 {
     int     ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int     initTmpRng = 0;
+#ifdef HAVE_SELFTEST
+    int     qSz;
+#endif
     WC_RNG* rng = NULL;
     WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
@@ -1646,9 +1649,18 @@ int wolfssl_dsa_do_sign(const unsigned char* d, int dLen,
 
     if (rng) {
 #ifdef HAVE_SELFTEST
-        if (dLen != WC_SHA_DIGEST_SIZE ||
-                wc_DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
-            WOLFSSL_MSG("wc_DsaSign failed or dLen wrong length");
+        /* FIPS 186-4 4.2, as wc_DsaSign_ex() does below. wc_DsaSign() reads
+         * exactly WC_SHA_DIGEST_SIZE bytes, so it can only serve the digests
+         * that truncate to that. */
+        qSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
+        if (qSz > 0 && dLen > qSz)
+            dLen = qSz;
+        if (dLen != WC_SHA_DIGEST_SIZE) {
+            WOLFSSL_MSG("dLen wrong length for this build");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (wc_DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
+            WOLFSSL_MSG("wc_DsaSign failed");
             ret = WOLFSSL_FATAL_ERROR;
         }
 #else
@@ -1717,6 +1729,9 @@ int wolfssl_dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
                         WOLFSSL_DSA* dsa, int *dsacheck)
 {
     int    ret;
+#ifdef HAVE_SELFTEST
+    int    qSz;
+#endif
 
     if (d == NULL || sig == NULL || dsa == NULL || dLen < 0) {
         WOLFSSL_MSG("Bad function arguments");
@@ -1733,6 +1748,12 @@ int wolfssl_dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
     }
 
 #ifdef HAVE_SELFTEST
+    /* FIPS 186-4 4.2, as wc_DsaVerify_ex() does below. wc_DsaVerify() reads
+     * exactly WC_SHA_DIGEST_SIZE bytes, so it can only serve the digests that
+     * truncate to that. */
+    qSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
+    if (qSz > 0 && dLen > qSz)
+        dLen = qSz;
     ret = dLen == WC_SHA_DIGEST_SIZE ?
           wc_DsaVerify(d, sig, (DsaKey*)dsa->internal, dsacheck) : BAD_FUNC_ARG;
 #else
