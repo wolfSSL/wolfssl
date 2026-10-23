@@ -1339,7 +1339,8 @@ int test_wc_RNG_SeedCb(void)
 }
 
 #if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && \
-    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_SELFTEST) && \
+    !defined(WC_RNG_TREE) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WC_RNG_SEED_APT_CUTOFF) && !defined(WC_RNG_SEED_APT_WINDOW) && \
@@ -1390,8 +1391,11 @@ static int test_random_seedCb_broken(OS_Seed* os, byte* seed, word32 sz)
 int test_wc_RNG_ReseedVerdict(void)
 {
     EXPECT_DECLS;
+    /* Tree children reseed from the root, so the source's verdict reaches the
+     * root only. */
 #if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && \
-    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_SELFTEST) && \
+    !defined(WC_RNG_TREE) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WC_RNG_SEED_APT_CUTOFF) && !defined(WC_RNG_SEED_APT_WINDOW) && \

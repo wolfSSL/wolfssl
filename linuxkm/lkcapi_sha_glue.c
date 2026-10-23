@@ -2077,7 +2077,7 @@ struct wc_swallow_the_semicolon
                               WOLFKM_SHA3_512_HMAC_DRIVER, hmac_sha3_test_once);
 #endif
 
-#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && !defined(WC_RNG_TREE)
 
 #ifdef HAVE_ENTROPY_MEMUSE
     #include <wolfssl/wolfcrypt/wolfentropy.h>
@@ -2698,6 +2698,16 @@ static WC_INLINE int rng_invalidation_post_check(const char *caller, int genret)
 #ifndef WC_LINUXKM_VMGENID_POLL
     #define WC_LINUXKM_VMGENID_POLL
 #endif
+#endif /* CONFIG_ACPI && !IS_BUILTIN(CONFIG_VMGENID) */
+#endif /* WC_LINUXKM_HAVE_RNG_REGISTRY && WC_LINUXKM_HAVE_RNG_INVALIDATION */
+#endif /* !WC_LINUXKM_NO_ENTROPY_DAEMON */
+#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG && !WC_RNG_TREE */
+
+/* The ACPI VM Generation ID counter, shared with the tree glue. */
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && defined(CONFIG_ACPI) && \
+    (defined(WC_LINUXKM_VMGENID_POLL) || !IS_BUILTIN(CONFIG_VMGENID) || \
+     defined(WC_RNG_TREE))
+#define WC_LINUXKM_HAVE_VMGENID_ACPI
 
 struct wc_linuxkm_vmgenid_poll_state {
     void *map;
@@ -2739,8 +2749,10 @@ static acpi_status wc_linuxkm_vmgenid_acpi_cb(acpi_handle handle, u32 depth,
     return AE_OK;
 }
 
-static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
-                                    WC_RNG *local_root)
+/* Nonzero once the generation counter has changed since the last call.  The
+ * first call only finds the device. */
+static WC_MAYBE_UNUSED int wc_linuxkm_vmgenid_changed(
+    struct wc_linuxkm_vmgenid_poll_state *st)
 {
     if (st->state == 0) {
         /* one-time discovery, in daemon task context.  ACPICA uppercases
@@ -2765,13 +2777,35 @@ static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
         else {
             st->state = -1; /* bare metal or no device */
         }
-        return;
+        return 0;
     }
     if (st->state != 1)
-        return;
+        return 0;
+    if (memcmp(st->map, st->last, 16) == 0)
+        return 0;
+    memcpy(st->last, st->map, 16);
+    return 1;
+}
 
-    if (memcmp(st->map, st->last, 16) != 0) {
-        memcpy(st->last, st->map, 16);
+static WC_MAYBE_UNUSED void wc_linuxkm_vmgenid_poll_teardown(
+    struct wc_linuxkm_vmgenid_poll_state *st)
+{
+    if (st->map != NULL) {
+        memunmap(st->map);
+        st->map = NULL;
+    }
+    st->state = 0;
+}
+#endif /* WC_LINUXKM_HAVE_VMGENID_ACPI */
+
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && !defined(WC_RNG_TREE)
+#ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
+#if defined(WC_LINUXKM_HAVE_RNG_REGISTRY) && defined(WC_LINUXKM_HAVE_RNG_INVALIDATION)
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
+                                    WC_RNG *local_root)
+{
+    if (wc_linuxkm_vmgenid_changed(st)) {
         pr_notice("libwolfssl: VM generation change detected by poller.\n");
         (void)wc_linuxkm_rng_state_invalidate();
         /* recover our root immediately, folding the new generation id in
@@ -2796,17 +2830,7 @@ static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
         }
     }
 }
-
-static void wc_linuxkm_vmgenid_poll_teardown(
-    struct wc_linuxkm_vmgenid_poll_state *st)
-{
-    if (st->map != NULL) {
-        memunmap(st->map);
-        st->map = NULL;
-    }
-    st->state = 0;
-}
-#endif /* CONFIG_ACPI && !IS_BUILTIN(CONFIG_VMGENID) */
+#endif /* WC_LINUXKM_HAVE_VMGENID_ACPI */
 
 #endif /* WC_LINUXKM_HAVE_RNG_REGISTRY && WC_LINUXKM_HAVE_RNG_INVALIDATION */
 

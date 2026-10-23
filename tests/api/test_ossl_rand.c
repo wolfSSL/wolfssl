@@ -322,7 +322,7 @@ int test_wolfSSL_RAND(void)
 }
 
 
-#if defined(WC_RNG_SEED_CB) && defined(OPENSSL_EXTRA)
+#if defined(WC_RNG_SEED_CB) && defined(OPENSSL_EXTRA) && !defined(WC_RNG_TREE)
 static int wc_DummyGenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     word32 i;
@@ -343,7 +343,8 @@ int test_wolfSSL_RAND_poll(void)
 #if defined(OPENSSL_EXTRA)
      byte seed[16];
     byte rand1[16];
-#ifdef WC_RNG_SEED_CB
+/* Tree children seed from the root: a seed callback cannot repeat them. */
+#if defined(WC_RNG_SEED_CB) && !defined(WC_RNG_TREE)
     byte rand2[16];
 #endif
 
@@ -353,7 +354,7 @@ int test_wolfSSL_RAND_poll(void)
     ExpectIntEQ(RAND_bytes(rand1, 16), 1);
     RAND_cleanup();
 
-#ifdef WC_RNG_SEED_CB
+#if defined(WC_RNG_SEED_CB) && !defined(WC_RNG_TREE)
     /* Test with custom seed and poll */
     wc_SetSeed_Cb(wc_DummyGenerateSeed);
 

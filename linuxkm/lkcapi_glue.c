@@ -232,13 +232,14 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
                               * crypto_default_rng usable therein when
                               * LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT.
                               */
+#include "lkcapi_rng_tree_glue.c"
 #include "lkcapi_ecdsa_glue.c"
 #include "lkcapi_ecdh_glue.c"
 #include "lkcapi_rsa_glue.c"
 #include "lkcapi_dh_glue.c"
 
 static int linuxkm_lkcapi_register(void);
-static int linuxkm_lkcapi_unregister(void);
+static int linuxkm_lkcapi_unregister(int going);
 
 #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && defined(WC_LINUX_CONFIG_SELFTESTS)
 static int enabled_kernel_fips_enabled = 0;
@@ -279,7 +280,7 @@ static ssize_t deinstall_algs_handler(WC_MODULE_ATTR_CONST struct module_attribu
 
     pr_info("wolfCrypt: Deinstalling algorithms\n");
 
-    ret = linuxkm_lkcapi_unregister();
+    ret = linuxkm_lkcapi_unregister(0);
     if (ret != 0)
         return ret;
 
@@ -324,7 +325,7 @@ static int linuxkm_lkcapi_sysfs_install(void) {
         }
 #endif
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-    defined(WC_RNG_DEBUG_STATS)
+    defined(WC_RNG_DEBUG_STATS) && !defined(WC_RNG_TREE)
         ret = linuxkm_sysfs_install_attr(&wc_linuxkm_rng_stats_attr.attr,
                                                 NULL);
         if (ret) {
@@ -348,7 +349,7 @@ static int linuxkm_lkcapi_sysfs_deinstall(void) {
     if (installed_sysfs_LKCAPI_files) {
         int ret;
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-    defined(WC_RNG_DEBUG_STATS)
+    defined(WC_RNG_DEBUG_STATS) && !defined(WC_RNG_TREE)
         ret = linuxkm_sysfs_deinstall_attr(&wc_linuxkm_rng_stats_attr.attr,
                                                   NULL);
         if (ret)
@@ -854,7 +855,7 @@ out_without_sig_ignored:
     return ret;
 }
 
-static int linuxkm_lkcapi_unregister(void)
+static int linuxkm_lkcapi_unregister(int going)
 {
     int seen_err = 0;
     int n_deregistered = 0;
@@ -875,7 +876,8 @@ static int linuxkm_lkcapi_unregister(void)
         goto out_without_sig_ignored;
     }
 
-    if (linuxkm_lkcapi_n_registered == 0) {
+    /* A going module (failed init, exit) is freed whatever the count says. */
+    if (linuxkm_lkcapi_n_registered == 0 && !going) {
         ret = -ENOENT;
         goto out;
     }
@@ -1005,19 +1007,6 @@ static int linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(sha3_512_hmac_alg, shash);
 #endif
 
-#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
-    /* special deinstallation handler for wc_linuxkm_drbg, to deinstall it as
-     * the system-wide default rng.
-     */
-    if (wc_linuxkm_drbg_loaded) {
-        ret = wc_linuxkm_drbg_cleanup();
-        if (ret == 0)
-            ++n_deregistered;
-        else
-            seen_err = ret;
-    }
-#endif
-
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
     #if defined(LINUXKM_ECDSA_SIG_ALG)
         /* linux 6.13+: the ecdsa-nist-pN algs are struct sig_alg. */
@@ -1120,6 +1109,24 @@ static int linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(ffdhe8192, kpp);
     #endif /* HAVE_FFDHE_8192 */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+    /* special deinstallation handler for wc_linuxkm_drbg, to deinstall it as
+     * the system-wide default rng.  Last, after every other algorithm is gone:
+     * their tfms hold WC_RNGs seeded from the DRBG's tree.
+     */
+    if (wc_linuxkm_drbg_loaded && (going || (seen_err == 0))) {
+        ret = wc_linuxkm_drbg_cleanup();
+#ifdef WC_RNG_TREE
+        if (ret != 0 && going)
+            ret = wc_linuxkm_drbg_abandon();
+#endif /* WC_RNG_TREE */
+        if (ret == 0)
+            ++n_deregistered;
+        else
+            seen_err = ret;
+    }
+#endif
 
 #undef UNREGISTER_ALG
 

@@ -195,6 +195,11 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_MODE_DEFAULTS"
 fi
 
+# What the command line asked for, before the kernel and "all" defaults below
+# fill in the RNG extras; see --enable-rng-tree.
+RNG_EXTRAS_ASKED="$enable_rng_extras"
+RNG_BANK_ASKED="$enable_rng_bank"
+
 AC_ARG_ENABLE([freebsdkm-crypto-register],
     [AS_HELP_STRING([--enable-freebsdkm-crypto-register],[Register wolfCrypt implementations with the FreeBSD kernel opencrypto framework. (default: disabled)])],
     [ENABLED_BSDKM_REGISTER=$enableval],
@@ -3041,6 +3046,43 @@ AC_ARG_ENABLE([rng-extras],
     [ ENABLED_RNG_EXTRAS=$KERNEL_MODE_DEFAULTS ]
     )
 
+# Pure RBGC tree: the alternative to the RNG extras, one or the other.
+AC_ARG_ENABLE([rng-tree],
+    [AS_HELP_STRING([--enable-rng-tree],[Enable the pure RBGC tree RNG instead of the RNG extras (default: disabled)])],
+    [ ENABLED_RNG_TREE=$enableval ],
+    [ ENABLED_RNG_TREE=no ]
+    )
+case "$ENABLED_RNG_TREE" in
+    yes|no) ;;
+    *) AC_MSG_ERROR([--enable-rng-tree takes yes or no]) ;;
+esac
+if test "$ENABLED_RNG_TREE" = "yes" && test "$ENABLED_RNG" = "no"
+then
+    AC_MSG_ERROR([--enable-rng-tree requires --enable-rng])
+fi
+if test "$ENABLED_RNG_TREE" = "yes" && test "$ENABLED_FIPS" = "yes" && \
+   test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7
+then
+    AC_MSG_ERROR([--enable-rng-tree requires FIPS v7 or later])
+fi
+
+ENABLED_SHA512_C_ONLY=no
+if test "$ENABLED_RNG_TREE" = "yes"
+then
+    AS_IF([test "x$RNG_EXTRAS_ASKED" = "xyes"],
+        [AC_MSG_ERROR([--enable-rng-tree and --enable-rng-extras are alternatives; choose one.])])
+    ENABLED_RNG_EXTRAS=no
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_TREE"
+
+    # Kernel tree builds hash SHA-512 in C: NMI and hardirq callers cannot use
+    # vector registers.  Userspace keeps its assembly.  FIPS dev is exempt.
+    if test "x$ENABLED_LINUXKM" = "xyes" && test "x$ENABLED_FIPS_DEV" != "xyes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_SHA512_C_ONLY"
+        ENABLED_SHA512_C_ONLY=yes
+    fi
+fi
+
 if test "$ENABLED_RNG_EXTRAS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_RNG_EXTRAS"
@@ -3052,6 +3094,14 @@ AC_ARG_ENABLE([rng-bank],
     [ ENABLED_RNG_BANK=$enableval ],
     [ ENABLED_RNG_BANK=$KERNEL_MODE_DEFAULTS ]
     )
+
+# The RNG bank is part of the RNG extras.
+if test "$ENABLED_RNG_TREE" = "yes"
+then
+    AS_IF([test "x$RNG_BANK_ASKED" = "xyes"],
+        [AC_MSG_ERROR([--enable-rng-bank needs the RNG extras, not --enable-rng-tree.])])
+    ENABLED_RNG_BANK=no
+fi
 
 if test "$ENABLED_RNG_BANK" = "yes"
 then
@@ -7811,8 +7861,10 @@ AS_CASE([$FIPS_VERSION],
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
             -DHAVE_ECC521 \
-            -DWOLFSSL_VALIDATE_FFC_IMPORT \
-            -DWC_RNG_EXTRAS"
+            -DWOLFSSL_VALIDATE_FFC_IMPORT"
+        # The RNG extras, unless --enable-rng-tree builds the tree instead.
+        AS_IF([test "x$ENABLED_RNG_TREE" != "xyes"],
+            [AM_CFLAGS="$AM_CFLAGS -DWC_RNG_EXTRAS"])
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and don't use seed callback
         AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
@@ -10364,6 +10416,14 @@ fi
 if test "x$ENABLED_SMALL_STACK" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK"
+fi
+# The tree's DRBGs must not allocate per generate (random.h).
+if test "$ENABLED_RNG_TREE" = "yes" && test "x$ENABLED_SMALL_STACK" = "xyes" &&
+   test "x$ENABLED_SMALL_STACK_CACHE" != "xyes" &&
+   test "x$enable_smallstackcache" = "x"
+then
+    ENABLED_SMALL_STACK_CACHE=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK_CACHE"
 fi
 
 
@@ -14209,11 +14269,13 @@ then
         *) ENABLED_RNG_AUTOFORK_FLAGS=yes ;;
     esac
     if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
-       test "$ENABLED_ENTROPY_MEMUSE" != "no" || \
        test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || \
+       { test "$ENABLED_ENTROPY_MEMUSE" != "no" && \
+         { test "$ENABLED_RNG_TREE" != "yes" || \
+           case ",$ENABLED_ENTROPY_MEMUSE," in *,thread,*) true ;; *) false ;; esac; }; } || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, static memory, memory zero checking or memory tracking"
+        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, static memory, memory zero checking or memory tracking, nor entropy-memuse without rng-tree or with its counter thread"
     fi
     if test -z "$RNG_AUTOFORK_NEEDS"
     then
@@ -14482,6 +14544,7 @@ AM_CONDITIONAL([BUILD_PPC64_ASM_INLINE_REG],[test "x$ENABLED_PPC64_ASM_INLINE_RE
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
+AM_CONDITIONAL([BUILD_SHA512_C_ONLY],[test "x$ENABLED_SHA512_C_ONLY" = "xyes"])
 AM_CONDITIONAL([BUILD_X86_ASM],[test "x$ENABLED_X86_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_AFALG],[test "x$ENABLED_AFALG" = "xyes"])
 AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])

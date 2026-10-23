@@ -1148,6 +1148,7 @@ endif !BUILD_FIPS_V5
 
 if BUILD_ARMASM_NEON
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(LEGACY_ARMASM_SHA512_C)
+if !BUILD_SHA512_C_ONLY
 if BUILD_ARMASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512-asm_c.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm_c.c
@@ -1155,9 +1156,11 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512-asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm.S
 endif !BUILD_ARMASM_INLINE
+endif !BUILD_SHA512_C_ONLY
 else
 if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(LEGACY_ARMASM_SHA512_C)
+if !BUILD_SHA512_C_ONLY
 if BUILD_ARMASM_INLINE
 if BUILD_ARM_NONTHUMB
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm_c.c
@@ -1173,6 +1176,7 @@ if BUILD_ARM_THUMB
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha512-asm.S
 endif
 endif !BUILD_ARMASM_INLINE
+endif !BUILD_SHA512_C_ONLY
 else
 
 if BUILD_FIPS_V5
@@ -1184,7 +1188,9 @@ endif BUILD_FIPS_V6
 endif !BUILD_FIPS_V5
 
 if BUILD_INTELASM
+if !BUILD_SHA512_C_ONLY
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512_asm.S
+endif !BUILD_SHA512_C_ONLY
 endif BUILD_INTELASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
@@ -1745,6 +1751,7 @@ endif !BUILD_FIPS_V5
 
 if BUILD_ARMASM_NEON
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(LEGACY_ARMASM_SHA512_C)
+if !BUILD_SHA512_C_ONLY
 if BUILD_ARMASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512-asm_c.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm_c.c
@@ -1752,9 +1759,11 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512-asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm.S
 endif !BUILD_ARMASM_INLINE
+endif !BUILD_SHA512_C_ONLY
 else
 if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(LEGACY_ARMASM_SHA512_C)
+if !BUILD_SHA512_C_ONLY
 if BUILD_ARMASM_INLINE
 if BUILD_ARM_NONTHUMB
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm_c.c
@@ -1770,6 +1779,7 @@ if BUILD_ARM_THUMB
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha512-asm.S
 endif
 endif !BUILD_ARMASM_INLINE
+endif !BUILD_SHA512_C_ONLY
 else
 
 if BUILD_FIPS_V5
@@ -1782,7 +1792,9 @@ endif !BUILD_FIPS_V5
 
 if !BUILD_X86_ASM
 if BUILD_INTELASM
+if !BUILD_SHA512_C_ONLY
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512_asm.S
+endif !BUILD_SHA512_C_ONLY
 endif BUILD_INTELASM
 endif !BUILD_X86_ASM
 endif !BUILD_ARMASM

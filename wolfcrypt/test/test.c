@@ -29800,6 +29800,101 @@ static wc_test_ret_t random_rng_test(void)
     return ret;
 }
 
+#if defined(WC_RNG_TREE) && !defined(WOLFSSL_LINUXKM)
+/* The tree services: leaves serve, invalidate holds output until a reseed and
+ * zeroize stops it.  Not in the kernel, whose tree is in use. */
+static wc_test_ret_t rng_tree_services_test(void)
+{
+    byte a[32];
+    byte b[32];
+    wc_test_ret_t ret = 0;
+    int r;
+
+    r = wc_RNG_TreeInit(1, HEAP_HINT);
+    if (r != 0)
+        return WC_TEST_RET_ENC_EC(r);
+    r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK, NULL, 0, a, sizeof(a));
+    if (r == 0)
+        r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_NMI, NULL, 0, b, sizeof(b));
+    if (r != 0)
+        ret = WC_TEST_RET_ENC_EC(r);
+    else if (XMEMCMP(a, b, sizeof(a)) == 0)
+        ret = WC_TEST_RET_ENC_NC;
+
+    /* No such CPU. */
+    if (ret == 0) {
+        r = wc_RNG_TreeGenerate(1, WC_RNG_TREE_LANE_TASK, NULL, 0, a,
+                                sizeof(a));
+        if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    if (ret == 0) {
+        WC_RNG rng;
+
+        r = wc_InitRng(&rng);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        if (ret == 0) {
+            wc_RNG_TreeInvalidate();
+            r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK, NULL, 0, a,
+                                    sizeof(a));
+            if (r != WC_NO_ERR_TRACE(NOT_READY_E))
+                ret = WC_TEST_RET_ENC_NC;
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+            /* A WC_RNG made before the invalidate reseeds before its output. */
+            if (ret == 0 && wc_RNG_entropy_needs_recovery(&rng) !=
+                    WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+                ret = WC_TEST_RET_ENC_NC;
+#endif
+            r = wc_RNG_GenerateBlock(&rng, b, sizeof(b));
+            if (r != 0 && ret == 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            r = wc_FreeRng(&rng);
+            if (r != 0 && ret == 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+    }
+    if (ret == 0) {
+        r = wc_RNG_TreeReseed(0);
+        if (r == 0)
+            r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK, NULL, 0, a,
+                                    sizeof(a));
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+    }
+    /* Held for hibernation: no reseed, a zeroize, no new tree; released:
+     * a new tree serves again. */
+    if (ret == 0) {
+        wc_RNG_TreeHold(1);
+        r = wc_RNG_TreeReseed(1);
+        if (r != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ret = WC_TEST_RET_ENC_NC;
+        else if ((r = wc_RNG_TreeZeroize()) != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        else if (wc_RNG_TreeInit(1, HEAP_HINT) != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ret = WC_TEST_RET_ENC_NC;
+        wc_RNG_TreeHold(0);
+        if (ret == 0 && (r = wc_RNG_TreeInit(1, HEAP_HINT)) != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        if (ret == 0 && (r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK,
+                                                 NULL, 0, a, sizeof(a))) != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+    }
+
+    r = wc_RNG_TreeZeroize();
+    if (r != 0 && ret == 0)
+        ret = WC_TEST_RET_ENC_EC(r);
+    if (ret == 0) {
+        r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK, NULL, 0, a,
+                                sizeof(a));
+        if (r != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    return ret;
+}
+#endif
+
 /* Freeing a zeroed WC_RNG must be a no-op.  Not on Versal (wc_FreeRng resets
  * its TRNG) nor where the DRBG is embedded and too big for this stack. */
 #if !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && \
@@ -30109,7 +30204,8 @@ static wc_test_ret_t rng_drbg_flavor_flags_test(void)
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND)
 
-#if defined(WC_RNG_SEED_CB) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if defined(WC_RNG_SEED_CB) && !defined(WC_RNG_TREE) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 /* A source that refuses: the verdict wc_InitRng() must report, or map. */
 static int seed_cb_verdict;
 static int seed_cb_refuse(OS_Seed* os, byte* output, word32 sz)
@@ -30169,7 +30265,7 @@ out:
  * for the configured back end.  A random.h that derives them marks each
  * default; an older one (FIPS<7 overlays) leaves both to random.c, so test.c
  * seeing neither means the same thing. */
-#if defined(WC_RNG_SEED_CB) && !defined(NO_SHA256) && \
+#if defined(WC_RNG_SEED_CB) && !defined(NO_SHA256) && !defined(WC_RNG_TREE) && \
     ((!defined(ENTROPY_SCALE_FACTOR) && !defined(SEED_BLOCK_SZ)) || \
      (defined(WC_DRBG_ENTROPY_SCALE_FACTOR_DEFAULTED) && \
       defined(WC_DRBG_SEED_BLOCK_SZ_DEFAULTED)))
@@ -30417,6 +30513,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     ret = rng_drbg_flavor_flags_test();
     if (ret != 0)
         return ret;
+#if defined(WC_RNG_TREE) && !defined(WOLFSSL_LINUXKM)
+    ret = rng_tree_services_test();
+    if (ret != 0)
+        return ret;
+#endif
 
 #ifndef NO_SHA256
     ret = wc_RNG_HealthTest(0, test1Entropy, sizeof(test1Entropy), NULL, 0,
@@ -30812,7 +30913,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     /* wc_InitRngNonce_UserSeed() strict-contract error handling.  The happy
      * path (born-sentinel marking, user reseed acceptance, generation) is
      * covered in rng_drbg_rbgc_test(). */
-#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WC_RNG_NO_CALLER_SEED_APIS)
     {
         WC_RNG u_seed;
         wc_test_ret_t lret = 0;
@@ -31281,7 +31383,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 #endif /* WC_RNG_HAVE_RBGC && WC_RNG_RBGC_STRATUM_IMMUTABLE && ... */
 
     /* Test the seed callback. */
-#if defined(WC_RNG_SEED_CB) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if defined(WC_RNG_SEED_CB) && !defined(WC_RNG_TREE) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     if ((ret = rng_seed_verdict_test()) != 0)
         return ret;
 #endif
@@ -31788,6 +31891,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
         /* Stir runs against the generates too, so a thread checker sees any
          * future unlocking of it as a race.  NOT_READY_E is its documented
          * refusal while a credited reseed is due, so it is not a failure. */
+#ifdef WC_RNG_HAVE_STIR
         if (args->reseeder && ((i % 8) == 3)) {
             byte mix[16];
             XMEMSET(mix, 0x5a, sizeof(mix));
@@ -31797,6 +31901,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
             if (ret != 0)
                 break;
         }
+#endif
     }
     args->ret = ret;
     WOLFSSL_RETURN_FROM_THREAD(0);
@@ -32044,12 +32149,15 @@ static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng, int op)
     if (write(gfd[1], &go, 1) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     /* Whichever entry point this round is checking, it must wait. */
+#ifdef WC_RNG_HAVE_STIR
     if (op == WC_RNG_LOCK_OP_STIR) {
         byte mix[16];
         XMEMSET(mix, 0x3c, sizeof(mix));
         ret = wc_RNG_DRBG_Stir(rng, mix, (word32)sizeof(mix));
     }
-    else if (op == WC_RNG_LOCK_OP_SCHEDULE) {
+    else
+#endif
+    if (op == WC_RNG_LOCK_OP_SCHEDULE) {
         ret = wc_RNG_DRBG_ScheduleReseed(rng);
     }
     else {
@@ -32114,9 +32222,13 @@ static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
 
     /* Still healthy here, and condemned by the time the lock is free. */
+#ifdef WC_RNG_HAVE_RESEED_NOW
     if (useNow)
         rc = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
     else
+#else
+    (void)useNow;
+#endif
         rc = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
     /* The user-reseed class refusal precedes the lock wait, so the !useNow
@@ -32174,7 +32286,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_flip(void* arg)
 
 /* Prepare skips a lock marked broken, so the parent must skip the same one:
  * clearing the flag in between used to leave two holders at once.  The
- * blocker parks prepare where the flip lands, on both ends of the registry.
+ * blocker parks prepare where the flip lands, at both ends of the WC_RNG locks.
  */
 static wc_test_ret_t rng_fork_broken_flip_test(WC_RNG* first, WC_RNG* blocker,
                                                WC_RNG* last)
@@ -32304,6 +32416,112 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_churn(void* arg)
 
 #endif /* WC_TEST_RNG_AUTOFORK */
 #endif /* WC_TEST_RNG_HOLD */
+
+#if defined(WC_TEST_RNG_AUTOFORK) && defined(WC_RNG_TREE) && \
+    defined(WC_RNG_SEED_CB)
+static wolfSSL_Atomic_Int rng_tree_fork_gathering =
+    WOLFSSL_ATOMIC_INITIALIZER(0);
+static pid_t rng_tree_fork_parent = 0;
+
+/* A slow root gather, so fork() waits behind it on the turn lock. */
+static int rng_tree_fork_seed(OS_Seed* os, byte* out, word32 sz)
+{
+    struct timespec d = { 0, 300000000 };
+
+    if (getpid() == rng_tree_fork_parent) {
+        WOLFSSL_ATOMIC_STORE(rng_tree_fork_gathering, 1);
+        while (nanosleep(&d, &d) != 0 && errno == EINTR) {
+        }
+    }
+    return wc_GenerateSeed(os, out, sz);
+}
+
+static THREAD_RETURN WOLFSSL_THREAD rng_tree_fork_seeder(void* arg)
+{
+    int* ret = (int*)arg;
+    WC_RNG rng;
+
+    *ret = wc_InitRng(&rng);
+    if (*ret == 0)
+        *ret = wc_FreeRng(&rng);
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* fork() while another thread seeds the tree root: the child's first WC_RNG
+ * works or fails closed with RNG_FAILURE_E, and never waits for ever. */
+static wc_test_ret_t rng_tree_fork_test(void)
+{
+    struct timespec d = { 0, 1000000 };
+    THREAD_TYPE seeder = INVALID_THREAD_VAL;
+    wc_test_ret_t ret = 0;
+    int seedRet = 0;
+    int status = 0;
+    int cb;
+    int i;
+    pid_t pid;
+
+    rng_tree_fork_parent = getpid();
+    WOLFSSL_ATOMIC_STORE(rng_tree_fork_gathering, 0);
+    /* A new callback drops the root, so the seeder's wc_InitRng() gathers. */
+    cb = wc_SetSeed_Cb(rng_tree_fork_seed);
+    if (cb != 0) {
+        ret = WC_TEST_RET_ENC_EC(cb);
+        goto out;
+    }
+    if (wolfSSL_NewThread(&seeder, &rng_tree_fork_seeder, &seedRet) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+    /* A seeder that has not gathered within 10 s failed first. */
+    for (i = 0; i < 10000 && !WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering);
+         i++) {
+        if (nanosleep(&d, NULL) != 0 && errno != EINTR)
+            break;
+    }
+    if (!WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering)) {
+        if (wolfSSL_JoinThread(seeder) != 0 || seedRet == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else
+            ret = WC_TEST_RET_ENC_EC(seedRet);
+        goto out;
+    }
+
+    pid = fork();
+    if (pid == 0) {
+        WC_RNG rng;
+        byte b[16];
+        int r;
+
+        alarm(10);   /* a hang ends here, as a failure */
+        r = wc_InitRng(&rng);
+        if (r == 0) {
+            r = wc_RNG_GenerateBlock(&rng, b, sizeof(b));
+            if (wc_FreeRng(&rng) != 0 && r == 0)
+                r = WC_FAILURE;
+        }
+        _exit((r == 0 || r == WC_NO_ERR_TRACE(RNG_FAILURE_E)) ? 0 : 1);
+    }
+    if (wolfSSL_JoinThread(seeder) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (pid < 0) {
+        if (ret == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    else if (waitpid(pid, &status, 0) != pid ||
+             !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        if (ret == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (seedRet != 0 && ret == 0)
+        ret = WC_TEST_RET_ENC_EC(seedRet);
+
+out:
+    cb = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
+    if (cb != 0 && ret == 0)
+        ret = WC_TEST_RET_ENC_EC(cb);
+    return ret;
+}
+#endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
 {
@@ -32435,6 +32653,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             goto out_free;
     }
 #endif /* WC_TEST_RNG_AUTOFORK */
+#if defined(WC_TEST_RNG_AUTOFORK) && defined(WC_RNG_TREE) && \
+    defined(WC_RNG_SEED_CB)
+    ret = rng_tree_fork_test();
+    if (ret != 0)
+        goto out_free;
+#endif
 
 #ifdef WC_RNG_LOCK_ATFORK
     /* A lock marked broken fails closed. */
@@ -32451,7 +32675,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         /* Reseed_Now rather than Reseed: the user-reseed class refusal
          * in WC_RNG_RBGC_STRATUM_IMMUTABLE builds precedes the lock, and
          * this probe is about the lock. */
+#ifdef WC_RNG_HAVE_RESEED_NOW
         ret = wc_RNG_DRBG_Reseed_Now(rng, seed, (word32)sizeof(seed));
+#else
+        ret = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
+#endif
         wc_ForkLock_SetBroken(rng->autoLock, 0);
         if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
             ERROR_OUT(ret == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret),
@@ -33895,6 +34123,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
      * exactly one: a stir is a specified generate (additional_input,
      * zero-length output), and a generate counts. */
     if (present) {
+#ifdef WC_RNG_HAVE_STIR
         c1 = RESEED_CTR(root);
         api_ret = wc_RNG_DRBG_Stir(root, matter, sizeof(matter));
         if (api_ret != 0)
@@ -33902,6 +34131,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         c2 = RESEED_CTR(root);
         if (c2 != c1 + 1)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 
         /* credited reseed resets the counter */
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
@@ -33915,6 +34145,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 #else
+    #ifdef WC_RNG_NO_CALLER_SEED_APIS
+        /* 3.45 reseeds from the module's source; caller bytes of any length
+         * are additional input. */
+        api_ret = wc_RNG_DRBG_Reseed(root, NULL, 5);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_Reseed(root, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_Reseed(root, matter, 1);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    #endif
         api_ret = wc_RNG_DRBG_Reseed(root, matter, sizeof(matter));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -33951,6 +34194,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
 
+#ifdef WC_RNG_HAVE_RESEED_NOW
     /* immediate source reseed, without and with a nonce */
     RNG_STATS_SNAP(root);
     api_ret = wc_RNG_DRBG_Reseed_Now(root, NULL, 0);
@@ -33976,6 +34220,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
     if (wc_RNG_DRBG_Reseed_Now(root, NULL, 5) !=
         WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WC_RNG_HAVE_RESEED_NOW */
 
     /* per-key RNG clear APIs */
 #if !defined(NO_RSA)
@@ -36689,7 +36934,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
         api_ret = wc_RNG_DRBG_ScheduleReseed(rng);
         if (api_ret == 0) {
+#ifdef WC_RNG_HAVE_RESEED_NOW
             api_ret = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
+#else
+            api_ret = wc_RNG_DRBG_Reseed(rng, NULL, 0);
+#endif
             if (api_ret == WC_NO_ERR_TRACE(BUSY_E))
                 api_ret = wc_RNG_Status(rng);
             else if (api_ret == 0)
@@ -36714,7 +36963,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
         api_ret = wc_RNG_DRBG_ScheduleReseed(rng);
         if (api_ret == 0) {
+#ifdef WC_RNG_HAVE_RESEED_NOW
             api_ret = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
+#else
+            api_ret = wc_RNG_DRBG_Reseed(rng, NULL, 0);
+#endif
             if (api_ret == WC_NO_ERR_TRACE(MEMORY_E))
                 api_ret = wc_RNG_Status(rng);
             else if (api_ret == 0)
