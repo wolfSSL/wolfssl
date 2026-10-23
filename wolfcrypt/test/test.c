@@ -61227,34 +61227,34 @@ static wc_test_ret_t ed25519ctx_test(void)
      * gate.) */
     if (ret == 0) {
         outlen = sizeof(out);
-        if (wc_ed25519_sign_msg_ex(msgCtx, sizeof(msgCtx), out, &outlen,
-                                   &key, Ed25519, contextCtx,
-                                   sizeof(contextCtx))
-            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        {
-            ret = WC_TEST_RET_ENC_NC;
-        }
+        ret = wc_ed25519_sign_msg_ex(msgCtx, sizeof(msgCtx), out, &outlen,
+                                     &key, Ed25519, contextCtx,
+                                     sizeof(contextCtx));
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
     }
 #ifdef HAVE_ED25519_VERIFY
     if (ret == 0) {
-        if (wc_ed25519_verify_msg_ex(sigCtx1, sizeof(sigCtx1), msgCtx,
-                                     sizeof(msgCtx), &verify, &key,
-                                     Ed25519, contextCtx,
-                                     sizeof(contextCtx))
-            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        {
-            ret = WC_TEST_RET_ENC_NC;
-        }
+        ret = wc_ed25519_verify_msg_ex(sigCtx1, sizeof(sigCtx1), msgCtx,
+                                       sizeof(msgCtx), &verify, &key,
+                                       Ed25519, contextCtx,
+                                       sizeof(contextCtx));
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
     }
 #ifdef WOLFSSL_ED25519_STREAMING_VERIFY
     if (ret == 0) {
-        if (wc_ed25519_verify_msg_init(sigCtx1, sizeof(sigCtx1), &key,
-                                       Ed25519, contextCtx,
-                                       sizeof(contextCtx))
-            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        {
-            ret = WC_TEST_RET_ENC_NC;
-        }
+        ret = wc_ed25519_verify_msg_init(sigCtx1, sizeof(sigCtx1), &key,
+                                         Ed25519, contextCtx,
+                                         sizeof(contextCtx));
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
     }
 #endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 #endif /* HAVE_ED25519_VERIFY */
