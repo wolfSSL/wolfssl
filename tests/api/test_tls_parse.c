@@ -141,6 +141,14 @@ static void* tls_parse_fail_realloc(void* ptr, size_t size)
 {
     return realloc(ptr, size);
 }
+
+TEST_TLS_PARSE_UNUSED
+static void* tls_parse_null_realloc(void* ptr, size_t size)
+{
+    (void)ptr;
+    (void)size;
+    return NULL;
+}
 #endif /* WOLFSSL_TEST_STATIC_BUILD && !NO_TLS */
 
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \
@@ -153,13 +161,15 @@ TEST_TLS_PARSE_UNUSED
 static int test_tls_parse_push_curve(TLSX** extensions, WOLFSSL* ssl,
         word16 name)
 {
-    SupportedCurve* curve = (SupportedCurve*)XMALLOC(sizeof(SupportedCurve),
-            ssl->heap, DYNAMIC_TYPE_TLSX);
-    if (curve == NULL)
+    SupportedCurves* curves = (SupportedCurves*)XMALLOC(
+            sizeof(SupportedCurves) + sizeof(word16), ssl->heap,
+            DYNAMIC_TYPE_TLSX);
+    if (curves == NULL)
         return WC_NO_ERR_TRACE(MEMORY_E);
-    curve->name = name;
-    curve->next = NULL;
-    return TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, ssl->heap);
+    curves->count = 1;
+    curves->cap = 1;
+    curves->name[0] = name;
+    return TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curves, ssl->heap);
 }
 
 /* Builds and pushes a minimal key share entry -- a peer offer that was
@@ -2272,14 +2282,68 @@ int test_TLSX_SupportedGroups_parse(void)
         extensions = NULL;
 
 #ifdef WOLFSSL_TEST_STATIC_BUILD
-        /* Offered group matches the local restriction, but recording it
-         * in the intersection list is forced to fail: a non-zero ret
-         * reaches the "no common curve" check below without commonCurves
-         * ever becoming non-NULL through the normal path. */
+        /* New lists come from malloc and do not depend on realloc(NULL). */
         {
             wolfSSL_Malloc_cb prevM = NULL;
             wolfSSL_Free_cb prevF = NULL;
             wolfSSL_Realloc_cb prevR = NULL;
+
+            ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+            ExpectIntEQ(wolfSSL_SetAllocators(tls_parse_fail_malloc,
+                        tls_parse_fail_free, tls_parse_null_realloc), 0);
+            ExpectIntEQ(TLSX_UseSupportedCurve(&extensions,
+                        WOLFSSL_ECC_SECP256R1, ssl->heap,
+                        ssl->options.side), WOLFSSL_SUCCESS);
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* A failed grow leaves the list in the extension as it was. */
+        {
+            wolfSSL_Malloc_cb prevM = NULL;
+            wolfSSL_Free_cb prevF = NULL;
+            wolfSSL_Realloc_cb prevR = NULL;
+            TLSX* ext = NULL;
+            SupportedCurves* before = NULL;
+            SupportedCurves* curves = NULL;
+
+            ExpectIntEQ(test_tls_parse_push_curve(&extensions, ssl,
+                        WOLFSSL_ECC_SECP256R1), 0);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if (ext != NULL)
+                before = (SupportedCurves*)ext->data;
+
+            ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+            ExpectIntEQ(wolfSSL_SetAllocators(tls_parse_fail_malloc,
+                        tls_parse_fail_free, tls_parse_null_realloc), 0);
+            tls_parse_alloc_seen = 0;
+            tls_parse_fail_after = 0;
+            ExpectIntEQ(TLSX_UseSupportedCurve(&extensions,
+                        WOLFSSL_ECC_SECP384R1, ssl->heap, ssl->options.side),
+                        WC_NO_ERR_TRACE(MEMORY_E));
+            tls_parse_fail_after = -1;
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectPtrEq(curves, before);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 1);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[0],
+                        WOLFSSL_ECC_SECP256R1);
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* The intersection is one allocation; when it fails the list in the
+         * extension is left as it was. */
+        {
+            wolfSSL_Malloc_cb prevM = NULL;
+            wolfSSL_Free_cb prevF = NULL;
+            wolfSSL_Realloc_cb prevR = NULL;
+            TLSX* ext = NULL;
+            SupportedCurves* curves = NULL;
 
             ExpectIntEQ(TLSX_UseSupportedCurve(&extensions,
                         WOLFSSL_ECC_SECP256R1, ssl->heap,
@@ -2294,10 +2358,106 @@ int test_TLSX_SupportedGroups_parse(void)
             ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, goodBody,
                         (word16)sizeof(goodBody), 1, &extensions),
                         WC_NO_ERR_TRACE(MEMORY_E));
+            ExpectIntEQ(tls_parse_alloc_seen, 1);
+
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectNotNull(curves);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 1);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[0],
+                        WOLFSSL_ECC_SECP256R1);
+
+            tls_parse_alloc_seen = 0;
+            tls_parse_fail_after = 1;
+            ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, goodBody,
+                        (word16)sizeof(goodBody), 1, &extensions), 0);
+            ExpectIntEQ(tls_parse_alloc_seen, 1);
 
             tls_parse_fail_after = -1;
             (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
             TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* Only the first FFDHE codepoint this build lacks is kept, in the
+         * peer's order. */
+        {
+            /* secp256r1, then two FFDHE codepoints no build implements. */
+            const byte ffdheTwo[] = { 0x00, 0x06, 0x00, 0x17, 0x01, 0x20,
+                                      0x01, 0x21 };
+            TLSX* ext = NULL;
+            SupportedCurves* curves = NULL;
+
+            ExpectIntEQ(test_tls_parse_push_curve(&extensions, ssl,
+                        WOLFSSL_ECC_SECP256R1), 0);
+            ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, ffdheTwo,
+                        (word16)sizeof(ffdheTwo), 1, &extensions), 0);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectNotNull(curves);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 2);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[0],
+                        WOLFSSL_ECC_SECP256R1);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[1], 0x0120);
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* After an HRR the second ClientHello is intersected with the first
+         * one's list, which can be longer than WOLFSSL_MAX_GROUP_COUNT. */
+        {
+            #define TEST_LONG_CNT (WOLFSSL_MAX_GROUP_COUNT + 2)
+            byte peer[OPAQUE16_LEN + TEST_LONG_CNT * OPAQUE16_LEN];
+            TLSX* ext = NULL;
+            SupportedCurves* curves = NULL;
+            word16 name;
+            word16 i;
+            int ret;
+
+            curves = (SupportedCurves*)XMALLOC(sizeof(SupportedCurves) +
+                    TEST_LONG_CNT * sizeof(word16), ssl->heap,
+                    DYNAMIC_TYPE_TLSX);
+            ExpectNotNull(curves);
+            if (curves != NULL) {
+                curves->count = TEST_LONG_CNT;
+                curves->cap = TEST_LONG_CNT;
+                for (i = 0; i < TEST_LONG_CNT; i++)
+                    curves->name[i] = (word16)(0x0a00 + i);
+                ret = TLSX_Push(&extensions, TLSX_SUPPORTED_GROUPS, curves,
+                                ssl->heap);
+                if (ret != 0)
+                    XFREE(curves, ssl->heap, DYNAMIC_TYPE_TLSX);
+                ExpectIntEQ(ret, 0);
+            }
+
+            peer[0] = (byte)((TEST_LONG_CNT * OPAQUE16_LEN) >> 8);
+            peer[1] = (byte)(TEST_LONG_CNT * OPAQUE16_LEN);
+            for (i = 0; i < TEST_LONG_CNT; i++) {
+                name = (word16)(0x0a00 + TEST_LONG_CNT - 1 - i);
+                peer[OPAQUE16_LEN + i * OPAQUE16_LEN] = (byte)(name >> 8);
+                peer[OPAQUE16_LEN + i * OPAQUE16_LEN + 1] = (byte)name;
+            }
+
+            ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, peer,
+                        (word16)sizeof(peer), 1, &extensions), 0);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            curves = NULL;
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectNotNull(curves);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count,
+                        TEST_LONG_CNT);
+            for (i = 0; (curves != NULL) && (i < curves->count); i++) {
+                ExpectIntEQ(curves->name[i], 0x0a00 + TEST_LONG_CNT - 1 - i);
+            }
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+            #undef TEST_LONG_CNT
         }
 #endif
     }
@@ -2323,6 +2483,13 @@ int test_TLSX_SupportedGroups_parse(void)
                     WOLFSSL_SUCCESS);
         ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, noMatch261,
                     (word16)sizeof(noMatch261), 0, &extensions), 0);
+        {
+            TLSX* ext = TLSX_Find(extensions, TLSX_SUPPORTED_GROUPS);
+
+            ExpectNotNull(ext);
+            if (ext != NULL)
+                ExpectNull(ext->data);
+        }
         TLSX_FreeAll(extensions, NULL);
     }
     wolfSSL_free(ssl);

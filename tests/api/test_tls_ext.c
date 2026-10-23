@@ -3424,6 +3424,577 @@ int test_TLSX_MaxFragment_value(void)
     return EXPECT_RESULT();
 }
 
+/* Appending keeps every group the build accepts, in order, and drops a
+ * repeat. */
+int test_TLSX_SupportedCurve_append(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_TLS_EXTENSIONS)
+    /* Every standalone group the API knows; a build rejects the rest. */
+    static const word16 known[] = {
+        WOLFSSL_ECC_SECP160K1, WOLFSSL_ECC_SECP160R1, WOLFSSL_ECC_SECP160R2,
+        WOLFSSL_ECC_SECP192K1, WOLFSSL_ECC_SECP192R1, WOLFSSL_ECC_SECP224K1,
+        WOLFSSL_ECC_SECP224R1, WOLFSSL_ECC_SECP256K1, WOLFSSL_ECC_SECP256R1,
+        WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP521R1,
+        WOLFSSL_ECC_BRAINPOOLP256R1, WOLFSSL_ECC_BRAINPOOLP384R1,
+        WOLFSSL_ECC_BRAINPOOLP512R1, WOLFSSL_ECC_SM2P256V1,
+        WOLFSSL_ECC_X25519, WOLFSSL_ECC_X448,
+        WOLFSSL_FFDHE_2048, WOLFSSL_FFDHE_3072, WOLFSSL_FFDHE_4096,
+        WOLFSSL_FFDHE_6144, WOLFSSL_FFDHE_8192,
+        WOLFSSL_ML_KEM_512, WOLFSSL_ML_KEM_768, WOLFSSL_ML_KEM_1024,
+        WOLFSSL_KYBER_LEVEL1, WOLFSSL_KYBER_LEVEL3, WOLFSSL_KYBER_LEVEL5
+    };
+    word16 added[sizeof(known) / sizeof(known[0])];
+    word16 addedCnt = 0;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    TLSX* extension = NULL;
+    SupportedCurves* curves = NULL;
+    word16 i;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    for (i = 0; (ssl != NULL) && (i < sizeof(known) / sizeof(known[0])); i++) {
+        if (wolfSSL_UseSupportedCurve(ssl, known[i]) == WOLFSSL_SUCCESS)
+            added[addedCnt++] = known[i];
+    }
+    ExpectIntGT(addedCnt, 0);
+    /* A repeat is dropped rather than appended. */
+    if (addedCnt > 0) {
+        ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, added[0]),
+                    WOLFSSL_SUCCESS);
+    }
+
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+    ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, (int)addedCnt);
+    ExpectIntLE(curves == NULL ? 1 : (int)curves->count,
+                curves == NULL ? 0 : (int)curves->cap);
+    for (i = 0; (curves != NULL) && (i < addedCnt); i++) {
+        ExpectIntEQ(curves->name[i], added[i]);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Growing past the initial capacity, driven through the RFC 7919 rule: an
+ * FFDHE codepoint is kept even when this build has no such group. */
+int test_TLSX_SupportedCurve_grow(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER)
+    /* FFDHE range (256..511) codepoints no build implements, so every one
+     * of them takes the keep path. */
+    #define TEST_GROW_CNT 128
+    #define TEST_GROW_FIRST 0x0140
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    TLSX* extension = NULL;
+    SupportedCurves* curves = NULL;
+    byte peerList[6 + TEST_GROW_CNT * 2];
+    const byte oneName[] = { 0x00, 0x0a, 0x00, 0x04, 0x00, 0x02, 0x01, 0x40 };
+    int initCap = -1;
+    word16 i;
+
+    /* supported_groups (0x000a), extension length, list length, names. */
+    peerList[0] = 0x00;
+    peerList[1] = 0x0a;
+    peerList[2] = (byte)(((2 + TEST_GROW_CNT * 2) >> 8) & 0xff);
+    peerList[3] = (byte)((2 + TEST_GROW_CNT * 2) & 0xff);
+    peerList[4] = (byte)(((TEST_GROW_CNT * 2) >> 8) & 0xff);
+    peerList[5] = (byte)((TEST_GROW_CNT * 2) & 0xff);
+    for (i = 0; i < TEST_GROW_CNT; i++) {
+        peerList[6 + i * 2] = (byte)(((TEST_GROW_FIRST + i) >> 8) & 0xff);
+        peerList[7 + i * 2] = (byte)((TEST_GROW_FIRST + i) & 0xff);
+    }
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, oneName, (word16)sizeof(oneName),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+    if (curves != NULL)
+        initCap = (int)curves->cap;
+    ExpectIntGT(initCap, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    extension = NULL;
+    curves = NULL;
+
+    /* No list of our own, so the peer's names are the ones stored. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, peerList, (word16)sizeof(peerList),
+                           client_hello, suites), 0);
+
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+
+    ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, TEST_GROW_CNT);
+    ExpectIntGE(curves == NULL ? -1 : (int)curves->cap, TEST_GROW_CNT);
+    ExpectIntGT(curves == NULL ? -1 : (int)curves->cap, initCap);
+    for (i = 0; (curves != NULL) && (i < TEST_GROW_CNT); i++) {
+        ExpectIntEQ(curves->name[i], TEST_GROW_FIRST + i);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    #undef TEST_GROW_CNT
+    #undef TEST_GROW_FIRST
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The intersection a server keeps when it has its own list: common groups in
+ * the peer's order, repeats and unknown groups dropped. */
+int test_TLSX_SupportedCurve_intersection(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_ECC) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256 && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    (!defined(NO_WOLFSSL_SERVER) || (defined(WOLFSSL_TLS13) && \
+                                     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    TLSX* extension = NULL;
+    SupportedCurves* curves = NULL;
+    /* supported_groups: secp384r1 (0x0018), an unknown 0xeeee, secp384r1
+     * again, secp256r1 (0x0017) */
+    const byte peerList[] = { 0x00, 0x0a, 0x00, 0x0a, 0x00, 0x08,
+                              0x00, 0x18, 0xee, 0xee, 0x00, 0x18, 0x00, 0x17 };
+    /* supported_groups (0x000a), ext len 0x0004, list len 0x0002, 0xeeee */
+    const byte noCommon[] = { 0x00, 0x0a, 0x00, 0x04, 0x00, 0x02, 0xee, 0xee };
+#ifdef WOLFSSL_TLS13
+    /* The same plus a key_share (0x0033) with no shares, which TLS 1.3
+     * requires alongside supported_groups. */
+    const byte noCommon13[] = { 0x00, 0x0a, 0x00, 0x04, 0x00, 0x02, 0xee, 0xee,
+                                0x00, 0x33, 0x00, 0x02, 0x00, 0x00 };
+#endif
+    /* FFDHE codepoints this build lacks, interleaved with common groups. */
+    const byte ffdheMix[] = { 0x00, 0x0a, 0x00, 0x0a, 0x00, 0x08,
+                              0x00, 0x18, 0x01, 0x03, 0x00, 0x17, 0x01, 0x04 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* Our own list, least preferred group of the two last. */
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP384R1),
+                WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, peerList, (word16)sizeof(peerList),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+    /* Both common groups kept, in the peer's order, the repeat dropped. */
+    ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 2);
+    ExpectIntEQ(curves == NULL ? 0 : curves->name[0], WOLFSSL_ECC_SECP384R1);
+    ExpectIntEQ(curves == NULL ? 0 : curves->name[1], WOLFSSL_ECC_SECP256R1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* No group in common is fatal before TLS 1.3, which has no HRR. */
+    extension = NULL;
+    curves = NULL;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1),
+                WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, noCommon, (word16)sizeof(noCommon),
+                           client_hello, suites),
+                WC_NO_ERR_TRACE(ECC_CURVE_ERROR));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* RFC 7919 Section 4: the first FFDHE codepoint this build lacks is kept,
+     * in the peer's order. */
+    extension = NULL;
+    curves = NULL;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP384R1),
+                WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, ffdheMix, (word16)sizeof(ffdheMix),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+#if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(HAVE_FFDHE_6144)
+    ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 3);
+    ExpectIntEQ(curves == NULL ? 0 : curves->name[0], WOLFSSL_ECC_SECP384R1);
+    ExpectIntEQ(curves == NULL ? 0 : curves->name[1], WOLFSSL_FFDHE_6144);
+    ExpectIntEQ(curves == NULL ? 0 : curves->name[2], WOLFSSL_ECC_SECP256R1);
+#else
+    /* Otherwise the FFDHE entry depends on the build, but both ECC groups
+     * are kept and secp384r1 leads. */
+    ExpectIntGE(curves == NULL ? -1 : (int)curves->count, 2);
+    ExpectIntEQ(curves == NULL ? 0 : curves->name[0], WOLFSSL_ECC_SECP384R1);
+    if (curves != NULL) {
+        word16 j;
+        for (j = 0; j < curves->count; j++) {
+            if (curves->name[j] == WOLFSSL_ECC_SECP256R1)
+                break;
+        }
+        ExpectIntLT(j, curves->count);
+    }
+#endif
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+#ifdef WOLFSSL_TLS13
+    /* TLS 1.3 can answer with an HRR, so no common group is not an error. */
+    extension = NULL;
+    curves = NULL;
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1),
+                WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, noCommon13, (word16)sizeof(noCommon13),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        ExpectNull(extension->data);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The server keeps the first group in its own preference order that the client
+ * also offered, within the configured DH bounds. */
+int test_TLSX_SupportedFFDHE_Set(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && !defined(NO_DH) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_FFDHE) && \
+    defined(HAVE_FFDHE_2048) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    WOLFSSL_MIN_DHKEY_BITS <= 2048 && WOLFSSL_MAX_DHKEY_BITS >= 2048
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    /* supported_groups (0x000a), ext len 0x0004, list len 0x0002,
+     * ffdhe2048 (0x0100) */
+    const byte ffdheOnly[] = { 0x00, 0x0a, 0x00, 0x04, 0x00, 0x02,
+                               0x01, 0x00 };
+    /* The same extension carrying secp256r1 (0x0017) instead. */
+    const byte noFfdhe[] = { 0x00, 0x0a, 0x00, 0x04, 0x00, 0x02,
+                             0x00, 0x17 };
+#if defined(HAVE_FFDHE_3072) && WOLFSSL_MAX_DHKEY_BITS >= 3072
+    /* ffdhe2048 then ffdhe3072 (0x0101). */
+    const byte ffdheBoth[] = { 0x00, 0x0a, 0x00, 0x06, 0x00, 0x04,
+                               0x01, 0x00, 0x01, 0x01 };
+#ifdef WOLFSSL_TLS13
+    int setGroups[] = { WOLFSSL_FFDHE_2048, WOLFSSL_FFDHE_3072 };
+#endif
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    /* The one group both sides have is selected. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, ffdheOnly, (word16)sizeof(ffdheOnly),
+                           client_hello, suites), 0);
+    ExpectIntEQ(TLSX_SupportedFFDHE_Set(ssl), 0);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->namedGroup, WOLFSSL_FFDHE_2048);
+        ExpectIntEQ(ssl->options.haveDH, 1);
+        ExpectIntEQ((int)ssl->buffers.serverDH_P.length, 2048 / 8);
+        ExpectNotNull(ssl->buffers.serverDH_G.buffer);
+        /* Without public FFDHE parameters the group's P and G are copied. */
+#ifdef HAVE_PUBLIC_FFDHE
+        ExpectIntEQ(ssl->buffers.weOwnDH, 0);
+#else
+        ExpectIntEQ(ssl->buffers.weOwnDH, 1);
+#endif
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    suites = NULL;
+
+    /* A floor above the only common group selects nothing, and that is
+     * success. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetMinDhKey_Sz(ssl, 8192), WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, ffdheOnly, (word16)sizeof(ffdheOnly),
+                           client_hello, suites), 0);
+    ExpectIntEQ(TLSX_SupportedFFDHE_Set(ssl), 0);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.haveDH, 0);
+        ExpectNull(ssl->buffers.serverDH_P.buffer);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    suites = NULL;
+
+#if defined(HAVE_FFDHE_3072) && WOLFSSL_MAX_DHKEY_BITS >= 3072
+    /* The server's order decides: 3072 wins though the client lists it
+     * second. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, ffdheBoth, (word16)sizeof(ffdheBoth),
+                           client_hello, suites), 0);
+    ExpectIntEQ(TLSX_SupportedFFDHE_Set(ssl), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->namedGroup, WOLFSSL_FFDHE_3072);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    suites = NULL;
+
+#ifdef WOLFSSL_TLS13
+    /* A list from wolfSSL_set_groups() replaces the default order. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_groups(ssl, setGroups,
+                (int)(sizeof(setGroups) / sizeof(setGroups[0]))),
+                WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, ffdheBoth, (word16)sizeof(ffdheBoth),
+                           client_hello, suites), 0);
+    ExpectIntEQ(TLSX_SupportedFFDHE_Set(ssl), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->namedGroup, WOLFSSL_FFDHE_2048);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    suites = NULL;
+#endif
+#endif
+
+    /* No FFDHE codepoint on offer: nothing touches the DH state. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, noFfdhe, (word16)sizeof(noFfdhe),
+                           client_hello, suites), 0);
+    ExpectIntEQ(TLSX_SupportedFFDHE_Set(ssl), 0);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.haveDH, 0);
+        ExpectIntEQ(ssl->namedGroup, 0);
+    }
+    wolfSSL_free(ssl);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* When the client does not offer the group this build prefers, the server swaps
+ * its own list in and marks it for sending back in EncryptedExtensions. */
+int test_TLSX_SupportedCurve_check_priority(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && \
+    !defined(NO_TLS) && defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_ECC) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256 && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    TLSX* extension = NULL;
+    SupportedCurves* curves = NULL;
+    word16 preferred = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    /* The client offers only a private-use codepoint, so our own list goes
+     * back. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1),
+                    WOLFSSL_SUCCESS);
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    }
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+    /* The public API rejects an unsupported name, so store it directly. */
+    if (curves != NULL)
+        curves->name[0] = 0xeeee;
+    ExpectIntEQ(TLSX_SupportedCurve_CheckPriority(ssl), 0);
+    if (extension != NULL)
+        ExpectIntEQ(extension->resp, 1);
+    if ((extension != NULL) && (extension->data != NULL)) {
+        curves = (SupportedCurves*)extension->data;
+        /* Our own list replaced the client's, so the codepoint is gone. */
+        ExpectIntGT((int)curves->count, 0);
+        if (curves->count > 0)
+            preferred = curves->name[0];
+        ExpectIntNE(preferred, 0xeeee);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* The client now offers the preferred group, so nothing is sent back. */
+    extension = NULL;
+    curves = NULL;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1),
+                    WOLFSSL_SUCCESS);
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    }
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+    if ((curves != NULL) && (preferred != 0))
+        curves->name[0] = preferred;
+    ExpectIntEQ(TLSX_SupportedCurve_CheckPriority(ssl), 0);
+    if (extension != NULL)
+        ExpectIntEQ(extension->resp, 0);
+    if ((extension != NULL) && (extension->data != NULL)) {
+        curves = (SupportedCurves*)extension->data;
+        ExpectIntEQ((int)curves->count, 1);
+        ExpectIntEQ(curves->name[0], preferred);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC_BRAINPOOL) && \
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+static int test_tls_ext_group_count(WOLFSSL* ssl, word16 name)
+{
+    TLSX* ext = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    SupportedCurves* curves = NULL;
+    int cnt = 0;
+    word16 i;
+
+    if (ext != NULL)
+        curves = (SupportedCurves*)ext->data;
+    for (i = 0; (curves != NULL) && (i < curves->count); i++) {
+        if (curves->name[i] == name)
+            cnt++;
+    }
+    return cnt;
+}
+#endif
+
+/* The default list follows the version: RFC 7027 brainpool groups for TLS 1.2,
+ * RFC 8734 ones for TLS 1.3, both when TLS 1.3 may fall back to TLS 1.2, and
+ * no ML-KEM groups for TLS 1.2. */
+int test_TLSX_SupportedGroups_default_filter(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC_BRAINPOOL) && \
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    const method_provider methods[] = { wolfTLSv1_2_client_method,
+        wolfTLSv1_3_client_method, wolfSSLv23_client_method };
+    const int want12[] = { 1, 0, 1 };
+    const int want13[] = { 0, 1, 1 };
+    int m;
+
+    for (m = 0; m < (int)(sizeof(methods) / sizeof(methods[0])); m++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s, methods[m], wolfSSLv23_server_method), 0);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        if (ssl_c != NULL) {
+            ExpectIntEQ(test_tls_ext_group_count(ssl_c,
+                        WOLFSSL_ECC_BRAINPOOLP256R1), want12[m]);
+            ExpectIntEQ(test_tls_ext_group_count(ssl_c,
+                        WOLFSSL_ECC_BRAINPOOLP256R1TLS13), want13[m]);
+            if (want13[m] == 0) {
+                ExpectIntEQ(test_tls_ext_group_count(ssl_c,
+                            WOLFSSL_ML_KEM_768), 0);
+                ExpectIntEQ(test_tls_ext_group_count(ssl_c,
+                            WOLFSSL_X25519MLKEM768), 0);
+                ExpectIntEQ(test_tls_ext_group_count(ssl_c,
+                            WOLFSSL_SECP256R1MLKEM768), 0);
+            }
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 8422 Section 5.1.2: a client that sends the ec_point_formats extension
  * MUST include the uncompressed (0) point format. When the uncompressed format
  * is omitted the server records this (ssl->options.peerNoUncompPF) during
