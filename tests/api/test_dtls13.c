@@ -151,6 +151,12 @@ int test_wolfSSL_dtls13_null_cipher(void)
         ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(WANT_READ));
     }
 
+    /* Drain the post-handshake records on each side */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
     ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), 1);
@@ -160,7 +166,7 @@ int test_wolfSSL_dtls13_null_cipher(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    return TEST_SUCCESS;
+    return EXPECT_RESULT();
 }
 #else
 int test_wolfSSL_dtls13_null_cipher(void)
