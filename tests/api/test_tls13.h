@@ -153,6 +153,7 @@ int test_tls13_AEAD_limit_KU_aes128_ccm_sha256(void);
 int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void);
 int test_tls13_KeyUpdate_sender_limit(void);
 int test_tls13_KeyUpdate_limit_ignores_update_requested(void);
+int test_tls13_KeyUpdate_blocked_write(void);
 int test_tls13_KeyUpdate_limit_writedup(void);
 int test_tls13_extension_trailing_data_alert(void);
 int test_tls13_early_data_AEAD_limit(void);
@@ -338,6 +339,7 @@ int test_tls13_AEAD_limit_KeyUpdate_want_write(void);
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_sender_limit), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_limit_ignores_update_requested), \
+    TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_blocked_write), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_limit_writedup), \
     TEST_DECL_GROUP("tls13", test_tls13_extension_trailing_data_alert), \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_AEAD_limit), \
