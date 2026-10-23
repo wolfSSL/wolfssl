@@ -8981,6 +8981,7 @@ typedef struct Tree {
     wolfSSL_Atomic_Int seeding;     /* one root seeder at a time */
 #endif
     wolfSSL_Atomic_Int failed;      /* error state: no output */
+    wolfSSL_Atomic_Int held;        /* hibernation: no root made or renewed */
     int                rootUp;      /* root instantiated */
     wolfSSL_Atomic_Int wipeFailed;  /* a DRBG did not zeroize */
     WC_RNG_PID_ARG     pid;         /* process that last seeded the root */
@@ -9323,6 +9324,13 @@ static int TreeTerminateIfFailed(int ret)
     return (ret != 0) ? ret : fail;
 }
 
+/* The platform's hibernation hold (a service beside Invalidate and Zeroize):
+ * set, no root is made or renewed, so nothing of the tree reaches storage. */
+void wc_RNG_TreeHold(int held)
+{
+    WOLFSSL_ATOMIC_STORE(tree.held, held);
+}
+
 /* The DRBG CAST runs only where waiting is allowed, never with a tree lock
  * held, so this waits out a reseed in flight: its CAST recovery cannot clear
  * this failure.  SP 800-90C 7.3.1 item 5 */
@@ -9453,8 +9461,12 @@ int wc_RNG_TreeInit(int ncpu, void* heap)
         return (wipe != 0) ? wipe : ret;
     }
 
+    /* Published under the seeding lock; the kernel glue serves no request
+     * before its hold ends, and that end orders these for the lanes. */
+    TreeSeedingTake();
     tree.ncpu = ncpu;
     tree.leaves = leaves;
+    TreeSeedingGive();
     return 0;
 }
 
@@ -9571,17 +9583,23 @@ int wc_RNG_TreeReseed(int force)
     byte* seed = tree.seed;
     WC_ATOMIC_INT_ARG expected = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
     int epoch;
+    int held;
     int ret;
 
     /* Wait for another seeder; BUSY_E from here comes only from the source. */
     TreeSeedingTake();
     ret = TreeTerminateIfFailed(0);
+    /* Held for hibernation: no root is made or renewed (SP 800-90C 7.3.1
+     * item 11), so nothing of the tree reaches the image. */
+    held = WOLFSSL_ATOMIC_LOAD(tree.held);
+    if (ret == 0 && held)
+        ret = BAD_STATE_E;
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
-    if (ret == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E)) {
+    if (ret == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E) && !held) {
 #ifdef HAVE_FIPS
         /* Latched while this call waited for the lock: the CAST must pass
-         * again before a rebuild (fips.c stores FAILURE after the latch). */
+         * again before a rebuild, so its status is read, not the gate's. */
         if (wc_GetCastStatus_fips(FIPS_CAST_DRBG_SHA512) !=
                 FIPS_CAST_STATE_SUCCESS)
             ret = DRBG_SHA512_KAT_FIPS_E;
@@ -9704,18 +9722,16 @@ static int TreeChildSeed(OS_Seed* os, byte* out, word32 sz)
 #endif
 
 #ifdef HAVE_FIPS
-    /* The root's CAST before first use (IG 10.3.A): a SHA-256 WC_RNG's wrapper
-     * runs only its own.  The KAT allocates, so only where we can block. */
-    if (!sha512Off && WC_CAN_BLOCK() &&
-            wc_GetCastStatus_fips(FIPS_CAST_DRBG_SHA512) ==
-            FIPS_CAST_STATE_INIT) {
-        ret = wc_RunCast_fips(FIPS_CAST_DRBG_SHA512);
-        if (ret != 0)
-            return ret;
+    /* The root's CAST ran in the wrapper, outside the WC_RNG's lock: fork()
+     * takes the CAST lock first, so taking it here could deadlock. */
+    if (!sha512Off) {
+        int st = wc_GetCastStatus_fips(FIPS_CAST_DRBG_SHA512);
+
+        if (st == FIPS_CAST_STATE_FAILURE)
+            return DRBG_SHA512_KAT_FIPS_E;
+        if (st != FIPS_CAST_STATE_SUCCESS)
+            return BUSY_E;   /* pending: retried, never a verdict on the DRBG */
     }
-    if (!sha512Off && wc_GetCastStatus_fips(FIPS_CAST_DRBG_SHA512) !=
-            FIPS_CAST_STATE_SUCCESS)
-        return DRBG_SHA512_KAT_FIPS_E;
 #endif
 #ifdef WOLFSSL_LINUXKM
     ret = TreeChildDraw(os, out, sz, sha512Off);

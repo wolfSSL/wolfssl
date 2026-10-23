@@ -29863,6 +29863,24 @@ static wc_test_ret_t rng_tree_services_test(void)
         if (r != 0)
             ret = WC_TEST_RET_ENC_EC(r);
     }
+    /* Held for hibernation: no reseed, a zeroize, no new tree; released:
+     * a new tree serves again. */
+    if (ret == 0) {
+        wc_RNG_TreeHold(1);
+        r = wc_RNG_TreeReseed(1);
+        if (r != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ret = WC_TEST_RET_ENC_NC;
+        else if ((r = wc_RNG_TreeZeroize()) != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        else if (wc_RNG_TreeInit(1, HEAP_HINT) != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ret = WC_TEST_RET_ENC_NC;
+        wc_RNG_TreeHold(0);
+        if (ret == 0 && (r = wc_RNG_TreeInit(1, HEAP_HINT)) != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        if (ret == 0 && (r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK,
+                                                 NULL, 0, a, sizeof(a))) != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+    }
 
     r = wc_RNG_TreeZeroize();
     if (r != 0 && ret == 0)

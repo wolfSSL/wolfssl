@@ -1234,6 +1234,9 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     /* Call after a VM fork, snapshot restore or resume (the platform's
      * restore hook): root, leaves and every WC_RNG are built again first. */
     WC_RNG_TREE_API void wc_RNG_TreeInvalidate(void);
+    /* The platform's hibernation hook: held, no root is made or renewed
+     * (BAD_STATE_E); Zeroize then refuses every seed.  Release, then Init. */
+    WC_RNG_TREE_API void wc_RNG_TreeHold(int held);
     /* The SHA-512 DRBG CAST failed: the tree stays in an error state until
      * it is re-instantiated (SP 800-90A 11.4.2). */
     WOLFSSL_LOCAL void wc_RNG_TreeCastFailed(void);

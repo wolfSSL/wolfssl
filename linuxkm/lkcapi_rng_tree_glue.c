@@ -47,14 +47,83 @@
 #define RNG_TASK_CHUNK 256
 /* Retries for a caller that can sleep while the root reseeds. */
 #define RNG_MAX_TRIES  1000
+/* Polls, 1-2 ms apart, for requests to leave the tree at a hold or stop. */
+#define RNG_DRAIN_TRIES 5000
+/* A blocking user request's sleep between tries while the tree is held. */
+#define RNG_USER_POLL_MS 2
 
 static struct delayed_work rngRootWork;
-static int rngReady = 0;
+static atomic_t rngReady = ATOMIC_INIT(0);
 static int wc_linuxkm_drbg_loaded = 0;
 static int rngUnregistered = 0;
 /* Live tfms: unregistered, cra_refcnt with no holder is 0 or 1 by kernel
  * build (crypto_unregister_alg(), crypto/algapi.c), so count them here. */
 static atomic_t rngTfms = ATOMIC_INIT(0);
+/* Requests inside the tree: a hold or a stop waits for them to leave. */
+static atomic_t rngInFlight = ATOMIC_INIT(0);
+/* Hibernation: no output and no DRBG state until the image is behind us. */
+static atomic_t rngHeld = ATOMIC_INIT(0);
+#ifdef CONFIG_PM_SLEEP
+/* After resume: the tree still to be built from the source. */
+static atomic_t rngBuild = ATOMIC_INIT(0);
+#endif
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+/* The ACPI VM Generation ID, found at startup and read on every request. */
+static struct wc_linuxkm_vmgenid_poll_state rngVmGen;
+static u8 rngGenSeen[16];
+static atomic_t rngGenSeq = ATOMIC_INIT(0);
+static atomic_t rngGenLive = ATOMIC_INIT(0);
+#endif
+
+/* Latched until reload: retrying cannot clear these.  Outside a hold,
+ * BAD_STATE_E from the tree means a DRBG did not zeroize. */
+static int RngLatched(int ret)
+{
+    return ret == WC_NO_ERR_TRACE(ENTROPY_RT_E) ||
+           ret == WC_NO_ERR_TRACE(ENTROPY_APT_E) ||
+           ret == WC_NO_ERR_TRACE(RNG_FAILURE_E) ||
+           ret == WC_NO_ERR_TRACE(BAD_STATE_E);
+}
+
+/* A failed self-test waits for an operator: the usual period, not a retry. */
+static int RngWaitsForOperator(int ret)
+{
+    return ret == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E) ||
+           ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E);
+}
+
+#ifdef CONFIG_PM_SLEEP
+/* The tree from the source after hibernation.  Entropy may be unavailable
+ * for a while (SP 800-90A 9.1, 11.4.1): the hold stays and the root work
+ * keeps trying.  A failed self-test or a latched error ends the hold, so
+ * requests reach the tree and see the error (ISO/IEC 19790 [02.30]). */
+static void RngBuild(void)
+{
+    int ret, again, opwait;
+
+    if (!atomic_read(&rngReady))
+        return;   /* stopped: nothing to build */
+    ret = wc_RNG_TreeInit((int)nr_cpu_ids, NULL);
+    again = (ret != 0 && !RngLatched(ret));
+    opwait = RngWaitsForOperator(ret);
+    atomic_set(&rngBuild, again);   /* before any return: the root work's cue */
+    if (again) {
+        pr_err_ratelimited("libwolfssl: RNG tree not built yet (%d)\n", ret);
+        queue_delayed_work(system_highpri_wq, &rngRootWork,
+                           opwait ? RNG_ROOT_DELAY : HZ / 10);
+        if (!opwait)
+            return;
+    }
+    else if (ret != 0) {
+        pr_err("libwolfssl: RNG error state (%d) after hibernation, stopped "
+               "until reload\n", ret);
+    }
+    smp_mb();   /* the tree before the hold's end, for the request path */
+    atomic_set(&rngHeld, 0);
+    if (ret == 0)
+        queue_delayed_work(system_highpri_wq, &rngRootWork, RNG_ROOT_DELAY);
+}
+#endif
 
 static void RngRootWork(struct work_struct* work)
 {
@@ -63,11 +132,18 @@ static void RngRootWork(struct work_struct* work)
 
     (void)work;
 
+    if (!atomic_read(&rngReady))
+        return;
+#ifdef CONFIG_PM_SLEEP
+    if (atomic_read(&rngBuild)) {
+        RngBuild();
+        return;
+    }
+#endif
+    if (atomic_read(&rngHeld))
+        return;
     ret = wc_RNG_TreeReseed(1);
-    /* Latched until reload: retrying cannot clear these. */
-    if (ret == WC_NO_ERR_TRACE(ENTROPY_RT_E) ||
-        ret == WC_NO_ERR_TRACE(ENTROPY_APT_E) ||
-        ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) {
+    if (RngLatched(ret)) {
         pr_err_ratelimited("libwolfssl: RNG error state (%d), stopped until "
                            "reload\n", ret);
         return;
@@ -77,9 +153,7 @@ static void RngRootWork(struct work_struct* work)
     }
     else if (ret != 0) {
         pr_err_ratelimited("libwolfssl: root DRBG reseed failed: %d\n", ret);
-        /* A failed self-test waits for an operator: keep the usual period. */
-        if (ret != WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E) &&
-            ret != WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+        if (!RngWaitsForOperator(ret))
             delay = HZ / 10;
     }
 
@@ -89,7 +163,11 @@ static void RngRootWork(struct work_struct* work)
 /* Start a root reseed now. */
 static void RngKickRoot(void)
 {
-    if (rngReady)
+#ifdef CONFIG_PM_SLEEP
+    if (atomic_read(&rngBuild))
+        return;   /* the build keeps its own period */
+#endif
+    if (atomic_read(&rngReady) && !atomic_read(&rngHeld))
         mod_delayed_work(system_highpri_wq, &rngRootWork, 0);
 }
 
@@ -98,6 +176,57 @@ static WC_MAYBE_UNUSED void RngInvalidate(void)
 {
     wc_RNG_TreeInvalidate();
     RngKickRoot();
+}
+
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+/* The 16-byte ID against the copy, lock-free and NMI safe.  1: changed, this
+ * caller recorded it and invalidated the tree; -1: changed, another caller
+ * is recording it.  The copy is read like a seqcount: same sequence before
+ * and after, or the compare does not count. */
+static int RngGenChanged(void)
+{
+    unsigned long flags;
+    int seq, same;
+
+    if (!atomic_read(&rngGenLive))
+        return 0;
+    seq = atomic_read(&rngGenSeq);
+    if (seq & 1)
+        return -1;
+    smp_rmb();
+    same = (XMEMCMP(rngVmGen.map, rngGenSeen, sizeof(rngGenSeen)) == 0);
+    smp_rmb();
+    if (same)
+        return (atomic_read(&rngGenSeq) == seq) ? 0 : -1;
+    /* The write side runs with interrupts off (Documentation/locking/
+     * seqlock.rst): readers in hardirq decline meanwhile, NMI ones too. */
+    local_irq_save(flags);
+    if (atomic_cmpxchg(&rngGenSeq, seq, seq + 1) != seq) {
+        local_irq_restore(flags);
+        return -1;
+    }
+    wc_RNG_TreeInvalidate();   /* before the new ID is visible as current */
+    XMEMCPY(rngGenSeen, rngVmGen.map, sizeof(rngGenSeen));
+    smp_wmb();
+    atomic_set(&rngGenSeq, seq + 2);
+    local_irq_restore(flags);
+    return 1;
+}
+#endif
+
+/* A clone seen on this request (SP 800-90C A.3.2): every DRBG state is
+ * suspect, the tree is invalidated and this request is declined. */
+static int RngGenStale(void)
+{
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    int gen = RngGenChanged();
+
+    if (gen > 0 && !in_nmi())
+        RngKickRoot();
+    return gen != 0;
+#else
+    return 0;
+#endif
 }
 
 /* A lane never nests within itself on one CPU, so each leaf has one user. */
@@ -164,14 +293,40 @@ static int RngGetBytesAddl(const u8* addl, size_t addlSz, void* buf,
                            size_t len, int maySleep)
 {
     int tries = 0;
+    int stale = 0;
     int ret;
 
-    if (!rngReady)
+    /* Stopped: for good.  Held for hibernation: served again after it; the
+     * kernel's void get_random_bytes() answers itself, user callers wait. */
+    if (!atomic_read(&rngReady))
         return -ENODEV;
+    if (atomic_read(&rngHeld))
+        return -EAGAIN;
+    /* Counted, then checked again: a hold or stop that sees zero in flight
+     * is seen by every request that was not counted. */
+    atomic_inc(&rngInFlight);
+    smp_mb__after_atomic();
+    if (!atomic_read(&rngReady)) {
+        atomic_dec(&rngInFlight);
+        return -ENODEV;
+    }
+    if (atomic_read(&rngHeld)) {
+        atomic_dec(&rngInFlight);
+        return -EAGAIN;
+    }
+    smp_rmb();   /* the tree a release published before ending its hold */
 
-    ret = RngFill(addl, addlSz, buf, len);
-    while (ret != 0 && maySleep && wc_linuxkm_can_block() &&
-           tries < RNG_MAX_TRIES) {
+    /* A clone seen on this request: a sleeper rebuilds in the loop below. */
+    if (RngGenStale()) {
+        stale = 1;
+        ret = WC_NO_ERR_TRACE(NOT_READY_E);
+    }
+    else {
+        ret = RngFill(addl, addlSz, buf, len);
+    }
+    while (ret != 0 && maySleep && atomic_read(&rngReady) &&
+           !atomic_read(&rngHeld) &&
+           wc_linuxkm_can_block() && tries < RNG_MAX_TRIES) {
         if (ret == WC_NO_ERR_TRACE(NOT_READY_E) ||
             ret == WC_NO_ERR_TRACE(BUSY_E)) {
             /* A busy leaf, or a root that could not be renewed: wait. */
@@ -203,16 +358,21 @@ static int RngGetBytesAddl(const u8* addl, size_t addlSz, void* buf,
         ret = RngFill(addl, addlSz, buf, len);
         tries++;
     }
-
     if (ret != 0) {
         /* The root's renewal, wipe or recovery waits for this kick, not the
          * next 60 s reseed.  Queueing work is not NMI safe. */
         if (!in_nmi())
             RngKickRoot();
         ForceZero(buf, len);
-        return -EIO;
     }
-    return 0;
+    atomic_dec(&rngInFlight);   /* after the kick: a stop waits for it too */
+    if (ret == 0)
+        return 0;
+    if (!atomic_read(&rngReady))
+        return -ENODEV;
+    if (atomic_read(&rngHeld) || stale)
+        return -EAGAIN;   /* a hold or a clone met mid-request: wait it out */
+    return -EIO;
 }
 
 /* crypto API stdrng: src is SP 800-90A additional input, as in crypto/drbg.c */
@@ -279,24 +439,36 @@ int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng* rng)
 /* Watch the ACPI VM generation counter, as the extras do: before 5.18 there is
  * no vmgenid notifier, and a modular vmgenid may not be loaded. */
 #define RNG_VMGEN_DELAY (HZ / 10)
-static struct wc_linuxkm_vmgenid_poll_state rngVmGen;
 static struct delayed_work rngVmGenWork;
-/* The poll and the vmfork notifier share rngVmGen; both may sleep. */
+/* Discovery runs once, in task context, under this lock. */
 static DEFINE_MUTEX(rngVmGenLock);
+
+/* The first call only finds the device (its result is then 0); the copy is
+ * taken from the mapped ID and requests compare against it from here on. */
+static void RngGenDiscover(void)
+{
+    if (rngVmGen.state == 0 && wc_linuxkm_vmgenid_changed(&rngVmGen) == 0 &&
+            rngVmGen.state == 1) {
+        XMEMCPY(rngGenSeen, rngVmGen.map, sizeof(rngGenSeen));
+        smp_wmb();
+        atomic_set(&rngGenLive, 1);
+    }
+}
 
 static void RngVmGenWork(struct work_struct* work)
 {
-    int changed, watching;
+    int watching;
 
     (void)work;
     mutex_lock(&rngVmGenLock);
-    changed = wc_linuxkm_vmgenid_changed(&rngVmGen);
+    RngGenDiscover();
     watching = (rngVmGen.state == 1);   /* 0 on bare metal: nothing to watch */
     mutex_unlock(&rngVmGenLock);
-    if (changed)
-        RngInvalidate();
-    if (watching)
+    if (watching) {
+        if (RngGenChanged() > 0)   /* recorded and invalidated: renew now */
+            RngKickRoot();
         queue_delayed_work(system_highpri_wq, &rngVmGenWork, RNG_VMGEN_DELAY);
+    }
 }
 #endif
 
@@ -304,20 +476,16 @@ static void RngVmGenWork(struct work_struct* work)
 static int RngVmForkNotify(struct notifier_block* nb, unsigned long action,
                            void* data)
 {
-#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
-    int seen;
-#endif
-
     (void)nb;
     (void)action;
     (void)data;
 #ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
-    /* The poll may have seen this change first: one clone invalidates once. */
-    mutex_lock(&rngVmGenLock);
-    seen = (rngVmGen.state == 1 && !wc_linuxkm_vmgenid_changed(&rngVmGen));
-    mutex_unlock(&rngVmGenLock);
-    if (seen)
+    /* A request or the poll may have seen this clone: one invalidation. */
+    if (atomic_read(&rngGenLive)) {
+        if (RngGenChanged() > 0)
+            RngKickRoot();
         return NOTIFY_OK;
+    }
 #endif
     RngInvalidate();
     return NOTIFY_OK;
@@ -330,14 +498,70 @@ static int rngVmForkNbUp = 0;
 #endif
 
 #ifdef CONFIG_PM_SLEEP
+/* Build the tree again after hibernation, on the root work, the one builder
+ * (a pending build restarts with it).  A restore that was never held (a
+ * failed resume in the booted kernel) is only suspect. */
+static void RngRelease(void)
+{
+    if (!atomic_read(&rngHeld)) {
+        RngInvalidate();
+        return;
+    }
+    wc_RNG_TreeInvalidate();   /* WC_RNG children kept their state */
+    wc_RNG_TreeHold(0);
+    atomic_set(&rngBuild, 1);
+    mod_delayed_work(system_highpri_wq, &rngRootWork, 0);
+}
+
+/* SP 800-90C 7.3.1 item 11: no DRBG state reaches the hibernation image.
+ * Output stops, the tree is wiped, nothing rebuilds it before RngRelease(). */
+static int RngHold(void)
+{
+    int tries = 0;
+    int ret = 0;
+
+    atomic_set(&rngHeld, 1);
+    smp_mb();
+    cancel_delayed_work_sync(&rngRootWork);
+    atomic_set(&rngHeld, 1);   /* a build inside the cancel may have ended it */
+    smp_mb();
+    while (atomic_read(&rngInFlight) != 0 && tries++ < RNG_DRAIN_TRIES)
+        usleep_range(1000, 2000);
+    if (atomic_read(&rngInFlight) != 0) {
+        pr_err("libwolfssl: RNG tree still in use, hibernation refused\n");
+        if (atomic_read(&rngBuild)) {   /* a pending build keeps its hold */
+            queue_delayed_work(system_highpri_wq, &rngRootWork, HZ / 10);
+            return -EBUSY;
+        }
+        atomic_set(&rngHeld, 0);
+        RngKickRoot();
+        return -EBUSY;
+    }
+    wc_RNG_TreeHold(1);   /* no root is made or renewed from here */
+    ret = wc_RNG_TreeZeroize();
+    if (ret != 0) {
+        /* A DRBG did not zeroize: the tree stays held until reload, and
+         * requests reach it for their error (ISO/IEC 19790 [02.30]). */
+        pr_err("libwolfssl: RNG tree wipe failed before hibernation (%d)\n",
+               ret);
+        smp_mb();
+        atomic_set(&rngHeld, 0);
+        return ret;
+    }
+    pr_info("libwolfssl: RNG tree wiped for hibernation.\n");
+    return 0;
+}
+
 /* Hibernation writes RNG state to disk; suspend to RAM does not. */
 static int RngPmNotify(struct notifier_block* nb, unsigned long action,
                        void* data)
 {
     (void)nb;
     (void)data;
+    if (action == PM_HIBERNATION_PREPARE)
+        return (RngHold() == 0) ? NOTIFY_OK : NOTIFY_BAD;
     if (action == PM_POST_HIBERNATION || action == PM_POST_RESTORE)
-        RngInvalidate();
+        RngRelease();
     return NOTIFY_OK;
 }
 
@@ -364,6 +588,32 @@ static int RngGetBytes(void* buf, size_t len)
     return RngGetBytesAddl(NULL, 0, buf, len, maySleep);
 }
 
+/* A blocking user request waits out a hold or a clone's rebuild, as
+ * getrandom(2) documents; a signal, the freezer's included, ends the wait. */
+static int RngUserFill(u8* block, size_t n)
+{
+    int ret;
+
+    for (;;) {
+        ret = RngGetBytesAddl(NULL, 0, block, n, 1);
+        if (ret != -WC_NO_ERR_TRACE(EAGAIN))
+            return ret;
+        if (msleep_interruptible(RNG_USER_POLL_MS) != 0)
+            return -ERESTARTSYS;
+    }
+}
+
+/* What a user request returns: the bytes copied, else the error.  With the
+ * service down it is EAGAIN, the retry getrandom(2) documents; never ENODEV. */
+static ssize_t RngUserResult(size_t total, int ret)
+{
+    if (total > 0)
+        return (ssize_t)total;
+    if (ret == -WC_NO_ERR_TRACE(ENODEV))
+        return -EAGAIN;
+    return (ret != 0) ? ret : -EFAULT;
+}
+
 /* getrandom() and /dev/urandom where random.c has get_random_bytes_user() */
 static ssize_t RngGetBytesUser(struct iov_iter* iter)
 {
@@ -374,7 +624,7 @@ static ssize_t RngGetBytesUser(struct iov_iter* iter)
 
     while (iov_iter_count(iter) > 0) {
         n = min_t(size_t, iov_iter_count(iter), sizeof(block));
-        ret = RngGetBytesAddl(NULL, 0, block, n, 1);
+        ret = RngUserFill(block, n);
         if (ret != 0)
             break;
         copied = copy_to_iter(block, n, iter);
@@ -384,12 +634,7 @@ static ssize_t RngGetBytesUser(struct iov_iter* iter)
         cond_resched();
     }
     ForceZero(block, sizeof(block));
-
-    if (total > 0)
-        return (ssize_t)total;
-    if (ret != 0)
-        return ret;
-    return -EFAULT;
+    return RngUserResult(total, ret);
 }
 
 /* getrandom() and /dev/urandom where random.c has extract_crng_user() */
@@ -407,7 +652,7 @@ static ssize_t RngExtractUser(void __user* buf, size_t nbytes)
 
     while (total < nbytes) {
         n = min_t(size_t, nbytes - total, sizeof(block));
-        ret = RngGetBytesAddl(NULL, 0, block, n, 1);
+        ret = RngUserFill(block, n);
         if (ret != 0)
             break;
         copied = n - copy_to_user((u8 __user*)buf + total, block, n);
@@ -417,12 +662,7 @@ static ssize_t RngExtractUser(void __user* buf, size_t nbytes)
         cond_resched();
     }
     ForceZero(block, sizeof(block));
-
-    if (total > 0)
-        return (ssize_t)total;
-    if (ret != 0)
-        return ret;
-    return -EFAULT;
+    return RngUserResult(total, ret);
 }
 
 /* The tree takes no outside input: the root reads only its entropy source. */
@@ -491,6 +731,21 @@ static int RngGiveBack(void);
 
 static void RngStop(void)
 {
+    int tries = 0;
+
+    atomic_set(&rngReady, 0);
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    atomic_set(&rngGenLive, 0);   /* the map goes away below */
+#endif
+    smp_mb();
+    /* Every request leaves first, or the map and the leaves go away under
+     * one; a wait past a reseed gather is reported, never cut short. */
+    while (atomic_read(&rngInFlight) != 0) {
+        usleep_range(1000, 2000);
+        if (++tries % RNG_DRAIN_TRIES == 0)   /* a report, not a limit */
+            pr_err("libwolfssl: %d requests still in the RNG tree at stop\n",
+                   atomic_read(&rngInFlight));
+    }
 #ifdef CONFIG_PM_SLEEP
     if (rngPmNbUp)
         unregister_pm_notifier(&rngPmNb);
@@ -505,7 +760,6 @@ static void RngStop(void)
     cancel_delayed_work_sync(&rngVmGenWork);
     wc_linuxkm_vmgenid_poll_teardown(&rngVmGen);
 #endif
-    rngReady = 0;
     cancel_delayed_work_sync(&rngRootWork);
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     /* Stopped: stuck handler callers return, so retry a refused unregister. */
@@ -514,6 +768,14 @@ static void RngStop(void)
                "stopped tree.\n");
 #endif
     RngZeroize();
+#ifdef CONFIG_PM_SLEEP
+    /* Stopped inside a hold (deinstall before the freeze): undo it. */
+    atomic_set(&rngBuild, 0);
+    if (atomic_read(&rngHeld)) {
+        wc_RNG_TreeHold(0);
+        atomic_set(&rngHeld, 0);
+    }
+#endif
 }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
@@ -611,8 +873,12 @@ static int wc_linuxkm_drbg_startup(void)
     INIT_DELAYED_WORK(&rngRootWork, RngRootWork);
 #ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
     INIT_DELAYED_WORK(&rngVmGenWork, RngVmGenWork);
+    /* Found before the first request, so that request already compares. */
+    mutex_lock(&rngVmGenLock);
+    RngGenDiscover();
+    mutex_unlock(&rngVmGenLock);
 #endif
-    rngReady = 1;
+    atomic_set(&rngReady, 1);
     /* Armed before the tree can serve: a clone or restore from here on is
      * seen.  RngStop() undoes them on every failure path below. */
 #ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
@@ -646,7 +912,7 @@ static int wc_linuxkm_drbg_startup(void)
         /* A holder keeps the tree; cleanup frees it once released.  A failed
          * module init frees the module anyway (kernel/module/main.c). */
         if (atomic_read(&rngTfms) != 0) {
-            rngReady = 0;   /* no reseeds; the notifiers stay until cleanup */
+            atomic_set(&rngReady, 0);   /* no reseeds; notifiers stay */
             rngUnregistered = 1;
             wc_linuxkm_drbg_loaded = 1;
             return ret;
@@ -721,6 +987,13 @@ static int wc_linuxkm_drbg_abandon(void)
 {
     int ret;
 
+    /* Unregistering unlinks the alg whatever holds it (crypto/algapi.c,
+     * crypto_remove_alg): no new holder from here; the module refcount
+     * protects the rest.  Then the stop, then the orderly cleanup again. */
+    if (!rngUnregistered) {
+        crypto_unregister_rng(&wc_linuxkm_drbg);
+        rngUnregistered = 1;
+    }
     RngStop();
     ret = wc_linuxkm_drbg_cleanup();   /* stopped, so a stuck caller is gone */
     if (ret != 0)

@@ -2705,7 +2705,8 @@ static WC_INLINE int rng_invalidation_post_check(const char *caller, int genret)
 
 /* The ACPI VM Generation ID counter, shared with the tree glue. */
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && defined(CONFIG_ACPI) && \
-    (defined(WC_LINUXKM_VMGENID_POLL) || !IS_BUILTIN(CONFIG_VMGENID))
+    (defined(WC_LINUXKM_VMGENID_POLL) || !IS_BUILTIN(CONFIG_VMGENID) || \
+     defined(WC_RNG_TREE))
 #define WC_LINUXKM_HAVE_VMGENID_ACPI
 
 struct wc_linuxkm_vmgenid_poll_state {
