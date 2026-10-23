@@ -12840,6 +12840,10 @@ then
         'mldsa')    test "$ENABLED_MLDSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-DSA implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_MLDSA" ;;
         'mlkem')    test "$ENABLED_MLKEM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-KEM implementation not enabled.])
+                    case "$AM_CFLAGS" in
+                    *WOLFSSL_MLKEM_NO_MAKE_KEY*|*WOLFSSL_MLKEM_NO_ENCAPSULATE*|*WOLFSSL_MLKEM_NO_DECAPSULATE*)
+                        AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-KEM key generation, encapsulation, and decapsulation are all required.]) ;;
+                    esac
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_MLKEM" ;;
         'slhdsa')   test "$ENABLED_SLHDSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SLH-DSA implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SLHDSA" ;;
@@ -12880,6 +12884,7 @@ then
         '-rsa')      AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_RSA" ;;
         '-dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_DH" ;;
         '-ed')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ED" ;;
+        '-falcon')   AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_FALCON" ;;
         '-mldsa')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_MLDSA" ;;
         '-mlkem')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_MLKEM" ;;
         '-slhdsa')   AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SLHDSA" ;;

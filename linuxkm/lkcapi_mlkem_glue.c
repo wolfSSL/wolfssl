@@ -110,7 +110,15 @@
  * and, in full FIPS embodiment, in wolfcrypt/src/fips_test.c.
  */
 
-#if defined(WOLFSSL_HAVE_MLKEM)
+/* This glue calls key generation, encapsulation, and decapsulation
+ * unconditionally, so all three operations must be present
+ * (--enable-mlkem can disable them individually, gating out their
+ * declarations in wc_mlkem.h); cf. the same gate in the FrodoKEM
+ * glue. */
+#if defined(WOLFSSL_HAVE_MLKEM) &&                 \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) &&         \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) &&      \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     #if defined(LINUXKM_LKCAPI_REGISTER_ALL) &&         \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_MLKEM) && \
         !defined(LINUXKM_LKCAPI_REGISTER_MLKEM)
