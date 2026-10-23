@@ -87,6 +87,8 @@ WOLFSSL_API int wolfSSL_DSA_LoadDer(
 WOLFSSL_API int wolfSSL_DSA_LoadDer_ex(
     WOLFSSL_DSA* dsa, const unsigned char* derBuf, int derSz, int opt);
 
+/* No digest length is taken, so these always read WC_SHA_DIGEST_SIZE bytes of
+ * d. For any other digest use the _ex variants below. */
 WOLFSSL_API int wolfSSL_DSA_do_sign(
     const unsigned char* d, unsigned char* sigRet, WOLFSSL_DSA* dsa);
 

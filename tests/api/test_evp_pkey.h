@@ -59,6 +59,7 @@ int test_wolfSSL_EVP_PKEY_keygen_dh_reuse(void);
 int test_wolfSSL_EVP_SignInit_ex(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_rsa(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void);
+int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_ec(void);
 int test_wolfSSL_EVP_PKEY_verify_dsa_len(void);
 int test_wolfSSL_EVP_MD_rsa_signing(void);
@@ -67,6 +68,7 @@ int test_wolfSSL_EVP_MD_ecc_signing(void);
 int test_wolfSSL_EVP_DigestSign(void);
 int test_wolfSSL_EVP_DigestSign_ecc(void);
 int test_wolfSSL_EVP_PKEY_encrypt(void);
+int test_wolfSSL_EVP_PKEY_decrypt_outLen(void);
 int test_wolfSSL_EVP_PKEY_derive(void);
 int test_wolfSSL_EVP_PKEY_print_public(void);
 int test_wolfSSL_EVP_PKEY_ed25519(void);
@@ -118,6 +120,7 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_SignInit_ex),                 \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_rsa),        \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_dsa),        \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_dsa_digest_len),    \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_ec),         \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_verify_dsa_len),         \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_MD_rsa_signing),              \
@@ -126,6 +129,7 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_DigestSign),                  \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_DigestSign_ecc),              \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_encrypt),                \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_decrypt_outLen),         \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_derive),                 \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_print_public),           \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_ed25519),                \

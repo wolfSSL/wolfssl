@@ -28,6 +28,15 @@
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
 
 ## Behavioral Changes
+* **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
+  `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
+  paths always read 20 bytes, so neither followed FIPS 186-4 4.2.  Both now use
+  the leftmost min(|q|, digest) bytes.  Signatures an earlier release produced
+  over a digest longer than |q| through `wc_DsaSign_ex()` or `DSA_do_sign()`,
+  or through `EVP_PKEY_sign()`/`EVP_SignFinal()` with a q over
+  160 bits and a non-SHA-1 digest, cover a different value and no longer
+  verify.  Stored signatures from those functions must be regenerated.
+
 * **Behavioral change (`NO_SESSION_CACHE_REF` no longer disables the client
   cache)**: the macro suppressed the `AddSession()` write to the ClientCache as
   well as the `wolfSSL_get_session()` return value, because one field served as
