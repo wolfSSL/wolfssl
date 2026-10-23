@@ -95,9 +95,8 @@
 
 /***** Setup for RNG extra features *****/
 
-/* By design: FIPS v7 and ready without the RNG extras take no caller seed.
- * Service 3.45 (wc_RNG_DRBG_Reseed) takes caller bytes as additional input.
- * SP 800-90A r1 9.1, 9.2; FIPS 140-3 IG 9.3.A */
+/* FIPS v7 and ready without the RNG extras: no caller-seed APIs; service 3.45
+ * takes the caller's bytes as additional input (SP 800-90A r1 9.2). */
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
     !defined(WOLFSSL_FIPS_DEV) && \
     !defined(WC_RNG_EXTRAS) && \
@@ -1237,8 +1236,9 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     /* The platform's hibernation hook: held, no root is made or renewed
      * (BAD_STATE_E); Zeroize then refuses every seed.  Release, then Init. */
     WC_RNG_TREE_API void wc_RNG_TreeHold(int held);
-    /* The SHA-512 DRBG CAST failed: the tree and every WC_RNG child are
-     * re-instantiated before they output again (SP 800-90A 11.4.2). */
+    /* Called by fips.c CastFailed(): the SHA-512 DRBG CAST failed, and the tree
+     * and every WC_RNG child are re-instantiated before they output again.
+     * SP 800-90A 11.4.2 */
     WOLFSSL_LOCAL void wc_RNG_TreeCastFailed(void);
 #endif /* WC_RNG_TREE */
 

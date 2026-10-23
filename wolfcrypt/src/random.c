@@ -9335,9 +9335,9 @@ void wc_RNG_TreeHold(int held)
     WOLFSSL_ATOMIC_STORE(tree.held, held);
 }
 
-/* The DRBG CAST runs only where waiting is allowed, never with a tree lock
- * held, so this waits out a reseed in flight: its CAST recovery cannot clear
- * this failure.  SP 800-90C 7.3.1 item 5 */
+/* Called only by fips.c CastFailed(), after it stores the CAST's FAILURE and
+ * never with a tree lock held; it waits out a reseed in flight so that reseed
+ * cannot clear this failure.  SP 800-90C 7.3.1 item 5 */
 void wc_RNG_TreeCastFailed(void)
 {
     TreeSeedingTake();
