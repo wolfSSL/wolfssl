@@ -60,12 +60,7 @@
     library for compatibility with the Arduino IDE. There is a README.md in
     IDE/ARDUINO for detailed instructions.
 
-11. Building for Android with Visual Studio 2017
-
-    Please see the README in IDE/VS-ARM.
-    Use the Visual Studio solution IDE/VS-ARM/wolfssl.sln.
-
-12. Building for Yocto Project or OpenEmbedded
+11. Building for Yocto Project or OpenEmbedded
 
     Please see the README in the "meta-wolfssl" repository. This repository
     holds wolfSSL's Yocto and OpenEmbedded layer, which contains recipes
