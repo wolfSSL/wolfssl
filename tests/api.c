@@ -2122,6 +2122,25 @@ static int test_dual_alg_ecdsa_mldsa(void)
     ret = wc_ParseCert(&d_cert, CERT_TYPE, NO_VERIFY, NULL);
     ExpectIntEQ(ret, 0);
 
+    /* The alternative signature covers the validity dates, and MakeCert takes
+     * them from the clock unless they are set. Reuse the intermediate
+     * certificate's dates so a second boundary falling between the two
+     * MakeCert calls cannot change the signed PreTBS. */
+    ExpectNotNull(d_cert.beforeDate);
+    ExpectNotNull(d_cert.afterDate);
+    ExpectIntGT(d_cert.beforeDateLen, 0);
+    ExpectIntLE(d_cert.beforeDateLen, CTC_DATE_SIZE);
+    ExpectIntGT(d_cert.afterDateLen, 0);
+    ExpectIntLE(d_cert.afterDateLen, CTC_DATE_SIZE);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(new_cert.beforeDate, d_cert.beforeDate,
+                (size_t)d_cert.beforeDateLen);
+        new_cert.beforeDateSz = d_cert.beforeDateLen;
+        XMEMCPY(new_cert.afterDate, d_cert.afterDate,
+                (size_t)d_cert.afterDateLen);
+        new_cert.afterDateSz = d_cert.afterDateLen;
+    }
+
     /* An undersized output buffer must never look like success. The encoder
      * surfaces this as WOLFSSL_FAILURE, which is 0, so callers have to treat
      * every non-positive return as failure; ParseCertRelative depends on that
