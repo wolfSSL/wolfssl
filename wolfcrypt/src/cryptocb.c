@@ -517,6 +517,16 @@ static CryptoCb* wc_CryptoCb_FindDevice(int devId, int algoType)
     return wc_CryptoCb_GetDevice(localDevId);
 }
 
+#ifdef WOLF_PRIVATE_KEY_ID
+/* Returns 1 if public key operations on devId reach a registered device. */
+int wc_CryptoCb_HasPkDevice(int devId)
+{
+    CryptoCb* dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+
+    return (dev != NULL) && (dev->cb != NULL) && (dev->devId != INVALID_DEVID);
+}
+#endif
+
 
 static CryptoCb* wc_CryptoCb_FindDeviceByIndex(int startIdx)
 {

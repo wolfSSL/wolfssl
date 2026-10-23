@@ -2046,3 +2046,60 @@ int test_wc_ed448_make_public_dev_key(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ed448_make_public_dev_key */
+
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+static int ed448_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_ed448_make_key() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_ed448_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    int devId = 2404;
+    ed448_key key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed448_free(&key);
+
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_ex(&key, NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

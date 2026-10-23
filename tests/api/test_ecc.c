@@ -4819,3 +4819,137 @@ int test_wc_EccPublicKeyDecode_specifiedOverflow(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_EccPublicKeyDecode_specifiedOverflow */
+
+#if defined(HAVE_ECC) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#define ECC_KEYGEN_ID_DEVID 2401
+
+static int ecc_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#ifdef WOLF_CRYPTO_CB_FIND
+#ifdef WOLFSSL_SWDEV
+    #include <tests/swdev/swdev_loader.h>
+#endif
+static int ecc_keygen_find_cb(int devIdArg, int algoType)
+{
+    if ((devIdArg == INVALID_DEVID) && (algoType == WC_ALGO_TYPE_PK))
+        return ECC_KEYGEN_ID_DEVID;
+    return devIdArg;
+}
+#endif
+
+#if defined(HAVE_ECC_DHE) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+/* Generates in software on the caller's key, as many device callbacks do. */
+static int ecc_keygen_sw_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)ctx;
+
+    if ((info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_EC_KEYGEN)) {
+        info->pk.eckg.key->devId = INVALID_DEVID;
+        ret = wc_ecc_make_key_ex(info->pk.eckg.rng, info->pk.eckg.size,
+            info->pk.eckg.key, info->pk.eckg.curveId);
+        info->pk.eckg.key->devId = devIdArg;
+    }
+    return ret;
+}
+#endif
+#endif
+
+/*
+ * Testing wc_ecc_make_key() on an id or label key whose device declines keygen.
+ */
+int test_wc_ecc_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    int devId = ECC_KEYGEN_ID_DEVID;
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+    int ret;
+#endif
+    ecc_key key;
+    WC_RNG rng;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ecc_keygen_decline_cb, NULL),
+        0);
+
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_ex(&key, NULL, devId), 0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    wc_ecc_free(&key);
+#endif
+
+#ifdef WOLF_CRYPTO_CB_FIND
+    wc_CryptoCb_SetDeviceFindCb(ecc_keygen_find_cb);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
+#endif
+
+#if defined(HAVE_ECC_DHE) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId + 200, ecc_keygen_sw_cb,
+        NULL), 0);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 200),
+        0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    wc_ecc_free(&key);
+    wc_CryptoCb_UnRegisterDevice(devId + 200);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

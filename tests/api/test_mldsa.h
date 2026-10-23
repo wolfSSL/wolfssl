@@ -81,6 +81,7 @@ int test_mldsa_cb_free(void);
 int test_wc_MlDsaKey_seed_service_indicator(void);
 int test_wc_MlDsaKey_SetPrecompA(void);
 int test_mldsa_make_key_rej_ntt_fail(void);
+int test_mldsa_make_key_id_dev(void);
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_mldsa),                                      \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_pubonly_fails),                   \
@@ -123,6 +124,7 @@ int test_mldsa_make_key_rej_ntt_fail(void);
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDerDecisionCoverage),                \
     TEST_DECL_GROUP("mldsa", test_mldsa_cb_free),                              \
     TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_SetPrecompA),                    \
-    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_rej_ntt_fail)
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_rej_ntt_fail),                \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_id_dev)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */

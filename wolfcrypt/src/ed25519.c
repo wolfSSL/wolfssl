@@ -436,6 +436,9 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
 int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 {
     int ret;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    int idKey = 0;
+#endif
 
     if (rng == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -447,6 +450,9 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     key->privKeySet = 0;
     key->pubKeySet = 0;
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+#endif
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -457,6 +463,10 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
             return ret;
         /* fall-through when unavailable */
     }
+    #ifdef WOLF_PRIVATE_KEY_ID
+    if (idKey)
+        return NO_VALID_DEVID;
+    #endif
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_ED25519

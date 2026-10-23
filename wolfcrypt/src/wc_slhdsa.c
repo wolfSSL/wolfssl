@@ -8907,12 +8907,20 @@ static void slhdsakey_set_ha_from_md(SlhDsaKey* key, const byte* md,
 int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
 {
     int ret = 0;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    int idKey = 0;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (key->params == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    if (ret == 0) {
+        idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -8928,6 +8936,11 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
             ret = 0;
         }
     }
+    #ifdef WOLF_PRIVATE_KEY_ID
+    if ((ret == 0) && idKey) {
+        ret = NO_VALID_DEVID;
+    }
+    #endif
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
