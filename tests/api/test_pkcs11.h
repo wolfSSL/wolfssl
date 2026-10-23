@@ -24,21 +24,11 @@
 
 #include <tests/api/api_decl.h>
 
-#if defined(HAVE_PKCS11) && defined(HAVE_ECC) && !defined(NO_PKCS11_ECC) && \
-    defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG) && \
-    !defined(NO_ECC256) && !defined(NO_ECC_SECP)
-
 int test_wc_Pkcs11_EcdsaSigDecode(void);
 int test_wc_Pkcs11_ValueRead(void);
 
 #define TEST_PKCS11_DECLS                                                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_ValueRead)
-
-#else
-
-#define TEST_PKCS11_DECLS
-
-#endif
 
 #endif /* WOLFCRYPT_TEST_PKCS11_H */
