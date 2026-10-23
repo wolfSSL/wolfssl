@@ -112,7 +112,7 @@ pub fn hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]
         None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        sys::wc_HKDF_Extract_ex(typ, salt_ptr, salt_size,
+        hkdf_extract_raw(typ, salt_ptr, salt_size,
             key.as_ptr(), key_size, out.as_mut_ptr(), heap, dev_id)
     };
     if rc != 0 {
@@ -211,7 +211,7 @@ pub fn hkdf_expand_ex(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8],
         None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        sys::wc_HKDF_Expand_ex(typ, key.as_ptr(), key_size,
+        hkdf_expand_raw(typ, key.as_ptr(), key_size,
             info_ptr, info_size, out.as_mut_ptr(), out_size, heap, dev_id)
     };
     if rc != 0 {
@@ -276,4 +276,61 @@ pub fn hkdf(typ: i32, key: &[u8], salt: Option<&[u8]>, info: Option<&[u8]>, out:
         return Err(rc);
     }
     Ok(())
+}
+
+/// `wc_HKDF_Extract_ex()`, or on libraries without it (FIPS v5) the older
+/// `wc_HKDF_Extract()`, which takes no heap hint or device ID, so either is
+/// refused there.
+///
+/// # Safety
+///
+/// Same as `wc_HKDF_Extract_ex()`.
+#[allow(clippy::too_many_arguments)]
+unsafe fn hkdf_extract_raw(typ: i32, salt: *const u8, salt_size: u32,
+        key: *const u8, key_size: u32, out: *mut u8,
+        heap: *mut core::ffi::c_void, dev_id: i32) -> i32 {
+    #[cfg(hkdf_ex)]
+    {
+        unsafe {
+            sys::wc_HKDF_Extract_ex(typ, salt, salt_size, key, key_size, out,
+                heap, dev_id)
+        }
+    }
+    #[cfg(not(hkdf_ex))]
+    {
+        if !heap.is_null() || dev_id != sys::INVALID_DEVID {
+            return sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG;
+        }
+        unsafe { sys::wc_HKDF_Extract(typ, salt, salt_size, key, key_size, out) }
+    }
+}
+
+/// `wc_HKDF_Expand_ex()`, or on libraries without it (FIPS v5) the older
+/// `wc_HKDF_Expand()`, which takes no heap hint or device ID, so either is
+/// refused there.
+///
+/// # Safety
+///
+/// Same as `wc_HKDF_Expand_ex()`.
+#[allow(clippy::too_many_arguments)]
+unsafe fn hkdf_expand_raw(typ: i32, key: *const u8, key_size: u32,
+        info: *const u8, info_size: u32, out: *mut u8, out_size: u32,
+        heap: *mut core::ffi::c_void, dev_id: i32) -> i32 {
+    #[cfg(hkdf_ex)]
+    {
+        unsafe {
+            sys::wc_HKDF_Expand_ex(typ, key, key_size, info, info_size, out,
+                out_size, heap, dev_id)
+        }
+    }
+    #[cfg(not(hkdf_ex))]
+    {
+        if !heap.is_null() || dev_id != sys::INVALID_DEVID {
+            return sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG;
+        }
+        unsafe {
+            sys::wc_HKDF_Expand(typ, key, key_size, info, info_size, out,
+                out_size)
+        }
+    }
 }

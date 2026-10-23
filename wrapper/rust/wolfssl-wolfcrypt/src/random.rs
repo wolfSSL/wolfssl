@@ -131,7 +131,7 @@ impl RNG {
             None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            sys::wc_rng_new_ex(&mut wc_rng, core::ptr::null_mut(), 0, heap, dev_id)
+            rng_new_ex(&mut wc_rng, core::ptr::null_mut(), 0, heap, dev_id)
         };
         if rc == 0 {
             Ok(RNG {wc_rng})
@@ -191,7 +191,7 @@ impl RNG {
             None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            sys::wc_rng_new_ex(&mut wc_rng, ptr, size, heap, dev_id)
+            rng_new_ex(&mut wc_rng, ptr, size, heap, dev_id)
         };
         if rc == 0 {
             Ok(RNG {wc_rng})
@@ -404,7 +404,7 @@ impl RNG {
     /// let seed = [1u8, 2, 3, 4];
     /// rng.reseed(&seed).expect("Error with reseed()");
     /// ```
-    #[cfg(random_hashdrbg)]
+    #[cfg(all(random_hashdrbg, not(fips_v5_2_3)))]
     pub fn reseed(&self, seed: &[u8]) -> Result<(), i32> {
         let seed_size = crate::buffer_len_to_u32(seed.len())?;
         let rc = unsafe {
@@ -495,6 +495,32 @@ impl rand_core::TryRng for RNG {
 /// Mark `RNG` as a cryptographically secure random number generator.
 #[cfg(feature = "rand_core")]
 impl rand_core::TryCryptoRng for RNG {}
+
+/// `wc_rng_new_ex()`, or on libraries without it (FIPS v5) the older
+/// `wc_rng_new()`, which takes no device ID, so any device ID is refused there.
+///
+/// # Safety
+///
+/// Same as `wc_rng_new_ex()`.
+unsafe fn rng_new_ex(rng: &mut *mut sys::WC_RNG, nonce: *mut u8,
+        nonce_size: u32, heap: *mut core::ffi::c_void, dev_id: i32) -> i32 {
+    #[cfg(rng_new_ex)]
+    {
+        unsafe { sys::wc_rng_new_ex(rng, nonce, nonce_size, heap, dev_id) }
+    }
+    #[cfg(not(rng_new_ex))]
+    {
+        if dev_id != sys::INVALID_DEVID {
+            return sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG;
+        }
+        *rng = unsafe { sys::wc_rng_new(nonce, nonce_size, heap) };
+        if rng.is_null() {
+            sys::wolfCrypt_ErrorCodes_RNG_FAILURE_E
+        } else {
+            0
+        }
+    }
+}
 
 impl Drop for RNG {
     /// Safely free the underlying wolfSSL RNG context.

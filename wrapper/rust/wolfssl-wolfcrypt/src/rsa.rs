@@ -1385,13 +1385,7 @@ impl RSA {
     /// ```
     #[cfg(random)]
     pub fn set_rng(&mut self, rng: RNG) -> Result<(), i32> {
-        let wc_rng = rng.wc_rng;
-        let rc = unsafe {
-            sys::wc_RsaSetRNG(&mut self.wc_rsakey, wc_rng)
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
+        self.set_wc_rng(&rng)?;
         self.rng = Some(RngHandle::Owned(rng));
         Ok(())
     }
@@ -1403,14 +1397,26 @@ impl RSA {
     /// when the `alloc` feature is enabled.
     #[cfg(all(random, feature = "alloc"))]
     pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
-        let wc_rng = rng.wc_rng;
-        let rc = unsafe {
-            sys::wc_RsaSetRNG(&mut self.wc_rsakey, wc_rng)
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
+        self.set_wc_rng(&rng)?;
         self.rng = Some(RngHandle::Shared(rng));
+        Ok(())
+    }
+
+    /// Point the wolfCrypt key at `rng` for blinding.
+    #[cfg(random)]
+    #[cfg_attr(fips_v5_2_3, allow(unused_variables))]
+    fn set_wc_rng(&mut self, rng: &RNG) -> Result<(), i32> {
+        // FIPS v5.2.3 builds without RSA blinding, so there is no
+        // wc_RsaSetRNG() and private operations need no RNG.
+        #[cfg(not(fips_v5_2_3))]
+        {
+            let rc = unsafe {
+                sys::wc_RsaSetRNG(&mut self.wc_rsakey, rng.wc_rng)
+            };
+            if rc != 0 {
+                return Err(rc);
+            }
+        }
         Ok(())
     }
 

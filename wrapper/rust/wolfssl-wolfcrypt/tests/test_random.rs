@@ -109,7 +109,7 @@ fn test_rng_generate_block_large() {
 }
 
 #[test]
-#[cfg(random_hashdrbg)]
+#[cfg(all(random_hashdrbg, not(fips_v5_2_3)))]
 fn test_rng_reseed() {
     let rng = RNG::new().expect("Failed to create RNG");
     let seed = [1u8, 2, 3, 4];

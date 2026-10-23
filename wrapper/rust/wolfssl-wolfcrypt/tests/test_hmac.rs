@@ -58,6 +58,7 @@ fn test_hmac_sha256() {
 /// Advance an HMAC-SHA256 past "Hi ", fork it with `fork`, then check that
 /// both the fork and the original produce the RFC 4231 test case 1 tag once
 /// each has consumed the remaining "There".
+#[cfg(hmac_copy)]
 fn check_hmac_sha256_fork(fork: impl FnOnce(&mut HMAC) -> HMAC) {
     let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
     let expected = b"\xb0\x34\x4c\x61\xd8\xdb\x38\x53\x5c\xa8\xaf\xce\xaf\x0b\xf1\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32\xcf\xf7";
@@ -81,11 +82,13 @@ fn check_hmac_sha256_fork(fork: impl FnOnce(&mut HMAC) -> HMAC) {
 }
 
 #[test]
+#[cfg(hmac_copy)]
 fn test_hmac_sha256_copy() {
     check_hmac_sha256_fork(|hmac| hmac.copy().expect("Error with copy()"));
 }
 
 #[test]
+#[cfg(hmac_copy)]
 fn test_hmac_sha256_clone() {
     check_hmac_sha256_fork(|hmac| hmac.clone());
 }

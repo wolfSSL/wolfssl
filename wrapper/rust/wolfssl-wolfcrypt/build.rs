@@ -391,19 +391,39 @@ const FIPS_RENAMES: &[(&str, &str)] = &[
     ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
 ];
 
+/// Renames done only by older FIPS modules (v5), used when the module has no
+/// `<name>_fips` symbol for the standard name.
+const FIPS_V5_RENAMES: &[(&str, &str)] = &[
+    /* v5 exports the external IV encrypt under the one shot's FIPS name */
+    ("wc_AesGcmEncrypt_ex", "wc_AesGcmEncrypt_fips"),
+];
+
+/// The renames that apply to the FIPS module whose bindings are `binding`.
+///
+/// Computed once and cached, as a build has a single set of bindings.
+fn fips_renames(binding: &str) -> &'static [(&'static str, &'static str)] {
+    static RENAMES: OnceLock<Vec<(&str, &str)>> = OnceLock::new();
+    RENAMES.get_or_init(|| {
+        FIPS_RENAMES.iter().chain(FIPS_V5_RENAMES.iter().filter(|(std_name, _)| {
+            let pattern = format!(r"pub fn {}_fips\s*\(", regex::escape(std_name));
+            !Regex::new(&pattern).unwrap().is_match(binding)
+        })).copied().collect()
+    })
+}
+
 /// Returns the name the FIPS module exports `base_name` under, for the
-/// functions listed in `FIPS_RENAMES`, or `None` for every other function
-/// (whose FIPS name is `<base_name>_fips`).
-fn fips_rename(base_name: &str) -> Option<&'static str> {
-    FIPS_RENAMES.iter()
+/// functions listed in `FIPS_RENAMES` and `FIPS_V5_RENAMES`, or `None` for
+/// every other function (whose FIPS name is `<base_name>_fips`).
+fn fips_rename(binding: &str, base_name: &str) -> Option<&'static str> {
+    fips_renames(binding).iter()
                 .find(|(std_name, _)| *std_name == base_name)
                 .map(|(_, fips_name)| *fips_name)
 }
 
 /// Returns the standard wolfCrypt name of the renamed FIPS symbol
 /// `fips_name`, or `None` if the FIPS module does not rename it.
-fn fips_rename_base(fips_name: &str) -> Option<&'static str> {
-    FIPS_RENAMES.iter()
+fn fips_rename_base(binding: &str, fips_name: &str) -> Option<&'static str> {
+    fips_renames(binding).iter()
                 .find(|(_, fips)| *fips == fips_name)
                 .map(|(std_name, _)| *std_name)
 }
@@ -434,7 +454,7 @@ fn generate_fips_aliases() -> Result<()> {
 
         // Handle the functions the FIPS module renames rather than simply
         // suffixing with _fips.
-        if let Some(renamed_base_name) = fips_rename_base(&fips_name) {
+        if let Some(renamed_base_name) = fips_rename_base(&binding, &fips_name) {
             base_name = renamed_base_name;
         }
 
@@ -514,7 +534,7 @@ fn has_symbol(binding: &str, function_name: &str) -> bool {
     // too: the generated aliases make it callable under its standard name, so
     // missing it here would compile out wrapper code the library supports.
     let mut pattern = format!(r"\b{}(_fips)?\b", regex::escape(function_name));
-    if let Some(fips_name) = fips_rename(function_name) {
+    if let Some(fips_name) = fips_rename(binding, function_name) {
         pattern.push_str(&format!(r"|\b{}\b", regex::escape(fips_name)));
     }
     let re = match Regex::new(&pattern) {
@@ -601,7 +621,8 @@ fn scan_cfg() -> Result<()> {
     /* ecc */
     check_cfg(&binding, "wc_ecc_init", "ecc");
     check_cfg(&binding, "wc_ecc_key_new_ex", "ecc_key_new_ex");
-    check_cfg(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key");
+    check_cfg_if(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key",
+                 has_symbol(&binding, "WOLFSSL_RUST_HAVE_COMP_KEY"));
     check_cfg(&binding, "wc_ecc_shared_secret", "ecc_dh");
     check_cfg(&binding, "wc_ecc_sign_hash", "ecc_sign");
     check_cfg(&binding, "wc_ecc_verify_hash", "ecc_verify");
@@ -639,17 +660,32 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_ed448_verify_msg_init", "ed448_streaming_verify");
 
     /* fips */
-    if check_cfg(&binding, "wc_SetSeed_Cb_fips", "fips") {
+    let fips = check_cfg(&binding, "wc_SetSeed_Cb_fips", "fips");
+    if fips {
         // Crates that depend on this one see it as DEP_WOLFSSL_FIPS.
         println!("cargo::metadata=FIPS=1");
     }
+    // FIPS v5.2.3 builds without RSA blinding, so it has no wc_RsaSetRNG(),
+    // and keeps wc_RNG_DRBG_Reseed() internal though the header declares it.
+    println!("cargo::rustc-check-cfg=cfg(fips_v5_2_3)");
+    let version = |name: &str| {
+        Regex::new(&format!(r"pub const {}: u32 = (\d+);", name)).unwrap()
+            .captures(&binding).and_then(|cap| cap[1].parse::<u32>().ok())
+    };
+    if fips && version("HAVE_FIPS_VERSION_MAJOR") == Some(5)
+            && version("HAVE_FIPS_VERSION_MINOR") == Some(2)
+            && version("HAVE_FIPS_VERSION_PATCH") == Some(3) {
+        println!("cargo::rustc-cfg=fips_v5_2_3");
+    }
 
     /* hkdf */
-    check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf");
+    check_cfg(&binding, "wc_HKDF_Extract", "hkdf");
+    check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf_ex");
 
     /* hmac */
     check_cfg(&binding, "wc_HmacSetKey", "hmac");
     check_cfg(&binding, "wc_HmacSetKey_ex", "hmac_setkey_ex");
+    check_cfg(&binding, "wc_HmacCopy", "hmac_copy");
 
     /* kdf */
     check_cfg(&binding, "wc_PBKDF2", "kdf_pbkdf2");
@@ -665,6 +701,7 @@ fn scan_cfg() -> Result<()> {
     /* random */
     check_cfg(&binding, "wc_RNG_DRBG_Reseed", "random_hashdrbg");
     check_cfg(&binding, "wc_InitRng", "random");
+    check_cfg(&binding, "wc_rng_new_ex", "rng_new_ex");
 
     // When WOLFSSL_NO_MALLOC is set without WOLFSSL_STATIC_MEMORY, the
     // WC_RNG struct contains an inline `drbg_data` field and wolfCrypt sets
