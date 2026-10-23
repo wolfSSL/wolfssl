@@ -3323,6 +3323,16 @@ typedef struct Keys {
 #define TLS13_KEY_UPDATE_MAX_HI32 0x0000FFFFU
 #define TLS13_KEY_UPDATE_MAX_LO32 0xFFFFFFFFU
 
+/* RFC 9846 Section 5.3: a TLS 1.3 sequence number must not wrap.
+ * The rekey threshold is thus set to 2^64 - 2^16, the reserved space (2^16)
+ * acts as a buffer in case the KeyUpdate must be deferred to after a sequence
+ * of records, such as for Post Handshake Authentication:
+ * post-handshake auth cannot be interrupted by a KeyUpdate, and at its
+ * largest (a 2^24 byte Certificate and a 2^16 byte CertificateVerify in 512
+ * byte max_fragment_length records) it takes about 2^15 records. */
+#define TLS13_SEQ_REKEY_HI32 0xFFFFFFFFU
+#define TLS13_SEQ_REKEY_LO32 0xFFFF0000U
+
 /* Forward declare opaque pointer to make available for func def */
 typedef struct Options Options;
 
@@ -7965,6 +7975,7 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 #ifdef WOLFSSL_TLS13
     WOLFSSL_LOCAL int SendTls13KeyUpdate(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Tls13SeqWrapPending(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS
