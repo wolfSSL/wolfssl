@@ -12726,6 +12726,27 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #endif /* !WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
 }
 
+/* Check the key can be used to verify.
+ *
+ * @param [in] key  ML-DSA key.
+ * @return  0 when the key has parameters and a public key.
+ * @return  BAD_FUNC_ARG when key is NULL or parameters are not set.
+ * @return  PUBLIC_KEY_E when no public key is set.
+ */
+static int mldsa_verify_key_check(const wc_MlDsaKey* key)
+{
+    int ret = 0;
+
+    if ((key == NULL) || (key->params == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (!key->pubKeySet) {
+        ret = PUBLIC_KEY_E;
+    }
+
+    return ret;
+}
+
 /* Verify signature of message using public key.
  *
  * @param [in, out] key     ML-DSA key.
@@ -12737,6 +12758,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
  * @param [in]      sigLen  Length of message in bytes.
  * @param [out]     res     Result of verification.
  * @return  0 on success.
+ * @return  PUBLIC_KEY_E when no public key is set.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
  *          parameters.
@@ -12747,13 +12769,11 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
     byte ctxLen, const byte* msg, word32 msgLen, const byte* sig, word32 sigLen,
     int* res)
 {
-    int ret = 0;
+    int ret;
     byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
 
-    if ((key == NULL) || (key->params == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
+    ret = mldsa_verify_key_check(key);
 
     if (ret == 0) {
         /* Step 6: Hash public key. */
@@ -12782,6 +12802,7 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
  * @param [in]      sigLen  Length of message in bytes.
  * @param [out]     res     Result of verification.
  * @return  0 on success.
+ * @return  PUBLIC_KEY_E when no public key is set.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
  *          parameters.
@@ -12791,13 +12812,11 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
 static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
     word32 msgLen, const byte* sig, word32 sigLen, int* res)
 {
-    int ret = 0;
+    int ret;
     byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
 
-    if ((key == NULL) || (key->params == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
+    ret = mldsa_verify_key_check(key);
 
     if (ret == 0) {
         /* Step 6: Hash public key. */
@@ -12829,6 +12848,7 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
  * @param [in]      sigLen    Length of message in bytes.
  * @param [out]     res       Result of verification.
  * @return  0 on success.
+ * @return  PUBLIC_KEY_E when no public key is set.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
  *          parameters.
@@ -12839,15 +12859,13 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     byte ctxLen, int hashAlg, const byte* hash, word32 hashLen, const byte* sig,
     word32 sigLen, int* res)
 {
-    int ret = 0;
+    int ret;
     byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
     byte oidMsgHash[MLDSA_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
     word32 oidMsgHashLen = 0;
 
-    if ((key == NULL) || (key->params == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
+    ret = mldsa_verify_key_check(key);
     /* Check that the input hash length is valid. */
     if ((ret == 0) &&
         ((int)hashLen != wc_HashGetDigestSize((enum wc_HashType)hashAlg)))
@@ -12882,6 +12900,32 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
 }
 #endif /* WOLFSSL_MLDSA_NO_VERIFY */
 #endif /* !WOLF_CRYPTO_CB_ONLY_MLDSA */
+
+#if !defined(WOLF_CRYPTO_CB_ONLY_MLDSA) && \
+    (defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) || \
+     (defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)))
+/* Check the public key against the private key's tr, which is H(pk).
+ *
+ * @param [in, out] key  ML-DSA key with the private key and key->p set.
+ * @return  0 when the public key belongs to the private key.
+ * @return  PUBLIC_KEY_E when it does not.
+ * @return  Negative on hash error.
+ */
+static int mldsa_check_pub_tr(wc_MlDsaKey* key)
+{
+    int ret;
+    byte trCalc[MLDSA_TR_SZ];
+    const byte* tr = key->k + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ;
+
+    ret = mldsa_shake256(&key->shake, key->p, key->params->pkSz, trCalc,
+        MLDSA_TR_SZ);
+    if ((ret == 0) && (ConstantCompare(trCalc, tr, MLDSA_TR_SZ) != 0)) {
+        ret = PUBLIC_KEY_E;
+    }
+
+    return ret;
+}
+#endif
 
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
 int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
@@ -13088,28 +13132,6 @@ static int mldsa_encode_t_check(const sword32* t, byte k, const byte* t0p,
         *diff |= ConstantCompare(t0Enc,
             t0p + ((size_t)i * MLDSA_T0_POLY_ENC_SZ),
             (int)(n * MLDSA_T0_POLY_ENC_SZ));
-    }
-
-    return ret;
-}
-
-/* Check the public key against the private key's tr, which is H(pk).
- *
- * @param [in, out] key  ML-DSA key with both halves set.
- * @return  0 when the public key belongs to the private key.
- * @return  PUBLIC_KEY_E when it does not.
- * @return  Negative on hash error.
- */
-static int mldsa_check_pub_tr(wc_MlDsaKey* key)
-{
-    int ret;
-    byte trCalc[MLDSA_TR_SZ];
-    const byte* tr = key->k + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ;
-
-    ret = mldsa_shake256(&key->shake, key->p, key->params->pkSz, trCalc,
-        MLDSA_TR_SZ);
-    if ((ret == 0) && (ConstantCompare(trCalc, tr, MLDSA_TR_SZ) != 0)) {
-        ret = PUBLIC_KEY_E;
     }
 
     return ret;
@@ -13403,7 +13425,7 @@ int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key)
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *  returns BAD_FUNC_ARG when a parameter is NULL, private key not set
  *          or ctx is NULL and ctxLen is not 0,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
@@ -13830,8 +13852,9 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  msgLen      [in]  Length of the message in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
- *          or ctx is NULL and ctxLen is not 0,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or ctx is NULL and
+ *          ctxLen is not 0,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
@@ -13900,7 +13923,8 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  msgLen      [in]  Length of the message in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
+ *  returns BAD_FUNC_ARG when a parameter is NULL,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
@@ -13966,8 +13990,9 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  hashLen     [in]  Length of the message hash in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
- *          or ctx is NULL and ctxLen is not 0,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or ctx is NULL and
+ *          ctxLen is not 0,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
@@ -14035,10 +14060,9 @@ int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
     }
     /* A is a function of rho alone.  Reject a matrix built for a different
      * key rather than silently verifying against the wrong one.  key->p only
-     * holds rho once a public key has been imported, so require that first -
-     * BAD_FUNC_ARG, as documented in wc_mldsa.h. */
+     * holds rho once a public key has been imported, so require that first. */
     if (!key->pubKeySet) {
-        return BAD_FUNC_ARG;
+        return PUBLIC_KEY_E;
     }
     if (XMEMCMP(rho, key->p, MLDSA_PUB_SEED_SZ) != 0) {
         return PUBLIC_KEY_E;
@@ -14065,6 +14089,7 @@ int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
+ *          PUBLIC_KEY_E if no public key,
  *          0 otherwise.
  */
 int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
@@ -14087,6 +14112,9 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     }
     (void)sigLen;
 #else
+    if (ret == 0) {
+        ret = mldsa_verify_key_check(key);
+    }
     if (ret == 0) {
         ret = mldsa_verify_with_mu(key, mu, sig, sigLen, res);
     }
@@ -14949,83 +14977,35 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
  *                          On out, the number bytes put into array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  PUBLIC_KEY_E when the public key is not set.
  * @return  BUFFER_E when outLen is less than WC_MLDSA_44_PUB_KEY_SIZE.
  */
 int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
 {
     int ret = 0;
-    word32 inLen;
+    int pubLen = 0;
 
     /* Validate parameters */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
-        /* Get length passed in for checking. */
-        inLen = *outLen;
-    #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
-        if (key->params == NULL) {
-            ret = BAD_FUNC_ARG;
-        }
-        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            /* Set out length. */
-            *outLen = WC_MLDSA_44_PUB_KEY_SIZE;
-            /* Validate length passed in. */
-            if (inLen < WC_MLDSA_44_PUB_KEY_SIZE) {
-                ret = BUFFER_E;
-            }
-        }
-        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            /* Set out length. */
-            *outLen = WC_MLDSA_65_PUB_KEY_SIZE;
-            /* Validate length passed in. */
-            if (inLen < WC_MLDSA_65_PUB_KEY_SIZE) {
-                ret = BUFFER_E;
-            }
-        }
-        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            /* Set out length. */
-            *outLen = WC_MLDSA_87_PUB_KEY_SIZE;
-            /* Validate length passed in. */
-            if (inLen < WC_MLDSA_87_PUB_KEY_SIZE) {
-                ret = BUFFER_E;
-            }
-        }
-        else
-    #endif
-        if (key->level == WC_ML_DSA_44) {
-            /* Set out length. */
-            *outLen = WC_MLDSA_44_PUB_KEY_SIZE;
-            /* Validate length passed in. */
-            if (inLen < WC_MLDSA_44_PUB_KEY_SIZE) {
-                ret = BUFFER_E;
-            }
-        }
-        else if (key->level == WC_ML_DSA_65) {
-            /* Set out length. */
-            *outLen = WC_MLDSA_65_PUB_KEY_SIZE;
-            /* Validate length passed in. */
-            if (inLen < WC_MLDSA_65_PUB_KEY_SIZE) {
-                ret = BUFFER_E;
-            }
-        }
-        else if (key->level == WC_ML_DSA_87) {
-            /* Set out length. */
-            *outLen = WC_MLDSA_87_PUB_KEY_SIZE;
-            /* Validate length passed in. */
-            if (inLen < WC_MLDSA_87_PUB_KEY_SIZE) {
-                ret = BUFFER_E;
-            }
-        }
-        else {
+        pubLen = wc_MlDsaKey_PubSize(key);
+        if (pubLen <= 0) {
             /* Level not set. */
             ret = BAD_FUNC_ARG;
         }
     }
-
-    /* Check public key available. */
+    /* Check public key available before reporting its size. */
     if ((ret == 0) && (!key->pubKeySet)) {
-        ret = BAD_FUNC_ARG;
+        ret = PUBLIC_KEY_E;
+    }
+    if (ret == 0) {
+        /* Validate length passed in, then set out length. */
+        if (*outLen < (word32)pubLen) {
+            ret = BUFFER_E;
+        }
+        *outLen = (word32)pubLen;
     }
 
     if (ret == 0) {
@@ -15501,7 +15481,43 @@ int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
 }
 
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+/* Check the key holds a private key and the public key that belongs to it.
+ *
+ * Imports do not check that the two halves match, so anything that encodes
+ * them together checks here first. With WOLF_CRYPTO_CB_ONLY_MLDSA the hash
+ * that does the check is not compiled in, so only that both are set is
+ * checked.
+ *
+ * @param [in, out] key  ML-DSA key.
+ * @return  0 when both are set and match.
+ * @return  BAD_FUNC_ARG when the private key is not set.
+ * @return  PUBLIC_KEY_E when the public key is not set or does not belong to
+ *          the private key.
+ * @return  Negative on hash error.
+ */
+static int mldsa_check_key_pair(wc_MlDsaKey* key)
+{
+    int ret = 0;
+
+    if (!key->prvKeySet) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (!key->pubKeySet) {
+        ret = PUBLIC_KEY_E;
+    }
+#ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
+    else {
+        ret = mldsa_check_pub_tr(key);
+    }
+#endif
+
+    return ret;
+}
+
 /* Export the ML-DSA private and public key.
+ *
+ * Nothing is written to priv or pub unless both are exported. When either
+ * array is too small, both lengths are set to the required sizes.
  *
  * @param [in]      key     ML-DSA private/public key.
  * @param [out]     priv    Array to hold private key.
@@ -15511,19 +15527,42 @@ int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
  * @param [in, out] pubSz   On in, the number of bytes in public key array.
  *                          On out, the number bytes put into public key.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when a key, priv, privSz, pub or pubSz is NULL.
+ * @return  BAD_FUNC_ARG when a key, priv, privSz, pub or pubSz is NULL, or
+ *          the private key is not set.
+ * @return  PUBLIC_KEY_E when the public key is not set or does not belong to
+ *          the private key.
  * @return  BUFFER_E when privSz or pubSz is less than required size.
  */
 int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
     byte* pub, word32 *pubSz)
 {
-    int ret;
+    int ret = 0;
+    int privLen = 0;
+    int pubLen = 0;
 
-    /* Export private key only. */
-    ret = wc_MlDsaKey_ExportPrivRaw(key, priv, privSz);
+    /* Validate parameters. */
+    if ((key == NULL) || (priv == NULL) || (privSz == NULL) ||
+            (pub == NULL) || (pubSz == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
     if (ret == 0) {
-        /* Export public key. */
-        ret = wc_MlDsaKey_ExportPubRaw(key, pub, pubSz);
+        ret = mldsa_check_key_pair(key);
+    }
+    if (ret == 0) {
+        /* The private key is set, so the level is and both sizes are
+         * positive. */
+        privLen = wc_MlDsaKey_Size(key);
+        pubLen = wc_MlDsaKey_PubSize(key);
+        /* Report both sizes before writing either key. */
+        if ((*privSz < (word32)privLen) || (*pubSz < (word32)pubLen)) {
+            ret = BUFFER_E;
+        }
+        *privSz = (word32)privLen;
+        *pubSz = (word32)pubLen;
+    }
+    if (ret == 0) {
+        XMEMCPY(priv, key->k, (size_t)privLen);
+        XMEMCPY(pub, key->p, (size_t)pubLen);
     }
 
     return ret;
@@ -16225,6 +16264,7 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
  * @param [in]  withAlg  Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  PUBLIC_KEY_E when the public key is not set.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
@@ -16236,10 +16276,6 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
 
     /* Validate parameters. */
     if (key == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-    /* Check we have a public key to encode. */
-    if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -16280,6 +16316,10 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
             ret = BAD_FUNC_ARG;
         }
     }
+    /* Check we have a public key to encode. */
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = PUBLIC_KEY_E;
+    }
 
     if (ret == 0) {
         ret = SetAsymKeyDerPublic(key->p, pubKeyLen, output, len, keyType,
@@ -16307,15 +16347,23 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
  * @param [out] output  Buffer to put encoded data in.
  * @param [in]  len     Size of buffer in bytes.
  * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BAD_FUNC_ARG when key is NULL or the private key is not set.
+ * @return  PUBLIC_KEY_E when the public key is not set or does not belong to
+ *          the private key.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
 {
-    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int ret;
 
-    /* Validate parameters and check public and private key set. */
-    if ((key != NULL) && key->prvKeySet && key->pubKeySet) {
+    /* Validate parameters and check the key holds a matching key pair. */
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = mldsa_check_key_pair(key);
+    }
+    if (ret == 0) {
         /* Create DER for level. */
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
         if (key->params == NULL) {
@@ -16346,6 +16394,9 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
         else if (key->level == WC_ML_DSA_87) {
             ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, key->p,
                 WC_MLDSA_87_PUB_KEY_SIZE, output, len, ML_DSA_87k);
+        }
+        else {
+            ret = BAD_FUNC_ARG;
         }
     }
 

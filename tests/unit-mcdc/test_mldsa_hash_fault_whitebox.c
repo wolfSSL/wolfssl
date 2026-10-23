@@ -523,8 +523,10 @@ static void wb_init_id_rows(void)
 #endif
 
 /* mldsa_verify_ctx_hash()'s `if ((ret == 0) && (hashLen != digestSize))`: the
- * first operand's FALSE side needs key == NULL, which every public wrapper
- * rejects first. The helper is file-static, so it is called directly. Both
+ * first operand's FALSE side needs mldsa_verify_key_check() to fail. A
+ * private-only key reaches it from the public API (PUBLIC_KEY_E); the NULL
+ * key row here, which every public wrapper rejects first, covers it without
+ * building a key. The helper is file-static, so it is called directly. Both
  * arguments after the key are only read once ret is still 0, so the NULL key
  * short-circuits before any dereference. */
 #ifndef WOLFSSL_MLDSA_NO_VERIFY

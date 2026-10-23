@@ -558,7 +558,10 @@ int test_wolfSSL_X509_set_pubkey(void)
 
         /* PKCS#8 shapes:
          *  - a seed-carrying key derives the public half so set_pubkey succeeds
-         *  - A private-only blob fails
+         *  - a private-only blob has its public half derived from the private
+         *    key, where that is compiled in, matching its SPKI
+         *  - a private-only blob with a bad tr and a private key with someone
+         *    else's public key both fail where the pair is checked
          */
         {
             unsigned char* der = NULL;
@@ -595,7 +598,106 @@ int test_wolfSSL_X509_set_pubkey(void)
             pp = der;
             ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
                 WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
+        #if defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+            defined(WC_MLDSA_HAVE_NATIVE)
+            ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_SUCCESS);
+            {
+                unsigned char* derivedPub = NULL;
+
+                ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der",
+                    "rb")) != XBADFILE);
+                ExpectIntGT(derSz = (int)XFREAD(der, 1, 4096, f), 0);
+                if (f != XBADFILE) {
+                    XFCLOSE(f);
+                    f = XBADFILE;
+                }
+                /* Both the EVP_PKEY's and the stored X509's public key. */
+                ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, &derivedPub), derSz);
+                if (derivedPub != NULL) {
+                    ExpectBufEQ(derivedPub, der, derSz);
+                }
+                XFREE(derivedPub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                derivedPub = NULL;
+                ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+                ExpectIntEQ(wolfSSL_i2d_PUBKEY(pubkey, &derivedPub), derSz);
+                if (derivedPub != NULL) {
+                    ExpectBufEQ(derivedPub, der, derSz);
+                }
+                XFREE(derivedPub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                wolfSSL_EVP_PKEY_free(pubkey);
+                pubkey = NULL;
+            }
+        #else
             ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_FAILURE);
+        #endif
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
+
+            /* A private-only blob whose tr is not H(pk): no public key can
+             * be derived for it, whatever is compiled in. */
+            ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_priv-only.der",
+                "rb")) != XBADFILE);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, 4096, f), 0);
+            if (f != XBADFILE) {
+                XFCLOSE(f);
+                f = XBADFILE;
+            }
+            /* The raw private key ends the DER: rho || K || tr || ... */
+            if (derSz > WC_MLDSA_44_KEY_SIZE) {
+                der[derSz - WC_MLDSA_44_KEY_SIZE + 64] ^= 0x01;
+            }
+            pp = der;
+            ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
+                WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
+            ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_FAILURE);
+            {
+                unsigned char* derivedPub = NULL;
+
+                ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, &derivedPub),
+                    WOLFSSL_FATAL_ERROR);
+                XFREE(derivedPub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            }
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
+
+            /* A private key with an embedded public key that is not its own:
+             * rejected where the pair can be checked, kept as is otherwise. */
+            ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_oqskeypair.der",
+                "rb")) != XBADFILE);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, 4096, f), 0);
+            if (f != XBADFILE) {
+                XFCLOSE(f);
+                f = XBADFILE;
+            }
+            pp = der;
+            ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
+                WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
+            ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_SUCCESS);
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
+            /* The public key ends the DER. */
+            if (derSz > 0) {
+                der[derSz - 1] ^= 0x01;
+            }
+            pp = der;
+            ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
+                WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
+            {
+                unsigned char* derivedPub = NULL;
+
+            #if defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+                defined(WC_MLDSA_HAVE_NATIVE)
+                ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey),
+                    WOLFSSL_FAILURE);
+                ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, &derivedPub),
+                    WOLFSSL_FATAL_ERROR);
+            #else
+                ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey),
+                    WOLFSSL_SUCCESS);
+                ExpectIntGT(wolfSSL_i2d_PUBKEY(pkey, &derivedPub), 0);
+            #endif
+                XFREE(derivedPub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            }
             wolfSSL_EVP_PKEY_free(pkey);
             pkey = NULL;
             XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -1808,7 +1808,7 @@ static int Pkcs11CreateMldsaPublicKey(CK_OBJECT_HANDLE* handle,
     CK_ULONG keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate) - 2;
 
     if (!key->pubKeySet) {
-        ret = BAD_FUNC_ARG;
+        ret = PUBLIC_KEY_E;
     }
 
     if (key->labelLen > 0) {

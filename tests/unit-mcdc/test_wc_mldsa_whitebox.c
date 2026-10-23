@@ -1274,14 +1274,17 @@ static void wb_gen_lane_rows(void)
  * Argument guards on file-static entry points.
  *
  * mldsa_verify_ctx_msg() / mldsa_verify_ctx_hash() open with
+ * mldsa_verify_key_check(), which tests
  *
  *     if ((key == NULL) || (key->params == NULL)) ...
  *
  * but every public caller has already rejected a NULL key and a key without
- * params, so along the API only the (F,F) row is ever seen.  Both are file
- * static and this TU #includes wc_mldsa.c, so they take the two rejecting rows
- * directly: a NULL key for operand 0, and a zeroed key object (params NULL,
- * never dereferenced past the guard) for operand 1.
+ * params, so along the API only the (F,F) row is ever seen.  The
+ * !key->pubKeySet check after it is reached from the API with a private-only
+ * key.  The helpers are file static and this TU #includes wc_mldsa.c, so
+ * they take the two rejecting rows directly: a NULL key for operand 0, and a
+ * zeroed key object (params NULL, never dereferenced past the guard) for
+ * operand 1.
  *
  * mldsa_get_hash_oid()'s first operand is the "is this hash algorithm known"
  * result; an unrecognised algorithm gives it the NULL side that no caller with
@@ -1452,8 +1455,8 @@ static void wb_verify_invalid(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:12517,
- * :12522, :12523).
+ * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check: the s1 range test,
+ * the s2 loop header and the s2 range test.
  *
  *     for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
  *         if (s1[c] < -eta || s1[c] > eta) { ret = PUBLIC_KEY_E; break; }
@@ -1530,8 +1533,8 @@ static void wb_check_key_range(void)
     savedS1 = s1p[0];
     savedS2 = s2p[0];
 
-    /* s1[0] out of range on the low side: :12517 idx0 true, and the s2 loop
-     * header (:12522 idx0) is then evaluated with ret != 0. */
+    /* s1[0] out of range on the low side: the s1 range test's idx0 is true,
+     * and the s2 loop header's idx0 is then evaluated with ret != 0. */
     s1p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1540,7 +1543,7 @@ static void wb_check_key_range(void)
     s1p[0] = savedS1;
 
     /* s2[0] out of range: the s1 loop runs clean, the s2 header is true, and
-     * :12523 idx0 takes its true side. */
+     * the s2 range test's idx0 takes its true side. */
     s2p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1549,7 +1552,7 @@ static void wb_check_key_range(void)
     s2p[0] = savedS2;
 
     wc_MlDsaKey_Free(&key);
-    WB_NOTE("CheckKey s1/s2 range rows exercised (12517, 12522, 12523)");
+    WB_NOTE("CheckKey s1/s2 range rows exercised");
 }
 #else
 static void wb_check_key_range(void)
