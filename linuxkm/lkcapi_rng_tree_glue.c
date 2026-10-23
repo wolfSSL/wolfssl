@@ -180,9 +180,9 @@ static WC_MAYBE_UNUSED void RngInvalidate(void)
 
 #ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
 /* The 16-byte ID against the copy, lock-free and NMI safe.  1: changed, this
- * caller recorded it and invalidated the tree; -1: changed, another caller
- * is recording it.  The copy is read like a seqcount: same sequence before
- * and after, or the compare does not count. */
+ * caller recorded it; -1: changed, another caller is recording it.  Either
+ * way this caller invalidated the tree.  The copy is read like a seqcount:
+ * same sequence before and after, or the compare does not count. */
 static int RngGenChanged(void)
 {
     unsigned long flags;
@@ -198,6 +198,9 @@ static int RngGenChanged(void)
     smp_rmb();
     if (same)
         return (atomic_read(&rngGenSeq) == seq) ? 0 : -1;
+    /* Every reader that sees the change invalidates before anyone records
+     * it, so no retry serves copied state; a second bump costs nothing. */
+    wc_RNG_TreeInvalidate();
     /* The write side runs with interrupts off (Documentation/locking/
      * seqlock.rst): readers in hardirq decline meanwhile, NMI ones too. */
     local_irq_save(flags);
@@ -205,7 +208,6 @@ static int RngGenChanged(void)
         local_irq_restore(flags);
         return -1;
     }
-    wc_RNG_TreeInvalidate();   /* before the new ID is visible as current */
     XMEMCPY(rngGenSeen, rngVmGen.map, sizeof(rngGenSeen));
     smp_wmb();
     atomic_set(&rngGenSeq, seq + 2);
@@ -355,7 +357,10 @@ static int RngGetBytesAddl(const u8* addl, size_t addlSz, void* buf,
         else {
             break;
         }
-        ret = RngFill(addl, addlSz, buf, len);
+        if (RngGenStale())   /* a clone during the wait: no copied state */
+            ret = WC_NO_ERR_TRACE(NOT_READY_E);
+        else
+            ret = RngFill(addl, addlSz, buf, len);
         tries++;
     }
     if (ret != 0) {

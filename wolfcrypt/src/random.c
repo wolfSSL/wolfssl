@@ -9186,6 +9186,10 @@ static int TreeSourceSeed(OS_Seed* os, byte* seed, word32 seedSz)
         ret = WC_FAILURE;
     if (ret == 0)
         ret = wc_RNG_TestSeed(seed, seedSz);
+    /* A source health-test failure latches whoever gathered (SP 800-90B). */
+    if (ret == WC_NO_ERR_TRACE(ENTROPY_RT_E) ||
+        ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))
+        TreeSetFailed(ret);
     return ret;
 }
 
@@ -9216,9 +9220,6 @@ static int TreeGetEntropy(byte* seed, word32 seedSz)
     if (os.seedFdOpen && os.fd != XBADFD)
         XCLOSE(os.fd);
 #endif
-    if (ret == WC_NO_ERR_TRACE(ENTROPY_RT_E) ||
-        ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))
-        TreeSetFailed(ret);
     return ret;
 }
 
