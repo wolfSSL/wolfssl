@@ -546,6 +546,8 @@ static int km_frodokem_generate_pk(struct km_frodokem_ctx *ctx,
 
     if (req->dst_len < pk_len) {
         km_frodokem_del_wc_key(wc_key);
+        /* per the kernel kpp contract, publish the required size. */
+        req->dst_len = pk_len;
         return -EOVERFLOW;
     }
 
@@ -601,6 +603,8 @@ static int km_frodokem_generate_ct(struct km_frodokem_ctx *ctx,
 
     if (req->dst_len < ct_len) {
         km_frodokem_del_wc_key(wc_key);
+        /* per the kernel kpp contract, publish the required size. */
+        req->dst_len = ct_len;
         return -EOVERFLOW;
     }
 
@@ -737,6 +741,8 @@ static int km_frodokem_ss_decap(struct km_frodokem_ctx *ctx,
     }
     if (req->dst_len < ss_len) {
         km_frodokem_del_wc_key(wc_key);
+        /* per the kernel kpp contract, publish the required size. */
+        req->dst_len = ss_len;
         return -EOVERFLOW;
     }
 
@@ -804,8 +810,11 @@ static int km_frodokem_ss_claim(struct km_frodokem_ctx *ctx,
     /* Check dst space BEFORE claiming, so a short dst doesn't consume
      * the node.
      */
-    if (req->dst_len < ss_len)
+    if (req->dst_len < ss_len) {
+        /* per the kernel kpp contract, publish the required size. */
+        req->dst_len = ss_len;
         return -EOVERFLOW;
+    }
 
     ct = (byte *)malloc(ct_len);
     if (! ct)
