@@ -1153,7 +1153,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 #if defined(PERSIST_CERT_CACHE)
 
 /* Version of layout of cache of CA certificates. */
-#define WOLFSSL_CACHE_CERT_VERSION 1
+#define WOLFSSL_CACHE_CERT_VERSION 2
 
 /* CA certificates cache information. */
 typedef struct {
@@ -1170,11 +1170,20 @@ typedef struct {
 /* current cert persistence layout is:
 
    1) CertCacheHeader
-   2) caTable
+   2) caTable, each Signer stored as:
+        a) DER length (word32)
+        b) Signer type (byte)
+        c) DER encoding of CA certificate
 
-   update WOLFSSL_CERT_CACHE_VERSION if change layout for the following
+   The Signer is rebuilt from the DER on restore so that everything FillSigner
+   takes from the certificate (key usage, path length, name constraints, ...)
+   is restored, not only the public key and name hashes.
+
+   update WOLFSSL_CACHE_CERT_VERSION if change layout for the following
    PERSIST_CERT_CACHE functions
 */
+
+static WC_INLINE word32 HashSigner(const byte* hash);
 
 
 /* Return number of bytes of memory needed to persist this signer.
@@ -1186,16 +1195,13 @@ typedef struct {
  */
 static WC_INLINE int cm_get_signer_memory(Signer* signer)
 {
-    int sz = sizeof(signer->pubKeySize) + sizeof(signer->keyOID)
-           + sizeof(signer->nameLen)    + sizeof(signer->subjectNameHash);
+    int sz = 0;
 
-#if !defined(NO_SKID)
-        sz += (int)sizeof(signer->subjectKeyIdHash);
-#endif
-
-    /* Add dynamic bytes needed. */
-    sz += (int)signer->pubKeySize;
-    sz += signer->nameLen;
+    /* Signers without a DER copy can't be rebuilt and are not stored.
+     * FillSigner always keeps one when PERSIST_CERT_CACHE is defined. */
+    if ((signer->derCert != NULL) && (signer->derCert->buffer != NULL)) {
+        sz = (int)sizeof(word32) + 1 + (int)signer->derCert->length;
+    }
 
     return sz;
 }
@@ -1268,8 +1274,10 @@ static WC_INLINE void cm_set_cert_header_Columns(WOLFSSL_CERT_MANAGER* cm,
         row = cm->caTable[i];
         /* Each entry in row. */
         while (row != NULL) {
-            /* Update count. */
-            ++count;
+            /* Update count when this entry is stored. */
+            if (cm_get_signer_memory(row) > 0) {
+                ++count;
+            }
             row = row->next;
         }
         /* Store row count. */
@@ -1278,15 +1286,73 @@ static WC_INLINE void cm_set_cert_header_Columns(WOLFSSL_CERT_MANAGER* cm,
 }
 
 
-/* Restore whole cert row from memory,
+/* Rebuild a Signer from the DER encoding of a CA certificate.
  *
- * Assumes we have locked CA table.
+ * Does not lock the CA table: parsing a certificate may look up its issuer.
+ * The certificate was checked when it was first added, so it is not verified
+ * again here.
  *
- * @param [in] cm       Certificate manager.
- * @param [in] current  Buffer containing rows.
- * @param [in] row      Row number being restored.
- * @param [in] listSz   Number of entries in row.
- * @param [in] end      End of data in buffer.
+ * @param [in]  cm       Certificate manager.
+ * @param [in]  derBuf   DER encoding of certificate.
+ * @param [in]  derSz    Size of DER encoding in bytes.
+ * @param [in]  type     Type of Signer.
+ * @param [out] pSigner  New Signer.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Negative value on parse error.
+ */
+static int cm_restore_signer(WOLFSSL_CERT_MANAGER* cm, const byte* derBuf,
+    word32 derSz, byte type, Signer** pSigner)
+{
+    int         ret;
+    Signer*     signer = NULL;
+    DerBuffer*  der = NULL;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
+
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
+        return MEMORY_E);
+
+    ret = AllocDer(&der, derSz, CA_TYPE, cm->heap);
+    if (ret == 0) {
+        XMEMCPY(der->buffer, derBuf, derSz);
+
+        InitDecodedCert(cert, der->buffer, der->length, cm->heap);
+    #ifdef WC_ASN_UNKNOWN_EXT_CB
+        if (cm->unknownExtCallback != NULL) {
+            wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
+        }
+    #endif
+        ret = ParseCert(cert, CA_TYPE, NO_VERIFY, cm);
+        if ((ret == 0) && ((signer = MakeSigner(cm->heap)) == NULL)) {
+            ret = MEMORY_E;
+        }
+        if (ret == 0) {
+            ret = FillSigner(signer, cert, type, der);
+        }
+        FreeDecodedCert(cert);
+    }
+
+    if ((ret != 0) && (signer != NULL)) {
+        FreeSigner(signer, cm->heap);
+        signer = NULL;
+    }
+    FreeDer(&der);
+    WC_FREE_VAR_EX(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+
+    *pSigner = signer;
+    return ret;
+}
+
+
+/* Restore whole cert row from memory into a table.
+ *
+ * Does not lock the CA table - signers are added to table passed in.
+ *
+ * @param [in]      cm       Certificate manager.
+ * @param [in]      current  Buffer containing rows.
+ * @param [in]      listSz   Number of entries in row.
+ * @param [in]      end      End of data in buffer.
+ * @param [in, out] table    Table of signers to add restored signers to.
  * @return  Number of bytes consumed on success.
  * @return  PARSE_ERROR when listSz is less than zero.
  * @return  BUFFER_E when buffer is too small.
@@ -1294,7 +1360,7 @@ static WC_INLINE void cm_set_cert_header_Columns(WOLFSSL_CERT_MANAGER* cm,
  * @return  Negative value on error.
  */
 static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
-    byte* current, int row, int listSz, const byte* end)
+    const byte* current, int listSz, const byte* end, Signer** table)
 {
     int ret = 0;
     int idx = 0;
@@ -1308,103 +1374,49 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
     /* Process all entries. */
     while ((ret == 0) && (listSz > 0)) {
         Signer* signer = NULL;
-        byte*   publicKey;
-        byte*   start = current + idx;  /* for end checks on this signer */
-        int     minSz = sizeof(signer->pubKeySize) + sizeof(signer->keyOID) +
-                      sizeof(signer->nameLen) + sizeof(signer->subjectNameHash);
-        #ifndef NO_SKID
-                minSz += (int)sizeof(signer->subjectKeyIdHash);
-        #endif
+        word32  derSz;
+        byte    type;
 
-        /* Check minimal size of bytes available. */
-        if (start + minSz > end) {
+        /* Check bytes available for DER length and Signer type. */
+        if ((word32)(end - (current + idx)) < (word32)sizeof(word32) + 1) {
             WOLFSSL_MSG("Would overread restore buffer");
             ret = BUFFER_E;
         }
-        /* Make a new signer. */
-        if ((ret == 0) && ((signer = MakeSigner(cm->heap)) == NULL)) {
-            ret = MEMORY_E;
-        }
-
         if (ret == 0) {
-            /* Copy in public key size. */
-            XMEMCPY(&signer->pubKeySize, current + idx,
-                sizeof(signer->pubKeySize));
-            idx += (int)sizeof(signer->pubKeySize);
+            /* Copy in DER length. */
+            XMEMCPY(&derSz, current + idx, sizeof(derSz));
+            idx += (int)sizeof(derSz);
+            /* Copy in Signer type. */
+            type = current[idx];
+            idx += 1;
 
-            /* Copy in public key OID. */
-            XMEMCPY(&signer->keyOID, current + idx, sizeof(signer->keyOID));
-            idx += (int)sizeof(signer->keyOID);
-
-            /* Check bytes available for public key. */
-            if (start + minSz + signer->pubKeySize > end) {
+            /* Check bytes available for DER. */
+            if ((derSz == 0) || ((word32)(end - (current + idx)) < derSz)) {
                 WOLFSSL_MSG("Would overread restore buffer");
                 ret = BUFFER_E;
             }
         }
         if (ret == 0) {
-            /* Allocate memory for public key to be stored in. */
-            publicKey = (byte*)XMALLOC(signer->pubKeySize, cm->heap,
-                DYNAMIC_TYPE_KEY);
-            if (publicKey == NULL) {
-                ret = MEMORY_E;
-            }
-        }
-
-        if (ret == 0) {
-            /* Copy in public key. */
-            XMEMCPY(publicKey, current + idx, signer->pubKeySize);
-            signer->publicKey = publicKey;
-            idx += (int)signer->pubKeySize;
-
-            /* Copy in certificate name length. */
-            XMEMCPY(&signer->nameLen, current + idx, sizeof(signer->nameLen));
-            idx += (int)sizeof(signer->nameLen);
-
-            /* Check bytes available for certificate name. */
-            if (start + minSz + signer->pubKeySize + signer->nameLen > end) {
-                WOLFSSL_MSG("Would overread restore buffer");
-                ret = BUFFER_E;
-            }
+            /* Rebuild Signer from certificate. */
+            ret = cm_restore_signer(cm, current + idx, derSz, type, &signer);
         }
         if (ret == 0) {
-            /* Allocate memory for public key to be stored in. */
-            signer->name = (char*)XMALLOC((size_t)signer->nameLen, cm->heap,
-                DYNAMIC_TYPE_SUBJECT_CN);
-            if (signer->name == NULL) {
-                ret = MEMORY_E;
-            }
-        }
+            Signer** last;
+            idx += (int)derSz;
 
-        if (ret == 0) {
-            /* Copy in certificate name. */
-            /* safe cast -- allocated by above XMALLOC(). */
-            XMEMCPY((void *)(wc_ptr_t)signer->name, current + idx,
-                    (size_t)signer->nameLen);
-            idx += signer->nameLen;
-
-            /* Copy in hash of subject name. */
-            XMEMCPY(signer->subjectNameHash, current + idx, SIGNER_DIGEST_SIZE);
-            idx += SIGNER_DIGEST_SIZE;
-
+            /* Append to row of table, keeping the order it was stored in. */
         #ifndef NO_SKID
-            /* Copy in hash of subject key. */
-            XMEMCPY(signer->subjectKeyIdHash, current + idx,SIGNER_DIGEST_SIZE);
-            idx += SIGNER_DIGEST_SIZE;
+            last = &table[HashSigner(signer->subjectKeyIdHash)];
+        #else
+            last = &table[HashSigner(signer->subjectNameHash)];
         #endif
-
-            /* Make next Signer the head of the row. */
-            signer->next = cm->caTable[row];
-            /* Add Signer to start of row. */
-            cm->caTable[row] = signer;
+            while (*last != NULL) {
+                last = &(*last)->next;
+            }
+            *last = signer;
 
             /* Done one more Signer. */
             --listSz;
-        }
-
-        if ((ret != 0) && (signer != NULL)) {
-            /* Dispose of allocated signer. */
-            FreeSigner(signer, cm->heap);
         }
     }
 
@@ -1435,35 +1447,21 @@ static WC_INLINE int cm_store_cert_row(WOLFSSL_CERT_MANAGER* cm, byte* current,
     list  = cm->caTable[row];
     /* Each certificate in row. */
     while (list != NULL) {
-        /* Public key size. */
-        XMEMCPY(current + added, &list->pubKeySize, sizeof(list->pubKeySize));
-        added += (int)sizeof(list->pubKeySize);
+        if (cm_get_signer_memory(list) > 0) {
+            word32 derSz = list->derCert->length;
 
-        /* Public key OID. */
-        XMEMCPY(current + added, &list->keyOID,     sizeof(list->keyOID));
-        added += (int)sizeof(list->keyOID);
+            /* DER length. */
+            XMEMCPY(current + added, &derSz, sizeof(derSz));
+            added += (int)sizeof(derSz);
 
-        /* Public key. */
-        XMEMCPY(current + added, list->publicKey, (size_t)list->pubKeySize);
-        added += (int)list->pubKeySize;
+            /* Signer type. */
+            current[added] = list->type;
+            added += 1;
 
-        /* Certificate name length. */
-        XMEMCPY(current + added, &list->nameLen, sizeof(list->nameLen));
-        added += (int)sizeof(list->nameLen);
-
-        /* Certificate name. */
-        XMEMCPY(current + added, list->name, (size_t)list->nameLen);
-        added += list->nameLen;
-
-        /* Hash of subject name. */
-        XMEMCPY(current + added, list->subjectNameHash, SIGNER_DIGEST_SIZE);
-        added += SIGNER_DIGEST_SIZE;
-
-    #ifndef NO_SKID
-        /* Hash of public key. */
-        XMEMCPY(current + added, list->subjectKeyIdHash,SIGNER_DIGEST_SIZE);
-        added += SIGNER_DIGEST_SIZE;
-    #endif
+            /* DER encoding of certificate. */
+            XMEMCPY(current + added, list->derCert->buffer, derSz);
+            added += (int)derSz;
+        }
 
         /* Next certificate in row. */
         list = list->next;
@@ -1700,9 +1698,10 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
 {
     int ret = WOLFSSL_SUCCESS;
     int i;
-    CertCacheHeader* hdr = (CertCacheHeader*)mem;
-    byte*            current = (byte*)mem + sizeof(CertCacheHeader);
-    byte*            end     = (byte*)mem + sz;  /* don't go over */
+    const CertCacheHeader* hdr = (const CertCacheHeader*)mem;
+    const byte*      current = (const byte*)mem + sizeof(CertCacheHeader);
+    const byte*      end     = (const byte*)mem + sz;  /* don't go over */
+    Signer**         table = NULL;
 
     WOLFSSL_ENTER("CM_MemRestoreCertCache");
 
@@ -1721,21 +1720,24 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         ret = CACHE_MATCH_ERROR;
     }
 
-    /* Lock CA table. */
-    if ((ret == WOLFSSL_SUCCESS) && (wc_LockMutex(&cm->caLock) != 0)) {
-        WOLFSSL_MSG("wc_LockMutex on caLock failed");
-        ret = BAD_MUTEX_E;
-    }
-
     if (ret == WOLFSSL_SUCCESS) {
-        /* Dispose of current CA certificate table. */
-        FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
-
+        /* Signers are rebuilt into a new table without the CA table locked as
+         * parsing a certificate may look up its issuer. */
+        table = (Signer**)XMALLOC(sizeof(Signer*) * CA_TABLE_SIZE, cm->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (table == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMSET(table, 0, sizeof(Signer*) * CA_TABLE_SIZE);
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS) {
         /* Each row. */
         for (i = 0; i < CA_TABLE_SIZE; ++i) {
             /* Restore a row from memory. */
-            int added = cm_restore_cert_row(cm, current, i, hdr->columns[i],
-                end);
+            int added = cm_restore_cert_row(cm, current, hdr->columns[i], end,
+                table);
             /* Bail on error. */
             if (added < 0) {
                 WOLFSSL_MSG("cm_restore_cert_row error");
@@ -1745,9 +1747,29 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
             /* Update pointer to data of next row. */
             current += added;
         }
+    }
+
+    /* Lock CA table. */
+    if ((ret == WOLFSSL_SUCCESS) && (wc_LockMutex(&cm->caLock) != 0)) {
+        WOLFSSL_MSG("wc_LockMutex on caLock failed");
+        ret = BAD_MUTEX_E;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Dispose of current CA certificate table. */
+        FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
+        /* Move in restored signers. */
+        XMEMCPY(cm->caTable, table, sizeof(Signer*) * CA_TABLE_SIZE);
+        XMEMSET(table, 0, sizeof(Signer*) * CA_TABLE_SIZE);
 
         /* Unlock CA table. */
         wc_UnLockMutex(&cm->caLock);
+    }
+
+    if (table != NULL) {
+        /* Dispose of any signers restored before a failure. */
+        FreeSignerTable(table, CA_TABLE_SIZE, cm->heap);
+        XFREE(table, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;

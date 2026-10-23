@@ -4708,6 +4708,74 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
     return EXPECT_RESULT();
 }
 
+/* CA certificates restored from a persisted cache keep their name
+ * constraints: the restored chain still rejects a leaf outside the permitted
+ * subtree of the intermediate's issuer. */
+int test_wolfSSL_CertManagerNameConstraint_cert_cache(void)
+{
+    EXPECT_DECLS;
+#if defined(PERSIST_CERT_CACHE) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte* cache = NULL;
+    int cacheSz = 0;
+    int used = 0;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* uri_permit_ca_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* benign_sub_ca_cert =
+        "./certs/test/nc-ancestor/02-benign-sub-ca-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-valid-leaf-cert.pem";
+    const char* attacker_leaf_chain =
+        "./certs/test/nc-ancestor/03-leaf-chain.pem";
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, uri_permit_ca_cert,
+                NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, benign_sub_ca_cert,
+                NULL), WOLFSSL_SUCCESS);
+
+    ExpectIntGT(cacheSz = wolfSSL_CTX_get_cert_cache_memsize(ctx), 0);
+    ExpectNotNull(cache = (byte*)XMALLOC((size_t)cacheSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wolfSSL_CTX_memsave_cert_cache(ctx, cache, cacheSz, &used),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(used, cacheSz);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Restore into a context that has never loaded the CAs. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_memrestore_cert_cache(ctx, cache, used),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_get_cert_cache_memsize(ctx), used);
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
+
+    /* Positive: leaf satisfies the grandparent permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    /* Negative: leaf violates the grandparent permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_chain,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CTX_free(ctx);
+    XFREE(cache, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
 /* Before the validity period of certs/test/expired/expired-cert.pem */

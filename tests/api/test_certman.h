@@ -63,6 +63,7 @@ int test_wolfSSL_CertManagerRejectRPK(void);
 int test_wolfSSL_X509_V_ERR_strings(void);
 int test_wolfSSL_CertManagerNameConstraint_valid_chain(void);
 int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
+int test_wolfSSL_CertManagerNameConstraint_cert_cache(void);
 int test_wolfSSL_trust_peer_cert_dates(void);
 
 #define TEST_CERTMAN_DECLS                                                  \
@@ -113,6 +114,8 @@ int test_wolfSSL_trust_peer_cert_dates(void);
         test_wolfSSL_CertManagerNameConstraint_valid_chain),                \
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerNameConstraint_skid_disambiguates),         \
+    TEST_DECL_GROUP("certman",                                             \
+        test_wolfSSL_CertManagerNameConstraint_cert_cache),                 \
     TEST_DECL_GROUP("certman", test_wolfSSL_trust_peer_cert_dates)
 
 #endif /* WOLFCRYPT_TEST_CERTMAN_H */
