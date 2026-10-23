@@ -67,7 +67,8 @@
  * the pooled and banked bytes it inherited, which the handlers themselves do
  * not touch.
  * Tree builds keep wolfEntropy, not its counter thread (a fork() child has none):
- * tree gathers take the turn lock; wolfEntropy's APIs called directly do not. */
+ * WC_RNG child gathers take the turn lock; the public tree services and
+ * wolfEntropy's APIs called directly do not. */
 #if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WOLFSSL_PTHREADS) && \
     defined(WC_RNG_AUTOFORK) && !defined(__APPLE__) && \
     defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
@@ -1222,8 +1223,8 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     WC_RNG_TREE_API int wc_RNG_TreeInit(int ncpu, void* heap);
     /* Library cleanup: frees the leaves and zeroizes the root. */
     WC_RNG_TREE_API int wc_RNG_TreeZeroize(void);
-    /* Never waits.  BUSY_E: try again.  NOT_READY_E: call
-     * wc_RNG_TreeReseed(), then try again. */
+    /* Never waits (the user-space FIPS wrapper may run the CAST first).
+     * BUSY_E: try again.  NOT_READY_E: call wc_RNG_TreeReseed(), then again. */
     WC_RNG_TREE_API int wc_RNG_TreeGenerate(int cpu, int lane,
                                             const byte* addl, word32 addlSz,
                                             byte* out, word32 sz);
@@ -1231,7 +1232,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
      * root only after wc_RNG_TreeInvalidate() or at its reseed interval. */
     WC_RNG_TREE_API int wc_RNG_TreeReseed(int force);
     /* Call after a VM fork, snapshot restore or resume (the platform's
-     * restore hook): every leaf and WC_RNG reseeds before its next output. */
+     * restore hook): root, leaves and every WC_RNG are built again first. */
     WC_RNG_TREE_API void wc_RNG_TreeInvalidate(void);
     /* The SHA-512 DRBG CAST failed: the tree stays in an error state until
      * it is re-instantiated (SP 800-90A 11.4.2). */

@@ -1253,10 +1253,10 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
 #endif /* WC_RNG_HAVE_LOCK */
 
 #ifdef WC_RNG_TREE
-    /* A recovery ends the copied instantiation and makes a new one from the
-     * root; only an interval reseed reseeds in place (SP 800-90C 7.3.1 req 11,
-     * A.3.2).  Entropy and nonce are drawn as wc_InitRng() draws them
-     * (7.2.1.2): seed may be the DRBG's own buffer, which the wipe clears. */
+    /* After a clone or restore the copied instantiation ends and a new one is
+     * made from the root (SP 800-90C 7.3.1 req 11); a fork() or an interval
+     * reseeds in place (A.3.2).  Entropy and nonce are drawn as wc_InitRng()
+     * draws them (7.2.1.2): seed may be the DRBG's own buffer, wiped first. */
   #ifdef WC_RNG_HAVE_LOCK
     if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
         rebuild = 1;
@@ -9339,8 +9339,10 @@ void wc_RNG_TreeCastFailed(void)
 static int TreeInstantiateRoot(void)
 {
     byte* seed = tree.seed;   /* the caller holds tree.seeding */
-    /* Read before the gather: a VM fork during it leaves the root stale. */
+    /* Read before the gather: a VM fork or a fork() during it (a seed
+     * callback may fork) leaves the root stale in the copy. */
     int epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
+    WC_RNG_PID_ARG pid = WC_RNG_GETPID();
     int ret;
 
     ret = TreeGetEntropy(seed, MAX_SEED_SZ);
@@ -9357,7 +9359,7 @@ static int TreeInstantiateRoot(void)
                     INVALID_DEVID));
         if (ret == 0) {
             tree.root.epoch = epoch;
-            tree.pid = WC_RNG_GETPID();
+            tree.pid = pid;
             tree.rootUp = 1;
         }
         else {
@@ -9601,10 +9603,9 @@ int wc_RNG_TreeReseed(int force)
          * never reseeded in place (SP 800-90C A.3.2; ISO/IEC 19790 7.9.7). */
         ret = TreeRebuild();
     }
-    else if (ret == 0 && TreeLeavesStale(epoch)) {
-        ret = TreeInstantiateLeaves();
-    }
     else if (ret == 0 && (force || TreeRootStale(epoch))) {
+        WC_RNG_PID_ARG pid = WC_RNG_GETPID();   /* before the gather, as above */
+
         /* Gathered outside the root lock: it can take milliseconds. */
         ret = TreeGetEntropy(seed, SEED_SZ + SEED_BLOCK_SZ);
         if (ret == 0) {
@@ -9618,12 +9619,15 @@ int wc_RNG_TreeReseed(int force)
                             SEED_SZ, NULL, 0));
             if (ret == 0) {
                 tree.root.epoch = epoch;
-                tree.pid = WC_RNG_GETPID();
+                tree.pid = pid;
             }
             TreeUnlock(&tree.root.busy);
         }
         ForceZero(seed, SEED_SZ + SEED_BLOCK_SZ);
     }
+    /* With the root current, leaves a failed rebuild left down or stale. */
+    if (ret == 0 && tree.rootUp && TreeLeavesStale(epoch))
+        ret = TreeInstantiateLeaves();
 
     /* An error latched during this call, an RCT or APT gather included. */
     ret = TreeTerminateIfFailed(ret);
