@@ -33,13 +33,13 @@ jobs:
     name: make check
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Typical runs finish in 13-16 min, but the wolfEntropy configs gather
+    # Typical runs finish in 20-30 min, but the wolfEntropy configs gather
     # entropy from CPU timing jitter, whose runtime varies severalfold with
     # runner contention (a 20-min limit was hit with one config left, and
     # later a 40-min one: six configs were done inside 8 min while
     # all-wolfentropy ran on for another 32).  Cheap to leave high - a
     # healthy run never approaches it.
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -79,11 +79,11 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/trackmemory-configs.json" <<'EOF'
           [
-          {"name": "all-noasm-wolfentropy", "minutes": 14.4,
+          {"name": "all-noasm-wolfentropy", "minutes": 23.2,
            "configure": ["--disable-asm", "--enable-wolfEntropy",
             "--enable-smallstackcache", "--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
-          {"name": "all-wolfentropy", "minutes": 13.4,
+          {"name": "all-wolfentropy", "minutes": 22.8,
            "comment": "smallstackcache coverage here is crucial for the Linux kernel module when targeting a kernel with the randomness patch (linuxkm/patches/) applied. Don't combine wolfEntropy with the full TLS cipher suite test - the implicit wc_InitRng()s in each suite have an enormous CPU footprint.",
            "configure": ["--enable-wolfEntropy", "--enable-smallstackcache",
             "--enable-smallstack", "--enable-all",
@@ -95,6 +95,10 @@ jobs:
           {"name": "all-trace-errcodes", "minutes": 8.8,
            "configure": ["--enable-all", "--enable-debug-trace-errcodes",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
+          {"name": "all-amdrand", "minutes": 6.3,
+           "configure": ["--enable-amdrand", "--enable-smallstackcache",
+            "--enable-smallstack", "--enable-all",
+            "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
           {"name": "all-smallstack", "minutes": 5.9,
            "configure": ["--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
@@ -106,19 +110,14 @@ jobs:
            "comment": "Build only: the APERF timer needs AMD bare metal (RDPRU), which hosted runners are not.",
            "configure": ["--enable-wolfEntropy=amd-aperf", "--enable-smallstackcache",
             "--enable-smallstack", "--enable-all",
-            "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
-          {"name": "all-amdrand", "minutes": 2.4,
-           "configure": ["--enable-amdrand", "--enable-smallstackcache",
-            "--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]}
           ]
           EOF
-          # --timeout catches a wedged config, not a slow one: the slowest
-          # on record took 21.8 min, a wedged one never finishes.
+          # Kill a wedged config; healthy ones take up to 30 min.
           .github/scripts/parallel-make-check.py \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
-            --timeout=30 \
+            --timeout=45 \
             "$RUNNER_TEMP/trackmemory-configs.json"
 
       - name: ccache stats
