@@ -9577,11 +9577,21 @@ int wc_RNG_TreeReseed(int force)
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
     if (ret == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E)) {
-        ret = TreeRebuild();
-        /* Only the CAST error is cleared; one set meanwhile stays. */
-        if (ret == 0 &&
-                !wolfSSL_Atomic_Int_CompareExchange(&tree.failed, &expected, 0))
-            ret = expected;
+#ifdef HAVE_FIPS
+        /* Latched while this call waited for the lock: the CAST must pass
+         * again before a rebuild (fips.c stores FAILURE after the latch). */
+        if (wc_GetCastStatus_fips(FIPS_CAST_DRBG_SHA512) !=
+                FIPS_CAST_STATE_SUCCESS)
+            ret = DRBG_SHA512_KAT_FIPS_E;
+        else
+#endif
+        {
+            ret = TreeRebuild();
+            /* Only the CAST error is cleared; one set meanwhile stays. */
+            if (ret == 0 && !wolfSSL_Atomic_Int_CompareExchange(&tree.failed,
+                                                                 &expected, 0))
+                ret = expected;
+        }
     }
     else if (ret == 0 && !tree.rootUp) {
         ret = TreeInstantiateRoot();

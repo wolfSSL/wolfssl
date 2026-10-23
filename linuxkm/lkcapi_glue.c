@@ -1006,19 +1006,6 @@ static int linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(sha3_512_hmac_alg, shash);
 #endif
 
-#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
-    /* special deinstallation handler for wc_linuxkm_drbg, to deinstall it as
-     * the system-wide default rng.
-     */
-    if (wc_linuxkm_drbg_loaded) {
-        ret = wc_linuxkm_drbg_cleanup();
-        if (ret == 0)
-            ++n_deregistered;
-        else
-            seen_err = ret;
-    }
-#endif
-
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
     #if defined(LINUXKM_ECDSA_SIG_ALG)
         /* linux 6.13+: the ecdsa-nist-pN algs are struct sig_alg. */
@@ -1121,6 +1108,20 @@ static int linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(ffdhe8192, kpp);
     #endif /* HAVE_FFDHE_8192 */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+    /* special deinstallation handler for wc_linuxkm_drbg, to deinstall it as
+     * the system-wide default rng.  Last, and only when every algorithm whose
+     * tfms hold a WC_RNG is gone: those RNGs seed from the DRBG's tree.
+     */
+    if (wc_linuxkm_drbg_loaded && (seen_err == 0)) {
+        ret = wc_linuxkm_drbg_cleanup();
+        if (ret == 0)
+            ++n_deregistered;
+        else
+            seen_err = ret;
+    }
+#endif
 
 #undef UNREGISTER_ALG
 
