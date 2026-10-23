@@ -116,8 +116,9 @@ static int RngLane(void)
     return WC_RNG_TREE_LANE_TASK;
 }
 
-/* Fill dst from this CPU's leaf.  The task lane keeps its CPU with
- * preemption off, one chunk at a time. */
+/* Fill dst from this CPU's leaf with preemption off, so a leaf or root holder
+ * is never preempted (softirq and hardirq lanes are preemptible on RT); the
+ * task lane goes one chunk at a time. */
 static int RngFill(const u8* addl, size_t addlSz, u8* dst, size_t len)
 {
     int lane = RngLane();
@@ -131,12 +132,10 @@ static int RngFill(const u8* addl, size_t addlSz, u8* dst, size_t len)
     while (ret == 0 && len > 0) {
         n = min_t(size_t, len, max);
 
-        if (lane == WC_RNG_TREE_LANE_TASK)
-            preempt_disable();
+        preempt_disable();
         ret = wc_RNG_TreeGenerate(raw_smp_processor_id(), lane, addl,
                                   (word32)addlSz, dst, (word32)n);
-        if (lane == WC_RNG_TREE_LANE_TASK)
-            preempt_enable();
+        preempt_enable();
 
         addl = NULL;
         addlSz = 0;

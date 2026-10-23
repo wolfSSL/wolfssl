@@ -9646,13 +9646,15 @@ static int TreeChildDraw(OS_Seed* os, byte* out, word32 sz, int sha512Off)
     int epoch;
     int ret;
 
-    /* A latched error refuses every source, the SHA-512-off one included. */
-    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
-    if (ret != 0)
-        return ret;
-    /* With the SHA-512 DRBG off, seed from the source as plain builds do. */
-    if (sha512Off)
+    /* With the SHA-512 DRBG off, seed from the source as plain builds do; a
+     * source or DRBG failure still refuses, the SHA-512 CAST latch does not. */
+    if (sha512Off) {
+        ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E))
+            return ret;
         return TreeSourceSeed(os, out, sz);
+    }
+    /* The reseed clears a CAST latch once the CAST has passed again. */
     if (WC_CAN_BLOCK())
         seedRet = wc_RNG_TreeReseed(1);
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);

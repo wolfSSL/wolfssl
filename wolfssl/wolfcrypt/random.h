@@ -1197,6 +1197,12 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
         #error Small-stack WC_RNG_TREE builds need WOLFSSL_SMALL_STACK_CACHE.
     #endif
+    /* The root gathers with no device id, so a callback-only seed source
+     * must find its device itself. */
+    #if defined(NO_DEV_RANDOM) && defined(WOLF_CRYPTO_CB) && \
+        !defined(WOLF_CRYPTO_CB_FIND)
+        #error WC_RNG_TREE with a crypto-callback seed source needs WOLF_CRYPTO_CB_FIND.
+    #endif
     #define WC_RNG_TREE_LANE_TASK    0
     #define WC_RNG_TREE_LANE_SOFTIRQ 1
     #define WC_RNG_TREE_LANE_HARDIRQ 2
