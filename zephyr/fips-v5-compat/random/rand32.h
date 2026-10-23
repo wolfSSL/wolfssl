@@ -25,9 +25,14 @@
 #define WOLFSSL_ZEPHYR_COMPAT_RAND32_H
 
 #if __has_include(<zephyr/random/random.h>)
+    /* Zephyr 3.5 and later */
     #include <zephyr/random/random.h>
-#else
+#elif __has_include(<zephyr/random/rand32.h>)
+    /* Zephyr 3.1 to 3.4 */
     #include <zephyr/random/rand32.h>
+#else
+    /* Before 3.1 the original header is still the right one */
+    #include_next <random/rand32.h>
 #endif
 
 #endif /* WOLFSSL_ZEPHYR_COMPAT_RAND32_H */

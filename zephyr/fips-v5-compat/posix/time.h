@@ -25,9 +25,14 @@
 #define WOLFSSL_ZEPHYR_COMPAT_POSIX_TIME_H
 
 #if __has_include(<zephyr/posix/time.h>)
+    /* Zephyr 3.1 to 4.2 */
     #include <zephyr/posix/time.h>
-#else
+#elif __has_include(<zephyr/kernel.h>)
+    /* Zephyr 4.3 and later dropped zephyr/posix/time.h for the libc one */
     #include <time.h>
+#else
+    /* Before 3.1 the original header is still the right one */
+    #include_next <posix/time.h>
 #endif
 
 #endif /* WOLFSSL_ZEPHYR_COMPAT_POSIX_TIME_H */

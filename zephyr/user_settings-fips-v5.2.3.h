@@ -31,7 +31,9 @@
  *   CONFIG_WOLFCRYPT_FIPS_V5=y
  *
  * The algorithm set follows ./configure --enable-fips=v5.2.3, trimmed for
- * flash: OPENSSL_EXTRA and error strings are off. WC_RNG_SEED_CB is set;
+ * flash: OPENSSL_EXTRA and error strings are off. It is fixed, so the
+ * algorithm Kconfig options (ECC curves, RSA, ChaCha20/Poly1305, PQC, ...) are
+ * not read; the TLS, session and GHASH options are. WC_RNG_SEED_CB is set;
  * register a seed callback with wc_SetSeed_Cb() that reads the hardware
  * entropy driver, since the v5.2.3 wc_GenerateSeed() uses sys_rand_get(). */
 
@@ -54,11 +56,15 @@ extern "C" {
 #define HAVE_FIPS_VERSION_PATCH 3
 
 #define HAVE_HASHDRBG /* NIST Certified DRBG - SHA256 based */
-/* fips.c needs a thread-local choice made; on Zephyr THREAD_LS_T is empty
- * either way. */
-#define HAVE_THREAD_LS
+/* fips.c needs a thread-local choice made. Not HAVE_THREAD_LS: THREAD_LS_T is
+ * empty on Zephyr, so it would only drop the ECC/SP cache locks and arm the
+ * shared wolfCrypt_Init() recursion guard. */
+#define NO_THREAD_LS
 #ifdef CONFIG_WOLFSSL_SINGLE_THREADED
     #define SINGLE_THREADED
+#endif
+#ifdef CONFIG_WOLFSSL_CRYPTO_ONLY
+    #define WOLFCRYPT_ONLY
 #endif
 
 /* Platform (Zephyr) */
@@ -130,18 +136,92 @@ extern "C" {
 #define WOLFSSL_VALIDATE_ECC_KEYGEN
 #define WOLFSSL_VALIDATE_FFC_IMPORT
 
-/* TLS Features */
-#define WOLFSSL_TLS13
+/* TLS
+ * Outside the boundary, so it follows the same Kconfig options as
+ * zephyr/user_settings.h. */
+#ifdef CONFIG_WOLFSSL_TLS_VERSION_1_2
+    #undef  WOLFSSL_NO_TLS12
+#else
+    #define WOLFSSL_NO_TLS12
+#endif
+#ifdef CONFIG_WOLFSSL_TLS_VERSION_1_3
+    #define WOLFSSL_TLS13
+#endif
+#define NO_OLD_TLS
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_ENCRYPT_THEN_MAC
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_EXTENDED_MASTER
 #define HAVE_ONE_TIME_AUTH /* TLS extension used with Poly1305 */
-
-/* TLS Resumption */
 #define HAVE_SECURE_RENEGOTIATION
 #define HAVE_SERVER_RENEGOTIATION_INFO
-#define HAVE_SESSION_TICKET
+#if defined(CONFIG_WOLFSSL_SNI)
+    #define HAVE_SNI
+#endif
+#if defined(CONFIG_WOLFSSL_POST_HANDSHAKE_AUTH)
+    #define WOLFSSL_POST_HANDSHAKE_AUTH
+#endif
+#if defined(CONFIG_WOLFSSL_ALPN)
+    #define HAVE_ALPN
+#endif
+#if defined(CONFIG_WOLFSSL_MAX_FRAGMENT)
+    #define HAVE_MAX_FRAGMENT
+#endif
+#if defined(CONFIG_WOLFSSL_DTLS)
+    #define WOLFSSL_DTLS
+    #define HAVE_SOCKADDR
+#endif
+#if defined(CONFIG_WOLFSSL_PSK)
+    #undef  NO_PSK
+    #define WOLFSSL_STATIC_PSK
+#else
+    #define NO_PSK
+#endif
+#if defined(CONFIG_NET_SOCKETS_SOCKOPT_TLS)
+    #define WOLFSSL_SET_CIPHER_BYTES
+#endif
+
+/* OCSP */
+#if defined(CONFIG_WOLFSSL_OCSP)
+    #define HAVE_OCSP
+#endif
+#if defined(CONFIG_WOLFSSL_OCSP_STAPLING)
+    #define HAVE_CERTIFICATE_STATUS_REQUEST
+#endif
+
+/* Sessions */
+#if defined(CONFIG_WOLFSSL_SESSION_CACHE)
+    #define SMALL_SESSION_CACHE
+#else
+    #define NO_SESSION_CACHE
+#endif
+#if defined(CONFIG_WOLFSSL_SESSION_TICKET) && defined(WOLFSSL_TLS13)
+    #define HAVE_SESSION_TICKET
+#endif
+#if defined(CONFIG_WOLFSSL_SESSION_EXPORT)
+    #define HAVE_EXT_CACHE
+#endif
+#if defined(CONFIG_WOLFSSL_KEEP_PEER_CERT)
+    #define KEEP_PEER_CERT
+#endif
+#if defined(CONFIG_WOLFSSL_ALWAYS_VERIFY_CB)
+    #define WOLFSSL_ALWAYS_VERIFY_CB
+#endif
+
+/* Crypto callbacks. ELS PKC is refused: it registers its offload itself, and
+ * that moves approved algorithms out of the module. */
+#if defined(CONFIG_WOLFSSL_CRYPTO_CB)
+    #define WOLF_CRYPTO_CB
+#endif
+#if defined(CONFIG_WOLFTPM)
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+    #define WOLFSSL_AES_CFB
+#endif
+#if defined(CONFIG_WOLFSSL_ELS_PKC)
+    #error "CONFIG_WOLFSSL_ELS_PKC offloads approved algorithms outside the FIPS v5.2.3 boundary"
+#endif
 
 /* Other Features */
 #define WOLFSSL_USE_ALIGN
@@ -149,9 +229,7 @@ extern "C" {
 #if 0 /* optionally enable CRL (Certificate Revocation List) */
     #define HAVE_CRL
 #endif
-#define HAVE_EXT_CACHE
 #define WOLFSSL_VERIFY_CB_ALL_CERTS
-#define WOLFSSL_ALWAYS_VERIFY_CB
 #define WOLFSSL_DH_EXTRA /* DHE ASN.1 key import/export support */
 
 #ifndef WOLFSSL_WOLFSSH /* ifndef check required due to configure already generating flag */
@@ -210,7 +288,16 @@ extern "C" {
 #define WOLFSSL_AES_DIRECT
 #define WOLFSSL_AES_OFB
 #define HAVE_AESGCM
-#define GCM_TABLE_4BIT
+/* GHASH method sits inside the boundary; follow the Kconfig choice. */
+#if defined(CONFIG_WOLFSSL_GHASH_TABLE_4BIT)
+    #define GCM_TABLE_4BIT
+#elif defined(CONFIG_WOLFSSL_GHASH_TABLE_8BIT)
+    #define GCM_TABLE
+#elif defined(CONFIG_WOLFSSL_GHASH_SMALL)
+    #define GCM_SMALL
+#else
+    #define AES_GCM_GMULT_CT
+#endif
 #define WOLFSSL_CMAC
 
 /* ChaCha/Poly */
@@ -228,10 +315,6 @@ extern "C" {
 #define WOLFSSL_SHA3
 #define HAVE_HKDF
 
-/* Disabled Features */
-#define NO_OLD_TLS
-#define NO_PSK
-
 /* Disabled Algorithms */
 #define NO_RC4
 #define NO_MD4
@@ -244,6 +327,8 @@ extern "C" {
 #define WOLFSSL_NO_SHAKE256
 
 /* Debugging */
+#undef DEBUG_WOLFSSL
+#undef NO_ERROR_STRINGS
 #ifdef CONFIG_WOLFSSL_DEBUG
     #define DEBUG_WOLFSSL
 #else

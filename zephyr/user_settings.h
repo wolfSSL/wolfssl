@@ -147,9 +147,10 @@ extern "C" {
         #ifndef HAVE_FIPS_VERSION_PATCH
             #define HAVE_FIPS_VERSION_PATCH 1
         #endif
-        /* fips.c needs a thread-local choice made; on Zephyr THREAD_LS_T is
-         * empty either way, so this matches user_settings-fips-v7.h. */
-        #define HAVE_THREAD_LS
+        /* fips.c needs a thread-local choice made. Not HAVE_THREAD_LS:
+         * THREAD_LS_T is empty on Zephyr, so it would only drop the ECC/SP
+         * cache locks and arm the shared wolfCrypt_Init() recursion guard. */
+        #define NO_THREAD_LS
         /* The ECDSA CAST in fips_test.c signs with wc_ecc_sign_set_k(). */
         #define WOLFSSL_ECDSA_SET_K
     #elif defined(CONFIG_WOLFCRYPT_FIPS_V2)
