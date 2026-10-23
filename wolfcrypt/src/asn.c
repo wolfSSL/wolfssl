@@ -7607,7 +7607,7 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
     /* guard against word32 overflow of the combined first arc:
      * ((in[0] * 40) + in[1]) is computed below in both the length and
      * encode passes, so rejecting it here covers both. */
-    if (in[1] > 0xFFFFFFFFU - (in[0] * 40)) {
+    if (in[1] > WOLFSSL_MAX_32BIT - (in[0] * 40)) {
         return BAD_FUNC_ARG;
     }
 
@@ -7870,7 +7870,7 @@ int DecodeObjectId32(const byte* in, word32 inSz, word32* out, word32* outSz)
     while (inSz--) {
         /* Reject an arc encoded in more than 5 bytes, and one whose next
          * 7 bits would shift a set bit out of the word32. */
-        if ((cnt == 5) || (t > (0xFFFFFFFFU >> 7))) {
+        if ((cnt == 5) || (t > (WOLFSSL_MAX_32BIT >> 7))) {
             return ASN_OBJECT_ID_E;
         }
         cnt++;
@@ -39633,8 +39633,8 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                         if (ret == 0 &&
                                 dcrl->unknownExtCallback32 != NULL) {
                             ret = dcrl->unknownExtCallback32(decOid, decOidSz,
-                                critical, dataASN[CERTEXTASN_IDX_VAL]
-                                .data.buffer.data,
+                                critical,
+                                dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                                 dataASN[CERTEXTASN_IDX_VAL].length);
                         }
                         if (ret == 0 &&
@@ -39666,8 +39666,8 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                         if (ret == 0 &&
                                 dcrl->unknownExtCallback != NULL) {
                             ret = dcrl->unknownExtCallback(decOid, decOidSz,
-                                critical, dataASN[CERTEXTASN_IDX_VAL]
-                                .data.buffer.data,
+                                critical,
+                                dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                                 dataASN[CERTEXTASN_IDX_VAL].length);
                         }
                         if (ret == 0 &&
