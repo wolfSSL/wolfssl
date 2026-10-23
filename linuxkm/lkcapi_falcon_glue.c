@@ -1127,7 +1127,7 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
         goto test_falcon_end;
     }
     req = akcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (req == NULL) {
         pr_err("error: allocating akcipher request %s failed\n", driver);
         req = NULL;
         goto test_falcon_end;
