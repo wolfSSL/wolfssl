@@ -2163,9 +2163,18 @@ int wolfSSL_clear_group_messages(WOLFSSL* ssl)
 }
 
 /* make minVersion the internal equivalent SSL version */
-static int SetMinVersionHelper(byte* minVersion, int version)
+static int SetMinVersionHelper(byte* minVersion, int version, byte major)
 {
     (void)minVersion;
+    (void)major;
+
+#ifdef WOLFSSL_DTLS
+    if ((version == WOLFSSL_DTLSV1 || version == WOLFSSL_DTLSV1_2 ||
+            version == WOLFSSL_DTLSV1_3) && major != DTLS_MAJOR) {
+        WOLFSSL_MSG("Mismatched protocol version");
+        return BAD_FUNC_ARG;
+    }
+#endif
 
     switch (version) {
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
@@ -2216,6 +2225,10 @@ static int SetMinVersionHelper(byte* minVersion, int version)
             WOLFSSL_MSG("Bad function argument");
             return BAD_FUNC_ARG;
     }
+#ifdef WOLFSSL_DTLS
+    if (major == DTLS_MAJOR)
+        *minVersion = DtlsMinDowngrade(*minVersion);
+#endif
 
     return WOLFSSL_SUCCESS;
 }
@@ -2240,7 +2253,8 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    ret = SetMinVersionHelper(&ctx->minDowngrade, version);
+    ret = SetMinVersionHelper(&ctx->minDowngrade, version,
+        ctx->method->version.major);
     if (ret == WOLFSSL_SUCCESS)
         ctx->minVersionSet = 1;
 
@@ -2283,7 +2297,8 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    ret = SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    ret = SetMinVersionHelper(&ssl->options.minDowngrade, version,
+        ssl->version.major);
     if (ret == WOLFSSL_SUCCESS) {
         ssl->options.minVersionSet = 1;
         RestoreDowngrade(ssl);
@@ -5062,7 +5077,10 @@ static const int protoVerTbl[] = {
     TLS1_2_VERSION,
     TLS1_3_VERSION,
     DTLS1_VERSION,
-    DTLS1_2_VERSION
+    DTLS1_2_VERSION,
+#ifdef WOLFSSL_DTLS13
+    DTLS1_3_VERSION,
+#endif
 };
 /* number of protocol versions listed in protoVerTbl */
 #define NUMBER_OF_PROTOCOLS (sizeof(protoVerTbl)/sizeof(int))
@@ -5086,6 +5104,7 @@ static const int protoVerTbl[] = {
  *          * TLS1_3_VERSION
  *          * DTLS1_VERSION
  *          * DTLS1_2_VERSION
+ *          * DTLS1_3_VERSION
  * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
  *         protocol versions are left enabled.
  */
@@ -5134,11 +5153,20 @@ static int Set_CTX_min_proto_version(WOLFSSL_CTX* ctx, int version)
         case DTLS1_2_VERSION:
             ctx->minDowngrade = DTLSv1_2_MINOR;
             break;
+    #ifdef WOLFSSL_DTLS13
+        case DTLS1_3_VERSION:
+            ctx->minDowngrade = DTLSv1_3_MINOR;
+            break;
+    #endif
 #endif
         default:
             WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
             return WOLFSSL_FAILURE;
     }
+#ifdef WOLFSSL_DTLS
+    if (ctx->method->version.major == DTLS_MAJOR)
+        ctx->minDowngrade = DtlsMinDowngrade(ctx->minDowngrade);
+#endif
 
     switch (version) {
 #ifndef NO_TLS
@@ -5162,6 +5190,9 @@ static int Set_CTX_min_proto_version(WOLFSSL_CTX* ctx, int version)
 #ifdef WOLFSSL_DTLS
     case DTLS1_VERSION:
     case DTLS1_2_VERSION:
+    #ifdef WOLFSSL_DTLS13
+    case DTLS1_3_VERSION:
+    #endif
         break;
 #endif
     default:
@@ -5187,6 +5218,13 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     if (ctx == NULL) {
         return WOLFSSL_FAILURE;
     }
+#ifdef WOLFSSL_DTLS
+    if ((version >> 8) == DTLS_MAJOR &&
+            ctx->method->version.major != DTLS_MAJOR) {
+        WOLFSSL_MSG("Mismatched protocol version");
+        return WOLFSSL_FAILURE;
+    }
+#endif
 
     if (version != 0) {
         proto = version;
@@ -5218,7 +5256,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
             break;
         }
     }
-    if (idx < i) {
+    if (idx < i && ctx->method->version.major != DTLS_MAJOR) {
         wolfSSL_CTX_clear_options(ctx, WOLFSSL_OP_NO_TLSv1 |
                 WOLFSSL_OP_NO_TLSv1_1 | WOLFSSL_OP_NO_TLSv1_2 |
                 WOLFSSL_OP_NO_TLSv1_3);
@@ -5252,6 +5290,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
  *          * TLS1_3_VERSION
  *          * DTLS1_VERSION
  *          * DTLS1_2_VERSION
+ *          * DTLS1_3_VERSION
  * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
  *         protocol versions are left enabled.
  */
@@ -5264,6 +5303,13 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
+#ifdef WOLFSSL_DTLS
+    if (((ver >> 8) == DTLS_MAJOR) !=
+            (ctx->method->version.major == DTLS_MAJOR)) {
+        WOLFSSL_MSG("Mismatched protocol version");
+        return WOLFSSL_FAILURE;
+    }
+#endif
 
     switch (ver) {
 #ifndef NO_TLS
@@ -5289,8 +5335,13 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         break;
 #endif
 #ifdef WOLFSSL_DTLS
+    #ifndef NO_OLD_TLS
     case DTLS1_VERSION:
+    #endif
     case DTLS1_2_VERSION:
+    #ifdef WOLFSSL_DTLS13
+    case DTLS1_3_VERSION:
+    #endif
         break;
 #endif
     default:
@@ -5317,6 +5368,9 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     #ifdef WOLFSSL_DTLS
         case DTLS1_VERSION:
         case DTLS1_2_VERSION:
+        #ifdef WOLFSSL_DTLS13
+        case DTLS1_3_VERSION:
+        #endif
             if (ctx->method->version.major != DTLS_MAJOR) {
                 WOLFSSL_MSG("Mismatched protocol version");
                 return WOLFSSL_FAILURE;
@@ -5350,6 +5404,16 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         case DTLS1_2_VERSION:
             ctx->method->version.minor = DTLSv1_2_MINOR;
             break;
+        #ifdef WOLFSSL_DTLS13
+        case DTLS1_3_VERSION:
+            if (!ctx->method->downgrade &&
+                    ctx->method->version.minor != DTLSv1_3_MINOR) {
+                WOLFSSL_MSG("Fixed-version DTLS method below DTLS 1.3");
+                return WOLFSSL_FAILURE;
+            }
+            ctx->method->version.minor = DTLSv1_3_MINOR;
+            break;
+        #endif
     #endif
         default:
             WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
@@ -5410,6 +5474,12 @@ static int Set_SSL_min_proto_version(WOLFSSL* ssl, int ver)
     if (ssl == NULL) {
         return WOLFSSL_FAILURE;
     }
+#ifdef WOLFSSL_DTLS
+    if ((ver >> 8) == DTLS_MAJOR && ssl->version.major != DTLS_MAJOR) {
+        WOLFSSL_MSG("Mismatched protocol version");
+        return WOLFSSL_FAILURE;
+    }
+#endif
 
     switch (ver) {
 #ifndef NO_TLS
@@ -5448,11 +5518,20 @@ static int Set_SSL_min_proto_version(WOLFSSL* ssl, int ver)
         case DTLS1_2_VERSION:
             ssl->options.minDowngrade = DTLSv1_2_MINOR;
             break;
+    #ifdef WOLFSSL_DTLS13
+        case DTLS1_3_VERSION:
+            ssl->options.minDowngrade = DTLSv1_3_MINOR;
+            break;
+    #endif
 #endif
         default:
             WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
             return WOLFSSL_FAILURE;
     }
+#ifdef WOLFSSL_DTLS
+    if (ssl->version.major == DTLS_MAJOR)
+        ssl->options.minDowngrade = DtlsMinDowngrade(ssl->options.minDowngrade);
+#endif
 
     switch (ver) {
 #ifndef NO_TLS
@@ -5476,6 +5555,9 @@ static int Set_SSL_min_proto_version(WOLFSSL* ssl, int ver)
 #ifdef WOLFSSL_DTLS
     case DTLS1_VERSION:
     case DTLS1_2_VERSION:
+    #ifdef WOLFSSL_DTLS13
+    case DTLS1_3_VERSION:
+    #endif
         break;
 #endif
     default:
@@ -5519,6 +5601,10 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
 
 static int Set_SSL_max_proto_version(WOLFSSL* ssl, int ver)
 {
+#ifdef WOLFSSL_DTLS
+    unsigned long mask;
+    int ret;
+#endif
 
     WOLFSSL_ENTER("Set_SSL_max_proto_version");
 
@@ -5526,6 +5612,13 @@ static int Set_SSL_max_proto_version(WOLFSSL* ssl, int ver)
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
+#ifdef WOLFSSL_DTLS
+    if ((ver >> 8) == DTLS_MAJOR && ssl->version.major != DTLS_MAJOR) {
+        WOLFSSL_MSG("Mismatched protocol version");
+        return WOLFSSL_FAILURE;
+    }
+    mask = ssl->options.mask;
+#endif
 
     switch (ver) {
     case SSL2_VERSION:
@@ -5549,15 +5642,32 @@ static int Set_SSL_max_proto_version(WOLFSSL* ssl, int ver)
         break;
 #endif
 #ifdef WOLFSSL_DTLS
+    #ifndef NO_OLD_TLS
     case DTLS1_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1_2;
+        FALL_THROUGH;
+    #endif
     case DTLS1_2_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1_3;
         break;
+    #ifdef WOLFSSL_DTLS13
+    case DTLS1_3_VERSION:
+        break;
+    #endif
 #endif
     default:
         WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
         return WOLFSSL_FAILURE;
     }
 
+#ifdef WOLFSSL_DTLS
+    if (!ssl->msgsReceived.got_client_hello &&
+            (ret = DtlsCheckVersionMask(ssl)) != 0) {
+        if (ret == WC_NO_ERR_TRACE(VERSION_ERROR))
+            ssl->options.mask = mask;
+        return WOLFSSL_FAILURE;
+    }
+#endif
     return CheckSslMethodVersion(ssl->version.major, ssl->options.mask);
 }
 
@@ -5615,6 +5725,19 @@ static int GetMinProtoVersion(int minDowngrade)
 #ifdef WOLFSSL_TLS13
         case TLSv1_3_MINOR:
             ret = TLS1_3_VERSION;
+            break;
+#endif
+#ifdef WOLFSSL_DTLS
+    #ifndef NO_OLD_TLS
+        case DTLS_MINOR:
+            ret = DTLS1_VERSION;
+            break;
+    #endif
+        case DTLSv1_2_MINOR:
+            ret = DTLS1_2_VERSION;
+            break;
+        case DTLSv1_3_MINOR:
+            ret = DTLS1_3_VERSION;
             break;
 #endif
         default:
@@ -7675,13 +7798,12 @@ static int DtlsMaskVersion(WOLFSSL* ssl)
         ssl->options.side == WOLFSSL_CLIENT_END);
     byte minor;
 
-    /* A minimum of DTLS_MINOR tests the mask alone. */
     if (ssl->version.major != DTLS_MAJOR || !ssl->options.downgrade ||
             ssl->options.handShakeDone ||
             ssl->options.connectState != CONNECT_BEGIN ||
             ssl->options.acceptState != ACCEPT_BEGIN ||
-            DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) ==
-                ssl->version.minor) {
+            DtlsAllowedMinor(ssl, ssl->version.minor,
+                ssl->options.minDowngrade) == ssl->version.minor) {
         return 0;
     }
     /* A resumed session lowered the version to its own. */
