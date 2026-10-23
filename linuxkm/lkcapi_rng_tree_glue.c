@@ -603,6 +603,23 @@ static int wc_linuxkm_drbg_startup(void)
     INIT_DELAYED_WORK(&rngVmGenWork, RngVmGenWork);
 #endif
     rngReady = 1;
+    /* Armed before the tree can serve: a clone or restore from here on is
+     * seen.  RngStop() undoes them on every failure path below. */
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    queue_delayed_work(system_highpri_wq, &rngVmGenWork, 0);
+#endif
+#if IS_ENABLED(CONFIG_VMGENID)
+    if (register_random_vmfork_notifier(&rngVmForkNb) != 0)
+        pr_warn("libwolfssl: no VM-fork notifier, VM clones go undetected.\n");
+    else
+        rngVmForkNbUp = 1;
+#endif
+#ifdef CONFIG_PM_SLEEP
+    if (register_pm_notifier(&rngPmNb) != 0)
+        pr_warn("libwolfssl: no PM notifier, hibernation goes undetected.\n");
+    else
+        rngPmNbUp = 1;
+#endif
 
     ret = crypto_register_rng(&wc_linuxkm_drbg);
     if (ret != 0) {
@@ -619,7 +636,7 @@ static int wc_linuxkm_drbg_startup(void)
         /* A holder keeps the tree; cleanup frees it once released.  A failed
          * module init frees the module anyway (kernel/module/main.c). */
         if (atomic_read(&rngTfms) != 0) {
-            rngReady = 0;   /* no reseeds or VM-fork checks are armed */
+            rngReady = 0;   /* no reseeds; the notifiers stay until cleanup */
             rngUnregistered = 1;
             wc_linuxkm_drbg_loaded = 1;
             return ret;
@@ -629,21 +646,6 @@ static int wc_linuxkm_drbg_startup(void)
     }
 
     queue_delayed_work(system_highpri_wq, &rngRootWork, RNG_ROOT_DELAY);
-#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
-    queue_delayed_work(system_highpri_wq, &rngVmGenWork, 0);
-#endif
-#if IS_ENABLED(CONFIG_VMGENID)
-    if (register_random_vmfork_notifier(&rngVmForkNb) != 0)
-        pr_warn("libwolfssl: no VM-fork notifier, VM clones go undetected.\n");
-    else
-        rngVmForkNbUp = 1;
-#endif
-#ifdef CONFIG_PM_SLEEP
-    if (register_pm_notifier(&rngPmNb) != 0)
-        pr_warn("libwolfssl: no PM notifier, hibernation goes undetected.\n");
-    else
-        rngPmNbUp = 1;
-#endif
     wc_linuxkm_drbg_loaded = 1;
     WOLFKM_INSTALL_NOTICE(wc_linuxkm_drbg);
 
