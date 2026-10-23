@@ -1212,8 +1212,12 @@ int test_wc_ed25519_verify_streaming(void)
      * 0 and verified without binding the context. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
         NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* the pure-type non-empty-context rejection is absent from frozen
+     * FIPS module sources before v7. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
         ctx, sizeof(ctx)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     /* the rejected inits happen ahead of any hash-state work, so a fresh
      * pure roundtrip on the same key must still verify. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,

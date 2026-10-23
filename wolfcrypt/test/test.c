@@ -61219,9 +61219,12 @@ static wc_test_ret_t ed25519ctx_test(void)
 #endif
 #endif /* WC_FIPS_ED25519CTX_NOT_APPROVED */
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* RFC 8032 defines no context for pure Ed25519 (only Ed25519ctx and
      * Ed25519ph take one), so a non-empty context with type Ed25519 must
-     * be rejected rather than silently discarded. */
+     * be rejected rather than silently discarded.  (The rejection is
+     * absent from frozen FIPS module sources before v7, hence the
+     * gate.) */
     if (ret == 0) {
         outlen = sizeof(out);
         if (wc_ed25519_sign_msg_ex(msgCtx, sizeof(msgCtx), out, &outlen,
@@ -61255,6 +61258,7 @@ static wc_test_ret_t ed25519ctx_test(void)
     }
 #endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 #endif /* HAVE_ED25519_VERIFY */
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
 
     wc_ed25519_free(&key);
 
