@@ -8975,7 +8975,11 @@ typedef struct Tree {
     int                ncpu;
     void*              heap;
     wolfSSL_Atomic_Int epoch;       /* bumped by wc_RNG_TreeInvalidate() */
+#ifdef WOLFSSL_LINUXKM
+    struct mutex       seeding;     /* one root seeder at a time; sleeps */
+#else
     wolfSSL_Atomic_Int seeding;     /* one root seeder at a time */
+#endif
     wolfSSL_Atomic_Int failed;      /* error state: no output */
     int                rootUp;      /* root instantiated */
     wolfSSL_Atomic_Int wipeFailed;  /* a DRBG did not zeroize */
@@ -8988,7 +8992,11 @@ typedef struct Tree {
 #endif
 } Tree;
 
+#ifdef WOLFSSL_LINUXKM
+static Tree tree = { .seeding = __MUTEX_INITIALIZER(tree.seeding) };
+#else
 static Tree tree;
+#endif
 
 static int TreeIsLive(void)
 {
@@ -9076,6 +9084,27 @@ static void TreeLockRoot(void)
 {
     while (TreeTryLock(&tree.root.busy) != 0)
         WC_RELAX_LONG_LOOP();
+}
+
+/* The seeding lock is taken only where waiting is allowed.  In the kernel a
+ * waiter sleeps, so a real-time task cannot starve the holder it preempted. */
+static void TreeSeedingTake(void)
+{
+#ifdef WOLFSSL_LINUXKM
+    mutex_lock(&tree.seeding);
+#else
+    while (TreeTryLock(&tree.seeding) != 0)
+        WC_RELAX_LONG_LOOP();
+#endif
+}
+
+static void TreeSeedingGive(void)
+{
+#ifdef WOLFSSL_LINUXKM
+    mutex_unlock(&tree.seeding);
+#else
+    TreeUnlock(&tree.seeding);
+#endif
 }
 
 /* Map the internal DRBG return codes to wolfCrypt errors. */
@@ -9299,12 +9328,11 @@ static int TreeTerminateIfFailed(int ret)
  * this failure.  SP 800-90C 7.3.1 item 5 */
 void wc_RNG_TreeCastFailed(void)
 {
-    while (TreeTryLock(&tree.seeding) != 0)
-        WC_RELAX_LONG_LOOP();
+    TreeSeedingTake();
     TreeSetFailed(DRBG_SHA512_KAT_FIPS_E);
     if (TreeWipeAll() != 0)
         WOLFSSL_MSG("RNG tree: a DRBG did not zeroize");
-    TreeUnlock(&tree.seeding);
+    TreeSeedingGive();
 }
 
 /* Root: entropy and nonce from the entropy source. */
@@ -9437,12 +9465,11 @@ static int TreeDropRoot(void)
 #endif
 
     /* A root being seeded now would come back up after the drop. */
-    while (TreeTryLock(&tree.seeding) != 0)
-        WC_RELAX_LONG_LOOP();
+    TreeSeedingTake();
     TreeLockRoot();
     ret = TreeWipeNode(&tree.root, &tree.rootUp);
     TreeUnlock(&tree.root.busy);
-    TreeUnlock(&tree.seeding);
+    TreeSeedingGive();
 #ifdef WC_RNG_LOCK_ATFORK
     if (turn == 0)
         turn = TreeTurnGive();
@@ -9461,11 +9488,10 @@ int wc_RNG_TreeZeroize(void)
     int drop;
 
     /* A wipe in flight walks the leaves under tree.seeding. */
-    while (TreeTryLock(&tree.seeding) != 0)
-        WC_RELAX_LONG_LOOP();
+    TreeSeedingTake();
     leaves = tree.leaves;
     tree.leaves = NULL;
-    TreeUnlock(&tree.seeding);
+    TreeSeedingGive();
     if (leaves != NULL)
         ret = TreeFreeLeaves(leaves, tree.ncpu * WC_RNG_TREE_LANES);
     drop = TreeDropRoot();   /* BAD_STATE_E: a wipe failed */
@@ -9546,8 +9572,7 @@ int wc_RNG_TreeReseed(int force)
     int ret;
 
     /* Wait for another seeder; BUSY_E from here comes only from the source. */
-    while (TreeTryLock(&tree.seeding) != 0)
-        WC_RELAX_LONG_LOOP();
+    TreeSeedingTake();
     ret = TreeTerminateIfFailed(0);
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
@@ -9592,7 +9617,23 @@ int wc_RNG_TreeReseed(int force)
 
     /* An error latched during this call, an RCT or APT gather included. */
     ret = TreeTerminateIfFailed(ret);
-    TreeUnlock(&tree.seeding);
+    TreeSeedingGive();
+    return ret;
+}
+
+/* A child's draw holds the seeding lock where it can wait, so no task ever
+ * holds the root flag preemptibly against a seeder spinning for it. */
+static int TreeChildRootDraw(int epoch, byte* out, word32 sz)
+{
+    int ret;
+
+    if (WC_CAN_BLOCK())
+        TreeSeedingTake();
+    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    if (ret == 0)
+        ret = TreeDraw(epoch, out, sz);
+    if (WC_CAN_BLOCK())
+        TreeSeedingGive();
     return ret;
 }
 
@@ -9605,15 +9646,17 @@ static int TreeChildDraw(OS_Seed* os, byte* out, word32 sz, int sha512Off)
     int epoch;
     int ret;
 
+    /* A latched error refuses every source, the SHA-512-off one included. */
+    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    if (ret != 0)
+        return ret;
     /* With the SHA-512 DRBG off, seed from the source as plain builds do. */
     if (sha512Off)
         return TreeSourceSeed(os, out, sz);
     if (WC_CAN_BLOCK())
         seedRet = wc_RNG_TreeReseed(1);
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
-    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
-    if (ret == 0)
-        ret = TreeDraw(epoch, out, sz);
+    ret = TreeChildRootDraw(epoch, out, sz);
     /* Wait out a busy root; renew once more if invalidated after renewal. */
     while (WC_CAN_BLOCK() && (ret == WC_NO_ERR_TRACE(BUSY_E) ||
             (ret == WC_NO_ERR_TRACE(NOT_READY_E) && seedRet == 0 &&
@@ -9624,9 +9667,7 @@ static int TreeChildDraw(OS_Seed* os, byte* out, word32 sz, int sha512Off)
             seedRet = wc_RNG_TreeReseed(0);
         }
         epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
-        ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
-        if (ret == 0)
-            ret = TreeDraw(epoch, out, sz);
+        ret = TreeChildRootDraw(epoch, out, sz);
     }
     /* No root to draw from: report why it could not be seeded. */
     if (ret == WC_NO_ERR_TRACE(NOT_READY_E) && seedRet != 0)
