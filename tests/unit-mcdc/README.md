@@ -62,6 +62,35 @@ justified in `iso26262/mcdc-per-module/reports/aes/RESIDUALS.md`:
 - **15833:0** - a dead defensive branch on a loop index provably bounded to
   `[0,7)`.
 
+## Source anchors (`:<line>`) and `anchors.py`
+
+The TUs quote lines of the source they `#include` -- `:22253` means
+`wolfcrypt/src/asn.c:22253` -- in section headers, prose and
+`WB_NOTE`/`WB_CHECK` strings, so a coverage row can be read back to the
+decision it completes. They are written by hand, and **every edit to the
+target source invalidates them silently**: `asn.c` grew about a thousand
+lines under this suite before anyone checked, and an anchor that points at
+an unrelated line is worse than no anchor at all.
+
+`anchors.py` pins each anchor to the *text* of the line it points at, in
+`anchors/<tu>.json`, which makes the numbers checkable and repairable:
+
+```sh
+python3 tests/unit-mcdc/anchors.py check    # report drift, exit 1 if any
+python3 tests/unit-mcdc/anchors.py update   # rewrite the numbers + manifest
+```
+
+Run `check` after touching a target source -- `run-whitebox-smoke.sh` does it
+too -- and `update` to fix the numbers. When you deliberately edit a line an
+anchor points at, `check` reports it as `STALE` (the text is gone); re-pin it
+with `anchors.py pin <tu> <line>`. A new TU whose anchors you have verified
+gets a manifest with `anchors.py bootstrap <tu>`.
+
+A TU with no manifest is skipped, and anchors a manifest does not list are
+reported as `unpinned` without failing, so files can be pinned as they are
+verified. Only `test_asn_ext_whitebox.c` sections 16-17 are pinned today;
+the rest of the suite's anchors predate this and have not been re-derived.
+
 ## Adding a new white-box module
 
 1. Create `test_<file>_whitebox.c` that `#include`s the target `.c` and, in

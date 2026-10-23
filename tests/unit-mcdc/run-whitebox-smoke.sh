@@ -51,7 +51,7 @@ TARGETFLAGS=$(sed -n 's/^AM_CFLAGS *= *//p' "$BUILD/Makefile" 2>/dev/null |
                   tr ' ' '\n' | grep -E '^-m' | tr '\n' ' ')
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 
-pass=(); skip=(); fail=(); unsupported=()
+pass=(); skip=(); fail=(); unsupported=(); anchor_rc=0
 for tu in "$HERE"/*_whitebox.c; do
     name=$(basename "$tu" .c)
     inc=$(grep -oE '#include *[<"](wolfcrypt/src|src)/[a-z0-9_]+\.c' "$tu" | head -1 | sed 's/.*[<"]//')
@@ -97,8 +97,15 @@ if [ "$UPDATE" = 1 ]; then
 fi
 
 echo "white-box smoke: ${#pass[@]} passed, ${#skip[@]} not built here, ${#unsupported[@]} built but need a narrower build, ${#fail[@]} failed"
+# The ":<line>" anchors in the TUs are documentation, not something the
+# binaries can check: they rot whenever the target source shifts. Report
+# drift here so it surfaces with everything else; anchors.py check is also
+# fine to run on its own.
+if command -v python3 >/dev/null 2>&1; then
+    python3 "$HERE/anchors.py" check || anchor_rc=1
+fi
 [ ${#unsupported[@]} -eq 0 ] || printf '  needs a narrower build: %s\n' "${unsupported[*]}"
-rc=0
+rc=${anchor_rc:-0}
 [ ${#fail[@]} -eq 0 ] || rc=1
 if [ -f "$EXPECTED" ]; then
     list_pass | sort > "$work/got.txt"

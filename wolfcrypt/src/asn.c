@@ -22515,72 +22515,141 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-#if defined(WOLFSSL_CERT_EXT) || \
+#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_SEP) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
-/* Decode ITU-T X.690 OID format to a string representation
- * return string length */
+/* Base-128 (DER) decode one arc at in[*idx], advancing *idx past it.
+ *
+ * Returns 0 with the value in *val, ASN_OBJECT_ID_E on a truncated arc (and,
+ * unless WOLFSSL_NO_ASN_STRICT, a non-minimal one), ASN_OID_ARC_TOO_BIG_E if
+ * a complete arc doesn't fit a word32. Truncation is reported ahead of
+ * size: the arc is scanned to its terminator before "too big" is decided,
+ * so malformed DER is never mistaken for a merely unrepresentable value. */
+static int DecodeOidArc(const byte *in, word32 *idx, word32 inSz, word32 *val)
+{
+    word32 v = 0;
+    int cnt = 0;
+    int tooBig = 0;
+
+    while (*idx < inSz) {
+        if (in[*idx] & 0x80) {
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            /* X.690 8.19.2: leading 0x80 is not the fewest possible octets. */
+            if (cnt == 0 && in[*idx] == 0x80)
+                return ASN_OBJECT_ID_E;
+        #endif
+            /* While !tooBig, v is a multiple of 128 no greater than
+             * 0xFFFFFFFF >> 7, so the shift cannot overflow word32. */
+            if ((cnt >= WC_OID_ARC_MAX_BYTES - 1) ||
+                    (v > (0xFFFFFFFFU >> 7))) {
+                tooBig = 1;
+            }
+            else {
+                v += in[*idx] & 0x7F;
+                v <<= 7;
+            }
+            cnt++;
+            (*idx)++;
+        }
+        else {
+            v += in[*idx];
+            (*idx)++;
+            if (tooBig)
+                return ASN_OID_ARC_TOO_BIG_E;
+            *val = v;
+            return 0;
+        }
+    }
+
+    /* Ran out of input mid-arc: truncated, so malformed. */
+    return ASN_OBJECT_ID_E;
+}
+
+/* Decode ITU-T X.690 OID format to a string representation.
+ *
+ * With outSz == 0 nothing is written (out may be NULL) and the full length
+ * of the text is returned, so a caller can size a buffer or report the
+ * length of a string it had to truncate, without any allocation.
+ * Otherwise out must hold at least 4 bytes. On BUFFER_E, out holds the
+ * first outSz - 1 characters followed by a NUL.
+ *
+ * Returns the string length (excluding NUL) on success, BAD_FUNC_ARG,
+ * BUFFER_E, or an error from DecodeOidArc(). */
 int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
 {
     word32 val, inIdx = 0, outIdx = 0;
     int w = 0;
-    int cnt = 0;
-    char arc[12];
+    int ret;
+    /* Each piece of the text is formatted here and then copied into out
+     * under an explicit bounds check. The piece always fits (see asn.h), so
+     * the output is never bounded by XSNPRINTF()'s length argument, which
+     * some platforms discard (WOLF_C89 maps XSNPRINTF() to sprintf()). */
+    char piece[WC_OID_FIRST_ID_STR_SZ];
 
-    if (out == NULL || in == NULL || outSz < 4 || inSz < 2)
+    /* A single content byte is a legal OID ("X.Y"), so only inSz==0 is bad. */
+    if (in == NULL || inSz == 0 || (outSz != 0 && (out == NULL || outSz < 4)))
         return BAD_FUNC_ARG;
     if (inSz >= ASN_LONG_LENGTH)
         return BAD_FUNC_ARG;
 
-    /* The first byte expands into b/40 dot b%40. */
-    val = in[inIdx++];
-
-    w = XSNPRINTF(arc, sizeof(arc), "%u.%u", val / 40, val % 40);
-    if (w < 0 || (word32)w > outSz) {
-        w = BUFFER_E;
-        goto exit;
+    /* decode first identifier */
+    ret = DecodeOidArc(in, &inIdx, inSz, &val);
+    if (ret != 0) {
+        return ret;
     }
-    XMEMCPY(out, arc, (size_t)w);
+
+    /* split first identifier */
+    if (val < 80) {
+        w = XSNPRINTF(piece, sizeof(piece), "%u.%u", val / 40, val % 40);
+    }
+    else {
+        w = XSNPRINTF(piece, sizeof(piece), "2.%u", val - 80);
+    }
+    /* check string length */
+    if (w < 0 || (outSz != 0 && (word32)w >= outSz)) {
+        /* Truncated: keep the characters that fit and terminate them. In
+         * this branch w, when not negative, is at least outSz - outIdx, so
+         * the copy stays inside piece as well as inside out. */
+        if ((outSz != 0) && (w >= 0)) {
+            XMEMCPY(out + outIdx, piece, outSz - outIdx - 1);
+            out[outSz - 1] = 0;
+        }
+        return BUFFER_E;
+    }
+    if (outSz != 0) {
+        XMEMCPY(out + outIdx, piece, (word32)w + 1);
+    }
     outIdx += (word32)w;
-    val = 0;
 
-    while ((inIdx < inSz) && (outIdx < outSz)) {
-        /* extract the next OID digit from in to val */
-        /* first bit is used to set if value is coded on 1 or multiple bytes */
-        if (in[inIdx] & 0x80) {
-            if (cnt == 4) {
-                w = ASN_OBJECT_ID_E;
-                goto exit;
-            }
-            val += in[inIdx] & 0x7F;
-            val <<= 7;
-            cnt++;
+    while (inIdx < inSz) {
+        ret = DecodeOidArc(in, &inIdx, inSz, &val);
+        if (ret != 0) {
+            return ret;
         }
-        else {
-            /* write val as text into out */
-            val += in[inIdx];
-            w = XSNPRINTF(arc, sizeof(arc), ".%u", val);
-            if (w < 0 || (word32)w > outSz - outIdx) {
-                w = BUFFER_E;
-                goto exit;
+
+        /* write arc */
+        w = XSNPRINTF(piece, sizeof(piece), ".%u", val);
+        if (w < 0 || (outSz != 0 && (word32)w >= outSz - outIdx)) {
+            if ((outSz != 0) && (w >= 0)) {
+                XMEMCPY(out + outIdx, piece, outSz - outIdx - 1);
+                out[outSz - 1] = 0;
             }
-            XMEMCPY(out + outIdx, arc, (size_t)w);
-            outIdx += (word32)w;
-            val = 0;
-            cnt = 0;
+            return BUFFER_E;
         }
-        inIdx++;
+        if (outSz != 0) {
+            XMEMCPY(out + outIdx, piece, (word32)w + 1);
+        }
+        outIdx += (word32)w;
     }
-    if (outIdx == outSz)
-        outIdx--;
-    out[outIdx] = 0;
+    /* terminate string */
+    if (outSz != 0) {
+        out[outIdx] = 0;
+    }
 
-    w = (int)outIdx;
-
-exit:
-    return w;
+    return (int)outIdx;
 }
-#endif /* WOLFSSL_CERT_EXT || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* WOLFSSL_CERT_EXT || WOLFSSL_SEP || OPENSSL_EXTRA ||
+        * OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -22631,6 +22700,7 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
     if (ret == 0) {
     #if defined(WOLFSSL_CERT_EXT)
         cert->extCertPoliciesNb = 0;
+        cert->extCertPoliciesTruncated = 0;
     #endif
 
         /* Strip SEQUENCE OF and check using all data. */
@@ -22656,6 +22726,10 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
         ASNGetData dataASN[policyInfoASN_Length];
         const byte* data = NULL;
         word32 length = 0;
+    #ifdef WOLFSSL_CERT_EXT
+        /* set when OID decode fails */
+        int skipPolicy = 0;
+    #endif
 
         /* Clear dynamic data and check OID is a cert policy type. */
         XMEMSET(dataASN, 0, sizeof(dataASN));
@@ -22669,8 +22743,44 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
                 ret = ASN_PARSE_E;
             }
         }
+        /* Strict DER parsing per RFC 5280, independent of WOLFSSL_CERT_EXT.
+         * Valid but unrepresentable OIDs are dropped and flagged. */
+    #if defined(WOLFSSL_CERT_EXT) || !defined(WOLFSSL_NO_ASN_STRICT)
+        if (ret == 0) {
+            int decRet;
+
+        #ifdef WOLFSSL_CERT_EXT
+            /* clear the slot for duplicate check */
+            XMEMSET(cert->extCertPolicies[cert->extCertPoliciesNb], 0,
+                    MAX_CERTPOL_SZ);
+
+            decRet = DecodePolicyOID(
+                    cert->extCertPolicies[cert->extCertPoliciesNb],
+                    MAX_CERTPOL_SZ, data, length);
+        #else
+            /* Nowhere to keep the text: validate the encoding only. */
+            decRet = DecodePolicyOID(NULL, 0, data, length);
+        #endif
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            if (decRet == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E)) {
+                WOLFSSL_MSG("\tMalformed policy OID");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                ret = ASN_PARSE_E;
+            }
+        #endif
+        #ifdef WOLFSSL_CERT_EXT
+            if ((ret == 0) && (decRet <= 0)) {
+                WOLFSSL_MSG("\tSkipping policy OID that can't be "
+                            "represented");
+                skipPolicy = 1;
+                cert->extCertPoliciesTruncated = 1;
+            }
+        #endif
+        }
+    #endif
+
     #ifdef WOLFSSL_SEP
-        /* Store OID in device type. */
+        /* Store the raw DER OID in device type. */
         if (ret == 0 && cert->deviceType == NULL) {
             cert->deviceType = (byte*)XMALLOC(length, cert->heap,
                                                 DYNAMIC_TYPE_X509_EXT);
@@ -22687,23 +22797,14 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
     #endif /* WOLFSSL_SEP */
 
     #ifdef WOLFSSL_CERT_EXT
-        if (ret == 0) {
-            /* Decode cert policy. */
-            if (DecodePolicyOID(
-                    cert->extCertPolicies[cert->extCertPoliciesNb],
-                    MAX_CERTPOL_SZ, data, length) <= 0) {
-                WOLFSSL_MSG("\tCouldn't decode CertPolicy");
-                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-                ret = ASN_PARSE_E;
-            }
-        }
         #ifndef WOLFSSL_DUP_CERTPOL
         /* From RFC 5280 section 4.2.1.4 "A certificate policy OID MUST
          * NOT appear more than once in a certificate policies
          * extension". This is a sanity check for duplicates.
          * extCertPolicies should only have OID values, additional
          * qualifiers need to be stored in a separate array. */
-        for (i = 0; (ret == 0) && (i < cert->extCertPoliciesNb); i++) {
+        for (i = 0; (ret == 0) && !skipPolicy && (i < cert->extCertPoliciesNb);
+                i++) {
             if (XMEMCMP(cert->extCertPolicies[i],
                         cert->extCertPolicies[cert->extCertPoliciesNb],
                         MAX_CERTPOL_SZ) == 0) {
@@ -22714,12 +22815,21 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
             }
         }
         #endif /* !WOLFSSL_DUP_CERTPOL */
-        if (ret == 0) {
+        if (ret == 0 && !skipPolicy) {
             /* Keep count of policies seen. */
             cert->extCertPoliciesNb++;
         }
     #endif /* WOLFSSL_CERT_EXT */
     }
+
+#if defined(WOLFSSL_CERT_EXT)
+    /* check for extra cert policies */
+    if ((ret == 0) && (idx < seqEnd) &&
+            (cert->extCertPoliciesNb >= MAX_CERTPOL_NB)) {
+        WOLFSSL_MSG("\tDropping policies past MAX_CERTPOL_NB");
+        cert->extCertPoliciesTruncated = 1;
+    }
+#endif
 
 #if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_NO_ASN_STRICT)
     /* RFC 5280 4.2: reject a critical extension whose information cannot be
@@ -24746,6 +24856,19 @@ int wc_GetDecodedCertSerial(const struct DecodedCert* cert, byte* buf,
     *bufSz = (word32)cert->serialSz;
     return 0;
 }
+
+#if defined(WOLFSSL_CERT_EXT)
+/* Returns whether policies were dropped from cert->extCertPolicies */
+int wc_GetDecodedCertPoliciesTruncated(const struct DecodedCert* cert,
+                                       int* truncated)
+{
+    if (cert == NULL || truncated == NULL)
+        return BAD_FUNC_ARG;
+
+    *truncated = cert->extCertPoliciesTruncated;
+    return 0;
+}
+#endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFCRYPT_ONLY
 
@@ -30794,14 +30917,18 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
 
         i = 0;
     #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CUSTOM_OID)
-        for (; i < cert->customCertExtCount; i++) {
+        /* Guard against overwriting an earlier failure in this block. */
+        for (; (ret == 0) && (i < cert->customCertExtCount); i++) {
              int idx = CERTEXTSASN_IDX_START_CUSTOM + (i * 4);
              word32 encodedOidSz = MAX_OID_SZ;
              idx++; /* Skip one for for SEQ. */
-             /* EncodePolicyOID() will never return error since we parsed this
-              * OID when it was set. */
-             EncodePolicyOID(&encodedOids[i * MAX_OID_SZ], &encodedOidSz,
-                             cert->customCertExt[i].oid, NULL);
+             /* validate extension OID */
+             ret = EncodePolicyOID(&encodedOids[i * MAX_OID_SZ],
+                             &encodedOidSz, cert->customCertExt[i].oid, NULL);
+             if (ret != 0) {
+                 WOLFSSL_ERROR_VERBOSE(ret);
+                 break;
+             }
              SetASN_Buffer(&dataASN[idx], &encodedOids[i * MAX_OID_SZ],
                            encodedOidSz);
              idx++;
@@ -33793,13 +33920,16 @@ int wc_SetAcmeIdentifierExt(Cert *cert, const byte *keyAuth, word32 keyAuthSz)
  * sz   size of oid buffer
  * idx  index of array to place oid
  *
- * returns 0 on success
+ * returns 0 on success, otherwise the error code from EncodePolicyOID()
+ * (BAD_FUNC_ARG, ASN_OBJECT_ID_E, ASN_OID_ARC_TOO_BIG_E, MEMORY_E,
+ * BUFFER_E), or BAD_FUNC_ARG if idx or sz is too large.
  */
 int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
         void* heap)
 {
     byte oid[CTC_MAX_EKU_OID_SZ];
     word32 oidSz = CTC_MAX_EKU_OID_SZ;
+    int ret;
 
     XMEMSET(oid, 0, sizeof(oid));
 
@@ -33808,8 +33938,9 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
         return BAD_FUNC_ARG;
     }
 
-    if (EncodePolicyOID(oid, &oidSz, in, heap) != 0) {
-        return BUFFER_E;
+    ret = EncodePolicyOID(oid, &oidSz, in, heap);
+    if (ret != 0) {
+        return ret;
     }
 
     XMEMCPY(cert->extKeyUsageOID[idx], oid, oidSz);
@@ -34398,8 +34529,62 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 
 #endif /* WOLFSSL_CERT_GEN */
 
-#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) \
-        || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
+        defined(OPENSSL_EXTRA_X509_SMALL)
+/* Base-128 (DER) encode one arc at out[*idx] */
+static int EncodeOidArc(byte *out, word32 *idx, word32 outSz, word32 val)
+{
+    int    i = 0;
+    byte   oid[WC_OID_ARC_MAX_BYTES];
+
+    while (val >= 128) {
+        word32 x = val % 128;
+        val /= 128;
+        /* Guard against OID arc max bytes overflow. */
+        if (i >= WC_OID_ARC_MAX_BYTES - 1)
+            return ASN_OID_ARC_TOO_BIG_E;
+        /* set continuation bit */
+        oid[i] = (byte) ((i > 0 ? 0x80 : 0) | x);
+        i++;
+    }
+
+    if ((*idx + (word32)i) >= outSz)
+        return BUFFER_E;
+
+    oid[i] = (byte) ((i > 0 ? 0x80 : 0) | val);
+
+    /* push value */
+    while (i >= 0)
+        out[(*idx)++] = oid[i--];
+
+    return 0;
+}
+
+/* Parse a decimal arc value */
+static int ParseOidArc(const char *str, word32 *val)
+{
+    word32 v = 0;
+
+    if (str == NULL || *str == '\0')
+        return ASN_OBJECT_ID_E;
+    /* Reject leading zeros ("02") like OpenSSL's a2d_ASN1_OBJECT().
+     * A lone "0" is still valid. */
+    if (str[0] == '0' && str[1] != '\0')
+        return ASN_OBJECT_ID_E;
+
+    while (*str != '\0') {
+        if (*str < '0' || *str > '9')
+            return ASN_OBJECT_ID_E;
+        if (v > (0xFFFFFFFFU - (word32)(*str - '0')) / 10)
+            return ASN_OID_ARC_TOO_BIG_E;
+        v = v * 10 + (word32)(*str - '0');
+        str++;
+    }
+
+    *val = v;
+    return 0;
+}
+
 /* Encode OID string representation to ITU-T X.690 format */
 int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 {
@@ -34411,14 +34596,26 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 #ifdef WC_ASN_NO_HEAP
     char strBuf[CTC_MAX_CERTPOL_SZ];
 #endif
+    word32 firstArc = 0;
+    int ret = 0;
 
     (void)heap;
 
+    /* outSz < 2 kept for backwards compatibility */
     if (out == NULL || outSz == NULL || *outSz < 2 || in == NULL)
         return BAD_FUNC_ARG;
 
+    /* reject empty arcs */
+    if (in[0] == '\0' || in[0] == '.')
+        return ASN_OBJECT_ID_E;
+    for (len = 1; in[len] != '\0'; len++) {
+        if (in[len] == '.' && in[len - 1] == '.')
+            return ASN_OBJECT_ID_E;
+    }
+    if (in[len - 1] == '.')
+        return ASN_OBJECT_ID_E;
+
     /* duplicate string (including terminator); XSTRTOK writes into it */
-    len = (word32)XSTRLEN(in);
 #ifdef WC_ASN_NO_HEAP
     if (len >= sizeof(strBuf))
         return BUFFER_E;
@@ -34433,67 +34630,64 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 
     nb_val = 0;
 
-    /* parse value, and set corresponding Policy OID value */
+    /* parse arcs */
     token = XSTRTOK(str, ".", &ptr);
     while (token != NULL)
     {
-        word32 val = (word32)XATOI(token);
+        word32 val;
+
+        ret = ParseOidArc(token, &val);
+        if (ret != 0)
+            break;
 
         if (nb_val == 0) {
             if (val > 2) {
-                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return ASN_OBJECT_ID_E;
+                ret = ASN_OBJECT_ID_E;
+                break;
             }
 
-            out[idx] = (byte)(40 * val);
+            /* hold first arc */
+            firstArc = val;
         }
         else if (nb_val == 1) {
-            if (val > 127) {
-                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return ASN_OBJECT_ID_E;
+            /* enforce X.690 limits */
+            if (firstArc < 2 && val >= 40) {
+                ret = ASN_OBJECT_ID_E;
+                break;
             }
 
-            if (idx > *outSz) {
-                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return BUFFER_E;
+            /* check for overflow */
+            if (val > 0xFFFFFFFFU - 40 * firstArc) {
+                ret = ASN_OID_ARC_TOO_BIG_E;
+                break;
             }
 
-            out[idx] = (byte)(out[idx] + val);
-            ++idx;
+            /* encode combined identifier */
+            ret = EncodeOidArc(out, &idx, *outSz, 40 * firstArc + val);
+            if (ret != 0)
+                break;
         }
         else {
-            word32  tb = 0;
-            int     i = 0;
-            byte    oid[MAX_OID_SZ];
-
-            while (val >= 128) {
-                word32 x = val % 128;
-                val /= 128;
-                oid[i++] = (byte) (((tb++) ? 0x80 : 0) | x);
-            }
-
-            if ((idx+(word32)i) >= *outSz) {
-                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return BUFFER_E;
-            }
-
-            oid[i] = (byte) (((tb++) ? 0x80 : 0) | val);
-
-            /* push value in the right order */
-            while (i >= 0)
-                out[idx++] = oid[i--];
+            ret = EncodeOidArc(out, &idx, *outSz, val);
+            if (ret != 0)
+                break;
         }
 
         token = XSTRTOK(NULL, ".", &ptr);
         nb_val++;
     }
 
-    *outSz = idx;
+    /* require at least 2 arcs */
+    if (ret == 0 && nb_val < 2)
+        ret = ASN_OBJECT_ID_E;
+
+    if (ret == 0)
+        *outSz = idx;
 
     XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    return 0;
+    return ret;
 }
-#endif /* WOLFSSL_CERT_EXT || OPENSSL_EXTRA */
+#endif /* WOLFSSL_CERT_EXT || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #endif /* !NO_CERTS */
 

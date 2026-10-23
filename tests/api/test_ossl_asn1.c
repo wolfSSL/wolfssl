@@ -1077,6 +1077,37 @@ int test_wolfSSL_i2a_ASN1_OBJECT(void)
 
     ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(NULL, obj), 0);
 
+    /* An unknown OID whose text is longer than i2a's 80-byte stack buffer:
+     * 1.3.6.1.4.1.99999 followed by 24 arcs of 127 is 113 characters from
+     * MAX_OID_SZ (32) content bytes, the most d2i_ASN1_OBJECT() accepts, so
+     * the heap-sized path must produce it in full. */
+    {
+        const unsigned char longDer[] = { 0x06, 0x20,
+            0x2b, 0x06, 0x01, 0x04, 0x01, 0x86, 0x8d, 0x1f, 0x7f, 0x7f,
+            0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f,
+            0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f,
+            0x7f, 0x7f };
+        const char longTxt[] = "1.3.6.1.4.1.99999"
+            ".127.127.127.127.127.127.127.127.127.127.127.127"
+            ".127.127.127.127.127.127.127.127.127.127.127.127";
+        ASN1_OBJECT* longObj = NULL;
+        BIO* longBio = NULL;
+        char longOut[128];
+
+        p = longDer;
+        ExpectNotNull(longObj = wolfSSL_d2i_ASN1_OBJECT(NULL, &p,
+            (long)sizeof(longDer)));
+        ExpectTrue((longBio = BIO_new(BIO_s_mem())) != NULL);
+        ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(longBio, longObj),
+            (int)XSTRLEN(longTxt));
+        XMEMSET(longOut, 0, sizeof(longOut));
+        ExpectIntEQ(BIO_read(longBio, longOut, (int)XSTRLEN(longTxt)),
+            (int)XSTRLEN(longTxt));
+        ExpectStrEQ(longOut, longTxt);
+        BIO_free(longBio);
+        ASN1_OBJECT_free(longObj);
+    }
+
     /* No DER encoding in ASN1_OBJECT. */
     ExpectNotNull(a = wolfSSL_ASN1_OBJECT_new());
     ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 0);
@@ -1085,7 +1116,23 @@ int test_wolfSSL_i2a_ASN1_OBJECT(void)
     /* DER encoding */
     p = notObjDer;
     ExpectNotNull(a = c2i_ASN1_OBJECT(NULL, &p, 3));
-    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 5);
+    /* notObjDer's trailing arc is truncated (0xff, no terminator) and is
+     * rejected, falling through to the "<INVALID>" + hex dump path. Assert
+     * on the marker rather than a byte count, which also covers the hex
+     * dump and so varies with NO_FILESYSTEM. */
+    {
+        const char* invalid = "<INVALID>";
+        int invalidLen = (int)XSTRLEN(invalid);
+        BIO* invBio = NULL;
+        char marker[16];
+
+        ExpectTrue((invBio = BIO_new(BIO_s_mem())) != NULL);
+        ExpectIntGE(wolfSSL_i2a_ASN1_OBJECT(invBio, a), invalidLen);
+        XMEMSET(marker, 0, sizeof(marker));
+        ExpectIntEQ(BIO_read(invBio, marker, invalidLen), invalidLen);
+        ExpectStrEQ(marker, invalid);
+        BIO_free(invBio);
+    }
     ASN1_OBJECT_free(a);
 
     BIO_free(bio);
@@ -1113,6 +1160,17 @@ int test_wolfSSL_i2t_ASN1_OBJECT(void)
     XMEMSET(buf, 0, sizeof(buf));
     ExpectIntEQ(i2t_ASN1_OBJECT(buf, sizeof(buf), obj), XSTRLEN(ln));
     ExpectIntEQ(XSTRNCMP(buf, ln, XSTRLEN(ln)), 0);
+    /* Too small: truncated to 3 characters plus NUL, full length returned. */
+    {
+        char small[4];
+        XMEMSET(small, 'A', sizeof(small));
+        ExpectIntEQ(i2t_ASN1_OBJECT(small, (int)sizeof(small), obj),
+            XSTRLEN(ln));
+        ExpectIntEQ(XSTRNCMP(small, ln, 3), 0);
+        ExpectIntEQ(small[3], '\0');
+    }
+    /* Length only. */
+    ExpectIntEQ(i2t_ASN1_OBJECT(NULL, 0, obj), XSTRLEN(ln));
     ASN1_OBJECT_free(obj);
 #endif /* OPENSSL_EXTRA && WOLFSSL_CERT_EXT && WOLFSSL_CERT_GEN */
     return EXPECT_RESULT();

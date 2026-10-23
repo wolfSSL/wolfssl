@@ -1,0 +1,85 @@
+{
+  "source": "wolfcrypt/src/asn.c",
+  "anchors": {
+    "22197": {
+      "fn": "DecodeOidArc",
+      "text": "while (*idx < inSz) {",
+      "prev": "int tooBig = 0;"
+    },
+    "22201": {
+      "fn": "DecodeOidArc",
+      "text": "if (cnt == 0 && in[*idx] == 0x80)",
+      "prev": "/* X.690 8.19.2: leading 0x80 is not the fewest possible octets. */"
+    },
+    "22206": {
+      "fn": "DecodeOidArc",
+      "text": "if ((cnt >= WC_OID_ARC_MAX_BYTES - 1) ||",
+      "prev": "* 0xFFFFFFFF >> 7, so the shift cannot overflow word32. */"
+    },
+    "22253": {
+      "fn": "DecodePolicyOID",
+      "text": "if (in == NULL || inSz == 0 || (outSz != 0 && (out == NULL || outSz < 4)))",
+      "prev": "/* A single content byte is a legal OID (\"X.Y\"), so only inSz==0 is bad. */"
+    },
+    "22272": {
+      "fn": "DecodePolicyOID",
+      "text": "if (w < 0 || (outSz != 0 && (word32)w >= outSz)) {",
+      "prev": "/* check string length */"
+    },
+    "22276": {
+      "fn": "DecodePolicyOID",
+      "text": "if ((outSz != 0) && (w >= 0)) {",
+      "prev": "* the copy stays inside piece as well as inside out. */"
+    },
+    "22295": {
+      "fn": "DecodePolicyOID",
+      "text": "if (w < 0 || (outSz != 0 && (word32)w >= outSz - outIdx)) {",
+      "prev": "w = XSNPRINTF(piece, sizeof(piece), \".%u\", val);"
+    },
+    "22296": {
+      "fn": "DecodePolicyOID",
+      "text": "if ((outSz != 0) && (w >= 0)) {",
+      "prev": "if (w < 0 || (outSz != 0 && (word32)w >= outSz - outIdx)) {"
+    },
+    "22379": {
+      "fn": "DecodeCertPolicy",
+      "text": "while ((ret == 0) && (idx < seqEnd)",
+      "prev": "/* Unwrap certificatePolicies, stopping at the end of the SEQUENCE. */"
+    },
+    "22381": {
+      "fn": "DecodeCertPolicy",
+      "text": "&& (cert->extCertPoliciesNb < MAX_CERTPOL_NB)",
+      "prev": "#if defined(WOLFSSL_CERT_EXT)"
+    },
+    "22428": {
+      "fn": "DecodeCertPolicy",
+      "text": "if (decRet == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E)) {",
+      "prev": "#ifndef WOLFSSL_NO_ASN_STRICT"
+    },
+    "22435": {
+      "fn": "DecodeCertPolicy",
+      "text": "if ((ret == 0) && (decRet <= 0)) {",
+      "prev": "#ifdef WOLFSSL_CERT_EXT"
+    },
+    "22447": {
+      "fn": "DecodeCertPolicy",
+      "text": "if (ret == 0 && cert->deviceType == NULL) {",
+      "prev": "/* Store the raw DER OID in device type. */"
+    },
+    "22469": {
+      "fn": "DecodeCertPolicy",
+      "text": "for (i = 0; (ret == 0) && !skipPolicy && (i < cert->extCertPoliciesNb);",
+      "prev": "* qualifiers need to be stored in a separate array. */"
+    },
+    "22490": {
+      "fn": "DecodeCertPolicy",
+      "text": "if ((ret == 0) && (idx < seqEnd) &&",
+      "prev": "/* check for extra cert policies */"
+    },
+    "22491": {
+      "fn": "DecodeCertPolicy",
+      "text": "(cert->extCertPoliciesNb >= MAX_CERTPOL_NB)) {",
+      "prev": "if ((ret == 0) && (idx < seqEnd) &&"
+    }
+  }
+}
