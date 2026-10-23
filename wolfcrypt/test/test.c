@@ -78131,49 +78131,57 @@ static wc_test_ret_t slhdsa_init_fail_free_test(void)
 }
 #endif
 
+/* Match the guards on the SLH-DSA root certs in certs_test.h. */
+#ifndef WOLFSSL_SLHDSA_PARAM_NO_128S
+    #define SLHDSA_TEST_CERT_SHAKE128S
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128S)
+    #define SLHDSA_TEST_CERT_SHA2_128S
+#endif
 #if !defined(NO_ASN) && !defined(NO_CERTS) && \
-    (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
-     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
-/* Verify a self-signed certificate's signature with its own public key. */
-static wc_test_ret_t slhdsa_cert_self_verify(SlhDsaKey* pub, const byte* der,
+    (defined(SLHDSA_TEST_CERT_SHAKE128S) || \
+     defined(SLHDSA_TEST_CERT_SHA2_128S))
+    #define SLHDSA_TEST_CERT
+#endif
+
+#ifdef SLHDSA_TEST_CERT
+/* der must parse as self-signed, but not once a signature byte changes. */
+static wc_test_ret_t slhdsa_cert_self_signed_test(const byte* der,
     word32 derSz)
 {
-    wc_test_ret_t ret;
-    const byte* tbs = NULL;
-    word32 tbsSz = 0;
+    wc_test_ret_t ret = 0;
+    int i;
+    byte* badDer;
     WC_DECLARE_VAR(cert, DecodedCert, 1, HEAP_HINT);
 
     WC_ALLOC_VAR_EX(cert, DecodedCert, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
 
-    wc_InitDecodedCert(cert, der, derSz, HEAP_HINT);
-    ret = wc_ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
-    if (ret != 0)
-        ret = WC_TEST_RET_ENC_EC(ret);
-    if (ret == 0) {
-        tbs = cert->source + cert->certBegin;
-        tbsSz = cert->sigIndex - cert->certBegin;
-        ret = wc_SlhDsaKey_Verify(pub, NULL, 0, tbs, tbsSz, cert->signature,
-            cert->sigLength);
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
+    badDer = (byte*)XMALLOC(derSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (badDer == NULL) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
     }
-    /* A truncated TBS must not verify. */
-    if (ret == 0) {
-        ret = wc_SlhDsaKey_Verify(pub, NULL, 0, tbs, tbsSz - 1,
-            cert->signature, cert->sigLength);
-        if (ret == WC_NO_ERR_TRACE(SIG_VERIFY_E))
-            ret = 0;
-        else
-            ret = WC_TEST_RET_ENC_NC;
+    else {
+        XMEMCPY(badDer, der, derSz);
+        badDer[derSz - 1] ^= 0x01;
     }
 
-    wc_FreeDecodedCert(cert);
+    for (i = 0; (ret == 0) && (i < 2); i++) {
+        wc_InitDecodedCert(cert, (i == 0) ? der : badDer, derSz, HEAP_HINT);
+        ret = wc_ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else if (cert->selfSigned != (i == 0))
+            ret = WC_TEST_RET_ENC_NC;
+        wc_FreeDecodedCert(cert);
+    }
+
+    XFREE(badDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
-/* Check each SLH-DSA root cert's signature, then sign with its private key. */
 static wc_test_ret_t slhdsa_cert_test(void)
 {
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
@@ -78189,12 +78197,12 @@ static wc_test_ret_t slhdsa_cert_test(void)
         word32           keySz;
         enum SlhDsaParam param;
     } vectors[] = {
-#ifdef WOLFSSL_SLHDSA_PARAM_128S
+#ifdef SLHDSA_TEST_CERT_SHAKE128S
         { root_slhdsa_shake128s_cert_der,
           sizeof_root_slhdsa_shake128s_cert_der,
           SLHDSA_CERT_KEY(shake128s), SLHDSA_SHAKE128S },
 #endif
-#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128S
+#ifdef SLHDSA_TEST_CERT_SHA2_128S
         { root_slhdsa_sha2_128s_cert_der,
           sizeof_root_slhdsa_sha2_128s_cert_der,
           SLHDSA_CERT_KEY(sha2_128s), SLHDSA_SHA2_128S },
@@ -78220,8 +78228,11 @@ static wc_test_ret_t slhdsa_cert_test(void)
     int rngInit = 0;
     int privInit = 0;
     WC_DECLARE_VAR(priv, SlhDsaKey, 1, HEAP_HINT);
-    /* Both 128s parameter sets have the same signature size. */
     WC_DECLARE_VAR(sig, byte, WC_SLHDSA_SHAKE128S_SIG_LEN, HEAP_HINT);
+#ifdef SLHDSA_TEST_CERT_SHA2_128S
+    wc_static_assert(WC_SLHDSA_SHA2_128S_SIG_LEN ==
+        WC_SLHDSA_SHAKE128S_SIG_LEN);
+#endif
 #endif
 
     WC_ALLOC_VAR_EX(pub, SlhDsaKey, 1, HEAP_HINT,
@@ -78252,13 +78263,14 @@ static wc_test_ret_t slhdsa_cert_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         pubInit = 1;
-        /* Decoding only succeeds when the SPKI names this parameter set. */
         idx = 0;
         ret = wc_SlhDsaKey_PublicKeyDecode(spki, &idx, pub, spkiSz);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (pub->params->param != vectors[i].param)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-        ret = slhdsa_cert_self_verify(pub, vectors[i].cert,
+        ret = slhdsa_cert_self_signed_test(vectors[i].cert,
             vectors[i].certSz);
         if (ret != 0)
             goto out;
@@ -78273,8 +78285,9 @@ static wc_test_ret_t slhdsa_cert_test(void)
             vectors[i].keySz);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (priv->params->param != vectors[i].param)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-        /* The private key must contain the certificate's public key. */
         pubASz = (word32)sizeof(pubA);
         ret = wc_SlhDsaKey_ExportPublic(pub, pubA, &pubASz);
         if (ret != 0)
@@ -78320,7 +78333,7 @@ out:
 
     return ret;
 }
-#endif /* !NO_ASN && !NO_CERTS && (SHAKE128S || SHA2_128S) */
+#endif /* SLHDSA_TEST_CERT */
 
 wc_test_ret_t slhdsa_test(void)
 {
@@ -80197,9 +80210,7 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
-#if !defined(NO_ASN) && !defined(NO_CERTS) && \
-    (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
-     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
+#ifdef SLHDSA_TEST_CERT
     if (ret == 0) {
         ret = slhdsa_cert_test();
         if (ret != 0)
