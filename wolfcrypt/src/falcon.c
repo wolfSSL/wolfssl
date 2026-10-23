@@ -10817,7 +10817,8 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
  *  sigLen      [in]  Size of signature in bytes.
  *  msg         [in]  Message to verify.
  *  msgLen      [in]  Length of the message in bytes.
- *  res         [out] *res is set to 1 on successful verification.
+ *  res         [out] *res is set to 1 on successful verification and 0
+ *                    otherwise, including when an error is returned.
  *  key         [in]  Falcon key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL or the public key is not set,
  *          BUFFER_E when sigLen is out of range for the key's level,
@@ -10828,6 +10829,10 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 {
     int ret = 0;
 
+    /* Any error return leaves the signature reported as invalid. */
+    if (res != NULL) {
+        *res = 0;
+    }
     if (key == NULL || sig == NULL || ((msg == NULL) && (msgLen != 0)) ||
             res == NULL) {
         return BAD_FUNC_ARG;

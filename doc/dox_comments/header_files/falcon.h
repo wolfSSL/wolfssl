@@ -266,7 +266,8 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
     \param [in] sigLen Length of the signature in bytes.
     \param [in] msg Message the signature is over.
     \param [in] msgLen Length of the message in bytes.
-    \param [out] res Set to 1 if the signature is valid, 0 otherwise.
+    \param [out] res Set to 1 if the signature is valid, 0 otherwise,
+    including when an error is returned.
     \param [in] key Pointer to a falcon_key holding a public key.
 
     _Example_

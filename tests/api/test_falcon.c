@@ -1866,3 +1866,106 @@ int test_falcon_cb_free(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_FALCON) && defined(WOLF_CRYPTO_CB)
+    #define TEST_FALCON_VERIFY_CB_RES
+    #define TEST_FALCON_VERIFY_CB_RES_DEVID 0x46414C56
+#endif
+
+#ifdef TEST_FALCON_VERIFY_CB_RES
+typedef struct FalconVerifyResCtx {
+    int ret;       /* Value the device returns. */
+    int writeRes;  /* Whether the device writes *res = 1 first. */
+} FalconVerifyResCtx;
+
+/* A device that may claim the signature is valid and then returns ctx->ret,
+ * which may be 0, an error or CRYPTOCB_UNAVAILABLE. */
+static int falcon_verify_res_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    FalconVerifyResCtx* cbCtx = (FalconVerifyResCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY) &&
+            (info->pk.pqc_verify.type == WC_PQC_SIG_TYPE_FALCON)) {
+        if (cbCtx->writeRes) {
+            *info->pk.pqc_verify.res = 1;
+        }
+        return cbCtx->ret;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_FALCON_VERIFY_CB_RES */
+
+/* *res must only be 1 when verify returns 0 and the signature was found
+ * valid. Cases expecting 0 start res at 1 to catch a stale value. */
+int test_falcon_verify_cb_res(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_FALCON_VERIFY_CB_RES
+    falcon_key key;
+    byte sig[16];
+    byte msg[16];
+    FalconVerifyResCtx cbCtx;
+    int res;
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    const int declineRet = WC_NO_ERR_TRACE(NO_VALID_DEVID);
+#else
+    /* The software fallback rejects a key with no public key set. */
+    const int declineRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_FALCON_VERIFY_CB_RES_DEVID,
+        falcon_verify_res_cb, &cbCtx), 0);
+    ExpectIntEQ(wc_falcon_init_ex(&key, NULL,
+        TEST_FALCON_VERIFY_CB_RES_DEVID), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+
+    /* The device verifies the signature. */
+    cbCtx.ret = 0;
+    cbCtx.writeRes = 1;
+    res = 0;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), 0);
+    ExpectIntEQ(res, 1);
+
+    /* The device completes without writing *res. */
+    cbCtx.writeRes = 0;
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), 0);
+    ExpectIntEQ(res, 0);
+
+    /* The device fails. */
+    cbCtx.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    cbCtx.writeRes = 1;
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+
+    /* The device declines, then the fallback rejects the call. */
+    cbCtx.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    cbCtx.writeRes = 1;
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), declineRet);
+    ExpectIntEQ(res, 0);
+
+    /* A bad argument is rejected before the device is reached. */
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(NULL, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+
+    wc_falcon_free(&key);
+    wc_CryptoCb_UnRegisterDevice(TEST_FALCON_VERIFY_CB_RES_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
