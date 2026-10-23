@@ -3200,14 +3200,27 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
     mode has no effect on any of the other flags.
 
-    A non-zero return from verify_callback overrides the error for that one
-    certificate, and applies to the handshake in progress only. A chain
-    certificate whose signature was never confirmed against a trusted anchor
-    is not cached, so a certificate it signed has no signer of its own and is
-    reported to verify_callback in its turn rather than verified against the
-    accepted key. Accepting each certificate in the chain completes the
-    handshake. Nothing accepted this way becomes a trust anchor for later
-    connections made from the same context.
+    A non-zero return from verify_callback accepts a certificate the library
+    rejected, for the handshake in progress only. Without such a callback, or
+    when it returns preverify_ok, the rejection stands and the handshake ends
+    with a fatal alert as before.
+
+    An accepted certificate whose signature was never confirmed against a
+    trusted anchor is not added to the certificate manager, so it does not
+    become a trust anchor for later connections made from the same context,
+    and it is not available as the signer of the next certificate in the
+    chain. That next certificate is reported to verify_callback in its turn
+    rather than verified against the accepted key, and accepting each one in
+    turn completes the handshake.
+
+    OCSP is the exception. A stapled response is verified against the
+    certificate manager, which does not hold the accepted certificate, so the
+    responder's own certificate cannot be verified; the handshake ends with
+    BAD_CERTIFICATE_STATUS_ERROR and a fatal alert without consulting
+    verify_callback, and only a callback set with
+    wolfSSL_CTX_SetOCSP_StatusVerifyCb() can accept that result. A live OCSP
+    lookup fails for the same reason, but its error does reach
+    verify_callback and can be accepted there.
 
     \return none No return.
 
@@ -3261,14 +3274,27 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
     wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
     mode has no effect on any of the other flags.
 
-    A non-zero return from verify_callback overrides the error for that one
-    certificate, and applies to the handshake in progress only. A chain
-    certificate whose signature was never confirmed against a trusted anchor
-    is not cached, so a certificate it signed has no signer of its own and is
-    reported to verify_callback in its turn rather than verified against the
-    accepted key. Accepting each certificate in the chain completes the
-    handshake. Nothing accepted this way becomes a trust anchor for later
-    connections made from the same session's context.
+    A non-zero return from verify_callback accepts a certificate the library
+    rejected, for the handshake in progress only. Without such a callback, or
+    when it returns preverify_ok, the rejection stands and the handshake ends
+    with a fatal alert as before.
+
+    An accepted certificate whose signature was never confirmed against a
+    trusted anchor is not added to the certificate manager, so it does not
+    become a trust anchor for later connections made from the same session's
+    context, and it is not available as the signer of the next certificate in
+    the chain. That next certificate is reported to verify_callback in its
+    turn rather than verified against the accepted key, and accepting each one
+    in turn completes the handshake.
+
+    OCSP is the exception. A stapled response is verified against the
+    certificate manager, which does not hold the accepted certificate, so the
+    responder's own certificate cannot be verified; the handshake ends with
+    BAD_CERTIFICATE_STATUS_ERROR and a fatal alert without consulting
+    verify_callback, and only a callback set with
+    wolfSSL_CTX_SetOCSP_StatusVerifyCb() can accept that result. A live OCSP
+    lookup fails for the same reason, but its error does reach
+    verify_callback and can be accepted there.
 
     \return none No return.
 
