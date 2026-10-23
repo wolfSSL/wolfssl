@@ -39,6 +39,7 @@ int test_tls13_pha_after_early_data(void);
 int test_tls13_pha_resumption_bare_finished(void);
 int test_tls13_pha_resumption_blank_cert(void);
 int test_tls13_psk_cert_request_in_handshake(void);
+int test_tls13_cert_with_extern_psk_not_offered(void);
 int test_tls13_pha_resumption_second_round(void);
 int test_tls13_rpk_untrusted(void);
 int test_tls13_rpk_trust(void);
@@ -218,6 +219,7 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_bare_finished), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_blank_cert), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_cert_request_in_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_not_offered), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_second_round), \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_untrusted),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_trust),             \
