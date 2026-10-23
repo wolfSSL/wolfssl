@@ -125,7 +125,7 @@ int test_wolfSSL_PEM_X509_INFO_stream_limit(void)
     PemStreamState boundary = {0, 256, 0, 0, 0};
     /* Streaming case: unknown length, scanner must stop at its read cap, so a
      * read at the cap itself (MAX_X509_SIZE * 16) means it over-ran. */
-    PemStreamState stream = {0, 0, (size_t)MAX_X509_SIZE * 16, 0, 0};
+    PemStreamState streamCase = {0, 0, (size_t)MAX_X509_SIZE * 16, 0, 0};
 
     ExpectNotNull(method = wolfSSL_BIO_meth_new(WOLFSSL_BIO_UNDEF,
             "pem_stream_limit"));
@@ -142,9 +142,9 @@ int test_wolfSSL_PEM_X509_INFO_stream_limit(void)
     bio = NULL;
 
     ExpectNotNull(bio = wolfSSL_BIO_new(method));
-    wolfSSL_BIO_set_data(bio, &stream);
+    wolfSSL_BIO_set_data(bio, &streamCase);
     ExpectNull(wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL));
-    ExpectIntEQ(stream.readAtLimit, 0);
+    ExpectIntEQ(streamCase.readAtLimit, 0);
     wolfSSL_BIO_free(bio);
 
     wolfSSL_BIO_meth_free(method);
