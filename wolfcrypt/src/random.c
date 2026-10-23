@@ -804,8 +804,10 @@ static void RngAutoLockExit(WC_RNG* rng)
 #define RngAutoLockExit(rng)  WC_DO_NOTHING
 #endif /* WC_RNG_HAVE_AUTO_LOCK */
 
+#ifndef CUSTOM_RAND_GENERATE_BLOCK
 static WARN_UNUSED_RESULT int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed,
                                   void* heap, int devId);
+#endif
 
 #ifdef WOLFSSL_DRBG_SHA512
 static WARN_UNUSED_RESULT int wc_RNG_HealthTest_SHA512_ex_internal(
@@ -8273,6 +8275,7 @@ const FLASH_QUALIFIER byte outputB_data[] = {
 };
 
 
+#ifndef CUSTOM_RAND_GENERATE_BLOCK
 /* SHA-512 DRBG KAT vectors for local health test.
  * Source: NIST CAVP Hash_DRBG.rsp, [SHA-512], PredictionResistance=False,
  * EntropyInputLen=256, NonceLen=128, PersonalizationStringLen=0,
@@ -8590,6 +8593,7 @@ static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
 
     return ret;
 }
+#endif /* !CUSTOM_RAND_GENERATE_BLOCK */
 
 /* ====================================================================== */
 /* SHA-512 Health Test API                                                 */

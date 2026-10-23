@@ -166,14 +166,14 @@ jobs:
           [
           {"name": "defaults-afalg", "minutes": 2,
            "configure": ["--enable-afalg"],
-           "cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"},
+           "extra_cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"},
           {"name": "all-afalg", "minutes": 5,
            "configure": ["--enable-all", "--enable-testcert", "--enable-acert",
             "--enable-dtls13", "--enable-dtls-mtu", "--enable-dtls-frag-ch",
             "--enable-dtlscid", "--enable-quic", "--enable-afalg",
             "--disable-srtp", "--disable-sha224", "--disable-hashflags",
             "--disable-cryptocb", "--disable-aesgcm-stream"],
-           "cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"}
+           "extra_cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"}
           ]
           EOF
           .github/scripts/parallel-make-check.py \

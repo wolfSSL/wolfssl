@@ -578,7 +578,11 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
     int                  ret = 0;
     CK_RV                rv = CKR_OK;
 #if !defined(HAVE_PKCS11_STATIC) && !defined(HAVE_PKCS11_V3_STATIC)
-    void*                func;
+    union {
+        void*                p;
+        CK_C_GetInterface    getInterface;
+        CK_C_GetFunctionList getFunctionList;
+    } func;
 #endif
     CK_C_INITIALIZE_ARGS args;
     CK_VERSION_PTR       version_ptr = NULL;
@@ -694,8 +698,8 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
             /* Check if the library supports PKCS#11 version 3.0 (or above) by
              * looking for the C_GetInterface method (only present for >= V3.0).
              */
-            func = dlsym(dev->dlHandle, "C_GetInterface");
-            if (func != NULL) {
+            func.p = dlsym(dev->dlHandle, "C_GetInterface");
+            if (func.p != NULL) {
                 /* Function is present, use it */
                 CK_INTERFACE_PTR interface = NULL;
                 CK_VERSION pkcs11_version = {0, 0};
@@ -726,8 +730,8 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
                     version_ptr = NULL;
                 }
 
-                rv = ((CK_C_GetInterface)func)((CK_UTF8CHAR_PTR) interfaceName,
-                                               version_ptr, &interface, 0);
+                rv = func.getInterface((CK_UTF8CHAR_PTR) interfaceName,
+                                       version_ptr, &interface, 0);
                 if (rv == CKR_OK) {
                     dev->func = interface->pFunctionList;
                     version_ptr = (CK_VERSION_PTR) interface->pFunctionList;
@@ -764,8 +768,8 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
             else {
                 /* Function not present, try a 2.x library by looking for
                 * C_GetFunctionList. */
-                func = dlsym(dev->dlHandle, "C_GetFunctionList");
-                if (func == NULL) {
+                func.p = dlsym(dev->dlHandle, "C_GetFunctionList");
+                if (func.p == NULL) {
             #if defined(_WIN32)
                     WOLFSSL_MSG_EX("GetProcAddress(): %d", GetLastError());
             #else
@@ -774,7 +778,7 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
                     ret = WC_HW_E;
                 }
                 if (ret == 0) {
-                    rv = ((CK_C_GetFunctionList)func)(&dev->func);
+                    rv = func.getFunctionList(&dev->func);
                     if (rv == CKR_OK) {
                         version_ptr = (CK_VERSION_PTR) dev->func;
                         if (version_ptr->major == 2 &&
