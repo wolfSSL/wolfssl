@@ -44,6 +44,11 @@
 #include "cy_crypto_core_hw_v2.h"
 #include "cy_crypto_core_mem.h"
 
+/* The engine's FIFOs reach memory over the system bus, so a code-bus alias
+ * (such as XIP flash on PSOC Edge) is translated the way the PDL translates
+ * its own buffers. This is the identity on PSoC6. */
+#define PSOC6_CRYPTO_REMAP(p) ((const uint8_t*)CY_REMAP_ADDRESS_FOR_CRYPTO(p))
+
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
 #endif /* HAVE_ECC */
@@ -844,7 +849,7 @@ int wc_Psoc6_Sha3_Final(void* sha3, byte padChar, byte* hash, byte p, word32 l)
 
     /* Start streaming data in sha3_ctx->sha_buffers.hash into LOAD_FIFO0 */
     Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_LOAD0,
-                              sha3_ctx->sha_buffers.hash,
+                              PSOC6_CRYPTO_REMAP(sha3_ctx->sha_buffers.hash),
                               CY_CRYPTO_SHA3_STATE_SIZE);
 
     /* XOR data present in lower register buffer partition with data streamed
@@ -880,7 +885,7 @@ int wc_Psoc6_Sha3_Final(void* sha3, byte padChar, byte* hash, byte p, word32 l)
             /* Start streaming data in 1st partition of register buffer into
              * hash buffer */
             Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
-                                      hash + offset,
+                                      PSOC6_CRYPTO_REMAP(hash + offset),
                                       PSOC6_CRYPTO_SHA3_RB_LOWER);
 
             /* Copy the data in register buffer lower partition into hash buffer
@@ -901,8 +906,8 @@ int wc_Psoc6_Sha3_Final(void* sha3, byte padChar, byte* hash, byte p, word32 l)
             /* Now the 1st partition have 2nd partition data, start streaming
              * remaining extra data in register buffer into hash buffer */
             Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
-                                      hash + offset +
-                                          PSOC6_CRYPTO_SHA3_RB_LOWER,
+                                      PSOC6_CRYPTO_REMAP(hash + offset +
+                                          PSOC6_CRYPTO_SHA3_RB_LOWER),
                                       (rate - PSOC6_CRYPTO_SHA3_RB_LOWER));
 
             /* Copy the remaining data in register buffer lower partition into
@@ -920,7 +925,7 @@ int wc_Psoc6_Sha3_Final(void* sha3, byte padChar, byte* hash, byte p, word32 l)
             /* Start streaming data in 1st partition of register buffer into
              * hash buffer */
             Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
-                                      hash + offset, rate);
+                                      PSOC6_CRYPTO_REMAP(hash + offset), rate);
 
             /* Copy the remaining data in register buffer lower partition into
              * hash buffer */
@@ -947,7 +952,7 @@ int wc_Psoc6_Sha3_Final(void* sha3, byte padChar, byte* hash, byte p, word32 l)
             /* Start streaming data in 1st partition of register buffer into
              * hash buffer */
             Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
-                                      hash + offset,
+                                      PSOC6_CRYPTO_REMAP(hash + offset),
                                       PSOC6_CRYPTO_SHA3_RB_LOWER);
 
             /* Copy the data in register buffer lower partition into hash buffer
@@ -969,7 +974,7 @@ int wc_Psoc6_Sha3_Final(void* sha3, byte padChar, byte* hash, byte p, word32 l)
              * remaining extra data in register buffer into hash buffer */
             Cy_Crypto_Core_V2_FFStart(
                 crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
-                hash + offset + PSOC6_CRYPTO_SHA3_RB_LOWER,
+                PSOC6_CRYPTO_REMAP(hash + offset + PSOC6_CRYPTO_SHA3_RB_LOWER),
                 ((l - offset) - PSOC6_CRYPTO_SHA3_RB_LOWER));
 
             /* Copy the remaining data in register buffer lower partition into
@@ -984,7 +989,8 @@ int wc_Psoc6_Sha3_Final(void* sha3, byte padChar, byte* hash, byte p, word32 l)
             /* Start streaming data in 1st partition of register buffer into
              * hash buffer */
             Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
-                                      hash + offset, l - offset);
+                                      PSOC6_CRYPTO_REMAP(hash + offset),
+                                      l - offset);
 
             /* Copy the data in register buffer lower partition into hash buffer
              */
@@ -1021,7 +1027,8 @@ int wc_Psoc6_Shake_SqueezeBlocks(void* shake, byte* out, word32 blockCnt)
 
         /* Start streaming data in 1st partition of register buffer into hash
          * buffer */
-        Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE, out,
+        Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
+                                  PSOC6_CRYPTO_REMAP(out),
                                   PSOC6_CRYPTO_SHA3_RB_LOWER);
 
         /* Copy the data in register buffer lower partition into hash buffer */
@@ -1040,7 +1047,8 @@ int wc_Psoc6_Shake_SqueezeBlocks(void* shake, byte* out, word32 blockCnt)
         /* Now the 1st partition have 2nd partition data, start streaming
          * remaining extra data in register buffer into hash buffer */
         Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
-                                  out + PSOC6_CRYPTO_SHA3_RB_LOWER,
+                                  PSOC6_CRYPTO_REMAP(out +
+                                      PSOC6_CRYPTO_SHA3_RB_LOWER),
                                   shake_ctx->hash_state.blockSize -
                                       PSOC6_CRYPTO_SHA3_RB_LOWER);
 
@@ -1392,8 +1400,10 @@ int wc_Psoc6_Aes_EcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     aesInited = 1;
     Cy_Crypto_Core_V2_Aes_LoadEncKey(crypto_base, &aes->aes_state);
-    Cy_Crypto_Core_V2_FFContinue(crypto_base, CY_CRYPTO_V2_RB_FF_LOAD0, in, sz);
-    Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE, out, sz);
+    Cy_Crypto_Core_V2_FFContinue(crypto_base, CY_CRYPTO_V2_RB_FF_LOAD0,
+                                 PSOC6_CRYPTO_REMAP(in), sz);
+    Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
+                              PSOC6_CRYPTO_REMAP(out), sz);
 
     for (; sz > 0; sz -= CY_CRYPTO_AES_BLOCK_SIZE) {
         Cy_Crypto_Core_V2_BlockMov(crypto_base, CY_CRYPTO_V2_RB_BLOCK0,
@@ -1468,8 +1478,10 @@ int wc_Psoc6_Aes_EcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     aesInited = 1;
 
     Cy_Crypto_Core_V2_Aes_LoadDecKey(crypto_base, &aes->aes_state);
-    Cy_Crypto_Core_V2_FFContinue(crypto_base, CY_CRYPTO_V2_RB_FF_LOAD0, in, sz);
-    Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE, out, sz);
+    Cy_Crypto_Core_V2_FFContinue(crypto_base, CY_CRYPTO_V2_RB_FF_LOAD0,
+                                 PSOC6_CRYPTO_REMAP(in), sz);
+    Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
+                              PSOC6_CRYPTO_REMAP(out), sz);
 
     for (; sz > 0; sz -= CY_CRYPTO_AES_BLOCK_SIZE) {
         Cy_Crypto_Core_V2_BlockMov(crypto_base, CY_CRYPTO_V2_RB_BLOCK0,
@@ -2043,6 +2055,10 @@ int wc_Psoc6_Aes_GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
 cleanup:
+    /* Never release plaintext that failed authentication. */
+    if ((ret != 0) && (out != NULL) && (sz > 0)) {
+        ForceZero(out, sz);
+    }
     if (aesInited) {
         wc_Psoc6_Aes_Free(aes);
     }
@@ -2056,7 +2072,7 @@ cleanup:
 #endif /* PSOC6_CRYPTO_AES */
 
 /* ECDSA */
-#ifdef HAVE_ECC
+#ifdef PSOC6_CRYPTO_ECC
 
 #define MAX_ECC_KEYSIZE 66 /* Supports up to secp521r1 */
 static cy_en_crypto_ecc_curve_id_t psoc6_get_curve_id(int size)
@@ -2209,6 +2225,6 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
 
     return WC_FAILURE;
 }
-#endif /* HAVE_ECC */
+#endif /* PSOC6_CRYPTO_ECC */
 
 #endif /* WOLFSSL_PSOC6_CRYPTO */
