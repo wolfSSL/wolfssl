@@ -33,6 +33,7 @@ int test_wolfSSL_X509_add_ext(void);
 int test_wolfSSL_X509_add_ext_dirname_san_rejected(void);
 int test_wolfSSL_X509_get_ext_count(void);
 int test_wolfSSL_X509_stack_extensions(void);
+int test_wolfSSL_X509_get0_extensions_stable(void);
 int test_wolfSSL_X509_EXTENSION_new(void);
 int test_wolfSSL_X509_EXTENSION_dup(void);
 int test_wolfSSL_X509_EXTENSION_get_object(void);
@@ -71,6 +72,8 @@ int test_wolfSSL_X509_set_ext_oid_collision(void);
                       test_wolfSSL_X509_add_ext_dirname_san_rejected),         \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_get_ext_count),         \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_stack_extensions),      \
+    TEST_DECL_GROUP("ossl_x509_ext",                                       \
+        test_wolfSSL_X509_get0_extensions_stable),                          \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_EXTENSION_new),         \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_EXTENSION_dup),         \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_EXTENSION_get_object),  \

@@ -1505,8 +1505,9 @@ int test_wolfSSL_ASN1_STRING_print_ex(void)
     /* RFC2253 Escape */
     XMEMSET(rbuf, 0, 255);
     flags = ASN1_STRFLGS_ESC_2253;
-    ExpectIntEQ(p_len = wolfSSL_ASN1_STRING_print_ex(bio, esc_str, flags), 9);
-    ExpectIntEQ(BIO_read(bio, (void*)rbuf, 9), 9);
+    /* 6 bytes of data (incl. NUL) plus 4 escape characters. */
+    ExpectIntEQ(p_len = wolfSSL_ASN1_STRING_print_ex(bio, esc_str, flags), 10);
+    ExpectIntEQ(BIO_read(bio, (void*)rbuf, 10), 10);
     ExpectStrEQ((char*)rbuf, "a\\+\\;\\<\\>");
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     /* Ensure there is 0 bytes available to write into. */
