@@ -646,6 +646,13 @@ static int devId = INVALID_DEVID;
     #define RNG_LOCK_DEVID INVALID_DEVID
 #endif
 
+/* swdev serves keys with no device, so use an id with none registered. */
+#ifdef WOLFSSL_SWDEV
+    #define NO_DEV_DEVID 0x4e4f4456 /* 'NODV' */
+#else
+    #define NO_DEV_DEVID INVALID_DEVID
+#endif
+
 /* ============================================================================
  * Test init helpers -- use id[] when WC_TEST_*_ID is defined, else plain init.
  * Each algorithm has a static global id array (when defined) and a helper
@@ -70875,7 +70882,13 @@ out:
 #endif /* WOLFSSL_HAVE_FRODOKEM */
 
 #ifdef WOLFSSL_HAVE_MLDSA
-#ifdef WC_MLDSA_HAVE_NATIVE
+/* Native core, or swdev (which declines sign/verify under NO_CTX). */
+#if defined(WC_MLDSA_HAVE_NATIVE) || \
+    (defined(WOLFSSL_SWDEV) && !defined(WOLFSSL_MLDSA_NO_CTX))
+    #define MLDSA_TEST_HAVE_IMPL
+#endif
+
+#ifdef MLDSA_TEST_HAVE_IMPL
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
 static wc_test_ret_t mldsa_param_vfy_test(int param, const byte* pubKey,
     word32 pubKeyLen, const byte* sig, word32 sigLen)
@@ -74235,7 +74248,9 @@ out:
 }
 #endif
 
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+/* Signing with a caller supplied seed has no callback. */
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    defined(WC_MLDSA_HAVE_NATIVE)
 /* Seed the key pair is generated from. */
 static const byte mldsa_kat_key_seed[MLDSA_SEED_SZ] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -74422,7 +74437,8 @@ out:
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* !WOLFSSL_MLDSA_NO_SIGN && !WOLFSSL_MLDSA_NO_MAKE_KEY */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN && !WOLFSSL_MLDSA_NO_MAKE_KEY &&
+        * WC_MLDSA_HAVE_NATIVE */
 
 #if defined(WC_MLDSA_CACHE_MATRIX_A) && \
     !defined(WC_MLDSA_FIXED_ARRAY) && \
@@ -74812,7 +74828,7 @@ static wc_test_ret_t mldsa_decode_test(void)
 }
 #endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
         * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
-#endif /* WC_MLDSA_HAVE_NATIVE */
+#endif /* MLDSA_TEST_HAVE_IMPL */
 #endif /* WOLFSSL_HAVE_MLDSA - Falcon test below is independent of ML-DSA */
 
 
@@ -75323,15 +75339,6 @@ out:
 }
 #endif /* FALCON_TEST_HAVE_IMPL */
 
-#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
-/* swdev serves keys with no device, so use an id with none registered. */
-#ifdef WOLFSSL_SWDEV
-    #define FALCON_NO_DEV_DEVID  0x4e4f4456 /* 'NODV' */
-#else
-    #define FALCON_NO_DEV_DEVID  INVALID_DEVID
-#endif
-#endif
-
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -75472,7 +75479,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
         if (!WC_VAR_OK(k))
             ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         if (ret == 0)
-            ret = wc_falcon_init_ex(k, HEAP_HINT, FALCON_NO_DEV_DEVID);
+            ret = wc_falcon_init_ex(k, HEAP_HINT, NO_DEV_DEVID);
         if (ret == 0) {
             k_inited = 1;
             ret = wc_falcon_set_level(k, FALCON_MAX_LEVEL);
@@ -75516,7 +75523,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 {
     wc_test_ret_t ret;
-#ifdef WC_MLDSA_HAVE_NATIVE
+#ifdef MLDSA_TEST_HAVE_IMPL
     WC_RNG rng;
 
 #ifndef HAVE_FIPS
@@ -75565,7 +75572,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 #endif
 #endif
 
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    defined(WC_MLDSA_HAVE_NATIVE)
 #ifndef WOLFSSL_NO_ML_DSA_44
     ret = mldsa_make_key_reuse_test(WC_ML_DSA_44,
         MLDSA_KAT_DIGEST(mldsa_kat_digest_44));
@@ -75626,8 +75634,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 out:
 #endif
     wc_FreeRng(&rng);
-    return ret;
-#else /* !WC_MLDSA_HAVE_NATIVE */
+    if (ret != 0)
+        return ret;
+#endif /* MLDSA_TEST_HAVE_IMPL */
+#ifndef WC_MLDSA_HAVE_NATIVE
     /* Software ML-DSA is compiled out. Walk the public API with a key that
      * has no device behind it and confirm every entry point refuses rather
      * than silently doing nothing: NO_VALID_DEVID where a registered device
@@ -75649,7 +75659,7 @@ out:
         if (!WC_VAR_OK(key))
             ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         if (ret == 0) {
-            r = wc_MlDsaKey_Init(key, HEAP_HINT, INVALID_DEVID);
+            r = wc_MlDsaKey_Init(key, HEAP_HINT, NO_DEV_DEVID);
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
             else
@@ -75902,8 +75912,8 @@ out:
         WC_FREE_VAR(key, HEAP_HINT);
     }
 #endif /* MLDSA_CB_ONLY_LEVEL */
+#endif /* !WC_MLDSA_HAVE_NATIVE */
     return ret;
-#endif /* WC_MLDSA_HAVE_NATIVE */
 }
 #endif /* WOLFSSL_HAVE_MLDSA */
 
@@ -89087,7 +89097,7 @@ out_lbl:
 #endif /* !NO_RSA && !NO_SHA256 */
 
 
-#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
+#if defined(MLDSA_TEST_HAVE_IMPL) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
     !defined(NO_FILESYSTEM) && !defined(NO_ASN)
@@ -89660,7 +89670,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
                             rsaCaCertBuf,     (word32)rsaCaCertBufSz);
 #endif
 
-#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
+#if defined(MLDSA_TEST_HAVE_IMPL) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
     !defined(NO_FILESYSTEM) && !defined(NO_ASN)
@@ -99172,7 +99182,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             myCtx->exampleVar++;
         }
     #endif /* HAVE_FALCON */
-    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE)
+    #ifdef MLDSA_TEST_HAVE_IMPL
     #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
         if ((info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
                 !myCtx->mldsaCbActive) {
@@ -99276,7 +99286,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif
-    #endif /* WOLFSSL_HAVE_MLDSA && WC_MLDSA_HAVE_NATIVE */
+    #endif /* MLDSA_TEST_HAVE_IMPL */
     #if defined(WOLFSSL_HAVE_MLDSA)
         /* This device cannot delegate to the public API the way the other
          * handlers do; it would dispatch straight back here, and under
@@ -104337,7 +104347,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
         ret = mldsa_test();
 
-    #ifdef WC_MLDSA_HAVE_NATIVE
+    #ifdef MLDSA_TEST_HAVE_IMPL
     #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(HAVE_FIPS)
         if ((ret == 0) && (myCtx.mldsaKeyGenCount == 0))
             ret = WC_TEST_RET_ENC_NC;
@@ -104365,7 +104375,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         if ((ret == 0) && (myCtx.mldsaVerifyHashCount == 0))
             ret = WC_TEST_RET_ENC_NC;
     #endif
-    #endif /* WC_MLDSA_HAVE_NATIVE */
+    #endif /* MLDSA_TEST_HAVE_IMPL */
     }
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
