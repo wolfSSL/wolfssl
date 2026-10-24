@@ -1720,6 +1720,7 @@ static WARN_UNUSED_RESULT int Hash_gen(DRBG_internal* drbg, byte* out,
     wc_MemZero_Add("Hash_gen data", data, DRBG_SEED_LEN);
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     /* cached digest is the caller's drbg->digest_scratch, already registered */
+    XMEMSET(digest, 0, WC_SHA256_DIGEST_SIZE);
     wc_MemZero_Add("Hash_gen digest", digest, WC_SHA256_DIGEST_SIZE);
 #endif
 #endif
@@ -4305,8 +4306,6 @@ int wc_InitRngNonce_UserSeed(WC_RNG* rng,
         return BAD_FUNC_ARG;
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    if (seed == NULL && seedSz != 0)
-        return BAD_FUNC_ARG;
     if (nonce == NULL && nonceSz != 0)
         return BAD_FUNC_ARG;
     if (perso == NULL && persoSz != 0)
@@ -4314,6 +4313,8 @@ int wc_InitRngNonce_UserSeed(WC_RNG* rng,
 #ifdef HAVE_HASHDRBG
     if (seedSz < UserSeedSzFloor(flags))
         return BAD_LENGTH_E;
+#else
+    (void)seedSz;
 #endif
 #ifndef WC_RNG_HAVE_RBGC
     /* argument-legal calls must be refused if provenance tracking (RBGC) isn't

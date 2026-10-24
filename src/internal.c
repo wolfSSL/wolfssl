@@ -46731,7 +46731,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #ifndef NO_RSA
                     case rsa_kea:
                     {
-                        word32 keySz;
+                        word32 keySz = 0;
 
                         ssl->buffers.keyType = rsa_sa_algo;
                         ret = DecodePrivateKey(ssl, &keySz);
@@ -46820,7 +46820,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         if (ssl->specs.static_ecdh &&
                                           ssl->ecdhCurveOID != ECC_X25519_OID &&
                                           ssl->ecdhCurveOID != ECC_X448_OID) {
-                            word32 keySz;
+                            word32 keySz = 0;
 
                             ssl->buffers.keyType = ecc_dsa_sa_algo;
                             ret = DecodePrivateKey(ssl, &keySz);
