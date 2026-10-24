@@ -38689,9 +38689,12 @@ static wc_test_ret_t cert_asn1_test(void)
 {
     wc_test_ret_t ret;
     int len[3];
-    DecodedCert cert;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, HEAP_HINT);
     byte certData[114];
     byte* badCert = NULL;
+
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_ERRNO);
 
     len[2] = add_data(certData, 0, minSerial, (byte)sizeof(minSerial));
     len[2] = add_data(certData, len[2], minSigAlg, (byte)sizeof(minSigAlg));
@@ -38705,9 +38708,9 @@ static wc_test_ret_t cert_asn1_test(void)
     len[0] = add_seq(certData, 0, certData, len[1]);
 
     /* Minimal good certificate */
-    InitDecodedCert(&cert, certData, len[0], 0);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
-    FreeDecodedCert(&cert);
+    InitDecodedCert(cert, certData, len[0], 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(cert);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -38725,9 +38728,9 @@ static wc_test_ret_t cert_asn1_test(void)
     /* Put data into allocated buffer to allow access error checking. */
     badCert = (byte*)XMALLOC(len[0], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XMEMCPY(badCert, certData, len[0]);
-    InitDecodedCert(&cert, badCert, len[0], 0);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
-    FreeDecodedCert(&cert);
+    InitDecodedCert(cert, badCert, len[0], 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(cert);
     if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     }
@@ -38737,19 +38740,22 @@ static wc_test_ret_t cert_asn1_test(void)
 
 done:
     XFREE(badCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
 static wc_test_ret_t cert_load_bad(const char* fname, byte* tmp, int err)
 {
     wc_test_ret_t ret;
-    DecodedCert   cert;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, HEAP_HINT);
     XFILE         file;
     size_t        bytes;
 
     if ((fname == NULL) || (tmp == NULL)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
     file = XFOPEN(fname, "rb");
     if (!file) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
@@ -38759,15 +38765,16 @@ static wc_test_ret_t cert_load_bad(const char* fname, byte* tmp, int err)
     if (bytes == 0) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     }
-    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
-    FreeDecodedCert(&cert);
+    InitDecodedCert(cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(cert);
     if (ret != err) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     }
     ret = 0;
 
 done:
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -38808,7 +38815,7 @@ static wc_test_ret_t cert_bad_asn1_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
 {
 #if !defined(NO_FILESYSTEM)
-    DecodedCert cert;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, HEAP_HINT);
     byte*       tmp;
     size_t      bytes;
     XFILE       file;
@@ -38819,6 +38826,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return WC_TEST_RET_ENC_ERRNO;
+    /* Calloc so that FreeDecodedCert() at done: is a no-op on paths that
+     * don't reach InitDecodedCert().
+     */
+    WC_CALLOC_VAR_EX(cert, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                     ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
 
     /* Certificate with Name Constraints extension. */
     file = XFOPEN(certExtNc, "rb");
@@ -38829,11 +38841,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
     XFCLOSE(file);
     if (bytes == 0)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
-    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    InitDecodedCert(cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    FreeDecodedCert(&cert);
+    FreeDecodedCert(cert);
+    XMEMSET(cert, 0, sizeof(*cert));
 
     /* Certificate with Inhibit Any Policy extension. RFC 5280 4.2.1.14 requires
      * it to be critical and wolfSSL does not process it, so it is rejected. */
@@ -38845,8 +38858,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
     XFCLOSE(file);
     if (bytes == 0)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
-    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    InitDecodedCert(cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
 #ifndef WOLFSSL_NO_ASN_STRICT
     if (ret != WC_NO_ERR_TRACE(ASN_CRIT_EXT_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -38855,7 +38868,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif
-    FreeDecodedCert(&cert);
+    FreeDecodedCert(cert);
+    XMEMSET(cert, 0, sizeof(*cert));
 
     /* Certificate with Netscape Certificate Type extension. */
     file = XFOPEN(certExtNct, "rb");
@@ -38866,8 +38880,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
     XFCLOSE(file);
     if (bytes == 0)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
-    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    InitDecodedCert(cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -38879,7 +38893,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
 #endif
 
 done:
-    FreeDecodedCert(&cert);
+    FreeDecodedCert(cert);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif /* !NO_FILESYSTEM */
 
@@ -39156,7 +39171,7 @@ static wc_test_ret_t cert_no_malloc_test(void)
  * ownership, so a second call doesn't copy stale NULL pointers. */
 static wc_test_ret_t fill_signer_twice_test(void)
 {
-    DecodedCert cert;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, HEAP_HINT);
     Signer* signer1 = NULL;
     Signer* signer2 = NULL;
     DerBuffer* der = NULL;
@@ -39170,6 +39185,11 @@ static wc_test_ret_t fill_signer_twice_test(void)
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return WC_TEST_RET_ENC_ERRNO;
+    /* Calloc so that FreeDecodedCert() at done: is a no-op on paths that
+     * don't reach InitDecodedCert().
+     */
+    WC_CALLOC_VAR_EX(cert, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                     ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
 
     /* Load a DER certificate. */
     file = XFOPEN(certExtNc, "rb");
@@ -39188,13 +39208,13 @@ static wc_test_ret_t fill_signer_twice_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     XMEMCPY(der->buffer, tmp, bytes);
 
-    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    InitDecodedCert(cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
     /* After parsing, pubKeyStored should be set and publicKey non-NULL. */
-    if (!cert.pubKeyStored || cert.publicKey == NULL) {
+    if (!cert->pubKeyStored || cert->publicKey == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
@@ -39203,7 +39223,7 @@ static wc_test_ret_t fill_signer_twice_test(void)
     if (signer1 == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
 
-    ret = FillSigner(signer1, &cert, CA_TYPE, der);
+    ret = FillSigner(signer1, cert, CA_TYPE, der);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -39213,18 +39233,18 @@ static wc_test_ret_t fill_signer_twice_test(void)
     }
 
     /* After FillSigner, cert->publicKey should be NULL. */
-    if (cert.publicKey != NULL) {
+    if (cert->publicKey != NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
     /* BUG CHECK: pubKeyStored should have been cleared to 0.
      * If it is still set, a second FillSigner would copy a NULL pointer. */
-    if (cert.pubKeyStored != 0) {
+    if (cert->pubKeyStored != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
     /* Also check subjectCNStored is cleared. */
-    if (cert.subjectCNStored != 0) {
+    if (cert->subjectCNStored != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
@@ -39233,7 +39253,7 @@ static wc_test_ret_t fill_signer_twice_test(void)
     if (signer2 == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
 
-    ret = FillSigner(signer2, &cert, CA_TYPE, der);
+    ret = FillSigner(signer2, cert, CA_TYPE, der);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -39243,7 +39263,8 @@ static wc_test_ret_t fill_signer_twice_test(void)
     }
 
 done:
-    FreeDecodedCert(&cert);
+    FreeDecodedCert(cert);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (signer1 != NULL)
         FreeSigner(signer1, HEAP_HINT);
     if (signer2 != NULL)
@@ -43758,12 +43779,15 @@ static const byte dupKeyUsageCert[] = {
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_dup_ext_test(void)
 {
     wc_test_ret_t ret;
-    DecodedCert cert;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, HEAP_HINT);
 
-    InitDecodedCert(&cert, dupKeyUsageCert, (word32)sizeof(dupKeyUsageCert),
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_ERRNO);
+    InitDecodedCert(cert, dupKeyUsageCert, (word32)sizeof(dupKeyUsageCert),
                     NULL);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
-    FreeDecodedCert(&cert);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(cert);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret == 0)                    /* expected rejection, got accept */
         return WC_TEST_RET_ENC_NC;
     if (ret != WC_NO_ERR_TRACE(ASN_OBJECT_ID_E))
@@ -43777,12 +43801,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_dup_ext_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_crit_unknown_ext_test(void)
 {
     wc_test_ret_t ret;
-    DecodedCert cert;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, HEAP_HINT);
 
-    InitDecodedCert(&cert, critUnknownExtCert,
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_ERRNO);
+    InitDecodedCert(cert, critUnknownExtCert,
                     (word32)sizeof(critUnknownExtCert), NULL);
-    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
-    FreeDecodedCert(&cert);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(cert);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret == 0)                    /* expected rejection, got accept */
         return WC_TEST_RET_ENC_NC;
     if (ret != WC_NO_ERR_TRACE(ASN_CRIT_EXT_E))
@@ -60781,7 +60808,7 @@ cleanup:
 #ifdef WOLFSSL_TEST_CERT
 static wc_test_ret_t ed25519_test_cert(void)
 {
-    DecodedCert  cert[2];
+    WC_DECLARE_VAR(cert, DecodedCert, 2, HEAP_HINT);
     DecodedCert* serverCert = NULL;
     DecodedCert* caCert = NULL;
 #ifdef HAVE_ED25519_VERIFY
@@ -60798,6 +60825,8 @@ static wc_test_ret_t ed25519_test_cert(void)
     if (tmp == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     }
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
 
 #ifdef USE_CERT_BUFFERS_256
     XMEMCPY(tmp, ca_ed25519_cert, sizeof_ca_ed25519_cert);
@@ -60872,6 +60901,7 @@ done:
         FreeDecodedCert(caCert);
     if (serverCert != NULL)
         FreeDecodedCert(serverCert);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -60879,14 +60909,12 @@ done:
 static wc_test_ret_t ed25519_test_make_cert(void)
 {
     WC_RNG       rng;
-    Cert         cert;
-    DecodedCert  decode;
+    WC_DECLARE_VAR(cert, Cert, 1, HEAP_HINT);
+    WC_DECLARE_VAR(decode, DecodedCert, 1, HEAP_HINT);
     ed25519_key  key;
     ed25519_key* privKey = NULL;
     wc_test_ret_t ret = 0;
     byte*        tmp = NULL;
-
-    wc_InitCert_ex(&cert, HEAP_HINT, devId);
 
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
@@ -60896,23 +60924,30 @@ static wc_test_ret_t ed25519_test_make_cert(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+    WC_ALLOC_VAR_EX(cert, Cert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
+    WC_ALLOC_VAR_EX(decode, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
+
+    wc_InitCert_ex(cert, HEAP_HINT, devId);
+
     wc_ed25519_init(&key);
     privKey = &key;
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, privKey);
 
-    cert.daysValid = 365 * 2;
-    cert.selfSigned = 1;
-    XMEMCPY(&cert.issuer, &certDefaultName, sizeof(CertName));
-    XMEMCPY(&cert.subject, &certDefaultName, sizeof(CertName));
-    cert.isCA = 0;
+    cert->daysValid = 365 * 2;
+    cert->selfSigned = 1;
+    XMEMCPY(&cert->issuer, &certDefaultName, sizeof(CertName));
+    XMEMCPY(&cert->subject, &certDefaultName, sizeof(CertName));
+    cert->isCA = 0;
 #ifdef WOLFSSL_CERT_EXT
-    ret = wc_SetKeyUsage(&cert, certKeyUsage);
+    ret = wc_SetKeyUsage(cert, certKeyUsage);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    ret = wc_SetSubjectKeyIdFromPublicKey_ex(cert, ED25519_TYPE, privKey);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    ret = wc_SetAuthKeyIdFromPublicKey_ex(cert, ED25519_TYPE, privKey);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif
@@ -60921,18 +60956,18 @@ static wc_test_ret_t ed25519_test_make_cert(void)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     }
 
-    cert.sigType = CTC_ED25519;
-    ret = wc_MakeCert_ex(&cert, tmp, FOURK_BUF, ED25519_TYPE, privKey, &rng);
+    cert->sigType = CTC_ED25519;
+    ret = wc_MakeCert_ex(cert, tmp, FOURK_BUF, ED25519_TYPE, privKey, &rng);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = wc_SignCert_ex(cert.bodySz, cert.sigType, tmp, FOURK_BUF,
+    ret = wc_SignCert_ex(cert->bodySz, cert->sigType, tmp, FOURK_BUF,
                                                    ED25519_TYPE, privKey, &rng);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
-    InitDecodedCert(&decode, tmp, (word32)ret, HEAP_HINT);
-    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-    FreeDecodedCert(&decode);
+    InitDecodedCert(decode, tmp, (word32)ret, HEAP_HINT);
+    ret = ParseCert(decode, CERT_TYPE, NO_VERIFY, 0);
+    FreeDecodedCert(decode);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -60940,6 +60975,8 @@ done:
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_ed25519_free(privKey);
     wc_FreeRng(&rng);
+    WC_FREE_VAR_EX(decode, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* WOLFSSL_TEST_CERT */
@@ -63022,7 +63059,7 @@ out:
 #ifdef WOLFSSL_TEST_CERT
 static wc_test_ret_t ed448_test_cert(void)
 {
-    DecodedCert  cert[2];
+    WC_DECLARE_VAR(cert, DecodedCert, 2, HEAP_HINT);
     DecodedCert* serverCert = NULL;
     DecodedCert* caCert = NULL;
 #ifdef HAVE_ED448_VERIFY
@@ -63039,6 +63076,8 @@ static wc_test_ret_t ed448_test_cert(void)
     if (tmp == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     }
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
 
 #ifdef USE_CERT_BUFFERS_256
     XMEMCPY(tmp, ca_ed448_cert, sizeof_ca_ed448_cert);
@@ -63113,6 +63152,7 @@ done:
         FreeDecodedCert(caCert);
     if (serverCert != NULL)
         FreeDecodedCert(serverCert);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -63120,14 +63160,12 @@ done:
 static wc_test_ret_t ed448_test_make_cert(void)
 {
     WC_RNG       rng;
-    Cert         cert;
-    DecodedCert  decode;
+    WC_DECLARE_VAR(cert, Cert, 1, HEAP_HINT);
+    WC_DECLARE_VAR(decode, DecodedCert, 1, HEAP_HINT);
     ed448_key  key;
     ed448_key* privKey = NULL;
     wc_test_ret_t ret = 0;
     byte*        tmp = NULL;
-
-    wc_InitCert_ex(&cert, HEAP_HINT, devId);
 
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
@@ -63137,23 +63175,30 @@ static wc_test_ret_t ed448_test_make_cert(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+    WC_ALLOC_VAR_EX(cert, Cert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
+    WC_ALLOC_VAR_EX(decode, DecodedCert, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done));
+
+    wc_InitCert_ex(cert, HEAP_HINT, devId);
+
     wc_ed448_init(&key);
     privKey = &key;
     wc_ed448_make_key(&rng, ED448_KEY_SIZE, privKey);
 
-    cert.daysValid = 365 * 2;
-    cert.selfSigned = 1;
-    XMEMCPY(&cert.issuer, &certDefaultName, sizeof(CertName));
-    XMEMCPY(&cert.subject, &certDefaultName, sizeof(CertName));
-    cert.isCA = 0;
+    cert->daysValid = 365 * 2;
+    cert->selfSigned = 1;
+    XMEMCPY(&cert->issuer, &certDefaultName, sizeof(CertName));
+    XMEMCPY(&cert->subject, &certDefaultName, sizeof(CertName));
+    cert->isCA = 0;
 #ifdef WOLFSSL_CERT_EXT
-    ret = wc_SetKeyUsage(&cert, certKeyUsage);
+    ret = wc_SetKeyUsage(cert, certKeyUsage);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED448_TYPE, privKey);
+    ret = wc_SetSubjectKeyIdFromPublicKey_ex(cert, ED448_TYPE, privKey);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED448_TYPE, privKey);
+    ret = wc_SetAuthKeyIdFromPublicKey_ex(cert, ED448_TYPE, privKey);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif
@@ -63162,18 +63207,18 @@ static wc_test_ret_t ed448_test_make_cert(void)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     }
 
-    cert.sigType = CTC_ED448;
-    ret = wc_MakeCert_ex(&cert, tmp, FOURK_BUF, ED448_TYPE, privKey, &rng);
+    cert->sigType = CTC_ED448;
+    ret = wc_MakeCert_ex(cert, tmp, FOURK_BUF, ED448_TYPE, privKey, &rng);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = wc_SignCert_ex(cert.bodySz, cert.sigType, tmp, FOURK_BUF, ED448_TYPE,
-                                                                 privKey, &rng);
+    ret = wc_SignCert_ex(cert->bodySz, cert->sigType, tmp, FOURK_BUF,
+                                                   ED448_TYPE, privKey, &rng);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
-    InitDecodedCert(&decode, tmp, (word32)ret, HEAP_HINT);
-    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-    FreeDecodedCert(&decode);
+    InitDecodedCert(decode, tmp, (word32)ret, HEAP_HINT);
+    ret = ParseCert(decode, CERT_TYPE, NO_VERIFY, 0);
+    FreeDecodedCert(decode);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -63181,6 +63226,8 @@ done:
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_ed448_free(privKey);
     wc_FreeRng(&rng);
+    WC_FREE_VAR_EX(decode, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* WOLFSSL_TEST_CERT */
@@ -69676,7 +69723,7 @@ static wc_test_ret_t mlkem_certgen_test(void)
     wc_test_ret_t ret = 0;
     int i;
     WC_RNG rng;
-    ecc_key ca[1];
+    WC_DECLARE_VAR(ca, ecc_key, 1, HEAP_HINT);
     int rngInit = 0;
     int caInit = 0;
     static const struct {
@@ -69696,6 +69743,9 @@ static wc_test_ret_t mlkem_certgen_test(void)
         /* WC_ML_KEM_512 is 0, so -1 terminates the list, not 0. */
         { -1, 0, NULL }
     };
+
+    WC_ALLOC_VAR_EX(ca, ecc_key, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_ERRNO);
 
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     if (ret == 0)
@@ -69721,6 +69771,7 @@ static wc_test_ret_t mlkem_certgen_test(void)
 
     if (caInit)
         wc_ecc_free(ca);
+    WC_FREE_VAR_EX(ca, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (rngInit)
         wc_FreeRng(&rng);
 
