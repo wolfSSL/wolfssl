@@ -8608,6 +8608,68 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
      WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert, WOLF_STACK_OF(WOLFSSL_X509)** ca);
 
 /*!
+    \ingroup openSSL
+
+    \brief wolfSSL_PKCS12_create (PKCS12_create) builds a new WC_PKCS12
+    structure from a private key, its certificate, and an optional stack of
+    extra certificates. The key and certificate are each placed in their own
+    ContentInfo, encrypted with the password as selected by keyNID and
+    certNID, and a MAC is computed over the result unless macItt is -1. The
+    returned structure can be written out with wolfSSL_i2d_PKCS12_bio() or
+    wc_i2d_PKCS12() and must be freed with wc_PKCS12_free().
+
+    \return WC_PKCS12 pointer to the new WC_PKCS12 structure on success.
+    \return NULL if pass, pkey or cert is NULL, if macItt is less than -1, if
+    keyNID or certNID is not supported, or if memory allocation or encoding
+    fails.
+
+    \param pass NUL-terminated password used for encryption and for the MAC.
+    \param name friendlyName to use. Not currently used.
+    \param pkey private key to place in the bundle.
+    \param cert certificate to place in the bundle.
+    \param ca optional stack of extra certificates to include, or NULL.
+    \param keyNID encryption to apply to the private key: one of
+    NID_pbe_WithSHA1And128BitRC4, NID_pbe_WithSHA1AndDES_CBC or
+    NID_pbe_WithSHA1And3_Key_TripleDES_CBC, PBE_AES128_CBC or PBE_AES256_CBC,
+    or -1 for none. The cipher must be enabled in the build.
+    \param certNID encryption to apply to the certificate, using the same
+    values as keyNID.
+    \param itt number of iterations to use for the encryption. Values of 0
+    or less select WC_PKCS12_ITT_DEFAULT.
+    \param macItt number of iterations to use when creating the MAC. 0 selects
+    WC_PKCS12_ITT_DEFAULT, -1 creates no MAC, and values less than -1 are
+    rejected.
+    \param keytype flag for a signature and/or encryption key. Not currently
+    used.
+
+    _Example_
+    \code
+    WC_PKCS12* pkcs12;
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_X509* cert;
+    WOLFSSL_BIO* bio;
+    // pkey and cert loaded beforehand, bio created for output
+    pkcs12 = wolfSSL_PKCS12_create("a password", NULL, pkey, cert, NULL,
+            PBE_AES256_CBC, PBE_AES256_CBC,
+            PKCS12_DEFAULT_ITER, PKCS12_DEFAULT_ITER, 0);
+    if (pkcs12 == NULL) {
+        // error creating the PKCS12 bundle
+    }
+    wolfSSL_i2d_PKCS12_bio(bio, pkcs12);
+    wc_PKCS12_free(pkcs12);
+    \endcode
+
+    \sa wolfSSL_PKCS12_parse
+    \sa wolfSSL_i2d_PKCS12_bio
+    \sa wc_PKCS12_create
+    \sa wc_PKCS12_free
+*/
+WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
+        WOLFSSL_EVP_PKEY* pkey, WOLFSSL_X509* cert,
+        WOLF_STACK_OF(WOLFSSL_X509)* ca,
+        int keyNID, int certNID, int itt, int macItt, int keytype);
+
+/*!
     \ingroup CertsKeys
 
     \brief Server Diffie-Hellman Ephemeral parameters setting. This function

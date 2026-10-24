@@ -1792,7 +1792,8 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
  * keyNID  type of encryption to use on the key (-1 means no encryption)
  * certNID type of encryption to use on the certificate
  * itt     number of iterations with encryption
- * macItt  number of iterations with mac creation
+ * macItt  number of iterations with mac creation. 0 selects
+ *         WC_PKCS12_ITT_DEFAULT, -1 means no MAC, below -1 is rejected
  * keyType flag for signature and/or encryption key
  *
  * returns a pointer to a new WC_PKCS12 structure on success and NULL on fail
@@ -1811,7 +1812,7 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
 
     WOLFSSL_ENTER("wolfSSL_PKCS12_create");
 
-    if (pass == NULL || pkey == NULL || cert == NULL) {
+    if (pass == NULL || pkey == NULL || cert == NULL || macItt < -1) {
         WOLFSSL_LEAVE("wolfSSL_PKCS12_create", BAD_FUNC_ARG);
         return NULL;
     }
@@ -1862,6 +1863,10 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
             sk = sk->next;
             numCerts--;
         }
+    }
+
+    if (macItt == 0) {
+        macItt = WC_PKCS12_ITT_DEFAULT;
     }
 
     pkcs12 = wc_PKCS12_create(pass, passSz, name, keyDer, keyDerSz,
