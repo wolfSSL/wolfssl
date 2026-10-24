@@ -27487,7 +27487,7 @@ static void sp_256_ecc_recode_6_5(const sp_digit* k, ecc_recode_256* v)
     n = k[j];
     o = 0;
     for (i=0; i<43; i++) {
-        y = (word8)(int8_t)n;
+        y = (word8)(n & 0xff);
         if (o + 6 < 52) {
             y &= 0x3f;
             n >>= 6;
@@ -34590,7 +34590,7 @@ static void sp_384_ecc_recode_6_7(const sp_digit* k, ecc_recode_384* v)
     n = k[j];
     o = 0;
     for (i=0; i<65; i++) {
-        y = (word8)(int8_t)n;
+        y = (word8)(n & 0xff);
         if (o + 6 < 55) {
             y &= 0x3f;
             n >>= 6;
@@ -42171,7 +42171,7 @@ static void sp_521_ecc_recode_6_9(const sp_digit* k, ecc_recode_521* v)
     n = k[j];
     o = 0;
     for (i=0; i<87; i++) {
-        y = (word8)(int8_t)n;
+        y = (word8)(n & 0xff);
         if (o + 6 < 58) {
             y &= 0x3f;
             n >>= 6;
@@ -49895,7 +49895,7 @@ static void sp_1024_ecc_recode_7_18(const sp_digit* k, ecc_recode_1024* v)
     n = k[j];
     o = 0;
     for (i=0; i<147; i++) {
-        y = (word8)(int8_t)n;
+        y = (word8)(n & 0xff);
         if (o + 7 < 57) {
             y &= 0x7f;
             n >>= 7;
