@@ -1265,6 +1265,77 @@ int test_dtls13_every_write_want_write(void)
     return EXPECT_RESULT();
 }
 
+int test_dtls13_key_update_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_RW_THREADED)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "key-update";
+    const int msgLen = sizeof(msg);
+    const w64wrapper newEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    char readBuf[sizeof(msg)];
+    int sMsgCount = 0;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    }
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_s), 0);
+
+    /* Server processes the KeyUpdate but its response is blocked */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    test_memio_simulate_want_write(&test_ctx, 0, 1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, newEpoch));
+
+    /* Client retransmits the KeyUpdate before any ACK can reach it */
+    sMsgCount = test_ctx.s_msg_count;
+    if (wolfSSL_dtls13_use_quick_timeout(ssl_c))
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.s_msg_count, sMsgCount);
+
+    test_memio_simulate_want_write(&test_ctx, 0, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    }
+
+    /* The retransmission must not advance the epoch a second time */
+    ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, newEpoch));
+    ExpectTrue(w64Equal(ssl_c->dtls13Epoch, newEpoch));
+    ExpectTrue(w64Equal(ssl_c->dtls13PeerEpoch, newEpoch));
+    ExpectTrue(w64Equal(ssl_s->dtls13Epoch, newEpoch));
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_s), 0);
+
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*-- epochs (test_dtls.c lines 823,871) ---*/
 int test_dtls13_epochs(void) {
     EXPECT_DECLS;
