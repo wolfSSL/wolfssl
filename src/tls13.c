@@ -16679,6 +16679,24 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.connectState == CONNECT_BEGIN &&
+            (ret = DtlsCheckVersionMask(ssl)) != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    if (ssl->version.major == DTLS_MAJOR && !IsAtLeastTLSv1_3(ssl->version)) {
+        ssl->options.tls1_3 = 0;
+        #ifdef WOLFSSL_EARLY_DATA
+        ssl->earlyData = no_early_data;
+        #endif
+        return wolfSSL_connect(ssl);
+    }
+    #endif
+#endif
+
     /* make sure this wolfSSL object has arrays and rng setup. Protects
      * case where the WOLFSSL object is reused via wolfSSL_clear() */
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
@@ -17956,6 +17974,21 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
     }
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.acceptState == TLS13_ACCEPT_BEGIN &&
+            (ret = DtlsCheckVersionMask(ssl)) != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    if (ssl->version.major == DTLS_MAJOR && !IsAtLeastTLSv1_3(ssl->version)) {
+        ssl->options.tls1_3 = 0;
+        return wolfSSL_accept(ssl);
+    }
+    #endif
+#endif
 
     /* make sure this wolfSSL object has arrays and rng setup. Protects
      * case where the WOLFSSL object is reused via wolfSSL_clear() */

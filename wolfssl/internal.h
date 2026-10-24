@@ -2380,6 +2380,7 @@ WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);
 WOLFSSL_LOCAL void InitSSL_CTX_Suites(const WOLFSSL_CTX* ctx,
     Suites* suites);
 WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
+WOLFSSL_LOCAL int ResetSuitesForVersion(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
 
@@ -8264,6 +8265,10 @@ WOLFSSL_LOCAL int DtlsUpdateWindow(WOLFSSL* ssl);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsMinDowngrade(byte minDowngrade);
+WOLFSSL_LOCAL byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor,
+    byte minDowngrade);
+WOLFSSL_LOCAL int DtlsCheckVersionMask(WOLFSSL* ssl);
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int DtlsNoCookieChGood(WOLFSSL* ssl);
 #endif
