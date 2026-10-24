@@ -73,6 +73,10 @@
         #endif
     #endif /* !NO_CLIENT_CACHE */
 
+    /* Resolve a client cache reference and keep its row read-locked. */
+    static WOLFSSL_SESSION* ClientSessionToSessionRdLocked(
+        const WOLFSSL_SESSION* session, SessionRow** lockedRow);
+
     void EvictSessionFromCache(WOLFSSL_SESSION* session)
     {
     #ifdef HAVE_EX_DATA
@@ -182,9 +186,17 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 /* session is a private struct, return if it is setup or not */
 int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session)
 {
+    SessionRow* sessRow = NULL;
+    int ret = 0;
+
+    session = ClientSessionToSessionRdLocked(session, &sessRow);
     if (session != NULL)
-        return session->isSetup;
-    return 0;
+        ret = session->isSetup;
+    if (sessRow != NULL) {
+        SESSION_ROW_UNLOCK(sessRow);
+    }
+
+    return ret;
 }
 
 /*
@@ -1823,18 +1835,15 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx,
 }
 #endif /* !NO_CLIENT_CACHE */
 
-/**
- * For backwards compatibility, this API needs to be used in *ALL* functions
- * that access the WOLFSSL_SESSION members directly.
- *
- * This API checks if the passed in session is actually a ClientSession object
- * and returns the matching session cache object. Otherwise just return the
- * input. ClientSession objects only occur in the ClientCache. They are not
- * allocated anywhere else.
- */
-WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
+/* As ClientSessionToSession(), but when the handle named an entry in the
+ * client cache its row is left read-locked and returned in lockedRow. The
+ * caller reads the members it needs and then releases the row, so the entry
+ * cannot be replaced or freed in between. */
+static WOLFSSL_SESSION* ClientSessionToSessionRdLocked(
+    const WOLFSSL_SESSION* session, SessionRow** lockedRow)
 {
     WOLFSSL_ENTER("ClientSessionToSession");
+    *lockedRow = NULL;
 #ifdef NO_SESSION_CACHE_REF
     return (WOLFSSL_SESSION*)session;
 #else
@@ -1880,7 +1889,7 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
 #endif
             /* Prevent memory access */
             XFENCE();
-            if (cacheSession && cacheSession->sessionIDSz == 0) {
+            if (cacheSession == NULL || cacheSession->sessionIDSz == 0) {
                 cacheSession = NULL;
                 WOLFSSL_MSG("Session cache entry not set");
                 error = WOLFSSL_FATAL_ERROR;
@@ -1910,7 +1919,12 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
             WOLFSSL_MSG("Found session cache matching client session object");
         }
         if (sessRow != NULL) {
-            SESSION_ROW_UNLOCK(sessRow);
+            if (session != NULL) {
+                *lockedRow = sessRow;
+            }
+            else {
+                SESSION_ROW_UNLOCK(sessRow);
+            }
         }
         wc_UnLockMutex(&clisession_mutex);
         return (WOLFSSL_SESSION*)session;
@@ -1923,6 +1937,28 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
     return (WOLFSSL_SESSION*)session;
 #endif
 #endif
+}
+
+/**
+ * For backwards compatibility, this API needs to be used in *ALL* functions
+ * that access the WOLFSSL_SESSION members directly.
+ *
+ * This API checks if the passed in session is actually a ClientSession object
+ * and returns the matching session cache object. Otherwise just return the
+ * input. ClientSession objects only occur in the ClientCache. They are not
+ * allocated anywhere else.
+ */
+WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
+{
+    SessionRow* sessRow = NULL;
+    WOLFSSL_SESSION* ret;
+
+    ret = ClientSessionToSessionRdLocked(session, &sessRow);
+    if (sessRow != NULL) {
+        SESSION_ROW_UNLOCK(sessRow);
+    }
+
+    return ret;
 }
 
 int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
@@ -3887,11 +3923,28 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
 #ifdef WOLFSSL_EARLY_DATA
 unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *session)
 {
-    if (session == NULL) {
-        return BAD_FUNC_ARG;
-    }
+#ifndef NO_SESSION_CACHE
+    SessionRow* sessRow = NULL;
+#endif
+    /* Every value of the return type is a valid limit, 0 for none and
+     * 0xffffffff for QUIC, so there is no error value to report here. */
+    unsigned int ret = 0;
 
-    return session->maxEarlyDataSz;
+#ifndef NO_SESSION_CACHE
+    session = ClientSessionToSessionRdLocked(session, &sessRow);
+    if (session != NULL) {
+        ret = session->maxEarlyDataSz;
+    }
+    if (sessRow != NULL) {
+        SESSION_ROW_UNLOCK(sessRow);
+    }
+#else
+    if (session != NULL) {
+        ret = session->maxEarlyDataSz;
+    }
+#endif
+
+    return ret;
 }
 #endif /* WOLFSSL_EARLY_DATA */
 
