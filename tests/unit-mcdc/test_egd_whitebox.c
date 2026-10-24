@@ -189,14 +189,14 @@ int main(void)
     responseLen = 6;
     for (i = 0; i < 3; i++) {
         reset_case(3, 0, i == 0 ? 0 : (i == 1 ? EIO : EAGAIN));
-        CHECK(run_egd() == WOLFSSL_FATAL_ERROR);
+        CHECK(run_egd() == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
         CHECK(requests == 1 && reseeds == 0);
     }
 
     /* No header, no available entropy, and a count exceeding remaining room. */
     responseLen = 0;
     reset_case(3, 0, 0);
-    CHECK(run_egd() == WOLFSSL_FATAL_ERROR);
+    CHECK(run_egd() == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
     CHECK(reseeds == 0 && requests == 1);
     response[0] = 0;
     responseLen = 1;
@@ -207,7 +207,7 @@ int main(void)
     response[101] = 156;
     responseLen = 102;
     reset_case(3, 0, 0);
-    CHECK(run_egd() == WOLFSSL_FATAL_ERROR);
+    CHECK(run_egd() == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
     CHECK(offset == 102 && requests == 2 && reseeds == 0);
 
     wolfSSL_RAND_Cleanup();
