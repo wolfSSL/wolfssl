@@ -8920,6 +8920,13 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     #ifdef WOLFSSL_STATIC_EPHEMERAL
         ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_ECDH, kse->key);
+        if ((ret == 0) && (eccKey->dp->id == curveId)) {
+            /* SEC1 makes the public point optional, and the key share sends
+             * it. A failed derivation leaves the key private-only so the
+             * export below fails the handshake: returning the error would
+             * generate a key in place of the configured one. */
+            (void)wc_ecc_derive_pub_if_needed(eccKey, ssl->rng);
+        }
         if (ret != 0 || eccKey->dp->id != curveId)
     #endif
         {

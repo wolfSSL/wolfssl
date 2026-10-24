@@ -9181,3 +9181,69 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void)
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 && USE_CERT_BUFFERS_2048 */
     return EXPECT_RESULT();
 }
+
+/* Test encoding with a SEC1 ECC key that omits the public point. */
+int test_wc_PKCS7_EncodeSignedData_ecc_priv_only(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_256) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(NO_ECC256) && \
+    !defined(NO_ECC_SECP)
+    PKCS7*  pkcs7 = NULL;
+    WC_RNG  rng;
+    ecc_key key;
+    word32  idx = 0;
+    byte    privOnlyDer[128];
+    int     privOnlyDerSz = 0;
+    byte    output[FOURK_BUF];
+    byte    data[] = "Test data to encode.";
+    int     canDerive = test_ecc_can_derive_pub();
+
+    if (canDerive == 0) {
+        return TEST_SKIPPED;
+    }
+    ExpectIntEQ(canDerive, 1);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(output, 0, sizeof(output));
+
+    /* wc_EccPrivateKeyToDer() emits SEC1 that may omit publicKey. */
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &key,
+        (word32)sizeof_ecc_clikey_der_256), 0);
+    ExpectIntGT(privOnlyDerSz = wc_EccPrivateKeyToDer(&key, privOnlyDer,
+        (word32)sizeof(privOnlyDer)), 0);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &key,
+        (word32)privOnlyDerSz), 0);
+    ExpectIntEQ(key.type, ECC_PRIVATEKEY_ONLY);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cliecc_cert_der_256,
+        (word32)sizeof_cliecc_cert_der_256), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content      = data;
+        pkcs7->contentSz    = (word32)sizeof(data);
+        pkcs7->privateKey   = privOnlyDer;
+        pkcs7->privateKeySz = (word32)privOnlyDerSz;
+        pkcs7->encryptOID   = ECDSAk;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->rng          = &rng;
+    }
+
+    ExpectIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output,
+        (word32)sizeof(output)), 0);
+
+    wc_PKCS7_Free(pkcs7);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

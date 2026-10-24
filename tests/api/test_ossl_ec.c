@@ -1785,50 +1785,44 @@ int test_wolfSSL_EC_POINT_point2hex_oversized(void)
     return EXPECT_RESULT();
 }
 
-/* Test that d2i_ECPrivateKey derives the public point when the optional
- * publicKey [1] field is absent from the RFC 5915 DER encoding.
- *
- * Without the fix, wc_EccPrivateKeyDecode sets type = ECC_PRIVATEKEY_ONLY and
- * leaves pubkey uninitialised; every downstream operation (sign, ECDH, export)
- * then runs against uninitialised memory.
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    defined(HAVE_ECC_KEY_IMPORT)
+/* RFC 5915 ECPrivateKey DER with version + privateKey + parameters [0]
+ * but NO publicKey [1] field.
  *
  * Test vector produced by pyca/cryptography and cross-checked with OpenSSL:
  *   private scalar: 519b423d715f8b581f4fa8ee59f4771a5b44c8130b4e3eacca54a56dda72b464
  *   expected pub x: 1ccbe91c075fc7f4f033bfa248db8fccd3565de94bbfb12f3c59ff46c271bf83
  *   expected pub y: ce4014c68811f9a21a1fdb2c0e6113e06db7ca93b7404e78dc7ccd5ca89a4ca9
  */
-int test_d2i_ECPrivateKey_no_pubkey(void)
+static const byte kEcPrivOnlyDer[] = {
+    0x30, 0x31,                               /* SEQUENCE (49 bytes)    */
+    0x02, 0x01, 0x01,                         /* version = 1            */
+    0x04, 0x20,                               /* privateKey (32 bytes)  */
+    0x51, 0x9b, 0x42, 0x3d, 0x71, 0x5f, 0x8b, 0x58,
+    0x1f, 0x4f, 0xa8, 0xee, 0x59, 0xf4, 0x77, 0x1a,
+    0x5b, 0x44, 0xc8, 0x13, 0x0b, 0x4e, 0x3e, 0xac,
+    0xca, 0x54, 0xa5, 0x6d, 0xda, 0x72, 0xb4, 0x64,
+    0xa0, 0x0a,                               /* [0] parameters         */
+    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+};
+/* Expected uncompressed public key (04 || x || y), oracle: pyca/cryptography */
+static const byte kEcPrivOnlyExpectedPub[] = {
+    0x04,
+    0x1c, 0xcb, 0xe9, 0x1c, 0x07, 0x5f, 0xc7, 0xf4,
+    0xf0, 0x33, 0xbf, 0xa2, 0x48, 0xdb, 0x8f, 0xcc,
+    0xd3, 0x56, 0x5d, 0xe9, 0x4b, 0xbf, 0xb1, 0x2f,
+    0x3c, 0x59, 0xff, 0x46, 0xc2, 0x71, 0xbf, 0x83,
+    0xce, 0x40, 0x14, 0xc6, 0x88, 0x11, 0xf9, 0xa2,
+    0x1a, 0x1f, 0xdb, 0x2c, 0x0e, 0x61, 0x13, 0xe0,
+    0x6d, 0xb7, 0xca, 0x93, 0xb7, 0x40, 0x4e, 0x78,
+    0xdc, 0x7c, 0xcd, 0x5c, 0xa8, 0x9a, 0x4c, 0xa9
+};
+
+/* The key holds the expected public point and can sign and verify. */
+static int test_ec_priv_only_key_complete(EC_KEY* key)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_MAKE_PUB)
-    /* RFC 5915 ECPrivateKey DER with version + privateKey + parameters [0]
-     * but NO publicKey [1] field. */
-    static const byte kPrivOnlyDer[] = {
-        0x30, 0x31,                               /* SEQUENCE (49 bytes)    */
-        0x02, 0x01, 0x01,                         /* version = 1            */
-        0x04, 0x20,                               /* privateKey (32 bytes)  */
-        0x51, 0x9b, 0x42, 0x3d, 0x71, 0x5f, 0x8b, 0x58,
-        0x1f, 0x4f, 0xa8, 0xee, 0x59, 0xf4, 0x77, 0x1a,
-        0x5b, 0x44, 0xc8, 0x13, 0x0b, 0x4e, 0x3e, 0xac,
-        0xca, 0x54, 0xa5, 0x6d, 0xda, 0x72, 0xb4, 0x64,
-        0xa0, 0x0a,                               /* [0] parameters         */
-        0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
-    };
-    /* Expected uncompressed public key (04 || x || y), oracle: pyca/cryptography */
-    static const byte kExpectedPub[] = {
-        0x04,
-        0x1c, 0xcb, 0xe9, 0x1c, 0x07, 0x5f, 0xc7, 0xf4,
-        0xf0, 0x33, 0xbf, 0xa2, 0x48, 0xdb, 0x8f, 0xcc,
-        0xd3, 0x56, 0x5d, 0xe9, 0x4b, 0xbf, 0xb1, 0x2f,
-        0x3c, 0x59, 0xff, 0x46, 0xc2, 0x71, 0xbf, 0x83,
-        0xce, 0x40, 0x14, 0xc6, 0x88, 0x11, 0xf9, 0xa2,
-        0x1a, 0x1f, 0xdb, 0x2c, 0x0e, 0x61, 0x13, 0xe0,
-        0x6d, 0xb7, 0xca, 0x93, 0xb7, 0x40, 0x4e, 0x78,
-        0xdc, 0x7c, 0xcd, 0x5c, 0xa8, 0x9a, 0x4c, 0xa9
-    };
-    const byte* der = kPrivOnlyDer;
-    EC_KEY* key = NULL;
     unsigned char* pub = NULL;
     unsigned char* p = NULL;
     byte hash[32];
@@ -1838,20 +1832,18 @@ int test_d2i_ECPrivateKey_no_pubkey(void)
 
     XMEMSET(hash, 0xab, sizeof(hash));
 
-    /* Import private-only DER -- must succeed and auto-derive the public key. */
-    ExpectNotNull(key = d2i_ECPrivateKey(NULL, &der, sizeof(kPrivOnlyDer)));
-
     /* Structural validity: public point on curve, priv/pub consistent. */
     ExpectIntEQ(EC_KEY_check_key(key), 1);
 
     /* Public key bytes must match the oracle-computed expected value. */
-    ExpectIntEQ((pubLen = i2o_ECPublicKey(key, NULL)), (int)sizeof(kExpectedPub));
+    ExpectIntEQ((pubLen = i2o_ECPublicKey(key, NULL)),
+        (int)sizeof(kEcPrivOnlyExpectedPub));
     if (EXPECT_SUCCESS()) {
         ExpectNotNull(pub = (unsigned char*)XMALLOC(pubLen, NULL,
             DYNAMIC_TYPE_TMP_BUFFER));
         p = pub;
         ExpectIntEQ(i2o_ECPublicKey(key, &p), pubLen);
-        ExpectIntEQ(XMEMCMP(pub, kExpectedPub, (word32)pubLen), 0);
+        ExpectIntEQ(XMEMCMP(pub, kEcPrivOnlyExpectedPub, (word32)pubLen), 0);
         XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
@@ -1859,9 +1851,198 @@ int test_d2i_ECPrivateKey_no_pubkey(void)
     ExpectIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
     ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, (int)sigSz, key), 1);
 
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that every EC private key loader derives the public point when the
+ * optional publicKey [1] field is absent from the RFC 5915 DER encoding.
+ *
+ * Without the derivation, wc_EccPrivateKeyDecode sets
+ * type = ECC_PRIVATEKEY_ONLY and leaves pubkey uninitialised; every downstream
+ * operation (sign, ECDH, export) then runs against uninitialised memory.
+ */
+int test_d2i_ECPrivateKey_no_pubkey(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    defined(HAVE_ECC_KEY_IMPORT)
+#if !defined(NO_BIO) && defined(WOLFSSL_PEM_TO_DER)
+    static const char kPrivOnlyPem[] =
+        "-----BEGIN EC PRIVATE KEY-----\n"
+        "MDECAQEEIFGbQj1xX4tYH0+o7ln0dxpbRMgTC04+rMpUpW3acrRkoAoGCCqGSM49AwEH\n"
+        "-----END EC PRIVATE KEY-----\n";
+    BIO* bio = NULL;
+#endif
+    const byte* der = kEcPrivOnlyDer;
+    byte badDer[sizeof(kEcPrivOnlyDer)];
+    EC_KEY* key = NULL;
+    int canDerive = test_ecc_can_derive_pub();
+
+    if (canDerive == 0) {
+        /* Without derivation the key stays private-only, but the private key
+         * must still reach the EC_KEY. */
+        ExpectNotNull(key = d2i_ECPrivateKey(NULL, &der,
+            sizeof(kEcPrivOnlyDer)));
+        ExpectNotNull(EC_KEY_get0_private_key(key));
+        ExpectFalse(BN_is_zero(EC_KEY_get0_private_key(key)));
+        EC_KEY_free(key);
+        return EXPECT_RESULT();
+    }
+    ExpectIntEQ(canDerive, 1);
+
+    /* d2i_ECPrivateKey() */
+    ExpectNotNull(key = d2i_ECPrivateKey(NULL, &der, sizeof(kEcPrivOnlyDer)));
+    ExpectIntEQ(test_ec_priv_only_key_complete(key), TEST_SUCCESS);
     EC_KEY_free(key);
-#endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP && HAVE_ECC_KEY_IMPORT
-        * && HAVE_ECC_MAKE_PUB */
+    key = NULL;
+
+    /* EC_KEY_LoadDer(), behind the PEM readers */
+    ExpectNotNull(key = EC_KEY_new());
+    ExpectIntEQ(wolfSSL_EC_KEY_LoadDer(key, kEcPrivOnlyDer,
+        (int)sizeof(kEcPrivOnlyDer)), 1);
+    ExpectIntEQ(test_ec_priv_only_key_complete(key), TEST_SUCCESS);
+    EC_KEY_free(key);
+    key = NULL;
+
+#if !defined(NO_BIO) && defined(WOLFSSL_PEM_TO_DER)
+    /* PEM_read_bio_ECPrivateKey() */
+    ExpectNotNull(bio = BIO_new_mem_buf(kPrivOnlyPem,
+        (int)XSTRLEN(kPrivOnlyPem)));
+    ExpectNotNull(key = PEM_read_bio_ECPrivateKey(bio, NULL, NULL, NULL));
+    ExpectIntEQ(test_ec_priv_only_key_complete(key), TEST_SUCCESS);
+    EC_KEY_free(key);
+    key = NULL;
+    BIO_free(bio);
+#endif
+
+#ifdef WOLFSSL_PUBLIC_MP
+    /* EVP_PKEY_cmp() completes a key still private-only, as one loaded by
+     * other means would be, and only after the curve check. */
+    {
+        EVP_PKEY* pkeyA = NULL;
+        EVP_PKEY* pkeyB = NULL;
+        EC_KEY* keyB = NULL;
+        ecc_key* internalB = NULL;
+    #ifdef WOLFSSL_ERROR_CODE_OPENSSL
+        const int match = 1;
+    #else
+        const int match = 0;
+    #endif
+    #if defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
+        EVP_PKEY* pkeyC = NULL;
+        EC_KEY* keyC = NULL;
+    #endif
+
+        der = kEcPrivOnlyDer;
+        ExpectNotNull(key = d2i_ECPrivateKey(NULL, &der,
+            sizeof(kEcPrivOnlyDer)));
+        der = kEcPrivOnlyDer;
+        ExpectNotNull(keyB = d2i_ECPrivateKey(NULL, &der,
+            sizeof(kEcPrivOnlyDer)));
+        ExpectNotNull(pkeyA = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkeyA, key), 1);
+        ExpectNotNull(pkeyB = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkeyB, keyB), 1);
+        if (keyB != NULL) {
+            internalB = (ecc_key*)keyB->internal;
+        }
+        if (internalB != NULL) {
+            internalB->type = ECC_PRIVATEKEY_ONLY;
+            mp_zero(internalB->pubkey.x);
+            mp_zero(internalB->pubkey.y);
+            mp_zero(internalB->pubkey.z);
+        }
+
+    #if defined(HAVE_ECC384) && (ECC_MIN_KEY_SZ <= 384)
+        ExpectNotNull(keyC = EC_KEY_new_by_curve_name(NID_secp384r1));
+        ExpectIntEQ(EC_KEY_generate_key(keyC), 1);
+        ExpectNotNull(pkeyC = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkeyC, keyC), 1);
+        ExpectIntNE(EVP_PKEY_cmp(pkeyB, pkeyC), match);
+        if (internalB != NULL) {
+            ExpectIntEQ(internalB->type, ECC_PRIVATEKEY_ONLY);
+        }
+        EVP_PKEY_free(pkeyC);
+        EC_KEY_free(keyC);
+    #endif
+
+        ExpectIntEQ(EVP_PKEY_cmp(pkeyA, pkeyB), match);
+        if (internalB != NULL) {
+            ExpectIntEQ(internalB->type, ECC_PRIVATEKEY);
+        }
+        EVP_PKEY_free(pkeyB);
+        EVP_PKEY_free(pkeyA);
+        EC_KEY_free(keyB);
+        EC_KEY_free(key);
+        key = NULL;
+    }
+#endif /* WOLFSSL_PUBLIC_MP */
+
+    /* EVP_PKEY_cmp() completes a key whose private key was set after its
+     * point was cleared, instead of comparing two all-zero points. */
+    {
+        EC_KEY*   keyA = NULL;
+        EC_KEY*   keyB = NULL;
+        EVP_PKEY* pkeyA = NULL;
+        EVP_PKEY* pkeyB = NULL;
+        BIGNUM*   priv = NULL;
+    #ifdef WOLFSSL_ERROR_CODE_OPENSSL
+        const int match = 1;
+    #else
+        const int match = 0;
+    #endif
+
+        ExpectNotNull(priv = BN_new());
+        ExpectNotNull(keyA = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+        ExpectNotNull(keyB = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+        ExpectIntEQ(BN_set_word(priv, 12345), 1);
+        ExpectIntEQ(EC_KEY_set_private_key(keyA, priv), 1);
+        ExpectIntEQ(BN_set_word(priv, 67890), 1);
+        ExpectIntEQ(EC_KEY_set_private_key(keyB, priv), 1);
+        ExpectNotNull(pkeyA = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkeyA, keyA), 1);
+        ExpectNotNull(pkeyB = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkeyB, keyB), 1);
+        ExpectIntEQ(BN_set_word(priv, 11111), 1);
+        ExpectIntEQ(EC_KEY_set_private_key(keyA, priv), 1);
+        ExpectIntEQ(BN_set_word(priv, 22222), 1);
+        ExpectIntEQ(EC_KEY_set_private_key(keyB, priv), 1);
+
+        ExpectIntNE(EVP_PKEY_cmp(pkeyA, pkeyB), match);
+        ExpectIntEQ(EVP_PKEY_cmp(pkeyA, pkeyA), match);
+
+        EVP_PKEY_free(pkeyB);
+        EVP_PKEY_free(pkeyA);
+        EC_KEY_free(keyB);
+        EC_KEY_free(keyA);
+        BN_free(priv);
+    }
+
+    /* The decode range check rejects a scalar >= n. LoadDer leaves the
+     * internal key holding the previous key. */
+    XMEMCPY(badDer, kEcPrivOnlyDer, sizeof(badDer));
+    XMEMSET(badDer + 7, 0xff, 32);
+    der = badDer;
+    ExpectNull(d2i_ECPrivateKey(NULL, &der, sizeof(badDer)));
+    ExpectNotNull(key = EC_KEY_new());
+    ExpectIntEQ(wolfSSL_EC_KEY_LoadDer(key, kEcPrivOnlyDer,
+        (int)sizeof(kEcPrivOnlyDer)), 1);
+    {
+        void* internal = (key != NULL) ? key->internal : NULL;
+
+        ExpectIntEQ(wolfSSL_EC_KEY_LoadDer(key, badDer, (int)sizeof(badDer)),
+            -1);
+        if (key != NULL) {
+            ExpectIntEQ(key->inSet, 0);
+            ExpectPtrEq(key->internal, internal);
+            ExpectIntEQ(((ecc_key*)key->internal)->type, ECC_PRIVATEKEY);
+        }
+    }
+    ExpectIntEQ(test_ec_priv_only_key_complete(key), TEST_SUCCESS);
+    EC_KEY_free(key);
+#endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP &&
+        * HAVE_ECC_KEY_IMPORT */
     return EXPECT_RESULT();
 }
 
