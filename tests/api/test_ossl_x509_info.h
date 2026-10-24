@@ -27,12 +27,14 @@
 int test_wolfSSL_X509_INFO_multiple_info(void);
 int test_wolfSSL_X509_INFO(void);
 int test_wolfSSL_PEM_X509_INFO_read_bio(void);
+int test_wolfSSL_PEM_X509_INFO_stream_limit(void);
 int test_wolfSSL_PEM_X509_INFO_read(void);
 
 #define TEST_OSSL_X509_INFO_DECLS                                              \
     TEST_DECL_GROUP("ossl_x509_info", test_wolfSSL_X509_INFO_multiple_info),   \
     TEST_DECL_GROUP("ossl_x509_info", test_wolfSSL_X509_INFO),                 \
     TEST_DECL_GROUP("ossl_x509_info", test_wolfSSL_PEM_X509_INFO_read_bio),    \
+    TEST_DECL_GROUP("ossl_x509_info", test_wolfSSL_PEM_X509_INFO_stream_limit), \
     TEST_DECL_GROUP("ossl_x509_info", test_wolfSSL_PEM_X509_INFO_read)
 
 #endif /* WOLFCRYPT_TEST_OSSL_X509_INFO_H */
