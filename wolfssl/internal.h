@@ -3014,6 +3014,9 @@ typedef struct ProcPeerCertArgs {
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     char   untrustedDepth;
 #endif
+#ifdef OPENSSL_EXTRA
+    byte   issuerReported; /* certIdx + 1 of cert whose issuer was reported */
+#endif
     word16 fatal:1;
     word16 verifyErr:1;
     word16 dCertInit:1;
@@ -3022,6 +3025,9 @@ typedef struct ProcPeerCertArgs {
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
+#endif
+#ifdef OPENSSL_ALL
+    word16 peerCertVerified:1; /* cert verify callback accepted peer cert */
 #endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,

@@ -110,18 +110,33 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
 #if defined(SESSION_CERTS) || defined(WOLFSSL_SIGNER_DER_CERT)
 
+/* Decode a cert like the CertManager does, with its unknown extension
+ * callback. */
+static int x509ParseCertCM(DecodedCert* cert, const byte* der, word32 derSz,
+        WOLFSSL_CERT_MANAGER* cm)
+{
+    InitDecodedCert(cert, der, derSz, cm->heap);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (cm->unknownExtCallback != NULL)
+        wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
+#endif
+    return ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL);
+}
+
 /**
- * Find the issuing cert of the input cert. On a self-issued cert (issuer name
- * equals subject name) this function will return an error.
+ * Find the issuing cert of the input cert. On a self-signed cert, which the
+ * CertManager resolves to itself, no issuer is returned.
  * @param issuer The issuer x509 struct is returned here
  * @param cm     The cert manager that is queried for the issuer
  * @param x      This cert's issuer will be queried in cm
  * @return       WOLFSSL_SUCCESS on success
- *               WOLFSSL_FAILURE on error
+ *               WOLFSSL_FAILURE when no issuer is found
+ *               WOLFSSL_FATAL_ERROR on a decoding or allocation error
  */
 static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x)
 {
+    int ret = WOLFSSL_SUCCESS;
     Signer* ca = NULL;
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
@@ -132,12 +147,14 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
     }
 
     WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
-        return WOLFSSL_FAILURE);
+        return WOLFSSL_FATAL_ERROR);
 
     /* Use existing CA retrieval APIs that use DecodedCert. */
-    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, cm->heap);
-    if (ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL) == 0
-            && !cert->selfIssued) {
+    if (x509ParseCertCM(cert, x->derCert->buffer, x->derCert->length,
+            cm) != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    else {
     #ifndef NO_SKID
         if (cert->extAuthKeyIdSet)
             ca = GetCA(cm, cert->extAuthKeyId);
@@ -146,35 +163,60 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
     #else /* NO_SKID */
         ca = GetCA(cm, cert->issuerHash);
     #endif /* NO SKID */
+        /* A self-issued cert may be signed by another key. Only a CA with the
+         * cert's own key is the cert itself. */
+        if (ca != NULL && cert->selfIssued &&
+                (ca->publicKey == NULL ||
+                 (ca->pubKeySize == cert->pubKeySize &&
+                  XMEMCMP(ca->publicKey, cert->publicKey,
+                      cert->pubKeySize) == 0))) {
+            ca = NULL;
+        }
     }
     FreeDecodedCert(cert);
-    WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
 
-    if (ca == NULL)
-        return WOLFSSL_FAILURE;
+    if (ret == WOLFSSL_SUCCESS && ca == NULL)
+        ret = WOLFSSL_FAILURE;
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
     /* populate issuer with Signer DER. A signer restored from a cert cache
      * (cm_restore_cert_row()) carries no DER, so fall back to the empty
      * certificate below rather than dereferencing NULL. */
-    if ((ca->derCert != NULL) && (ca->derCert->buffer != NULL)) {
-        if (wolfSSL_X509_d2i_ex(issuer, ca->derCert->buffer,
-                ca->derCert->length, cm->heap) == NULL)
-            return WOLFSSL_FAILURE;
+    if (ret == WOLFSSL_SUCCESS && ca->derCert != NULL &&
+            ca->derCert->buffer != NULL) {
+        if (x509ParseCertCM(cert, ca->derCert->buffer, ca->derCert->length,
+                cm) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            *issuer = wolfSSL_X509_new_ex(cm->heap);
+            if (*issuer == NULL) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else if (CopyDecodedToX509(*issuer, cert) != 0) {
+                wolfSSL_X509_free(*issuer);
+                *issuer = NULL;
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        FreeDecodedCert(cert);
+        WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
+        return ret;
     }
-    else
 #endif
-    {
+    WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
+
+    if (ret == WOLFSSL_SUCCESS) {
         /* Create an empty certificate as CA doesn't have a certificate. */
         *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
             DYNAMIC_TYPE_OPENSSL);
         if (*issuer == NULL)
-            return WOLFSSL_FAILURE;
+            return WOLFSSL_FATAL_ERROR;
 
         InitX509((*issuer), 1, NULL);
     }
 
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 #endif /* SESSION_CERTS || WOLFSSL_SIGNER_DER_CERT */
 
@@ -211,6 +253,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 #ifdef HAVE_CRL
         ctx->crls = NULL;
 #endif
+        ctx->peerCertDepth = 0;
         if (ctx->chain != NULL) {
             wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
             ctx->chain = NULL;
@@ -374,7 +417,9 @@ static void SetupStoreCtxError_ex(WOLFSSL_X509_STORE_CTX* ctx, int ret,
         return;
 
     wolfSSL_X509_STORE_CTX_set_error(ctx, error);
-    wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
+    /* Report the depth in the peer's chain when verifying one of its certs
+     * in the handshake. */
+    wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth + ctx->peerCertDepth);
 }
 
 static void SetupStoreCtxError(WOLFSSL_X509_STORE_CTX* ctx, int ret)
@@ -574,6 +619,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int accepted = 0; /* callback accepted a cert that verified */
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
@@ -615,6 +661,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
             int preCbError = ctx->error;
 
             if (verifyCb(ret >= 0 ? 1 : 0, ctx) == 1) {
+                accepted = (ret >= 0);
                 ret = WOLFSSL_SUCCESS;
             }
             else if (ret >= 0 && ctx->verify_cb != NULL) {
@@ -645,19 +692,56 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         * as it skips date validation when other errors are present.
         */
         ret = X509StoreVerifyCertDate(ctx, ret);
-        SetupStoreCtxError(ctx, ret);
-        ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
-        if (verifyCb != NULL) {
-            if (verifyCb(ret, ctx) == 1) {
-                ret = WOLFSSL_SUCCESS;
-            }
-            else {
-                ret = -1;
+        /* Like OpenSSL, report a cert that verified only once. */
+        if (!accepted || ret != WOLFSSL_SUCCESS) {
+            SetupStoreCtxError(ctx, ret);
+            ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
+            if (verifyCb != NULL) {
+                if (verifyCb(ret, ctx) == 1) {
+                    ret = WOLFSSL_SUCCESS;
+                }
+                else {
+                    ret = -1;
+                }
             }
         }
     }
 #endif
+    (void)accepted;
     return ret;
+}
+
+/* In the handshake, report the CA from the CertManager that signed the current
+ * cert to the verify callback before that cert, like OpenSSL. Skipped when the
+ * peer sent that CA at its depth, which is reported for itself. */
+static int X509StoreVerifyIssuer(WOLFSSL_X509_STORE_CTX* ctx,
+        WOLFSSL_X509* issuer, WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
+{
+    WOLFSSL_X509* cur = ctx->current_cert;
+    int err = ctx->error;
+    int errDepth = ctx->error_depth;
+    /* The current cert is not on the chain yet. */
+    int depth = ctx->peerCertDepth + wolfSSL_sk_X509_num(ctx->chain) + 1;
+
+    if (verifyCb == NULL || ctx->totalCerts == 0 || issuer->derCert == NULL ||
+            wolfSSL_X509_cmp(issuer, cur) == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    if (depth < ctx->totalCerts && ctx->certs != NULL &&
+            ctx->certs[depth].length == issuer->derCert->length &&
+            XMEMCMP(ctx->certs[depth].buffer, issuer->derCert->buffer,
+                issuer->derCert->length) == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    ctx->current_cert = issuer;
+    ctx->error = WOLFSSL_X509_V_OK;
+    ctx->error_depth = depth;
+    if (verifyCb(1, ctx) != 1)
+        return WOLFSSL_FAILURE;
+    ctx->current_cert = cur;
+    ctx->error = err;
+    ctx->error_depth = errDepth;
+    return WOLFSSL_SUCCESS;
 }
 
 static int addAllButSelfSigned(WOLF_STACK_OF(WOLFSSL_X509)*to,
@@ -1139,6 +1223,40 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ret = WOLFSSL_FATAL_ERROR;
                 goto exit;
             }
+            issuer = NULL;
+    #ifdef WOLFSSL_SIGNER_DER_CERT
+            if (x509GetIssuerFromCM(&issuer, ctx->store->cm,
+                    ctx->current_cert) ==
+                    WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
+                ret = WOLFSSL_FATAL_ERROR;
+                goto exit;
+            }
+            if (issuer != NULL && ctx->owned != NULL) {
+                wolfSSL_sk_X509_push(ctx->owned, issuer);
+            }
+    #else
+            /* A candidate that already failed verification (moved to
+             * failedCerts by the retry path) must not terminate the reported
+             * chain.  setTrustedSk / store->trusted are searched by name+AKID,
+             * not by signature, and setTrustedSk is no longer pruned during
+             * chain building, so a same-subject cert that was tried and
+             * rejected can match here.  Skip those entries and keep scanning so
+             * a genuine anchor further down the stack is still found. */
+            if (ctx->setTrustedSk == NULL) {
+                X509StoreGetIssuerSkip(&issuer,
+                    ctx->store->trusted, ctx->current_cert, failedCerts);
+            }
+            else {
+                X509StoreGetIssuerSkip(&issuer,
+                    ctx->setTrustedSk, ctx->current_cert, failedCerts);
+            }
+    #endif
+            if (issuer != NULL &&
+                    X509StoreVerifyIssuer(ctx, issuer, verifyCb) !=
+                    WOLFSSL_SUCCESS) {
+                ret = WOLFSSL_FAILURE;
+                goto exit;
+            }
             ret = X509StoreVerifyCert(ctx, &cbRejected, verifyCb);
             if (cbRejected) {
                 /* An application veto is final.  The partial-chain fallback
@@ -1176,29 +1294,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             /* Cert verified, finish building the chain */
             X509StoreChainPush(ctx->chain, ctx->current_cert);
-            issuer = NULL;
-    #ifdef WOLFSSL_SIGNER_DER_CERT
-            x509GetIssuerFromCM(&issuer, ctx->store->cm, ctx->current_cert);
-            if (issuer != NULL && ctx->owned != NULL) {
-                wolfSSL_sk_X509_push(ctx->owned, issuer);
-            }
-    #else
-            /* A candidate that already failed verification (moved to
-             * failedCerts by the retry path) must not terminate the reported
-             * chain.  setTrustedSk / store->trusted are searched by name+AKID,
-             * not by signature, and setTrustedSk is no longer pruned during
-             * chain building, so a same-subject cert that was tried and
-             * rejected can match here.  Skip those entries and keep scanning so
-             * a genuine anchor further down the stack is still found. */
-            if (ctx->setTrustedSk == NULL) {
-                X509StoreGetIssuerSkip(&issuer,
-                    ctx->store->trusted, ctx->current_cert, failedCerts);
-            }
-            else {
-                X509StoreGetIssuerSkip(&issuer,
-                    ctx->setTrustedSk, ctx->current_cert, failedCerts);
-            }
-    #endif
             if (issuer != NULL) {
                 X509StoreChainPush(ctx->chain, issuer);
             }
@@ -1281,8 +1376,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
      * OpenSSL's check_id_error() does: record error, error_depth and
      * current_cert, then call it with ok=0, and let a return of 1 override.
      * Without that call a callback installed to inspect or override
-     * verification errors never sees a hostname or IP mismatch. */
-    if (ctx->param != NULL) {
+     * verification errors never sees a hostname or IP mismatch.
+     *
+     * Skipped for an intermediate of the peer's chain: the name is the
+     * peer cert's. */
+    if (ctx->param != NULL && ctx->peerCertDepth == 0) {
         if (ret == WOLFSSL_SUCCESS && ctx->param->hostName[0] != '\0') {
             if (wolfSSL_X509_check_host(orig,
                     ctx->param->hostName,

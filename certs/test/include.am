@@ -94,6 +94,9 @@ EXTRA_DIST += \
 
 EXTRA_DIST += \
          certs/test/crit-cert.pem \
+         certs/test/gen-verify-cb-certs.sh \
+         certs/test/server-self-issued-cert.pem \
+         certs/test/ca-cert-unknown-crit-ext.pem \
          certs/test/crit-key.pem \
          certs/test/dh1024.der \
          certs/test/dh1024.pem \
