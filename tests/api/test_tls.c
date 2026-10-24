@@ -6133,6 +6133,14 @@ int test_tls13_chain_verify_cb_postauth(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
         WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
     ExpectIntEQ(cbCtx.calls, 1);
+#ifndef WOLFSSL_THREADED_CRYPT
+    /* So is cover traffic, leaving the deferral intact. */
+    ExpectIntEQ(wolfSSL_send_cover_traffic_TLSv13(ssl_s, 0),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
+    ExpectIntEQ(cbCtx.calls, 1);
+#endif
 
     /* wolfSSL_accept() meanwhile must leave the suspended message alone. */
     ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
