@@ -16836,18 +16836,19 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             CertificateStatusRequestItemV2* csr2 = csr2Ext ?
                           (CertificateStatusRequestItemV2*)csr2Ext->data : NULL;
             CertificateStatusRequestItemV2* item;
-            int useNonce = 0;
 
             for (item = csr2; item != NULL; item = item->next) {
                 if (item->options & WOLFSSL_CSR2_OCSP_USE_NONCE)
-                    useNonce = 1;
+                    break;
             }
-            for (item = csr2; useNonce && item != NULL; item = item->next) {
-                ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
-                                      item->status_type, item->options,
-                                      ssl->heap, ssl->devId);
-                if (ret != WOLFSSL_SUCCESS)
-                    return ret;
+            if (item != NULL) {
+                for (item = csr2; item != NULL; item = item->next) {
+                    ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
+                                          item->status_type, item->options,
+                                          ssl->heap, ssl->devId);
+                    if (ret != WOLFSSL_SUCCESS)
+                        return ret;
+                }
             }
         }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
