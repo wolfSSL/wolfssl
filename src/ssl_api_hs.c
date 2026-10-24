@@ -1932,6 +1932,7 @@ static int wolfssl_state_string_recv_state(const WOLFSSL* ssl)
     case encrypted_extensions:
         state = WOLFSSL_SS_SERVER_ENCRYPTEDEXTENSIONS;
         break;
+    case compressed_certificate:
     case certificate:
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             state = WOLFSSL_SS_CLIENT_CERT;
