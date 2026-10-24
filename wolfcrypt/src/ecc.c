@@ -292,6 +292,10 @@ ECC Curve Sizes:
     #include <xsecure_ellipticclient.h>
 #endif
 
+#ifdef TI_MCU_PLUS_SDK
+    #include <strings.h>
+#endif
+
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
     #include <wolfssl/wolfcrypt/hmac.h>

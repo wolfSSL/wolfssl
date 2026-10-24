@@ -212,6 +212,10 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
 
+#ifdef WOLFSSL_TI_AM64X_R5
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h>
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -974,6 +978,14 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #if defined(WOLFSSL_TI_AM64X_R5)
+        ret = ti_sa2ul_port_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("TI AM64x Init Failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
     #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
         defined(WOLFSSL_ATECC608A) || defined(WOLFSSL_MICROCHIP_TA100)
         ret = atmel_init();
@@ -1303,6 +1315,9 @@ int wolfCrypt_Cleanup(void)
     #endif
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
+    #endif
+    #if defined(WOLFSSL_TI_AM64X_R5)
+        ti_sa2ul_port_cleanup();
     #endif
     /* Unregister before sl_se_deinit(). wc_CryptoCb_Cleanup() further down
      * would also clear the device, but it runs after the SE is torn down, so
