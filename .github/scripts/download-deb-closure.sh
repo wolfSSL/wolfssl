@@ -16,27 +16,14 @@ set -uo pipefail
 LIST=${1:?package list}
 DEST=${2:?destination directory}
 
+APT_INSTALL="$(dirname "$0")/../actions/install-apt-deps/apt-install.sh"
+
 mapfile -t PKGS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$LIST")
 echo "Packages (${#PKGS[@]}): ${PKGS[*]}"
-export DEBIAN_FRONTEND=noninteractive
 # Not rm -rf: in the container this directory is a bind mount.
 mkdir -p "$DEST" && rm -f "$DEST"/*.deb
 apt-get clean
-# No wolfSSL job installs from the runner's Google/Microsoft apt repos, and a
-# bad index on either fails apt-get update for everyone. Drop them. Already
-# root here, so no sudo; the container images carry neither repo, so this is a
-# no-op there.
-grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
-  /etc/apt/sources.list.d/ 2>/dev/null | xargs -r rm -vf || true
-# A single stalled mirror connection once hung -full for ~20 min (it normally
-# finishes in a few). retry() only re-runs on a non-zero exit, so a hang never
-# tripped it. Defend in depth: apt drops a stalled connection after 30s and
-# retries it (Acquire timeouts), `timeout` hard-kills a wedged apt-get, then
-# retry() re-runs from scratch.
-APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
-          -o Acquire::https::Timeout=30)
-retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-retry timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
+"$APT_INSTALL" --tries 5 --update-timeout 120 --drop-vendor-sources
 # Download each package's closure independently (requested package + any
 # dependency not already installed) without installing. Per package, not one
 # resolve of the whole list, so one unbundleable package - e.g. a conflict in
@@ -44,10 +31,38 @@ retry timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
 # apt for anything missing.
 skipped=0
 for pkg in "${PKGS[@]}"; do
-  retry timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y --download-only "$pkg" \
-    || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
+  "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only "$pkg" \
+    || skipped=$((skipped+1))
 done
-cp /var/cache/apt/archives/*.deb "$DEST/" 2>/dev/null || true
+# Bundle exact (=) deps even if installed, as older images may differ.
+ARCHIVES=/var/cache/apt/archives
+export LC_ALL=C  # sort and comm must agree on the order
+pinned() {
+  for deb in "$ARCHIVES"/*.deb; do
+    dpkg-deb -f "$deb" Pre-Depends Depends
+  done | sed 's/^[^ ]*: //' | tr ',' '\n' \
+    | sed -nE 's/^ *([^ :(|]+)(:[^ ]+)? *\(= *([^ )]+)\) *$/\1=\3/p' | sort -u
+}
+bundled() {
+  for deb in "$ARCHIVES"/*.deb; do
+    dpkg-deb -f "$deb" Package Version | sed 's/^[^ ]*: //' | paste -sd=
+  done | sort -u
+}
+declare -A tried=()
+while :; do
+  need=()
+  while read -r pin; do
+    [ -n "${tried[$pin]:-}" ] || need+=("$pin")
+  done < <(comm -23 <(pinned) <(bundled))
+  [ "${#need[@]}" -gt 0 ] || break
+  echo "Pinned (${#need[@]}): ${need[*]}"
+  for pin in "${need[@]}"; do
+    tried[$pin]=1
+    "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only \
+      --reinstall "$pin" || skipped=$((skipped+1))
+  done
+done
+cp "$ARCHIVES"/*.deb "$DEST/" 2>/dev/null || true
 # The steps that index and package these run unprivileged, and in the
 # container we are root over a bind mount owned by the runner user.
 chown --reference="$DEST" "$DEST"/*.deb 2>/dev/null || true

@@ -820,45 +820,21 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Install build deps + SBOM validators
-        run: |
-          # A wedged mirror hangs apt instead of failing it. Acquire timeouts
-          # drop a stalled connection, `timeout` hard-kills apt-get if it
-          # wedges anyway, and the loop then retries against a fresh mirror.
-          # Two attempts at 60s+300s stay inside this job's timeout-minutes.
+      # bison + autotools-dev are required by strace's ./bootstrap.
+      # gcc-multilib + g++-multilib give strace's --enable-mpers=check
+      # the 32-bit/x32 compilers it needs - without them mpers is
+      # silently downgraded and bomtrace3 traces only native-arch
+      # syscalls, diverging from what bomsh's devcontainer produces.
+      # The rest mirror bomsh's .devcontainer/Dockerfile bomtrace3
+      # stage.
+      - name: Install build deps
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf automake libtool bison autotools-dev gcc-multilib g++-multilib python3 python3-pip git
+          ghcr-debs-tag: ubuntu-24.04-full
 
-          # No wolfSSL job installs from the runner's Google/Microsoft apt repos,
-          # and a bad index on either fails apt-get update for everyone. Drop them.
-          grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
-            /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -vf || true
-          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
-                    -o Acquire::https::Timeout=30)
-          apt_retry() {
-            local i
-            for i in 1 2; do
-              # An attempt killed mid-unpack leaves dpkg needing this, or the
-              # next apt-get aborts instantly in debSystem::Lock().
-              sudo dpkg --configure -a >/dev/null 2>&1 || true
-              if sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q && \
-                 sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y "$@"; then
-                return 0
-              fi
-              echo "::warning::apt-get failed (attempt $i/2)"
-              sleep 5
-            done
-            echo "::error::apt-get failed after 2 attempts"
-            return 1
-          }
-          # bison + autotools-dev are required by strace's ./bootstrap.
-          # gcc-multilib + g++-multilib give strace's --enable-mpers=check
-          # the 32-bit/x32 compilers it needs - without them mpers is
-          # silently downgraded and bomtrace3 traces only native-arch
-          # syscalls, diverging from what bomsh's devcontainer produces.
-          # The rest mirror bomsh's .devcontainer/Dockerfile bomtrace3
-          # stage.
-          apt_retry build-essential autoconf automake libtool \
-            bison autotools-dev gcc-multilib g++-multilib \
-            python3 python3-pip git
+      - name: Install SBOM validators
+        run: |
           python3 -m pip install --user --upgrade pip
           python3 -m pip install --user 'spdx-tools==0.8.*'
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
