@@ -95,6 +95,8 @@ static CK_KEY_TYPE rsaKeyType   = CKK_RSA;
 #ifdef HAVE_ECC
 /* Pointer to EC key type required for templates. */
 static CK_KEY_TYPE ecKeyType    = CKK_EC;
+#define PKCS11_ECC_SIGN     0x01
+#define PKCS11_ECC_DERIVE   0x02
 #endif
 #if defined(WOLFSSL_HAVE_MLKEM)
 /* Pointer to ML-KEM key type required for templates. */
@@ -1129,6 +1131,7 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
         session->func = token->func;
         session->slotId = token->slotId;
         session->version = token->version;
+        session->closes = (session->handle != token->handle);
     }
 
     return ret;
@@ -1149,6 +1152,32 @@ static void Pkcs11CloseSession(Pkcs11Token* token, Pkcs11Session* session)
         session->func->C_CloseSession(session->handle);
     }
 }
+
+#if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
+    (defined(HAVE_ECC) && !defined(NO_PKCS11_EC_KEYGEN)) || \
+    defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA)
+/**
+ * Check that a key generated in the session outlives the operation.
+ *
+ * @param  [in]  session   Session object.
+ * @param  [in]  idLen     Length of the key's id.
+ * @param  [in]  labelLen  Length of the key's label.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
+ * @return  0 when the session stays open.
+ */
+static int Pkcs11KeyGenSessionCheck(Pkcs11Session* session, int idLen,
+                                    int labelLen)
+{
+    int ret = 0;
+
+    if (session->closes)
+        ret = (idLen > 0 || labelLen > 0) ? BAD_STATE_E : CRYPTOCB_UNAVAILABLE;
+
+    return ret;
+}
+#endif
 
 /**
  * Open a session on the token to be used for all operations.
@@ -1192,6 +1221,34 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token)
         Pkcs11CloseSession(token, &session);
     }
 }
+
+#if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || defined(HAVE_ECC) || \
+    defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM)
+/**
+ * Destroy a key object only when it is a session object.
+ * Token objects, and objects whose CKA_TOKEN cannot be read, are kept.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  handle   Handle of key object.
+ */
+static void Pkcs11DestroySessionKey(Pkcs11Session* session,
+                                    CK_OBJECT_HANDLE handle)
+{
+    CK_RV        rv;
+    CK_BBOOL     onToken = CK_TRUE;
+    CK_ATTRIBUTE tmpl[] = {
+        { CKA_TOKEN, &onToken, sizeof(onToken) }
+    };
+
+    rv = session->func->C_GetAttributeValue(session->handle, handle, tmpl, 1);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if (rv == CKR_OK && tmpl[0].ulValueLen == sizeof(onToken) &&
+            onToken == CK_FALSE) {
+        rv = session->func->C_DestroyObject(session->handle, handle);
+        PKCS11_RV("C_DestroyObject", rv);
+    }
+}
+#endif
 
 
 #if (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
@@ -1500,30 +1557,43 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
  * @param  privateKey   [out]  Handle to private key object.
  * @param  session      [in]   Session object.
  * @param  private_key  [in]   ECC private key.
- * @param  operation    [in]   Cryptographic operation key is to be used for.
+ * @param  usage        [in]   PKCS11_ECC_SIGN and/or PKCS11_ECC_DERIVE.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
 static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
                                      Pkcs11Session* session,
-                                     ecc_key* private_key,
-                                     CK_ATTRIBUTE_TYPE operation)
+                                     ecc_key* private_key, int usage)
 {
     int             ret = 0;
     CK_RV           rv;
     CK_UTF8CHAR     params[ECC_MAX_OID_LEN];
-    /* Empty entries for optional label/ID. */
+    /* Empty entries for optional sign/derive/label/ID. */
     CK_ATTRIBUTE    keyTemplate[] = {
         { CKA_CLASS,     &privKeyClass, sizeof(privKeyClass) },
         { CKA_KEY_TYPE,  &ecKeyType,    sizeof(ecKeyType)    },
-        { operation,     &ckTrue,       sizeof(ckTrue)       },
         { CKA_EC_PARAMS, params,        0                    },
         { CKA_VALUE,     NULL,          0                    },
         { 0,             NULL,          0                    },
+        { 0,             NULL,          0                    },
+        { 0,             NULL,          0                    },
         { 0,             NULL,          0                    }
     };
-    /* Mandatory entries + 2 optional. */
-    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate) - 2;
+    /* Mandatory entries + 4 optional. */
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate) - 4;
+
+    if ((usage & PKCS11_ECC_SIGN) != 0) {
+        keyTemplate[keyTmplCnt].type       = CKA_SIGN;
+        keyTemplate[keyTmplCnt].pValue     = &ckTrue;
+        keyTemplate[keyTmplCnt].ulValueLen = sizeof(ckTrue);
+        keyTmplCnt++;
+    }
+    if ((usage & PKCS11_ECC_DERIVE) != 0) {
+        keyTemplate[keyTmplCnt].type       = CKA_DERIVE;
+        keyTemplate[keyTmplCnt].pValue     = &ckTrue;
+        keyTemplate[keyTmplCnt].ulValueLen = sizeof(ckTrue);
+        keyTmplCnt++;
+    }
 
     if (private_key->labelLen > 0) {
         keyTemplate[keyTmplCnt].type       = CKA_LABEL;
@@ -1538,7 +1608,7 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
         keyTmplCnt++;
     }
 
-    ret = Pkcs11EccSetParams(private_key, keyTemplate, 3);
+    ret = Pkcs11EccSetParams(private_key, keyTemplate, 2);
     if (ret == 0) {
         word32 privLen = private_key->dp->size;
         byte* priv = (byte*)XMALLOC(privLen, private_key->heap,
@@ -1552,8 +1622,8 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
             PRIVATE_KEY_LOCK();
         }
         if (ret == 0) {
-            keyTemplate[4].pValue     = priv;
-            keyTemplate[4].ulValueLen = privLen;
+            keyTemplate[3].pValue     = priv;
+            keyTemplate[3].ulValueLen = privLen;
 
             PKCS11_DUMP_TEMPLATE("Ec Private Key", keyTemplate, keyTmplCnt);
             rv = session->func->C_CreateObject(session->handle, keyTemplate,
@@ -1980,6 +2050,58 @@ static int Pkcs11MechAvail(Pkcs11Session* session, CK_MECHANISM_TYPE mech,
 }
 #endif
 
+#ifdef HAVE_ECC
+/**
+ * Get the usages of a new ECC private key from the key's flags.
+ * Without WC_ECC_FLAG_DEC_SIGN or WC_ECC_FLAG_DERIVE, the key gets derive, plus
+ * sign when it has an id or label, or only sign without PKCS#11 ECDH.
+ *
+ * @param  [in]   session  Session object.
+ * @param  [in]   key      ECC key.
+ * @param  [out]  usage    PKCS11_ECC_SIGN and/or PKCS11_ECC_DERIVE.
+ * @return  NOT_COMPILED_IN when the token cannot sign or derive with the key
+ *          as its flags ask, or does none of the usages when no flag is set.
+ * @return  0 on success.
+ */
+static int Pkcs11EccKeyUsage(Pkcs11Session* session, ecc_key* key, int* usage)
+{
+    int               ret = 0;
+    int               want = 0;
+    int               ask;
+    CK_MECHANISM_INFO mechInfo;
+
+    if ((key->flags & WC_ECC_FLAG_DEC_SIGN) != 0)
+        want |= PKCS11_ECC_SIGN;
+    if ((key->flags & WC_ECC_FLAG_DERIVE) != 0)
+        want |= PKCS11_ECC_DERIVE;
+    ask = want;
+    if (ask == 0) {
+    #ifndef NO_PKCS11_ECDH
+        ask = PKCS11_ECC_DERIVE;
+        if (key->idLen > 0 || key->labelLen > 0)
+            ask |= PKCS11_ECC_SIGN;
+    #else
+        ask = PKCS11_ECC_SIGN;
+    #endif
+    }
+
+    *usage = 0;
+    if ((ask & PKCS11_ECC_SIGN) != 0 &&
+            Pkcs11MechAvail(session, CKM_ECDSA, &mechInfo) == 0 &&
+            (mechInfo.flags & CKF_SIGN) != 0) {
+        *usage |= PKCS11_ECC_SIGN;
+    }
+    if ((ask & PKCS11_ECC_DERIVE) != 0 &&
+            Pkcs11MechAvail(session, CKM_ECDH1_DERIVE, NULL) == 0) {
+        *usage |= PKCS11_ECC_DERIVE;
+    }
+    if (*usage == 0 || (want != 0 && *usage != want))
+        ret = NOT_COMPILED_IN;
+
+    return ret;
+}
+#endif
+
 #ifndef NO_HMAC
 /**
  * Return the mechanism type and key type for the digest type when using HMAC.
@@ -2048,6 +2170,8 @@ static int Pkcs11HmacTypes(int macType, int* mechType, int* keyType)
  * @param  [in]  type   Key type.
  * @param  [in]  clear  Clear out the private data from software key.
  * @param  [in]  key    Key type specific object.
+ * @return  BAD_STATE_E when the token has no session from
+ *          wc_Pkcs11Token_Open, so the key would go with this call's session.
  * @return  NOT_COMPILED_IN when mechanism not available.
  * @return  0 on success.
  */
@@ -2057,7 +2181,12 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
     Pkcs11Session     session;
     CK_OBJECT_HANDLE  privKey = NULL_PTR;
 
-    ret = Pkcs11OpenSession(token, &session, 1);
+    if (token == NULL)
+        ret = BAD_FUNC_ARG;
+    else if (token->handle == NULL_PTR)
+        ret = BAD_STATE_E;
+    else
+        ret = Pkcs11OpenSession(token, &session, 1);
     if (ret == 0) {
         switch (type) {
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
@@ -2150,41 +2279,26 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
     #ifdef HAVE_ECC
             case PKCS11_KEY_TYPE_EC: {
                 ecc_key* eccKey = (ecc_key*)key;
-                int      ret2 = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                int      usage = 0;
 
-        #ifndef NO_PKCS11_ECDH
-                if ((eccKey->flags & WC_ECC_FLAG_DEC_SIGN) == 0) {
-                    /* Try ECDH mechanism first. */
-                    ret = Pkcs11MechAvail(&session, CKM_ECDH1_DERIVE, NULL);
-                    if (ret == 0) {
-                        ret = Pkcs11CreateEccPrivateKey(&privKey, &session,
-                                                            eccKey, CKA_DERIVE);
-                    }
+                ret = Pkcs11EccKeyUsage(&session, eccKey, &usage);
+                if (ret == 0) {
+                    ret = Pkcs11CreateEccPrivateKey(&privKey, &session, eccKey,
+                                                    usage);
                 }
-         #endif
-                if (ret == 0 || ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                    /* Try ECDSA mechanism next. */
-                    ret2 = Pkcs11MechAvail(&session, CKM_ECDSA, NULL);
-                    if (ret2 == 0) {
-                        ret2 = Pkcs11CreateEccPrivateKey(&privKey, &session,
-                                                              eccKey, CKA_SIGN);
-                        if (ret2 == 0) {
-                            CK_OBJECT_HANDLE pubKey = NULL_PTR;
-                            /* Store public key for validation with cert. */
-                            ret2 = Pkcs11CreateEccPublicKey(&pubKey, &session,
-                                                            eccKey, CKA_VERIFY);
-                            if (ret2 != 0) {
-                                /* Delete the private key if the public key
-                                 * creation failed to avoid leaving an orphaned
-                                 * private key on the token. */
-                                session.func->C_DestroyObject(session.handle,
-                                                              privKey);
-                            }
-                        }
+                if (ret == 0 && eccKey->type != ECC_PRIVATEKEY_ONLY &&
+                        Pkcs11MechAvail(&session, CKM_ECDSA, NULL) == 0) {
+                    CK_OBJECT_HANDLE pubKey = NULL_PTR;
+                    /* Store public key for validation with cert. */
+                    ret = Pkcs11CreateEccPublicKey(&pubKey, &session, eccKey,
+                                                   CKA_VERIFY);
+                    if (ret != 0 && (usage & PKCS11_ECC_SIGN) == 0) {
+                        ret = 0;
                     }
-                    /* OK for this to fail if set for ECDH. */
-                    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
-                        ret = ret2;
+                    else if (ret != 0) {
+                        /* Do not leave an orphaned private key on the token. */
+                        session.func->C_DestroyObject(session.handle, privKey);
+                    }
                 }
                 if (ret == 0 && clear)
                     ecc_forcezero_k(eccKey);
@@ -2547,8 +2661,11 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
         }
         PKCS11_DUMP_TEMPLATE("RSA Public Key", tmpl, tmplCnt);
     }
-    if (ret == 0)
+    if (ret == 0) {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
         ret = wc_RsaPublicKeyDecodeRaw(mod, modSz, exp, expSz, key);
+    }
 
     XFREE(exp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(mod, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2613,6 +2730,10 @@ static int Pkcs11RsaPrivateKey(Pkcs11Session* session, RsaKey* rsaKey,
         ret = NOT_COMPILED_IN;
     #endif
     }
+    else if (rsaKey->devCtx != NULL) {
+        *privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)rsaKey->devCtx;
+        ret = 0;
+    }
     else if (rsaKey->labelLen > 0) {
         ret = Pkcs11FindKeyByLabel(privateKey, CKO_PRIVATE_KEY, CKK_RSA,
                                    session, rsaKey->label, rsaKey->labelLen);
@@ -2625,7 +2746,8 @@ static int Pkcs11RsaPrivateKey(Pkcs11Session* session, RsaKey* rsaKey,
         ret = Pkcs11FindRsaKey(privateKey, CKO_PRIVATE_KEY, session, rsaKey);
     }
 
-    if ((ret == 0) && (!sessionKey)) {
+    if ((ret == 0) && (!sessionKey) &&
+            (mp_iszero(&rsaKey->n) || mp_iszero(&rsaKey->e))) {
         ret = Pkcs11GetRsaPublicKey(rsaKey, session, *privateKey);
     }
 
@@ -3096,6 +3218,9 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
  *
  * @param  [in]  session  Session object.
  * @param  [in]  info     Cryptographic operation data.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
@@ -3107,12 +3232,12 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_ULONG          bits = info->pk.rsakg.size;
     CK_OBJECT_HANDLE  pubKey = NULL_PTR, privKey = NULL_PTR;
     CK_MECHANISM      mech;
-    static CK_BYTE    pub_exp[] = { 0x01, 0x00, 0x01, 0x00 };
+    CK_BYTE           pubExp[sizeof(long)];
     CK_ATTRIBUTE      pubKeyTmpl[] = {
         { CKA_MODULUS_BITS,    &bits,    sizeof(bits)    },
         { CKA_ENCRYPT,         &ckTrue,  sizeof(ckTrue)  },
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
-        { CKA_PUBLIC_EXPONENT, &pub_exp, sizeof(pub_exp) }
+        { CKA_PUBLIC_EXPONENT, pubExp,   sizeof(pubExp)  }
     };
     CK_ULONG          pubTmplCnt = sizeof(pubKeyTmpl)/sizeof(*pubKeyTmpl);
     /* Empty entries for optional label/ID. */
@@ -3127,17 +3252,20 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     int               i;
 
     ret = Pkcs11MechAvail(session, CKM_RSA_PKCS_KEY_PAIR_GEN, NULL);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: RSA Key Generation Operation");
 
-        /* Most commonly used public exponent value (array initialized). */
-        if (info->pk.rsakg.e != WC_RSA_EXPONENT) {
-            for (i = 0; i < (int)sizeof(pub_exp); i++)
-                pub_exp[i] = (info->pk.rsakg.e >> (8 * i)) & 0xff;
+        /* Big-endian without leading zeros. */
+        for (i = 0; i < (int)sizeof(pubExp); i++) {
+            pubExp[i] = (CK_BYTE)(info->pk.rsakg.e >>
+                                  (8 * ((int)sizeof(pubExp) - 1 - i)));
         }
-        for (i = (int)sizeof(pub_exp) - 1; pub_exp[i] == 0; i--) {
+        for (i = 0; i < (int)sizeof(pubExp) - 1 && pubExp[i] == 0; i++) {
         }
-        pubKeyTmpl[3].ulValueLen = i + 1;
+        pubKeyTmpl[3].pValue = pubExp + i;
+        pubKeyTmpl[3].ulValueLen = sizeof(pubExp) - (CK_ULONG)i;
 
         if (key->labelLen != 0) {
             privKeyTmpl[privTmplCnt].type       = CKA_LABEL;
@@ -3164,7 +3292,7 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
                                                        &pubKey, &privKey);
         PKCS11_RV("C_GenerateKeyPair", rv);
         if (rv != CKR_OK) {
-            ret = -1;
+            ret = WC_HW_E;
         }
     }
 
@@ -3172,11 +3300,31 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         ret = Pkcs11GetRsaPublicKey(key, session, pubKey);
 
     if (pubKey != NULL_PTR)
-        ret = (int)session->func->C_DestroyObject(session->handle, pubKey);
-    if (ret != 0 && privKey != NULL_PTR)
-        ret = (int)session->func->C_DestroyObject(session->handle, privKey);
+        session->func->C_DestroyObject(session->handle, pubKey);
+    if (ret == 0 && privKey != NULL_PTR)
+        key->devCtx = (void*)(wc_ptr_t)privKey;
+    else if (ret != 0 && privKey != NULL_PTR)
+        session->func->C_DestroyObject(session->handle, privKey);
 
     return ret;
+}
+
+/**
+ * Deletes the RSA private key if it is a session object.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  key      RSA key.
+ * @return  0 on success.
+ */
+static int Pkcs11RsaDeletePrivKey(Pkcs11Session* session, RsaKey* key)
+{
+    if (key != NULL && key->devCtx != NULL) {
+        Pkcs11DestroySessionKey(session,
+            (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx);
+        key->devCtx = NULL;
+    }
+
+    return 0;
 }
 #endif /* WOLFSSL_KEY_GEN */
 #endif /* !NO_RSA */
@@ -3345,7 +3493,13 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
  *
  * @param  [in]  session  Session object.
  * @param  [in]  info     Cryptographic operation data.
- * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
+ * @return  NOT_COMPILED_IN when the token cannot give a key with no id or
+ *          label the usages its flags ask for.
+ * @return  WC_HW_E when a PKCS#11 library call fails, or the token cannot
+ *          give a key with an id or label the usages its flags ask for.
  * @return  0 on success.
  */
 static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
@@ -3359,59 +3513,50 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_ATTRIBUTE      pubKeyTmpl[] = {
         { CKA_EC_PARAMS,       params,   0               },
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
-        { CKA_ENCRYPT,         &ckTrue,  sizeof(ckTrue)  },
     };
     int               pubTmplCnt = 1;
     /* Empty entries for optional label/ID. */
-    CK_ATTRIBUTE      privKeyTmplDerive[] = {
+    CK_ATTRIBUTE      privKeyAttrs[] = {
+        { CKA_DECRYPT, &ckTrue, sizeof(ckTrue) },
+        { CKA_SIGN,    &ckTrue, sizeof(ckTrue) },
         { CKA_DERIVE,  &ckTrue, sizeof(ckTrue) },
         { 0,           NULL,    0              },
         { 0,           NULL,    0              },
     };
-    /* Empty entries for optional label/ID. */
-    CK_ATTRIBUTE      privKeyTmplEncSign[] = {
-        { CKA_SIGN,    &ckTrue, sizeof(ckTrue) },
-        { CKA_DECRYPT, &ckTrue, sizeof(ckTrue) },
-        { 0,           NULL,    0              },
-        { 0,           NULL,    0              },
-    };
-    /* As above but the key may derive as well. PKCS#11 leaves the defaults for
-     * CKA_SIGN and CKA_DERIVE up to the token, so a token that grants only what
-     * was asked for will refuse whichever operation was not requested. A TLS
-     * key generally needs both. Empty entries for optional label/ID. */
-    CK_ATTRIBUTE      privKeyTmplEncSignDerive[] = {
-        { CKA_SIGN,    &ckTrue, sizeof(ckTrue) },
-        { CKA_DECRYPT, &ckTrue, sizeof(ckTrue) },
-        { CKA_DERIVE,  &ckTrue, sizeof(ckTrue) },
-        { 0,           NULL,    0              },
-        { 0,           NULL,    0              },
-    };
-    CK_ATTRIBUTE*     privKeyTmpl = privKeyTmplDerive;
-    /* Number of mandatory entries in whichever template is selected below:
-     * 1 for derive-only, 2 for sign+decrypt, 3 when derive is added to those.
-     * Every template also carries 2 trailing slots for the optional label
-     * and ID, which are filled in later if the key has them. */
-    int               privTmplCnt = 1;
+    CK_ATTRIBUTE*     privKeyTmpl = privKeyAttrs;
+    int               privTmplCnt = 0;
+    int               usage = 0;
 
     ret = Pkcs11MechAvail(session, CKM_EC_KEY_PAIR_GEN, NULL);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Key Generation Operation");
 
         ret = Pkcs11EccSetParams(key, pubKeyTmpl, 0);
     }
     if (ret == 0) {
-        /* Default is to use for derivation. */
-        if ((key->flags & WC_ECC_FLAG_DEC_SIGN) == WC_ECC_FLAG_DEC_SIGN) {
-            if ((key->flags & WC_ECC_FLAG_DERIVE) == WC_ECC_FLAG_DERIVE) {
-                privKeyTmpl = privKeyTmplEncSignDerive;
-                privTmplCnt = 3;
-            }
-            else {
-                privKeyTmpl = privKeyTmplEncSign;
-                privTmplCnt = 2;
-            }
-            pubTmplCnt = 2;
+        ret = Pkcs11EccKeyUsage(session, key, &usage);
+        if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN) &&
+                (key->idLen > 0 || key->labelLen > 0)) {
+            ret = WC_HW_E;
         }
+    }
+    if (ret == 0) {
+        if ((key->flags & WC_ECC_FLAG_DEC_SIGN) != 0) {
+            privTmplCnt = 2;
+        }
+        else if ((usage & PKCS11_ECC_SIGN) != 0) {
+            privKeyTmpl = privKeyAttrs + 1;
+            privTmplCnt = 1;
+        }
+        else {
+            privKeyTmpl = privKeyAttrs + 2;
+        }
+        if ((usage & PKCS11_ECC_SIGN) != 0)
+            pubTmplCnt = 2;
+        if ((usage & PKCS11_ECC_DERIVE) != 0)
+            privTmplCnt++;
         if (key->labelLen != 0) {
             privKeyTmpl[privTmplCnt].type       = CKA_LABEL;
             privKeyTmpl[privTmplCnt].pValue     = key->label;
@@ -3438,7 +3583,7 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
                                                        &pubKey, &privKey);
         PKCS11_RV("C_GenerateKeyPair", rv);
         if (rv != CKR_OK) {
-            ret = -1;
+            ret = WC_HW_E;
         }
     }
 
@@ -3555,7 +3700,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         else if ((sessionKey = !mp_iszero(
                 wc_ecc_key_get_priv(info->pk.ecdh.private_key))))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
-                                         info->pk.ecdh.private_key, CKA_DERIVE);
+                                 info->pk.ecdh.private_key, PKCS11_ECC_DERIVE);
         else if (info->pk.ecdh.private_key->labelLen > 0) {
             ret = Pkcs11FindKeyByLabel(&privateKey, CKO_PRIVATE_KEY, CKK_EC,
                                        session,
@@ -3868,7 +4013,7 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
         else if ((sessionKey = !mp_iszero(
                 wc_ecc_key_get_priv(info->pk.eccsign.key))))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
-                                                info->pk.eccsign.key, CKA_SIGN);
+                                         info->pk.eccsign.key, PKCS11_ECC_SIGN);
         else if (info->pk.eccsign.key->labelLen > 0) {
             ret = Pkcs11FindKeyByLabel(&privateKey, CKO_PRIVATE_KEY, CKK_EC,
                                        session, info->pk.eccsign.key->label,
@@ -4277,7 +4422,7 @@ static int Pkcs11EccCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 
 /**
- * Deletes the ECC private key.
+ * Deletes the ECC private key if it is a session object.
  *
  * @param  [in]  session  Session object.
  * @param  [in]  key      ECC key.
@@ -4290,7 +4435,7 @@ static int Pkcs11EccDeletePrivKey(Pkcs11Session* session, ecc_key* key)
     if (key != NULL && key->devCtx != NULL) {
         privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx;
 
-        session->func->C_DestroyObject(session->handle, privateKey);
+        Pkcs11DestroySessionKey(session, privateKey);
 
         key->devCtx = NULL;
     }
@@ -4450,6 +4595,8 @@ static int Pkcs11MlKemKeyGen(Pkcs11Session* session, MlKemKey* key)
         sizeof(privKeyTmpl) / sizeof(*privKeyTmpl) - 2;
 
     ret = Pkcs11MechAvail(session, CKM_ML_KEM_KEY_PAIR_GEN, &mechInfo);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         switch (key->type) {
         #ifndef WOLFSSL_NO_ML_KEM
@@ -4748,7 +4895,7 @@ static int Pkcs11MlKemDeletePrivKey(Pkcs11Session* session, MlKemKey* key)
 
     if (key != NULL && key->devCtx != NULL) {
         privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx;
-        session->func->C_DestroyObject(session->handle, privateKey);
+        Pkcs11DestroySessionKey(session, privateKey);
         key->devCtx = NULL;
     }
 
@@ -4984,6 +5131,9 @@ static int Pkcs11GetMldsaPreHash(int hashType,
  * @param  [in]  session  Session object.
  * @param  [in]  key      ML-DSA key. Already configured with the desired
  *                         level and parameters.
+ * @return  BAD_STATE_E when a key with an id or label would be destroyed
+ *          with a session that closes after this operation.
+ * @return  CRYPTOCB_UNAVAILABLE when such a key has no id or label.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
@@ -5020,6 +5170,8 @@ static int Pkcs11MldsaKeyGen(Pkcs11Session* session, wc_MlDsaKey* key)
     CK_ULONG        privTmplCnt = sizeof(privKeyTmpl)/sizeof(*privKeyTmpl) - 2;
 
     ret = Pkcs11MechAvail(session, CKM_ML_DSA_KEY_PAIR_GEN, &mechInfo);
+    if (ret == 0)
+        ret = Pkcs11KeyGenSessionCheck(session, key->idLen, key->labelLen);
     if (ret == 0) {
         if ((key->level == WC_ML_DSA_44) &&
             (mechInfo.ulMinKeySize <= WC_MLDSA_44_PUB_KEY_SIZE) &&
@@ -5448,7 +5600,7 @@ static int Pkcs11MldsaCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 
 /**
- * Deletes the ML-DSA private key.
+ * Deletes the ML-DSA private key if it is a session object.
  *
  * @param  [in]  session  Session object.
  * @param  [in]  key      ML-DSA key.
@@ -5461,7 +5613,7 @@ static int Pkcs11MldsaDeletePrivKey(Pkcs11Session* session, wc_MlDsaKey* key)
     if (key != NULL && key->devCtx != NULL) {
         privateKey = (CK_OBJECT_HANDLE)(wc_ptr_t)key->devCtx;
 
-        session->func->C_DestroyObject(session->handle, privateKey);
+        Pkcs11DestroySessionKey(session, privateKey);
 
         key->devCtx = NULL;
     }
@@ -6609,6 +6761,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 session.version = token->version;
                 session.handle  =
                     (CK_SESSION_HANDLE)(wc_ptr_t)hmac->devCtx;
+                session.closes = 0;
                 ret = Pkcs11Hmac(&session, info);
                 if (ret != 0 ||
                         hmac->innerHashKeyed
@@ -6678,13 +6831,29 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #endif
         }
         else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+    #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+            if (info->free.algo == WC_ALGO_TYPE_PK &&
+                info->free.type == WC_PK_TYPE_RSA) {
+                RsaKey* rsaKey = (RsaKey*)info->free.obj;
+
+                if (rsaKey != NULL && rsaKey->devCtx != NULL &&
+                        Pkcs11OpenSession(token, &session, readWrite) == 0) {
+                    Pkcs11RsaDeletePrivKey(&session, rsaKey);
+                    Pkcs11CloseSession(token, &session);
+                }
+                ret = CRYPTOCB_UNAVAILABLE;
+            }
+            else
+    #endif
     #ifdef HAVE_ECC
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_EC_KEYGEN) {
-                ret = Pkcs11OpenSession(token, &session, readWrite);
-                if (ret == 0) {
-                    ret = Pkcs11EccDeletePrivKey(&session,
-                                                 (ecc_key*)info->free.obj);
+                ecc_key* eccKey = (ecc_key*)info->free.obj;
+
+                if (eccKey != NULL && eccKey->devCtx != NULL)
+                    ret = Pkcs11OpenSession(token, &session, readWrite);
+                if (ret == 0 && eccKey != NULL && eccKey->devCtx != NULL) {
+                    ret = Pkcs11EccDeletePrivKey(&session, eccKey);
                     Pkcs11CloseSession(token, &session);
                 }
             }
@@ -6694,10 +6863,12 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN &&
                 info->free.subType == WC_PQC_SIG_TYPE_MLDSA) {
-                ret = Pkcs11OpenSession(token, &session, readWrite);
-                if (ret == 0) {
-                    ret = Pkcs11MldsaDeletePrivKey(&session,
-                                                   (wc_MlDsaKey*)info->free.obj);
+                wc_MlDsaKey* mldsaKey = (wc_MlDsaKey*)info->free.obj;
+
+                if (mldsaKey != NULL && mldsaKey->devCtx != NULL)
+                    ret = Pkcs11OpenSession(token, &session, readWrite);
+                if (ret == 0 && mldsaKey != NULL && mldsaKey->devCtx != NULL) {
+                    ret = Pkcs11MldsaDeletePrivKey(&session, mldsaKey);
                     Pkcs11CloseSession(token, &session);
                 }
             }
@@ -6707,10 +6878,12 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_PQC_KEM_KEYGEN &&
                 info->free.subType == WC_PQC_KEM_TYPE_MLKEM) {
-                ret = Pkcs11OpenSession(token, &session, readWrite);
-                if (ret == 0) {
-                    ret = Pkcs11MlKemDeletePrivKey(&session,
-                                                   (MlKemKey*)info->free.obj);
+                MlKemKey* mlkemKey = (MlKemKey*)info->free.obj;
+
+                if (mlkemKey != NULL && mlkemKey->devCtx != NULL)
+                    ret = Pkcs11OpenSession(token, &session, readWrite);
+                if (ret == 0 && mlkemKey != NULL && mlkemKey->devCtx != NULL) {
+                    ret = Pkcs11MlKemDeletePrivKey(&session, mlkemKey);
                     Pkcs11CloseSession(token, &session);
                 }
             }
