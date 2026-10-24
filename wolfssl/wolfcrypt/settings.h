@@ -3736,7 +3736,9 @@
 #endif
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || defined(OPENSSL_EXTRA)
+    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || \
+    defined(OPENSSL_EXTRA) || defined(WOLFCRYPT_HAVE_SAKKE) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_CDH))
     /* Determine when mp_mul_d is required */
     #define WOLFSSL_SP_MUL_D
 #endif
