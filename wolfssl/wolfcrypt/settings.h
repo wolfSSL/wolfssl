@@ -2334,6 +2334,12 @@
 #endif
 #endif
 
+/* Optional linker-section attribute for the AES tables (Te/Td/Td4/Tsbox), to
+ * place them off the flash read path, e.g. in SRAM/CCM.  They stay const. */
+#ifndef WOLFSSL_AES_TABLE_SECTION
+    #define WOLFSSL_AES_TABLE_SECTION
+#endif
+
 #ifdef FREESCALE_MQX_5_0
     /* use normal Freescale MQX port, but with minor changes for 5.0 */
     #define FREESCALE_MQX
@@ -3159,6 +3165,15 @@
 #if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(WOLFSSL_ARM_ARCH_7M)
     #undef  WOLFSSL_SP_NO_UMAAL
     #define WOLFSSL_SP_NO_UMAAL
+#endif
+
+/* Cortex-M flash reads as little as 8 bytes; cap the touch-lines stride to
+ * match.  aes.c sets the non-M default; the #ifndef lets the user override. */
+#if defined(WOLFSSL_AES_TOUCH_LINES) && !defined(WC_CACHE_LINE_SZ) && \
+    (defined(__ARM_ARCH_6M__) || defined(__ARM_ARCH_7M__) || \
+     defined(__ARM_ARCH_7EM__) || \
+     (defined(__ARM_ARCH_PROFILE) && (__ARM_ARCH_PROFILE == 'M')))
+    #define WC_CACHE_LINE_SZ 8
 #endif
 
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX)

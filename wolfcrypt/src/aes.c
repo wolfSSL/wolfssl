@@ -91,7 +91,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_AES_SMALL_TABLES: Use smaller AES S-box tables         default: off
  * WOLFSSL_AES_NO_UNROLL:   Disable AES round loop unrolling      default: off
  * WOLFSSL_AES_TOUCH_LINES: Touch all cache lines for             default: off
- *                           side-channel resistance
+ *                           resistance; routes Arm asm to C core
+ * WC_CACHE_LINE_SZ:        TOUCH_LINES stride; <= memory read     default: 64
+ *                           width (8 on Cortex-M, 32 others)        x86_64
+ * WOLFSSL_AES_TABLE_SECTION: Linker section for AES tables,       default: none
+ *                           to keep them off the flash read path
  * WC_AES_BITSLICED:        Use bitsliced AES implementation      default: off
  * AES_GCM_GMULT_NCT:       GCM GMULT non-constant-time          default: off
  * NO_WOLFSSL_ALLOC_ALIGN:  Disable aligned memory allocation     default: off
@@ -438,6 +442,25 @@ int wc_local_AesGcmCheckTagSz(word32 authTagSz) {
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
     !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) && defined(HAVE_CPUID_ARM32)
     #define WOLFSSL_ARM32_AES_DISPATCH
+#endif
+
+/* Arm T-table asm (Thumb-2 / NO_HW_CRYPTO, not AArch64) cannot honor
+ * WOLFSSL_AES_TOUCH_LINES, so route AES through the C table core instead. */
+#if defined(WOLFSSL_AES_TOUCH_LINES) && defined(WOLFSSL_ARMASM) && \
+    !defined(__aarch64__) && \
+    (defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
+    #define WC_AES_TOUCH_LINES_C_CORE
+#endif
+
+/* The Arm base T-table assembly cannot honor WOLFSSL_AES_TOUCH_LINES; fail
+ * rather than silently build the unmitigated lookup (dispatch, AArch64). */
+#if defined(WOLFSSL_AES_TOUCH_LINES) && defined(WOLFSSL_ARMASM) && \
+    !defined(WC_AES_TOUCH_LINES_C_CORE) && \
+    !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) && \
+    !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
+    #error "WOLFSSL_AES_TOUCH_LINES needs the C table core; build with " \
+           "WOLFSSL_ARMASM_THUMB2 or WOLFSSL_ARMASM_NO_HW_CRYPTO, or " \
+           "without WOLFSSL_ARMASM on this target."
 #endif
 
 #if defined(STM32_CRYPTO) && !defined(WOLFSSL_STM32_BARE) && \
@@ -1273,7 +1296,7 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
         }
     #endif /* HAVE_AES_DECRYPT */
 
-#elif defined(WOLFSSL_ARMASM)
+#elif defined(WOLFSSL_ARMASM) && !defined(WC_AES_TOUCH_LINES_C_CORE)
 /* aes->key holds the Arm key schedule only when this backend is selected. */
 #define WC_AES_USE_ARMASM
 
@@ -2008,7 +2031,28 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #ifdef NEED_AES_TABLES
 
 #ifndef WC_AES_BITSLICED
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
+/* RISC-V defaults touch-lines on; set it here, before the alignment below. */
+#if defined(__riscv) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_AES_TOUCH_LINES)
+    #define WOLFSSL_AES_TOUCH_LINES
+#endif
+/* Define the stride before the tables so they can be aligned to it: the masked
+ * scan only hides the index when each table base is line-aligned. */
+#ifndef WC_CACHE_LINE_SZ
+    #if defined(__x86_64__) || defined(_M_X64) || \
+       (defined(__ILP32__) && (__ILP32__ >= 1))
+        #define WC_CACHE_LINE_SZ 64
+    #else
+        /* default cache line size */
+        #define WC_CACHE_LINE_SZ 32
+    #endif
+#endif
+#ifdef WOLFSSL_AES_TOUCH_LINES
+    #define WC_AES_TABLE_ALIGN XALIGNED(WC_CACHE_LINE_SZ)
+#else
+    #define WC_AES_TABLE_ALIGN
+#endif
+#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)
 #if !defined(WOLFSSL_ESP32_CRYPT) || \
     (defined(NO_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES) || \
      defined(NEED_AES_HW_FALLBACK))
@@ -2023,10 +2067,10 @@ static const FLASH_QUALIFIER word32 rcon[] = {
 #endif /* ESP32 */
 #endif /* __aarch64__ || !WOLFSSL_ARMASM */
 
-#if !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AES_DIRECT) || \
+#if defined(WC_AES_TOUCH_LINES_C_CORE) || !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AES_DIRECT) || \
       defined(HAVE_AESCCM)
 #ifndef WOLFSSL_AES_SMALL_TABLES
-static const FLASH_QUALIFIER word32 Te[4][256] = {
+static WOLFSSL_AES_TABLE_SECTION WC_AES_TABLE_ALIGN const FLASH_QUALIFIER word32 Te[4][256] = {
 {
     0xc66363a5U, 0xf87c7c84U, 0xee777799U, 0xf67b7b8dU,
     0xfff2f20dU, 0xd66b6bbdU, 0xde6f6fb1U, 0x91c5c554U,
@@ -2294,8 +2338,8 @@ static const FLASH_QUALIFIER word32 Te[4][256] = {
 };
 
 #ifdef HAVE_AES_DECRYPT
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
-static const FLASH_QUALIFIER word32 Td[4][256] = {
+#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)
+static WOLFSSL_AES_TABLE_SECTION WC_AES_TABLE_ALIGN const FLASH_QUALIFIER word32 Td[4][256] = {
 {
     0x51f4a750U, 0x7e416553U, 0x1a17a4c3U, 0x3a275e96U,
     0x3bab6bcbU, 0x1f9d45f1U, 0xacfa58abU, 0x4be30393U,
@@ -2569,8 +2613,8 @@ static const FLASH_QUALIFIER word32 Td[4][256] = {
 #ifdef HAVE_AES_DECRYPT
 #if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
      defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
-static const FLASH_QUALIFIER byte Td4[256] =
+#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)
+static WOLFSSL_AES_TABLE_SECTION WC_AES_TABLE_ALIGN const FLASH_QUALIFIER byte Td4[256] =
 {
     0x52U, 0x09U, 0x6aU, 0xd5U, 0x30U, 0x36U, 0xa5U, 0x38U,
     0xbfU, 0x40U, 0xa3U, 0x9eU, 0x81U, 0xf3U, 0xd7U, 0xfbU,
@@ -2615,7 +2659,7 @@ static const FLASH_QUALIFIER byte Td4[256] =
 #define GETBYTE(x, y) (word32)(((x) >> (8 * (y))) & 0xFFU)
 
 #ifdef WOLFSSL_AES_SMALL_TABLES
-static const byte Tsbox[256] = {
+static WOLFSSL_AES_TABLE_SECTION WC_AES_TABLE_ALIGN const byte Tsbox[256] = {
     0x63U, 0x7cU, 0x77U, 0x7bU, 0xf2U, 0x6bU, 0x6fU, 0xc5U,
     0x30U, 0x01U, 0x67U, 0x2bU, 0xfeU, 0xd7U, 0xabU, 0x76U,
     0xcaU, 0x82U, 0xc9U, 0x7dU, 0xfaU, 0x59U, 0x47U, 0xf0U,
@@ -2681,27 +2725,19 @@ static WARN_UNUSED_RESULT word32 inv_col_mul(
 
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT) || \
                                     defined(HAVE_AESCCM) || defined(HAVE_AESGCM)
-#if !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AES_DIRECT) || \
+#if defined(WC_AES_TOUCH_LINES_C_CORE) || !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AES_DIRECT) || \
       defined(HAVE_AESCCM)
 
 
 #ifndef WC_AES_BITSLICED
 
-#ifndef WC_CACHE_LINE_SZ
-    #if defined(__x86_64__) || defined(_M_X64) || \
-       (defined(__ILP32__) && (__ILP32__ >= 1))
-        #define WC_CACHE_LINE_SZ 64
-    #else
-        /* default cache line size */
-        #define WC_CACHE_LINE_SZ 32
-    #endif
-#endif
+/* WC_CACHE_LINE_SZ is defined above, before the tables, so they can be aligned
+ * to it. */
 
 #ifndef WC_NO_CACHE_RESISTANT
 
-#if defined(__riscv) && !defined(WOLFSSL_AES_TOUCH_LINES)
-    #define WOLFSSL_AES_TOUCH_LINES
-#endif
+/* WOLFSSL_AES_TOUCH_LINES is auto-enabled for __riscv above, before the table
+ * alignment is decided. */
 
 #ifndef WOLFSSL_AES_SMALL_TABLES
 /* load 4 Te Tables into cache by cache line stride */
@@ -2765,6 +2801,16 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchSBox(void)
     #define WC_CACHE_LINE_MASK_HI   0xfc
     #define WC_CACHE_LINE_MASK_LO   0x03
     #define WC_CACHE_LINE_ADD       0x04
+#elif WC_CACHE_LINE_SZ == 8
+    #define WC_CACHE_LINE_BITS      1
+    #define WC_CACHE_LINE_MASK_HI   0xfe
+    #define WC_CACHE_LINE_MASK_LO   0x01
+    #define WC_CACHE_LINE_ADD       0x02
+#elif WC_CACHE_LINE_SZ == 4
+    #define WC_CACHE_LINE_BITS      0
+    #define WC_CACHE_LINE_MASK_HI   0xff
+    #define WC_CACHE_LINE_MASK_LO   0x00
+    #define WC_CACHE_LINE_ADD       0x01
 #else
     #error Cache line size not supported
 #endif
@@ -3281,7 +3327,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
     !defined(NO_IMX6_CAAM_AES) && !defined(WOLFSSL_QNX_CAAM)) && \
     !defined(MAX3266X_AES)
-#if !defined(WOLFSSL_ARMASM) || defined(__aarch64__)
+#if !defined(WOLFSSL_ARMASM) || defined(__aarch64__) || defined(WC_AES_TOUCH_LINES_C_CORE)
 /* Encrypt a number of blocks using AES.
  *
  * @param [in]  aes  AES object.
@@ -3936,7 +3982,7 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
             printf("Skipping AES-NI\n");
         #endif
     }
-#elif defined(WOLFSSL_ARMASM)
+#elif defined(WOLFSSL_ARMASM) && !defined(WC_AES_TOUCH_LINES_C_CORE)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
 #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -4048,7 +4094,7 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
 #if defined(HAVE_AES_DECRYPT)
 #if ((defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
      defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)) && \
-    (defined(__aarch64__) || !defined(WOLFSSL_ARMASM))
+    (defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE))
 
 #ifndef WC_AES_BITSLICED
 #ifndef WC_NO_CACHE_RESISTANT
@@ -4368,7 +4414,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
     !defined(NO_IMX6_CAAM_AES) && !defined(WOLFSSL_QNX_CAAM)) && \
     !defined(MAX3266X_AES)
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
+#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)
 /* Decrypt a number of blocks using AES.
  *
  * @param [in]  aes  AES object.
@@ -4735,7 +4781,7 @@ static void AesDecryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 
 #if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
     defined(WOLFSSL_AES_DIRECT)
-#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
+#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)
 #if !defined(WC_AES_BITSLICED) || defined(WOLFSSL_AES_DIRECT)
 /* Software AES - ECB Decrypt */
 
@@ -4796,7 +4842,7 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesDecrypt(
             printf("Skipping AES-NI\n");
         #endif
     }
-#elif defined(WOLFSSL_ARMASM)
+#elif defined(WOLFSSL_ARMASM) && !defined(WC_AES_TOUCH_LINES_C_CORE)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
 #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -5304,7 +5350,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
      !defined(NO_WOLFSSL_RENESAS_FSPSM_AES)
     /* implemented in wolfcrypt/src/port/renesas/renesas_fspsm_aes.c */
 
-#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && !defined(WC_AES_TOUCH_LINES_C_CORE)
     static int AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
@@ -5726,7 +5772,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #ifdef NEED_AES_TABLES
 
 #ifndef WC_AES_BITSLICED
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)
 /* Set the AES key and expand.
  *
  * @param [in]  aes    AES object.
@@ -6366,7 +6412,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
          * aes->keylen were set above. */
         AES_set_key_RISCV64(userKey, (int)keylen, (byte*)aes->key, dir);
         return 0;
-#elif defined(WOLFSSL_ARMASM)
+#elif defined(WOLFSSL_ARMASM) && !defined(WC_AES_TOUCH_LINES_C_CORE)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     #ifndef __aarch64__
       #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -7755,7 +7801,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if (!defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         word32 blocks;
         int ret;
 #endif
@@ -7770,7 +7816,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return 0;
         }
 
-#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if (!defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         blocks = sz / WC_AES_BLOCK_SIZE;
 #endif
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
@@ -7835,7 +7881,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_ARMASM) && !defined(WC_AES_TOUCH_LINES_C_CORE)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)
       #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -7997,7 +8043,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     /* Software AES - CBC Decrypt */
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if (!defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         word32 blocks;
         int ret;
 #endif
@@ -8027,7 +8073,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     #endif
 
-#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if (!defined(WOLFSSL_ARMASM) || defined(WC_AES_TOUCH_LINES_C_CORE)) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         blocks = sz / WC_AES_BLOCK_SIZE;
 #endif
         if (sz % WC_AES_BLOCK_SIZE) {
@@ -8101,7 +8147,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     #endif
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_ARMASM) && !defined(WC_AES_TOUCH_LINES_C_CORE)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)
       #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -21186,8 +21232,12 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
      * AArch32 AES. */
     #define WC_POLYVAL_ASM
     #define WC_POLYVAL_ASM_AARCH32
+    /* Under touch-lines the CTR keystream runs through the C core (see
+     * AesGcmSivCtr); POLYVAL stays in asm - it is a carryless multiply. */
+    #ifndef WC_AES_TOUCH_LINES_C_CORE
     #define WC_GCMSIV_CTR_ASM
     #define WC_GCMSIV_CTR_ASM_AARCH32
+    #endif
     /* The base POLYVAL multiplies through the word64 software table poly->m,
      * compiled when the crypto extension can be absent at run time (no-crypto
      * build or the run-time dispatch build) and the table is available. */
@@ -21226,8 +21276,12 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
     /* Thumb-2 (32-bit ARM, Thumb-2 encoding). A single table-based variant
      * (ported from the AArch32 base): POLYVAL multiplies through the word64
      * software table poly->m; CTR is the table AES with the SIV counter. */
+    /* Under touch-lines the CTR keystream runs through the C core instead (see
+     * the AArch32 note above); POLYVAL stays in assembly. */
+    #ifndef WC_AES_TOUCH_LINES_C_CORE
     #define WC_GCMSIV_CTR_ASM
     #define WC_GCMSIV_CTR_ASM_THUMB2
+    #endif
     #if defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) && !defined(GCM_SMALL)
         #define WC_POLYVAL_ASM
         #define WC_POLYVAL_ASM_THUMB2
