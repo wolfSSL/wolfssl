@@ -85,6 +85,7 @@ pub mod pbkdf2_password_hash;
 pub mod scrypt_password_hash;
 #[cfg(feature = "digest")]
 pub mod sha_digest;
+pub mod slhdsa;
 
 /// Convert a buffer length to `u32`, returning `BUFFER_E` if it overflows.
 pub(crate) fn buffer_len_to_u32(len: usize) -> Result<u32, i32> {
