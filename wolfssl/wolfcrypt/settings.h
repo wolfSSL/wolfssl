@@ -4498,9 +4498,11 @@
 #endif
 
 #if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY) && \
-    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY) || \
-     defined(WOLFSSL_APACHE_HTTPD))
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+     defined(HAVE_LIGHTY) || defined(WOLFSSL_APACHE_HTTPD))
+    /* OPENSSL_EXTRA: the compat getters must return the parsed
+     * thisUpdate/nextUpdate for wolfSSL_OCSP_check_validity. */
     #undef  WOLFSSL_OCSP_PARSE_STATUS
     #define WOLFSSL_OCSP_PARSE_STATUS
 #endif
