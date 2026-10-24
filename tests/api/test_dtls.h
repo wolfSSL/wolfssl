@@ -194,6 +194,13 @@ int test_wolfSSL_dtls_stateless(void);
 int test_wolfSSL_dtls_stateless_hrr_group(void);
 int test_wolfSSL_DtlsUpdateWindow(void);
 int test_wolfSSL_DTLS_fragment_buckets(void);
+int test_wolfSSL_DTLS_fragment_buckets_random(void);
+int test_wolfSSL_DTLS_msg_list_purge(void);
+int test_wolfSSL_DTLS_plaintext_msg_replace(void);
+int test_wolfSSL_DTLS_msg_list_order(void);
+int test_wolfSSL_DTLS_stale_partial_head(void);
+int test_wolfSSL_DTLS13_sh_fragment_keeps_ch(void);
+int test_wolfSSL_DTLS13_rx_list_epoch_boundary(void);
 int test_wolfSSL_dtls_stateless2(void);
 int test_wolfSSL_dtls_stateless_maxfrag(void);
 int test_wolfSSL_dtls_stateless_resume(void);
@@ -271,6 +278,13 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_stateless_hrr_group),        \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DtlsUpdateWindow),                \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_fragment_buckets),           \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_fragment_buckets_random),    \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_msg_list_purge),             \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_plaintext_msg_replace),      \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_msg_list_order),             \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_stale_partial_head),         \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS13_sh_fragment_keeps_ch),     \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS13_rx_list_epoch_boundary),   \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_stateless2),                 \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_stateless_maxfrag),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_stateless_resume),           \
