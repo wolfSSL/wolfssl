@@ -36658,6 +36658,20 @@ static int IsTls13CipherSuite(byte first, byte second)
     {
         int ret;
 
+    #ifdef WOLFSSL_TLS13
+        /* A TLS v1.3 session is only ever offered in a TLS v1.3 ClientHello
+         * and cannot be resumed at a lower version. The server has either
+         * downgraded or declined the session: do a full handshake and run the
+         * downgrade protection check below (RFC 8446 Section 4.1.3), which
+         * is only skipped for a TLS v1.2 ClientHello offering a TLS v1.2
+         * session.
+         */
+        if (ssl->options.resuming && IsAtLeastTLSv1_3(ssl->session->version)) {
+            WOLFSSL_MSG("TLS v1.3 session cannot be resumed after downgrade");
+            ssl->options.resuming = 0;
+        }
+    #endif /* WOLFSSL_TLS13 */
+
         if (!ssl->options.resuming) {
             byte* down = ssl->arrays->serverRandom + RAN_LEN -
                                                          TLS13_DOWNGRADE_SZ - 1;
