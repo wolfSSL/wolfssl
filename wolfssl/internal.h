@@ -2984,7 +2984,8 @@ WOLFSSL_LOCAL int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm,
                                          const void* mem, int sz);
 WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm);
 WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
-                                     long sz, int format, int prev_err);
+                                     long sz, int format, int prev_err,
+                                     int* crlErr);
 
 
 #ifndef NO_CERTS
@@ -3004,6 +3005,9 @@ typedef struct ProcPeerCertArgs {
     int    certIdx;
     int    lastErr;
     int    leafVerifyErr;
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    int    csr2ReqIdx; /* 1 + certIdx of the last status_request_v2 request */
+#endif
 #ifdef WOLFSSL_TLS13
     byte   ctxSz;
 #endif
@@ -3018,6 +3022,9 @@ typedef struct ProcPeerCertArgs {
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    word16 csrAcked:1; /* survives the staple checks clearing status_request */
 #endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
@@ -3816,6 +3823,11 @@ WOLFSSL_LOCAL int ProcessChainOCSPRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
                              DecodedCert* cert, byte* certData, word32 length);
 #endif
+#if defined(HAVE_OCSP) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                           defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+WOLFSSL_LOCAL int CsrDoChainFallbackLookup(WOLFSSL* ssl, OcspRequest* request,
+                                           int idx);
+#endif
 /** Certificate Status Request v2 - RFC 6961 */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
@@ -3843,6 +3855,7 @@ WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert,
 #endif
 WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type,
                                                                     byte idx);
+WOLFSSL_LOCAL int   TLSX_CSR2_ChainFallback(WOLFSSL* ssl, int idx);
 WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 
 #endif
@@ -7251,6 +7264,27 @@ struct WOLFSSL {
     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         byte status_request_v2;
     #endif
+    #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                              defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        /* Leaf CRL verdict taken while the DecodedCert was alive, applied at
+         * ServerHelloDone only if no stapled response replaced it. */
+        int  deferredCrlRet;
+        byte deferredCrlDone;
+        /* Chain CRL verdicts, indexed like the staple list, applied at the
+         * fallback that runs for an entry no staple and no OCSP answered. */
+        int  deferredChainCrlRet[1 + MAX_CHAIN_DEPTH];
+    #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+        /* Entries whose CRL check was skipped for want of a CDP. */
+        byte deferredChainCrlSkipped[1 + MAX_CHAIN_DEPTH];
+    #endif
+    #endif
+    #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+        (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+         defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        /* Staples and fallback lookups that passed, indexed like the staple
+         * list, so a retry after a later one blocked does not repeat them. */
+        byte csrLookupDone[1 + MAX_CHAIN_DEPTH];
+    #endif
     #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         int                  secure_rene_count;    /* how many times */
@@ -8367,9 +8401,11 @@ WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void
 WOLFSSL_LOCAL int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     const WOLFSSL_ASN1_STRING* asn_in);
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int GetX509Error(int e);
 #endif
+WOLFSSL_LOCAL void SetRevocationVerifyRet(WOLFSSL* ssl, int err);
+WOLFSSL_LOCAL int CrlErrWaived(const WOLFSSL* ssl, int err);
 #endif
 
 #ifdef HAVE_EX_DATA_CRYPTO
@@ -8466,6 +8502,7 @@ WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
 #endif
 
 WOLFSSL_LOCAL int TranslateErrorToAlert(int err);
+WOLFSSL_LOCAL int RevocationAlert(int err);
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_LOCAL void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk,

@@ -2041,6 +2041,11 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshakeType,
         messageLength, size);
     *processedSize = idx;
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    /* The retry parses a blocked message again from its DTLS header. */
+    if (IsHsSuspendErr(ret))
+        *processedSize = 0;
+#endif
     if (ret != 0)
         return ret;
 

@@ -305,6 +305,9 @@ void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx,
 }
 
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Returns corresponding X509 error from internal ASN error <e> */
 int GetX509Error(int e)
 {
@@ -362,6 +365,9 @@ int GetX509Error(int e)
             return e;
     }
 }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 static void SetupStoreCtxError_ex(WOLFSSL_X509_STORE_CTX* ctx, int ret,
                                                                     int depth)
@@ -574,36 +580,45 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int crlRet = 0;
+    int datesChecked = 0;
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
 
     if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
-        ret = wolfSSL_CertManagerVerifyBuffer(ctx->store->cm,
+        ret = CM_VerifyBuffer_ex(ctx->store->cm,
                     ctx->current_cert->derCert->buffer,
                     ctx->current_cert->derCert->length,
-                    WOLFSSL_FILETYPE_ASN1);
+                    WOLFSSL_FILETYPE_ASN1, 0, &crlRet);
+        datesChecked = (ret == WOLFSSL_SUCCESS) ||
+            (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+#ifdef HAVE_CRL
+        /* The CRLs set with X509_STORE_CTX_set0_crls can revoke a cert the
+         * CertManager accepted, or supply the CRL its own store lacked. */
+        if (ctx->crls != NULL && ctx->store->cm->crlEnabled && datesChecked &&
+                (crlRet == 0 || crlRet == WC_NO_ERR_TRACE(CRL_MISSING))) {
+            int ctxCrlRet = X509StoreCheckCtxCrls(ctx);
+            if (ctxCrlRet == WOLFSSL_SUCCESS) {
+                crlRet = 0;
+            }
+            else if (ctxCrlRet != WC_NO_ERR_TRACE(CRL_MISSING)) {
+                crlRet = ctxCrlRet;
+            }
+        }
+        /* Revocation is reported before the dates, as OpenSSL does. */
+        if (crlRet != 0) {
+            SetupStoreCtxError(ctx, crlRet);
+            if ((verifyCb == NULL) || (verifyCb(0, ctx) != 1)) {
+                return crlRet;
+            }
+        }
+#endif
     #ifndef NO_ASN_TIME
         /* update return value with any date validation overrides */
         ret = X509StoreVerifyCertDate(ctx, ret);
     #endif
-#ifdef HAVE_CRL
-        /* Consult the CRLs set with X509_STORE_CTX_set0_crls after the date
-         * overrides. They can revoke a cert the CertManager accepted, also
-         * one whose date error was overridden, and can satisfy a CRL
-         * requirement the CertManager's own CRL store could not. */
-        if (ctx->crls != NULL && ctx->store->cm->crlEnabled &&
-                (ret == WOLFSSL_SUCCESS ||
-                 ret == WC_NO_ERR_TRACE(CRL_MISSING))) {
-            int crlRet = X509StoreCheckCtxCrls(ctx);
-            if (crlRet == WOLFSSL_SUCCESS) {
-                ret = WOLFSSL_SUCCESS;
-            }
-            else if (crlRet != WC_NO_ERR_TRACE(CRL_MISSING)) {
-                ret = crlRet;
-            }
-        }
-#endif
         SetupStoreCtxError(ctx, ret);
         if (verifyCb != NULL) {
             /* Snapshot the error so the rejection below can tell one the
@@ -618,10 +633,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
                 ret = WOLFSSL_SUCCESS;
             }
             else if (ret >= 0 && ctx->verify_cb != NULL) {
-                /* Returning 0 must reject a chain the cert manager accepted.
-                 * Only for the per-context callback - a store callback has
-                 * never been able to reject here, and widening it is a
-                 * separate behavior change. */
+                /* Returning 0 must reject a chain the cert manager accepted. */
                 if (ctx->error == preCbError) {
                     /* Keep an error the callback recorded itself; otherwise
                      * the rejection has no error to report. */
@@ -631,15 +643,19 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
                 *cbRejected = 1;
                 ret = WOLFSSL_FAILURE;
             }
+        #if !defined(NO_ASN_TIME) && defined(OPENSSL_ALL)
+            else if (ret >= 0) {
+                /* A store callback may reject one too, without a veto. */
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        #endif
         }
     }
 #if !defined(NO_ASN_TIME) && defined(OPENSSL_ALL)
     /* Skipped once the callback has rejected: the decision is already made,
      * and re-running the date check would consult the callback a second time,
      * which could overturn the rejection. */
-    if (*cbRejected == 0 &&
-        ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
-        ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
+    if (*cbRejected == 0 && !datesChecked && ret == WOLFSSL_SUCCESS) {
         /* With OpenSSL, we need to check the certificate's date
         * after certificate manager verification,
         * as it skips date validation when other errors are present.
@@ -657,6 +673,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         }
     }
 #endif
+    (void)datesChecked;
     return ret;
 }
 
