@@ -2046,3 +2046,82 @@ int test_wc_ed448_make_public_dev_key(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ed448_make_public_dev_key */
+
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+typedef struct ed448DevKgCtx {
+    int decline;
+    int calls;
+    int makePubCalls;
+} ed448DevKgCtx;
+
+/* Device that fails key generation unless told to decline it. */
+static int ed448_dev_kg_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    ed448DevKgCtx* dev = (ed448DevKgCtx*)ctx;
+
+    (void)devIdArg;
+
+    if (info->algo_type != WC_ALGO_TYPE_PK) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type == WC_PK_TYPE_ED448_MAKE_PUB) {
+        dev->makePubCalls++;
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type != WC_PK_TYPE_ED448_KEYGEN) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    dev->calls++;
+    if (dev->decline) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    return WC_NO_ERR_TRACE(WC_HW_E);
+}
+#endif
+
+/*
+ * Testing wc_ed448_make_key() with a device that fails or declines keygen.
+ */
+int test_wc_ed448_make_key_dev_error(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+    int devId = 4481;
+    ed448DevKgCtx dev;
+    WC_RNG rng;
+    ed448_key key;
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_dev_kg_cb, &dev), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ed448_init_ex(&key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(dev.calls, 1);
+    ExpectIntEQ(dev.makePubCalls, 0);
+    ExpectIntEQ(key.privKeySet, 0);
+    ExpectIntEQ(key.pubKeySet, 0);
+    wc_ed448_free(&key);
+
+    /* Declined by the device, software generates the key. */
+    dev.decline = 1;
+    ExpectIntEQ(wc_ed448_init_ex(&key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    ExpectIntEQ(dev.calls, 2);
+    ExpectIntEQ(dev.makePubCalls, 1);
+    ExpectIntEQ(key.privKeySet, 1);
+    ExpectIntEQ(key.pubKeySet, 1);
+    ExpectIntEQ(wc_ed448_check_key(&key), 0);
+    wc_ed448_free(&key);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_make_key_dev_error */

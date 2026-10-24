@@ -602,6 +602,11 @@ typedef struct wc_CryptoInfo {
                 word32       pubKeySz;
                 int          checkPriv;
             } ed448checkkey;
+            struct {
+                WC_RNG*      rng;
+                int          size;
+                ed448_key*   key;
+            } ed448kg;
         #endif
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
             struct {
@@ -1347,6 +1352,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_Curve448Generic(int devId, int public_size,
 #endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize,
+    ed448_key* key);
 WOLFSSL_LOCAL int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen,
     byte* out, word32 *outLen, ed448_key* key, byte type, const byte* context,
     byte contextLen);
