@@ -76,6 +76,22 @@ west build -p auto -b qemu_x86 modules/crypto/wolfssl/zephyr/samples/wolfssl_tes
 west build -t run
 ```
 
+## Build with the wolfCrypt FIPS v5.2.3 bundle
+
+`zephyr/user_settings-fips-v5.2.3.h` is a complete settings file for a tree
+holding the v5.2.3 FIPS bundle. Copy it over `zephyr/user_settings.h` and select
+the boundary in `prj.conf`:
+
+```
+CONFIG_WOLFCRYPT_FIPS=y
+CONFIG_WOLFCRYPT_FIPS_V5=y
+```
+
+It cannot be passed through `CONFIG_WOLFSSL_SETTINGS_FILE`: the FIPS options
+depend on no settings file being set. Symmetric assembly stays off, since the
+module does not yet place the v5.2.3 ARM and Intel AES/SHA assembly inside the
+boundary; `CONFIG_WOLFCRYPT_ASM` still accelerates the SP math.
+
 ## Build and Run wolfCrypt Benchmark Application
 
 build and execute `wolfssl_benchmark`
