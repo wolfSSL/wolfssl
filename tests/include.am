@@ -165,6 +165,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_ed25519_whitebox.c \
               tests/unit-mcdc/test_ed448_hash_fault_whitebox.c \
               tests/unit-mcdc/test_ed448_whitebox.c \
+              tests/unit-mcdc/test_egd_whitebox.c \
               tests/unit-mcdc/test_falcon_whitebox.c \
               tests/unit-mcdc/test_frodokem_cryptocb_whitebox.c \
               tests/unit-mcdc/test_frodokem_fault_common.h \
