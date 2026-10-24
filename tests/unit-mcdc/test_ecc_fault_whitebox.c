@@ -122,6 +122,8 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_ecc_mod_d(const mp_int* a, mp_digit b,
 #include <string.h>
 
 static int wb_fail = 0;
+/* a violated invariant, as opposed to a setup step that could not run */
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
@@ -426,7 +428,7 @@ static void wb_fp_no_slot(wb_fp_ctx* c)
      * and free it -- the eviction path a fresh cache never reaches. */
     wc_ecc_fp_free();
     wb_fp_lock_all(0);
-    if (add_entry(0, c->G) == MP_OKAY) {
+    if (add_entry(0, c->G, &c->a, &c->prime) == MP_OKAY) {
         for (x = 1; x < FP_ENTRIES; x++)
             fp_cache[x].lock = 1;
         (void)find_hole();
@@ -460,42 +462,105 @@ static void wb_fp_find_base_partial(wb_fp_ctx* c)
     wb_fp_lock_all(0);
 
     fp_cache[0].g = wc_ecc_new_point();
-    if (fp_cache[0].g == NULL) {
+    /* an occupied entry always carries its key in LUT slot 0 */
+    fp_cache[0].LUT[0] = wc_ecc_new_point();
+    if (fp_cache[0].g == NULL || fp_cache[0].LUT[0] == NULL) {
+        wc_ecc_del_point(fp_cache[0].g);
+        wc_ecc_del_point(fp_cache[0].LUT[0]);
+        fp_cache[0].g = NULL;
+        fp_cache[0].LUT[0] = NULL;
         wb_fail = 1;
         return;
     }
+    (void)mp_copy(&c->a, fp_entry_a(0));
+    (void)mp_copy(&c->prime, fp_entry_modulus(0));
+
     (void)mp_copy(c->G->x, fp_cache[0].g->x);
     (void)mp_set(fp_cache[0].g->y, 7);
     (void)mp_copy(c->G->z, fp_cache[0].g->z);
-    (void)find_base(c->G);                    /* y comparison FALSE */
+    (void)find_base(c->G, &c->a, &c->prime);  /* y comparison FALSE */
 
     (void)mp_copy(c->G->y, fp_cache[0].g->y);
     (void)mp_set(fp_cache[0].g->z, 9);
-    (void)find_base(c->G);                    /* z comparison FALSE */
+    (void)find_base(c->G, &c->a, &c->prime);  /* z comparison FALSE */
 
     (void)mp_copy(c->G->z, fp_cache[0].g->z);
-    (void)find_base(c->G);                    /* all three match */
+    (void)find_base(c->G, &c->a, &c->prime);  /* all five match */
 
+    /* same point and modulus, different a: that comparison FALSE */
+    (void)mp_set(fp_entry_a(0), 7);
+    (void)find_base(c->G, &c->a, &c->prime);
+
+    /* same point and a, different modulus: that comparison FALSE */
+    (void)mp_copy(&c->a, fp_entry_a(0));
+    (void)mp_set(fp_entry_modulus(0), 7);
+    (void)find_base(c->G, &c->a, &c->prime);
+
+    wc_ecc_del_point(fp_cache[0].LUT[0]);
+    fp_cache[0].LUT[0] = NULL;
     wc_ecc_del_point(fp_cache[0].g);
     fp_cache[0].g = NULL;
     WB_NOTE("find_base partial-match vectors done");
 }
 
-/* add_entry's three-mp_copy OR-chain: arm 1/2/3, then the all-FALSE row. */
+/* The entry's curve parameters live in LUT slot 0, which holds no multiple of
+ * the base point. Nothing may write a table entry there: that would unkey the
+ * entry, and find_base() would stop recognising it. Only a white-box check
+ * sees this.  A clobbered slot 0 just turns every lookup into a miss, which
+ * still computes the right answer. */
+static void wb_fp_slot0_preserved(wb_fp_ctx* c)
+{
+    int i;
+    int found = -1;
+
+    wc_ecc_fp_free();
+    wb_fp_lock_all(0);
+
+    /* three uses: record the point, build its table, then consume it */
+    for (i = 0; i < 3; i++)
+        (void)wc_ecc_mulmod_ex(&c->k, c->G, c->R, &c->a, &c->prime, 1, NULL);
+
+    /* located by base point alone, so a clobbered key cannot hide the entry */
+    for (i = 0; i < FP_ENTRIES; i++) {
+        if (fp_cache[i].g != NULL &&
+                mp_cmp(fp_cache[i].g->x, c->G->x) == MP_EQ &&
+                mp_cmp(fp_cache[i].g->y, c->G->y) == MP_EQ) {
+            found = i;
+            break;
+        }
+    }
+
+    if (found < 0 || fp_cache[found].LUT_set == 0) {
+        wb_fail = 1;
+        WB_NOTE("no built table to check LUT slot 0 against");
+    }
+    else if (mp_cmp(fp_entry_a(found), &c->a) != MP_EQ ||
+             mp_cmp(fp_entry_modulus(found), &c->prime) != MP_EQ) {
+        wb_bad = 1;
+        WB_NOTE("LUT slot 0 no longer holds the entry's curve parameters");
+    }
+
+    wc_ecc_fp_free();
+    WB_NOTE("LUT slot 0 preserved across build_lut");
+}
+
+/* add_entry's mp_copy OR-chains: the three that copy the base point and the
+ * two that record the entry's curve parameters. arm 1/2/3/4/5, then the
+ * all-FALSE row. */
 static void wb_fp_add_entry_faults(wb_fp_ctx* c)
 {
     long n;
 
-    for (n = 1; n <= 3; n++) {
+    for (n = 1; n <= 5; n++) {
         wc_ecc_fp_free();
         mcdc_fm_arm(n);
-        (void)add_entry(0, c->G);
+        (void)add_entry(0, c->G, &c->a, &c->prime);
         mcdc_fm_disarm();
     }
     wc_ecc_fp_free();
-    (void)add_entry(0, c->G);
+    (void)add_entry(0, c->G, &c->a, &c->prime);
     wc_ecc_fp_free();
-    WB_NOTE("add_entry mp_copy chain arm(1..3) + accept done");
+    WB_NOTE("add_entry mp_copy chain arm(1..5) + accept done");
 }
 
 /* build_lut's two OR-chains and accel_fp_mul's LUT-copy chain.
@@ -523,7 +588,7 @@ static void wb_fp_build_lut_and_mul(wb_fp_ctx* c)
 
     for (n = 1; n <= 6; n++) {
         wc_ecc_fp_free();
-        if (add_entry(0, c->G) != MP_OKAY) {
+        if (add_entry(0, c->G, &c->a, &c->prime) != MP_OKAY) {
             wb_fail = 1;
             continue;
         }
@@ -533,7 +598,7 @@ static void wb_fp_build_lut_and_mul(wb_fp_ctx* c)
     }
 
     wc_ecc_fp_free();
-    if (add_entry(0, c->G) == MP_OKAY &&
+    if (add_entry(0, c->G, &c->a, &c->prime) == MP_OKAY &&
         build_lut(0, &c->a, &c->prime, mp, &c->mu) == MP_OKAY) {
         /* accepting row first, then the fault sweep over the LUT-copy chain */
         (void)accel_fp_mul(0, &c->k, c->R, &c->a, &c->prime, mp, 1);
@@ -573,7 +638,7 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
     wc_ecc_fp_free();
     for (i = 0; i < 3; i++)
         (void)wc_ecc_mulmod_ex(&c->k, c->G, c->R, &c->a, &c->prime, 1, NULL);
-    i = find_base(c->G);
+    i = find_base(c->G, &c->a, &c->prime);
     if (i >= 0) {
         fp_cache[i].lru_count = INT_MAX;
         (void)wc_ecc_mulmod_ex(&c->k, c->G, c->R, &c->a, &c->prime, 1, NULL);
@@ -587,7 +652,7 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
     for (i = 0; i < 3; i++)
         (void)wc_ecc_mulmod_ex2(&c->k, c->G, c->R, &c->a, &c->prime,
                                 &c->order, NULL, 1, NULL);
-    i = find_base(c->G);
+    i = find_base(c->G, &c->a, &c->prime);
     if (i >= 0) {
         fp_cache[i].lru_count = INT_MAX;
         (void)wc_ecc_mulmod_ex2(&c->k, c->G, c->R, &c->a, &c->prime,
@@ -628,10 +693,10 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
         mcdc_fm_disarm();
     }
 
-    i = find_base(c->G);
+    i = find_base(c->G, &c->a, &c->prime);
     if (i >= 0)
         fp_cache[i].lru_count = INT_MAX;
-    i = find_base(c->B);
+    i = find_base(c->B, &c->a, &c->prime);
     if (i >= 0)
         fp_cache[i].lru_count = INT_MAX;
     (void)ecc_mul2add(c->G, &c->k, c->B, &c->k, c->R, &c->a, &c->prime, NULL);
@@ -639,7 +704,7 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
     /* idx1 cached but no slot left for idx2: entry for G stays resolvable by
      * find_base (which ignores .lock) while find_hole has nothing to give. */
     wc_ecc_fp_free();
-    if (add_entry(0, c->G) == MP_OKAY) {
+    if (add_entry(0, c->G, &c->a, &c->prime) == MP_OKAY) {
         wb_fp_lock_all(1);
         (void)ecc_mul2add(c->G, &c->k, c->B, &c->k, c->R, &c->a, &c->prime,
                           NULL);
@@ -713,6 +778,7 @@ static void wb_fp_cache_suite(void)
     wb_fp_add_entry_faults(&c);
     wb_fp_find_base_partial(&c);
     wb_fp_no_slot(&c);
+    wb_fp_slot0_preserved(&c);
     wb_fp_argguards(&c);
 
     wc_ecc_fp_free();
@@ -1428,6 +1494,7 @@ int main(void)
     defined(WOLFSSL_SP_MATH)
     printf("  HAVE_ECC off (or crypto-cb-only / bare WOLFSSL_SP_MATH "
            "build); nothing to exercise\n");
+    (void)wb_bad;
     return 0;
 #else
     /* mp-fault work first: it is bounded and cheap, while the heap sweeps
@@ -1447,9 +1514,11 @@ int main(void)
     wb_fault_map_and_sign_sw();
     mcdc_fa_disarm();
     mcdc_fa_restore();
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n",
+           wb_bad ? "FAILED" : wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the harness
-     * treats a nonzero exit as a failed variant and discards its coverage. */
-    return 0;
+     * treats a nonzero exit as a failed variant and discards its coverage.
+     * A violated invariant is a real failure and does exit nonzero. */
+    return wb_bad ? 1 : 0;
 #endif
 }
