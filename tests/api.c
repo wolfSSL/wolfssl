@@ -19056,6 +19056,76 @@ static int test_wolfSSL_Tls13_ECH_rejected_cert_valid(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 9849 S6.1.4: If a server downgrades a connection to TLS 1.2 the
+ * ECH client treats that as rejection */
+static int test_wolfSSL_Tls13_ECH_tls12_downgrade(void)
+{
+    EXPECT_DECLS;
+#ifndef WOLFSSL_NO_TLS12
+    test_ssl_memio_ctx test_ctx;
+    byte echConfigs[ECH_CONFIG_LEN];
+    word32 echConfigsLen = sizeof(echConfigs);
+    const char* publicName = "example.com";
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    word32 ticketLen = 0;
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+    test_ctx.c_cb.method = wolfSSLv23_client_method;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* Generate the ECH configs on the server. Leave ECH enabled - since the
+     * server is TLS 1.2 it should not support ECH */
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(test_ctx.s_ctx, publicName,
+        0, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(test_ctx.s_ctx, echConfigs,
+        &echConfigsLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echConfigs,
+        echConfigsLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        "ech-private.com", (word16)XSTRLEN("ech-private.com")),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    ExpectIntEQ(wolfSSL_UseSessionTicket(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+#endif
+
+    /* request a client cert, the client must respond with an empty one */
+    wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_PEER, NULL);
+
+    /* set sni to the public name so it matches the presented cert, and so the
+     * client is not rejected based on SNI */
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
+        publicName, (word16)XSTRLEN(publicName)), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(ECH_REQUIRED_E));
+
+    /* client aborts after the handshake completed */
+    ExpectIntEQ(test_ctx.c_ssl->options.serverState, SERVER_FINISHED_COMPLETE);
+    ExpectIntEQ(wolfSSL_is_init_finished(test_ctx.s_ssl), 1);
+    ExpectIntEQ(test_ctx.s_ssl->options.havePeerCert, 0);
+
+    /* session ID and ticket from the rejected connection are ignored */
+    ExpectIntEQ(wolfSSL_SessionIsSetup(test_ctx.c_ssl->session), 0);
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    ExpectIntEQ(test_ctx.c_ssl->msgsReceived.got_session_ticket, 1);
+    ExpectIntEQ(wolfSSL_get_SessionTicket(test_ctx.c_ssl, NULL, &ticketLen),
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntEQ(ticketLen, 0);
+#endif
+
+    test_ssl_memio_cleanup(&test_ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* when ECH is rejected and the server requests a client certificate the client
  * must respond with an empty cert */
 static int test_wolfSSL_Tls13_ECH_rejected_empty_client_cert(void)
@@ -46167,6 +46237,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_ch2_decrypt_error),
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_cert_valid),
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_empty_client_cert),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_tls12_downgrade),
     TEST_DECL(test_wolfSSL_Tls13_ECH_sni_parse),
     TEST_DECL(test_wolfSSL_Tls13_ECH_read_ahead),
 #endif
