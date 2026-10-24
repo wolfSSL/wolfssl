@@ -51,8 +51,12 @@ int test_ParseCert_empty_san(void);
 int test_ParseCert_multi_valued_rdn(void);
 int test_ParseCert_critical_qc_statements(void);
 int test_ParseCert_nc_before_basic_constraints(void);
-int test_wc_DecodeObjectId(void);
 int test_SetCertificatePolicies_no_empty_qualifiers(void);
+int test_ParseCert_unknownExtCallback32(void);
+int test_wc_DecodeObjectId32(void);
+int test_wc_DecodeObjectId_FIPS16(void);
+int test_wc_EncodeObjectId(void);
+int test_wc_EncodeObjectId32(void);
 int test_ToTraditional_ex_handcrafted(void);
 int test_ToTraditional_ex_roundtrip(void);
 int test_ToTraditional_ex_negative(void);
@@ -89,14 +93,18 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_DecodeCertPolicy_tooMany),          \
     TEST_DECL_GROUP("asn", test_ParseCert_SM3wSM2_short_pubkey),    \
     TEST_DECL_GROUP("asn", test_ParseCert_dnBufferBoundary),        \
-    TEST_DECL_GROUP("asn", test_ParseCert_nameComponentIds),       \
-    TEST_DECL_GROUP("asn", test_ParseCert_issuerNameNoField),      \
+    TEST_DECL_GROUP("asn", test_ParseCert_nameComponentIds),        \
+    TEST_DECL_GROUP("asn", test_ParseCert_issuerNameNoField),       \
     TEST_DECL_GROUP("asn", test_ParseCert_tbs_sig_oid_mismatch),    \
     TEST_DECL_GROUP("asn", test_ParseCert_empty_san),               \
     TEST_DECL_GROUP("asn", test_ParseCert_multi_valued_rdn),        \
     TEST_DECL_GROUP("asn", test_ParseCert_critical_qc_statements),  \
     TEST_DECL_GROUP("asn", test_ParseCert_nc_before_basic_constraints), \
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_ParseCert_unknownExtCallback32),    \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId32),               \
+    TEST_DECL_GROUP("asn", test_wc_EncodeObjectId32),               \
+    TEST_DECL_GROUP("asn", test_wc_EncodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId_FIPS16),          \
     TEST_DECL_GROUP("asn", test_SetCertificatePolicies_no_empty_qualifiers), \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
