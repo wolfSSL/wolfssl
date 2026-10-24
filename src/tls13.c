@@ -14372,14 +14372,15 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
 
     /* In DTLS we must wait for the ack before setting up the new keys */
     if (!ssl->options.dtls) {
+        int keyRet; /* ret may hold WANT_WRITE */
 
         /* Future traffic uses new encryption keys. */
-        if ((ret = DeriveTls13Keys(
+        if ((keyRet = DeriveTls13Keys(
                        ssl, update_traffic_key, ENCRYPT_SIDE_ONLY, 1))
             != 0)
-            return ret;
-        if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-            return ret;
+            return keyRet;
+        if ((keyRet = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+            return keyRet;
 
         /* Count this key update against the RFC 9846 sender limit. */
         w64Increment(&ssl->keys.keyUpdateCount);
@@ -14510,7 +14511,15 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
 #ifndef WOLFSSL_RW_THREADED
-        return SendTls13KeyUpdate(ssl);
+        ret = SendTls13KeyUpdate(ssl);
+    #ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls)
+            return ret;
+    #endif
+        /* reply is sent by the next write */
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
+            ret = 0;
+        return ret;
 #else
         ssl->options.sendKeyUpdate = 1;
         return 0;

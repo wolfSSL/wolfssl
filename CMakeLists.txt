@@ -860,6 +860,7 @@ if(WOLFSSL_CRYPT_ONLY)
                WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2
                WOLFSSL_PKCALLBACKS WOLFSSL_QUIC
                WOLFSSL_RENEGOTIATION_INDICATION WOLFSSL_SECURE_RENEGOTIATION
+               WOLFSSL_SECURE_RENEGOTIATION_INFO
                WOLFSSL_SNI WOLFSSL_SRTP WOLFSSL_TLSX)
         force_option(${_o} "no")
     endforeach()
@@ -2206,6 +2207,7 @@ endif()
 add_option("WOLFSSL_TLS" "Enable TLS (default: enabled)" "yes" "yes;no")
 if(NOT WOLFSSL_TLS)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_TLS")
+    default_option(WOLFSSL_SECURE_RENEGOTIATION_INFO "no")
 endif()
 
 # TLSv1.2
@@ -4403,6 +4405,16 @@ if(WOLFSSL_SECURE_RENEGOTIATION)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SECURE_RENEGOTIATION"
         "-DHAVE_SERVER_RENEGOTIATION_INFO")
+endif()
+
+# Secure renegotiation info
+add_option("WOLFSSL_SECURE_RENEGOTIATION_INFO"
+    "Enable secure renegotiation info extension (default: enabled)"
+    "yes" "yes;no")
+if(WOLFSSL_SECURE_RENEGOTIATION_INFO AND WOLFSSL_ASN AND WOLFSSL_TLSV12
+   AND NOT WOLFSSL_RENEGOTIATION_INDICATION)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SERVER_RENEGOTIATION_INFO")
 endif()
 
 # Per-thread OpenSSL-compat error queue

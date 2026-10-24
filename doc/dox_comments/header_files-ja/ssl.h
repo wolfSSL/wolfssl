@@ -12209,7 +12209,7 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
 
     \return BAD_FUNC_ARG sslがNULLまたはTLS v1.3を使用していない場合。
-    \return WANT_WRITE 書き込みの準備ができていない場合。
+    \return WOLFSSL_ERROR_WANT_WRITE 書き込みの準備ができていない場合。
     \return WOLFSSL_SUCCESS 成功した場合。
 
     _Example_
@@ -12218,8 +12218,8 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
     WOLFSSL* ssl;
     ...
     ret = wolfSSL_update_keys(ssl);
-    if (ret == WANT_WRITE) {
-        // I/Oの準備ができたら再度呼び出す必要があります。
+    if (ret == WOLFSSL_ERROR_WANT_WRITE) {
+        // KeyUpdateは次のwolfSSL_write()で送信されます。
     }
     else if (ret != WOLFSSL_SUCCESS) {
         // 鍵更新の送信に失敗しました。
