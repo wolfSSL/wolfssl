@@ -902,7 +902,7 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
         #endif
             break;
         case STACK_TYPE_X509_REQ_ATTR:
-        #if defined(OPENSSL_ALL) && \
+        #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
             (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ))
             func = (wolfSSL_sk_freefunc)wolfSSL_X509_ATTRIBUTE_free;
         #endif
