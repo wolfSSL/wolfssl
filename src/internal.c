@@ -8268,6 +8268,45 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     return ret;
 }
+
+#if defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)
+static int IsStaleCtxDer(const DerBuffer* der, byte weOwn,
+    const DerBuffer* ctxDer)
+{
+    return (!weOwn) && (der != NULL) && (der != ctxDer);
+}
+
+/* Check the CTX still has the buffers the SSL points to but does not own.
+ * Returns BAD_STATE_E when the CTX replaced one. */
+int CheckSSL_CTX_CertsAndKeys(const WOLFSSL* ssl)
+{
+    const WOLFSSL_CTX* ctx = ssl->ctx;
+    const DerBuffer* ctxKey = ctx->privateKey;
+    int stale = 0;
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    if (ssl->buffers.key == ssl->buffers.altKey) {
+        /* Alternative key swapped in to sign, owned through the key. */
+        ctxKey = ctx->altPrivateKey;
+    }
+    else {
+        stale = IsStaleCtxDer(ssl->buffers.altKey, ssl->buffers.weOwnAltKey,
+            ctx->altPrivateKey);
+    }
+#endif
+    if (stale ||
+            IsStaleCtxDer(ssl->buffers.certificate, ssl->buffers.weOwnCert,
+                ctx->certificate) ||
+            IsStaleCtxDer(ssl->buffers.certChain, ssl->buffers.weOwnCertChain,
+                ctx->certChain) ||
+            IsStaleCtxDer(ssl->buffers.key, ssl->buffers.weOwnKey, ctxKey)) {
+        WOLFSSL_MSG("CTX certificate or key replaced during handshake");
+        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+        return BAD_STATE_E;
+    }
+    return 0;
+}
+#endif /* HAVE_SNI || WOLFSSL_CERT_SETUP_CB */
 #endif /* NO_CERTS */
 
 #ifndef NO_DH
@@ -47437,6 +47476,11 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 default:
                     break;
             }
+        #ifndef NO_CERTS
+            if (ret == 0) {
+                ret = CheckSSL_CTX_CertsAndKeys(ssl);
+            }
+        #endif
         }
         return ret;
     }
