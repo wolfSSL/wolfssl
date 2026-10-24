@@ -773,7 +773,8 @@ static int RngAutoLockInit(WC_RNG* rng)
 static void RngAutoLockFree(WC_RNG* rng)
 {
     if (rng->autoLockInited) {
-        (void)wc_FreeMutex(&rng->mutex);
+        if (wc_FreeMutex(&rng->mutex) != 0)
+            WOLFSSL_MSG("RNG auto lock: mutex not freed");
         rng->autoLockInited = 0;
     }
 }
@@ -800,7 +801,8 @@ static void RngAutoLockExit(WC_RNG* rng)
     if (!rng->autoLockInited)
         return;
     old = rng->autoLockCancel;   /* read before the unlock hands the slot on */
-    (void)wc_UnLockMutex(&rng->mutex);
+    if (wc_UnLockMutex(&rng->mutex) != 0)
+        WOLFSSL_MSG("RNG auto lock: mutex not unlocked");
     wc_CancelRestore(old);
 }
 #else
@@ -2732,17 +2734,16 @@ static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg)
 
 /* Uncredited stirring, per SP 800-90A 10.1.1.4 generate with additional_input
  * (step 2: V += Hash(0x02 || V || additional_input)).  The generate is
- * zero-length: Hash_gen()'s (and Hash512_gen()'s) outSz==0 mode banks the
- * generated block for the continuous-test hook (its consumer is
- * configuration-dependent; no comparison state lives in this file), and
- * out is never dereferenced.  The reseed counter is incremented as for any
- * generate, and quarantine/stratum are untouched, so the no-claims doctrine
- * holds as a theorem of the standard rather than a property of a custom
- * transition.  Refused with the wc_RNG_entropy_needs_recovery() verdict
- * (NEEDS_RECOVERY_E) when the instance is quarantined, due for a credited
- * reseed, or carries a stale entropy epoch, and with NOT_READY_E when the
- * reseed interval trips within the call: a generate must not run past the
- * reseed interval, and a stir is not the credited reseed that clears it. */
+ * zero-length: Hash_gen() and Hash512_gen() run one Hashgen iteration and
+ * discard the block when outSz is 0, and out is never dereferenced.  The
+ * reseed counter is incremented as for any generate, and quarantine/stratum
+ * are untouched, so the no-claims doctrine holds as a theorem of the standard
+ * rather than a property of a custom transition.  Refused with the
+ * wc_RNG_entropy_needs_recovery() verdict (NEEDS_RECOVERY_E) when the
+ * instance is quarantined, due for a credited reseed, or carries a stale
+ * entropy epoch, and with NOT_READY_E when the reseed interval trips within
+ * the call: a generate must not run past the reseed interval, and a stir is
+ * not the credited reseed that clears it. */
 
 static WARN_UNUSED_RESULT int Hash_DRBG_StirGenerate(WC_RNG* rng,
                                                      const byte* add,
