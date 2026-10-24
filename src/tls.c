@@ -12800,6 +12800,9 @@ int TLSX_PreSharedKey_Parse_ClientHello(TLSX** extensions, const byte* input,
     }
     if (list != NULL || len != 0)
         return BUFFER_E;
+    /* No data allowed after OfferedPsks. */
+    if (idx != length)
+        return BUFFER_E;
 
     return 0;
 
