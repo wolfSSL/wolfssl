@@ -36,10 +36,294 @@ wc_static_assert((int)WC_LAST_E <= (int)WC_SPAN2_LAST_E);
 wc_static_assert((int)MIN_CODE_E <= (int)WC_LAST_E);
 wc_static_assert((int)MIN_CODE_E <= (int)WC_SPAN2_MIN_CODE_E);
 
+static const char wc_unknown_error_str[] = "unknown error number";
+
+/* The value wc_GetErrorString() switches on for a span 2 error code: span 2
+ * moved to just below span 1. */
+#define WC_SPAN2_TO_IDX(e) \
+    ((e) - (int)WC_SPAN2_FIRST_E + (int)WC_SPAN1_MIN_CODE_E - 1)
+
+/* Never called. Lists every error code in a switch on the enum, so that
+ * -Wswitch-enum reports a code added without a case here. Each code listed
+ * here must also have a string in wc_GetErrorString(), which switches on
+ * remapped values and so cannot be checked by the compiler. error_test()
+ * checks that every code has a string.
+ */
+static WC_MAYBE_UNUSED void wc_ErrorStringsCheck(int error)
+{
+    switch ((enum wolfCrypt_ErrorCodes)error) {
+    case WC_SUCCESS:
+    case WC_FAILURE:
+    case MP_MEM:
+    case MP_VAL:
+    case MP_WOULDBLOCK:
+    case MP_NOT_INF:
+    case OPEN_RAN_E:
+    case READ_RAN_E:
+    case WINCRYPT_E:
+    case CRYPTGEN_E:
+    case RAN_BLOCK_E:
+    case BAD_MUTEX_E:
+    case WC_TIMEOUT_E:
+    case WC_PENDING_E:
+    case WC_NO_PENDING_E:
+    case MP_INIT_E:
+    case MP_READ_E:
+    case MP_EXPTMOD_E:
+    case MP_TO_E:
+    case MP_SUB_E:
+    case MP_ADD_E:
+    case MP_MUL_E:
+    case MP_MULMOD_E:
+    case MP_MOD_E:
+    case MP_INVMOD_E:
+    case MP_CMP_E:
+    case MP_ZERO_E:
+    case MEMORY_E:
+    case VAR_STATE_CHANGE_E:
+    case RSA_WRONG_TYPE_E:
+    case RSA_BUFFER_E:
+    case BUFFER_E:
+    case ALGO_ID_E:
+    case PUBLIC_KEY_E:
+    case DATE_E:
+    case SUBJECT_E:
+    case ISSUER_E:
+    case CA_TRUE_E:
+    case EXTENSIONS_E:
+    case ASN_PARSE_E:
+    case ASN_VERSION_E:
+    case ASN_GETINT_E:
+    case ASN_RSA_KEY_E:
+    case ASN_OBJECT_ID_E:
+    case ASN_TAG_NULL_E:
+    case ASN_EXPECT_0_E:
+    case ASN_BITSTR_E:
+    case ASN_UNKNOWN_OID_E:
+    case ASN_DATE_SZ_E:
+    case ASN_BEFORE_DATE_E:
+    case ASN_AFTER_DATE_E:
+    case ASN_SIG_OID_E:
+    case ASN_TIME_E:
+    case ASN_INPUT_E:
+    case ASN_SIG_CONFIRM_E:
+    case ASN_SIG_HASH_E:
+    case ASN_SIG_KEY_E:
+    case ASN_DH_KEY_E:
+    case ASN_CRIT_EXT_E:
+    case ASN_ALT_NAME_E:
+    case ECC_BAD_ARG_E:
+    case ASN_ECC_KEY_E:
+    case ECC_CURVE_OID_E:
+    case BAD_FUNC_ARG:
+    case NOT_COMPILED_IN:
+    case UNICODE_SIZE_E:
+    case NO_PASSWORD:
+    case ALT_NAME_E:
+    case AES_GCM_AUTH_E:
+    case AES_CCM_AUTH_E:
+    case AES_SIV_AUTH_E:
+    case ASYNC_INIT_E:
+    case COMPRESS_INIT_E:
+    case COMPRESS_E:
+    case DECOMPRESS_INIT_E:
+    case DECOMPRESS_E:
+    case BAD_ALIGN_E:
+    case ASN_NO_SIGNER_E:
+    case ASN_CRL_CONFIRM_E:
+    case ASN_CRL_NO_SIGNER_E:
+    case CRL_CERT_DATE_ERR:
+    case ASN_OCSP_CONFIRM_E:
+    case ASN_NO_PEM_HEADER:
+    case BAD_STATE_E:
+    case BAD_PADDING_E:
+    case REQ_ATTRIBUTE_E:
+    case PKCS7_OID_E:
+    case PKCS7_RECIP_E:
+    case WC_PKCS7_WANT_READ_E:
+    case FIPS_NOT_ALLOWED_E:
+    case ASN_NAME_INVALID_E:
+    case RNG_FAILURE_E:
+    case HMAC_MIN_KEYLEN_E:
+    case RSA_PAD_E:
+    case LENGTH_ONLY_E:
+    case IN_CORE_FIPS_E:
+    case AES_KAT_FIPS_E:
+    case DES3_KAT_FIPS_E:
+    case HMAC_KAT_FIPS_E:
+    case RSA_KAT_FIPS_E:
+    case DRBG_KAT_FIPS_E:
+    case DRBG_CONT_FIPS_E:
+    case AESGCM_KAT_FIPS_E:
+    case THREAD_STORE_KEY_E:
+    case THREAD_STORE_SET_E:
+    case MAC_CMP_FAILED_E:
+    case IS_POINT_E:
+    case ECC_INF_E:
+    case ECC_OUT_OF_RANGE_E:
+    case ECC_PRIV_KEY_E:
+    case SRP_CALL_ORDER_E:
+    case SRP_VERIFY_E:
+    case SRP_BAD_KEY_E:
+    case ASN_NO_SKID:
+    case ASN_NO_AKID:
+    case ASN_NO_KEYUSAGE:
+    case SKID_E:
+    case AKID_E:
+    case KEYUSAGE_E:
+    case EXTKEYUSAGE_E:
+    case CERTPOLICIES_E:
+    case WC_INIT_E:
+    case SIG_VERIFY_E:
+    case BAD_COND_E:
+    case SIG_TYPE_E:
+    case HASH_TYPE_E:
+    case WC_KEY_SIZE_E:
+    case ASN_COUNTRY_SIZE_E:
+    case MISSING_RNG_E:
+    case ASN_PATHLEN_SIZE_E:
+    case ASN_PATHLEN_INV_E:
+    case BAD_KEYWRAP_ALG_E:
+    case BAD_KEYWRAP_IV_E:
+    case WC_CLEANUP_E:
+    case ECC_CDH_KAT_FIPS_E:
+    case DH_CHECK_PUB_E:
+    case BAD_PATH_ERROR:
+    case ASYNC_OP_E:
+    case BAD_OCSP_RESPONDER:
+    case ECC_PRIVATEONLY_E:
+    case WC_HW_E:
+    case WC_HW_WAIT_E:
+    case PSS_SALTLEN_E:
+    case PRIME_GEN_E:
+    case BER_INDEF_E:
+    case RSA_OUT_OF_RANGE_E:
+    case RSAPSS_PAT_FIPS_E:
+    case ECDSA_PAT_FIPS_E:
+    case DH_KAT_FIPS_E:
+    case AESCCM_KAT_FIPS_E:
+    case SHA3_KAT_FIPS_E:
+    case ECDHE_KAT_FIPS_E:
+    case AES_GCM_OVERFLOW_E:
+    case AES_CCM_OVERFLOW_E:
+    case RSA_KEY_PAIR_E:
+    case DH_CHECK_PRIV_E:
+    case WC_AFALG_SOCK_E:
+    case WC_DEVCRYPTO_E:
+    case ZLIB_INIT_ERROR:
+    case ZLIB_COMPRESS_ERROR:
+    case ZLIB_DECOMPRESS_ERROR:
+    case PKCS7_NO_SIGNER_E:
+    case CRYPTOCB_UNAVAILABLE:
+    case PKCS7_SIGNEEDS_CHECK:
+    case PSS_SALTLEN_RECOVER_E:
+    case CHACHA_POLY_OVERFLOW:
+    case ASN_SELF_SIGNED_E:
+    case SAKKE_VERIFY_FAIL_E:
+    case MISSING_IV:
+    case MISSING_KEY:
+    case BAD_LENGTH_E:
+    case ECDSA_KAT_FIPS_E:
+    case RSA_PAT_FIPS_E:
+    case KDF_TLS12_KAT_FIPS_E:
+    case KDF_TLS13_KAT_FIPS_E:
+    case KDF_SSH_KAT_FIPS_E:
+    case DHE_PCT_E:
+    case ECC_PCT_E:
+    case FIPS_PRIVATE_KEY_LOCKED_E:
+    case PROTOCOLCB_UNAVAILABLE:
+    case NO_VALID_DEVID:
+    case IO_FAILED_E:
+    case SYSLIB_FAILED_E:
+    case USE_HW_PSK:
+    case ENTROPY_RT_E:
+    case ENTROPY_APT_E:
+    case ASN_DEPTH_E:
+    case ASN_LEN_E:
+    case SM4_GCM_AUTH_E:
+    case SM4_CCM_AUTH_E:
+    case FIPS_DEGRADED_E:
+    case AES_EAX_AUTH_E:
+    case KEY_EXHAUSTED_E:
+    case ML_KEM_KAT_FIPS_E:
+    case FIPS_INVALID_VER_E:
+    case FIPS_DATA_SZ_E:
+    case FIPS_CODE_SZ_E:
+    case KDF_SRTP_KAT_FIPS_E:
+    case ED25519_KAT_FIPS_E:
+    case ED448_KAT_FIPS_E:
+    case PBKDF2_KAT_FIPS_E:
+    case WC_KEY_MISMATCH_E:
+    case ML_DSA_KAT_FIPS_E:
+    case LMS_KAT_FIPS_E:
+    case XMSS_KAT_FIPS_E:
+    case DEADLOCK_AVERTED_E:
+    case ASCON_AUTH_E:
+    case WC_ACCEL_INHIBIT_E:
+    case BAD_INDEX_E:
+    case INTERRUPTED_E:
+    case MLKEM_PUB_HASH_E:
+    case BUSY_E:
+    case ALREADY_E:
+    case SEQ_OVERFLOW_E:
+    case PUF_INIT_E:
+    case PUF_READ_E:
+    case PUF_ENROLL_E:
+    case PUF_RECONSTRUCT_E:
+    case PUF_DERIVE_KEY_E:
+    case PUF_IDENTITY_E:
+    case ML_KEM_PCT_E:
+    case ML_DSA_PCT_E:
+    case DRBG_SHA512_KAT_FIPS_E:
+    case SLH_DSA_KAT_FIPS_E:
+    case TSP_VERIFY_E:
+    case SLH_DSA_PCT_E:
+    case CMAC_KAT_FIPS_E:
+    case SHAKE_KAT_FIPS_E:
+    case DH_PCT_E:
+    case AES_KW_KAT_FIPS_E:
+    case FIPS_WRONG_API_E:
+    case KMAC_MIN_KEYLEN_E:
+    case FIPS_BAD_VALUE_E:
+    case FIPS_UNAPPROVED_E:
+    case NO_DEFAULT_FOUND_E:
+    case NOT_READY_E:
+    case OBJECT_NOT_LOCKED_E:
+    case WRONG_TYPE_OBJECT_E:
+    case NEEDS_RECOVERY_E:
+    case UNEXPECTED_STATE_E:
+    case STILL_REFERENCED_E:
+    case OBJECT_ORPHANED_E:
+    case HWPUF_INIT_E:
+    case HWPUF_ENROLL_E:
+    case HWPUF_START_E:
+    case HWPUF_GENERATE_KEY_E:
+    case HWPUF_GET_KEY_E:
+    case HWPUF_ZEROIZE_E:
+    case MAX_CODE_E:
+    case WC_SPAN1_MIN_CODE_E:
+    case MIN_CODE_E:
+    default:
+        break;
+    }
+}
+
 WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
-    switch ((enum wolfCrypt_ErrorCodes)error) {
+    /* Move span 2 to just below span 1, so the switch below covers one dense
+     * range of values. Compilers turn this switch into a lookup table, and a
+     * range that also covered the unused codes between the spans would cost
+     * one table entry per unused code.
+     */
+    if ((error <= WC_SPAN2_FIRST_E) && (error >= WC_SPAN2_MIN_CODE_E)) {
+        error = WC_SPAN2_TO_IDX(error);
+    }
+    else if (error < WC_SPAN1_MIN_CODE_E) {
+        return wc_unknown_error_str;
+    }
+
+    switch (error) {
 
     case WC_SUCCESS:
         return "wolfCrypt generic success";
@@ -660,141 +944,138 @@ const char* wc_GetErrorString(int error)
     case XMSS_KAT_FIPS_E:
         return "wolfCrypt FIPS XMSS Known Answer Test Failure";
 
-    case DEADLOCK_AVERTED_E:
+    case WC_SPAN2_TO_IDX(DEADLOCK_AVERTED_E):
         return "Deadlock averted -- retry the call";
 
-    case ASCON_AUTH_E:
+    case WC_SPAN2_TO_IDX(ASCON_AUTH_E):
         return "ASCON Authentication check fail";
 
-    case WC_ACCEL_INHIBIT_E:
+    case WC_SPAN2_TO_IDX(WC_ACCEL_INHIBIT_E):
         return "Crypto acceleration is currently inhibited";
 
-    case BAD_INDEX_E:
+    case WC_SPAN2_TO_IDX(BAD_INDEX_E):
         return "Bad index";
 
-    case INTERRUPTED_E:
+    case WC_SPAN2_TO_IDX(INTERRUPTED_E):
         return "Process interrupted";
 
-    case MLKEM_PUB_HASH_E:
+    case WC_SPAN2_TO_IDX(MLKEM_PUB_HASH_E):
         return "ML-KEM priv key's stored hash doesn't match encoded pub key";
 
-    case BUSY_E:
+    case WC_SPAN2_TO_IDX(BUSY_E):
         return "Object is busy";
 
-    case ALREADY_E:
+    case WC_SPAN2_TO_IDX(ALREADY_E):
         return "Operation was redundant or preempted";
 
-    case SEQ_OVERFLOW_E:
+    case WC_SPAN2_TO_IDX(SEQ_OVERFLOW_E):
         return "Sequence counter would overflow";
 
-    case PUF_INIT_E:
+    case WC_SPAN2_TO_IDX(PUF_INIT_E):
         return "PUF initialization failed";
 
-    case PUF_READ_E:
+    case WC_SPAN2_TO_IDX(PUF_READ_E):
         return "PUF SRAM read failed";
 
-    case PUF_ENROLL_E:
+    case WC_SPAN2_TO_IDX(PUF_ENROLL_E):
         return "PUF enrollment failed";
 
-    case PUF_RECONSTRUCT_E:
+    case WC_SPAN2_TO_IDX(PUF_RECONSTRUCT_E):
         return "PUF reconstruction failed";
 
-    case PUF_DERIVE_KEY_E:
+    case WC_SPAN2_TO_IDX(PUF_DERIVE_KEY_E):
         return "PUF key derivation failed";
 
-    case PUF_IDENTITY_E:
+    case WC_SPAN2_TO_IDX(PUF_IDENTITY_E):
         return "PUF identity retrieval failed";
 
-    case ML_KEM_PCT_E:
+    case WC_SPAN2_TO_IDX(ML_KEM_PCT_E):
         return "wolfcrypt ML-KEM Pairwise Consistency Test Failure";
 
-    case ML_DSA_PCT_E:
+    case WC_SPAN2_TO_IDX(ML_DSA_PCT_E):
         return "wolfcrypt ML-DSA Pairwise Consistency Test Failure";
 
-    case DRBG_SHA512_KAT_FIPS_E:
+    case WC_SPAN2_TO_IDX(DRBG_SHA512_KAT_FIPS_E):
         return "SHA-512 DRBG Known Answer Test check FIPS error";
 
-    case SLH_DSA_KAT_FIPS_E:
+    case WC_SPAN2_TO_IDX(SLH_DSA_KAT_FIPS_E):
         return "SLH-DSA Known Answer Test check FIPS error";
 
-    case TSP_VERIFY_E:
+    case WC_SPAN2_TO_IDX(TSP_VERIFY_E):
         return "TSP token invalid or response doesn't match request error";
 
-    case SLH_DSA_PCT_E:
+    case WC_SPAN2_TO_IDX(SLH_DSA_PCT_E):
         return "wolfcrypt SLH-DSA Pairwise Consistency Test Failure";
 
-    case CMAC_KAT_FIPS_E:
+    case WC_SPAN2_TO_IDX(CMAC_KAT_FIPS_E):
         return "wolfCrypt FIPS AES-CMAC Known Answer Test Failure";
 
-    case SHAKE_KAT_FIPS_E:
+    case WC_SPAN2_TO_IDX(SHAKE_KAT_FIPS_E):
         return "wolfCrypt FIPS SHAKE Known Answer Test Failure";
 
-    case DH_PCT_E:
+    case WC_SPAN2_TO_IDX(DH_PCT_E):
         return "wolfcrypt DH Pairwise Consistency Test Failure";
 
-    case AES_KW_KAT_FIPS_E:
+    case WC_SPAN2_TO_IDX(AES_KW_KAT_FIPS_E):
         return "wolfCrypt FIPS AES Key Wrap Known Answer Test Failure";
 
-    case FIPS_WRONG_API_E:
+    case WC_SPAN2_TO_IDX(FIPS_WRONG_API_E):
         return "Requested API is not allowed in FIPS mode";
 
-    case KMAC_MIN_KEYLEN_E:
+    case WC_SPAN2_TO_IDX(KMAC_MIN_KEYLEN_E):
         return "FIPS Mode KMAC Minimum Key Length error";
 
-    case FIPS_BAD_VALUE_E:
+    case WC_SPAN2_TO_IDX(FIPS_BAD_VALUE_E):
         return "Supplied value was rejected by FIPS policy";
 
-    case FIPS_UNAPPROVED_E:
+    case WC_SPAN2_TO_IDX(FIPS_UNAPPROVED_E):
         return "Requested operation succeeded, but supplied "
                "parameters are unapproved for FIPS";
 
-    case NO_DEFAULT_FOUND_E:
+    case WC_SPAN2_TO_IDX(NO_DEFAULT_FOUND_E):
         return "No default object registered for request type";
 
-    case NOT_READY_E:
+    case WC_SPAN2_TO_IDX(NOT_READY_E):
         return "Resource not yet ready (retry)";
 
-    case OBJECT_NOT_LOCKED_E:
+    case WC_SPAN2_TO_IDX(OBJECT_NOT_LOCKED_E):
         return "Required lock on object is not held";
 
-    case WRONG_TYPE_OBJECT_E:
+    case WC_SPAN2_TO_IDX(WRONG_TYPE_OBJECT_E):
         return "Object is wrong type for requested operation";
 
-    case NEEDS_RECOVERY_E:
+    case WC_SPAN2_TO_IDX(NEEDS_RECOVERY_E):
         return "Object needs recovery before use";
 
-    case UNEXPECTED_STATE_E:
+    case WC_SPAN2_TO_IDX(UNEXPECTED_STATE_E):
         return "Object has unexpected state";
 
-    case STILL_REFERENCED_E:
+    case WC_SPAN2_TO_IDX(STILL_REFERENCED_E):
         return "Object is still referenced (unsafe to deallocate)";
 
-    case OBJECT_ORPHANED_E:
+    case WC_SPAN2_TO_IDX(OBJECT_ORPHANED_E):
         return "Object orphaned (can be adopted)";
 
-    case HWPUF_INIT_E:
+    case WC_SPAN2_TO_IDX(HWPUF_INIT_E):
         return "HWPUF initialization failed";
 
-    case HWPUF_ENROLL_E:
+    case WC_SPAN2_TO_IDX(HWPUF_ENROLL_E):
         return "HWPUF enrollment failed";
 
-    case HWPUF_START_E:
+    case WC_SPAN2_TO_IDX(HWPUF_START_E):
         return "HWPUF start failed";
 
-    case HWPUF_GENERATE_KEY_E:
+    case WC_SPAN2_TO_IDX(HWPUF_GENERATE_KEY_E):
         return "HWPUF generate key failed";
 
-    case HWPUF_GET_KEY_E:
+    case WC_SPAN2_TO_IDX(HWPUF_GET_KEY_E):
         return "HWPUF get key failed";
 
-    case HWPUF_ZEROIZE_E:
+    case WC_SPAN2_TO_IDX(HWPUF_ZEROIZE_E):
         return "HWPUF zeroize failed";
 
-    case MAX_CODE_E:
-    case WC_SPAN1_MIN_CODE_E:
-    case MIN_CODE_E:
     default:
-        return "unknown error number";
+        return wc_unknown_error_str;
     }
 }
 
