@@ -1803,11 +1803,11 @@ poly1305_blocks_avx512 PROC
         jmp	L_poly1305_avx512_blocks_load_r8
 L_poly1305_avx512_blocks_begin_h:
         ; Load the H values.
-        vpmovzxdq	zmm0, [rax]
-        vpmovzxdq	zmm1, [rax+32]
-        vpmovzxdq	zmm2, [rax+64]
-        vpmovzxdq	zmm3, [rax+96]
-        vpmovzxdq	zmm4, [rax+128]
+        vpmovzxdq	zmm0, YMMWORD PTR [rax]
+        vpmovzxdq	zmm1, YMMWORD PTR [rax+32]
+        vpmovzxdq	zmm2, YMMWORD PTR [rax+64]
+        vpmovzxdq	zmm3, YMMWORD PTR [rax+96]
+        vpmovzxdq	zmm4, YMMWORD PTR [rax+128]
         ; Check if there is a power of r to load - otherwise use r^8.
         cmp	BYTE PTR [rdi+616], 0
         je	L_poly1305_avx512_blocks_load_r8
@@ -2076,11 +2076,11 @@ L_poly1305_avx512_blocks_start:
         jnz	L_poly1305_avx512_blocks_start
 L_poly1305_avx512_blocks_store:
         ; Store eight H values - state
-        vpmovqd	[rax], zmm0
-        vpmovqd	[rax+32], zmm1
-        vpmovqd	[rax+64], zmm2
-        vpmovqd	[rax+96], zmm3
-        vpmovqd	[rax+128], zmm4
+        vpmovqd	YMMWORD PTR [rax], zmm0
+        vpmovqd	YMMWORD PTR [rax+32], zmm1
+        vpmovqd	YMMWORD PTR [rax+64], zmm2
+        vpmovqd	YMMWORD PTR [rax+96], zmm3
+        vpmovqd	YMMWORD PTR [rax+128], zmm4
 L_poly1305_avx512_blocks_end_calc:
         cmp	BYTE PTR [rdi+616], 0
         je	L_poly1305_avx512_blocks_complete
