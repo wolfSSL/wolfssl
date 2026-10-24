@@ -3669,6 +3669,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     }
 #endif
 
+#if defined(PSOC6_HASH_SHA2)
+    if ((ret == 0) && (wc_Psoc6_Sha1_Sha2_Init(dst, WC_PSOC6_SHA256, 0) != 0))
+        ret = WC_HW_E;
+#endif
+
     return ret;
 }
 #endif
