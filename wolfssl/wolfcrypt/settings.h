@@ -157,12 +157,6 @@
 /* Uncomment next line if using TI-RTOS settings */
 /* #define WOLFSSL_TIRTOS */
 
-/* Uncomment next line if building with PicoTCP */
-/* #define WOLFSSL_PICOTCP */
-
-/* Uncomment next line if building for PicoTCP demo bundle */
-/* #define WOLFSSL_PICOTCP_DEMO */
-
 /* Uncomment next line if building for uITRON4  */
 /* #define WOLFSSL_uITRON4 */
 
@@ -1504,29 +1498,8 @@
     #define NO_MAIN_DRIVER
 #endif
 
-#ifdef WOLFSSL_PICOTCP
-    #ifndef errno
-        #define errno pico_err
-    #endif
-    #include "pico_defines.h"
-    #include "pico_stack.h"
-    #include "pico_constants.h"
-    #include "pico_protocol.h"
-    #ifndef CUSTOM_RAND_GENERATE
-        #define CUSTOM_RAND_GENERATE pico_rand
-    #endif
-#endif
-
-#ifdef WOLFSSL_PICOTCP_DEMO
-    #define WOLFSSL_STM32
-    #define TFM_TIMING_RESISTANT
-    #define XMALLOC(s, h, type)  ((void)(h), (void)(type), PICO_ZALLOC((s)))
-    #define XFREE(p, h, type)    ((void)(h), (void)(type), PICO_FREE((p)))
-    #define SINGLE_THREADED
-    #define NO_WRITEV
-    #define WOLFSSL_USER_IO
-    #define NO_DEV_RANDOM
-    #define NO_FILESYSTEM
+#if defined(WOLFSSL_PICOTCP) || defined(WOLFSSL_PICOTCP_DEMO)
+    #error "picoTCP support has been removed"
 #endif
 
 #ifdef FREERTOS_WINSIM
