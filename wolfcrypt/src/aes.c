@@ -9224,6 +9224,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     int  ret;
     byte iv[WC_AES_BLOCK_SIZE];
     byte nonce[WC_AES_BLOCK_SIZE];
+    const byte* setKeyIv = iv;
 
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
         byte   local[32];
@@ -9266,9 +9267,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
     if (aes->nonceSz != 0) {
         XMEMCPY(nonce, aes->reg, sizeof(nonce));
+        setKeyIv = nonce;
     }
-    ret = wc_AesSetKey(aes, key, len, (aes->nonceSz != 0) ? nonce : iv,
-        AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key, len, setKeyIv, AES_ENCRYPTION);
 #ifndef WOLFSSL_NO_AES_TAG_ASSOCIATION
     /* new key, so the tag length of the old one no longer applies */
     if (ret == 0) {
