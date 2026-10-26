@@ -735,8 +735,11 @@ enum SlhDsaParam {
     #error "WOLFSSL_HAVE_SLHDSA requires at least one parameter set"
 #endif
 
-/* Helper macro to detect SHA2 parameter sets. */
-#ifdef WOLFSSL_SLHDSA_SHA2
+/* Helper macro to detect SHA2 parameter sets. Constant when only one hash
+ * family is compiled in. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_NO_SHAKE)
+    #define SLHDSA_IS_SHA2(p)   ((void)(p), 1)
+#elif defined(WOLFSSL_SLHDSA_SHA2)
     #define SLHDSA_IS_SHA2(p)   ((p) >= SLHDSA_SHA2_128S)
 #else
     #define SLHDSA_IS_SHA2(p)   0

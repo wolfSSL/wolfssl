@@ -726,6 +726,15 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
 
 #ifdef WOLFSSL_SLHDSA_SHA2
 
+/* Whether a SHA2 parameter set with hash size n uses SHA-256 (category 1)
+ * rather than SHA-512 (categories 3 and 5) for H, T_l, H_msg and PRF_msg.
+ * Always SHA-256 when no category 3 or 5 SHA2 set is compiled in. */
+#ifdef WC_SLHDSA_NEED_SHA512
+    #define SLHDSA_SHA2_USE_SHA256(n)   ((n) == WC_SLHDSA_N_128)
+#else
+    #define SLHDSA_SHA2_USE_SHA256(n)   ((void)(n), 1)
+#endif
+
 /* Size of compressed HashAddress (ADRS^c) per FIPS 205 Section 11.2. */
 #define SLHDSA_HAC_SZ   22
 
@@ -892,10 +901,7 @@ static int slhdsakey_hash_h_sha2(SlhDsaKey* key, const byte* pk_seed,
     /* Encode compressed address. */
     HA_Encode_Compressed(adrs, address);
 
-#ifdef WC_SLHDSA_NEED_SHA512
-    if (n == WC_SLHDSA_N_128)
-#endif
-    {
+    if (SLHDSA_SHA2_USE_SHA256(n)) {
         /* Category 1: use SHA-256. */
         byte digest[WC_SHA256_DIGEST_SIZE];
 
@@ -976,10 +982,7 @@ static int slhdsakey_hash_h_2_sha2(SlhDsaKey* key, const byte* pk_seed,
     /* Encode compressed address. */
     HA_Encode_Compressed(adrs, address);
 
-#ifdef WC_SLHDSA_NEED_SHA512
-    if (n == WC_SLHDSA_N_128)
-#endif
-    {
+    if (SLHDSA_SHA2_USE_SHA256(n)) {
         /* Category 1: use SHA-256. */
         byte digest[WC_SHA256_DIGEST_SIZE];
 
@@ -1122,12 +1125,7 @@ static int slhdsakey_hash_start_addr_sha2(SlhDsaKey* key,
 
     HA_Encode_Compressed(adrs, address);
 
-#ifdef WC_SLHDSA_NEED_SHA512
-    if (n == WC_SLHDSA_N_128)
-#else
-    (void)n;
-#endif
-    {
+    if (SLHDSA_SHA2_USE_SHA256(n)) {
         /* Category 1: SHA-256 -- use sha256_2 (T_l must not collide with
          * sha256 which is used by F and H). */
         if (key->hash.sha2.sha256_2_inited) {
@@ -1173,10 +1171,7 @@ static int slhdsakey_hash_start_addr_sha2(SlhDsaKey* key,
 static int slhdsakey_hash_update_sha2(SlhDsaKey* key, const byte* data,
     word32 len)
 {
-#ifdef WC_SLHDSA_NEED_SHA512
-    if (key->params->n == WC_SLHDSA_N_128)
-#endif
-    {
+    if (SLHDSA_SHA2_USE_SHA256(key->params->n)) {
         return wc_Sha256Update(&key->hash.sha2.sha256_2, data, len);
     }
 #ifdef WC_SLHDSA_NEED_SHA512
@@ -1198,10 +1193,7 @@ static int slhdsakey_hash_final_sha2(SlhDsaKey* key, byte* hash, word32 len)
     int ret;
     byte n = key->params->n;
 
-#ifdef WC_SLHDSA_NEED_SHA512
-    if (n == WC_SLHDSA_N_128)
-#endif
-    {
+    if (SLHDSA_SHA2_USE_SHA256(n)) {
         byte digest[WC_SHA256_DIGEST_SIZE];
         ret = wc_Sha256Final(&key->hash.sha2.sha256_2, digest);
         if (ret == 0) {
@@ -1227,10 +1219,9 @@ static int slhdsakey_hash_final_sha2(SlhDsaKey* key, byte* hash, word32 len)
  */
 static void slhdsakey_hash_free_sha2(SlhDsaKey* key)
 {
-#ifdef WC_SLHDSA_NEED_SHA512
-    if (key->params->n == WC_SLHDSA_N_128)
-#endif
-    {
+    byte n = key->params->n;
+
+    if (SLHDSA_SHA2_USE_SHA256(n)) {
         wc_Sha256Free(&key->hash.sha2.sha256_2);
         key->hash.sha2.sha256_2_inited = 0;
     }
@@ -1263,9 +1254,7 @@ static int slhdsakey_mgf1_sha2(SlhDsaKey* key, const byte* seed,
     int ret = 0;
     word32 counter = 0;
     word32 done = 0;
-#ifdef WC_SLHDSA_NEED_SHA512
     byte n = key->params->n;
-#endif
 
     while ((ret == 0) && (done < outLen)) {
         byte cBuf[4];
@@ -1273,10 +1262,7 @@ static int slhdsakey_mgf1_sha2(SlhDsaKey* key, const byte* seed,
 
         c32toa(counter, cBuf);
 
-    #ifdef WC_SLHDSA_NEED_SHA512
-        if (n == WC_SLHDSA_N_128)
-    #endif
-        {
+        if (SLHDSA_SHA2_USE_SHA256(n)) {
             /* Category 1: MGF1-SHA-256. */
             byte digest[WC_SHA256_DIGEST_SIZE];
             word32 cpLen = (left < WC_SHA256_DIGEST_SIZE) ?
@@ -1362,17 +1348,17 @@ static int slhdsakey_prf_msg_sha2(SlhDsaKey* key, const byte* sk_prf,
     int hmacType;
 #ifdef WC_SLHDSA_NEED_SHA512
     byte digest[WC_SHA512_DIGEST_SIZE];
+#else
+    byte digest[WC_SHA256_DIGEST_SIZE];
+#endif
 
-    if (n == WC_SLHDSA_N_128) {
+    if (SLHDSA_SHA2_USE_SHA256(n)) {
         hmacType = WC_SHA256;
     }
+#ifdef WC_SLHDSA_NEED_SHA512
     else {
         hmacType = WC_SHA512;
     }
-#else
-    byte digest[WC_SHA256_DIGEST_SIZE];
-
-    hmacType = WC_SHA256;
 #endif
 
     ret = wc_HmacInit(&hmac, key->heap, INVALID_DEVID);
@@ -1430,10 +1416,7 @@ static int slhdsakey_h_msg_sha2(SlhDsaKey* key, const byte* r,
     const byte* pk_seed = key->sk + 2 * n;
     const byte* pk_root = key->sk + 3 * n;
 
-#ifdef WC_SLHDSA_NEED_SHA512
-    if (n == WC_SLHDSA_N_128)
-#endif
-    {
+    if (SLHDSA_SHA2_USE_SHA256(n)) {
         /* Category 1: SHA-256 + MGF1-SHA-256. */
         byte innerHash[WC_SHA256_DIGEST_SIZE];
         /* Seed for MGF1: R || PK.seed || innerHash. */
@@ -10215,25 +10198,13 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
  * input for the SHA-2 path is the concatenation OID || PHM, bounded by
  * SLHDSA_OID_MAX_LEN + WC_MAX_DIGEST_SIZE. The PHM buffer fits in
  * WC_MAX_DIGEST_SIZE bytes because slhdsakey_validate_prehash enforces
- * hashSz == expectedLen[hashType] for every supported hashType and every
- * supported expectedLen is <= WC_MAX_DIGEST_SIZE. Only pre-hash functions
- * that are compiled in are supported, so the largest PHM is 64 bytes when
- * SHA-512 or SHA-3 is (SHA-512, SHA3-512 and SHAKE256 - fixed at 512 bits per
- * Section 10.2.2), 48 bytes with SHA-384 and otherwise 32 bytes (SHA-256).
- * The static assert below catches a future hash being added whose digest
- * exceeds the bound. Literals are used directly because the digest size
- * defines are only defined when the hash is compiled in. */
+ * hashSz == expectedLen[hashType] and rejects any expectedLen above
+ * WC_MAX_DIGEST_SIZE. That check catches a future hash being added whose
+ * digest exceeds the bound, and a WC_HASH_CUSTOM_MAX_DIGEST_SIZE set too
+ * small for the pre-hash functions compiled in. */
 #define SLHDSA_OID_MAX_LEN              11
-#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA3)
-    #define SLHDSA_LARGEST_APPROVED_PHM_LEN 64
-#elif defined(WOLFSSL_SHA384)
-    #define SLHDSA_LARGEST_APPROVED_PHM_LEN 48
-#else
-    #define SLHDSA_LARGEST_APPROVED_PHM_LEN 32
-#endif
 #define SLHDSA_PHMSG_MAX_LEN            (SLHDSA_OID_MAX_LEN + \
                                          WC_MAX_DIGEST_SIZE)
-wc_static_assert(WC_MAX_DIGEST_SIZE >= SLHDSA_LARGEST_APPROVED_PHM_LEN);
 
 #ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 #ifdef WOLFSSL_SHA224
@@ -10369,6 +10340,8 @@ static int slhdsa_check_hash_for_n(enum wc_HashType hashType, byte n)
  * @param [out] oidLen    Length of OID data for hash algorithm.
  * @return  0 on success.
  * @return  BAD_LENGTH_E when hashSz does not equal the expected digest size.
+ * @return  BUFFER_E when the expected digest size is larger than
+ *          WC_MAX_DIGEST_SIZE.
  * @return  NOT_COMPILED_IN when hash algorithm not supported.
  */
 static int slhdsakey_validate_prehash(word32 hashSz,
@@ -10471,6 +10444,11 @@ static int slhdsakey_validate_prehash(word32 hashSz,
             break;
     }
 
+    /* The PHM must fit in the WC_MAX_DIGEST_SIZE part of the pre-hash
+     * message buffers (SLHDSA_PHMSG_MAX_LEN). */
+    if ((ret == 0) && (expectedLen > (word32)WC_MAX_DIGEST_SIZE)) {
+        ret = BUFFER_E;
+    }
     if ((ret == 0) && (hashSz != expectedLen)) {
         ret = BAD_LENGTH_E;
     }

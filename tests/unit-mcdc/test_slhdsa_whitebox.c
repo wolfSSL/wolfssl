@@ -154,17 +154,20 @@ static void wb_ha_encode(void)
  * SHA-2 message-hash static functions: gap-closing supplement (see the uncovered-condition report).
  *
  * The tests/api DecisionCoverage additions close every arg-check reachable
- * from the public API. What's left needs either a real n>16 SHA-2 param
- * (every suite variant restricts to 128-bit only, see config_base's
- * notes) or a ctx/ctxSz combination the public API itself rejects before
- * ever reaching these static functions (ctx==NULL with ctxSz>0 is BAD_FUNC_ARG at
- * the wc_SlhDsaKey_Sign/Verify layer). Both are driven directly here.
+ * from the public API. What's left is either the n>16 SHA-512 code or a
+ * ctx/ctxSz combination the public API itself rejects before ever reaching
+ * these static functions (ctx==NULL with ctxSz>0 is BAD_FUNC_ARG at the
+ * wc_SlhDsaKey_Sign/Verify layer). Both are driven directly here. The SHA-512
+ * code is only compiled in with a category 3/5 SHA2 parameter set
+ * (WC_SLHDSA_NEED_SHA512), so in the 128-bit-only suite variants (see
+ * config_base's notes) it is not in the build at all.
  * ------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SLHDSA_SHA2
 
 /* slhdsakey_precompute_sha2_midstates(): "(ret==0) && (n>16)" -- n>16
- * (SHA-512 midstate) half. A locally-built SlhDsaParameters with n=24
- * exercises it without any variant ever compiling a real n>16 param. */
+ * (SHA-512 midstate) half, compiled in only with WC_SLHDSA_NEED_SHA512. A
+ * locally-built SlhDsaParameters with n=24 exercises it without needing a
+ * real category 3/5 key. */
 static void wb_precompute_sha2_midstates(void)
 {
     SlhDsaKey key;
@@ -261,8 +264,9 @@ static void wb_prf_msg_sha2_ctx(void)
 
 /* slhdsakey_h_msg_sha2(): SHA-256 branch's "ctx!=NULL" pair (same rationale
  * as wb_prf_msg_sha2_ctx above) plus the SHA-512 branch (n>16, category 3/5)
- * hdr/ctx/ctxSz decisions -- unreachable from the API for the same reason as
- * wb_precompute_sha2_midstates (no variant ever builds an n>16 param). */
+ * hdr/ctx/ctxSz decisions, when WC_SLHDSA_NEED_SHA512 compiles that branch
+ * in -- driven with a crafted n=24 entry for the same reason as
+ * wb_precompute_sha2_midstates. */
 static void wb_h_msg_sha2_ctx_pairs(void)
 {
     SlhDsaKey key;
