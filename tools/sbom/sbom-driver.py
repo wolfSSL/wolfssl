@@ -11,10 +11,10 @@ The driver covers every product tier:
 
   * Library (tier R/L/S): hash the built library with --lib.
   * Source-embedded (tier E, e.g. wolfBoot): hash a source set with --srcs-file.
-  * As-built / FIPS / kernel module: pass --lib or --srcs-file so the caller
-    names the artifact, and pass --no-artifact-hash. The driver sends only
-    --no-artifact-hash to gen-sbom. The generator accepts one checksum
-    source. Never substitute a source list for a certified artifact.
+  * As-built / FIPS / kernel module: pass --no-artifact-hash alone. The
+    driver sends that flag to gen-sbom. Do not pass --lib or --srcs-file
+    with it: gen-sbom accepts one checksum source and records a placeholder.
+    Never substitute a source list for a certified artifact.
   * Linker / binding: record a declared dependency with --dep-wolfssl and
     friends (feature-detected against the generator).
 
@@ -268,10 +268,9 @@ def main():
     ap.add_argument("--srcs-file", default="",
                     help="File listing compiled-in sources (tier E).")
     ap.add_argument("--no-artifact-hash", action="store_true",
-                    help="Send only this flag to gen-sbom. --lib or "
-                         "--srcs-file still names the as-built artifact, but "
-                         "is not a second checksum source. For a FIPS canister "
-                         "or a kernel module.")
+                    help="Record a placeholder checksum. Stands alone: do not "
+                         "pass --lib or --srcs-file. For a FIPS canister or a "
+                         "kernel module when no hashable artefact exists.")
 
     # Config (choose one).
     grp = ap.add_mutually_exclusive_group()
@@ -358,7 +357,13 @@ def main():
         sys.exit("ERROR: could not determine version; pass --version or "
                  "--version-file with --version-macro.")
 
-    if not args.lib and not args.srcs_file:
+    if args.no_artifact_hash:
+        if args.lib or args.srcs_file:
+            sys.exit("ERROR: --no-artifact-hash stands alone. "
+                     "Do not pass --lib or --srcs-file.")
+    elif args.lib and args.srcs_file:
+        sys.exit("ERROR: pass one of --lib or --srcs-file.")
+    elif not args.lib and not args.srcs_file:
         sys.exit("ERROR: pass at least one of --lib or --srcs-file.")
     if args.source_only and not args.srcs_file:
         sys.exit("ERROR: --source-only needs --srcs-file.")
@@ -387,8 +392,7 @@ def main():
                "--spdx-out", spdx_out]
 
         # Composition. gen-sbom accepts exactly one checksum source.
-        # --no-artifact-hash is that source. --lib and --srcs-file still
-        # name the as-built artifact for the caller, and are not forwarded.
+        # --no-artifact-hash is that source and stands alone.
         src_count = 0
         if args.no_artifact_hash:
             cmd += ["--no-artifact-hash"]

@@ -28,11 +28,10 @@ Composition (at least one):
 
 - `--srcs-file PATH` — the source files compiled into the artifact (tier E).
 - `--lib PATH` — the built library to hash (tier R/L/S).
-- `--no-artifact-hash` — record a placeholder checksum for an as-built FIPS
-  canister or kernel module. Pass `--lib` or `--srcs-file` so the caller names
-  that artifact. The driver sends only `--no-artifact-hash` to gen-sbom.
-  gen-sbom accepts one checksum source. Never substitute a source list for a
-  certified artifact.
+- `--no-artifact-hash` — record a placeholder checksum when no hashable
+  artefact exists (a FIPS canister or a kernel module). Do not pass `--lib`
+  or `--srcs-file` with it. gen-sbom accepts one checksum source. Never
+  substitute a source list for a certified artifact.
 
 Config (choose one):
 
