@@ -90,9 +90,6 @@
 #if defined(WOLFSSL_ESP32_CRYPT)
     #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
 #endif
-#if defined(WOLFSSL_CRYPTOCELL)
-    #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
-#endif
 #if defined(WOLFSSL_SILABS_SE_TYPES)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
@@ -233,9 +230,6 @@ struct wc_Sha256 {
 #endif
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     maxq_sha256_t maxq_ctx;
-#endif
-#ifdef WOLFSSL_CRYPTOCELL
-    CRYS_HASHUserContext_t ctx;
 #endif
 #ifdef WOLFSSL_KCAPI_HASH
     wolfssl_KCAPI_Hash kcapi;

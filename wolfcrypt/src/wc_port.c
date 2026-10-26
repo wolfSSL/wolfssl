@@ -994,14 +994,6 @@ int wolfCrypt_Init(void)
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
-    #if defined(WOLFSSL_CRYPTOCELL)
-        /* enable and initialize the ARM CryptoCell 3xx runtime library */
-        ret = cc310_Init();
-        if (ret != 0) {
-            WOLFSSL_MSG("CRYPTOCELL init failed");
-            WOLFCRYPT_INIT_RAISE_BAD_STATE();
-        }
-    #endif
     #ifdef WOLFSSL_STSAFE
         ret = stsafe_interface_init();
         if (ret != 0) {
@@ -1312,9 +1304,6 @@ int wolfCrypt_Cleanup(void)
     #endif
     #if defined(WOLFSSL_SEC_QORIQ)
         wc_SecQoriqFree();
-    #endif
-    #if defined(WOLFSSL_CRYPTOCELL)
-        cc310_Free();
     #endif
     #if defined(WOLFSSL_TI_AM64X_R5)
         ti_sa2ul_port_cleanup();
@@ -5269,16 +5258,6 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */
     #include <wolfcrypt/src/port/ti/ti-hash.c> /* md5, sha1, sha224, sha256 */
 #endif
-
-#if defined(WOLFSSL_CRYPTOCELL)
-    #define WOLFSSL_CRYPTOCELL_C
-    #include <wolfcrypt/src/port/arm/cryptoCell.c> /* CC310, RTC and RNG */
-    #if !defined(NO_SHA256)
-        #define WOLFSSL_CRYPTOCELL_HASH_C
-        #include <wolfcrypt/src/port/arm/cryptoCellHash.c> /* sha256 */
-    #endif
-#endif
-
 
 #ifndef SINGLE_THREADED
 

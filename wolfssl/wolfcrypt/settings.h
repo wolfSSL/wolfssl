@@ -225,9 +225,6 @@
 /* Uncomment next line if using Espressif ESP32-WROOM-32SE */
 /* #define WOLFSSL_ESPWROOM32SE */
 
-/* Uncomment next line if using ARM CRYPTOCELL*/
-/* #define WOLFSSL_CRYPTOCELL */
-
 /* Uncomment next line if using RENESAS TSIP */
 /* #define WOLFSSL_RENESAS_TSIP */
 
@@ -390,6 +387,11 @@
 
 #ifdef HAVE_WNR
     #error "Whitewood netRandom support has been removed"
+#endif
+
+#if defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_CRYPTOCELL_AES) || \
+    defined(WOLFSSL_nRF5x_SDK_15_2)
+    #error "Direct ARM CryptoCell 310 support has been removed"
 #endif
 
 #if defined(HAVE_FIPS) && \
@@ -3814,8 +3816,7 @@
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_SE050) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
     #undef  USE_ECC_B_PARAM
     #define USE_ECC_B_PARAM
@@ -5665,10 +5666,10 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 /* RSA Key Checking is disabled by default unless WOLFSSL_RSA_KEY_CHECK is
  *   defined or FIPS v2 3389, FIPS v5 or later.
  * Not allowed for:
- *   RSA public only, CAVP selftest, fast RSA, user RSA, QAT or CryptoCell */
+ *   RSA public only, CAVP selftest, fast RSA, user RSA or QAT */
 #if (defined(WOLFSSL_RSA_KEY_CHECK) || (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0))) && \
     !defined(WOLFSSL_NO_RSA_KEY_CHECK) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(HAVE_INTEL_QA) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(HAVE_INTEL_QA) && \
     !defined(HAVE_SELFTEST)
 
     #undef  WOLFSSL_RSA_KEY_CHECK
@@ -6259,19 +6260,17 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
  * modular exponentiation, the prime search used by key generation and the
  * software key consistency check.  Every RSA operation is then performed by a
  * hardware implementation that does the PKCS#1 padding itself and generates
- * keys on-chip.  Two ports qualify today: the NXP SE05x one (see
- * wolfcrypt/src/port/nxp/README_SE050.md) and Arm CryptoCell-310
- * (WOLFSSL_CRYPTOCELL).  rsa.c additionally drops the software padding
- * generation when nothing else needs it.  Operations with no hardware provider
- * (raw wc_RsaFunction()/wc_RsaDirect(), and RSA-PSS, which neither port can
- * serve from a pre-computed digest) return NOT_COMPILED_IN.
+ * keys on-chip. The NXP SE05x port qualifies (see
+ * wolfcrypt/src/port/nxp/README_SE050.md). rsa.c additionally drops the
+ * software padding generation when nothing else needs it. Operations with no
+ * hardware provider (raw wc_RsaFunction()/wc_RsaDirect(), and RSA-PSS, which
+ * the SE050 port cannot serve from a pre-computed digest) return
+ * NOT_COMPILED_IN.
  */
 #if defined(WOLFSSL_NO_RSA_SW) && !defined(NO_RSA)
-    #if (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)) && \
-        !defined(WOLFSSL_CRYPTOCELL)
+    #if !defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)
         #error "WOLFSSL_NO_RSA_SW requires an RSA hardware implementation " \
-               "(WOLFSSL_SE050 without WOLFSSL_SE050_NO_RSA, " \
-               "or WOLFSSL_CRYPTOCELL)"
+               "(WOLFSSL_SE050 without WOLFSSL_SE050_NO_RSA)"
     #endif
     #ifdef WOLFSSL_SE050
         #ifdef WOLFSSL_SE050_ONLY_KEY_ID
@@ -6305,7 +6304,7 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
  * scalar multiplication (including Shamir's trick), the software signer, the
  * software ECDH and the software derivation of a public key from a private
  * scalar.  Every keyed ECC operation is then performed by hardware.  ecc.c
- * already excludes all of that for the ATECC508A/608A, TA100, CryptoCell,
+ * already excludes all of that for the ATECC508A/608A, TA100,
  * SiLabs and KCAPI ports and for WOLF_CRYPTO_CB_ONLY_ECC; this macro extends
  * the same treatment to the NXP SE05x port, which offloads every keyed ECC
  * operation but otherwise still compiles the software curve math.
@@ -6320,9 +6319,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
  * arithmetic, so they are still done on the host.
  */
 #if defined(WOLFSSL_NO_ECC_SW) && defined(HAVE_ECC)
-    #if !defined(WOLFSSL_SE050) && !defined(WOLFSSL_CRYPTOCELL)
+    #if !defined(WOLFSSL_SE050)
         #error "WOLFSSL_NO_ECC_SW requires an ECC hardware implementation " \
-               "(WOLFSSL_SE050 or WOLFSSL_CRYPTOCELL)"
+               "(WOLFSSL_SE050)"
     #endif
     #ifdef WOLFSSL_SE050
         #ifdef WOLFSSL_SE050_ONLY_KEY_ID

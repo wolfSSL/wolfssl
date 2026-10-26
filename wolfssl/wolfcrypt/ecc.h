@@ -51,10 +51,6 @@
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif /* WOLFSSL_ATECC508A */
 
-#if defined(WOLFSSL_CRYPTOCELL)
-    #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
-#endif
-
 #ifdef WOLFSSL_SILABS_SE_TYPES
     #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
 #endif
@@ -214,11 +210,6 @@ enum {
     #else
     ECC_MAX_CRYPTO_HW_SIZE = 32,
     #endif
-#elif defined(WOLFSSL_CRYPTOCELL)
-    #ifndef CRYPTOCELL_KEY_SIZE
-        CRYPTOCELL_KEY_SIZE = ECC_MAXSIZE,
-    #endif
-    ECC_MAX_CRYPTO_HW_SIZE = CRYPTOCELL_KEY_SIZE,
 #elif defined(WOLFSSL_SE050)
     ECC_MAX_CRYPTO_HW_SIZE = 66,
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
@@ -634,10 +625,6 @@ struct ecc_key {
     char label[ECC_MAX_LABEL_LEN];
     int  labelLen;
 #endif
-#if defined(WOLFSSL_CRYPTOCELL)
-    ecc_context_t ctx;
-#endif
-
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
@@ -807,7 +794,7 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key,
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_MICROCHIP_TA100) || \
-    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
+    defined(PLUTON_CRYPTO_ECC) || \
     defined(WOLFSSL_NO_ECC_SW)
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret
 #else
