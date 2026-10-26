@@ -5277,6 +5277,7 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             /* For ciphers that use AEAD use the encrypt routine to
              * bypass the auth tag checking */
             wc_AesAuthEncryptFunc aes_auth_fn;
+            word16 plainSz;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
@@ -5295,22 +5296,24 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             aes_auth_fn = wc_AesCcmEncrypt;
         #endif
 
-            XMEMSET(ssl->decrypt.additional, 0, AEAD_AUTH_DATA_SZ);
-
-            XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
-            XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
-
             if (sz < AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size) {
                 ret = BUFFER_ERROR;
             }
 
             if (ret == 0) {
+                XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
+                        AESGCM_IMP_IV_SZ);
+                XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input,
+                        AESGCM_EXP_IV_SZ);
+                plainSz = (word16)(sz - AESGCM_EXP_IV_SZ -
+                                   ssl->specs.aead_mac_size);
+                /* The unused tag goes in the tag space after the plaintext. */
                 ret = aes_auth_fn(ssl->decrypt.aes,
                        plain,
                        input + AESGCM_EXP_IV_SZ,
-                       sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                       plainSz,
                        ssl->decrypt.nonce, AESGCM_NONCE_SZ,
-                       ssl->decrypt.additional, AEAD_AUTH_DATA_SZ,
+                       plain + plainSz, ssl->specs.aead_mac_size,
                        NULL, 0);
                 if (ret < 0) {
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5410,15 +5413,10 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
             /* free for these happens in FreeCiphers */
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
-                /* make sure auth iv and auth are allocated */
-                if (ssl->decrypt.additional == NULL)
-                    ssl->decrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
                 if (ssl->decrypt.nonce == NULL)
                     ssl->decrypt.nonce = (byte*)XMALLOC(AESGCM_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-                if (ssl->decrypt.additional == NULL ||
-                         ssl->decrypt.nonce == NULL) {
+                if (ssl->decrypt.nonce == NULL) {
                     return MEMORY_E;
                 }
             }
@@ -5451,6 +5449,10 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
                 if (ssl->decrypt.nonce)
                     ForceZero(ssl->decrypt.nonce, AESGCM_NONCE_SZ);
+                if (sz >= AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size) {
+                    ForceZero(plain + sz - AESGCM_EXP_IV_SZ -
+                        ssl->specs.aead_mac_size, ssl->specs.aead_mac_size);
+                }
 
                 if (ret < 0)
                     ret = VERIFY_MAC_ERROR;
