@@ -2150,7 +2150,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* Compiler barrier that also treats the memory at ptr as read, so a wipe of
  * that memory cannot be dropped as a dead store. The GNU form emits no CPU
  * fence; cross-thread ordering is the caller's job. Without GNU asm (other
- * compilers, or WOLFSSL_NO_ASM) it falls back to WC_BARRIER(). */
+ * compilers, or WOLFSSL_NO_ASM) ptr escapes to an out-of-line call in
+ * wc_port.c, since a bare compiler barrier does not cover a local whose
+ * address never escaped. */
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
 #elif defined(__CC_ARM)
@@ -2161,7 +2163,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WC_BARRIER_DATA(ptr) \
         __asm__ __volatile__("" : : "r"(ptr) : "memory")
 #else
-    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
+    #define WC_BARRIER_DATA_USES_SINK
+    /* Internal to WC_BARRIER_DATA(). ptr is never dereferenced. */
+    WOLFSSL_API void wc_BarrierDataSink(void* ptr);
+    #define WC_BARRIER_DATA(ptr) do { wc_BarrierDataSink((ptr)); } while (0)
 #endif
 
 
