@@ -7233,6 +7233,8 @@ int test_tls13_0rtt_ticket_ex_data_owner(void)
     ExpectIntEQ(idLen, ID_LEN);
     if (id != NULL)
         XMEMCPY(idA, id, ID_LEN);
+    /* id points into ssl_s's session, freed below. */
+    id = NULL;
     wolfSSL_free(ssl_c); ssl_c = NULL;
     wolfSSL_free(ssl_s); ssl_s = NULL;
 
@@ -7321,6 +7323,8 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     ExpectIntEQ(idLen, ID_LEN);
     if (id != NULL)
         XMEMCPY(idA, id, ID_LEN);
+    /* id points into ssl_s's session, freed below. */
+    id = NULL;
     wolfSSL_free(ssl_c); ssl_c = NULL;
     wolfSSL_free(ssl_s); ssl_s = NULL;
 
