@@ -193,6 +193,61 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
     {
         /* handled internally */
     }
+
+    /* First library number given to the application, as in OpenSSL. */
+    #define WOLFSSL_ERR_LIB_FIRST_DYNAMIC   128
+
+    /* Get a new error library number for the application.
+     *
+     * @return  Library number.
+     */
+    int wolfSSL_ERR_get_next_error_library(void)
+    {
+    #if !defined(SINGLE_THREADED) && defined(WOLFSSL_ATOMIC_OPS) && \
+        defined(WOLFSSL_ATOMIC_INITIALIZER)
+        static wolfSSL_Atomic_Int errLibNext =
+            WOLFSSL_ATOMIC_INITIALIZER(WOLFSSL_ERR_LIB_FIRST_DYNAMIC);
+
+        WOLFSSL_ENTER("wolfSSL_ERR_get_next_error_library");
+        return (int)wolfSSL_Atomic_Int_FetchAdd(&errLibNext, 1);
+    #else
+        static int errLibNext = WOLFSSL_ERR_LIB_FIRST_DYNAMIC;
+
+        WOLFSSL_ENTER("wolfSSL_ERR_get_next_error_library");
+        return errLibNext++;
+    #endif
+    }
+
+    /* Register error strings of a library.
+     *
+     * wolfSSL has no string tables for application libraries: errors of these
+     * libraries are not put in the error queue. For OpenSSL compatibility.
+     *
+     * @param [in] lib  Library number.
+     * @param [in] str  Strings. Not used.
+     * @return  1 on success.
+     */
+    int wolfSSL_ERR_load_strings(int lib, WOLFSSL_ERR_STRING_DATA* str)
+    {
+        WOLFSSL_ENTER("wolfSSL_ERR_load_strings");
+        (void)lib;
+        (void)str;
+        return 1;
+    }
+
+    /* Remove error strings of a library. For OpenSSL compatibility.
+     *
+     * @param [in] lib  Library number.
+     * @param [in] str  Strings. Not used.
+     * @return  1 on success.
+     */
+    int wolfSSL_ERR_unload_strings(int lib, WOLFSSL_ERR_STRING_DATA* str)
+    {
+        WOLFSSL_ENTER("wolfSSL_ERR_unload_strings");
+        (void)lib;
+        (void)str;
+        return 1;
+    }
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) || \
@@ -296,7 +351,9 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
 
     /* Add an error to the error queue.
      *
-     * @param [in] lib   Library the error occurred in. Not used.
+     * @param [in] lib   Library the error occurred in. Errors of application
+     *                   libraries, see wolfSSL_ERR_get_next_error_library(),
+     *                   are not queued.
      * @param [in] fun   System function the error occurred in. WOLFSSL_SYS_*.
      * @param [in] err   Error value.
      * @param [in] file  Name of file the error occurred in.
@@ -307,6 +364,12 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
     {
         WOLFSSL_ENTER("wolfSSL_ERR_put_error");
 
+        #ifdef OPENSSL_EXTRA
+        if (lib >= WOLFSSL_ERR_LIB_FIRST_DYNAMIC) {
+            /* Reason of an application library: no string to show. */
+            return;
+        }
+        #endif
         #if !defined(DEBUG_WOLFSSL) && !defined(OPENSSL_EXTRA)
         (void)fun;
         (void)err;
