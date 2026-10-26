@@ -34,6 +34,11 @@
 #include <tests/utils.h>
 #include <tests/api/test_tls13.h>
 
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    #define TEST_HAVE_SECP256R1
+#endif
+
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 #ifdef WC_SHA384_DIGEST_SIZE
     WC_MAYBE_UNUSED static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
@@ -223,7 +228,7 @@ int test_tls13_apis(void)
     defined(HAVE_SUPPORTED_CURVES) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
-    (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
+    (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
     int mlkemLevel;
 #endif
 
@@ -401,10 +406,10 @@ int test_tls13_apis(void)
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_SECP256R1),
-        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
     ExpectIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
-        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 #endif
 
@@ -414,7 +419,7 @@ int test_tls13_apis(void)
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
      (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
-     (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
+     (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
 #ifndef WOLFSSL_NO_ML_KEM
 #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
 #ifndef WOLFSSL_NO_ML_KEM_768
@@ -427,7 +432,7 @@ int test_tls13_apis(void)
 #else
 #if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
     mlkemLevel = WOLFSSL_X25519MLKEM768;
-#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)
+#elif defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)
     mlkemLevel = WOLFSSL_SECP256R1MLKEM768;
 #endif
 #endif
@@ -5555,7 +5560,7 @@ int test_tls13_rpk_multiple_certs(void)
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
      (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
-     (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
+     (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
 #ifdef WOLFSSL_MLKEM_KYBER
@@ -5574,7 +5579,7 @@ static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
     #else
     int group = WOLFSSL_ML_KEM_512;
     #endif
-#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+#elif defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768) && \
       defined(WOLFSSL_PQC_HYBRIDS)
     int group = WOLFSSL_SECP256R1MLKEM768;
 #elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
@@ -5603,7 +5608,7 @@ static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
     #else
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_512");
     #endif
-#elif defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+#elif defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768) && \
       defined(WOLFSSL_PQC_HYBRIDS)
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "SecP256r1MLKEM768");
 #elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
@@ -5622,7 +5627,7 @@ int test_tls13_pq_groups(void)
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
      (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
-     (defined(HAVE_ECC) && !defined(WOLFSSL_NO_ML_KEM_768)))
+     (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
     callback_functions func_cb_client;
     callback_functions func_cb_server;
 
@@ -5664,7 +5669,8 @@ int test_tls13_pq_groups(void)
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
-    defined(HAVE_ECC) && (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
     ECC_MIN_KEY_SZ <= 384 && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #define TEST_TLS13_MULTI_PQC_KEY_SHARE_ENABLED
