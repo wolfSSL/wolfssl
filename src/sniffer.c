@@ -5472,6 +5472,28 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
 }
 #endif /* !WOLFSSL_NO_TLS12 */
 
+static int DecryptRecord(WOLFSSL* ssl, const byte* input, word32 sz,
+                         byte* output, RecordLayerHeader* rh)
+{
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (sz <= ssl->specs.aead_mac_size)
+            return BUFFER_ERROR;
+        return DecryptTls13(ssl, output, input, sz, (byte*)rh,
+                            RECORD_HEADER_SZ);
+    }
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
+    return DecryptTls(ssl, output, input, sz);
+#else
+    (void)input;
+    (void)sz;
+    (void)output;
+    (void)rh;
+    return VERSION_ERROR;
+#endif
+}
 
 /* Decrypt input message into output, adjust output steam if needed */
 static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
@@ -5494,35 +5516,15 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     }
 #endif
 
-#ifdef WOLFSSL_TLS13
-    if (IsAtLeastTLSv1_3(ssl->version)) {
-        if (sz <= ssl->specs.aead_mac_size) {
-            *error = BUFFER_ERROR;
-            return NULL;
-        }
-        ret = DecryptTls13(ssl, output, input, sz, (byte*)rh, RECORD_HEADER_SZ);
-    }
-    else
-#endif
-    {
-#ifndef WOLFSSL_NO_TLS12
-        XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
-        ret = DecryptTls(ssl, output, input, sz - macExtra);
-#else
-        *error = VERSION_ERROR;
-        return NULL;
-#endif
-    }
+    ret = DecryptRecord(ssl, input, sz - macExtra, output, rh);
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
-    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+    while (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         do {
             ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
         } while (ret == 0);
-        if (ret >= 0) {
-            /* remove from event queue list */
-            ret = wolfSSL_AsyncPop(ssl, NULL);
-        }
+        if (ret > 0)
+            ret = DecryptRecord(ssl, input, sz - macExtra, output, rh);
     }
 #endif
     if (ret != 0) {
