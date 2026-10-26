@@ -61,6 +61,7 @@
 #                         component.type, mirrored to SPDX
 #                         primaryPackagePurpose. Default: library. A
 #                         bootloader or a flashed image should say firmware.
+#   SBOM_COPYRIGHT_START  First year of the copyright line. Default: 2006.
 #   SBOM_LICENSE_OVERRIDE SPDX expression recorded instead of the one inferred
 #                         from SBOM_LICENSE_FILE. Needed whenever that file is
 #                         the *full* licence text rather than a licensing
@@ -201,6 +202,7 @@ $(1): $($(2)PREREQS)
 	    $(foreach d,$($(2)USER_SETTINGS_INCLUDES),--user-settings-include "$(d)") \
 	    $(foreach d,$($(2)USER_SETTINGS_DEFINES),--user-settings-define "$(d)") \
 	    $(if $($(2)COMPONENT_TYPE),--component-type "$($(2)COMPONENT_TYPE)") \
+	    $(if $($(2)COPYRIGHT_START),--copyright-start "$($(2)COPYRIGHT_START)") \
 	    $(if $($(2)LICENSE_OVERRIDE),--license-override '$($(2)LICENSE_OVERRIDE)') \
 	    $(if $($(2)LICENSE_TEXT),--license-text "$($(2)LICENSE_TEXT)") \
 	    $(if $($(2)VERSION),--version "$($(2)VERSION)") \

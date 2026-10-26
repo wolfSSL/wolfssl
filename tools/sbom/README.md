@@ -13,6 +13,7 @@ into a product at `tools/sbom/`, together with the pin files (`VERSION` and
 | `validate_sbom.py` | Structural validator for CI (`--name-prefix`). |
 | `frontends/compdb_sbom.py` | Extractor for any `compile_commands.json`. |
 | `frontends/iar_sbom.py` | Extractor for an IAR Embedded Workbench `.ewp`. |
+| `frontends/included_sources.py` | Finds the source files a compile command compiles in through `#include` (`compdb_sbom.py --included-sources`). |
 | `frontends/zephyr_sbom.py` | Extractor for a Zephyr module `CMakeLists.txt`. |
 | `build/sbom.mk` | Shared plain-Make fragment and `wolfssl_compliance_tooling_sbom_rule` macro. |
 | `build/sbom.cmake` | Shared CMake helper: `wolfssl_compliance_tooling_add_sbom()`. |
@@ -46,6 +47,10 @@ Config (choose one):
 Dependency (for linkers and bindings): `--dep-wolfssl`, `--dep-openssl`, and
 `--dep-version` are passed through only when the generator supports them.
 
+Copyright: the line reads `Copyright (C) <start>-<build year> <supplier>`.
+`--copyright-start` (Make, autotools: `SBOM_COPYRIGHT_START`; CMake:
+`COPYRIGHT_START`) sets the first year, which defaults to 2006.
+
 The driver captures macros with the host compiler, so the SBOM is reproducible
 across toolchains. It scrubs absolute host paths from the captured macros unless
 you pass `--no-scrub`.
@@ -68,6 +73,14 @@ A product does not copy logic. It describes itself:
   describes a configuration nobody built.
 - CMake: `include(tools/sbom/build/sbom.cmake)` and call `wolfssl_compliance_tooling_add_sbom()`
   with `NAME`, `VERSION_FILE`, `VERSION_MACRO`, `TARGETS`, `DEFS`, `LICENSE`.
+  The same call adds `install-sbom` and `uninstall-sbom`. They copy the
+  CycloneDX and SPDX files to `CMAKE_INSTALL_FULL_DOCDIR` (or
+  `<prefix>/share/doc/<NAME>`) and read `DESTDIR` when the target runs.
+  Pass `CDX_OUT` / `SPDX_OUT`
+  when the file name is not `<name>-<version>` (wolfBoot's config tag).
+  wolfTPM writes the tag-value file in a later `sbom` target: pass
+  `NO_INSTALL` and call `wolfssl_compliance_tooling_add_sbom_install(DEPENDS sbom TV ...)`
+  after that target exists.
   `SBOM_GEN` is the canonical generator override; `GEN_SBOM` remains a legacy
   alias for compatibility.
 - Autotools: set the `SBOM_*` variables and `include tools/sbom/sbom.am`.

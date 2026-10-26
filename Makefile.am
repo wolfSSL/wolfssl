@@ -458,8 +458,8 @@ merge-clean:
 # feature set from wolfssl/options.h and whether this build links zlib.
 #
 # User-overridable variables (defined by tools/sbom/sbom.am):
-#   SBOM_LICENSE_OVERRIDE, SBOM_LICENSE_TEXT, SBOM_DOCUMENT_NAMESPACE,
-#   SBOM_DEP_VERSIONS, SBOM_LIB_OVERRIDE.
+#   SBOM_LICENSE_OVERRIDE, SBOM_LICENSE_TEXT, SBOM_COPYRIGHT_START,
+#   SBOM_DOCUMENT_NAMESPACE, SBOM_DEP_VERSIONS, SBOM_LIB_OVERRIDE.
 # `make bomsh` sets SBOM_LIB_OVERRIDE so the SBOM hash and the OmniBOR
 # gitoid name the traced library. A private install relinks a different file.
 SBOM_PKGNAME      = wolfssl
@@ -477,8 +477,13 @@ EXTRA_DIST += tools/sbom/VERSION
 EXTRA_DIST += tools/sbom/.wolfssl-compliance-tooling-rev
 EXTRA_DIST += tools/sbom/build/sbom.cmake
 EXTRA_DIST += tools/sbom/build/sbom.mk
+EXTRA_DIST += tools/sbom/build/install-sbom.cmake
+EXTRA_DIST += tools/sbom/build/uninstall-sbom.cmake
+EXTRA_DIST += tools/sbom/build/sbom-paths.cmake
+EXTRA_DIST += tools/sbom/build/sbom-with-sde.cmake
 EXTRA_DIST += tools/sbom/frontends/compdb_sbom.py
 EXTRA_DIST += tools/sbom/frontends/iar_sbom.py
+EXTRA_DIST += tools/sbom/frontends/included_sources.py
 EXTRA_DIST += tools/sbom/frontends/zephyr_sbom.py
 
 include scripts/sbom.am
