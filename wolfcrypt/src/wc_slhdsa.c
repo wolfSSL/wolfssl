@@ -9479,7 +9479,8 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
     if (ret != 0) {
         /* Unreleased FORS secrets may be in sig
          * (ISO/IEC 19790:2012 7.9.7). */
-        ForceZero(sigFors, key->params->k * (1 + key->params->a) * n);
+        ForceZero(sigFors,
+            (size_t)(key->params->k * (1 + key->params->a) * n));
     }
     slhdsakey_wipe_secret_hash(key);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
