@@ -728,7 +728,9 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
 
 /* Whether a SHA2 parameter set with hash size n uses SHA-256 (category 1)
  * rather than SHA-512 (categories 3 and 5) for H, T_l, H_msg and PRF_msg.
- * Always SHA-256 when no category 3 or 5 SHA2 set is compiled in. */
+ * Without a category 3 or 5 SHA2 set compiled in this is constant true, so the
+ * SHA-256 arm of each "if (SLHDSA_SHA2_USE_SHA256(n))" is always taken and its
+ * SHA-512 else arm is not compiled. */
 #ifdef WC_SLHDSA_NEED_SHA512
     #define SLHDSA_SHA2_USE_SHA256(n)   ((n) == WC_SLHDSA_N_128)
 #else
@@ -1171,14 +1173,12 @@ static int slhdsakey_hash_start_addr_sha2(SlhDsaKey* key,
 static int slhdsakey_hash_update_sha2(SlhDsaKey* key, const byte* data,
     word32 len)
 {
-    if (SLHDSA_SHA2_USE_SHA256(key->params->n)) {
-        return wc_Sha256Update(&key->hash.sha2.sha256_2, data, len);
-    }
 #ifdef WC_SLHDSA_NEED_SHA512
-    else {
+    if (!SLHDSA_SHA2_USE_SHA256(key->params->n)) {
         return wc_Sha512Update(&key->hash.sha2.sha512_2, data, len);
     }
 #endif
+    return wc_Sha256Update(&key->hash.sha2.sha256_2, data, len);
 }
 
 /* SHA2 T_l streaming: finalize.
