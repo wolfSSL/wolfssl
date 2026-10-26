@@ -5632,7 +5632,9 @@ if(WOLFSSL_INSTALL)
         set(_sbom_error "")
     endif()
 
-    if(NOT _sbom_error STREQUAL "")
+    if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+        # Added as a subproject. The parent owns the sbom target name.
+    elseif(NOT _sbom_error STREQUAL "")
         add_custom_target(sbom
             VERBATIM
             COMMAND ${CMAKE_COMMAND} -E echo "sbom: ${_sbom_error}"
