@@ -527,8 +527,14 @@ int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     \ingroup Random
     \brief Sets callback for custom seed generation.
 
-    \return 0 On success
-    \return BAD_FUNC_ARG If cb is NULL
+    \details The callback is the module's entropy source and must not call
+    the wolfCrypt RNG.  In RBGC tree builds a new callback re-instantiates the
+    tree root (SP 800-90C 7.3.1 item 9).
+
+    \return 0 On success; cb may be NULL, leaving no seed source until one
+    is set
+    \return BAD_STATE_E In RBGC tree builds, if a tree is live or the old
+    root could not be wiped
 
     \param cb Seed callback function
 
@@ -570,10 +576,18 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
     RNG_FAILURE_E: recovery is wc_FreeRng() then wc_InitRng*(), not in-place
     resurrection.
 
+    In WC_RNG_NO_CALLER_SEED_APIS builds (FIPS v7 without the RNG extras)
+    this is service 3.45: the reseed takes its entropy from the module's own
+    source and the caller's bytes are SP 800-90A additional input with no
+    entropy credit.  There seedSz has no minimum, seed may be NULL when
+    seedSz is 0, and the BAD_LENGTH_E and WRONG_TYPE_OBJECT_E refusals below
+    do not arise.
+
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.  (Refusals below take
     precedence.)
-    \return BAD_FUNC_ARG If rng or seed is NULL
+    \return BAD_FUNC_ARG If rng is NULL, or seed is NULL (with seedSz > 0 in
+    WC_RNG_NO_CALLER_SEED_APIS builds)
     \return RNG_FAILURE_E Reseed failed, or rng is condemned (see \details)
     \return OBJECT_NOT_LOCKED_E The instance requires its lock and the
     caller does not hold it.

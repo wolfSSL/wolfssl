@@ -292,7 +292,7 @@ WOLFSSL_API int wc_Sha512Reset(wc_Sha512* sha);
  * inside HAVE_INTEL_AVX2 in sha512_asm.S, so dropping AVX2 drops these too.
  * The WC_SHA256_N_WAY guard in sha256.h tests the same thing. */
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
-    !defined(NO_AVX2_SUPPORT) && \
+    !defined(NO_AVX2_SUPPORT) && !defined(WC_SHA512_C_ONLY) && \
     !defined(NO_AVX512_SUPPORT) && !defined(WOLFSSL_NO_SHA512_N_WAY) && \
     defined(WOLFSSL_SHA512) && defined(WOLFSSL_HAVE_XMSS)
 
