@@ -491,7 +491,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 
     static int Transform(wc_Sha* sha, const byte* data)
     {
-        word32* W = sha->W;
+        word32 W[WC_SHA_BLOCK_SIZE / sizeof(word32)];
 
         /* Copy context->state[] to working vars */
         word32 a = sha->digest[0];
@@ -503,6 +503,9 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #ifdef USE_SLOW_SHA
         word32 t, i;
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("Sha Transform W", W, sizeof(W));
+    #endif
         for (i = 0; i < 16; i++) {
             R0(a, b, c, d, e, i);
             t = e; e = d; d = c; c = b; b = a; a = t;
@@ -530,6 +533,9 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #else
         /* nearly 1 K bigger in code size but 25% faster */
         /* 4 rounds of 20 operations each. Loop unrolled. */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("Sha Transform W", W, sizeof(W));
+    #endif
         R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);
         R0(b,c,d,e,a, 4); R0(a,b,c,d,e, 5); R0(e,a,b,c,d, 6); R0(d,e,a,b,c, 7);
         R0(c,d,e,a,b, 8); R0(b,c,d,e,a, 9); R0(a,b,c,d,e,10); R0(e,a,b,c,d,11);
@@ -565,6 +571,10 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 
         (void)data; /* Not used */
 
+        ForceZero(W, sizeof(W));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(W, sizeof(W));
+    #endif
         return 0;
     }
 #endif /* XTRANSFORM when USE_SHA_SOFTWARE_IMPL is enabled */
