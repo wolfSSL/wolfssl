@@ -79,7 +79,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #if defined(WOLFSSL_SHA3) && defined(V523_NONFIPS_SHAKE)
-    #include <fips/v5.2.3-custom-shake-pq/shake.h>
+    #include <wolfssl/wolfcrypt/shake.h>
 #endif
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/version.h>

@@ -28,7 +28,7 @@
     #endif
     #include <wolfssl/wolfcrypt/settings.h>
     #ifdef WOLFSSL_SHA3
-        #include <fips/v5.2.3-custom-shake-pq/shake.h>
+        #include <wolfssl/wolfcrypt/shake.h>
     #endif
 #endif
 

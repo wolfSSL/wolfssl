@@ -841,12 +841,12 @@ then
     ENABLED_V523_NONFIPS_SHAKE=no
 fi
 dnl shake.c/shake.h live in the internal fips repo, not this one; a wolfssl
-dnl checkout without them dropped into fips/v5.2.3-custom-shake-pq/ would
-dnl otherwise fail deep in the build with a bare "No rule to make target".
+dnl checkout without them dropped into wolfcrypt/src/ and wolfssl/wolfcrypt/
+dnl would otherwise fail deep in the build with a bare "No rule to make target".
 AS_IF([ test "x$ENABLED_V523_NONFIPS_SHAKE" = "xyes" && \
-        ( ! test -s $srcdir/fips/v5.2.3-custom-shake-pq/shake.c || \
-          ! test -s $srcdir/fips/v5.2.3-custom-shake-pq/shake.h ) ],
-      [AC_MSG_ERROR([fips/v5.2.3-custom-shake-pq/shake.c and/or shake.h not found. V523_NONFIPS_SHAKE needs the internal fips repo overlay.])])
+        ( ! test -s $srcdir/wolfcrypt/src/shake.c || \
+          ! test -s $srcdir/wolfssl/wolfcrypt/shake.h ) ],
+      [AC_MSG_ERROR([wolfcrypt/src/shake.c and/or wolfssl/wolfcrypt/shake.h not found. V523_NONFIPS_SHAKE needs the internal fips repo overlay.])])
 AM_CONDITIONAL([BUILD_V523_NONFIPS_SHAKE],[test "x$ENABLED_V523_NONFIPS_SHAKE" = "xyes"])
 
 if test "$ENABLED_FIPS_DEV" = "yes"

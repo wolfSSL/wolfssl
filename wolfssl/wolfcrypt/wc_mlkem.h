@@ -34,7 +34,7 @@
     * processes first with SHAKE off, so shake.h's own fallback typedef and
     * prototypes are what actually declare wc_Shake here. Moving it ahead
     * breaks the build. */
-    #include <fips/v5.2.3-custom-shake-pq/shake.h>
+    #include <wolfssl/wolfcrypt/shake.h>
 #endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
