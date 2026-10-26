@@ -3140,7 +3140,7 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
             wolfSSL_RefFree(&key->ref);
 
             /* Dispose of private key. */
-            wolfSSL_BN_free(key->priv_key);
+            wolfSSL_BN_clear_free(key->priv_key);
             wolfSSL_EC_POINT_free(key->pub_key);
             wolfSSL_EC_GROUP_free(key->group);
             if (key->internal != NULL) {
@@ -4672,7 +4672,7 @@ int wolfSSL_EC_KEY_set_private_key(WOLFSSL_EC_KEY *key,
     if (ret == 1) {
         /* Free key if previously set. */
         if (key->priv_key != NULL) {
-            wolfSSL_BN_free(key->priv_key);
+            wolfSSL_BN_clear_free(key->priv_key);
         }
 
         /* Duplicate the BN passed in. */
@@ -4686,7 +4686,7 @@ int wolfSSL_EC_KEY_set_private_key(WOLFSSL_EC_KEY *key,
     if ((ret == 1) && (SetECKeyInternal(key) != 1)) {
         WOLFSSL_MSG("SetECKeyInternal failed");
         /* Dispose of new private key on error. */
-        wolfSSL_BN_free(key->priv_key);
+        wolfSSL_BN_clear_free(key->priv_key);
         key->priv_key = NULL;
         ret = 0;
     }

@@ -495,6 +495,7 @@ void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
     if (ctx) {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_free");
         wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
+        ForceZero(ctx, sizeof(*ctx));
         XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 }
@@ -7106,6 +7107,8 @@ void wolfSSL_EVP_init(void)
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_cleanup");
         if (ctx) {
             wolfSSL_EVP_CIPHER_CTX_cleanup_cipher(ctx);
+            /* Key schedules of all ciphers, DES included. */
+            ForceZero(&ctx->cipher, sizeof(ctx->cipher));
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             if (ctx->key) {

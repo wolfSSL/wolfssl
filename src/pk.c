@@ -1079,7 +1079,7 @@ void wolfSSL_DSA_free(WOLFSSL_DSA* dsa)
             XFREE(dsa->internal, NULL, DYNAMIC_TYPE_DSA);
             dsa->internal = NULL;
         }
-        wolfSSL_BN_free(dsa->priv_key);
+        wolfSSL_BN_clear_free(dsa->priv_key);
         wolfSSL_BN_free(dsa->pub_key);
         wolfSSL_BN_free(dsa->g);
         wolfSSL_BN_free(dsa->q);
@@ -1435,7 +1435,7 @@ int wolfSSL_DSA_set0_key(WOLFSSL_DSA *d, WOLFSSL_BIGNUM *pub_key,
         d->pub_key = pub_key;
     }
     if (priv_key != NULL) {
-        wolfSSL_BN_free(d->priv_key);
+        wolfSSL_BN_clear_free(d->priv_key);
         d->priv_key = priv_key;
     }
 
@@ -2976,7 +2976,7 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
         }
 
         /* Dispose of any allocated BNs. */
-        wolfSSL_BN_free(dh->priv_key);
+        wolfSSL_BN_clear_free(dh->priv_key);
         wolfSSL_BN_free(dh->pub_key);
         wolfSSL_BN_free(dh->g);
         wolfSSL_BN_free(dh->p);
@@ -4939,7 +4939,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     if (ret == 1) {
         /* Dispose of old public and private keys. */
         wolfSSL_BN_free(dh->pub_key);
-        wolfSSL_BN_free(dh->priv_key);
+        wolfSSL_BN_clear_free(dh->priv_key);
 
         /* Allocate new public and private keys. */
         dh->pub_key = wolfSSL_BN_new();
