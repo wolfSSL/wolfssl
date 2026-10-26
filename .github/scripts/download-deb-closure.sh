@@ -34,26 +34,43 @@ for pkg in "${PKGS[@]}"; do
   "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only "$pkg" \
     || skipped=$((skipped+1))
 done
-# Bundle exact (=) deps even if installed, as older images may differ.
+# Bundle exact (=) deps even if installed, as older images may differ, and
+# the installed packages that pin a bundled one, as an older image has to
+# upgrade those with it.
 ARCHIVES=/var/cache/apt/archives
-export LC_ALL=C  # sort and comm must agree on the order
-pinned() {
-  for deb in "$ARCHIVES"/*.deb; do
-    dpkg-deb -f "$deb" Pre-Depends Depends
-  done | sed 's/^[^ ]*: //' | tr ',' '\n' \
-    | sed -nE 's/^ *([^ :(|]+)(:[^ ]+)? *\(= *([^ )]+)\) *$/\1=\3/p' | sort -u
+DEPS='${Package} ${Pre-Depends}, ${Depends}\n'
+export LC_ALL=C  # sort, comm and join must agree on the order
+# "name=version owner" for each exact (=) dep in "owner deps" lines.
+exact() {
+  awk '{
+    n = split(substr($0, length($1) + 2), d, ",")
+    for (i = 1; i <= n; i++) {
+      if (d[i] !~ /^ *[^ :(|]+(:[^ ]+)? *\(= *[^ )]+\) *$/) continue
+      sub(/^ +/, "", d[i]); split(d[i], f, /[ (=)]+/); sub(/:.*/, "", f[1])
+      print f[1] "=" f[2], $1
+    }
+  }'
 }
-bundled() {
+debs() {
   for deb in "$ARCHIVES"/*.deb; do
-    dpkg-deb -f "$deb" Package Version | sed 's/^[^ ]*: //' | paste -sd=
+    dpkg-deb -W --showformat="$1" "$deb"
   done | sort -u
+}
+missing() {
+  local bundled names
+  bundled=$(debs '${Package}=${Version}\n')
+  names=$(cut -d= -f1 <<< "$bundled" | sort -u)
+  debs "$DEPS" | exact | cut -d' ' -f1 | sort -u | comm -23 - <(echo "$bundled")
+  dpkg-query -W -f="\${db:Status-Status} $DEPS" | sed -n 's/^installed //p' \
+    | exact | sed 's/=[^ ]*//' | sort | join -o 1.2 - <(echo "$names") \
+    | sort -u | comm -23 - <(echo "$names")
 }
 declare -A tried=()
 while :; do
   need=()
   while read -r pin; do
     [ -n "${tried[$pin]:-}" ] || need+=("$pin")
-  done < <(comm -23 <(pinned) <(bundled))
+  done < <(missing)
   [ "${#need[@]}" -gt 0 ] || break
   echo "Pinned (${#need[@]}): ${need[*]}"
   for pin in "${need[@]}"; do
