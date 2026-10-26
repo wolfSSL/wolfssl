@@ -3020,11 +3020,14 @@ typedef struct ProcPeerCertArgs {
     word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
 #endif
 #ifndef IGNORE_KEY_EXTENSIONS
-    /* Subject-name hashes of chain CAs whose Extended Key Usage error this
-     * handshake already accepted. The later issuer walk skips these CAs and
-     * still checks ancestors. The shared Signer is left unchanged. */
-    byte   ekuWaiveCount;
-    byte   ekuWaiveName[MAX_CHAIN_DEPTH][SIGNER_DIGEST_SIZE];
+    /* certIdx of each chain CA whose Extended Key Usage error this handshake
+     * accepted. Kept in this flag word so ProcPeerCertArgs still fits
+     * ssl->async->args. The later issuer walk skips those indexes and still
+     * checks ancestors. The shared Signer is left unchanged. */
+#if MAX_CHAIN_DEPTH > 11
+#error "MAX_CHAIN_DEPTH does not fit the peer-cert EKU waive mask"
+#endif
+    word16 ekuWaiveMask:MAX_CHAIN_DEPTH;
 #endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,

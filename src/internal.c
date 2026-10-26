@@ -17942,54 +17942,31 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
     return 0;
 }
 
-/* True when this handshake already accepted an Extended Key Usage error
- * for the CA with this subject-name hash. */
-static int SignerEkuWaived(const Signer* ca,
-    const byte waiveName[][SIGNER_DIGEST_SIZE], int waiveCount)
-{
-    int i;
-
-    for (i = 0; i < waiveCount; i++) {
-        if (XMEMCMP(ca->subjectNameHash, waiveName[i], SIGNER_DIGEST_SIZE) == 0)
-            return 1;
-    }
-    return 0;
-}
-
-/* Record the subject-name hash of a chain CA whose Extended Key Usage error
- * the verify callback accepted. */
+/* Record the chain index of a CA whose Extended Key Usage error the verify
+ * callback accepted. The leaf is index 0. Its issuer is index 1. */
 static void RememberWaivedCaEku(ProcPeerCertArgs* args)
 {
-    int i;
-
-    if (args == NULL || args->dCert == NULL)
+    if (args == NULL || args->certIdx < 0 || args->certIdx >= MAX_CHAIN_DEPTH)
         return;
-    if (args->ekuWaiveCount >= MAX_CHAIN_DEPTH)
-        return;
-    for (i = 0; i < (int)args->ekuWaiveCount; i++) {
-        if (XMEMCMP(args->ekuWaiveName[i], args->dCert->subjectHash,
-                SIGNER_DIGEST_SIZE) == 0)
-            return;
-    }
-    XMEMCPY(args->ekuWaiveName[args->ekuWaiveCount], args->dCert->subjectHash,
-        SIGNER_DIGEST_SIZE);
-    args->ekuWaiveCount++;
+    args->ekuWaiveMask |= (word16)(1u << args->certIdx);
 }
 
 /* Check the Extended Key Usage of each CA from ca up to the self-signed trust
- * anchor against the TLS purpose. A CA whose error this handshake already
- * accepted is skipped, and the walk continues to ancestors the chain did not
- * present. With IGNORE_NAME_CONSTRAINTS there is no issuer lookup, so only ca
- * is checked. pending holds Certificate Status Request v2 signers that are
- * not in the certificate manager yet.
+ * anchor against the TLS purpose. waiveMask names chain indexes whose error
+ * this handshake already accepted. The first signer is the leaf issuer, chain
+ * index 1. A waived CA is skipped and the walk continues. With
+ * IGNORE_NAME_CONSTRAINTS there is no issuer lookup, so only ca is checked.
+ * pending holds Certificate Status Request v2 signers that are not in the
+ * certificate manager yet.
  * Returns 0, EXTKEYUSE_AUTH_E or MAX_CHAIN_ERROR. */
 static int CheckSignerExtKeyUsage(const WOLFSSL* ssl, Signer* ca,
-    Signer* pending, const byte waiveName[][SIGNER_DIGEST_SIZE], int waiveCount)
+    Signer* pending, unsigned waiveMask)
 {
     byte purpose;
     Signer* prev = NULL;
     Signer* parent;
     int depth = 0;
+    int certIdx = 1;
 
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         purpose = EXTKEYUSE_SERVER_AUTH;
@@ -17997,9 +17974,12 @@ static int CheckSignerExtKeyUsage(const WOLFSSL* ssl, Signer* ca,
         purpose = EXTKEYUSE_CLIENT_AUTH;
 
     while (ca != NULL && !ca->selfSigned) {
+        int waived = (certIdx < MAX_CHAIN_DEPTH) &&
+            ((waiveMask & (1u << certIdx)) != 0);
+
         if (ca->extExtKeyUsageSet &&
                 (ca->extKeyUsage & (EXTKEYUSE_ANY | purpose)) == 0 &&
-                !SignerEkuWaived(ca, waiveName, waiveCount)) {
+                !waived) {
             WOLFSSL_MSG("Issuer CA ExtKeyUse doesn't allow TLS peer auth");
             return EXTKEYUSE_AUTH_E;
         }
@@ -18016,6 +17996,7 @@ static int CheckSignerExtKeyUsage(const WOLFSSL* ssl, Signer* ca,
             return MAX_CHAIN_ERROR;
         prev = ca;
         ca = parent;
+        certIdx++;
     }
 
     return 0;
@@ -20208,7 +20189,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif
                     ret = CheckSignerExtKeyUsage(ssl, args->dCert->ca,
-                        ekuPending, args->ekuWaiveName, args->ekuWaiveCount);
+                        ekuPending, args->ekuWaiveMask);
                     if (ret != 0) {
                         WOLFSSL_ERROR_VERBOSE(ret);
                     #if defined(OPENSSL_EXTRA) || \
