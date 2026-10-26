@@ -19640,7 +19640,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                          * it again. Ancestors are still checked. */
                         if (ret == 0 &&
                                 cbErr == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) &&
-                                args->dCert != NULL && args->dCert->isCA) {
+                                args->dCert->isCA) {
                             RememberWaivedCaEku(args);
                         }
                     #endif
