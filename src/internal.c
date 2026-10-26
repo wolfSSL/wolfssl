@@ -5930,6 +5930,13 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
         (void)ret;
     }
 #endif
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* A dynamic X509 can outlive the SSL whose heap hint it uses; dropped in
+     * ExternalFreeX509() */
+    if (dynamicFlag) {
+        wc_HeapHint_Ref(heap);
+    }
+#endif
 }
 
 
@@ -8904,6 +8911,8 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ctx_hint = ((WOLFSSL_HEAP_HINT*)(ctx->heap));
 
         ssl_hint->memory = ctx_hint->memory;
+        ssl_hint->refCount = 1; /* the SSL's own reference */
+        ssl_hint->sslOwned = 1;
     #ifndef WOLFSSL_STATIC_MEMORY_LEAN
     #ifndef SINGLE_THREADED
         /* lock and check IO count / handshake count */
@@ -10283,18 +10292,23 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
     /* avoid dereferencing a test value */
     if (ssl->heap != (void*)WOLFSSL_HEAP_TEST) {
     #endif
-        void* heap = ssl->ctx ? ssl->ctx->heap : ssl->heap;
     #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         WOLFSSL_HEAP_HINT* ssl_hint = (WOLFSSL_HEAP_HINT*)ssl->heap;
-        WOLFSSL_HEAP*      ctx_heap;
-        WOLFSSL_MEM_CONN_STATS* stats;
+        WOLFSSL_HEAP*      ctx_heap = ssl_hint->memory;
+        void* heap = ssl->ctx ? ssl->ctx->heap : ssl->heap;
+        WOLFSSL_MEM_CONN_STATS* stats = NULL;
 
-        ctx_heap = ssl_hint->memory;
     #ifndef SINGLE_THREADED
         if (wc_LockMutex(&(ctx_heap->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
         }
     #endif
+        /* detach stats under the lock: sessions and X509s holding a reference
+         * may still allocate through this hint from other threads */
+        if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
+            stats = ssl_hint->stats;
+            ssl_hint->stats = NULL;
+        }
         ctx_heap->curIO--;
         if (FreeFixedIO(ctx_heap, &(ssl_hint->outBuf)) != 1) {
             WOLFSSL_MSG("Error freeing fixed output buffer");
@@ -10310,16 +10324,13 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
     #ifndef SINGLE_THREADED
         wc_UnLockMutex(&(ctx_heap->memory_mutex));
     #endif
-
-        /* check if tracking stats */
-        if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
-            /* with ssl->ctx NULL, heap is ssl->heap and XFREE updates stats */
-            stats = ssl_hint->stats;
-            ssl_hint->stats = NULL;
-            XFREE(stats, heap, DYNAMIC_TYPE_SSL);
-        }
-    #endif /* !WOLFSSL_STATIC_MEMORY_LEAN */
-        XFREE(ssl->heap, heap, DYNAMIC_TYPE_SSL);
+        /* unlocked, XFREE takes memory_mutex; with ssl->ctx NULL, heap is
+         * ssl->heap, which the SSL's reference still keeps alive here */
+        XFREE(stats, heap, DYNAMIC_TYPE_SSL);
+    #endif
+        /* drop the SSL's reference; other holders may keep the hint alive */
+        wc_HeapHint_Unref(ssl->heap);
+        ssl->heap = NULL;
     #ifdef WOLFSSL_HEAP_TEST
     }
     #endif
@@ -20695,7 +20706,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
                     ssl->msgsReceived.got_session_ticket) {
                 ForceZero(ssl->session->ticket, ssl->session->ticketLen);
                 if (ssl->session->ticketLenAlloc > 0) {
-                    XFREE(ssl->session->ticket, ssl->heap,
+                    XFREE(ssl->session->ticket, ssl->session->heap,
                           DYNAMIC_TYPE_SESSION_TICK);
                     ssl->session->ticket = ssl->session->staticTicket;
                     ssl->session->ticketLenAlloc = 0;
@@ -39944,14 +39955,15 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 
     /* Free old dynamic ticket if we already had one */
     if (ssl->session->ticketLenAlloc > 0) {
-        XFREE(ssl->session->ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        XFREE(ssl->session->ticket, ssl->session->heap,
+              DYNAMIC_TYPE_SESSION_TICK);
         ssl->session->ticket = ssl->session->staticTicket;
         ssl->session->ticketLenAlloc = 0;
     }
 
     if (length > sizeof(ssl->session->staticTicket)) {
-        byte* sessionTicket =
-                   (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        byte* sessionTicket = (byte*)XMALLOC(length, ssl->session->heap,
+                                             DYNAMIC_TYPE_SESSION_TICK);
         if (sessionTicket == NULL)
             return MEMORY_E;
         ssl->session->ticket = sessionTicket;
@@ -44428,7 +44440,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         if (ssl->session->ticket != ssl->session->staticTicket) {
             /* Always use the static ticket buffer */
-            XFREE(ssl->session->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
+            XFREE(ssl->session->ticket, ssl->session->heap,
+                  DYNAMIC_TYPE_SESSION_TICK);
             ssl->session->ticket = ssl->session->staticTicket;
             ssl->session->ticketLenAlloc = 0;
         }
@@ -45069,7 +45082,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
      (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
             if (ssl->session->ticketNonce.data
                    != ssl->session->ticketNonce.dataStatic) {
-                XFREE(ssl->session->ticketNonce.data, ssl->heap,
+                XFREE(ssl->session->ticketNonce.data, ssl->session->heap,
                     DYNAMIC_TYPE_SESSION_TICK);
                 ssl->session->ticketNonce.data =
                     ssl->session->ticketNonce.dataStatic;

@@ -845,6 +845,93 @@ void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap)
 #endif
 }
 
+
+/* Returns 1 if heap is a per-SSL hint created by InitSSL_StaticMemory. Only
+ * these are reference counted; CTX, user and global hints are left alone. */
+static int wc_HeapHint_IsRefCounted(const WOLFSSL_HEAP_HINT* hint)
+{
+    if (hint == NULL) {
+        return 0;
+    }
+#ifdef WOLFSSL_HEAP_TEST
+    /* avoid dereferencing a test value */
+    if (hint == (const WOLFSSL_HEAP_HINT*)WOLFSSL_HEAP_TEST) {
+        return 0;
+    }
+#endif
+    return hint->sslOwned && hint->memory != NULL;
+}
+
+/* Take a reference on a per-SSL heap hint so it stays valid after
+ * wolfSSL_free() for an object (e.g. a session) allocated from it. */
+void wc_HeapHint_Ref(void* heap)
+{
+    WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
+
+    int locked = 1;
+
+    if (!wc_HeapHint_IsRefCounted(hint)) {
+        return;
+    }
+#ifndef SINGLE_THREADED
+    if (wc_LockMutex(&hint->memory->memory_mutex) != 0) {
+        /* still take the reference: the caller's object is created either
+         * way and drops it when freed, so skipping it would free the hint
+         * early */
+        WOLFSSL_MSG("Bad memory_mutex lock");
+        locked = 0;
+    }
+#endif
+    hint->refCount++;
+#ifndef SINGLE_THREADED
+    if (locked) {
+        wc_UnLockMutex(&hint->memory->memory_mutex);
+    }
+#endif
+    (void)locked;
+}
+
+/* Drop a reference on a per-SSL heap hint, freeing it back to its pool when
+ * the last one is gone. The hint must not be used by the caller after this. */
+void wc_HeapHint_Unref(void* heap)
+{
+    WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
+    WOLFSSL_HEAP_HINT  tmp;
+    WOLFSSL_HEAP*      mem;
+    word32             refCount;
+
+    if (!wc_HeapHint_IsRefCounted(hint)) {
+        return;
+    }
+    mem = hint->memory;
+#ifndef SINGLE_THREADED
+    if (wc_LockMutex(&mem->memory_mutex) != 0) {
+        WOLFSSL_MSG("Bad memory_mutex lock");
+        return;
+    }
+#endif
+    if (hint->refCount == 0) {
+        /* unbalanced unref; leave the hint alone rather than wrap */
+        WOLFSSL_MSG("Heap hint reference count underflow");
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&mem->memory_mutex);
+    #endif
+        return;
+    }
+    refCount = --hint->refCount;
+#ifndef SINGLE_THREADED
+    /* unlock before XFREE, which takes memory_mutex */
+    wc_UnLockMutex(&mem->memory_mutex);
+#endif
+    if (refCount == 0) {
+        /* free through a temporary hint on the same pool so neither the CTX
+         * nor the hint being freed is needed */
+        XMEMSET(&tmp, 0, sizeof(tmp));
+        tmp.memory = mem;
+        XFREE(hint, &tmp, DYNAMIC_TYPE_SSL);
+    }
+}
+
 #ifndef WOLFSSL_STATIC_MEMORY_LEAN
 /* returns the size of management memory needed for each bucket.
  * This is memory that is used to keep track of and align memory buckets. */
