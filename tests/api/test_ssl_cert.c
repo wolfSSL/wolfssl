@@ -2604,7 +2604,8 @@ typedef struct test_eku_case {
                                 * depth 2 */
     int overrideCb;            /* verify callback installed on the verifying
                                 * side: 0 none, 1 accepts every error,
-                                * 2 waives only the purpose error */
+                                * 2 waives only the purpose error,
+                                * 3 waives the purpose error only at depth 1 */
     int verifyDepth;           /* verify depth pinned on the verifying side,
                                 * 0 leaves the default in place */
     int expectRet;             /* expected handshake result */
@@ -2636,6 +2637,25 @@ static int test_eku_purpose_only_cb(int preverify,
         return 1;
     }
     return preverify;
+}
+
+/* Accept a purpose error only for the intermediate at depth 1. A later report
+ * of the same error at depth 0, with the leaf as the current certificate,
+ * must not be required for the handshake to succeed. */
+static int test_eku_depth_purpose_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    if (preverify)
+        return 1;
+    if (store->error_depth == 1 &&
+            (store->error == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+             || store->error == WOLFSSL_X509_V_ERR_INVALID_PURPOSE
+#endif
+            )) {
+        return 1;
+    }
+    return 0;
 }
 
 /* Build a CA:TRUE certificate for subjKey. A NULL issuerDer makes it
@@ -2762,6 +2782,8 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
         verifyCb = test_eku_override_cb;
     else if (tc->overrideCb == 2)
         verifyCb = test_eku_purpose_only_cb;
+    else if (tc->overrideCb == 3)
+        verifyCb = test_eku_depth_purpose_cb;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     /* The server always presents the generated chain so a single set of
@@ -3001,6 +3023,14 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
         /* An application that installs a verify callback keeps the last word,
          * as it does for every other chain error. */
         { "codeSigning",  0, 0, 0, 0, 0, 1, 0, 0, NULL, 0 },
+        /* The purpose error is accepted only at depth 1, where the chain CA
+         * is presented. The issuer walk must not ask again at depth 0. */
+        { "codeSigning",  0, 0, 0, 0, 0, 3, 0, 0, NULL, 0 },
+        /* The same callback does not cover a CA the peer never sent. That
+         * error is reported for the leaf, at depth 0. */
+        { "codeSigning",  0, 0, 0, 1, 0, 3, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, 1 },
 #ifdef OPENSSL_EXTRA
         /* The purpose check must not stand in for the checks that run before
          * it. With the depth limit pinned below the chain, a callback that
