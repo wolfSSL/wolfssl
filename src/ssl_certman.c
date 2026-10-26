@@ -1509,9 +1509,9 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
     /* Process all entries. */
     while ((ret == 0) && (listSz > 0)) {
         Signer* signer = NULL;
-        word32  derSz;
-        word16  pathLen;
-        byte    type;
+        word32  derSz = 0;
+        word16  pathLen = 0;
+        byte    type = 0;
     #ifdef HAVE_OCSP
         byte    issuerKeyHash[KEYID_SIZE];
     #endif
@@ -2001,7 +2001,7 @@ static int cm_restore_apply_pathlen(Signer** table, void* heap)
     int row;
     int guard;
     int changed;
-    struct {
+    struct CmRestorePathRef {
         Signer* signer;
         word16  base;
     }* refs;
@@ -2018,7 +2018,8 @@ static int cm_restore_apply_pathlen(Signer** table, void* heap)
         return 0;
     }
 
-    refs = XMALLOC(sizeof(*refs) * (size_t)count, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    refs = (struct CmRestorePathRef*)XMALLOC(sizeof(*refs) * (size_t)count,
+        heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (refs == NULL) {
         return MEMORY_E;
     }
