@@ -187,9 +187,52 @@ int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
 
     \sa wolfSSL_CertManagerNew
     \sa wolfSSL_CertManagerLoadCA
+    \sa wc_CheckCertSignature_ex
 */
 int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
                           WOLFSSL_CERT_MANAGER* cm);
+
+/*!
+    \ingroup ASN
+    \brief This function verifies the signature on a certificate using a
+    certificate manager, as wc_CheckCertSignature() does, and reports the
+    public key of the CA that verified it.
+
+    \return 0 On successful signature verification.
+    \return BAD_FUNC_ARG If cert is NULL, or caKey is not NULL and caKeySz
+    is NULL.
+    \return ASN_NO_SIGNER_E If cm holds no CA for the certificate.
+    \return ASN_SIG_CONFIRM_E If signature verification fails.
+    \return Other negative values on error.
+
+    \param cert pointer to the DER encoded certificate
+    \param certSz size of the certificate in bytes
+    \param heap pointer to heap hint for memory allocation (can be NULL)
+    \param cm pointer to certificate manager containing trusted CAs
+    \param caKey set to the public key of the CA that verified the
+    signature, in the form the certificate manager stores it, or to NULL
+    when verification fails. The key belongs to cm and is valid while the CA
+    stays loaded. Can be NULL.
+    \param caKeySz set to the size of caKey in bytes, or to 0. Must not be
+    NULL when caKey is not NULL.
+
+    _Example_
+    \code
+    const byte* caKey = NULL;
+    word32 caKeySz = 0;
+
+    int ret = wc_CheckCertSignature_ex(cert, certSz, NULL, cm, &caKey,
+                                       &caKeySz);
+    if (ret == 0) {
+        // caKey and caKeySz give the key of the CA that verified cert
+    }
+    \endcode
+
+    \sa wc_CheckCertSignature
+*/
+int wc_CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
+                             WOLFSSL_CERT_MANAGER* cm, const byte** caKey,
+                             word32* caKeySz);
 
 /*!
     \ingroup ASN
