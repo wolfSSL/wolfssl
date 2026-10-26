@@ -20781,10 +20781,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifndef IGNORE_KEY_EXTENSIONS
                     /* The later issuer walk repeats this CA. Remember an
                      * accepted purpose error so that walk does not reject
-                     * it again. Ancestors are still checked. */
+                     * it again. Ancestors are still checked. The decoded
+                     * certificate is allocated before this loop. */
                     if (ret == 0 &&
                             preCbRet == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) &&
-                            args->dCert != NULL && args->dCert->isCA) {
+                            args->dCert->isCA) {
                         RememberWaivedCaEku(args);
                     }
                 #endif
