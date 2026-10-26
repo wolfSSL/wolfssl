@@ -1385,6 +1385,8 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
         break;
 
     case CAAM_ECDSA_ECDH:
+        WOLFSSL_MSG("ECDH not supported with SECO, use CAAM devID instead");
+        ret = -1;
         break;
 
     case CAAM_BLOB_ENCAP:
