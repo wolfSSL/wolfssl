@@ -702,6 +702,17 @@ SHA-384 signature with a slot key therefore stays on ELS. ELS draws its own
 nonce, so an RFC 6979 or set-k signature with a slot key fails with
 `BAD_STATE_E`.
 
+`wc_ecc_check_key()` on a slot key checks its public point, if it has one, in
+software and that the slot holds a key of the referenced class. A signing slot
+with a public point also signs and verifies a fixed digest, which shows the
+two belong together; a key agreement slot cannot sign and gets the slot check
+only.
+
+`wolfSSL_CTX_check_private_key()` on a slot key loaded with
+`wolfSSL_CTX_use_PrivateKey_Id()` runs the same signing test against the
+certificate's public key. A key agreement slot always fails that check, since
+nothing can show it matches the certificate.
+
 **What the hardware declines**, so it runs in software instead: AES-192 (no
 ELS key size), any trailing partial block, and an AES-GCM IV other than 12
 bytes. A key in a slot has no software copy, so with one a partial block
