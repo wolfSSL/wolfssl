@@ -71,9 +71,10 @@ jobs:
         name: Checkout wolfSSL
 
       - name: Install the toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: gcc-arm-none-eabi
+          ghcr-debs-tag: ubuntu-24.04-embedded
 
       - name: Checkout the Nuvoton M2354 BSP
         run: |
