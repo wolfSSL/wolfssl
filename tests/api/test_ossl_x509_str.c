@@ -3003,8 +3003,12 @@ static X509* gen_named_cert(const char* subjCn, const char* issuerCn, int isCA,
     if (issuerCn != NULL)
         XSTRNCPY(cert.issuer.commonName, issuerCn, CTC_NAME_SIZE - 1);
     else if (wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
-            (int)sizeof_ca_cert_der_2048) != 0)
+            (int)sizeof_ca_cert_der_2048) != 0) {
+    #ifdef WOLFSSL_CERT_GEN_CACHE
+        wc_SetCert_Free(&cert); /* release DecodedCert from wc_SetIssuerBuffer */
+    #endif
         return NULL;
+    }
     if (skid != 0) {
         XMEMSET(cert.skid, skid, KEYID_SIZE);
         cert.skidSz = KEYID_SIZE;
@@ -3023,6 +3027,9 @@ static X509* gen_named_cert(const char* subjCn, const char* issuerCn, int isCA,
         x509 = d2i_X509(NULL, &p, derSz);
     }
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert); /* release DecodedCert from wc_SetIssuerBuffer */
+#endif
     return x509;
 }
 #endif
