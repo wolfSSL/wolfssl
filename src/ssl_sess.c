@@ -3949,7 +3949,7 @@ void SetupSession(WOLFSSL* ssl)
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         if (!ssl->options.resuming) {
             session->peerAuthOk = 0;
-            session->isPSK = ssl->options.usingPSK_cipher;
+            session->isPSK = (byte)ssl->options.usingPSK_cipher;
         }
         if (SSL_PEER_CERT_VERIFIED(ssl))
             session->peerAuthOk = 1;
