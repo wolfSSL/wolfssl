@@ -145,8 +145,6 @@
 /* Uncomment next line if using STM32F7 */
 /* #define WOLFSSL_STM32F7 */
 
-/* Uncomment next line if building for EROAD */
-/* #define WOLFSSL_EROAD */
 
 /* Uncomment next line if building for IAR EWARM */
 /* #define WOLFSSL_IAR_ARM */
@@ -1476,28 +1474,7 @@
 
 
 #ifdef WOLFSSL_EROAD
-    #define FREESCALE_MQX
-    #define FREESCALE_MMCAU
-    #define SINGLE_THREADED
-    #define NO_STDIO_FILESYSTEM
-    #define WOLFSSL_LEANPSK
-    #define HAVE_NULL_CIPHER
-    #define NO_OLD_TLS
-    #define NO_ASN
-    #define NO_BIG_INT
-    #define NO_RSA
-    #define NO_DSA
-    #define NO_DH
-    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
-    /* WOLFSSL_DH_CONST */
-    #define NO_CERTS
-    #define NO_PWDBASED
-    #define NO_DES3
-    #define NO_MD4
-    #define NO_RC4
-    #define NO_MD5
-    #define NO_SESSION_CACHE
-    #define NO_MAIN_DRIVER
+    #error "WOLFSSL_EROAD support has been removed"
 #endif
 
 #if defined(WOLFSSL_PICOTCP) || defined(WOLFSSL_PICOTCP_DEMO)
@@ -1687,7 +1664,7 @@
  * done on Windows/Visual Studio, enable a way to disable USE_WINDOWS_API.
  * Examples: Micrium, TenAsus INtime, uTasker, FreeRTOS simulator */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
-    !defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
+    !defined(FREERTOS_TCP) && !defined(EBSNET) && \
     !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS) && \
     !defined(WOLFSSL_NOT_WINDOWS_API)
     #define USE_WINDOWS_API
