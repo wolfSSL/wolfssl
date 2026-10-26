@@ -77748,8 +77748,11 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         /* FIPS 205 sec. 10.2.2 approves SHA-256 only for category 1, so the
          * larger SHA-2 parameter sets pre-hash with SHA-512. */
 #ifdef WOLFSSL_SLHDSA_SHA2
-        enum wc_HashType phType = !SLHDSA_IS_SHA2(param) ? WC_HASH_TYPE_SHAKE256
-            : (key->params->n == WC_SLHDSA_N_128) ? WC_HASH_TYPE_SHA256
+        enum wc_HashType phType =
+    #ifndef WOLFSSL_SLHDSA_NO_SHAKE
+            !SLHDSA_IS_SHA2(param) ? WC_HASH_TYPE_SHAKE256 :
+    #endif
+            (key->params->n == WC_SLHDSA_N_128) ? WC_HASH_TYPE_SHA256
     #ifdef WOLFSSL_SHA512
             : WC_HASH_TYPE_SHA512;
     #else

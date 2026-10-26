@@ -11711,7 +11711,8 @@ int wc_SlhDsaKey_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         return ASN_PARSE_E;
     }
 
-#ifdef WOLFSSL_SLHDSA_SHA2
+/* Only possible with both hash families compiled in. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     /* The key may have been initialised with a placeholder parameter set from a
      * different hash family (callers pass WC_SLHDSA_DEFAULT_PARAM, a SHAKE set
      * whenever any SHAKE parameter is built in). If the detected set uses a
@@ -11734,7 +11735,7 @@ int wc_SlhDsaKey_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             return ret;
         }
     }
-#endif /* WOLFSSL_SLHDSA_SHA2 */
+#endif /* WOLFSSL_SLHDSA_SHA2 && !WOLFSSL_SLHDSA_NO_SHAKE */
 
     /* RFC 9909: privateKey is a single OCTET STRING containing the raw key
      * (4*n bytes). Unlike Ed25519/Ed448, there is no nested inner OCTET
@@ -11951,7 +11952,8 @@ int wc_SlhDsaKey_PublicKeyDecode(const byte* input, word32* inOutIdx,
         return ASN_PARSE_E;
     }
 
-#ifdef WOLFSSL_SLHDSA_SHA2
+/* Only possible with both hash families compiled in. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     /* The hash objects live in a union selected by family. Importing across
      * families writes the new family's state over the old one's, orphaning it,
      * so re-initialise for the detected set first. Mirrors the guard in
@@ -11972,7 +11974,7 @@ int wc_SlhDsaKey_PublicKeyDecode(const byte* input, word32* inOutIdx,
             return ret;
         }
     }
-#endif /* WOLFSSL_SLHDSA_SHA2 */
+#endif /* WOLFSSL_SLHDSA_SHA2 && !WOLFSSL_SLHDSA_NO_SHAKE */
 
     oldFlags = key->flags;
     oldParams = key->params;
