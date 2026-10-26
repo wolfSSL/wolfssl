@@ -8,7 +8,7 @@
 # The including Makefile MUST set, before `include .../build/sbom.mk`:
 #   SBOM_NAME        Product name recorded in the SBOM (e.g. wolfboot).
 #
-# Composition - set at least one:
+# Composition - set one of SBOM_SRCS or SBOM_LIB, or SBOM_NO_ARTIFACT_HASH:
 #   SBOM_SRCS        Source files compiled into the artifact (tier E), e.g.:
 #                      SBOM_SRCS := $(patsubst %.o,%.c,$(OBJS))
 #   SBOM_LIB         Path to the built library to hash (tier R/L/S).
@@ -72,10 +72,10 @@
 #                         in SBOM_LICENSE_OVERRIDE (required by SPDX 2.3).
 #   SBOM_GEN              Path to gen-sbom. Default: driver auto-discovery.
 #   GEN_SBOM              Legacy alias for SBOM_GEN.
-#   SBOM_NO_ARTIFACT_HASH = 1   As-built FIPS/kernel. The driver still wants
-#                         SBOM_LIB or SBOM_SRCS so the caller names the
-#                         artifact. It sends only --no-artifact-hash to
-#                         gen-sbom, which accepts one checksum source.
+#   SBOM_NO_ARTIFACT_HASH = 1   As-built FIPS/kernel with no hashable
+#                         artefact. Stands alone: do not set SBOM_LIB or
+#                         SBOM_SRCS. The driver sends --no-artifact-hash,
+#                         and gen-sbom records a placeholder checksum.
 #   SBOM_DEP_WOLFSSL      yes/no - record wolfSSL as a dependency.
 #   SBOM_DEP_WOLFCRYPT    yes/no - record wolfCrypt as a nested component
 #                         (PURL; matching uses the wolfssl CPE).
@@ -136,8 +136,13 @@ define wolfssl_compliance_tooling_sbom_rule
 .PHONY: $(1)
 $(1): $($(2)PREREQS)
 	@test -n "$($(2)NAME)" || { echo "ERROR: set $(2)NAME"; exit 1; }
-	@test -n "$(strip $($(2)SRCS))$($(2)LIB)" || \
-	    { echo "ERROR: set $(2)SRCS or $(2)LIB"; exit 1; }
+	@if [ "$($(2)NO_ARTIFACT_HASH)" = "1" ]; then \
+	    test -z "$(strip $($(2)SRCS))$($(2)LIB)" || \
+	        { echo "ERROR: $(2)NO_ARTIFACT_HASH stands alone. Do not set $(2)SRCS or $(2)LIB."; exit 1; }; \
+	else \
+	    test -n "$(strip $($(2)SRCS))$($(2)LIB)" || \
+	        { echo "ERROR: set $(2)SRCS or $(2)LIB"; exit 1; }; \
+	fi
 	@set -e; \
 	if [ -n "$(strip $($(2)SRCS))" ]; then \
 	    trap 'rm -f "$(CURDIR)/.$(1)-wolfssl-compliance-tooling-srcs.txt"' EXIT INT TERM HUP; \
@@ -182,9 +187,11 @@ $(1): $($(2)PREREQS)
 	    --root "$(or $($(2)ROOT),$(SBOM_ROOT))" \
 	    --license-file "$(or $($(2)LICENSE_FILE),$(SBOM_LICENSE_FILE))" \
 	    --skip-missing \
-	    $(if $(strip $($(2)SRCS)),--srcs-file "$(CURDIR)/.$(1)-wolfssl-compliance-tooling-srcs.txt") \
-	    $(if $($(2)LIB),--lib "$($(2)LIB)") \
 	    $(if $(filter 1,$($(2)NO_ARTIFACT_HASH)),--no-artifact-hash) \
+	    $(if $(filter 1,$($(2)NO_ARTIFACT_HASH)),, \
+	        $(if $(strip $($(2)SRCS)),--srcs-file "$(CURDIR)/.$(1)-wolfssl-compliance-tooling-srcs.txt")) \
+	    $(if $(filter 1,$($(2)NO_ARTIFACT_HASH)),, \
+	        $(if $($(2)LIB),--lib "$($(2)LIB)")) \
 	    $(if $(filter 1,$($(2)SOURCE_ONLY)),--source-only) \
 	    $(if $($(2)CFLAGS),--cflags="$$($(2)CFLAGS)") \
 	    $(if $($(2)SETTINGS_H),--settings-h "$($(2)SETTINGS_H)") \

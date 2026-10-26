@@ -54,6 +54,8 @@
 #                     inferred from LICENSE.
 #   LICENSE_TEXT <path>  Plain-text licence for a LicenseRef-* used in
 #                     LICENSE_OVERRIDE (required by SPDX 2.3).
+#   NO_ARTIFACT_HASH      Record a placeholder checksum. Do not pass TARGETS
+#                     or LIB with this option.
 #
 #   USER_SETTINGS <path>  Path to wolfssl/wolfcrypt/settings.h. This is the
 #                     generator's pcpp entry point. Also pass
@@ -77,7 +79,7 @@
 set(_WOLFSSL_COMPLIANCE_TOOLING_SBOM_DIR ${CMAKE_CURRENT_LIST_DIR})
 get_filename_component(_WOLFSSL_COMPLIANCE_TOOLING_DRIVER
     "${_WOLFSSL_COMPLIANCE_TOOLING_SBOM_DIR}/../sbom-driver.py" ABSOLUTE)
-find_program(_WOLFSSL_COMPLIANCE_TOOLING_PYTHON NAMES python3 python)
+find_package(Python3 COMPONENTS Interpreter)
 
 function(wolfssl_compliance_tooling_add_sbom)
     set(_opts NO_ARTIFACT_HASH SOURCE_ONLY)
@@ -93,7 +95,13 @@ function(wolfssl_compliance_tooling_add_sbom)
     if(NOT SB_NAME)
         message(FATAL_ERROR "wolfssl_compliance_tooling_add_sbom: NAME is required")
     endif()
-    if(NOT SB_TARGETS AND NOT SB_LIB)
+    if(SB_NO_ARTIFACT_HASH)
+        if(SB_TARGETS OR SB_LIB)
+            message(FATAL_ERROR
+                "wolfssl_compliance_tooling_add_sbom: NO_ARTIFACT_HASH stands "
+                "alone. Do not pass TARGETS or LIB.")
+        endif()
+    elseif(NOT SB_TARGETS AND NOT SB_LIB)
         message(FATAL_ERROR "wolfssl_compliance_tooling_add_sbom: set TARGETS or LIB")
     endif()
     if(NOT SB_ROOT)
@@ -136,13 +144,13 @@ function(wolfssl_compliance_tooling_add_sbom)
     endforeach()
     list(REMOVE_DUPLICATES _srcs)
 
-    if(NOT _WOLFSSL_COMPLIANCE_TOOLING_PYTHON)
+    if(NOT Python3_EXECUTABLE)
         message(FATAL_ERROR
             "wolfssl_compliance_tooling_add_sbom: python3 was not found")
     endif()
 
     set(_cmd ${CMAKE_COMMAND} -E env HOSTCC=${SB_HOSTCC}
-             ${_WOLFSSL_COMPLIANCE_TOOLING_PYTHON}
+             ${Python3_EXECUTABLE}
              ${_WOLFSSL_COMPLIANCE_TOOLING_DRIVER}
              --name ${SB_NAME}
              --root ${SB_ROOT}
@@ -150,18 +158,19 @@ function(wolfssl_compliance_tooling_add_sbom)
              --hostcc ${SB_HOSTCC}
              --skip-missing)
 
-    # Composition: a source set from the targets and/or a built library.
-    if(SB_TARGETS)
-        set(_srcs_file ${CMAKE_CURRENT_BINARY_DIR}/${SB_NAME}-sbom-srcs.txt)
-        string(REPLACE ";" "\n" _srcs_nl "${_srcs}")
-        file(GENERATE OUTPUT ${_srcs_file} CONTENT "${_srcs_nl}\n")
-        list(APPEND _cmd --srcs-file ${_srcs_file})
-    endif()
-    if(SB_LIB)
-        list(APPEND _cmd --lib ${SB_LIB})
-    endif()
+    # Composition: one checksum source. NO_ARTIFACT_HASH stands alone.
     if(SB_NO_ARTIFACT_HASH)
         list(APPEND _cmd --no-artifact-hash)
+    else()
+        if(SB_TARGETS)
+            set(_srcs_file ${CMAKE_CURRENT_BINARY_DIR}/${SB_NAME}-sbom-srcs.txt)
+            string(REPLACE ";" "\n" _srcs_nl "${_srcs}")
+            file(GENERATE OUTPUT ${_srcs_file} CONTENT "${_srcs_nl}\n")
+            list(APPEND _cmd --srcs-file ${_srcs_file})
+        endif()
+        if(SB_LIB)
+            list(APPEND _cmd --lib ${SB_LIB})
+        endif()
     endif()
 
     # Config: user_settings, a pre-expanded header, source-only, or -D flags.
