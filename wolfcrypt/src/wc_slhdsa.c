@@ -9151,8 +9151,11 @@ static void slhdsakey_wipe_secret_hash(SlhDsaKey* key)
             key->hash.sha2.sha256_inited = 0;
         }
     }
+    #ifndef WOLFSSL_SLHDSA_NO_SHAKE
     else
+    #endif
 #endif
+#ifndef WOLFSSL_SLHDSA_NO_SHAKE
     {
         wc_Shake* shake = &key->hash.shk.shake;
 
@@ -9160,6 +9163,7 @@ static void slhdsakey_wipe_secret_hash(SlhDsaKey* key)
         ForceZero(shake->t, sizeof(shake->t));
         shake->i = 0;
     }
+#endif
 }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -9171,14 +9175,18 @@ static void slhdsakey_memzero_add_hash(SlhDsaKey* key)
         wc_MemZero_Add("slhdsa key sha2Digest", key->sha2Digest,
             sizeof(key->sha2Digest));
     }
+    #ifndef WOLFSSL_SLHDSA_NO_SHAKE
     else
+    #endif
 #endif
+#ifndef WOLFSSL_SLHDSA_NO_SHAKE
     {
         wc_Shake* shake = &key->hash.shk.shake;
 
         wc_MemZero_Add("slhdsa key shake s", shake->s, sizeof(shake->s));
         wc_MemZero_Add("slhdsa key shake t", shake->t, sizeof(shake->t));
     }
+#endif
 }
 
 static void slhdsakey_memzero_check_hash(SlhDsaKey* key)
@@ -9187,14 +9195,18 @@ static void slhdsakey_memzero_check_hash(SlhDsaKey* key)
     if (SLHDSA_IS_SHA2(key->params->param)) {
         wc_MemZero_Check(key->sha2Digest, sizeof(key->sha2Digest));
     }
+    #ifndef WOLFSSL_SLHDSA_NO_SHAKE
     else
+    #endif
 #endif
+#ifndef WOLFSSL_SLHDSA_NO_SHAKE
     {
         wc_Shake* shake = &key->hash.shk.shake;
 
         wc_MemZero_Check(shake->s, sizeof(shake->s));
         wc_MemZero_Check(shake->t, sizeof(shake->t));
     }
+#endif
 }
 #endif
 
