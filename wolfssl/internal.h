@@ -3066,6 +3066,13 @@ typedef struct ProcPeerCertArgs {
 #ifdef OPENSSL_ALL
     word16 peerCertVerified:1; /* cert verify callback accepted peer cert */
 #endif
+#ifndef IGNORE_KEY_EXTENSIONS
+    /* Subject-name hashes of chain CAs whose Extended Key Usage error this
+     * handshake already accepted. The later issuer walk skips these CAs and
+     * still checks ancestors. The shared Signer is left unchanged. */
+    byte   ekuWaiveCount;
+    byte   ekuWaiveName[MAX_CHAIN_DEPTH][SIGNER_DIGEST_SIZE];
+#endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int cert_err, ProcPeerCertArgs* args);
