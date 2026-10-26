@@ -59,6 +59,14 @@
 
 /* err.h for openssl */
 #define ERR_load_ERR_strings             wolfSSL_ERR_load_ERR_strings
+#define ERR_get_next_error_library       wolfSSL_ERR_get_next_error_library
+#define ERR_load_strings                 wolfSSL_ERR_load_strings
+#define ERR_unload_strings               wolfSSL_ERR_unload_strings
+#define ERR_STRING_DATA                  WOLFSSL_ERR_STRING_DATA
+#define ERR_PACK(l, f, r)                                                     \
+    ((((unsigned long)(l) & 0xFFUL) << 24) |                                  \
+     (((unsigned long)(f) & 0xFFFUL) << 12) |                                 \
+     ((unsigned long)(r) & 0xFFFUL))
 #define ERR_load_crypto_strings          wolfSSL_ERR_load_crypto_strings
 #define ERR_load_CRYPTO_strings          wolfSSL_ERR_load_crypto_strings
 #define ERR_peek_last_error              wolfSSL_ERR_peek_last_error

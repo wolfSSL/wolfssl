@@ -3574,6 +3574,21 @@ WOLFSSL_API unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int
 WOLFSSL_API unsigned long wolfSSL_ERR_get_error(void);
 WOLFSSL_API void          wolfSSL_ERR_clear_error(void);
 
+#ifdef OPENSSL_EXTRA
+/* Error string of an error library registered by the application. */
+typedef struct WOLFSSL_ERR_STRING_DATA {
+    unsigned long error;
+    const char*   string;
+} WOLFSSL_ERR_STRING_DATA;
+
+/* wolfSSL_ERR_put_error() does not queue errors of these libraries. */
+WOLFSSL_API int wolfSSL_ERR_get_next_error_library(void);
+WOLFSSL_API int wolfSSL_ERR_load_strings(int lib,
+                                         WOLFSSL_ERR_STRING_DATA* str);
+WOLFSSL_API int wolfSSL_ERR_unload_strings(int lib,
+                                           WOLFSSL_ERR_STRING_DATA* str);
+#endif
+
 
 WOLFSSL_API int  wolfSSL_RAND_status(void);
 WOLFSSL_API int  wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num);

@@ -22118,6 +22118,40 @@ static int test_wolfSSL_ERR_put_error(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_ERR_load_strings(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
+    static char libName[] = "test lib";
+    static char reasonStr[] = "test reason";
+    ERR_STRING_DATA lib[2];
+    ERR_STRING_DATA reason[2];
+    int libNum = 0;
+
+    ExpectIntEQ(ERR_PACK(0x80, 0x1, 0x2), 0x80001002UL);
+    ExpectIntGE(libNum = ERR_get_next_error_library(), 128);
+    ExpectIntEQ(ERR_get_next_error_library(), libNum + 1);
+
+    XMEMSET(lib, 0, sizeof(lib));
+    XMEMSET(reason, 0, sizeof(reason));
+    lib[0].error = ERR_PACK(libNum, 0, 0);
+    lib[0].string = libName;
+    reason[0].error = ERR_PACK(libNum, 0, 1);
+    reason[0].string = reasonStr;
+    ExpectIntEQ(ERR_load_strings(libNum, lib), 1);
+    ExpectIntEQ(ERR_load_strings(libNum, reason), 1);
+
+    /* Errors of application libraries are not queued. */
+    ERR_clear_error();
+    ERR_put_error(libNum, 0, 1, "this file", 1);
+    ExpectIntEQ(ERR_peek_error(), 0);
+
+    ExpectIntEQ(ERR_unload_strings(libNum, reason), 1);
+    ExpectIntEQ(ERR_unload_strings(libNum, lib), 1);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * This is a regression test for a bug where the peek/get error functions were
  * drawing from the end of the queue rather than the front.
@@ -47414,6 +47448,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as callbacks use Assert. */
     TEST_DECL(test_error_queue_per_thread),
     TEST_DECL(test_wolfSSL_ERR_put_error),
+    TEST_DECL(test_wolfSSL_ERR_load_strings),
     TEST_DECL(test_wolfSSL_ERR_get_error_order),
     TEST_DECL(test_wolfSSL_ERR_GET_REASON_version_mismatch),
 #ifndef NO_BIO
