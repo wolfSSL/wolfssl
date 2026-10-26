@@ -122,6 +122,7 @@ def main():
     ap.add_argument('--version-macro', default=None)
     ap.add_argument('--root', default=None)
     ap.add_argument('--license-file', default=None)
+    ap.add_argument('--copyright-start', default=None)
     # The .ewp records the -D tokens ICCARM was given, not the macros a
     # settings header derives from them. Without these two the capture reads
     # an empty translation unit and the recorded configuration is the -D list
@@ -202,6 +203,7 @@ def main():
                       ('--version-macro', args.version_macro),
                       ('--root', args.root),
                       ('--license-file', args.license_file),
+                      ('--copyright-start', args.copyright_start),
                       ('--settings-h', args.settings_h),
                       ('--crypto-only', args.crypto_only),
                       ('--gen-sbom', args.gen_sbom),

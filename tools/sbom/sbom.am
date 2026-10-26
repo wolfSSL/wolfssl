@@ -47,6 +47,7 @@
 #                       detected from SBOM_LICENSE_FILE.
 #   SBOM_LICENSE_TEXT   Path to licence text for any LicenseRef-* used in
 #                       SBOM_LICENSE_OVERRIDE (required by SPDX 2.3).
+#   SBOM_COPYRIGHT_START   First year of the copyright line.  Default: 2006.
 #   SBOM_WOLFSSL_VERSION   Version recorded for the wolfSSL dependency.  When
 #                       unset and WOLFSSL_DIR is set, it is read from that tree:
 #                       wolfssl/version.h, else configure.ac (version.h is
@@ -296,6 +297,7 @@ sbom:
 	    $${ns_arg:+$$ns_arg '$(SBOM_DOCUMENT_NAMESPACE)'} \
 	    $(if $(SBOM_LICENSE_OVERRIDE),--license-override '$(SBOM_LICENSE_OVERRIDE)') \
 	    $(if $(SBOM_LICENSE_TEXT),--license-text '$(SBOM_LICENSE_TEXT)') \
+	    $(if $(SBOM_COPYRIGHT_START),--copyright-start '$(SBOM_COPYRIGHT_START)') \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
 	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
 	$(PYSPDXTOOLS) --infile $(abs_builddir)/$(SBOM_SPDX) \

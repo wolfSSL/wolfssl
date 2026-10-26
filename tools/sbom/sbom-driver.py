@@ -316,6 +316,9 @@ def main():
                          "primaryPackagePurpose. Use firmware for a "
                          "bootloader. Passed through only if the generator "
                          "supports it.")
+    ap.add_argument("--copyright-start", default="",
+                    help="First year of the copyright line. Passed through "
+                         "only if the generator supports it.")
     ap.add_argument("--license-file", default="")
     ap.add_argument("--license-override", default="")
     ap.add_argument("--license-text", default="")
@@ -432,7 +435,9 @@ def main():
                 with open(args.options_h, encoding="utf-8", errors="replace") as f:
                     defines_text = f.read()
             elif args.cflags:
-                if args.settings_h and not os.path.isfile(args.settings_h):
+                # A relative path is left to the compiler's -include search.
+                if (os.path.isabs(args.settings_h)
+                        and not os.path.isfile(args.settings_h)):
                     sys.exit(f"ERROR: --settings-h '{args.settings_h}' "
                              f"does not exist.")
                 defines_text = capture_macros(
@@ -463,6 +468,10 @@ def main():
         if args.component_type and gen_sbom_supports(
                 args.python, gen_sbom, "--component-type"):
             cmd += ["--component-type", args.component_type]
+
+        if args.copyright_start and gen_sbom_supports(
+                args.python, gen_sbom, "--copyright-start"):
+            cmd += ["--copyright-start", args.copyright_start]
 
         # Dependencies, only if the generator supports them.
         if args.dep_wolfssl and gen_sbom_supports(args.python, gen_sbom, "--dep-wolfssl"):
