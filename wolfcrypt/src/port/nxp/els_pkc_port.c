@@ -1680,8 +1680,9 @@ static int ElsEccSignRun(mcuxClEls_EccSignOption_t opt, byte slot,
     return ElsWait();
 }
 
+/* The check-key self-test passes anyNonce to ignore the key's nonce mode. */
 static int ElsEccSign(const byte* in, word32 inlen, byte* out, word32* outlen,
-                      ecc_key* key)
+                      ecc_key* key, int anyNonce)
 {
     mcuxClEls_EccSignOption_t opt;
     wc_ElsPkc_KeyRef ref;
@@ -1704,7 +1705,7 @@ static int ElsEccSign(const byte* in, word32 inlen, byte* out, word32* outlen,
     if (ret != 0) {
         return ret;
     }
-    if (!ElsEccCurveOk(key) || ElsEccCustomNonce(key)) {
+    if (!ElsEccCurveOk(key) || (!anyNonce && ElsEccCustomNonce(key))) {
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
@@ -1830,6 +1831,85 @@ out:
 }
 
 #endif /* HAVE_ECC_VERIFY */
+
+#ifdef HAVE_ECC_CHECK_KEY
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+static const byte elsEccPctDigest[ELS_ECC_COORD_SZ] = {
+    0x45, 0x4c, 0x53, 0x2d, 0x50, 0x43, 0x54, 0x2d,
+    0x45, 0x4c, 0x53, 0x2d, 0x50, 0x43, 0x54, 0x2d,
+    0x45, 0x4c, 0x53, 0x2d, 0x50, 0x43, 0x54, 0x2d,
+    0x45, 0x4c, 0x53, 0x2d, 0x50, 0x43, 0x54, 0x2d
+};
+
+/* Sign in the slot and verify against key->pubkey. */
+static int ElsEccPairwiseTest(ecc_key* key)
+{
+    byte   der[ECC_MAX_SIG_SIZE];
+    word32 derSz = sizeof(der);
+    int    res = 0;
+    int    ret;
+
+    ret = ElsEccSign(elsEccPctDigest, sizeof(elsEccPctDigest), der, &derSz,
+                     key, 1);
+    if (ret == 0) {
+        ret = ElsEccVerify(der, derSz, elsEccPctDigest,
+                           sizeof(elsEccPctDigest), &res, key);
+    }
+    /* A decline would let wc_ecc_check_key() skip the pairing in software. */
+    if ((ret == 0 && res != 1) ||
+        ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        ret = WC_NO_ERR_TRACE(ECC_PRIV_KEY_E);
+    }
+
+    return ret;
+}
+#endif
+
+/* wc_ecc_check_key() for a slot key, whose ecc_key holds no scalar. */
+static int ElsEccCheckKey(ecc_key* key, int checkPriv)
+{
+    wc_ElsPkc_KeyRef ref;
+    int havePub;
+    int ret;
+
+    ret = ElsEccRef(key, &ref);
+    if (ret != 0) {
+        return ret;
+    }
+    if ((ref.keyClass != WC_ELSPKC_KEY_ECC_SIGN &&
+         ref.keyClass != WC_ELSPKC_KEY_ECC_DH) || !ElsEccCurveOk(key)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    /* P-256 has cofactor 1, so a point on the curve also has order n. */
+    havePub = (key->type == ECC_PUBLICKEY || key->type == ECC_PRIVATEKEY);
+    if (!havePub && !checkPriv) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (havePub) {
+        ret = wc_ecc_point_is_on_curve(&key->pubkey, key->idx);
+    }
+    if (ret != 0 || !checkPriv) {
+        return ret;
+    }
+
+    ret = ElsLock();
+    if (ret != 0) {
+        return ret;
+    }
+    ret = ElsCheckSlot(&ref, ref.keyClass);
+    ElsUnlock();
+
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+    /* A key agreement slot cannot sign, so only the slot check covers it. */
+    if (ret == 0 && havePub && ref.keyClass == WC_ELSPKC_KEY_ECC_SIGN) {
+        ret = ElsEccPairwiseTest(key);
+    }
+#endif
+
+    return ret;
+}
+#endif /* HAVE_ECC_CHECK_KEY */
 
 #endif /* HAVE_ECC */
 
@@ -4425,7 +4505,8 @@ int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                     /* ELS first; it declines anything but a P-256 slot key. */
                     ret = ElsEccSign(info->pk.eccsign.in,
                             info->pk.eccsign.inlen, info->pk.eccsign.out,
-                            info->pk.eccsign.outlen, info->pk.eccsign.key);
+                            info->pk.eccsign.outlen, info->pk.eccsign.key,
+                            0);
                     if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                         ret = ElsPkcEccSign(info->pk.eccsign.in,
                                 info->pk.eccsign.inlen, info->pk.eccsign.out,
@@ -4455,6 +4536,12 @@ int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                                 info->pk.eccverify.res,
                                 info->pk.eccverify.key);
                     }
+                    break;
+    #endif
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_CHECK_KEY)
+                case WC_PK_TYPE_EC_CHECK_PUB_KEY:
+                    ret = ElsEccCheckKey(info->pk.ecc_check_pub.key,
+                                         info->pk.ecc_check_pub.checkPriv);
                     break;
     #endif
                 /* No WC_PK_TYPE_ECDH: ELS leaves the agreed secret in a slot. */
