@@ -47,8 +47,10 @@ static int wb_fail = 0;
 
 #ifdef WOLFSSL_HAVE_SLHDSA
 
+#ifndef NO_ASN
 /* ------------------------------------------------------------------------- *
  * slhdsa_find_params(): found vs not-found (both halves of the table compare).
+ * Only compiled with the DER decoders that use it.
  * ------------------------------------------------------------------------- */
 static void wb_find_params(void)
 {
@@ -79,6 +81,7 @@ static void wb_find_params(void)
 
     WB_NOTE("slhdsa_find_params found/not-found pair exercised");
 }
+#endif /* !NO_ASN */
 
 /* ------------------------------------------------------------------------- *
  * slhdsakey_base_2b(): nested for/while loop decisions.
@@ -125,15 +128,18 @@ static void wb_ha_encode(void)
         adrs[i] = (word32)(0x01020300u + (word32)i);
     }
 
+#ifndef WOLFSSL_SLHDSA_NO_SHAKE
     /* HA_Encode: the WOLFSSL_WC_SLHDSA_SMALL variant takes the for-loop body
      * (its "i < 8" decision), the default variant the unrolled writes. Either
-     * way this is the direct, sign-free drive of that arm. */
+     * way this is the direct, sign-free drive of that arm. HA_Encode is only
+     * compiled when a SHAKE parameter set is. */
     XMEMSET(address, 0, sizeof(address));
     HA_Encode(adrs, address);
     if ((address[0] == 0) && (address[SLHDSA_HA_SZ - 1] != 0)) {
         /* purely to consume the output so it is not optimized away */
         WB_NOTE("HA_Encode produced an unexpected all-zero prefix");
     }
+#endif
 
 #ifdef WOLFSSL_SLHDSA_SHA2
     /* HA_Encode_Compressed is only compiled under WOLFSSL_SLHDSA_SHA2. */
@@ -176,9 +182,11 @@ static void wb_precompute_sha2_midstates(void)
         wb_fail = 1;
     }
 
+#ifdef WC_SLHDSA_NEED_SHA512
     /* n > 16 (categories 3, 5): true side. The function only reads
      * key->params->n and key->sk, so this crafted entry is a faithful
-     * exercise of the SHA-512 midstate branch. */
+     * exercise of the SHA-512 midstate branch. The branch is only compiled
+     * when a category 3 or 5 SHA2 parameter set is. */
     fakeParams.n = 24;
     key.hash.sha2.sha256_mid_inited = 0;
     key.hash.sha2.sha512_mid_inited = 0;
@@ -186,6 +194,7 @@ static void wb_precompute_sha2_midstates(void)
         WB_NOTE("precompute_sha2_midstates(n=24) failed");
         wb_fail = 1;
     }
+#endif
 
     /* Free the hash objects directly (not via wc_SlhDsaKey_Free): fakeParams
      * isn't a real table entry, so SLHDSA_IS_SHA2(key->params->param) can't
@@ -199,6 +208,7 @@ static void wb_precompute_sha2_midstates(void)
     if (key.hash.sha2.sha256_mid_inited) {
         wc_Sha256Free(&key.hash.sha2.sha256_mid);
     }
+#ifdef WC_SLHDSA_NEED_SHA512
     if (key.hash.sha2.sha512_inited) {
         wc_Sha512Free(&key.hash.sha2.sha512);
     }
@@ -208,6 +218,7 @@ static void wb_precompute_sha2_midstates(void)
     if (key.hash.sha2.sha512_mid_inited) {
         wc_Sha512Free(&key.hash.sha2.sha512_mid);
     }
+#endif
 
     WB_NOTE("slhdsakey_precompute_sha2_midstates n<=16/n>16 pair exercised");
 }
@@ -280,7 +291,9 @@ static void wb_h_msg_sha2_ctx_pairs(void)
         wb_fail = 1;
     }
 
-    /* SHA-512 branch (n > WC_SLHDSA_N_128). Four combinations:
+#ifdef WC_SLHDSA_NEED_SHA512
+    /* SHA-512 branch (n > WC_SLHDSA_N_128), only compiled when a category 3
+     * or 5 SHA2 parameter set is. Four combinations:
      *   A: hdr==NULL,           ctxSz==0            -> both false
      *   B: hdr!=NULL,           ctxSz==0            -> hdr pair's true side
      *   C: hdr!=NULL, ctxSz>0,  ctx==NULL            -> ctxSz>0 T, ctx!=NULL F
@@ -312,6 +325,7 @@ static void wb_h_msg_sha2_ctx_pairs(void)
         WB_NOTE("h_msg_sha2(n=24,D) failed");
         wb_fail = 1;
     }
+#endif
 
     if (key.hash.sha2.sha256_inited) {
         wc_Sha256Free(&key.hash.sha2.sha256);
@@ -319,12 +333,14 @@ static void wb_h_msg_sha2_ctx_pairs(void)
     if (key.hash.sha2.sha256_2_inited) {
         wc_Sha256Free(&key.hash.sha2.sha256_2);
     }
+#ifdef WC_SLHDSA_NEED_SHA512
     if (key.hash.sha2.sha512_inited) {
         wc_Sha512Free(&key.hash.sha2.sha512);
     }
     if (key.hash.sha2.sha512_2_inited) {
         wc_Sha512Free(&key.hash.sha2.sha512_2);
     }
+#endif
 
     WB_NOTE("slhdsakey_h_msg_sha2 hdr/ctx independence pairs exercised");
 }
@@ -419,7 +435,9 @@ int main(void)
     printf("  WOLFSSL_HAVE_SLHDSA not defined; nothing to exercise\n");
     return 0;
 #else
+#ifndef NO_ASN
     wb_find_params();
+#endif
     wb_base_2b();
     wb_ha_encode();
 #ifdef WOLFSSL_SLHDSA_SHA2

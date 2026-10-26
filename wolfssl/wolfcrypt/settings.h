@@ -5663,8 +5663,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WOLFSSL_W64_WRAPPER
 #endif
 
-/* wc_xmss and wc_lms require these misc.c functions. */
-#if defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_LMS)
+/* wc_xmss, wc_lms and wc_slhdsa require these misc.c functions. */
+#if defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_LMS) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     #undef  WOLFSSL_NO_INT_ENCODE
     #undef  WOLFSSL_NO_INT_DECODE
 #endif

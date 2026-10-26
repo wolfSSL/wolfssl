@@ -477,6 +477,7 @@ static void wb_init_rows(int param)
     printf("  [wb] param %d: init hash-object rows exercised\n", param);
 }
 
+#ifndef NO_ASN
 /* Import/export + DER encode/decode: the ASN-side residuals
  * (`(key->params != NULL) && ...`, `while (ret == 0 && *inOutIdx < seqEnd)`)
  * live here and cost nothing to drive. */
@@ -568,6 +569,7 @@ static void wb_der_rows(int param)
 
     (void)wc_SlhDsaKey_ExportPublic(&wb_key, pub, &idx);
 }
+#endif /* !NO_ASN */
 
 static void wb_run_param(int param)
 {
@@ -594,8 +596,10 @@ static void wb_run_param(int param)
         wb_sweep_verify(param);
     if (!wb_expired())
         wb_sweep_prehash(param);
+#ifndef NO_ASN
     if (!wb_expired())
         wb_der_rows(param);
+#endif
     if (!wb_expired())
         wb_sweep_import(param);
     if (!wb_expired())

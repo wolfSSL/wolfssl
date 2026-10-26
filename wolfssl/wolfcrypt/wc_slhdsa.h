@@ -742,6 +742,15 @@ enum SlhDsaParam {
     #define SLHDSA_IS_SHA2(p)   0
 #endif
 
+/* SHA-512 is used only by the SHA2 parameter sets of categories 3 and 5
+ * (n = 24 and 32). The category 1 SHA2 sets use SHA-256 alone, so without
+ * the larger SHA2 sets no SHA-512 code or state is compiled in. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    (!defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192) || \
+     !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256))
+    #define WC_SLHDSA_NEED_SHA512
+#endif
+
 /* Pre-defined parameter values. */
 typedef struct SlhDsaParameters {
     enum SlhDsaParam param;     /* Parameter set id. */
@@ -801,32 +810,40 @@ struct SlhDsaKey {
     byte sk[32 * 4];
     /* Hash objects for SHAKE or SHA2. */
     union {
+#ifndef WOLFSSL_SLHDSA_NO_SHAKE
         struct {
             /* Primary SHAKE-256 object. */
             wc_Shake shake;
             /* Secondary SHAKE-256 object (T_l streaming). */
             wc_Shake shake2;
         } shk;
+#endif
 #ifdef WOLFSSL_SLHDSA_SHA2
         struct {
             /* F, PRF (all cats) + H, T_l (cat 1). */
             wc_Sha256 sha256;
             /* T_l streaming (cat 1), H_msg scratch. */
             wc_Sha256 sha256_2;
+        #ifdef WC_SLHDSA_NEED_SHA512
             /* H, T_l (cats 3, 5). */
             wc_Sha512 sha512;
             /* H_msg streaming (cats 3, 5). */
             wc_Sha512 sha512_2;
+        #endif
             /* Pre-computed midstate: PK.seed || pad(64 - n). */
             wc_Sha256 sha256_mid;
+        #ifdef WC_SLHDSA_NEED_SHA512
             /* Pre-computed midstate: PK.seed || pad(128 - n). */
             wc_Sha512 sha512_mid;
+        #endif
             WC_BITFIELD sha256_inited:1;
             WC_BITFIELD sha256_2_inited:1;
             WC_BITFIELD sha256_mid_inited:1;
+        #ifdef WC_SLHDSA_NEED_SHA512
             WC_BITFIELD sha512_inited:1;
             WC_BITFIELD sha512_2_inited:1;
             WC_BITFIELD sha512_mid_inited:1;
+        #endif
         } sha2;
 #endif
     } hash;
@@ -921,6 +938,7 @@ WOLFSSL_API int  wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
 
 /* DER encode/decode */
+#ifndef NO_ASN
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyDecode(const byte* input,
     word32* inOutIdx, SlhDsaKey* key, word32 inSz);
@@ -940,6 +958,7 @@ WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyToDer(SlhDsaKey* key, byte* output,
 WOLFSSL_API int  wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output,
     word32 inLen, int withAlg);
 #endif
+#endif /* !NO_ASN */
 
 #endif /* WOLFSSL_HAVE_SLHDSA */
 
