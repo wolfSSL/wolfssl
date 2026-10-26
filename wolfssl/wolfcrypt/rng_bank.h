@@ -443,6 +443,19 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
         return wc_RNG_lock_put_conditional(
             WC_RNG_BANK_INST_TO_RNG(inst), expect_extra_bits, 0);
     }
+  #ifdef BUILDING_WOLFSSL
+    static WC_INLINE int wc_rng_bank_inst_lock_get_unconditional(
+        struct wc_rng_bank_inst *inst)
+    {
+        return wc_RNG_lock_get_unconditional(
+            WC_RNG_BANK_INST_TO_RNG(inst));
+    }
+    static WC_INLINE void wc_rng_bank_inst_lock_put_unconditional(
+        struct wc_rng_bank_inst *inst)
+    {
+        wc_RNG_lock_put_unconditional(WC_RNG_BANK_INST_TO_RNG(inst));
+    }
+  #endif /* BUILDING_WOLFSSL */
     static WC_INLINE int wc_rng_bank_inst_lock_read(
         struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t *state)
     {
@@ -492,8 +505,10 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
         struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
         WC_RNG_lock_arg_t want_extra_bits);
+    WOLFSSL_LOCAL int wc_rng_bank_inst_lock_get_unconditional(struct wc_rng_bank_inst *inst);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_LOCAL void wc_rng_bank_inst_lock_put_unconditional(struct wc_rng_bank_inst *inst);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);

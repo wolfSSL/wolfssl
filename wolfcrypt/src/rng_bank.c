@@ -156,7 +156,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     wolfSSL_Atomic_Int_Init(&ctx->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
 #endif
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
-#ifdef WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED
+#ifdef WC_RNG_HAVE_NEXT_SEED
     if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
         rng_flags |= WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
 #endif
@@ -1988,7 +1988,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     if (ret < 0)
         return ret;
 
-#ifdef WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED
+#ifdef WC_RNG_HAVE_NEXT_SEED
     if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
         rng_flags |= WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
 #endif
@@ -2347,7 +2347,7 @@ static int rng_bank_spawn(
 
     {
         word32 child_init_flags = WC_RNG_INIT_FLAG_NONE;
-#ifdef WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED
+#ifdef WC_RNG_HAVE_NEXT_SEED
         if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
             child_init_flags |=
                 WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
@@ -3194,6 +3194,26 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
         return UNEXPECTED_STATE_E;
 }
 
+WOLFSSL_LOCAL int wc_rng_bank_inst_lock_get_unconditional(struct wc_rng_bank_inst *inst)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
+        (wolfSSL_Atomic_Uint_CompareExchange(
+            &inst->lock, &cur_lock,
+            cur_lock | WC_RNG_LOCK_HELD)))
+    {
+        return 0;
+    }
+
+    return BUSY_E;
+}
+
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
 {
     WC_RNG_lock_arg_t cur_lock, new_lock;
@@ -3273,6 +3293,13 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_in
     }
     /* conditional release failed: the caller is still the holder. */
     return UNEXPECTED_STATE_E;
+}
+
+WOLFSSL_LOCAL void wc_rng_bank_inst_lock_put_unconditional(struct wc_rng_bank_inst *inst)
+{
+    if (inst == NULL)
+        return;
+    (void)wolfSSL_Atomic_Uint_FetchSub(&inst->lock, WC_RNG_LOCK_HELD);
 }
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state)
