@@ -125,6 +125,9 @@ extern "C" {
 /*---------- WOLF_CONF_KYBER -----------*/
 #define WOLF_CONF_KYBER      0
 
+/*---------- WOLF_CONF_MLDSA -----------*/
+#define WOLF_CONF_MLDSA      0
+
 /*---------- WOLF_CONF_ARMASM -----------*/
 #define WOLF_CONF_ARMASM      1
 
@@ -665,9 +668,6 @@ extern "C" {
 /* NOTE: this is after the hashing section to override the potential SHA3 undef
  * above. */
 #if defined(WOLF_CONF_KYBER) && WOLF_CONF_KYBER == 1
-    #undef  WOLFSSL_EXPERIMENTAL_SETTINGS
-    #define WOLFSSL_EXPERIMENTAL_SETTINGS
-
     #undef  WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_HAVE_MLKEM
 
@@ -682,6 +682,22 @@ extern "C" {
     #undef  WOLFSSL_SHA3
     #define WOLFSSL_SHA3
 #endif /* WOLF_CONF_KYBER */
+
+#if defined(WOLF_CONF_MLDSA) && WOLF_CONF_MLDSA == 1
+    #undef  WOLFSSL_HAVE_MLDSA
+    #define WOLFSSL_HAVE_MLDSA
+
+    #undef  WOLFSSL_NO_SHAKE128
+    #undef  WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE128
+
+    #undef  WOLFSSL_NO_SHAKE256
+    #undef  WOLFSSL_SHAKE256
+    #define WOLFSSL_SHAKE256
+
+    #undef  WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
+#endif /* WOLF_CONF_MLDSA */
 
 /* ------------------------------------------------------------------------- */
 /* Crypto Acceleration */

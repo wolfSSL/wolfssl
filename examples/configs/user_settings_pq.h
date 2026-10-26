@@ -68,9 +68,14 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------- */
-/* Experimental Settings (required for PQ) */
+/* Experimental Settings */
 /* ------------------------------------------------- */
-#define WOLFSSL_EXPERIMENTAL_SETTINGS
+/* Not needed for ML-KEM, ML-DSA, LMS, XMSS or SLH-DSA. Only Falcon
+ * (HAVE_FALCON), dual algorithm certificates (WOLFSSL_DUAL_ALG_CERTS) and
+ * Ascon (HAVE_ASCON) still require it. */
+#if 0
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 
 /* ------------------------------------------------- */
 /* ML-KEM / Kyber (Key Encapsulation) */

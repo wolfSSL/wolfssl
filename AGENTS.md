@@ -62,8 +62,11 @@ sudo make install     # installs lib, headers, wolfssl.pc, cmake package files
 ### Commonly used configure options
 
 Defaults already on: TLS 1.2/1.3, ECC, RSA, AES(+GCM), SHA-2, ChaCha20-Poly1305,
-Curve25519/Ed25519, hardening (`--enable-harden`: timing resistance + blinding),
-SP math. Most work is *adding* protocols/features or *shrinking* the build.
+ML-KEM (non-FIPS builds), hardening (`--enable-harden`: timing resistance +
+blinding), SP math. Curve25519/Ed25519 are *off* by default: add
+`--enable-curve25519` (also needed for the X25519MLKEM768 hybrid TLS group) and
+`--enable-ed25519`. Most work is *adding* protocols/features or *shrinking* the
+build.
 
 | Group | Options |
 |---|---|

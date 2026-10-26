@@ -113,7 +113,12 @@ extern "C" {
 /* ------------------------------------------------- */
 /* Post-Quantum Algorithms */
 /* ------------------------------------------------- */
-#define WOLFSSL_EXPERIMENTAL_SETTINGS
+/* WOLFSSL_EXPERIMENTAL_SETTINGS is not needed for ML-DSA, LMS or XMSS. Only
+ * Falcon (HAVE_FALCON), dual algorithm certificates (WOLFSSL_DUAL_ALG_CERTS)
+ * and Ascon (HAVE_ASCON) still require it. */
+#if 0
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 
 #if 1 /* ML-DSA (FIPS 204) */
     #define WOLFSSL_HAVE_MLDSA
