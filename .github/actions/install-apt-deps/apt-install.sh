@@ -6,6 +6,9 @@
 #   --tries N              attempts (default 3)
 #   --update-timeout S     limit for each apt-get update (default 90)
 #   --install-timeout S    limit for each apt-get install (default 300)
+#   --budget S             set both limits from S seconds split over the
+#                          attempts left, so a quick failure gives its time to
+#                          the next attempt (default 0: use the limits above)
 #   --delay S              wait before the first retry, doubled after (5)
 #   --no-update            skip apt-get update
 #   --drop-vendor-sources  remove the runner's Google/Microsoft apt sources
@@ -17,6 +20,7 @@ set -u
 tries=3
 update_timeout=90
 install_timeout=300
+budget=0
 delay=5
 update=1
 drop_vendor=0
@@ -27,6 +31,7 @@ while [ $# -gt 0 ]; do
         --tries) tries=$2; shift ;;
         --update-timeout) update_timeout=$2; shift ;;
         --install-timeout) install_timeout=$2; shift ;;
+        --budget) budget=$2; shift ;;
         --delay) delay=$2; shift ;;
         --no-update) update=0 ;;
         --drop-vendor-sources) drop_vendor=1 ;;
@@ -37,7 +42,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-for n in "$tries" "$update_timeout" "$install_timeout" "$delay"; do
+for n in "$tries" "$update_timeout" "$install_timeout" "$budget" "$delay"; do
     case $n in
         ''|*[!0-9]*) echo "apt-install.sh: not a number: '$n'" >&2; exit 2 ;;
     esac
@@ -64,6 +69,16 @@ apt_get() {
         -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 "$@"
 }
 
+split_budget() {
+    per=$(( (deadline - $(date +%s)) / (tries - i + 1) ))
+    # Update gets half (20s..90s, apt's 3 x 30s ladder), install the rest.
+    update_timeout=$((per / 2))
+    [ "$update_timeout" -le 90 ] || update_timeout=90
+    [ "$update_timeout" -ge 20 ] || update_timeout=20
+    install_timeout=$((per - update_timeout))
+    [ "$install_timeout" -ge 40 ] || install_timeout=40
+}
+
 attempt() {
     # An attempt killed mid-unpack leaves dpkg needing this.
     as_root dpkg --configure -a || true
@@ -83,8 +98,10 @@ if [ "$drop_vendor" -eq 1 ]; then
         while read -r f; do as_root rm -vf "$f"; done
 fi
 
+deadline=$(( $(date +%s) + budget ))
 i=1
 while :; do
+    [ "$budget" -eq 0 ] || split_budget
     rc=0
     attempt "$@" || rc=$?
     [ "$rc" -ne 0 ] || exit 0

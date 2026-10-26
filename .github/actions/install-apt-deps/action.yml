@@ -202,18 +202,11 @@ runs:
       if: steps.ghcr.outputs.satisfied != 'true'
       shell: bash
       run: |
-        # Update gets half of each attempt (20s..90s, apt's 3 x 30s ladder).
-        PER=$(( ${{ inputs.budget-seconds }} / ${{ inputs.retries }} ))
-        UPD=$((PER / 2))
-        [ "$UPD" -le 90 ] || UPD=90
-        [ "$UPD" -ge 20 ] || UPD=20
-        INS=$((PER - UPD))
-        [ "$INS" -ge 40 ] || INS=40
         NO_REC=""
         if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
           NO_REC="--no-install-recommends"
         fi
         "$GITHUB_ACTION_PATH/apt-install.sh" \
           --tries ${{ inputs.retries }} --delay ${{ inputs.retry-delay }} \
-          --update-timeout "$UPD" --install-timeout "$INS" \
+          --budget ${{ inputs.budget-seconds }} \
           --drop-vendor-sources $NO_REC ${{ inputs.packages }}
