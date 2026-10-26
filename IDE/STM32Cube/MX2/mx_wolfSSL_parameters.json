@@ -269,6 +269,12 @@
               "description": "Enable KYBER / ML-KEM Post-Quantum Algorithm support",
               "default": false
             },
+            "mldsaSupport": {
+              "type": "boolean",
+              "title": "ML-DSA / Dilithium Post-Quantum Signature Support",
+              "description": "Enable ML-DSA / Dilithium Post-Quantum Signature support (FIPS 204)",
+              "default": false
+            },
             "dtls13Support": {
               "type": "boolean",
               "title": "DTLS v1.3 Support",

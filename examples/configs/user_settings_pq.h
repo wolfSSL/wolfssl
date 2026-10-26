@@ -68,9 +68,15 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------- */
-/* Experimental Settings (required for PQ) */
+/* Experimental Settings */
 /* ------------------------------------------------- */
-#define WOLFSSL_EXPERIMENTAL_SETTINGS
+/* Not needed for ML-KEM, ML-DSA, LMS, XMSS or SLH-DSA. Only define it for
+ * features that are still experimental; see the WOLFSSL_EXPERIMENTAL_SETTINGS
+ * check in wolfssl/wolfcrypt/settings.h and the options that require
+ * --enable-experimental in configure.ac. */
+#if 0
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 
 /* ------------------------------------------------- */
 /* ML-KEM / Kyber (Key Encapsulation) */
