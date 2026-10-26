@@ -30482,6 +30482,15 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     /* RFC 8446 6.1, 6.2 - no new data after close_notify or a fatal alert */
     if (IsWriteClosed(ssl)) {
         WOLFSSL_MSG("Connection is closed, not sending new data");
+    #ifdef WOLFSSL_TLS13
+        /* remove a KeyUpdate response that was left for this call to send */
+        if (ssl->options.sendKeyUpdate) {
+            ssl->options.sendKeyUpdate = 0;
+        #ifndef WOLFSSL_RW_THREADED
+            ssl->keys.keyUpdateRespond = 0;
+        #endif
+        }
+    #endif
         if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
                 ssl->error == WOLFSSL_ERROR_WANT_READ) {
             ssl->error = ssl->options.fatalAlert ? SOCKET_PEER_CLOSED_E :
@@ -30496,17 +30505,21 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
      * is flushed, so that the record of an earlier call is accounted for above
      * instead of being sent from here and then built again. */
     if (ssl->options.sendKeyUpdate) {
-        ssl->options.sendKeyUpdate = 0;
         /* RFC 9846 Section 4.7.3: at the key update limit, ignore the
          * request rather than fail the write. */
         if (Tls13KeyUpdateLimitReached(ssl)) {
             WOLFSSL_MSG("Key update limit reached; ignoring update_requested");
+            ssl->options.sendKeyUpdate = 0;
         #ifndef WOLFSSL_RW_THREADED
             ssl->keys.keyUpdateRespond = 0;
         #endif
             ret = 0;
         }
         else {
+            /* For TLS, SendTls13KeyUpdate() clears the flag itself and sends
+             * the KeyUpdate as a response. */
+            if (ssl->options.dtls)
+                ssl->options.sendKeyUpdate = 0;
             ret = SendTls13KeyUpdate(ssl);
         }
         if (ret != 0) {

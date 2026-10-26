@@ -14325,6 +14325,14 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
 
     AddTls13Headers(output, OPAQUE8_LEN, key_update, ssl);
 
+    /* A TLS response left for SendData() is owed even if a later
+     * update_not_requested cleared keyUpdateRespond, and this KeyUpdate,
+     * whoever asked for it, answers it. */
+    if (!ssl->options.dtls && ssl->options.sendKeyUpdate) {
+        ssl->keys.keyUpdateRespond = 1;
+        ssl->options.sendKeyUpdate = 0;
+    }
+
     /* If:
      *   1. I haven't sent a KeyUpdate requesting a response and
      *   2. This isn't responding to peer KeyUpdate requiring a response then,

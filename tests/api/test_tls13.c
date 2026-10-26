@@ -14722,19 +14722,24 @@ int test_tls13_KeyUpdate_limit_ignores_update_requested(void)
  *
  * Block the client's transport and have the server request one update after
  * the other. The first one is queued and a single response is
- * left for the next wolfSSL_write() to send ahead of its data. */
+ * left for the next wolfSSL_write() to send ahead of its data.
+ *
+ * Not with HAVE_IO_POOL: its one output buffer per thread can't hold the
+ * client's queued response while the server, on the same thread, writes. */
 int test_tls13_KeyUpdate_blocked_write(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RW_THREADED) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(HAVE_IO_POOL)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     const char msg[] = "key-update-blocked-write";
     char buf[sizeof(msg)];
     word32 queued = 0;
+    w64wrapper sCount = w64From32(0, 0);
+    int sLen = 0;
     int i;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -14831,6 +14836,7 @@ int test_tls13_KeyUpdate_blocked_write(void)
     if (EXPECT_SUCCESS() && ssl_c != NULL) {
         ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, w64From32(0, 5)));
         ExpectIntEQ(ssl_c->keys.keyUpdateRespond, 0);
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 0);
         ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
     }
     if (ssl_s != NULL)
@@ -14851,6 +14857,67 @@ int test_tls13_KeyUpdate_blocked_write(void)
     ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
     if (EXPECT_SUCCESS() && ssl_s != NULL)
         ExpectIntEQ(ssl_s->keys.updateResponseReq, 0);
+
+    /* An update_not_requested that arrives after a response was deferred
+     * doesn't cancel it, and the response is still update_not_requested:
+     * the server doesn't have to answer it. Requests: answered and queued,
+     * deferred, then update_not_requested. */
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    for (i = 0; i < 3; i++) {
+        if (ssl_s != NULL)
+            ssl_s->keys.updateResponseReq = (i == 2);
+        ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntLT(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), 0);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    }
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, w64From32(0, 7)));
+        ExpectIntEQ(ssl_c->keys.keyUpdateRespond, 0);
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 1);
+    }
+    if (ssl_s != NULL)
+        sCount = ssl_s->keys.keyUpdateCount;
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, w64From32(0, 8)));
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 0);
+        ExpectIntEQ(ssl_c->keys.updateResponseReq, 0);
+    }
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+    if (EXPECT_SUCCESS() && ssl_s != NULL) {
+        /* Neither KeyUpdate from the client asked the server to answer. */
+        ExpectTrue(w64Equal(ssl_s->keys.keyUpdateCount, sCount));
+        ExpectIntEQ(ssl_s->keys.keyUpdateRespond, 0);
+    }
+
+    /* A deferred response is dropped, not sent, once the client has sent
+     * close_notify. */
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    for (i = 0; i < 2; i++) {
+        if (ssl_s != NULL)
+            ssl_s->keys.updateResponseReq = 0;
+        ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntLT(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), 0);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    }
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 1);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    sLen = test_ctx.s_len;
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E));
+    ExpectIntEQ(test_ctx.s_len, sLen);
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, w64From32(0, 9)));
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 0);
+        ExpectIntEQ(ssl_c->keys.keyUpdateRespond, 0);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
