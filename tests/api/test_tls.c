@@ -4259,6 +4259,10 @@ static int test_cb_ctx_cert_load_one(int cb, method_provider client,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(c.ctx2, svrKeyFile,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
+#ifndef NO_DH
+    /* Switching contexts takes the DH state from the new one. */
+    SetDHCtx(c.ctx2);
+#endif
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         client, server), 0);
 #ifdef HAVE_SNI
@@ -4370,7 +4374,7 @@ int test_tls_ssl_ctx_certs_check(void)
 {
     EXPECT_DECLS;
 #if (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
     !defined(NO_RSA) && !defined(WOLFSSL_COPY_CERT)
     WOLFSSL_CTX* ctx = NULL;
