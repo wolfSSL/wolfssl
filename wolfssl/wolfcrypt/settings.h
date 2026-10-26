@@ -5430,6 +5430,16 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef HAVE_SESSION_TICKET
 #endif
 
+/* Accept TLS 1.3 ticket nonces longer than TLS13_TICKET_NONCE_STATIC_SZ */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_MAXQ1065) && \
+    (!defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)) && \
+    !defined(WOLFSSL_MAXQ108X) && !defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
+    !defined(WOLFSSL_NO_TICKET_NONCE_MALLOC)
+    #define WOLFSSL_TICKET_NONCE_MALLOC
+#endif
+
 /* Use static ECC structs for Position Independent Code (PIC) */
 #if defined(__IAR_SYSTEMS_ICC__) && defined(__ROPI__)
     #define WOLFSSL_ECC_CURVE_STATIC
