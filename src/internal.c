@@ -8285,11 +8285,12 @@ int CheckSSL_CTX_CertsAndKeys(const WOLFSSL* ssl)
     int stale = 0;
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    if (ssl->buffers.key == ssl->buffers.altKey) {
-        /* Alternative key swapped in to sign, owned through the key. */
+    /* Signing with the alternative key swaps it in as the key. */
+    if (ssl->buffers.key == ctx->altPrivateKey) {
         ctxKey = ctx->altPrivateKey;
     }
-    else {
+    /* After the swap, the buffer is owned by the key. */
+    if (ssl->buffers.altKey != ssl->buffers.key) {
         stale = IsStaleCtxDer(ssl->buffers.altKey, ssl->buffers.weOwnAltKey,
             ctx->altPrivateKey);
     }
@@ -8299,6 +8300,9 @@ int CheckSSL_CTX_CertsAndKeys(const WOLFSSL* ssl)
                 ctx->certificate) ||
             IsStaleCtxDer(ssl->buffers.certChain, ssl->buffers.weOwnCertChain,
                 ctx->certChain) ||
+            /* A chain replaced at the same address can differ in count. */
+            (!ssl->buffers.weOwnCertChain && (ssl->buffers.certChain != NULL) &&
+                (ssl->buffers.certChainCnt != ctx->certChainCnt)) ||
             IsStaleCtxDer(ssl->buffers.key, ssl->buffers.weOwnKey, ctxKey)) {
         WOLFSSL_MSG("CTX certificate or key replaced during handshake");
         WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
@@ -47455,6 +47459,13 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
             WOLFSSL_MSG("Calling custom sni callback");
             sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
+        #ifndef NO_CERTS
+            ret = CheckSSL_CTX_CertsAndKeys(ssl);
+            if (ret != 0) {
+                SendAlert(ssl, alert_fatal, internal_error);
+                return ret;
+            }
+        #endif
             switch (sniRet) {
                 case warning_return:
                     /* TLS 1.3 error alerts are always fatal (RFC 8446 6.2) */
@@ -47476,11 +47487,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 default:
                     break;
             }
-        #ifndef NO_CERTS
-            if (ret == 0) {
-                ret = CheckSSL_CTX_CertsAndKeys(ssl);
-            }
-        #endif
         }
         return ret;
     }

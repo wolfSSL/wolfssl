@@ -72,7 +72,7 @@ int test_tls_set_session_min_downgrade(void);
 int test_tls12_session_id_resumption_sni_mismatch(void);
 int test_tls13_session_resumption_sni_mismatch(void);
 int test_tls_cb_ctx_cert_load(void);
-int test_tls_ctx_alt_key_swap(void);
+int test_tls_ssl_ctx_certs_check(void);
 int test_tls13_resumption_with_alpn(void);
 int test_tls12_session_id_resumption_alpn_mismatch(void);
 int test_tls13_session_resumption_alpn_mismatch(void);
@@ -155,7 +155,7 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_sni_mismatch), \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_sni_mismatch),    \
         TEST_DECL_GROUP("tls", test_tls_cb_ctx_cert_load),                     \
-        TEST_DECL_GROUP("tls", test_tls_ctx_alt_key_swap),                     \
+        TEST_DECL_GROUP("tls", test_tls_ssl_ctx_certs_check),                  \
         TEST_DECL_GROUP("tls", test_tls13_resumption_with_alpn),              \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_alpn_mismatch),\
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_alpn_mismatch),   \

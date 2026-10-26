@@ -4190,6 +4190,7 @@ enum {
 typedef struct CbLoadCase {
     WOLFSSL_CTX* ctx2;
     int action;
+    int retry;
     int loadRet;
 } CbLoadCase;
 
@@ -4222,22 +4223,26 @@ static void cb_load_run(WOLFSSL* ssl, CbLoadCase* c)
 #ifdef HAVE_SNI
 static int sni_load_cb(WOLFSSL* ssl, int* ad, void* arg)
 {
+    CbLoadCase* c = (CbLoadCase*)arg;
+
     (void)ad;
-    cb_load_run(ssl, (CbLoadCase*)arg);
-    return 0;
+    cb_load_run(ssl, c);
+    return c->retry ? warning_return : 0;
 }
 #endif
 
 #ifdef WOLFSSL_CERT_SETUP_CB
 static int cert_setup_load_cb(WOLFSSL* ssl, void* arg)
 {
-    cb_load_run(ssl, (CbLoadCase*)arg);
-    return 1;
+    CbLoadCase* c = (CbLoadCase*)arg;
+
+    cb_load_run(ssl, c);
+    return c->retry ? -1 : 1;
 }
 #endif
 
 static int test_cb_ctx_cert_load_one(int cb, method_provider client,
-    method_provider server, int action, int err)
+    method_provider server, int action, int retry, int err)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -4248,6 +4253,7 @@ static int test_cb_ctx_cert_load_one(int cb, method_provider client,
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(&c, 0, sizeof(c));
     c.action = action;
+    c.retry = retry;
     ExpectNotNull(c.ctx2 = wolfSSL_CTX_new(server()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(c.ctx2, svrCertFile,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
@@ -4316,17 +4322,23 @@ int test_tls_cb_ctx_cert_load(void)
     };
     static const struct {
         int action;
+        int retry; /* callback returns its warning or retry value */
         int err;
     } cases[] = {
-    #ifndef WOLFSSL_COPY_CERT
-        { CB_LOAD_CTX_CERT, WC_NO_ERR_TRACE(BAD_STATE_E) },
+    #ifdef WOLFSSL_COPY_CERT
+        { CB_LOAD_CTX_CERT, 0, 0 },
+    #else
+        { CB_LOAD_CTX_CERT, 0, WC_NO_ERR_TRACE(BAD_STATE_E) },
+        { CB_LOAD_CTX_CERT, 1, WC_NO_ERR_TRACE(BAD_STATE_E) },
     #endif
-    #if !defined(WOLFSSL_COPY_KEY) && !defined(WOLFSSL_BLIND_PRIVATE_KEY)
-        { CB_LOAD_CTX_KEY, WC_NO_ERR_TRACE(BAD_STATE_E) },
+    #if defined(WOLFSSL_COPY_KEY) || defined(WOLFSSL_BLIND_PRIVATE_KEY)
+        { CB_LOAD_CTX_KEY, 0, 0 },
+    #else
+        { CB_LOAD_CTX_KEY, 0, WC_NO_ERR_TRACE(BAD_STATE_E) },
     #endif
-        { CB_LOAD_SSL_CERT, 0 },
+        { CB_LOAD_SSL_CERT, 0, 0 },
     #ifdef OPENSSL_EXTRA
-        { CB_SWITCH_CTX, 0 },
+        { CB_SWITCH_CTX, 0, 0 },
     #endif
     };
     size_t i;
@@ -4338,7 +4350,7 @@ int test_tls_cb_ctx_cert_load(void)
             for (j = 0; j < XELEM_CNT(cases); j++) {
                 ExpectIntEQ(test_cb_ctx_cert_load_one(cbs[k],
                     methods[i].client, methods[i].server, cases[j].action,
-                    cases[j].err), TEST_SUCCESS);
+                    cases[j].retry, cases[j].err), TEST_SUCCESS);
             }
         }
     }
@@ -4346,28 +4358,50 @@ int test_tls_cb_ctx_cert_load(void)
     return EXPECT_RESULT();
 }
 
-/* The alternative key swapped in to sign is still the context's buffer. */
-int test_tls_ctx_alt_key_swap(void)
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_COPY_KEY) && !defined(WOLFSSL_BLIND_PRIVATE_KEY)
+    #define TEST_SSL_CTX_ALT_KEY
+#endif
+
+/* The buffers the SSL shares with its context are checked by pointer and by
+ * chain count. The alternative key swapped in to sign is still the context's.
+ */
+int test_tls_ssl_ctx_certs_check(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(WOLFSSL_TLS13) && \
-    (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_RSA) && defined(HAVE_ECC) && !defined(WOLFSSL_COPY_KEY) && \
-    !defined(WOLFSSL_BLIND_PRIVATE_KEY)
+#if (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)) && \
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_COPY_CERT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
+#ifdef TEST_SSL_CTX_ALT_KEY
+    byte* altKey = NULL;
+    size_t altKeySz = 0;
+#endif
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx, svrCertFile),
+        WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
+#ifdef TEST_SSL_CTX_ALT_KEY
     ExpectIntEQ(wolfSSL_CTX_use_AltPrivateKey_file(ctx, eccKeyFile,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
 
+    /* Chain replaced at the same address with a different count. */
+    if (ctx != NULL) {
+        ctx->certChainCnt++;
+    }
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), WC_NO_ERR_TRACE(BAD_STATE_E));
+    if (ctx != NULL) {
+        ctx->certChainCnt--;
+    }
+
+#ifdef TEST_SSL_CTX_ALT_KEY
     /* Same swap as SendTls13CertificateVerify with the alternative key. */
     if (ssl != NULL) {
         ssl->buffers.key = ssl->buffers.altKey;
@@ -4376,10 +4410,17 @@ int test_tls_ctx_alt_key_swap(void)
     }
     ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
 
+    /* A new alternative key on the SSL leaves the swapped key with the CTX. */
+    ExpectIntEQ(load_file("./certs/ecc-key.der", &altKey, &altKeySz), 0);
+    ExpectIntEQ(wolfSSL_use_AltPrivateKey_buffer(ssl, altKey, (long)altKeySz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
+
     ExpectIntEQ(wolfSSL_CTX_use_AltPrivateKey_file(ctx, eccKeyFile,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
-    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl),
-        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), WC_NO_ERR_TRACE(BAD_STATE_E));
+    XFREE(altKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
