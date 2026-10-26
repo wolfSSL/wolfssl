@@ -1519,6 +1519,9 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
     library used while generating the RSA key
     \return MP_ZERO_E May be returned if there is an error in the math
     library used while generating the RSA key
+    \return BAD_STATE_E Returned when the key has an id or label and its
+    PKCS#11 token has no session from wc_Pkcs11Token_Open; a key with neither
+    is generated in software instead
 
     \param key pointer to the RsaKey structure in which to store the
     generated private key

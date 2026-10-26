@@ -2465,13 +2465,22 @@ const char* wc_ecc_get_name(int curve_id);
     \brief Makes ECC key with extended options.
 
     \return 0 on success
+    \return BAD_STATE_E when the key has an id or label and its PKCS#11 token
+    has no session from wc_Pkcs11Token_Open; a key with neither is generated
+    in software instead
+    \return WC_HW_E when a PKCS#11 token cannot give a key with an id or label
+    the usages its flags ask for
     \return negative on error
 
     \param rng Random number generator
     \param keysize Key size in bytes
     \param key ECC key structure
     \param curve_id Curve identifier
-    \param flags Additional flags
+    \param flags WC_ECC_FLAG_* flags. For a key generated on a PKCS#11 token,
+    WC_ECC_FLAG_DEC_SIGN asks for sign and WC_ECC_FLAG_DERIVE for derive. With
+    neither it gets derive, plus sign when the key has an id or label, or only
+    sign when PKCS#11 ECDH is not compiled in, as far as the token supports
+    them.
 
     _Example_
     \code
