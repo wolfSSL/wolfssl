@@ -2739,8 +2739,13 @@ static acpi_status wc_linuxkm_vmgenid_acpi_cb(acpi_handle handle, u32 depth,
     return AE_OK;
 }
 
-static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
-                                    WC_RNG *local_root)
+static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st
+  #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+                                    , struct wc_rng_bank *bank
+  #else
+                                    , WC_RNG *local_root
+  #endif
+    )
 {
     if (st->state == 0) {
         /* one-time discovery, in daemon task context.  ACPICA uppercases
@@ -2782,18 +2787,23 @@ static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
          * unconditionally as in the loop-head arm (the standing latch is
          * the point); if the lease can't be had this instant, the loop
          * head recovers the root on this same pass, without the fold. */
+
+  #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+        (void)wc_rng_bank_root_rng_reseed_now(bank,
+                                              (const byte *)st->last, 16);
+  #else
         if (local_root != NULL) {
-#ifdef WC_RNG_HAVE_LOCK
-            if (wc_RNG_lock_get_unconditional(local_root) == 0) {
-                (void)wc_RNG_DRBG_Reseed_Now(local_root,
-                                             (const byte *)st->last, 16);
-                wc_RNG_lock_put_unconditional(local_root);
-            }
-#else
+            /* The memberless root is daemon-private -- its only reference
+             * is on this thread's stack, and the invalidation walk's root
+             * arm doesn't exist in this configuration -- so nothing
+             * concurrent can touch it, and unlocked access is trivially
+             * safe.  The flip side: no invalidation event can ever reach
+             * it, so this fold and the periodic countdown reseed are its
+             * entire freshness regime. */
             (void)wc_RNG_DRBG_Reseed_Now(local_root, (const byte *)st->last,
                                          16);
-#endif
         }
+  #endif
     }
 }
 
@@ -2905,9 +2915,11 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
 #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
     if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
+        /* note wc_RNG_global_fallback_get() just gets the pointer to the static
+         * WC_RNG, not a hold. */
         ret = wc_RNG_global_fallback_get(&global_fallback_rng);
         if (ret != 0) {
-            pr_err("wc_linuxkm_entropy_daemon: wc_RNG_global_fallback_get() failed with  "
+            pr_err("wc_linuxkm_entropy_daemon: wc_RNG_global_fallback_get() failed with "
                    "code %d -- continuing without.\n", ret);
         }
     }
@@ -2943,7 +2955,13 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         int congested_progress = 0;
 
 #ifdef WC_LINUXKM_VMGENID_POLL
-        wc_linuxkm_vmgenid_poll(&vmgenid_poll_state, root_rng);
+        wc_linuxkm_vmgenid_poll(&vmgenid_poll_state
+  #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+                                , bank
+  #else
+                                , root_rng
+  #endif
+            );
 #endif
 
 #ifdef WC_RNG_HAVE_LOCK
@@ -2953,7 +2971,12 @@ static int wc_linuxkm_entropy_daemon(void *arg)
          * epoch stamp (the reseed counter is the SP 800-90A budget only,
          * and is never saturated here) -- and
          * wc_RNG_entropy_needs_recovery() reads both; its verdict is the
-         * authoritative signal and this is the authoritative response. */
+         * authoritative signal and this is the authoritative response.
+         *
+         * Note, any nonzero retval from wc_RNG_entropy_needs_recovery()
+         * triggers recovery -- a dire code here means the root needs the
+         * reinit-based recovery below.
+         */
         if ((root_rng != NULL) && ((ret = wc_RNG_entropy_needs_recovery(root_rng)) != 0)) {
             unsigned long uncredited_nonce = random_get_entropy();
             int inv_ret = wc_RNG_lock_get_unconditional(root_rng);
@@ -2969,11 +2992,11 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 goto next_pass;
             }
 
-#ifdef WC_VERBOSE_RNG
+  #ifdef WC_VERBOSE_RNG
             pr_info("wc_linuxkm_entropy_daemon: starting root recovery reseed (%d).\n", ret);
-#endif
+  #endif
 
-#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || defined(WC_SVR_USE_NATIVE_REG_BUFS)
+  #if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || defined(WC_SVR_USE_NATIVE_REG_BUFS)
             /* all RNGs depend on the default root reseed -- try a pass with
              * preemption inhibited to maximize our chances. */
             if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
@@ -2984,7 +3007,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 preempt_enable();
             }
             if ((! (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK)) || (inv_ret != 0))
-#endif
+  #endif
             {
                 inv_ret = wc_RNG_DRBG_Reseed_Now(
                     root_rng,
@@ -2994,9 +3017,9 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             wc_RNG_lock_put_unconditional(root_rng);
 
             if (inv_ret == 0) {
-#ifdef WC_VERBOSE_RNG
+  #ifdef WC_VERBOSE_RNG
                 pr_info("wc_linuxkm_entropy_daemon: finished root recovery reseed.\n");
-#endif
+  #endif
                 progress = 1;
             }
             else {
@@ -3028,7 +3051,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                         "failed (%d) -- attempting reinit\n", inv_ret);
                 }
 
-#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+  #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
                 /* Gate-bracketed free+reinstantiate: the inst-op gate
                  * excludes concurrent invalidation walkers, which
                  * dereference the root's DRBG state, for the span of
@@ -3037,14 +3060,14 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     bank,
                     (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
                     NULL, 0, 0);
-#else
+  #else
                 /* Standalone (memberless) root: daemon-private, never
                  * reachable by the invalidation walk -- no gating
                  * needed or possible. */
                 inv_ret = wc_FreeRng(root_rng);
                 if (inv_ret == 0)
                     inv_ret = wc_InitRng(root_rng);
-#endif
+  #endif
                 if (inv_ret == 0) {
                     progress = 1;
                     if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
@@ -3082,7 +3105,78 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
             ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
         }
-#endif
+#else /* !WC_RNG_HAVE_LOCK */
+        /* Deterministic root recovery without the lock facility.
+         *
+         * Bank root: the invalidation walk's only root-side record in
+         * this configuration is the saturated reseed counter
+         * (wc_rng_bank_invalidate_entropy() ->
+         * wc_RNG_DRBG_ScheduleReseed()), so recovery is
+         * threshold-driven: the threshold form of the root reseed
+         * service reads the counter and reseeds under a single hold of
+         * the inst-op gate.  Ordinary wear-out (a counter at
+         * WC_RESEED_INTERVAL with no event) is absorbed by the same
+         * remedy.
+         *
+         * Memberless root: no event can reach it (daemon-private; see
+         * wc_linuxkm_vmgenid_poll()), but when WC_RNG_HAVE_ENTROPY_EPOCH
+         * is available the global epoch is detection without
+         * notification, so check it and reseed on staleness.  Without
+         * the epoch facility, the vmgenid fold and the periodic
+         * countdown reseed are the complete freshness regime, by
+         * design. */
+  #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+        if (root_rng != NULL) {
+            unsigned long uncredited_nonce = random_get_entropy();
+            ret = wc_rng_bank_root_rng_reseed_if_due(
+                bank,
+                (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
+                (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL);
+            ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
+            if (ret == 0) {
+    #ifdef WC_VERBOSE_RNG
+                pr_info("wc_linuxkm_entropy_daemon: root recovery reseed "
+                        "(saturated counter).\n");
+    #endif
+                progress = 1;
+            }
+            else if (WC_LKM_RNG_ERR_IS_HEALTH(ret)) {
+                pr_warn_ratelimited(
+                    "wc_entropyd: root_rng recovery reseed failed the seed "
+                    "health test: %d -- entropy source suspect\n", ret);
+            }
+            else if ((ret != WC_NO_ERR_TRACE(ALREADY_E)) &&
+                     (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) &&
+                     (! WC_RNG_ERR_IS_TRANSIENT(ret)))
+            {
+                /* ALREADY_E: not due -- the steady state.
+                 * WRONG_TYPE_OBJECT_E: no DRBG behind the root (RDRAND et
+                 * al.) -- permanently nothing to do.  Transient codes (the
+                 * gate held) are one pass away. */
+                pr_err_ratelimited(
+                    "wc_entropyd: root_rng recovery reseed failed: %d\n",
+                    ret);
+            }
+        }
+  #elif defined(WC_RNG_HAVE_ENTROPY_EPOCH)
+        if ((root_rng != NULL) &&
+            (wc_RNG_entropy_needs_recovery(root_rng) != 0))
+        {
+            unsigned long uncredited_nonce = random_get_entropy();
+            ret = wc_RNG_DRBG_Reseed_Now(
+                root_rng,
+                (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
+            ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
+            if (ret == 0)
+                progress = 1;
+            else if (! WC_RNG_ERR_IS_TRANSIENT(ret)) {
+                pr_err_ratelimited(
+                    "wc_entropyd: root_rng recovery reseed failed: %d\n",
+                    ret);
+            }
+        }
+  #endif /* WC_RNG_BANK_HAVE_ROOT_RNG / WC_RNG_HAVE_ENTROPY_EPOCH */
+#endif /* WC_RNG_HAVE_LOCK */
 
 #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
         if ((global_fallback_rng != NULL) &&
@@ -3117,17 +3211,19 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 WC_RNG *rng = WC_RNG_BANK_INST_TO_RNG(&bank->rngs[i]);
 
   #ifndef WC_RNG_HAVE_ENTROPY_EPOCH
-
                 /* Backward-compat check for invalidation on old-FIPS builds
                  * (!WC_RNG_HAVE_ENTROPY_EPOCH)
                  */
 
+    /* These configuration combinations aren't reachable, but make sure. */
     #ifdef WC_RNG_HAVE_LOCK
-                WC_RNG_lock_arg_t rng_lock_state;
+      #error WC_RNG_HAVE_LOCK without WC_RNG_HAVE_ENTROPY_EPOCH is not a supported kernel module configuration.
     #endif
     #ifdef WC_RNG_HAVE_NEXT_SEED
-                WC_ATOMIC_INT_ARG nextSeedLen;
+      #error WC_RNG_HAVE_NEXT_SEED without WC_RNG_HAVE_ENTROPY_EPOCH is not a supported kernel module configuration.
     #endif
+
+                WC_RNG_lock_arg_t rng_inst_lock_state;
 
                 if (wc_RNG_GetStatus(rng) != WC_DRBG_OK) {
     #ifdef WC_VERBOSE_RNG
@@ -3135,57 +3231,20 @@ static int wc_linuxkm_entropy_daemon(void *arg)
     #endif
                     continue;
                 }
-    #ifdef WC_RNG_HAVE_LOCK
-                if (wc_RNG_lock_read(rng, &rng_lock_state) != 0) {
-      #ifdef WC_VERBOSE_RNG
-                    ++n_unhealthy;
-      #endif
-                    continue;
-                }
-                if (! (rng_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)) {
-      #ifdef WC_VERBOSE_RNG
-                    ++n_self_recovered;
-      #endif
-                    continue;
-                }
-    #endif /* WC_RNG_HAVE_LOCK */
-    #ifdef WC_RNG_HAVE_NEXT_SEED
-                if (wc_RNG_DRBG_NextSeedCurrent(rng, &nextSeedLen) != 0) {
-      #ifdef WC_VERBOSE_RNG
-                    ++n_unhealthy;
-      #endif
-                    continue;
-                }
-                if ((nextSeedLen == WC_DRBG_NEXT_SEED_READY) ||
-                    (nextSeedLen == WC_DRBG_NEXT_SEED_CONSUMING))
-                {
-      #ifdef WC_VERBOSE_RNG
-                    ++n_self_recovered;
-      #endif
-                    continue;
-                }
-    #endif /* WC_RNG_HAVE_NEXT_SEED */
 
-    #ifndef WC_RNG_HAVE_LOCK
-                /* backward-compat invalidation tracked by reseedCtr
-                 * overloading. */
-                {
-                    wc_drbg_reseed_ctr_t this_reseedCtr;
-                    ret = wc_RNG_DRBG_GetReseedCtr(rng, &this_reseedCtr);
-                    if (ret != 0) {
-      #ifdef WC_VERBOSE_RNG
-                        ++n_unhealthy;
-      #endif
-                        continue;
-                    }
-                    if (this_reseedCtr < WC_RESEED_INTERVAL) {
-      #ifdef WC_VERBOSE_RNG
-                        ++n_self_recovered;
-      #endif
-                        continue;
-                    }
+                if (wc_rng_bank_inst_lock_read(&bank->rngs[i], &rng_inst_lock_state) != 0) {
+    #ifdef WC_VERBOSE_RNG
+                    ++n_unhealthy;
+    #endif
+                    continue;
                 }
-    #endif /* WC_RNG_HAVE_LOCK */
+
+                if (! (rng_inst_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)) {
+    #ifdef WC_VERBOSE_RNG
+                    ++n_self_recovered;
+    #endif
+                    continue;
+                }
 
   #else /* WC_RNG_HAVE_ENTROPY_EPOCH */
 
@@ -3208,47 +3267,18 @@ static int wc_linuxkm_entropy_daemon(void *arg)
   #else /* !WC_RNG_HAVE_NEXT_SEED */
                 /* Without _NEXT_SEED support, just perform an inline reseed
                  * (again, implicitly RBGC). */
-    #ifdef WC_RNG_HAVE_LOCK
-                {
-                    unsigned long uncredited_nonce = random_get_entropy();
-                    ret = wc_RNG_lock_get_unconditional(rng);
-                    if (ret == 0) {
-                        ret = wc_RNG_DRBG_Reseed_Now(
-                            rng,
-                            (byte *)&uncredited_nonce,
-                            (word32)sizeof uncredited_nonce);
-                        wc_RNG_lock_put_unconditional(rng);
-                    }
-      #ifdef WC_VERBOSE_RNG
-                    else if (ret == WC_NO_ERR_TRACE(BUSY_E))
-                        ++n_busy; /* gate held by a reinit, or a claim in flight */
-                    else
-                        ++n_unhealthy;
-      #endif
-                    ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
-                }
-    #else /* ! WC_RNG_HAVE_LOCK */
                 {
                     unsigned long uncredited_nonce = random_get_entropy();
                     ret = wc_rng_bank_inst_lock_get_unconditional(&bank->rngs[i]);
                     if (ret == 0) {
-                        ret = wc_RNG_DRBG_Reseed_Now(
-                            rng,
+                        ret = wc_rng_bank_inst_reseed_now(
+                            &bank->rngs[i],
                             (byte *)&uncredited_nonce,
                             (word32)sizeof uncredited_nonce);
                         wc_rng_bank_inst_lock_put_unconditional(&bank->rngs[i]);
                     }
-      #ifdef WC_VERBOSE_RNG
-                    else if (ret == WC_NO_ERR_TRACE(BUSY_E))
-                        ++n_busy; /* gate held by a reinit, or a claim in flight */
-                    else
-                        ++n_unhealthy;
-      #endif
                     ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
                 }
-
-    #endif /* ! WC_RNG_HAVE_LOCK */
-
   #endif /* !WC_RNG_HAVE_NEXT_SEED */
 
                 if (ret == 0) {
@@ -3347,9 +3377,10 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     {
                         ret = wc_rng_bank_next_seed_generate_rbgc(
                             bank, i, WC_DRBG_NEXT_SEED_LEN);
-                        congested_progress = 1;
-                        if (ret == 0)
+                        if (ret == 0) {
+                            congested_progress = 1;
                             progress = 1;
+                        }
                     }
                 }
             }
@@ -3365,15 +3396,25 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 #endif
            )
         {
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-            ret = wc_RNG_DRBG_Reseed_Now(root_rng, NULL, 0);
-#else
+            /* The nonce lands on every boundary: natively in the credited
+             * reseed on current code and the 5.2.4 backport, and as an
+             * uncredited stir transition following the reseed in the
+             * legacy-boundary fallback. */
             unsigned long uncredited_nonce = random_get_entropy();
-            ret = wc_RNG_DRBG_Reseed_Now(root_rng,
-                                         (byte *)&uncredited_nonce,
-                                         sizeof uncredited_nonce);
-            ForceZero(&uncredited_nonce, sizeof uncredited_nonce);
+#if !defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+            /* bank-root DRBG access serializes on the inst-op gate -- see
+             * wc_rng_bank_root_rng_reseed_now().  A BUSY_E refusal is
+             * transient: the countdown stays expired and the next pass
+             * retries. */
+            ret = wc_rng_bank_root_rng_reseed_now(
+                bank,
+                (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
+#else
+            ret = wc_RNG_DRBG_Reseed_Now(
+                root_rng,
+                (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
 #endif
+            ForceZero(&uncredited_nonce, sizeof uncredited_nonce);
             if (ret == 0) {
                 root_rng_reseed_countdown =
                     WC_LINUXKM_BONUS_RESEED_INTERVAL;
@@ -3407,7 +3448,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         if (global_fallback_rng != NULL) {
             wc_drbg_reseed_ctr_t this_reseedCtr;
             ret = wc_RNG_DRBG_GetReseedCtr(global_fallback_rng, &this_reseedCtr);
-            if ((ret == 0) && (this_reseedCtr > WC_LINUXKM_BONUS_RESEED_INTERVAL)) {
+            if ((ret == 0) && (this_reseedCtr >= WC_LINUXKM_BONUS_RESEED_INTERVAL)) {
                 unsigned long uncredited_nonce = random_get_entropy();
 #ifdef WC_RNG_HAVE_NEXT_SEED
                 /* use the NextSeed aperture to minimize held time. */
@@ -3583,6 +3624,34 @@ static int wc_linuxkm_entropy_daemon(void *arg)
   #else /* !WC_RNG_HAVE_NEXT_SEED */
                     if (wc_RNG_entropy_needs_recovery(obj->rng) != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
                         continue;
+                    /* If the leaf isn't enforcing locks, then we have no thread
+                     * synchronization mechanism to lean on and we can't reseed
+                     * from here.
+                     *
+                     * This limitation doesn't exist for bank leaves, because
+                     * they are always _LOCK_REQUIRED or the equivalent thereof,
+                     * either directly via WC_RNG.lock or via the
+                     * wc_rng_bank_inst.lock stand-in, and are accessed only
+                     * through the bank checkout API.
+                     *
+                     * Moreover, this limitation doesn't exist in the
+                     * WC_RNG_HAVE_NEXT_SEED configuration because
+                     * wc_RNG_DRBG_NextSeedGenerate() has its own atomics-based
+                     * thread synchronization mechanism pivoting on
+                     * WC_RNG.nextSeedLen.
+                     *
+                     * Notice that _needs_recovery() above has already
+                     * propagated an invalidation event if any; only the inline
+                     * reseed operation is inhibited.
+                     */
+                    {
+                        WC_RNG_lock_arg_t this_lock;
+                        if (wc_RNG_lock_read(obj->rng, &this_lock) != 0)
+                            continue;
+                        if (! (this_lock & WC_RNG_LOCK_REQUIRED))
+                            continue;
+                    }
+
                     /* Without _NEXT_SEED support, just perform an inline reseed
                      * (again, implicitly RBGC). */
                     {
@@ -3622,8 +3691,8 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         /* seed banking pass: one gather granule per instance per turn.
          * Generators will reseed opportunistically, using the banked seed, at
          * the WC_LINUXKM_BONUS_RESEED_INTERVAL. */
-        for (i = 0; i < bank->n_rngs; i++) {
 
+        for (i = 0; i < bank->n_rngs; i++) {
             ret = wc_rng_bank_next_seed_generate(
                 bank, i, WC_LINUXKM_ENTROPY_DAEMON_GRANULE);
             if (ret == 0) {
@@ -3652,7 +3721,8 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             }
         }
 #elif defined(WC_RNG_HAVE_LOCK)
-        /* !_HAVE_NEXT_SEED: bank leaf bonus reseed pass. */
+        /* !_HAVE_NEXT_SEED: bank leaf bonus reseed pass on current
+            (WC_RNG.lock) code. */
 
         for (i = 0; i < bank->n_rngs; i++) {
             WC_RNG *leaf = WC_RNG_BANK_INST_TO_RNG(&bank->rngs[i]);
@@ -3673,25 +3743,32 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             }
         }
 #else /* !WC_RNG_HAVE_NEXT_SEED && !WC_RNG_HAVE_LOCK */
-        /* !_HAVE_NEXT_SEED && !_HAVE_LOCK: bank leaf bonus reseed pass. */
+        /* !_HAVE_NEXT_SEED && !_HAVE_LOCK: bank leaf bonus reseed pass on
+            legacy FIPS. */
 
         for (i = 0; i < bank->n_rngs; i++) {
-            WC_RNG *leaf = WC_RNG_BANK_INST_TO_RNG(&bank->rngs[i]);
             wc_drbg_reseed_ctr_t cur_counter = 0;
-            ret = wc_RNG_DRBG_GetReseedCtr(leaf, &cur_counter);
+
+            /* Note, we have to get the lock first to exclude competing reinits,
+             * because on legacy code, wc_RNG_DRBG_GetReseedCtr() requires
+             * dereferencing the internal DRBG state. */
+
+            if (wc_rng_bank_inst_lock_get_unconditional(&bank->rngs[i]) != 0)
+                continue;
+            ret = wc_RNG_DRBG_GetReseedCtr(WC_RNG_BANK_INST_TO_RNG(&bank->rngs[i]),
+                                           &cur_counter);
             if ((ret == 0) &&
-                (cur_counter >= WC_LINUXKM_BONUS_RESEED_INTERVAL) &&
-                (wc_rng_bank_inst_lock_get_unconditional(&bank->rngs[i]) == 0))
+                (cur_counter >= WC_LINUXKM_BONUS_RESEED_INTERVAL))
             {
                 unsigned long uncredited_nonce = random_get_entropy();
-                ret = wc_RNG_DRBG_Reseed_Now(leaf,
-                                             (byte *)&uncredited_nonce,
-                                             (word32)sizeof uncredited_nonce);
+                ret = wc_rng_bank_inst_reseed_now(&bank->rngs[i],
+                                                  (byte *)&uncredited_nonce,
+                                                  (word32)sizeof uncredited_nonce);
                 ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
                 if (ret == 0)
                     progress = 1;
-                wc_rng_bank_inst_lock_put_unconditional(&bank->rngs[i]);
             }
+            wc_rng_bank_inst_lock_put_unconditional(&bank->rngs[i]);
         }
 #endif /* !WC_RNG_HAVE_NEXT_SEED && !WC_RNG_HAVE_LOCK */
 
@@ -3706,11 +3783,9 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         }
     }
 
-    if (root_rng != NULL) {
 #ifdef WC_LINUXKM_VMGENID_POLL
-        wc_linuxkm_vmgenid_poll_teardown(&vmgenid_poll_state);
+    wc_linuxkm_vmgenid_poll_teardown(&vmgenid_poll_state);
 #endif
-    }
 
 #ifndef WC_RNG_BANK_HAVE_ROOT_RNG
     if (root_rng != NULL) {
