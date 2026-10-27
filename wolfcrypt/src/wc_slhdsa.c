@@ -8994,8 +8994,9 @@ static void slhdsakey_set_ha_from_md(SlhDsaKey* key, const byte* md,
 int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
 {
     int ret = 0;
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
     int idKey = 0;
+    int idDevId = INVALID_DEVID;
 #endif
 
     /* Validate parameters. */
@@ -9003,9 +9004,10 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
 
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
     if (ret == 0) {
-        idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+        idKey = WC_CRYPTOCB_HAS_ID(key);
+        idDevId = key->devId;
     }
 #endif
 #ifdef WOLF_CRYPTO_CB
@@ -9023,8 +9025,8 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
             ret = 0;
         }
     }
-    #ifdef WOLF_PRIVATE_KEY_ID
-    if ((ret == 0) && idKey) {
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if ((ret == 0) && idKey && wc_CryptoCb_HasPkDevice(idDevId)) {
         ret = NO_VALID_DEVID;
     }
     #endif

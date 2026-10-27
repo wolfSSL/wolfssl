@@ -5535,7 +5535,7 @@ int test_wc_mlkem_decode_alloc_fail(void)
 
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM_768) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
 static int mlkem_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
@@ -5555,7 +5555,7 @@ int test_wc_mlkem_make_key_id_dev(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM_768) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
     int devId = 2406;
     MlKemKey* key;

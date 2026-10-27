@@ -5957,8 +5957,9 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         int curve_id, int flags)
 {
     int err = 0;
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
     int idKey;
+    int idDevId;
 #endif
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WC_ECC_NONBLOCK) && \
     defined(WC_ECC_NONBLOCK_ONLY)
@@ -5999,8 +6000,9 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     #endif
     key->flags = (byte)flags;
 
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
-    idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    idKey = WC_CRYPTOCB_HAS_ID(key);
+    idDevId = key->devId;
 #endif
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC_DHE)
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -6013,8 +6015,8 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         /* fall-through when unavailable */
     }
 #endif
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
-    if (idKey)
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (idKey && wc_CryptoCb_HasPkDevice(idDevId))
         return NO_VALID_DEVID;
 #endif
 

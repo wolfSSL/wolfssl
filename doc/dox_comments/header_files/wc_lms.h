@@ -319,8 +319,10 @@ int wc_LmsKey_SetContext(LmsKey* key, void* context);
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return MEMORY_E on allocation failure.
-    \return NO_VALID_DEVID if the key was initialized with an id or label for a
-    registered device and that device did not generate it.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in,out] key Pointer to an LmsKey in state
     WC_LMS_STATE_PARMSET with callbacks set.

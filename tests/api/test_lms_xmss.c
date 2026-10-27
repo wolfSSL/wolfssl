@@ -3112,7 +3112,7 @@ int test_wc_LmsKey_make_key_id_dev(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(HAVE_FIPS)
     LmsKey key;
     WC_RNG rng;
@@ -3152,7 +3152,7 @@ int test_wc_XmssKey_make_key_id_dev(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(HAVE_FIPS) && \
     defined(TEST_XMSS_H10_AVAILABLE)
     XmssKey key;

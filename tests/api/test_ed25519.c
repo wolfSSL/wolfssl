@@ -1605,8 +1605,8 @@ int test_wc_ed25519_make_public_dev_key(void)
 } /* END test_wc_ed25519_make_public_dev_key */
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
-    defined(WOLF_CRYPTO_CB) && \
-    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
 static int ed25519_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info,
     void* ctx)
 {
@@ -1625,8 +1625,8 @@ int test_wc_ed25519_make_key_id_dev(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
-    defined(WOLF_CRYPTO_CB) && \
-    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
     int devId = 2403;
     ed25519_key key;
     WC_RNG rng;

@@ -436,8 +436,9 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
 int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 {
     int ret;
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
     int idKey = 0;
+    int idDevId = INVALID_DEVID;
 #endif
 
     if (rng == NULL || key == NULL)
@@ -450,8 +451,9 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     key->privKeySet = 0;
     key->pubKeySet = 0;
 
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
-    idKey = WC_CRYPTOCB_IS_DEV_KEY(key);
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    idKey = WC_CRYPTOCB_HAS_ID(key);
+    idDevId = key->devId;
 #endif
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -463,8 +465,8 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
             return ret;
         /* fall-through when unavailable */
     }
-    #ifdef WOLF_PRIVATE_KEY_ID
-    if (idKey)
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (idKey && wc_CryptoCb_HasPkDevice(idDevId))
         return NO_VALID_DEVID;
     #endif
 #endif

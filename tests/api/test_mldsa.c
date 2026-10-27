@@ -32869,7 +32869,7 @@ int test_mldsa_make_key_rej_ntt_fail(void)
 }
 
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(HAVE_FIPS)
 static int mldsa_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
@@ -32888,7 +32888,7 @@ int test_mldsa_make_key_id_dev(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(HAVE_FIPS)
     int devId = 2405;
     wc_MlDsaKey* key;
