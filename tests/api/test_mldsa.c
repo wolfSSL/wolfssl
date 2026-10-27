@@ -32749,12 +32749,13 @@ int test_wc_MlDsaKey_seed_service_indicator(void)
 
 /* A rejection-sampling failure part-way through small-mem key generation
  * must be returned, and must not mark a freshly initialised key as set.
- * Small-mem signing and verification must return one too. */
+ * Small-mem signing and verification must return one too.
+ * swdev runs in its own copy of wolfCrypt, out of the hook's reach. */
 int test_mldsa_make_key_rej_ntt_fail(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
-    defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && \
+    defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && !defined(WOLFSSL_SWDEV) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)
     wc_MlDsaKey* key = NULL;

@@ -781,7 +781,12 @@ static int swdev_falcon(wc_CryptoInfo* info, int pkType)
 }
 #endif /* HAVE_FALCON */
 
-#ifdef WOLFSSL_HAVE_MLDSA
+/* NO_CTX makes Sign() and SignCtx() with no context look the same here. */
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_CTX)
+    #define SWDEV_MLDSA
+#endif
+
+#ifdef SWDEV_MLDSA
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
 static int swdev_mldsa_keygen(wc_CryptoInfo* info)
 {
@@ -795,8 +800,7 @@ static int swdev_mldsa_keygen(wc_CryptoInfo* info)
 }
 #endif
 
-/* NO_CTX makes Sign() and SignCtx() with no context look the same here. */
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_CTX)
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 static int swdev_mldsa_sign(wc_CryptoInfo* info)
 {
     wc_MlDsaKey* key = (wc_MlDsaKey*)info->pk.pqc_sign.key;
@@ -815,7 +819,7 @@ static int swdev_mldsa_sign(wc_CryptoInfo* info)
 }
 #endif
 
-#if !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_MLDSA_NO_CTX)
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 /* res and ret both report the result, so unlike SLH-DSA pass ret through. */
 static int swdev_mldsa_verify(wc_CryptoInfo* info)
 {
@@ -843,11 +847,11 @@ static int swdev_mldsa(wc_CryptoInfo* info, int pkType)
     case WC_PK_TYPE_PQC_SIG_KEYGEN_SEED:
         return swdev_mldsa_keygen(info);
 #endif
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_CTX)
+#ifndef WOLFSSL_MLDSA_NO_SIGN
     case WC_PK_TYPE_PQC_SIG_SIGN:
         return swdev_mldsa_sign(info);
 #endif
-#if !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_MLDSA_NO_CTX)
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
     case WC_PK_TYPE_PQC_SIG_VERIFY:
         return swdev_mldsa_verify(info);
 #endif
@@ -860,10 +864,10 @@ static int swdev_mldsa(wc_CryptoInfo* info, int pkType)
         return CRYPTOCB_UNAVAILABLE;
     }
 }
-#endif /* WOLFSSL_HAVE_MLDSA */
+#endif /* SWDEV_MLDSA */
 
 #if defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_FALCON) || \
-    defined(WOLFSSL_HAVE_MLDSA)
+    defined(SWDEV_MLDSA)
 /* Decline the families swdev has no handler for, so the caller falls back. */
 static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
 {
@@ -876,7 +880,7 @@ static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
     case WC_PQC_SIG_TYPE_FALCON:
         return swdev_falcon(info, pkType);
 #endif
-#ifdef WOLFSSL_HAVE_MLDSA
+#ifdef SWDEV_MLDSA
     case WC_PQC_SIG_TYPE_MLDSA:
         return swdev_mldsa(info, pkType);
 #endif
@@ -884,7 +888,7 @@ static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
         return CRYPTOCB_UNAVAILABLE;
     }
 }
-#endif /* WOLFSSL_HAVE_SLHDSA || HAVE_FALCON || WOLFSSL_HAVE_MLDSA */
+#endif /* WOLFSSL_HAVE_SLHDSA || HAVE_FALCON || SWDEV_MLDSA */
 
 #ifdef WOLFSSL_HAVE_MLKEM
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
@@ -2347,7 +2351,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_ED448) || defined(WOLFSSL_HAVE_SLHDSA) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(HAVE_FALCON) || defined(SWDEV_MLDSA) || \
     defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
     defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
 #if defined(WOLF_CRYPTO_CB_FREE) && \
@@ -2448,7 +2452,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_ed448_check_key(info);
     #endif /* HAVE_ED448 */
     #if defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_FALCON) || \
-        defined(WOLFSSL_HAVE_MLDSA)
+        defined(SWDEV_MLDSA)
         case WC_PK_TYPE_PQC_SIG_KEYGEN:
         case WC_PK_TYPE_PQC_SIG_KEYGEN_SEED:
             return swdev_pqc_sig(info, info->pk.pqc_sig_kg.type,
@@ -2462,7 +2466,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_PQC_SIG_VERIFY:
         case WC_PK_TYPE_PQC_SIG_VERIFY_MSG:
             return swdev_pqc_sig(info, info->pk.pqc_verify.type, info->pk.type);
-    #endif /* WOLFSSL_HAVE_SLHDSA || HAVE_FALCON || WOLFSSL_HAVE_MLDSA */
+    #endif /* WOLFSSL_HAVE_SLHDSA || HAVE_FALCON || SWDEV_MLDSA */
     #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
         case WC_PK_TYPE_PQC_KEM_KEYGEN:
             return swdev_pqc_kem(info, info->pk.pqc_kem_kg.type,
