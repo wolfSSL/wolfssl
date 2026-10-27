@@ -2952,6 +2952,207 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
           (OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY || WOLFSSL_NGINX) */
 #endif /* WC_RSA_PSS */
 
+#ifdef WOLFSSL_RSA_OAEP_COMPAT
+/* Get the wolfCrypt hash and MGF of OAEP. As in OpenSSL, no md is SHA-1 and
+ * no mgf1md is md.
+ *
+ * @param [in]  md      Hash of the label. May be NULL.
+ * @param [in]  mgf1md  Hash of MGF1. May be NULL.
+ * @param [out] hash    wolfCrypt hash type.
+ * @param [out] mgf     wolfCrypt MGF.
+ * @return  1 on success.
+ * @return  0 when a hash is not supported.
+ */
+static int rsa_oaep_hash_mgf(const WOLFSSL_EVP_MD* md,
+    const WOLFSSL_EVP_MD* mgf1md, enum wc_HashType* hash, int* mgf)
+{
+    int ret = 1;
+
+    *hash = (md != NULL) ? EvpMd2MacType(md) : WC_HASH_TYPE_SHA;
+    *mgf = wc_hash2mgf((mgf1md != NULL) ? EvpMd2MacType(mgf1md) : *hash);
+    if ((*hash == WC_HASH_TYPE_NONE) || (*mgf == WC_MGF1NONE)) {
+        WOLFSSL_MSG("OAEP hash not supported");
+        ret = 0;
+    }
+
+    return ret;
+}
+
+/* Add PKCS#1 OAEP padding to a message.
+ * RFC 8017, 7.1.1, step 2.
+ *
+ * @param [out] to      Encoded message of tlen bytes.
+ * @param [in]  tlen    Size of the RSA modulus in bytes.
+ * @param [in]  from    Message.
+ * @param [in]  flen    Length of message in bytes.
+ * @param [in]  param   Label. May be NULL when plen is 0.
+ * @param [in]  plen    Length of label in bytes.
+ * @param [in]  md      Hash of the label. NULL for SHA-1.
+ * @param [in]  mgf1md  Hash of MGF1. NULL for md.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char* to, int tlen,
+    const unsigned char* from, int flen, const unsigned char* param, int plen,
+    const WOLFSSL_EVP_MD* md, const WOLFSSL_EVP_MD* mgf1md)
+{
+    int ret = 1;
+    WC_RNG* rng = NULL;
+    enum wc_HashType hash = WC_HASH_TYPE_NONE;
+    int mgf = WC_MGF1NONE;
+
+    WOLFSSL_ENTER("wolfSSL_RSA_padding_add_PKCS1_OAEP_mgf1");
+
+    /* wolfCrypt pads blocks up to the size of the largest RSA key. */
+    if ((to == NULL) || (tlen <= 0) || (tlen > RSA_MAX_SIZE / 8) ||
+            (flen < 0) || ((from == NULL) && (flen > 0)) || (plen < 0) ||
+            ((param == NULL) && (plen > 0))) {
+        WOLFSSL_MSG("Bad argument");
+        ret = 0;
+    }
+    if (ret == 1) {
+        ret = rsa_oaep_hash_mgf(md, mgf1md, &hash, &mgf);
+    }
+    /* Create the global RNG before locking. Creating it takes the lock. */
+    if ((ret == 1) && (wolfssl_make_global_rng() == NULL)) {
+        WOLFSSL_MSG("Failed to make RNG");
+        ret = 0;
+    }
+    /* Global RNG is shared, lock it while padding. */
+    if ((ret == 1) && (wc_LockMutex(&globalRNGMutex) != 0)) {
+        WOLFSSL_MSG("Bad Lock Mutex rng");
+        ret = 0;
+    }
+    if (ret == 1) {
+        /* Get it under the lock. It may have been freed since it was made. */
+        rng = wolfssl_get_global_rng();
+        if (rng == NULL) {
+            ret = 0;
+        }
+        else if (wc_RsaPad_ex((from != NULL) ? from : to, (word32)flen, to,
+                (word32)tlen, RSA_BLOCK_TYPE_2, rng, WC_RSA_OAEP_PAD, hash,
+                mgf, (byte*)param, (word32)plen, 0, tlen * 8, NULL) != 0) {
+            WOLFSSL_MSG("wc_RsaPad_ex failed");
+            ret = 0;
+        }
+        wc_UnLockMutex(&globalRNGMutex);
+    }
+
+    return ret;
+}
+
+/* Add PKCS#1 OAEP padding with SHA-1 and MGF1-SHA-1 to a message.
+ *
+ * @param [out] to     Encoded message of tlen bytes.
+ * @param [in]  tlen   Size of the RSA modulus in bytes.
+ * @param [in]  from   Message.
+ * @param [in]  flen   Length of message in bytes.
+ * @param [in]  param  Label. May be NULL when plen is 0.
+ * @param [in]  plen   Length of label in bytes.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_RSA_padding_add_PKCS1_OAEP(unsigned char* to, int tlen,
+    const unsigned char* from, int flen, const unsigned char* param, int plen)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_padding_add_PKCS1_OAEP");
+
+    return wolfSSL_RSA_padding_add_PKCS1_OAEP_mgf1(to, tlen, from, flen, param,
+        plen, NULL, NULL);
+}
+
+/* Check PKCS#1 OAEP padding and get the message.
+ * RFC 8017, 7.1.2, step 3.
+ *
+ * from may lack the leading zero bytes of the encoded message.
+ *
+ * @param [out] to      Buffer for the message. May be from.
+ * @param [in]  tlen    Size of to in bytes.
+ * @param [in]  from    Encoded message.
+ * @param [in]  flen    Length of encoded message in bytes.
+ * @param [in]  num     Size of the RSA modulus in bytes.
+ * @param [in]  param   Label. May be NULL when plen is 0.
+ * @param [in]  plen    Length of label in bytes.
+ * @param [in]  md      Hash of the label. NULL for SHA-1.
+ * @param [in]  mgf1md  Hash of MGF1. NULL for md.
+ * @return  Length of the message on success.
+ * @return  -1 on failure. wolfCrypt does not tell an empty message from a
+ *          decoding error, so an empty message also fails.
+ */
+int wolfSSL_RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char* to, int tlen,
+    const unsigned char* from, int flen, int num, const unsigned char* param,
+    int plen, const WOLFSSL_EVP_MD* md, const WOLFSSL_EVP_MD* mgf1md)
+{
+    int ret = 0;
+    byte* em = NULL;
+    byte* msg = NULL;
+    enum wc_HashType hash = WC_HASH_TYPE_NONE;
+    int mgf = WC_MGF1NONE;
+
+    WOLFSSL_ENTER("wolfSSL_RSA_padding_check_PKCS1_OAEP_mgf1");
+
+    /* wolfCrypt decodes blocks up to the size of the largest RSA key. */
+    if ((to == NULL) || (tlen < 0) || (from == NULL) || (flen < 0) ||
+            (num <= 0) || (num > RSA_MAX_SIZE / 8) || (flen > num) ||
+            (plen < 0) || ((param == NULL) && (plen > 0))) {
+        WOLFSSL_MSG("Bad argument");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if ((ret == 0) && (rsa_oaep_hash_mgf(md, mgf1md, &hash, &mgf) != 1)) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (ret == 0) {
+        em = (byte*)XMALLOC((size_t)num, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (em == NULL) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        /* Put back the leading zero bytes. */
+        XMEMSET(em, 0, (size_t)(num - flen));
+        XMEMCPY(em + num - flen, from, (size_t)flen);
+        ret = wc_RsaUnPad_ex(em, (word32)num, &msg, RSA_BLOCK_TYPE_2,
+            WC_RSA_OAEP_PAD, hash, mgf, (byte*)param, (word32)plen, 0,
+            num * 8, NULL);
+        if ((ret <= 0) || (ret > tlen)) {
+            WOLFSSL_MSG("OAEP decoding failed");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            XMEMCPY(to, msg, (size_t)ret);
+        }
+    }
+
+    if (em != NULL) {
+        ForceZero(em, (word32)num);
+        XFREE(em, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return ret;
+}
+
+/* Check PKCS#1 OAEP padding with SHA-1 and MGF1-SHA-1 and get the message.
+ *
+ * @param [out] to     Buffer for the message. May be from.
+ * @param [in]  tlen   Size of to in bytes.
+ * @param [in]  from   Encoded message.
+ * @param [in]  flen   Length of encoded message in bytes.
+ * @param [in]  num    Size of the RSA modulus in bytes.
+ * @param [in]  param  Label. May be NULL when plen is 0.
+ * @param [in]  plen   Length of label in bytes.
+ * @return  Length of the message on success.
+ * @return  -1 on failure.
+ */
+int wolfSSL_RSA_padding_check_PKCS1_OAEP(unsigned char* to, int tlen,
+    const unsigned char* from, int flen, int num, const unsigned char* param,
+    int plen)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_padding_check_PKCS1_OAEP");
+
+    return wolfSSL_RSA_padding_check_PKCS1_OAEP_mgf1(to, tlen, from, flen,
+        num, param, plen, NULL, NULL);
+}
+#endif /* WOLFSSL_RSA_OAEP_COMPAT */
+
 /*
  * RSA sign/verify APIs
  */
