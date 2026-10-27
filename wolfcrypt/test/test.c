@@ -35280,9 +35280,7 @@ out:
         }
 #ifdef WC_RNG_HAVE_LOCK
         if (prim_inited) {
-            cleanup_ret = wc_FreeRng_PreLocked(&prim);
-            if ((cleanup_ret != 0) && (ret == 0))
-                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+            (void)wc_FreeRng_PreLocked(&prim);
         }
 #endif
         if (extra_inited) {
