@@ -328,6 +328,157 @@ int test_wolfSSL_X509_PUBKEY_get(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
+static int test_X509_get0_pubkey_file(const char* file)
+{
+    EXPECT_DECLS;
+    X509* x509 = NULL;
+    X509* dup = NULL;
+    EVP_PKEY* key = NULL;
+    EVP_PKEY* pkey = NULL;
+    unsigned char* der = NULL;
+    unsigned char* der2 = NULL;
+    int derSz = 0;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(file,
+        WOLFSSL_FILETYPE_PEM));
+    /* The cert owns the key: the same key every time. */
+    ExpectNotNull(key = X509_get0_pubkey(x509));
+    ExpectPtrEq(X509_get0_pubkey(x509), key);
+    /* X509_get_pubkey returns a new key for the caller to free. */
+    ExpectNotNull(pkey = X509_get_pubkey(x509));
+    ExpectPtrNE(pkey, key);
+    ExpectIntGT(derSz = i2d_PUBKEY(key, &der), 0);
+    ExpectIntEQ(i2d_PUBKEY(pkey, &der2), derSz);
+    ExpectBufEQ(der2, der, derSz);
+    XFREE(der2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    der2 = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    ExpectPtrEq(X509_get0_pubkey(x509), key);
+
+    /* A copy owns its own key. */
+    ExpectNotNull(dup = X509_dup(x509));
+    ExpectNotNull(pkey = X509_get0_pubkey(dup));
+    ExpectPtrNE(pkey, key);
+    X509_free(x509);
+    x509 = NULL;
+    ExpectIntEQ(i2d_PUBKEY(pkey, &der2), derSz);
+    ExpectBufEQ(der2, der, derSz);
+
+    XFREE(der2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    X509_free(dup);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_X509_get0_pubkey(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if !defined(NO_RSA) && defined(HAVE_ECC)
+    X509* x509 = NULL;
+    X509* ecc = NULL;
+    EVP_PKEY* key = NULL;
+    EVP_PKEY* pkey = NULL;
+    unsigned char* der = NULL;
+    unsigned char* der2 = NULL;
+    int derSz = 0;
+#endif
+
+    ExpectNull(X509_get0_pubkey(NULL));
+#ifndef NO_RSA
+    ExpectIntEQ(test_X509_get0_pubkey_file(svrCertFile), TEST_SUCCESS);
+#endif
+#ifdef HAVE_ECC
+    ExpectIntEQ(test_X509_get0_pubkey_file(eccCertFile), TEST_SUCCESS);
+#endif
+
+#if !defined(NO_RSA) && defined(HAVE_ECC)
+    /* Setting a new public key drops the old owned key. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(ecc = wolfSSL_X509_load_certificate_file(eccCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(pkey = X509_get0_pubkey(x509));
+    ExpectIntEQ(EVP_PKEY_base_id(pkey), EVP_PKEY_RSA);
+    ExpectNotNull(key = X509_get0_pubkey(ecc));
+    ExpectIntEQ(X509_set_pubkey(x509, key), WOLFSSL_SUCCESS);
+    ExpectNotNull(pkey = X509_get0_pubkey(x509));
+    ExpectIntEQ(EVP_PKEY_base_id(pkey), EVP_PKEY_EC);
+    ExpectIntGT(derSz = i2d_PUBKEY(key, &der), 0);
+    ExpectIntEQ(i2d_PUBKEY(pkey, &der2), derSz);
+    ExpectBufEQ(der2, der, derSz);
+
+    XFREE(der2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    X509_free(ecc);
+    X509_free(x509);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(KEEP_PEER_CERT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA)
+static EVP_PKEY* test_get0_pubkey_leaf = NULL;
+static int test_get0_pubkey_leaf_bad = 0;
+
+/* Keep the leaf's key from the first call and check it on later calls. */
+static int test_get0_pubkey_verify_cb(int ok, X509_STORE_CTX* store)
+{
+    X509* cert = X509_STORE_CTX_get_current_cert(store);
+
+    (void)ok;
+    if (X509_STORE_CTX_get_error_depth(store) == 0) {
+        if (test_get0_pubkey_leaf == NULL) {
+            test_get0_pubkey_leaf = X509_get0_pubkey(cert);
+        }
+        else if ((EVP_PKEY_bits(test_get0_pubkey_leaf) != 2048) ||
+                 (X509_get0_pubkey(cert) != test_get0_pubkey_leaf)) {
+            test_get0_pubkey_leaf_bad = 1;
+        }
+    }
+    return 1;
+}
+#endif
+
+/* The key of the leaf in the verify callback stays valid while the peer cert
+ * does, as in OpenSSL. */
+int test_wolfSSL_X509_get0_pubkey_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(KEEP_PEER_CERT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_get0_pubkey_leaf = NULL;
+    test_get0_pubkey_leaf_bad = 0;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    /* The leaf is not trusted, so the callback is called on an error. */
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_get0_pubkey_verify_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(test_get0_pubkey_leaf);
+    ExpectIntEQ(test_get0_pubkey_leaf_bad, 0);
+    ExpectIntEQ(EVP_PKEY_bits(test_get0_pubkey_leaf), 2048);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_set_pubkey(void)
 {
     EXPECT_DECLS;
