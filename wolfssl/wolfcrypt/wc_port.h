@@ -146,6 +146,30 @@
 #endif
 #endif
 
+/* Restrict-qualified pointer parameter: a promise to the compiler that, within
+ * the callee, no object modified through this pointer is accessed through any
+ * other pointer.  Lets the callee keep values loaded through other pointers in
+ * registers across stores through this one, recovering the codegen of a local
+ * array for caller-supplied scratch.  On compilers with no restrict support it
+ * expands to nothing, which only forfeits the optimization. */
+#ifndef WC_RESTRICT
+    #ifdef __cplusplus
+        /* C++ has no standard restrict; the major compilers accept
+         * __restrict. */
+        #if defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+            #define WC_RESTRICT __restrict
+        #else
+            #define WC_RESTRICT
+        #endif
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+        #define WC_RESTRICT restrict
+    #elif defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+        #define WC_RESTRICT __restrict
+    #else
+        #define WC_RESTRICT
+    #endif
+#endif
+
 #if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
     #define INLINE WC_INLINE
     #if defined(__GNUC__) || defined(__clang__)
