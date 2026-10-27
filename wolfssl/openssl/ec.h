@@ -124,6 +124,18 @@ enum {
 #define NID_brainpoolP320r1 WC_NID_brainpoolP320r1
 #define NID_brainpoolP384r1 WC_NID_brainpoolP384r1
 #define NID_brainpoolP512r1 WC_NID_brainpoolP512r1
+
+/* Short names of the curves, as OBJ_nid2sn() returns them */
+#define SN_X9_62_prime192v1 "prime192v1"
+#define SN_X9_62_prime192v2 "prime192v2"
+#define SN_X9_62_prime192v3 "prime192v3"
+#define SN_X9_62_prime239v1 "prime239v1"
+#define SN_X9_62_prime239v2 "prime239v2"
+#define SN_X9_62_prime239v3 "prime239v3"
+#define SN_X9_62_prime256v1 "prime256v1"
+#define SN_secp224r1 "secp224r1"
+#define SN_secp384r1 "secp384r1"
+#define SN_secp521r1 "secp521r1"
 #endif
 
 #ifdef HAVE_ED448
