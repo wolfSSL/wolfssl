@@ -17010,7 +17010,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.connectState == CONNECT_BEGIN &&
-            (ret = DtlsCheckVersionMask(ssl)) != 0) {
+            (ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
@@ -18319,7 +18319,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.acceptState == TLS13_ACCEPT_BEGIN &&
-            (ret = DtlsCheckVersionMask(ssl)) != 0) {
+            (ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
