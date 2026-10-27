@@ -3892,7 +3892,6 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_entry_ext(void)
                     crl_unk_ext_cb_accept32, &ctx), WOLFSSL_SUCCESS);
                 break;
 
-            case CallbackTypeEnd:
             default:
                 /* Not reachable: the loop bound excludes CallbackTypeEnd. */
                 ExpectFail();
@@ -3964,7 +3963,6 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
                     crl_unk_ext_cb_accept32, &ctx), WOLFSSL_SUCCESS);
                 break;
 
-            case CallbackTypeEnd:
             default:
                 /* Not reachable: the loop bound excludes CallbackTypeEnd. */
                 ExpectFail();
@@ -4006,7 +4004,6 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
                     crl_unk_ext_cb_reject32, &ctx), WOLFSSL_SUCCESS);
                 break;
 
-            case CallbackTypeEnd:
             default:
                 /* Not reachable: the loop bound excludes CallbackTypeEnd. */
                 ExpectFail();
@@ -4067,7 +4064,6 @@ int test_wolfSSL_CRL_unknown_ext_cb_positive_return_fails_load(void)
                     crl_unk_ext_cb_reject_positive32, &ctx), WOLFSSL_SUCCESS);
                 break;
 
-            case CallbackTypeEnd:
             default:
                 /* Not reachable: the loop bound excludes CallbackTypeEnd. */
                 ExpectFail();
@@ -4144,7 +4140,6 @@ int test_wolfSSL_CRL_unknown_ext_cb_noctx(void)
                     crl_unk_ext_cb_noctx_accept32), WOLFSSL_SUCCESS);
                 break;
 
-            case CallbackTypeEnd:
             default:
                 /* Not reachable: the loop bound excludes CallbackTypeEnd. */
                 ExpectFail();
@@ -4185,7 +4180,6 @@ int test_wolfSSL_CRL_unknown_ext_cb_noctx(void)
                     crl_unk_ext_cb_noctx_reject32), WOLFSSL_SUCCESS);
                 break;
 
-            case CallbackTypeEnd:
             default:
                 /* Not reachable: the loop bound excludes CallbackTypeEnd. */
                 ExpectFail();
