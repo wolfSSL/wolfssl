@@ -1971,7 +1971,7 @@ int test_falcon_verify_cb_res(void)
 }
 
 #if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(HAVE_FIPS)
 static int falcon_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info,
     void* ctx)
@@ -1991,7 +1991,7 @@ int test_wc_falcon_make_key_id_dev(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
     !defined(HAVE_FIPS)
     int devId = 2407;
     falcon_key key;

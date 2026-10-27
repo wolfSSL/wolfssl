@@ -2126,8 +2126,8 @@ int test_wc_ed448_make_key_dev_error(void)
     return EXPECT_RESULT();
 } /* END test_wc_ed448_make_key_dev_error */
 
-#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && \
-    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+#if defined(HAVE_ED448) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
 static int ed448_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     (void)devIdArg;
@@ -2144,8 +2144,8 @@ static int ed448_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 int test_wc_ed448_make_key_id_dev(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && \
-    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+#if defined(HAVE_ED448) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
     int devId = 2404;
     ed448_key key;
     WC_RNG rng;

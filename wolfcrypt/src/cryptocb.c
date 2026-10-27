@@ -37,6 +37,8 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_AES_SETKEY: Enable callback for AES key setup default: off
  * WOLF_CRYPTO_CB_RSA_PAD: Enable callback for RSA padding      default: off
  *                      operations (custom padding handling).
+ * WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK:                           default: off
+ *                      Software keygen for id/label keys a device declines.
  * DEBUG_CRYPTOCB:      Enable debug InfoString functions        default: off
  *
  * Device ID options:
@@ -518,7 +520,7 @@ static CryptoCb* wc_CryptoCb_FindDevice(int devId, int algoType)
     return wc_CryptoCb_GetDevice(localDevId);
 }
 
-#ifdef WOLF_PRIVATE_KEY_ID
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
 /* Returns 1 if public key operations on devId reach a registered device. */
 int wc_CryptoCb_HasPkDevice(int devId)
 {

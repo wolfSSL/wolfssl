@@ -36382,7 +36382,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
 
             if (info->pk.eccsign.key != NULL &&
                 info->pk.eccsign.key->type == ECC_PRIVATEKEY) {
-                /* generated in software, not the key this device holds */
+                /* skip keys generated in software */
             #ifdef DEBUG_WOLFSSL
                 fprintf(stderr, "test_CryptoCb_Func: skipping signing op on "
                     "software key\n");
