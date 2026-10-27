@@ -825,29 +825,21 @@ AS_CASE([$FIPS_VERSION],
 )
 
 case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
-    *-DV523_NONFIPS_SHAKE*) ENABLED_V523_NONFIPS_SHAKE=yes ;;
-    *) ENABLED_V523_NONFIPS_SHAKE=no ;;
+    *-DV5_NONFIPS_SHAKE*) ENABLED_V5_NONFIPS_SHAKE=yes ;;
+    *) ENABLED_V5_NONFIPS_SHAKE=no ;;
 esac
 if test "x$HAVE_FIPS_VERSION_MAJOR" != "x5"
 then
-    ENABLED_V523_NONFIPS_SHAKE=no
-fi
-if test "x$HAVE_FIPS_VERSION_MINOR" != "x2"
-then
-    ENABLED_V523_NONFIPS_SHAKE=no
-fi
-if test "x$HAVE_FIPS_VERSION_PATCH" != "x1"
-then
-    ENABLED_V523_NONFIPS_SHAKE=no
+    ENABLED_V5_NONFIPS_SHAKE=no
 fi
 dnl shake.c/shake.h live in the internal fips repo, not this one; a wolfssl
 dnl checkout without them dropped into wolfcrypt/src/ and wolfssl/wolfcrypt/
 dnl would otherwise fail deep in the build with a bare "No rule to make target".
-AS_IF([ test "x$ENABLED_V523_NONFIPS_SHAKE" = "xyes" && \
+AS_IF([ test "x$ENABLED_V5_NONFIPS_SHAKE" = "xyes" && \
         ( ! test -s $srcdir/wolfcrypt/src/shake.c || \
           ! test -s $srcdir/wolfssl/wolfcrypt/shake.h ) ],
-      [AC_MSG_ERROR([wolfcrypt/src/shake.c and/or wolfssl/wolfcrypt/shake.h not found. V523_NONFIPS_SHAKE needs the internal fips repo overlay.])])
-AM_CONDITIONAL([BUILD_V523_NONFIPS_SHAKE],[test "x$ENABLED_V523_NONFIPS_SHAKE" = "xyes"])
+      [AC_MSG_ERROR([wolfcrypt/src/shake.c and/or wolfssl/wolfcrypt/shake.h not found. V5_NONFIPS_SHAKE needs the internal fips repo overlay.])])
+AM_CONDITIONAL([BUILD_V5_NONFIPS_SHAKE],[test "x$ENABLED_V5_NONFIPS_SHAKE" = "xyes"])
 
 if test "$ENABLED_FIPS_DEV" = "yes"
 then

@@ -182,7 +182,7 @@
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
-#if defined(WOLFSSL_SHA3) && defined(V523_NONFIPS_SHAKE)
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
     #include <wolfssl/wolfcrypt/shake.h>
 #endif
 

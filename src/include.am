@@ -448,7 +448,7 @@ endif BUILD_SHA512
 
 if BUILD_SHA3
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3.c
-if BUILD_V523_NONFIPS_SHAKE
+if BUILD_V5_NONFIPS_SHAKE
 nodist_src_libwolfssl@LIBSUFFIX@_la_SOURCES = wolfcrypt/src/shake.c
 endif
 if BUILD_ARMASM_NEON

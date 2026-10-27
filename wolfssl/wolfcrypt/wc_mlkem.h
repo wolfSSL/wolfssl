@@ -29,7 +29,7 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
-#if defined(WOLFSSL_SHA3) && defined(V523_NONFIPS_SHAKE)
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
     /* Must come after sha3.h here, unlike the other override sites: sha3.h
     * processes first with SHAKE off, so shake.h's own fallback typedef and
     * prototypes are what actually declare wc_Shake here. Moving it ahead
