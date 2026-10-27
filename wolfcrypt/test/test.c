@@ -1173,7 +1173,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7authenveloped_test(void);
     #endif
-    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+        !defined(NO_PKCS7_ENCRYPTED_DATA)
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7callback_test(byte* cert, word32 certSz, byte* key,
                 word32 keySz);
     #endif
@@ -86402,7 +86403,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7authenveloped_test(void)
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
-    defined(HAVE_AES_KEYWRAP)
+    defined(HAVE_AES_KEYWRAP) && !defined(NO_PKCS7_ENCRYPTED_DATA)
 static const byte p7DefKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -86834,7 +86835,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7callback_test(byte* cert, word32 cert
 
     return ret;
 }
-#endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 && HAVE_AES_KEYWRAP */
+#endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 && HAVE_AES_KEYWRAP &&
+        * !NO_PKCS7_ENCRYPTED_DATA */
 
 #ifndef NO_PKCS7_ENCRYPTED_DATA
 
@@ -89828,7 +89830,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
 
 #if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
-    defined(WOLFSSL_AES_256) && defined(HAVE_AES_KEYWRAP)
+    defined(WOLFSSL_AES_256) && defined(HAVE_AES_KEYWRAP) && \
+    !defined(NO_PKCS7_ENCRYPTED_DATA)
     if (ret >= 0)
         ret = pkcs7callback_test(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,
