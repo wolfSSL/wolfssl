@@ -1144,26 +1144,53 @@ static int NextSeedProducerRelease(wolfSSL_Atomic_Int *lenp,
 
 /* Purge the uncredited stir accumulator.  Claimed CONSUMING first so the wipe
  * runs under ownership; a holder's burn-before-release covers the CONSUMING
- * case.  Blind depositors can tear the wipe, which is harmless. */
+ * case, and a constructor's _TORNDOWN is never claimed or repainted (the
+ * reopen is its to make).  Blind depositors can tear the wipe, which is
+ * harmless. */
 static WC_MAYBE_UNUSED void NextStirPurge(WC_RNG* rng)
 {
     WC_ATOMIC_INT_ARG cur;
     int ret;
 
     WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&rng->nextStirLen, cur, ret) {
-        if (cur == WC_DRBG_NEXT_SEED_CONSUMING)
+        if ((cur == WC_DRBG_NEXT_SEED_CONSUMING) ||
+            (cur == WC_DRBG_NEXT_SEED_TORNDOWN))
+        {
             return;
+        }
         WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
                                       &rng->nextStirLen, cur,
                                       WC_DRBG_NEXT_SEED_CONSUMING, ret);
     } WC_CAS_WITH_RETRY_END;
     if (ret != 0) {
-        /* No claim, so no wipe; still drop the material as before. */
-        WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
+        /* Aborted claim (a port's retry clause): no claim, so no wipe --
+         * and no store either, which could repaint a live claim or a
+         * constructor's _TORNDOWN.  The stale fill stands; resurrection
+         * of uncredited stir material is benign by the three-no-ops
+         * doctrine, and the next purge or teardown collects it. */
         return;
     }
     ForceZero(rng->nextStir, (word32)sizeof(rng->nextStir));
-    WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
+    /* Reopen by CAS, never by plain store: a blind depositor can have
+     * stored a fill length over the claim (discarded, as before --
+     * length only; its bytes lie in place until the next wipe or
+     * full-buffer fold, benign for the uncredited stir), and a
+     * constructor can have painted the word _TORNDOWN at any point, the
+     * reopen then being its to make, not ours. */
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&rng->nextStirLen, cur, ret) {
+        if (cur == WC_DRBG_NEXT_SEED_TORNDOWN)
+            return;
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                      &rng->nextStirLen, cur,
+                                      WC_DRBG_NEXT_SEED_EMPTY, ret);
+    } WC_CAS_WITH_RETRY_END;
+    if (ret != 0) {
+        /* Aborted reopen: leaving the word CONSUMING would silence the
+         * stir aperture on this instance, so store EMPTY -- the
+         * _TORNDOWN-repaint risk on this already-exotic path is accepted,
+         * and teardown's own wipe and sentinel follow regardless. */
+        WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
+    }
 }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
@@ -3081,6 +3108,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                 }
 
                 aptFailed |= (matches >= cutoff);
+                ForceZero(&refByte, sizeof(refByte));
             }
         }
     }
@@ -3121,6 +3149,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                 }
 
                 aptFailed |= (count >= cutoff);
+                ForceZero(&cand, sizeof(cand));
             }
         }
     }
@@ -3721,10 +3750,15 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         }
 
         if (ret == 0) {
+            /* Set before the call, as for drbg_instantiated: a failed
+             * instantiate still leaves V in the state, and the failure
+             * arm below must uninstantiate it.  (The scratch is
+             * NULL-seeded, so the stranded state would be a public
+             * constant -- wiped anyway, for uniformity of the
+             * invariant.) */
+            drbg_scratch_instantiated = 1;
             ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg_scratch,
                         NULL, NULL, 0, NULL, 0, NULL, 0, rng->heap, devId);
-            if (ret == 0)
-                drbg_scratch_instantiated = 1;
         }
 
         if (ret == 0) {
@@ -3770,10 +3804,10 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         }
 
         if (ret == 0) {
+            /* Set before the call -- see the SHA-256 scratch arm. */
+            drbg_scratch_instantiated = 1;
             ret = Hash512_DRBG_Instantiate(rng->drbg512_scratch,
                         NULL, NULL, 0, NULL, 0, NULL, 0, rng->heap, devId);
-            if (ret == 0)
-                drbg_scratch_instantiated = 1;
         }
 
         if (ret == 0) {
