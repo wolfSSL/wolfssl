@@ -244,18 +244,14 @@ jobs:
       # refresh later - a stale value only packs the schedule worse. The
       # list is kept sorted by minutes for readability, but the schedule
       # sorts by the values, not list order.
-      # The CFLAGS that were previously passed to configure are applied at
-      # make time via --cflags, unchanged. --private-dir=certs gives every
-      # build dir its own certs/ copy: crl-gen-openssl.test writes generated
-      # CRLs under certs/crl/, which would race through the shared VPATH
-      # certs symlink.
+      # --private-dir=certs stops crl-gen-openssl.test racing on certs/crl/.
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         if: ${{ env.SEED_DECLINED != 'true' }}
         run: |
           .github/scripts/parallel-make-check.py \
             ${{ (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
-            --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
+            --extra-cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs .github/configs/os-check-linux.json
 
       # Seed runs (a push to master, the cron, or a manual dispatch with
@@ -377,7 +373,7 @@ jobs:
           .github/scripts/parallel-make-check.py \
             ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --threads 1 --cc= \
-            --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
+            --extra-cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs .github/configs/os-check-macos.json
 
       - name: ccache stats

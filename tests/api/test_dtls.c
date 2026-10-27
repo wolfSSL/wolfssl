@@ -4114,7 +4114,7 @@ static int test_wolfSSL_dtls_export_peers_set_peer(WOLFSSL* ssl, char* ip,
         int ipSz, unsigned short port, int fam)
 {
     (void)ssl;
-    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+    if (ip[0] != (char)-1 || ipSz != 1 || port != 1 || fam != 2)
         return 0;
     return 1;
 }
@@ -8868,7 +8868,7 @@ int test_dtls_cookie_flip_in_cb(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(WOLFSSL_NO_TLS12)
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx io;
@@ -9138,7 +9138,7 @@ static int test_dtls_export_etm_set_peer(WOLFSSL* ssl, char* ip, int ipSz,
         unsigned short port, int fam)
 {
     (void)ssl;
-    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+    if (ip[0] != (char)-1 || ipSz != 1 || port != 1 || fam != 2)
         return 0;
     return 1;
 }
@@ -9241,7 +9241,7 @@ static int test_dtls_export_set_peer(WOLFSSL* ssl, char* ip, int ipSz,
         unsigned short port, int fam)
 {
     (void)ssl;
-    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+    if (ip[0] != (char)-1 || ipSz != 1 || port != 1 || fam != 2)
         return 0;
     return 1;
 }
