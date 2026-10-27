@@ -5613,17 +5613,51 @@ word32 nid2oid(int nid, int grp)
     return (word32)-1;
 }
 
-/* Get the NID for an OID sum.
+/* Check the DER encoding of an OID against that of an object info entry.
+ *
+ * OID sums are not unique as different OIDs may have the same sum. The sum is
+ * only used to find candidate entries and the encoding must also match.
+ *
+ * @param [in] info   Object info entry with an OID sum matching the OID.
+ * @param [in] der    DER encoding of OID, content bytes only. May be NULL.
+ * @param [in] derSz  Length of DER encoding in bytes.
+ * @return  1 when OID matches the entry or no encoding is available.
+ * @return  0 when the OID is not that of the entry.
+ */
+static int wolfssl_object_info_oid_match(const WOLFSSL_ObjectInfo* info,
+    const byte* der, word32 derSz)
+{
+    const byte* checkOid;
+    word32 checkOidSz = 0;
+
+    /* Caller only has the OID sum. */
+    if (der == NULL) {
+        return 1;
+    }
+
+    checkOid = OidFromId((word32)info->id, info->type, &checkOidSz);
+    /* No encoding known for entry so only the sum can be compared. */
+    if (checkOid == NULL) {
+        return 1;
+    }
+
+    return (checkOidSz == derSz) && (XMEMCMP(checkOid, der, derSz) == 0);
+}
+
+/* Get the NID for an OID sum and, optionally, its DER encoding.
  *
  * The entries of grp are searched first. When not found there, every entry is
  * searched as callers may not know the group.
  *
- * @param [in] oid  OID sum to find.
- * @param [in] grp  OID group the OID is expected to be in.
+ * @param [in] oid    OID sum to find.
+ * @param [in] grp    OID group the OID is expected to be in.
+ * @param [in] der    DER encoding of OID, content bytes only. NULL when only
+ *                    the sum is known.
+ * @param [in] derSz  Length of DER encoding in bytes.
  * @return  NID on success.
  * @return  WOLFSSL_FATAL_ERROR when the OID is not in the table.
  */
-int oid2nid(word32 oid, int grp)
+static int oid2nid_ex(word32 oid, int grp, const byte* der, word32 derSz)
 {
     size_t i;
     size_t end;
@@ -5633,7 +5667,9 @@ int oid2nid(word32 oid, int grp)
     if (wolfssl_object_info_range((word32)grp, &i, &end)) {
         for (; i < end; i++) {
             if ((wolfssl_object_info[i].id == (int)oid) &&
-                    (wolfssl_object_info[i].type == (word32)grp)) {
+                    (wolfssl_object_info[i].type == (word32)grp) &&
+                    wolfssl_object_info_oid_match(&wolfssl_object_info[i], der,
+                        derSz)) {
                 return wolfssl_object_info[i].nid;
             }
         }
@@ -5645,13 +5681,33 @@ int oid2nid(word32 oid, int grp)
      * from a numerical OID string with no group set, and
      * wolfSSL_OBJ_obj2nid() then looks it up with grp of 0. */
     for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
-        if (wolfssl_object_info[i].id == (int)oid) {
+        if ((wolfssl_object_info[i].id == (int)oid) &&
+                wolfssl_object_info_oid_match(&wolfssl_object_info[i], der,
+                    derSz)) {
             return wolfssl_object_info[i].nid;
         }
     }
 
     WOLFSSL_MSG("OID not in table");
     return WOLFSSL_FATAL_ERROR;
+}
+
+/* Get the NID for an OID sum.
+ *
+ * The entries of grp are searched first. When not found there, every entry is
+ * searched as callers may not know the group.
+ *
+ * Only use when the OID's encoding has already been checked against the group,
+ * as when parsed with GetObjectId(), as OID sums are not unique.
+ *
+ * @param [in] oid  OID sum to find.
+ * @param [in] grp  OID group the OID is expected to be in.
+ * @return  NID on success.
+ * @return  WOLFSSL_FATAL_ERROR when the OID is not in the table.
+ */
+int oid2nid(word32 oid, int grp)
+{
+    return oid2nid_ex(oid, grp, NULL, 0);
 }
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
@@ -6100,6 +6156,9 @@ int wc_OBJ_sn2nid(const char *sn)
         word32 oid = 0;
         word32 idx = 0;
         int ret;
+        const byte* der = NULL;
+        word32 derSz = 0;
+        int derLen = 0;
 
         WOLFSSL_ENTER_VERBOSE("wolfSSL_OBJ_obj2nid");
 
@@ -6137,14 +6196,28 @@ int wc_OBJ_sn2nid(const char *sn)
                     WOLFSSL_MSG("Issue getting OID of object");
                     return WOLFSSL_FATAL_ERROR;
                 }
+                /* Object data is the OID content bytes only. */
+                der = o->obj;
+                derSz = o->objSz;
             }
             else {
                 WOLFSSL_MSG("Issue getting OID of object");
                 return WOLFSSL_FATAL_ERROR;
             }
         }
+        else {
+            /* Object data has tag and length so find the OID content bytes. */
+            idx = 0;
+            if (GetASNObjectId(o->obj, &idx, &derLen, o->objSz) != 0) {
+                WOLFSSL_MSG("Issue getting OID of object");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            der = o->obj + idx;
+            derSz = (word32)derLen;
+        }
 
-        return oid2nid(oid, o->grp);
+        /* OID sums are not unique so match on encoding too. */
+        return oid2nid_ex(oid, o->grp, der, derSz);
     }
 
     /* Return the corresponding NID for the long name <ln>
@@ -6255,13 +6328,15 @@ int wc_OBJ_sn2nid(const char *sn)
         }
     #endif /* WOLFSSL_CERT_EXT */
 
-        /* get the group that the OID's sum is in
-         * @TODO possible conflict with multiples */
+        /* get the group that the OID's sum is in */
         for (i = 0; i < wolfssl_object_info_sz; i++) {
             int len;
         #ifdef WOLFSSL_CERT_EXT
             if (ret == 0) {
-                if (wolfssl_object_info[i].id == (int)sum) {
+                /* OID sums are not unique so match on encoding too. */
+                if ((wolfssl_object_info[i].id == (int)sum) &&
+                        wolfssl_object_info_oid_match(&wolfssl_object_info[i],
+                            out, outSz)) {
                     return wolfssl_object_info[i].nid;
                 }
             }
