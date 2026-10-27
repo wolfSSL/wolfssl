@@ -1017,6 +1017,7 @@ WOLFSSL_DSA* wolfSSL_DSA_new(void)
 {
     WOLFSSL_DSA* external;
     DsaKey*     key;
+    int         err = 0;
 
     WOLFSSL_MSG("wolfSSL_DSA_new");
 
@@ -1035,6 +1036,17 @@ WOLFSSL_DSA* wolfSSL_DSA_new(void)
     }
 
     InitwolfSSL_DSA(external);
+    wolfSSL_RefInit(&external->ref, &err);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
+    if (err != 0) {
+        WOLFSSL_MSG("wolfSSL_DSA_new RefInit failure");
+        XFREE(key, NULL, DYNAMIC_TYPE_DSA);
+        XFREE(external, NULL, DYNAMIC_TYPE_DSA);
+        return NULL;
+    }
+#else
+    (void)err;
+#endif
     if (wc_InitDsaKey(key) != 0) {
         WOLFSSL_MSG("wolfSSL_DSA_new InitDsaKey failure");
         XFREE(key, NULL, DYNAMIC_TYPE_DSA);
@@ -1049,9 +1061,19 @@ WOLFSSL_DSA* wolfSSL_DSA_new(void)
 
 void wolfSSL_DSA_free(WOLFSSL_DSA* dsa)
 {
+    int doFree = 0;
+
     WOLFSSL_MSG("wolfSSL_DSA_free");
 
     if (dsa) {
+        int err;
+
+        /* Only free when the last reference is released. */
+        wolfSSL_RefDec(&dsa->ref, &doFree, &err);
+        (void)err;
+    }
+    if (doFree) {
+        wolfSSL_RefFree(&dsa->ref);
         if (dsa->internal) {
             FreeDsaKey((DsaKey*)dsa->internal);
             XFREE(dsa->internal, NULL, DYNAMIC_TYPE_DSA);
@@ -1068,6 +1090,25 @@ void wolfSSL_DSA_free(WOLFSSL_DSA* dsa)
 
         /* dsa = NULL, don't try to access or double free it */
     }
+}
+
+/* Increments the reference count of the DSA key.
+ *
+ * @param [in, out] dsa  DSA key.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_DSA_up_ref(WOLFSSL_DSA* dsa)
+{
+    int err = 1;
+
+    WOLFSSL_ENTER("wolfSSL_DSA_up_ref");
+
+    if (dsa != NULL) {
+        wolfSSL_RefInc(&dsa->ref, &err);
+    }
+
+    return !err;
 }
 
 /* wolfSSL -> OpenSSL */
@@ -1103,9 +1144,16 @@ int SetDsaExternal(WOLFSSL_DSA* dsa)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    if (wolfssl_bn_set_value(&dsa->priv_key, &key->x) != 1) {
-        WOLFSSL_MSG("dsa x key error");
-        return WOLFSSL_FATAL_ERROR;
+    if (key->type == DSA_PRIVATE) {
+        if (wolfssl_bn_set_value(&dsa->priv_key, &key->x) != 1) {
+            WOLFSSL_MSG("dsa x key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+    else {
+        /* Public key or parameters only: no private key. */
+        wolfSSL_BN_clear_free(dsa->priv_key);
+        dsa->priv_key = NULL;
     }
 
     dsa->exSet = 1;
@@ -1605,6 +1653,18 @@ WOLFSSL_DSA_SIG* wolfSSL_d2i_DSA_SIG(WOLFSSL_DSA_SIG **sig,
 
 #endif /* !HAVE_SELFTEST */
 
+/* Use the leftmost bytes of the digest up to the size of q.
+ * FIPS 186-4, 4.6. */
+static int dsa_digest_len(const WOLFSSL_DSA* dsa, int dLen)
+{
+    int qSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
+
+    if ((qSz > 0) && (dLen > qSz)) {
+        dLen = qSz;
+    }
+    return dLen;
+}
+
 int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
         unsigned char* sigRet, WOLFSSL_DSA* dsa)
 {
@@ -1628,6 +1688,10 @@ int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
             return WOLFSSL_FATAL_ERROR;
         }
     }
+    if (((DsaKey*)dsa->internal)->type != DSA_PRIVATE) {
+        WOLFSSL_MSG("No DSA private key");
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
         return WOLFSSL_FATAL_ERROR);
@@ -1647,6 +1711,7 @@ int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
             return WOLFSSL_FATAL_ERROR;
     }
 
+    dLen = dsa_digest_len(dsa, dLen);
     if (rng) {
 #ifdef HAVE_SELFTEST
         /* FIPS 186-4 4.2, as wc_DsaSign_ex() does below. wc_DsaSign() reads
@@ -1694,8 +1759,8 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
                                         int inLen, WOLFSSL_DSA* dsa)
 {
     byte sigBin[DSA_MAX_SIG_SIZE];
-    const byte *tmp = sigBin;
-    int sigLen;
+    WOLFSSL_DSA_SIG* sig;
+    int halfSz;
 
     WOLFSSL_ENTER("wolfSSL_DSA_do_sign_ex");
 
@@ -1714,14 +1779,24 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
         return NULL;
     }
 
-    sigLen = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
-    if (sigLen <= 0) {
+    halfSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
+    if (halfSz <= 0 || halfSz > DSA_MAX_HALF_SIZE) {
         WOLFSSL_MSG("mp_unsigned_bin_size error");
         return NULL;
     }
 
-    /* 2 * sigLen for the two points r and s */
-    return wolfSSL_d2i_DSA_SIG(NULL, &tmp, 2 * sigLen);
+    /* Raw signature is r then s, each the size of q. */
+    if ((sig = wolfSSL_DSA_SIG_new_bn()) == NULL)
+        return NULL;
+    if (mp_read_unsigned_bin((mp_int*)sig->r->internal, sigBin,
+            (word32)halfSz) != MP_OKAY ||
+        mp_read_unsigned_bin((mp_int*)sig->s->internal, sigBin + halfSz,
+            (word32)halfSz) != MP_OKAY) {
+        WOLFSSL_MSG("mp_read_unsigned_bin error");
+        wolfSSL_DSA_SIG_free(sig);
+        return NULL;
+    }
+    return sig;
 }
 #endif
 
@@ -1747,6 +1822,7 @@ int wolfssl_local_dsa_do_verify(const unsigned char* d, int dLen, unsigned char*
         }
     }
 
+    dLen = dsa_digest_len(dsa, dLen);
 #ifdef HAVE_SELFTEST
     /* FIPS 186-4 4.2, as wc_DsaVerify_ex() does below. wc_DsaVerify() reads
      * exactly WC_SHA_DIGEST_SIZE bytes, so it can only serve the digests that
@@ -1788,6 +1864,32 @@ int wolfSSL_DSA_bits(const WOLFSSL_DSA *d)
     if (!d->exSet && SetDsaExternal((WOLFSSL_DSA*)d) != 1)
         return 0;
     return wolfSSL_BN_num_bits(d->p);
+}
+
+/* Maximum size of a DER encoded DSA signature: r = s = q.
+ *
+ * @param [in] dsa  DSA key.
+ * @return  Size in bytes on success.
+ * @return  -1 when q is not set.
+ */
+int wolfSSL_DSA_size(const WOLFSSL_DSA *dsa)
+{
+    int qBits;
+    int intSz;
+
+    WOLFSSL_ENTER("wolfSSL_DSA_size");
+
+    if ((dsa == NULL) || (dsa->q == NULL)) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    qBits = wolfSSL_BN_num_bits(dsa->q);
+    if (qBits <= 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* INTEGER of q: one more byte when the top bit is set. */
+    intSz = qBits / WOLFSSL_BIT_SIZE + 1;
+    intSz += 1 + (int)SetLength((word32)intSz, NULL);
+    return 1 + (int)SetLength((word32)(2 * intSz), NULL) + 2 * intSz;
 }
 
 #ifndef HAVE_SELFTEST
@@ -1835,7 +1937,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
 
     /* read r */
     /* front pad with zeros */
-    if ((sz = wolfSSL_BN_num_bytes(sig->r)) < 0 || sz > DSA_MAX_HALF_SIZE)
+    if ((sz = wolfSSL_BN_num_bytes(sig->r)) < 0 || sz > qSz)
         return 0;
     while (sz++ < qSz)
         *sigBinPtr++ = 0;
@@ -1847,7 +1949,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
 
     /* read s */
     /* front pad with zeros */
-    if ((sz = wolfSSL_BN_num_bytes(sig->s)) < 0 || sz > DSA_MAX_HALF_SIZE)
+    if ((sz = wolfSSL_BN_num_bytes(sig->s)) < 0 || sz > qSz)
         return 0;
     while (sz++ < qSz)
         *sigBinPtr++ = 0;

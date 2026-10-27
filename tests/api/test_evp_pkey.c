@@ -910,6 +910,172 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     return EXPECT_RESULT();
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
+int test_wolfSSL_EVP_PKEY_assign_get1_DSA(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(WC_FIPS_186_5_PLUS) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM)
+    DSA* dsa = NULL;
+    DSA* dsa2 = NULL;
+    EVP_PKEY* pkey = NULL;
+    DSA_SIG* sig = NULL;
+    const BIGNUM* priv = NULL;
+    unsigned char digest[WC_SHA_DIGEST_SIZE];
+    byte der[TWOK_BUF];
+    int derSz = 0;
+    XFILE fp = XBADFILE;
+
+    XMEMSET(digest, 0x5a, sizeof(digest));
+    ExpectTrue((fp = XFOPEN("./certs/dsa2048.der", "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), fp), 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+
+    /* Free the pkey before the key returned by get1. */
+    ExpectNotNull(dsa = DSA_new());
+    ExpectIntEQ(DSA_LoadDer(dsa, der, derSz), 1);
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_assign_DSA(pkey, dsa), 1);
+    if (EXPECT_FAIL()) {
+        DSA_free(dsa);
+    }
+    dsa = NULL;
+    /* get1 returns the key of the pkey with a reference for the caller. */
+    ExpectNotNull(dsa2 = EVP_PKEY_get1_DSA(pkey));
+    ExpectPtrEq(dsa2, EVP_PKEY_get0_DSA(pkey));
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    DSA_get0_key(dsa2, NULL, &priv);
+    ExpectNotNull(priv);
+    ExpectNotNull(sig = DSA_do_sign(digest, (int)sizeof(digest), dsa2));
+    ExpectIntEQ(DSA_do_verify(digest, (int)sizeof(digest), sig, dsa2), 1);
+    DSA_SIG_free(sig);
+    sig = NULL;
+    DSA_free(dsa2);
+    dsa2 = NULL;
+
+    /* Free the key returned by get1 before the pkey. */
+    ExpectNotNull(dsa = DSA_new());
+    ExpectIntEQ(DSA_LoadDer(dsa, der, derSz), 1);
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_assign_DSA(pkey, dsa), 1);
+    if (EXPECT_FAIL()) {
+        DSA_free(dsa);
+    }
+    dsa = NULL;
+    ExpectNotNull(dsa2 = EVP_PKEY_get1_DSA(pkey));
+    ExpectPtrEq(dsa2, EVP_PKEY_get0_DSA(pkey));
+    DSA_free(dsa2);
+    dsa2 = NULL;
+    ExpectNotNull(sig = DSA_do_sign(digest, (int)sizeof(digest),
+        EVP_PKEY_get0_DSA(pkey)));
+    ExpectIntEQ(DSA_do_verify(digest, (int)sizeof(digest), sig,
+        EVP_PKEY_get0_DSA(pkey)), 1);
+    DSA_SIG_free(sig);
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_PKEY_set1_get1_DSA_ref(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(WC_FIPS_186_5_PLUS) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM)
+    DSA* dsa = NULL;
+    DSA* dsa2 = NULL;
+    DSA* get1 = NULL;
+    EVP_PKEY* pkey = NULL;
+    DSA_SIG* sig = NULL;
+    const unsigned char* p = NULL;
+    unsigned char digest[WC_SHA_DIGEST_SIZE];
+    byte der[TWOK_BUF];
+    int derSz = 0;
+    XFILE fp = XBADFILE;
+
+    XMEMSET(digest, 0x5a, sizeof(digest));
+    ExpectTrue((fp = XFOPEN("./certs/dsa2048.der", "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), fp), 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    ExpectNotNull(dsa = DSA_new());
+    ExpectIntEQ(DSA_LoadDer(dsa, der, derSz), 1);
+    ExpectNotNull(dsa2 = DSA_new());
+    ExpectIntEQ(DSA_LoadDer(dsa2, der, derSz), 1);
+    ExpectNotNull(pkey = EVP_PKEY_new());
+
+    /* set1 takes a reference, so the key outlives the caller's one. */
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), 1);
+    ExpectPtrEq(EVP_PKEY_get0_DSA(pkey), dsa);
+    DSA_free(dsa);
+    dsa = NULL;
+    ExpectNotNull(sig = DSA_do_sign(digest, (int)sizeof(digest),
+        EVP_PKEY_get0_DSA(pkey)));
+    ExpectIntEQ(DSA_do_verify(digest, (int)sizeof(digest), sig,
+        EVP_PKEY_get0_DSA(pkey)), 1);
+    DSA_SIG_free(sig);
+    sig = NULL;
+
+    /* get1 after set1 returns the same key. */
+    ExpectNotNull(get1 = EVP_PKEY_get1_DSA(pkey));
+    ExpectPtrEq(get1, EVP_PKEY_get0_DSA(pkey));
+    DSA_free(get1);
+    get1 = NULL;
+
+    /* set1 with the key the pkey already holds must not free it. */
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, EVP_PKEY_get0_DSA(pkey)), 1);
+    ExpectNotNull(sig = DSA_do_sign(digest, (int)sizeof(digest),
+        EVP_PKEY_get0_DSA(pkey)));
+    DSA_SIG_free(sig);
+    sig = NULL;
+
+    /* Replacing the key drops only the reference the pkey held. */
+    ExpectNotNull(get1 = EVP_PKEY_get1_DSA(pkey));
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa2), 1);
+    ExpectPtrEq(EVP_PKEY_get0_DSA(pkey), dsa2);
+    ExpectNotNull(sig = DSA_do_sign(digest, (int)sizeof(digest), get1));
+    ExpectIntEQ(DSA_do_verify(digest, (int)sizeof(digest), sig, get1), 1);
+    DSA_SIG_free(sig);
+    sig = NULL;
+    DSA_free(get1);
+    get1 = NULL;
+    DSA_free(dsa2);
+    dsa2 = NULL;
+    ExpectNotNull(sig = DSA_do_sign(digest, (int)sizeof(digest),
+        EVP_PKEY_get0_DSA(pkey)));
+    DSA_SIG_free(sig);
+    sig = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* get1 on a pkey with only the DER decodes the key once and keeps it.
+     * Decoding always sets the DSA object, so drop it here. */
+    p = der;
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_DSA, NULL, &p,
+        (long)derSz));
+    if (pkey != NULL) {
+        DSA_free(pkey->dsa);
+        pkey->dsa = NULL;
+        pkey->ownDsa = 0;
+    }
+    ExpectNotNull(get1 = EVP_PKEY_get1_DSA(pkey));
+    ExpectPtrEq(get1, EVP_PKEY_get0_DSA(pkey));
+    ExpectNotNull(dsa = EVP_PKEY_get1_DSA(pkey));
+    ExpectPtrEq(dsa, get1);
+    DSA_free(dsa);
+    dsa = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    ExpectNotNull(sig = DSA_do_sign(digest, (int)sizeof(digest), get1));
+    ExpectIntEQ(DSA_do_verify(digest, (int)sizeof(digest), sig, get1), 1);
+    DSA_SIG_free(sig);
+    DSA_free(get1);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY(void)
 {
     EXPECT_DECLS;
@@ -2122,6 +2288,159 @@ int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_EVP_PKEY_sign_verify_dsa_der(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    /* SHA-256 of "What is easy to do is easy not to do." signed by OpenSSL
+     * with dsa_key_der_2048. */
+    static const unsigned char sigOssl[] = {
+        0x30, 0x2c, 0x02, 0x14, 0x29, 0x47, 0x2d, 0xb8, 0x5e, 0xf9, 0x13, 0x8f,
+        0xd3, 0x32, 0x70, 0x8e, 0x6b, 0x0b, 0x3d, 0x1f, 0xd2, 0xa5, 0x3c, 0x3c,
+        0x02, 0x14, 0x16, 0xb7, 0xed, 0xab, 0x52, 0x90, 0x74, 0xf6, 0x09, 0x6a,
+        0x66, 0x70, 0x69, 0xf7, 0x43, 0xd0, 0xdc, 0x87, 0x8b, 0x94,
+    };
+#if !defined(NO_FILESYSTEM) && (defined(WOLFSSL_QT) || \
+    defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+    /* The same digest signed by OpenSSL with certs/dsa3072.der (256-bit q). */
+    static const unsigned char sigOssl256[] = {
+        0x30, 0x44, 0x02, 0x20, 0x23, 0x11, 0xc8, 0xeb, 0x07, 0x67, 0xbd, 0xf2,
+        0x59, 0xaa, 0x92, 0x28, 0x56, 0x13, 0x8c, 0xee, 0x72, 0x53, 0x8f, 0x01,
+        0x1e, 0xf5, 0x7e, 0x8d, 0x32, 0x99, 0xf3, 0x60, 0x05, 0xec, 0xa6, 0x7a,
+        0x02, 0x20, 0x04, 0x30, 0x3f, 0x84, 0xeb, 0x64, 0x28, 0xa1, 0x64, 0x30,
+        0x34, 0x98, 0x91, 0x34, 0x2d, 0x06, 0x1d, 0xad, 0x93, 0x38, 0x91, 0xfc,
+        0xff, 0x3f, 0xd8, 0xfd, 0xb9, 0xb0, 0x2e, 0xd3, 0x9c, 0x66,
+    };
+    unsigned char key[TWOK_BUF];
+    int keySz = 0;
+    XFILE fp = XBADFILE;
+#endif
+    const char* in = "What is easy to do is easy not to do.";
+    const unsigned char* der = dsa_key_der_2048;
+    const unsigned char* p = NULL;
+    unsigned char hash[WC_SHA256_DIGEST_SIZE];
+    unsigned char sig[128];
+    unsigned char bad[sizeof(sigOssl) + 1];
+    unsigned char raw[40];
+    size_t sigLen = 0;
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY_CTX* ctx = NULL;
+    DSA* dsa = NULL;
+    DSA_SIG* dsaSig = NULL;
+
+    ExpectNotNull(SHA256((const unsigned char*)in, XSTRLEN(in), hash));
+    ExpectNotNull(dsa = DSA_new());
+    ExpectIntEQ(DSA_LoadDer(dsa, der, (int)sizeof_dsa_key_der_2048), 1);
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), 1);
+
+    /* Verify a DER signature made by OpenSSL. */
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_verify_init(ctx), 1);
+    ExpectIntEQ(EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha256()), 1);
+    ExpectIntEQ(EVP_PKEY_verify(ctx, sigOssl, sizeof(sigOssl), hash,
+        sizeof(hash)), 1);
+    XMEMCPY(bad, sigOssl, sizeof(sigOssl));
+    bad[sizeof(sigOssl) - 1] ^= 0x01;
+    ExpectIntNE(EVP_PKEY_verify(ctx, bad, sizeof(sigOssl), hash,
+        sizeof(hash)), 1);
+    ExpectIntNE(EVP_PKEY_verify(ctx, sigOssl, sizeof(sigOssl) - 1, hash,
+        sizeof(hash)), 1);
+    /* Raw r|s is not DER. */
+    XMEMCPY(raw, sigOssl + 4, 20);
+    XMEMCPY(raw + 20, sigOssl + 26, 20);
+    ExpectIntNE(EVP_PKEY_verify(ctx, raw, sizeof(raw), hash, sizeof(hash)),
+        1);
+    /* r longer than q: r * 256 + 0x5a. */
+    bad[0] = 0x30;
+    bad[1] = 0x2d;
+    bad[2] = 0x02;
+    bad[3] = 0x15;
+    XMEMCPY(bad + 4, sigOssl + 4, 20);
+    bad[24] = 0x5a;
+    XMEMCPY(bad + 25, sigOssl + 24, 22);
+    ExpectIntNE(EVP_PKEY_verify(ctx, bad, sizeof(bad), hash, sizeof(hash)),
+        1);
+    /* s longer than q: s * 256 + 0xa5. */
+    XMEMCPY(bad, sigOssl, sizeof(sigOssl));
+    bad[1] = 0x2d;
+    bad[25] = 0x15;
+    bad[46] = 0xa5;
+    ExpectIntNE(EVP_PKEY_verify(ctx, bad, sizeof(bad), hash, sizeof(hash)),
+        1);
+    hash[0] ^= 0x01;
+    ExpectIntNE(EVP_PKEY_verify(ctx, sigOssl, sizeof(sigOssl), hash,
+        sizeof(hash)), 1);
+    hash[0] ^= 0x01;
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Sign: DER of r and s, at most DSA_size() bytes. */
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_sign_init(ctx), 1);
+    ExpectIntEQ(EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha256()), 1);
+    ExpectIntEQ(EVP_PKEY_sign(ctx, NULL, &sigLen, hash, sizeof(hash)), 1);
+    ExpectIntEQ((int)sigLen, DSA_size(dsa));
+    sigLen = (size_t)DSA_size(dsa) - 1;
+    ExpectIntNE(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)), 1);
+    sigLen = sizeof(sig);
+    ExpectIntEQ(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)), 1);
+    ExpectIntLE((int)sigLen, DSA_size(dsa));
+    ExpectIntEQ(sig[0], 0x30);
+    p = sig;
+    ExpectNotNull(dsaSig = d2i_DSA_SIG(NULL, &p, (long)sigLen));
+    ExpectPtrEq(p, sig + sigLen);
+    ExpectIntEQ(DSA_do_verify(hash, (int)sizeof(hash), dsaSig, dsa), 1);
+    DSA_SIG_free(dsaSig);
+    dsaSig = NULL;
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_verify_init(ctx), 1);
+    ExpectIntEQ(EVP_PKEY_verify(ctx, sig, sigLen, hash, sizeof(hash)), 1);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    DSA_free(dsa);
+    dsa = NULL;
+
+#if !defined(NO_FILESYSTEM) && (defined(WOLFSSL_QT) || \
+    defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+    /* 256-bit q: all of the SHA-256 digest is used.
+     * d2i_PrivateKey decodes DSA keys only in these builds. */
+    ExpectTrue((fp = XFOPEN("./certs/dsa3072.der", "rb")) != XBADFILE);
+    ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    p = key;
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_DSA, NULL, &p, keySz));
+    ExpectNotNull(dsa = EVP_PKEY_get0_DSA(pkey));
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_verify_init(ctx), 1);
+    ExpectIntEQ(EVP_PKEY_verify(ctx, sigOssl256, sizeof(sigOssl256), hash,
+        sizeof(hash)), 1);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_sign_init(ctx), 1);
+    sigLen = sizeof(sig);
+    ExpectIntEQ(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)), 1);
+    p = sig;
+    ExpectNotNull(dsaSig = d2i_DSA_SIG(NULL, &p, (long)sigLen));
+    ExpectIntEQ(DSA_do_verify(hash, (int)sizeof(hash), dsaSig, dsa), 1);
+    DSA_SIG_free(dsaSig);
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
 int test_wolfSSL_EVP_PKEY_sign_verify_ec(void)
 {
     EXPECT_DECLS;
