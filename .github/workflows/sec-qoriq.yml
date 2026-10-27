@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # cmake first: it builds from the pristine checkout and relies on the
       # in-tree wolfssl/version.h, which an autotools "make distclean" would
@@ -52,18 +52,19 @@ jobs:
     name: PowerPC cross-compile, ${{ matrix.backend }} backend
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         backend: [ baremetal, linux ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: install PowerPC toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-powerpc-linux-gnu
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: gcc-powerpc-linux-gnu
+          ghcr-debs-tag: ubuntu-24.04-cross
 
       - name: cross-compile the library
         run: |
