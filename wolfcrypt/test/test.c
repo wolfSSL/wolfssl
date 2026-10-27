@@ -37166,7 +37166,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         }
         if (root_held) {
             int put_ret = wc_RNG_lock_put(root, 0);
-            root_held = 0;
             if ((api_ret == 0) && (put_ret != 0))
                 api_ret = put_ret;
         }
@@ -37190,10 +37189,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                         api_ret = ci_ret;
                 }
             }
-        }
-        if (root_held) {
-            (void)wc_FreeRng_PreLocked(root);
-            (void)wc_RNG_lock_put(root, 0);
         }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
