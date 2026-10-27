@@ -15451,9 +15451,17 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     #ifdef WOLFSSL_MLDSA_ASSIGN_KEY
         key->k = priv;
     #else
-        /* Do not write the new key over the old one. */
-        ForceZero(key->k, privSz);
-        XMEMCPY(key->k, priv, privSz);
+        /* An exact-alias re-import (priv == key->k) already has the new key
+         * in place: skip the wipe, which would destroy the source before the
+         * copy, and the copy itself, which is undefined for an exact alias.
+         * The sibling import sites preserve aliased input in a stack bounce
+         * buffer instead; at ML-DSA private-key sizes that is not an option,
+         * and in the non-aliased case the same-size overwrite leaves no
+         * residue of the old key. */
+        if (priv != (const byte*)key->k) {
+            ForceZero(key->k, privSz);
+            XMEMCPY(key->k, priv, privSz);
+        }
     #endif
         copied = 1;
     }
