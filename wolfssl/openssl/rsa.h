@@ -177,6 +177,27 @@ WOLFSSL_LOCAL int wolfSSL_RSA_verify_mgf(int hashAlg,
                                 int mgf1Hash, int saltLen);
 WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                                unsigned char* to, WOLFSSL_RSA* rsa, int padding);
+#if defined(OPENSSL_EXTRA) && !defined(WC_NO_RSA_OAEP) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)) \
+    && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    /* RSA_padding_add_PKCS1_OAEP and RSA_padding_check_PKCS1_OAEP */
+    #define WOLFSSL_RSA_OAEP_COMPAT
+#endif
+#ifdef WOLFSSL_RSA_OAEP_COMPAT
+WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_OAEP(unsigned char* to, int tlen,
+    const unsigned char* from, int flen, const unsigned char* param, int plen);
+WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char* to,
+    int tlen, const unsigned char* from, int flen, const unsigned char* param,
+    int plen, const WOLFSSL_EVP_MD* md, const WOLFSSL_EVP_MD* mgf1md);
+/* An empty message fails, as wolfCrypt reports it as a decoding error. */
+WOLFSSL_API int wolfSSL_RSA_padding_check_PKCS1_OAEP(unsigned char* to,
+    int tlen, const unsigned char* from, int flen, int num,
+    const unsigned char* param, int plen);
+WOLFSSL_API int wolfSSL_RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char* to,
+    int tlen, const unsigned char* from, int flen, int num,
+    const unsigned char* param, int plen, const WOLFSSL_EVP_MD* md,
+    const WOLFSSL_EVP_MD* mgf1md);
+#endif
 WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa);
 WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa,
                                const unsigned char* derBuf, int derSz);
@@ -274,6 +295,15 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #define RSA_set_ex_data        wolfSSL_RSA_set_ex_data
 
 #define RSA_get0_key       wolfSSL_RSA_get0_key
+
+#ifdef WOLFSSL_RSA_OAEP_COMPAT
+#define RSA_padding_add_PKCS1_OAEP   wolfSSL_RSA_padding_add_PKCS1_OAEP
+#define RSA_padding_check_PKCS1_OAEP wolfSSL_RSA_padding_check_PKCS1_OAEP
+#define RSA_padding_add_PKCS1_OAEP_mgf1 \
+    wolfSSL_RSA_padding_add_PKCS1_OAEP_mgf1
+#define RSA_padding_check_PKCS1_OAEP_mgf1 \
+    wolfSSL_RSA_padding_check_PKCS1_OAEP_mgf1
+#endif
 
 #define RSA_F4             WOLFSSL_RSA_F4
 

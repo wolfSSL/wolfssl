@@ -582,6 +582,297 @@ int test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_RSA_padding_PKCS1_OAEP(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_RSA_OAEP_COMPAT) && \
+    !defined(WC_NO_RNG)
+    static const unsigned char msg[16] = {
+        'O', 'A', 'E', 'P', ' ', 'l', 'a', 'b', 'e', 'l', ' ', 't', 'e', 's',
+        't', '!'
+    };
+    static const unsigned char label[5] = { 'l', 'a', 'b', 'e', 'l' };
+    unsigned char em[256] = {0};
+    unsigned char out[256] = {0};
+
+    /* SHA-1 OAEP takes 2 * 20 + 2 bytes. */
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(NULL, (int)sizeof(em), msg,
+        (int)sizeof(msg), NULL, 0), 0);
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, 41, NULL, 0, NULL, 0), 0);
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, 42, NULL, 0, NULL, 0), 1);
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, 57, msg, (int)sizeof(msg),
+        NULL, 0), 0);
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, 58, msg, (int)sizeof(msg),
+        NULL, 0), 1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em, 58,
+        58, NULL, 0), (int)sizeof(msg));
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, (int)sizeof(em), msg,
+        (int)sizeof(msg), NULL, 1), 0);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(NULL, (int)sizeof(out), em, 58,
+        58, NULL, 0), -1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em, 59,
+        58, NULL, 0), -1);
+
+    /* With a label. */
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, (int)sizeof(em), msg,
+        (int)sizeof(msg), label, (int)sizeof(label)), 1);
+    ExpectIntEQ(em[0], 0);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label)),
+        (int)sizeof(msg));
+    ExpectBufEQ(out, msg, sizeof(msg));
+    /* Leading zero byte removed. */
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em + 1,
+        (int)sizeof(em) - 1, (int)sizeof(em), label, (int)sizeof(label)),
+        (int)sizeof(msg));
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(msg) - 1, em,
+        (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label)), -1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label) - 1), -1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), NULL, 0), -1);
+    em[100] ^= 0x01;
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label)), -1);
+
+    /* In place. */
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, (int)sizeof(em), msg,
+        (int)sizeof(msg), NULL, 0), 1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(em, (int)sizeof(em), em,
+        (int)sizeof(em), (int)sizeof(em), NULL, 0), (int)sizeof(msg));
+    ExpectBufEQ(em, msg, sizeof(msg));
+
+    /* Each call uses a fresh random seed. */
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, (int)sizeof(em), msg,
+        (int)sizeof(msg), NULL, 0), 1);
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(out, (int)sizeof(out), msg,
+        (int)sizeof(msg), NULL, 0), 1);
+    ExpectBufNE(em, out, sizeof(em));
+
+#ifdef WC_RSA_NO_PADDING
+    {
+        /* msg encrypted by OpenSSL to client_key_der_2048 with the label. */
+        static const unsigned char ct[] = {
+            0x8f, 0x18, 0x00, 0x4d, 0x31, 0x50, 0xd2, 0x5d, 0x58, 0x47, 0x9a,
+            0x97, 0x99, 0x94, 0xd1, 0x3a, 0x97, 0x95, 0x83, 0x5c, 0x45, 0x73,
+            0xdf, 0x40, 0x6a, 0x6d, 0xd5, 0x5a, 0x3d, 0xae, 0x93, 0xe1, 0x9f,
+            0xa1, 0x97, 0xce, 0xe1, 0xa5, 0xd2, 0x0a, 0xf7, 0x4c, 0x27, 0x5b,
+            0x4e, 0xa6, 0xe8, 0x16, 0x01, 0xed, 0x76, 0x60, 0x23, 0xa1, 0xd2,
+            0xd7, 0xff, 0xda, 0xb4, 0xc9, 0xd5, 0x7f, 0x47, 0xc1, 0xb1, 0x20,
+            0x99, 0x8a, 0x74, 0xde, 0x8c, 0x22, 0x06, 0xd1, 0xe8, 0x4f, 0xf5,
+            0x4a, 0xa4, 0xd0, 0xc7, 0xf1, 0x7f, 0x6f, 0x50, 0x10, 0xe8, 0xa0,
+            0x2a, 0xce, 0x72, 0xfe, 0x8f, 0xa4, 0x6c, 0xc6, 0x0e, 0x1a, 0x37,
+            0x20, 0xfe, 0x6f, 0x8b, 0x9a, 0x22, 0x18, 0x0f, 0x5f, 0x04, 0x95,
+            0x0e, 0x7f, 0xec, 0x48, 0xec, 0xcf, 0x0c, 0xe3, 0x45, 0x8f, 0xc6,
+            0x49, 0x2c, 0xb9, 0x77, 0xf4, 0x66, 0xf5, 0x23, 0xd1, 0x89, 0x56,
+            0x61, 0x1a, 0x23, 0x5d, 0x24, 0x5c, 0xfe, 0x85, 0xf3, 0x66, 0x8a,
+            0x18, 0xf0, 0xaf, 0xb0, 0x31, 0x6c, 0xe7, 0x46, 0xb0, 0x98, 0xea,
+            0x92, 0x37, 0x88, 0x57, 0x68, 0xb6, 0x80, 0xb5, 0x53, 0x70, 0xca,
+            0xe7, 0x55, 0x87, 0xfb, 0x94, 0x71, 0x8d, 0x03, 0x6a, 0x02, 0xa8,
+            0xdd, 0x89, 0x58, 0x7e, 0xd1, 0xc5, 0xa6, 0xd3, 0x26, 0xe1, 0x79,
+            0xc3, 0xb2, 0x81, 0xf6, 0x08, 0x6b, 0x60, 0xa3, 0x58, 0x2d, 0x8d,
+            0x4d, 0xc0, 0xa7, 0xa8, 0xe6, 0x72, 0x2b, 0xa5, 0xdb, 0xdd, 0xc2,
+            0x04, 0x13, 0x7a, 0xfe, 0x01, 0xff, 0xa3, 0x40, 0x4d, 0x97, 0xdf,
+            0x66, 0x82, 0x71, 0x59, 0x2f, 0xa5, 0xca, 0x6f, 0xd5, 0xf5, 0x79,
+            0x14, 0xa2, 0x0e, 0xcb, 0x93, 0x98, 0xdc, 0xeb, 0x45, 0xf8, 0xac,
+            0xa3, 0xc3, 0xc6, 0x39, 0xa4, 0x08, 0x76, 0x44, 0xd3, 0x37, 0xbf,
+            0x07, 0x18, 0xff,
+        };
+        RSA* rsa = NULL;
+        const unsigned char* der = client_key_der_2048;
+        unsigned char ct2[256] = {0};
+
+        ExpectNotNull(d2i_RSAPrivateKey(&rsa, &der,
+            sizeof_client_key_der_2048));
+        ExpectIntEQ(RSA_private_decrypt((int)sizeof(ct), ct, em, rsa,
+            RSA_NO_PADDING), (int)sizeof(em));
+        ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em,
+            (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label)),
+            (int)sizeof(msg));
+        ExpectBufEQ(out, msg, sizeof(msg));
+
+        /* Without a label, RSA_PKCS1_OAEP_PADDING decrypts it. */
+        ExpectIntEQ(RSA_padding_add_PKCS1_OAEP(em, (int)sizeof(em), msg,
+            (int)sizeof(msg), NULL, 0), 1);
+        ExpectIntEQ(RSA_public_encrypt((int)sizeof(em), em, ct2, rsa,
+            RSA_NO_PADDING), (int)sizeof(ct2));
+        ExpectIntEQ(RSA_private_decrypt((int)sizeof(ct2), ct2, out, rsa,
+            RSA_PKCS1_OAEP_PADDING), (int)sizeof(msg));
+        ExpectBufEQ(out, msg, sizeof(msg));
+        RSA_free(rsa);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_RSA_padding_PKCS1_OAEP_mgf1(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_RSA_OAEP_COMPAT) && \
+    !defined(WC_NO_RNG) && !defined(NO_SHA256)
+    static const unsigned char msg[16] = {
+        'O', 'A', 'E', 'P', ' ', 'l', 'a', 'b', 'e', 'l', ' ', 't', 'e', 's',
+        't', '!'
+    };
+    static const unsigned char label[5] = { 'l', 'a', 'b', 'e', 'l' };
+    unsigned char em[256] = {0};
+    unsigned char out[256] = {0};
+
+    /* NULL hashes are SHA-1, as without _mgf1. */
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP_mgf1(em, (int)sizeof(em), msg,
+        (int)sizeof(msg), label, (int)sizeof(label), NULL, NULL), 1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label)),
+        (int)sizeof(msg));
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label),
+        EVP_sha1(), EVP_sha1()), (int)sizeof(msg));
+    ExpectBufEQ(out, msg, sizeof(msg));
+
+    /* No MGF1 hash is the label hash. */
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP_mgf1(em, (int)sizeof(em), msg,
+        (int)sizeof(msg), NULL, 0, EVP_sha256(), NULL), 1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), NULL, 0, EVP_sha256(),
+        EVP_sha256()), (int)sizeof(msg));
+    ExpectBufEQ(out, msg, sizeof(msg));
+    /* Other hashes fail. */
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), NULL, 0, EVP_sha256(), EVP_sha1()),
+        -1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), NULL, 0, EVP_sha1(), EVP_sha256()),
+        -1);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP(out, (int)sizeof(out), em,
+        (int)sizeof(em), (int)sizeof(em), NULL, 0), -1);
+
+    /* SHA-256 OAEP takes 2 * 32 + 2 bytes. */
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP_mgf1(em, 65, NULL, 0, NULL, 0,
+        EVP_sha256(), EVP_sha1()), 0);
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP_mgf1(em, 66, NULL, 0, NULL, 0,
+        EVP_sha256(), EVP_sha1()), 1);
+    ExpectIntEQ(RSA_padding_add_PKCS1_OAEP_mgf1(em, (int)sizeof(em), msg,
+        (int)sizeof(msg), NULL, 0, (const EVP_MD*)"no hash", NULL), 0);
+    ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out, (int)sizeof(out), em,
+        66, 66, NULL, 0, EVP_sha256(), (const EVP_MD*)"no hash"), -1);
+
+#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384) && \
+    defined(WOLFSSL_SHA224)
+    {
+        const EVP_MD* mds[4];
+        int i;
+        int j;
+
+        mds[0] = EVP_sha224();
+        mds[1] = EVP_sha256();
+        mds[2] = EVP_sha384();
+        mds[3] = EVP_sha512();
+        for (i = 0; i < 4; i++) {
+            for (j = 0; j < 4; j++) {
+                ExpectIntEQ(RSA_padding_add_PKCS1_OAEP_mgf1(em,
+                    (int)sizeof(em), msg, (int)sizeof(msg), label,
+                    (int)sizeof(label), mds[i], mds[j]), 1);
+                ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out,
+                    (int)sizeof(out), em, (int)sizeof(em), (int)sizeof(em),
+                    label, (int)sizeof(label), mds[i], mds[j]),
+                    (int)sizeof(msg));
+                ExpectBufEQ(out, msg, sizeof(msg));
+            }
+        }
+    }
+#endif
+
+#ifdef WC_RSA_NO_PADDING
+    {
+        /* msg encrypted by OpenSSL to client_key_der_2048 with OAEP SHA-256,
+         * MGF1-SHA-1 and the label. */
+        static const unsigned char ct[] = {
+            0x61, 0x16, 0xd4, 0xb5, 0x9c, 0x43, 0x15, 0x01, 0xd9, 0x99, 0x21,
+            0x8f, 0x52, 0xa2, 0xc5, 0x65, 0x23, 0x22, 0xe7, 0x55, 0x32, 0x5f,
+            0x25, 0xac, 0xc2, 0xa9, 0x1b, 0xa7, 0x8b, 0x0c, 0x05, 0x86, 0x62,
+            0x6c, 0xa8, 0x3c, 0xa4, 0x24, 0x9a, 0x92, 0x53, 0x55, 0x06, 0xc2,
+            0xcf, 0x26, 0x71, 0x79, 0xfc, 0x24, 0xf4, 0xd2, 0xc4, 0x99, 0x1f,
+            0x65, 0xc8, 0xda, 0xa4, 0xa7, 0xe3, 0xbc, 0x95, 0x3c, 0x85, 0x8d,
+            0x24, 0x2f, 0xb3, 0x3c, 0xf9, 0x4f, 0x60, 0x5a, 0xad, 0x7b, 0x64,
+            0xe1, 0x4b, 0xc6, 0xe2, 0x69, 0xa3, 0x61, 0x38, 0x52, 0xcb, 0xce,
+            0x76, 0x62, 0xe6, 0xaf, 0x06, 0x7f, 0x39, 0xf8, 0x4f, 0x4a, 0x37,
+            0x64, 0x37, 0x2b, 0x27, 0x2e, 0xda, 0xed, 0x8b, 0xe5, 0xbf, 0xb2,
+            0xb8, 0x90, 0x7f, 0x75, 0x77, 0x0f, 0xed, 0xcb, 0x2d, 0x54, 0xcb,
+            0x9c, 0xa8, 0xac, 0xfe, 0x84, 0x65, 0x16, 0xe8, 0x85, 0x81, 0xb5,
+            0x7d, 0xff, 0xf8, 0xef, 0x09, 0xe8, 0x51, 0x5b, 0x65, 0x21, 0xfd,
+            0xc5, 0xfb, 0xb6, 0xda, 0xfc, 0xae, 0xde, 0x56, 0xae, 0x64, 0x98,
+            0xd7, 0xde, 0xe4, 0xe5, 0x60, 0x7d, 0xee, 0x95, 0x47, 0x03, 0xd6,
+            0xed, 0x38, 0x3e, 0xf3, 0xe6, 0xfa, 0x28, 0x2b, 0xd7, 0xdb, 0xbc,
+            0x6f, 0x21, 0x8e, 0x8d, 0xab, 0x15, 0xda, 0xba, 0x16, 0xe3, 0x53,
+            0x79, 0xaf, 0xae, 0x0e, 0x91, 0x5e, 0xe9, 0xec, 0x30, 0x42, 0x35,
+            0x47, 0x38, 0x33, 0xd4, 0x05, 0x3e, 0x17, 0x31, 0xec, 0x84, 0x9f,
+            0xf2, 0x35, 0x6f, 0xc3, 0xf5, 0xb3, 0x17, 0x02, 0x86, 0xec, 0x74,
+            0x25, 0xe5, 0xc0, 0x13, 0x7b, 0x29, 0x52, 0x73, 0xcf, 0x81, 0x8a,
+            0x56, 0xca, 0x33, 0x90, 0xba, 0x1f, 0x87, 0xd0, 0x1e, 0x2f, 0x31,
+            0xb0, 0xe3, 0x2e, 0xbb, 0x2e, 0x55, 0x35, 0x3e, 0xda, 0xd6, 0x36,
+            0xdd, 0x38, 0x49,
+        };
+        RSA* rsa = NULL;
+        const unsigned char* der = client_key_der_2048;
+
+        ExpectNotNull(d2i_RSAPrivateKey(&rsa, &der,
+            sizeof_client_key_der_2048));
+        ExpectIntEQ(RSA_private_decrypt((int)sizeof(ct), ct, em, rsa,
+            RSA_NO_PADDING), (int)sizeof(em));
+        ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out, (int)sizeof(out),
+            em, (int)sizeof(em), (int)sizeof(em), label, (int)sizeof(label),
+            EVP_sha256(), EVP_sha1()), (int)sizeof(msg));
+        ExpectBufEQ(out, msg, sizeof(msg));
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256) && \
+        defined(WOLFSSL_SHA512)
+        {
+            /* msg encrypted by OpenSSL with OAEP SHA3-256 and
+             * MGF1-SHA-512. */
+            static const unsigned char ct3[] = {
+                0x74, 0x3f, 0xf3, 0xea, 0x2b, 0x45, 0x01, 0x10, 0x37, 0x0d,
+                0xbb, 0x85, 0x95, 0xd7, 0x63, 0x9c, 0x71, 0x8d, 0x2d, 0x37,
+                0xc6, 0x09, 0x2a, 0x76, 0x09, 0x76, 0x33, 0x9b, 0xba, 0x45,
+                0xed, 0xf6, 0x4c, 0x9e, 0x7d, 0xc4, 0x4a, 0xd9, 0xfc, 0x45,
+                0x4b, 0x7b, 0x9d, 0x11, 0xd7, 0x09, 0x96, 0xb4, 0x4d, 0x75,
+                0xbc, 0xa5, 0x3c, 0x15, 0x0e, 0xc5, 0xe2, 0xa7, 0xa6, 0xea,
+                0x0b, 0x6d, 0xb3, 0x48, 0xf2, 0x27, 0xad, 0x3b, 0x6c, 0xb7,
+                0x8e, 0x7e, 0xc5, 0xa9, 0xa5, 0x93, 0xaa, 0x2c, 0xcf, 0x9e,
+                0xb0, 0x4c, 0x16, 0x2d, 0x03, 0x31, 0x5b, 0x82, 0x51, 0x7e,
+                0x32, 0x43, 0x92, 0x11, 0xa1, 0x9e, 0x01, 0xee, 0xc5, 0xc3,
+                0xda, 0xbc, 0x4a, 0xb5, 0xf4, 0xf8, 0x10, 0x55, 0xbf, 0x08,
+                0xdb, 0x09, 0xec, 0x51, 0xa0, 0xe5, 0xcd, 0xe6, 0x11, 0x60,
+                0x60, 0x65, 0x09, 0x07, 0x0d, 0xe5, 0x19, 0x1c, 0x8d, 0xea,
+                0xb2, 0xc1, 0x1a, 0x64, 0x2b, 0x3f, 0xb3, 0x0e, 0x51, 0x25,
+                0xe0, 0x6d, 0xe2, 0xcd, 0xce, 0x8c, 0xe3, 0x50, 0x54, 0x1d,
+                0x87, 0x27, 0x41, 0x4b, 0xb4, 0xcc, 0xc2, 0x45, 0x47, 0x7a,
+                0xfd, 0x5f, 0x4a, 0xf7, 0x67, 0x7b, 0xe9, 0x5d, 0xf4, 0x14,
+                0x1a, 0xaf, 0x9c, 0x9e, 0x7d, 0x2f, 0x5f, 0xd3, 0x1b, 0xe5,
+                0x63, 0x3f, 0x20, 0x15, 0xed, 0xd8, 0xe2, 0xf0, 0xdb, 0xf2,
+                0x9d, 0xf6, 0x86, 0x0e, 0xaa, 0x53, 0x7d, 0x4e, 0xc2, 0xd7,
+                0x95, 0x11, 0xbb, 0xff, 0x75, 0x55, 0xcd, 0xb0, 0xda, 0x77,
+                0x3a, 0x5c, 0x7a, 0xa8, 0xbf, 0x4d, 0xd1, 0x3e, 0xf6, 0x20,
+                0xd9, 0x8d, 0xc9, 0x66, 0xf8, 0x13, 0x6e, 0xbc, 0xc7, 0x82,
+                0x35, 0xa5, 0xfc, 0x44, 0xcd, 0x7a, 0x92, 0xd2, 0x90, 0x63,
+                0xcf, 0x91, 0x70, 0xe8, 0xb1, 0x8b, 0x2c, 0xe6, 0xbd, 0x2c,
+                0x18, 0xf2, 0xc8, 0xc3, 0x31, 0xff,
+            };
+
+            ExpectIntEQ(RSA_private_decrypt((int)sizeof(ct3), ct3, em, rsa,
+                RSA_NO_PADDING), (int)sizeof(em));
+            ExpectIntEQ(RSA_padding_check_PKCS1_OAEP_mgf1(out,
+                (int)sizeof(out), em, (int)sizeof(em), (int)sizeof(em), NULL,
+                0, EVP_sha3_256(), EVP_sha512()), (int)sizeof(msg));
+            ExpectBufEQ(out, msg, sizeof(msg));
+        }
+    #endif
+        RSA_free(rsa);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_RSA_sign_sha3(void)
 {
     EXPECT_DECLS;
