@@ -2310,6 +2310,144 @@ int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_i2d_PUBKEY_EC_private(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_ECC256) && \
+    !defined(NO_ECC_SECP)
+    /* RFC 5915 ECPrivateKey of a P-256 key without the public key. */
+    static const unsigned char privOnly[] = {
+        0x30, 0x31, 0x02, 0x01, 0x01, 0x04, 0x20,
+        0x51, 0x9b, 0x42, 0x3d, 0x71, 0x5f, 0x8b, 0x58,
+        0x1f, 0x4f, 0xa8, 0xee, 0x59, 0xf4, 0x77, 0x1a,
+        0x5b, 0x44, 0xc8, 0x13, 0x0b, 0x4e, 0x3e, 0xac,
+        0xca, 0x54, 0xa5, 0x6d, 0xda, 0x72, 0xb4, 0x64,
+        0xa0, 0x0a, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+    };
+    /* Its public point, x and y. */
+    static const unsigned char privOnlyPub[] = {
+        0x1c, 0xcb, 0xe9, 0x1c, 0x07, 0x5f, 0xc7, 0xf4,
+        0xf0, 0x33, 0xbf, 0xa2, 0x48, 0xdb, 0x8f, 0xcc,
+        0xd3, 0x56, 0x5d, 0xe9, 0x4b, 0xbf, 0xb1, 0x2f,
+        0x3c, 0x59, 0xff, 0x46, 0xc2, 0x71, 0xbf, 0x83,
+        0xce, 0x40, 0x14, 0xc6, 0x88, 0x11, 0xf9, 0xa2,
+        0x1a, 0x1f, 0xdb, 0x2c, 0x0e, 0x61, 0x13, 0xe0,
+        0x6d, 0xb7, 0xca, 0x93, 0xb7, 0x40, 0x4e, 0x78,
+        0xdc, 0x7c, 0xcd, 0x5c, 0xa8, 0x9a, 0x4c, 0xa9
+    };
+#ifdef HAVE_ECC_BRAINPOOL
+    /* PKCS#8 brainpoolP256r1 key: the curve is only in the header. */
+    static const unsigned char bpP8[] = {
+        0x30, 0x81, 0x88, 0x02, 0x01, 0x00, 0x30, 0x14, 0x06, 0x07, 0x2a, 0x86,
+        0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x09, 0x2b, 0x24, 0x03, 0x03, 0x02,
+        0x08, 0x01, 0x01, 0x07, 0x04, 0x6d, 0x30, 0x6b, 0x02, 0x01, 0x01, 0x04,
+        0x20, 0x3a, 0x2f, 0x65, 0x24, 0x08, 0x72, 0x6c, 0x87, 0xa6, 0xb0, 0xe1,
+        0x88, 0xac, 0x31, 0x74, 0xd1, 0xc0, 0x41, 0x92, 0xe6, 0xd1, 0x3f, 0x40,
+        0xb5, 0x49, 0x7a, 0xa9, 0x0d, 0xe3, 0x58, 0x1e, 0xf4, 0xa1, 0x44, 0x03,
+        0x42, 0x00, 0x04, 0x69, 0x46, 0x8e, 0xee, 0x68, 0x80, 0xa4, 0xae, 0x02,
+        0x86, 0x6b, 0xc1, 0xef, 0xfe, 0xd1, 0xc6, 0xaa, 0x10, 0x85, 0x5d, 0xbd,
+        0xc9, 0x28, 0x88, 0x3e, 0xd1, 0xdd, 0xad, 0xfe, 0x0f, 0x65, 0xc7, 0x2f,
+        0xf7, 0xa2, 0x73, 0xd0, 0xe6, 0xae, 0x4e, 0x09, 0x9b, 0x34, 0xf6, 0xfa,
+        0x85, 0x97, 0x05, 0xfd, 0xc5, 0xfc, 0x7e, 0x43, 0xfd, 0x24, 0xf4, 0xad,
+        0x0e, 0x9d, 0x22, 0x6e, 0xf7, 0x7f, 0xd0
+    };
+#endif
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY* pub = NULL;
+    const unsigned char* p = ecc_key_der_256;
+    unsigned char* der = NULL;
+    unsigned char* der2 = NULL;
+    int derSz = 0;
+    EC_KEY* ec = NULL;
+    unsigned char point[65];
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    byte* buf = NULL;
+    size_t bufSz = 0;
+#endif
+
+    /* The SubjectPublicKeyInfo of a private key. */
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &p,
+        (long)sizeof_ecc_key_der_256));
+    ExpectIntEQ(i2d_PUBKEY(pkey, NULL), (int)sizeof_ecc_key_pub_der_256);
+    ExpectIntEQ(derSz = i2d_PUBKEY(pkey, &der),
+        (int)sizeof_ecc_key_pub_der_256);
+    ExpectBufEQ(der, ecc_key_pub_der_256, sizeof_ecc_key_pub_der_256);
+    /* The public key reads back. */
+    p = der;
+    ExpectNotNull(pub = d2i_PUBKEY(NULL, &p, derSz));
+    ExpectIntEQ(i2d_PUBKEY(pub, &der2), derSz);
+    ExpectBufEQ(der2, der, derSz);
+    EVP_PKEY_free(pub);
+    XFREE(der2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    der2 = NULL;
+
+    /* The encoding follows the current EC key. */
+    ExpectNotNull(ec = EVP_PKEY_get0_EC_KEY(pkey));
+    ExpectIntEQ(EC_KEY_generate_key(ec), 1);
+    ExpectIntEQ(i2d_PUBKEY(pkey, &der2), derSz);
+    ExpectIntNE(XMEMCMP(der2, der, (size_t)derSz), 0);
+    ExpectIntEQ(EC_POINT_point2oct(EC_KEY_get0_group(ec),
+        EC_KEY_get0_public_key(ec), POINT_CONVERSION_UNCOMPRESSED, point,
+        sizeof(point), NULL), sizeof(point));
+    if (EXPECT_SUCCESS()) {
+        ExpectBufEQ(der2 + derSz - sizeof(point), point, sizeof(point));
+    }
+    XFREE(der2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    der = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* The public key is computed when the encoding does not have it. */
+    p = privOnly;
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &p,
+        (long)sizeof(privOnly)));
+    ExpectIntEQ(derSz = i2d_PUBKEY(pkey, &der),
+        (int)sizeof_ecc_key_pub_der_256);
+    ExpectBufEQ(der, ecc_key_pub_der_256, 27);
+    if (EXPECT_SUCCESS()) {
+        ExpectBufEQ(der + derSz - sizeof(privOnlyPub), privOnlyPub,
+            sizeof(privOnlyPub));
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    der = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    /* PKCS#8: the inner key has no curve parameters. */
+    ExpectIntEQ(load_file("./certs/ecc-keyPkcs8.der", &buf, &bufSz), 0);
+    p = buf;
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &p,
+        (long)bufSz));
+    ExpectIntEQ(i2d_PUBKEY(pkey, &der), (int)sizeof_ecc_key_pub_der_256);
+    ExpectBufEQ(der, ecc_key_pub_der_256, sizeof_ecc_key_pub_der_256);
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    der = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+#ifdef HAVE_ECC_BRAINPOOL
+    /* The curve of a PKCS#8 key is taken from the header. */
+    p = bpP8;
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &p,
+        (long)sizeof(bpP8)));
+    ExpectIntEQ(derSz = i2d_PUBKEY(pkey, &der), 92);
+    /* Same AlgorithmIdentifier and public point. */
+    ExpectBufEQ(der + 2, bpP8 + 6, 22);
+    if (EXPECT_SUCCESS()) {
+        ExpectBufEQ(der + derSz - 65, bpP8 + sizeof(bpP8) - 65, 65);
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    EVP_PKEY_free(pkey);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_sign_verify_dsa_der(void)
 {
     EXPECT_DECLS;
