@@ -1734,7 +1734,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     ssl->peerVerifyRet = (unsigned long)ssl->session->peerVerifyRet;
 #endif
 #ifdef WOLFSSL_DTLS
-    (void)DtlsCheckVersionMask(ssl);
+    (void)DtlsCheckVersionMask(ssl, DTLS_MASK_START);
 #endif
 
     return WOLFSSL_SUCCESS;

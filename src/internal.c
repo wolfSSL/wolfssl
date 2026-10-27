@@ -2816,10 +2816,6 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
     method->downgrade  = 0;
 }
 
-#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
-static int InitSSL_DtlsServer(WOLFSSL* ssl);
-#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
-
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE) || \
     defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 int InitSSL_Side(WOLFSSL* ssl, word16 side)
@@ -8090,15 +8086,8 @@ byte DtlsMinDowngrade(byte minDowngrade)
 
 /* Returns the newest built DTLS minor, no newer than maxMinor, that the version
  * mask and minDowngrade allow, or 0. DTLS minors count down. */
-byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
+byte DtlsMaskAllowedMinor(unsigned long mask, byte maxMinor, byte minDowngrade)
 {
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
-    defined(WOLFSSL_WPAS_SMALL)
-    unsigned long mask = ssl->options.mask;
-#else
-    unsigned long mask = 0;
-#endif
-
 #ifdef WOLFSSL_DTLS13
     if (maxMinor <= DTLSv1_3_MINOR &&
             (mask & WOLFSSL_OP_NO_TLSv1_3) == 0) {
@@ -8118,11 +8107,22 @@ byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
         return DTLS_MINOR;
     }
 #endif
-    (void)ssl;
     (void)mask;
     (void)maxMinor;
     (void)minDowngrade;
     return 0;
+}
+
+/* DtlsMaskAllowedMinor() with the SSL's own version mask. */
+byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
+{
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
+    return DtlsMaskAllowedMinor(ssl->options.mask, maxMinor, minDowngrade);
+#else
+    (void)ssl;
+    return DtlsMaskAllowedMinor(0, maxMinor, minDowngrade);
+#endif
 }
 #endif
 
@@ -9114,7 +9114,7 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
  * @return  0 on success, and when there is nothing to do.
  * @return  A negative error code when a secret cannot be generated.
  */
-static int InitSSL_DtlsServer(WOLFSSL* ssl)
+int InitSSL_DtlsServer(WOLFSSL* ssl)
 {
     int ret;
 
@@ -43224,8 +43224,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
     #ifdef WOLFSSL_DTLS
-        ret = DtlsCheckVersionMask(ssl);
+        ret = DtlsCheckVersionMask(ssl, DTLS_MASK_IN_HELLO);
         if (ret == WC_NO_ERR_TRACE(VERSION_ERROR)) {
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             /* propagate socket errors to avoid re-calling send alert */
             if (SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version)
                     == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {

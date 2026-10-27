@@ -5760,6 +5760,9 @@ struct Options {
     void*             psk_ctx;
 #endif /* NO_PSK */
     unsigned long     mask; /* store SSL_OP_ flags */
+#ifdef WOLFSSL_DTLS
+    unsigned long     dtlsMaxMask; /* mask bits the DTLS maximum added */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     word16            minProto:1; /* sets min to min available */
     word16            maxProto:1; /* sets max to max available */
@@ -8278,9 +8281,19 @@ WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsMinDowngrade(byte minDowngrade);
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL int InitSSL_DtlsServer(WOLFSSL* ssl);
+#endif
+WOLFSSL_LOCAL byte DtlsMaskAllowedMinor(unsigned long mask, byte maxMinor,
+    byte minDowngrade);
 WOLFSSL_LOCAL byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor,
     byte minDowngrade);
-WOLFSSL_LOCAL int DtlsCheckVersionMask(WOLFSSL* ssl);
+enum DtlsMaskMode {
+    DTLS_MASK_START,
+    DTLS_MASK_LIFT,
+    DTLS_MASK_IN_HELLO
+};
+WOLFSSL_LOCAL int DtlsCheckVersionMask(WOLFSSL* ssl, enum DtlsMaskMode mode);
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int DtlsNoCookieChGood(WOLFSSL* ssl);
 #endif
