@@ -1208,6 +1208,35 @@ int test_wolfSSL_EC_curve(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_EC_curve_short_names(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+    static const struct {
+        int nid;
+        const char* sn;
+    } curves[] = {
+        { NID_X9_62_prime192v1, SN_X9_62_prime192v1 },
+        { NID_X9_62_prime192v2, SN_X9_62_prime192v2 },
+        { NID_X9_62_prime192v3, SN_X9_62_prime192v3 },
+        { NID_X9_62_prime239v1, SN_X9_62_prime239v1 },
+        { NID_X9_62_prime239v2, SN_X9_62_prime239v2 },
+        { NID_X9_62_prime239v3, SN_X9_62_prime239v3 },
+        { NID_X9_62_prime256v1, SN_X9_62_prime256v1 },
+        { NID_secp224r1, SN_secp224r1 },
+        { NID_secp384r1, SN_secp384r1 },
+        { NID_secp521r1, SN_secp521r1 },
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(curves) / sizeof(curves[0]); i++) {
+        ExpectStrEQ(OBJ_nid2sn(curves[i].nid), curves[i].sn);
+        ExpectIntEQ(OBJ_sn2nid(curves[i].sn), curves[i].nid);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EC_KEY_dup(void)
 {
     EXPECT_DECLS;

@@ -34,6 +34,7 @@ int test_wolfSSL_SPAKE(void);
 int test_wolfSSL_EC_KEY_generate(void);
 int test_EC_i2d(void);
 int test_wolfSSL_EC_curve(void);
+int test_wolfSSL_EC_curve_short_names(void);
 int test_wolfSSL_EC_KEY_dup(void);
 int test_wolfSSL_EC_KEY_set_group(void);
 int test_wolfSSL_EC_KEY_set_conv_form(void);
@@ -58,6 +59,7 @@ int test_wolfSSL_EC_POINT_point2hex_oversized(void);
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_KEY_generate),               \
     TEST_DECL_GROUP("ossl_ec", test_EC_i2d),                                \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_curve),                      \
+    TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_curve_short_names),          \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_KEY_dup),                    \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_KEY_set_group),              \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_KEY_set_conv_form),          \
