@@ -3127,55 +3127,120 @@ static int wc_linuxkm_entropy_daemon(void *arg)
          * design. */
   #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
         if (root_rng != NULL) {
-            unsigned long uncredited_nonce = random_get_entropy();
-            ret = wc_rng_bank_root_rng_reseed_if_due(
-                bank,
-                (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
-                (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL);
-            ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
-            if (ret == 0) {
+            if (wc_RNG_GetStatus(root_rng) != WC_DRBG_OK) {
+                /* Out-of-service root: the reseed paths refuse a failed
+                 * instance, so recovery is by reinstantiation --
+                 * gate-serialized inside wc_rng_bank_root_rng_reinit()
+                 * (spin-entered; task context).  The status peek is
+                 * lockless and possibly stale: worst case it reinits a
+                 * root another party just fixed (a fresh seed, no harm)
+                 * or misses one cycle.  Unlike the lock-facility arm,
+                 * a hard failure does not exit the daemon: without the
+                 * lock facility the members cannot self-reseed inline,
+                 * so the daemon stays and retries. */
+                unsigned long uncredited_nonce = random_get_entropy();
+                ret = wc_rng_bank_root_rng_reinit(
+                    bank,
+                    (byte *)&uncredited_nonce,
+                    (word32)sizeof uncredited_nonce,
+                    NULL, 0, 0);
+                ForceZero(&uncredited_nonce,
+                          (word32)sizeof uncredited_nonce);
+                if (ret == 0) {
+                    pr_notice("wc_entropyd: root_rng reinitialization "
+                              "succeeded.\n");
+                    progress = 1;
+                }
+                else if (WC_LKM_RNG_ERR_IS_HEALTH(ret)) {
+                    pr_warn_ratelimited(
+                        "wc_entropyd: root_rng reinitialization failed "
+                        "the seed health test: %d -- entropy source "
+                        "suspect\n", ret);
+                }
+                else if (! WC_RNG_ERR_IS_TRANSIENT(ret)) {
+                    pr_err_ratelimited(
+                        "wc_entropyd: root_rng reinitialization failed: "
+                        "%d\n", ret);
+                }
+            }
+            else {
+                unsigned long uncredited_nonce = random_get_entropy();
+                ret = wc_rng_bank_root_rng_reseed_if_due(
+                    bank,
+                    (byte *)&uncredited_nonce,
+                    (word32)sizeof uncredited_nonce,
+                    (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL);
+                ForceZero(&uncredited_nonce,
+                          (word32)sizeof uncredited_nonce);
+                if (ret == 0) {
     #ifdef WC_VERBOSE_RNG
-                pr_info("wc_linuxkm_entropy_daemon: root recovery reseed "
-                        "(saturated counter).\n");
+                    pr_info("wc_linuxkm_entropy_daemon: root recovery "
+                            "reseed (saturated counter).\n");
     #endif
-                progress = 1;
-            }
-            else if (WC_LKM_RNG_ERR_IS_HEALTH(ret)) {
-                pr_warn_ratelimited(
-                    "wc_entropyd: root_rng recovery reseed failed the seed "
-                    "health test: %d -- entropy source suspect\n", ret);
-            }
-            else if ((ret != WC_NO_ERR_TRACE(ALREADY_E)) &&
-                     (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) &&
-                     (! WC_RNG_ERR_IS_TRANSIENT(ret)))
-            {
-                /* ALREADY_E: not due -- the steady state.
-                 * WRONG_TYPE_OBJECT_E: no DRBG behind the root (RDRAND et
-                 * al.) -- permanently nothing to do.  Transient codes (the
-                 * gate held) are one pass away. */
-                pr_err_ratelimited(
-                    "wc_entropyd: root_rng recovery reseed failed: %d\n",
-                    ret);
-            }
-        }
-  #elif defined(WC_RNG_HAVE_ENTROPY_EPOCH)
-        if ((root_rng != NULL) &&
-            (wc_RNG_entropy_needs_recovery(root_rng) != 0))
-        {
-            unsigned long uncredited_nonce = random_get_entropy();
-            ret = wc_RNG_DRBG_Reseed_Now(
-                root_rng,
-                (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
-            ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
-            if (ret == 0)
-                progress = 1;
-            else if (! WC_RNG_ERR_IS_TRANSIENT(ret)) {
-                pr_err_ratelimited(
-                    "wc_entropyd: root_rng recovery reseed failed: %d\n",
-                    ret);
+                    progress = 1;
+                }
+                else if (WC_LKM_RNG_ERR_IS_HEALTH(ret)) {
+                    pr_warn_ratelimited(
+                        "wc_entropyd: root_rng recovery reseed failed the "
+                        "seed health test: %d -- entropy source suspect\n",
+                        ret);
+                }
+                else if ((ret != WC_NO_ERR_TRACE(ALREADY_E)) &&
+                         (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) &&
+                         (! WC_RNG_ERR_IS_TRANSIENT(ret)))
+                {
+                    /* ALREADY_E: not due -- the steady state.
+                     * WRONG_TYPE_OBJECT_E: no DRBG behind the root
+                     * (RDRAND et al.) -- permanently nothing to do.
+                     * Transient codes (the gate held) are one pass away.
+                     * A root that failed between the status peek and the
+                     * reseed logs once here; the status branch above
+                     * reinstantiates it next pass. */
+                    pr_err_ratelimited(
+                        "wc_entropyd: root_rng recovery reseed failed: "
+                        "%d\n", ret);
+                }
             }
         }
-  #endif /* WC_RNG_BANK_HAVE_ROOT_RNG / WC_RNG_HAVE_ENTROPY_EPOCH */
+  #else /* !WC_RNG_BANK_HAVE_ROOT_RNG */
+        if (root_rng != NULL) {
+            if (wc_RNG_GetStatus(root_rng) != WC_DRBG_OK) {
+                /* Daemon-private root: free+reinstantiate, no
+                 * serialization needed or possible. */
+                ret = wc_FreeRng(root_rng);
+                if (ret == 0)
+                    ret = wc_InitRng(root_rng);
+                if (ret == 0) {
+                    pr_info("wc_entropyd: root_rng reinitialization "
+                            "succeeded.\n");
+                    progress = 1;
+                }
+                else if (! WC_RNG_ERR_IS_TRANSIENT(ret)) {
+                    pr_err_ratelimited(
+                        "wc_entropyd: root_rng reinitialization failed: "
+                        "%d\n", ret);
+                }
+            }
+    #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+            else if (wc_RNG_entropy_needs_recovery(root_rng) != 0) {
+                unsigned long uncredited_nonce = random_get_entropy();
+                ret = wc_RNG_DRBG_Reseed_Now(
+                    root_rng,
+                    (byte *)&uncredited_nonce,
+                    (word32)sizeof uncredited_nonce);
+                ForceZero(&uncredited_nonce,
+                          (word32)sizeof uncredited_nonce);
+                if (ret == 0)
+                    progress = 1;
+                else if (! WC_RNG_ERR_IS_TRANSIENT(ret)) {
+                    pr_err_ratelimited(
+                        "wc_entropyd: root_rng recovery reseed failed: "
+                        "%d\n", ret);
+                }
+            }
+    #endif /* WC_RNG_HAVE_ENTROPY_EPOCH */
+        }
+  #endif /* !WC_RNG_BANK_HAVE_ROOT_RNG */
 #endif /* WC_RNG_HAVE_LOCK */
 
 #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
@@ -3196,10 +3261,14 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         }
 #endif /* WC_RNG_HAVE_GLOBAL_FALLBACK_RNG */
 
-#ifdef WC_RNG_HAVE_RBGC
-        /* recovery pass: if WC_RNG_HAVE_NEXT_SEED, push RBGC seeds to all
+#ifdef HAVE_HASHDRBG
+        /* recovery pass: if WC_RNG_HAVE_NEXT_SEED, push seeds to all
          * WC_RNG_LOCK_ENTROPY_INVALIDATED instances that need them; if not, run
-         * inline RBGC reseeds of all instances that need them. */
+         * inline reseeds of all instances that need them.  Both are implicitly
+         * RBGC when the instance has a chain parent, else primary-sourced:
+         * invalidated instances need recovery whether or not the build has
+         * RBGC, since invalidation never saturates the reseed counter on
+         * lock-facility builds, so no other pass would collect them. */
         {
 #ifdef WC_VERBOSE_RNG
             int n_rbgc_recovered = 0;
@@ -3211,17 +3280,17 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 WC_RNG *rng = WC_RNG_BANK_INST_TO_RNG(&bank->rngs[i]);
 
   #ifndef WC_RNG_HAVE_ENTROPY_EPOCH
-                /* Backward-compat check for invalidation on old-FIPS builds
-                 * (!WC_RNG_HAVE_ENTROPY_EPOCH)
-                 */
-
-    /* These configuration combinations aren't reachable, but make sure. */
-    #ifdef WC_RNG_HAVE_LOCK
-      #error WC_RNG_HAVE_LOCK without WC_RNG_HAVE_ENTROPY_EPOCH is not a supported kernel module configuration.
-    #endif
-    #ifdef WC_RNG_HAVE_NEXT_SEED
-      #error WC_RNG_HAVE_NEXT_SEED without WC_RNG_HAVE_ENTROPY_EPOCH is not a supported kernel module configuration.
-    #endif
+                /* Backward-compat invalidation check for
+                 * !WC_RNG_HAVE_ENTROPY_EPOCH builds -- old FIPS, or any
+                 * build with WC_RNG_NO_ENTROPY_EPOCH, which random.h
+                 * allows independently of the lock and next-seed
+                 * facilities.  This one arm serves them all: the
+                 * wc_rng_bank_inst lock accessors map to WC_RNG.lock when
+                 * the lock facility is present and to the
+                 * wc_rng_bank_inst.lock stand-in otherwise, and the
+                 * reseed epilogue's latch clear is epoch-independent
+                 * (wolfcrypt/src/random.c), so the latch sensing and the
+                 * reseed protocol below are configuration-agnostic. */
 
                 WC_RNG_lock_arg_t rng_inst_lock_state;
 
@@ -3299,12 +3368,15 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             }
   #ifdef WC_VERBOSE_RNG
             if (n_rbgc_recovered > 0) {
-                pr_info("wc_linuxkm_entropy_daemon: RBGC recovery of %d/%d insts, %d self-recovered, %d skipped (busy), %d failed.\n",
-                        n_rbgc_recovered, bank->n_rngs, n_self_recovered, n_busy, n_unhealthy);
+                pr_info("wc_linuxkm_entropy_daemon: recovery of %d/%d "
+                        "insts, %d self-recovered, %d skipped (busy), "
+                        "%d failed.\n",
+                        n_rbgc_recovered, bank->n_rngs, n_self_recovered,
+                        n_busy, n_unhealthy);
             }
   #endif
         }
-#endif /* WC_RNG_HAVE_RBGC */
+#endif /* HAVE_HASHDRBG */
 
         /* recovery pass: fix out-of-service instances.  The status
          * peek is lockless and possibly stale -- worst case it sends a
