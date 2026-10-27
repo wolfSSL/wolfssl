@@ -6363,14 +6363,20 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
         /* newSeed is a byte[] in the plain build but a byte* in the
          * SMALL_STACK_CACHE build, so use the explicit buffer length (not
          * sizeof) to zero the whole reseed entropy buffer in both cases. */
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("PollAndReSeed newSeed", newSeed,
-            SEED_SZ + SEED_BLOCK_SZ);
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        /* newSeed is NULL when the DRBG state is missing. */
+        if (newSeed != NULL)
     #endif
-        ForceZero(newSeed, SEED_SZ + SEED_BLOCK_SZ);
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(newSeed, SEED_SZ + SEED_BLOCK_SZ);
-    #endif
+        {
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("PollAndReSeed newSeed", newSeed,
+                SEED_SZ + SEED_BLOCK_SZ);
+        #endif
+            ForceZero(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+        #endif
+        }
     #endif
     }
     /* else pass back the failure code from wc_RNG_HealthTestLocal():
