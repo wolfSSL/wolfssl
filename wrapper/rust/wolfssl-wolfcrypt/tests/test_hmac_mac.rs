@@ -42,6 +42,7 @@ fn test_hmac_sha256_mac_finalize() {
 }
 
 #[test]
+#[cfg(hmac_copy)]
 fn test_hmac_sha256_mac_clone() {
     let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
     let prefix = b"Hi ";

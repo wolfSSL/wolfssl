@@ -10,6 +10,10 @@ use password_hash::phc::{Output, PasswordHash};
 use password_hash::{CustomizedPasswordHasher, PasswordHasher, PasswordVerifier};
 use wolfssl_wolfcrypt::pbkdf2_password_hash::*;
 
+// FIPS v5.2.3 refuses HMAC keys under 14 bytes, and PBKDF2 uses the password as
+// its HMAC key.
+const PASSWORD: &[u8] = b"correct horse battery staple";
+
 #[test]
 #[cfg(sha256)]
 fn test_hash_and_verify() {
@@ -24,7 +28,7 @@ fn test_hash_and_verify() {
     };
 
     let salt = b"0123456789abcdef"; // 16 bytes
-    let password = b"hunter2";
+    let password = PASSWORD;
 
     let hash = hasher
         .hash_password_with_salt(password, salt)
@@ -59,7 +63,7 @@ fn test_hash_roundtrip_phc_string() {
     };
 
     let salt = b"0123456789abcdef";
-    let password = b"password";
+    let password = PASSWORD;
 
     let hash = hasher
         .hash_password_with_salt(password, salt)
@@ -106,7 +110,7 @@ fn test_sha384_algorithm() {
     };
 
     let salt = b"0123456789abcdef";
-    let password = b"password";
+    let password = PASSWORD;
 
     let hash = hasher
         .hash_password_with_salt(password, salt)
@@ -133,7 +137,7 @@ fn test_sha512_algorithm() {
     };
 
     let salt = b"0123456789abcdef";
-    let password = b"password";
+    let password = PASSWORD;
 
     let hash = hasher
         .hash_password_with_salt(password, salt)
@@ -153,7 +157,7 @@ fn test_customized_hash() {
     let hasher = Pbkdf2::default();
 
     let salt = b"0123456789abcdef";
-    let password = b"password";
+    let password = PASSWORD;
     let custom_params = Params {
         rounds: 8192,
         output_len: 48,
@@ -179,7 +183,7 @@ fn test_customized_hash_with_algorithm_override() {
     let hasher = Pbkdf2::default();
 
     let salt = b"0123456789abcdef";
-    let password = b"password";
+    let password = PASSWORD;
     let params = Params {
         rounds: 4096,
         output_len: 64,
@@ -210,7 +214,7 @@ fn test_version_rejected() {
     let salt = b"0123456789abcdef";
 
     let result =
-        hasher.hash_password_customized(b"password", salt, None, Some(1), Params::default());
+        hasher.hash_password_customized(PASSWORD, salt, None, Some(1), Params::default());
     assert!(result.is_err());
 }
 
@@ -222,7 +226,7 @@ fn test_unknown_algorithm_rejected() {
     let salt = b"0123456789abcdef";
 
     let result = hasher.hash_password_customized(
-        b"password",
+        PASSWORD,
         salt,
         Some("argon2id"),
         None,
@@ -245,7 +249,7 @@ fn test_deterministic_output() {
     };
 
     let salt = b"0123456789abcdef";
-    let password = b"password";
+    let password = PASSWORD;
 
     let hash1 = hasher
         .hash_password_with_salt(password, salt)
@@ -270,7 +274,7 @@ fn test_different_salts_produce_different_hashes() {
         },
     };
 
-    let password = b"password";
+    let password = PASSWORD;
 
     let hash1 = hasher
         .hash_password_with_salt(password, b"salt_aaaaaaaaaa01")
@@ -296,7 +300,7 @@ fn test_output_len_bounds() {
     for len in [0, 1, Output::MIN_LENGTH - 1, Output::MAX_LENGTH + 1] {
         let bad = Params { rounds: 1000, output_len: len };
         let err = hasher
-            .hash_password_customized(b"pw", salt, None, None, bad)
+            .hash_password_customized(PASSWORD, salt, None, None, bad)
             .unwrap_err();
         assert_eq!(err, Error::ParamInvalid { name: "l" });
     }
@@ -306,7 +310,7 @@ fn test_output_len_bounds() {
     for len in [min_ok_len, Output::MAX_LENGTH] {
         let ok = Params { rounds: 1000, output_len: len };
         let hash = hasher
-            .hash_password_customized(b"pw", salt, None, None, ok)
+            .hash_password_customized(PASSWORD, salt, None, None, ok)
             .unwrap();
         assert_eq!(hash.hash.unwrap().len(), len);
     }

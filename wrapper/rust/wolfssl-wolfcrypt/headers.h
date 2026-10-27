@@ -29,6 +29,10 @@
 #if !defined(NO_RSA) && !defined(WC_NO_RSA_OAEP)
 #define WOLFSSL_RUST_HAVE_RSA_OAEP 1
 #endif
+/* FIPS v5 headers declare the compressed ECC export without HAVE_COMP_KEY. */
+#ifdef HAVE_COMP_KEY
+#define WOLFSSL_RUST_HAVE_COMP_KEY 1
+#endif
 
 /* Sentinels for wolfSSL build configurations that the Rust wrapper does not
  * support.  build.rs fails the build if any of these appear in the generated
