@@ -6060,6 +6060,8 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->extKeyUsageSrc= NULL;
         }
+        wolfSSL_EVP_PKEY_free(x509->pubKeyPKey);
+        x509->pubKeyPKey = NULL;
     #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     #if defined(OPENSSL_ALL)
         if (x509->algor.algorithm) {
@@ -17156,6 +17158,51 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
     ssl->options.isClosed = 1;
     ssl->options.fatalAlert = 1;
 }
+
+#ifdef KEEP_PEER_CERT
+/* Refill ssl->peerCert in place. Keep its X509_get0_pubkey() key when the
+ * public key is the same: the app may still hold it. */
+static int SetPeerCert(WOLFSSL* ssl, DecodedCert* dCert)
+{
+    int ret;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    WOLFSSL_EVP_PKEY* pkey = ssl->peerCert.pubKeyPKey;
+    buffer pub = ssl->peerCert.pubKey;
+    int keyOID = ssl->peerCert.pubKeyOID;
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+    word32 curveOID = ssl->peerCert.pkCurveOID;
+#endif
+
+    ssl->peerCert.pubKeyPKey = NULL;
+    ssl->peerCert.pubKey.buffer = NULL;
+    ssl->peerCert.pubKey.length = 0;
+#endif
+    FreeX509(&ssl->peerCert);
+    InitX509(&ssl->peerCert, 0, ssl->heap);
+    ret = CopyDecodedToX509(&ssl->peerCert, dCert);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    if ((ret == 0) && (pub.buffer != NULL) &&
+            (ssl->peerCert.pubKey.buffer != NULL) &&
+            (keyOID == ssl->peerCert.pubKeyOID) &&
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+            (curveOID == ssl->peerCert.pkCurveOID) &&
+#endif
+            (pub.length == ssl->peerCert.pubKey.length) &&
+            (XMEMCMP(pub.buffer, ssl->peerCert.pubKey.buffer,
+                pub.length) == 0)) {
+        ssl->peerCert.pubKeyPKey = pkey;
+        pkey = NULL;
+    }
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+#endif
+    return ret;
+}
+#endif /* KEEP_PEER_CERT */
 
 int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,

@@ -3696,6 +3696,8 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     if (res == 1) {
         /* Load into internal EC key based on key type option. */
         if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
+            /* Decode with any PKCS#8 header, which holds the curve. */
+            idx = 0;
             ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
                 (word32)derSz);
         }
@@ -5205,8 +5207,11 @@ WOLFSSL_ECDSA_SIG* wolfSSL_d2i_ECDSA_SIG(WOLFSSL_ECDSA_SIG** sig,
  * @param [in]      sig  ECDSA signature object.
  * @param [in, out] pp   On in, reference to buffer in which to place encoding.
  *                       On out, reference to buffer after encoding.
- *                       May be NULL or point to NULL in which case no encoding
- *                       is done.
+ *                       May be NULL in which case no encoding is done.
+ *                       When it points to NULL, with
+ *                       WOLFSSL_I2D_ECDSA_SIG_ALLOC it is set to a new buffer
+ *                       with the encoding, freed with OPENSSL_free(), and
+ *                       stays NULL on error; otherwise no encoding is done.
  * @return  Length of encoding on success.
  * @return  0 on error.
  */
@@ -5251,6 +5256,11 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
                     (mp_int*)sig->s->internal) != MP_OKAY) {
                 /* No bytes encoded. */
                 len = 0;
+                if (!update_p) {
+                    /* Free the buffer allocated here. */
+                    XFREE(*pp, NULL, DYNAMIC_TYPE_OPENSSL);
+                    *pp = NULL;
+                }
             }
             else if (update_p) {
                 /* Update pointer to after encoding. */

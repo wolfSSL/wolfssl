@@ -6379,6 +6379,9 @@ struct WOLFSSL_X509 {
 #endif
     buffer           pubKey;
     int              pubKeyOID;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    WOLFSSL_EVP_PKEY* pubKeyPKey;  /* owned, from wolfSSL_X509_get0_pubkey */
+#endif
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \

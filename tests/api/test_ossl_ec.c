@@ -1636,15 +1636,80 @@ int test_wolfSSL_ECDSA_SIG(void)
     ExpectIntEQ(XMEMCMP(sigData, outSig, 8), 0);
 
     p = NULL;
+    ExpectIntEQ(wolfSSL_i2d_ECDSA_SIG(NULL, &p), 0);
+    ExpectNull(p);
     ExpectIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, &p), 8);
 #ifndef WOLFSSL_I2D_ECDSA_SIG_ALLOC
+    /* Only the length. */
     ExpectNull(p);
 #else
+    /* A new buffer starting with the encoding, as in OpenSSL. */
     ExpectNotNull(p);
     ExpectIntEQ(XMEMCMP(p, outSig, 8), 0);
-    XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL);
+    OPENSSL_free(p);
 #endif
 
+    wolfSSL_ECDSA_SIG_free(sig);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_I2D_ECDSA_SIG_ALLOC) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+#define TEST_I2D_ECDSA_SIG_OOM
+static wolfSSL_Malloc_cb test_i2d_ecdsa_sig_prev_malloc = NULL;
+static int test_i2d_ecdsa_sig_allocs = 0;
+
+/* Only the first allocation succeeds. */
+static void* test_i2d_ecdsa_sig_malloc(size_t size)
+{
+    if (test_i2d_ecdsa_sig_allocs++ > 0)
+        return NULL;
+    if (test_i2d_ecdsa_sig_prev_malloc != NULL)
+        return test_i2d_ecdsa_sig_prev_malloc(size);
+    return malloc(size);
+}
+#endif
+
+/* i2d_ECDSA_SIG frees the buffer it allocated when encoding fails. Only math
+ * libraries that allocate while encoding can fail here. */
+int test_wolfSSL_i2d_ECDSA_SIG_oom(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_I2D_ECDSA_SIG_OOM
+    WOLFSSL_ECDSA_SIG* sig = NULL;
+    const unsigned char* cp = NULL;
+    unsigned char* p = NULL;
+    unsigned char sigData[8] =
+                             { 0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01 };
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    int len = 0;
+
+    cp = sigData;
+    ExpectNotNull(sig = wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigData)));
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    test_i2d_ecdsa_sig_prev_malloc = prevM;
+    test_i2d_ecdsa_sig_allocs = 0;
+    ExpectIntEQ(wolfSSL_SetAllocators(test_i2d_ecdsa_sig_malloc, prevF,
+        prevR), 0);
+    len = wolfSSL_i2d_ECDSA_SIG(sig, &p);
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    test_i2d_ecdsa_sig_prev_malloc = NULL;
+
+    if (len == 0) {
+        ExpectNull(p);
+    }
+    else {
+        ExpectIntEQ(len, sizeof(sigData));
+        ExpectNotNull(p);
+        ExpectIntEQ(XMEMCMP(p, sigData, sizeof(sigData)), 0);
+    }
+
+    OPENSSL_free(p);
     wolfSSL_ECDSA_SIG_free(sig);
 #endif
     return EXPECT_RESULT();

@@ -43,6 +43,7 @@ int test_wolfSSL_EC_KEY_public_key(void);
 int test_wolfSSL_EC_KEY_print_fp(void);
 int test_wolfSSL_EC_get_builtin_curves(void);
 int test_wolfSSL_ECDSA_SIG(void);
+int test_wolfSSL_i2d_ECDSA_SIG_oom(void);
 int test_ECDSA_size_sign(void);
 int test_ECDSA_do_verify_oversized_sig(void);
 int test_ECDH_compute_key(void);
@@ -68,6 +69,7 @@ int test_wolfSSL_EC_POINT_point2hex_oversized(void);
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_KEY_print_fp),               \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_get_builtin_curves),         \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_ECDSA_SIG),                     \
+    TEST_DECL_GROUP("ossl_ec", test_wolfSSL_i2d_ECDSA_SIG_oom),             \
     TEST_DECL_GROUP("ossl_ec", test_ECDSA_size_sign),                       \
     TEST_DECL_GROUP("ossl_ec", test_ECDSA_do_verify_oversized_sig),         \
     TEST_DECL_GROUP("ossl_ec", test_ECDH_compute_key),                      \
