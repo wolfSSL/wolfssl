@@ -6584,7 +6584,7 @@ static wc_test_ret_t sha224_copy_test(wc_Sha224* sha, wc_Sha224* shaCopy)
     (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
     !defined(MAX3266X_SHA)
     ret = wc_Sha224Copy(sha, sha);
-    if (ret != BAD_FUNC_ARG)
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
 #endif
     ret = wc_Sha224Update(sha, (byte*)a_input, (word32)XSTRLEN(a_input));
@@ -6907,7 +6907,7 @@ static wc_test_ret_t sha256_copy_test(wc_Sha256* sha, wc_Sha256* shaCopy)
     (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
     !defined(WOLFSSL_RENESAS_RX64_HASH) && !defined(MAX3266X_SHA)
     ret = wc_Sha256Copy(sha, sha);
-    if (ret != BAD_FUNC_ARG)
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
 #endif
     ret = wc_Sha256Update(sha, (byte*)a_input, (word32)XSTRLEN(a_input));
