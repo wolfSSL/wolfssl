@@ -2500,6 +2500,73 @@ int test_DecodeCertExtensions_empty_certpol_trailing(void)
     return EXPECT_RESULT();
 }
 
+/* X.690 11.1 restricts BOOLEAN TRUE to a content octet with every bit set, so
+ * any other non-zero octet is not valid DER. */
+int test_DecodeExtensions_der_boolean(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(WOLFSSL_NO_ASN_STRICT)
+    /* BasicConstraints: SEQUENCE { cA BOOLEAN }. The three differ only in the
+     * BOOLEAN content octet: DER TRUE, then two BER-only spellings of TRUE. */
+    static const byte caDer[]  = { 0x30, 0x03, 0x01, 0x01, 0xFF };
+    static const byte ca7f[]   = { 0x30, 0x03, 0x01, 0x01, 0x7F };
+    static const byte ca01[]   = { 0x30, 0x03, 0x01, 0x01, 0x01 };
+    DecodedCert cert;
+    int isUnknown = 0;
+
+    wc_InitDecodedCert(&cert, caDer, (word32)sizeof(caDer), NULL);
+    ExpectIntEQ(DecodeExtensionType(caDer, (word32)sizeof(caDer), BASIC_CA_OID,
+        0, &cert, &isUnknown), 0);
+    ExpectIntEQ(cert.isCA, 1);
+    wc_FreeDecodedCert(&cert);
+
+    wc_InitDecodedCert(&cert, ca7f, (word32)sizeof(ca7f), NULL);
+    ExpectIntEQ(DecodeExtensionType(ca7f, (word32)sizeof(ca7f), BASIC_CA_OID,
+        0, &cert, &isUnknown), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(cert.isCA, 0);
+    wc_FreeDecodedCert(&cert);
+
+    wc_InitDecodedCert(&cert, ca01, (word32)sizeof(ca01), NULL);
+    ExpectIntEQ(DecodeExtensionType(ca01, (word32)sizeof(ca01), BASIC_CA_OID,
+        0, &cert, &isUnknown), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(cert.isCA, 0);
+    wc_FreeDecodedCert(&cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Same DER restriction on the critical flag of a CRL entry extension, which is
+ * read by GetBoolean() rather than by the template parser. */
+int test_ParseCRLEntryExtensions_der_boolean(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_ASN) && defined(HAVE_CRL) && \
+    !defined(WOLFSSL_NO_ASN_STRICT)
+    /* Extension SEQUENCE: OID 2.5.29.21 (CRL reason), critical, OCTET STRING
+     * wrapping ENUMERATED 2 (CA compromise). */
+    static const byte extDer[] = {
+        0x30, 0x0d, 0x06, 0x03, 0x55, 0x1d, 0x15,
+        0x01, 0x01, 0xFF, 0x04, 0x03, 0x0a, 0x01, 0x02
+    };
+    static const byte ext7f[] = {
+        0x30, 0x0d, 0x06, 0x03, 0x55, 0x1d, 0x15,
+        0x01, 0x01, 0x7F, 0x04, 0x03, 0x0a, 0x01, 0x02
+    };
+    int reasonCode = -1;
+
+    ExpectIntEQ(wc_ParseCRLReasonFromExtensions(extDer, (word32)sizeof(extDer),
+        &reasonCode), 0);
+    /* 2 = cACompromise */
+    ExpectIntEQ(reasonCode, 2);
+
+    reasonCode = -1;
+    ExpectIntEQ(wc_ParseCRLReasonFromExtensions(ext7f, (word32)sizeof(ext7f),
+        &reasonCode), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(reasonCode, -1);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A constructed ASN.1 item must be exactly consumed by the items parsed out of
  * it. GetASN_Items() used to only enforce that for containers still open when
  * the template ran out, so a container the template walked into and back out of

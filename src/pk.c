@@ -1605,15 +1605,18 @@ WOLFSSL_DSA_SIG* wolfSSL_d2i_DSA_SIG(WOLFSSL_DSA_SIG **sig,
 
 #endif /* !HAVE_SELFTEST */
 
-static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
-        WOLFSSL_DSA* dsa)
+int wolfssl_dsa_do_sign(const unsigned char* d, int dLen,
+        unsigned char* sigRet, WOLFSSL_DSA* dsa)
 {
     int     ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int     initTmpRng = 0;
+#ifdef HAVE_SELFTEST
+    int     qSz;
+#endif
     WC_RNG* rng = NULL;
     WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
-    if (d == NULL || sigRet == NULL || dsa == NULL) {
+    if (d == NULL || sigRet == NULL || dsa == NULL || dLen < 0) {
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FATAL_ERROR;
     }
@@ -1646,9 +1649,18 @@ static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
 
     if (rng) {
 #ifdef HAVE_SELFTEST
-        if (dLen != WC_SHA_DIGEST_SIZE ||
-                wc_DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
-            WOLFSSL_MSG("wc_DsaSign failed or dLen wrong length");
+        /* FIPS 186-4 4.2, as wc_DsaSign_ex() does below. wc_DsaSign() reads
+         * exactly WC_SHA_DIGEST_SIZE bytes, so it can only serve the digests
+         * that truncate to that. */
+        qSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
+        if (qSz > 0 && dLen > qSz)
+            dLen = qSz;
+        if (dLen != WC_SHA_DIGEST_SIZE) {
+            WOLFSSL_MSG("dLen wrong length for this build");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (wc_DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
+            WOLFSSL_MSG("wc_DsaSign failed");
             ret = WOLFSSL_FATAL_ERROR;
         }
 #else
@@ -1674,7 +1686,7 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
 {
     WOLFSSL_ENTER("wolfSSL_DSA_do_sign");
 
-    return dsa_do_sign(d, WC_SHA_DIGEST_SIZE, sigRet, dsa);
+    return wolfssl_dsa_do_sign(d, WC_SHA_DIGEST_SIZE, sigRet, dsa);
 }
 
 #ifndef HAVE_SELFTEST
@@ -1692,7 +1704,7 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
         return NULL;
     }
 
-    if (dsa_do_sign(digest, inLen, sigBin, dsa) != 1) {
+    if (wolfssl_dsa_do_sign(digest, inLen, sigBin, dsa) != 1) {
         WOLFSSL_MSG("wolfSSL_DSA_do_sign error");
         return NULL;
     }
@@ -1713,12 +1725,15 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
 }
 #endif
 
-static int dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
+int wolfssl_dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
                         WOLFSSL_DSA* dsa, int *dsacheck)
 {
     int    ret;
+#ifdef HAVE_SELFTEST
+    int    qSz;
+#endif
 
-    if (d == NULL || sig == NULL || dsa == NULL) {
+    if (d == NULL || sig == NULL || dsa == NULL || dLen < 0) {
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FATAL_ERROR;
     }
@@ -1733,6 +1748,12 @@ static int dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
     }
 
 #ifdef HAVE_SELFTEST
+    /* FIPS 186-4 4.2, as wc_DsaVerify_ex() does below. wc_DsaVerify() reads
+     * exactly WC_SHA_DIGEST_SIZE bytes, so it can only serve the digests that
+     * truncate to that. */
+    qSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
+    if (qSz > 0 && dLen > qSz)
+        dLen = qSz;
     ret = dLen == WC_SHA_DIGEST_SIZE ?
           wc_DsaVerify(d, sig, (DsaKey*)dsa->internal, dsacheck) : BAD_FUNC_ARG;
 #else
@@ -1756,7 +1777,7 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
 {
     WOLFSSL_ENTER("wolfSSL_DSA_do_verify");
 
-    return dsa_do_verify(d, WC_SHA_DIGEST_SIZE, sig, dsa, dsacheck);
+    return wolfssl_dsa_do_verify(d, WC_SHA_DIGEST_SIZE, sig, dsa, dsacheck);
 }
 
 
@@ -1833,7 +1854,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
     if (wolfSSL_BN_bn2bin(sig->s, sigBinPtr) == -1)
         return 0;
 
-    if ((dsa_do_verify(digest, digest_len, sigBin, dsa, &dsacheck)
+    if ((wolfssl_dsa_do_verify(digest, digest_len, sigBin, dsa, &dsacheck)
                                          != 1) || dsacheck != 1) {
         return 0;
     }

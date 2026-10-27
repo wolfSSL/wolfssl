@@ -2112,7 +2112,17 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
             if (err != 0)
                 return err;
         }
-    #endif
+        else if (asn[i].tag == ASN_BOOLEAN) {
+            /* DER encodes TRUE with every bit of the content octet set. */
+            if ((len == 1) && (input[idx] != 0x00) && (input[idx] != 0xFF)) {
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("BOOLEAN not DER encoded: %d",
+                    input[idx]);
+            #endif
+                return ASN_PARSE_E;
+            }
+        }
+    #endif /* !WOLFSSL_NO_ASN_STRICT */
         else if (asn[i].tag == ASN_OBJECT_ID) {
             /* Check validity of data. */
             err = GetASN_ObjectId(input, idx, len);
@@ -3182,10 +3192,15 @@ WC_MAYBE_UNUSED static int GetBoolean(const byte* input, word32* inOutIdx, word3
     if (input[idx++] != 1)
         return ASN_PARSE_E;
 
-    b = input[idx++] != 0;
+    b = input[idx++];
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* DER encodes TRUE with every bit of the content octet set. */
+    if ((b != 0x00) && (b != 0xFF))
+        return ASN_PARSE_E;
+#endif
 
     *inOutIdx = idx;
-    return b;
+    return b != 0;
 }
 #endif /* !WOLFSSL_ASN_TEMPLATE || HAVE_CRL */
 #endif /* !NO_CERTS*/
@@ -39087,7 +39102,9 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                 tag == ASN_BOOLEAN) {
             int ret = GetBoolean(buff, &idx, end);
             if (ret < 0) {
-                break;
+                /* Stopping here would skip the extensions that follow,
+                 * including any critical one that must be rejected. */
+                return ASN_PARSE_E;
             }
             critical = ret;
         }

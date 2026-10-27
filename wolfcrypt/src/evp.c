@@ -3228,23 +3228,33 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA)
     case WC_EVP_PKEY_RSA:
-        if (out == NULL) {
-            if (ctx->pkey->rsa == NULL) {
-                WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
-                return WOLFSSL_FAILURE;
-            }
-            len = wolfSSL_RSA_size(ctx->pkey->rsa);
-            if (len <= 0) {
-                WOLFSSL_MSG("Error getting RSA size.");
-                return WOLFSSL_FAILURE;
-            }
-            if (outLen == NULL) {
-                WOLFSSL_MSG("outLen is NULL.");
-                return WOLFSSL_FAILURE;
-            }
+    {
+        int rsaSz;
 
-            *outLen = (size_t)len;
+        if (ctx->pkey->rsa == NULL) {
+            WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        if (outLen == NULL) {
+            WOLFSSL_MSG("outLen is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        rsaSz = wolfSSL_RSA_size(ctx->pkey->rsa);
+        if (rsaSz <= 0) {
+            WOLFSSL_MSG("Error getting RSA size.");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (out == NULL) {
+            *outLen = (size_t)rsaSz;
             return WOLFSSL_SUCCESS;
+        }
+
+        /* wolfSSL_RSA_private_decrypt() writes into a buffer of RSA_size()
+         * bytes. */
+        if (*outLen < (size_t)rsaSz) {
+            WOLFSSL_MSG("Output buffer too small.");
+            return WOLFSSL_FAILURE;
         }
 
         len = wolfSSL_RSA_private_decrypt((int)inLen, (unsigned char*)in, out,
@@ -3254,6 +3264,7 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
             *outLen = (size_t)len;
             return WOLFSSL_SUCCESS;
         }
+    }
 #endif /* NO_RSA */
 
     case WC_EVP_PKEY_EC:
@@ -3499,8 +3510,12 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         }
         if ((int)*siglen < bytes)
             return WOLFSSL_FAILURE;
-        ret = wolfSSL_DSA_do_sign(tbs, sig, ctx->pkey->dsa);
-        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        /* wolfssl_dsa_do_sign() takes the length as an int, and wolfCrypt
+         * rejects anything longer than this anyway. */
+        if (tbslen > WC_MAX_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
+        ret = wolfssl_dsa_do_sign(tbs, (int)tbslen, sig, ctx->pkey->dsa);
+        /* wolfssl_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
             return ret;
         if (bytes == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
@@ -3630,8 +3645,12 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
         if (bytes <= 0 || siglen < (size_t)bytes * 2)
             return WOLFSSL_FAILURE;
-        if (wolfSSL_DSA_do_verify(tbs, (unsigned char *)sig, ctx->pkey->dsa,
-            &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
+        /* wolfssl_dsa_do_verify() takes the length as an int, and wolfCrypt
+         * rejects anything longer than this anyway. */
+        if (tbslen > WC_MAX_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
+        if (wolfssl_dsa_do_verify(tbs, (int)tbslen, (unsigned char *)sig,
+            ctx->pkey->dsa, &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
      }
@@ -4649,8 +4668,8 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         {
             return WOLFSSL_FAILURE;
         }
-        ret = wolfSSL_DSA_do_sign(md, sigret, pkey->dsa);
-        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        ret = wolfssl_dsa_do_sign(md, (int)mdsize, sigret, pkey->dsa);
+        /* wolfssl_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
             return ret;
         *siglen = (unsigned int)(bytes * 2);

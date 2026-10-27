@@ -881,6 +881,12 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             break;
         }
 
+        /* FIPS 186-4 4.2: a digest longer than q contributes only its leftmost
+         * N bits. Done after the length check above so that check sees what
+         * the caller passed, not what is left of it. */
+        if (digestSz > halfSz)
+            digestSz = halfSz;
+
 #if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
         /* buffer will hold the secret nonce k and blinding value b. Register
          * now (past the MP_INIT_E exit) so any later path that skips the
@@ -1237,6 +1243,12 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
             ret = MP_ZERO_E;
             break;
         }
+
+        /* FIPS 186-4 4.2: a digest longer than q contributes only its leftmost
+         * N bits. Done after the length check above so that check sees what
+         * the caller passed, not what is left of it. */
+        if (digestSz > (word32)qSz)
+            digestSz = (word32)qSz;
 
         /* put H into u1 from sha digest */
         if (mp_read_unsigned_bin(u1,digest, digestSz) != MP_OKAY) {
