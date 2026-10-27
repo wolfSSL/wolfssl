@@ -25,13 +25,23 @@
 #include <tests/api/api_decl.h>
 
 int test_DSA_do_sign_verify(void);
+int test_wolfSSL_DSA_size(void);
 int test_wolfSSL_DSA_generate_parameters(void);
+int test_wolfSSL_DSA_do_sign_digest_len(void);
+int test_wolfSSL_DSA_do_sign_q224(void);
 int test_wolfSSL_DSA_SIG(void);
+int test_wolfSSL_DSA_public_key(void);
+int test_wolfSSL_DSA_up_ref(void);
 
 #define TEST_OSSL_DSA_DECLS                                             \
     TEST_DECL_GROUP("ossl_dsa", test_DSA_do_sign_verify),               \
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_size),                 \
     TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_generate_parameters),  \
-    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_SIG)
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_do_sign_digest_len),   \
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_do_sign_q224),         \
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_SIG),                  \
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_public_key),           \
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_up_ref)
 
 #endif /* WOLFCRYPT_TEST_OSSL_DSA_H */
 
