@@ -81,7 +81,7 @@ jobs:
           # tag so it does not bloat the -full pull for the interop workflows.
           - runner: ubuntu-24.04
             tag: ubuntu-24.04-embedded
-          # pq-all's ARM cross-toolchains (~118 MB). Its own tag for the same
+          # ARM and PowerPC cross-toolchains (~160 MB). Its own tag for the same
           # reason: -minimal is pulled by 19 workflows that do not cross-compile.
           - runner: ubuntu-24.04
             tag: ubuntu-24.04-cross
