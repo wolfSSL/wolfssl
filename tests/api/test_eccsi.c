@@ -860,3 +860,64 @@ int test_wc_Eccsi_FeatureCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_wc_Eccsi_DecodeSskRange(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_ECCSI
+    EccsiKey key;
+    mp_int ssk;
+    ecc_point* pvt = NULL;
+    /* P-256 order q */
+    static const byte q[32] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
+        0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51
+    };
+    byte buf[32 * 3];
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_InitEccsiKey(&key, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(mp_init(&ssk), MP_OKAY);
+    ExpectNotNull(pvt = wc_ecc_new_point());
+
+    XMEMSET(buf, 0, sizeof(buf));
+    buf[31] = 1;
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk), 0);
+    ExpectIntEQ(mp_cmp_d(&ssk, 1), MP_EQ);
+    ExpectIntEQ(wc_DecodeEccsiPair(&key, buf, sizeof(buf), &ssk, pvt), 0);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt), 0);
+
+    XMEMCPY(buf, q, sizeof(q));
+    buf[31]--;
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk), 0);
+
+    buf[31]++;
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(wc_DecodeEccsiPair(&key, buf, sizeof(buf), &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(mp_read_unsigned_bin(&ssk, q, sizeof(q)), MP_OKAY);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    XMEMSET(buf, 0xFF, 32);
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    XMEMSET(buf, 0, 32);
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(wc_DecodeEccsiPair(&key, buf, sizeof(buf), &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    mp_zero(&ssk);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    wc_ecc_del_point(pvt);
+    mp_free(&ssk);
+    wc_FreeEccsiKey(&key);
+#endif
+    return EXPECT_RESULT();
+}

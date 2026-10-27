@@ -81056,6 +81056,12 @@ static wc_test_ret_t eccsi_api_test(WC_RNG* rng, EccsiKey* key, mp_int* ssk,
         return WC_TEST_RET_ENC_EC(ret);
 
     ret = wc_SetEccsiPair(key, ssk, pvt);
+    if (ret != WC_NO_ERR_TRACE(ECC_PRIV_KEY_E))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(ssk, 1);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SetEccsiPair(key, ssk, pvt);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     /* Identity hash not set. */
