@@ -7233,6 +7233,8 @@ int test_tls13_0rtt_ticket_ex_data_owner(void)
     ExpectIntEQ(idLen, ID_LEN);
     if (id != NULL)
         XMEMCPY(idA, id, ID_LEN);
+    /* id points into ssl_s's session, freed below. */
+    id = NULL;
     wolfSSL_free(ssl_c); ssl_c = NULL;
     wolfSSL_free(ssl_s); ssl_s = NULL;
 
@@ -7321,6 +7323,8 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     ExpectIntEQ(idLen, ID_LEN);
     if (id != NULL)
         XMEMCPY(idA, id, ID_LEN);
+    /* id points into ssl_s's session, freed below. */
+    id = NULL;
     wolfSSL_free(ssl_c); ssl_c = NULL;
     wolfSSL_free(ssl_s); ssl_s = NULL;
 
@@ -17223,7 +17227,7 @@ int test_tls13_ed448_dev_private_key(void)
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_ECC) && \
     defined(USE_CERT_BUFFERS_256) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(WOLFSSL_DEBUG_MEMORY)
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_MEMORY_LOG)
 #define TEST_TLS13_CKS_REPARSE
 
 static wolfSSL_Free_cb test_tls13_cks_prev_free;
