@@ -3580,6 +3580,8 @@ WOLFSSL_LOCAL void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap);
 
 WOLFSSL_LOCAL int SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs,
     word32 echConfigsLen);
+
+WOLFSSL_LOCAL int EchRejected(const WOLFSSL* ssl);
 #endif
 
 struct TLSX {
@@ -3674,6 +3676,10 @@ WOLFSSL_LOCAL int TLSX_Append(TLSX** list, TLSX_Type type,
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 #endif
 #endif /* HAVE_TLS_EXTENSIONS */
+
+#if !defined(WOLFSSL_TLS13) || !defined(HAVE_ECH)
+    #define EchRejected(ssl) 0
+#endif
 
 /** Server Name Indication - RFC 6066 (session 3) */
 #ifdef HAVE_SNI

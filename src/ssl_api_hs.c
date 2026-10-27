@@ -692,8 +692,7 @@ int wolfSSL_connect(WOLFSSL* ssl)
         #if defined(HAVE_ECH)
         /* RFC 9849 s6.1.4: negotiating below TLS 1.3 means the server rejected
          * ECH. Abort with ech_required instead of reporting success. */
-        if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-                !ssl->options.echAccepted) {
+        if (EchRejected(ssl)) {
             SendAlert(ssl, alert_fatal, ech_required);
             ssl->error = ECH_REQUIRED_E;
             WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);

@@ -20119,8 +20119,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 /* RFC 9849 s6.1.7: ECH offered but rejected by the server...
                  * verify cert is valid for ECHConfig.public_name */
                 if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                        ssl->echConfigs != NULL &&
-                        !ssl->options.echAccepted) {
+                        EchRejected(ssl)) {
                     TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
                     if (echX != NULL && echX->data != NULL) {
                         WOLFSSL_ECH* ech = (WOLFSSL_ECH*)echX->data;
@@ -20681,14 +20680,9 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             /* Drop the unverified ticket (SetTicket() made the session
              * unique, so this cannot clear one shared with the app). */
             if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                    ssl->msgsReceived.got_session_ticket
-    #ifdef HAVE_ECH
+                    ssl->msgsReceived.got_session_ticket &&
                     /* no ticket was stored when ECH is rejected */
-                    && !(ssl->echConfigs != NULL &&
-                         !ssl->options.disableECH &&
-                         !ssl->options.echAccepted)
-    #endif
-                    ) {
+                    !EchRejected(ssl)) {
                 ForceZero(ssl->session->ticket, ssl->session->ticketLen);
                 if (ssl->session->ticketLenAlloc > 0) {
                     XFREE(ssl->session->ticket, ssl->heap,
@@ -20747,12 +20741,8 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
                     ssl->session->ticketLen > 0)
 #endif
                 )
-#ifdef HAVE_ECH
                 /* ignore the session when ECH is rejected */
-                && !(ssl->echConfigs != NULL && !ssl->options.disableECH &&
-                     !ssl->options.echAccepted)
-#endif
-                ) {
+                && !EchRejected(ssl)) {
             SetupSession(ssl);
 #ifndef NO_SESSION_CACHE
             AddSession(ssl);
@@ -36822,12 +36812,9 @@ static int IsTls13CipherSuite(byte first, byte second)
             }
 
             if (
-        #ifdef HAVE_ECH
                 /* no client cert is sent when ECH is rejected, so an error with
                  * picking the alg would reveal information about the cert */
-                !(ssl->echConfigs != NULL && !ssl->options.disableECH &&
-                  !ssl->options.echAccepted) &&
-        #endif
+                !EchRejected(ssl) &&
                 PickHashSigAlgo(ssl, input + *inOutIdx, len, 0) != 0 &&
                                              ssl->buffers.certificate &&
                                              ssl->buffers.certificate->buffer) {
@@ -36935,8 +36922,7 @@ static int IsTls13CipherSuite(byte first, byte second)
     #if defined(HAVE_ECH)
         /* RFC 9849 s6.1.7: ECH was offered but rejected by the server...
          * the client MUST respond with an empty Certificate message. */
-        if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-                !ssl->options.echAccepted) {
+        if (EchRejected(ssl)) {
             ssl->options.sendVerify = SEND_BLANK_CERT;
             WOLFSSL_LEAVE("DoCertificateRequest", 0);
             WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
@@ -40040,16 +40026,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return SESSION_TICKET_EXPECT_E;
     }
 
-#ifdef HAVE_ECH
-    /* ignore session ticket when ECH is rejected */
-    if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-            !ssl->options.echAccepted) {
-        ssl->expect_session_ticket = 0;
-        *inOutIdx += size;
-        return 0;
-    }
-#endif
-
     /* A renewed ticket while resuming confirms resumption; check before the
      * SetupSession() in DoFinished refreshes the cached suite/EMS and masks a
      * downgrade.
@@ -40074,6 +40050,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if ((*inOutIdx - begin) + length > size)
         return BUFFER_ERROR;
+
+#ifdef HAVE_ECH
+    /* ignore session ticket when ECH is rejected */
+    if (EchRejected(ssl)) {
+        *inOutIdx += length;
+        ssl->expect_session_ticket = 0;
+        return 0;
+    }
+#endif
 
     if ((ret = SetTicket(ssl, input + *inOutIdx, length)) != 0)
         return ret;

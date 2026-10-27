@@ -18966,7 +18966,7 @@ static int test_wolfSSL_Tls13_ECH_ch2_decrypt_error(void)
  * ech config
  * the cert check should pass and the client aborts with ech_required */
 static int test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex(const char* publicName,
-    int validName, method_provider serverMethod)
+    int validName, method_provider clientMethod, method_provider serverMethod)
 {
     EXPECT_DECLS;
     test_ssl_memio_ctx test_ctx;
@@ -18976,7 +18976,7 @@ static int test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex(const char* publicName,
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     test_ctx.s_cb.method = serverMethod;
-    test_ctx.c_cb.method = wolfSSLv23_client_method;
+    test_ctx.c_cb.method = clientMethod;
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
 
@@ -19040,14 +19040,14 @@ static int test_wolfSSL_Tls13_ECH_rejected_cert_valid(void)
 
     /* "example.com" appears in the SAN of certs/server-cert.pem */
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex("example.com", 1,
-        wolfTLSv1_3_server_method), TEST_SUCCESS);
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), TEST_SUCCESS);
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex("badname.com", 0,
-        wolfTLSv1_3_server_method), TEST_SUCCESS);
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), TEST_SUCCESS);
 #ifndef WOLFSSL_NO_TLS12
     /* a downgrade to TLS 1.2 also rejects ECH, the good name is covered by
      * test_wolfSSL_Tls13_ECH_tls12_downgrade */
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex("badname.com", 0,
-        wolfTLSv1_2_server_method), TEST_SUCCESS);
+        wolfSSLv23_client_method, wolfTLSv1_2_server_method), TEST_SUCCESS);
 #endif
 
     return EXPECT_RESULT();
@@ -19336,21 +19336,20 @@ static int test_ech_client_cert_cb(WOLFSSL* ssl, WOLFSSL_X509** x509,
     echClientCertCbCalls++;
     return 0;
 }
-#endif
 
 /* when ECH is rejected an empty cert should be sent, check that the cb does not
  * load the client cert anyway */
-static int test_wolfSSL_Tls13_ECH_rejected_client_cert_cb(void)
+static int test_wolfSSL_Tls13_ECH_rejected_client_cert_cb_ex(
+    method_provider clientMethod, method_provider serverMethod)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_SETUP_CB)
     test_ssl_memio_ctx test_ctx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     echClientCertCbCalls = 0;
 
-    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
-    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+    test_ctx.s_cb.method = serverMethod;
+    test_ctx.c_cb.method = clientMethod;
     test_ctx.c_cb.certPemFile = "";
     test_ctx.c_cb.keyPemFile = "";
     test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
@@ -19375,6 +19374,22 @@ static int test_wolfSSL_Tls13_ECH_rejected_client_cert_cb(void)
     ExpectIntEQ(echClientCertCbCalls, 0);
 
     test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_wolfSSL_Tls13_ECH_rejected_client_cert_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_SETUP_CB)
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_rejected_client_cert_cb_ex(
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), TEST_SUCCESS);
+#ifndef WOLFSSL_NO_TLS12
+    /* a downgrade to TLS 1.2 also rejects ECH */
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_rejected_client_cert_cb_ex(
+        wolfSSLv23_client_method, wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }
