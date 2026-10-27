@@ -3318,6 +3318,25 @@ static int wc_linuxkm_entropy_daemon(void *arg)
   #else /* WC_RNG_HAVE_ENTROPY_EPOCH */
 
                 ret = wc_RNG_entropy_needs_recovery(rng);
+    #ifndef WC_RNG_HAVE_LOCK
+                if (ret == 0) {
+                    /* The bank-side stand-in latch is invisible to
+                     * wc_RNG_entropy_needs_recovery(): a member
+                     * invalidated while checked out is latched without
+                     * counter saturation, and a bank-scoped invalidation
+                     * (wc_rng_bank_invalidate_entropy()) moves no global
+                     * epoch, so the member can read as healthy here while
+                     * ordinary checkouts refuse it.  Read the latch
+                     * directly; RNG-level verdicts above are preserved. */
+                    WC_RNG_lock_arg_t inst_lock_state;
+                    if ((wc_rng_bank_inst_lock_read(
+                             &bank->rngs[i], &inst_lock_state) == 0) &&
+                        (inst_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+                    {
+                        ret = NEEDS_RECOVERY_E;
+                    }
+                }
+    #endif /* !WC_RNG_HAVE_LOCK */
                 if (ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) {
     #ifdef WC_VERBOSE_RNG
                     if (ret == 0)
@@ -3644,7 +3663,16 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         }
 #endif /* WC_RNG_HAVE_POOL */
 
-#if defined(WC_LINUXKM_HAVE_RNG_REGISTRY) && defined(WC_RNG_HAVE_ENTROPY_EPOCH)
+#if defined(WC_LINUXKM_HAVE_RNG_REGISTRY) && \
+    (defined(WC_RNG_HAVE_LOCK) || defined(WC_RNG_HAVE_NEXT_SEED))
+        /* The sweep compiles wherever it has a safe action: the next-seed
+         * aperture, or a lock-bracketed inline reseed (the !_NEXT_SEED
+         * arm below is lock-facility API, so the gate guarantees
+         * WC_RNG_HAVE_LOCK whenever that arm compiles).  The entropy
+         * epoch is not a precondition: wc_RNG_entropy_needs_recovery()
+         * reads the invalidation latch independently of epochs.  Without
+         * either facility, standalone leaves have no lock word to sense
+         * or exclude by, and recover owner-side instead. */
         /* reseed pass for long-lived leaves that need it: if _HAVE_NEXT_SEED,
          * then reseed is by RBGC from parent, after which their next generate
          * recovers/promotes in place (WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED);
@@ -3752,7 +3780,8 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     &needs_recovery_snapshot, 0);
             }
         }
-#endif /* WC_LINUXKM_HAVE_RNG_REGISTRY && WC_RNG_HAVE_ENTROPY_EPOCH */
+#endif /* WC_LINUXKM_HAVE_RNG_REGISTRY &&
+        * (WC_RNG_HAVE_LOCK || WC_RNG_HAVE_NEXT_SEED) */
 
         /* if we're coping with congestion hits, continue here, don't bog down
          * in primary seed ops. */
