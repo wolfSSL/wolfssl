@@ -2761,10 +2761,10 @@ do
     SLHDSA_PARAM_256F=yes
     ;;
   no-s)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_SMALL"
+    SLHDSA_NO_SMALL=yes
     ;;
   no-f)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_FAST"
+    SLHDSA_NO_FAST=yes
     ;;
   sha2)
     SLHDSA_SHA2=yes
@@ -2800,16 +2800,74 @@ do
     SLHDSA_PARAM_SHA2_256F=yes
     ;;
   no-sha2-s)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_SHA2_SMALL"
+    SLHDSA_NO_SHA2_SMALL=yes
     ;;
   no-sha2-f)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_NO_SHA2_FAST"
+    SLHDSA_NO_SHA2_FAST=yes
     ;;
   *)
     AC_MSG_ERROR([Invalid choice for SLH-DSA []: $ENABLED_SLHDSA.])
     break;;
   esac
 done
+
+# If SLH-DSA is enabled but no parameter set was named, for example
+# --enable-slhdsa=verify-only or =small, enable the SHAKE parameter sets as
+# 'yes' does. The SHA2 parameter sets stay opt-in.
+if test "$ENABLED_SLHDSA" != "no" && test "$SLHDSA_SHA2" != "yes" && \
+   test "$SLHDSA_PARAM_128S" != "yes" && test "$SLHDSA_PARAM_128F" != "yes" && \
+   test "$SLHDSA_PARAM_192S" != "yes" && test "$SLHDSA_PARAM_192F" != "yes" && \
+   test "$SLHDSA_PARAM_256S" != "yes" && test "$SLHDSA_PARAM_256F" != "yes"
+then
+    SLHDSA_PARAM_128S=yes
+    SLHDSA_PARAM_128F=yes
+    SLHDSA_PARAM_192S=yes
+    SLHDSA_PARAM_192F=yes
+    SLHDSA_PARAM_256S=yes
+    SLHDSA_PARAM_256F=yes
+fi
+
+# no-s, no-f, no-sha2-s and no-sha2-f take that group out of the sets
+# selected above, including sets named explicitly. A positive set macro
+# overrides a group 'NO' macro in wc_slhdsa.h, so the group is removed here
+# rather than with a CFLAG.
+if test "$SLHDSA_NO_SMALL" = "yes"
+then
+    SLHDSA_PARAM_128S=no
+    SLHDSA_PARAM_192S=no
+    SLHDSA_PARAM_256S=no
+fi
+if test "$SLHDSA_NO_FAST" = "yes"
+then
+    SLHDSA_PARAM_128F=no
+    SLHDSA_PARAM_192F=no
+    SLHDSA_PARAM_256F=no
+fi
+if test "$SLHDSA_NO_SHA2_SMALL" = "yes"
+then
+    SLHDSA_PARAM_SHA2_128S=no
+    SLHDSA_PARAM_SHA2_192S=no
+    SLHDSA_PARAM_SHA2_256S=no
+fi
+if test "$SLHDSA_NO_SHA2_FAST" = "yes"
+then
+    SLHDSA_PARAM_SHA2_128F=no
+    SLHDSA_PARAM_SHA2_192F=no
+    SLHDSA_PARAM_SHA2_256F=no
+fi
+
+# If that leaves no SHA2 parameter set, leave the SHA2 family out too, with
+# its SHA-256, SHA-512 and HMAC requirements.
+if test "$SLHDSA_PARAM_SHA2_128S" != "yes" && \
+   test "$SLHDSA_PARAM_SHA2_128F" != "yes" && \
+   test "$SLHDSA_PARAM_SHA2_192S" != "yes" && \
+   test "$SLHDSA_PARAM_SHA2_192F" != "yes" && \
+   test "$SLHDSA_PARAM_SHA2_256S" != "yes" && \
+   test "$SLHDSA_PARAM_SHA2_256F" != "yes"
+then
+    SLHDSA_SHA2=no
+fi
+
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
     [AS_HELP_STRING([--enable-singlethreaded],[Enable wolfSSL single threaded (default: disabled)])],
@@ -9247,6 +9305,16 @@ then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SLHDSA"
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_SLHDSA"
+
+    # Checked here, after the FIPS section, which may still select sets.
+    if test "$SLHDSA_SHA2" != "yes" && \
+       test "$SLHDSA_PARAM_128S" != "yes" && test "$SLHDSA_PARAM_128F" != "yes" && \
+       test "$SLHDSA_PARAM_192S" != "yes" && test "$SLHDSA_PARAM_192F" != "yes" && \
+       test "$SLHDSA_PARAM_256S" != "yes" && test "$SLHDSA_PARAM_256F" != "yes"
+    then
+        AC_MSG_ERROR([SLH-DSA: $ENABLED_SLHDSA leaves no parameter sets. Remove a \
+no-s/no-f/no-sha2-s/no-sha2-f option or name a set it does not exclude.])
+    fi
 
     # SLH-DSA is an X.509 certificate signature algorithm, so keep the
     # certificate/ASN code enabled (mirrors ML-DSA) - otherwise a build with

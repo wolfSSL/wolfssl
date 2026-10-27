@@ -2966,20 +2966,8 @@ int test_wc_slhdsa_param_disabled(void)
      * documented purpose. The probe also validates the contract from the
      * other side -- Init must succeed for an enabled param. */
     haveEnabled = 0;
-#if defined(WOLFSSL_SLHDSA_PARAM_128S)
-    enabledProbe = SLHDSA_SHAKE128S; haveEnabled = 1;
-#elif defined(WOLFSSL_SLHDSA_PARAM_128F)
-    enabledProbe = SLHDSA_SHAKE128F; haveEnabled = 1;
-#elif defined(WOLFSSL_SLHDSA_PARAM_192S)
-    enabledProbe = SLHDSA_SHAKE192S; haveEnabled = 1;
-#elif defined(WOLFSSL_SLHDSA_PARAM_192F)
-    enabledProbe = SLHDSA_SHAKE192F; haveEnabled = 1;
-#elif defined(WOLFSSL_SLHDSA_PARAM_256S)
-    enabledProbe = SLHDSA_SHAKE256S; haveEnabled = 1;
-#elif defined(WOLFSSL_SLHDSA_PARAM_256F)
-    enabledProbe = SLHDSA_SHAKE256F; haveEnabled = 1;
-#elif defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
-    enabledProbe = SLHDSA_SHA2_128S; haveEnabled = 1;
+#ifdef TEST_SLHDSA_DEFAULT_PARAM
+    enabledProbe = TEST_SLHDSA_DEFAULT_PARAM; haveEnabled = 1;
 #endif
     ExpectIntEQ(haveEnabled, 1);
     if (haveEnabled) {

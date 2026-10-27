@@ -31036,7 +31036,10 @@ static int test_wc_MakeCRL_max_crlnum(void)
     !defined(NO_ASN) && \
     ((defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_PEM_TO_DER) && \
       !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_ASN1)) || \
-     (defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)) || \
+     (defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+      (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
+       (defined(WOLFSSL_SLHDSA_SHA2) && \
+        defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)))) || \
      (defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)) || \
      (defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)))
 /* Build a CRL, sign it with the given CA key through wc_MakeCRL_ex +
@@ -31265,7 +31268,11 @@ static int test_wc_SignCRL_slhdsa(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_CERT_GEN) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && defined(WOLFSSL_HAVE_SLHDSA) && \
-    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
+     (defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)))
+    /* Only the 128s parameter sets have root certificates; run each case only
+     * when its parameter set is compiled in. */
     static const struct {
         const char* certDer;
         const char* keyDer;
@@ -31273,11 +31280,12 @@ static int test_wc_SignCRL_slhdsa(void)
         int         sigType;
         int         param;
     } cases[] = {
-        /* SHAKE variants are always built with --enable-slhdsa. */
+#ifdef WOLFSSL_SLHDSA_PARAM_128S
         { "./certs/slhdsa/root-slhdsa-shake-128s.der",
           "./certs/slhdsa/root-slhdsa-shake-128s-priv.der",
           SLH_DSA_SHAKE_128S_TYPE, CTC_SLH_DSA_SHAKE_128S, SLHDSA_SHAKE128S },
-#ifdef WOLFSSL_SLHDSA_SHA2
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
         { "./certs/slhdsa/root-slhdsa-sha2-128s.der",
           "./certs/slhdsa/root-slhdsa-sha2-128s-priv.der",
           SLH_DSA_SHA2_128S_TYPE, CTC_SLH_DSA_SHA2_128S, SLHDSA_SHA2_128S },
