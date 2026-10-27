@@ -132,6 +132,28 @@ int test_wolfSSL_EVP_PKEY_base_id(void)
 #endif
     return EXPECT_RESULT();
 }
+int test_wolfSSL_EVP_PKEY_rsa_types(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && \
+    defined(USE_CERT_BUFFERS_2048)
+    EVP_PKEY* pkey = NULL;
+    const unsigned char* in = client_key_der_2048;
+
+    /* Distinct values, so all three can be case labels in one switch. */
+    ExpectIntNE(EVP_PKEY_RSA2, EVP_PKEY_RSA);
+    ExpectIntNE(EVP_PKEY_RSA_PSS, EVP_PKEY_RSA);
+    ExpectIntNE(EVP_PKEY_RSA2, EVP_PKEY_RSA_PSS);
+    ExpectIntEQ(EVP_PKEY_RSA_PSS, NID_rsassaPss);
+
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &in,
+        (long)sizeof_client_key_der_2048));
+    ExpectIntEQ(EVP_PKEY_base_id(pkey), EVP_PKEY_RSA);
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_id(void)
 {
     EXPECT_DECLS;
