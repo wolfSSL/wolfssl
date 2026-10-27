@@ -6602,12 +6602,19 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
          * because the tree may have been broken by a wc_FreeRng(), so we use the
          * same criterion as wc_RNG_DRBG_ReseedRBGC_local() to qualify the supplied
          * root. */
-        if ((rng->RBGC_parent != NULL) &&
-            (rng->RBGC_parent != root) &&
-            ((rng->RBGC_parent->RBGCStratum > 0) ||
-             (root->RBGCStratum > 0)))
         {
-            return WRONG_TYPE_OBJECT_E;
+            /* One load: reachable from the unowned-caller entry
+             * (wc_RNG_DRBG_NextSeedGenerate()), where a concurrent
+             * teardown can CAS-null rng->RBGC_parent between the null
+             * check and the dereference. */
+            WC_RNG * const parent = rng->RBGC_parent;
+            if ((parent != NULL) &&
+                (parent != root) &&
+                ((parent->RBGCStratum > 0) ||
+                 (root->RBGCStratum > 0)))
+            {
+                return WRONG_TYPE_OBJECT_E;
+            }
         }
   #endif /* HAVE_FIPS */
 
@@ -6897,11 +6904,26 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n) {
     if (rng->RBGCStratum > 0) {
         int ret = WC_NO_ERR_TRACE(NEEDS_RECOVERY_E);
         int put_ret;
-        if ((wc_RNG_Status(rng->RBGC_parent) == 0) &&
-            (wc_RNG_lock_get(rng->RBGC_parent, 0) == 0))
+        /* Captured once: this entry admits unowned callers by design (a
+         * scheduling daemon synchronizes through the next-seed aperture,
+         * not the instance lease), so a concurrent teardown of rng can
+         * CAS-null rng->RBGC_parent mid-call, and the put below must
+         * release exactly what the get acquired.  Contrast the owned-rng
+         * reseed paths (PollAndReSeed() et al.): ownership of rng makes
+         * RBGC_parent stable there, and no capture is used.
+         *
+         * Storage lifetime is the usual shell contract: wc_FreeRng() may
+         * retire parent or child at any time (the shells' words stay live
+         * and refuse coherently), but free() of either shell requires
+         * quiescing unowned callers first.  Every in-tree parent is a
+         * bank root or the static global fallback, satisfying this by
+         * construction. */
+        WC_RNG * const parent = rng->RBGC_parent;
+        if ((wc_RNG_Status(parent) == 0) &&
+            (wc_RNG_lock_get(parent, 0) == 0))
         {
-            ret = wc_RNG_DRBG_NextSeedGenerate_local(rng, rng->RBGC_parent, n);
-            put_ret = wc_RNG_lock_put(rng->RBGC_parent, 0);
+            ret = wc_RNG_DRBG_NextSeedGenerate_local(rng, parent, n);
+            put_ret = wc_RNG_lock_put(parent, 0);
             if (put_ret != 0) {
                 if (put_ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) {
                     int purge_ret = NextSeedPurge(rng);
@@ -6923,10 +6945,10 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n) {
             /* SP-800-90C requires that an alternative randomness source be "a
              * sibling of the parent, an ancestor, or the initial randomness
              * source". */
-            (rng->RBGC_parent != NULL) &&
+            (parent != NULL) &&
             ((global_fallback_rng.RBGCStratum == 0) &&
              (global_fallback_rng.RBGCStratum ==
-              rng->RBGC_parent->RBGCStratum)) &&
+              parent->RBGCStratum)) &&
 #endif
             (wc_RNG_lock_get(&global_fallback_rng, 0) == 0))
         {

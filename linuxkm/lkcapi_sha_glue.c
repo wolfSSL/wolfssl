@@ -3683,6 +3683,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 WOLFSSL_ATOMIC_LOAD(wc_linuxkm_rng_registry_needs_recovery);
             if (needs_recovery_snapshot != 0) {
                 struct linuxkm_rng_object *obj;
+                int sweep_incomplete = 0;
                 mutex_lock(&wc_linuxkm_rng_registry_mutex);
                 for (obj = wc_linuxkm_rng_registry_head; obj != NULL;
                      obj = obj->next)
@@ -3771,13 +3772,28 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                         progress = 1;
                         congested_progress = 1;
                     }
+                    else if (WC_RNG_ERR_IS_TRANSIENT(ret)) {
+                        /* Refused this pass -- contention, source not
+                         * ready, or a standing latch.  A lock-required
+                         * leaf's own consumers are refused by the same
+                         * latch, so this sweep is its only recovery
+                         * agent: keep the needs-recovery counter hot
+                         * below rather than consuming the only signal
+                         * that brings the sweep back. */
+                        sweep_incomplete = 1;
+                    }
                 }
                 mutex_unlock(&wc_linuxkm_rng_registry_mutex);
-                /* on failure, an invalidation landed since the snapshot:
-                 * leave the counter hot and re-sweep next pass. */
-                (void)wolfSSL_Atomic_Int_CompareExchange(
-                    &wc_linuxkm_rng_registry_needs_recovery,
-                    &needs_recovery_snapshot, 0);
+                /* Clear the counter only after a complete sweep.  A CAS
+                 * failure means an invalidation landed since the
+                 * snapshot; sweep_incomplete means a leaf was refused on
+                 * a transient.  Either way the counter stays hot and the
+                 * next pass re-sweeps. */
+                if (! sweep_incomplete) {
+                    (void)wolfSSL_Atomic_Int_CompareExchange(
+                        &wc_linuxkm_rng_registry_needs_recovery,
+                        &needs_recovery_snapshot, 0);
+                }
             }
         }
 #endif /* WC_LINUXKM_HAVE_RNG_REGISTRY &&
