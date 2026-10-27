@@ -1632,6 +1632,83 @@ WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
                      );
 }
 
+#ifdef HAVE_HASHDRBG
+/* Forced reseed of the bank root, serialized however the configuration
+ * serializes root access.  With WC_RNG_HAVE_LOCK, the root's lease is
+ * taken by unconditional try-lock and held across the reseed.  Without
+ * it, every other root toucher serializes on the inst-op gate -- member
+ * reinstantiation chaining from the root (wc_rng_bank_inst_reinit()),
+ * the invalidation walk's counter saturation
+ * (wc_rng_bank_invalidate_entropy()), and root reinstantiation
+ * (wc_rng_bank_root_rng_reinit()) -- so the reseed holds the gate,
+ * claimed per the holder contract try-once, fail-fast (atomic-legal).
+ * Either way a refusal (BUSY_E) means nothing was touched, and the
+ * caller's next pass retries.
+ *
+ * The threshold form reseeds only when the root's reseed counter has
+ * reached threshold, with the counter read under the same hold as the
+ * reseed -- no TOCTOU, and on legacy boundaries (where the read
+ * dereferences internal DRBG state) no unexcluded deref.  A below-
+ * threshold counter returns ALREADY_E: steady state, not an error.
+ * threshold == 0 reseeds unconditionally.  Without the lock facility
+ * the saturated counter is the invalidation walk's only root-side
+ * record, so threshold == WC_RESEED_INTERVAL makes this the root's
+ * deterministic post-invalidation recovery. */
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_if_due(
+    struct wc_rng_bank *bank, const byte *nonce, word32 nonceSz,
+    wc_drbg_reseed_ctr_t threshold)
+{
+    int ret;
+
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WC_RNG_HAVE_LOCK
+    ret = wc_RNG_lock_get_unconditional(&bank->root_rng);
+    if (ret != 0)
+        return ret;
+#else /* WC_RNG_BANK_HAVE_INST_OP_GATE */
+    {
+        WC_ATOMIC_INT_ARG expected = WC_RNG_BANK_INST_OP_FREE;
+        if (! wolfSSL_Atomic_Int_CompareExchange(&bank->inst_op_gate,
+                                                 &expected,
+                                                 WC_RNG_BANK_INST_OP_DAEMON))
+        {
+            return BUSY_E;
+        }
+    }
+#endif
+
+    if (threshold > 0) {
+        wc_drbg_reseed_ctr_t cur_ctr = 0;
+        ret = wc_RNG_DRBG_GetReseedCtr(&bank->root_rng, &cur_ctr);
+        if ((ret == 0) && (cur_ctr < threshold))
+            ret = ALREADY_E;
+    }
+    else {
+        ret = 0;
+    }
+
+    if (ret == 0)
+        ret = wc_RNG_DRBG_Reseed_Now(&bank->root_rng, nonce, nonceSz);
+
+#ifdef WC_RNG_HAVE_LOCK
+    wc_RNG_lock_put_unconditional(&bank->root_rng);
+#else /* WC_RNG_BANK_HAVE_INST_OP_GATE */
+    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+#endif
+
+    return ret;
+}
+
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_now(struct wc_rng_bank *bank,
+                                                const byte *nonce,
+                                                word32 nonceSz)
+{
+    return wc_rng_bank_root_rng_reseed_if_due(bank, nonce, nonceSz, 0);
+}
+#endif /* HAVE_HASHDRBG */
+
 #endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifdef WC_HAVE_RNG_BANKREF

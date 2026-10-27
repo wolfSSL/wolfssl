@@ -402,6 +402,11 @@ WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
                                             const byte *nonce, word32 nonceSz,
                                             const byte *perso, word32 persoSz,
                                             word32 flags);
+#ifdef HAVE_HASHDRBG
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_now(struct wc_rng_bank *bank,
+                                                const byte *nonce,
+                                                word32 nonceSz);
+#endif
 #endif
 
 WOLFSSL_API int wc_rng_bank_register_free_hook(struct wc_rng_bank *bank,
@@ -575,6 +580,17 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
                                                   wc_drbg_reseed_ctr_t* reseedCtr);
     #endif
 #endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
+#if defined(WC_RNG_BANK_HAVE_ROOT_RNG) && defined(HAVE_HASHDRBG)
+/* Threshold form of wc_rng_bank_root_rng_reseed_now(): under the same
+ * serialization, reseed only when the root's reseed counter has reached
+ * threshold (0 means unconditional; a below-threshold counter returns
+ * ALREADY_E).  Declared here, after wc_drbg_reseed_ctr_t is defined on
+ * all boundaries. */
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_if_due(
+    struct wc_rng_bank *bank, const byte *nonce, word32 nonceSz,
+    wc_drbg_reseed_ctr_t threshold);
+#endif
 
 #ifdef WC_RNG_DEBUG_STATS
 WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
