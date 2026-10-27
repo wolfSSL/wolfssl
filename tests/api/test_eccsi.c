@@ -914,6 +914,13 @@ int test_wc_Eccsi_DecodeSskRange(void)
     mp_zero(&ssk);
     ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt),
         WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+#if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
+                                               defined(WOLFSSL_SP_INT_NEGATIVE))
+    ExpectIntEQ(mp_read_radix(&ssk, "-1", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_isneg(&ssk), MP_YES);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+#endif
 
     wc_ecc_del_point(pvt);
     mp_free(&ssk);

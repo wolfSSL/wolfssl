@@ -207,7 +207,7 @@ static int eccsi_check_ssk(const EccsiKey* key, const mp_int* ssk)
     int err = 0;
     WC_DECLARE_VAR(order, mp_int, 1, key->heap);
 
-    if (mp_iszero(ssk)) {
+    if (mp_iszero(ssk) || mp_isneg(ssk)) {
         return ECC_PRIV_KEY_E;
     }
 
@@ -218,7 +218,7 @@ static int eccsi_check_ssk(const EccsiKey* key, const mp_int* ssk)
     }
     if (err == 0) {
         err = mp_read_radix(order, key->ecc.dp->order, MP_RADIX_HEX);
-        if ((err == 0) && (mp_cmp((mp_int*)ssk, order) != MP_LT)) {
+        if ((err == 0) && (mp_cmp(ssk, order) != MP_LT)) {
             err = ECC_PRIV_KEY_E;
         }
         mp_clear(order);

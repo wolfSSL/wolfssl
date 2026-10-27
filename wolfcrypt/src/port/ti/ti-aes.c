@@ -423,7 +423,7 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     return 0;
 }
 
-static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
+static int AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
     int mode)
 {
     if (mode == AES_CFG_MODE_CCM) {
@@ -473,7 +473,11 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
             ROM_AESReset(AES_BASE);
             ROM_AESConfigSet(AES_BASE, (aes->keylen-8) | AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_ECB);
             ROM_AESKey1Set(AES_BASE, aes->key, (aes->keylen-8));
-            ROM_AESDataProcess(AES_BASE, zeros, subkey, sizeof zeros);
+            if (ROM_AESDataProcess(AES_BASE, zeros, subkey, sizeof zeros) ==
+                    false) {
+                wolfSSL_TI_unlockCCM();
+                return WC_HW_E;
+            }
 
             /* GHASH */
             ROM_AESReset(AES_BASE);
@@ -497,6 +501,8 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
             wolfSSL_TI_unlockCCM();
         }
     }
+
+    return 0;
 }
 
 /* Allocates a 16 byte aligned, whole block sized temporary for sz bytes and,
@@ -595,7 +601,10 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    ret = AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    if (ret != 0) {
+        return ret;
+    }
 
     if (inSz == 0 && authInSz == 0) {
 #ifdef HAVE_AESCCM
@@ -676,7 +685,7 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (out != NULL)
             ForceZero(out, inSz);
         ForceZero(authTag, authTagSz);
-        ret = AES_GCM_AUTH_E;
+        ret = (mode == AES_CFG_MODE_CCM) ? AES_CCM_AUTH_E : AES_GCM_AUTH_E;
     }
     else {
         if (out_save != NULL)
@@ -721,7 +730,10 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    ret = AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    if (ret != 0) {
+        return ret;
+    }
 
     if (inSz == 0 && authInSz == 0) {
 #ifdef HAVE_AESCCM
