@@ -15880,6 +15880,11 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
                         dCert->pubKeySize, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if (x509->pubKey.buffer != NULL) {
             x509->pubKeyOID = (int)dCert->keyOID;
+        #ifdef OPENSSL_EXTRA_X509_SMALL
+            /* Set now as the getters that cache objects made from the key
+             * may run in parallel. */
+            x509->key.pubKeyOID = (int)dCert->keyOID;
+        #endif
             x509->pubKey.length = dCert->pubKeySize;
             XMEMCPY(x509->pubKey.buffer, dCert->publicKey, dCert->pubKeySize);
         }
@@ -15889,7 +15894,6 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
         if (ret == 0) {
             /* The EVP_PKEY is decoded on first use by X509CachedPubKey() and
              * the algorithm object by wolfSSL_X509_PUBKEY_get0_param(). */
-            x509->key.pubKeyOID = (int)dCert->keyOID;
             wolfSSL_X509_ALGOR_free(x509->key.algor);
             x509->key.algor = NULL;
         }

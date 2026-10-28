@@ -921,6 +921,72 @@ int test_wolfSSL_X509_get_pubkey_key_types(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(SINGLE_THREADED)
+#define X509_PUBKEY_THREADS 4
+
+typedef struct X509PubKeyThreadData {
+    X509* x509;
+    EVP_PKEY* key;
+    X509_ALGOR* algor;
+} X509PubKeyThreadData;
+
+static THREAD_RETURN WOLFSSL_THREAD test_X509_pubkey_thread(void* arg)
+{
+    X509PubKeyThreadData* data = (X509PubKeyThreadData*)arg;
+
+    data->key = X509_get0_pubkey(data->x509);
+    if (X509_PUBKEY_get0_param(NULL, NULL, NULL, &data->algor,
+            X509_get_X509_PUBKEY(data->x509)) != 1) {
+        data->algor = NULL;
+    }
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* Threads getting the public key of a shared X509 for the first time all get
+ * the one key and algorithm that are cached. */
+int test_wolfSSL_X509_get0_pubkey_threads(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(SINGLE_THREADED)
+    X509PubKeyThreadData data[X509_PUBKEY_THREADS];
+    THREAD_TYPE threads[X509_PUBKEY_THREADS];
+    X509* x509 = NULL;
+    int started;
+    int round;
+    int i;
+
+    for (round = 0; (round < 16) && EXPECT_SUCCESS(); round++) {
+        ExpectNotNull(x509 = X509_load_certificate_file(caCertFile,
+            SSL_FILETYPE_PEM));
+        XMEMSET(data, 0, sizeof(data));
+        started = 0;
+        while ((started < X509_PUBKEY_THREADS) && EXPECT_SUCCESS()) {
+            data[started].x509 = x509;
+            ExpectIntEQ(wolfSSL_NewThread(&threads[started],
+                test_X509_pubkey_thread, &data[started]), 0);
+            if (EXPECT_SUCCESS()) {
+                started++;
+            }
+        }
+        for (i = 0; i < started; i++) {
+            ExpectIntEQ(wolfSSL_JoinThread(threads[i]), 0);
+        }
+        for (i = 0; i < started; i++) {
+            ExpectNotNull(data[i].key);
+            ExpectPtrEq(data[i].key, X509_get0_pubkey(x509));
+            ExpectNotNull(data[i].algor);
+            ExpectPtrEq(data[i].algor, data[0].algor);
+        }
+        X509_free(x509);
+        x509 = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A failed X509_PUBKEY_get0_param() must not leave a half built algorithm
  * that later calls report as success. */
 int test_wolfSSL_X509_PUBKEY_get0_param_fail(void)

@@ -7050,6 +7050,26 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
     return key;
 }
 
+#ifndef SINGLE_THREADED
+/* Reads a pointer that another thread may store with
+ * wolfSSL_Atomic_Ptr_CompareExchange(). */
+static void* X509CacheLoad(void* volatile* ptr)
+{
+#if defined(__GNUC__) && defined(__ATOMIC_ACQUIRE)
+    return __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
+#else
+    void* current = NULL;
+
+    /* Only replaces NULL with NULL, so nothing is changed. */
+    (void)wolfSSL_Atomic_Ptr_CompareExchange(ptr, &current, NULL);
+    return current;
+#endif
+}
+#define X509_CACHE_LOAD(ptr)    X509CacheLoad((void* volatile*)&(ptr))
+#else
+#define X509_CACHE_LOAD(ptr)    (ptr)
+#endif
+
 /* Returns the public key cached in x509, decoding it on first use.
  * The key is owned by x509 and freed with it. */
 static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
@@ -7058,12 +7078,24 @@ static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
 
     if (x509 == NULL)
         return NULL;
-    key = x509->key.pkey;
+    key = (WOLFSSL_EVP_PKEY*)X509_CACHE_LOAD(x509->key.pkey);
     if (key == NULL) {
         key = X509DecodePubKey(x509);
         if (key != NULL) {
-            x509->key.pubKeyOID = x509->pubKeyOID;
+        #ifndef SINGLE_THREADED
+            void* current = NULL;
+
+            /* Threads may decode the key of a shared X509 at the same time.
+             * Only the first key is cached, so a key handed out is never
+             * replaced. */
+            if (!wolfSSL_Atomic_Ptr_CompareExchange(
+                    (void* volatile*)&x509->key.pkey, &current, key)) {
+                wolfSSL_EVP_PKEY_free(key);
+                key = (WOLFSSL_EVP_PKEY*)current;
+            }
+        #else
             x509->key.pkey = key;
+        #endif
         }
     }
     return key;
@@ -12416,6 +12448,8 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
 {
     const unsigned char* bitStr;
     int bitStrSz;
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_X509_ALGOR* algor;
 
     WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_get0_param");
 
@@ -12423,15 +12457,23 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
         WOLFSSL_MSG("X509_PUBKEY struct not populated");
         return WOLFSSL_FAILURE;
     }
-    if ((pk || ppklen) && !pub->pkey) {
+    /* The key and algorithm are cached and read once, as other threads may
+     * be storing them. */
+    pkey = (WOLFSSL_EVP_PKEY*)X509_CACHE_LOAD(pub->pkey);
+    if ((pk || ppklen) && (pkey == NULL)) {
         WOLFSSL_MSG("X509_PUBKEY has no decoded key");
         return WOLFSSL_FAILURE;
     }
 
-    if (!pub->algor) {
+    algor = (WOLFSSL_X509_ALGOR*)X509_CACHE_LOAD(pub->algor);
+    if (algor == NULL) {
+    #ifndef SINGLE_THREADED
+        void* current = NULL;
+    #endif
+
         /* Build the algorithm fully before storing it, so a failure
          * never leaves a half built one behind. */
-        WOLFSSL_X509_ALGOR* algor = wolfSSL_X509_ALGOR_new();
+        algor = wolfSSL_X509_ALGOR_new();
         if (algor == NULL) {
             return WOLFSSL_FAILURE;
         }
@@ -12442,17 +12484,27 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
             wolfSSL_X509_ALGOR_free(algor);
             return WOLFSSL_FAILURE;
         }
+    #ifndef SINGLE_THREADED
+        /* Threads may build the algorithm of a shared X509 at the same
+         * time. Only the first is stored. */
+        if (!wolfSSL_Atomic_Ptr_CompareExchange(
+                (void* volatile*)&pub->algor, &current, algor)) {
+            wolfSSL_X509_ALGOR_free(algor);
+            algor = (WOLFSSL_X509_ALGOR*)current;
+        }
+    #else
         pub->algor = algor;
+    #endif
     }
 
     if (pa)
-        *pa = pub->algor;
+        *pa = algor;
     if (ppkalg)
-        *ppkalg = pub->algor->algorithm;
+        *ppkalg = algor->algorithm;
 
     if ((pk != NULL) || (ppklen != NULL)) {
-        bitStr = (const unsigned char*)pub->pkey->pkey.ptr;
-        bitStrSz = pub->pkey->pkey_sz;
+        bitStr = (const unsigned char*)pkey->pkey.ptr;
+        bitStrSz = pkey->pkey_sz;
 
         /* try to parse BIT STRING from SPKI, otherwise return the
          * pointer as is */
@@ -12472,17 +12524,22 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
 /* Returns a pointer to the pkey when passed a key */
 WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key)
 {
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+
     WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_get");
-    if (key == NULL || key->pkey == NULL) {
+    if (key != NULL) {
+        pkey = (WOLFSSL_EVP_PKEY*)X509_CACHE_LOAD(key->pkey);
+    }
+    if (pkey == NULL) {
         WOLFSSL_LEAVE("wolfSSL_X509_PUBKEY_get", BAD_FUNC_ARG);
         return NULL;
     }
-    if (wolfSSL_EVP_PKEY_up_ref(key->pkey) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_EVP_PKEY_up_ref(pkey) != WOLFSSL_SUCCESS) {
         WOLFSSL_LEAVE("wolfSSL_X509_PUBKEY_get", BAD_MUTEX_E);
         return NULL;
     }
     WOLFSSL_LEAVE("wolfSSL_X509_PUBKEY_get", WOLFSSL_SUCCESS);
-    return key->pkey;
+    return pkey;
 }
 
 /* Returns the pkey without a new reference. */
@@ -12491,7 +12548,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(const WOLFSSL_X509_PUBKEY* key)
     WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_get0");
     if (key == NULL)
         return NULL;
-    return key->pkey;
+    return (WOLFSSL_EVP_PKEY*)X509_CACHE_LOAD(
+        ((WOLFSSL_X509_PUBKEY*)key)->pkey);
 }
 
 int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
