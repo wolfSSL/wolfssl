@@ -742,7 +742,7 @@ static const FrodoKemKat frodokem_kats[] = {
     FKAT_640_AES FKAT_976_AES FKAT_1344_AES
     FKAT_E640_SHAKE FKAT_E976_SHAKE FKAT_E1344_SHAKE
     FKAT_E640_AES FKAT_E976_AES FKAT_E1344_AES
-    { 0 } /* sentinel so the array is never empty */
+    WC_STATIC_STRUCT_INITIALIZER /* sentinel so the array is never empty */
 };
 
 #define FRODOKEM_KAT_CNT \
