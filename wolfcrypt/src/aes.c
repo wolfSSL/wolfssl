@@ -11854,6 +11854,11 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
 #endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(counter, 0, sizeof(counter));
+    XMEMSET(initialCounter, 0, sizeof(initialCounter));
+    XMEMSET(scratch, 0, sizeof(scratch));
     wc_MemZero_Add("AES_GCM_encrypt_C counter", counter, sizeof(counter));
     wc_MemZero_Add("AES_GCM_encrypt_C initialCounter", initialCounter,
         sizeof(initialCounter));
@@ -12746,6 +12751,12 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
 #endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(counter, 0, sizeof(counter));
+    XMEMSET(scratch, 0, sizeof(scratch));
+    XMEMSET(Tprime, 0, sizeof(Tprime));
+    XMEMSET(EKY0, 0, sizeof(EKY0));
     wc_MemZero_Add("AES_GCM_decrypt_C counter", counter, sizeof(counter));
     wc_MemZero_Add("AES_GCM_decrypt_C scratch", scratch, sizeof(scratch));
     wc_MemZero_Add("AES_GCM_decrypt_C Tprime", Tprime, sizeof(Tprime));
@@ -15854,6 +15865,10 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
             ALIGN32 byte calcTag[WC_AES_BLOCK_SIZE];
             WC_AES_GCM_C_SVR_BEGIN();
         #ifdef WOLFSSL_CHECK_MEM_ZERO
+            /* Zero first: the registration call takes const void*, and a
+             * pointer to an uninitialized object trips -Wmaybe-uninitialized
+             * under -Werror. */
+            XMEMSET(calcTag, 0, sizeof(calcTag));
             wc_MemZero_Add("wc_AesGcmDecryptFinal calcTag", calcTag,
                 sizeof(calcTag));
         #endif
@@ -19600,6 +19615,9 @@ static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     /* One claim for the tweak and the data below it. */
     WC_AES_ARM64_SVR_BEGIN();
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(tweak_block, 0, sizeof(tweak_block));
     wc_MemZero_Add("AesXtsEncrypt_sw tweak_block", tweak_block,
         sizeof(tweak_block));
 #endif
@@ -19671,6 +19689,9 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
     /* One claim for the call: the block routine below is vector code. */
     WC_AES_ARM64_SVR_BEGIN();
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(buf, 0, sizeof(buf));
     wc_MemZero_Add("AesXtsEncryptUpdate_sw buf", buf, sizeof(buf));
 #endif
 
@@ -20219,6 +20240,9 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     /* One claim for the tweak and the data below it. */
     WC_AES_ARM64_SVR_BEGIN();
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(tweak_block, 0, sizeof(tweak_block));
     wc_MemZero_Add("AesXtsDecrypt_sw tweak_block", tweak_block,
         sizeof(tweak_block));
 #endif
@@ -20280,6 +20304,10 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
     /* One claim for the call: the block routine below is vector code. */
     WC_AES_ARM64_SVR_BEGIN();
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(tmp2, 0, sizeof(tmp2));
     wc_MemZero_Add("AesXtsDecryptUpdate_sw buf", buf, sizeof(buf));
     wc_MemZero_Add("AesXtsDecryptUpdate_sw tmp2", tmp2, sizeof(tmp2));
 #endif

@@ -504,6 +504,10 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
         word32 t, i;
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Zero first: the registration call takes const void*, and a pointer
+         * to an uninitialized object trips -Wmaybe-uninitialized under
+         * -Werror. */
+        XMEMSET(W, 0, sizeof(W));
         wc_MemZero_Add("Sha Transform W", W, sizeof(W));
     #endif
         for (i = 0; i < 16; i++) {
@@ -534,6 +538,10 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
         /* nearly 1 K bigger in code size but 25% faster */
         /* 4 rounds of 20 operations each. Loop unrolled. */
     #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Zero first: the registration call takes const void*, and a pointer
+         * to an uninitialized object trips -Wmaybe-uninitialized under
+         * -Werror. */
+        XMEMSET(W, 0, sizeof(W));
         wc_MemZero_Add("Sha Transform W", W, sizeof(W));
     #endif
         R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);

@@ -402,6 +402,9 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
         ret = NO_VALID_DEVID;
 #else
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(az, 0, sizeof(az));
     wc_MemZero_Add("wc_ed25519_make_public az", az, sizeof(az));
 #endif
     if (ret == 0)
