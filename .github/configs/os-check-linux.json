@@ -573,5 +573,11 @@
  "run": [["./wolfcrypt/test/testwolfcrypt"]]},
 {"name": "postauth-no-compat",
  "comment": "Post-handshake auth without OPENSSL_EXTRA, which otherwise compiles out the handshake-end unload of SSL-owned certs and keys.",
- "configure": ["--enable-postauth", "--enable-sessioncerts"]}
+ "configure": ["--enable-postauth", "--enable-sessioncerts"]},
+{"name": "leanpsk",
+ "comment": "The NO_DEV_RANDOM seed path includes no system headers, so this catches an undeclared getpid() on GCC 13 too. The test-seed #warning fails -Werror and -pedantic, so extra_cflags repeats the global set minus -pedantic (and -Wno-overlength-strings, which only matters with it) and downgrades the #warning.",
+ "configure": ["--enable-leanpsk"],
+ "extra_cflags": "-Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -Werror=implicit-function-declaration -Wno-error=cpp",
+ "check": false,
+ "run": [["./wolfcrypt/test/testwolfcrypt"]]}
 ]
