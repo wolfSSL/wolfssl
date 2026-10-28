@@ -1010,12 +1010,23 @@ int wc_Entropy_OnDemandTest(void)
     /* Lock the mutex as we don't want collecting to happen during testing. */
     ret = Entropy_SetupAndLock(&locked);
 
+#ifdef ENTROPY_MEMUSE_THREADED
+    if (ret == 0) {
+        /* Start the counter thread as a proxy for time counter. */
+        ret = Entropy_StartThread();
+    }
+#endif
     if (ret == 0) {
         /* Perform startup tests. */
         ret = Entropy_HealthTest_Startup();
     }
 
+    /* Only stop the thread and unlock if this thread holds the mutex. */
     if (locked) {
+    #ifdef ENTROPY_MEMUSE_THREADED
+        /* Stop the counter thread to avoid thrashing the system. */
+        Entropy_StopThread();
+    #endif
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
