@@ -245,6 +245,11 @@ This library contains implementation for the random number generator.
     #endif
 #endif
 
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    /* For getpid(): not every seed source above includes unistd.h. */
+    #include <unistd.h>
+#endif
+
 #if defined(WOLFSSL_TI_AM64X_R5)
     #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h>
 #endif
