@@ -1237,6 +1237,8 @@ enum {
     #define WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER 500
 #endif /* WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER */
 
+/* Disjoint fragment buckets a buffered handshake message may have. A fragment
+ * that would open one more gap is dropped, not acknowledged. */
 #ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
     #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
 #endif
@@ -1244,6 +1246,11 @@ enum {
     #error "WOLFSSL_DTLS_FRAG_POOL_SZ must be at most 255"
 #endif
 
+/* Bytes a WOLFSSL's DTLS receive list retains, metadata included. Room for a
+ * maximum certificate message and other buffered messages. */
+#ifndef WOLFSSL_DTLS_RX_MAX_BYTES
+    #define WOLFSSL_DTLS_RX_MAX_BYTES (MAX_HANDSHAKE_SZ + 16UL * 1024UL)
+#endif
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
     #if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
@@ -1660,8 +1667,7 @@ enum Misc {
     DTLS_RECORD_EXTRA        = 8,  /* diff from normal */
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
-    DTLS_POOL_SZ             = 20, /* allowed number of list items in TX and
-                                    * RX pool */
+    DTLS_POOL_SZ             = 20, /* allowed number of list items in TX pool */
     DTLS_FRAG_POOL_SZ        = WOLFSSL_DTLS_FRAG_POOL_SZ,
                                    /* allowed number of fragments per msg */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
@@ -6581,7 +6587,7 @@ typedef struct DtlsMsg {
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole message      */
     byte            type;
-    byte            fragBucketListCount;
+    word32          fragBucketListCount;
     byte            ready:1;
     byte            encrypted:1;
 } DtlsMsg;
@@ -7238,6 +7244,7 @@ struct WOLFSSL {
 #endif /* !NO_ASN_TIME */
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
+    size_t          dtls_rx_msg_list_bytes; /* retained by the list */
     DtlsMsg*        dtls_tx_msg_list;
     DtlsMsg*        dtls_tx_msg;
     DtlsMsg*        dtls_rx_msg_list;
@@ -8103,6 +8110,8 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
         #define DtlsMsgListNextReady wolfSSL_DtlsMsgListNextReady
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
+        #define DtlsMsgListRetainedBytes wolfSSL_DtlsMsgListRetainedBytes
+        #define DtlsMsgStoreFatal wolfSSL_DtlsMsgStoreFatal
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
@@ -8117,10 +8126,18 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
                                   word32 totalLen, byte encrypted);
     WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
 
+    WOLFSSL_TEST_VIS size_t DtlsMsgListRetainedBytes(const DtlsMsg* head);
+    /* DtlsMsgStore() kept nothing and that is not an error: the fragment
+     * must not be acknowledged */
+    #define DTLS_MSG_STORE_DROPPED 1
     WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);
+    WOLFSSL_LOCAL void DtlsMsgRxListInsert(WOLFSSL* ssl, DtlsMsg* msg);
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgRxListDetach(WOLFSSL* ssl, DtlsMsg* item);
+    WOLFSSL_LOCAL void DtlsMsgRxListFree(WOLFSSL* ssl);
+    WOLFSSL_TEST_VIS int DtlsMsgStoreFatal(WOLFSSL* ssl, int ret);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item);
 
     WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data,

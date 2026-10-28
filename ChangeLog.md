@@ -28,6 +28,20 @@
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
 
 ## Behavioral Changes
+* **Behavioral change (the DTLS receive list is bounded by bytes)**: the list
+  of out-of-order and fragmented handshake messages was bounded by
+  `DTLS_POOL_SZ` entries, 20, whatever their size, and a fragment the list
+  could not take ended the connection, also from a plaintext record anyone can
+  send. `WOLFSSL_DTLS_RX_MAX_BYTES` now bounds the bytes it retains, metadata
+  and payload, `MAX_HANDSHAKE_SZ` plus 16 KiB by default. A plaintext
+  fragment that does not fit, or reaches past its message, is dropped and not
+  acknowledged, so its sender resends it; only running out of memory, or a
+  peer whose records authenticate exceeding the budget, ends the connection.
+  The per-message cap on fragment buckets, `WOLFSSL_DTLS_FRAG_POOL_SZ`, is
+  checked before anything is allocated. A buffered DTLS 1.3 message older
+  than the next expected one is dropped instead of stalling the list, and
+  `wolfSSL_clear()` frees the DTLS 1.3 receive list.
+
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
   paths always read 20 bytes, so neither followed FIPS 186-4 4.2.  Both now use

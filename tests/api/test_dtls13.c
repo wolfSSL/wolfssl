@@ -702,6 +702,97 @@ int test_dtls13_no_cookie_handoff(void)
     return EXPECT_RESULT();
 }
 
+/* Which results of DtlsMsgStore() end the connection: only running out of
+ * memory, or an authenticated peer exceeding the receive budget */
+int test_dtls13_frag_store_fatal(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte data[32];
+    word16 epoch = 0;
+    int ret = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(data, 0xAB, sizeof(data));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* Plaintext could come from anyone: only memory ends the connection */
+    ExpectIntEQ(DtlsMsgStoreFatal(ssl_s, 0), 0);
+    ExpectIntEQ(DtlsMsgStoreFatal(ssl_s, DTLS_MSG_STORE_DROPPED), 0);
+    ExpectIntEQ(DtlsMsgStoreFatal(ssl_s, WC_NO_ERR_TRACE(BAD_FUNC_ARG)), 0);
+    ExpectIntEQ(DtlsMsgStoreFatal(ssl_s,
+        WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E)), 0);
+    ExpectIntNE(DtlsMsgStoreFatal(ssl_s, WC_NO_ERR_TRACE(MEMORY_E)), 0);
+    ExpectIntNE(DtlsMsgStoreFatal(ssl_s, WC_NO_ERR_TRACE(MEMORY_ERROR)), 0);
+
+    /* The records of a peer that finished the handshake authenticate */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntNE(ssl_s->keys.encryptionOn, 0);
+        ExpectIntEQ(w64IsZero(ssl_s->keys.curEpoch64), 0);
+        epoch = (word16)w64GetLow32(ssl_s->keys.curEpoch64);
+    }
+    ExpectIntEQ(DtlsMsgStoreFatal(ssl_s, 0), 0);
+    ExpectIntEQ(DtlsMsgStoreFatal(ssl_s, DTLS_MSG_STORE_DROPPED), 0);
+    ExpectIntNE(DtlsMsgStoreFatal(ssl_s,
+        WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E)), 0);
+    ExpectIntNE(DtlsMsgStoreFatal(ssl_s, WC_NO_ERR_TRACE(MEMORY_E)), 0);
+    /* A fragment that gives the message held another size is dropped */
+    ExpectIntEQ(DtlsMsgStore(ssl_s, epoch, 20, data, 32, certificate, 0, 16,
+        ssl_s->heap), 0);
+    ret = DtlsMsgStore(ssl_s, epoch, 20, data, 24, certificate, 16, 8,
+        ssl_s->heap);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(SEQUENCE_ERROR));
+    ExpectIntEQ(DtlsMsgStoreFatal(ssl_s, ret), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_clear() frees the receive list: a reused object starts with no
+ * message of the last connection. */
+int test_dtls13_clear_frees_rx_list(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) || \
+        defined(HAVE_CURL))
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte data[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(data, 0x5a, sizeof(data));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl_s, 0, 3, data, (word32)sizeof(data),
+        certificate, 0, 8, ssl_s->heap), 0);
+    ExpectNotNull(ssl_s->dtls_rx_msg_list);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+    ExpectIntGT(ssl_s->dtls_rx_msg_list_bytes, 0);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    ExpectNull(ssl_s->dtls_rx_msg_list);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 0);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_bytes, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls_empty_keyshare_with_cookie(void)
 {
     EXPECT_DECLS;

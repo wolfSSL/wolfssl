@@ -46,6 +46,17 @@
  *     DTLS server can process it statelessly. This is only implemented for
  *     DTLS 1.3. The user MUST call wolfSSL_dtls13_allow_ch_frag() on the server
  *     to explicitly enable this during runtime.
+ * WOLFSSL_DTLS_RX_MAX_BYTES
+ *     Bound on the bytes the receive list of one WOLFSSL retains for
+ *     out-of-order and fragmented handshake messages, DTLS 1.2 and 1.3,
+ *     metadata included. A byte bound rather than a message count because
+ *     MAX_HANDSHAKE_SZ varies a lot between builds, by an order of magnitude
+ *     with post-quantum certificates, while a flight has at most one message
+ *     that large. The default is one such message plus 16 KiB for the rest.
+ *     A message has at most WOLFSSL_DTLS_FRAG_POOL_SZ disjoint fragment
+ *     ranges, since every store walks them. Past either, a plaintext fragment
+ *     is dropped without an ACK; an authenticated record past the byte bound
+ *     ends the connection.
  */
 
 #ifndef WOLFCRYPT_ONLY
