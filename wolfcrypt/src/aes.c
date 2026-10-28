@@ -8897,19 +8897,6 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #ifdef HAVE_AESGCM
 
-/* C multiplication scratch is owned by the surrounding GHASH operation.
- * Reuse it for every block and erase once when that operation returns. Keeping
- * it off Gcm also preserves concurrent read-only use of a keyed Gcm object. */
-#if defined(__GNUC__) || defined(__clang__)
-    #define GCM_RESTRICT __restrict__
-#elif defined(_MSC_VER)
-    #define GCM_RESTRICT __restrict
-#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-    #define GCM_RESTRICT restrict
-#else
-    #define GCM_RESTRICT
-#endif
-
 typedef union GcmScratch {
     byte b[2 * WC_AES_BLOCK_SIZE];
     word32 w32[2 * WC_AES_BLOCK_SIZE / sizeof(word32)];
@@ -9645,7 +9632,10 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #define HAVE_GHASH
 #elif defined(GCM_SMALL)
 #define GCM_C_GMULT
-static void GMULT(byte* X, byte* Y, GcmScratch* GCM_RESTRICT ws)
+/* C multiplication scratch is owned by the surrounding GHASH operation.
+ * Reuse it for every block and erase once when that operation returns. Keeping
+ * it off Gcm also preserves concurrent read-only use of a keyed Gcm object. */
+static void GMULT(byte* X, byte* Y, GcmScratch* WC_RESTRICT ws)
 {
     byte* Z = ws->b;
     byte* V = ws->b + WC_AES_BLOCK_SIZE;
@@ -9920,8 +9910,11 @@ ALIGN16 static const byte R[256][2] = {
     {0xbc, 0xf8}, {0xbd, 0x3a}, {0xbf, 0x7c}, {0xbe, 0xbe} };
 
 
+/* C multiplication scratch is owned by the surrounding GHASH operation.
+ * Reuse it for every block and erase once when that operation returns. Keeping
+ * it off Gcm also preserves concurrent read-only use of a keyed Gcm object. */
 static void GMULT(byte *x, byte m[256][WC_AES_BLOCK_SIZE],
-    GcmScratch* GCM_RESTRICT ws)
+    GcmScratch* WC_RESTRICT ws)
 {
 #if !defined(WORD64_AVAILABLE) || defined(BIG_ENDIAN_ORDER)
     int i, j;
@@ -10687,7 +10680,10 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
 #if !defined(FREESCALE_LTC_AES_GCM)
 #define GCM_C_GMULT
-static void GMULT(word64* X, word64* Y, GcmScratch* GCM_RESTRICT ws)
+/* C multiplication scratch is owned by the surrounding GHASH operation.
+ * Reuse it for every block and erase once when that operation returns. Keeping
+ * it off Gcm also preserves concurrent read-only use of a keyed Gcm object. */
+static void GMULT(word64* X, word64* Y, GcmScratch* WC_RESTRICT ws)
 {
     word64* Z = ws->w64;
     word64* V = ws->w64 + 2;
@@ -11008,7 +11004,10 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #else /* GCM_WORD32 */
 
 #define GCM_C_GMULT
-static void GMULT(word32* X, word32* Y, GcmScratch* GCM_RESTRICT ws)
+/* C multiplication scratch is owned by the surrounding GHASH operation.
+ * Reuse it for every block and erase once when that operation returns. Keeping
+ * it off Gcm also preserves concurrent read-only use of a keyed Gcm object. */
+static void GMULT(word32* X, word32* Y, GcmScratch* WC_RESTRICT ws)
 {
     word32* Z = ws->w32;
     word32* V = ws->w32 + 4;

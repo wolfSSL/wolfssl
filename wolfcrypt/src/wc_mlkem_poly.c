@@ -1099,21 +1099,13 @@ static void mlkem_basemul(sword16* r, const sword16* a, const sword16* b,
     r[1] = MLKEM_MONT_RED(p1);
 }
 
-/* r never aliases a or b; saying so keeps the accumulate loop vectorised. */
-#if defined(__GNUC__) || defined(__clang__)
-    #define MLKEM_RESTRICT __restrict__
-#elif defined(_MSC_VER)
-    #define MLKEM_RESTRICT __restrict
-#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-    #define MLKEM_RESTRICT restrict
-#else
-    #define MLKEM_RESTRICT
-#endif
-
 /* Base case multiply added into r: the products of the secret vector stay in
- * registers instead of a stack array (ISO/IEC 19790:2012 7.9.7). */
-static void mlkem_basemul_add(sword16* MLKEM_RESTRICT r,
-    const sword16* MLKEM_RESTRICT a, const sword16* MLKEM_RESTRICT b,
+ * registers instead of a stack array (ISO/IEC 19790:2012 7.9.7).
+ *
+ * r never aliases a or b; saying so keeps the accumulate loop vectorised.
+ */
+static void mlkem_basemul_add(sword16* WC_RESTRICT r,
+    const sword16* WC_RESTRICT a, const sword16* WC_RESTRICT b,
     sword16 zeta)
 {
     sword16 r0;
@@ -1211,8 +1203,8 @@ static void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
  * @param  [in]       a  First polynomial multiplier.
  * @param  [in]       b  Second polynomial multiplier.
  */
-static void mlkem_basemul_mont_add(sword16* MLKEM_RESTRICT r,
-    const sword16* MLKEM_RESTRICT a, const sword16* MLKEM_RESTRICT b)
+static void mlkem_basemul_mont_add(sword16* WC_RESTRICT r,
+    const sword16* WC_RESTRICT a, const sword16* WC_RESTRICT b)
 {
     const sword16* zeta = zetas + 64;
 
