@@ -45,7 +45,7 @@ static const char wc_unknown_error_str[] = "unknown error number";
 
 /* Never called. Lists every error code in a switch on the enum, so that
  * -Wswitch-enum reports a code added without a case here. Each code listed
- * here must also have a string in wc_GetErrorString(), which switches on
+ * here must also have a string in wc_GetErrorStringIdx(), which switches on
  * remapped values and so cannot be checked by the compiler. error_test()
  * checks that every code has a string.
  */
@@ -308,21 +308,9 @@ static WC_MAYBE_UNUSED void wc_ErrorStringsCheck(int error)
     }
 }
 
-WOLFSSL_ABI
-const char* wc_GetErrorString(int error)
+/* Takes an error code remapped by wc_GetErrorString(). */
+static const char* wc_GetErrorStringIdx(int error)
 {
-    /* Move span 2 to just below span 1, so the switch below covers one dense
-     * range of values. Compilers turn this switch into a lookup table, and a
-     * range that also covered the unused codes between the spans would cost
-     * one table entry per unused code.
-     */
-    if ((error <= WC_SPAN2_FIRST_E) && (error >= WC_SPAN2_MIN_CODE_E)) {
-        error = WC_SPAN2_TO_IDX(error);
-    }
-    else if (error < WC_SPAN1_MIN_CODE_E) {
-        return wc_unknown_error_str;
-    }
-
     switch (error) {
 
     case WC_SUCCESS:
@@ -1077,6 +1065,22 @@ const char* wc_GetErrorString(int error)
     default:
         return wc_unknown_error_str;
     }
+}
+
+WOLFSSL_ABI
+const char* wc_GetErrorString(int error)
+{
+    /* Move span 2 to just below span 1, so the switch covers one dense range
+     * and compiles to a small lookup table.
+     */
+    if ((error <= WC_SPAN2_FIRST_E) && (error >= WC_SPAN2_MIN_CODE_E)) {
+        error = WC_SPAN2_TO_IDX(error);
+    }
+    else if (error < WC_SPAN1_MIN_CODE_E) {
+        return wc_unknown_error_str;
+    }
+
+    return wc_GetErrorStringIdx(error);
 }
 
 #ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
