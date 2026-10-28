@@ -277,7 +277,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
         wc_Memory*  inBuf;
         byte        haFlag; /* flag used for checking handshake count */
     #endif
-        word32      refCount; /* SSL ref + other refs */
+        wolfSSL_Ref refCount; /* SSL + each allocated block */
         byte        sslOwned; /* created by InitSSL_StaticMemory */
     } WOLFSSL_HEAP_HINT;
 
@@ -300,8 +300,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     WOLFSSL_API int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
             unsigned char* buf, unsigned int sz, int flag, int max);
     WOLFSSL_API void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
-    WOLFSSL_LOCAL void wc_HeapHint_Ref(void* heap);
-    WOLFSSL_LOCAL void wc_HeapHint_Unref(void* heap);
+    WOLFSSL_LOCAL void wc_HeapHint_Release(void* heap);
 
     WOLFSSL_API int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
                                                       WOLFSSL_MEM_STATS* stats);

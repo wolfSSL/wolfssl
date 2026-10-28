@@ -4288,10 +4288,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
             #endif
                 FreeX509(x509);
                 XFREE(x509, x509->heap, DYNAMIC_TYPE_X509);
-            #ifdef WOLFSSL_STATIC_MEMORY
-                /* after the XFREE: it may free the hint x509 came from */
-                wc_HeapHint_Unref(heap);
-            #endif
             }
         }
         else {
