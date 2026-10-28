@@ -2125,7 +2125,7 @@ int test_wolfSSL_X509_max_name_entries(void)
 #if WC_MAX_NAME_ENTRIES == 16
 
     WOLFSSL_X509* x509 = NULL;
-    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
     /* Self-signed CAs with 16 and 17 attributes in the subject and issuer */
     const char* max_entries = "./certs/test/cert-max-name-entries.pem";
     const char* over_max_entries = "./certs/test/cert-over-max-name-entries.pem";
@@ -2145,16 +2145,12 @@ int test_wolfSSL_X509_max_name_entries(void)
 
     /* Loading a CA doesn't build the X509_NAMEs, but still rejects names
      * that they can't hold. */
-#ifndef NO_WOLFSSL_SERVER
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-#else
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-#endif
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, max_entries, NULL),
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, max_entries, NULL),
         WOLFSSL_SUCCESS);
-    ExpectIntNE(wolfSSL_CTX_load_verify_locations(ctx, over_max_entries,
-        NULL), WOLFSSL_SUCCESS);
-    wolfSSL_CTX_free(ctx);
+    ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, over_max_entries, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerFree(cm);
 #endif
 
 #endif
