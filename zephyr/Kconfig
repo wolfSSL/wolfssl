@@ -104,6 +104,7 @@ config WOLFCRYPT_FIPS_V5
 	bool "FIPS 140-3 (Cert #4718)"
 	help
 	  wolfCrypt FIPS 140-3 validated module, Certificate #4718 (version 5.2.1).
+	  A 5.2.3 bundle is selected under "wolfCrypt FIPS v5 bundle".
 
 	  The v5 random.c seeds from a bare sys_rand_get(), so the DRBG is
 	  seeded through a callback instead (zephyr_fips_seed.c): from the
@@ -127,6 +128,35 @@ config WOLFCRYPT_FIPS_READY
 	  ahead of the latest tagged release, as configure.ac does). Carries the
 	  newest in-boundary algorithms but is not yet NIST-certified; use it for
 	  pre-certification integration.
+
+endchoice
+
+choice
+	prompt "wolfCrypt FIPS v5 bundle"
+	depends on WOLFCRYPT_FIPS_V5
+	default WOLFCRYPT_FIPS_V5_2_1
+	help
+	  Select the v5 bundle dropped into the tree. Like the version above,
+	  it must match the bundle.
+
+config WOLFCRYPT_FIPS_V5_2_1
+	bool "5.2.1"
+	help
+	  wolfCrypt 5.2.1. The algorithm set follows the Kconfig options.
+
+config WOLFCRYPT_FIPS_V5_2_3
+	bool "5.2.3"
+	select WOLFSSL_RSA
+	select WOLFSSL_ECC
+	select WOLFSSL_ECC_256
+	help
+	  wolfCrypt 5.2.3. The algorithm set is that of
+	  ./configure --enable-fips=v5.2.3, from user_settings-fips-v5.2.3.h.
+	  RSA, ECC and P-256 are selected here because user_settings.h would
+	  otherwise disable them after that file; the other algorithm options
+	  cannot remove what it enables either, and WOLFSSL_ECC_384 and
+	  WOLFSSL_ECC_521 only add the single-precision code for curves the set
+	  already has.
 
 endchoice
 

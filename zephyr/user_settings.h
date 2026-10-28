@@ -137,7 +137,7 @@ extern "C" {
             #define HAVE_FIPS_VERSION_PATCH 0
         #endif
     #elif defined(CONFIG_WOLFCRYPT_FIPS_V5)
-        /* FIPS 140-3 Cert #4718 (wolfCrypt 5.2.1). */
+        /* FIPS 140-3 Cert #4718 (wolfCrypt 5.2.1), or the 5.2.3 bundle. */
         #ifndef HAVE_FIPS_VERSION
             #define HAVE_FIPS_VERSION       5
         #endif
@@ -145,7 +145,11 @@ extern "C" {
             #define HAVE_FIPS_VERSION_MINOR 2
         #endif
         #ifndef HAVE_FIPS_VERSION_PATCH
-            #define HAVE_FIPS_VERSION_PATCH 1
+            #ifdef CONFIG_WOLFCRYPT_FIPS_V5_2_3
+                #define HAVE_FIPS_VERSION_PATCH 3
+            #else
+                #define HAVE_FIPS_VERSION_PATCH 1
+            #endif
         #endif
         /* fips.c needs a thread-local choice made. Not HAVE_THREAD_LS:
          * THREAD_LS_T is empty on Zephyr, so it would only drop the ECC/SP
@@ -182,6 +186,8 @@ extern "C" {
     #endif
     #if defined(CONFIG_WOLFCRYPT_FIPS_V7) || defined(CONFIG_WOLFCRYPT_FIPS_READY)
         #include "user_settings-fips-v7.h"
+    #elif defined(CONFIG_WOLFCRYPT_FIPS_V5_2_3)
+        #include "user_settings-fips-v5.2.3.h"
     #endif
 #endif
 
@@ -410,7 +416,9 @@ extern "C" {
 #endif
 
 /* DH */
-#if 0
+#if defined(WOLFSSL_ZEPHYR_FIPS_V5_H)
+    /* in the v5.2.3 set */
+#elif 0
     #undef NO_DH /* on by default */
     #define WOLFSSL_DH_CONST /* don't rely on pow/log */
     #define HAVE_FFDHE_2048

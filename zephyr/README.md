@@ -76,6 +76,32 @@ west build -p auto -b qemu_x86 modules/crypto/wolfssl/zephyr/samples/wolfssl_tes
 west build -t run
 ```
 
+## Build with a wolfCrypt FIPS v5 bundle
+
+In a tree holding a v5 FIPS bundle, select it in `prj.conf`:
+
+```
+CONFIG_WOLFCRYPT_FIPS=y
+CONFIG_WOLFCRYPT_FIPS_V5=y
+CONFIG_WOLFCRYPT_FIPS_V5_2_3=y
+CONFIG_LINKER_SORT_BY_ALIGNMENT=n
+```
+
+Leave `CONFIG_WOLFCRYPT_FIPS_V5_2_3` out for a 5.2.1 bundle. Every FIPS
+boundary needs `CONFIG_LINKER_SORT_BY_ALIGNMENT=n`, which Zephyr defaults on:
+the integrity check hashes the boundary as two ranges, and sorting input
+sections by alignment moves code out of them, so the build stops while it is
+set.
+
+With 5.2.3, `user_settings.h` takes the algorithm set of
+`--enable-fips=v5.2.3` from `user_settings-fips-v5.2.3.h`; the TLS and
+certificate options still follow Kconfig. Both v5 bundles seed the DRBG from
+the `zephyr,entropy` device, or else the Zephyr CSPRNG, and a board with
+neither fails the build unless `CONFIG_TEST_RANDOM_GENERATOR` is set. Under
+FIPS v2, v5 and v6 `CONFIG_WOLFCRYPT_ASM` accelerates only the SP math: those
+boundaries keep their AES and SHA assembly in a form this module does not
+build.
+
 ## Build and Run wolfCrypt Benchmark Application
 
 build and execute `wolfssl_benchmark`
