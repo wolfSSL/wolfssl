@@ -15659,6 +15659,68 @@ void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
     }
 }
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+/* Set the issuer or subject X509_NAME of the X509 from the decoded
+ * certificate.
+ *
+ * When parsing skipped building the X509_NAME, the entries are added straight
+ * to the X509's name rather than building one and copying it.
+ *
+ * @param [in, out] x509      X509 object.
+ * @param [in, out] name      X509's issuer or subject name.
+ * @param [in, out] dCert     Decoded certificate.
+ * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
+ * @return  0 on success.
+ * @return  MEMORY_E when building the name fails.
+ */
+static int CopyDecodedX509Name(WOLFSSL_X509* x509, WOLFSSL_X509_NAME* name,
+    DecodedCert* dCert, int nameType)
+{
+    int ret = 0;
+    WOLFSSL_X509_NAME* decName;
+    const byte* der;
+
+    if (nameType == ASN_ISSUER) {
+        decName = (WOLFSSL_X509_NAME*)dCert->issuerName;
+        der = dCert->issuerNameDer;
+    }
+    else {
+        decName = (WOLFSSL_X509_NAME*)dCert->subjectName;
+        der = dCert->subjectNameDer;
+    }
+
+    if (decName != NULL) {
+        if (nameType == ASN_ISSUER) {
+            wolfSSL_X509_set_issuer_name(x509, decName);
+        }
+        else {
+            wolfSSL_X509_set_subject_name(x509, decName);
+        }
+        name->x509 = x509;
+    }
+    else if (der != NULL) {
+        /* Same reset as wolfSSL_X509_set_issuer/subject_name(). */
+        FreeX509Name(name);
+        InitX509Name(name, 0, x509->heap);
+        ret = GetCertX509Name(dCert, nameType, name);
+        if (ret == 0) {
+            name->x509 = x509;
+            if (nameType == ASN_ISSUER) {
+                x509->issuerSet = 1;
+            }
+        }
+        else {
+            FreeX509Name(name);
+            /* The name was checked when the certificate was parsed, so not
+             * being able to build it now is a resource failure. */
+            ret = MEMORY_E;
+        }
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 #ifdef WOLFSSL_CERT_REQ
 static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
@@ -15825,66 +15887,11 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
             ret = MEMORY_E;
 #if defined(OPENSSL_ALL)
         if (ret == 0) {
+            /* The EVP_PKEY is decoded on first use by X509CachedPubKey() and
+             * the algorithm object by wolfSSL_X509_PUBKEY_get0_param(). */
             x509->key.pubKeyOID = (int)dCert->keyOID;
-
-            if (!x509->key.algor) {
-                x509->key.algor = wolfSSL_X509_ALGOR_new();
-            } else {
-                wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
-            }
-            if (!x509->key.algor) {
-                ret = MEMORY_E;
-            } else {
-                if (!(x509->key.algor->algorithm =
-                    wolfSSL_OBJ_nid2obj(oid2nid(dCert->keyOID, oidKeyType)))) {
-                    ret = PUBLIC_KEY_E;
-                    WOLFSSL_ERROR_VERBOSE(ret);
-                }
-            }
-
-            switch (dCert->keyOID) {
-            #ifdef HAVE_ED25519
-                case ED25519k:
-                    x509->key.pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
-                        WC_EVP_PKEY_ED25519, NULL, dCert->publicKey,
-                        dCert->pubKeySize);
-                    break;
-            #endif
-            #ifdef HAVE_ED448
-                case ED448k:
-                    x509->key.pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
-                        WC_EVP_PKEY_ED448, NULL, dCert->publicKey,
-                        dCert->pubKeySize);
-                    break;
-            #endif
-            #if defined(WOLFSSL_HAVE_MLDSA) && \
-                defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
-                !defined(WOLFSSL_MLDSA_NO_ASN1) && \
-                defined(WC_ENABLE_ASYM_KEY_EXPORT)
-            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
-                case DILITHIUM_LEVEL2k:
-                case DILITHIUM_LEVEL3k:
-                case DILITHIUM_LEVEL5k:
-            #endif
-                case ML_DSA_44k:
-                case ML_DSA_65k:
-                case ML_DSA_87k:
-                    /* Raw key size does not distinguish draft from final, so
-                     * encode with the certificate's key OID. This fills
-                     * the x509->key.pkey cache without a new reference. */
-                    (void)wolfSSL_X509_get0_pubkey(x509);
-                    break;
-            #endif
-                default:
-                    x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
-                        &dCert->publicKey, dCert->pubKeySize);
-                    break;
-            }
-
-            if (x509->key.pkey == NULL) {
-                ret = PUBLIC_KEY_E;
-                WOLFSSL_ERROR_VERBOSE(ret);
-            }
+            wolfSSL_X509_ALGOR_free(x509->key.algor);
+            x509->key.algor = NULL;
         }
 #endif
     }
@@ -16118,18 +16125,16 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     CopyDecodedName(&x509->issuer, dCert, ASN_ISSUER);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (dCert->issuerName != NULL) {
-        wolfSSL_X509_set_issuer_name(x509,
-                (WOLFSSL_X509_NAME*)dCert->issuerName);
-        x509->issuer.x509 = x509;
+    ret = CopyDecodedX509Name(x509, &x509->issuer, dCert, ASN_ISSUER);
+    if (ret != 0) {
+        return ret;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     CopyDecodedName(&x509->subject, dCert, ASN_SUBJECT);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (dCert->subjectName != NULL) {
-        wolfSSL_X509_set_subject_name(x509,
-                (WOLFSSL_X509_NAME*)dCert->subjectName);
-        x509->subject.x509 = x509;
+    ret = CopyDecodedX509Name(x509, &x509->subject, dCert, ASN_SUBJECT);
+    if (ret != 0) {
+        return ret;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -17504,6 +17509,11 @@ PRAGMA_GCC_DIAG_POP
     #endif
 
         InitDecodedCert(args->dCert, cert->buffer, cert->length, ssl->heap);
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        /* The X509_NAMEs are only needed when the certificate is copied into
+         * a WOLFSSL_X509, which adds the entries to its names directly. */
+        args->dCert->noX509Name = 1;
+    #endif
 
         args->dCertInit = 1;
         args->dCert->sigCtx.devId = ssl->devId;
@@ -17962,6 +17972,10 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
     });
     InitDecodedCert(dCertAdd, cert->buffer, cert->length,
                     ssl->heap);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* A signer doesn't keep the X509_NAMEs, don't build them. */
+    dCertAdd->noX509Name = 1;
+#endif
     dCertAdd_inited = 1;
     ret = ParseCert(dCertAdd, CA_TYPE, NO_VERIFY,
                     SSL_CM(ssl));
@@ -19277,6 +19291,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
                         ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) {
                         WOLFSSL_MSG("try to load certificate if hash dir is set");
+                        /* Peer certs are parsed without their X509_NAMEs */
+                        (void)GetCertX509Name(args->dCert, ASN_ISSUER, NULL);
                         ret = LoadCertByIssuer(SSL_STORE(ssl),
                            (WOLFSSL_X509_NAME*)args->dCert->issuerName,
                                                           X509_LU_X509);
@@ -19722,6 +19738,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) {
                         int lastErr = ret; /* save error from last time */
                         WOLFSSL_MSG("try to load certificate if hash dir is set");
+                        /* Peer certs are parsed without their X509_NAMEs */
+                        (void)GetCertX509Name(args->dCert, ASN_ISSUER, NULL);
                         ret = LoadCertByIssuer(SSL_STORE(ssl),
                            (WOLFSSL_X509_NAME*)args->dCert->issuerName,
                                                           X509_LU_X509);
