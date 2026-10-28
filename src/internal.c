@@ -11154,16 +11154,14 @@ static DtlsMsg* DtlsMsgListUnlink(DtlsMsg* head, DtlsMsg* item)
     return head;
 }
 
-/* First complete message with the expected sequence number. Epochs only go
- * up within a handshake, so an entry from an epoch below the last processed
- * message is stale and not returned. */
+/* First complete message with the expected sequence number, wherever it is
+ * in the list. */
 DtlsMsg* DtlsMsgListNextReady(WOLFSSL* ssl)
 {
     DtlsMsg* cur = ssl->dtls_rx_msg_list;
 
     while (cur != NULL && !(cur->ready &&
-            cur->seq == ssl->keys.dtls_expected_peer_handshake_number &&
-            !w64LT(cur->epoch, ssl->keys.dtls_peer_hs_epoch))) {
+            cur->seq == ssl->keys.dtls_expected_peer_handshake_number)) {
         cur = cur->next;
     }
     return cur;
@@ -11177,23 +11175,19 @@ void DtlsMsgListRemove(WOLFSSL* ssl, DtlsMsg* item)
     ssl->dtls_rx_msg_list_sz--;
 }
 
-/* Drop stored messages the handshake already moved past, by sequence number
- * or by epoch. Plaintext entries can be spoofed. dropUnencrypted 1 drops all
- * of them, 2 drops those that are not the next message in order. */
-void DtlsMsgListPurge(WOLFSSL* ssl, int dropUnencrypted)
+/* Drop stored messages the handshake already moved past. A retransmission
+ * fragmented differently can complete a message through the record buffer
+ * and leave an older partial copy behind. */
+void DtlsMsgListPurge(WOLFSSL* ssl)
 {
     word32 expected = ssl->keys.dtls_expected_peer_handshake_number;
-    w64wrapper epoch = ssl->keys.dtls_peer_hs_epoch;
     DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
     DtlsMsg* cur = ssl->dtls_rx_msg_list;
 
     WOLFSSL_ENTER("DtlsMsgListPurge");
     while (cur != NULL) {
         DtlsMsg* next = cur->next;
-        if (cur->seq < expected || w64LT(cur->epoch, epoch) ||
-                (dropUnencrypted == 1 && !cur->encrypted) ||
-                (dropUnencrypted == 2 && !cur->encrypted &&
-                 cur->seq != expected)) {
+        if (cur->seq < expected) {
             *prevNext = next;
             DtlsMsgDelete(cur, ssl->heap);
             ssl->dtls_rx_msg_list_sz--;
@@ -11436,9 +11430,9 @@ static int DtlsMsgAssembleCompleteMessage(DtlsMsg* msg, void* heap)
     return 0;
 }
 
-int DtlsMsgSet(DtlsMsg* msg, word32 seq, w64wrapper epoch, const byte* data,
-               byte type, word32 fragOffset, word32 fragSz, void* heap,
-               word32 totalLen, byte encrypted)
+int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte type,
+               word32 fragOffset, word32 fragSz, void* heap, word32 totalLen,
+               byte encrypted)
 {
     word32 fragOffsetEnd = fragOffset + fragSz;
 
@@ -11457,8 +11451,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, w64wrapper epoch, const byte* data,
 
     if (msg->type != no_shake) {
         /* msg is already populated with the correct seq, epoch, and type */
-        if (msg->type != type || !w64Equal(msg->epoch, epoch) ||
-                msg->seq != seq) {
+        if (msg->type != type || msg->epoch != epoch || msg->seq != seq) {
             WOLFSSL_ERROR_VERBOSE(SEQUENCE_ERROR);
             return SEQUENCE_ERROR;
         }
@@ -11571,11 +11564,10 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, w64wrapper epoch, const byte* data,
 }
 
 
-DtlsMsg* DtlsMsgFind(DtlsMsg* head, w64wrapper epoch, word32 seq)
+DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
 {
     WOLFSSL_ENTER("DtlsMsgFind");
-    while (head != NULL &&
-            !(w64Equal(head->epoch, epoch) && head->seq == seq)) {
+    while (head != NULL && !(head->epoch == epoch && head->seq == seq)) {
         head = head->next;
     }
     return head;
@@ -11583,7 +11575,7 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, w64wrapper epoch, word32 seq)
 
 
 /* Returns 0 when the fragment was stored, negative when it was dropped. */
-int DtlsMsgStore(WOLFSSL* ssl, w64wrapper epoch, word32 seq, const byte* data,
+int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
     /* See if seq exists in the list. If it isn't in the list, make
@@ -11610,16 +11602,6 @@ int DtlsMsgStore(WOLFSSL* ssl, w64wrapper epoch, word32 seq, const byte* data,
 
     if (head != NULL) {
         DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
-        if (cur != NULL && !cur->ready && !cur->encrypted &&
-                (cur->sz != dataSz || cur->type != type)) {
-            /* A plaintext entry can be spoofed. Don't let it pin the size or
-             * type. Start over with the latest description. */
-            WOLFSSL_MSG("Replacing stored plaintext message");
-            head = DtlsMsgListUnlink(head, cur);
-            DtlsMsgDelete(cur, heap);
-            ssl->dtls_rx_msg_list_sz--;
-            cur = NULL;
-        }
         if (cur == NULL) {
             cur = DtlsMsgNew(dataSz, 0, heap);
             if (cur == NULL) {
@@ -11725,7 +11707,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
         DtlsMsg* cur = ssl->dtls_tx_msg_list;
 
         XMEMCPY(item->raw, data, dataSz);
-        item->epoch = w64From32(0, ssl->keys.dtls_epoch);
+        item->epoch = ssl->keys.dtls_epoch;
         item->seq = ssl->keys.dtls_handshake_number;
         item->type = type;
 
@@ -11809,8 +11791,7 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
 int VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item)
 {
     WOLFSSL_ENTER("VerifyForTxDtlsMsgDelete");
-    if (ssl->keys.dtls_epoch > 0 && w64LT(item->epoch,
-            w64From32(0, (word32)ssl->keys.dtls_epoch - 1)))
+    if (item->epoch < ssl->keys.dtls_epoch - 1)
         /* Messages not from current or previous epoch can be deleted */
         return 1;
     switch (ssl->options.side) {
@@ -11870,7 +11851,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
         while (pool != NULL) {
             int epochOrder;
 
-            if (w64IsZero(pool->epoch)) {
+            if (pool->epoch == 0) {
                 DtlsRecordLayerHeader* dtls;
 
                 dtls = (DtlsRecordLayerHeader*)pool->raw;
@@ -11909,8 +11890,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                  * PREV_ORDER will always use ssl->keys
                  */
                 if (DtlsSCRKeysSet(ssl)) {
-                    if (w64Equal(pool->epoch, w64From32(0,
-                            ssl->secure_renegotiation->tmp_keys.dtls_epoch)))
+                    if (pool->epoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
                         epochOrder = CUR_ORDER;
                     else
                         epochOrder = PREV_ORDER;
@@ -14048,7 +14028,10 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS_CID
         needsEnc = needsEnc || rh->type == dtls12_cid;
 #endif
-        if (!_DtlsCheckWindow(ssl) ||
+        /* Epoch 0 records are not protected, so they are neither checked
+         * against nor counted in the replay window (RFC 9147 Section 4.5.1).
+         * Duplicate handshake messages are caught by their message_seq. */
+        if ((ssl->keys.curEpoch != 0 && !_DtlsCheckWindow(ssl)) ||
                 (needsEnc && ssl->keys.curEpoch == 0) ||
                 (rh->type == alert && ssl->options.handShakeDone &&
                         ssl->keys.curEpoch == 0 && ssl->keys.dtls_epoch != 0)) {
@@ -20791,7 +20774,6 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             DtlsMsgPoolReset(ssl);
             ssl->keys.dtls_handshake_number = 0;
             ssl->keys.dtls_expected_peer_handshake_number = 0;
-            w64Zero(&ssl->keys.dtls_peer_hs_epoch);
         }
     }
 #endif
@@ -22434,9 +22416,11 @@ static int Dtls13UpdateWindow(WOLFSSL* ssl)
 
 int Dtls13UpdateWindowRecordRecvd(WOLFSSL* ssl)
 {
-    int ret = Dtls13UpdateWindow(ssl);
-    if (ret != 0)
-        return ret;
+    if (!w64IsZero(ssl->keys.curEpoch64)) {
+        int ret = Dtls13UpdateWindow(ssl);
+        if (ret != 0)
+            return ret;
+    }
     return Dtls13RecordRecvd(ssl);
 }
 #endif /* WOLFSSL_DTLS13 */
@@ -22448,7 +22432,7 @@ int DtlsMsgDrain(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("DtlsMsgDrain");
 
-    DtlsMsgListPurge(ssl, 0);
+    DtlsMsgListPurge(ssl);
 
     /* While the expected message is complete in the store list, and there
      * hasn't been an error in the last message... */
@@ -22471,7 +22455,6 @@ int DtlsMsgDrain(WOLFSSL* ssl)
                                       item->sz, item->sz);
     #endif
         if (ret == 0) {
-            ssl->keys.dtls_peer_hs_epoch = item->epoch;
             DtlsTxMsgListClean(ssl);
         }
         else if (!IsAtLeastTLSv1_3(ssl->version)) {
@@ -22486,7 +22469,7 @@ int DtlsMsgDrain(WOLFSSL* ssl)
         }
     #endif
         DtlsMsgListRemove(ssl, item);
-        DtlsMsgListPurge(ssl, 0);
+        DtlsMsgListPurge(ssl);
     }
 
     WOLFSSL_LEAVE("DtlsMsgDrain()", ret);
@@ -22594,7 +22577,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 return DTLS_TOO_MANY_FRAGMENTS_E;
             }
 
-            DtlsMsgStore(ssl, w64From32(0, ssl->keys.curEpoch),
+            DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + *inOutIdx, size, type,
                          fragOffset, fragSz, ssl->heap);
@@ -22662,7 +22645,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             WOLFSSL_ERROR(DTLS_TOO_MANY_FRAGMENTS_E);
             return DTLS_TOO_MANY_FRAGMENTS_E;
         }
-        DtlsMsgStore(ssl, w64From32(0, ssl->keys.curEpoch),
+        DtlsMsgStore(ssl, ssl->keys.curEpoch,
                      ssl->keys.dtls_peer_handshake_number,
                      input + *inOutIdx, size, type,
                      fragOffset, fragSz, ssl->heap);
@@ -22693,7 +22676,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("Reached rx msg limit error");
                 return DTLS_TOO_MANY_FRAGMENTS_E;
             }
-            DtlsMsgStore(ssl, w64From32(0, ssl->keys.curEpoch),
+            DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + idx, size, type,
                          fragOffset, fragSz, ssl->heap);
@@ -22709,7 +22692,6 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
 #endif
             if (ret == 0) {
-                ssl->keys.dtls_peer_hs_epoch = w64From32(0, ssl->keys.curEpoch);
                 DtlsTxMsgListClean(ssl);
                 if (ssl->dtls_rx_msg_list != NULL) {
                     ret = DtlsMsgDrain(ssl);
@@ -25750,15 +25732,14 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
     return 0;
 }
 
-/* Handshake-level counterpart of DtlsShouldDrop(). A stateless server that has
- * not yet verified a ClientHello must discard a bad handshake message instead
- * of failing on it, the same way DoClientHello() and DoTls13HandShakeMsgType()
- * already ignore errors from the stateless ClientHello check. Only errors from
- * validating the handshake header, raised before any state is changed, are
- * dropped; anything else is still fatal. */
+/* Handshake-level counterpart of DtlsShouldDrop(). A bad handshake message in
+ * an unauthenticated record is discarded instead of failing the connection,
+ * the same way DoClientHello() and DoTls13HandShakeMsgType() already ignore
+ * errors from the stateless ClientHello check. Such a record can come from a
+ * stale peer on the same port or from reordering. Only errors raised before
+ * any state is changed are dropped; anything else is still fatal. */
 static int DtlsShouldDropHandshake(WOLFSSL* ssl, int retcode)
 {
-#ifndef NO_WOLFSSL_SERVER
     int invalidInput = 0;
 
     switch (retcode) {
@@ -25768,22 +25749,20 @@ static int DtlsShouldDropHandshake(WOLFSSL* ssl, int retcode)
         case WC_NO_ERR_TRACE(LENGTH_ERROR):
         case WC_NO_ERR_TRACE(INCOMPLETE_DATA):
         case WC_NO_ERR_TRACE(HANDSHAKE_SIZE_ERROR):
+        case WC_NO_ERR_TRACE(BUFFER_ERROR):
+        case WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E):
+        case WC_NO_ERR_TRACE(DUPLICATE_MSG_E):
             invalidInput = 1;
             break;
         default:
             break;
     }
 
-    if (invalidInput && ssl->options.side == WOLFSSL_SERVER_END
-            && !ssl->options.dtlsStateful && !IsEncryptionOn(ssl, 0)) {
+    if (invalidInput && !IsEncryptionOn(ssl, 0)) {
         WOLFSSL_MSG_EX("Silently dropping DTLS handshake message from "
-                       "unverified peer: %d", retcode);
+                       "unauthenticated record: %d", retcode);
         return 1;
     }
-#else
-    (void)ssl;
-    (void)retcode;
-#endif /* NO_WOLFSSL_SERVER */
 
     return 0;
 }
@@ -26986,7 +26965,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif
 #ifdef WOLFSSL_DTLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
-                    if (!Dtls13CheckWindow(ssl)) {
+                    /* Epoch 0 records are not protected, so they are neither
+                     * checked against nor counted in the replay window
+                     * (RFC 9147 Section 4.5.1). */
+                    if (!w64IsZero(ssl->keys.curEpoch64) &&
+                            !Dtls13CheckWindow(ssl)) {
                         /* drop packet */
                         WOLFSSL_MSG("Dropping DTLS record outside receiving "
                                     "window");
@@ -27014,8 +26997,10 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 }
                 else
 #endif /* WOLFSSL_DTLS13 */
-                /* Only update the window once we enter stateful parsing */
-                if (IsDtlsNotSctpMode(ssl) && ssl->options.dtlsStateful) {
+                /* Only update the window once we enter stateful parsing, and
+                 * only from a protected record (RFC 9147 Section 4.5.1). */
+                if (IsDtlsNotSctpMode(ssl) && ssl->options.dtlsStateful &&
+                        ssl->keys.curEpoch != 0) {
 #ifdef WOLFSSL_DTLS_CID
                     dtlsPeerNewer = dtlsRecordIsNewest(ssl);
 #endif
@@ -28727,7 +28712,6 @@ int SendFinished(WOLFSSL* ssl)
             ssl->options.side == WOLFSSL_CLIENT_END)) {
         ssl->keys.dtls_handshake_number = 0;
         ssl->keys.dtls_expected_peer_handshake_number = 0;
-        w64Zero(&ssl->keys.dtls_peer_hs_epoch);
     }
 #endif
 

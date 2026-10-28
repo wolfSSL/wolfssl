@@ -358,8 +358,6 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
     }
 }
 
-static void Dtls13SaveOrFlushClientHello(WOLFSSL* ssl);
-
 int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 {
     DtlsMsg* msg;
@@ -368,7 +366,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
-    DtlsMsgListPurge(ssl, 0);
+    DtlsMsgListPurge(ssl);
 
     while ((msg = DtlsMsgListNextReady(ssl)) != NULL) {
         int downgraded = 0;
@@ -381,10 +379,6 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
             break;
         }
 #endif
-
-        /* A complete ServerHello acknowledges the ClientHello */
-        if (msg->type == server_hello)
-            Dtls13SaveOrFlushClientHello(ssl);
 
         /* We may have DTLS <=1.2 msgs stored from before we knew which version
          * we were going to use. Interpret correctly. */
@@ -421,9 +415,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                  * incremented. */
                 ssl->keys.dtls_expected_peer_handshake_number++;
 
-            ssl->keys.dtls_peer_hs_epoch = msg->epoch;
             DtlsMsgListRemove(ssl, msg);
-            DtlsMsgListPurge(ssl, 0);
+            DtlsMsgListPurge(ssl);
         }
 
         if (ret != 0)
@@ -437,7 +430,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 
 static int Dtls13NextMessageComplete(WOLFSSL* ssl)
 {
-    DtlsMsgListPurge(ssl, 0);
+    DtlsMsgListPurge(ssl);
     return DtlsMsgListNextReady(ssl) != NULL;
 }
 
@@ -861,7 +854,7 @@ static int Dtls13DetectDisruption(WOLFSSL* ssl, word32 fragOffset)
     /* is not the next fragment in the message (the check is not 100% perfect,
        in the worst case, we don't detect the disruption and wait for the other
        peer retransmission) */
-    DtlsMsgListPurge(ssl, 0);
+    DtlsMsgListPurge(ssl);
     if (ssl->dtls_rx_msg_list != NULL) {
         DtlsFragBucket* last = ssl->dtls_rx_msg_list->fragBucketList;
         while (last != NULL && last->m.m.next != NULL)
@@ -953,6 +946,9 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
     if (!ssl->options.handShakeDone &&
         ssl->keys.dtls_peer_handshake_number >=
             ssl->keys.dtls_expected_peer_handshake_number) {
+
+        if (hs == server_hello)
+            Dtls13SaveOrFlushClientHello(ssl);
 
         /* In the handshake, receiving part of the next flight, acknowledge the
          * sent flight. */
@@ -1946,13 +1942,8 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     if (fragOff + fragLength > messageLength) {
         WOLFSSL_MSG("Fragment outside of the handshake message");
-        if (IsEncryptionOn(ssl, 0)) {
-            WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
-            return BUFFER_ERROR;
-        }
-        /* Unauthenticated. Drop it. */
-        *processedSize = idx + fragLength;
-        return 0;
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        return BUFFER_ERROR;
     }
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff,
@@ -2019,33 +2010,21 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         ssl->keys.dtls_peer_handshake_number >
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
-        DtlsMsgListPurge(ssl, 0);
-        if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
-            /* Authenticated data and the next message in order take the room
-             * of plaintext that is out of order. */
-            if (IsEncryptionOn(ssl, 0))
-                DtlsMsgListPurge(ssl, 1);
-            else if (ssl->keys.dtls_peer_handshake_number ==
-                     ssl->keys.dtls_expected_peer_handshake_number)
-                DtlsMsgListPurge(ssl, 2);
-        }
+        DtlsMsgListPurge(ssl);
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
             /* Only ack a fragment we really buffered. */
-            if (DtlsMsgStore(ssl, ssl->keys.curEpoch64,
+            if (DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
                     ssl->keys.dtls_peer_handshake_number,
                     input + DTLS_HANDSHAKE_HEADER_SZ, messageLength,
                     handshakeType, fragOff, fragLength, ssl->heap) == 0) {
                 Dtls13RtxAddAckForCurRecord(ssl);
             }
         }
-        else if (IsEncryptionOn(ssl, 0)) {
+        else {
             /* DTLS_POOL_SZ outstanding messages is way more than enough for any
              * valid peer */
             WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
             return DTLS_TOO_MANY_FRAGMENTS_E;
-        }
-        else {
-            WOLFSSL_MSG("Dropping unauthenticated fragment, list is full");
         }
 
         *processedSize = idx + fragLength;
@@ -2054,11 +2033,6 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
         return 0;
     }
-
-    /* A complete ServerHello in order acknowledges the ClientHello. A
-     * fragment that may never complete does not. */
-    if (handshakeType == server_hello)
-        Dtls13SaveOrFlushClientHello(ssl);
 
     ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshakeType,
         messageLength, size);
@@ -2070,7 +2044,6 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         Dtls13RtxAddAckForCurRecord(ssl);
 
     Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
-    ssl->keys.dtls_peer_hs_epoch = ssl->keys.curEpoch64;
 
     /* check if we have buffered some message */
     if (Dtls13NextMessageComplete(ssl))
