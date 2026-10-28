@@ -1541,3 +1541,69 @@ DNS.1050 = example1050.com
 EOF
 gen_cert
 
+# Subject and issuer with 16 attributes: the most an X509_NAME holds
+# with OPENSSL_EXTRA
+OUT=certs/test/cert-max-name-entries
+CONFIG=certs/test/cert-max-name-entries.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+0.OU = Unit 1
+1.OU = Unit 2
+2.OU = Unit 3
+3.OU = Unit 4
+4.OU = Unit 5
+5.OU = Unit 6
+6.OU = Unit 7
+7.OU = Unit 8
+8.OU = Unit 9
+9.OU = Unit 10
+10.OU = Unit 11
+11.OU = Unit 12
+12.OU = Unit 13
+13.OU = Unit 14
+14.OU = Unit 15
+CN = www.wolfssl.com
+
+[ v3_ca ]
+basicConstraints = critical, CA:TRUE
+EOF
+gen_cert
+
+# Subject and issuer with 17 attributes: one more than an X509_NAME
+# holds with OPENSSL_EXTRA
+OUT=certs/test/cert-over-max-name-entries
+CONFIG=certs/test/cert-over-max-name-entries.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+0.OU = Unit 1
+1.OU = Unit 2
+2.OU = Unit 3
+3.OU = Unit 4
+4.OU = Unit 5
+5.OU = Unit 6
+6.OU = Unit 7
+7.OU = Unit 8
+8.OU = Unit 9
+9.OU = Unit 10
+10.OU = Unit 11
+11.OU = Unit 12
+12.OU = Unit 13
+13.OU = Unit 14
+14.OU = Unit 15
+15.OU = Unit 16
+CN = www.wolfssl.com
+
+[ v3_ca ]
+basicConstraints = critical, CA:TRUE
+EOF
+gen_cert
