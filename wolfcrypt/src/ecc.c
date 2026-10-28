@@ -3692,11 +3692,15 @@ static int ecc_point_to_mont(ecc_point* p, ecc_point* r, mp_int* modulus,
 
        if (err == MP_OKAY) {
            if (mp_cmp_d(mu, 1) == MP_EQ) {
-               err = mp_copy(p->x, r->x);
+               /* Montgomery form is the same as normal form (e.g. P-521 with
+                * SP int math) but the ordinates must still be reduced as the
+                * point arithmetic requires them to be less than the modulus.
+                */
+               err = mp_mod(p->x, modulus, r->x);
                if (err == MP_OKAY)
-                   err = mp_copy(p->y, r->y);
+                   err = mp_mod(p->y, modulus, r->y);
                if (err == MP_OKAY)
-                   err = mp_copy(p->z, r->z);
+                   err = mp_mod(p->z, modulus, r->z);
            }
            else {
                err = mp_mulmod(p->x, mu, modulus, r->x);

@@ -3602,6 +3602,118 @@ int test_wc_ecc_mulmod(void)
 } /* END test_wc_ecc_mulmod */
 
 /*
+ * Testing wc_ecc_mulmod() with base point ordinates that are not reduced
+ * modulo the prime.
+ *
+ * P-521's prime is 2^521 - 1 so, with SP int math, the Montgomery
+ * normalizer is 1 and the base point was not converted (and so not reduced)
+ * before being used in the point arithmetic. An unreduced y, or a negative
+ * ordinate, always failed and an unreduced x failed for some scalars, such as
+ * the one below.
+ */
+int test_wc_ecc_mulmod_unreduced(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WOLFSSL_SP_MATH) && \
+    (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+    static const byte kBin[] = {
+        0x01, 0xDE, 0x4A, 0xF6, 0xFB, 0xF8, 0x87, 0x41,
+        0x33, 0x94, 0xD4, 0x05, 0x67, 0xFC, 0xAD, 0x4E,
+        0x5F, 0x61, 0x98, 0xC9, 0xDE, 0x3D, 0x23, 0x1A,
+        0xE0, 0x9A, 0xEE, 0x35, 0xB3, 0x24, 0x6D, 0xFF,
+        0x6B, 0xC8, 0x77, 0x46, 0x6C, 0x6A, 0xB3, 0x74,
+        0xAF, 0x48, 0xE3, 0x28, 0x68, 0xA4, 0xE7, 0x96,
+        0x77, 0x27, 0xE1, 0x76, 0x27, 0x75, 0x5D, 0xB8,
+        0x5D, 0x12, 0x7A, 0xCA, 0x91, 0xBD, 0x5A, 0xC3,
+        0x20, 0x48
+    };
+    const ecc_set_type* dp = NULL;
+    ecc_key     base;
+    ecc_key     curve;
+    ecc_point*  g = NULL;
+    ecc_point*  r = NULL;
+    ecc_point*  expected = NULL;
+    mp_int      k;
+    mp_int*     ord = NULL;
+    int         i;
+    int         cnt = 3;
+
+    XMEMSET(&base, 0, sizeof(ecc_key));
+    XMEMSET(&curve, 0, sizeof(ecc_key));
+    XMEMSET(&k, 0, sizeof(mp_int));
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(ECC_SECP521R1)));
+    ExpectIntEQ(wc_ecc_init(&base), 0);
+    ExpectIntEQ(wc_ecc_init(&curve), 0);
+    ExpectIntEQ(mp_init(&k), 0);
+    ExpectIntEQ(mp_read_unsigned_bin(&k, kBin, (word32)sizeof(kBin)), 0);
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(r = wc_ecc_new_point());
+    ExpectNotNull(expected = wc_ecc_new_point());
+
+    /* base carries the base point; curve carries a and the prime as x and y,
+     * as in test_wc_ecc_mulmod(). */
+    if (dp != NULL) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&base, dp->Gx, dp->Gy, NULL,
+            ECC_SECP521R1), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&curve, dp->Af, dp->prime, NULL,
+            ECC_SECP521R1), 0);
+    }
+
+    /* Expected result from the reduced base point. */
+    ExpectIntEQ(wc_ecc_mulmod(&k, &base.pubkey, expected, curve.pubkey.x,
+        curve.pubkey.y, 1), 0);
+
+#if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    /* Also subtract the prime, making each ordinate negative in turn. */
+    cnt = 6;
+#endif
+
+    /* Change each ordinate in turn by the prime: still the same point. */
+    for (i = 0; i < cnt; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, g), 0);
+        if (g != NULL) {
+            ord = ((i % 3) == 0) ? g->x : (((i % 3) == 1) ? g->y : g->z);
+        }
+        if (i < 3) {
+            ExpectIntEQ(mp_add(ord, curve.pubkey.y, ord), 0);
+        }
+        else {
+            ExpectIntEQ(mp_sub(ord, curve.pubkey.y, ord), 0);
+        }
+    #ifdef FP_ECC
+        /* Don't let a cached table hide the result of the normal path. */
+        wc_ecc_fp_free();
+    #endif
+        ExpectIntEQ(wc_ecc_mulmod(&k, g, r, curve.pubkey.x, curve.pubkey.y,
+            1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(r, expected), MP_EQ);
+    }
+
+    wc_ecc_del_point(expected);
+    wc_ecc_del_point(r);
+    wc_ecc_del_point(g);
+    mp_free(&k);
+    wc_ecc_free(&curve);
+    wc_ecc_free(&base);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_unreduced */
+
+/*
  * Testing wc_ecc_is_valid_idx()
  */
 int test_wc_ecc_is_valid_idx(void)
