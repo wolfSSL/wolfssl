@@ -4042,9 +4042,6 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
 #endif
         ret->type = WOLFSSL_SESSION_TYPE_HEAP;
         ret->heap = heap;
-#ifdef WOLFSSL_STATIC_MEMORY
-        wc_HeapHint_Ref(heap);
-#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Add("SESSION master secret", ret->masterSecret, SECRET_LEN);
         wc_MemZero_Add("SESSION id", ret->sessionID, ID_LEN);
@@ -4494,15 +4491,8 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     ForceZero(session->sessionID, ID_LEN);
 
     if (session->type == WOLFSSL_SESSION_TYPE_HEAP) {
-    #ifdef WOLFSSL_STATIC_MEMORY
-        void* heap = session->heap;
-    #endif
         /* // NOLINTNEXTLINE(clang-analyzer-unix.Malloc) */
         XFREE(session, session->heap, DYNAMIC_TYPE_SESSION);
-    #ifdef WOLFSSL_STATIC_MEMORY
-        /* after the XFREE: it may free the hint the session came from */
-        wc_HeapHint_Unref(heap);
-    #endif
     }
 }
 

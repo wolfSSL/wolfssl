@@ -5930,13 +5930,6 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
         (void)ret;
     }
 #endif
-#ifdef WOLFSSL_STATIC_MEMORY
-    /* A dynamic X509 can outlive the SSL whose heap hint it uses; dropped in
-     * ExternalFreeX509() */
-    if (dynamicFlag) {
-        wc_HeapHint_Ref(heap);
-    }
-#endif
 }
 
 
@@ -8893,6 +8886,7 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ctx->heap != NULL) {
         WOLFSSL_HEAP_HINT* ssl_hint;
         WOLFSSL_HEAP_HINT* ctx_hint;
+        int ret = 0;
 
         /* avoid dereferencing a test value */
     #ifdef WOLFSSL_HEAP_TEST
@@ -8911,13 +8905,24 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ctx_hint = ((WOLFSSL_HEAP_HINT*)(ctx->heap));
 
         ssl_hint->memory = ctx_hint->memory;
-        ssl_hint->refCount = 1; /* the SSL's own reference */
+        /* the SSL's ref; each allocated block holds another */
+        wolfSSL_RefInit(&ssl_hint->refCount, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
+            WOLFSSL_MSG("Error setting up heap hint reference mutex");
+            XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
+            ssl->heap = NULL;
+            return ret;
+        }
+    #endif
+        (void)ret;
         ssl_hint->sslOwned = 1;
     #ifndef WOLFSSL_STATIC_MEMORY_LEAN
     #ifndef SINGLE_THREADED
         /* lock and check IO count / handshake count */
         if (wc_LockMutex(&(ctx_hint->memory->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
+            wolfSSL_RefFree(&ssl_hint->refCount);
             XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
             ssl->heap = NULL; /* free and set to NULL for IO counter */
             WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
@@ -8930,6 +8935,7 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         #ifndef SINGLE_THREADED
             wc_UnLockMutex(&(ctx_hint->memory->memory_mutex));
         #endif
+            wolfSSL_RefFree(&ssl_hint->refCount);
             XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
             ssl->heap = NULL; /* free and set to NULL for IO counter */
             return MEMORY_E;
@@ -8941,6 +8947,7 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         #ifndef SINGLE_THREADED
             wc_UnLockMutex(&(ctx_hint->memory->memory_mutex));
         #endif
+            wolfSSL_RefFree(&ssl_hint->refCount);
             XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
             ssl->heap = NULL; /* free and set to NULL for IO counter */
             return MEMORY_E;
@@ -10303,8 +10310,7 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
             WOLFSSL_MSG("Bad memory_mutex lock");
         }
     #endif
-        /* detach stats under the lock: sessions and X509s holding a reference
-         * may still allocate through this hint from other threads */
+        /* detach under the lock: live blocks may still use the hint */
         if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
             stats = ssl_hint->stats;
             ssl_hint->stats = NULL;
@@ -10328,8 +10334,8 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
          * ssl->heap, which the SSL's reference still keeps alive here */
         XFREE(stats, heap, DYNAMIC_TYPE_SSL);
     #endif
-        /* drop the SSL's reference; other holders may keep the hint alive */
-        wc_HeapHint_Unref(ssl->heap);
+        /* drop the SSL's ref; the last block's free may free the hint */
+        wc_HeapHint_Release(ssl->heap);
         ssl->heap = NULL;
     #ifdef WOLFSSL_HEAP_TEST
     }
