@@ -867,6 +867,60 @@ int test_wolfSSL_X509_get0_pubkey(void)
     return EXPECT_RESULT();
 }
 
+/* The public key of a certificate is decoded on first use for every key type,
+ * not only those decoded when the certificate is parsed. */
+int test_wolfSSL_X509_get_pubkey_key_types(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT)
+    {
+        X509* x509 = NULL;
+        EVP_PKEY* key = NULL;
+        ASN1_OBJECT* obj = NULL;
+        const unsigned char* pk = NULL;
+        int pkLen = 0;
+        byte pub[ED448_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        ExpectNotNull(x509 = X509_load_certificate_file(
+            "./certs/ed448/ca-ed448.pem", SSL_FILETYPE_PEM));
+        ExpectNotNull(key = X509_get_pubkey(x509));
+        ExpectPtrEq(X509_get0_pubkey(x509), key);
+        ExpectIntEQ(EVP_PKEY_id(key), EVP_PKEY_ED448);
+        /* The decoded key is the key in the certificate. */
+        ExpectIntEQ(X509_PUBKEY_get0_param(&obj, &pk, &pkLen, NULL,
+            X509_get_X509_PUBKEY(x509)), 1);
+        ExpectIntEQ(pkLen, ED448_PUB_KEY_SIZE);
+        ExpectNotNull(key == NULL ? NULL : key->ed448);
+        ExpectIntEQ(wc_ed448_export_public(key == NULL ? NULL : key->ed448,
+            pub, &pubSz), 0);
+        ExpectIntEQ(pubSz, ED448_PUB_KEY_SIZE);
+        if ((pk != NULL) && (pkLen == ED448_PUB_KEY_SIZE)) {
+            ExpectBufEQ(pub, pk, ED448_PUB_KEY_SIZE);
+        }
+        EVP_PKEY_free(key);
+        X509_free(x509);
+    }
+#endif
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    {
+        X509* x509 = NULL;
+        EVP_PKEY* key = NULL;
+
+        ExpectNotNull(x509 = X509_load_certificate_file(
+            "./certs/rsapss/ca-rsapss.pem", SSL_FILETYPE_PEM));
+        ExpectNotNull(key = X509_get0_pubkey(x509));
+        ExpectIntEQ(EVP_PKEY_id(key), EVP_PKEY_RSA);
+        ExpectIntEQ(EVP_PKEY_bits(key), 2048);
+        X509_free(x509);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A failed X509_PUBKEY_get0_param() must not leave a half built algorithm
  * that later calls report as success. */
 int test_wolfSSL_X509_PUBKEY_get0_param_fail(void)

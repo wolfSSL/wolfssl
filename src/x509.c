@@ -6875,6 +6875,16 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 key->type = WC_EVP_PKEY_ED448;
             }
         #endif
+        #ifdef OPENSSL_EXTRA
+            else if (x509->pubKeyOID != ECDSAk && x509->pubKeyOID != SM2k) {
+                /* Other key types are decoded from the encoded key. */
+                const unsigned char* der = x509->pubKey.buffer;
+
+                wolfSSL_EVP_PKEY_free(key);
+                return wolfSSL_d2i_PUBKEY(NULL, &der,
+                    (long)x509->pubKey.length);
+            }
+        #endif
             else {
                 key->type = WC_EVP_PKEY_EC;
             }
@@ -6989,6 +6999,7 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
             }
             #endif /* HAVE_ED25519 */
 
+            /* decode Ed448 key */
             #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
                 (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
             if (key->type == WC_EVP_PKEY_ED448) {
@@ -6999,6 +7010,7 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 }
                 key->ownEd448 = 1;
 
+                /* The X.509 public key buffer holds the raw Ed448 key. */
                 if (wc_ed448_import_public(
                             (const unsigned char*)key->pkey.ptr,
                             (word32)key->pkey_sz, key->ed448) != 0) {
