@@ -97,8 +97,8 @@
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
-#if defined(WOLFSSL_SHA3) && defined(V523_NONFIPS_SHAKE)
-    #include <fips/v5.2.3-custom-shake-pq/shake.h>
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    #include <wolfssl/wolfcrypt/shake.h>
 #endif
 #include <wolfssl/wolfcrypt/sha3.h>
 #ifndef WOLFSSL_MLDSA_VERIFY_ONLY

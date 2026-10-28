@@ -5677,9 +5677,10 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef WOLFSSL_SHAKE256
 #endif
 
-#if defined(V523_NONFIPS_SHAKE) && \
-    (!defined(HAVE_FIPS) || !FIPS_VERSION3_EQ(5,2,1))
-    #error "V523_NONFIPS_SHAKE requires FIPS v5 cert4718 (5.2.1)"
+/* Enable SHAKE 128/256 algorithms in a custom FIPS v5 build */
+#if defined(V5_NONFIPS_SHAKE) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_LT(5,0,0) || FIPS_VERSION3_GE(6,0,0))
+    #error "V5_NONFIPS_SHAKE requires a FIPS v5 cert (ex. #5548, v5.2.3)"
 #endif
 
 
