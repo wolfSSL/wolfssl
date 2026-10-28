@@ -2115,6 +2115,52 @@ int test_wolfSSL_X509_max_name_constraints(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_max_name_entries(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_TLS) && !defined(NO_RSA)
+
+    /* Only test if max name entries has not been modified */
+#if WC_MAX_NAME_ENTRIES == 16
+
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    /* Self-signed CAs with 16 and 17 attributes in the subject and issuer */
+    const char* max_entries = "./certs/test/cert-max-name-entries.pem";
+    const char* over_max_entries = "./certs/test/cert-over-max-name-entries.pem";
+
+    /* The X509_NAME entries are added straight to the X509. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(max_entries,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_NAME_entry_count(
+        wolfSSL_X509_get_subject_name(x509)), WC_MAX_NAME_ENTRIES);
+    ExpectIntEQ(wolfSSL_X509_NAME_entry_count(
+        wolfSSL_X509_get_issuer_name(x509)), WC_MAX_NAME_ENTRIES);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectNull(x509 = wolfSSL_X509_load_certificate_file(over_max_entries,
+        WOLFSSL_FILETYPE_PEM));
+    wolfSSL_X509_free(x509);
+
+    /* Loading a CA doesn't build the X509_NAMEs, but still rejects names
+     * that they can't hold. */
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, max_entries, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_load_verify_locations(ctx, over_max_entries,
+        NULL), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+#endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_check_ca(void)
 {
     EXPECT_DECLS;
