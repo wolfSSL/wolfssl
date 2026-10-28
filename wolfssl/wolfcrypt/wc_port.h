@@ -1202,6 +1202,8 @@ WOLFSSL_LOCAL int  wc_CancelDisable(void);         /* returns the old state */
 WOLFSSL_LOCAL void wc_CancelRestore(int state);
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* wc_MutexOnceFlag value once the mutex is created. */
+    #define WC_MUTEX_READY_ONCE 2U
     /* Election state for wc_local_InitMutexOnce(). Define objects with
      * WOLFSSL_ATOMIC_INITIALIZER(0) and only touch them through
      * WOLFSSL_ATOMIC_LOAD/STORE. */
