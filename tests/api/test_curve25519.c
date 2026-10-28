@@ -310,6 +310,7 @@ int test_wc_curve25519_shared_secret_ex(void)
 #ifndef WOLFSSL_X25519_NO_MASK_PEER
     byte           outHiBit[CURVE25519_KEYSIZE];
     word32         outHiBitLen = sizeof(out);
+    byte           pubHiBit[CURVE25519_KEYSIZE];
 #endif
     int            endian = EC25519_BIG_ENDIAN;
 
@@ -354,10 +355,13 @@ int test_wc_curve25519_shared_secret_ex(void)
     if (EXPECT_SUCCESS()) {
         public_key.p.point[CURVE25519_KEYSIZE-1] |= 0x80;
     }
+    XMEMCPY(pubHiBit, public_key.p.point, CURVE25519_KEYSIZE);
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
         outHiBit, &outHiBitLen, endian), 0);
     ExpectIntEQ(outLen, outHiBitLen);
     ExpectBufEQ(out, outHiBit, outLen);
+    /* the bit is cleared in a copy; the peer key is left as imported */
+    ExpectBufEQ(public_key.p.point, pubHiBit, CURVE25519_KEYSIZE);
 #endif
 
     outLen = outLen - 2;
@@ -619,6 +623,8 @@ int test_wc_curve25519_make_pub_generic(void)
     byte           pubG[CURVE25519_KEYSIZE];
     const byte     base9[CURVE25519_KEYSIZE] = { 9 };
     byte           genAB[CURVE25519_KEYSIZE];
+    byte           pubBHiBit[CURVE25519_KEYSIZE];
+    byte           genABHiBit[CURVE25519_KEYSIZE];
     byte           ssAB[CURVE25519_KEYSIZE];
     byte           ssBA[CURVE25519_KEYSIZE];
     word32         ssABLen  = (word32)sizeof(ssAB);
@@ -651,6 +657,20 @@ int test_wc_curve25519_make_pub_generic(void)
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&keyA, &keyB, ssAB, &ssABLen,
         EC25519_LITTLE_ENDIAN), 0);
     ExpectBufEQ(genAB, ssAB, CURVE25519_KEYSIZE);
+
+    /* RFC 7748 section 5: the top bit of the supplied u-coordinate is masked
+     * (or rejected with WOLFSSL_X25519_NO_MASK_PEER), as in shared_secret */
+    XMEMCPY(pubBHiBit, keyB.p.point, CURVE25519_KEYSIZE);
+    pubBHiBit[CURVE25519_KEYSIZE-1] |= 0x80;
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
+    ExpectIntEQ(wc_curve25519_generic((int)sizeof(genABHiBit), genABHiBit,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(pubBHiBit), pubBHiBit),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#else
+    ExpectIntEQ(wc_curve25519_generic((int)sizeof(genABHiBit), genABHiBit,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(pubBHiBit), pubBHiBit), 0);
+    ExpectBufEQ(genABHiBit, genAB, CURVE25519_KEYSIZE);
+#endif
 
     /* shared secret must agree both ways, proving the generated keys are
      * mutually consistent (a degenerate result is rejected by shared_secret) */
@@ -1349,6 +1369,10 @@ int test_wc_curve25519_nonblock(void)
     x25519_nb_ctx_t ctx1;
     x25519_nb_ctx_t ctx2;
     byte           out[CURVE25519_KEYSIZE];
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte           outHiBit[CURVE25519_KEYSIZE];
+    byte           pubHiBit[CURVE25519_KEYSIZE];
+#endif
     word32         outLen;
     int            ret;
     int            iters;
@@ -1399,6 +1423,31 @@ int test_wc_curve25519_nonblock(void)
     } while ((ret == FP_WOULDBLOCK) && (iters < 100000));
     ExpectIntEQ(ret, 0);
     ExpectIntEQ(outLen, CURVE25519_KEYSIZE);
+
+    /* RFC 7748 section 5: the top bit of the u-coordinate is masked (or
+     * rejected with WOLFSSL_X25519_NO_MASK_PEER) on this path too. */
+    if (EXPECT_SUCCESS()) {
+        pub_key.p.point[CURVE25519_KEYSIZE-1] |= 0x80;
+    }
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_curve25519_shared_secret_ex(&priv_key, &pub_key, out,
+        &outLen, EC25519_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#else
+    XMEMCPY(pubHiBit, pub_key.p.point, CURVE25519_KEYSIZE);
+    outLen = sizeof(outHiBit);
+    iters = 0;
+    do {
+        ret = wc_curve25519_shared_secret_ex(&priv_key, &pub_key, outHiBit,
+            &outLen, EC25519_BIG_ENDIAN);
+        iters++;
+    } while ((ret == FP_WOULDBLOCK) && (iters < 100000));
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(outLen, CURVE25519_KEYSIZE);
+    ExpectBufEQ(outHiBit, out, CURVE25519_KEYSIZE);
+    /* the bit is cleared in a copy; the peer key is left as imported */
+    ExpectBufEQ(pub_key.p.point, pubHiBit, CURVE25519_KEYSIZE);
+#endif
 
 #if !defined(WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK) && \
     defined(HAVE_CURVE25519_KEY_IMPORT)

@@ -4819,3 +4819,178 @@ int test_wc_EccPublicKeyDecode_specifiedOverflow(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_EccPublicKeyDecode_specifiedOverflow */
+
+/* SubjectPublicKeyInfo with explicit SpecifiedECDomain parameters: the prime
+ * and A of one curve, with brainpoolP256r1's generator as both base point and
+ * public key. The prime and A windows are patched per case. */
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(ECC_SHAMIR) && \
+    defined(WOLFSSL_CUSTOM_CURVES) && defined(HAVE_ECC_BRAINPOOL) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(NO_ASN) && \
+    !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+
+#define ECC_FP_SPKI_PRIME_OFF   36
+#define ECC_FP_SPKI_A_OFF       72
+#define ECC_FP_SPKI_FIELD_SZ    32
+
+static const byte eccFpSpki[] = {
+    0x30, 0x82, 0x01, 0x33, 0x30, 0x81, 0xec, 0x06, 0x07, 0x2a, 0x86, 0x48,
+    0xce, 0x3d, 0x02, 0x01, 0x30, 0x81, 0xe0, 0x02, 0x01, 0x01, 0x30, 0x2c,
+    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x01, 0x01, 0x02, 0x21, 0x00,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x30, 0x44, 0x04, 0x20,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc, 0x04, 0x20, 0x5a, 0xc6,
+    0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7, 0xb3, 0xeb, 0xbd, 0x55, 0x76, 0x98,
+    0x86, 0xbc, 0x65, 0x1d, 0x06, 0xb0, 0xcc, 0x53, 0xb0, 0xf6, 0x3b, 0xce,
+    0x3c, 0x3e, 0x27, 0xd2, 0x60, 0x4b, 0x04, 0x41, 0x04, 0x8b, 0xd2, 0xae,
+    0xb9, 0xcb, 0x7e, 0x57, 0xcb, 0x2c, 0x4b, 0x48, 0x2f, 0xfc, 0x81, 0xb7,
+    0xaf, 0xb9, 0xde, 0x27, 0xe1, 0xe3, 0xbd, 0x23, 0xc2, 0x3a, 0x44, 0x53,
+    0xbd, 0x9a, 0xce, 0x32, 0x62, 0x54, 0x7e, 0xf8, 0x35, 0xc3, 0xda, 0xc4,
+    0xfd, 0x97, 0xf8, 0x46, 0x1a, 0x14, 0x61, 0x1d, 0xc9, 0xc2, 0x77, 0x45,
+    0x13, 0x2d, 0xed, 0x8e, 0x54, 0x5c, 0x1d, 0x54, 0xc7, 0x2f, 0x04, 0x69,
+    0x97, 0x02, 0x21, 0x00, 0xa9, 0xfb, 0x57, 0xdb, 0xa1, 0xee, 0xa9, 0xbc,
+    0x3e, 0x66, 0x0a, 0x90, 0x9d, 0x83, 0x8d, 0x71, 0x8c, 0x39, 0x7a, 0xa3,
+    0xb5, 0x61, 0xa6, 0xf7, 0x90, 0x1e, 0x0e, 0x82, 0x97, 0x48, 0x56, 0xa7,
+    0x02, 0x01, 0x01, 0x03, 0x42, 0x00, 0x04, 0x8b, 0xd2, 0xae, 0xb9, 0xcb,
+    0x7e, 0x57, 0xcb, 0x2c, 0x4b, 0x48, 0x2f, 0xfc, 0x81, 0xb7, 0xaf, 0xb9,
+    0xde, 0x27, 0xe1, 0xe3, 0xbd, 0x23, 0xc2, 0x3a, 0x44, 0x53, 0xbd, 0x9a,
+    0xce, 0x32, 0x62, 0x54, 0x7e, 0xf8, 0x35, 0xc3, 0xda, 0xc4, 0xfd, 0x97,
+    0xf8, 0x46, 0x1a, 0x14, 0x61, 0x1d, 0xc9, 0xc2, 0x77, 0x45, 0x13, 0x2d,
+    0xed, 0x8e, 0x54, 0x5c, 0x1d, 0x54, 0xc7, 0x2f, 0x04, 0x69, 0x97
+};
+
+/* brainpoolP256r1's own prime and A, for the control case. */
+static const byte eccFpBpPrime[] = {
+    0xa9, 0xfb, 0x57, 0xdb, 0xa1, 0xee, 0xa9, 0xbc, 0x3e, 0x66, 0x0a, 0x90,
+    0x9d, 0x83, 0x8d, 0x72, 0x6e, 0x3b, 0xf6, 0x23, 0xd5, 0x26, 0x20, 0x28,
+    0x20, 0x13, 0x48, 0x1d, 0x1f, 0x6e, 0x53, 0x77
+};
+static const byte eccFpBpA[] = {
+    0x7d, 0x5a, 0x09, 0x75, 0xfc, 0x2c, 0x30, 0x57, 0xee, 0xf6, 0x75, 0x30,
+    0x41, 0x7a, 0xff, 0xe7, 0xfb, 0x80, 0x55, 0xc1, 0x26, 0xdc, 0x5c, 0x6c,
+    0xe9, 0x4a, 0x4b, 0x44, 0xf3, 0x30, 0xb5, 0xd9
+};
+
+/* Verify a known-good signature three times, asserting each one succeeds.
+ * Three is the minimum that exercises the cached path: the first use of a
+ * point only records it, the second builds its table, and only then is the
+ * table consumed. */
+static void EccFpVerifyThrice(ecc_key* key, const byte* sig, word32 sigSz,
+    const byte* hash, word32 hashSz, int* pRet)
+{
+    int i;
+    int res;
+
+    for (i = 0; i < 3; i++) {
+        res = 0;
+        if (wc_ecc_verify_hash(sig, sigSz, hash, hashSz, &res, key) != 0) {
+            *pRet = -1;
+            return;
+        }
+        if (res != 1) {
+            *pRet = i;
+            return;
+        }
+    }
+    *pRet = 3;
+}
+#endif
+
+int test_wc_ecc_fp_cache_curve_binding(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(ECC_SHAMIR) && \
+    defined(WOLFSSL_CUSTOM_CURVES) && defined(HAVE_ECC_BRAINPOOL) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(NO_ASN) && \
+    !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+    WC_RNG rng;
+    ecc_key victim;
+    ecc_key att;
+    byte    hash[32];
+    byte    sig[ECC_MAX_SIG_SIZE];
+    byte    der[sizeof(eccFpSpki)];
+    word32  sigSz = (word32)sizeof(sig);
+    word32  idx;
+    int     res;
+    int     good;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&victim, 0, sizeof(victim));
+    XMEMSET(hash, 0x42, sizeof(hash));
+
+    /* A brainpoolP256r1 key and one valid signature from it. Brainpool is
+     * computed by the generic code rather than by SP, so it uses the cache. */
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&victim), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex(&rng, 32, &victim, ECC_BRAINPOOLP256R1), 0);
+    ExpectIntEQ(wc_ecc_sign_hash(hash, (word32)sizeof(hash), sig, &sigSz, &rng,
+        &victim), 0);
+
+    /* Control: the same key, declaring brainpoolP256r1's own prime and A. */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(&att, 0, sizeof(att));
+        XMEMCPY(der, eccFpSpki, sizeof(der));
+        XMEMCPY(der + ECC_FP_SPKI_PRIME_OFF, eccFpBpPrime,
+            ECC_FP_SPKI_FIELD_SZ);
+        XMEMCPY(der + ECC_FP_SPKI_A_OFF, eccFpBpA, ECC_FP_SPKI_FIELD_SZ);
+
+        wc_ecc_fp_free();
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&att), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &att, (word32)sizeof(der)),
+            0);
+        res = 1;
+        ExpectIntEQ(wc_ecc_verify_hash(sig, sigSz, hash, (word32)sizeof(hash),
+            &res, &att), 0);
+        ExpectIntEQ(res, 0);
+        wc_ecc_free(&att);
+
+        good = -2;
+        if (EXPECT_SUCCESS()) {
+            EccFpVerifyThrice(&victim, sig, sigSz, hash, (word32)sizeof(hash),
+                &good);
+        }
+        ExpectIntEQ(good, 3);
+    }
+
+    /* A key declaring a foreign prime and A over the same generator must not
+     * change the result of any later operation on the real curve. */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(&att, 0, sizeof(att));
+        XMEMCPY(der, eccFpSpki, sizeof(der));
+
+        wc_ecc_fp_free();
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&att), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &att, (word32)sizeof(der)),
+            0);
+        res = 1;
+        ExpectIntEQ(wc_ecc_verify_hash(sig, sigSz, hash, (word32)sizeof(hash),
+            &res, &att), 0);
+        ExpectIntEQ(res, 0);
+        wc_ecc_free(&att);
+
+        good = -2;
+        if (EXPECT_SUCCESS()) {
+            EccFpVerifyThrice(&victim, sig, sigSz, hash, (word32)sizeof(hash),
+                &good);
+        }
+        ExpectIntEQ(good, 3);
+    }
+
+    wc_ecc_free(&victim);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_fp_free();
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_fp_cache_curve_binding */

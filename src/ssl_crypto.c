@@ -3219,21 +3219,48 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
     else {
         int ret;
         Aes* aes = (Aes*)key;
+        word32 whole = (word32)len & ~(word32)(WC_AES_BLOCK_SIZE - 1);
+        word32 rem = (word32)len - whole;
+        byte blk[WC_AES_BLOCK_SIZE];
 
         if ((ret = wc_AesSetIV(aes, (const byte*)iv)) != 0) {
             WOLFSSL_MSG("Error with setting iv");
         }
         else if (enc == AES_ENCRYPTION) {
             /* Encrypt with wolfCrypt AES object. */
-            if ((ret = wc_AesCbcEncrypt(aes, out, in, (word32)len)) != 0) {
+            if (whole > 0) {
+                ret = wc_AesCbcEncrypt(aes, out, in, whole);
+            }
+            /* A partial final block is zero-padded and written as
+             * a whole block, so out must have room up to the block end. */
+            if ((ret == 0) && (rem > 0)) {
+                XMEMSET(blk, 0, sizeof(blk));
+                XMEMCPY(blk, in + whole, rem);
+                ret = wc_AesCbcEncrypt(aes, out + whole, blk, sizeof(blk));
+            }
+            if (ret != 0) {
                 WOLFSSL_MSG("Error with AES CBC encrypt");
             }
         }
         else {
             /* Decrypt with wolfCrypt AES object. */
-            if ((ret = wc_AesCbcDecrypt(aes, out, in, (word32)len)) != 0) {
+            if (whole > 0) {
+                ret = wc_AesCbcDecrypt(aes, out, in, whole);
+            }
+            /* The whole final block is read and only the
+             * remaining bytes are written. */
+            if ((ret == 0) && (rem > 0)) {
+                ret = wc_AesCbcDecrypt(aes, blk, in + whole, sizeof(blk));
+                if (ret == 0) {
+                    XMEMCPY(out + whole, blk, rem);
+                }
+            }
+            if (ret != 0) {
                 WOLFSSL_MSG("Error with AES CBC decrypt");
             }
+        }
+        if (rem > 0) {
+            ForceZero(blk, sizeof(blk));
         }
 
         if (ret == 0) {

@@ -57,7 +57,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * HAVE_AESCCM:             Enable AES-CCM mode                   default: off
  * HAVE_AES_KEYWRAP:        Enable AES key wrap (RFC 3394)        default: off
  * WOLFSSL_AES_KEYWRAP_PADDING: AES key wrap padding (RFC 5649) default: off
- * WOLFSSL_AES_CBC_LENGTH_CHECKS: Validate CBC input length       default: off
+ * WOLFSSL_AES_CBC_LENGTH_CHECKS: Validate CBC input length       default: on
  *
  * AES-GCM:
  * HAVE_AESGCM:             Enable AES-GCM mode                   default: off
@@ -7869,8 +7869,16 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 printf("sz = %d\n", sz);
             #endif
 
+            /* Only whole blocks are encrypted, as in the software path
+             * below. The assembly rounds a partial block up and would read
+             * and write past the end of in and out. */
+            sz = blocks * WC_AES_BLOCK_SIZE;
+
+            if (sz == 0) {
+                ret = 0;
+            }
             /* check alignment, decrypt doesn't need alignment */
-            if ((wc_ptr_t)in % AESNI_ALIGN) {
+            else if ((wc_ptr_t)in % AESNI_ALIGN) {
             #ifndef NO_WOLFSSL_ALLOC_ALIGN
                 byte* tmp = (byte*)XMALLOC(sz + WC_AES_BLOCK_SIZE + AESNI_ALIGN,
                                             aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
