@@ -44366,6 +44366,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     /* Returns 0 when SNI/ALPN match ssl->session. Call after ALPN_Select. */
     int VerifyTicketBinding(WOLFSSL* ssl)
     {
+        int ret = 0;
         byte curHash[TICKET_BINDING_HASH_SZ];
 
         if (!ssl->options.resuming)
@@ -44376,20 +44377,25 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 XMEMCMP(curHash, ssl->session->sniHash,
                         TICKET_BINDING_HASH_SZ) != 0) {
             WOLFSSL_MSG("Resumed session SNI mismatch");
-            return WOLFSSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
-#endif
+#endif /* HAVE_SNI */
 #ifdef HAVE_ALPN
-        if (TicketAlpnHash(ssl, curHash) != 0 ||
+        if (ret == 0 && (TicketAlpnHash(ssl, curHash) != 0 ||
                 XMEMCMP(curHash, ssl->session->alpnHash,
-                        TICKET_BINDING_HASH_SZ) != 0) {
+                        TICKET_BINDING_HASH_SZ) != 0)) {
             WOLFSSL_MSG("Resumed session ALPN mismatch");
-            return WOLFSSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
-#endif
-        return 0;
+#endif /* HAVE_ALPN */
+#ifdef SESSION_CERTS
+        /* Drop the declined session's peer before the full handshake. */
+        if (ret != 0)
+            ResetSessionCertChain(ssl);
+#endif /* SESSION_CERTS */
+        return ret;
     }
-#endif
+#endif /* HAVE_SNI || HAVE_ALPN */
 
 #ifdef HAVE_SESSION_TICKET
 

@@ -2931,27 +2931,27 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #else
     /* ticketSeen Hi 32 bits | ticketSeen Lo 32 bits | ticketAdd */
     size += OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE32_LEN;
-#endif
+#endif /* WOLFSSL_32BIT_MILLI_TIME */
     /* ticketNonce */
     size += OPAQUE8_LEN + sess->ticketNonce.len;
-#endif
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
     size += OPAQUE32_LEN;
-#endif
-#endif
+#endif /* WOLFSSL_EARLY_DATA */
+#endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef HAVE_SESSION_TICKET
     /* ticket len | ticket */
     size += OPAQUE16_LEN + sess->ticketLen;
-#endif
+#endif /* HAVE_SESSION_TICKET */
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 #ifdef HAVE_SNI
     /* sniHash */
     size += TICKET_BINDING_HASH_SZ;
-#endif
+#endif /* HAVE_SNI */
 #ifdef HAVE_ALPN
     /* alpnHash */
     size += TICKET_BINDING_HASH_SZ;
-#endif
+#endif /* HAVE_ALPN */
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #ifndef NO_WOLFSSL_SERVER
     /* peerAuthOk and isPSK */
@@ -3025,38 +3025,38 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         idx += OPAQUE32_LEN;
         c32toa((word32)sess->ticketSeen, data + idx);
         idx += OPAQUE32_LEN;
-#endif
+#endif /* WOLFSSL_32BIT_MILLI_TIME */
         c32toa(sess->ticketAdd, data + idx);
         idx += OPAQUE32_LEN;
         data[idx++] = sess->ticketNonce.len;
         XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
         idx += sess->ticketNonce.len;
-#endif
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
         c32toa(sess->maxEarlyDataSz, data + idx);
         idx += OPAQUE32_LEN;
-#endif
-#endif
+#endif /* WOLFSSL_EARLY_DATA */
+#endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef HAVE_SESSION_TICKET
         c16toa(sess->ticketLen, data + idx); idx += OPAQUE16_LEN;
         XMEMCPY(data + idx, sess->ticket, sess->ticketLen);
         idx += sess->ticketLen;
-#endif
+#endif /* HAVE_SESSION_TICKET */
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 #ifdef HAVE_SNI
         XMEMCPY(data + idx, sess->sniHash, TICKET_BINDING_HASH_SZ);
         idx += TICKET_BINDING_HASH_SZ;
-#endif
+#endif /* HAVE_SNI */
 #ifdef HAVE_ALPN
         XMEMCPY(data + idx, sess->alpnHash, TICKET_BINDING_HASH_SZ);
         idx += TICKET_BINDING_HASH_SZ;
-#endif
+#endif /* HAVE_ALPN */
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #ifndef NO_WOLFSSL_SERVER
         data[idx++] = (byte)(sess->peerAuthOk | (sess->isPSK << 1));
 #endif
     }
-#endif
+#endif /* HAVE_EXT_CACHE */
 
     (void)sess;
     (void)p;
@@ -3273,7 +3273,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         idx += OPAQUE32_LEN;
         s->ticketSeen = ((sword64)seenHi << 32) + seenLo;
     }
-#endif
+#endif /* WOLFSSL_32BIT_MILLI_TIME */
 
     if (i - idx < OPAQUE32_LEN) {
         ret = BUFFER_ERROR;
@@ -3305,7 +3305,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
 
     idx += s->ticketNonce.len;
-#endif
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
     if (i - idx < OPAQUE32_LEN) {
         ret = BUFFER_ERROR;
@@ -3313,8 +3313,8 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     ato32(data + idx, &s->maxEarlyDataSz);
     idx += OPAQUE32_LEN;
-#endif
-#endif
+#endif /* WOLFSSL_EARLY_DATA */
+#endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef HAVE_SESSION_TICKET
     /* ticket len */
     if (i - idx < OPAQUE16_LEN) {
@@ -3345,7 +3345,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     XMEMCPY(s->ticket, data + idx, s->ticketLen); idx += s->ticketLen;
-#endif
+#endif /* HAVE_SESSION_TICKET */
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 #ifdef HAVE_SNI
     /* sniHash - SNI binding for stateful resumption (RFC 6066 section 3) */
@@ -3355,7 +3355,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     XMEMCPY(s->sniHash, data + idx, TICKET_BINDING_HASH_SZ);
     idx += TICKET_BINDING_HASH_SZ;
-#endif
+#endif /* HAVE_SNI */
 #ifdef HAVE_ALPN
     /* alpnHash - ALPN binding for stateful resumption */
     if (i - idx < TICKET_BINDING_HASH_SZ) {
@@ -3364,7 +3364,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     XMEMCPY(s->alpnHash, data + idx, TICKET_BINDING_HASH_SZ);
     idx += TICKET_BINDING_HASH_SZ;
-#endif
+#endif /* HAVE_ALPN */
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #ifndef NO_WOLFSSL_SERVER
     if (i - idx < OPAQUE8_LEN) {
@@ -3978,10 +3978,10 @@ void SetupSession(WOLFSSL* ssl)
     /* Bind the current SNI/ALPN to the session to verify on later resumption */
 #ifdef HAVE_SNI
     (void)TicketSniHash(ssl, session->sniHash);
-#endif
+#endif /* HAVE_SNI */
 #ifdef HAVE_ALPN
     (void)TicketAlpnHash(ssl, session->alpnHash);
-#endif
+#endif /* HAVE_ALPN */
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
     session->timeout = ssl->timeout;
 #ifndef NO_ASN_TIME
