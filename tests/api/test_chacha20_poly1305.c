@@ -487,6 +487,20 @@ int test_wc_XChaCha20Poly1305_Stream(void)
         CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
     ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, tag), 0);
     ExpectIntEQ(XMEMCMP(tag, oneshot, sizeof(tag)), 0);
+
+    /* Non-block-aligned AAD and no data: Init leaves the AAD unpadded, so
+     * Final must pad it. Compare with the one-shot API for an empty payload. */
+    XMEMSET(&aead, 0xa5, sizeof(aead));
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(oneshot, 0, sizeof(oneshot));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(oneshot, sizeof(oneshot),
+        plaintext, 0, aad, sizeof(aad), nonce, sizeof(nonce), key,
+        sizeof(key)), 0);
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key),
+        CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, tag), 0);
+    ExpectIntEQ(XMEMCMP(tag, oneshot, sizeof(tag)), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_XChaCha20Poly1305_Stream */
