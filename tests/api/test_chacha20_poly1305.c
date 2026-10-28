@@ -417,8 +417,11 @@ int test_wc_XChaCha20Poly1305_Stream(void)
     byte tag[POLY1305_DIGEST_SIZE];
     byte oneshot[POLY1305_DIGEST_SIZE];
 
+    /* Each case prefills the context with garbage: Init must clear aadLen and
+     * dataLen itself before Final encodes them into the tag. */
+
     /* AAD passed to Init. */
-    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(&aead, 0xa5, sizeof(aead));
     XMEMSET(out, 0, sizeof(out));
     XMEMSET(tag, 0, sizeof(tag));
     ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
@@ -431,7 +434,7 @@ int test_wc_XChaCha20Poly1305_Stream(void)
     ExpectIntEQ(XMEMCMP(tag, expected + sizeof(plaintext), sizeof(tag)), 0);
 
     /* AAD passed to UpdateAad after an Init with none: same tag. */
-    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(&aead, 0xa5, sizeof(aead));
     XMEMSET(out, 0, sizeof(out));
     XMEMSET(tag, 0, sizeof(tag));
     ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, NULL, 0,
@@ -445,7 +448,7 @@ int test_wc_XChaCha20Poly1305_Stream(void)
     ExpectIntEQ(XMEMCMP(tag, expected + sizeof(plaintext), sizeof(tag)), 0);
 
     /* Data in two chunks: same tag. */
-    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(&aead, 0xa5, sizeof(aead));
     XMEMSET(out, 0, sizeof(out));
     XMEMSET(tag, 0, sizeof(tag));
     ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
@@ -459,7 +462,7 @@ int test_wc_XChaCha20Poly1305_Stream(void)
     ExpectIntEQ(XMEMCMP(tag, expected + sizeof(plaintext), sizeof(tag)), 0);
 
     /* Decrypt against the published tag. */
-    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(&aead, 0xa5, sizeof(aead));
     XMEMSET(plain, 0, sizeof(plain));
     XMEMSET(tag, 0, sizeof(tag));
     ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
@@ -474,7 +477,7 @@ int test_wc_XChaCha20Poly1305_Stream(void)
 
     /* No AAD and no data: Init straight to Final agrees with the one-shot
      * API, whose output for an empty message is the tag alone. */
-    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(&aead, 0xa5, sizeof(aead));
     XMEMSET(tag, 0, sizeof(tag));
     XMEMSET(oneshot, 0, sizeof(oneshot));
     ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(oneshot, sizeof(oneshot),
