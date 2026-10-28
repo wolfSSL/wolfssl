@@ -3622,6 +3622,12 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
             ctx->x509_store.objs = NULL;
         }
     #endif
+    #ifdef OPENSSL_EXTRA
+        if (ctx->x509_store.nonCaCerts != NULL) {
+            wolfSSL_sk_X509_pop_free(ctx->x509_store.nonCaCerts, NULL);
+            ctx->x509_store.nonCaCerts = NULL;
+        }
+    #endif
     #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
         defined(WOLFSSL_WPAS_SMALL)
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);

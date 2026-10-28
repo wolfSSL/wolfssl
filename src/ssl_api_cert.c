@@ -1789,8 +1789,21 @@ void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
         WOLFSSL_MSG("wolfSSL_CertManager_up_ref error");
     }
     else {
+        /* The old cert manager may outlive the context if something else
+         * holds a reference to it, so it must not keep pointing at the
+         * store embedded in the context, which is freed with the context -
+         * break the link as SSL_CtxResourceFree() does for the current one. */
+        if ((ctx->cm != NULL) && (ctx->cm->x509_store_p == &ctx->x509_store)) {
+            ctx->cm->x509_store_p = NULL;
+        }
         /* Free any cert manager. */
         wolfSSL_CertManagerFree(ctx->cm);
+        #ifdef OPENSSL_EXTRA
+        /* Certs the context's own store kept outside that cert manager go
+         * with it, as its signers do. */
+        wolfSSL_sk_X509_pop_free(ctx->x509_store.nonCaCerts, NULL);
+        ctx->x509_store.nonCaCerts = NULL;
+        #endif
         /* Free any external store. */
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
         /* Set the certificate manager into context. */

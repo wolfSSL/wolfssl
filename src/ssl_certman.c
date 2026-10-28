@@ -306,18 +306,15 @@ int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm)
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
 #if defined(WOLFSSL_SIGNER_DER_CERT)
-static WC_INLINE int wolfssl_cm_get_certs_der(WOLFSSL_CERT_MANAGER* cm,
-    DerBuffer*** buffers, int* cnt)
+/* Number of signers wolfSSL_CertManagerGetCerts() returns: those with a DER
+ * certificate buffer. 0 means GetCerts() returns NULL for an empty table, not
+ * for an error. The caller must hold cm->caLock. */
+static WC_INLINE int wolfssl_cm_num_der_certs(WOLFSSL_CERT_MANAGER* cm)
 {
-    int err = 0;
     Signer* signers = NULL;
-    DerBuffer** certBuffers = NULL;
-    int i = 0;
     word32 row = 0;
     int numCerts = 0;
 
-    /* Iterate once to get the number of certs, for memory allocation
-     * purposes. */
     for (row = 0; row < CA_TABLE_SIZE; row++) {
         /* Get signer information of CAs in a row. */
         signers = cm->caTable[row];
@@ -328,6 +325,21 @@ static WC_INLINE int wolfssl_cm_get_certs_der(WOLFSSL_CERT_MANAGER* cm,
             signers = signers->next;
         }
     }
+    return numCerts;
+}
+
+static WC_INLINE int wolfssl_cm_get_certs_der(WOLFSSL_CERT_MANAGER* cm,
+    DerBuffer*** buffers, int* cnt)
+{
+    int err = 0;
+    Signer* signers = NULL;
+    DerBuffer** certBuffers = NULL;
+    int i = 0;
+    word32 row = 0;
+    int numCerts = 0;
+
+    /* Get the number of certs, for memory allocation purposes. */
+    numCerts = wolfssl_cm_num_der_certs(cm);
     /* Check we found certificates. */
     if (numCerts == 0) {
         err = 1;
@@ -481,11 +493,30 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
         ret = BAD_MUTEX_E;
     }
     if (ret == WOLFSSL_SUCCESS) {
+    #ifdef OPENSSL_EXTRA
+        WOLF_STACK_OF(WOLFSSL_X509)* nonCaCerts = NULL;
+    #endif
+
         /* Dispose of CA table. */
         FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
 
+    #ifdef OPENSSL_EXTRA
+        /* Certs an SSL_CTX-owned store accepted but kept out of the CA table
+         * (they are not CAs) are unloaded with it, as they were when they
+         * were held in it. The store's nonCaCerts is guarded by caLock. */
+        if (cm->x509_store_p != NULL) {
+            nonCaCerts = cm->x509_store_p->nonCaCerts;
+            cm->x509_store_p->nonCaCerts = NULL;
+        }
+    #endif
+
         /* Unlock CA table. */
         wc_UnLockMutex(&cm->caLock);
+
+    #ifdef OPENSSL_EXTRA
+        /* Free outside the lock. */
+        wolfSSL_sk_X509_pop_free(nonCaCerts, NULL);
+    #endif
     }
 
     return ret;
