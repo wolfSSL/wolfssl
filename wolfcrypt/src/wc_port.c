@@ -6144,7 +6144,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 
 #if (defined(__unix__) || defined(__APPLE__)) && \
     !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_ZEPHYR) && \
-    !defined(WOLFSSL_SGX)
+    !defined(WOLFSSL_SGX) && !defined(WOLFSSL_OPTEE)
 
 #include <fcntl.h>
 #include <errno.h>

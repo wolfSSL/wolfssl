@@ -3515,6 +3515,20 @@
     #define USE_CERT_BUFFERS_2048
 #endif /* WOLFSSL_SGX */
 
+/* OP-TEE trusted application. Runs against libutee rather than a C library,
+ * so there are no file descriptors, sockets, directories or wall clock, and
+ * a TA is single threaded. The TA toolchain is a Linux cross compiler and
+ * still predefines __unix__, so the environment has to be named explicitly. */
+#ifdef WOLFSSL_OPTEE
+    #define NO_FILESYSTEM
+    #define NO_WOLFSSL_DIR
+    #define NO_WRITEV
+    #define NO_MAIN_DRIVER
+    #define SINGLE_THREADED
+    #define NO_ASN_TIME /* no wall clock in a TA */
+    #define USER_TICKS
+#endif /* WOLFSSL_OPTEE */
+
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
    However, KSDK fsl_mmcau.h gives API with no alignment
    requirements (4 byte alignment is managed internally by fsl_mmcau.c) */
