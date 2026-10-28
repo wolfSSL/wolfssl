@@ -16460,6 +16460,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     /* CSR attributes */
     if (x509->isCSR) {
+        /* As OpenSSL, a request keeps the value of its version field */
+        x509->version = dCert->version;
         copyRet = CopyREQAttributes(x509, dCert);
         if (copyRet != 0)
             ret = copyRet;

@@ -9552,27 +9552,75 @@ cleanup:
 
     return ret;
 }
+#endif /* !NO_BIO */
+#endif /* WOLFSSL_CERT_GEN */
 
-/* Converts the X509 to DER format and outputs it into bio.
+#ifndef NO_BIO
+/* Writes the DER encoding of the X509 or X509_REQ to bio.
+ *
+ * The stored encoding is written. Encoding the fields again can reorder or
+ * drop extensions and attributes, which breaks the signature. As in OpenSSL
+ * 3.0, the setters of a certificate leave that encoding until it is signed
+ * again, while those of a request encode the request again.
  *
  * bio  is the structure to hold output DER
- * x509 certificate to create DER from
+ * x509 certificate or request to write
+ * req  if set then x509 is a request
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
+static int writeX509orX509REQDer(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
+    int req)
+{
+    const unsigned char* der;
+    int derSz = 0;
+
+    if (bio == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    der = wolfSSL_X509_get_der(x509, &derSz);
+    if (der == NULL || derSz <= 0) {
+    #ifdef WOLFSSL_CERT_GEN
+        /* No stored encoding: make one from the fields. */
+        return loadX509orX509REQFromBio(bio, x509, req);
+    #else
+        (void)req;
+        return WOLFSSL_FAILURE;
+    #endif
+    }
+
+    if (wolfSSL_BIO_write(bio, der, derSz) != derSz) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Writes the DER encoding of the X509 to bio, as i2d_X509() does.
  *
  * returns WOLFSSL_SUCCESS on success
  */
 int wolfSSL_i2d_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 {
-    return loadX509orX509REQFromBio(bio, x509, 0);
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_bio");
+
+    return writeX509orX509REQDer(bio, x509, 0);
 }
 
 #ifdef WOLFSSL_CERT_REQ
+/* Writes the DER encoding of the X509_REQ to bio.
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
 int wolfSSL_i2d_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 {
-    return loadX509orX509REQFromBio(bio, x509, 1);
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_REQ_bio");
+
+    return writeX509orX509REQDer(bio, x509, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* !NO_BIO */
-#endif /* WOLFSSL_CERT_GEN */
 
 /* Converts an internal structure to a DER buffer
  *
@@ -9757,10 +9805,21 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
     if (localX509 == NULL) {
         WOLFSSL_MSG("wolfSSL_X509_d2i error");
         XFREE(mem, NULL, DYNAMIC_TYPE_OPENSSL);
+        /* What was read does not decode: as OpenSSL, free the object passed
+         * in. */
+        if (x509 != NULL) {
+            wolfSSL_X509_free(*x509);
+            *x509 = NULL;
+        }
         return NULL;
     }
 
     if (x509 != NULL) {
+        /* Free the object passed in and put the new one there. OpenSSL
+         * decodes into it instead. */
+        if (*x509 != NULL && *x509 != localX509) {
+            wolfSSL_X509_free(*x509);
+        }
         *x509 = localX509;
     }
 
@@ -10147,12 +10206,21 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp,
         der = (byte*)XMALLOC(derSz, 0, DYNAMIC_TYPE_DER);
         if (der != NULL) {
             if (wolfSSL_BIO_read(bp, der, derSz) == derSz) {
-                crl = wolfSSL_d2i_X509_CRL(x, der, derSz);
+                crl = wolfSSL_d2i_X509_CRL(NULL, der, derSz);
             }
         }
     }
 
     XFREE(der, 0, DYNAMIC_TYPE_DER);
+
+    /* Free the object passed in and put the new one there. OpenSSL decodes
+     * into it instead. */
+    if (crl != NULL && x != NULL) {
+        if (*x != NULL && *x != crl) {
+            wolfSSL_X509_CRL_free(*x);
+        }
+        *x = crl;
+    }
 
     return crl;
 }
@@ -13895,6 +13963,11 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             }
             totalLen = AddSignature(NULL, ret, NULL, x509->sig.length,
                                   x509->sigOID);
+            if (totalLen <= 0) {
+                WOLFSSL_MSG("Unable to add signature");
+                ret = WOLFSSL_FAILURE;
+                goto cleanup;
+            }
             if (totalLen > *derSz) {
                 WOLFSSL_MSG("Output der buffer too short");
                 ret = WOLFSSL_FAILURE;
@@ -13902,6 +13975,11 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             }
             ret = AddSignature(der, ret, x509->sig.buffer,
                                x509->sig.length, x509->sigOID);
+            if (ret <= 0) {
+                WOLFSSL_MSG("Unable to add signature");
+                ret = WOLFSSL_FAILURE;
+                goto cleanup;
+            }
         }
 
         *derSz = ret;
@@ -14807,7 +14885,12 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
                 CERT_TYPE, cb, u);
     }
 
-    if (x != NULL) {
+    /* Free the object passed in and put the new one there. OpenSSL decodes
+     * into it instead. Keep it when nothing was read. */
+    if (x != NULL && x509 != NULL) {
+        if (*x != NULL && *x != x509) {
+            wolfSSL_X509_free(*x);
+        }
         *x = x509;
     }
 
@@ -18464,6 +18547,8 @@ void wolfSSL_X509_REQ_free(WOLFSSL_X509* req)
     wolfSSL_X509_free(req);
 }
 
+static void regenX509REQDerBuffer(WOLFSSL_X509* x509);
+
 int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version)
 {
     WOLFSSL_ENTER("wolfSSL_X509_REQ_set_version");
@@ -18471,6 +18556,8 @@ int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version)
         return WOLFSSL_FAILURE;
     }
     x->version = (int)version;
+    /* As OpenSSL, a request that is changed is encoded again */
+    regenX509REQDerBuffer(x);
     return WOLFSSL_SUCCESS;
 }
 
@@ -18543,44 +18630,42 @@ int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
         return WOLFSSL_FAILURE;
 }
 
-static int regenX509REQDerBuffer(WOLFSSL_X509* x509)
+/* Store the encoding of a request whose fields changed. A signed request keeps
+ * its old signature until it is signed again. An unsigned request has no
+ * complete encoding, and neither has one that cannot be encoded, as a DSA
+ * request: then none is kept, so none out of date is written. The change
+ * stands, as in OpenSSL, which encodes a request when it is written. */
+static void regenX509REQDerBuffer(WOLFSSL_X509* x509)
 {
-    int derSz = X509_BUFFER_SZ;
-    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-#ifndef WOLFSSL_SMALL_STACK
-    byte der[X509_BUFFER_SZ];
-#else
-    byte* der;
+    /* Room for the request info and the largest signature. */
+    int derSz = X509_BUFFER_SZ + MAX_SIG_SZ;
+    DerBuffer* newDer = NULL;
+    WC_DECLARE_VAR(der, byte, X509_BUFFER_SZ + MAX_SIG_SZ, 0);
 
-    der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (!der) {
-        WOLFSSL_MSG("malloc failed");
-        return WOLFSSL_FAILURE;
-    }
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+    /* The names are encoded again, not as they were in the old encoding
+     * or in the names they were set from, and not where they were. */
+    ClearX509NameRaw(&x509->issuer);
+    ClearX509NameRaw(&x509->subject);
 #endif
-
-    if (wolfssl_x509_make_der(x509, 1, der, &derSz, 0) == WOLFSSL_SUCCESS) {
+    if (x509->sig.buffer == NULL) {
         FreeDer(&x509->derCert);
-    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
-        /* The names are encoded again, not as they were in the old encoding
-         * or in the names they were set from, and not where they were. */
-        ClearX509NameRaw(&x509->issuer);
-        ClearX509NameRaw(&x509->subject);
-    #endif
-        if (AllocDer(&x509->derCert, (word32)derSz, CERT_TYPE,
-                                                             x509->heap) == 0) {
-            XMEMCPY(x509->derCert->buffer, der, derSz);
-            ret = WOLFSSL_SUCCESS;
-        }
-        else {
-            WOLFSSL_MSG("Failed to allocate DER buffer for X509");
-        }
+        return;
     }
-    else {
+
+    WC_ALLOC_VAR_EX(der, byte, derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        { FreeDer(&x509->derCert); return; });
+
+    if (wolfssl_x509_make_der(x509, 1, der, &derSz, 1) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Unable to make DER for X509 REQ");
     }
+    else if (AllocCopyDer(&newDer, der, (word32)derSz, CERT_TYPE,
+            x509->heap) != 0) {
+        WOLFSSL_MSG("Failed to allocate DER buffer for X509");
+    }
+    FreeDer(&x509->derCert);
+    x509->derCert = newDer;
     WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return ret;
 }
 
 int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
@@ -18610,7 +18695,8 @@ int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
         ext_sk = ext_sk->next;
     }
 
-    return regenX509REQDerBuffer(req);
+    regenX509REQDerBuffer(req);
+    return WOLFSSL_SUCCESS;
 }
 
 int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
@@ -18763,6 +18849,9 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
         if (ret != WOLFSSL_SUCCESS)
             wolfSSL_X509_ATTRIBUTE_free(attr);
     }
+    if (ret == WOLFSSL_SUCCESS) {
+        regenX509REQDerBuffer(req);
+    }
 
     return ret;
 }
@@ -18779,12 +18868,20 @@ WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
 int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
                                       WOLFSSL_X509_NAME *name)
 {
-    return wolfSSL_X509_set_subject_name(req, name);
+    if (wolfSSL_X509_set_subject_name(req, name) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+    regenX509REQDerBuffer(req);
+    return WOLFSSL_SUCCESS;
 }
 
 int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
 {
-    return wolfSSL_X509_set_pubkey(req, pkey);
+    if (wolfSSL_X509_set_pubkey(req, pkey) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+    regenX509REQDerBuffer(req);
+    return WOLFSSL_SUCCESS;
 }
 #endif /* OPENSSL_ALL && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
 

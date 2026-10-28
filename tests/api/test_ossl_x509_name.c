@@ -419,6 +419,7 @@ int test_wolfSSL_X509_NAME_print_ex(void)
     membio = NULL;
 
     X509_free(x509);
+    x509 = NULL;
     BIO_free(bio);
     name = NULL;
 

@@ -22704,6 +22704,7 @@ static int test_othername_and_SID_ext(void)
     sid_oid = NULL;
     ASN1_OCTET_STRING_free(sid_data);
     X509_REQ_free(x509);
+    x509 = NULL;
     EVP_PKEY_free(priv);
 
     /* At this point everything used to generate what is in der is cleaned up.
