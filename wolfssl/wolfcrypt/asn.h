@@ -2170,6 +2170,14 @@ struct DecodedCert {
     /* WOLFSSL_X509_NAME structures (used void* to avoid including ssl.h) */
     void* issuerName;
     void* subjectName;
+    /* Encoded issuer and subject Names in source, for GetCertX509Name() */
+    const byte* issuerNameDer;
+    const byte* subjectNameDer;
+    word32      issuerNameDerSz;
+    word32      subjectNameDerSz;
+    /* WOLFSSL_X509_NAME to fill in when parsing a name instead of
+     * allocating one. Set by GetCertX509Name(). */
+    void* x509NameTarget;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #ifdef WOLFSSL_SEP
     int     deviceTypeSz;
@@ -2303,6 +2311,12 @@ struct DecodedCert {
                                          * TRUSTED CERTIFICATE auxiliary trust
                                          * info. */
     WC_BITFIELD selfIssued:1;           /* Issuer name matches subject name */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    WC_BITFIELD noX509Name:1;           /* don't build issuerName and
+                                         * subjectName when parsing. Use
+                                         * GetCertX509Name() to build them
+                                         * when needed. */
+#endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback     unknownExtCallback;
     wc_UnknownExtCallback32   unknownExtCallback32;
@@ -2547,6 +2561,11 @@ WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
 WOLFSSL_LOCAL int GetHashId(const byte* id, int length, byte* hash,
     int hashAlg);
 WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
+WOLFSSL_LOCAL int GetCertX509Name(DecodedCert* cert, int nameType,
+    void* target);
+#endif
 
 #ifdef ASN_BER_TO_DER
 WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,

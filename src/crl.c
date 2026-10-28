@@ -731,14 +731,31 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1);
 }
 
+/* Get the issuer X509_NAME of cert to pass to CheckCertCRLCm(). */
+static void* CertCrlIssuerName(DecodedCert* cert)
+{
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
+    !defined(NO_STDIO_FILESYSTEM) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    /* Used to load a CRL from the hash directory. The cert may have been
+     * parsed without its X509_NAMEs. */
+    (void)GetCertX509Name(cert, ASN_ISSUER, NULL);
+    return cert->issuerName;
+#elif defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    return cert->issuerName;
+#else
+    (void)cert;
+    return NULL;
+#endif
+}
+
 static int CheckDecodedCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
         WOLFSSL_CERT_MANAGER* cm, int canRetry)
 {
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    void* issuerName = cert->issuerName;
-#else
-    void* issuerName = NULL;
-#endif
+    void* issuerName = CertCrlIssuerName(cert);
+
     return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
             NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm,
             canRetry);
