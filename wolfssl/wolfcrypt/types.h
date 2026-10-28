@@ -956,12 +956,6 @@ enum {
             #endif
             #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), \
                 wolfSSL_Realloc((p), (n)))
-            #ifndef WC_XMEMALIGN_PORT_OVERRIDE
-                #define XMEMALIGN(a, s, h, t) ((void)(h), (void)(t), \
-                    wolfSSL_MemAlign((a), (s)))
-                #define XFREEALIGN(p, h, t) do { (void)(h); (void)(t); \
-                    wolfSSL_FreeAlign((p)); } while (0)
-            #endif
         #endif /* WOLFSSL_DEBUG_MEMORY */
     #endif /* WOLFSSL_STATIC_MEMORY */
 #endif
@@ -971,97 +965,16 @@ enum {
     #define WC_NO_CONSTRUCTORS
 #endif
 
-#if !defined(WOLFSSL_HAVE_POSIX_MEMALIGN) && !defined(WOLFSSL_NO_POSIX_MEMALIGN)
-    #if (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) || \
-        (defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE >= 600))
-        #define WOLFSSL_HAVE_POSIX_MEMALIGN
-    #endif
-#endif
-
-/* Bottommost aligned-allocation primitives.  One pair, one name; the
- * implementation is selected at compile time:
- *   - posix_memalign() (native heap) when sensed available and the build
- *     permits native heap use.  WC_XMEMALIGN_NATIVE is defined so upper
- *     layers (wolfSSL_MemAlign()) know the allocation bypasses
- *     XMALLOC/wolfSSL_Malloc() and can apply their own accounting.
- *   - otherwise, over-allocation via XMALLOC()/XFREE() with a word32 offset
- *     slot immediately below the returned pointer.  heap and tag are honored,
- *     keeping this correct over static pools, user allocators, and exotic
- *     ports.
- * Both branches share one alignment policy: alignments below sizeof(void *)
- * are floored to it, larger non-powers-of-2 are rejected (NULL). */
-#if defined(WC_XMEMALIGN_PORT_OVERRIDE)
-    /* Use definitions supplied by earlier include (e.g. linuxkm_wc_port.h or user_settings.h) */
-#elif defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
-    static WC_INLINE void *wc_xmemalign(size_t alignment, size_t req_size, void *heap, int tag) {
-        (void)alignment;
-        (void)req_size;
-        (void)heap;
-        (void)tag;
-        return NULL;
-    }
-    static WC_INLINE void wc_xfreealign(void *ptr, void *heap, int tag) {
-        (void)ptr;
-        (void)heap;
-        (void)tag;
-    }
-#elif !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
-      defined(WOLFSSL_HAVE_POSIX_MEMALIGN)
-    #define WC_XMEMALIGN_NATIVE
-    static WC_INLINE void *wc_xmemalign(size_t alignment, size_t size, void *heap, int tag) {
-        void *ret = NULL;
-        (void)heap;
-        (void)tag;
-        /* posix_memalign() EINVALs on alignments that are not power-of-2
-         * multiples of sizeof(void *), and sanitizers escalate that to an
-         * abort. */
-        if (alignment < sizeof(void *))
-            alignment = sizeof(void *);
-        else if ((alignment & (alignment - 1U)) != 0)
-            return NULL;
-        if (posix_memalign(&ret, alignment, size) != 0) /* native heap */
-            return NULL;
-        else
-            return ret;
-    }
-    #define wc_xfreealign(ptr, h, t) do { (void)(h); (void)(t); free(ptr); } while (0) /* native heap */
-#else
-    static WC_INLINE void *wc_xmemalign(size_t alignment, size_t req_size, void *heap, int tag) {
-        void *alloc;
-        char *ret;
-        size_t alloc_size;
-
-        /* silently tolerate pathologically small alignments, but reject larger
-         * unaligned alignments. */
-        if (alignment < sizeof(void *))
-            alignment = sizeof(void *);
-        else if ((alignment & (alignment-1U)) != 0)
-            return NULL;
-        alloc_size = req_size + sizeof(word32) + alignment - 1U;
-        if (alloc_size < req_size)
-            return NULL;
-        alloc = XMALLOC(alloc_size, heap, tag);
-        if (alloc == NULL)
-            return NULL;
-        ret = (char *)alloc + sizeof(word32) + alignment - 1U;
-        ret = (char *)((wc_ptr_t)ret & ~((wc_ptr_t)alignment - 1U));
-        *(word32 *)(void *)(ret - sizeof(word32)) = (word32)(ret - (char *)alloc);
-        return (void *)ret;
-    }
-    static WC_INLINE void wc_xfreealign(void *ptr, void *heap, int tag) {
-        (void)tag;
-        if (ptr != NULL) {
-            char *p = (char *)ptr;
-            XFREE(p - *(word32 *)(void *)(p - sizeof(word32)), heap, tag);
-        }
-    }
-#endif
-
+/* Bottommost aligned-allocation primitives.  By default these are
+ * wc_xmemalign()/wc_xfreealign() (memory.c), which over-allocate via
+ * XMALLOC()/XFREE() so heap and tag are honored, and so fail exactly when
+ * XMALLOC() does (e.g. WOLFSSL_NO_MALLOC without a usable allocator).  See
+ * the notes there. */
 #ifndef XMEMALIGN
+    /* Not a port override (e.g. linuxkm_wc_port.h or user_settings.h) or the
+     * WOLFSSL_DEBUG_MEMORY wolfSSL_MemAlign() binding. */
     #define XMEMALIGN(a, s, h, t) wc_xmemalign(a, s, h, t)
-#endif
-#ifndef XFREEALIGN
-    #define XFREEALIGN(p, h, t) wc_xfreealign(p, h, t)
+    #define XFREEALIGN(p, h, t) do { wc_xfreealign((p), (h), (t)); } while (0)
 #endif
 
 /* Reallocation with scrubbing and/or alignment guarantees, composed over the
@@ -1359,7 +1272,9 @@ enum {
     #define WC_CALLOC_VAR_ALIGNED(VAR_NAME, VAR_TYPE, VAR_ALIGN, VAR_SIZE, HEAP)    \
         do {                                                     \
             WC_ALLOC_VAR_ALIGNED(VAR_NAME, VAR_TYPE, VAR_ALIGN, VAR_SIZE, HEAP);    \
-            XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE) * (VAR_SIZE)); \
+            if ((VAR_NAME) != NULL) {                            \
+                XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE) * (VAR_SIZE)); \
+            }                                                    \
         } while (0)
 
     #define WC_FREE_VAR(VAR_NAME, HEAP) \
@@ -1371,7 +1286,6 @@ enum {
     #define WC_FREE_VAR_ALIGNED_EX(VAR_NAME, HEAP, TYPE) \
         XFREEALIGN(VAR_NAME, (HEAP), TYPE)
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
-        wc_static_assert(((VAR_SIZE) % sizeof(VAR_TYPE)) == 0); \
         WC_DECLARE_HEAP_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
     #define WC_DECLARE_ARRAY_ALIGNED(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_ALIGN, VAR_SIZE, HEAP) \
         wc_static_assert(((VAR_SIZE) % sizeof(VAR_TYPE)) == 0);               \
@@ -1394,9 +1308,23 @@ enum {
         WC_FREE_HEAP_ARRAY_ALIGNED(VAR_NAME, VAR_ITEMS, HEAP)
 #else
     #undef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    /* Stack _ALIGNED variants rely on XALIGNED(), so unlike the heap
+     * (XMEMALIGN()) variants, alignment is only as good as the compiler's:
+     * XALIGNED() is a null expansion on compilers without a known alignment
+     * attribute (e.g. Open Watcom), giving no alignment guarantee there.  IAR
+     * ARM cannot align stack variables beyond 8 bytes (see WOLFSSL_ALIGN()),
+     * so larger requests are rejected at compile time. */
+    #if defined(__ICCARM__)
+        #define WC_STACK_ALIGN_ASSERT(VAR_ALIGN) \
+            wc_static_assert((VAR_ALIGN) <= 8)
+    #else
+        #define WC_STACK_ALIGN_ASSERT(VAR_ALIGN) \
+            wc_static_assert((VAR_ALIGN) > 0)
+    #endif
     #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
         VAR_TYPE VAR_NAME[VAR_SIZE]
     #define WC_DECLARE_VAR_ALIGNED(VAR_NAME, VAR_TYPE, VAR_ALIGN, VAR_SIZE, HEAP) \
+        WC_STACK_ALIGN_ASSERT(VAR_ALIGN);                                     \
         XALIGNED(VAR_ALIGN) VAR_TYPE VAR_NAME[VAR_SIZE]
     #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) WC_DO_NOTHING
     #define WC_ALLOC_VAR_ALIGNED(VAR_NAME, VAR_TYPE, VAR_ALIGN, VAR_SIZE, HEAP) WC_DO_NOTHING
@@ -1408,11 +1336,11 @@ enum {
     #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)        \
         XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE))
     #define WC_CALLOC_VAR_ALIGNED(VAR_NAME, VAR_TYPE, VAR_ALIGN, VAR_SIZE, HEAP)        \
-        XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE))
+        XMEMSET(VAR_NAME, 0, sizeof(VAR_NAME))
     #define WC_CALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TY, ONFAIL)\
         XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE))
     #define WC_CALLOC_VAR_ALIGNED_EX(VAR_NAME, VAR_TYPE, VAR_ALIGN, VAR_SIZE, HEAP, TY, ONFAIL)\
-        XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE))
+        XMEMSET(VAR_NAME, 0, sizeof(VAR_NAME))
     #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING \
         /* nothing to free, it's stack */
     #define WC_FREE_VAR_ALIGNED(VAR_NAME, HEAP) WC_DO_NOTHING \
@@ -1425,6 +1353,7 @@ enum {
     #define WC_DECLARE_ARRAY_ALIGNED(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_ALIGN, VAR_SIZE, HEAP) \
         wc_static_assert(((VAR_SIZE) % sizeof(VAR_TYPE)) == 0);               \
         wc_static_assert(((VAR_SIZE) % (VAR_ALIGN)) == 0);    \
+        WC_STACK_ALIGN_ASSERT(VAR_ALIGN);                                     \
         XALIGNED(VAR_ALIGN) VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
         VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
