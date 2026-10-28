@@ -16477,6 +16477,8 @@ int GetCertX509Name(DecodedCert* cert, int nameType, void* target)
     WC_ALLOC_VAR_EX(tmp, DecodedCert, 1, cert->heap, DYNAMIC_TYPE_DCERT,
         return MEMORY_E);
     InitDecodedCert(tmp, der, derSz, cert->heap);
+    /* The name hash uses the hash of the signature algorithm (SM3 for SM2). */
+    tmp->signatureOID = cert->signatureOID;
     tmp->x509NameTarget = target;
     ret = GetName(tmp, nameType, (int)derSz);
     if ((ret == 0) && (target == NULL)) {
