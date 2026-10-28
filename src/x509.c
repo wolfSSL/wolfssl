@@ -6869,6 +6869,22 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 key->type = WC_EVP_PKEY_ED25519;
             }
         #endif
+        #if defined(OPENSSL_EXTRA) && defined(HAVE_ED448) && \
+            defined(HAVE_ED448_KEY_IMPORT)
+            else if (x509->pubKeyOID == ED448k) {
+                key->type = WC_EVP_PKEY_ED448;
+            }
+        #endif
+        #ifdef OPENSSL_EXTRA
+            else if (x509->pubKeyOID != ECDSAk && x509->pubKeyOID != SM2k) {
+                /* Other key types are decoded from the encoded key. */
+                const unsigned char* der = x509->pubKey.buffer;
+
+                wolfSSL_EVP_PKEY_free(key);
+                return wolfSSL_d2i_PUBKEY(NULL, &der,
+                    (long)x509->pubKey.length);
+            }
+        #endif
             else {
                 key->type = WC_EVP_PKEY_EC;
             }
@@ -6982,6 +6998,28 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 }
             }
             #endif /* HAVE_ED25519 */
+
+            /* decode Ed448 key */
+            #if defined(OPENSSL_EXTRA) && defined(HAVE_ED448) && \
+                defined(HAVE_ED448_KEY_IMPORT)
+            if (key->type == WC_EVP_PKEY_ED448) {
+                key->ed448 = wolfSSL_ED448_new(x509->heap, INVALID_DEVID);
+                if (key->ed448 == NULL) {
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+                key->ownEd448 = 1;
+
+                /* The X.509 public key buffer holds the raw Ed448 key. */
+                if (wc_ed448_import_public(
+                            (const unsigned char*)key->pkey.ptr,
+                            (word32)key->pkey_sz, key->ed448) != 0) {
+                    WOLFSSL_MSG("wc_ed448_import_public failed");
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+            }
+            #endif /* HAVE_ED448 */
 
             /* re-encode ML-DSA key */
             #if defined(WOLFSSL_HAVE_MLDSA) && \
