@@ -915,6 +915,13 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
     return WOLFSSL_SUCCESS;
 }
 
+/* Returns 1 if ECH was offered and not accepted by the server */
+int EchRejected(const WOLFSSL* ssl)
+{
+    return !ssl->options.disableECH && ssl->echConfigs != NULL &&
+        !ssl->options.echAccepted;
+}
+
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 #endif /* !WOLFSSL_SSL_ECH_INCLUDED */

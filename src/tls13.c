@@ -5206,7 +5206,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
         /* if ECH was rejected by the HRR then the server MUST stop
          * decrypting ECH, so send a GREASE ECH for the follow-up CH */
-        if (ssl->echConfigs != NULL && !ssl->options.echAccepted &&
+        if (EchRejected(ssl) &&
                 ssl->options.serverState ==
                     SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
             args->ech->state = ECH_WRITE_GREASE;
@@ -6438,8 +6438,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else {
 #if defined(HAVE_ECH)
             /* do not resume when outerHandshake will be negotiated */
-            if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-                    !ssl->options.echAccepted) {
+            if (EchRejected(ssl)) {
                 WOLFSSL_MSG("ECH rejected but server negotiated PSK");
                 return INVALID_PARAMETER;
             }
@@ -6741,15 +6740,17 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 #endif
 
 #ifdef WOLFSSL_CERT_SETUP_CB
-    if ((ret = CertSetupCbWrapper(ssl)) != 0)
+    if (
+        /* no client cert is sent when ECH is rejected */
+        !EchRejected(ssl) &&
+        (ret = CertSetupCbWrapper(ssl)) != 0)
         return ret;
 #endif
 
 #if defined(HAVE_ECH)
     /* RFC 9849 s6.1.7: ECH was offered but rejected by the server...
      * the client MUST respond with an empty Certificate message. */
-    if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-            !ssl->options.echAccepted) {
+    if (EchRejected(ssl)) {
         ssl->options.sendVerify = SEND_BLANK_CERT;
     }
     else
@@ -10810,6 +10811,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_SETUP_CB)
     /* call client cert callback if no cert has been loaded */
     if ((ssl->ctx->CBClientCert != NULL) &&
+        /* no client cert is sent when ECH is rejected */
+        !EchRejected(ssl) &&
         (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer)) {
         ret = ssl->ctx->CBClientCert(ssl, &x509, &pkey);
         if (ret == 1) {
@@ -14682,8 +14685,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 
 #ifdef HAVE_ECH
     /* ignore session ticket when ECH is rejected */
-    if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-            !ssl->options.echAccepted) {
+    if (EchRejected(ssl)) {
         *inOutIdx += size;
         return 0;
     }
@@ -17053,6 +17055,20 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FINISHED_DONE:
+        #if defined(HAVE_ECH)
+            /* RFC 9849 s6.1.6: if we offered ECH but the server rejected it,
+             * send ech_required alert and abort before returning to the app */
+            if (EchRejected(ssl)) {
+                if (ssl->echRetryConfigs != NULL) {
+                    ssl->options.echRetryConfigsAccepted = 1;
+                }
+                SendAlert(ssl, alert_fatal, ech_required);
+                ssl->error = ECH_REQUIRED_E;
+                WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        #endif /* HAVE_ECH */
+
         #ifndef NO_HANDSHAKE_DONE_CB
             if (ssl->hsDoneCb != NULL) {
                 int cbret = ssl->hsDoneCb(ssl, ssl->hsDoneCtx);
@@ -17064,21 +17080,6 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                 }
             }
         #endif /* NO_HANDSHAKE_DONE_CB */
-
-        #if defined(HAVE_ECH)
-            /* RFC 9849 s6.1.6: if we offered ECH but the server rejected it,
-             * send ech_required alert and abort before returning to the app */
-            if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-                    !ssl->options.echAccepted) {
-                if (ssl->echRetryConfigs != NULL) {
-                    ssl->options.echRetryConfigsAccepted = 1;
-                }
-                SendAlert(ssl, alert_fatal, ech_required);
-                ssl->error = ECH_REQUIRED_E;
-                WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);
-                return WOLFSSL_FATAL_ERROR;
-            }
-        #endif /* HAVE_ECH */
 
             if (!ssl->options.keepResources) {
                 FreeHandshakeResources(ssl);
