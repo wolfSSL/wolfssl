@@ -1244,6 +1244,42 @@ int test_wolfSSL_BIO_get_len(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_BIO_read_filename(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && !defined(NO_FILESYSTEM)
+    const char* missing = "./certs/does-not-exist.pem";
+    BIO* bio = NULL;
+    XFILE f = XBADFILE;
+    XFILE fp = XBADFILE;
+    byte buf[16];
+
+    /* The old file is dropped even when the new one can't be opened. */
+    ExpectNotNull(bio = BIO_new_file(svrCertFile, "rb"));
+    ExpectIntLE(BIO_read_filename(bio, missing), 0);
+    ExpectIntEQ((int)BIO_get_fp(bio, &fp), WOLFSSL_SUCCESS);
+    ExpectTrue(fp == XBADFILE);
+    ExpectIntEQ(BIO_read_filename(bio, caCertFile), WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_read(bio, buf, sizeof(buf)), sizeof(buf));
+    BIO_free(bio);
+    bio = NULL;
+
+    /* A BIO_NOCLOSE file is not closed. */
+    ExpectTrue((f = XFOPEN(svrCertFile, "rb")) != XBADFILE);
+    ExpectNotNull(bio = BIO_new_fp(f, BIO_NOCLOSE));
+    ExpectIntEQ(BIO_read_filename(bio, caCertFile), WOLFSSL_SUCCESS);
+    BIO_free(bio);
+    bio = NULL;
+    ExpectNotNull(bio = BIO_new_fp(f, BIO_NOCLOSE));
+    ExpectIntLE(BIO_read_filename(bio, missing), 0);
+    BIO_free(bio);
+    ExpectIntEQ(XFREAD(buf, 1, sizeof(buf), f), sizeof(buf));
+    if (f != XBADFILE)
+        XFCLOSE(f);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
 static long bioCallback(BIO *bio, int cmd, const char* argp, int argi,
                  long argl, long ret)
