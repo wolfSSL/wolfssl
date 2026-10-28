@@ -3576,7 +3576,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         XMEMCPY(dst, src, sizeof(wc_Sha224));
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
-        dst->W = (word32*)XMALLOC(sizeof(Sha256TScratch),
+        dst->W = (word32*)XMALLOC(WC_SHA256_TSCRATCH_SIZE,
                                   dst->heap, DYNAMIC_TYPE_DIGEST);
         if (dst->W == NULL) {
             ForceZero(dst, sizeof(wc_Sha224));
@@ -3740,7 +3740,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-    dst->W = (word32*)XMALLOC(sizeof(Sha256TScratch),
+    dst->W = (word32*)XMALLOC(WC_SHA256_TSCRATCH_SIZE,
                               dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
         ForceZero(dst, sizeof(wc_Sha256));

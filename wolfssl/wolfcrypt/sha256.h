@@ -135,7 +135,9 @@
  * supply at least this much; sha256.c statically asserts this matches the
  * struct.  SHA256_MANY_REGISTERS must be defined globally (settings.h or
  * user_settings.h), never per-TU, or providers and the transform disagree
- * on this size. */
+ * on this size.  The macro's name is itself interface: external
+ * integrators -- notably wolfBoot's static allocator -- size their
+ * buffers by it and gate on its presence, so do not rename it. */
 #ifdef SHA256_MANY_REGISTERS
     #define WC_SHA256_TSCRATCH_SIZE \
         (WC_SHA256_BLOCK_SIZE + 8 * sizeof(word32))
