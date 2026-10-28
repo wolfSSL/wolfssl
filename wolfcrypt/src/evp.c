@@ -5225,9 +5225,17 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
 #ifdef HAVE_ECC
     else if (ctx->pctx->pkey->type == WC_EVP_PKEY_EC) {
         if (sig == NULL) {
-            /* SEQ + INT + INT */
-            *siglen = (size_t)ecc_sets[ctx->pctx->pkey->ecc->group->curve_idx].
-                size * 2 + 8;
+            WOLFSSL_EC_KEY* key = ctx->pctx->pkey->ecc;
+            int sigSz;
+
+            if (key == NULL || (key->inSet == 0 &&
+                    SetECKeyInternal(key) != WOLFSSL_SUCCESS)) {
+                return WOLFSSL_FAILURE;
+            }
+            sigSz = wc_ecc_sig_size((ecc_key*)key->internal);
+            if (sigSz <= 0)
+                return WOLFSSL_FAILURE;
+            *siglen = (size_t)sigSz;
             return WOLFSSL_SUCCESS;
         }
     }
@@ -5277,8 +5285,10 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
             len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, NULL);
             if (len > 0 && (size_t)len <= *siglen)
                 len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
+            else
+                len = 0;
             wolfSSL_ECDSA_SIG_free(ecdsaSig);
-            if (len == 0)
+            if (len <= 0)
                 break;
             *siglen = (size_t)len;
             ret = WOLFSSL_SUCCESS;

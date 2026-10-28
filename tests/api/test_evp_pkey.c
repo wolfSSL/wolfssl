@@ -2440,6 +2440,12 @@ int test_wolfSSL_EVP_MD_ecc_signing(void)
                                           (unsigned int)XSTRLEN(testData)), 1);
     checkSz = sizeof(check);
     ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+    ExpectIntEQ((int)checkSz, wolfSSL_EVP_PKEY_size(privKey));
+    /* A buffer too small for the signature is an error. */
+    checkSz = 8;
+    ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 0);
+    ExpectIntEQ((int)checkSz, 8);
+    ExpectIntEQ(check[0], 0);
     checkSz = sizeof(check);
     ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
     ret = wolfSSL_EVP_MD_CTX_cleanup(&mdCtx);
@@ -2483,6 +2489,43 @@ int test_wolfSSL_EVP_MD_ecc_signing(void)
 
     wolfSSL_EVP_PKEY_free(pubKey);
     wolfSSL_EVP_PKEY_free(privKey);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_DigestSignFinal_ecc_size(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    defined(HAVE_ECC_BRAINPOOL) && \
+    (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 512
+    WOLFSSL_EC_KEY* ecKey = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    size_t sigSz = 0;
+    int ret;
+
+    ExpectNotNull(ecKey = wolfSSL_EC_KEY_new_by_curve_name(
+        NID_brainpoolP512r1));
+    ExpectIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(wolfSSL_EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
+    if (EXPECT_FAIL()) {
+        wolfSSL_EC_KEY_free(ecKey);
+    }
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+        NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &sigSz), 1);
+    /* r and s may need a leading zero and the SEQ length is two bytes. */
+    ExpectIntEQ((int)sigSz, 137);
+    ExpectIntEQ((int)sigSz, wolfSSL_EVP_PKEY_size(pkey));
+    ret = wolfSSL_EVP_MD_CTX_cleanup(&mdCtx);
+    ExpectIntEQ(ret, 1);
+
+    wolfSSL_EVP_PKEY_free(pkey);
 #endif
     return EXPECT_RESULT();
 }
