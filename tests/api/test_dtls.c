@@ -4626,7 +4626,9 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
     int i;
     int fd = wolfSSL_get_wfd(ssl);
     int ret = wolfSSL_connect_cert(ssl); /* This gets us past the cookie */
-    word32 seq_number = 100; /* start high so server definitely reads this */
+    /* Use the client's own next record numbers and move its counter past them,
+     * so the server's replay window does not pass the client's genuine ones. */
+    word32 seq_number = ssl->keys.dtls_sequence_number_lo;
     word16 msg_number = 50; /* start high so server has to buffer this */
     AssertIntEQ(ret, 1);
     /* Now let's start spamming the peer with fragments it needs to store */
@@ -4646,14 +4648,14 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
     seq_offset = idx + 2; /* increment only the low 32 bits */
     idx += 6;
     /* static length in BE */
-    c16toa(42, b + idx);
+    c16toa(DTLS_HANDSHAKE_HEADER_SZ + 1000, b + idx);
     idx += 2;
 
     /* handshake layer */
     /* cert type */
     b[idx++] = 11;
     /* length */
-    c32to24(1000, b + idx);
+    c32to24(2000, b + idx);
     idx += 3;
     /* message seq */
     c16toa(0, b + idx);
@@ -4663,27 +4665,32 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
     c32to24(500, b + idx);
     idx += 3;
     /* frag length */
-    c32to24(30, b + idx);
+    c32to24(1000, b + idx);
     idx += 3;
     (void)idx; /* inhibit clang-analyzer-deadcode.DeadStores */
 
-    for (i = 0; i < DTLS_POOL_SZ * 2 && ret > 0;
+    /* More than the receive budget holds */
+    for (i = 0; i < (int)(WOLFSSL_DTLS_RX_MAX_BYTES / 1000) + 10 && ret > 0;
             seq_number++, msg_number++, i++) {
         struct timespec delay;
         XMEMSET(&delay, 0, sizeof(delay));
         delay.tv_nsec = 10000000; /* wait 0.01 seconds */
         c32toa(seq_number, b + seq_offset);
         c16toa(msg_number, b + msg_offset);
-        ret = (int)send(fd, (MESSAGE_TYPE_CAST)b, 55, 0);
+        ret = (int)send(fd, (MESSAGE_TYPE_CAST)b,
+            DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + 1000, 0);
         nanosleep(&delay, NULL);
     }
+    ssl->keys.dtls_sequence_number_lo = seq_number;
 }
 
 #ifdef WOLFSSL_DTLS13
 static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
 {
-    const word16 sendCountMax = 100;
-    byte b[150]; /* buffer for the messages to send */
+    /* More than the receive budget holds */
+    const word16 sendCountMax =
+        (word16)(10 + WOLFSSL_DTLS_RX_MAX_BYTES / 1000 + 10);
+    byte b[1100]; /* buffer for the messages to send */
     size_t idx = 0;
     size_t msg_offset = 0;
     int fd = wolfSSL_get_wfd(ssl);
@@ -4705,13 +4712,13 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
     c32to24(5000, b + idx);
     idx += 3;
     /* fragment_length */
-    c32to24(100, b + idx);
+    c32to24(1000, b + idx);
     idx += 3;
     /* fragment contents */
-    idx += 100;
+    idx += 1000;
 
     for (; ret > 0 && msg_number < sendCountMax; msg_number++) {
-        byte sendBuf[150];
+        byte sendBuf[1200];
         int sendSz = sizeof(sendBuf);
         struct timespec delay;
         XMEMSET(&delay, 0, sizeof(delay));
@@ -4736,14 +4743,15 @@ int test_wolfSSL_dtls_fragments(void)
         method_provider client_meth;
         method_provider server_meth;
         ssl_callback spammer;
+        int authenticated; /* the spam is in an encrypted epoch */
     } params[] = {
 #if !defined(WOLFSSL_NO_TLS12)
         {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
-                test_wolfSSL_dtls12_fragments_spammer},
+                test_wolfSSL_dtls12_fragments_spammer, 0},
 #endif
 #ifdef WOLFSSL_DTLS13
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
-                test_wolfSSL_dtls13_fragments_spammer},
+                test_wolfSSL_dtls13_fragments_spammer, 1},
 #endif
     };
 
@@ -4774,16 +4782,22 @@ int test_wolfSSL_dtls_fragments(void)
                 ExpectIntEQ(func_cb_client.last_err, WC_NO_ERR_TRACE(SOCKET_ERROR_E));
             }
         }
-        /* Check the server returned an error indicating the msg buffer
-         * was full.
+        /* The flood exceeds the receive budget. Plaintext DTLS 1.2
+         * fragments could come from anyone: the server drops what does not
+         * fit and completes. The DTLS 1.3 ones are authenticated, so the
+         * server fails with DTLS_TOO_MANY_FRAGMENTS_E.
          *
          * Under slow execution (e.g. valgrind + noasm), the real handshake
          * from wolfSSL_negotiate() may complete before enough spam fragments
          * accumulate to trigger DTLS_TOO_MANY_FRAGMENTS_E. Accept both
-         * outcomes: server hit the fragment limit, or completed normally.
+         * outcomes there: server hit the budget, or completed normally.
          */
-        if (func_cb_server.return_code == TEST_FAIL) {
-            ExpectIntEQ(func_cb_server.last_err, WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+        if (!params[i].authenticated) {
+            ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+        }
+        else if (func_cb_server.return_code == TEST_FAIL) {
+            ExpectIntEQ(func_cb_server.last_err,
+                WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
         }
 
         if (EXPECT_FAIL())
@@ -5768,6 +5782,147 @@ int test_wolfSSL_DtlsUpdateWindow(void)
 }
 #endif /* WOLFSSL_DTLS */
 
+/* RX admission counts retained allocations, not messages or fragments. */
+int test_wolfSSL_DTLS_rx_bytes(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_DTLS
+    WOLFSSL* ssl = NULL;
+    byte* data = NULL;
+    DtlsMsg* msg = NULL;
+    byte* raw = NULL;
+    size_t base = sizeof(DtlsMsg) + sizeof(DtlsFragBucket);
+    word32 len = (word32)(WOLFSSL_DTLS_RX_MAX_BYTES - base);
+    word32 i;
+
+    ExpectNotNull(ssl = (WOLFSSL*)XMALLOC(sizeof(WOLFSSL), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(data = (byte*)XMALLOC(WOLFSSL_DTLS_RX_MAX_BYTES, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_FAIL()) {
+        XFREE(ssl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return EXPECT_RESULT();
+    }
+    XMEMSET(ssl, 0, sizeof(*ssl));
+    XMEMSET(data, 0x5a, WOLFSSL_DTLS_RX_MAX_BYTES);
+    ssl->options.dtlsStateful = 1;
+    ExpectIntEQ(DtlsMsgListRetainedBytes(NULL), 0);
+    /* Separate one-byte buckets cost a header each; bridging releases one. */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 0, 1,
+        NULL), 0);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), base + 1);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 3, 1,
+        NULL), 0);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+        base + sizeof(DtlsFragBucket) + 2);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 1, 2,
+        NULL), 0);
+    ExpectNotNull(msg = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(msg->ready, 1);
+    ExpectNull(msg->fragBucketList);
+    ExpectNotNull(raw = msg->raw);
+    ExpectBufEQ(msg->fullMsg, data, 4);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), base + 4);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 0, 4,
+        NULL), 0);
+    ExpectPtrEq(msg->raw, raw);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), base + 4);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+    ssl->dtls_rx_msg_list_bytes = 0;
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), 0);
+
+    /* Exactly full is admitted. Neither new entries nor growth may evict. */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len + 1, certificate,
+        0, len, NULL), 0);
+    ExpectNotNull(msg = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), WOLFSSL_DTLS_RX_MAX_BYTES);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, 1, certificate, 0, 1, NULL),
+        DTLS_TOO_MANY_FRAGMENTS_E);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len + 1, certificate,
+        len, 1, NULL), DTLS_TOO_MANY_FRAGMENTS_E);
+    ExpectPtrEq(ssl->dtls_rx_msg_list, msg);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectIntEQ(msg->bytesReceived, len);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), WOLFSSL_DTLS_RX_MAX_BYTES);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+    ssl->dtls_rx_msg_list_bytes = 0;
+
+    /* Fill with tiny messages: metadata, not an old count cap, is the limit. */
+    for (i = 0; i < WOLFSSL_DTLS_RX_MAX_BYTES / (base + 1) &&
+            EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, i, data, 1, certificate, 0, 1,
+            NULL), 0);
+        ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+            (i + 1) * (base + 1));
+    }
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, i);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_bytes,
+        DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list));
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, i, data, 1, certificate, 0, 1, NULL),
+        DTLS_TOO_MANY_FRAGMENTS_E);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, i);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+    ssl->dtls_rx_msg_list_bytes = 0;
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), 0);
+
+    /* A merge that reduces retained bytes must succeed even at capacity. */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 0, 1,
+        NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 3, 1,
+        NULL), 0);
+    len = (word32)(WOLFSSL_DTLS_RX_MAX_BYTES - 2 * base -
+        sizeof(DtlsFragBucket) - 2);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, len, certificate, 0, len,
+        NULL), 0);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+        WOLFSSL_DTLS_RX_MAX_BYTES);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 1, 2,
+        NULL), 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+        WOLFSSL_DTLS_RX_MAX_BYTES - sizeof(DtlsFragBucket) + 2);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_bytes,
+        DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list));
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+    ssl->dtls_rx_msg_list_bytes = 0;
+
+    /* At most DTLS_FRAG_POOL_SZ buckets: a fragment opening one more gap is
+     * dropped, one touching a bucket is still taken. */
+    for (i = 0; i < DTLS_FRAG_POOL_SZ && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4 * DTLS_FRAG_POOL_SZ,
+            certificate, 4 * i, 1, NULL), 0);
+    }
+    ExpectNotNull(msg = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4 * DTLS_FRAG_POOL_SZ,
+        certificate, 2, 1, NULL), DTLS_MSG_STORE_DROPPED);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(msg->bytesReceived, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4 * DTLS_FRAG_POOL_SZ,
+        certificate, 1, 1, NULL), 0);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4 * DTLS_FRAG_POOL_SZ,
+        certificate, 2, 2, NULL), 0);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ - 1);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), sizeof(DtlsMsg) +
+        (DTLS_FRAG_POOL_SZ - 1) * sizeof(DtlsFragBucket) +
+        DTLS_FRAG_POOL_SZ + 3);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ssl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #ifdef WOLFSSL_DTLS
 static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
         word32 f_len, word32 f_count, byte ready, word32 bytesReceived)
@@ -5789,7 +5944,8 @@ static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
     ExpectIntLE(f_offset + f_len, sizeof(msg));
 
     if (EXPECT_SUCCESS())
-        DtlsMsgStore(ssl, 0, seq, msg + f_offset, len, certificate, f_offset, f_len, NULL);
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, seq, msg + f_offset, len,
+            certificate, f_offset, f_len, NULL), 0);
 
     ExpectNotNull(ssl->dtls_rx_msg_list);
 
@@ -5930,6 +6086,7 @@ int test_wolfSSL_DTLS_fragment_buckets(void)
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
     ssl->dtls_rx_msg_list = NULL;
     ssl->dtls_rx_msg_list_sz = 0;
+    ssl->dtls_rx_msg_list_bytes = 0;
     return EXPECT_RESULT();
 }
 
@@ -5986,6 +6143,7 @@ static void dfbr_free_list(WOLFSSL* ssl)
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
     ssl->dtls_rx_msg_list = NULL;
     ssl->dtls_rx_msg_list_sz = 0;
+    ssl->dtls_rx_msg_list_bytes = 0;
 }
 
 /* Check msg against the coverage bitmap and the source pattern. */
@@ -6127,7 +6285,7 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
             if (failed) {
                 /* Either an allocation failed or none was needed */
                 ExpectTrue(ret == 0 || ret == WC_NO_ERR_TRACE(MEMORY_ERROR) ||
-                        ret == WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+                        ret == DTLS_MSG_STORE_DROPPED);
                 ExpectIntEQ(dfbr_fail,
                         ret == WC_NO_ERR_TRACE(MEMORY_ERROR) ? 0 : 1);
                 dfbr_fail = 0;
@@ -6135,8 +6293,7 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
             else
 #endif
             {
-                ExpectTrue(ret == 0 ||
-                        ret == WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+                ExpectTrue(ret == 0 || ret == DTLS_MSG_STORE_DROPPED);
             }
             if (ret == 0) {
                 for (i = off; i < off + fsz; i++)
@@ -6355,9 +6512,12 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
             NULL), 0);
     ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
     ExpectIntEQ(msg->bytesReceived, 20);
-    /* Corrupt the count so the next fragment appears to complete the msg */
-    if (msg != NULL)
+    /* Corrupt the count so the next fragment appears to complete the msg.
+     * The list's byte count follows it. */
+    if (msg != NULL) {
         msg->bytesReceived = 25;
+        ssl->dtls_rx_msg_list_bytes += 5;
+    }
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 10, 30, certificate, 10, 5,
             NULL), WC_NO_ERR_TRACE(BAD_STATE_E));
     ExpectNull(msg->fragBucketList);
@@ -6386,11 +6546,10 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
         ExpectIntEQ(msg->bytesReceived, DTLS_FRAG_POOL_SZ);
         /* Disjoint after the last bucket */
         ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 1, len,
-                certificate, len - 1, 1, NULL),
-                WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+                certificate, len - 1, 1, NULL), DTLS_MSG_STORE_DROPPED);
         /* Disjoint before the first bucket */
         ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0, 1,
-                NULL), WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+                NULL), DTLS_MSG_STORE_DROPPED);
         ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
         ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0,
                 len - 2, NULL), 0);
