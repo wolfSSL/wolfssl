@@ -3845,7 +3845,16 @@ static int ecc_sp_mulmod(const mp_int* k, ecc_point* G, ecc_point* R,
     default:
         return NOT_COMPILED_IN;
     }
-    if (mp_count_bits(k) > bits) {
+    /* The SP code takes a non-negative scalar no longer than the curve and
+     * coordinates already reduced modulo the prime; it would truncate wider
+     * values. Leave anything else to the generic code, which reduces them. */
+    if (mp_isneg(k) || (mp_count_bits(k) > bits)) {
+        return NOT_COMPILED_IN;
+    }
+    if (mp_isneg(G->x) || mp_isneg(G->y) || mp_isneg(G->z) ||
+            (mp_cmp(G->x, modulus) != MP_LT) ||
+            (mp_cmp(G->y, modulus) != MP_LT) ||
+            (mp_cmp(G->z, modulus) != MP_LT)) {
         return NOT_COMPILED_IN;
     }
     idx = wc_ecc_get_curve_idx(curveId);

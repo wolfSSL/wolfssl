@@ -3673,6 +3673,17 @@ int test_wc_ecc_mulmod_curves(void)
         ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
             &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
         ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
+        /* The same base point with x + prime in place of x, a coordinate
+         * that is not reduced (and wider than the curve for most primes),
+         * must give the same result. WOLFSSL_SP_MATH builds reject
+         * coordinates wider than the curve instead. */
+        ExpectIntEQ(mp_add(key2.pubkey.x, key4.pubkey.y, key2.pubkey.x),
+            MP_OKAY);
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #endif
         tested++;
 
         wc_ecc_free(&key1);
