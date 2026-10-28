@@ -17564,6 +17564,12 @@ PRAGMA_GCC_DIAG_POP
      * wc_CheckCertSignature() above, so it could not record the result. */
     if (args->dCert != NULL) {
         args->dCert->sigVerified = (verify == VERIFY_NAME) && (sigRet == 0);
+    #ifdef WOLFSSL_DUAL_ALG_CERTS
+        /* wc_CheckCertSignature() checks the primary signature only. */
+        if (args->dCert->extAltSigAlgSet && args->dCert->extAltSigValSet) {
+            args->dCert->sigVerified = 0;
+        }
+    #endif
     }
 #endif
 
