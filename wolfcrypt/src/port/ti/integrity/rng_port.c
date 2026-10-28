@@ -23,17 +23,25 @@
 
 #include <wolfssl/wolfcrypt/port/ti/integrity/rng_iodevice.h>
 
-static IODevice gRngDev = NULL;
+static volatile IODevice gRngDev = NULL;
 
+/* Several tasks may seed at once: each one that finds no handle requests
+ * its own, and only the first to finish publishes it (TestAndSet); the
+ * others close theirs and use the published one. */
 static int rng_iodevice_open(void)
 {
+    IODevice dev = NULL;
+
     if (gRngDev != NULL) {
         return 0;
     }
-    if (RequestResource((Object *)&gRngDev, RNG_IODEVICE_NAME,
+    if (RequestResource((Object *)&dev, RNG_IODEVICE_NAME,
             "!systempassword") != Success) {
-        gRngDev = NULL;
         return -1;
+    }
+    if (TestAndSet((volatile Address *)&gRngDev, (Address)NULL,
+            (Address)dev) != Success) {
+        (void)CloseIODevice(dev);
     }
     return 0;
 }
