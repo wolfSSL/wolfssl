@@ -23095,7 +23095,7 @@ static int test_wolfSSL_i2d_SSL_SESSION_peer_auth(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE) && \
-    !defined(NO_SESSION_CACHE)
+    !defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_SESSION* restored = NULL;
     unsigned char* der = NULL;

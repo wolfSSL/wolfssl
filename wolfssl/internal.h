@@ -5426,11 +5426,13 @@ struct WOLFSSL_SESSION {
                              * WOLFSSL_MFL_2_8  (6) */
 #endif /* HAVE_MAX_FRAGMENT */
     byte               isSetup:1;
+#ifndef NO_WOLFSSL_SERVER
     /* Client presented a certificate and proved key possession. Server
      * sessions only. */
     byte               peerAuthOk:1;
     /* A PSK authenticated the client. Server sessions only. */
     byte               isPSK:1;
+#endif
 };
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \

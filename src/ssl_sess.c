@@ -2953,8 +2953,10 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+#ifndef NO_WOLFSSL_SERVER
     /* peerAuthOk and isPSK */
     size += OPAQUE8_LEN;
+#endif
 
     if (p != NULL) {
         unsigned char *data;
@@ -3050,7 +3052,9 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+#ifndef NO_WOLFSSL_SERVER
         data[idx++] = (byte)(sess->peerAuthOk | (sess->isPSK << 1));
+#endif
     }
 #endif
 
@@ -3362,6 +3366,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+#ifndef NO_WOLFSSL_SERVER
     if (i - idx < OPAQUE8_LEN) {
         ret = BUFFER_ERROR;
         goto end;
@@ -3369,6 +3374,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     s->peerAuthOk = (data[idx] & 0x01) != 0;
     s->isPSK = (data[idx] & 0x02) != 0;
     idx++;
+#endif
 
     if (sess != NULL) {
         wolfSSL_FreeSession(NULL, *sess);
@@ -3946,6 +3952,7 @@ void SetupSession(WOLFSSL* ssl)
      * a different statement that nothing reads. A full handshake records its
      * own outcome; a resumed one keeps what it inherited unless post-handshake
      * auth added a certificate. */
+#ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         if (!ssl->options.resuming) {
             session->peerAuthOk = 0;
@@ -3958,6 +3965,7 @@ void SetupSession(WOLFSSL* ssl)
         session->peerAuthOk = 0;
         session->isPSK = 0;
     }
+#endif
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
      * id. */

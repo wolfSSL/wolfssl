@@ -4071,6 +4071,81 @@ int test_tls13_resume_ticket_fail_except_psk_post_handshake(void)
     return EXPECT_RESULT();
 }
 
+/* A ticket from an external-PSK connection keeps its exemption through
+ * post-handshake auth. */
+int test_tls13_resume_psk_ticket_fail_except_psk_post_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_PSK) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "hello wolfssl!";
+    char readBuf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_allow_post_handshake_auth(ctx_c), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_psk_client_callback(ssl_c, test_clear_psk_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_clear_psk_server_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Only the ticket is offered this time. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_EXCEPT_PSK | WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.usingPSK_cipher, 1);
+        ExpectIntEQ(ssl_s->session->isPSK, 1);
+    }
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The certificate-less client answers with an empty Certificate. */
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf) - 1),
+        (int)sizeof(msg) - 1);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->error, 0);
+        ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* The other half: a ticket from an external-PSK session carries the PSK, so
  * failNoCertxPSK still excuses it, and so does the ticket that resumption
  * issues in turn. */

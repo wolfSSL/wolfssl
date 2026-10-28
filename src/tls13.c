@@ -7166,6 +7166,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             ret = SetCipherSpecs(ssl);
             if (ret != 0)
                 goto cleanup;
+            /* TLS 1.3 suites do not record it, so restore it from the ticket. */
+            ssl->options.usingPSK_cipher = ssl->session->isPSK;
 
             /* Resumption PSK is resumption master secret. */
             ssl->arrays->psk_keySz = ssl->specs.hash_size;

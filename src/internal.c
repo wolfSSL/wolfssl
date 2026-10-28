@@ -44533,8 +44533,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         it->suite[1] = ssl->options.cipherSuite;
 
         it->peerAuthOk = (byte)SSL_PEER_CERT_VERIFIED(ssl);
-        it->isPSK = (byte)(ssl->options.usingPSK_cipher ||
-            (ssl->options.resuming && ssl->session->isPSK));
+        it->isPSK = (byte)ssl->options.usingPSK_cipher;
 
     #ifdef WOLFSSL_EARLY_DATA
         c32toa(ssl->options.maxEarlyDataSz, it->maxEarlyDataSz);

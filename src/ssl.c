@@ -5809,8 +5809,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         else if (ssl->options.side == WOLFSSL_SERVER_END) {
             ssl->session->haveAltSessionID = 0;
             ForceZero(ssl->session->altSessionID, ID_LEN);
+#ifndef NO_WOLFSSL_SERVER
             ssl->session->peerAuthOk = 0;
             ssl->session->isPSK = 0;
+#endif
         #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
             ssl->session->ticketNonce.len = 0;
         #endif
