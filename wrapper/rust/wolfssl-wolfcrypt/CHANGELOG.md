@@ -64,6 +64,13 @@ Fixes and improvements:
   4112-byte buffer on the stack for every call and no longer limits messages to
   4096 bytes. Decryption now verifies the authentication tag before decrypting,
   so the caller's buffer is left unmodified when verification fails
+- XChaCha20Poly1305Aead's AeadInPlace implementation now absorbs and pads the
+  AAD itself instead of passing it to wc_XChaCha20Poly1305_Init(). The wolfSSL
+  fix that makes that function usable with the streaming API (it now leaves
+  the AAD pad to wc_ChaCha20Poly1305_UpdateData()/Final()) would otherwise
+  have made this path produce wrong authentication tags for any AAD whose
+  length is not a multiple of 16; the wrapper now produces correct tags with
+  wolfSSL releases from before and after that fix
 - The rsa_oaep feature (RSA::public_encrypt_oaep(),
   RSA::private_decrypt_oaep() and the rsa_oaep module) is no longer enabled
   when wolfSSL is built with WC_NO_RSA_OAEP. Previously it failed to link, or

@@ -351,6 +351,143 @@ int test_wc_XChaCha20Poly1305_BadAuthTag(void)
 
 /* Monte Carlo test for ChaCha20-Poly1305: random key, nonce, and plaintext
  * each iteration */
+/*
+ * Streaming XChaCha20-Poly1305 against the draft-irtf-cfrg-xchacha A.3.1
+ * vector that test_wc_XChaCha20Poly1305_aead checks the one-shot API with.
+ * AAD given to wc_XChaCha20Poly1305_Init must be authenticated exactly as AAD
+ * given to wc_ChaCha20Poly1305_UpdateAad, the tag must not depend on how the
+ * data is chunked, and a record with no AAD and no data must finalize to the
+ * tag the one-shot API produces.
+ */
+int test_wc_XChaCha20Poly1305_Stream(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_POLY1305) && defined(HAVE_XCHACHA)
+    static const byte key[CHACHA20_POLY1305_AEAD_KEYSIZE] = {
+        0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+        0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+        0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+        0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f
+    };
+    static const byte nonce[XCHACHA20_POLY1305_AEAD_NONCE_SIZE] = {
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+        0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57
+    };
+    static const byte aad[12] = {
+        0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3,
+        0xc4, 0xc5, 0xc6, 0xc7
+    };
+    static const byte plaintext[114] = {
+        0x4c, 0x61, 0x64, 0x69, 0x65, 0x73, 0x20, 0x61,
+        0x6e, 0x64, 0x20, 0x47, 0x65, 0x6e, 0x74, 0x6c,
+        0x65, 0x6d, 0x65, 0x6e, 0x20, 0x6f, 0x66, 0x20,
+        0x74, 0x68, 0x65, 0x20, 0x63, 0x6c, 0x61, 0x73,
+        0x73, 0x20, 0x6f, 0x66, 0x20, 0x27, 0x39, 0x39,
+        0x3a, 0x20, 0x49, 0x66, 0x20, 0x49, 0x20, 0x63,
+        0x6f, 0x75, 0x6c, 0x64, 0x20, 0x6f, 0x66, 0x66,
+        0x65, 0x72, 0x20, 0x79, 0x6f, 0x75, 0x20, 0x6f,
+        0x6e, 0x6c, 0x79, 0x20, 0x6f, 0x6e, 0x65, 0x20,
+        0x74, 0x69, 0x70, 0x20, 0x66, 0x6f, 0x72, 0x20,
+        0x74, 0x68, 0x65, 0x20, 0x66, 0x75, 0x74, 0x75,
+        0x72, 0x65, 0x2c, 0x20, 0x73, 0x75, 0x6e, 0x73,
+        0x63, 0x72, 0x65, 0x65, 0x6e, 0x20, 0x77, 0x6f,
+        0x75, 0x6c, 0x64, 0x20, 0x62, 0x65, 0x20, 0x69,
+        0x74, 0x2e
+    };
+    /* Expected ciphertext followed by the 16-byte tag */
+    static const byte expected[114 + POLY1305_DIGEST_SIZE] = {
+        0xbd, 0x6d, 0x17, 0x9d, 0x3e, 0x83, 0xd4, 0x3b, 0x95, 0x76, 0x57, 0x94,
+        0x93, 0xc0, 0xe9, 0x39, 0x57, 0x2a, 0x17, 0x00, 0x25, 0x2b, 0xfa, 0xcc,
+        0xbe, 0xd2, 0x90, 0x2c, 0x21, 0x39, 0x6c, 0xbb, 0x73, 0x1c, 0x7f, 0x1b,
+        0x0b, 0x4a, 0xa6, 0x44, 0x0b, 0xf3, 0xa8, 0x2f, 0x4e, 0xda, 0x7e, 0x39,
+        0xae, 0x64, 0xc6, 0x70, 0x8c, 0x54, 0xc2, 0x16, 0xcb, 0x96, 0xb7, 0x2e,
+        0x12, 0x13, 0xb4, 0x52, 0x2f, 0x8c, 0x9b, 0xa4, 0x0d, 0xb5, 0xd9, 0x45,
+        0xb1, 0x1b, 0x69, 0xb9, 0x82, 0xc1, 0xbb, 0x9e, 0x3f, 0x3f, 0xac, 0x2b,
+        0xc3, 0x69, 0x48, 0x8f, 0x76, 0xb2, 0x38, 0x35, 0x65, 0xd3, 0xff, 0xf9,
+        0x21, 0xf9, 0x66, 0x4c, 0x97, 0x63, 0x7d, 0xa9, 0x76, 0x88, 0x12, 0xf6,
+        0x15, 0xc6, 0x8b, 0x13, 0xb5, 0x2e,
+        /* Authentication Tag */
+        0xc0, 0x87, 0x59, 0x24, 0xc1, 0xc7, 0x98, 0x79, 0x47, 0xde, 0xaf, 0xd8,
+        0x78, 0x0a, 0xcf, 0x49
+    };
+    ChaChaPoly_Aead aead;
+    byte out[sizeof(plaintext)];
+    byte plain[sizeof(plaintext)];
+    byte tag[POLY1305_DIGEST_SIZE];
+    byte oneshot[POLY1305_DIGEST_SIZE];
+
+    /* AAD passed to Init. */
+    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key),
+        CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, plaintext, out,
+        sizeof(plaintext)), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, tag), 0);
+    ExpectIntEQ(XMEMCMP(out, expected, sizeof(plaintext)), 0);
+    ExpectIntEQ(XMEMCMP(tag, expected + sizeof(plaintext), sizeof(tag)), 0);
+
+    /* AAD passed to UpdateAad after an Init with none: same tag. */
+    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, NULL, 0,
+        nonce, sizeof(nonce), key, sizeof(key),
+        CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateAad(&aead, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, plaintext, out,
+        sizeof(plaintext)), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, tag), 0);
+    ExpectIntEQ(XMEMCMP(out, expected, sizeof(plaintext)), 0);
+    ExpectIntEQ(XMEMCMP(tag, expected + sizeof(plaintext), sizeof(tag)), 0);
+
+    /* Data in two chunks: same tag. */
+    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key),
+        CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, plaintext, out, 50), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, plaintext + 50,
+        out + 50, sizeof(plaintext) - 50), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, tag), 0);
+    ExpectIntEQ(XMEMCMP(out, expected, sizeof(plaintext)), 0);
+    ExpectIntEQ(XMEMCMP(tag, expected + sizeof(plaintext), sizeof(tag)), 0);
+
+    /* Decrypt against the published tag. */
+    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(plain, 0, sizeof(plain));
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key),
+        CHACHA20_POLY1305_AEAD_DECRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, expected, plain,
+        sizeof(plaintext)), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, tag), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_CheckTag(tag,
+        expected + sizeof(plaintext)), 0);
+    ExpectIntEQ(XMEMCMP(plain, plaintext, sizeof(plaintext)), 0);
+
+    /* No AAD and no data: Init straight to Final agrees with the one-shot
+     * API, whose output for an empty message is the tag alone. */
+    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(oneshot, 0, sizeof(oneshot));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(oneshot, sizeof(oneshot),
+        plaintext, 0, aad, 0, nonce, sizeof(nonce), key, sizeof(key)), 0);
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, NULL, 0,
+        nonce, sizeof(nonce), key, sizeof(key),
+        CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, tag), 0);
+    ExpectIntEQ(XMEMCMP(tag, oneshot, sizeof(tag)), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_XChaCha20Poly1305_Stream */
+
 int test_wc_ChaCha20Poly1305_MonteCarlo(void)
 {
     EXPECT_DECLS;

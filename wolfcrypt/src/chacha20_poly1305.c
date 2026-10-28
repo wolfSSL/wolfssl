@@ -1129,6 +1129,10 @@ int wc_XChaCha20Poly1305_Init(
         return BAD_FUNC_ARG;
     }
 
+    /* setup aead context (full clear: the aadLen/dataLen/state wrapper fields
+     * live after the Poly1305 member and must be initialized) */
+    XMEMSET(aead, 0, sizeof(ChaChaPoly_Aead));
+
     if ((ret = wc_XChacha_SetKey(&aead->chacha,
                                  key, key_len,
                                  nonce, nonce_len,
@@ -1153,11 +1157,16 @@ int wc_XChaCha20Poly1305_Init(
                                  (word32)sizeof authKey)) < 0)
         goto out;
 
-    if ((ret = wc_Poly1305Update(&aead->poly, ad, (word32)ad_len)) < 0)
-        goto out;
-
-    if ((ret = wc_Poly1305_Pad(&aead->poly, (word32)ad_len)) < 0)
-        goto out;
+    /* Absorb the AAD exactly as wc_ChaCha20Poly1305_UpdateAad does: hash it
+     * and record its length. The 16-byte pad is applied by the first
+     * wc_ChaCha20Poly1305_UpdateData or wc_ChaCha20Poly1305_Final call (or by
+     * the one-shot helper below), so the AAD length that
+     * wc_ChaCha20Poly1305_Final encodes into the tag is the length hashed. */
+    if (ad_len > 0) {
+        if ((ret = wc_Poly1305Update(&aead->poly, ad, ad_len)) < 0)
+            goto out;
+        aead->aadLen = ad_len;
+    }
 
     aead->isEncrypt = isEncrypt ? 1 : 0;
     aead->state = CHACHA20_POLY1305_STATE_AAD;
@@ -1231,6 +1240,11 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     if ((ret = wc_XChaCha20Poly1305_Init(aead, ad, (word32)ad_len,
                                          nonce, (word32)nonce_len,
                                          key, (word32)key_len, 1)) < 0)
+        goto out;
+
+    /* wc_XChaCha20Poly1305_Init hashes the AAD and leaves the pad to the
+     * streaming data call; this helper bypasses that call, so pad here. */
+    if ((ret = wc_Poly1305_Pad(&aead->poly, (word32)ad_len)) < 0)
         goto out;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
