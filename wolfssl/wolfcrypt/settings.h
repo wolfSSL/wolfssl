@@ -1366,22 +1366,8 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_CONTIKI)
-    #include <contiki.h>
-    #define WOLFSSL_UIP
-    #define NO_WOLFSSL_MEMORY
-    #define NO_WRITEV
-    #define SINGLE_THREADED
-    #define WOLFSSL_USER_IO
-    #define NO_FILESYSTEM
-    #ifndef CUSTOM_RAND_GENERATE
-        #define CUSTOM_RAND_TYPE uint16_t
-        #define CUSTOM_RAND_GENERATE random_rand
-    #endif
-    static inline word32 LowResTimer(void)
-    {
-       return clock_seconds();
-    }
+#if defined(WOLFSSL_CONTIKI) || defined(WOLFSSL_UIP)
+    #error "Contiki support has been removed"
 #endif
 
 #if defined(WOLFSSL_IAR_ARM) || defined(WOLFSSL_ROWLEY_ARM)
