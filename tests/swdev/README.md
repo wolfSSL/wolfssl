@@ -20,6 +20,7 @@ The switches it supports are:
 | `WOLF_CRYPTO_CB_ONLY_CURVE448` | software X448  | X448 via CryptoCb  |
 | `WOLF_CRYPTO_CB_ONLY_SLHDSA`   | software SLH-DSA | SLH-DSA via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_FALCON`   | software Falcon | Falcon via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_MLDSA`    | software ML-DSA | ML-DSA via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_MLKEM`    | software ML-KEM | ML-KEM via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_LMS`      | software LMS/HSS | LMS via CryptoCb   |
 | `WOLF_CRYPTO_CB_ONLY_XMSS`     | software XMSS/XMSS^MT | XMSS via CryptoCb |
