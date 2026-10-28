@@ -31,6 +31,23 @@
 #ifndef WOLF_CRYPTO_CB
     #error WOLFSSL_TI_AM64X_A53_INTEGRITY support requires WOLF_CRYPTO_CB to be defined
 #endif
+#if defined(WOLFSSL_SA2UL_DRIVER) && \
+    !defined(WOLFSSL_TI_AM64X_A53_INTEGRITY_NO_SHA) && \
+    (!defined(NO_SHA256) || defined(WOLFSSL_SHA512))
+    /* Buffered SHA keeps message bytes outside the hash object: without the
+     * copy callback a wc_Sha*Copy() duplicates an empty software state, and
+     * without the free callback a hash freed before Final keeps the
+     * accumulator claimed. */
+    #ifndef WOLF_CRYPTO_CB_COPY
+        #error SA2UL SHA offload requires WOLF_CRYPTO_CB_COPY
+    #endif
+    #ifndef WOLF_CRYPTO_CB_FREE
+        #error SA2UL SHA offload requires WOLF_CRYPTO_CB_FREE
+    #endif
+    #ifndef WOLFSSL_NO_HASH_RAW
+        #error SA2UL SHA offload requires WOLFSSL_NO_HASH_RAW
+    #endif
+#endif
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -189,6 +206,9 @@ static int ti_sa2ul_IodeviceCall(struct Sa2ulCtrl *Ctrl, const byte *In,
      * the shared ctrl page: the driver only clears it if it ran. Written
      * through this AddressSpace's own mapping, so it can't fail. */
     ForceZero((void *)gSa2ulCtrl, sizeof(*gSa2ulCtrl));
+    /* Likewise the data page: plaintext input, output, or the tail of an
+     * earlier, longer request must not be left for the next AddressSpace. */
+    ForceZero((void *)gSa2ulData, sizeof(*gSa2ulData));
 
     (void)ReadIODeviceStatus(gSa2ulDev, SA2UL_IODEVICE_STATUS_RELEASE,
             &dummy, 1);

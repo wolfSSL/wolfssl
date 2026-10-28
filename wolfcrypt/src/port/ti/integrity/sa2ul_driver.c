@@ -80,6 +80,15 @@
 #define SA2UL_ENGINE_MASK (CP_ACE_ENCSS_EN_MASK | CP_ACE_AUTHSS_EN_MASK | \
         CP_ACE_CTX_EN_MASK | CP_ACE_CDMA_IN_EN_MASK | CP_ACE_CDMA_OUT_EN_MASK)
 
+/* non-elidable memset(0) for key material on the stack */
+static void sa2ul_wipe(void *p, size_t len)
+{
+    volatile uint8_t *v = (volatile uint8_t *)p;
+    while (len--) {
+        *v++ = 0;
+    }
+}
+
 static volatile uint8_t *gCpAceBase = NULL;
 #define CPACE_REG32(off) (*(volatile uint32_t *)(gCpAceBase + (off)))
 
@@ -703,6 +712,8 @@ static void sa2ul_aes_inv_key(uint32_t *invKey, uint32_t *cipherKey, int32_t key
         pInvRK = &roundKey[52];
     }
     memcpy(invKey, pInvRK, (size_t)keySize * 4u);
+    /* the schedule starts with the cipher key itself */
+    sa2ul_wipe(roundKey, sizeof(roundKey));
 }
 
 static void sa2ul_u8_le_to_u32(uint32_t *dest, const uint8_t *src, uint32_t len)
@@ -1125,6 +1136,8 @@ static int sa2ul_context_alloc(volatile struct Sa2ulContext *ctxObj,
     sc.scctl.scctl2 = sa2ul_scctl2();
 
     sa2ul_64b_endian_swap((uint32_t *)&ctxObj->secCtx, (uint32_t *)&sc, sizeof(sc));
+    /* sc holds the (inverse) key and GCM hash subkey */
+    sa2ul_wipe(&sc, sizeof(sc));
 
     /* TI's CacheP_wb()+CacheP_inv() pair */
     sa2ul_dma_flush(&ctxObj->secCtx, sizeof(ctxObj->secCtx));
@@ -1348,14 +1361,6 @@ static void sa2ul_context_wipe(volatile struct Sa2ulContext *ctxObj)
 {
     memset((void *)ctxObj, 0, sizeof(*ctxObj));
     sa2ul_dma_flush(ctxObj, sizeof(*ctxObj));
-}
-
-static void sa2ul_wipe(void *p, size_t len)
-{
-    volatile uint8_t *v = (volatile uint8_t *)p;
-    while (len--) {
-        *v++ = 0;
-    }
 }
 
 static int sa2ul_gcm_hash_key(volatile struct Sa2ulContext *ctx,
