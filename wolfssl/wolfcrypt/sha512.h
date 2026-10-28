@@ -121,6 +121,13 @@
     #define WC_SHA512_DIGEST_SIZE   64
     #define WC_SHA512_PAD_SIZE     112
 
+    /* Size, in bytes, of the C transform's caller-owned scratch
+     * (Sha512TScratch in sha512.c): the 16-entry message schedule window.
+     * External providers of wc_Sha512.W under WOLFSSL_SMALL_STACK_CACHE
+     * size their allocation as this plus the wc_Sha512Transform() backup
+     * block; sha512.c statically asserts this matches the struct. */
+    #define WC_SHA512_TSCRATCH_SIZE (16 * sizeof(word64))
+
     #define WC_SHA512_224_BLOCK_SIZE  WC_SHA512_BLOCK_SIZE
     #define WC_SHA512_224_DIGEST_SIZE 28
     #define WC_SHA512_224_PAD_SIZE    WC_SHA512_PAD_SIZE
