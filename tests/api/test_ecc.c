@@ -3541,6 +3541,9 @@ int test_wc_ecc_mulmod(void)
     ecc_key     key4;
     WC_RNG      rng;
     int         ret;
+#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH)
+    ecc_point*  point = NULL;
+#endif
 
     XMEMSET(&key1, 0, sizeof(ecc_key));
     XMEMSET(&key2, 0, sizeof(ecc_key));
@@ -3588,6 +3591,23 @@ int test_wc_ecc_mulmod(void)
     ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
         &key3.pubkey, key4.pubkey.x, NULL, 1),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH)
+    /* The fixed point cache must key its tables on the curve as well as the
+     * base point. Use G twice with a wrong curve parameter A (Gx stands in),
+     * which builds a table of multiples on that other curve, then multiply on
+     * the real curve and expect the result computed above. */
+    wc_ecc_fp_free();
+    ExpectNotNull(point = wc_ecc_new_point());
+    ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey, point,
+        key2.pubkey.x, key4.pubkey.y, 1), 0);
+    ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey, point,
+        key2.pubkey.x, key4.pubkey.y, 1), 0);
+    ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey, point,
+        key4.pubkey.x, key4.pubkey.y, 1), 0);
+    ExpectIntEQ(wc_ecc_cmp_point(point, &key3.pubkey), MP_EQ);
+    wc_ecc_del_point(point);
+#endif
 
     wc_ecc_free(&key1);
     wc_ecc_free(&key2);
