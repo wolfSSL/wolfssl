@@ -79,6 +79,12 @@ config WOLFCRYPT_FIPS
 	  dropped into wolfcrypt/src/ - the CMake FIPS-boundary block compiles them.
 	  Select the version that matches the bundle under "wolfCrypt FIPS version".
 
+	  Set CONFIG_LINKER_SORT_BY_ALIGNMENT=n, which Zephyr defaults on. The
+	  integrity check hashes the boundary as two ranges, so its sections
+	  must stay in file order; the build stops while sorting is on.
+
+	  Needs Zephyr 3.7 or later, for STATIC_INIT_GNU.
+
 choice
 	prompt "wolfCrypt FIPS version"
 	depends on WOLFCRYPT_FIPS
@@ -98,6 +104,11 @@ config WOLFCRYPT_FIPS_V5
 	bool "FIPS 140-3 (Cert #4718)"
 	help
 	  wolfCrypt FIPS 140-3 validated module, Certificate #4718 (version 5.2.1).
+
+	  The v5 random.c seeds from a bare sys_rand_get(), so the DRBG is
+	  seeded through a callback instead (zephyr_fips_seed.c): from the
+	  zephyr,entropy device, or else the Zephyr CSPRNG. A board with neither
+	  fails the build unless CONFIG_TEST_RANDOM_GENERATOR is set.
 
 config WOLFCRYPT_FIPS_V6
 	bool "FIPS 140-3 (SRTP-KDF full submission)"
@@ -225,14 +236,18 @@ config WOLFSSL_PSK
 config WOLFSSL_MLKEM
   bool "wolfSSL PQC ML-KEM support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
-    Enable PQC ML-KEM support for Key Exchange
+    Enable PQC ML-KEM support for Key Exchange. Needs SHAKE, which the
+    FIPS v2 and v5 boundaries do not build.
 
 config WOLFSSL_MLDSA
   bool "wolfSSL PQC ML-DSA support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
-    Enable PQC ML-DSA (Dilithium) signatures.
+    Enable PQC ML-DSA (Dilithium) signatures. Needs SHAKE, which the FIPS
+    v2 and v5 boundaries do not build.
 
 config WOLFSSL_LMS
   bool "wolfSSL LMS/HSS hash-based signatures"
@@ -243,14 +258,19 @@ config WOLFSSL_LMS
 config WOLFSSL_XMSS
   bool "wolfSSL XMSS/XMSS^MT hash-based signatures"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
     Enable XMSS/XMSS^MT stateful hash-based signature verification (verify-only).
+    Its SHAKE parameter sets need SHAKE, which the FIPS v2 and v5 boundaries
+    do not build.
 
 config WOLFSSL_FALCON
   bool "wolfSSL PQC Falcon signatures"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
-    Enable PQC Falcon (FN-DSA) signatures.
+    Enable PQC Falcon (FN-DSA) signatures. Needs SHAKE, which the FIPS v2
+    and v5 boundaries do not build.
 
 config WOLFSSL_RSA
   bool "wolfCrypt RSA support"
@@ -327,12 +347,23 @@ endif # WOLFSSL_ECC
 config WOLFSSL_ECC_ALLOW_ZERO_HASH
   bool
 
+# v2, v5 and v6 keep their symmetric assembly in the armv8-aes.c and
+# armv8-sha256.c of their own boundary (src/include.am's LEGACY_ARMASM_*),
+# which this module does not build: their aes.c and sha256.c compile the C
+# code out under WOLFSSL_ARMASM, so the link fails, and on x86_64 their
+# sha256.c would call the tree's sha256_asm.S from outside the boundary. v7
+# and FIPS Ready carry the asm_c form, which the CMake boundary block builds
+# in place.
+config WOLFCRYPT_FIPS_LEGACY_ASM
+  bool
+  default y if WOLFCRYPT_FIPS && !WOLFCRYPT_FIPS_V7 && !WOLFCRYPT_FIPS_READY
+
 # Thumb2 needs UBFX and LDRD, so ARMv6-M and ARMv8-M baseline keep the C code
 # and take only the SP speedup.
 config WOLFCRYPT_ARM_SYMMETRIC_ASM
   bool
-  default y if WOLFCRYPT_ASM && (ARM64 || ARMV7_M_ARMV8_M_MAINLINE || \
-                                 (ARM && !CPU_CORTEX_M))
+  default y if WOLFCRYPT_ASM && !WOLFCRYPT_FIPS_LEGACY_ASM && \
+               (ARM64 || ARMV7_M_ARMV8_M_MAINLINE || (ARM && !CPU_CORTEX_M))
 
 # Not under FIPS v2 or v5, whose pinned aes.c has neither backend, nor with the
 # Arm assembly, which indexes its AES and GHASH tables with secret data.
@@ -702,6 +733,10 @@ config WOLFCRYPT_ASM
 
 	  32-bit x86 is not offered: only the AES sources have an
 	  implementation at that width, and the rest are guarded to x86_64.
+
+	  Under FIPS v2, v5 and v6 only the single-precision math is
+	  accelerated. Those modules carry their symmetric assembly inside the
+	  boundary in a form this module does not build.
 
 config WOLFCRYPT_SP_SMALL
 	bool "Smaller single-precision math"

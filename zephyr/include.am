@@ -5,10 +5,13 @@
 EXTRA_DIST+= zephyr/CMakeLists.txt
 EXTRA_DIST+= zephyr/Kconfig
 EXTRA_DIST+= zephyr/zephyr_init.c
+EXTRA_DIST+= zephyr/zephyr_fips_seed.c
 EXTRA_DIST+= zephyr/module.yml
 EXTRA_DIST+= zephyr/wolfssl/options.h
 EXTRA_DIST+= zephyr/user_settings.h
 EXTRA_DIST+= zephyr/user_settings-fips-v7.h
+EXTRA_DIST+= zephyr/fips-v5-compat/posix/time.h
+EXTRA_DIST+= zephyr/fips-v5-compat/random/rand32.h
 EXTRA_DIST+= zephyr/README.md
 EXTRA_DIST+= zephyr/samples/wolfssl_benchmark/
 EXTRA_DIST+= zephyr/samples/wolfssl_benchmark/CMakeLists.txt

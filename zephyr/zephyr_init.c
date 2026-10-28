@@ -19,6 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* The port's log module, for the boot-time hook below and the FIPS v5 seed
+ * callback in zephyr_fips_seed.c, which declares it. Zephyr before 3.2 has
+ * no zephyr/ include prefix, so the header stays out until one of them
+ * needs it. */
+
+#if defined(CONFIG_WOLFSSL_SYS_INIT) || defined(CONFIG_WOLFCRYPT_FIPS_V5)
+
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_REGISTER(wolfssl, CONFIG_WOLFSSL_LOG_LEVEL);
+
+#endif
+
 /* Only a port that brings up a peripheral needs a boot-time hook. */
 
 #ifdef CONFIG_WOLFSSL_SYS_INIT
@@ -26,7 +39,6 @@
 #include <errno.h>
 
 #include <zephyr/init.h>
-#include <zephyr/logging/log.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFCRYPT_ONLY
@@ -34,8 +46,6 @@
 #else
     #include <wolfssl/ssl.h>
 #endif
-
-LOG_MODULE_REGISTER(wolfssl, CONFIG_WOLFSSL_LOG_LEVEL);
 
 static int wolfssl_module_init(void)
 {
