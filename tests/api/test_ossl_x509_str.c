@@ -4671,3 +4671,200 @@ int test_wolfSSL_CTX_set_cert_store(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+/* Attach a store holding root and inter to a fresh SSL_CTX - either adding
+ * both before SSL_CTX_set_cert_store() (pushed into the CertManager on attach)
+ * or after it (added straight to the CertManager) - then verify leaf against
+ * the CertManager.  The verify result is returned via *verifyRet. */
+static int ctx_store_verify_leaf(X509* root, X509* inter, X509* leaf,
+    int addAfterAttach, int* verifyRet)
+{
+    EXPECT_DECLS;
+    SSL_CTX* ctx = NULL;
+    X509_STORE* store = NULL;
+    const unsigned char* der = NULL;
+    int derSz = 0;
+
+    ExpectNotNull(ctx = SSL_CTX_new(TLS_client_method()));
+    ExpectNotNull(store = X509_STORE_new());
+    if (!addAfterAttach) {
+        ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
+        ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+    }
+    if (ctx != NULL && store != NULL) {
+        SSL_CTX_set_cert_store(ctx, store);
+    }
+    else {
+        X509_STORE_free(store);
+        store = NULL;
+    }
+    if (addAfterAttach) {
+        ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
+        /* A non-CA cannot be added as a CA once the CTX owns the store. */
+        (void)X509_STORE_add_cert(store, inter);
+    }
+
+    ExpectNotNull(der = wolfSSL_X509_get_der(leaf, &derSz));
+    if (EXPECT_SUCCESS() && verifyRet != NULL) {
+        *verifyRet = wolfSSL_CertManagerVerifyBuffer(
+            wolfSSL_CTX_GetCertManager(ctx), der, derSz, WOLFSSL_FILETYPE_ASN1);
+    }
+
+    SSL_CTX_free(ctx);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Regression: certificates added to an X509_STORE that is then attached with
+ * SSL_CTX_set_cert_store() must not bypass the CA admission checks.  A
+ * CA:FALSE certificate, or a CA:TRUE certificate whose KeyUsage lacks
+ * keyCertSign, must not become a trust anchor for leaves signed by its key,
+ * whether it was added before or after the attach.  Legitimate intermediates
+ * must still be usable and, like other chain CAs, unloadable. */
+int test_wolfSSL_CTX_set_cert_store_non_ca(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    SSL_CTX* ctx = NULL;
+    X509_STORE* store = NULL;
+    X509* root = NULL;
+    X509* inter = NULL;
+    X509* inter2 = NULL;
+    X509* leaf = NULL;
+    int verifyRet;
+    int addAfterAttach;
+
+    /* Sanity: legitimate intermediates pushed on attach anchor the chain, and
+     * are removed by an intermediate unload. */
+    ExpectNotNull(root = wolfSSL_X509_load_certificate_file(
+        "./certs/ca-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(inter = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(inter2 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(ctx = SSL_CTX_new(TLS_client_method()));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, inter2), SSL_SUCCESS);
+    if (ctx != NULL && store != NULL) {
+        SSL_CTX_set_cert_store(ctx, store);
+    }
+    else {
+        X509_STORE_free(store);
+    }
+    store = NULL;
+    ExpectIntEQ(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    X509_free(root);
+    root = NULL;
+    X509_free(inter);
+    inter = NULL;
+    X509_free(inter2);
+    inter2 = NULL;
+
+    /* CA:FALSE intermediate in the store must not anchor a leaf it signed. */
+    ExpectNotNull(root = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca_false_intermediate/test_ca.pem",
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(inter = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca_false_intermediate/test_int_not_cacert.pem",
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca_false_intermediate/test_sign_bynoca_srv.pem",
+        SSL_FILETYPE_PEM));
+    for (addAfterAttach = 0; addAfterAttach <= 1; addAfterAttach++) {
+        verifyRet = WOLFSSL_SUCCESS;
+        ExpectIntEQ(ctx_store_verify_leaf(root, inter, leaf, addAfterAttach,
+            &verifyRet), TEST_SUCCESS);
+        ExpectIntEQ(verifyRet, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    }
+    X509_free(root);
+    root = NULL;
+    X509_free(inter);
+    inter = NULL;
+    X509_free(leaf);
+    leaf = NULL;
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME) && !defined(ALLOW_INVALID_CERTSIGN)
+    /* CA:TRUE intermediate without keyCertSign must not anchor a leaf. */
+    {
+        WC_RNG rng;
+        RsaKey caKey, intKey, leafKey;
+        int rngI = 0, caI = 0, intI = 0, leafI = 0;
+        word32 idx;
+        byte* intDer = NULL;
+        byte* leafDer = NULL;
+        int intSz = 0, leafSz = 0;
+        const byte* p;
+
+        intDer  = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        leafDer = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(intDer);
+        ExpectNotNull(leafDer);
+
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        if (EXPECT_SUCCESS()) rngI = 1;
+        ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+        if (EXPECT_SUCCESS()) caI = 1;
+        idx = 0;
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+            sizeof_ca_key_der_2048), 0);
+        ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
+        if (EXPECT_SUCCESS()) intI = 1;
+        idx = 0;
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &intKey,
+            sizeof_server_key_der_2048), 0);
+        ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+        if (EXPECT_SUCCESS()) leafI = 1;
+        idx = 0;
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx,
+            &leafKey, sizeof_client_key_der_2048), 0);
+
+        ExpectIntGT((intSz = gen_ca_int_keyusage(intDer, FOURK_BUF, &intKey,
+            &caKey, &rng, "No keyCertSign Intermediate", "digitalSignature",
+            0)), 0);
+        ExpectIntGT((leafSz = gen_leaf_under_int(leafDer, FOURK_BUF,
+            &leafKey, intDer, intSz, &intKey, &rng, "Leaf under bad int")), 0);
+
+        p = ca_cert_der_2048;
+        ExpectNotNull(root = d2i_X509(NULL, &p, (int)sizeof_ca_cert_der_2048));
+        p = intDer;
+        ExpectNotNull(inter = d2i_X509(NULL, &p, intSz));
+        p = leafDer;
+        ExpectNotNull(leaf = d2i_X509(NULL, &p, leafSz));
+        for (addAfterAttach = 0; addAfterAttach <= 1; addAfterAttach++) {
+            verifyRet = WOLFSSL_SUCCESS;
+            ExpectIntEQ(ctx_store_verify_leaf(root, inter, leaf,
+                addAfterAttach, &verifyRet), TEST_SUCCESS);
+            ExpectIntEQ(verifyRet, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+        }
+        X509_free(root);
+        X509_free(inter);
+        X509_free(leaf);
+
+        if (rngI)  wc_FreeRng(&rng);
+        if (caI)   wc_FreeRsaKey(&caKey);
+        if (intI)  wc_FreeRsaKey(&intKey);
+        if (leafI) wc_FreeRsaKey(&leafKey);
+        XFREE(intDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+    /* The pushed legitimate intermediates are chain CAs, not permanent
+     * anchors: an intermediate unload removes them. */
+    ExpectIntEQ(wolfSSL_CertManagerUnloadIntermediateCerts(
+        wolfSSL_CTX_GetCertManager(ctx)), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
