@@ -12149,6 +12149,127 @@ static int test_wolfSSL_ticket_keycb_bad_hmac(void)
 }
 
 
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC) && \
+        defined(WOLFSSL_AES_256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+static int myTicketEncCbIvFromTicket(WOLFSSL* ssl,
+        byte name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
+        WOLFSSL_EVP_CIPHER_CTX* ectx, WOLFSSL_HMAC_CTX* hctx, int enc)
+{
+    static const byte keyName[WOLFSSL_TICKET_NAME_SZ] = {
+        'w','o','l','f','s','s','l','*','t','e','s','t','*','k','e','y'
+    };
+    static const byte encKey[32] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+    static const byte macKey[WOLFSSL_TICKET_NAME_SZ] = {
+        0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+        0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f
+    };
+    static byte ivCounter = 0;
+
+    (void)ssl;
+
+    if (enc) {
+        XMEMCPY(name, keyName, sizeof(keyName));
+        XMEMSET(iv, 0, WOLFSSL_TICKET_IV_SZ);
+        iv[0] = ++ivCounter;
+    }
+    else if (XMEMCMP(name, keyName, sizeof(keyName)) != 0) {
+        return 0;
+    }
+
+    if (HMAC_Init_ex(hctx, macKey, (int)sizeof(macKey), EVP_sha256(), NULL)
+            != WOLFSSL_SUCCESS) {
+        return 0;
+    }
+    if (enc) {
+        if (EVP_EncryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, encKey, iv)
+                != WOLFSSL_SUCCESS) {
+            return 0;
+        }
+    }
+    else if (EVP_DecryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, encKey, iv)
+            != WOLFSSL_SUCCESS) {
+        return 0;
+    }
+
+    return 1;
+}
+#endif
+
+/* Test modifying the IV */
+static int test_wolfSSL_ticket_keycb_iv_authenticated(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC) && \
+        defined(WOLFSSL_AES_256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx_s,
+            myTicketEncCbIvFromTicket), WOLFSSL_SUCCESS);
+    /* On the context so the resuming connection offers the ticket too. */
+    ExpectIntEQ(wolfSSL_CTX_UseSessionTicket(ctx_c), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    ExpectIntGT(session->ticketLen, WOLFSSL_TICKET_FIXED_SZ);
+
+    /* Modify the last IV byte. */
+    if ((session != NULL) && (session->ticket != NULL)) {
+        session->ticket[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ - 1]
+            ^= 0xFF;
+    }
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+    /* Leave the ticket as the only resumption path. */
+    if (ssl_s != NULL)
+        ssl_s->options.sessionCacheOff = 1;
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
 /* Called when writing. */
@@ -46130,6 +46251,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_wolfSSL_SCR_check_enabled),
     TEST_DECL(test_wolfSSL_ticket_keycb_bad_hmac),
+    TEST_DECL(test_wolfSSL_ticket_keycb_iv_authenticated),
     TEST_DECL(test_tls_ext_duplicate),
     TEST_DECL(test_tls_ext_word16_overflow),
     TEST_DECL(test_tls_bad_legacy_version),
