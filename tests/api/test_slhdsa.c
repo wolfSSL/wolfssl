@@ -3650,6 +3650,73 @@ int test_wc_SlhdsaFeatureCoverage(void)
     return EXPECT_RESULT();
 }
 
+#if defined(TEST_SLHDSA_DEFAULT_PARAM) && \
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+static int slhdsa_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_SlhDsaKey_MakeKey() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_slhdsa_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_SLHDSA_DEFAULT_PARAM) && \
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    int devId = 2410;
+    SlhDsaKey key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    enum SlhDsaParam param = TEST_SLHDSA_DEFAULT_PARAM;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, slhdsa_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_SlhDsaKey_Init_id(&key, param, id, (int)sizeof(id), NULL,
+        devId), 0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_SlhDsaKey_Free(&key);
+
+    ExpectIntEQ(wc_SlhDsaKey_Init_label(&key, param, "dev-key", NULL, devId),
+        0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_SlhDsaKey_Free(&key);
+
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_SlhDsaKey_Init_id(&key, param, id, (int)sizeof(id), NULL,
+        devId + 100), 0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng), 0);
+    wc_SlhDsaKey_Free(&key);
+
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, param, NULL, devId), 0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng), 0);
+    wc_SlhDsaKey_Free(&key);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 #ifdef TEST_SLHDSA_DEFAULT_PARAM
     #undef TEST_SLHDSA_DEFAULT_PARAM
     #undef TEST_SLHDSA_DEFAULT_SIG_LEN

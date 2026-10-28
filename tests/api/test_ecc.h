@@ -72,6 +72,7 @@ int test_wc_ecc_shared_secret_ssh(void);
 int test_wc_ecc_verify_hash_ex(void);
 int test_wc_ecc_mulmod(void);
 int test_wc_ecc_mulmod_curves(void);
+int test_wc_ecc_mulmod_unreduced(void);
 int test_wc_ecc_is_valid_idx(void);
 int test_wc_ecc_get_curve_id_from_oid(void);
 int test_wc_ecc_sig_size_calc(void);
@@ -82,6 +83,7 @@ int test_wc_EccDecisionCoverage3(void);
 int test_wc_EccDecisionCoverage4(void);
 int test_wc_EccPublicKeyDecode_explicit_curve_size(void);
 int test_wc_EccPublicKeyDecode_specifiedOverflow(void);
+int test_wc_ecc_make_key_id_dev(void);
 
 #define TEST_ECC_DECLS                                                  \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_size_from_name),       \
@@ -132,6 +134,7 @@ int test_wc_EccPublicKeyDecode_specifiedOverflow(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_verify_hash_ex),                 \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod),                         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_curves),                  \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_unreduced),               \
     TEST_DECL_GROUP("ecc", test_wc_ecc_is_valid_idx),                   \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_id_from_oid),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_sig_size_calc),                  \
@@ -142,6 +145,7 @@ int test_wc_EccPublicKeyDecode_specifiedOverflow(void);
     TEST_DECL_GROUP("ecc", test_wc_EccDecisionCoverage4),             \
     TEST_DECL_GROUP("ecc",                                          \
         test_wc_EccPublicKeyDecode_explicit_curve_size),            \
-    TEST_DECL_GROUP("ecc", test_wc_EccPublicKeyDecode_specifiedOverflow)
+    TEST_DECL_GROUP("ecc", test_wc_EccPublicKeyDecode_specifiedOverflow), \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_make_key_id_dev)
 
 #endif /* WOLFCRYPT_TEST_ECC_H */

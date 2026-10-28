@@ -49,6 +49,7 @@ int test_wc_falcon_verify_oom(void);
 int test_wc_FalconDecisionCoverage(void);
 int test_falcon_cb_free(void);
 int test_falcon_verify_cb_res(void);
+int test_wc_falcon_make_key_id_dev(void);
 
 #define TEST_FALCON_DECLS                                                      \
     TEST_DECL_GROUP("falcon", test_wc_falcon_sizes),                          \
@@ -65,6 +66,7 @@ int test_falcon_verify_cb_res(void);
     TEST_DECL_GROUP("falcon", test_wc_falcon_verify_oom),                     \
     TEST_DECL_GROUP("falcon", test_wc_FalconDecisionCoverage),                \
     TEST_DECL_GROUP("falcon", test_falcon_cb_free),                           \
-    TEST_DECL_GROUP("falcon", test_falcon_verify_cb_res)
+    TEST_DECL_GROUP("falcon", test_falcon_verify_cb_res),                     \
+    TEST_DECL_GROUP("falcon", test_wc_falcon_make_key_id_dev)
 
 #endif /* WOLFCRYPT_TEST_FALCON_H */

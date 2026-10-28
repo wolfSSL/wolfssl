@@ -5526,7 +5526,7 @@ int test_wc_AesGcmDecrypt_WipeOnAuthFail(void)
     !defined(WOLFSSL_KCAPI) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
     !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_BARE) && \
-    !defined(STM32_CRYPTO_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO) && \
+    !defined(STM32_CRYPTO_AES_GCM) && \
     !defined(WOLFSSL_RISCV_ASM) && \
     !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) && \
     !defined(FREESCALE_LTC_AES_GCM) && !defined(ACVP_VECTOR_TESTING) && \

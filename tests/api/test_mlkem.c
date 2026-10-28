@@ -5532,3 +5532,70 @@ int test_wc_mlkem_decode_alloc_fail(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+static int mlkem_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_MlKemKey_MakeKey() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_mlkem_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    int devId = 2406;
+    MlKemKey* key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, mlkem_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_MlKemKey_Init_Id(key, WC_ML_KEM_768, id, (int)sizeof(id),
+        NULL, devId), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_MlKemKey_Free(key);
+
+    ExpectIntEQ(wc_MlKemKey_Init_Label(key, WC_ML_KEM_768, "dev-key", NULL,
+        devId), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_MlKemKey_Free(key);
+
+#if defined(WC_MLKEM_HAVE_NATIVE) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_MlKemKey_Init_Id(key, WC_ML_KEM_768, id, (int)sizeof(id),
+        NULL, devId + 100), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    wc_MlKemKey_Free(key);
+
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, devId), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    wc_MlKemKey_Free(key);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}

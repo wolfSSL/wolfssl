@@ -5601,6 +5601,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     /* RSA_MAX_SIZE is the size of n in bits. */
     byte buf[RSA_MAX_SIZE/16];
 #endif
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
 #endif /* !WOLFSSL_SE050 */
     int err;
 
@@ -5677,6 +5681,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     XMEMSET(tmp3, 0, sizeof(*tmp3));
 #endif
 
+#if defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    idKey = WC_CRYPTOCB_HAS_ID(key);
+    idDevId = key->devId;
+#endif
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -5698,6 +5706,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #if !defined(WOLF_CRYPTO_CB_FIND) && defined(WOLF_CRYPTO_CB_ONLY_RSA)
     else {
         err = NO_VALID_DEVID;
+    }
+    #endif
+    #if defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+        !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    if (idKey && wc_CryptoCb_HasPkDevice(idDevId)) {
+        err = NO_VALID_DEVID;
+        goto out;
     }
     #endif
 #endif

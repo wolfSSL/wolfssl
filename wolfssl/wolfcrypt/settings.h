@@ -2630,6 +2630,12 @@
     defined(WOLFSSL_STM32C5)  || defined(WOLFSSL_STM32V8)
 
     #define SIZEOF_LONG_LONG 8
+    /* Pull <limits.h> before falling back, or the fallback suppresses the
+     * tfm.h / integer.h include that is gated on CHAR_BIT and leaves
+     * INT_MAX undeclared on a USE_FAST_MATH build. */
+    #if !defined(CHAR_BIT) && !defined(NO_LIMITS_H)
+      #include <limits.h>
+    #endif
     #ifndef CHAR_BIT
       #define CHAR_BIT 8
     #endif

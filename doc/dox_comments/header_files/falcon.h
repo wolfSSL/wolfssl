@@ -176,6 +176,10 @@ void wc_falcon_free(falcon_key* key);
     \return 0 on success.
     \return BAD_FUNC_ARG if key or rng is NULL or the level is unset.
     \return MEMORY_E on allocation failure.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in,out] key Pointer to an initialized falcon_key with a level set.
     \param [in] rng Pointer to an initialized WC_RNG.

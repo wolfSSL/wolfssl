@@ -1233,22 +1233,37 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         goto error;
 
     if (resp->single != NULL) {
-        FreeOcspEntry(resp->single, NULL);
-        XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        OcspEntry* s = resp->single;
+
+        /* Release the whole SingleResponse chain, as
+         * wolfSSL_OCSP_RESPONSE_free() does. Every entry after the first was
+         * allocated by the previous decode and FreeOcspEntry() on its own
+         * only reaches the head. */
+        while (s != NULL) {
+            OcspEntry* sNext = s->next;
+
+            FreeOcspEntry(s, NULL);
+            XFREE(s, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+            s = sNext;
+        }
     }
     resp->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
                                       DYNAMIC_TYPE_OCSP_ENTRY);
     if (resp->single == NULL)
         goto error;
+    /* Zeroed before the next allocation can fail: the error path walks it. */
     XMEMSET(resp->single, 0, sizeof(OcspEntry));
     resp->single->status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
                                       DYNAMIC_TYPE_OCSP_STATUS);
     if (resp->single->status == NULL)
         goto error;
+    /* Leave the object in the state a fresh one is in. On reuse the response,
+     * cert, sig, sigParams and nonce references all pointed into the source
+     * buffer released above, and the new encoding need not set them again. */
+    InitOcspResponse(resp, resp->single, resp->single->status, resp->source,
+                     (word32)len, resp->heap);
     resp->single->ownStatus = 1;
-    XMEMSET(resp->single->status, 0, sizeof(CertStatus));
     XMEMCPY(resp->source, *data, (size_t)len);
-    resp->maxIdx = (word32)len;
 
     ret = OcspResponseDecode(resp, NULL, NULL, 1, 1);
     if (ret != 0 && ret != WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E)) {

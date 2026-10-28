@@ -1207,6 +1207,10 @@ int wc_LmsKey_SetContext(LmsKey* key, void* context)
 int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 {
     int ret = 0;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
 #ifndef WOLF_CRYPTO_CB_ONLY_LMS
     word32 priv_data_len = 0;
 #endif
@@ -1221,6 +1225,12 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         ret = BAD_STATE_E;
     }
 
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (ret == 0) {
+        idKey = WC_CRYPTOCB_HAS_ID(key);
+        idDevId = key->devId;
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
@@ -1254,6 +1264,11 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         }
         ret = 0; /* fall through to software path */
     }
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if ((ret == 0) && idKey && wc_CryptoCb_HasPkDevice(idDevId)) {
+        ret = NO_VALID_DEVID;
+    }
+    #endif
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_LMS

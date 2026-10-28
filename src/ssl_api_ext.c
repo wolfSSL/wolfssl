@@ -2333,16 +2333,19 @@ int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
  *
  * @param [in]      evpCtx        Cipher context initialized by the callback.
  * @param [in]      hmacCtx       HMAC context initialized by the callback.
+ * @param [in]      keyName       Key name set by the callback.
+ * @param [in]      iv            IV set by the callback.
  * @param [in, out] encTicket     Ticket data, encrypted in place.
  * @param [in]      encTicketLen  Length of the plaintext ticket data in bytes.
  * @param [in]      encSz         Capacity of the ticket buffer in bytes.
- * @param [out]     mac           HMAC of the encrypted data.
+ * @param [out]     mac           HMAC of the key name, IV and encrypted data.
  * @param [out]     outSz         Length of the encrypted data in bytes.
  * @return  1 on success.
  * @return  0 on error.
  */
 static int wolfssl_ticket_key_enc(WOLFSSL_EVP_CIPHER_CTX* evpCtx,
-        WOLFSSL_HMAC_CTX* hmacCtx, unsigned char* encTicket, int encTicketLen,
+        WOLFSSL_HMAC_CTX* hmacCtx, const unsigned char* keyName,
+        const unsigned char* iv, unsigned char* encTicket, int encTicketLen,
         int encSz, unsigned char* mac, int* outSz)
 {
     int ret = 1;
@@ -2373,8 +2376,11 @@ static int wolfssl_ticket_key_enc(WOLFSSL_EVP_CIPHER_CTX* evpCtx,
             ret = 0;
         }
     }
-    /* HMAC the encrypted data into the parameter 'mac'. */
-    if ((ret == 1) && (!wolfSSL_HMAC_Update(hmacCtx, encTicket, totalSz))) {
+    /* HMAC the key name, IV and encrypted data into the parameter 'mac'. */
+    if ((ret == 1) &&
+            (!wolfSSL_HMAC_Update(hmacCtx, keyName, WOLFSSL_TICKET_NAME_SZ) ||
+             !wolfSSL_HMAC_Update(hmacCtx, iv, WOLFSSL_TICKET_IV_SZ) ||
+             !wolfSSL_HMAC_Update(hmacCtx, encTicket, totalSz))) {
         ret = 0;
     }
     if ((ret == 1) && (!wolfSSL_HMAC_Final(hmacCtx, mac, &mdSz))) {
@@ -2391,15 +2397,19 @@ static int wolfssl_ticket_key_enc(WOLFSSL_EVP_CIPHER_CTX* evpCtx,
  *
  * @param [in]      evpCtx        Cipher context initialized by the callback.
  * @param [in]      hmacCtx       HMAC context initialized by the callback.
+ * @param [in]      keyName       Key name from the ticket.
+ * @param [in]      iv            IV from the ticket.
  * @param [in, out] encTicket     Ticket data, decrypted in place.
  * @param [in]      encTicketLen  Length of the encrypted ticket data in bytes.
- * @param [in]      mac           Expected HMAC of the encrypted data.
+ * @param [in]      mac           Expected HMAC of the key name, IV and
+ *                                encrypted data.
  * @param [out]     outSz         Length of the decrypted data in bytes.
  * @return  1 on success.
  * @return  0 on error or when the HMAC does not match.
  */
 static int wolfssl_ticket_key_dec(WOLFSSL_EVP_CIPHER_CTX* evpCtx,
-        WOLFSSL_HMAC_CTX* hmacCtx, unsigned char* encTicket, int encTicketLen,
+        WOLFSSL_HMAC_CTX* hmacCtx, const unsigned char* keyName,
+        const unsigned char* iv, unsigned char* encTicket, int encTicketLen,
         const unsigned char* mac, int* outSz)
 {
     int ret = 1;
@@ -2408,8 +2418,11 @@ static int wolfssl_ticket_key_dec(WOLFSSL_EVP_CIPHER_CTX* evpCtx,
     unsigned int mdSz = 0;
     byte digest[WC_MAX_DIGEST_SIZE];
 
-    /* HMAC the encrypted data and compare it to the passed in data. */
-    if (!wolfSSL_HMAC_Update(hmacCtx, encTicket, encTicketLen)) {
+    /* HMAC the key name, IV and encrypted data and compare it to the passed
+     * in data. Follows the suggestion in RFC 5077 section 4. */
+    if (!wolfSSL_HMAC_Update(hmacCtx, keyName, WOLFSSL_TICKET_NAME_SZ) ||
+            !wolfSSL_HMAC_Update(hmacCtx, iv, WOLFSSL_TICKET_IV_SZ) ||
+            !wolfSSL_HMAC_Update(hmacCtx, encTicket, encTicketLen)) {
         ret = 0;
     }
     if ((ret == 1) && (!wolfSSL_HMAC_Final(hmacCtx, digest, &mdSz))) {
@@ -2496,14 +2509,14 @@ static int wolfssl_ticket_key_cb_process(WOLFSSL* ssl,
 
     if (ret == WOLFSSL_TICKET_RET_OK) {
         if (enc) {
-            if (!wolfssl_ticket_key_enc(evpCtx, hmacCtx, encTicket,
-                    encTicketLen, *encLen, mac, &totalSz)) {
+            if (!wolfssl_ticket_key_enc(evpCtx, hmacCtx, keyName, iv,
+                    encTicket, encTicketLen, *encLen, mac, &totalSz)) {
                 ret = WOLFSSL_TICKET_RET_FATAL;
             }
         }
         else {
-            if (!wolfssl_ticket_key_dec(evpCtx, hmacCtx, encTicket,
-                    encTicketLen, mac, &totalSz)) {
+            if (!wolfssl_ticket_key_dec(evpCtx, hmacCtx, keyName, iv,
+                    encTicket, encTicketLen, mac, &totalSz)) {
                 ret = WOLFSSL_TICKET_RET_FATAL;
             }
         }

@@ -31,6 +31,10 @@
     ecc key
     \return MP_MEM may be returned if there is an error while computing the
     ecc key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param rng pointer to an initialized RNG object with which to generate
     the key
@@ -85,6 +89,10 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
     ecc key
     \return MP_MEM may be returned if there is an error while computing the
     ecc key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param key Pointer to store the created key.
     \param keysize size of key to be created in bytes, set based on curveId
@@ -2465,6 +2473,10 @@ const char* wc_ecc_get_name(int curve_id);
     \brief Makes ECC key with extended options.
 
     \return 0 on success
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
     \return negative on error
 
     \param rng Random number generator

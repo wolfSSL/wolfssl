@@ -717,12 +717,22 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 #ifndef WC_NO_RNG
     int ret = 0;
     unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (ret == 0) {
+        idKey = WC_CRYPTOCB_HAS_ID(key);
+        idDevId = key->devId;
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB
 #ifndef WOLF_CRYPTO_CB_FIND
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
@@ -738,6 +748,11 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         /* fall-through when unavailable */
         ret = 0;
     }
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if ((ret == 0) && idKey && wc_CryptoCb_HasPkDevice(idDevId)) {
+        ret = NO_VALID_DEVID;
+    }
+#endif
 #endif
 
     if (ret == 0) {

@@ -307,7 +307,7 @@ ECC Curve Sizes:
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && \
     (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_SIGN_ONLY)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO)
+    !defined(PSOC6_CRYPTO_ECC)
     /* STM32 sign-only (e.g. C5): the HW PKA cannot run the integrated ECDSA
      * verify (mode 0x26) correctly, so use the SW verify helper rather than the
      * HW-accelerator sigRS path. Note the helper's scalar multiplications still
@@ -3692,11 +3692,15 @@ static int ecc_point_to_mont(ecc_point* p, ecc_point* r, mp_int* modulus,
 
        if (err == MP_OKAY) {
            if (mp_cmp_d(mu, 1) == MP_EQ) {
-               err = mp_copy(p->x, r->x);
+               /* Montgomery form is the same as normal form (e.g. P-521 with
+                * SP int math) but the ordinates must still be reduced as the
+                * point arithmetic requires them to be less than the modulus.
+                */
+               err = mp_mod(p->x, modulus, r->x);
                if (err == MP_OKAY)
-                   err = mp_copy(p->y, r->y);
+                   err = mp_mod(p->y, modulus, r->y);
                if (err == MP_OKAY)
-                   err = mp_copy(p->z, r->z);
+                   err = mp_mod(p->z, modulus, r->z);
            }
            else {
                err = mp_mulmod(p->x, mu, modulus, r->x);
@@ -6066,6 +6070,10 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         int curve_id, int flags)
 {
     int err = 0;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey;
+    int idDevId;
+#endif
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WC_ECC_NONBLOCK) && \
     defined(WC_ECC_NONBLOCK_ONLY)
     ecc_nb_ctx_t nb_ctx;
@@ -6105,6 +6113,10 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     #endif
     key->flags = (byte)flags;
 
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    idKey = WC_CRYPTOCB_HAS_ID(key);
+    idDevId = key->devId;
+#endif
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC_DHE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -6115,6 +6127,10 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
             return err;
         /* fall-through when unavailable */
     }
+#endif
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (idKey && wc_CryptoCb_HasPkDevice(idDevId))
+        return NO_VALID_DEVID;
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_ECC
@@ -9558,7 +9574,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
 
 #if (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_SIGN_ONLY)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO) && \
+    !defined(PSOC6_CRYPTO_ECC) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 {
@@ -9589,7 +9605,7 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
     FREE_CURVE_SPECS();
     return err;
 }
-#endif /* !WOLFSSL_STM32_PKA && !WOLFSSL_PSOC6_CRYPTO */
+#endif /* !WOLFSSL_STM32_PKA && !PSOC6_CRYPTO_ECC */
 
 #if defined(HAVE_ECC_VERIFY_HELPER) && !defined(WOLFSSL_MICROCHIP)
 static int ecc_verify_hash_sp(mp_int *r, mp_int *s, const byte* hash,
@@ -10120,10 +10136,12 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
 {
-#if defined(WOLFSSL_STM32_PKA) && !defined(WC_STM32_PKA_SIGN_ONLY)
-    /* HW ECDSA verify via STM32 PKA. Works under both the CubeMX-HAL
-     * and the bare-metal direct-register paths. (Under WC_STM32_PKA_SIGN_ONLY
-     * -- e.g. STM32C5 -- verify falls through to the software body below.)
+#if (defined(WOLFSSL_STM32_PKA) && !defined(WC_STM32_PKA_SIGN_ONLY)) || \
+    defined(PSOC6_CRYPTO_ECC)
+    /* HW ECDSA verify via STM32 PKA or the PSoC6/PSOC Edge crypto engine.
+     * STM32 PKA works under both the CubeMX-HAL and the bare-metal
+     * direct-register paths. (Under WC_STM32_PKA_SIGN_ONLY -- e.g. STM32C5 --
+     * verify falls through to the software body below.)
      * Mirror the non-FIPS
      * input-validation from the SW body below (length range, all-zero
      * digest rejection) so HW + SW share the same input contract. */
@@ -10135,7 +10153,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     if (r == NULL || s == NULL || hash == NULL || res == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
-    if ((hashlen > WC_MAX_DIGEST_SIZE) || (hashlen < WC_MIN_DIGEST_SIZE)) {
+    if ((hashlen > WC_MAX_DIGEST_SIZE) ||
+        (hashlen < WC_MIN_DIGEST_SIZE_FOR_VERIFY)) {
         return BAD_LENGTH_E;
     }
 #ifndef WC_ALLOW_ECC_ZERO_HASH
@@ -10146,9 +10165,11 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         return ECC_BAD_ARG_E;
 #endif
 
-    return stm32_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
+#if defined(PSOC6_CRYPTO_ECC)
     return psoc6_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
+#else
+    return stm32_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
+#endif
 #else
    int           err;
    word32        keySz = 0;

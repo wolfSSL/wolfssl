@@ -3702,6 +3702,118 @@ int test_wc_ecc_mulmod_curves(void)
 } /* END test_wc_ecc_mulmod_curves */
 
 /*
+ * Testing wc_ecc_mulmod() with base point ordinates that are not reduced
+ * modulo the prime.
+ *
+ * P-521's prime is 2^521 - 1 so, with SP int math, the Montgomery
+ * normalizer is 1 and the base point was not converted (and so not reduced)
+ * before being used in the point arithmetic. An unreduced y, or a negative
+ * ordinate, always failed and an unreduced x failed for some scalars, such as
+ * the one below.
+ */
+int test_wc_ecc_mulmod_unreduced(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WOLFSSL_SP_MATH) && \
+    (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+    static const byte kBin[] = {
+        0x01, 0xDE, 0x4A, 0xF6, 0xFB, 0xF8, 0x87, 0x41,
+        0x33, 0x94, 0xD4, 0x05, 0x67, 0xFC, 0xAD, 0x4E,
+        0x5F, 0x61, 0x98, 0xC9, 0xDE, 0x3D, 0x23, 0x1A,
+        0xE0, 0x9A, 0xEE, 0x35, 0xB3, 0x24, 0x6D, 0xFF,
+        0x6B, 0xC8, 0x77, 0x46, 0x6C, 0x6A, 0xB3, 0x74,
+        0xAF, 0x48, 0xE3, 0x28, 0x68, 0xA4, 0xE7, 0x96,
+        0x77, 0x27, 0xE1, 0x76, 0x27, 0x75, 0x5D, 0xB8,
+        0x5D, 0x12, 0x7A, 0xCA, 0x91, 0xBD, 0x5A, 0xC3,
+        0x20, 0x48
+    };
+    const ecc_set_type* dp = NULL;
+    ecc_key     base;
+    ecc_key     curve;
+    ecc_point*  g = NULL;
+    ecc_point*  r = NULL;
+    ecc_point*  expected = NULL;
+    mp_int      k;
+    mp_int*     ord = NULL;
+    int         i;
+    int         cnt = 3;
+
+    XMEMSET(&base, 0, sizeof(ecc_key));
+    XMEMSET(&curve, 0, sizeof(ecc_key));
+    XMEMSET(&k, 0, sizeof(mp_int));
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(ECC_SECP521R1)));
+    ExpectIntEQ(wc_ecc_init(&base), 0);
+    ExpectIntEQ(wc_ecc_init(&curve), 0);
+    ExpectIntEQ(mp_init(&k), 0);
+    ExpectIntEQ(mp_read_unsigned_bin(&k, kBin, (word32)sizeof(kBin)), 0);
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(r = wc_ecc_new_point());
+    ExpectNotNull(expected = wc_ecc_new_point());
+
+    /* base carries the base point; curve carries a and the prime as x and y,
+     * as in test_wc_ecc_mulmod(). */
+    if (dp != NULL) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&base, dp->Gx, dp->Gy, NULL,
+            ECC_SECP521R1), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&curve, dp->Af, dp->prime, NULL,
+            ECC_SECP521R1), 0);
+    }
+
+    /* Expected result from the reduced base point. */
+    ExpectIntEQ(wc_ecc_mulmod(&k, &base.pubkey, expected, curve.pubkey.x,
+        curve.pubkey.y, 1), 0);
+
+#if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    /* Also subtract the prime, making each ordinate negative in turn. */
+    cnt = 6;
+#endif
+
+    /* Change each ordinate in turn by the prime: still the same point. */
+    for (i = 0; i < cnt; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, g), 0);
+        if (g != NULL) {
+            ord = ((i % 3) == 0) ? g->x : (((i % 3) == 1) ? g->y : g->z);
+        }
+        if (i < 3) {
+            ExpectIntEQ(mp_add(ord, curve.pubkey.y, ord), 0);
+        }
+        else {
+            ExpectIntEQ(mp_sub(ord, curve.pubkey.y, ord), 0);
+        }
+    #ifdef FP_ECC
+        /* Don't let a cached table hide the result of the normal path. */
+        wc_ecc_fp_free();
+    #endif
+        ExpectIntEQ(wc_ecc_mulmod(&k, g, r, curve.pubkey.x, curve.pubkey.y,
+            1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(r, expected), MP_EQ);
+    }
+
+    wc_ecc_del_point(expected);
+    wc_ecc_del_point(r);
+    wc_ecc_del_point(g);
+    mp_free(&k);
+    wc_ecc_free(&curve);
+    wc_ecc_free(&base);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_unreduced */
+
+/*
  * Testing wc_ecc_is_valid_idx()
  */
 int test_wc_ecc_is_valid_idx(void)
@@ -4919,3 +5031,196 @@ int test_wc_EccPublicKeyDecode_specifiedOverflow(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_EccPublicKeyDecode_specifiedOverflow */
+
+#if defined(HAVE_ECC) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #define TEST_ECC_KEYGEN_ID
+#endif
+
+#ifdef TEST_ECC_KEYGEN_ID
+#define ECC_KEYGEN_ID_DEVID 2401
+
+static int ecc_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+static int ecc_keygen_clear_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)ctx;
+
+    if ((info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_EC_KEYGEN)) {
+        info->pk.eckg.key->devId = INVALID_DEVID;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#ifdef WOLF_CRYPTO_CB_FIND
+#ifdef WOLFSSL_SWDEV
+    #include <tests/swdev/swdev_loader.h>
+#endif
+static int ecc_keygen_find_cb(int devIdArg, int algoType)
+{
+    if ((devIdArg == INVALID_DEVID) && (algoType == WC_ALGO_TYPE_PK))
+        return ECC_KEYGEN_ID_DEVID;
+    return devIdArg;
+}
+#endif
+
+#if defined(HAVE_ECC_DHE) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+/* Generates in software on the caller's key, as many device callbacks do. */
+static int ecc_keygen_sw_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)ctx;
+
+    if ((info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_EC_KEYGEN)) {
+        info->pk.eckg.key->devId = INVALID_DEVID;
+        ret = wc_ecc_make_key_ex(info->pk.eckg.rng, info->pk.eckg.size,
+            info->pk.eckg.key, info->pk.eckg.curveId);
+        info->pk.eckg.key->devId = devIdArg;
+    }
+    return ret;
+}
+#endif
+#endif /* WC_CRYPTOCB_KEYGEN_ID_CHECK */
+#endif /* TEST_ECC_KEYGEN_ID */
+
+/*
+ * Testing wc_ecc_make_key() on an id or label key whose device declines keygen.
+ */
+int test_wc_ecc_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_ECC_KEYGEN_ID) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK)
+    int devId = ECC_KEYGEN_ID_DEVID;
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+    int ret;
+#endif
+    ecc_key key;
+    WC_RNG rng;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ecc_keygen_decline_cb, NULL),
+        0);
+
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId + 300, ecc_keygen_clear_cb,
+        NULL), 0);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 300),
+        0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+    wc_CryptoCb_UnRegisterDevice(devId + 300);
+
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_ex(&key, NULL, devId), 0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    wc_ecc_free(&key);
+#endif
+
+#ifdef WOLF_CRYPTO_CB_FIND
+    wc_CryptoCb_SetDeviceFindCb(ecc_keygen_find_cb);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
+#endif
+
+#if defined(HAVE_ECC_DHE) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId + 200, ecc_keygen_sw_cb,
+        NULL), 0);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 200),
+        0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    wc_ecc_free(&key);
+    wc_CryptoCb_UnRegisterDevice(devId + 200);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#elif defined(TEST_ECC_KEYGEN_ID)
+    int devId = ECC_KEYGEN_ID_DEVID;
+    int ret;
+    ecc_key key;
+    WC_RNG rng;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+    int expRet = WC_NO_ERR_TRACE(NO_VALID_DEVID);
+#else
+    int expRet = 0;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ecc_keygen_decline_cb, NULL),
+        0);
+
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, expRet);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_label(&key, "dev-key", NULL, devId), 0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, expRet);
+    wc_ecc_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
