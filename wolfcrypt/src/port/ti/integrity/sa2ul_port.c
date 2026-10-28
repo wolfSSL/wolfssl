@@ -93,32 +93,36 @@ static void ti_sa2ul_unlock(void)
 /* caller holds gSa2ulMutex */
 static int ti_sa2ul_iodevice_open(void)
 {
-    Address VirtFirst, VirtLast;
+    Address CtrlFirst, CtrlLast, DataFirst, DataLast;
+    IODevice dev = NULL;
 
     if (gSa2ulDev != NULL) {
         return 0;
     }
-    if (RequestResource((Object *)&gSa2ulDev, SA2UL_IODEVICE_NAME,
+
+    /* Validate both shared MemoryRegions before taking the device so a
+     * misconfigured region never leaves a device handle allocated. */
+    if (GetMemoryRegionAddresses(sa2ul_ctrl_local, &CtrlFirst,
+            &CtrlLast) != Success ||
+            (CtrlLast - CtrlFirst + 1) < sizeof(struct Sa2ulCtrl)) {
+        return -1;
+    }
+    if (GetMemoryRegionAddresses(sa2ul_data_local, &DataFirst,
+            &DataLast) != Success ||
+            (DataLast - DataFirst + 1) < sizeof(struct Sa2ulData)) {
+        return -1;
+    }
+
+    if (RequestResource((Object *)&dev, SA2UL_IODEVICE_NAME,
             "!systempassword") != Success) {
-        gSa2ulDev = NULL;
         return -1;
     }
 
     gSa2ulCtrlMr = sa2ul_ctrl_local;
-    if (GetMemoryRegionAddresses(gSa2ulCtrlMr, &VirtFirst, &VirtLast) != Success ||
-            (VirtLast - VirtFirst + 1) < sizeof(struct Sa2ulCtrl)) {
-        gSa2ulDev = NULL;
-        return -1;
-    }
-    gSa2ulCtrl = (volatile struct Sa2ulCtrl *)VirtFirst;
-
+    gSa2ulCtrl = (volatile struct Sa2ulCtrl *)CtrlFirst;
     gSa2ulDataMr = sa2ul_data_local;
-    if (GetMemoryRegionAddresses(gSa2ulDataMr, &VirtFirst, &VirtLast) != Success ||
-            (VirtLast - VirtFirst + 1) < sizeof(struct Sa2ulData)) {
-        gSa2ulDev = NULL;
-        return -1;
-    }
-    gSa2ulData = (volatile struct Sa2ulData *)VirtFirst;
+    gSa2ulData = (volatile struct Sa2ulData *)DataFirst;
+    gSa2ulDev = dev;
 
     return 0;
 }
