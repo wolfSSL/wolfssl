@@ -47,14 +47,15 @@
  * setup failure is reported as a skip (return 0), never a test failure, so
  * the harness never discards the variant's coverage.
  *
- * wc_Entropy_Get() itself has two decisions whose operands reference the
+ * wc_Entropy_Get() has two decisions (the first in Entropy_HealthTest_Passed(),
+ * shared with Entropy_Init()) whose operands reference the
  * SAME file-static health-test state, but are not independently selectable
  * from tests/api because Entropy_Init() (run once by test setup) already
  * leaves that state primed:
  *
- *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
- *     - "prop_total == 0"   startup-retrigger via the first OR operand
- *     - "!rep_have_prev"    startup-retrigger via the second OR operand
+ *   "return (prop_total != 0) && rep_have_prev;"  (Entropy_HealthTest_Passed)
+ *     - "prop_total != 0"   startup-retrigger via the first operand
+ *     - "rep_have_prev"     startup-retrigger via the second operand
  *   "while ((ret == 0) && (len > 0))"
  *   "for (i = 0; (ret == 0) && (i < noise_len); i++)"
  *     - "ret == 0"          both loops only ever end via their *other*
@@ -247,13 +248,14 @@ static void wb_collect_path(void)
 }
 
 /* wc_Entropy_Get()'s startup-retrigger guard:
- *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
+ *   "if ((ret == 0) && (!Entropy_HealthTest_Passed()))"
+ *   "return (prop_total != 0) && rep_have_prev;"
  * On any live process, Entropy_Init() (already run by test setup and by
  * wb_collect_path() above) leaves prop_total != 0 and rep_have_prev == 1, so
- * this guard's *true* side -- and each of its two OR operands individually
+ * this guard's *true* side -- and each of its two operands individually
  * -- is never shown from tests/api. Both globals are file-static: drive
  * each operand's independence pair directly, holding the other operand
- * false (the "both false" side is already exercised by every other
+ * true (the "both true" side is already exercised by every other
  * steady-state call in this suite, e.g. wb_collect_path() above). */
 static void wb_startup_retrigger(void)
 {
@@ -266,8 +268,8 @@ static void wb_startup_retrigger(void)
         return;
     }
 
-    /* "prop_total == 0" true, "!rep_have_prev" false: retrigger via the
-     * first OR operand alone. */
+    /* "prop_total != 0" false, "rep_have_prev" true: retrigger via the
+     * first operand alone. */
     prop_total = 0;
     rep_have_prev = 1;
     XMEMSET(out, 0, sizeof(out));
@@ -277,8 +279,8 @@ static void wb_startup_retrigger(void)
         wb_fail = 1;
     }
 
-    /* "prop_total == 0" false, "!rep_have_prev" true: retrigger via the
-     * second OR operand alone. */
+    /* "prop_total != 0" true, "rep_have_prev" false: retrigger via the
+     * second operand alone. */
     prop_total = 1;
     rep_have_prev = 0;
     XMEMSET(out, 0, sizeof(out));
@@ -409,10 +411,8 @@ static void wb_startup_noise_fail(void)
 
 /* ---- wc_Entropy_Get() mutex-failure vectors ------------------------------ *
  *
- *   lock:   if (ret == 0) { if (wc_LockMutex(&entropy_mutex) != 0) ...
- *                           else locked = 1; }
- *   health: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
- *   tail:   if (locked) { ... wc_UnLockMutex(&entropy_mutex); }
+ *   LOCK: if (wc_LockMutex(&entropy_mutex) != 0)   (Entropy_SetupAndLock)
+ *   PROP: if ((ret == 0) && (!Entropy_HealthTest_Passed()))
  *
  * A live, correctly initialised mutex always locks, so the wc_LockMutex()
  * decision only ever goes FALSE, locked is always 1, and the health check's
@@ -420,17 +420,17 @@ static void wb_startup_noise_fail(void)
  * TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes the NEXT lock
  * -- and only that one -- refuse:
  *
- *   armed   -> wc_LockMutex() != 0 TRUE: ret = BAD_MUTEX_E, locked stays 0,
- *              the health check's ret == 0 is FALSE and the tail is skipped
- *   unarmed -> wc_LockMutex() != 0 FALSE: locked = 1, the health check's
- *              ret == 0 is TRUE and the tail unlocks
+ *   armed   -> LOCK TRUE -> ret = BAD_MUTEX_E, which also makes idx0 of
+ *              Entropy_SetupAndLock()'s SHA-3 setup guard FALSE and later
+ *              PROP's idx0 FALSE (same call, same binary)
+ *   unarmed -> LOCK FALSE and PROP idx0 TRUE
  *
- * so the armed and unarmed calls give both outcomes of the tail's locked
- * decision in the same binary. A refused lock is the one path
- * wc_Entropy_Get() must NOT unlock on, and it doesn't: no unlock of an unheld
- * mutex happens and no global state is touched. The enclosing ret == 0 guard
- * on the lock is only FALSE in HAVE_FIPS builds, where Entropy_Init() runs
- * first and can fail; elsewhere ret is 0 by construction at that point.
+ * A refused lock is the one path wc_Entropy_Get() must NOT unlock on, and it
+ * doesn't: the tail is guarded on `locked`, so no unlock of an
+ * unheld mutex happens and no global state is touched. In builds without a
+ * static mutex initializer, the "ret == 0" guard around LOCK has its FALSE
+ * half unexercised: it needs wc_local_InitMutexOnce() to fail, which is not
+ * hooked.
  * ------------------------------------------------------------------------ */
 #if defined(HAVE_ENTROPY_MEMUSE) && !defined(MCDC_FM_UNAVAILABLE)
 static void wb_entropy_get_mutex(void)
@@ -440,8 +440,8 @@ static void wb_entropy_get_mutex(void)
 
     XMEMSET(out, 0, sizeof(out));
 
-    /* Warm-up while unarmed so lazy initialisation (which locks the same
-     * mutex) is done before the one-shot fault is armed. */
+    /* Warm-up while unarmed to set up SHA-3 and health test state again
+     * after the earlier Entropy_Final(). */
     (void)wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
 
     /* Armed: the collection lock is refused exactly once. */
