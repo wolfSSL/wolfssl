@@ -2071,7 +2071,7 @@ static int _ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    Add two ECC points
    P        The point to add
    Q        The point to add
-   R        [out] The destination of the double
+   R        [out] The sum; the point at infinity has a z of zero
    a        ECC curve parameter a
    modulus  The modulus of the field the ECC curve is in
    mp       The "b" value from montgomery_setup()
@@ -2167,16 +2167,9 @@ static int _ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 
    /* should we dbl instead? */
    if (err == MP_OKAY) {
-#ifdef ECC_TIMING_RESISTANT
-      err = mp_submod_ct(modulus, Q->y, modulus, t1);
-#else
-      err = mp_sub(modulus, Q->y, t1);
-#endif
-   }
-   if (err == MP_OKAY) {
       if ( (mp_cmp(P->x, Q->x) == MP_EQ) &&
            (mp_get_digit_count(Q->z) && mp_cmp(P->z, Q->z) == MP_EQ) &&
-           (mp_cmp(P->y, Q->y) == MP_EQ || mp_cmp(P->y, t1) == MP_EQ)) {
+           (mp_cmp(P->y, Q->y) == MP_EQ)) {
           mp_clear(t1);
           mp_clear(t2);
    #ifdef WOLFSSL_SMALL_STACK
@@ -8737,14 +8730,13 @@ static int ecc_cond_copy_point(ecc_point* S, int copy, ecc_point* D)
  *
  *   A is infinity     -> B copied over the result.
  *   B is infinity     -> A copied over the result.
- *   A = -B, same z    -> The add doubles instead; result set to infinity.
  *   A = B             -> Doubled by the add itself when the z values match;
  *                        all-zero result when they differ - doubled here.
  *   A + B = infinity  -> Add result has z == 0, x/y not 0; set to infinity.
  *
- * The infinity out-flag is set only for the last two cases - a finite pair
- * whose sum is infinity - matching the original branching version, which
- * never touched the flag when copying an operand out.
+ * The infinity out-flag is set only for the last case - a finite pair whose
+ * sum is infinity - matching the original branching version, which never
+ * touched the flag when copying an operand out.
  */
 int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
     mp_int* a, mp_int* modulus, mp_digit mp, int* infinity)
@@ -8752,7 +8744,6 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
     int err;
     int aInf;
     int bInf;
-    int nInf;
     int rInf = 0;
 #ifdef WOLFSSL_SMALL_STACK
     ecc_point* T = NULL;
@@ -8770,15 +8761,6 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
     aInf &= (mp_iszero(A->y) == MP_YES);
     bInf  = (mp_iszero(B->x) == MP_YES);
     bInf &= (mp_iszero(B->y) == MP_YES);
-
-    /* A = -B with matching z gives infinity, which the add turns into a
-     * double instead: note it now and write infinity over the result after
-     * the add. A = B needs no note - the add doubles it correctly. */
-    nInf  = (mp_cmp(A->x, B->x) == MP_EQ);
-    nInf &= (mp_cmp(A->z, B->z) == MP_EQ);
-    nInf &= (mp_cmp(A->y, B->y) != MP_EQ);
-    nInf &= (aInf == 0);
-    nInf &= (bInf == 0);
 
     /* Off the stack unless the build asked for small stacks. Inherit the
      * key's heap and small-stack cache from R so the temporary behaves like
@@ -8818,12 +8800,6 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
             err = ecc_set_point_infinity(T);
             rInf = 1;
         }
-    }
-
-    /* A = -B with matching z: replace the double the add produced. */
-    if ((err == MP_OKAY) && nInf) {
-        err = ecc_set_point_infinity(T);
-        rInf = 1;
     }
 
     /* Select without branching on which operand was infinity: A infinity
