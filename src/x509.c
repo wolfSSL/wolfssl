@@ -17092,6 +17092,9 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
     WOLFSSL_X509_NAME *subjName;
     int emailLen;
     char *emailBuf;
+    DNS_entry *entry;
+    int haveSanEmail = 0;
+    size_t i;
 
     (void)flags;
 
@@ -17101,6 +17104,47 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
         WOLFSSL_MSG("Invalid parameter");
         return WOLFSSL_FAILURE;
     }
+
+    /* Replicate openssl behavior for chkLen: reject embedded NULs and drop a
+     * single trailing NUL. */
+    if (chkLen == 0) {
+        chkLen = XSTRLEN(chk);
+    }
+    else {
+        for (i = 0; i < (chkLen > 1 ? chkLen - 1 : chkLen); i++) {
+            if (chk[i] == '\0') {
+                WOLFSSL_MSG("Embedded NUL in email address");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (chkLen > 1 && chk[chkLen - 1] == '\0')
+            chkLen--;
+    }
+
+    /* rfc822Name SANs take precedence: the subject emailAddress is only
+     * checked when the certificate has none (RFC 6125 6.4.4). */
+    for (entry = x->altNames; entry != NULL; entry = entry->next) {
+        if (entry->type == ASN_RFC822_TYPE) {
+            haveSanEmail = 1;
+            if (entry->len >= 0 && chkLen == (size_t)entry->len &&
+                    XMEMCMP(chk, entry->name, chkLen) == 0) {
+                return WOLFSSL_SUCCESS;
+            }
+        }
+    }
+    if (haveSanEmail)
+        return WOLFSSL_FAILURE;
+
+#if defined(IGNORE_NAME_CONSTRAINTS) || \
+    (defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_SAN_EMAIL))
+    /* rfc822Name SANs are not kept when a certificate is decoded in this
+     * build, so a SAN extension may hold email identities that cannot be seen
+     * here. Do not fall back to the subject when one is present. */
+    if (x->subjAltNameSet) {
+        WOLFSSL_MSG("rfc822Name SANs not available, not checking subject");
+        return WOLFSSL_FAILURE;
+    }
+#endif
 
     subjName = wolfSSL_X509_get_subject_name(x);
     if (subjName == NULL)
@@ -17124,9 +17168,6 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
         XFREE(emailBuf, x->heap, DYNAMIC_TYPE_OPENSSL);
         return WOLFSSL_FAILURE;
     }
-
-    if (chkLen == 0)
-        chkLen = XSTRLEN(chk);
 
     if (chkLen != (size_t)emailLen
      || XSTRNCMP(chk, emailBuf, chkLen)) {
