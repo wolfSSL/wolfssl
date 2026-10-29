@@ -40,6 +40,9 @@ Breaking changes:
 
 New features:
 
+- Add the rand_core_0_9 feature: RNG implements the rand_core 0.9
+  TryRngCore and TryCryptoRng traits, alongside the rand_core 0.10 ones, for
+  users of the rand 0.9 ecosystem
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
 - Add HMAC::copy(), a fallible equivalent of HMAC::clone()
