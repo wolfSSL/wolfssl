@@ -579,6 +579,7 @@ static void wb_aarch64_gcm_ptr_guards(void)
  *
  *   5027:  if ((aes == NULL) || (userKey == NULL))
  *   14321: if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
+ *              ((ivSz == 0) && (iv != NULL)) || ((ivSz > 0) && (iv == NULL)))
  *
  * BUILD-AXIS GUARD (learned the hard way): aes.c defines TEN different
  * wc_AesSetKey() bodies in one #if/#elif chain and they do NOT share this
@@ -588,7 +589,7 @@ static void wb_aarch64_gcm_ptr_guards(void)
  * wc_AesSetKeyLocal()'s XMEMCPY. Passing userKey == NULL on a host build
  * therefore segfaults instead of being rejected, so the vector is compiled
  * only where the guard that catches it is.
- *              ((ivSz == 0) && (iv != NULL)) || ((ivSz > 0) && (iv == NULL)))
+ * No longer true: the software and asm arms now check userKey, so it runs.
  *
  * Both are public entry points, but the AES API groups only reach them with a
  * real key and with iv/ivSz always consistent, so wc_AesSetKey's userKey
@@ -606,7 +607,8 @@ static void wb_aarch64_gcm_ptr_guards(void)
  * ~14858) is excluded on the identical argument against its idx3
  * ("ivFixed == NULL").
  * ------------------------------------------------------------------------- */
-#if !defined(NO_AES) && defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+#if !defined(NO_AES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NRF51_AES) && defined(WOLFSSL_AES_128)
 static void wb_aes_setkey_guard(void)
 {
     Aes  aes;
@@ -637,8 +639,8 @@ static void wb_aes_setkey_guard(void)
 }
 #else
 static void wb_aes_setkey_guard(void)
-{ WB_NOTE("this variant compiles a different wc_AesSetKey arm (no userKey "
-          "guard); skipped"); }
+{ WB_NOTE("AES off, FIPS module, nRF51 or no AES-128 build; wc_AesSetKey "
+          "userKey guard skipped"); }
 #endif
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)

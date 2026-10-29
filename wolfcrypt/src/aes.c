@@ -5016,7 +5016,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         (void)dir;
 
-        if (aes == NULL || (keylen != 16 &&
+        if (aes == NULL || userKey == NULL || (keylen != 16 &&
         #ifdef WOLFSSL_AES_192
             keylen != 24 &&
         #endif
@@ -5112,7 +5112,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
-        if (aes == NULL)
+        if (aes == NULL || userKey == NULL)
             return BAD_FUNC_ARG;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
@@ -5201,7 +5201,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         (void)dir;
         (void)iv;
         ESP_LOGV(TAG, "wc_AesSetKey_for_ESP32");
-        if (aes == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
+        if (aes == NULL || userKey == NULL ||
+            (keylen != 16 && keylen != 24 && keylen != 32)) {
             return BAD_FUNC_ARG;
         }
 
@@ -5325,7 +5326,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
         int cbRet;
 #endif
-        if ((aes == NULL) || (userKey == NULL)) {
+        if (aes == NULL) {
             return BAD_FUNC_ARG;
         }
 
@@ -5404,6 +5405,19 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
+        }
+    #endif
+
+        /* A device may take a NULL key, software needs one. */
+        if (userKey == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
             /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
             if (keylen > sizeof(aes->devKey)) {
                 return BAD_FUNC_ARG;
@@ -5458,7 +5472,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
         int cbRet;
 #endif
-        if ((aes == NULL) || (userKey == NULL)) {
+        if (aes == NULL) {
             return BAD_FUNC_ARG;
         }
 
@@ -5537,6 +5551,19 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
+        }
+    #endif
+
+        /* A device may take a NULL key, software needs one. */
+        if (userKey == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
             /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
             if (keylen > sizeof(aes->devKey)) {
                 return BAD_FUNC_ARG;
@@ -5568,7 +5595,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         (void)dir;
 
-        if (aes == NULL)
+        if (aes == NULL || userKey == NULL)
             return BAD_FUNC_ARG;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
