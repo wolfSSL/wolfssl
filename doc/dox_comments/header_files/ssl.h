@@ -7492,9 +7492,12 @@ int  wolfSSL_state(WOLFSSL* ssl);
 
     \brief This function gets the peer’s certificate.
 
-    \return pointer a pointer to the peerCert member of the WOLFSSL_X509
-    structure if it exists.
-    \return 0 returned if the peer certificate issuer size is not defined.
+    \return pointer to the peer's WOLFSSL_X509 certificate if one was kept.
+    With OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL this is the certificate
+    object kept by the WOLFSSL with its reference count incremented, as
+    OpenSSL does; otherwise it is a copy. Either way the caller must free it
+    with wolfSSL_X509_free(), and it stays valid after wolfSSL_free().
+    \return NULL if there is no peer certificate or memory allocation fails.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -7507,6 +7510,7 @@ int  wolfSSL_state(WOLFSSL* ssl);
 
     if(peerCert){
     	// You have a pointer peerCert to the peer certification
+        wolfSSL_X509_free(peerCert);
     }
     \endcode
 

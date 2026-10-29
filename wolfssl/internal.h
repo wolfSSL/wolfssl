@@ -7212,9 +7212,9 @@ struct WOLFSSL {
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
 #endif
 #ifdef KEEP_PEER_CERT
-    /* TODO put this on the heap so we can properly use the
-     * reference counter and not have to duplicate it. */
-    WOLFSSL_X509     peerCert;           /* X509 peer cert */
+    WOLFSSL_X509*    peerCert;           /* X509 peer cert, NULL when none.
+                                            Holds one reference; replaced,
+                                            never reused, by a new cert */
 #endif
 #ifdef KEEP_OUR_CERT
     WOLFSSL_X509*    ourCert;            /* keep alive a X509 struct of cert.
@@ -8067,10 +8067,15 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
                                 void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509* x509);
-    WOLFSSL_LOCAL void ReinitX509(WOLFSSL_X509* x509);
     #ifndef NO_ASN
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509* x509,
                                          DecodedCert* dCert);
+    #endif
+    #ifdef KEEP_PEER_CERT
+    WOLFSSL_LOCAL void FreePeerCert(WOLFSSL* ssl);
+        #ifndef NO_ASN
+    WOLFSSL_LOCAL int  KeepPeerCert(WOLFSSL* ssl, DecodedCert* dCert);
+        #endif
     #endif
 #endif
 
