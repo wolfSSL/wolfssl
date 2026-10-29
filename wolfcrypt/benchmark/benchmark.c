@@ -19013,6 +19013,20 @@ out:
         return ret;
 #endif
     }
+#elif defined(WOLFSSL_OPTEE)
+
+    double current_time(int reset)
+    {
+        TEE_Time now;
+
+        (void)reset;
+
+        /* Millisecond granularity, so short operations need iterations. */
+        TEE_GetSystemTime(&now);
+
+        return (double)now.seconds + ((double)now.millis / 1000.0);
+    }
+
 #elif defined(WOLFSSL_ZEPHYR)
 
     #include <time.h>

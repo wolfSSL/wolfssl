@@ -4940,6 +4940,25 @@ time_t fsl_time(time_t* t)
 }
 #endif
 
+/* Matches the XTIME mapping's gate in wc_port.h, so this is not built when
+ * that mapping is excluded. */
+#if defined(WOLFSSL_OPTEE) && !defined(NO_ASN_TIME)
+
+time_t optee_time(time_t* timer)
+{
+    TEE_Time reeTime;
+
+    /* Normal-world clock, so not a trusted time source. See wc_port.h. */
+    TEE_GetREETime(&reeTime);
+
+    if (timer != NULL)
+        *timer = (time_t)reeTime.seconds;
+
+    return (time_t)reeTime.seconds;
+}
+
+#endif /* WOLFSSL_OPTEE && !NO_ASN_TIME */
+
 #if defined(MICRIUM)
 
 time_t micrium_time(time_t* timer)

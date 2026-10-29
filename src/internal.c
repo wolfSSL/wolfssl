@@ -11998,6 +11998,17 @@ ProtocolVersion MakeDTLSv1_3(void)
     }
 #endif
 
+#elif defined(WOLFSSL_OPTEE)
+    word32 LowResTimer(void)
+    {
+        TEE_Time now;
+
+        /* Monotonic within the TA, and not the normal world's clock. */
+        TEE_GetSystemTime(&now);
+
+        return (word32)now.seconds;
+    }
+
 #elif defined(TIME_OVERRIDES)
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
     /* use same asn time overrides unless user wants tick override above */
