@@ -586,6 +586,163 @@ int test_wolfSSL_peer_cert_copy_oom(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_TLS)
+/* Whether the SSL/TLS object keeps a peer certificate.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when a peer certificate is kept, 0 otherwise.
+ */
+static int test_peer_cert_kept(const WOLFSSL* ssl)
+{
+    WOLFSSL_X509* peer = GetPeerCert(ssl);
+    return (peer != NULL) && (peer->issuer.sz > 0);
+}
+#endif
+
+/* Test getting the peer's certificate.
+ *
+ * With WOLFSSL_DYNAMIC_PEER_CERT the object kept by the SSL/TLS object is
+ * returned with a new reference; otherwise a copy is returned. Either way a
+ * server without client authentication keeps no certificate, and the
+ * returned certificate stays valid when the kept certificate is replaced and
+ * after the SSL/TLS object is freed.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_get_peer_certificate_ref(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_TLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509* srv = NULL;
+    WOLFSSL_X509* peer = NULL;
+    WOLFSSL_X509* again = NULL;
+    WOLFSSL_X509* old = NULL;
+    const unsigned char* srvDer = NULL;
+    const unsigned char* der = NULL;
+    int srvDerSz = 0;
+    int derSz = 0;
+
+    ExpectNull(wolfSSL_get_peer_certificate(NULL));
+    ExpectNotNull(srv = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(srvDer = wolfSSL_X509_get_der(srv, &srvDerSz));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Nothing is kept before the handshake. */
+    if (EXPECT_SUCCESS()) {
+    #ifdef WOLFSSL_DYNAMIC_PEER_CERT
+        ExpectNull(ssl_c->peerCert);
+    #endif
+        ExpectIntEQ(test_peer_cert_kept(ssl_c), 0);
+    }
+    ExpectNull(wolfSSL_get_peer_certificate(ssl_c));
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The server did not ask for a client certificate, so keeps none. */
+    if (EXPECT_SUCCESS()) {
+    #ifdef WOLFSSL_DYNAMIC_PEER_CERT
+        ExpectNull(ssl_s->peerCert);
+    #endif
+        ExpectIntEQ(test_peer_cert_kept(ssl_s), 0);
+    }
+    ExpectNull(wolfSSL_get_peer_certificate(ssl_s));
+
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+    ExpectNotNull(again = wolfSSL_get_peer_certificate(ssl_c));
+#ifdef WOLFSSL_DYNAMIC_PEER_CERT
+    /* The client is handed the kept object with a reference. */
+    ExpectPtrEq(again, peer);
+    if (EXPECT_SUCCESS()) {
+        ExpectPtrEq(peer, ssl_c->peerCert);
+        ExpectIntEQ((int)wolfSSL_RefCur(peer->ref), 3);
+    }
+    wolfSSL_X509_free(again);
+    again = NULL;
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ((int)wolfSSL_RefCur(peer->ref), 2);
+    }
+#else
+    /* The client is handed a copy each time. */
+    ExpectPtrNE(again, peer);
+    if (EXPECT_SUCCESS()) {
+        ExpectPtrNE(peer, GetPeerCert(ssl_c));
+        ExpectIntEQ((int)wolfSSL_RefCur(peer->ref), 1);
+    }
+    wolfSSL_X509_free(again);
+    again = NULL;
+#endif
+    /* It is the certificate the server sent. */
+    ExpectNotNull(der = wolfSSL_X509_get_der(peer, &derSz));
+    ExpectIntEQ(derSz, srvDerSz);
+    ExpectBufEQ(der, srvDer, srvDerSz);
+
+    /* Reusing the object for a new connection empties the kept certificate,
+     * and the certificate returned stays valid. */
+    old = peer;
+    peer = NULL;
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+    #ifdef WOLFSSL_DYNAMIC_PEER_CERT
+        ExpectNull(ssl_c->peerCert);
+    #endif
+        ExpectIntEQ(test_peer_cert_kept(ssl_c), 0);
+        ExpectIntEQ((int)wolfSSL_RefCur(old->ref), 1);
+    }
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+#ifndef NO_DH
+    SetDH(ssl_s);
+#endif
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+    ExpectPtrNE(peer, old);
+    ExpectNotNull(der = wolfSSL_X509_get_der(old, &derSz));
+    ExpectIntEQ(derSz, srvDerSz);
+    ExpectBufEQ(der, srvDer, srvDerSz);
+    wolfSSL_X509_free(old);
+    old = NULL;
+
+    /* The certificate returned outlives the SSL/TLS object. */
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ((int)wolfSSL_RefCur(peer->ref), 1);
+    }
+    ExpectNotNull(der = wolfSSL_X509_get_der(peer, &derSz));
+    ExpectIntEQ(derSz, srvDerSz);
+    ExpectBufEQ(der, srvDer, srvDerSz);
+    ExpectIntEQ(wolfSSL_X509_NAME_cmp(wolfSSL_X509_get_subject_name(peer),
+        wolfSSL_X509_get_subject_name(srv)), 0);
+
+    wolfSSL_X509_free(again);
+    wolfSSL_X509_free(old);
+    wolfSSL_X509_free(peer);
+    wolfSSL_X509_free(srv);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Guarded to match its only caller, test_wolfSSL_CTX_set_client_cert_cb(),
  * which needs OPENSSL_EXTRA for the ctx->CBClientCert field. */
 #if defined(WOLFSSL_CERT_SETUP_CB) && defined(OPENSSL_EXTRA) && \

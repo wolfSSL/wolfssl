@@ -12943,7 +12943,11 @@ int test_tls13_ticket_peer_cert_reverify(void)
      * no longer in the trust store.  Check the peerCert directly rather
      * than wolfSSL_get_peer_certificate which has a session-chain
      * fallback that may see stale cache state. */
+#ifdef WOLFSSL_DYNAMIC_PEER_CERT
+    ExpectNull(ssl_s->peerCert);
+#else
     ExpectIntEQ(ssl_s->peerCert.issuer.sz, 0);
+#endif
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
