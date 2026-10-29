@@ -598,6 +598,8 @@ int test_wolfSSL_X509_check_email_san(void)
     defined(WOLFSSL_ALT_NAMES) && defined(HAVE_ECC) && !defined(NO_SHA256)
     static const char target[] = "a@target.example";
     static const char nulTarget[] = "a@target.example\0junk";
+    static const char upperDomain[] = "a@TARGET.Example";
+    static const char upperLocal[] = "A@target.example";
     static const char* const sanTarget[] = { "@a@target.example", NULL };
     static const char* const sanAttacker[] = { "@a@attacker.example", NULL };
     static const char* const sanOther[] = { "@b@other.example", NULL };
@@ -648,13 +650,18 @@ int test_wolfSSL_X509_check_email_san(void)
     }
 
     /* chkLen handling matches OpenSSL: one trailing NUL is dropped and an
-     * embedded NUL never matches. Checked against both the SAN and the
-     * subject paths. */
+     * embedded NUL never matches. The domain is compared case-insensitively
+     * and the local-part exactly (RFC 5280 7.5). Checked against both the SAN
+     * and the subject paths. */
     ExpectNotNull(x509 = make_email_cert(&key, &rng, NULL, sanTarget));
     ExpectIntEQ(wolfSSL_X509_check_email(x509, target, sizeof(target), 0),
         EMAIL_SAN_RES(WOLFSSL_SUCCESS));
     ExpectIntEQ(wolfSSL_X509_check_email(x509, nulTarget,
         sizeof(nulTarget) - 1, 0), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperDomain, 0, 0),
+        EMAIL_SAN_RES(WOLFSSL_SUCCESS));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperLocal, 0, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     X509_free(x509);
     x509 = NULL;
     ExpectNotNull(x509 = make_email_cert(&key, &rng, target, NULL));
@@ -662,6 +669,10 @@ int test_wolfSSL_X509_check_email_san(void)
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_check_email(x509, nulTarget,
         sizeof(nulTarget) - 1, 0), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperDomain, 0, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperLocal, 0, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     X509_free(x509);
     x509 = NULL;
 

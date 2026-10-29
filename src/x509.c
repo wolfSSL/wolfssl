@@ -17086,6 +17086,29 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
 #endif
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+/* Compare a certificate email address against chk (which must not contain
+ * NULs) as RFC 5280 7.5 requires: the local-part exactly and the domain after
+ * the last '@' case-insensitively.
+ *
+ * returns 1 on a match and 0 otherwise.
+ */
+static int X509EmailMatch(const char *email, size_t emailLen, const char *chk,
+                          size_t chkLen)
+{
+    size_t at;
+
+    if (emailLen != chkLen)
+        return 0;
+
+    /* at is the index just past the last '@' in chk, or 0 when there is
+     * none. */
+    for (at = chkLen; at > 0 && chk[at - 1] != '@'; at--)
+        ;
+
+    return (XMEMCMP(email, chk, at) == 0) &&
+           (XSTRNCASECMP(email + at, chk + at, chkLen - at) == 0);
+}
+
 int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
                              unsigned int flags)
 {
@@ -17126,8 +17149,8 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
     for (entry = x->altNames; entry != NULL; entry = entry->next) {
         if (entry->type == ASN_RFC822_TYPE) {
             haveSanEmail = 1;
-            if (entry->len >= 0 && chkLen == (size_t)entry->len &&
-                    XMEMCMP(chk, entry->name, chkLen) == 0) {
+            if (entry->len >= 0 && X509EmailMatch(entry->name,
+                    (size_t)entry->len, chk, chkLen)) {
                 return WOLFSSL_SUCCESS;
             }
         }
@@ -17169,8 +17192,7 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
         return WOLFSSL_FAILURE;
     }
 
-    if (chkLen != (size_t)emailLen
-     || XSTRNCMP(chk, emailBuf, chkLen)) {
+    if (!X509EmailMatch(emailBuf, (size_t)emailLen, chk, chkLen)) {
         XFREE(emailBuf, x->heap, DYNAMIC_TYPE_OPENSSL);
         return WOLFSSL_FAILURE;
     }
