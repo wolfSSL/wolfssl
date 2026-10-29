@@ -2308,6 +2308,13 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                  * SSL_CTX, add straight to the CM as a chain CA */
                 result = X509StoreAddCa(
                             store, x509, WOLFSSL_CHAIN_CA);
+                if (result == WC_NO_ERR_TRACE(NOT_CA_ERROR)) {
+                    /* Like OpenSSL, accept the cert into the store, but it
+                     * cannot act as an issuer, so leave it out of the CM. */
+                    WOLFSSL_MSG("X509_STORE_add_cert: not a CA, not added to "
+                                "CertManager");
+                    result = WOLFSSL_SUCCESS;
+                }
             }
         }
     }

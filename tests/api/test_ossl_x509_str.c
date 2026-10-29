@@ -4701,8 +4701,9 @@ static int ctx_store_verify_leaf(X509* root, X509* inter, X509* leaf,
     }
     if (addAfterAttach) {
         ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
-        /* A non-CA cannot be added as a CA once the CTX owns the store. */
-        (void)X509_STORE_add_cert(store, inter);
+        /* Like OpenSSL, adding a non-CA succeeds (applications such as nginx
+         * treat a failure as fatal), but it must not become a CA. */
+        ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
     }
 
     ExpectNotNull(der = wolfSSL_X509_get_der(leaf, &derSz));
