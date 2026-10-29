@@ -664,3 +664,38 @@ fn test_xchacha20poly1305_reject_tampered_in_place() {
         .is_err());
     assert_eq!(buffer, ciphertext);
 }
+
+/// Verify that the XChaCha20-Poly1305 `aead::AeadInPlace` implementation
+/// matches the one-shot API for AAD lengths on both sides of the 16-byte
+/// Poly1305 block boundary. The wrapper absorbs and pads the AAD itself, so a
+/// missing or doubled AAD pad shows up here as a tag mismatch.
+#[test]
+#[cfg(all(feature = "aead", xchacha20_poly1305))]
+fn test_xchacha20poly1305_aead_aad_sizes() {
+    let key = [0x77u8; 32];
+    let nonce_bytes = [0x88u8; 24];
+    let plaintext: Vec<u8> = (0..100u8).collect();
+
+    let cipher = XChaCha20Poly1305Aead::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<XChaCha20Poly1305Aead> = nonce_bytes.into();
+
+    for &aad_len in &[0usize, 1, 12, 15, 16, 17, 31, 32, 33, 100] {
+        let aad: Vec<u8> = (0..aad_len).map(|i| (i as u8).wrapping_mul(3)).collect();
+
+        let mut expected = vec![0u8; plaintext.len() + XChaCha20Poly1305::AUTH_TAG_SIZE];
+        XChaCha20Poly1305::encrypt(&key, &nonce_bytes, &aad, &plaintext,
+            &mut expected).expect("XChaCha20Poly1305::encrypt failed");
+
+        let mut buffer = plaintext.clone();
+        let tag = cipher
+            .encrypt_in_place_detached(&nonce, &aad, &mut buffer)
+            .expect("encrypt_in_place_detached failed");
+        assert_eq!(&buffer[..], &expected[..plaintext.len()]);
+        assert_eq!(&tag[..], &expected[plaintext.len()..]);
+
+        cipher
+            .decrypt_in_place_detached(&nonce, &aad, &mut buffer, &tag)
+            .expect("decrypt_in_place_detached failed");
+        assert_eq!(buffer, plaintext);
+    }
+}
