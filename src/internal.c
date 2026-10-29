@@ -17948,7 +17948,7 @@ static void RememberWaivedCaEku(ProcPeerCertArgs* args)
 {
     if (args == NULL || args->certIdx < 0 || args->certIdx >= MAX_CHAIN_DEPTH)
         return;
-    args->ekuWaiveMask |= (word16)(1u << args->certIdx);
+    args->ekuWaiveMask |= (word16)(1U << args->certIdx);
 }
 
 /* Check the Extended Key Usage of each CA from ca up to the self-signed trust
@@ -17975,7 +17975,7 @@ static int CheckSignerExtKeyUsage(const WOLFSSL* ssl, Signer* ca,
 
     while (ca != NULL && !ca->selfSigned) {
         int waived = (certIdx < MAX_CHAIN_DEPTH) &&
-            ((waiveMask & (1u << certIdx)) != 0);
+            ((waiveMask & (1U << certIdx)) != 0);
 
         if (ca->extExtKeyUsageSet &&
                 (ca->extKeyUsage & (EXTKEYUSE_ANY | purpose)) == 0 &&
