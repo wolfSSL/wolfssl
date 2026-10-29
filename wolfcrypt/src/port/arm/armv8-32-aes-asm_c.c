@@ -29091,6 +29091,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
     "L_aes_gcm_decrypt_arm32_crypto_done_gcm_%=:\n\t"
         /* nonceSz */
         "ldr	r12, [sp]\n\t"
+        "veor.8	q6, q6, q6\n\t"
         /* Load Nonce */
         "cmp	r12, #12\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_ghash_nonce_%=\n\t"
