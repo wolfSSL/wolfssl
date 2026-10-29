@@ -642,6 +642,8 @@ extern "C" {
 #cmakedefine FP_ECC
 #undef HAVE_WC_RNG_BANK
 #cmakedefine HAVE_WC_RNG_BANK
+#undef WOLFSSL_NOISE_SRC
+#cmakedefine WOLFSSL_NOISE_SRC
 #undef WC_RNG_WANT_BANKREF_SUPPORT
 #cmakedefine WC_RNG_WANT_BANKREF_SUPPORT
 #undef WC_RNG_NO_AUTO_LOCK

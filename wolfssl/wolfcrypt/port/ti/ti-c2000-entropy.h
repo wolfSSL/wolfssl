@@ -29,9 +29,10 @@
  * distinct oscillators.
  *
  * The port supplies only that measurement.  The SP800-90B startup and
- * continuous health tests, the entropy budget, the SHA-256 conditioner and the
- * latched failure state come from the generic wc_NoiseSrc_* layer declared in
- * wolfssl/wolfcrypt/random.h, which the tuning macros below configure.
+ * continuous health tests, the entropy budget, the SHA3-256 conditioner and
+ * the reset-and-retry failure handling come from the generic wc_NoiseSrc_*
+ * layer declared in wolfssl/wolfcrypt/rng_noisesrc.h, which the tuning macros
+ * below configure.
  *
  * Characterization behind the defaults is in IDE/C2000/README.md.
  */
@@ -40,13 +41,12 @@
 #define WOLF_CRYPT_PORT_TI_C2000_ENTROPY_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/rng_noisesrc.h>
 
 #ifdef WOLFSSL_C2000_ENTROPY
 
-/* random.h turns this on for us; catch an include order that defeats it. */
 #ifndef WOLFSSL_NOISE_SRC
-    #error "WOLFSSL_C2000_ENTROPY needs random.h included first"
+    #error "WOLFSSL_C2000_ENTROPY implies WOLFSSL_NOISE_SRC (settings.h)"
 #endif
 
 /* Owns the DCCs and static buffers with no locking. */
@@ -60,8 +60,9 @@
  * C2000Ware driverlib enums, so set them to e.g. DCC_COUNT0SRC_XTAL.
  *
  * Set NUM_SRC to 1 to use source 0 only and leave DCC0 free.  Source 0 is the
- * credited one; source 1 is unaccounted defence-in-depth, so dropping it
- * costs no budgeted entropy. */
+ * credited one; source 1 is unaccounted defence-in-depth, but a health-test
+ * failure on either fails the call and reruns that source's startup test on
+ * the next one.  Use 1 if INTOSC2 proves marginal on a board. */
 #ifndef WOLFSSL_C2000_ENTROPY_NUM_SRC
     #define WOLFSSL_C2000_ENTROPY_NUM_SRC 2
 #endif
@@ -128,7 +129,8 @@ DCC instances when WOLFSSL_C2000_ENTROPY_NUM_SRC > 1"
 #endif
 
 /* ---- SP800-90B 4.4 health tests -----------------------------------------
- * Cutoffs assume 4 bits of min-entropy per octet (8 raw bits x HMIN 0.5) at
+ * The APT is a sliding window of APT_WINDOW samples (at most 512).  Cutoffs
+ * assume 4 bits of min-entropy per octet (8 raw bits x HMIN 0.5) at
  * alpha = 2^-30, from the exact binomial:
  *   RCT 4.4.1: C = 1 + ceil(30/H)                   = 9
  *   APT 4.4.2: C = 1 + CRITBINOM(W, 2^-H, 1-alpha)  = 71 at W = 512
@@ -158,14 +160,14 @@ DCC instances when WOLFSSL_C2000_ENTROPY_NUM_SRC > 1"
 #endif
 
 /* These wrap a wc_NoiseSrc instance configured from the macros above; the
- * generic wc_NoiseSrc_* API in random.h is usable directly too. */
+ * generic wc_NoiseSrc_* API in rng_noisesrc.h is usable directly too. */
 
 /* Enable the DCCs and run the startup health test.  Called automatically on
  * first use.  Claims the configured DCCs for the life of the source; costs
  * ~420 ms at the defaults. */
 WOLFSSL_API int wc_c2000_Entropy_Init(void);
 
-/* Release the DCCs and clear any latched failure. */
+/* Release the DCCs and reset the health-test state. */
 WOLFSSL_API void wc_c2000_Entropy_Free(void);
 
 /* Unconditioned noise, for characterization and self-test only - runs no
@@ -173,8 +175,9 @@ WOLFSSL_API void wc_c2000_Entropy_Free(void);
 WOLFSSL_API int wc_c2000_Entropy_GetRaw(byte* out, word32 len, int srcIdx);
 
 /* Conditioned seed material, called by the wc_GenerateSeed() branch in
- * random.c.  After a health-test failure this returns the latched error on
- * every later call until wc_c2000_Entropy_Free(). */
+ * random.c.  A health-test failure returns ENTROPY_RT_E or ENTROPY_APT_E with
+ * no output and resets the failing source; the next call reruns its startup
+ * test (~210 ms) and fails again if the source is still bad. */
 WOLFSSL_API int wc_c2000_GenerateSeed(byte* output, word32 sz);
 
 /* Liveness check on the raw noise: each source must produce differing
