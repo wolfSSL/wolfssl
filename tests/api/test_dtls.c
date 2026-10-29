@@ -3125,10 +3125,8 @@ int test_dtls_certreq_order(void)
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_AESGCM) && \
     defined(WOLFSSL_AES_128) && !defined(NO_SHA256) && !defined(NO_RSA) && \
     !defined(NO_DH)
-    /* This test checks that a certificate request message received before
-     * the server certificate message is not processed. The flight is
-     * plaintext, so the record is dropped and the client waits for a
-     * retransmission instead of failing.
+    /* This test checks that a certificate request message
+     * received before server certificate message is properly detected.
      * The binary is taken from https://github.com/wolfSSL/wolfssl/issues/9198
      */
     static const unsigned char certreq_before_cert_bin[] = {
@@ -3307,9 +3305,7 @@ int test_dtls_certreq_order(void)
             (const char*)certreq_before_cert_bin,
             sizeof(certreq_before_cert_bin)), 0);
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-    /* Nothing past the ServerHello was taken */
-    ExpectIntEQ(ssl_c->options.serverState, SERVER_HELLO_COMPLETE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -6547,12 +6543,12 @@ int test_wolfSSL_DTLS_stale_partial_head(void)
 }
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
-/* An unauthenticated record ahead of the server's first flight must not end
- * or stall the handshake. Mode 0: a fragment outside its message, dropped.
- * Mode 1: the same, far ahead in record sequence, must not move the replay
- * window. Mode 2: an exact duplicate of the first record, so the original is
- * not taken for a replay. Such records come from a stale peer on the same
- * port, from duplication on the path, or from a blind sender. */
+/* An unauthenticated record ahead of the server's first flight must not stall
+ * the handshake. Mode 1: a copy of the first record with a future message_seq,
+ * which is only buffered, far ahead in record sequence; it must not move the
+ * replay window. Mode 2: an exact duplicate of the first record, so the
+ * original is not taken for a replay. Such records come from a stale peer on
+ * the same port, from duplication on the path, or from a blind sender. */
 static int test_dtls_plaintext_record(method_provider method_c,
         method_provider method_s, int mode)
 {
@@ -6599,19 +6595,15 @@ static int test_dtls_plaintext_record(method_provider method_c,
     /* First the copy of that record, then the flight as it was */
     if (EXPECT_SUCCESS()) {
         byte* recSeq = (byte*)flight + 3;
-        byte* fragOff = (byte*)flight + DTLS_RECORD_HEADER_SZ + 6;
+        byte* msgSeq = (byte*)flight + DTLS_RECORD_HEADER_SZ + 4;
         byte saved[DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ];
-        word32 len;
 
         XMEMCPY(saved, flight, sizeof(saved));
-        if (mode != 2) {
-            /* Own record sequence number, fragment past the message end */
+        if (mode == 1) {
+            /* Record sequence 2^30 ahead, message_seq 100 */
             XMEMSET(recSeq, 0, 8);
-            recSeq[7] = 40;
-            if (mode == 1)
-                recSeq[4] = 0x40;
-            c24to32((byte*)flight + DTLS_RECORD_HEADER_SZ + 1, &len);
-            c32to24(len, fragOff);
+            recSeq[4] = 0x40;
+            c16toa(100, msgSeq);
         }
         ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, flight,
                 DTLS_RECORD_HEADER_SZ + recLen), 0);
@@ -6633,22 +6625,6 @@ static int test_dtls_plaintext_record(method_provider method_c,
     return EXPECT_RESULT();
 }
 #endif
-
-int test_wolfSSL_DTLS_drop_bad_plaintext_fragment(void)
-{
-    EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
-#ifndef WOLFSSL_NO_TLS12
-    EXPECT_TEST(test_dtls_plaintext_record(wolfDTLSv1_2_client_method,
-            wolfDTLSv1_2_server_method, 0));
-#endif
-#ifdef WOLFSSL_DTLS13
-    EXPECT_TEST(test_dtls_plaintext_record(wolfDTLSv1_3_client_method,
-            wolfDTLSv1_3_server_method, 0));
-#endif
-#endif
-    return EXPECT_RESULT();
-}
 
 /* Unauthenticated records do not move the replay window, so one record far
  * ahead in sequence cannot shut out the real flight, and a duplicated
@@ -7883,6 +7859,52 @@ int test_dtls12_stateless_window(void)
         ExpectIntEQ((int)ssl_s->keys.peerSeq[0].nextSeq_lo, 0);
         ExpectIntEQ((int)ssl_s->keys.peerSeq[0].nextSeq_hi, 0);
     }
+
+    /* The cookie exchange and the rest of the handshake still run. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A DTLS 1.3 server that has not yet accepted a cookie drops a ClientHello
+ * fragment that lies outside its message, like any other bad handshake header,
+ * instead of reporting an error for it. */
+int test_dtls13_stateless_bad_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Handshake record, epoch 0, holding a client_hello fragment of 32 bytes at
+     * offset 32 of a 32 byte message. */
+    const byte spoof[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x2c,
+        0x01, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x20,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)spoof,
+        (int)sizeof(spoof)), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    if (EXPECT_SUCCESS() && ssl_s != NULL)
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
 
     /* The cookie exchange and the rest of the handshake still run. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);

@@ -1940,10 +1940,11 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         return 0;
     }
 
+    /* Same error code as the DTLS 1.2 check so a stateless server drops it */
     if (fragOff + fragLength > messageLength) {
         WOLFSSL_MSG("Fragment outside of the handshake message");
-        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
-        return BUFFER_ERROR;
+        WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+        return LENGTH_ERROR;
     }
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff,

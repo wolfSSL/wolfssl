@@ -2888,8 +2888,7 @@ int test_dtls13_rtx_timeout_want_write_read(void)
  * of the server's first flight (the HelloRetryRequest produced by the DTLS 1.3
  * stateless cookie exchange; the record header is not covered by the transcript
  * hash) and the handshake must still complete.  For DTLS 1.2 the record layer
- * version is still meaningful, so the same tampering must not be processed:
- * the plaintext record is dropped and the client waits for a retransmission. */
+ * version is still meaningful, so the same tampering must be rejected. */
 int test_dtls13_ignore_legacy_record_version(void)
 {
     EXPECT_DECLS;
@@ -2971,12 +2970,11 @@ int test_dtls13_ignore_legacy_record_version(void)
     }
 
     /* GetDtlsHandShakeHeader() detects the version mismatch (VERSION_ERROR),
-     * DoDtlsHandShakeMsg() reports it as PARSE_ERROR, and the unauthenticated
-     * record is dropped. Nothing past the ServerHello is taken. */
+     * but DoDtlsHandShakeMsg() reports any header parsing failure to the
+     * caller as PARSE_ERROR. */
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
-        WOLFSSL_ERROR_WANT_READ);
-    ExpectIntEQ(ssl_c->options.serverState, SERVER_HELLO_COMPLETE);
+        WC_NO_ERR_TRACE(PARSE_ERROR));
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
