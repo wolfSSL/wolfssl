@@ -265,6 +265,14 @@
 #if defined(USE_INTEL_SPEEDUP)
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 
+/* Keep the BMI2 Keccak and drop all AVX2/AVX512 code. */
+#ifdef WC_MLDSA_NO_AVX2
+    #undef  IS_INTEL_AVX2
+    #define IS_INTEL_AVX2(f)    0
+    #undef  SHA3_USE_AVX2
+    #define SHA3_USE_AVX2(f)    0
+#endif
+
 /* AVX2 NTT/invNTT flavor selection: the non-full AVX2 NTT/invNTT keep the
  * NTT-domain coefficients in a permuted (lane-interleaved) order that only
  * the non-full AVX2 consumers understand, whereas the full variants and the
