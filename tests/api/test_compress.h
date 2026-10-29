@@ -26,6 +26,7 @@
 
 int test_wc_DeCompressDynamic_maxSz(void);
 int test_wc_CompressDecisionCoverage(void);
+int test_wc_CompressionData(void);
 int test_wolfSSL_tls_compression(void);
 int test_wolfSSL_tls_compression_multi_record(void);
 int test_wolfSSL_tls_compression_client_hello(void);
@@ -40,6 +41,7 @@ int test_wolfSSL_dtls_compression_off(void);
 #define TEST_COMPRESS_DECLS                                                    \
     TEST_DECL_GROUP("compress", test_wc_DeCompressDynamic_maxSz),              \
     TEST_DECL_GROUP("compress", test_wc_CompressDecisionCoverage),             \
+    TEST_DECL_GROUP("compress", test_wc_CompressionData),                      \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression),                 \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_multi_record),    \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_client_hello),    \
