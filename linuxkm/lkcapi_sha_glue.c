@@ -932,10 +932,20 @@ struct wc_swallow_the_semicolon
  * substantively implemented.
  */
 #ifndef WC_SHA256_W_SIZE
-    #define WC_SHA256_W_SIZE (sizeof(word32) * WC_SHA256_BLOCK_SIZE)
+    #ifdef WC_SHA256_TSCRATCH_SIZE
+        /* The transform reads W as its full caller-owned scratch. */
+        #define WC_SHA256_W_SIZE WC_SHA256_TSCRATCH_SIZE
+    #else /* old FIPS */
+        #define WC_SHA256_W_SIZE (sizeof(word32) * WC_SHA256_BLOCK_SIZE)
+    #endif
 #endif
 #ifndef WC_SHA512_W_SIZE
-    #define WC_SHA512_W_SIZE ((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE)
+    #ifdef WC_SHA512_TSCRATCH_SIZE
+        #define WC_SHA512_W_SIZE \
+            (WC_SHA512_TSCRATCH_SIZE + WC_SHA512_BLOCK_SIZE)
+    #else /* old FIPS */
+        #define WC_SHA512_W_SIZE ((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE)
+    #endif
 #endif
 
 #define WC_LINUXKM_SHA2_IMPLEMENT(name, s_name, digest_size, block_size,   \

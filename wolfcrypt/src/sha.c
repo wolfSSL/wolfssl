@@ -503,6 +503,13 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #ifdef USE_SLOW_SHA
         word32 t, i;
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Zero first: the registration call takes const void*, and a pointer
+         * to an uninitialized object trips -Wmaybe-uninitialized under
+         * -Werror. */
+        XMEMSET(W, 0, sizeof(W));
+        wc_MemZero_Add("Sha Transform W", W, sizeof(W));
+    #endif
         for (i = 0; i < 16; i++) {
             R0(a, b, c, d, e, i);
             t = e; e = d; d = c; c = b; b = a; a = t;
@@ -530,6 +537,13 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #else
         /* nearly 1 K bigger in code size but 25% faster */
         /* 4 rounds of 20 operations each. Loop unrolled. */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Zero first: the registration call takes const void*, and a pointer
+         * to an uninitialized object trips -Wmaybe-uninitialized under
+         * -Werror. */
+        XMEMSET(W, 0, sizeof(W));
+        wc_MemZero_Add("Sha Transform W", W, sizeof(W));
+    #endif
         R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);
         R0(b,c,d,e,a, 4); R0(a,b,c,d,e, 5); R0(e,a,b,c,d, 6); R0(d,e,a,b,c, 7);
         R0(c,d,e,a,b, 8); R0(b,c,d,e,a, 9); R0(a,b,c,d,e,10); R0(e,a,b,c,d,11);
@@ -565,6 +579,10 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 
         (void)data; /* Not used */
 
+        ForceZero(W, sizeof(W));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(W, sizeof(W));
+    #endif
         return 0;
     }
 #endif /* XTRANSFORM when USE_SHA_SOFTWARE_IMPL is enabled */
@@ -834,6 +852,10 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
     if (sha == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(LITTLE_ENDIAN_ORDER) && \
+    !defined(WOLFSSL_WIDE_BYTE)
+    wc_MemZero_Add("wc_ShaFinalRaw digest", digest, sizeof(digest));
+#endif
 
 #if defined(WOLFSSL_WIDE_BYTE)
     /* CHAR_BIT != 8: write the digest words as big-endian octets. */
@@ -854,6 +876,10 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
         ByteReverseWords((word32*)digest, (word32*)sha->digest, WC_SHA_DIGEST_SIZE);
     }
     XMEMCPY(hash, (byte *)&digest[0], WC_SHA_DIGEST_SIZE);
+    ForceZero(digest, sizeof(digest));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+#endif
 #else
     XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
@@ -1186,6 +1212,10 @@ void wc_ShaFree(wc_Sha* sha)
 #if defined(PSOC6_HASH_SHA1)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* digest and buffer hold keyed material for HMAC-SHA1 and the SSH KDF
+     * (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(sha, sizeof(*sha));
 }
 
 #endif /* !MAX3266X_SHA */
@@ -1217,12 +1247,20 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
 
     WC_CALLOC_VAR_EX(tmpSha, wc_Sha, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ShaGetHash tmpSha", tmpSha, sizeof(*tmpSha));
+#endif
 
     ret = wc_ShaCopy(sha, tmpSha);
     if (ret == 0) {
         ret = wc_ShaFinal(tmpSha, hash);
+        wc_ShaFree(tmpSha);
     }
 
+    ForceZero(tmpSha, sizeof(*tmpSha));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha, sizeof(*tmpSha));
+#endif
     WC_FREE_VAR_EX(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;

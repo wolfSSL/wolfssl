@@ -401,6 +401,12 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     if (ret == 0)
         ret = NO_VALID_DEVID;
 #else
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(az, 0, sizeof(az));
+    wc_MemZero_Add("wc_ed25519_make_public az", az, sizeof(az));
+#endif
     if (ret == 0)
         ret = ed25519_hash(key, key->k, ED25519_KEY_SIZE, az);
     if (ret == 0) {
@@ -417,8 +423,16 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
             ED25519_KEY_SIZE, &publicKey, kLTC_Ed25519 /* result on Ed25519 */);
         LTC_PKHA_Ed25519_Compress(&publicKey, pubKey);
     #else
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_ed25519_make_public A", &A, sizeof(A));
+        #endif
         ge_scalarmult_base(&A, az);
         ge_p3_tobytes(pubKey, &A);
+        /* Projective A leaks bits of the private scalar. */
+        ForceZero(&A, sizeof(A));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&A, sizeof(A));
+        #endif
     #endif
 
         if (storePub)
@@ -427,6 +441,14 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ED25519
+    /* az holds the clamped secret scalar (ISO/IEC 19790:2012 7.9.7). The
+     * crypto-callback return above happens before az is written. */
+    ForceZero(az, sizeof(az));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(az, sizeof(az));
+#endif
+#endif
     return ret;
 }
 
@@ -492,6 +514,13 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     ret = wc_ed25519_check_key(key);
     if (ret == 0) {
         ret = ed25519_pairwise_consistency_test(key, rng);
+    }
+    if (ret != 0) {
+        /* Do not hand back a key that failed its check or PCT. */
+        key->privKeySet = 0;
+        key->pubKeySet = 0;
+        ForceZero(key->k, ED25519_PRV_KEY_SIZE);
+        ForceZero(key->p, ED25519_PUB_KEY_SIZE);
     }
 #endif
 
@@ -685,6 +714,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
         ed25519_hash_free(key, sha);
         WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#else
+        /* On failure the absorbed prefix must not stay in the key's hash. */
+        if (ret != 0)
+            ed25519_hash_free(key, sha);
 #endif
     }
 
@@ -702,8 +735,16 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
         /* step 2: computing R = rB where rB is the scalar multiplication of
            r and B */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_ed25519_sign_msg_ex R", &R, sizeof(R));
+    #endif
         ge_scalarmult_base(&R,nonce);
         ge_p3_tobytes(out,&R);
+        /* Projective R leaks bits of the nonce. */
+        ForceZero(&R, sizeof(R));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&R, sizeof(R));
+    #endif
 #endif
     }
 
@@ -1828,10 +1869,18 @@ int wc_ed25519_export_key(const ed25519_key* key,
     int ret;
 
     /* export 'full' private part */
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
     ret = wc_ed25519_export_private(key, priv, privSz);
     if (ret == 0) {
         /* export public part */
         ret = wc_ed25519_export_public(key, pub, pubSz);
+        if (ret != 0) {
+            /* Public export failed: do not hand back the private key. */
+            ForceZero(priv, *privSz);
+        }
     }
 
     return ret;

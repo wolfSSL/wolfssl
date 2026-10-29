@@ -41,6 +41,7 @@ int test_wc_RsaKeyToDer(void);
 int test_wc_RsaKeyToPublicDer(void);
 int test_wc_RsaPublicEncryptDecrypt(void);
 int test_wc_RsaPublicEncryptDecrypt_ex(void);
+int test_wc_RsaOaep_EncryptFailureWipe(void);
 int test_wc_RsaEncryptSize(void);
 int test_wc_RsaSSL_SignVerify(void);
 int test_wc_RsaFlattenPublicKey(void);
@@ -71,6 +72,7 @@ int test_wc_MakeRsaKey_id_dev(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToPublicDer),          \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicEncryptDecrypt),    \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicEncryptDecrypt_ex), \
+    TEST_DECL_GROUP("rsa", test_wc_RsaOaep_EncryptFailureWipe),  \
     TEST_DECL_GROUP("rsa", test_wc_RsaEncryptSize),             \
     TEST_DECL_GROUP("rsa", test_wc_RsaSSL_SignVerify),          \
     TEST_DECL_GROUP("rsa", test_wc_RsaFlattenPublicKey),        \

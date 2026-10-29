@@ -5599,3 +5599,81 @@ int test_wc_mlkem_make_key_id_dev(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* FIPS 203 3.3: retain the key and designated output, but no hash or PRF
+ * intermediates, when a complete ML-KEM operation returns. */
+int test_wc_mlkem_operation_cleanup(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WC_MLKEM_HAVE_NATIVE) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(PSOC6_HASH_SHA3) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    static const int types[] = {
+#ifndef WOLFSSL_NO_ML_KEM_512
+        WC_ML_KEM_512,
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_768
+        WC_ML_KEM_768,
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_1024
+        WC_ML_KEM_1024,
+#endif
+        -1
+    };
+    static const byte zero[sizeof(wc_Sha3)] = {0};
+    MlKemKey* key = NULL;
+    byte seeds[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    byte recovered[WC_ML_KEM_SS_SZ];
+    word32 ctSz = 0;
+    int t, repeat, op, h;
+
+    key = (MlKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    XMEMSET(seeds, 0x71, sizeof(seeds));
+    PRIVATE_KEY_UNLOCK();
+    for (t = 0; EXPECT_SUCCESS() && types[t] != -1; t++) {
+        ExpectIntEQ(wc_MlKemKey_Init(key, types[t], NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &ctSz), 0);
+        for (repeat = 0; EXPECT_SUCCESS() && repeat < 2; repeat++) {
+            for (op = 0; EXPECT_SUCCESS() && op < 5; op++) {
+                if (op == 0) {
+                    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seeds,
+                        sizeof(seeds)), SEED_OK);
+                }
+                else if (op == 1) {
+                    ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss,
+                        seeds, WC_ML_KEM_ENC_RAND_SZ), SEED_OK);
+                }
+                else if (op == 2) {
+                    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, recovered, ct,
+                        ctSz), 0);
+                    ExpectBufEQ(ss, recovered, sizeof(ss));
+                }
+                else if (op == 3) {
+                    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, recovered, ct,
+                        ctSz - 1), WC_NO_ERR_TRACE(BUFFER_E));
+                }
+                else {
+                    ct[32] ^= 1;
+                    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, recovered, ct,
+                        ctSz), 0);
+                }
+                for (h = 0; h < 2; h++) {
+                    const wc_Sha3* hash = h == 0 ? &key->hash : &key->prf;
+                    ExpectBufEQ(hash->s, zero, sizeof(hash->s));
+                    ExpectBufEQ(hash->t, zero, sizeof(hash->t));
+                    ExpectIntEQ(hash->i, 0);
+                }
+            }
+        }
+        wc_MlKemKey_Free(key);
+    }
+    PRIVATE_KEY_LOCK();
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}

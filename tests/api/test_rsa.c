@@ -2630,3 +2630,87 @@ int test_wc_MakeRsaKey_id_dev(void)
 #endif
     return EXPECT_RESULT();
 }
+
+
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_RSA) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_NO_RSA_SW_PAD) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(WC_NO_RNG) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(HAVE_FIPS)
+/* Fail RSAEP only after software OAEP has placed EM in the output buffer. */
+static int rsa_oaep_fail_cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devId;
+    if (info->algo_type == WC_ALGO_TYPE_PK &&
+            info->pk.type == WC_PK_TYPE_RSA &&
+            info->pk.rsa.type == RSA_PUBLIC_ENCRYPT) {
+        (*(int*)ctx)++;
+        return WC_HW_E;
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif
+
+int test_wc_RsaOaep_EncryptFailureWipe(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_NO_RNG) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_NO_RSA_SW_PAD) && \
+    !defined(NO_SHA256) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    RsaKey key;
+    WC_RNG rng;
+    byte out[TEST_RSA_BYTES + 8];
+    const byte msg[16] = {1};
+    int i;
+#ifdef WOLF_CRYPTO_CB
+    int calls = 0;
+    int registered = 0;
+    const int devId = 23;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(MAKE_RSA_KEY(&key, TEST_RSA_BITS, WC_RSA_EXPONENT, &rng), 0);
+    XMEMSET(out, 0xa5, sizeof(out));
+    /* Invalid MGF fails after the message has been copied into DB. */
+    ExpectIntLT(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), out, sizeof(out),
+        &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, -1, NULL, 0), 0);
+    for (i = 0; i < TEST_RSA_BYTES; i++)
+        ExpectIntEQ(out[i], 0);
+    for (; i < (int)sizeof(out); i++)
+        ExpectIntEQ(out[i], 0xa5);
+
+#ifdef WOLF_CRYPTO_CB
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, rsa_oaep_fail_cb, &calls), 0);
+    if (EXPECT_SUCCESS()) {
+        registered = 1;
+        key.devId = devId;
+        XMEMSET(out, 0xa5, sizeof(out));
+        ExpectIntEQ(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), out, sizeof(out),
+            &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+            NULL, 0), WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectIntEQ(calls, 1);
+        for (i = 0; i < TEST_RSA_BYTES; i++)
+            ExpectIntEQ(out[i], 0);
+        for (; i < (int)sizeof(out); i++)
+            ExpectIntEQ(out[i], 0xa5);
+        key.devId = INVALID_DEVID;
+    }
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    /* Cleanup must also reset the operation state so the key remains usable. */
+    ExpectIntEQ(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), out, sizeof(out),
+        &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
+        TEST_RSA_BYTES);
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#else
+    return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}

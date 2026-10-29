@@ -128,6 +128,24 @@
 #define WC_SHA256_DIGEST_SIZE  32
 #define WC_SHA256_PAD_SIZE     56
 
+/* Size, in bytes, of the C transform's caller-owned scratch (Sha256TScratch
+ * in sha256.c): the message schedule plus the eight working variables.
+ * External providers of wc_Sha256.W under WOLFSSL_SMALL_STACK_CACHE (the
+ * init and copy paths, the Nuvoton copy callback, linuxkm's w_buf) must
+ * supply at least this much; sha256.c statically asserts this matches the
+ * struct.  SHA256_MANY_REGISTERS must be defined globally (settings.h or
+ * user_settings.h), never per-TU, or providers and the transform disagree
+ * on this size.  The macro's name is itself interface: external
+ * integrators -- notably wolfBoot's static allocator -- size their
+ * buffers by it and gate on its presence, so do not rename it. */
+#ifdef SHA256_MANY_REGISTERS
+    #define WC_SHA256_TSCRATCH_SIZE \
+        (WC_SHA256_BLOCK_SIZE + 8 * sizeof(word32))
+#else
+    #define WC_SHA256_TSCRATCH_SIZE \
+        ((WC_SHA256_BLOCK_SIZE + 8) * sizeof(word32))
+#endif
+
 
 #ifdef WOLFSSL_TI_HASH
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
@@ -212,6 +230,10 @@ struct wc_Sha256 {
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WC_SHA2_NO_SMALL_STACK)
+    /* Every provider of this buffer (InitSha256, the copy paths, the
+     * Nuvoton callback, linuxkm's w_buf) must size it
+     * WC_SHA256_TSCRATCH_SIZE: the C transform uses it as its full
+     * caller-owned scratch, not just the message schedule. */
     word32* W;
 #endif /* !FREESCALE_LTC_SHA && !STM32_HASH_SHA2 */
 #ifdef WOLFSSL_DEVCRYPTO_HASH
