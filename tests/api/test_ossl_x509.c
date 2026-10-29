@@ -538,7 +538,8 @@ int test_wolfSSL_X509_check_email(void)
 }
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
-    defined(WOLFSSL_ALT_NAMES) && defined(HAVE_ECC) && !defined(NO_SHA256)
+    defined(WOLFSSL_ALT_NAMES) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_SIGN) && !defined(WC_NO_RNG) && !defined(NO_SHA256)
 /* Make a self-signed certificate whose subject emailAddress is subjEmail
  * (omitted when NULL) and whose SubjectAltName holds the GeneralNames in
  * sans: each entry is a tag byte ('@' for rfc822Name, 'd' for dNSName)
@@ -595,7 +596,8 @@ int test_wolfSSL_X509_check_email_san(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
-    defined(WOLFSSL_ALT_NAMES) && defined(HAVE_ECC) && !defined(NO_SHA256)
+    defined(WOLFSSL_ALT_NAMES) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_SIGN) && !defined(WC_NO_RNG) && !defined(NO_SHA256)
     static const char target[] = "a@target.example";
     static const char nulTarget[] = "a@target.example\0junk";
     static const char upperDomain[] = "a@TARGET.Example";
