@@ -30202,8 +30202,10 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
         c32to24(status[i].length, output + idx);
         idx += OPAQUE24_LEN;
 
-        XMEMCPY(output + idx, status[i].buffer, status[i].length);
-        idx += status[i].length;
+        if (status[i].length > 0) {
+            XMEMCPY(output + idx, status[i].buffer, status[i].length);
+            idx += status[i].length;
+        }
     }
     /* Send Message. Handled message fragmentation in the function if needed.
      * idx is the fill cursor, so idx - headerSz is the body actually written.
