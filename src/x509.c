@@ -7055,7 +7055,7 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
  * wolfSSL_Atomic_Ptr_CompareExchange(). */
 static void* X509CacheLoad(void* volatile* ptr)
 {
-#if defined(__GNUC__) && defined(__ATOMIC_ACQUIRE)
+#if defined(__GNUC__) && defined(__ATOMIC_SEQ_CST)
     return __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
 #else
     void* current = NULL;
