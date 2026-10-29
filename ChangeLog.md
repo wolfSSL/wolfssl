@@ -101,6 +101,28 @@
   leak must stop doing so, and the returned key is shared with the
   certificate, so it must be treated as read only.
 
+* **Behavioral change (ML-DSA operations require the public key)**: ML-DSA
+  software verifiers (`wc_MlDsaKey_Verify()`, `wc_MlDsaKey_VerifyCtx()`,
+  `wc_MlDsaKey_VerifyCtxHash()`, `wc_MlDsaKey_VerifyMu()`) now require a
+  public key and return `PUBLIC_KEY_E` if none is set; previously, a
+  private-only key verified against an uninitialized public-key buffer.
+  Export and serialization functions (`wc_MlDsaKey_ExportPubRaw()`,
+  `wc_MlDsaKey_ExportKey()`, `wc_MlDsaKey_PublicKeyToDer()`,
+  `wc_MlDsaKey_KeyToDer()`) now return `PUBLIC_KEY_E` instead of
+  `BAD_FUNC_ARG` when the public key is missing, matching Ed25519 and Ed448.
+  `wc_MlDsaKey_ExportKey()` and `wc_MlDsaKey_KeyToDer()` also return
+  `PUBLIC_KEY_E` when the public key does not belong to the private key
+  (not checked with `WOLF_CRYPTO_CB_ONLY_MLDSA`), and `wc_MlDsaKey_ExportKey()`
+  writes neither key on failure. `wc_MlDsaKey_SetPrecompA()` now returns
+  `PUBLIC_KEY_E` instead of `BAD_FUNC_ARG` when no public key has been
+  imported. Private-only keys (e.g. from PKCS#8) must derive the public key
+  with `wc_MlDsaKey_MakePublicKey()` before verifying or exporting. In the
+  OpenSSL compatibility layer, `wolfSSL_X509_set_pubkey()` and
+  `wolfSSL_i2d_PUBKEY()` now derive the public key of a private-only PKCS#8
+  ML-DSA key, where they previously failed, and reject a PKCS#8 key whose
+  embedded public key does not belong to its private key, when
+  `wc_MlDsaKey_MakePublicKey()` and the software ML-DSA core are compiled in.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi

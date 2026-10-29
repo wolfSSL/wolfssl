@@ -51,6 +51,10 @@ int test_mldsa_oneasymkey_version(void);
 int test_mldsa_make_key_from_seed(void);
 int test_mldsa_make_key_twice(void);
 int test_mldsa_make_public_key(void);
+int test_mldsa_make_public_key_then_export(void);
+int test_mldsa_export_key_pair_check(void);
+int test_mldsa_verify_pubkeyset_guard(void);
+int test_mldsa_verify_cb_before_pubkeyset(void);
 int test_mldsa_make_public_key_oom(void);
 int test_mldsa_make_public_key_keeps_cache(void);
 int test_mldsa_make_public_key_tr_mismatch(void);
@@ -107,6 +111,10 @@ int test_mldsa_make_key_id_dev(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_from_seed),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_twice),                       \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key),                      \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_then_export),          \
+    TEST_DECL_GROUP("mldsa", test_mldsa_export_key_pair_check),                \
+    TEST_DECL_GROUP("mldsa", test_mldsa_verify_pubkeyset_guard),               \
+    TEST_DECL_GROUP("mldsa", test_mldsa_verify_cb_before_pubkeyset),           \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_oom),                  \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_keeps_cache),          \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_tr_mismatch),          \

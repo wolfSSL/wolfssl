@@ -2864,6 +2864,19 @@ static int wolfssl_i_i2d_mldsapublickey(const WOLFSSL_EVP_PKEY* key,
                 &inOutIdx) == 0) {
             decodeOk = 1;
         }
+    #ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+        /* Derive the public key of a private-only encoding, or check that
+         * an embedded one belongs to the private key. Callback-only builds
+         * cannot do either, so they keep an embedded public key as is. */
+        if (decodeOk &&
+            #ifndef WC_MLDSA_HAVE_NATIVE
+                (!mldsaKey->pubKeySet) &&
+            #endif
+                (wc_MlDsaKey_MakePublicKey(mldsaKey) != 0)) {
+            WOLFSSL_MSG("Failed to derive or check ML-DSA public key.");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    #endif
         PRIVATE_KEY_LOCK();
         if (!decodeOk) {
             /* A failed PrivateKeyDecode may leave the level pinned, reset the
