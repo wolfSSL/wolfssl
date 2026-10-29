@@ -73,7 +73,7 @@ generate_port() {
     local attempts=0 collision p
 
     while true; do
-        if [[ "$OSTYPE" == "linux"* ]]; then
+        if [[ "$OSTYPE" == "linux"* || "$OSTYPE" == "solaris"* ]]; then
             p=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             p=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))

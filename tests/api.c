@@ -44865,11 +44865,11 @@ static int test_sniffer_chain_input_overflow(void)
      * into an int, causing an undersized allocation followed by an oversized
      * copy (heap buffer overflow). After the fix, the function should detect
      * the overflow and return an error without allocating or copying. */
-    chain[0].iov_base = dummy;
+    chain[0].iov_base = (void*)dummy;
     chain[0].iov_len  = (size_t)0x80000000UL; /* 2GB */
-    chain[1].iov_base = dummy;
+    chain[1].iov_base = (void*)dummy;
     chain[1].iov_len  = (size_t)0x80000000UL; /* 2GB */
-    chain[2].iov_base = dummy;
+    chain[2].iov_base = (void*)dummy;
     chain[2].iov_len  = (size_t)0x80000000UL; /* 2GB */
 
     XMEMSET(error, 0, sizeof(error));

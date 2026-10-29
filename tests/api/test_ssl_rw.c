@@ -173,9 +173,9 @@ int test_wolfSSL_writev(void)
 
     /* A total length that overflows is rejected. The buffers are never read
      * so the bogus length is safe. */
-    iov[0].iov_base = msg;
+    iov[0].iov_base = (void*)msg;
     iov[0].iov_len  = (size_t)-1;
-    iov[1].iov_base = msg;
+    iov[1].iov_base = (void*)msg;
     iov[1].iov_len  = 2;
     ExpectIntEQ(wolfSSL_writev(ssl_c, iov, 2), WC_NO_ERR_TRACE(BUFFER_E));
 
@@ -193,11 +193,11 @@ int test_wolfSSL_writev(void)
 
     /* Segments totalling less than FILE_BUFFER_SIZE use the static buffer. */
     small_sz = 96;
-    iov[0].iov_base = msg;
+    iov[0].iov_base = (void*)msg;
     iov[0].iov_len  = 32;
-    iov[1].iov_base = msg + 32;
+    iov[1].iov_base = (void*)(msg + 32);
     iov[1].iov_len  = 32;
-    iov[2].iov_base = msg + 64;
+    iov[2].iov_base = (void*)(msg + 64);
     iov[2].iov_len  = 32;
     ExpectIntEQ(wolfSSL_writev(ssl_c, iov, 3), small_sz);
     XMEMSET(reply, 0, sizeof(reply));
@@ -206,9 +206,9 @@ int test_wolfSSL_writev(void)
 
     /* Segments totalling more than FILE_BUFFER_SIZE allocate from the heap. */
     large_sz = (int)sizeof(msg);
-    iov[0].iov_base = msg;
+    iov[0].iov_base = (void*)msg;
     iov[0].iov_len  = 64;
-    iov[1].iov_base = msg + 64;
+    iov[1].iov_base = (void*)(msg + 64);
     iov[1].iov_len  = (size_t)large_sz - 64;
     ExpectIntEQ(wolfSSL_writev(ssl_c, iov, 2), large_sz);
     XMEMSET(reply, 0, sizeof(reply));
