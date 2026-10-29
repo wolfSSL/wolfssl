@@ -3162,6 +3162,9 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                         "wc_entropyd: root_rng reinitialization failed: "
                         "%d\n", ret);
                 }
+                /* else transient codes (a busy seed source -- gate
+                 * contention is spun out, not returned) are deliberately
+                 * unlogged: the next pass retries. */
             }
             else {
                 unsigned long uncredited_nonce = random_get_entropy();
@@ -3200,6 +3203,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                         "wc_entropyd: root_rng recovery reseed failed: "
                         "%d\n", ret);
                 }
+                /* else don't log -- see above comment. */
             }
         }
   #else /* !WC_RNG_BANK_HAVE_ROOT_RNG */
@@ -3220,6 +3224,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                         "wc_entropyd: root_rng reinitialization failed: "
                         "%d\n", ret);
                 }
+                /* else transient -- don't log. */
             }
     #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
             else if (wc_RNG_entropy_needs_recovery(root_rng) != 0) {
@@ -3237,6 +3242,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                         "wc_entropyd: root_rng recovery reseed failed: "
                         "%d\n", ret);
                 }
+                /* else transient -- don't log. */
             }
     #endif /* WC_RNG_HAVE_ENTROPY_EPOCH */
         }
