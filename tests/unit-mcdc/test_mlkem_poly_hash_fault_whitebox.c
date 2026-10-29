@@ -29,7 +29,8 @@
  *     mlkem_hash512()     if ((ret == 0) && (data2 != NULL) && (data2Len > 0))
  *     mlkem_gen_matrix_c()  for (i = 0; (ret == 0) && (i < k); i++, ...)
  *                           for (j = 0; (ret == 0) && (j < k); j++)
- *     mlkem_gen_matrix_i()  for (j = 0; (ret == 0) && (j < k); j++)
+ *     mlkem_gen_matrix_i_acc()
+ *                           for (j = 0; (ret == 0) && (j < k); j++)
  *     mlkem_get_noise_c()   for (i = 0; (ret == 0) && (i < k); i++)
  *                           if ((ret == 0) && (vec2 != NULL))
  *                           for (i = 0; (ret == 0) && (i < k); i++)
@@ -348,8 +349,9 @@ static void wb_gen_matrix_c_continuation(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * mlkem_gen_matrix_i(): the small-memory single-row generator. Only compiled
- * when one of the small-mem arms is on.
+ * mlkem_gen_matrix_i_acc(): the small-memory single-row generator, driven
+ * with each stride and orientation its key generation and encapsulate callers
+ * use: 0 streams, MLKEM_N and k * MLKEM_N fill the matrix A cache.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !(defined(WOLFSSL_ARMASM) && defined(__aarch64__)) && \
@@ -359,9 +361,12 @@ static void wb_gen_matrix_c_continuation(void)
 static void wb_gen_matrix_i_rows(void)
 {
     MLKEM_PRF_T    prf;
-    static sword16 a[WB_K * MLKEM_N];
+    static sword16 a[WB_K * WB_K * MLKEM_N];
+    static sword16 v[WB_K * MLKEM_N];
+    static sword16 r[MLKEM_N];
     byte           seed[WC_ML_KEM_SYM_SZ + 2];
     long           n;
+    unsigned int   j;
 
     if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
         WB_NOTE("mlkem_prf_new failed");
@@ -369,32 +374,46 @@ static void wb_gen_matrix_i_rows(void)
         return;
     }
     XMEMSET(seed, 0x5c, sizeof(seed));
+    /* Small, in-range coefficients: the multiply is incidental here, only the
+     * generation chain is under test. */
+    for (j = 0; j < WB_K * MLKEM_N; j++) {
+        v[j] = (sword16)(j & 0x7);
+    }
 
     mcdc_fh_disarm();
-    if (mlkem_gen_matrix_i(&prf, a, WB_K, seed, 0, 0) != 0) {
-        WB_NOTE("baseline mlkem_gen_matrix_i failed");
+    if (mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 0, 0) != 0) {
+        WB_NOTE("baseline mlkem_gen_matrix_i_acc failed");
         wb_fail = 1;
     }
 
     for (n = 1; n <= (long)WB_SWEEP; n++) {
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i(&prf, a, WB_K, seed, 0, 0);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 0, 0);
         mcdc_fh_disarm();
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i(&prf, a, WB_K, seed, 1, 1);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 1, 1);
+        mcdc_fh_disarm();
+        mcdc_fh_arm(n);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, MLKEM_N, v, WB_K, seed, 1, 0);
+        mcdc_fh_disarm();
+        mcdc_fh_arm(n);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, WB_K * MLKEM_N, v, WB_K,
+            seed, 1, 1);
         mcdc_fh_disarm();
     }
 
     mlkem_prf_free(&prf);
-    WB_NOTE("mlkem_gen_matrix_i success-chain rows exercised");
+    WB_NOTE("mlkem_gen_matrix_i_acc success-chain rows exercised");
 }
 
-/* mlkem_gen_matrix_i(): a failing continuation squeeze must be returned, not
- * ignored with the stale buffer sampled again. */
+/* mlkem_gen_matrix_i_acc(): a failing continuation squeeze must be returned,
+ * not ignored with the stale buffer sampled again. */
 static void wb_gen_matrix_i_continuation(void)
 {
     MLKEM_PRF_T    prf;
     static sword16 a[MLKEM_N];
+    static sword16 v[MLKEM_N];
+    static sword16 r[MLKEM_N];
     byte           seed[WC_ML_KEM_SYM_SZ];
     word32         s;
     int            i;
@@ -411,8 +430,8 @@ static void wb_gen_matrix_i_continuation(void)
         seed[0] = (byte)s;
         seed[1] = (byte)(s >> 8);
         mcdc_fh_disarm();
-        if (mlkem_gen_matrix_i(&prf, a, 1, seed, 0, 0) != 0) {
-            WB_NOTE("mlkem_gen_matrix_i seed search failed");
+        if (mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, 1, seed, 0, 0) != 0) {
+            WB_NOTE("mlkem_gen_matrix_i_acc seed search failed");
             wb_fail = 1;
             break;
         }
@@ -429,32 +448,36 @@ static void wb_gen_matrix_i_continuation(void)
             a[i] = -1;
         }
         mcdc_fh_arm(WB_XOF_CALLS + 1);
-        ret = mlkem_gen_matrix_i(&prf, a, 1, seed, 0, 0);
+        ret = mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, 1, seed, 0, 0);
         mcdc_fh_disarm();
         if (ret != MCDC_FH_ERR) {
-            WB_NOTE("mlkem_gen_matrix_i ignored a continuation squeeze error");
+            WB_NOTE("mlkem_gen_matrix_i_acc ignored a continuation squeeze "
+                "error");
             wb_fail = 1;
         }
         if (!WB_POLY_INCOMPLETE(a)) {
-            WB_NOTE("mlkem_gen_matrix_i sampled after a failed squeeze");
+            WB_NOTE("mlkem_gen_matrix_i_acc sampled after a failed squeeze");
             wb_fail = 1;
         }
     }
 
     mlkem_prf_free(&prf);
-    WB_NOTE("mlkem_gen_matrix_i continuation-squeeze error row exercised");
+    WB_NOTE("mlkem_gen_matrix_i_acc continuation-squeeze error row "
+        "exercised");
 }
 
 #else
 
 static void wb_gen_matrix_i_rows(void)
 {
-    WB_NOTE("mlkem_gen_matrix_i arm not compiled in this variant; skipped");
+    WB_NOTE("mlkem_gen_matrix_i_acc arm not compiled in this variant; "
+        "skipped");
 }
 
 static void wb_gen_matrix_i_continuation(void)
 {
-    WB_NOTE("mlkem_gen_matrix_i arm not compiled in this variant; skipped");
+    WB_NOTE("mlkem_gen_matrix_i_acc arm not compiled in this variant; "
+        "skipped");
 }
 
 #endif
