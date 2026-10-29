@@ -4529,7 +4529,7 @@ end:
 #if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         WOLFSSL_CERT_MANAGER* cm, const byte* pubKey, word32 pubKeySz,
-        int pubKeyOID, int req)
+        int pubKeyOID, int req, const byte** caKey, word32* caKeySz)
 {
 #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
     SignatureCtx  sigCtx[1];
@@ -4558,6 +4558,11 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     const byte*   sigParams = NULL;
     word32        sigParamsSz = 0;
 
+
+    if (caKey != NULL) {
+        *caKey = NULL;
+        *caKeySz = 0;
+    }
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -4862,6 +4867,10 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                 sigIndex - tbsCertIdx, ca->publicKey, ca->pubKeySize,
                 ca->keyOID, cert + idx, len, signatureOID, sigParams,
                 sigParamsSz, NULL);
+            if (ret == 0 && caKey != NULL) {
+                *caKey = ca->publicKey;
+                *caKeySz = ca->pubKeySize;
+            }
         }
         if (ret != 0) {
             WOLFSSL_ERROR_VERBOSE(ret);

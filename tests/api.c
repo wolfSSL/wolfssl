@@ -28622,6 +28622,11 @@ static int test_CheckCertSignature(void)
     EXPECT_DECLS;
 #if !defined(NO_CERTS) && defined(WOLFSSL_SMALL_CERT_VERIFY)
     WOLFSSL_CERT_MANAGER* cm = NULL;
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    const byte* caKey = NULL;
+    word32 caKeySz = 0;
+    DecodedCert caCert;
+#endif
 #if !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
     XFILE fp = XBADFILE;
     byte  cert[4096];
@@ -28655,11 +28660,32 @@ static int test_CheckCertSignature(void)
 #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
     ExpectIntEQ(WC_NO_ERR_TRACE(ASN_NO_SIGNER_E), wc_CheckCertSignature(serv_ecc_der_256,
                 sizeof_serv_ecc_der_256, NULL, cm));
+    /* A failed check reports no CA key */
+    caKey = ca_ecc_cert_der_256;
+    caKeySz = 1;
+    ExpectIntEQ(WC_NO_ERR_TRACE(ASN_NO_SIGNER_E), wc_CheckCertSignature_ex(
+                serv_ecc_der_256, sizeof_serv_ecc_der_256, NULL, cm, &caKey,
+                &caKeySz));
+    ExpectNull(caKey);
+    ExpectIntEQ(caKeySz, 0);
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCABuffer(cm,
                 ca_ecc_cert_der_256, sizeof_ca_ecc_cert_der_256,
                 WOLFSSL_FILETYPE_ASN1));
     ExpectIntEQ(0, wc_CheckCertSignature(serv_ecc_der_256, sizeof_serv_ecc_der_256,
                 NULL, cm));
+    ExpectIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_CheckCertSignature_ex(
+                serv_ecc_der_256, sizeof_serv_ecc_der_256, NULL, cm, &caKey,
+                NULL));
+    /* The reported key is the CA's own public key */
+    ExpectIntEQ(0, wc_CheckCertSignature_ex(serv_ecc_der_256,
+                sizeof_serv_ecc_der_256, NULL, cm, &caKey, &caKeySz));
+    wc_InitDecodedCert(&caCert, ca_ecc_cert_der_256,
+        sizeof_ca_ecc_cert_der_256, NULL);
+    ExpectIntEQ(0, wc_ParseCert(&caCert, CA_TYPE, NO_VERIFY, NULL));
+    ExpectNotNull(caKey);
+    ExpectIntEQ(caKeySz, caCert.pubKeySize);
+    ExpectBufEQ(caKey, caCert.publicKey, caCert.pubKeySize);
+    wc_FreeDecodedCert(&caCert);
 #endif
 
 #if !defined(NO_FILESYSTEM)
@@ -29979,6 +30005,479 @@ static int test_NameConstraints_SubtreeMinMax(void)
                 0, 0, 1, 5);
     ExpectIntGT((int)ncSz, 0);
     ExpectIntNE(verify_with_otherName_chain(nc, ncSz, 1, NULL, 0), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+    !defined(NO_SKID)
+/* Build a self-signed root named "SameDNRoot" with no AKID and `nc` as its
+ * critical nameConstraints, then a leaf it signs carrying `san`. rootDer and
+ * leafDer are each derSz bytes. Returns 0 on success. */
+static int make_same_dn_root_and_leaf(WC_RNG* rng, ecc_key* rootKey,
+    ecc_key* leafKey, const byte* nc, word32 ncSz, const byte* san,
+    word32 sanSz, byte* rootDer, int* rootDerSz, byte* leafDer,
+    int* leafDerSz, word32 derSz)
+{
+    Cert cert;
+    int ret;
+
+    ret = wc_InitCert(&cert);
+    if (ret == 0) {
+        (void)XSTRNCPY(cert.subject.country,    "US",         CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.org,        "SameDNRoot", CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.commonName, "SameDNRoot", CTC_NAME_SIZE);
+        cert.selfSigned = 1;
+        cert.isCA       = 1;
+        cert.sigType    = CTC_SHA256wECDSA;
+        cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+        ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, rootKey);
+    }
+    if (ret == 0) {
+        /* nameConstraints OID = 2.5.29.30 */
+        ret = wc_SetCustomExtension(&cert, 1, "2.5.29.30", nc, ncSz);
+    }
+    if (ret == 0) {
+        ret = wc_MakeCert(&cert, rootDer, derSz, NULL, rootKey, rng);
+        if (ret >= 0) {
+            ret = wc_SignCert(cert.bodySz, cert.sigType, rootDer, derSz,
+                NULL, rootKey, rng);
+        }
+        if (ret >= 0) {
+            *rootDerSz = ret;
+            ret = 0;
+        }
+    }
+
+    if (ret == 0)
+        ret = wc_InitCert(&cert);
+    if (ret == 0) {
+        (void)XSTRNCPY(cert.subject.country,    "US",         CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.org,        "SameDNLeaf", CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.commonName, "SameDNLeaf", CTC_NAME_SIZE);
+        cert.isCA    = 0;
+        cert.sigType = CTC_SHA256wECDSA;
+        if (sanSz > sizeof(cert.altNames)) {
+            ret = BUFFER_E;
+        }
+        else {
+            XMEMCPY(cert.altNames, san, sanSz);
+            cert.altNamesSz = (int)sanSz;
+        }
+    }
+    if (ret == 0)
+        ret = wc_SetIssuerBuffer(&cert, rootDer, *rootDerSz);
+    if (ret == 0)
+        ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, rootKey);
+    if (ret == 0) {
+        ret = wc_MakeCert(&cert, leafDer, derSz, NULL, leafKey, rng);
+        if (ret >= 0) {
+            ret = wc_SignCert(cert.bodySz, cert.sigType, leafDer, derSz,
+                NULL, rootKey, rng);
+        }
+        if (ret >= 0) {
+            *leafDerSz = ret;
+            ret = 0;
+        }
+    }
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+
+    return ret;
+}
+
+/* Build a self-signed root named `name` with SKID skid, plus AKID akid and
+ * critical nameConstraints nc when given. Returns the DER size, or a negative
+ * error. */
+static int make_nc_test_root(WC_RNG* rng, ecc_key* key, const char* name,
+    const byte* skid, const byte* akid, const byte* nc, word32 ncSz,
+    byte* der, word32 derSz)
+{
+    Cert cert;
+    int ret;
+
+    ret = wc_InitCert(&cert);
+    if (ret == 0) {
+        (void)XSTRNCPY(cert.subject.country,    "US", CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.org,        name, CTC_NAME_SIZE - 1);
+        (void)XSTRNCPY(cert.subject.commonName, name, CTC_NAME_SIZE - 1);
+        cert.selfSigned = 1;
+        cert.isCA       = 1;
+        cert.sigType    = CTC_SHA256wECDSA;
+        cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+        XMEMCPY(cert.skid, skid, KEYID_SIZE);
+        cert.skidSz = KEYID_SIZE;
+        if (akid != NULL) {
+            XMEMCPY(cert.akid, akid, KEYID_SIZE);
+            cert.akidSz = KEYID_SIZE;
+        }
+        if (nc != NULL) {
+            /* nameConstraints OID = 2.5.29.30 */
+            ret = wc_SetCustomExtension(&cert, 1, "2.5.29.30", nc, ncSz);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_MakeCert(&cert, der, derSz, NULL, key, rng);
+        if (ret >= 0) {
+            ret = wc_SignCert(cert.bodySz, cert.sigType, der, derSz,
+                NULL, key, rng);
+        }
+    }
+
+    return ret;
+}
+
+/* Build K: the DN "RolloverCA" with key kKey and SKID kSkid, signed by R
+ * (rDer, rKey). K's AKID names rSkid, or is left out when rSkid is NULL.
+ * Returns the DER size, or a negative error. */
+static int make_rollover_ca(WC_RNG* rng, ecc_key* rKey, const byte* rDer,
+    int rDerSz, const byte* rSkid, ecc_key* kKey, const byte* kSkid,
+    byte* kDer, word32 derSz)
+{
+    Cert cert;
+    int ret;
+
+    ret = wc_InitCert(&cert);
+    if (ret == 0) {
+        (void)XSTRNCPY(cert.subject.country,    "US",         CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.org,        "RolloverCA", CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.commonName, "RolloverCA", CTC_NAME_SIZE);
+        cert.isCA     = 1;
+        cert.sigType  = CTC_SHA256wECDSA;
+        cert.keyUsage = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+        XMEMCPY(cert.skid, kSkid, KEYID_SIZE);
+        cert.skidSz = KEYID_SIZE;
+        if (rSkid != NULL) {
+            XMEMCPY(cert.akid, rSkid, KEYID_SIZE);
+            cert.akidSz = KEYID_SIZE;
+        }
+        ret = wc_SetIssuerBuffer(&cert, rDer, rDerSz);
+    }
+    if (ret == 0) {
+        ret = wc_MakeCert(&cert, kDer, derSz, NULL, kKey, rng);
+        if (ret >= 0) {
+            ret = wc_SignCert(cert.bodySz, cert.sigType, kDer, derSz,
+                NULL, rKey, rng);
+        }
+    }
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+
+    return ret;
+}
+
+/* Build a leaf issued by the CA kDer with key kKey and SKID kSkid, carrying
+ * `san`. Returns the DER size, or a negative error. */
+static int make_nc_test_leaf(WC_RNG* rng, ecc_key* kKey, const byte* kSkid,
+    ecc_key* leafKey, const byte* kDer, int kDerSz, const byte* san,
+    word32 sanSz, byte* leafDer, word32 derSz)
+{
+    Cert cert;
+    int ret;
+
+    ret = wc_InitCert(&cert);
+    if (ret == 0) {
+        (void)XSTRNCPY(cert.subject.country,    "US",         CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.org,        "NcTestLeaf", CTC_NAME_SIZE);
+        (void)XSTRNCPY(cert.subject.commonName, "NcTestLeaf", CTC_NAME_SIZE);
+        cert.isCA    = 0;
+        cert.sigType = CTC_SHA256wECDSA;
+        XMEMCPY(cert.akid, kSkid, KEYID_SIZE);
+        cert.akidSz = KEYID_SIZE;
+        if (sanSz > sizeof(cert.altNames)) {
+            ret = BUFFER_E;
+        }
+        else {
+            XMEMCPY(cert.altNames, san, sanSz);
+            cert.altNamesSz = (int)sanSz;
+        }
+    }
+    if (ret == 0)
+        ret = wc_SetIssuerBuffer(&cert, kDer, kDerSz);
+    if (ret == 0) {
+        ret = wc_MakeCert(&cert, leafDer, derSz, NULL, leafKey, rng);
+        if (ret >= 0) {
+            ret = wc_SignCert(cert.bodySz, cert.sigType, leafDer, derSz,
+                NULL, kKey, rng);
+        }
+    }
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+
+    return ret;
+}
+#endif
+
+/* Two trusted roots share a DN and carry no AKID, so a name lookup from one
+ * root can return the other. Each root's leaf must be checked against its own
+ * root's nameConstraints only, whichever root the lookup returns. */
+static int test_NameConstraints_SameDnRoots(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+    !defined(NO_SKID)
+    const byte DNS = 0x82;  /* [2] dnsName */
+    byte ncA[64];
+    byte ncB[64];
+    byte sanA[64];
+    byte sanB[64];
+    word32 ncASz, ncBSz, sanASz, sanBSz;
+    byte rootA[1024];
+    byte rootB[1024];
+    byte leafA[1024];
+    byte leafB[1024];
+    int rootASz = 0, rootBSz = 0, leafASz = 0, leafBSz = 0;
+    WC_RNG rng;
+    ecc_key keyA, keyB, leafKey;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    XMEMSET(&rng,     0, sizeof(rng));
+    XMEMSET(&keyA,    0, sizeof(keyA));
+    XMEMSET(&keyB,    0, sizeof(keyB));
+    XMEMSET(&leafKey, 0, sizeof(leafKey));
+
+    ncASz = build_simple_nameConstraints(ncA, sizeof(ncA), 0, DNS,
+        "a.example");
+    ncBSz = build_simple_nameConstraints(ncB, sizeof(ncB), 0, DNS,
+        "b.example");
+    sanASz = build_simple_san(sanA, sizeof(sanA), DNS, "a.example");
+    sanBSz = build_simple_san(sanB, sizeof(sanB), DNS, "b.example");
+    ExpectIntGT((int)ncASz, 0);
+    ExpectIntGT((int)ncBSz, 0);
+    ExpectIntGT((int)sanASz, 0);
+    ExpectIntGT((int)sanBSz, 0);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&keyA), 0);
+    ExpectIntEQ(wc_ecc_init(&keyB), 0);
+    ExpectIntEQ(wc_ecc_init(&leafKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &keyA), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &keyB), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &leafKey), 0);
+
+    ExpectIntEQ(make_same_dn_root_and_leaf(&rng, &keyA, &leafKey,
+        ncA, ncASz, sanA, sanASz, rootA, &rootASz, leafA, &leafASz,
+        (word32)sizeof(rootA)), 0);
+    ExpectIntEQ(make_same_dn_root_and_leaf(&rng, &keyB, &leafKey,
+        ncB, ncBSz, sanB, sanBSz, rootB, &rootBSz, leafB, &leafBSz,
+        (word32)sizeof(rootB)), 0);
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, rootA, rootASz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, rootB, rootBSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafA, leafASz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafB, leafBSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CertManagerFree(cm);
+    wc_ecc_free(&leafKey);
+    wc_ecc_free(&keyB);
+    wc_ecc_free(&keyA);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* R's nameConstraints must reach leaves of K, a trusted key-rollover CA under
+ * R, with or without an AKID in K. */
+static int test_NameConstraints_RolloverCa(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+    !defined(NO_SKID)
+    const byte DNS = 0x82;  /* [2] dnsName */
+    /* CA table rows 0 and 1, so a name lookup from K returns R */
+    static const byte rSkid[KEYID_SIZE] = { 0x00, 0x00, 0x00, 0x00 };
+    static const byte kSkid[KEYID_SIZE] = { 0x00, 0x00, 0x00, 0x01 };
+    byte nc[64];
+    byte sanIn[64];
+    byte sanOut[64];
+    word32 ncSz, sanInSz, sanOutSz;
+    byte rDer[1024];
+    byte kDer[1024];
+    byte leafIn[1024];
+    byte leafOut[1024];
+    int rDerSz = 0, kDerSz = 0, leafInSz = 0, leafOutSz = 0;
+    int withAkid;
+    WC_RNG rng;
+    ecc_key rKey, kKey, leafKey;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    XMEMSET(&rng,     0, sizeof(rng));
+    XMEMSET(&rKey,    0, sizeof(rKey));
+    XMEMSET(&kKey,    0, sizeof(kKey));
+    XMEMSET(&leafKey, 0, sizeof(leafKey));
+
+    ncSz = build_simple_nameConstraints(nc, sizeof(nc), 0, DNS, "a.example");
+    sanInSz = build_simple_san(sanIn, sizeof(sanIn), DNS, "a.example");
+    sanOutSz = build_simple_san(sanOut, sizeof(sanOut), DNS, "b.example");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanInSz, 0);
+    ExpectIntGT((int)sanOutSz, 0);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&rKey), 0);
+    ExpectIntEQ(wc_ecc_init(&kKey), 0);
+    ExpectIntEQ(wc_ecc_init(&leafKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &rKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &kKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &leafKey), 0);
+
+    /* Self-signed root R with nameConstraints and no AKID. */
+    ExpectIntGT(rDerSz = make_nc_test_root(&rng, &rKey, "RolloverCA", rSkid,
+        NULL, nc, ncSz, rDer, (word32)sizeof(rDer)), 0);
+
+    for (withAkid = 1; withAkid >= 0 && EXPECT_SUCCESS(); withAkid--) {
+        ExpectIntGT(kDerSz = make_rollover_ca(&rng, &rKey, rDer, rDerSz,
+            withAkid ? rSkid : NULL, &kKey, kSkid, kDer,
+            (word32)sizeof(kDer)), 0);
+        ExpectIntGT(leafInSz = make_nc_test_leaf(&rng, &kKey, kSkid,
+            &leafKey, kDer, kDerSz, sanIn, sanInSz, leafIn,
+            (word32)sizeof(leafIn)), 0);
+        ExpectIntGT(leafOutSz = make_nc_test_leaf(&rng, &kKey, kSkid,
+            &leafKey, kDer, kDerSz, sanOut, sanOutSz, leafOut,
+            (word32)sizeof(leafOut)), 0);
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, kDer, kDerSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, rDer, rDerSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafIn, leafInSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafOut, leafOutSz,
+            WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    wc_ecc_free(&leafKey);
+    wc_ecc_free(&kKey);
+    wc_ecc_free(&rKey);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A trusted root whose AKID names its own key skips the self-signature check
+ * on load and must still apply its nameConstraints. A renewed root whose AKID
+ * still names the old root's key must end the walk itself. */
+static int test_NameConstraints_RootAkid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+    !defined(NO_SKID)
+    const byte DNS = 0x82;  /* [2] dnsName */
+    static const byte oldSkid[KEYID_SIZE] = { 0x00, 0x00, 0x00, 0x00 };
+    static const byte newSkid[KEYID_SIZE] = { 0x00, 0x00, 0x00, 0x01 };
+    byte ncA[64];
+    byte ncB[64];
+    byte sanA[64];
+    byte sanB[64];
+    word32 ncASz, ncBSz, sanASz, sanBSz;
+    byte oldDer[1024];
+    byte newDer[1024];
+    byte leafIn[1024];
+    byte leafOut[1024];
+    int oldDerSz = 0, newDerSz = 0, leafInSz = 0, leafOutSz = 0;
+    WC_RNG rng;
+    ecc_key oldKey, newKey, leafKey;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    XMEMSET(&rng,     0, sizeof(rng));
+    XMEMSET(&oldKey,  0, sizeof(oldKey));
+    XMEMSET(&newKey,  0, sizeof(newKey));
+    XMEMSET(&leafKey, 0, sizeof(leafKey));
+
+    ncASz = build_simple_nameConstraints(ncA, sizeof(ncA), 0, DNS,
+        "a.example");
+    ncBSz = build_simple_nameConstraints(ncB, sizeof(ncB), 0, DNS,
+        "b.example");
+    sanASz = build_simple_san(sanA, sizeof(sanA), DNS, "a.example");
+    sanBSz = build_simple_san(sanB, sizeof(sanB), DNS, "b.example");
+    ExpectIntGT((int)ncASz, 0);
+    ExpectIntGT((int)ncBSz, 0);
+    ExpectIntGT((int)sanASz, 0);
+    ExpectIntGT((int)sanBSz, 0);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&oldKey), 0);
+    ExpectIntEQ(wc_ecc_init(&newKey), 0);
+    ExpectIntEQ(wc_ecc_init(&leafKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &oldKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &newKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &leafKey), 0);
+
+    /* Root with AKID == SKID, permitting only a.example. */
+    ExpectIntGT(oldDerSz = make_nc_test_root(&rng, &oldKey, "AkidRoot",
+        oldSkid, oldSkid, ncA, ncASz, oldDer, (word32)sizeof(oldDer)), 0);
+    ExpectIntGT(leafInSz = make_nc_test_leaf(&rng, &oldKey, oldSkid,
+        &leafKey, oldDer, oldDerSz, sanA, sanASz, leafIn,
+        (word32)sizeof(leafIn)), 0);
+    ExpectIntGT(leafOutSz = make_nc_test_leaf(&rng, &oldKey, oldSkid,
+        &leafKey, oldDer, oldDerSz, sanB, sanBSz, leafOut,
+        (word32)sizeof(leafOut)), 0);
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, oldDer, oldDerSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafIn, leafInSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafOut, leafOutSz,
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* Old root permitting only b.example, and a renewed root with the same
+     * DN and a new key whose AKID names the old key. */
+    ExpectIntGT(oldDerSz = make_nc_test_root(&rng, &oldKey, "RenewedRoot",
+        oldSkid, NULL, ncB, ncBSz, oldDer, (word32)sizeof(oldDer)), 0);
+    ExpectIntGT(newDerSz = make_nc_test_root(&rng, &newKey, "RenewedRoot",
+        newSkid, oldSkid, NULL, 0, newDer, (word32)sizeof(newDer)), 0);
+    ExpectIntGT(leafInSz = make_nc_test_leaf(&rng, &newKey, newSkid,
+        &leafKey, newDer, newDerSz, sanA, sanASz, leafIn,
+        (word32)sizeof(leafIn)), 0);
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, oldDer, oldDerSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, newDer, newDerSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafIn, leafInSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerFree(cm);
+
+    wc_ecc_free(&leafKey);
+    wc_ecc_free(&newKey);
+    wc_ecc_free(&oldKey);
+    wc_FreeRng(&rng);
 #endif
     return EXPECT_RESULT();
 }
@@ -45912,6 +46411,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_NameConstraints_DirName),
     TEST_DECL(test_NameConstraints_DnsUriWildcard),
     TEST_DECL(test_NameConstraints_SubtreeMinMax),
+    TEST_DECL(test_NameConstraints_SameDnRoots),
+    TEST_DECL(test_NameConstraints_RolloverCa),
+    TEST_DECL(test_NameConstraints_RootAkid),
     TEST_DECL(test_ParseSerial0FixtureMatrix),
     TEST_DECL(test_MakeCertWithCaFalse),
     TEST_DECL(test_wc_SignCert_cb),

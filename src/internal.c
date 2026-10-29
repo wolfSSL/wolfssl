@@ -17405,6 +17405,8 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
 #endif
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
     int sigRet = 0;
+    const byte* sigCaKey = NULL;
+    word32 sigCaKeySz = 0;
 #endif
 
     if (ssl == NULL || args == NULL
@@ -17477,8 +17479,9 @@ PRAGMA_GCC_DIAG_POP
         }
 
         /* perform cert parsing and signature check */
-        sigRet = wc_CheckCertSignature(cert->buffer, cert->length,
-                                         ssl->heap, SSL_CM(ssl));
+        sigRet = wc_CheckCertSignature_ex(cert->buffer, cert->length,
+                                         ssl->heap, SSL_CM(ssl), &sigCaKey,
+                                         &sigCaKeySz);
         /* fail on errors here after the ParseCertRelative call, so dCert is populated */
 
         /* verify name only in ParseCertRelative below, signature check done */
@@ -17525,6 +17528,15 @@ PRAGMA_GCC_DIAG_POP
 #endif
     /* Parse Certificate */
     ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+    /* Self signed: the key that verified the signature is its own */
+    if (verify == VERIFY_NAME && sigRet == 0 && sigCaKey != NULL &&
+            args->dCert->publicKey != NULL) {
+        args->dCert->selfSigned = args->dCert->selfIssued &&
+            sigCaKeySz == args->dCert->pubKeySize &&
+            XMEMCMP(sigCaKey, args->dCert->publicKey, sigCaKeySz) == 0;
+    }
+#endif
 
 #if defined(HAVE_RPK)
     /* Confirm the received certificate's form (X.509 vs raw public key) matches
