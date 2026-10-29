@@ -38702,7 +38702,7 @@ static int test_wolfSSL_get1_session_static_heap(void)
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_SESSION* dup = NULL;
     WOLFSSL_HEAP_HINT* hint = NULL;
-    int refs = 0;
+    word32 refs = 0;
     WOLFSSL_MEM_STATS before;
     WOLFSSL_MEM_STATS after;
 
@@ -38723,14 +38723,14 @@ static int test_wolfSSL_get1_session_static_heap(void)
     /* Held by the SSL and each allocated block. */
     ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl->heap);
     ExpectIntEQ(hint->sslOwned, 1);
-    ExpectIntGT(refs = wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGT(refs = hint->refCount, 1);
     ExpectNotNull(sess = wolfSSL_get1_session(ssl));
     ExpectPtrEq(sess->heap, hint);
     /* A session ref allocates nothing. */
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntEQ(hint->refCount, refs);
     wolfSSL_SESSION_free(sess);
     sess = NULL;
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntEQ(hint->refCount, refs);
     /* No handshake done, so clear replaces the session. */
     ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
     ExpectNotNull(sess = wolfSSL_get1_session(ssl));
@@ -38738,14 +38738,14 @@ static int test_wolfSSL_get1_session_static_heap(void)
     wolfSSL_free(ssl);
     ssl = NULL;
     /* Only the session holds the hint now. */
-    ExpectIntGE(refs = wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGE(refs = hint->refCount, 1);
 
     /* Both operations go through sess->heap after the SSL is gone. */
     ExpectNotNull(dup = wolfSSL_SESSION_dup(sess));
     ExpectPtrEq(dup->heap, hint);
-    ExpectIntGT(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntGT(hint->refCount, refs);
     wolfSSL_SESSION_free(dup);
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntEQ(hint->refCount, refs);
     /* Last holder: the hint goes back to the pool. */
     wolfSSL_SESSION_free(sess);
 
@@ -38811,7 +38811,7 @@ static int test_wolfSSL_session_ticket_static_heap(void)
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_SESSION* dup = NULL;
     WOLFSSL_HEAP_HINT* hint = NULL;
-    int refs = 0;
+    word32 refs = 0;
     WOLFSSL_MEM_STATS before;
     WOLFSSL_MEM_STATS after;
     char buf[1];
@@ -38861,7 +38861,7 @@ static int test_wolfSSL_session_ticket_static_heap(void)
     wolfSSL_free(ssl_s);
     ssl_s = NULL;
     /* The session keeps the client's hint alive. */
-    ExpectIntGE(refs = wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGE(refs = hint->refCount, 1);
 
     /* Resume with the session on a new SSL; a new ticket replaces the old. */
     ExpectIntEQ(test_session_static_heap_new_pair(&test_ctx, &ctx_c, &ctx_s,
@@ -38871,7 +38871,7 @@ static int test_wolfSSL_session_ticket_static_heap(void)
     ExpectPtrNE(ssl_c->heap, hint);
     ExpectPtrNE(ssl_c->session, sess);
     ExpectPtrEq(ssl_c->session->heap, hint);
-    ExpectIntGT(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntGT(hint->refCount, refs);
     wolfSSL_SESSION_free(sess);
     sess = NULL;
     ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
@@ -38880,7 +38880,7 @@ static int test_wolfSSL_session_ticket_static_heap(void)
     wolfSSL_free(ssl_s);
     ssl_s = NULL;
     /* The hint has outlived both SSLs. */
-    ExpectIntGE(wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGE(hint->refCount, 1);
     wolfSSL_SESSION_free(sess);
     sess = NULL;
 
@@ -38893,12 +38893,12 @@ static int test_wolfSSL_session_ticket_static_heap(void)
     ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_c->heap);
     wolfSSL_free(ssl_c);
     ssl_c = NULL;
-    ExpectIntGE(refs = wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGE(refs = hint->refCount, 1);
     ExpectNotNull(dup = wolfSSL_SESSION_dup(sess));
-    ExpectIntGT(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntGT(hint->refCount, refs);
     wolfSSL_SESSION_free(dup);
     dup = NULL;
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntEQ(hint->refCount, refs);
     wolfSSL_SESSION_free(sess);
     sess = NULL;
 
@@ -38933,7 +38933,7 @@ static int test_wolfSSL_session_ticket_static_heap(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_STATIC_MEMORY) && \
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_RSA) && \
     !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_CLIENT_AUTH)
@@ -38962,7 +38962,7 @@ static int test_peer_cert_static_heap_connect(struct test_memio_ctx* test_ctx,
 static int test_wolfSSL_peer_cert_chain_static_heap(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_STATIC_MEMORY) && \
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_RSA) && \
     !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_CLIENT_AUTH)
@@ -38974,7 +38974,7 @@ static int test_wolfSSL_peer_cert_chain_static_heap(void)
     WOLFSSL* ssl_s = NULL;
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_HEAP_HINT* hint = NULL;
-    int refs = 0;
+    word32 refs = 0;
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509* peer = NULL;
 #endif
@@ -39016,18 +39016,18 @@ static int test_wolfSSL_peer_cert_chain_static_heap(void)
         &ssl_c, &ssl_s), TEST_SUCCESS);
     /* Held by the SSL and each allocated block. */
     ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_s->heap);
-    ExpectIntGT(refs = wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGT(refs = hint->refCount, 1);
 
     ExpectNotNull(wolfSSL_get_peer_cert_chain(ssl_s));
     ExpectNotNull(sess = wolfSSL_get1_session(ssl_s));
     ExpectNotNull(sess->peer);
     /* The peer is on the SSL's hint too. */
     ExpectPtrEq(sess->peer->heap, hint);
-    ExpectIntGT(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntGT(hint->refCount, refs);
     wolfSSL_free(ssl_s);
     ssl_s = NULL;
     /* Only the session and peer hold the hint now. */
-    ExpectIntGE(wolfSSL_RefCur(hint->refCount), 2);
+    ExpectIntGE(hint->refCount, 2);
     /* The peer is still usable once the SSL is gone. */
     ExpectNotNull(wolfSSL_SESSION_get0_peer(sess));
     wolfSSL_SESSION_free(sess);
@@ -39040,15 +39040,15 @@ static int test_wolfSSL_peer_cert_chain_static_heap(void)
     ExpectIntEQ(test_peer_cert_static_heap_connect(&test_ctx, &ctx_c, &ctx_s,
         &ssl_c, &ssl_s), TEST_SUCCESS);
     ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_s->heap);
-    ExpectIntGT(refs = wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGT(refs = hint->refCount, 1);
     /* A copy of ssl->peerCert, so on the SSL's hint. */
     ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
     ExpectPtrEq(peer->heap, hint);
-    ExpectIntGT(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntGT(hint->refCount, refs);
     wolfSSL_free(ssl_s);
     ssl_s = NULL;
     /* Only the X509 holds the hint now. */
-    ExpectIntGE(wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGE(hint->refCount, 1);
     ExpectNotNull(wolfSSL_X509_get_subject_name(peer));
     /* Last holder: the hint goes back to the pool. */
     wolfSSL_X509_free(peer);
@@ -39089,7 +39089,7 @@ static int test_static_heap_io_refs(int ioFlag)
     WOLFSSL_HEAP_HINT* hint = NULL;
     void* io = NULL;
     void* tmp = NULL;
-    int refs = 0;
+    word32 refs = 0;
     int fixed = (ioFlag == WOLFMEM_IO_POOL_FIXED);
     WOLFSSL_MEM_STATS before;
     WOLFSSL_MEM_STATS stats;
@@ -39144,7 +39144,7 @@ static int test_static_heap_io_refs(int ioFlag)
     ssl_c = NULL;
     wolfSSL_free(ssl_s);
     ssl_s = NULL;
-    ExpectIntGE(wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntGE(hint->refCount, 1);
     /* All IO buffers are back in the pool while the hint lives on. */
     ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &stats), 1);
     ExpectIntEQ(stats.avaIO, before.avaIO);
@@ -39160,20 +39160,20 @@ static int test_static_heap_io_refs(int ioFlag)
     ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
     ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_c->heap);
     if (EXPECT_SUCCESS())
-        refs = wolfSSL_RefCur(hint->refCount);
+        refs = hint->refCount;
     ExpectNotNull(io = XMALLOC(64, hint, DYNAMIC_TYPE_IN_BUFFER));
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), fixed ? refs : refs + 1);
+    ExpectIntEQ(hint->refCount, fixed ? refs : refs + 1);
 #ifndef WOLFSSL_NO_REALLOC
     ExpectNotNull(tmp = XREALLOC(io, 128, hint, DYNAMIC_TYPE_IN_BUFFER));
     /* IO buffers are fixed size, so resized in place. */
     ExpectPtrEq(tmp, io);
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), fixed ? refs : refs + 1);
+    ExpectIntEQ(hint->refCount, fixed ? refs : refs + 1);
 #else
     (void)tmp;
 #endif
     XFREE(io, hint, DYNAMIC_TYPE_IN_BUFFER);
     io = NULL;
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), refs);
+    ExpectIntEQ(hint->refCount, refs);
     wolfSSL_free(ssl_c);
     ssl_c = NULL;
     ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &stats), 1);
@@ -39214,7 +39214,7 @@ static int test_wolfSSL_static_heap_realloc_refs(void)
     WOLFSSL_HEAP_HINT* hint = NULL;
     void* p = NULL;
     void* tmp = NULL;
-    int refs = 0;
+    word32 refs = 0;
     WOLFSSL_MEM_STATS before;
     WOLFSSL_MEM_STATS after;
 
@@ -39234,25 +39234,25 @@ static int test_wolfSSL_static_heap_realloc_refs(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl->heap);
     if (EXPECT_SUCCESS())
-        refs = wolfSSL_RefCur(hint->refCount);
+        refs = hint->refCount;
     ExpectNotNull(p = XMALLOC(64, hint, DYNAMIC_TYPE_TMP_BUFFER));
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), refs + 1);
+    ExpectIntEQ(hint->refCount, refs + 1);
     /* A bigger bucket: the new block takes the ref the old one drops. */
     ExpectNotNull(tmp = XREALLOC(p, 1000, hint, DYNAMIC_TYPE_TMP_BUFFER));
     if (tmp != NULL) {
         p = tmp;
     }
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), refs + 1);
+    ExpectIntEQ(hint->refCount, refs + 1);
     wolfSSL_free(ssl);
     ssl = NULL;
     /* Only the block holds the hint now. */
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntEQ(hint->refCount, 1);
     /* The new block is held before the old one drops the last ref. */
     ExpectNotNull(tmp = XREALLOC(p, 2000, hint, DYNAMIC_TYPE_TMP_BUFFER));
     if (tmp != NULL) {
         p = tmp;
     }
-    ExpectIntEQ(wolfSSL_RefCur(hint->refCount), 1);
+    ExpectIntEQ(hint->refCount, 1);
     /* Last holder: the hint goes back to the pool. */
     XFREE(p, hint, DYNAMIC_TYPE_TMP_BUFFER);
     p = NULL;

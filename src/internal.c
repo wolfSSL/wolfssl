@@ -8886,7 +8886,6 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ctx->heap != NULL) {
         WOLFSSL_HEAP_HINT* ssl_hint;
         WOLFSSL_HEAP_HINT* ctx_hint;
-        int ret = 0;
 
         /* avoid dereferencing a test value */
     #ifdef WOLFSSL_HEAP_TEST
@@ -8906,23 +8905,13 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
         ssl_hint->memory = ctx_hint->memory;
         /* the SSL's ref; each allocated block holds another */
-        wolfSSL_RefInit(&ssl_hint->refCount, &ret);
-    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
-        if (ret != 0) {
-            WOLFSSL_MSG("Error setting up heap hint reference mutex");
-            XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
-            ssl->heap = NULL;
-            return ret;
-        }
-    #endif
-        (void)ret;
+        ssl_hint->refCount = 1;
         ssl_hint->sslOwned = 1;
     #ifndef WOLFSSL_STATIC_MEMORY_LEAN
     #ifndef SINGLE_THREADED
         /* lock and check IO count / handshake count */
         if (wc_LockMutex(&(ctx_hint->memory->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
-            wolfSSL_RefFree(&ssl_hint->refCount);
             XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
             ssl->heap = NULL; /* free and set to NULL for IO counter */
             WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
@@ -8935,7 +8924,6 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         #ifndef SINGLE_THREADED
             wc_UnLockMutex(&(ctx_hint->memory->memory_mutex));
         #endif
-            wolfSSL_RefFree(&ssl_hint->refCount);
             XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
             ssl->heap = NULL; /* free and set to NULL for IO counter */
             return MEMORY_E;
@@ -8947,7 +8935,6 @@ static int InitSSL_StaticMemory(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         #ifndef SINGLE_THREADED
             wc_UnLockMutex(&(ctx_hint->memory->memory_mutex));
         #endif
-            wolfSSL_RefFree(&ssl_hint->refCount);
             XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
             ssl->heap = NULL; /* free and set to NULL for IO counter */
             return MEMORY_E;

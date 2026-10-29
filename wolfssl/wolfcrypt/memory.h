@@ -277,7 +277,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
         wc_Memory*  inBuf;
         byte        haFlag; /* flag used for checking handshake count */
     #endif
-        wolfSSL_Ref refCount; /* SSL + each allocated block */
+        word32      refCount; /* SSL + each allocated block */
         byte        sslOwned; /* created by InitSSL_StaticMemory */
     } WOLFSSL_HEAP_HINT;
 

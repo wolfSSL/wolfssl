@@ -847,7 +847,9 @@ void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap)
 
 
 /* Returns 1 if hint is a per-SSL hint created by InitSSL_StaticMemory. Only
- * these are reference counted; CTX, user and global hints are left alone. */
+ * these are reference counted; CTX, user and global hints are left alone.
+ *
+ * Needs hint to not be garbage data. */
 static int wc_HeapHint_IsRefCounted(const WOLFSSL_HEAP_HINT* hint)
 {
     if (hint == NULL) {
@@ -867,52 +869,65 @@ static int wc_HeapHint_IsRefCounted(const WOLFSSL_HEAP_HINT* hint)
 #define WC_MEM_OWNER(pt)         ((WOLFSSL_HEAP_HINT*)(void*)(pt)->next)
 #define WC_MEM_SET_OWNER(pt, o)  ((pt)->next = (wc_Memory*)(void*)(o))
 
-/* Ref hint for a new block. *owner is hint if ref counted, else NULL. */
-static int wc_HeapHint_Hold(WOLFSSL_HEAP_HINT* hint, WOLFSSL_HEAP_HINT** owner)
+/* Ref hint for a new block. Returns hint if ref counted, else NULL. Call with
+ * memory_mutex held. */
+static WOLFSSL_HEAP_HINT* wc_HeapHint_Hold(WOLFSSL_HEAP_HINT* hint)
 {
-    int err = 0;
-
-    *owner = NULL;
-    if (wc_HeapHint_IsRefCounted(hint)) {
-        wolfSSL_RefInc(&hint->refCount, &err);
-        if (err != 0) {
-            WOLFSSL_MSG("Heap hint reference increment failed");
-            return err;
-        }
-        *owner = hint;
+    if (!wc_HeapHint_IsRefCounted(hint)) {
+        return NULL;
     }
-    return 0;
+    hint->refCount++;
+    return hint;
 }
 
-/* Drop a ref, freeing the hint on the last. Call without memory_mutex. */
-static void wc_HeapHint_Drop(WOLFSSL_HEAP_HINT* owner)
+/* Drop a ref. Returns owner if that was the last, to pass to wc_HeapHint_Free
+ * once memory_mutex is released, else NULL. Call with memory_mutex held. */
+static WOLFSSL_HEAP_HINT* wc_HeapHint_Drop(WOLFSSL_HEAP_HINT* owner)
+{
+    if (owner == NULL || --owner->refCount != 0) {
+        return NULL;
+    }
+    return owner;
+}
+
+/* Free a hint whose last ref was dropped. Call without memory_mutex. */
+static void wc_HeapHint_Free(WOLFSSL_HEAP_HINT* owner)
 {
     WOLFSSL_HEAP_HINT tmp;
-    int isZero = 0;
-    int err = 0;
 
     if (owner == NULL) {
         return;
     }
-    wolfSSL_RefDec(&owner->refCount, &isZero, &err);
-    if (err == 0 && isZero) {
-        wolfSSL_RefFree(&owner->refCount);
-        /* free through a temporary hint on the same pool so neither the CTX
-         * nor the hint being freed is needed */
-        XMEMSET(&tmp, 0, sizeof(tmp));
-        tmp.memory = owner->memory;
-        XFREE(owner, &tmp, DYNAMIC_TYPE_SSL);
-    }
+    /* free through a temporary hint on the same pool so neither the CTX
+     * nor the hint being freed is needed */
+    XMEMSET(&tmp, 0, sizeof(tmp));
+    tmp.memory = owner->memory;
+    XFREE(owner, &tmp, DYNAMIC_TYPE_SSL);
 }
 
 /* Drop the SSL's ref on its hint. Do not use the hint after. */
 void wc_HeapHint_Release(void* heap)
 {
     WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
+#ifndef SINGLE_THREADED
+    WOLFSSL_HEAP*      mem = NULL;
+#endif
 
-    if (wc_HeapHint_IsRefCounted(hint)) {
-        wc_HeapHint_Drop(hint);
+    if (!wc_HeapHint_IsRefCounted(hint)) {
+        return;
     }
+#ifndef SINGLE_THREADED
+    mem = hint->memory;
+    if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
+        WOLFSSL_MSG("Bad memory_mutex lock");
+        return;
+    }
+#endif
+    hint = wc_HeapHint_Drop(hint);
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&(mem->memory_mutex));
+#endif
+    wc_HeapHint_Free(hint);
 }
 
 #ifndef WOLFSSL_STATIC_MEMORY_LEAN
@@ -1156,8 +1171,6 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
     else {
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
         WOLFSSL_HEAP*      mem;
-        WOLFSSL_HEAP_HINT* owner = NULL;
-        int                fixedIO = 0;
 
         if (hint == NULL) {
             hint = (WOLFSSL_HEAP_HINT*)globalHeapHint;
@@ -1167,27 +1180,18 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         }
         mem = hint->memory;
 
-    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
-        fixedIO = (mem->flag & WOLFMEM_IO_POOL_FIXED) &&
-                  (type == DYNAMIC_TYPE_OUT_BUFFER ||
-                   type == DYNAMIC_TYPE_IN_BUFFER);
-    #endif
-        /* fixed IO buffers hold no ref */
-        if (!fixedIO && wc_HeapHint_Hold(hint, &owner) != 0) {
-            return NULL;
-        }
-
     #ifndef SINGLE_THREADED
         if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
-            wc_HeapHint_Drop(owner);
             return NULL;
         }
     #endif
 
     #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         /* case of using fixed IO buffers */
-        if (fixedIO) {
+        if (mem->flag & WOLFMEM_IO_POOL_FIXED &&
+                                             (type == DYNAMIC_TYPE_OUT_BUFFER ||
+                                              type == DYNAMIC_TYPE_IN_BUFFER)) {
             if (type == DYNAMIC_TYPE_OUT_BUFFER) {
                 pt = hint->outBuf;
             }
@@ -1229,9 +1233,9 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                 }
             }
 
+            /* fixed IO buffers hold no ref */
             if (pt != NULL) {
-                WC_MEM_SET_OWNER(pt, owner);
-                owner = NULL; /* block owns the ref */
+                WC_MEM_SET_OWNER(pt, wc_HeapHint_Hold(hint));
             }
         }
 
@@ -1285,8 +1289,6 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
     #ifndef SINGLE_THREADED
         wc_UnLockMutex(&(mem->memory_mutex));
     #endif
-        /* no-op unless no block was taken */
-        wc_HeapHint_Drop(owner);
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK
@@ -1391,14 +1393,14 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             else if (mem->flag & WOLFMEM_IO_POOL && pt->sz == WOLFMEM_IO_SZ &&
                                              (type == DYNAMIC_TYPE_OUT_BUFFER ||
                                               type == DYNAMIC_TYPE_IN_BUFFER)) {
-                owner = WC_MEM_OWNER(pt);
+                owner = wc_HeapHint_Drop(WC_MEM_OWNER(pt));
                 pt->next = mem->io;
                 mem->io  = pt;
             }
             else
        #endif
             { /* general memory free */
-                owner = WC_MEM_OWNER(pt);
+                owner = wc_HeapHint_Drop(WC_MEM_OWNER(pt));
                 for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
                     if (pt->sz == mem->sizeList[i]) {
                         pt->next = mem->ava[i];
@@ -1450,8 +1452,8 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         #ifndef SINGLE_THREADED
             wc_UnLockMutex(&(mem->memory_mutex));
         #endif
-            /* may free a released hint */
-            wc_HeapHint_Drop(owner);
+            /* set if this block held the last ref on a released hint */
+            wc_HeapHint_Free(owner);
         }
     }
 
@@ -1490,8 +1492,6 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
     else {
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
         WOLFSSL_HEAP*      mem;
-        WOLFSSL_HEAP_HINT* owner = NULL;
-        int                ioBuf = 0;
         word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
 
         if (hint == NULL) {
@@ -1510,27 +1510,19 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         #endif
         }
 
-    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
-        ioBuf = ((mem->flag & WOLFMEM_IO_POOL) ||
-                 (mem->flag & WOLFMEM_IO_POOL_FIXED)) &&
-                (type == DYNAMIC_TYPE_OUT_BUFFER ||
-                 type == DYNAMIC_TYPE_IN_BUFFER);
-    #endif
-        /* IO buffers resize in place, keeping their owner */
-        if (!ioBuf && wc_HeapHint_Hold(hint, &owner) != 0) {
-            return NULL;
-        }
     #ifndef SINGLE_THREADED
         if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
-            wc_HeapHint_Drop(owner);
             return NULL;
         }
     #endif
 
     #ifndef WOLFSSL_STATIC_MEMORY_LEAN
-        /* case of using fixed IO buffers or IO pool */
-        if (ioBuf) {
+        /* case of using fixed IO buffers or IO pool, resized in place
+         * keeping their owner */
+        if (((mem->flag & WOLFMEM_IO_POOL)||(mem->flag & WOLFMEM_IO_POOL_FIXED))
+                                          && (type == DYNAMIC_TYPE_OUT_BUFFER ||
+                                              type == DYNAMIC_TYPE_IN_BUFFER)) {
             /* no realloc, is fixed size */
             pt = (wc_Memory*)((byte*)ptr - padSz - sizeof(wc_Memory));
             if (pt->sz < size) {
@@ -1570,8 +1562,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                 mem->alloc += 1;
             #endif
                 /* before the old block's ref drops */
-                WC_MEM_SET_OWNER(pt, owner);
-                owner = NULL;
+                WC_MEM_SET_OWNER(pt, wc_HeapHint_Hold(hint));
 
                 /* free memory that was previously being used */
             #ifndef SINGLE_THREADED
@@ -1593,8 +1584,6 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
     #ifndef SINGLE_THREADED
         wc_UnLockMutex(&(mem->memory_mutex));
     #endif
-        /* no-op unless no new block was taken */
-        wc_HeapHint_Drop(owner);
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK
