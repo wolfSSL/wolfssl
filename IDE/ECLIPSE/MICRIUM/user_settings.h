@@ -28,6 +28,9 @@
 
 #define MICRIUM
 
+/* Supply a hardware RNG seed via CUSTOM_RAND_GENERATE_SEED for production
+ * use. See IDE/ECLIPSE/MICRIUM/README.md */
+
 /* You can select one or all of the following tests */
 #define WOLFSSL_WOLFCRYPT_TEST
 #define WOLFSSL_BENCHMARK_TEST

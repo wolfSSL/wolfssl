@@ -2969,11 +2969,6 @@
     #define NO_WOLFSSL_DIR
     #define NO_WRITEV
 
-    #if !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(STM32_RNG) && \
-        !defined(CUSTOM_RAND_GENERATE)
-        #define CUSTOM_RAND_TYPE     RAND_NBR
-        #define CUSTOM_RAND_GENERATE Math_Rand
-    #endif
     #define STRING_USER
     #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
     #define XSTRCMP(s1,s2) strcmp((s1),(s2))

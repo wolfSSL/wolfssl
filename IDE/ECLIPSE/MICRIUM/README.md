@@ -68,6 +68,15 @@ static  void  App_TaskStart (void *p_arg)
 
 10. Now you are ready to download and debug your image on the board.
 
+## Random seed
+
+Micrium provides no entropy source. Unless you configure one, wolfSSL seeds its DRBG from uC/LIB `Math_Rand()` and the build emits a warning saying so. Keys and nonces generated this way are predictable. Before production, supply a hardware RNG in `user_settings.h`:
+
+```
+extern int my_trng_seed(unsigned char* output, unsigned int sz); /* return 0 on success */
+#define CUSTOM_RAND_GENERATE_SEED my_trng_seed
+```
+
 The test results below were collected from the NXP Kinetis K70 (Freescale TWR-K70F120M MCU) tower system board with the following software and tool chains:
 
 - IAR Embedded Workbench IDE - ARM 8.32.1 (IAR ELF Linker V8.32.1.169/W32 for ARM)
