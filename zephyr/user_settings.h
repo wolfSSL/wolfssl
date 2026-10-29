@@ -132,7 +132,7 @@ extern "C" {
             #define HAVE_FIPS_VERSION_PATCH 0
         #endif
     #elif defined(CONFIG_WOLFCRYPT_FIPS_V5)
-        /* FIPS 140-3 Cert #4718 (wolfCrypt 5.2.1). */
+        /* FIPS 140-3 Cert #4718 (wolfCrypt 5.2.1), or the 5.2.3 bundle. */
         #ifndef HAVE_FIPS_VERSION
             #define HAVE_FIPS_VERSION       5
         #endif
@@ -140,7 +140,28 @@ extern "C" {
             #define HAVE_FIPS_VERSION_MINOR 2
         #endif
         #ifndef HAVE_FIPS_VERSION_PATCH
-            #define HAVE_FIPS_VERSION_PATCH 1
+            #ifdef CONFIG_WOLFCRYPT_FIPS_V5_2_3
+                #define HAVE_FIPS_VERSION_PATCH 3
+            #else
+                #define HAVE_FIPS_VERSION_PATCH 1
+            #endif
+        #endif
+        /* fips.c needs a thread-local choice made. Not HAVE_THREAD_LS:
+         * THREAD_LS_T is empty on Zephyr, so it would only drop the ECC/SP
+         * cache locks and arm the shared wolfCrypt_Init() recursion guard. */
+        #define NO_THREAD_LS
+        /* The ECDSA CAST in fips_test.c signs with wc_ecc_sign_set_k(). */
+        #define WOLFSSL_ECDSA_SET_K
+        /* The v5 random.c seeds the DRBG from a bare sys_rand_get(), so seed
+         * through the callback in zephyr_fips_seed.c instead: wolfSSL_Init()
+         * registers WC_GENERATE_SEED_DEFAULT, and that file registers it for
+         * wolfCrypt-only builds. configure sets WC_RNG_SEED_CB for v5 too. */
+        #define WC_RNG_SEED_CB
+        #define WC_GENERATE_SEED_DEFAULT wolfssl_zephyr_seed
+        #ifndef __ASSEMBLER__
+            struct OS_Seed;
+            int wolfssl_zephyr_seed(struct OS_Seed* os, unsigned char* seed,
+                                    unsigned int sz);
         #endif
     #elif defined(CONFIG_WOLFCRYPT_FIPS_V2)
         /* FIPS 140-2 Cert #3389. */
@@ -160,6 +181,8 @@ extern "C" {
     #endif
     #if defined(CONFIG_WOLFCRYPT_FIPS_V7) || defined(CONFIG_WOLFCRYPT_FIPS_READY)
         #include "user_settings-fips-v7.h"
+    #elif defined(CONFIG_WOLFCRYPT_FIPS_V5_2_3)
+        #include "user_settings-fips-v5.2.3.h"
     #endif
 #endif
 
@@ -301,9 +324,11 @@ extern "C" {
 /* wolfCrypt Hash-DRBG (SHA2-256). On Zephyr its seed comes from wc_GenerateSeed()
  * (wolfcrypt/src/random.c), which draws from the hardware entropy driver when one
  * is present and falls back to sys_rand_get() otherwise -- so no seed callback is
- * registered. Guarded by WC_NO_HASHDRBG so a PSA-RNG build
- * (CONFIG_MBEDTLS_PSA_CRYPTO_C above) can still disable the internal DRBG and
- * route randomness through the PSA provider. */
+ * registered. The v5 bundles' random.c has only the fallback, so the FIPS block
+ * above registers zephyr_fips_seed.c as the seed callback for them instead.
+ * Guarded by WC_NO_HASHDRBG so a PSA-RNG build (CONFIG_MBEDTLS_PSA_CRYPTO_C
+ * above) can still disable the internal DRBG and route randomness through the
+ * PSA provider. */
 #ifndef WC_NO_HASHDRBG
     #define HAVE_HASHDRBG
 #endif
@@ -386,7 +411,9 @@ extern "C" {
 #endif
 
 /* DH */
-#if 0
+#if defined(WOLFSSL_ZEPHYR_FIPS_V5_H)
+    /* in the v5.2.3 set */
+#elif 0
     #undef NO_DH /* on by default */
     #define WOLFSSL_DH_CONST /* don't rely on pow/log */
     #define HAVE_FFDHE_2048
@@ -766,7 +793,9 @@ extern "C" {
     #if defined(CONFIG_ARM64) && !defined(__ARM_FEATURE_QRDMX)
         #define WOLFSSL_AARCH64_NO_SQRDMLSH
     #endif
-#elif defined(CONFIG_X86_64)
+#elif defined(CONFIG_X86_64) && !defined(CONFIG_WOLFCRYPT_FIPS_LEGACY_ASM)
+    /* Not under FIPS v2, v5 or v6: their sha256.c would call the AVX
+     * transforms in the tree's sha256_asm.S, outside the boundary. */
     #define USE_INTEL_SPEEDUP
     #define WOLFSSL_X86_64_BUILD
 #endif
