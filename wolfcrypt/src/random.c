@@ -10600,6 +10600,34 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+#elif defined(MICRIUM) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    #if !defined(_MSC_VER) && !defined(__TASKING__)
+        #warning "MICRIUM: seeding the DRBG from Math_Rand(), not an entropy source. Define CUSTOM_RAND_GENERATE_SEED to a hardware RNG."
+    #else
+        #pragma message("Warning: MICRIUM: seeding the DRBG from Math_Rand(), not an entropy source. Define CUSTOM_RAND_GENERATE_SEED to a hardware RNG.")
+    #endif
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i = 0;
+        word32 len;
+        RAND_NBR rnd;
+
+        (void)os;
+
+        if (output == NULL)
+            return BAD_FUNC_ARG;
+
+        while (i < sz) {
+            rnd = Math_Rand();
+            len = sz - i;
+            if (len > (word32)sizeof(rnd))
+                len = (word32)sizeof(rnd);
+            XMEMCPY(&output[i], &rnd, len);
+            i += len;
+        }
+
+        return 0;
+    }
 #elif defined(WOLFSSL_VXWORKS)
     #ifdef WOLFSSL_VXWORKS_6_x
         #include "stdlib.h"
