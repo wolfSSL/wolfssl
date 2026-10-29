@@ -36671,8 +36671,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
         api_ret = wc_RNG_DRBG_ScheduleReseed(rng);
-        if (api_ret != 0)
-            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret != 0) {
             (void)wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
