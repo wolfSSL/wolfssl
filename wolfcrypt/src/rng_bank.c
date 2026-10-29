@@ -156,7 +156,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     wolfSSL_Atomic_Int_Init(&ctx->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
 #endif
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
-#ifdef WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED
+#ifdef WC_RNG_HAVE_NEXT_SEED
     if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
         rng_flags |= WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
 #endif
@@ -1632,6 +1632,83 @@ WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
                      );
 }
 
+#ifdef HAVE_HASHDRBG
+/* Forced reseed of the bank root, serialized however the configuration
+ * serializes root access.  With WC_RNG_HAVE_LOCK, the root's lease is
+ * taken by unconditional try-lock and held across the reseed.  Without
+ * it, every other root toucher serializes on the inst-op gate -- member
+ * reinstantiation chaining from the root (wc_rng_bank_inst_reinit()),
+ * the invalidation walk's counter saturation
+ * (wc_rng_bank_invalidate_entropy()), and root reinstantiation
+ * (wc_rng_bank_root_rng_reinit()) -- so the reseed holds the gate,
+ * claimed per the holder contract try-once, fail-fast (atomic-legal).
+ * Either way a refusal (BUSY_E) means nothing was touched, and the
+ * caller's next pass retries.
+ *
+ * The threshold form reseeds only when the root's reseed counter has
+ * reached threshold, with the counter read under the same hold as the
+ * reseed -- no TOCTOU, and on legacy boundaries (where the read
+ * dereferences internal DRBG state) no unexcluded deref.  A below-
+ * threshold counter returns ALREADY_E: steady state, not an error.
+ * threshold == 0 reseeds unconditionally.  Without the lock facility
+ * the saturated counter is the invalidation walk's only root-side
+ * record, so threshold == WC_RESEED_INTERVAL makes this the root's
+ * deterministic post-invalidation recovery. */
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_if_due(
+    struct wc_rng_bank *bank, const byte *nonce, word32 nonceSz,
+    wc_drbg_reseed_ctr_t threshold)
+{
+    int ret;
+
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WC_RNG_HAVE_LOCK
+    ret = wc_RNG_lock_get_unconditional(&bank->root_rng);
+    if (ret != 0)
+        return ret;
+#else /* WC_RNG_BANK_HAVE_INST_OP_GATE */
+    {
+        WC_ATOMIC_INT_ARG expected = WC_RNG_BANK_INST_OP_FREE;
+        if (! wolfSSL_Atomic_Int_CompareExchange(&bank->inst_op_gate,
+                                                 &expected,
+                                                 WC_RNG_BANK_INST_OP_DAEMON))
+        {
+            return BUSY_E;
+        }
+    }
+#endif
+
+    if (threshold > 0) {
+        wc_drbg_reseed_ctr_t cur_ctr = 0;
+        ret = wc_RNG_DRBG_GetReseedCtr(&bank->root_rng, &cur_ctr);
+        if ((ret == 0) && (cur_ctr < threshold))
+            ret = WC_NO_ERR_TRACE(ALREADY_E); /* avoid polling noise. */
+    }
+    else {
+        ret = 0;
+    }
+
+    if (ret == 0)
+        ret = wc_RNG_DRBG_Reseed_Now(&bank->root_rng, nonce, nonceSz);
+
+#ifdef WC_RNG_HAVE_LOCK
+    wc_RNG_lock_put_unconditional(&bank->root_rng);
+#else /* WC_RNG_BANK_HAVE_INST_OP_GATE */
+    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+#endif
+
+    return ret;
+}
+
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_now(struct wc_rng_bank *bank,
+                                                const byte *nonce,
+                                                word32 nonceSz)
+{
+    return wc_rng_bank_root_rng_reseed_if_due(bank, nonce, nonceSz, 0);
+}
+#endif /* HAVE_HASHDRBG */
+
 #endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifdef WC_HAVE_RNG_BANKREF
@@ -1988,7 +2065,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     if (ret < 0)
         return ret;
 
-#ifdef WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED
+#ifdef WC_RNG_HAVE_NEXT_SEED
     if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
         rng_flags |= WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
 #endif
@@ -2347,7 +2424,7 @@ static int rng_bank_spawn(
 
     {
         word32 child_init_flags = WC_RNG_INIT_FLAG_NONE;
-#ifdef WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED
+#ifdef WC_RNG_HAVE_NEXT_SEED
         if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
             child_init_flags |=
                 WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
@@ -3194,6 +3271,26 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
         return UNEXPECTED_STATE_E;
 }
 
+WOLFSSL_LOCAL int wc_rng_bank_inst_lock_get_unconditional(struct wc_rng_bank_inst *inst)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
+        (wolfSSL_Atomic_Uint_CompareExchange(
+            &inst->lock, &cur_lock,
+            cur_lock | WC_RNG_LOCK_HELD)))
+    {
+        return 0;
+    }
+
+    return BUSY_E;
+}
+
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
 {
     WC_RNG_lock_arg_t cur_lock, new_lock;
@@ -3273,6 +3370,13 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_in
     }
     /* conditional release failed: the caller is still the holder. */
     return UNEXPECTED_STATE_E;
+}
+
+WOLFSSL_LOCAL void wc_rng_bank_inst_lock_put_unconditional(struct wc_rng_bank_inst *inst)
+{
+    if (inst == NULL)
+        return;
+    (void)wolfSSL_Atomic_Uint_FetchSub(&inst->lock, WC_RNG_LOCK_HELD);
 }
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state)

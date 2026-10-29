@@ -1898,7 +1898,18 @@ int wc_RNG_DRBG_GetNextSeedRBGCStratum(const WC_RNG* rng);
     instance -- the single-writer fill and the atomic aperture hand-off
     make it safe alongside a concurrent consumer.
 
-    \details For an SP 800-90C chain member (RBGC stratum > 0, in builds
+    \details The next-seed bank is an intermediate staging buffer in the
+    seed pipeline -- the ordinary decoupling of entropy gather from seed
+    consumption, as in any entropy source with an internal FIFO or
+    collector thread.  Banked material is not DRBG state: it becomes
+    state only in the consuming thread's reseed transition
+    (wc_RNG_DRBG_NextSeedNow(), or an opportunistic generate-path
+    consumption), is zeroized on consumption, and is purged unpublished
+    if its source crossed an invalidation event mid-fill.  The aperture
+    protocol (WC_RNG.nextSeedLen) guarantees single production and
+    single consumption.
+
+    For an SP 800-90C chain member (RBGC stratum > 0, in builds
     with instance locking), the material is drawn by the same fallback
     ladder as wc_RNG_DRBG_Reseed_Now(): the retained parent first
     (nonblocking acquisition), then the global fallback instance (under
@@ -2534,6 +2545,18 @@ int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     atomic aperture word, so it is safe against a concurrent
     wc_FreeRng() or wc_RNG_Pool_Collect2() on the same instance.
 
+    \details The pool facility involves exactly one generator: the source
+    that fills it (the instance itself via wc_RNG_Pool_Collect(), or, via
+    wc_RNG_Pool_Collect2(), the instance or its direct RBGC parent).  The
+    pool is buffered output of that generator, held inside the module
+    boundary, and the host WC_RNG performs no cryptographic operation on
+    pool data: it contributes buffer storage, lock protection, and
+    scheduling/affinity convenience, and the bytes travel through their
+    own retrieval path (wc_RNG_Pool_Extract()), which never touches the
+    host's DRBG state.  In-boundary placement is a conservatism: pooled
+    output inherits the entropy-invalidation machinery (purged on events,
+    wiped on failure) that an out-of-boundary buffer would forgo.
+
     \return 0 Success
     \return BAD_FUNC_ARG rng is null, or size is less than 2 or greater
     than 32767.
@@ -2613,7 +2636,10 @@ int wc_RNG_Pool_Collect(WC_RNG* rng, word32 n);
     eligibility rule is narrower still: rng_src must be rng_dest itself,
     or (under WC_RNG_HAVE_RBGC) rng_dest's direct RBGC parent -- the two
     relationships under which rng_src's output is already sanctioned to
-    reach rng_dest.  Any other source is refused with
+    reach rng_dest.  The rule is an attribution guarantee, not a seeding
+    criterion -- no reseed occurs here: extracted pool bytes are served
+    under rng_dest's identity and stratum, and eligibility ensures that
+    label is never misleading.  Any other source is refused with
     WRONG_TYPE_OBJECT_E before any other processing, the n = 0 no-op
     included.
 
