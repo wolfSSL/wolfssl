@@ -5495,9 +5495,9 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
         }
         else {
             /* verify hash. expects to call wc_CryptoCb_EccVerify internally */
-            ret = wc_ecc_verify_hash(signature, signatureLen, dgst,
-                (word32)dLen, &verified, (ecc_key*)key->internal);
-            if (ret != MP_OKAY) {
+            if (wc_ecc_verify_hash(signature, (word32)signatureLen, dgst,
+                    (word32)dLen, &verified, (ecc_key*)key->internal) !=
+                    MP_OKAY) {
                 WOLFSSL_MSG("wc_ecc_verify_hash failed");
                 ret = WOLFSSL_FATAL_ERROR;
             }

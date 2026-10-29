@@ -300,7 +300,7 @@ int test_wolfSSL_i2d_ECPKParameters(void)
 int test_wolfSSL_EC_POINT(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_SP_MATH) && \
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
 
 #ifdef OPENSSL_EXTRA

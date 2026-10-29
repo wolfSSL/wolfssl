@@ -3802,6 +3802,7 @@ int test_wolfSSL_EVP_PKEY_encoded_public_key(void)
         EVP_PKEY_free(pkey2);
     }
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
     /* set1 must produce a peer key usable for ECDH, i.e. the internal wolfCrypt
      * key (consumed by EVP_PKEY_derive) is synced, not just the wire bytes. */
     {
@@ -3866,6 +3867,7 @@ int test_wolfSSL_EVP_PKEY_encoded_public_key(void)
         EVP_PKEY_free(bob);
         EVP_PKEY_free(peer);
     }
+#endif /* !WOLF_CRYPTO_CB_ONLY_ECC */
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519
