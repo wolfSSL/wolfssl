@@ -399,6 +399,9 @@ function(generate_build_flags)
     if(WOLFSSL_RNG_BANK OR WOLFSSL_USER_SETTINGS)
         set(BUILD_RNG_BANK "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_NOISESRC OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_NOISESRC "yes" PARENT_SCOPE)
+    endif()
     set(USE_VALGRIND ${WOLFSSL_VALGRIND})
     if(WOLFSSL_MD4 OR WOLFSSL_USER_SETTINGS)
         set(BUILD_MD4 "yes" PARENT_SCOPE)
@@ -772,6 +775,11 @@ function(generate_lib_src_list LIB_SOURCES)
     list(APPEND LIB_SOURCES
         wolfcrypt/src/hash.c
         wolfcrypt/src/cpuid.c)
+
+    # Outside the FIPS module boundary; configure rejects it for wolfRand.
+    if(BUILD_NOISESRC)
+        list(APPEND LIB_SOURCES wolfcrypt/src/rng_noisesrc.c)
+    endif()
 
     if(NOT BUILD_FIPS_RAND)
         if(NOT BUILD_FIPS_V5)

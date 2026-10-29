@@ -54,6 +54,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wolfentropy.h \
                          wolfssl/wolfcrypt/entropy-timers.h \
                          wolfssl/wolfcrypt/rng_bank.h \
+                         wolfssl/wolfcrypt/rng_noisesrc.h \
                          wolfssl/wolfcrypt/ripemd.h \
                          wolfssl/wolfcrypt/rsa.h \
                          wolfssl/wolfcrypt/rc2.h \

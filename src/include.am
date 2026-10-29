@@ -1485,6 +1485,11 @@ if !BUILD_DO178
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cpuid.c
 endif !BUILD_DO178
 
+# Outside the FIPS module boundary; configure rejects it for wolfRand.
+if BUILD_NOISESRC
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_noisesrc.c
+endif
+
 if !BUILD_FIPS_RAND
 
 if !BUILD_FIPS_V5
