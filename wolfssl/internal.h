@@ -2418,6 +2418,13 @@ WOLFSSL_LOCAL int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret,
 WOLFSSL_LOCAL int CookiePolicyEnable(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #endif
+/* A verified client certificate with proof of possession, on this connection
+ * or the one it resumed. Nothing is verified under verifyNone. */
+#define SSL_PEER_CERT_VERIFIED(ssl) \
+    (((ssl)->options.havePeerCert && (ssl)->options.havePeerVerify && \
+      !(ssl)->options.verifyNone) || \
+     ((ssl)->options.resuming && (ssl)->session->peerAuthOk))
+WOLFSSL_LOCAL int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk);
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
 #ifdef WOLFSSL_TLS13
@@ -4013,7 +4020,9 @@ typedef struct InternalTicket {
     byte            suite[SUITE_LEN];      /* cipher suite when created */
     byte            msecret[SECRET_LEN];   /* master secret */
     byte            timestamp[TIMESTAMP_LEN];          /* born on */
-    byte            haveEMS;               /* have extended master secret */
+    byte            haveEMS:1;             /* have extended master secret */
+    byte            peerAuthOk:1;          /* client cert was verified */
+    byte            isPSK:1;               /* a PSK authenticated the client */
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
@@ -5417,6 +5426,13 @@ struct WOLFSSL_SESSION {
                              * WOLFSSL_MFL_2_8  (6) */
 #endif /* HAVE_MAX_FRAGMENT */
     byte               isSetup:1;
+#ifndef NO_WOLFSSL_SERVER
+    /* Client presented a certificate and proved key possession. Server
+     * sessions only. */
+    byte               peerAuthOk:1;
+    /* A PSK authenticated the client. Server sessions only. */
+    byte               isPSK:1;
+#endif
 };
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
@@ -5796,7 +5812,6 @@ struct Options {
 #ifdef HAVE_SECURE_RENEGOTIATION
     word16            resumed:1;          /* resuming may be reset on SCR */
 #endif
-    word16            isPSK:1;
     word16            haveSessionId:1;    /* server may not send */
     word16            tls:1;              /* using TLS ? */
     word16            tls1_1:1;           /* using TLSv1.1+ ? */

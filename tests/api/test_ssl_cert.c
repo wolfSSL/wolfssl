@@ -1030,9 +1030,20 @@ int test_wolfSSL_mutual_auth(void)
 
     ExpectIntEQ(wolfSSL_CTX_mutual_auth(ctx, 1), 0);
     ExpectIntEQ(wolfSSL_mutual_auth(ssl, 1), 0);
+    /* Requiring the certificate asks for it and sets nothing else. */
+    ExpectIntEQ(ctx->mutualAuth, 1);
+    ExpectIntEQ(ctx->verifyPeer, 1);
+    ExpectIntEQ(ctx->verifyNone, 0);
+    ExpectIntEQ(ctx->failNoCert, 0);
+    ExpectIntEQ(ssl->options.mutualAuth, 1);
+    ExpectIntEQ(ssl->options.verifyPeer, 1);
+    ExpectIntEQ(ssl->options.verifyNone, 0);
+    ExpectIntEQ(ssl->options.failNoCert, 0);
     /* The setting can be turned back off. */
     ExpectIntEQ(wolfSSL_CTX_mutual_auth(ctx, 0), 0);
     ExpectIntEQ(wolfSSL_mutual_auth(ssl, 0), 0);
+    ExpectIntEQ(ctx->mutualAuth, 0);
+    ExpectIntEQ(ssl->options.mutualAuth, 0);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -1773,10 +1784,12 @@ static const VerifyModeCase verifyModeCases[] = {
       WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
           WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
       0, 1, 1, 1 },
-    /* FAIL_IF_NO_PEER_CERT on its own is recorded even though a server that
-     * never requests a certificate cannot act on it. */
+    /* Either fail-on-no-cert flag on its own turns verifyPeer on: failing
+     * without a certificate only means anything when one was asked for. */
     { "FAIL_IF_NO_PEER_CERT", WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-      0, 0, 1, 0 },
+      0, 1, 1, 0 },
+    { "FAIL_EXCEPT_PSK", WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
+      0, 1, 0, 1 },
     /* VERIFY_DEFAULT clears every option instead of setting one. That is
      * why it does not round-trip through get_verify_mode(). */
     { "DEFAULT", WOLFSSL_VERIFY_DEFAULT, 0, 0, 0, 0 },
@@ -2337,9 +2350,8 @@ int test_wolfSSL_verify_none_server_no_request(void)
  * without WOLFSSL_VERIFY_PEER still refuses a client that has no
  * certificate.
  *
- * The CertificateRequest is sent only for WOLFSSL_VERIFY_PEER, so nothing
- * asks the client for a certificate and nothing notices it is missing until
- * DoTls13Finished checks at the end of the handshake.
+ * The flag implies WOLFSSL_VERIFY_PEER, so the CertificateRequest is sent and
+ * the client answers with an empty Certificate, which is then refused.
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -2357,15 +2369,16 @@ int test_wolfSSL_verify_tls13_failnocert_only(void)
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
 
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-    ExpectIntEQ(ssl_s->options.verifyPeer, 0);
+    ExpectIntEQ(ssl_s->options.verifyPeer, 1);
     ExpectIntEQ(ssl_s->options.failNoCert, 1);
 
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_s,
         WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
         WC_NO_ERR_TRACE(NO_PEER_CERT));
-    /* The client was never asked, so it never sent one. */
-    ExpectIntEQ(ssl_s->msgsReceived.got_certificate, 0);
+    /* The client was asked, and answered with an empty Certificate. */
+    ExpectIntEQ(ssl_s->msgsReceived.got_certificate, 1);
+    ExpectIntEQ(ssl_s->options.havePeerCert, 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

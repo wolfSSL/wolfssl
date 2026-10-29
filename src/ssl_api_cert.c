@@ -47,6 +47,11 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
         return SIDE_ERROR;
 
     ctx->mutualAuth = (byte)req;
+    /* A certificate has to be asked for to be required. */
+    if (req) {
+        ctx->verifyNone = 0;
+        ctx->verifyPeer = 1;
+    }
 
     return 0;
 }
@@ -69,6 +74,11 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
         return SIDE_ERROR;
 
     ssl->options.mutualAuth = (word16)req;
+    /* A certificate has to be asked for to be required. */
+    if (req) {
+        ssl->options.verifyNone = 0;
+        ssl->options.verifyPeer = 1;
+    }
 
     return 0;
 }
@@ -587,6 +597,11 @@ static SetVerifyOptions ModeToVerifyOptions(int mode)
                     (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK) != 0;
             opts.failNoCert          =
                     (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT) != 0;
+            /* Both only fail a certificate that was asked for, so they imply
+             * asking. */
+            if (opts.failNoCert || opts.failNoCertxPSK) {
+                opts.verifyPeer = 1;
+            }
             #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
             opts.verifyPostHandshake =
                     (mode & WOLFSSL_VERIFY_POST_HANDSHAKE) != 0;

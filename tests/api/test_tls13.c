@@ -3069,7 +3069,7 @@ static int test_tls13_psk_age_alert(const char* identity, int* alertOut,
          * and not to a fixture that never negotiated a PSK at all. */
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
         if (ssl_s != NULL) {
-            ExpectIntEQ(ssl_s->options.isPSK, 1);
+            ExpectIntEQ(ssl_s->options.usingPSK_cipher, 1);
         }
         ExpectIntEQ(test_tls13_psk_age_matched, 1);
 
@@ -3095,12 +3095,13 @@ static int test_tls13_psk_age_alert(const char* identity, int* alertOut,
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
         WC_NO_ERR_TRACE(BAD_BINDER));
 
-    /* isPSK is set only after FindPskSuite() reported a match and the early
-     * secret was derived, so it proves the known run really took the matched
-     * path. The callback flag alone would not: the callback runs before the
-     * ciphersuite match that decides whether the PSK is used at all. */
+    /* usingPSK_cipher is set only after FindPskSuite() reported a match and
+     * the early secret was derived, so it proves the known run really took
+     * the matched path. The callback flag alone would not: the callback runs
+     * before the ciphersuite match that decides whether the PSK is used at
+     * all. */
     if (ssl_s != NULL) {
-        ExpectIntEQ(ssl_s->options.isPSK, expectMatch);
+        ExpectIntEQ(ssl_s->options.usingPSK_cipher, expectMatch);
     }
     ExpectIntEQ(test_tls13_psk_age_matched, expectMatch);
 
@@ -4851,13 +4852,61 @@ static unsigned int test_tls13_pha_psk_server_cb(WOLFSSL* ssl, const char* id,
 }
 #endif
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && !defined(NO_PSK) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_SETUP_CB)
+static int test_tls13_psk_forget_auth_cb(WOLFSSL* ssl, void* arg)
+{
+    (void)arg;
+    ssl->options.usingPSK_cipher = 0;
+    return 1;
+}
+#endif
+
 /* Bounds the other side of the RFC 8446 4.3.2 relaxation: a CertificateRequest
  * during the main handshake under a PSK must still be rejected. The client is
  * untouched here - it has not sent its Finished, so handShakeDone is 0 on its
- * own. A wolfSSL server normally clears verifyPeer once a PSK is chosen and so
- * never sends one; cert_with_extern_psk on the server alone suppresses that
- * clearing, which makes it emit the request the client must refuse. */
+ * own. A wolfSSL server never sends one once a PSK authenticates the client,
+ * so the cert setup callback, which runs after the PSK is chosen, makes it
+ * forget that and emit the request the client must refuse. */
 int test_tls13_psk_cert_request_in_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && !defined(NO_PSK) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_SETUP_CB)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls13_pha_psk_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls13_pha_psk_server_cb);
+    wolfSSL_CTX_set_cert_cb(ctx_s, test_tls13_psk_forget_auth_cb, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SANITY_MSG_E);
+    ExpectIntEQ(ssl_c->options.pskNegotiated, 1);
+    ExpectIntEQ(ssl_c->options.certWithExternPsk, 0);
+    ExpectIntEQ(ssl_c->options.handShakeDone, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Opting a server into cert_with_extern_psk does not make RFC 9973 apply: a
+ * client that did not send the extension is authenticated by its PSK, so no
+ * CertificateRequest is sent. */
+int test_tls13_cert_with_extern_psk_not_offered(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
@@ -4873,16 +4922,16 @@ int test_tls13_psk_cert_request_in_handshake(void)
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
     wolfSSL_set_psk_client_callback(ssl_c, test_tls13_pha_psk_client_cb);
     wolfSSL_set_psk_server_callback(ssl_s, test_tls13_pha_psk_server_cb);
-    /* Server side only: the client neither offers the extension nor takes the
-     * matching exemption, so it must reject on message order alone. */
     ExpectIntEQ(wolfSSL_set_cert_with_extern_psk(ssl_s, 1), WOLFSSL_SUCCESS);
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
 
-    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SANITY_MSG_E);
-    ExpectIntEQ(ssl_c->options.pskNegotiated, 1);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.usingPSK_cipher, 1);
+        ExpectIntEQ(ssl_s->options.peerAuthGood, 1);
+        ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+    }
     ExpectIntEQ(ssl_c->options.certWithExternPsk, 0);
-    ExpectIntEQ(ssl_c->options.handShakeDone, 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -16570,7 +16619,7 @@ int test_tls13_psk_key_zeroized(void)
     wolfSSL_KeepArrays(ssl_s);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(ssl_s->options.isPSK, 1);
+    ExpectIntEQ(ssl_s->options.usingPSK_cipher, 1);
 
     ExpectIntEQ(XMEMCMP(ssl_c->arrays->psk_key, zeros, MAX_PSK_KEY_LEN), 0);
     ExpectIntEQ(XMEMCMP(ssl_s->arrays->psk_key, zeros, MAX_PSK_KEY_LEN), 0);

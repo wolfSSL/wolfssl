@@ -2953,6 +2953,10 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+#ifndef NO_WOLFSSL_SERVER
+    /* peerAuthOk and isPSK */
+    size += OPAQUE8_LEN;
+#endif
 
     if (p != NULL) {
         unsigned char *data;
@@ -3048,6 +3052,9 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+#ifndef NO_WOLFSSL_SERVER
+        data[idx++] = (byte)(sess->peerAuthOk | (sess->isPSK << 1));
+#endif
     }
 #endif
 
@@ -3068,6 +3075,11 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
  *       enabled with the wolfSSL library exporting a session then it is
  *       expected to be turned on with the wolfSSL library importing the
  *       session.
+ *
+ * i is how many bytes are readable at *p, not necessarily the size of the
+ * session: trailing bytes are ignored, and *p is advanced to the end of the
+ * session decoded, so sessions stored back to back decode with repeated
+ * calls. Passing in too few bytes will cause an error.
  */
 WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
                                 const unsigned char** p, long i)
@@ -3354,7 +3366,15 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
-    (void)idx;
+#ifndef NO_WOLFSSL_SERVER
+    if (i - idx < OPAQUE8_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    s->peerAuthOk = (data[idx] & 0x01) != 0;
+    s->isPSK = (data[idx] & 0x02) != 0;
+    idx++;
+#endif
 
     if (sess != NULL) {
         wolfSSL_FreeSession(NULL, *sess);
@@ -3928,6 +3948,24 @@ void SetupSession(WOLFSSL* ssl)
         session->haveEMS = 1;
     else
         session->haveEMS = ssl->options.haveEMS;
+    /* Server only: on a client these flags describe the server certificate,
+     * a different statement that nothing reads. A full handshake records its
+     * own outcome; a resumed one keeps what it inherited unless post-handshake
+     * auth added a certificate. */
+#ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        if (!ssl->options.resuming) {
+            session->peerAuthOk = 0;
+            session->isPSK = (byte)ssl->options.usingPSK_cipher;
+        }
+        if (SSL_PEER_CERT_VERIFIED(ssl))
+            session->peerAuthOk = 1;
+    }
+    else {
+        session->peerAuthOk = 0;
+        session->isPSK = 0;
+    }
+#endif
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
      * id. */
