@@ -25732,14 +25732,15 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
     return 0;
 }
 
-/* Handshake-level counterpart of DtlsShouldDrop(). A bad handshake message in
- * an unauthenticated record is discarded instead of failing the connection,
- * the same way DoClientHello() and DoTls13HandShakeMsgType() already ignore
- * errors from the stateless ClientHello check. Such a record can come from a
- * stale peer on the same port or from reordering. Only errors raised before
- * any state is changed are dropped; anything else is still fatal. */
+/* Handshake-level counterpart of DtlsShouldDrop(). A stateless server that has
+ * not yet verified a ClientHello must discard a bad handshake message instead
+ * of failing on it, the same way DoClientHello() and DoTls13HandShakeMsgType()
+ * already ignore errors from the stateless ClientHello check. Only errors from
+ * validating the handshake header, raised before any state is changed, are
+ * dropped; anything else is still fatal. */
 static int DtlsShouldDropHandshake(WOLFSSL* ssl, int retcode)
 {
+#ifndef NO_WOLFSSL_SERVER
     int invalidInput = 0;
 
     switch (retcode) {
@@ -25749,20 +25750,22 @@ static int DtlsShouldDropHandshake(WOLFSSL* ssl, int retcode)
         case WC_NO_ERR_TRACE(LENGTH_ERROR):
         case WC_NO_ERR_TRACE(INCOMPLETE_DATA):
         case WC_NO_ERR_TRACE(HANDSHAKE_SIZE_ERROR):
-        case WC_NO_ERR_TRACE(BUFFER_ERROR):
-        case WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E):
-        case WC_NO_ERR_TRACE(DUPLICATE_MSG_E):
             invalidInput = 1;
             break;
         default:
             break;
     }
 
-    if (invalidInput && !IsEncryptionOn(ssl, 0)) {
+    if (invalidInput && ssl->options.side == WOLFSSL_SERVER_END
+            && !ssl->options.dtlsStateful && !IsEncryptionOn(ssl, 0)) {
         WOLFSSL_MSG_EX("Silently dropping DTLS handshake message from "
-                       "unauthenticated record: %d", retcode);
+                       "unverified peer: %d", retcode);
         return 1;
     }
+#else
+    (void)ssl;
+    (void)retcode;
+#endif /* NO_WOLFSSL_SERVER */
 
     return 0;
 }
