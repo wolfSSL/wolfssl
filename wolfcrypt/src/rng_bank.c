@@ -1683,7 +1683,7 @@ WOLFSSL_API int wc_rng_bank_root_rng_reseed_if_due(
         wc_drbg_reseed_ctr_t cur_ctr = 0;
         ret = wc_RNG_DRBG_GetReseedCtr(&bank->root_rng, &cur_ctr);
         if ((ret == 0) && (cur_ctr < threshold))
-            ret = ALREADY_E;
+            ret = WC_NO_ERR_TRACE(ALREADY_E); /* avoid polling noise. */
     }
     else {
         ret = 0;

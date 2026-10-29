@@ -37242,6 +37242,99 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             if (api_ret != 0)
                 api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
+
+        if (api_ret == 0) {
+            byte scratch[4];
+            /* Increment the reseed counter. */
+            api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret == 0) {
+                int unlock_ret;
+                api_ret = wc_RNG_GenerateBlock(root, scratch,
+                                               (word32)sizeof(scratch));
+                if (api_ret == 0) {
+                    /* Make sure _root_rng_reseed_now() is trying the lock. */
+                    api_ret = wc_rng_bank_root_rng_reseed_now(bank, NULL, 0);
+                    if (api_ret == WC_NO_ERR_TRACE(BUSY_E))
+                        api_ret = 0;
+                    else
+                        api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                }
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                unlock_ret = wc_RNG_lock_put(root, 0);
+                if ((unlock_ret != 0) && (api_ret == 0))
+                    api_ret = WC_TEST_RET_ENC_EC(unlock_ret);
+            }
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
+            wc_drbg_reseed_ctr_t start_root_reseed_ctr;
+            start_root_reseed_ctr = RESEED_CTR(root);
+            if ((start_root_reseed_ctr <= 1) ||
+                (start_root_reseed_ctr >= WC_RESEED_INTERVAL))
+            {
+                api_ret = WC_TEST_RET_ENC_I(start_root_reseed_ctr);
+            }
+            if (api_ret == 0) {
+                api_ret = wc_rng_bank_root_rng_reseed_if_due(
+                    bank, NULL, 0, start_root_reseed_ctr + 1);
+                if (api_ret == WC_NO_ERR_TRACE(ALREADY_E)) {
+                    if (RESEED_CTR(root) != start_root_reseed_ctr)
+                        api_ret = WC_TEST_RET_ENC_I(RESEED_CTR(root));
+                    else
+                        api_ret = 0;
+                }
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+            if (api_ret == 0) {
+                api_ret = wc_rng_bank_root_rng_reseed_if_due(
+                    bank, NULL, 0, start_root_reseed_ctr);
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+            if (api_ret == 0) {
+                if (RESEED_CTR(root) > 1)
+                    api_ret = WC_TEST_RET_ENC_I(RESEED_CTR(root));
+            }
+        }
+        if (api_ret == 0) {
+            byte scratch[4];
+            /* Increment the reseed counter. */
+            api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret == 0) {
+                int unlock_ret;
+                api_ret = wc_RNG_GenerateBlock(root, scratch,
+                                               (word32)sizeof(scratch));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                unlock_ret = wc_RNG_lock_put(root, 0);
+                if ((unlock_ret != 0) && (api_ret == 0))
+                    api_ret = WC_TEST_RET_ENC_EC(unlock_ret);
+            }
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
+            wc_drbg_reseed_ctr_t start_root_reseed_ctr;
+            start_root_reseed_ctr = RESEED_CTR(root);
+            if ((start_root_reseed_ctr <= 1) ||
+                (start_root_reseed_ctr >= WC_RESEED_INTERVAL))
+            {
+                api_ret = WC_TEST_RET_ENC_I(start_root_reseed_ctr);
+            }
+            if (api_ret == 0) {
+                api_ret = wc_rng_bank_root_rng_reseed_now(bank, NULL, 0);
+                if (api_ret == 0) {
+                    if (RESEED_CTR(root) > 1)
+                        api_ret = WC_TEST_RET_ENC_I(RESEED_CTR(root));
+                }
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+        }
+
         /* a member recovers under its holder's first generate */
         if (api_ret == 0) {
             api_ret = wc_rng_bank_checkout(bank, &inst, 1, 10,
