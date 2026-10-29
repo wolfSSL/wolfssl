@@ -8268,6 +8268,49 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     return ret;
 }
+
+#if defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)
+static int IsStaleCtxDer(const DerBuffer* der, byte weOwn,
+    const DerBuffer* ctxDer)
+{
+    return (!weOwn) && (der != NULL) && (der != ctxDer);
+}
+
+/* Check the CTX still has the buffers the SSL points to but does not own.
+ * Returns BAD_STATE_E when the CTX replaced one. */
+int CheckSSL_CTX_CertsAndKeys(const WOLFSSL* ssl)
+{
+    const WOLFSSL_CTX* ctx = ssl->ctx;
+    const DerBuffer* ctxKey = ctx->privateKey;
+    int stale = 0;
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    /* Signing with the alternative key swaps it in as the key. */
+    if (ssl->buffers.key == ctx->altPrivateKey) {
+        ctxKey = ctx->altPrivateKey;
+    }
+    /* After the swap, the buffer is owned by the key. */
+    if (ssl->buffers.altKey != ssl->buffers.key) {
+        stale = IsStaleCtxDer(ssl->buffers.altKey, ssl->buffers.weOwnAltKey,
+            ctx->altPrivateKey);
+    }
+#endif
+    if (stale ||
+            IsStaleCtxDer(ssl->buffers.certificate, ssl->buffers.weOwnCert,
+                ctx->certificate) ||
+            IsStaleCtxDer(ssl->buffers.certChain, ssl->buffers.weOwnCertChain,
+                ctx->certChain) ||
+            /* A chain replaced at the same address can differ in count. */
+            (!ssl->buffers.weOwnCertChain && (ssl->buffers.certChain != NULL) &&
+                (ssl->buffers.certChainCnt != ctx->certChainCnt)) ||
+            IsStaleCtxDer(ssl->buffers.key, ssl->buffers.weOwnKey, ctxKey)) {
+        WOLFSSL_MSG("CTX certificate or key replaced during handshake");
+        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+        return BAD_STATE_E;
+    }
+    return 0;
+}
+#endif /* HAVE_SNI || WOLFSSL_CERT_SETUP_CB */
 #endif /* NO_CERTS */
 
 #ifndef NO_DH
@@ -47508,6 +47551,13 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
             WOLFSSL_MSG("Calling custom sni callback");
             sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
+        #ifndef NO_CERTS
+            ret = CheckSSL_CTX_CertsAndKeys(ssl);
+            if (ret != 0) {
+                SendAlert(ssl, alert_fatal, internal_error);
+                return ret;
+            }
+        #endif
             switch (sniRet) {
                 case warning_return:
                     /* TLS 1.3 error alerts are always fatal (RFC 8446 6.2) */

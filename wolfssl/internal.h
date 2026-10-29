@@ -5710,6 +5710,13 @@ typedef struct Buffers {
  * not reference counted, so a session must not point at the context's. */
 WOLFSSL_LOCAL int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
 #endif
+#if !defined(NO_CERTS) && \
+    (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB))
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CheckSSL_CTX_CertsAndKeys wolfSSL_CheckSSL_CTX_CertsAndKeys
+#endif
+WOLFSSL_TEST_VIS int CheckSSL_CTX_CertsAndKeys(const WOLFSSL* ssl);
+#endif
 
 /* sub-states for send/do key share (key exchange) */
 enum asyncState {
