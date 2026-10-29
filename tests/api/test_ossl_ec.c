@@ -1659,6 +1659,44 @@ int test_ECDSA_size_sign(void)
     return EXPECT_RESULT();
 }
 
+int test_ECDSA_do_verify_oversized_sig(void)
+{
+    EXPECT_DECLS;
+    /* NO_RSA builds may size big integers too small to hold an r of
+     * ECC_MAX_SIG_SIZE bytes. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !defined(NO_RSA)
+    EC_KEY* key = NULL;
+    ECDSA_SIG* sig = NULL;
+    BIGNUM* r = NULL;
+    BIGNUM* s = NULL;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    byte big[ECC_MAX_SIG_SIZE];
+
+    XMEMSET(hash, 123, sizeof(hash));
+    XMEMSET(big, 0xff, sizeof(big));
+
+    ExpectNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(sig = ECDSA_SIG_new());
+    /* r alone DER encodes to more than ECC_MAX_SIG_SIZE bytes. */
+    ExpectNotNull(r = BN_bin2bn(big, (int)sizeof(big), NULL));
+    ExpectNotNull(s = BN_new());
+    ExpectIntEQ(BN_set_word(s, 1), 1);
+    ExpectIntEQ(ECDSA_SIG_set0(sig, r, s), 1);
+    if (EXPECT_FAIL()) {
+        BN_free(r);
+        BN_free(s);
+    }
+
+    ExpectIntEQ(ECDSA_do_verify(hash, sizeof(hash), sig, key),
+        WOLFSSL_FATAL_ERROR);
+
+    ECDSA_SIG_free(sig);
+    EC_KEY_free(key);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_ECDH_compute_key(void)
 {
     EXPECT_DECLS;
