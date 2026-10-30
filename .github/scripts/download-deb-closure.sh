@@ -45,6 +45,7 @@ exact() {
   awk '{
     n = split(substr($0, length($1) + 2), d, ",")
     for (i = 1; i <= n; i++) {
+      sub(/\|.*/, "", d[i])  # apt prefers the first alternative
       if (d[i] !~ /^ *[^ :(|]+(:[^ ]+)? *\(= *[^ )]+\) *$/) continue
       sub(/^ +/, "", d[i]); split(d[i], f, /[ (=)]+/); sub(/:.*/, "", f[1])
       print f[1] "=" f[2], $1
