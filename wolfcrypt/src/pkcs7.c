@@ -2278,9 +2278,15 @@ static int wc_PKCS7_ImportECC(wc_PKCS7* pkcs7, ecc_key* privKey)
             idx = 0;
             ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
                                          pkcs7->privateKeySz);
-            /* verify imported private key is a valid key before using it */
             if (ret == 0) {
-                ret = wc_ecc_check_key(privKey);
+                /* SEC1 makes the public point optional, and
+                 * wc_ecc_check_key() needs it. */
+                ret = wc_ecc_derive_pub_if_needed(privKey, pkcs7->rng);
+                /* verify imported private key is a valid key before using
+                 * it */
+                if (ret == 0) {
+                    ret = wc_ecc_check_key(privKey);
+                }
                 if (ret != 0) {
                     WOLFSSL_MSG("Invalid ECC private key, check "
                                 "pkcs7->privateKey");

@@ -773,6 +773,8 @@ WOLFSSL_API
 int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
 WOLFSSL_API
 int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng);
+WOLFSSL_LOCAL
+int wc_ecc_derive_pub_if_needed(ecc_key* key, WC_RNG* rng);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
 WOLFSSL_API

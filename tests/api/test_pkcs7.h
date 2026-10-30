@@ -88,6 +88,7 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked(void);
 int test_wc_PKCS7_AuthEnvelopedData_stream_leak(void);
+int test_wc_PKCS7_EncodeSignedData_ecc_priv_only(void);
 int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
 int test_wc_PKCS7_VerifySignedData_TruncEContentTag(void);
@@ -140,6 +141,7 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_InitWithCert_guardrails), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeData),              \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData),        \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_ecc_priv_only), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_SKID),   \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ExplicitSKID), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_AttribOverflow), \

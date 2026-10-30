@@ -73,6 +73,7 @@ int test_wc_DecodeExtKeyUsage_oidSumCollision(void);
 int test_wc_AsnDecisionCoverage(void);
 int test_wc_AsnFeatureCoverage(void);
 int test_wc_AltNameNewEx(void);
+int test_wc_EccPrivateKeyDecode_priv_only(void);
 
 #define TEST_ASN_DECLS                                              \
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
@@ -123,6 +124,7 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_wc_DecodeExtKeyUsage_oidSumCollision), \
     TEST_DECL_GROUP("asn", test_wc_AsnDecisionCoverage),           \
     TEST_DECL_GROUP("asn", test_wc_AsnFeatureCoverage),             \
-    TEST_DECL_GROUP("asn", test_wc_AltNameNewEx)
+    TEST_DECL_GROUP("asn", test_wc_AltNameNewEx),                   \
+    TEST_DECL_GROUP("asn", test_wc_EccPrivateKeyDecode_priv_only)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */
