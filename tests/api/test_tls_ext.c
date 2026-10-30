@@ -1320,6 +1320,438 @@ int test_scr_verify_data_mismatch(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_CERT_GEN) && defined(USE_CERT_BUFFERS_2048) && \
+        !defined(NO_RSA) && !defined(NO_SHA256) && !defined(NO_ASN_TIME)
+/* Make a server certificate for subjKey signed by the 2048-bit test CA, with
+ * the subject of the test server certificate, or that subject with commonName
+ * cn when cn is not NULL. Returns the DER length, or < 0 on failure. */
+static int gen_scr_server_cert(byte* out, int outSz, RsaKey* subjKey,
+    RsaKey* caKey, WC_RNG* rng, const char* cn)
+{
+    Cert cert;
+
+    if (wc_InitCert(&cert) != 0)
+        return -1;
+    cert.sigType = CTC_SHA256wRSA;
+    if (wc_SetSubjectBuffer(&cert, server_cert_der_2048,
+            (int)sizeof_server_cert_der_2048) != 0)
+        return -1;
+    if (cn != NULL)
+        XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    if (wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048) != 0)
+        return -1;
+    if (wc_MakeCert(&cert, out, (word32)outSz, subjKey, NULL, rng) < 0)
+        return -1;
+    return wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outSz, caKey,
+        NULL, rng);
+}
+#endif
+
+/* During a TLS 1.2 secure renegotiation the peer must present the same
+ * certificate as in the initial handshake. A certificate with the same
+ * subject but a different key, or a re-issued certificate, must be refused
+ * with SCR_DIFFERENT_CERT_E just like one with a different subject. */
+int test_scr_different_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_CERT_GEN) && defined(USE_CERT_BUFFERS_2048) && \
+        !defined(NO_RSA) && !defined(NO_SHA256) && !defined(NO_ASN_TIME)
+    enum { SCR_SAME, SCR_OTHER_DN, SCR_OTHER_KEY, SCR_REISSUED, SCR_NUM };
+    WC_RNG rng;
+    RsaKey caKey, srvKey, altKey;
+    int rngI = 0, caI = 0, srvI = 0, altI = 0;
+    word32 idx;
+    byte* certs[SCR_NUM] = { NULL, NULL, NULL, NULL };
+    int certSz[SCR_NUM] = { 0, 0, 0, 0 };
+    int i;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngI = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&srvKey, NULL), 0);
+    if (EXPECT_SUCCESS()) srvI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &srvKey,
+        sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&altKey, NULL), 0);
+    if (EXPECT_SUCCESS()) altI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &altKey,
+        sizeof_client_key_der_2048), 0);
+
+    for (i = 0; i < SCR_NUM; i++) {
+        ExpectNotNull(certs[i] = (byte*)XMALLOC(FOURK_BUF, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    /* SCR_SAME is the initial certificate; the others replace it. */
+    ExpectIntGT(certSz[SCR_SAME] = gen_scr_server_cert(certs[SCR_SAME],
+        FOURK_BUF, &srvKey, &caKey, &rng, NULL), 0);
+    ExpectIntGT(certSz[SCR_OTHER_DN] = gen_scr_server_cert(certs[SCR_OTHER_DN],
+        FOURK_BUF, &srvKey, &caKey, &rng, "other.wolfssl.com"), 0);
+    ExpectIntGT(certSz[SCR_OTHER_KEY] = gen_scr_server_cert(
+        certs[SCR_OTHER_KEY], FOURK_BUF, &altKey, &caKey, &rng, NULL), 0);
+    ExpectIntGT(certSz[SCR_REISSUED] = gen_scr_server_cert(certs[SCR_REISSUED],
+        FOURK_BUF, &srvKey, &caKey, &rng, NULL), 0);
+
+    for (i = 0; i < SCR_NUM && EXPECT_SUCCESS(); i++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL;
+        WOLFSSL_CTX *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL;
+        WOLFSSL *ssl_s = NULL;
+        byte data;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.c_ciphers = test_ctx.s_ciphers =
+                "ECDHE-RSA-AES128-GCM-SHA256";
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s, wolfTLSv1_2_client_method,
+                wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_certificate_buffer(ssl_s, certs[SCR_SAME],
+            certSz[SCR_SAME], WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_s, server_key_der_2048,
+            sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* Server switches certificate before the renegotiation. */
+        ExpectIntEQ(wolfSSL_use_certificate_buffer(ssl_s, certs[i], certSz[i],
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        if (i == SCR_OTHER_KEY) {
+            ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_s,
+                client_key_der_2048, sizeof_client_key_der_2048,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+
+        ExpectIntEQ(wolfSSL_Rehandshake(ssl_c),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_read(ssl_s, &data, 1), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        if (i == SCR_SAME) {
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+        else {
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, 0),
+                WC_NO_ERR_TRACE(SCR_DIFFERENT_CERT_E));
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+
+    for (i = 0; i < SCR_NUM; i++)
+        XFREE(certs[i], NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (altI) wc_FreeRsaKey(&altKey);
+    if (srvI) wc_FreeRsaKey(&srvKey);
+    if (caI)  wc_FreeRsaKey(&caKey);
+    if (rngI) wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_CERT_GEN) && defined(USE_CERT_BUFFERS_2048) && \
+        !defined(NO_RSA) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+        !defined(NO_SESSION_CACHE)
+/* How a test of renegotiating a resumed session is run. */
+typedef struct ScrResumeCase {
+    byte  useTicket;   /* resume with a session ticket, not a session ID */
+    byte  checkServer; /* 0: client checks the server cert, 1: the reverse */
+    byte  serialize;   /* resume from an i2d/d2i copy of the session */
+    byte  forget;      /* the session does not record the peer cert */
+    const byte* cert;  /* cert of the checked side, NULL for none */
+    int   certSz;
+    const byte* key;
+    int   keySz;
+    const byte* renegCert; /* cert of the checked side when renegotiating */
+    int   renegCertSz;
+    const byte* renegKey;
+    int   renegKeySz;
+    int   expErr;      /* 0 for success, else the error expected */
+} ScrResumeCase;
+
+/* Load the checked side's certificate and key, and on a server have it ask for
+ * the client's certificate. Returns 0 on success. */
+static int scr_resume_load(WOLFSSL* ssl_c, WOLFSSL* ssl_s, byte checkServer,
+    const byte* cert, int certSz, const byte* key, int keySz)
+{
+    EXPECT_DECLS;
+    WOLFSSL* ssl = checkServer ? ssl_c : ssl_s;
+
+    if (cert != NULL) {
+        ExpectIntEQ(wolfSSL_use_certificate_buffer(ssl, cert, certSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl, key, keySz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
+    if (checkServer) {
+        wolfSSL_set_verify(ssl_s, (cert != NULL) ? WOLFSSL_VERIFY_PEER :
+            WOLFSSL_VERIFY_NONE, NULL);
+    }
+    return EXPECT_SUCCESS() ? 0 : -1;
+}
+
+/* Do a full handshake, resume it on a new connection and then renegotiate that
+ * connection, the checked side presenting renegCert. */
+static int scr_resume_run(const ScrResumeCase* tc)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+    byte data;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+
+    /* The first connection does a full handshake, the second resumes it. */
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        if (i == 0 && tc->checkServer) {
+            ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_s, ca_cert_der_2048,
+                sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+                WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    #ifdef HAVE_SESSION_TICKET
+        if (tc->useTicket)
+            ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    #endif
+        ExpectIntEQ(scr_resume_load(ssl_c, ssl_s, tc->checkServer, tc->cert,
+            tc->certSz, tc->key, tc->keySz), 0);
+        if (i == 1)
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), i);
+
+        if (i == 0) {
+            ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+        #ifdef HAVE_SESSION_TICKET
+            if (tc->useTicket)
+                ExpectIntGT(session->ticketLen, 0);
+        #endif
+        #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+            if (tc->serialize) {
+                WOLFSSL_SESSION* copy = NULL;
+                unsigned char* der = NULL;
+                const unsigned char* p;
+                int sz = 0;
+
+                ExpectIntGT(sz = wolfSSL_i2d_SSL_SESSION(session, &der), 0);
+                p = der;
+                ExpectNotNull(copy = wolfSSL_d2i_SSL_SESSION(NULL, &p, sz));
+                XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+                wolfSSL_SESSION_free(session);
+                session = copy;
+            }
+        #endif
+            if (tc->forget && session != NULL)
+                session->scrPeerCertState = SCR_PEER_CERT_UNKNOWN;
+            wolfSSL_free(ssl_c);
+            ssl_c = NULL;
+            wolfSSL_free(ssl_s);
+            ssl_s = NULL;
+            test_memio_clear_buffer(&test_ctx, 0);
+            test_memio_clear_buffer(&test_ctx, 1);
+        }
+    }
+
+    ExpectIntEQ(scr_resume_load(ssl_c, ssl_s, tc->checkServer, tc->renegCert,
+        tc->renegCertSz, tc->renegKey, tc->renegKeySz), 0);
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(ssl_s, &data, 1), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    if (tc->expErr == 0) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+    else {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_get_error(tc->checkServer ? ssl_s : ssl_c, 0),
+            tc->expErr);
+    }
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A resumed handshake has no Certificate message, so the certificate a
+ * renegotiation of it must match is the one of the session resumed. */
+int test_scr_resumed_different_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_CERT_GEN) && defined(USE_CERT_BUFFERS_2048) && \
+        !defined(NO_RSA) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+        !defined(NO_SESSION_CACHE)
+    enum { SCR_SAME, SCR_OTHER_DN, SCR_OTHER_KEY, SCR_NUM };
+    WC_RNG rng;
+    RsaKey caKey, srvKey, altKey;
+    int rngI = 0, caI = 0, srvI = 0, altI = 0;
+    word32 idx;
+    byte* certs[SCR_NUM] = { NULL, NULL, NULL };
+    int certSz[SCR_NUM] = { 0, 0, 0 };
+    const byte* srvK = server_key_der_2048;
+    int srvKSz = (int)sizeof_server_key_der_2048;
+    const byte* altK = client_key_der_2048;
+    int altKSz = (int)sizeof_client_key_der_2048;
+    const int diff = WC_NO_ERR_TRACE(SCR_DIFFERENT_CERT_E);
+    int t;
+    int c;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngI = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&srvKey, NULL), 0);
+    if (EXPECT_SUCCESS()) srvI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &srvKey,
+        sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&altKey, NULL), 0);
+    if (EXPECT_SUCCESS()) altI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &altKey,
+        sizeof_client_key_der_2048), 0);
+
+    for (c = 0; c < SCR_NUM; c++) {
+        ExpectNotNull(certs[c] = (byte*)XMALLOC(FOURK_BUF, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    ExpectIntGT(certSz[SCR_SAME] = gen_scr_server_cert(certs[SCR_SAME],
+        FOURK_BUF, &srvKey, &caKey, &rng, NULL), 0);
+    ExpectIntGT(certSz[SCR_OTHER_DN] = gen_scr_server_cert(certs[SCR_OTHER_DN],
+        FOURK_BUF, &srvKey, &caKey, &rng, "other.wolfssl.com"), 0);
+    ExpectIntGT(certSz[SCR_OTHER_KEY] = gen_scr_server_cert(
+        certs[SCR_OTHER_KEY], FOURK_BUF, &altKey, &caKey, &rng, NULL), 0);
+
+    /* Session ID and ticket resumption, the client and the server checking. */
+    for (t = 0; t < 4 && EXPECT_SUCCESS(); t++) {
+        ScrResumeCase tc;
+        byte useTicket = (byte)(t & 1);
+        byte checkServer = (byte)(t >> 1);
+
+    #ifndef HAVE_SESSION_TICKET
+        if (useTicket)
+            continue;
+    #endif
+        for (c = 0; c < SCR_NUM && EXPECT_SUCCESS(); c++) {
+            XMEMSET(&tc, 0, sizeof(tc));
+            tc.useTicket = useTicket;
+            tc.checkServer = checkServer;
+            tc.cert = certs[SCR_SAME];
+            tc.certSz = certSz[SCR_SAME];
+            tc.key = srvK;
+            tc.keySz = srvKSz;
+            tc.renegCert = certs[c];
+            tc.renegCertSz = certSz[c];
+            tc.renegKey = (c == SCR_OTHER_KEY) ? altK : srvK;
+            tc.renegKeySz = (c == SCR_OTHER_KEY) ? altKSz : srvKSz;
+            tc.expErr = (c == SCR_SAME) ? 0 : diff;
+            ExpectIntEQ(scr_resume_run(&tc), TEST_SUCCESS);
+        }
+
+        /* No client cert at first: one may be asked for when renegotiating. */
+        if (checkServer) {
+            XMEMSET(&tc, 0, sizeof(tc));
+            tc.useTicket = useTicket;
+            tc.checkServer = checkServer;
+            tc.renegCert = certs[SCR_SAME];
+            tc.renegCertSz = certSz[SCR_SAME];
+            tc.renegKey = srvK;
+            tc.renegKeySz = srvKSz;
+            ExpectIntEQ(scr_resume_run(&tc), TEST_SUCCESS);
+        }
+    }
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+    /* The certificate survives serializing the session. */
+    if (EXPECT_SUCCESS()) {
+        ScrResumeCase tc;
+
+        XMEMSET(&tc, 0, sizeof(tc));
+        tc.serialize = 1;
+        tc.cert = certs[SCR_SAME];
+        tc.certSz = certSz[SCR_SAME];
+        tc.key = srvK;
+        tc.keySz = srvKSz;
+        tc.renegCert = certs[SCR_OTHER_KEY];
+        tc.renegCertSz = certSz[SCR_OTHER_KEY];
+        tc.renegKey = altK;
+        tc.renegKeySz = altKSz;
+        tc.expErr = diff;
+        ExpectIntEQ(scr_resume_run(&tc), TEST_SUCCESS);
+    }
+#endif
+
+    /* A session that does not record the certificate can't be checked, so
+     * even the same certificate is refused. */
+    if (EXPECT_SUCCESS()) {
+        ScrResumeCase tc;
+
+        XMEMSET(&tc, 0, sizeof(tc));
+        tc.forget = 1;
+        tc.cert = certs[SCR_SAME];
+        tc.certSz = certSz[SCR_SAME];
+        tc.key = srvK;
+        tc.keySz = srvKSz;
+        tc.renegCert = certs[SCR_SAME];
+        tc.renegCertSz = certSz[SCR_SAME];
+        tc.renegKey = srvK;
+        tc.renegKeySz = srvKSz;
+        tc.expErr = diff;
+        ExpectIntEQ(scr_resume_run(&tc), TEST_SUCCESS);
+    }
+
+    for (c = 0; c < SCR_NUM; c++)
+        XFREE(certs[c], NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (altI) wc_FreeRsaKey(&altKey);
+    if (srvI) wc_FreeRsaKey(&srvKey);
+    if (caI)  wc_FreeRsaKey(&caKey);
+    if (rngI) wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* F-4144: WOLFSSL_OP_NO_RENEGOTIATION on the server must refuse a
  * client-initiated renegotiation with a no_renegotiation *warning* while
  * keeping the established connection alive, rather than aborting it. */

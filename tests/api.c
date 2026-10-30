@@ -47090,6 +47090,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls12_chacha20_poly1305_bad_tag),
     TEST_DECL(test_tls13_null_cipher_bad_hmac),
     TEST_DECL(test_scr_verify_data_mismatch),
+    TEST_DECL(test_scr_different_cert),
+    TEST_DECL(test_scr_resumed_different_cert),
     TEST_DECL(test_scr_no_renegotiation_option),
     TEST_DECL(test_helloRequest_no_renegotiation_option),
     TEST_DECL(test_helloRequest_advertise_only_refused),
