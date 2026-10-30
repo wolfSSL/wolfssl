@@ -833,6 +833,22 @@ enum {
     #endif
     #define XREALLOC(p, n, h, t) m2mb_os_realloc((p), (n))
 
+#elif defined(WOLFSSL_OPTEE)
+    /* libutee rather than a C library, so no std heap. FILL_ZERO because a
+     * trusted application holds key material. */
+    #include <tee_internal_api.h>
+    #define XMALLOC(s, h, t)     ((void)(h), (void)(t), \
+        TEE_Malloc((size_t)(s), TEE_MALLOC_FILL_ZERO))
+    #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+        #define XFREE(p, h, t)   do { (void)(h); (void)(t); \
+            TEE_Free(p); } while (0)
+    #else
+        #define XFREE(p, h, t)   do { void* xp = (p); (void)(h); (void)(t); \
+            if (xp != NULL) TEE_Free(xp); } while (0)
+    #endif
+    #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), \
+        TEE_Realloc((p), (size_t)(n)))
+
 #elif defined(NO_WOLFSSL_MEMORY)
     #ifdef WOLFSSL_NO_MALLOC
         /* this platform does not support heap use */

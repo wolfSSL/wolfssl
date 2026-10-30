@@ -1772,6 +1772,18 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             extern time_t deos_time(time_t* timer);
             #define XTIME(t1) deos_time((t1))
         #endif
+#elif defined(WOLFSSL_OPTEE)
+    #include <time.h>
+    #include <tee_internal_api.h>
+    /* The normal world owns this clock, so it is attacker influenced: fit
+     * for freshness, not for certificate validity. Hence NO_ASN_TIME in the
+     * WOLFSSL_OPTEE settings block. */
+    #ifndef XTIME
+        extern time_t optee_time(time_t* timer);
+        #define XTIME(t1)   optee_time((t1))
+    #endif
+    #define WOLFSSL_GMTIME
+
 #elif defined(MICRIUM)
     #include <clk.h>
     #include <time.h>

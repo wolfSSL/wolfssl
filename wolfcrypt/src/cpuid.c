@@ -333,7 +333,10 @@
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
-#elif defined(__linux__)
+/* A trusted application is cross compiled with a Linux toolchain that
+ * predefines __linux__, but libutee has no getauxval, so it takes the
+ * compiled-in flags below instead. */
+#elif defined(__linux__) && !defined(WOLFSSL_OPTEE)
     /* https://community.arm.com/arm-community-blogs/b/operating-systems-blog/
      * posts/runtime-detection-of-cpu-features-on-an-armv8-a-cpu */
 

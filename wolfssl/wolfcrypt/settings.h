@@ -3525,8 +3525,15 @@
     #define NO_WRITEV
     #define NO_MAIN_DRIVER
     #define SINGLE_THREADED
-    #define NO_ASN_TIME /* no wall clock in a TA */
-    #define USER_TICKS
+    /* The only wall clock a trusted application can reach belongs to the
+     * normal world, so certificate dates are off by default. A project that
+     * accepts that clock defines WOLFSSL_OPTEE_ASN_TIME, which turns on XTIME
+     * from TEE_GetREETime and the TEE_GetSystemTime timers. USER_TICKS is not
+     * set either way, since those timers are supplied here; a project may
+     * still define it to override them. */
+    #ifndef WOLFSSL_OPTEE_ASN_TIME
+        #define NO_ASN_TIME
+    #endif
 #endif /* WOLFSSL_OPTEE */
 
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
