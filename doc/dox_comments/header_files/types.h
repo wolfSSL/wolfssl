@@ -249,6 +249,9 @@ void* XREALLOCALIGN(void *p, size_t a, size_t n, void* heap, int type);
 
     \param p NULL, or memory from XMALLOCALIGN/XREALLOCALIGN*
     \param a alignment, as for XMALLOCALIGN
+    \param old_size current size of p in bytes. Unused by the default
+    implementation, which tracks the size itself, but available to
+    overrides that need it. Must not exceed the real allocation size.
     \param n new size in bytes
     \param h pointer to the heap to use
     \param t memory allocation type for user hints. See enum in types.h
@@ -256,8 +259,8 @@ void* XREALLOCALIGN(void *p, size_t a, size_t n, void* heap, int type);
     \sa XREALLOCALIGN
     \sa wc_ReallocAlignScrubbed
 */
-void* XREALLOCALIGN_SCRUBBED(void *p, size_t a, size_t n, void* heap,
-                             int type);
+void* XREALLOCALIGN_SCRUBBED(void *p, size_t a, size_t old_size, size_t n,
+                             void* heap, int type);
 
 /*!
     \ingroup Memory
