@@ -179,6 +179,12 @@
   builds could not link them.  Both moved to `wc_port.c`, declared in
   `wc_port.h`.  No ABI change.
 
+* **Fix (minimal builds failed to link `ForceZero()`/`ConstantCompare()`)**:
+  `settings.h` no longer defines `WOLFSSL_NO_FORCE_ZERO` or
+  `WOLFSSL_NO_CONST_CMP` for small `WOLFCRYPT_ONLY` builds; SHA-1 and
+  ChaCha20-Poly1305 still call them.  Integrators who supply their own must
+  now define the macro themselves.  `WOLFSSL_USE_FORCE_ZERO` is a no-op.
+
 ## Fixes
 
 * ML-KEM and ML-DSA now keep the key's device id on their internal SHAKE hashing, so a registered crypto callback sees the SHAKE-256 Update and Final calls. by @Frauschi (PR 11544)
