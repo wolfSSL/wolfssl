@@ -1983,9 +1983,11 @@ endif !BUILD_DO178
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfmath.c
 endif !BUILD_FIPS_RAND
 
-if BUILD_MEMORY
+# memory.c also holds the aligned/scrubbing allocators (wc_MallocAlign(),
+# wc_ReallocScrubbed(), ...) that types.h binds unconditionally, so it is
+# built even without memory callbacks; the callback code inside it is
+# gated on USE_WOLFSSL_MEMORY.
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/memory.c
-endif
 
 if !BUILD_FIPS_RAND
 if !BUILD_FIPS_V2_PLUS

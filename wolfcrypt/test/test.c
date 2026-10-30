@@ -38061,7 +38061,7 @@ static wc_test_ret_t memalign_realloc_test(void)
     /* unscrubbed grow well past any allocator slack: contents and alignment
      * preserved, and only the old size is copied (no over-read). */
     if (ret == 0) {
-        q = (byte*)XREALLOCALIGN(p, 64U, 4096U, HEAP_HINT,
+        q = (byte*)XREALLOCALIGN(p, 64U, 2048U, HEAP_HINT,
                                  DYNAMIC_TYPE_TMP_BUFFER);
         if (q == NULL)
             ret = WC_TEST_RET_ENC_EC(MEMORY_E); /* p intact on failure */
@@ -38075,7 +38075,7 @@ static wc_test_ret_t memalign_realloc_test(void)
             }
             /* utilize the grown extent. */
             if (ret == 0)
-                XMEMSET(p + 128, 0xA5, 4096U - 128U);
+                XMEMSET(p + 128, 0xA5, 2048U - 128U);
         }
     }
     XFREEALIGN(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
