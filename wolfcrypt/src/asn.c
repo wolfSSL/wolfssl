@@ -26768,7 +26768,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
 #endif
     if (ret == 0 && signer != NULL) {
     #ifdef WOLFSSL_SIGNER_DER_CERT
-        ret = AllocDer(&signer->derCert, der->length, der->type, NULL);
+        ret = AllocDer(&signer->derCert, der->length, der->type, cert->heap);
     }
     if (ret == 0 && signer != NULL) {
         XMEMCPY(signer->derCert->buffer, der->buffer, der->length);

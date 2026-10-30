@@ -5242,6 +5242,13 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WOLFSSL_SIGNER_DER_CERT
 #endif
 
+/* The persistent CA cache stores each CA's DER and rebuilds the CA table from
+ * it, so the CA table must keep the DER. */
+#if defined(PERSIST_CERT_CACHE)
+    #undef  WOLFSSL_SIGNER_DER_CERT
+    #define WOLFSSL_SIGNER_DER_CERT
+#endif
+
 /*
  * Keeps the "Finished" messages after a TLS handshake for use as the so-called
  * "tls-unique" channel binding. See comment in internal.h around clientFinished
