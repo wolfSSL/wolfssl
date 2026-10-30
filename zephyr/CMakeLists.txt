@@ -59,6 +59,12 @@ if(CONFIG_WOLFSSL)
     endif()
     # The v7 boundary carries each algorithm's assembly right after it.
     set(WOLF_ARM_ASM_aes aes-asm_c)
+    # SHA-1 has an AArch64 port only - there is no thumb2-sha1-asm_c.c or
+    # armv8-32-sha1-asm_c.c - so unlike its neighbours this mapping is set for
+    # that one prefix rather than unconditionally.
+    if(WOLF_ARM_ASM_PREFIX STREQUAL "armv8")
+      set(WOLF_ARM_ASM_sha sha1-asm_c)
+    endif()
     set(WOLF_ARM_ASM_sha256 sha256-asm_c)
     set(WOLF_ARM_ASM_sha512 sha512-asm_c)
     set(WOLF_ARM_ASM_sha3 sha3-asm_c)
@@ -198,6 +204,13 @@ if(CONFIG_WOLFSSL)
             zephyr_library_sources(${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-${f}.c)
           endif()
         endforeach()
+        # SHA-1 cannot join the loop above: it has an AArch64 port only.  When
+        # the boundary carries the assembly, WOLF_ARM_ASM_sha has placed it
+        # already, and adding it here would duplicate it and break the file
+        # order the integrity test depends on.
+        if(CONFIG_ARM64 AND NOT WOLF_BOUNDARY_ASM)
+          zephyr_library_sources(${WOLF_ARM_ASM_DIR}/armv8-sha1-asm_c.c)
+        endif()
       elseif(CONFIG_X86_64)
         # fe_x25519_asm.S, wc_mlkem_asm.S and wc_mldsa_asm.S are here because
         # curve25519.c, wc_mlkem_poly.c and wc_mldsa.c all take the Intel path
