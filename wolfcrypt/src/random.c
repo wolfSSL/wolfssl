@@ -1060,7 +1060,7 @@ static WARN_UNUSED_RESULT int Hash256_DRBG_Reseed(DRBG_internal* drbg,
  * (_PRODUCING or _CONSUMING) is repainted _PURGED instead: the holder
  * still owns the buffer, so it is the holder that wipes and reopens --
  * the producer in NextSeedProducerRelease(), the consumer in
- * wc_RNG_DRBG_NextSeedNow_Nonce_local()'s failed-release arm.  Reopening
+ * wc_RNG_DRBG_NextSeedNow_AddIn_local()'s failed-release arm.  Reopening
  * EMPTY from under a live holder would let a producer claim and begin a
  * fill that the holder's own trailing wipe then tears.
  * The health-test burn arm wipes under its own PRODUCING claim.
@@ -1201,7 +1201,7 @@ static WC_MAYBE_UNUSED void NextStirPurge(WC_RNG* rng)
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
 /* in_bracketed_consume: nonzero when the caller feeds this reseed from its own
- * _CONSUMING claim on the credited aperture (wc_RNG_DRBG_NextSeedNow_Nonce()).
+ * _CONSUMING claim on the credited aperture (wc_RNG_DRBG_NextSeedNow_AddIn()).
  * The invalidated-entry purges below must then exempt that aperture: purging
  * it would steal the caller's claim and defeat its release CAS, converting
  * the caller's own recovery into a false epoch violation.  An external
@@ -1487,8 +1487,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
     return ret;
 }
 
-int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
-                             const byte *nonce, word32 nonceSz)
+int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
+                             const byte *addIn, word32 addInSz)
 {
     int ret;
     WC_ATOMIC_UINT_ARG cur_epoch =
@@ -1506,7 +1506,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     /* Hash_df() skips a NULL input regardless of its stated length, so
      * without this the caller's additional input would be dropped and
      * success reported.  Matches _InitRng() and ReseedRBGC(). */
-    if ((nonce == NULL) && (nonceSz > 0))
+    if ((addIn == NULL) && (addInSz > 0))
         return BAD_FUNC_ARG;
 
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
@@ -1545,14 +1545,14 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     /* Never allow an undersized seed to clear an invalidated state.  Note that
      * the user seed is not evaluated by wc_RNG_TestSeed() -- calling
      * wc_RNG_TestSeed() is the user's responsibility, and is inapplicable when
-     * wc_InitRngNonce_UserSeed() and wc_RNG_DRBG_Reseed_Nonce() are called from
+     * wc_InitRngAddIn_UserSeed() and wc_RNG_DRBG_Reseed_AddIn() are called from
      * KAT tests, or are seeded by another healthy DRBG.
      *
      * Historically, wc_RNG_DRBG_Reseed() has never imposed wc_RNG_TestSeed(),
      * i.e. it has always succeeded deterministically when passed valid
-     * arguments.  wc_RNG_DRBG_Reseed_Nonce() continues that semantic whether
+     * arguments.  wc_RNG_DRBG_Reseed_AddIn() continues that semantic whether
      * called directly or via wc_RNG_DRBG_Reseed().  Novel enforcement here is
-     * frivolous in any case because wc_InitRngNonce_UserSeed() imposes no
+     * frivolous in any case because wc_InitRngAddIn_UserSeed() imposes no
      * wc_RNG_TestSeed().
      */
     {
@@ -1568,7 +1568,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
         }
     }
 
-    ret = Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz,
+    ret = Hash_DRBG_Reseed(rng, seed, seedSz, addIn, addInSz,
                            0 /* in_bracketed_consume */, cur_epoch, my_pid);
     if (ret > 0) /* DRBG-internal code: translate at the API */
         ret = RNG_FAILURE_E;
@@ -1593,7 +1593,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
 }
 
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz) {
-    return wc_RNG_DRBG_Reseed_Nonce(rng, seed, seedSz, NULL, 0);
+    return wc_RNG_DRBG_Reseed_AddIn(rng, seed, seedSz, NULL, 0);
 }
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -2843,13 +2843,13 @@ static WARN_UNUSED_RESULT int Hash_DRBG_StirGenerate(WC_RNG* rng,
         return ret;
 }
 
-static WARN_UNUSED_RESULT int wc_RNG_DRBG_Stir_Nonce_local(WC_RNG* rng,
+static WARN_UNUSED_RESULT int wc_RNG_DRBG_Stir_AddIn_local(WC_RNG* rng,
                                         const byte* seed, word32 seedSz,
-                                        const byte *nonce, word32 nonceSz)
+                                        const byte *addIn, word32 addInSz)
 {
     if (rng == NULL || seed == NULL)
         return BAD_FUNC_ARG;
-    if ((nonce == NULL) && (nonceSz != 0))
+    if ((addIn == NULL) && (addInSz != 0))
         return BAD_FUNC_ARG;
 
     if (rng->status != WC_DRBG_OK)
@@ -2863,18 +2863,18 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_Stir_Nonce_local(WC_RNG* rng,
 
     {
         int ret = Hash_DRBG_StirGenerate(rng, seed, seedSz);
-        if ((ret == 0) && (nonce != NULL) && (nonceSz > 0)) {
+        if ((ret == 0) && (addIn != NULL) && (addInSz > 0)) {
             /* Second chunk as its own specified generate: additional
              * input is per-call, and chunking beats concatenation
              * scratch. */
-            ret = Hash_DRBG_StirGenerate(rng, nonce, nonceSz);
+            ret = Hash_DRBG_StirGenerate(rng, addIn, addInSz);
         }
         return ret;
     }
 }
 
-int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
-                           const byte *nonce, word32 nonceSz)
+int wc_RNG_DRBG_Stir_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
+                           const byte *addIn, word32 addInSz)
 {
     int ret;
 
@@ -2883,14 +2883,14 @@ int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
-    ret = wc_RNG_DRBG_Stir_Nonce_local(rng, seed, seedSz, nonce, nonceSz);
+    ret = wc_RNG_DRBG_Stir_AddIn_local(rng, seed, seedSz, addIn, addInSz);
     RngAutoLockExit(rng);
     return ret;
 }
 
 int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
-    return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL, 0);
+    return wc_RNG_DRBG_Stir_AddIn(rng, seed, seedSz, NULL, 0);
 }
 
 /* SP800-90B 4.4 health tests run over conditioned seed material, which makes
@@ -5196,7 +5196,7 @@ only_mark_lock_word:
      * post-purge apertures, so a READY it then claims necessarily postdates
      * this event; a consumer that raced ahead of the latch loses its claim
      * to the purge above and is refused at its release CAS (see
-     * wc_RNG_DRBG_NextSeedNow_Nonce()); and an event landing mid-reseed
+     * wc_RNG_DRBG_NextSeedNow_AddIn()); and an event landing mid-reseed
      * strips _ENTROPY_RECOVERING here, so the recovery's exit CAS refuses
      * the clear.  No interleaving recovers from pre-event material. */
 
@@ -6188,7 +6188,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_ReseedRBGC_local(
             }
         }
         else {
-            ret = wc_RNG_DRBG_Stir_Nonce_local(rng, seed, SEED_SZ, nonce,
+            ret = wc_RNG_DRBG_Stir_AddIn_local(rng, seed, SEED_SZ, nonce,
                                                       nonceSz);
         }
     }
@@ -6482,13 +6482,13 @@ out:
  *
  * The caller must hold exclusive access to rng, as for all WC_RNG operations.
  */
-int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
+int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn, word32 addInSz)
 {
     int ret;
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    if ((nonce == NULL) && (nonceSz > 0))
+    if ((addIn == NULL) && (addInSz > 0))
         return BAD_FUNC_ARG;
     ret = rng_lock_required_check(rng);
     if (ret != 0)
@@ -6511,7 +6511,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
         goto out;
     }
 
-    ret = PollAndReSeed(rng, nonce, nonceSz);
+    ret = PollAndReSeed(rng, addIn, addInSz);
     if (ret != DRBG_SUCCESS)
         ret = RngGenerateFailure(rng, ret);
 
@@ -6528,7 +6528,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
  * Multithreaded configurations without _HAVE_LOCK cannot support PR and the flag
  * RMW it requires. */
 int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
-                                   const byte* nonce, word32 nonceSz)
+                                   const byte* addIn, word32 addInSz)
 {
     int ret;
     if (rng == NULL)
@@ -6541,8 +6541,8 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
         return WRONG_TYPE_OBJECT_E;
 #endif
 #if !defined(WC_RNG_HAVE_LOCK) && !defined(SINGLE_THREADED)
-    (void)nonce;
-    (void)nonceSz;
+    (void)addIn;
+    (void)addInSz;
     return NOT_COMPILED_IN;
 #else /* WC_RNG_HAVE_LOCK || SINGLE_THREADED */
     if (rng->flags & WC_RNG_FLAG_NO_PRIMARY_SEED)
@@ -6555,7 +6555,7 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
         }
         else
             restore_flag_bits = 0U;
-        ret = wc_RNG_DRBG_Reseed_Now(rng, nonce, nonceSz);
+        ret = wc_RNG_DRBG_Reseed_Now(rng, addIn, addInSz);
         if (restore_flag_bits)
             rng->flags &= ~restore_flag_bits;
     }
@@ -6574,11 +6574,11 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
      * _NextSeedCurrent() reports the raw aperture value (racy snapshot).
      * _NextSeedNow() claims a ready bank and performs a source-free
      * credited reseed with it -- safe in atomic context -- or returns
-     * NOT_READY_E when no bank is ready; _NextSeedNow_Nonce() is the same
-     * with a nonce as uncredited additional input.  An instance with no
+     * NOT_READY_E when no bank is ready; _NextSeedNow_AddIn() is the same
+     * with a addIn as uncredited additional input.  An instance with no
      * DRBG (RDRAND et al.) never opens its seed aperture, and producers
      * and consumers alike refuse it with WRONG_TYPE_OBJECT_E.  The caller
-     * must own the instance for _NextSeedNow[_Nonce](). */
+     * must own the instance for _NextSeedNow[_AddIn](). */
 
 /* Banked-next-seed protocol.
  *
@@ -7076,9 +7076,9 @@ int wc_RNG_DRBG_NextSeedCurrent(const WC_RNG* rng, WC_ATOMIC_INT_ARG* n)
  * construction); wc_RNG_DRBG_Reseed_Now() remains the live-gather shape. */
 /* safe (bounded-at-once) recursion for RBGC reseed. */
 /* NOLINTNEXTLINE(misc-no-recursion) */
-static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_Nonce_local(
-                                  WC_RNG* rng, const byte* nonce,
-                                  word32 nonceSz)
+static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
+                                  WC_RNG* rng, const byte* addIn,
+                                  word32 addInSz)
 {
     WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_READY;
     int ret;
@@ -7098,7 +7098,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_Nonce_local(
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-    if ((nonce == NULL) && (nonceSz != 0))
+    if ((addIn == NULL) && (addInSz != 0))
         return BAD_FUNC_ARG;
 
     ret = rng_lock_required_check(rng);
@@ -7158,7 +7158,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_Nonce_local(
     /* Identical byte accounting to PollAndReSeed(): the SEED_BLOCK_SZ
      * prefix was consumed by the bank-time health testing. */
     ret = Hash_DRBG_Reseed(rng, rng->nextSeed + SEED_BLOCK_SZ, SEED_SZ,
-                           nonce, nonceSz, 1 /* in_bracketed_consume */,
+                           addIn, addInSz, 1 /* in_bracketed_consume */,
                            cur_epoch, my_pid);
 
     /* Use-once: consumed by the attempt, success or not.  The scrub must be
@@ -7319,8 +7319,8 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_Nonce_local(
     return ret;
 }
 
-int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
-                                  word32 nonceSz)
+int wc_RNG_DRBG_NextSeedNow_AddIn(WC_RNG* rng, const byte* addIn,
+                                  word32 addInSz)
 {
     int ret;
 
@@ -7329,7 +7329,7 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
-    ret = wc_RNG_DRBG_NextSeedNow_Nonce_local(rng, nonce, nonceSz);
+    ret = wc_RNG_DRBG_NextSeedNow_AddIn_local(rng, addIn, addInSz);
     RngAutoLockExit(rng);
     return ret;
 }
@@ -7341,12 +7341,12 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
 /* safe (bounded-at-once) recursion for RBGC reseed. */
 /* NOLINTNEXTLINE(misc-no-recursion) */
 static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_local(WC_RNG* rng) {
-    return wc_RNG_DRBG_NextSeedNow_Nonce_local(rng, NULL, 0);
+    return wc_RNG_DRBG_NextSeedNow_AddIn_local(rng, NULL, 0);
 }
 #endif
 
 int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
-    return wc_RNG_DRBG_NextSeedNow_Nonce(rng, NULL, 0);
+    return wc_RNG_DRBG_NextSeedNow_AddIn(rng, NULL, 0);
 }
 
 /* Deposit raw uncredited stir material into rng's accumulator.  Callable from
@@ -7356,11 +7356,11 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
  * fragments of compatible provenance are harmless.  A full accumulator
  * publishes WC_DRBG_NEXT_SEED_READY (no health test -- no claim is being made)
  * and shunts further deposits to xorbuf() until consumed. */
-int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce, word32 nonceSz)
+int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *addIn, word32 addInSz)
 {
     WC_ATOMIC_INT_ARG cur;
 
-    if ((rng == NULL) || (nonce == NULL) || (nonceSz == 0))
+    if ((rng == NULL) || (addIn == NULL) || (addInSz == 0))
         return BAD_FUNC_ARG;
 
     /* Note, rng need not be locked -- that's the whole point of the
@@ -7372,30 +7372,30 @@ int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce, word32 nonceSz)
     if ((cur >= 0) && (cur < (WC_ATOMIC_INT_ARG)sizeof(rng->nextStir))) {
         word32 fill = (word32)cur;
         word32 room = (word32)sizeof(rng->nextStir) - fill;
-        word32 take = (nonceSz < room) ? nonceSz : room;
+        word32 take = (addInSz < room) ? addInSz : room;
 
-        XMEMCPY(rng->nextStir + fill, nonce, take);
+        XMEMCPY(rng->nextStir + fill, addIn, take);
         fill += take;
         if (fill == (word32)sizeof(rng->nextStir)) {
             WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_READY);
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_nextstirs_banked; /* racy */
             #endif
-            nonce += take;
-            nonceSz -= take; /* spillover falls through to the xorbuf() */
+            addIn += take;
+            addInSz -= take; /* spillover falls through to the xorbuf() */
         }
         else {
             WOLFSSL_ATOMIC_STORE(rng->nextStirLen,
                                  cur + (WC_ATOMIC_INT_ARG)take);
             return 0;
         }
-        if (nonceSz == 0)
+        if (addInSz == 0)
             return 0;
     }
 
-    if (nonceSz > (word32)sizeof(rng->nextStir))
-        nonceSz = (word32)sizeof(rng->nextStir);
-    xorbuf(rng->nextStir, nonce, nonceSz);
+    if (addInSz > (word32)sizeof(rng->nextStir))
+        addInSz = (word32)sizeof(rng->nextStir);
+    xorbuf(rng->nextStir, addIn, addInSz);
 
     return 0;
 }
@@ -11633,7 +11633,7 @@ int wc_hwrng_generate_block(byte *output, word32 sz)
  *   - request/byte counts in the DRBG arm of wc_RNG_GenerateBlock()
  *     (hardware-offload arms -- RDRAND, Silabs, async, cryptocb, custom --
  *     are deliberately uncounted: these are DRBG-facility statistics);
- *   - banked-seed redemption provenance in wc_RNG_DRBG_NextSeedNow_Nonce();
+ *   - banked-seed redemption provenance in wc_RNG_DRBG_NextSeedNow_AddIn();
  *   - seed health failures at the two sites that observe them per-instance
  *     (PollAndReSeed(), NextSeedGenerate);
  *   - chain-provenance bytes (RBGC_bytes_produced: output generated while

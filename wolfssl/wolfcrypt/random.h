@@ -879,9 +879,9 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
-    WOLFSSL_API int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
-                                             word32 seedSz, const byte *nonce,
-                                             word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed,
+                                             word32 seedSz, const byte *addIn,
+                                             word32 addInSz);
     /* Capability markers for code compiled against a random.h of uncertain
      * vintage (FIPS builds substitute the module's pinned random.[ch] for
      * the tree's): consumers outside the boundary gate on these rather than
@@ -890,14 +890,14 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     WOLFSSL_API int wc_RNG_DRBG_Stir(WC_RNG* rng,
                                      const byte* seed,
                                      word32 seedSz);
-    WOLFSSL_API int wc_RNG_DRBG_Stir_Nonce(
+    WOLFSSL_API int wc_RNG_DRBG_Stir_AddIn(
                                  WC_RNG* rng, const byte* seed, word32 seedSz,
-                                 const byte *nonce, word32 nonceSz);
+                                 const byte *addIn, word32 addInSz);
     #define WC_RNG_HAVE_RESEED_NOW
-    WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
-                                           word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn,
+                                           word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
-                                             const byte* nonce, word32 nonceSz);
+                                             const byte* addIn, word32 addInSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -1034,11 +1034,11 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
                                             word32 flags);
     #endif /* !WC_NO_CONSTRUCTORS */
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root,
-                                           const byte* nonce, word32 nonceSz);
+                                           const byte* addIn, word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_StirRBGC(WC_RNG* rng,
                                          WC_RNG* root,
-                                         const byte* nonce,
-                                         word32 nonceSz);
+                                         const byte* addIn,
+                                         word32 addInSz);
 #endif /* WC_RNG_HAVE_RBGC */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -1060,12 +1060,12 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #endif
     WOLFSSL_API int wc_RNG_DRBG_NextSeedCurrent(const WC_RNG* rng,
                                                 WC_ATOMIC_INT_ARG* n);
-    WOLFSSL_API int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng,
-                                                   const byte* nonce,
-                                                   word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_NextSeedNow_AddIn(WC_RNG* rng,
+                                                   const byte* addIn,
+                                                   word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
     WOLFSSL_API int wc_RNG_DRBG_NextStirStore(WC_RNG* rng,
-                                              const byte *nonce, word32 nonceSz);
+                                              const byte *addIn, word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_NextStirNow(WC_RNG* rng);
 
 #endif /* WC_RNG_HAVE_NEXT_SEED */

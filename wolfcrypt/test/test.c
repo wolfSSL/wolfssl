@@ -35945,7 +35945,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
     api_ret = wc_RNG_DRBG_NextSeedNow(NULL);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(NULL, NULL, 0);
+    api_ret = wc_RNG_DRBG_NextSeedNow_AddIn(NULL, NULL, 0);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     api_ret = wc_RNG_DRBG_NextSeedGenerate_Primary(NULL, 1);
@@ -35976,7 +35976,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
     api_ret = wc_RNG_DRBG_NextSeedCurrent(root, NULL);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(root, NULL, 5);
+    api_ret = wc_RNG_DRBG_NextSeedNow_AddIn(root, NULL, 5);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
@@ -36095,7 +36095,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
         if (i >= 64)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         RNG_STATS_SNAP(root);
-        api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(root, matter,
+        api_ret = wc_RNG_DRBG_NextSeedNow_AddIn(root, matter,
                                                 sizeof(matter));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
