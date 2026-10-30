@@ -342,6 +342,24 @@ int test_wc_Sha512_224FinalRaw(void)
         "\x73\xe1\x99\x66\x89\xdc\xd4\xd6"
         "\x1d\xfa\xb7\xae\x32\xff\x9c\x82"
         "\x67\x9d\xd5\x14");
+    {
+        /* Hashing continues after FinalRaw: "ab", raw read, "c" is "abc". */
+        wc_Sha512 raw;
+        byte rawHash[WC_SHA512_224_DIGEST_SIZE];
+
+        XMEMSET(&raw, 0, sizeof(raw));
+        ExpectIntEQ(wc_InitSha512_224(&raw), 0);
+        ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"ab", 2), 0);
+        ExpectIntEQ(wc_Sha512_224FinalRaw(&raw, rawHash), 0);
+        ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"c", 1), 0);
+        ExpectIntEQ(wc_Sha512_224Final(&raw, rawHash), 0);
+        ExpectBufEQ(rawHash,
+            "\x46\x34\x27\x0f\x70\x7b\x6a\x54"
+            "\xda\xae\x75\x30\x46\x08\x42\xe2"
+            "\x0e\x37\xed\x26\x5c\xee\xe9\xa4"
+            "\x3e\x89\x24\xaa", WC_SHA512_224_DIGEST_SIZE);
+        wc_Sha512_224Free(&raw);
+    }
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Sha512_224Final */

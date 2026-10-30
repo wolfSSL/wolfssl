@@ -2716,9 +2716,18 @@ static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, word32 digestSz)
     if ((digestSz & 0x7) == 0)
         ByteReverseWords64((word64 *)hash, sha512->digest, digestSz);
     else {
-        ByteReverseWords64(sha512->digest, sha512->digest,
-                           WC_SHA512_DIGEST_SIZE);
-        XMEMCPY(hash, sha512->digest, digestSz);
+        /* Reverse into a copy so the state is never left reversed. */
+        word64 digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
+
+        ByteReverseWords64(digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("Sha512FinalRaw digest", digest, sizeof(digest));
+    #endif
+        XMEMCPY(hash, digest, digestSz);
+        ForceZero(digest, sizeof(digest));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(digest, sizeof(digest));
+    #endif
     }
 #else
     XMEMCPY(hash, sha512->digest, digestSz);
