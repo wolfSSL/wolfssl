@@ -4044,6 +4044,18 @@ if(WOLFSSL_SRP)
         )
 endif()
 
+add_option("WOLFSSL_ECJPAKE"
+    "Enable EC-JPAKE (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_ECJPAKE)
+    if(NOT WOLFSSL_ECC)
+        message(FATAL_ERROR "WOLFSSL_ECJPAKE requires ECC.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFCRYPT_HAVE_ECJPAKE"
+        )
+endif()
+
 add_option("WOLFSSL_MOSQUITTO"
     "Enable Mosquitto support (default: disabled)"
     "no" "yes;no")

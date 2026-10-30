@@ -10297,6 +10297,27 @@ then
 fi
 
 
+# EC-JPAKE password authenticated key exchange
+AC_ARG_ENABLE([ecjpake],
+    [AS_HELP_STRING([--enable-ecjpake],[Enable EC-JPAKE (default: disabled)])],
+    [ ENABLED_ECJPAKE=$enableval ],
+    [ ENABLED_ECJPAKE=no ]
+    )
+
+if test "x$ENABLED_ECJPAKE" = "xyes"
+then
+    if test "$ENABLED_ECC" = "no" || test "$ENABLED_SHA256" = "no"
+    then
+        AC_MSG_ERROR([--enable-ecjpake requires ECC and SHA-256.])
+    fi
+    if test "$ENABLED_SP_MATH" = "yes"
+    then
+        AC_MSG_ERROR([--enable-ecjpake is not supported with --enable-sp-math.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_ECJPAKE"
+fi
+
+
 # Indefinite length encoded BER message support
 AC_ARG_ENABLE([indef],
     [AS_HELP_STRING([--enable-indef],[Enable parsing of indefinite length encoded msgs (default: disabled)])],
@@ -14669,6 +14690,7 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQU
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ECJPAKE],[test "x$ENABLED_ECJPAKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
 AM_CONDITIONAL([BUILD_MD4],[test "x$ENABLED_MD4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PWDBASED],[test "x$ENABLED_PWDBASED" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -15311,6 +15333,7 @@ echo "   * wolfTPM:                    $ENABLED_WOLFTPM"
 echo "   * wolfCLU:                    $ENABLED_WOLFCLU"
 echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password:     $ENABLED_SRP"
+echo "   * EC-JPAKE:                   $ENABLED_ECJPAKE"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 

@@ -410,6 +410,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/dsa.h>
 #include <wolfssl/wolfcrypt/srp.h>
+#include <wolfssl/wolfcrypt/ecjpake.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #ifdef HAVE_ASCON
@@ -1009,6 +1010,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dsa_test(void);
 #endif
 #ifdef WOLFCRYPT_HAVE_SRP
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
+#endif
+#ifdef WOLFCRYPT_HAVE_ECJPAKE
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecjpake_test(void);
 #endif
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
@@ -3429,6 +3433,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("SRP      test failed!\n", ret);
     else
         TEST_PASS("SRP      test passed!\n");
+#endif
+
+#ifdef WOLFCRYPT_HAVE_ECJPAKE
+    if ( (ret = ecjpake_test()) != 0)
+        TEST_FAIL("ECJPAKE  test failed!\n", ret);
+    else
+        TEST_PASS("ECJPAKE  test passed!\n");
 #endif
 
 #ifndef NO_PWDBASED
@@ -45911,6 +45922,689 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srp_test(void)
 }
 
 #endif /* WOLFCRYPT_HAVE_SRP */
+
+#ifdef WOLFCRYPT_HAVE_ECJPAKE
+/* Known answer vectors generated from an independent implementation of
+ * RFC 8236 Section 3 / draft-cragie-tls-ecjpake-01. */
+static const byte ecjpake_kat_pw[] = {
+    0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x6a, 0x70, 0x61, 0x6b, 0x65, 0x74,
+    0x65, 0x73, 0x74
+};
+static const byte ecjpake_kat_x1[] = {
+    0xe3, 0x54, 0x1d, 0xd2, 0xe8, 0xd1, 0x66, 0x5f, 0x3d, 0x6e, 0x96, 0xe1,
+    0x53, 0x65, 0x8f, 0xd4, 0x36, 0x25, 0x5f, 0x1a, 0x18, 0xf4, 0x6a, 0xcb,
+    0x6d, 0x9d, 0xd2, 0x9f, 0x24, 0x64, 0xa3, 0x5f
+};
+static const byte ecjpake_kat_x2[] = {
+    0x7f, 0x16, 0x2c, 0xee, 0x40, 0xe1, 0x0e, 0x63, 0x5a, 0x61, 0x82, 0xab,
+    0xea, 0xf1, 0xa2, 0x1d, 0x60, 0x44, 0xb8, 0x55, 0xfd, 0x5a, 0xfd, 0xdc,
+    0x62, 0xcc, 0xa2, 0x17, 0xfe, 0xe4, 0x75, 0x7b
+};
+static const byte ecjpake_kat_x3[] = {
+    0xb5, 0x29, 0xfa, 0xb0, 0x11, 0x37, 0x74, 0x61, 0x28, 0xee, 0x88, 0xea,
+    0x19, 0x71, 0xa3, 0x97, 0x77, 0xd1, 0xc5, 0x2b, 0x4c, 0xb2, 0x0f, 0x80,
+    0x64, 0x47, 0x84, 0xb5, 0x07, 0x73, 0xd0, 0x94
+};
+static const byte ecjpake_kat_x4[] = {
+    0x75, 0xe6, 0x2e, 0x8d, 0x32, 0x1a, 0xce, 0x69, 0x8a, 0x82, 0xf7, 0xa2,
+    0x3c, 0xb1, 0xe5, 0x2d, 0x50, 0x5e, 0x9c, 0xe9, 0xe6, 0x48, 0xfb, 0x7d,
+    0x08, 0x16, 0x59, 0x04, 0x7f, 0xb0, 0x4f, 0xc5
+};
+static const byte ecjpake_kat_cli_one[] = {
+    0x41, 0x04, 0x3b, 0xff, 0xfb, 0x33, 0x11, 0x14, 0x1a, 0x15, 0x4f, 0x85,
+    0xb0, 0x10, 0x1d, 0x44, 0x45, 0xf2, 0xfd, 0xe4, 0xba, 0x07, 0x45, 0x90,
+    0x86, 0x99, 0xb3, 0x8e, 0x0f, 0xc1, 0xd3, 0xbe, 0x07, 0x41, 0xd9, 0xdc,
+    0x7f, 0xea, 0x4a, 0x17, 0xc2, 0xb3, 0xfd, 0x92, 0x42, 0x9d, 0x4a, 0x62,
+    0x8f, 0xcf, 0x1a, 0x46, 0x71, 0x72, 0xa5, 0x45, 0xae, 0x4b, 0xcd, 0xaa,
+    0x9c, 0xf1, 0x3a, 0x32, 0x83, 0xc5, 0x41, 0x04, 0xf0, 0x1a, 0x23, 0xf2,
+    0x11, 0xa9, 0xf2, 0x32, 0xd1, 0x62, 0x9a, 0xbb, 0xe2, 0x1d, 0x76, 0x1d,
+    0xea, 0x89, 0xbf, 0xa9, 0x22, 0x2a, 0x14, 0xe8, 0xdf, 0xcb, 0x09, 0x05,
+    0x1a, 0xf0, 0xed, 0x91, 0x2a, 0x26, 0x09, 0x7b, 0x04, 0x3f, 0x9f, 0x92,
+    0x53, 0x1a, 0xfd, 0xf1, 0xbe, 0x4b, 0xc9, 0xfc, 0xf1, 0x9f, 0x3a, 0x76,
+    0xe2, 0x9c, 0x96, 0x55, 0x5b, 0xdb, 0x70, 0xff, 0x4e, 0x12, 0xf5, 0x6e,
+    0x20, 0x8b, 0x1b, 0x73, 0x4a, 0x67, 0x67, 0x84, 0x9f, 0x74, 0x9e, 0x3d,
+    0x12, 0xfa, 0x38, 0x64, 0xcc, 0x97, 0x52, 0x19, 0x5f, 0x58, 0x1e, 0x11,
+    0x35, 0xb4, 0x21, 0xc2, 0x2f, 0x57, 0xfe, 0xb3, 0x6a, 0x41, 0x04, 0xd0,
+    0x74, 0xb9, 0x03, 0x76, 0x0d, 0x7b, 0x53, 0x00, 0x33, 0x89, 0x1c, 0x11,
+    0xb1, 0xb7, 0x6f, 0xde, 0xac, 0x5b, 0xce, 0xf8, 0xbb, 0x5c, 0xbe, 0x78,
+    0x9a, 0x1b, 0x21, 0x9a, 0x43, 0x0e, 0x12, 0x91, 0xa2, 0x2e, 0x69, 0x86,
+    0xba, 0x9d, 0x9b, 0x4e, 0x60, 0xc2, 0x56, 0x75, 0x89, 0xdf, 0xb9, 0x81,
+    0x08, 0xda, 0xa9, 0xf6, 0xff, 0xba, 0xa1, 0xbf, 0x95, 0x52, 0xaa, 0xb7,
+    0xe5, 0x91, 0x87, 0x41, 0x04, 0x72, 0x92, 0x5a, 0x6b, 0xd3, 0xbb, 0xdc,
+    0x1f, 0xea, 0x27, 0xb3, 0x60, 0xf3, 0x2d, 0x89, 0xa4, 0xd9, 0x16, 0x0a,
+    0x87, 0x42, 0x48, 0x8e, 0xba, 0x0d, 0x5d, 0x00, 0x54, 0x1f, 0x0d, 0xd1,
+    0x80, 0xa4, 0xb5, 0x3c, 0x69, 0xab, 0x43, 0xba, 0xaa, 0x7e, 0xa5, 0x44,
+    0xcb, 0x2b, 0xc9, 0x9b, 0xd9, 0x8e, 0x6c, 0x39, 0x55, 0x18, 0x12, 0x8e,
+    0x01, 0x2f, 0x42, 0xa8, 0x12, 0xa6, 0xcb, 0xc3, 0x4b, 0x20, 0x81, 0xde,
+    0x34, 0xcd, 0x1d, 0xc3, 0x04, 0x19, 0x47, 0x99, 0x20, 0xe8, 0x4f, 0xe2,
+    0x17, 0x95, 0x1d, 0x52, 0xee, 0x9b, 0xbe, 0x2f, 0x43, 0x0d, 0x3c, 0x29,
+    0xaf, 0xa1, 0x3b, 0x16, 0x26, 0x7e
+};
+static const byte ecjpake_kat_srv_one[] = {
+    0x41, 0x04, 0x29, 0x72, 0xdd, 0x97, 0x7f, 0x48, 0x4f, 0x02, 0x39, 0x55,
+    0x63, 0x2e, 0x7a, 0xd2, 0x3f, 0x30, 0x3e, 0x18, 0xc0, 0xf8, 0x60, 0x7c,
+    0xc3, 0xa9, 0x5a, 0x55, 0x3a, 0x70, 0xa0, 0xbe, 0x89, 0x0e, 0xbc, 0x95,
+    0x77, 0x3d, 0xff, 0x31, 0x4c, 0x7a, 0x69, 0x0b, 0xdf, 0xa9, 0xf0, 0xf8,
+    0x7c, 0x3a, 0xc6, 0xf0, 0x11, 0x5c, 0x08, 0x07, 0xe7, 0x0e, 0xc9, 0xc3,
+    0xa3, 0x05, 0x86, 0x7b, 0x1d, 0xeb, 0x41, 0x04, 0xfd, 0xd9, 0x2f, 0x64,
+    0x5c, 0xde, 0x4b, 0x1f, 0xaa, 0x75, 0xe4, 0x50, 0xac, 0xc0, 0x1c, 0xb1,
+    0x4d, 0x1a, 0x0b, 0xca, 0x81, 0x20, 0xf7, 0x08, 0x24, 0x23, 0xb2, 0x97,
+    0xf7, 0xf5, 0xf6, 0xa5, 0x55, 0xf6, 0xbe, 0xc7, 0x98, 0x36, 0x40, 0x5b,
+    0xf0, 0x8f, 0x32, 0x81, 0xa0, 0x37, 0xec, 0x95, 0x24, 0xa9, 0x3f, 0x00,
+    0x40, 0x3a, 0x52, 0xcf, 0xc0, 0xd4, 0xeb, 0x0c, 0x4d, 0x77, 0xd8, 0x14,
+    0x20, 0xee, 0x1b, 0x4a, 0xb2, 0x2c, 0x10, 0x1e, 0x80, 0x2f, 0x9e, 0x22,
+    0x3a, 0x2e, 0x5c, 0x40, 0xfe, 0x03, 0x12, 0xf5, 0x3f, 0x32, 0xd4, 0x87,
+    0xc8, 0xf5, 0x2c, 0xd2, 0x8e, 0x82, 0x54, 0xa3, 0x59, 0x41, 0x04, 0xb2,
+    0x26, 0x48, 0x2f, 0xa4, 0x47, 0x45, 0x8e, 0x2f, 0x6b, 0x95, 0x96, 0x8e,
+    0x81, 0x4a, 0x9b, 0x5c, 0x35, 0xb9, 0x07, 0xe6, 0xb4, 0xc9, 0xcc, 0xb3,
+    0x2a, 0x77, 0x71, 0xc9, 0xd1, 0xf4, 0x85, 0xeb, 0x20, 0xa5, 0x36, 0x48,
+    0xb4, 0xd4, 0x84, 0x3a, 0xee, 0xbd, 0x15, 0x5f, 0x4c, 0x39, 0x32, 0x12,
+    0x6b, 0xa9, 0x60, 0xa7, 0x6f, 0xc5, 0x6b, 0x4f, 0xc6, 0x74, 0x77, 0x3b,
+    0x21, 0xa1, 0xce, 0x41, 0x04, 0xb7, 0x0b, 0x5e, 0xbd, 0xb2, 0xc8, 0x58,
+    0x38, 0xe4, 0xa6, 0xc9, 0x9f, 0x85, 0xe2, 0x99, 0x68, 0xe6, 0xd5, 0x90,
+    0xe1, 0xb9, 0x10, 0xc6, 0x7f, 0xc4, 0xdb, 0xd4, 0x7e, 0xd4, 0x2c, 0x54,
+    0xdd, 0x35, 0xca, 0x02, 0x54, 0x9a, 0xbd, 0xc5, 0x28, 0xab, 0x01, 0x9a,
+    0x4c, 0x00, 0xb2, 0xc0, 0x71, 0xb4, 0x6d, 0x1c, 0x07, 0xee, 0xc3, 0x37,
+    0x55, 0x58, 0xc1, 0x56, 0xb0, 0x23, 0x5e, 0xd4, 0x00, 0x20, 0x87, 0x5b,
+    0x2f, 0x98, 0xa4, 0x07, 0x21, 0xaa, 0x76, 0x4b, 0xec, 0x28, 0x53, 0x94,
+    0xf5, 0xc3, 0xa3, 0x52, 0x0b, 0x57, 0x0c, 0x47, 0x5b, 0xc6, 0xc7, 0x88,
+    0x51, 0xcb, 0x96, 0x1d, 0xef, 0xcb
+};
+static const byte ecjpake_kat_srv_two[] = {
+    0x03, 0x00, 0x17, 0x41, 0x04, 0x23, 0xb3, 0xd5, 0x23, 0x5e, 0xdd, 0x17,
+    0x92, 0x15, 0xc9, 0x76, 0x97, 0x43, 0x79, 0x40, 0xc4, 0x58, 0x81, 0x9b,
+    0x61, 0xa9, 0xd2, 0xe6, 0x10, 0xb6, 0xd2, 0x61, 0x63, 0x39, 0x84, 0x56,
+    0x5c, 0x03, 0xff, 0x71, 0xbf, 0xb1, 0x93, 0x67, 0xad, 0x8b, 0x8d, 0xa9,
+    0xb4, 0x77, 0x08, 0xca, 0xdf, 0x4c, 0xf0, 0x5a, 0x88, 0xc7, 0x25, 0xc8,
+    0x93, 0x56, 0x2c, 0x91, 0xf9, 0x7d, 0xa5, 0xab, 0x6b, 0x41, 0x04, 0xdb,
+    0x92, 0xa4, 0x27, 0x7c, 0x8a, 0xf1, 0x5c, 0x5d, 0x62, 0xaf, 0x33, 0x0c,
+    0x46, 0xfc, 0xab, 0xab, 0xab, 0x04, 0x1e, 0x10, 0x00, 0x6e, 0xb8, 0x39,
+    0xf6, 0x04, 0xd1, 0x61, 0xd6, 0xdd, 0xbb, 0x17, 0x46, 0x6e, 0x8a, 0xe8,
+    0x5b, 0xd9, 0x8f, 0xd8, 0xf3, 0xae, 0x4f, 0xe9, 0xd4, 0x64, 0x48, 0x46,
+    0x89, 0xdf, 0x58, 0xfa, 0x54, 0xb8, 0xba, 0x0e, 0x7f, 0x05, 0xde, 0x3f,
+    0x79, 0x64, 0xbf, 0x20, 0x4c, 0x48, 0x65, 0x5c, 0x9b, 0xd3, 0x48, 0x75,
+    0xce, 0x1b, 0xbd, 0x07, 0xd5, 0x92, 0xe6, 0x36, 0x91, 0x67, 0xff, 0xe9,
+    0x65, 0xa0, 0x78, 0x0f, 0xaf, 0xc2, 0x3b, 0x31, 0xfa, 0x30, 0x36, 0x9c
+};
+static const byte ecjpake_kat_cli_two[] = {
+    0x41, 0x04, 0xbe, 0x3a, 0x68, 0x14, 0x33, 0xb6, 0x47, 0x28, 0x7d, 0x13,
+    0xd6, 0xa8, 0x20, 0x15, 0xb6, 0xc2, 0x99, 0x84, 0x52, 0x11, 0xb8, 0x08,
+    0x17, 0xd6, 0x31, 0x74, 0x18, 0x5c, 0xc4, 0x8f, 0x0c, 0x5f, 0xd6, 0x57,
+    0x69, 0xfb, 0x89, 0xcb, 0x1e, 0xa2, 0x02, 0xe9, 0xed, 0xed, 0x2f, 0x14,
+    0xb1, 0x28, 0x4e, 0x38, 0xd4, 0x44, 0xdf, 0x16, 0x30, 0x18, 0x3f, 0xf0,
+    0xeb, 0x7a, 0x63, 0xb3, 0xfc, 0x2d, 0x41, 0x04, 0x8d, 0x6e, 0xd9, 0x46,
+    0x8a, 0x36, 0x63, 0xc3, 0xbd, 0x5f, 0x85, 0x93, 0x97, 0x6d, 0xd7, 0x60,
+    0x1c, 0xcd, 0xea, 0x45, 0xd9, 0x08, 0x48, 0xc0, 0x45, 0xd2, 0xbe, 0xcb,
+    0x5e, 0x42, 0xd7, 0xdd, 0xd1, 0x96, 0xca, 0x82, 0xec, 0xbe, 0xae, 0x08,
+    0x37, 0x03, 0xd8, 0x19, 0xeb, 0x58, 0x49, 0x78, 0x6c, 0x90, 0x8e, 0x2b,
+    0xec, 0xcd, 0x12, 0x42, 0x43, 0xc3, 0x4f, 0x11, 0x33, 0xf0, 0x62, 0x2b,
+    0x20, 0x73, 0x0b, 0x3a, 0x3b, 0x9b, 0xde, 0x40, 0x09, 0xf4, 0x48, 0xb8,
+    0x6a, 0xd7, 0xfd, 0x75, 0x4e, 0x84, 0x85, 0xa5, 0xd4, 0x2f, 0x27, 0xc5,
+    0xd7, 0x25, 0x35, 0x3b, 0x0d, 0x79, 0xd9, 0xce, 0x5b
+};
+static const byte ecjpake_kat_pms[] = {
+    0x0b, 0x75, 0xbb, 0xa6, 0x38, 0x5a, 0xd4, 0xa1, 0x97, 0x60, 0xbb, 0xf5,
+    0x6d, 0x01, 0x04, 0x87, 0x62, 0xb8, 0x10, 0x4a, 0x1a, 0x8f, 0xdd, 0x5a,
+    0x93, 0x0c, 0xc1, 0x07, 0xaf, 0xd7, 0x37, 0x1b
+};
+
+/* Runs one side of the known answer handshake from round one keys xa and xb
+ * and the peer's round one message r1, then, when r2 is not NULL, the peer's
+ * round two message r2 and derives the premaster secret into pms. Returns the
+ * first wolfCrypt error. */
+static int ecjpake_kat_run(int role, const byte* xa, const byte* xb,
+                           const byte* r1, word32 r1Sz,
+                           const byte* r2, word32 r2Sz, WC_RNG* rng,
+                           byte* pms)
+{
+    int err;
+    EcJpake* jp;
+    word32 pmsSz = WC_ECJPAKE_SECRET_SZ;
+
+    jp = (EcJpake*)XMALLOC(sizeof(*jp), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (jp == NULL)
+        return MEMORY_E;
+
+    err = wc_EcJpakeInit(jp, role, ECC_SECP256R1, ecjpake_kat_pw,
+                         sizeof(ecjpake_kat_pw), HEAP_HINT);
+    if (err != 0) {
+        XFREE(jp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return err;
+    }
+    err = wc_EcJpakeSetRound1Keys(jp, rng, xa, WC_ECJPAKE_FIELD_SZ, xb,
+                                  WC_ECJPAKE_FIELD_SZ);
+    if (err == 0)
+        err = wc_EcJpakeReadRound1(jp, r1, r1Sz);
+    if (err == 0 && r2 != NULL)
+        err = wc_EcJpakeReadRound2(jp, r2, r2Sz);
+    if (err == 0 && r2 != NULL)
+        err = wc_EcJpakeDeriveSecret(jp, rng, pms, &pmsSz);
+
+    wc_EcJpakeFree(jp);
+    XFREE(jp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return err;
+}
+
+/* Runs the known answer handshake for the given role and checks the derived
+ * premaster secret. */
+static wc_test_ret_t ecjpake_kat(int role, WC_RNG* rng)
+{
+    int err;
+    byte pms[WC_ECJPAKE_SECRET_SZ];
+
+    if (role == WC_ECJPAKE_CLIENT) {
+        err = ecjpake_kat_run(role, ecjpake_kat_x1, ecjpake_kat_x2,
+                              ecjpake_kat_srv_one, sizeof(ecjpake_kat_srv_one),
+                              ecjpake_kat_srv_two, sizeof(ecjpake_kat_srv_two),
+                              rng, pms);
+    }
+    else {
+        err = ecjpake_kat_run(role, ecjpake_kat_x3, ecjpake_kat_x4,
+                              ecjpake_kat_cli_one, sizeof(ecjpake_kat_cli_one),
+                              ecjpake_kat_cli_two, sizeof(ecjpake_kat_cli_two),
+                              rng, pms);
+    }
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    if (XMEMCMP(pms, ecjpake_kat_pms, sizeof(pms)) != 0)
+        return WC_TEST_RET_ENC_NC;
+    return 0;
+}
+
+/* Full handshake between a client and server with the given passwords.
+ * Returns 0 when both sides derive the same premaster secret. */
+static wc_test_ret_t ecjpake_handshake(const byte* cPw, word32 cPwSz,
+                                       const byte* sPw, word32 sPwSz,
+                                       WC_RNG* rng, int* match)
+{
+    wc_test_ret_t ret;
+    EcJpake* cli;
+    EcJpake* srv;
+    byte buf[WC_ECJPAKE_ROUND1_SZ];
+    word32 bufSz;
+    byte cPms[WC_ECJPAKE_SECRET_SZ];
+    byte sPms[WC_ECJPAKE_SECRET_SZ];
+    word32 cPmsSz = sizeof(cPms);
+    word32 sPmsSz = sizeof(sPms);
+
+    cli = (EcJpake*)XMALLOC(sizeof(*cli), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    srv = (EcJpake*)XMALLOC(sizeof(*srv), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cli == NULL || srv == NULL) {
+        XFREE(srv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cli, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_ERRNO;
+    }
+    XMEMSET(cli, 0, sizeof(*cli));
+    XMEMSET(srv, 0, sizeof(*srv));
+
+    ret = wc_EcJpakeInit(cli, WC_ECJPAKE_CLIENT, ECC_SECP256R1, cPw, cPwSz,
+                         HEAP_HINT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_EcJpakeInit(srv, WC_ECJPAKE_SERVER, ECC_SECP256R1, sPw, sPwSz,
+                         HEAP_HINT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    bufSz = sizeof(buf);
+    ret = wc_EcJpakeWriteRound1(cli, rng, buf, &bufSz);
+    if (ret == 0)
+        ret = wc_EcJpakeReadRound1(srv, buf, bufSz);
+    if (ret == 0) {
+        bufSz = sizeof(buf);
+        ret = wc_EcJpakeWriteRound1(srv, rng, buf, &bufSz);
+    }
+    if (ret == 0)
+        ret = wc_EcJpakeReadRound1(cli, buf, bufSz);
+    if (ret == 0) {
+        bufSz = sizeof(buf);
+        ret = wc_EcJpakeWriteRound2(srv, rng, buf, &bufSz);
+    }
+    if (ret == 0)
+        ret = wc_EcJpakeReadRound2(cli, buf, bufSz);
+    if (ret == 0) {
+        bufSz = sizeof(buf);
+        ret = wc_EcJpakeWriteRound2(cli, rng, buf, &bufSz);
+    }
+    if (ret == 0)
+        ret = wc_EcJpakeReadRound2(srv, buf, bufSz);
+    if (ret == 0)
+        ret = wc_EcJpakeDeriveSecret(cli, rng, cPms, &cPmsSz);
+    if (ret == 0)
+        ret = wc_EcJpakeDeriveSecret(srv, rng, sPms, &sPmsSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    *match = (cPmsSz == sPmsSz && XMEMCMP(cPms, sPms, cPmsSz) == 0);
+
+out:
+    wc_EcJpakeFree(srv);
+    wc_EcJpakeFree(cli);
+    XFREE(srv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cli, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+/* Offsets within an encoded ECJPAKEKeyKP. */
+#define ECJPAKE_KKP_X_OFF   0
+#define ECJPAKE_KKP_V_OFF   (1 + WC_ECJPAKE_POINT_SZ)
+#define ECJPAKE_KKP_R_OFF   (2 * (1 + WC_ECJPAKE_POINT_SZ))
+/* Offset of the last octet of an ordinate starting after a length octet. */
+#define ECJPAKE_PT_X_LAST   (1 + 1 + WC_ECJPAKE_FIELD_SZ - 1)
+#define ECJPAKE_PT_Y_LAST   (1 + 1 + 2 * WC_ECJPAKE_FIELD_SZ - 1)
+
+typedef struct ecjpake_mutation {
+    byte   role;       /* side receiving the message */
+    byte   round;
+    word16 off;
+    byte   mask;       /* XORed into the octet at off */
+    int    expected;
+} ecjpake_mutation;
+
+/* Peer messages with a single octet changed. */
+static wc_test_ret_t ecjpake_mutation_test(WC_RNG* rng)
+{
+    static const ecjpake_mutation tests[] = {
+        /* Round one received by the server. */
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_X_OFF, 0x01,
+          WC_NO_ERR_TRACE(ECC_BAD_ARG_E) },
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_X_OFF + 1, 0x06,
+          WC_NO_ERR_TRACE(ECC_BAD_ARG_E) },
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_X_OFF + ECJPAKE_PT_X_LAST, 0x01,
+          WC_NO_ERR_TRACE(IS_POINT_E) },
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_X_OFF + ECJPAKE_PT_Y_LAST, 0x01,
+          WC_NO_ERR_TRACE(IS_POINT_E) },
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_V_OFF, 0x01,
+          WC_NO_ERR_TRACE(ECC_BAD_ARG_E) },
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_V_OFF + ECJPAKE_PT_X_LAST, 0x01,
+          WC_NO_ERR_TRACE(IS_POINT_E) },
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_R_OFF, 0x20,
+          WC_NO_ERR_TRACE(BUFFER_E) },
+        { WC_ECJPAKE_SERVER, 1, ECJPAKE_KKP_R_OFF + WC_ECJPAKE_FIELD_SZ, 0x01,
+          WC_NO_ERR_TRACE(SIG_VERIFY_E) },
+        { WC_ECJPAKE_SERVER, 1, WC_ECJPAKE_KKP_SZ + ECJPAKE_PT_X_LAST, 0x01,
+          WC_NO_ERR_TRACE(IS_POINT_E) },
+        { WC_ECJPAKE_SERVER, 1,
+          WC_ECJPAKE_KKP_SZ + ECJPAKE_KKP_R_OFF + WC_ECJPAKE_FIELD_SZ, 0x01,
+          WC_NO_ERR_TRACE(SIG_VERIFY_E) },
+        /* Round one received by the client. */
+        { WC_ECJPAKE_CLIENT, 1, ECJPAKE_KKP_R_OFF + WC_ECJPAKE_FIELD_SZ, 0x01,
+          WC_NO_ERR_TRACE(SIG_VERIFY_E) },
+        /* Round two received by the client: explicit_prime curve type,
+         * secp384r1, then the key pair. */
+        { WC_ECJPAKE_CLIENT, 2, 0, 0x02,
+          WC_NO_ERR_TRACE(ECC_CURVE_OID_E) },
+        { WC_ECJPAKE_CLIENT, 2, 2, 0x0f,
+          WC_NO_ERR_TRACE(ECC_CURVE_OID_E) },
+        { WC_ECJPAKE_CLIENT, 2, WC_ECJPAKE_ECPARAMS_SZ + ECJPAKE_PT_X_LAST,
+          0x01, WC_NO_ERR_TRACE(IS_POINT_E) },
+        { WC_ECJPAKE_CLIENT, 2,
+          WC_ECJPAKE_ECPARAMS_SZ + ECJPAKE_KKP_V_OFF + ECJPAKE_PT_X_LAST,
+          0x01, WC_NO_ERR_TRACE(IS_POINT_E) },
+        { WC_ECJPAKE_CLIENT, 2,
+          WC_ECJPAKE_ECPARAMS_SZ + ECJPAKE_KKP_R_OFF + WC_ECJPAKE_FIELD_SZ,
+          0x01, WC_NO_ERR_TRACE(SIG_VERIFY_E) },
+        /* Round two received by the server. */
+        { WC_ECJPAKE_SERVER, 2, ECJPAKE_PT_X_LAST, 0x01,
+          WC_NO_ERR_TRACE(IS_POINT_E) },
+        { WC_ECJPAKE_SERVER, 2, ECJPAKE_KKP_R_OFF + WC_ECJPAKE_FIELD_SZ, 0x01,
+          WC_NO_ERR_TRACE(SIG_VERIFY_E) },
+    };
+    byte msg[WC_ECJPAKE_ROUND1_SZ];
+    byte pms[WC_ECJPAKE_SECRET_SZ];
+    word32 i;
+    int err;
+
+    for (i = 0; i < (word32)(sizeof(tests) / sizeof(tests[0])); i++) {
+        const ecjpake_mutation* t = &tests[i];
+        int cli = (t->role == WC_ECJPAKE_CLIENT);
+        const byte* xa = cli ? ecjpake_kat_x1 : ecjpake_kat_x3;
+        const byte* xb = cli ? ecjpake_kat_x2 : ecjpake_kat_x4;
+        const byte* r1 = cli ? ecjpake_kat_srv_one : ecjpake_kat_cli_one;
+        word32 r1Sz = cli ? sizeof(ecjpake_kat_srv_one) :
+                            sizeof(ecjpake_kat_cli_one);
+        const byte* r2 = cli ? ecjpake_kat_srv_two : ecjpake_kat_cli_two;
+        word32 r2Sz = cli ? sizeof(ecjpake_kat_srv_two) :
+                            sizeof(ecjpake_kat_cli_two);
+
+        if (t->round == 1) {
+            XMEMCPY(msg, r1, r1Sz);
+            msg[t->off] ^= t->mask;
+            err = ecjpake_kat_run(t->role, xa, xb, msg, r1Sz, NULL, 0, rng,
+                                  pms);
+        }
+        else {
+            XMEMCPY(msg, r2, r2Sz);
+            msg[t->off] ^= t->mask;
+            err = ecjpake_kat_run(t->role, xa, xb, r1, r1Sz, msg, r2Sz, rng,
+                                  pms);
+        }
+        if (err != t->expected)
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+#define ECJPAKE_EXPECT(call, expected)                          \
+    do {                                                        \
+        err = (call);                                           \
+        if (err != (expected))                                  \
+            ERROR_OUT(WC_TEST_RET_ENC_EC(err), out);            \
+    } while (0)
+
+/* Malformed encodings, out of range values and messages that verify on their
+ * own but belong to a different context. */
+static wc_test_ret_t ecjpake_malformed_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    int err;
+    byte msg[WC_ECJPAKE_ROUND1_SZ + 2];
+    byte pms[WC_ECJPAKE_SECRET_SZ];
+    const word32 r1Sz = sizeof(ecjpake_kat_cli_one);
+    const word32 r2Sz = sizeof(ecjpake_kat_srv_two);
+    const word32 rOff = ECJPAKE_KKP_R_OFF + 1;
+
+    /* x-coordinate not less than the field prime. */
+    XMEMCPY(msg, ecjpake_kat_cli_one, r1Sz);
+    XMEMSET(msg + 2, 0xff, WC_ECJPAKE_FIELD_SZ);
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, msg, r1Sz, NULL, 0, rng, pms),
+                   WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+
+    /* r of zero and r not less than the order. */
+    XMEMCPY(msg, ecjpake_kat_cli_one, r1Sz);
+    XMEMSET(msg + rOff, 0x00, WC_ECJPAKE_FIELD_SZ);
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, msg, r1Sz, NULL, 0, rng, pms),
+                   WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    XMEMSET(msg + rOff, 0xff, WC_ECJPAKE_FIELD_SZ);
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, msg, r1Sz, NULL, 0, rng, pms),
+                   WC_NO_ERR_TRACE(SIG_VERIFY_E));
+
+    /* r encoded in 33 octets: accepted with a leading zero octet, rejected
+     * otherwise. */
+    XMEMCPY(msg, ecjpake_kat_cli_one, rOff - 1);
+    msg[rOff - 1] = WC_ECJPAKE_FIELD_SZ + 1;
+    msg[rOff] = 0x00;
+    XMEMCPY(msg + rOff + 1, ecjpake_kat_cli_one + rOff,
+            r1Sz - rOff);
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, msg, r1Sz + 1, NULL, 0, rng, pms),
+                   0);
+    msg[rOff] = 0x01;
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, msg, r1Sz + 1, NULL, 0, rng, pms),
+                   WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+
+    /* Round one: empty, truncated, cut at the pair boundary, trailing data. */
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, ecjpake_kat_cli_one, 0, NULL, 0, rng,
+                       pms),
+                   WC_NO_ERR_TRACE(BUFFER_E));
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, ecjpake_kat_cli_one, r1Sz - 1, NULL, 0,
+                       rng, pms),
+                   WC_NO_ERR_TRACE(BUFFER_E));
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, ecjpake_kat_cli_one, WC_ECJPAKE_KKP_SZ,
+                       NULL, 0, rng, pms),
+                   WC_NO_ERR_TRACE(BUFFER_E));
+    XMEMCPY(msg, ecjpake_kat_cli_one, r1Sz);
+    msg[r1Sz] = 0x00;
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, msg, r1Sz + 1, NULL, 0, rng, pms),
+                   WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Round two: shorter than ECParameters, truncated, trailing data. */
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_CLIENT, ecjpake_kat_x1,
+                       ecjpake_kat_x2, ecjpake_kat_srv_one,
+                       sizeof(ecjpake_kat_srv_one), ecjpake_kat_srv_two,
+                       WC_ECJPAKE_ECPARAMS_SZ - 1, rng, pms),
+                   WC_NO_ERR_TRACE(BUFFER_E));
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_CLIENT, ecjpake_kat_x1,
+                       ecjpake_kat_x2, ecjpake_kat_srv_one,
+                       sizeof(ecjpake_kat_srv_one), ecjpake_kat_srv_two,
+                       r2Sz - 1, rng, pms),
+                   WC_NO_ERR_TRACE(BUFFER_E));
+    XMEMCPY(msg, ecjpake_kat_srv_two, r2Sz);
+    msg[r2Sz] = 0x00;
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_CLIENT, ecjpake_kat_x1,
+                       ecjpake_kat_x2, ecjpake_kat_srv_one,
+                       sizeof(ecjpake_kat_srv_one), msg, r2Sz + 1, rng, pms),
+                   WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Own messages reflected back: proofs are bound to the sender's
+     * identity. */
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, ecjpake_kat_srv_one,
+                       sizeof(ecjpake_kat_srv_one), NULL, 0, rng, pms),
+                   WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_CLIENT, ecjpake_kat_x1,
+                       ecjpake_kat_x2, ecjpake_kat_cli_one, r1Sz, NULL, 0, rng,
+                       pms),
+                   WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    /* Server round two sent to the server; client round two, with
+     * ECParameters added, sent to the client. */
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x3,
+                       ecjpake_kat_x4, ecjpake_kat_cli_one, r1Sz,
+                       ecjpake_kat_srv_two, r2Sz, rng, pms),
+                   WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    XMEMCPY(msg, ecjpake_kat_srv_two, WC_ECJPAKE_ECPARAMS_SZ);
+    XMEMCPY(msg + WC_ECJPAKE_ECPARAMS_SZ, ecjpake_kat_cli_two,
+            sizeof(ecjpake_kat_cli_two));
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_CLIENT, ecjpake_kat_x1,
+                       ecjpake_kat_x2, ecjpake_kat_srv_one,
+                       sizeof(ecjpake_kat_srv_one), msg,
+                       WC_ECJPAKE_ECPARAMS_SZ + sizeof(ecjpake_kat_cli_two),
+                       rng, pms),
+                   WC_NO_ERR_TRACE(SIG_VERIFY_E));
+
+    /* Round two proof is bound to the round one keys: a server holding
+     * different round one keys derives a different generator. */
+    ECJPAKE_EXPECT(ecjpake_kat_run(WC_ECJPAKE_SERVER, ecjpake_kat_x1,
+                       ecjpake_kat_x2, ecjpake_kat_cli_one, r1Sz,
+                       ecjpake_kat_cli_two, sizeof(ecjpake_kat_cli_two), rng,
+                       pms),
+                   WC_NO_ERR_TRACE(SIG_VERIFY_E));
+
+out:
+    return ret;
+}
+
+/* Bad arguments, buffer sizes, invalid secrets and keys, and calls out of
+ * order. */
+static wc_test_ret_t ecjpake_api_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    int err;
+    EcJpake* jp;
+    byte buf[WC_ECJPAKE_ROUND1_SZ];
+    word32 bufSz;
+    byte zero[WC_ECJPAKE_FIELD_SZ];
+    /* Order of the P-256 base point. */
+    static const byte order[WC_ECJPAKE_FIELD_SZ] = {
+        0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
+        0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51
+    };
+
+    jp = (EcJpake*)XMALLOC(sizeof(*jp), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (jp == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+    XMEMSET(zero, 0, sizeof(zero));
+
+    /* Init: arguments, curve and secret values that reduce to zero. */
+    ECJPAKE_EXPECT(wc_EcJpakeInit(NULL, WC_ECJPAKE_CLIENT, ECC_SECP256R1,
+                       ecjpake_kat_pw, sizeof(ecjpake_kat_pw), HEAP_HINT),
+                   WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, WC_ECJPAKE_CLIENT, ECC_SECP256R1, NULL,
+                       sizeof(ecjpake_kat_pw), HEAP_HINT),
+                   WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, WC_ECJPAKE_CLIENT, ECC_SECP256R1,
+                       ecjpake_kat_pw, 0, HEAP_HINT),
+                   WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, 2, ECC_SECP256R1, ecjpake_kat_pw,
+                       sizeof(ecjpake_kat_pw), HEAP_HINT),
+                   WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, WC_ECJPAKE_CLIENT, ECC_SECP384R1,
+                       ecjpake_kat_pw, sizeof(ecjpake_kat_pw), HEAP_HINT),
+                   WC_NO_ERR_TRACE(ECC_CURVE_OID_E));
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, WC_ECJPAKE_CLIENT, ECC_SECP256R1, zero,
+                       sizeof(zero), HEAP_HINT),
+                   WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, WC_ECJPAKE_CLIENT, ECC_SECP256R1,
+                       order, sizeof(order), HEAP_HINT),
+                   WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    wc_EcJpakeFree(NULL);
+
+    /* Fixed round one keys must be in [1, n-1]. */
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, WC_ECJPAKE_CLIENT, ECC_SECP256R1,
+                       ecjpake_kat_pw, sizeof(ecjpake_kat_pw), HEAP_HINT), 0);
+    ECJPAKE_EXPECT(wc_EcJpakeSetRound1Keys(jp, rng, NULL, WC_ECJPAKE_FIELD_SZ,
+                       ecjpake_kat_x2, WC_ECJPAKE_FIELD_SZ),
+                   WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeSetRound1Keys(jp, rng, zero, sizeof(zero),
+                       ecjpake_kat_x2, WC_ECJPAKE_FIELD_SZ),
+                   WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ECJPAKE_EXPECT(wc_EcJpakeSetRound1Keys(jp, rng, ecjpake_kat_x1,
+                       WC_ECJPAKE_FIELD_SZ, order, sizeof(order)),
+                   WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+
+    /* Nothing past round one is possible before both round one messages. */
+    bufSz = sizeof(buf);
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound2(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound2(jp, ecjpake_kat_srv_two,
+                       sizeof(ecjpake_kat_srv_two)),
+                   WC_NO_ERR_TRACE(BAD_STATE_E));
+    ECJPAKE_EXPECT(wc_EcJpakeDeriveSecret(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    /* Round one write: arguments and output size. */
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound1(jp, NULL, buf, &bufSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound1(jp, rng, NULL, &bufSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound1(jp, rng, buf, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    bufSz = WC_ECJPAKE_ROUND1_SZ - 1;
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound1(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Round one keys are generated or loaded once. */
+    ECJPAKE_EXPECT(wc_EcJpakeSetRound1Keys(jp, rng, ecjpake_kat_x1,
+                       WC_ECJPAKE_FIELD_SZ, ecjpake_kat_x2,
+                       WC_ECJPAKE_FIELD_SZ), 0);
+    bufSz = sizeof(buf);
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound1(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ECJPAKE_EXPECT(wc_EcJpakeSetRound1Keys(jp, rng, ecjpake_kat_x1,
+                       WC_ECJPAKE_FIELD_SZ, ecjpake_kat_x2,
+                       WC_ECJPAKE_FIELD_SZ),
+                   WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    /* Round one read once only. */
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound1(jp, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound1(jp, ecjpake_kat_srv_one,
+                       sizeof(ecjpake_kat_srv_one)), 0);
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound1(jp, ecjpake_kat_srv_one,
+                       sizeof(ecjpake_kat_srv_one)),
+                   WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    /* Round two write: arguments and output size. */
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound2(jp, NULL, buf, &bufSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    bufSz = WC_ECJPAKE_KKP_SZ - 1;
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound2(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Secret only after round two is read; round two read once only. */
+    bufSz = sizeof(buf);
+    ECJPAKE_EXPECT(wc_EcJpakeDeriveSecret(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound2(jp, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound2(jp, ecjpake_kat_srv_two,
+                       sizeof(ecjpake_kat_srv_two)), 0);
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound2(jp, ecjpake_kat_srv_two,
+                       sizeof(ecjpake_kat_srv_two)),
+                   WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    /* Derive: arguments and output size. */
+    ECJPAKE_EXPECT(wc_EcJpakeDeriveSecret(jp, NULL, buf, &bufSz),
+                   WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    bufSz = WC_ECJPAKE_SECRET_SZ - 1;
+    ECJPAKE_EXPECT(wc_EcJpakeDeriveSecret(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BUFFER_E));
+    bufSz = sizeof(buf);
+    ECJPAKE_EXPECT(wc_EcJpakeDeriveSecret(jp, rng, buf, &bufSz), 0);
+    if (bufSz != WC_ECJPAKE_SECRET_SZ ||
+            XMEMCMP(buf, ecjpake_kat_pms, bufSz) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    wc_EcJpakeFree(jp);
+
+    /* A server's round two output also carries ECParameters. */
+    ECJPAKE_EXPECT(wc_EcJpakeInit(jp, WC_ECJPAKE_SERVER, ECC_SECP256R1,
+                       ecjpake_kat_pw, sizeof(ecjpake_kat_pw), HEAP_HINT), 0);
+    bufSz = sizeof(buf);
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound1(jp, rng, buf, &bufSz), 0);
+    ECJPAKE_EXPECT(wc_EcJpakeReadRound1(jp, ecjpake_kat_cli_one,
+                       sizeof(ecjpake_kat_cli_one)), 0);
+    bufSz = WC_ECJPAKE_KKP_SZ;
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound2(jp, rng, buf, &bufSz), WC_NO_ERR_TRACE(BUFFER_E));
+    bufSz = WC_ECJPAKE_ROUND2_SZ;
+    ECJPAKE_EXPECT(wc_EcJpakeWriteRound2(jp, rng, buf, &bufSz), 0);
+    if (bufSz != WC_ECJPAKE_ROUND2_SZ)
+        ERROR_OUT(WC_TEST_RET_ENC_I(bufSz), out);
+
+out:
+    wc_EcJpakeFree(jp);
+    XFREE(jp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+#undef ECJPAKE_EXPECT
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecjpake_test(void)
+{
+    wc_test_ret_t ret;
+    WC_RNG rng;
+    int match = 0;
+    static const byte otherPw[] = { 't', 'h', 'r', 'e', 'a', 'd' };
+
+    WOLFSSL_ENTER("ecjpake_test");
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = ecjpake_kat(WC_ECJPAKE_CLIENT, &rng);
+    if (ret != 0)
+        goto out;
+    ret = ecjpake_kat(WC_ECJPAKE_SERVER, &rng);
+    if (ret != 0)
+        goto out;
+
+    ret = ecjpake_handshake(ecjpake_kat_pw, sizeof(ecjpake_kat_pw),
+                            ecjpake_kat_pw, sizeof(ecjpake_kat_pw), &rng,
+                            &match);
+    if (ret != 0)
+        goto out;
+    if (!match)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Different passwords complete the exchange with different secrets. */
+    ret = ecjpake_handshake(ecjpake_kat_pw, sizeof(ecjpake_kat_pw),
+                            otherPw, sizeof(otherPw), &rng, &match);
+    if (ret != 0)
+        goto out;
+    if (match)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = ecjpake_mutation_test(&rng);
+    if (ret != 0)
+        goto out;
+    ret = ecjpake_malformed_test(&rng);
+    if (ret != 0)
+        goto out;
+    ret = ecjpake_api_test(&rng);
+
+out:
+    wc_FreeRng(&rng);
+    return ret;
+}
+#endif /* WOLFCRYPT_HAVE_ECJPAKE */
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 
