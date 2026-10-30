@@ -113,6 +113,7 @@ int test_tls13_post_handshake_auth_no_ext(void);
 int test_tls13_post_handshake_auth_late_allow(void);
 int test_tls13_pha_group_messages(void);
 int test_tls13_downgrade_sentinel(void);
+int test_tls13_downgrade_sentinel_resumption(void);
 int test_tls13_serverhello_legacy_version(void);
 int test_tls13_serverhello_bad_cipher_suites(void);
 int test_tls13_psk_no_cert_bad_binder(void);
@@ -294,6 +295,7 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_late_allow), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_group_messages), \
     TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
+    TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel_resumption), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_legacy_version), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_no_cert_bad_binder), \
