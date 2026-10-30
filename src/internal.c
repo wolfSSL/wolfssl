@@ -19960,15 +19960,27 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
 
             #ifdef HAVE_SECURE_RENEGOTIATION
+                /* Not gated on the extension being negotiated: a session
+                 * records this hash for a later resumption, which may
+                 * negotiate it and renegotiate. */
                 if (args->fatal == 0 && !IsAtLeastTLSv1_3(ssl->version)
-                                     && ssl->secure_renegotiation
-                                     && ssl->secure_renegotiation->enabled) {
+                                     && ssl->secure_renegotiation) {
+                    byte certHash[KEYID_SIZE];
+                    int  hashRet;
 
-                    if (IsEncryptionOn(ssl, 0)) {
+                    /* Hash the whole certificate, not just the subject, so a
+                     * different certificate for the same name is caught. */
+                    hashRet = CalcHashId(args->dCert->source,
+                            args->dCert->maxIdx, certHash);
+                    if (hashRet != 0) {
+                        args->fatal = 1;
+                        ret = hashRet;
+                    }
+                    else if (IsEncryptionOn(ssl, 0)) {
                         /* compare against previous time */
-                        if (ssl->secure_renegotiation->subject_hash_set) {
-                            if (XMEMCMP(args->dCert->subjectHash,
-                                    ssl->secure_renegotiation->subject_hash,
+                        if (ssl->secure_renegotiation->peer_cert_hash_set) {
+                            if (XMEMCMP(certHash,
+                                    ssl->secure_renegotiation->peer_cert_hash,
                                     KEYID_SIZE) != 0) {
                                 WOLFSSL_MSG(
                                   "Peer sent different cert during scr, fatal");
@@ -19977,13 +19989,22 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 WOLFSSL_ERROR_VERBOSE(ret);
                             }
                         }
+                        else if (ssl->secure_renegotiation->peer_cert_unknown) {
+                            /* Resumed a session that does not say which cert
+                             * the peer had, so this one can't be checked. */
+                            WOLFSSL_MSG(
+                              "Peer cert of resumed session unknown, fatal");
+                            args->fatal = 1;
+                            ret = SCR_DIFFERENT_CERT_E;
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                        }
                     }
 
                     /* cache peer's hash */
                     if (args->fatal == 0) {
-                        XMEMCPY(ssl->secure_renegotiation->subject_hash,
-                                args->dCert->subjectHash, KEYID_SIZE);
-                        ssl->secure_renegotiation->subject_hash_set = 1;
+                        XMEMCPY(ssl->secure_renegotiation->peer_cert_hash,
+                                certHash, KEYID_SIZE);
+                        ssl->secure_renegotiation->peer_cert_hash_set = 1;
                     }
                 }
             #endif /* HAVE_SECURE_RENEGOTIATION */
@@ -30136,6 +30157,65 @@ int IsSCR(WOLFSSL* ssl)
 }
 
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+/* Get what a session made from this connection records about the peer
+ * certificate, for the renegotiation check of a later resumption.
+ *
+ * @param [in]  ssl    SSL/TLS object.
+ * @param [out] state  enum ScrPeerCertState value.
+ * @param [out] hash   Peer certificate hash. KEYID_SIZE bytes.
+ */
+void ScrPeerCertToSession(const WOLFSSL* ssl, byte* state, byte* hash)
+{
+    const SecureRenegotiation* scr = ssl->secure_renegotiation;
+
+    XMEMSET(hash, 0, KEYID_SIZE);
+    /* Without the object no peer certificate was hashed. */
+    if ((scr == NULL) || IsAtLeastTLSv1_3(ssl->version)) {
+        *state = SCR_PEER_CERT_UNKNOWN;
+    }
+    else if (scr->peer_cert_hash_set) {
+        XMEMCPY(hash, scr->peer_cert_hash, KEYID_SIZE);
+        *state = SCR_PEER_CERT_HASH;
+    }
+    else if (scr->peer_cert_unknown) {
+        *state = SCR_PEER_CERT_UNKNOWN;
+    }
+    else {
+        *state = SCR_PEER_CERT_NONE;
+    }
+}
+
+/* Take the peer certificate a renegotiation must match from the session being
+ * resumed, as a resumption has no Certificate message to take it from.
+ *
+ * @param [in, out] ssl  SSL/TLS object resuming ssl->session.
+ */
+void ScrPeerCertFromSession(WOLFSSL* ssl)
+{
+    SecureRenegotiation* scr = ssl->secure_renegotiation;
+
+    if (scr == NULL)
+        return;
+
+    scr->peer_cert_hash_set = 0;
+    scr->peer_cert_unknown = 0;
+    switch (ssl->session->scrPeerCertState) {
+        case SCR_PEER_CERT_HASH:
+            XMEMCPY(scr->peer_cert_hash, ssl->session->scrPeerCertHash,
+                    KEYID_SIZE);
+            scr->peer_cert_hash_set = 1;
+            break;
+        case SCR_PEER_CERT_NONE:
+            /* A certificate may be given for the first time. */
+            break;
+        default:
+            scr->peer_cert_unknown = 1;
+            break;
+    }
+}
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
 #if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
 /*
@@ -36734,6 +36814,9 @@ static int IsTls13CipherSuite(byte first, byte second)
                     /* SERVER: peer auth based on session secret. */
                     ssl->options.peerAuthGood = (ret == 0);
                     ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
+            #ifdef HAVE_SECURE_RENEGOTIATION
+                    ScrPeerCertFromSession(ssl);
+            #endif
 
                     return ret;
                 }
@@ -42823,6 +42906,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 /* SERVER: peer auth based on session secret. */
                 ssl->options.peerAuthGood = (ret == 0);
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+            #ifdef HAVE_SECURE_RENEGOTIATION
+                ScrPeerCertFromSession(ssl);
+            #endif
             }
             if (ret != 0)
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -42969,6 +43055,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 ssl->options.peerAuthGood = (ret == 0);
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
             }
+        #ifdef HAVE_SECURE_RENEGOTIATION
+            if (ret == 0 && ssl->options.resuming)
+                ScrPeerCertFromSession(ssl);
+        #endif
         }
 
 
@@ -44521,6 +44611,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         it->peerAuthOk = (byte)SSL_PEER_CERT_VERIFIED(ssl);
         it->isPSK = (byte)ssl->options.usingPSK_cipher;
+    #ifdef HAVE_SECURE_RENEGOTIATION
+        ScrPeerCertToSession(ssl, &it->scrPeerCertState, it->scrPeerCertHash);
+    #endif
 
     #ifdef WOLFSSL_EARLY_DATA
         c32toa(ssl->options.maxEarlyDataSz, it->maxEarlyDataSz);
@@ -45098,6 +45191,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         /* After the DupSession above, which would otherwise overwrite it. */
         ssl->session->peerAuthOk = it->peerAuthOk;
         ssl->session->isPSK = it->isPSK;
+#ifdef HAVE_SECURE_RENEGOTIATION
+        ssl->session->scrPeerCertState = it->scrPeerCertState;
+        XMEMCPY(ssl->session->scrPeerCertHash, it->scrPeerCertHash,
+                KEYID_SIZE);
+#endif
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             if (ssl->arrays == NULL)
@@ -45189,6 +45287,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         it->haveEMS = (byte)sess->haveEMS;
         it->peerAuthOk = sess->peerAuthOk;
         it->isPSK = sess->isPSK;
+#ifdef HAVE_SECURE_RENEGOTIATION
+        it->scrPeerCertState = sess->scrPeerCertState;
+        XMEMCPY(it->scrPeerCertHash, sess->scrPeerCertHash, KEYID_SIZE);
+#endif
         c32toa(sess->ticketAdd, it->ageAdd);
         c16toa(sess->namedGroup, it->namedGroup);
         if (sess->ticketNonce.len <= MAX_TICKET_NONCE_STATIC_SZ) {

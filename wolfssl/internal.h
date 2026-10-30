@@ -3966,20 +3966,33 @@ typedef struct SecureRenegotiation {
    WC_BITFIELD          startScr:1; /* server requested client to start scr */
    WC_BITFIELD          renegInfoSeen:1; /* renegotiation_info ext seen this
                                           * handshake (RFC 5746 3.7) */
-   WC_BITFIELD          subject_hash_set:1; /* if peer cert hash is set */
+   WC_BITFIELD          peer_cert_hash_set:1; /* if peer cert hash is set */
 #ifdef HAVE_SECURE_RENEGOTIATION
    WC_BITFIELD          advertiseOnly:1; /* extension advertised for the RFC
                                           * 5746 initial-handshake check only;
                                           * refuse peer-initiated renegotiation */
+   WC_BITFIELD          peer_cert_unknown:1; /* resumed session that does not
+                                              * record its peer cert, so no
+                                              * peer cert can be checked */
 #endif
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
-   byte                 subject_hash[KEYID_SIZE];  /* peer cert hash */
+   byte                 peer_cert_hash[KEYID_SIZE];  /* peer cert hash */
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
 
 WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+/* What a session records about the peer certificate for the secure
+ * renegotiation check (scrPeerCertState). */
+enum ScrPeerCertState {
+    SCR_PEER_CERT_UNKNOWN = 0,  /* not recorded */
+    SCR_PEER_CERT_NONE    = 1,  /* peer sent no certificate */
+    SCR_PEER_CERT_HASH    = 2   /* scrPeerCertHash is the peer cert hash */
+};
+#endif
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
 WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
@@ -4049,6 +4062,10 @@ typedef struct InternalTicket {
     byte            sessionCtxSz;          /* sessionCtx length        */
     byte            sessionCtx[ID_LEN];    /* app specific context id */
 #endif /* OPENSSL_EXTRA */
+#ifdef HAVE_SECURE_RENEGOTIATION
+    byte            scrPeerCertState;      /* enum ScrPeerCertState */
+    byte            scrPeerCertHash[KEYID_SIZE]; /* peer cert hash */
+#endif
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     !defined(NO_CERT_IN_TICKET)
     byte            peerCertLen[OPAQUE16_LEN]; /* peer cert length */
@@ -5433,6 +5450,11 @@ struct WOLFSSL_SESSION {
     byte               peerAuthOk:1;
     /* A PSK authenticated the client. Server sessions only. */
     byte               isPSK:1;
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    /* Peer certificate to hold a renegotiation of a resumption to. */
+    byte               scrPeerCertState;  /* enum ScrPeerCertState */
+    byte               scrPeerCertHash[KEYID_SIZE];
 #endif
 };
 
@@ -8053,6 +8075,11 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
     WOLFSSL_LOCAL int DtlsCheckOrder(WOLFSSL* ssl, int order);
 #endif
     WOLFSSL_LOCAL int IsSCR(WOLFSSL* ssl);
+#ifdef HAVE_SECURE_RENEGOTIATION
+    WOLFSSL_LOCAL void ScrPeerCertToSession(const WOLFSSL* ssl, byte* state,
+                                            byte* hash);
+    WOLFSSL_LOCAL void ScrPeerCertFromSession(WOLFSSL* ssl);
+#endif
     WOLFSSL_LOCAL int IsDtlsNotSctpMode(WOLFSSL* ssl);
     WOLFSSL_LOCAL int IsDtlsNotSrtpMode(WOLFSSL* ssl);
 

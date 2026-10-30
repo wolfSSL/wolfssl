@@ -2957,6 +2957,10 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     /* peerAuthOk and isPSK */
     size += OPAQUE8_LEN;
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    /* scrPeerCertState | scrPeerCertHash */
+    size += OPAQUE8_LEN + KEYID_SIZE;
+#endif
 
     if (p != NULL) {
         unsigned char *data;
@@ -3054,6 +3058,11 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #ifndef NO_WOLFSSL_SERVER
         data[idx++] = (byte)(sess->peerAuthOk | (sess->isPSK << 1));
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+        data[idx++] = sess->scrPeerCertState;
+        XMEMCPY(data + idx, sess->scrPeerCertHash, KEYID_SIZE);
+        idx += KEYID_SIZE;
 #endif
     }
 #endif /* HAVE_EXT_CACHE */
@@ -3374,6 +3383,15 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     s->peerAuthOk = (data[idx] & 0x01) != 0;
     s->isPSK = (data[idx] & 0x02) != 0;
     idx++;
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (i - idx < OPAQUE8_LEN + KEYID_SIZE) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    s->scrPeerCertState = data[idx++];
+    XMEMCPY(s->scrPeerCertHash, data + idx, KEYID_SIZE);
+    idx += KEYID_SIZE;
 #endif
 
     if (sess != NULL) {
@@ -3965,6 +3983,10 @@ void SetupSession(WOLFSSL* ssl)
         session->peerAuthOk = 0;
         session->isPSK = 0;
     }
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    ScrPeerCertToSession(ssl, &session->scrPeerCertState,
+                         session->scrPeerCertHash);
 #endif
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
