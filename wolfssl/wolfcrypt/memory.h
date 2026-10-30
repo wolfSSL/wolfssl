@@ -77,10 +77,6 @@
         WOLFSSL_API void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line);
         WOLFSSL_API void  wolfSSL_Free(void *ptr, const char* func, unsigned int line);
         WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, const char* func, unsigned int line);
-        #ifndef WC_XMEMALIGN_PORT_OVERRIDE
-        WOLFSSL_API void* wolfSSL_MemAlign(size_t alignment, size_t size, const char* func, unsigned int line);
-        WOLFSSL_API void  wolfSSL_FreeAlign(void *ptr, const char* func, unsigned int line);
-        #endif
     #else
         typedef void *(*wolfSSL_Malloc_cb)(size_t size);
         typedef void (*wolfSSL_Free_cb)(void *ptr);
@@ -330,7 +326,8 @@ WOLFSSL_LOCAL void wc_MemFailCount_Free(void);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
 WOLFSSL_LOCAL void wc_MemZero_Init(void);
 WOLFSSL_LOCAL void wc_MemZero_Free(void);
-WOLFSSL_LOCAL void wc_MemZero_Add(const char* name, const void* addr,
+/* WOLFSSL_TEST_VIS: test.c registers buffers to check scrubbing. */
+WOLFSSL_TEST_VIS void wc_MemZero_Add(const char* name, const void* addr,
     size_t len);
 WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 #endif
@@ -339,21 +336,24 @@ WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
 #endif
 
-/* implementations behind the default XMEMALIGN()/XFREEALIGN() (types.h) */
-#ifndef WC_XMEMALIGN_PORT_OVERRIDE
-WOLFSSL_API void *wc_xmemalign(size_t alignment, size_t size, void *heap,
-                               int tag);
-WOLFSSL_API void wc_xfreealign(void *ptr, void *heap, int tag);
-#endif
+/* implementations behind the default XMALLOCALIGN()/XFREEALIGN() (types.h) */
+WOLFSSL_API void *wc_MallocAlign(size_t alignment, size_t size, void *heap,
+                                 int tag);
+WOLFSSL_API void wc_FreeAlign(void *ptr, void *heap, int tag);
 
 /* implementations behind XREALLOC_SCRUBBED()/XREALLOCALIGN()/
- * XREALLOCALIGN_SCRUBBED() (types.h) -- see contract notes there.
+ * XREALLOCALIGN_SCRUBBED() (types.h).
+ *
+ * only use aligned allocation functions on allocation created by aligned
+ * allocation functions
+ *
  * Unconditional, matching the macros and definitions. */
-WOLFSSL_API void *wc_xrealloc_scrubbed(void *ptr, size_t old_size,
-                                       size_t size, void *heap, int tag);
-WOLFSSL_API void *wc_xreallocalign(void *ptr, size_t alignment,
-                                   size_t old_size, size_t size, void *heap,
-                                   int tag, int scrub);
+WOLFSSL_API void *wc_ReallocScrubbed(void *ptr, size_t old_size,
+                                     size_t size, void *heap, int tag);
+WOLFSSL_API void *wc_ReallocAlignScrubbed(void *ptr, size_t alignment,
+                                          size_t size, void *heap, int tag);
+WOLFSSL_API void *wc_ReallocAlign(void *ptr, size_t alignment, size_t size,
+                                  void *heap, int tag);
 
 #ifndef WOLFSSL_NO_CONST_CMP
 WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length);

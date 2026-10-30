@@ -1,4 +1,4 @@
-/* linuxkm_wc_port.hlunuc
+/* linuxkm_wc_port.h
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -2419,18 +2419,6 @@
         #if defined(USE_KVREALLOC) || !defined(USE_KVMALLOC)
             #define XREALLOC(p, n, h, t) __extension__ ({(void)(h); (void)(t); realloc(p, n);})
         #endif
-/* Since linux commit 59bb47985c (5.4), kmalloc with power-of-2 size is
- * aligned to the size, and malloc() rounds up via WC_LINUXKM_ROUND_UP_P_OF_2,
- * so allocating max(a, s) suffices.  Older kernels use the wc_xmemalign()
- * shim in memory.c. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
-        #define XMEMALIGN(a, s, h, t) __extension__ ({         \
-                size_t _wc_a = (a), _wc_s = (s);              \
-                (void)(h); (void)(t);                         \
-                malloc((_wc_s < _wc_a) ? _wc_a : _wc_s); })
-        #define XFREEALIGN(p, h, t) do { (void)(h); (void)(t); free(p); } while (0)
-#endif
-
     #endif /* !XMALLOC_USER && !XMALLOC_OVERRIDE */
 #endif
 

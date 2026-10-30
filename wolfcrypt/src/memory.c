@@ -79,60 +79,102 @@ void *z_realloc(void *ptr, size_t size)
 #define realloc z_realloc
 #endif
 
-/* Alignment policy shared by the aligned allocation and reallocation paths:
- * alignments below the floor (the larger of sizeof(void *) and the word32
- * offset slot) are raised to it, and larger non-powers-of-2 are rejected.
- * Returns the effective alignment, or 0 if rejected. */
-#define WC_ALIGN_FLOOR (sizeof(void *) > sizeof(word32) ? \
-        sizeof(void*) : sizeof(word32))
-static WC_INLINE size_t wc_xmemalign_floor(size_t alignment)
+/*
+ *                     v what is returned
+ * |padding|offset|size|  memory  |
+ * |-----(offset)------|--(size)--|
+ * */
+typedef size_t wc_align_metadata_member;
+typedef struct WC_ALIGN_METADATA {
+    wc_align_metadata_member offset;
+    wc_align_metadata_member size;
+}WC_ALIGN_METADATA;
+/* Floor of 2*sizeof(size_t) (8 on ILP32, 16 on LP64) keeps the metadata
+ * aligned and, on common ABIs, makes XMALLOCALIGN() at least as aligned as
+ * XMALLOC(), so small or 0 alignments are a safe drop-in for it. */
+#define WC_ALIGN_FLOOR (sizeof(void *) > sizeof(WC_ALIGN_METADATA) ? \
+        sizeof(void*) : sizeof(WC_ALIGN_METADATA))
+
+/* Reject non-powers-of-2, then raise alignment to the floor.  Returns
+ * effective alignment, or 0 if rejected. */
+static WC_INLINE size_t wc_MallocAlignFloor(size_t alignment)
 {
-    if (alignment < WC_ALIGN_FLOOR)
-        return WC_ALIGN_FLOOR;
     if ((alignment & (alignment - 1U)) != 0)
         return 0;
+    if (alignment < WC_ALIGN_FLOOR)
+        return WC_ALIGN_FLOOR;
     return alignment;
 }
 
-#ifndef WC_XMEMALIGN_PORT_OVERRIDE
-/* Aligned-allocation shim layout, shared by wc_xmemalign()/wc_xfreealign()
- * and wolfSSL_MemAlign()/wolfSSL_FreeAlign(): over-allocate, align within
- * the block, and record the offset to its start in a word32 slot immediately
- * below the returned pointer.
+/* Aligned-allocation shim (wc_MallocAlign()):
+ * over-allocate, align, and store offset and size just below the pointer.
  *
  * Size of the underlying allocation for an aligned request, or 0 if the
  * alignment is rejected or the padded size wraps.  *alignment is floored
- * in place per wc_xmemalign_floor(). */
-static WC_INLINE size_t wc_xmemalign_alloc_size(size_t *alignment,
-                                                size_t req_size)
+ * in place per wc_MallocAlignFloor(). */
+static WC_INLINE size_t wc_MallocAlignAllocSize(size_t *alignment,
+                                               size_t req_size)
 {
     size_t alloc_size;
 
-    *alignment = wc_xmemalign_floor(*alignment);
+    *alignment = wc_MallocAlignFloor(*alignment);
     if (*alignment == 0)
         return 0;
-    alloc_size = req_size + sizeof(word32) + *alignment - 1U;
+    alloc_size = req_size + (sizeof(WC_ALIGN_METADATA)) + *alignment - 1U;
     if (alloc_size < req_size)
         return 0;
     return alloc_size;
 }
 
-/* Aligned pointer within alloc, with its offset recorded just below. */
-static WC_INLINE void *wc_xmemalign_place(void *alloc, size_t alignment)
+/* Aligned pointer within alloc.  offset is measured from the returned
+ * pointer back to alloc.
+ *                     v what is returned
+ * |padding|offset|size|  memory  |
+ * |-----(offset)------|--(size)--|
+ * */
+static WC_INLINE void *wc_MallocAlignPlace(void *alloc, size_t alignment,
+        size_t req_size)
 {
-    char *ret = (char *)alloc + sizeof(word32) + alignment - 1U;
+    char *ret = (char *)alloc + sizeof(WC_ALIGN_METADATA) + alignment - 1U;
+    WC_ALIGN_METADATA *metadata;
+
     ret = (char *)((wc_ptr_t)ret & ~((wc_ptr_t)alignment - 1U));
-    *(word32 *)(void *)(ret - sizeof(word32)) = (word32)(ret - (char *)alloc);
+    metadata = (WC_ALIGN_METADATA *)(void *)(ret - sizeof(WC_ALIGN_METADATA));
+    metadata->offset = (wc_align_metadata_member)(ret - (char *)alloc);
+    metadata->size = (wc_align_metadata_member)req_size;
     return (void *)ret;
 }
 
-/* Underlying allocation for an aligned pointer (non-NULL). */
-static WC_INLINE void *wc_xmemalign_base(void *ptr)
+static WC_INLINE wc_align_metadata_member
+wc_MallocAlignSize(void* ptr)
 {
     char *p = (char *)ptr;
-    return (void *)(p - *(word32 *)(void *)(p - sizeof(word32)));
+    p -= sizeof(WC_ALIGN_METADATA);
+    return ((WC_ALIGN_METADATA*)(void*)p)->size;
 }
-#endif /* !WC_XMEMALIGN_PORT_OVERRIDE */
+
+/* Underlying allocation for an aligned pointer (non-NULL). */
+static WC_INLINE void *wc_MallocAlignBase(void *ptr)
+{
+    char *p = (char *)ptr;
+    /* offset slot holds the distance from ptr back to the allocation */
+    WC_ALIGN_METADATA* metaData =
+                (WC_ALIGN_METADATA*)(void *)(p - (sizeof(WC_ALIGN_METADATA)));
+    return (void *)(p - metaData->offset);
+}
+
+static void wc_ReallocScrub(void *ptr, size_t len)
+{
+#ifdef WOLFSSL_NO_FORCE_ZERO
+    /* volatile stores: a plain XMEMSET() just ahead of XFREE() is a dead
+     * store the compiler may remove. */
+    volatile byte *p = (volatile byte *)ptr;
+    while (len-- > 0)
+        *p++ = 0;
+#else
+    ForceZero(ptr, len);
+#endif
+}
 
 #ifdef USE_WOLFSSL_MEMORY
 
@@ -540,44 +582,6 @@ void wolfSSL_Free(void *ptr)
     #endif
     }
 }
-
-#if !defined(WC_XMEMALIGN_PORT_OVERRIDE) && defined(WOLFSSL_DEBUG_MEMORY)
-/* Aligned allocation wrappers using the wc_xmemalign() shim layout.  The
- * underlying memory comes from wolfSSL_Malloc()/wolfSSL_Free(), called here
- * directly so that the caller's func/line reach allocator callbacks (e.g.
- * WOLFSSL_TRACK_MEMORY) instead of this file's.  Non-debug builds use
- * wc_xmemalign()/wc_xfreealign(), which reach wolfSSL_Malloc()/wolfSSL_Free()
- * through XMALLOC()/XFREE() with identical effect. */
-void* wolfSSL_MemAlign(size_t alignment, size_t size, const char* func,
-                       unsigned int line)
-{
-    void* res = NULL;
-    void* alloc;
-    size_t alloc_size = wc_xmemalign_alloc_size(&alignment, size);
-
-    if (alloc_size != 0) {
-        alloc = wolfSSL_Malloc(alloc_size, func, line);
-        if (alloc != NULL)
-            res = wc_xmemalign_place(alloc, alignment);
-    }
-
-#if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
-    fprintf(stderr, "MemAlign: %p -> %u (align %u) at %s:%u\n", res,
-            (word32)size, (word32)alignment, func, line);
-#endif
-
-    return res;
-}
-
-void wolfSSL_FreeAlign(void *ptr, const char* func, unsigned int line)
-{
-#if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
-    fprintf(stderr, "FreeAlign: %p at %s:%u\n", ptr, func, line);
-#endif
-    if (ptr != NULL)
-        wolfSSL_Free(wc_xmemalign_base(ptr), func, line);
-}
-#endif /* !WC_XMEMALIGN_PORT_OVERRIDE && WOLFSSL_DEBUG_MEMORY */
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 void* wolfSSL_Realloc(void *ptr, size_t size, const char* func, unsigned int line)
@@ -1830,15 +1834,14 @@ void wc_ForceZero(void *mem, size_t len)
 }
 #endif
 
-#ifndef WC_XMEMALIGN_PORT_OVERRIDE
-/* Default XMEMALIGN()/XFREEALIGN(): the shim layout over XMALLOC()/XFREE(),
+/* Default XMALLOCALIGN()/XFREEALIGN(): the shim layout over XMALLOC()/XFREE(),
  * so heap and tag are honored, keeping this correct over static pools, user
  * allocators, allocator callbacks, and exotic ports.  Alignment policy per
- * wc_xmemalign_floor(). */
-void *wc_xmemalign(size_t alignment, size_t size, void *heap, int tag)
+ * wc_MallocAlignFloor(). */
+void *wc_MallocAlign(size_t alignment, size_t size, void *heap, int tag)
 {
     void *alloc;
-    size_t alloc_size = wc_xmemalign_alloc_size(&alignment, size);
+    size_t alloc_size = wc_MallocAlignAllocSize(&alignment, size);
 
     (void)heap;
     (void)tag;
@@ -1848,41 +1851,27 @@ void *wc_xmemalign(size_t alignment, size_t size, void *heap, int tag)
     alloc = XMALLOC(alloc_size, heap, tag);
     if (alloc == NULL)
         return NULL;
-    return wc_xmemalign_place(alloc, alignment);
+    return wc_MallocAlignPlace(alloc, alignment, size);
 }
 
-void wc_xfreealign(void *ptr, void *heap, int tag)
+void wc_FreeAlign(void *ptr, void *heap, int tag)
 {
     (void)heap;
     (void)tag;
 
     if (ptr != NULL)
-        XFREE(wc_xmemalign_base(ptr), heap, tag);
-}
-#endif
-
-static void wc_xrealloc_scrub(void *ptr, size_t len)
-{
-#ifdef WOLFSSL_NO_FORCE_ZERO
-    /* volatile stores: a plain XMEMSET() just ahead of XFREE() is a dead
-     * store the compiler may remove. */
-    volatile byte *p = (volatile byte *)ptr;
-    while (len-- > 0)
-        *p++ = 0;
-#else
-    ForceZero(ptr, len);
-#endif
+        XFREE(wc_MallocAlignBase(ptr), heap, tag);
 }
 
 /* Reallocation with scrubbing and/or alignment guarantees: implementations
  * behind the XREALLOC_SCRUBBED()/XREALLOCALIGN()/XREALLOCALIGN_SCRUBBED()
- * macros (types.h), composed over the XREALLOC/XMALLOC/XFREE/XMEMALIGN/
- * XFREEALIGN macro bindings so that port overrides, wolfSSL memory
- * callbacks, and static pools are all honored.  See the contract notes at
- * the macro definitions.  On failure (NULL return) the original allocation
- * is always intact and, for scrub, unscrubbed. */
-void *wc_xrealloc_scrubbed(void *ptr, size_t old_size, size_t size,
-                           void *heap, int tag)
+ * macros (types.h), composed over the XMALLOC/XFREE
+ * macro bindings so that port overrides, wolfSSL memory
+ * callbacks, and static pools are all honored.  See the contract notes above
+ * the XMALLOCALIGN() definitions in types.h.  On failure (NULL return) the
+ * original allocation is always intact and, for scrub, unscrubbed. */
+void *wc_ReallocScrubbed(void *ptr, size_t old_size, size_t size,
+                         void *heap, int tag)
 {
     void *new_p;
 
@@ -1892,11 +1881,8 @@ void *wc_xrealloc_scrubbed(void *ptr, size_t old_size, size_t size,
     if (ptr == NULL && size != 0)
         return XMALLOC(size, heap, tag);
     else if (ptr != NULL && size == 0) {
-        /* realloc-to-zero idiom: scrub, free, and return NULL.  Handled
-         * explicitly (and ahead of all other arms) so the semantics are
-         * uniform across builds rather than the underlying allocator's
-         * implementation-defined choice. */
-        wc_xrealloc_scrub(ptr, old_size);
+        /* realloc-to-zero idiom: scrub, free, and return NULL. */
+        wc_ReallocScrub(ptr, old_size);
         XFREE(ptr, heap, tag);
         return NULL;
     }
@@ -1907,60 +1893,47 @@ void *wc_xrealloc_scrubbed(void *ptr, size_t old_size, size_t size,
     if (new_p == NULL)
         return NULL; /* original intact and unscrubbed */
     XMEMCPY(new_p, ptr, (old_size < size) ? old_size : size);
-    wc_xrealloc_scrub(ptr, old_size);
+    wc_ReallocScrub(ptr, old_size);
     XFREE(ptr, heap, tag);
     return new_p;
 }
 
-void *wc_xreallocalign(void *ptr, size_t alignment, size_t old_size,
-                       size_t size, void *heap, int tag, int scrub)
+static void *wc_ReallocAlignCommon(void *ptr, size_t alignment, size_t size,
+        void *heap, int tag, int scrub)
 {
-    void *new_p;
+    void *new_p = NULL;
+    wc_align_metadata_member curSize = 0;
 
-    (void)heap;
-    if (size == 0) {
-        /* realloc-to-zero idiom: free (scrubbed if requested) and return
-         * NULL.  Handled explicitly, ahead of the retention arm, which would
-         * wrongly keep a small allocation alive. */
-        if (scrub && (ptr != NULL))
-            wc_xrealloc_scrub(ptr, old_size);
-        XFREEALIGN(ptr, heap, tag);
-        return NULL;
+    if (ptr != NULL)
+        curSize = wc_MallocAlignSize(ptr);
+
+    if (size != 0) {
+        /* wc_MallocAlign() rejects bad alignments */
+        new_p = wc_MallocAlign(alignment, size, heap, tag);
+        if (new_p == NULL || ptr == NULL)
+            return new_p; /* on failure, original intact and unscrubbed */
+        XMEMCPY(new_p, ptr, (curSize > size) ? size : curSize);
     }
+    /* else realloc-to-zero idiom: scrub, free, and return NULL. */
 
-    (void)tag;
-
-    if (ptr == NULL)
-        return XMEMALIGN(alignment, size, heap, tag);
-
-    /* Match the alignment policy of the allocation-side primitives, so the
-     * shrink-retention test below reasons about the alignment actually in
-     * effect. */
-    alignment = wc_xmemalign_floor(alignment);
-    if (alignment == 0)
-        return NULL; /* original intact */
-
-    /* Shrink retention: when the reclaimable slack cannot exceed the aligned
-     * allocator's own overhead, compaction is footprint-neutral at best --
-     * retain the allocation.  Larger shrinks fall through and genuinely
-     * release memory.  The caller forgets the tail [size, old_size), and
-     * later scrubs cover only size bytes, so scrub the tail now. */
-    if ((size <= old_size) &&
-        ((old_size - size) <= ((alignment - 1U) + sizeof(word32))) &&
-        (((wc_ptr_t)ptr & ((wc_ptr_t)alignment - 1U)) == 0)) {
-        if (scrub && (old_size > size))
-            wc_xrealloc_scrub((byte *)ptr + size, old_size - size);
-        return ptr;
+    if (ptr != NULL) {
+        if (scrub)
+            wc_ReallocScrub(ptr, curSize);
+        wc_FreeAlign(ptr, heap, tag);
     }
-
-    new_p = XMEMALIGN(alignment, size, heap, tag);
-    if (new_p == NULL)
-        return NULL; /* original intact and unscrubbed */
-    XMEMCPY(new_p, ptr, (old_size < size) ? old_size : size);
-    if (scrub)
-        wc_xrealloc_scrub(ptr, old_size);
-    XFREEALIGN(ptr, heap, tag);
     return new_p;
+}
+
+void *wc_ReallocAlignScrubbed(void *ptr, size_t alignment, size_t size,
+        void *heap, int tag)
+{
+    return wc_ReallocAlignCommon(ptr, alignment, size, heap, tag, 1);
+}
+
+void *wc_ReallocAlign(void *ptr, size_t alignment, size_t size, void *heap,
+                      int tag)
+{
+    return wc_ReallocAlignCommon(ptr, alignment, size, heap, tag, 0);
 }
 
 #ifndef WOLFSSL_NO_CONST_CMP
