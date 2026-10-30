@@ -130,7 +130,9 @@ static int CompareRevokedCert(const RevokedCert* a, const RevokedCert* b)
 }
 
 /* Sort revoked cert array in-place using insertion sort. The array is bounded
- * by CRL_MAX_REVOKED_CERTS so O(n^2) is fine. */
+ * by CRL_MAX_REVOKED_CERTS so O(n^2) is fine. Then chain the entries through
+ * next, so code that walks the revoked list (wc_MakeCRL_ex,
+ * wolfSSL_X509_CRL_print, wolfSSL_X509_CRL_get_REVOKED) sees every entry. */
 static void SortCRL_CertList(RevokedCert* certs, int totalCerts)
 {
     int i, j;
@@ -144,6 +146,9 @@ static void SortCRL_CertList(RevokedCert* certs, int totalCerts)
             j--;
         }
         XMEMCPY(&certs[j + 1], &tmp, sizeof(RevokedCert));
+    }
+    for (i = 0; i < totalCerts; i++) {
+        certs[i].next = (i + 1 < totalCerts) ? &certs[i + 1] : NULL;
     }
 }
 #endif /* CRL_STATIC_REVOKED_LIST */
@@ -1425,6 +1430,8 @@ static int DupRevokedCertList(CRL_Entry* dupl, const CRL_Entry* ent, void* heap)
         if (DupRevokedCert(&dupl->certs[i], &ent->certs[i], heap) != 0)
             return MEMORY_E;
     }
+    /* DupRevokedCert() cleared next, relink within dupl's own array */
+    SortCRL_CertList(dupl->certs, ent->totalCerts);
 #else
     RevokedCert* current;
     RevokedCert* prev = NULL;
@@ -2602,7 +2609,9 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
 {
     CRL_Entry* entry;
     RevokedCert* rc;
+#ifndef CRL_STATIC_REVOKED_LIST
     RevokedCert* curr;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_CRL_add_revoked");
 
@@ -2619,6 +2628,12 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     if (entry == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef CRL_STATIC_REVOKED_LIST
+    /* Same limit and error as the parser, GetRevoked() */
+    if (entry->totalCerts >= CRL_MAX_REVOKED_CERTS) {
+        return MEMORY_E;
+    }
+#endif
 
     {
         const byte* serial = rev->serialNumber->data;
@@ -2677,6 +2692,13 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     rc->reasonCode = rev->reason;
     rc->next = NULL;
 
+#ifdef CRL_STATIC_REVOKED_LIST
+    /* Copy into the fixed array and keep it sorted for FindRevokedSerial */
+    XMEMCPY(&entry->certs[entry->totalCerts], rc, sizeof(RevokedCert));
+    XFREE(rc, crl->heap, DYNAMIC_TYPE_REVOKED);
+    entry->totalCerts++;
+    SortCRL_CertList(entry->certs, entry->totalCerts);
+#else
     /* Add to end of list */
     if (entry->certs == NULL) {
         entry->certs = rc;
@@ -2687,6 +2709,7 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         curr->next = rc;
     }
     entry->totalCerts++;
+#endif
 
     /* Invalidate cached STACK_OF(X509_REVOKED) since list changed */
     if (crl->revokedStack != NULL) {

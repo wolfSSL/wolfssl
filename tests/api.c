@@ -31437,6 +31437,30 @@ static int test_wolfSSL_X509_CRL_reason_critical_boolean(void)
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN) && \
     !defined(NO_ASN_TIME)
+#ifdef CRL_STATIC_REVOKED_LIST
+/* The static revoked list is kept sorted, not in add order, so match a decoded
+ * entry against the serials not matched yet, want[n] being the cert serial.
+ * Returns 1 when it matched one. */
+static int crl_match_revoked(const RevokedCert* rev, byte want[][1], int n,
+                             const byte* certSerial, int certSerialSz,
+                             int* used)
+{
+    int k;
+
+    for (k = 0; k <= n; k++) {
+        const byte* s = (k < n) ? want[k] : certSerial;
+        int sz = (k < n) ? (int)sizeof(want[0]) : certSerialSz;
+
+        if ((*used & (1 << k)) == 0 && rev->serialSz == sz &&
+                XMEMCMP(rev->serialNumber, s, (size_t)sz) == 0) {
+            *used |= 1 << k;
+            return 1;
+        }
+    }
+    return 0;
+}
+#endif
+
 /* Helper function to create, sign, and write a CRL */
 static int generate_crl_test(const char* keyFile, const char* certFile,
                              const char* derFile, const char* pemFile,
@@ -31605,7 +31629,14 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
     revokedCount = 0;
     if (EXPECT_SUCCESS() && decodedCrl != NULL && decodedCrl->crlList != NULL) {
         RevokedCert* rev = decodedCrl->crlList->certs;
+#ifdef CRL_STATIC_REVOKED_LIST
+        int used = 0;
+#endif
         while (rev != NULL) {
+#ifdef CRL_STATIC_REVOKED_LIST
+            ExpectIntEQ(crl_match_revoked(rev, serialsToRevokeBytes,
+                numSerials, certSerial, certSerialSz, &used), 1);
+#else
             if (revokedCount == 0) {
                 /* Last added (cert serial) appears first in decoded list */
                 ExpectIntEQ(rev->serialSz, certSerialSz);
@@ -31620,6 +31651,7 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
                 ExpectIntEQ(XMEMCMP(rev->serialNumber,
                     serialsToRevokeBytes[idx], rev->serialSz), 0);
             }
+#endif
             revokedCount++;
             rev = rev->next;
         }
@@ -31650,7 +31682,14 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
     revokedCount = 0;
     if (EXPECT_SUCCESS() && decodedCrl != NULL && decodedCrl->crlList != NULL) {
         RevokedCert* rev = decodedCrl->crlList->certs;
+#ifdef CRL_STATIC_REVOKED_LIST
+        int used = 0;
+#endif
         while (rev != NULL) {
+#ifdef CRL_STATIC_REVOKED_LIST
+            ExpectIntEQ(crl_match_revoked(rev, serialsToRevokeBytes,
+                numSerials, certSerial, certSerialSz, &used), 1);
+#else
             if (revokedCount == 0) {
                 ExpectIntEQ(rev->serialSz, certSerialSz);
                 ExpectIntEQ(XMEMCMP(rev->serialNumber, certSerial,
@@ -31663,6 +31702,7 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
                 ExpectIntEQ(XMEMCMP(rev->serialNumber,
                     serialsToRevokeBytes[idx], rev->serialSz), 0);
             }
+#endif
             revokedCount++;
             rev = rev->next;
         }
@@ -31738,6 +31778,12 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     XFILE fp = XBADFILE;
     int i;
     byte serial[4];
+#if defined(CRL_STATIC_REVOKED_LIST) && CRL_MAX_REVOKED_CERTS < 1024
+    /* The static list holds at most CRL_MAX_REVOKED_CERTS entries */
+    const int numRevoked = CRL_MAX_REVOKED_CERTS;
+#else
+    const int numRevoked = 1024;
+#endif
 
     ExpectTrue((fp = XFOPEN(testRsaCertFile, "rb")) != XBADFILE);
     if (fp != XBADFILE) {
@@ -31768,7 +31814,7 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
         revoked.serialNumber->length = (int)sizeof(serial);
     }
 
-    for (i = 1; i <= 1024; i++) {
+    for (i = 1; i <= numRevoked; i++) {
         serial[0] = (byte)(i & 0xff);
         serial[1] = (byte)((i >> 8) & 0xff);
         serial[2] = (byte)((i >> 16) & 0xff);
@@ -31776,6 +31822,14 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
         ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &revoked),
             WOLFSSL_SUCCESS);
     }
+#ifdef CRL_STATIC_REVOKED_LIST
+    if (numRevoked == CRL_MAX_REVOKED_CERTS) {
+        /* Full, so the next one is refused the same way the parser does */
+        serial[0] = (byte)(i & 0xff);
+        ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &revoked),
+            WC_NO_ERR_TRACE(MEMORY_E));
+    }
+#endif
 
     ExpectTrue((fp = XFOPEN(testRsaKeyFile, "rb")) != XBADFILE);
     if (fp != XBADFILE) {
