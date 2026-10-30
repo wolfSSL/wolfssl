@@ -1213,12 +1213,198 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
     X509_free(x509);
 
 #ifndef NO_WOLFSSL_STUB
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_EXT)
+    /* Implemented: see test_wolfSSL_X509V3_EXT_add_nconf(). */
+    ExpectIntEQ(wolfSSL_X509V3_EXT_add_nconf(NULL, NULL, NULL, NULL),
+        WOLFSSL_FAILURE);
+#else
     ExpectIntEQ(wolfSSL_X509V3_EXT_add_nconf(NULL, NULL, NULL, NULL),
         WOLFSSL_SUCCESS);
+#endif
     ExpectNull(wolfSSL_X509V3_EXT_conf_nid(NULL, NULL, 0, NULL));
     ExpectNull(wolfSSL_X509V3_EXT_conf_nid(&lhash, NULL, 0, NULL));
     wolfSSL_X509V3_set_ctx_nodb(NULL);
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509V3_EXT_add_nconf(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO) && defined(HAVE_ECC) && \
+    !defined(NO_SHA) && !defined(NO_SHA256)
+    const char* confFile = "./tests/X509V3_EXT_nconf_test.cnf";
+    const byte serverSkid[] = { 0x01, 0x02, 0x03, 0x04 };
+    CONF* conf = NULL;
+    long eline = 0;
+    X509V3_CTX ctx;
+    X509* caCert = NULL;
+    X509* srvCert = NULL;
+    X509* root = NULL;
+    X509* leaf = NULL;
+    X509* decoded = NULL;
+    EVP_PKEY* pub = NULL;
+    EVP_PKEY* caKey = NULL;
+    BIO* bio = NULL;
+    const ASN1_STRING* expSkid = NULL;
+    const ASN1_STRING* skid = NULL;
+    GENERAL_NAMES* names = NULL;
+    BASIC_CONSTRAINTS* bc = NULL;
+    unsigned char* der = NULL;
+    const unsigned char* p = NULL;
+    int derSz = 0;
+    DNS_entry* dns = NULL;
+    int sanCnt = 0;
+
+    ExpectNotNull(conf = NCONF_new(NULL));
+    ExpectIntEQ(NCONF_load(conf, confFile, &eline), 1);
+    ExpectNotNull(caCert = wolfSSL_X509_load_certificate_file(
+        "./certs/ca-ecc-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(srvCert = wolfSSL_X509_load_certificate_file(
+        "./certs/server-ecc.pem", WOLFSSL_FILETYPE_PEM));
+    /* SKID of ca-ecc-cert.pem was made by OpenSSL with
+     * "subjectKeyIdentifier = hash". */
+    ExpectNotNull(expSkid = X509_get0_subject_key_id(caCert));
+
+    /* Self-signed CA built from the public key of ca-ecc-cert.pem. */
+    ExpectNotNull(root = X509_new());
+    ExpectNotNull(pub = X509_get_pubkey(caCert));
+    ExpectIntEQ(X509_set_pubkey(root, pub), WOLFSSL_SUCCESS);
+    EVP_PKEY_free(pub);
+    pub = NULL;
+
+    XMEMSET(&ctx, 0, sizeof(ctx));
+    X509V3_set_ctx(&ctx, root, root, NULL, NULL, 0);
+    X509V3_set_nconf(&ctx, conf);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "v3_ca", root),
+        WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(ctx.x509);
+    ctx.x509 = NULL;
+
+    ExpectIntEQ(wolfSSL_X509_get_isCA(root), 1);
+    ExpectIntEQ(X509_get_key_usage(root), KU_KEY_CERT_SIGN | KU_CRL_SIGN);
+    ExpectNotNull(skid = X509_get0_subject_key_id(root));
+    ExpectIntEQ(ASN1_STRING_length(skid), ASN1_STRING_length(expSkid));
+    ExpectBufEQ(ASN1_STRING_get0_data(skid), ASN1_STRING_get0_data(expSkid),
+        ASN1_STRING_length(expSkid));
+    /* Self-signed: authority key identifier is its own key identifier. */
+    if (EXPECT_SUCCESS() && root != NULL) {
+        ExpectIntEQ(root->authKeyIdSz, ASN1_STRING_length(expSkid));
+        ExpectBufEQ(root->authKeyId, ASN1_STRING_get0_data(expSkid),
+            ASN1_STRING_length(expSkid));
+    }
+
+    /* Leaf issued by root, signed and parsed back. */
+    ExpectNotNull(leaf = X509_new());
+    ExpectNotNull(pub = X509_get_pubkey(srvCert));
+    ExpectIntEQ(X509_set_pubkey(leaf, pub), WOLFSSL_SUCCESS);
+    EVP_PKEY_free(pub);
+    pub = NULL;
+    ExpectIntEQ(X509_set_version(leaf, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set_subject_name(leaf, X509_get_subject_name(srvCert)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set_issuer_name(leaf, X509_get_subject_name(caCert)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set1_notBefore(leaf, X509_get0_notBefore(srvCert)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set1_notAfter(leaf, X509_get0_notAfter(srvCert)),
+        WOLFSSL_SUCCESS);
+
+    XMEMSET(&ctx, 0, sizeof(ctx));
+    X509V3_set_ctx(&ctx, root, leaf, NULL, NULL, 0);
+    X509V3_set_nconf(&ctx, conf);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "v3_server", leaf),
+        WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(ctx.x509);
+    ctx.x509 = NULL;
+
+    ExpectNotNull(bio = BIO_new_file("./certs/ca-ecc-key.pem", "rb"));
+    ExpectNotNull(caKey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
+    BIO_free(bio);
+    bio = NULL;
+    ExpectIntGT(X509_sign(leaf, caKey, EVP_sha256()), 0);
+    ExpectIntGT(derSz = i2d_X509(leaf, &der), 0);
+    p = der;
+    ExpectNotNull(decoded = d2i_X509(NULL, &p, derSz));
+
+    ExpectNotNull(bc = (BASIC_CONSTRAINTS*)X509_get_ext_d2i(decoded,
+        NID_basic_constraints, NULL, NULL));
+    if (bc != NULL) {
+        ExpectIntEQ(bc->ca, 0);
+    }
+    BASIC_CONSTRAINTS_free(bc);
+    ExpectIntEQ(X509_get_key_usage(decoded), KU_DIGITAL_SIGNATURE);
+    ExpectIntEQ(X509_get_extended_key_usage(decoded),
+        XKU_SSL_SERVER | XKU_SSL_CLIENT);
+    ExpectNotNull(skid = X509_get0_subject_key_id(decoded));
+    ExpectIntEQ(ASN1_STRING_length(skid), (int)sizeof(serverSkid));
+    ExpectBufEQ(ASN1_STRING_get0_data(skid), serverSkid, sizeof(serverSkid));
+    if (EXPECT_SUCCESS() && decoded != NULL) {
+        ExpectIntEQ(decoded->authKeyIdSz, ASN1_STRING_length(expSkid));
+        ExpectBufEQ(decoded->authKeyId, ASN1_STRING_get0_data(expSkid),
+            ASN1_STRING_length(expSkid));
+    }
+    ExpectNotNull(names = (GENERAL_NAMES*)X509_get_ext_d2i(decoded,
+        NID_subject_alt_name, NULL, NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_num(names), 4);
+    GENERAL_NAMES_free(names);
+
+    /* Error cases. */
+    ExpectIntEQ(X509V3_EXT_add_nconf(NULL, &ctx, "v3_ca", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, NULL, root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "v3_ca", NULL),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "missing", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_name", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_key_usage", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_akid", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_san", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_empty_token", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_pathlen", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_skid", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_ip", root),
+        WOLFSSL_FAILURE);
+    /* A failing subjectAltName value leaves the existing names unchanged. */
+    for (dns = (leaf != NULL) ? leaf->altNames : NULL; dns != NULL;
+            dns = dns->next) {
+        sanCnt++;
+    }
+    ExpectIntEQ(sanCnt, 4);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_san_partial", leaf),
+        WOLFSSL_FAILURE);
+    sanCnt = 0;
+    for (dns = (leaf != NULL) ? leaf->altNames : NULL; dns != NULL;
+            dns = dns->next) {
+        sanCnt++;
+    }
+    ExpectIntEQ(sanCnt, 4);
+    /* No issuer certificate for authorityKeyIdentifier. */
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, NULL, "v3_server", leaf),
+        WOLFSSL_FAILURE);
+    X509V3_set_nconf(NULL, conf);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    X509_free(decoded);
+    EVP_PKEY_free(caKey);
+    X509_free(leaf);
+    X509_free(root);
+    X509_free(srvCert);
+    X509_free(caCert);
+    NCONF_free(conf);
 #endif
     return EXPECT_RESULT();
 }

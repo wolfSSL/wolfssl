@@ -1,0 +1,49 @@
+#
+# Extension sections used to test wolfSSL_X509V3_EXT_add_nconf
+#
+
+[ v3_ca ]
+basicConstraints       = critical, CA:TRUE, pathlen:1
+keyUsage               = critical, keyCertSign, cRLSign
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always
+
+[ v3_server ]
+basicConstraints       = CA:FALSE
+keyUsage               = critical, digitalSignature
+extendedKeyUsage       = serverAuth, clientAuth
+subjectKeyIdentifier   = 01:02:03:04
+authorityKeyIdentifier = keyid:always
+subjectAltName         = DNS:www.example.com, @alt_names
+
+[ alt_names ]
+DNS.1   = a.example.com
+email.1 = user@example.com
+URI.1   = https://example.com/
+
+[ bad_name ]
+unknownExtension = value
+
+[ bad_key_usage ]
+keyUsage = notAKeyUsage
+
+[ bad_akid ]
+authorityKeyIdentifier = issuer:always
+
+[ bad_san ]
+subjectAltName = otherName:value
+
+[ bad_empty_token ]
+basicConstraints = CA:TRUE,,pathlen:1
+
+[ bad_pathlen ]
+basicConstraints = CA:TRUE, pathlen:128
+
+[ bad_skid ]
+subjectKeyIdentifier = 01 02
+
+[ bad_ip ]
+subjectAltName = IP:999.1.1.1
+
+[ bad_san_partial ]
+subjectAltName = DNS:added.example.com, URI:

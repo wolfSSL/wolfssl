@@ -528,6 +528,11 @@ struct WOLFSSL_ACCESS_DESCRIPTION {
 
 struct WOLFSSL_X509V3_CTX {
     WOLFSSL_X509* x509;
+    /* Set by wolfSSL_X509V3_set_ctx(). Not owned by the context. */
+    WOLFSSL_X509* issuer_cert;
+    WOLFSSL_X509* subject_cert;
+    /* Set by wolfSSL_X509V3_set_nconf(). Not owned by the context. */
+    struct WOLFSSL_CONF* conf;
 };
 
 struct WOLFSSL_ASN1_OBJECT {
