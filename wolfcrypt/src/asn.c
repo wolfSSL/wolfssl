@@ -24906,7 +24906,8 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
 
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
-int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
+int ParseCertEx(DecodedCert* cert, int type, int verify,
+                WOLFSSL_CERT_MANAGER* cm, Signer* extraCa)
 {
     int   ret;
 #if (!defined(WC_ASN_NO_HEAP) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
@@ -24914,7 +24915,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
     char* ptr;
 #endif
 
-    ret = ParseCertRelative(cert, type, verify, cm, NULL);
+    ret = ParseCertRelative(cert, type, verify, cm, extraCa);
     if (ret < 0)
         return ret;
 
@@ -24955,6 +24956,11 @@ int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
 #endif
 
     return ret;
+}
+
+int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
+{
+    return ParseCertEx(cert, type, verify, cm, NULL);
 }
 
 int wc_ParseCert(DecodedCert* cert, int type, int verify,
@@ -25680,12 +25686,8 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
                                       Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-    #ifndef NO_SKID
+#ifndef NO_SKID
     Signer* exCaSigner;
-    #endif
-#else
-    (void)extraCAList;
 #endif
 
 #ifndef NO_SKID
@@ -25706,7 +25708,6 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
     signer = GetCA(cm, cert->issuerNameHash);
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     if (signer == NULL && extraCAList != NULL) {
     #ifndef NO_SKID
         if (cert->authKeyIdSet) {
@@ -25731,7 +25732,6 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
         signer = findSignerByName(extraCAList, cert->issuerNameHash);
     #endif
     }
-#endif
 
     return signer;
 }
@@ -26315,11 +26315,30 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
         if (!cert->selfIssued || (verify != NO_VERIFY && type != CA_TYPE &&
                                                    type != TRUSTED_PEER_TYPE)) {
             cert->ca = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-        if (extraCAList != NULL) {
-            cert->ca = findSignerByName(extraCAList, cert->issuerHash);
-        }
-#endif
+            if (extraCAList != NULL) {
+        #ifndef NO_SKID
+                if (cert->extAuthKeyIdSet) {
+                    Signer* exCa;
+
+                    for (exCa = extraCAList; exCa != NULL; exCa = exCa->next) {
+                        if (XMEMCMP(exCa->subjectKeyIdHash,
+                                    cert->extAuthKeyId,
+                                    SIGNER_DIGEST_SIZE) == 0 &&
+                            XMEMCMP(exCa->subjectNameHash, cert->issuerHash,
+                                    SIGNER_DIGEST_SIZE) == 0) {
+                            cert->ca = exCa;
+                            break;
+                        }
+                    }
+                    /* AKID is authoritative; do not fall back to name. */
+                }
+                else
+        #endif
+                {
+                    cert->ca = findSignerByName(extraCAList,
+                                                cert->issuerHash);
+                }
+            }
     #ifndef NO_SKID
             if (cert->ca == NULL && cert->extAuthKeyIdSet) {
                 cert->ca = GetCA(cm, cert->extAuthKeyId);

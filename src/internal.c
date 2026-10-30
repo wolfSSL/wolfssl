@@ -10336,6 +10336,15 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
      * example with the RNG, it isn't used beyond the handshake except when
      * using stream ciphers where it is retained. */
 
+#ifndef NO_CERTS
+    while (ssl->waivedCAs != NULL) {
+        Signer* waived = ssl->waivedCAs;
+
+        ssl->waivedCAs = waived->next;
+        FreeSigner(waived, SSL_CM(ssl)->heap);
+    }
+#endif
+
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         WOLFSSL_MSG("Free'ing server ssl");
     }
@@ -16660,6 +16669,29 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+/* Join the connection's accepted CAs onto base for one lookup. */
+Signer* SslWaivedCAsJoin(WOLFSSL* ssl, Signer* base, Signer** pTail)
+{
+    Signer* tail = NULL;
+
+    if (ssl != NULL && ssl->waivedCAs != NULL) {
+        tail = ssl->waivedCAs;
+        while (tail->next != NULL)
+            tail = tail->next;
+        tail->next = base;
+        base = ssl->waivedCAs;
+    }
+    *pTail = tail;
+
+    return base;
+}
+
+void SslWaivedCAsSplit(Signer* tail)
+{
+    if (tail != NULL)
+        tail->next = NULL;
+}
+
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 
 #ifdef WOLFSSL_CHAIN_VERIFY_CB
@@ -17097,6 +17129,113 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 }
 #endif
 
+#ifndef NO_ASN
+/* Parse a chain certificate as a CA and return it as a filled signer. */
+static int ProcessPeerCertMakeChainSigner(WOLFSSL* ssl, buffer* cert, int type,
+                                          Signer* extraCa, Signer** out)
+{
+    int ret = 0;
+    WC_DECLARE_VAR(dCertAdd, DecodedCert, 1, 0);
+    int dCertAdd_inited = 0;
+    DerBuffer* derBuffer = NULL;
+    Signer* s = NULL;
+
+    *out = NULL;
+
+    WC_ALLOC_VAR_EX(dCertAdd, DecodedCert, 1, ssl->heap,
+        DYNAMIC_TYPE_TMP_BUFFER,
+    {
+        ret = MEMORY_E;
+        goto exit_mcs;
+    });
+    InitDecodedCert(dCertAdd, cert->buffer, cert->length, SSL_CM(ssl)->heap);
+    dCertAdd_inited = 1;
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (SSL_CM(ssl)->unknownExtCallback != NULL)
+        wc_SetUnknownExtCallback(dCertAdd, SSL_CM(ssl)->unknownExtCallback);
+#endif
+    ret = ParseCertEx(dCertAdd, CA_TYPE, NO_VERIFY, SSL_CM(ssl), extraCa);
+    if (ret != 0)
+        goto exit_mcs;
+
+    if (!dCertAdd->isCA) {
+        WOLFSSL_MSG("Chain cert is not a CA, not usable as a signer");
+        goto exit_mcs;
+    }
+#ifndef ALLOW_INVALID_CERTSIGN
+    /* A CA needs keyCertSign once a Key Usage extension is present. Report
+     * the same error AddCA() would. */
+    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
+            (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
+        ret = NOT_CA_ERROR;
+        goto exit_mcs;
+    }
+#endif
+    /* The Extended Key Usage purpose check is deliberately not repeated here.
+     * ProcessPeerCerts() applies it to this same certificate before offering it
+     * to a signer, and AddCA() does not apply it either, so repeating it would
+     * only take effect after a verify callback had already overridden the
+     * rejection, silently undoing that decision. */
+
+    ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
+    if (ret != 0 || derBuffer == NULL)
+        goto exit_mcs;
+    XMEMCPY(derBuffer->buffer, cert->buffer, cert->length);
+
+    s = MakeSigner(SSL_CM(ssl)->heap);
+    if (s == NULL) {
+        ret = MEMORY_E;
+        goto exit_mcs;
+    }
+    ret = FillSigner(s, dCertAdd, type, derBuffer);
+    if (ret != 0)
+        goto exit_mcs;
+
+    *out = s;
+    s = NULL;
+
+exit_mcs:
+    if (s != NULL)
+        FreeSigner(s, SSL_CM(ssl)->heap);
+    if (derBuffer != NULL)
+        FreeDer(&derBuffer);
+    if (dCertAdd_inited)
+        FreeDecodedCert(dCertAdd);
+    WC_FREE_VAR_EX(dCertAdd, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* Add a chain CA the verify callback accepted to the connection's list. */
+static int ProcessPeerCertAddWaivedCA(WOLFSSL* ssl, buffer* cert)
+{
+    Signer* s = NULL;
+    int ret;
+
+    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_TEMP_CA,
+                                         ssl->waivedCAs, &s);
+    if (ret == 0 && s != NULL) {
+        s->next = ssl->waivedCAs;
+        ssl->waivedCAs = s;
+    }
+
+    return ret;
+}
+
+static int ProcessPeerCertIsWaivedCA(WOLFSSL* ssl, const Signer* ca)
+{
+    const Signer* s;
+
+    for (s = ssl->waivedCAs; s != NULL; s = s->next) {
+        if (s == ca)
+            return 1;
+    }
+
+    return 0;
+}
+#endif /* !NO_ASN */
+
 static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 {
     ProcPeerCertArgs* args = (ProcPeerCertArgs*)pArgs;
@@ -17400,6 +17539,7 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     byte* subjectHash = NULL;
     int alreadySigner = 0;
     Signer *extraSigners = NULL;
+    Signer *waivedTail = NULL;
 #if defined(HAVE_RPK)
     int cType;
 #endif
@@ -17527,6 +17667,8 @@ PRAGMA_GCC_DIAG_POP
     }
 #endif
     /* Parse Certificate */
+    extraSigners = SslWaivedCAsJoin(ssl, extraSigners, &waivedTail);
+
     ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
     /* Self signed: the key that verified the signature is its own */
@@ -17537,6 +17679,8 @@ PRAGMA_GCC_DIAG_POP
             XMEMCMP(sigCaKey, args->dCert->publicKey, sigCaKeySz) == 0;
     }
 #endif
+
+    SslWaivedCAsSplit(waivedTail);
 
 #if defined(HAVE_RPK)
     /* Confirm the received certificate's form (X.509 vs raw public key) matches
@@ -17567,6 +17711,15 @@ PRAGMA_GCC_DIAG_POP
     }
 
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
+    /* The check above searched the cert manager only; redo it on the key. */
+    if (sigRet != 0 && args->dCert->ca != NULL &&
+            args->dCert->ca->publicKey != NULL &&
+            ProcessPeerCertIsWaivedCA(ssl, args->dCert->ca)) {
+        sigRet = CheckCertSignaturePubKey(cert->buffer, cert->length,
+            ssl->heap, args->dCert->ca->publicKey,
+            args->dCert->ca->pubKeySize, (int)args->dCert->ca->keyOID);
+    }
+
     /* get signature check failures from above (a negotiated RPK leaf is parsed
      * with NO_VERIFY, so no signature check was run for it) */
     if (ret == 0 || (sigRet != 0 && IsPostSigParseErr(ret))) {
@@ -17960,84 +18113,21 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
  * for Certificate Status Request v2. */
 static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
 {
-    int ret = 0;
-    WC_DECLARE_VAR(dCertAdd, DecodedCert, 1, 0);
-    int dCertAdd_inited = 0;
-    DerBuffer *derBuffer = NULL;
-    Signer *s = NULL;
+    Signer* s = NULL;
+    int ret;
 
-    WC_ALLOC_VAR_EX(dCertAdd, DecodedCert, 1, ssl->heap,
-        DYNAMIC_TYPE_TMP_BUFFER,
-    {
-        ret=MEMORY_E;
-        goto exit_req_v2;
-    });
-    InitDecodedCert(dCertAdd, cert->buffer, cert->length,
-                    ssl->heap);
-    dCertAdd_inited = 1;
-    ret = ParseCert(dCertAdd, CA_TYPE, NO_VERIFY,
-                    SSL_CM(ssl));
-    if (ret != 0) {
-        goto exit_req_v2;
-    }
-    /* Only a certificate that is actually usable as a CA may enter the pending
-     * signer pool. ParseCertRelative() consults that pool ahead of the
-     * certificate manager and uses the signer as a verification key without
-     * further checks, so admission has to enforce the same capabilities AddCA()
-     * requires of a chain CA.
-     *
-     * A non-CA is skipped rather than reported as an error, because
-     * ProcessPeerCerts() only offers a chain cert to AddCA() when isCA is set:
-     * such a certificate is already left out of the certificate manager without
-     * failing the handshake. */
-    if (!dCertAdd->isCA) {
-        WOLFSSL_MSG("Chain cert is not a CA, not adding as pending CA");
-        goto exit_req_v2;
-    }
-#ifndef ALLOW_INVALID_CERTSIGN
-    /* A CA needs keyCertSign once a Key Usage extension is present. Fail the
-     * handshake rather than quietly leaving it out of the pool. */
-    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
-            (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
-        WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
-        ret = NOT_CA_ERROR;
-        goto exit_req_v2;
-    }
-#endif
-    /* The Extended Key Usage purpose check is deliberately not repeated here.
-     * ProcessPeerCerts() applies it to this same certificate before offering it
-     * to the pool, and AddCA() does not apply it either, so repeating it would
-     * only take effect after a verify callback had already overridden the
-     * rejection, silently undoing that decision in CSR v2 builds alone. */
-    ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
-    if (ret != 0 || derBuffer == NULL) {
-        goto exit_req_v2;
-    }
-    XMEMCPY(derBuffer->buffer, cert->buffer, cert->length);
-    s = MakeSigner(SSL_CM(ssl)->heap);
-    if (s == NULL) {
-        ret = MEMORY_E;
-        goto exit_req_v2;
-    }
-    /* WOLFSSL_CHAIN_CA, not CA_TYPE: TLSX_CSR2_MergePendingCA() promotes this
-     * signer into the certificate manager, and the unload path
+    /* WOLFSSL_CHAIN_CA, not WOLFSSL_TEMP_CA: TLSX_CSR2_MergePendingCA()
+     * promotes this signer into the certificate manager, and the unload path
      * (wolfSSL_CertManagerUnloadIntermediateCerts()) selects entries by that
      * type. AddCA() records chain CAs the same way. */
-    ret = FillSigner(s, dCertAdd, WOLFSSL_CHAIN_CA, derBuffer);
-    if (ret != 0) {
-        goto exit_req_v2;
+    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_CHAIN_CA,
+                                         NULL, &s);
+    if (ret == 0 && s != NULL) {
+        ret = TLSX_CSR2_AddPendingSigner(ssl->extensions, s);
+        if (ret != 0)
+            FreeSigner(s, SSL_CM(ssl)->heap);
     }
-    ret = TLSX_CSR2_AddPendingSigner(ssl->extensions, s);
 
-exit_req_v2:
-    if (s && (ret != 0))
-        FreeSigner(s, SSL_CM(ssl)->heap);
-    if (derBuffer)
-        FreeDer(&derBuffer);
-    if (dCertAdd_inited)
-        FreeDecodedCert(dCertAdd);
-    WC_FREE_VAR_EX(dCertAdd, ssl->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
@@ -19275,6 +19365,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     int ocspNoUrl = 0;
                     int ocspStapleDeferred = 0;
                 #endif
+                    int preCbRet;
+                    int caIsTemp = 0;
 
                     /* select last certificate */
                     args->certIdx = args->count - 1;
@@ -19582,7 +19674,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
                     /* Do verify callback */
+                    preCbRet = ret;
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    if (ret == 0 && preCbRet != 0)
+                        caIsTemp = 1;
+                    if (ret == 0 && args->dCert->ca != NULL &&
+                            ProcessPeerCertIsWaivedCA(ssl, args->dCert->ca))
+                        caIsTemp = 1;
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
                                ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
@@ -19599,7 +19697,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     if (ret == 0 && addToPendingCAs && !alreadySigner &&
-                            !ssl->options.verifyNone && !skipAddCA) {
+                            !ssl->options.verifyNone && !skipAddCA &&
+                            !caIsTemp) {
                         /* The verifyNone and skipAddCA conditions mirror the
                          * guards on the AddCA() call below. A certificate the
                          * surrounding code has already declined to admit as a
@@ -19634,7 +19733,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 cert->buffer, cert->length);
                         }
                     #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
-                        if (!alreadySigner) {
+                        if (caIsTemp) {
+                            ret = ProcessPeerCertAddWaivedCA(ssl, cert);
+                        }
+                        else if (!alreadySigner) {
                             DerBuffer* add = NULL;
                             ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
                             if (ret < 0)
@@ -20474,6 +20576,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             word32 list_length = status_length;
             byte   idx = 0;
             Signer *pendingCAs = NULL;
+            Signer *waivedTail = NULL;
 
             #ifdef WOLFSSL_SMALL_STACK
                 CertStatus*   status;
@@ -20527,7 +20630,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (status_length) {
                     InitOcspResponse(response, single, status, input +*inOutIdx,
                                      status_length, ssl->heap);
-                    response->pendingCAs = pendingCAs;
+                    response->pendingCAs = SslWaivedCAsJoin(ssl, pendingCAs,
+                                                            &waivedTail);
                     if ((OcspResponseDecode(response, SSL_CM(ssl), ssl->heap,
                             0, 0) != 0)
                     ||  (response->responseStatus != OCSP_SUCCESSFUL)
@@ -20553,6 +20657,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     /* only frees 'single' if single->isDynamic is set */
                     FreeOcspResponse(response);
+                    SslWaivedCAsSplit(waivedTail);
+                    waivedTail = NULL;
 
                #ifndef NO_WOLFSSL_SERVER
                     ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx,
