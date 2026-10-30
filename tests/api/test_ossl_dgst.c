@@ -471,6 +471,7 @@ int test_wolfSSL_SHA256(void)
         ExpectIntEQ(SHA256_Init(&ctx), 1);
         ExpectIntEQ(SHA256_Update(&ctx, input,
             (unsigned long)WOLFSSL_MAX_32BIT + 1 + inLen), 0);
+        ExpectIntEQ(SHA256_Final(hash, &ctx), 1);
     }
 #endif
     return EXPECT_RESULT();
