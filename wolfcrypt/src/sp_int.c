@@ -11603,12 +11603,13 @@ static int _sp_mul_32(const sp_int* a, const sp_int* b, sp_int* r)
         l = 0;
         h = 0;
         for (i = 0; i < 32; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 16 */
@@ -11769,12 +11770,13 @@ static int _sp_mul_48(const sp_int* a, const sp_int* b, sp_int* r)
         l = 0;
         h = 0;
         for (i = 0; i < 48; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 24 */
@@ -11935,12 +11937,13 @@ static int _sp_mul_64(const sp_int* a, const sp_int* b, sp_int* r)
         l = 0;
         h = 0;
         for (i = 0; i < 64; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 32 */
@@ -12101,12 +12104,13 @@ static int _sp_mul_96(const sp_int* a, const sp_int* b, sp_int* r)
         l = 0;
         h = 0;
         for (i = 0; i < 96; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 48 */
@@ -16919,14 +16923,16 @@ static int _sp_sqr_32(const sp_int* a, sp_int* r)
         SP_ASM_SUBB(l, h, z2->dp[0]);
         z1->dp[0] = l;
         l = h;
-        h = 0;
+        /* Sign extend borrow into high word. */
+        h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         for (i = 1; i < 32; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 16 */
@@ -17058,14 +17064,16 @@ static int _sp_sqr_48(const sp_int* a, sp_int* r)
         SP_ASM_SUBB(l, h, z2->dp[0]);
         z1->dp[0] = l;
         l = h;
-        h = 0;
+        /* Sign extend borrow into high word. */
+        h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         for (i = 1; i < 48; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 24 */
@@ -17197,14 +17205,16 @@ static int _sp_sqr_64(const sp_int* a, sp_int* r)
         SP_ASM_SUBB(l, h, z2->dp[0]);
         z1->dp[0] = l;
         l = h;
-        h = 0;
+        /* Sign extend borrow into high word. */
+        h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         for (i = 1; i < 64; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 32 */
@@ -17336,14 +17346,16 @@ static int _sp_sqr_96(const sp_int* a, sp_int* r)
         SP_ASM_SUBB(l, h, z2->dp[0]);
         z1->dp[0] = l;
         l = h;
-        h = 0;
+        /* Sign extend borrow into high word. */
+        h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         for (i = 1; i < 96; i++) {
-            l += z1->dp[i];
+            SP_ASM_ADDC(l, h, z1->dp[i]);
             SP_ASM_SUBB(l, h, z0->dp[i]);
             SP_ASM_SUBB(l, h, z2->dp[i]);
             z1->dp[i] = l;
             l = h;
-            h = 0;
+            /* Sign extend borrow into high word. */
+            h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
         }
         z1->dp[i] += l;
         /* r += z1 << 48 */

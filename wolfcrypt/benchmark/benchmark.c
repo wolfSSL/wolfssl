@@ -7365,7 +7365,9 @@ static void bench_aesccm_internal(int useDeviceID, word32 nonceSz,
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
         goto exit;
     }
-#endif
+#endif /* HAVE_AES_DECRYPT */
+
+    (void)decLabel;
 
   exit:
 

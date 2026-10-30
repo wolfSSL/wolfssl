@@ -9955,7 +9955,11 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     return ret;
 }
 
-#if (!defined(NO_CERTS) || !defined(WOLFSSL_NO_TLS12)) && \
+/* Callers: ProcessPeerCerts() (client, or server verifying client certs) and
+ * the TLS 1.2 key exchange peer keys. */
+#if ((!defined(NO_CERTS) && \
+      (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))) || \
+     !defined(WOLFSSL_NO_TLS12)) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
      defined(HAVE_CURVE448) || defined(HAVE_FALCON) || \

@@ -19271,7 +19271,9 @@ static int test_wolfSSL_Tls13_ECH_tls12_downgrade(void)
 #endif
 
     /* session ID and ticket from the rejected connection are ignored */
+#ifndef NO_SESSION_CACHE
     ExpectIntEQ(wolfSSL_SessionIsSetup(test_ctx.c_ssl->session), 0);
+#endif
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     ExpectIntEQ(test_ctx.c_ssl->msgsReceived.got_session_ticket, 1);
     ExpectIntEQ(wolfSSL_get_SessionTicket(test_ctx.c_ssl, NULL, &ticketLen),

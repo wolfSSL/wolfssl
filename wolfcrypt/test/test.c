@@ -19412,9 +19412,11 @@ static wc_test_ret_t aes_no_key_set_test(void)
     if (wc_AesGcmEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, sizeof(iv),
             tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
     if (wc_AesGcmDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, sizeof(iv),
             tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 #endif
 
 #ifdef HAVE_AESCCM

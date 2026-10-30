@@ -443,6 +443,7 @@ int test_TLSX_ALPN_parse(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
+#ifndef NO_WOLFSSL_SERVER
     /* Request direction: server parses and stores a client_hello ALPN
      * list. Exercises TLSX_ALPN_ParseAndSet()'s length bookkeeping (shared
      * with the response direction) on the request side, including the
@@ -503,6 +504,7 @@ int test_TLSX_ALPN_parse(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+#endif /* !NO_WOLFSSL_SERVER */
 #endif
     return EXPECT_RESULT();
 }
@@ -1572,9 +1574,8 @@ int test_TLSX_PointFormat_parse(void)
     (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
      !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
      !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
-     (!defined(NO_RSA) || defined(HAVE_ECC)) && \
-     ((!defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)) || \
-      defined(HAVE_CURVE25519)))
+     (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(WOLFSSL_NO_TLS12) && \
+     (!defined(NO_DH) || defined(HAVE_CURVE25519)))
     byte ext[16];
     word16 extLen;
 #endif
@@ -1618,7 +1619,7 @@ int test_TLSX_PointFormat_parse(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(WOLFSSL_NO_TLS12)
     /* TLSX_SupportedCurve_Preferred(): checkSupported gating and the
      * TLSX_IsGroupSupported() result, driven by a raw (unfiltered) offered
      * groups list -- TLSX_SupportedCurve_Parse() records whatever the peer
@@ -1686,7 +1687,7 @@ int test_TLSX_PointFormat_parse(void)
 
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(WOLFSSL_NO_TLS12)
     /* TLSX_PointFormat_ValidateResponse(): reached while sizing/writing a
      * ServerHello, through the WOLFSSL_LOCAL TLSX_GetResponseSize() rather
      * than TLSX_Parse() (there is no wire input on this side). A cipher
@@ -2658,7 +2659,7 @@ int test_TLSX_KeyShare_gen(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS) && \
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_CLIENT) && \
     defined(USE_WOLFSSL_MEMORY)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -2972,7 +2973,7 @@ int test_TLSX_KeyShare_freesizewrite(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_DH) && defined(HAVE_FFDHE_2048) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -3128,7 +3129,7 @@ int test_TLSX_KeyShare_process(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -3436,6 +3437,8 @@ int test_TLSX_KeyShare_process(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
+    (void)ctx;
+    (void)ssl;
 #endif
     return EXPECT_RESULT();
 }
