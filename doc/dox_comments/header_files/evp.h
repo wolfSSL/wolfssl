@@ -443,3 +443,294 @@ int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
     \sa wolfSSL_EVP_CIPHER_flags
 */
 unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the WOLFSSL_EVP_CIPHER for AES-128 Key Wrap of RFC 3394. The
+    input has to be a whole number of 8 byte blocks, and the wrapped output is
+    one block longer than the input - the _pad variant takes input of any
+    length. HAVE_AES_KEYWRAP and WOLFSSL_AES_128 must both be defined for this
+    cipher to be built.
+
+    \return pointer Returns the WOLFSSL_EVP_CIPHER for AES-128 key wrap. It is a
+    pointer to static data and is never NULL.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx = wolfSSL_EVP_CIPHER_CTX_new();
+    wolfSSL_EVP_EncryptInit(ctx, wolfSSL_EVP_aes_128_wrap(), kek, NULL);
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_wrap_pad
+    \sa wolfSSL_EVP_CIPHER_CTX_new
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_wrap(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the WOLFSSL_EVP_CIPHER for AES-192 Key Wrap of RFC 3394. The
+    input has to be a whole number of 8 byte blocks, and the wrapped output is
+    one block longer than the input - the _pad variant takes input of any
+    length. HAVE_AES_KEYWRAP and WOLFSSL_AES_192 must both be defined for this
+    cipher to be built.
+
+    \return pointer Returns the WOLFSSL_EVP_CIPHER for AES-192 key wrap. It is a
+    pointer to static data and is never NULL.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx = wolfSSL_EVP_CIPHER_CTX_new();
+    wolfSSL_EVP_EncryptInit(ctx, wolfSSL_EVP_aes_192_wrap(), kek, NULL);
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_wrap_pad
+    \sa wolfSSL_EVP_CIPHER_CTX_new
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_wrap(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the WOLFSSL_EVP_CIPHER for AES-256 Key Wrap of RFC 3394. The
+    input has to be a whole number of 8 byte blocks, and the wrapped output is
+    one block longer than the input - the _pad variant takes input of any
+    length. HAVE_AES_KEYWRAP and WOLFSSL_AES_256 must both be defined for this
+    cipher to be built.
+
+    \return pointer Returns the WOLFSSL_EVP_CIPHER for AES-256 key wrap. It is a
+    pointer to static data and is never NULL.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx = wolfSSL_EVP_CIPHER_CTX_new();
+    wolfSSL_EVP_EncryptInit(ctx, wolfSSL_EVP_aes_256_wrap(), kek, NULL);
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_wrap_pad
+    \sa wolfSSL_EVP_CIPHER_CTX_new
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_wrap(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the WOLFSSL_EVP_CIPHER for AES-128 Key Wrap with Padding of
+    RFC 5649. The input may be any length: it is padded to a whole number of 8
+    byte blocks, and the wrapped output is 8 bytes longer than that.
+    HAVE_AES_KEYWRAP, WOLFSSL_AES_KEYWRAP_PADDING and WOLFSSL_AES_128 must all
+    be defined for this cipher to be built.
+
+    \return pointer Returns the WOLFSSL_EVP_CIPHER for AES-128 key wrap with
+    padding. It is a pointer to static data and is never NULL.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx = wolfSSL_EVP_CIPHER_CTX_new();
+    wolfSSL_EVP_EncryptInit(ctx, wolfSSL_EVP_aes_128_wrap_pad(), kek, NULL);
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_wrap
+    \sa wolfSSL_EVP_CIPHER_CTX_new
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_wrap_pad(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the WOLFSSL_EVP_CIPHER for AES-192 Key Wrap with Padding of
+    RFC 5649. The input may be any length: it is padded to a whole number of 8
+    byte blocks, and the wrapped output is 8 bytes longer than that.
+    HAVE_AES_KEYWRAP, WOLFSSL_AES_KEYWRAP_PADDING and WOLFSSL_AES_192 must all
+    be defined for this cipher to be built.
+
+    \return pointer Returns the WOLFSSL_EVP_CIPHER for AES-192 key wrap with
+    padding. It is a pointer to static data and is never NULL.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx = wolfSSL_EVP_CIPHER_CTX_new();
+    wolfSSL_EVP_EncryptInit(ctx, wolfSSL_EVP_aes_192_wrap_pad(), kek, NULL);
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_wrap
+    \sa wolfSSL_EVP_CIPHER_CTX_new
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_wrap_pad(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the WOLFSSL_EVP_CIPHER for AES-256 Key Wrap with Padding of
+    RFC 5649. The input may be any length: it is padded to a whole number of 8
+    byte blocks, and the wrapped output is 8 bytes longer than that.
+    HAVE_AES_KEYWRAP, WOLFSSL_AES_KEYWRAP_PADDING and WOLFSSL_AES_256 must all
+    be defined for this cipher to be built.
+
+    \return pointer Returns the WOLFSSL_EVP_CIPHER for AES-256 key wrap with
+    padding. It is a pointer to static data and is never NULL.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx = wolfSSL_EVP_CIPHER_CTX_new();
+    wolfSSL_EVP_EncryptInit(ctx, wolfSSL_EVP_aes_256_wrap_pad(), kek, NULL);
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_wrap
+    \sa wolfSSL_EVP_CIPHER_CTX_new
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_wrap_pad(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the initialisation vector the context will use for the next
+    operation. For the chaining modes that carry state between calls - CBC,
+    CTR, OFB and CFB - this is the working IV, which advances as data is
+    processed, and not the IV the context was set up with. For every other
+    mode the IV the context was given is returned. The pointer is into the
+    context and stays valid until the context is reset or freed.
+
+    \return pointer Pointer to the IV for the next operation.
+    \return NULL if ctx is NULL or the cipher has no IV.
+
+    \param ctx WOLFSSL_EVP_CIPHER_CTX structure to read the IV from.
+
+    _Example_
+    \code
+    const unsigned char* iv = wolfSSL_EVP_CIPHER_CTX_iv(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_CIPHER_CTX_iv_noconst
+    \sa wolfSSL_EVP_CIPHER_CTX_iv_length
+*/
+const unsigned char* wolfSSL_EVP_CIPHER_CTX_iv(const WOLFSSL_EVP_CIPHER_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns a writable pointer to the initialisation vector the context
+    will use for the next operation. For the chaining modes that carry state
+    between calls - CBC, CTR, OFB and CFB - this is the working IV, which
+    advances as data is processed, and not the IV the context was set up with.
+    For every other mode the IV the context was given is returned. Writing
+    through the pointer changes the IV the context will use next, so it should
+    only be used where OpenSSL code would modify the IV in place. The pointer
+    is into the context and stays valid until the context is reset or freed.
+
+    \return pointer Pointer to the IV for the next operation.
+    \return NULL if ctx is NULL or the cipher has no IV.
+
+    \param ctx WOLFSSL_EVP_CIPHER_CTX structure to read the IV from.
+
+    _Example_
+    \code
+    unsigned char* iv = wolfSSL_EVP_CIPHER_CTX_iv_noconst(ctx);
+    if (iv != NULL)
+        XMEMSET(iv, 0, (size_t)wolfSSL_EVP_CIPHER_CTX_iv_length(ctx));
+    \endcode
+
+    \sa wolfSSL_EVP_CIPHER_CTX_iv
+*/
+unsigned char* wolfSSL_EVP_CIPHER_CTX_iv_noconst(WOLFSSL_EVP_CIPHER_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Returns the "null" message digest, which produces no output. It is
+    used where an API demands a digest but none is wanted.
+
+    \return pointer Returns a WOLFSSL_EVP_MD pointer for the null digest.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    wolfSSL_EVP_DigestInit(ctx, wolfSSL_EVP_md_null());
+    \endcode
+
+    \sa wolfSSL_EVP_DigestInit
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_md_null(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Copies out the raw private key of a key that has one - Ed25519,
+    Ed448, X25519 and X448. Called with priv set to NULL it reports the size
+    the key needs in len and does nothing else, which is how the size is
+    normally discovered before a second call fetches the bytes. Called with a
+    buffer, len holds its size on entry; if the buffer is too small the call
+    fails and len is set to the size needed.
+
+    \return 1 on success, or when reporting the size for a NULL buffer.
+    \return 0 on failure, including a key type that has no raw form.
+
+    \param pkey key to read the private key from.
+    \param priv buffer to write the raw private key to, or NULL to ask for the
+    size.
+    \param len size of priv on entry; the size written, or needed, on return.
+
+    _Example_
+    \code
+    size_t len = 0;
+    unsigned char* priv;
+    if (wolfSSL_EVP_PKEY_get_raw_private_key(pkey, NULL, &len) != 1)
+        return -1;
+    priv = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (wolfSSL_EVP_PKEY_get_raw_private_key(pkey, priv, &len) != 1)
+        return -1;
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get_raw_public_key
+*/
+int wolfSSL_EVP_PKEY_get_raw_private_key(const WOLFSSL_EVP_PKEY* pkey, unsigned char* priv, size_t* len);
+
+/*!
+    \ingroup openSSL
+
+    \brief Copies out the raw public key of a key that has one - Ed25519,
+    Ed448, X25519 and X448. Called with pub set to NULL it reports the size the
+    key needs in len and does nothing else, which is how the size is normally
+    discovered before a second call fetches the bytes. Called with a buffer,
+    len holds its size on entry; if the buffer is too small the call fails and
+    len is set to the size needed. For an Ed25519 or Ed448 key holding only a
+    private key the public key is derived, so a key read from a private key
+    file answers this call - except for Ed25519 in a build without
+    HAVE_ED25519_MAKE_KEY, which cannot derive and fails the call instead.
+
+    \return 1 on success, or when reporting the size for a NULL buffer.
+    \return 0 on failure, including a key type that has no raw form.
+
+    \param pkey key to read the public key from.
+    \param pub buffer to write the raw public key to, or NULL to ask for the
+    size.
+    \param len size of pub on entry; the size written, or needed, on return.
+
+    _Example_
+    \code
+    size_t len = 0;
+    unsigned char* pub;
+    if (wolfSSL_EVP_PKEY_get_raw_public_key(pkey, NULL, &len) != 1)
+        return -1;
+    pub = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (wolfSSL_EVP_PKEY_get_raw_public_key(pkey, pub, &len) != 1)
+        return -1;
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_get_raw_private_key
+*/
+int wolfSSL_EVP_PKEY_get_raw_public_key(const WOLFSSL_EVP_PKEY* pkey, unsigned char* pub, size_t* len);

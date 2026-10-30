@@ -19,3 +19,9 @@ openssl genpkey -algorithm x25519 -outform pem -out certs/statickeys/x25519.pem
 openssl pkey -inform pem -in certs/statickeys/x25519.pem -outform der -out certs/statickeys/x25519.der
 openssl pkey -inform pem -in certs/statickeys/x25519.pem -outform der -out certs/statickeys/x25519-pub.der -pubout
 openssl pkey -inform pem -in certs/statickeys/x25519.pem -outform pem -out certs/statickeys/x25519-pub.pem -pubout
+
+# X448 (Curve448)
+openssl genpkey -algorithm x448 -outform pem -out certs/statickeys/x448.pem
+openssl pkey -inform pem -in certs/statickeys/x448.pem -outform der -out certs/statickeys/x448.der
+openssl pkey -inform pem -in certs/statickeys/x448.pem -outform der -out certs/statickeys/x448-pub.der -pubout
+openssl pkey -inform pem -in certs/statickeys/x448.pem -outform pem -out certs/statickeys/x448-pub.pem -pubout
