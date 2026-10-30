@@ -284,6 +284,8 @@ $(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_F
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/wc_frodokem_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/wc_frodokem_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 # The arm64 kernel builds with a baseline -march that rejects the crypto and
 # NEON instructions in port/arm/*.S, and with -mgeneral-regs-only, which clang

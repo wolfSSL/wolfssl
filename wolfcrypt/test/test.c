@@ -61580,6 +61580,47 @@ static wc_test_ret_t ed25519ctx_test(void)
 #endif
 #endif /* WC_FIPS_ED25519CTX_NOT_APPROVED */
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* RFC 8032 defines no context for pure Ed25519 (only Ed25519ctx and
+     * Ed25519ph take one), so a non-empty context with type Ed25519 must
+     * be rejected rather than silently discarded.  (The rejection is
+     * absent from frozen FIPS module sources before v7, hence the
+     * gate.) */
+    if (ret == 0) {
+        outlen = sizeof(out);
+        ret = wc_ed25519_sign_msg_ex(msgCtx, sizeof(msgCtx), out, &outlen,
+                                     &key, Ed25519, contextCtx,
+                                     sizeof(contextCtx));
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+#ifdef HAVE_ED25519_VERIFY
+    if (ret == 0) {
+        ret = wc_ed25519_verify_msg_ex(sigCtx1, sizeof(sigCtx1), msgCtx,
+                                       sizeof(msgCtx), &verify, &key,
+                                       Ed25519, contextCtx,
+                                       sizeof(contextCtx));
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
+    if (ret == 0) {
+        ret = wc_ed25519_verify_msg_init(sigCtx1, sizeof(sigCtx1), &key,
+                                         Ed25519, contextCtx,
+                                         sizeof(contextCtx));
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+#endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
+#endif /* HAVE_ED25519_VERIFY */
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+
     wc_ed25519_free(&key);
 
     return ret;
@@ -71020,6 +71061,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
             }
         }
 #endif /* FRODOKEM_TEST_ASN1 */
+
+        /* Free per iteration: wc_FrodoKemKey_Init allocates per-key resources
+         * (e.g. the cipher-lifecycle tracker under
+         * WOLFSSL_DEBUG_CIPHER_LIFECYCLE), which a bare re-Init orphans.  The
+         * free at out: covers the error-break paths. */
         wc_FrodoKemKey_Free(key);
         key_inited = 0;
     }
