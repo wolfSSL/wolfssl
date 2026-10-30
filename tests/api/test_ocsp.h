@@ -46,6 +46,7 @@ int test_ocsp_no_url_crl_fallback(void);
 int test_ocsp_no_url_crl_fallback_nonleaf(void);
 int test_ocsp_no_url_crl_not_loaded(void);
 int test_tls13_nonblock_ocsp_low_mfl(void);
+int test_dtls12_nonblock_ocsp(void);
 int test_ocsp_ctx_request_cache(void);
 int test_ocsp_responder(void);
 int test_ocsp_ancestor_responder_rejected(void);

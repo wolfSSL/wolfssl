@@ -1247,6 +1247,9 @@ enum {
 #ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
     #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
 #endif
+#if WOLFSSL_DTLS_FRAG_POOL_SZ > 255
+    #error "WOLFSSL_DTLS_FRAG_POOL_SZ must be at most 255"
+#endif
 
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
@@ -7996,12 +7999,17 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define DtlsMsgListDelete wolfSSL_DtlsMsgListDelete
+        #define DtlsMsgListPurge wolfSSL_DtlsMsgListPurge
+        #define DtlsMsgListNextReady wolfSSL_DtlsMsgListNextReady
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
     WOLFSSL_TEST_VIS void DtlsMsgListDelete(DtlsMsg* head, void* heap);
+    WOLFSSL_TEST_VIS void DtlsMsgListPurge(WOLFSSL* ssl);
+    WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgListNextReady(WOLFSSL* ssl);
+    WOLFSSL_LOCAL void DtlsMsgListRemove(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
                                   const byte* data, byte type,
@@ -8377,7 +8385,7 @@ WOLFSSL_TEST_VIS int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper 
 WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
     word32 inputSize);
 WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input,
-    word16 length);
+    word32 length);
 WOLFSSL_LOCAL int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash,
         int* hashSz, const byte* body, word32 length, CipherSpecs* specs);
 WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);

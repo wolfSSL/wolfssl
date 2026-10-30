@@ -501,7 +501,8 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
 #else
     void* res = wolfSSL_Malloc(size);
 #endif
-    if (ptr != NULL) {
+    /* On failure leave the original pointer untouched like realloc. */
+    if (res != NULL && ptr != NULL) {
         /* Copy the minimum of old and new size. */
         size_t copySize = *(size_t*)(((unsigned char*)ptr) - MEM_ALIGN);
         if (size < copySize) {
