@@ -16076,16 +16076,20 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
 
 /* Add the attribute value last parsed into an X509_NAME.
  *
- * @param [in, out] dName  X509_NAME to add to. NULL is ignored.
- * @param [in]      nid    OpenSSL NID of the attribute type. 0 when unknown,
- *                         in which case nothing is added.
- * @param [in]      val    Parsed attribute value (rdnChoice data).
+ * @param [in, out] dName    X509_NAME to add to. NULL when the X509_NAME is
+ *                           not being built.
+ * @param [in]      nid      OpenSSL NID of the attribute type. 0 when unknown,
+ *                           in which case nothing is added.
+ * @param [in]      val      Parsed attribute value (rdnChoice data).
+ * @param [in, out] entries  Number of entries the X509_NAME would hold. Used
+ *                           when dName is NULL.
  * @return  0 on success.
  * @return  ASN_PARSE_E when the string is empty or the entry could not be
  *          added.
  */
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val)
+static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val,
+    int* entries)
 {
     int ret = 0;
     int enc;
@@ -16137,6 +16141,14 @@ static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val)
             ret = ASN_PARSE_E;
         }
     }
+    else if (nid != 0) {
+        /* Fail when the X509_NAME, built later by GetCertX509Name(), can't
+         * hold all the entries - as when it is built now. */
+        if (++(*entries) > MAX_NAME_ENTRIES) {
+            WOLFSSL_MSG("Too many entries for X509_NAME");
+            ret = ASN_PARSE_E;
+        }
+    }
     return ret;
 }
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
@@ -16171,6 +16183,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     word32 srcIdx = *inOutIdx;
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
     WOLFSSL_X509_NAME* dName = NULL;
+    int    nameEntries = 0;
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
 
     WOLFSSL_MSG_VERBOSE("Getting Cert Name");
@@ -16193,7 +16206,21 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     CALLOC_ASNGETDATA(dataASN, rdnASN_Length, ret, cert->heap);
 
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-    if (ret == 0) {
+    /* Keep where the encoded name is so GetCertX509Name() can build the
+     * X509_NAME later. */
+    if (nameType == ASN_ISSUER) {
+        cert->issuerNameDer = input + srcIdx;
+        cert->issuerNameDerSz = maxIdx - srcIdx;
+    }
+    else {
+        cert->subjectNameDer = input + srcIdx;
+        cert->subjectNameDerSz = maxIdx - srcIdx;
+    }
+    if (cert->x509NameTarget != NULL) {
+        /* Fill in the X509_NAME passed in. */
+        dName = (WOLFSSL_X509_NAME*)cert->x509NameTarget;
+    }
+    else if ((ret == 0) && (!cert->noX509Name)) {
         /* Create an X509_NAME to hold data for OpenSSL compatibility APIs. */
         dName = wolfSSL_X509_NAME_new_ex(cert->heap);
         if (dName == NULL) {
@@ -16255,10 +16282,12 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                              dataASN);
             }
         #ifdef WOLFSSL_X509_NAME_AVAILABLE
-            /* TODO: push this back up to ssl.c
-             * (do parsing for WOLFSSL_X509_NAME on demand) */
+            /* The entry is only added when the X509_NAME is being built.
+             * GetCertX509Name() builds it on demand when parsing skipped it,
+             * but the checks are always done. */
             if (ret == 0) {
-                ret = AddRDNToName(dName, nid, &dataASN[RDNASN_IDX_ATTR_VAL]);
+                ret = AddRDNToName(dName, nid, &dataASN[RDNASN_IDX_ATTR_VAL],
+                                   &nameEntries);
             }
         #endif
 
@@ -16282,7 +16311,8 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             #ifdef WOLFSSL_X509_NAME_AVAILABLE
                 if (ret == 0) {
                     ret = AddRDNToName(dName, nid,
-                                       &dataASN[RDNASN_IDX_ATTR_VAL]);
+                                       &dataASN[RDNASN_IDX_ATTR_VAL],
+                                       &nameEntries);
                 }
             #endif
             }
@@ -16295,8 +16325,9 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         *inOutIdx = srcIdx;
 
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        /* Store X509_NAME in certificate. */
-        if (nameType == ASN_ISSUER) {
+        /* Store X509_NAME in certificate, when it was built and not passed
+         * in. */
+        if ((dName != NULL) && (nameType == ASN_ISSUER)) {
         #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
              defined(HAVE_LIGHTY)) && \
             (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
@@ -16304,18 +16335,22 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 WC_ASN_NAME_MAX);
             XMEMCPY(dName->raw, cert->issuerRaw, (size_t)dName->rawLen);
         #endif
-            cert->issuerName = dName;
+            if (dName != cert->x509NameTarget) {
+                cert->issuerName = dName;
+            }
         }
-        else {
+        else if (dName != NULL) {
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
             dName->rawLen = (int)min((word32)cert->subjectRawLen,
                 WC_ASN_NAME_MAX);
             XMEMCPY(dName->raw, cert->subjectRaw, (size_t)dName->rawLen);
         #endif
-            cert->subjectName = dName;
+            if (dName != cert->x509NameTarget) {
+                cert->subjectName = dName;
+            }
         }
     }
-    else {
+    else if (dName != cert->x509NameTarget) {
         /* Dispose of unused X509_NAME. */
         wolfSSL_X509_NAME_free(dName);
 #endif
@@ -16394,6 +16429,79 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
+
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+/* Build the WOLFSSL_X509_NAME for the issuer or subject of a parsed
+ * certificate when parsing skipped it (noX509Name set).
+ *
+ * The encoded name is parsed again in a temporary DecodedCert so that the
+ * fields of cert are left as they are.
+ *
+ * @param [in, out] cert      Decoded certificate object.
+ * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
+ * @param [in, out] target    Empty WOLFSSL_X509_NAME to add the entries to.
+ *                            NULL to store a new one in cert.
+ * @return  0 on success, including when the name in cert was already built.
+ * @return  BAD_FUNC_ARG when cert is NULL or the encoded name is not known.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other negative values when parsing the name fails.
+ */
+int GetCertX509Name(DecodedCert* cert, int nameType, void* target)
+{
+    int ret = 0;
+    void** name;
+    const byte* der;
+    word32 derSz;
+    WC_DECLARE_VAR(tmp, DecodedCert, 1, 0);
+
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (nameType == ASN_ISSUER) {
+        name = &cert->issuerName;
+        der = cert->issuerNameDer;
+        derSz = cert->issuerNameDerSz;
+    }
+    else {
+        name = &cert->subjectName;
+        der = cert->subjectNameDer;
+        derSz = cert->subjectNameDerSz;
+    }
+    if ((target == NULL) && (*name != NULL)) {
+        return 0;
+    }
+    if ((der == NULL) || (derSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR_EX(tmp, DecodedCert, 1, cert->heap, DYNAMIC_TYPE_DCERT,
+        return MEMORY_E);
+    InitDecodedCert(tmp, der, derSz, cert->heap);
+    /* The name hash uses the hash of the signature algorithm (SM3 for SM2). */
+    tmp->signatureOID = cert->signatureOID;
+    tmp->x509NameTarget = target;
+    ret = GetName(tmp, nameType, (int)derSz);
+    if ((ret == 0) && (target == NULL)) {
+        /* Take ownership of the X509_NAME from the temporary object. */
+        if (nameType == ASN_ISSUER) {
+            *name = tmp->issuerName;
+            tmp->issuerName = NULL;
+        }
+        else {
+            *name = tmp->subjectName;
+            tmp->subjectName = NULL;
+        }
+        if (*name == NULL) {
+            ret = ASN_PARSE_E;
+        }
+    }
+    FreeDecodedCert(tmp);
+    WC_FREE_VAR_EX(tmp, cert->heap, DYNAMIC_TYPE_DCERT);
+
+    return ret;
+}
+#endif /* WOLFSSL_X509_NAME_AVAILABLE */
+
 #ifndef NO_ASN_TIME
 
 /* two byte date/time, add to value */

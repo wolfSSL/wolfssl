@@ -48,6 +48,12 @@ EXTRA_DIST += \
          certs/test/cert-over-max-altnames.pem \
          certs/test/cert-over-max-nc.cfg \
          certs/test/cert-over-max-nc.pem \
+         certs/test/cert-max-name-entries.cfg \
+         certs/test/cert-max-name-entries.der \
+         certs/test/cert-max-name-entries.pem \
+         certs/test/cert-over-max-name-entries.cfg \
+         certs/test/cert-over-max-name-entries.der \
+         certs/test/cert-over-max-name-entries.pem \
          certs/test/client-ecc-cert-ski.hex
 
 # The certs/server-cert with the last byte (signature byte) changed
