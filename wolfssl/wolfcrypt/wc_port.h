@@ -2035,9 +2035,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    #ifndef NO_STDDEF_H
-        #include <stddef.h> /* for size_t */
-    #endif /* NO_STDDEF_H */
+    /* size_t comes from the <stddef.h> at the top of this file. */
     WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n);
 #endif
 
@@ -2165,6 +2163,11 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
  * compilers, or WOLFSSL_NO_ASM) ptr escapes to an out-of-line call in
  * wc_port.c, since a bare compiler barrier does not cover a local whose
  * address never escaped. */
+
+/* Internal to WC_BARRIER_DATA(). ptr is never dereferenced.  Declared on
+ * every build: code that includes misc.c may take a different arm. */
+WOLFSSL_API void wc_BarrierDataSink(void* ptr);
+
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
 #elif defined(__CC_ARM)
@@ -2176,8 +2179,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         __asm__ __volatile__("" : : "r"(ptr) : "memory")
 #else
     #define WC_BARRIER_DATA_USES_SINK
-    /* Internal to WC_BARRIER_DATA(). ptr is never dereferenced. */
-    WOLFSSL_API void wc_BarrierDataSink(void* ptr);
     #define WC_BARRIER_DATA(ptr) do { wc_BarrierDataSink((ptr)); } while (0)
 #endif
 

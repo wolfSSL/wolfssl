@@ -115,6 +115,12 @@
   PKCS#8), call `wc_MlDsaKey_MakePublicKey()` or import the public key before
   verifying or exporting.
 
+* **Behavioral change (new internal symbol `wc_BarrierDataSink()`)**: now
+  exported on every build, since code that includes `misc.c` picks its
+  `WC_BARRIER_DATA()` arm from its own compiler and flags.  Only the portable
+  arm (non-GCC compilers such as MSVC and IAR, or `WOLFSSL_NO_ASM`) calls it;
+  `WC_BARRIER_DATA_USES_SINK` marks that arm.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
