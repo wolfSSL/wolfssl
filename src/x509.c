@@ -6869,8 +6869,8 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 key->type = WC_EVP_PKEY_ED25519;
             }
         #endif
-        #if defined(OPENSSL_EXTRA) && defined(HAVE_ED448) && \
-            defined(HAVE_ED448_KEY_IMPORT)
+        #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+            (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
             else if (x509->pubKeyOID == ED448k) {
                 key->type = WC_EVP_PKEY_ED448;
             }
@@ -7000,8 +7000,8 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
             #endif /* HAVE_ED25519 */
 
             /* decode Ed448 key */
-            #if defined(OPENSSL_EXTRA) && defined(HAVE_ED448) && \
-                defined(HAVE_ED448_KEY_IMPORT)
+            #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+                (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
             if (key->type == WC_EVP_PKEY_ED448) {
                 key->ed448 = wolfSSL_ED448_new(x509->heap, INVALID_DEVID);
                 if (key->ed448 == NULL) {

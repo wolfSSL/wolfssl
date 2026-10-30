@@ -159,7 +159,12 @@ static int test_tls_parse_push_curve(TLSX** extensions, WOLFSSL* ssl,
         return WC_NO_ERR_TRACE(MEMORY_E);
     curve->name = name;
     curve->next = NULL;
-    return TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, ssl->heap);
+    if (TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, ssl->heap) != 0) {
+        /* TLSX_New failed before it stored curve, so the entry is still ours. */
+        XFREE(curve, ssl->heap, DYNAMIC_TYPE_TLSX);
+        return WC_NO_ERR_TRACE(MEMORY_E);
+    }
+    return 0;
 }
 
 /* Builds and pushes a minimal key share entry -- a peer offer that was
@@ -2741,6 +2746,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
 
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         /* pubKey missing, privKey pre-seeded: the outer guard is true from
@@ -2756,6 +2762,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->pubKey);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         /* privKey missing, pubKey pre-seeded (sized for the FFDHE 2048
@@ -2772,6 +2779,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->privKey);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
 #ifdef WOLFSSL_TEST_STATIC_BUILD
@@ -2811,6 +2819,7 @@ int test_TLSX_KeyShare_gen(void)
                 (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
 
                 test_tls_parse_free_kse(ssl, kse);
+                kse = NULL;
             }
         }
 #endif
@@ -2865,6 +2874,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNull(kse->pubKey);
             ssl->rng = savedRng;
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
@@ -2876,6 +2886,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNotNull(kse->pubKey);
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
@@ -2923,6 +2934,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNull(kse->pubKey);
             ssl->rng = savedRng;
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
@@ -2934,6 +2946,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNotNull(kse->pubKey);
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
@@ -2986,6 +2999,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNull(kse->pubKey);
             ssl->rng = savedRng;
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
