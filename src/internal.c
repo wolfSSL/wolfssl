@@ -26427,7 +26427,7 @@ static int DoProcessAppDataRecord(WOLFSSL* ssl)
     #endif
 #ifndef WOLFSSL_RW_THREADED
     #ifdef WOLFSSL_TLS13
-        if (ssl->keys.keyUpdateRespond) {
+        if (ssl->keys.keyUpdateRespond && !ssl->options.sendKeyUpdate) {
             WOLFSSL_MSG("No KeyUpdate from peer seen");
             WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
             return SANITY_MSG_E;
@@ -30454,16 +30454,6 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
     }
 #endif /* WOLFSSL_DTLS13 */
-#ifdef WOLFSSL_TLS13
-    if (ssl->options.sendKeyUpdate) {
-        ssl->options.sendKeyUpdate = 0;
-        ret = IsWriteClosed(ssl) ? 0 : SendTls13KeyUpdate(ssl);
-        if (ret != 0) {
-            ssl->error = BUILD_MSG_ERROR;
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
-#endif
 #endif
 
     /* last time system socket output buffer was full, try again to send */
@@ -30507,6 +30497,15 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     /* RFC 8446 6.1, 6.2 - no new data after close_notify or a fatal alert */
     if (IsWriteClosed(ssl)) {
         WOLFSSL_MSG("Connection is closed, not sending new data");
+    #ifdef WOLFSSL_TLS13
+        /* remove a KeyUpdate response that was left for this call to send */
+        if (ssl->options.sendKeyUpdate) {
+            ssl->options.sendKeyUpdate = 0;
+        #ifndef WOLFSSL_RW_THREADED
+            ssl->keys.keyUpdateRespond = 0;
+        #endif
+        }
+    #endif
         if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
                 ssl->error == WOLFSSL_ERROR_WANT_READ) {
             ssl->error = ssl->options.fatalAlert ? SOCKET_PEER_CLOSED_E :
@@ -30514,6 +30513,36 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
         return WOLFSSL_FATAL_ERROR;
     }
+
+#ifdef WOLFSSL_TLS13
+    /* A KeyUpdate response the read side left for the write side to send. It
+     * goes out ahead of the application data, and only once the output buffer
+     * is flushed, so that the record of an earlier call is accounted for above
+     * instead of being sent from here and then built again. */
+    if (ssl->options.sendKeyUpdate) {
+        /* RFC 9846 Section 4.7.3: at the key update limit, ignore the
+         * request rather than fail the write. */
+        if (Tls13KeyUpdateLimitReached(ssl)) {
+            WOLFSSL_MSG("Key update limit reached; ignoring update_requested");
+            ssl->options.sendKeyUpdate = 0;
+        #ifndef WOLFSSL_RW_THREADED
+            ssl->keys.keyUpdateRespond = 0;
+        #endif
+            ret = 0;
+        }
+        else {
+            /* For TLS, SendTls13KeyUpdate() clears the flag itself and sends
+             * the KeyUpdate as a response. */
+            if (ssl->options.dtls)
+                ssl->options.sendKeyUpdate = 0;
+            ret = SendTls13KeyUpdate(ssl);
+        }
+        if (ret != 0) {
+            ssl->error = BUILD_MSG_ERROR;
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif
 
 #ifdef WOLFSSL_THREADED_CRYPT
     ret = SendAsyncData(ssl);
