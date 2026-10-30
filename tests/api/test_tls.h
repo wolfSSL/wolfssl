@@ -93,10 +93,12 @@ int test_tls12_server_hello_tls13_suite(void);
 int test_tls12_client_hello_no_tls13_suites(void);
 int test_tls_set_session_min_downgrade(void);
 int test_tls12_session_id_resumption_sni_mismatch(void);
+int test_tls12_session_id_sni_mismatch_peer_cert(void);
 int test_tls12_declined_ticket_auth_not_reminted(void);
 int test_tls13_session_resumption_sni_mismatch(void);
 int test_tls13_resumption_with_alpn(void);
 int test_tls12_session_id_resumption_alpn_mismatch(void);
+int test_tls12_old_hello_resumption_binding(void);
 int test_tls13_session_resumption_alpn_mismatch(void);
 int test_tls_set_curves_list_ecc_fallback(void);
 int test_tls12_corrupted_finished(void);
@@ -202,10 +204,12 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls12_client_hello_no_tls13_suites),       \
         TEST_DECL_GROUP("tls", test_tls_set_session_min_downgrade),            \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_sni_mismatch), \
+        TEST_DECL_GROUP("tls", test_tls12_session_id_sni_mismatch_peer_cert),  \
         TEST_DECL_GROUP("tls", test_tls12_declined_ticket_auth_not_reminted),  \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_sni_mismatch),    \
         TEST_DECL_GROUP("tls", test_tls13_resumption_with_alpn),              \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_alpn_mismatch),\
+        TEST_DECL_GROUP("tls", test_tls12_old_hello_resumption_binding),       \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_alpn_mismatch),   \
         TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback),         \
         TEST_DECL_GROUP("tls", test_tls12_corrupted_finished),                 \
