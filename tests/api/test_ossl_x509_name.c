@@ -956,3 +956,82 @@ int test_wolfSSL_X509_NAME_ENTRY_get_object(void)
     return EXPECT_RESULT();
 }
 
+
+/* A one line name must not render two different DNs the same way. The value
+ * of a name entry carries its own length and may contain a NUL byte, so
+ * X509_NAME_oneline() has to keep that byte visible: taken as a C string the
+ * value stops there, the attributes after it are still appended, and the
+ * result is the same string a different DN produces - which also makes
+ * X509_NAME_cmp() report a match. */
+int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    static const unsigned char nulCn[] = {
+        'a', 'd', 'm', 'i', 'n', 0x00, '.', 'e', 'v', 'i', 'l', '.', 'c', 'o',
+        'm'
+    };
+    static const unsigned char plainCn[] = "admin";
+    /* The same CN with the escape spelled out, not a NUL. */
+    static const unsigned char litCn[] = "admin\\x00.evil.com";
+    static const unsigned char country[] = "US";
+    static const unsigned char org[] = "Corp";
+    X509_NAME* legit = NULL;
+    X509_NAME* spoof = NULL;
+    X509_NAME* escaped = NULL;
+    /* oneline() does not allocate under WOLFSSL_STATIC_MEMORY. */
+    char legitBuf[64];
+    char spoofBuf[64];
+    char escapedBuf[64];
+    char* legitLine = NULL;
+    char* spoofLine = NULL;
+    char* escapedLine = NULL;
+
+    ExpectNotNull(legit = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_commonName,
+        V_ASN1_UTF8STRING, plainCn, 5, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(spoof = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_commonName,
+        V_ASN1_UTF8STRING, nulCn, (int)sizeof(nulCn), -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(legitLine = X509_NAME_oneline(legit, legitBuf,
+        (int)sizeof(legitBuf)));
+    ExpectNotNull(spoofLine = X509_NAME_oneline(spoof, spoofBuf,
+        (int)sizeof(spoofBuf)));
+    ExpectStrEQ(legitLine, "/C=US/CN=admin/O=Corp");
+    ExpectStrNE(spoofLine, legitLine);
+    ExpectStrEQ(spoofLine, "/C=US/CN=admin\\x00.evil.com/O=Corp");
+    ExpectNotNull(XSTRSTR(spoofLine, ".evil.com"));
+    ExpectIntNE(X509_NAME_cmp(legit, spoof), 0);
+
+    /* The escape has to be reversible: a value holding the characters of the
+     * escape itself must not come out as the escaped NUL. */
+    ExpectNotNull(escaped = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_commonName,
+        V_ASN1_UTF8STRING, litCn, (int)sizeof(litCn) - 1, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(escapedLine = X509_NAME_oneline(escaped, escapedBuf,
+        (int)sizeof(escapedBuf)));
+    ExpectStrNE(escapedLine, spoofLine);
+    ExpectStrEQ(escapedLine, "/C=US/CN=admin\\\\x00.evil.com/O=Corp");
+    ExpectIntNE(X509_NAME_cmp(escaped, spoof), 0);
+
+    X509_NAME_free(legit);
+    X509_NAME_free(spoof);
+    X509_NAME_free(escaped);
+#endif
+    return EXPECT_RESULT();
+}
