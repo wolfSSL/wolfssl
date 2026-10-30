@@ -1733,6 +1733,9 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     ssl->peerVerifyRet = (unsigned long)ssl->session->peerVerifyRet;
 #endif
+#ifdef WOLFSSL_DTLS
+    (void)DtlsCheckVersionMask(ssl, DTLS_MASK_START);
+#endif
 
     return WOLFSSL_SUCCESS;
 }

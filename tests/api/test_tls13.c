@@ -8443,6 +8443,109 @@ int test_tls13_ech_hrr_coalesced_server_hello(void)
     return EXPECT_RESULT();
 }
 
+/* A TLS 1.1 ServerHello after a HelloRetryRequest that accepted ECH is
+ * rejected, like a TLS 1.3 one that rejects ECH (RFC 9849 6.1.5). */
+int test_tls13_ech_hrr_tls11_server_hello(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_OLD_TLS)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL_CTX* ctx_c11 = NULL;
+    WOLFSSL_CTX* ctx_s11 = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl_c11 = NULL;
+    WOLFSSL* ssl_s11 = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx11;
+    byte configs[512];
+    word32 configsLen = (word32)sizeof(configs);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&test_ctx11, 0, sizeof(test_ctx11));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx11, &ctx_c11, &ctx_s11, &ssl_c11,
+        &ssl_s11, wolfSSLv23_client_method, wolfTLSv1_1_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, ECH_TEST_PUB_NAME, 0, 0,
+        0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx_s, configs, &configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, configs, configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+        ECH_TEST_PRIV_NAME, (word16)XSTRLEN(ECH_TEST_PRIV_NAME)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl_c, WOLFSSL_TLSV1_1), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_msg_is_hello_retry_request(&test_ctx), 1);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.echAccepted, 1);
+
+    /* The second ClientHello goes to a TLS 1.1 server. */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx11, 0,
+        (const char*)test_ctx.s_buff, test_ctx.s_len), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s11), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s11, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+        (const char*)test_ctx11.c_buff, test_ctx11.c_len), 0);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c11);
+    wolfSSL_free(ssl_s11);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c11);
+    wolfSSL_CTX_free(ctx_s11);
+    ssl_c = NULL;
+    ssl_s = NULL;
+    ctx_c = NULL;
+    ctx_s = NULL;
+
+    /* Without a HelloRetryRequest an echAccepted left from an earlier
+     * connection does not stop the TLS 1.1 fallback. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfTLSv1_1_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, configs, configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl_c, WOLFSSL_TLSV1_1), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL)
+        ssl_c->options.echAccepted = 1;
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_1_VERSION);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* The same offsets against a ServerHello reassembled from two records, where
  * input points at the message body: ECH acceptance used to read 4 bytes past
  * ssl->pendingMsg and report a rejection the server never sent. */

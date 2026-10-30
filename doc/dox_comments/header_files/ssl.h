@@ -6733,6 +6733,9 @@ long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
     | SSL_OP_NO_TLSv1_1                    | Disable TLS 1.1 |
     | SSL_OP_NO_TLSv1_2                    | Disable TLS 1.2 |
     | SSL_OP_NO_TLSv1_3                    | Disable TLS 1.3 (requires WOLFSSL_TLS13) |
+    | SSL_OP_NO_DTLSv1                     | Disable DTLS 1.0; same bit as SSL_OP_NO_TLSv1_1, so it disables TLS 1.1 on a TLS object |
+    | SSL_OP_NO_DTLSv1_2                   | Disable DTLS 1.2; same bit as SSL_OP_NO_TLSv1_2 |
+    | SSL_OP_NO_DTLSv1_3                   | Disable DTLS 1.3 (requires WOLFSSL_DTLS13); same bit as SSL_OP_NO_TLSv1_3 |
     | SSL_OP_NO_COMPRESSION                | Disable record-layer compression (no-op unless HAVE_LIBZ) |
     | SSL_OP_NO_TICKET                     | Disable RFC 5077 session tickets (TLS 1.2 only; TLS 1.3 ignores this flag); requires HAVE_SESSION_TICKET and (OPENSSL_EXTRA or HAVE_WEBSERVER or WOLFSSL_WPAS_SMALL) |
     | SSL_OP_NO_RENEGOTIATION              | Reject peer-initiated renegotiation |

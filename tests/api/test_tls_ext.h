@@ -67,6 +67,7 @@ int test_TLSX_TCA_tls13_msg_type_validation(void);
 int test_TLSX_QUIC_TP_non_quic(void);
 int test_TLSX_ALPN_server_response_count(void);
 int test_TLSX_SupportedCurve_empty_or_unsupported(void);
+int test_TLSX_SupportedCurve_brainpool_downgrade(void);
 int test_TLSX_SignatureAlgorithmsCert_parse(void);
 int test_TLSX_PointFormat_list(void);
 int test_TLSX_MaxFragment_value(void);
@@ -102,6 +103,7 @@ int test_wolfSSL_custom_ext_add_null(void);
         TEST_DECL_GROUP("tls", test_TLSX_SRTP_msg_type_validation),          \
         TEST_DECL_GROUP("tls", test_TLSX_ALPN_server_response_count),        \
         TEST_DECL_GROUP("tls", test_TLSX_SupportedCurve_empty_or_unsupported), \
+        TEST_DECL_GROUP("tls", test_TLSX_SupportedCurve_brainpool_downgrade), \
         TEST_DECL_GROUP("tls", test_TLSX_PointFormat_uncompressed_required)
 
 #endif /* TESTS_API_TEST_TLS_EXT_H */
