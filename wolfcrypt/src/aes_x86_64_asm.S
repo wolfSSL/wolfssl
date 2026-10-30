@@ -3608,7 +3608,6 @@ L_AES_CTR_encrypt_vaes_done_enc:
 #ifndef __APPLE__
 .size	AES_CTR_encrypt_vaes,.-AES_CTR_encrypt_vaes
 #endif /* __APPLE__ */
-#endif /* HAVE_INTEL_VAES */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
 .text
@@ -5099,6 +5098,7 @@ L_AES_CTR_encrypt_avx512_done_enc:
 .size	AES_CTR_encrypt_avx512,.-AES_CTR_encrypt_avx512
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512 */
+#endif /* HAVE_INTEL_VAES */
 #endif /* WOLFSSL_X86_64_BUILD */
 
 #if defined(__linux__) && defined(__ELF__)

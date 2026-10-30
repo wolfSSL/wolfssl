@@ -968,7 +968,9 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
         #if !defined(NO_VAES_SUPPORT) && !defined(HAVE_INTEL_VAES)
             #define HAVE_INTEL_VAES
         #endif
-        #if !defined(NO_AVX512_SUPPORT) && !defined(HAVE_INTEL_AVX512)
+        /* The AVX512 AES kernels are VAES code. */
+        #if !defined(NO_VAES_SUPPORT) && !defined(NO_AVX512_SUPPORT) && \
+            !defined(HAVE_INTEL_AVX512)
             #define HAVE_INTEL_AVX512
         #endif
 
@@ -9138,9 +9140,9 @@ void GenerateM0(Gcm* gcm)
     #ifdef WOLFSSL_X86_64_BUILD
         #ifndef NO_VAES_SUPPORT
             #define HAVE_INTEL_VAES
-        #endif
-        #ifndef NO_AVX512_SUPPORT
-            #define HAVE_INTEL_AVX512
+            #ifndef NO_AVX512_SUPPORT
+                #define HAVE_INTEL_AVX512
+            #endif
         #endif
     #endif
 #endif

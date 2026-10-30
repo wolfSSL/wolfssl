@@ -108,7 +108,7 @@
 #define WOLFKM_AESCMAC_NAME  "cmac(aes)"
 
 #if defined(WOLFSSL_X86_64_BUILD) && (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES))
-    #if !defined(NO_AVX512_SUPPORT)
+    #if !defined(NO_AVX512_SUPPORT) && !defined(NO_VAES_SUPPORT)
         #define WOLFKM_AES_DRIVER_ISA_EXT "-vaes-avx512"
     #elif !defined(NO_VAES_SUPPORT)
         #define WOLFKM_AES_DRIVER_ISA_EXT "-vaes-avx2"

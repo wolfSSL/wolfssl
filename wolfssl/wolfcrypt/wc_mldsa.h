@@ -929,7 +929,7 @@ WOLFSSL_API int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output,
 /* AVX512 assembly for ML-DSA is built (and dispatched at runtime on capable
  * CPUs) whenever the Intel speedups are enabled and AVX512 is not opted out.
  * Matches the HAVE_INTEL_AVX512 guard around the generated assembly. */
-#ifndef NO_AVX512_SUPPORT
+#if !defined(NO_AVX512_SUPPORT) && !defined(WC_MLDSA_NO_AVX2)
     #define WOLFSSL_MLDSA_HAVE_INTEL_AVX512
     /* AVX512VBMI (vpermb) functions are built (matching the auto-enabled
      * HAVE_INTEL_AVX512_VBMI guard around the generated assembly) and

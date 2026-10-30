@@ -4989,7 +4989,6 @@ L_AES_XTS_decrypt_update_vaes_done_dec:
 #ifndef __APPLE__
 .size	AES_XTS_decrypt_update_vaes,.-AES_XTS_decrypt_update_vaes
 #endif /* __APPLE__ */
-#endif /* HAVE_INTEL_VAES */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
 .text
@@ -7231,6 +7230,7 @@ L_AES_XTS_decrypt_update_avx512_done_dec:
 .size	AES_XTS_decrypt_update_avx512,.-AES_XTS_decrypt_update_avx512
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512 */
+#endif /* HAVE_INTEL_VAES */
 #endif /* WOLFSSL_X86_64_BUILD */
 #endif /* WOLFSSL_AES_XTS */
 
