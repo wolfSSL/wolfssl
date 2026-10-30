@@ -6,11 +6,11 @@
     written to the output buffer in the variable outLen.
 
     \return 0 Returned upon successfully decoding the Base64 encoded input
-    \return BAD_FUNC_ARG Returned if the output buffer is too small to
+    \return BUFFER_E Returned if the output buffer is too small to
     store the decoded input
     \return ASN_INPUT_E Returned if a character in the input buffer falls
-    outside of the Base64 range ([A-Za-z0-9+/=]) or if there is an invalid
-    line ending in the Base64 encoded input
+    outside of the Base64 range ([A-Za-z0-9+/=]) and is not a space, CR or
+    LF, or if there is an invalid line ending in the Base64 encoded input
 
     \param in pointer to the input buffer to decode
     \param inLen length of the input buffer to decode
@@ -171,8 +171,10 @@ int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out,
     to the output buffer in the variable outLen.
 
     \return 0 Returned upon successfully decoding the Base16 encoded input
-    \return BAD_FUNC_ARG Returned if the output buffer is too small to store
-    the decoded input or if the input length is not a multiple of two
+    \return BAD_FUNC_ARG Returned if the input length is odd, except a
+    single hex digit, which decodes to one byte holding its value
+    \return BUFFER_E Returned if the output buffer is too small to store
+    the decoded input
     \return ASN_INPUT_E Returned if a character in the input buffer falls
     outside of the Base16 range ([0-9A-F])
 
@@ -244,11 +246,12 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen);
     timing attacks are not a concern.
 
     \return 0 On successfully decoding the Base64 encoded input.
-    \return BAD_FUNC_ARG If the output buffer is too small to store the
-    decoded input.
+    \return BAD_FUNC_ARG If out or outLen is NULL.
     \return ASN_INPUT_E If a character in the input buffer falls outside
-    of the Base64 range or if there is an invalid line ending.
-    \return BUFFER_E If running out of buffer while decoding.
+    of the Base64 range and is not a space, CR or LF, or if there is an
+    invalid line ending.
+    \return BUFFER_E If the output buffer is too small to store the
+    decoded input.
 
     \param in pointer to the input buffer to decode
     \param inLen length of the input buffer to decode
