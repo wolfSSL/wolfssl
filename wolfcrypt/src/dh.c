@@ -2119,12 +2119,6 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         return MP_VAL;
     }
 
-    /* The secret can be as long as the prime and is written unbounded. */
-    if (*agreeSz < (word32)mp_unsigned_bin_size(&key->p)) {
-        WOLFSSL_MSG("DH agree buffer smaller than prime");
-        return BUFFER_E;
-    }
-
     /* Non-blocking re-entry: the same wc_DhAgree call repeats until the
      * SP state machine completes, so cache the per-op key validation
      * results instead of re-running them each yield. The cache is

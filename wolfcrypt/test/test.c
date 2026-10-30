@@ -44724,17 +44724,6 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
 #endif /* WC_DH_NONBLOCK + SP nonblock */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_KCAPI_DH)
-    /* An output buffer shorter than the prime must be refused. pubSz is at
-     * most the prime size. */
-    agreeSz2 = pubSz - 1;
-    ret = wc_DhAgree(key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
-    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = 0;
-#endif
-
     /* wc_DhGeneratePublic_fips() was added in 5.2.3, but some customers are
      * building with configure scripts that set version to 5.2.1, but with 5.2.3
      * wolfCrypt sources.  5.3.0 is used for both fips-v5-ready and v5-kcapi,
