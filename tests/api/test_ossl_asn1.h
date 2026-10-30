@@ -50,6 +50,7 @@ int test_wolfSSL_ASN1_TIME(void);
 int test_wolfSSL_ASN1_TIME_to_string(void);
 int test_wolfSSL_ASN1_TIME_diff_compare(void);
 int test_wolfSSL_ASN1_TIME_adj(void);
+int test_wolfSSL_ASN1_TIME_set(void);
 int test_wolfSSL_ASN1_TIME_to_tm(void);
 int test_wolfSSL_ASN1_TIME_to_generalizedtime(void);
 int test_wolfSSL_ASN1_TIME_print(void);
@@ -97,6 +98,7 @@ int test_ASN1_strings(void);
     TEST_DECL_GROUP("ossl_asn1_tm", test_wolfSSL_ASN1_TIME_to_string),         \
     TEST_DECL_GROUP("ossl_asn1_tm", test_wolfSSL_ASN1_TIME_diff_compare),      \
     TEST_DECL_GROUP("ossl_asn1_tm", test_wolfSSL_ASN1_TIME_adj),               \
+    TEST_DECL_GROUP("ossl_asn1_tm", test_wolfSSL_ASN1_TIME_set),               \
     TEST_DECL_GROUP("ossl_asn1_tm", test_wolfSSL_ASN1_TIME_to_tm),             \
     TEST_DECL_GROUP("ossl_asn1_tm",                                            \
                                    test_wolfSSL_ASN1_TIME_to_generalizedtime), \

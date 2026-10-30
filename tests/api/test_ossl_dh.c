@@ -89,6 +89,32 @@ int test_wolfSSL_DH(void)
         ExpectIntEQ(DH_compute_key_padded(buf2, dh->pub_key, dh2), sz1);
         ExpectIntEQ(XMEMCMP(buf, buf2, (size_t)sz1), 0);
 
+        /* Key agreement with only p and priv_key set (no g). */
+        if (EXPECT_SUCCESS()) {
+            DH *dh3 = NULL;
+
+            ExpectNotNull(dh3 = DH_new());
+            if (dh3 != NULL) {
+                ExpectNotNull(dh3->p = BN_dup(dh->p));
+                ExpectNotNull(dh3->priv_key = BN_dup(dh->priv_key));
+            }
+            ExpectIntEQ(DH_compute_key_padded(buf2, dh2->pub_key, dh3), sz1);
+            ExpectIntEQ(XMEMCMP(buf, buf2, (size_t)sz1), 0);
+            /* Encoding and duplicating parameters still need g. */
+            ExpectIntEQ(i2d_DHparams(dh3, NULL), 0);
+            ExpectNull(DHparams_dup(dh3));
+            /* Adding g afterwards must give a usable key pair. */
+            if (dh3 != NULL) {
+                ExpectNotNull(dh3->g = BN_dup(dh->g));
+            }
+            ExpectIntEQ(DH_generate_key(dh3), 1);
+            if (dh3 != NULL) {
+                ExpectIntNE(BN_is_zero(dh3->pub_key), 1);
+                ExpectIntGT(DH_compute_key(buf2, dh3->pub_key, dh2), 0);
+            }
+            DH_free(dh3);
+        }
+
         if (dh2 != NULL)
             DH_free(dh2);
     }
