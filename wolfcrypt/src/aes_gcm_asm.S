@@ -26232,7 +26232,6 @@ L_AES_GCMSIV_ctr_vaes_done_enc:
 .size	AES_GCMSIV_ctr_vaes,.-AES_GCMSIV_ctr_vaes
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AESGCM_SIV */
-#endif /* HAVE_INTEL_VAES */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
 .data
@@ -37240,6 +37239,7 @@ L_AES_GCMSIV_ctr_avx512_done_enc:
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AESGCM_SIV */
 #endif /* HAVE_INTEL_AVX512 */
+#endif /* HAVE_INTEL_VAES */
 #endif /* WOLFSSL_X86_64_BUILD */
 
 #if defined(__linux__) && defined(__ELF__)
