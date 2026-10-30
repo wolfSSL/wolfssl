@@ -3833,6 +3833,108 @@ static void ecc_key_tmp_final(ecc_key* key, void* heap)
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 #endif /* !WOLFSSL_SP_MATH */
 
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_MATH)
+/* Point multiplication with the SP code for callers of wc_ecc_mulmod() and
+ * wc_ecc_mulmod_ex() (hostapd's SAE, for example) when the curve is one the SP
+ * code implements. Only the modulus and a are given, so the curve is
+ * identified by both, as other curves of the same size may be compiled in.
+ * Only when mapping back to affine coordinates, as otherwise the result is
+ * expected in the generic code's representation.
+ *
+ * Returns NOT_COMPILED_IN when the SP code does not apply.
+ */
+static int ecc_sp_mulmod(const mp_int* k, ecc_point* G, ecc_point* R,
+                         mp_int* a, mp_int* modulus, int map, void* heap)
+{
+    DECL_MP_INT_SIZE_DYN(t, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+    int bits = mp_count_bits(modulus);
+    int curveId;
+    int idx;
+    int err;
+
+    if (!map || a == NULL || MP_BITS_OVER_MAX(bits, MAX_ECC_BITS_USE)) {
+        return NOT_COMPILED_IN;
+    }
+    switch (bits) {
+#ifndef WOLFSSL_SP_NO_256
+    case 256:
+        curveId = ECC_SECP256R1;
+        break;
+#endif
+#ifdef WOLFSSL_SP_384
+    case 384:
+        curveId = ECC_SECP384R1;
+        break;
+#endif
+#ifdef WOLFSSL_SP_521
+    case 521:
+        curveId = ECC_SECP521R1;
+        break;
+#endif
+    default:
+        return NOT_COMPILED_IN;
+    }
+    /* The SP code takes a non-negative scalar no longer than the curve and
+     * coordinates already reduced modulo the prime; it would truncate wider
+     * values. Leave anything else to the generic code, which reduces them. */
+    if (mp_isneg(k) || (mp_count_bits(k) > bits)) {
+        return NOT_COMPILED_IN;
+    }
+    if (mp_isneg(G->x) || mp_isneg(G->y) || mp_isneg(G->z) ||
+            (mp_cmp(G->x, modulus) != MP_LT) ||
+            (mp_cmp(G->y, modulus) != MP_LT) ||
+            (mp_cmp(G->z, modulus) != MP_LT)) {
+        return NOT_COMPILED_IN;
+    }
+    idx = wc_ecc_get_curve_idx(curveId);
+    if (idx < 0) {
+        return NOT_COMPILED_IN;
+    }
+
+    NEW_MP_INT_SIZE(t, bits, heap, DYNAMIC_TYPE_ECC);
+#ifdef MP_INT_SIZE_CHECK_NULL
+    if (t == NULL) {
+        return MEMORY_E;
+    }
+#endif
+    err = INIT_MP_INT_SIZE(t, bits);
+    if (err == MP_OKAY) {
+        err = mp_read_radix(t, ecc_sets[idx].prime, MP_RADIX_HEX);
+    }
+    if ((err == MP_OKAY) && (mp_cmp(t, modulus) != MP_EQ)) {
+        err = NOT_COMPILED_IN;
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_radix(t, ecc_sets[idx].Af, MP_RADIX_HEX);
+    }
+    if ((err == MP_OKAY) && (mp_cmp(t, a) != MP_EQ)) {
+        err = NOT_COMPILED_IN;
+    }
+    mp_clear(t);
+    FREE_MP_INT_SIZE(t, heap, DYNAMIC_TYPE_ECC);
+    if (err != MP_OKAY) {
+        return err;
+    }
+
+    switch (bits) {
+#ifndef WOLFSSL_SP_NO_256
+    case 256:
+        return sp_ecc_mulmod_256(k, G, R, map, heap);
+#endif
+#ifdef WOLFSSL_SP_384
+    case 384:
+        return sp_ecc_mulmod_384(k, G, R, map, heap);
+#endif
+#ifdef WOLFSSL_SP_521
+    case 521:
+        return sp_ecc_mulmod_521(k, G, R, map, heap);
+#endif
+    default:
+        return NOT_COMPILED_IN;
+    }
+}
+#endif /* WOLFSSL_HAVE_SP_ECC && !WOLFSSL_SP_MATH */
+
 #if !defined(WOLFSSL_SP_MATH) || !defined(FP_ECC)
 /**
    Perform a point multiplication
@@ -3879,6 +3981,13 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        err = ECC_OUT_OF_RANGE_E;
        goto exit;
    }
+
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_MATH)
+   err = ecc_sp_mulmod(k, G, R, a, modulus, map, heap);
+   if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+       return err;
+   }
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC);

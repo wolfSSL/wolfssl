@@ -3621,6 +3621,106 @@ int test_wc_ecc_mulmod(void)
 } /* END test_wc_ecc_mulmod */
 
 /*
+ * Testing that wc_ecc_mulmod() of the private key and the base point gives
+ * the public key, on every curve compiled in. This covers curves the SP code
+ * implements and other curves of the same size, which must not be handed to
+ * the SP code.
+ */
+int test_wc_ecc_mulmod_curves(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+    static const int curves[] = {
+        ECC_SECP256R1, ECC_SECP384R1, ECC_SECP521R1, ECC_SECP256K1,
+        ECC_BRAINPOOLP256R1, ECC_BRAINPOOLP384R1, ECC_BRAINPOOLP512R1
+    };
+    ecc_key     key1;
+    ecc_key     key2;
+    ecc_key     key3;
+    ecc_key     key4;
+    WC_RNG      rng;
+    int         ret;
+    int         i;
+    int         tested = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < (int)(sizeof(curves) / sizeof(curves[0])); i++) {
+        const ecc_set_type* dp;
+        int idx = wc_ecc_get_curve_idx(curves[i]);
+
+        if (idx < 0) {
+            continue;
+        }
+        dp = wc_ecc_get_curve_params(idx);
+        ExpectNotNull(dp);
+        if (dp == NULL) {
+            break;
+        }
+
+        XMEMSET(&key1, 0, sizeof(ecc_key));
+        XMEMSET(&key2, 0, sizeof(ecc_key));
+        XMEMSET(&key3, 0, sizeof(ecc_key));
+        XMEMSET(&key4, 0, sizeof(ecc_key));
+        ExpectIntEQ(wc_ecc_init(&key1), 0);
+        ExpectIntEQ(wc_ecc_init(&key2), 0);
+        ExpectIntEQ(wc_ecc_init(&key3), 0);
+        ExpectIntEQ(wc_ecc_init(&key4), 0);
+
+        ret = wc_ecc_make_key_ex(&rng, dp->size, &key1, curves[i]);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key1.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        ExpectIntEQ(ret, 0);
+
+        /* As in test_wc_ecc_mulmod(): the base point, the result point, and
+         * the curve parameter A and the prime as public coordinates. */
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key2, dp->Gx, dp->Gy, NULL,
+            curves[i]), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key3, dp->Gx, dp->Gy, NULL,
+            curves[i]), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key4, dp->Af, dp->prime, NULL,
+            curves[i]), 0);
+
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
+        /* The same base point with z = 1 + prime, a coordinate that is not
+         * reduced (and wider than the curve for most primes), must give the
+         * same result. WOLFSSL_SP_MATH builds reject coordinates wider than
+         * the curve instead. */
+        ExpectIntEQ(mp_add(key2.pubkey.z, key4.pubkey.y, key2.pubkey.z),
+            MP_OKAY);
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #endif
+        tested++;
+
+        wc_ecc_free(&key1);
+        wc_ecc_free(&key2);
+        wc_ecc_free(&key3);
+        wc_ecc_free(&key4);
+    }
+    ExpectIntGT(tested, 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_curves */
+
+/*
  * Testing wc_ecc_mulmod() with base point ordinates that are not reduced
  * modulo the prime.
  *
