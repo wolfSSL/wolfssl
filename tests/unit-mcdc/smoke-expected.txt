@@ -24,6 +24,7 @@ test_ed25519_hash_fault_whitebox
 test_ed25519_whitebox
 test_ed448_hash_fault_whitebox
 test_ed448_whitebox
+test_egd_whitebox
 test_falcon_whitebox
 test_frodokem_fault_whitebox
 test_frodokem_mat_fault_whitebox

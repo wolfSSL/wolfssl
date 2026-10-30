@@ -3913,44 +3913,50 @@ int wolfSSL_RAND_egd(const char* nm)
             break;
         }
 
-        /* attempting to read */
+        /* Read the response length, retrying interrupted reads. */
         buf[idx] = 0;
-        ret = (int)read(fd, buf + idx, 256 - bytes);
-        if (ret == 0) {
+        do {
+            ret = (int)read(fd, buf + idx, 1);
+        } while (ret < 0 && errno == EINTR);
+        if (ret != 1 || bytes + buf[idx] > 255) {
             WOLFSSL_MSG("error reading entropy from egd server");
             ret = WOLFSSL_FATAL_ERROR;
             break;
         }
-        if (ret > 0 && buf[idx] > 0) {
-            bytes += buf[idx]; /* egd stores amount sent in first byte */
-            if (bytes + idx > 255 || buf[idx] > ret) {
-                WOLFSSL_MSG("Buffer error");
+        if (buf[idx] == 0) {
+            /* if egd returned 0 then there is no more entropy to be had.
+               Do not try more reads. */
+            ret = WOLFSSL_SUCCESS;
+            break;
+        }
+        /* Read the complete body before sending another request. */
+        {
+            word32 received = 0;
+            word32 len = buf[idx];
+
+            while (received < len) {
+                ret = (int)read(fd, buf + idx + 1 + received, len - received);
+                if (ret > 0) {
+                    received += (word32)ret;
+                }
+                else if (ret < 0 && errno == EINTR) {
+                    continue;
+                }
+                else {
+                    WOLFSSL_MSG("error reading entropy from egd server");
+                    break;
+                }
+            }
+            if (received != len) {
                 ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
-            XMEMMOVE(buf + idx, buf + idx + 1, buf[idx]);
+            XMEMMOVE(buf + idx, buf + idx + 1, len);
+            bytes += len;
             idx = bytes;
             ret = WOLFSSL_SUCCESS;
-            if (bytes >= 255) {
-                break;
-            }
         }
-        else {
-            if (errno == EAGAIN || errno == EINTR) {
-                WOLFSSL_MSG("EGD would read");
-                ret = WOLFSSL_SUCCESS; /* try again */
-            }
-            else if (buf[idx] == 0) {
-                /* if egd returned 0 then there is no more entropy to be had.
-                   Do not try more reads. */
-                ret = WOLFSSL_SUCCESS;
-                break;
-            }
-            else {
-                WOLFSSL_MSG("Error with read");
-                ret = WOLFSSL_FATAL_ERROR;
-            }
-        }
+
     }
 
     if (bytes > 0 && ret == WOLFSSL_SUCCESS) {
@@ -4007,7 +4013,7 @@ int wolfSSL_RAND_egd(const char* nm)
         }
     }
 
-    ForceZero(buf, bytes);
+    ForceZero(buf, 256);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
