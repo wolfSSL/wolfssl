@@ -4725,6 +4725,9 @@ static int slhdsakey_wots_pkgen_chain_c(SlhDsaKey* key, const byte* sk_seed,
 #else
     byte sk[SLHDSA_MAX_N];
 
+    /* n is from the parameter table, so it fits sk. */
+    WC_ASSUME(n <= SLHDSA_MAX_N);
+
     /* Step 4. len consecutive addresses. */
     for (i = 0; i < len; i++) {
         /* Step 5. Set chain address for WOTS PRF. */
@@ -5311,6 +5314,9 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
 #endif
     {
         byte sk[SLHDSA_MAX_N];
+
+        /* n is from the parameter table, so it fits sk. */
+        WC_ASSUME(n <= SLHDSA_MAX_N);
 
         /* sk will hold secret WOTS+ leaves; baseline-zero and register it up
          * front (block has a single exit through the ForceZero below). */
