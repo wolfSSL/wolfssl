@@ -136,8 +136,10 @@ jobs:
         # TLS layer out too, not leave the previous defaults cached.
         cmake .. > /dev/null
         grep -q '^#define HAVE_SNI$' wolfssl/options.h
+        grep -q '^#define HAVE_SERVER_RENEGOTIATION_INFO$' wolfssl/options.h
         cmake -DWOLFSSL_CRYPT_ONLY=yes .. > /dev/null
         ! grep -q '^#define HAVE_SNI$' wolfssl/options.h
+        ! grep -q '^#define HAVE_SERVER_RENEGOTIATION_INFO$' wolfssl/options.h
         grep -q '^#define NO_TLS$' wolfssl/options.h
 
         cd ..

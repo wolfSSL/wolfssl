@@ -3048,3 +3048,79 @@ int test_dtls13_ech_rejected_ticket_consumed(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A KeyUpdate the transport refused is still in flight. */
+int test_dtls13_update_keys_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "after the KeyUpdate";
+    const int msgLen = (int)sizeof(msg) - 1;
+    char buf[32];
+    int required = -1;
+    int msgCount;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+        TEST_DTLS13_PUMP(ssl_c);
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+        TEST_DTLS13_PUMP(ssl_s);
+    }
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_c), 0);
+    msgCount = test_ctx.s_msg_count;
+
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(test_ctx.s_msg_count, msgCount);
+    ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 1);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_key_update_response(ssl_c, &required), 0);
+    ExpectIntEQ(required, 1);
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.s_msg_count, msgCount);
+
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    ExpectIntEQ(test_ctx.s_msg_count, msgCount + 2);
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), msgLen);
+    ExpectStrEQ(buf, msg);
+    TEST_DTLS13_PUMP(ssl_s);
+
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+        TEST_DTLS13_PUMP(ssl_c);
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+        TEST_DTLS13_PUMP(ssl_s);
+    }
+    ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 0);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_key_update_response(ssl_c, &required), 0);
+    ExpectIntEQ(required, 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, msgLen), msgLen);
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), msgLen);
+    ExpectStrEQ(buf, msg);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), msgLen);
+    ExpectStrEQ(buf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

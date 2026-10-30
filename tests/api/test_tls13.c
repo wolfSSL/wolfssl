@@ -17446,3 +17446,177 @@ int test_tls13_cks_hrr_reparse(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A refused KeyUpdate send is reported and sent by the next write. */
+int test_tls13_update_keys_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "after the KeyUpdate";
+    const int msgLen = (int)sizeof(msg) - 1;
+    char buf[32];
+    int required = -1;
+    int msgCount;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* drain NewSessionTicket */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    msgCount = test_ctx.s_msg_count;
+
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(test_ctx.s_msg_count, msgCount);
+    /* not a wolfSSL_get_error() input */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_ERROR_WANT_WRITE),
+        WOLFSSL_ERROR_NONE);
+    ExpectIntEQ(wolfSSL_key_update_response(ssl_c, &required), 0);
+    ExpectIntEQ(required, 1);
+
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    ExpectIntEQ(test_ctx.s_msg_count, msgCount + 2);
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), msgLen);
+    ExpectStrEQ(buf, msg);
+
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_key_update_response(ssl_c, &required), 0);
+    ExpectIntEQ(required, 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, msgLen), msgLen);
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), msgLen);
+    ExpectStrEQ(buf, msg);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), msgLen);
+    ExpectStrEQ(buf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+#define TEST_TLS13_AEAD_KU_WANT_WRITE
+struct test_tls13_ku_ww_ctx {
+    struct test_memio_ctx* test_ctx;
+    int refused;
+};
+
+/* Refuse the first small record, the KeyUpdate. */
+static int test_tls13_ku_ww_write_cb(WOLFSSL* ssl, char* data, int sz,
+    void* ctx)
+{
+    struct test_tls13_ku_ww_ctx* c = (struct test_tls13_ku_ww_ctx*)ctx;
+
+    if (!c->refused && sz < 64) {
+        c->refused = 1;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+    return test_memio_write_cb(ssl, data, sz, c->test_ctx);
+}
+
+/* The AEAD limit fires after the first record of a write and the KeyUpdate
+ * send is refused. The retry must resume after that record, not resend it;
+ * when the limit fires after the last record the write is complete. */
+static int test_tls13_aead_ku_ww(int trailing)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    struct test_tls13_ku_ww_ctx ww;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const int msgSz = trailing ? 100 : MAX_RECORD_SIZE + 100;
+    const int expSz = trailing ? 2 * msgSz : msgSz;
+    byte* msg = NULL;
+    byte* exp = NULL;
+    byte* rb = NULL;
+    int total = 0;
+    int r = -1;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&ww, 0, sizeof(ww));
+    ww.test_ctx = &test_ctx;
+    test_ctx.c_ciphers = "TLS13-AES128-GCM-SHA256";
+    test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+
+    ExpectNotNull(msg = (byte*)XMALLOC((size_t)msgSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(exp = (byte*)XMALLOC((size_t)expSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(rb = (byte*)XMALLOC((size_t)expSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        for (i = 0; i < msgSz; i++)
+            msg[i] = (byte)i;
+        for (i = 0; i < expSz; i++)
+            exp[i] = msg[i % msgSz];
+    }
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(ssl_c->specs.bulk_cipher_algorithm, wolfssl_aes_gcm);
+        /* The first record goes out at limit - 1 and trips the check. */
+        ssl_c->keys.sequence_number_lo      = 0x016A09E6 - 1;
+        ssl_s->keys.peer_sequence_number_lo = 0x016A09E6 - 1;
+        wolfSSL_SSLSetIOSend(ssl_c, test_tls13_ku_ww_write_cb);
+        wolfSSL_SetIOWriteCtx(ssl_c, &ww);
+    }
+
+    if (trailing) {
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgSz), msgSz);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgSz), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+    }
+    ExpectIntEQ(ww.refused, 1);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgSz), msgSz);
+
+    while (EXPECT_SUCCESS() && (r = wolfSSL_read(ssl_s, rb, expSz)) > 0) {
+        ExpectIntLE(total + r, expSz);
+        if (total + r <= expSz)
+            ExpectIntEQ(XMEMCMP(rb, exp + total, (size_t)r), 0);
+        total += r;
+    }
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, r), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(total, expSz);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(exp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_TLS13_AEAD_KU_WANT_WRITE */
+
+int test_tls13_AEAD_limit_KeyUpdate_want_write(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_AEAD_KU_WANT_WRITE
+    ExpectIntEQ(test_tls13_aead_ku_ww(0), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_aead_ku_ww(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
