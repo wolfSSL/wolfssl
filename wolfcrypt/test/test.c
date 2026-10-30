@@ -48328,6 +48328,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_pkey0_test(void)
             goto openssl_pkey0_test_done;
         }
         XMEMSET(out, 0, sizeof(out));
+        outlen = sizeof(out);
         ret = wolfSSL_EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
@@ -48381,6 +48382,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_pkey0_test(void)
 #endif
 
         XMEMSET(out, 0, sizeof(out));
+        outlen = sizeof(out);
         ret = wolfSSL_EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
