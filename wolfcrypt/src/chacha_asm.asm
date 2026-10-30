@@ -4817,7 +4817,7 @@ L_chacha20_poly1305_epilogue:
         vmovdqu	YMMWORD PTR [r9+64], ymm2
         vmovdqu	YMMWORD PTR [r9+96], ymm3
         vmovdqu	YMMWORD PTR [r9+128], ymm4
-        vmovd	[rdi+48], xmm28
+        vmovd	DWORD PTR [rdi+48], xmm28
         vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+728]
         vmovdqu	xmm7, OWORD PTR [rsp+744]
@@ -8191,7 +8191,7 @@ L_cp512_epi:
         mov	QWORD PTR [rsi+24], r8
         mov	QWORD PTR [rsi+32], r10
         mov	QWORD PTR [rsi+40], r11
-        vmovd	[rdi+48], xmm12
+        vmovd	DWORD PTR [rdi+48], xmm12
         vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+1200]
         vmovdqu	xmm7, OWORD PTR [rsp+1216]
@@ -9954,7 +9954,7 @@ L_cp512_dstart:
         mov	QWORD PTR [rsi+24], r8
         mov	QWORD PTR [rsi+32], r10
         mov	QWORD PTR [rsi+40], r11
-        vmovd	[rdi+48], xmm12
+        vmovd	DWORD PTR [rdi+48], xmm12
         vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+1200]
         vmovdqu	xmm7, OWORD PTR [rsp+1216]
