@@ -19885,19 +19885,75 @@ static int MatchDirectoryName(const byte* name, word32 nameSz,
     return 1;
 }
 
+/* Return 1 if a dNSName constraint base is empty once its absolute-FQDN
+ * trailing dot is removed. RFC 5280 4.2.1.10: any DNS name can be built by
+ * adding labels to the left of the empty name, so such a base covers every
+ * DNS name. With OPENSSL_COMPATIBLE_DEFAULTS a lone "." is not treated as
+ * empty and so matches no name, which is what OpenSSL decides for any name
+ * without a trailing dot. */
+static int DnsBaseIsEmpty(const char* base, int baseSz)
+{
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    (void)base;
+    return (baseSz == 0);
+#else
+    return (baseSz == 0) || (baseSz == 1 && base[0] == '.');
+#endif
+}
+
+/* Return 1 if the local-part of a mailbox, the localSz bytes before its last
+ * '@', may be split there. A local-part holding another '@' must be a quoted
+ * string (RFC 5322 3.2.4), otherwise the host-part is ambiguous. */
+static int Rfc822LocalPartOk(const char* local, int localSz)
+{
+    int i;
+
+    for (i = 0; i < localSz; i++) {
+        if (local[i] == '@') {
+            break;
+        }
+    }
+    if (i == localSz) {
+        return 1;
+    }
+
+    if (localSz < 2 || local[0] != '"' || local[localSz - 1] != '"') {
+        return 0;
+    }
+    /* Inside the quotes a '"' or a backslash must follow a backslash. */
+    for (i = 1; i < localSz - 1; i++) {
+        if (local[i] == '\\') {
+            i++;
+            if (i >= localSz - 1) {
+                return 0; /* the closing quote is escaped */
+            }
+        }
+        else if (local[i] == '"') {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 /* Match a name against a name-constraint subtree of the same GeneralName
  * type.
  *
- * Returns 1 on match and 0 on no match. For ASN_DIR_TYPE a negative error
- * is returned when either operand is not a name that can be compared; the
- * caller must treat that as a failed constraint check rather than as either
- * answer. */
+ * Returns 1 on match and 0 on no match. A negative error is returned when
+ * either operand is not a name that can be compared: for ASN_DIR_TYPE when a
+ * DN cannot be parsed, and for ASN_RFC822_TYPE when a mailbox holds an '@'
+ * outside a quoted local-part. The caller must treat that as a failed
+ * constraint check rather than as either answer. */
 int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     const char* base, int baseSz)
 {
-    if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
+    if (base == NULL || baseSz < 0 || name == NULL || nameSz <= 0 ||
             (type != ASN_RFC822_TYPE && type != ASN_DNS_TYPE &&
              type != ASN_DIR_TYPE)) {
+        return 0;
+    }
+
+    if (type != ASN_DNS_TYPE && baseSz == 0) {
         return 0;
     }
 
@@ -19908,6 +19964,12 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
 
     if (name[0] == '.') {
         return 0;
+    }
+
+    /* An empty dNSName base covers all DNS names. Report a match so that an
+     * excluded empty subtree excludes everything. */
+    if (type == ASN_DNS_TYPE && DnsBaseIsEmpty(base, baseSz)) {
+        return 1;
     }
 
     if (type == ASN_DNS_TYPE) {
@@ -19955,13 +20017,12 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
             }
         }
 
-        /* verify that name is a valid email address, store @ position */
+        /* Split the mailbox at its last '@'. The host-part never holds an
+         * '@'; a quoted local-part may (RFC 5322). */
         p = name;
         count = 0;
         while (count < nameSz) {
             if (*p == '@') {
-                if (atPos >= 0)
-                    return 0; /* Multiple '@' in name is invalid */
                 atPos = count;
             }
             count++;
@@ -19971,6 +20032,11 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
         /* Validate '@' exists and is not at start or end */
         if (atPos < 0 || atPos == 0 || atPos == nameSz - 1)
             return 0;
+
+        if (!Rfc822LocalPartOk(name, atPos)) {
+            WOLFSSL_MSG("rfc822Name has an unquoted '@' in its local-part");
+            return ASN_PARSE_E;
+        }
 
         if (!baseIsEmail) {
             /* Base isn't an email address but a domain or host.
@@ -20325,7 +20391,7 @@ int wolfssl_local_MatchDnsConstraintWildcard(const char* name, int nameSz,
     int baseLead;
     int ni, bi;
 
-    if (name == NULL || base == NULL || nameSz <= 0 || baseSz <= 0) {
+    if (name == NULL || base == NULL || nameSz <= 0 || baseSz < 0) {
         return 0;
     }
 
@@ -20335,10 +20401,20 @@ int wolfssl_local_MatchDnsConstraintWildcard(const char* name, int nameSz,
     if (name[nameSz - 1] == '.') {
         nameSz--;
     }
+    if (nameSz <= 0 || name[0] == '.') {
+        return 0;
+    }
+
+    /* An empty base covers all DNS names: every expansion is contained in
+     * it and every expansion intersects it. */
+    if (DnsBaseIsEmpty(base, baseSz)) {
+        return 1;
+    }
+
     if (base[baseSz - 1] == '.') {
         baseSz--;
     }
-    if (nameSz <= 0 || baseSz <= 0 || name[0] == '.') {
+    if (baseSz <= 0) {
         return 0;
     }
 
@@ -20696,6 +20772,50 @@ static int NameConstraintListHasType(Base_entry* list, byte nameType)
     return 0;
 }
 
+/* Return 1 if a subject CN has the syntax of a DNS name: letters, digits,
+ * '_' and '*', with '-' and '.' only inside, no empty label, and at least one
+ * '.'. One trailing dot (the absolute-FQDN marker) is allowed. This follows
+ * OpenSSL's cn2dnsid() but keeps '*' so that a wildcard CN stays subject to
+ * DNS constraints. A CN such as "John Doe" is not a host name and is not
+ * checked against them. */
+static int CnIsDnsName(const char* cn, int cnLen)
+{
+    int i;
+    int hasDot = 0;
+
+    if (cn == NULL || cnLen <= 0) {
+        return 0;
+    }
+    if (cnLen > 1 && cn[cnLen - 1] == '.') {
+        cnLen--;
+    }
+
+    for (i = 0; i < cnLen; i++) {
+        unsigned char c = (unsigned char)cn[i];
+
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') || c == '_' || c == '*') {
+            continue;
+        }
+        /* '-' and '.' may not be first or last. */
+        if (i == 0 || i == cnLen - 1) {
+            return 0;
+        }
+        if (c == '-') {
+            continue;
+        }
+        /* A '.' may not follow '-' or '.', nor precede '.'. */
+        if (c == '.' && cn[i - 1] != '-' && cn[i - 1] != '.' &&
+                cn[i + 1] != '.') {
+            hasDot = 1;
+            continue;
+        }
+        return 0;
+    }
+
+    return hasDot;
+}
+
 static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 {
     const byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE,
@@ -20730,8 +20850,10 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                  * hostname-in-CN fallback only when the cert presents no
                  * dNSName SAN (RFC 6125 6.4.4). A SAN of another type
                  * (iPAddress/registeredID/otherName/...) must NOT suppress
-                 * this check. Skip for CA certs. */
-                if (cert->subjectCN != NULL && !cert->isCA) {
+                 * this check. Skip for CA certs and for a CN that is not a
+                 * host name. */
+                if (cert->subjectCN != NULL && !cert->isCA &&
+                        CnIsDnsName(cert->subjectCN, cert->subjectCNLen)) {
                     for (dnsSan = cert->altNames; dnsSan != NULL;
                             dnsSan = dnsSan->next) {
                         if (dnsSan->type == ASN_DNS_TYPE)

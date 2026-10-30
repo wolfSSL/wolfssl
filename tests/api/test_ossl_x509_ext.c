@@ -37,6 +37,13 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_ext.h>
 
+/* A lone "." dNSName constraint base covers every DNS name, except with
+ * OPENSSL_COMPATIBLE_DEFAULTS where it matches no name. */
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    #define NC_DNS_DOT_BASE_MATCH 0
+#else
+    #define NC_DNS_DOT_BASE_MATCH 1
+#endif
 
 int test_wolfSSL_X509_get_extension_flags(void)
 {
@@ -2367,6 +2374,12 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
         /* @ at end */
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
             "user@", 5), 0);
+        /* An '@' outside a quoted local-part is not permitted */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "x@evil.com@sub.wolfssl.com", 26), 0);
+        /* A quoted local-part may hold an '@' */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "\"x@y\"@sub.wolfssl.com", 21), 1);
     }
 
     NAME_CONSTRAINTS_free(nc);
@@ -2434,6 +2447,44 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
             "foo.example.com", 15), 0);
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
             "bar.example.com", 15), 1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* An empty excluded dNSName covers every DNS name (RFC 5280
+         * 4.2.1.10), as does a lone trailing dot unless OpenSSL
+         * compatible. */
+        GENERAL_SUBTREE* subtree = NULL;
+
+        ExpectNotNull(subtree =
+            wolfSSL_sk_GENERAL_SUBTREE_value(nc->excludedSubtrees, 0));
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "", 0), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "evil.com", 8), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "*.evil.com", 10), 0);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                ".", 1), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "evil.com", 8), !NC_DNS_DOT_BASE_MATCH);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* Moved to the permitted side, an empty dNSName permits every DNS
+         * name. */
+        nc->permittedSubtrees = nc->excludedSubtrees;
+        nc->excludedSubtrees = NULL;
+        ExpectIntEQ(wolfSSL_ASN1_STRING_set(
+            wolfSSL_sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 0)->
+            base->d.ia5, "", 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "any.example.org", 15), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "*.example.org", 13), 1);
     }
 
     NAME_CONSTRAINTS_free(nc);
