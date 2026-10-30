@@ -12788,9 +12788,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         goto error;
     xorbuf(Tprime, EKY0, sizeof(Tprime));
 #ifdef WC_AES_GCM_DEC_AUTH_EARLY
-    /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
-     * the pairwise bytes in the strings.
-     */
+    /* ConstantCompare returns 0 when the tags match and 1 otherwise. */
     res = ConstantCompare(authTag, Tprime, authTagSz);
     /* convert positive retval from ConstantCompare() to all-1s word, in
      * constant time.
@@ -12870,9 +12868,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     }
 
 #ifndef WC_AES_GCM_DEC_AUTH_EARLY
-    /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
-     * the pairwise bytes in the strings.
-     */
+    /* ConstantCompare returns 0 when the tags match and 1 otherwise. */
     res = ConstantCompare(authTag, Tprime, (int)authTagSz);
     /* convert positive retval from ConstantCompare() to all-1s word, in
      * constant time.

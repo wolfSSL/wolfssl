@@ -336,6 +336,8 @@ WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
 #endif
 
 #ifndef WOLFSSL_NO_CONST_CMP
+/* Compare length bytes of a and b in constant time.
+ * Returns 0 if equal, 1 if they differ or if length is negative. */
 WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length);
 #endif
 
