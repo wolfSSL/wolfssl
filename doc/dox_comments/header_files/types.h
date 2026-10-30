@@ -143,6 +143,154 @@ void* XREALLOC(void *p, size_t n, void* heap, int type);
 void XFREE(void *p, void* heap, int type);
 
 /*!
+    \ingroup Memory
+
+    \brief This is not actually a function, but rather a preprocessor macro,
+    which allocates memory aligned to a given boundary. By default it maps to
+    wc_MallocAlign(), which over-allocates through XMALLOC() and stores a
+    small header just below the returned pointer, so heap and type reach
+    every allocator (static memory, wolfSSL_SetAllocators() callbacks,
+    XMALLOC_USER, ports). A port or user may supply its own implementation,
+    but XMALLOCALIGN, XFREEALIGN, XREALLOCALIGN and XREALLOCALIGN_SCRUBBED
+    must then all be defined together.
+    Memory from XMALLOCALIGN must be released with XFREEALIGN, never XFREE,
+    and XFREEALIGN must not be used on memory from XMALLOC.
+
+    \return pointer to n bytes aligned to a on success.
+    \return NULL if a is not 0 or a power of 2, or the allocation fails.
+
+    \param a alignment: 0 or a power of 2. Values below 2*sizeof(size_t)
+    (including 0) are raised to it.
+    \param n size, in bytes, of the memory to allocate
+    \param h pointer to the heap to use
+    \param t memory allocation type for user hints. See enum in types.h
+
+    _Example_
+    \code
+    byte* buf = (byte*)XMALLOCALIGN(64, 1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        return MEMORY_E;
+    }
+    ...
+    XFREEALIGN(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    \endcode
+
+    \sa XFREEALIGN
+    \sa XREALLOCALIGN
+    \sa wc_MallocAlign
+*/
+void* XMALLOCALIGN(size_t a, size_t n, void* heap, int type);
+
+/*!
+    \ingroup Memory
+
+    \brief This is not actually a function, but rather a preprocessor macro,
+    which frees memory from XMALLOCALIGN, XREALLOCALIGN or
+    XREALLOCALIGN_SCRUBBED. By default it maps to wc_FreeAlign().
+
+    \return none No returns.
+
+    \param p aligned pointer to free. NULL is a no-op.
+    \param h pointer to the heap used for the allocation
+    \param t memory allocation type used for the allocation
+
+    \sa XMALLOCALIGN
+    \sa wc_FreeAlign
+*/
+void XFREEALIGN(void *p, void* heap, int type);
+
+/*!
+    \ingroup Memory
+
+    \brief This is not actually a function, but rather a preprocessor macro,
+    which reallocates memory from XMALLOCALIGN. It never reallocates in
+    place: a new block aligned to a is allocated, the leading
+    min(old size, n) bytes are copied, and p is freed. By default it maps to
+    wc_ReallocAlign().
+
+    \return pointer to the new aligned block on success.
+    \return NULL when n is 0 (p is freed), or on failure (p is left intact,
+    including when a is rejected).
+
+    \param p NULL, or memory from XMALLOCALIGN/XREALLOCALIGN*. A NULL p
+    behaves as XMALLOCALIGN.
+    \param a alignment, as for XMALLOCALIGN
+    \param n new size in bytes
+    \param h pointer to the heap to use
+    \param t memory allocation type for user hints. See enum in types.h
+
+    _Example_
+    \code
+    byte* buf = (byte*)XMALLOCALIGN(64, 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte* tmp;
+    ...
+    tmp = (byte*)XREALLOCALIGN(buf, 64, 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp != NULL)
+        buf = tmp;
+    \endcode
+
+    \sa XREALLOCALIGN_SCRUBBED
+    \sa XMALLOCALIGN
+    \sa wc_ReallocAlign
+*/
+void* XREALLOCALIGN(void *p, size_t a, size_t n, void* heap, int type);
+
+/*!
+    \ingroup Memory
+
+    \brief This is not actually a function, but rather a preprocessor macro.
+    As XREALLOCALIGN, but the old block is zeroized before it is freed,
+    including when n is 0. On failure the old block is left intact and not
+    zeroized. Use for buffers holding sensitive data. By default it maps to
+    wc_ReallocAlignScrubbed().
+
+    \return pointer to the new aligned block on success.
+    \return NULL when n is 0 (p is zeroized and freed), or on failure.
+
+    \param p NULL, or memory from XMALLOCALIGN/XREALLOCALIGN*
+    \param a alignment, as for XMALLOCALIGN
+    \param old_size current size of p in bytes. Unused by the default
+    implementation, which tracks the size itself, but available to
+    overrides that need it. Must not exceed the real allocation size.
+    \param n new size in bytes
+    \param h pointer to the heap to use
+    \param t memory allocation type for user hints. See enum in types.h
+
+    \sa XREALLOCALIGN
+    \sa wc_ReallocAlignScrubbed
+*/
+void* XREALLOCALIGN_SCRUBBED(void *p, size_t a, size_t old_size, size_t n,
+                             void* heap, int type);
+
+/*!
+    \ingroup Memory
+
+    \brief This is not actually a function, but rather a preprocessor macro,
+    which reallocates memory from XMALLOC and zeroizes the old block before
+    it is freed. It never reallocates in place: a new block is allocated with
+    XMALLOC, the leading min(old_size, n) bytes are copied, old_size bytes of
+    p are zeroized, and p is freed with XFREE. By default it maps to
+    wc_ReallocScrubbed().
+
+    \return pointer to the new block on success.
+    \return NULL when n is 0 (p is zeroized and freed), or on failure (p is
+    left intact and not zeroized).
+
+    \param p NULL, or memory from XMALLOC/XREALLOC. A NULL p behaves as
+    XMALLOC.
+    \param old_size current size of p in bytes. Must not exceed the real
+    allocation size, or the copy and zeroization overrun it.
+    \param n new size in bytes
+    \param h pointer to the heap to use
+    \param t memory allocation type for user hints. See enum in types.h
+
+    \sa XREALLOCALIGN_SCRUBBED
+    \sa wc_ReallocScrubbed
+*/
+void* XREALLOC_SCRUBBED(void *p, size_t old_size, size_t n, void* heap,
+                        int type);
+
+/*!
     \ingroup Math
 
     \brief This function checks the compile time class settings. It is

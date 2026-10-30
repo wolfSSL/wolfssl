@@ -415,7 +415,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef HAVE_ASCON
     #include <wolfssl/wolfcrypt/ascon.h>
 #endif
-#ifdef HAVE_ARGON2
+#if defined(HAVE_ARGON2) && !defined(WOLFSSL_NO_MALLOC)
     #include <wolfssl/wolfcrypt/argon2.h>
 #endif
 #include <wolfssl/wolfcrypt/pwdbased.h>
@@ -26595,63 +26595,57 @@ typedef struct keywrapVector {
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_MALLOC)
-/* struct Aes cannot be a local here: with --enable-aesgcm=table its GCM tables
- * alone are 4096 bytes, past the frame limit CI enforces. It also asks for 16
- * byte alignment through its ALIGN16 members, which XMALLOC does not guarantee
- * on 32-bit targets, where malloc only promises 8 -- and wc_AesSetIV() lowers
- * to an alignment-qualified NEON store when building for armv8-a+crypto, which
- * faults on an under-aligned object. Neither a plain local nor a plain XMALLOC
- * (wc_AesNew() included) satisfies both, so allocate with headroom, align by
- * hand, and keep the base pointer for XFREE. */
+/* Heap, not stack: GCM tables make struct Aes too big for the frame limit.
+ * Aligned: armv8-a+crypto NEON stores fault on an under-aligned Aes. */
 #define AESKEYWRAP_AES_ALIGN 16
 static wc_test_ret_t aeskeywrap_caller_aes_test(const keywrapVector* v,
                                                 byte* output, word32 outputSz,
                                                 byte* plain, word32 plainBufSz)
 {
-    void* raw;
     Aes* aes;
     wc_test_ret_t ret = 0;
     int wrapSz = 0, plainSz;
 
-    raw = XMALLOC(sizeof(Aes) + AESKEYWRAP_AES_ALIGN - 1, HEAP_HINT,
-                  DYNAMIC_TYPE_TMP_BUFFER);
-    if (raw == NULL)
-        return WC_TEST_RET_ENC_NC;
-    aes = (Aes*)(void*)(((wc_ptr_t)raw + (AESKEYWRAP_AES_ALIGN - 1)) &
-                        ~(wc_ptr_t)(AESKEYWRAP_AES_ALIGN - 1));
+    aes = (Aes*)XMALLOCALIGN(AESKEYWRAP_AES_ALIGN, sizeof(Aes), HEAP_HINT,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+    if (aes == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
 
     XMEMSET(output, 0, outputSz);
     XMEMSET(plain,  0, plainBufSz);
 
     if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
-        XFREE(raw, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREEALIGN(aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return WC_TEST_RET_ENC_NC;
     }
 
-    if (wc_AesSetKey(aes, v->kek, v->kekLen, NULL, AES_ENCRYPTION) != 0)
-        ret = WC_TEST_RET_ENC_NC;
+    if ((ret = wc_AesSetKey(aes, v->kek, v->kekLen, NULL, AES_ENCRYPTION)) != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
     if (ret == 0) {
         wrapSz = wc_AesKeyWrap_ex(aes, v->data, v->dataLen, output, outputSz,
                                   NULL);
         if ((wrapSz < 0) || (wrapSz != (int)v->verifyLen) ||
             XMEMCMP(output, v->verify, v->verifyLen) != 0) {
-            ret = WC_TEST_RET_ENC_NC;
+            ret = (wrapSz < 0) ? WC_TEST_RET_ENC_EC(wrapSz) :
+                                 WC_TEST_RET_ENC_NC;
         }
     }
     if (ret == 0) {
-        if (wc_AesSetKey(aes, v->kek, v->kekLen, NULL, AES_DECRYPTION) != 0)
-            ret = WC_TEST_RET_ENC_NC;
+        if ((ret = wc_AesSetKey(aes, v->kek, v->kekLen, NULL, AES_DECRYPTION)) != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
     if (ret == 0) {
         plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz, plain,
                                      plainBufSz, NULL);
         if ((plainSz < 0) || (plainSz != (int)v->dataLen) ||
             XMEMCMP(plain, v->data, v->dataLen) != 0) {
-            ret = WC_TEST_RET_ENC_NC;
+            ret = (plainSz < 0) ? WC_TEST_RET_ENC_EC(plainSz) :
+                                  WC_TEST_RET_ENC_NC;
         }
     }
+
     wc_AesFree(aes);
-    XFREE(raw, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREEALIGN(aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif
@@ -38195,6 +38189,486 @@ static int simple_mem_test(size_t sz)
     XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+
+static wc_test_ret_t simple_memalign_test(size_t alignment, size_t sz)
+{
+    wc_test_ret_t ret = 0;
+    byte* b;
+    int i;
+
+    b = (byte*)XMALLOCALIGN(alignment, sz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (b == NULL) {
+        return WC_TEST_RET_ENC_I((word32)alignment);
+    }
+    /* The requested alignment is the contract; the generic implementation's
+     * flooring of small values is not asserted, so only power-of-2 requests
+     * >= 2 are mask-checked. */
+    if ((alignment >= 2) && ((alignment & (alignment - 1U)) == 0) &&
+        (((wc_ptr_t)b & ((wc_ptr_t)alignment - 1U)) != 0)) {
+        ret = WC_TEST_RET_ENC_I((word32)alignment);
+    }
+    if (ret == 0) {
+        /* utilize the full allocation: catches offset-slot overlap in the
+         * over-allocation implementation. */
+        for (i = 0; i < (int)sz; i++) {
+            b[i] = (byte)i;
+        }
+        for (i = 0; i < (int)sz; i++) {
+            if (b[i] != (byte)i) {
+                ret = WC_TEST_RET_ENC_I((word32)i);
+                break;
+            }
+        }
+    }
+    XFREEALIGN(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+#if defined(__ICCARM__) && !defined(WC_DECLARE_VAR_IS_HEAP_ALLOC)
+    /* IAR ARM caps stack alignment at 8 (asserted by WC_DECLARE_*_ALIGNED) */
+    #define WC_TEST_MA_ALIGN 8
+#else
+    #define WC_TEST_MA_ALIGN 64
+#endif
+#define WC_TEST_MA_SZ    256U /* multiple of WC_TEST_MA_ALIGN: see the stride
+                               * asserts in WC_DECLARE_ARRAY_ALIGNED. */
+static wc_test_ret_t memalign_macros_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int i;
+    WC_DECLARE_VAR_ALIGNED(vbuf, byte, WC_TEST_MA_ALIGN, WC_TEST_MA_SZ,
+                           HEAP_HINT);
+    WC_DECLARE_ARRAY_ALIGNED(abuf, byte, 3, WC_TEST_MA_ALIGN, WC_TEST_MA_SZ,
+                             HEAP_HINT);
+
+    WC_ALLOC_VAR_ALIGNED_EX(vbuf, byte, WC_TEST_MA_ALIGN, WC_TEST_MA_SZ,
+                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                            return WC_TEST_RET_ENC_EC(MEMORY_E));
+    WC_ALLOC_ARRAY_ALIGNED(abuf, byte, 3, WC_TEST_MA_ALIGN, WC_TEST_MA_SZ,
+                           HEAP_HINT);
+    if (!WC_ARRAY_OK(abuf)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+
+    /* XALIGNED() expands to nothing on compilers with no known alignment
+     * attribute, so only assert alignment where the declaration (stack
+     * build) or XMALLOCALIGN() (heap build) actually guarantees it. */
+#if defined(WC_DECLARE_VAR_IS_HEAP_ALLOC) || \
+    (!defined(__WATCOMC__) && \
+     (defined(__GNUC__) || defined(__llvm__) || \
+      defined(__IAR_SYSTEMS_ICC__) || defined(__KEIL__) || defined(_MSC_VER)))
+    if ((ret == 0) && (((wc_ptr_t)vbuf & (WC_TEST_MA_ALIGN - 1U)) != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        for (i = 0; i < 3; i++) {
+            if (((wc_ptr_t)abuf[i] & (WC_TEST_MA_ALIGN - 1U)) != 0) {
+                ret = WC_TEST_RET_ENC_I((word32)i);
+                break;
+            }
+        }
+    }
+#endif
+
+    if (ret == 0) {
+        /* utilize every byte, then spot-check for cross-item clobbering. */
+        XMEMSET(vbuf, 0x5A, WC_TEST_MA_SZ);
+        for (i = 0; i < 3; i++) {
+            XMEMSET(abuf[i], 0xA0 + i, WC_TEST_MA_SZ);
+        }
+        if ((vbuf[0] != 0x5A) || (vbuf[WC_TEST_MA_SZ - 1U] != 0x5A)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+        for (i = 0; (ret == 0) && (i < 3); i++) {
+            if ((abuf[i][0] != (byte)(0xA0 + i)) ||
+                (abuf[i][WC_TEST_MA_SZ - 1U] != (byte)(0xA0 + i))) {
+                ret = WC_TEST_RET_ENC_I((word32)i);
+            }
+        }
+    }
+
+    if (ret == 0) {
+        /* CALLOC variant: reallocate vbuf zeroed. */
+        WC_FREE_VAR_ALIGNED_EX(vbuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_CALLOC_VAR_ALIGNED_EX(vbuf, byte, WC_TEST_MA_ALIGN, WC_TEST_MA_SZ,
+                                 HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                                 ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    }
+    if (ret == 0) {
+        /* both arms zero the full extent. */
+        for (i = 0; i < (int)WC_TEST_MA_SZ; i++) {
+            if (vbuf[i] != 0) {
+                ret = WC_TEST_RET_ENC_I((word32)i);
+                break;
+            }
+        }
+    }
+
+    WC_FREE_VAR_ALIGNED_EX(vbuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_ARRAY_ALIGNED(abuf, 3, HEAP_HINT);
+    return ret;
+}
+
+static wc_test_ret_t memalign_realloc_test(void)
+{
+    wc_test_ret_t ret = 0;
+    byte* p;
+    byte* q;
+    int i;
+
+    /* NULL in: degrades to fresh aligned allocation. */
+    p = (byte*)XREALLOCALIGN(NULL, 64U, 300U, HEAP_HINT,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    if (((wc_ptr_t)p & 63U) != 0) {
+        XFREEALIGN(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+    for (i = 0; i < 300; i++)
+        p[i] = (byte)i;
+
+    /* scrubbed grow: contents and alignment preserved. */
+    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 300U, 1600U, HEAP_HINT,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL) {
+        /* original intact on failure, per contract. */
+        XFREEALIGN(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    /* From here on, p always holds the live allocation: a successful realloc
+     * has released the old pointer, and a failed one leaves it intact. */
+    p = q;
+    if (((wc_ptr_t)p & 63U) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    for (i = 0; (ret == 0) && (i < 300); i++) {
+        if (p[i] != (byte)i)
+            ret = WC_TEST_RET_ENC_I((word32)i);
+    }
+
+    /* non-power-of-2 alignment: rejected, original intact. */
+    if (ret == 0) {
+        q = (byte*)XREALLOCALIGN(p, 24U, 1600U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        if (q != NULL) {
+            p = q; /* old block was released; keep the live one */
+            ret = WC_TEST_RET_ENC_NC;
+        }
+        for (i = 0; (ret == 0) && (i < 300); i++) {
+            if (p[i] != (byte)i)
+                ret = WC_TEST_RET_ENC_I((word32)i);
+        }
+    }
+
+    /* large shrink: compaction (may move); contents and alignment
+     * preserved. */
+    if (ret == 0) {
+        q = (byte*)XREALLOCALIGN(p, 64U, 128U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        if (q == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E); /* p intact on failure */
+        else {
+            p = q;
+            if (((wc_ptr_t)p & 63U) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            for (i = 0; (ret == 0) && (i < 128); i++) {
+                if (p[i] != (byte)i)
+                    ret = WC_TEST_RET_ENC_I((word32)i);
+            }
+        }
+    }
+
+    /* unscrubbed grow well past any allocator slack: contents and alignment
+     * preserved, and only the old size is copied (no over-read). */
+    if (ret == 0) {
+        q = (byte*)XREALLOCALIGN(p, 64U, 2048U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        if (q == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E); /* p intact on failure */
+        else {
+            p = q;
+            if (((wc_ptr_t)p & 63U) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            for (i = 0; (ret == 0) && (i < 128); i++) {
+                if (p[i] != (byte)i)
+                    ret = WC_TEST_RET_ENC_I((word32)i);
+            }
+            /* utilize the grown extent. */
+            if (ret == 0)
+                XMEMSET(p + 128, 0xA5, 2048U - 128U);
+        }
+    }
+    XFREEALIGN(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != 0)
+        return ret;
+
+    /* unaligned scrubbed roundtrip. */
+    p = (byte*)XMALLOC(200U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    for (i = 0; i < 200; i++)
+        p[i] = (byte)(255 - i);
+    q = (byte*)XREALLOC_SCRUBBED(p, 200U, 400U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL) {
+        XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    for (i = 0; (ret == 0) && (i < 200); i++) {
+        if (q[i] != (byte)(255 - i))
+            ret = WC_TEST_RET_ENC_I((word32)i);
+    }
+    if (ret != 0) {
+        XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    /* unaligned scrubbed shrink: leading contents preserved. */
+    p = (byte*)XREALLOC_SCRUBBED(q, 400U, 50U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL) {
+        XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    for (i = 0; (ret == 0) && (i < 50); i++) {
+        if (p[i] != (byte)(255 - i))
+            ret = WC_TEST_RET_ENC_I((word32)i);
+    }
+    XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* realloc-to-zero idiom: frees and returns NULL.  A non-NULL return is
+     * a live allocation, so release it rather than leak. */
+    if (ret == 0) {
+        p = (byte*)XMALLOCALIGN(64U, 128U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (p == NULL)
+            return WC_TEST_RET_ENC_EC(MEMORY_E);
+        q = (byte*)XREALLOCALIGN(p, 64U, 0U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        if (q != NULL) {
+            XFREEALIGN(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+    if (ret == 0) {
+        p = (byte*)XMALLOCALIGN(64U, 128U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (p == NULL)
+            return WC_TEST_RET_ENC_EC(MEMORY_E);
+        q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 128U, 0U, HEAP_HINT,
+                                          DYNAMIC_TYPE_TMP_BUFFER);
+        if (q != NULL) {
+            XFREEALIGN(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+    if (ret == 0) {
+        p = (byte*)XMALLOC(96U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (p == NULL)
+            return WC_TEST_RET_ENC_EC(MEMORY_E);
+        q = (byte*)XREALLOC_SCRUBBED(p, 96U, 0U, HEAP_HINT,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+        if (q != NULL) {
+            XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+    return ret;
+}
+
+/* A port may bind the XMALLOCALIGN() family elsewhere, leaving the generic
+ * wc_*Align() shim otherwise untested, so call it directly.  Bogus-alignment
+ * rejection and overflow resilience are shim semantics, not part of the
+ * XMALLOCALIGN() contract. */
+static wc_test_ret_t memalign_shim_test(void)
+{
+    wc_test_ret_t ret = 0;
+    byte* p;
+    byte* q;
+    int i;
+
+    /* non-power-of-2 alignment: rejected. */
+    p = (byte*)wc_MallocAlign(24U, (size_t)MEM_TEST_SZ, HEAP_HINT,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (p != NULL) {
+        wc_FreeAlign(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+    /* padded size that wraps: rejected without reaching the underlying
+     * allocator (keeps sanitizer runs quiet). */
+    p = (byte*)wc_MallocAlign(64U, (size_t)0 - 32U, HEAP_HINT,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (p != NULL) {
+        wc_FreeAlign(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* allocation: aligned and fully usable. */
+    p = (byte*)wc_MallocAlign(64U, 300U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    if (((wc_ptr_t)p & 63U) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    for (i = 0; i < 300; i++)
+        p[i] = (byte)i;
+
+    /* grow: contents and alignment preserved. */
+    if (ret == 0) {
+        q = (byte*)wc_ReallocAlign(p, 64U, 1600U, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (q == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E); /* p intact on failure */
+        else {
+            p = q;
+            if (((wc_ptr_t)p & 63U) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            for (i = 0; (ret == 0) && (i < 300); i++) {
+                if (p[i] != (byte)i)
+                    ret = WC_TEST_RET_ENC_I((word32)i);
+            }
+            if (ret == 0)
+                XMEMSET(p + 300, 0xA5, 1600U - 300U);
+        }
+    }
+
+    /* non-power-of-2 alignment: rejected, original intact. */
+    if (ret == 0) {
+        q = (byte*)wc_ReallocAlign(p, 24U, 1600U, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (q != NULL) {
+            p = q; /* old block was released; keep the live one */
+            ret = WC_TEST_RET_ENC_NC;
+        }
+        for (i = 0; (ret == 0) && (i < 300); i++) {
+            if (p[i] != (byte)i)
+                ret = WC_TEST_RET_ENC_I((word32)i);
+        }
+    }
+
+    /* scrubbed shrink: leading contents and alignment preserved. */
+    if (ret == 0) {
+        q = (byte*)wc_ReallocAlignScrubbed(p, 64U, 128U, HEAP_HINT,
+                                             DYNAMIC_TYPE_TMP_BUFFER);
+        if (q == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E); /* p intact on failure */
+        else {
+            p = q;
+            if (((wc_ptr_t)p & 63U) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            for (i = 0; (ret == 0) && (i < 128); i++) {
+                if (p[i] != (byte)i)
+                    ret = WC_TEST_RET_ENC_I((word32)i);
+            }
+        }
+    }
+
+    /* scrubbed realloc-to-zero: releases p and returns NULL. */
+    if (ret == 0) {
+        q = (byte*)wc_ReallocAlignScrubbed(p, 64U, 0U, HEAP_HINT,
+                                             DYNAMIC_TYPE_TMP_BUFFER);
+        p = NULL;
+        if (q != NULL) {
+            p = q;
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+    wc_FreeAlign(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != 0)
+        return ret;
+
+    /* NULL in: degrades to fresh aligned allocation; then unscrubbed
+     * realloc-to-zero. */
+    p = (byte*)wc_ReallocAlign(NULL, 128U, 64U, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    if (((wc_ptr_t)p & 127U) != 0) {
+        wc_FreeAlign(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+    q = (byte*)wc_ReallocAlign(p, 128U, 0U, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (q != NULL) {
+        wc_FreeAlign(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* NULL tolerance */
+    wc_FreeAlign(NULL, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return 0;
+}
+
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_PRIVATE_TEST_VIS)
+#define MEMALIGN_SCRUB_PATTERN 0xA5
+/* The _SCRUBBED reallocs must zero the old block before releasing it, but
+ * the old block is gone once they return.  Register it with wc_MemZero_Add()
+ * instead: wolfSSL_Free() checks registered memory is zero at the moment it
+ * is freed, and aborts if not.  On failure the original is intact and still
+ * registered, so it is zeroed by hand before being freed. */
+static wc_test_ret_t memalign_scrub_test(void)
+{
+    byte* p;
+    byte* q;
+
+    /* aligned grow */
+    p = (byte*)XMALLOCALIGN(64U, 300U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(p, MEMALIGN_SCRUB_PATTERN, 300U);
+    wc_MemZero_Add("memalign_scrub_test aligned grow", p, 300U);
+    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 300U, 1600U, HEAP_HINT,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL) {
+        XMEMSET(p, 0, 300U);
+        XFREEALIGN(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    XFREEALIGN(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* aligned realloc-to-zero */
+    p = (byte*)XMALLOCALIGN(64U, 300U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(p, MEMALIGN_SCRUB_PATTERN, 300U);
+    wc_MemZero_Add("memalign_scrub_test aligned zero", p, 300U);
+    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 300U, 0U, HEAP_HINT,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (q != NULL) {
+        XFREEALIGN(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* unaligned grow */
+    p = (byte*)XMALLOC(200U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(p, MEMALIGN_SCRUB_PATTERN, 200U);
+    wc_MemZero_Add("memalign_scrub_test unaligned grow", p, 200U);
+    q = (byte*)XREALLOC_SCRUBBED(p, 200U, 400U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL) {
+        XMEMSET(p, 0, 200U);
+        XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* unaligned realloc-to-zero */
+    p = (byte*)XMALLOC(200U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(p, MEMALIGN_SCRUB_PATTERN, 200U);
+    wc_MemZero_Add("memalign_scrub_test unaligned zero", p, 200U);
+    q = (byte*)XREALLOC_SCRUBBED(p, 200U, 0U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (q != NULL) {
+        XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_CHECK_MEM_ZERO && USE_WOLFSSL_MEMORY && ... */
 #endif
 
 /* If successful, returns the first letter of the byte array `in`.
@@ -38360,6 +38834,60 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
             return ret;
     }
 #endif
+
+#if defined(WOLFSSL_STATIC_MEMORY) || !defined(WOLFSSL_NO_MALLOC)
+    /* aligned allocation roundtrips. */
+    {
+        static const size_t memalign_aligns[] = {
+            0U, 2U, 4U, sizeof(void *), 16U, 64U, 256U
+        };
+        word32 ma_i;
+        for (ma_i = 0;
+             ma_i < (word32)(sizeof(memalign_aligns)/sizeof(memalign_aligns[0]));
+             ma_i++) {
+            ret = simple_memalign_test(memalign_aligns[ma_i],
+                                       (size_t)MEM_TEST_SZ);
+            if (ret != 0)
+                return ret;
+        }
+    }
+
+    /* WC_*_VAR_ALIGNED / WC_*_ARRAY_ALIGNED macro family */
+    ret = memalign_macros_test();
+    if (ret != 0)
+        return ret;
+
+    /* XREALLOC_SCRUBBED / XREALLOCALIGN / XREALLOCALIGN_SCRUBBED */
+    ret = memalign_realloc_test();
+    if (ret != 0)
+        return ret;
+
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_PRIVATE_TEST_VIS)
+    /* _SCRUBBED variants zero the old block before freeing it */
+    ret = memalign_scrub_test();
+    if (ret != 0)
+        return ret;
+#endif
+
+    /* generic wc_*Align() shim, whatever XMALLOCALIGN() is bound to */
+    ret = memalign_shim_test();
+    if (ret != 0)
+        return ret;
+#endif /* WOLFSSL_STATIC_MEMORY || !WOLFSSL_NO_MALLOC */
+
+#if defined(NO_WOLFSSL_MEMORY) && defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(XMALLOC_USER) && \
+    !defined(XMALLOC_OVERRIDE)
+    /* XMALLOC() is a NULL stub here: aligned allocation must fail cleanly */
+    if (wc_MallocAlign(16U, 16U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER) != NULL) {
+        return WC_TEST_RET_ENC_NC;
+    }
+#endif
+
+    /* NULL tolerance, all configurations */
+    XFREEALIGN(NULL, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
 #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC) && defined(XREALLOC)
     /* realloc test */

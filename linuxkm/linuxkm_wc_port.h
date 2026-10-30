@@ -2422,6 +2422,19 @@
     #endif /* !XMALLOC_USER && !XMALLOC_OVERRIDE */
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+#ifndef XMALLOCALIGN
+    #define XMALLOCALIGN(a, s, h, t) ((void)(a), (void)(h), (void)(t), malloc(s))
+    #define XFREEALIGN(p, h, t) do { (void)(h); (void)(t); free(p); } while (0)
+    /* reallocation for aligned allocations */
+    #define XREALLOCALIGN(p, align, size, h, t) \
+        ((void)(align), (void)(h), (void)(t), realloc(p, size))
+    /* reallocation with scrubbing of lost blocks for aligned allocations */
+    #define XREALLOCALIGN_SCRUBBED(p, align, old_size, size, h, t) \
+        ((void)(align), wc_ReallocScrubbed(p, old_size, size, h, t))
+#endif /* XMALLOCALIGN */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0) */
+
     #include <linux/limits.h>
 
     #ifndef INT32_MAX
