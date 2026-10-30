@@ -754,6 +754,9 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     int     authBufferLen;
     byte*   authIn;
     int     authInSz;
+#if defined(HAVE_AESCCM) || defined(WOLFSSL_SM4_CCM)
+    int     authMsgLen;     /* total CCM payload length, when declared */
+#endif
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     byte*   key;                 /* used in partial Init()s */
@@ -774,6 +777,23 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     WC_BITFIELD authIvGenEnable:1;
     WC_BITFIELD authIncIv:1;
+#if defined(HAVE_AESCCM) || defined(WOLFSSL_SM4_CCM)
+    /* CCM encodes the payload length in its first block, so the length has to
+     * be known before anything is processed. EVP_CipherUpdate() with both in
+     * and out NULL records it, as OpenSSL requires; authMsgLenSet says it has
+     * been given, and authMsgDone that the one CCM operation it describes has
+     * already been carried out by EVP_CipherUpdate().
+     *
+     * authMsgTried says a payload call was made whether or not it succeeded.
+     * EVP_CipherFinal() needs the two apart: with no payload call at all it
+     * has to carry out the empty message itself, because otherwise nothing
+     * would ever check the tag of an AAD-only decrypt, while after a payload
+     * call that failed it must report success and not run anything, the
+     * failure having already been returned to the caller. */
+    WC_BITFIELD authMsgLenSet:1;
+    WC_BITFIELD authMsgDone:1;
+    WC_BITFIELD authMsgTried:1;
+#endif
 #endif
 #endif
 };
