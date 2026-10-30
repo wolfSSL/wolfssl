@@ -27,6 +27,11 @@
     #endif
 #else
 
+/* Check a size_t/unsigned long length can be passed to wolfCrypt as a word32
+ * without being truncated. */
+#define WOLFSSL_CRYPTO_LEN_FITS_WORD32(len) \
+    ((size_t)(word32)(len) == (size_t)(len))
+
 /*******************************************************************************
  * START OF Digest APIs
  ******************************************************************************/
@@ -59,6 +64,11 @@ void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX* md4, const void* data,
 {
     WOLFSSL_ENTER("MD4_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("MD4_Update: length too large");
+        return;
+    }
     /* Update wolfCrypt MD4 object with data. */
     wc_Md4Update((wc_Md4*)md4, (const byte*)data, (word32)len);
 }
@@ -112,6 +122,10 @@ int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
 {
     WOLFSSL_ENTER("MD5_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt MD5 object with data. */
     return wc_Md5Update((wc_Md5*)md5, (const byte*)input, (word32)sz) == 0;
 }
@@ -185,8 +199,13 @@ unsigned char* wolfSSL_MD5(const unsigned char* data, size_t len,
     if (hash == NULL) {
         hash = dgst;
     }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_MD5: length too large");
+        hash = NULL;
+    }
     /* One shot MD5 hash with wolfCrypt. */
-    if (wc_Md5Hash(data, (word32)len, hash) != 0) {
+    else if (wc_Md5Hash(data, (word32)len, hash) != 0) {
         WOLFSSL_MSG("wc_Md5Hash error");
         hash = NULL;
     }
@@ -226,6 +245,10 @@ int wolfSSL_SHA_Update(WOLFSSL_SHA_CTX* sha, const void* input,
 {
     WOLFSSL_ENTER("SHA_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA object with data. */
     return wc_ShaUpdate((wc_Sha*)sha, (const byte*)input, (word32)sz) == 0;
 }
@@ -375,6 +398,10 @@ int wolfSSL_SHA224_Update(WOLFSSL_SHA224_CTX* sha224, const void* input,
 {
     WOLFSSL_ENTER("SHA224_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA-224 object with data. */
     return wc_Sha224Update((wc_Sha224*)sha224, (const byte*)input, (word32)sz)
         == 0;
@@ -434,6 +461,10 @@ int wolfSSL_SHA256_Update(WOLFSSL_SHA256_CTX* sha256, const void* input,
 {
     WOLFSSL_ENTER("SHA256_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA-256 object with data. */
     return wc_Sha256Update((wc_Sha256*)sha256, (const byte*)input, (word32)sz)
         == 0;
@@ -523,6 +554,10 @@ int wolfSSL_SHA384_Update(WOLFSSL_SHA384_CTX* sha384, const void* input,
 {
     WOLFSSL_ENTER("SHA384_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA-384 object with data. */
     return wc_Sha384Update((wc_Sha384*)sha384, (const byte*)input, (word32)sz)
         == 0;
@@ -582,6 +617,10 @@ int wolfSSL_SHA512_Update(WOLFSSL_SHA512_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA-512 object with data. */
     return wc_Sha512Update((wc_Sha512*)sha512, (const byte*)input, (word32)sz)
         == 0;
@@ -660,6 +699,10 @@ int wolfSSL_SHA512_224_Update(WOLFSSL_SHA512_224_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_224_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA-512-224 object with data. */
     return wc_Sha512_224Update((wc_Sha512*)sha512, (const byte*)input,
         (word32)sz) == 0;
@@ -739,6 +782,10 @@ int wolfSSL_SHA512_256_Update(WOLFSSL_SHA512_256_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_256_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA-512-256 object with data. */
     return wc_Sha512_256Update((wc_Sha512*)sha512, (const byte*)input,
         (word32)sz) == 0;
@@ -821,6 +868,10 @@ int wolfSSL_SHA3_224_Update(WOLFSSL_SHA3_224_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_224_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA3-224 object with data. */
     return wc_Sha3_224_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -880,6 +931,10 @@ int wolfSSL_SHA3_256_Update(WOLFSSL_SHA3_256_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_256_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA3-256 object with data. */
     return wc_Sha3_256_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -939,6 +994,10 @@ int wolfSSL_SHA3_384_Update(WOLFSSL_SHA3_384_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_384_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA3-384 object with data. */
     return wc_Sha3_384_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -998,6 +1057,10 @@ int wolfSSL_SHA3_512_Update(WOLFSSL_SHA3_512_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_512_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        return 0;
+    }
     /* Update wolfCrypt SHA3-512 object with data. */
     return wc_Sha3_512_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -1055,6 +1118,12 @@ unsigned char* wolfSSL_SHA1(const unsigned char* data, size_t len,
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA1");
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA1: length too large");
+        return NULL;
+    }
 
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
@@ -1123,6 +1192,12 @@ unsigned char* wolfSSL_SHA224(const unsigned char* data, size_t len,
 
     WOLFSSL_ENTER("wolfSSL_SHA224");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA224: length too large");
+        return NULL;
+    }
+
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
         WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA224 IS NOT "
@@ -1189,6 +1264,12 @@ unsigned char* wolfSSL_SHA256(const unsigned char* data, size_t len,
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA256");
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA256: length too large");
+        return NULL;
+    }
 
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
@@ -1257,6 +1338,12 @@ unsigned char* wolfSSL_SHA384(const unsigned char* data, size_t len,
 
     WOLFSSL_ENTER("wolfSSL_SHA384");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA384: length too large");
+        return NULL;
+    }
+
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
         WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA384 IS NOT "
@@ -1323,6 +1410,12 @@ unsigned char* wolfSSL_SHA512(const unsigned char* data, size_t len,
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA512");
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA512: length too large");
+        return NULL;
+    }
 
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
@@ -2044,6 +2137,11 @@ unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
     if ((evp_md == NULL) || (key == NULL) || (md == NULL)) {
         rc = BAD_FUNC_ARG;
     }
+    /* wc_HmacUpdate takes a word32 length - reject data that would be
+     * truncated. */
+    if ((rc == 0) && !WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        rc = BAD_FUNC_ARG;
+    }
 
     if (rc == 0) {
         /* Get the hash type corresponding to the EVP digest. */
@@ -2237,7 +2335,8 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
         ret = 0;
     }
     /* Key length must match cipher. */
-    if ((ret == 1) && ((int)keySz != wolfSSL_EVP_Cipher_key_length(cipher))) {
+    if ((ret == 1) && (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(keySz) ||
+            ((int)keySz != wolfSSL_EVP_Cipher_key_length(cipher)))) {
         WOLFSSL_MSG("wolfSSL_CMAC_Init: "
                     "supplied key size doesn't match requested cipher");
         ret = 0;
@@ -2285,8 +2384,9 @@ int wolfSSL_CMAC_Update(WOLFSSL_CMAC_CTX* ctx, const void* data, size_t len)
 
     WOLFSSL_ENTER("wolfSSL_CMAC_Update");
 
-    /* Validate parameters. */
-    if (ctx == NULL) {
+    /* Validate parameters. wolfCrypt takes a word32 length - fail rather than
+     * truncate. */
+    if ((ctx == NULL) || !WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
         ret = 0;
     }
 
@@ -2695,6 +2795,13 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
 
     WOLFSSL_ENTER("wolfSSL_DES_cbc_encrypt");
 
+    /* Negative length breaks the block calculations below and wolfCrypt takes
+     * a word32 length - fail rather than truncate. */
+    if ((length < 0) || !WOLFSSL_CRYPTO_LEN_FITS_WORD32(length)) {
+        WOLFSSL_MSG("wolfSSL_DES_cbc_encrypt: bad length");
+        return;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
     des = (Des*)XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_CIPHER);
     if (des == NULL) {
@@ -2834,6 +2941,12 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
         sz = 0;
     }
 #endif
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if ((sz > 0) && !WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("wolfSSL_DES_ede3_cbc_encrypt: length too large");
+        sz = 0;
+    }
 
     if (sz > 0) {
         int    ret;
@@ -3216,6 +3329,10 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
             (len == 0)) {
         WOLFSSL_MSG("Error, Null argument passed in");
     }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    else if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("Error, length too large");
+    }
     /* Set IV for operation. */
     else {
         int ret;
@@ -3281,6 +3398,10 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     /* Validate parameters. */
     if ((key == NULL) || (in == NULL) || (out == NULL) || (iv == NULL)) {
         WOLFSSL_MSG("Error, Null argument passed in");
+    }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    else if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("Error, length too large");
     }
     else {
         int ret;
@@ -3564,6 +3685,10 @@ void wolfSSL_RC4(WOLFSSL_RC4_KEY* key, size_t len, const unsigned char* in,
     /* Validate parameters. */
     if ((key == NULL) || (in == NULL) || (out == NULL)) {
         WOLFSSL_MSG("Bad argument passed in");
+    }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    else if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("Length too large");
     }
     else {
         /* Encrypt/decrypt data. */
