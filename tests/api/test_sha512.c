@@ -274,6 +274,10 @@ int test_wc_Sha512Transform(void)
         "\x68\x75\xde\x70\x09\x4d\xcd\xfe"
         "\xbe\x11\x20\xd6\xe7\x7c\x49\xd3"
         "\x5b\xd7\x07\x75\x19\xc9\x8a\xfa");
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
+    /* Transform must not modify the caller's block (v5/v6 modules do). */
+    ExpectBufEQ(abcData, abcSha512Data, WC_SHA512_BLOCK_SIZE);
+#endif
 #endif
     return EXPECT_RESULT();
 }

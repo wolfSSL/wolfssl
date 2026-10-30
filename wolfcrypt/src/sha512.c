@@ -2916,28 +2916,33 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     wc_MemZero_Add("wc_Sha512Transform buffer", buffer, WC_SHA512_BLOCK_SIZE);
 #endif
 
+    /* data is const: byte-reverse a copy, never the caller's block. */
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
+    XMEMCPY(buffer, data, WC_SHA512_BLOCK_SIZE);
+#else
+    ByteReverseWords64(buffer, (const word64*)data, WC_SHA512_BLOCK_SIZE);
+#endif
+    ret = Transform_Sha512(sha, (const byte*)buffer);
+#elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
+    ByteReverseWords64(buffer, (const word64*)data, WC_SHA512_BLOCK_SIZE);
+    ret = Transform_Sha512(sha, (const byte*)buffer);
+#else
+    ret = Transform_Sha512(sha, data);
+#endif
+#else
+    XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
+    XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
 #endif
     {
-        ByteReverseWords64((word64*)data, (word64*)data,
-                                                WC_SHA512_BLOCK_SIZE);
+        ByteReverseWords64(sha->buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
     }
-#endif /* LITTLE_ENDIAN_ORDER && !WC_SHA512_RAW_BE_BUFFER */
-
-#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
-    ByteReverseWords64(buffer, (word64*)data, WC_SHA512_BLOCK_SIZE);
-    ret = Transform_Sha512(sha, (const byte*)buffer);
-#elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
-    /* PPC assembly uses the (sha, data) form and reads the block directly
-     * (big-endian native - any little-endian reversal was done above). */
-    (void)buffer;
-    ret = Transform_Sha512(sha, data);
-#else
-    XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
-    XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);
+#endif
 
     ret = Transform_Sha512(sha);
 
