@@ -4355,7 +4355,8 @@ then
     CPPFLAGS="$CPPFLAGS -I$mcux_sdk_dir/drivers/common"
 
     # WOLF_CRYPTO_CB, and with it WOLF_PRIVATE_KEY_ID, is promoted further down.
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ELS_PKC"
+    # The key store ops are promoted here so they cannot be left out.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ELS_PKC -DWOLF_CRYPTO_CB_KEYSTORE"
 elif test "x$els_pkc_opt_given" = "xyes"
 then
     AC_MSG_WARN([--with-mcux-sdk and --with-els-pkc-platform do nothing without --with-els-pkc=PATH; the EdgeLock port is not being built])

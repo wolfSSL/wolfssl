@@ -27,6 +27,10 @@ tests:
       # The board has a real entropy source, so drop prj.conf's placeholder.
       - CONFIG_TEST_RANDOM_GENERATOR=n
       - CONFIG_ENTROPY_GENERATOR=y
+      # The curves the PKC offloads beyond the module's default P-256.
+      - CONFIG_WOLFSSL_ECC_384=y
+      - CONFIG_WOLFSSL_ECC_521=y
+      - CONFIG_WOLFSSL_CURVE25519=y
       # The arena carries the HAVE_STACK_SIZE benchmark thread stack on top of
       # the benchmark's own allocations.
       - CONFIG_MAIN_STACK_SIZE=32768
