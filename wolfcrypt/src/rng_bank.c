@@ -26,6 +26,25 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
+/* Retry timeouts.  WC_RNG_BANK_TS_START() is taken before a retry loop and
+ * WC_RNG_BANK_TS_ELAPSED() is checked once per retry and compared against
+ * timeout_secs.  Without a wall clock (no XTIME, e.g. NO_ASN_TIME) each check
+ * instead counts one retry, and WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC retries
+ * stand in for a second, so a positive timeout_secs still bounds the loop.
+ * USER_TIME declares XTIME as a function rather than defining a macro.
+ */
+#if defined(XTIME) || (defined(USER_TIME) && !defined(NO_ASN_TIME))
+    #define WC_RNG_BANK_TS_START()        XTIME(0)
+    #define WC_RNG_BANK_TS_ELAPSED(ts1)   (XTIME(0) - (ts1))
+#else
+    #ifndef WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC
+        #define WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC 1000
+    #endif
+    #define WC_RNG_BANK_TS_START()        0
+    #define WC_RNG_BANK_TS_ELAPSED(ts1)   \
+        (++(ts1) / WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC)
+#endif
+
 #ifndef WC_RNG_HAVE_LOCK
     /* feature-gap helper declarations */
     static int wc_rng_bank_inst_recovery_enter(
@@ -205,10 +224,9 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 #ifdef WC_VERBOSE_RNG
             int nretries = 0;
 #endif
-            time_t ts1 = XTIME(0);
+            time_t ts1 = WC_RNG_BANK_TS_START();
             rng_inst->bank = ctx;
             for (;;) {
-                time_t ts2;
                 if (flags & WC_RNG_BANK_FLAG_NO_VECTOR_OPS)
                     need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
 
@@ -264,8 +282,8 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                 ret = WC_CHECK_FOR_INTR_SIGNALS();
                 if (ret == WC_NO_ERR_TRACE(INTERRUPTED_E))
                     break;
-                ts2 = XTIME(0);
-                if ((timeout_secs > 0) && (ts2 - ts1 > timeout_secs)) {
+                if ((timeout_secs > 0) &&
+                    (WC_RNG_BANK_TS_ELAPSED(ts1) > timeout_secs)) {
                     ret = WC_TIMEOUT_E;
                     break;
                 }
@@ -781,7 +799,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
 {
     WC_RNG_lock_arg_t lock_extra_bits = 0;
     int ret = 0;
-    time_t ts1, ts2;
+    time_t ts1;
     int n_rngs_tried = 0;
     int diverted_unusable = 0;
     WC_ATOMIC_INT_ARG new_refcount;
@@ -874,7 +892,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
     }
 
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
-        ts1 = XTIME(0);
+        ts1 = WC_RNG_BANK_TS_START();
     else
         ts1 = 0; /* mollify -Wmaybe-uninitialized... */
 
@@ -1275,8 +1293,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
                 break;
 
             if (timeout_secs > 0) {
-                ts2 = XTIME(0);
-                if (ts2 - ts1 >= timeout_secs) {
+                if (WC_RNG_BANK_TS_ELAPSED(ts1) >= timeout_secs) {
                     ret = WC_TIMEOUT_E;
                     break;
                 }
@@ -2077,7 +2094,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
      * it is a safe no-op when called on an already-freed instance.
      */
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
-        ts1 = XTIME(0);
+        ts1 = WC_RNG_BANK_TS_START();
 
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     devId = rng_inst->rng.devId;
@@ -2264,8 +2281,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
         }
 
         if (timeout_secs > 0) {
-            time_t ts2 = XTIME(0);
-            if (ts2 - ts1 >= timeout_secs) {
+            if (WC_RNG_BANK_TS_ELAPSED(ts1) >= timeout_secs) {
 #ifdef WC_VERBOSE_RNG
                 if (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))
                     WOLFSSL_DEBUG_PRINTF(
@@ -2759,7 +2775,7 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
 #endif
 
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
-        ts1 = XTIME(0);
+        ts1 = WC_RNG_BANK_TS_START();
 
     for (n = last_inst; n >= first_inst; --n) {
         struct wc_rng_bank_inst *drbg;
@@ -2792,8 +2808,6 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
 
         if (flags & WC_RNG_BANK_FLAG_CAN_WAIT) {
             for (;;) {
-                time_t ts2;
-
 #ifndef WC_RNG_HAVE_LOCK
                 /* the pre-lock boundary can't see the inst-side latch:
                  * mirror the in-boundary _RECOVERING protocol around the
@@ -2888,8 +2902,7 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                 if (timeout_secs == 0)
                     break;
                 if (timeout_secs > 0) {
-                    ts2 = XTIME(0);
-                    if ((ts2 - ts1 > timeout_secs) &&
+                    if ((WC_RNG_BANK_TS_ELAPSED(ts1) > timeout_secs) &&
                         !((flags | bank->flags) & WC_RNG_BANK_FLAG_QUIET))
                     {
 #ifdef WC_VERBOSE_RNG

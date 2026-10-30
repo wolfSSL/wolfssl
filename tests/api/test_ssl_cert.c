@@ -4059,11 +4059,13 @@ static int test_chain_holds_only_peer(WOLFSSL* ssl)
             (XMEMCMP(der, wolfSSL_get_chain_cert(chain, 0),
                 (size_t)derSz) == 0);
     }
+#ifndef NO_SESSION_CACHE
     /* Before the stack: building it on a server replaces the session peer. */
     if (ret) {
         ret = test_chain_x509_is(wolfSSL_SESSION_get0_peer(ssl->session), der,
             derSz);
     }
+#endif
     if (ret && (ssl->options.side == WOLFSSL_CLIENT_END)) {
         ret = test_chain_x509_is(wolfSSL_sk_X509_value(
             wolfSSL_get_peer_cert_chain(ssl), 0), der, derSz);
@@ -4251,7 +4253,8 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(SESSION_CERTS) && \
-    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && \
+    !defined(NO_SESSION_CACHE)
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_X509* peer = NULL;
     const byte* der = NULL;
