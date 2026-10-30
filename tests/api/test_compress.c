@@ -37,8 +37,14 @@
 #include <tests/api/test_compress.h>
 
 /* TLS level zlib compression (wolfSSL_set_compression()) needs the record
- * layer, so the memio harness on top of HAVE_LIBZ. */
-#if defined(HAVE_LIBZ) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+ * layer, so the memio harness on top of HAVE_LIBZ. WOLFSSL_NO_TLS_COMPRESSION
+ * compiles the record layer's compression out - it is set when
+ * record_size_limit is built, since the limit bounds plaintext that
+ * compression may then expand past it - and every test here goes through an
+ * ssl_ready callback that requires wolfSSL_set_compression() to succeed, so
+ * none of them can run in that build. */
+#if defined(HAVE_LIBZ) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS_COMPRESSION)
     #define TEST_TLS_COMPRESSION_ANY
 #endif
 /* Compression itself only exists up to TLS 1.2; 1.3 removed it.  The 1.3
