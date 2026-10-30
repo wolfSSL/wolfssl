@@ -147,7 +147,18 @@ endif
 
 ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 
+# Retpoline mitigation for Spectre v2 was added in 4.15, but under knob
+# CONFIG_RETPOLINE, and return thunk mitigation for retbleed was added
+# in 5.19, but under knob CONFIG_RETHUNK.  The current knob names were
+# merged in 6.9; alias to current names so one set of conditionals
+# serves both.
+CONFIG_MITIGATION_RETPOLINE ?= $(CONFIG_RETPOLINE)
+CONFIG_MITIGATION_RETHUNK   ?= $(CONFIG_RETHUNK)
+
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+    ifdef CONFIG_CFI_CLANG
+        $(error CONFIG_CFI_CLANG is not compatible with ENABLED_LINUXKM_PIE.)
+    endif
     # note, we need -fno-stack-protector to avoid references to
     # "__stack_chk_fail" from the wolfCrypt container.
     PIE_FLAGS := -DWC_CONTAINERIZE_THIS -fno-stack-protector -fno-toplevel-reorder
@@ -206,43 +217,85 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     ifeq "$(KERNEL_ARCH_X86)" "yes"
 	PIE_FLAGS += -mcmodel=small
 
-	# eliminate external references to __x86_return_thunk and
-	# __x86_indirect_thunk_foo implementations.  _all_ references must be
-	# eliminated, not just those in PIE objects, otherwise some kernels will
+	# eliminate external references to __x86_return_thunk (via
+	# -mfunction-return=thunk-inline) and __x86_indirect_thunk_foo (via
+	# -mindirect-branch=thunk-inline).  _all_ references must be eliminated,
+	# not just those in PIE objects, otherwise some kernels will
 	# false-positively complain about unpatched thunks.
-	ifeq "$(CONFIG_MITIGATION_RETPOLINE)" "y"
-	    PIE_SUPPORT_FLAGS += -mfunction-return=thunk-inline
-	else
-	    PIE_SUPPORT_FLAGS += -mfunction-return=keep
-	endif
-	ifeq "$(CONFIG_MITIGATION_RETHUNK)" "y"
-	    PIE_SUPPORT_FLAGS +=  -mindirect-branch=thunk-inline
-	else
-	    PIE_SUPPORT_FLAGS += -mindirect-branch=keep
-	endif
+
+	NO_EXTERNAL_THUNKS := y
 
 	OBJECT_FILES_NON_STANDARD := y
     endif
     ifeq "$(KERNEL_ARCH)" "arm"
-        PIE_FLAGS += -fno-unwind-tables
+	PIE_FLAGS += -fno-unwind-tables
     endif
     ifeq "$(KERNEL_ARCH)" "mips"
-        PIE_FLAGS += -mabicalls
+	PIE_FLAGS += -mabicalls
     endif
-    ccflags-y += $(PIE_SUPPORT_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg \
-        $(call cc-option,-ftrivial-auto-var-init=zero)
+	$(call cc-option,-ftrivial-auto-var-init=zero)
 endif
 
-# On some kernels/configs, objtool runs and warns on the linked libwolfssl.o,
-# ignoring the below "OBJECT_FILES_NON_STANDARD := y" annotations.  This
-# mechanism, activated with "make KBUILD_EXTRA_FLAGS=FORCE_GLOBAL_OBJTOOL_OFF=1",
-# inhibits objtool completely.  This may be necessary on modules compiled with
-# assembly accelerations and/or ENABLED_LINUXKM_PIE.
+# An explicit FORCE_GLOBAL_OBJTOOL_OFF is refused outright with clang -- the
+# thunk repair below is gcc-only.
+ifdef CONFIG_CC_IS_CLANG
+    ifdef FORCE_GLOBAL_OBJTOOL_OFF
+	$(error FORCE_GLOBAL_OBJTOOL_OFF is not supported with clang.)
+    endif
+endif
+
+# Similar to scripts/Makefile.lib delay-objtool: disable objtool on the kernels
+# that run it on the linked object, ignoring OBJECT_FILES_NON_STANDARD.  (Parse
+# order prevents testing delay-objtool itself here: Makefile.build includes this
+# file before Makefile.lib.)  Auto-disablement is a gcc-only remedy, unavailable
+# on clang, and objtool is mandatory to CONFIG_LTO_CLANG in any case.
+ifndef CONFIG_CC_IS_CLANG
+    ifneq ($(or $(CONFIG_X86_KERNEL_IBT),$(CONFIG_KLP_BUILD)),)
+	ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+	    FORCE_GLOBAL_OBJTOOL_OFF := y
+	else ifeq "$(ENABLED_ASM)" "yes"
+	    FORCE_GLOBAL_OBJTOOL_OFF := y
+	endif
+    endif
+endif
+
+# objtool disablement can be manually activated with "make
+# KBUILD_EXTRA_FLAGS=FORCE_GLOBAL_OBJTOOL_OFF=1"
 ifdef FORCE_GLOBAL_OBJTOOL_OFF
     undefine CONFIG_OBJTOOL
+    # On <5.19, the knob is named CONFIG_STACK_VALIDATION.
+    undefine CONFIG_STACK_VALIDATION
+    NO_EXTERNAL_THUNKS := y
 endif
+
+ifdef NO_EXTERNAL_THUNKS
+    ifeq "$(KERNEL_ARCH_X86)" "yes"
+	ifdef CONFIG_CC_IS_CLANG
+	    # clang has no inline-thunk codegen (-mfunction-return accepts
+	    # only keep/thunk-extern, and -mindirect-branch is a gcc-only
+	    # spelling), so external thunk references are ineliminable when
+	    # the mitigations are configured.
+	    ifneq "$(CONFIG_MITIGATION_RETHUNK)$(CONFIG_MITIGATION_RETPOLINE)" ""
+		$(error NO_EXTERNAL_THUNKS requires gcc when retpoline/rethunk is configured.)
+	    endif
+	else
+	    ifeq "$(CONFIG_MITIGATION_RETHUNK)" "y"
+		PIE_SUPPORT_FLAGS += -mfunction-return=thunk-inline
+	    else
+		PIE_SUPPORT_FLAGS += -mfunction-return=keep
+	    endif
+	    ifeq "$(CONFIG_MITIGATION_RETPOLINE)" "y"
+		PIE_SUPPORT_FLAGS += -mindirect-branch=thunk-inline -mindirect-branch-register
+	    else
+		PIE_SUPPORT_FLAGS += -mindirect-branch=keep
+	    endif
+	endif
+    endif
+endif
+
+ccflags-y += $(PIE_SUPPORT_FLAGS)
 
 ifdef KERNEL_EXTRA_CFLAGS_REMOVE
     ccflags-remove-y += $(KERNEL_EXTRA_CFLAGS_REMOVE)
@@ -352,9 +405,9 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 	cd "$(obj)" || exit $$?; \
 	for file in $(WOLFCRYPT_PIE_FILES); do				\
 	    $(OBJCOPY) $$($(READELF) --sections --wide "$$file"	|	\
-	      $(AWK) ' 							\
+	      $(AWK) '							\
 	      {								\
-	          if (match($$0, "^ *\\[ *[0-9]+\\] +\\.(text|rodata|data|bss)(\\.[^ ]+)? ", a)) \
+		  if (match($$0, "^ *\\[ *[0-9]+\\] +\\.(text|rodata|data|bss)(\\.[^ ]+)? ", a)) \
 		  {							\
 		      printf("--rename-section .%s%s=.%s_wolfcrypt ",	\
 			     a[1], a[2], a[1]);				\
@@ -364,7 +417,7 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 		      printf("--rename-section .%s.%s=.%s_wolfcrypt ", a[1], a[2], a[2]); \
 		  }							\
 	      }') "$$file" || exit $$?;					\
-	done; 								\
+	done;								\
 	{ $(READELF) --sections --syms --wide $(WOLFCRYPT_PIE_FILES) |	\
 	$(AWK) -v obj="$(obj)" '					\
 	    /^File:/ {							\
