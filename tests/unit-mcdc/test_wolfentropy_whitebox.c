@@ -47,14 +47,15 @@
  * setup failure is reported as a skip (return 0), never a test failure, so
  * the harness never discards the variant's coverage.
  *
- * wc_Entropy_Get() itself has two decisions whose operands reference the
+ * wc_Entropy_Get() has two decisions (the first in Entropy_HealthTest_Passed(),
+ * shared with Entropy_Init()) whose operands reference the
  * SAME file-static health-test state, but are not independently selectable
  * from tests/api because Entropy_Init() (run once by test setup) already
  * leaves that state primed:
  *
- *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
- *     - "prop_total == 0"   startup-retrigger via the first OR operand
- *     - "!rep_have_prev"    startup-retrigger via the second OR operand
+ *   "return (prop_total != 0) && rep_have_prev;"  (Entropy_HealthTest_Passed)
+ *     - "prop_total != 0"   startup-retrigger via the first operand
+ *     - "rep_have_prev"     startup-retrigger via the second operand
  *   "while ((ret == 0) && (len > 0))"
  *   "for (i = 0; (ret == 0) && (i < noise_len); i++)"
  *     - "ret == 0"          both loops only ever end via their *other*
@@ -81,7 +82,7 @@
  * those DO come from sha3.o in the archive. Refusing one of them is therefore
  * the reachable equivalent: Entropy_MemUse() -> Entropy_GetNoise() ->
  * Entropy_HealthTest_Startup() propagates it into `ret` before the sample
- * loop at :781 is ever evaluated. mcdc_fault_hash.h does not carry SHA-3 (no
+ * loop is ever evaluated. mcdc_fault_hash.h does not carry SHA-3 (no
  * white-box has needed it before), so the wrapper is local to this TU.
  *
  * The wrapper is defined BEFORE the macro exists, so it still reaches the
@@ -230,13 +231,14 @@ static void wb_collect_path(void)
 }
 
 /* wc_Entropy_Get()'s startup-retrigger guard:
- *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
+ *   "if ((ret == 0) && (!Entropy_HealthTest_Passed()))"
+ *   "return (prop_total != 0) && rep_have_prev;"
  * On any live process, Entropy_Init() (already run by test setup and by
  * wb_collect_path() above) leaves prop_total != 0 and rep_have_prev == 1, so
- * this guard's *true* side -- and each of its two OR operands individually
+ * this guard's *true* side -- and each of its two operands individually
  * -- is never shown from tests/api. Both globals are file-static: drive
  * each operand's independence pair directly, holding the other operand
- * false (the "both false" side is already exercised by every other
+ * true (the "both true" side is already exercised by every other
  * steady-state call in this suite, e.g. wb_collect_path() above). */
 static void wb_startup_retrigger(void)
 {
@@ -249,8 +251,8 @@ static void wb_startup_retrigger(void)
         return;
     }
 
-    /* "prop_total == 0" true, "!rep_have_prev" false: retrigger via the
-     * first OR operand alone. */
+    /* "prop_total != 0" false, "rep_have_prev" true: retrigger via the
+     * first operand alone. */
     prop_total = 0;
     rep_have_prev = 1;
     XMEMSET(out, 0, sizeof(out));
@@ -260,8 +262,8 @@ static void wb_startup_retrigger(void)
         wb_fail = 1;
     }
 
-    /* "prop_total == 0" false, "!rep_have_prev" true: retrigger via the
-     * second OR operand alone. */
+    /* "prop_total != 0" true, "rep_have_prev" false: retrigger via the
+     * second operand alone. */
     prop_total = 1;
     rep_have_prev = 0;
     XMEMSET(out, 0, sizeof(out));
@@ -329,12 +331,12 @@ static void wb_get_loop_early_exit(void)
  *   "for (i = 0; (ret == 0) && (i < ENTROPY_INITIAL_COUNT); i++)"
  * On a healthy host the loop always runs to completion, so idx0 ("ret == 0")
  * only ever shows TRUE and the loop is only ever left through idx1. `ret` is
- * assignable inside the loop (the two health tests at :782-:786), but real
+ * assignable inside the loop (the two health tests), but real
  * MemUse jitter never trips REP_CUTOFF/PROP_CUTOFF, and the noise buffer is
  * filled by the file-static Entropy_GetNoise() which cannot be rigged
  * directly. The reachable lever is the one thing Entropy_GetNoise() depends on
  * from outside this file: refuse the conditioner's SHA3-256 update, so
- * Entropy_MemUse() fails, Entropy_GetNoise() returns that error at :779, and
+ * Entropy_MemUse() fails, Entropy_GetNoise() returns that error, and
  * the loop condition is evaluated once with ret != 0 -- idx0 FALSE, the
  * missing half. The healthy call immediately before it (same binary) supplies
  * (T,T) and, at i == ENTROPY_INITIAL_COUNT, (T,F). */
@@ -392,24 +394,25 @@ static void wb_startup_noise_fail(void)
 
 /* ---- wc_Entropy_Get() mutex-failure vectors ------------------------------ *
  *
- *   881: if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0))
- *   893: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
+ *   LOCK: if (wc_LockMutex(&entropy_mutex) != 0)   (Entropy_SetupAndLock)
+ *   PROP: if ((ret == 0) && (!Entropy_HealthTest_Passed()))
  *
- * A live, correctly initialised mutex always locks, so 881 only ever shows
- * (T,F) and 893 only ever shows its idx0 TRUE half. mcdc_fault_mutex.h
+ * A live, correctly initialised mutex always locks, so LOCK only ever shows
+ * FALSE and PROP only ever shows its idx0 TRUE half. mcdc_fault_mutex.h
  * redirects this TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes
  * the NEXT lock -- and only that one -- refuse:
  *
- *   armed   -> 881 (T,T) -> ret = BAD_MUTEX_E, which then makes 893's idx0
- *              FALSE at the very next decision (same call, same binary)
- *   unarmed -> 881 (T,F) and 893 idx0 TRUE
+ *   armed   -> LOCK TRUE -> ret = BAD_MUTEX_E, which also makes idx0 of
+ *              Entropy_SetupAndLock()'s SHA-3 setup guard FALSE and later
+ *              PROP's idx0 FALSE (same call, same binary)
+ *   unarmed -> LOCK FALSE and PROP idx0 TRUE
  *
  * A refused lock is the one path wc_Entropy_Get() must NOT unlock on, and it
- * doesn't: the tail is guarded on the mutex error code, so no unlock of an
- * unheld mutex happens and no global state is touched. The idx0 operand of
- * 881 itself stays a justified residual: outside HAVE_FIPS builds nothing
- * runs between "ret = 0" and this test, so ret is 0 by construction and the
- * operand has no independence pair here.
+ * doesn't: the tail is guarded on `locked`, so no unlock of an
+ * unheld mutex happens and no global state is touched. In builds without a
+ * static mutex initializer, the "ret == 0" guard around LOCK has its FALSE
+ * half unexercised: it needs wc_local_InitMutexOnce() to fail, which is not
+ * hooked.
  * ------------------------------------------------------------------------ */
 #if defined(HAVE_ENTROPY_MEMUSE) && !defined(MCDC_FM_UNAVAILABLE)
 static void wb_entropy_get_mutex(void)
@@ -419,8 +422,8 @@ static void wb_entropy_get_mutex(void)
 
     XMEMSET(out, 0, sizeof(out));
 
-    /* Warm-up while unarmed so lazy initialisation (which locks the same
-     * mutex) is done before the one-shot fault is armed. */
+    /* Warm-up while unarmed to set up SHA-3 and health test state again
+     * after the earlier Entropy_Final(). */
     (void)wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
 
     /* Armed: the collection lock is refused exactly once. */
