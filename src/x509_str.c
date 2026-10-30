@@ -686,24 +686,6 @@ exit:
     return ret;
 }
 
-static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
-                                            WOLFSSL_X509* x509, int type) {
-    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
-    byte          hash[KEYID_SIZE];
-
-    if (store != NULL && x509 != NULL && x509->derCert != NULL) {
-        result = GetHashId(x509->subjKeyId, (int)x509->subjKeyIdSz,
-                    hash, HashIdAlg(x509->sigOID));
-        if (result) {
-            result = WOLFSSL_FATAL_ERROR;
-        } else {
-            result = RemoveCA(store->cm, hash, type);
-        }
-    }
-
-    return result;
-}
-
 static int X509StoreMoveCert(WOLFSSL_STACK *certs_stack,
                              WOLFSSL_STACK *dest_stack,
                              WOLFSSL_X509 *cert) {
@@ -764,16 +746,14 @@ static int X509StoreCertInStack(WOLF_STACK_OF(WOLFSSL_X509)* stack,
 
 /* Current certificate failed, but it is possible there is an
  * alternative cert with the same subject key which will work.
- * Retry until all possible candidate certs are exhausted. */
-static int X509VerifyCertSetupRetry(WOLFSSL_X509_STORE_CTX* ctx,
+ * Retry until all possible candidate certs are exhausted.
+ * The temporary CAs of the abandoned path are not removed here: the caller
+ * drops all of them before it verifies the next link. */
+static void X509VerifyCertSetupRetry(WOLFSSL_X509_STORE_CTX* ctx,
     WOLF_STACK_OF(WOLFSSL_X509)* certs, WOLF_STACK_OF(WOLFSSL_X509)* failed,
     int* depth, int origDepth) {
-    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-
     WOLFSSL_MSG("X509_verify_cert current cert failed, "
                 "retrying with other certs.");
-    ret = X509StoreRemoveCa(ctx->store, ctx->current_cert,
-                            WOLFSSL_TEMP_CA);
     X509StoreMoveCert(certs, failed, ctx->current_cert);
     ctx->current_cert = wolfSSL_sk_X509_pop(ctx->chain);
     /* Release the chain's reference. The cert stays valid through its
@@ -781,8 +761,6 @@ static int X509VerifyCertSetupRetry(WOLFSSL_X509_STORE_CTX* ctx,
     wolfSSL_X509_free(ctx->current_cert);
     if (*depth < origDepth)
         *depth += 1;
-
-    return ret;
 }
 
 /* Returns 1 if cur and x509 have identical DER encodings, 0 otherwise. */
@@ -1091,6 +1069,17 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 }
             }
         #endif
+            /* The CertManager picks the signer itself, by key id or name, from
+             * everything it holds. Drop the intermediates loaded for the links
+             * below and for abandoned candidates, so that issuer is the only
+             * untrusted signer this link can verify against. Otherwise a cert
+             * signed by one of those would pass here while the path goes on
+             * with issuer, a same-named cert that never signed it. */
+            if (wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm)
+                    != WOLFSSL_SUCCESS) {
+                ret = WOLFSSL_FATAL_ERROR;
+                goto exit;
+            }
             /* NOTE: this loads the caller-supplied intermediate into the
              * shared ctx->store->cm as a WOLFSSL_TEMP_CA, and the unload paths
              * drop *all* WOLFSSL_TEMP_CA signers in that CertManager, not only

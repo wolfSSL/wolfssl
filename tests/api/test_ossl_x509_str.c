@@ -2978,6 +2978,193 @@ int test_X509_verify_cert_selfsigned_anchor_no_keycertsign(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME)
+/* Build a certificate for key, signed with signKey, from bare common names.
+ * issuerCn NULL names the 2048-bit test root. skid and akid fill a key id with
+ * that byte, 0 omits the extension. */
+static X509* gen_named_cert(const char* subjCn, const char* issuerCn, int isCA,
+    byte skid, byte akid, RsaKey* key, RsaKey* signKey, WC_RNG* rng)
+{
+    Cert cert;
+    X509* x509 = NULL;
+    byte* der = NULL;
+    const byte* p;
+    int derSz = -1;
+
+    if (wc_InitCert(&cert) != 0)
+        return NULL;
+    cert.isCA       = isCA;
+    cert.sigType    = CTC_SHA256wRSA;
+    cert.selfSigned = 0;
+    XSTRNCPY(cert.subject.commonName, subjCn, CTC_NAME_SIZE - 1);
+    if (issuerCn != NULL)
+        XSTRNCPY(cert.issuer.commonName, issuerCn, CTC_NAME_SIZE - 1);
+    else if (wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048) != 0) {
+    #ifdef WOLFSSL_CERT_GEN_CACHE
+        wc_SetCert_Free(&cert); /* release DecodedCert from wc_SetIssuerBuffer */
+    #endif
+        return NULL;
+    }
+    if (skid != 0) {
+        XMEMSET(cert.skid, skid, KEYID_SIZE);
+        cert.skidSz = KEYID_SIZE;
+    }
+    if (akid != 0) {
+        XMEMSET(cert.akid, akid, KEYID_SIZE);
+        cert.akidSz = KEYID_SIZE;
+    }
+
+    der = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der != NULL && wc_MakeCert(&cert, der, FOURK_BUF, key, NULL, rng) > 0)
+        derSz = wc_SignCert(cert.bodySz, cert.sigType, der, FOURK_BUF, signKey,
+            NULL, rng);
+    if (derSz > 0) {
+        p = der;
+        x509 = d2i_X509(NULL, &p, derSz);
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert); /* release DecodedCert from wc_SetIssuerBuffer */
+#endif
+    return x509;
+}
+#endif
+
+/* X509_verify_cert() loads each candidate issuer into the CertManager as a
+ * temporary CA, and the CertManager picks the signer on its own from all it
+ * holds. An untrusted CA loaded for a link below, or for a path that was
+ * abandoned, must be gone when the next link is verified: otherwise a
+ * certificate signed by it passes while the path goes on with a same-named
+ * genuine intermediate that leads to the root.
+ *
+ * The attacker knows the genuine intermediate's certificate and holds none of
+ * its keys. Every forged path must be rejected. */
+int test_X509_verify_cert_stale_temp_ca(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME)
+    enum { K_ROOT, K_INT, K_ATK, K_CNT };
+    enum { C_INT, C_HONEST, C_FORGED, C_LOOP_TWIN, C_LOOP_UP, C_BARE_TWIN,
+           C_DECOY, C_FORGED_B, C_TWIN_A, C_TWIN_B, C_UP, C_UP_OTHER, C_CNT };
+    static const struct {
+        const char* subj;
+        const char* issuer;     /* NULL is the test root */
+        int  isCA;
+        byte skid;
+        byte akid;
+        int  key;
+        int  signKey;
+    } certs[C_CNT] = {
+        /* The genuine intermediate and a leaf it issued. */
+        { "Issuing CA", NULL,         1, 0x03, 0,    K_INT, K_ROOT },
+        { "honest",     "Issuing CA", 0, 0,    0x03, K_ATK, K_INT  },
+        /* Signed by the attacker in the intermediate's name. */
+        { "forged",     "Issuing CA", 0, 0,    0,    K_ATK, K_ATK  },
+        /* Two CAs that issued each other, one named like the intermediate. */
+        { "Issuing CA", "Upper CA",   1, 0x0b, 0,    K_ATK, K_ATK  },
+        { "Upper CA",   "Issuing CA", 1, 0x16, 0,    K_ATK, K_ATK  },
+        /* No subject key id, and not signed by the issuer it names. */
+        { "Issuing CA", "Decoy CA",   1, 0,    0,    K_ATK, K_ATK  },
+        { "Decoy CA",   "Nowhere",    1, 0x16, 0,    K_INT, K_ATK  },
+        /* Twin A verifies under Upper CA, which names twin B as its issuer but
+         * is not signed by it. The other Upper CA did not sign twin A. */
+        { "forged",     "Issuing CA", 0, 0x16, 0,    K_ATK, K_ATK  },
+        { "Issuing CA", "Upper CA",   1, 0x0b, 0,    K_ATK, K_INT  },
+        { "Issuing CA", "Nowhere",    1, 0x16, 0,    K_ATK, K_ROOT },
+        { "Upper CA",   "Issuing CA", 1, 0x21, 0x16, K_INT, K_ROOT },
+        { "Upper CA",   "Nowhere",    1, 0x2c, 0,    K_ATK, K_ROOT },
+    };
+    static const struct {
+        int leaf;
+        int untrusted[6];       /* in push order, ends with -1 */
+        int expectVerify;       /* expected X509_verify_cert() result */
+    } cases[] = {
+        { C_HONEST,   { C_INT, -1 }, 1 },
+        { C_FORGED,   { C_INT, -1 }, 0 },
+        /* Left from a link below: no link fails on the way up. */
+        { C_FORGED,   { C_LOOP_TWIN, C_LOOP_UP, C_INT, -1 }, 0 },
+        /* Left from an abandoned path: the certificate that failed. */
+        { C_FORGED,   { C_BARE_TWIN, C_DECOY, C_INT, -1 }, 0 },
+        /* Left from an abandoned path: the issuer it failed against. */
+        { C_FORGED_B, { C_TWIN_A, C_INT, C_TWIN_B, C_UP, C_UP_OTHER, -1 }, 0 },
+    };
+    WC_RNG rng;
+    RsaKey keys[K_CNT];
+    int rngI = 0;
+    int keysI = 0;
+    word32 idx;
+    X509* x509[C_CNT];
+    X509* root = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+    const byte* p;
+    size_t i;
+    int j;
+
+    XMEMSET(x509, 0, sizeof(x509));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngI = 1;
+    for (j = 0; j < K_CNT; j++) {
+        ExpectIntEQ(wc_InitRsaKey(&keys[j], NULL), 0);
+        if (EXPECT_SUCCESS()) keysI = j + 1;
+    }
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &keys[K_ROOT],
+        sizeof_ca_key_der_2048), 0);
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &keys[K_INT],
+        sizeof_server_key_der_2048), 0);
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &keys[K_ATK],
+        sizeof_client_key_der_2048), 0);
+
+    p = ca_cert_der_2048;
+    ExpectNotNull(root = d2i_X509(NULL, &p, (int)sizeof_ca_cert_der_2048));
+    for (j = 0; j < C_CNT; j++) {
+        ExpectNotNull(x509[j] = gen_named_cert(certs[j].subj, certs[j].issuer,
+            certs[j].isCA, certs[j].skid, certs[j].akid, &keys[certs[j].key],
+            &keys[certs[j].signKey], &rng));
+    }
+
+    for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+        ExpectNotNull(store = X509_STORE_new());
+        ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+        ExpectNotNull(untrusted = sk_X509_new_null());
+        for (j = 0; cases[i].untrusted[j] >= 0; j++) {
+            ExpectIntGT(sk_X509_push(untrusted, x509[cases[i].untrusted[j]]),
+                0);
+        }
+        ExpectNotNull(ctx = X509_STORE_CTX_new());
+        ExpectIntEQ(X509_STORE_CTX_init(ctx, store, x509[cases[i].leaf],
+            untrusted), 1);
+        ExpectIntEQ(X509_verify_cert(ctx), cases[i].expectVerify);
+        X509_STORE_CTX_free(ctx);
+        ctx = NULL;
+        X509_STORE_free(store);
+        store = NULL;
+        sk_X509_free(untrusted);
+        untrusted = NULL;
+    }
+
+    for (j = 0; j < C_CNT; j++)
+        X509_free(x509[j]);
+    X509_free(root);
+    while (keysI > 0)
+        wc_FreeRsaKey(&keys[--keysI]);
+    if (rngI) wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
         STACK_OF(X509)* chain)
