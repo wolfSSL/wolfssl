@@ -17552,6 +17552,15 @@ PRAGMA_GCC_DIAG_POP
     }
 #endif /* HAVE_RPK */
 
+#ifndef NO_ASN_TIME_CHECK
+    /* The issuer may be a CA cached from an earlier peer chain that has
+     * expired since. Report it as a date error on this certificate. */
+    if (ret == 0 && (verify == VERIFY || verify == VERIFY_NAME)) {
+        ret = wolfssl_local_CheckChainCADates(SSL_CM(ssl), args->dCert->ca,
+            extraSigners);
+    }
+#endif
+
     /* perform below checks for date failure cases */
     if (ret == 0 ||
         ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
@@ -19271,6 +19280,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                #ifndef NO_ASN_TIME_CHECK
+                    int caVerifyRet = 0;
+                #endif
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL)
                     int ocspNoUrl = 0;
                     int ocspStapleDeferred = 0;
@@ -19581,6 +19593,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
+                #ifndef NO_ASN_TIME_CHECK
+                    caVerifyRet = ret;
+                #endif
                     /* Do verify callback */
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
                     if (ssl->options.verifyNone &&
@@ -19651,6 +19666,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ret = 0;
                             }
                         }
+                    #ifndef NO_ASN_TIME_CHECK
+                        else if (caVerifyRet == 0 && subjectHash != NULL) {
+                            /* A CA renewed with the same key is not added
+                             * again. Take its dates so the cached CA does
+                             * not expire with the old certificate. */
+                            ret = wolfssl_local_SetChainCADates(SSL_CM(ssl),
+                                subjectHash, args->dCert);
+                        }
+                    #endif
                     }
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     /* A chain CA refused for its key usage fails the verify
