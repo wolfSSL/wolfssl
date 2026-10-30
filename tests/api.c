@@ -27158,6 +27158,7 @@ static int test_wolfSSL_OCSP_id_get0_info(void)
     ASN1_OBJECT* pmd  = NULL;
     ASN1_STRING* keyHash = NULL;
     ASN1_INTEGER* serial = NULL;
+    ASN1_INTEGER* serial2 = NULL;
     ASN1_INTEGER* x509Int = NULL;
 
     ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(svrCertFile,
@@ -27178,6 +27179,9 @@ static int test_wolfSSL_OCSP_id_get0_info(void)
 
     ExpectIntEQ(OCSP_id_get0_info(NULL, NULL, NULL, &serial, id), 1);
     ExpectNotNull(serial);
+    /* A second call must return the cached serial, not allocate a new one. */
+    ExpectIntEQ(OCSP_id_get0_info(NULL, NULL, NULL, &serial2, id), 1);
+    ExpectPtrEq(serial, serial2);
 
     /* compare serial number to one in cert, should be equal */
     ExpectNotNull(x509Int = X509_get_serialNumber(cert));
