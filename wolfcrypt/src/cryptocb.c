@@ -4637,6 +4637,35 @@ int wc_CryptoCb_SetKey(int devId, int type, void* obj,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+
+/* Lets a SetKey callback say where the key in its info is kept (default
+ * WC_KEY_SW_STORED), using the setter for the key's algorithm.
+ * Returns 0, BAD_FUNC_ARG on bad args, NOT_COMPILED_IN for other types. */
+int wc_CryptoCb_SetKeyLocation(wc_CryptoInfo* info, int location)
+{
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_SETKEY ||
+            info->setkey.obj == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (info->setkey.type) {
+    #ifndef NO_AES
+        case WC_SETKEY_AES:
+            /* The AES key guards already refuse a claimed key with no
+             * schedule, so there is nothing to record. */
+            if (location != WC_KEY_SW_STORED && location != WC_KEY_HW_STORED)
+                return BAD_FUNC_ARG;
+            return 0;
+    #endif
+    #ifdef WC_HMAC_HAVE_KEY_LOCATION
+        case WC_SETKEY_HMAC:
+            return wc_HmacSetKeyLocation((Hmac*)info->setkey.obj, location);
+    #endif
+        default:
+            (void)location;
+            return NOT_COMPILED_IN;
+    }
+}
 #endif /* WOLF_CRYPTO_CB_SETKEY */
 
 #ifdef WOLF_CRYPTO_CB_EXPORT_KEY
