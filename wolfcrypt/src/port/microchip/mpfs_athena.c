@@ -562,8 +562,13 @@ static int wc_MpfsAthenaShaCopyDev(wc_CryptoInfo* info)
      * _Transform_Sha512() and wc_Sha512Transform() and is allocated rather than
      * copied, and its size carries that second buffer. */
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WC_SHA2_NO_SMALL_STACK)
+  #ifdef WC_SHA512_TSCRATCH_SIZE
+    dst->W = (word64*)XMALLOC(WC_SHA512_TSCRATCH_SIZE + WC_SHA384_BLOCK_SIZE,
+        dst->heap, DYNAMIC_TYPE_DIGEST);
+  #else /* old FIPS */
     dst->W = (word64*)XMALLOC((sizeof(word64) * 16) + WC_SHA384_BLOCK_SIZE,
         dst->heap, DYNAMIC_TYPE_DIGEST);
+  #endif
     if (dst->W == NULL) {
         /* msg still aliases the source here, so it is dropped, not freed. */
         ForceZero(dst, sizeof(wc_Sha384));

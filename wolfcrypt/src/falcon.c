@@ -10697,6 +10697,10 @@ out:
 int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
 {
     int ret = 0;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
 
     if ((key == NULL) || (rng == NULL)) {
         return BAD_FUNC_ARG;
@@ -10712,6 +10716,10 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
     falcon_cache_clear(key);
 #endif
 
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    idKey = WC_CRYPTOCB_HAS_ID(key);
+    idDevId = key->devId;
+#endif
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -10724,6 +10732,10 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
         /* fall-through when unavailable */
         ret = 0;
     }
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (idKey && wc_CryptoCb_HasPkDevice(idDevId))
+        return NO_VALID_DEVID;
+    #endif
 #endif /* WOLF_CRYPTO_CB */
 
 #ifdef WOLF_CRYPTO_CB_ONLY_FALCON

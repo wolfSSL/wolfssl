@@ -7619,6 +7619,11 @@ int wolfSSL_want(WOLFSSL* ssl);
     the list of checks to perform.  dn holds the domain name to check
     against the peer certificate when it’s received.
 
+    dn must be a fully qualified domain name or "localhost", otherwise
+    SSL_FAILURE is returned.  To also accept single-label names such as
+    "intranet", as issued by some private PKIs, build wolfSSL with
+    WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME defined.
+
     \return SSL_SUCCESS upon success.
     \return SSL_FAILURE will be returned if a memory error was encountered.
 
@@ -11493,7 +11498,8 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
     \brief The function sets the verifyCallback function in the Certificate
     Manager. If present, it will be called for each cert loaded. If there is
     a verification error, the verify callback can be used to over-ride the
-    error.
+    error. A waived date error is followed by a second call for the CRL
+    error, if there is one.
 
     \return none No return.
 

@@ -172,8 +172,8 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_shim.h
 
 if BUILD_SHA3
-if BUILD_V523_NONFIPS_SHAKE
-nobase_nodist_include_HEADERS=fips/v5.2.3-custom-shake-pq/shake.h
+if BUILD_V5_NONFIPS_SHAKE
+nobase_nodist_include_HEADERS=wolfssl/wolfcrypt/shake.h
 endif
 endif
 

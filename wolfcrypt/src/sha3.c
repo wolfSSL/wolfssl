@@ -1640,18 +1640,33 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
+/* Wipe the SSP-bearing state but keep the object usable: SLH-DSA reuses it
+ * after Free and the block function pointers live in it under
+ * WC_C_DYNAMIC_FALLBACK. */
+static void wc_Sha3Wipe(wc_Sha3* sha3)
+{
+#ifdef PSOC6_HASH_SHA3
+    ForceZero(sha3, sizeof(*sha3));
+#else
+    ForceZero(sha3->s, sizeof(sha3->s));
+    ForceZero(sha3->t, sizeof(sha3->t));
+#ifdef STM32_HASH_SHA3
+    ForceZero(&sha3->stmCtx, sizeof(sha3->stmCtx));
+#endif
+    sha3->i = 0;
+#endif
+}
+
 static void wc_Sha3Free(wc_Sha3* sha3)
 {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     int ret = 0;
 #endif
 
-    (void)sha3;
-
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (sha3 == NULL)
         return;
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (sha3->devId != INVALID_DEVID)
     #endif
@@ -1681,6 +1696,10 @@ static void wc_Sha3Free(wc_Sha3* sha3)
 #if defined(PSOC6_HASH_SHA3)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* s and t hold absorbed keys and seeds for Ed448, ML-KEM, ML-DSA,
+     * SLH-DSA, LMS, XMSS and HMAC-SHA3 (ISO/IEC 19790:2012 7.9.7). */
+    wc_Sha3Wipe(sha3);
 }
 
 /* Reset a SHA-3/SHAKE context to its freshly initialized state, reusing its
@@ -1805,10 +1824,18 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
                     return MEMORY_E);
 
     XMEMSET(tmpSha3, 0, sizeof(*tmpSha3));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Sha3GetHash tmpSha3", tmpSha3, sizeof(*tmpSha3));
+#endif
     ret = wc_Sha3Copy(sha3, tmpSha3);
     if (ret == 0) {
         ret = wc_Sha3Final(tmpSha3, hash, p, len);
     }
+
+    ForceZero(tmpSha3, sizeof(*tmpSha3));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha3, sizeof(*tmpSha3));
+#endif
 
     WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
@@ -3126,6 +3153,8 @@ static int KmacInit(wc_Kmac* kmac, word32 count, const byte* key, word32 keyLen,
             if (ret == 0) {
                 ret = CshakeBytePad(&kmac->shake, count, rate);
             }
+            /* The block buffer staged the key (ISO/IEC 19790 7.9.7). */
+            ForceZero(kmac->shake.t, sizeof(kmac->shake.t));
         }
     }
 

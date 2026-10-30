@@ -1235,6 +1235,10 @@ int wc_XmssKey_SetContext(XmssKey* key, void* context)
 int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
 {
     int            ret = 0;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
 #ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     enum wc_XmssRc cb_rc = WC_XMSS_RC_NONE;
 #ifdef WOLFSSL_SMALL_STACK
@@ -1253,6 +1257,12 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         WOLFSSL_MSG("error: XmssKey not ready for generation");
         ret = BAD_STATE_E;
     }
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (ret == 0) {
+        idKey = WC_CRYPTOCB_HAS_ID(key);
+        idDevId = key->devId;
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
@@ -1276,6 +1286,11 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         }
         ret = 0; /* fall through to software path */
     }
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if ((ret == 0) && idKey && wc_CryptoCb_HasPkDevice(idDevId)) {
+        ret = NO_VALID_DEVID;
+    }
+    #endif
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_XMSS

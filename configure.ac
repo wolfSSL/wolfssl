@@ -825,29 +825,21 @@ AS_CASE([$FIPS_VERSION],
 )
 
 case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
-    *-DV523_NONFIPS_SHAKE*) ENABLED_V523_NONFIPS_SHAKE=yes ;;
-    *) ENABLED_V523_NONFIPS_SHAKE=no ;;
+    *-DV5_NONFIPS_SHAKE*) ENABLED_V5_NONFIPS_SHAKE=yes ;;
+    *) ENABLED_V5_NONFIPS_SHAKE=no ;;
 esac
 if test "x$HAVE_FIPS_VERSION_MAJOR" != "x5"
 then
-    ENABLED_V523_NONFIPS_SHAKE=no
-fi
-if test "x$HAVE_FIPS_VERSION_MINOR" != "x2"
-then
-    ENABLED_V523_NONFIPS_SHAKE=no
-fi
-if test "x$HAVE_FIPS_VERSION_PATCH" != "x1"
-then
-    ENABLED_V523_NONFIPS_SHAKE=no
+    ENABLED_V5_NONFIPS_SHAKE=no
 fi
 dnl shake.c/shake.h live in the internal fips repo, not this one; a wolfssl
-dnl checkout without them dropped into fips/v5.2.3-custom-shake-pq/ would
-dnl otherwise fail deep in the build with a bare "No rule to make target".
-AS_IF([ test "x$ENABLED_V523_NONFIPS_SHAKE" = "xyes" && \
-        ( ! test -s $srcdir/fips/v5.2.3-custom-shake-pq/shake.c || \
-          ! test -s $srcdir/fips/v5.2.3-custom-shake-pq/shake.h ) ],
-      [AC_MSG_ERROR([fips/v5.2.3-custom-shake-pq/shake.c and/or shake.h not found. V523_NONFIPS_SHAKE needs the internal fips repo overlay.])])
-AM_CONDITIONAL([BUILD_V523_NONFIPS_SHAKE],[test "x$ENABLED_V523_NONFIPS_SHAKE" = "xyes"])
+dnl checkout without them dropped into wolfcrypt/src/ and wolfssl/wolfcrypt/
+dnl would otherwise fail deep in the build with a bare "No rule to make target".
+AS_IF([ test "x$ENABLED_V5_NONFIPS_SHAKE" = "xyes" && \
+        ( ! test -s $srcdir/wolfcrypt/src/shake.c || \
+          ! test -s $srcdir/wolfssl/wolfcrypt/shake.h ) ],
+      [AC_MSG_ERROR([wolfcrypt/src/shake.c and/or wolfssl/wolfcrypt/shake.h not found. V5_NONFIPS_SHAKE needs the internal fips repo overlay.])])
+AM_CONDITIONAL([BUILD_V5_NONFIPS_SHAKE],[test "x$ENABLED_V5_NONFIPS_SHAKE" = "xyes"])
 
 if test "$ENABLED_FIPS_DEV" = "yes"
 then
@@ -12719,6 +12711,31 @@ then
 fi
 
 
+# Support for the autosar MAC services (AES-CMAC), an add-on to --enable-autosar
+AC_ARG_ENABLE([autosar-cmac],
+    [AS_HELP_STRING([--enable-autosar-cmac],[Enable AutoSAR MAC generate/verify services using AES-CMAC, requires --enable-autosar (default: disabled)])],
+    [ ENABLED_AUTOSAR_CMAC=$enableval ],
+    [ ENABLED_AUTOSAR_CMAC=no ]
+    )
+
+if test "$ENABLED_AUTOSAR_CMAC" = "yes"
+then
+    if test "$ENABLED_AUTOSAR" != "yes"
+    then
+        AC_MSG_ERROR([--enable-autosar-cmac requires --enable-autosar])
+    fi
+
+    # The driver calls wc_InitCmac()/wc_CmacUpdate()/wc_CmacFinalNoFree().
+    # WOLFSSL_AES_DIRECT comes with it: the WC_CMAC_AES case in cmac.c is
+    # compiled out without it, so wc_InitCmac() would fail at runtime.
+    AS_IF([test "$ENABLED_CMAC" != "yes"],
+          [ENABLED_CMAC="yes"
+           AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AUTOSAR_CMAC"
+fi
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
@@ -15383,6 +15400,7 @@ echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
 echo "   * TLS receive read-ahead:     $ENABLED_READAHEAD"
 echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
+echo "   * AutoSAR CMAC :              $ENABLED_AUTOSAR_CMAC"
 echo "   * ML-KEM  standalone:         $ENABLED_MLKEM_STANDALONE"
 echo "   * PQ/T hybrids:               $ENABLED_PQC_HYBRIDS"
 echo "   * Extra PQ/T hybrids:         $ENABLED_EXTRA_PQC_HYBRIDS"

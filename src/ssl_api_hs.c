@@ -689,6 +689,17 @@ int wolfSSL_connect(WOLFSSL* ssl)
             }
         }
 
+        #if defined(HAVE_ECH)
+        /* RFC 9849 s6.1.4: negotiating below TLS 1.3 means the server rejected
+         * ECH. Abort with ech_required instead of reporting success. */
+        if (EchRejected(ssl)) {
+            SendAlert(ssl, alert_fatal, ech_required);
+            ssl->error = ECH_REQUIRED_E;
+            WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        #endif /* HAVE_ECH */
+
         ssl->options.connectState = SECOND_REPLY_DONE;
         WOLFSSL_MSG("connect state: SECOND_REPLY_DONE");
         FALL_THROUGH;
@@ -1091,11 +1102,11 @@ int wolfSSL_accept(WOLFSSL* ssl)
     case ACCEPT_SECOND_REPLY_DONE :
         #ifndef NO_CERTS
         /* SERVER: When not resuming and verifying peer but no certificate
-         * received and not failing when not received then peer auth good.
+         * received and none was required then peer auth good.
          */
         if ((!ssl->options.resuming) && (ssl->options.verifyPeer) &&
                 (!ssl->options.havePeerCert) &&
-                (!ssl->options.failNoCert)) {
+                (!ClientAuthRequired(ssl, ssl->options.usingPSK_cipher))) {
             ssl->options.peerAuthGood = 1;
         }
         #endif /* !NO_CERTS  */

@@ -3439,6 +3439,73 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions, void* heap)
 /* Certificate Status Request                                                 */
 /******************************************************************************/
 
+#if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                          defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+/* Apply the leaf CRL verdict taken while the DecodedCert was alive. */
+static int TLSX_CSR_LeafCrlCheck(WOLFSSL* ssl, int ocspRet, int ocspAnswered)
+{
+    int ret = ocspRet;
+    int crlRet = ssl->deferredCrlRet;
+
+    if (!SSL_CM(ssl)->crlEnabled || !ssl->deferredCrlDone)
+        return ret;
+
+    /* A clean CRL must not clear OCSP_LOOKUP_FAIL, which also marks that no
+     * lookup was made, or must-staple would pass without a staple. */
+    if (!ocspAnswered && (ret == 0 ||
+            ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
+            (ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) && crlRet != 0))) {
+        ret = crlRet;
+        if (ret != 0) {
+            WOLFSSL_ERROR_VERBOSE(ret);
+            WOLFSSL_MSG("\tCRL check not ok");
+            SetRevocationVerifyRet(ssl, ret);
+        }
+    }
+
+    return ret;
+}
+#endif
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+/* Look up the status of a leaf the server did not staple, then its CRL. */
+static int TLSX_CSR_LeafFallback(WOLFSSL* ssl, OcspRequest* request)
+{
+    int ret;
+#ifdef HAVE_CRL
+    int ocspAnswered = 0;
+#endif
+
+#if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+    /* Passed before a later lookup would block. */
+    if (ssl->csrLookupDone[0])
+        return 0;
+#endif
+    if (SSL_CM(ssl)->ocspEnabled && request != NULL) {
+        ret = CheckOcspRequest(SSL_CM(ssl)->ocsp, request, NULL, ssl);
+    #ifdef HAVE_CRL
+        ocspAnswered = (ret == 0);
+    #endif
+        /* Same no-responder policy as the unstapled leaf lookup. */
+        if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+            ret = OcspNoUrlPolicy(SSL_CM(ssl));
+    }
+    else {
+        WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
+        ret = OCSP_LOOKUP_FAIL;
+    }
+#ifdef HAVE_CRL
+    ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
+#endif
+#if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+    if (ret == 0)
+        ssl->csrLookupDone[0] = 1;
+#endif
+    return ret;
+}
+#endif
+
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
 static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
@@ -3834,6 +3901,12 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 if (offset + resp_length != length)
                     ret = BUFFER_ERROR;
             }
+            /* RFC 8446 4.4.2.1 defines OCSPResponse<1..2^24-1>, so an empty
+             * response is a field out of range. */
+            if (ret == 0 && resp_length == 0) {
+                ret = BUFFER_ERROR;
+                WOLFSSL_ERROR_VERBOSE(ret);
+            }
             if (ret == 0) {
                 if (ssl->response_idx < (1 + MAX_CHAIN_DEPTH))
                     csr->responses[ssl->response_idx].buffer =
@@ -3863,6 +3936,12 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
     }
     else {
+        /* A server's CertificateRequest reaches this branch too, where it
+         * would replace the client's options and set status_request. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            /* RFC 8446 4.4.2.1: sent empty in a CertificateRequest. */
+            return length ? BUFFER_ERROR : 0;
+        }
 #ifndef NO_WOLFSSL_SERVER
         if (length == 0)
             return 0;
@@ -3951,7 +4030,7 @@ int TLSX_CSR_InitRequest_ex(TLSX* extensions, DecodedCert* cert,
                         return ret;
 
                     /* restore nonce */
-                    XMEMCPY(csr->request.ocsp->nonce, nonce, (size_t)nonceSz);
+                    XMEMCPY(request->nonce, nonce, (size_t)nonceSz);
                     request->nonceSz = nonceSz;
                     csr->requests++;
                 }
@@ -3998,35 +4077,24 @@ void* TLSX_CSR_GetRequest(TLSX* extensions)
     return TLSX_CSR_GetRequest_ex(extensions, 0);
 }
 
+/* The leaf revocation lookups were skipped in favour of the stapled response.
+ * Called when no CertificateStatus arrived: do them now. */
 int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
 {
     TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr = extension ?
                               (CertificateStatusRequest*)extension->data : NULL;
+    int ret = 0;
 
     if (csr) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-                if (SSL_CM(ssl)->ocspEnabled) {
-                    int ret;
-                    ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                           &csr->request.ocsp[0], NULL, ssl);
-                    /* This is the client's fallback leaf lookup on the
-                     * verification instance, so honor the no-responder policy
-                     * just like the non-stapling leaf path. Default stays
-                     * best-effort; FAIL_IF_NOT_SUPPORTED makes it fail closed. */
-                    if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
-                        ret = OcspNoUrlPolicy(SSL_CM(ssl));
-                    return ret;
-                }
-                else {
-                    WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
-                    return OCSP_LOOKUP_FAIL;
-                }
+                ret = TLSX_CSR_LeafFallback(ssl, &csr->request.ocsp[0]);
+                break;
         }
     }
 
-    return 0;
+    return ret;
 }
 
 int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
@@ -4547,40 +4615,48 @@ void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte idx)
     return NULL;
 }
 
+/* Revocation check for the ocsp_multi chain entries from staple index idx on,
+ * which the peer stapled nothing for. */
+int TLSX_CSR2_ChainFallback(WOLFSSL* ssl, int idx)
+{
+    OcspRequest* request;
+    int ret = 0;
+
+    for (; ret == 0 && idx <= MAX_CHAIN_DEPTH &&
+            (request = (OcspRequest*)TLSX_CSR2_GetRequest(ssl->extensions,
+                WOLFSSL_CSR2_OCSP_MULTI, (byte)idx)) != NULL; idx++) {
+        ret = CsrDoChainFallbackLookup(ssl, request, idx);
+    }
+
+    return ret;
+}
+
+/* The leaf revocation lookups were skipped in favour of the stapled response.
+ * Called when no CertificateStatus arrived: do them now. */
 int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
 {
     TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
     CertificateStatusRequestItemV2* csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
+    int ret = 0;
 
-    /* forces only the first one */
     if (csr2) {
         switch (csr2->status_type) {
             case WOLFSSL_CSR2_OCSP:
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
-                if (SSL_CM(ssl)->ocspEnabled && csr2->requests >= 1) {
-                    int ret;
-                    ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                          &csr2->request.ocsp[csr2->requests-1],
-                                          NULL, ssl);
-                    /* This is the client's fallback leaf lookup on the
-                     * verification instance, so honor the no-responder policy
-                     * just like the non-stapling leaf path. Default stays
-                     * best-effort; FAIL_IF_NOT_SUPPORTED makes it fail closed. */
-                    if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
-                        ret = OcspNoUrlPolicy(SSL_CM(ssl));
-                    return ret;
-                }
-                else {
-                    WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
-                    return OCSP_LOOKUP_FAIL;
-                }
+                ret = TLSX_CSR_LeafFallback(ssl, csr2->requests >= 1 ?
+                    &csr2->request.ocsp[csr2->requests - 1] : NULL);
+                /* The chain certificates' own lookups were skipped in favour
+                 * of staples that never arrived. */
+                if (ret == 0)
+                    ret = TLSX_CSR2_ChainFallback(ssl, 1);
+                break;
         }
     }
 
-    return 0;
+    return ret;
 }
 
 int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
@@ -16816,6 +16892,51 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
     #endif
 #endif /* HAVE_SUPPORTED_CURVES */
 
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        /* A status_request configured on the context holds the OCSP nonce
+         * generated when it was configured, so every ClientHello would carry
+         * the same nonce. Give the connection its own copy with a fresh nonce
+         * instead. */
+        if (TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST) == NULL) {
+            TLSX* csrExt = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST);
+            CertificateStatusRequest* csr = csrExt ?
+                                 (CertificateStatusRequest*)csrExt->data : NULL;
+
+            if (csr != NULL && (csr->options & WOLFSSL_CSR_OCSP_USE_NONCE)) {
+                ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
+                                       csr->status_type, csr->options, ssl,
+                                       ssl->heap, ssl->devId);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
+            }
+        }
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        /* Same for status_request_v2. The connection level list replaces the
+         * context level one on the wire, so copy every item. */
+        if (TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2) == NULL) {
+            TLSX* csr2Ext = TLSX_Find(ssl->ctx->extensions,
+                                      TLSX_STATUS_REQUEST_V2);
+            CertificateStatusRequestItemV2* csr2 = csr2Ext ?
+                          (CertificateStatusRequestItemV2*)csr2Ext->data : NULL;
+            CertificateStatusRequestItemV2* item;
+
+            for (item = csr2; item != NULL; item = item->next) {
+                if (item->options & WOLFSSL_CSR2_OCSP_USE_NONCE)
+                    break;
+            }
+            if (item != NULL) {
+                for (item = csr2; item != NULL; item = item->next) {
+                    ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
+                                          item->status_type, item->options,
+                                          ssl->heap, ssl->devId);
+                    if (ret != WOLFSSL_SUCCESS)
+                        return ret;
+                }
+            }
+        }
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+
 #ifdef WOLFSSL_SRTP
         if (ssl->options.dtls && ssl->dtlsSrtpProfiles != 0) {
             WOLFSSL_MSG("Adding DTLS SRTP extension");
@@ -17184,6 +17305,14 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 if (ret == 0)
                     TLSX_SetResponse(ssl, TLSX_ECH);
             }
+        }
+        else if (!isServer && ssl->echConfigs != NULL &&
+                !ssl->options.disableECH) {
+            /* An ECH client has configs but is instead setup to use TLS1.2 or
+             * lower, this is incompatible with ECH so fail instead */
+            WOLFSSL_MSG("ECH configs set but TLS 1.3 not negotiable");
+            WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+            ret = BAD_STATE_E;
         }
 #endif
 

@@ -812,6 +812,30 @@ int wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(WOLFSSL_CERT_MANAGER* cm,
 #endif /* HAVE_CRL */
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
+#ifdef HAVE_CRL
+/* Combine a certificate's date result with its CRL result.
+ *
+ * @param [in] ret     0 or the certificate's date error.
+ * @param [in] crlRet  CRL result.
+ * @return  The CRL result, or ret when the CRL result is 0 or CRL_MISSING.
+ */
+static int cm_crl_merge(int ret, int crlRet)
+{
+    /* A caller may waive the date error, so it may hide only a missing CRL. */
+    if ((ret == 0) || ((crlRet != 0) &&
+            (crlRet != WC_NO_ERR_TRACE(CRL_MISSING)))) {
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+        }
+        ret = crlRet;
+    }
+    else if (crlRet != 0) {
+        WOLFSSL_ERROR(crlRet);
+    }
+    return ret;
+}
+#endif /* HAVE_CRL */
+
 #if !defined(NO_WOLFSSL_CM_VERIFY) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 /* Certificate verdicts a verify callback may override, matching the errors the
@@ -864,15 +888,18 @@ static int cm_verify_err_overridable(int err)
  * @param [in] format    Format of encoding. Valid values:
  *                         WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] prev_err  Previous error. Passed to callback.
+ * @param [out] crlErr   CRL result, not merged into the return value. May be
+ *                       NULL.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when converting from PEM to DER is not a feature of
  *          the wolfSSL build.
  */
 int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
-    long sz, int format, int prev_err)
+    long sz, int format, int prev_err, int* crlErr)
 {
     int ret = 0;
+    int crlRet = 0;
     int fatal = 0;
     DerBuffer* der = NULL;
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
@@ -880,6 +907,10 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     WOLFSSL_ENTER("CM_VerifyBuffer_ex");
 
     (void)prev_err;
+
+    if (crlErr != NULL) {
+        *crlErr = 0;
+    }
 
     /* Allocate memory for decoded certificate. */
     WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
@@ -927,9 +958,13 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
      }
 
 #ifdef HAVE_CRL
-    if ((ret == 0) && cm->crlEnabled) {
-        /* Check for a CRL for the CA and check validity of certificate. */
-        ret = CheckCertCRL(cm->crl, cert);
+    if (cm->crlEnabled && ((ret == 0) ||
+            (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
+        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert);
+        if (crlRet != 0) {
+            WOLFSSL_MSG("CheckCertCRL failed");
+        }
     }
 #endif
 
@@ -943,10 +978,16 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     if ((ret != 0) && !cm_verify_err_overridable(ret)) {
         fatal = 1;
     }
+    if ((crlRet != 0) && !cm_verify_err_overridable(crlRet)) {
+        ret = crlRet;
+        crlRet = 0;
+        fatal = 1;
+    }
     /* A prior load failure is what the callback should see, but only when this
      * attempt did not fail closed; it too fails closed when not a verdict. */
     if ((!fatal) && (prev_err != 0)) {
         ret = prev_err;
+        crlRet = 0;
         if (!cm_verify_err_overridable(ret)) {
             fatal = 1;
         }
@@ -979,12 +1020,39 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
             args->dCert = cert;
             args->dCertInit = 1;
 
+            if (ret == 0) {
+                ret = crlRet;
+                crlRet = 0;
+            }
             /* Use callback to verify certificate. */
             ret = DoVerifyCallback(cm, NULL, ret, args);
+            /* Waiving the date error must not waive the CRL result. */
+            if ((ret == 0) && (crlRet != 0)) {
+                ret = DoVerifyCallback(cm, NULL, crlRet, args);
+                crlRet = 0;
+            }
         }
         WC_FREE_VAR_EX(args, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
+#ifdef HAVE_CRL
+    if (!fatal) {
+        if (crlErr != NULL) {
+            if ((crlRet == 0) && ((ret == WC_NO_ERR_TRACE(CRL_MISSING)) ||
+                    (ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) ||
+                    (ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)))) {
+                /* The callback rejected it. */
+                crlRet = ret;
+                ret = 0;
+            }
+            *crlErr = crlRet;
+        }
+        else {
+            ret = cm_crl_merge(ret, crlRet);
+        }
+    }
+#endif
+    (void)crlRet;
 
     /* Dispose of allocated memory. */
     FreeDecodedCert(cert);
@@ -1029,7 +1097,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
     }
     else {
         /* No previous error. */
-        ret = CM_VerifyBuffer_ex(cm, buff, sz, format, 0);
+        ret = CM_VerifyBuffer_ex(cm, buff, sz, format, 0, NULL);
     }
 
     return ret;
@@ -2068,12 +2136,16 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
 
             /* Parse certificate and perform CRL checks. */
             ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm, NULL);
-            if (ret != 0) {
+            if ((ret != 0) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
                 WOLFSSL_MSG("ParseCert failed");
             }
-            /* Do CRL checks with decoded certificate. */
-            else if ((ret = CheckCertCRL(cm->crl, cert)) != 0) {
-                WOLFSSL_MSG("CheckCertCRL failed");
+            else {
+                /* A date error is returned only after the parse completed,
+                 * so still answer the revocation question that was asked. */
+                ret = cm_crl_merge(ret,
+                    CheckCertCRLFromCm(cm, cm->crl, cert));
             }
 
             /* Dispose of dynamically allocated memory. */

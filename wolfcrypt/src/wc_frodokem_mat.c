@@ -184,19 +184,6 @@
     #define FRODOKEM_D15_SHAKE128
 #endif
 
-/* restrict qualifier for the matrix multiply inner loops. The A-row scratch
- * and the output-row slices never overlap, so flagging them lets the compiler
- * vectorize each contiguous accumulation stream (without it the aliasing
- * analysis gives up and the loops stay scalar). Falls back to nothing on
- * compilers without a restrict keyword - the code stays correct either way. */
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-    #define FRODOKEM_RESTRICT restrict
-#elif defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
-    #define FRODOKEM_RESTRICT __restrict
-#else
-    #define FRODOKEM_RESTRICT
-#endif
-
 #if (defined(USE_INTEL_SPEEDUP) || defined(FRODOKEM_HAVE_SVE) || \
     defined(FRODOKEM_HAVE_NEON_RUNTIME)) && \
     !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
@@ -1565,8 +1552,13 @@ static int frodokem_gen_a_row_shake_x2(word16* rows, const byte* seedA,
  * @param  [in]       j    Index of the generated A row.
  * @param  [in]       n    Matrix dimension n.
  */
+/* restrict qualifier for the matrix multiply inner loops. The A-row scratch
+ * and the output-row slices never overlap, so flagging them lets the compiler
+ * vectorize each contiguous accumulation stream (without it the aliasing
+ * analysis gives up and the loops stay scalar). Falls back to nothing on
+ * compilers without a restrict keyword - the code stays correct either way. */
 static void frodokem_sa_accum(word16* out, const word16* s,
-    const word16* FRODOKEM_RESTRICT row, int j, int n)
+    const word16* WC_RESTRICT row, int j, int n)
 {
     int k;
 #ifdef WOLFSSL_FRODOKEM_SMALL
@@ -1574,7 +1566,7 @@ static void frodokem_sa_accum(word16* out, const word16* s,
 
     for (i = 0; i < FRODOKEM_NBAR; i++) {
         word16 sij = s[i * n + j];
-        word16* FRODOKEM_RESTRICT o = out + i * n;
+        word16* WC_RESTRICT o = out + i * n;
 
         for (k = 0; k < n; k++) {
             o[k] = (word16)(o[k] + sij * row[k]);
@@ -1590,7 +1582,7 @@ static void frodokem_sa_accum(word16* out, const word16* s,
      * with each S coefficient read just before its loop, keeps only one stream
      * live at a time (low register pressure). The output slice, wherever o
      * points, never overlaps row. */
-    word16* FRODOKEM_RESTRICT o = out;
+    word16* WC_RESTRICT o = out;
     word16 sij;
 
     sij = s[0 * n + j];

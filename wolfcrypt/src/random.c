@@ -1040,8 +1040,8 @@ static WARN_UNUSED_RESULT int Hash256_DRBG_Reseed(DRBG_internal* drbg,
  * NextSeedProducerRelease()) -- the sentinel alone suppresses the pre-event
  * material; abandoned seed-aperture buffers are zeroized as explained below.
  * All other states purge directly to EMPTY.  (The uncredited stir aperture
- * keeps its plain-store purge: stirs carry no claims, so resurrection there is
- * benign by the three-no-ops doctrine.)
+ * is purged by NextStirPurge(): stirs carry no claims, so resurrection there
+ * is benign by the three-no-ops doctrine.)
  *
  * Zeroization doctrine for purges: abandonment here is event-driven (fork,
  * VM clone/resume, credited reseed), and the event that abandons bytes in
@@ -1057,9 +1057,7 @@ static WARN_UNUSED_RESULT int Hash256_DRBG_Reseed(DRBG_internal* drbg,
  * wc_RNG_DRBG_NextSeedNow_Nonce_local()'s failed-release arm.  Reopening
  * EMPTY from under a live holder would let a producer claim and begin a
  * fill that the holder's own trailing wipe then tears.
- * Contrast the health-test burn arm, which stays sentinel-only: RCT/APT
- * are deterministic on the bytes, so every sibling rejects the same
- * material identically and no lineage can have consumed it.
+ * The health-test burn arm wipes under its own PRODUCING claim.
  */
 static WARN_UNUSED_RESULT int NextSeedPurge(WC_RNG *rng)
 {
@@ -1142,6 +1140,57 @@ static int NextSeedProducerRelease(wolfSSL_Atomic_Int *lenp,
     (void)wolfSSL_Atomic_Int_CompareExchange(lenp, &expected,
                                        WC_DRBG_NEXT_SEED_EMPTY);
     return BUSY_E;
+}
+
+/* Purge the uncredited stir accumulator.  Claimed CONSUMING first so the wipe
+ * runs under ownership; a holder's burn-before-release covers the CONSUMING
+ * case, and a constructor's _TORNDOWN is never claimed or repainted (the
+ * reopen is its to make).  Blind depositors can tear the wipe, which is
+ * harmless. */
+static WC_MAYBE_UNUSED void NextStirPurge(WC_RNG* rng)
+{
+    WC_ATOMIC_INT_ARG cur;
+    int ret;
+
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&rng->nextStirLen, cur, ret) {
+        if ((cur == WC_DRBG_NEXT_SEED_CONSUMING) ||
+            (cur == WC_DRBG_NEXT_SEED_TORNDOWN))
+        {
+            return;
+        }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                      &rng->nextStirLen, cur,
+                                      WC_DRBG_NEXT_SEED_CONSUMING, ret);
+    } WC_CAS_WITH_RETRY_END;
+    if (ret != 0) {
+        /* Aborted claim (a port's retry clause): no claim, so no wipe --
+         * and no store either, which could repaint a live claim or a
+         * constructor's _TORNDOWN.  The stale fill stands; resurrection
+         * of uncredited stir material is benign by the three-no-ops
+         * doctrine, and the next purge or teardown collects it. */
+        return;
+    }
+    ForceZero(rng->nextStir, (word32)sizeof(rng->nextStir));
+    /* Reopen by CAS, never by plain store: a blind depositor can have
+     * stored a fill length over the claim (discarded, as before --
+     * length only; its bytes lie in place until the next wipe or
+     * full-buffer fold, benign for the uncredited stir), and a
+     * constructor can have painted the word _TORNDOWN at any point, the
+     * reopen then being its to make, not ours. */
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&rng->nextStirLen, cur, ret) {
+        if (cur == WC_DRBG_NEXT_SEED_TORNDOWN)
+            return;
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                      &rng->nextStirLen, cur,
+                                      WC_DRBG_NEXT_SEED_EMPTY, ret);
+    } WC_CAS_WITH_RETRY_END;
+    if (ret != 0) {
+        /* Aborted reopen: leaving the word CONSUMING would silence the
+         * stir aperture on this instance, so store EMPTY -- the
+         * _TORNDOWN-repaint risk on this already-exotic path is accepted,
+         * and teardown's own wipe and sentinel follow regardless. */
+        WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
+    }
 }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
@@ -1270,11 +1319,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                 /* the uncredited stir aperture is purged too, for provenance
                  * uniformity; best-effort (an in-flight depositor may
                  * resurrect a partial fill -- benign, stirs carry no
-                 * divergence burden), and never zeroized (racy, and
-                 * interleaved entropy of compatible provenance is harmless).
-                 */
-                WOLFSSL_ATOMIC_STORE(rng->nextStirLen,
-                                     WC_DRBG_NEXT_SEED_EMPTY);
+                 * divergence burden). */
+                NextStirPurge(rng);
             }
         }
 #else
@@ -3027,6 +3073,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             /* Accumulate failure flag - once set, stays set */
             rctFailed |= (repCount >= WC_RNG_SEED_RCT_CUTOFF);
         }
+        ForceZero(&prevByte, sizeof(prevByte));
     }
 
     /* SP800-90B 4.4.2 Adaptive Proportion Test: the first byte of each window
@@ -3061,6 +3108,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                 }
 
                 aptFailed |= (matches >= cutoff);
+                ForceZero(&refByte, sizeof(refByte));
             }
         }
     }
@@ -3101,6 +3149,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                 }
 
                 aptFailed |= (count >= cutoff);
+                ForceZero(&cand, sizeof(cand));
             }
         }
     }
@@ -3701,10 +3750,15 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         }
 
         if (ret == 0) {
+            /* Set before the call, as for drbg_instantiated: a failed
+             * instantiate still leaves V in the state, and the failure
+             * arm below must uninstantiate it.  (The scratch is
+             * NULL-seeded, so the stranded state would be a public
+             * constant -- wiped anyway, for uniformity of the
+             * invariant.) */
+            drbg_scratch_instantiated = 1;
             ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg_scratch,
                         NULL, NULL, 0, NULL, 0, NULL, 0, rng->heap, devId);
-            if (ret == 0)
-                drbg_scratch_instantiated = 1;
         }
 
         if (ret == 0) {
@@ -3750,10 +3804,10 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         }
 
         if (ret == 0) {
+            /* Set before the call -- see the SHA-256 scratch arm. */
+            drbg_scratch_instantiated = 1;
             ret = Hash512_DRBG_Instantiate(rng->drbg512_scratch,
                         NULL, NULL, 0, NULL, 0, NULL, 0, rng->heap, devId);
-            if (ret == 0)
-                drbg_scratch_instantiated = 1;
         }
 
         if (ret == 0) {
@@ -3925,6 +3979,9 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         /* Instantiate the DRBG */
 
         if (ret == DRBG_SUCCESS) {
+            /* Set before the call: a failed instantiate still leaves V in
+             * the state, and the failure arm below must uninstantiate it. */
+            drbg_instantiated = 1;
 #ifndef NO_SHA256
             if (rng->drbgType == WC_DRBG_SHA256)
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
@@ -3948,8 +4005,6 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                 #endif
                     nonce, nonceSz, perso, persoSz, rng->heap, devId);
 #endif
-            if (ret == 0)
-                drbg_instantiated = 1;
         }
     } /* ret == 0 */
 
@@ -5114,8 +5169,7 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 #endif
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    WOLFSSL_ATOMIC_STORE(rng->nextStirLen,
-                         WC_DRBG_NEXT_SEED_EMPTY);
+    NextStirPurge(rng);
 
     {
         int ret2 = NextSeedPurge(rng);
@@ -5823,6 +5877,8 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
         WOLFSSL_ATOMIC_STORE(rng->poolTail,
                              WC_RNG_POOL_PACK(WC_RNG_POOL_POS(w2),
                                               WC_RNG_POOL_EPOCH(w2)));
+        /* The copied bytes predate the event too. */
+        ForceZero(out, done);
 #ifdef WC_RNG_DEBUG_STATS
         rng->_stats_pool_bytes_missed += *n;
 #endif
@@ -6604,12 +6660,19 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
          * because the tree may have been broken by a wc_FreeRng(), so we use the
          * same criterion as wc_RNG_DRBG_ReseedRBGC_local() to qualify the supplied
          * root. */
-        if ((rng->RBGC_parent != NULL) &&
-            (rng->RBGC_parent != root) &&
-            ((rng->RBGC_parent->RBGCStratum > 0) ||
-             (root->RBGCStratum > 0)))
         {
-            return WRONG_TYPE_OBJECT_E;
+            /* One load: reachable from the unowned-caller entry
+             * (wc_RNG_DRBG_NextSeedGenerate()), where a concurrent
+             * teardown can CAS-null rng->RBGC_parent between the null
+             * check and the dereference. */
+            WC_RNG * const parent = rng->RBGC_parent;
+            if ((parent != NULL) &&
+                (parent != root) &&
+                ((parent->RBGCStratum > 0) ||
+                 (root->RBGCStratum > 0)))
+            {
+                return WRONG_TYPE_OBJECT_E;
+            }
         }
   #endif /* HAVE_FIPS */
 
@@ -6819,16 +6882,11 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_seed_failures;
             #endif
-            /* Use-once on a failed test is enforced by the sentinel
-             * alone: an EMPTY aperture is never consumed, and the next
-             * fill overwrites from offset zero.  The buffer is never
-             * zeroized (house rule for the seed apertures).  Burn and
-             * purge-discard converge on EMPTY; the release handles
-             * both, and the health-test failure is the more
+            /* Wiped under the PRODUCING claim: a purge only repaints the
+             * sentinel, so the buffer is still ours.  Burn and purge-discard
+             * converge on EMPTY, and the health-test failure is the more
              * informative code and wins over the release's BUSY_E. */
-            /* Sentinel-only by doctrine: rejection here is deterministic
-             * on the bytes (RCT/APT), so every sibling lineage rejects the
-             * identical material -- no copy is ever consumed anywhere. */
+            ForceZero(rng->nextSeed, nextSeedSz);
             (void)NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
                                           nextSeedSz, WC_DRBG_NEXT_SEED_EMPTY);
 
@@ -6899,11 +6957,26 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n) {
     if (rng->RBGCStratum > 0) {
         int ret = WC_NO_ERR_TRACE(NEEDS_RECOVERY_E);
         int put_ret;
-        if ((wc_RNG_Status(rng->RBGC_parent) == 0) &&
-            (wc_RNG_lock_get(rng->RBGC_parent, 0) == 0))
+        /* Captured once: this entry admits unowned callers by design (a
+         * scheduling daemon synchronizes through the next-seed aperture,
+         * not the instance lease), so a concurrent teardown of rng can
+         * CAS-null rng->RBGC_parent mid-call, and the put below must
+         * release exactly what the get acquired.  Contrast the owned-rng
+         * reseed paths (PollAndReSeed() et al.): ownership of rng makes
+         * RBGC_parent stable there, and no capture is used.
+         *
+         * Storage lifetime is the usual shell contract: wc_FreeRng() may
+         * retire parent or child at any time (the shells' words stay live
+         * and refuse coherently), but free() of either shell requires
+         * quiescing unowned callers first.  Every in-tree parent is a
+         * bank root or the static global fallback, satisfying this by
+         * construction. */
+        WC_RNG * const parent = rng->RBGC_parent;
+        if ((wc_RNG_Status(parent) == 0) &&
+            (wc_RNG_lock_get(parent, 0) == 0))
         {
-            ret = wc_RNG_DRBG_NextSeedGenerate_local(rng, rng->RBGC_parent, n);
-            put_ret = wc_RNG_lock_put(rng->RBGC_parent, 0);
+            ret = wc_RNG_DRBG_NextSeedGenerate_local(rng, parent, n);
+            put_ret = wc_RNG_lock_put(parent, 0);
             if (put_ret != 0) {
                 if (put_ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) {
                     int purge_ret = NextSeedPurge(rng);
@@ -6925,10 +6998,10 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n) {
             /* SP-800-90C requires that an alternative randomness source be "a
              * sibling of the parent, an ancestor, or the initial randomness
              * source". */
-            (rng->RBGC_parent != NULL) &&
+            (parent != NULL) &&
             ((global_fallback_rng.RBGCStratum == 0) &&
              (global_fallback_rng.RBGCStratum ==
-              rng->RBGC_parent->RBGCStratum)) &&
+              parent->RBGCStratum)) &&
 #endif
             (wc_RNG_lock_get(&global_fallback_rng, 0) == 0))
         {
@@ -7923,6 +7996,10 @@ int wc_FreeRng(WC_RNG* rng)
         rng->drbg = NULL;
     #endif
     }
+    #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+    /* A failed instantiate nulls rng->drbg with the state still in here. */
+    ForceZero(&rng->drbg_data, sizeof(rng->drbg_data));
+    #endif
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
     /* Scratch buffers are tracked independently of rng->drbg so that a
@@ -7972,6 +8049,9 @@ int wc_FreeRng(WC_RNG* rng)
         rng->drbg512 = NULL;
     #endif
     }
+    #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+    ForceZero(&rng->drbg512_data, sizeof(rng->drbg512_data));
+    #endif
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
     /* Same independence rationale as the SHA-256 scratch above. */
@@ -9105,28 +9185,25 @@ static WC_MAYBE_UNUSED int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output,
         word64 sanity_word1 = 0, sanity_word2 = 0;
 
         ret = IntelRDseed64_r(&sanity_word1);
-        if (ret != 0)
-            return ret;
-
-        ret = IntelRDseed64_r(&sanity_word2);
-        if (ret != 0)
-            return ret;
-
-        if (sanity_word1 == sanity_word2) {
+        if (ret == 0)
+            ret = IntelRDseed64_r(&sanity_word2);
+        if ((ret == 0) && (sanity_word1 == sanity_word2)) {
             ret = IntelRDseed64_r(&sanity_word1);
-            if (ret != 0)
-                return ret;
-
-            if (sanity_word1 == sanity_word2) {
+            if ((ret == 0) && (sanity_word1 == sanity_word2)) {
 #ifdef WC_VERBOSE_RNG
                 WOLFSSL_DEBUG_PRINTF(
                     "WARNING: disabling RDSEED due to repeating word 0x%lx -- "
                     "check CPU microcode version.", sanity_word2);
 #endif
                 rdseed_sanity_status = -1;
-                return WC_HW_E;
+                ret = WC_HW_E;
             }
         }
+        /* Raw source output, used only for the self-check. */
+        ForceZero(&sanity_word1, sizeof(sanity_word1));
+        ForceZero(&sanity_word2, sizeof(sanity_word2));
+        if (ret != 0)
+            return ret;
 
         rdseed_sanity_status = 1;
     }
@@ -9483,7 +9560,7 @@ void wc_NoiseSrc_Free(wc_NoiseSrc* src)
     if (src->work != NULL && src->workSz > 0) {
         ForceZero(src->work, src->workSz);
     }
-    XMEMSET(src->health, 0, sizeof(src->health));
+    ForceZero(src->health, sizeof(src->health));
     src->chunkCtr = 0;
     src->failed   = 0;
     src->degraded = 0;
@@ -10006,6 +10083,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                     if(size==0)break;
                 }
             } while(size);
+            ForceZero(rnd, sizeof(rnd));
             return 0;
         }
     #else  /* WOLFSSL_PIC32MZ_RNG */

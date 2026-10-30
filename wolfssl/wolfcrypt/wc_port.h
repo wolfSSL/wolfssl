@@ -146,6 +146,30 @@
 #endif
 #endif
 
+/* Restrict-qualified pointer parameter: a promise to the compiler that, within
+ * the callee, no object modified through this pointer is accessed through any
+ * other pointer.  Lets the callee keep values loaded through other pointers in
+ * registers across stores through this one, recovering the codegen of a local
+ * array for caller-supplied scratch.  On compilers with no restrict support it
+ * expands to nothing, which only forfeits the optimization. */
+#ifndef WC_RESTRICT
+    #ifdef __cplusplus
+        /* C++ has no standard restrict; the major compilers accept
+         * __restrict. */
+        #if defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+            #define WC_RESTRICT __restrict
+        #else
+            #define WC_RESTRICT
+        #endif
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+        #define WC_RESTRICT restrict
+    #elif defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+        #define WC_RESTRICT __restrict
+    #else
+        #define WC_RESTRICT
+    #endif
+#endif
+
 #if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
     #define INLINE WC_INLINE
     #if defined(__GNUC__) || defined(__clang__)
@@ -2150,7 +2174,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* Compiler barrier that also treats the memory at ptr as read, so a wipe of
  * that memory cannot be dropped as a dead store. The GNU form emits no CPU
  * fence; cross-thread ordering is the caller's job. Without GNU asm (other
- * compilers, or WOLFSSL_NO_ASM) it falls back to WC_BARRIER(). */
+ * compilers, or WOLFSSL_NO_ASM) ptr escapes to an out-of-line call in
+ * wc_port.c, since a bare compiler barrier does not cover a local whose
+ * address never escaped. */
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
 #elif defined(__CC_ARM)
@@ -2161,7 +2187,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WC_BARRIER_DATA(ptr) \
         __asm__ __volatile__("" : : "r"(ptr) : "memory")
 #else
-    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
+    #define WC_BARRIER_DATA_USES_SINK
+    /* Internal to WC_BARRIER_DATA(). ptr is never dereferenced. */
+    WOLFSSL_API void wc_BarrierDataSink(void* ptr);
+    #define WC_BARRIER_DATA(ptr) do { wc_BarrierDataSink((ptr)); } while (0)
 #endif
 
 

@@ -38,8 +38,8 @@
     #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
-#if defined(WOLFSSL_SHA3) && defined(V523_NONFIPS_SHAKE)
-    #include <fips/v5.2.3-custom-shake-pq/shake.h>
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    #include <wolfssl/wolfcrypt/shake.h>
 #endif
 
 #ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
@@ -1180,7 +1180,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7authenveloped_test(void);
     #endif
-    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+        !defined(NO_PKCS7_ENCRYPTED_DATA)
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7callback_test(byte* cert, word32 certSz, byte* key,
                 word32 keySz);
     #endif
@@ -36600,54 +36601,72 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
          * parent's own recovery: a lease taken before the event is not
          * revoked by it, only reported at release. */
         api_ret = wc_RNG_lock_get(&parent, 0);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0) {
             api_ret = wc_InitRngNonceRBGC(&child, &parent, NULL, 0, NULL, 0,
                                           0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0)
                 child_inited = 1;
-            if (api_ret == 0)
+            if (api_ret == 0) {
                 api_ret = wc_RNG_entropy_needs_recovery(&child);
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
             if (api_ret == 0) {
                 (void)wc_RNG_global_invalidate_entropy();
                 api_ret = wc_RNG_entropy_needs_recovery(&child);
                 if (api_ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
                     api_ret = 0;
                 else if (api_ret == 0)
-                    api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                    api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
             }
             if (api_ret == 0) {
                 /* the parent is in the same boat, and recovers under the
                  * lease; the child then recovers from the recovered parent. */
                 api_ret = wc_RNG_GenerateBlock(&parent, block,
                                                (word32)sizeof(block));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
             }
             {
+                /* recovered: no latch to report */
                 int put_ret = wc_RNG_lock_put(&parent, 0);
                 if ((api_ret == 0) && (put_ret != 0))
-                    api_ret = put_ret; /* recovered: no latch to report */
+                    api_ret = WC_TEST_RET_ENC_EC(put_ret);
             }
         }
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(&child, block, (word32)sizeof(block));
-        if (api_ret == 0)
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
             api_ret = wc_RNG_entropy_needs_recovery(&child);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             /* still a chain member: recovery did not relabel it */
             if (wc_RNG_DRBG_GetRBGCStratum(&child) != 1)
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
         if (child_inited) {
             int free_ret = wc_FreeRng(&child);
             if ((api_ret == 0) && (free_ret != 0))
-                api_ret = free_ret;
+                api_ret = WC_TEST_RET_ENC_EC(free_ret);
         }
         if (parent_inited) {
             int free_ret = wc_FreeRng(&parent);
             if ((api_ret == 0) && (free_ret != 0))
-                api_ret = free_ret;
+                api_ret = WC_TEST_RET_ENC_EC(free_ret);
         }
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
 #endif /* WC_RNG_HAVE_RBGC && WC_RNG_HAVE_LOCK */
 
@@ -36702,20 +36721,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
         api_ret = wc_RNG_DRBG_ScheduleReseed(rng);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0) {
             api_ret = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
-            if (api_ret == WC_NO_ERR_TRACE(BUSY_E))
+            if (api_ret == WC_NO_ERR_TRACE(BUSY_E)) {
                 api_ret = wc_RNG_Status(rng);
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
             else if (api_ret == 0)
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         {
             int cb_ret = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
             if ((api_ret == 0) && (cb_ret != 0))
-                api_ret = cb_ret;
+                api_ret = WC_TEST_RET_ENC_EC(cb_ret);
         }
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
         api_ret = wc_RNG_GenerateBlock(rng, block, (word32)sizeof(block));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
@@ -36727,20 +36753,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
         api_ret = wc_RNG_DRBG_ScheduleReseed(rng);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0) {
             api_ret = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
-            if (api_ret == WC_NO_ERR_TRACE(MEMORY_E))
+            if (api_ret == WC_NO_ERR_TRACE(MEMORY_E)) {
                 api_ret = wc_RNG_Status(rng);
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
             else if (api_ret == 0)
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         {
             int cb_ret = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
             if ((api_ret == 0) && (cb_ret != 0))
-                api_ret = cb_ret;
+                api_ret = WC_TEST_RET_ENC_EC(cb_ret);
         }
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
         api_ret = wc_RNG_GenerateBlock(rng, block, (word32)sizeof(block));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
@@ -36805,19 +36838,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                            WC_DRBG_SEED_SZ,
                                            NULL, 0, NULL, 0, HEAP_HINT, devId,
                                            WC_RNG_INIT_FLAG_NO_PRIMARY_SEED);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0) {
             u_inited = 1;
             if (wc_RNG_DRBG_GetRBGCStratum(&u) !=
                 WC_RNG_RBGC_USER_SEED_STRATUM)
             {
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
             }
         }
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(&u, block, (word32)sizeof(block));
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
 #ifdef WC_RNG_HAVE_LOCK
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_RNG_invalidate_entropy(&u);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             WC_RNG *fb = NULL;
 #ifndef HAVE_FIPS
@@ -36831,12 +36872,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             if (fb != NULL) {
                 api_ret = wc_RNG_GenerateBlock(&u, block,
                                                (word32)sizeof(block));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
                 if ((api_ret == 0) &&
                     (wc_RNG_DRBG_GetRBGCStratum(&u) !=
                      RBGC_RESEED_STRATUM(wc_RNG_DRBG_GetRBGCStratum(fb) + 1,
                                          WC_RNG_RBGC_USER_SEED_STRATUM)))
                 {
-                    api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                    api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
                 }
             }
             else {
@@ -36845,29 +36888,43 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                 api_ret = wc_RNG_GenerateBlock(&u, block,
                                                (word32)sizeof(block));
                 if (api_ret == 0)
-                    api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                    api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
                 else if ((api_ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) ||
                          (api_ret == WC_NO_ERR_TRACE(NOT_READY_E)))
+                {
                     api_ret = wc_RNG_Status(&u);
+                    if (api_ret != 0)
+                        api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                }
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
             }
         }
 #endif
         if (api_ret == 0) {
             XMEMSET(user_seed, 0xa5, WC_DRBG_SEED_SZ);
             api_ret = wc_RNG_DRBG_Reseed(&u, user_seed, WC_DRBG_SEED_SZ);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         WC_FREE_VAR(user_seed, HEAP_HINT);
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(&u, block, (word32)sizeof(block));
-        if (api_ret == 0)
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
             api_ret = wc_RNG_entropy_needs_recovery(&u); /* discharged */
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (u_inited) {
             int free_ret = wc_FreeRng(&u);
             if ((api_ret == 0) && (free_ret != 0))
-                api_ret = free_ret;
+                api_ret = WC_TEST_RET_ENC_EC(free_ret);
         }
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
 #endif /* WC_RNG_HAVE_RBGC */
 
@@ -36882,20 +36939,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         api_ret = wc_InitRngNonce_ex2(&m, NULL, 0, NULL, 0, HEAP_HINT, devId,
                                       WC_RNG_INIT_FLAG_LOCK_REQUIRED |
                                       WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
-        if (api_ret == 0)
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        if (api_ret == 0) {
             api_ret = wc_FreeRng(&m); /* never held: free takes and releases */
-        if (api_ret == 0)
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
             api_ret = wc_InitRngNonce_ex2(&m, NULL, 0, NULL, 0, HEAP_HINT,
                                           devId,
                                           WC_RNG_INIT_FLAG_LOCK_REQUIRED |
                                           WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             api_ret = wc_RNG_lock_get(&m, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 api_ret = wc_RNG_GenerateBlock(&m, block,
                                                (word32)sizeof(block));
-                if (api_ret == 0)
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                if (api_ret == 0) {
                     api_ret = wc_FreeRng_PreLocked(&m); /* holder's teardown */
+                    if (api_ret != 0)
+                        api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                }
                 else
                     (void)wc_RNG_lock_put(&m, 0);
             }
@@ -36909,11 +36981,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                           devId,
                                           WC_RNG_INIT_FLAG_LOCK_REQUIRED |
                                           WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
-            if (api_ret == 0)
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            if (api_ret == 0) {
                 api_ret = wc_FreeRng(&m);
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
         }
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
 
 #if defined(HAVE_WC_RNG_BANK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
@@ -36932,38 +37009,51 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                    WC_RNG_BANK_FLAG_CAN_WAIT |
                                    WC_RNG_BANK_FLAG_QUIET,
                                    10, HEAP_HINT, devId);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0)
             bank_inited = 1;
         root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
         if ((api_ret == 0) && (root == NULL))
-            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+            api_ret = WC_TEST_RET_ENC_EC(MISSING_RNG_E);
         /* vacate the root so the constructor can be tried on it */
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_FreeRng(root);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             api_ret = wc_rng_bank_root_rng_init(
                 bank, NULL, 0, NULL, 0, WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
             if (api_ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 api_ret = 0;
             else if (api_ret == 0)
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         if ((api_ret == 0) && (wc_rng_bank_root_rng_get(bank) != NULL))
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
-        if (api_ret == 0)
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_root_rng_init(bank, NULL, 0, NULL, 0, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if ((api_ret == 0) && (wc_rng_bank_root_rng_get(bank) != root))
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
-        if (api_ret == 0)
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
             if ((api_ret == 0) && (fini_ret != 0))
-                api_ret = fini_ret;
+                api_ret = WC_TEST_RET_ENC_EC(fini_ret);
         }
         WC_FREE_VAR(bank, HEAP_HINT);
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
 #endif /* HAVE_WC_RNG_BANK && WC_RNG_BANK_HAVE_ROOT_RNG */
 #endif /* WC_RNG_HAVE_LOCK_FULL_MUTEX */
@@ -36991,32 +37081,42 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                    WC_RNG_BANK_FLAG_CAN_WAIT |
                                    WC_RNG_BANK_FLAG_QUIET,
                                    10, HEAP_HINT, devId);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0)
             bank_inited = 1;
         root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
         if ((api_ret == 0) && (root == NULL))
-            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+            api_ret = WC_TEST_RET_ENC_EC(MISSING_RNG_E);
 
         /* take member 0 out of service, as a failed reinit would leave it */
         if (api_ret == 0) {
             api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10,
                                            WC_RNG_BANK_FLAG_NONE);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 member = WC_RNG_BANK_INST_TO_RNG(inst);
                 if (wc_RNG_DRBG_GetRBGCStratum(member) != 1)
-                    api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
-                else
+                    api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+                else {
                     api_ret = wc_FreeRng_PreLocked(member);
+                    if (api_ret != 0)
+                        api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                }
                 {
                     int ci_ret = wc_rng_bank_inst_checkin(&inst);
                     if ((api_ret == 0) && (ci_ret != 0))
-                        api_ret = ci_ret;
+                        api_ret = WC_TEST_RET_ENC_EC(ci_ret);
                 }
             }
         }
         /* latch the root, as the invalidation walk would */
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_RNG_invalidate_entropy(root);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             api_ret = wc_rng_bank_recover_inst(bank, 0, 0,
                                                WC_RNG_BANK_FLAG_NONE);
@@ -37024,50 +37124,63 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                 /* refused, not substituted: still out of service */
                 member = WC_RNG_BANK_OFFSET_TO_RNG(bank, 0);
                 if (wc_RNG_GetStatus(member) != WC_DRBG_NOT_INIT)
-                    api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                    api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
                 else
                     api_ret = 0;
             }
             else if (api_ret == 0) {
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            }
+            else {
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             }
         }
         /* recover the root the bank's way (the daemon's root recovery:
          * reinstantiate in place, retaining its children), then the member */
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
-        if (api_ret == 0)
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_recover_inst(bank, 0, 0,
                                                WC_RNG_BANK_FLAG_NONE);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             member = WC_RNG_BANK_OFFSET_TO_RNG(bank, 0);
             if ((wc_RNG_GetStatus(member) != WC_DRBG_OK) ||
                 (wc_RNG_DRBG_GetRBGCStratum(member) != 1))
             {
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
             }
         }
         if (api_ret == 0) {
             api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10,
                                            WC_RNG_BANK_FLAG_NONE);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 api_ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(inst),
                                                block, (word32)sizeof(block));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
                 {
                     int ci_ret = wc_rng_bank_inst_checkin(&inst);
                     if ((api_ret == 0) && (ci_ret != 0))
-                        api_ret = ci_ret;
+                        api_ret = WC_TEST_RET_ENC_EC(ci_ret);
                 }
             }
         }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
             if ((api_ret == 0) && (fini_ret != 0))
-                api_ret = fini_ret;
+                api_ret = WC_TEST_RET_ENC_EC(fini_ret);
         }
         WC_FREE_VAR(bank, HEAP_HINT);
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && LOCK */
 
@@ -37097,58 +37210,174 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                    WC_RNG_BANK_FLAG_CAN_WAIT |
                                    WC_RNG_BANK_FLAG_QUIET,
                                    10, HEAP_HINT, devId);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0)
             bank_inited = 1;
         root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
         if ((api_ret == 0) && (root == NULL))
-            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+            api_ret = WC_TEST_RET_ENC_EC(MISSING_RNG_E);
 
         /* the walk: root and both members latched */
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_invalidate_entropy(bank, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             if (! (WOLFSSL_ATOMIC_LOAD(root->lock) &
                    WC_RNG_LOCK_ENTROPY_INVALIDATED))
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
         if (api_ret == 0) {
             api_ret = wc_rng_bank_inst_lock_read(&bank->rngs[1], &word);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if ((api_ret == 0) &&
                 (! (word & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
             {
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
             }
         }
         /* root recovered the bank's way: reinstantiated in place, children
          * retained, latch discharged */
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
-        if (api_ret == 0)
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
             api_ret = wc_RNG_entropy_needs_recovery(root);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+
+        if (api_ret == 0) {
+            byte scratch[4];
+            /* Increment the reseed counter. */
+            api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret == 0) {
+                int unlock_ret;
+                api_ret = wc_RNG_GenerateBlock(root, scratch,
+                                               (word32)sizeof(scratch));
+                if (api_ret == 0) {
+                    /* Make sure _root_rng_reseed_now() is trying the lock. */
+                    api_ret = wc_rng_bank_root_rng_reseed_now(bank, NULL, 0);
+                    if (api_ret == WC_NO_ERR_TRACE(BUSY_E))
+                        api_ret = 0;
+                    else
+                        api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                }
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                unlock_ret = wc_RNG_lock_put(root, 0);
+                if ((unlock_ret != 0) && (api_ret == 0))
+                    api_ret = WC_TEST_RET_ENC_EC(unlock_ret);
+            }
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
+            wc_drbg_reseed_ctr_t start_root_reseed_ctr;
+            start_root_reseed_ctr = RESEED_CTR(root);
+            if ((start_root_reseed_ctr <= 1) ||
+                (start_root_reseed_ctr >= WC_RESEED_INTERVAL))
+            {
+                api_ret = WC_TEST_RET_ENC_I(start_root_reseed_ctr);
+            }
+            if (api_ret == 0) {
+                api_ret = wc_rng_bank_root_rng_reseed_if_due(
+                    bank, NULL, 0, start_root_reseed_ctr + 1);
+                if (api_ret == WC_NO_ERR_TRACE(ALREADY_E)) {
+                    if (RESEED_CTR(root) != start_root_reseed_ctr)
+                        api_ret = WC_TEST_RET_ENC_I(RESEED_CTR(root));
+                    else
+                        api_ret = 0;
+                }
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+            if (api_ret == 0) {
+                api_ret = wc_rng_bank_root_rng_reseed_if_due(
+                    bank, NULL, 0, start_root_reseed_ctr);
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+            if (api_ret == 0) {
+                if (RESEED_CTR(root) > 1)
+                    api_ret = WC_TEST_RET_ENC_I(RESEED_CTR(root));
+            }
+        }
+        if (api_ret == 0) {
+            byte scratch[4];
+            /* Increment the reseed counter. */
+            api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret == 0) {
+                int unlock_ret;
+                api_ret = wc_RNG_GenerateBlock(root, scratch,
+                                               (word32)sizeof(scratch));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                unlock_ret = wc_RNG_lock_put(root, 0);
+                if ((unlock_ret != 0) && (api_ret == 0))
+                    api_ret = WC_TEST_RET_ENC_EC(unlock_ret);
+            }
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
+            wc_drbg_reseed_ctr_t start_root_reseed_ctr;
+            start_root_reseed_ctr = RESEED_CTR(root);
+            if ((start_root_reseed_ctr <= 1) ||
+                (start_root_reseed_ctr >= WC_RESEED_INTERVAL))
+            {
+                api_ret = WC_TEST_RET_ENC_I(start_root_reseed_ctr);
+            }
+            if (api_ret == 0) {
+                api_ret = wc_rng_bank_root_rng_reseed_now(bank, NULL, 0);
+                if (api_ret == 0) {
+                    if (RESEED_CTR(root) > 1)
+                        api_ret = WC_TEST_RET_ENC_I(RESEED_CTR(root));
+                }
+                else
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+        }
+
         /* a member recovers under its holder's first generate */
         if (api_ret == 0) {
             api_ret = wc_rng_bank_checkout(bank, &inst, 1, 10,
                                            WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY);
             if (api_ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
                 api_ret = 0;
+            else if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if ((api_ret == 0) && (inst == NULL))
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
-            if (api_ret == 0)
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            if (api_ret == 0) {
                 api_ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(inst),
                                                block, (word32)sizeof(block));
-            if (api_ret == 0)
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+            if (api_ret == 0) {
                 api_ret = wc_RNG_entropy_needs_recovery(
                     WC_RNG_BANK_INST_TO_RNG(inst));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
             if (inst != NULL) {
                 int ci_ret = wc_rng_bank_inst_checkin(&inst);
                 if ((api_ret == 0) && (ci_ret != 0))
-                    api_ret = ci_ret;
+                    api_ret = WC_TEST_RET_ENC_EC(ci_ret);
             }
         }
 
         /* the walk against a root mid-reinit */
         if (api_ret == 0) {
             api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0)
                 root_held = 1;
         }
@@ -37158,15 +37387,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             api_ret = wc_FreeRng_PreLocked(root);
             if (api_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E))
                 api_ret = 0;
+            else if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         if ((api_ret == 0) && (wc_RNG_GetStatus(root) != WC_DRBG_NOT_INIT))
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
-        if (api_ret == 0)
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_invalidate_entropy(bank, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             if (! (WOLFSSL_ATOMIC_LOAD(root->lock) &
                    WC_RNG_LOCK_ENTROPY_INVALIDATED))
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
         /* the reinit's entry discharge retires the latch: its material is
          * acquired after the event */
@@ -37175,31 +37409,42 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                           devId,
                                           WC_RNG_INIT_FLAG_LOCK_REQUIRED |
                                           WC_RNG_INIT_FLAG_PRESERVE_LOCK);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         if (root_held) {
             int put_ret = wc_RNG_lock_put(root, 0);
             root_held = 0;
             if ((api_ret == 0) && (put_ret != 0))
-                api_ret = put_ret;
+                api_ret = WC_TEST_RET_ENC_EC(put_ret);
         }
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_RNG_entropy_needs_recovery(root);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             /* and the members, latched by that walk, recover from it */
             api_ret = wc_rng_bank_reseed_range(bank, 0, -1, NULL, 0, 10,
                                                WC_RNG_BANK_FLAG_CAN_WAIT |
                                                WC_RNG_BANK_FLAG_RBGC);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         if (api_ret == 0) {
             api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10,
                                            WC_RNG_BANK_FLAG_NONE);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 api_ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(inst),
                                                block, (word32)sizeof(block));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
                 {
                     int ci_ret = wc_rng_bank_inst_checkin(&inst);
                     if ((api_ret == 0) && (ci_ret != 0))
-                        api_ret = ci_ret;
+                        api_ret = WC_TEST_RET_ENC_EC(ci_ret);
                 }
             }
         }
@@ -37210,11 +37455,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
             if ((api_ret == 0) && (fini_ret != 0))
-                api_ret = fini_ret;
+                api_ret = WC_TEST_RET_ENC_EC(fini_ret);
         }
         WC_FREE_VAR(bank, HEAP_HINT);
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && LOCK && PRESERVE_LOCK */
 
@@ -37245,30 +37490,36 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                    WC_RNG_BANK_FLAG_CAN_WAIT |
                                    WC_RNG_BANK_FLAG_QUIET,
                                    10, HEAP_HINT, devId);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0)
             bank_inited = 1;
         root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
         if ((api_ret == 0) && (root == NULL))
-            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+            api_ret = WC_TEST_RET_ENC_EC(MISSING_RNG_E);
 
         /* spawn under the caller-held root lease: the child pins the root
          * alongside the two members' pins. */
         if (api_ret == 0) {
             api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 api_ret = wc_InitRngNonceRBGC(&child, root, NULL, 0, NULL, 0,
                                               0);
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
                 if (api_ret == 0)
                     child_inited = 1;
                 {
                     int put_ret = wc_RNG_lock_put(root, 0);
                     if ((api_ret == 0) && (put_ret != 0))
-                        api_ret = put_ret;
+                        api_ret = WC_TEST_RET_ENC_EC(put_ret);
                 }
             }
         }
         if ((api_ret == 0) && (child.RBGC_parent != root))
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
 
         /* refused with the bank intact: root alive, members in service */
         if (api_ret == 0) {
@@ -37276,24 +37527,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             if (api_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E))
                 api_ret = 0;
             else if (api_ret == 0)
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         if ((api_ret == 0) &&
             ((wc_rng_bank_root_rng_get(bank) != root) ||
              (wc_RNG_GetStatus(root) != WC_DRBG_OK)))
         {
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
         if (api_ret == 0) {
             api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10,
                                            WC_RNG_BANK_FLAG_NONE);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 api_ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(inst),
                                                block, (word32)sizeof(block));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
                 {
                     int ci_ret = wc_rng_bank_inst_checkin(&inst);
                     if ((api_ret == 0) && (ci_ret != 0))
-                        api_ret = ci_ret;
+                        api_ret = WC_TEST_RET_ENC_EC(ci_ret);
                 }
             }
         }
@@ -37301,14 +37558,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         /* a held root is BUSY_E, likewise with no side effects */
         if (api_ret == 0) {
             api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 int fini_ret = wc_rng_bank_fini(bank);
                 int put_ret = wc_RNG_lock_put(root, 0);
                 if (fini_ret != WC_NO_ERR_TRACE(BUSY_E))
                     api_ret = (fini_ret == 0) ?
-                        WC_NO_ERR_TRACE(UNEXPECTED_STATE_E) : fini_ret;
-                else
-                    api_ret = put_ret;
+                        WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E) :
+                        WC_TEST_RET_ENC_EC(fini_ret);
+                else if (put_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(put_ret);
             }
         }
 
@@ -37319,41 +37579,45 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             if (api_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E))
                 api_ret = 0;
             else if (api_ret == 0)
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         if ((api_ret == 0) && (wc_RNG_GetStatus(root) != WC_DRBG_NOT_INIT))
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         if (api_ret == 0) {
             api_ret = wc_rng_bank_fini(bank);
             if (api_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E))
                 api_ret = 0;
             else if (api_ret == 0)
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            else
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
         }
         /* intact: the members are still in service */
         if ((api_ret == 0) &&
             (wc_RNG_GetStatus(WC_RNG_BANK_OFFSET_TO_RNG(bank, 0)) !=
              WC_DRBG_OK))
         {
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
 
         /* the child's release unpins the root; teardown then converges. */
         if (child_inited) {
             int free_ret = wc_FreeRng(&child);
             if ((api_ret == 0) && (free_ret != 0))
-                api_ret = free_ret;
+                api_ret = WC_TEST_RET_ENC_EC(free_ret);
             child_inited = 0;
             (void)child_inited;
         }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
             if ((api_ret == 0) && (fini_ret != 0))
-                api_ret = fini_ret;
+                api_ret = WC_TEST_RET_ENC_EC(fini_ret);
         }
         WC_FREE_VAR(bank, HEAP_HINT);
         if (api_ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+            ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && LOCK && RBGC_REFCOUNT */
 
@@ -37375,13 +37639,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                    WC_RNG_BANK_FLAG_CAN_WAIT |
                                    WC_RNG_BANK_FLAG_QUIET,
                                    10, HEAP_HINT, devId);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0)
             bank_inited = 1;
         if ((api_ret == 0) &&
             (wc_RNG_DRBG_GetRBGCStratum(WC_RNG_BANK_OFFSET_TO_RNG(bank, 0))
              != 0))
         {
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
         if (api_ret == 0) {
             time_t ts1 = XTIME(0);
@@ -37390,27 +37656,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                                WC_RNG_BANK_FLAG_RBGC);
             if (api_ret == WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
                 if (XTIME(0) - ts1 >= 3)
-                    api_ret = WC_NO_ERR_TRACE(WC_TIMEOUT_E);
+                    api_ret = WC_TEST_RET_ENC_EC(WC_TIMEOUT_E);
                 else
                     api_ret = 0;
             }
             else if (api_ret == 0) {
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            }
+            else {
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             }
         }
         /* the members are untouched by the refusal: a primary reseed walk
          * of the same range succeeds */
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_reseed_range(bank, 0, -1, NULL, 0, 3,
                                                WC_RNG_BANK_FLAG_CAN_WAIT);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
             if ((api_ret == 0) && (fini_ret != 0))
-                api_ret = fini_ret;
+                api_ret = WC_TEST_RET_ENC_EC(fini_ret);
         }
         WC_FREE_VAR(bank, HEAP_HINT);
         if (api_ret != 0)
-            return WC_TEST_RET_ENC_EC(api_ret);
+            return api_ret; /* encoded at the failure site */
     }
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && STRATUM_IMMUTABLE */
 
@@ -37432,25 +37704,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                    WC_RNG_BANK_FLAG_CAN_WAIT |
                                    WC_RNG_BANK_FLAG_QUIET,
                                    10, HEAP_HINT, devId);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0)
             bank_inited = 1;
         root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
         if ((api_ret == 0) && (root == NULL))
-            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
-        if (api_ret == 0)
+            api_ret = WC_TEST_RET_ENC_EC(MISSING_RNG_E);
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if ((api_ret == 0) && (wc_RNG_GetStatus(root) != WC_DRBG_OK))
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
-        if (api_ret == 0)
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+        if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(root, block, (word32)sizeof(block));
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
             if ((api_ret == 0) && (fini_ret != 0))
-                api_ret = fini_ret;
+                api_ret = WC_TEST_RET_ENC_EC(fini_ret);
         }
         WC_FREE_VAR(bank, HEAP_HINT);
         if (api_ret != 0)
-            return WC_TEST_RET_ENC_EC(api_ret);
+            return api_ret; /* encoded at the failure site */
     }
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -37475,29 +37755,38 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                    WC_RNG_BANK_FLAG_CAN_WAIT |
                                    WC_RNG_BANK_FLAG_QUIET,
                                    10, HEAP_HINT, devId);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret == 0)
             bank_inited = 1;
         root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
         if ((api_ret == 0) && (root == NULL))
-            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+            api_ret = WC_TEST_RET_ENC_EC(MISSING_RNG_E);
 
         /* take member 0 out of service, then the root */
         if (api_ret == 0) {
             api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10,
                                            WC_RNG_BANK_FLAG_NONE);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             if (api_ret == 0) {
                 api_ret = wc_FreeRng(WC_RNG_BANK_INST_TO_RNG(inst));
+                if (api_ret != 0)
+                    api_ret = WC_TEST_RET_ENC_EC(api_ret);
                 {
                     int ci_ret = wc_rng_bank_inst_checkin(&inst);
                     if ((api_ret == 0) && (ci_ret != 0))
-                        api_ret = ci_ret;
+                        api_ret = WC_TEST_RET_ENC_EC(ci_ret);
                 }
             }
         }
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_FreeRng(root);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if ((api_ret == 0) && (wc_RNG_GetStatus(root) != WC_DRBG_NOT_INIT))
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
 
         /* the root's verdict, promptly: well inside the 3 s timeout */
         if (api_ret == 0) {
@@ -37506,43 +37795,52 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                                WC_RNG_BANK_FLAG_CAN_WAIT);
             if (api_ret == WC_NO_ERR_TRACE(NOT_READY_E)) {
                 if (XTIME(0) - ts1 >= 3)
-                    api_ret = WC_NO_ERR_TRACE(WC_TIMEOUT_E);
+                    api_ret = WC_TEST_RET_ENC_EC(WC_TIMEOUT_E);
                 else
                     api_ret = 0;
             }
             else if (api_ret == 0) {
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
+            }
+            else {
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
             }
         }
         if ((api_ret == 0) &&
             (wc_RNG_GetStatus(WC_RNG_BANK_OFFSET_TO_RNG(bank, 0)) !=
              WC_DRBG_NOT_INIT))
         {
-            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
 
         /* root recovered (the gate is free), then the member */
-        if (api_ret == 0)
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
-        if (api_ret == 0)
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
+        if (api_ret == 0) {
             api_ret = wc_rng_bank_recover_inst(bank, 0, 3,
                                                WC_RNG_BANK_FLAG_CAN_WAIT);
+            if (api_ret != 0)
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        }
         if (api_ret == 0) {
             member = WC_RNG_BANK_OFFSET_TO_RNG(bank, 0);
             if ((wc_RNG_GetStatus(member) != WC_DRBG_OK) ||
                 (wc_RNG_DRBG_GetRBGCStratum(member) != 1))
             {
-                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+                api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
             }
         }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
             if ((api_ret == 0) && (fini_ret != 0))
-                api_ret = fini_ret;
+                api_ret = WC_TEST_RET_ENC_EC(fini_ret);
         }
         WC_FREE_VAR(bank, HEAP_HINT);
         if (api_ret != 0)
-            return WC_TEST_RET_ENC_EC(api_ret);
+            return api_ret; /* encoded at the failure site */
     }
 #endif /* WC_RNG_HAVE_RBGC */
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && !LOCK */
@@ -37609,6 +37907,8 @@ static void rng_lock_fork_child_held(WC_RNG* rng, int adopt,
     /* The invalidation purged the aperture: the parent's banked seed, which
      * the parent still holds, is not on offer here. */
     api_ret = wc_RNG_DRBG_NextSeedCurrent(rng, &cur);
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if ((api_ret == 0) && (cur == WC_DRBG_NEXT_SEED_READY)) {
         r->step = 3; r->code = (int)cur; return;
     }
@@ -37620,12 +37920,16 @@ static void rng_lock_fork_child_held(WC_RNG* rng, int adopt,
          * latched) word -- which discharges the latch -- and the lease is a
          * live one of this process. */
         api_ret = wc_FreeRng_PreLocked(rng);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret != 0) {
             r->step = 4; r->code = api_ret; return;
         }
         api_ret = wc_InitRng_ex2(rng, HEAP_HINT, devId,
                                  RNG_LOCK_FORK_FLAGS |
                                  WC_RNG_INIT_FLAG_PRESERVE_LOCK);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
         if (api_ret != 0) {
             r->step = 5; r->code = api_ret; return;
         }
@@ -37634,6 +37938,8 @@ static void rng_lock_fork_child_held(WC_RNG* rng, int adopt,
      * the latch is the recovery -- a credited reseed, stamped with this
      * pid, same as any post-fork first use. */
     api_ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if (api_ret != 0) {
         r->step = 6; r->code = api_ret; return;
     }
@@ -37644,15 +37950,21 @@ static void rng_lock_fork_child_held(WC_RNG* rng, int adopt,
         r->step = 7; r->code = api_ret; return;
     }
     api_ret = wc_RNG_lock_put(rng, 0);
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if (api_ret != 0) {
         r->step = 8; r->code = api_ret; return;
     }
     /* and now it is a free instance of this process */
     api_ret = wc_RNG_lock_get(rng, 0);
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if (api_ret != 0) {
         r->step = 9; r->code = api_ret; return;
     }
     api_ret = wc_FreeRng_PreLocked(rng);
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if (api_ret != 0) {
         r->step = 10; r->code = api_ret; return;
     }
@@ -37671,14 +37983,20 @@ static void rng_lock_fork_child_free(WC_RNG* rng,
     r->code = 0;
 
     api_ret = wc_RNG_lock_get(rng, 0);
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if (api_ret != 0) {
         r->step = 1; r->code = api_ret; return;
     }
     api_ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if (api_ret != 0) {
         r->step = 2; r->code = api_ret; return;
     }
     api_ret = wc_FreeRng_PreLocked(rng);
+    if (api_ret != 0)
+        api_ret = WC_TEST_RET_ENC_EC(api_ret);
     if (api_ret != 0) {
         r->step = 3; r->code = api_ret; return;
     }
@@ -86412,7 +86730,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7authenveloped_test(void)
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
-    defined(HAVE_AES_KEYWRAP)
+    defined(HAVE_AES_KEYWRAP) && !defined(NO_PKCS7_ENCRYPTED_DATA)
 static const byte p7DefKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -86844,7 +87162,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7callback_test(byte* cert, word32 cert
 
     return ret;
 }
-#endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 && HAVE_AES_KEYWRAP */
+#endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 && HAVE_AES_KEYWRAP &&
+        * !NO_PKCS7_ENCRYPTED_DATA */
 
 #ifndef NO_PKCS7_ENCRYPTED_DATA
 
@@ -89838,7 +90157,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
 
 #if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
-    defined(WOLFSSL_AES_256) && defined(HAVE_AES_KEYWRAP)
+    defined(WOLFSSL_AES_256) && defined(HAVE_AES_KEYWRAP) && \
+    !defined(NO_PKCS7_ENCRYPTED_DATA)
     if (ret >= 0)
         ret = pkcs7callback_test(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,

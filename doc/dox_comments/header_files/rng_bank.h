@@ -945,6 +945,66 @@ int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
                                 word32 flags);
 
 /*!
+    \ingroup RNGBank
+
+    \brief Force an immediate reseed of the bank's root RNG, serialized
+    against other root touchers.  With WC_RNG_HAVE_LOCK, the root's lease
+    is taken by unconditional try-lock and held across the reseed.
+    Without it, the serializing inst-op gate is claimed by try-once
+    (fail-fast, atomic-legal), excluding member reinstantiations chaining
+    from the root, entropy-invalidation walks, and root reinstantiation
+    for the reseed's span.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG bank is null.
+    \return BUSY_E The root's lease or the inst-op gate is held; nothing
+    was touched, retry later.
+    \return negative wc_RNG_DRBG_Reseed_Now() failure.
+
+    \param bank The bank whose root to reseed.
+    \param nonce Optional reseed nonce (may be null).
+    \param nonceSz Length of nonce in bytes.
+
+    \sa wc_rng_bank_root_rng_reinit
+    \sa wc_RNG_DRBG_Reseed_Now
+*/
+int wc_rng_bank_root_rng_reseed_now(struct wc_rng_bank *bank,
+                                    const byte *nonce, word32 nonceSz);
+
+/*!
+    \ingroup RNGBank
+
+    \brief Threshold form of wc_rng_bank_root_rng_reseed_now(): reseed the
+    bank's root RNG only when its reseed counter has reached threshold,
+    with the counter read and the reseed performed under a single hold of
+    the configuration's root serialization (the root's lease with
+    WC_RNG_HAVE_LOCK, else the inst-op gate).  Without the lock facility
+    the saturated counter is the invalidation walk's only root-side
+    record, so a threshold of WC_RESEED_INTERVAL makes this the root's
+    deterministic post-invalidation recovery.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG bank is null.
+    \return ALREADY_E The counter is below threshold: nothing due.
+    \return BUSY_E The root's lease or the inst-op gate is held; nothing
+    was touched, retry later.
+    \return negative wc_RNG_DRBG_GetReseedCtr() or
+    wc_RNG_DRBG_Reseed_Now() failure.
+
+    \param bank The bank whose root to reseed.
+    \param nonce Optional reseed nonce (may be null).
+    \param nonceSz Length of nonce in bytes.
+    \param threshold Reseed-counter value at which a reseed is due; 0
+    reseeds unconditionally.
+
+    \sa wc_rng_bank_root_rng_reseed_now
+    \sa wc_RNG_DRBG_GetReseedCtr
+*/
+int wc_rng_bank_root_rng_reseed_if_due(struct wc_rng_bank *bank,
+                                       const byte *nonce, word32 nonceSz,
+                                       wc_drbg_reseed_ctr_t threshold);
+
+/*!
     \ingroup Random
 
     \brief Register a callback fired by wc_rng_bank_fini() once its

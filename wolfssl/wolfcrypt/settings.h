@@ -2630,6 +2630,12 @@
     defined(WOLFSSL_STM32C5)  || defined(WOLFSSL_STM32V8)
 
     #define SIZEOF_LONG_LONG 8
+    /* Pull <limits.h> before falling back, or the fallback suppresses the
+     * tfm.h / integer.h include that is gated on CHAR_BIT and leaves
+     * INT_MAX undeclared on a USE_FAST_MATH build. */
+    #if !defined(CHAR_BIT) && !defined(NO_LIMITS_H)
+      #include <limits.h>
+    #endif
     #ifndef CHAR_BIT
       #define CHAR_BIT 8
     #endif
@@ -3508,6 +3514,20 @@
     #define HAVE_AESGCM
     #define USE_CERT_BUFFERS_2048
 #endif /* WOLFSSL_SGX */
+
+/* OP-TEE trusted application. Runs against libutee rather than a C library,
+ * so there are no file descriptors, sockets, directories or wall clock, and
+ * a TA is single threaded. The TA toolchain is a Linux cross compiler and
+ * still predefines __unix__, so the environment has to be named explicitly. */
+#ifdef WOLFSSL_OPTEE
+    #define NO_FILESYSTEM
+    #define NO_WOLFSSL_DIR
+    #define NO_WRITEV
+    #define NO_MAIN_DRIVER
+    #define SINGLE_THREADED
+    #define NO_ASN_TIME /* no wall clock in a TA */
+    #define USER_TICKS
+#endif /* WOLFSSL_OPTEE */
 
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
    However, KSDK fsl_mmcau.h gives API with no alignment
@@ -5671,9 +5691,10 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef WOLFSSL_SHAKE256
 #endif
 
-#if defined(V523_NONFIPS_SHAKE) && \
-    (!defined(HAVE_FIPS) || !FIPS_VERSION3_EQ(5,2,1))
-    #error "V523_NONFIPS_SHAKE requires FIPS v5 cert4718 (5.2.1)"
+/* Enable SHAKE 128/256 algorithms in a custom FIPS v5 build */
+#if defined(V5_NONFIPS_SHAKE) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_LT(5,0,0) || FIPS_VERSION3_GE(6,0,0))
+    #error "V5_NONFIPS_SHAKE requires a FIPS v5 cert (ex. #5548, v5.2.3)"
 #endif
 
 

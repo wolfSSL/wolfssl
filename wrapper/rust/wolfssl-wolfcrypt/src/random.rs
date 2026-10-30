@@ -423,11 +423,11 @@ impl RNG {
 /// It carries the wolfSSL library error code of the failed
 /// `wc_RNG_GenerateBlock()` call, so that entropy, reseed and hardware
 /// failures are reported to the caller instead of terminating the process.
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RngError(i32);
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl RngError {
     /// Return the wolfSSL library error code that caused the failure.
     pub fn code(&self) -> i32 {
@@ -435,17 +435,17 @@ impl RngError {
     }
 }
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl core::fmt::Display for RngError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "wolfSSL RNG failure (error code {})", self.0)
     }
 }
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl core::error::Error for RngError {}
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl From<RngError> for i32 {
     fn from(err: RngError) -> i32 {
         err.0
@@ -495,6 +495,50 @@ impl rand_core::TryRng for RNG {
 /// Mark `RNG` as a cryptographically secure random number generator.
 #[cfg(feature = "rand_core")]
 impl rand_core::TryCryptoRng for RNG {}
+
+/// Implement `rand_core` 0.9's `TryRngCore` for `RNG`, for callers still on
+/// the `rand` 0.9 ecosystem.
+///
+/// This mirrors the `rand_core` 0.10 `TryRng` implementation, failures are
+/// returned as an [`RngError`]. Wrap the RNG in the 0.9 `UnwrapErr` adapter
+/// to get the infallible `RngCore` and `CryptoRng` traits, which panic on RNG
+/// failure.
+///
+/// ```rust
+/// #![cfg(feature = "rand_core_0_9")]
+/// use rand_core_0_9::{RngCore, UnwrapErr};
+/// use wolfssl_wolfcrypt::random::RNG;
+///
+/// let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+/// let mut buf = [0u8; 32];
+/// // Panics on RNG failure.
+/// rng.fill_bytes(&mut buf);
+/// ```
+#[cfg(feature = "rand_core_0_9")]
+impl rand_core_0_9::TryRngCore for RNG {
+    type Error = RngError;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        let mut buf = [0u8; 4];
+        self.generate_block(&mut buf).map_err(RngError)?;
+        Ok(u32::from_le_bytes(buf))
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        let mut buf = [0u8; 8];
+        self.generate_block(&mut buf).map_err(RngError)?;
+        Ok(u64::from_le_bytes(buf))
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.generate_block(dest).map_err(RngError)
+    }
+}
+
+/// Mark `RNG` as a cryptographically secure random number generator for
+/// `rand_core` 0.9.
+#[cfg(feature = "rand_core_0_9")]
+impl rand_core_0_9::TryCryptoRng for RNG {}
 
 /// `wc_rng_new_ex()`, or on libraries without it (FIPS v5) the older
 /// `wc_rng_new()`, which takes no device ID, so any device ID is refused there.

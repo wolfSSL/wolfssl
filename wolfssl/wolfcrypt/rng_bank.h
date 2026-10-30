@@ -402,6 +402,11 @@ WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
                                             const byte *nonce, word32 nonceSz,
                                             const byte *perso, word32 persoSz,
                                             word32 flags);
+#ifdef HAVE_HASHDRBG
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_now(struct wc_rng_bank *bank,
+                                                const byte *nonce,
+                                                word32 nonceSz);
+#endif
 #endif
 
 WOLFSSL_API int wc_rng_bank_register_free_hook(struct wc_rng_bank *bank,
@@ -443,6 +448,19 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
         return wc_RNG_lock_put_conditional(
             WC_RNG_BANK_INST_TO_RNG(inst), expect_extra_bits, 0);
     }
+  #ifdef BUILDING_WOLFSSL
+    static WC_INLINE int wc_rng_bank_inst_lock_get_unconditional(
+        struct wc_rng_bank_inst *inst)
+    {
+        return wc_RNG_lock_get_unconditional(
+            WC_RNG_BANK_INST_TO_RNG(inst));
+    }
+    static WC_INLINE void wc_rng_bank_inst_lock_put_unconditional(
+        struct wc_rng_bank_inst *inst)
+    {
+        wc_RNG_lock_put_unconditional(WC_RNG_BANK_INST_TO_RNG(inst));
+    }
+  #endif /* BUILDING_WOLFSSL */
     static WC_INLINE int wc_rng_bank_inst_lock_read(
         struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t *state)
     {
@@ -492,8 +510,10 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
         struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
         WC_RNG_lock_arg_t want_extra_bits);
+    WOLFSSL_LOCAL int wc_rng_bank_inst_lock_get_unconditional(struct wc_rng_bank_inst *inst);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_LOCAL void wc_rng_bank_inst_lock_put_unconditional(struct wc_rng_bank_inst *inst);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
     WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
@@ -560,6 +580,17 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
                                                   wc_drbg_reseed_ctr_t* reseedCtr);
     #endif
 #endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
+#if defined(WC_RNG_BANK_HAVE_ROOT_RNG) && defined(HAVE_HASHDRBG)
+/* Threshold form of wc_rng_bank_root_rng_reseed_now(): under the same
+ * serialization, reseed only when the root's reseed counter has reached
+ * threshold (0 means unconditional; a below-threshold counter returns
+ * ALREADY_E).  Declared here, after wc_drbg_reseed_ctr_t is defined on
+ * all boundaries. */
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_if_due(
+    struct wc_rng_bank *bank, const byte *nonce, word32 nonceSz,
+    wc_drbg_reseed_ctr_t threshold);
+#endif
 
 #ifdef WC_RNG_DEBUG_STATS
 WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,

@@ -2621,6 +2621,11 @@ WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
     WOLFSSL_API int wc_CheckCertSignature(const byte* cert, word32 certSz,
                                           void* heap,
                                           WOLFSSL_CERT_MANAGER* cm);
+    WOLFSSL_API int wc_CheckCertSignature_ex(const byte* cert,
+                                             word32 certSz, void* heap,
+                                             WOLFSSL_CERT_MANAGER* cm,
+                                             const byte** caKey,
+                                             word32* caKeySz);
     /* Deprecated public API name kept for backwards build compatibility */
     #define CheckCertSignature(cert, certSz, heap, cm) \
         wc_CheckCertSignature(cert, certSz, heap, cm)

@@ -42,8 +42,8 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(WOLFSSL_SHA3) && defined(V523_NONFIPS_SHAKE)
-    #include <fips/v5.2.3-custom-shake-pq/shake.h>
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    #include <wolfssl/wolfcrypt/shake.h>
 #endif
 
 /*
@@ -4691,7 +4691,7 @@ static int DecodeCertExtensions(DecodedCert* cert);
 #if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     WOLFSSL_CERT_MANAGER* cm, const byte* pubKey, word32 pubKeySz,
-    int pubKeyOID, int req);
+    int pubKeyOID, int req, const byte** caKey, word32* caKeySz);
 #endif
 #if !defined(NO_RSA) && \
 (defined(WOLFSSL_KEY_TO_DER) || defined(WOLFSSL_CERT_GEN))
@@ -25307,11 +25307,14 @@ static int GetAKIHash(const byte* input, word32 maxIdx, word32 sigOID,
  * chain processing.
  * Doesn't support:
  *   OCSP Only: alt lookup using subject and pub key w/o sig check
+ *
+ * When caKey is not NULL, it and caKeySz are set to the key of the CA from cm
+ * that verified the signature, or to NULL and 0.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         WOLFSSL_CERT_MANAGER* cm, const byte* pubKey, word32 pubKeySz,
-        int pubKeyOID, int req)
+        int pubKeyOID, int req, const byte** caKey, word32* caKeySz)
 {
     /* X509 ASN.1 template longer than Certificate Request template. */
     DECL_ASNGETDATA(dataASN, x509CertASN_Length);
@@ -25343,6 +25346,11 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 
     (void)req;
     (void)heap;
+
+    if (caKey != NULL) {
+        *caKey = NULL;
+        *caKeySz = 0;
+    }
 
     if (cert == NULL) {
         ret = BAD_FUNC_ARG;
@@ -25507,6 +25515,10 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
             if (ret != 0) {
                 WOLFSSL_MSG("Confirm signature failed");
             }
+            else if (ca != NULL && caKey != NULL) {
+                *caKey = ca->publicKey;
+                *caKeySz = ca->pubKeySize;
+            }
 
             FreeSignatureCtx(sigCtx);
             WC_FREE_VAR_EX(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
@@ -25521,7 +25533,7 @@ int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
         const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
     return CheckCertSignature_ex(cert, certSz, heap, NULL,
-            pubKey, pubKeySz, pubKeyOID, 0);
+            pubKey, pubKeySz, pubKeyOID, 0, NULL, NULL);
 }
 
 /* Call CheckCertSignature_ex using a public key and oid */
@@ -25537,15 +25549,24 @@ int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void* heap,
         const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
     return CheckCertSignature_ex(cert, certSz, heap, NULL,
-            pubKey, pubKeySz, pubKeyOID, 1);
+            pubKey, pubKeySz, pubKeyOID, 1, NULL, NULL);
 }
 #endif /* WOLFSSL_CERT_REQ */
+
+int wc_CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
+    WOLFSSL_CERT_MANAGER* cm, const byte** caKey, word32* caKeySz)
+{
+    if (caKey != NULL && caKeySz == NULL)
+        return BAD_FUNC_ARG;
+    return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0, 0, caKey,
+            caKeySz);
+}
 
 /* Call CheckCertSignature_ex using a certificate manager (cm) */
 int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
     WOLFSSL_CERT_MANAGER* cm)
 {
-    return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0, 0);
+    return wc_CheckCertSignature_ex(cert, certSz, heap, cm, NULL, NULL);
 }
 #endif /* WOLFSSL_SMALL_CERT_VERIFY || OPENSSL_EXTRA */
 
@@ -26758,7 +26779,14 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
         cert->selfSigned = cert->selfIssued && sigKeySz == cert->pubKeySize &&
             XMEMCMP(sigKey, cert->publicKey, cert->pubKeySize) == 0;
     }
-    else if (cert->selfIssued) {
+    /* A CA_TYPE root whose AKID names its own key skips the verify. Under
+     * VERIFY_NAME the signature is checked outside this parse. */
+    else if (cert->selfIssued && verify != VERIFY_NAME &&
+             (type != CA_TYPE || !cert->extAuthKeyIdSet ||
+             XMEMCMP(cert->extAuthKeyId, cert->extSubjKeyId,
+                     KEYID_SIZE) != 0 ||
+             (cert->extKeyUsageSet &&
+              (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0))) {
         int sigRet = ConfirmSelfSignature(cert);
 
         if (sigRet == WC_NO_ERR_TRACE(MEMORY_E)) {

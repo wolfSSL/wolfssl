@@ -3103,3 +3103,84 @@ int test_wc_XmssFeatureCoverage(void)
 #endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
     return EXPECT_RESULT();
 }
+
+/*
+ * Testing wc_LmsKey_MakeKey() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_LmsKey_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(HAVE_FIPS)
+    LmsKey key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_verify_cryptocb, NULL), 0);
+
+    ExpectIntEQ(wc_LmsKey_InitId(&key, id, (int)sizeof(id), NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_LmsKey_Free(&key);
+
+    ExpectIntEQ(wc_LmsKey_InitLabel(&key, "dev-key", NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_LmsKey_Free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_XmssKey_MakeKey() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_XmssKey_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(HAVE_FIPS) && \
+    defined(TEST_XMSS_H10_AVAILABLE)
+    XmssKey key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_verify_cryptocb, NULL), 0);
+
+    ExpectIntEQ(wc_XmssKey_InitId(&key, id, (int)sizeof(id), NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_XmssKey_Free(&key);
+
+    ExpectIntEQ(wc_XmssKey_InitLabel(&key, "dev-key", NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_XmssKey_Free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

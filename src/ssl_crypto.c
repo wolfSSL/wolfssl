@@ -2611,7 +2611,8 @@ WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
     WOLFSSL_ENTER("wolfSSL_DES_cbc_cksum");
 
     /* Validate parameters. */
-    if ((in == NULL) || (out == NULL) || (sc == NULL) || (iv == NULL)) {
+    if ((in == NULL) || (out == NULL) || (sc == NULL) || (iv == NULL)
+        || length <= 0) {
         WOLFSSL_MSG("Bad argument passed in");
         err = 1;
     }
