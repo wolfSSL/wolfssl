@@ -31316,6 +31316,121 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     return sent;
 }
 
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_THREADED_CRYPT)
+/* Check that a TLS v1.3 connection may send application data now.
+ * ssl->error is not changed.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 0 when it may, otherwise BAD_STATE_E.
+ */
+int wolfssl_local_CheckTls13SendState(WOLFSSL* ssl)
+{
+    if (!ssl->options.handShakeDone || ssl_in_handshake(ssl, 1) ||
+            (ssl->error == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)) ||
+            (ssl->error == WC_NO_ERR_TRACE(DECRYPT_ERROR)) ||
+            ssl->options.isClosed || ssl->options.sentNotify) {
+        return BAD_STATE_E;
+    }
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    /* As SendData(): sending would free a suspended Certificate's state. */
+    if (ssl->error == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+        return BAD_STATE_E;
+    }
+#endif
+
+    return 0;
+}
+
+/* Send a TLS v1.3 application_data record with no content, only padding.
+ * Owed KeyUpdates and alerts go first, as in SendData(). The caller has
+ * checked wolfssl_local_CheckTls13SendState().
+ *
+ * ssl    The SSL/TLS object.
+ * padSz  Number of padding bytes.
+ * returns 0 on success, WANT_WRITE when the record is queued, BAD_STATE_E
+ * when application data may not be sent, otherwise failure. Stored in
+ * ssl->error unless refused by the send state check.
+ */
+int wolfssl_local_SendTls13CoverTraffic(WOLFSSL* ssl, word16 padSz)
+{
+    byte* output;
+    int   outputSz;
+    int   sendSz;
+    int   ret = 0;
+
+    WOLFSSL_ENTER("wolfssl_local_SendTls13CoverTraffic");
+
+#ifdef WOLFSSL_RW_THREADED
+    /* A KeyUpdate response goes before the next application data record. */
+    if (ssl->options.sendKeyUpdate) {
+        ssl->options.sendKeyUpdate = 0;
+        ret = SendTls13KeyUpdate(ssl);
+    }
+#endif
+
+    if (ret == 0) {
+        /* A close_notify left pending by a failed wolfSSL_shutdown(). */
+        int closing = (ssl->pendingAlert.level != alert_none) &&
+                      (ssl->pendingAlert.code == close_notify);
+
+        ret = RetrySendAlert(ssl);
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
+            ret = 0;
+        /* Record it as wolfSSL_shutdown() does. */
+        if ((ret == 0) && closing)
+            ssl->options.sentNotify = 1;
+        /* A fatal alert or close_notify ends the write side. */
+        if ((ret == 0) && (wolfssl_local_CheckTls13SendState(ssl) != 0)) {
+            if (ssl->buffers.outputBuffer.length > 0)
+                ssl->error = WANT_WRITE;
+            WOLFSSL_LEAVE("wolfssl_local_SendTls13CoverTraffic", BAD_STATE_E);
+            return BAD_STATE_E;
+        }
+    }
+
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+    if (ret == 0) {
+        ret = CheckTLS13AEADSendLimit(ssl);
+    }
+#endif
+
+    /* MAX_MSG_EXTRA covers the record header, content type and tag. */
+    outputSz = (int)padSz + MAX_MSG_EXTRA;
+    if (ret == 0)
+        ret = CheckAvailableSize(ssl, outputSz);
+
+    if (ret == 0) {
+        output = GetOutputBuffer(ssl);
+        /* Not async, so no suspended build state is left behind. */
+        sendSz = wolfssl_local_BuildTls13Message_ex(ssl, output, outputSz,
+                     output + RECORD_HEADER_SZ, 0, application_data, 0, 0, 0,
+                     padSz);
+        if (sendSz < 0) {
+            ret = sendSz;
+        }
+        else {
+            ssl->buffers.outputBuffer.length += (word32)sendSz;
+            ret = SendBuffered(ssl);
+            /* As SendData(). */
+            if ((ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) &&
+                    (ssl->options.connReset || ssl->options.isClosed)) {
+                ret = SOCKET_PEER_CLOSED_E;
+            }
+        }
+    }
+
+    /* For wolfSSL_get_error() and wolfSSL_want_write(). */
+    ssl->error = ret;
+    if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WANT_WRITE))) {
+        WOLFSSL_ERROR(ret);
+    }
+
+    WOLFSSL_LEAVE("wolfssl_local_SendTls13CoverTraffic", ret);
+
+    return ret;
+}
+#endif /* WOLFSSL_TLS13 && !WOLFSSL_THREADED_CRYPT */
+
 /* process input data */
 int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 {
