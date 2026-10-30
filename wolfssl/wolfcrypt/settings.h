@@ -5356,15 +5356,6 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WC_NO_CONST_CMP_API
 #endif
 
-#if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(WOLFSSL_SHA384) && \
-    !defined(WOLFSSL_SHA512) && defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL) \
-    && !defined(USE_FAST_MATH) && defined(NO_SHA256) && \
-    !defined(WOLFSSL_USE_FORCE_ZERO)
-    #undef  WOLFSSL_NO_FORCE_ZERO
-    #define WOLFSSL_NO_FORCE_ZERO
-#endif
-
 /* Detect old cryptodev name */
 #if defined(WOLF_CRYPTO_DEV) && !defined(WOLF_CRYPTO_CB)
     #define WOLF_CRYPTO_CB
