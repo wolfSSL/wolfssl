@@ -37,6 +37,17 @@ Breaking changes:
   where the exported key ended
 - ChaCha20Poly1305::finalize() now fails with BAD_FUNC_ARG on a decryption
   instance; use finalize_verify() to authenticate decrypted data
+- Ed25519 signing and verification methods taking a variant and context now
+  return BAD_FUNC_ARG when a non-empty context is passed with the pure
+  Ed25519::ED25519 variant, which does not bind a context and previously
+  silently ignored it. Ed25519 and Ed448 also reject unknown variant values
+- The crate build now fails instead of falling back to another wolfSSL when
+  WOLFSSL_PREFIX is set but does not point at a usable installation, or when
+  the containing wolfSSL repository is configured (wolfssl/options.h exists)
+  but the library has not been built there. Previously the build could
+  silently link against a system library built with different options
+- The crate build now fails if wolfSSL was built with asynchronous crypto
+  support (WOLFSSL_ASYNC_CRYPT), which the wrapper does not support
 
 New features:
 
@@ -50,6 +61,12 @@ New features:
   key and so implement Keypair::verifying_key() without it being able to fail
 - Add Lms::export_pub_ex() to set the heap hint and device ID of the exported
   verify only key
+- The crate now declares `links = "wolfssl"` and publishes the directory of a
+  shared wolfSSL library as the LIBDIRS metadata, so dependent crates' build
+  scripts can read it from DEP_WOLFSSL_LIBDIRS (e.g. to set an rpath)
+- build.rs looks for the library under either lib or lib64 in WOLFSSL_PREFIX,
+  recognizes MinGW, Cygwin and MSVC library file names, and reruns when
+  WOLFSSL_PREFIX changes
 
 Fixes and improvements:
 
@@ -80,6 +97,37 @@ Fixes and improvements:
 - RNG::generate_block() (and the rand_core implementation built on it) now
   fills buffers larger than RNG_MAX_BLOCK_LEN by splitting them into multiple
   DRBG requests, instead of failing with BAD_FUNC_ARG
+- RustCrypto digest and MAC update implementations (SHA, BLAKE2, HMAC, CMAC)
+  now split inputs larger than 4GB into multiple wolfCrypt updates instead of
+  panicking
+- AES CTR and OFB StreamCipher implementations no longer panic on buffers of
+  4GB or more, and no longer create aliasing shared and mutable references to
+  in-place buffers
+- rsa_pkcs1v15::SigningKey validates its public components at construction,
+  so Keypair::verifying_key() can no longer panic; rsa_pkcs1v15::VerifyingKey
+  is now usable in builds without RNG support
+- Fix memory leak when re-initializing SHA, SHA-2, SHA-3 and SHAKE instances
+- Fix a possible dangling WC_RNG pointer held by a Curve25519Key
+- ECC keys are created with wc_ecc_key_new_ex() when available so the heap
+  hint and device ID are applied at initialization
+- kdf::ssh_kdf() rejects hash type values that do not fit in a byte instead
+  of truncating them
+- Zeroize additional sensitive temporaries: ML-KEM private keys and shared
+  secrets, PBKDF2/scrypt intermediate password hashes, AEAD keys, and the
+  ChaCha20-Poly1305 context on error paths
+- Numerous cfg detection fixes so the crate builds and links against reduced
+  wolfSSL configurations, including: separate SHA3-224/256/384/512 detection;
+  AES-CFB/OFB decrypt; verify-only ECC (ecdsa module) and ECC export;
+  RSA without RNG, private key or signing support; Ed25519/Ed448 without RNG
+  or key generation; Curve25519 import, export and shared secret; ML-KEM per
+  operation and parameter set, and builds with WC_NO_CONSTRUCTORS; ML-DSA
+  public/private import and export; LMS without key generation; PBKDF2
+  password hashing with only some of SHA-256/384/512 enabled; and the rsa_oaep
+  probe under FIPS
+- Numerous documentation corrections, including output buffer sizes for HKDF,
+  KDF and BLAKE2, AES-XTS key sizes, Ed448 prehash (SHAKE256), and documenting
+  wolfcrypt_cleanup() preconditions and RNG::health_test_ex() seed_b
+  requirements
 
 ## v2.2.0
 
