@@ -6,7 +6,7 @@
 {"name": "session-cache-ref", "minutes": 3.2,
  "comment": "NO_SESSION_CACHE_REF is now the configure default, so --enable-session-cache-ref is the only way back onto the client cache reference path and the generation check on it is covered nowhere else. savesession adds the persistence paths that restore those generations.",
  "configure": ["--enable-opensslextra", "--enable-opensslall", "--enable-savesession",
-  "--enable-session-ticket", "--enable-session-cache-ref",
+  "--enable-session-ticket", "--enable-earlydata", "--enable-session-cache-ref",
   "CPPFLAGS=-DWOLFSSL_SESSION_CACHE_REF_WARNED"]},
 {"name": "all-no-client-auth", "minutes": 9.0,
  "configure": ["--enable-all", "CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH"]},
