@@ -600,13 +600,15 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
         ret = BAD_FUNC_ARG;
     }
     else {
-        ssl->options.userCurves = 1;
         #if defined(NO_TLS)
         ret = WOLFSSL_FAILURE;
         #else
         ret = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap,
                                      ssl->options.side);
         #endif /* NO_TLS */
+        if (ret == WOLFSSL_SUCCESS) {
+            ssl->options.userCurves = 1;
+        }
     }
 
     return ret;
@@ -629,13 +631,138 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         ret = BAD_FUNC_ARG;
     }
     else {
-        ctx->userCurves = 1;
         #if defined(NO_TLS)
         ret = WOLFSSL_FAILURE;
         #else
         ret = TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap,
                                      ctx->method->side);
         #endif /* NO_TLS */
+        if (ret == WOLFSSL_SUCCESS) {
+            ctx->userCurves = 1;
+        }
+    }
+
+    return ret;
+}
+
+/* Replace the Supported Groups extension in a list of extensions.
+ *
+ * The new extension is built in a list of its own, so a failure leaves the
+ * list unchanged.
+ *
+ * @param [in, out] extensions  List of extensions.
+ * @param [in]      groups      Named groups in rank order.
+ * @param [in]      count       Number of groups. Must be positive.
+ * @param [in]      heap        Heap hint for dynamic memory allocation.
+ * @param [in]      side        Side the groups are used on.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when a group is invalid or not supported.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int wolfssl_set_groups_ext(TLSX** extensions, const int* groups,
+    int count, void* heap, int side)
+{
+    TLSX* ext = NULL;
+    int ret = WOLFSSL_SUCCESS;
+    int i;
+
+    for (i = 0; (i < count) && (ret == WOLFSSL_SUCCESS); i++) {
+        if (!isValidCurveGroup((word16)groups[i])) {
+            ret = BAD_FUNC_ARG;
+        }
+        else {
+            ret = TLSX_UseSupportedCurve(&ext, (word16)groups[i], heap, side);
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        TLSX_Remove(extensions, TLSX_SUPPORTED_GROUPS, heap);
+        ext->next = *extensions;
+        *extensions = ext;
+    }
+    else {
+        TLSX_FreeAll(ext, heap);
+    }
+
+    return ret;
+}
+
+/* Set the key exchange groups, in rank order, on the context. A failing
+ * call leaves the context unchanged.
+ *
+ * @param [in, out] ctx     SSL/TLS context object.
+ * @param [in]      groups  Array of named groups.
+ * @param [in]      count   Number of groups in the array.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx or groups is NULL, the method is not TLS,
+ *          count is not positive or greater than WOLFSSL_MAX_GROUP_COUNT, or
+ *          a group is invalid or not supported.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
+{
+    int ret;
+#ifdef WOLFSSL_TLS13
+    int i;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_CTX_set_groups");
+    if (ctx == NULL || groups == NULL || count <= 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
+        return BAD_FUNC_ARG;
+    if (!IsTLS_ex(ctx->method->version))
+        return BAD_FUNC_ARG;
+
+    ret = wolfssl_set_groups_ext(&ctx->extensions, groups, count, ctx->heap,
+        ctx->method->side);
+    if (ret == WOLFSSL_SUCCESS) {
+        ctx->userCurves = 1;
+    #ifdef WOLFSSL_TLS13
+        for (i = 0; i < count; i++) {
+            ctx->group[i] = (word16)groups[i];
+        }
+        ctx->numGroups = (byte)count;
+    #endif
+    }
+
+    return ret;
+}
+
+/* Set the key exchange groups, in rank order, on the object. A failing
+ * call leaves the object unchanged.
+ *
+ * @param [in, out] ssl     SSL/TLS object.
+ * @param [in]      groups  Array of named groups.
+ * @param [in]      count   Number of groups in the array.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl or groups is NULL, the version is not TLS,
+ *          count is not positive or greater than WOLFSSL_MAX_GROUP_COUNT, or
+ *          a group is invalid or not supported.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
+{
+    int ret;
+#ifdef WOLFSSL_TLS13
+    int i;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_set_groups");
+    if (ssl == NULL || groups == NULL || count <= 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
+        return BAD_FUNC_ARG;
+    if (!IsTLS_ex(ssl->version))
+        return BAD_FUNC_ARG;
+
+    ret = wolfssl_set_groups_ext(&ssl->extensions, groups, count, ssl->heap,
+        ssl->options.side);
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->options.userCurves = 1;
+    #ifdef WOLFSSL_TLS13
+        for (i = 0; i < count; i++) {
+            ssl->group[i] = (word16)groups[i];
+        }
+        ssl->numGroups = (byte)count;
+    #endif
     }
 
     return ret;
@@ -2107,11 +2234,25 @@ int wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list)
         WOLFSSL_MSG("Bad function arguments");
         ret = WOLFSSL_FAILURE;
     }
-    else if (AllocateCtxSuites(ctx) != 0) {
-        ret = WOLFSSL_FAILURE;
-    }
     else {
-        ret = SetSuitesHashSigAlgo(ctx->suites, list);
+        byte fresh = (ctx->suites == NULL);
+
+        if (AllocateCtxSuites(ctx) != 0) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = SetSuitesHashSigAlgo(ctx->suites, list);
+        }
+        if (fresh && ctx->suites != NULL) {
+            if (ret == WOLFSSL_SUCCESS) {
+                /* Add the default cipher suites to the new sigalgs */
+                InitSSL_CTX_Suites(ctx, ctx->suites);
+            }
+            else {
+                XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
+                ctx->suites = NULL;
+            }
+        }
     }
 
     return ret;

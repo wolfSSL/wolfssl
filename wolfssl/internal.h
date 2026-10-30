@@ -2020,8 +2020,10 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 
 /* minimum Downgrade Minor version */
 #ifndef WOLFSSL_MIN_DOWNGRADE
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
         #define WOLFSSL_MIN_DOWNGRADE TLSv1_MINOR
+    #elif !defined(NO_OLD_TLS)
+        #define WOLFSSL_MIN_DOWNGRADE TLSv1_1_MINOR
     #else
         #define WOLFSSL_MIN_DOWNGRADE TLSv1_2_MINOR
     #endif
@@ -4622,6 +4624,10 @@ struct WOLFSSL_CTX {
     short       minMlDsaKeySz;    /* minimum ML-DSA key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
+#ifdef OPENSSL_EXTRA
+    unsigned long     minProtoMask;     /* SSL_OP_NO_* set by min version */
+    unsigned long     maxProtoMask;     /* SSL_OP_NO_* set by max version */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
     word32            disabledCurves;   /* curves disabled by user */
 #endif
