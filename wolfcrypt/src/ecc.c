@@ -12477,7 +12477,7 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
         ret = mp_read_unsigned_bin(key->k, priv, privSz);
     #ifdef WOLFSSL_ECC_BLIND_K
         if (ret == MP_OKAY) {
-            err = ecc_blind_k_rng(key, NULL);
+            ret = ecc_blind_k_rng(key, NULL);
         }
     #endif
     #endif
@@ -12487,7 +12487,7 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
         ret = mp_read_unsigned_bin(key->k, priv, privSz);
     #ifdef WOLFSSL_ECC_BLIND_K
         if (ret == MP_OKAY) {
-            err = ecc_blind_k_rng(key, NULL);
+            ret = ecc_blind_k_rng(key, NULL);
         }
     #endif
 
@@ -12508,6 +12508,11 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
             else {
                 WOLFSSL_MSG("Importing key that is not a black key!");
             }
+        }
+
+        /* Plain text software keys can be checked when imported. */
+        if ((ret == MP_OKAY) && (key->blackKey == 0)) {
+            ret = ecc_check_privkey_range(key);
         }
     }
 #else
