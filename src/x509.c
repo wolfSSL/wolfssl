@@ -6070,7 +6070,8 @@ static int MatchIpName(const char* name, int nameSz, WOLFSSL_GENERAL_NAME* gn)
 /* Helper to check if name string matches a single GENERAL_NAME constraint.
  * permitted selects subtree semantics for wildcard DNS names: containment
  * for permitted subtrees, intersection for excluded subtrees.
- * Returns 1 if matches, 0 if not. */
+ * Returns 1 if matches, 0 if not, and a negative error if the name cannot be
+ * compared, which the caller must treat as failing the constraint. */
 static int MatchNameConstraint(int type, const char* name, int nameSz,
     WOLFSSL_GENERAL_NAME* gn, int permitted)
 {
@@ -6093,6 +6094,11 @@ static int MatchNameConstraint(int type, const char* name, int nameSz,
             }
             baseStr = (const char*)wolfSSL_ASN1_STRING_get0_data(gn->d.ia5);
             baseLen = wolfSSL_ASN1_STRING_length(gn->d.ia5);
+            if (type == WOLFSSL_GEN_DNS && baseLen == 0) {
+                /* RFC 5280 4.2.1.10: an empty dNSName base covers every DNS
+                 * name. */
+                return 1;
+            }
             if (baseStr == NULL || baseLen <= 0) {
                 return 0;
             }
@@ -6194,7 +6200,8 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
             }
             hasPermittedType = 1;
 
-            if (MatchNameConstraint(type, name, nameSz, gn, 1)) {
+            /* A name that cannot be compared is not shown to be permitted. */
+            if (MatchNameConstraint(type, name, nameSz, gn, 1) == 1) {
                 matchedPermitted = 1;
                 break;
             }
@@ -6221,7 +6228,8 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
                 continue;
             }
 
-            if (MatchNameConstraint(type, name, nameSz, gn, 0)) {
+            /* A name that cannot be compared is not shown to be outside. */
+            if (MatchNameConstraint(type, name, nameSz, gn, 0) != 0) {
                 WOLFSSL_MSG("Name in excluded subtrees");
                 return 0;
             }
