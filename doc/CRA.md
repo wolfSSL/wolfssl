@@ -66,8 +66,8 @@ make sbom         # produces wolfssl-<version>.spdx.json, .cdx.json, .spdx
 make bomsh        # optional: produces omnibor/ + OmniBOR-enriched SPDX
 ```
 
-`make sbom` is a convenience wrapper around the same `scripts/gen-sbom`
-script the embedded path uses.
+`make sbom` uses `scripts/sbom.am`, which includes `tools/sbom/sbom.am`.
+That recipe calls the same generator as `scripts/gen-sbom`.
 
 See `doc/SBOM.md` for prerequisites and full details on both entry
 points.
@@ -155,7 +155,7 @@ under which your distribution mirrors `wolfssl-<version>.cdx.json`.
   "type": "library",
   "name": "wolfssl",
   "version": "<version>",
-  "purl": "pkg:github/wolfSSL/wolfssl@v<version>",
+  "purl": "pkg:github/wolfssl/wolfssl@v<version>-stable",
   "cpe": "cpe:2.3:a:wolfssl:wolfssl:<version>:*:*:*:*:*:*:*",
   "licenses": [{ "license": { "id": "GPL-3.0-only" } }],
   "externalReferences": [

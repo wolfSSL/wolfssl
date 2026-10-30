@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for the helpers in scripts/gen-sbom.
+"""Unit tests for the helpers in tools/sbom/gen-sbom.
 
 Run from the repo root:
 
@@ -16,6 +16,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import sys
 import re
 import tempfile
 import unittest
@@ -29,10 +30,10 @@ def _load_gen_sbom():
     spec_from_file_location infers the loader from the suffix; gen-sbom has
     none, so we hand it a SourceFileLoader explicitly."""
     here = pathlib.Path(__file__).resolve().parent
-    target = here / 'gen-sbom'
+    target = here.parent / 'tools' / 'sbom' / 'gen-sbom'
     if not target.is_file():
         raise FileNotFoundError(
-            f"expected gen-sbom alongside this test file at {target}"
+            f"expected the vendored generator at {target}"
         )
     loader = SourceFileLoader('gs', str(target))
     spec = importlib.util.spec_from_loader('gs', loader)
@@ -42,6 +43,20 @@ def _load_gen_sbom():
 
 
 gs = _load_gen_sbom()
+
+
+class TestEntryPoint(unittest.TestCase):
+    def test_wrapper_loads_generator(self):
+        """scripts/gen-sbom is importable and exposes the vendored program."""
+        here = pathlib.Path(__file__).resolve().parent
+        wrapper = here / 'gen-sbom'
+        loader = SourceFileLoader('gen_sbom_entry', str(wrapper))
+        spec = importlib.util.spec_from_loader('gen_sbom_entry', loader)
+        module = importlib.util.module_from_spec(spec)
+        loader.exec_module(module)
+        self.assertTrue(callable(module._is_noise_macro))
+        self.assertTrue(callable(module.main))
+        self.assertFalse(module._is_noise_macro('HAVE_ECC'))
 
 
 class TestIsSimpleSpdxId(unittest.TestCase):
@@ -827,12 +842,12 @@ class TestDepMetaShape(unittest.TestCase):
         keys after they were intentionally removed."""
 
     def test_only_expected_deps_are_tracked(self):
-        # wolfssl is tracked so downstream wolfSSL-stack products (wolfSSH,
-        # wolfMQTT, ...) can declare it via --dep-wolfssl; openssl so the
-        # OpenSSL-compat products (wolfProvider, wolfEngine) can declare it via
-        # --dep-openssl; libz is wolfSSL's own optional linked dep.
+        # wolfssl is tracked so downstream products can declare it via
+        # --dep-wolfssl. wolfcrypt is the nested crypto component.
+        # openssl is for the OpenSSL-compat products. libz is wolfSSL's
+        # own optional linked dependency.
         self.assertEqual(set(gs.DEP_META.keys()),
-                         {'wolfssl', 'openssl', 'libz'})
+                         {'wolfssl', 'wolfcrypt', 'openssl', 'libz'})
 
     def test_wolfssl_dep_entry_describes_the_linked_artefact(self):
         wolfssl = gs.DEP_META['wolfssl']
@@ -846,7 +861,7 @@ class TestDepMetaShape(unittest.TestCase):
         self.assertEqual(wolfssl['license'], 'GPL-3.0-only')
         self.assertEqual(
             wolfssl['purl']('5.7.4'),
-            'pkg:github/wolfSSL/wolfssl@v5.7.4')
+            'pkg:github/wolfssl/wolfssl@v5.7.4-stable')
 
     def test_openssl_dep_entry_describes_the_linked_artefact(self):
         openssl = gs.DEP_META['openssl']
@@ -883,7 +898,7 @@ class TestEnabledDepsCli(unittest.TestCase):
         here = pathlib.Path(__file__).resolve().parent
         script = here / 'gen-sbom'
         return subprocess.run(
-            ['python3', str(script), *argv],
+            [sys.executable, str(script), *argv],
             capture_output=True, text=True
         )
 
@@ -1450,7 +1465,7 @@ class TestCliMutualExclusion(unittest.TestCase):
         here = pathlib.Path(__file__).resolve().parent
         script = here / 'gen-sbom'
         return subprocess.run(
-            ['python3', str(script), *argv],
+            [sys.executable, str(script), *argv],
             capture_output=True, text=True
         )
 
@@ -1676,11 +1691,11 @@ class TestCliMutualExclusion(unittest.TestCase):
             here = pathlib.Path(__file__).resolve().parent
             script = str(here / 'gen-sbom')
             r1 = subprocess.run(
-                ['python3', script, *common, '--srcs', aes, sha,
+                [sys.executable, script, *common, '--srcs', aes, sha,
                  '--cdx-out', cdx_a, '--spdx-out', spdx_a],
                 capture_output=True, text=True, env=env)
             r2 = subprocess.run(
-                ['python3', script, *common, '--srcs-file', listfile,
+                [sys.executable, script, *common, '--srcs-file', listfile,
                  '--cdx-out', cdx_b, '--spdx-out', spdx_b],
                 capture_output=True, text=True, env=env)
             self.assertEqual(r1.returncode, 0, r1.stderr)
@@ -1895,11 +1910,10 @@ class TestGenerateCdx(unittest.TestCase):
         self.assertEqual(
             comp['cpe'],
             'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
-        # pkg:github resolves to OSV / GHSA / Snyk / Trivy directly,
-        # without the vendor:product mapping a pkg:generic PURL would
-        # force.  pkg:github tag refs use the upstream `vX.Y.Z` shape
-        # (rather than bare `X.Y.Z`), matching wolfSSL's release tags.
-        self.assertEqual(comp['purl'], 'pkg:github/wolfSSL/wolfssl@v5.9.1')
+        # pkg:github resolves in OSV / GHSA / Snyk / Trivy. The namespace
+        # and name are lowercase. The wolfSSL release tag is vX.Y.Z-stable.
+        self.assertEqual(
+            comp['purl'], 'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
         self.assertEqual(comp['hashes'],
                          [{'alg': 'SHA-256', 'content': 'a' * 64}])
         self.assertEqual(comp['licenses'],
@@ -1910,9 +1924,9 @@ class TestGenerateCdx(unittest.TestCase):
         props = doc['metadata']['component']['properties']
         names = {p['name']: p['value'] for p in props}
         self.assertEqual(names['wolfssl:build:HAVE_AESGCM'], '1')
-        # An empty define value is rendered as '1' so the SBOM
-        # consumer can't distinguish '#define X' from '#define X 1'.
-        self.assertEqual(names['wolfssl:build:NO_DES3'], '1')
+        # A valueless #define is recorded with an empty value. Coercing
+        # it to '1' made the two forms indistinguishable.
+        self.assertEqual(names['wolfssl:build:NO_DES3'], '')
 
     def test_dependency_refs_match_components(self):
         # Critical invariant: every bom-ref in `dependencies` must
@@ -2343,7 +2357,7 @@ class TestGenerateSpdx(unittest.TestCase):
         self.assertEqual(len(purl_refs), 1)
         self.assertEqual(
             purl_refs[0]['referenceLocator'],
-            'pkg:github/wolfSSL/wolfssl@v5.9.1')
+            'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
 
     def test_main_package_carries_advisory_external_ref(self):
         # SPDX 2.3 SECURITY/advisory externalRef pointing at the

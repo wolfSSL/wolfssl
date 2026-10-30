@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Syntax check
-        run: python3 -m py_compile scripts/gen-sbom
+        run: python3 -m py_compile scripts/gen-sbom tools/sbom/gen-sbom
 
       - name: Install pcpp
         # pcpp is the in-Python C preprocessor that drives the
@@ -524,7 +524,8 @@ jobs:
           refs = {r['referenceType']: r['referenceLocator']
                   for r in d['packages'][0]['externalRefs']}
           assert re.match(r'cpe:2\.3:a:wolfssl:wolfssl:[\d.]+:', refs['cpe23Type']), refs
-          assert re.match(r'pkg:github/wolfSSL/wolfssl@v[\d.]+', refs['purl']), refs
+          assert re.fullmatch(
+              r'pkg:github/wolfssl/wolfssl@v[\d.]+-stable', refs['purl']), refs
           assert refs['advisory'] == \
               'https://github.com/wolfSSL/wolfssl/security/advisories', refs
           print('identifiers ok:', refs)
