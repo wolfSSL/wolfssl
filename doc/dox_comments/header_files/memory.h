@@ -636,3 +636,185 @@ void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
 int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
             const word32 *sizeList, const word32 *distList,
             byte* buffer, word32 sz, int flag);
+
+/*!
+    \ingroup Memory
+
+    \brief Aligned allocation over XMALLOC(), honoring heap and tag (static
+    memory pools, wolfSSL_SetAllocators() callbacks, user allocators, ports).
+    Over-allocates and stores a small header just below the returned pointer.
+    Called through macro XMALLOCALIGN.
+
+    \return pointer to aligned allocation
+    \return NULL if alignment is not 0 or a power of 2, the padded size
+    overflows, or the allocation fails.
+
+    \param alignment 0 or a power of 2; values below 2*sizeof(size_t) are
+    raised to it
+    \param size size, in bytes, of the memory to allocate
+    \param heap heap hint to use for memory. Can be NULL
+    \param tag dynamic type (see DYNAMIC_TYPE_ list in types.h)
+
+    _Example_
+    \code
+    byte* buf = (byte*)wc_MallocAlign(64, 1024, NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    ...
+    wc_FreeAlign(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    \endcode
+
+    \sa wc_FreeAlign
+    \sa wc_ReallocAlign
+    \sa XMALLOCALIGN
+*/
+void *wc_MallocAlign(size_t alignment, size_t size, void *heap, int tag);
+
+/*!
+    \ingroup Memory
+
+    \brief Frees memory returned by wc_MallocAlign(), wc_ReallocAlign() or
+    wc_ReallocAlignScrubbed(), by calling XFREE(). Aligned and plain
+    (XMALLOC()) allocations must not be mixed. Not called directly by
+    wolfSSL, but through macro XFREEALIGN.
+
+    \return void
+
+    \param ptr aligned pointer to free. NULL is a no-op.
+    \param heap heap hint used for the allocation. Can be NULL
+    \param tag dynamic type used for the allocation
+
+    _Example_
+    \code
+    byte* buf = (byte*)wc_MallocAlign(64, 1024, NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    ...
+    wc_FreeAlign(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    \endcode
+
+    \sa wc_MallocAlign
+    \sa XFREEALIGN
+*/
+void wc_FreeAlign(void *ptr, void *heap, int tag);
+
+/*!
+    \ingroup Memory
+
+    \brief Reallocates memory from wc_MallocAlign(), using XMALLOC() and
+    XFREE(). Never reallocates in place: a new block aligned to alignment is
+    allocated, the leading min(old size, size) bytes are copied, and ptr is
+    freed. Not called directly by wolfSSL, but through macro XREALLOCALIGN.
+
+    \return pointer to the new aligned block on success.
+    \return NULL when size is 0 (ptr is freed), or on failure (ptr is left
+    intact, including when alignment is rejected).
+
+    \param ptr NULL, or memory from wc_MallocAlign()/wc_ReallocAlign*().
+    A NULL ptr behaves as wc_MallocAlign().
+    \param alignment as for wc_MallocAlign()
+    \param size new size in bytes
+    \param heap heap hint. Can be NULL
+    \param tag dynamic type
+
+    _Example_
+    \code
+    byte* buf2 = NULL;
+    byte* buf = (byte*)wc_MallocAlign(64, 1024, NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        - fail -
+
+    buf2 = (byte*)wc_ReallocAlign(buf, 64, 4000, NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf2 == NULL)
+        - fail -
+    ...
+
+    wc_FreeAlign(buf2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    \endcode
+
+    \sa wc_ReallocAlignScrubbed
+    \sa wc_MallocAlign
+    \sa XREALLOCALIGN
+*/
+void *wc_ReallocAlign(void *ptr, size_t alignment, size_t size, void *heap,
+                      int tag);
+
+/*!
+    \ingroup Memory
+
+    \brief As wc_ReallocAlign(), but the old block is zeroized before it is
+    freed, including when size is 0. On failure the old block is left intact
+    and not zeroized. Not called directly by wolfSSL, but through macro
+    XREALLOCALIGN_SCRUBBED.
+
+    \return pointer to the new aligned block on success.
+    \return NULL when size is 0 (ptr is zeroized and freed), or on failure.
+
+    \param ptr NULL, or memory from wc_MallocAlign()/wc_ReallocAlign*()
+    \param alignment as for wc_MallocAlign()
+    \param size new size in bytes
+    \param heap heap hint. Can be NULL
+    \param tag dynamic type
+
+    _Example_
+    \code
+    byte* buf2 = NULL;
+    byte* buf = (byte*)wc_MallocAlign(64, 1024, NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        - fail -
+
+    buf2 = (byte*)wc_ReallocAlignScrubbed(buf, 64, 4000, NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf2 == NULL)
+        - fail -
+
+    - buf freed and zeroed post ReallocAlignScrubbed-
+    ...
+
+    wc_FreeAlign(buf2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    \endcode
+
+    \sa wc_ReallocAlign
+    \sa XREALLOCALIGN_SCRUBBED
+*/
+void *wc_ReallocAlignScrubbed(void *ptr, size_t alignment, size_t size,
+                              void *heap, int tag);
+
+/*!
+    \ingroup Memory
+
+    \brief Reallocates memory from XMALLOC(), zeroizing the old block before
+    it is freed. Never reallocates in place: a new block is allocated with
+    XMALLOC(), the leading min(old_size, size) bytes are copied, old_size
+    bytes of ptr are zeroized, and ptr is freed with XFREE(). Not called
+    directly by wolfSSL, but through macro XREALLOC_SCRUBBED.
+
+    \return pointer to the new block on success.
+    \return NULL when size is 0 (ptr is zeroized and freed), or on failure
+    (ptr is left intact and not zeroized).
+
+    \param ptr NULL, or memory from XMALLOC()/XREALLOC(). A NULL ptr behaves
+    as XMALLOC(size).
+    \param old_size current size of ptr in bytes. Must not exceed the real
+    allocation size, or the copy and zeroization overrun it.
+    \param size new size in bytes
+    \param heap heap hint. Can be NULL
+    \param tag dynamic type
+
+    _Example_
+    \code
+    byte* key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte* tmp;
+    ...
+    tmp = (byte*)wc_ReallocScrubbed(key, 32, 64, NULL,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp != NULL)
+        key = tmp;
+    \endcode
+
+    \sa wc_ReallocAlignScrubbed
+    \sa XREALLOC_SCRUBBED
+*/
+void *wc_ReallocScrubbed(void *ptr, size_t old_size, size_t size,
+                         void *heap, int tag);
