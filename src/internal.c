@@ -16780,6 +16780,9 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
     store->error = GetX509Error(cert_err);
 #endif
     store->error_depth = args->certIdx;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    store->peerCertDepth = args->certIdx;
+#endif
     store->discardSessionCerts = 0;
     store->domain = domain;
     if (ssl != NULL) {
@@ -16827,6 +16830,11 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
             if (ssl->param->hostName[0])
                 XMEMCPY(store->param->hostName, ssl->param->hostName,
                         WOLFSSL_HOST_NAME_MAX);
+            if (ssl->param->ipasc[0])
+                XMEMCPY(store->param->ipasc, ssl->param->ipasc,
+                        WOLFSSL_MAX_IPSTR);
+            if (ssl->param->hostFlags)
+                store->param->hostFlags = ssl->param->hostFlags;
 
         }
 #endif /* defined(OPENSSL_EXTRA) */
@@ -16909,6 +16917,8 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 /* Callback is issued for certificate presented in TLS Certificate (11) packet.
  * The intermediates are done first then peer leaf cert last. Use the
  * store->error_depth member to determine index (0=peer, >1 intermediates)
+ * The CA that signed a cert is reported before it when the peer did not send
+ * that CA next, see DoVerifyCallbackIssuer().
  */
 
 int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
@@ -16986,29 +16996,46 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     #endif
 
         if (ssl != NULL) {
+            int callVerifyCb = 1;
     #ifdef OPENSSL_ALL
-            /* non-zero return code indicates failure override */
             if (ssl->ctx->verifyCertCb) {
-                if (ssl->ctx->verifyCertCb(store, ssl->ctx->verifyCertCbArg)) {
-                    if (cert_err != 0) {
-                        WOLFSSL_MSG("Verify Cert callback overriding error!");
-                        ret = 0;
-                        /* The app's cert verify callback replaces chain
-                         * verification in OpenSSL. Pass its good result on to
-                         * the following verify callbacks. */
-                        verify_ok = 1;
-                    }
+                /* Like in OpenSSL, the cert verify callback replaces the
+                 * verification and its result is final. The verify callback
+                 * is reached through X509_verify_cert(). Neither is called
+                 * when the client sent no cert. */
+                callVerifyCb = 0;
+                if (args->totalCerts == 0 &&
+                        ssl->options.side == WOLFSSL_SERVER_END) {
+                    WOLFSSL_MSG("No client cert for cert verify callback");
+                }
+                else if (args->certIdx == 0 && cert_err == 0 &&
+                        args->peerCertVerified) {
+                    WOLFSSL_MSG("Cert verify callback accepted peer cert");
                 }
                 else {
-                    verifyFail = 1;
-                    /* Pass the failure on to the following verify
-                     * callbacks. */
-                    verify_ok = 0;
+                    /* Like OpenSSL, use the store's verify callback when the
+                     * SSL has none. */
+                    store->verify_cb = ssl->verifyCallback;
+                    if (store->verify_cb == NULL && store->store != NULL)
+                        store->verify_cb = store->store->verify_cb;
+                    if (ssl->ctx->verifyCertCb(store,
+                            ssl->ctx->verifyCertCbArg) > 0) {
+                        if (cert_err != 0) {
+                            WOLFSSL_MSG("Verify Cert callback overriding "
+                                        "error!");
+                            ret = 0;
+                        }
+                        if (args->certIdx == 0)
+                            args->peerCertVerified = 1;
+                    }
+                    else if (!ssl->options.verifyNone) {
+                        verifyFail = 1;
+                    }
                 }
             }
     #endif
             /* non-zero return code indicates failure override */
-            if (ssl->verifyCallback) {
+            if (callVerifyCb && ssl->verifyCallback) {
                 if (ssl->verifyCallback(verify_ok, store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Verify callback overriding error!");
@@ -17021,7 +17048,8 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
             }
 #if defined(WOLFSSL_LOCAL_X509_STORE) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
-            if (SSL_STORE(ssl) != NULL && SSL_STORE(ssl)->verify_cb != NULL) {
+            if (callVerifyCb && SSL_STORE(ssl) != NULL &&
+                    SSL_STORE(ssl)->verify_cb != NULL) {
                 if (SSL_STORE(ssl)->verify_cb(verify_ok, store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Store Verify callback overriding error!");
@@ -17036,11 +17064,15 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         }
 
         if (verifyFail) {
-            /* induce error if one not present */
-            if (cert_err == 0) {
-                ret = VERIFY_CERT_ERROR;
-                WOLFSSL_ERROR_VERBOSE(ret);
-            }
+            /* induce error if one not present. Another callback overriding
+             * the error does not undo the rejection. */
+            ret = (cert_err != 0) ? cert_err : VERIFY_CERT_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            /* A cert error is recorded by the caller. */
+            if (cert_err == 0 && ssl != NULL && ssl->peerVerifyRet == 0)
+                ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REJECTED;
+        #endif
 
             /* mark as verify error */
             args->verifyErr = 1;
@@ -17052,6 +17084,104 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
 
     return ret;
 }
+
+#if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
+/* Report the CA that signed the current cert of the peer's chain to the verify
+ * callback first, at the next depth, like OpenSSL. Skipped when the peer sent
+ * that CA as its next cert, which is reported for itself. So the trust anchor
+ * above the chain is reported, and so is the real issuer when the peer lists
+ * another cert in its place. parseRet is the result of verifying the current
+ * cert. With a cert verify callback, X509_verify_cert() reports the issuer
+ * instead. */
+static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
+    int parseRet)
+{
+    int ret;
+    int verifyFail = 0;
+    int x509Free = 0;
+    int certIdx = args->certIdx;
+    DecodedCert* dCert = args->dCert;
+    Signer* ca;
+    buffer* next;
+    WOLFSSL_X509_STORE_CTX* store = NULL;
+    WC_DECLARE_VAR(issuer, DecodedCert, 1, 0);
+
+    if (args->issuerReported == certIdx + 1 || ssl->options.verifyNone ||
+            UsingChainVerifyCb(ssl) || dCert == NULL || !args->dCertInit ||
+            (parseRet != 0 &&
+             parseRet != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
+             parseRet != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
+        return 0;
+    }
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    if (args->haveTrustPeer)
+        return 0;
+#endif
+#ifdef OPENSSL_ALL
+    if (ssl->ctx->verifyCertCb != NULL)
+        return 0;
+#endif
+    ca = dCert->ca;
+    if (ca == NULL || ca->derCert == NULL || dCert->selfSigned)
+        return 0;
+    if (certIdx + 1 < args->totalCerts) {
+        next = &args->certs[certIdx + 1];
+        if (next->length == ca->derCert->length &&
+                XMEMCMP(next->buffer, ca->derCert->buffer, next->length) == 0)
+            return 0;
+    }
+    if (ssl->verifyCallback == NULL
+#if defined(WOLFSSL_LOCAL_X509_STORE) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
+            && (SSL_STORE(ssl) == NULL || SSL_STORE(ssl)->verify_cb == NULL)
+#endif
+            ) {
+        return 0;
+    }
+    args->issuerReported = (byte)(certIdx + 1);
+
+    WC_ALLOC_VAR_EX(issuer, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
+        return MEMORY_E);
+    InitDecodedCert(issuer, ca->derCert->buffer, ca->derCert->length,
+        ssl->heap);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    /* Parse it like AddCA() did. */
+    if (SSL_CM(ssl)->unknownExtCallback != NULL)
+        wc_SetUnknownExtCallback(issuer, SSL_CM(ssl)->unknownExtCallback);
+#endif
+    ret = ParseCert(issuer, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
+    if (ret == 0) {
+        args->dCert = issuer;
+        args->certIdx = certIdx + 1;
+        ret = SetupStoreCtxCallback(&store, ssl, SSL_CM(ssl), args, 0,
+            ssl->heap, &x509Free);
+        args->dCert = dCert;
+        args->certIdx = certIdx;
+    }
+    if (ret == 0) {
+        if (ssl->verifyCallback != NULL && !ssl->verifyCallback(1, store))
+            verifyFail = 1;
+#if defined(WOLFSSL_LOCAL_X509_STORE) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
+        if (SSL_STORE(ssl) != NULL && SSL_STORE(ssl)->verify_cb != NULL &&
+                !SSL_STORE(ssl)->verify_cb(1, store)) {
+            verifyFail = 1;
+        }
+#endif
+        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Free);
+        if (verifyFail) {
+            WOLFSSL_MSG("Verify callback rejected issuer");
+            ret = VERIFY_CERT_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
+        }
+    }
+    if (ret != 0 && ssl->peerVerifyRet == 0)
+        ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REJECTED;
+    FreeDecodedCert(issuer);
+    WC_FREE_VAR_EX(issuer, ssl->heap, DYNAMIC_TYPE_DCERT);
+    return ret;
+}
+#endif
 
 #ifdef HAVE_CRL
 void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
@@ -19310,6 +19440,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                         goto exit_ppc;
                 #endif
+                #if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
+                    {
+                        int issuerRet = DoVerifyCallbackIssuer(ssl, args, ret);
+                        if (issuerRet != 0) {
+                            ret = issuerRet;
+                            DoCertFatalAlert(ssl, ret);
+                            goto exit_ppc;
+                        }
+                    }
+                #endif
                     if (ret == 0 || ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN)) {
                         ret = ProcessPeerCertCheckKey(ssl, args);
                     }
@@ -19768,6 +19908,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     goto exit_ppc;
+            #endif
+            #if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
+                {
+                    int issuerRet = DoVerifyCallbackIssuer(ssl, args, ret);
+                    if (issuerRet != 0) {
+                        ret = issuerRet;
+                        args->fatal = 1;
+                        DoCertFatalAlert(ssl, ret);
+                        goto exit_ppc;
+                    }
+                }
             #endif
 
                 if (ret == 0) {
