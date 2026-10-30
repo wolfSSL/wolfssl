@@ -535,6 +535,19 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_TI_AM64X_A53_INTEGRITY
+    #ifndef WOLFSSL_SHA512_HASHTYPE
+        #define WOLFSSL_SHA512_HASHTYPE
+    #endif
+    /* SA2UL SHA offload buffers the message until Final, so digest[] does
+     * not hold the running state the raw accessors read. */
+    #if defined(WOLFSSL_SA2UL_DRIVER) && \
+        !defined(WOLFSSL_TI_AM64X_A53_INTEGRITY_NO_SHA)
+        #undef  WOLFSSL_NO_HASH_RAW
+        #define WOLFSSL_NO_HASH_RAW
+    #endif
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still
