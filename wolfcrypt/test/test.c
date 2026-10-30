@@ -78533,6 +78533,7 @@ static wc_test_ret_t slhdsa_init_fail_free_test(void)
     #define SLHDSA_TEST_CERT_SHA2_128S
 #endif
 #if !defined(NO_ASN) && !defined(NO_CERTS) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     (defined(SLHDSA_TEST_CERT_SHAKE128S) || \
      defined(SLHDSA_TEST_CERT_SHA2_128S))
     #define SLHDSA_TEST_CERT

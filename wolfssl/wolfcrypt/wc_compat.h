@@ -69,6 +69,16 @@
 
     #define wc_AesGcmEncrypt wc_AesGcmEncrypt_compat_shim
 
+    /* Reachable (via types.h) before memory.h's body when an application
+     * includes memory.h first: its include guard defers the body, so declare
+     * the exported zeroizer here for the inline shims below.  Redeclaration
+     * with identical tokens is harmless. */
+    #ifdef WOLFSSL_NO_FORCE_ZERO
+        #define wc_ForceZero ForceZero
+    #else
+        WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
+    #endif
+
     #ifdef WOLFSSL_AESGCM_STREAM
 
     static WC_INLINE int wc_AesGcmEncrypt_compat_shim(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -84,12 +94,24 @@
             return BAD_FUNC_ARG;
     #endif
         ret = wc_AesGcmInit(aes, NULL /* key */, 0 /* len */, iv, ivSz);
-        if (ret)
-            return ret;
-        ret = wc_AesGcmEncryptUpdate(aes, out, in, sz, authIn, authInSz);
-        if (ret)
-            return ret;
-        return wc_AesGcmEncryptFinal(aes, authTag, authTagSz);
+        if (ret == 0)
+            ret = wc_AesGcmEncryptUpdate(aes, out, in, sz, authIn, authInSz);
+        if (ret == 0)
+            ret = wc_AesGcmEncryptFinal(aes, authTag, authTagSz);
+        if (ret != 0) {
+            /* Match the native one-shot's failure contract: no ciphertext and no
+             * tag escape a failed operation, whichever stage failed.  On the
+             * Init/Update failure paths authTag was never written, so there this
+             * is contract uniformity rather than leak repair. */
+            if (out != NULL)
+                wc_ForceZero(out, sz);
+            if (authTag != NULL)
+                wc_ForceZero(authTag,
+                             authTagSz > WC_AES_BLOCK_SIZE
+                             ? WC_AES_BLOCK_SIZE
+                             : authTagSz);
+        }
+        return ret;
     }
 
     #else /* ! WOLFSSL_AESGCM_STREAM */
@@ -109,13 +131,22 @@
             return BAD_LENGTH_E;
 
         ret = wc_AesGcmSetExtIV(aes, iv, ivSz);
-        if (ret != 0)
-            return ret;
-        ret = wc_AesGcmEncrypt_ex(aes, out, in, sz, scratch, ivSz, authTag,
-                                 authTagSz, authIn, authInSz);
-        if (ret != 0)
-            return ret;
-        return wc_AesGcmSetExtIV(aes, iv, ivSz);
+        if (ret == 0)
+            ret = wc_AesGcmEncrypt_ex(aes, out, in, sz, scratch, ivSz, authTag,
+                                      authTagSz, authIn, authInSz);
+        if (ret == 0)
+            ret = wc_AesGcmSetExtIV(aes, iv, ivSz);
+        if (ret != 0) {
+            /* Match above ISO-19790 wipe--this arm airdropped into old-FIPS. */
+            if (out != NULL)
+                wc_ForceZero(out, sz);
+            if (authTag != NULL)
+                wc_ForceZero(authTag,
+                             authTagSz > WC_AES_BLOCK_SIZE
+                             ? WC_AES_BLOCK_SIZE
+                             : authTagSz);
+        }
+        return ret;
     }
     #endif /* ! WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_FIPS && HAVE_AESGCM &&                  */
