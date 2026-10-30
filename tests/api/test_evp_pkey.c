@@ -2499,7 +2499,7 @@ int test_wolfSSL_EVP_DigestSignFinal_ecc_size(void)
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
     defined(HAVE_ECC_BRAINPOOL) && \
     (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && \
-    ECC_MIN_KEY_SZ <= 512
+    ECC_MIN_KEY_SZ <= 512 && FIPS_VERSION3_LT(6,0,0)
     WOLFSSL_EC_KEY* ecKey = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_MD_CTX mdCtx;
