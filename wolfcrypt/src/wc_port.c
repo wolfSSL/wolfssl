@@ -785,7 +785,6 @@ WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
 }
 #endif
 
-#ifdef WC_BARRIER_DATA_USES_SINK
 /* Callee of the portable WC_BARRIER_DATA() arm. It is reached through a
  * pointer read with a volatile load, so link time optimization cannot see
  * that the body is empty and drop the escape of the buffer address. */
@@ -801,7 +800,6 @@ WC_NO_INLINE void wc_BarrierDataSink(void* p)
         *(void (* const volatile *)(void*))&wc_BarrierDataSinkPtr;
     fn(p);
 }
-#endif /* WC_BARRIER_DATA_USES_SINK */
 
 /* Used to initialize state for wolfcrypt
    return 0 on success
