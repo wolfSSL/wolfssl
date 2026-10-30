@@ -35,6 +35,7 @@ int test_wolfSSL_PEM_write_bio_PKCS7(void);
 int test_wolfSSL_PEM_write_bio_encryptedKey(void);
 int test_wolfSSL_SMIME_read_PKCS7(void);
 int test_wolfSSL_SMIME_write_PKCS7(void);
+int test_wolfSSL_PKCS7_verify_nointern(void);
 int test_wolfSSL_PKCS12(void);
 
 #define TEST_OSSL_PKCS7_DECLS                                               \
@@ -51,7 +52,8 @@ int test_wolfSSL_PKCS12(void);
 
 #define TEST_OSSL_SMIME_DECLS                                        \
     TEST_DECL_GROUP("ossl_smime", test_wolfSSL_SMIME_read_PKCS7),    \
-    TEST_DECL_GROUP("ossl_smime", test_wolfSSL_SMIME_write_PKCS7)
+    TEST_DECL_GROUP("ossl_smime", test_wolfSSL_SMIME_write_PKCS7),   \
+    TEST_DECL_GROUP("ossl_smime", test_wolfSSL_PKCS7_verify_nointern)
 
 #define TEST_OSSL_PKCS12_DECLS                          \
     TEST_DECL_GROUP("ossl_p12", test_wolfSSL_PKCS12)
