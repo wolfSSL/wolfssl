@@ -4975,6 +4975,12 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL int SetCAType(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type);
     WOLFSSL_LOCAL
     int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
+#ifndef NO_ASN_TIME_CHECK
+    WOLFSSL_LOCAL int wolfssl_local_CheckChainCADates(WOLFSSL_CERT_MANAGER* cm,
+        Signer* ca, Signer* pending);
+    WOLFSSL_LOCAL int wolfssl_local_SetChainCADates(WOLFSSL_CERT_MANAGER* cm,
+        const byte* hash, const DecodedCert* cert);
+#endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     WOLFSSL_LOCAL
     int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify);

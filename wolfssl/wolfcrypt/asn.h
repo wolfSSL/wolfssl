@@ -2355,6 +2355,16 @@ struct DecodedCert {
 /* Signer and CRL hashes come from CalcHashId*(). */
 #define SIGNER_DIGEST_SIZE KEYID_SIZE
 
+#if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFCRYPT_ONLY)
+/* Validity of a CA cached from a peer's chain, DER encoded: tag, length and
+ * date. Such a CA is not a trust anchor, so it is checked whenever it is used
+ * to verify a certificate. */
+typedef struct SignerValidity {
+    byte notBefore[MAX_DATE_SIZE + 2];
+    byte notAfter[MAX_DATE_SIZE + 2];
+} SignerValidity;
+#endif
+
 /* CA Signers */
 /* if change layout change PERSIST_CERT_CACHE functions too */
 struct Signer {
@@ -2425,6 +2435,9 @@ struct Signer {
 #endif
 #ifdef WOLFSSL_SIGNER_DER_CERT
     DerBuffer* derCert;
+#endif
+#if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFCRYPT_ONLY)
+    SignerValidity* validity;        /* dates of a WOLFSSL_CHAIN_CA */
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     word32 cm_idx;
@@ -2666,6 +2679,14 @@ WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* findSignerByKeyHash(Signer *list, byte *hash);
 WOLFSSL_LOCAL Signer* findSignerByName(Signer *list, byte *hash);
+#ifndef IGNORE_NAME_CONSTRAINTS
+WOLFSSL_LOCAL Signer* wolfssl_local_FindSignerByAkidOrName(
+    WOLFSSL_CERT_MANAGER* cm, Signer* extraCAList, Signer* cert);
+#endif
+#if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFCRYPT_ONLY)
+WOLFSSL_LOCAL int wolfssl_local_SetSignerValidity(SignerValidity* validity,
+    const DecodedCert* cert);
+#endif
 WOLFSSL_TEST_VIS int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der);
 WOLFSSL_TEST_VIS Signer* MakeSigner(void* heap);
 WOLFSSL_TEST_VIS void    FreeSigner(Signer* signer, void* heap);

@@ -25676,8 +25676,8 @@ Signer* findSignerByName(Signer *list, byte *hash)
 /* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
  * with name-hash validation. Fall back to name-only when AKID is
  * absent. */
-static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
-                                      Signer* extraCAList, Signer* cert)
+Signer* wolfssl_local_FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                                             Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -26704,7 +26704,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             /* Stop at trust anchor (self-signed). */
             if (ncSigner->selfSigned)
                 break;
-            ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
+            ncParent = wolfssl_local_FindSignerByAkidOrName(cm, extraCAList,
+                ncSigner);
             /* Stop on missing parent, self-loop, or A->B->A cycle. */
             if (ncParent == NULL || ncParent == ncSigner ||
                     ncParent == ncPrev)
@@ -26736,12 +26737,52 @@ exit_pcr:
     return ret;
 }
 
+#if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFCRYPT_ONLY)
+/* Copy the DER encoded validity dates of cert into validity.
+ * Returns 0, BAD_FUNC_ARG or ASN_DATE_SZ_E. */
+int wolfssl_local_SetSignerValidity(SignerValidity* validity,
+    const DecodedCert* cert)
+{
+    if (validity == NULL || cert == NULL || cert->beforeDate == NULL ||
+            cert->afterDate == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cert->beforeDateLen <= 2 ||
+            cert->beforeDateLen > (int)sizeof(validity->notBefore) ||
+            cert->afterDateLen <= 2 ||
+            cert->afterDateLen > (int)sizeof(validity->notAfter))
+        return ASN_DATE_SZ_E;
+
+    XMEMSET(validity, 0, sizeof(SignerValidity));
+    XMEMCPY(validity->notBefore, cert->beforeDate,
+            (size_t)cert->beforeDateLen);
+    XMEMCPY(validity->notAfter, cert->afterDate, (size_t)cert->afterDateLen);
+
+    return 0;
+}
+#endif /* !NO_ASN_TIME_CHECK && !WOLFCRYPT_ONLY */
+
 int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
 {
     int ret = 0;
 
     if (signer == NULL || cert == NULL)
         return BAD_FUNC_ARG;
+
+#if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFCRYPT_ONLY)
+    /* A CA from a peer's chain is not a trust anchor. Keep its dates so they
+     * can be checked again each time it is used. */
+    if (type == WOLFSSL_CHAIN_CA) {
+        signer->validity = (SignerValidity*)XMALLOC(sizeof(SignerValidity),
+            cert->heap, DYNAMIC_TYPE_SIGNER);
+        if (signer->validity == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            ret = wolfssl_local_SetSignerValidity(signer->validity, cert);
+        }
+    }
+#endif
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if (ret == 0 && signer != NULL) {
@@ -26884,6 +26925,9 @@ void FreeSigner(Signer* signer, void* heap)
 #endif
 #ifdef WOLFSSL_SIGNER_DER_CERT
     FreeDer(&signer->derCert);
+#endif
+#if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFCRYPT_ONLY)
+    XFREE(signer->validity, heap, DYNAMIC_TYPE_SIGNER);
 #endif
     XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
 }
