@@ -17112,12 +17112,38 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
 #endif
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+/* Compare a certificate email address against chk (which must not contain
+ * NULs) as RFC 5280 7.5 requires: the local-part exactly and the domain after
+ * the last '@' case-insensitively.
+ *
+ * returns 1 on a match and 0 otherwise.
+ */
+static int X509EmailMatch(const char *email, size_t emailLen, const char *chk,
+                          size_t chkLen)
+{
+    size_t at;
+
+    if (emailLen != chkLen)
+        return 0;
+
+    /* at is the index just past the last '@' in chk, or 0 when there is
+     * none. */
+    for (at = chkLen; at > 0 && chk[at - 1] != '@'; at--)
+        ;
+
+    return (XMEMCMP(email, chk, at) == 0) &&
+           (XSTRNCASECMP(email + at, chk + at, chkLen - at) == 0);
+}
+
 int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
                              unsigned int flags)
 {
     WOLFSSL_X509_NAME *subjName;
     int emailLen;
     char *emailBuf;
+    DNS_entry *entry;
+    int haveSanEmail = 0;
+    size_t i;
 
     (void)flags;
 
@@ -17127,6 +17153,47 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
         WOLFSSL_MSG("Invalid parameter");
         return WOLFSSL_FAILURE;
     }
+
+    /* Replicate openssl behavior for chkLen: reject embedded NULs and drop a
+     * single trailing NUL. */
+    if (chkLen == 0) {
+        chkLen = XSTRLEN(chk);
+    }
+    else {
+        for (i = 0; i < (chkLen > 1 ? chkLen - 1 : chkLen); i++) {
+            if (chk[i] == '\0') {
+                WOLFSSL_MSG("Embedded NUL in email address");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (chkLen > 1 && chk[chkLen - 1] == '\0')
+            chkLen--;
+    }
+
+    /* rfc822Name SANs take precedence: the subject emailAddress is only
+     * checked when the certificate has none (RFC 6125 6.4.4). */
+    for (entry = x->altNames; entry != NULL; entry = entry->next) {
+        if (entry->type == ASN_RFC822_TYPE) {
+            haveSanEmail = 1;
+            if (entry->len >= 0 && X509EmailMatch(entry->name,
+                    (size_t)entry->len, chk, chkLen)) {
+                return WOLFSSL_SUCCESS;
+            }
+        }
+    }
+    if (haveSanEmail)
+        return WOLFSSL_FAILURE;
+
+#if defined(IGNORE_NAME_CONSTRAINTS) || \
+    (defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_SAN_EMAIL))
+    /* rfc822Name SANs are not kept when a certificate is decoded in this
+     * build, so a SAN extension may hold email identities that cannot be seen
+     * here. Do not fall back to the subject when one is present. */
+    if (x->subjAltNameSet) {
+        WOLFSSL_MSG("rfc822Name SANs not available, not checking subject");
+        return WOLFSSL_FAILURE;
+    }
+#endif
 
     subjName = wolfSSL_X509_get_subject_name(x);
     if (subjName == NULL)
@@ -17151,11 +17218,7 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
         return WOLFSSL_FAILURE;
     }
 
-    if (chkLen == 0)
-        chkLen = XSTRLEN(chk);
-
-    if (chkLen != (size_t)emailLen
-     || XSTRNCMP(chk, emailBuf, chkLen)) {
+    if (!X509EmailMatch(emailBuf, (size_t)emailLen, chk, chkLen)) {
         XFREE(emailBuf, x->heap, DYNAMIC_TYPE_OPENSSL);
         return WOLFSSL_FAILURE;
     }
