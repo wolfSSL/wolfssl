@@ -38009,7 +38009,7 @@ static wc_test_ret_t memalign_realloc_test(void)
         p[i] = (byte)i;
 
     /* scrubbed grow: contents and alignment preserved. */
-    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 1600U, HEAP_HINT,
+    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 300U, 1600U, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (q == NULL) {
         /* original intact on failure, per contract. */
@@ -38133,7 +38133,7 @@ static wc_test_ret_t memalign_realloc_test(void)
         p = (byte*)XMALLOCALIGN(64U, 128U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (p == NULL)
             return WC_TEST_RET_ENC_EC(MEMORY_E);
-        q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 0U, HEAP_HINT,
+        q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 128U, 0U, HEAP_HINT,
                                           DYNAMIC_TYPE_TMP_BUFFER);
         if (q != NULL) {
             XFREEALIGN(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -38296,7 +38296,7 @@ static wc_test_ret_t memalign_scrub_test(void)
         return WC_TEST_RET_ENC_EC(MEMORY_E);
     XMEMSET(p, MEMALIGN_SCRUB_PATTERN, 300U);
     wc_MemZero_Add("memalign_scrub_test aligned grow", p, 300U);
-    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 1600U, HEAP_HINT,
+    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 300U, 1600U, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (q == NULL) {
         XMEMSET(p, 0, 300U);
@@ -38311,7 +38311,7 @@ static wc_test_ret_t memalign_scrub_test(void)
         return WC_TEST_RET_ENC_EC(MEMORY_E);
     XMEMSET(p, MEMALIGN_SCRUB_PATTERN, 300U);
     wc_MemZero_Add("memalign_scrub_test aligned zero", p, 300U);
-    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 0U, HEAP_HINT,
+    q = (byte*)XREALLOCALIGN_SCRUBBED(p, 64U, 300U, 0U, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (q != NULL) {
         XFREEALIGN(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

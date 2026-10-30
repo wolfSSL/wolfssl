@@ -974,8 +974,8 @@ enum {
     #define XREALLOCALIGN(p, align, size, h, t) \
         wc_ReallocAlign(p, align, size, h, t)
     /* reallocation with scrubbing of lost blocks for aligned allocations */
-    #define XREALLOCALIGN_SCRUBBED(p, align, size, h, t) \
-        wc_ReallocAlignScrubbed(p, align, size, h, t)
+    #define XREALLOCALIGN_SCRUBBED(p, align, old_size, size, h, t) \
+        ((void)old_size, wc_ReallocAlignScrubbed(p, align, size, h, t))
 #endif
 
 /* reallocation with scrubbing of lost blocks */
