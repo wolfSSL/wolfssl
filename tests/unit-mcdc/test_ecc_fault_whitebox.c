@@ -796,7 +796,7 @@ static void wb_degenerate_points(void)
     }
     (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
 
-    /* Q = -P: x and z equal, y differs but equals modulus - P->y */
+    /* Q = -P: x and z equal, y differs -> the general add gives Z == 0 */
     (void)mp_sub(&prime, P->y, Q->y);
     (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
 
@@ -814,7 +814,7 @@ static void wb_degenerate_points(void)
     (void)mp_set(Q->x, 3);
     (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
 
-    /* y differs and is NOT the negation either: the last operand FALSE */
+    /* y differs and Q is not -P either: the last operand FALSE */
     (void)wc_ecc_copy_point(P, Q);
     (void)mp_set(Q->y, 5);
     (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
@@ -831,9 +831,9 @@ static void wb_degenerate_points(void)
 
     /* --- the _safe wrappers --- */
 
-    /* A = -B: the wrapper's own set-to-infinity chain, with and without an
-     * infinity out-pointer, and with the chain faulted. The result must be
-     * the (0, 0, 1) infinity representation with the flag raised. */
+    /* A = -B with the same Z: the add returns Z == 0, so the result must be
+     * (0, 0, 1) with the flag raised. Run with and without an infinity
+     * out-pointer, and with the first mp_* calls of the add faulted. */
     (void)wc_ecc_copy_point(P, Q);
     (void)mp_sub(&prime, P->y, Q->y);
     inf = 0;
@@ -861,15 +861,9 @@ static void wb_degenerate_points(void)
     (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf);
     (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, NULL);
     (void)ecc_projective_add_point_safe(Q, P, R, &a, &prime, mp, &inf);
-    /* The set-to-infinity chain sits behind the whole add, so its
-     * "err == MP_OKAY" operand only goes FALSE when the armed index lands
-     * exactly on one of those mp_set calls -- hence a sweep long enough to
-     * walk past every mp_* the add itself performs. */
-    /* Negatives of each other on DIFFERENT projective representatives:
-     * B = (x*L^2, -y*L^3, z*L). The wrapper's x/z equality test misses it, so
-     * the raw add runs and returns Z == 0 with X and Y non-zero -- the
-     * "only Z zero -> result is infinity" arm, which the all-zero shape above
-     * never reaches. */
+    /* B = (x*L^2, -y*L^3, z*L) is -P on a different representative: the add
+     * returns Z == 0 with X and Y non-zero. The sweep runs past every mp_*
+     * of the add so a fault lands on the mp_set calls that write infinity. */
     (void)wc_ecc_copy_point(P, Q);
     (void)mp_set(&zero, 4);
     (void)mp_mulmod(P->x, &zero, &prime, Q->x);

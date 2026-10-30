@@ -532,6 +532,7 @@ int test_wolfSSL_EC_POINT(void)
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     {
         EC_POINT* orig_point = NULL;
+        EC_POINT* neg_g = NULL;
         ExpectNotNull(orig_point = EC_POINT_new(group));
         ExpectIntEQ(EC_POINT_add(group, orig_point, set_point, set_point, NULL),
                     1);
@@ -546,6 +547,22 @@ int test_wolfSSL_EC_POINT(void)
         ExpectIntEQ(EC_POINT_add(group, orig_point, orig_point, new_point,
                                  NULL), 1);
         ExpectIntEQ(EC_POINT_cmp(group, orig_point, set_point, NULL), 0);
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
+        /* new_point is set_point inverted, so the sum is infinity */
+        ExpectIntEQ(EC_POINT_add(group, orig_point, set_point, new_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+        ExpectIntEQ(EC_POINT_add(group, orig_point, new_point, set_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+        /* 1*G + 1*(-G) is infinity */
+        ExpectNotNull(neg_g = EC_POINT_dup(Gxy, group));
+        ExpectIntEQ(EC_POINT_invert(group, neg_g, NULL), 1);
+        ExpectIntEQ(EC_POINT_mul(group, orig_point, BN_value_one(), neg_g,
+                                 BN_value_one(), NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+#endif
+        EC_POINT_free(neg_g);
         EC_POINT_free(orig_point);
     }
 #endif
