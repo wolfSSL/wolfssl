@@ -12847,12 +12847,11 @@ static void bench_frodokem_keygen(int type, const char* name, int keySize,
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
-            wc_FrodoKemKey_Free(key);
             ret = wc_FrodoKemKey_Init(key, type, HEAP_HINT, INVALID_DEVID);
             if (ret != 0)
                 goto exit;
-
             ret = wc_FrodoKemKey_MakeKey(key, &gRng);
+            wc_FrodoKemKey_Free(key);
             if (ret != 0)
                 goto exit;
             RECORD_MULTI_VALUE_STATS();
@@ -12882,6 +12881,7 @@ exit:
 static void bench_frodokem_encap(int type, const char* name, int keySize,
     FrodoKemKey* key1, FrodoKemKey* key2)
 {
+#ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
     int ret = 0, times, count, pending = 0;
     double start;
     const char**desc = bench_desc_words[lng_index];
@@ -12897,6 +12897,14 @@ static void bench_frodokem_encap(int type, const char* name, int keySize,
     WC_ALLOC_VAR(ct, byte, FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
     WC_ALLOC_VAR(ss, byte, FRODOKEM_MAX_LENSEC, HEAP_HINT);
     WC_ALLOC_VAR(pub, byte, FRODOKEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT);
+
+    ret = wc_FrodoKemKey_Init(key1, type, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        goto exit;
+
+    ret = wc_FrodoKemKey_MakeKey(key1, &gRng);
+    if (ret != 0)
+        goto exit;
 
     ret = wc_FrodoKemKey_PublicKeySize(key1, &pubLen);
     if (ret != 0) {
@@ -12977,6 +12985,9 @@ exit_decap:
 
 exit:
 
+    wc_FrodoKemKey_Free(key2);
+    wc_FrodoKemKey_Free(key1);
+
     WC_FREE_VAR(ct, HEAP_HINT);
     WC_FREE_VAR(ss, HEAP_HINT);
     WC_FREE_VAR(pub, HEAP_HINT);
@@ -12985,6 +12996,13 @@ exit:
         printf("error: bench_frodokem_encap() failed with code %d.\n", ret);
 
     return;
+#else
+   (void)type;
+   (void)name;
+   (void)keySize;
+   (void)key1;
+   (void)key2;
+#endif /* !WOLFSSL_FRODOKEM_NO_MAKE_KEY */
 }
 #endif
 
@@ -13055,10 +13073,14 @@ void bench_frodokem(int type)
     }
 #endif
 
-    /* Zero the key objects so the wc_FrodoKemKey_Free calls below are safe even
-     * if a benchmark helper returns before initializing its key. */
+    /* Zero the key objects so wc_FrodoKemKey_Free calls are safe even
+     * if a benchmark helper cleans up before initializing its key. */
     XMEMSET(key1, 0, sizeof(*key1));
     XMEMSET(key2, 0, sizeof(*key2));
+#ifdef WOLF_CRYPTO_CB
+    key1->devId = INVALID_DEVID;
+    key2->devId = INVALID_DEVID;
+#endif
 
     for (v = 0; v < sizeof(mods) / sizeof(mods[0]); v++) {
         int mod = mods[v];
@@ -13077,9 +13099,6 @@ void bench_frodokem(int type)
         bench_frodokem_encap(fullType, name, keySize, key1, key2);
 #endif
     }
-
-    wc_FrodoKemKey_Free(key2);
-    wc_FrodoKemKey_Free(key1);
 
     WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
