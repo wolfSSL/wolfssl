@@ -2584,7 +2584,7 @@ static int ProcessBufferCertTypes(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if ((ctx != NULL) && (ctx->cm != NULL) &&
                 (ctx->cm->verifyCallback != NULL)) {
             /* Verify and use callback. */
-            ret = CM_VerifyBuffer_ex(ctx->cm, buff, sz, format, ret);
+            ret = CM_VerifyBuffer_ex(ctx->cm, buff, sz, format, ret, NULL);
             /* Convert error. */
             if (ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;

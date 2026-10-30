@@ -11498,7 +11498,8 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
     \brief The function sets the verifyCallback function in the Certificate
     Manager. If present, it will be called for each cert loaded. If there is
     a verification error, the verify callback can be used to over-ride the
-    error.
+    error. A waived date error is followed by a second call for the CRL
+    error, if there is one.
 
     \return none No return.
 
