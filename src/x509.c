@@ -17663,7 +17663,8 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                 return WOLFSSL_FAILURE;
             }
             cert->pubKeyOID = ECDSAk;
-            cert->pkCurveOID = ecc->dp->oidSum;
+            if (ecc->dp != NULL)
+                cert->pkCurveOID = ecc->dp->oidSum;
         }
         break;
 #endif
