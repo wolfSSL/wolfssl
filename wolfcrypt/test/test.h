@@ -291,6 +291,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dsa_test(void);
 #ifdef WOLFCRYPT_HAVE_SRP
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
+#ifdef WOLFCRYPT_HAVE_ECJPAKE
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecjpake_test(void);
+#endif
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 #ifdef WC_TEST_RNG_AUTOLOCK
