@@ -251,6 +251,37 @@ error:
     return NULL;
 }
 
+/* Return 1 if the DER certificate is equal to on of 'certs' passed in. */
+static int wolfSSL_PKCS7_CertInStack(WOLFSSL_STACK* certs, const byte* der,
+                                     word32 derSz)
+{
+    int i;
+    int num;
+
+    if (certs == NULL || der == NULL || derSz == 0) {
+        return 0;
+    }
+
+    num = wolfSSL_sk_X509_num(certs);
+    for (i = 0; i < num; i++) {
+        WOLFSSL_X509* x509;
+        const byte*   certDer = NULL;
+        int certDerSz = 0;
+
+        x509 = wolfSSL_sk_X509_value(certs, i);
+        if (x509 != NULL) {
+            certDer = wolfSSL_X509_get_der(x509, &certDerSz);
+        }
+        if (certDer != NULL && certDerSz > 0 && (word32)certDerSz == derSz &&
+                XMEMCMP(certDer, der, derSz) == 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
 /**
  * Return stack of signers contained in PKCS7 cert.
  * Notes:
@@ -258,7 +289,8 @@ error:
  * - Returned WOLFSSL_STACK must be freed by caller.
  *
  * pkcs7 - PKCS7 struct to retrieve signer certs from.
- * certs - currently unused
+ * certs - certificates the signer may be taken from. With PKCS7_NOINTERN the
+ *         signer must be one of these.
  * flags - flags to control function behavior.
  *
  * Return WOLFSSL_STACK of signers on success, NULL on error.
@@ -276,8 +308,13 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return NULL;
 
     if (flags & PKCS7_NOINTERN) {
-        WOLFSSL_MSG("PKCS7_NOINTERN flag not supported");
-        return NULL;
+        /* With this flag the signer must be in certs stack. A signer that is
+         * only embedded in the message is rejected. */
+        if (!wolfSSL_PKCS7_CertInStack(certs, p7->pkcs7.verifyCert,
+                                       p7->pkcs7.verifyCertSz)) {
+            WOLFSSL_MSG("PKCS7_NOINTERN: verified signer not in certs");
+            return NULL;
+        }
     }
 
     /* Prefer the certificate that actually verified the signature. Falling
@@ -314,8 +351,6 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         wolfSSL_sk_X509_pop_free(signers, NULL);
         return NULL;
     }
-
-    (void)certs;
 
     return signers;
 }
@@ -805,13 +840,6 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         p7->pkcs7.contentSz = (word32)memSz;
     }
 
-    /* certs is the list of certificates to find the cert with issuer/serial. */
-    (void)certs;
-    /* store is the certificate store to use to verify signer certificate
-     * associated with the signers.
-     */
-    (void)store;
-
     ret = wc_PKCS7_VerifySignedData(&p7->pkcs7, p7->data, p7->len);
     if (ret != 0)
         return WOLFSSL_FAILURE;
@@ -826,6 +854,15 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
      */
     if (p7->pkcs7.verifyCert == NULL) {
         WOLFSSL_MSG("PKCS7 has no verified signer (degenerate/certs-only)");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* A signer lookup happens regardless of PKCS7_NOVERIFY. With PKCS7_NOINTERN
+     * the signer must be in the certs stack. */
+    if ((flags & PKCS7_NOINTERN) &&
+            !wolfSSL_PKCS7_CertInStack(certs, p7->pkcs7.verifyCert,
+                                       p7->pkcs7.verifyCertSz)) {
+        WOLFSSL_MSG("PKCS7_NOINTERN: verified signer not in certs");
         return WOLFSSL_FAILURE;
     }
 
@@ -851,7 +888,10 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 
         for (i = 0; i < wolfSSL_sk_X509_num(signers); i++) {
             signer = wolfSSL_sk_X509_value(signers, i);
-            if (wolfSSL_X509_STORE_CTX_init(ctx, store, signer, NULL)
+
+            /* Trust anchors come from the store and untrusted intermediates
+             * from the certs stack. */
+            if (wolfSSL_X509_STORE_CTX_init(ctx, store, signer, certs)
                         != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Failed to initialize X509 STORE CTX");
                 wolfSSL_sk_X509_pop_free(signers, NULL);
