@@ -2041,7 +2041,8 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshakeType,
         messageLength, size);
     *processedSize = idx;
-    if (ret != 0)
+    /* on WANT_WRITE the msg was processed, proceed even if buffered */
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(WANT_WRITE))
         return ret;
 
     if (!implicitAck)
@@ -2050,10 +2051,10 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
 
     /* check if we have buffered some message */
-    if (Dtls13NextMessageComplete(ssl))
+    if (ret == 0 && Dtls13NextMessageComplete(ssl))
         return Dtls13ProcessBufferedMessages(ssl);
 
-    return 0;
+    return ret;
 }
 
 int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32* inOutIdx,
