@@ -3646,11 +3646,15 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
     #ifndef NO_FILESYSTEM
         XFILE fp;
 
-        WOLFSSL_ENTER("wolfSSL_BIO_new_file");
+        WOLFSSL_ENTER("wolfSSL_BIO_read_filename");
 
         if ((wolfSSL_BIO_get_fp(b, &fp) == WOLFSSL_SUCCESS) && (fp != XBADFILE))
         {
-            XFCLOSE(fp);
+            /* Only close the old file if the BIO owns it. */
+            if (b->shutdown == WOLFSSL_BIO_CLOSE) {
+                XFCLOSE(fp);
+            }
+            b->ptr.fh = XBADFILE;
         }
 
         fp = XFOPEN(name, "rb");
