@@ -1299,16 +1299,8 @@ if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
 endif
 
-if BUILD_CURVE448
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve448.c
-endif
-
 if BUILD_ED448
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ed448.c
-endif
-
-if BUILD_CURVE25519
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
 endif
 
 if BUILD_ED25519
@@ -1480,6 +1472,14 @@ endif !BUILD_FIPS_NO_POST
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/entropy-timers.c
+endif
+
+# Past wolfcrypt_last.c: X25519 and X448 are not v7 module services.
+if BUILD_CURVE25519
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
+endif
+if BUILD_CURVE448
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve448.c
 endif
 
 endif BUILD_FIPS_V7_PLUS

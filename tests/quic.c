@@ -2279,7 +2279,8 @@ static int test_quic_key_share(int verbose) {
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
 
-#ifdef HAVE_CURVE25519
+/* FIPS TLS offers X25519 only inside a hybrid group. */
+#if defined(HAVE_CURVE25519) && !defined(HAVE_FIPS)
     ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "X25519:P-256")
                == WOLFSSL_SUCCESS);
     ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "X25519")
@@ -2304,7 +2305,7 @@ static int test_quic_key_share(int verbose) {
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
 
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(HAVE_FIPS)
     ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "X25519:P-256")
                == WOLFSSL_SUCCESS);
     ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "P-256")
@@ -2329,7 +2330,7 @@ static int test_quic_key_share(int verbose) {
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
 
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(HAVE_FIPS)
     ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "P-256")
                == WOLFSSL_SUCCESS);
     ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "X25519")
