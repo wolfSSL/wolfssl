@@ -27916,6 +27916,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     DerBuffer*  der;
     word32      algId = 0;
     word32      idx;
+    int         certLen;
 #ifdef OPENSSL_EXTRA
     char        beginBuf[PEM_LINE_LEN + 1]; /* add 1 for null terminator */
     char        endBuf[PEM_LINE_LEN + 1];   /* add 1 for null terminator */
@@ -28226,6 +28227,16 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             return BUFFER_E;
         }
         break;
+    }
+
+    /* A certificate found under the TRUSTED CERTIFICATE label carries
+     * auxiliary trust data after it. Keep only the certificate, so it parses
+     * like one loaded from a CERTIFICATE block. */
+    if ((header == BEGIN_TRUSTED_CERT) && (type != TRUSTED_CERT_TYPE)) {
+        idx = 0;
+        if (GetSequence(der->buffer, &idx, &certLen, der->length) >= 0) {
+            der->length = idx + (word32)certLen;
+        }
     }
 
     if ((header == BEGIN_PRIV_KEY

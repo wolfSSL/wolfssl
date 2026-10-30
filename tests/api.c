@@ -4080,6 +4080,35 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     return EXPECT_RESULT();
 }
 
+/* Load a CA stored in OpenSSL's TRUSTED CERTIFICATE format, as some systems
+ * ship their CA files. The auxiliary trust data after the certificate must
+ * not make the CA get rejected. */
+static int test_wolfSSL_CTX_load_verify_locations_trusted_cert(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* trusted_cert = "./certs/test/ossl-trusted-cert.pem";
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, trusted_cert, NULL),
+        WOLFSSL_SUCCESS);
+
+    /* The loaded CA is usable, the self signed certificate verifies
+     * against it. */
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, trusted_cert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_load_system_CA_certs(void)
 {
     int res = TEST_SKIPPED;
@@ -46957,6 +46986,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_use_RSAPrivateKey_file),
     TEST_DECL(test_wolfSSL_CTX_use_PrivateKey),
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations),
+    TEST_DECL(test_wolfSSL_CTX_load_verify_locations_trusted_cert),
     /* Large number of memory allocations. */
     TEST_DECL(test_wolfSSL_CTX_load_system_CA_certs),
     TEST_DECL(test_wolfSSL_CTX_add_extra_chain_cert),
