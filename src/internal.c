@@ -17953,6 +17953,66 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
 
     return 0;
 }
+
+/* Record the chain index of a CA whose Extended Key Usage error the verify
+ * callback accepted. The leaf is index 0. Its issuer is index 1. */
+static void RememberWaivedCaEku(ProcPeerCertArgs* args)
+{
+    if (args == NULL || args->certIdx < 0 || args->certIdx >= MAX_CHAIN_DEPTH)
+        return;
+    args->ekuWaiveMask |= (word16)(1U << args->certIdx);
+}
+
+/* Check the Extended Key Usage of each CA from ca up to the self-signed trust
+ * anchor against the TLS purpose. waiveMask names chain indexes whose error
+ * this handshake already accepted. The first signer is the leaf issuer, chain
+ * index 1. A waived CA is skipped and the walk continues. With
+ * IGNORE_NAME_CONSTRAINTS there is no issuer lookup, so only ca is checked.
+ * pending holds Certificate Status Request v2 signers that are not in the
+ * certificate manager yet.
+ * Returns 0, EXTKEYUSE_AUTH_E or MAX_CHAIN_ERROR. */
+static int CheckSignerExtKeyUsage(const WOLFSSL* ssl, Signer* ca,
+    Signer* pending, unsigned waiveMask)
+{
+    byte purpose;
+    Signer* prev = NULL;
+    Signer* parent;
+    int depth = 0;
+    int certIdx = 1;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        purpose = EXTKEYUSE_SERVER_AUTH;
+    else
+        purpose = EXTKEYUSE_CLIENT_AUTH;
+
+    while (ca != NULL && !ca->selfSigned) {
+        int waived = (certIdx < MAX_CHAIN_DEPTH) &&
+            ((waiveMask & (1U << certIdx)) != 0);
+
+        if (ca->extExtKeyUsageSet &&
+                (ca->extKeyUsage & (EXTKEYUSE_ANY | purpose)) == 0 &&
+                !waived) {
+            WOLFSSL_MSG("Issuer CA ExtKeyUse doesn't allow TLS peer auth");
+            return EXTKEYUSE_AUTH_E;
+        }
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        parent = wolfssl_local_FindSignerByAkidOrName(SSL_CM(ssl), pending, ca);
+    #else
+        (void)pending;
+        parent = NULL;
+    #endif
+        /* Stop on missing parent, self-loop, or A->B->A cycle. */
+        if (parent == NULL || parent == ca || parent == prev)
+            break;
+        if (++depth >= WOLFSSL_MAX_CHAIN_DEPTH)
+            return MAX_CHAIN_ERROR;
+        prev = ca;
+        ca = parent;
+        certIdx++;
+    }
+
+    return 0;
+}
 #endif /* IGNORE_KEY_EXTENSIONS */
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
@@ -19582,7 +19642,21 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
                     /* Do verify callback */
-                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    {
+                        int cbErr = ret;
+
+                        ret = DoVerifyCallback(SSL_CM(ssl), ssl, cbErr, args);
+                    #ifndef IGNORE_KEY_EXTENSIONS
+                        /* The later issuer walk repeats this CA. Remember an
+                         * accepted purpose error so that walk does not reject
+                         * it again. Ancestors are still checked. */
+                        if (ret == 0 &&
+                                cbErr == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) &&
+                                args->dCert->isCA) {
+                            RememberWaivedCaEku(args);
+                        }
+                    #endif
+                    }
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
                                ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
@@ -20106,6 +20180,40 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = EXTKEYUSE_AUTH_E;
                             WOLFSSL_ERROR_VERBOSE(ret);
                         }
+                    }
+                }
+
+                /* CAs the peer did not send were not covered by
+                 * CheckChainCAExtKeyUsage(). Chain CAs whose purpose error
+                 * this handshake already accepted are skipped. */
+                if (ret == 0 && !ssl->options.verifyNone &&
+                    #ifdef WOLFSSL_TRUST_PEER_CERT
+                        !args->haveTrustPeer &&
+                    #endif
+                        !UsingChainVerifyCb(ssl)) {
+                    Signer* ekuPending = NULL;
+
+                #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+                    !defined(NO_TLS)
+                    if (TLSX_CSR2_IsMulti(ssl->extensions)) {
+                        ekuPending = TLSX_CSR2_GetPendingSigners(
+                            ssl->extensions);
+                    }
+                #endif
+                    ret = CheckSignerExtKeyUsage(ssl, args->dCert->ca,
+                        ekuPending, args->ekuWaiveMask);
+                    if (ret != 0) {
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        /* Return first cert error here */
+                        if (ssl->peerVerifyRet == 0) {
+                            ssl->peerVerifyRet =
+                                (ret == WC_NO_ERR_TRACE(MAX_CHAIN_ERROR)) ?
+                                WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG :
+                                WOLFSSL_X509_V_ERR_INVALID_PURPOSE;
+                        }
+                    #endif
                     }
                 }
             #endif /* IGNORE_KEY_EXTENSIONS */
