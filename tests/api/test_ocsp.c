@@ -6614,3 +6614,124 @@ int test_wolfIO_DecodeUrl_host_bounds(void)
     return TEST_SKIPPED;
 }
 #endif /* HAVE_HTTP_CLIENT */
+
+/* thisUpdate must be present, no more than sec seconds in the future and no
+ * older than maxsec; nextUpdate is optional but when present must be valid
+ * and not have passed. Issue 10718. */
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+int test_ocsp_check_validity(void)
+{
+    EXPECT_DECLS;
+    time_t now = wc_Time(0);
+    WOLFSSL_ASN1_TIME thisUpd;
+    WOLFSSL_ASN1_TIME nextUpd;
+    const long DAY = 24L * 60 * 60;
+
+    /* Fresh thisUpdate, no nextUpdate. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_SUCCESS);
+
+    /* thisUpdate older than maxsec (replayed response). */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* thisUpdate in the future beyond the skew. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* thisUpdate in the future within the skew. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, 100));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_SUCCESS);
+
+    /* NULL thisUpdate. */
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(NULL, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Zero-length thisUpdate. */
+    XMEMSET(&thisUpd, 0, sizeof(thisUpd));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Expired nextUpdate. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* nextUpdate in the past within the skew. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -120));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, -100));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, DAY),
+        WOLFSSL_SUCCESS);
+
+    /* nextUpdate in the future. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, 300),
+        WOLFSSL_SUCCESS);
+
+    /* nextUpdate before thisUpdate. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, -120));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Zero-length nextUpdate. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    XMEMSET(&nextUpd, 0, sizeof(nextUpd));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, DAY),
+        WOLFSSL_FAILURE);
+
+    /* Negative maxsec disables the age check. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, -1),
+        WOLFSSL_SUCCESS);
+
+    /* thisUpdate within a larger maxsec. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 2 * DAY),
+        WOLFSSL_SUCCESS);
+
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
+    /* Through wolfSSL_OCSP_single_get0_status, which returns NULL for an
+     * absent nextUpdate. */
+    {
+        WOLFSSL_OCSP_SINGLERESP single;
+        CertStatus certStatus;
+        WOLFSSL_ASN1_TIME* gThis = NULL;
+        WOLFSSL_ASN1_TIME* gNext = NULL;
+
+        XMEMSET(&single, 0, sizeof(single));
+        XMEMSET(&certStatus, 0, sizeof(certStatus));
+        certStatus.status = CERT_GOOD;
+        single.status = &certStatus;
+
+        ExpectNotNull(wolfSSL_ASN1_TIME_adj(&certStatus.thisDateParsed, now, 0,
+            -60));
+        ExpectIntEQ(wolfSSL_OCSP_single_get0_status(&single, NULL, NULL,
+            &gThis, &gNext), CERT_GOOD);
+        ExpectIntEQ(wolfSSL_OCSP_check_validity(gThis, gNext, 300, DAY),
+            WOLFSSL_SUCCESS);
+
+        ExpectNotNull(wolfSSL_ASN1_TIME_adj(&certStatus.thisDateParsed, now, 0,
+            -DAY));
+        ExpectIntEQ(wolfSSL_OCSP_single_get0_status(&single, NULL, NULL,
+            &gThis, &gNext), CERT_GOOD);
+        ExpectIntEQ(wolfSSL_OCSP_check_validity(gThis, gNext, 300, 300),
+            WOLFSSL_FAILURE);
+    }
+#endif /* WOLFSSL_OCSP_PARSE_STATUS */
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_check_validity(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
