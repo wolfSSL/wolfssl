@@ -10652,6 +10652,33 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 }
 
 /* Free any handshake resources no longer needed */
+/* Free the ephemeral key exchange material. Each handshake, a renegotiation
+ * included, makes its own. */
+void FreeEphemeralKeys(WOLFSSL* ssl)
+{
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+    /* Present holds the type; only an ECC key is left allocated without it. */
+    FreeKey(ssl, (ssl->eccTempKeyPresent != 0) ? ssl->eccTempKeyPresent :
+        DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
+    ssl->eccTempKeyPresent = 0;
+#endif
+#ifndef NO_DH
+    if (ssl->buffers.serverDH_Priv.buffer != NULL) {
+        ForceZero(ssl->buffers.serverDH_Priv.buffer,
+            ssl->buffers.serverDH_Priv.length);
+    }
+    XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap,
+        DYNAMIC_TYPE_PRIVATE_KEY);
+    ssl->buffers.serverDH_Priv.buffer = NULL;
+    ssl->buffers.serverDH_Priv.length = 0;
+    XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    ssl->buffers.serverDH_Pub.buffer = NULL;
+    ssl->buffers.serverDH_Pub.length = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_DH, (void**)&ssl->buffers.serverDH_Key);
+#endif
+    (void)ssl;
+}
+
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("FreeHandshakeResources");
@@ -10674,6 +10701,8 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
     }
 #endif
+
+    FreeEphemeralKeys(ssl);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     /* advertiseOnly clients never renegotiate, so do not retain (and leave
@@ -10776,35 +10805,6 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
     ssl->peerEccKeyPresent = 0;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-    {
-        int dtype;
-    #ifdef HAVE_ECC
-        dtype = DYNAMIC_TYPE_ECC;
-    #elif defined(HAVE_CURVE25519)
-        dtype = DYNAMIC_TYPE_CURVE25519;
-    #else
-        dtype = DYNAMIC_TYPE_CURVE448;
-    #endif
-    #if defined(HAVE_ECC) && defined(HAVE_CURVE25519)
-        if (ssl->peerX25519KeyPresent ||
-                              ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE25519)
-         {
-            dtype = DYNAMIC_TYPE_CURVE25519;
-         }
-    #endif
-    #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-                                                          defined(HAVE_CURVE448)
-        if (ssl->peerX448KeyPresent ||
-                                ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE448)
-         {
-            dtype = DYNAMIC_TYPE_CURVE448;
-         }
-    #endif
-        FreeKey(ssl, dtype, (void**)&ssl->eccTempKey);
-        ssl->eccTempKeyPresent = 0;
-    }
-#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 #ifdef HAVE_CURVE25519
     FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
     ssl->peerX25519KeyPresent = 0;
@@ -10815,14 +10815,6 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif
 
 #ifndef NO_DH
-    if (ssl->buffers.serverDH_Priv.buffer) {
-        ForceZero(ssl->buffers.serverDH_Priv.buffer,
-                                             ssl->buffers.serverDH_Priv.length);
-    }
-    XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-    ssl->buffers.serverDH_Priv.buffer = NULL;
-    XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    ssl->buffers.serverDH_Pub.buffer = NULL;
     /* Release the parameters (p,g) back here rather than hold them for
      * the life of the connection. */
     if (ssl->buffers.weOwnDH) {
