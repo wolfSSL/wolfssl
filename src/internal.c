@@ -3029,7 +3029,7 @@ int wolfSSL_crypto_policy_init_ctx(WOLFSSL_CTX * ctx,
             break;
         case 0:
         default:
-            ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
+            minDowngrade = WOLFSSL_MIN_DOWNGRADE;
             break;
         }
     }
@@ -3171,7 +3171,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     else
 #endif /* WOLFSSL_DTLS */
     {
-        /* current default: TLSv1_MINOR */
         ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
     }
 
@@ -34389,7 +34388,7 @@ static byte GetSigAlgFromName(const char* name, int len)
  *
  * suites  [in,out]  Cipher suites and signature algorithms.
  * list    [in]      String representing hash/signature algorithms to set.
- * returns  0 on failure.
+ * returns  0 on failure, leaving suites unchanged.
  *          1 on success.
  */
 int SetSuitesHashSigAlgo(Suites* suites, const char* list)
@@ -34399,9 +34398,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     const char* s = list;
     byte sig_alg = 0;
     byte mac_alg = no_mac;
-
-    /* Setting is destructive on error. */
-    suites->hashSigAlgoSz = 0;
+    byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
 
     do {
         if (*list == '+') {
@@ -34441,7 +34438,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     break;
                 }
             }
-            AddSuiteHashSigAlgo(suites->hashSigAlgo, mac_alg, sig_alg, 0, &idx);
+            AddSuiteHashSigAlgo(hashSigAlgo, mac_alg, sig_alg, 0, &idx);
             sig_alg = 0;
             mac_alg = no_mac;
             s = list + 1;
@@ -34454,7 +34451,8 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     if (s != list && (sig_alg != 0 || mac_alg != 0)) {
         ret = 0;
     }
-    else {
+    if (ret == 1) {
+        XMEMCPY(suites->hashSigAlgo, hashSigAlgo, idx);
         suites->hashSigAlgoSz = idx;
     }
 
