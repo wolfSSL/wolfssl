@@ -2233,13 +2233,14 @@ WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store)
     if (store == NULL || store->cm == NULL)
         return WOLFSSL_SUCCESS;
 
-    /* Push non-self-signed intermediates from store->certs into the CM. */
+    /* Push non-self-signed intermediates from store->certs into the CM. They
+     * are added as chain CAs so AddCA() enforces CA:TRUE and keyCertSign. */
     if (store->certs != NULL) {
         num = wolfSSL_sk_X509_num(store->certs);
         for (i = 0; i < num; i++) {
             x509 = wolfSSL_sk_X509_value(store->certs, i);
             if (x509 != NULL) {
-                ret = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
+                ret = X509StoreAddCa(store, x509, WOLFSSL_CHAIN_CA);
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("X509StorePushCertsToCM: failed to add cert");
                     anyFail = 1;
@@ -2285,8 +2286,8 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
     if (store != NULL && store->cm != NULL && x509 != NULL
                                                 && x509->derCert != NULL) {
         /* Mimic the openssl behavior, must be self signed to be considered
-         * trusted, addCA() internals will do additional checks for
-         * CA=TRUE */
+         * trusted. Other certs are added to the CM as chain CAs, for which
+         * AddCA() checks CA=TRUE and keyCertSign. */
         if (wolfSSL_X509_NAME_cmp(&x509->issuer, &x509->subject) == 0) {
             result = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
             if (result == WOLFSSL_SUCCESS && store->trusted != NULL) {
@@ -2321,9 +2322,16 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
             }
             else {
                 /* If store->certs is NULL, this is an X509_STORE managed by an
-                 * SSL_CTX, preserve behavior and always add as USER_CA */
+                 * SSL_CTX, add straight to the CM as a chain CA */
                 result = X509StoreAddCa(
-                            store, x509, WOLFSSL_USER_CA);
+                            store, x509, WOLFSSL_CHAIN_CA);
+                if (result == WC_NO_ERR_TRACE(NOT_CA_ERROR)) {
+                    /* Like OpenSSL, accept the cert into the store, but it
+                     * cannot act as an issuer, so leave it out of the CM. */
+                    WOLFSSL_MSG("X509_STORE_add_cert: not a CA, not added to "
+                                "CertManager");
+                    result = WOLFSSL_SUCCESS;
+                }
             }
         }
     }
