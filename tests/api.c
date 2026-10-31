@@ -27645,6 +27645,60 @@ static time_t test_wolfSSL_OCSP_REQ_CTX_time_cb(time_t* t)
 }
 #endif
 
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && \
+    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_SM2) && !defined(WOLFSSL_SM3) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+
+#define TEST_OCSP_OOM
+static int ocsp_fail_next_alloc = 0;
+static int ocsp_alloc_failed = 0;
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* ocsp_oom_malloc_cb(size_t size, const char* func,
+    unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* ocsp_oom_malloc_cb(size_t size)
+{
+#endif
+    if (ocsp_fail_next_alloc) {
+        ocsp_fail_next_alloc = 0;
+        ocsp_alloc_failed = 1;
+        return NULL;
+    }
+    return malloc(size);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void ocsp_oom_free_cb(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void ocsp_oom_free_cb(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* ocsp_oom_realloc_cb(void* ptr, size_t size, const char* func,
+    unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* ocsp_oom_realloc_cb(void* ptr, size_t size)
+{
+#endif
+    return realloc(ptr, size);
+}
+#endif
+
 static int test_wolfSSL_OCSP_REQ_CTX(void)
 {
     EXPECT_DECLS;
@@ -27830,6 +27884,14 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     STACK_OF(X509_OBJECT) *str_objs = NULL;
     X509_OBJECT *x509_obj = NULL;
     STACK_OF(WOLFSSL_STRING) *skStr = NULL;
+#ifdef TEST_OCSP_OOM
+    OCSP_CERTID *cid2 = NULL;
+    OCSP_REQUEST *req2 = NULL;
+    wolfSSL_Malloc_cb  prev_mc = NULL;
+    wolfSSL_Free_cb    prev_fc = NULL;
+    wolfSSL_Realloc_cb prev_rc = NULL;
+    int allocators_set = 0;
+#endif
 
     ExpectNotNull(bio1 = BIO_new(BIO_s_bio()));
     ExpectNotNull(bio2 = BIO_new(BIO_s_bio()));
@@ -27871,6 +27933,29 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     ExpectNotNull(cid = OCSP_cert_to_id(EVP_sha1(), cert, issuer));
     ExpectNotNull(OCSP_request_add0_id(req, cid));
     ExpectIntEQ(OCSP_request_add1_nonce(req, NULL, -1), 1);
+#ifdef TEST_OCSP_OOM
+    /* A failed allocation must leave req unchanged and cid owned by the
+     * caller. */
+    ExpectNotNull(req2 = OCSP_REQUEST_new());
+    ExpectNotNull(cid2 = OCSP_cert_to_id(EVP_sha1(), cert, issuer));
+    ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &prev_fc, &prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(ocsp_oom_malloc_cb, ocsp_oom_free_cb,
+            ocsp_oom_realloc_cb), 0);
+    if (EXPECT_SUCCESS())
+        allocators_set = 1;
+    ocsp_alloc_failed = 0;
+    ocsp_fail_next_alloc = 1;
+    ExpectNull(OCSP_request_add0_id(req2, cid2));
+    ocsp_fail_next_alloc = 0;
+    if (allocators_set)
+        (void)wolfSSL_SetAllocators(prev_mc, prev_fc, prev_rc);
+    ExpectIntEQ(ocsp_alloc_failed, 1);
+    if (req2 != NULL) {
+        ExpectNull(req2->cid);
+        ExpectNull(req2->serial);
+        ExpectIntEQ(req2->serialSz, 0);
+    }
+#endif
 
     ExpectNull(OCSP_sendreq_new(bio1, "/\r\nX-Injected: yes", NULL, -1));
     ExpectNull(OCSP_sendreq_new(bio1, "/\nX-Injected: yes", NULL, -1));
@@ -27906,7 +27991,10 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     ExpectIntEQ(wc_SetTimeCb(NULL), 0);
     ExpectNotNull(rsp);
 #endif
-
+#ifdef TEST_OCSP_OOM
+    OCSP_CERTID_free(cid2);
+    OCSP_REQUEST_free(req2);
+#endif
     OCSP_REQ_CTX_free(ctx);
     OCSP_REQUEST_free(req);
     OCSP_RESPONSE_free(rsp);
