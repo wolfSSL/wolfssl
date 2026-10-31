@@ -28,6 +28,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/internal.h>
 #include <wolfssl/openssl/bio.h>
 #include <wolfssl/openssl/buffer.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -180,6 +181,21 @@ int test_wolfSSL_BIO_gets(void)
 
         BIO_free(f_bio);
         f_bio = NULL;
+
+        /* BIO_read_filename must not close a BIO_NOCLOSE fp the caller
+         * still owns */
+        f = XBADFILE;
+        ExpectNotNull(f_bio = BIO_new(BIO_s_file()));
+        ExpectTrue((f = XFOPEN(svrCertFile, "rb")) != XBADFILE);
+        ExpectIntEQ((int)BIO_set_fp(f_bio, f, BIO_NOCLOSE), SSL_SUCCESS);
+        ExpectIntEQ(BIO_read_filename(f_bio, svrCertFile), SSL_SUCCESS);
+        ExpectIntGT((int)XFREAD(bio_buffer, 1, 2, f), 0);
+        ExpectIntGT(BIO_gets(f_bio, bio_buffer, bufferSz), 0);
+        BIO_free(f_bio);
+        f_bio = NULL;
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+        }
     }
 #endif /* NO_FILESYSTEM */
 
@@ -1520,6 +1536,15 @@ int test_wolfSSL_BIO_BIO_ring_read(void)
     ExpectIntEQ(BIO_read(bio2, tmp, 40), 40);
     ExpectBufEQ(tmp, data, 40);
 
+    /* write exactly to the end of the ring with a non-zero read index. The
+     * write index must not eagerly wrap to 0 or the unread data is lost. */
+    ExpectIntEQ(BIO_write(bio1, data, 40), 40);
+    ExpectIntEQ(BIO_read(bio2, tmp, 20), 20);
+    ExpectIntEQ(BIO_write(bio1, data, 10), 10);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio2), 30);
+    ExpectIntEQ(BIO_read(bio2, tmp, 30), 30);
+    ExpectBufEQ(tmp, data, 30);
+
     BIO_free(bio1);
     BIO_free(bio2);
 #endif
@@ -1827,7 +1852,17 @@ int test_wolfSSL_BIO_ctrl_pending_chain(void)
     ExpectNotNull(b64 = BIO_new(BIO_f_base64()));
     ExpectNotNull(mem = BIO_new(BIO_s_mem()));
     ExpectNotNull(BIO_push(md, b64));
-    ExpectNotNull(BIO_push(b64, mem));
+    /* pushing onto a multi-node chain appends at the tail and returns the
+     * head */
+    ExpectPtrEq(BIO_push(md, mem), md);
+    ExpectPtrEq(BIO_next(b64), mem);
+    ExpectPtrEq(mem == NULL ? NULL : mem->prev, b64);
+    /* pushing a BIO already in the chain must not create a cycle */
+    ExpectPtrEq(BIO_push(md, b64), md);
+    ExpectPtrEq(BIO_push(md, mem), md);
+    ExpectPtrEq(BIO_push(mem, md), mem);
+    ExpectPtrEq(BIO_next(b64), mem);
+    ExpectNull(BIO_next(mem));
 
     /* Write directly to mem so wrSz is set */
     ExpectIntEQ(BIO_write(mem, msg, sizeof(msg)), (int)sizeof(msg));
