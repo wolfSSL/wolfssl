@@ -14,7 +14,7 @@ keyUsage               = critical, digitalSignature
 extendedKeyUsage       = serverAuth, clientAuth
 subjectKeyIdentifier   = 01:02:03:04
 authorityKeyIdentifier = keyid:always
-subjectAltName         = DNS:www.example.com, @alt_names
+subjectAltName         = critical, DNS:www.example.com, @alt_names
 
 [ alt_names ]
 DNS.1   = a.example.com
@@ -47,3 +47,18 @@ subjectAltName = IP:999.1.1.1
 
 [ bad_san_partial ]
 subjectAltName = DNS:added.example.com, URI:
+
+[ skid_hash ]
+subjectKeyIdentifier = hash
+
+[ bad_ku_noncrit ]
+keyUsage = digitalSignature
+
+[ bad_eku_crit ]
+extendedKeyUsage = critical, serverAuth
+
+[ bad_skid_crit ]
+subjectKeyIdentifier = critical, hash
+
+[ bad_akid_crit ]
+authorityKeyIdentifier = critical, keyid

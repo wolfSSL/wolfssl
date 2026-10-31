@@ -1230,6 +1230,59 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO) && defined(HAVE_ECC) && \
+    !defined(NO_SHA) && !defined(NO_SHA256)
+/* Check "subjectKeyIdentifier = hash" gives the subject key identifier that
+ * OpenSSL made the same way for the certificate in file. The public key is
+ * either the one parsed from the file or one set with X509_set_pubkey(). */
+static int test_X509V3_EXT_add_nconf_skid_hash(CONF* conf, const char* file,
+    int setPubKey)
+{
+    EXPECT_DECLS;
+    X509* ref = NULL;
+    X509* x509 = NULL;
+    EVP_PKEY* pub = NULL;
+    const ASN1_STRING* skid = NULL;
+    byte expSkid[CTC_MAX_SKID_SIZE];
+    int expSkidSz = 0;
+
+    ExpectNotNull(ref = wolfSSL_X509_load_certificate_file(file,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(skid = X509_get0_subject_key_id(ref));
+    ExpectIntLE(expSkidSz = ASN1_STRING_length(skid), (int)sizeof(expSkid));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(expSkid, ASN1_STRING_get0_data(skid), (size_t)expSkidSz);
+    }
+    if (setPubKey) {
+        ExpectNotNull(x509 = X509_new());
+        ExpectNotNull(pub = X509_get_pubkey(ref));
+        ExpectIntEQ(X509_set_pubkey(x509, pub), WOLFSSL_SUCCESS);
+        EVP_PKEY_free(pub);
+    }
+    else {
+        x509 = ref;
+        ref = NULL;
+    }
+
+    /* Start without a key identifier so the result is the computed one. */
+    if (EXPECT_SUCCESS() && x509 != NULL && x509->subjKeyId != NULL) {
+        XMEMSET(x509->subjKeyId, 0, x509->subjKeyIdSz);
+        x509->subjKeyIdSet = 0;
+    }
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, NULL, "skid_hash", x509),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(skid = X509_get0_subject_key_id(x509));
+    ExpectIntEQ(ASN1_STRING_length(skid), expSkidSz);
+    ExpectBufEQ(ASN1_STRING_get0_data(skid), expSkid, expSkidSz);
+
+    X509_free(x509);
+    X509_free(ref);
+    return EXPECT_RESULT();
+}
+#endif
+
 int test_wolfSSL_X509V3_EXT_add_nconf(void)
 {
     EXPECT_DECLS;
@@ -1259,6 +1312,8 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
     int derSz = 0;
     DNS_entry* dns = NULL;
     int sanCnt = 0;
+    int crit = -1;
+    WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* eku = NULL;
 
     ExpectNotNull(conf = NCONF_new(NULL));
     ExpectIntEQ(NCONF_load(conf, confFile, &eline), 1);
@@ -1322,6 +1377,19 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
     wolfSSL_X509_free(ctx.x509);
     ctx.x509 = NULL;
 
+    /* Extensions can be read back before signing. */
+    ExpectNotNull(eku = (WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*)X509_get_ext_d2i(
+        leaf, NID_ext_key_usage, NULL, NULL));
+    ExpectIntEQ(sk_ASN1_OBJECT_num(eku), 2);
+    wolfSSL_sk_ASN1_OBJECT_pop_free(eku, NULL);
+    eku = NULL;
+    ExpectIntEQ(wolfSSL_X509_ext_isSet_by_NID(leaf, NID_subject_alt_name), 1);
+    ExpectNotNull(names = (GENERAL_NAMES*)X509_get_ext_d2i(leaf,
+        NID_subject_alt_name, NULL, NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_num(names), 4);
+    GENERAL_NAMES_free(names);
+    names = NULL;
+
     ExpectNotNull(bio = BIO_new_file("./certs/ca-ecc-key.pem", "rb"));
     ExpectNotNull(caKey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
     BIO_free(bio);
@@ -1332,11 +1400,22 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
     ExpectNotNull(decoded = d2i_X509(NULL, &p, derSz));
 
     ExpectNotNull(bc = (BASIC_CONSTRAINTS*)X509_get_ext_d2i(decoded,
-        NID_basic_constraints, NULL, NULL));
+        NID_basic_constraints, &crit, NULL));
+    ExpectIntEQ(crit, 0);
     if (bc != NULL) {
         ExpectIntEQ(bc->ca, 0);
     }
     BASIC_CONSTRAINTS_free(bc);
+    /* Criticality is as configured after signing and parsing. */
+    crit = -1;
+    ASN1_STRING_free((ASN1_STRING*)X509_get_ext_d2i(decoded, NID_key_usage,
+        &crit, NULL));
+    ExpectIntEQ(crit, 1);
+    /* X509_get_ext_d2i() gives -2 for criticality with more than one
+     * KeyPurposeId, so check the parsed flag. */
+    if (EXPECT_SUCCESS() && decoded != NULL) {
+        ExpectIntEQ(decoded->extKeyUsageCrit, 0);
+    }
     ExpectIntEQ(X509_get_key_usage(decoded), KU_DIGITAL_SIGNATURE);
     ExpectIntEQ(X509_get_extended_key_usage(decoded),
         XKU_SSL_SERVER | XKU_SSL_CLIENT);
@@ -1347,6 +1426,10 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
         ExpectIntEQ(decoded->authKeyIdSz, ASN1_STRING_length(expSkid));
         ExpectBufEQ(decoded->authKeyId, ASN1_STRING_get0_data(expSkid),
             ASN1_STRING_length(expSkid));
+    }
+    /* As for extendedKeyUsage, the getter gives -2 with more than one name. */
+    if (EXPECT_SUCCESS() && decoded != NULL) {
+        ExpectIntEQ(decoded->subjAltNameCrit, 1);
     }
     ExpectNotNull(names = (GENERAL_NAMES*)X509_get_ext_d2i(decoded,
         NID_subject_alt_name, NULL, NULL));
@@ -1378,6 +1461,30 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
         WOLFSSL_FAILURE);
     ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_ip", root),
         WOLFSSL_FAILURE);
+    /* Criticality the certificate encoder cannot produce. */
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_ku_noncrit", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_eku_crit", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_skid_crit", root),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_akid_crit", root),
+        WOLFSSL_FAILURE);
+    /* subjectKeyIdentifier = hash for each way a public key is held. */
+    ExpectIntEQ(test_X509V3_EXT_add_nconf_skid_hash(conf,
+        "./certs/ca-ecc-cert.pem", 0), TEST_SUCCESS);
+#ifndef NO_RSA
+    ExpectIntEQ(test_X509V3_EXT_add_nconf_skid_hash(conf,
+        "./certs/ca-cert.pem", 0), TEST_SUCCESS);
+    ExpectIntEQ(test_X509V3_EXT_add_nconf_skid_hash(conf,
+        "./certs/ca-cert.pem", 1), TEST_SUCCESS);
+#endif
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    ExpectIntEQ(test_X509V3_EXT_add_nconf_skid_hash(conf,
+        "./certs/ed25519/ca-ed25519.pem", 0), TEST_SUCCESS);
+    ExpectIntEQ(test_X509V3_EXT_add_nconf_skid_hash(conf,
+        "./certs/ed25519/ca-ed25519.pem", 1), TEST_SUCCESS);
+#endif
     /* A failing subjectAltName value leaves the existing names unchanged. */
     for (dns = (leaf != NULL) ? leaf->altNames : NULL; dns != NULL;
             dns = dns->next) {
