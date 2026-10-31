@@ -7833,10 +7833,20 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
         else
 #endif
         {
-            PRIVATE_KEY_UNLOCK();
-            ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub,
-                    otherPubSz);
-            PRIVATE_KEY_LOCK();
+            /* wc_DhAgree() treats agreeSz as output only and writes up to the
+             * prime size, so bound the buffer here. */
+            if (dhKey != NULL && agreeSz != NULL &&
+                    *agreeSz < (word32)mp_unsigned_bin_size(&dhKey->p)) {
+                WOLFSSL_MSG("DH agree buffer smaller than prime");
+                ret = BUFFER_E;
+                WOLFSSL_ERROR_VERBOSE(ret);
+            }
+            else {
+                PRIVATE_KEY_UNLOCK();
+                ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub,
+                        otherPubSz);
+                PRIVATE_KEY_LOCK();
+            }
         }
     }
 

@@ -4051,6 +4051,7 @@
     #define MIN_FFDHE_BITS 0
 #endif
 #define MIN_FFDHE_FP_MAX_BITS   (MIN_FFDHE_BITS * 2)
+/* Only explicit sizes are checked here; tfm.h and sp_int.h check defaults. */
 #if defined(HAVE_FFDHE) && defined(FP_MAX_BITS)
     #if MIN_FFDHE_FP_MAX_BITS > FP_MAX_BITS
         #error "FFDHE parameters are too large for FP_MAX_BIT as set"

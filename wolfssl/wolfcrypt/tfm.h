@@ -278,6 +278,11 @@
     #undef FP_MAX_BITS
     #define FP_MAX_BITS 16384
 #endif
+/* settings.h cannot check a default chosen here. */
+#if defined(HAVE_FFDHE) && defined(MIN_FFDHE_FP_MAX_BITS) && \
+    (MIN_FFDHE_FP_MAX_BITS > FP_MAX_BITS)
+    #error "FFDHE parameters are too large for FP_MAX_BITS"
+#endif
 #define FP_MAX_SIZE           (FP_MAX_BITS+(8*DIGIT_BIT))
 
 /* will this lib work? */
