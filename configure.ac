@@ -7761,6 +7761,14 @@ AC_ARG_ENABLE([entropy-memuse],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ]
     )
 
+# Generic SP800-90B noise source (wc_NoiseSrc_*) for ports with a raw physical
+# noise source, e.g. the TI C2000 DCC entropy port
+AC_ARG_ENABLE([noisesrc],
+    [AS_HELP_STRING([--enable-noisesrc],[Enable the generic SP800-90B noise source layer (default: disabled)])],
+    [ ENABLED_NOISESRC=$enableval ],
+    [ ENABLED_NOISESRC=no ]
+    )
+
 # AES key wrap
 # Accepts a comma-separated value list; "padding" adds RFC 5649 key wrap with
 # padding on top of the base RFC 3394 key wrap.
@@ -8918,6 +8926,11 @@ then
     ENABLED_SHAKE128=yes
     ENABLED_SHAKE256=yes
 fi
+# The noise source conditions with SHA3-256.
+if test "$ENABLED_NOISESRC" != "no"
+then
+    ENABLED_SHA3=yes
+fi
 # Falcon uses SHA-3 / SHAKE256 for hash-to-point.
 if test "$ENABLED_FALCON" != "no"
 then
@@ -9579,6 +9592,11 @@ then
       *thread*amd-aperf*|*amd-aperf*thread*)
         AC_MSG_ERROR([--enable-wolfEntropy: thread and amd-aperf cannot be combined.]) ;;
     esac
+fi
+
+if test "$ENABLED_NOISESRC" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOISE_SRC"
 fi
 
 if (test "$ENABLED_RNG" = "yes" && test "$ENABLED_ENTROPY_MEMUSE" != "no") || test "$ENABLED_BENCHMARK" = "yes"
@@ -14657,6 +14675,7 @@ AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_NOISESRC],[test "x$ENABLED_NOISESRC" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RNG_BANK],[test "$ENABLED_RNG_BANK" = "yes" || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -15221,6 +15240,7 @@ echo "   * RNG lock on by default:     $ENABLED_RNG_AUTOLOCK_DEFAULT"
 echo "   * RNG fork handlers:          $ENABLED_RNG_AUTOFORK"
 echo "   * MmemUse Entropy:"
 echo "   * (AKA: wolfEntropy):         $ENABLED_ENTROPY_MEMUSE"
+echo "   * Noise source:               $ENABLED_NOISESRC"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * Encrypted keys:             $ENABLED_ENCKEYS"
 echo "   * scrypt:                     $ENABLED_SCRYPT"

@@ -1,17 +1,19 @@
 name: "CHAR_BIT != 8 (wide byte) guards"
 
 # Guards for the CHAR_BIT != 8 (WOLFSSL_WIDE_BYTE) support added for the TI
-# C2000 C28x, where a char is a 16-bit cell.  Three independent jobs:
+# C2000 C28x, where a char is a 16-bit cell.  Independent jobs:
 #
 #   ti_c2000_compile     cl2000 compile-only over the C28x wolfCrypt subset.
 #                        Needs the TI CGT, so it self-skips when that is not
 #                        configured (see the job's env block).
 #   sha3_split64_host    x86-64 build + wolfCrypt KAT run with WC_SHA3_SPLIT64
 #                        forced.  Always runs.
+#   noisesrc_host        x86-64 build + make check of the generic noise source
+#                        the C2000 entropy port sits on.  Always runs.
 #   wide_byte_be_compile x86-64 syntax-only check of WOLFSSL_WIDE_BYTE combined
 #                        with BIG_ENDIAN_ORDER.  Always runs.
 #
-# Only the first job involves TI tooling or the C28x at all; the other two are
+# Only the first job involves TI tooling or the C28x at all; the others are
 # plain host jobs covering code paths this port introduced.  On-target
 # run-tests live on a hardware-in-the-loop runner (there is no public C28x
 # simulator).
@@ -26,6 +28,7 @@ on:
       - 'wolfcrypt/src/**'
       - 'wolfssl/wolfcrypt/**'
       - 'IDE/C2000/**'
+      - 'configure.ac'
       - '.github/workflows/ti-c2000-compile.yml'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -34,6 +37,7 @@ on:
       - 'wolfcrypt/src/**'
       - 'wolfssl/wolfcrypt/**'
       - 'IDE/C2000/**'
+      - 'configure.ac'
       - '.github/workflows/ti-c2000-compile.yml'
 
 concurrency:
@@ -144,6 +148,30 @@ jobs:
               --enable-shake128 --enable-shake256 CPPFLAGS="-DWC_SHA3_SPLIT64"
           make
           ./wolfcrypt/test/testwolfcrypt
+
+  # WHAT: x86-64 build + make check with --enable-noisesrc, which
+  #       runs noisesrc_test: synthetic sources driving the RCT, APT, startup
+  #       rerun, sampler-error and self-test paths, plus SHA3-256 KATs.
+  # NOT:  nothing TI-specific and no hardware or TI CGT needed, so like the
+  #       job above this always runs.  The DCC sampler itself is not built.
+  # WHY:  the wc_NoiseSrc_* layer is the C2000 port's whole health-test and
+  #       conditioning path but is pure C, so its failure handling can be
+  #       exercised on any host instead of only on hardware CI cannot reach.
+  noisesrc_host:
+    name: Noise source host test
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Build + make check with --enable-noisesrc
+        run: |
+          ./autogen.sh
+          ./configure --enable-noisesrc --enable-all
+          make
+          make check
 
   # WHAT: gcc -fsyntax-only -Werror over the octet paths with both
   #       WOLFSSL_WIDE_BYTE and BIG_ENDIAN_ORDER defined.  A pure compile

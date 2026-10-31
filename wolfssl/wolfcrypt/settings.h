@@ -2212,6 +2212,16 @@
     #define WOLFSSL_SHAKE256
 #endif
 
+/* Ports layered on the generic noise source (rng_noisesrc.c) turn it on
+ * implicitly, so a user_settings.h only has to name the port.  The noise
+ * source conditions with SHA3-256, so it pulls SHA-3 in as well. */
+#if defined(WOLFSSL_C2000_ENTROPY) && !defined(WOLFSSL_NOISE_SRC)
+    #define WOLFSSL_NOISE_SRC
+#endif
+#if defined(WOLFSSL_NOISE_SRC) && !defined(WOLFSSL_SHA3)
+    #define WOLFSSL_SHA3
+#endif
+
 /* tiny TLS 1.3 sanity checks: catch incompatible selections early. */
 #ifdef WOLFSSL_TINY_TLS13
     #if !defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || \

@@ -1851,6 +1851,15 @@ if(WOLFSSL_CSHAKE)
     override_cache(WOLFSSL_SHAKE256 "yes")
 endif()
 
+# Generic SP800-90B noise source (wc_NoiseSrc_*); conditions with SHA3-256
+add_option("WOLFSSL_NOISESRC"
+    "Enable the generic SP800-90B noise source layer (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_NOISESRC)
+    override_cache(WOLFSSL_SHA3 "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NOISE_SRC")
+endif()
+
 # SHA512
 add_option("WOLFSSL_SHA512"
     "Enable wolfSSL SHA-512 support (default: enabled)"
