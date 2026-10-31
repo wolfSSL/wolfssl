@@ -59,6 +59,11 @@ has_static_rsa=no
 if [ $? -eq 0 ]; then
     has_static_rsa=yes
 fi
+has_aesccm=no
+./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'aes_ccm '
+if [ $? -eq 0 ]; then
+    has_aesccm=yes
+fi
 # sniffer-tls12-etm.pcap negotiated Encrypt-Then-MAC, so a sniffer built
 # without it cannot decrypt that capture. Every other capture is readable by
 # any build.
@@ -112,6 +117,33 @@ then
 
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\nsnifftest static RSA failed\n" && exit 1
+fi
+
+# TLS v1.2 Static RSA AES-CCM Test
+if test $RESULT -eq 0 && test $has_rsa == yes && test $has_tlsv12 == yes && test $has_static_rsa == yes && test $has_aesccm == yes
+then
+    echo -e "\nStarting snifftest on sniffer-tls12-ccm.pcap...\n"
+
+    TMPFILE=$(mktemp)
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.2 AES-CCM failed: unable to create tmpfile\n" && exit 1
+
+    ./sslSniffer/sslSnifferTest/snifftest -expectdata \
+        -pcap ./scripts/sniffer-tls12-ccm.pcap \
+        -key ./certs/server-key.pem \
+        -server 127.0.0.1 -port 11111 | tee $TMPFILE
+
+    RESULT=${PIPESTATUS[0]}
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.2 AES-CCM failed: snifftest returned $RESULT\n" && rm $TMPFILE && exit 1
+
+    SEARCH_STRING="SSL App Data"
+    grep "$SEARCH_STRING" $TMPFILE | sort \
+        | diff - <(grep "$SEARCH_STRING" scripts/sniffer-tls12-ccm.out | sort)
+
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.2 AES-CCM failed: snifftest diff returned $RESULT\n" && rm $TMPFILE && exit 1
+
+    rm $TMPFILE
 fi
 
 # A Certificate message can span many records in one TCP packet. Keep the

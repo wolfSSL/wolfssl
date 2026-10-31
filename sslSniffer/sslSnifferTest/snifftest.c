@@ -492,6 +492,9 @@ static void show_appinfo(void)
     #ifdef WOLFSSL_STATIC_DH
         "dh_static "
     #endif
+    #ifdef HAVE_AESCCM
+        "aes_ccm "
+    #endif
     #ifdef WOLFSSL_SNIFFER_KEYLOGFILE
         "ssl_keylog_file "
     #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
