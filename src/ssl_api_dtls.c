@@ -55,6 +55,124 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
 }
 #endif
 
+#if defined(WOLFSSL_DTLS) && defined(WOLFCRYPT_HAVE_ECJPAKE)
+/* Set the password for EC-JPAKE (draft-cragie-tls-ecjpake-01) on a context
+ * and restrict it to TLS_ECJPAKE_WITH_AES_128_CCM_8. Objects created from the
+ * context get a copy of the password, and a server needs no certificate.
+ * Only supported with a DTLS 1.2 method; a client also offers only secp256r1
+ * unless groups were already set.
+ *
+ * @param [in, out] ctx   SSL/TLS context.
+ * @param [in]      pw    Password octets, for Thread the PSKd or PSKc.
+ * @param [in]      pwSz  Length of the password in octets.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx or pw is NULL or pwSz is zero.
+ * @return  VERSION_ERROR when ctx is not using a DTLS 1.2 method.
+ * @return  MEMORY_E when allocation fails.
+ * @return  WOLFSSL_FAILURE when the cipher suite cannot be set.
+ * @return  NOT_COMPILED_IN when the suite is not in this build.
+ */
+int wolfSSL_CTX_set_ecjpake_password(WOLFSSL_CTX* ctx, const unsigned char* pw,
+                                     unsigned int pwSz)
+{
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    WOLFSSL_ENTER("wolfSSL_CTX_set_ecjpake_password");
+
+    if (ctx == NULL || pw == NULL || pwSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (ctx->method->version.major != DTLS_MAJOR || ctx->method->downgrade ||
+            ctx->method->version.minor != DTLSv1_2_MINOR) {
+        WOLFSSL_MSG("EC-JPAKE requires a DTLS 1.2 method");
+        return VERSION_ERROR;
+    }
+
+    if (wolfSSL_CTX_set_cipher_list(ctx, "ECJPAKE-AES128-CCM-8") !=
+            WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+#ifdef HAVE_SUPPORTED_CURVES
+    if (ctx->method->side == WOLFSSL_CLIENT_END &&
+            TLSX_Find(ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
+        int ret = wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1);
+        if (ret != WOLFSSL_SUCCESS) {
+            return ret;
+        }
+    }
+#endif
+
+    if (EcJpakeSetPassword(ctx->heap, &ctx->ecJpakePw, &ctx->ecJpakePwSz, pw,
+                           pwSz) != 0) {
+        return MEMORY_E;
+    }
+    return WOLFSSL_SUCCESS;
+#else
+    (void)ctx;
+    (void)pw;
+    (void)pwSz;
+    return NOT_COMPILED_IN;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
+}
+
+/* Set the password for EC-JPAKE on an object, replacing one inherited from
+ * its context, and restrict it to TLS_ECJPAKE_WITH_AES_128_CCM_8. A server
+ * without a certificate must set the password on its context instead, before
+ * creating the object.
+ *
+ * @param [in, out] ssl   SSL/TLS object.
+ * @param [in]      pw    Password octets, for Thread the PSKd or PSKc.
+ * @param [in]      pwSz  Length of the password in octets.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl or pw is NULL or pwSz is zero.
+ * @return  VERSION_ERROR when ssl is not using a DTLS 1.2 method.
+ * @return  MEMORY_E when allocation fails.
+ * @return  WOLFSSL_FAILURE when the cipher suite cannot be set.
+ * @return  NOT_COMPILED_IN when the suite is not in this build.
+ */
+int wolfSSL_set_ecjpake_password(WOLFSSL* ssl, const unsigned char* pw,
+                                 unsigned int pwSz)
+{
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    WOLFSSL_ENTER("wolfSSL_set_ecjpake_password");
+
+    if (ssl == NULL || pw == NULL || pwSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (!ssl->options.dtls || ssl->options.downgrade ||
+            ssl->version.minor != DTLSv1_2_MINOR) {
+        WOLFSSL_MSG("EC-JPAKE requires a DTLS 1.2 method");
+        return VERSION_ERROR;
+    }
+
+    if (wolfSSL_set_cipher_list(ssl, "ECJPAKE-AES128-CCM-8") !=
+            WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+#ifdef HAVE_SUPPORTED_CURVES
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+            TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) == NULL &&
+            TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
+        int ret = wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1);
+        if (ret != WOLFSSL_SUCCESS) {
+            return ret;
+        }
+    }
+#endif
+
+    if (EcJpakeSetPassword(ssl->heap, &ssl->ecJpakePw, &ssl->ecJpakePwSz, pw,
+                           pwSz) != 0) {
+        return MEMORY_E;
+    }
+    return WOLFSSL_SUCCESS;
+#else
+    (void)ssl;
+    (void)pw;
+    (void)pwSz;
+    return NOT_COMPILED_IN;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
+}
+#endif /* WOLFSSL_DTLS && WOLFCRYPT_HAVE_ECJPAKE */
+
 /* Determine whether the object is configured for DTLS.
  *
  * @param [in] ssl  SSL/TLS object.

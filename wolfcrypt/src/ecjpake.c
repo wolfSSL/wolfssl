@@ -59,13 +59,33 @@ static const byte* ecjpake_id(int role)
 
 static void ecjpake_free_points(EcJpake* jp)
 {
-    wc_ecc_del_point_h(jp->G, jp->heap);
     wc_ecc_del_point_h(jp->Xm1, jp->heap);
     wc_ecc_del_point_h(jp->Xm2, jp->heap);
     wc_ecc_del_point_h(jp->Xp1, jp->heap);
     wc_ecc_del_point_h(jp->Xp2, jp->heap);
     wc_ecc_del_point_h(jp->Xp, jp->heap);
-    jp->G = jp->Xm1 = jp->Xm2 = jp->Xp1 = jp->Xp2 = jp->Xp = NULL;
+    jp->Xm1 = jp->Xm2 = jp->Xp1 = jp->Xp2 = jp->Xp = NULL;
+}
+
+/* Loads the curve base point G into an allocated point. */
+static int ecjpake_load_base(EcJpake* jp, ecc_point* G)
+{
+    int err = MP_OKAY;
+    const ecc_set_type* dp = wc_ecc_get_curve_params(jp->curveIdx);
+
+    if (dp == NULL) {
+        err = ECC_CURVE_OID_E;
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_radix(G->x, dp->Gx, MP_RADIX_HEX);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_radix(G->y, dp->Gy, MP_RADIX_HEX);
+    }
+    if (err == MP_OKAY) {
+        err = mp_set(G->z, 1);
+    }
+    return err;
 }
 
 /* Writes the SEC1 uncompressed encoding of an affine point. */
@@ -137,16 +157,17 @@ static int ecjpake_mul(EcJpake* jp, mp_int* k, ecc_point* P, ecc_point* R,
                              jp->heap);
 }
 
-static int ecjpake_to_mont(EcJpake* jp, ecc_point* p, ecc_point* r)
+static int ecjpake_to_mont(EcJpake* jp, mp_int* mu, ecc_point* p,
+                           ecc_point* r)
 {
     int err;
 
-    err = mp_mulmod(p->x, &jp->mu, &jp->prime, r->x);
+    err = mp_mulmod(p->x, mu, &jp->prime, r->x);
     if (err == MP_OKAY) {
-        err = mp_mulmod(p->y, &jp->mu, &jp->prime, r->y);
+        err = mp_mulmod(p->y, mu, &jp->prime, r->y);
     }
     if (err == MP_OKAY) {
-        err = mp_copy(&jp->mu, r->z);
+        err = mp_copy(mu, r->z);
     }
     return err;
 }
@@ -157,19 +178,31 @@ static int ecjpake_add(EcJpake* jp, ecc_point* A, ecc_point* B, ecc_point* R)
 {
     int err = MP_OKAY;
     int inf = 0;
+    int muInit = 0;
     ecc_point* tA;
     ecc_point* tB;
+    WC_DECLARE_VAR(mu, mp_int, 1, jp->heap);
 
+    WC_ALLOC_VAR_EX(mu, mp_int, 1, jp->heap, DYNAMIC_TYPE_ECC,
+                    err = MEMORY_E);
     tA = wc_ecc_new_point_h(jp->heap);
     tB = wc_ecc_new_point_h(jp->heap);
     if (tA == NULL || tB == NULL) {
         err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        err = ecjpake_to_mont(jp, A, tA);
+        err = mp_init(mu);
+        muInit = (err == MP_OKAY);
+    }
+    /* Montgomery normalizer R mod p */
+    if (err == MP_OKAY) {
+        err = mp_montgomery_calc_normalization(mu, &jp->prime);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_to_mont(jp, B, tB);
+        err = ecjpake_to_mont(jp, mu, A, tA);
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_to_mont(jp, mu, B, tB);
     }
     if (err == MP_OKAY) {
         err = ecc_projective_add_point_safe(tA, tB, R, &jp->a, &jp->prime,
@@ -182,6 +215,10 @@ static int ecjpake_add(EcJpake* jp, ecc_point* A, ecc_point* B, ecc_point* R)
         err = ecc_map_ex(R, &jp->prime, jp->mp, 1);
     }
 
+    if (muInit) {
+        mp_free(mu);
+    }
+    WC_FREE_VAR_EX(mu, jp->heap, DYNAMIC_TYPE_ECC);
     wc_ecc_del_point_h(tB, jp->heap);
     wc_ecc_del_point_h(tA, jp->heap);
     return err;
@@ -257,42 +294,56 @@ static int ecjpake_zkp_write(EcJpake* jp, ecc_point* gen, mp_int* x,
                              word32* idx)
 {
     int err = MP_OKAY;
+    int scInit = 0;
     ecc_point* V;
+    mp_int* v = NULL;
+    mp_int* h = NULL;
+    WC_DECLARE_VAR(sc, mp_int, 2, jp->heap);
 
+    WC_ALLOC_VAR_EX(sc, mp_int, 2, jp->heap, DYNAMIC_TYPE_ECC,
+                    err = MEMORY_E);
     V = wc_ecc_new_point_h(jp->heap);
     if (V == NULL) {
         err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        err = wc_ecc_gen_k(rng, WC_ECJPAKE_FIELD_SZ, &jp->k, &jp->order);
+        v = &sc[0];
+        h = &sc[1];
+        err = mp_init_multi(v, h, NULL, NULL, NULL, NULL);
+        scInit = (err == MP_OKAY);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->k, gen, V, rng);
+        err = wc_ecc_gen_k(rng, WC_ECJPAKE_FIELD_SZ, v, &jp->order);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_zkp_hash(jp, gen, V, X, ecjpake_id(jp->role), &jp->h);
+        err = ecjpake_mul(jp, v, gen, V, rng);
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_zkp_hash(jp, gen, V, X, ecjpake_id(jp->role), h);
     }
     /* r = v - x*h mod n */
     if (err == MP_OKAY) {
-        err = mp_mulmod(x, &jp->h, &jp->order, &jp->h);
+        err = mp_mulmod(x, h, &jp->order, h);
     }
     if (err == MP_OKAY) {
-        err = mp_submod(&jp->k, &jp->h, &jp->order, &jp->k);
+        err = mp_submod(v, h, &jp->order, v);
     }
     if (err == MP_OKAY) {
         err = ecjpake_write_point(V, out, idx);
     }
     if (err == MP_OKAY) {
         out[*idx] = WC_ECJPAKE_FIELD_SZ;
-        err = mp_to_unsigned_bin_len(&jp->k, out + *idx + 1,
-                                     WC_ECJPAKE_FIELD_SZ);
+        err = mp_to_unsigned_bin_len(v, out + *idx + 1, WC_ECJPAKE_FIELD_SZ);
     }
     if (err == MP_OKAY) {
         *idx += 1 + WC_ECJPAKE_FIELD_SZ;
     }
 
-    mp_forcezero(&jp->k);
-    mp_forcezero(&jp->h);
+    if (scInit) {
+        mp_forcezero(v);
+        mp_forcezero(h);
+    }
+    WC_FREE_VAR_EX(sc, jp->heap, DYNAMIC_TYPE_ECC);
     wc_ecc_del_point_h(V, jp->heap);
     return err;
 }
@@ -301,19 +352,31 @@ static int ecjpake_zkp_write(EcJpake* jp, ecc_point* gen, mp_int* x,
 static int ecjpake_zkp_read(EcJpake* jp, ecc_point* gen, ecc_point* X,
                             const byte* in, word32 inSz, word32* idx)
 {
-    int err;
+    int err = MP_OKAY;
+    int scInit = 0;
     word32 rSz = 0;
     ecc_point* V;
     ecc_point* Xh;
     ecc_point* Gr;
+    mp_int* r = NULL;
+    mp_int* h = NULL;
+    WC_DECLARE_VAR(sc, mp_int, 2, jp->heap);
 
+    WC_ALLOC_VAR_EX(sc, mp_int, 2, jp->heap, DYNAMIC_TYPE_ECC,
+                    err = MEMORY_E);
     V = wc_ecc_new_point_h(jp->heap);
     Xh = wc_ecc_new_point_h(jp->heap);
     Gr = wc_ecc_new_point_h(jp->heap);
     if (V == NULL || Xh == NULL || Gr == NULL) {
         err = MEMORY_E;
     }
-    else {
+    if (err == MP_OKAY) {
+        r = &sc[0];
+        h = &sc[1];
+        err = mp_init_multi(r, h, NULL, NULL, NULL, NULL);
+        scInit = (err == MP_OKAY);
+    }
+    if (err == MP_OKAY) {
         err = ecjpake_read_point(jp, in, inSz, idx, V);
     }
 
@@ -339,26 +402,24 @@ static int ecjpake_zkp_read(EcJpake* jp, ecc_point* gen, ecc_point* X,
         }
     }
     if (err == MP_OKAY) {
-        err = mp_read_unsigned_bin(&jp->k, in + *idx, rSz);
+        err = mp_read_unsigned_bin(r, in + *idx, rSz);
         *idx += rSz;
     }
-    if (err == MP_OKAY && (mp_cmp(&jp->k, &jp->order) != MP_LT ||
-                           mp_iszero(&jp->k))) {
+    if (err == MP_OKAY && (mp_cmp(r, &jp->order) != MP_LT || mp_iszero(r))) {
         err = SIG_VERIFY_E;
     }
 
     if (err == MP_OKAY) {
-        err = ecjpake_zkp_hash(jp, gen, V, X,
-                               ecjpake_id(!jp->role), &jp->h);
+        err = ecjpake_zkp_hash(jp, gen, V, X, ecjpake_id(!jp->role), h);
     }
-    if (err == MP_OKAY && mp_iszero(&jp->h)) {
+    if (err == MP_OKAY && mp_iszero(h)) {
         err = SIG_VERIFY_E;
     }
     if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->h, X, Xh, NULL);
+        err = ecjpake_mul(jp, h, X, Xh, NULL);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->k, gen, Gr, NULL);
+        err = ecjpake_mul(jp, r, gen, Gr, NULL);
     }
     if (err == MP_OKAY) {
         err = ecjpake_add(jp, Xh, Gr, Xh);
@@ -370,6 +431,11 @@ static int ecjpake_zkp_read(EcJpake* jp, ecc_point* gen, ecc_point* X,
         err = SIG_VERIFY_E;
     }
 
+    if (scInit) {
+        mp_free(r);
+        mp_free(h);
+    }
+    WC_FREE_VAR_EX(sc, jp->heap, DYNAMIC_TYPE_ECC);
     wc_ecc_del_point_h(Gr, jp->heap);
     wc_ecc_del_point_h(Xh, jp->heap);
     wc_ecc_del_point_h(V, jp->heap);
@@ -418,23 +484,19 @@ int wc_EcJpakeInit(EcJpake* jp, int role, int curveId, const byte* secret,
     jp->heap = heap;
     jp->curveIdx = wc_ecc_get_curve_idx(curveId);
 
-    err = mp_init_multi(&jp->prime, &jp->a, &jp->order, &jp->mu, &jp->s,
-                        &jp->xm1);
-    if (err == MP_OKAY) {
-        err = mp_init_multi(&jp->xm2, &jp->k, &jp->h, &jp->t, NULL, NULL);
-    }
+    err = mp_init_multi(&jp->prime, &jp->a, &jp->order, &jp->s, &jp->xm2,
+                        NULL);
     if (err != MP_OKAY) {
         return err;
     }
 
-    jp->G = wc_ecc_new_point_h(heap);
     jp->Xm1 = wc_ecc_new_point_h(heap);
     jp->Xm2 = wc_ecc_new_point_h(heap);
     jp->Xp1 = wc_ecc_new_point_h(heap);
     jp->Xp2 = wc_ecc_new_point_h(heap);
     jp->Xp = wc_ecc_new_point_h(heap);
-    if (jp->G == NULL || jp->Xm1 == NULL || jp->Xm2 == NULL ||
-            jp->Xp1 == NULL || jp->Xp2 == NULL || jp->Xp == NULL) {
+    if (jp->Xm1 == NULL || jp->Xm2 == NULL || jp->Xp1 == NULL ||
+            jp->Xp2 == NULL || jp->Xp == NULL) {
         err = MEMORY_E;
     }
 
@@ -454,19 +516,7 @@ int wc_EcJpakeInit(EcJpake* jp, int role, int curveId, const byte* secret,
         err = mp_read_radix(&jp->order, dp->order, MP_RADIX_HEX);
     }
     if (err == MP_OKAY) {
-        err = mp_read_radix(jp->G->x, dp->Gx, MP_RADIX_HEX);
-    }
-    if (err == MP_OKAY) {
-        err = mp_read_radix(jp->G->y, dp->Gy, MP_RADIX_HEX);
-    }
-    if (err == MP_OKAY) {
-        err = mp_set(jp->G->z, 1);
-    }
-    if (err == MP_OKAY) {
         err = mp_montgomery_setup(&jp->prime, &jp->mp);
-    }
-    if (err == MP_OKAY) {
-        err = mp_montgomery_calc_normalization(&jp->mu, &jp->prime);
     }
 
     /* s = int(password) mod n, which RFC 8236 requires to be non-zero */
@@ -493,23 +543,21 @@ void wc_EcJpakeFree(EcJpake* jp)
     }
 
     mp_forcezero(&jp->s);
-    mp_forcezero(&jp->xm1);
     mp_forcezero(&jp->xm2);
-    mp_forcezero(&jp->k);
-    mp_forcezero(&jp->h);
-    mp_forcezero(&jp->t);
     mp_free(&jp->prime);
     mp_free(&jp->a);
     mp_free(&jp->order);
-    mp_free(&jp->mu);
     ecjpake_free_points(jp);
     jp->flags = 0;
 }
 
 int wc_EcJpakeWriteRound1(EcJpake* jp, WC_RNG* rng, byte* out, word32* outSz)
 {
-    int err;
+    int err = MP_OKAY;
+    int xInit = 0;
     word32 idx = 0;
+    ecc_point* G = NULL;
+    WC_DECLARE_VAR(xm1, mp_int, 1, NULL);
 
     if (jp == NULL || rng == NULL || out == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
@@ -521,21 +569,40 @@ int wc_EcJpakeWriteRound1(EcJpake* jp, WC_RNG* rng, byte* out, word32* outSz)
         return BUFFER_E;
     }
 
-    err = wc_ecc_gen_k(rng, WC_ECJPAKE_FIELD_SZ, &jp->xm1, &jp->order);
+    WC_ALLOC_VAR_EX(xm1, mp_int, 1, jp->heap, DYNAMIC_TYPE_ECC,
+                    err = MEMORY_E);
+    G = wc_ecc_new_point_h(jp->heap);
+    if (G == NULL) {
+        err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        err = mp_init(xm1);
+        xInit = (err == MP_OKAY);
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_load_base(jp, G);
+    }
+    if (err == MP_OKAY) {
+        err = wc_ecc_gen_k(rng, WC_ECJPAKE_FIELD_SZ, xm1, &jp->order);
+    }
     if (err == MP_OKAY) {
         err = wc_ecc_gen_k(rng, WC_ECJPAKE_FIELD_SZ, &jp->xm2, &jp->order);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->xm1, jp->G, jp->Xm1, rng);
+        err = ecjpake_mul(jp, xm1, G, jp->Xm1, rng);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->xm2, jp->G, jp->Xm2, rng);
+        err = ecjpake_mul(jp, &jp->xm2, G, jp->Xm2, rng);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_kkp_write(jp, jp->G, &jp->xm1, jp->Xm1, rng, out, &idx);
+        err = ecjpake_kkp_write(jp, G, xm1, jp->Xm1, rng, out, &idx);
     }
     if (err == MP_OKAY) {
-        err = ecjpake_kkp_write(jp, jp->G, &jp->xm2, jp->Xm2, rng, out, &idx);
+        err = ecjpake_kkp_write(jp, G, &jp->xm2, jp->Xm2, rng, out, &idx);
+    }
+    /* s = x2 * s mod n */
+    if (err == MP_OKAY) {
+        err = mp_mulmod(&jp->xm2, &jp->s, &jp->order, &jp->s);
     }
 
     if (err == MP_OKAY) {
@@ -543,54 +610,21 @@ int wc_EcJpakeWriteRound1(EcJpake* jp, WC_RNG* rng, byte* out, word32* outSz)
         *outSz = idx;
     }
     else {
-        mp_forcezero(&jp->xm1);
         mp_forcezero(&jp->xm2);
     }
-    return err;
-}
-
-int wc_EcJpakeSetRound1Keys(EcJpake* jp, WC_RNG* rng, const byte* x1,
-                            word32 x1Sz, const byte* x2, word32 x2Sz)
-{
-    int err;
-
-    if (jp == NULL || x1 == NULL || x2 == NULL || x1Sz == 0 || x2Sz == 0) {
-        return BAD_FUNC_ARG;
+    if (xInit) {
+        mp_forcezero(xm1);
     }
-    if (jp->flags & ECJPAKE_FLAG_KEYS) {
-        return BAD_STATE_E;
-    }
-
-    err = mp_read_unsigned_bin(&jp->xm1, x1, x1Sz);
-    if (err == MP_OKAY) {
-        err = mp_read_unsigned_bin(&jp->xm2, x2, x2Sz);
-    }
-    if (err == MP_OKAY && (mp_iszero(&jp->xm1) || mp_iszero(&jp->xm2) ||
-                           mp_cmp(&jp->xm1, &jp->order) != MP_LT ||
-                           mp_cmp(&jp->xm2, &jp->order) != MP_LT)) {
-        err = ECC_OUT_OF_RANGE_E;
-    }
-    if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->xm1, jp->G, jp->Xm1, rng);
-    }
-    if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->xm2, jp->G, jp->Xm2, rng);
-    }
-
-    if (err == MP_OKAY) {
-        jp->flags |= ECJPAKE_FLAG_KEYS;
-    }
-    else {
-        mp_forcezero(&jp->xm1);
-        mp_forcezero(&jp->xm2);
-    }
+    WC_FREE_VAR_EX(xm1, jp->heap, DYNAMIC_TYPE_ECC);
+    wc_ecc_del_point_h(G, jp->heap);
     return err;
 }
 
 int wc_EcJpakeReadRound1(EcJpake* jp, const byte* in, word32 inSz)
 {
-    int err;
+    int err = MP_OKAY;
     word32 idx = 0;
+    ecc_point* G;
 
     if (jp == NULL || in == NULL) {
         return BAD_FUNC_ARG;
@@ -599,9 +633,18 @@ int wc_EcJpakeReadRound1(EcJpake* jp, const byte* in, word32 inSz)
         return BAD_STATE_E;
     }
 
-    err = ecjpake_kkp_read(jp, jp->G, jp->Xp1, in, inSz, &idx);
+    G = wc_ecc_new_point_h(jp->heap);
+    if (G == NULL) {
+        err = MEMORY_E;
+    }
     if (err == MP_OKAY) {
-        err = ecjpake_kkp_read(jp, jp->G, jp->Xp2, in, inSz, &idx);
+        err = ecjpake_load_base(jp, G);
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_kkp_read(jp, G, jp->Xp1, in, inSz, &idx);
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_kkp_read(jp, G, jp->Xp2, in, inSz, &idx);
     }
     if (err == MP_OKAY && idx != inSz) {
         err = BUFFER_E;
@@ -610,6 +653,7 @@ int wc_EcJpakeReadRound1(EcJpake* jp, const byte* in, word32 inSz)
     if (err == MP_OKAY) {
         jp->flags |= ECJPAKE_FLAG_ROUND1_READ;
     }
+    wc_ecc_del_point_h(G, jp->heap);
     return err;
 }
 
@@ -648,10 +692,7 @@ int wc_EcJpakeWriteRound2(EcJpake* jp, WC_RNG* rng, byte* out, word32* outSz)
         err = ecjpake_add3(jp, jp->Xm1, jp->Xp1, jp->Xp2, gen);
     }
     if (err == MP_OKAY) {
-        err = mp_mulmod(&jp->xm2, &jp->s, &jp->order, &jp->t);
-    }
-    if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->t, gen, Xm, rng);
+        err = ecjpake_mul(jp, &jp->s, gen, Xm, rng);
     }
 
     if (err == MP_OKAY && jp->role == WC_ECJPAKE_SERVER) {
@@ -659,13 +700,12 @@ int wc_EcJpakeWriteRound2(EcJpake* jp, WC_RNG* rng, byte* out, word32* outSz)
         idx += WC_ECJPAKE_ECPARAMS_SZ;
     }
     if (err == MP_OKAY) {
-        err = ecjpake_kkp_write(jp, gen, &jp->t, Xm, rng, out, &idx);
+        err = ecjpake_kkp_write(jp, gen, &jp->s, Xm, rng, out, &idx);
     }
     if (err == MP_OKAY) {
         *outSz = idx;
     }
 
-    mp_forcezero(&jp->t);
     wc_ecc_del_point_h(Xm, jp->heap);
     wc_ecc_del_point_h(gen, jp->heap);
     return err;
@@ -744,13 +784,11 @@ int wc_EcJpakeDeriveSecret(EcJpake* jp, WC_RNG* rng, byte* out,
     /* Client: K = (Xs - X4*(x2*s)) * x2
      * Server: K = (Xc - X2*(x4*s)) * x4 */
     if (err == MP_OKAY) {
-        err = mp_mulmod(&jp->xm2, &jp->s, &jp->order, &jp->t);
+        err = ecjpake_mul(jp, &jp->s, jp->Xp2, K, rng);
     }
+    /* -P = (x, p - y) */
     if (err == MP_OKAY) {
-        err = mp_sub(&jp->order, &jp->t, &jp->t);
-    }
-    if (err == MP_OKAY) {
-        err = ecjpake_mul(jp, &jp->t, jp->Xp2, K, rng);
+        err = mp_sub(&jp->prime, K->y, K->y);
     }
     if (err == MP_OKAY) {
         err = ecjpake_add(jp, jp->Xp, K, K);
@@ -771,11 +809,75 @@ int wc_EcJpakeDeriveSecret(EcJpake* jp, WC_RNG* rng, byte* out,
     }
 
     ForceZero(kx, sizeof(kx));
-    mp_forcezero(&jp->t);
     if (K != NULL) {
         wc_ecc_forcezero_point(K);
     }
     wc_ecc_del_point_h(K, jp->heap);
+    return err;
+}
+
+/* Test only: loads fixed round one keys for known answer tests. */
+int wc_EcJpakeSetRound1Keys(EcJpake* jp, WC_RNG* rng, const byte* x1,
+                            word32 x1Sz, const byte* x2, word32 x2Sz)
+{
+    int err = MP_OKAY;
+    int xInit = 0;
+    ecc_point* G = NULL;
+    WC_DECLARE_VAR(xm1, mp_int, 1, NULL);
+
+    if (jp == NULL || x1 == NULL || x2 == NULL || x1Sz == 0 || x2Sz == 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (jp->flags & ECJPAKE_FLAG_KEYS) {
+        return BAD_STATE_E;
+    }
+
+    WC_ALLOC_VAR_EX(xm1, mp_int, 1, jp->heap, DYNAMIC_TYPE_ECC,
+                    err = MEMORY_E);
+    G = wc_ecc_new_point_h(jp->heap);
+    if (G == NULL) {
+        err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        err = mp_init(xm1);
+        xInit = (err == MP_OKAY);
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_load_base(jp, G);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(xm1, x1, x1Sz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&jp->xm2, x2, x2Sz);
+    }
+    if (err == MP_OKAY && (mp_iszero(xm1) || mp_iszero(&jp->xm2) ||
+                           mp_cmp(xm1, &jp->order) != MP_LT ||
+                           mp_cmp(&jp->xm2, &jp->order) != MP_LT)) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_mul(jp, xm1, G, jp->Xm1, rng);
+    }
+    if (err == MP_OKAY) {
+        err = ecjpake_mul(jp, &jp->xm2, G, jp->Xm2, rng);
+    }
+    /* s = x2 * s mod n */
+    if (err == MP_OKAY) {
+        err = mp_mulmod(&jp->xm2, &jp->s, &jp->order, &jp->s);
+    }
+
+    if (err == MP_OKAY) {
+        jp->flags |= ECJPAKE_FLAG_KEYS;
+    }
+    else {
+        mp_forcezero(&jp->xm2);
+    }
+    if (xInit) {
+        mp_forcezero(xm1);
+    }
+    WC_FREE_VAR_EX(xm1, jp->heap, DYNAMIC_TYPE_ECC);
+    wc_ecc_del_point_h(G, jp->heap);
     return err;
 }
 
