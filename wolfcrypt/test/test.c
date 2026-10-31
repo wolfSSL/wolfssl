@@ -7430,6 +7430,20 @@ static wc_test_ret_t sha224_copy_test(wc_Sha224* sha, wc_Sha224* shaCopy)
     ret = wc_Sha224Update(shaCopy, (byte*)b_input, (word32)XSTRLEN(b_input));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    /* The common implementation rejects self-copy with BAD_FUNC_ARG.
+     * Platform-specific implementations differ: some accept self-copy as a
+     * no-op, while others do not check for it. Keep this assertion limited
+     * to configurations that use the common implementation. */
+#if !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_RENESAS_RX64_HASH) && \
+    (!defined(WOLFSSL_RENESAS_RSIP) || \
+     defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) && \
+    (!defined(WOLFSSL_KCAPI_HASH) || defined(WOLFSSL_NO_KCAPI_SHA224)) && \
+    (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
+    !defined(MAX3266X_SHA)
+    ret = wc_Sha224Copy(sha, sha);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+#endif
     ret = wc_Sha224Update(sha, (byte*)a_input, (word32)XSTRLEN(a_input));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -7735,6 +7749,25 @@ static wc_test_ret_t sha256_copy_test(wc_Sha256* sha, wc_Sha256* shaCopy)
     ret = wc_Sha256Update(shaCopy, (byte*)b_input, (word32)XSTRLEN(b_input));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#endif
+    /* The common implementation rejects self-copy with BAD_FUNC_ARG.
+     * Platform-specific implementations differ: some accept self-copy as a
+     * no-op, while others do not check for it. Keep this assertion limited
+     * to configurations that use the common implementation. */
+#if !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
+    !defined(WOLFSSL_DEVCRYPTO_HASH) && \
+    ((!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+      !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) || \
+     defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
+    ((!defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+      !defined(WOLFSSL_RENESAS_RSIP)) || \
+     defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) && \
+    !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_KCAPI_HASH) && \
+    (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
+    !defined(WOLFSSL_RENESAS_RX64_HASH) && !defined(MAX3266X_SHA)
+    ret = wc_Sha256Copy(sha, sha);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
 #endif
     ret = wc_Sha256Update(sha, (byte*)a_input, (word32)XSTRLEN(a_input));
     if (ret != 0)

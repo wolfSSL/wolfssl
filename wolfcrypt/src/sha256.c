@@ -3551,7 +3551,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
     {
         int ret = 0; /* assume success unless proven otherwise */
 
-        if (src == NULL || dst == NULL) {
+        if (src == NULL || dst == NULL || src == dst) {
             return BAD_FUNC_ARG;
         }
 
@@ -3710,7 +3710,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
     int ret = 0;
 
-    if (src == NULL || dst == NULL) {
+    if (src == NULL || dst == NULL || src == dst) {
         return BAD_FUNC_ARG;
     }
 
