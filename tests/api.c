@@ -27643,9 +27643,13 @@ static time_t test_wolfSSL_OCSP_REQ_CTX_time_cb(time_t* t)
 }
 #endif
 
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && defined(HAVE_OCSP) && \
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && \
+    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_SM2) && !defined(WOLFSSL_SM3) && \
     defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
     !defined(WOLFSSL_STATIC_MEMORY)
+
+#define TEST_OCSP_OOM
 static int ocsp_fail_next_alloc = 0;
 static int ocsp_alloc_failed = 0;
 
@@ -27866,9 +27870,7 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     };
     OCSP_REQ_CTX *ctx = NULL;
     OCSP_REQUEST *req = NULL;
-    OCSP_REQUEST *req2 = NULL;
     OCSP_CERTID *cid = NULL;
-    OCSP_CERTID *cid2 = NULL;
     OCSP_RESPONSE *rsp = NULL;
     BIO* bio1 = NULL;
     BIO* bio2 = NULL;
@@ -27880,10 +27882,14 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     STACK_OF(X509_OBJECT) *str_objs = NULL;
     X509_OBJECT *x509_obj = NULL;
     STACK_OF(WOLFSSL_STRING) *skStr = NULL;
+#ifdef TEST_OCSP_OOM
+    OCSP_CERTID *cid2 = NULL;
+    OCSP_REQUEST *req2 = NULL;
     wolfSSL_Malloc_cb  prev_mc = NULL;
     wolfSSL_Free_cb    prev_fc = NULL;
     wolfSSL_Realloc_cb prev_rc = NULL;
     int allocators_set = 0;
+#endif
 
     ExpectNotNull(bio1 = BIO_new(BIO_s_bio()));
     ExpectNotNull(bio2 = BIO_new(BIO_s_bio()));
@@ -27925,6 +27931,7 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     ExpectNotNull(cid = OCSP_cert_to_id(EVP_sha1(), cert, issuer));
     ExpectNotNull(OCSP_request_add0_id(req, cid));
     ExpectIntEQ(OCSP_request_add1_nonce(req, NULL, -1), 1);
+#ifdef TEST_OCSP_OOM
     /* A failed allocation must leave req unchanged and cid owned by the
      * caller. */
     ExpectNotNull(req2 = OCSP_REQUEST_new());
@@ -27946,6 +27953,7 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
         ExpectNull(req2->serial);
         ExpectIntEQ(req2->serialSz, 0);
     }
+#endif
 
     ExpectNull(OCSP_sendreq_new(bio1, "/\r\nX-Injected: yes", NULL, -1));
     ExpectNull(OCSP_sendreq_new(bio1, "/\nX-Injected: yes", NULL, -1));
@@ -27981,10 +27989,12 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     ExpectIntEQ(wc_SetTimeCb(NULL), 0);
     ExpectNotNull(rsp);
 #endif
+#ifdef TEST_OCSP_OOM
     OCSP_CERTID_free(cid2);
+    OCSP_REQUEST_free(req2);
+#endif
     OCSP_REQ_CTX_free(ctx);
     OCSP_REQUEST_free(req);
-    OCSP_REQUEST_free(req2);
     OCSP_RESPONSE_free(rsp);
     BIO_free(bio1);
     BIO_free(bio2);
