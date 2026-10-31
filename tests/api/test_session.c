@@ -513,11 +513,13 @@ static int twcase_server_sess_ctx_pre_shutdown(WOLFSSL* ssl)
         /* Now save the session in the internal store to make it available
          * for lookup. For TLS 1.3, we can't save the session without
          * WOLFSSL_TICKET_HAVE_ID because there is no way to retrieve the
-         * session from cache. */
+         * session from cache. The same holds for a TLS 1.2 ticket session,
+         * which has no session ID without WOLFSSL_TICKET_HAVE_ID. */
         if (wolfSSL_is_server(ssl)
 #ifndef WOLFSSL_TICKET_HAVE_ID
                 && wolfSSL_version(ssl) != TLS1_3_VERSION
                 && wolfSSL_version(ssl) != DTLS1_3_VERSION
+                && *sess != NULL && (*sess)->sessionIDSz > 0
 #endif
                 ) {
             ExpectIntEQ(wolfSSL_CTX_add_session(wolfSSL_get_SSL_CTX(ssl),
@@ -870,7 +872,13 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
                 else {
                     /* The ticket is reused, no new session */
                     ExpectIntEQ(twcase_new_session_called, 0);
+                #ifdef WOLFSSL_TICKET_HAVE_ID
                     ExpectIntEQ(twcase_remove_session_called, 1);
+                #else
+                    /* No session ID, so the session was not cached in
+                     * twcase_server_sess_ctx_pre_shutdown to be removed */
+                    ExpectIntEQ(twcase_remove_session_called, 0);
+                #endif
                 }
                 break;
 #ifdef WOLFSSL_EARLY_DATA

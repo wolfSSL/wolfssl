@@ -39729,6 +39729,587 @@ static int test_wolfSSL_set_SSL_CTX_static_heap(void)
     return EXPECT_RESULT();
 }
 
+/* A session retained past wolfSSL_free() keeps the per-SSL static heap hint
+ * alive. */
+static int test_wolfSSL_get1_session_static_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_TLS) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    byte mem[TEST_TLS_STATIC_MEMSZ];
+    WOLFSSL_HEAP_HINT* heap = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* dup = NULL;
+    WOLFSSL_HEAP_HINT* hint = NULL;
+    word32 refs = 0;
+    WOLFSSL_MEM_STATS before;
+    WOLFSSL_MEM_STATS after;
+
+    XMEMSET(&before, 0, sizeof(before));
+    XMEMSET(&after, 0, sizeof(after));
+    ExpectIntEQ(wc_LoadStaticMemory(&heap, mem, sizeof(mem),
+        WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1), 0);
+    ExpectNotNull(ctx = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap));
+    /* The first SSL makes a one-time allocation for the CTX; take the
+     * baseline after it. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx, &before), 1);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* Held by the SSL and each allocated block. */
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl->heap);
+    ExpectIntEQ(hint->sslOwned, 1);
+    ExpectIntGT(refs = hint->refCount, 1);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl));
+    ExpectPtrEq(sess->heap, hint);
+    /* A session ref allocates nothing. */
+    ExpectIntEQ(hint->refCount, refs);
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+    ExpectIntEQ(hint->refCount, refs);
+    /* No handshake done, so clear replaces the session. */
+    ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl));
+    ExpectPtrEq(sess->heap, hint);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    /* Only the session holds the hint now. */
+    ExpectIntGE(refs = hint->refCount, 1);
+
+    /* Both operations go through sess->heap after the SSL is gone. */
+    ExpectNotNull(dup = wolfSSL_SESSION_dup(sess));
+    ExpectPtrEq(dup->heap, hint);
+    ExpectIntGT(hint->refCount, refs);
+    wolfSSL_SESSION_free(dup);
+    ExpectIntEQ(hint->refCount, refs);
+    /* Last holder: the hint goes back to the pool. */
+    wolfSSL_SESSION_free(sess);
+
+    /* Everything allocated for the SSL went back to the pool. Stats are not
+     * filled in with WOLFSSL_STATIC_MEMORY_LEAN. */
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx, &after), 1);
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
+    ExpectIntEQ(after.curAlloc, before.curAlloc);
+#endif
+
+    wolfSSL_CTX_free(ctx);
+    wc_UnloadStaticMemory(heap);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+static int test_session_static_heap_new_pair(struct test_memio_ctx* test_ctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    WOLFSSL_SESSION* sess)
+{
+    EXPECT_DECLS;
+    char buf[1];
+
+    test_memio_clear_buffer(test_ctx, 1);
+    test_memio_clear_buffer(test_ctx, 0);
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        NULL, NULL), 0);
+    if (sess != NULL) {
+        ExpectIntEQ(wolfSSL_set_session(*ssl_c, sess), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(*ssl_c, *ssl_s, 10, NULL), 0);
+    /* Process the NewSessionTicket sent after the handshake. */
+    ExpectIntEQ(wolfSSL_read(*ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Session tickets held by a session retained past wolfSSL_free() must come
+ * from, and go back to, the session's heap. */
+static int test_wolfSSL_session_ticket_static_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    byte cliMem[TEST_TLS_STATIC_MEMSZ];
+    byte svrMem[TEST_TLS_STATIC_MEMSZ];
+    byte bigTicket[SESSION_TICKET_LEN + 1];
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* dup = NULL;
+    WOLFSSL_HEAP_HINT* hint = NULL;
+    word32 refs = 0;
+    WOLFSSL_MEM_STATS before;
+    WOLFSSL_MEM_STATS after;
+    char buf[1];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&before, 0, sizeof(before));
+    XMEMSET(&after, 0, sizeof(after));
+    XMEMSET(bigTicket, 0xA5, sizeof(bigTicket));
+
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx_c,
+        wolfTLSv1_3_client_method_ex, cliMem, sizeof(cliMem),
+        WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx_s,
+        wolfTLSv1_3_server_method_ex, svrMem, sizeof(svrMem),
+        WOLFMEM_GENERAL, 2), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    /* A first connection makes the one-time allocations for the CTXs; take
+     * the baseline after it. */
+    ExpectIntEQ(test_session_static_heap_new_pair(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, NULL), TEST_SUCCESS);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &before), 1);
+
+    /* Full handshake: keep the session with its ticket after the SSL. */
+    ExpectIntEQ(test_session_static_heap_new_pair(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, NULL), TEST_SUCCESS);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntGT(sess->ticketLen, 0);
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_c->heap);
+    ExpectPtrEq(sess->heap, hint);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    /* The session keeps the client's hint alive. */
+    ExpectIntGE(refs = hint->refCount, 1);
+
+    /* Resume with the session on a new SSL; a new ticket replaces the old. */
+    ExpectIntEQ(test_session_static_heap_new_pair(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, sess), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+    /* sess was copied from sess->heap, so both are on the first hint. */
+    ExpectPtrNE(ssl_c->heap, hint);
+    ExpectPtrNE(ssl_c->session, sess);
+    ExpectPtrEq(ssl_c->session->heap, hint);
+    ExpectIntGT(hint->refCount, refs);
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    /* The hint has outlived both SSLs. */
+    ExpectIntGE(hint->refCount, 1);
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+
+    /* A ticket too big for the static buffer is allocated dynamically. */
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl_c, bigTicket,
+        (word32)sizeof(bigTicket)), WOLFSSL_SUCCESS);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(sess->ticketLenAlloc, sizeof(bigTicket));
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_c->heap);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    ExpectIntGE(refs = hint->refCount, 1);
+    ExpectNotNull(dup = wolfSSL_SESSION_dup(sess));
+    ExpectIntGT(hint->refCount, refs);
+    wolfSSL_SESSION_free(dup);
+    dup = NULL;
+    ExpectIntEQ(hint->refCount, refs);
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+
+    /* A full handshake replaces the dynamic ticket with the new, smaller one,
+     * freeing the dynamic buffer through the session's heap. */
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        NULL, NULL), 0);
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl_c, bigTicket,
+        (word32)sizeof(bigTicket)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl_c->session->ticketLenAlloc, sizeof(bigTicket));
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c->session->ticketLenAlloc, 0);
+    ExpectIntGT(ssl_c->session->ticketLen, 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_SESSION_free(sess);
+
+    /* Everything allocated for the connections went back to the pool. */
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &after), 1);
+    ExpectIntEQ(after.curAlloc, before.curAlloc);
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_RSA) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+static int test_peer_cert_static_heap_connect(struct test_memio_ctx* test_ctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s)
+{
+    EXPECT_DECLS;
+
+    test_memio_clear_buffer(test_ctx, 1);
+    test_memio_clear_buffer(test_ctx, 0);
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfSSLv23_client_method, NULL), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_file(*ssl_c, cliCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(*ssl_c, cliKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(*ssl_c, *ssl_s, 10, NULL), 0);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* On the server, wolfSSL_get_peer_cert_chain() moves the leaf certificate into
+ * the session as its peer. Session and X509 keep the per-SSL hint alive past
+ * wolfSSL_free(). */
+static int test_wolfSSL_peer_cert_chain_static_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_RSA) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    byte svrMem[TEST_TLS_STATIC_MEMSZ];
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_HEAP_HINT* hint = NULL;
+    word32 refs = 0;
+#ifdef KEEP_PEER_CERT
+    WOLFSSL_X509* peer = NULL;
+#endif
+    WOLFSSL_MEM_STATS before;
+    WOLFSSL_MEM_STATS after;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&before, 0, sizeof(before));
+    XMEMSET(&after, 0, sizeof(after));
+
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx_s,
+        wolfSSLv23_server_method_ex, svrMem, sizeof(svrMem),
+        WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+        wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    }
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+
+    /* A first connection makes the one-time allocations for the server CTX;
+     * take the baseline after it. */
+    ExpectIntEQ(test_peer_cert_static_heap_connect(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s), TEST_SUCCESS);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_s, &before), 1);
+
+    /* The session is the last holder. */
+    ExpectIntEQ(test_peer_cert_static_heap_connect(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s), TEST_SUCCESS);
+    /* Held by the SSL and each allocated block. */
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_s->heap);
+    ExpectIntGT(refs = hint->refCount, 1);
+
+    ExpectNotNull(wolfSSL_get_peer_cert_chain(ssl_s));
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_s));
+    ExpectNotNull(sess->peer);
+    /* The peer is on the SSL's hint too. */
+    ExpectPtrEq(sess->peer->heap, hint);
+    ExpectIntGT(hint->refCount, refs);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    /* Only the session and peer hold the hint now. */
+    ExpectIntGE(hint->refCount, 2);
+    /* The peer is still usable once the SSL is gone. */
+    ExpectNotNull(wolfSSL_SESSION_get0_peer(sess));
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+
+#ifdef KEEP_PEER_CERT
+    /* An X509 is the last holder. */
+    ExpectIntEQ(test_peer_cert_static_heap_connect(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s), TEST_SUCCESS);
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_s->heap);
+    ExpectIntGT(refs = hint->refCount, 1);
+    /* A copy of ssl->peerCert, so on the SSL's hint. */
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    ExpectPtrEq(peer->heap, hint);
+    ExpectIntGT(hint->refCount, refs);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    /* Only the X509 holds the hint now. */
+    ExpectIntGE(hint->refCount, 1);
+    ExpectNotNull(wolfSSL_X509_get_subject_name(peer));
+    /* Last holder: the hint goes back to the pool. */
+    wolfSSL_X509_free(peer);
+    peer = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+#endif
+
+    /* Everything allocated for the connections went back to the pool. Stats
+     * are not filled in with WOLFSSL_STATIC_MEMORY_LEAN. */
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_s, &after), 1);
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
+    ExpectIntEQ(after.curAlloc, before.curAlloc);
+#endif
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_RSA)
+/* ioFlag is WOLFMEM_IO_POOL or WOLFMEM_IO_POOL_FIXED. */
+static int test_static_heap_io_refs(int ioFlag)
+{
+    EXPECT_DECLS;
+    byte cliMem[TEST_TLS_STATIC_MEMSZ];
+    byte cliIoMem[4 * (WOLFMEM_IO_SZ + WOLFSSL_STATIC_ALIGN + 64)];
+    byte svrMem[TEST_TLS_STATIC_MEMSZ];
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_HEAP_HINT* hint = NULL;
+    void* io = NULL;
+    void* tmp = NULL;
+    word32 refs = 0;
+    int fixed = (ioFlag == WOLFMEM_IO_POOL_FIXED);
+    WOLFSSL_MEM_STATS before;
+    WOLFSSL_MEM_STATS stats;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&before, 0, sizeof(before));
+    XMEMSET(&stats, 0, sizeof(stats));
+
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx_c,
+        wolfSSLv23_client_method_ex, cliMem, sizeof(cliMem),
+        WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1), WOLFSSL_SUCCESS);
+    /* IO buffers go into the same CTX hint. */
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx_c, NULL, cliIoMem,
+        sizeof(cliIoMem), ioFlag, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx_s,
+        wolfSSLv23_server_method_ex, svrMem, sizeof(svrMem),
+        WOLFMEM_GENERAL, 1), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    /* A first connection makes the one-time allocations for the CTXs; take
+     * the baseline after it. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        NULL, NULL), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &before), 1);
+    ExpectIntGT(before.avaIO, 0);
+
+    /* The session outlives the SSL whose IO buffers came from the pool. */
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        NULL, NULL), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_c->heap);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectPtrEq(sess->heap, hint);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectIntGE(hint->refCount, 1);
+    /* All IO buffers are back in the pool while the hint lives on. */
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &stats), 1);
+    ExpectIntEQ(stats.avaIO, before.avaIO);
+    /* Last holder: the hint goes back to the pool. */
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &stats), 1);
+    ExpectIntEQ(stats.curAlloc, before.curAlloc);
+    ExpectIntEQ(stats.avaIO, before.avaIO);
+
+    /* IO buffers taken directly from the per-SSL hint. Fixed ones belong to
+     * the SSL and hold no ref; pool ones hold one, and realloc keeps it. */
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl_c->heap);
+    if (EXPECT_SUCCESS())
+        refs = hint->refCount;
+    ExpectNotNull(io = XMALLOC(64, hint, DYNAMIC_TYPE_IN_BUFFER));
+    ExpectIntEQ(hint->refCount, fixed ? refs : refs + 1);
+#ifndef WOLFSSL_NO_REALLOC
+    ExpectNotNull(tmp = XREALLOC(io, 128, hint, DYNAMIC_TYPE_IN_BUFFER));
+    /* IO buffers are fixed size, so resized in place. */
+    ExpectPtrEq(tmp, io);
+    ExpectIntEQ(hint->refCount, fixed ? refs : refs + 1);
+#else
+    (void)tmp;
+#endif
+    XFREE(io, hint, DYNAMIC_TYPE_IN_BUFFER);
+    io = NULL;
+    ExpectIntEQ(hint->refCount, refs);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_c, &stats), 1);
+    ExpectIntEQ(stats.curAlloc, before.curAlloc);
+    ExpectIntEQ(stats.avaIO, before.avaIO);
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* IO pool and fixed IO blocks keep the per-SSL hint's ref count balanced. */
+static int test_wolfSSL_static_heap_io_refs(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_RSA)
+    ExpectIntEQ(test_static_heap_io_refs(WOLFMEM_IO_POOL_FIXED), TEST_SUCCESS);
+    ExpectIntEQ(test_static_heap_io_refs(WOLFMEM_IO_POOL), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A reallocated block keeps its ref on the per-SSL hint, even as the last
+ * holder after wolfSSL_free(). */
+static int test_wolfSSL_static_heap_realloc_refs(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_REALLOC)
+    byte mem[TEST_TLS_STATIC_MEMSZ];
+    WOLFSSL_HEAP_HINT* heap = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_HEAP_HINT* hint = NULL;
+    void* p = NULL;
+    void* tmp = NULL;
+    word32 refs = 0;
+    WOLFSSL_MEM_STATS before;
+    WOLFSSL_MEM_STATS after;
+
+    XMEMSET(&before, 0, sizeof(before));
+    XMEMSET(&after, 0, sizeof(after));
+    ExpectIntEQ(wc_LoadStaticMemory(&heap, mem, sizeof(mem),
+        WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1), 0);
+    ExpectNotNull(ctx = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap));
+    /* The first SSL makes a one-time allocation for the CTX; take the
+     * baseline after it. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx, &before), 1);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(hint = (WOLFSSL_HEAP_HINT*)ssl->heap);
+    if (EXPECT_SUCCESS())
+        refs = hint->refCount;
+    ExpectNotNull(p = XMALLOC(64, hint, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(hint->refCount, refs + 1);
+    /* A bigger bucket: the new block takes the ref the old one drops. */
+    ExpectNotNull(tmp = XREALLOC(p, 1000, hint, DYNAMIC_TYPE_TMP_BUFFER));
+    if (tmp != NULL) {
+        p = tmp;
+    }
+    ExpectIntEQ(hint->refCount, refs + 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    /* Only the block holds the hint now. */
+    ExpectIntEQ(hint->refCount, 1);
+    /* The new block is held before the old one drops the last ref. */
+    ExpectNotNull(tmp = XREALLOC(p, 2000, hint, DYNAMIC_TYPE_TMP_BUFFER));
+    if (tmp != NULL) {
+        p = tmp;
+    }
+    ExpectIntEQ(hint->refCount, 1);
+    /* Last holder: the hint goes back to the pool. */
+    XFREE(p, hint, DYNAMIC_TYPE_TMP_BUFFER);
+    p = NULL;
+
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx, &after), 1);
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
+    ExpectIntEQ(after.curAlloc, before.curAlloc);
+#endif
+
+    wolfSSL_CTX_free(ctx);
+    wc_UnloadStaticMemory(heap);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_openssl_FIPS_drbg(void)
 {
     EXPECT_DECLS;
@@ -47288,6 +47869,11 @@ TEST_CASE testCases[] = {
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
     TEST_DECL(test_wolfSSL_set_SSL_CTX_static_heap),
+    TEST_DECL(test_wolfSSL_get1_session_static_heap),
+    TEST_DECL(test_wolfSSL_session_ticket_static_heap),
+    TEST_DECL(test_wolfSSL_peer_cert_chain_static_heap),
+    TEST_DECL(test_wolfSSL_static_heap_io_refs),
+    TEST_DECL(test_wolfSSL_static_heap_realloc_refs),
 #if !defined(NO_FILESYSTEM) &&                                                 \
      defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)

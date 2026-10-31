@@ -4121,7 +4121,7 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
     #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (err != 0) {
             WOLFSSL_MSG("Error setting up session reference mutex");
-            XFREE(ret, ret->heap, DYNAMIC_TYPE_SESSION);
+            XFREE(ret, heap, DYNAMIC_TYPE_SESSION);
             return NULL;
         }
     #else
