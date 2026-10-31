@@ -250,6 +250,30 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
     unsigned char buf[16] = {0};
     WOLFSSL_X509_VERIFY_PARAM* param = NULL;
+    int i;
+    static const struct {
+        unsigned char ip[16];
+        const char* asc;
+    } ip6Tests[] = {
+        { { 0x20,0x01, 0x0d,0xb8, 0,0, 0,1, 0,0, 0,0, 0,0, 0,5 },
+          "2001:db8:0:1::5" },
+        { { 0x20,0x01, 0x0d,0xb8, 0,0, 0,1, 0,0, 0,0, 0,0, 0,0 },
+          "2001:db8:0:1::" },
+        { { 0,1, 0,0, 0,0, 0,2, 0,0, 0,0, 0,0, 0,3 },
+          "1:0:0:2::3" },
+        { { 0,0, 0,0, 0,0, 0,0, 0,1, 0,0, 0,0, 0,2 },
+          "::1:0:0:2" },
+        /* equal length runs compress the first one */
+        { { 0,1, 0,0, 0,0, 0,2, 0,0, 0,0, 0,3, 0,4 },
+          "1::2:0:0:3:4" },
+        /* a single zero group is not compressed */
+        { { 0x20,0x01, 0x0d,0xb8, 0,0, 0,1, 0,2, 0,3, 0,4, 0,5 },
+          "2001:db8:0:1:2:3:4:5" },
+        { { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 },
+          "::" },
+        { { 0,0, 0,1, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 },
+          "0:1::" }
+    };
 
     ExpectNotNull(param = X509_VERIFY_PARAM_new());
 
@@ -317,6 +341,13 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
     ExpectIntEQ(X509_VERIFY_PARAM_set1_ip(param, &buf[0], 16), SSL_SUCCESS);
     ExpectIntEQ(XSTRNCMP(param->ipasc, "2001:db8:1::ab9:c0a8:102",
                                                 sizeof(param->ipasc)), 0);
+
+    /* Addresses with more than one zero run must not drop the later runs */
+    for (i = 0; i < (int)(sizeof(ip6Tests) / sizeof(ip6Tests[0])); i++) {
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_ip(param, ip6Tests[i].ip, 16),
+            SSL_SUCCESS);
+        ExpectStrEQ(param->ipasc, ip6Tests[i].asc);
+    }
 
     XFREE(param, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
 #endif /* OPENSSL_EXTRA */
