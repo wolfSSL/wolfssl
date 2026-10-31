@@ -2804,6 +2804,80 @@ int test_wolfSSL_EVP_PKEY_decrypt_outLen(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_EVP_PKEY_encrypt_outLen(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    WOLFSSL_RSA* rsa = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+    const size_t rsaKeySz = 2048/8;
+    const size_t bufSz = 32;
+    byte   in[200];
+    byte*  enc = NULL;
+    byte*  dec = NULL;
+    size_t encLen = 2048/8;
+    size_t decLen = 0;
+    size_t i = 0;
+
+    XMEMSET(in, 0x5a, sizeof(in));
+
+    ExpectNotNull(enc = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (enc != NULL) {
+        XMEMSET(enc, 0xa5, rsaKeySz);
+    }
+    ExpectNotNull(dec = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (dec != NULL) {
+        XMEMSET(dec, 0, rsaKeySz);
+    }
+
+    ExpectNotNull(rsa = RSA_generate_key(2048, WC_RSA_EXPONENT, NULL, NULL));
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
+    if (EXPECT_FAIL()) {
+        RSA_free(rsa);
+    }
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    if (pkey != NULL) {
+        EVP_PKEY_free(pkey);
+    }
+
+    ExpectIntEQ(EVP_PKEY_encrypt_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING),
+        WOLFSSL_SUCCESS);
+
+    encLen = bufSz;
+    ExpectIntEQ(EVP_PKEY_encrypt(ctx, enc, &encLen, in, sizeof(in)),
+        WOLFSSL_FAILURE);
+    if (enc != NULL) {
+        for (i = 0; i < rsaKeySz; i++) {
+            if (enc[i] != 0xa5)
+                break;
+        }
+    }
+    ExpectIntEQ(i, rsaKeySz);
+
+    encLen = rsaKeySz;
+    ExpectIntEQ(EVP_PKEY_encrypt(ctx, enc, &encLen, in, sizeof(in)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(encLen, rsaKeySz);
+
+    ExpectIntEQ(EVP_PKEY_decrypt_init(ctx), WOLFSSL_SUCCESS);
+    decLen = rsaKeySz;
+    ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(decLen, sizeof(in));
+    ExpectIntEQ(XMEMCMP(dec, in, sizeof(in)), 0);
+
+    EVP_PKEY_CTX_free(ctx);
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_derive(void)
 {
     EXPECT_DECLS;
