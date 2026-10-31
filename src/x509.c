@@ -1805,7 +1805,9 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
 }
 #endif /* !NO_BIO */
 
-#ifndef NO_WOLFSSL_STUB
+#if !defined(NO_WOLFSSL_STUB) && !(defined(OPENSSL_ALL) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CERT_EXT))
 int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx,
         const char *section, WOLFSSL_X509 *cert)
 {
@@ -12932,6 +12934,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
             if (ret == WOLFSSL_SUCCESS) {
                 cert->altNamesSz = FlattenAltNames(cert->altNames,
                         sizeof(cert->altNames), req->altNames);
+                cert->altNamesCrit = req->subjAltNameCrit;
             }
     #endif /* WOLFSSL_ALT_NAMES */
         }
@@ -13003,6 +13006,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 #ifdef WOLFSSL_ALT_NAMES
     cert->altNamesSz = FlattenAltNames(cert->altNames,
             sizeof(cert->altNames), x509->altNames);
+    cert->altNamesCrit = x509->subjAltNameCrit;
 #endif /* WOLFSSL_ALT_NAMES */
 
     cert->sigType = wolfSSL_X509_get_signature_type(x509);
@@ -17940,6 +17944,9 @@ int wolfSSL_X509_set_subject_key_id(WOLFSSL_X509* x509,
     XMEMCPY(x509->subjKeyId, skid, (word32)skidSz);
     x509->subjKeyIdSz = (word32)skidSz;
     x509->subjKeyIdSet = 1;
+    /* Cached ASN1_STRING handed out by get0_subject_key_id() is stale. */
+    wolfSSL_ASN1_STRING_free(x509->subjKeyIdStr);
+    x509->subjKeyIdStr = NULL;
 
     return WOLFSSL_SUCCESS;
 }
@@ -18113,6 +18120,13 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
         ret = WOLFSSL_FAILURE;
         WOLFSSL_MSG("wolfSSL_X509V3_set_ctx() called with null ctx.");
     }
+    else {
+        /* Referenced by wolfSSL_X509V3_EXT_add_nconf(). Set these first so
+         * they are valid even if allocating ctx->x509 below fails. */
+        ctx->issuer_cert = issuer;
+        ctx->subject_cert = subject;
+        ctx->conf = NULL;
+    }
 
     if (ret == WOLFSSL_SUCCESS && (ctx->x509 != NULL)) {
         ret = WOLFSSL_FAILURE;
@@ -18156,6 +18170,670 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
         WOLFSSL_MSG("Error setting WOLFSSL_X509V3_CTX parameters.");
     }
 }
+
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_EXT)
+/* Size of a SHA-1 based key identifier. */
+#define X509V3_KEYID_SZ 20
+
+/* Set the configuration used to resolve "@section" references in extension
+ * values passed to wolfSSL_X509V3_EXT_add_nconf().
+ *
+ * ctx  - X509v3 context
+ * conf - Configuration (not owned by the context)
+ */
+void wolfSSL_X509V3_set_nconf(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_CONF* conf)
+{
+    WOLFSSL_ENTER("wolfSSL_X509V3_set_nconf");
+
+    if (ctx != NULL) {
+        ctx->conf = conf;
+    }
+}
+
+/* Copy an extension value with the white space at either end and around the
+ * ',' and ':' separators removed, as OpenSSL does. White space inside a name
+ * or value is kept so that it is rejected or encoded as given.
+ * Returns the new string or NULL on failure. Caller frees with XFREE. */
+static char* x509v3_conf_dup_value(const char* value, void* heap)
+{
+    char* str;
+    size_t i = 0;
+    size_t j = 0;
+    size_t len = XSTRLEN(value);
+
+    str = (char*)XMALLOC(len + 1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (str != NULL) {
+        while (i < len) {
+            if (XISSPACE((unsigned char)value[i])) {
+                size_t end = i;
+
+                while (end < len && XISSPACE((unsigned char)value[end])) {
+                    end++;
+                }
+                /* Keep only white space between two non-separators. */
+                if (j > 0 && str[j - 1] != ',' && str[j - 1] != ':' &&
+                        end < len && value[end] != ',' && value[end] != ':') {
+                    XMEMCPY(str + j, value + i, end - i);
+                    j += end - i;
+                }
+                i = end;
+            }
+            else {
+                str[j++] = value[i++];
+            }
+        }
+        str[j] = '\0';
+    }
+    return str;
+}
+
+/* Split off the next comma separated token. The comma is replaced with a
+ * terminator and *str is moved past it. Returns NULL when no tokens remain. */
+static char* x509v3_conf_next_token(char** str)
+{
+    char* token = *str;
+    char* comma;
+
+    if (token == NULL || *token == '\0') {
+        return NULL;
+    }
+    comma = XSTRSTR(token, ",");
+    if (comma != NULL) {
+        *comma = '\0';
+        *str = comma + 1;
+    }
+    else {
+        *str = token + XSTRLEN(token);
+    }
+    return token;
+}
+
+/* Parse an OpenSSL configuration boolean. Returns 1 for true, 0 for false
+ * and -1 when not recognized. */
+static int x509v3_conf_bool(const char* str)
+{
+    if (XSTRCASECMP(str, "TRUE") == 0 || XSTRCASECMP(str, "Y") == 0 ||
+            XSTRCASECMP(str, "YES") == 0) {
+        return 1;
+    }
+    if (XSTRCASECMP(str, "FALSE") == 0 || XSTRCASECMP(str, "N") == 0 ||
+            XSTRCASECMP(str, "NO") == 0) {
+        return 0;
+    }
+    return -1;
+}
+
+#ifndef NO_SHA
+/* Find the subjectPublicKey BIT STRING value in a SubjectPublicKeyInfo:
+ * SEQUENCE { AlgorithmIdentifier, BIT STRING }. The whole buffer must be the
+ * SEQUENCE and the algorithm must be keyOID.
+ *
+ * Returns 0 on success or -1 when der is not such a SubjectPublicKeyInfo.
+ */
+static int x509v3_spki_pubkey(const byte* der, word32 derSz, word32 keyOID,
+    const byte** key, word32* keySz)
+{
+    word32 idx = 0;
+    word32 algEnd;
+    word32 oid = 0;
+    int len;
+
+    if (GetSequence(der, &idx, &len, derSz) < 0 ||
+            idx + (word32)len != derSz) {
+        return -1;
+    }
+    if (GetSequence(der, &idx, &len, derSz) < 0) {
+        return -1;
+    }
+    algEnd = idx + (word32)len;
+    if (GetObjectId(der, &idx, &oid, oidKeyType, algEnd) < 0 ||
+            oid != keyOID) {
+        return -1;
+    }
+    idx = algEnd;
+    if (CheckBitString(der, &idx, &len, derSz, 1, NULL) < 0 ||
+            idx + (word32)len != derSz) {
+        return -1;
+    }
+    *key = der + idx;
+    *keySz = (word32)len;
+    return 0;
+}
+#endif /* !NO_SHA */
+
+/* Calculate the key identifier of a certificate's public key as described in
+ * RFC 5280, 4.2.1.2 (1): SHA-1 of the subjectPublicKey BIT STRING value.
+ * This is the value OpenSSL uses for "subjectKeyIdentifier = hash".
+ *
+ * x509 - Certificate with public key set
+ * hash - Buffer of X509V3_KEYID_SZ bytes to hold the key identifier
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+static int x509v3_pubkey_keyid(const WOLFSSL_X509* x509, byte* hash)
+{
+#ifndef NO_SHA
+    const byte* key;
+    word32 keySz;
+
+    if (x509 == NULL || x509->pubKey.buffer == NULL ||
+            x509->pubKey.length == 0) {
+        WOLFSSL_MSG("Public key not set");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* The key is kept as a SubjectPublicKeyInfo (wolfSSL_X509_set_pubkey()
+     * with RSA or ECC, or a parsed ECC certificate) or as only the
+     * subjectPublicKey value (RSAPublicKey of a parsed RSA certificate, raw
+     * key of Ed25519, ML-DSA and others). */
+    if (x509v3_spki_pubkey(x509->pubKey.buffer, x509->pubKey.length,
+            (word32)x509->pubKeyOID, &key, &keySz) != 0) {
+        if (x509->pubKeyOID == ECDSAk) {
+            WOLFSSL_MSG("Bad ECC SubjectPublicKeyInfo");
+            return WOLFSSL_FAILURE;
+        }
+        key = x509->pubKey.buffer;
+        keySz = x509->pubKey.length;
+    }
+    if (wc_ShaHash(key, keySz, hash) != 0) {
+        return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+#else
+    (void)x509;
+    (void)hash;
+    WOLFSSL_MSG("SHA-1 required for key identifier");
+    return WOLFSSL_FAILURE;
+#endif
+}
+
+/* basicConstraints = [critical,]CA:TRUE|FALSE[,pathlen:N] */
+static int x509v3_conf_basic_constraints(WOLFSSL_X509* cert, char* value,
+    int crit)
+{
+    char* token;
+    int ca = 0;
+    int pathLen = -1;
+
+    while ((token = x509v3_conf_next_token(&value)) != NULL) {
+        if (XSTRNCASECMP(token, "CA:", 3) == 0) {
+            ca = x509v3_conf_bool(token + 3);
+            if (ca < 0) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+        else if (XSTRNCASECMP(token, "pathlen:", 8) == 0) {
+            const char* p = token + 8;
+
+            if (*p == '\0') {
+                return WOLFSSL_FAILURE;
+            }
+            for (pathLen = 0; *p != '\0'; p++) {
+                if (*p < '0' || *p > '9') {
+                    return WOLFSSL_FAILURE;
+                }
+                pathLen = pathLen * 10 + (*p - '0');
+                /* Encoded as a single byte INTEGER. */
+                if (pathLen > 127) {
+                    WOLFSSL_MSG("pathlen too large");
+                    return WOLFSSL_FAILURE;
+                }
+            }
+        }
+        else {
+            WOLFSSL_MSG("Unsupported basicConstraints value");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    cert->isCa = (byte)ca;
+    cert->basicConstCrit = (byte)crit;
+    cert->basicConstSet = 1;
+    if (pathLen >= 0) {
+        cert->pathLength = (word32)pathLen;
+        cert->pathLengthSet = 1;
+        cert->basicConstPlSet = 1;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+/* subjectKeyIdentifier = hash | none | hex string */
+static int x509v3_conf_skid(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* cert,
+    const char* value, int crit)
+{
+    byte skid[CTC_MAX_SKID_SIZE];
+    int skidSz = 0;
+
+    if (XSTRCASECMP(value, "none") == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    if (XSTRCASECMP(value, "hash") == 0) {
+        WOLFSSL_X509* subject = cert;
+
+        if (ctx != NULL && ctx->subject_cert != NULL) {
+            subject = ctx->subject_cert;
+        }
+        if (x509v3_pubkey_keyid(subject, skid) != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
+        }
+        skidSz = X509V3_KEYID_SZ;
+    }
+    else {
+        /* Hex string, optionally separated with ':' as OpenSSL accepts. */
+        const char* p = value;
+
+        while (*p != '\0') {
+            signed char hi;
+            signed char lo;
+
+            if (*p == ':') {
+                p++;
+                continue;
+            }
+            if (p[1] == '\0' || skidSz >= (int)sizeof(skid)) {
+                return WOLFSSL_FAILURE;
+            }
+            hi = HexCharToByte(p[0]);
+            lo = HexCharToByte(p[1]);
+            if (hi < 0 || lo < 0) {
+                return WOLFSSL_FAILURE;
+            }
+            skid[skidSz++] = (byte)((hi << 4) | lo);
+            p += 2;
+        }
+        if (skidSz == 0) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    if (wolfSSL_X509_set_subject_key_id(cert, skid, skidSz) !=
+            WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+    cert->subjKeyIdCrit = (byte)crit;
+    return WOLFSSL_SUCCESS;
+}
+
+/* authorityKeyIdentifier = keyid[:always][,issuer[:always]]
+ * Only the keyIdentifier field is supported. */
+static int x509v3_conf_akid(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* cert,
+    char* value, int crit)
+{
+    char* token;
+    int keyid = 0;
+    int keyidAlways = 0;
+    int issuerAlways = 0;
+    WOLFSSL_X509* issuer = (ctx != NULL) ? ctx->issuer_cert : NULL;
+    byte hash[X509V3_KEYID_SZ];
+    const byte* id = NULL;
+    int idSz = 0;
+
+    while ((token = x509v3_conf_next_token(&value)) != NULL) {
+        if (XSTRCASECMP(token, "keyid") == 0) {
+            keyid = 1;
+        }
+        else if (XSTRCASECMP(token, "keyid:always") == 0) {
+            keyid = 1;
+            keyidAlways = 1;
+        }
+        else if (XSTRCASECMP(token, "issuer") == 0) {
+            /* Only used when the key identifier is not available. */
+        }
+        else if (XSTRCASECMP(token, "issuer:always") == 0) {
+            issuerAlways = 1;
+        }
+        else {
+            WOLFSSL_MSG("Unsupported authorityKeyIdentifier value");
+            return WOLFSSL_FAILURE;
+        }
+    }
+    if (issuerAlways) {
+        WOLFSSL_MSG("authorityKeyIdentifier issuer not supported");
+        return WOLFSSL_FAILURE;
+    }
+    if (!keyid) {
+        return WOLFSSL_SUCCESS;
+    }
+    if (issuer == NULL) {
+        WOLFSSL_MSG("No issuer certificate in X509V3_CTX");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (issuer->subjKeyIdSet && issuer->subjKeyId != NULL &&
+            issuer->subjKeyIdSz > 0) {
+        id = issuer->subjKeyId;
+        idSz = (int)issuer->subjKeyIdSz;
+    }
+    else if (issuer == cert || (ctx != NULL && issuer == ctx->subject_cert)) {
+        /* Self-issued without a subject key identifier set yet: use the hash
+         * of the public key as OpenSSL does. */
+        if (x509v3_pubkey_keyid(issuer, hash) == WOLFSSL_SUCCESS) {
+            id = hash;
+            idSz = X509V3_KEYID_SZ;
+        }
+    }
+
+    if (id == NULL) {
+        if (keyidAlways) {
+            WOLFSSL_MSG("Unable to get issuer key identifier");
+            return WOLFSSL_FAILURE;
+        }
+        return WOLFSSL_SUCCESS;
+    }
+    if (wolfSSL_X509_set_authority_key_id(cert, id, idSz) !=
+            WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+    cert->authKeyIdCrit = (byte)crit;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Add one subjectAltName entry: type is DNS, IP, email or URI. */
+static int x509v3_conf_add_altname(WOLFSSL_X509* cert, const char* type,
+    const char* name)
+{
+    int asnType;
+
+    if (XSTRCASECMP(type, "DNS") == 0) {
+        asnType = ASN_DNS_TYPE;
+    }
+    else if (XSTRCASECMP(type, "IP") == 0) {
+        asnType = ASN_IP_TYPE;
+    }
+    else if (XSTRCASECMP(type, "email") == 0) {
+        if (XSTRCASECMP(name, "copy") == 0 || XSTRCASECMP(name, "move") == 0) {
+            WOLFSSL_MSG("email:copy/move not supported");
+            return WOLFSSL_FAILURE;
+        }
+        asnType = ASN_RFC822_TYPE;
+    }
+    else if (XSTRCASECMP(type, "URI") == 0) {
+        asnType = ASN_URI_TYPE;
+    }
+    else {
+        WOLFSSL_MSG("Unsupported subjectAltName type");
+        return WOLFSSL_FAILURE;
+    }
+    if (*name == '\0') {
+        return WOLFSSL_FAILURE;
+    }
+    return wolfSSL_X509_add_altname(cert, name, asnType);
+}
+
+/* subjectAltName = TYPE:value[,TYPE:value...] | @section
+ * In a section the names are TYPE or TYPE.n (e.g. DNS.1). */
+static int x509v3_conf_san_add(WOLFSSL_CONF* conf, WOLFSSL_X509* cert,
+    char* value)
+{
+    char* token;
+    char* sep;
+
+    while ((token = x509v3_conf_next_token(&value)) != NULL) {
+        if (token[0] == '@') {
+            WOLFSSL_STACK* sk;
+            WOLFSSL_CONF_VALUE* val;
+            char type[16];
+            int i;
+            int num;
+
+            sk = wolfSSL_NCONF_get_section(conf, token + 1);
+            if (sk == NULL) {
+                WOLFSSL_MSG("subjectAltName section not found");
+                return WOLFSSL_FAILURE;
+            }
+            num = wolfSSL_sk_CONF_VALUE_num(sk);
+            for (i = 0; i < num; i++) {
+                size_t typeLen;
+
+                val = wolfSSL_sk_CONF_VALUE_value(sk, i);
+                if (val == NULL || val->name == NULL || val->value == NULL) {
+                    return WOLFSSL_FAILURE;
+                }
+                sep = XSTRSTR(val->name, ".");
+                typeLen = (sep != NULL) ? (size_t)(sep - val->name) :
+                    XSTRLEN(val->name);
+                if (typeLen >= sizeof(type)) {
+                    return WOLFSSL_FAILURE;
+                }
+                XMEMCPY(type, val->name, typeLen);
+                type[typeLen] = '\0';
+                if (x509v3_conf_add_altname(cert, type, val->value) !=
+                        WOLFSSL_SUCCESS) {
+                    return WOLFSSL_FAILURE;
+                }
+            }
+        }
+        else {
+            sep = XSTRSTR(token, ":");
+            if (sep == NULL) {
+                return WOLFSSL_FAILURE;
+            }
+            *sep = '\0';
+            if (x509v3_conf_add_altname(cert, token, sep + 1) !=
+                    WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+/* Add all the subjectAltName entries of a value, or none of them on error. */
+static int x509v3_conf_san(WOLFSSL_CONF* conf, WOLFSSL_X509* cert,
+    char* value)
+{
+    DNS_entry* prev = cert->altNames;
+    int ret;
+
+    ret = x509v3_conf_san_add(conf, cert, value);
+    if (ret != WOLFSSL_SUCCESS && cert->altNames != prev) {
+        /* New entries are put at the head of the list: free those. */
+        DNS_entry* added = cert->altNames;
+        DNS_entry* last = added;
+
+        while (last->next != prev) {
+            last = last->next;
+        }
+        last->next = NULL;
+        FreeAltNames(added, cert->heap);
+        cert->altNames = prev;
+    }
+    return ret;
+}
+
+/* extendedKeyUsage = name[,name...]
+ * Sets the usage bits that are encoded and the list of KeyPurposeId OIDs that
+ * wolfSSL_X509_get_ext_d2i() returns, as for a parsed certificate. */
+static int x509v3_conf_eku(WOLFSSL_X509* cert, const char* value, int crit)
+{
+    /* anyExtendedKeyUsage: 2.5.29.37.0 */
+    static const byte anyOid[] = { 0x06, 0x04, 0x55, 0x1d, 0x25, 0x00 };
+    /* id-kp: 1.3.6.1.5.5.7.3, followed by one byte for the purpose. */
+    static const byte kpOid[] = {
+        0x06, 0x08, 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03
+    };
+    static const struct {
+        byte bit;
+        byte id;
+    } kp[] = {
+        { EXTKEYUSE_SERVER_AUTH, 1 },
+        { EXTKEYUSE_CLIENT_AUTH, 2 },
+        { EXTKEYUSE_CODESIGN,    3 },
+        { EXTKEYUSE_EMAILPROT,   4 },
+        { EXTKEYUSE_TIMESTAMP,   8 },
+        { EXTKEYUSE_OCSP_SIGN,   9 },
+    };
+    byte usage = 0;
+    byte* der;
+    word32 derSz = 0;
+    word32 count = 0;
+    size_t i;
+
+    if (ParseExtKeyUsageStr(value, &usage, cert->heap) != 0) {
+        return WOLFSSL_FAILURE;
+    }
+    der = (byte*)XMALLOC(sizeof(anyOid) +
+        (sizeof(kp) / sizeof(kp[0])) * (sizeof(kpOid) + 1), cert->heap,
+        DYNAMIC_TYPE_X509_EXT);
+    if (der == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (usage & EXTKEYUSE_ANY) {
+        XMEMCPY(der, anyOid, sizeof(anyOid));
+        derSz += (word32)sizeof(anyOid);
+        count++;
+    }
+    for (i = 0; i < sizeof(kp) / sizeof(kp[0]); i++) {
+        if (usage & kp[i].bit) {
+            XMEMCPY(der + derSz, kpOid, sizeof(kpOid));
+            derSz += (word32)sizeof(kpOid);
+            der[derSz++] = kp[i].id;
+            count++;
+        }
+    }
+
+    XFREE(cert->extKeyUsageSrc, cert->heap, DYNAMIC_TYPE_X509_EXT);
+    cert->extKeyUsageSrc = der;
+    cert->extKeyUsageSz = derSz;
+    cert->extKeyUsageCount = count;
+    cert->extKeyUsage = usage;
+    cert->extKeyUsageCrit = (byte)crit;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Apply one "name = value" extension entry to the certificate. */
+static int x509v3_conf_add_value(WOLFSSL_CONF* conf, WOLFSSL_X509V3_CTX* ctx,
+    WOLFSSL_X509* cert, const char* name, const char* value)
+{
+    int ret = WOLFSSL_FAILURE;
+    int nid;
+    int crit = 0;
+    char* str;
+    char* v;
+
+    nid = wolfSSL_OBJ_sn2nid(name);
+    if (nid == WC_NID_undef) {
+        WOLFSSL_MSG("Unknown extension name");
+        return WOLFSSL_FAILURE;
+    }
+
+    str = x509v3_conf_dup_value(value, cert->heap);
+    if (str == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    v = str;
+    if (XSTRNCASECMP(v, "critical", 8) == 0 &&
+            (v[8] == ',' || v[8] == '\0')) {
+        crit = 1;
+        v += (v[8] == ',') ? 9 : 8;
+    }
+
+    /* The certificate encoder always marks keyUsage critical, and
+     * extendedKeyUsage and the key identifiers not critical. Reject anything
+     * else rather than produce a certificate that differs from the
+     * configuration. */
+    if ((nid == WC_NID_key_usage && !crit) ||
+            (crit && (nid == WC_NID_ext_key_usage ||
+                      nid == WC_NID_subject_key_identifier ||
+                      nid == WC_NID_authority_key_identifier))) {
+        WOLFSSL_MSG("Unsupported extension criticality");
+        nid = WC_NID_undef;
+    }
+
+    switch (nid) {
+    case WC_NID_undef:
+        /* Rejected above. */
+        break;
+    case WC_NID_basic_constraints:
+        ret = x509v3_conf_basic_constraints(cert, v, crit);
+        break;
+    case WC_NID_key_usage:
+        if (ParseKeyUsageStr(v, &cert->keyUsage, cert->heap) == 0) {
+            cert->keyUsageCrit = (byte)crit;
+            cert->keyUsageSet = 1;
+            ret = WOLFSSL_SUCCESS;
+        }
+        break;
+    case WC_NID_ext_key_usage:
+        ret = x509v3_conf_eku(cert, v, crit);
+        break;
+    case WC_NID_subject_key_identifier:
+        ret = x509v3_conf_skid(ctx, cert, v, crit);
+        break;
+    case WC_NID_authority_key_identifier:
+        ret = x509v3_conf_akid(ctx, cert, v, crit);
+        break;
+    case WC_NID_subject_alt_name:
+        ret = x509v3_conf_san(conf, cert, v);
+        if (ret == WOLFSSL_SUCCESS && cert->altNames != NULL) {
+            cert->subjAltNameSet = 1;
+            cert->subjAltNameCrit = (byte)(crit != 0);
+        }
+        break;
+    default:
+        WOLFSSL_MSG("Unsupported extension in configuration");
+        break;
+    }
+
+    if (ret != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to add extension from configuration");
+    }
+    XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+/* Add the extensions in a configuration section to a certificate.
+ *
+ * Supported: basicConstraints, keyUsage, extendedKeyUsage,
+ * subjectKeyIdentifier, authorityKeyIdentifier (keyid) and subjectAltName
+ * (DNS, IP, email, URI, @section).
+ *
+ * conf    - Configuration holding the section
+ * ctx     - X509v3 context set with wolfSSL_X509V3_set_ctx(). The issuer
+ *           certificate is used for authorityKeyIdentifier. May be NULL.
+ * section - Name of the section listing the extensions
+ * cert    - Certificate to add the extensions to
+ *
+ * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+ */
+int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx,
+        const char *section, WOLFSSL_X509 *cert)
+{
+    WOLFSSL_STACK* sk;
+    WOLFSSL_CONF_VALUE* val;
+    WOLFSSL_CONF* refConf;
+    int i;
+    int num;
+
+    WOLFSSL_ENTER("wolfSSL_X509V3_EXT_add_nconf");
+
+    if (conf == NULL || section == NULL || cert == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    sk = wolfSSL_NCONF_get_section(conf, section);
+    if (sk == NULL) {
+        WOLFSSL_MSG("Extension section not found");
+        return WOLFSSL_FAILURE;
+    }
+    /* "@section" references are resolved in the configuration set with
+     * wolfSSL_X509V3_set_nconf(), or in this one if none was set. */
+    refConf = (ctx != NULL && ctx->conf != NULL) ? ctx->conf : conf;
+
+    num = wolfSSL_sk_CONF_VALUE_num(sk);
+    for (i = 0; i < num; i++) {
+        val = wolfSSL_sk_CONF_VALUE_value(sk, i);
+        if (val == NULL || val->name == NULL || val->value == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+        if (x509v3_conf_add_value(refConf, ctx, cert, val->name,
+                val->value) != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+    return WOLFSSL_SUCCESS;
+}
+#endif /* OPENSSL_ALL && WOLFSSL_CERT_EXT */
 
 #ifndef NO_BIO
 int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)

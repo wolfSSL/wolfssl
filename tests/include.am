@@ -96,6 +96,7 @@ EXTRA_DIST += tests/unit.h \
               tests/test-ecc-cust-curves.conf \
               tests/test-sm2.conf \
               tests/NCONF_test.cnf \
+              tests/X509V3_EXT_nconf_test.cnf \
               tests/test-tls-downgrade.conf \
               tests/TXT_DB.txt \
               tests/utils.h \

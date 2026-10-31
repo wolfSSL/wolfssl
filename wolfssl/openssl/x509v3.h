@@ -162,6 +162,8 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
         WOLFSSL_X509_EXTENSION *ext, unsigned long flag, int indent);
 WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf,
         WOLFSSL_X509V3_CTX *ctx, const char *section, WOLFSSL_X509 *cert);
+WOLFSSL_API void wolfSSL_X509V3_set_nconf(WOLFSSL_X509V3_CTX *ctx,
+        WOLFSSL_CONF *conf);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509v3_get_ext(
         const WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk, int loc);
 WOLFSSL_API int wolfSSL_X509v3_get_ext_by_NID(
@@ -263,8 +265,13 @@ typedef struct WOLFSSL_NAME_CONSTRAINTS NAME_CONSTRAINTS;
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
 #define X509V3_EXT_conf_nid       wolfSSL_X509V3_EXT_conf_nid
 #define X509V3_set_ctx            wolfSSL_X509V3_set_ctx
-#ifndef NO_WOLFSSL_STUB
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_EXT)
+#define X509V3_set_nconf          wolfSSL_X509V3_set_nconf
+#elif !defined(NO_WOLFSSL_STUB)
 #define X509V3_set_nconf(ctx, conf) WC_DO_NOTHING
+#endif
+#ifndef NO_WOLFSSL_STUB
 #define X509V3_EXT_cleanup()      WC_DO_NOTHING
 #endif
 #define X509V3_set_ctx_test(ctx)  wolfSSL_X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
