@@ -14820,6 +14820,62 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
 }
 #endif /* WOLFSSL_SP_FAST_NCT_EXPTMOD || !WOLFSSL_SP_SMALL */
 
+#if defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Internal. Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
+ * Left-to-right binary square-and-multiply, reducing by m at each step.
+ * Works for any modulus including even moduli, which Montgomery form does not
+ * support. Is NOT constant time.
+ *
+ * Assumes e is greater than zero.
+ *
+ * @param [in]  b  SP integer that is the base.
+ * @param [in]  e  SP integer that is the exponent.
+ * @param [in]  m  SP integer that is the modulus.
+ * @param [out] r  SP integer to hold result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_exptmod_nct_generic(const sp_int* b, const sp_int* e,
+    const sp_int* m, sp_int* r)
+{
+    int i;
+    int err = MP_OKAY;
+    int bits = sp_count_bits(e);
+    DECL_SP_INT_ARRAY(t, m->used * 2 + 1, 2);
+
+    /* Allocate memory for:
+     *  - base reduced modulo m
+     *  - temporary result (in case r is same var as another parameter). */
+    ALLOC_SP_INT_ARRAY(t, m->used * 2 + 1, 2, err, NULL);
+    if (err == MP_OKAY) {
+        _sp_init_size(t[0], m->used * 2 + 1);
+        _sp_init_size(t[1], m->used * 2 + 1);
+        /* t[1] = b mod m */
+        err = sp_mod(b, m, t[1]);
+    }
+    if (err == MP_OKAY) {
+        /* Result starts as base as top bit of exponent is set. */
+        _sp_copy(t[1], t[0]);
+    }
+    /* For each bit in exponent starting at second highest. */
+    for (i = bits - 2; (err == MP_OKAY) && (i >= 0); i--) {
+        err = sp_sqrmod(t[0], m, t[0]);
+        if ((err == MP_OKAY) &&
+                (((e->dp[i >> SP_WORD_SHIFT] >> (i & SP_WORD_MASK)) & 1) !=
+                 0)) {
+            err = sp_mulmod(t[0], t[1], m, t[0]);
+        }
+    }
+    if (err == MP_OKAY) {
+        _sp_copy(t[0], r);
+    }
+
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
+#endif /* WOLFSSL_RSA_VERIFY_ONLY || WOLFSSL_RSA_PUBLIC_ONLY */
+
 /* Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  * Non-constant time implementation.
  *
@@ -14879,6 +14935,11 @@ int sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     else if (mp_iseven(m)) {
         err = _sp_exptmod_ex(b, e, (int)(e->used * SP_WORD_SIZE), m, r);
+    }
+#else
+    /* Montgomery form requires an odd modulus. */
+    else if (mp_iseven(m)) {
+        err = _sp_exptmod_nct_generic(b, e, m, r);
     }
 #endif
     else {
