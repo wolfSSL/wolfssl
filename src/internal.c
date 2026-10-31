@@ -31034,8 +31034,15 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         ThreadCrypt* encrypt = NULL;
 #endif
 
-#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
-        if (IsAtLeastTLSv1_3(ssl->version)) {
+#ifdef WOLFSSL_TLS13
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+        /* A suspended record already holds its sequence number, wait until it
+         * is finished to do a rekey */
+        if (IsAtLeastTLSv1_3(ssl->version)
+        #ifdef WOLFSSL_ASYNC_CRYPT
+                && !ssl->options.buildArgs13Set
+        #endif
+                ) {
             ret = CheckTLS13AEADSendLimit(ssl);
         #ifdef WOLFSSL_EARLY_DATA
             /* This check runs at the top of every iteration, including the
@@ -31063,7 +31070,21 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-#endif
+#endif /* WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
+
+        /* rekey to prevent sequence number wrap */
+        if (IsAtLeastTLSv1_3(ssl->version) &&
+        #ifdef WOLFSSL_ASYNC_CRYPT
+                !ssl->options.buildArgs13Set &&
+        #endif
+                Tls13SeqWrapPending(ssl)) {
+            ret = Tls13UpdateKeys(ssl);
+            if (ret != 0) {
+                ssl->error = ret;
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+#endif /* WOLFSSL_TLS13 */
 
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls && ssl->options.tls1_3) {
