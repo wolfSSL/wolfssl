@@ -81,14 +81,8 @@ typedef struct EcJpake {
     mp_int     prime;
     mp_int     a;
     mp_int     order;
-    mp_int     mu;              /* Montgomery normalizer for prime */
-    mp_int     s;               /* shared secret scalar */
-    mp_int     xm1;             /* own round one private keys */
-    mp_int     xm2;
-    mp_int     k;               /* scratch scalars */
-    mp_int     h;
-    mp_int     t;
-    ecc_point* G;               /* curve base point */
+    mp_int     s;               /* password scalar, then x2*s once keys set */
+    mp_int     xm2;             /* own second round one private key */
     ecc_point* Xm1;             /* own round one public keys */
     ecc_point* Xm2;
     ecc_point* Xp1;             /* peer round one public keys */

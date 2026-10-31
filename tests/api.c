@@ -261,6 +261,7 @@
 #include <tests/api/test_falcon.h>
 #include <tests/api/test_signature.h>
 #include <tests/api/test_dtls.h>
+#include <tests/api/test_ecjpake.h>
 #include <tests/api/test_dtls13.h>
 #include <tests/api/test_ssl_cert.h>
 #include <tests/api/test_ssl_crl_ocsp.h>
@@ -47301,6 +47302,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_certreq_sighash_algos),
     TEST_DECL(test_revoked_loaded_int_cert),
     TEST_DTLS_DECLS,
+    TEST_ECJPAKE_DECLS,
     TEST_DTLS13_DECLS,
     TEST_SSL_CERT_DECLS,
     TEST_SSL_CRL_OCSP_DECLS,

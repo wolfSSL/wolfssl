@@ -1590,7 +1590,8 @@ int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
 
 /** Highest extension type that TLSX_ToSemaphore() maps directly onto its own
  * semaphore index. Higher types are either remapped into the remaining indices
- * (renegotiation_info, QUIC, ECH, CKS) or fall outside the semaphore's range.
+ * (renegotiation_info, QUIC, ECH, CKS, EC-JPAKE) or fall outside the
+ * semaphore's range.
  * This boundary also drives duplicate-extension detection in TLSX_Parse(); keep
  * the two in sync. */
 #define SEMAPHORE_MAX_DIRECT_TYPE 62
@@ -1634,6 +1635,10 @@ static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
         case TLSX_CKS:
             return 66;
+#endif
+#ifdef WOLFSSL_DTLS_ECJPAKE
+        case TLSX_ECJPAKE_KKPP: /* 0x0100 */
+            return 67;
 #endif
         default:
             if (type > SEMAPHORE_MAX_DIRECT_TYPE) {
@@ -6051,6 +6056,11 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
+#ifdef WOLFSSL_DTLS_ECJPAKE
+                case TLS_ECJPAKE_WITH_AES_128_CCM_8:
+                    key |= oid == ECC_SECP256R1_OID;
+                break;
+#endif
 
     #ifdef WOLFSSL_STATIC_DH
                 /* ECDH_ECDSA */
@@ -13675,6 +13685,168 @@ static int TLSX_QuicTP_Parse(WOLFSSL *ssl, const byte *input, size_t len, int ex
 #define CID_FREE(a, b) 0
 #endif /* defined(WOLFSSL_DTLS_CID) */
 
+#ifdef WOLFSSL_DTLS_ECJPAKE
+/******************************************************************************/
+/* ecjpake_key_kp_pair extension (draft-cragie-tls-ecjpake-01 Section 7.2.2)  */
+/******************************************************************************/
+
+/* This side's encoded round one message (ECJPAKEKeyKPPairList). The optional
+ * identity field is elided, as for Thread. */
+typedef struct EcJpakeExt {
+    word16 sz;
+    byte   data[WC_ECJPAKE_ROUND1_SZ];
+} EcJpakeExt;
+
+void FreeEcJpake(WOLFSSL* ssl)
+{
+    if (ssl->ecJpake != NULL) {
+        wc_EcJpakeFree(ssl->ecJpake);
+        XFREE(ssl->ecJpake, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->ecJpake = NULL;
+    }
+}
+
+/* Replaces *pw with a copy of in. */
+int EcJpakeSetPassword(void* heap, byte** pw, word32* pwSz, const byte* in,
+                       word32 inSz)
+{
+    byte* copy = (byte*)XMALLOC(inSz, heap, DYNAMIC_TYPE_SECRET);
+
+    if (copy == NULL) {
+        return MEMORY_E;
+    }
+    XMEMCPY(copy, in, inSz);
+    EcJpakeFreePassword(heap, pw, pwSz);
+    *pw = copy;
+    *pwSz = inSz;
+    return 0;
+}
+
+void EcJpakeFreePassword(void* heap, byte** pw, word32* pwSz)
+{
+    if (*pw != NULL) {
+        ForceZero(*pw, *pwSz);
+        XFREE(*pw, heap, DYNAMIC_TYPE_SECRET);
+        *pw = NULL;
+    }
+    *pwSz = 0;
+    (void)heap;
+}
+
+static void TLSX_EcJpake_Free(EcJpakeExt* ext, void* heap)
+{
+    XFREE(ext, heap, DYNAMIC_TYPE_TLSX);
+    (void)heap;
+}
+
+static word16 TLSX_EcJpake_GetSize(const EcJpakeExt* ext)
+{
+    return ext->sz;
+}
+
+static word16 TLSX_EcJpake_Write(const EcJpakeExt* ext, byte* output)
+{
+    XMEMCPY(output, ext->data, ext->sz);
+    return ext->sz;
+}
+
+/* Starts a new exchange and stores this side's round one message in the
+ * extension. */
+static int TLSX_EcJpake_New(WOLFSSL* ssl, int role)
+{
+    int ret;
+    word32 sz = WC_ECJPAKE_ROUND1_SZ;
+    EcJpakeExt* ext;
+
+    FreeEcJpake(ssl);
+    ssl->ecJpake = (EcJpake*)XMALLOC(sizeof(EcJpake), ssl->heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (ssl->ecJpake == NULL) {
+        return MEMORY_E;
+    }
+    ret = wc_EcJpakeInit(ssl->ecJpake, role, ECC_SECP256R1, ssl->ecJpakePw,
+                         ssl->ecJpakePwSz, ssl->heap);
+    if (ret != 0) {
+        XFREE(ssl->ecJpake, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->ecJpake = NULL;
+        return ret;
+    }
+
+    ext = (EcJpakeExt*)XMALLOC(sizeof(EcJpakeExt), ssl->heap,
+                               DYNAMIC_TYPE_TLSX);
+    if (ext == NULL) {
+        ret = MEMORY_E;
+    }
+    if (ret == 0) {
+        ret = wc_EcJpakeWriteRound1(ssl->ecJpake, ssl->rng, ext->data, &sz);
+    }
+    if (ret == 0) {
+        ext->sz = (word16)sz;
+        ret = TLSX_Push(&ssl->extensions, TLSX_ECJPAKE_KKPP, ext, ssl->heap);
+    }
+    if (ret != 0) {
+        XFREE(ext, ssl->heap, DYNAMIC_TYPE_TLSX);
+        FreeEcJpake(ssl);
+    }
+    return ret;
+}
+
+/* Adds the extension to a ClientHello. A ClientHello sent again after a
+ * HelloVerifyRequest carries the same round one message (Section 7.2.2). */
+int TLSX_EcJpake_Use(WOLFSSL* ssl)
+{
+    if (ssl->ecJpakePw == NULL) {
+        return 0;
+    }
+    if (ssl->ecJpake != NULL &&
+            TLSX_Find(ssl->extensions, TLSX_ECJPAKE_KKPP) != NULL) {
+        return 0;
+    }
+    return TLSX_EcJpake_New(ssl, WC_ECJPAKE_CLIENT);
+}
+
+static int TLSX_EcJpake_Parse(WOLFSSL* ssl, const byte* input, word16 length,
+                              byte msgType)
+{
+    int ret;
+
+    if (msgType == client_hello) {
+        if (ssl->ecJpakePw == NULL) {
+            return 0;
+        }
+        ret = TLSX_EcJpake_New(ssl, WC_ECJPAKE_SERVER);
+        if (ret == 0) {
+            ret = wc_EcJpakeReadRound1(ssl->ecJpake, input, length);
+        }
+        if (ret == 0) {
+            TLSX_SetResponse(ssl, TLSX_ECJPAKE_KKPP);
+        }
+    }
+    else if (msgType == server_hello) {
+        if (ssl->ecJpake == NULL ||
+                TLSX_Find(ssl->extensions, TLSX_ECJPAKE_KKPP) == NULL) {
+            return TLSX_HandleUnsupportedExtension(ssl);
+        }
+        ret = wc_EcJpakeReadRound1(ssl->ecJpake, input, length);
+    }
+    else {
+        return EXT_NOT_ALLOWED;
+    }
+
+    if (ret != 0) {
+        WOLFSSL_MSG("EC-JPAKE round one failed");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        FreeEcJpake(ssl);
+    }
+    return ret;
+}
+
+#define ECJPAKE_FREE      TLSX_EcJpake_Free
+#define ECJPAKE_GET_SIZE  TLSX_EcJpake_GetSize
+#define ECJPAKE_WRITE     TLSX_EcJpake_Write
+#define ECJPAKE_PARSE     TLSX_EcJpake_Parse
+#endif /* WOLFSSL_DTLS_ECJPAKE */
+
 #if defined(HAVE_RPK)
 /******************************************************************************/
 /* Client_Certificate_Type extension                                          */
@@ -15712,6 +15884,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 CID_FREE((byte*)extension->data, heap);
                 break;
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+            case TLSX_ECJPAKE_KKPP:
+                ECJPAKE_FREE((EcJpakeExt*)extension->data, heap);
+                break;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
                 WOLFSSL_MSG("ECH extension free");
@@ -15983,6 +16160,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 length += CID_GET_SIZE((byte*)extension->data);
                 break;
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+            case TLSX_ECJPAKE_KKPP:
+                length += ECJPAKE_GET_SIZE((EcJpakeExt*)extension->data);
+                break;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
                 length += ECH_GET_SIZE((WOLFSSL_ECH*)extension->data, msgType);
@@ -16291,6 +16473,13 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+            case TLSX_ECJPAKE_KKPP:
+                WOLFSSL_MSG("EC-JPAKE extension to write");
+                offset += ECJPAKE_WRITE((EcJpakeExt*)extension->data,
+                                        output + offset);
+                break;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
                 WOLFSSL_MSG("ECH extension to write");
@@ -16861,6 +17050,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
+#ifdef WOLFSSL_DTLS_ECJPAKE
+        if (!isServer && ssl->options.dtls) {
+            ret = TLSX_EcJpake_Use(ssl);
+            if (ret != 0)
+                return ret;
+        }
+#endif
 #ifdef WOLFSSL_SRTP
         if (ssl->options.dtls && ssl->dtlsSrtpProfiles != 0) {
             WOLFSSL_MSG("Adding DTLS SRTP extension");
@@ -17588,6 +17784,7 @@ static int TLSX_CustomExt_IsKnown(word16 ext_type)
         case TLSXT_SIGNATURE_ALGORITHMS_CERT:
         case TLSXT_KEY_SHARE:
         case TLSXT_CONNECTION_ID:
+        case TLSXT_ECJPAKE_KKPP:
         case TLSXT_KEY_QUIC_TP_PARAMS:
         case TLSXT_ECH:
         case TLSXT_ECH_OUTER_EXTENSIONS:
@@ -18909,6 +19106,9 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             || (type == TLSX_CKS)
         #endif
+        #ifdef WOLFSSL_DTLS_ECJPAKE
+            || (type == TLSX_ECJPAKE_KKPP)
+        #endif
             )
         {
             /* Detect duplicate recognized extensions. */
@@ -19578,6 +19778,12 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 break;
 
 #endif /* defined(WOLFSSL_DTLS_CID) */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+            case TLSX_ECJPAKE_KKPP:
+                WOLFSSL_MSG("EC-JPAKE extension received");
+                ret = ECJPAKE_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
 #if defined(HAVE_RPK)
             case TLSX_CLIENT_CERTIFICATE_TYPE:
                 WOLFSSL_MSG("Client Certificate Type extension received");

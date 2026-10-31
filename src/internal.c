@@ -3542,6 +3542,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
     ctx->method = NULL;
 
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    EcJpakeFreePassword(ctx->heap, &ctx->ecJpakePw, &ctx->ecJpakePwSz);
+#endif
+
     XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
     ctx->suites = NULL;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
@@ -7977,10 +7981,12 @@ int InitSSL_Suites(WOLFSSL* ssl)
     byte haveRSA = 0;
     byte haveMcast = 0;
     byte haveCertSetupCb = 0;
+    byte haveEcJpake = 0;
 
     (void)haveAnon; /* Squash unused var warnings */
     (void)haveMcast;
     (void)haveCertSetupCb;
+    (void)haveEcJpake;
 
     if (!ssl)
         return BAD_FUNC_ARG;
@@ -8003,6 +8009,10 @@ int InitSSL_Suites(WOLFSSL* ssl)
     if (ssl->ctx->certSetupCb != NULL)
         haveCertSetupCb = 1;
 #endif /* WOLFSSL_TLS13 && !NO_CERTS && OPENSSL_EXTRA */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    /* EC-JPAKE authenticates with a password, not a certificate. */
+    haveEcJpake = (ssl->ecJpakePw != NULL);
+#endif
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END)
@@ -8034,7 +8044,8 @@ int InitSSL_Suites(WOLFSSL* ssl)
      * Multicast or cert setup callback. This should be true even if just
      * switching ssl ctx */
     if (ssl->options.side == WOLFSSL_SERVER_END &&
-            !havePSK && !haveAnon && !haveMcast && !haveCertSetupCb) {
+            !havePSK && !haveAnon && !haveMcast && !haveCertSetupCb &&
+            !haveEcJpake) {
 
         /* server certificate must be loaded */
         if ((!ssl->buffers.certificate || !ssl->buffers.certificate->buffer)
@@ -8464,6 +8475,16 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END)
         ssl->options.maxEarlyDataSz = ctx->maxEarlyDataSz;
+#endif
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    if (ctx->ecJpakePw != NULL) {
+        ret = EcJpakeSetPassword(ssl->heap, &ssl->ecJpakePw,
+                                 &ssl->ecJpakePwSz, ctx->ecJpakePw,
+                                 ctx->ecJpakePwSz);
+        if (ret != 0)
+            return ret;
+        ret = WOLFSSL_SUCCESS;
+    }
 #endif
 
 #ifdef HAVE_ANON
@@ -10343,6 +10364,11 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
         WOLFSSL_MSG("Free'ing client ssl");
     }
 
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    FreeEcJpake(ssl);
+    EcJpakeFreePassword(ssl->heap, &ssl->ecJpakePw, &ssl->ecJpakePwSz);
+#endif
+
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
     wolfSSL_CRYPTO_cleanup_ex_data(&ssl->ex_data);
 #endif
@@ -10651,6 +10677,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("FreeHandshakeResources");
+
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    FreeEcJpake(ssl);
+#endif
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
@@ -14613,6 +14643,13 @@ int CipherRequires(byte first, byte second, int requirement)
             if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
+
+    #ifdef WOLFSSL_DTLS_ECJPAKE
+        case TLS_ECJPAKE_WITH_AES_128_CCM_8 :
+            if (requirement == REQUIRES_AEAD)
+                return 1;
+            break;
+    #endif
 
             case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
             case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
@@ -19130,7 +19167,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (args->count == 0) {
                 /* Empty certificate message. Only mutualAuth fails here
                  * before TLS 1.2; the later check catches the rest. */
-                if (ClientAuthRequired(ssl, ssl->options.usingPSK_cipher) &&
+                if (ClientAuthRequired(ssl, ssl->options.usingPSK_cipher ||
+                                            IsEcJpakeKea(ssl)) &&
                         (ssl->options.mutualAuth || IsAtLeastTLSv1_2(ssl))) {
                     WOLFSSL_MSG("No peer cert from Client");
                     ret = NO_PEER_CERT;
@@ -21044,6 +21082,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 if (ssl->specs.kea != psk_kea &&
                         ssl->specs.kea != dhe_psk_kea &&
                         ssl->specs.kea != ecdhe_psk_kea &&
+                        !IsEcJpakeKea(ssl) &&
                         !ssl->options.usingAnon_cipher) {
                     WOLFSSL_MSG("No Certificate before ServerKeyExchange");
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
@@ -21128,6 +21167,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 if (ssl->specs.kea == psk_kea ||
                     ssl->specs.kea == dhe_psk_kea ||
                     ssl->specs.kea == ecdhe_psk_kea ||
+                    IsEcJpakeKea(ssl) ||
                     ssl->options.usingAnon_cipher) {
                     WOLFSSL_MSG("No Cert required");
                 }
@@ -21271,6 +21311,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
             if (!ssl->options.resuming && ssl->options.verifyPeer &&
                     !ssl->options.usingPSK_cipher &&
                     !ssl->options.usingAnon_cipher &&
+                    !IsEcJpakeKea(ssl) &&
                     !ssl->msgsReceived.got_certificate) {
                 return OUT_OF_ORDER_E;
             }
@@ -29080,8 +29121,10 @@ int SendCertificate(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
     WOLFSSL_ENTER("SendCertificate");
 
-    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher) {
-        WOLFSSL_MSG("Not sending certificate msg. Using PSK or ANON cipher.");
+    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher ||
+            IsEcJpakeKea(ssl)) {
+        WOLFSSL_MSG("Not sending certificate msg. Using PSK, ANON or EC-JPAKE "
+                    "cipher.");
         return 0;  /* not needed */
     }
 
@@ -29580,7 +29623,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
     reqSz += dnLen;
 #endif
 
-    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
+    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher ||
+            IsEcJpakeKea(ssl))
         return 0;  /* not needed */
 
     sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + reqSz;
@@ -32257,6 +32301,11 @@ static const CipherSuiteInfo cipher_names[] =
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     SUITE_INFO("ECDHE-ECDSA-AES128-CCM-8","TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR),
     SUITE_ALIAS("ECDHE-ECDSA-AES128-CCM8",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR)
+#endif
+
+#ifdef BUILD_TLS_ECJPAKE_WITH_AES_128_CCM_8
+    SUITE_INFO("ECJPAKE-AES128-CCM-8","TLS_ECJPAKE_WITH_AES_128_CCM_8",ECC_BYTE,TLS_ECJPAKE_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR),
+    SUITE_ALIAS("ECJPAKE-AES128-CCM8",ECC_BYTE,TLS_ECJPAKE_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
@@ -37688,6 +37737,25 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+                {
+                    if (ssl->ecJpake == NULL) {
+                        ERROR_OUT(MISSING_HANDSHAKE_DATA, exit_dske);
+                    }
+                    /* ServerECJPAKEParams fill the message */
+                    ret = wc_EcJpakeReadRound2(ssl->ecJpake,
+                              input + args->idx,
+                              size - (args->idx - args->begin));
+                    if (ret != 0) {
+                        WOLFSSL_MSG("EC-JPAKE round two failed");
+                        SendAlert(ssl, alert_fatal, handshake_failure);
+                        break;
+                    }
+                    args->idx = args->begin + size;
+                    break;
+                }
+            #endif /* WOLFSSL_DTLS_ECJPAKE */
                 default:
                     ret = BAD_KEA_TYPE_E;
             } /* switch(ssl->specs.kea) */
@@ -37709,6 +37777,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case psk_kea:
                 case dhe_psk_kea:
                 case ecdhe_psk_kea:
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+            #endif
                 {
                     /* Nothing to do in this sub-state */
                     break;
@@ -37901,6 +37972,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case psk_kea:
                 case dhe_psk_kea:
                 case ecdhe_psk_kea:
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+            #endif
                 {
                     /* Nothing to do in this sub-state */
                     break;
@@ -38120,6 +38194,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case psk_kea:
                 case dhe_psk_kea:
                 case ecdhe_psk_kea:
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+            #endif
                 {
                     /* Nothing to do in this sub-state */
                     break;
@@ -38594,6 +38671,14 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+                    if (ssl->ecJpake == NULL) {
+                        ERROR_OUT(MISSING_HANDSHAKE_DATA, exit_scke);
+                    }
+                    break;
+            #endif /* WOLFSSL_DTLS_ECJPAKE */
+
                 default:
                     ret = BAD_KEA_TYPE_E;
             } /* switch(ssl->specs.kea) */
@@ -38835,6 +38920,25 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+                {
+                    /* ClientECJPAKEParams, then the premaster secret */
+                    args->encSz = MAX_ENCRYPT_SZ;
+                    ret = wc_EcJpakeWriteRound2(ssl->ecJpake, ssl->rng,
+                                                args->encSecret, &args->encSz);
+                    if (ret == 0) {
+                        ret = wc_EcJpakeDeriveSecret(ssl->ecJpake, ssl->rng,
+                                  ssl->arrays->preMasterSecret,
+                                  &ssl->arrays->preMasterSz);
+                    }
+                    if (ret != 0) {
+                        SendAlert(ssl, alert_fatal, handshake_failure);
+                    }
+                    break;
+                }
+            #endif /* WOLFSSL_DTLS_ECJPAKE */
+
                 default:
                     ret = BAD_KEA_TYPE_E;
             } /* switch(ssl->specs.kea) */
@@ -39060,6 +39164,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+                    break;
+            #endif /* WOLFSSL_DTLS_ECJPAKE */
+
                 default:
                     ret = BAD_KEA_TYPE_E;
             } /* switch(ssl->specs.kea) */
@@ -39147,6 +39256,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
+            #ifdef WOLFSSL_DTLS_ECJPAKE
+                case ecjpake_kea:
+                    break;
+            #endif /* WOLFSSL_DTLS_ECJPAKE */
+
                 default:
                     ret = BAD_KEA_TYPE_E;
             } /* switch(ssl->specs.kea) */
@@ -39172,7 +39286,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
             if (ssl->specs.kea == ecc_diffie_hellman_kea ||
                 ssl->specs.kea == dhe_psk_kea ||
-                ssl->specs.kea == ecdhe_psk_kea) { /* always off */
+                ssl->specs.kea == ecdhe_psk_kea ||
+                IsEcJpakeKea(ssl)) { /* always off */
                 tlsSz = 0;
             }
 
@@ -41368,6 +41483,15 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         break;
                     }
                 #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
+                #ifdef WOLFSSL_DTLS_ECJPAKE
+                    case ecjpake_kea:
+                    {
+                        if (ssl->ecJpake == NULL) {
+                            ERROR_OUT(MISSING_HANDSHAKE_DATA, exit_sske);
+                        }
+                        break;
+                    }
+                #endif /* WOLFSSL_DTLS_ECJPAKE */
                     default:
                         /* Skip ServerKeyExchange */
                         goto exit_sske;
@@ -41653,6 +41777,29 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_RSA) */
+                #ifdef WOLFSSL_DTLS_ECJPAKE
+                    case ecjpake_kea:
+                    {
+                        /* ServerECJPAKEParams */
+                        word32 sz = WC_ECJPAKE_ROUND2_SZ;
+
+                        args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+                        args->length = WC_ECJPAKE_ROUND2_SZ;
+                        SetSendSzWithDtlsExtra(ssl, args);
+                        CHECK_RET(ret, AllocArgsInput(ssl, args), exit_sske);
+                        ret = wc_EcJpakeWriteRound2(ssl->ecJpake, ssl->rng,
+                                  args->output + args->idx, &sz);
+                        if (ret != 0) {
+                            SendAlert(ssl, alert_fatal, handshake_failure);
+                            goto exit_sske;
+                        }
+                        args->length = sz;
+                        args->idx += sz;
+                        AddHeaders(args->output, args->length,
+                                                    server_key_exchange, ssl);
+                        break;
+                    }
+                #endif /* WOLFSSL_DTLS_ECJPAKE */
                     default:
                         break;
                 } /* switch(ssl->specs.kea) */
@@ -42254,6 +42401,17 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 return 0;
             }
 
+        }
+#endif
+
+#ifdef WOLFSSL_DTLS_ECJPAKE
+        if (first == ECC_BYTE && second == TLS_ECJPAKE_WITH_AES_128_CCM_8) {
+            if (!ssl->options.dtls || ssl->version.minor != DTLSv1_2_MINOR ||
+                    ssl->ecJpake == NULL ||
+                    TLSX_Find(extensions, TLSX_ECJPAKE_KKPP) == NULL) {
+                WOLFSSL_MSG("EC-JPAKE needs DTLS 1.2 and the peer's round one");
+                return 0;
+            }
         }
 #endif
 
@@ -43712,6 +43870,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (ret == 0)
             ret = MatchSuite(ssl, ssl->clSuites);
 
+#ifdef WOLFSSL_DTLS_ECJPAKE
+        /* draft-cragie-tls-ecjpake-01 Section 6 */
+        if (ret == WC_NO_ERR_TRACE(MATCH_SUITE_ERROR) &&
+                ssl->ecJpakePw != NULL) {
+            SendAlert(ssl, alert_fatal, handshake_failure);
+        }
+#endif
+
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
         /* RFC 8422 Section 5.1.2: abort only when an ECC suite was actually
          * negotiated and the client's ec_point_formats omitted the uncompressed
@@ -43721,7 +43887,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (ret == 0 && ssl->options.peerNoUncompPF &&
                 (ssl->specs.kea == ecc_diffie_hellman_kea ||
                  ssl->specs.kea == ecc_static_diffie_hellman_kea ||
-                 ssl->specs.kea == ecdhe_psk_kea)) {
+                 ssl->specs.kea == ecdhe_psk_kea ||
+                 IsEcJpakeKea(ssl))) {
             WOLFSSL_MSG("Client ec_point_formats extension missing "
                         "uncompressed format for negotiated ECC suite");
             SendAlert(ssl, alert_fatal, illegal_parameter);
@@ -46702,7 +46869,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 }
 
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
-                if (ClientAuthRequired(ssl, ssl->options.usingPSK_cipher) &&
+                if (ClientAuthRequired(ssl, ssl->options.usingPSK_cipher ||
+                                            IsEcJpakeKea(ssl)) &&
                         !ssl->options.havePeerCert) {
                     WOLFSSL_MSG("client didn't present peer cert");
                     ERROR_OUT(NO_PEER_CERT, exit_dcke);
@@ -46777,6 +46945,15 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
+                #ifdef WOLFSSL_DTLS_ECJPAKE
+                    case ecjpake_kea:
+                    {
+                        if (ssl->ecJpake == NULL) {
+                            ERROR_OUT(MISSING_HANDSHAKE_DATA, exit_dcke);
+                        }
+                        break;
+                    }
+                #endif /* WOLFSSL_DTLS_ECJPAKE */
                     default:
                         WOLFSSL_MSG("Bad kea type");
                         ret = BAD_KEA_TYPE_E;
@@ -47013,6 +47190,27 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
+                #ifdef WOLFSSL_DTLS_ECJPAKE
+                    case ecjpake_kea:
+                    {
+                        /* ClientECJPAKEParams fill the message */
+                        ret = wc_EcJpakeReadRound2(ssl->ecJpake,
+                                  input + args->idx,
+                                  size - (args->idx - args->begin));
+                        if (ret == 0) {
+                            ret = wc_EcJpakeDeriveSecret(ssl->ecJpake,
+                                      ssl->rng, ssl->arrays->preMasterSecret,
+                                      &ssl->arrays->preMasterSz);
+                        }
+                        if (ret != 0) {
+                            WOLFSSL_MSG("EC-JPAKE round two failed");
+                            SendAlert(ssl, alert_fatal, handshake_failure);
+                            break;
+                        }
+                        args->idx = args->begin + size;
+                        break;
+                    }
+                #endif /* WOLFSSL_DTLS_ECJPAKE */
                     default:
                         ret = BAD_KEA_TYPE_E;
                 } /* switch (ssl->specs.kea) */
@@ -47235,6 +47433,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
+                #ifdef WOLFSSL_DTLS_ECJPAKE
+                    case ecjpake_kea:
+                        break;
+                #endif /* WOLFSSL_DTLS_ECJPAKE */
                     default:
                         ret = BAD_KEA_TYPE_E;
                 } /* switch (ssl->specs.kea) */
@@ -47372,6 +47574,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
+                #ifdef WOLFSSL_DTLS_ECJPAKE
+                    case ecjpake_kea:
+                        break;
+                #endif /* WOLFSSL_DTLS_ECJPAKE */
                     default:
                         ret = BAD_KEA_TYPE_E;
                 } /* switch (ssl->specs.kea) */

@@ -778,6 +778,7 @@ static int wolfssl_accept_check_creds(WOLFSSL* ssl)
     word16 havePSK = 0;
     word16 haveAnon = 0;
     word16 haveMcast = 0;
+    word16 haveEcJpake = 0;
 
     #ifndef NO_PSK
     havePSK = ssl->options.havePSK;
@@ -791,7 +792,11 @@ static int wolfssl_accept_check_creds(WOLFSSL* ssl)
     haveMcast = ssl->options.haveMcast;
     #endif
 
-    if ((!havePSK) && (!haveAnon) && (!haveMcast)) {
+    #ifdef WOLFSSL_DTLS_ECJPAKE
+    haveEcJpake = (ssl->ecJpakePw != NULL);
+    #endif
+
+    if ((!havePSK) && (!haveAnon) && (!haveMcast) && (!haveEcJpake)) {
         #ifdef WOLFSSL_CERT_SETUP_CB
         if (ssl->ctx->certSetupCb != NULL) {
             WOLFSSL_MSG("CertSetupCb set. server cert and "
@@ -1106,7 +1111,8 @@ int wolfSSL_accept(WOLFSSL* ssl)
          */
         if ((!ssl->options.resuming) && (ssl->options.verifyPeer) &&
                 (!ssl->options.havePeerCert) &&
-                (!ClientAuthRequired(ssl, ssl->options.usingPSK_cipher))) {
+                (!ClientAuthRequired(ssl, ssl->options.usingPSK_cipher ||
+                                          IsEcJpakeKea(ssl)))) {
             ssl->options.peerAuthGood = 1;
         }
         #endif /* !NO_CERTS  */

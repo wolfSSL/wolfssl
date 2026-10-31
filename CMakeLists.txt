@@ -5238,6 +5238,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_cmac.c
         tests/api/test_siphash.c
         tests/api/test_srp.c
+        tests/api/test_ecjpake.c
         tests/api/test_eccsi.c
         tests/api/test_sakke.c
         tests/api/test_hpke.c
