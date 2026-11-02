@@ -33,6 +33,11 @@
 #ifdef HAVE_COMP_KEY
 #define WOLFSSL_RUST_HAVE_COMP_KEY 1
 #endif
+/* wc_RNG_HealthTest*() are always declared but hidden when
+ * WOLFSSL_FIPS_PRIVATE_API is set (FIPS builds). */
+#ifdef WOLFSSL_FIPS_PRIVATE_API
+#define WOLFSSL_RUST_FIPS_PRIVATE_API 1
+#endif
 
 /* Sentinels for wolfSSL build configurations that the Rust wrapper does not
  * support.  build.rs fails the build if any of these appear in the generated
