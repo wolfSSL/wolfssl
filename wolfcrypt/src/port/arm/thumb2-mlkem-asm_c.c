@@ -3603,6 +3603,1104 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_10(byte* r_p, sword16* v_p,
+    unsigned int k_p)
+#else
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_10(byte* r, sword16* v,
+    unsigned int k)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register byte* r __asm__ ("r0") = (byte*)r_p;
+    register sword16* v __asm__ ("r1") = (sword16*)v_p;
+    register unsigned int k __asm__ ("r2") = (unsigned int)k_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)v, (void*)(size_t)k
+    };
+    void** L_asm_args_p = L_asm_args;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "ADD	r2, r1, r2, LSL #9\n\t"
+#ifndef WOLFSSL_ARM_ARCH_7M
+        "MOV	r8, #0xdbb6\n\t"
+        "MOVT	r8, #0x9d7\n\t"
+        "MOV	r9, #13\n\t"
+        "\n"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_mlkem_thumb2_vec_compress_10_loop:\n\t"
+#else
+    "L_mlkem_thumb2_vec_compress_10_loop_%=:\n\t"
+#endif
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r7, r5, r8\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #10, #10\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #20, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #30, #2\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #2\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #8, #10\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #18, #10\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #28, #4\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #4\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #6, #10\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #16, #10\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #26, #6\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #6\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #4, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #14, #10\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #24, #8\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #8\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #2, #10\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #12, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #3\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #22, #10\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "CMP	r1, r2\n\t"
+#if defined(__GNUC__)
+        "BNE	L_mlkem_thumb2_vec_compress_10_loop_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_mlkem_thumb2_vec_compress_10_loop\n\t"
+#else
+        "BNE.W	L_mlkem_thumb2_vec_compress_10_loop_%=\n\t"
+#endif
+#else
+        "MOV	r8, #0xebed\n\t"
+        "MOVT	r8, #0x4\n\t"
+        "MOV	r9, #0xff62\n\t"
+        "MOVT	r9, #0x7\n\t"
+        "MOV	r10, #0xd01\n\t"
+        "MOV	r11, #0x680\n\t"
+        "\n"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_mlkem_thumb2_vec_compress_10_loop:\n\t"
+#else
+    "L_mlkem_thumb2_vec_compress_10_loop_%=:\n\t"
+#endif
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r7, r5, r8, r9\n\t"
+        "LSR	r7, r7, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r7, r10, r5\n\t"
+        "ADD	r7, r7, r5, LSR #31\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #10, #10\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #20, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #30, #2\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #2\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #8, #10\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #18, #10\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #28, #4\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #4\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #6, #10\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #16, #10\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #26, #6\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #6\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #4, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #14, #10\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #24, #8\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #8\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #2, #10\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #12, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #20\n\t"
+        "SUB	r5, r11, r5, LSL #10\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #22, #10\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "CMP	r1, r2\n\t"
+#if defined(__GNUC__)
+        "BNE	L_mlkem_thumb2_vec_compress_10_loop_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_mlkem_thumb2_vec_compress_10_loop\n\t"
+#else
+        "BNE.W	L_mlkem_thumb2_vec_compress_10_loop_%=\n\t"
+#endif
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [r] "+r" (r), [v] "+r" (v), [k] "+r" (k)
+        :
+        : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (byte*)(size_t)L_asm_args[0];
+    v = (sword16*)(size_t)L_asm_args[1];
+    k = (unsigned int)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+}
+
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r_p, sword16* v_p)
+#else
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r, sword16* v)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register byte* r __asm__ ("r0") = (byte*)r_p;
+    register sword16* v __asm__ ("r1") = (sword16*)v_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)v
+    };
+    void** L_asm_args_p = L_asm_args;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "ADD	r2, r1, #0x800\n\t"
+#ifndef WOLFSSL_ARM_ARCH_7M
+        "MOV	r8, #0xdbb6\n\t"
+        "MOVT	r8, #0x9d7\n\t"
+        "MOV	r9, #13\n\t"
+        "\n"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_mlkem_thumb2_vec_compress_11_loop:\n\t"
+#else
+    "L_mlkem_thumb2_vec_compress_11_loop_%=:\n\t"
+#endif
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r7, r5, r8\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #11, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #22, #10\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #1, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #12, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #23, #9\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #9\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #2, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #13, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #24, #8\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #8\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #3, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #14, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #25, #7\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #7\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #4, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #15, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #26, #6\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #6\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #5, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #16, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #27, #5\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #5\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #6, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #17, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #28, #4\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #4\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #7, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #18, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #29, #3\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #3\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #8, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #19, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #30, #2\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #2\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #9, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #20, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #31, #1\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #1\n\t"
+        "UXTH	r5, r4\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #10, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "ADD	r5, r9, r5, LSL #4\n\t"
+        "UMULL	r5, r6, r5, r8\n\t"
+        "BFI	r7, r6, #21, #11\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "CMP	r1, r2\n\t"
+#if defined(__GNUC__)
+        "BNE	L_mlkem_thumb2_vec_compress_11_loop_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_mlkem_thumb2_vec_compress_11_loop\n\t"
+#else
+        "BNE.W	L_mlkem_thumb2_vec_compress_11_loop_%=\n\t"
+#endif
+#else
+        "MOV	r8, #0xebed\n\t"
+        "MOVT	r8, #0x4\n\t"
+        "MOV	r9, #0xffb1\n\t"
+        "MOVT	r9, #0x3\n\t"
+        "MOV	r10, #0xd01\n\t"
+        "MOV	r11, #0x680\n\t"
+        "\n"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_mlkem_thumb2_vec_compress_11_loop:\n\t"
+#else
+    "L_mlkem_thumb2_vec_compress_11_loop_%=:\n\t"
+#endif
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r7, r5, r8, r9\n\t"
+        "LSR	r7, r7, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r7, r10, r5\n\t"
+        "ADD	r7, r7, r5, LSR #31\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #11, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #22, #10\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #10\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #1, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #12, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #23, #9\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #9\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #2, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #13, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #24, #8\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #8\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #3, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #14, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #25, #7\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #7\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #4, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #15, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #26, #6\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #6\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #5, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #16, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #27, #5\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #5\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #6, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #17, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #28, #4\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #4\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #7, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #18, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #29, #3\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #3\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #8, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #19, #11\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #30, #2\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #2\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #9, #11\n\t"
+        "LDM	r1!, {r3, r4}\n\t"
+        "UXTH	r5, r3\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #20, #11\n\t"
+        "LSR	r5, r3, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #31, #1\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "LSR	r7, r6, #1\n\t"
+        "UXTH	r5, r4\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #10, #11\n\t"
+        "LSR	r5, r4, #16\n\t"
+        "MLA	r6, r5, r8, r9\n\t"
+        "LSR	r6, r6, #19\n\t"
+        "SUB	r5, r11, r5, LSL #11\n\t"
+        "MLA	r5, r6, r10, r5\n\t"
+        "ADD	r6, r6, r5, LSR #31\n\t"
+        "BFI	r7, r6, #21, #11\n\t"
+#ifdef __ARM_FEATURE_UNALIGNED
+        "STR	r7, [r0], #4\n\t"
+#else
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+        "LSR	r7, r7, #8\n\t"
+        "STRB	r7, [r0], #1\n\t"
+#endif /* __ARM_FEATURE_UNALIGNED */
+        "CMP	r1, r2\n\t"
+#if defined(__GNUC__)
+        "BNE	L_mlkem_thumb2_vec_compress_11_loop_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_mlkem_thumb2_vec_compress_11_loop\n\t"
+#else
+        "BNE.W	L_mlkem_thumb2_vec_compress_11_loop_%=\n\t"
+#endif
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [r] "+r" (r), [v] "+r" (v)
+        :
+        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (byte*)(size_t)L_asm_args[0];
+    v = (sword16*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+}
+
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p_p,
     unsigned int len_p, const byte* r_p, unsigned int rLen_p)
 #else
@@ -3615,12 +4713,9 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     register unsigned int len __asm__ ("r1") = (unsigned int)len_p;
     register const byte* r __asm__ ("r2") = (const byte*)r_p;
     register unsigned int rLen __asm__ ("r3") = (unsigned int)rLen_p;
-    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r4") =
-        (word16*)&L_mlkem_basemul_mont_zetas;
 #else
-    void* L_asm_args[5] = {(void*)(size_t)p, (void*)(size_t)len,
-        (void*)(size_t)r, (void*)(size_t)rLen,
-        (void*)(size_t)&L_mlkem_basemul_mont_zetas
+    void* L_asm_args[4] = {(void*)(size_t)p, (void*)(size_t)len,
+        (void*)(size_t)r, (void*)(size_t)rLen
     };
     void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
@@ -3628,13 +4723,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     __asm__ __volatile__ (
 #ifdef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_asm_args]}\n\t"
-        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "PUSH	{%[L_mlkem_basemul_mont_zetas]}\n\t"
-#else
-        "PUSH	{r4}\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	r8, #0xd01\n\t"
         "MOV	r9, #0\n\t"
         "\n"
@@ -3955,20 +5045,14 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     "L_mlkem_thumb2_rej_uniform_done_%=:\n\t"
 #endif
         "LSR	r0, r9, #1\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "POP	{%[L_mlkem_basemul_mont_zetas]}\n\t"
-#else
-        "POP	{r4}\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifdef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[L_asm_args]}\n\t"
-        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen),
-          [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
+        : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen)
         :
-        : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10"
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
 #else
         : [L_asm_args] "+r" (L_asm_args_p)
         :
