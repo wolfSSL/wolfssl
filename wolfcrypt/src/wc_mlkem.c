@@ -323,7 +323,7 @@ static int mlkemkey_alloc_pub(MlKemKey* key, unsigned int k)
     return 0;
 }
 
-#ifdef WOLFSSL_MLKEM_CACHE_A
+#if defined(WOLFSSL_MLKEM_CACHE_A) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
 /* Allocate (or reallocate) the A matrix buffer, right-sized for k.
  *
  * @param  [in, out]  key  ML-KEM key object.
@@ -347,7 +347,7 @@ static int mlkemkey_alloc_a(MlKemKey* key, unsigned int k)
 
     return ret;
 }
-#endif /* WOLFSSL_MLKEM_CACHE_A */
+#endif /* WOLFSSL_MLKEM_CACHE_A && !WOLFSSL_MLKEM_NO_MAKE_KEY */
 #endif /* WOLFSSL_MLKEM_DYNAMIC_KEYS */
 
 /******************************************************************************/
