@@ -398,7 +398,8 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
     (defined(BUILDING_WOLFSSL) ||                            \
      defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS)) &&     \
     (!defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_PER_FILE) ||   \
-     defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_THIS_FILE))
+     defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_THIS_FILE)) &&  \
+    !defined(WOLFSSL_DEBUG_NO_TRACE_ERROR_CODES_THIS_FILE)
 
     #include <wolfssl/wolfcrypt/logging.h>
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
