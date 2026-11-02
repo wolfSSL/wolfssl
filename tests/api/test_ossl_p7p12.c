@@ -2048,3 +2048,148 @@ int test_wolfSSL_PKCS12_create_mac(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if !defined(HAVE_FIPS) && defined(OPENSSL_EXTRA) && !defined(NO_DES3) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
+    !defined(NO_SHA) && defined(HAVE_PKCS12) && defined(WOLFSSL_AES_256) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+#define TEST_PKCS12_PARSE_OOM
+
+static int pkcs12_fail_alloc_at = -1;
+static int pkcs12_alloc_seen = 0;
+
+/* Fail only the allocation at index pkcs12_fail_alloc_at. */
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* pkcs12_oom_malloc_cb(size_t size, const char* func,
+    unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* pkcs12_oom_malloc_cb(size_t size)
+{
+#endif
+    if (pkcs12_alloc_seen++ == pkcs12_fail_alloc_at) {
+        return NULL;
+    }
+    return malloc(size);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void pkcs12_oom_free_cb(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void pkcs12_oom_free_cb(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* pkcs12_oom_realloc_cb(void* ptr, size_t size, const char* func,
+    unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* pkcs12_oom_realloc_cb(void* ptr, size_t size)
+{
+#endif
+    return realloc(ptr, size);
+}
+
+/* Parse a new PKCS#12 object with custom allocators in place.
+ *
+ * The object is decoded before the allocators are set so that only
+ * wolfSSL_PKCS12_parse() sees the failure.
+ */
+static int pkcs12_oom_parse(const byte* der, word32 derSz, int failAt,
+    WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert)
+{
+    EXPECT_DECLS;
+    WC_PKCS12* pkcs12 = NULL;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    int ret = WOLFSSL_FAILURE;
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(der, derSz, pkcs12), 0);
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(pkcs12_oom_malloc_cb, pkcs12_oom_free_cb,
+        pkcs12_oom_realloc_cb), 0);
+
+    if (EXPECT_SUCCESS()) {
+        pkcs12_alloc_seen = 0;
+        pkcs12_fail_alloc_at = failAt;
+        ret = wolfSSL_PKCS12_parse(pkcs12, "wolfSSL test", pkey, cert, NULL);
+        pkcs12_fail_alloc_at = -1;
+    }
+
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    wc_PKCS12_free(pkcs12);
+
+    return EXPECT_SUCCESS() ? ret : TEST_FAIL;
+}
+#endif /* TEST_PKCS12_PARSE_OOM */
+
+/* A failure to parse the main certificate must be a failure of
+ * wolfSSL_PKCS12_parse() and not a success with a partially populated X509.
+ *
+ * wc_PKCS12_parse() only selects a certificate that it has parsed, so malformed
+ * data doesn't reach the second parse in wolfSSL_PKCS12_parse(). An allocation
+ * failure does. Each allocation is failed in turn.
+ */
+int test_wolfSSL_PKCS12_parse_main_cert_oom(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS12_PARSE_OOM
+    byte der[6000];
+    int derSz = 0;
+    int total = 0;
+    int i;
+    XFILE f = XBADFILE;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_X509* cert = NULL;
+
+    ExpectTrue((f = XFOPEN("./certs/test-servercert.p12", "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+    }
+
+    /* Get the number of allocations. */
+    ExpectIntEQ(pkcs12_oom_parse(der, (word32)derSz, -1, &pkey, &cert),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(cert);
+    total = pkcs12_alloc_seen;
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+    wolfSSL_X509_free(cert);
+    cert = NULL;
+
+    for (i = 0; (i < total) && EXPECT_SUCCESS(); i++) {
+        int ret = pkcs12_oom_parse(der, (word32)derSz, i, &pkey, &cert);
+
+        /* The public key is missing when the parse stopped early. Names aren't
+         * checked as CopyDecodedToX509() doesn't report all failures to copy
+         * them. No certificate is returned when the pair search can't parse
+         * it. */
+        if ((ret == WOLFSSL_SUCCESS) && (cert != NULL)) {
+            WOLFSSL_EVP_PKEY* certKey = NULL;
+
+            ExpectNotNull(certKey = wolfSSL_X509_get_pubkey(cert));
+            wolfSSL_EVP_PKEY_free(certKey);
+        }
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+        wolfSSL_X509_free(cert);
+        cert = NULL;
+    }
+#endif /* TEST_PKCS12_PARSE_OOM */
+    return EXPECT_RESULT();
+}
