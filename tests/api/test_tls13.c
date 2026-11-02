@@ -227,7 +227,8 @@ int test_tls13_apis(void)
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     defined(HAVE_SUPPORTED_CURVES) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
-    (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+    (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+     ECC_MIN_KEY_SZ <= 256) || \
     (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
     int mlkemLevel;
 #endif
@@ -418,7 +419,8 @@ int test_tls13_apis(void)
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
-     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+      ECC_MIN_KEY_SZ <= 256) || \
      (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
 #ifndef WOLFSSL_NO_ML_KEM
 #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
@@ -430,7 +432,8 @@ int test_tls13_apis(void)
     mlkemLevel = WOLFSSL_ML_KEM_512;
 #endif
 #else
-#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+    ECC_MIN_KEY_SZ <= 256
     mlkemLevel = WOLFSSL_X25519MLKEM768;
 #elif defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)
     mlkemLevel = WOLFSSL_SECP256R1MLKEM768;
@@ -5608,7 +5611,8 @@ int test_tls13_rpk_multiple_certs(void)
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
-     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+      ECC_MIN_KEY_SZ <= 256) || \
      (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
@@ -5632,7 +5636,7 @@ static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
       defined(WOLFSSL_PQC_HYBRIDS)
     int group = WOLFSSL_SECP256R1MLKEM768;
 #elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
-      defined(WOLFSSL_PQC_HYBRIDS)
+      defined(WOLFSSL_PQC_HYBRIDS) && ECC_MIN_KEY_SZ <= 256
     int group = WOLFSSL_X25519MLKEM768;
 #endif
 
@@ -5661,7 +5665,7 @@ static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
       defined(WOLFSSL_PQC_HYBRIDS)
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "SecP256r1MLKEM768");
 #elif defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
-      defined(WOLFSSL_PQC_HYBRIDS)
+      defined(WOLFSSL_PQC_HYBRIDS) && ECC_MIN_KEY_SZ <= 256
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "X25519MLKEM768");
 #endif
 }
@@ -5675,7 +5679,8 @@ int test_tls13_pq_groups(void)
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     (!defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) || \
-     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)) || \
+     (defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+      ECC_MIN_KEY_SZ <= 256) || \
      (defined(TEST_HAVE_SECP256R1) && !defined(WOLFSSL_NO_ML_KEM_768)))
     callback_functions func_cb_client;
     callback_functions func_cb_server;
@@ -10899,7 +10904,7 @@ int test_tls13_pqc_hybrid_truncated_keyshare(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
     defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
-    !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && defined(TEST_HAVE_SECP256R1) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     WOLFSSL_CTX *ctx = NULL;
@@ -10986,11 +10991,9 @@ int test_tls13_pqc_hybrid_malformed_ecdh(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
     defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
-    !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && defined(TEST_HAVE_SECP256R1) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
-    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
-    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
-    !defined(NO_ECC_SECP)
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     /* 5 (record) + 4 (HS) + 1207 (ServerHello body) = 1216 bytes. */
@@ -11080,9 +11083,8 @@ int test_tls13_pqc_hybrid_async_server(void)
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
-    !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && defined(TEST_HAVE_SECP256R1) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && \
     !defined(WC_ECC_NONBLOCK) && !defined(WOLFSSL_SP_NONBLOCK)
     /* Non-blocking math livelocks the hybrid async re-drive; not applicable. */
     struct test_memio_ctx test_ctx;
