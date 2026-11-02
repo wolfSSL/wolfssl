@@ -134,6 +134,8 @@ int test_wolfSSL_ASN1_INTEGER(void)
     ExpectNotNull(a = d2i_ASN1_INTEGER(NULL, &p, sizeof(longDer)));
     ExpectPtrNE(p, longDer);
     ExpectNotNull(dup = wolfSSL_ASN1_INTEGER_dup(a));
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(dup, a), 0);
+    ExpectIntEQ(wolfSSL_i2d_ASN1_INTEGER(dup, NULL), (int)sizeof(longDer));
     ASN1_INTEGER_free(dup);
     ASN1_INTEGER_free(a);
 #endif
@@ -498,6 +500,9 @@ int test_wolfSSL_d2i_ASN1_INTEGER(void)
         0xd2, 0x96, 0xdf, 0xd9, 0xd0, 0x4f, 0xad, 0xd7
     };
     static const byte garbageDer[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    /* Not minimal: OpenSSL rejects them. */
+    static const byte padZeroDer[] = {0x02, 0x02, 0x00, 0x01};
+    static const byte padOnesDer[] = {0x02, 0x02, 0xFF, 0x80};
     /* Long-form length with INT_MAX content bytes for overflow testing */
     static const byte overflowLenDer[] = {0x02, 0x84, 0x7F, 0xFF, 0xFF, 0xFF};
 
@@ -529,6 +534,12 @@ int test_wolfSSL_d2i_ASN1_INTEGER(void)
     /* Garbage DER input. */
     p = garbageDer;
     ExpectNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, sizeof(garbageDer))));
+    ExpectNull(b);
+    p = padZeroDer;
+    ExpectNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, sizeof(padZeroDer))));
+    ExpectNull(b);
+    p = padOnesDer;
+    ExpectNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, sizeof(padOnesDer))));
     ExpectNull(b);
     /* Only run on 64-bit systems where the `long` inSz param fits */
     if (LONG_MAX >= 0x80000005L) {
@@ -578,6 +589,7 @@ int test_wolfSSL_d2i_ASN1_INTEGER(void)
         c = NULL;
 
         if (testVectors[i].derSz <= sizeof(long)) {
+            ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(a), testVectors[i].value);
             ExpectNotNull(c = wolfSSL_ASN1_INTEGER_new());
             ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(c, testVectors[i].value), 1);
             ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, c), 0);

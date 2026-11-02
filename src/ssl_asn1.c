@@ -1261,6 +1261,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
         }
         else {
             XMEMCPY(dst->data, src->data, (size_t)src->length);
+            dst->length = src->length;
         }
     }
 
@@ -1361,7 +1362,7 @@ static int wolfssl_asn1_int_twos_compl(byte* data, int length, byte* neg)
     }
     else {
         if (neg != NULL) {
-            *neg = data[idx] & 0x80;
+            *neg = (data[idx] & 0x80) ? 1 : 0;
         }
         if ((neg == NULL) || (*neg != 0)) {
             wolfssl_twos_compl(data + idx, length - (int)idx);
@@ -1502,6 +1503,13 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
     /* Check that len + idx won't overflow a signed int */
     if ((!err) && (len > INT_MAX - (int)idx)) {
         WOLFSSL_MSG("ASN.1 length too large.");
+        err = 1;
+    }
+    /* DER has no redundant leading octet. OpenSSL rejects one. */
+    if ((!err) && (len > 1) &&
+            ((((*in)[idx] == 0x00) && (((*in)[idx + 1] & 0x80) == 0)) ||
+             (((*in)[idx] == 0xff) && (((*in)[idx + 1] & 0x80) != 0)))) {
+        WOLFSSL_MSG("ASN.1 INTEGER not minimal.");
         err = 1;
     }
     /* Allocate a new ASN.1 INTEGER object. */
