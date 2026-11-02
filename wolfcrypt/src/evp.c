@@ -3510,12 +3510,12 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         }
         if ((int)*siglen < bytes)
             return WOLFSSL_FAILURE;
-        /* wolfssl_dsa_do_sign() takes the length as an int, and wolfCrypt
+        /* wolfssl_local_dsa_do_sign() takes the length as an int, and wolfCrypt
          * rejects anything longer than this anyway. */
         if (tbslen > WC_MAX_DIGEST_SIZE)
             return WOLFSSL_FAILURE;
-        ret = wolfssl_dsa_do_sign(tbs, (int)tbslen, sig, ctx->pkey->dsa);
-        /* wolfssl_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
+        ret = wolfssl_local_dsa_do_sign(tbs, (int)tbslen, sig, ctx->pkey->dsa);
+        /* wolfssl_local_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
             return ret;
         if (bytes == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
@@ -3645,11 +3645,11 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
         if (bytes <= 0 || siglen < (size_t)bytes * 2)
             return WOLFSSL_FAILURE;
-        /* wolfssl_dsa_do_verify() takes the length as an int, and wolfCrypt
+        /* wolfssl_local_dsa_do_verify() takes the length as an int, and wolfCrypt
          * rejects anything longer than this anyway. */
         if (tbslen > WC_MAX_DIGEST_SIZE)
             return WOLFSSL_FAILURE;
-        if (wolfssl_dsa_do_verify(tbs, (int)tbslen, (unsigned char *)sig,
+        if (wolfssl_local_dsa_do_verify(tbs, (int)tbslen, (unsigned char *)sig,
             ctx->pkey->dsa, &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
@@ -4668,8 +4668,8 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         {
             return WOLFSSL_FAILURE;
         }
-        ret = wolfssl_dsa_do_sign(md, (int)mdsize, sigret, pkey->dsa);
-        /* wolfssl_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
+        ret = wolfssl_local_dsa_do_sign(md, (int)mdsize, sigret, pkey->dsa);
+        /* wolfssl_local_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
             return ret;
         *siglen = (unsigned int)(bytes * 2);

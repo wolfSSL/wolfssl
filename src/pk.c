@@ -1605,7 +1605,7 @@ WOLFSSL_DSA_SIG* wolfSSL_d2i_DSA_SIG(WOLFSSL_DSA_SIG **sig,
 
 #endif /* !HAVE_SELFTEST */
 
-int wolfssl_dsa_do_sign(const unsigned char* d, int dLen,
+int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
         unsigned char* sigRet, WOLFSSL_DSA* dsa)
 {
     int     ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
@@ -1686,7 +1686,7 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
 {
     WOLFSSL_ENTER("wolfSSL_DSA_do_sign");
 
-    return wolfssl_dsa_do_sign(d, WC_SHA_DIGEST_SIZE, sigRet, dsa);
+    return wolfssl_local_dsa_do_sign(d, WC_SHA_DIGEST_SIZE, sigRet, dsa);
 }
 
 #ifndef HAVE_SELFTEST
@@ -1704,7 +1704,7 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
         return NULL;
     }
 
-    if (wolfssl_dsa_do_sign(digest, inLen, sigBin, dsa) != 1) {
+    if (wolfssl_local_dsa_do_sign(digest, inLen, sigBin, dsa) != 1) {
         WOLFSSL_MSG("wolfSSL_DSA_do_sign error");
         return NULL;
     }
@@ -1725,7 +1725,7 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
 }
 #endif
 
-int wolfssl_dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
+int wolfssl_local_dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
                         WOLFSSL_DSA* dsa, int *dsacheck)
 {
     int    ret;
@@ -1777,7 +1777,7 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
 {
     WOLFSSL_ENTER("wolfSSL_DSA_do_verify");
 
-    return wolfssl_dsa_do_verify(d, WC_SHA_DIGEST_SIZE, sig, dsa, dsacheck);
+    return wolfssl_local_dsa_do_verify(d, WC_SHA_DIGEST_SIZE, sig, dsa, dsacheck);
 }
 
 
@@ -1854,7 +1854,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
     if (wolfSSL_BN_bn2bin(sig->s, sigBinPtr) == -1)
         return 0;
 
-    if ((wolfssl_dsa_do_verify(digest, digest_len, sigBin, dsa, &dsacheck)
+    if ((wolfssl_local_dsa_do_verify(digest, digest_len, sigBin, dsa, &dsacheck)
                                          != 1) || dsacheck != 1) {
         return 0;
     }

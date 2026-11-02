@@ -8207,9 +8207,9 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 WOLFSSL_LOCAL int SetDsaInternal(WOLFSSL_DSA* dsa);
 WOLFSSL_LOCAL int SetDsaExternal(WOLFSSL_DSA* dsa);
 #ifndef NO_DSA
-WOLFSSL_LOCAL int wolfssl_dsa_do_sign(const unsigned char* d, int dLen,
+WOLFSSL_LOCAL int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
     unsigned char* sigRet, WOLFSSL_DSA* dsa);
-WOLFSSL_LOCAL int wolfssl_dsa_do_verify(const unsigned char* d, int dLen,
+WOLFSSL_LOCAL int wolfssl_local_dsa_do_verify(const unsigned char* d, int dLen,
     unsigned char* sig, WOLFSSL_DSA* dsa, int* dsacheck);
 #endif
 WOLFSSL_LOCAL int SetRsaExternal(WOLFSSL_RSA* rsa);
