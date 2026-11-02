@@ -133,9 +133,13 @@ SBOM_ROOT     ?= $(CURDIR)
 SBOM_LICENSE_FILE ?= $(SBOM_ROOT)/LICENSE
 HOSTCC        ?= cc
 
-# Recipe lines in the rule below start with $(SBOM_TAB), not a literal tab.
-# $(call) expands it before $(eval) parses the rule, so make still sees a tab.
-SBOM_TAB      := $(shell printf '\t')
+# wolfSSL's source check rejects literal tabs in .mk files. Recipe lines in
+# the rule below start with $(SBOM_TAB) instead. $(call) expands it before
+# $(eval) parses the rule, so make still sees a tab.
+override SBOM_TAB := $(shell printf '\t')
+ifeq ($(SBOM_TAB),)
+$(error sbom.mk needs a POSIX shell with printf to build its recipes)
+endif
 
 define wolfssl_compliance_tooling_sbom_rule
 .PHONY: $(1)
