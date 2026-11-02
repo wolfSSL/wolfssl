@@ -156,9 +156,5 @@ Other build-time options:
 
 ## Notes
 
-- `user_settings.h` currently defines `WOLFSSL_ARMASM_NO_HW_CRYPTO`: the
-  Green Hills assembler rejects the `.arch_extension crypto` directive used
-  by wolfSSL's ARMv8 inline assembly. The crypto instructions themselves
-  assemble without any directive. Remove the define once that is resolved.
 - `WC_BENCH_CYCLES_FROM_CLOCK` makes the benchmark derive cycle counts from
   the system clock, because the two A53 cores' virtual timers differ.
