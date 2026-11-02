@@ -4070,6 +4070,11 @@
     #define NO_OLD_TLS
 #endif
 
+/* Hide the FIPS module's self-test entry points (wc_RNG_HealthTest*) from
+ * applications; HAVE_FORCE_FIPS_FAILURE builds expose them for testing. */
+#if defined(HAVE_FIPS) && !defined(HAVE_FORCE_FIPS_FAILURE)
+    #define WOLFSSL_FIPS_PRIVATE_API
+#endif
 
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ

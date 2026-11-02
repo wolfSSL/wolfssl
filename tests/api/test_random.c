@@ -701,7 +701,7 @@ int test_wc_RNG_TestSeed(void)
 int test_wc_RNG_HealthTest(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG)
+#if defined(HAVE_HASHDRBG) && !defined(WOLFSSL_FIPS_PRIVATE_API)
     static const byte test1Seed[] = {
         0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e,
         0xff, 0xe8, 0x75, 0xc3, 0xa2, 0xe7, 0x1f, 0x42,
@@ -892,8 +892,8 @@ int test_wc_RNG_HealthTest(void)
 int test_wc_RNG_HealthTest_SHA512(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
-    !defined(HAVE_SELFTEST) && \
+#if defined(HAVE_HASHDRBG) && !defined(WOLFSSL_FIPS_PRIVATE_API) && \
+    defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 
     /* No-reseed test: drbgvectors_no_reseed/Hash_DRBG.rsp, [SHA-512],
@@ -1027,7 +1027,8 @@ int test_wc_RNG_HealthTest_SHA512(void)
         test2SeedB, sizeof(test2SeedB), output, sizeof(output)), 0);
     ExpectBufEQ(test2Output, output, sizeof(output));
 
-#endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
+#endif /* HAVE_HASHDRBG && !WOLFSSL_FIPS_PRIVATE_API && WOLFSSL_DRBG_SHA512
+        * && !HAVE_SELFTEST && FIPS v7+ */
     return EXPECT_RESULT();
 }
 
@@ -1040,8 +1041,9 @@ int test_wc_RNG_HealthTest_SHA512(void)
 int test_wc_RNG_HealthTest_SHA256_Ext(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_SHA256) && defined(HAVE_HASHDRBG) && !defined(HAVE_SELFTEST) \
-    && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if !defined(NO_SHA256) && defined(HAVE_HASHDRBG) && \
+    !defined(WOLFSSL_FIPS_PRIVATE_API) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     byte entropyA[48], entropyB[48], entropyC[48];
     byte nonce[16], perso[16], addA[16], addB[16], addReseed[16];
     byte output[WC_SHA256_DIGEST_SIZE * 4];
@@ -1148,8 +1150,9 @@ int test_wc_RNG_HealthTest_SHA256_Ext(void)
 int test_wc_RNG_HealthTest_SHA512_Ext(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if defined(HAVE_HASHDRBG) && !defined(WOLFSSL_FIPS_PRIVATE_API) && \
+    defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     byte entropyA[32], entropyB[32], entropyC[32];
     byte nonce[16], perso[16], addA[16], addB[16];
     byte output[WC_SHA512_DIGEST_SIZE * 4];
