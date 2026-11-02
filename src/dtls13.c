@@ -360,23 +360,17 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
 
 int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 {
-    DtlsMsg* msg = ssl->dtls_rx_msg_list;
+    DtlsMsg* msg;
     word32 idx = 0;
     int ret = 0;
 
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
-    while (msg != NULL) {
+    DtlsMsgListPurge(ssl);
+
+    while ((msg = DtlsMsgListNextReady(ssl)) != NULL) {
         int downgraded = 0;
         idx = 0;
-
-        /* message not in order */
-        if (ssl->keys.dtls_expected_peer_handshake_number != msg->seq)
-            break;
-
-        /* message not complete */
-        if (!msg->ready)
-            break;
 
 #ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
         ret = MsgCheckEncryption(ssl, msg->type, msg->encrypted);
@@ -421,10 +415,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                  * incremented. */
                 ssl->keys.dtls_expected_peer_handshake_number++;
 
-            ssl->dtls_rx_msg_list = msg->next;
-            DtlsMsgDelete(msg, ssl->heap);
-            msg = ssl->dtls_rx_msg_list;
-            ssl->dtls_rx_msg_list_sz--;
+            DtlsMsgListRemove(ssl, msg);
+            DtlsMsgListPurge(ssl);
         }
 
         if (ret != 0)
@@ -438,10 +430,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 
 static int Dtls13NextMessageComplete(WOLFSSL* ssl)
 {
-    return ssl->dtls_rx_msg_list != NULL &&
-           ssl->dtls_rx_msg_list->ready &&
-           ssl->dtls_rx_msg_list->seq ==
-               ssl->keys.dtls_expected_peer_handshake_number;
+    DtlsMsgListPurge(ssl);
+    return DtlsMsgListNextReady(ssl) != NULL;
 }
 
 static WC_INLINE int FragIsInOutputBuffer(WOLFSSL* ssl, const byte* frag)
@@ -527,7 +517,7 @@ int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash, int* hashSz,
 }
 
 /* Handshake header DTLS only fields are not included in the transcript hash */
-int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word16 length)
+int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word32 length)
 {
     int ret;
 
@@ -546,7 +536,7 @@ int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word16 length)
     input += OPAQUE64_LEN;
     length -= OPAQUE64_LEN;
 
-    return HashRaw(ssl, input, length);
+    return HashRaw(ssl, input, (int)length);
 }
 
 static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,
@@ -864,6 +854,7 @@ static int Dtls13DetectDisruption(WOLFSSL* ssl, word32 fragOffset)
     /* is not the next fragment in the message (the check is not 100% perfect,
        in the worst case, we don't detect the disruption and wait for the other
        peer retransmission) */
+    DtlsMsgListPurge(ssl);
     if (ssl->dtls_rx_msg_list != NULL) {
         DtlsFragBucket* last = ssl->dtls_rx_msg_list->fragBucketList;
         while (last != NULL && last->m.m.next != NULL)
@@ -1949,8 +1940,12 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         return 0;
     }
 
-    if (fragOff + fragLength > messageLength)
-        return BUFFER_ERROR;
+    /* Same error code as the DTLS 1.2 check so a stateless server drops it */
+    if (fragOff + fragLength > messageLength) {
+        WOLFSSL_MSG("Fragment outside of the handshake message");
+        WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+        return LENGTH_ERROR;
+    }
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff,
         &implicitAck);
@@ -2016,6 +2011,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         ssl->keys.dtls_peer_handshake_number >
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
+        DtlsMsgListPurge(ssl);
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
             /* Only ack a fragment we really buffered. */
             if (DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
@@ -2028,6 +2024,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         else {
             /* DTLS_POOL_SZ outstanding messages is way more than enough for any
              * valid peer */
+            WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
             return DTLS_TOO_MANY_FRAGMENTS_E;
         }
 
