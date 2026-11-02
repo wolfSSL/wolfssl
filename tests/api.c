@@ -586,6 +586,210 @@ static int test_wc_LoadStaticMemory_ex(void)
 }
 
 
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    !defined(NO_WOLFSSL_CLIENT) && (WOLFMEM_IO_SZ >= 16384) && \
+    (WOLFMEM_MAX_BUCKETS >= WOLFMEM_DEF_BUCKETS) && \
+    !defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_HAVE_FRODOKEM)
+    #define TEST_LSM_FIXED_IO
+
+/* Returns the number of pattern bytes in the IO block outside of the live
+ * allocation and the metadata just below it. */
+static int test_lsm_fixed_io_stale(const byte* ioBlock, const byte* keep,
+    size_t keepSz)
+{
+    size_t i;
+    int cnt = 0;
+
+    for (i = 0; i < WOLFMEM_IO_SZ; i++) {
+        const byte* cur = ioBlock + i;
+
+        if ((cur < keep - (2 * sizeof(size_t))) || (cur >= keep + keepSz)) {
+            cnt += (*cur >= 0x80) && (*cur <= 0xbf);
+        }
+    }
+    return cnt;
+}
+
+/* One reallocation within a fixed IO buffer. */
+typedef struct test_lsm_fixed_io_case {
+    int    oldHigh; /* allocate with the high alignment, otherwise the low */
+    int    newHigh; /* reallocate with the high alignment, otherwise the low */
+    size_t oldSz;   /* size of the original allocation */
+    size_t newSz;   /* size requested from the reallocation */
+    int    scrub;   /* use wc_ReallocAlignScrubbed() and check for stale data */
+} test_lsm_fixed_io_case;
+
+/* With a fixed IO pool, XMALLOC() of an IO tag returns the block the connection
+ * already owns, so the old and new allocations share it.  Reallocating must
+ * keep the data and, when scrubbing, leave no other copy of it in the block.
+ *
+ * The distance between the low and high aligned pointers is at most 4096 bytes,
+ * so moving 6000 bytes always overlaps the old copy of the data. */
+static int test_lsm_fixed_io_realloc(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    static const test_lsm_fixed_io_case cases[] = {
+        /* Move up, overlapping.  Everything from the old start up to the new
+         * start must be cleared, without touching the data that just moved
+         * past the old end. */
+        { 0, 1, 6000, 6000, 1 },
+        /* Move down, overlapping.  The data lands on the old metadata, so that
+         * can't be used to free the block, and the old copy left above the new
+         * end must be cleared. */
+        { 1, 0, 6000, 6000, 1 },
+        /* Move down and shrink.  Only 64 bytes are kept, so everything else
+         * from the old allocation must be cleared. */
+        { 1, 0, 6000,   64, 1 },
+        /* Move down and grow.  Only 64 bytes are copied, so the new end must
+         * come from the copied size: from the requested size, it is past the
+         * old copy, which is then left behind. */
+        { 1, 0,   64, 6000, 1 },
+        /* Move down without scrubbing.  The data must survive and the block
+         * must still be freed correctly on the path that doesn't clear it. */
+        { 1, 0, 6000, 6000, 0 }
+    };
+    const int tag = DYNAMIC_TYPE_IN_BUFFER;
+    const size_t lowAlign = 16;
+    size_t highAlign = 4096;
+    void* heap = ssl->heap;
+    WOLFSSL_HEAP* mem = ((WOLFSSL_HEAP_HINT*)heap)->memory;
+    WOLFSSL_MEM_STATS before;
+    WOLFSSL_MEM_STATS after;
+    byte pattern[6000];
+    byte* ioBlock = NULL;
+    byte* p = NULL;
+    int canMove;
+    size_t i;
+
+    for (i = 0; i < sizeof(pattern); i++) {
+        pattern[i] = (byte)(0x80 | (i & 0x3f));
+    }
+
+    ExpectIntEQ(wolfSSL_GetMemStats(mem, &before), 1);
+    ExpectNotNull(ioBlock = (byte*)XMALLOC(1, heap, tag));
+
+    /* wc_ReallocScrubbed() in place: keep the data, clear the tail. */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ioBlock, 0, WOLFMEM_IO_SZ);
+        XMEMCPY(ioBlock, pattern, 128);
+    }
+    ExpectPtrEq(wc_ReallocScrubbed(ioBlock, 128, 64, heap, tag), ioBlock);
+    ExpectBufEQ(ioBlock, pattern, 64);
+    ExpectIntEQ(test_lsm_fixed_io_stale(ioBlock, ioBlock, 64), 0);
+
+    /* A request must fit in the block: the block itself can be requested, but
+     * not one byte more. */
+    ExpectPtrEq(p = (byte*)XMALLOC(WOLFMEM_IO_SZ, heap, tag), ioBlock);
+    XFREE(p, heap, tag);
+    p = NULL;
+    ExpectNull(XMALLOC(WOLFMEM_IO_SZ + 1, heap, tag));
+
+    /* A reallocation that doesn't fit leaves the original intact. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(ioBlock, pattern, 128);
+    }
+    ExpectNull(wc_ReallocScrubbed(ioBlock, 128, WOLFMEM_IO_SZ + 1, heap, tag));
+    ExpectBufEQ(ioBlock, pattern, 128);
+
+    /* Aligned allocations must also fit their padding and metadata. */
+    ExpectNull(wc_MallocAlign(lowAlign, WOLFMEM_IO_SZ, heap, tag));
+    ExpectNotNull(p = (byte*)wc_MallocAlign(lowAlign, 128, heap, tag));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(p, pattern, 128);
+    }
+    ExpectNull(wc_ReallocAlignScrubbed(p, lowAlign, WOLFMEM_IO_SZ, heap, tag));
+    ExpectBufEQ(p, pattern, 128);
+    wc_FreeAlign(p, heap, tag);
+    p = NULL;
+
+    /* The low alignment always lands at the same place in the block, and the
+     * block's address varies from run to run.  Pick a high alignment that has
+     * to move the data.  A block that already meets the largest alignment that
+     * fits can't move, so those runs skip the cases below. */
+    ExpectNotNull(p = (byte*)wc_MallocAlign(lowAlign, 1, heap, tag));
+    if (((wc_ptr_t)p & (highAlign - 1)) == 0) {
+        highAlign = 8192;
+    }
+    canMove = ((wc_ptr_t)p & (highAlign - 1)) != 0;
+    wc_FreeAlign(p, heap, tag);
+
+    for (i = 0; canMove && EXPECT_SUCCESS() &&
+                (i < sizeof(cases) / sizeof(cases[0])); i++) {
+        const test_lsm_fixed_io_case* c = &cases[i];
+        size_t newAlign = c->newHigh ? highAlign : lowAlign;
+        size_t keepSz = (c->oldSz < c->newSz) ? c->oldSz : c->newSz;
+        byte* q = NULL;
+
+        XMEMSET(ioBlock, 0, WOLFMEM_IO_SZ);
+        ExpectNotNull(p = (byte*)wc_MallocAlign(
+            c->oldHigh ? highAlign : lowAlign, c->oldSz, heap, tag));
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(p, pattern, c->oldSz);
+        }
+        if (c->scrub) {
+            q = (byte*)wc_ReallocAlignScrubbed(p, newAlign, c->newSz, heap,
+                tag);
+        }
+        else {
+            q = (byte*)wc_ReallocAlign(p, newAlign, c->newSz, heap, tag);
+        }
+        ExpectNotNull(q);
+        ExpectPtrNE(q, p);
+        ExpectIntEQ((int)((wc_ptr_t)q & (newAlign - 1)), 0);
+        ExpectBufEQ(q, pattern, keepSz);
+        if (c->scrub) {
+            ExpectIntEQ(test_lsm_fixed_io_stale(ioBlock, q, keepSz), 0);
+        }
+        wc_FreeAlign(q, heap, tag);
+    }
+
+    /* Every XMALLOC() must still be paired with an XFREE(). */
+    XFREE(ioBlock, heap, tag);
+    ExpectIntEQ(wolfSSL_GetMemStats(mem, &after), 1);
+    ExpectIntEQ(after.curAlloc, before.curAlloc);
+
+    return EXPECT_RESULT();
+}
+
+/* A request too large for a shared IO buffer must not use one up: it comes
+ * from general memory if a bucket is large enough, otherwise it fails. */
+static int test_lsm_shared_io_malloc(WOLFSSL_HEAP_HINT* heap)
+{
+    EXPECT_DECLS;
+    const int tag = DYNAMIC_TYPE_IN_BUFFER;
+    WOLFSSL_MEM_STATS stats;
+    word32 avaIO = 0;
+    byte* ioBuf = NULL;
+    byte* general = NULL;
+
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    avaIO = stats.avaIO;
+    ExpectIntGT(avaIO, 0);
+
+    ExpectNotNull(general = (byte*)XMALLOC(WOLFMEM_IO_SZ + 1, heap, tag));
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO);
+
+    ExpectNull(XMALLOC(3 * WOLFMEM_IO_SZ, heap, tag));
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO);
+
+    ExpectNotNull(ioBuf = (byte*)XMALLOC(WOLFMEM_IO_SZ, heap, tag));
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO - 1);
+
+    /* Each block must go back to the list that it came from. */
+    XFREE(general, heap, tag);
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO - 1);
+    XFREE(ioBuf, heap, tag);
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO);
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_STATIC_MEMORY && !WOLFSSL_STATIC_MEMORY_LEAN && ... */
+
 static int test_wc_LoadStaticMemory_CTX(void)
 {
     EXPECT_DECLS;
@@ -595,6 +799,11 @@ static int test_wc_LoadStaticMemory_CTX(void)
     word32 distList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_DIST };
     WOLFSSL_HEAP_HINT* heap;
     WOLFSSL_CTX *ctx1 = NULL, *ctx2 = NULL;
+#ifdef TEST_LSM_FIXED_IO
+    /* Two IO buffers, each with its management data and alignment padding. */
+    byte ioMemory[2 * (WOLFMEM_IO_SZ + 64)];
+    WOLFSSL* ssl = NULL;
+#endif
 
 
     /* Set the size of the static buffer to exactly the minimum size. */
@@ -620,6 +829,34 @@ static int test_wc_LoadStaticMemory_CTX(void)
         heap)));
     wolfSSL_CTX_free(ctx1);
     wolfSSL_CTX_free(ctx2);
+
+#ifdef TEST_LSM_FIXED_IO
+    /* Reallocating within an SSL object's fixed IO buffers. */
+    ctx1 = NULL;
+    ExpectNotNull((ctx1 = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap)));
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx1, NULL, ioMemory,
+        sizeof(ioMemory), WOLFMEM_IO_POOL_FIXED, 0), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx1));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_lsm_fixed_io_realloc(ssl), TEST_SUCCESS);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx1);
+
+    /* Shared IO buffers, with a general bucket larger than an IO buffer. */
+    wc_UnloadStaticMemory(heap);
+    heap = NULL;
+    sizeList[WOLFMEM_DEF_BUCKETS - 1] = 2 * WOLFMEM_IO_SZ;
+    distList[WOLFMEM_DEF_BUCKETS - 1] = 1;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap, WOLFMEM_DEF_BUCKETS, sizeList,
+        distList, staticMemory, sizeof(staticMemory), 0, 0), 0);
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap, WOLFMEM_DEF_BUCKETS, sizeList,
+        distList, ioMemory, sizeof(ioMemory), WOLFMEM_IO_POOL, 0), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_lsm_shared_io_malloc(heap), TEST_SUCCESS);
+    }
+#endif
 
     wc_UnloadStaticMemory(heap);
 #endif /* WOLFSSL_STATIC_MEMORY */

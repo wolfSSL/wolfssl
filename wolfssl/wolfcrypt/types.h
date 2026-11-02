@@ -761,7 +761,8 @@ enum {
 
 /* Aligned-allocation overrides must be all-or-none: the default
  * XREALLOCALIGN*() read the wc_MallocAlign() hidden header, which a port
- * XMALLOCALIGN() doesn't write. */
+ * XMALLOCALIGN() doesn't write.  Overrides must return NULL for an alignment
+ * that isn't a power of 2, leaving any original allocation intact. */
 #if defined(XMALLOCALIGN) || defined(XFREEALIGN) || \
     defined(XREALLOCALIGN) || defined(XREALLOCALIGN_SCRUBBED)
     #if !defined(XMALLOCALIGN) || !defined(XFREEALIGN) || \
@@ -978,7 +979,7 @@ enum {
         wc_ReallocAlign(p, align, size, h, t)
     /* reallocation with scrubbing of lost blocks for aligned allocations */
     #define XREALLOCALIGN_SCRUBBED(p, align, old_size, size, h, t) \
-        ((void)old_size, wc_ReallocAlignScrubbed(p, align, size, h, t))
+        ((void)(old_size), wc_ReallocAlignScrubbed(p, align, size, h, t))
 #endif
 
 /* reallocation with scrubbing of lost blocks */
