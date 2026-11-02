@@ -231,7 +231,9 @@ int test_wolfSSL_RAND_bytes(void)
         ok = (RAND_bytes(randbuf, sizeof(randbuf)) == 1);
         n_written = write(pipefds[1], randbuf, sizeof(randbuf));
         close(pipefds[1]);
-        exit((ok && n_written == sizeof(randbuf)) ? 0 : 1);
+        /* Must terminate via _exit() to avoid provoking LSAN via the atexit
+         * handlers. */
+        _exit((ok && n_written == sizeof(randbuf)) ? 0 : 1);
     }
     else if (pid > 0) {
         /* Parent process. */
