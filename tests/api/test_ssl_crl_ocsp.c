@@ -257,6 +257,49 @@ int test_wolfSSL_CTX_tlsext_status_cb(void)
     return EXPECT_RESULT();
 }
 
+#if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+static int test_ssl_crl_ocsp_verify_cb(WOLFSSL* ssl, int err, byte* resp,
+    word32 respSz, word32 idx, void* arg)
+{
+    (void)ssl;
+    (void)resp;
+    (void)respSz;
+    (void)idx;
+    (void)arg;
+    return err;
+}
+#endif
+
+/* Test setting the OCSP status verify callback on a client CTX.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_CTX_set_ocsp_status_verify_cb(void)
+{
+    EXPECT_DECLS;
+#if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    int arg = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    wolfSSL_CTX_set_ocsp_status_verify_cb(ctx, test_ssl_crl_ocsp_verify_cb,
+        &arg);
+    ExpectTrue((ctx != NULL) &&
+        (ctx->ocspStatusVerifyCb == test_ssl_crl_ocsp_verify_cb));
+    ExpectTrue((ctx != NULL) && (ctx->ocspStatusVerifyCbArg == &arg));
+
+    wolfSSL_CTX_set_ocsp_status_verify_cb(ctx, NULL, NULL);
+    ExpectTrue((ctx != NULL) && (ctx->ocspStatusVerifyCb == NULL));
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test storing and retrieving a stapled OCSP response.
  *
  * @return  TEST_SUCCESS on success.
