@@ -80649,13 +80649,14 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
-#ifdef SLHDSA_TEST_CERT
+#if !defined(WOLFSSL_NO_MALLOC) && defined(SLHDSA_TEST_CERT)
+    /* slhdsa_cert_self_signed_test requires malloc */
     if (ret == 0) {
         ret = slhdsa_cert_test();
         if (ret != 0)
             wc_test_render_error_message("SLHDSA_CERT", ret);
     }
-#endif
+#endif /* !WOLFSSL_NO_MALLOC && SLHDSA_TEST_CERT */
 
 #ifdef SLHDSA_TEST_HAVE_ANY_PARAM
 out:
