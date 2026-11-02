@@ -78584,7 +78584,7 @@ static wc_test_ret_t slhdsa_init_fail_free_test(void)
     #define SLHDSA_TEST_CERT
 #endif
 
-#ifdef SLHDSA_TEST_CERT
+#if !defined(WOLFSSL_NO_MALLOC) && defined(SLHDSA_TEST_CERT)
 /* der must parse as self-signed, but not once a signature byte changes. */
 static wc_test_ret_t slhdsa_cert_self_signed_test(const byte* der,
     word32 derSz)
@@ -78636,16 +78636,16 @@ static wc_test_ret_t slhdsa_cert_test(void)
         word32           keySz;
         enum SlhDsaParam param;
     } vectors[] = {
-#ifdef SLHDSA_TEST_CERT_SHAKE128S
+    #ifdef SLHDSA_TEST_CERT_SHAKE128S
         { root_slhdsa_shake128s_cert_der,
           sizeof_root_slhdsa_shake128s_cert_der,
           SLHDSA_CERT_KEY(shake128s), SLHDSA_SHAKE128S },
-#endif
-#ifdef SLHDSA_TEST_CERT_SHA2_128S
+    #endif
+    #ifdef SLHDSA_TEST_CERT_SHA2_128S
         { root_slhdsa_sha2_128s_cert_der,
           sizeof_root_slhdsa_sha2_128s_cert_der,
           SLHDSA_CERT_KEY(sha2_128s), SLHDSA_SHA2_128S },
-#endif
+    #endif
     };
     #undef SLHDSA_CERT_KEY
     wc_test_ret_t ret = 0;
@@ -78656,7 +78656,7 @@ static wc_test_ret_t slhdsa_cert_test(void)
     word32 spkiSz;
     int pubInit = 0;
     WC_DECLARE_VAR(pub, SlhDsaKey, 1, HEAP_HINT);
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     static const byte msg[] = "SLH-DSA certificate key";
     byte pubA[WC_SLHDSA_MAX_PUB_LEN];
     byte pubB[WC_SLHDSA_MAX_PUB_LEN];
@@ -78668,29 +78668,29 @@ static wc_test_ret_t slhdsa_cert_test(void)
     int privInit = 0;
     WC_DECLARE_VAR(priv, SlhDsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, WC_SLHDSA_SHAKE128S_SIG_LEN, HEAP_HINT);
-#ifdef SLHDSA_TEST_CERT_SHA2_128S
+    #ifdef SLHDSA_TEST_CERT_SHA2_128S
     wc_static_assert(WC_SLHDSA_SHA2_128S_SIG_LEN ==
         WC_SLHDSA_SHAKE128S_SIG_LEN);
-#endif
-#endif
+    #endif
+    #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
     WC_ALLOC_VAR_EX(pub, SlhDsaKey, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     WC_ALLOC_VAR_EX(priv, SlhDsaKey, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_SHAKE128S_SIG_LEN, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
 
-#ifndef HAVE_FIPS
+    #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
-#else
+    #else
     ret = wc_InitRng(&rng);
-#endif
+    #endif /* !HAVE_FIPS */
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     rngInit = 1;
-#endif
+    #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
     for (i = 0; i < (int)(sizeof(vectors) / sizeof(vectors[0])); i++) {
         spkiSz = (word32)sizeof(spki);
@@ -78714,7 +78714,7 @@ static wc_test_ret_t slhdsa_cert_test(void)
         if (ret != 0)
             goto out;
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
         ret = wc_SlhDsaKey_Init(priv, vectors[i].param, NULL, devId);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -78752,7 +78752,7 @@ static wc_test_ret_t slhdsa_cert_test(void)
 
         wc_SlhDsaKey_Free(priv);
         privInit = 0;
-#endif
+    #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
         wc_SlhDsaKey_Free(pub);
         pubInit = 0;
     }
@@ -78761,18 +78761,18 @@ out:
     if (pubInit)
         wc_SlhDsaKey_Free(pub);
     WC_FREE_VAR_EX(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     if (privInit)
         wc_SlhDsaKey_Free(priv);
     if (rngInit)
         wc_FreeRng(&rng);
     WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
     return ret;
 }
-#endif /* SLHDSA_TEST_CERT */
+#endif /* !WOLFSSL_NO_MALLOC && SLHDSA_TEST_CERT */
 
 wc_test_ret_t slhdsa_test(void)
 {
