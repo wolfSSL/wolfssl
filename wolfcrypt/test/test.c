@@ -44685,8 +44685,8 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         }
     #endif
     } while (nb_ret == WC_NO_ERR_TRACE(MP_WOULDBLOCK) ||
-    PRIVATE_KEY_LOCK();
              nb_ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    PRIVATE_KEY_LOCK();
     if (nb_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
 
