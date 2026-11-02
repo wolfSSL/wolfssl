@@ -361,7 +361,7 @@ on any failure.
 Algorithm testing (ACVP) is done on the C module, not through the wrapper.
 The suite (a dependency-free console runner) tests the wrapper and covers:
 - embedded known answers (SHA-1/2/3, RFC 4231 HMAC, SP 800-38A AES,
-  RFC 4493 CMAC, GCM, RFC 3610 CCM, a CAVS Hash_DRBG vector);
+  RFC 4493 CMAC, GCM, RFC 3610 CCM);
 - independent checks against .NET (RSA, ECDSA, ECDH, HMAC, AES, GCM, TLS
   KDF references) and BigInteger references (DH, PKCS#1 v1.5);
 - forced-failure scenarios (FAILED, DRBG continuous test, and every DEGRADED

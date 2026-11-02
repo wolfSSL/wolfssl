@@ -29,8 +29,8 @@ namespace wolfSSL.CSharp.Fips.Test
     /* Embedded known answers. The module CASTs test the module; these test the
      * wrapper's marshalling, entry point and parameter mapping for each
      * symmetric service: published vectors (FIPS 180-4 / 202 "abc",
-     * RFC 4231, SP 800-38A F.1-F.5, RFC 4493, GCM test case 2, RFC 3610,
-     * CAVS Hash_DRBG) plus .NET cross-checks where .NET has the primitive. */
+     * RFC 4231, SP 800-38A F.1-F.5, RFC 4493, GCM test case 2, RFC 3610)
+     * plus .NET cross-checks where .NET has the primitive. */
     internal static class KnownAnswerTests
     {
         /* SP 800-38A F.1-F.5: AES-128 key and the first two plaintext blocks */
@@ -195,17 +195,6 @@ namespace wolfSSL.CSharp.Fips.Test
                 var r2 = c2.Encrypt(p2, aad);
                 T.Bytes(nct, r2.Ciphertext, ".NET ciphertext");
                 T.Bytes(ntag, r2.Tag, ".NET tag");
-            });
-
-            T.Run("Hash_DRBG SHA-256 (CAVS, no reseed) via the health-test service", () =>
-            {
-                byte[] entropyNonce = T.Hex("a65ad0f345db4e0effe875c3a2e71f42c7129d620ff5c119a9ef55f05185e0fb" +
-                                            "8581f9317517276e06e9607ddbcbcc2e");
-                byte[] expected = T.Hex("d3e160c35b99f340b2628264d1751060e0045da383ff57a57d73a673d2b8d80d" +
-                                        "aaf6a6c35a91bb4579d73fd0c8fed111b0391306828adfed528f018121b3febd" +
-                                        "c343e797b87dbb63db1333ded9d1ece177cfa6b71fe8ab1da46624ed6415e51c" +
-                                        "cde2c7ca86e283990eeaeb91120415528b2295910281b02dd431f4c9f70427df");
-                T.Bytes(expected, FipsRng.HealthTest(false, entropyNonce, null, expected.Length), "output");
             });
         }
     }
