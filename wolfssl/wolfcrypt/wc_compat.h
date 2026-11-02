@@ -74,6 +74,11 @@
      * the exported zeroizer here for the inline shims below.  Redeclaration
      * with identical tokens is harmless. */
     #ifdef WOLFSSL_NO_FORCE_ZERO
+        /* The application-supplied zeroizer -- same tokens as misc.h, which
+         * no include path can have parsed yet (misc.h includes types.h,
+         * which reaches this header first). */
+        /* NOLINTNEXTLINE(readability-redundant-declaration) */
+        void ForceZero(void* mem, size_t len);
         #undef wc_ForceZero
         #define wc_ForceZero ForceZero
     #else
