@@ -365,9 +365,11 @@ enum wolfCrypt_ErrorCodes {
     HWPUF_GENERATE_KEY_E = -1040, /* HWPUF generate key failed */
     HWPUF_GET_KEY_E     = -1041, /* HWPUF get key failed */
     HWPUF_ZEROIZE_E     = -1042, /* HWPUF zeroize failed */
+    BUILD_CONFIG_MISMATCH_E = -1043, /* Application and library were built
+                                      * with incompatible configurations */
 
-    WC_SPAN2_LAST_E     = -1042, /* Update to indicate last used error code */
-    WC_LAST_E           = -1042, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1043, /* Update to indicate last used error code */
+    WC_LAST_E           = -1043, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

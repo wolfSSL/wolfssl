@@ -5365,7 +5365,7 @@ int sp_grow(sp_int* a, int l)
 #endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || !NO_DH || HAVE_ECC */
 
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(HAVE_ECC) || defined(WOLFSSL_PUBLIC_MP)
+    defined(HAVE_ECC) || defined(WOLFSSL_PUBLIC_MP) || defined(OPENSSL_EXTRA)
 /* Set the multi-precision number to zero.
  *
  * @param [out] a  SP integer to set to zero.
@@ -5377,7 +5377,8 @@ void sp_zero(sp_int* a)
         _sp_zero(a);
     }
 }
-#endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
+#endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC ||
+        * WOLFSSL_PUBLIC_MP || OPENSSL_EXTRA */
 
 /* Clear the data from the multi-precision number, set to zero and free.
  *

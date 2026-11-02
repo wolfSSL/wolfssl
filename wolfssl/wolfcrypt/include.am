@@ -9,6 +9,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ascon.h \
                          wolfssl/wolfcrypt/asn.h \
                          wolfssl/wolfcrypt/asn_public.h \
+                         wolfssl/wolfcrypt/build_check.h \
+                         wolfssl/wolfcrypt/build_check_list.h \
                          wolfssl/wolfcrypt/tsp.h \
                          wolfssl/wolfcrypt/poly1305.h \
                          wolfssl/wolfcrypt/camellia.h \

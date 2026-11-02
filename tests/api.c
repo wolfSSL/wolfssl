@@ -239,6 +239,7 @@
 #include <tests/api/test_wc_encrypt.h>
 #include <tests/api/test_coding.h>
 #include <tests/api/test_error.h>
+#include <wolfssl/wolfcrypt/build_check.h>
 #include <tests/api/test_random.h>
 #include <tests/api/test_wolfentropy.h>
 #include <tests/api/test_wolfevent.h>
@@ -41892,6 +41893,345 @@ static int test_wolfSSL_configure_args(void)
     return EXPECT_RESULT();
 }
 
+static int test_wc_BuildConfig(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_WC_INTROSPECTION
+    wc_BuildConfig local;
+    wc_BuildConfig lib;
+    wc_BuildConfig tmp;
+    word32 mismatch = 0xffffffffU;
+    int i;
+
+    /* This test is compiled with the library's flags, so it must match.
+     * (tests/unit.h undefines OPENSSL_COEXIST, but naming-only macros like
+     * that are deliberately not fingerprinted.) */
+    if (wc_CheckBuildConfig(&mismatch) != 0) {
+        char desc[1024];
+
+        /* Name the differences in the log; a bare error code says only
+         * that something differs. */
+        (void)wc_CheckBuildConfigEx(NULL, desc, (word32)sizeof(desc));
+        fprintf(stderr, "build config mismatch: %s\n", desc);
+    }
+    ExpectIntEQ(wc_CheckBuildConfig(&mismatch), 0);
+    ExpectIntEQ(mismatch, 0);
+    ExpectIntEQ(wc_CheckBuildConfig(NULL), 0);
+
+    wc_BuildConfig_Local(&local);
+    XMEMSET(&lib, 0xa5, sizeof(lib));
+    ExpectIntEQ(wc_GetBuildConfig(&lib, (word32)sizeof(lib)), 0);
+    ExpectIntEQ(lib.structSz, (word32)sizeof(wc_BuildConfig));
+    ExpectIntEQ(lib.structSz, WC_BUILD_CONFIG_V1_SZ);
+    ExpectIntEQ(lib.cfgVersion, WC_BUILD_CONFIG_VERSION);
+    ExpectIntEQ(lib.libVersionHex, (word32)LIBWOLFSSL_VERSION_HEX);
+    ExpectIntEQ(lib.optionsHash, local.optionsHash);
+    for (i = 0; i < WC_BUILD_FEATURE_WORDS; i++) {
+        ExpectIntEQ(lib.features[i], local.features[i]);
+    }
+    for (i = 0; i < WC_BUILD_SIZE_COUNT; i++) {
+        ExpectIntEQ(lib.sizes[i], local.sizes[i]);
+    }
+    ExpectIntEQ(lib.sizes[0], (word32)sizeof(void*));
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    /* OpenSSL compatibility struct sizes are recorded. */
+    ExpectIntEQ(lib.sizes[16], (word32)sizeof(WOLFSSL_EVP_MD_CTX));
+    ExpectIntEQ(lib.sizes[17], (word32)sizeof(WOLFSSL_EVP_CIPHER_CTX));
+    ExpectIntEQ(lib.sizes[25], (word32)sizeof(WOLFSSL_X509_STORE_CTX));
+    ExpectIntEQ(lib.sizes[26], (word32)sizeof(WOLFSSL_EVP_PKEY));
+#else
+    /* Slots 16-31 are the OpenSSL compatibility layer, except that
+     * WOLFSSL_X509_STORE_CTX (25) is recorded in every TLS build. */
+    for (i = 16; i < 32; i++) {
+        if (i == 25)
+            continue;
+        ExpectIntEQ(lib.sizes[i], 0);
+    }
+  #ifndef WOLFCRYPT_ONLY
+    ExpectIntEQ(lib.sizes[25], (word32)sizeof(WOLFSSL_X509_STORE_CTX));
+  #else
+    ExpectIntEQ(lib.sizes[25], 0);
+  #endif
+#endif
+#ifndef NO_ASN
+    ExpectIntEQ(lib.sizes[68], (word32)sizeof(DNS_entry));
+#endif
+#ifndef NO_BIG_INT
+    ExpectIntEQ(lib.sizes[69], (word32)sizeof(mp_digit));
+    ExpectIntEQ(lib.sizes[70], (word32)DIGIT_BIT);
+#endif
+    ExpectIntEQ(wc_CompareBuildConfig(&lib, NULL), 0);
+
+    /* A caller with a larger struct (a newer header) gets only what this
+     * library fills: nothing past its own struct is written. */
+    {
+        byte big[sizeof(wc_BuildConfig) + 16];
+        wc_BuildConfig* bigCfg = (wc_BuildConfig*)(void*)big;
+
+        XMEMSET(big, 0xa5, sizeof(big));
+        ExpectIntEQ(wc_GetBuildConfig(bigCfg, (word32)sizeof(big)), 0);
+        ExpectIntEQ(bigCfg->structSz, (word32)sizeof(wc_BuildConfig));
+        for (i = (int)sizeof(wc_BuildConfig); i < (int)sizeof(big); i++) {
+            ExpectIntEQ(big[i], 0xa5);
+        }
+    }
+
+    /* Bad arguments. */
+    ExpectIntEQ(wc_GetBuildConfig(NULL, (word32)sizeof(lib)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    XMEMSET(&tmp, 0xa5, sizeof(tmp));
+    ExpectIntEQ(wc_GetBuildConfig(&tmp, WC_BUILD_CONFIG_V1_SZ - 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(tmp.structSz, 0xa5a5a5a5U);
+    ExpectIntEQ(wc_CompareBuildConfig(NULL, &mismatch),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    tmp = local;
+    tmp.structSz = WC_BUILD_CONFIG_V1_SZ - 1;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    tmp = local;
+    tmp.cfgVersion = 0;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* A newer caller layout (bigger struct, higher version) is accepted. */
+    tmp = local;
+    tmp.structSz += 16;
+    tmp.cfgVersion = WC_BUILD_CONFIG_VERSION + 1;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, NULL), 0);
+
+    /* Each kind of difference is detected and reported. */
+    tmp = local;
+    tmp.libVersionHex ^= 1;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch),
+        WC_NO_ERR_TRACE(BUILD_CONFIG_MISMATCH_E));
+    ExpectIntEQ(mismatch, WC_BUILD_MISMATCH_VERSION);
+
+    for (i = 0; i < WC_BUILD_FEATURE_WORDS; i++) {
+        tmp = local;
+        tmp.features[i] ^= WC_BUILD_BIT((i * 7) % 32);
+        ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch),
+            WC_NO_ERR_TRACE(BUILD_CONFIG_MISMATCH_E));
+        ExpectIntEQ(mismatch, WC_BUILD_MISMATCH_FEATURES);
+    }
+
+    tmp = local;
+    tmp.sizes[WC_BUILD_SIZE_COUNT - 1] += 8;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch),
+        WC_NO_ERR_TRACE(BUILD_CONFIG_MISMATCH_E));
+    ExpectIntEQ(mismatch, WC_BUILD_MISMATCH_SIZES);
+
+    /* A size one side could not measure is skipped, not a mismatch. */
+    tmp = local;
+    tmp.sizes[49] = WC_BUILD_SIZE_UNKNOWN;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch), 0);
+    ExpectIntEQ(mismatch, 0);
+
+    /* Options hash: compared only when both sides have one. */
+    tmp = local;
+    tmp.optionsHash = 0;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch), 0);
+    ExpectIntEQ(mismatch, 0);
+    tmp = local;
+    tmp.optionsHash = local.optionsHash ^ 0x5a5a5a5aU;
+    if (lib.optionsHash != 0) {
+        ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch),
+            WC_NO_ERR_TRACE(BUILD_CONFIG_MISMATCH_E));
+        ExpectIntEQ(mismatch, WC_BUILD_MISMATCH_OPTIONS_HASH);
+    }
+    else {
+        ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch), 0);
+    }
+
+    /* Multiple differences accumulate. */
+    tmp = local;
+    tmp.libVersionHex ^= 1;
+    tmp.features[0] ^= 1;
+    tmp.sizes[0] += 1;
+    ExpectIntEQ(wc_CompareBuildConfig(&tmp, &mismatch),
+        WC_NO_ERR_TRACE(BUILD_CONFIG_MISMATCH_E));
+    ExpectIntEQ(mismatch, WC_BUILD_MISMATCH_VERSION |
+        WC_BUILD_MISMATCH_FEATURES | WC_BUILD_MISMATCH_SIZES);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wc_BuildConfigNames(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_WC_INTROSPECTION
+    /* Expand the fingerprint list with counting macros: every bit and size
+     * slot used at most once and in range. */
+    static byte featCount[WC_BUILD_FEATURE_WORDS][32];
+    static byte sizeCount[WC_BUILD_SIZE_COUNT];
+    int badEntry = 0;
+    wc_BuildConfig local;
+    wc_BuildConfig tmp;
+    char buf[512];
+    char small[16];
+    char unusedBit[32];
+    word32 w;
+    word32 b;
+    word32 freeWord = WC_BUILD_FEATURE_WORDS;
+    word32 freeBit = 0;
+    int i;
+    int ret;
+
+    XMEMSET(featCount, 0, sizeof(featCount));
+    XMEMSET(sizeCount, 0, sizeof(sizeCount));
+#define WC_BCF(fw, fb, n) \
+    if (((fw) < WC_BUILD_FEATURE_WORDS) && ((fb) < 32)) \
+        featCount[fw][fb]++; \
+    else \
+        badEntry++;
+#define WC_BCF_NO(fw, fb, n) WC_BCF(fw, fb, n)
+#define WC_BCS(s, t) \
+    if ((s) < WC_BUILD_SIZE_COUNT) \
+        sizeCount[s]++; \
+    else \
+        badEntry++;
+#define WC_BCS_NO(s, t) WC_BCS(s, t)
+#define WC_BCS_UNKNOWN(s, t) WC_BCS(s, t)
+#include <wolfssl/wolfcrypt/build_check_list.h>
+#undef WC_BCF
+#undef WC_BCF_NO
+#undef WC_BCS
+#undef WC_BCS_NO
+#undef WC_BCS_UNKNOWN
+    ExpectIntEQ(badEntry, 0);
+
+    wc_BuildConfig_Local(&local);
+    for (w = 0; w < WC_BUILD_FEATURE_WORDS; w++) {
+        for (b = 0; b < 32; b++) {
+            ExpectIntLE(featCount[w][b], 1);
+            /* A bit has a name exactly when the list defines it. */
+            ExpectIntEQ(wc_BuildConfigFeatureName(w, b) != NULL,
+                featCount[w][b] == 1);
+            /* A bit that is set always has a name. */
+            if ((local.features[w] & WC_BUILD_BIT(b)) != 0) {
+                ExpectIntEQ(featCount[w][b], 1);
+            }
+            /* Remember a free bit for the unnamed-bit case below. */
+            if ((featCount[w][b] == 0) &&
+                    (freeWord == WC_BUILD_FEATURE_WORDS)) {
+                freeWord = w;
+                freeBit = b;
+            }
+        }
+    }
+    for (i = 0; i < WC_BUILD_SIZE_COUNT; i++) {
+        ExpectIntLE(sizeCount[i], 1);
+        /* A slot has a name exactly when the list defines it, and an
+         * unused slot is always 0. */
+        ExpectIntEQ(wc_BuildConfigSizeName((word32)i) != NULL,
+            sizeCount[i] == 1);
+        if (sizeCount[i] == 0) {
+            ExpectIntEQ(local.sizes[i], 0);
+        }
+    }
+    /* The version 1 slots in use are contiguous from 0. */
+    for (i = 0; i < 71; i++) {
+        ExpectIntEQ(sizeCount[i], 1);
+    }
+
+    /* Lookups. */
+    ExpectStrEQ(wc_BuildConfigFeatureName(0, 0), "WOLFSSL_SP_MATH");
+    ExpectStrEQ(wc_BuildConfigFeatureName(1, 4), "HAVE_ECC");
+    if (freeWord < WC_BUILD_FEATURE_WORDS) {
+        ExpectNull(wc_BuildConfigFeatureName(freeWord, freeBit));
+    }
+    ExpectNull(wc_BuildConfigFeatureName(WC_BUILD_FEATURE_WORDS, 0));
+    ExpectNull(wc_BuildConfigFeatureName(0, 32));
+    ExpectStrEQ(wc_BuildConfigSizeName(0), "void*");
+    ExpectStrEQ(wc_BuildConfigSizeName(5), "Aes");
+    ExpectStrEQ(wc_BuildConfigSizeName(47), "struct wc_Camellia");
+    ExpectStrEQ(wc_BuildConfigSizeName(67), "struct wc_rng_bank");
+    ExpectStrEQ(wc_BuildConfigSizeName(70), "wc_BuildDigitBits");
+    ExpectStrEQ(wc_BuildConfigFeatureName(7, 0), "ALT_ECC_SIZE");
+    ExpectStrEQ(wc_BuildConfigFeatureName(6, 26), "WOLFSSL_WOLFSSH");
+    ExpectNull(wc_BuildConfigSizeName(WC_BUILD_SIZE_COUNT));
+
+    /* Matching configurations describe as "". */
+    XMEMSET(buf, 'x', sizeof(buf));
+    ExpectIntEQ(wc_BuildConfigMismatchString(&local, buf, sizeof(buf)), 0);
+    ExpectStrEQ(buf, "");
+    XMEMSET(buf, 'x', sizeof(buf));
+    ExpectIntEQ(wc_CheckBuildConfigEx(NULL, buf, sizeof(buf)), 0);
+    ExpectStrEQ(buf, "");
+
+    /* Differences are named. */
+    tmp = local;
+    tmp.features[1] ^= WC_BUILD_BIT(4);
+    tmp.sizes[5] += 16;
+    tmp.libVersionHex ^= 1;
+    ret = wc_BuildConfigMismatchString(&tmp, buf, sizeof(buf));
+    ExpectIntGT(ret, 0);
+    ExpectIntEQ(ret, (int)XSTRLEN(buf));
+    ExpectNotNull(XSTRSTR(buf, "version: app=0x"));
+#ifdef HAVE_ECC
+    ExpectNotNull(XSTRSTR(buf, "HAVE_ECC: app=off lib=on"));
+#else
+    ExpectNotNull(XSTRSTR(buf, "HAVE_ECC: app=on lib=off"));
+#endif
+    ExpectNotNull(XSTRSTR(buf, "sizeof(Aes): app="));
+    ExpectNotNull(XSTRSTR(buf, "; "));
+
+    /* An unused bit is reported by position. */
+    if (freeWord < WC_BUILD_FEATURE_WORDS) {
+        tmp = local;
+        tmp.features[freeWord] ^= WC_BUILD_BIT(freeBit);
+        ExpectIntGT(wc_BuildConfigMismatchString(&tmp, buf, sizeof(buf)), 0);
+        XMEMSET(unusedBit, 0, sizeof(unusedBit));
+        XMEMCPY(unusedBit, "feature word ", 13);
+        unusedBit[13] = (char)('0' + freeWord);
+        XMEMCPY(&unusedBit[14], " bit ", 5);
+        if (freeBit >= 10) {
+            unusedBit[19] = (char)('0' + (freeBit / 10));
+            unusedBit[20] = (char)('0' + (freeBit % 10));
+        }
+        else {
+            unusedBit[19] = (char)('0' + freeBit);
+        }
+        ExpectNotNull(XSTRSTR(buf, unusedBit));
+    }
+
+    /* So is an unused size slot. */
+    tmp = local;
+    tmp.sizes[WC_BUILD_SIZE_COUNT - 1] = 8;
+    ExpectIntGT(wc_BuildConfigMismatchString(&tmp, buf, sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf, "size slot 95: app=8 lib=0"));
+
+    /* Too small a buffer: truncated and terminated, and marked with "..."
+     * when there is room for it. */
+    tmp = local;
+    tmp.features[1] ^= WC_BUILD_BIT(4);
+    tmp.sizes[5] += 16;
+    ExpectIntEQ(wc_BuildConfigMismatchString(&tmp, small, sizeof(small)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntLT((int)XSTRLEN(small), (int)sizeof(small));
+    ExpectNotNull(XSTRSTR(small, "..."));
+    ExpectIntEQ(wc_BuildConfigMismatchString(&tmp, small, 3),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntLT((int)XSTRLEN(small), 3);
+
+    /* Through the one-call wrapper: a real match, so no text. */
+    ExpectIntEQ(wc_CheckBuildConfigEx(NULL, NULL, 0), 0);
+
+    /* Bad arguments. */
+    ExpectIntEQ(wc_BuildConfigMismatchString(NULL, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_BuildConfigMismatchString(&local, NULL, sizeof(buf)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_BuildConfigMismatchString(&local, buf, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    tmp = local;
+    tmp.structSz = 4;
+    ExpectIntEQ(wc_BuildConfigMismatchString(&tmp, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    return EXPECT_RESULT();
+}
+
 
 static int test_tls_alert_no_server_hello(void)
 {
@@ -46675,6 +47015,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ERR_print_errors_fp),
 #endif
     TEST_DECL(test_wolfSSL_configure_args),
+    TEST_DECL(test_wc_BuildConfig),
+    TEST_DECL(test_wc_BuildConfigNames),
     TEST_DECL(test_wolfSSL_sk_SSL_CIPHER),
     TEST_DECL(test_wolfSSL_SSL_CIPHER_find),
     TEST_DECL(test_wolfSSL_set1_curves_list),

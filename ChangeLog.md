@@ -26,6 +26,32 @@
   curve equation need no curve arithmetic, so both are still done on the host.
   Both macros are documented in
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
+* Added a run-time check that an application was built with the same wolfSSL
+  configuration as the shared library it loaded, catching the mismatch that
+  compiles cleanly and then corrupts memory. Include
+  `<wolfssl/wolfcrypt/build_check.h>` and call `wc_CheckBuildConfig()` (or
+  `wc_CheckBuildConfigEx()` for a readable description of every difference)
+  before `wolfSSL_Init()`. It compares the library version, 243 ABI-affecting
+  build macros, the `sizeof()` of 69 public types (including the OpenSSL
+  compatibility layer's and driver contexts such as `Pkcs11Dev`), the math
+  digit width and radix and, when both sides have one, a hash of
+  `options.h`.
+  A mismatch returns the new error `BUILD_CONFIG_MISMATCH_E` (-1043) and a
+  bitmask of what differed. The lower-level `wc_GetBuildConfig()`,
+  `wc_CompareBuildConfig()`, `wc_BuildConfigMismatchString()`,
+  `wc_BuildConfigFeatureName()` and `wc_BuildConfigSizeName()` are exported
+  too, from the kernel module as well. The struct is versioned, so a newer
+  library accepts an older application's. All of it requires
+  `HAVE_WC_INTROSPECTION`, which configure enables by default except for
+  reproducible and lean builds; a `user_settings.h` build must define it. To
+  support the check, configure and CMake now write `WOLFSSL_OPTIONS_HASH` into
+  `options.h` (not for `user_settings.h` builds), and CMake gained the
+  `WOLFSSL_INTROSPECTION` option (default on unless
+  `WOLFSSL_REPRODUCIBLE_BUILD`), which defines `HAVE_WC_INTROSPECTION` as
+  configure does. A new `build-config-check.yml` workflow checks that the
+  fingerprint covers every public struct whose layout depends on the
+  configuration, and that applications detect a differently configured
+  library. by @SparkiDev
 
 ## Behavioral Changes
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
@@ -116,6 +142,9 @@
 
 ## Bug Fixes
 
+* Fixed an undefined reference to `sp_zero()` when linking an
+  `--enable-opensslextra` build with neither RSA nor ECC enabled; the
+  OpenSSL compatibility layer's BIGNUM functions call it. by @SparkiDev
 * Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
 
 * Fixed `wc_AsconAEAD128_SetAD` called more than once: the function
