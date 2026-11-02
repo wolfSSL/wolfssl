@@ -14828,10 +14828,6 @@ int test_wc_AesGcm_PrimitiveFailureCleanup(void)
     const byte zeros[5 * WC_AES_BLOCK_SIZE] = {0};
     byte tag[WC_AES_BLOCK_SIZE];
     int ret;
-#ifdef WOLFSSL_AESGCM_STREAM
-    byte in[17] = {0};
-    byte out[17];
-#endif
 
     XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
@@ -14846,21 +14842,26 @@ int test_wc_AesGcm_PrimitiveFailureCleanup(void)
         return TEST_SKIPPED; /* backend does not use the portable primitive */
     }
     ExpectBufEQ(tag, zeros, sizeof(tag));
-#ifdef WOLFSSL_AESGCM_STREAM
-    ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, sizeof(key), iv, sizeof(iv)), 0);
-    /* Retain fifteen bytes of keystream, then fail generating the next block. */
-    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, 1, NULL, 0), 0);
-    aes.rounds = 0;
-    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, sizeof(in), NULL, 0),
-        WC_NO_ERR_TRACE(KEYUSAGE_E));
-    ExpectBufEQ(aes.streamData, zeros, sizeof(zeros));
-    ExpectIntEQ(aes.nonceSet, 0);
-    ExpectIntEQ(aes.over, 0);
-    /* A failed stream must require reinitialization. */
-    ExpectIntLT(wc_AesGcmEncryptUpdate(&aes, out, in, 1, NULL, 0), 0);
-    ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, sizeof(key), iv, sizeof(iv)), 0);
-    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, sizeof(in), NULL, 0), 0);
-    ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
+#if defined(WOLFSSL_AESGCM_STREAM) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    {
+        byte in[17] = {0};
+        byte out[17];
+        ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, sizeof(key), iv, sizeof(iv)), 0);
+        /* Retain fifteen bytes of keystream, then fail generating the next block. */
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, 1, NULL, 0), 0);
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, sizeof(in), NULL, 0),
+                    WC_NO_ERR_TRACE(KEYUSAGE_E));
+        ExpectBufEQ(aes.streamData, zeros, sizeof(zeros));
+        ExpectIntEQ(aes.nonceSet, 0);
+        ExpectIntEQ(aes.over, 0);
+        /* A failed stream must require reinitialization. */
+        ExpectIntLT(wc_AesGcmEncryptUpdate(&aes, out, in, 1, NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, sizeof(key), iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, sizeof(in), NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
+    }
 #endif
     wc_AesFree(&aes);
 #else
