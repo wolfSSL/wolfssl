@@ -136,6 +136,28 @@ static WC_INLINE size_t wc_MallocAlignAllocSize(size_t *alignment,
     return alloc_size;
 }
 
+/* get the aligned pointer for aligned allocations: This is a primitive for
+ * preparing the full aligned ptr and must have metadata filled
+ * before users see this ptr.
+ */
+static WC_INLINE char* wc_MallocAlignGetAlignedPtr(void *alloc,
+        size_t alignment)
+{
+    char *ret = (char *)alloc + sizeof(WC_ALIGN_METADATA) + alignment - 1U;
+    ret = (char *)((wc_ptr_t)ret & ~((wc_ptr_t)alignment - 1U));
+    return ret;
+}
+
+static WC_INLINE char* wc_MallocAlignedLoadMetaData(char* ret, void* alloc,
+        size_t req_size)
+{
+    WC_ALIGN_METADATA* metadata =
+        (WC_ALIGN_METADATA *)(void *)(ret - sizeof(WC_ALIGN_METADATA));
+    metadata->offset = (wc_align_metadata_member)(ret - (char *)alloc);
+    metadata->size = (wc_align_metadata_member)req_size;
+    return ret;
+}
+
 /* Aligned pointer within alloc.  offset is measured from the returned
  * pointer back to alloc.
  *                     v what is returned
@@ -145,13 +167,8 @@ static WC_INLINE size_t wc_MallocAlignAllocSize(size_t *alignment,
 static WC_INLINE void *wc_MallocAlignPlace(void *alloc, size_t alignment,
         size_t req_size)
 {
-    char *ret = (char *)alloc + sizeof(WC_ALIGN_METADATA) + alignment - 1U;
-    WC_ALIGN_METADATA *metadata;
-
-    ret = (char *)((wc_ptr_t)ret & ~((wc_ptr_t)alignment - 1U));
-    metadata = (WC_ALIGN_METADATA *)(void *)(ret - sizeof(WC_ALIGN_METADATA));
-    metadata->offset = (wc_align_metadata_member)(ret - (char *)alloc);
-    metadata->size = (wc_align_metadata_member)req_size;
+    char* ret = wc_MallocAlignGetAlignedPtr(alloc, alignment);
+    wc_MallocAlignedLoadMetaData(ret, alloc, req_size);
     return (void *)ret;
 }
 
@@ -1306,6 +1323,11 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             if (type == DYNAMIC_TYPE_IN_BUFFER) {
                 pt = hint->inBuf;
             }
+            /* fixed IO buffers can't grow: fail rather than overflow */
+            if ((pt != NULL) && (pt->sz < size)) {
+                WOLFSSL_MSG("Error IO memory was not large enough");
+                pt = NULL;
+            }
         }
         else
     #endif
@@ -1315,7 +1337,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             if (mem->flag & WOLFMEM_IO_POOL &&
                                              (type == DYNAMIC_TYPE_OUT_BUFFER ||
                                               type == DYNAMIC_TYPE_IN_BUFFER)) {
-                if (mem->io != NULL) {
+                /* too large for an IO buffer: try the general memory below */
+                if ((mem->io != NULL) && (size <= mem->io->sz)) {
                     pt      = mem->io;
                     mem->io = pt->next;
                 }
@@ -2002,8 +2025,15 @@ void *wc_ReallocScrubbed(void *ptr, size_t old_size, size_t size,
     new_p = XMALLOC(size, heap, tag);
     if (new_p == NULL)
         return NULL; /* original intact and unscrubbed */
-    XMEMCPY(new_p, ptr, (old_size < size) ? old_size : size);
-    wc_ReallocScrub(ptr, old_size);
+    if (new_p == ptr) {
+        if (old_size > size) {
+            wc_ReallocScrub((byte*)ptr + size, old_size - size);
+        }
+    }
+    else {
+        XMEMMOVE(new_p, ptr, (old_size < size) ? old_size : size);
+        wc_ReallocScrub(ptr, old_size);
+    }
     XFREE(ptr, heap, tag);
     return new_p;
 }
@@ -2012,26 +2042,97 @@ static void *wc_ReallocAlignCommon(void *ptr, size_t alignment, size_t size,
         void *heap, int tag, int scrub)
 {
     void *new_p = NULL;
-    wc_align_metadata_member curSize = 0;
+    char* new_alignedPtr = NULL;
+    wc_align_metadata_member oldSize = 0;
 
     if (ptr != NULL)
-        curSize = wc_MallocAlignSize(ptr);
+        oldSize = wc_MallocAlignSize(ptr);
 
     if (size != 0) {
         /* wc_MallocAlign() rejects bad alignments */
-        new_p = wc_MallocAlign(alignment, size, heap, tag);
-        if (new_p == NULL || ptr == NULL)
-            return new_p; /* on failure, original intact and unscrubbed */
-        XMEMCPY(new_p, ptr, (curSize > size) ? size : curSize);
+        size_t alignedSize = wc_MallocAlignAllocSize(&alignment, size);
+        if (alignedSize == 0) {
+            return NULL;
+        }
+        new_p = XMALLOC(alignedSize, heap, tag);
+        if (new_p == NULL)
+            return NULL; /* on failure, original intact and unscrubbed */
+        if (ptr == NULL)
+            return wc_MallocAlignPlace(new_p, alignment, size);
     }
-    /* else realloc-to-zero idiom: scrub, free, and return NULL. */
+    else {
+        if (ptr != NULL) {
+            if (scrub) {
+                wc_ReallocScrub(ptr, oldSize);
+            }
+            wc_FreeAlign(ptr, heap, tag);
+        }
+        return NULL;
+    }
 
-    if (ptr != NULL) {
-        if (scrub)
-            wc_ReallocScrub(ptr, curSize);
+    /* In static memory build it is possible for the same block to
+     * be returned by malloc. We need to check if this has happened
+     * and scrub anything past our new block size.
+     * Static memory block:
+     * v ptr base and new_p are the same block
+     * ---------------------------
+     * | header|     memory      |
+     * ---------------------------
+     */
+    if (new_p == wc_MallocAlignBase(ptr)) {
+        new_alignedPtr = wc_MallocAlignGetAlignedPtr(new_p, alignment);
+        /* the block may be the same but alignment differs meaning
+         * the new pointer is not the same as the old one. we need to
+         * memmove the old data in to the new data spot
+         * ==
+         * v ptr base and new_p are the same block
+         * ---------------------------
+         *  header| !    memory       |
+         * ---------------------------
+         *    ptr ^ ^ new_alignedPtr (pushed forward)
+         * ==
+         * now we need to shift all of the memory up to start
+         * at the new pointer
+         * ==
+         * v ptr base and new_p are the same block
+         * ---------------------------
+         *    head!r|     memory       |
+         * ---------------------------
+         *    ptr ^ ^ new_alignedPtr (pushed forward)
+         * ==
+         * */
+        if (new_alignedPtr != ptr) {
+            XMEMMOVE(new_alignedPtr, ptr, (oldSize > size) ? size : oldSize);
+        }
+        if (scrub) {
+            char* ptr_end = (char*)ptr + oldSize;
+            char* new_end = new_alignedPtr +
+                ((oldSize > size) ? size : oldSize);
+            /* clear everything between our base allocation and the aligned ptr
+             * to clean up after XMEMMOVE */
+            wc_ReallocScrub(new_p, (size_t)(new_alignedPtr - (char*)new_p));
+            if (ptr_end > new_end) {
+                wc_ReallocScrub(new_end, (size_t)(ptr_end - new_end));
+            }
+        }
+        /* now it is safe to write in to the metadata area */
+        wc_MallocAlignedLoadMetaData(new_alignedPtr, new_p, size);
+
+        /* new_p is the same as the base of ptr (look at if condition)
+         * so we can use to free ptr. This makes sure that any allocation
+         * accounting that is happening in XMALLOC/XFREE is happy */
+        XFREE(new_p, heap, tag);
+    }
+    else {
+        new_alignedPtr = wc_MallocAlignPlace(new_p, alignment, size);
+        XMEMCPY(new_alignedPtr, ptr, (oldSize > size) ? size : oldSize);
+        if (scrub) {
+            wc_ReallocScrub(ptr, oldSize);
+        }
         wc_FreeAlign(ptr, heap, tag);
     }
-    return new_p;
+
+    return new_alignedPtr;
 }
 
 void *wc_ReallocAlignScrubbed(void *ptr, size_t alignment, size_t size,

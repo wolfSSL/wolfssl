@@ -700,9 +700,12 @@ void wc_FreeAlign(void *ptr, void *heap, int tag);
     \ingroup Memory
 
     \brief Reallocates memory from wc_MallocAlign(), using XMALLOC() and
-    XFREE(). Never reallocates in place: a new block aligned to alignment is
-    allocated, the leading min(old size, size) bytes are copied, and ptr is
-    freed. Not called directly by wolfSSL, but through macro XREALLOCALIGN.
+    XFREE(). A new block is allocated, the leading min(old size, size) bytes
+    are preserved at the new alignment, and ptr is freed. If XMALLOC() returns
+    the block already in use, as fixed IO pools (WOLFMEM_IO_POOL_FIXED) do for
+    IO tags, the data is moved within that block, and the returned pointer may
+    be equal to ptr. Not called directly by wolfSSL, but through macro
+    XREALLOCALIGN.
 
     \return pointer to the new aligned block on success.
     \return NULL when size is 0 (ptr is freed), or on failure (ptr is left
@@ -742,10 +745,11 @@ void *wc_ReallocAlign(void *ptr, size_t alignment, size_t size, void *heap,
 /*!
     \ingroup Memory
 
-    \brief As wc_ReallocAlign(), but the old block is zeroized before it is
-    freed, including when size is 0. On failure the old block is left intact
-    and not zeroized. Not called directly by wolfSSL, but through macro
-    XREALLOCALIGN_SCRUBBED.
+    \brief As wc_ReallocAlign(), but the old data is zeroized before the old
+    block is freed, including when size is 0. If the old and new allocations
+    share a block, only the old data outside of the new allocation is zeroized.
+    On failure the old block is left intact and not zeroized. Not called
+    directly by wolfSSL, but through macro XREALLOCALIGN_SCRUBBED.
 
     \return pointer to the new aligned block on success.
     \return NULL when size is 0 (ptr is zeroized and freed), or on failure.
@@ -785,10 +789,12 @@ void *wc_ReallocAlignScrubbed(void *ptr, size_t alignment, size_t size,
     \ingroup Memory
 
     \brief Reallocates memory from XMALLOC(), zeroizing the old block before
-    it is freed. Never reallocates in place: a new block is allocated with
-    XMALLOC(), the leading min(old_size, size) bytes are copied, old_size
-    bytes of ptr are zeroized, and ptr is freed with XFREE(). Not called
-    directly by wolfSSL, but through macro XREALLOC_SCRUBBED.
+    it is freed. A new block is allocated with XMALLOC(), the leading
+    min(old_size, size) bytes are copied, old_size bytes of ptr are zeroized,
+    and ptr is freed with XFREE(). If XMALLOC() returns ptr itself, as fixed IO
+    pools (WOLFMEM_IO_POOL_FIXED) do for IO tags, the data stays in place and
+    only the bytes past size are zeroized. Not called directly by wolfSSL, but
+    through macro XREALLOC_SCRUBBED.
 
     \return pointer to the new block on success.
     \return NULL when size is 0 (ptr is zeroized and freed), or on failure

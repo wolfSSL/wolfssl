@@ -38707,6 +38707,13 @@ static wc_test_ret_t memalign_realloc_test(void)
     byte* q;
     int i;
 
+    /* non-power-of-2 alignment: rejected, per contract. */
+    p = (byte*)XMALLOCALIGN(24U, 300U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p != NULL) {
+        XFREEALIGN(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+
     /* NULL in: degrades to fresh aligned allocation. */
     p = (byte*)XREALLOCALIGN(NULL, 64U, 300U, HEAP_HINT,
                              DYNAMIC_TYPE_TMP_BUFFER);
@@ -38748,6 +38755,24 @@ static wc_test_ret_t memalign_realloc_test(void)
         for (i = 0; (ret == 0) && (i < 300); i++) {
             if (p[i] != (byte)i)
                 ret = WC_TEST_RET_ENC_I((word32)i);
+        }
+    }
+
+    /* new alignment: contents preserved.  The large shrink below moves back
+     * to the old alignment. */
+    if (ret == 0) {
+        q = (byte*)XREALLOCALIGN(p, 256U, 1600U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        if (q == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E); /* p intact on failure */
+        else {
+            p = q;
+            if (((wc_ptr_t)p & 255U) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            for (i = 0; (ret == 0) && (i < 300); i++) {
+                if (p[i] != (byte)i)
+                    ret = WC_TEST_RET_ENC_I((word32)i);
+            }
         }
     }
 
@@ -38866,9 +38891,8 @@ static wc_test_ret_t memalign_realloc_test(void)
 }
 
 /* A port may bind the XMALLOCALIGN() family elsewhere, leaving the generic
- * wc_*Align() shim otherwise untested, so call it directly.  Bogus-alignment
- * rejection and overflow resilience are shim semantics, not part of the
- * XMALLOCALIGN() contract. */
+ * wc_*Align() shim otherwise untested, so call it directly.  Overflow
+ * resilience is shim semantics, not part of the XMALLOCALIGN() contract. */
 static wc_test_ret_t memalign_shim_test(void)
 {
     wc_test_ret_t ret = 0;

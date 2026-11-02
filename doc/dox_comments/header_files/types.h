@@ -152,15 +152,19 @@ void XFREE(void *p, void* heap, int type);
     every allocator (static memory, wolfSSL_SetAllocators() callbacks,
     XMALLOC_USER, ports). A port or user may supply its own implementation,
     but XMALLOCALIGN, XFREEALIGN, XREALLOCALIGN and XREALLOCALIGN_SCRUBBED
-    must then all be defined together.
+    must then all be defined together, and must return NULL for an alignment
+    that is not 0 or a power of 2. An implementation may also return NULL for
+    an alignment it cannot meet: Linux kernel module builds that bind these
+    macros to kmalloc() reject alignments above PAGE_SIZE.
     Memory from XMALLOCALIGN must be released with XFREEALIGN, never XFREE,
     and XFREEALIGN must not be used on memory from XMALLOC.
 
     \return pointer to n bytes aligned to a on success.
-    \return NULL if a is not 0 or a power of 2, or the allocation fails.
+    \return NULL if a is not 0 or a power of 2, the implementation cannot meet
+    a, or the allocation fails.
 
-    \param a alignment: 0 or a power of 2. Values below 2*sizeof(size_t)
-    (including 0) are raised to it.
+    \param a alignment: 0 or a power of 2. The default implementation raises
+    values below 2*sizeof(size_t) (including 0) to it.
     \param n size, in bytes, of the memory to allocate
     \param h pointer to the heap to use
     \param t memory allocation type for user hints. See enum in types.h
@@ -203,10 +207,13 @@ void XFREEALIGN(void *p, void* heap, int type);
     \ingroup Memory
 
     \brief This is not actually a function, but rather a preprocessor macro,
-    which reallocates memory from XMALLOCALIGN. It never reallocates in
-    place: a new block aligned to a is allocated, the leading
-    min(old size, n) bytes are copied, and p is freed. By default it maps to
-    wc_ReallocAlign().
+    which reallocates memory from XMALLOCALIGN. The leading min(old size, n)
+    bytes are preserved in a block aligned to a, and p must not be used after
+    success, even if the returned pointer is equal to it. The new block may
+    share storage with p: fixed IO pools (WOLFMEM_IO_POOL_FIXED) reuse the
+    same block for IO tags, moving the data within it if the alignment
+    changes, and Linux kernel module builds may resize in place. By default it
+    maps to wc_ReallocAlign().
 
     \return pointer to the new aligned block on success.
     \return NULL when n is 0 (p is freed), or on failure (p is left intact,
@@ -239,10 +246,11 @@ void* XREALLOCALIGN(void *p, size_t a, size_t n, void* heap, int type);
     \ingroup Memory
 
     \brief This is not actually a function, but rather a preprocessor macro.
-    As XREALLOCALIGN, but the old block is zeroized before it is freed,
-    including when n is 0. On failure the old block is left intact and not
-    zeroized. Use for buffers holding sensitive data. By default it maps to
-    wc_ReallocAlignScrubbed().
+    As XREALLOCALIGN, but the old data is zeroized before the old block is
+    freed, including when n is 0. If the new block shares storage with p, only
+    the old data outside of the new allocation is zeroized. On failure the old
+    block is left intact and not zeroized. Use for buffers holding sensitive
+    data. By default it maps to wc_ReallocAlignScrubbed().
 
     \return pointer to the new aligned block on success.
     \return NULL when n is 0 (p is zeroized and freed), or on failure.
@@ -267,10 +275,11 @@ void* XREALLOCALIGN_SCRUBBED(void *p, size_t a, size_t old_size, size_t n,
 
     \brief This is not actually a function, but rather a preprocessor macro,
     which reallocates memory from XMALLOC and zeroizes the old block before
-    it is freed. It never reallocates in place: a new block is allocated with
-    XMALLOC, the leading min(old_size, n) bytes are copied, old_size bytes of
-    p are zeroized, and p is freed with XFREE. By default it maps to
-    wc_ReallocScrubbed().
+    it is freed. A new block is allocated with XMALLOC, the leading
+    min(old_size, n) bytes are copied, old_size bytes of p are zeroized, and p
+    is freed with XFREE. If XMALLOC returns p itself, as fixed IO pools
+    (WOLFMEM_IO_POOL_FIXED) do for IO tags, the data stays in place and only
+    the bytes past n are zeroized. By default it maps to wc_ReallocScrubbed().
 
     \return pointer to the new block on success.
     \return NULL when n is 0 (p is zeroized and freed), or on failure (p is
