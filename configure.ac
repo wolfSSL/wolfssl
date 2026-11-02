@@ -3595,6 +3595,21 @@ else
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_HARDEN -DWC_NO_CACHE_RESISTANT"
 fi
 
+# AES table cache-line touching (WOLFSSL_AES_TOUCH_LINES). aes.c turns it on
+# for RISC-V; "no" clears that default without the rest of --disable-harden.
+AC_ARG_ENABLE([aes-touch-lines],
+    [AS_HELP_STRING([--enable-aes-touch-lines],[Touch every AES table cache line per lookup for cache-timing resistance (default: enabled on RISC-V, disabled elsewhere)])],
+    [ENABLED_AES_TOUCH_LINES=$enableval],
+    [ENABLED_AES_TOUCH_LINES=default])
+
+if test "$ENABLED_AES_TOUCH_LINES" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_TOUCH_LINES"
+elif test "$ENABLED_AES_TOUCH_LINES" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_NO_TOUCH_LINES"
+fi
+
 # Fault protection hardening
 AC_ARG_ENABLE([faultharden],
     [AS_HELP_STRING([--enable-faultharden],[Enable Fault Hardened build (default: disabled)])],
@@ -15132,6 +15147,7 @@ echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * Enterprise Build:           $ENABLED_ENTERPRISE"
 echo "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
 echo "   * Side-channel Hardening:     $ENABLED_HARDEN"
+echo "   * AES touch lines:            $ENABLED_AES_TOUCH_LINES"
 
 echo "   * Single Precision Math:      $ENABLED_SP"
 if test "$ENABLED_SP_MATH_ALL" != "no"

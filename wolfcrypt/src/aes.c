@@ -2034,9 +2034,11 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #ifdef NEED_AES_TABLES
 
 #ifndef WC_AES_BITSLICED
-/* RISC-V defaults touch-lines on; set it here, before the alignment below. */
+/* RISC-V defaults touch-lines on; set it here, before the alignment below.
+ * WOLFSSL_AES_NO_TOUCH_LINES clears only this default and leaves the rest of
+ * the hardening in place. */
 #if defined(__riscv) && !defined(WC_NO_CACHE_RESISTANT) && \
-    !defined(WOLFSSL_AES_TOUCH_LINES)
+    !defined(WOLFSSL_AES_NO_TOUCH_LINES) && !defined(WOLFSSL_AES_TOUCH_LINES)
     #define WOLFSSL_AES_TOUCH_LINES
 #endif
 /* Define the stride before the tables so they can be aligned to it: the masked
