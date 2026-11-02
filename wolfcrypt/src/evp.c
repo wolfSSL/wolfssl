@@ -9671,6 +9671,16 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
     clearEVPPkeyKeys(pkey);
+    /* Wipe and free the previous key's DER. */
+    if (pkey->pkey.ptr != NULL) {
+        if (pkey->pkey_sz > 0) {
+            ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+        }
+        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        pkey->pkey.ptr = NULL;
+    }
+    pkey->pkey_sz = 0;
+    pkey->pkcs8HeaderSz = 0;
     pkey->dsa    = key;
     pkey->ownDsa = 0; /* pkey does not own DSA */
     pkey->type   = WC_EVP_PKEY_DSA;
@@ -9708,6 +9718,7 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
         else {
             WOLFSSL_MSG("wc_DsaKeyToPublicDer failed");
         }
+        ForceZero(derBuf, (word32)derMax);
         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
@@ -9716,11 +9727,13 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
         DYNAMIC_TYPE_DER);
     if (pkey->pkey.ptr == NULL) {
         WOLFSSL_MSG("key malloc failed");
+        ForceZero(derBuf, (word32)derSz);
         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
     pkey->pkey_sz = derSz;
     XMEMCPY(pkey->pkey.ptr, derBuf, (size_t)derSz);
+    ForceZero(derBuf, (word32)derSz);
     XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return WOLFSSL_SUCCESS;
@@ -9851,6 +9864,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     byte havePublic = 0, havePrivate = 0;
     int ret;
     word32 derSz = 0;
+    word32 derAllocSz = 0;
     byte* derBuf = NULL;
     DhKey* dhkey = NULL;
 
@@ -9860,6 +9874,16 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
         return WOLFSSL_FAILURE;
 
     clearEVPPkeyKeys(pkey);
+    /* Wipe and free the previous key's DER. */
+    if (pkey->pkey.ptr != NULL) {
+        if (pkey->pkey_sz > 0) {
+            ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+        }
+        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        pkey->pkey.ptr = NULL;
+    }
+    pkey->pkey_sz = 0;
+    pkey->pkcs8HeaderSz = 0;
 
     if (wolfSSL_DH_up_ref(key) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Failed to increase dh key ref count");
@@ -9900,6 +9924,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
         WOLFSSL_MSG("malloc failed");
         return WOLFSSL_FAILURE;
     }
+    derAllocSz = derSz;
 
     /* Fill DER buffer */
     if (havePublic && !havePrivate) {
@@ -9912,6 +9937,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     if (ret <= 0) {
         WOLFSSL_MSG("Failed to export DH Key");
+        ForceZero(derBuf, derAllocSz);
         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
@@ -11010,6 +11036,16 @@ int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
         return WOLFSSL_FAILURE;
 
     clearEVPPkeyKeys(pkey);
+    /* Wipe and free the previous key's DER. */
+    if (pkey->pkey.ptr != NULL) {
+        if (pkey->pkey_sz > 0) {
+            ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+        }
+        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        pkey->pkey.ptr = NULL;
+    }
+    pkey->pkey_sz = 0;
+    pkey->pkcs8HeaderSz = 0;
     pkey->type = WC_EVP_PKEY_RSA;
     pkey->rsa = key;
     pkey->ownRsa = 1;
@@ -11029,6 +11065,7 @@ int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
                     pkey->pkey.ptr = (char*)derBuf;
                 }
                 else { /* failure - okay to ignore */
+                    ForceZero(derBuf, derSz);
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     derBuf = NULL;
                 }

@@ -1011,6 +1011,120 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DH(void)
     return EXPECT_RESULT();
 } /* END test_EVP_PKEY_set1_get1_DH */
 
+/* Reassigning a key must wipe and free the previous DER cache. */
+int test_wolfSSL_EVP_PKEY_reassign_der_cache(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER) && \
+    !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
+    !defined(WC_FIPS_186_5_PLUS) && defined(WOLFSSL_KEY_GEN)
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY* dsaPkey = NULL;
+    DSA* dsa = NULL;
+    RSA* rsa = NULL;
+    RSA* rsaEmpty = NULL;
+    XFILE f = XBADFILE;
+    byte dsaDer[TWOK_BUF];
+    byte rsaDer[TWOK_BUF];
+    const unsigned char* p = NULL;
+    long dsaDerSz = 0;
+    long rsaDerSz = 0;
+    int dsaPkeySz = 0;
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION > 2)))
+    DH* dh = NULL;
+    byte dhDer[TWOK_BUF];
+    long dhDerSz = 0;
+    int dhPkeySz = 0;
+#endif
+
+    ExpectTrue((f = XFOPEN("./certs/dsa2048.der", "rb")) != XBADFILE);
+    ExpectIntGT(dsaDerSz = (long)XFREAD(dsaDer, 1, sizeof(dsaDer), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/client-key.der", "rb")) != XBADFILE);
+    ExpectIntGT(rsaDerSz = (long)XFREAD(rsaDer, 1, sizeof(rsaDer), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    p = dsaDer;
+    ExpectNotNull(d2i_PrivateKey(EVP_PKEY_DSA, &dsaPkey, &p, dsaDerSz));
+    ExpectNotNull(dsa = EVP_PKEY_get1_DSA(dsaPkey));
+    p = rsaDer;
+    ExpectNotNull(rsa = d2i_RSAPrivateKey(NULL, &p, rsaDerSz));
+    ExpectNotNull(rsaEmpty = RSA_new());
+    ExpectNotNull(pkey = EVP_PKEY_new());
+
+    /* DSA, then the same DSA again. */
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    ExpectNotNull(pkey == NULL ? NULL : pkey->pkey.ptr);
+    ExpectIntGT(dsaPkeySz = (pkey == NULL ? 0 : pkey->pkey_sz), 0);
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    ExpectIntEQ(pkey == NULL ? 0 : pkey->pkey_sz, dsaPkeySz);
+
+    /* Unencodable RSA key: old DSA DER must not remain. */
+    ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsaEmpty), WOLFSSL_SUCCESS);
+    if (EXPECT_FAIL()) {
+        RSA_free(rsaEmpty);
+    }
+    rsaEmpty = NULL;
+    ExpectNull(pkey == NULL ? (char*)1 : pkey->pkey.ptr);
+    ExpectIntEQ(pkey == NULL ? -1 : pkey->pkey_sz, 0);
+
+    /* Private RSA key: cache holds its DER. */
+    ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
+    if (EXPECT_FAIL()) {
+        RSA_free(rsa);
+    }
+    rsa = NULL;
+    ExpectIntEQ(pkey == NULL ? 0 : pkey->pkey_sz, (int)rsaDerSz);
+    ExpectIntEQ(pkey == NULL || pkey->pkey.ptr == NULL ? -1 :
+        XMEMCMP(pkey->pkey.ptr, rsaDer, (size_t)rsaDerSz), 0);
+
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION > 2)))
+    ExpectTrue((f = XFOPEN("./certs/dh2048.der", "rb")) != XBADFILE);
+    ExpectIntGT(dhDerSz = (long)XFREAD(dhDer, 1, sizeof(dhDer), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    p = dhDer;
+    ExpectNotNull(dh = wolfSSL_d2i_DHparams(NULL, &p, dhDerSz));
+
+    /* RSA -> DH -> DH. */
+    ExpectIntEQ(EVP_PKEY_set1_DH(pkey, dh), WOLFSSL_SUCCESS);
+    ExpectIntGT(dhPkeySz = (pkey == NULL ? 0 : pkey->pkey_sz), 0);
+    ExpectIntEQ(EVP_PKEY_set1_DH(pkey, dh), WOLFSSL_SUCCESS);
+    ExpectIntEQ(pkey == NULL ? 0 : pkey->pkey_sz, dhPkeySz);
+    ExpectIntEQ(pkey == NULL ? -1 : pkey->pkcs8HeaderSz, 0);
+#endif
+
+    /* Back to DSA. */
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    ExpectIntEQ(pkey == NULL ? 0 : pkey->pkey_sz, dsaPkeySz);
+
+    EVP_PKEY_free(pkey);
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION > 2)))
+    DH_free(dh);
+#endif
+    RSA_free(rsaEmpty);
+    RSA_free(rsa);
+    DSA_free(dsa);
+    EVP_PKEY_free(dsaPkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_assign(void)
 {
     EXPECT_DECLS;

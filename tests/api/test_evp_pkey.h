@@ -41,6 +41,7 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void);
 int test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void);
 int test_wolfSSL_EVP_PKEY_get0_EC_KEY(void);
 int test_wolfSSL_EVP_PKEY_set1_get1_DH (void);
+int test_wolfSSL_EVP_PKEY_reassign_der_cache(void);
 int test_wolfSSL_EVP_PKEY_assign(void);
 int test_wolfSSL_EVP_PKEY_assign_DH(void);
 int test_EVP_PKEY_rsa(void);
@@ -102,6 +103,7 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY),       \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_get0_EC_KEY),            \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_set1_get1_DH),           \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_reassign_der_cache),     \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_assign),                 \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_assign_DH),              \
     TEST_DECL_GROUP("evp_pkey", test_EVP_PKEY_rsa),                            \
