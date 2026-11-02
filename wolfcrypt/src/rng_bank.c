@@ -309,8 +309,19 @@ out:
         wc_RNG_lock_put(&ctx->root_rng, 0);
 #endif
 
-    if (ret != 0)
+    if (ret != 0) {
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+        /* A root init that failed under WC_RNG_INIT_FLAG_LOCK_INITIALLY (e.g.
+         * instantiation refused in FIPS error state) dies holding the root's
+         * lock with no owner to release it -- root_rng_locked is only set on
+         * success.  Release it unconditionally, or the fini below refuses
+         * with BUSY_E at its root-lock check and ctx->rngs is leaked, with
+         * every subsequent fini refused the same way. */
+        if (! root_rng_locked)
+            wc_RNG_lock_put_unconditional(&ctx->root_rng);
+#endif
         (void)wc_rng_bank_fini(ctx);
+    }
 
     return ret;
 }
@@ -3112,8 +3123,12 @@ static int wc_InitRng_BankRef_local(struct wc_rng_bank *bank, WC_RNG **rng) {
 
     XMEMSET(*rng, 0, sizeof(**rng));
     (*rng)->heap = bank->heap;
-    (*rng)->flags |= WC_RNG_FLAG_BANKREF;
     (*rng)->bankref = bank;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    (*rng)->status = WC_DRBG_BANKREF;
+#else
+    (*rng)->flags |= WC_RNG_FLAG_BANKREF;
+#endif
 
     ret = 0;
 
@@ -3144,8 +3159,13 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     int ret = 0;
     if (rng == NULL)
         return BAD_FUNC_ARG;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    if (rng->status != WC_DRBG_BANKREF)
+        return WRONG_TYPE_OBJECT_E;
+#else
     if (! (rng->flags & WC_RNG_FLAG_BANKREF))
         return WRONG_TYPE_OBJECT_E;
+#endif
     if (rng->bankref == NULL)
         return BAD_FUNC_ARG;
     wolfSSL_RefDec(&rng->bankref->refcount, &isZero, &ret);
@@ -3157,7 +3177,11 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     (void)isZero;
 #endif
     rng->heap = NULL;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    rng->status = WC_DRBG_NOT_INIT;
+#else
     rng->flags &= ~WC_RNG_FLAG_BANKREF;
+#endif
     rng->bankref = NULL;
     return ret;
 }
