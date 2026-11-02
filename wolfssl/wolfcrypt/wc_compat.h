@@ -74,8 +74,10 @@
      * the exported zeroizer here for the inline shims below.  Redeclaration
      * with identical tokens is harmless. */
     #ifdef WOLFSSL_NO_FORCE_ZERO
+        #undef wc_ForceZero
         #define wc_ForceZero ForceZero
     #else
+        /* NOLINTNEXTLINE(readability-redundant-declaration) */
         WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
     #endif
 
