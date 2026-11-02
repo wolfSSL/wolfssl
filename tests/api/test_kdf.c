@@ -64,7 +64,7 @@
  * dispatch-taken-and-succeeds), both within this one registered devId. */
 static int test_kdf_cryptocb_force_fail = 0;
 
-static int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, void* ctx)
+static WC_MAYBE_UNUSED int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, void* ctx)
 {
     (void)ctx;
     if (cbDevId != TEST_KDF_CRYPTOCB_DEVID)
@@ -939,7 +939,13 @@ int test_wc_KdfFeatureCoverage(void)
 int test_wc_SshKdfReuse(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_WOLFSSH) && !defined(NO_HMAC)
+    /* Note, must skip on old FIPS with _SMALL_STACK_CACHE, due to leak in
+     * wc_SSH_KDF() via _HashInit() over already-initialized hash, fixed by
+     * 827807d2efd. */
+#if defined(WOLFSSL_WOLFSSH) && !defined(NO_HMAC) && \
+    (!defined(HAVE_FIPS) || \
+     FIPS_VERSION3_GE(7,0,0) || \
+     !defined(WOLFSSL_SMALL_STACK_CACHE))
     static const struct {
         byte hashId;
         const char* expected;
