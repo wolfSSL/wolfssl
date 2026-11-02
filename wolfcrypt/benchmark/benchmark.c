@@ -1292,7 +1292,7 @@ static const bench_alg bench_mac_opt[] = {
     { "-hmac-sha3-512",      BENCH_HMAC_SHA3_512     },
     #endif
     #endif
-    #ifndef NO_PWDBASED
+    #if !defined(NO_PWDBASED) && defined(HAVE_PBKDF2)
     { "-pbkdf2",             BENCH_PBKDF2            },
     #endif
 #endif
@@ -4629,7 +4629,7 @@ static void* benchmarks_do(void* args)
         }
     #endif
     #endif /* WOLFSSL_SHA3 */
-    #ifndef NO_PWDBASED
+    #if !defined(NO_PWDBASED) && defined(HAVE_PBKDF2)
         if (bench_all || (bench_mac_algs & BENCH_PBKDF2)) {
             bench_pbkdf2();
         }
@@ -11293,7 +11293,7 @@ void bench_hmac_sha3_512(int useDeviceID)
 #endif /* !WOLFSSL_NOSHA3_512 */
 #endif /* WOLFSSL_SHA3 */
 
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) && defined(HAVE_PBKDF2)
 void bench_pbkdf2(void)
 {
     double start;
@@ -11328,7 +11328,7 @@ void bench_pbkdf2(void)
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
-#endif /* !NO_PWDBASED */
+#endif /* !NO_PWDBASED && HAVE_PBKDF2 */
 
 #endif /* NO_HMAC */
 

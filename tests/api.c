@@ -13540,7 +13540,8 @@ static int test_wolfSSL_PKCS8_ED448(void)
 static int test_wolfSSL_PKCS5(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA) && !defined(NO_PWDBASED)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA) && !defined(NO_PWDBASED) && \
+    defined(HAVE_PBKDF2)
 #ifdef HAVE_FIPS /* Password minimum length is 14 (112-bit) in FIPS MODE */
     const char* passwd = "myfipsPa$$W0rd";
 #else
@@ -13563,7 +13564,7 @@ static int test_wolfSSL_PKCS5(void)
 #endif
 
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_SHA) */
+#endif /* OPENSSL_EXTRA && !NO_SHA && !NO_PWDBASED && HAVE_PBKDF2 */
     return EXPECT_RESULT();
 }
 
@@ -28117,7 +28118,7 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && defined(WOLFSSL_AES_256) \
  && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA) && \
-    !defined(NO_ASN_CRYPT)
+    !defined(NO_ASN_CRYPT) && defined(HAVE_PBKDF2)
     WC_RNG rng;
     byte* encKey = NULL;
     word32 encKeySz = 0;
@@ -28159,7 +28160,8 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
 
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
     !defined(NO_SHA) && !defined(NO_ASN_CRYPT) && ((defined(WOLFSSL_AES_256) && \
-    !defined(NO_AES_CBC)) || !defined(NO_DES3) || !defined(NO_RC4))
+    !defined(NO_AES_CBC) && defined(HAVE_PBKDF2)) || !defined(NO_DES3) || \
+    !defined(NO_RC4))
 /* Encrypt a block-aligned plaintext PKCS#8 and verify the trailing encrypted
  * OCTET STRING length. expExtra is the padding expected: a full block for CBC
  * ciphers, 0 for stream ciphers. Also confirms a decrypt round-trip. */
@@ -28228,7 +28230,7 @@ static int test_wc_EncryptPKCS8Key_blockAligned(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
  && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_SHA) \
- && !defined(NO_ASN_CRYPT)
+ && !defined(NO_ASN_CRYPT) && defined(HAVE_PBKDF2)
     EXPECT_TEST(enc_pkcs8_pad_check(PKCS5, PBES2, AES256CBCb, AES_BLOCK_SIZE));
 #endif
     return EXPECT_RESULT();
@@ -28303,7 +28305,7 @@ static int test_wc_EncryptPKCS8Key_ex_goodHmac(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
  && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_ASN_CRYPT) \
- && !defined(NO_SHA256) && !defined(NO_HMAC)
+ && !defined(NO_SHA256) && !defined(NO_HMAC) && defined(HAVE_PBKDF2)
     WC_RNG rng;
     word32 outSz = 0;
     word32 encSz = 0;
