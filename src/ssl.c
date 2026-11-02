@@ -5393,6 +5393,11 @@ static int setMaxProtoVersion(ProtoLimits* lim, int ver)
             return WOLFSSL_FAILURE;
         }
         lim->maxMinor = (byte)ver;
+    #ifndef WOLFSSL_TLS13
+        /* a max above the compiled in versions is the highest one */
+        if (lim->major == SSLv3_MAJOR && lim->maxMinor > TLSv1_2_MINOR)
+            lim->maxMinor = TLSv1_2_MINOR;
+    #endif
     }
     return ret;
 }
