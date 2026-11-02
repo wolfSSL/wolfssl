@@ -44179,22 +44179,34 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
 #endif
 
     /* Parameter Validation testing. */
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(NULL, rng, priv, &privSz, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, NULL, priv, &privSz, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, NULL, &privSz, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, NULL, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, NULL, &pubSz);
+    PRIVATE_KEY_LOCK();
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, NULL);
+    PRIVATE_KEY_LOCK();
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
 
@@ -44217,7 +44229,9 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
 
     /* Use API. */
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -44287,7 +44301,9 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
     privSz = sizeof(priv);
     pubSz = sizeof(pub);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -44398,7 +44414,9 @@ static wc_test_ret_t dh_generate_test(WC_RNG *rng)
         privSz = sizeof(priv);
         pubSz = sizeof(pub);
 
+        PRIVATE_KEY_UNLOCK();
         ret = wc_DhGenerateKeyPair(smallKey, rng, priv, &privSz, pub, &pubSz);
+        PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &smallKey->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -44598,28 +44616,36 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key2, rng, priv2, &privSz2, pub2, &pubSz2);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key2->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhAgree(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhAgree(key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key2->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -44641,6 +44667,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (nb_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
 
+    PRIVATE_KEY_UNLOCK();
     do {
         nb_ret = wc_DhAgree(key, agree2, &nbAgreeSz, priv, privSz,
                             pub2, pubSz2);
@@ -44658,6 +44685,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         }
     #endif
     } while (nb_ret == WC_NO_ERR_TRACE(MP_WOULDBLOCK) ||
+    PRIVATE_KEY_LOCK();
              nb_ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (nb_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
@@ -44725,7 +44753,9 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -44735,7 +44765,9 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     }
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhAgree(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -44807,28 +44839,36 @@ static wc_test_ret_t dh_keyagree_test(DhKey* key, DhKey* key2, WC_RNG* rng,
     word32 agreeSz = agreeBufSz;
     word32 agreeSz2 = agreeBufSz2;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key, rng, priv, privSz, pub, pubSz);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_keyagree);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(key2, rng, priv2, privSz2, pub2, pubSz2);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key2->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_keyagree);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhAgree(key, agree, &agreeSz, priv, *privSz, pub2, *pubSz2);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_keyagree);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhAgree(key2, agree2, &agreeSz2, priv2, *privSz2, pub, *pubSz);
+    PRIVATE_KEY_LOCK();
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key2->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
