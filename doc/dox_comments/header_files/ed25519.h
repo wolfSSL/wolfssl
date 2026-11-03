@@ -531,6 +531,9 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
 
     \param [in,out] key Pointer to the ed25519_key object to initialize.
 
+    \note ed25519_key has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
+
     _Example_
     \code
     ed25519_key key;
@@ -1245,6 +1248,9 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen,
     \param key Ed25519 key structure
     \param heap Heap hint for memory allocation
     \param devId Device ID for hardware acceleration
+
+    \note ed25519_key has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
