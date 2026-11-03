@@ -115,6 +115,13 @@ WOLFSSL_API int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
 
 #endif /* HAVE_HKDF */
 
+#ifdef WOLFSSL_HAVE_MLKEM
+/* Set when wc_Tls13_HybridSharedSecret() is available. */
+#define WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+WOLFSSL_API int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst,
+    byte* ss, word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz);
+#endif
+
 #ifdef WOLFSSL_WOLFSSH
 
 WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,

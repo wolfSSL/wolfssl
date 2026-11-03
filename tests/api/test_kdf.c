@@ -1015,3 +1015,86 @@ int test_wc_SshKdfReuse(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* draft-ietf-tls-ecdhe-mlkem-03 sec 4.3: X25519MLKEM768 puts the ML-KEM secret
+ * first, SecP256r1MLKEM768 and SecP384r1MLKEM1024 put the ECDH secret first. */
+int test_wc_Tls13_HybridSharedSecret(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+    byte ec[48], kem[32], ss[96], want[96];
+    word32 ssSz;
+    word32 i;
+
+    /* Distinct bytes, so a wrong offset or length inside a part shows. */
+    for (i = 0; i < sizeof(ec); i++)
+        ec[i] = (byte)i;
+    for (i = 0; i < sizeof(kem); i++)
+        kem[i] = (byte)(0x80 | i);
+
+    /* SecP256r1MLKEM768: ECDH (32) then ML-KEM (32), exact fit */
+    XMEMCPY(ss, ec, 32);
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        64, &ssSz, kem, sizeof(kem)), 0);
+    ExpectIntEQ(ssSz, 64);
+    XMEMCPY(want, ec, 32);
+    XMEMCPY(want + 32, kem, sizeof(kem));
+    ExpectBufEQ(ss, want, 64);
+
+    /* SecP384r1MLKEM1024: ECDH (48) then ML-KEM (32) */
+    XMEMCPY(ss, ec, 48);
+    ssSz = 48;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP384R1MLKEM1024, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), 0);
+    ExpectIntEQ(ssSz, 80);
+    XMEMCPY(want, ec, 48);
+    XMEMCPY(want + 48, kem, sizeof(kem));
+    ExpectBufEQ(ss, want, 80);
+
+    /* X25519MLKEM768: ML-KEM (32) then X25519 (32), exact fit */
+    XMEMCPY(ss, ec, 32);
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_X25519MLKEM768, 1, ss,
+        64, &ssSz, kem, sizeof(kem)), 0);
+    ExpectIntEQ(ssSz, 64);
+    XMEMCPY(want, kem, sizeof(kem));
+    XMEMCPY(want + 32, ec, 32);
+    ExpectBufEQ(ss, want, 64);
+
+    /* Bad arguments and a result that does not fit. */
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, NULL,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), NULL, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, NULL, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        63, &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BUFFER_E));
+    ssSz = 0;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef HAVE_FIPS
+    ssSz = 97;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BUFFER_E));
+#else
+    /* FIPS: only the module's groups, each in its own order and sizes. */
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 1, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_X25519MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM512, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP384R1MLKEM1024, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+#endif
+    return EXPECT_RESULT();
+}
