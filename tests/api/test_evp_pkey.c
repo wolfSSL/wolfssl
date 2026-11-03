@@ -1011,6 +1011,92 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DH(void)
     return EXPECT_RESULT();
 } /* END test_EVP_PKEY_set1_get1_DH */
 
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER) && \
+    !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
+    !defined(WC_FIPS_186_5_PLUS) && defined(WOLFSSL_KEY_GEN) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_CHECK_MEM_ZERO)
+    /* CHECK_MEM_ZERO passes free_function a pointer offset by a header. */
+    #define TEST_DER_WATCH_FREE_HOOK
+/* Free hook watching one buffer: counts its frees and checks it is zeroed. */
+static wolfSSL_Malloc_cb  der_watch_prev_malloc = NULL;
+static wolfSSL_Free_cb    der_watch_prev_free = NULL;
+static wolfSSL_Realloc_cb der_watch_prev_realloc = NULL;
+static int   der_watch_installed = 0;
+static void* der_watch_ptr = NULL;
+static int   der_watch_sz = 0;
+static int   der_watch_frees = 0;
+static int   der_watch_zeroed = 0;
+
+static void der_watch_free_cb(void* ptr)
+{
+    if (ptr != NULL && ptr == der_watch_ptr) {
+        int i;
+        der_watch_zeroed = 1;
+        for (i = 0; i < der_watch_sz; i++) {
+            if (((byte*)ptr)[i] != 0) {
+                der_watch_zeroed = 0;
+                break;
+            }
+        }
+        der_watch_frees++;
+        der_watch_ptr = NULL; /* address may be reused */
+    }
+    if (der_watch_prev_free != NULL)
+        der_watch_prev_free(ptr);
+    else
+        free(ptr);
+}
+
+static void der_watch_begin(const WOLFSSL_EVP_PKEY* pkey)
+{
+    der_watch_ptr = (pkey == NULL) ? NULL : pkey->pkey.ptr;
+    der_watch_sz = (pkey == NULL) ? 0 : pkey->pkey_sz;
+    der_watch_frees = 0;
+    der_watch_zeroed = 0;
+}
+static int der_watch_install(void)
+{
+    if (wolfSSL_GetAllocators(&der_watch_prev_malloc, &der_watch_prev_free,
+            &der_watch_prev_realloc) != 0) {
+        return -1;
+    }
+    if (wolfSSL_SetAllocators(der_watch_prev_malloc, der_watch_free_cb,
+            der_watch_prev_realloc) != 0) {
+        return -1;
+    }
+    der_watch_installed = 1;
+    return 0;
+}
+
+static void der_watch_uninstall(void)
+{
+    if (der_watch_installed) {
+        (void)wolfSSL_SetAllocators(der_watch_prev_malloc,
+            der_watch_prev_free, der_watch_prev_realloc);
+        der_watch_installed = 0;
+    }
+    der_watch_prev_free = NULL;
+}
+#define DER_WATCH_INSTALL()     ExpectIntEQ(der_watch_install(), 0)
+#define DER_WATCH_UNINSTALL()   der_watch_uninstall()
+#define DER_WATCH_BEGIN(pkey)   der_watch_begin(pkey)
+/* The previous DER must be freed exactly once, zeroed beforehand. */
+#define DER_WATCH_END()                                                       \
+    do {                                                                      \
+        ExpectIntEQ(der_watch_frees, 1);                                      \
+        ExpectIntEQ(der_watch_zeroed, 1);                                     \
+        der_watch_ptr = NULL;                                                 \
+    } while (0)
+#else
+#define DER_WATCH_INSTALL()     WC_DO_NOTHING
+#define DER_WATCH_UNINSTALL()   WC_DO_NOTHING
+#define DER_WATCH_BEGIN(pkey)   WC_DO_NOTHING
+#define DER_WATCH_END()         WC_DO_NOTHING
+#endif
+
 /* Reassigning a key must wipe and free the previous DER cache. */
 int test_wolfSSL_EVP_PKEY_reassign_der_cache(void)
 {
@@ -1060,16 +1146,21 @@ int test_wolfSSL_EVP_PKEY_reassign_der_cache(void)
     ExpectNotNull(rsa = d2i_RSAPrivateKey(NULL, &p, rsaDerSz));
     ExpectNotNull(rsaEmpty = RSA_new());
     ExpectNotNull(pkey = EVP_PKEY_new());
+    DER_WATCH_INSTALL();
 
     /* DSA, then the same DSA again. */
     ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
     ExpectNotNull(pkey == NULL ? NULL : pkey->pkey.ptr);
     ExpectIntGT(dsaPkeySz = (pkey == NULL ? 0 : pkey->pkey_sz), 0);
+    DER_WATCH_BEGIN(pkey);
     ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    DER_WATCH_END();
     ExpectIntEQ(pkey == NULL ? 0 : pkey->pkey_sz, dsaPkeySz);
 
     /* Unencodable RSA key: old DSA DER must not remain. */
+    DER_WATCH_BEGIN(pkey);
     ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsaEmpty), WOLFSSL_SUCCESS);
+    DER_WATCH_END();
     if (EXPECT_FAIL()) {
         RSA_free(rsaEmpty);
     }
@@ -1100,17 +1191,24 @@ int test_wolfSSL_EVP_PKEY_reassign_der_cache(void)
     ExpectNotNull(dh = wolfSSL_d2i_DHparams(NULL, &p, dhDerSz));
 
     /* RSA -> DH -> DH. */
+    DER_WATCH_BEGIN(pkey);
     ExpectIntEQ(EVP_PKEY_set1_DH(pkey, dh), WOLFSSL_SUCCESS);
+    DER_WATCH_END();
     ExpectIntGT(dhPkeySz = (pkey == NULL ? 0 : pkey->pkey_sz), 0);
+    DER_WATCH_BEGIN(pkey);
     ExpectIntEQ(EVP_PKEY_set1_DH(pkey, dh), WOLFSSL_SUCCESS);
+    DER_WATCH_END();
     ExpectIntEQ(pkey == NULL ? 0 : pkey->pkey_sz, dhPkeySz);
     ExpectIntEQ(pkey == NULL ? -1 : pkey->pkcs8HeaderSz, 0);
 #endif
 
     /* Back to DSA. */
+    DER_WATCH_BEGIN(pkey);
     ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    DER_WATCH_END();
     ExpectIntEQ(pkey == NULL ? 0 : pkey->pkey_sz, dsaPkeySz);
 
+    DER_WATCH_UNINSTALL();
     EVP_PKEY_free(pkey);
 #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && \
     (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
