@@ -51,12 +51,24 @@ Breaking changes:
 
 New features:
 
+- Support building against the wolfSSL FIPS v5.2.3 module. On that module
+  the HKDF and RNG constructors fall back to the older wolfCrypt functions
+  and refuse a heap hint or device ID, RSA::set_rng() does not bind the RNG
+  for blinding (the module is built without RSA blinding), RNG::reseed() is
+  not available, and RSA::pss_verify_check() is available
+- Add fips::PrivateKeyRead, a guard that enables FIPS private key reads on
+  the current thread until it is dropped; guards can be nested
+- Add fips::run_all_self_tests() to run all FIPS self tests (CASTs) once, so
+  concurrent first use of an algorithm cannot fail while its self test is
+  running
 - Add the rand_core_0_9 feature: RNG implements the rand_core 0.9
   TryRngCore and TryCryptoRng traits, alongside the rand_core 0.10 ones, for
   users of the rand 0.9 ecosystem
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
-- Add HMAC::copy(), a fallible equivalent of HMAC::clone()
+- Add HMAC::copy(), a fallible equivalent of HMAC::clone(). HMAC::copy(),
+  the Clone implementation for HMAC and the hmac_mac types are only available
+  when the wolfSSL library provides wc_HmacCopy()
 - Add ed25519::SigningKey and ed448::SigningKey, which always carry a public
   key and so implement Keypair::verifying_key() without it being able to fail
 - Add Lms::export_pub_ex() to set the heap hint and device ID of the exported
@@ -64,6 +76,12 @@ New features:
 - The crate now declares `links = "wolfssl"` and publishes the directory of a
   shared wolfSSL library as the LIBDIRS metadata, so dependent crates' build
   scripts can read it from DEP_WOLFSSL_LIBDIRS (e.g. to set an rpath)
+- Add Ed25519::PREHASH_SIZE and Ed448::PREHASH_SIZE, the required input size
+  for prehash signing and verification
+- Publish build metadata to dependent crates' build scripts: the directory of
+  a shared wolfSSL library as DEP_WOLFSSL_LIBDIRS (e.g. to set an rpath), and
+  DEP_WOLFSSL_FIPS and DEP_WOLFSSL_FIPS_V5_2_3 when wolfSSL is a FIPS build or
+  specifically the FIPS v5.2.3 module
 - build.rs looks for the library under either lib or lib64 in WOLFSSL_PREFIX,
   recognizes MinGW, Cygwin and MSVC library file names, and reruns when
   WOLFSSL_PREFIX changes
@@ -73,6 +91,12 @@ Fixes and improvements:
 - Fix undefined behavior in HMAC::clone(): wc_HmacCopy() takes its source by
   non-const pointer and may write through it, but the pointer was cast from a
   shared reference. The wolfSSL context is now held in an UnsafeCell
+- AES-GCM encryption with a caller-supplied IV (GCM::encrypt() and the
+  Aes128Gcm/Aes192Gcm/Aes256Gcm AEAD types) now works in FIPS builds, which do
+  not export wc_AesGcmEncrypt(); the same operation is done with FIPS
+  approved calls instead
+- rsa_oaep::DecryptingKey::generate() and rsa_pkcs1v15::SigningKey::generate()
+  return BAD_FUNC_ARG instead of overflowing on extremely large key sizes
 - Fix a panic in Keypair::verifying_key() for Ed25519 and Ed448 keys with no
   public key, such as after new() or import_private_only()
 - Validate PBKDF2 and scrypt password hash output length against the PHC
