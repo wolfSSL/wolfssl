@@ -157,6 +157,78 @@ int test_wc_ecc_get_curve_id_from_params(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_ECC) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+/* Decode an ecc_sets[] hex parameter, length can be odd */
+static word32 ecc_curve_param_to_bin(const char* hex, byte* bin)
+{
+    word32 hexSz;
+    word32 binSz = 0;
+    word32 i;
+
+    hexSz = (word32)XSTRLEN(hex);
+    i = hexSz % 2;
+
+    if (i == 1) {
+        bin[binSz] = (byte)HexCharToByte(hex[0]);
+        binSz++;
+    }
+
+    for (; i < hexSz; i += 2) {
+        bin[binSz] = (byte)(((byte)HexCharToByte(hex[i]) << 4) |
+            (byte)HexCharToByte(hex[i + 1]));
+        binSz++;
+    }
+
+    return binSz;
+}
+#endif
+
+/* Test that wc_ecc_get_curve_id_from_params() finds every enabled curve */
+int test_wc_ecc_get_curve_id_from_params_all(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+    const ecc_set_type* dp;
+    byte prime[MAX_ECC_ORDER_BYTES];
+    byte Af[MAX_ECC_ORDER_BYTES];
+    byte Bf[MAX_ECC_ORDER_BYTES];
+    byte order[MAX_ECC_ORDER_BYTES];
+    byte Gx[MAX_ECC_ORDER_BYTES];
+    byte Gy[MAX_ECC_ORDER_BYTES];
+    word32 primeSz, AfSz, BfSz, orderSz, GxSz, GySz;
+    int primeBits;
+    byte topByte;
+
+    XMEMSET(prime, 0, sizeof(prime));
+
+    for (dp = ecc_sets; dp->size != 0; dp++) {
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp->id == ECC_CURVE_CUSTOM) {
+            continue;
+        }
+    #endif
+        primeSz = ecc_curve_param_to_bin(dp->prime, prime);
+        AfSz    = ecc_curve_param_to_bin(dp->Af, Af);
+        BfSz    = ecc_curve_param_to_bin(dp->Bf, Bf);
+        orderSz = ecc_curve_param_to_bin(dp->order, order);
+        GxSz    = ecc_curve_param_to_bin(dp->Gx, Gx);
+        GySz    = ecc_curve_param_to_bin(dp->Gy, Gy);
+
+        /* fieldSize is the prime's exact bit length, 521 for P-521 */
+        primeBits = (int)(primeSz - 1) * 8;
+        for (topByte = prime[0]; topByte != 0; topByte >>= 1) {
+            primeBits++;
+        }
+        ExpectIntEQ(wc_ecc_get_curve_id_from_params(primeBits, prime, primeSz,
+            Af, AfSz, Bf, BfSz, order, orderSz, Gx, GxSz, Gy, GySz,
+            dp->cofactor), dp->id);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_ecc_get_curve_id_from_dp_params(void)
 {
     EXPECT_DECLS;

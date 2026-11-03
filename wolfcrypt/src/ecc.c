@@ -4633,7 +4633,10 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
         Gx == NULL || Gy == NULL)
         return BAD_FUNC_ARG;
 
-    curveSz = (fieldSize + 1) >> 3;    /* round up */
+    if (fieldSize <= 0)
+        return ECC_CURVE_INVALID;
+
+    curveSz = (int)WC_BITS_TO_BYTES((word32)fieldSize);
 
     for (idx = 0; ecc_sets[idx].size != 0; idx++) {
         if (curveSz == ecc_sets[idx].size) {
