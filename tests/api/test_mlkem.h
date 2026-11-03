@@ -47,6 +47,23 @@ int test_wc_mlkem_decode_alloc_fail(void);
 int test_wc_mlkem_make_key_id_dev(void);
 int test_wc_mlkem_operation_cleanup(void);
 
+/* The key-pair test is FIPS v7 (or WOLFSSL_VALIDATE_MLKEM_KEYGEN) only, and
+ * allocates its buffer only in small-stack builds. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && defined(WC_DECLARE_VAR_IS_HEAP_ALLOC) && \
+    (FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_MLKEM_KEYGEN)) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+#define MLKEM_PCT_OOM_TEST
+int test_wc_mlkem_pct_alloc_fail(void);
+#define TEST_MLKEM_PCT_OOM_DECL \
+    , TEST_DECL_GROUP("mlkem", test_wc_mlkem_pct_alloc_fail)
+#else
+#define TEST_MLKEM_PCT_OOM_DECL
+#endif
+
 #define TEST_MLKEM_DECLS                                                \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_kats),              \
     TEST_DECL_GROUP("mlkem", test_wc_MlKemKey_seed_service_indicator),  \
@@ -69,6 +86,7 @@ int test_wc_mlkem_operation_cleanup(void);
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_decode_reused_key), \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_decode_alloc_fail), \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_id_dev), \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_operation_cleanup)
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_operation_cleanup)           \
+    TEST_MLKEM_PCT_OOM_DECL
 
 #endif /* WOLFCRYPT_TEST_MLKEM_H */
