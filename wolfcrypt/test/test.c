@@ -53928,7 +53928,15 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
 #ifdef HAVE_ECC_KEY_EXPORT
     /* exporting the public part should now work */
     x = ECC_BUFSIZE;
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+    /* in FIPS v6, but only v6, wc_ecc_export_x963_ex_fips() checks
+     * privateKeyReadEnable. */
+    PRIVATE_KEY_UNLOCK();
+#endif
     ret = wc_ecc_export_x963_ex(key, exportBuf, &x, 0);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+    PRIVATE_KEY_LOCK();
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif /* HAVE_ECC_KEY_EXPORT */
@@ -54474,7 +54482,13 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 
 #ifdef HAVE_ECC_KEY_EXPORT
     x = ECC_KEY_EXPORT_BUF_SIZE;
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+    PRIVATE_KEY_UNLOCK();
+#endif
     ret = wc_ecc_export_x963_ex(userA, exportBuf, &x, 0);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+    PRIVATE_KEY_LOCK();
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -54514,7 +54528,13 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     #ifdef HAVE_COMP_KEY
         /* try compressed export / import too */
         x = ECC_KEY_EXPORT_BUF_SIZE;
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+        PRIVATE_KEY_UNLOCK();
+#endif
         ret = wc_ecc_export_x963_ex(userA, exportBuf, &x, 1);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+        PRIVATE_KEY_LOCK();
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
         wc_ecc_free(pubKey);
@@ -56256,7 +56276,13 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
 
 #ifdef HAVE_ECC_KEY_EXPORT
     x = ECC_KEY_EXPORT_BUF_SIZE;
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+    PRIVATE_KEY_UNLOCK();
+#endif
     ret = wc_ecc_export_x963_ex(userA, exportBuf, &x, 0);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+    PRIVATE_KEY_LOCK();
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -56278,7 +56304,13 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
     #ifdef HAVE_COMP_KEY
         /* try compressed export / import too */
         x = ECC_KEY_EXPORT_BUF_SIZE;
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+        PRIVATE_KEY_UNLOCK();
+#endif
         ret = wc_ecc_export_x963_ex(userA, exportBuf, &x, 1);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+        PRIVATE_KEY_LOCK();
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
         wc_ecc_free(pubKey);
@@ -64628,8 +64660,6 @@ static wc_test_ret_t ed448_kat_test(ed448_key* key, ed448_key* key2)
             }
 #endif
 
-            ret = 0;
-
             do {
                 if (wc_ed448_export_public(key, exportPKey, &exportPSz) != 0) {
                     ret = WC_TEST_RET_ENC_I(i);
@@ -69750,7 +69780,9 @@ static wc_test_ret_t mlkem_asn1_test(void)
                 ret = WC_TEST_RET_ENC_EC(pubLen);
         }
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             privLen = wc_MlKemKey_PrivateKeyToDer(key, NULL, 0);
+            PRIVATE_KEY_LOCK();
             if (privLen <= 0)
                 ret = WC_TEST_RET_ENC_EC(privLen);
         }
@@ -69761,8 +69793,10 @@ static wc_test_ret_t mlkem_asn1_test(void)
                 ret = WC_TEST_RET_ENC_ERRNO;
         }
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             privLen = wc_MlKemKey_PrivateKeyToDer(key, privDer,
                 (word32)privLen);
+            PRIVATE_KEY_LOCK();
             if (privLen <= 0)
                 ret = WC_TEST_RET_ENC_EC(privLen);
         }
