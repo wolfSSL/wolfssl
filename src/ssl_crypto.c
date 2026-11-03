@@ -2342,7 +2342,13 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
         ret = 0;
     }
 
-    if ((ret == 1) && (ctx->internal == NULL)) {
+    if ((ret == 1) && (ctx->internal != NULL)) {
+        /* Free internal if re-initializing without a CMAC_Final() */
+    #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+        wc_CmacFree((Cmac*)ctx->internal);
+    #endif
+    }
+    else if (ret == 1) {
         /* Allocate memory for wolfSSL CMAC object. */
         ctx->internal = (Cmac*)XMALLOC(sizeof(Cmac), NULL, DYNAMIC_TYPE_CMAC);
         if (ctx->internal == NULL)
