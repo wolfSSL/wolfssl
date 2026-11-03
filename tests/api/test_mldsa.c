@@ -631,6 +631,9 @@ int test_mldsa(void)
     ExpectIntEQ(wc_MlDsaKey_Size(key), WC_MLDSA_87_KEY_SIZE);
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
     ExpectIntEQ(wc_MlDsaKey_PrivSize(key), WC_MLDSA_87_PRV_KEY_SIZE);
+    /* PrivSize is the private key with the public key appended. */
+    ExpectIntEQ(wc_MlDsaKey_PrivSize(key),
+        wc_MlDsaKey_Size(key) + wc_MlDsaKey_PubSize(key));
 #endif
 #endif
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY

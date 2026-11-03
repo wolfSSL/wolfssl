@@ -672,9 +672,11 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 /*!
     \ingroup ML_DSA
 
-    \brief Returns the size in bytes of the encoded private key for
-    the parameter set selected on this key. Equivalent to
-    wc_MlDsaKey_PrivSize() and provided for API compatibility.
+    \brief Returns the size in bytes of the encoded private key alone
+    (FIPS 204 sk) for the parameter set selected on this key. This is
+    the length wc_MlDsaKey_ExportPrivRaw() writes and
+    wc_MlDsaKey_ImportPrivRaw() expects. It is not the same value as
+    wc_MlDsaKey_PrivSize(), which includes the public key.
 
     \return Encoded private key size in bytes on success (positive
     value).
@@ -692,15 +694,21 @@ int wc_MlDsaKey_Size(wc_MlDsaKey* key);
 /*!
     \ingroup ML_DSA
 
-    \brief Returns the size in bytes of the encoded private key for
-    the parameter set selected on this key.
+    \brief Returns the size in bytes of the encoded private key with the
+    encoded public key appended, for the parameter set selected on this
+    key. This is wc_MlDsaKey_Size() plus wc_MlDsaKey_PubSize(), the
+    length of the private-plus-public encoding that
+    wc_MlDsaKey_ImportKey() and wc_MlDsaKey_PrivateKeyDecode() accept.
+    The name is kept for compatibility with wc_dilithium_priv_size().
 
-    \return Encoded private key size on success (positive value).
+    \return Encoded private-plus-public key size on success (positive
+    value).
     \return BAD_FUNC_ARG if key is NULL or no parameter set is
     selected.
 
     \param [in] key Pointer to a wc_MlDsaKey with parameters set.
 
+    \sa wc_MlDsaKey_Size
     \sa wc_MlDsaKey_PubSize
     \sa wc_MlDsaKey_GetPrivLen
 */
@@ -743,18 +751,20 @@ int wc_MlDsaKey_SigSize(wc_MlDsaKey* key);
 /*!
     \ingroup ML_DSA
 
-    \brief Writes the encoded private key size into *len. Equivalent
-    information to wc_MlDsaKey_PrivSize() but uses an out-parameter
-    style.
+    \brief Writes the size of the encoded private key with the public
+    key appended into *len. Equivalent information to
+    wc_MlDsaKey_PrivSize() but uses an out-parameter style. For the
+    private key alone use wc_MlDsaKey_Size().
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key or len is NULL, or no parameter set is
     selected.
 
     \param [in] key Pointer to a wc_MlDsaKey with parameters set.
-    \param [out] len Receives the private key size in bytes.
+    \param [out] len Receives the private-plus-public key size in bytes.
 
     \sa wc_MlDsaKey_PrivSize
+    \sa wc_MlDsaKey_Size
 */
 int wc_MlDsaKey_GetPrivLen(wc_MlDsaKey* key, int* len);
 
