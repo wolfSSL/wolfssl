@@ -55,7 +55,8 @@ int test_wc_mlkem_operation_cleanup(void);
     defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
-    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM) && !defined(WC_NO_RNG)
 #define MLKEM_PCT_OOM_TEST
 int test_wc_mlkem_pct_alloc_fail(void);
 #define TEST_MLKEM_PCT_OOM_DECL \
