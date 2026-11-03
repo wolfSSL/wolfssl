@@ -69627,6 +69627,7 @@ static wc_test_ret_t mlkem_asn1_test(void)
     WC_RNG rng;
     int rngInit = 0;
     int i;
+    int nlevels;
     static const int levels[] = {
 #if defined(WOLFSSL_WC_ML_KEM_512) && !defined(WOLFSSL_NO_ML_KEM)
         WC_ML_KEM_512,
@@ -69639,6 +69640,9 @@ static wc_test_ret_t mlkem_asn1_test(void)
 #endif
         -1
     };
+
+    /* count the number of valid levels compiled in: */
+    for (nlevels = 0; levels[nlevels] != -1; ++nlevels);
 
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     if (ret != 0)
@@ -69658,8 +69662,10 @@ static wc_test_ret_t mlkem_asn1_test(void)
         word32 ctLen = 0;
         int pubLen = 0;
         int privLen = 0;
-        int wrongLevel = (levels[i] == WC_ML_KEM_512) ? WC_ML_KEM_1024 :
-                                                        WC_ML_KEM_512;
+        /* Always a compiled-in set, so wc_MlKemKey_Init(wrongLevel) below is
+         * expected to succeed.  In a single-set build it aliases levels[i] and
+         * the cross-set refusal check is skipped. */
+        int wrongLevel = levels[(i + 1) % nlevels];
         int keyInit = 0;
 
         key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT,
@@ -69733,8 +69739,9 @@ static wc_test_ret_t mlkem_asn1_test(void)
             keyInit = 0;
         }
 
-        /* A DER naming a different parameter set must be refused. */
-        if (ret == 0) {
+        /* A DER naming a different parameter set must be refused.  Needs a
+         * second compiled-in set to name -- single-set builds have none. */
+        if ((ret == 0) && (nlevels > 1)) {
             ret = wc_MlKemKey_Init(key, wrongLevel, HEAP_HINT, devId);
             if (ret == 0) {
                 idx = 0;
