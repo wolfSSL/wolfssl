@@ -3712,11 +3712,20 @@ int test_session_decision_coverage(void)
     WOLFSSL* ssl = NULL;
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_CIPHER cipher;
+    int upRefRet;
 
     XMEMSET(&cipher, 0, sizeof(cipher));
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ctx != NULL)
+        ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
     ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (ssl == NULL || sess == NULL) {
+        wolfSSL_SESSION_free(sess);
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
 
     /* --- 1552:0/1/2 wolfSSL_SetSession: ssl==NULL || session==NULL ||
      *     !session->isSetup ---------------------------------------------- */
@@ -3736,7 +3745,10 @@ int test_session_decision_coverage(void)
 
     /* --- 3955:0/1 wolfSSL_SESSION_up_ref: session==NULL || type!=HEAP ---- */
     (void)wolfSSL_SESSION_up_ref(NULL);
-    (void)wolfSSL_SESSION_up_ref(sess);
+    upRefRet = wolfSSL_SESSION_up_ref(sess);
+    ExpectIntEQ(upRefRet, WOLFSSL_SUCCESS);
+    if (upRefRet == WOLFSSL_SUCCESS)
+        wolfSSL_SESSION_free(sess);
 
     /* --- 4383:0/1 wolfSSL_SESSION_set_cipher: session==NULL || cipher==NULL */
     (void)wolfSSL_SESSION_set_cipher(NULL, &cipher);

@@ -6101,7 +6101,13 @@ int test_ssl_cert_decision_coverage(void)
     WOLFSSL* ssl = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ctx != NULL)
+        ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
 
     /* --- 105:1/2 CTX_set_verify_depth: depth < 0 || depth > MAX ---------- */
     wolfSSL_CTX_set_verify_depth(ctx, -1);
@@ -6114,10 +6120,12 @@ int test_ssl_cert_decision_coverage(void)
         WOLFSSL_CERT_MANAGER* saved;
 
         ExpectNotNull(nctx);
-        saved = nctx->cm;
-        nctx->cm = NULL;
-        wolfSSL_CTX_SetCACb(nctx, NULL);
-        nctx->cm = saved;
+        if (nctx != NULL) {
+            saved = nctx->cm;
+            nctx->cm = NULL;
+            wolfSSL_CTX_SetCACb(nctx, NULL);
+            nctx->cm = saved;
+        }
         wolfSSL_CTX_free(nctx);
     }
 
@@ -6156,20 +6164,24 @@ int test_ssl_cert_decision_coverage(void)
 
         key = (DerBuffer*)XMALLOC(sizeof(DerBuffer), ssl->heap,
                                   DYNAMIC_TYPE_DER);
-        XMEMSET(key, 0, sizeof(DerBuffer));
-        key->type = PRIVATEKEY_TYPE;
-        ssl->buffers.key = key;
-        (void)wolfSSL_UnloadCertsKeys(ssl);
+        ExpectNotNull(key);
+        if (key != NULL) {
+            XMEMSET(key, 0, sizeof(DerBuffer));
+            key->heap = ssl->heap;
+            key->type = PRIVATEKEY_TYPE;
+            key->dynType = DYNAMIC_TYPE_DER;
+            ssl->buffers.key = key;
+            ssl->buffers.weOwnKey = 1;
+            (void)wolfSSL_UnloadCertsKeys(ssl);
+        }
 
-        key = (DerBuffer*)XMALLOC(sizeof(DerBuffer), ssl->heap,
-                                  DYNAMIC_TYPE_DER);
-        key->buffer = (byte*)XMALLOC(16, ssl->heap, DYNAMIC_TYPE_DER);
-        key->heap = ssl->heap;
-        key->length = 16;
-        key->type = PRIVATEKEY_TYPE;
-        key->dynType = DYNAMIC_TYPE_DER;
-        ssl->buffers.key = key;
-        (void)wolfSSL_UnloadCertsKeys(ssl);
+        key = NULL;
+        ExpectIntEQ(AllocDer(&key, 16, PRIVATEKEY_TYPE, ssl->heap), 0);
+        if (key != NULL) {
+            ssl->buffers.key = key;
+            ssl->buffers.weOwnKey = 1;
+            (void)wolfSSL_UnloadCertsKeys(ssl);
+        }
         ssl->buffers.weOwnKey = 0;
     }
 
