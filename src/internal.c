@@ -205,6 +205,12 @@
     #include <sys/filio.h>
 #endif
 
+#if defined(__MACH__) || defined(__FreeBSD__) || \
+    defined(__INCLUDE_NUTTX_CONFIG_H) || defined(WOLFSSL_RIOT_OS)
+#include <sys/time.h>
+#endif /* __MACH__ || __FreeBSD__ ||
+          __INCLUDE_NUTTX_CONFIG_H || WOLFSSL_RIOT_OS */
+
 
 #define ERROR_OUT(err, eLabel) { ret = (int)(err); goto eLabel; }
 #define CHECK_RET(ret, exp, eLabel) do { if (((ret) = (exp)) != 0) goto eLabel;\
@@ -12474,6 +12480,234 @@ ProtocolVersion MakeDTLSv1_3(void)
      *   word32 LowResTimer(void);
      */
 #endif /* !NO_ASN_TIME */
+
+#if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
+    (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || \
+    defined(WOLFSSL_DTLS13))
+#ifndef NO_ASN_TIME
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+    #define MS_TIME word32
+#else
+    #define MS_TIME sword64
+#endif
+
+/* The time in milliseconds, for ticket ages and the DTLS timers. */
+#if defined(USER_TICKS)
+    /* The application supplies TimeNowInMilliseconds(). */
+#elif defined(WOLFSSL_OPTEE)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        TEE_Time now;
+
+        /* Monotonic within the TA, and not the normal world's clock. */
+        TEE_GetSystemTime(&now);
+
+        return ((MS_TIME)now.seconds * 1000) + (MS_TIME)now.millis;
+    }
+
+#elif defined(TIME_OVERRIDES)
+#ifndef NO_ASN
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME) wc_Time(0) * 1000;
+    }
+#else
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME) XTIME(0) * 1000;
+    }
+#endif
+
+#elif defined(XTIME_MS)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)XTIME_MS(0);
+    }
+
+#elif defined(USE_WINDOWS_API)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        static int           init = 0;
+        static LARGE_INTEGER freq;
+        LARGE_INTEGER        count;
+
+        if (!init) {
+            QueryPerformanceFrequency(&freq);
+            init = 1;
+        }
+
+        QueryPerformanceCounter(&count);
+
+        return (MS_TIME)(count.QuadPart / (freq.QuadPart / 1000));
+    }
+
+#elif defined(HAVE_RTP_SYS)
+    #include "rtptime.h"
+
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)rtp_get_system_sec() * 1000;
+    }
+#elif defined(WOLFSSL_DEOS)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        word32 *systemTickPtr = systemTickPointer();
+
+        return (MS_TIME) (*systemTickPtr/systemTickTimeInHz) * 1000;
+    }
+#elif defined(MICRIUM)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        OS_TICK ticks = 0;
+        OS_ERR  err;
+
+        ticks = OSTimeGet(&err);
+
+        return (MS_TIME) (ticks / OSCfg_TickRate_Hz) * 1000;
+    }
+#elif defined(MICROCHIP_TCPIP_V5)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME) (TickGet() / (TICKS_PER_SECOND / 1000));
+    }
+#elif defined(MICROCHIP_TCPIP)
+    #if defined(MICROCHIP_MPLAB_HARMONY)
+        #include <system/tmr/sys_tmr.h>
+
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)SYS_TMR_TickCountGet() /
+                        (SYS_TMR_TickCounterFrequencyGet() / 1000);
+    }
+    #else
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)SYS_TICK_Get() / (SYS_TICK_TicksPerSecondGet() / 1000);
+    }
+    #endif
+
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        TIME_STRUCT mqxTime;
+
+        _time_get_elapsed(&mqxTime);
+
+        return (MS_TIME) mqxTime.SECONDS * 1000;
+    }
+#elif defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
+    #include "include/task.h"
+
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)((uint64_t)xTaskGetTickCount() * 1000 /
+            configTICK_RATE_HZ);
+    }
+#elif defined(FREESCALE_KSDK_BM)
+    #include "lwip/sys.h" /* lwIP */
+
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return sys_now();
+    }
+
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)osKernelGetTickCount();
+    }
+
+#elif defined(WOLFSSL_TIRTOS)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME) Seconds_get() * 1000;
+    }
+#elif defined(WOLFSSL_UTASKER)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)(uTaskerSystemTick / (TICK_RESOLUTION / 1000));
+    }
+#elif defined(WOLFSSL_LINUXKM)
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)wc_linuxkm_time_epoch_msecs();
+    }
+#else
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        s64 t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        struct timespec ts;
+        getnstimeofday(&ts);
+        t = ts.tv_sec * (s64)1000;
+        t += ts.tv_nsec / (s64)1000000;
+#else
+        struct timespec64 ts;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+        ts = current_kernel_time64();
+#else
+        ktime_get_coarse_real_ts64(&ts);
+#endif
+        t = ts.tv_sec * 1000L;
+        t += ts.tv_nsec / 1000000L;
+#endif
+        return (MS_TIME)t;
+    }
+#endif
+#elif defined(WOLFSSL_QNX_CAAM)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        return (MS_TIME)(now.tv_sec * 1000 + now.tv_nsec / 1000000);
+    }
+#elif defined(FUSION_RTOS)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        struct timeval now;
+        if (FCL_GETTIMEOFDAY(&now, 0) < 0)
+            return 0;
+
+        /* Convert to milliseconds number. */
+        return (MS_TIME)((MS_TIME)now.tv_sec * 1000 + now.tv_usec / 1000);
+    }
+#elif defined(WOLFSSL_ZEPHYR)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        int64_t t;
+    #if defined(CONFIG_ARCH_POSIX)
+        k_cpu_idle();
+    #endif
+        t = k_uptime_get(); /* returns current uptime in milliseconds */
+        return (MS_TIME)t;
+    }
+#elif defined(FREERTOS)
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        return (MS_TIME)((uint64_t)xTaskGetTickCount() * 1000 /
+            configTICK_RATE_HZ);
+    }
+#else
+    MS_TIME TimeNowInMilliseconds(void)
+    {
+        struct timeval now;
+
+        if (gettimeofday(&now, 0) < 0)
+            return 0;
+
+        /* Convert to milliseconds number. */
+        return (MS_TIME)((MS_TIME)now.tv_sec * 1000 + now.tv_usec / 1000);
+    }
+#endif
+#undef MS_TIME
+#else
+    /* The application supplies TimeNowInMilliseconds(). */
+#endif /* !NO_ASN_TIME */
+#endif /* !NO_TLS && WOLFSSL_TLS13 && (HAVE_SESSION_TICKET || !NO_PSK ||
+        * WOLFSSL_DTLS13) */
 
 
 #ifndef NO_TLS
