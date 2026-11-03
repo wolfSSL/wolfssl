@@ -3874,16 +3874,22 @@ static int ecc_sp_mulmod(const mp_int* k, ecc_point* G, ecc_point* R,
     default:
         return NOT_COMPILED_IN;
     }
-    /* The SP code takes a non-negative scalar no longer than the curve and
-     * coordinates already reduced modulo the prime; it would truncate wider
-     * values. Leave anything else to the generic code, which reduces them. */
+    /* The SP code takes a non-negative scalar no longer than the curve and an
+     * affine point (z = 1) with coordinates already reduced modulo the prime:
+     * it would truncate wider values, and with FP_ECC it caches tables by x
+     * and y only. It writes the result's digits but not their signs, so the
+     * result point's ordinates must not be negative either. Leave anything
+     * else to the generic code, which handles them. */
     if (mp_isneg(k) || (mp_count_bits(k) > bits)) {
         return NOT_COMPILED_IN;
     }
-    if (mp_isneg(G->x) || mp_isneg(G->y) || mp_isneg(G->z) ||
+    if (mp_isneg(G->x) || mp_isneg(G->y) ||
             (mp_cmp(G->x, modulus) != MP_LT) ||
             (mp_cmp(G->y, modulus) != MP_LT) ||
-            (mp_cmp(G->z, modulus) != MP_LT)) {
+            (mp_cmp_d(G->z, 1) != MP_EQ)) {
+        return NOT_COMPILED_IN;
+    }
+    if (mp_isneg(R->x) || mp_isneg(R->y) || mp_isneg(R->z)) {
         return NOT_COMPILED_IN;
     }
     idx = wc_ecc_get_curve_idx(curveId);

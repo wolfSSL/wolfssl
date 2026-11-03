@@ -3914,6 +3914,9 @@ int test_wc_ecc_mulmod_curves(void)
     ecc_key     key2;
     ecc_key     key3;
     ecc_key     key4;
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
+    mp_int      negY;
+#endif
     WC_RNG      rng;
     int         ret;
     int         i;
@@ -3972,6 +3975,49 @@ int test_wc_ecc_mulmod_curves(void)
         ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
             &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
         ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+
+        /* With z = prime - 1 the base point is its negation, (x, -y), so the
+         * result is the negated public key. The SP code's FP_ECC cache
+         * matches tables by x and y only, so this must not leave a table for
+         * the negation that the affine base point then uses: multiply the
+         * affine point again, with the generic code's cache emptied so that
+         * the SP code is reached. */
+        XMEMSET(&negY, 0, sizeof(negY));
+        ExpectIntEQ(mp_init(&negY), MP_OKAY);
+        ExpectIntEQ(mp_sub_d(key4.pubkey.y, 1, key2.pubkey.z), MP_OKAY);
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(mp_sub(key4.pubkey.y, key1.pubkey.y, &negY), MP_OKAY);
+        ExpectIntEQ(mp_cmp(key3.pubkey.x, key1.pubkey.x), MP_EQ);
+        ExpectIntEQ(mp_cmp(key3.pubkey.y, &negY), MP_EQ);
+        ExpectIntEQ(mp_cmp_d(key3.pubkey.z, 1), MP_EQ);
+        mp_free(&negY);
+        ExpectIntEQ(mp_set(key2.pubkey.z, 1), MP_OKAY);
+    #ifdef FP_ECC
+        wc_ecc_fp_free();
+    #endif
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+        /* A result point with negative ordinates must be given the result
+         * with positive ordinates. */
+        mp_zero(key3.pubkey.x);
+        mp_zero(key3.pubkey.y);
+        mp_zero(key3.pubkey.z);
+        ExpectIntEQ(mp_sub(key3.pubkey.x, key4.pubkey.y, key3.pubkey.x),
+            MP_OKAY);
+        ExpectIntEQ(mp_sub(key3.pubkey.y, key4.pubkey.y, key3.pubkey.y),
+            MP_OKAY);
+        ExpectIntEQ(mp_sub(key3.pubkey.z, key4.pubkey.y, key3.pubkey.z),
+            MP_OKAY);
+    #ifdef FP_ECC
+        wc_ecc_fp_free();
+    #endif
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #endif
     #endif
         tested++;
 
