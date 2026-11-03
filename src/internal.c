@@ -5888,6 +5888,12 @@ void FreeX509Name(WOLFSSL_X509_NAME* name)
             }
         }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        XFREE(name->raw, name->heap, DYNAMIC_TYPE_X509);
+        name->raw = NULL;
+        name->rawLen = 0;
+        name->rawCertOff = 0;
+#endif
 #ifdef OPENSSL_ALL
         if (name->entries) {
             wolfSSL_sk_X509_NAME_ENTRY_free(name->entries);
@@ -5896,6 +5902,62 @@ void FreeX509Name(WOLFSSL_X509_NAME* name)
 #endif
     }
 }
+
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+/* Set the DER encoding of a name's RDNs to send in a list of CA names.
+ *
+ * @param [in, out] name    X509 name.
+ * @param [in]      raw     Contents of the encoded Name SEQUENCE.
+ * @param [in]      rawLen  Length of the contents in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when name or raw is NULL or rawLen is not positive.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int SetX509NameRaw(WOLFSSL_X509_NAME* name, const byte* raw, int rawLen)
+{
+    byte* copy;
+
+    if ((name == NULL) || (raw == NULL) || (rawLen <= 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    copy = (byte*)XMALLOC((size_t)rawLen, name->heap, DYNAMIC_TYPE_X509);
+    if (copy == NULL) {
+        return MEMORY_E;
+    }
+    XMEMCPY(copy, raw, (size_t)rawLen);
+    XFREE(name->raw, name->heap, DYNAMIC_TYPE_X509);
+    name->raw = copy;
+    name->rawLen = rawLen;
+
+    return 0;
+}
+
+/* Set the DER encoding of a name's RDNs from an encoded Name.
+ *
+ * @param [in, out] name   X509 name.
+ * @param [in]      der    DER encoding of a Name: a SEQUENCE of RDNs.
+ * @param [in]      derSz  Length of the data in bytes.
+ * @return  0 on success, including when the Name has no RDNs.
+ * @return  ASN_PARSE_E when der does not start with a SEQUENCE.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int SetX509NameRawFromDer(WOLFSSL_X509_NAME* name, const byte* der,
+    word32 derSz)
+{
+    word32 idx = 0;
+    int len = 0;
+
+    if (GetSequence(der, &idx, &len, derSz) < 0) {
+        return ASN_PARSE_E;
+    }
+    if (len == 0) {
+        /* An empty name has nothing to send. */
+        return 0;
+    }
+    return SetX509NameRaw(name, der + idx, len);
+}
+#endif /* !WOLFSSL_NO_CA_NAMES && OPENSSL_EXTRA */
 
 
 /* Zero the X509 and set up its fields. The ref is zeroed too; the caller
@@ -15804,25 +15866,31 @@ void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
         XSTRNCPY(name->name, dCert->subject, ASN_NAME_MAX);
         name->name[ASN_NAME_MAX - 1] = '\0';
         name->sz = (int)XSTRLEN(name->name) + 1;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
-        name->rawLen = min(dCert->subjectRawLen, ASN_NAME_MAX);
-        if (name->rawLen > 0)
-            XMEMCPY(name->raw, dCert->subjectRaw, name->rawLen);
-#endif
     }
     else {
         XSTRNCPY(name->name, dCert->issuer, ASN_NAME_MAX);
         name->name[ASN_NAME_MAX - 1] = '\0';
         name->sz = (int)XSTRLEN(name->name) + 1;
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) \
-    && (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-        name->rawLen = min(dCert->issuerRawLen, ASN_NAME_MAX);
-        if (name->rawLen > 0) {
-            XMEMCPY(name->raw, dCert->issuerRaw, name->rawLen);
-        }
-#endif
     }
 }
+
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+/* Record where a certificate's issuer or subject is in its encoding, so that a
+ * copy of the name can take its encoding from x509->derCert.
+ *
+ * @param [in, out] name   X509's issuer or subject name.
+ * @param [in]      dCert  Decoded certificate.
+ * @param [in]      der    Encoded name in the decoded certificate's source.
+ */
+static void SetX509NameCertOff(WOLFSSL_X509_NAME* name,
+    const DecodedCert* dCert, const byte* der)
+{
+    if ((der != NULL) && (dCert->source != NULL) && (der > dCert->source) &&
+            (der < dCert->source + dCert->maxIdx)) {
+        name->rawCertOff = (word32)(der - dCert->source);
+    }
+}
+#endif /* !WOLFSSL_NO_CA_NAMES && OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Set the issuer or subject X509_NAME of the X509 from the decoded
@@ -15862,6 +15930,9 @@ static int CopyDecodedX509Name(WOLFSSL_X509* x509, WOLFSSL_X509_NAME* name,
             wolfSSL_X509_set_subject_name(x509, decName);
         }
         name->x509 = x509;
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        SetX509NameCertOff(name, dCert, der);
+    #endif
     }
     else if (der != NULL) {
         /* Same reset as wolfSSL_X509_set_issuer/subject_name(). */
@@ -15873,6 +15944,9 @@ static int CopyDecodedX509Name(WOLFSSL_X509* x509, WOLFSSL_X509_NAME* name,
             if (nameType == ASN_ISSUER) {
                 x509->issuerSet = 1;
             }
+        #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+            SetX509NameCertOff(name, dCert, der);
+        #endif
         }
         else {
             FreeX509Name(name);
@@ -30243,7 +30317,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
 
-        if (name != NULL) {
+        /* A name with no encoding is left out rather than sent empty. */
+        if ((name != NULL) && (name->rawLen > 0)) {
             /* 16-bit length | SEQ | Len | DER of name */
             dnLen += OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
                         name->rawLen;
@@ -30308,7 +30383,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
 
-        if (name != NULL) {
+        if ((name != NULL) && (name->rawLen > 0)) {
             c16toa((word16)name->rawLen +
                    (word16)SetSequence(name->rawLen, seq), &output[i]);
             i += OPAQUE16_LEN;
@@ -37619,6 +37694,12 @@ static int IsTls13CipherSuite(byte first, byte second)
 
                 if (ret == 0) {
                     CopyDecodedName(name, cert, ASN_SUBJECT);
+                    /* Keep the encoding so the name can be sent on, as
+                     * TLSX_CA_Names_Parse() does for TLS 1.3. */
+                    if (SetX509NameRawFromDer(name, input + *inOutIdx,
+                            dnSz) != 0) {
+                        ret = MEMORY_ERROR;
+                    }
                 }
 
                 if (ret == 0) {

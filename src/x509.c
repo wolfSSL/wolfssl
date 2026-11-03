@@ -12838,6 +12838,39 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
         return wolfSSL_X509_NAME_new_ex(NULL);
     }
 
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+    /* Set the encoding of a copy of a certificate's issuer or subject name
+     * from the certificate's encoding.
+     *
+     * A certificate's names are not given an encoding when it is parsed, but
+     * where they are in the certificate's DER is recorded. Nothing is set when
+     * the name is not a certificate's name as parsed (it was replaced or
+     * changed since, or the certificate was encoded again).
+     *
+     * @param [in, out] copy  Copy of name.
+     * @param [in]      name  Name that was copied.
+     * @return  0 on success.
+     * @return  ASN_PARSE_E when the certificate's DER has no name there.
+     * @return  MEMORY_E when dynamic memory allocation fails.
+     */
+    static int X509NameRawFromCert(WOLFSSL_X509_NAME* copy,
+        const WOLFSSL_X509_NAME* name)
+    {
+        const DerBuffer* der;
+
+        if ((name->rawCertOff == 0) || (name->x509 == NULL)) {
+            return 0;
+        }
+        der = name->x509->derCert;
+        if ((der == NULL) || (name->rawCertOff >= der->length)) {
+            return 0;
+        }
+
+        return SetX509NameRawFromDer(copy, der->buffer + name->rawCertOff,
+            der->length - name->rawCertOff);
+    }
+#endif /* !WOLFSSL_NO_CA_NAMES && OPENSSL_EXTRA */
+
     /* Creates a duplicate of a WOLFSSL_X509_NAME structure.
        Returns a new WOLFSSL_X509_NAME structure or NULL on failure */
     WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(const WOLFSSL_X509_NAME *name)
@@ -14134,6 +14167,11 @@ cleanup:
 
         /* Put in the new certificate encoding into the x509 object. */
         FreeDer(&x509->derCert);
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        /* The names may not be where they were in the old encoding. */
+        x509->issuer.rawCertOff = 0;
+        x509->subject.rawCertOff = 0;
+    #endif
         type = CERT_TYPE;
     #ifdef WOLFSSL_CERT_REQ
         if (req) {
@@ -14572,6 +14610,14 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
             tmp = NULL;
             goto cleanup;
         }
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        /* Keep the encoding to send in a list of CA names. */
+        if (SetX509NameRawFromDer(tmp, *in, (word32)length) != 0) {
+            wolfSSL_X509_NAME_free(tmp);
+            tmp = NULL;
+            goto cleanup;
+        }
+    #endif
 
         if (name)
             *name = tmp;
@@ -15918,6 +15964,10 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         current = &name->entry[i];
         if (current->set == 0)
             name->entrySz++;
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        /* No longer the name as in a certificate. */
+        name->rawCertOff = 0;
+    #endif
 
         if ((wolfSSL_X509_NAME_ENTRY_create_by_NID(&current, nid, type, data,
                 dataSz) != NULL) && (current->value != NULL))
@@ -16040,6 +16090,10 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             return NULL;
         }
         name->entry[loc].set = 0;
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        /* No longer the name as in a certificate. */
+        name->rawCertOff = 0;
+    #endif
 #ifdef WOLFSSL_PYTHON
         {
             int i;
@@ -17712,14 +17766,16 @@ int wolfSSL_X509_NAME_copy(const WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
         return BAD_FUNC_ARG;
     }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+    /* The copy has the encoding of the name, or of the certificate the name
+     * is from, to send in a list of CA names. */
     if (from->rawLen > 0) {
-        if (from->rawLen > ASN_NAME_MAX) {
-            WOLFSSL_MSG("Bad raw size");
-            return BAD_FUNC_ARG;
+        if (SetX509NameRaw(to, from->raw, from->rawLen) != 0) {
+            return WOLFSSL_FAILURE;
         }
-        XMEMCPY(to->raw, from->raw, from->rawLen);
-        to->rawLen = from->rawLen;
+    }
+    else if (X509NameRawFromCert(to, from) != 0) {
+        return WOLFSSL_FAILURE;
     }
 #endif
 
@@ -18494,6 +18550,11 @@ static int regenX509REQDerBuffer(WOLFSSL_X509* x509)
 
     if (wolfssl_x509_make_der(x509, 1, der, &derSz, 0) == WOLFSSL_SUCCESS) {
         FreeDer(&x509->derCert);
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        /* The names may not be where they were in the old encoding. */
+        x509->issuer.rawCertOff = 0;
+        x509->subject.rawCertOff = 0;
+    #endif
         if (AllocDer(&x509->derCert, (word32)derSz, CERT_TYPE,
                                                              x509->heap) == 0) {
             XMEMCPY(x509->derCert->buffer, der, derSz);

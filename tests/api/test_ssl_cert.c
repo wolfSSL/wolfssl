@@ -1105,6 +1105,511 @@ int test_wolfSSL_load_client_CA_file(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(OPENSSL_EXTRA) && !defined(NO_BIO) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && defined(WOLFSSL_PEM_TO_DER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (!defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT))
+#define TEST_CA_NAMES_SENT
+
+/* Ways the server is given a CA's name. */
+#define TEST_CA_NAMES_ADD_CLIENT_CA     0  /* wolfSSL_CTX_add_client_CA() */
+#define TEST_CA_NAMES_ADD1_TO_CA_LIST   1  /* wolfSSL_CTX_add1_to_CA_list() */
+#define TEST_CA_NAMES_DUP_SUBJECT       2  /* list with a dup of the subject */
+#define TEST_CA_NAMES_LOAD_FILE         3  /* wolfSSL_load_client_CA_file() */
+#define TEST_CA_NAMES_BUILT             4  /* name built entry by entry */
+#define TEST_CA_NAMES_WAYS              5
+
+#define TEST_CA_NAMES_MAX_RAW           512
+
+/* The CertificateRequest a TLS 1.2 client received. */
+typedef struct TestCaNamesReq {
+    byte   msg[2048];
+    word32 msgSz;
+} TestCaNamesReq;
+
+static void test_ca_names_msg_cb(int write_p, int version, int content_type,
+    const void* buf, size_t len, WOLFSSL* ssl, void* arg)
+{
+    TestCaNamesReq* req = (TestCaNamesReq*)arg;
+
+    (void)version;
+    (void)ssl;
+    if ((write_p == 0) && (content_type == handshake) && (len > 0) &&
+            (len <= sizeof(req->msg)) &&
+            (((const byte*)buf)[0] == certificate_request)) {
+        XMEMCPY(req->msg, buf, len);
+        req->msgSz = (word32)len;
+    }
+}
+
+/* Get the DistinguishedNames of a TLS 1.2 CertificateRequest.
+ *
+ * @return  Number of names on success.
+ * @return  -1 when the message is badly formed or has too many names.
+ */
+static int test_ca_names_req_dns(const TestCaNamesReq* req, const byte** dn,
+    word32* dnSz, int maxDns)
+{
+    const byte* msg = req->msg;
+    word32 idx = HANDSHAKE_HEADER_SZ;
+    word32 end;
+    word32 len;
+    int cnt = 0;
+
+    /* certificate_types */
+    if (req->msgSz < idx + 1)
+        return -1;
+    idx += 1 + msg[idx];
+    /* supported_signature_algorithms */
+    if (req->msgSz < idx + OPAQUE16_LEN)
+        return -1;
+    len = ((word32)msg[idx] << 8) | msg[idx + 1];
+    idx += OPAQUE16_LEN + len;
+    /* certificate_authorities */
+    if (req->msgSz < idx + OPAQUE16_LEN)
+        return -1;
+    len = ((word32)msg[idx] << 8) | msg[idx + 1];
+    idx += OPAQUE16_LEN;
+    end = idx + len;
+    if (end != req->msgSz)
+        return -1;
+    while (idx < end) {
+        if ((cnt == maxDns) || (end < idx + OPAQUE16_LEN))
+            return -1;
+        len = ((word32)msg[idx] << 8) | msg[idx + 1];
+        idx += OPAQUE16_LEN;
+        if (end < idx + len)
+            return -1;
+        dn[cnt] = msg + idx;
+        dnSz[cnt] = len;
+        cnt++;
+        idx += len;
+    }
+    return cnt;
+}
+
+/* Get the RDNs of a DER encoded Name: the contents of its SEQUENCE. */
+static int test_ca_names_rdns(const byte* der, word32 derSz, const byte** rdns,
+    word32* rdnsSz)
+{
+    word32 hdrSz = 2;
+    word32 len;
+
+    if ((derSz < 2) || (der[0] != (ASN_SEQUENCE | ASN_CONSTRUCTED)))
+        return -1;
+    len = der[1];
+    if (len == 0x81) {
+        if (derSz < 3)
+            return -1;
+        len = der[2];
+        hdrSz = 3;
+    }
+    else if (len == 0x82) {
+        if (derSz < 4)
+            return -1;
+        len = ((word32)der[2] << 8) | der[3];
+        hdrSz = 4;
+    }
+    else if (len >= 0x80) {
+        return -1;
+    }
+    if (hdrSz + len != derSz)
+        return -1;
+    *rdns = der + hdrSz;
+    *rdnsSz = len;
+    return 0;
+}
+
+/* Get the RDNs of a certificate's or request's subject as encoded in it.
+ * type is CERT_TYPE or CERTREQ_TYPE. */
+static int test_ca_names_subject_ex(WOLFSSL_X509* x509, int type, byte* raw,
+    int* rawSz)
+{
+    EXPECT_DECLS;
+    const byte* der = NULL;
+    int derSz = 0;
+    const byte* subj = NULL;
+    int subjSz = 0;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
+
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
+        return TEST_FAIL);
+    ExpectNotNull(der = wolfSSL_X509_get_der(x509, &derSz));
+    wc_InitDecodedCert(cert, der, (word32)derSz, NULL);
+    ExpectIntEQ(wc_ParseCert(cert, type, NO_VERIFY, NULL), 0);
+    ExpectIntEQ(wc_GetDecodedCertSubjectRaw(cert, &subj, &subjSz), 0);
+    ExpectIntLE(subjSz, TEST_CA_NAMES_MAX_RAW);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(raw, subj, (size_t)subjSz);
+        *rawSz = subjSz;
+    }
+    wc_FreeDecodedCert(cert);
+    WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
+    return EXPECT_RESULT();
+}
+
+/* Get the RDNs of a certificate's subject as encoded in the certificate. */
+static int test_ca_names_subject(WOLFSSL_X509* x509, byte* raw, int* rawSz)
+{
+    return test_ca_names_subject_ex(x509, CERT_TYPE, raw, rawSz);
+}
+
+/* Give the server the name of the CA in caFile. */
+static int test_ca_names_set(WOLFSSL_CTX* ctx, WOLFSSL_X509* ca,
+    const char* caFile, int how)
+{
+    EXPECT_DECLS;
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+
+    switch (how) {
+        case TEST_CA_NAMES_ADD_CLIENT_CA:
+            ExpectIntEQ(wolfSSL_CTX_add_client_CA(ctx, ca), 1);
+            break;
+        case TEST_CA_NAMES_ADD1_TO_CA_LIST:
+            ExpectIntEQ(wolfSSL_CTX_add1_to_CA_list(ctx, ca), 1);
+            break;
+        case TEST_CA_NAMES_DUP_SUBJECT:
+            ExpectNotNull(names = wolfSSL_sk_X509_NAME_new(NULL));
+            ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+                wolfSSL_X509_get_subject_name(ca)));
+            ExpectIntEQ(wolfSSL_sk_X509_NAME_push(names, name), 1);
+            if (EXPECT_FAIL()) {
+                wolfSSL_X509_NAME_free(name);
+            }
+            break;
+        case TEST_CA_NAMES_LOAD_FILE:
+            ExpectNotNull(names = wolfSSL_load_client_CA_file(caFile));
+            break;
+        case TEST_CA_NAMES_BUILT:
+        default:
+            ExpectNotNull(names = wolfSSL_sk_X509_NAME_new(NULL));
+            ExpectNotNull(name = wolfSSL_X509_NAME_new());
+            ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "CN",
+                WOLFSSL_MBSTRING_UTF8, (const byte*)"www.wolfssl.com", -1, -1,
+                0), 1);
+            ExpectIntEQ(wolfSSL_sk_X509_NAME_push(names, name), 1);
+            if (EXPECT_FAIL()) {
+                wolfSSL_X509_NAME_free(name);
+            }
+            break;
+    }
+    if (names != NULL) {
+        /* The context takes the list. */
+        wolfSSL_CTX_set_client_CA_list(ctx, names);
+    }
+    return EXPECT_RESULT();
+}
+
+/* Handshake with a server that requests a client certificate and check the CA
+ * names the client is sent.
+ */
+static int test_ca_names_sent_case(method_provider client_meth,
+    method_provider server_meth, int tls13, const char* caFile, int how)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_X509* ca = NULL;
+    byte raw[TEST_CA_NAMES_MAX_RAW];
+    int rawSz = 0;
+    int expCnt = (how == TEST_CA_NAMES_BUILT) ? 0 : 1;
+    WC_DECLARE_VAR(req, TestCaNamesReq, 1, 0);
+
+    WC_ALLOC_VAR_EX(req, TestCaNamesReq, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return TEST_FAIL);
+    XMEMSET(req, 0, sizeof(*req));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(test_ca_names_subject(ca, raw, &rawSz), TEST_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_meth, server_meth), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(test_ca_names_set(ctx_s, ca, caFile, how), TEST_SUCCESS);
+    if (!tls13) {
+        ExpectIntEQ(wolfSSL_set_msg_callback(ssl_c, test_ca_names_msg_cb),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_msg_callback_arg(ssl_c, req),
+            WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+    /* The names received keep the encoding so they can be sent on. */
+    if (expCnt == 1) {
+        WOLFSSL_X509_NAME* name = NULL;
+
+        ExpectIntEQ(wolfSSL_sk_X509_NAME_num(
+            wolfSSL_get0_peer_CA_list(ssl_c)), 1);
+        ExpectNotNull(name = wolfSSL_sk_X509_NAME_value(
+            wolfSSL_get0_peer_CA_list(ssl_c), 0));
+        ExpectIntEQ(name->rawLen, rawSz);
+        ExpectBufEQ(name->raw, raw, rawSz);
+    }
+#endif
+
+    if (!tls13) {
+        const byte* dn[2];
+        word32 dnSz[2];
+        const byte* rdns = NULL;
+        word32 rdnsSz = 0;
+
+        ExpectIntGT(req->msgSz, 0);
+        /* A name with no encoding is left out rather than sent empty. */
+        ExpectIntEQ(test_ca_names_req_dns(req, dn, dnSz, 2), expCnt);
+        if (EXPECT_SUCCESS() && (expCnt == 1)) {
+            /* The whole subject, as encoded in the certificate. */
+            ExpectIntEQ(test_ca_names_rdns(dn[0], dnSz[0], &rdns, &rdnsSz),
+                0);
+            ExpectIntEQ(rdnsSz, rawSz);
+            ExpectBufEQ(rdns, raw, rawSz);
+        }
+    }
+#ifdef WOLFSSL_TLS13
+    else {
+        byte peerDn[TEST_CA_NAMES_MAX_RAW];
+
+        /* The certificate_authorities extension is only sent with a name. */
+        ExpectIntEQ(wolfSSL_GetPeerCertificateAuthorityCount(ssl_c), expCnt);
+        if (expCnt == 1) {
+            ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl_c, 0, peerDn,
+                sizeof(peerDn)), rawSz);
+            ExpectBufEQ(peerDn, raw, rawSz);
+        }
+    }
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_X509_free(ca);
+    WC_FREE_VAR_EX(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_CA_NAMES_SENT */
+
+/* Test the CA names a server sends when requesting a client certificate are
+ * the subjects of the CA certificates, encoded as in the certificates.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_CA_names_sent(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CA_NAMES_SENT
+    /* Subject of 16 attributes: longer than ASN_NAME_MAX bytes. */
+    const char* longNameFile = "./certs/test/cert-max-name-entries.pem";
+    int how;
+
+#ifndef WOLFSSL_NO_TLS12
+    for (how = 0; EXPECT_SUCCESS() && (how < TEST_CA_NAMES_WAYS); how++) {
+        ExpectIntEQ(test_ca_names_sent_case(wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method, 0, caCertFile, how), TEST_SUCCESS);
+    }
+#if MAX_NAME_ENTRIES >= 16
+    ExpectIntEQ(test_ca_names_sent_case(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 0, longNameFile,
+        TEST_CA_NAMES_ADD_CLIENT_CA), TEST_SUCCESS);
+#endif
+#endif
+#ifdef WOLFSSL_TLS13
+    for (how = 0; EXPECT_SUCCESS() && (how < TEST_CA_NAMES_WAYS); how++) {
+        ExpectIntEQ(test_ca_names_sent_case(wolfTLSv1_3_client_method,
+            wolfTLSv1_3_server_method, 1, caCertFile, how), TEST_SUCCESS);
+    }
+#if MAX_NAME_ENTRIES >= 16
+    ExpectIntEQ(test_ca_names_sent_case(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 1, longNameFile,
+        TEST_CA_NAMES_ADD_CLIENT_CA), TEST_SUCCESS);
+#endif
+#endif
+    (void)longNameFile;
+    (void)how;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the encoding a name has to send in a list of CA names.
+ *
+ * A certificate's names have none until copied.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_X509_NAME_dup_encoding(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CA_NAMES_SENT
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_X509_NAME* copy = NULL;
+    byte caRaw[TEST_CA_NAMES_MAX_RAW];
+    int caRawSz = 0;
+    byte raw[TEST_CA_NAMES_MAX_RAW];
+    int rawSz = 0;
+    byte der[TEST_CA_NAMES_MAX_RAW + 4];
+    unsigned char* p = der;
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(test_ca_names_subject(ca, caRaw, &caRawSz), TEST_SUCCESS);
+    /* Issued by the CA. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(test_ca_names_subject(x509, raw, &rawSz), TEST_SUCCESS);
+
+    /* Not kept when parsing. */
+    ExpectIntEQ(wolfSSL_X509_get_subject_name(x509)->rawLen, 0);
+    ExpectIntEQ(wolfSSL_X509_get_issuer_name(x509)->rawLen, 0);
+
+    /* A copy has the encoding from the certificate. */
+    ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+        wolfSSL_X509_get_subject_name(x509)));
+    ExpectIntEQ(name->rawLen, rawSz);
+    ExpectBufEQ(name->raw, raw, rawSz);
+    ExpectNotNull(copy = wolfSSL_X509_NAME_dup(name));
+    ExpectIntEQ(copy->rawLen, rawSz);
+    ExpectBufEQ(copy->raw, raw, rawSz);
+    wolfSSL_X509_NAME_free(copy);
+    copy = NULL;
+    wolfSSL_X509_NAME_free(name);
+    name = NULL;
+    ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+        wolfSSL_X509_get_issuer_name(x509)));
+    ExpectIntEQ(name->rawLen, caRawSz);
+    ExpectBufEQ(name->raw, caRaw, caRawSz);
+    wolfSSL_X509_NAME_free(name);
+    name = NULL;
+
+    /* A name not of a certificate has no encoding. */
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "CN",
+        WOLFSSL_MBSTRING_UTF8, (const byte*)"www.wolfssl.com", -1, -1, 0), 1);
+    ExpectNotNull(copy = wolfSSL_X509_NAME_dup(name));
+    ExpectIntEQ(copy->rawLen, 0);
+    ExpectNull(copy->raw);
+    wolfSSL_X509_NAME_free(copy);
+    copy = NULL;
+    wolfSSL_X509_NAME_free(name);
+    name = NULL;
+
+    /* A decoded name keeps its encoding. */
+    if (EXPECT_SUCCESS()) {
+        der[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+        der[1] = 0x81;
+        der[2] = (byte)caRawSz;
+        XMEMCPY(der + 3, caRaw, (size_t)caRawSz);
+    }
+    ExpectIntGE(caRawSz, 128);
+    ExpectIntLT(caRawSz, 256);
+    ExpectNotNull(name = wolfSSL_d2i_X509_NAME(NULL, &p, caRawSz + 3));
+    ExpectIntEQ(name->rawLen, caRawSz);
+    ExpectBufEQ(name->raw, caRaw, caRawSz);
+    ExpectIntEQ(wolfSSL_X509_NAME_cmp(name, wolfSSL_X509_get_subject_name(ca)),
+        0);
+    wolfSSL_X509_NAME_free(name);
+    name = NULL;
+
+    /* A name set from another certificate's has that certificate's encoding,
+     * not the one in this certificate's DER. */
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509,
+        wolfSSL_X509_get_subject_name(ca)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_get_subject_name(x509)->rawLen, caRawSz);
+    ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+        wolfSSL_X509_get_subject_name(x509)));
+    ExpectIntEQ(name->rawLen, caRawSz);
+    ExpectBufEQ(name->raw, caRaw, caRawSz);
+    wolfSSL_X509_NAME_free(name);
+    name = NULL;
+    /* A name set from one with no encoding has none. */
+    ExpectNotNull(copy = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(copy, "CN",
+        WOLFSSL_MBSTRING_UTF8, (const byte*)"www.wolfssl.com", -1, -1, 0), 1);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, copy), WOLFSSL_SUCCESS);
+    wolfSSL_X509_NAME_free(copy);
+    copy = NULL;
+    ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+        wolfSSL_X509_get_subject_name(x509)));
+    ExpectIntEQ(name->rawLen, 0);
+    wolfSSL_X509_NAME_free(name);
+    name = NULL;
+    /* Nor does a certificate's name changed in place. */
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(
+        wolfSSL_X509_get_issuer_name(x509), "CN", WOLFSSL_MBSTRING_UTF8,
+        (const byte*)"www.wolfssl.com", -1, -1, 0), 1);
+    ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+        wolfSSL_X509_get_issuer_name(x509)));
+    ExpectIntEQ(name->rawLen, 0);
+    wolfSSL_X509_NAME_free(name);
+    name = NULL;
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+#ifdef WOLFSSL_CERT_REQ
+    {
+        byte* file = NULL;
+        size_t fileSz = 0;
+
+        /* A request's subject has the encoding as in the request. */
+        ExpectIntEQ(load_file("./certs/csr.signed.der", &file, &fileSz), 0);
+        ExpectNotNull(x509 = wolfSSL_X509_REQ_d2i(NULL, file, (int)fileSz));
+        ExpectIntEQ(test_ca_names_subject_ex(x509, CERTREQ_TYPE, raw,
+            &rawSz), TEST_SUCCESS);
+        ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+            wolfSSL_X509_get_subject_name(x509)));
+        ExpectIntEQ(name->rawLen, rawSz);
+        ExpectBufEQ(name->raw, raw, rawSz);
+        wolfSSL_X509_NAME_free(name);
+        name = NULL;
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+        XFREE(file, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_SHA256)
+    {
+        WOLFSSL_EVP_PKEY* pkey = NULL;
+        byte* file = NULL;
+        size_t fileSz = 0;
+        const unsigned char* pt = NULL;
+
+        /* A certificate encoded again no longer has the names where they
+         * were, so a copy of one has no encoding rather than a stale one. */
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(load_file("./certs/server-key.der", &file, &fileSz), 0);
+        pt = file;
+        ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_RSA, NULL,
+            &pt, (long)fileSz));
+        ExpectIntGT(wolfSSL_X509_sign(x509, pkey, wolfSSL_EVP_sha256()), 0);
+        ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+            wolfSSL_X509_get_subject_name(x509)));
+        ExpectIntEQ(name->rawLen, 0);
+        wolfSSL_X509_NAME_free(name);
+        name = NULL;
+        wolfSSL_EVP_PKEY_free(pkey);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+        XFREE(file, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+    wolfSSL_X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test requiring mutual authentication.
  *
  * @return  TEST_SUCCESS on success.

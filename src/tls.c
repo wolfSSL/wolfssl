@@ -8165,7 +8165,18 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
 
             if (ret == 0) {
                 CopyDecodedName(name, cert, ASN_SUBJECT);
-                if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0) {
+            #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+                defined(HAVE_LIGHTY)
+                /* Keep the encoding so the name can be sent on. Only with
+                 * these, as for the names of a TLS 1.2 CertificateRequest,
+                 * which are only kept with them (DoCertificateRequest()). */
+                if ((innerLen > 0) && (SetX509NameRaw(name,
+                        input + OPAQUE16_LEN + seqIdx, innerLen) != 0)) {
+                    ret = MEMORY_ERROR;
+                }
+            #endif
+                if ((ret != 0) || (wolfSSL_sk_X509_NAME_push(
+                        ssl->peer_ca_names, name) <= 0)) {
                     wolfSSL_X509_NAME_free(name);
                     ret = MEMORY_ERROR;
                 }

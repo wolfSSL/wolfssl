@@ -1903,6 +1903,18 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         return ASN_PARSE_E;
     }
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* Keep where the encoded name is, as the template parser does. */
+    if (nameType == ASN_ISSUER) {
+        cert->issuerNameDer = input + *inOutIdx;
+        cert->issuerNameDerSz = maxIdx - *inOutIdx;
+    }
+    else {
+        cert->subjectNameDer = input + *inOutIdx;
+        cert->subjectNameDerSz = maxIdx - *inOutIdx;
+    }
+#endif
+
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)
     dName = wolfSSL_X509_NAME_new_ex(cert->heap);
@@ -2551,18 +2563,9 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
     if (nameType == ASN_ISSUER) {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) &&\
-    (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-        dName->rawLen = min(cert->issuerRawLen, WC_ASN_NAME_MAX);
-        XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
-#endif
         cert->issuerName = dName;
     }
     else {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-        dName->rawLen = min(cert->subjectRawLen, WC_ASN_NAME_MAX);
-        XMEMCPY(dName->raw, cert->subjectRaw, dName->rawLen);
-#endif
         cert->subjectName = dName;
     }
 #endif
