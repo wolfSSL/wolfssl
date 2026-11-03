@@ -125,6 +125,7 @@ int wolfSSL_CTX_set_ecjpake_password(WOLFSSL_CTX* ctx, const unsigned char* pw,
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl or pw is NULL or pwSz is zero.
  * @return  VERSION_ERROR when ssl is not using a DTLS 1.2 method.
+ * @return  BAD_STATE_E when the handshake has started the exchange.
  * @return  MEMORY_E when allocation fails.
  * @return  WOLFSSL_FAILURE when the cipher suite cannot be set.
  * @return  NOT_COMPILED_IN when the suite is not in this build.
@@ -142,6 +143,10 @@ int wolfSSL_set_ecjpake_password(WOLFSSL* ssl, const unsigned char* pw,
             ssl->version.minor != DTLSv1_2_MINOR) {
         WOLFSSL_MSG("EC-JPAKE requires a DTLS 1.2 method");
         return VERSION_ERROR;
+    }
+    if (ssl->ecJpake != NULL) {
+        WOLFSSL_MSG("EC-JPAKE exchange already started");
+        return BAD_STATE_E;
     }
 
     if (wolfSSL_set_cipher_list(ssl, "ECJPAKE-AES128-CCM-8") !=

@@ -1411,6 +1411,13 @@ enum {
     #define ENCRYPT_BASE_BITS  ((MAX_PSK_KEY_LEN + 2) * 8)
 #endif
 
+/* ClientECJPAKEParams are written into the encrypted secret buffer. */
+#if defined(WOLFSSL_DTLS_ECJPAKE) && \
+    ENCRYPT_BASE_BITS < (WC_ECJPAKE_KKP_SZ * 8)
+    #undef  ENCRYPT_BASE_BITS
+    #define ENCRYPT_BASE_BITS  (WC_ECJPAKE_KKP_SZ * 8)
+#endif
+
 #ifdef WOLFSSL_DTLS_CID
 #ifndef DTLS_CID_MAX_SIZE
 /* DTLS parsing code copies the record header in a static buffer to decrypt

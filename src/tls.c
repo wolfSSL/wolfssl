@@ -6164,6 +6164,13 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
     if (!foundCurve)
         return 0;
 
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    if (first == ECC_BYTE && second == TLS_ECJPAKE_WITH_AES_128_CCM_8) {
+        *ecdhCurveOID = key ? ECC_SECP256R1_OID : 0;
+        return key;
+    }
+#endif
+
     *ecdhCurveOID = ssl->ecdhCurveOID;
     /* Choose the default if it is at the required strength. */
 #ifdef HAVE_ECC
@@ -13811,6 +13818,7 @@ static int TLSX_EcJpake_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     int ret;
 
     if (msgType == client_hello) {
+#ifndef NO_WOLFSSL_SERVER
         if (ssl->ecJpakePw == NULL) {
             return 0;
         }
@@ -13821,6 +13829,9 @@ static int TLSX_EcJpake_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (ret == 0) {
             TLSX_SetResponse(ssl, TLSX_ECJPAKE_KKPP);
         }
+#else
+        return EXT_NOT_ALLOWED;
+#endif
     }
     else if (msgType == server_hello) {
         if (ssl->ecJpake == NULL ||
