@@ -3,7 +3,8 @@
 The `wolfssl-wolfcrypt` crate is a Rust wrapper for the wolfCrypt cryptographic
 algorithms portion of the wolfSSL C library.
 
-This crate requires wolfSSL version 5.9.0 or newer.
+This crate requires wolfSSL version 5.9.0 or newer, or the wolfSSL FIPS
+v5.2.3 module or newer.
 
 The crate uses `no_std` so that no Rust standard library is required.
 This makes it well-suited for embedded/bare-metal environments.
@@ -22,8 +23,11 @@ For example:
 
 ```
 [dependencies]
-wolfssl-wolfcrypt = "2.0"
+wolfssl-wolfcrypt = "3.0"
 ```
+
+When upgrading from an earlier major version, see the "Breaking changes"
+sections of [CHANGELOG.md](CHANGELOG.md).
 
 ## API Coverage
 
@@ -70,9 +74,9 @@ default.
 | --------------- | ---------------- | ------------------------------------- |
 | `digest`        | `digest`         | SHA (sha_digest), BLAKE2 (blake2_digest) |
 | `mac`           | `digest` (mac)   | HMAC (hmac_mac), CMAC (cmac_mac), BLAKE2 (blake2_mac) |
-| `signature`     | `signature`      | ECDSA (ecdsa), RSA PKCS#1 v1.5 (rsa_pkcs1v15) |
+| `signature`     | `signature`      | ECDSA (ecdsa), RSA PKCS#1 v1.5 (rsa_pkcs1v15), Ed25519 (ed25519), Ed448 (ed448) |
 | `cipher`        | `cipher`         | AES (aes)                             |
-| `aead`          | `aead`           | AES-GCM/CCM/EAX (aes), ChaCha20-Poly1305 |
+| `aead`          | `aead`           | AES-GCM/CCM (aes), ChaCha20-Poly1305/XChaCha20-Poly1305 (chacha20_poly1305) |
 | `rand_core`     | `rand_core`      | RNG (random)                          |
 | `rand_core_0_9` | `rand_core` 0.9  | RNG (random)                          |
 | `kem`           | `kem`            | ML-KEM (mlkem_kem)                    |
@@ -106,8 +110,22 @@ Enable features in your `Cargo.toml`, for example:
 
 ```
 [dependencies]
-wolfssl-wolfcrypt = { version = "2.0", features = ["digest", "signature"] }
+wolfssl-wolfcrypt = { version = "3.0", features = ["digest", "signature"] }
 ```
+
+## FIPS
+
+When the crate is built against a wolfSSL FIPS module, the `fips` module
+provides FIPS-specific APIs:
+
+  * `fips::run_all_self_tests()` runs all FIPS self tests (CASTs) once.
+    Calling it at startup ensures that concurrent first use of an algorithm
+    cannot fail while that algorithm's self test is running.
+  * `fips::PrivateKeyRead::enable()` returns a guard that allows private key
+    data to be read on the current thread until the guard is dropped.
+    Guards can be nested.
+  * `fips::set_private_key_read_enable()` enables or disables private key
+    reads directly.
 
 ## Build Notes
 
@@ -122,6 +140,30 @@ For example:
 ```
 WOLFSSL_PREFIX=/opt/my-wolfssl-build cargo build
 ```
+
+The library may be under either `lib` or `lib64` in the prefix. If
+`WOLFSSL_PREFIX` is set but does not point at a usable wolfSSL installation,
+the build fails rather than falling back to another wolfSSL library.
+
+When `WOLFSSL_PREFIX` is unset and the crate is built from within a wolfSSL
+source repository that has been configured, it builds against the library in
+that repository, and the build fails if that library has not been built yet.
+
+### Unsupported wolfSSL Configurations
+
+The crate build fails if the wolfSSL library was built with asynchronous
+crypto support (`WOLFSSL_ASYNC_CRYPT`), which the wrapper does not support.
+
+### Metadata for Dependent Crates
+
+The crate declares `links = "wolfssl"` and publishes the following values to
+the build scripts of crates that depend on it directly:
+
+| Variable                  | Value |
+| ------------------------- | ----- |
+| `DEP_WOLFSSL_LIBDIRS`     | Directory containing a shared wolfSSL library (e.g. to set an rpath) |
+| `DEP_WOLFSSL_FIPS`        | `1` when wolfSSL is a FIPS build |
+| `DEP_WOLFSSL_FIPS_V5_2_3` | `1` when wolfSSL is the FIPS v5.2.3 module |
 
 ### Cross-Compiling
 
