@@ -44946,11 +44946,15 @@ static wc_test_ret_t dh_agree_ct_test(DhKey* key, DhKey* key2,
     word32 agreeSz = bufSize;
     word32 agreeSz2 = bufSize;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhAgree_ct(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_agree_ct);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhAgree_ct(key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_agree_ct);
 
@@ -45078,7 +45082,9 @@ static wc_test_ret_t dh_key_import_export_test(DhKey* key, DhKey* key2,
 
     *privSz = DH_TEST_BUF_SIZE;
     *pubSz = DH_TEST_BUF_SIZE;
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhExportKeyPair(key, priv, privSz, pub, pubSz);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_import_export);
     ret = wc_DhImportKeyPair(key2, priv, *privSz, pub, *pubSz);
@@ -65919,7 +65925,9 @@ static wc_test_ret_t mlkem512_kat(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER512_PRIVATE_KEY_SIZE);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -65953,8 +65961,10 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber512_ct,
         sizeof(kyber512_ct));
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -65982,8 +65992,10 @@ static wc_test_ret_t mlkem512_kat(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_EncodePrivateKey(key, priv,
         WC_ML_KEM_512_PRIVATE_KEY_SIZE);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -66017,8 +66029,10 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_Decapsulate(key, ss_dec, ml_kem_512_ct,
         sizeof(ml_kem_512_ct));
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -66039,8 +66053,10 @@ static wc_test_ret_t mlkem512_kat(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_Decapsulate(key, ss_dec, ml_kem_512_ct,
         sizeof(ml_kem_512_ct));
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -67383,7 +67399,9 @@ static wc_test_ret_t mlkem768_kat(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER768_PRIVATE_KEY_SIZE);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -67417,8 +67435,10 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber768_ct,
         sizeof(kyber768_ct));
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -67446,8 +67466,10 @@ static wc_test_ret_t mlkem768_kat(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_EncodePrivateKey(key, priv,
         WC_ML_KEM_768_PRIVATE_KEY_SIZE);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -67481,8 +67503,10 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_Decapsulate(key, ss_dec, ml_kem_768_ct,
         sizeof(ml_kem_768_ct));
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -69231,7 +69255,9 @@ static wc_test_ret_t mlkem1024_kat(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER_MAX_PRIVATE_KEY_SIZE);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -69265,8 +69291,10 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber1024_ct,
         sizeof(kyber1024_ct));
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -69294,8 +69322,10 @@ static wc_test_ret_t mlkem1024_kat(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_EncodePrivateKey(key, priv,
         WC_ML_KEM_MAX_PRIVATE_KEY_SIZE);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -69329,8 +69359,10 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    PRIVATE_KEY_UNLOCK();
     ret = wc_MlKemKey_Decapsulate(key, ss_dec, ml_kem_1024_ct,
         sizeof(ml_kem_1024_ct));
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
