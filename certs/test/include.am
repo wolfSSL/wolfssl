@@ -121,3 +121,55 @@ EXTRA_DIST += \
          certs/test/nc-ancestor/03-leaf-chain.pem \
          certs/test/nc-ancestor/03-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-valid-leaf-key.pem
+
+EXTRA_DIST += \
+         certs/test/gen-cert-events.py \
+         certs/test/cert-events/aia-malformed.der \
+         certs/test/cert-events/akid-malformed.der \
+         certs/test/cert-events/bc-malformed.der \
+         certs/test/cert-events/ca-no-crlsign.der \
+         certs/test/cert-events/chain-good.pem \
+         certs/test/cert-events/chain-leaf-eku-client-only.pem \
+         certs/test/cert-events/chain-leaf-ku-no-digsig.pem \
+         certs/test/cert-events/chain-pathlen-exceeded.pem \
+         certs/test/cert-events/chain-signer-no-certsign.pem \
+         certs/test/cert-events/chain-signer-not-ca.pem \
+         certs/test/cert-events/crl-bad-signature.der \
+         certs/test/cert-events/crl-expired.der \
+         certs/test/cert-events/crl-good.der \
+         certs/test/cert-events/crl-malformed.der \
+         certs/test/cert-events/crl-revokes-good.der \
+         certs/test/cert-events/crl-signer-no-crlsign.der \
+         certs/test/cert-events/crl-this-update-future.der \
+         certs/test/cert-events/crl-unknown-critical.der \
+         certs/test/cert-events/crl-unknown-issuer.der \
+         certs/test/cert-events/crldp-malformed.der \
+         certs/test/cert-events/eku-malformed.der \
+         certs/test/cert-events/good.der \
+         certs/test/cert-events/issuer-malformed.der \
+         certs/test/cert-events/issuer-uid.der \
+         certs/test/cert-events/ku-malformed.der \
+         certs/test/cert-events/leaf-bad-signature.der \
+         certs/test/cert-events/leaf-unknown-issuer.der \
+         certs/test/cert-events/policy-malformed.der \
+         certs/test/cert-events/san-malformed.der \
+         certs/test/cert-events/serial-empty.der \
+         certs/test/cert-events/serial-not-integer.der \
+         certs/test/cert-events/sigalg-mismatch.der \
+         certs/test/cert-events/signature-not-bitstring.der \
+         certs/test/cert-events/skid-malformed.der \
+         certs/test/cert-events/spki-bad-bitstring.der \
+         certs/test/cert-events/spki-unknown-alg.der \
+         certs/test/cert-events/strict-ca-no-ku.der \
+         certs/test/cert-events/strict-good.der \
+         certs/test/cert-events/strict-no-akid.der \
+         certs/test/cert-events/strict-no-crldp.der \
+         certs/test/cert-events/strict-no-ocsp.der \
+         certs/test/cert-events/subject-malformed.der \
+         certs/test/cert-events/subject-uid.der \
+         certs/test/cert-events/tbs-sigalg-unknown.der \
+         certs/test/cert-events/trailing-data.der \
+         certs/test/cert-events/unknown-critical.der \
+         certs/test/cert-events/validity-not-time.der \
+         certs/test/cert-events/version-not-integer.der \
+         certs/test/cert-events/version-unsupported.der

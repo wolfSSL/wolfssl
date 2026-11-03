@@ -2979,6 +2979,11 @@ struct WOLFSSL_CERT_MANAGER {
 #ifdef HAVE_CRL_UPDATE_CB
     CbUpdateCRL    cbUpdateCRL; /* notify thru cb that crl has updated */
 #endif
+#ifdef WOLFSSL_CERT_EVENTS
+    WOLFSSL_CERT_EVENT_CB certEventCb;   /* validation event callback */
+    void*                 certEventCtx;  /* passed to certEventCb */
+    word32                certEventStrict; /* strict checks to enforce */
+#endif
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm,
@@ -2993,6 +2998,14 @@ WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm);
 WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                      long sz, int format, int prev_err,
                                      int* crlErr);
+#ifdef WOLFSSL_CERT_EVENTS
+WOLFSSL_LOCAL int CM_VerifyBufferDepth(WOLFSSL_CERT_MANAGER* cm,
+                                       const byte* buff, long sz, int format,
+                                       int depth, int* crlErr, int* strictErr);
+WOLFSSL_LOCAL void CM_CertEventResult(WOLFSSL_CERT_MANAGER* cm, int error,
+                                      int depth, const byte* der,
+                                      word32 derSz, const DecodedCert* cert);
+#endif
 
 
 #ifndef NO_CERTS
@@ -3032,6 +3045,11 @@ typedef struct ProcPeerCertArgs {
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
     word16 csrAcked:1; /* survives the staple checks clearing status_request */
+#endif
+#ifdef WOLFSSL_CERT_EVENTS
+    word16 notCaSet:1;      /* notCaHash is set */
+    byte   notCaHash[KEYID_SIZE]; /* Subject hash of a certificate the peer
+                                   * sent that is not a CA */
 #endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
@@ -7288,6 +7306,12 @@ struct WOLFSSL {
     #endif
     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         byte status_request_v2;
+    #endif
+    #if defined(WOLFSSL_CERT_EVENTS) && \
+        (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+         defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        /* The peer certificate's RESULT event waits for its status. */
+        byte certEventResultHeld;
     #endif
     #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                               defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))

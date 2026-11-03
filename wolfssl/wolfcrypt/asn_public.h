@@ -1190,6 +1190,193 @@ WOLFSSL_API int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts,
 
 #endif /* WOLFSSL_ASN_PRINT */
 
+#ifdef WOLFSSL_CERT_EVENTS
+/* Certificate and CRL validation events.
+ *
+ * An event describes one failed check (DEFECT), the outcome of one
+ * verification (RESULT), a certificate's algorithms (INFO), or a strict
+ * profile check that fired without failing (NOTICE). Values are only ever
+ * appended to these enums so that existing applications keep working. */
+
+/* What the event reports. */
+enum wc_CertEventKind {
+    WC_CEV_KIND_DEFECT = 0,     /* A check failed. May still be recovered. */
+    WC_CEV_KIND_RESULT = 1,     /* End of one verification. */
+    WC_CEV_KIND_INFO   = 2,     /* A certificate's algorithms and key size,
+                                 * once for each certificate checked. */
+    WC_CEV_KIND_NOTICE = 3      /* A strict check fired. The result is
+                                 * unchanged unless the check is enforced,
+                                 * when a DEFECT is sent instead. */
+};
+
+/* Kind of object being validated. */
+enum wc_CertEventCategory {
+    WC_CEV_CAT_CERT = 0,
+    WC_CEV_CAT_CRL  = 1
+};
+
+/* Which object in the chain failed. */
+enum wc_CertEventRole {
+    WC_CEV_ROLE_CANDIDATE    = 0,   /* End-entity or peer certificate. */
+    WC_CEV_ROLE_SIGNER       = 1,   /* CA that signed the candidate. */
+    WC_CEV_ROLE_TRUST_ANCHOR = 2,   /* CA being loaded as trusted. */
+    WC_CEV_ROLE_CRL          = 3,
+    WC_CEV_ROLE_CRL_SIGNER   = 4
+};
+
+/* Which part of the object failed, using RFC 5280 names. */
+enum wc_CertEventField {
+    WC_CEV_FIELD_NONE            = 0,   /* RESULT events, or not known. */
+    WC_CEV_FIELD_ENCODING        = 1,   /* Not DER or not parseable. */
+    WC_CEV_FIELD_VERSION         = 2,
+    WC_CEV_FIELD_SERIAL          = 3,
+    WC_CEV_FIELD_TBS_SIGALG      = 4,
+    WC_CEV_FIELD_ISSUER          = 5,
+    WC_CEV_FIELD_VALIDITY        = 6,
+    WC_CEV_FIELD_SUBJECT         = 7,
+    WC_CEV_FIELD_SPKI            = 8,
+    WC_CEV_FIELD_ISSUER_UID      = 9,
+    WC_CEV_FIELD_SUBJECT_UID     = 10,
+    WC_CEV_FIELD_EXTENSION       = 11,  /* See extOID. */
+    WC_CEV_FIELD_SIGALG          = 12,
+    WC_CEV_FIELD_SIGNATURE       = 13,
+    WC_CEV_FIELD_CHAIN           = 14,  /* Signer lookup, CA flag, path. */
+    WC_CEV_FIELD_CRL_THIS_UPDATE = 15,
+    WC_CEV_FIELD_CRL_NEXT_UPDATE = 16,
+    WC_CEV_FIELD_CRL_REVOKED     = 17
+};
+
+/* Why the check failed. */
+enum wc_CertEventReason {
+    WC_CEV_REASON_NONE          = 0,    /* RESULT events, or not known. */
+    WC_CEV_REASON_MALFORMED     = 1,    /* Present but badly encoded. */
+    WC_CEV_REASON_MISSING       = 2,    /* Required but not present. */
+    WC_CEV_REASON_UNSUPPORTED   = 3,    /* Unknown OID or not compiled in. */
+    WC_CEV_REASON_NOT_YET_VALID = 4,
+    WC_CEV_REASON_EXPIRED       = 5,
+    WC_CEV_REASON_SIGNATURE     = 6,    /* Signature does not verify. */
+    WC_CEV_REASON_NO_SIGNER     = 7,    /* Issuer not found or not a CA. */
+    WC_CEV_REASON_REVOKED       = 8,
+    WC_CEV_REASON_POLICY        = 9,    /* A policy check fired: a strict
+                                         * check, or a key that is too
+                                         * small. */
+    WC_CEV_REASON_CONSTRAINT    = 10    /* A constraint is broken: the
+                                         * signer's CA flag or key usage,
+                                         * path length, name constraints, or
+                                         * the uses the certificate allows. */
+};
+
+/* One stable value per condition, for applications to map to their own
+ * codes. Named after the IEC 62351-9 and IEC 62351-3 audit events. */
+enum wc_CertEventCondition {
+    WC_CEV_COND_NONE                     = 0,
+    WC_CEV_COND_CERT_FORMAT              = 1,  /* Not decodable; see field. */
+    WC_CEV_COND_CERT_VERSION             = 2,
+    WC_CEV_COND_CERT_ISSUER              = 3,  /* Issuer name invalid. */
+    WC_CEV_COND_CERT_SUBJECT             = 4,
+    WC_CEV_COND_CERT_EXT_UNKNOWN_CRITICAL = 5,
+    WC_CEV_COND_CERT_EXT_VALUE           = 6,  /* See extOidData. */
+    WC_CEV_COND_CERT_EXPIRED             = 7,
+    WC_CEV_COND_CERT_NOT_YET_VALID       = 8,
+    WC_CEV_COND_CERT_SIG_INVALID         = 9,
+    WC_CEV_COND_CERT_SIG_ALG_UNSUPPORTED = 10,
+    WC_CEV_COND_CERT_SIG_ALG_MISMATCH    = 11, /* Inner and outer differ. */
+    WC_CEV_COND_CERT_KEY_UNSUPPORTED     = 12,
+    WC_CEV_COND_CERT_KEY_TOO_SMALL       = 13, /* Below the minimum set. */
+    WC_CEV_COND_CERT_NO_ISSUER           = 14, /* No trusted CA matches. */
+    WC_CEV_COND_CERT_UNTRUSTED_ROOT      = 15, /* Self-issued, not trusted. */
+    WC_CEV_COND_CERT_NOT_CA              = 16, /* Issuer the peer sent is not
+                                                * a CA. */
+    WC_CEV_COND_CERT_ISSUER_KU           = 17, /* CA without keyCertSign. */
+    WC_CEV_COND_CERT_PATH_LEN            = 18,
+    WC_CEV_COND_CERT_NAME_CONSTRAINTS    = 19,
+    WC_CEV_COND_CERT_KU_PURPOSE          = 20, /* Key usage forbids the use. */
+    WC_CEV_COND_CERT_EKU_PURPOSE         = 21, /* EKU forbids the use. */
+    WC_CEV_COND_TLS_NO_PEER_CERT         = 22,
+    WC_CEV_COND_TLS_CHAIN_TOO_LONG       = 23,
+    /* Revocation, on the certificate checked. */
+    WC_CEV_COND_CERT_REVOKED             = 24,
+    WC_CEV_COND_CRL_MISSING              = 25, /* No CRL from its issuer. */
+    WC_CEV_COND_CRL_EXPIRED              = 26, /* Past the CRL's nextUpdate. */
+    /* A CRL that is rejected, when loaded or when used. */
+    WC_CEV_COND_CRL_FORMAT               = 27,
+    WC_CEV_COND_CRL_SIG_INVALID          = 28,
+    WC_CEV_COND_CRL_NO_SIGNER            = 29, /* Issuer not trusted. */
+    WC_CEV_COND_CRL_SIGNER_KU            = 30, /* Issuer lacks cRLSign. */
+    WC_CEV_COND_CRL_EXT_UNKNOWN_CRITICAL = 31,
+    /* Strict checks, sent as NOTICE, or as DEFECT when enforced. */
+    WC_CEV_COND_CERT_UNIQUE_ID           = 32, /* Issuer or subject UID. */
+    WC_CEV_COND_CERT_NO_AKID             = 33, /* Or no keyIdentifier. */
+    WC_CEV_COND_CERT_NO_KEY_USAGE        = 34, /* A CA without key usage. */
+    WC_CEV_COND_CERT_NO_CRL_DP           = 35,
+    WC_CEV_COND_CERT_NO_OCSP             = 36, /* No OCSP responder in AIA. */
+    WC_CEV_COND_CRL_THIS_UPDATE_FUTURE   = 37  /* When the CRL is loaded. */
+};
+
+/* Strict checks to enforce, ORed together. A check that is not enforced is
+ * still reported as a NOTICE when an event callback is set. An enforced check
+ * fails the certificate with its ASN_STRICT_*_E error, which the verify
+ * callback may override, or rejects the CRL being loaded. Self-signed
+ * certificates are exempt from the AKID, CRL_DP and OCSP checks. */
+enum wc_CertEventStrict {
+    WC_CEV_STRICT_UNIQUE_ID        = 0x01, /* ASN_STRICT_UNIQUE_ID_E */
+    WC_CEV_STRICT_AKID             = 0x02, /* ASN_STRICT_NO_AKID_E */
+    WC_CEV_STRICT_KEY_USAGE        = 0x04, /* ASN_STRICT_NO_KEY_USAGE_E */
+    WC_CEV_STRICT_CRL_DP           = 0x08, /* ASN_STRICT_NO_CRL_DP_E */
+    WC_CEV_STRICT_OCSP             = 0x10, /* ASN_STRICT_NO_OCSP_E */
+    WC_CEV_STRICT_CRL_THIS_UPDATE  = 0x20, /* ASN_STRICT_CRL_THIS_UPDATE_E */
+    WC_CEV_STRICT_ALL              = 0x3F
+};
+
+/* One validation event. Pointers are only valid during the callback and
+ * point at untrusted input: escape before logging. */
+typedef struct WOLFSSL_CERT_EVENT {
+    word32               size;      /* sizeof(WOLFSSL_CERT_EVENT). */
+    int                  kind;      /* enum wc_CertEventKind */
+    int                  category;  /* enum wc_CertEventCategory */
+    int                  error;     /* wolfSSL error code, 0 on success. */
+    int                  role;      /* enum wc_CertEventRole */
+    int                  depth;     /* Chain depth, -1 when not known. */
+    int                  field;     /* enum wc_CertEventField */
+    int                  reason;    /* enum wc_CertEventReason */
+    word32               extOID;    /* Extension OID sum, 0 when none. The
+                                     * sums depend on the build: compare
+                                     * with wolfSSL's OID constants or use
+                                     * extOidData. */
+    const unsigned char* extOidData; /* Extension OID content octets, the
+                                      * same in every build. NULL when
+                                      * none. */
+    word32               extOidSz;
+    byte                 critical;  /* 1 when the extension was marked
+                                     * critical, otherwise 0. */
+    const unsigned char* der;       /* Encoded object, may be NULL. */
+    word32               derSz;
+    int                  condition; /* enum wc_CertEventCondition */
+    /* The certificate's algorithms, 0 when not known yet. The values are
+     * wolfSSL's types, such as CTC_SHA256wRSA, RSAk and ECDSAk. */
+    word32               sigOID;    /* Signature algorithm. */
+    word32               keyOID;    /* Public key type. */
+    word32               curveOID;  /* ECC curve OID sum, 0 if not ECC. */
+    int                  keySz;     /* Public key size in bits. */
+    /* Which certificate, when it was decoded far enough. NULL when not
+     * known. */
+    const char*          subject;   /* Subject name, one line. */
+    const char*          issuer;    /* Issuer name, one line. */
+    const unsigned char* serial;    /* Serial number, big-endian. */
+    word32               serialSz;
+    /* The TLS connection (WOLFSSL*) whose handshake raised the event, NULL
+     * outside a handshake. Use it to find the peer, for example its socket
+     * with wolfSSL_get_fd(). */
+    void*                ssl;
+} WOLFSSL_CERT_EVENT;
+
+/* Observes events only: it cannot accept a certificate. Use the verify
+ * callback to override a failure. Must not call back into the certificate
+ * manager that raised the event, and may run on several threads at once. */
+typedef void (*WOLFSSL_CERT_EVENT_CB)(const WOLFSSL_CERT_EVENT* ev,
+                                      void* ctx);
+#endif /* WOLFSSL_CERT_EVENTS */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

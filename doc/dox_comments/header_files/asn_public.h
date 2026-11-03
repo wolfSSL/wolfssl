@@ -4247,6 +4247,74 @@ int wc_SetUnknownExtCallback(DecodedCert* cert,
 /*!
     \ingroup ASN
 
+    \brief This function registers a callback that observes validation events
+    while a certificate is parsed and verified without a Certificate Manager.
+    Requires WOLFSSL_CERT_EVENTS (--enable-cert-events). A Certificate Manager
+    sets this for the certificates it verifies; see
+    wolfSSL_CertManagerSetCertEventCb() for the events and their rules.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned when cert is NULL.
+
+    \param cert the DecodedCert struct that is to be associated with this
+    callback.
+    \param cb function to register as the event callback. NULL turns events
+    off.
+    \param ctx a pointer passed to the callback with each event.
+
+    _Example_
+    \code
+    DecodedCert cert;
+
+    wc_InitDecodedCert(&cert, der, derSz, NULL);
+    wc_SetCertEventCallback(&cert, myCertEvent, myLogger);
+    ret = wc_ParseCert(&cert, CERT_TYPE, VERIFY, NULL);
+    wc_FreeDecodedCert(&cert);
+    \endcode
+
+    \sa wolfSSL_CertManagerSetCertEventCb
+*/
+int wc_SetCertEventCallback(DecodedCert* cert, WOLFSSL_CERT_EVENT_CB cb,
+                            void* ctx);
+
+/*!
+    \ingroup ASN
+
+    \brief This function turns on the strict profile checks for a
+    certificate parsed without a Certificate Manager. Requires
+    WOLFSSL_CERT_EVENTS. See wolfSSL_CertManagerSetCertEventStrict() for the
+    checks. A check that fires is sent to the event callback as a NOTICE, or
+    as a DEFECT when enforced; an enforced check fails wc_ParseCert() with its
+    ASN_STRICT_*_E error.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned when cert is NULL or enforce has an unknown
+    bit.
+    \return NOT_COMPILED_IN Returned when a check named is not in this build.
+
+    \param cert the DecodedCert struct to check.
+    \param enforce the checks to enforce, wc_CertEventStrict values ORed
+    together. 0 only reports them.
+
+    _Example_
+    \code
+    DecodedCert cert;
+
+    wc_InitDecodedCert(&cert, der, derSz, NULL);
+    wc_SetCertEventCallback(&cert, myCertEvent, myLogger);
+    wc_SetCertEventStrict(&cert, WC_CEV_STRICT_AKID);
+    ret = wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm);
+    wc_FreeDecodedCert(&cert);
+    \endcode
+
+    \sa wc_SetCertEventCallback
+    \sa wolfSSL_CertManagerSetCertEventStrict
+*/
+int wc_SetCertEventStrict(DecodedCert* cert, word32 enforce);
+
+/*!
+    \ingroup ASN
+
     \brief This function registers a callback that will be used anytime
     wolfSSL encounters an unknown X.509 extension in a certificate while
     parsing a certificate. It behaves exactly like wc_SetUnknownExtCallback()

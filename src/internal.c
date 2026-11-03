@@ -17603,6 +17603,72 @@ static int CheckTrustedPeerDates(const DecodedCert* cert)
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_ASN_TIME_CHECK */
 
+#ifdef WOLFSSL_CERT_EVENTS
+/* Send the RESULT event that ends processing of the peer's certificates.
+ *
+ * @param [in] ssl   SSL/TLS object.
+ * @param [in] args  Peer certificate processing arguments. May be NULL.
+ * @param [in] ret   Final error, 0 when the peer's certificate was accepted.
+ */
+static void PeerCertEventResult(WOLFSSL* ssl, ProcPeerCertArgs* args, int ret)
+{
+    WOLFSSL_CERT_MANAGER* cm = SSL_CM(ssl);
+    WOLFSSL_CERT_EVENT ev;
+    int haveCert = (args != NULL) && (args->certs != NULL) &&
+                   (args->count > 0);
+
+    /* Nothing was received and nothing failed: nothing to report. */
+    if ((cm == NULL) || (cm->certEventCb == NULL) ||
+            ((!haveCert) && (ret == 0))) {
+        return;
+    }
+
+    XMEMSET(&ev, 0, sizeof(ev));
+    ev.kind     = WC_CEV_KIND_RESULT;
+    ev.category = WC_CEV_CAT_CERT;
+    ev.error    = ret;
+    ev.role     = WC_CEV_ROLE_CANDIDATE;
+    ev.depth    = 0;
+    /* Failures of the chain as a whole have no certificate to report on. */
+    if (ret == WC_NO_ERR_TRACE(NO_PEER_CERT)) {
+        ev.condition = WC_CEV_COND_TLS_NO_PEER_CERT;
+    }
+    else if (ret == WC_NO_ERR_TRACE(MAX_CHAIN_ERROR)) {
+        ev.condition = WC_CEV_COND_TLS_CHAIN_TOO_LONG;
+    }
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    ssl->certEventResultHeld = 0;
+    /* A TLS 1.2 client checks the server's certificate status after this
+     * message, so the verdict is final only then. */
+    if ((ret == 0) && haveCert &&
+            (ssl->options.side == WOLFSSL_CLIENT_END) &&
+            !IsAtLeastTLSv1_3(ssl->version) && (0
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            || ssl->status_request
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            || ssl->status_request_v2
+        #endif
+            )) {
+        ssl->certEventResultHeld = 1;
+        return;
+    }
+#endif
+    if (haveCert) {
+        ev.der   = args->certs[0].buffer;
+        ev.derSz = args->certs[0].length;
+        /* The peer's certificate, when it is the one still decoded. */
+        if (args->dCertInit && (args->dCert != NULL) &&
+                (args->dCert->source == args->certs[0].buffer)) {
+            wc_CertEventIdentity(args->dCert, &ev);
+        }
+    }
+    ev.ssl = ssl;
+    wc_CertEventSend(cm->certEventCb, cm->certEventCtx, &ev);
+}
+#endif /* WOLFSSL_CERT_EVENTS */
+
 static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certType, int verify, byte** pSubjectHash, int* pAlreadySigner)
 {
@@ -17735,6 +17801,19 @@ PRAGMA_GCC_DIAG_POP
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
     if (verify != NO_VERIFY && TLSX_CSR2_IsMulti(ssl->extensions)) {
         extraSigners = TLSX_CSR2_GetPendingSigners(ssl->extensions);
+    }
+#endif
+#ifdef WOLFSSL_CERT_EVENTS
+    /* Index 0 is the peer's certificate; the rest are the CAs it sent. */
+    if ((verify != NO_VERIFY) && (SSL_CM(ssl) != NULL)) {
+        wc_SetCertEventCallback(args->dCert, SSL_CM(ssl)->certEventCb,
+            SSL_CM(ssl)->certEventCtx);
+        /* Run by ProcessPeerCerts() after its other checks. */
+        wc_CertEventStrictDefer(args->dCert, SSL_CM(ssl)->certEventStrict);
+        wc_CertEventSetPosition(args->dCert, (args->certIdx == 0) ?
+            WC_CEV_ROLE_CANDIDATE : WC_CEV_ROLE_SIGNER, args->certIdx);
+        wc_CertEventSetConnection(args->dCert, ssl,
+            args->notCaSet ? args->notCaHash : NULL);
     }
 #endif
     /* Parse Certificate */
@@ -17949,6 +18028,11 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
             break;
     }
 
+#ifdef WOLFSSL_CERT_EVENTS
+    /* A key below the configured minimum is a policy failure. */
+    wc_CertEventFailure(args->dCert, ret, WC_CEV_FIELD_SPKI,
+        WC_CEV_REASON_POLICY);
+#endif
     return ret;
 }
 
@@ -18990,6 +19074,14 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
             break;
     }
 
+#ifdef WOLFSSL_CERT_EVENTS
+    /* A peer key below the configured minimum is a policy failure. */
+    if ((ret == WC_NO_ERR_TRACE(RSA_KEY_SIZE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ECC_KEY_SIZE_E))) {
+        wc_CertEventFailure(args->dCert, ret, WC_CEV_FIELD_SPKI,
+            WC_CEV_REASON_POLICY);
+    }
+#endif
     *pRet = ret;
     return 0;
 }
@@ -19893,6 +19985,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     }
                 #endif /* IGNORE_KEY_EXTENSIONS */
+                #ifdef WOLFSSL_CERT_EVENTS
+                    /* Last of the chain CA checks, so that a verify callback
+                     * allowing a strict failure does not also skip a check
+                     * that has not run yet. A CA that fails is not added. */
+                    if (ret == 0) {
+                        ret = wc_CertEventStrictChecks(args->dCert);
+                    }
+                #endif
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
                     /* For alternate cert chain, its okay for a CA cert to fail
                         with ASN_NO_SIGNER_E here. The "alternate" certificate
@@ -19959,6 +20059,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     SetRevocationVerifyRet(ssl, ret);
                     /* Do verify callback */
                     ret = DoVerifyCallbackHeldCrl(ssl, args, ret, &heldCrlRet);
+                #ifdef WOLFSSL_CERT_EVENTS
+                    /* Another failure was allowed: the strict checks still
+                     * apply. Not to a CA left out of the chain. */
+                    if ((ret == 0) && !skipAddCA) {
+                        ret = wc_CertEventStrictChecks(args->dCert);
+                        if (ret != 0) {
+                            ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret,
+                                args);
+                        }
+                    }
+                #endif
                     if (CrlErrWaived(ssl, ret))
                         ret = ssl->error = 0;
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
@@ -20005,6 +20116,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
+                #ifdef WOLFSSL_CERT_EVENTS
+                    /* Not a CA: a certificate it issued is reported as
+                     * signed by a non-CA. */
+                    if ((ret == 0) && !args->dCert->isCA) {
+                        XMEMCPY(args->notCaHash, args->dCert->subjectHash,
+                            KEYID_SIZE);
+                        args->notCaSet = 1;
+                    }
+                #endif
                     /* If valid CA then add to Certificate Manager */
                     if (ret == 0 && args->dCert->isCA &&
                             !ssl->options.verifyNone && !skipAddCA) {
@@ -20042,6 +20162,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == WC_NO_ERR_TRACE(NOT_CA_ERROR) &&
                             ssl->peerVerifyRet == 0) {
                         ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_INVALID_CA;
+                    }
+                #endif
+                #ifdef WOLFSSL_CERT_EVENTS
+                    /* The CA the peer sent may not sign certificates. */
+                    if (ret == WC_NO_ERR_TRACE(NOT_CA_ERROR)) {
+                        wc_CertEventFailure(args->dCert, ret,
+                            WC_CEV_FIELD_CHAIN, WC_CEV_REASON_CONSTRAINT);
                     }
                 #endif
 
@@ -20409,7 +20536,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         goto exit_ppc;
                 }
             #endif /* HAVE_OCSP || HAVE_CRL */
-
             #ifdef KEEP_PEER_CERT
                 if (args->fatal == 0) {
                     int copyRet = 0;
@@ -20493,6 +20619,21 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     }
                 }
+            #ifdef WOLFSSL_CERT_EVENTS
+                /* The peer's key usage or extended key usage does not allow
+                 * it to be used for this TLS connection. */
+                if ((ret == WC_NO_ERR_TRACE(KEYUSE_SIGNATURE_E)) ||
+                        (ret == WC_NO_ERR_TRACE(KEYUSE_ENCIPHER_E))) {
+                    wc_CertEventFailureCond(args->dCert, ret,
+                        WC_CEV_FIELD_EXTENSION, WC_CEV_REASON_CONSTRAINT,
+                        WC_CEV_COND_CERT_KU_PURPOSE);
+                }
+                else if (ret == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)) {
+                    wc_CertEventFailureCond(args->dCert, ret,
+                        WC_CEV_FIELD_EXTENSION, WC_CEV_REASON_CONSTRAINT,
+                        WC_CEV_COND_CERT_EKU_PURPOSE);
+                }
+            #endif
             #endif /* IGNORE_KEY_EXTENSIONS */
 
                 if (args->fatal) {
@@ -20689,6 +20830,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         #endif
 
+        #ifdef WOLFSSL_CERT_EVENTS
+            /* Last of the peer certificate checks, so that a verify callback
+             * allowing a strict failure does not also skip a check that has
+             * not run yet. */
+            if ((ret == 0) && (args->count > 0) && args->dCertInit) {
+                ret = wc_CertEventStrictChecks(args->dCert);
+            }
+        #endif
+
             /* Do leaf verify callback when it wasn't called yet. Skipped when
              * the chain verify callback owns the verdict. */
             if (!UsingChainVerifyCb(ssl) &&
@@ -20702,6 +20852,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
             #endif
             }
+        #ifdef WOLFSSL_CERT_EVENTS
+            /* Another failure was allowed: the strict checks still apply. */
+            if ((ret == 0) && (args->count > 0) && args->dCertInit &&
+                    !UsingChainVerifyCb(ssl)) {
+                ret = wc_CertEventStrictChecks(args->dCert);
+                if (ret != 0) {
+                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                }
+            }
+        #endif
 
             if (CrlErrWaived(ssl, ret))
                 ret = ssl->error = 0;
@@ -20755,6 +20915,11 @@ exit_ppc:
         ssl->msgsReceived.got_certificate = 1;
     }
 #endif /* WOLFSSL_HAVE_HS_SUSPEND */
+
+#ifdef WOLFSSL_CERT_EVENTS
+    /* A suspended handshake returned above: this is the final outcome. */
+    PeerCertEventResult(ssl, args, ret);
+#endif
 
 #ifdef WOLFSSL_HAVE_HS_SUSPEND
     /* Cleanup async */
@@ -21939,6 +22104,58 @@ static int ResetHandshakeStateForReneg(WOLFSSL* ssl)
 }
 #endif
 
+#if defined(WOLFSSL_CERT_EVENTS) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+/* Send the RESULT event held for the server's certificate status.
+ *
+ * Sent once the status was checked at ServerHelloDone, or when the handshake
+ * fails first. It has no subject, issuer or serial.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] ret  Result of the handshake message just processed.
+ */
+static void PeerCertEventHeldResult(WOLFSSL* ssl, int ret)
+{
+    WOLFSSL_CERT_MANAGER* cm = SSL_CM(ssl);
+    WOLFSSL_CERT_EVENT ev;
+
+    if (!ssl->certEventResultHeld) {
+        return;
+    }
+    /* Not final yet: the message is processed again. */
+    if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+            || (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+    #endif
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+            || IsHsSuspendErr(ret)
+    #endif
+            ) {
+        return;
+    }
+    ssl->certEventResultHeld = 0;
+    if ((cm == NULL) || (cm->certEventCb == NULL)) {
+        return;
+    }
+
+    XMEMSET(&ev, 0, sizeof(ev));
+    ev.kind     = WC_CEV_KIND_RESULT;
+    ev.category = WC_CEV_CAT_CERT;
+    ev.error    = ret;
+    ev.role     = WC_CEV_ROLE_CANDIDATE;
+    ev.depth    = 0;
+#ifdef KEEP_PEER_CERT
+    if (ssl->peerCert.derCert != NULL) {
+        ev.der   = ssl->peerCert.derCert->buffer;
+        ev.derSz = ssl->peerCert.derCert->length;
+    }
+#endif
+    ev.ssl = ssl;
+    wc_CertEventSend(cm->certEventCb, cm->certEventCtx, &ev);
+}
+#endif
+
 int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           byte type, word32 size, word32 totalSz)
 {
@@ -22011,6 +22228,12 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* sanity check msg received */
     if ( (ret = SanityCheckMsgReceived(ssl, type)) != 0) {
         WOLFSSL_MSG("Sanity Check on handshake message type received failed");
+#if defined(WOLFSSL_CERT_EVENTS) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        /* Such as the status check at ServerHelloDone failing. */
+        PeerCertEventHeldResult(ssl, ret);
+#endif
 #ifdef WOLFSSL_NONBLOCK_OCSP
         if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
             word32 hdrSz = HANDSHAKE_HEADER_SZ;
@@ -22283,6 +22506,15 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DECODE_E;
         WOLFSSL_ERROR_VERBOSE(ret);
     }
+#if defined(WOLFSSL_CERT_EVENTS) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    /* The server's certificate status was checked, or the handshake
+     * failed. */
+    if ((ret != 0) || (type == server_hello_done)) {
+        PeerCertEventHeldResult(ssl, ret);
+    }
+#endif
 
 #ifdef WOLFSSL_HAVE_HS_SUSPEND
     /* if suspended, offset index so this msg will be processed again */

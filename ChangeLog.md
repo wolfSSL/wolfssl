@@ -26,6 +26,26 @@
   curve equation need no curve arithmetic, so both are still done on the host.
   Both macros are documented in
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
+* Added certificate validation events (`--enable-cert-events`,
+  `WOLFSSL_CERT_EVENTS`; off by default and in `--enable-all`). A callback set
+  with `wolfSSL_CertManagerSetCertEventCb()`, `wolfSSL_CTX_SetCertEventCb()`,
+  `wolfSSL_X509_STORE_SetCertEventCb()` or `wc_SetCertEventCallback()`
+  observes each certificate and CRL check: a DEFECT event for each failed
+  certificate or CRL check, with the certificate's role and chain depth, the
+  RFC 5280 field and the reason; a RESULT event when a verification
+  finishes; an INFO event with each certificate's algorithms and key size;
+  the certificate's subject, issuer and serial number and the TLS
+  connection; and a stable condition value for each failure, named after the
+  IEC 62351-9 and IEC 62351-3 audit events, for security logging such as the
+  EU Cyber Resilience Act calls for. The callback cannot change a result;
+  the verify callback still decides.
+  Optional strict profile checks (unique IDs, no AKID, a CA without key
+  usage, no CRL distribution point, no OCSP responder, a CRL thisUpdate in
+  the future) are reported as NOTICE events, and each can be enforced with
+  `wolfSSL_CertManagerSetCertEventStrict()` to fail with its own
+  `ASN_STRICT_*_E` error. They run after every other check, also when the
+  verify callback allows another failure, so allowing one failure never
+  skips another check. by @sameehj
 
 ## Behavioral Changes
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:

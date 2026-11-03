@@ -565,6 +565,30 @@ static WOLFSSL_X509_STORE_CTX_verify_cb X509StoreGetVerifyCb(
     return NULL;
 }
 
+#ifdef WOLFSSL_CERT_EVENTS
+/* Send the RESULT event for ctx->current_cert.
+ *
+ * @param [in] ctx    X509 store context.
+ * @param [in] ret    Outcome: WOLFSSL_SUCCESS or the error it failed with.
+ * @param [in] err    Error the certificate failed with, 0 when not known.
+ * @param [in] depth  Chain depth.
+ */
+static void X509StoreCertEventResult(WOLFSSL_X509_STORE_CTX* ctx, int ret,
+    int err, int depth)
+{
+    if (ret == WOLFSSL_SUCCESS) {
+        err = 0;
+    }
+    else if (err == 0) {
+        /* Rejected by the verify callback or a date check. */
+        err = VERIFY_CERT_ERROR;
+    }
+    CM_CertEventResult(ctx->store->cm, err, depth,
+        ctx->current_cert->derCert->buffer,
+        ctx->current_cert->derCert->length, NULL);
+}
+#endif
+
 /* Verify ctx->current_cert against the store.
  *
  * <cbRejected> is an out-parameter, never NULL. It is set to 1 when the
@@ -582,15 +606,30 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int crlRet = 0;
     int datesChecked = 0;
+#ifdef WOLFSSL_CERT_EVENTS
+    /* Same depth as SetupStoreCtxError() records for this certificate. */
+    int depth = (ctx->chain != NULL) ? (int)ctx->chain->num : 0;
+    /* The error the certificate failed with, for the RESULT event. */
+    int evErr = 0;
+    /* An enforced strict check that fired while another check failed. */
+    int strictErr = 0;
+#endif
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
 
     if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
+    #ifdef WOLFSSL_CERT_EVENTS
+        ret = CM_VerifyBufferDepth(ctx->store->cm,
+                    ctx->current_cert->derCert->buffer,
+                    (long)ctx->current_cert->derCert->length,
+                    WOLFSSL_FILETYPE_ASN1, depth, &crlRet, &strictErr);
+    #else
         ret = CM_VerifyBuffer_ex(ctx->store->cm,
                     ctx->current_cert->derCert->buffer,
                     ctx->current_cert->derCert->length,
                     WOLFSSL_FILETYPE_ASN1, 0, &crlRet);
+    #endif
         datesChecked = (ret == WOLFSSL_SUCCESS) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
@@ -611,6 +650,9 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         if (crlRet != 0) {
             SetupStoreCtxError(ctx, crlRet);
             if ((verifyCb == NULL) || (verifyCb(0, ctx) != 1)) {
+            #ifdef WOLFSSL_CERT_EVENTS
+                X509StoreCertEventResult(ctx, crlRet, crlRet, depth);
+            #endif
                 return crlRet;
             }
         }
@@ -618,6 +660,16 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     #ifndef NO_ASN_TIME
         /* update return value with any date validation overrides */
         ret = X509StoreVerifyCertDate(ctx, ret);
+    #endif
+    #ifdef WOLFSSL_CERT_EVENTS
+        /* The other failures were overridden: the strict checks apply. */
+        if ((ret == WOLFSSL_SUCCESS) && (strictErr != 0)) {
+            ret = strictErr;
+            strictErr = 0;
+        }
+        if (ret != WOLFSSL_SUCCESS) {
+            evErr = ret;
+        }
     #endif
         SetupStoreCtxError(ctx, ret);
         if (verifyCb != NULL) {
@@ -631,6 +683,18 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
 
             if (verifyCb(ret >= 0 ? 1 : 0, ctx) == 1) {
                 ret = WOLFSSL_SUCCESS;
+            #ifdef WOLFSSL_CERT_EVENTS
+                /* Another failure was allowed: the strict checks still
+                 * apply. */
+                if (strictErr != 0) {
+                    ret = strictErr;
+                    evErr = ret;
+                    SetupStoreCtxError(ctx, ret);
+                    if (verifyCb(0, ctx) == 1) {
+                        ret = WOLFSSL_SUCCESS;
+                    }
+                }
+            #endif
             }
             else if (ret >= 0 && ctx->verify_cb != NULL) {
                 /* Returning 0 must reject a chain the cert manager accepted. */
@@ -661,6 +725,11 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         * as it skips date validation when other errors are present.
         */
         ret = X509StoreVerifyCertDate(ctx, ret);
+    #ifdef WOLFSSL_CERT_EVENTS
+        if (ret != WOLFSSL_SUCCESS) {
+            evErr = ret;
+        }
+    #endif
         SetupStoreCtxError(ctx, ret);
         ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
         if (verifyCb != NULL) {
@@ -671,6 +740,13 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
                 ret = -1;
             }
         }
+    }
+#endif
+#ifdef WOLFSSL_CERT_EVENTS
+    /* The final outcome, after the date overrides, the context's CRLs and
+     * the verify callback. */
+    if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
+        X509StoreCertEventResult(ctx, ret, evErr, depth);
     }
 #endif
     (void)datesChecked;
@@ -2336,6 +2412,50 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 
     return result;
 }
+
+#ifdef WOLFSSL_CERT_EVENTS
+/* Set the validation event callback into the store's certificate manager.
+ *
+ * X509_verify_cert() verifies through this certificate manager.
+ *
+ * @param [in] store  X509 certificate store.
+ * @param [in] cb     Event callback. NULL turns events off.
+ * @param [in] ctx    Context passed to the callback.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when store is NULL or has no certificate manager.
+ */
+int wolfSSL_X509_STORE_SetCertEventCb(WOLFSSL_X509_STORE* store,
+    WOLFSSL_CERT_EVENT_CB cb, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_SetCertEventCb");
+    if (store == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wolfSSL_CertManagerSetCertEventCb(store->cm, cb, ctx);
+}
+
+/* Set the strict checks to enforce into the store's certificate manager.
+ *
+ * @param [in] store    X509 certificate store.
+ * @param [in] enforce  Checks to enforce. enum wc_CertEventStrict bits, 0 to
+ *                      only report.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when store is NULL, has no certificate manager, or
+ *          enforce has an unknown bit.
+ * @return  NOT_COMPILED_IN when a check named is not in this build.
+ */
+int wolfSSL_X509_STORE_SetCertEventStrict(WOLFSSL_X509_STORE* store,
+    word32 enforce)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_SetCertEventStrict");
+    if (store == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wolfSSL_CertManagerSetCertEventStrict(store->cm, enforce);
+}
+#endif /* WOLFSSL_CERT_EVENTS */
 
 int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
 {

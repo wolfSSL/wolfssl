@@ -19,3 +19,13 @@ cert-ext-oid-collide.der:
   OID, not the mapped one. Does not collide under WOLFSSL_OLD_OID_SUM.
   Signature is invalid; only ever parsed, never verified. Regenerate with
   certs/test/gen-oid-collide-cert.sh.
+cert-events/*.der, cert-events/*.pem:
+  Copies of certs/server-cert.der, each with exactly one defect and signed
+  again with certs/ca-key.pem, so verification reaches the defect.
+  good.der has no defect. strict-*.der and crl-this-update-future.der test
+  the strict profile checks; strict-good.der passes them. The chain-*.pem
+  files are chains for a server using certs/server-key.pem, with CAs keyed by
+  certs/intermediate/ca-int*-key.pem under certs/ca-cert.pem; chain-good.pem
+  has no fault. Used by the certificate validation event tests in
+  tests/api/test_certman.c. Valid until 2049. Regenerate with
+  certs/test/gen-cert-events.py.
