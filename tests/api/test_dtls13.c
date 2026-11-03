@@ -175,11 +175,55 @@ int test_wolfSSL_dtls13_null_cipher(void)
 }
 #endif
 
+#ifdef WOLFSSL_HAVE_MLKEM
+#if defined(WOLFSSL_MLKEM_KYBER)
+    #if !defined(WOLFSSL_NO_KYBER1024)
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_KYBER_LEVEL5
+        #define TEST_DTLS13_PQ_GROUP_NAME "KYBER_LEVEL5"
+    #elif !defined(WOLFSSL_NO_KYBER768)
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_KYBER_LEVEL3
+        #define TEST_DTLS13_PQ_GROUP_NAME "KYBER_LEVEL3"
+    #else
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_KYBER_LEVEL1
+        #define TEST_DTLS13_PQ_GROUP_NAME "KYBER_LEVEL1"
+    #endif
+#elif !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    #if !defined(WOLFSSL_NO_ML_KEM_1024)
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_ML_KEM_1024
+        #define TEST_DTLS13_PQ_GROUP_NAME "ML_KEM_1024"
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_ML_KEM_768
+        #define TEST_DTLS13_PQ_GROUP_NAME "ML_KEM_768"
+    #else
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_ML_KEM_512
+        #define TEST_DTLS13_PQ_GROUP_NAME "ML_KEM_512"
+    #endif
+#elif !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_PQC_HYBRIDS)
+    #if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+        ECC_MIN_KEY_SZ <= 256
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_X25519MLKEM768
+        #define TEST_DTLS13_PQ_GROUP_NAME "X25519MLKEM768"
+    #elif defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+        !defined(WOLFSSL_NO_ML_KEM_768) && \
+        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 256
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_SECP256R1MLKEM768
+        #define TEST_DTLS13_PQ_GROUP_NAME "SecP256r1MLKEM768"
+    #elif defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+        !defined(WOLFSSL_NO_ML_KEM_1024) && \
+        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 384
+        #define TEST_DTLS13_PQ_GROUP      WOLFSSL_SECP384R1MLKEM1024
+        #define TEST_DTLS13_PQ_GROUP_NAME "SecP384r1MLKEM1024"
+    #endif
+#endif
+#endif /* WOLFSSL_HAVE_MLKEM */
+
 int test_dtls13_frag_ch_pq(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM)
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(TEST_DTLS13_PQ_GROUP)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -188,40 +232,8 @@ int test_dtls13_frag_ch_pq(void)
     const char *test_str = "test";
     int test_str_size;
     byte buf[255];
-#if defined(WOLFSSL_MLKEM_KYBER)
-    #if !defined(WOLFSSL_NO_KYBER1024)
-    int group = WOLFSSL_KYBER_LEVEL5;
-    const char *group_name = "KYBER_LEVEL5";
-    #elif !defined(WOLFSSL_NO_KYBER768)
-    int group = WOLFSSL_KYBER_LEVEL3;
-    const char *group_name = "KYBER_LEVEL3";
-    #else
-    int group = WOLFSSL_KYBER_LEVEL1;
-    const char *group_name = "KYBER_LEVEL1";
-    #endif
-#elif !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
-    #if !defined(WOLFSSL_NO_ML_KEM_1024)
-    int group = WOLFSSL_ML_KEM_1024;
-    const char *group_name = "ML_KEM_1024";
-    #elif !defined(WOLFSSL_NO_ML_KEM_768)
-    int group = WOLFSSL_ML_KEM_768;
-    const char *group_name = "ML_KEM_768";
-    #else
-    int group = WOLFSSL_ML_KEM_512;
-    const char *group_name = "ML_KEM_512";
-    #endif
-#elif defined(WOLFSSL_PQC_HYBRIDS)
-    #if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
-    int group = WOLFSSL_X25519MLKEM768;
-    const char *group_name = "X25519MLKEM768";
-    #elif !defined(WOLFSSL_NO_ML_KEM_768)
-    int group = WOLFSSL_SECP256R1MLKEM768;
-    const char *group_name = "SecP256r1MLKEM768";
-    #else
-    int group = WOLFSSL_SECP384R1MLKEM1024;
-    const char *group_name = "SecP384r1MLKEM1024";
-    #endif
-#endif
+    int group = TEST_DTLS13_PQ_GROUP;
+    const char *group_name = TEST_DTLS13_PQ_GROUP_NAME;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -254,7 +266,7 @@ int test_dtls13_frag_ch_pq_no_cookie(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(TEST_DTLS13_PQ_GROUP) \
     && defined(WOLFSSL_SEND_HRR_COOKIE)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
@@ -264,40 +276,8 @@ int test_dtls13_frag_ch_pq_no_cookie(void)
     const char *test_str = "test";
     int test_str_size;
     byte buf[255];
-#if defined(WOLFSSL_MLKEM_KYBER)
-    #if !defined(WOLFSSL_NO_KYBER1024)
-    int group = WOLFSSL_KYBER_LEVEL5;
-    const char *group_name = "KYBER_LEVEL5";
-    #elif !defined(WOLFSSL_NO_KYBER768)
-    int group = WOLFSSL_KYBER_LEVEL3;
-    const char *group_name = "KYBER_LEVEL3";
-    #else
-    int group = WOLFSSL_KYBER_LEVEL1;
-    const char *group_name = "KYBER_LEVEL1";
-    #endif
-#elif !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
-    #if !defined(WOLFSSL_NO_ML_KEM_1024)
-    int group = WOLFSSL_ML_KEM_1024;
-    const char *group_name = "ML_KEM_1024";
-    #elif !defined(WOLFSSL_NO_ML_KEM_768)
-    int group = WOLFSSL_ML_KEM_768;
-    const char *group_name = "ML_KEM_768";
-    #else
-    int group = WOLFSSL_ML_KEM_512;
-    const char *group_name = "ML_KEM_512";
-    #endif
-#elif defined(WOLFSSL_PQC_HYBRIDS)
-    #if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
-    int group = WOLFSSL_X25519MLKEM768;
-    const char *group_name = "X25519MLKEM768";
-    #elif !defined(WOLFSSL_NO_ML_KEM_768)
-    int group = WOLFSSL_SECP256R1MLKEM768;
-    const char *group_name = "SecP256r1MLKEM768";
-    #else
-    int group = WOLFSSL_SECP384R1MLKEM1024;
-    const char *group_name = "SecP384r1MLKEM1024";
-    #endif
-#endif
+    int group = TEST_DTLS13_PQ_GROUP;
+    const char *group_name = TEST_DTLS13_PQ_GROUP_NAME;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
