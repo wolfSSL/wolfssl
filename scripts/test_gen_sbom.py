@@ -52,11 +52,28 @@ class TestEntryPoint(unittest.TestCase):
         wrapper = here / 'gen-sbom'
         loader = SourceFileLoader('gen_sbom_entry', str(wrapper))
         spec = importlib.util.spec_from_loader('gen_sbom_entry', loader)
-        module = importlib.util.module_from_spec(spec)
-        loader.exec_module(module)
+        loader.exec_module(importlib.util.module_from_spec(spec))
+        self.addCleanup(sys.modules.pop, 'gen_sbom_entry', None)
+        module = sys.modules['gen_sbom_entry']
         self.assertTrue(callable(module._is_noise_macro))
         self.assertTrue(callable(module.main))
         self.assertFalse(module._is_noise_macro('HAVE_ECC'))
+        # One namespace: the generator's functions see a patched name.
+        self.assertIs(module.main.__globals__, vars(module))
+        self.assertEqual(pathlib.Path(module.__file__).resolve(),
+                         (here.parent / 'tools' / 'sbom' / 'gen-sbom').resolve())
+
+    def test_wrapper_returns_the_generator_exit_status(self):
+        here = pathlib.Path(__file__).resolve().parent
+        import subprocess
+        ok = subprocess.run([sys.executable, str(here / 'gen-sbom'), '--help'],
+                            capture_output=True, text=True)
+        self.assertEqual(ok.returncode, 0, ok.stderr)
+        bad = subprocess.run(
+            [sys.executable, str(here / 'gen-sbom'), '--no-such-option'],
+            capture_output=True, text=True)
+        self.assertEqual(bad.returncode, 2, bad.stderr)
+        self.assertIn('gen-sbom: error:', bad.stderr)
 
 
 class TestIsSimpleSpdxId(unittest.TestCase):

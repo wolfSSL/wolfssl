@@ -467,24 +467,9 @@ SBOM_LICENSE_FILE = $(srcdir)/LICENSING
 SBOM_OPTIONS_H    = $(abs_builddir)/wolfssl/options.h
 SBOM_DEP_LIBZ     = $(ENABLED_LIBZ)
 
-EXTRA_DIST += tools/sbom/sbom-driver
-EXTRA_DIST += tools/sbom/sbom-driver.py
-EXTRA_DIST += tools/sbom/gen-sbom
-EXTRA_DIST += tools/sbom/sbom.am
-EXTRA_DIST += tools/sbom/validate_sbom.py
-EXTRA_DIST += tools/sbom/README.md
-EXTRA_DIST += tools/sbom/VERSION
-EXTRA_DIST += tools/sbom/.wolfssl-compliance-tooling-rev
-EXTRA_DIST += tools/sbom/build/sbom.cmake
-EXTRA_DIST += tools/sbom/build/sbom.mk
-EXTRA_DIST += tools/sbom/build/install-sbom.cmake
-EXTRA_DIST += tools/sbom/build/uninstall-sbom.cmake
-EXTRA_DIST += tools/sbom/build/sbom-paths.cmake
-EXTRA_DIST += tools/sbom/build/sbom-with-sde.cmake
-EXTRA_DIST += tools/sbom/frontends/compdb_sbom.py
-EXTRA_DIST += tools/sbom/frontends/iar_sbom.py
-EXTRA_DIST += tools/sbom/frontends/included_sources.py
-EXTRA_DIST += tools/sbom/frontends/zephyr_sbom.py
+# The vendored tools/sbom/ tree ships through dist-hook below, so a toolkit
+# pin that adds a file needs no edit here. EXTRA_DIST += tools/sbom would
+# also ship __pycache__.
 
 include scripts/sbom.am
 
@@ -570,6 +555,13 @@ dist-hook:
 	@for f in $(srcdir)/advisories/records/*.json; do \
 	    test -f "$$f" || continue; \
 	    cp -p "$$f" $(distdir)/advisories/records/; \
+	done
+	@set -e; \
+	files=`cd $(srcdir) && find tools/sbom -name __pycache__ -prune -o \
+	    -type f ! -name '*.pyc' -print`; \
+	for f in $$files; do \
+	    $(MKDIR_P) "$(distdir)/`dirname $$f`"; \
+	    cp -fp "$(srcdir)/$$f" "$(distdir)/$$f"; \
 	done
 
 # Bomsh (OmniBOR build artifact tracing + SBOM enrichment)

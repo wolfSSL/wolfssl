@@ -6,8 +6,11 @@ The implementation is tools/sbom/gen-sbom. A release tarball carries both.
 Importing this module loads that implementation.
 Copying this file without tools/sbom/gen-sbom does not work.
 """
+import importlib.util
 import os
+import subprocess
 import sys
+from importlib.machinery import SourceFileLoader
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _target = os.path.abspath(os.path.join(_here, os.pardir, "tools", "sbom", "gen-sbom"))
@@ -20,16 +23,17 @@ _MISSING = (
 if __name__ == "__main__":
     if not os.path.isfile(_target):
         sys.exit(_MISSING)
-    os.execv(sys.executable, [sys.executable, _target, *sys.argv[1:]])
+    # On Windows, os.execv returns to the shell at once with status 0 and
+    # does not quote arguments that contain spaces.
+    sys.exit(subprocess.call([sys.executable, _target, *sys.argv[1:]]))
 
 if not os.path.isfile(_target):
     raise ImportError(_MISSING)
 
-import runpy
-
-_skip = {"__name__", "__package__", "__loader__", "__spec__", "__cached__"}
-globals().update({
-    k: v
-    for k, v in runpy.run_path(_target, run_name=__name__ + "._impl").items()
-    if k not in _skip
-})
+# The importer gets the generator module itself, so a patch of a name in it
+# changes what the generator uses.
+_loader = SourceFileLoader(__name__, _target)
+_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_loader(__name__, _loader))
+sys.modules[__name__] = _module
+_loader.exec_module(_module)

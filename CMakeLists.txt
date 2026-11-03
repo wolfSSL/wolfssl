@@ -5619,72 +5619,25 @@ if(WOLFSSL_INSTALL)
 
     # SBOM. Hashes the installed library and reads wolfssl/options.h, the same
     # inputs as `make sbom`. The helper is the vendored wolfssl-compliance-tooling
-    # snapshot in tools/sbom/. A missing python3 or pyspdxtools does not fail
-    # configure. The sbom target fails when someone runs it.
-    find_program(PYTHON3_CMD python3)
-    find_program(PYSPDXTOOLS_CMD pyspdxtools)
-    if(NOT PYTHON3_CMD)
-        set(_sbom_error "'python3' not found in PATH. Cannot generate SBOM.")
-    elseif(NOT PYSPDXTOOLS_CMD)
-        set(_sbom_error
-            "'pyspdxtools' not found in PATH (install: pip install spdx-tools)")
-    else()
-        set(_sbom_error "")
-    endif()
-
-    if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-        # Added as a subproject. The parent owns the sbom target name.
-    elseif(NOT _sbom_error STREQUAL "")
-        add_custom_target(sbom
-            VERBATIM
-            COMMAND ${CMAKE_COMMAND} -E echo "sbom: ${_sbom_error}"
-            COMMAND ${CMAKE_COMMAND} -E false
-            COMMENT "SBOM prerequisites missing")
-    else()
+    # snapshot in tools/sbom/. It stages the install, validates the SPDX file
+    # and writes the tag-value file. A missing python3 or pyspdxtools does not
+    # fail configure. The sbom target fails when someone runs it.
+    if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+        # A parent project owns the sbom target name.
         include(${CMAKE_CURRENT_SOURCE_DIR}/tools/sbom/build/sbom.cmake)
-
-        set(SBOM_CDX  "${CMAKE_BINARY_DIR}/wolfssl-${wolfssl_VERSION}.cdx.json")
-        set(SBOM_SPDX "${CMAKE_BINARY_DIR}/wolfssl-${wolfssl_VERSION}.spdx.json")
-        set(SBOM_SPDX_TV "${CMAKE_BINARY_DIR}/wolfssl-${wolfssl_VERSION}.spdx")
-        set(SBOM_STAGING "${CMAKE_BINARY_DIR}/_sbom_staging")
-
-        if(WIN32 AND BUILD_SHARED_LIBS)
-            set(SBOM_LIB "${SBOM_STAGING}/${CMAKE_INSTALL_BINDIR}/$<TARGET_FILE_NAME:wolfssl>")
+        if(WOLFSSL_LIBZ)
+            set(_sbom_libz yes)
         else()
-            set(SBOM_LIB "${SBOM_STAGING}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:wolfssl>")
+            set(_sbom_libz no)
         endif()
-
-        set(_sbom_args
+        wolfssl_compliance_tooling_add_sbom(
             NAME wolfssl
             VERSION ${wolfssl_VERSION}
-            LIB ${SBOM_LIB}
+            STAGE_TARGET wolfssl
+            VALIDATE
             OPTIONS_H ${OPTION_FILE}
             LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSING
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-            CDX_OUT ${SBOM_CDX}
-            SPDX_OUT ${SBOM_SPDX}
-            TARGET_NAME wolfssl-sbom-gen)
-        if(WOLFSSL_LIBZ)
-            list(APPEND _sbom_args DEP_LIBZ yes)
-        else()
-            list(APPEND _sbom_args DEP_LIBZ no)
-        endif()
-        wolfssl_compliance_tooling_add_sbom(${_sbom_args})
-
-        add_custom_target(wolfssl-sbom-stage
-            COMMAND ${CMAKE_COMMAND} -E remove_directory ${SBOM_STAGING}
-            COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}
-                    --prefix ${SBOM_STAGING} --config $<CONFIG>
-            DEPENDS wolfssl
-            VERBATIM
-            COMMENT "Staging libwolfssl for the SBOM")
-        add_dependencies(wolfssl-sbom-gen wolfssl-sbom-stage)
-        add_custom_target(sbom
-            COMMAND ${PYSPDXTOOLS_CMD} --infile ${SBOM_SPDX}
-                    --outfile ${SBOM_SPDX_TV}
-            COMMAND ${CMAKE_COMMAND} -E remove_directory ${SBOM_STAGING}
-            DEPENDS wolfssl-sbom-gen
-            VERBATIM
-            COMMENT "Validating wolfSSL SBOM")
+            DEP_LIBZ ${_sbom_libz})
     endif()
 endif()
