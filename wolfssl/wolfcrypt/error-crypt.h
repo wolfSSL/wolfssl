@@ -365,9 +365,17 @@ enum wolfCrypt_ErrorCodes {
     HWPUF_GENERATE_KEY_E = -1040, /* HWPUF generate key failed */
     HWPUF_GET_KEY_E     = -1041, /* HWPUF get key failed */
     HWPUF_ZEROIZE_E     = -1042, /* HWPUF zeroize failed */
+    ASN_STRICT_UNIQUE_ID_E = -1043, /* Strict check: unique ID present */
+    ASN_STRICT_NO_AKID_E   = -1044, /* Strict check: no authority key ID */
+    ASN_STRICT_NO_KEY_USAGE_E = -1045, /* Strict check: CA has no key usage */
+    ASN_STRICT_NO_CRL_DP_E = -1046, /* Strict check: no CRL distribution
+                                     * point */
+    ASN_STRICT_NO_OCSP_E   = -1047, /* Strict check: no OCSP responder */
+    ASN_STRICT_CRL_THIS_UPDATE_E = -1048, /* Strict check: CRL thisUpdate is
+                                           * in the future */
 
-    WC_SPAN2_LAST_E     = -1042, /* Update to indicate last used error code */
-    WC_LAST_E           = -1042, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1048, /* Update to indicate last used error code */
+    WC_LAST_E           = -1048, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

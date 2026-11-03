@@ -592,5 +592,14 @@
  "configure": ["--enable-leanpsk"],
  "extra_cflags": "-Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -Werror=implicit-function-declaration -Wno-error=cpp",
  "check": false,
- "run": [["./wolfcrypt/test/testwolfcrypt"]]}
+ "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+{"name": "cert-events-crl",
+ "comment": "Certificate validation events without the compatibility layer. --enable-all covers them with OPENSSL_EXTRA on, where the TLS verify path and the error codes it passes on differ.",
+ "configure": ["--enable-cert-events", "--enable-crl"]},
+{"name": "cert-events-crl-asn-original",
+ "comment": "As cert-events-crl with the original ASN.1 parser, which reports field failures from its own code and rejects unique IDs outright.",
+ "configure": ["--enable-cert-events", "--enable-crl", "--enable-asn=original"]},
+{"name": "cert-events-tiny",
+ "comment": "Certificate validation events without CRL and with WOLFSSL_X509_TINY, which does not decode some extensions the strict checks use.",
+ "configure": ["--enable-cert-events", "CPPFLAGS=-DWOLFSSL_X509_TINY"]}
 ]

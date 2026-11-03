@@ -13308,6 +13308,9 @@ void InitDecodedCert_ex(DecodedCert* cert,
         cert->maxIdx          = inSz;    /* can't go over this index */
         cert->heap            = heap;
         cert->maxPathLen      = WOLFSSL_MAX_PATH_LEN;
+    #ifdef WOLFSSL_CERT_EVENTS
+        cert->certEventDepth  = -1;      /* not known until a caller says */
+    #endif
     #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         #ifdef WOLFSSL_CERT_NAME_ALL
         cert->subjectNEnc     = CTC_UTF8;
@@ -23725,6 +23728,760 @@ int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
 
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
+#ifdef WOLFSSL_CERT_EVENTS
+/* Set the validation event callback on a decoded certificate.
+ *
+ * Use this when parsing without a certificate manager. The certificate
+ * manager sets it for certificates it verifies.
+ *
+ * @param [in, out] cert  Decoded certificate.
+ * @param [in]      cb    Event callback. NULL turns events off.
+ * @param [in]      ctx   Context passed to the callback.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when cert is NULL.
+ */
+int wc_SetCertEventCallback(DecodedCert* cert, WOLFSSL_CERT_EVENT_CB cb,
+                            void* ctx)
+{
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    cert->certEventCb  = cb;
+    cert->certEventCtx = ctx;
+    return 0;
+}
+
+/* Check strict check bits and resolve WC_CEV_STRICT_ALL.
+ *
+ * WC_CEV_STRICT_ALL means every check this build can run. Naming a check on
+ * its own that this build cannot run is an error, since it would never fire.
+ *
+ * @param [in]  enforce   enum wc_CertEventStrict bits.
+ * @param [out] resolved  Bits to use.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when enforce has an unknown bit.
+ * @return  NOT_COMPILED_IN when a check named is not in this build.
+ */
+int wc_CertEventStrictResolve(word32 enforce, word32* resolved)
+{
+    word32 avail = (word32)WC_CEV_STRICT_ALL;
+
+#if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_AKI)
+    /* The AKID is not decoded. */
+    avail &= ~(word32)WC_CEV_STRICT_AKID;
+#endif
+#if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_CRL_DP)
+    /* The CRL distribution points are not decoded. */
+    avail &= ~(word32)WC_CEV_STRICT_CRL_DP;
+#endif
+#if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_AIA)
+    /* The authority information access is not decoded. */
+    avail &= ~(word32)WC_CEV_STRICT_OCSP;
+#endif
+#if !defined(HAVE_CRL) || defined(NO_ASN_TIME) || \
+    defined(WOLFSSL_NO_CRL_DATE_CHECK)
+    /* No CRL dates are checked. */
+    avail &= ~(word32)WC_CEV_STRICT_CRL_THIS_UPDATE;
+#endif
+
+    if ((enforce & ~(word32)WC_CEV_STRICT_ALL) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (enforce == (word32)WC_CEV_STRICT_ALL) {
+        enforce = avail;
+    }
+    else if ((enforce & ~avail) != 0) {
+        return NOT_COMPILED_IN;
+    }
+
+    *resolved = enforce;
+    return 0;
+}
+
+/* Turn on the strict checks for a decoded certificate.
+ *
+ * Each check that fires is sent to the event callback as a NOTICE, or as a
+ * DEFECT when it is enforced. An enforced check fails ParseCertRelative()
+ * with its ASN_STRICT_*_E error. The checks run only on a certificate that
+ * otherwise passed. ParseCertRelative() does not check revocation, so a
+ * caller that does should check it first: see wc_CertEventStrictDefer().
+ *
+ * @param [in, out] cert     Decoded certificate.
+ * @param [in]      enforce  Checks to enforce. enum wc_CertEventStrict bits.
+ *                           WC_CEV_STRICT_ALL is every check in this build.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when cert is NULL or enforce has an unknown bit.
+ * @return  NOT_COMPILED_IN when a check named is not in this build.
+ */
+int wc_SetCertEventStrict(DecodedCert* cert, word32 enforce)
+{
+    int ret;
+
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ret = wc_CertEventStrictResolve(enforce, &enforce);
+    if (ret == 0) {
+        cert->certEventStrictOn = 1;
+        cert->certEventStrict   = enforce;
+    }
+    return ret;
+}
+
+/* Turn on the strict checks for a decoded certificate, run by the caller.
+ *
+ * ParseCertRelative() does not run them. The caller runs them with
+ * wc_CertEventStrictChecks() after its other checks, revocation included, so
+ * that a verify callback allowing a strict failure does not skip any.
+ *
+ * @param [in, out] cert     Decoded certificate.
+ * @param [in]      enforce  Checks to enforce. enum wc_CertEventStrict bits.
+ */
+void wc_CertEventStrictDefer(DecodedCert* cert, word32 enforce)
+{
+    if (cert != NULL) {
+        cert->certEventStrictOn = 2;
+        cert->certEventStrict   = enforce;
+    }
+}
+
+/* Record the TLS connection whose handshake verifies the certificate.
+ *
+ * @param [in, out] cert       Decoded certificate.
+ * @param [in]      ssl        TLS connection (WOLFSSL*).
+ * @param [in]      notCaHash  Subject hash of a certificate the peer sent
+ *                             that is not a CA, or NULL. A certificate whose
+ *                             issuer it is fails as signed by a non-CA.
+ */
+void wc_CertEventSetConnection(DecodedCert* cert, void* ssl,
+    const byte* notCaHash)
+{
+    if (cert != NULL) {
+        cert->certEventSsl = ssl;
+        cert->certEventNotCaSet = (notCaHash != NULL);
+        if (notCaHash != NULL) {
+            XMEMCPY(cert->certEventNotCa, notCaHash, KEYID_SIZE);
+        }
+    }
+}
+
+/* Fill in which certificate an event is about, as far as it was decoded.
+ *
+ * @param [in]  cert  Decoded certificate.
+ * @param [out] ev    Event.
+ */
+void wc_CertEventIdentity(const DecodedCert* cert, WOLFSSL_CERT_EVENT* ev)
+{
+    if (cert->subject[0] != '\0') {
+        ev->subject = cert->subject;
+    }
+    if (cert->issuer[0] != '\0') {
+        ev->issuer = cert->issuer;
+    }
+    if (cert->serialSz > 0) {
+        ev->serial   = cert->serial;
+        ev->serialSz = (word32)cert->serialSz;
+    }
+    ev->ssl = cert->certEventSsl;
+}
+
+/* Record where the certificate sits in the chain being verified.
+ *
+ * @param [in, out] cert   Decoded certificate.
+ * @param [in]      role   Role of the certificate. enum wc_CertEventRole.
+ * @param [in]      depth  Chain depth, -1 when not known.
+ */
+void wc_CertEventSetPosition(DecodedCert* cert, int role, int depth)
+{
+    if (cert != NULL) {
+        cert->certEventRole  = role;
+        cert->certEventDepth = depth;
+    }
+}
+
+/* Fill in the size of the event and call the callback.
+ *
+ * Does nothing when no callback is set.
+ *
+ * @param [in]      cb   Event callback.
+ * @param [in]      ctx  Context passed to the callback.
+ * @param [in, out] ev   Event to send.
+ */
+void wc_CertEventSend(WOLFSSL_CERT_EVENT_CB cb, void* ctx,
+                      WOLFSSL_CERT_EVENT* ev)
+{
+    if ((cb != NULL) && (ev != NULL)) {
+        ev->size = (word32)sizeof(WOLFSSL_CERT_EVENT);
+        cb(ev, ctx);
+    }
+}
+
+/* Size of the certificate's public key in bits.
+ *
+ * @param [in] cert  Decoded certificate.
+ * @return  Key size in bits, or 0 when not known.
+ */
+static int CertEventKeyBits(const DecodedCert* cert)
+{
+    int bits = 0;
+
+#ifndef NO_RSA
+    if (((cert->keyOID == RSAk)
+    #ifdef WC_RSA_PSS
+            || (cert->keyOID == RSAPSSk)
+    #endif
+            ) && (cert->publicKey != NULL)) {
+        const byte* n = NULL;
+        const byte* e = NULL;
+        word32 nSz = 0;
+        word32 eSz = 0;
+        word32 idx = 0;
+
+        if (wc_RsaPublicKeyDecode_ex(cert->publicKey, &idx, cert->pubKeySize,
+                &n, &nSz, &e, &eSz) == 0) {
+            /* Count the modulus bits, skipping leading zeros. */
+            while ((nSz > 0) && (*n == 0)) {
+                n++;
+                nSz--;
+            }
+            if (nSz > 0) {
+                byte top = n[0];
+                bits = (int)nSz * 8;
+                while ((top & 0x80) == 0) {
+                    bits--;
+                    top = (byte)(top << 1);
+                }
+            }
+        }
+    }
+#endif
+#ifdef HAVE_ECC
+    if (cert->keyOID == ECDSAk) {
+        int curveId = CheckCurve(cert->pkCurveOID);
+        if (curveId >= 0) {
+            int sz = wc_ecc_get_curve_size_from_id(curveId);
+            if (sz > 0) {
+                bits = sz * 8;
+            }
+        }
+    }
+#endif
+#ifdef HAVE_ED25519
+    if (cert->keyOID == ED25519k) {
+        bits = 256;
+    }
+#endif
+#ifdef HAVE_ED448
+    if (cert->keyOID == ED448k) {
+        bits = 456;
+    }
+#endif
+
+    return bits;
+}
+
+/* Fill in the certificate's algorithms. Values not decoded yet stay 0.
+ *
+ * @param [in]      cert  Decoded certificate.
+ * @param [in, out] ev    Event to fill in.
+ */
+static void CertEventAlgorithms(const DecodedCert* cert,
+    WOLFSSL_CERT_EVENT* ev)
+{
+    ev->sigOID = cert->signatureOID;
+    ev->keyOID = cert->keyOID;
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
+    defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+    defined(WOLFSSL_HAVE_MLKEM)
+    if (cert->keyOID == ECDSAk) {
+        ev->curveOID = cert->pkCurveOID;
+    }
+#endif
+    if (cert->publicKey != NULL) {
+        ev->keySz = CertEventKeyBits(cert);
+    }
+}
+
+/* Choose the condition that describes a failure.
+ *
+ * @param [in] cert    Decoded certificate.
+ * @param [in] error   wolfSSL error code.
+ * @param [in] field   Field that failed. enum wc_CertEventField.
+ * @param [in] reason  Why it failed. enum wc_CertEventReason.
+ * @return  Condition. enum wc_CertEventCondition.
+ */
+static int CertEventCondition(const DecodedCert* cert, int error, int field,
+    int reason)
+{
+    switch (reason) {
+        case WC_CEV_REASON_EXPIRED:
+            return WC_CEV_COND_CERT_EXPIRED;
+        case WC_CEV_REASON_NOT_YET_VALID:
+            return WC_CEV_COND_CERT_NOT_YET_VALID;
+        case WC_CEV_REASON_SIGNATURE:
+            return WC_CEV_COND_CERT_SIG_INVALID;
+        case WC_CEV_REASON_NO_SIGNER:
+            /* The peer sent the issuer, but it is not a CA. */
+            if (cert->certEventNotCaSet && (XMEMCMP(cert->issuerHash,
+                    cert->certEventNotCa, KEYID_SIZE) == 0)) {
+                return WC_CEV_COND_CERT_NOT_CA;
+            }
+            return cert->selfIssued ? WC_CEV_COND_CERT_UNTRUSTED_ROOT :
+                                      WC_CEV_COND_CERT_NO_ISSUER;
+        case WC_CEV_REASON_POLICY:
+            return (field == WC_CEV_FIELD_SPKI) ?
+                WC_CEV_COND_CERT_KEY_TOO_SMALL : WC_CEV_COND_NONE;
+        case WC_CEV_REASON_CONSTRAINT:
+            if ((error == WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E)) ||
+                    (error == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E))) {
+                return WC_CEV_COND_CERT_PATH_LEN;
+            }
+            if (error == WC_NO_ERR_TRACE(ASN_NAME_INVALID_E)) {
+                return WC_CEV_COND_CERT_NAME_CONSTRAINTS;
+            }
+            return WC_CEV_COND_CERT_ISSUER_KU;
+        case WC_CEV_REASON_UNSUPPORTED:
+            if (field == WC_CEV_FIELD_EXTENSION) {
+                return WC_CEV_COND_CERT_EXT_UNKNOWN_CRITICAL;
+            }
+            if (field == WC_CEV_FIELD_SPKI) {
+                return WC_CEV_COND_CERT_KEY_UNSUPPORTED;
+            }
+            if ((field == WC_CEV_FIELD_SIGALG) ||
+                    (field == WC_CEV_FIELD_TBS_SIGALG)) {
+                return WC_CEV_COND_CERT_SIG_ALG_UNSUPPORTED;
+            }
+            return WC_CEV_COND_CERT_FORMAT;
+        default:
+            break;
+    }
+
+    if (error == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) {
+        return WC_CEV_COND_CERT_SIG_ALG_MISMATCH;
+    }
+    switch (field) {
+        case WC_CEV_FIELD_EXTENSION:
+            return WC_CEV_COND_CERT_EXT_VALUE;
+        case WC_CEV_FIELD_VERSION:
+            return WC_CEV_COND_CERT_VERSION;
+        case WC_CEV_FIELD_ISSUER:
+            return WC_CEV_COND_CERT_ISSUER;
+        case WC_CEV_FIELD_SUBJECT:
+            return WC_CEV_COND_CERT_SUBJECT;
+        default:
+            return WC_CEV_COND_CERT_FORMAT;
+    }
+}
+
+/* Fill in and send an event about a decoded certificate.
+ *
+ * @param [in] cert       Decoded certificate.
+ * @param [in] kind       DEFECT or NOTICE. enum wc_CertEventKind.
+ * @param [in] error      wolfSSL error code.
+ * @param [in] field      Field that failed. enum wc_CertEventField.
+ * @param [in] reason     Why it failed. enum wc_CertEventReason.
+ * @param [in] extOID     Extension OID sum when field is an extension.
+ * @param [in] oidData    Extension OID content octets. May be NULL.
+ * @param [in] oidSz      Size of OID content octets in bytes.
+ * @param [in] critical   Whether the extension was marked critical.
+ * @param [in] condition  Condition, or WC_CEV_COND_NONE to choose one from the
+ *                        error, field and reason.
+ */
+static void CertEventSendKind(DecodedCert* cert, int kind, int error,
+    int field, int reason, word32 extOID, const byte* oidData, word32 oidSz,
+    byte critical, int condition)
+{
+    WOLFSSL_CERT_EVENT ev;
+
+    if ((cert == NULL) || (cert->certEventCb == NULL)) {
+        return;
+    }
+    if (kind == WC_CEV_KIND_DEFECT) {
+        cert->certEventReported = error;
+    }
+
+    XMEMSET(&ev, 0, sizeof(ev));
+    ev.condition = (condition != WC_CEV_COND_NONE) ? condition :
+        CertEventCondition(cert, error, field, reason);
+    CertEventAlgorithms(cert, &ev);
+    wc_CertEventIdentity(cert, &ev);
+    ev.kind     = kind;
+    ev.category = WC_CEV_CAT_CERT;
+    ev.error    = error;
+    ev.role     = cert->certEventRole;
+    ev.depth    = cert->certEventDepth;
+    ev.field    = field;
+    ev.reason   = reason;
+    ev.extOID   = extOID;
+    ev.extOidData = oidData;
+    ev.extOidSz = oidSz;
+    ev.critical = (byte)((critical != 0) ? 1 : 0);
+    ev.der      = cert->source;
+    ev.derSz    = cert->maxIdx;
+    wc_CertEventSend(cert->certEventCb, cert->certEventCtx, &ev);
+}
+
+/* Fill in and send a DEFECT event for a decoded certificate.
+ *
+ * @param [in] cert       Decoded certificate.
+ * @param [in] error      wolfSSL error code.
+ * @param [in] field      Field that failed. enum wc_CertEventField.
+ * @param [in] reason     Why it failed. enum wc_CertEventReason.
+ * @param [in] extOID     Extension OID sum when field is an extension.
+ * @param [in] oidData    Extension OID content octets. May be NULL.
+ * @param [in] oidSz      Size of OID content octets in bytes.
+ * @param [in] critical   Whether the extension was marked critical.
+ * @param [in] condition  Condition, or WC_CEV_COND_NONE to choose one from the
+ *                        error, field and reason.
+ */
+static void CertEventDefectOid(DecodedCert* cert, int error, int field,
+    int reason, word32 extOID, const byte* oidData, word32 oidSz,
+    byte critical, int condition)
+{
+    CertEventSendKind(cert, WC_CEV_KIND_DEFECT, error, field, reason, extOID,
+        oidData, oidSz, critical, condition);
+}
+
+/* Report a failed check on a decoded certificate.
+ *
+ * Only called on error paths. Does nothing when no callback is set.
+ *
+ * @param [in] cert      Decoded certificate.
+ * @param [in] error     wolfSSL error code.
+ * @param [in] field     Field that failed. enum wc_CertEventField.
+ * @param [in] reason    Why it failed. enum wc_CertEventReason.
+ * @param [in] extOID    Extension OID sum when field is an extension.
+ * @param [in] critical  Whether the extension was marked critical.
+ */
+void wc_CertEventDefect(DecodedCert* cert, int error, int field, int reason,
+                        word32 extOID, byte critical)
+{
+    CertEventDefectOid(cert, error, field, reason, extOID, NULL, 0, critical,
+        WC_CEV_COND_NONE);
+}
+
+/* Report a failure to decode the certificate's structure.
+ *
+ * Sends nothing when a more specific event, such as one for an extension,
+ * was already sent for this certificate, or when the error is not about the
+ * certificate: running out of memory, or a date that is checked later.
+ *
+ * @param [in] cert   Decoded certificate.
+ * @param [in] error  wolfSSL error code. Nothing is sent unless negative.
+ * @param [in] field  Field being decoded. enum wc_CertEventField.
+ */
+void wc_CertEventField(DecodedCert* cert, int error, int field)
+{
+    int reason = WC_CEV_REASON_MALFORMED;
+
+    switch (error) {
+        case WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E):
+        case WC_NO_ERR_TRACE(ASN_SIG_HASH_E):
+        case WC_NO_ERR_TRACE(ASN_SIG_KEY_E):
+        case WC_NO_ERR_TRACE(ECC_CURVE_OID_E):
+        case WC_NO_ERR_TRACE(NOT_COMPILED_IN):
+            reason = WC_CEV_REASON_UNSUPPORTED;
+            break;
+        default:
+            break;
+    }
+    wc_CertEventFailure(cert, error, field, reason);
+}
+
+/* Report a failure, unless the same error was just reported for this
+ * certificate.
+ *
+ * Sends nothing for errors that are not about the certificate, such as
+ * running out of memory, or for dates, which are reported separately.
+ *
+ * @param [in] cert    Decoded certificate.
+ * @param [in] error   wolfSSL error code. Nothing is sent unless negative.
+ * @param [in] field   Field that failed. enum wc_CertEventField.
+ * @param [in] reason  Why it failed. enum wc_CertEventReason.
+ */
+void wc_CertEventFailure(DecodedCert* cert, int error, int field, int reason)
+{
+    wc_CertEventFailureCond(cert, error, field, reason, WC_CEV_COND_NONE);
+}
+
+/* Report a failure with a given condition, unless the same error was just
+ * reported for this certificate.
+ *
+ * The same error reaches here again as it is passed up from where it was
+ * found; a different error is a further failed check and is reported.
+ *
+ * Used where wolfCrypt cannot tell the condition from the error, such as the
+ * TLS checks on what the certificate may be used for.
+ *
+ * @param [in] cert       Decoded certificate.
+ * @param [in] error      wolfSSL error code. Nothing is sent unless negative.
+ * @param [in] field      Field that failed. enum wc_CertEventField.
+ * @param [in] reason     Why it failed. enum wc_CertEventReason.
+ * @param [in] condition  Condition. enum wc_CertEventCondition.
+ */
+void wc_CertEventFailureCond(DecodedCert* cert, int error, int field,
+    int reason, int condition)
+{
+    if ((cert == NULL) || (error >= 0) ||
+            (error == cert->certEventReported)) {
+        return;
+    }
+    switch (error) {
+        case WC_NO_ERR_TRACE(MEMORY_E):
+        case WC_NO_ERR_TRACE(BAD_FUNC_ARG):
+        case WC_NO_ERR_TRACE(WC_PENDING_E):
+        case WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E):
+        case WC_NO_ERR_TRACE(ASN_AFTER_DATE_E):
+            return;
+        default:
+            break;
+    }
+    CertEventDefectOid(cert, error, field, reason, 0, NULL, 0, 0, condition);
+}
+
+/* Send the INFO event with the certificate's algorithms and key size.
+ *
+ * Sent once for each certificate whose public key was decoded, whatever the
+ * outcome, so the application can apply its own list of approved algorithms
+ * and key sizes.
+ *
+ * @param [in] cert  Decoded certificate.
+ */
+static void CertEventInfo(DecodedCert* cert)
+{
+    WOLFSSL_CERT_EVENT ev;
+
+    if ((cert == NULL) || (cert->certEventCb == NULL) ||
+            cert->certEventInfoSent || (cert->keyOID == 0) ||
+            (cert->publicKey == NULL)) {
+        return;
+    }
+    cert->certEventInfoSent = 1;
+
+    XMEMSET(&ev, 0, sizeof(ev));
+    CertEventAlgorithms(cert, &ev);
+    wc_CertEventIdentity(cert, &ev);
+    ev.kind     = WC_CEV_KIND_INFO;
+    ev.category = WC_CEV_CAT_CERT;
+    ev.role     = cert->certEventRole;
+    ev.depth    = cert->certEventDepth;
+    ev.der      = cert->source;
+    ev.derSz    = cert->maxIdx;
+    wc_CertEventSend(cert->certEventCb, cert->certEventCtx, &ev);
+}
+
+/* A strict profile check: what is reported, and the error when enforced. */
+typedef struct CertEventStrictCheck {
+    word32 check;       /* enum wc_CertEventStrict bit */
+    int    error;       /* Returned when enforced. */
+    int    condition;   /* enum wc_CertEventCondition */
+    word32 extOID;      /* Extension checked, 0 for unique IDs. */
+} CertEventStrictCheck;
+
+static const CertEventStrictCheck certEventStrictChecks[] = {
+    { WC_CEV_STRICT_UNIQUE_ID, WC_NO_ERR_TRACE(ASN_STRICT_UNIQUE_ID_E),
+      WC_CEV_COND_CERT_UNIQUE_ID, 0 },
+    { WC_CEV_STRICT_AKID, WC_NO_ERR_TRACE(ASN_STRICT_NO_AKID_E),
+      WC_CEV_COND_CERT_NO_AKID, AUTH_KEY_OID },
+    { WC_CEV_STRICT_KEY_USAGE, WC_NO_ERR_TRACE(ASN_STRICT_NO_KEY_USAGE_E),
+      WC_CEV_COND_CERT_NO_KEY_USAGE, KEY_USAGE_OID },
+    { WC_CEV_STRICT_CRL_DP, WC_NO_ERR_TRACE(ASN_STRICT_NO_CRL_DP_E),
+      WC_CEV_COND_CERT_NO_CRL_DP, CRL_DIST_OID },
+    { WC_CEV_STRICT_OCSP, WC_NO_ERR_TRACE(ASN_STRICT_NO_OCSP_E),
+      WC_CEV_COND_CERT_NO_OCSP, AUTH_INFO_OID },
+};
+
+/* Whether the certificate is self-signed, as wolfSSL judged it.
+ *
+ * A root CA whose AKID names its own key is trusted without checking its
+ * signature, so selfSigned is not set for it.
+ *
+ * @param [in] cert  Decoded certificate.
+ * @return  1 when self-signed, otherwise 0.
+ */
+static int CertEventSelfSigned(const DecodedCert* cert)
+{
+    if (!cert->selfIssued) {
+        return 0;
+    }
+    if (cert->selfSigned) {
+        return 1;
+    }
+    return cert->extAuthKeyIdSet && cert->extSubjKeyIdSet &&
+        (XMEMCMP(cert->extAuthKeyId, cert->extSubjKeyId, KEYID_SIZE) == 0);
+}
+
+/* Whether a strict check fires on a certificate.
+ *
+ * Self-signed certificates are exempt from the checks on what the issuer
+ * should include: AKID, CRL distribution point and OCSP responder. The AKID
+ * check fires when the extension or its keyIdentifier is missing; RFC 5280
+ * 4.2.1.1 requires both.
+ *
+ * @param [in] cert   Decoded certificate.
+ * @param [in] check  The check. enum wc_CertEventStrict bit.
+ * @return  1 when it fires, otherwise 0.
+ */
+static int CertEventStrictFires(const DecodedCert* cert, word32 check)
+{
+    switch (check) {
+        case WC_CEV_STRICT_UNIQUE_ID:
+            return (cert->certEventUid != 0);
+        case WC_CEV_STRICT_AKID:
+        #if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_AKI)
+            /* The AKID is not decoded. */
+            return 0;
+        #else
+            return (!CertEventSelfSigned(cert)) && (!cert->extAuthKeyIdSet);
+        #endif
+        case WC_CEV_STRICT_KEY_USAGE:
+            return cert->isCA && (!cert->extKeyUsageSet);
+        case WC_CEV_STRICT_CRL_DP:
+        #if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_CRL_DP)
+            /* The CRL distribution points are not decoded. */
+            return 0;
+        #else
+            return (!CertEventSelfSigned(cert)) && (!cert->extCRLdistSet);
+        #endif
+        case WC_CEV_STRICT_OCSP:
+        #if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_AIA)
+            /* The authority information access is not decoded. */
+            return 0;
+        #else
+            return (!CertEventSelfSigned(cert)) && (cert->extAuthInfo == NULL);
+        #endif
+        default:
+            return 0;
+    }
+}
+
+/* Run the strict profile checks on a decoded certificate, once.
+ *
+ * Each check that fires is reported: as a NOTICE, or as a DEFECT when it is
+ * enforced. The checks only run when turned on with wc_SetCertEventStrict()
+ * or wc_CertEventStrictDefer(), when an event callback or an enforced check
+ * is set, and when the certificate was fully decoded. Callers run them once
+ * no other failure is pending: when nothing else failed, or when the verify
+ * callback allowed what did. Later calls do nothing.
+ *
+ * @param [in] cert  Decoded certificate.
+ * @return  0 when no enforced check fired.
+ * @return  ASN_STRICT_*_E of the first enforced check that fired.
+ */
+int wc_CertEventStrictChecks(DecodedCert* cert)
+{
+    int ret = 0;
+    size_t i;
+
+    if ((cert == NULL) || (cert->certEventStrictOn == 0) ||
+            (!cert->certEventDecoded) ||
+            ((cert->certEventCb == NULL) && (cert->certEventStrict == 0))) {
+        return 0;
+    }
+    /* Run once. */
+    cert->certEventStrictOn = 0;
+#ifdef WOLFSSL_CERT_REQ
+    if (cert->isCSR) {
+        return 0;
+    }
+#endif
+
+    for (i = 0; i < XELEM_CNT(certEventStrictChecks); i++) {
+        const CertEventStrictCheck* c = &certEventStrictChecks[i];
+        int enforced = ((cert->certEventStrict & c->check) != 0);
+        int field = WC_CEV_FIELD_EXTENSION;
+        const byte* oid = NULL;
+        word32 oidSz = 0;
+
+        if (!CertEventStrictFires(cert, c->check)) {
+            continue;
+        }
+        if (c->extOID != 0) {
+            oid = OidFromId(c->extOID, oidCertExtType, &oidSz);
+        }
+        else {
+            field = (cert->certEventUid & 1) ? WC_CEV_FIELD_ISSUER_UID :
+                WC_CEV_FIELD_SUBJECT_UID;
+        }
+        CertEventSendKind(cert, enforced ? WC_CEV_KIND_DEFECT :
+            WC_CEV_KIND_NOTICE, c->error, field, (c->extOID != 0) ?
+            WC_CEV_REASON_MISSING : WC_CEV_REASON_POLICY, c->extOID, oid,
+            oidSz, 0, c->condition);
+        if (enforced && (ret == 0)) {
+            ret = c->error;
+            WOLFSSL_ERROR_VERBOSE(ret);
+        }
+    }
+
+    return ret;
+}
+
+/* Report why verifying a certificate against its signer failed.
+ *
+ * Called once ParseCertRelative() is done. A failure already reported, such
+ * as a field that failed to decode, is not reported again; any other failure
+ * is reported so that each failure has an event.
+ *
+ * @param [in] cert   Decoded certificate.
+ * @param [in] error  Return of ParseCertRelative().
+ */
+static void CertEventChain(DecodedCert* cert, int error)
+{
+    switch (error) {
+        case WC_NO_ERR_TRACE(ASN_NO_SIGNER_E):
+        case WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E):
+            wc_CertEventFailure(cert, error, WC_CEV_FIELD_CHAIN,
+                WC_CEV_REASON_NO_SIGNER);
+            break;
+        case WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E):
+            wc_CertEventFailure(cert, error, WC_CEV_FIELD_SIGNATURE,
+                WC_CEV_REASON_SIGNATURE);
+            break;
+        case WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E):
+        case WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E):
+        case WC_NO_ERR_TRACE(ASN_NAME_INVALID_E):
+        case WC_NO_ERR_TRACE(KEYUSAGE_E):
+            wc_CertEventFailure(cert, error, WC_CEV_FIELD_CHAIN,
+                WC_CEV_REASON_CONSTRAINT);
+            break;
+        default:
+            wc_CertEventField(cert, error, WC_CEV_FIELD_NONE);
+            break;
+    }
+}
+
+/* Report a certificate extension that failed to decode.
+ *
+ * An unknown extension marked critical is unsupported; any other failure
+ * means the extension is malformed.
+ *
+ * @param [in] cert      Decoded certificate.
+ * @param [in] error     wolfSSL error code.
+ * @param [in] oid       Extension OID sum, 0 when not known.
+ * @param [in] oidData   Extension OID content octets. May be NULL.
+ * @param [in] oidSz     Size of OID content octets in bytes.
+ * @param [in] critical  Whether the extension was marked critical.
+ */
+static void CertEventExtension(DecodedCert* cert, int error, word32 oid,
+                               const byte* oidData, word32 oidSz,
+                               byte critical)
+{
+    CertEventDefectOid(cert, error, WC_CEV_FIELD_EXTENSION,
+        (error == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E)) ?
+            WC_CEV_REASON_UNSUPPORTED : WC_CEV_REASON_MALFORMED,
+        oid, oidData, oidSz, critical,
+        WC_CEV_COND_NONE);
+}
+
+    /* Report a failure decoding a field of the certificate. */
+    #define CERT_EVENT_FIELD(cert, err, f)  wc_CertEventField(cert, err, f)
+#else
+    #define CERT_EVENT_FIELD(cert, err, f)  WC_DO_NOTHING
+#endif /* WOLFSSL_CERT_EVENTS */
+
 /*
  *  Processing the Certificate Extensions. This does not modify the current
  *  index. It is works starting with the recorded extensions pointer.
@@ -23870,10 +24627,23 @@ static int DecodeCertExtensions(DecodedCert* cert)
 #else
             (void)isUnknownExt;
 #endif
+#ifdef WOLFSSL_CERT_EVENTS
+            if (ret != 0) {
+                CertEventExtension(cert, ret, oid,
+                    dataASN[CERTEXTASN_IDX_OID].data.oid.data,
+                    dataASN[CERTEXTASN_IDX_OID].data.oid.length, critical);
+            }
+#endif
 
             /* Move index on to next extension. */
             idx += length;
         }
+#ifdef WOLFSSL_CERT_EVENTS
+        else {
+            /* The extension's own wrapper is malformed. */
+            CertEventExtension(cert, ret, 0, NULL, 0, critical);
+        }
+#endif
         /* Don't fail criticality until all other extensions have been checked.
          */
         if (ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E)) {
@@ -24105,6 +24875,71 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
     return ret;
 }
 
+#ifdef WOLFSSL_CERT_EVENTS
+/* Find which field of the certificate failed to parse.
+ *
+ * GetASN_Items() records each item's offset before checking it, and the data
+ * starts zeroed, so the last item with an offset is the one that failed.
+ *
+ * @param [in] dataASN  Template data from a failed GetASN_Items() call.
+ * @return  Field that failed. enum wc_CertEventField.
+ */
+static int CertEventTemplateField(const ASNGetData* dataASN)
+{
+    int i;
+
+    for (i = (int)x509CertASN_Length - 1; i > 0; i--) {
+        if (dataASN[i].offset != 0) {
+            break;
+        }
+    }
+
+    /* The two time formats are optional choices, so a value that is neither
+     * is skipped and the failure shows at the next required item. A failure
+     * after the validity with no notBefore or notAfter found is in the
+     * validity. */
+    if ((i >= X509CERTASN_IDX_TBS_SUBJECT_SEQ) &&
+            (((dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC].tag == 0) &&
+              (dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT].tag == 0)) ||
+             ((dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC].tag == 0) &&
+              (dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT].tag == 0)))) {
+        return WC_CEV_FIELD_VALIDITY;
+    }
+
+    if (i >= X509CERTASN_IDX_SIGNATURE)
+        return WC_CEV_FIELD_SIGNATURE;
+    if (i >= X509CERTASN_IDX_SIGALGO_SEQ)
+        return WC_CEV_FIELD_SIGALG;
+    if (i >= X509CERTASN_IDX_TBS_EXT)
+        return WC_CEV_FIELD_EXTENSION;
+    if (i == X509CERTASN_IDX_TBS_SUBJECTUID)
+        return WC_CEV_FIELD_SUBJECT_UID;
+    if (i == X509CERTASN_IDX_TBS_ISSUERUID)
+        return WC_CEV_FIELD_ISSUER_UID;
+    if (i >= X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ)
+        return WC_CEV_FIELD_SPKI;
+    if (i >= X509CERTASN_IDX_TBS_SUBJECT_SEQ)
+        return WC_CEV_FIELD_SUBJECT;
+    if (i >= X509CERTASN_IDX_TBS_VALIDITY_SEQ)
+        return WC_CEV_FIELD_VALIDITY;
+    if (i >= X509CERTASN_IDX_TBS_ISSUER_SEQ)
+        return WC_CEV_FIELD_ISSUER;
+    if (i >= X509CERTASN_IDX_TBS_ALGOID_SEQ)
+        return WC_CEV_FIELD_TBS_SIGALG;
+    if (i == X509CERTASN_IDX_TBS_SERIAL)
+        return WC_CEV_FIELD_SERIAL;
+    if (i >= X509CERTASN_IDX_TBS_VER)
+        return WC_CEV_FIELD_VERSION;
+    return WC_CEV_FIELD_ENCODING;
+}
+
+    /* Record the field about to be decoded, for the event sent on failure. */
+    #define CERT_EVENT_AT(field, ret, f)    \
+        do { if ((ret) == 0) (field) = (f); } while (0)
+#else
+    #define CERT_EVENT_AT(field, ret, f)    WC_DO_NOTHING
+#endif /* WOLFSSL_CERT_EVENTS */
+
 /* Decode a certificate. Internal/non-public API.
  *
  * @param [in]  cert             Certificate object.
@@ -24146,6 +24981,9 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     word32 pubKeyOffset = 0;
     word32 pubKeyEnd = 0;
     int done = 0;
+#ifdef WOLFSSL_CERT_EVENTS
+    int cevField = WC_CEV_FIELD_ENCODING;
+#endif
 
 #if defined(HAVE_RPK)
     /* try to parse the cert as Raw Public Key cert */
@@ -24236,6 +25074,20 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             ret = ASN_PARSE_E;
         }
 #endif
+    #ifdef WOLFSSL_CERT_EVENTS
+        if (ret < 0) {
+            cevField = CertEventTemplateField(dataASN);
+        }
+        else {
+            /* Unique IDs are skipped; note them for the strict checks. */
+            if (dataASN[X509CERTASN_IDX_TBS_ISSUERUID].tag != 0) {
+                cert->certEventUid |= 1;
+            }
+            if (dataASN[X509CERTASN_IDX_TBS_SUBJECTUID].tag != 0) {
+                cert->certEventUid |= 2;
+            }
+        }
+    #endif
     }
 #ifndef WOLFSSL_NO_ASN_STRICT
     /* cert->srcIdx is now just past the certificate's outer SEQUENCE. Reject
@@ -24250,6 +25102,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         ret = ASN_PARSE_E;
     }
 #endif /* !WOLFSSL_NO_ASN_STRICT */
+    CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_VERSION);
     /* Check version is valid/supported - can't be negative. */
     if ((ret == 0) && (version > MAX_X509_VERSION)) {
         WOLFSSL_MSG("Unexpected certificate version");
@@ -24264,6 +25117,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         cert->version = version;
         cert->serialSz = (int)serialSz;
 
+        CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_SERIAL);
         /* RFC 5280 requires serial number to be present and at least 1 byte */
         if (cert->serialSz == 0) {
             WOLFSSL_MSG("Error: certificate serial number is empty "
@@ -24322,6 +25176,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         done = 1;
     }
 
+    CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_SIGALG);
     if ((ret == 0) && (!done)) {
         /* Store the signature information. */
         cert->sigIndex = dataASN[X509CERTASN_IDX_SIGALGO_SEQ].offset;
@@ -24414,6 +25269,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     if ((ret == 0) && (!done) &&
             (dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.data != NULL)) {
     #ifndef ALLOW_V1_EXTENSIONS
+        CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_VERSION);
         /* Certificate extensions were only defined in version 2. */
         if (cert->version < 2) {
             WOLFSSL_MSG("\tv1 and v2 certs not allowed extensions");
@@ -24434,12 +25290,14 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     /* Dispose of memory before allocating for extension decoding. */
     FREE_ASNGETDATA(dataASN, cert->heap);
 
+    CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_ISSUER);
     if ((ret == 0) && (issuer != NULL)) {
         idx = 0;
         /* Put issuer into cert and calculate hash. */
         ret = GetCertName(cert, cert->issuer, cert->issuerHash, ASN_ISSUER, issuer,
             &idx, issuerSz);
     }
+    CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_SUBJECT);
     if ((ret == 0) && (subject != NULL)) {
         idx = 0;
         /* Put subject into cert and calculate hash. */
@@ -24463,11 +25321,13 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
     }
 
+    CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_SPKI);
     if ((ret == 0) && (!stopAtPubKey)) {
         /* Parse the public key. */
         idx = pubKeyOffset;
         ret = GetCertKey(cert, cert->source, &idx, pubKeyEnd);
     }
+    CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_EXTENSION);
     if ((ret == 0) && (!stopAtPubKey) && (!stopAfterPubKey) &&
             (cert->extensions != NULL)) {
         /* Decode the extension data starting at [3]. */
@@ -24501,6 +25361,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
      * narrow: when extensions are not parsed (stopAtPubKey/stopAfterPubKey)
      * isCA is not populated, so the exemption never fires and serial-0 is
      * always rejected on those paths. */
+    CERT_EVENT_AT(cevField, ret, WC_CEV_FIELD_SERIAL);
     if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
         if (!(cert->isCA && cert->selfIssued)
 #ifdef WOLFSSL_CERT_REQ
@@ -24513,6 +25374,10 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     }
 #endif
 
+#ifdef WOLFSSL_CERT_EVENTS
+    /* One event for a structural failure; extensions report their own. */
+    wc_CertEventField(cert, ret, cevField);
+#endif
     return ret;
 }
 
@@ -25865,7 +26730,39 @@ static WC_NO_INLINE int ConfirmSelfSignature(DecodedCert* cert)
     return ret;
 }
 
+static int ParseCertRelativeInternal(DecodedCert* cert, int type, int verify,
+                      WOLFSSL_CERT_MANAGER* cm, Signer *extraCAList);
+
+/* Parse a certificate and verify it against its signer.
+ *
+ * With WOLFSSL_CERT_EVENTS, a failure that was not reported while decoding
+ * is reported here, so that each failure has an event, and the strict checks
+ * run when turned on.
+ *
+ * @param [in, out] cert         Decoded certificate.
+ * @param [in]      type         Type of certificate.
+ * @param [in]      verify       What verification to do.
+ * @param [in]      cm           Certificate manager. May be NULL.
+ * @param [in]      extraCAList  Extra signers to try. May be NULL.
+ * @return  0 on success.
+ * @return  Negative on failure.
+ */
 int ParseCertRelative(DecodedCert* cert, int type, int verify,
+                      WOLFSSL_CERT_MANAGER* cm, Signer *extraCAList)
+{
+    int ret = ParseCertRelativeInternal(cert, type, verify, cm, extraCAList);
+#ifdef WOLFSSL_CERT_EVENTS
+    CertEventChain(cert, ret);
+    /* Deferred checks are run by the caller, after its other checks. */
+    if ((ret == 0) && (cert->certEventStrictOn == 1)) {
+        ret = wc_CertEventStrictChecks(cert);
+    }
+    CertEventInfo(cert);
+#endif
+    return ret;
+}
+
+static int ParseCertRelativeInternal(DecodedCert* cert, int type, int verify,
                       WOLFSSL_CERT_MANAGER* cm, Signer *extraCAList)
 {
     int    ret = 0;
@@ -26126,6 +27023,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             if (cert->version < 2) {
                 WOLFSSL_MSG("\tv1 and v2 certs not allowed extensions");
                 WOLFSSL_ERROR_VERBOSE(ASN_VERSION_E);
+                CERT_EVENT_FIELD(cert, ASN_VERSION_E, WC_CEV_FIELD_VERSION);
                 return ASN_VERSION_E;
             }
         #endif
@@ -26138,8 +27036,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             if ((ret = DecodeCertExtensions(cert)) < 0) {
                 if (ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E))
                     cert->criticalExt = ret;
-                else
+                else {
+                    /* Only when no single extension was reported. */
+                    CERT_EVENT_FIELD(cert, ret, WC_CEV_FIELD_EXTENSION);
                     return ret;
+                }
             }
 
             /* advance past extensions */
@@ -26153,10 +27054,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                 &confirmOID,
 #endif
                 cert->maxIdx)) < 0) {
+            CERT_EVENT_FIELD(cert, ret, WC_CEV_FIELD_SIGALG);
             return ret;
         }
 
         if ((ret = GetSignature(cert)) < 0) {
+            CERT_EVENT_FIELD(cert, ret, WC_CEV_FIELD_SIGNATURE);
             return ret;
         }
 
@@ -26166,6 +27069,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
 #endif
                 ) {
             WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
+            CERT_EVENT_FIELD(cert, ASN_SIG_OID_E, WC_CEV_FIELD_SIGALG);
             return ASN_SIG_OID_E;
         }
 
@@ -26186,6 +27090,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                 ) {
             WOLFSSL_MSG("Trailing data after certificate");
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            CERT_EVENT_FIELD(cert, ASN_PARSE_E, WC_CEV_FIELD_ENCODING);
             return ASN_PARSE_E;
         }
 #endif /* !WOLFSSL_NO_ASN_STRICT */
@@ -26222,6 +27127,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             }
 #endif /* HAVE_RPK */
         }
+#endif
+#ifdef WOLFSSL_CERT_EVENTS
+        /* Decoded: the strict checks can run even when a later check fails
+         * and the verify callback allows it. */
+        cert->certEventDecoded = 1;
 #endif
 
 #ifdef HAVE_OCSP
@@ -26725,6 +27635,12 @@ exit_pcr:
 
     if (cert->badDate != 0) {
         if (verify != VERIFY_SKIP_DATE) {
+        #ifdef WOLFSSL_CERT_EVENTS
+            wc_CertEventDefect(cert, cert->badDate, WC_CEV_FIELD_VALIDITY,
+                (cert->badDate == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ?
+                    WC_CEV_REASON_NOT_YET_VALID : WC_CEV_REASON_EXPIRED,
+                0, 0);
+        #endif
             return cert->badDate;
         }
         WOLFSSL_MSG_CERT_LOG("Date error: Verify option is skipping");
@@ -39496,6 +40412,10 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* sigParams,
 
     if (ret == 0) {
         WOLFSSL_MSG("Found CRL issuer CA");
+    #ifdef WOLFSSL_CERT_EVENTS
+        /* A later ASN_CRL_NO_SIGNER_E means the issuer may not sign CRLs. */
+        dcrl->crlSignerFound = 1;
+    #endif
         /* Verify CRL signature with CA. */
         ret = VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,

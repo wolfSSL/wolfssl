@@ -1944,6 +1944,10 @@ add_option("WOLFSSL_CERTGENCACHE"
     "Enable decoded cert caching (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_CERT_EVENTS"
+    "Enable structured certificate and CRL validation event callback (default: disabled)"
+    "no" "yes;no")
+
 # Chain verify callback
 add_option("WOLFSSL_CHAIN_VERIFY_CB"
     "Enable replacing peer certificate verification with a user callback (default: disabled)"
@@ -3576,6 +3580,9 @@ if(WOLFSSL_CERTEXT)
 endif()
 if(WOLFSSL_CERTGENCACHE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN_CACHE")
+endif()
+if(WOLFSSL_CERT_EVENTS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_EVENTS")
 endif()
 
 if(WOLFSSL_CHAIN_VERIFY_CB)

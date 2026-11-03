@@ -798,6 +798,26 @@ static const char* wc_GetErrorStringIdx(int error)
     case WC_SPAN2_TO_IDX(HWPUF_ZEROIZE_E):
         return "HWPUF zeroize failed";
 
+    case WC_SPAN2_TO_IDX(ASN_STRICT_UNIQUE_ID_E):
+        return "Certificate has a unique identifier, rejected by strict checks";
+
+    case WC_SPAN2_TO_IDX(ASN_STRICT_NO_AKID_E):
+        return "Certificate has no authority key identifier, rejected by "
+               "strict checks";
+
+    case WC_SPAN2_TO_IDX(ASN_STRICT_NO_KEY_USAGE_E):
+        return "CA certificate has no key usage, rejected by strict checks";
+
+    case WC_SPAN2_TO_IDX(ASN_STRICT_NO_CRL_DP_E):
+        return "Certificate has no CRL distribution point, rejected by "
+               "strict checks";
+
+    case WC_SPAN2_TO_IDX(ASN_STRICT_NO_OCSP_E):
+        return "Certificate has no OCSP responder, rejected by strict checks";
+
+    case WC_SPAN2_TO_IDX(ASN_STRICT_CRL_THIS_UPDATE_E):
+        return "CRL thisUpdate is in the future, rejected by strict checks";
+
     default:
         return wc_unknown_error_str;
     }
@@ -1060,6 +1080,12 @@ static WC_MAYBE_UNUSED void wc_ErrorStringsCheck(int error)
     case HWPUF_GENERATE_KEY_E:
     case HWPUF_GET_KEY_E:
     case HWPUF_ZEROIZE_E:
+    case ASN_STRICT_UNIQUE_ID_E:
+    case ASN_STRICT_NO_AKID_E:
+    case ASN_STRICT_NO_KEY_USAGE_E:
+    case ASN_STRICT_NO_CRL_DP_E:
+    case ASN_STRICT_NO_OCSP_E:
+    case ASN_STRICT_CRL_THIS_UPDATE_E:
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

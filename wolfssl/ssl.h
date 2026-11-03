@@ -2603,6 +2603,13 @@ WOLFSSL_API WOLFSSL_X509_STORE_CTX *wolfSSL_X509_STORE_CTX_get0_parent_ctx(
                                                    WOLFSSL_X509_STORE_CTX *ctx);
 WOLFSSL_API int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store,
                                                             unsigned long flag);
+#ifdef WOLFSSL_CERT_EVENTS
+/* Register a validation event callback on the store, for X509_verify_cert(). */
+WOLFSSL_API int wolfSSL_X509_STORE_SetCertEventCb(WOLFSSL_X509_STORE* store,
+                                   WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+WOLFSSL_API int wolfSSL_X509_STORE_SetCertEventStrict(
+                                   WOLFSSL_X509_STORE* store, word32 enforce);
+#endif
 WOLFSSL_API int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx,
                     int idx, WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_CTX_get0_param(
@@ -4672,6 +4679,23 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
     WOLFSSL_API void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm);
+
+#ifdef WOLFSSL_CERT_EVENTS
+    /* Register a callback that observes certificate validation events: one
+     * DEFECT event per failed check, and one RESULT event when a verification
+     * finishes. Events never change the verification result; only an
+     * enforced strict check does. */
+    WOLFSSL_API int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
+        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+    WOLFSSL_API int wolfSSL_CTX_SetCertEventCb(WOLFSSL_CTX* ctx,
+        WOLFSSL_CERT_EVENT_CB cb, void* cbCtx);
+    /* Enforce strict checks: each wc_CertEventStrict bit set turns that
+     * check's NOTICE into a failure. */
+    WOLFSSL_API int wolfSSL_CertManagerSetCertEventStrict(
+        WOLFSSL_CERT_MANAGER* cm, word32 enforce);
+    WOLFSSL_API int wolfSSL_CTX_SetCertEventStrict(WOLFSSL_CTX* ctx,
+        word32 enforce);
+#endif
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     /* Register a callback invoked for each certificate extension whose OID
