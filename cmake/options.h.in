@@ -301,6 +301,10 @@ extern "C" {
 #cmakedefine WOLFSSL_AES_OFB
 #undef WOLFSSL_AES_SIV
 #cmakedefine WOLFSSL_AES_SIV
+#undef WOLFSSL_AES_TOUCH_LINES
+#cmakedefine WOLFSSL_AES_TOUCH_LINES
+#undef WOLFSSL_AES_NO_TOUCH_LINES
+#cmakedefine WOLFSSL_AES_NO_TOUCH_LINES
 #undef HAVE_AES_ECB
 #cmakedefine HAVE_AES_ECB
 #undef WOLFSSL_AES_CTS

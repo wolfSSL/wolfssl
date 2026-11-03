@@ -1168,6 +1168,24 @@ else()
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN")
 endif()
 
+# AES table cache-line touching: aes.c turns it on for RISC-V by default, and
+# "no" clears that default without the rest of WOLFSSL_HARDEN=no. Raw cache
+# STRING as for WOLFSSL_HARDEN_TLS: the option shares the macro's name, so
+# "default" is blanked below to keep the #cmakedefine in options.h.in from
+# seeing a true value when neither macro is emitted.
+set(WOLFSSL_AES_TOUCH_LINES "default" CACHE STRING
+    "Touch every AES table cache line per lookup for cache-timing resistance, one of default/yes/no (default: aes.c decides, on for RISC-V)")
+set_property(CACHE WOLFSSL_AES_TOUCH_LINES PROPERTY STRINGS "default;yes;no")
+if(WOLFSSL_AES_TOUCH_LINES STREQUAL "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_TOUCH_LINES")
+elseif(WOLFSSL_AES_TOUCH_LINES STREQUAL "no")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_NO_TOUCH_LINES")
+elseif(WOLFSSL_AES_TOUCH_LINES STREQUAL "default")
+    set(WOLFSSL_AES_TOUCH_LINES "")
+else()
+    message(FATAL_ERROR "Invalid value for WOLFSSL_AES_TOUCH_LINES -- must be default, yes, or no.")
+endif()
+
 add_option(WOLFSSL_OPENSSLEXTRA
     "Enable extra OpenSSL API, size+ (default: disabled)"
     "no" "yes;no")

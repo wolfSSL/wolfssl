@@ -6994,9 +6994,14 @@ void bench_aesofb(int useDeviceID)
 
 
 #ifdef WOLFSSL_AES_XTS
-void bench_aesxts(void)
+#ifdef WOLFSSL_AESXTS_STREAM
+static void bench_aesxts_key(const byte* key, word32 keySz, const char* encLbl,
+    const char* decLbl, const char* streamEncLbl, const char* streamDecLbl)
+#else
+static void bench_aesxts_key(const byte* key, word32 keySz, const char* encLbl,
+    const char* decLbl)
+#endif
 {
-#ifdef WOLFSSL_AES_128
     WC_DECLARE_VAR(aes, XtsAes, 1, HEAP_HINT);
     double start;
     int    i, count, ret;
@@ -7016,13 +7021,6 @@ void bench_aesxts(void)
 #endif
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    static const unsigned char k1[] = {
-        0xa1, 0xb9, 0x0c, 0xba, 0x3f, 0x06, 0xac, 0x35,
-        0x3b, 0x2c, 0x34, 0x38, 0x76, 0x08, 0x17, 0x62,
-        0x09, 0x09, 0x23, 0x02, 0x6e, 0x91, 0x77, 0x18,
-        0x15, 0xf2, 0x9d, 0xab, 0x01, 0x93, 0x2f, 0x2f
-    };
-
     static const unsigned char i1[] = {
         0x4f, 0xae, 0xf7, 0x11, 0x7c, 0xda, 0x59, 0xc6,
         0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
@@ -7033,7 +7031,7 @@ void bench_aesxts(void)
     WC_ALLOC_VAR(aes, XtsAes, 1, HEAP_HINT);
 
 
-    ret = wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_ENCRYPTION,
+    ret = wc_AesXtsSetKey(aes, key, keySz, AES_ENCRYPTION,
             HEAP_HINT, devId);
     if (ret != 0) {
         printf("wc_AesXtsSetKey failed, ret = %d\n", ret);
@@ -7057,7 +7055,7 @@ void bench_aesxts(void)
 #endif
            );
 
-    bench_stats_sym_finish("AES-XTS-enc", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(encLbl, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -7111,7 +7109,7 @@ void bench_aesxts(void)
 #endif
                );
 
-        bench_stats_sym_finish("AES-XTS-stream-enc", 0, count, bench_size,
+        bench_stats_sym_finish(streamEncLbl, 0, count, bench_size,
                                start, ret);
 #ifdef MULTI_VALUE_STATISTICS
         bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -7121,7 +7119,7 @@ void bench_aesxts(void)
     wc_AesXtsFree(aes);
 
     /* decryption benchmark */
-    ret = wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_DECRYPTION,
+    ret = wc_AesXtsSetKey(aes, key, keySz, AES_DECRYPTION,
             HEAP_HINT, devId);
     if (ret != 0) {
         printf("wc_AesXtsSetKey failed, ret = %d\n", ret);
@@ -7148,7 +7146,7 @@ void bench_aesxts(void)
 #endif
            );
 
-    bench_stats_sym_finish("AES-XTS-dec", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(decLbl, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -7192,7 +7190,7 @@ void bench_aesxts(void)
 #endif
                );
 
-        bench_stats_sym_finish("AES-XTS-stream-dec", 0, count, bench_size,
+        bench_stats_sym_finish(streamDecLbl, 0, count, bench_size,
                                start, ret);
 #ifdef MULTI_VALUE_STATISTICS
         bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -7205,8 +7203,49 @@ exit:
 
     wc_AesXtsFree(aes);
     WC_FREE_VAR(aes, HEAP_HINT);
-#else
-    printf("AES-XTS benchmark is with 128-bit keys only\n");
+}
+
+void bench_aesxts(void)
+{
+#ifdef WOLFSSL_AES_128
+    static const unsigned char k1[] = {
+        0xa1, 0xb9, 0x0c, 0xba, 0x3f, 0x06, 0xac, 0x35,
+        0x3b, 0x2c, 0x34, 0x38, 0x76, 0x08, 0x17, 0x62,
+        0x09, 0x09, 0x23, 0x02, 0x6e, 0x91, 0x77, 0x18,
+        0x15, 0xf2, 0x9d, 0xab, 0x01, 0x93, 0x2f, 0x2f
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    static const unsigned char k2[] = {
+        0x1e, 0xa6, 0x61, 0xc5, 0x8d, 0x94, 0x3a, 0x0e,
+        0x48, 0x01, 0xe4, 0x2f, 0x4b, 0x09, 0x47, 0x14,
+        0x9e, 0x7f, 0x9f, 0x8e, 0x3e, 0x68, 0xd0, 0xc7,
+        0x50, 0x52, 0x10, 0xbd, 0x31, 0x1a, 0x0e, 0x7c,
+        0xd6, 0xe1, 0x3f, 0xfd, 0xf2, 0x41, 0x8d, 0x8d,
+        0x19, 0x11, 0xc0, 0x04, 0xcd, 0xa5, 0x8d, 0xa3,
+        0xd6, 0x19, 0xb7, 0xe2, 0xb9, 0x14, 0x1e, 0x58,
+        0x31, 0x8e, 0xea, 0x39, 0x2c, 0xf4, 0x1b, 0x08
+    };
+#endif
+
+#ifdef WOLFSSL_AES_128
+    bench_aesxts_key(k1, (word32)sizeof(k1), "AES-128-XTS-enc",
+        "AES-128-XTS-dec"
+#ifdef WOLFSSL_AESXTS_STREAM
+        , "AES-128-XTS-stream-enc", "AES-128-XTS-stream-dec"
+#endif
+        );
+#endif
+#ifdef WOLFSSL_AES_256
+    bench_aesxts_key(k2, (word32)sizeof(k2), "AES-256-XTS-enc",
+        "AES-256-XTS-dec"
+#ifdef WOLFSSL_AESXTS_STREAM
+        , "AES-256-XTS-stream-enc", "AES-256-XTS-stream-dec"
+#endif
+        );
+#endif
+#if !defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AES_256)
+    printf("AES-XTS benchmark needs WOLFSSL_AES_128 or WOLFSSL_AES_256\n");
 #endif
 }
 #endif /* WOLFSSL_AES_XTS */
