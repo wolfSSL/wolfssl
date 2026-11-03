@@ -13541,7 +13541,7 @@ static int test_wolfSSL_PKCS5(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA) && !defined(NO_PWDBASED) && \
-    defined(HAVE_PBKDF2)
+    !defined(NO_HMAC) && defined(HAVE_PBKDF2)
 #ifdef HAVE_FIPS /* Password minimum length is 14 (112-bit) in FIPS MODE */
     const char* passwd = "myfipsPa$$W0rd";
 #else
@@ -13564,7 +13564,8 @@ static int test_wolfSSL_PKCS5(void)
 #endif
 
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* OPENSSL_EXTRA && !NO_SHA && !NO_PWDBASED && HAVE_PBKDF2 */
+#endif /* OPENSSL_EXTRA && !NO_SHA && !NO_PWDBASED && !NO_HMAC && \
+        * HAVE_PBKDF2 */
     return EXPECT_RESULT();
 }
 
@@ -21771,7 +21772,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_aes_128_gcm(),
         NULL, 0, PasswordCallBack, (void*)"yassl123"), 0);
 #endif
-#if !defined(NO_DES3) && !defined(NO_SHA)
+#if !defined(NO_DES3) && !defined(NO_SHA) && defined(HAVE_PBKDF2)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write Encrypted PKCS#8 PEM to BIO. */
     bytes = 1834;
@@ -21785,7 +21786,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     evpPkey = NULL;
     BIO_free(bio);
     bio = NULL;
-#endif /* !NO_DES3 && !NO_SHA */
+#endif /* !NO_DES3 && !NO_SHA && HAVE_PBKDF2 */
 #endif /* !NO_BIO && !NO_PWDBASED && HAVE_PKCS8 */
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -21855,6 +21856,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     ExpectIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
     BIO_free(bio);
     bio = NULL;
+#ifdef HAVE_PBKDF2
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write Encrypted PKCS#8 PEM to BIO (test write 0 then 379) */
     bytes = 379;
@@ -21882,6 +21884,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     evpPkey = NULL;
     BIO_free(bio);
     bio = NULL;
+#endif /* HAVE_PBKDF2 */
 
     /* https://github.com/wolfSSL/wolfssl/issues/8610 */
     bytes = (int)XSTRLEN((char *)pkcs8_buffer);

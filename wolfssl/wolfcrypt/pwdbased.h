@@ -73,12 +73,14 @@ WOLFSSL_API int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
                       int hashType);
+#if defined(HAVE_PBKDF2) && !defined(NO_HMAC)
 WOLFSSL_API int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen,
                     const byte* salt, int sLen, int iterations, int kLen,
                     int hashType, void* heap, int devId);
 WOLFSSL_API int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
                       int hashType);
+#endif /* HAVE_PBKDF2 && !NO_HMAC */
 WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
                             const byte* salt, int saltLen, int iterations,
                             int kLen, int hashType, int id);

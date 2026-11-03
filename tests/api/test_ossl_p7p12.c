@@ -1479,7 +1479,7 @@ int test_wolfSSL_PKCS12(void)
     !defined(NO_STDIO_FILESYSTEM) && !defined(NO_TLS) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
     !defined(NO_SHA) && defined(HAVE_PKCS12) && !defined(NO_BIO) && \
-    defined(WOLFSSL_AES_256)
+    defined(WOLFSSL_AES_256) && defined(HAVE_PBKDF2)
     byte buf[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
