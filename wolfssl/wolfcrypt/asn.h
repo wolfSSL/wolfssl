@@ -2175,9 +2175,6 @@ struct DecodedCert {
     const byte* subjectNameDer;
     word32      issuerNameDerSz;
     word32      subjectNameDerSz;
-    /* WOLFSSL_X509_NAME to fill in when parsing a name instead of
-     * allocating one. Set by GetCertX509Name(). */
-    void* x509NameTarget;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #ifdef WOLFSSL_SEP
     int     deviceTypeSz;
