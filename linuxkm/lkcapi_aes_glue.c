@@ -96,6 +96,7 @@
 #define LINUXKM_LKCAPI_AESGCM_KAT_MISMATCH_E AESGCM_KAT_FIPS_E
 
 #define WOLFKM_AESCBC_NAME   "cbc(aes)"
+#define WOLFKM_AESCTS_NAME   "cts(cbc(aes))"
 #define WOLFKM_AESCFB_NAME   "cfb(aes)"
 #define WOLFKM_AESGCM_NAME   "gcm(aes)"
 #define WOLFKM_AESGCM_RFC4106_NAME   "rfc4106(gcm(aes))"
@@ -127,6 +128,7 @@
     WOLFKM_AES_DRIVER_ISA_EXT WOLFKM_DRIVER_SUFFIX_BASE
 
 #define WOLFKM_AESCBC_DRIVER ("cbc-aes" WOLFKM_AES_DRIVER_SUFFIX)
+#define WOLFKM_AESCTS_DRIVER ("cts(cbc-aes" WOLFKM_AES_DRIVER_SUFFIX ")")
 #define WOLFKM_AESCFB_DRIVER ("cfb-aes" WOLFKM_AES_DRIVER_SUFFIX)
 #define WOLFKM_AESGCM_DRIVER ("gcm-aes" WOLFKM_AES_DRIVER_SUFFIX)
 #define WOLFKM_AESGCM_RFC4106_DRIVER ("rfc4106-gcm-aes" WOLFKM_AES_DRIVER_SUFFIX)
@@ -3301,6 +3303,9 @@ static int linuxkm_test_aescbc(void)
     byte    dec[sizeof(p_vector)];
     u8 *    enc2 = NULL;
     u8 *    dec2 = NULL;
+#if IS_ENABLED(CONFIG_CRYPTO_CTS)
+    struct crypto_skcipher *  cts_tfm;
+#endif
 
     aes = (Aes *)malloc(sizeof(*aes));
     if (aes == NULL)
@@ -3452,6 +3457,23 @@ static int linuxkm_test_aescbc(void)
         pr_err("error: dec and dec2 do not match: %d\n", ret);
         goto test_cbc_end;
     }
+
+#if IS_ENABLED(CONFIG_CRYPTO_CTS)
+    /* Instantiate cts over this cbc(aes) now, or cts(cbc(aes)) (krb5 aes-sha2,
+     * e.g. libceph) resolves to a native driver. The instance outlives this
+     * tfm, holds no cra_refcnt on cbcAesAlg, and goes when it unregisters.
+     */
+    cts_tfm = crypto_alloc_skcipher(WOLFKM_AESCTS_DRIVER, 0, 0);
+    if (IS_ERR(cts_tfm)) {
+        ret = (int)PTR_ERR(cts_tfm);
+        pr_err("error: allocating %s failed: %d\n", WOLFKM_AESCTS_DRIVER, ret);
+        goto test_cbc_end;
+    }
+    crypto_free_skcipher(cts_tfm);
+
+    ret = check_skcipher_driver_masking(NULL, WOLFKM_AESCTS_NAME,
+                                        WOLFKM_AESCTS_DRIVER);
+#endif /* CONFIG_CRYPTO_CTS */
 
 test_cbc_end:
 
