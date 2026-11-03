@@ -584,7 +584,9 @@ int test_wolfSSL_OCSP_parse_url_api(void)
 int test_ssl_crl_ocsp_decision_coverage(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
     struct tm tm;
 #endif
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)

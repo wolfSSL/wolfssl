@@ -2462,9 +2462,11 @@ int test_ssl_api_decision_coverage(void)
         WOLFSSL* nssl = wolfSSL_new(ctx);
 
         ExpectNotNull(nssl);
-        nssl->options.side = WOLFSSL_NEITHER_END;
-        (void)wolfSSL_GetMacSecret(nssl, 1);
-        (void)wolfSSL_GetMacSecret(nssl, 0);
+        if (nssl != NULL) {
+            nssl->options.side = WOLFSSL_NEITHER_END;
+            (void)wolfSSL_GetMacSecret(nssl, 1);
+            (void)wolfSSL_GetMacSecret(nssl, 0);
+        }
         wolfSSL_free(nssl);
     }
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
@@ -2473,17 +2475,23 @@ int test_ssl_api_decision_coverage(void)
         WOLFSSL_CTX* sctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
         WOLFSSL* sssl = NULL;
 
-        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(sctx, svrKeyFile,
-                                                    CERT_FILETYPE),
-                    WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(sctx, svrCertFile,
-                                                     CERT_FILETYPE),
-                    WOLFSSL_SUCCESS);
-        ExpectNotNull(sssl = wolfSSL_new(sctx));
-        (void)wolfSSL_GetMacSecret(sssl, 1);
-        (void)wolfSSL_GetMacSecret(sssl, 0);
-        /* 5837:0 side==SERVER row for the EMS re-arm guard */
-        wolfSSL_clear(sssl);
+        ExpectNotNull(sctx);
+        if (sctx != NULL) {
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(sctx, svrKeyFile,
+                                                        CERT_FILETYPE),
+                        WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_use_certificate_file(sctx, svrCertFile,
+                                                         CERT_FILETYPE),
+                        WOLFSSL_SUCCESS);
+            sssl = wolfSSL_new(sctx);
+            ExpectNotNull(sssl);
+            if (sssl != NULL) {
+                (void)wolfSSL_GetMacSecret(sssl, 1);
+                (void)wolfSSL_GetMacSecret(sssl, 0);
+                /* 5837:0 side==SERVER row for the EMS re-arm guard */
+                wolfSSL_clear(sssl);
+            }
+        }
         wolfSSL_free(sssl);
         wolfSSL_CTX_free(sctx);
     }
@@ -2504,10 +2512,12 @@ int test_ssl_api_decision_coverage(void)
         WOLFSSL* cssl = wolfSSL_new(ctx);
 
         ExpectNotNull(cssl);
-        cssl->options.versionSet = 1;
-        cssl->ctx = NULL;
-        (void)wolfSSL_SetMinVersion(cssl, WOLFSSL_TLSV1_2);
-        cssl->ctx = ctx;
+        if (cssl != NULL) {
+            cssl->options.versionSet = 1;
+            cssl->ctx = NULL;
+            (void)wolfSSL_SetMinVersion(cssl, WOLFSSL_TLSV1_2);
+            cssl->ctx = ctx;
+        }
         wolfSSL_free(cssl);
     }
 
@@ -2518,9 +2528,11 @@ int test_ssl_api_decision_coverage(void)
         WOLFSSL* cssl = wolfSSL_new(ctx);
 
         ExpectNotNull(cssl);
-        cssl->ctx = NULL;
-        (void)wolfSSL_set_cipher_list(cssl, "ALL");
-        cssl->ctx = ctx;
+        if (cssl != NULL) {
+            cssl->ctx = NULL;
+            (void)wolfSSL_set_cipher_list(cssl, "ALL");
+            cssl->ctx = ctx;
+        }
         wolfSSL_free(cssl);
     }
 
@@ -2533,48 +2545,50 @@ int test_ssl_api_decision_coverage(void)
 
         XMEMSET(ctxbuf, 0, sizeof(ctxbuf));
         ExpectNotNull(kssl);
-        kssl->options.handShakeDone = 1;
-        /* 3399: use_ctx && len>0 && (use_ctx ? ctx==NULL : 0) */
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, NULL, 0, 0);
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, ctxbuf, (word32)sizeof(
-                                                 ctxbuf), 1);
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, NULL, 1, 1);
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, NULL, 0, 1);
-        /* 3417: use_ctx && contextLen > MAX_16BIT */
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, ctxbuf, (word32)sizeof(
-                                                 ctxbuf), 1);
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, ctxbuf, (word32)(
-                                                 WOLFSSL_MAX_16BIT + 1), 1);
-        /* 3428: saveArrays==0 || arrays==NULL (needs 3417 to pass) */
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, NULL, 0, 0);
-        wolfSSL_KeepArrays(kssl);
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "label", 5, NULL, 0, 0);
-        {
-            Arrays* saved = kssl->arrays;
-
-            kssl->arrays = NULL;
+        if (kssl != NULL) {
+            kssl->options.handShakeDone = 1;
+            /* 3399: use_ctx && len>0 && (use_ctx ? ctx==NULL : 0) */
             (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
                                                  "label", 5, NULL, 0, 0);
-            kssl->arrays = saved;
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "label", 5, ctxbuf, (word32)sizeof(
+                                                     ctxbuf), 1);
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "label", 5, NULL, 1, 1);
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "label", 5, NULL, 0, 1);
+            /* 3417: use_ctx && contextLen > MAX_16BIT */
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "label", 5, ctxbuf, (word32)sizeof(
+                                                     ctxbuf), 1);
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "label", 5, ctxbuf, (word32)(
+                                                     WOLFSSL_MAX_16BIT + 1), 1);
+            /* 3428: saveArrays==0 || arrays==NULL (needs 3417 to pass) */
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "label", 5, NULL, 0, 0);
+            wolfSSL_KeepArrays(kssl);
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "label", 5, NULL, 0, 0);
+            {
+                Arrays* saved = kssl->arrays;
+
+                kssl->arrays = NULL;
+                (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                     "label", 5, NULL, 0, 0);
+                kssl->arrays = saved;
+            }
+            /* 3437: forbidden label (needs 3428 to pass). The labels are the
+             * TLS PRF names; "master" is too short, "master secrex" is the
+             * same length with a mismatching tail. */
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "master secret", 13, NULL, 0, 0);
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "master", 6, NULL, 0, 0);
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                                                 "master secrex", 13, NULL, 0, 0);
+            kssl->options.handShakeDone = 0;
         }
-        /* 3437: forbidden label (needs 3428 to pass). The labels are the
-         * TLS PRF names; "master" is too short, "master secrex" is the
-         * same length with a mismatching tail. */
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "master secret", 13, NULL, 0, 0);
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "master", 6, NULL, 0, 0);
-        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
-                                             "master secrex", 13, NULL, 0, 0);
-        kssl->options.handShakeDone = 0;
         wolfSSL_free(kssl);
     }
 #endif
@@ -2611,12 +2625,14 @@ int test_ssl_api_decision_coverage(void)
         Arrays* saved;
 
         ExpectNotNull(pssl);
-        saved = pssl->arrays;
-        pssl->arrays = NULL;
-        (void)wolfSSL_get_psk_identity_hint(pssl);
-        (void)wolfSSL_get_psk_identity(pssl);
-        (void)wolfSSL_use_psk_identity_hint(pssl, "h");
-        pssl->arrays = saved;
+        if (pssl != NULL) {
+            saved = pssl->arrays;
+            pssl->arrays = NULL;
+            (void)wolfSSL_get_psk_identity_hint(pssl);
+            (void)wolfSSL_get_psk_identity(pssl);
+            (void)wolfSSL_use_psk_identity_hint(pssl, "h");
+            pssl->arrays = saved;
+        }
         wolfSSL_free(pssl);
     }
 #endif

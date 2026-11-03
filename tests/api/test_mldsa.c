@@ -33248,6 +33248,7 @@ static int mldsa_test_round_trip(WC_RNG* rng, byte level)
     return ret;
 }
 
+#ifdef WOLFSSL_MLDSA_CHECK_KEY
 /* CheckKey on a generated key pair (13612:0/13612:1 pairs: the valid key
  * gives (T,F) of the x != 0 check, the t1-corrupted key gives (T,T)),
  * plus the import-side s1 range validation (ImportPrivRaw rejects an
@@ -33341,6 +33342,7 @@ static int mldsa_test_check_key_corrupt(WC_RNG* rng, byte level,
 
     return ret;
 }
+#endif /* WOLFSSL_MLDSA_CHECK_KEY */
 #endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY && ... */
 
 /* =====================================================================
