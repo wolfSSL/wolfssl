@@ -332,8 +332,12 @@ WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 #endif
 
 #ifdef WOLFSSL_NO_FORCE_ZERO
+    /* NOLINTNEXTLINE(readability-redundant-declaration) */
+    void ForceZero(void* mem, size_t len);
+    #undef wc_ForceZero
     #define wc_ForceZero ForceZero
 #else
+    /* NOLINTNEXTLINE(readability-redundant-declaration) */
     WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
 #endif
 
