@@ -11,3 +11,4 @@ crossbuild-essential-arm64
 crossbuild-essential-armhf
 gcc-powerpc-linux-gnu
 libtool
+qemu-user
