@@ -18120,11 +18120,15 @@ int test_tls13_exporter_suite_decision_coverage(void)
      * 0xFF as the second is the first-true/second-false row (no cipher
      * suite's second byte is 0xFF). */
     ExpectNotNull(suites);
-    ExpectTrue(suites->suiteSz >= 2);
-    ExpectIntEQ(FindSuiteSSL(ssl_c, (byte*)suites->suites), 1);
-    probe[0] = suites->suites[0];
-    probe[1] = 0xFF;
-    ExpectIntEQ(FindSuiteSSL(ssl_c, probe), 0);
+    if (suites != NULL) {
+        ExpectTrue(suites->suiteSz >= 2);
+        if (suites->suiteSz >= 2) {
+            ExpectIntEQ(FindSuiteSSL(ssl_c, (byte*)suites->suites), 1);
+            probe[0] = suites->suites[0];
+            probe[1] = 0xFF;
+            ExpectIntEQ(FindSuiteSSL(ssl_c, probe), 0);
+        }
+    }
 #endif /* WOLFSSL_TEST_STATIC_BUILD */
 
     wolfSSL_free(ssl_c);
@@ -18145,14 +18149,18 @@ int test_tls13_exporter_suite_decision_coverage(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-    wolfSSL_KeepArrays(ssl_c);
-    wolfSSL_KeepArrays(ssl_s);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
-        "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
-    ssl_c->version.minor = DTLSv1_3_MINOR - 1;
-    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
-        "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
+    ExpectNotNull(ssl_c);
+    ExpectNotNull(ssl_s);
+    if (ssl_c != NULL && ssl_s != NULL) {
+        wolfSSL_KeepArrays(ssl_c);
+        wolfSSL_KeepArrays(ssl_s);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+            "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
+        ssl_c->version.minor = DTLSv1_3_MINOR - 1;
+        ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+            "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);

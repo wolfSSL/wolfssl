@@ -2391,7 +2391,13 @@ int test_ssl_api_decision_coverage(void)
 
     XMEMSET(buf, 0, sizeof(buf));
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ctx != NULL)
+        ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
     ExpectTrue(ssl->arrays != NULL);
 
     /* --- 2509:1 wolfSSL_Init: initRefCount == 0 (second call -> refcount>0) */
@@ -2410,8 +2416,10 @@ int test_ssl_api_decision_coverage(void)
         WOLFSSL* dssl = wolfSSL_new(ctx);
 
         ExpectNotNull(dssl);
-        dssl->devId = 0x1234;
-        (void)wolfSSL_CTX_GetDevId(ctx, dssl);
+        if (dssl != NULL) {
+            dssl->devId = 0x1234;
+            (void)wolfSSL_CTX_GetDevId(ctx, dssl);
+        }
         wolfSSL_free(dssl);
     }
 

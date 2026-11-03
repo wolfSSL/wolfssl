@@ -592,7 +592,13 @@ int test_ssl_crl_ocsp_decision_coverage(void)
     WOLFSSL* ssl = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ctx != NULL)
+        ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
 
 #ifdef HAVE_CRL
     /* --- 77:0/1 wolfSSL_LoadCRLBuffer: ssl==NULL || ssl->ctx==NULL ------ */
@@ -606,10 +612,12 @@ int test_ssl_crl_ocsp_decision_coverage(void)
         (void)wolfSSL_LoadCRLBuffer(ssl, buf, (long)sizeof(buf),
                                     CERT_FILETYPE);
         ExpectNotNull(cssl);
-        cssl->ctx = NULL;
-        (void)wolfSSL_LoadCRLBuffer(cssl, buf, (long)sizeof(buf),
-                                    CERT_FILETYPE);
-        cssl->ctx = ctx;
+        if (cssl != NULL) {
+            cssl->ctx = NULL;
+            (void)wolfSSL_LoadCRLBuffer(cssl, buf, (long)sizeof(buf),
+                                        CERT_FILETYPE);
+            cssl->ctx = ctx;
+        }
         wolfSSL_free(cssl);
     }
 #endif
@@ -630,12 +638,14 @@ int test_ssl_crl_ocsp_decision_coverage(void)
         WOLFSSL_CERT_MANAGER* saved;
 
         ExpectNotNull(nctx);
-        saved = nctx->cm;
-        nctx->cm = NULL;
-        (void)wolfSSL_CTX_get_tlsext_status_cb(nctx, NULL);
-        (void)wolfSSL_CTX_set_tlsext_status_cb(nctx, NULL);
-        (void)wolfSSL_CTX_set_tlsext_status_arg(nctx, NULL);
-        nctx->cm = saved;
+        if (nctx != NULL) {
+            saved = nctx->cm;
+            nctx->cm = NULL;
+            (void)wolfSSL_CTX_get_tlsext_status_cb(nctx, NULL);
+            (void)wolfSSL_CTX_set_tlsext_status_cb(nctx, NULL);
+            (void)wolfSSL_CTX_set_tlsext_status_arg(nctx, NULL);
+            nctx->cm = saved;
+        }
         wolfSSL_CTX_free(nctx);
     }
 
