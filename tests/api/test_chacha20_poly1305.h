@@ -27,6 +27,7 @@
 int test_wc_ChaCha20Poly1305_aead(void);
 int test_wc_XChaCha20Poly1305_aead(void);
 int test_wc_XChaCha20Poly1305_BadAuthTag(void);
+int test_wc_XChaCha20Poly1305_Stream(void);
 int test_wc_ChaCha20Poly1305_MonteCarlo(void);
 int test_wc_ChaCha20Poly1305_Stream(void);
 int test_wc_ChaCha20Poly1305_AeadEdgeCases(void);
@@ -47,6 +48,7 @@ int test_wc_XChaCha20Poly1305_LargeBuffer(void);
     TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_aead),                   \
     TEST_DECL_GROUP("xchacha20-poly1305", test_wc_XChaCha20Poly1305_aead),                 \
     TEST_DECL_GROUP("xchacha20-poly1305", test_wc_XChaCha20Poly1305_BadAuthTag),           \
+    TEST_DECL_GROUP("xchacha20-poly1305", test_wc_XChaCha20Poly1305_Stream), \
     TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_MonteCarlo),             \
     TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_Stream),                 \
     TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_AeadEdgeCases),          \

@@ -558,16 +558,24 @@ impl XChaCha20Poly1305Aead {
     /// Run `f` with a ChaCha20-Poly1305 AEAD context initialized for
     /// XChaCha20-Poly1305 (HChaCha20 subkey derivation, Poly1305 key setup,
     /// and AAD absorption). The context is zeroized afterwards.
+    ///
+    /// The AAD is absorbed and padded here instead of being passed to
+    /// wc_XChaCha20Poly1305_Init(). Older wolfSSL releases padded the AAD to
+    /// a 16-byte boundary inside that function; newer ones only hash it there
+    /// and leave the pad to wc_ChaCha20Poly1305_UpdateData() or
+    /// wc_ChaCha20Poly1305_Final(), neither of which this path uses. Doing
+    /// both steps here yields the same Poly1305 state with either library.
     fn with_aead<F>(&self, nonce: &[u8], associated_data: &[u8], f: F)
         -> Result<(), aead::Error>
     where F: FnOnce(&mut sys::ChaChaPoly_Aead) -> Result<(), aead::Error> {
         if associated_data.len() > u32::MAX as usize {
             return Err(aead::Error);
         }
+        let aad_len = associated_data.len() as u32;
         let mut wc_ccp: MaybeUninit<sys::ChaChaPoly_Aead> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_XChaCha20Poly1305_Init(wc_ccp.as_mut_ptr(),
-                associated_data.as_ptr(), associated_data.len() as u32,
+                core::ptr::null(), 0,
                 nonce.as_ptr(), nonce.len() as u32,
                 self.key.as_ptr(), self.key.len() as u32, 1)
         };
@@ -576,7 +584,14 @@ impl XChaCha20Poly1305Aead {
             return Err(aead::Error);
         }
         let mut wc_ccp = unsafe { wc_ccp.assume_init() };
-        let result = f(&mut wc_ccp);
+        let mut rc = unsafe {
+            sys::wc_Poly1305Update(&mut wc_ccp.poly, associated_data.as_ptr(),
+                aad_len)
+        };
+        if rc == 0 {
+            rc = unsafe { sys::wc_Poly1305_Pad(&mut wc_ccp.poly, aad_len) };
+        }
+        let result = if rc == 0 { f(&mut wc_ccp) } else { Err(aead::Error) };
         unsafe { crate::zeroize_raw(&mut wc_ccp); }
         result
     }
