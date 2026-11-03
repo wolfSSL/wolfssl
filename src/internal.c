@@ -10139,7 +10139,8 @@ static void DetachPendingAsyncDev(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
 /* Release the public key taken from the peer certificate. */
 void FreePeerCertKeys(WOLFSSL* ssl)
 {
-    (void)ssl;
+    if (ssl == NULL)
+        return;
 #ifndef NO_RSA
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->peerRsaKey != NULL)
