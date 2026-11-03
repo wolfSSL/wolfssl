@@ -4071,8 +4071,11 @@
 #endif
 
 /* Hide the FIPS module's self-test entry points (wc_RNG_HealthTest*) from
- * applications; HAVE_FORCE_FIPS_FAILURE builds expose them for testing. */
-#if defined(HAVE_FIPS) && !defined(HAVE_FORCE_FIPS_FAILURE)
+ * applications. HAVE_FORCE_FIPS_FAILURE builds expose them for testing, and
+ * WOLFSSL_EXPOSE_FIPS_PRIVATE_API exposes them in any FIPS build (e.g. for
+ * CAVP harnesses) without changing module behavior. */
+#if defined(HAVE_FIPS) && !defined(HAVE_FORCE_FIPS_FAILURE) && \
+    !defined(WOLFSSL_EXPOSE_FIPS_PRIVATE_API)
     #define WOLFSSL_FIPS_PRIVATE_API
 #endif
 
