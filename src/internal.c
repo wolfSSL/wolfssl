@@ -16056,7 +16056,8 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
         else
             ret = MEMORY_E;
 #if defined(OPENSSL_ALL)
-        if (ret == 0) {
+        /* An earlier field may have failed to copy, so check the key was. */
+        if (x509->pubKey.buffer != NULL) {
             /* The EVP_PKEY is decoded on first use by X509CachedPubKey() and
              * the algorithm object by wolfSSL_X509_PUBKEY_get0_param(). */
             wolfSSL_X509_ALGOR_free(x509->key.algor);
@@ -16292,19 +16293,19 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->version = dCert->version + 1;
 
+    /* A name that can't be built is reported but the rest is still copied,
+     * as for the other fields. */
     CopyDecodedName(&x509->issuer, dCert, ASN_ISSUER);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    ret = CopyDecodedX509Name(x509, &x509->issuer, dCert, ASN_ISSUER);
-    if (ret != 0) {
-        return ret;
-    }
+    copyRet = CopyDecodedX509Name(x509, &x509->issuer, dCert, ASN_ISSUER);
+    if (copyRet != 0)
+        ret = copyRet;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     CopyDecodedName(&x509->subject, dCert, ASN_SUBJECT);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    ret = CopyDecodedX509Name(x509, &x509->subject, dCert, ASN_SUBJECT);
-    if (ret != 0) {
-        return ret;
-    }
+    copyRet = CopyDecodedX509Name(x509, &x509->subject, dCert, ASN_SUBJECT);
+    if (copyRet != 0)
+        ret = copyRet;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
@@ -16321,7 +16322,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     /* CSR attributes */
     if (x509->isCSR) {
-        ret = CopyREQAttributes(x509, dCert);
+        copyRet = CopyREQAttributes(x509, dCert);
+        if (copyRet != 0)
+            ret = copyRet;
     }
 #endif /* WOLFSSL_CERT_REQ */
 
