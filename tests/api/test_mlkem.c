@@ -5406,7 +5406,8 @@ int test_wc_mlkem_decode_reused_key(void)
 #define MLKEM_OOM_TEST
 #endif
 
-#if defined(MLKEM_OOM_TEST) || defined(MLKEM_PCT_OOM_TEST)
+#if (defined(MLKEM_OOM_TEST) || defined(MLKEM_PCT_OOM_TEST)) && \
+    defined(USE_WOLFSSL_MEMORY)
 
 static wolfSSL_Malloc_cb  mlkem_oom_mf;
 static wolfSSL_Free_cb    mlkem_oom_ff;
