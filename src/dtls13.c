@@ -782,6 +782,10 @@ int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
             return MEMORY_E;
         }
 
+    #ifndef NO_ASN_TIME
+        if (ssl->dtls13Rtx.seenRecords == NULL)
+            ssl->dtls_ack_timer_start = DtlsTimerNowMs();
+    #endif
         *prevNext = rn;
         rn->next = cur;
         ssl->dtls13Rtx.seenRecordsCount++;
@@ -827,6 +831,7 @@ static void Dtls13RtxFlushAcks(WOLFSSL* ssl)
 
         ssl->dtls13Rtx.seenRecords = NULL;
         ssl->dtls13Rtx.seenRecordsCount = 0;
+        ssl->dtls13FastTimeout = 0;
     #ifdef WOLFSSL_RW_THREADED
         wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
     #endif
@@ -1039,8 +1044,10 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
         handshakeType, hashOutput, Dtls13SendNow(ssl, handshakeType));
 
     if (rtxRecord != NULL) {
-        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
             Dtls13RtxAddRecord(&ssl->dtls13Rtx, rtxRecord);
+            DtlsTimerStart(ssl);
+        }
         else
             Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
     }
@@ -1628,8 +1635,20 @@ int Dtls13RecordRecvd(WOLFSSL* ssl)
     if (ssl->curRL.type != handshake)
         return 0;
 
-    if (!ssl->options.dtls13SendMoreAcks)
+    if (!ssl->options.dtls13SendMoreAcks) {
+    #ifdef WOLFSSL_RW_THREADED
+        if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0)
+            return BAD_MUTEX_E;
+    #endif
+    #ifndef NO_ASN_TIME
+        if (!ssl->dtls13FastTimeout)
+            ssl->dtls_ack_timer_start = DtlsTimerNowMs();
+    #endif
         ssl->dtls13FastTimeout = 1;
+    #ifdef WOLFSSL_RW_THREADED
+        wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+    #endif
+    }
 
     /* Acking happens in Dtls13RtxAddAckForCurRecord(). */
     return 0;
@@ -1655,26 +1674,18 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
     byte* output;
     int isLast;
     int sendSz;
-#ifndef NO_ASN_TIME
-#ifdef WOLFSSL_32BIT_MILLI_TIME
-    word32 now;
-#else
-    sword64 now;
-#endif
-#endif
     int ret;
 
     WOLFSSL_ENTER("Dtls13RtxSendBuffered");
 
 #ifndef NO_ASN_TIME
-    now = TimeNowInMilliseconds();
-    if (now - ssl->dtls13Rtx.lastRtx < DTLS13_MIN_RTX_INTERVAL) {
+    if (Dtls13RtxWaitMs(ssl) > 0) {
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("Avoid too fast retransmission");
 #endif /* WOLFSSL_DEBUG_TLS */
         return 0;
     }
-    ssl->dtls13Rtx.lastRtx = now;
+    ssl->dtls13Rtx.lastRtx = TimeNowInMilliseconds();
 #endif
 
     r = ssl->dtls13Rtx.rtxRecords;
@@ -1731,6 +1742,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
             /* this fragment will be sent eventually. Move it to the end of the
                list so next time we start with a new one. */
             Dtls13RtxMoveToEndOfList(ssl, prevNext, r);
+            DtlsTimerStart(ssl);
             return ret;
         }
 
@@ -1738,6 +1750,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         r = r->next;
     }
 
+    DtlsTimerStart(ssl);
     return 0;
 }
 
@@ -3418,6 +3431,7 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
                 *tail = ssl->dtls13Rtx.seenRecords;
                 ssl->dtls13Rtx.seenRecords = NULL;
                 ssl->dtls13Rtx.seenRecordsCount = 0;
+                ssl->dtls13FastTimeout = 0;
             }
             else {
                 /* Queue already at the cap: drop this batch. */
@@ -3456,39 +3470,89 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
     return 0;
 }
 
-/* Send ACKs when available after a timeout but only retransmit the last
- * flight after a long timeout */
-int Dtls13RtxTimeout(WOLFSSL* ssl)
+/* Return 1 when seen records wait for an ACK that may be sent now. */
+int Dtls13AckSendable(const WOLFSSL* ssl)
+{
+    return ssl->dtls13Rtx.seenRecords != NULL &&
+        (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
+         ssl->options.seenUnifiedHdr);
+}
+
+/* Milliseconds until Dtls13RtxSendBuffered() retransmits again. */
+word32 Dtls13RtxWaitMs(WOLFSSL* ssl)
+{
+#ifndef NO_ASN_TIME
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+    word32 since = TimeNowInMilliseconds() - ssl->dtls13Rtx.lastRtx;
+#else
+    sword64 since = TimeNowInMilliseconds() - ssl->dtls13Rtx.lastRtx;
+
+    if (since < 0)
+        return 0;
+#endif
+
+    if (since < DTLS13_MIN_RTX_INTERVAL)
+        return (word32)(DTLS13_MIN_RTX_INTERVAL - since);
+#else
+    (void)ssl;
+#endif
+    return 0;
+}
+
+/* Return 1 once the buffered flight waited half its retransmission timeout. */
+static int Dtls13RtxTimerDue(WOLFSSL* ssl)
+{
+#ifndef NO_ASN_TIME
+    if (ssl->dtls13Rtx.rtxRecords == NULL || ssl->dtls_timeout <= 0)
+        return 0;
+    return DtlsTimerElapsedMs(ssl->dtls_timer_start) >=
+        DtlsTimerTimeoutMs(ssl) / 2;
+#else
+    (void)ssl;
+    return 0;
+#endif
+}
+
+/* Send ACKs after a timeout and retransmit the last flight only after a long
+ * timeout. expired is the DtlsTimer that expired, or 0 when not known. */
+int Dtls13RtxTimeout(WOLFSSL* ssl, int expired)
 {
     int ret = 0;
+    int ackOnly = (expired == DTLS_TIMER_ACK);
+    int fastTimeout;
+    int sendAck;
 
-    /* We don't want to send acks until we have done version
-     * negotiation in the SH or have received a unified header in the
-     * DTLS record. */
-    if (ssl->dtls13Rtx.seenRecords != NULL &&
-            (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
-                    ssl->options.seenUnifiedHdr)) {
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0)
+        return BAD_MUTEX_E;
+#endif
+    fastTimeout = ssl->dtls13FastTimeout;
+    ssl->dtls13FastTimeout = 0;
+    sendAck = Dtls13AckSendable(ssl);
+    if (sendAck)
         ssl->dtls13Rtx.sendAcks = 0;
-        /* reset fast timeout as we are sending ACKs */
-        ssl->dtls13FastTimeout = 0;
+#ifdef WOLFSSL_RW_THREADED
+    wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+#endif
+
+    if (expired == 0 && fastTimeout)
+        ackOnly = !Dtls13RtxTimerDue(ssl);
+
+    if (sendAck) {
         ret = SendDtls13Ack(ssl);
         if (ret != 0)
             return ret;
     }
 
-    /* we have two timeouts, a shorter (dtls13FastTimeout = 1) and a longer
-       one. When the shorter expires we only send ACKs, as it normally means
-       that some messages we are waiting for don't arrive yet. But we
-       retransmit our buffered messages only if the longer timeout
-       expires. fastTimeout is 1/4 of the longer timeout */
-    if (ssl->dtls13FastTimeout) {
-        ssl->dtls13FastTimeout = 0;
+    if (ackOnly)
         return 0;
-    }
+
+    if (Dtls13RtxWaitMs(ssl) > 0)
+        return 0;
 
     /* Increase timeout on long timeout */
     if (DtlsMsgPoolTimeout(ssl) != 0)
-        return WOLFSSL_FATAL_ERROR;
+        return SOCKET_ERROR_E;
 
     return Dtls13RtxSendBuffered(ssl);
 }
@@ -3623,6 +3687,7 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
 #ifndef WOLFSSL_RW_THREADED
     int ret;
 #endif
+    int hadRecords;
     int i;
 
     /* an epoch 0 ACK once encrypted only triggers retransmission */
@@ -3646,6 +3711,7 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
 
     WOLFSSL_MSG("read ack records");
 
+    hadRecords = ssl->dtls13Rtx.rtxRecords != NULL;
     ackMessage = input + OPAQUE16_LEN;
     for (i = 0; i < length; i += DTLS13_RN_SIZE) {
         ato64(ackMessage + i, &epoch);
@@ -3669,6 +3735,9 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
         }
 #endif /* HAVE_WRITE_DUP */
     }
+
+    if (hadRecords && ssl->dtls13Rtx.rtxRecords == NULL)
+        DtlsTimeoutReset(ssl);
 
     /* last client flight was completely acknowledged by the server. Handshake
        is complete. */

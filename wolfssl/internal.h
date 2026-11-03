@@ -7234,6 +7234,10 @@ struct WOLFSSL {
     int             dtls_timeout;       /* current timeout value, changes */
 #ifndef NO_ASN_TIME
     word32          dtls_start_timeout;
+    word32          dtls_timer_start;   /* ms, when the flight was sent */
+#ifdef WOLFSSL_DTLS13
+    word32          dtls_ack_timer_start; /* ms, first record to ack */
+#endif
 #endif /* !NO_ASN_TIME */
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
@@ -8102,6 +8106,8 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
         #define DtlsMsgListNextReady wolfSSL_DtlsMsgListNextReady
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
+        #define DtlsTimerNowMs wolfSSL_DtlsTimerNowMs
+        #define DtlsTimerLowRes wolfSSL_DtlsTimerLowRes
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
@@ -8122,9 +8128,23 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
                                     void* heap);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item);
 
+    /* DTLS timers returned by DtlsTimersRunning(). */
+    enum DtlsTimer {
+        DTLS_TIMER_RTX = 0x1, /* a flight waits for a reply */
+        DTLS_TIMER_ACK = 0x2  /* DTLS 1.3 records wait for an ack */
+    };
     WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data,
                                        word32 dataSz, enum HandShakeType type);
     WOLFSSL_LOCAL int  DtlsMsgPoolTimeout(WOLFSSL* ssl);
+    WOLFSSL_LOCAL void DtlsTimerStart(WOLFSSL* ssl);
+    WOLFSSL_LOCAL void DtlsTimeoutReset(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  DtlsTimersRunning(WOLFSSL* ssl, word32* ackStart);
+#ifndef NO_ASN_TIME
+    WOLFSSL_TEST_VIS word32 DtlsTimerNowMs(void);
+    WOLFSSL_TEST_VIS int DtlsTimerLowRes(void);
+    WOLFSSL_LOCAL word32 DtlsTimerElapsedMs(word32 start);
+    WOLFSSL_LOCAL word32 DtlsTimerTimeoutMs(const WOLFSSL* ssl);
+#endif
     WOLFSSL_LOCAL int  VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type,
                                                 word32 fragOffset);
     WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item);
@@ -8170,8 +8190,8 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 
     WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);
 
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
-        !defined(NO_PSK) || defined(WOLFSSL_DTLS13))
+#if (defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
+        !defined(NO_PSK))) || defined(WOLFSSL_DTLS)
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);
 #else
@@ -8502,7 +8522,9 @@ WOLFSSL_LOCAL int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash,
 WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL void Dtls13RtxFlushBuffered(WOLFSSL* ssl,
         byte keepNewSessionTicket);
-WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl, int expired);
+WOLFSSL_LOCAL word32 Dtls13RtxWaitMs(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13AckSendable(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13ProcessBufferedMessages(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13CheckAEADFailLimit(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13UpdateWindowRecordRecvd(WOLFSSL* ssl);
