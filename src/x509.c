@@ -15578,12 +15578,91 @@ err:
     }
 
 
+    /* Encoding of the OBJECT IDENTIFIER in a name attribute's object: as made
+     * by wolfSSL_OBJ_nid2obj(), which has no OIDs for name attributes. */
+    static const byte x509NameObjDer[] = { ASN_OBJECT_ID, 0x00 };
+
+#ifdef OPENSSL_EXTRA
+    #define X509_NAME_OBJ_CA_INIT   0, NULL,
+#else
+    #define X509_NAME_OBJ_CA_INIT
+#endif
+#ifdef WOLFSSL_APACHE_HTTPD
+    #define X509_NAME_OBJ_GN_INIT   NULL,
+#else
+    #define X509_NAME_OBJ_GN_INIT
+#endif
+    /* Object for a name attribute as wolfSSL_OBJ_nid2obj() fills it in, but
+     * not dynamic so that it is never freed. The fields of
+     * WOLFSSL_ASN1_OBJECT before d are given in order: change this with them.
+     * test_wolfSSL_X509_NAME_ENTRY_shared_object checks each field. */
+    #define X509_NAME_OBJ(nid, oidSum, sn)                                     \
+        { NULL, x509NameObjDer, sn, oidSum, oidCertNameType, nid,             \
+          (unsigned int)sizeof(x509NameObjDer), X509_NAME_OBJ_CA_INIT 0,       \
+          X509_NAME_OBJ_GN_INIT { 0 } }
+
+    /* Read-only objects shared by the name entries of the common attributes.
+     * Other attributes have an object of the entry's own. */
+    static const WOLFSSL_ASN1_OBJECT x509NameObjs[] = {
+        X509_NAME_OBJ(WC_NID_commonName, WC_NAME_COMMON_NAME_OID, "CN"),
+        X509_NAME_OBJ(WC_NID_organizationName, WC_NAME_ORGANIZATION_NAME_OID,
+            "O"),
+        X509_NAME_OBJ(WC_NID_organizationalUnitName,
+            WC_NAME_ORGANIZATION_UNIT_NAME_OID, "OU"),
+        X509_NAME_OBJ(WC_NID_countryName, WC_NAME_COUNTRY_NAME_OID, "C"),
+        X509_NAME_OBJ(WC_NID_stateOrProvinceName, WC_NAME_STATE_NAME_OID,
+            "ST"),
+        X509_NAME_OBJ(WC_NID_localityName, WC_NAME_LOCALITY_NAME_OID, "L"),
+        X509_NAME_OBJ(WC_NID_emailAddress, WC_NAME_EMAIL_ADDRESS_OID,
+            "emailAddress"),
+        X509_NAME_OBJ(WC_NID_serialNumber, WC_NAME_SERIAL_NUMBER_OID,
+            "serialNumber"),
+        X509_NAME_OBJ(WC_NID_domainComponent, WC_NAME_DOMAIN_COMPONENT_OID,
+            "DC")
+    };
+    #undef X509_NAME_OBJ
+    #undef X509_NAME_OBJ_CA_INIT
+    #undef X509_NAME_OBJ_GN_INIT
+
+    /* Get the shared object for a name attribute.
+     *
+     * @param [in] nid  NID of name attribute.
+     * @return  Shared object on success.
+     * @return  NULL when the attribute has no shared object.
+     */
+    static WOLFSSL_ASN1_OBJECT* X509NameSharedObject(int nid)
+    {
+        size_t i;
+
+        for (i = 0; i < XELEM_CNT(x509NameObjs); i++) {
+            if (x509NameObjs[i].nid == nid) {
+                /* Never written to: see wolfssl_x509_name_entry_set(). */
+                return (WOLFSSL_ASN1_OBJECT*)&x509NameObjs[i];
+            }
+        }
+        return NULL;
+    }
+
     static void wolfssl_x509_name_entry_set(WOLFSSL_X509_NAME_ENTRY* ne,
         int nid, int type, const unsigned char *data, int dataSz)
     {
+        WOLFSSL_ASN1_OBJECT* obj = X509NameSharedObject(nid);
+
         ne->nid = nid;
-        /* Reuse the object if already available. */
-        ne->object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
+        if (obj != NULL) {
+            /* Use the shared object, freeing any object of the entry's own. */
+            wolfSSL_ASN1_OBJECT_free(ne->object);
+            ne->object = obj;
+        }
+        else {
+            /* Reuse the entry's own object. A shared object is not dynamic
+             * and must not be written to. */
+            if ((ne->object != NULL) &&
+                    ((ne->object->dynamic & WOLFSSL_ASN1_DYNAMIC) == 0)) {
+                ne->object = NULL;
+            }
+            ne->object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
+        }
         if (ne->value == NULL) {
             ne->value = wolfSSL_ASN1_STRING_type_new(type);
         }
