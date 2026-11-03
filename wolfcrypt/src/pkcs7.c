@@ -10190,8 +10190,10 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
             }
 
             ret = wc_Des_SetKey(&des, key, iv, DES_ENCRYPTION);
-            if (ret == 0)
+            if (ret == 0) {
                 ret = wc_Des_CbcEncrypt(&des, out, in, (word32)inSz);
+            }
+            ForceZero(&des, sizeof(Des));
 
             break;
 
@@ -10544,6 +10546,7 @@ static void wc_PKCS7_DecryptContentFree(wc_PKCS7* pkcs7, word32 encryptOID,
 #ifndef NO_DES3
         case DESb:
             if (pkcs7->decryptKey.des != NULL) {
+                ForceZero(pkcs7->decryptKey.des, sizeof(Des));
                 XFREE(pkcs7->decryptKey.des, heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->decryptKey.des = NULL;
             }
