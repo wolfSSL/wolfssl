@@ -204,9 +204,6 @@
 /* Uncomment next line if building for Nucleus Plus 2.3 */
 /* #define NUCLEUS_PLUS_2_3 */
 
-/* Uncomment next line if building for using Apache mynewt */
-/* #define WOLFSSL_APACHE_MYNEWT */
-
 /* For Espressif chips see example user_settings.h
  *
  * https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/user_settings.h
@@ -388,6 +385,10 @@
 #if defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_CRYPTOCELL_AES) || \
     defined(WOLFSSL_nRF5x_SDK_15_2)
     #error "Direct ARM CryptoCell 310 support has been removed"
+#endif
+
+#ifdef WOLFSSL_APACHE_MYNEWT
+    #error "Apache Mynewt support has been removed"
 #endif
 
 #if defined(HAVE_FIPS) && \
@@ -3147,41 +3148,6 @@
     #undef  HAVE_ECC521
     #define HAVE_ECC521
 #endif
-
-#if defined(WOLFSSL_APACHE_MYNEWT)
-    #include "os/os_malloc.h"
-    #if !defined(WOLFSSL_LWIP)
-        #include <mn_socket/mn_socket.h>
-    #endif
-
-    #if !defined(SIZEOF_LONG)
-        #define SIZEOF_LONG 4
-    #endif
-    #if !defined(SIZEOF_LONG_LONG)
-        #define SIZEOF_LONG_LONG 8
-    #endif
-    #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-        #define BIG_ENDIAN_ORDER
-    #else
-        #undef  BIG_ENDIAN_ORDER
-        #define LITTLE_ENDIAN_ORDER
-    #endif
-    #define NO_WRITEV
-    #define WOLFSSL_USER_IO
-    #define SINGLE_THREADED
-    #define NO_DEV_RANDOM
-    #define NO_DH
-    #define NO_WOLFSSL_DIR
-    #define NO_ERROR_STRINGS
-    #define HAVE_ECC
-    #define NO_SESSION_CACHE
-    #define NO_ERROR_STRINGS
-    #define XMALLOC_OVERRIDE
-    #define XMALLOC(sz, heap, type)     ((void)(heap), (void)(type), os_malloc(sz))
-    #define XREALLOC(p, sz, heap, type) ((void)(heap), (void)(type), os_realloc(p, sz))
-    #define XFREE(p, heap, type)        ((void)(heap), (void)(type), os_free(p))
-
-#endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
 /* Assembly sources reach settings.h through libwolfssl_sources_asm.h and need

@@ -564,9 +564,6 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #elif defined(MQX_USE_IO_OLD)
     #define WOLFSSL_DEBUG_PRINTF_FN fprintf
     #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS _mqxio_stderr,
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #define WOLFSSL_DEBUG_PRINTF_FN LOG_DEBUG
-    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS &mynewt_log, LOG_MODULE_DEFAULT,
 #elif defined(WOLFSSL_ESPIDF)
     #define WOLFSSL_DEBUG_PRINTF_FN ESP_LOGI
     #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS "wolfssl",
