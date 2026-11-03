@@ -4339,14 +4339,17 @@ int test_wc_ecc_mulmod_projective(void)
     !defined(WOLFSSL_NO_ECC_SW)
     static const int curves[] = {
     #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+        (ECC_MIN_KEY_SZ <= 256) && \
         (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256))
         ECC_SECP256R1,
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+        (ECC_MIN_KEY_SZ <= 384) && \
         (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
         ECC_SECP384R1,
     #endif
     #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+        (ECC_MIN_KEY_SZ <= 521) && \
         (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521))
         ECC_SECP521R1,
     #endif
