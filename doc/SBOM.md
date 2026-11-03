@@ -92,7 +92,7 @@ Optional flags:
 | `--license-override LicenseRef-wolfSSL-Commercial` | If you are a commercial licensee, not GPL |
 | `--license-text /path/to/commercial-license.txt` | Required when `--license-override` is a `LicenseRef-*` |
 | `--no-artifact-hash` | Record a placeholder checksum when **no** hashable artefact exists (ROM image, HSM firmware, binary-only redistribution).  Mutually exclusive with `--lib` / `--srcs` / `--srcs-file` (see § 1.4) |
-| `--document-namespace https://example.com/sbom/wolfssl-5.9.1.spdx.json` | Override the SPDX `documentNamespace`.  Default is a deterministic `urn:uuid:` derived from `--name`/`--version` (SPDX 2.3 §6.5 requires only uniqueness, not resolvability).  Set this when **your** distribution re-hosts the SBOM under a stable URL. |
+| `--document-namespace https://example.com/sbom/wolfssl-5.9.1.spdx.json` | Override the SPDX `documentNamespace`.  Default is a deterministic `urn:uuid:` derived from `--name`, `--version`, the build configuration and the hashed artifact, so two configurations of one release get different values (SPDX 2.3 §6.5 requires only uniqueness, not resolvability).  Set this when **your** distribution re-hosts the SBOM under a stable URL. |
 
 ### 1.3 Dependencies
 

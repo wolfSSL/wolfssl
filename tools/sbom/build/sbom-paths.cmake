@@ -2,8 +2,9 @@
 # The names match the driver default: <bindir>/<name>-<version>.cdx.json
 # and the .spdx.json sibling. A caller that set CDX_OUT / SPDX_OUT passes
 # those paths and this file leaves them unchanged. The tag-value path is
-# used only when the caller sets TV / TV_OUT. A .spdx sibling is not
-# inferred, so a stale file is not installed or removed.
+# used only when the caller sets TV / TV_OUT, or when VALIDATE writes the
+# .spdx sibling. Otherwise the sibling is not inferred, so a stale file is
+# not installed or removed.
 
 function(_wolfssl_compliance_tooling_read_version file macro out_var)
     set(_ver "")
@@ -69,6 +70,11 @@ function(wolfssl_compliance_tooling_sbom_resolve_outputs out_cdx out_spdx out_tv
         if(_spdx STREQUAL "")
             set(_spdx "${WOLFSSL_COMPLIANCE_TOOLING_SBOM_BINDIR}/${WOLFSSL_COMPLIANCE_TOOLING_SBOM_NAME}-${_ver}.spdx.json")
         endif()
+    endif()
+
+    # VALIDATE writes the tag-value file next to the SPDX file.
+    if(_tv STREQUAL "" AND WOLFSSL_COMPLIANCE_TOOLING_SBOM_TV_FROM_SPDX)
+        string(REGEX REPLACE "\\.json$" "" _tv "${_spdx}")
     endif()
 
     set(${out_cdx} "${_cdx}" PARENT_SCOPE)
