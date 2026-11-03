@@ -8543,9 +8543,19 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         /* cond0 F: hint unset, same state -> accepted */
         XMEMSET(raw, 0, sizeof(WOLFSSL));
         ExpectIntEQ(SetSSL_CTX(raw, ctx, 0), WOLFSSL_SUCCESS);
+        /* This raw object bypasses wolfSSL_free(), so release the context
+         * reference SetSSL_CTX acquired before clearing its fields. */
+        wolfSSL_CTX_free(raw->ctx);
+#ifdef WOLFSSL_HAPROXY
+        wolfSSL_CTX_free(raw->initial_ctx);
+#endif
         /* cond2 F: writeDup 1 skips the guard */
         XMEMSET(raw, 0, sizeof(WOLFSSL));
         ExpectIntEQ(SetSSL_CTX(raw, ctxHint, 1), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_free(raw->ctx);
+#ifdef WOLFSSL_HAPROXY
+        wolfSSL_CTX_free(raw->initial_ctx);
+#endif
         XFREE(raw, NULL, DYNAMIC_TYPE_SSL);
         /* cond1 F: hint set + arrays set -> accepted */
         ExpectIntEQ(SetSSL_CTX(ssl, ctxHint, 0), WOLFSSL_SUCCESS);
@@ -8588,6 +8598,8 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         /* cond0 T: newSSL (ctx poked NULL) with NEITHER side ctx: side
          * still taken from the ctx method */
         ssl->options.side = WOLFSSL_NEITHER_END;
+        /* Simulate a new SSL without losing the current context reference. */
+        wolfSSL_CTX_free(ssl->ctx);
         ssl->ctx = NULL;
         ExpectIntEQ(SetSSL_CTX(ssl, ctxNoSide, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.side, WOLFSSL_NEITHER_END);
@@ -8651,6 +8663,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
             "certs/ed25519/server-ed25519-cert.pem", CERT_FILETYPE),
             WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.cacheMessages, 1);
         /* cond2 T: ed448 key */
@@ -8660,6 +8673,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
             "certs/ed448/server-ed448-cert.pem", CERT_FILETYPE),
             WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.cacheMessages, 1);
         /* cond3 T: sm2 key (structural gap when WOLFSSL_SM2 is off: no sm2
@@ -8671,6 +8685,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
             "certs/sm2/server-sm2-cert.pem", CERT_FILETYPE),
             WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.cacheMessages, 1);
 #endif
@@ -8687,10 +8702,12 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
     {
         /* cond0 F: mask 0 -> set_options not called */
         ctx->mask = 0;
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         /* cond0 T / cond1 F: mask set, set_options returns nonzero */
         (void)wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TICKET);
         ExpectTrue(ctx->mask != 0);
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         ctx->mask = 0;
     }
