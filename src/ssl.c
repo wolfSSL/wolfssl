@@ -2425,6 +2425,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                ssl->options.useAnon, TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+    if (FilterSuitesForVersion(ssl) != 0)
+        return WOLFSSL_FAILURE;
     return WOLFSSL_SUCCESS;
 }
 #endif /* !leanpsk */
@@ -3351,8 +3353,53 @@ int wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list,
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_SET_CIPHER_BYTES */
 
+/* Builds the default suites for pv into suites, keeping existing sigalgs. */
+static void InitSslDefaultSuites(WOLFSSL* ssl, Suites* suites,
+    ProtocolVersion pv)
+{
+    word16 haveRSA = 1;
+    word16 havePSK = 0;
+    int    keySz   = 0;
+
+#ifndef NO_PSK
+    havePSK = ssl->options.havePSK;
+#endif
+#ifdef NO_RSA
+    haveRSA = 0;
+#endif
+#ifndef NO_CERTS
+    keySz = ssl->buffers.keySz;
+#endif
+    InitSuites_EitherSide(suites, pv, keySz, haveRSA, havePSK,
+        ssl->options.haveDH, ssl->options.haveECDSAsig, ssl->options.haveECC,
+        ssl->options.haveStaticECC, ssl->options.useAnon, ssl->options.side);
+}
+
+/* Returns the unfiltered list an SSL setter changes. A default list is first
+ * rebuilt for the newest version, so a merge finds its TLS 1.3 suites. */
+static Suites* SslSuitesToSet(WOLFSSL* ssl)
+{
+    Suites* suites = (ssl->suitesUser != NULL) ? ssl->suitesUser :
+                                                  ssl->suites;
+
+    if (!suites->setSuites && ssl->options.side != WOLFSSL_NEITHER_END)
+        InitSslDefaultSuites(ssl, suites, SslNewestVersion(ssl));
+    return suites;
+}
+
+/* Filters the list an SSL setter changed for the SSL's version. */
+static int SslSuitesSetDone(WOLFSSL* ssl, int ret)
+{
+    if (ResetSuitesForVersion(ssl) != 0)
+        ret = WOLFSSL_FAILURE;
+    return ret;
+}
+
 int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 {
+    int ret;
+    Suites* suites;
+
     WOLFSSL_ENTER("wolfSSL_set_cipher_list");
 
     if (ssl == NULL || ssl->ctx == NULL) {
@@ -3362,19 +3409,24 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
     if (AllocateSuites(ssl) != 0)
         return WOLFSSL_FAILURE;
 
+    suites = SslSuitesToSet(ssl);
 #ifdef OPENSSL_EXTRA
-    return wolfSSL_parse_cipher_list(NULL, ssl, ssl->suites, list);
+    ret = wolfSSL_parse_cipher_list(NULL, ssl, suites, list);
 #else
-    return (SetCipherList_ex(NULL, ssl, ssl->suites, list)) ?
+    ret = (SetCipherList_ex(NULL, ssl, suites, list)) ?
         WOLFSSL_SUCCESS :
         WOLFSSL_FAILURE;
 #endif
+    return SslSuitesSetDone(ssl, ret);
 }
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
 int wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list,
                                   const int listSz)
 {
+    int ret;
+    Suites* suites;
+
     WOLFSSL_ENTER("wolfSSL_set_cipher_list_bytes");
 
     if (ssl == NULL || ssl->ctx == NULL) {
@@ -3384,9 +3436,11 @@ int wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list,
     if (AllocateSuites(ssl) != 0)
         return WOLFSSL_FAILURE;
 
-    return (SetCipherListFromBytes(ssl->ctx, ssl->suites, list, listSz))
+    suites = SslSuitesToSet(ssl);
+    ret = (SetCipherListFromBytes(ssl->ctx, suites, list, listSz))
            ? WOLFSSL_SUCCESS
            : WOLFSSL_FAILURE;
+    return SslSuitesSetDone(ssl, ret);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_SET_CIPHER_BYTES */
 
@@ -7943,106 +7997,182 @@ static long wolf_set_options(long old_op, long op)
     return old_op | op;
 }
 
-static int FindHashSig(const Suites* suites, byte first, byte second)
+/* Returns the newest minor version built for a major version. */
+static byte NewestMinor(byte major)
+{
+#ifdef WOLFSSL_DTLS
+    if (major == DTLS_MAJOR) {
+    #ifdef WOLFSSL_DTLS13
+        return DTLSv1_3_MINOR;
+    #else
+        return DTLSv1_2_MINOR;
+    #endif
+    }
+#endif
+    (void)major;
+#ifdef WOLFSSL_TLS13
+    return TLSv1_3_MINOR;
+#else
+    return TLSv1_2_MINOR;
+#endif
+}
+
+/* Default suites and sigalgs of a version and of the newest version. */
+typedef struct SuitesFilter {
+    Suites allowed;
+    Suites newest;
+} SuitesFilter;
+
+static void InitSuitesFilter(SuitesFilter* f, ProtocolVersion pv)
+{
+    ProtocolVersion newest = pv;
+
+    XMEMSET(f, 0, sizeof(SuitesFilter));
+    newest.minor = NewestMinor(pv.major);
+    /* Client side so the server's key type removes nothing, and
+     * SUITES_NULL_EXPLICIT keeps a configured integrity-only suite. */
+    InitSuites(&f->allowed, pv, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+            SUITES_NULL_EXPLICIT, 1, 1, 1, WOLFSSL_CLIENT_END);
+    InitSuites(&f->newest, newest, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+            SUITES_NULL_EXPLICIT, 1, 1, 1, WOLFSSL_CLIENT_END);
+}
+
+static int HashSigIn(const Suites* suites, const byte* sigAlg)
 {
     word16 i;
 
-    if (suites == NULL || suites->hashSigAlgoSz == 0) {
-        WOLFSSL_MSG("Suites pointer error or suiteSz 0");
-        return SUITES_ERROR;
+    for (i = 0; i + 1 < suites->hashSigAlgoSz; i += 2) {
+        if (suites->hashSigAlgo[i] == sigAlg[0] &&
+                suites->hashSigAlgo[i+1] == sigAlg[1])
+            return 1;
     }
-
-    for (i = 0; i < suites->hashSigAlgoSz-1; i += 2) {
-        if (suites->hashSigAlgo[i]   == first &&
-            suites->hashSigAlgo[i+1] == second )
-            return i;
-    }
-
-    return MATCH_SUITE_ERROR;
+    return 0;
 }
 
-/* Rebuilds the cipher suites for the current protocol version. */
-int ResetSuitesForVersion(WOLFSSL* ssl)
+static int SuiteKept(const SuitesFilter* f, const byte* suite)
 {
-    word16 haveRSA = 1;
-    word16 havePSK = 0;
-    int    keySz   = 0;
+    return f == NULL || FindSuite(&f->allowed, suite[0], suite[1]) >= 0 ||
+           FindSuite(&f->newest, suite[0], suite[1]) < 0;
+}
 
-#ifndef NO_PSK
-    havePSK = ssl->options.havePSK;
-#endif
-#ifdef NO_RSA
-    haveRSA = 0;
-#endif
-#ifndef NO_CERTS
-    keySz = ssl->buffers.keySz;
-#endif
+static int SigAlgKept(const SuitesFilter* f, const byte* sigAlg)
+{
+    return f == NULL || HashSigIn(&f->allowed, sigAlg) ||
+           !HashSigIn(&f->newest, sigAlg);
+}
 
-    if (ssl->options.side != WOLFSSL_NEITHER_END) {
-        if (AllocateSuites(ssl) != 0)
-            return MEMORY_E;
-        if (!ssl->suites->setSuites) {
-            /* Client side won't set DH params, so it needs haveDH set to TRUE. */
-            if (ssl->options.side == WOLFSSL_CLIENT_END)
-                InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
-                       havePSK, TRUE, ssl->options.haveECDSAsig,
-                       ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                       ssl->options.useAnon,
-                       TRUE, TRUE, TRUE, TRUE, ssl->options.side);
-            else
-                InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
-                       havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
-                       ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                       ssl->options.useAnon,
-                       TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+/* Copies the entries of src that f keeps into out, the suites only when they
+ * are user-set, and returns how many it left out. A NULL out only counts. */
+static int FilterSuites(Suites* out, const Suites* src, const SuitesFilter* f,
+    int setSuites)
+{
+    word16 in;
+    word16 sz = 0;
+    int    dropped = 0;
+
+    if (setSuites) {
+        for (in = 0; in < src->suiteSz; in += SUITE_LEN) {
+            if (!SuiteKept(f, &src->suites[in])) {
+                dropped++;
+            }
+            else {
+                if (out != NULL) {
+                    out->suites[sz] = src->suites[in];
+                    out->suites[sz+1] = src->suites[in+1];
+                }
+                sz += SUITE_LEN;
+            }
         }
-        else {
-            /* Only preserve overlapping suites */
-            Suites tmpSuites;
-            word16 in, out;
-            word16 haveECDSAsig, haveStaticECC;
-#ifdef NO_RSA
-            haveECDSAsig = 1;
-            haveStaticECC = 1;
-#else
-            haveECDSAsig = 0;
-            haveStaticECC = ssl->options.haveStaticECC;
-#endif
-            XMEMSET(&tmpSuites, 0, sizeof(Suites));
-            /* Get all possible ciphers and sigalgs for the version. Following
-             * options limit the allowed ciphers so let's try to get as many as
-             * possible.
-             * - haveStaticECC turns off haveRSA
-             * - haveECDSAsig turns off haveRSAsig
-             * - SUITES_NULL_EXPLICIT includes the integrity-only suites, so
-             *   an explicitly configured one is preserved */
-            InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
-                    haveStaticECC, 1, SUITES_NULL_EXPLICIT, 1, 1, 1,
-                    ssl->options.side);
-            for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
-                if (FindSuite(&tmpSuites, ssl->suites->suites[in],
-                        ssl->suites->suites[in+1]) >= 0) {
-                    ssl->suites->suites[out] = ssl->suites->suites[in];
-                    ssl->suites->suites[out+1] = ssl->suites->suites[in+1];
-                    out += SUITE_LEN;
-                }
+        if (out != NULL)
+            out->suiteSz = sz;
+    }
+    sz = 0;
+    for (in = 0; in < src->hashSigAlgoSz; in += 2) {
+        if (SigAlgKept(f, &src->hashSigAlgo[in])) {
+            if (out != NULL) {
+                out->hashSigAlgo[sz] = src->hashSigAlgo[in];
+                out->hashSigAlgo[sz+1] = src->hashSigAlgo[in+1];
             }
-            ssl->suites->suiteSz = out;
-            for (in = 0, out = 0; in < ssl->suites->hashSigAlgoSz; in += 2) {
-                if (FindHashSig(&tmpSuites, ssl->suites->hashSigAlgo[in],
-                    ssl->suites->hashSigAlgo[in+1]) >= 0) {
-                    ssl->suites->hashSigAlgo[out] =
-                            ssl->suites->hashSigAlgo[in];
-                    ssl->suites->hashSigAlgo[out+1] =
-                            ssl->suites->hashSigAlgo[in+1];
-                    out += 2;
-                }
-            }
-            ssl->suites->hashSigAlgoSz = out;
+            sz += 2;
         }
     }
+    /* An empty list means the defaults, so keep the list as it is instead. */
+    if (sz == 0) {
+        sz = src->hashSigAlgoSz;
+        if (out != NULL && out != src)
+            XMEMCPY(out->hashSigAlgo, src->hashSigAlgo, sz);
+    }
+    else {
+        dropped += (src->hashSigAlgoSz - sz) / 2;
+    }
+    if (out != NULL)
+        out->hashSigAlgoSz = sz;
+    return dropped;
+}
 
-    return 0;
+/* Filters ssl->suites for its version from the unfiltered copy in suitesUser,
+ * saving the copy the first time an entry has to go. */
+int FilterSuitesForVersion(WOLFSSL* ssl)
+{
+    int ret = 0;
+    int setSuites;
+#ifdef WOLFSSL_SMALL_STACK
+    SuitesFilter* f;
+#else
+    SuitesFilter f[1];
+#endif
+
+    if (ssl->suites == NULL)
+        return 0;
+    setSuites = ssl->suites->setSuites;
+    if (ssl->version.minor == NewestMinor(ssl->version.major)) {
+        if (ssl->suitesUser != NULL)
+            (void)FilterSuites(ssl->suites, ssl->suitesUser, NULL, setSuites);
+        return 0;
+    }
+#ifdef WOLFSSL_SMALL_STACK
+    f = (SuitesFilter*)XMALLOC(sizeof(SuitesFilter), ssl->heap,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (f == NULL)
+        return MEMORY_E;
+#endif
+    InitSuitesFilter(f, ssl->version);
+    if (ssl->suitesUser == NULL &&
+            FilterSuites(NULL, ssl->suites, f, setSuites) > 0) {
+        ssl->suitesUser = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                           DYNAMIC_TYPE_SUITES);
+        if (ssl->suitesUser == NULL) {
+            (void)FilterSuites(ssl->suites, ssl->suites, f, setSuites);
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(ssl->suitesUser, ssl->suites, sizeof(Suites));
+        }
+    }
+    if (ret == 0 && ssl->suitesUser != NULL)
+        (void)FilterSuites(ssl->suites, ssl->suitesUser, f, setSuites);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(f, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
+}
+
+/* Rebuilds the default cipher suites for the current protocol version and
+ * filters the list with FilterSuitesForVersion(). */
+int ResetSuitesForVersion(WOLFSSL* ssl)
+{
+    if (ssl->options.side == WOLFSSL_NEITHER_END) {
+        if (ssl->suitesUser == NULL || ssl->suites == NULL)
+            return 0;
+    }
+    else if (AllocateSuites(ssl) != 0) {
+        return MEMORY_E;
+    }
+    if (ssl->suitesUser != NULL)
+        ssl->suites->setSuites = ssl->suitesUser->setSuites;
+    if (!ssl->suites->setSuites && ssl->options.side != WOLFSSL_NEITHER_END)
+        InitSslDefaultSuites(ssl, ssl->suites, ssl->version);
+    return FilterSuitesForVersion(ssl);
 }
 
 long wolfSSL_set_options(WOLFSSL* ssl, long op)

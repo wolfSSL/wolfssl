@@ -21101,6 +21101,17 @@ static int test_wolfSSL_set1_sigalgs_list(void)
         ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+SHA256+RSA"),
                     WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
+        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA+SHA256"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+SHA256"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA+BOGUS"),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+BOGUS"),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(ctx == NULL ? 0 : ctx->suites->hashSigAlgoSz, 2);
+        ExpectIntEQ(ssl == NULL ? 0 : WOLFSSL_SUITES(ssl)->hashSigAlgoSz, 2);
+
         {
             const char entry[] = "RSA+SHA256";
             const int entryLen = (int)sizeof(entry) - 1;
