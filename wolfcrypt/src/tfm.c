@@ -1669,9 +1669,27 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
 #ifdef TFM_TIMING_RESISTANT
 
+/* The cache-resistant exptmod ladders select the working value from R[0] or
+ * R[1] on each exponent bit. By default this is done with fp_cond_copy(), which
+ * accesses both objects every iteration so the touched address does not depend
+ * on the secret bit (resists co-resident L1D cache attacks such as Prime+Probe
+ * between SMT siblings).
+ *
+ * Defining WOLFSSL_SP_FAST_MODEXP_COPY (the same opt-in used by the SP math
+ * backends) selects the faster variant that instead computes a single
+ * secret-dependent pointer with wc_off_on_addr masking and copies only the
+ * selected object. It is faster but leaks the exponent at cache-line
+ * granularity, so only enable it where a co-resident cache observer is outside
+ * the threat model. The fast variant rebuilds a pointer from integer arithmetic
+ * on two addresses, which capability targets cannot do, so it is forced off
+ * when WC_NO_PTR_INT_CAST is defined. */
+#if defined(WOLFSSL_SP_FAST_MODEXP_COPY) && !defined(WC_NO_PTR_INT_CAST)
+    #define WC_FP_MODEXP_PTR_COPY
+#endif
+
 /* The WC_PROTECT_ENCRYPTED_MEM ladder has no WC_NO_CACHE_RESISTANT variant, so
  * it needs this helper even when cache resistance is off. */
-#if defined(WC_NO_PTR_INT_CAST) && (!defined(WC_NO_CACHE_RESISTANT) || \
+#if !defined(WC_FP_MODEXP_PTR_COPY) && (!defined(WC_NO_CACHE_RESISTANT) || \
     defined(WC_PROTECT_ENCRYPTED_MEM))
 /* Copy a into r when copy is 1, in constant time.
  * Used where the address of the operand cannot be derived from the secret
@@ -1682,7 +1700,7 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
  * alt_fp_int, whose dp[] is only FP_SIZE_ECC digits under ALT_ECC_SIZE. Every
  * caller below passes a local fp_int from the exptmod ladders, which is.
  */
-static void fp_cond_copy(const fp_int* a, int copy, fp_int* r)
+WC_MAYBE_UNUSED static void fp_cond_copy(const fp_int* a, int copy, fp_int* r)
 {
   fp_digit mask = (fp_digit)0 - (fp_digit)(copy != 0);
   int      imask = 0 - (copy != 0);
@@ -1876,23 +1894,40 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
     FALL_THROUGH;
 
   case TFM_EXPTMOD_NB_MUL:
+  #if defined(WC_NO_CACHE_RESISTANT) || defined(WC_FP_MODEXP_PTR_COPY)
     fp_mul(&nb->R[0], &nb->R[1], &nb->R[nb->y^1]);
+  #else
+    /* Address-oblivious: product -> fixed scratch R[2]. It is moved into the
+     * secret-selected R[y^1] after the reduction (NB_MUL_RED), so no write
+     * address in the multiply or its reduction depends on nb->y. */
+    fp_mul(&nb->R[0], &nb->R[1], &nb->R[2]);
+  #endif
     nb->state = TFM_EXPTMOD_NB_MUL_RED;
     break;
 
   case TFM_EXPTMOD_NB_MUL_RED:
+  #if defined(WC_NO_CACHE_RESISTANT) || defined(WC_FP_MODEXP_PTR_COPY)
     err = fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+  #else
+    err = fp_montgomery_reduce(&nb->R[2], P, nb->mp);
+  #endif
     if (err != FP_OKAY) {
       nb->state = TFM_EXPTMOD_NB_INIT;
       return err;
     }
+  #if !defined(WC_NO_CACHE_RESISTANT) && !defined(WC_FP_MODEXP_PTR_COPY)
+    /* Move the reduced product into the secret-selected R[y^1] by touching
+     * both R[0] and R[1]. */
+    fp_cond_copy(&nb->R[2], nb->y,     &nb->R[0]);
+    fp_cond_copy(&nb->R[2], nb->y ^ 1, &nb->R[1]);
+  #endif
     nb->state = TFM_EXPTMOD_NB_SQR;
     break;
 
   case TFM_EXPTMOD_NB_SQR:
   #ifdef WC_NO_CACHE_RESISTANT
     err = fp_sqr(&nb->R[nb->y], &nb->R[nb->y]);
-  #elif defined(WC_NO_PTR_INT_CAST)
+  #elif !defined(WC_FP_MODEXP_PTR_COPY)
     fp_cond_copy(&nb->R[0], nb->y^1, &nb->R[2]);
     fp_cond_copy(&nb->R[1], nb->y,   &nb->R[2]);
     err = fp_sqr(&nb->R[2], &nb->R[2]);
@@ -1913,7 +1948,7 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
   case TFM_EXPTMOD_NB_SQR_RED:
   #ifdef WC_NO_CACHE_RESISTANT
     err = fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
-  #elif defined(WC_NO_PTR_INT_CAST)
+  #elif !defined(WC_FP_MODEXP_PTR_COPY)
     err = fp_montgomery_reduce(&nb->R[2], P, nb->mp);
     fp_cond_copy(&nb->R[2], nb->y^1, &nb->R[0]);
     fp_cond_copy(&nb->R[2], nb->y,   &nb->R[1]);
@@ -2083,9 +2118,10 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
       return err;
     }
     /* instead of using R[y^1] for mul, which leaks key bit to cache monitor,
-     * use R[2] as temp, make sure address calc is constant, keep
-     * &R[0] and &R[1] in cache */
-#ifdef WC_NO_PTR_INT_CAST
+     * use R[2] as temp, copy through both &R[0] and &R[1]
+     * (fp_cond_copy) so the accessed address does not depend on the key bit;
+     * WOLFSSL_SP_FAST_MODEXP_COPY instead selects one masked address */
+#ifndef WC_FP_MODEXP_PTR_COPY
     fp_cond_copy(&R[2], y,   &R[0]);
     fp_cond_copy(&R[2], y^1, &R[1]);
 #else
@@ -2095,9 +2131,10 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
 #endif
 
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
-     * use R[2] as temp, make sure address calc is constant, keep
-     * &R[0] and &R[1] in cache */
-#ifdef WC_NO_PTR_INT_CAST
+     * use R[2] as temp, copy through both &R[0] and &R[1]
+     * (fp_cond_copy) so the accessed address does not depend on the key bit;
+     * WOLFSSL_SP_FAST_MODEXP_COPY instead selects one masked address */
+#ifndef WC_FP_MODEXP_PTR_COPY
     fp_cond_copy(&R[0], y^1, &R[2]);
     fp_cond_copy(&R[1], y,   &R[2]);
 #else
@@ -2115,7 +2152,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WC_FP_MODEXP_PTR_COPY
     fp_cond_copy(&R[2], y^1, &R[0]);
     fp_cond_copy(&R[2], y,   &R[1]);
 #else
@@ -2252,9 +2289,10 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
     }
 
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
-     * use R[3] as temp, make sure address calc is constant, keep
-     * &R[0] and &R[1] in cache */
-#ifdef WC_NO_PTR_INT_CAST
+     * use R[3] as temp, copy through both &R[0] and &R[1]
+     * (fp_cond_copy) so the accessed address does not depend on the key bit;
+     * WOLFSSL_SP_FAST_MODEXP_COPY instead selects one masked address */
+#ifndef WC_FP_MODEXP_PTR_COPY
     fp_cond_copy(&R[0], y^1, &R[3]);
     fp_cond_copy(&R[1], y,   &R[3]);
 #else

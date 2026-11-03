@@ -2681,6 +2681,24 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* c,
 
 #elif defined(WOLFSSL_SAKKE_SMALL_MODEXP) || !defined(USE_FAST_MATH)
 
+/* The cache-resistant SAKKE modexp ladder selects the working point from c[0]
+ * or c[1] on each exponent bit. By default this is done with mp_cond_copy(),
+ * which accesses both objects every iteration so the touched address does not
+ * depend on the secret bit (resists co-resident L1D cache attacks such as
+ * Prime+Probe between SMT siblings).
+ *
+ * Defining WOLFSSL_SP_FAST_MODEXP_COPY (the same opt-in used by the SP math
+ * backends) selects the faster variant that instead computes a single
+ * secret-dependent pointer with wc_off_on_addr masking and copies only the
+ * selected point. It is faster but leaks the exponent at cache-line
+ * granularity, so only enable it where a co-resident cache observer is outside
+ * the threat model. The fast variant rebuilds a pointer from integer arithmetic
+ * on two addresses, which capability targets cannot do, so it is forced off
+ * when WC_NO_PTR_INT_CAST is defined. */
+#if defined(WOLFSSL_SP_FAST_MODEXP_COPY) && !defined(WC_NO_PTR_INT_CAST)
+    #define WC_SAKKE_MODEXP_PTR_COPY
+#endif
+
 /*
  * Modular exponentiate the value in F_p*.
  *
@@ -2707,7 +2725,10 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
     mp_int* by = key->tmp.p1->z;
     mp_int* prime = &key->params.prime;
     int i;
-#ifdef WC_NO_GLOBAL_OBJECT_POINTERS
+    /* Local address mask only when the pointer-copy opt-in is active and global
+     * object pointers are unavailable; the default oblivious copy never uses
+     * it, so declaring it unconditionally is an unused variable. */
+#if defined(WC_NO_GLOBAL_OBJECT_POINTERS) && defined(WC_SAKKE_MODEXP_PTR_COPY)
     static const wc_ptr_t wc_off_on_addr[2] =
     {
     #if defined(WC_64BIT_CPU)
@@ -2750,11 +2771,19 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
             err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[j^1], t1, t2);
 #else
             err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[2], t1, t2);
-#ifdef WC_NO_PTR_INT_CAST
-            err = mp_cond_copy(c[2]->x, j,   c[0]->x);
-            err = mp_cond_copy(c[2]->x, j^1, c[1]->x);
-            err = mp_cond_copy(c[2]->y, j,   c[0]->y);
-            err = mp_cond_copy(c[2]->y, j^1, c[1]->y);
+#ifndef WC_SAKKE_MODEXP_PTR_COPY
+            /* Guard each copy on err so a failure in the multiply above or in
+             * an earlier copy is preserved rather than overwritten. err does
+             * not depend on the secret bit, so all four copies still run (and
+             * touch both c[0] and c[1]) on the success path. */
+            if (err == 0)
+                err = mp_cond_copy(c[2]->x, j,   c[0]->x);
+            if (err == 0)
+                err = mp_cond_copy(c[2]->x, j^1, c[1]->x);
+            if (err == 0)
+                err = mp_cond_copy(c[2]->y, j,   c[0]->y);
+            if (err == 0)
+                err = mp_cond_copy(c[2]->y, j^1, c[1]->y);
 #else
             mp_copy(c[2]->x,
             (mp_int*) ( ((wc_ptr_t)c[0]->x & wc_off_on_addr[j]) +
