@@ -43931,6 +43931,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
         XMEMCPY(ssl->clSuites->suites, input + i, ssl->clSuites->suiteSz);
+    #ifdef OPENSSL_EXTRA
+        /* Built from the previous hello's list. */
+        wolfSSL_sk_SSL_CIPHER_free(ssl->clSuitesStack);
+        ssl->clSuitesStack = NULL;
+    #endif
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
