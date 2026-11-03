@@ -35,7 +35,9 @@
 #include <tests/api/test_ecjpake.h>
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS_ECJPAKE)
+    defined(WOLFSSL_DTLS_ECJPAKE) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
 
 #define ECJPAKE_SUITE   "ECJPAKE-AES128-CCM-8"
 
@@ -164,7 +166,9 @@ int test_wolfSSL_ecjpake_dtls12(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS_ECJPAKE)
+    defined(WOLFSSL_DTLS_ECJPAKE) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -230,7 +234,9 @@ int test_wolfSSL_ecjpake_wrong_password(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS_ECJPAKE)
+    defined(WOLFSSL_DTLS_ECJPAKE) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -246,14 +252,15 @@ int test_wolfSSL_ecjpake_wrong_password(void)
     return EXPECT_RESULT();
 }
 
-/* A server is never left without the suite's round one data: a client
- * offering the suite without the extension, or a server without a password,
- * fails with handshake_failure (Section 6). */
+/* A client offering the suite without the extension or without secp256r1,
+ * or a server without a password, fails with handshake_failure (Section 6). */
 int test_wolfSSL_ecjpake_negotiation(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS_ECJPAKE)
+    defined(WOLFSSL_DTLS_ECJPAKE) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -268,6 +275,23 @@ int test_wolfSSL_ecjpake_negotiation(void)
                 TEST_SUCCESS);
     ecjpake_cleanup(ctx_c, ctx_s, ssl_c, ssl_s);
     ctx_c = NULL; ctx_s = NULL; ssl_c = NULL; ssl_s = NULL;
+
+#if defined(HAVE_SUPPORTED_CURVES) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    /* Client supported groups without secp256r1. */
+    ExpectIntEQ(ecjpake_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    NULL, ecjpakePw), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl_c, WOLFSSL_ECC_SECP384R1),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_ecjpake_password(ssl_c, ecjpakePw,
+                    (unsigned int)XSTRLEN((const char*)ecjpakePw)),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ecjpake_client_got_handshake_failure(ssl_c),
+                TEST_SUCCESS);
+    ecjpake_cleanup(ctx_c, ctx_s, ssl_c, ssl_s);
+    ctx_c = NULL; ctx_s = NULL; ssl_c = NULL; ssl_s = NULL;
+#endif
 
     /* Certificate server without a password. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -309,7 +333,9 @@ int test_wolfSSL_ecjpake_bad_proof(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS_ECJPAKE)
+    defined(WOLFSSL_DTLS_ECJPAKE) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -381,9 +407,12 @@ int test_wolfSSL_ecjpake_set_password(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS_ECJPAKE)
-    WOLFSSL_CTX* ctx = NULL;
-    WOLFSSL* ssl = NULL;
+    defined(WOLFSSL_DTLS_ECJPAKE) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx = NULL, *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl = NULL, *ssl_c = NULL, *ssl_s = NULL;
 
     ExpectIntEQ(wolfSSL_set_ecjpake_password(NULL, ecjpakePw, 1),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -421,6 +450,16 @@ int test_wolfSSL_ecjpake_set_password(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+
+    /* The password cannot change once the ClientHello carries round one. */
+    ExpectIntEQ(ecjpake_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    ecjpakePw, ecjpakePw), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_set_ecjpake_password(ssl_c, ecjpakeOtherPw,
+                    (unsigned int)XSTRLEN((const char*)ecjpakeOtherPw)),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ecjpake_cleanup(ctx_c, ctx_s, ssl_c, ssl_s);
 
     /* A version-flexible DTLS method could negotiate DTLS 1.3. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_client_method()));

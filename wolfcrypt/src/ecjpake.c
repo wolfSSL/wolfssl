@@ -149,12 +149,18 @@ static int ecjpake_read_point(EcJpake* jp, const byte* in, word32 inSz,
     return err;
 }
 
-/* R = k * P, affine. */
+/* R = k * P, affine, mapped with a constant time inversion. */
 static int ecjpake_mul(EcJpake* jp, mp_int* k, ecc_point* P, ecc_point* R,
                        WC_RNG* rng)
 {
-    return wc_ecc_mulmod_ex2(k, P, R, &jp->a, &jp->prime, &jp->order, rng, 1,
-                             jp->heap);
+    int err;
+
+    err = wc_ecc_mulmod_ex2(k, P, R, &jp->a, &jp->prime, &jp->order, rng, 0,
+                            jp->heap);
+    if (err == MP_OKAY) {
+        err = ecc_map_ex(R, &jp->prime, jp->mp, 1);
+    }
+    return err;
 }
 
 static int ecjpake_to_mont(EcJpake* jp, mp_int* mu, ecc_point* p,
