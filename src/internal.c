@@ -20438,6 +20438,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     copyRet = CopyDecodedToX509(&ssl->peerCert, args->dCert);
                     if (copyRet == WC_NO_ERR_TRACE(MEMORY_E)) {
                         args->fatal = 1;
+                        ret = copyRet;
                     }
                 }
             #endif /* KEEP_PEER_CERT */

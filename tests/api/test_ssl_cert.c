@@ -474,6 +474,118 @@ int test_wolfSSL_cmp_peer_cert_to_file(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(KEEP_PEER_CERT) && !defined(NO_WOLFSSL_CM_VERIFY) && \
+    !defined(NO_RSA) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_NO_MALLOC)
+#define TEST_PEER_CERT_COPY_OOM
+
+static int peer_copy_fail_alloc = 0;
+/* Allocators installed before the test, such as the memory tracker's. */
+static wolfSSL_Malloc_cb peer_copy_prev_malloc = NULL;
+static wolfSSL_Free_cb peer_copy_prev_free = NULL;
+static wolfSSL_Realloc_cb peer_copy_prev_realloc = NULL;
+
+static void* peer_copy_fail_malloc(size_t size)
+{
+    if (peer_copy_fail_alloc)
+        return NULL;
+    if (peer_copy_prev_malloc != NULL)
+        return peer_copy_prev_malloc(size);
+    return malloc(size);
+}
+
+static void peer_copy_fail_free(void* ptr)
+{
+    if (peer_copy_prev_free != NULL)
+        peer_copy_prev_free(ptr);
+    else
+        free(ptr);
+}
+
+static void* peer_copy_fail_realloc(void* ptr, size_t size)
+{
+    if (peer_copy_fail_alloc)
+        return NULL;
+    if (peer_copy_prev_realloc != NULL)
+        return peer_copy_prev_realloc(ptr, size);
+    return realloc(ptr, size);
+}
+
+/* Accept the leaf and fail all later allocations, the first being its copy. */
+static int peer_copy_fail_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    if (store->error_depth == 0)
+        peer_copy_fail_alloc = 1;
+    return 1;
+}
+
+/* No CA is loaded, so the verify callback runs before the leaf is copied. */
+static int test_peer_cert_copy_oom(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(method_c()));
+    if (ctx_c != NULL) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx_c),
+            peer_copy_fail_verify_cb);
+    }
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+
+    (void)wolfSSL_GetAllocators(&peer_copy_prev_malloc,
+         &peer_copy_prev_free, &peer_copy_prev_realloc);
+    ExpectIntEQ(wolfSSL_SetAllocators(peer_copy_fail_malloc,
+        peer_copy_fail_free, peer_copy_fail_realloc), 0);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    peer_copy_fail_alloc = 0;
+    (void)wolfSSL_SetAllocators(peer_copy_prev_malloc, peer_copy_prev_free,
+        peer_copy_prev_realloc);
+
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WC_NO_ERR_TRACE(MEMORY_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && KEEP_PEER_CERT && ... */
+
+/* Running out of memory copying the peer's certificate fails with MEMORY_E.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_peer_cert_copy_oom(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PEER_CERT_COPY_OOM
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_peer_cert_copy_oom(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif /* WOLFSSL_TLS13 */
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_peer_cert_copy_oom(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* TEST_PEER_CERT_COPY_OOM */
+    return EXPECT_RESULT();
+}
+
 /* Guarded to match its only caller, test_wolfSSL_CTX_set_client_cert_cb(),
  * which needs OPENSSL_EXTRA for the ctx->CBClientCert field. */
 #if defined(WOLFSSL_CERT_SETUP_CB) && defined(OPENSSL_EXTRA) && \
