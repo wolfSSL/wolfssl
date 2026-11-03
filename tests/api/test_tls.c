@@ -8678,7 +8678,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         ExpectIntEQ(ssl->options.cacheMessages, 1);
         /* cond3 T: sm2 key (structural gap when WOLFSSL_SM2 is off: no sm2
          * key can load, so keyType can never be sm2_sa_algo) */
-#ifdef HAVE_SM2
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx,
             "certs/sm2/server-sm2-priv.pem", CERT_FILETYPE),
             WOLFSSL_SUCCESS);

@@ -6880,8 +6880,7 @@ int test_wc_Pkcs8EncryptDecisionCoverage(void)
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
 
-    /* wc_CreatePKCS8Key size query: out==NULL returns LENGTH_ONLY_E, the
-     * (ret == LENGTH_ONLY_E) clause's true side. */
+    /* The size query exercises the true side of the length-only check. */
     outSz = sizeof(out);
     ExpectIntEQ(wc_CreatePKCS8Key(NULL, &outSz, key, sizeof(key), RSAk,
         NULL, 0), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
