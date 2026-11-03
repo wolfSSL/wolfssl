@@ -6068,6 +6068,13 @@ int test_wolfSSL_dtls_api_more_guards(void)
     (void)wolfSSL_dtls13_has_pending_msg(dssl);
 #endif
 
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret_secondary(NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_rotate_cookie_secret(NULL, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
 #if !defined(NO_WOLFSSL_SERVER)
     {
         byte secret[16];

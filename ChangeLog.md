@@ -72,6 +72,27 @@
   than the next expected one is dropped instead of stalling the list, and
   `wolfSSL_clear()` frees the DTLS 1.3 receive list.
 
+* **Behavioral change (the servers of a context share a cookie secret)**:
+  cookie secrets were per `WOLFSSL`, so a server could not verify a cookie
+  another server of the same context issued, and a second ClientHello handed
+  to a new listener failed: a fatal alert in DTLS 1.3, a new
+  HelloVerifyRequest in DTLS 1.2. Every server context now holds a cookie
+  secret, kept as a key per cookie type so a HelloVerifyRequest cookie never
+  verifies as a HelloRetryRequest cookie, and a context without one gets a
+  random secret the first time one of its objects enables cookies, so the
+  servers of one context verify each other's cookies with no API call. TLS
+  1.3 HelloRetryRequest cookies use it as the DTLS ones do. The new
+  `wolfSSL_CTX_set_cookie_secret()`,
+  `wolfSSL_CTX_set_cookie_secret_secondary()` and
+  `wolfSSL_CTX_rotate_cookie_secret()` set it: rotate moves the primary to the
+  secondary, so cookies issued before it keep verifying, while set discards
+  the previous key. A secret may be of any non-zero size, and NULL generates
+  a random one. A secret given to `wolfSSL_send_hrr_cookie()` or
+  `wolfSSL_DTLS_SetCookieSecret()` still overrides the context's for that
+  object, and NULL to either now drops the object's own secret in favour of
+  the context's. A DTLS 1.3 cookie is checked before the SNI callback, so a
+  `wolfSSL_set_SSL_CTX()` made there cannot change the secret the check uses.
+
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
   paths always read 20 bytes, so neither followed FIPS 186-4 4.2.  Both now use

@@ -304,10 +304,18 @@ int test_dtls13_frag_ch_pq_no_cookie(void)
     return EXPECT_RESULT();
 }
 
+/* The context cookie secret tests */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_SEND_HRR_COOKIE) && defined(HAVE_ECC) && \
+    !defined(NO_ECC256)
+    #define TEST_DTLS13_CTX_COOKIE
+#endif
+
+#if (defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && ((defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE)) \
     || (defined(HAVE_SESSION_TICKET) && \
-        defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && defined(HAVE_ECC)))
+        defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && defined(HAVE_ECC)))) \
+    || defined(TEST_DTLS13_CTX_COOKIE)
 /* RFC 8446 Section 4.1.3: an HRR is a ServerHello carrying this magic random.
  * Used to assert a real ServerHello was captured, not an HRR. */
 static const byte hrrRandom[RAN_LEN] = {
@@ -318,8 +326,9 @@ static const byte hrrRandom[RAN_LEN] = {
 };
 #endif
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE)
+#if (defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE)) || \
+    defined(TEST_DTLS13_CTX_COOKIE)
 /* Whether the first record the server has queued for the client is a plaintext
  * handshake record holding a ServerHello. When it is, *isHrr reports whether
  * its random is the HelloRetryRequest value. */
@@ -597,9 +606,9 @@ static int test_dtls13_nothing_held(WOLFSSL* s)
 
 #endif
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+#if (defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
-    defined(HAVE_ECC) && !defined(NO_ECC256)
+    defined(HAVE_ECC) && !defined(NO_ECC256)) || defined(TEST_DTLS13_CTX_COOKIE)
 /* Point the server at the buffers and the peer identity of the next datagrams.
  * Memio has no address, so wolfSSL_dtls_set_peer() supplies one. */
 static int test_dtls13_server_peer(WOLFSSL* ssl_s,
@@ -3285,13 +3294,107 @@ int test_dtls13_ch_async_no_addr(void)
     return EXPECT_RESULT();
 }
 
+#ifdef TEST_DTLS13_CTX_COOKIE
+/* Whether a and b make the HelloRetryRequest cookie with the same secret */
+static int test_dtls13_cs_same(const WOLFSSL* a, const WOLFSSL* b)
+{
+    CookieSecrets ca;
+    CookieSecrets cb;
+    int same = 0;
+
+    if (a == NULL || b == NULL)
+        return 0;
+    if (CookieSecretGet(a, CTX_COOKIE_HRR, &ca) != 0)
+        return 0;
+    if (CookieSecretGet(b, CTX_COOKIE_HRR, &cb) == 0) {
+        same = ca.priSz == cb.priSz && XMEMCMP(ca.pri, cb.pri, ca.priSz) == 0;
+        CookieSecretsClear(&cb);
+    }
+    CookieSecretsClear(&ca);
+    return same;
+}
+
+/* A client gets a HRR from listener c1 of ctx_s and sends its second
+ * ClientHello to new listener c2. mode 0: the context's generated secret. 1: a
+ * secret set on it once c1 exists. 2: c2 has a secret of its own and sends
+ * illegal_parameter. */
+static int test_dtls13_cs_handoff(WOLFSSL_CTX* ctx_c, WOLFSSL_CTX* ctx_s,
+        int mode)
+{
+    EXPECT_DECLS;
+    WOLFSSL *ssl_c = NULL, *c1 = NULL, *c2 = NULL;
+    struct test_memio_ctx t;
+    WOLFSSL_ALERT_HISTORY h;
+    int group = WOLFSSL_ECC_SECP256R1;
+    int isHrr = 0;
+    int ok = mode != 2;
+    byte own[32];
+
+    XMEMSET(&t, 0, sizeof(t));
+    XMEMSET(&h, 0, sizeof(h));
+    XMEMSET(own, 0x77, sizeof(own));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    wolfSSL_SetIOReadCtx(ssl_c, &t);
+    wolfSSL_SetIOWriteCtx(ssl_c, &t);
+    ExpectNotNull(c1 = wolfSSL_new(ctx_s));
+    if (mode == 1) {
+        ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s, NULL, 0),
+            WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_dtls13_server_peer(c1, &t, 2), WOLFSSL_SUCCESS);
+
+    /* The first ClientHello gets a HelloRetryRequest from c1 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(c1), -1);
+    ExpectIntEQ(wolfSSL_get_error(c1, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&t, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+
+    /* The second goes to a new listener */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(c2 = wolfSSL_new(ctx_s));
+    ExpectIntEQ(test_dtls13_server_peer(c2, &t, 2), WOLFSSL_SUCCESS);
+    if (mode == 2) {
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(c2, own, sizeof(own)),
+            WOLFSSL_SUCCESS);
+    }
+    if (ok) {
+        ExpectTrue(test_dtls13_cs_same(c1, c2));
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, c2, 10, NULL), 0);
+        ExpectIntEQ(c1->options.dtlsStateful, 0);
+    }
+    else {
+        ExpectFalse(test_dtls13_cs_same(c1, c2));
+        ExpectIntNE(test_memio_do_handshake(ssl_c, c2, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_rx.code, illegal_parameter);
+        ExpectIntEQ(h.last_rx.level, alert_fatal);
+    }
+
+    wolfSSL_free(c1);
+    wolfSSL_free(c2);
+    wolfSSL_free(ssl_c);
+    return EXPECT_RESULT();
+}
+#endif
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_ECC) && !defined(NO_ECC256)
+#define TEST_CS_DEFAULT      0 /* the secret the context generates */
+#define TEST_CS_OBJ          1 /* the same secret set on each listener */
+#define TEST_CS_CTX          2 /* a secret set on the context */
+#define TEST_CS_CTX_RANDOM   3 /* a random secret made by the context */
+#define TEST_CS_CTX_OVERRIDE 4 /* as CTX, but c2 has a secret of its own */
+#define TEST_CS_OBJ_ONE      5 /* only c1 has a secret of its own */
+
 /* B's second ClientHello split after its cookie: the later fragments reach
- * c1 while it serves A, the first fragment a new listener c2. sharedSecret
- * gives c2 c1's cookie secret; mode 1 turns holding before the cookie off. */
-static int test_dtls13_frag_ch2_ctx_second(int sharedSecret, int mode)
+ * c1 while it serves A, the first fragment a new listener c2. secretMode says
+ * how they get their secret; mode 1 turns holding before the cookie off. */
+static int test_dtls13_frag_ch2_ctx_second(int secretMode, int mode)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_cA = NULL, *ctx_cB = NULL, *ctx_cD = NULL, *ctx_s = NULL;
@@ -3299,12 +3402,15 @@ static int test_dtls13_frag_ch2_ctx_second(int sharedSecret, int mode)
     WOLFSSL *c1 = NULL, *c2 = NULL;
     struct test_memio_ctx tA, tB, tD;
     int group = WOLFSSL_ECC_SECP256R1;
-    static const byte secret[32] = {
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
-        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-        0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20
-    };
+    byte secret[32];
+    byte other[32];
+    byte hrrKey[CTX_COOKIE_KEY_SZ];
+    byte dtlsKey[CTX_COOKIE_KEY_SZ];
+    int ctxSecret = secretMode == TEST_CS_CTX ||
+        secretMode == TEST_CS_CTX_OVERRIDE;
+    int sharedSecret = secretMode == TEST_CS_DEFAULT ||
+        secretMode == TEST_CS_OBJ || secretMode == TEST_CS_CTX ||
+        secretMode == TEST_CS_CTX_RANDOM;
     byte chB[TEST_MEMIO_BUF_SZ], chD[TEST_MEMIO_BUF_SZ];
     int chBSz = (int)sizeof(chB), chDSz = (int)sizeof(chD);
     byte frag[TEST_MEMIO_BUF_SZ];
@@ -3319,14 +3425,38 @@ static int test_dtls13_frag_ch2_ctx_second(int sharedSecret, int mode)
     XMEMSET(&tA, 0, sizeof(tA));
     XMEMSET(&tB, 0, sizeof(tB));
     XMEMSET(&tD, 0, sizeof(tD));
+    for (i = 0; i < (int)sizeof(secret); i++)
+        secret[i] = (byte)(i + 1);
+    XMEMSET(other, 0x77, sizeof(other));
+    ExpectIntEQ(test_dtls_ctx_cookie_key(secret, sizeof(secret),
+        CTX_COOKIE_HRR, hrrKey), 0);
+    ExpectIntEQ(test_dtls_ctx_cookie_key(secret, sizeof(secret),
+        CTX_COOKIE_DTLS12, dtlsKey), 0);
     ExpectIntEQ(test_memio_setup(&tA, &ctx_cA, &ctx_s, &ssl_cA, &c1,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
     ExpectIntEQ(test_memio_setup(&tB, &ctx_cB, NULL, &ssl_cB, NULL,
         wolfDTLSv1_3_client_method, NULL), 0);
     ExpectIntEQ(wolfSSL_set_groups(ssl_cA, &group, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_groups(ssl_cB, &group, 1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_send_hrr_cookie(c1, secret, sizeof(secret)),
-        WOLFSSL_SUCCESS);
+    if (secretMode == TEST_CS_OBJ) {
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(c1, secret, sizeof(secret)),
+            WOLFSSL_SUCCESS);
+    }
+    else if (secretMode == TEST_CS_OBJ_ONE) {
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(c1, other, sizeof(other)),
+            WOLFSSL_SUCCESS);
+    }
+    else if (ctxSecret) {
+        /* c1 already exists: it uses the secret from now on */
+        ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s, secret,
+            sizeof(secret)), WOLFSSL_SUCCESS);
+        ExpectTrue(test_dtls_cs_resolves(c1, CTX_COOKIE_HRR, hrrKey,
+            sizeof(hrrKey), NULL, 0));
+    }
+    else if (secretMode == TEST_CS_CTX_RANDOM) {
+        ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s, NULL, 0),
+            WOLFSSL_SUCCESS);
+    }
 
     /* B's first ClientHello at c1 gets a HelloRetryRequest */
     ExpectIntEQ(test_dtls13_server_peer(c1, &tB, 2), WOLFSSL_SUCCESS);
@@ -3336,6 +3466,10 @@ static int test_dtls13_frag_ch2_ctx_second(int sharedSecret, int mode)
     ExpectIntEQ(wolfSSL_get_error(c1, -1), WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(test_dtls13_reply_is_server_hello(&tB, &isHrr), 1);
     ExpectIntEQ(isHrr, 1);
+    if (ctxSecret) {
+        ExpectTrue(test_dtls_cs_resolves(c1, CTX_COOKIE_HRR, hrrKey,
+            sizeof(hrrKey), NULL, 0));
+    }
     ExpectIntEQ(test_dtls13_take_ch(&tB, ssl_cB, chB, &chBSz), TEST_SUCCESS);
 
     /* Three fragments: the first ends just past the cookie extension */
@@ -3367,8 +3501,23 @@ static int test_dtls13_frag_ch2_ctx_second(int sharedSecret, int mode)
     ExpectIntEQ(test_dtls13_pool_count(&ctx_s->dtlsChPool), 1);
 
     ExpectNotNull(c2 = wolfSSL_new(ctx_s));
-    if (sharedSecret) {
+    if (secretMode == TEST_CS_OBJ) {
         ExpectIntEQ(wolfSSL_send_hrr_cookie(c2, secret, sizeof(secret)),
+            WOLFSSL_SUCCESS);
+    }
+    else if (ctxSecret) {
+        /* A new listener uses the context's secret at once */
+        ExpectTrue(test_dtls_cs_resolves(c2, CTX_COOKIE_HRR, hrrKey,
+            sizeof(hrrKey), NULL, 0));
+        ExpectTrue(test_dtls_cs_resolves(c2, CTX_COOKIE_DTLS12, dtlsKey,
+            sizeof(dtlsKey), NULL, 0));
+    }
+    else if (secretMode == TEST_CS_CTX_RANDOM ||
+            secretMode == TEST_CS_DEFAULT) {
+        ExpectTrue(test_dtls13_cs_same(c1, c2));
+    }
+    if (secretMode == TEST_CS_CTX_OVERRIDE) {
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(c2, other, sizeof(other)),
             WOLFSSL_SUCCESS);
     }
     if (mode == 1) {
@@ -3449,15 +3598,26 @@ static int test_dtls13_frag_ch2_ctx_second(int sharedSecret, int mode)
 #endif
 
 /* The rest of a second ClientHello held by the context is taken by the server
- * that verifies its first fragment, when the servers share the secret. */
+ * that verifies its first fragment: the servers share the context's secret
+ * unless given their own. */
 int test_dtls13_frag_ch2_ctx_handoff(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_ECC) && !defined(NO_ECC256)
-    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(1, 0), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(1, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_DEFAULT, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_OBJ, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_OBJ, 1),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_CTX, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_CTX, 1),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_CTX_RANDOM, 0),
+        TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -3470,7 +3630,10 @@ int test_dtls13_frag_ch2_ctx_cookie_mismatch(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_ECC) && !defined(NO_ECC256)
-    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_OBJ_ONE, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_frag_ch2_ctx_second(TEST_CS_CTX_OVERRIDE, 0),
+        TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -3491,8 +3654,10 @@ int test_dtls13_frag_ch_ctx_set_ssl_ctx(void)
     byte chB[TEST_MEMIO_BUF_SZ];
     int chBSz = (int)sizeof(chB);
     int pieceB = 0;
+    byte key[CTX_COOKIE_KEY_SZ];
 
     XMEMSET(&tB, 0, sizeof(tB));
+    XMEMSET(key, 0, sizeof(key));
     ExpectIntEQ(test_memio_setup(&tB, &ctx_cB, &ctx_s, &ssl_cB, &c1,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
     ExpectIntEQ(test_memio_setup(&tB, NULL, &ctx_s2, NULL, NULL,
@@ -3507,7 +3672,20 @@ int test_dtls13_frag_ch_ctx_set_ssl_ctx(void)
     ExpectIntEQ(test_dtls13_server_read_all(&tB, c1), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_pool_count(&ctx_s->dtlsChPool), 1);
 
+    /* The object uses its context's secret: the new context's, generated by
+     * the move, after it */
+    ExpectNotNull(c1);
+    ExpectNull(c1->buffers.tls13CookieSecret.buffer);
+    ExpectIntEQ(ctx_s->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
+    ExpectIntEQ(ctx_s2->cookieSecret.keySz[0], 0);
+    if (EXPECT_SUCCESS())
+        XMEMCPY(key, ctx_s->cookieSecret.hrrKey[0], sizeof(key));
+    ExpectTrue(test_dtls_cs_resolves(c1, CTX_COOKIE_HRR, key, sizeof(key),
+        NULL, 0));
     ExpectPtrEq(wolfSSL_set_SSL_CTX(c1, ctx_s2), ctx_s2);
+    ExpectIntEQ(ctx_s2->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
+    ExpectFalse(test_dtls_cs_resolves(c1, CTX_COOKIE_HRR, key, sizeof(key),
+        NULL, 0));
     ExpectIntEQ(test_dtls13_inject_frag(&tB, chB, chBSz, pieceB, 1), 1);
     ExpectIntEQ(test_dtls13_server_read_all(&tB, c1), TEST_SUCCESS);
     ExpectIntEQ(tB.c_len, 0);
@@ -3701,6 +3879,16 @@ static int test_dtls13_frag_ch_ctx_static_memory_ex(int lateLoad, byte* mem,
     wolfSSL_free(c1);
     c1 = NULL;
     ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_s, &base), 1);
+    /* The context secret is stored inline: setting it allocates nothing
+     * that outlives the call */
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_rotate_cookie_secret(ctx_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret_secondary(ctx_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_s, &now), 1);
+    ExpectIntEQ(now.curAlloc, base.curAlloc);
 
     ExpectIntEQ(test_memio_setup(&tB, &ctx_cB, &ctx_s, &ssl_cB, &c1,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
@@ -3740,6 +3928,11 @@ static int test_dtls13_frag_ch_ctx_static_memory_ex(int lateLoad, byte* mem,
     /* Every allocation went back where it came from */
     wolfSSL_free(c2);
     c2 = NULL;
+    ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_s, &now), 1);
+    ExpectIntEQ(now.curAlloc, base.curAlloc);
+
+    /* Objects that copy the context secret free their copies */
+    ExpectIntEQ(test_dtls13_cs_handoff(ctx_cB, ctx_s, 0), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_is_static_memory(ctx_s, &now), 1);
     ExpectIntEQ(now.curAlloc, base.curAlloc);
 
@@ -4342,6 +4535,677 @@ int test_dtls13_ch_pool_handshake_threads(void)
     }
     wolfSSL_CTX_free(test_ch_hs_ctx_s);
     test_ch_hs_ctx_s = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Listener c1 sends a HelloRetryRequest and the whole second ClientHello
+ * reaches a later listener c2, which completes it with the context's secret,
+ * generated or set, and not with one of its own. */
+int test_dtls13_ctx_cookie_secret_handoff(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_CTX_COOKIE
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    struct test_memio_ctx t;
+    int mode;
+
+    for (mode = 0; mode < 3 && EXPECT_SUCCESS(); mode++) {
+        XMEMSET(&t, 0, sizeof(t));
+        ExpectIntEQ(test_memio_setup(&t, &ctx_c, &ctx_s, NULL, NULL,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+        ExpectIntEQ(test_dtls13_cs_handoff(ctx_c, ctx_s, mode), TEST_SUCCESS);
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(TEST_DTLS13_CTX_COOKIE) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+/* Whether s makes cookies of type type with the key context secret secret,
+ * sz bytes, gives */
+static int test_dtls13_cs_pri_is(const WOLFSSL* s, int type,
+        const byte* secret, word32 sz)
+{
+    byte key[CTX_COOKIE_KEY_SZ];
+    CookieSecrets cs;
+    int ok;
+
+    if (s == NULL || test_dtls_ctx_cookie_key(secret, sz, type, key) != 0)
+        return 0;
+    if (CookieSecretGet(s, type, &cs) != 0)
+        return 0;
+    ok = cs.priSz == sizeof(key) && XMEMCMP(cs.pri, key, sizeof(key)) == 0;
+    CookieSecretsClear(&cs);
+    return ok;
+}
+
+/* A new client of ctx_c on memio t sends its first ClientHello to server s,
+ * which answers with a HelloRetryRequest, and then its second ClientHello. */
+static int test_dtls13_cs_to_ch2(WOLFSSL_CTX* ctx_c, WOLFSSL* s,
+        struct test_memio_ctx* t, WOLFSSL** ssl_c)
+{
+    EXPECT_DECLS;
+    int group = WOLFSSL_ECC_SECP256R1;
+    int isHrr = 0;
+
+    XMEMSET(t, 0, sizeof(*t));
+    ExpectNotNull(*ssl_c = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_groups(*ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    wolfSSL_SetIOReadCtx(*ssl_c, t);
+    wolfSSL_SetIOWriteCtx(*ssl_c, t);
+    ExpectIntEQ(test_dtls13_server_peer(s, t, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(s), -1);
+    ExpectIntEQ(wolfSSL_get_error(s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(t, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    return EXPECT_RESULT();
+}
+
+/* Server s handles the second ClientHello of ssl_c on memio t. ok: the
+ * handshake completes, else a fatal illegal_parameter alert */
+static int test_dtls13_cs_ch2_at(WOLFSSL* ssl_c, WOLFSSL* s,
+        struct test_memio_ctx* t, int ok)
+{
+    EXPECT_DECLS;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(test_dtls13_server_peer(s, t, 2), WOLFSSL_SUCCESS);
+    if (ok) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, s, 10, NULL), 0);
+    }
+    else {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_rx.code, illegal_parameter);
+    }
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(TEST_DTLS13_CTX_COOKIE) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && defined(HAVE_SNI)
+typedef struct test_dtls13_cs_sni_arg {
+    WOLFSSL_CTX* next;   /* the context the object moves to */
+    WOLFSSL_CTX* rotate; /* the context whose secret is changed */
+    const byte* secret;  /* mode 2: the new secret of rotate */
+    word32 secretSz;
+    int mode;
+    int calls;
+    int bad;
+} test_dtls13_cs_sni_arg;
+
+/* Runs after the cookie verified. mode 0: move to another context and rotate
+ * the old one's secret twice. 1: move and ask for the context's DTLS 1.2
+ * secret. 2: set a new secret on the context and ask for its 1.2 secret. */
+static int test_dtls13_cs_sni_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    test_dtls13_cs_sni_arg* a = (test_dtls13_cs_sni_arg*)arg;
+
+    (void)ad;
+    if (a->calls++ != 0)
+        return 0;
+    if (a->mode != 2 && wolfSSL_set_SSL_CTX(ssl, a->next) != a->next)
+        a->bad++;
+    if (a->mode == 0) {
+        if (wolfSSL_CTX_rotate_cookie_secret(a->rotate, NULL, 0) !=
+                WOLFSSL_SUCCESS)
+            a->bad++;
+        if (wolfSSL_CTX_rotate_cookie_secret(a->rotate, NULL, 0) !=
+                WOLFSSL_SUCCESS)
+            a->bad++;
+    }
+    if (a->mode == 2 && wolfSSL_CTX_set_cookie_secret(a->rotate,
+            a->secret, a->secretSz) != WOLFSSL_SUCCESS)
+        a->bad++;
+    if (a->mode != 0 && wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0) != 0)
+        a->bad++;
+    return 0;
+}
+#endif
+
+/* wolfSSL_set_SSL_CTX(): an object uses the new context's secret from then
+ * on, and the move gives the context one when it has none. The SNI callback
+ * runs after the cookie check, so it may move the object and change secrets
+ * freely. */
+int test_dtls13_ctx_cookie_secret_set_ssl_ctx(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_CTX_COOKIE) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s1 = NULL, *ctx_s2 = NULL, *ctx_s3 = NULL;
+    WOLFSSL *ssl_c = NULL, *c1 = NULL, *x = NULL;
+    struct test_memio_ctx t;
+    byte p1[32];
+    byte p2[32];
+#ifdef HAVE_SNI
+    test_dtls13_cs_sni_arg arg;
+    int group = WOLFSSL_ECC_SECP256R1;
+    int mode;
+    const char* name = "www.wolfssl.com";
+    byte p3[32];
+#endif
+
+    XMEMSET(&t, 0, sizeof(t));
+    XMEMSET(p1, 0x11, sizeof(p1));
+    XMEMSET(p2, 0x22, sizeof(p2));
+#ifdef HAVE_SNI
+    XMEMSET(p3, 0x33, sizeof(p3));
+#endif
+    ExpectIntEQ(test_memio_setup(&t, &ctx_c, &ctx_s1, NULL, NULL,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&t, NULL, &ctx_s2, NULL, NULL, NULL,
+        wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&t, NULL, &ctx_s3, NULL, NULL, NULL,
+        wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s1, p1, sizeof(p1)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s2, p2, sizeof(p2)),
+        WOLFSSL_SUCCESS);
+
+    /* (a) The move changes the secret the object uses at once */
+    ExpectNotNull(c1 = wolfSSL_new(ctx_s1));
+    ExpectTrue(test_dtls13_cs_pri_is(c1, CTX_COOKIE_HRR, p1, sizeof(p1)));
+    ExpectPtrEq(wolfSSL_set_SSL_CTX(c1, ctx_s2), ctx_s2);
+    ExpectTrue(test_dtls13_cs_pri_is(c1, CTX_COOKIE_HRR, p2, sizeof(p2)));
+    ExpectIntEQ(test_dtls13_cs_to_ch2(ctx_c, c1, &t, &ssl_c), TEST_SUCCESS);
+    ExpectNotNull(x = wolfSSL_new(ctx_s2));
+    ExpectIntEQ(test_dtls13_cs_ch2_at(ssl_c, x, &t, 1), TEST_SUCCESS);
+    wolfSSL_free(x);
+    x = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    /* A server of the old context rejects its cookies */
+    ExpectIntEQ(test_dtls13_cs_to_ch2(ctx_c, c1, &t, &ssl_c), TEST_SUCCESS);
+    ExpectNotNull(x = wolfSSL_new(ctx_s1));
+    ExpectIntEQ(test_dtls13_cs_ch2_at(ssl_c, x, &t, 0), TEST_SUCCESS);
+    wolfSSL_free(x);
+    x = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(c1);
+    c1 = NULL;
+
+    /* (b) A context without a secret gets one when a server moves to it */
+    ExpectIntEQ(ctx_s3->cookieSecret.keySz[0], 0);
+    ExpectNotNull(c1 = wolfSSL_new(ctx_s1));
+    ExpectPtrEq(wolfSSL_set_SSL_CTX(c1, ctx_s3), ctx_s3);
+    ExpectIntEQ(ctx_s3->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
+    ExpectFalse(test_dtls13_cs_pri_is(c1, CTX_COOKIE_HRR, p1, sizeof(p1)));
+    ExpectIntEQ(test_dtls13_cs_to_ch2(ctx_c, c1, &t, &ssl_c), TEST_SUCCESS);
+    ExpectNotNull(x = wolfSSL_new(ctx_s3));
+    ExpectIntEQ(test_dtls13_cs_ch2_at(ssl_c, x, &t, 1), TEST_SUCCESS);
+    wolfSSL_free(x);
+    x = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    ExpectIntEQ(test_dtls13_cs_to_ch2(ctx_c, c1, &t, &ssl_c), TEST_SUCCESS);
+    ExpectNotNull(x = wolfSSL_new(ctx_s1));
+    ExpectIntEQ(test_dtls13_cs_ch2_at(ssl_c, x, &t, 0), TEST_SUCCESS);
+    wolfSSL_free(x);
+    x = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(c1);
+    c1 = NULL;
+
+#ifdef HAVE_SNI
+    /* (c) */
+    wolfSSL_CTX_set_servername_callback(ctx_s1, test_dtls13_cs_sni_cb);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s1, &arg),
+        WOLFSSL_SUCCESS);
+    for (mode = 0; mode < 3 && EXPECT_SUCCESS(); mode++) {
+        XMEMSET(&arg, 0, sizeof(arg));
+        arg.next = ctx_s2;
+        arg.rotate = ctx_s1;
+        arg.secret = p3;
+        arg.secretSz = sizeof(p3);
+        arg.mode = mode;
+        ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s1, p1, sizeof(p1)),
+            WOLFSSL_SUCCESS);
+        XMEMSET(&t, 0, sizeof(t));
+        ExpectNotNull(c1 = wolfSSL_new(ctx_s1));
+        ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, name,
+            (word16)XSTRLEN(name)), WOLFSSL_SUCCESS);
+        wolfSSL_SetIOReadCtx(ssl_c, &t);
+        wolfSSL_SetIOWriteCtx(ssl_c, &t);
+        ExpectIntEQ(test_dtls13_server_peer(c1, &t, 2), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, c1, 10, NULL), 0);
+        ExpectIntGE(arg.calls, 1);
+        ExpectIntEQ(arg.bad, 0);
+        ExpectPtrEq(c1->ctx, (mode == 2) ? ctx_s1 : ctx_s2);
+        /* The secrets are the current context's */
+        ExpectTrue(test_dtls13_cs_pri_is(c1, CTX_COOKIE_HRR,
+            (mode == 2) ? p3 : p2, sizeof(p2)));
+        ExpectTrue(test_dtls13_cs_pri_is(c1, CTX_COOKIE_DTLS12,
+            (mode == 2) ? p3 : p2, sizeof(p2)));
+        ExpectNull(c1->buffers.dtlsCookieSecret.buffer);
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(c1);
+        c1 = NULL;
+    }
+#endif
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s1);
+    wolfSSL_CTX_free(ctx_s2);
+    wolfSSL_CTX_free(ctx_s3);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(TEST_DTLS13_CTX_COOKIE) && !defined(SINGLE_THREADED)
+#define TEST_CS_THREADS 2
+#define TEST_CS_ROUNDS  20
+
+static WOLFSSL_CTX* test_cs_ctx_c;
+static WOLFSSL_CTX* test_cs_ctx_s;
+static struct test_memio_ctx test_cs_memio[TEST_CS_THREADS];
+static int test_cs_ok[TEST_CS_THREADS];
+static int test_cs_bad[TEST_CS_THREADS];
+static int test_cs_rot_bad;
+static int test_cs_rotations;
+static wolfSSL_Mutex test_cs_mutex;
+static int test_cs_started;
+static int test_cs_done;
+static byte test_cs_a[32];
+static byte test_cs_b[32];
+/* The keys A and B give: [A, B][cookie type] */
+static byte test_cs_key[2][2][CTX_COOKIE_KEY_SZ];
+
+static int test_cs_get(const int* flag)
+{
+    int v = 0;
+
+    if (wc_LockMutex(&test_cs_mutex) == 0) {
+        v = *flag;
+        wc_UnLockMutex(&test_cs_mutex);
+    }
+    return v;
+}
+
+static void test_cs_set(int* flag)
+{
+    if (wc_LockMutex(&test_cs_mutex) == 0) {
+        *flag = 1;
+        wc_UnLockMutex(&test_cs_mutex);
+    }
+}
+
+static THREAD_RETURN WOLFSSL_THREAD test_dtls13_cs_rotator(void* args)
+{
+    (void)args;
+    test_cs_set(&test_cs_started);
+    do {
+        if (wolfSSL_CTX_rotate_cookie_secret(test_cs_ctx_s, test_cs_a,
+                sizeof(test_cs_a)) != WOLFSSL_SUCCESS)
+            test_cs_rot_bad++;
+        if (wolfSSL_CTX_rotate_cookie_secret(test_cs_ctx_s, test_cs_b,
+                sizeof(test_cs_b)) != WOLFSSL_SUCCESS)
+            test_cs_rot_bad++;
+        test_cs_rotations += 2;
+    } while (!test_cs_get(&test_cs_done));
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* A long-lived listener c1 sends each client a HelloRetryRequest. The second
+ * ClientHello goes to a new listener c2. */
+static THREAD_RETURN WOLFSSL_THREAD test_dtls13_cs_worker(void* args)
+{
+    int tno = ((func_args*)args)->argc;
+    struct test_memio_ctx* t = &test_cs_memio[tno];
+    int group = WOLFSSL_ECC_SECP256R1;
+    WOLFSSL* c1 = wolfSSL_new(test_cs_ctx_s);
+    int round;
+
+    for (round = 0; round < TEST_CS_ROUNDS; round++) {
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* c2 = NULL;
+        int peer = tno * 100 + round;
+        int ok = 0;
+
+        XMEMSET(t, 0, sizeof(*t));
+        ssl_c = wolfSSL_new(test_cs_ctx_c);
+        if (c1 != NULL && ssl_c != NULL &&
+                wolfSSL_set_groups(ssl_c, &group, 1) == WOLFSSL_SUCCESS) {
+            wolfSSL_SetIOReadCtx(ssl_c, t);
+            wolfSSL_SetIOWriteCtx(ssl_c, t);
+            if (test_dtls13_server_peer(c1, t, peer) == WOLFSSL_SUCCESS &&
+                    wolfSSL_connect(ssl_c) == -1 &&
+                    wolfSSL_get_error(ssl_c, -1) == WOLFSSL_ERROR_WANT_READ &&
+                    wolfSSL_accept(c1) == -1 &&
+                    wolfSSL_get_error(c1, -1) == WOLFSSL_ERROR_WANT_READ &&
+                    !c1->options.dtlsStateful &&
+                    wolfSSL_connect(ssl_c) == -1 &&
+                    wolfSSL_get_error(ssl_c, -1) == WOLFSSL_ERROR_WANT_READ) {
+                c2 = wolfSSL_new(test_cs_ctx_s);
+            }
+        }
+        if (c2 != NULL &&
+                test_dtls13_server_peer(c2, t, peer) == WOLFSSL_SUCCESS) {
+            ok = test_memio_do_handshake(ssl_c, c2, 10, NULL) == 0;
+        }
+        if (ok)
+            test_cs_ok[tno]++;
+        else
+            test_cs_bad[tno]++;
+        wolfSSL_free(c2);
+        wolfSSL_free(ssl_c);
+    }
+    wolfSSL_free(c1);
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* One thread rotates the secret between A and B while two hand clients from
+ * long-lived listeners to new ones. Every check sees A and B: all complete. */
+int test_dtls13_ctx_cookie_secret_threads(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_CTX_COOKIE) && !defined(SINGLE_THREADED)
+    THREAD_TYPE rotator;
+    THREAD_TYPE workers[TEST_CS_THREADS];
+    func_args rotArgs;
+    func_args args[TEST_CS_THREADS];
+    int i;
+
+    XMEMSET(&rotArgs, 0, sizeof(rotArgs));
+    XMEMSET(args, 0, sizeof(args));
+    XMEMSET(test_cs_ok, 0, sizeof(test_cs_ok));
+    XMEMSET(test_cs_bad, 0, sizeof(test_cs_bad));
+    XMEMSET(test_cs_a, 0xA1, sizeof(test_cs_a));
+    XMEMSET(test_cs_b, 0xB2, sizeof(test_cs_b));
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(test_dtls_ctx_cookie_key(test_cs_a, sizeof(test_cs_a), i,
+            test_cs_key[0][i]), 0);
+        ExpectIntEQ(test_dtls_ctx_cookie_key(test_cs_b, sizeof(test_cs_b), i,
+            test_cs_key[1][i]), 0);
+    }
+    test_cs_rot_bad = 0;
+    test_cs_rotations = 0;
+    test_cs_started = 0;
+    test_cs_done = 0;
+    test_cs_ctx_c = NULL;
+    test_cs_ctx_s = NULL;
+    ExpectIntEQ(test_memio_setup(&test_cs_memio[0], &test_cs_ctx_c,
+        &test_cs_ctx_s, NULL, NULL, wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_rotate_cookie_secret(test_cs_ctx_s,
+        test_cs_a, sizeof(test_cs_a)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_rotate_cookie_secret(test_cs_ctx_s,
+        test_cs_b, sizeof(test_cs_b)), WOLFSSL_SUCCESS);
+    /* One hand-off on this thread first: it sets up what the library makes
+     * lazily on first use, such as the default session ticket key */
+    ExpectIntEQ(test_dtls13_cs_handoff(test_cs_ctx_c, test_cs_ctx_s, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(wc_InitMutex(&test_cs_mutex), 0);
+    if (EXPECT_SUCCESS()) {
+        start_thread(test_dtls13_cs_rotator, &rotArgs, &rotator);
+        while (!test_cs_get(&test_cs_started))
+            XSLEEP_MS(1);
+        for (i = 0; i < TEST_CS_THREADS; i++) {
+            args[i].argc = i;
+            start_thread(test_dtls13_cs_worker, &args[i], &workers[i]);
+        }
+        for (i = 0; i < TEST_CS_THREADS; i++)
+            join_thread(workers[i]);
+        test_cs_set(&test_cs_done);
+        join_thread(rotator);
+        ExpectIntEQ(wc_FreeMutex(&test_cs_mutex), 0);
+
+        for (i = 0; i < TEST_CS_THREADS; i++) {
+            ExpectIntEQ(test_cs_bad[i], 0);
+            ExpectIntEQ(test_cs_ok[i], TEST_CS_ROUNDS);
+        }
+        ExpectIntEQ(test_cs_rot_bad, 0);
+        ExpectIntGE(test_cs_rotations, 2);
+        /* Each loop of the rotator ends with B as the primary */
+        ExpectIntEQ(test_cs_ctx_s->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
+        ExpectIntEQ(test_cs_ctx_s->cookieSecret.keySz[1], CTX_COOKIE_KEY_SZ);
+        ExpectBufEQ(test_cs_ctx_s->cookieSecret.hvrKey[0],
+            test_cs_key[1][CTX_COOKIE_DTLS12], CTX_COOKIE_KEY_SZ);
+        ExpectBufEQ(test_cs_ctx_s->cookieSecret.hrrKey[0],
+            test_cs_key[1][CTX_COOKIE_HRR], CTX_COOKIE_KEY_SZ);
+        ExpectBufEQ(test_cs_ctx_s->cookieSecret.hvrKey[1],
+            test_cs_key[0][CTX_COOKIE_DTLS12], CTX_COOKIE_KEY_SZ);
+        ExpectBufEQ(test_cs_ctx_s->cookieSecret.hrrKey[1],
+            test_cs_key[0][CTX_COOKIE_HRR], CTX_COOKIE_KEY_SZ);
+    }
+    wolfSSL_CTX_free(test_cs_ctx_c);
+    wolfSSL_CTX_free(test_cs_ctx_s);
+    test_cs_ctx_c = NULL;
+    test_cs_ctx_s = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A server given no secret issued its HelloRetryRequest under the one the
+ * context generated. An application secret set by rotation keeps that cookie
+ * valid; one set outright does not. */
+int test_dtls13_ctx_cookie_secret_after_random(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_CTX_COOKIE
+    int rotate;
+
+    for (rotate = 1; rotate >= 0 && EXPECT_SUCCESS(); rotate--) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx t;
+        WOLFSSL_ALERT_HISTORY h;
+        int group = WOLFSSL_ECC_SECP256R1;
+        int isHrr = 0;
+        byte p[32];
+
+        XMEMSET(&t, 0, sizeof(t));
+        XMEMSET(&h, 0, sizeof(h));
+        XMEMSET(p, 0x11, sizeof(p));
+        ExpectIntEQ(test_memio_setup(&t, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
+        ExpectNull(ssl_s->buffers.tls13CookieSecret.buffer);
+        ExpectIntEQ(ctx_s->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
+        ExpectIntEQ(test_dtls13_server_peer(ssl_s, &t, 2), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+
+        /* The HelloRetryRequest cookie is made under the generated secret */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_dtls13_reply_is_server_hello(&t, &isHrr), 1);
+        ExpectIntEQ(isHrr, 1);
+
+        if (rotate) {
+            ExpectIntEQ(wolfSSL_CTX_rotate_cookie_secret(ctx_s, p, sizeof(p)),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s, p, sizeof(p)),
+                WOLFSSL_SUCCESS);
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_rx.code, illegal_parameter);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A HelloVerifyRequest cookie must not pass as a HelloRetryRequest cookie.
+ * Their MAC inputs can be lined up: an attacker's HVR cookie for a ClientHello
+ * ending in the victim's address replays as the victim's HRR cookie. */
+int test_dtls13_ctx_cookie_secret_no_splice(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_CTX_COOKIE) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx t;
+    int group = WOLFSSL_ECC_SECP256R1;
+    /* As cookie data: hash length 2, hash, TLS_AES_128_GCM_SHA256,
+     * secp256r1 */
+    byte a[28] = { 2, 0x5a, 0x5a, 0x13, 0x01, 0x00, 0x17 };
+    byte v[28];
+    byte rnd[RAN_LEN];
+    byte hvrCh[DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+        OPAQUE16_LEN + RAN_LEN + 1 + 1 + OPAQUE16_LEN + 1 + sizeof(v)];
+    byte mac[WC_SHA256_DIGEST_SIZE];
+    byte ch[TEST_MEMIO_BUF_SZ];
+    byte* p;
+    word32 chSz = 0;
+    word32 idx = 0;
+    word32 len = 0;
+    word32 extSz;
+    word32 cookieSz;
+    word16 len16 = 0;
+
+    XMEMSET(&t, 0, sizeof(t));
+    XMEMSET(v, 0x56, sizeof(v));
+    XMEMSET(rnd, 0x52, sizeof(rnd));
+    XMEMSET(mac, 0, sizeof(mac));
+    ExpectIntEQ(test_memio_setup(&t, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+
+    /* A ClientHello without supported_versions from a: empty session id and
+     * cipher suites, v as the compression list */
+    p = hvrCh;
+    *p++ = handshake;
+    *p++ = DTLS_MAJOR;
+    *p++ = DTLSv1_2_MINOR;
+    XMEMSET(p, 0, 8);
+    p += 8;
+    c16toa((word16)(sizeof(hvrCh) - DTLS_RECORD_HEADER_SZ), p);
+    p += OPAQUE16_LEN;
+    *p++ = client_hello;
+    c32to24((word32)(sizeof(hvrCh) - DTLS_RECORD_HEADER_SZ -
+        DTLS_HANDSHAKE_HEADER_SZ), p);
+    p += OPAQUE24_LEN;
+    XMEMSET(p, 0, OPAQUE16_LEN + OPAQUE24_LEN);
+    p += OPAQUE16_LEN + OPAQUE24_LEN;
+    c32to24((word32)(sizeof(hvrCh) - DTLS_RECORD_HEADER_SZ -
+        DTLS_HANDSHAKE_HEADER_SZ), p);
+    p += OPAQUE24_LEN;
+    *p++ = DTLS_MAJOR;
+    *p++ = DTLSv1_2_MINOR;
+    XMEMCPY(p, rnd, RAN_LEN);
+    p += RAN_LEN;
+    *p++ = 0;
+    *p++ = 0;
+    c16toa(0, p);
+    p += OPAQUE16_LEN;
+    *p++ = (byte)sizeof(v);
+    XMEMCPY(p, v, sizeof(v));
+
+    wolfSSL_SetIOReadCtx(ssl_s, &t);
+    wolfSSL_SetIOWriteCtx(ssl_s, &t);
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl_s, a, sizeof(a)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_inject_message(&t, 0, (const char*)hvrCh,
+        sizeof(hvrCh)), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    idx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN;
+    ExpectIntGE(t.c_len, idx + 1 + sizeof(mac));
+    ExpectIntEQ(t.c_buff[0], handshake);
+    ExpectIntEQ(t.c_buff[DTLS_RECORD_HEADER_SZ], hello_verify_request);
+    ExpectIntEQ(t.c_buff[idx], sizeof(mac));
+    if (EXPECT_SUCCESS())
+        XMEMCPY(mac, t.c_buff + idx + 1, sizeof(mac));
+    test_memio_clear_buffer(&t, 1);
+
+    /* A real first ClientHello, given the spliced cookie */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    cookieSz = sizeof(a) + OPAQUE16_LEN + RAN_LEN + sizeof(mac);
+    extSz = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN + OPAQUE16_LEN + cookieSz;
+    ExpectIntLE(t.s_len + extSz, sizeof(ch));
+    if (EXPECT_SUCCESS()) {
+        chSz = (word32)t.s_len;
+        XMEMCPY(ch, t.s_buff, chSz);
+        ato16(ch + DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN, &len16);
+        ato24(ch + DTLS_RECORD_HEADER_SZ + 1, &len);
+    }
+    test_memio_clear_buffer(&t, 0);
+    /* One unfragmented message in one record */
+    ExpectIntEQ(len16, chSz - DTLS_RECORD_HEADER_SZ);
+    ExpectIntEQ(len, chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        idx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+            OPAQUE16_LEN + RAN_LEN;
+        idx += 1 + ch[idx];                              /* session id */
+        idx += 1 + ch[idx];                              /* cookie */
+        idx += OPAQUE16_LEN + ((word32)ch[idx] << 8 | ch[idx + 1]); /* suites */
+        idx += 1 + ch[idx];                              /* compression */
+    }
+    ExpectIntLE(idx + OPAQUE16_LEN, chSz);
+    if (EXPECT_SUCCESS()) {
+        /* Insert the cookie extension first */
+        ato16(ch + idx, &len16);
+        c16toa((word16)(len16 + extSz), ch + idx);
+        idx += OPAQUE16_LEN;
+        XMEMMOVE(ch + idx + extSz, ch + idx, chSz - idx);
+        p = ch + idx;
+        c16toa(TLSX_COOKIE, p);
+        p += HELLO_EXT_TYPE_SZ;
+        c16toa((word16)(OPAQUE16_LEN + cookieSz), p);
+        p += OPAQUE16_LEN;
+        c16toa((word16)cookieSz, p);
+        p += OPAQUE16_LEN;
+        XMEMCPY(p, a, sizeof(a));
+        p += sizeof(a);
+        *p++ = DTLS_MAJOR;
+        *p++ = DTLSv1_2_MINOR;
+        XMEMCPY(p, rnd, RAN_LEN);
+        p += RAN_LEN;
+        XMEMCPY(p, mac, sizeof(mac));
+        chSz += extSz;
+        c16toa((word16)(chSz - DTLS_RECORD_HEADER_SZ),
+            ch + DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN);
+        c32to24(chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ,
+            ch + DTLS_RECORD_HEADER_SZ + 1);
+        c32to24(chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ,
+            ch + DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ -
+            OPAQUE24_LEN);
+    }
+
+    /* Sent as v: the server must not take it */
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl_s, v, sizeof(v)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_inject_message(&t, 0, (const char*)ch, (int)chSz),
+        0);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    ExpectFalse(t.c_len > DTLS_RECORD_HEADER_SZ && t.c_buff[0] == handshake &&
+        t.c_buff[DTLS_RECORD_HEADER_SZ] == server_hello);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }
@@ -5030,8 +5894,8 @@ int test_dtls13_ch_pool_peer_key(void)
     return EXPECT_RESULT();
 }
 
-/* Only a DTLS context initializes the ClientHello pool. A TLS context's pool
- * takes nothing. */
+/* Only a DTLS context initializes the ClientHello pool; every server context
+ * has a cookie secret lock. A TLS context's pool takes nothing. */
 int test_dtls13_ch_pool_ctx_init(void)
 {
     EXPECT_DECLS;
@@ -5053,6 +5917,10 @@ int test_dtls13_ch_pool_ctx_init(void)
     if (EXPECT_SUCCESS()) {
         ExpectIntEQ(tls->dtlsChPool.ready, 0);
         ExpectIntEQ(dtls->dtlsChPool.ready, 1);
+#ifndef SINGLE_THREADED
+        ExpectNotNull(tls->cookieSecret.lock);
+        ExpectNotNull(dtls->cookieSecret.lock);
+#endif
         ExpectIntEQ(DtlsChPoolStore(&tls->dtlsChPool, tls->heap, &peer, 0, 0,
             data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, NULL, &done),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));

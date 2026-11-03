@@ -4181,6 +4181,14 @@ WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCt
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl, const byte* secret, word32 secretSz);
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
     const byte* secret, word32 secretSz);
+#if defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)
+WOLFSSL_API int wolfSSL_CTX_set_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz);
+WOLFSSL_API int wolfSSL_CTX_set_cookie_secret_secondary(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz);
+WOLFSSL_API int wolfSSL_CTX_rotate_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz);
+#endif
 
 
 /* CA cache callbacks */

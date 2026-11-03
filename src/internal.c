@@ -3197,6 +3197,14 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         }
     }
 #endif
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    if (method->side != WOLFSSL_CLIENT_END) {
+        ret = CookieSecretCtxInit(ctx);
+        if (ret != 0)
+            return ret;
+    }
+#endif
 
 #ifndef NO_CERTS
     ctx->privateKeyDevId = INVALID_DEVID;
@@ -3734,6 +3742,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
     /* No object holds a reference any more, so none reaches the pool */
     DtlsChPoolFree(&ctx->dtlsChPool, ctx->heap);
+#endif
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    CookieSecretCtxFree(ctx);
 #endif
     (void)heapAtCTXInit;
 }

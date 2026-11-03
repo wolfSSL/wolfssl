@@ -2519,7 +2519,8 @@ int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
     DoS/amplification attacks. wolfDTLS_accept_stateless() cannot be used.
 
     Primary and secondary cookie secrets for the applicable protocols are
-    securely erased and freed.
+    securely erased and freed. Only this object's secrets are erased. The
+    context's secret is kept, and wolfSSL_enable_cookie() uses it again.
 
     Without cookies a DTLS 1.3 server can process a first ClientHello that
     arrives fragmented, but only when ClientHello fragment reassembly is
@@ -2553,8 +2554,10 @@ int wolfSSL_disable_cookie(WOLFSSL* ssl);
     \brief Enable server cookies for DTLS 1.2, DTLS 1.3 and TLS 1.3.
     Like wolfSSL_disable_cookie(), this does not change stateful processing.
     It can undo a disable before accept begins, including
-    wolfSSL_disable_hrr_cookie(). Missing primary cookie secrets are randomly
-    generated immediately; existing primary and secondary secrets are preserved.
+    wolfSSL_disable_hrr_cookie(). Secrets the application gave the object are
+    kept. A cookie type the object has no secret of its own for uses the
+    context's secret (wolfSSL_CTX_set_cookie_secret()), generated now if the
+    context has none.
 
     \param ssl DTLS or TLS 1.3 server session created with wolfSSL_new().
     A general-purpose session that has not chosen a side yet is accepted: the
@@ -2563,14 +2566,14 @@ int wolfSSL_disable_cookie(WOLFSSL* ssl);
     \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
     \return SIDE_ERROR if ssl is a client.
     \return BAD_STATE_E if the DTLS handshake already committed to stateful
-    processing, as for wolfSSL_disable_cookie(), or if a missing secret must
-    be generated and the session's RNG has been released (as happens when
-    its handshake resources are freed).
-    \return MEMORY_ERROR if secret allocation fails, or another negative error
-    if random secret generation fails. A failure is all or nothing: no secret
-    is installed and the cookie policy is left as it was found, even when the
-    session needs both a DTLS 1.2 and a DTLS 1.3 secret.
+    processing, as for wolfSSL_disable_cookie().
+    \return BAD_MUTEX_E if the context's cookie secret cannot be locked.
+    \return MEMORY_E, an RNG or an HMAC error if the context's secret cannot
+    be generated, as for wolfSSL_CTX_set_cookie_secret(). A failure is all or
+    nothing: no secret is installed and the cookie policy is left as it was
+    found.
     \sa wolfSSL_disable_cookie
+    \sa wolfSSL_CTX_set_cookie_secret
 */
 int wolfSSL_enable_cookie(WOLFSSL* ssl);
 
@@ -10022,23 +10025,26 @@ void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
 /*!
     \brief This function sets a new dtls cookie secret.
 
+    A secret given here is the object's own and wins over the context's
+    secret for the DTLS 1.2 HelloVerifyRequest cookie of this object. A NULL
+    secret drops the object's own: the object uses the context's secret
+    (wolfSSL_CTX_set_cookie_secret()), generated now if the context has none.
+
     \return 0 returned if the function executed without an error.
-    \return BAD_FUNC_ARG returned if there was an argument passed
-    to the function with an unacceptable value.
+    \return BAD_FUNC_ARG returned if ssl is NULL, or secret is not NULL and
+    secretSz is 0.
     \return MEMORY_ERROR returned if there was a problem allocating
     memory for a new cookie secret.
-    \return BAD_STATE_E returned if secret is NULL and the session's RNG has
-    been released, so no secret can be generated.
-    \return Another -ve value when a new secret could not be generated. The
-    rotation does not happen and the secret already in use is kept, so the
-    server carries on issuing and verifying cookies under it.
+    \return BAD_MUTEX_E returned if the context's secret cannot be locked.
+    \return Another -ve value when the context's secret could not be
+    generated. The secret already in use is kept, so the server carries on
+    issuing and verifying cookies under it.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param secret a constant byte pointer representing the secret buffer.
-    Passing NULL indicates to generate a new random secret.
-    \param secretSz the size of the buffer. Passing 0 with a NULL secret
-    generates a secret of the default size (COOKIE_SECRET_SZ); passing 0 with
-    a non-NULL secret returns BAD_FUNC_ARG.
+    \param secret a constant byte pointer representing the secret buffer, or
+    NULL to use the context's secret.
+    \param secretSz the size of the buffer. Ignored with a NULL secret.
+    Passing 0 with a non-NULL secret returns BAD_FUNC_ARG.
 
     _Example_
     \code
@@ -10054,8 +10060,8 @@ void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
     }
     \endcode
 
-    \sa ForceZero
-    \sa wc_RNG_GenerateBlock
+    \sa wolfSSL_DTLS_SetCookieSecretSecondary
+    \sa wolfSSL_CTX_set_cookie_secret
 */
 int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                                                const byte* secret,
@@ -10069,7 +10075,9 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     rejecting clients whose cookie was issued under the previous secret: install
     the new secret as the primary and the previous secret here for an overlap
     window.  The secondary secret is never used to issue cookies.  It is the
-    DTLS 1.2 counterpart of wolfSSL_set_hrr_cookie_secret_secondary().
+    DTLS 1.2 counterpart of wolfSSL_set_hrr_cookie_secret_secondary(). It
+    wins over the context's secondary
+    (wolfSSL_CTX_set_cookie_secret_secondary()) for this object.
 
     \return 0 returned if the function executed without an error.
     \return BAD_FUNC_ARG returned if ssl is NULL.
@@ -10097,10 +10105,155 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     \endcode
 
     \sa wolfSSL_DTLS_SetCookieSecret
+    \sa wolfSSL_CTX_set_cookie_secret_secondary
 */
 int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
                                                const byte* secret,
                                                word32 secretSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets the cookie secret of a server context. Its server objects use
+    it to make and check the TLS 1.3 and DTLS 1.3 HelloRetryRequest cookie and
+    the DTLS 1.2 HelloVerifyRequest cookie, for each cookie type an object has
+    no secret of its own (wolfSSL_send_hrr_cookie(),
+    wolfSSL_DTLS_SetCookieSecret()). A ClientHello whose cookie one object
+    issued then verifies at any other object of the context that sees the
+    same peer address (wolfSSL_dtls_set_peer()) and supports the same cipher
+    suite and group. Each cookie type uses its own key made from the secret,
+    so an object given the same bytes with wolfSSL_send_hrr_cookie() or
+    wolfSSL_DTLS_SetCookieSecret() does not accept these cookies.
+
+    Objects read the secret each time they make or check a cookie, so a
+    change applies at once to every object of the context, and
+    wolfSSL_set_SSL_CTX() moves an object to the new context's secret. The
+    server name callback runs after the cookie check, so a context it moves
+    the object to need not share the secret. A
+    context without a secret gets a random one when cookies are enabled on
+    one of its objects: by wolfSSL_accept() or wolfDTLS_accept_stateless()
+    on a DTLS server, wolfSSL_enable_cookie(), or wolfSSL_send_hrr_cookie()
+    and wolfSSL_DTLS_SetCookieSecret() with a NULL secret. Call this to
+    share the secret between processes or to choose it.
+
+    Cookies made with the previous secret stop verifying unless it is the
+    secondary: a client that got its HelloRetryRequest or HelloVerifyRequest
+    before the change fails that handshake and retries. Use
+    wolfSSL_CTX_rotate_cookie_secret() to keep them verifying. Does not
+    change the secondary secret and does not turn cookies on or off. Safe to
+    call while other threads use objects of the context.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+    \param [in] secret the secret, or NULL to generate a random one as long
+    as the keys made from it (32 bytes with SHA-256).
+    \param [in] secretSz size of secret in bytes. Not used with a NULL
+    secret.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx is NULL, or secret is not NULL and secretSz
+    is 0.
+    \return SIDE_ERROR if the context is for clients or the library has no
+    server support.
+    \return BAD_MUTEX_E, MEMORY_E, an RNG or an HMAC error. The RNG and the
+    HMAC use the context's device (wolfSSL_CTX_SetDevId()), so this can be a
+    device error such as NO_VALID_DEVID, or WC_PENDING_E when a crypto
+    callback pends: call again. A FIPS build gives HMAC_MIN_KEYLEN_E for a
+    secret shorter than 14 bytes. The secret in use is unchanged.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfDTLSv1_3_server_method());
+    // secret shared by every process that answers this endpoint
+    if (wolfSSL_CTX_set_cookie_secret(ctx, secret, secretSz) !=
+            WOLFSSL_SUCCESS) {
+        // error
+    }
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_rotate_cookie_secret
+    \sa wolfSSL_CTX_set_cookie_secret_secondary
+    \sa wolfSSL_send_hrr_cookie
+    \sa wolfSSL_DTLS_SetCookieSecret
+    \sa wolfSSL_disable_cookie
+    \sa wolfSSL_dtls_set_peer
+*/
+int wolfSSL_CTX_set_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets the secondary cookie secret of a server context. An object
+    without a secondary of its own for a cookie type checks a cookie against
+    it only after the primary fails; it never makes cookies. It is used only
+    while the context has a primary secret. NULL or a size of 0 clears it.
+    Safe to call while other threads use objects of the context.
+
+    To rotate in two calls, set the secondary to the current secret first,
+    then set the new primary. wolfSSL_CTX_rotate_cookie_secret() does both
+    in one step.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+    \param [in] secret the secondary secret, or NULL to clear it.
+    \param [in] secretSz size of secret in bytes, or 0 to clear it.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx is NULL.
+    \return SIDE_ERROR if the context is for clients or the library has no
+    server support.
+    \return BAD_MUTEX_E, MEMORY_E or an HMAC error, which can be a device
+    error such as NO_VALID_DEVID, or WC_PENDING_E when a crypto callback
+    pends: call again. The secondary in use is unchanged.
+
+    _Example_
+    \code
+    wolfSSL_CTX_set_cookie_secret_secondary(ctx, cur, curSz);
+    wolfSSL_CTX_set_cookie_secret(ctx, next, nextSz);
+    \endcode
+
+    \sa wolfSSL_CTX_set_cookie_secret
+    \sa wolfSSL_CTX_rotate_cookie_secret
+    \sa wolfSSL_set_hrr_cookie_secret_secondary
+    \sa wolfSSL_DTLS_SetCookieSecretSecondary
+*/
+int wolfSSL_CTX_set_cookie_secret_secondary(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Rotates the cookie secret of a server context in one step: the
+    primary secret becomes the secondary and secret becomes the primary.
+    Cookies made with the previous primary keep verifying until the next
+    rotation, so this is safe at any moment, with handshakes in flight. With
+    no primary yet, it sets the primary and clears the secondary. Rotate less
+    often than the longest time a client may take between the
+    HelloRetryRequest or HelloVerifyRequest and its second ClientHello. Safe
+    to call while other threads use objects of the context.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+    \param [in] secret the new secret, or NULL to generate a random one.
+    \param [in] secretSz as for wolfSSL_CTX_set_cookie_secret().
+
+    \return as for wolfSSL_CTX_set_cookie_secret().
+
+    _Example_
+    \code
+    // from a timer
+    if (wolfSSL_CTX_rotate_cookie_secret(ctx, NULL, 0) != WOLFSSL_SUCCESS) {
+        // secret unchanged
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_cookie_secret
+    \sa wolfSSL_CTX_set_cookie_secret_secondary
+*/
+int wolfSSL_CTX_rotate_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz);
 
 /*!
     \brief This function retrieves the random number.
@@ -15172,27 +15325,34 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     secret while cookies are already enabled remains supported. DTLS 1.2-only callers
     should use wolfSSL_enable_cookie() and wolfSSL_DTLS_SetCookieSecret().
 
+    A non-NULL secret is the object's own and wins over the context's secret
+    (wolfSSL_CTX_set_cookie_secret()) for the HelloRetryRequest cookie of
+    this object. NULL drops the object's own: the object uses the context's
+    secret, generated now if the context has none. A DTLS 1.3 server without
+    a DTLS 1.2 secret of its own (wolfSSL_DTLS_SetCookieSecret()) also uses
+    the context's for the HelloVerifyRequest cookie.
+
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param [in] secret a pointer to a buffer holding the secret.
-    Passing NULL indicates to generate a new random secret.
-    \param [in] secretSz Size of the secret in bytes.
-    Passing 0 indicates to use the default size: the digest size of the hash
-    the cookie MAC uses, WC_SHA256_DIGEST_SIZE, or when SHA-256 is not
-    available WC_SHA384_DIGEST_SIZE, WC_SHA512_DIGEST_SIZE or
-    WC_SM3_DIGEST_SIZE, in that order.
+    \param [in] secret a pointer to a buffer holding the secret, or NULL to
+    use the context's secret.
+    \param [in] secretSz Size of the secret in bytes. Ignored with a NULL
+    secret. Otherwise passing 0 indicates to use the default
+    size: the digest size of the hash the cookie MAC uses,
+    WC_SHA256_DIGEST_SIZE, or when SHA-256 is not available
+    WC_SHA384_DIGEST_SIZE, WC_SHA512_DIGEST_SIZE or WC_SM3_DIGEST_SIZE, in
+    that order.
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return SIDE_ERROR if called with a client.
     \return BAD_STATE_E if the DTLS handshake already committed to stateful
-    processing, as for wolfSSL_enable_cookie(), or if a secret must be
-    generated (secret is NULL, or a DTLS 1.3 server is missing its DTLS 1.2
-    secret) and the session's RNG has been released. The installed secret is
-    left unchanged.
+    processing, as for wolfSSL_enable_cookie().
     \return WOLFSSL_SUCCESS if successful.
     \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
-    \return Another -ve value on internal error. Every failure is all or
-    nothing: the secret in use and the cookie policy are left exactly as they
-    were found, so the object stays usable.
+    \return BAD_MUTEX_E if the context's cookie secret cannot be locked.
+    \return Another -ve value on internal error, including when the
+    context's secret cannot be generated. Every failure is all or nothing:
+    the secret in use and the cookie policy are left exactly as they were
+    found, so the object stays usable.
 
     _Example_
     \code
@@ -15208,6 +15368,7 @@ int  wolfSSL_connect(WOLFSSL* ssl);
 
     \sa wolfSSL_new
     \sa wolfSSL_disable_hrr_cookie
+    \sa wolfSSL_CTX_set_cookie_secret
 */
 int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
@@ -15224,6 +15385,8 @@ int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     secret here for an overlap window.  The secondary secret is never used to
     issue cookies.  This API is DTLS only; TLS 1.3 over a reliable transport
     does not verify cookies statelessly across the HelloRetryRequest exchange.
+    It wins over the context's secondary
+    (wolfSSL_CTX_set_cookie_secret_secondary()) for this object.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using
     wolfSSL_new().
@@ -15256,6 +15419,7 @@ int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
 
     \sa wolfSSL_send_hrr_cookie
     \sa wolfSSL_disable_hrr_cookie
+    \sa wolfSSL_CTX_set_cookie_secret_secondary
 */
 int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
@@ -15274,7 +15438,8 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     BAD_STATE_E once the handshake has committed to stateful processing.
     Without the cookie exchange a DTLS v1.3 server has nothing to verify before
     it commits, so it processes the first ClientHello statefully and, when
-    built with WOLFSSL_DTLS_CH_FRAG, reassembles a fragmented one.
+    built with WOLFSSL_DTLS_CH_FRAG, reassembles a fragmented one. The
+    context's secret is kept.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -15351,10 +15516,10 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
     wolfSSL_dtls_set_peer(), holds nothing: it drops such fragments, and still
     answers a whole ClientHello or one whose cookie is in its first fragment.
     A server that completes another server's second ClientHello verifies the
-    cookie only when both were given the same secret with
-    wolfSSL_send_hrr_cookie(); otherwise the client gets an illegal_parameter
-    alert. Use one context per local endpoint if clients may reuse a source
-    port across endpoints.
+    cookie only when they share the cookie secret: both use the context's
+    (wolfSSL_CTX_set_cookie_secret(), the default) or each was given the
+    same secret; otherwise the client gets an illegal_parameter alert. Use one context per
+    local endpoint if clients may reuse a source port across endpoints.
     Allocator, logging and clock callbacks may run while the pool is locked
     and must not call into wolfSSL. Requires WOLFSSL_DTLS_CH_FRAG.
 
@@ -15380,6 +15545,7 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
     \sa wolfSSL_send_hrr_cookie
     \sa wolfSSL_disable_hrr_cookie
     \sa wolfSSL_dtls_set_peer
+    \sa wolfSSL_CTX_set_cookie_secret
 */
 int wolfSSL_dtls13_reassemble_ch_before_cookie(WOLFSSL* ssl, int enabled);
 
