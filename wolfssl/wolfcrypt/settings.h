@@ -5574,6 +5574,11 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #error "Neither PQ/T hybrid combinations nor ML-KEM as standalone TLS key " \
     "exchange are enabled"
 #endif
+/* FIPS v7 allows only the draft-ietf-tls-ecdhe-mlkem hybrid groups. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
+    #error "WOLFSSL_EXTRA_PQC_HYBRIDS is not available in FIPS v7 builds"
+#endif
 
 /* SRTP requires DTLS */
 #if defined(WOLFSSL_SRTP) && !defined(WOLFSSL_DTLS)

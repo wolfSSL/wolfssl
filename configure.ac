@@ -2035,7 +2035,11 @@ then
 
     if test "$ENABLED_EXPERIMENTAL" = "yes"
     then
-        test "$enable_extra_pqc_hybrids" = "" && enable_extra_pqc_hybrids=yes
+        # FIPS v7 allows only the draft-ietf-tls-ecdhe-mlkem hybrid groups.
+        if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+        then
+            test "$enable_extra_pqc_hybrids" = "" && enable_extra_pqc_hybrids=yes
+        fi
         test "$enable_frodokem" = "" && enable_frodokem=yes
         test "$enable_frodokem" = yes && test "$enable_frodokem_shake" = "" && enable_frodokem_shake=yes
         test "$enable_frodokem" = yes && test "$enable_frodokem_aes" = "" && enable_frodokem_aes=yes
@@ -9142,6 +9146,7 @@ if test "$ENABLED_EXTRA_PQC_HYBRIDS" = "yes"
 then
     AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires --enable-experimental.]) ])
     AS_IF([ test "$ENABLED_ML_KEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
+    AS_IF([ test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 ],[ AC_MSG_ERROR([extra-pqc-hybrids is not available in FIPS v7 builds.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
 fi
 
