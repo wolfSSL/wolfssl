@@ -72,6 +72,7 @@ int test_wc_ecc_shared_secret_ssh(void);
 int test_wc_ecc_verify_hash_ex(void);
 int test_wc_ecc_mulmod(void);
 int test_wc_ecc_mulmod_unreduced(void);
+int test_wc_ecc_mulmod_zero(void);
 int test_wc_ecc_is_valid_idx(void);
 int test_wc_ecc_get_curve_id_from_oid(void);
 int test_wc_ecc_sig_size_calc(void);
@@ -133,6 +134,7 @@ int test_wc_ecc_make_key_id_dev(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_verify_hash_ex),                 \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod),                         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_unreduced),               \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_zero),                    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_is_valid_idx),                   \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_id_from_oid),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_sig_size_calc),                  \

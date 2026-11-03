@@ -3880,6 +3880,15 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        goto exit;
    }
 
+   if (mp_iszero(k)) {
+       err = mp_set(R->x, 0);
+       if (err == MP_OKAY)
+           err = mp_set(R->y, 0);
+       if (err == MP_OKAY)
+           err = mp_set(R->z, 1);
+       goto exit;
+   }
+
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC);
    if (key == NULL) {
@@ -4097,6 +4106,15 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point* G, ecc_point* R, mp_int* a,
    if (mp_count_bits(k) > mp_count_bits(order)) {
       WOLFSSL_MSG("Private key length is greater than order in bits.");
       return ECC_OUT_OF_RANGE_E;
+   }
+
+   if (mp_iszero(k)) {
+      err = mp_set(R->x, 0);
+      if (err == MP_OKAY)
+         err = mp_set(R->y, 0);
+      if (err == MP_OKAY)
+         err = mp_set(R->z, 1);
+      return err;
    }
 
    /* init variables */
@@ -9254,6 +9272,11 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
             }
         }
     }
+
+    /* kA and kB both 0, or the last add gave infinity */
+    if ((err == MP_OKAY) && (first == 1)) {
+        err = ecc_set_point_infinity(C);
+    }
   }
 
   /* reduce to affine */
@@ -14234,6 +14257,11 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
              first = 0;
           }
       }
+
+      /* k reduced to 0 mod order, or the last add gave infinity */
+      if ((err == MP_OKAY) && (first == 1)) {
+         err = ecc_set_point_infinity(R);
+      }
    }
 
    if (err == MP_OKAY) {
@@ -14485,12 +14513,21 @@ static int accel_fp_mul2add(int idx1, int idx2,
                 }
              }
 
-             if (zB) {
+             if (zB && first == 0) {
                 if ((err = ecc_projective_add_point_safe(R,
                                              fp_cache[idx2].LUT[zB], R, a,
                                              modulus, mp, &first)) != MP_OKAY) {
                    break;
                 }
+             }
+             else if (zB) {
+                if ((mp_copy(fp_cache[idx2].LUT[zB]->x, R->x) != MP_OKAY) ||
+                    (mp_copy(fp_cache[idx2].LUT[zB]->y, R->y) != MP_OKAY) ||
+                    (mp_copy(&fp_cache[idx2].mu,        R->z) != MP_OKAY)) {
+                    err = MP_MEM;
+                    break;
+                }
+                first = 0;
              }
           } else {
              if (zA) {
@@ -14518,6 +14555,11 @@ static int accel_fp_mul2add(int idx1, int idx2,
                     first = 0;
              }
           }
+      }
+
+      /* kA and kB both reduced to 0 mod order, or the last add gave infinity */
+      if ((err == MP_OKAY) && (first == 1)) {
+         err = ecc_set_point_infinity(R);
       }
    }
 
@@ -14730,6 +14772,10 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       return ECC_OUT_OF_RANGE_E;
    }
 
+   if (mp_iszero(k)) {
+      return ecc_set_point_infinity(R);
+   }
+
 #ifdef WOLFSSL_SMALL_STACK
    if ((mu = (mp_int *)XMALLOC(sizeof(*mu), NULL, DYNAMIC_TYPE_ECC_BUFFER)) == NULL)
        return MP_MEM;
@@ -14888,6 +14934,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    /* k can't have more bits than order */
    if (mp_count_bits(k) > mp_count_bits(order)) {
       return ECC_OUT_OF_RANGE_E;
+   }
+
+   if (mp_iszero(k)) {
+      return ecc_set_point_infinity(R);
    }
 
 #ifdef WOLFSSL_SMALL_STACK

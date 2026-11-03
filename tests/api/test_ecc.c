@@ -3732,6 +3732,164 @@ int test_wc_ecc_mulmod_unreduced(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_mulmod_unreduced */
 
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(WOLFSSL_PUBLIC_ECC_ADD_DBL) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(FREESCALE_LTC_ECC) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+#define TEST_ECC_MULMOD_ZERO
+/* Point at infinity is (0, 0, 1). */
+static int test_ecc_point_is_inf(ecc_point* p)
+{
+    return (p != NULL) && mp_iszero(p->x) && mp_iszero(p->y) &&
+           (mp_cmp_d(p->z, 1) == MP_EQ);
+}
+
+static void test_ecc_fp_reset(void)
+{
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+}
+#endif
+
+/*
+ * Testing scalar multiplication with a scalar that is 0 modulo the order.
+ */
+int test_wc_ecc_mulmod_zero(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_MULMOD_ZERO
+    const ecc_set_type* dp = NULL;
+    ecc_key     base;
+    ecc_key     curve;
+    ecc_point*  g = NULL;
+    ecc_point*  b = NULL;
+    ecc_point*  r = NULL;
+    mp_int      zero;
+    mp_int      two;
+    mp_int      order;
+    mp_int      order2;
+    mp_int      orderm2;
+    mp_int      three;
+    int         i;
+
+    XMEMSET(&base, 0, sizeof(ecc_key));
+    XMEMSET(&curve, 0, sizeof(ecc_key));
+    XMEMSET(&zero, 0, sizeof(mp_int));
+    XMEMSET(&two, 0, sizeof(mp_int));
+    XMEMSET(&order, 0, sizeof(mp_int));
+    XMEMSET(&order2, 0, sizeof(mp_int));
+    XMEMSET(&orderm2, 0, sizeof(mp_int));
+    XMEMSET(&three, 0, sizeof(mp_int));
+
+    test_ecc_fp_reset();
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(ECC_SECP256R1)));
+    ExpectIntEQ(wc_ecc_init(&base), 0);
+    ExpectIntEQ(wc_ecc_init(&curve), 0);
+    ExpectIntEQ(mp_init_multi(&zero, &two, &order, &order2, &orderm2,
+        &three), 0);
+    ExpectIntEQ(mp_set(&two, 2), 0);
+    ExpectIntEQ(mp_set(&three, 3), 0);
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(b = wc_ecc_new_point());
+    ExpectNotNull(r = wc_ecc_new_point());
+
+    /* base carries the base point; curve carries a and the prime as x and y,
+     * as in test_wc_ecc_mulmod(). */
+    if (dp != NULL) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&base, dp->Gx, dp->Gy, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&curve, dp->Af, dp->prime, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(mp_read_radix(&order, dp->order, MP_RADIX_HEX), 0);
+    }
+    /* 2n has one bit more than the prime and is 0 modulo the order. */
+    ExpectIntEQ(mp_add(&order, &order, &order2), 0);
+    ExpectIntEQ(mp_sub_d(&order, 2, &orderm2), 0);
+    /* Second base point for ecc_mul2add(): 2G. */
+    ExpectIntEQ(wc_ecc_mulmod(&two, &base.pubkey, b, curve.pubkey.x,
+        curve.pubkey.y, 1), 0);
+
+    /* k == 0, with R holding a point beforehand. */
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(wc_ecc_mulmod_ex(&zero, &base.pubkey, r, curve.pubkey.x,
+            curve.pubkey.y, i, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(wc_ecc_mulmod_ex2(&zero, &base.pubkey, r, curve.pubkey.x,
+            curve.pubkey.y, &order, NULL, i, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+
+    /* k == 0 with R the same point as G. */
+    ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, g), 0);
+    ExpectIntEQ(wc_ecc_mulmod_ex(&zero, g, g, curve.pubkey.x, curve.pubkey.y,
+        1, NULL), 0);
+    ExpectTrue(test_ecc_point_is_inf(g));
+
+    /* k == 2n. */
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(wc_ecc_mulmod_ex(&order2, &base.pubkey, r, curve.pubkey.x,
+            curve.pubkey.y, 1, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+
+#ifdef ECC_SHAMIR
+    /* kA == kB == 0, and kA == kB == 2n. */
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(ecc_mul2add(&base.pubkey, &zero, b, &zero, r,
+            curve.pubkey.x, curve.pubkey.y, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(ecc_mul2add(&base.pubkey, &order2, b, &order2, r,
+            curve.pubkey.x, curve.pubkey.y, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+    /* (n - 2)G + 3G = G. With FP_ECC the comb's last column adds kA's part
+     * to reach infinity, then adds kB's part to that. */
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(ecc_mul2add(&base.pubkey, &orderm2, &base.pubkey, &three,
+            r, curve.pubkey.x, curve.pubkey.y, NULL), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(r, &base.pubkey), MP_EQ);
+    }
+#endif
+
+    wc_ecc_del_point(r);
+    wc_ecc_del_point(b);
+    wc_ecc_del_point(g);
+    mp_free(&three);
+    mp_free(&orderm2);
+    mp_free(&order2);
+    mp_free(&order);
+    mp_free(&two);
+    mp_free(&zero);
+    wc_ecc_free(&curve);
+    wc_ecc_free(&base);
+
+    test_ecc_fp_reset();
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_zero */
+
 /*
  * Testing wc_ecc_is_valid_idx()
  */
