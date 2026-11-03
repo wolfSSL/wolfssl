@@ -103,6 +103,10 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
     communication. On successfully generating a shared secret key, the size of
     the secret key written will be stored in agreeSz.
 
+    The value of agreeSz on input is not checked. The agree buffer must be at
+    least as large as the prime, in bytes. Use wc_DhAgree_ct() to have the
+    buffer size checked.
+
     \return 0 Returned on successfully generating an agreed upon secret key
     \return MP_INIT_E May be returned if there is an error while generating
     the shared secret key
@@ -141,6 +145,7 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
     \endcode
 
     \sa wc_DhGenerateKeyPair
+    \sa wc_DhAgree_ct
 */
 int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        const byte* priv, word32 privSz, const byte* otherPub,

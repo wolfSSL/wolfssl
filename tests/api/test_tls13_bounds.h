@@ -39,6 +39,7 @@ int test_tls13_mutual_auth_ecdsa(void);
 int test_tls13_mutual_auth_ed25519(void);
 int test_tls13_mutual_auth_ed448(void);
 int test_tls13_mutual_auth_rsa(void);
+int test_tls13_ffdhe_pms_too_small(void);
 
 #define TEST_TLS13_BOUNDS_DECLS                                             \
     TEST_DECL_GROUP("tls13", test_tls13_ch_legacy_version_is_tls13),        \
@@ -55,6 +56,7 @@ int test_tls13_mutual_auth_rsa(void);
     TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_ecdsa),                 \
     TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_ed25519),               \
     TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_ed448),                 \
-    TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_rsa)
+    TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_rsa),                   \
+    TEST_DECL_GROUP("tls13", test_tls13_ffdhe_pms_too_small)
 
 #endif /* WOLFCRYPT_TEST_TLS13_BOUNDS_H */
