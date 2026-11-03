@@ -1675,13 +1675,16 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
             protocolLen, resumptionLabel, RESUMPTION_LABEL_SZ, nonce, nonceLen,
             digestAlg, ssl->heap);
         PRIVATE_KEY_LOCK();
-        return ret;
     }
+    else
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3) */
-    ret = Tls13HKDFExpandLabel(ssl, secret, ssl->specs.hash_size,
-                               ssl->session->masterSecret, ssl->specs.hash_size,
-                               protocol, protocolLen, resumptionLabel,
-                               RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
+    {
+        ret = Tls13HKDFExpandLabel(ssl, secret, ssl->specs.hash_size,
+                                   ssl->session->masterSecret,
+                                   ssl->specs.hash_size, protocol, protocolLen,
+                                   resumptionLabel, RESUMPTION_LABEL_SZ, nonce,
+                                   nonceLen, digestAlg);
+    }
     return ret;
 }
 #endif /* HAVE_SESSION_TICKET */
@@ -14847,10 +14850,6 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
         if (ret != 0)
             return ret;
 #else
-        if (nonceLength > MAX_TICKET_NONCE_STATIC_SZ) {
-            ret = BUFFER_ERROR;
-            return ret;
-        }
         ssl->session->ticketNonce.len = nonceLength;
         if (nonceLength > 0)
             XMEMCPY(ssl->session->ticketNonce.data, nonce, nonceLength);

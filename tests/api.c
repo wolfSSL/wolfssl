@@ -40674,8 +40674,17 @@ static int test_ticket_nonce_cache_restore(WOLFSSL *ssl_s, WOLFSSL *ssl_c,
 
     ExpectNotNull(cached = wolfSSL_SESSION_new());
     ExpectIntEQ(wolfSSL_GetSessionFromCache(ssl_c, cached), WOLFSSL_SUCCESS);
-    ExpectIntEQ(cached->ticketNonce.len, 0);
-    ExpectIntEQ(cached->ticketLen, 0);
+#if TLS13_TICKET_NONCE_STATIC_SZ < TLS13_TICKET_NONCE_MAX_SZ
+    if (len > MAX_TICKET_NONCE_STATIC_SZ) {
+        ExpectIntEQ(cached->ticketNonce.len, 0);
+        ExpectIntEQ(cached->ticketLen, 0);
+    }
+    else
+#endif
+    {
+        ExpectIntEQ(test_ticket_nonce_check(cached, len), 0);
+        ExpectIntGT(cached->ticketLen, 0);
+    }
 
     wolfSSL_SESSION_free(cached);
     XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -40741,6 +40750,8 @@ static int test_ticket_nonce_malloc(void)
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, medium), TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, big), TEST_SUCCESS);
 #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
+    ExpectIntEQ(test_ticket_nonce_cache_restore(ssl_s, ssl_c, small),
+        TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache_restore(ssl_s, ssl_c, big),
         TEST_SUCCESS);
 #endif
