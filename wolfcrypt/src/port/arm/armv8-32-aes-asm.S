@@ -28313,6 +28313,7 @@ L_aes_gcm_decrypt_arm32_crypto_in_partial_done:
 L_aes_gcm_decrypt_arm32_crypto_done_gcm:
 	# nonceSz
 	ldr	r12, [sp, #100]
+	veor.8	q6, q6, q6
 	# Load Nonce
 	cmp	r12, #12
 	bne	L_aes_gcm_decrypt_arm32_crypto_ghash_nonce
