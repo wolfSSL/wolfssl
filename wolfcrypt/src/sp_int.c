@@ -187,6 +187,24 @@ This library provides single precision (SP) integer math functions.
 
 #include <wolfssl/wolfcrypt/sp_int.h>
 
+/* Cache-resistant modular exponentiation selects the working value from t[0] or
+ * t[1] on each exponent bit. By default this is done with _sp_cond_copy(), which
+ * accesses both objects every iteration so the touched memory address does not
+ * depend on the secret bit (resists co-resident L1D cache attacks such as
+ * Prime+Probe between SMT siblings).
+ *
+ * Defining WOLFSSL_SP_FAST_MODEXP_COPY opts in to the faster variant that
+ * instead computes a single secret-dependent pointer with address masking and
+ * copies only the selected object. This is measurably faster but leaks the
+ * exponent at cache-line granularity, so only enable it where a co-resident
+ * cache observer is outside the threat model (e.g. no untrusted tenants sharing
+ * the physical core). The fast variant rebuilds a pointer from integer
+ * arithmetic on two addresses, which capability targets cannot do, so it is
+ * forced off when WC_NO_PTR_INT_CAST is defined. */
+#if defined(WOLFSSL_SP_FAST_MODEXP_COPY) && !defined(WC_NO_PTR_INT_CAST)
+    #define WOLFSSL_SP_INT_MODEXP_PTR_COPY
+#endif
+
 #ifdef WOLFSSL_SP_DYN_STACK
 /* We are statically declaring a variable smaller than sp_int.
  * We track available memory in the 'size' field.
@@ -5132,18 +5150,29 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA) || \
     (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 #ifndef WC_NO_CACHE_RESISTANT
-#ifdef WC_NO_PTR_INT_CAST
-static void _sp_cond_copy(const sp_int* a, int copy, sp_int* r, sp_size_t used)
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
+/* WC_MAYBE_UNUSED: the definition guard is broader than the exptmod ladders
+ * that call this (e.g. ECC-with-comp-key or RSA-verify-only builds define it
+ * but compile no private-key exponentiation). */
+WC_MAYBE_UNUSED static void _sp_cond_copy(const sp_int* a, int copy, sp_int* r,
+    sp_size_t used)
 {
     sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)copy;
+    /* Masks for the narrower fields are derived at their own width: a
+     * digit-wide mask zero-extended to sp_size_t would drop the high bits of
+     * 'used' when SP_WORD_SIZE is 8 and the operand has 256 or more digits. */
+    sp_size_t umask = (sp_size_t)(0U - (unsigned int)copy);
     unsigned int i;
 
     for (i = 0; i < (unsigned int)used; i++) {
         r->dp[i] ^= (r->dp[i] ^ a->dp[i]) & mask;
     }
-    r->used ^= (r->used ^ a->used) & (sp_size_t)mask;
+    r->used ^= (sp_size_t)((r->used ^ a->used) & umask);
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    r->sign ^= (r->sign ^ a->sign) & (sp_sign_t)mask;
+    {
+        sp_sign_t smask = (sp_sign_t)(0 - copy);
+        r->sign ^= (sp_sign_t)((r->sign ^ a->sign) & smask);
+    }
 #endif
 }
 #else
@@ -5227,6 +5256,24 @@ static void _sp_init_size(sp_int* a, unsigned int size)
     _sp_zero((volatile sp_int*)am);
 
     am->size = (sp_size_t)size;
+}
+
+/* Initialize an SP integer and clear its full digit span.
+ *
+ * _sp_init_size() only zeroes dp[0]. The address-oblivious copies used by the
+ * cache-resistant exptmod ladders (_sp_cond_copy()) scan a fixed number of
+ * digits regardless of an operand's 'used' count, so every digit they may read
+ * must be initialized; otherwise a working value with fewer significant digits
+ * leaves indeterminate padding that the copy reads (reported by valgrind, and
+ * undefined behaviour in general). Used only by those ladders.
+ *
+ * @param [out] a     SP integer to initialize.
+ * @param [in]  size  Number of digits the integer can hold.
+ */
+WC_MAYBE_UNUSED static void _sp_init_size_ct(sp_int* a, sp_size_t size)
+{
+    _sp_init_size(a, size);
+    XMEMSET(a->dp, 0, (size_t)size * sizeof(sp_int_digit));
 }
 
 /* Initialize the multi-precision number to be zero with a given max size.
@@ -13199,10 +13246,10 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
 #endif
     if (err == MP_OKAY) {
         /* Initialize temporaries. */
-        _sp_init_size(t[0], (sp_size_t)(m->used * 2 + 1));
-        _sp_init_size(t[1], (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size_ct(t[0], (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size_ct(t[1], (sp_size_t)(m->used * 2 + 1));
     #ifndef WC_NO_CACHE_RESISTANT
-        _sp_init_size(t[2], (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size_ct(t[2], (sp_size_t)(m->used * 2 + 1));
     #endif
 
         /* 2. t[0] = b mod m
@@ -13245,7 +13292,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
             }
 #else
             /* 4.1. t[s] = t[s] ^ 2 */
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
             _sp_cond_copy(t[0], s^1, t[2], m->used);
             _sp_cond_copy(t[1], s,   t[2], m->used);
 #else
@@ -13254,7 +13301,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
                      t[2]);
 #endif
             err = sp_sqrmod(t[2], m, t[2]);
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
             _sp_cond_copy(t[2], s^1, t[0], m->used);
             _sp_cond_copy(t[2], s,   t[1], m->used);
 #else
@@ -13272,7 +13319,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
                 /* 4.4  s = s | y */
                 s |= y;
                 /* 4.5. t[j] = t[j] * b */
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
                 _sp_cond_copy(t[0], j^1, t[2], m->used);
                 _sp_cond_copy(t[1], j,   t[2], m->used);
 #else
@@ -13281,7 +13328,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
                          t[2]);
 #endif
                 err = _sp_mulmod(t[2], b, m, t[2]);
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
                 _sp_cond_copy(t[2], j^1, t[0], m->used);
                 _sp_cond_copy(t[2], j,   t[1], m->used);
 #else
@@ -13343,10 +13390,10 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
     ALLOC_SP_INT_ARRAY(t, m->used * 2 + 1, 4, err, NULL);
     if (err == MP_OKAY) {
         /* Initialize temporaries. */
-        _sp_init_size(t[0], m->used * 2 + 1);
-        _sp_init_size(t[1], m->used * 2 + 1);
-        _sp_init_size(t[2], m->used * 2 + 1);
-        _sp_init_size(t[3], m->used * 2 + 1);
+        _sp_init_size_ct(t[0], m->used * 2 + 1);
+        _sp_init_size_ct(t[1], m->used * 2 + 1);
+        _sp_init_size_ct(t[2], m->used * 2 + 1);
+        _sp_init_size_ct(t[3], m->used * 2 + 1);
 
         /* 1. Ensure base is less than modulus. */
         if (_sp_cmp_abs(b, m) != MP_LT) {
@@ -13378,7 +13425,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
             err = sp_mulmod(t[0], t[1], m, t[2]);
             /* 3.3. t[3] = t[y] ^ 2 */
             if (err == MP_OKAY) {
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
                 _sp_cond_copy(t[0], y^1, t[3], m->used);
                 _sp_cond_copy(t[1], y,   t[3], m->used);
 #else
@@ -13456,10 +13503,10 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
     ALLOC_SP_INT_ARRAY(t, m->used * 2U + 1U, 4, err, NULL);
     if (err == MP_OKAY) {
         /* Initialize temporaries. */
-        _sp_init_size(t[0], (sp_size_t)(m->used * 2 + 1));
-        _sp_init_size(t[1], (sp_size_t)(m->used * 2 + 1));
-        _sp_init_size(t[2], (sp_size_t)(m->used * 2 + 1));
-        _sp_init_size(t[3], (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size_ct(t[0], (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size_ct(t[1], (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size_ct(t[2], (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size_ct(t[3], (sp_size_t)(m->used * 2 + 1));
 
         /* 1. Ensure base is less than modulus. */
         if (_sp_cmp_abs(b, m) != MP_LT) {
@@ -13507,7 +13554,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
         /* 6. For i in (bits-1)...0 */
         for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
             /* 6.1. t[s] = t[s] ^ 2 */
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
             _sp_cond_copy(t[0], s^1, t[3], m->used);
             _sp_cond_copy(t[1], s,   t[3], m->used);
 #else
@@ -13519,7 +13566,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
             if (err == MP_OKAY) {
                 err = _sp_mont_red(t[3], m, mp, 0);
             }
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
             _sp_cond_copy(t[3], s^1, t[0], m->used);
             _sp_cond_copy(t[3], s,   t[1], m->used);
 #else
@@ -13538,7 +13585,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
                 s |= y;
 
                 /* 6.5. t[j] = t[j] * bm */
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
                 _sp_cond_copy(t[0], j^1, t[3], m->used);
                 _sp_cond_copy(t[1], j,   t[3], m->used);
 #else
@@ -13550,7 +13597,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
                 if (err == MP_OKAY) {
                     err = _sp_mont_red(t[3], m, mp, 0);
                 }
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
                 _sp_cond_copy(t[3], j^1, t[0], m->used);
                 _sp_cond_copy(t[3], j,   t[1], m->used);
 #else
@@ -13618,10 +13665,10 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
     ALLOC_SP_INT_ARRAY(t, m->used * 2 + 1, 4, err, NULL);
     if (err == MP_OKAY) {
         /* Initialize temporaries. */
-        _sp_init_size(t[0], m->used * 2 + 1);
-        _sp_init_size(t[1], m->used * 2 + 1);
-        _sp_init_size(t[2], m->used * 2 + 1);
-        _sp_init_size(t[3], m->used * 2 + 1);
+        _sp_init_size_ct(t[0], m->used * 2 + 1);
+        _sp_init_size_ct(t[1], m->used * 2 + 1);
+        _sp_init_size_ct(t[2], m->used * 2 + 1);
+        _sp_init_size_ct(t[3], m->used * 2 + 1);
 
         /* 1. Ensure base is less than modulus. */
         if (_sp_cmp_abs(b, m) != MP_LT) {
@@ -13667,7 +13714,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
             }
             /* 4.3. t[3] = t[y] ^ 2 */
             if (err == MP_OKAY) {
-#ifdef WC_NO_PTR_INT_CAST
+#ifndef WOLFSSL_SP_INT_MODEXP_PTR_COPY
                 _sp_cond_copy(t[0], y^1, t[3], m->used);
                 _sp_cond_copy(t[1], y,   t[3], m->used);
 #else
