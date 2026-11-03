@@ -8884,6 +8884,17 @@ int test_internal_CheckVersion_DecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
+#else
+int test_internal_SetSSL_CTX_DecisionCoverage(void)
+{
+    return TEST_SKIPPED;
+}
+
+int test_internal_CheckVersion_DecisionCoverage(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* !NO_PSK && !NO_CERTS && !NO_DH */
 
 /*
  * MC/DC decision coverage for the wolfSSL_SetTlsHmacInner content/CID

@@ -429,7 +429,6 @@ static void wb_rtx_msg_recvd(WOLFSSL* ssl)
     ssl->options.dtls13SendMoreAcks = 0;
     WB_NOTE(Dtls13RtxMsgRecvd(ssl, server_hello, 25, &implicitAck));
 
-restore:
     ssl->options.dtls13SendMoreAcks = sendMoreAcks;
     ssl->options.handShakeDone = 0;
     ssl->options.downgrade = 0;

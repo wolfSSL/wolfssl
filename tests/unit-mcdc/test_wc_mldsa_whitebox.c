@@ -76,7 +76,11 @@ static long wb_intr_ix  = 0;   /* SAVE_VECTOR_REGISTERS2() calls seen     */
 static long wb_intr_mod = 0;   /* > 0: refuse when (ix % mod) == res      */
 static long wb_intr_res = 0;
 
+#if defined(__GNUC__) || defined(__clang__)
+static int __attribute__((unused)) wb_intr_hook(void)
+#else
 static int wb_intr_hook(void)
+#endif
 {
     long ix = wb_intr_ix++;
 

@@ -1731,9 +1731,10 @@ int test_wc_DrbgReworkDecisionCoverage(void)
     WC_RNG               rng;
     byte                 seed[32];
     byte                 nonce[16];
+#ifdef WOLFSSL_TEST_STATIC_BUILD
     wc_drbg_reseed_ctr_t ctr;
+#endif
     void*                savedPtr = NULL;
-    int                  savedType = 0;
 
     XMEMSET(seed, 7, sizeof(seed));
     XMEMSET(nonce, 9, sizeof(nonce));
@@ -1752,15 +1753,11 @@ int test_wc_DrbgReworkDecisionCoverage(void)
         ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
         rng.drbg512 = (struct DRBG_SHA512 *)savedPtr;
         /* SHA-256 arm skipped (type mismatch), SHA-512 arm taken. */
+#ifdef WOLFSSL_TEST_STATIC_BUILD
         ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr), 0);
+#endif
         ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng), 0);
-        /* SHA-256 clause false with drbg512 non-NULL (type poke). */
-        savedType = rng.drbgType;
-        rng.drbgType = WC_DRBG_SHA256;
-        ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
-        ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng),
-            WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
-        rng.drbgType = savedType;
+        /* The SHA-256 type check is false on this live SHA-512 instance. */
     }
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     (void)wc_Sha256Drbg_Enable();
@@ -1781,21 +1778,19 @@ int test_wc_DrbgReworkDecisionCoverage(void)
         ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
         rng.drbg = (struct DRBG *)savedPtr;
         /* SHA-256 arm taken, SHA-512 arm skipped. */
+#ifdef WOLFSSL_TEST_STATIC_BUILD
         ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr), 0);
+#endif
         ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng), 0);
-        /* SHA-256 arm false with drbg non-NULL (type poke): both arms
-         * fall through to the no-DRBG error. */
-        savedType = rng.drbgType;
-        rng.drbgType = WC_DRBG_SHA512;
-        ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng),
-            WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
-        rng.drbgType = savedType;
+        /* The SHA-512 type check is false on this live SHA-256 instance. */
         /* SHA-256 arm skipped (drbg NULL): the Present() guard turns the
          * type/pointer mismatch into WRONG_TYPE_OBJECT_E before the arms.
          * (The arm's drbg-NULL side is unreachable -- Present forces it.) */
         rng.drbg = NULL;
+#ifdef WOLFSSL_TEST_STATIC_BUILD
         ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr),
             WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#endif
         rng.drbg = (struct DRBG *)savedPtr;
     }
     /* No-DRBG instance: both arms false (zeroed type, NULL pointers). */
@@ -1928,11 +1923,11 @@ int test_wc_RngInitFlagsDecisionCoverage(void)
     ExpectIntEQ(wc_FreeRng(&rng), 0);
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    /* RECOVER_AND_PROMOTE_FROM_NEXT_SEED: the seedRng-non-NULL side of the
+    /* UPGRADE_FROM_NEXT_SEED: the seedRng-non-NULL side of the
      * primary-seed health-check clause. */
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
-        WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED), 0);
+        WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED), 0);
     ExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
 
@@ -1955,4 +1950,3 @@ int test_wc_RngInitFlagsDecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
-

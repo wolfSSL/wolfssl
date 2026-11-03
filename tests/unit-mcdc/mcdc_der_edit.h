@@ -60,6 +60,12 @@
 #ifndef MCDC_DER_EDIT_H
 #define MCDC_DER_EDIT_H
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define MCDC_DER_MAYBE_UNUSED __attribute__((unused))
+#else
+    #define MCDC_DER_MAYBE_UNUSED
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
@@ -254,7 +260,7 @@ static int mcdc_der_shrink(byte* der, word32* sz, word32 at, word32 n)
 
 /* Insert `n` bytes from `ins` at `at`, growing every enclosing item.
  * `cap` is the capacity of `der`. Returns 0 on success. */
-static int mcdc_der_grow(byte* der, word32* sz, word32 cap, word32 at,
+static int MCDC_DER_MAYBE_UNUSED mcdc_der_grow(byte* der, word32* sz, word32 cap, word32 at,
         const byte* ins, word32 n)
 {
     if ((der == NULL) || (sz == NULL) || (n == 0U) || (at > *sz) ||
@@ -273,7 +279,7 @@ static int mcdc_der_grow(byte* der, word32* sz, word32 cap, word32 at,
 /* Offset of the first item with the given tag and content length, searched
  * linearly over the encoding. Returns the item's offset, or 0 when absent
  * (offset 0 is always the outer SEQUENCE, so it is never a valid hit). */
-static word32 mcdc_der_find(const byte* der, word32 sz, byte tag,
+static word32 MCDC_DER_MAYBE_UNUSED mcdc_der_find(const byte* der, word32 sz, byte tag,
         word32 contentLen)
 {
     word32 i;

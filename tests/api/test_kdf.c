@@ -392,6 +392,12 @@ int test_wc_KdfDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)), 0);
+        /* A 15-byte key passes the outer size check, then fails AES setup.
+         * This exercises the initialized-AES error cleanup. */
+        XMEMSET(outKey, 0xA5, sizeof(outKey));
+        ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key) - 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTP_KDF_label(NULL, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -401,6 +407,10 @@ int test_wc_KdfDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)), 0);
+        XMEMSET(outKey, 0xA5, sizeof(outKey));
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key) - 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTCP_KDF_label(NULL, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));

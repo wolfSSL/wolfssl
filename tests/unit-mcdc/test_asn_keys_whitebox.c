@@ -2403,7 +2403,7 @@ static void wb_decode_asym_key_roundtrip(void)
      * decision as a whole is false -- the independence-pair partner for the
      * two rejection rows in wb_decode_asym_key_assign_guard() above, and the
      * only row that makes allowSeed at :33848 true. An Ed25519 key carries no
-     * seed, so the priv-only branch resets *seed/*seedLen. */
+     * seed, so the priv-only branch resets both seed output pointers. */
     {
         const byte* seedPtr = (const byte*)der; /* non-NULL on entry */
         word32      seedLenOut = 0;

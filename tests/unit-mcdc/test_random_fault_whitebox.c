@@ -1237,6 +1237,8 @@ static void wb_healthtest512_uninstantiate_fault(void)
  * :2522/:2528 only run after GetReseedCtr has already proven the pointer
  * non-NULL, so their pointer operand is a constant-true residual there.
  * ------------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(WC_NO_RNG)
 static void wb_drbg_reseedctr_type_rows(void)
 {
     WC_RNG               rng;
@@ -1282,6 +1284,10 @@ static void wb_drbg_reseedctr_type_rows(void)
 
     WB_NOTE("GetReseedCtr DRBG-type rows driven");
 }
+#else
+static void wb_drbg_reseedctr_type_rows(void)
+{ WB_NOTE("Hash DRBG reseed-counter rows unavailable; skipped"); }
+#endif
 
 /* --------------------------------------------------------------------------
  * 11. wc_RNG_DRBG_Stir_Nonce() argument guard:
@@ -1292,6 +1298,7 @@ static void wb_drbg_reseedctr_type_rows(void)
  * _local function, so the _local guard never sees a NULL rng. The reachable
  * row is c0-F + c1-T (valid rng, seed == NULL).
  * ------------------------------------------------------------------------- */
+#if !defined(CUSTOM_RAND_GENERATE_BLOCK)
 static void wb_stir_nonce_null_rng(void)
 {
     WC_RNG rng;
@@ -1314,6 +1321,10 @@ static void wb_stir_nonce_null_rng(void)
 
     WB_NOTE("Stir_Nonce argument-guard rows driven");
 }
+#else
+static void wb_stir_nonce_null_rng(void)
+{ WB_NOTE("Stir_Nonce unavailable with custom RNG; skipped"); }
+#endif
 
 int main(void)
 {

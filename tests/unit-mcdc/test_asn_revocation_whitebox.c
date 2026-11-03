@@ -19,6 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef __clang__
+/* DER fixtures have fixed lengths and deliberately omit the C string NUL. */
+#pragma clang diagnostic ignored "-Wunterminated-string-initialization"
+/* Local OCSP response fixtures share the imported asn.c global name. */
+#pragma clang diagnostic ignored "-Wshadow"
+#endif
+
 /*
  * White-box MC/DC supplement for the "revocation" wave of asn.c Part 5
  * (OCSP encode/decode + CRL parse/generate, lines ~34691-38267).
@@ -114,16 +121,11 @@ static word32 wb_ext(byte* out, const byte* oidContent, word32 oidSz,
 /* SHA-256 hash algorithm OID (2.16.840.1.101.3.4.2.1) -- content only. */
 static const byte wbOidSha256[] =
     { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01 };
-/* authorityKeyIdentifier OID (2.5.29.35) -- content only. */
-static const byte wbOidAuthKeyId[] = { 0x55, 0x1d, 0x23 };
 /* cRLNumber OID (2.5.29.20) -- content only. */
 static const byte wbOidCrlNumber[] = { 0x55, 0x1d, 0x14 };
 /* subjectKeyIdentifier OID (2.5.29.14) -- content only; used as a generic
  * "not special to this decoder" extension OID. */
 static const byte wbOidOther[] = { 0x55, 0x1d, 0x0e };
-/* id-pkix-ocsp-nonce OID (1.3.6.1.5.5.7.48.1.2) -- content only. */
-static const byte wbOidOcspNonce[] =
-    { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07, 0x30, 0x01, 0x02 };
 
 #define WB_DIGEST_SZ 32 /* SHA-256 */
 

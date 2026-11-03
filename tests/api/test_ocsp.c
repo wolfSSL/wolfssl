@@ -6097,11 +6097,14 @@ int test_ocsp_status_verify_cb_would_block(void)
 }
 #endif
 
+/* With NO_ASN_TIME the response remains cached across handshakes, so this
+ * request-cache test cannot require another responder callback. */
 #if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER) &&    \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                  \
     !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_COPY_CERT) &&      \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_SHA)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_SHA) && \
+    !defined(NO_ASN_TIME)
 
 /* Number of times the server's OCSP IO callback has been called. */
 static int test_ocsp_ctx_request_cache_cb_cnt;

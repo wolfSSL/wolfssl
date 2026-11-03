@@ -801,15 +801,9 @@ static void wb_stir_nonce_local(void)
         wb_fail = 1;
     }
 
-    /* :2566 ret!=0 row: reseed due, live nonce pending. The active DRBG is
-     * SHA-512 in builds that define WOLFSSL_DRBG_SHA512, so saturate
-     * whichever one the init picked. */
-    if (rng.drbgType == WC_DRBG_SHA512) {
-        ((DRBG_SHA512_internal *)rng.drbg512)->reseedCtr = WC_RESEED_INTERVAL;
-    }
-    else {
-        ((DRBG_internal *)rng.drbg)->reseedCtr = WC_RESEED_INTERVAL;
-    }
+    /* :2566 ret!=0 row: reseed due, live nonce pending. The reseed counter
+     * now belongs to WC_RNG and is shared by both DRBG widths. */
+    rng.reseedCtr = WC_RESEED_INTERVAL;
     ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
                                        nonce, sizeof(nonce));
     if (ret == 0) {
@@ -860,7 +854,7 @@ static void wb_init_rng_seed_rng(void)
 static void wb_reseed_source_failure(void)
 {
 #if defined(HAVE_HASHDRBG) && !defined(NO_SHA256)
-    /* ReseedSourceFailure: (ret == ENTROPY_RT_E) || (ret == ENTROPY_APT_E) --
+    /* ReseedSourceFailure: entropy repetition or proportion error --
      * direct calls show each operand's true/false pair. */
     if (ReseedSourceFailure(WC_NO_ERR_TRACE(ENTROPY_RT_E)) !=
             WC_NO_ERR_TRACE(ENTROPY_RT_E))

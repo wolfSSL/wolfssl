@@ -2415,7 +2415,7 @@ int test_ssl_api_decision_coverage(void)
         wolfSSL_free(dssl);
     }
 
-    /* --- 1688:0/1 wolfSSL_get_error: error == ZERO_RETURN || shutdownDone */
+    /* --- 1688:0/1 wolfSSL_get_error: ZERO_RETURN or shutdownDone */
     ssl->error = 0;
     ssl->options.shutdownDone = 0;
     (void)wolfSSL_get_error(ssl, 0);
@@ -2634,16 +2634,14 @@ int test_ssl_api_decision_coverage(void)
     ssl->options.resumed = 0;
 #endif
 
-    /* --- 6363:0/1 CIPHER_get_version: cipher && cipher->ssl -------------- */
+    /* Current cipher entries carry their version directly. */
     {
         WOLFSSL_CIPHER c;
 
         XMEMSET(&c, 0, sizeof(c));
         (void)wolfSSL_CIPHER_get_version(NULL);
-        c.ssl = NULL;
-        (void)wolfSSL_CIPHER_get_version(&c);
-        c.ssl = ssl;
-        (void)wolfSSL_CIPHER_get_version(&c);
+        c.pv = ssl->version;
+        ExpectNotNull(wolfSSL_CIPHER_get_version(&c));
     }
 
     /* --- 6397:0/1/2/3 get_cipher_suite_from_name: 4-NULL ----------------- */
@@ -2662,16 +2660,16 @@ int test_ssl_api_decision_coverage(void)
                                                  &flags);
     }
 
-    /* --- 6413:0/1 CIPHER_get_id: cipher && cipher->ssl ------------------- */
+    /* The suite ID comes from the entry's two suite bytes. */
     {
         WOLFSSL_CIPHER c;
 
         XMEMSET(&c, 0, sizeof(c));
         (void)wolfSSL_CIPHER_get_id(NULL);
-        c.ssl = NULL;
-        (void)wolfSSL_CIPHER_get_id(&c);
-        c.ssl = ssl;
-        (void)wolfSSL_CIPHER_get_id(&c);
+        ExpectIntEQ(wolfSSL_CIPHER_get_id(&c), 0);
+        c.cipherSuite0 = 0x13;
+        c.cipherSuite = 0x01;
+        ExpectIntEQ(wolfSSL_CIPHER_get_id(&c), 0x1301);
     }
 
     /* --- 6656:1/6662:1 get_curve_name X25519/X448: OID && cName==NULL ---- */
