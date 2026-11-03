@@ -140,12 +140,14 @@
  *   All valid reports are true.
  *   Fast fail gives faster signing times on average.
  *   DO NOT enable this if implementation must be conformant to FIPS 204.
+ *   Cannot be used in a FIPS build.
  * WOLFSSL_MLDSA_SIGN_CHECK_W0                            Default: OFF
  *   Check vector w0 is in required range as an early check on valid vector r0.
  *   Falsely reports invalid in approximately 3-5% of checks.
  *   All valid reports are true.
  *   Fast fail gives faster signing times on average.
  *   DO NOT enable this if implementation must be conformant to FIPS 204.
+ *   Cannot be used in a FIPS build.
  * WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL                        Default: OFF
  *   Test aid: wc_mldsa_test_rej_ntt_fail() makes a chosen later call of
  *   mldsa_rej_ntt_poly_ex() fail, to test error handling. Every call counts,
@@ -251,6 +253,11 @@
 #endif
 #if defined(HAVE_FIPS) && defined(WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH)
     #error "WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH is not allowed in a FIPS build"
+#endif
+/* Extra rejections change the signature FIPS 204 Algorithm 7 produces. */
+#if defined(HAVE_FIPS) && (defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) || \
+    defined(WOLFSSL_MLDSA_SIGN_CHECK_W0))
+    #error "WOLFSSL_MLDSA_SIGN_CHECK_Y/_W0 are not allowed in a FIPS build"
 #endif
 
 /* Signing drives the whole-vector helpers when it holds a full vector: the
