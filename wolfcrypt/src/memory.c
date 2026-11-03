@@ -2124,7 +2124,7 @@ static void *wc_ReallocAlignCommon(void *ptr, size_t alignment, size_t size,
         XFREE(new_p, heap, tag);
     }
     else {
-        new_alignedPtr = wc_MallocAlignPlace(new_p, alignment, size);
+        new_alignedPtr = (char*)wc_MallocAlignPlace(new_p, alignment, size);
         XMEMCPY(new_alignedPtr, ptr, (oldSize > size) ? size : oldSize);
         if (scrub) {
             wc_ReallocScrub(ptr, oldSize);
