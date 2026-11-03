@@ -49,7 +49,7 @@ if(CONFIG_WOLFSSL)
     if(CONFIG_WOLFCRYPT_FIPS_V7 OR CONFIG_WOLFCRYPT_FIPS_READY)
       # src/include.am BUILD_FIPS_V7_PLUS order; files a build does not select compile empty.
       set(WOLF_BOUNDARY hmac random kdf rsa ecc aes sha sha256 sha512 sha3 dh cmac
-          curve448 ed448 curve25519 ed25519 pwdbased sp_c32 sp_c64 sp_x86_64
+          ed448 ed25519 pwdbased sp_c32 sp_c64 sp_x86_64
           sp_arm32 sp_armthumb sp_arm64 sp_cortexm wc_mlkem wc_mlkem_poly
           wc_mldsa wc_lms wc_lms_impl wc_xmss wc_xmss_impl wc_slhdsa)
       set(WOLF_BOUNDARY_ASM ON)
