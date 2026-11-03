@@ -3189,6 +3189,17 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     (void)ret;
 #endif
 
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    /* Only a DTLS context's servers use the pool, so only it pays its locks */
+    if (method->version.major == DTLS_MAJOR) {
+        if (DtlsChPoolInit(&ctx->dtlsChPool) != 0) {
+            WOLFSSL_MSG("Bad mutex init");
+            WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
+            return BAD_MUTEX_E;
+        }
+    }
+#endif
+
 #ifndef NO_CERTS
     ctx->privateKeyDevId = INVALID_DEVID;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -3335,6 +3346,11 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         ctx->dtlsMtuSz = MAX_RECORD_SIZE;
     #elif defined(WOLFSSL_DTLS_MTU)
         ctx->dtlsMtuSz = MAX_MTU;
+    #endif
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+        /* Serve clients whose ClientHello does not fit one datagram. Bounded;
+         * see wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(). */
+        ctx->dtls13ReassembleChBeforeCookie = 1;
     #endif
 #endif
 
@@ -3713,6 +3729,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     wolfSSL_local_FreeEchConfigs(ctx->echConfigs, ctx->heap);
     ctx->echConfigs = NULL;
+#endif
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    /* No object holds a reference any more, so none reaches the pool */
+    DtlsChPoolFree(&ctx->dtlsChPool, ctx->heap);
 #endif
     (void)heapAtCTXInit;
 }
@@ -9229,18 +9249,17 @@ static int InitSSL_DtlsServer(WOLFSSL* ssl)
                 return ret;
             }
         }
-    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG) && \
-        defined(WOLFSSL_HAVE_MLKEM)
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
         if (IsAtLeastTLSv1_3(ssl->version)) {
-            /* Allow large PQC ClientHellos to fragment independently of the
-             * cookie policy, including the first CH when cookies are off. */
+            /* Reassemble a fragmented ClientHello whatever the cookie policy: a
+             * post-quantum key share or a small MTU fragments the first too. */
             ret = wolfSSL_dtls13_allow_ch_frag(ssl, 1);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("DTLS1.3 CH frag error");
                 return ret;
             }
         }
-    #endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG && WOLFSSL_HAVE_MLKEM */
+    #endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG */
     }
 
     return 0;
@@ -9405,6 +9424,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
     #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
+    #endif
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+        ssl->options.dtls13ReassembleChBeforeCookie =
+                                          ctx->dtls13ReassembleChBeforeCookie;
     #endif
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
@@ -11451,6 +11474,9 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
             item->fragBucketList = next;
         }
         XFREE(item->raw, heap, DYNAMIC_TYPE_DTLS_FRAG);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        XFREE(item->peer.sa, heap, DYNAMIC_TYPE_SOCKADDR);
+#endif
         XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 }
@@ -11475,6 +11501,9 @@ static size_t DtlsMsgRetainedBytes(const DtlsMsg* msg)
     size_t bytes = sizeof(DtlsMsg) + msg->bytesReceived +
         ((size_t)msg->fragBucketListCount + (msg->raw != NULL ? 1 : 0)) *
             sizeof(DtlsFragBucket);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    bytes += msg->peer.bufSz;
+#endif
     return bytes;
 }
 
@@ -11944,12 +11973,20 @@ static size_t DtlsMsgProjectedBytes(const DtlsMsg* msg, word32 offset,
     return bytes + sizeof(DtlsFragBucket) + (end - offset);
 }
 
+/* The retained bytes a receive list, or the context's ClientHello pool when
+ * unverified, may reach when admitting an entry. */
+static size_t DtlsMsgRxLimit(int unverified)
+{
+    return unverified ? WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES :
+                        WOLFSSL_DTLS_RX_MAX_BYTES;
+}
+
 /* Whether the receive list can grow to hold current, or a new entry, at
  * projected retained bytes. */
 static int DtlsMsgRxAdmit(WOLFSSL* ssl, DtlsMsg* current, size_t projected)
 {
     size_t old = current == NULL ? 0 : DtlsMsgRetainedBytes(current);
-    size_t limit = WOLFSSL_DTLS_RX_MAX_BYTES;
+    size_t limit = DtlsMsgRxLimit(0);
 
     if (projected > limit ||
             ssl->dtls_rx_msg_list_bytes - old > limit - projected)
@@ -12027,6 +12064,660 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
     }
     return ret;
 }
+
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+/* Whether msg is keyed on peer's bytes */
+static int DtlsMsgPeerEqual(const DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer)
+{
+    return peer->sz > 0 && msg->peer.sz == peer->sz &&
+        XMEMCMP(msg->peer.sa, peer->sa, peer->sz) == 0;
+}
+
+/* Key msg on a copy of peer's bytes */
+static int DtlsMsgSetPeer(DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer,
+                          void* heap)
+{
+    if (wolfssl_local_SockAddrSet(&msg->peer, peer->sa, peer->sz, heap) !=
+            WOLFSSL_SUCCESS)
+        return MEMORY_E;
+    return 0;
+}
+
+/* Whether the fragment of fragSz bytes at offset agrees with every byte msg
+ * holds in its range. */
+static int DtlsMsgFragAgrees(const DtlsMsg* msg, word32 offset,
+                             const byte* data, word32 fragSz)
+{
+    const DtlsFragBucket* b;
+    word32 end = offset + fragSz;
+
+    for (b = msg->fragBucketList; b != NULL && b->m.m.offset < end;
+            b = b->m.m.next) {
+        word32 lo = max(offset, b->m.m.offset);
+        word32 hi = min(end, b->m.m.offset + b->m.m.sz);
+        if (lo < hi && XMEMCMP(b->buf + (lo - b->m.m.offset),
+                data + (lo - offset), hi - lo) != 0)
+            return 0;
+    }
+    return 1;
+}
+
+/* The shards share one budget, pool->reserved: bytes retained plus the growth
+ * of stores in progress, reserved before they allocate. One lock at a time. */
+static int DtlsChShardLock(DtlsChPoolShard* sh)
+{
+#ifndef SINGLE_THREADED
+    return wc_LockMutex(&sh->lock);
+#else
+    (void)sh;
+    return 0;
+#endif
+}
+
+static void DtlsChShardUnlock(DtlsChPoolShard* sh)
+{
+    DtlsMsg* head = sh->head;
+    DtlsMsg* next = head != NULL ? head->next : NULL;
+
+    /* Every change to the list is made under the lock, so publishing here
+     * keeps the progress of the two oldest entries current for eviction */
+    WOLFSSL_ATOMIC_STORE(sh->headProgress,
+        (WC_ATOMIC_UINT_ARG)(head != NULL ? head->progress : 0U));
+    WOLFSSL_ATOMIC_STORE(sh->nextProgress,
+        (WC_ATOMIC_UINT_ARG)(next != NULL ? next->progress : 0U));
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&sh->lock);
+#endif
+}
+
+/* A store counts the bound of its fragment before it evicts for it, so
+ * reserved may pass the budget by one bound per store evicting at once. A
+ * bound is below the budget, by the check before it: room for 64. Progress
+ * wraps as word32. */
+wc_static_assert(WC_MAX_UINT_OF(WC_ATOMIC_UINT_ARG) >= WOLFSSL_MAX_32BIT);
+wc_static_assert(WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES <=
+    WC_MAX_UINT_OF(WC_ATOMIC_UINT_ARG) / 65);
+
+/* Add n bytes, at most the budget, to reserved. Returns 1, or 0 with the add
+ * taken back when the sum passes the budget. */
+static int DtlsChPoolAdd(DtlsChPool* pool, size_t n)
+{
+    if ((size_t)wolfSSL_Atomic_Uint_AddFetch(&pool->reserved,
+            (WC_ATOMIC_UINT_ARG)n) <= DtlsMsgRxLimit(1))
+        return 1;
+    (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved, (WC_ATOMIC_UINT_ARG)n);
+    return 0;
+}
+
+/* The next progress value, a logical clock of stores. 0 marks an empty
+ * shard. */
+static word32 DtlsChPoolNextProgress(DtlsChPool* pool)
+{
+    word32 progress = (word32)(wolfSSL_Atomic_Uint_FetchAdd(
+        &pool->lastProgress, 1U) + 1U);
+
+    if (progress == 0) {
+        progress = (word32)(wolfSSL_Atomic_Uint_FetchAdd(&pool->lastProgress,
+            1U) + 1U);
+    }
+    return progress;
+}
+
+/* Trade the counted bytes reserved for msg, what it retained plus the bound
+ * of the fragment, for those it retains now. The bound covers any growth, so
+ * this gives back and never adds. Should it have to add, it fails past the
+ * budget, with counted given back: the caller drops msg. */
+static int DtlsChPoolSettle(DtlsChPool* pool, DtlsMsg* msg, size_t counted)
+{
+    size_t actual = DtlsMsgRetainedBytes(msg);
+
+    if (actual <= counted) {
+        (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+            (WC_ATOMIC_UINT_ARG)(counted - actual));
+        return 0;
+    }
+    if (actual <= DtlsMsgRxLimit(1) && DtlsChPoolAdd(pool, actual - counted))
+        return 0;
+    (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+        (WC_ATOMIC_UINT_ARG)counted);
+    return DTLS_MSG_STORE_DROPPED;
+}
+
+/* Whether progress a was given out before b. Progress wraps. */
+static int DtlsChPoolProgressBefore(word32 a, word32 b)
+{
+    word32 d = (word32)(b - a);
+
+    return d != 0 && d < 0x80000000UL;
+}
+
+/* Take msg out of the list. The counters are the caller's. */
+static void DtlsChPoolDetach(DtlsChPoolShard* sh, DtlsMsg* msg)
+{
+    DtlsMsg** link = &sh->head;
+
+    while (*link != NULL && *link != msg)
+        link = &(*link)->next;
+    if (*link == msg)
+        *link = msg->next;
+    msg->next = NULL;
+}
+
+/* Put msg at the tail, the most recently progressed end. */
+static void DtlsChPoolAppend(DtlsChPoolShard* sh, DtlsMsg* msg)
+{
+    DtlsMsg** link = &sh->head;
+
+    while (*link != NULL)
+        link = &(*link)->next;
+    msg->next = NULL;
+    *link = msg;
+}
+
+static void DtlsChPoolUnlink(DtlsChPool* pool, DtlsChPoolShard* sh,
+                             DtlsMsg* msg)
+{
+    size_t bytes = DtlsMsgRetainedBytes(msg);
+
+    DtlsChPoolDetach(sh, msg);
+    sh->bytes -= bytes;
+    (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+        (WC_ATOMIC_UINT_ARG)bytes);
+}
+
+/* Peer's entry in shard sh. An entry idle for over maxAge seconds, or with
+ * a hold time ahead of now, is moved to *gone for the caller to free. */
+static DtlsMsg* DtlsChPoolFind(DtlsChPool* pool, DtlsChPoolShard* sh,
+        const WOLFSSL_SOCKADDR* peer, word32 now, word32 maxAge,
+        DtlsMsg** gone)
+{
+    DtlsMsg** link = &sh->head;
+    DtlsMsg* found = NULL;
+    size_t freed = 0;
+
+    while (*link != NULL) {
+        DtlsMsg* msg = *link;
+        word32 age = now - msg->heldAt;
+
+        if (age > maxAge) {
+            size_t bytes = DtlsMsgRetainedBytes(msg);
+
+            *link = msg->next;
+            sh->bytes -= bytes;
+            freed += bytes;
+            msg->next = *gone;
+            *gone = msg;
+            continue;
+        }
+        if (found == NULL && DtlsMsgPeerEqual(msg, peer))
+            found = msg;
+        link = &msg->next;
+    }
+    (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+        (WC_ATOMIC_UINT_ARG)freed);
+    (void)now;
+    (void)maxAge;
+    (void)gone;
+    return found;
+}
+
+/* How often eviction looks again when the oldest entry changed under it */
+#define DTLS_CH_POOL_EVICT_RETRIES 4
+
+/* The shard holding the oldest entry, and its progress in *oldest, from the
+ * published values alone: no lock is taken. Shard skip, when not NULL, is
+ * judged by the entry after its head, on equal terms with the other heads.
+ * The values are hints checked under the victim's lock. A shard's values
+ * only rise, as entries leave or move to the young end, so a racing read can
+ * only make a shard look older than it is, which the check turns into a
+ * miss. */
+static DtlsChPoolShard* DtlsChPoolFindOldest(DtlsChPool* pool,
+        const DtlsChPoolShard* skip, word32* oldest)
+{
+    DtlsChPoolShard* best = NULL;
+    word32 s;
+    int i;
+
+    for (i = 0; i < WOLFSSL_DTLS_CH_POOL_SHARDS; i++) {
+        DtlsChPoolShard* sh = &pool->shard[i];
+
+        if (sh == skip)
+            s = (word32)WOLFSSL_ATOMIC_LOAD(sh->nextProgress);
+        else
+            s = (word32)WOLFSSL_ATOMIC_LOAD(sh->headProgress);
+        if (s == 0)
+            continue;
+        if (best == NULL || DtlsChPoolProgressBefore(s, *oldest)) {
+            best = sh;
+            *oldest = s;
+        }
+    }
+    return best;
+}
+
+/* Free need bytes, or until reserved is within the budget, by evicting the
+ * oldest entries of any shard, never keep's. The shard holding keep's entry
+ * is learned when the scan lands on it: the entry behind it goes then, as
+ * the oldest of that shard but keep's, and the shard is judged by the entry
+ * behind its head from then on. The caller holds no shard lock: victims'
+ * shards are, and two at once deadlock. */
+static int DtlsChPoolEvict(DtlsChPool* pool, void* heap,
+        const WOLFSSL_SOCKADDR* keep, size_t need)
+{
+    DtlsChPoolShard* skip = NULL;
+    size_t freed = 0;
+    int misses = 0;
+
+    while (freed < need &&
+            (size_t)WOLFSSL_ATOMIC_LOAD(pool->reserved) > DtlsMsgRxLimit(1)) {
+        DtlsChPoolShard* best;
+        DtlsMsg* victim;
+        word32 oldest = 0;
+
+        best = DtlsChPoolFindOldest(pool, skip, &oldest);
+        if (best == NULL || DtlsChShardLock(best) != 0)
+            return DTLS_MSG_STORE_DROPPED;
+        victim = best->head;
+        if (victim != NULL && DtlsMsgPeerEqual(victim, keep)) {
+            skip = best;
+            victim = victim->next;
+        }
+        else if (victim != NULL && victim->progress != oldest)
+            victim = NULL;
+        if (victim != NULL) {
+            freed += DtlsMsgRetainedBytes(victim);
+            DtlsChPoolUnlink(pool, best, victim);
+        }
+        DtlsChShardUnlock(best);
+        if (victim == NULL && ++misses > DTLS_CH_POOL_EVICT_RETRIES)
+            return DTLS_MSG_STORE_DROPPED;
+        DtlsMsgDelete(victim, heap);
+    }
+    return 0;
+}
+
+/* The shard of a peer: a hash of its address bytes. A sender choosing
+ * addresses can crowd one shard, but the budget still holds. */
+word32 DtlsChPoolShardIdx(const WOLFSSL_SOCKADDR* peer)
+{
+#if WOLFSSL_DTLS_CH_POOL_SHARDS > 1
+    int err = 0;
+    /* 0 when hashing fails, so such peers share shard 0 */
+    word32 h = HashObject((const byte*)peer->sa, (word32)peer->sz, &err);
+
+    (void)err;
+    return h % WOLFSSL_DTLS_CH_POOL_SHARDS;
+#else
+    (void)peer;
+    return 0;
+#endif
+}
+
+int DtlsChPoolInit(DtlsChPool* pool)
+{
+    int i;
+
+    if (pool == NULL)
+        return BAD_FUNC_ARG;
+    XMEMSET(pool, 0, sizeof(*pool));
+    wolfSSL_Atomic_Uint_Init(&pool->reserved, 0U);
+    wolfSSL_Atomic_Uint_Init(&pool->lastProgress, 0U);
+    for (i = 0; i < WOLFSSL_DTLS_CH_POOL_SHARDS; i++) {
+        wolfSSL_Atomic_Uint_Init(&pool->shard[i].headProgress, 0U);
+        wolfSSL_Atomic_Uint_Init(&pool->shard[i].nextProgress, 0U);
+    }
+#ifndef SINGLE_THREADED
+    for (i = 0; i < WOLFSSL_DTLS_CH_POOL_SHARDS; i++) {
+        if (wc_InitMutex(&pool->shard[i].lock) != 0) {
+            while (i-- > 0)
+                wc_FreeMutex(&pool->shard[i].lock);
+            return BAD_MUTEX_E;
+        }
+    }
+#endif
+    pool->ready = 1;
+    return 0;
+}
+
+/* Free every entry and the locks, without locking: nothing else may use the
+ * pool. */
+void DtlsChPoolFree(DtlsChPool* pool, void* heap)
+{
+    int i;
+
+    if (pool == NULL || !pool->ready)
+        return;
+    pool->ready = 0;
+    for (i = 0; i < WOLFSSL_DTLS_CH_POOL_SHARDS; i++) {
+        DtlsChPoolShard* sh = &pool->shard[i];
+
+        DtlsMsgListDelete(sh->head, heap);
+        sh->head = NULL;
+        sh->bytes = 0;
+        WOLFSSL_ATOMIC_STORE(sh->headProgress, 0U);
+        WOLFSSL_ATOMIC_STORE(sh->nextProgress, 0U);
+#ifndef SINGLE_THREADED
+        wc_FreeMutex(&sh->lock);
+#endif
+    }
+    WOLFSSL_ATOMIC_STORE(pool->reserved, 0U);
+}
+
+void DtlsChPoolClear(DtlsChPool* pool, void* heap)
+{
+    int i;
+
+    if (pool == NULL || !pool->ready)
+        return;
+    for (i = 0; i < WOLFSSL_DTLS_CH_POOL_SHARDS; i++) {
+        DtlsChPoolShard* sh = &pool->shard[i];
+        DtlsMsg* head;
+
+        if (DtlsChShardLock(sh) != 0)
+            continue;
+        head = sh->head;
+        (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+            (WC_ATOMIC_UINT_ARG)sh->bytes);
+        sh->head = NULL;
+        sh->bytes = 0;
+        DtlsChShardUnlock(sh);
+        DtlsMsgListDelete(head, heap);
+    }
+}
+
+/* Hand msg, allocated with from, to an owner that frees it with to: rebuilt
+ * only when the heaps differ, without its peer key. On failure *msg is NULL. */
+int DtlsMsgAdopt(DtlsMsg** msg, void* from, void* to)
+{
+    DtlsMsg* m;
+    DtlsMsg* n;
+    int ret = 0;
+
+    if (msg == NULL || *msg == NULL)
+        return BAD_FUNC_ARG;
+    m = *msg;
+    XFREE(m->peer.sa, from, DYNAMIC_TYPE_SOCKADDR);
+    XMEMSET(&m->peer, 0, sizeof(m->peer));
+    if (from == to)
+        return 0;
+
+    n = DtlsMsgNew(m->sz, 0, to);
+    if (n == NULL)
+        ret = MEMORY_E;
+    else if (m->ready)
+        ret = DtlsMsgSet(n, m->seq, m->epoch, m->fullMsg, m->type, 0, m->sz,
+            to, m->sz, m->encrypted);
+    else {
+        const DtlsFragBucket* b;
+        for (b = m->fragBucketList; b != NULL && ret == 0; b = b->m.m.next)
+            ret = DtlsMsgSet(n, m->seq, m->epoch, b->buf, m->type,
+                b->m.m.offset, b->m.m.sz, to, m->sz, m->encrypted);
+    }
+    DtlsMsgDelete(m, from);
+    if (ret != 0) {
+        DtlsMsgDelete(n, to);
+        n = NULL;
+        ret = MEMORY_E;
+    }
+    *msg = n;
+    return ret;
+}
+
+/* Peer's entry in sh, unless it is of another message or contradicts the
+ * fragment: then it moves to *gone. Call with sh locked. */
+static DtlsMsg* DtlsChPoolFindMsg(DtlsChPool* pool, DtlsChPoolShard* sh,
+        const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq,
+        const byte* data, word32 dataSz, byte type, word32 fragOffset,
+        word32 fragSz, word32 now, word32 maxAge, DtlsMsg** gone)
+{
+    DtlsMsg* cur = DtlsChPoolFind(pool, sh, peer, now, maxAge, gone);
+
+    if (cur != NULL && (cur->epoch != epoch || cur->seq != seq ||
+            cur->sz != dataSz || cur->type != type ||
+            !DtlsMsgFragAgrees(cur, fragOffset, data, fragSz))) {
+        DtlsChPoolUnlink(pool, sh, cur);
+        cur->next = *gone;
+        *gone = cur;
+        cur = NULL;
+    }
+    return cur;
+}
+
+/* Store a fragment of a ClientHello sent before its cookie verified. One entry
+ * per peer, the newest. The entry the fragment completes leaves through *done.
+ * Returns 0 when held, DTLS_MSG_STORE_DROPPED when not, or BAD_FUNC_ARG.
+ * The most the fragment can add, a new entry with one bucket, is reserved
+ * with no lock held and evicted for when it passes the budget. Only then is
+ * the shard locked, once, and the reservation settled to the bytes really
+ * added. A fragment of what is held evicts for its bound too. */
+int DtlsChPoolStore(DtlsChPool* pool, void* heap,
+        const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq,
+        const byte* data, word32 dataSz, byte type, word32 fragOffset,
+        word32 fragSz, word32 maxAge, void* outHeap, DtlsMsg** done)
+{
+    DtlsChPoolShard* sh;
+    DtlsMsg* cur = NULL;
+    DtlsMsg* gone = NULL;
+    DtlsMsg* detached = NULL;
+    size_t limit = DtlsMsgRxLimit(1);
+    size_t overhead;
+    size_t before;
+    size_t reserve; /* the bound of the fragment, held in pool->reserved */
+    size_t sum;
+    word32 received;
+    word32 now;
+    word32 buckets;
+    int isNew;
+    int progressed;
+    int ret = 0;
+
+    WOLFSSL_ENTER("DtlsChPoolStore");
+    if (done != NULL)
+        *done = NULL;
+    if (pool == NULL || !pool->ready || peer == NULL || done == NULL ||
+            data == NULL || fragOffset > dataSz ||
+            fragSz > dataSz - fragOffset)
+        return BAD_FUNC_ARG;
+    /* No address is no key, and a whole message is processed at once */
+    if (peer->sz == 0 || (fragOffset == 0 && fragSz == dataSz))
+        return BAD_FUNC_ARG;
+    /* A ClientHello that can never complete is dropped before anything is
+     * evicted: its last fragment is reserved as a new entry on top of the
+     * entry holding the rest, so the metadata is counted twice. */
+    if (peer->sz > limit)
+        return DTLS_MSG_STORE_DROPPED;
+    overhead = sizeof(DtlsMsg) + sizeof(DtlsFragBucket) + peer->sz;
+    if (overhead > limit / 2 || (size_t)dataSz > limit - 2 * overhead)
+        return DTLS_MSG_STORE_DROPPED;
+    sh = &pool->shard[DtlsChPoolShardIdx(peer)];
+
+    /* Reserve the bound before evicting for it, so the room evicting makes
+     * is this store's. Evicting locks any shard, so none is held. */
+    reserve = overhead + fragSz;
+    sum = (size_t)wolfSSL_Atomic_Uint_AddFetch(&pool->reserved,
+        (WC_ATOMIC_UINT_ARG)reserve);
+    if (sum > limit) {
+        size_t need = sum - limit;
+
+        /* Over by more than this reservation: other threads reserved too.
+         * Each evicts for its own, so this one evicts no more than its own. */
+        if (need > reserve)
+            need = reserve;
+        if (DtlsChPoolEvict(pool, heap, peer, need) != 0) {
+            (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+                (WC_ATOMIC_UINT_ARG)reserve);
+            return DTLS_MSG_STORE_DROPPED;
+        }
+    }
+
+    /* The budget now has room for this fragment */
+    if (DtlsChShardLock(sh) != 0) {
+        (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+            (WC_ATOMIC_UINT_ARG)reserve);
+        return DTLS_MSG_STORE_DROPPED;
+    }
+    now = LowResTimer();
+    /* Peer's entry, unless expired or contradicted: then it is replaced */
+    cur = DtlsChPoolFindMsg(pool, sh, peer, epoch, seq, data, dataSz, type,
+        fragOffset, fragSz, now, maxAge, &gone);
+    isNew = cur == NULL;
+    before = isNew ? 0 : DtlsMsgRetainedBytes(cur);
+    /* As for the receive list, one more gap than DTLS_FRAG_POOL_SZ buckets
+     * is refused, since every store walks them */
+    buckets = 1;
+    if (!isNew)
+        (void)DtlsMsgProjectedBytes(cur, fragOffset, fragSz, &buckets);
+    if (buckets > DTLS_FRAG_POOL_SZ) {
+        (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+            (WC_ATOMIC_UINT_ARG)reserve);
+        ret = DTLS_MSG_STORE_DROPPED;
+    }
+    /* Store the fragment, in a new entry when none is held */
+    else if (isNew) {
+        cur = DtlsMsgNew(dataSz, 0, heap);
+        if (cur == NULL || DtlsMsgSetPeer(cur, peer, heap) != 0) {
+            if (cur != NULL) {
+                cur->next = gone;
+                gone = cur;
+                cur = NULL;
+            }
+            (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+                (WC_ATOMIC_UINT_ARG)reserve);
+            ret = DTLS_MSG_STORE_DROPPED;
+        }
+    }
+    if (ret == 0) {
+        received = cur->bytesReceived;
+        /* A pooled ClientHello is always plaintext */
+        ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset, fragSz, heap,
+            dataSz, 0);
+        /* New bytes refresh recency, duplicates do not */
+        progressed = ret == 0 && (isNew || cur->bytesReceived > received);
+        if (ret != 0 && isNew) {
+            cur->next = gone;
+            gone = cur;
+            cur = NULL;
+            (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
+                (WC_ATOMIC_UINT_ARG)reserve);
+        }
+        /* Settle the bound against the bytes really held: what the fragment
+         * did not add goes back */
+        else if (DtlsChPoolSettle(pool, cur, before + reserve) != 0) {
+            if (!isNew) {
+                DtlsChPoolDetach(sh, cur);
+                sh->bytes -= before;
+            }
+            cur->next = gone;
+            gone = cur;
+            cur = NULL;
+            ret = DTLS_MSG_STORE_DROPPED;
+        }
+        /* Count the entry in its shard. New bytes move it to the recent end
+         * and give it the newest progress value. */
+        else {
+            sh->bytes = sh->bytes - before + DtlsMsgRetainedBytes(cur);
+            if (progressed) {
+                if (!isNew)
+                    DtlsChPoolDetach(sh, cur);
+                DtlsChPoolAppend(sh, cur);
+                cur->heldAt = now;
+                cur->progress = DtlsChPoolNextProgress(pool);
+            }
+        }
+    }
+    /* A completed ClientHello leaves the pool, for the caller's heap */
+    if (ret == 0 && cur->ready) {
+        DtlsChPoolUnlink(pool, sh, cur);
+        detached = cur;
+    }
+    DtlsChShardUnlock(sh);
+    DtlsMsgListDelete(gone, heap);
+
+    if (ret != 0)
+        return DTLS_MSG_STORE_DROPPED;
+    if (detached != NULL) {
+        if (DtlsMsgAdopt(&detached, heap, outHeap) != 0)
+            return DTLS_MSG_STORE_DROPPED;
+        *done = detached;
+    }
+    return 0;
+}
+
+/* Take peer's entry out of the pool, unless it has aged out. Only peer's
+ * shard is locked. */
+static DtlsMsg* DtlsChPoolTake(DtlsChPool* pool, void* heap,
+                               const WOLFSSL_SOCKADDR* peer, word32 maxAge)
+{
+    DtlsChPoolShard* sh;
+    DtlsMsg* held;
+    DtlsMsg* gone = NULL;
+
+    if (pool == NULL || !pool->ready || peer == NULL || peer->sz == 0)
+        return NULL;
+    sh = &pool->shard[DtlsChPoolShardIdx(peer)];
+    if (DtlsChShardLock(sh) != 0)
+        return NULL;
+    held = DtlsChPoolFind(pool, sh, peer, LowResTimer(), maxAge, &gone);
+    if (held != NULL)
+        DtlsChPoolUnlink(pool, sh, held);
+    DtlsChShardUnlock(sh);
+    DtlsMsgListDelete(gone, heap);
+    return held;
+}
+
+/* Free peer's entry. */
+void DtlsChPoolDrop(DtlsChPool* pool, void* heap, const WOLFSSL_SOCKADDR* peer,
+                    word32 maxAge)
+{
+    DtlsMsg* held = DtlsChPoolTake(pool, heap, peer, maxAge);
+
+    if (held != NULL)
+        DtlsMsgDelete(held, heap);
+}
+
+/* Take peer's entry out of the pool. It is returned, allocated with outHeap,
+ * only as the rest of the ClientHello of epoch and seq whose first fragSz of
+ * msgSz bytes verified: what it held of those bytes is cut away, since only
+ * the verified copy may be used. Nothing past them, or another message:
+ * freed. */
+DtlsMsg* DtlsChPoolTakeRest(DtlsChPool* pool, void* heap,
+        const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq, word32 fragSz,
+        word32 msgSz, word32 maxAge, void* outHeap)
+{
+    DtlsMsg* held = DtlsChPoolTake(pool, heap, peer, maxAge);
+    DtlsFragBucket* b;
+
+    if (held == NULL)
+        return NULL;
+    if (held->epoch != epoch || held->seq != seq ||
+            held->type != client_hello || held->sz != msgSz) {
+        DtlsMsgDelete(held, heap);
+        return NULL;
+    }
+    /* Buckets are sorted and disjoint: drop those the fragment covers, then
+     * cut the head of one it reaches into */
+    while ((b = held->fragBucketList) != NULL &&
+            b->m.m.offset + b->m.m.sz <= fragSz) {
+        held->fragBucketList = b->m.m.next;
+        held->bytesReceived -= b->m.m.sz;
+        held->fragBucketListCount--;
+        DtlsMsgDestroyFragBucket(b, heap);
+    }
+    if (b != NULL && b->m.m.offset < fragSz) {
+        word32 cut = fragSz - b->m.m.offset;
+
+        XMEMMOVE(b->buf, b->buf + cut, b->m.m.sz - cut);
+        b->m.m.offset = fragSz;
+        b->m.m.sz -= cut;
+        held->bytesReceived -= cut;
+    }
+    if (b == NULL || DtlsMsgAdopt(&held, heap, outHeap) != 0) {
+        DtlsMsgDelete(held, heap);
+        return NULL;
+    }
+    return held;
+}
+#endif /* WOLFSSL_DTLS_CH_FRAG && !NO_WOLFSSL_SERVER */
 
 /* Whether ret, from DtlsMsgStore(), ends the connection: only running out of
  * memory, or an authenticated peer exceeding the receive budget. A fragment
@@ -44353,8 +45044,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl) &&
                 !ssl->options.dtlsStateful) {
             DtlsSetSeqNumForReply(ssl);
-            ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz, 0,
-                    NULL);
+            ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz,
+                    helloSz);
             if (ret != 0 || !ssl->options.dtlsStateful) {
                 int alertType = TranslateErrorToAlert(ret);
                 if (alertType != invalid_alert) {

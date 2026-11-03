@@ -6718,6 +6718,11 @@ WOLFSSL_API const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg
 
 #ifdef WOLFSSL_DTLS_CH_FRAG
     WOLFSSL_API int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled);
+    WOLFSSL_API int wolfSSL_dtls13_reassemble_ch_before_cookie(WOLFSSL* ssl,
+        int enabled);
+    WOLFSSL_API int wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(
+        WOLFSSL_CTX* ctx, int enabled);
+    WOLFSSL_API int wolfSSL_CTX_dtls13_clear_ch_pool(WOLFSSL_CTX* ctx);
 #endif
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
     WOLFSSL_API int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL *ssl, int enabled);
