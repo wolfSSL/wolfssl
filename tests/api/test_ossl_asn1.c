@@ -1539,6 +1539,72 @@ int test_wolfSSL_ASN1_STRING_print(void)
     BIO_free(bio);
 
     ASN1_STRING_free(asnStr);
+    asnStr = NULL;
+
+#ifdef WOLFSSL_BASE64_ENCODE
+    /* A base64 BIO encodes each write separately, so the string must be written
+     * in one call. Chunked writes put padding and line breaks mid-output. */
+    {
+        #define B64_PRINT_LEN 200
+        unsigned char b64Data[B64_PRINT_LEN];
+        unsigned char b64Sanitized[B64_PRINT_LEN];
+        int noNl;
+
+        for (i = 0; i < B64_PRINT_LEN; i++) {
+            b64Data[i] = (unsigned char)('A' + (i % 26));
+            b64Sanitized[i] = b64Data[i];
+            if ((i % 50) == 7) {
+                b64Data[i] = 0x01;
+                b64Sanitized[i] = '.';
+            }
+        }
+
+        ExpectNotNull(asnStr = ASN1_STRING_type_new(V_ASN1_OCTET_STRING));
+        ExpectIntEQ(ASN1_STRING_set(asnStr, (const void*)b64Data,
+            B64_PRINT_LEN), 1);
+
+        for (noNl = 0; noNl <= 1; noNl++) {
+            BIO* b64 = NULL;
+            BIO* mem = NULL;
+            BIO* refB64 = NULL;
+            BIO* refMem = NULL;
+            char* out = NULL;
+            char* ref = NULL;
+            int outSz = 0;
+            int refSz = 0;
+
+            /* Printed through a base64 BIO. */
+            ExpectNotNull(b64 = BIO_new(BIO_f_base64()));
+            ExpectNotNull(mem = BIO_new(BIO_s_mem()));
+            ExpectNotNull(BIO_push(b64, mem));
+            /* Reference: expected output as a single write. */
+            ExpectNotNull(refB64 = BIO_new(BIO_f_base64()));
+            ExpectNotNull(refMem = BIO_new(BIO_s_mem()));
+            ExpectNotNull(BIO_push(refB64, refMem));
+            if (noNl) {
+                BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+                BIO_set_flags(refB64, BIO_FLAGS_BASE64_NO_NL);
+            }
+
+            ExpectIntEQ(wolfSSL_ASN1_STRING_print(b64, asnStr), B64_PRINT_LEN);
+            ExpectIntEQ(BIO_write(refB64, b64Sanitized, B64_PRINT_LEN),
+                B64_PRINT_LEN);
+
+            ExpectIntGT(outSz = (int)BIO_get_mem_data(mem, &out), 0);
+            ExpectIntGT(refSz = (int)BIO_get_mem_data(refMem, &ref), 0);
+            ExpectIntEQ(outSz, refSz);
+            if (EXPECT_SUCCESS() && (outSz == refSz)) {
+                ExpectBufEQ(out, ref, outSz);
+            }
+
+            BIO_free_all(b64);
+            BIO_free_all(refB64);
+        }
+
+        ASN1_STRING_free(asnStr);
+        #undef B64_PRINT_LEN
+    }
+#endif /* WOLFSSL_BASE64_ENCODE */
 #endif /* OPENSSL_EXTRA && !NO_ASN && !NO_CERTS && !NO_BIO */
     return EXPECT_RESULT();
 }

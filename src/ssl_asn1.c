@@ -1371,6 +1371,42 @@ static int wolfssl_asn1_int_twos_compl(byte* data, int length, byte* neg)
     return ret;
 }
 
+/* Copy the contents of one WOLFSSL_ASN1_INTEGER to another.
+ * Handing over ownership of dynamic buffers in the process.
+ *
+ * @param [out] dest the destination that data will be copied to
+ * @param [in|out] src the source of the copy
+ * @return 0 if copy succeeds
+ * @return -1 if dest or src are NULL
+ */
+static int wolfssl_asn1_int_transfer_to_int(WOLFSSL_ASN1_INTEGER* dest,
+        WOLFSSL_ASN1_INTEGER* src)
+{
+    if (dest == NULL || src == NULL) {
+        return -1;
+    }
+
+    /* Dispose of any dynamic data and point at fixed array. */
+    wolfssl_asn1_integer_reset_data(dest);
+    if (src->isDynamic) {
+        /* Hand over ownership of the dynamic buffer. */
+        dest->data = src->data;
+        dest->dataMax = src->dataMax;
+        dest->isDynamic = 1;
+        src->data = src->intData;
+        src->dataMax = (unsigned int)sizeof(src->intData);
+        src->isDynamic = 0;
+    }
+    else {
+        /* Copy fixed array - data already points at dest's array. */
+        XMEMCPY(dest->intData, src->intData, sizeof(dest->intData));
+    }
+    dest->length = src->length;
+    dest->negative = src->negative;
+    dest->type = src->type;
+    return 0;
+}
+
 /* Encode ASN.1 INTEGER as DER without tag.
  *
  * When out points to NULL, a new buffer is allocated and returned.
@@ -1501,30 +1537,11 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
     }
     else {
         if ((a != NULL) && (*a != NULL)) {
-            /* Copy decoded value into the object passed in. */
-            WOLFSSL_ASN1_INTEGER* out = *a;
-
-            /* Dispose of any dynamic data and point at fixed array. */
-            wolfssl_asn1_integer_reset_data(out);
-            if (ret->isDynamic) {
-                /* Hand over ownership of the dynamic buffer. */
-                out->data = ret->data;
-                out->dataMax = ret->dataMax;
-                out->isDynamic = 1;
-                ret->data = ret->intData;
-                ret->dataMax = (unsigned int)sizeof(ret->intData);
-                ret->isDynamic = 0;
-            }
-            else {
-                /* Copy fixed array - data already points at out's array. */
-                XMEMCPY(out->intData, ret->intData, sizeof(out->intData));
-            }
-            out->length = ret->length;
-            out->negative = ret->negative;
-            out->type = ret->type;
-
+            /* Copy decoded value into the object passed in.
+             * return ignored as null checks already happen*/
+            (void)wolfssl_asn1_int_transfer_to_int(*a, ret);
             wolfSSL_ASN1_INTEGER_free(ret);
-            ret = out;
+            ret = *a;
         }
         else if (a != NULL) {
             /* Return ASN.1 INTEGER through a. */
@@ -2027,19 +2044,19 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* a)
     if (ret > 0) {
         /* Get the big number as a word. */
         WOLFSSL_BN_ULONG out = wolfSSL_BN_get_word(bn);
-        WOLFSSL_BN_ULONG maxPos = (WOLFSSL_BN_ULONG)LONG_MAX;
-        if ((a->negative == 1) && (out == maxPos + 1)) {
+        WOLFSSL_BN_ULONG maxLong = (WOLFSSL_BN_ULONG)LONG_MAX;
+        if ((a->negative != 0) && (out == maxLong + 1)) {
             /* LONG_MIN: can't negate LONG_MAX + 1 without overflow. */
             ret = LONG_MIN;
         }
         /* Magnitude must fit in a long. */
-        else if (out > maxPos) {
+        else if (out > maxLong) {
             ret = WOLFSSL_FATAL_ERROR;
         }
         else {
             ret = (long)out;
             /* Negate number if ASN.1 INTEGER was negative. */
-            if (a->negative == 1) {
+            if (a->negative != 0) {
                 ret = -ret;
             }
         }
@@ -2341,6 +2358,46 @@ int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj, const byte* der, word32 len,
     obj->objSz = (unsigned int)(idx + len);
     obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
     return WOLFSSL_SUCCESS;
+}
+
+/* Write out DER encoding of ASN.1 NULL.
+ *
+ * When pp is NULL, length is returned.
+ * When pp points to NULL, a new buffer is allocated and returned through pp.
+ * When pp points to a buffer, it is moved on past encoded data on success.
+ *
+ * This takes no ASN.1 object because NULL is a known constant. This deviates
+ * from openSSL so is static for now. ( We currently do not have a ASN1_NULL
+ * object )
+ *
+ * @param [in, out] pp  Pointer to buffer to write to. May be NULL.
+ * @return  Length of encoding on success.
+ * @return  0 when dynamic memory allocation fails.
+ */
+static int wolfssl_i2d_asn1_null(unsigned char **pp)
+{
+    if (pp != NULL) {
+        byte* out = *pp;
+
+        /* Allocate when no buffer passed in. */
+        if (out == NULL) {
+            out = (byte*)XMALLOC(2, NULL, DYNAMIC_TYPE_ASN1);
+            if (out == NULL) {
+                return 0;
+            }
+        }
+        out[0] = ASN_TAG_NULL;
+        out[1] = 0x00;
+        /* Return new buffer or move past encoding. */
+        if (*pp == NULL) {
+            *pp = out;
+        }
+        else {
+            *pp += 2;
+        }
+        return 2;
+    }
+    return 2;
 }
 
 /* Creates and ASN.1 OBJECT_ID object from DER encoding.
@@ -2944,7 +3001,7 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out,
     }
     if (len != -1) {
         /* Copy in string and NUL terminate - stored data may not be. */
-        XMEMCPY(buf, data, (size_t)(len));
+        XMEMCPY(buf, data, (size_t)len);
         buf[len] = '\0';
         /* Return buffer. */
         *out = buf;
@@ -3499,6 +3556,7 @@ static int wolfssl_unprintable_char(char c)
  * @param [in] str  ASN.1 STRING to print.
  * @return  Length of string written on success.
  * @return  0 when bio or str is NULL.
+ * @return  0 when dynamic memory allocation fails.
  * @return  0 when writing to BIO fails.
  */
 int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *bio, WOLFSSL_ASN1_STRING *str)
@@ -3509,23 +3567,22 @@ int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *bio, WOLFSSL_ASN1_STRING *str)
 
     /* Validate parameters. */
     if ((bio != NULL) && (str != NULL) && (str->length > 0)) {
-        char tmp[80];
-        int i;
-        int n = 0;
+        char* tmp = (char*)XMALLOC((size_t)str->length, bio->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp != NULL) {
+            int i;
 
-        len = str->length;
-        /* Copy into local buffer, replacing unprintable characters with '.',
-         * and write out when full or at end. */
-        for (i = 0; i < str->length; i++) {
-            tmp[n++] = wolfssl_unprintable_char(str->data[i]) ? '.' :
-                str->data[i];
-            if ((n == (int)sizeof(tmp)) || (i == str->length - 1)) {
-                if (wolfSSL_BIO_write(bio, tmp, n) != n) {
-                    len = 0;
-                    break;
-                }
-                n = 0;
+            /* Copy, replacing unprintable characters with '.'. */
+            for (i = 0; i < str->length; i++) {
+                tmp[i] = wolfssl_unprintable_char(str->data[i]) ? '.' :
+                    (char)str->data[i];
             }
+            /* Whole string in one write: base64 BIOs encode each write
+             * separately, so chunking would corrupt the output. */
+            if (wolfSSL_BIO_write(bio, tmp, str->length) == str->length) {
+                len = str->length;
+            }
+            XFREE(tmp, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -4293,6 +4350,7 @@ int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t, const char *str)
  * @param [in, out] out  ASN.1 GENERALIZED TIME object.
  * @return  ASN.1 GENERALIZED TIME object on success.
  * @return  NULL when t is NULL or t has wrong ASN.1 type.
+ * @return  NULL when t is a UTC TIME with invalid length.
  * @return  NULL when dynamic memory allocation fails.
  */
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
@@ -4917,27 +4975,7 @@ int wolfSSL_i2d_ASN1_TYPE(WOLFSSL_ASN1_TYPE* at, unsigned char** pp)
 
     switch (at->type) {
         case WOLFSSL_V_ASN1_NULL:
-            ret = 2;
-            if (pp != NULL) {
-                byte* out = *pp;
-
-                /* Allocate when no buffer passed in. */
-                if (out == NULL) {
-                    out = (byte*)XMALLOC(2, NULL, DYNAMIC_TYPE_ASN1);
-                    if (out == NULL) {
-                        return WOLFSSL_FATAL_ERROR;
-                    }
-                }
-                out[0] = ASN_TAG_NULL;
-                out[1] = 0x00;
-                /* Return new buffer or move past encoding. */
-                if (*pp == NULL) {
-                    *pp = out;
-                }
-                else {
-                    *pp += 2;
-                }
-            }
+            ret = wolfssl_i2d_asn1_null(pp);
             break;
         case WOLFSSL_V_ASN1_OBJECT:
             ret = wolfSSL_i2d_ASN1_OBJECT(at->value.object, pp);
