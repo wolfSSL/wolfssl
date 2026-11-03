@@ -851,7 +851,7 @@ struct SlhDsaKey {
 #endif
     } hash;
 #ifdef WOLFSSL_SLHDSA_SHA2
-    /* Reusable F-function output, cleared after private operations and Free. */
+    /* SHA-256 output, cleared after private operations and Free. */
     byte sha2Digest[WC_SHA256_DIGEST_SIZE];
 #endif
 };
