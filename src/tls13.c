@@ -8258,7 +8258,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (IsDtlsNotSctpMode(ssl) && ssl->options.sendCookie &&
             !ssl->options.dtlsStateful) {
         DtlsSetSeqNumForReply(ssl);
-        ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz, 0, NULL);
+        ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz,
+            helloSz);
         if (ret != 0 || !ssl->options.dtlsStateful) {
             *inOutIdx += helloSz;
             goto exit_dch;

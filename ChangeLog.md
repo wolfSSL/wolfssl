@@ -28,6 +28,36 @@
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
 
 ## Behavioral Changes
+* **Behavioral change (a DTLS 1.3 server reassembles a fragmented first
+  ClientHello before the cookie exchange)**: a stateless server dropped every
+  fragment of a first ClientHello, so a client whose ClientHello does not fit
+  one datagram (a post-quantum key share, a small MTU) failed in silence. In a
+  `WOLFSSL_DTLS_CH_FRAG` build (`--enable-dtls-frag-ch`, automatic with ML-KEM)
+  the fragments are now held in a pool owned by the `WOLFSSL_CTX` until the
+  ClientHello is complete, and the cookie check runs on the whole message; no
+  key, group or transcript state is kept until a cookie verifies. Any
+  stateless server made from the context can complete a ClientHello another
+  one started. This is on by default: the new
+  `wolfSSL_CTX_dtls13_reassemble_ch_before_cookie()` and
+  `wolfSSL_dtls13_reassemble_ch_before_cookie()` turn it off, and
+  `wolfSSL_CTX_dtls13_clear_ch_pool()` frees what is held. Fragmented
+  ClientHello support, `wolfSSL_dtls13_allow_ch_frag()`, is now on for every
+  DTLS 1.3 server of such a build, not only with ML-KEM, which supersedes the
+  5.9.4 note below that the fragments were still dropped; without
+  `WOLFSSL_DTLS_CH_FRAG` they still are. The unverified bytes a context holds
+  are bounded by `WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES`, 64 KiB by default,
+  metadata included: when the budget is short the least recently progressed
+  entry is evicted, and an entry that gains no bytes for the server's
+  retransmission maximum expires. The pool is split into
+  `WOLFSSL_DTLS_CH_POOL_SHARDS` lists (8; 1 with `SINGLE_THREADED` or
+  `NO_HASH_WRAPPER`) picked by a hash of the peer address, each with its own
+  lock. It needs atomics in a
+  threaded build and a clock in any (`NO_ASN_TIME` is not supported). The
+  first fragment of a DTLS 1.2 ClientHello whose cookie verifies is now kept
+  and the rest of the message taken from the pool, where before it was
+  ignored and the client had to resend the message. The example server takes
+  `--reassemble-before-cookie [n]`.
+
 * **Behavioral change (the DTLS receive list is bounded by bytes)**: the list
   of out-of-order and fragmented handshake messages was bounded by
   `DTLS_POOL_SZ` entries, 20, whatever their size, and a fragment the list
