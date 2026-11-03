@@ -31,6 +31,13 @@ if ! ./examples/client/client -V | grep -q 3; then
     exit 77
 fi
 
+# Without SNI the server may send a default certificate with over a hundred
+# alternative names, more than static memory builds can hold.
+sni=""
+if ./examples/client/client -S check | grep -q 'SNI is: ON'; then
+    sni="-S $server"
+fi
+
 # is our desired server there?
 ./scripts/ping.test $server 2
 RESULT=$?
@@ -53,13 +60,13 @@ run_client() {
 }
 
 # client test against the server
-run_client -X -C -h $server -p 443 -g -d
+run_client -X -C -h $server $sni -p 443 -g -d
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 if ./examples/client/client -V | grep -q 4; then
     # client test against the server using TLS v1.3
-    run_client -v 4 -X -C -h $server -p 443 -g -d
+    run_client -v 4 -X -C -h $server $sni -p 443 -g -d
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nTLSv1.3 Client connection failed" && exit 1
 fi
