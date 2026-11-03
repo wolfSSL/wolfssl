@@ -12051,6 +12051,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
             cur->next = item;
         }
         ssl->dtls_tx_msg_list_sz++;
+        DtlsTimerStart(ssl);
     }
     else
         ret = MEMORY_E;
@@ -12067,10 +12068,109 @@ int DtlsMsgPoolTimeout(WOLFSSL* ssl)
     WOLFSSL_ENTER("DtlsMsgPoolTimeout");
     if (ssl->dtls_timeout <  ssl->dtls_timeout_max) {
         ssl->dtls_timeout *= DTLS_TIMEOUT_MULTIPLIER;
+        DtlsTimerStart(ssl);
         result = 0;
     }
     WOLFSSL_LEAVE("DtlsMsgPoolTimeout()", result);
     return result;
+}
+
+#ifndef NO_ASN_TIME
+/* Milliseconds since start, never more than really passed. */
+word32 DtlsTimerElapsedMs(word32 start)
+{
+    word32 elapsed = DtlsTimerNowMs() - start;
+
+    /* Both readings were truncated to whole seconds. */
+    if (DtlsTimerLowRes())
+        elapsed = (elapsed >= 1000) ? elapsed - 1000 : 0;
+    return elapsed;
+}
+
+/* Current retransmission timeout in milliseconds. */
+word32 DtlsTimerTimeoutMs(const WOLFSSL* ssl)
+{
+    return (word32)min(ssl->dtls_timeout, DTLS_TIMEOUT_MAX) * 1000;
+}
+#endif /* !NO_ASN_TIME */
+
+/* Start or restart the retransmission timer. */
+void DtlsTimerStart(WOLFSSL* ssl)
+{
+#ifndef NO_ASN_TIME
+    ssl->dtls_timer_start = DtlsTimerNowMs();
+#else
+    (void)ssl;
+#endif
+}
+
+/* Reset a backed off timeout and restart the timer with it. */
+void DtlsTimeoutReset(WOLFSSL* ssl)
+{
+    if (ssl->dtls_timeout != ssl->dtls_timeout_init) {
+        ssl->dtls_timeout = ssl->dtls_timeout_init;
+        DtlsTimerStart(ssl);
+    }
+}
+
+/* Return 1 when the stored flight was sent and waits for the peer. */
+static int DtlsMsgPoolWaiting(WOLFSSL* ssl)
+{
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        return ssl->options.acceptState == ACCEPT_BEGIN_RENEG ||
+               ssl->options.acceptState == SERVER_HELLO_DONE ||
+               ssl->options.acceptState == ACCEPT_FINISHED_DONE ||
+               ssl->options.acceptState == ACCEPT_THIRD_REPLY_DONE;
+    }
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        return ssl->options.connectState == CLIENT_HELLO_SENT ||
+               ssl->options.connectState == HELLO_AGAIN_REPLY ||
+               ssl->options.connectState == FINISHED_DONE ||
+               ssl->options.connectState == SECOND_REPLY_DONE;
+    }
+    return 1;
+}
+
+/* Get the DTLS timers that run.
+ *
+ * @param [in]  ssl       SSL/TLS object.
+ * @param [out] ackStart  Start of the DTLS 1.3 ack timer. May be NULL.
+ * @return  DTLS_TIMER_RTX and DTLS_TIMER_ACK bits, 0 when none runs.
+ * @return  BAD_MUTEX_E when locking fails.
+ */
+int DtlsTimersRunning(WOLFSSL* ssl, word32* ackStart)
+{
+    int running = 0;
+
+    (void)ackStart;
+
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (ssl->dtls13Rtx.rtxRecords != NULL)
+            running |= DTLS_TIMER_RTX;
+    #ifdef WOLFSSL_RW_THREADED
+        if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0)
+            return BAD_MUTEX_E;
+    #endif
+        if (ssl->dtls13FastTimeout && Dtls13AckSendable(ssl))
+            running |= DTLS_TIMER_ACK;
+    #ifndef NO_ASN_TIME
+        if (ackStart != NULL)
+            *ackStart = ssl->dtls_ack_timer_start;
+    #endif
+    #ifdef WOLFSSL_RW_THREADED
+        wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+    #endif
+        return running;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+    if (ssl->options.handShakeState != HANDSHAKE_DONE &&
+            (ssl->dtls_tx_msg_list != NULL || ssl->dtls_tx_msg != NULL) &&
+            DtlsMsgPoolWaiting(ssl))
+        running |= DTLS_TIMER_RTX;
+
+    return running;
 }
 
 
@@ -12164,17 +12264,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
     pool = ssl->dtls_tx_msg == NULL ? ssl->dtls_tx_msg_list : ssl->dtls_tx_msg;
 
     if (pool != NULL) {
-        if ((ssl->options.side == WOLFSSL_SERVER_END &&
-             !(ssl->options.acceptState == ACCEPT_BEGIN_RENEG ||
-               ssl->options.acceptState == SERVER_HELLO_DONE ||
-               ssl->options.acceptState == ACCEPT_FINISHED_DONE ||
-               ssl->options.acceptState == ACCEPT_THIRD_REPLY_DONE)) ||
-            (ssl->options.side == WOLFSSL_CLIENT_END &&
-             !(ssl->options.connectState == CLIENT_HELLO_SENT ||
-               ssl->options.connectState == HELLO_AGAIN_REPLY ||
-               ssl->options.connectState == FINISHED_DONE ||
-               ssl->options.connectState == SECOND_REPLY_DONE))) {
-
+        if (!DtlsMsgPoolWaiting(ssl)) {
             WOLFSSL_ERROR(DTLS_RETX_OVER_TX);
             ssl->error = DTLS_RETX_OVER_TX;
             return WOLFSSL_FATAL_ERROR;
@@ -12283,6 +12373,8 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
 
         if (ret == 0 && ssl->options.groupMessages)
             ret = SendBuffered(ssl);
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
+            DtlsTimerStart(ssl);
     }
 
     WOLFSSL_LEAVE("DtlsMsgPoolSend()", ret);
@@ -12598,9 +12690,13 @@ ProtocolVersion MakeDTLSv1_3(void)
      */
 #endif /* !NO_ASN_TIME */
 
-#if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
-    (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || \
-    defined(WOLFSSL_DTLS13))
+/* TLS 1.3 tickets and PSK and DTLS 1.3 need a millisecond clock. */
+#if (defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
+    !defined(NO_PSK))) || defined(WOLFSSL_DTLS13)
+    #define MS_TIME_NEEDED
+#endif
+
+#if !defined(NO_TLS) && (defined(MS_TIME_NEEDED) || defined(WOLFSSL_DTLS))
 #ifndef NO_ASN_TIME
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     #define MS_TIME word32
@@ -12609,7 +12705,9 @@ ProtocolVersion MakeDTLSv1_3(void)
 #endif
 
 /* The time in milliseconds, for ticket ages and the DTLS timers. */
-#if defined(USER_TICKS)
+#if defined(USER_TICKS) && !defined(MS_TIME_NEEDED)
+    #define MS_TIME_FALLBACK
+#elif defined(USER_TICKS)
     /* The application supplies TimeNowInMilliseconds(). */
 #elif defined(WOLFSSL_OPTEE)
     MS_TIME TimeNowInMilliseconds(void)
@@ -12623,6 +12721,7 @@ ProtocolVersion MakeDTLSv1_3(void)
     }
 
 #elif defined(TIME_OVERRIDES)
+    #define MS_TIME_LOW_RES
 #ifndef NO_ASN
     MS_TIME TimeNowInMilliseconds(void)
     {
@@ -12660,20 +12759,23 @@ ProtocolVersion MakeDTLSv1_3(void)
 
 #elif defined(HAVE_RTP_SYS)
     #include "rtptime.h"
+    #define MS_TIME_LOW_RES
 
     MS_TIME TimeNowInMilliseconds(void)
     {
         return (MS_TIME)rtp_get_system_sec() * 1000;
     }
 #elif defined(WOLFSSL_DEOS)
+    #define MS_TIME_LOW_RES
     MS_TIME TimeNowInMilliseconds(void)
     {
         const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
-        word32 *systemTickPtr = systemTickPointer();
+        const volatile word32 *systemTickPtr = systemTickPointer();
 
         return (MS_TIME) (*systemTickPtr/systemTickTimeInHz) * 1000;
     }
 #elif defined(MICRIUM)
+    #define MS_TIME_LOW_RES
     MS_TIME TimeNowInMilliseconds(void)
     {
         OS_TICK ticks = 0;
@@ -12705,6 +12807,7 @@ ProtocolVersion MakeDTLSv1_3(void)
     #endif
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    #define MS_TIME_LOW_RES
     MS_TIME TimeNowInMilliseconds(void)
     {
         TIME_STRUCT mqxTime;
@@ -12737,6 +12840,7 @@ ProtocolVersion MakeDTLSv1_3(void)
     }
 
 #elif defined(WOLFSSL_TIRTOS)
+    #define MS_TIME_LOW_RES
     MS_TIME TimeNowInMilliseconds(void)
     {
         return (MS_TIME) Seconds_get() * 1000;
@@ -12795,7 +12899,8 @@ ProtocolVersion MakeDTLSv1_3(void)
     MS_TIME TimeNowInMilliseconds(void)
     {
         int64_t t;
-    #if defined(CONFIG_ARCH_POSIX)
+    #if defined(CONFIG_ARCH_POSIX) && !defined(CONFIG_BOARD_NATIVE_POSIX) \
+                                   && !defined(CONFIG_BOARD_NATIVE_SIM)
         k_cpu_idle();
     #endif
         t = k_uptime_get(); /* returns current uptime in milliseconds */
@@ -12807,6 +12912,8 @@ ProtocolVersion MakeDTLSv1_3(void)
         return (MS_TIME)((uint64_t)xTaskGetTickCount() * 1000 /
             configTICK_RATE_HZ);
     }
+#elif !defined(HAVE_GETTIMEOFDAY) && !defined(MS_TIME_NEEDED)
+    #define MS_TIME_FALLBACK
 #else
     MS_TIME TimeNowInMilliseconds(void)
     {
@@ -12819,12 +12926,36 @@ ProtocolVersion MakeDTLSv1_3(void)
         return (MS_TIME)((MS_TIME)now.tv_sec * 1000 + now.tv_usec / 1000);
     }
 #endif
+
+#ifdef WOLFSSL_DTLS
+/* Current time for the DTLS timers, in milliseconds. */
+word32 DtlsTimerNowMs(void)
+{
+#ifdef MS_TIME_FALLBACK
+    return LowResTimer() * 1000;
+#else
+    return (word32)TimeNowInMilliseconds();
+#endif
+}
+
+/* Return 1 when the DTLS timer clock counts whole seconds. */
+int DtlsTimerLowRes(void)
+{
+#if defined(MS_TIME_LOW_RES) || defined(MS_TIME_FALLBACK)
+    return 1;
+#else
+    return 0;
+#endif
+}
+#endif
 #undef MS_TIME
+#undef MS_TIME_LOW_RES
+#undef MS_TIME_FALLBACK
 #else
     /* The application supplies TimeNowInMilliseconds(). */
 #endif /* !NO_ASN_TIME */
-#endif /* !NO_TLS && WOLFSSL_TLS13 && (HAVE_SESSION_TICKET || !NO_PSK ||
-        * WOLFSSL_DTLS13) */
+#endif /* !NO_TLS && (MS_TIME_NEEDED || WOLFSSL_DTLS) */
+#undef MS_TIME_NEEDED
 
 
 #ifndef NO_TLS
@@ -13437,7 +13568,7 @@ retry:
             #ifdef WOLFSSL_DTLS
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
-                    int rtxRet = Dtls13RtxTimeout(ssl);
+                    int rtxRet = Dtls13RtxTimeout(ssl, 0);
                     if (rtxRet == WC_NO_ERR_TRACE(WANT_WRITE)) {
                         /* Record that this ACK or retransmit still owes a
                          * write, so the next flush sends it. */
@@ -28379,7 +28510,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 ) {
                                 /* Reset timeout as we have received a valid
                                  * DTLS handshake message */
-                                ssl->dtls_timeout = ssl->dtls_timeout_init;
+                                DtlsTimeoutReset(ssl);
                             }
                             else if (DtlsShouldDropHandshake(ssl, ret)) {
                                 DropAndRestartProcessReply(ssl);
@@ -28425,7 +28556,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 ) {
                                 /* Reset timeout as we have received a valid
                                  * DTLS handshake message */
-                                ssl->dtls_timeout = ssl->dtls_timeout_init;
+                                DtlsTimeoutReset(ssl);
                             }
                             else if (DtlsShouldDropHandshake(ssl, ret)) {
                                 DropAndRestartProcessReply(ssl);
