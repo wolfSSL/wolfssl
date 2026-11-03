@@ -3129,6 +3129,64 @@ typedef struct DtlsChPool {
 } DtlsChPool;
 #endif
 
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Each cookie type gets its own key, an HMAC of a label under the context's
+ * secret, so a cookie of one type never verifies as the other. */
+#ifndef NO_SHA256
+    #define CTX_COOKIE_KEY_TYPE WC_SHA256
+    #define CTX_COOKIE_KEY_SZ   WC_SHA256_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA384)
+    #define CTX_COOKIE_KEY_TYPE WC_SHA384
+    #define CTX_COOKIE_KEY_SZ   WC_SHA384_DIGEST_SIZE
+#elif defined(WOLFSSL_TLS13_SHA512)
+    #define CTX_COOKIE_KEY_TYPE WC_SHA512
+    #define CTX_COOKIE_KEY_SZ   WC_SHA512_DIGEST_SIZE
+#elif defined(WOLFSSL_SM3)
+    #define CTX_COOKIE_KEY_TYPE WC_SM3
+    #define CTX_COOKIE_KEY_SZ   WC_SM3_DIGEST_SIZE
+#elif !defined(NO_SHA)
+    #define CTX_COOKIE_KEY_TYPE WC_SHA
+    #define CTX_COOKIE_KEY_SZ   WC_SHA_DIGEST_SIZE
+#else
+    #error "No digest available to make the cookie keys with."
+#endif
+#define CTX_COOKIE_DTLS12 0 /* HelloVerifyRequest cookie */
+#define CTX_COOKIE_HRR    1 /* HelloRetryRequest cookie */
+
+/* Cookie secret the servers of a context share, as the key of each type */
+typedef struct CookieSecretCtx {
+    /* The key of each cookie type, [primary, secondary] */
+    byte   hvrKey[2][CTX_COOKIE_KEY_SZ];
+    byte   hrrKey[2][CTX_COOKIE_KEY_SZ];
+    word32 keySz[2];      /* 0: not set */
+#ifndef SINGLE_THREADED
+    wolfSSL_RwLock* lock; /* NULL until the lock is ready */
+#endif
+} CookieSecretCtx;
+
+/* The secrets a cookie of one type is made and checked with, resolved at use:
+ * the object's own, else copies of the context's keys in key. */
+typedef struct CookieSecrets {
+    const byte* pri;     /* NULL: none */
+    const byte* sec;     /* NULL: none */
+    word32      priSz;
+    word32      secSz;
+    byte        key[2][CTX_COOKIE_KEY_SZ];
+} CookieSecrets;
+
+WOLFSSL_LOCAL int  CookieSecretCtxInit(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL void CookieSecretCtxFree(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL int  CookieSecretCtxDefault(WOLFSSL_CTX* ctx);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CookieSecretGet wolfSSL_CookieSecretGet
+    #define CookieSecretsClear wolfSSL_CookieSecretsClear
+#endif
+WOLFSSL_TEST_VIS int  CookieSecretGet(const WOLFSSL* ssl, int type,
+                                      CookieSecrets* cs);
+WOLFSSL_TEST_VIS void CookieSecretsClear(CookieSecrets* cs);
+#endif
+
 #ifdef WOLFSSL_DTLS
 typedef struct WOLFSSL_DTLS_CTX {
 #ifdef WOLFSSL_RW_THREADED
@@ -4336,8 +4394,11 @@ typedef struct Cookie {
 
 WOLFSSL_LOCAL int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data,
         word16 len, byte* mac, byte macSz, int resp, TLSX** exts);
-WOLFSSL_LOCAL int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie,
-                                 word16 cookieSz);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TlsCheckCookie wolfSSL_TlsCheckCookie
+#endif
+WOLFSSL_TEST_VIS int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie,
+                                    word16 cookieSz);
 
 
 /* Key Share - TLS v1.3 Specification */
@@ -4759,6 +4820,13 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
     DtlsChPool      dtlsChPool;      /* unverified ClientHellos of all
                                       * servers */
+#endif
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    CookieSecretCtx cookieSecret;
+#ifndef SINGLE_THREADED
+    wolfSSL_RwLock  cookieSecretLock; /* see cookieSecret.lock */
+#endif
 #endif
 #ifndef NO_DH
     word16      minDhKeySz;       /* minimum DH key size */
@@ -8789,9 +8857,12 @@ WOLFSSL_LOCAL int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk,
 WOLFSSL_LOCAL int wolfSSL_GetHmacType_ex(CipherSpecs* specs);
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
-WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
-                                  word16 hashSz, TLSX** exts,
-                                  byte cipherSuite0, byte cipherSuite);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CreateCookieExt wolfSSL_CreateCookieExt
+#endif
+WOLFSSL_TEST_VIS int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
+                                     word16 hashSz, TLSX** exts,
+                                     byte cipherSuite0, byte cipherSuite);
 #endif
 
 WOLFSSL_LOCAL int TranslateErrorToAlert(int err);

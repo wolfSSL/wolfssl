@@ -332,33 +332,36 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
     else
 #endif
     {
+        CookieSecrets cs;
+
         if (ch->cookie.size != DTLS_COOKIE_SZ)
             return 0;
+        ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
+        if (ret != 0)
+            return ret;
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecret.buffer,
-                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
-            if (ret != 0)
-                return ret;
-            ch->dtls12cookieSet = 1;
+            ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz,
+                                     ch->dtls12cookie);
+            if (ret == 0)
+                ch->dtls12cookieSet = 1;
         }
-        *cookieGood = ConstantCompare(ch->cookie.elements, ch->dtls12cookie,
-                                      DTLS_COOKIE_SZ) == 0;
-        /* If the primary secret didn't match, try the secondary (verify-only)
-         * secret.  This lets a stateless server keep accepting cookies issued
-         * under the secret it held before an application-driven rotation. */
-        if (!*cookieGood &&
-                ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL &&
-                ssl->buffers.dtlsCookieSecretSecondary.length > 0) {
-            byte altCookie[DTLS_COOKIE_SZ];
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecretSecondary.buffer,
-                    ssl->buffers.dtlsCookieSecretSecondary.length, altCookie);
-            if (ret != 0)
-                return ret;
-            *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+        if (ret == 0) {
+            *cookieGood = ConstantCompare(ch->cookie.elements,
+                                          ch->dtls12cookie,
                                           DTLS_COOKIE_SZ) == 0;
         }
+        /* The secondary, verify only, keeps cookies issued before a rotation
+         * of the secret valid */
+        if (ret == 0 && !*cookieGood && cs.sec != NULL) {
+            byte altCookie[DTLS_COOKIE_SZ];
+
+            ret = CreateDtls12Cookie(ssl, ch, cs.sec, cs.secSz, altCookie);
+            if (ret == 0) {
+                *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+                                              DTLS_COOKIE_SZ) == 0;
+            }
+        }
+        CookieSecretsClear(&cs);
     }
     return ret;
 }
@@ -1005,9 +1008,14 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
     {
 #if !defined(WOLFSSL_NO_TLS12)
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecret.buffer,
-                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
+            CookieSecrets cs;
+
+            ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
+            if (ret == 0) {
+                ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz,
+                                         ch->dtls12cookie);
+                CookieSecretsClear(&cs);
+            }
             if (ret != 0)
                 return ret;
             ch->dtls12cookieSet = 1;

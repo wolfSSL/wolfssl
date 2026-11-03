@@ -73,6 +73,11 @@ int test_dtls13_frag_ch2_dtls12_cookie(void);
 int test_dtls13_ch_pool_threads(void);
 int test_dtls13_ch_pool_shards_threads(void);
 int test_dtls13_ch_pool_handshake_threads(void);
+int test_dtls13_ctx_cookie_secret_handoff(void);
+int test_dtls13_ctx_cookie_secret_set_ssl_ctx(void);
+int test_dtls13_ctx_cookie_secret_threads(void);
+int test_dtls13_ctx_cookie_secret_no_splice(void);
+int test_dtls13_ctx_cookie_secret_after_random(void);
 int test_dtls13_ch_pool_unit(void);
 int test_dtls13_ch_pool_shards(void);
 int test_dtls13_ch_pool_evict_own_shard(void);
@@ -175,6 +180,11 @@ int test_dtls13_update_keys_want_write(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_threads),                    \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_shards_threads),             \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_handshake_threads),          \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ctx_cookie_secret_handoff),          \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ctx_cookie_secret_set_ssl_ctx),      \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ctx_cookie_secret_threads),          \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ctx_cookie_secret_no_splice),        \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ctx_cookie_secret_after_random),     \
     TEST_DECL_GROUP("dtls13", test_dtls_empty_keyshare_with_cookie),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_missing_finished_client),            \
     TEST_DECL_GROUP("dtls13", test_dtls13_missing_finished_server),            \

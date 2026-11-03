@@ -9049,6 +9049,12 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);
     ssl->ctx = ctx;
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    /* A server's cookies now come from this context's secret */
+    if (ssl->options.sendCookie && ssl->options.side != WOLFSSL_CLIENT_END)
+        (void)CookieSecretCtxDefault(ctx);
+#endif
 
 #ifndef NO_CERTS
     /* Release the certificate, chain and keys this SSL owns so that a ctx
