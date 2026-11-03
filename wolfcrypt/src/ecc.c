@@ -14983,6 +14983,12 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
         mp_count_bits(G->z) > mp_count_bits(modulus)) {
         return IS_POINT_E;
     }
+    /* The SP code caches tables for points keyed on x and y only, so a point
+     * with z other than 1 could be multiplied using the table of another
+     * point. Only affine points are supported. */
+    if (!mp_isone(G->z)) {
+        return ECC_BAD_ARG_E;
+    }
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
     if ((mp_count_bits(modulus) == 256) && (!mp_is_bit_set(modulus, 224))) {
@@ -15149,6 +15155,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
         mp_count_bits(G->y) > mp_count_bits(modulus) ||
         mp_count_bits(G->z) > mp_count_bits(modulus)) {
         return IS_POINT_E;
+    }
+    /* Only affine points are supported - see wc_ecc_mulmod_ex(). */
+    if (!mp_isone(G->z)) {
+        return ECC_BAD_ARG_E;
     }
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
