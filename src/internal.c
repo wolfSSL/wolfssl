@@ -8046,7 +8046,7 @@ int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx)
 }
 #endif /* HAVE_PK_CALLBACKS */
 
-static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
+void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
         word16 haveRSA, word16 havePSK, word16 haveDH, word16 haveECDSAsig,
         word16 haveECC, word16 haveStaticECC,
         word16 haveAnon,
@@ -8088,6 +8088,20 @@ void InitSSL_CTX_Suites(const WOLFSSL_CTX* ctx, Suites* suites)
             haveRSA, havePSK, ctx->haveDH, ctx->haveECDSAsig, ctx->haveECC,
             ctx->haveStaticECC,
             haveAnon, ctx->method->side);
+}
+
+/* Returns the newest version a downgrade SSL can be moved back up to. DTLS
+ * minors count down. */
+ProtocolVersion SslNewestVersion(const WOLFSSL* ssl)
+{
+    ProtocolVersion pv = ssl->version;
+    byte methodMinor = ssl->ctx->method->version.minor;
+
+    if (ssl->options.downgrade && (ssl->options.dtls ?
+            methodMinor < pv.minor : methodMinor > pv.minor)) {
+        pv = ssl->ctx->method->version;
+    }
+    return pv;
 }
 
 int InitSSL_Suites(WOLFSSL* ssl)
@@ -8148,6 +8162,8 @@ int InitSSL_Suites(WOLFSSL* ssl)
                 havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                 ssl->options.haveECC, ssl->options.haveStaticECC,
                 ssl->options.useAnon, ssl->options.side);
+        if (FilterSuitesForVersion(ssl) != 0)
+            return MEMORY_E;
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
@@ -10505,6 +10521,8 @@ void FreeSuites(WOLFSSL* ssl)
 #endif
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->suites = NULL;
+    XFREE(ssl->suitesUser, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->suitesUser = NULL;
 }
 
 
@@ -34942,7 +34960,8 @@ int SetCipherList_ex(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl,
         side = ctx->method->side;
     }
     else if (ssl != NULL) {
-        version = ssl->version;
+        /* A later lift needs the suites of the newer version in the list. */
+        version = SslNewestVersion(ssl);
 #ifndef NO_CERTS
         privateKeySz = ssl->buffers.keySz;
 #endif
@@ -35224,9 +35243,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     const char* s = list;
     byte sig_alg = 0;
     byte mac_alg = no_mac;
-
-    /* Setting is destructive on error. */
-    suites->hashSigAlgoSz = 0;
+    byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
 
     do {
         if (*list == '+') {
@@ -35266,7 +35283,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     break;
                 }
             }
-            AddSuiteHashSigAlgo(suites->hashSigAlgo, mac_alg, sig_alg, 0, &idx);
+            AddSuiteHashSigAlgo(hashSigAlgo, mac_alg, sig_alg, 0, &idx);
             sig_alg = 0;
             mac_alg = no_mac;
             s = list + 1;
@@ -35279,7 +35296,8 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     if (s != list && (sig_alg != 0 || mac_alg != 0)) {
         ret = 0;
     }
-    else {
+    if (ret == 1) {
+        XMEMCPY(suites->hashSigAlgo, hashSigAlgo, idx);
         suites->hashSigAlgoSz = idx;
     }
 
