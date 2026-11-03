@@ -5815,8 +5815,29 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         SslWaivedCAsFree(ssl);
 #endif
 
+        /* The peer's version is not the limit for the next connection. */
+        if (ssl->options.downgrade) {
+            ssl->version.minor = ssl->options.versionSet ?
+                ssl->options.maxVersionMinor : ssl->ctx->method->version.minor;
+        #ifdef OPENSSL_EXTRA
+            /* The version mask only covers TLS. */
+            if (!ssl->options.dtls &&
+                    (SetSSL_CTX_CheckVersion(ssl, ssl->ctx) != 0)) {
+                return WOLFSSL_FAILURE;
+            }
+        #endif
+        }
+
         /* reset error */
         ssl->error = 0;
+        ssl->alert_history.last_rx.code  = -1;
+        ssl->alert_history.last_rx.level = -1;
+        ssl->alert_history.last_tx.code  = -1;
+        ssl->alert_history.last_tx.level = -1;
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(OPENSSL_ALL)
+        ssl->peerVerifyRet = 0;
+    #endif
 
         /* reset option bits */
         ssl->options.isClosed = 0;
@@ -5923,8 +5944,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #endif
         /* Drop the peer certificate public key left by an abandoned handshake. */
         FreePeerCertKeys(ssl);
+        FreeEphemeralKeys(ssl);
+
+        ssl->pssAlgo = 0;
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
+    #endif
+    #if defined(WOLFSSL_DTLS_CID) && defined(WOLFSSL_DTLS13)
+        ssl->options.haveSupportedVersions = 0;
     #endif
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -6001,6 +6028,21 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
         ssl->ws_peer_ca_names = NULL;
     #endif
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+        wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+        ssl->peer_ca_names = NULL;
+    #endif
+    #ifdef OPENSSL_EXTRA
+        wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
+        ssl->peerCertChain = NULL;
+        wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+        ssl->verifiedChain = NULL;
+    #endif
+    #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ALPN)
+        XFREE(ssl->alpn_peer_requested, ssl->heap, DYNAMIC_TYPE_ALPN);
+        ssl->alpn_peer_requested = NULL;
+        ssl->alpn_peer_requested_length = 0;
+    #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
@@ -6028,6 +6070,15 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->buffers.clearOutputBuffer.length = 0;
         ssl->buffers.inputBuffer.idx = 0;
         ssl->buffers.inputBuffer.length = 0;
+        /* Output the last connection could not send is not the next peer's. */
+        ShrinkOutputBuffer(ssl);
+        ssl->buffers.prevSent = 0;
+        ssl->buffers.plainSz = 0;
+        ssl->pendingAlert.code = 0;
+        ssl->pendingAlert.level = alert_none;
+    #ifdef WOLFSSL_ASYNC_IO
+        FreeAsyncCtx(ssl, 1);
+    #endif
         /* Recycling the object for a new connection must not carry the
          * previous connection's key material along with it. A freshly
          * created object has all of this zeroed. */
@@ -6124,6 +6175,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         FreeCiphers(ssl);
         InitCiphers(ssl);
+        ssl->encrypt.state = CIPHER_STATE_BEGIN;
+        ssl->decrypt.state = CIPHER_STATE_BEGIN;
         InitCipherSpecs(&ssl->specs);
 
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
