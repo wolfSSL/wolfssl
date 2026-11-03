@@ -8088,7 +8088,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
 /* Apply the protocol version mask and downgrade rules. Returns VERSION_ERROR
  * when the requested options are inconsistent, 0 otherwise. */
-static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     #ifdef WOLFSSL_TLS13
     if (ssl->version.minor == TLSv1_3_MINOR &&
