@@ -820,6 +820,11 @@ extern "C" {
 
 #endif /* WOLFSSL_SETTINGS_FILE */
 
+/* <zephyr/kernel.h> pulls in SoC headers that define RNG, such as STM32's */
+#ifndef NO_OLD_RNGNAME
+#define NO_OLD_RNGNAME
+#endif
+
 /* The port is silent when its define is missing: els_pkc_port.c compiles to
  * nothing and no crypto callback is ever registered. */
 #if defined(CONFIG_WOLFSSL_ELS_PKC) && \
