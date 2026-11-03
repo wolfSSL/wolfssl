@@ -2287,8 +2287,8 @@ end:
      */
     word32 TimeNowInMilliseconds(void)
     {
-        return (unsigned int)(((float)xTaskGetTickCount()) /
-                              (configTICK_RATE_HZ / 1000));
+        return (word32)((uint64_t)xTaskGetTickCount() * 1000 /
+            configTICK_RATE_HZ);
     }
 #elif defined(FREESCALE_KSDK_BM)
     #include "lwip/sys.h" /* lwIP */
@@ -2374,7 +2374,7 @@ end:
 #elif defined(FREERTOS)
     word32 TimeNowInMilliseconds(void)
     {
-        return (word32)((uint64_t)(xTaskGetTickCount() * 1000) /
+        return (word32)((uint64_t)xTaskGetTickCount() * 1000 /
             configTICK_RATE_HZ);
     }
 #else
@@ -2581,7 +2581,8 @@ end:
      */
     sword64 TimeNowInMilliseconds(void)
     {
-        return (sword64)xTaskGetTickCount() / (configTICK_RATE_HZ / 1000);
+        return (sword64)((uint64_t)xTaskGetTickCount() * 1000 /
+            configTICK_RATE_HZ);
     }
 #elif defined(FREESCALE_KSDK_BM)
     #include "lwip/sys.h" /* lwIP */
@@ -2683,7 +2684,7 @@ end:
 #elif defined(FREERTOS)
     sword64 TimeNowInMilliseconds(void)
     {
-        return (sword64)((uint64_t)(xTaskGetTickCount() * 1000) /
+        return (sword64)((uint64_t)xTaskGetTickCount() * 1000 /
             configTICK_RATE_HZ);
     }
 #else
