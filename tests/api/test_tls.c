@@ -5046,6 +5046,549 @@ int test_tls12_reuse_clears_use_ticket(void)
     return EXPECT_RESULT();
 }
 
+#ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
+#define TEST_CLEAR_PSK     0x01 /* ECDHE-PSK suite */
+#define TEST_CLEAR_TICKET  0x02 /* client asks for a session ticket */
+#define TEST_CLEAR_ALPN    0x04 /* client offers ALPN */
+#define TEST_CLEAR_SCR     0x08 /* secure renegotiation on both sides */
+#define TEST_CLEAR_STOP_C  0x10 /* client stops with its ClientHello unsent */
+#define TEST_CLEAR_STOP_S  0x20 /* server stops, its whole flight unsent */
+#define TEST_CLEAR_BAD_CA  0x40 /* client does not trust the server */
+#define TEST_CLEAR_CA_NAMES 0x80 /* both sides list CA names */
+#define TEST_CLEAR_DHE     0x100 /* DHE-RSA suite */
+
+/* Compare an object reused with wolfSSL_clear() against one that never
+ * connected. Words that differ between two never-connected objects (pointers
+ * to their own allocations, generated values) say nothing and are skipped. */
+static int test_clear_cmp(const WOLFSSL* reused, const WOLFSSL* fresh,
+    const WOLFSSL* fresh2)
+{
+    EXPECT_DECLS;
+    WOLFSSL* r = NULL;
+    const byte* a;
+    const byte* b;
+    const byte* c;
+    word32 k;
+    int diffs = 0;
+
+    ExpectNotNull(r = (WOLFSSL*)XMALLOC(sizeof(WOLFSSL), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if ((r == NULL) || (reused == NULL) || (fresh == NULL) ||
+            (fresh2 == NULL)) {
+        XFREE(r, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return EXPECT_RESULT();
+    }
+    XMEMCPY(r, reused, sizeof(WOLFSSL));
+
+    /* Negotiated results, kept on purpose for the accessors. */
+    r->options.cipherSuite0 = fresh->options.cipherSuite0;
+    r->options.cipherSuite  = fresh->options.cipherSuite;
+    r->options.hashAlgo     = fresh->options.hashAlgo;
+    r->options.sigAlgo      = fresh->options.sigAlgo;
+    r->options.peerHashAlgo = fresh->options.peerHashAlgo;
+    r->options.peerSigAlgo  = fresh->options.peerSigAlgo;
+#ifndef NO_DH
+    r->options.dhKeySz      = fresh->options.dhKeySz;
+#endif
+    /* wolfSSL_get_shutdown() reports a completed bidirectional shutdown
+     * from this after a clear, by documented intent. */
+    r->options.shutdownDone = fresh->options.shutdownDone;
+    /* Reset only under WOLFSSL_ASYNC_CRYPT. */
+    r->options.asyncState   = fresh->options.asyncState;
+#if !defined(NO_DH) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* The parameters were checked, and are the same ones. */
+    r->options.dhKeyTested  = fresh->options.dhKeyTested;
+#endif
+#ifndef NO_DH
+    /* Not reset by wolfSSL_clear() yet. A server's own parameters may already
+     * be gone, freed at the end of a handshake or replaced by a client's FFDHE
+     * group, so what is left depends on the last connection. */
+    r->buffers.serverDH_P   = fresh->buffers.serverDH_P;
+    r->buffers.serverDH_G   = fresh->buffers.serverDH_G;
+    r->buffers.weOwnDH      = fresh->buffers.weOwnDH;
+    r->options.haveDH       = fresh->options.haveDH;
+#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    r->options.dhDoKeyTest  = fresh->options.dhDoKeyTest;
+#endif
+#endif
+    /* A client keeps its session for resumption. */
+#ifndef NO_CLIENT_CACHE
+    r->clientSession = fresh->clientSession;
+#endif
+    /* Configuration, but a client also takes the ticket lifetime into it. */
+    r->timeout = fresh->timeout;
+    /* Rebuilt in an allocation of its own. */
+    r->suites = fresh->suites;
+    /* Kept for wolfSSL_get_client_ciphers() until the next ClientHello. */
+    r->clSuites = fresh->clSuites;
+#ifdef OPENSSL_EXTRA
+    r->clSuitesStack = fresh->clSuitesStack;
+#endif
+    /* Released with the handshake and made again by the next one. */
+    r->options.weOwnRng = fresh->options.weOwnRng;
+    /* Cursors and records of the last message, rewritten before use. */
+    XMEMCPY(&r->buffers.inputBuffer, &fresh->buffers.inputBuffer,
+        sizeof(r->buffers.inputBuffer));
+    r->buffers.sig.length = fresh->buffers.sig.length;
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
+    r->buffers.peerRsaKey.length = fresh->buffers.peerRsaKey.length;
+#endif
+    r->hsType = fresh->hsType;
+    r->curSize = fresh->curSize;
+    r->curStartIdx = fresh->curStartIdx;
+    XMEMCPY(&r->curRL, &fresh->curRL, sizeof(r->curRL));
+    XMEMCPY(&r->chVersion, &fresh->chVersion, sizeof(r->chVersion));
+#ifdef OPENSSL_EXTRA
+    r->cbmode = fresh->cbmode;
+#endif
+
+    a = (const byte*)r;
+    b = (const byte*)fresh;
+    c = (const byte*)fresh2;
+    for (k = 0; k + sizeof(void*) <= sizeof(WOLFSSL); k += sizeof(void*)) {
+        if ((XMEMCMP(b + k, c + k, sizeof(void*)) == 0) &&
+                (XMEMCMP(a + k, b + k, sizeof(void*)) != 0)) {
+            word32 i;
+            /* Offsets rather than names, as for the Options bitfields. */
+            fprintf(stderr, "%s WOLFSSL differs at offset %u: reused",
+                (reused->options.side == WOLFSSL_CLIENT_END) ? "client" :
+                "server", k);
+            for (i = 0; i < (word32)sizeof(void*); i++)
+                fprintf(stderr, " %02x", a[k + i]);
+            fprintf(stderr, " fresh");
+            for (i = 0; i < (word32)sizeof(void*); i++)
+                fprintf(stderr, " %02x", b[k + i]);
+            fprintf(stderr, "\n");
+            diffs++;
+        }
+    }
+    ExpectIntEQ(diffs, 0);
+
+    XFREE(r, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+
+static void test_clear_cfg(WOLFSSL* ssl_c, WOLFSSL* ssl_s, int flags)
+{
+#if !defined(NO_PSK) && defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
+    /* The CTX suite list predates the callback; this rebuilds the object's. */
+    if ((flags & TEST_CLEAR_PSK) && (ssl_s != NULL))
+        wolfSSL_set_psk_server_callback(ssl_s, test_clear_psk_server_cb);
+#endif
+#ifdef HAVE_ALPN
+    /* On the objects only, as wolfSSL_clear() drops extensions. */
+    if (flags & TEST_CLEAR_ALPN) {
+        (void)wolfSSL_UseALPN(ssl_c, (char*)"first-proto", 11,
+            WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+        (void)wolfSSL_UseALPN(ssl_s, (char*)"other-proto", 11,
+            WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    }
+#endif
+    (void)ssl_c;
+    (void)ssl_s;
+    (void)flags;
+}
+
+static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *fresh_c = NULL, *fresh_s = NULL, *fresh_c2 = NULL;
+    WOLFSSL *fresh_s2 = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "test";
+    char reply[sizeof(msg)];
+#ifdef OPENSSL_ALL
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* clCiphers = NULL;
+    int clCiphersNum = 0;
+    const char* cipherName = NULL;
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+                    cm, sm), 0);
+    /* On the CTXs, so the never-connected objects are configured alike. */
+#if !defined(NO_PSK) && defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
+    if (flags & TEST_CLEAR_PSK) {
+        wolfSSL_CTX_set_psk_client_callback(ctx_c, test_clear_psk_client_cb);
+        wolfSSL_CTX_set_psk_server_callback(ctx_s, test_clear_psk_server_cb);
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+                        "ECDHE-PSK-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    }
+#endif
+#if !defined(NO_DH) && defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256)
+    if (flags & TEST_CLEAR_DHE) {
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+                        "DHE-RSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    }
+#endif
+    /* So the whole flight, key exchange included, is made before the stop. */
+    if (flags & TEST_CLEAR_STOP_S)
+        ExpectIntEQ(wolfSSL_CTX_set_group_messages(ctx_s), WOLFSSL_SUCCESS);
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    if (flags & TEST_CLEAR_TICKET)
+        ExpectIntEQ(wolfSSL_CTX_UseSessionTicket(ctx_c), WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (flags & TEST_CLEAR_SCR) {
+        ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s),
+            WOLFSSL_SUCCESS);
+    }
+#endif
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    !defined(NO_BIO) && !defined(NO_FILESYSTEM)
+    if (flags & TEST_CLEAR_CA_NAMES) {
+        /* The server's go in its CertificateRequest, so it asks for one. */
+        wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER, NULL);
+        wolfSSL_CTX_set_client_CA_list(ctx_s,
+            wolfSSL_load_client_CA_file(caCertFile));
+        wolfSSL_CTX_set0_CA_list(ctx_c,
+            wolfSSL_load_client_CA_file(caCertFile));
+    }
+#endif
+#ifndef NO_RSA
+    if (flags & TEST_CLEAR_BAD_CA) {
+        /* Self-signed, so the client finds no signer. */
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, cliCertFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, cliKeyFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_PEER, NULL);
+    }
+#endif
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    cm, sm), 0);
+    test_clear_cfg(ssl_c, ssl_s, flags);
+
+    if (flags & TEST_CLEAR_STOP_C) {
+        test_memio_simulate_want_write(&test_ctx, 1, 1);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_WRITE);
+        test_memio_simulate_want_write(&test_ctx, 1, 0);
+    }
+    else if (flags & TEST_CLEAR_STOP_S) {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        test_memio_simulate_want_write(&test_ctx, 0, 1);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_WRITE);
+        test_memio_simulate_want_write(&test_ctx, 0, 0);
+        /* Left for wolfSSL_clear() alone to release. */
+    #ifndef NO_DH
+        if ((flags & TEST_CLEAR_DHE) && (ssl_s != NULL))
+            ExpectNotNull(ssl_s->buffers.serverDH_Priv.buffer);
+    #endif
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+        defined(HAVE_CURVE448)
+        if (!(flags & TEST_CLEAR_DHE) && (ssl_s != NULL))
+            ExpectNotNull(ssl_s->eccTempKey);
+    #endif
+    }
+    else if (flags & TEST_CLEAR_BAD_CA) {
+        int err;
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+        /* Some builds report the certificate as self-signed instead. */
+        err = wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR);
+        ExpectTrue((err == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) ||
+                   (err == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)));
+    }
+    else {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* Fill what the accessors cache. */
+    #if defined(OPENSSL_EXTRA) && defined(SESSION_CERTS)
+        if (!(flags & TEST_CLEAR_PSK))
+            ExpectNotNull(wolfSSL_get_peer_cert_chain(ssl_c));
+    #endif
+    #ifdef OPENSSL_ALL
+        ExpectNotNull(clCiphers = wolfSSL_get_client_ciphers(ssl_s));
+        clCiphersNum = wolfSSL_sk_SSL_CIPHER_num(clCiphers);
+        ExpectIntGT(clCiphersNum, 0);
+        ExpectNotNull(cipherName = wolfSSL_get_cipher_name(ssl_c));
+    #endif
+        /* Data both ways and a bidirectional close, so record-layer and
+         * shutdown state is covered too, not just the handshake. */
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)), 0);
+        ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+    }
+
+    /* Created after the connection so the CTXs are fully configured. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &fresh_c, &fresh_s,
+                    cm, sm), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &fresh_c2,
+                    &fresh_s2, cm, sm), 0);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        /* Both before asserting, so a failure reports both sides. */
+        int cmpC = test_clear_cmp(ssl_c, fresh_c, fresh_c2);
+        int cmpS = test_clear_cmp(ssl_s, fresh_s, fresh_s2);
+        ExpectIntEQ(cmpC, TEST_SUCCESS);
+        ExpectIntEQ(cmpS, TEST_SUCCESS);
+    }
+#ifdef OPENSSL_ALL
+    /* Still valid after the shutdown and the clear, as in OpenSSL. */
+    if (clCiphers != NULL) {
+        ExpectPtrEq(wolfSSL_get_client_ciphers(ssl_s), clCiphers);
+        ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(clCiphers), clCiphersNum);
+    }
+    /* The next client offers one suite. */
+    if (cipherName != NULL)
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, cipherName),
+            WOLFSSL_SUCCESS);
+#endif
+
+    if (!(flags & TEST_CLEAR_BAD_CA)) {
+        /* Nothing of the last connection reaches the next one's peer. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_clear_cfg(NULL, ssl_s, flags & TEST_CLEAR_PSK);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+#ifdef OPENSSL_ALL
+    if (cipherName != NULL) {
+        /* What a never-connected server reports for the same client. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_clear_cfg(NULL, fresh_s, flags & TEST_CLEAR_PSK);
+        ExpectIntEQ(wolfSSL_set_cipher_list(fresh_c, cipherName),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(fresh_c, fresh_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(
+            wolfSSL_get_client_ciphers(ssl_s)), wolfSSL_sk_SSL_CIPHER_num(
+            wolfSSL_get_client_ciphers(fresh_s)));
+    }
+#endif
+
+    wolfSSL_free(fresh_c);
+    wolfSSL_free(fresh_s);
+    wolfSSL_free(fresh_c2);
+    wolfSSL_free(fresh_s2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Catches per-connection state that wolfSSL_clear() forgets, rather than one
+ * field at a time, after connections that end in different ways. Every
+ * WOLFSSL is born inside XMEMSET(ssl, 0, sizeof(WOLFSSL)), so padding and
+ * bitfield slack are zero in both objects and only written fields can
+ * differ. */
+int test_tls_clear_resets_state(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method,
+        TEST_CLEAR_TICKET | TEST_CLEAR_ALPN | TEST_CLEAR_CA_NAMES),
+        TEST_SUCCESS);
+#if !defined(NO_PSK) && defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
+    /* A PSK suite leaves different state behind. */
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, TEST_CLEAR_PSK), TEST_SUCCESS);
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    /* Keeps handshake resources past the handshake. */
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, TEST_CLEAR_SCR), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, TEST_CLEAR_STOP_S), TEST_SUCCESS);
+#if !defined(NO_DH) && defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256)
+    /* Stopped with the server's DH key pair made. */
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, TEST_CLEAR_DHE | TEST_CLEAR_STOP_S),
+        TEST_SUCCESS);
+#ifdef HAVE_SECURE_RENEGOTIATION
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, TEST_CLEAR_DHE | TEST_CLEAR_SCR),
+        TEST_SUCCESS);
+#endif
+#endif
+#ifdef WOLFSSL_TLS13
+    /* Each side with a peer that only does TLS 1.2. */
+    ExpectIntEQ(test_clear_reuse(wolfSSLv23_client_method,
+        wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_2_client_method,
+        wolfSSLv23_server_method, 0), TEST_SUCCESS);
+#endif
+#endif /* !WOLFSSL_NO_TLS12 */
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_clear_reuse(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, TEST_CLEAR_ALPN | TEST_CLEAR_CA_NAMES),
+        TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_clear_reuse(wolfSSLv23_client_method,
+        wolfSSLv23_server_method, TEST_CLEAR_STOP_C), TEST_SUCCESS);
+#ifndef NO_RSA
+    ExpectIntEQ(test_clear_reuse(wolfSSLv23_client_method,
+        wolfSSLv23_server_method, TEST_CLEAR_BAD_CA), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12)
+/* The server's ephemeral public key, once its flight is out. */
+static int test_scr_server_pub(WOLFSSL* ssl, byte* pub, word32* pubSz)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(ssl);
+    if (ssl == NULL)
+        return EXPECT_RESULT();
+#ifdef HAVE_ECC
+    if (ssl->specs.kea == ecc_diffie_hellman_kea) {
+        ExpectIntEQ(wc_ecc_export_x963(ssl->eccTempKey, pub, pubSz), 0);
+    }
+    else
+#endif
+#ifndef NO_DH
+    if (ssl->specs.kea == diffie_hellman_kea) {
+        ExpectNotNull(ssl->buffers.serverDH_Pub.buffer);
+        ExpectIntLE(ssl->buffers.serverDH_Pub.length, *pubSz);
+        if (EXPECT_SUCCESS()) {
+            *pubSz = ssl->buffers.serverDH_Pub.length;
+            XMEMCPY(pub, ssl->buffers.serverDH_Pub.buffer, *pubSz);
+        }
+    }
+    else
+#endif
+    {
+        ExpectTrue(0);
+    }
+    return EXPECT_RESULT();
+}
+
+/* Nothing of a handshake's key exchange is left once it is over. */
+static int test_scr_no_ephemeral(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(ssl);
+    if (ssl != NULL) {
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+        defined(HAVE_CURVE448)
+        ExpectNull(ssl->eccTempKey);
+    #endif
+    #ifndef NO_DH
+        ExpectNull(ssl->buffers.serverDH_Priv.buffer);
+        ExpectNull(ssl->buffers.serverDH_Key);
+    #endif
+    }
+    return EXPECT_RESULT();
+}
+
+/* first lists two suites, second one of them. */
+static int test_tls12_scr_fresh_state_ex(const char* first, const char* second)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    byte pub1[1024];
+    byte pub2[1024];
+    word32 pub1Sz = (word32)sizeof(pub1);
+    word32 pub2Sz = (word32)sizeof(pub2);
+    byte buf[1];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = first;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#if !defined(NO_DH) && !defined(NO_FILESYSTEM)
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl_s, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_scr_server_pub(ssl_s, pub1, &pub1Sz), TEST_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_scr_no_ephemeral(ssl_s), TEST_SUCCESS);
+#ifdef OPENSSL_ALL
+    ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(wolfSSL_get_client_ciphers(ssl_s)),
+        2);
+#endif
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, second), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_scr_server_pub(ssl_s, pub2, &pub2Sz), TEST_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_scr_no_ephemeral(ssl_s), TEST_SUCCESS);
+#ifdef OPENSSL_ALL
+    /* The renegotiating hello's list, not the first one's. */
+    ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(wolfSSL_get_client_ciphers(ssl_s)),
+        1);
+#endif
+    /* A DH public value can be a byte shorter. */
+    ExpectTrue((pub2Sz != pub1Sz) || (XMEMCMP(pub2, pub1, pub1Sz) != 0));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A renegotiation is a new handshake: the server makes new ephemeral keys
+ * for it, keeps none between handshakes, and reports the new hello. */
+int test_tls12_scr_fresh_state(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_ECC) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+    ExpectIntEQ(test_tls12_scr_fresh_state_ex(
+        "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384"), TEST_SUCCESS);
+#endif
+#if !defined(NO_DH) && !defined(NO_FILESYSTEM) && \
+    defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384)
+    ExpectIntEQ(test_tls12_scr_fresh_state_ex(
+        "DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384",
+        "DHE-RSA-AES256-GCM-SHA384"), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A ticket the server can't honor must fall back to a full handshake (RFC 5077
  * 3.4), even under a different suite than the cached ticket session - the
  * F-5811 suite check must not abort it. The second handshake uses a fresh

@@ -8441,6 +8441,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ssl->clSuites->suiteSz > WOLFSSL_MAX_SUITE_SZ)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
     XMEMCPY(ssl->clSuites->suites, input + args->idx, ssl->clSuites->suiteSz);
+#ifdef OPENSSL_EXTRA
+    /* Built from the previous hello's list. */
+    wolfSSL_sk_SSL_CIPHER_free(ssl->clSuitesStack);
+    ssl->clSuitesStack = NULL;
+#endif
     args->idx += ssl->clSuites->suiteSz;
     ssl->clSuites->hashSigAlgoSz = 0;
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)

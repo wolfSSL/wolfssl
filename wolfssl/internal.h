@@ -7623,6 +7623,9 @@ do {                                                                           \
     } while (0)
 
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_LOCAL int  SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
+#endif
 WOLFSSL_LOCAL int  InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL void FreeSSL(WOLFSSL* ssl, void* heap);
@@ -7843,6 +7846,7 @@ WOLFSSL_LOCAL int IsEncryptionOn(const WOLFSSL* ssl, int isSend);
 WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
+WOLFSSL_LOCAL void FreeEphemeralKeys(WOLFSSL* ssl);
 WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
 WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte* GetOutputBuffer(WOLFSSL* ssl);
