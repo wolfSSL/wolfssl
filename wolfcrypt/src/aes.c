@@ -10185,12 +10185,12 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len_NEON(x, (const byte*)((gcm)->H), a, len)
 #define GMULT(x, m)                                                      \
-    GCM_gmult_NEON(x, (const byte**)m)
+    GCM_gmult_NEON(x, (const byte**)(m))
 #else
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
 #define GMULT(x, m)                                                      \
-    GCM_gmult(x, (const byte**)m)
+    GCM_gmult(x, (const byte**)(m))
 #endif
 
 /* PPC64 assembly */
@@ -10198,7 +10198,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #define GCM_GMULT_LEN(gcm, x, a, len)                                    \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
 #define GMULT(x, m)                                                      \
-    GCM_gmult(x, (const byte**)m)
+    GCM_gmult(x, (const byte**)(m))
 
 #else
 /* remainder = x^7 + x^2 + x^1 + 1 => 0xe1

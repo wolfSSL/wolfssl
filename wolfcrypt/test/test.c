@@ -39161,7 +39161,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
 #ifndef WOLFSSL_NO_ASN_STRICT
     if (ret != WC_NO_ERR_TRACE(ASN_CRIT_EXT_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    ret = 0;
 #else
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
