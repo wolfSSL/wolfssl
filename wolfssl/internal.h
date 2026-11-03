@@ -3034,6 +3034,9 @@ typedef struct ProcPeerCertArgs {
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
     word16 csrAcked:1; /* survives the staple checks clearing status_request */
 #endif
+#ifdef KEEP_PEER_CERT
+    word16 peerCertSet:1; /* leaf already copied into ssl->peerCert */
+#endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int cert_err, ProcPeerCertArgs* args);

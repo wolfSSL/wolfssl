@@ -17112,10 +17112,15 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     #ifdef KEEP_PEER_CERT
         if (args->certIdx == 0) {
-            FreeX509(&ssl->peerCert);
-            InitX509(&ssl->peerCert, 0, ssl->heap);
-            if (CopyDecodedToX509(&ssl->peerCert, args->dCert) != 0)
-                WOLFSSL_MSG("Unable to copy to ssl->peerCert");
+            /* Copy the leaf once, here or in ProcessPeerCerts(). */
+            if (!args->peerCertSet) {
+                FreeX509(&ssl->peerCert);
+                InitX509(&ssl->peerCert, 0, ssl->heap);
+                if (CopyDecodedToX509(&ssl->peerCert, args->dCert) == 0)
+                    args->peerCertSet = 1;
+                else
+                    WOLFSSL_MSG("Unable to copy to ssl->peerCert");
+            }
             store->current_cert = &ssl->peerCert; /* use existing X509 */
         }
         else
@@ -20535,14 +20540,19 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif /* HAVE_OCSP || HAVE_CRL */
 
             #ifdef KEEP_PEER_CERT
-                if (args->fatal == 0) {
+                /* The verify callback may have copied the leaf already, on an
+                 * error. Otherwise it is called later and uses this copy. */
+                if (args->fatal == 0 && !args->peerCertSet) {
                     int copyRet = 0;
 
                     /* free old peer cert */
                     FreeX509(&ssl->peerCert);
                     InitX509(&ssl->peerCert, 0, ssl->heap);
                     copyRet = CopyDecodedToX509(&ssl->peerCert, args->dCert);
-                    if (copyRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+                    if (copyRet == 0) {
+                        args->peerCertSet = 1;
+                    }
+                    else if (copyRet == WC_NO_ERR_TRACE(MEMORY_E)) {
                         args->fatal = 1;
                         ret = copyRet;
                     }
