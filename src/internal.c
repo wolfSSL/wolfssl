@@ -10139,50 +10139,52 @@ static void DetachPendingAsyncDev(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
 /* Release the public key taken from the peer certificate. */
 void FreePeerCertKeys(WOLFSSL* ssl)
 {
-    (void)ssl;
+    if (ssl == NULL)
+        return;
+
 #ifndef NO_RSA
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->peerRsaKey != NULL)
         DetachPendingAsyncDev(ssl, &ssl->peerRsaKey->asyncDev);
 #endif
-    FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
     ssl->peerRsaKeyPresent = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
 #endif
 #ifdef HAVE_ECC
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->peerEccDsaKey != NULL)
         DetachPendingAsyncDev(ssl, &ssl->peerEccDsaKey->asyncDev);
 #endif
-    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
     ssl->peerEccDsaKeyPresent = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
 #endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->peerEd25519Key != NULL)
         DetachPendingAsyncDev(ssl, &ssl->peerEd25519Key->asyncDev);
 #endif
-    FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
     ssl->peerEd25519KeyPresent = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
 #endif /* HAVE_ED25519 */
 #ifdef HAVE_ED448
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->peerEd448Key != NULL)
         DetachPendingAsyncDev(ssl, &ssl->peerEd448Key->asyncDev);
 #endif
-    FreeKey(ssl, DYNAMIC_TYPE_ED448, (void**)&ssl->peerEd448Key);
     ssl->peerEd448KeyPresent = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_ED448, (void**)&ssl->peerEd448Key);
 #endif /* HAVE_ED448 */
 #if defined(HAVE_FALCON)
-    FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
     ssl->peerFalconKeyPresent = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
 #endif /* HAVE_FALCON */
 #if defined(WOLFSSL_HAVE_MLDSA)
-    FreeKey(ssl, DYNAMIC_TYPE_MLDSA, (void**)&ssl->peerMlDsaKey);
     ssl->peerMlDsaKeyPresent = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_MLDSA, (void**)&ssl->peerMlDsaKey);
 #endif /* WOLFSSL_HAVE_MLDSA */
 #if defined(WOLFSSL_HAVE_SLHDSA)
-    FreeKey(ssl, DYNAMIC_TYPE_SLHDSA, (void**)&ssl->peerSlhDsaKey);
     ssl->peerSlhDsaKeyPresent = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_SLHDSA, (void**)&ssl->peerSlhDsaKey);
 #endif /* WOLFSSL_HAVE_SLHDSA */
 }
 
