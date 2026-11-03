@@ -227,9 +227,11 @@ with the override (Option 1) or override at the consumer level (Option 2).
 ## Reproducible SBOMs
 
 The generator honors `SOURCE_DATE_EPOCH` for the SBOM creation timestamp and
-uses deterministic UUIDs derived from the package name and version, so two
-runs of `make sbom` against the same source tree, library binary, and build
-options produce byte-identical `.spdx.json` and `.cdx.json` files.  This
+uses deterministic UUIDs derived from the package name and version, the
+build configuration (feature macros, dependencies, licence, source list) and
+the library hash. Two runs of `make sbom` against the same source tree,
+library binary, and build options produce byte-identical `.spdx.json` and
+`.cdx.json` files. Two configurations of one release get different UUIDs.  This
 matters for downstream attestation pipelines that hash SBOMs as part of a
 provenance chain.
 
