@@ -59,6 +59,16 @@ CRL Options:
     #endif
 #endif /* HAVE_CRL_MONITOR */
 
+/* A CRL missing from the list is loaded from the X509_STORE hash directory
+ * by the certificate's issuer X509_NAME. */
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
+    !defined(NO_STDIO_FILESYSTEM) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    #define CRL_LOAD_BY_ISSUER
+#endif
+
 
 /* Initialize CRL members */
 int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
@@ -661,11 +671,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     }
 #endif
 
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
-    !defined(NO_STDIO_FILESYSTEM) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+#ifdef CRL_LOAD_BY_ISSUER
     /* if not find entry in the CRL list, it looks at the folder that sets  */
     /* by LOOKUP_ctrl because user would want to use hash_dir.              */
     /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */
@@ -734,11 +740,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 /* Get the issuer X509_NAME of cert to pass to CheckCertCRLCm(). */
 static void* CertCrlIssuerName(DecodedCert* cert)
 {
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
-    !defined(NO_STDIO_FILESYSTEM) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+#ifdef CRL_LOAD_BY_ISSUER
     /* Used to load a CRL from the hash directory. The cert may have been
      * parsed without its X509_NAMEs. */
     (void)GetCertX509Name(cert, ASN_ISSUER, NULL);
