@@ -40,13 +40,8 @@ jobs:
         # says nothing about them. The C implementations of the same
         # algorithms are covered by the other legs.
         #
-        # There is no aarch64 counterpart to the 'default, asm' leg either.
-        # Leaving assembly on for an aarch64 host makes configure define
-        # WOLFSSL_AARCH64_BUILD, so cpuid.h defines HAVE_CPUID_AARCH64 and
-        # cpuid.c includes <asm/hwcap.h>, a Linux kernel header that Fil-C's
-        # sysroot does not ship. That is a property of the sysroot, not of
-        # wolfSSL, and there is no way to keep the assembly while dropping the
-        # CPU id, so the aarch64 legs stay on --disable-asm.
+        # No aarch64 'default, asm' leg, since Fil-C panics on the inline
+        # assembly of sp_div_word in sp_int.c.
         include:
           - name: 'default'
             config: ''
