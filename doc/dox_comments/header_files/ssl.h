@@ -6611,6 +6611,15 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
 
     \brief Sets a callback to verify the OCSP status response.
 
+    The client calls it for each stapled OCSP response it processes, as does a
+    TLS 1.3 server checking the client's certificate, including a response
+    that does not decode. err holds the library's result (0 or a negative
+    error code). Processing of a certificate chain stops at the first
+    response that fails, so later responses are not passed to it. The return
+    value replaces err: 0 accepts the response, a negative value fails the
+    handshake, and a positive value is treated as
+    BAD_CERTIFICATE_STATUS_ERROR.
+
     It is recommended to enable SESSION_CERTS in order to have access to the
     peer's certificate chain during OCSP verification.
 

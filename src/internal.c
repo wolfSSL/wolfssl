@@ -16701,8 +16701,10 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      ssl->heap);
 
     /* Extract producedDate */
-    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 1, 1) != 0)
+    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 1, 1) != 0) {
+        ssl->ocspProducedDateFormat = 0;
         ret = BAD_CERTIFICATE_STATUS_ERROR;
+    }
     if (ret == 0) {
         XMEMCPY(ssl->ocspProducedDate, response->producedDate,
                 sizeof(ssl->ocspProducedDate));
@@ -16723,9 +16725,9 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ret = OCSP_CERT_REVOKED;
         else if (response->single->status->status != CERT_GOOD)
             ret = BAD_CERTIFICATE_STATUS_ERROR;
-
-        ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx, status_length, idx, ret);
     }
+
+    ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx, status_length, idx, ret);
 
     *inOutIdx += status_length;
 
