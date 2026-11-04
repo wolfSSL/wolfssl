@@ -18098,38 +18098,40 @@ int test_tls13_exporter_suite_decision_coverage(void)
      * handshake; the mismatched minor takes the second operand's true side. */
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    wolfSSL_KeepArrays(ssl_c);
-    wolfSSL_KeepArrays(ssl_s);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL && ssl_s != NULL) {
+        wolfSSL_KeepArrays(ssl_c);
+        wolfSSL_KeepArrays(ssl_s);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 #if defined(HAVE_KEYING_MATERIAL)
-    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
-        "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
-    /* Stay on the TLS 1.3 exporter path while failing its exact-version
-     * check. A TLS 1.0 minor selects the TLS 1.2 exporter instead. */
-    ssl_c->version.minor = TLSv1_3_MINOR + 1;
-    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
-        "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+            "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
+        /* Stay on the TLS 1.3 exporter path while failing its exact-version
+         * check. A TLS 1.0 minor selects the TLS 1.2 exporter instead. */
+        ssl_c->version.minor = TLSv1_3_MINOR + 1;
+        ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+            "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
 #endif /* HAVE_KEYING_MATERIAL */
 
 #if defined(WOLFSSL_TEST_STATIC_BUILD)
-    byte probe[2];
-    const Suites* suites = WOLFSSL_SUITES(ssl_c);
+        byte probe[2];
+        const Suites* suites = WOLFSSL_SUITES(ssl_c);
 
-    /* FindSuiteSSL: (suites[i] == suite[0]) && (suites[i+1] == suite[1]).
-     * The object's own first suite is the both-true row; its first byte with
-     * 0xFF as the second is the first-true/second-false row (no cipher
-     * suite's second byte is 0xFF). */
-    ExpectNotNull(suites);
-    if (suites != NULL) {
-        ExpectTrue(suites->suiteSz >= 2);
-        if (suites->suiteSz >= 2) {
-            ExpectIntEQ(FindSuiteSSL(ssl_c, (byte*)suites->suites), 1);
-            probe[0] = suites->suites[0];
-            probe[1] = 0xFF;
-            ExpectIntEQ(FindSuiteSSL(ssl_c, probe), 0);
+        /* FindSuiteSSL: (suites[i] == suite[0]) && (suites[i+1] == suite[1]).
+         * The object's own first suite is the both-true row; its first byte with
+         * 0xFF as the second is the first-true/second-false row (no cipher
+         * suite's second byte is 0xFF). */
+        ExpectNotNull(suites);
+        if (suites != NULL) {
+            ExpectTrue(suites->suiteSz >= 2);
+            if (suites->suiteSz >= 2) {
+                ExpectIntEQ(FindSuiteSSL(ssl_c, (byte*)suites->suites), 1);
+                probe[0] = suites->suites[0];
+                probe[1] = 0xFF;
+                ExpectIntEQ(FindSuiteSSL(ssl_c, probe), 0);
+            }
         }
-    }
 #endif /* WOLFSSL_TEST_STATIC_BUILD */
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);

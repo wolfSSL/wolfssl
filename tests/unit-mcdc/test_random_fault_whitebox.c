@@ -1267,8 +1267,12 @@ static void wb_drbg_reseedctr_type_rows(void)
     (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
 
     /* SHA-512, drbg512 == NULL: 1360 c1-F (residual row, see above). */
-    rng.drbg512 = NULL;
-    (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+    {
+        void* savedDrbg = rng.drbg512;
+        rng.drbg512 = NULL;
+        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        rng.drbg512 = savedDrbg;
+    }
     (void)wc_FreeRng(&rng);
 
     /* SHA-256, drbg != NULL: 1354 c0-T + c1-T. */
@@ -1277,10 +1281,15 @@ static void wb_drbg_reseedctr_type_rows(void)
     if (wc_InitRng(&rng) == 0) {
         (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
         /* SHA-256, drbg == NULL: 1354 c1-F, 1360 c0-F (residual rows). */
-        rng.drbg = NULL;
-        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        {
+            void* savedDrbg = rng.drbg;
+            rng.drbg = NULL;
+            (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+            rng.drbg = savedDrbg;
+        }
         (void)wc_FreeRng(&rng);
     }
+    (void)wc_Sha512Drbg_Enable();
 
     WB_NOTE("GetReseedCtr DRBG-type rows driven");
 }

@@ -391,18 +391,33 @@ static void wb_rtx_msg_recvd(WOLFSSL* ssl)
     ssl->dtls13Rtx.seenRecordsCount = 1;
     WB_NOTE(Dtls13RtxMsgRecvd(ssl, certificate_request, 10, &implicitAck));
     /* epoch mismatch: operand 0 false */
+    if (ssl->dtls13Rtx.seenRecords == rn) {
+        ssl->dtls13Rtx.seenRecords = NULL;
+        XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+    }
+    rn = (Dtls13RecordNumber*)XMALLOC(sizeof(*rn), ssl->heap,
+                                      DYNAMIC_TYPE_DTLS_MSG);
+    if (rn == NULL) return;
     XMEMSET(rn, 0, sizeof(*rn));
     rn->epoch.n = 1;
     ssl->dtls13Rtx.seenRecords = rn;
     ssl->dtls13Rtx.seenRecordsCount = 1;
     WB_NOTE(Dtls13RtxMsgRecvd(ssl, certificate_request, 10, &implicitAck));
     /* seq mismatch: operand 1 false */
+    if (ssl->dtls13Rtx.seenRecords == rn) {
+        ssl->dtls13Rtx.seenRecords = NULL;
+        XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+    }
+    rn = (Dtls13RecordNumber*)XMALLOC(sizeof(*rn), ssl->heap,
+                                      DYNAMIC_TYPE_DTLS_MSG);
+    if (rn == NULL) return;
     XMEMSET(rn, 0, sizeof(*rn));
     rn->seq.n = 1;
     ssl->dtls13Rtx.seenRecords = rn;
     ssl->dtls13Rtx.seenRecordsCount = 1;
     WB_NOTE(Dtls13RtxMsgRecvd(ssl, certificate_request, 10, &implicitAck));
-    XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+    if (ssl->dtls13Rtx.seenRecords == rn)
+        XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
     ssl->dtls13Rtx.seenRecords = NULL;
     ssl->dtls13Rtx.seenRecordsCount = 0;
     /* 991 operand 1 false: handshake not done */

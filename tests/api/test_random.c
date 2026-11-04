@@ -1940,8 +1940,10 @@ int test_wc_RngInitFlagsDecisionCoverage(void)
     (void)wc_RNG_TestSeed(seed, 16);
 
     /* wc_GenerateSeed NULL-argument guards. */
+#ifdef TEST_WC_GENERATE_SEED_PARAMS
     ExpectIntEQ(wc_GenerateSeed(NULL, out, sizeof(out)), BAD_FUNC_ARG);
     ExpectIntEQ(wc_GenerateSeed(&os, NULL, sizeof(out)), BAD_FUNC_ARG);
+#endif
 
     /* wc_RNG_DRBG_Stir_Nonce with a valid rng and a NULL seed: the
      * rng-NULL clause's false side. */

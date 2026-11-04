@@ -599,6 +599,7 @@ static void wb_cid_check_rows(WOLFSSL* ssl)
 {
     WbCid id;
     CIDInfo info;
+    CIDInfo* savedInfo = ssl->dtlsCidInfo;
     byte input[8];
 
     input[0] = 0x0a;
@@ -625,7 +626,7 @@ static void wb_cid_check_rows(WOLFSSL* ssl)
     id.length = 4;
     XMEMCPY(id.id, input, 4);
     WB_NOTE(DtlsCIDCheck(ssl, input, sizeof(input)));
-    ssl->dtlsCidInfo = NULL;
+    ssl->dtlsCidInfo = savedInfo;
 }
 #endif /* WOLFSSL_DTLS_CID */
 
@@ -642,7 +643,7 @@ static void wb_cookie_rows(WOLFSSL* ssl)
     byte secret2[32];
     byte hash[32];
     byte mac[32];
-    byte cookie[64];
+    byte cookie[66];
     byte cookie12[DTLS_COOKIE_SZ];
     int ret;
 
@@ -682,8 +683,8 @@ static void wb_cookie_rows(WOLFSSL* ssl)
     }
     wc_HmacFree(&hmac);
     if (ret == 0) {
-        XMEMCPY(cookie, hash, 32);
-        XMEMCPY(cookie + 32, mac, 32);
+        XMEMCPY(cookie + 2, hash, 32);
+        XMEMCPY(cookie + 34, mac, 32);
         cookie[0] = 0;
         cookie[1] = 64;
         ch.cookieExt.size = 66;

@@ -6888,19 +6888,15 @@ int test_wc_Pkcs8EncryptDecisionCoverage(void)
     /* wc_EncryptPKCS8Key_ex: a bogus PBES2 encAlgId fails GetAlgoV2, so
      * the (ret == 0) operand of the encOid check takes its false side. */
     outSz = sizeof(out);
-    ExpectIntNE(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
-        "pw", 2, 2, PBES2, 0x7FFFFFFF, salt, sizeof(salt), 1000, 0, &rng,
-        HEAP_HINT), 0);
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
+        "pw", 2, PKCS5, PBES2, 0x7FFFFFFF, salt, sizeof(salt), 1000, 0,
+        &rng, HEAP_HINT), WC_NO_ERR_TRACE(ALGO_ID_E));
 
-    /* Same call with a valid encAlgId and an undersized output buffer:
-     * the encoding fails, so the PBES2 hmacOid check's (ret == 0)
-     * operand takes its false side. (The (hmacOidBuf != NULL) operand's
-     * false side is structurally dead: a successful PBES2 call always
-     * carries an hmac OID, since PBKDF2 requires a hash. */
-    outSz = 16;
-    ExpectIntNE(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
-        "pw", 2, 2, PBES2, AES128CBCb, salt, sizeof(salt), 1000,
-        WC_HASH_TYPE_SHA256, &rng, HEAP_HINT), 0);
+    /* Invalid HMAC OID reaches the PBES2 OID check with a valid cipher. */
+    outSz = sizeof(out);
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
+        "pw", 2, PKCS5, PBES2, AES128CBCb, salt, sizeof(salt), 1000,
+        0x7FFFFFFF, &rng, HEAP_HINT), WC_NO_ERR_TRACE(ALGO_ID_E));
 
     ExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif /* HAVE_AES_CBC && !NO_AES && WOLFSSL_AES_128 && !FIPS */

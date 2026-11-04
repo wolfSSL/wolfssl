@@ -46,7 +46,7 @@ static void wb_hmac_outer_hash(void)
 static void wb_hmac_updatefinal_ct(void)
 {
     Hmac hmac;
-    byte in[16];
+    byte in[WC_SHA256_DIGEST_SIZE + 16];
     byte digest[WC_MAX_DIGEST_SIZE];
     byte header[4];
 
@@ -88,14 +88,13 @@ static void wb_alpn_find_nulls(void)
  * and the valid baseline (pushed onto a local list, freed below). */
 static void wb_set_alpn_nulls(void)
 {
-    TLSX extensions;
+    TLSX* extensions = NULL;
     const byte data[] = "http/1.1";
 
-    XMEMSET(&extensions, 0, sizeof(extensions));
     (void)TLSX_SetALPN(NULL, data, (word16)sizeof(data) - 1, NULL);
     (void)TLSX_SetALPN(&extensions, NULL, 0, NULL);
     (void)TLSX_SetALPN(&extensions, data, (word16)sizeof(data) - 1, NULL);
-    TLSX_FreeAll(&extensions, NULL);
+    TLSX_FreeAll(extensions, NULL);
 }
 
 /* TLSX_UseALPN: the extensions == NULL clause's true side. */
