@@ -2917,20 +2917,15 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 #endif
 
     /* data is const: byte-reverse a copy, never the caller's block. */
-#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
+#if (defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)) && \
+    !defined(LITTLE_ENDIAN_ORDER)
     XMEMCPY(buffer, data, WC_SHA512_BLOCK_SIZE);
-#else
-    ByteReverseWords64(buffer, (const word64*)data, WC_SHA512_BLOCK_SIZE);
-#endif
+    ByteReverseWords64(buffer, buffer, WC_SHA512_BLOCK_SIZE);
     ret = Transform_Sha512(sha, (const byte*)buffer);
-#elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
-    ByteReverseWords64(buffer, (const word64*)data, WC_SHA512_BLOCK_SIZE);
-    ret = Transform_Sha512(sha, (const byte*)buffer);
-#else
+#elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM) || \
+      defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+    /* The asm reads data as Sha512Update passes it: unreversed. */
     ret = Transform_Sha512(sha, data);
-#endif
 #else
     XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
     XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);
