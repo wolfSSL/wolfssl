@@ -8143,6 +8143,7 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
                                      int rawLen);
     WOLFSSL_LOCAL int SetX509NameRawFromDer(WOLFSSL_X509_NAME* name,
                                             const byte* der, word32 derSz);
+    WOLFSSL_LOCAL void ClearX509NameRaw(WOLFSSL_X509_NAME* name);
 #endif
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
                                 void* heap);

@@ -1396,6 +1396,66 @@ static int test_ca_names_sent_case(method_provider client_meth,
     WC_FREE_VAR_EX(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return EXPECT_RESULT();
 }
+
+/* Handshake with a server whose list of CA names is too long for the 16-bit
+ * length it is sent with: the server fails rather than sending a bad length.
+ */
+static int test_ca_names_too_long_case(method_provider client_meth,
+    method_provider server_meth)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    word32 total = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(names = wolfSSL_sk_X509_NAME_new(NULL));
+    /* Each name is a 16-bit length and a SEQUENCE of at least 2 bytes of
+     * header around the RDNs. */
+    while (EXPECT_SUCCESS() && (total <= WOLFSSL_MAX_16BIT)) {
+        name = NULL;
+        ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+            wolfSSL_X509_get_subject_name(ca)));
+        ExpectIntGT((name != NULL) ? name->rawLen : 0, 0);
+        if (EXPECT_SUCCESS()) {
+            total += OPAQUE16_LEN + 2 + (word32)name->rawLen;
+        }
+        ExpectIntGT(wolfSSL_sk_X509_NAME_push(names, name), 0);
+        if (EXPECT_FAIL()) {
+            wolfSSL_X509_NAME_free(name);
+        }
+    }
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_meth, server_meth), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    if (EXPECT_SUCCESS()) {
+        /* The context takes the list. */
+        wolfSSL_CTX_set_client_CA_list(ctx_s, names);
+        names = NULL;
+    }
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    wolfSSL_sk_X509_NAME_pop_free(names, NULL);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_X509_free(ca);
+    return EXPECT_RESULT();
+}
 #endif /* TEST_CA_NAMES_SENT */
 
 /* Test the CA names a server sends when requesting a client certificate are
@@ -1421,6 +1481,8 @@ int test_wolfSSL_CA_names_sent(void)
         wolfTLSv1_2_server_method, 0, longNameFile,
         TEST_CA_NAMES_ADD_CLIENT_CA), TEST_SUCCESS);
 #endif
+    ExpectIntEQ(test_ca_names_too_long_case(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
 #endif
 #ifdef WOLFSSL_TLS13
     for (how = 0; EXPECT_SUCCESS() && (how < TEST_CA_NAMES_WAYS); how++) {
@@ -1432,6 +1494,8 @@ int test_wolfSSL_CA_names_sent(void)
         wolfTLSv1_3_server_method, 1, longNameFile,
         TEST_CA_NAMES_ADD_CLIENT_CA), TEST_SUCCESS);
 #endif
+    ExpectIntEQ(test_ca_names_too_long_case(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
 #endif
     (void)longNameFile;
     (void)how;
@@ -1480,6 +1544,20 @@ int test_wolfSSL_X509_NAME_dup_encoding(void)
     ExpectNotNull(copy = wolfSSL_X509_NAME_dup(name));
     ExpectIntEQ(copy->rawLen, rawSz);
     ExpectBufEQ(copy->raw, raw, rawSz);
+    /* A name with an encoding loses it when an entry is added. */
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(copy, "CN",
+        WOLFSSL_MBSTRING_UTF8, (const byte*)"www.wolfssl.com", -1, -1, 0), 1);
+    ExpectIntEQ(copy->rawLen, 0);
+    ExpectNull(copy->raw);
+    wolfSSL_X509_NAME_free(copy);
+    copy = NULL;
+    /* Or deleted. */
+    ExpectNotNull(copy = wolfSSL_X509_NAME_dup(name));
+    ExpectIntEQ(copy->rawLen, rawSz);
+    /* The entry returned is still the name's. */
+    ExpectNotNull(wolfSSL_X509_NAME_delete_entry(copy, 0));
+    ExpectIntEQ(copy->rawLen, 0);
+    ExpectNull(copy->raw);
     wolfSSL_X509_NAME_free(copy);
     copy = NULL;
     wolfSSL_X509_NAME_free(name);
@@ -1592,9 +1670,21 @@ int test_wolfSSL_X509_NAME_dup_encoding(void)
         pt = file;
         ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_RSA, NULL,
             &pt, (long)fileSz));
+        /* Nor does one set from a name with an encoding: the name is
+         * encoded again when signing. */
+        ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509,
+            wolfSSL_X509_get_subject_name(ca)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_get_issuer_name(x509)->rawLen, caRawSz);
         ExpectIntGT(wolfSSL_X509_sign(x509, pkey, wolfSSL_EVP_sha256()), 0);
+        ExpectIntEQ(wolfSSL_X509_get_issuer_name(x509)->rawLen, 0);
+        ExpectNull(wolfSSL_X509_get_issuer_name(x509)->raw);
         ExpectNotNull(name = wolfSSL_X509_NAME_dup(
             wolfSSL_X509_get_subject_name(x509)));
+        ExpectIntEQ(name->rawLen, 0);
+        wolfSSL_X509_NAME_free(name);
+        name = NULL;
+        ExpectNotNull(name = wolfSSL_X509_NAME_dup(
+            wolfSSL_X509_get_issuer_name(x509)));
         ExpectIntEQ(name->rawLen, 0);
         wolfSSL_X509_NAME_free(name);
         name = NULL;

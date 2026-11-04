@@ -5889,10 +5889,7 @@ void FreeX509Name(WOLFSSL_X509_NAME* name)
         }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
-        XFREE(name->raw, name->heap, DYNAMIC_TYPE_X509);
-        name->raw = NULL;
-        name->rawLen = 0;
-        name->rawCertOff = 0;
+        ClearX509NameRaw(name);
 #endif
 #ifdef OPENSSL_ALL
         if (name->entries) {
@@ -5956,6 +5953,19 @@ int SetX509NameRawFromDer(WOLFSSL_X509_NAME* name, const byte* der,
         return 0;
     }
     return SetX509NameRaw(name, der + idx, len);
+}
+
+/* Drop the encoding of a name, and where it is in its certificate, when they
+ * may no longer be those of the name.
+ *
+ * @param [in, out] name  X509 name.
+ */
+void ClearX509NameRaw(WOLFSSL_X509_NAME* name)
+{
+    XFREE(name->raw, name->heap, DYNAMIC_TYPE_X509);
+    name->raw = NULL;
+    name->rawLen = 0;
+    name->rawCertOff = 0;
 }
 #endif /* !WOLFSSL_NO_CA_NAMES && OPENSSL_EXTRA */
 
@@ -30310,6 +30320,9 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + localHashSigAlgoSz;
 
+    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
+        return 0;  /* not needed */
+
 #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     /* Certificate Authorities */
     names = SSL_PRIORITY_CA_NAMES(ssl);
@@ -30319,17 +30332,23 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
         /* A name with no encoding is left out rather than sent empty. */
         if ((name != NULL) && (name->rawLen > 0)) {
+            word32 entrySz = SetSequence((word32)name->rawLen, seq) +
+                             (word32)name->rawLen;
+
+            /* Each DistinguishedName and the list of them have 16-bit
+             * lengths, as in TLSX_CA_Names_Write(). */
+            if ((entrySz > WOLFSSL_MAX_16BIT) ||
+                    (dnLen + OPAQUE16_LEN + entrySz > WOLFSSL_MAX_16BIT)) {
+                WOLFSSL_MSG("CA names too long for CertificateRequest");
+                return BUFFER_ERROR;
+            }
             /* 16-bit length | SEQ | Len | DER of name */
-            dnLen += OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
-                        name->rawLen;
+            dnLen += OPAQUE16_LEN + entrySz;
         }
         names = names->next;
     }
     reqSz += dnLen;
 #endif
-
-    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
-        return 0;  /* not needed */
 
     sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + reqSz;
 
