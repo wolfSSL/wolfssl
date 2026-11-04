@@ -291,6 +291,16 @@ ifdef NO_EXTERNAL_THUNKS
 	    else
 		PIE_SUPPORT_FLAGS += -mindirect-branch=keep
 	    endif
+	    # gcc refuses non-keep -mindirect-branch/-mfunction-return when
+	    # -fcf-protection is active, and distro gccs commonly activate it by
+	    # default.  Kernels pass -fcf-protection=none themselves under
+	    # retpoline since 29be86d7f9cb (v5.5); supply it here for older
+	    # kernels, deferring to any kernel-supplied cf-protection regime.
+	    ifneq "$(filter y,$(CONFIG_MITIGATION_RETHUNK) $(CONFIG_MITIGATION_RETPOLINE))" ""
+		ifeq "$(findstring -fcf-protection,$(KBUILD_CFLAGS))" ""
+		    PIE_SUPPORT_FLAGS += $(call cc-option,-fcf-protection=none)
+		endif
+	    endif
 	endif
     endif
 endif
