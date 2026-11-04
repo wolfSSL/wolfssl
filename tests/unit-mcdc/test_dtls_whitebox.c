@@ -75,6 +75,7 @@
 #if defined(WOLFSSL_DTLS) && !defined(WOLFCRYPT_ONLY)
 
 static int g_checks;
+static int g_fail;
 
 #define WB_NOTE(what) do {g_checks++; (void)(what);} while (0)
 
@@ -689,6 +690,8 @@ static void wb_cookie_rows(WOLFSSL* ssl)
         cookie[1] = 64;
         ch.cookieExt.size = 66;
         WB_NOTE(CheckDtlsCookie(ssl, &ch, 1, &cookieGood));
+        if (cookieGood == 0)
+            g_fail++;
     }
     ssl->buffers.tls13CookieSecret.buffer = NULL;
     ssl->buffers.tls13CookieSecret.length = 0;
@@ -772,7 +775,8 @@ int main(void)
     wb_cid_parse_rows(ssl);
     wb_cid_check_rows(ssl);
 #endif
-#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_SERVER)
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_PSK)
     wb_stateless_reply_have_flags(ssl);
     wb_stateless_reply_psk(ssl);
 #endif
@@ -788,8 +792,7 @@ done:
     if (ctx != NULL)
         wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
-    /* Always 0: a non-zero exit discards the whole variant's coverage. */
-    return 0;
+    return g_fail == 0 ? 0 : 1;
 }
 
 #else /* !WOLFSSL_DTLS || WOLFCRYPT_ONLY */

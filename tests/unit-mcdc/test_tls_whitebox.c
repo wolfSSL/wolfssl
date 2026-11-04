@@ -48,16 +48,29 @@ static void wb_hmac_updatefinal_ct(void)
     Hmac hmac;
     byte in[WC_SHA256_DIGEST_SIZE + 16];
     byte digest[WC_MAX_DIGEST_SIZE];
-    byte header[4];
+    byte header[WOLFSSL_TLS_HMAC_INNER_SZ];
+    byte key[WC_SHA256_DIGEST_SIZE];
 
     XMEMSET(&hmac, 0, sizeof(hmac));
     XMEMSET(in, 0, sizeof(in));
-    hmac.macType = WC_SHA256;
-    (void)Hmac_UpdateFinal_CT(&hmac, digest, in, sizeof(in), 32,
-                              header, sizeof(header));
+    XMEMSET(header, 0, sizeof(header));
+    XMEMSET(key, 0x5a, sizeof(key));
+    if (wc_HmacInit(&hmac, NULL, INVALID_DEVID) != 0) {
+        wb_fail++;
+        return;
+    }
+    if (wc_HmacSetKey(&hmac, WC_SHA256, key, sizeof(key)) != 0) {
+        wb_fail++;
+        wc_HmacFree(&hmac);
+        return;
+    }
+    if (Hmac_UpdateFinal_CT(&hmac, digest, in, sizeof(in), 32,
+                            header, sizeof(header)) != 0)
+        wb_fail++;
     (void)Hmac_UpdateFinal_CT(&hmac, digest, in, sizeof(in),
                               (int)sizeof(hmac.innerHash) + 1,
                               header, sizeof(header));
+    wc_HmacFree(&hmac);
 }
 
 #if defined(HAVE_ALPN)

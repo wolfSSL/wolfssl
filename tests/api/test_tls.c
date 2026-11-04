@@ -8930,13 +8930,12 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
     byte         cid[4] = { 1, 2, 3, 4 };
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(WOLFSSL_TLS13)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL     *ssl = NULL;
     byte         inner[WOLFSSL_TLS_HMAC_INNER_SZ];
 
-    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (ctx == NULL)
         return EXPECT_RESULT();
     ssl = wolfSSL_new(ctx);

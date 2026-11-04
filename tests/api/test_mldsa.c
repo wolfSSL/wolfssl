@@ -33307,7 +33307,7 @@ static int mldsa_test_check_key_corrupt(WC_RNG* rng, byte level,
             if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
                 ret = 0; /* expected rejection; continue */
             }
-            else if (ret != 0) {
+            else {
                 ret = -1236; /* out-of-range s1 must be rejected */
             }
         }
@@ -33333,7 +33333,7 @@ static int mldsa_test_check_key_corrupt(WC_RNG* rng, byte level,
             if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
                 ret = 0; /* expected failure; continue */
             }
-            else if (ret != 0) {
+            else {
                 ret = -1237; /* t1 mismatch must fail the check */
             }
         }
