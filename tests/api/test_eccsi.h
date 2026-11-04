@@ -27,10 +27,12 @@
 int test_wc_Eccsi_DecisionCoverage(void);
 int test_wc_Eccsi_FeatureCoverage(void);
 int test_wc_Eccsi_DecodeSskRange(void);
+int test_wc_Eccsi_FreeZeroizesSsk(void);
 
 #define TEST_ECCSI_DECLS                                          \
     TEST_DECL_GROUP("eccsi", test_wc_Eccsi_DecisionCoverage),     \
     TEST_DECL_GROUP("eccsi", test_wc_Eccsi_FeatureCoverage),      \
-    TEST_DECL_GROUP("eccsi", test_wc_Eccsi_DecodeSskRange)
+    TEST_DECL_GROUP("eccsi", test_wc_Eccsi_DecodeSskRange),       \
+    TEST_DECL_GROUP("eccsi", test_wc_Eccsi_FreeZeroizesSsk)
 
 #endif /* WOLFCRYPT_TEST_ECCSI_H */
