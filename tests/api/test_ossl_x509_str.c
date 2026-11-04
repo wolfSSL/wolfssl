@@ -647,8 +647,10 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.revoked", "rb")) != XBADFILE);
     ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL**)NULL,
         NULL, NULL));
-    if (fp != XBADFILE)
+    if (fp != XBADFILE) {
         XFCLOSE(fp);
+        fp = XBADFILE;
+    }
     ExpectIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
 
     ExpectIntEQ(test_crl_date_verify(store, revoked, revokedErr, notYet,
@@ -662,8 +664,10 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.revoked", "rb")) != XBADFILE);
     ExpectNotNull(ctxCrl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL**)NULL,
         NULL, NULL));
-    if (fp != XBADFILE)
+    if (fp != XBADFILE) {
         XFCLOSE(fp);
+        fp = XBADFILE;
+    }
     ExpectNotNull(crls = sk_X509_CRL_new_null());
     if (EXPECT_SUCCESS() && (sk_X509_CRL_push(crls, ctxCrl) > 0))
         ctxCrl = NULL;
