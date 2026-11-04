@@ -54934,6 +54934,12 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #endif /* HAVE_ECC_DHE */
 
     #ifdef HAVE_COMP_KEY
+    #ifdef SQRTMOD_USE_MOD_EXP
+        /* The single exponentiation square root does not support a prime that
+         * is 1 mod 8, so a compressed P-224 point cannot be imported. */
+        if (userA->dp->id != ECC_SECP224R1)
+    #endif
+        {
         /* try compressed export / import too */
         x = ECC_KEY_EXPORT_BUF_SIZE;
 #if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
@@ -54979,6 +54985,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
             ERROR_OUT(WC_TEST_RET_ENC_NC, done);
         TEST_SLEEP();
     #endif /* HAVE_ECC_DHE */
+        }
     #endif /* HAVE_COMP_KEY */
 
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A */

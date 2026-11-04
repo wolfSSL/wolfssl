@@ -32248,17 +32248,21 @@ static int sp_256_mont_sqrt_5(sp_digit* y)
  * @param [out] ym   Calculated Y ordinate.
  *
  * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when no point on the curve has the X ordinate.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 {
-    SP_DECL_VAR(sp_digit, x, 4 * 5);
+    SP_DECL_VAR(sp_digit, x, 6 * 5);
     sp_digit* y = NULL;
+    sp_digit* t = NULL;
+    sp_int64 n;
     int err = MP_OKAY;
 
-    SP_ALLOC_VAR(sp_digit, x, 4 * 5, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, x, 6 * 5, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         y = x + 2 * 5;
+        t = x + 4 * 5;
 
         sp_256_from_mp(x, 5, xm);
         err = sp_256_mod_mul_norm_5(x, x, p256_mod);
@@ -32278,8 +32282,30 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     }
     if (err == MP_OKAY) {
         sp_256_mont_add_5(y, y, x, p256_mod);
+        /* t = x^3 - 3x + b */
+        XMEMCPY(t, y, 5U * sizeof(sp_digit));
         /* y = sqrt(x^3 - 3x + b) */
         err = sp_256_mont_sqrt_5(y);
+    }
+    if (err == MP_OKAY) {
+        /* x = y^2 */
+        sp_256_mont_sqr_5(x, y, p256_mod, p256_mp_mod);
+        /* Reduce both sides to less than the modulus before comparing: a
+         * Montgomery result may still be in [p, 2^bits) or carry an
+         * unpropagated limb. */
+        sp_256_norm_5(x);
+        n = sp_256_cmp_5(x, p256_mod);
+        sp_256_cond_sub_5(x, x, p256_mod, (sp_digit)~(n >> 51));
+        sp_256_norm_5(x);
+        sp_256_norm_5(t);
+        n = sp_256_cmp_5(t, p256_mod);
+        sp_256_cond_sub_5(t, t, p256_mod, (sp_digit)~(n >> 51));
+        sp_256_norm_5(t);
+        /* No square root exists when y^2 != x^3 - 3x + b: no point has this
+         * x ordinate. */
+        if (sp_256_cmp_equal_5(x, t) == 0) {
+            err = MP_VAL;
+        }
     }
     if (err == MP_OKAY) {
         XMEMSET(y + 5, 0, 5U * sizeof(sp_digit));
@@ -39891,17 +39917,21 @@ static int sp_384_mont_sqrt_7(sp_digit* y)
  * @param [out] ym   Calculated Y ordinate.
  *
  * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when no point on the curve has the X ordinate.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
 {
-    SP_DECL_VAR(sp_digit, x, 4 * 7);
+    SP_DECL_VAR(sp_digit, x, 6 * 7);
     sp_digit* y = NULL;
+    sp_digit* t = NULL;
+    sp_int64 n;
     int err = MP_OKAY;
 
-    SP_ALLOC_VAR(sp_digit, x, 4 * 7, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, x, 6 * 7, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         y = x + 2 * 7;
+        t = x + 4 * 7;
 
         sp_384_from_mp(x, 7, xm);
         err = sp_384_mod_mul_norm_7(x, x, p384_mod);
@@ -39921,8 +39951,30 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
     }
     if (err == MP_OKAY) {
         sp_384_mont_add_7(y, y, x, p384_mod);
+        /* t = x^3 - 3x + b */
+        XMEMCPY(t, y, 7U * sizeof(sp_digit));
         /* y = sqrt(x^3 - 3x + b) */
         err = sp_384_mont_sqrt_7(y);
+    }
+    if (err == MP_OKAY) {
+        /* x = y^2 */
+        sp_384_mont_sqr_7(x, y, p384_mod, p384_mp_mod);
+        /* Reduce both sides to less than the modulus before comparing: a
+         * Montgomery result may still be in [p, 2^bits) or carry an
+         * unpropagated limb. */
+        sp_384_norm_7(x);
+        n = sp_384_cmp_7(x, p384_mod);
+        sp_384_cond_sub_7(x, x, p384_mod, (sp_digit)~(n >> 54));
+        sp_384_norm_7(x);
+        sp_384_norm_7(t);
+        n = sp_384_cmp_7(t, p384_mod);
+        sp_384_cond_sub_7(t, t, p384_mod, (sp_digit)~(n >> 54));
+        sp_384_norm_7(t);
+        /* No square root exists when y^2 != x^3 - 3x + b: no point has this
+         * x ordinate. */
+        if (sp_384_cmp_equal_7(x, t) == 0) {
+            err = MP_VAL;
+        }
     }
     if (err == MP_OKAY) {
         XMEMSET(y + 7, 0, 7U * sizeof(sp_digit));
@@ -47489,17 +47541,21 @@ static int sp_521_mont_sqrt_9(sp_digit* y)
  * @param [out] ym   Calculated Y ordinate.
  *
  * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when no point on the curve has the X ordinate.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
 {
-    SP_DECL_VAR(sp_digit, x, 4 * 9);
+    SP_DECL_VAR(sp_digit, x, 6 * 9);
     sp_digit* y = NULL;
+    sp_digit* t = NULL;
+    sp_int64 n;
     int err = MP_OKAY;
 
-    SP_ALLOC_VAR(sp_digit, x, 4 * 9, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, x, 6 * 9, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         y = x + 2 * 9;
+        t = x + 4 * 9;
 
         sp_521_from_mp(x, 9, xm);
         err = sp_521_mod_mul_norm_9(x, x, p521_mod);
@@ -47519,8 +47575,30 @@ int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
     }
     if (err == MP_OKAY) {
         sp_521_mont_add_9(y, y, x, p521_mod);
+        /* t = x^3 - 3x + b */
+        XMEMCPY(t, y, 9U * sizeof(sp_digit));
         /* y = sqrt(x^3 - 3x + b) */
         err = sp_521_mont_sqrt_9(y);
+    }
+    if (err == MP_OKAY) {
+        /* x = y^2 */
+        sp_521_mont_sqr_9(x, y, p521_mod, p521_mp_mod);
+        /* Reduce both sides to less than the modulus before comparing: a
+         * Montgomery result may still be in [p, 2^bits) or carry an
+         * unpropagated limb. */
+        sp_521_norm_9(x);
+        n = sp_521_cmp_9(x, p521_mod);
+        sp_521_cond_sub_9(x, x, p521_mod, (sp_digit)~(n >> 57));
+        sp_521_norm_9(x);
+        sp_521_norm_9(t);
+        n = sp_521_cmp_9(t, p521_mod);
+        sp_521_cond_sub_9(t, t, p521_mod, (sp_digit)~(n >> 57));
+        sp_521_norm_9(t);
+        /* No square root exists when y^2 != x^3 - 3x + b: no point has this
+         * x ordinate. */
+        if (sp_521_cmp_equal_9(x, t) == 0) {
+            err = MP_VAL;
+        }
     }
     if (err == MP_OKAY) {
         XMEMSET(y + 9, 0, 9U * sizeof(sp_digit));

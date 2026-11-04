@@ -43,6 +43,7 @@ int test_wc_ecc_shared_secret_size_bounds(void);
 int test_wc_ecc_export_x963(void);
 int test_wc_ecc_export_x963_ex(void);
 int test_wc_ecc_import_x963(void);
+int test_wc_ecc_import_compressed_sqrt(void);
 int test_wc_ecc_import_x963_off_curve(void);
 int test_wc_ecc_import_x963_oversized(void);
 int test_wc_ecc_import_x963_non_canonical(void);
@@ -106,6 +107,7 @@ int test_wc_ecc_make_key_id_dev(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_export_x963),                    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_export_x963_ex),                 \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963),                    \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_import_compressed_sqrt),         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963_off_curve),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963_oversized),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963_non_canonical),      \
