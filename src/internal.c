@@ -19873,6 +19873,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     && !args->haveTrustPeer
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
+                #ifdef WOLFSSL_ALT_CERT_CHAINS
+                    word16 verifyErr = args->verifyErr;
+                    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                    unsigned long peerVerifyRet = ssl->peerVerifyRet;
+                    #endif
+                #endif
                     int skipAddCA = 0;
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL)
                     int ocspNoUrl = 0;
@@ -20171,10 +20177,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             }
 
                             ret = 0; /* clear errors and continue */
+                            /* restore previous errors so chain is rejected
+                             * if it should be */
                     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                            ssl->peerVerifyRet = 0;
+                            ssl->peerVerifyRet = peerVerifyRet;
                     #endif
-                            args->verifyErr = 0;
+                            args->verifyErr = verifyErr;
 
                             /* do not add to certificate manager */
                             skipAddCA = 1;
