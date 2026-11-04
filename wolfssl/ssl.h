@@ -530,6 +530,8 @@ struct WOLFSSL_X509V3_CTX {
     WOLFSSL_X509* x509;
 };
 
+/* The fields before d are given in order by X509_NAME_OBJ() in src/x509.c,
+ * which makes the shared objects of name entries: change it with them. */
 struct WOLFSSL_ASN1_OBJECT {
     void*  heap;
     const unsigned char* obj;

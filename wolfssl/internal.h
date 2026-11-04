@@ -6255,15 +6255,21 @@ struct WOLFSSL_X509_NAME {
     char  staticName[ASN_NAME_MAX];
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(NO_ASN)
-    DecodedName fullName;
     int   entrySz; /* number of entries */
     WOLFSSL_X509_NAME_ENTRY entry[MAX_NAME_ENTRIES]; /* all entries i.e. CN */
     WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
-#ifndef WOLFSSL_NO_CA_NAMES
-    byte  raw[ASN_NAME_MAX];
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+    /* DER encoding of the RDNs, without the SEQUENCE header, to send in a list
+     * of CA names. Allocated only for names that have one: see
+     * wolfSSL_X509_NAME_copy(). */
+    byte* raw;
     int   rawLen;
-
+    /* Offset of the encoded name in x509->derCert when this is a
+     * certificate's issuer or subject as parsed. 0 when not. */
+    word32 rawCertOff;
+#endif
+#ifndef WOLFSSL_NO_CA_NAMES
     WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* entries;
 #endif
     void* heap;
@@ -8143,6 +8149,13 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
     WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag,
                                     void* heap);
     WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+    WOLFSSL_LOCAL int SetX509NameRaw(WOLFSSL_X509_NAME* name, const byte* raw,
+                                     int rawLen);
+    WOLFSSL_LOCAL int SetX509NameRawFromDer(WOLFSSL_X509_NAME* name,
+                                            const byte* der, word32 derSz);
+    WOLFSSL_LOCAL void ClearX509NameRaw(WOLFSSL_X509_NAME* name);
+#endif
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
                                 void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509* x509);

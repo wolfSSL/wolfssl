@@ -16273,37 +16273,6 @@ static int GetCertNameRDNs(DecodedCert* cert, char* full, word32* fullIdx,
     return ret;
 }
 
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
-/* Keep the encoding of a name in its X509_NAME, in the builds that use it.
- *
- * @param [in, out] dName     X509_NAME built from the encoding.
- * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
- * @param [in]      raw       Contents of the Name SEQUENCE.
- * @param [in]      rawLen    Length of the contents in bytes.
- */
-static void SetX509NameRaw(WOLFSSL_X509_NAME* dName, int nameType,
-    const byte* raw, int rawLen)
-{
-    if (nameType == ASN_ISSUER) {
-    #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-         defined(HAVE_LIGHTY)) && \
-        (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-        dName->rawLen = (int)min((word32)rawLen, WC_ASN_NAME_MAX);
-        XMEMCPY(dName->raw, raw, (size_t)dName->rawLen);
-    #endif
-    }
-    else {
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-        dName->rawLen = (int)min((word32)rawLen, WC_ASN_NAME_MAX);
-        XMEMCPY(dName->raw, raw, (size_t)dName->rawLen);
-    #endif
-    }
-
-    (void)dName;
-    (void)raw;
-    (void)rawLen;
-}
-#endif /* WOLFSSL_X509_NAME_AVAILABLE */
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
 /* Get a certificate name into the certificate object.
@@ -16409,7 +16378,6 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         /* Store X509_NAME in certificate, when it was built. */
         if (dName != NULL) {
-            SetX509NameRaw(dName, nameType, raw, len);
             if (nameType == ASN_ISSUER) {
                 cert->issuerName = dName;
             }
@@ -16556,13 +16524,8 @@ int GetCertX509Name(DecodedCert* cert, int nameType, void* target)
     /* Expecting a SEQUENCE of RDNs using up all data. */
     ret = GetASN_Sequence(der, &idx, &len, derSz, 1);
     if (ret == 0) {
-        const byte* raw = &der[idx];
-
         ret = GetCertNameRDNs(NULL, NULL, NULL, nameType == ASN_SUBJECT,
                               dName, der, &idx, derSz, cert->heap);
-        if (ret == 0) {
-            SetX509NameRaw(dName, nameType, raw, len);
-        }
     }
     if (target == NULL) {
         if (ret == 0) {
@@ -16573,8 +16536,7 @@ int GetCertX509Name(DecodedCert* cert, int nameType, void* target)
         }
     }
 #else
-    /* The original ASN.1 code builds the names when parsing and doesn't keep
-     * where they are. */
+    /* The original ASN.1 code always builds the names when parsing. */
     ret = NOT_COMPILED_IN;
 #endif
 
