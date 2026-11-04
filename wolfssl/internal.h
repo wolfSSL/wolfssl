@@ -3916,10 +3916,16 @@ WOLFSSL_LOCAL void TLSX_CertificateAuthorities_FreeAll(
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
 
-typedef struct SupportedCurve {
-    word16 name;                 /* Curve Names */
-    struct SupportedCurve* next; /* List Behavior */
-} SupportedCurve;
+typedef struct SupportedCurves {
+    word16 count;                        /* Curve names in use */
+    word16 cap;                          /* Curve names allocated */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    word16 name[WC_FLEXIBLE_ARRAY_SIZE]; /* Curve names */
+} SupportedCurves;
 
 typedef struct PointFormats {
     byte count;                            /* Formats in use */
@@ -3948,8 +3954,13 @@ WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup, int side);
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
                                                byte second, word32* ecdhCurveOID);
-WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
-WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_SupportedCurve_CheckPriority \
+            wolfSSL_TLSX_SupportedCurve_CheckPriority
+    #define TLSX_SupportedFFDHE_Set wolfSSL_TLSX_SupportedFFDHE_Set
+#endif
+WOLFSSL_TEST_VIS int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
+WOLFSSL_TEST_VIS int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
