@@ -1112,6 +1112,239 @@ int test_wolfSSL_SessionTicket_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+
+/* Makes every allocation fail while set. */
+static int ticketOomFailAll = 0;
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* ticketOomMalloc(size_t size, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* ticketOomMalloc(size_t size)
+{
+#endif
+    if (ticketOomFailAll) {
+        return NULL;
+    }
+    return malloc(size);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void ticketOomFree(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void ticketOomFree(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* ticketOomRealloc(void* ptr, size_t size, const char* func,
+    unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* ticketOomRealloc(void* ptr, size_t size)
+{
+#endif
+    if (ticketOomFailAll) {
+        return NULL;
+    }
+    return realloc(ptr, size);
+}
+
+/* Check that the ticket in ssl matches the first sz bytes of expected. */
+static int test_SessionTicket_check(WOLFSSL* ssl, const byte* expected,
+    word32 sz)
+{
+    EXPECT_DECLS;
+    byte out[SESSION_TICKET_LEN + 2];
+    word32 outSz = (word32)sizeof(out);
+
+    ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sz);
+    ExpectBufEQ(out, expected, sz);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that a failed wolfSSL_set_SessionTicket() keeps the previous ticket.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_SessionTicket_alloc_fail_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+    wolfSSL_Malloc_cb  prevM = NULL;
+    wolfSSL_Free_cb    prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte big[SESSION_TICKET_LEN + 2];
+    const word32 lens[] = { SESSION_TICKET_LEN + 1, SESSION_TICKET_LEN };
+    int i;
+
+    /* A static buffer this size holds every ticket, none are allocated. */
+    if (SESSION_TICKET_LEN + 2 > WOLFSSL_MAX_16BIT) {
+        return TEST_SKIPPED;
+    }
+
+    XMEMSET(big, 0x5a, sizeof(big));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, SESSION_TICKET_LEN + 1),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_SetAllocators(ticketOomMalloc, ticketOomFree,
+            ticketOomRealloc), 0);
+        ticketOomFailAll = 1;
+        ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big,
+            SESSION_TICKET_LEN + 2), WC_NO_ERR_TRACE(MEMORY_ERROR));
+        ticketOomFailAll = 0;
+        (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    }
+
+    /* The previous ticket is still there. */
+    ExpectIntEQ(test_SessionTicket_check(ssl, big, SESSION_TICKET_LEN + 1),
+        TEST_SUCCESS);
+
+    /* Setting the current ticket again keeps it, dynamic and static. */
+    for (i = 0; i < (int)XELEM_CNT(lens) && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, lens[i]),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, ssl->session->ticket,
+            ssl->session->ticketLen), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_SessionTicket_check(ssl, big, lens[i]),
+            TEST_SUCCESS);
+    }
+
+    /* Clearing the ticket leaves nothing to read. */
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_SessionTicket_check(ssl, big, 0), TEST_SUCCESS);
+
+    /* A length over 16 bits is rejected before the buffer is read. */
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, WOLFSSL_MAX_16BIT + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+#define TEST_TICKET_CB_REPLACE
+
+/* Ticket the client was issued. */
+struct test_ssl_ext_ticket_seen {
+    byte   ticket[SESSION_TICKET_LEN];
+    word32 ticketSz;
+};
+
+/* Save the ticket received, then replace it with a shorter one.
+ *
+ * @param [in] ssl       SSL/TLS object.
+ * @param [in] ticket    Ticket received.
+ * @param [in] ticketSz  Length of ticket in bytes.
+ * @param [in] ctx       Where to save the ticket.
+ * @return  0 always - the caller does not use the return value.
+ */
+static int test_ssl_ext_ticket_replace_cb(WOLFSSL* ssl,
+    const unsigned char* ticket, int ticketSz, void* ctx)
+{
+    struct test_ssl_ext_ticket_seen* seen =
+        (struct test_ssl_ext_ticket_seen*)ctx;
+    static const byte shortTicket[1] = { 0x01 };
+
+    if ((ticketSz > 0) && ((word32)ticketSz <= sizeof(seen->ticket))) {
+        XMEMCPY(seen->ticket, ticket, (size_t)ticketSz);
+        seen->ticketSz = (word32)ticketSz;
+    }
+    (void)wolfSSL_set_SessionTicket(ssl, shortTicket, sizeof(shortTicket));
+
+    return 0;
+}
+#endif /* TEST_TICKET_CB_REPLACE */
+
+/* Test that the session ID is made from the ticket received, even when the
+ * session ticket callback replaces the ticket.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_SessionTicket_cb_replace_ext(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TICKET_CB_REPLACE
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        int tls13;
+    } params[] = {
+#ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, 1 },
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, 0 },
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        struct test_memio_ctx test_ctx;
+        struct test_ssl_ext_ticket_seen seen;
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        const byte* id;
+        char buf[64];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(&seen, 0, sizeof(seen));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, params[i].client_meth, params[i].server_meth), 0);
+        ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_SessionTicket_cb(ssl_c,
+            test_ssl_ext_ticket_replace_cb, &seen), WOLFSSL_SUCCESS);
+        /* TLS 1.2 keeps the session ID made from the ticket in arrays. */
+        wolfSSL_KeepArrays(ssl_c);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* Process a TLS 1.3 NewSessionTicket. */
+        (void)wolfSSL_read(ssl_c, buf, sizeof(buf));
+
+        ExpectIntGE(seen.ticketSz, ID_LEN);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(ssl_c->session->ticketLen, 1);
+            id = params[i].tls13 ? ssl_c->session->sessionID :
+                ssl_c->arrays->sessionID;
+            ExpectBufEQ(id, seen.ticket + seen.ticketSz - ID_LEN, ID_LEN);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfSSL_CTX_set_servername_arg() rejects bad arguments.
  *
  * @return  TEST_SUCCESS on success.
