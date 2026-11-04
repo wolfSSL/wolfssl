@@ -2253,6 +2253,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #undef THREAD_TYPE
     typedef uintptr_t     THREAD_TYPE;
     #define WOLFSSL_THREAD __stdcall
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+    /* Same types as the generic branch below, but without __stdcall, which
+     * only MSVC-style compilers accept (e.g. a GCC build without
+     * WOLFSSL_MDK_ARM). */
+    typedef unsigned int  THREAD_RETURN;
+    typedef size_t        THREAD_TYPE;
+    #define WOLFSSL_THREAD
 #else
     typedef unsigned int  THREAD_RETURN;
     typedef size_t        THREAD_TYPE;

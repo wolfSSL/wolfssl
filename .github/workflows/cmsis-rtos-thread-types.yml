@@ -1,0 +1,35 @@
+name: CMSIS-RTOS thread types compile regression
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+# Regression test for GCC CMSIS-RTOS v1/v2 builds without WOLFSSL_MDK_ARM,
+# where wolfssl/wolfcrypt/types.h used to define WOLFSSL_THREAD as the
+# MSVC-only __stdcall. Host-only: clean-room cmsis_os.h / cmsis_os2.h stubs
+# under tests/cmsis-rtos-thread-types-repro/ stand in for the RTOS.
+
+jobs:
+  cmsis_rtos_thread_types:
+    name: CMSIS-RTOS v1/v2 GCC thread types compile
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+
+      - name: Run CMSIS-RTOS thread types reproducer
+        run: sh tests/cmsis-rtos-thread-types-repro/run.sh
