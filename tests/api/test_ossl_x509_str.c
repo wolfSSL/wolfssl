@@ -391,14 +391,18 @@ int test_wolfSSL_X509_verify_cert_crl_date_override(void)
 static int test_crl_date_cb_waive[2];
 static int test_crl_date_cb_seen[4];
 static int test_crl_date_cb_calls;
+#ifdef OPENSSL_ALL
 static int test_crl_date_cb_ok_calls;
+#endif
 
 static int test_crl_date_verify_cb(int ok, X509_STORE_CTX* ctx)
 {
     int err = X509_STORE_CTX_get_error(ctx);
 
     if (ok) {
+#ifdef OPENSSL_ALL
         test_crl_date_cb_ok_calls++;
+#endif
         return ok;
     }
     if (test_crl_date_cb_calls < 4)
@@ -417,7 +421,9 @@ static int test_crl_date_verify(X509_STORE* store, X509* cert, int waive0,
     test_crl_date_cb_waive[0] = waive0;
     test_crl_date_cb_waive[1] = waive1;
     test_crl_date_cb_calls = 0;
+#ifdef OPENSSL_ALL
     test_crl_date_cb_ok_calls = 0;
+#endif
     XMEMSET(test_crl_date_cb_seen, 0, sizeof(test_crl_date_cb_seen));
     if ((storeCtx != NULL) &&
             (X509_STORE_CTX_init(storeCtx, store, cert, NULL) ==

@@ -346,6 +346,9 @@ typedef const char wcchar[];
  * octets per cell, low octet first.  Convert at the boundary with
  * wc_UnpackOctets()/wc_PackOctets(), declared only where a cell is wider than
  * an octet - elsewhere the two layouts coincide and there is nothing to do. */
+#if (CHAR_BIT <= 0) || (CHAR_BIT % 8 != 0)
+    #error CHAR_BIT must be a positive multiple of 8.
+#endif
 #define WC_OCTETS_PER_BYTE       ((word32)(CHAR_BIT / 8))
 /* Cells needed to hold octetSz octets packed.  Divides before adding the
  * round-up so a near-WORD32_MAX octetSz cannot wrap.  octetSz is evaluated

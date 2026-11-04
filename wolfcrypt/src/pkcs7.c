@@ -10930,8 +10930,12 @@ static int wc_PKCS7_GenerateKEK_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
 
         case PBKDF2_OID:
 
+            /* The KEK is consumed internally to wrap/unwrap the CEK -- do
+             * the FIPS private-key unlock for the caller. */
+            PRIVATE_KEY_UNLOCK();
             ret = wc_PBKDF2(out, passwd, (int)pLen, salt, (int)saltSz,
                             iterations, (int)outSz, prfOID);
+            PRIVATE_KEY_LOCK();
             if (ret != 0) {
                 return ret;
             }

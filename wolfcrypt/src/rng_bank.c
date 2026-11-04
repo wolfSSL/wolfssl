@@ -200,7 +200,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
          * WC_RNG_BANK_FLAG_RBGC) -- it can be used for other purposes, such as
          * pool replenishment, as in the linuxkm entropy daemon. */
         ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz,
-    #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_INIT_FLAG_LOCK_INITIALLY)
+    #ifdef WC_RNG_HAVE_LOCK
                                         WC_RNG_INIT_FLAG_LOCK_INITIALLY
     #else
                                         WC_RNG_INIT_FLAG_NONE
@@ -306,7 +306,7 @@ out:
 
 #ifdef WC_RNG_HAVE_LOCK
     if (root_rng_locked)
-        wc_RNG_lock_put(&ctx->root_rng, 0);
+        wc_RNG_lock_put_unconditional(&ctx->root_rng);
 #endif
 
     if (ret != 0)
@@ -1588,6 +1588,8 @@ WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
                                           const byte *perso, word32 persoSz,
                                           word32 flags)
 {
+    int ret;
+
     if (bank == NULL)
         return BAD_FUNC_ARG;
 
@@ -1605,22 +1607,35 @@ WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
 #endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-    return wc_InitRngNonce_ex2(&bank->root_rng,
-                               nonce, nonceSz,
-                               perso, persoSz,
-                               bank->heap, bank->devId, flags
+    ret = wc_InitRngNonce_ex2(&bank->root_rng,
+                              nonce, nonceSz,
+                              perso, persoSz,
+                              bank->heap, bank->devId, flags
 #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_INIT_FLAG_LOCK_REQUIRED)
-                               | WC_RNG_INIT_FLAG_LOCK_REQUIRED
+                              | WC_RNG_INIT_FLAG_LOCK_REQUIRED
 #endif
-                              );
+                             );
 #else
     (void)perso;
     (void)persoSz;
     if (flags != 0)
         return NOT_COMPILED_IN;
-    return wc_InitRngNonce_ex(&bank->root_rng, nonce, nonceSz,
-                              bank->heap, bank->devId);
+    ret = wc_InitRngNonce_ex(&bank->root_rng, nonce, nonceSz,
+                             bank->heap, bank->devId);
 #endif
+
+    /* If lock state preservation wasn't requested, make sure the rng is zeroed,
+     * otherwise access to it during bank cleanup is UB. */
+    if (ret != 0) {
+#ifdef WC_RNG_INIT_FLAG_PRESERVE_LOCK
+        if (! (flags & WC_RNG_INIT_FLAG_PRESERVE_LOCK))
+#endif
+        {
+            XMEMSET(&bank->root_rng, 0, sizeof(bank->root_rng));
+        }
+    }
+
+    return ret;
 }
 
 WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank)
@@ -3112,8 +3127,12 @@ static int wc_InitRng_BankRef_local(struct wc_rng_bank *bank, WC_RNG **rng) {
 
     XMEMSET(*rng, 0, sizeof(**rng));
     (*rng)->heap = bank->heap;
-    (*rng)->flags |= WC_RNG_FLAG_BANKREF;
     (*rng)->bankref = bank;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    (*rng)->status = WC_DRBG_BANKREF;
+#else
+    (*rng)->flags |= WC_RNG_FLAG_BANKREF;
+#endif
 
     ret = 0;
 
@@ -3144,8 +3163,13 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     int ret = 0;
     if (rng == NULL)
         return BAD_FUNC_ARG;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    if (rng->status != WC_DRBG_BANKREF)
+        return WRONG_TYPE_OBJECT_E;
+#else
     if (! (rng->flags & WC_RNG_FLAG_BANKREF))
         return WRONG_TYPE_OBJECT_E;
+#endif
     if (rng->bankref == NULL)
         return BAD_FUNC_ARG;
     wolfSSL_RefDec(&rng->bankref->refcount, &isZero, &ret);
@@ -3157,7 +3181,11 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     (void)isZero;
 #endif
     rng->heap = NULL;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    rng->status = WC_DRBG_NOT_INIT;
+#else
     rng->flags &= ~WC_RNG_FLAG_BANKREF;
+#endif
     rng->bankref = NULL;
     return ret;
 }
