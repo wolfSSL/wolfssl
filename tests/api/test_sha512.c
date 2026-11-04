@@ -277,6 +277,28 @@ int test_wc_Sha512Transform(void)
 #if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     /* Transform must not modify the caller's block (v5/v6 modules do). */
     ExpectBufEQ(abcData, abcSha512Data, WC_SHA512_BLOCK_SIZE);
+    /* Transform must keep input pending from an earlier Update. */
+    {
+        wc_Sha512 shaA;
+        wc_Sha512 shaB;
+        byte hashA[WC_SHA512_DIGEST_SIZE];
+        byte hashB[WC_SHA512_DIGEST_SIZE];
+
+        XMEMSET(&shaA, 0, sizeof(shaA));
+        XMEMSET(&shaB, 0, sizeof(shaB));
+        ExpectIntEQ(wc_InitSha512(&shaA), 0);
+        ExpectIntEQ(wc_Sha512Update(&shaA, (const byte*)"ab", 2), 0);
+        ExpectIntEQ(wc_Sha512Transform(&shaA, abcData), 0);
+        ExpectIntEQ(wc_Sha512Update(&shaA, (const byte*)"c", 1), 0);
+        ExpectIntEQ(wc_Sha512Final(&shaA, hashA), 0);
+        ExpectIntEQ(wc_InitSha512(&shaB), 0);
+        ExpectIntEQ(wc_Sha512Transform(&shaB, abcData), 0);
+        ExpectIntEQ(wc_Sha512Update(&shaB, (const byte*)"abc", 3), 0);
+        ExpectIntEQ(wc_Sha512Final(&shaB, hashB), 0);
+        ExpectBufEQ(hashA, hashB, WC_SHA512_DIGEST_SIZE);
+        wc_Sha512Free(&shaA);
+        wc_Sha512Free(&shaB);
+    }
 #endif
 #endif
     return EXPECT_RESULT();
