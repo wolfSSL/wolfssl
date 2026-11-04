@@ -83,13 +83,7 @@ int wolfSSL_InitHandle()
     char *sp_URI_value;
     int ret;
 
-    sp_URI_value = wolfSSL_URI "&_dom=adsp";
-    ret = wolfSSL_open(sp_URI_value, &defaultHandle);
-    if (ret != 0) {
-        WOLFSSL_MSG("Unable to open aDSP?");
-        return -1;
-    }
-    wolfSSL_SetHandleCb(default_handle_cb);
+    /* set up everything default_handle_cb uses before publishing it */
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     ret = wc_InitMutex(&handle_mutex);
     if (ret != 0) {
@@ -97,6 +91,18 @@ int wolfSSL_InitHandle()
         return -1;
     }
 #endif
+
+    sp_URI_value = wolfSSL_URI "&_dom=adsp";
+    ret = wolfSSL_open(sp_URI_value, &defaultHandle);
+    if (ret != 0) {
+        WOLFSSL_MSG("Unable to open aDSP?");
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        wc_FreeMutex(&handle_mutex);
+    #endif
+        return -1;
+    }
+
+    wolfSSL_SetHandleCb(default_handle_cb);
     return 0;
 }
 
