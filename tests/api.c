@@ -39080,6 +39080,233 @@ static int test_wc_CryptoCb(void)
     return EXPECT_RESULT();
 }
 
+/* An id-RSASSA-PSS key signs with rsa_pss_pss_* only (RFC 8446 4.2.3), in
+ * TLS 1.2 too, with the hash its parameters declare (RFC 4055 1.2). The
+ * 2048-bit certs/rsapss keys declare SHA-256, the 3072-bit ones nothing.
+ * Mislabelled or PKCS#1 v1.5 signatures from such a key are refused. */
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WC_RSA_PSS) && \
+    defined(HAVE_ECC) && (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+#define TEST_TLS_RSA_PSS_PSS_KEY
+#define RSAPSS_SVR_CERT "./certs/rsapss/server-rsapss.pem"
+#define RSAPSS_SVR_KEY  "./certs/rsapss/server-rsapss-priv.pem"
+#define RSAPSS_CLI_CERT "./certs/rsapss/client-rsapss.pem"
+#define RSAPSS_CLI_KEY  "./certs/rsapss/client-rsapss-priv.pem"
+#define RSAPSS_ROOT     "./certs/rsapss/root-rsapss.pem"
+#define RSAPSS3072_SVR_CERT "./certs/rsapss/server-3072-rsapss.pem"
+#define RSAPSS3072_SVR_KEY  "./certs/rsapss/server-3072-rsapss-priv.pem"
+
+/* Hash each side is expected to have signed with. */
+static int test_rsa_pss_pss_client_hash = sha256_mac;
+static int test_rsa_pss_pss_server_hash = sha256_mac;
+
+typedef struct test_rsa_pss_pss_ver {
+    method_provider client;
+    method_provider server;
+    int             tls13;
+} test_rsa_pss_pss_ver;
+
+static const test_rsa_pss_pss_ver test_rsa_pss_pss_vers[] = {
+#ifndef WOLFSSL_NO_TLS12
+    { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, 0 },
+#endif
+#ifdef WOLFSSL_TLS13
+    { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, 1 },
+#endif
+};
+
+/* Both sides hold id-RSASSA-PSS keys: both signed with rsa_pss_pss_* and
+ * with the expected hash. */
+static int test_rsa_pss_pss_on_result(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(ssl->useRsaPss, 1);
+    ExpectIntEQ(ssl->options.sigAlgo, rsa_pss_pss_algo);
+    ExpectIntEQ(ssl->options.hashAlgo, wolfSSL_is_server(ssl) ?
+        test_rsa_pss_pss_server_hash : test_rsa_pss_pss_client_hash);
+    ExpectIntEQ(ssl->peerRsaPss, 1);
+    if (wolfSSL_GetVersion(ssl) != WOLFSSL_TLSV1_3) {
+        /* TLS 1.2 keeps the two PSS scheme families apart when receiving. */
+        ExpectIntEQ(ssl->options.peerSigAlgo, rsa_pss_pss_algo);
+    }
+    return EXPECT_RESULT();
+}
+
+/* Pick and label the scheme as if the key were rsaEncryption. */
+static int test_rsa_pss_pss_mislabel_ssl_ready(WOLFSSL* ssl)
+{
+    ssl->useRsaPss = 0;
+    return TEST_SUCCESS;
+}
+
+#ifdef OPENSSL_EXTRA
+/* Set on the session: the context setter allocates the suites before
+ * wolfSSL_new() derives them and leaves the cipher list empty. */
+static int test_rsa_pss_pss_only_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA-PSS-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+static int test_rsa_pss_pss_sha384_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA-PSS-PSS+SHA384"),
+        WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+/* rsa_pkcs1_sha256 for RSA keys; the ECDSA entry stops the server from
+ * replacing a list that leaves an advertised certificate type uncovered. */
+static int test_rsa_pss_pss_pkcs1_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+SHA256:ECDSA+SHA256"),
+        WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+/* Alert the client last received: after a refused ClientHello the harness's
+ * follow-up I/O overwrites the server's error, so check the client's view. */
+static int test_rsa_pss_pss_rx_alert = -1;
+
+static int test_rsa_pss_pss_client_on_cleanup(WOLFSSL* ssl)
+{
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&h, 0, sizeof(h));
+    test_rsa_pss_pss_rx_alert = -1;
+    if (wolfSSL_get_alert_history(ssl, &h) == WOLFSSL_SUCCESS)
+        test_rsa_pss_pss_rx_alert = h.last_rx.code;
+    return TEST_SUCCESS;
+}
+#endif /* OPENSSL_EXTRA */
+
+static void test_rsa_pss_pss_setup(test_ssl_cbf* c, test_ssl_cbf* s,
+    const test_rsa_pss_pss_ver* v)
+{
+    XMEMSET(c, 0, sizeof(*c));
+    XMEMSET(s, 0, sizeof(*s));
+    c->method      = v->client;
+    s->method      = v->server;
+    c->caPemFile   = RSAPSS_ROOT;      /* server-rsapss.pem chains to it */
+    c->certPemFile = RSAPSS_CLI_CERT;
+    c->keyPemFile  = RSAPSS_CLI_KEY;
+    s->caPemFile   = RSAPSS_CLI_CERT;  /* self-signed client certificate */
+    s->certPemFile = RSAPSS_SVR_CERT;
+    s->keyPemFile  = RSAPSS_SVR_KEY;
+}
+#endif /* TEST_TLS_RSA_PSS_PSS_KEY */
+
+static int test_tls_rsa_pss_pss_key(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS_RSA_PSS_PSS_KEY
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+    size_t i;
+
+    for (i = 0; i < sizeof(test_rsa_pss_pss_vers) /
+                    sizeof(test_rsa_pss_pss_vers[0]); i++) {
+        const test_rsa_pss_pss_ver* v = &test_rsa_pss_pss_vers[i];
+
+        /* Mutual authentication with id-RSASSA-PSS keys on both sides. The
+         * default lists offer SHA-512 first; the keys' parameters hold both
+         * sides to SHA-256. */
+        test_rsa_pss_pss_client_hash = sha256_mac;
+        test_rsa_pss_pss_server_hash = sha256_mac;
+        test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+        client_cbf.on_result = test_rsa_pss_pss_on_result;
+        server_cbf.on_result = test_rsa_pss_pss_on_result;
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+
+        /* A client that labels its id-RSASSA-PSS signature rsa_pss_rsae_* is
+         * refused: that label requires an rsaEncryption key. */
+        test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+        client_cbf.ssl_ready = test_rsa_pss_pss_mislabel_ssl_ready;
+        ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+        ExpectIntEQ(server_cbf.last_err, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    #ifdef OPENSSL_EXTRA
+        /* Offered rsa_pss_pss_sha256 alone, the server selects it ... */
+        test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+        client_cbf.ssl_ready = test_rsa_pss_pss_only_ssl_ready;
+        client_cbf.on_result = test_rsa_pss_pss_on_result;
+        server_cbf.on_result = test_rsa_pss_pss_on_result;
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+
+        /* ... a key whose parameters declare SHA-256 cannot take SHA-384: the
+         * server refuses the ClientHello with handshake_failure ... */
+        test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+        client_cbf.ssl_ready  = test_rsa_pss_pss_sha384_ssl_ready;
+        client_cbf.on_cleanup = test_rsa_pss_pss_client_on_cleanup;
+        ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+        ExpectIntEQ(client_cbf.last_err, WC_NO_ERR_TRACE(FATAL_ERROR));
+        ExpectIntEQ(test_rsa_pss_pss_rx_alert, handshake_failure);
+
+        /* ... a key without parameters follows the offer ... */
+        test_rsa_pss_pss_server_hash = sha384_mac;
+        test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+        client_cbf.ssl_ready   = test_rsa_pss_pss_sha384_ssl_ready;
+        client_cbf.on_result   = test_rsa_pss_pss_on_result;
+        server_cbf.on_result   = test_rsa_pss_pss_on_result;
+        server_cbf.certPemFile = RSAPSS3072_SVR_CERT;
+        server_cbf.keyPemFile  = RSAPSS3072_SVR_KEY;
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+        test_rsa_pss_pss_server_hash = sha256_mac;
+
+        /* ... and an rsaEncryption key cannot use rsa_pss_pss_*. */
+        test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+        client_cbf.ssl_ready   = test_rsa_pss_pss_only_ssl_ready;
+        client_cbf.on_cleanup  = test_rsa_pss_pss_client_on_cleanup;
+        client_cbf.caPemFile   = caCertFile;
+        server_cbf.certPemFile = svrCertFile;
+        server_cbf.keyPemFile  = svrKeyFile;
+        ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+        ExpectIntEQ(client_cbf.last_err, WC_NO_ERR_TRACE(FATAL_ERROR));
+        ExpectIntEQ(test_rsa_pss_pss_rx_alert, handshake_failure);
+
+        if (!v->tls13) {
+            /* The server (rsaEncryption key) asks for rsa_pkcs1_sha256 only:
+             * the id-RSASSA-PSS client key cannot sign that (RFC 4055
+             * Section 1.2) ... */
+            test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+            client_cbf.caPemFile   = caCertFile;
+            server_cbf.certPemFile = svrCertFile;
+            server_cbf.keyPemFile  = svrKeyFile;
+            server_cbf.ssl_ready   = test_rsa_pss_pss_pkcs1_ssl_ready;
+            ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+                &server_cbf, NULL), TEST_SUCCESS);
+            ExpectIntEQ(client_cbf.last_err,
+                WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+            /* ... and a PKCS#1 v1.5 signature made with it is refused. */
+            test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+            client_cbf.caPemFile   = caCertFile;
+            client_cbf.ssl_ready   = test_rsa_pss_pss_mislabel_ssl_ready;
+            server_cbf.certPemFile = svrCertFile;
+            server_cbf.keyPemFile  = svrKeyFile;
+            server_cbf.ssl_ready   = test_rsa_pss_pss_pkcs1_ssl_ready;
+            ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+                &server_cbf, NULL), TEST_SUCCESS);
+            ExpectIntEQ(server_cbf.last_err,
+                WC_NO_ERR_TRACE(INVALID_PARAMETER));
+        }
+    #endif /* OPENSSL_EXTRA */
+    }
+#else
+    return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Regression: a TLS 1.2 CBC MtE handshake whose record MAC is computed by a
  * callback that leaves the software hash state empty. Without routing
  * device-backed verify through update/final, TLS_hmac() reads that empty state
@@ -47342,6 +47569,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_CryptoCb_nested_register),
     /* Unconditional shells (bodies self-guard on their feature macros). */
     TEST_DECL(test_wc_CryptoCb_TLS_CBC_HMAC),
+    TEST_DECL(test_tls_rsa_pss_pss_key),
     TEST_DECL(test_wc_CryptoCb_Hmac_Find),
     TEST_DECL(test_wc_CryptoCb_AesGcm_SetKey),
     TEST_DECL(test_wc_CryptoCb_Aes_SetKey_Declined),

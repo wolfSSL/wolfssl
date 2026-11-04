@@ -14537,6 +14537,9 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
                     WOLFSSL_MSG("RSA PSS: sig salt length too small");
                     return ASN_PARSE_E;
                 }
+                /* Keep the key's parameters, binding per RFC 4055 1.2. */
+                cert->keyPssHash = (byte)hash;
+                cert->keyPssSaltLen = (word16)saltLen;
                 srcIdx += (word32)seqLen;
             }
             FALL_THROUGH;

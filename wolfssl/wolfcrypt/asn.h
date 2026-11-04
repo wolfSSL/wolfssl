@@ -1940,6 +1940,8 @@ struct DecodedCert {
 #ifdef WC_RSA_PSS
     word32  sigParamsIndex;          /* start of signature parameters    */
     word32  sigParamsLength;         /* length of signature parameters   */
+    byte    keyPssHash;              /* hash in PSS key params, 0 if none */
+    word16  keyPssSaltLen;           /* salt length in PSS key params    */
 #endif
     int     version;                 /* cert version, 1 or 3             */
     DNS_entry* altNames;             /* alt names list of dns entries    */
