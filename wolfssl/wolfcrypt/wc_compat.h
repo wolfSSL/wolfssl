@@ -105,12 +105,12 @@
             ret = wc_AesGcmEncryptUpdate(aes, out, in, sz, authIn, authInSz);
         if (ret == 0)
             ret = wc_AesGcmEncryptFinal(aes, authTag, authTagSz);
-        if (ret != 0) {
+        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WC_PENDING_E))) {
             /* Match the native one-shot's failure contract: no ciphertext and no
              * tag escape a failed operation, whichever stage failed.  On the
              * Init/Update failure paths authTag was never written, so there this
              * is contract uniformity rather than leak repair. */
-            if (out != NULL)
+            if ((out != NULL) && (out != in))
                 wc_ForceZero(out, sz);
             if (authTag != NULL)
                 wc_ForceZero(authTag,
@@ -143,9 +143,9 @@
                                       authTagSz, authIn, authInSz);
         if (ret == 0)
             ret = wc_AesGcmSetExtIV(aes, iv, ivSz);
-        if (ret != 0) {
+        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WC_PENDING_E))) {
             /* Match above ISO-19790 wipe--this arm airdropped into old-FIPS. */
-            if (out != NULL)
+            if ((out != NULL) && (out != in))
                 wc_ForceZero(out, sz);
             if (authTag != NULL)
                 wc_ForceZero(authTag,
