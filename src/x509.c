@@ -15638,6 +15638,12 @@ err:
 #else
     #define X509_NAME_OBJ_GN_INIT
 #endif
+#ifdef __cplusplus
+    /* g++ warns of each member that { 0 } leaves out, but not of { }. */
+    #define X509_NAME_OBJ_D_INIT    { }
+#else
+    #define X509_NAME_OBJ_D_INIT    { 0 }
+#endif
     /* Object for a name attribute as wolfSSL_OBJ_nid2obj() fills it in, but
      * not dynamic so that it is never freed. The fields of
      * WOLFSSL_ASN1_OBJECT before d are given in order: change this with them.
@@ -15645,7 +15651,7 @@ err:
     #define X509_NAME_OBJ(nid, oidSum, sn)                                     \
         { NULL, x509NameObjDer, sn, oidSum, oidCertNameType, nid,             \
           (unsigned int)sizeof(x509NameObjDer), X509_NAME_OBJ_CA_INIT 0,       \
-          X509_NAME_OBJ_GN_INIT { 0 } }
+          X509_NAME_OBJ_GN_INIT X509_NAME_OBJ_D_INIT }
 
     /* Read-only objects shared by the name entries of the common attributes.
      * Other attributes have an object of the entry's own. */
@@ -15669,6 +15675,7 @@ err:
     #undef X509_NAME_OBJ
     #undef X509_NAME_OBJ_CA_INIT
     #undef X509_NAME_OBJ_GN_INIT
+    #undef X509_NAME_OBJ_D_INIT
 
     /* Get the shared object for a name attribute.
      *
