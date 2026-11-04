@@ -1232,7 +1232,7 @@ int test_wolfSSL_X509_NAME_oneline_escape(void)
             nameTrail,
             nameLong,
         };
-        int origSz = XELEM_CNT(orig);
+        int origSz = (int)(sizeof(orig) / sizeof(orig[0]));
         int i;
 
 
