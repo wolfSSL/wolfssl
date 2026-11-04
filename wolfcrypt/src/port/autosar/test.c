@@ -297,6 +297,27 @@ static int update_test(void)
         return -1;
     }
 
+    /* A partial block is rejected rather than silently dropped while being
+     * reported as output. The failure frees the slot, so a new START on the
+     * same job works afterwards. */
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U,
+            CRYPTO_OPERATIONMODE_START | CRYPTO_OPERATIONMODE_UPDATE,
+            msg, BLOCK_SIZE - 1, plain, &plainSz);
+    if (ret == E_OK) {
+        printf("UPDATE with a partial block was accepted\n");
+        return -1;
+    }
+    XMEMSET(plain, 0, sizeof(plain));
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
+            plain, &plainSz);
+    if (ret != E_OK || plainSz != BLOCK_SIZE ||
+            XMEMCMP(plain, cipher, BLOCK_SIZE) != 0) {
+        printf("Job unusable after a rejected partial block\n");
+        return -1;
+    }
+
     return 0;
 }
 

@@ -1035,6 +1035,14 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
             (void)FreeJobSlot(job);
             return E_NOT_OK;
         }
+
+        if ((job->jobPrimitiveInputOutput.inputLength % WC_AES_BLOCK_SIZE)
+                != 0) {
+            WOLFSSL_MSG("AES-CBC input is not a multiple of the block size");
+            (void)FreeJobSlot(job);
+            return E_NOT_OK;
+        }
+
         if (*outLen < job->jobPrimitiveInputOutput.inputLength) {
             WOLFSSL_MSG("AES-CBC output buffer is too small");
             (void)FreeJobSlot(job);
