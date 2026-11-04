@@ -599,6 +599,17 @@ static int test_peer_cert_kept(const WOLFSSL* ssl)
     WOLFSSL_X509* peer = GetPeerCert(ssl);
     return (peer != NULL) && (peer->issuer.sz > 0);
 }
+
+#if defined(HAVE_EX_DATA) && defined(HAVE_EX_DATA_CLEANUP_HOOKS)
+/* Count the clean-ups of a certificate's ex_data.
+ *
+ * @param [in, out] data  Count to increment.
+ */
+static void test_peer_cert_ex_data_cleanup(void* data)
+{
+    (*(int*)data)++;
+}
+#endif
 #endif
 
 /* Test getting the peer's certificate.
@@ -628,10 +639,13 @@ int test_wolfSSL_get_peer_certificate_ref(void)
     const unsigned char* der = NULL;
     int srvDerSz = 0;
     int derSz = 0;
+#if defined(HAVE_EX_DATA) && defined(HAVE_EX_DATA_CLEANUP_HOOKS)
+    int exFrees = 0;
+#endif
 
     ExpectNull(wolfSSL_get_peer_certificate(NULL));
     ExpectNotNull(srv = wolfSSL_X509_load_certificate_file(svrCertFile,
-        WOLFSSL_FILETYPE_PEM));
+        CERT_FILETYPE));
     ExpectNotNull(srvDer = wolfSSL_X509_get_der(srv, &srvDerSz));
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -687,6 +701,16 @@ int test_wolfSSL_get_peer_certificate_ref(void)
     ExpectIntEQ(derSz, srvDerSz);
     ExpectBufEQ(der, srvDer, srvDerSz);
 
+#if defined(HAVE_EX_DATA) && defined(HAVE_EX_DATA_CLEANUP_HOOKS)
+    /* ex_data is cleaned up only when the last reference is freed. */
+    ExpectIntEQ(wolfSSL_X509_set_ex_data_with_cleanup(peer, 0, &exFrees,
+        test_peer_cert_ex_data_cleanup), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_up_ref(peer), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(peer);
+    ExpectIntEQ(exFrees, 0);
+    ExpectPtrEq(wolfSSL_X509_get_ex_data(peer, 0), &exFrees);
+#endif
+
     /* Reusing the object for a new connection empties the kept certificate,
      * and the certificate returned stays valid. */
     old = peer;
@@ -699,6 +723,10 @@ int test_wolfSSL_get_peer_certificate_ref(void)
         ExpectIntEQ(test_peer_cert_kept(ssl_c), 0);
         ExpectIntEQ((int)wolfSSL_RefCur(old->ref), 1);
     }
+#if defined(HAVE_EX_DATA) && defined(HAVE_EX_DATA_CLEANUP_HOOKS)
+    ExpectIntEQ(exFrees, 0);
+    ExpectPtrEq(wolfSSL_X509_get_ex_data(old, 0), &exFrees);
+#endif
     wolfSSL_free(ssl_s);
     ssl_s = NULL;
     ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
@@ -718,6 +746,9 @@ int test_wolfSSL_get_peer_certificate_ref(void)
     ExpectBufEQ(der, srvDer, srvDerSz);
     wolfSSL_X509_free(old);
     old = NULL;
+#if defined(HAVE_EX_DATA) && defined(HAVE_EX_DATA_CLEANUP_HOOKS)
+    ExpectIntEQ(exFrees, 1);
+#endif
 
     /* The certificate returned outlives the SSL/TLS object. */
     wolfSSL_free(ssl_c);
