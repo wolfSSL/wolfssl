@@ -1861,7 +1861,10 @@ static int Tsp_CheckSignerCert(const byte* cert, word32 certSz,
  * @return  HASH_TYPE_E when the signing certificate attribute's hash
  *          algorithm is not available or a hash algorithm is below
  *          WC_TSP_MIN_HASH_STRENGTH_BITS.
- * @return  ASN_PARSE_E when an encoding is invalid.
+ * @return  ASN_PARSE_E when an encoding is invalid, including a legacy ANY
+ *          eContent that is not a single DER element spanning the whole
+ *          content, or a well-formed ANY eContent that does not decode as a
+ *          TSTInfo SEQUENCE.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
 int wc_TspTstInfo_VerifyWithPKCS7(wc_PKCS7* pkcs7, byte* token, word32 tokenSz,
