@@ -6010,6 +6010,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->ws_peer_ca_names = NULL;
     #endif
 
+    #ifdef WOLFSSL_DTLS_ECJPAKE
+        FreeEcJpake(ssl);
+    #endif
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
         ssl->extensions = NULL;
@@ -7037,6 +7040,9 @@ static WC_INLINE const char* wolfssl_kea_to_string(const CipherSpecs* specs)
         case ecdhe_psk_kea:
             keaStr = "ECDHEPSK";
             break;
+        case ecjpake_kea:
+            keaStr = "ECJPAKE";
+            break;
         case ecc_diffie_hellman_kea:
             /* Static ECDH is named after the signature of the CA, as in
              * OpenSSL 1.0.2. */
@@ -7069,6 +7075,9 @@ static WC_INLINE const char* wolfssl_sigalg_to_string(
             if ((specs->kea == psk_kea) || (specs->kea == dhe_psk_kea) ||
                     (specs->kea == ecdhe_psk_kea))
                 authStr = "PSK";
+            /* The password authenticates the peer. */
+            else if (specs->kea == ecjpake_kea)
+                authStr = "ECJPAKE";
             else
                 authStr = "None";
             break;

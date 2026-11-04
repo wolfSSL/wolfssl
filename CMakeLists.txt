@@ -4077,6 +4077,18 @@ if(WOLFSSL_SRP)
         )
 endif()
 
+add_option("WOLFSSL_ECJPAKE"
+    "Enable EC-JPAKE (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_ECJPAKE)
+    if(NOT WOLFSSL_ECC)
+        message(FATAL_ERROR "WOLFSSL_ECJPAKE requires ECC.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFCRYPT_HAVE_ECJPAKE"
+        )
+endif()
+
 add_option("WOLFSSL_MOSQUITTO"
     "Enable Mosquitto support (default: disabled)"
     "no" "yes;no")
@@ -5269,6 +5281,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_cmac.c
         tests/api/test_siphash.c
         tests/api/test_srp.c
+        tests/api/test_ecjpake.c
         tests/api/test_eccsi.c
         tests/api/test_sakke.c
         tests/api/test_hpke.c

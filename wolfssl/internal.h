@@ -177,6 +177,9 @@
         #include <wolfssl/wolfcrypt/srp.h>
     #endif
 #endif
+#ifdef WOLFCRYPT_HAVE_ECJPAKE
+    #include <wolfssl/wolfcrypt/ecjpake.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -911,6 +914,14 @@
     #define NO_AESGCM_AEAD
 #endif
 
+/* EC-JPAKE (draft-cragie-tls-ecjpake-01) is used over DTLS 1.2 only. */
+#if defined(WOLFCRYPT_HAVE_ECJPAKE) && defined(WOLFSSL_DTLS) && \
+    defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_AESCCM) && \
+    defined(WOLFSSL_AES_128) && !defined(WOLFSSL_NO_TLS12)
+    #define WOLFSSL_DTLS_ECJPAKE
+    #define BUILD_TLS_ECJPAKE_WITH_AES_128_CCM_8
+#endif
+
 #if defined(BUILD_TLS_RSA_WITH_AES_128_CCM_8) || \
     defined(BUILD_TLS_RSA_WITH_AES_256_CCM_8) || \
     defined(BUILD_TLS_PSK_WITH_AES_128_CCM_8) || \
@@ -922,6 +933,7 @@
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8) || \
+    defined(BUILD_TLS_ECJPAKE_WITH_AES_128_CCM_8) || \
     defined(BUILD_TLS_AES_128_CCM_SHA256) || \
     defined(BUILD_TLS_AES_128_CCM_8_SHA256)
     #define BUILD_AESCCM
@@ -1145,6 +1157,8 @@ enum {
     TLS_PSK_WITH_AES_256_CCM_8         = 0xa9,
     TLS_DHE_PSK_WITH_AES_128_CCM       = 0xa6,
     TLS_DHE_PSK_WITH_AES_256_CCM       = 0xa7,
+    /* Assigned by the Thread specification, not registered with IANA. */
+    TLS_ECJPAKE_WITH_AES_128_CCM_8     = 0xff,
 
     /* Camellia */
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA        = 0x41,
@@ -1391,6 +1405,13 @@ enum {
 #else
     /* No secret from public key operation but PSK key plus length used. */
     #define ENCRYPT_BASE_BITS  ((MAX_PSK_KEY_LEN + 2) * 8)
+#endif
+
+/* ClientECJPAKEParams are written into the encrypted secret buffer. */
+#if defined(WOLFSSL_DTLS_ECJPAKE) && \
+    ENCRYPT_BASE_BITS < (WC_ECJPAKE_KKP_SZ * 8)
+    #undef  ENCRYPT_BASE_BITS
+    #define ENCRYPT_BASE_BITS  (WC_ECJPAKE_KKP_SZ * 8)
 #endif
 
 #ifdef WOLFSSL_DTLS_CID
@@ -3376,6 +3397,8 @@ typedef struct Options Options;
 #define TLSXT_KEY_SHARE                  0x0033
 #define TLSXT_CONNECTION_ID              0x0036
 #define TLSXT_KEY_QUIC_TP_PARAMS         0x0039 /* RFC 9001, ch. 8.2 */
+/* Assigned by the Thread specification, not registered with IANA. */
+#define TLSXT_ECJPAKE_KKPP               0x0100
 #define TLSXT_ECH                        0xfe0d /* RFC 9849 */
 #define TLSXT_ECH_OUTER_EXTENSIONS       0xfd00 /* RFC 9849 */
 /* The 0xFF section is experimental/custom/personal use */
@@ -3442,6 +3465,9 @@ typedef enum {
 #if defined(WOLFSSL_DTLS_CID)
     TLSX_CONNECTION_ID              = TLSXT_CONNECTION_ID,
 #endif /* defined(WOLFSSL_DTLS_CID) */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    TLSX_ECJPAKE_KKPP               = TLSXT_ECJPAKE_KKPP,
+#endif
 #if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PRE_SHARED_KEY             = TLSXT_PRE_SHARED_KEY,
@@ -4408,6 +4434,13 @@ WOLFSSL_LOCAL byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input,
 WOLFSSL_LOCAL int DtlsCidReplaceTx(WOLFSSL* ssl, const byte* cid, byte size);
 WOLFSSL_LOCAL int Dtls13UnifiedHeaderCIDPresent(byte flags);
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+WOLFSSL_LOCAL int  TLSX_EcJpake_Use(WOLFSSL* ssl);
+WOLFSSL_LOCAL void FreeEcJpake(WOLFSSL* ssl);
+WOLFSSL_LOCAL int  EcJpakeSetPassword(void* heap, byte** pw, word32* pwSz,
+                                      const byte* in, word32 inSz);
+WOLFSSL_LOCAL void EcJpakeFreePassword(void* heap, byte** pw, word32* pwSz);
+#endif /* WOLFSSL_DTLS_ECJPAKE */
 WOLFSSL_LOCAL byte DtlsGetCidTxSize(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsGetCidRxSize(WOLFSSL* ssl);
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -4676,6 +4709,10 @@ struct WOLFSSL_CTX {
 #ifdef WOLFSSL_DTLS
     CallbackGenCookie CBIOCookie;       /* gen cookie callback */
 #endif /* WOLFSSL_DTLS */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    byte*    ecJpakePw;
+    word32   ecJpakePwSz;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
     wc_dtls_export  dtls_export;        /* export function for DTLS session */
@@ -5035,8 +5072,15 @@ enum KeyExchangeAlgorithm {
     ecdhe_psk_kea,
     ecc_diffie_hellman_kea,
     ecc_static_diffie_hellman_kea,      /* for verify suite only */
-    any_kea
+    any_kea,
+    ecjpake_kea
 };
+
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    #define IsEcJpakeKea(ssl) ((ssl)->specs.kea == ecjpake_kea)
+#else
+    #define IsEcJpakeKea(ssl) 0
+#endif
 
 /* Used with InitSuitesHashSigAlgo */
 #define SIG_ECDSA       0x01
@@ -7231,6 +7275,11 @@ struct WOLFSSL {
 #ifdef WOLFSSL_DTLS_CID
     CIDInfo *dtlsCidInfo;
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef WOLFSSL_DTLS_ECJPAKE
+    EcJpake* ecJpake;                   /* handshake state */
+    byte*    ecJpakePw;
+    word32   ecJpakePwSz;
+#endif /* WOLFSSL_DTLS_ECJPAKE */
 
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS

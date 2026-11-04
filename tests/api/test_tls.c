@@ -7020,7 +7020,7 @@ static int record_size_skip_cipher(const char *name)
      * and not ECDHE-* because of the trailing '-'. RENEGOTIATION-INFO is the
      * TLS_EMPTY_RENEGOTIATION_INFO_SCSV signaling value, not a real cipher. */
     static const char* const deny[] = {
-        "PSK", "SRP", "ANON", "NULL", "ECDSA", "ECDH-", "SM",
+        "PSK", "SRP", "ANON", "NULL", "ECDSA", "ECDH-", "SM", "ECJPAKE",
         "RENEGOTIATION-INFO"
     };
     size_t i;

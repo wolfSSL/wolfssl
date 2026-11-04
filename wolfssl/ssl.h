@@ -1997,6 +1997,15 @@ WOLFSSL_API int  wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer,
 
 WOLFSSL_API byte wolfSSL_is_stateful(WOLFSSL* ssl);
 
+#if defined(WOLFCRYPT_HAVE_ECJPAKE) && defined(WOLFSSL_DTLS)
+WOLFSSL_API int  wolfSSL_CTX_set_ecjpake_password(WOLFSSL_CTX* ctx,
+                                                  const unsigned char* pw,
+                                                  unsigned int pwSz);
+WOLFSSL_API int  wolfSSL_set_ecjpake_password(WOLFSSL* ssl,
+                                              const unsigned char* pw,
+                                              unsigned int pwSz);
+#endif
+
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL* ssl);
