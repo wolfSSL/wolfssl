@@ -3642,10 +3642,12 @@ static int wolfssl_asn1_string_print_esc_2253(WOLFSSL_BIO *bio,
     WOLFSSL_ASN1_STRING *str)
 {
     char* p;
+    int i;
     int str_len = 0;
 
-    /* Write all of string character by character. */
-    for (p = str->data; (*p) != '\0'; p++) {
+    /* Write all of string character by character.
+     * Use length as data is not necessarily NUL terminated. */
+    for (p = str->data, i = 0; i < str->length; p++, i++) {
         /* Check if character needs escaping. */
         if (wolfssl_check_esc_char(*p)){
             /* Update count of written characters. */
