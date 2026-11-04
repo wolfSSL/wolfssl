@@ -6007,6 +6007,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->ws_peer_ca_names = NULL;
     #endif
 
+    #ifdef WOLFSSL_DTLS_ECJPAKE
+        FreeEcJpake(ssl);
+    #endif
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
         ssl->extensions = NULL;
