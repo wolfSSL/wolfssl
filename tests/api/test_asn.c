@@ -1888,6 +1888,9 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     EXPECT_DECLS;
 
 #if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* "https://%61" + up to 249 'a' + ".com./" */
+    char longUri[11 + 249 + 7];
+
     /*
      * Exact host match (no leading dot in the constraint).
      */
@@ -1969,6 +1972,58 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://a.host.com../",        ".host.com"), 0);
     /* Empty interior labels are not valid DNS host labels. */
     ExpectIntEQ(uriNC("https://a..host.com/",         ".host.com"), 0);
+
+    /* RFC 5280 7.4: escaped unreserved characters are decoded before the
+     * host is compared. */
+    ExpectIntEQ(uriNC("https://h%6Fst.example.com/",  "host.example.com"), 1);
+    ExpectIntEQ(uriNC("https://h%6fst.example.com/",  "host.example.com"), 1);
+    ExpectIntEQ(uriNC("https://h%6Fst.example.com/",  ".example.com"), 1);
+    ExpectIntEQ(uriNC("https://h%6Fst.example.com/",  "hest.example.com"), 0);
+    ExpectIntEQ(uriNC("https://host.example.com%2E/", "host.example.com"), 1);
+    /* A host that decodes to an IPv4address is not a reg-name. */
+    ExpectIntEQ(uriNC("https://%31%32.31.2.3/",       ".31.2.3"), 0);
+    /* Malformed escapes. */
+    ExpectIntEQ(uriNC("https://h%6/",                 "h"), 0);
+    ExpectIntEQ(uriNC("https://h%/",                  "h"), 0);
+    ExpectIntEQ(uriNC("https://h%ZZst.example.com/",  ".example.com"), 0);
+    ExpectIntEQ(uriNC("https://h%6Zst.example.com/",  ".example.com"), 0);
+    /* Escapes of reserved and non-ASCII characters are not decoded, so the
+     * host is not an FQDN. */
+    ExpectIntEQ(uriNC("https://evil.com%2F.example.com/", ".example.com"), 0);
+    ExpectIntEQ(uriNC("https://evil.com%2F.example.com/", "evil.com"), 0);
+    ExpectIntEQ(uriNC("https://evil.com%40www.example.com/",
+                ".example.com"), 0);
+    /* This string is split to prevent a codespell error */
+    ExpectIntEQ(uriNC("https://c""af%C3%A9.example.com/", ".example.com"), 0);
+    ExpectIntEQ(uriNC("https://h%00st.example.com/",  ".example.com"), 0);
+    /* Decoding is a single pass: "%25" yields '%', not a second escape. */
+    ExpectIntEQ(uriNC("https://%2577ww.example.com/", ".example.com"), 0);
+    /* RFC 5280 4.2.1.10: the host must be an FQDN (letters, digits, '-'
+     * and '.'), raw or decoded. */
+    ExpectIntEQ(uriNC("https://h!st.example.com/",    ".example.com"), 0);
+    ExpectIntEQ(uriNC("https://h_st.example.com/",    ".example.com"), 0);
+    ExpectIntEQ(uriNC("https://h%5Fst.example.com/",  ".example.com"), 0);
+    /* A decoded host is limited to URI_HOST_MAX_SZ. */
+    XMEMCPY(longUri, "https://%61", 11);
+    XMEMSET(longUri + 11, 'a', 248);
+    XMEMCPY(longUri + 11 + 248, ".com/", 6);
+    ExpectIntEQ(uriNC(longUri,                        ".com"), 1);
+    XMEMCPY(longUri + 11 + 248, ".com./", 7);
+    ExpectIntEQ(uriNC(longUri,                        ".com"), 1);
+    XMEMSET(longUri + 11, 'a', 249);
+    XMEMCPY(longUri + 11 + 249, ".com./", 7);
+    ExpectIntEQ(uriNC(longUri,                        ".com"), 0);
+    /* An IDN host in ACE form is LDH. */
+    ExpectIntEQ(uriNC("https://xn--caf-dma.example.com/", ".example.com"), 1);
+    /* A base that is not an FQDN is not decoded and cannot match the host. */
+    ExpectIntEQ(uriNC("https://host.example.com/",    "h%6Fst.example.com"), 0);
+    ExpectIntEQ(uriNC("https://h%6Fst.example.com/",  "h%6Fst.example.com"), 0);
+    ExpectIntEQ(uriNC("https://www.ex_ample.com/",    ".ex_ample.com"), 0);
+    ExpectIntEQ(uriNC("https://example..com/",        "example..com"), 0);
+    ExpectIntEQ(uriNC("https://a..example.com/",      "..example.com"), 0);
+    ExpectIntEQ(uriNC("https://example.com../",       "example.com.."), 0);
+    ExpectIntEQ(uriNC("https://www.example.com/",     "."), 0);
+    ExpectIntEQ(uriNC("https://www.example.com/",     ".."), 0);
 
     /*
      * Leading-dot constraint: proper subtree of hosts (apex excluded).

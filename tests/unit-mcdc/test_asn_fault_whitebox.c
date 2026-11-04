@@ -559,25 +559,26 @@ static void wb_uri_host_helpers_null_args(void)
         const char*  host = NULL;
         int          hostSz = 0;
         UriHostType  hostType = URI_HOST_REG_NAME;
+        char         hostBuf[URI_HOST_MAX_SZ];
         static const char uri[] = "http://example.com/";
         const int    uriLen = (int)sizeof(uri) - 1;
 
-        ret = GetUriHost(uri, uriLen, &host, &hostSz, &hostType);
+        ret = GetUriHost(uri, uriLen, &host, &hostSz, &hostType, hostBuf);
         WB_CHECK(ret == 1, "baseline (all false)");
 
-        ret = GetUriHost(NULL, uriLen, &host, &hostSz, &hostType);
+        ret = GetUriHost(NULL, uriLen, &host, &hostSz, &hostType, hostBuf);
         WB_CHECK(ret == 0, "uri==NULL");
 
-        ret = GetUriHost(uri, 2, &host, &hostSz, &hostType);
+        ret = GetUriHost(uri, 2, &host, &hostSz, &hostType, hostBuf);
         WB_CHECK(ret == 0, "uriSz<3");
 
-        ret = GetUriHost(uri, uriLen, NULL, &hostSz, &hostType);
+        ret = GetUriHost(uri, uriLen, NULL, &hostSz, &hostType, hostBuf);
         WB_CHECK(ret == 0, "host==NULL");
 
-        ret = GetUriHost(uri, uriLen, &host, NULL, &hostType);
+        ret = GetUriHost(uri, uriLen, &host, NULL, &hostType, hostBuf);
         WB_CHECK(ret == 0, "hostSz==NULL");
 
-        ret = GetUriHost(uri, uriLen, &host, &hostSz, NULL);
+        ret = GetUriHost(uri, uriLen, &host, &hostSz, NULL, hostBuf);
         WB_CHECK(ret == 0, "hostType==NULL");
     }
 }
