@@ -736,9 +736,12 @@ int test_wc_ecc_shared_secret_at_infinity(void)
     EXPECT_DECLS;
 #ifdef TEST_ECC_SHARED_SECRET_AT_INFINITY
 #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
-    (ECC_MIN_KEY_SZ <= 224) && !defined(WOLFSSL_SP_MATH)
+    (ECC_MIN_KEY_SZ <= 224) && !defined(WOLFSSL_SP_MATH) && \
+    !FIPS_VERSION3_GE(7,0,0)
     /* secp224r1 is not single precision accelerated, so this drives the
-     * software ECDH path even in SP builds that offload P-256. */
+     * software ECDH path even in SP builds that offload P-256.  The v7
+     * module refuses ECDH on P-224 (outside its KAS-ECC-SSC curve set), so
+     * there the P-256 case below carries the identity check. */
     ExpectIntEQ(ecc_shared_secret_inf_case(
         "b70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21",
         "bd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34",
