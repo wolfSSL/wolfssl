@@ -13130,6 +13130,109 @@ int test_tls13_ticket_peer_cert_resume(void)
 }
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_CHECK_MEM_ZERO)
+static size_t ticket_alloc_fail_sz = 0;
+
+static void* ticket_alloc_fail_malloc(size_t size)
+{
+    if (ticket_alloc_fail_sz != 0 && size == ticket_alloc_fail_sz)
+        return NULL;
+    return malloc(size);
+}
+
+static void ticket_alloc_fail_free(void* ptr)
+{
+    free(ptr);
+}
+
+static void* ticket_alloc_fail_realloc(void* ptr, size_t size)
+{
+    return realloc(ptr, size);
+}
+#endif
+
+/* A client that holds a ticket in a dynamic buffer and fails to allocate the
+ * buffer for a new one is left without a ticket, not with the old length on
+ * the static buffer. */
+int test_tls13_ticket_set_alloc_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_CHECK_MEM_ZERO)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    char readBuf[64];
+
+    /* With client authentication the ticket carries the client certificate
+     * and needs a dynamic buffer */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(ssl_c->session->ticketLen,
+            sizeof(ssl_c->session->staticTicket));
+        ExpectIntGT(ssl_c->session->ticketLenAlloc, 0);
+    }
+
+    /* A second ticket of the same length, whose buffer cannot be
+     * allocated */
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ticket_alloc_fail_sz = ssl_c->session->ticketLen;
+        ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+        ExpectIntEQ(wolfSSL_SetAllocators(ticket_alloc_fail_malloc,
+            ticket_alloc_fail_free, ticket_alloc_fail_realloc), 0);
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ticket_alloc_fail_sz = 0;
+        (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+            WC_NO_ERR_TRACE(MEMORY_E));
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectPtrEq(ssl_c->session->ticket, ssl_c->session->staticTicket);
+        ExpectIntEQ(ssl_c->session->ticketLenAlloc, 0);
+        ExpectIntEQ(ssl_c->session->ticketLen, 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
 /* Encrypts the ticket but reports one byte more than the space it was
  * given. */

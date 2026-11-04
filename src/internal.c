@@ -40684,8 +40684,12 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
     if (length > sizeof(ssl->session->staticTicket)) {
         byte* sessionTicket =
                    (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        if (sessionTicket == NULL)
+        if (sessionTicket == NULL) {
+            /* The old ticket is gone; its length is not valid for the static
+             * buffer */
+            ssl->session->ticketLen = 0;
             return MEMORY_E;
+        }
         ssl->session->ticket = sessionTicket;
         ssl->session->ticketLenAlloc = (word16)length;
     }
