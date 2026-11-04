@@ -1358,8 +1358,8 @@ static int test_ca_names_sent_case(method_provider client_meth,
 #endif
 
     if (!tls13) {
-        const byte* dn[2];
-        word32 dnSz[2];
+        const byte* dn[2] = { NULL, NULL };
+        word32 dnSz[2] = { 0, 0 };
         const byte* rdns = NULL;
         word32 rdnsSz = 0;
 
