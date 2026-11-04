@@ -8182,6 +8182,827 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
 }
 
 /*
+ * Legacy PKCS#7 "ANY" eContent form: eContent begins with a SEQUENCE rather
+ * than an OCTET STRING (as RFC 2315 allows and Authenticode uses). The ANY
+ * eContent is a single element that must span the whole content. A message
+ * whose first element spans the content verifies, and the whole element
+ * (tag, length and value) is reported to the caller as the content; one whose
+ * first element stops short of the content (leaving trailing, undigested
+ * bytes) is rejected during content verification.
+ *
+ * The message is produced at run time: a normal CMS SignedData (OCTET STRING
+ * eContent) is signed with the test RSA credentials, then its eContent inner
+ * tag is changed from OCTET STRING (0x04) to SEQUENCE (0x30) in place to reach
+ * the ANY path. For the negative case that element's length is also shortened
+ * so it no longer spans the content.
+ */
+int test_wc_PKCS7_VerifySignedData_eContentAnySpan(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    (defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024))
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte   output[FOURK_BUF];
+    word32 outputSz = (word32)sizeof(output);
+    byte   any[FOURK_BUF];
+    int    anySz = 0;
+    int    i;
+    int    octetOff = -1;
+    const char contentStr[] = "pkcs7 econtent test";
+    word32 contentSz = (word32)XSTRLEN(contentStr);
+
+    /* Crafted PKCS#7 SignedData with signed attributes whose ANY-typed
+     * eContent is a single malformed element; the span check rejects it
+     * before any signature or digest work, so the signature need not be
+     * valid. onebyteEContent: a one-octet [0] value (no length octet).
+     * indefEContent: a SEQUENCE using the indefinite-length form (0x80). */
+    static const byte onebyteEContent[] = {
+        0x30, 0x82, 0x02, 0x86, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x07, 0x02, 0xa0, 0x82, 0x02, 0x77, 0x30, 0x82, 0x02, 0x73, 0x02,
+        0x01, 0x01, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+        0x65, 0x03, 0x04, 0x02, 0x01, 0x30, 0x0e, 0x06, 0x09, 0x2a, 0x86, 0x48,
+        0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0xa0, 0x01, 0x00, 0x31, 0x82, 0x02,
+        0x4d, 0x30, 0x82, 0x02, 0x49, 0x02, 0x01, 0x01, 0x30, 0x81, 0xb8, 0x30,
+        0x81, 0x9f, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13,
+        0x02, 0x55, 0x53, 0x31, 0x10, 0x30, 0x0e, 0x06, 0x03, 0x55, 0x04, 0x08,
+        0x0c, 0x07, 0x4d, 0x6f, 0x6e, 0x74, 0x61, 0x6e, 0x61, 0x31, 0x10, 0x30,
+        0x0e, 0x06, 0x03, 0x55, 0x04, 0x07, 0x0c, 0x07, 0x42, 0x6f, 0x7a, 0x65,
+        0x6d, 0x61, 0x6e, 0x31, 0x15, 0x30, 0x13, 0x06, 0x03, 0x55, 0x04, 0x0a,
+        0x0c, 0x0c, 0x77, 0x6f, 0x6c, 0x66, 0x53, 0x53, 0x4c, 0x5f, 0x32, 0x30,
+        0x34, 0x38, 0x31, 0x19, 0x30, 0x17, 0x06, 0x03, 0x55, 0x04, 0x0b, 0x0c,
+        0x10, 0x50, 0x72, 0x6f, 0x67, 0x72, 0x61, 0x6d, 0x6d, 0x69, 0x6e, 0x67,
+        0x2d, 0x32, 0x30, 0x34, 0x38, 0x31, 0x18, 0x30, 0x16, 0x06, 0x03, 0x55,
+        0x04, 0x03, 0x0c, 0x0f, 0x77, 0x77, 0x77, 0x2e, 0x77, 0x6f, 0x6c, 0x66,
+        0x73, 0x73, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x31, 0x20, 0x30, 0x1e, 0x06,
+        0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01, 0x16, 0x11,
+        0x66, 0x61, 0x63, 0x74, 0x73, 0x40, 0x77, 0x6f, 0x6c, 0x66, 0x73, 0x73,
+        0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x02, 0x14, 0x75, 0x90, 0x2e, 0xa0, 0xc3,
+        0xe1, 0x96, 0xe1, 0x92, 0x48, 0xb7, 0xa5, 0xc5, 0x83, 0xa1, 0xc9, 0xa7,
+        0x3e, 0xe9, 0x5f, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+        0x03, 0x04, 0x02, 0x01, 0xa0, 0x69, 0x30, 0x18, 0x06, 0x09, 0x2a, 0x86,
+        0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03, 0x31, 0x0b, 0x06, 0x09, 0x2a,
+        0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0x30, 0x1c, 0x06, 0x09,
+        0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x05, 0x31, 0x0f, 0x17,
+        0x0d, 0x32, 0x36, 0x31, 0x31, 0x30, 0x33, 0x30, 0x31, 0x30, 0x34, 0x31,
+        0x38, 0x5a, 0x30, 0x2f, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x09, 0x04, 0x31, 0x22, 0x04, 0x20, 0x14, 0x75, 0x34, 0x9f, 0x89,
+        0xdc, 0xdf, 0x00, 0x02, 0x20, 0xbe, 0xea, 0xfa, 0x17, 0xde, 0x82, 0x4d,
+        0x0f, 0x79, 0x20, 0xe9, 0x6e, 0x35, 0x41, 0x2b, 0x6f, 0xf1, 0x15, 0x93,
+        0xa9, 0x86, 0xd9, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
+        0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x04, 0x82, 0x01, 0x00, 0x3d, 0x13,
+        0x76, 0x29, 0xa1, 0xd7, 0xf7, 0xb4, 0xad, 0x5e, 0xf6, 0xad, 0x6a, 0xbb,
+        0x0a, 0x47, 0x84, 0xd7, 0x9c, 0x8e, 0xb3, 0xf1, 0x61, 0xe5, 0xaf, 0x6b,
+        0x26, 0x9a, 0xb2, 0x40, 0x8f, 0xf2, 0xe6, 0x81, 0x01, 0xe3, 0x58, 0xbc,
+        0xe1, 0x1d, 0xeb, 0xf6, 0x2d, 0x95, 0xf9, 0x4a, 0xe3, 0x57, 0x43, 0xba,
+        0x86, 0xa1, 0x13, 0xef, 0xa7, 0xad, 0x7e, 0xfe, 0x6f, 0xb9, 0xde, 0x04,
+        0x05, 0xe1, 0x57, 0x59, 0x8a, 0x72, 0x73, 0x2f, 0x14, 0xbb, 0x59, 0xe3,
+        0xc1, 0xb6, 0xe2, 0x7c, 0x20, 0xb6, 0x4a, 0x92, 0xad, 0x27, 0xa3, 0x7f,
+        0xcb, 0x53, 0x02, 0xc5, 0x24, 0x77, 0x49, 0x86, 0xfa, 0xf4, 0x69, 0xb3,
+        0x21, 0x3c, 0x1e, 0x11, 0xfd, 0x6a, 0x58, 0x3b, 0xb6, 0x50, 0xf2, 0xbe,
+        0x94, 0x25, 0x9a, 0x56, 0x43, 0x28, 0x7f, 0xc9, 0xb7, 0xdc, 0x58, 0xde,
+        0xd2, 0xed, 0xc6, 0xe2, 0x14, 0xa8, 0x68, 0xe2, 0x59, 0xdb, 0x02, 0x57,
+        0xe1, 0x96, 0xcb, 0x1e, 0x7f, 0x71, 0x61, 0xd3, 0xa3, 0xc5, 0x5b, 0x71,
+        0xc0, 0x5f, 0xc6, 0x69, 0x4d, 0x3b, 0x0d, 0xe0, 0xde, 0xbb, 0xe0, 0xee,
+        0xa5, 0xf1, 0xed, 0x20, 0xfc, 0x5d, 0x98, 0x85, 0xa1, 0xb9, 0x0b, 0x93,
+        0x6d, 0xe1, 0x14, 0x61, 0x6a, 0x11, 0x37, 0x27, 0x65, 0xcb, 0xd2, 0x13,
+        0x91, 0x35, 0x7c, 0x8f, 0x98, 0xe4, 0x0b, 0xf7, 0x5b, 0xfb, 0x1b, 0x48,
+        0x94, 0x53, 0x97, 0x24, 0x6a, 0xf6, 0x8e, 0x77, 0xf3, 0xe7, 0x71, 0x54,
+        0xae, 0x0f, 0xfe, 0xfb, 0x78, 0x6f, 0x12, 0x31, 0x56, 0xeb, 0x47, 0x90,
+        0x45, 0x34, 0xfb, 0xab, 0x4a, 0x0f, 0xf9, 0x03, 0x49, 0x3c, 0x1b, 0x0d,
+        0x94, 0x9c, 0x24, 0x84, 0x7c, 0xd9, 0x34, 0x67, 0xee, 0xad, 0x72, 0xea,
+        0x65, 0xdf, 0xde, 0x10, 0x44, 0xbc, 0x5b, 0x76, 0xeb, 0x89, 0xa7, 0xba,
+        0x19, 0x2e,
+    };
+
+    static const byte indefEContent[] = {
+        0x30, 0x82, 0x02, 0x87, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x07, 0x02, 0xa0, 0x82, 0x02, 0x78, 0x30, 0x82, 0x02, 0x74, 0x02,
+        0x01, 0x01, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+        0x65, 0x03, 0x04, 0x02, 0x01, 0x30, 0x0f, 0x06, 0x09, 0x2a, 0x86, 0x48,
+        0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0xa0, 0x02, 0x30, 0x80, 0x31, 0x82,
+        0x02, 0x4d, 0x30, 0x82, 0x02, 0x49, 0x02, 0x01, 0x01, 0x30, 0x81, 0xb8,
+        0x30, 0x81, 0x9f, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06,
+        0x13, 0x02, 0x55, 0x53, 0x31, 0x10, 0x30, 0x0e, 0x06, 0x03, 0x55, 0x04,
+        0x08, 0x0c, 0x07, 0x4d, 0x6f, 0x6e, 0x74, 0x61, 0x6e, 0x61, 0x31, 0x10,
+        0x30, 0x0e, 0x06, 0x03, 0x55, 0x04, 0x07, 0x0c, 0x07, 0x42, 0x6f, 0x7a,
+        0x65, 0x6d, 0x61, 0x6e, 0x31, 0x15, 0x30, 0x13, 0x06, 0x03, 0x55, 0x04,
+        0x0a, 0x0c, 0x0c, 0x77, 0x6f, 0x6c, 0x66, 0x53, 0x53, 0x4c, 0x5f, 0x32,
+        0x30, 0x34, 0x38, 0x31, 0x19, 0x30, 0x17, 0x06, 0x03, 0x55, 0x04, 0x0b,
+        0x0c, 0x10, 0x50, 0x72, 0x6f, 0x67, 0x72, 0x61, 0x6d, 0x6d, 0x69, 0x6e,
+        0x67, 0x2d, 0x32, 0x30, 0x34, 0x38, 0x31, 0x18, 0x30, 0x16, 0x06, 0x03,
+        0x55, 0x04, 0x03, 0x0c, 0x0f, 0x77, 0x77, 0x77, 0x2e, 0x77, 0x6f, 0x6c,
+        0x66, 0x73, 0x73, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x31, 0x20, 0x30, 0x1e,
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01, 0x16,
+        0x11, 0x66, 0x61, 0x63, 0x74, 0x73, 0x40, 0x77, 0x6f, 0x6c, 0x66, 0x73,
+        0x73, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x02, 0x14, 0x75, 0x90, 0x2e, 0xa0,
+        0xc3, 0xe1, 0x96, 0xe1, 0x92, 0x48, 0xb7, 0xa5, 0xc5, 0x83, 0xa1, 0xc9,
+        0xa7, 0x3e, 0xe9, 0x5f, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+        0x65, 0x03, 0x04, 0x02, 0x01, 0xa0, 0x69, 0x30, 0x18, 0x06, 0x09, 0x2a,
+        0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03, 0x31, 0x0b, 0x06, 0x09,
+        0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0x30, 0x1c, 0x06,
+        0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x05, 0x31, 0x0f,
+        0x17, 0x0d, 0x32, 0x36, 0x31, 0x31, 0x30, 0x33, 0x30, 0x31, 0x30, 0x34,
+        0x31, 0x38, 0x5a, 0x30, 0x2f, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
+        0x0d, 0x01, 0x09, 0x04, 0x31, 0x22, 0x04, 0x20, 0x14, 0x75, 0x34, 0x9f,
+        0x89, 0xdc, 0xdf, 0x00, 0x02, 0x20, 0xbe, 0xea, 0xfa, 0x17, 0xde, 0x82,
+        0x4d, 0x0f, 0x79, 0x20, 0xe9, 0x6e, 0x35, 0x41, 0x2b, 0x6f, 0xf1, 0x15,
+        0x93, 0xa9, 0x86, 0xd9, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x04, 0x82, 0x01, 0x00, 0x3d,
+        0x13, 0x76, 0x29, 0xa1, 0xd7, 0xf7, 0xb4, 0xad, 0x5e, 0xf6, 0xad, 0x6a,
+        0xbb, 0x0a, 0x47, 0x84, 0xd7, 0x9c, 0x8e, 0xb3, 0xf1, 0x61, 0xe5, 0xaf,
+        0x6b, 0x26, 0x9a, 0xb2, 0x40, 0x8f, 0xf2, 0xe6, 0x81, 0x01, 0xe3, 0x58,
+        0xbc, 0xe1, 0x1d, 0xeb, 0xf6, 0x2d, 0x95, 0xf9, 0x4a, 0xe3, 0x57, 0x43,
+        0xba, 0x86, 0xa1, 0x13, 0xef, 0xa7, 0xad, 0x7e, 0xfe, 0x6f, 0xb9, 0xde,
+        0x04, 0x05, 0xe1, 0x57, 0x59, 0x8a, 0x72, 0x73, 0x2f, 0x14, 0xbb, 0x59,
+        0xe3, 0xc1, 0xb6, 0xe2, 0x7c, 0x20, 0xb6, 0x4a, 0x92, 0xad, 0x27, 0xa3,
+        0x7f, 0xcb, 0x53, 0x02, 0xc5, 0x24, 0x77, 0x49, 0x86, 0xfa, 0xf4, 0x69,
+        0xb3, 0x21, 0x3c, 0x1e, 0x11, 0xfd, 0x6a, 0x58, 0x3b, 0xb6, 0x50, 0xf2,
+        0xbe, 0x94, 0x25, 0x9a, 0x56, 0x43, 0x28, 0x7f, 0xc9, 0xb7, 0xdc, 0x58,
+        0xde, 0xd2, 0xed, 0xc6, 0xe2, 0x14, 0xa8, 0x68, 0xe2, 0x59, 0xdb, 0x02,
+        0x57, 0xe1, 0x96, 0xcb, 0x1e, 0x7f, 0x71, 0x61, 0xd3, 0xa3, 0xc5, 0x5b,
+        0x71, 0xc0, 0x5f, 0xc6, 0x69, 0x4d, 0x3b, 0x0d, 0xe0, 0xde, 0xbb, 0xe0,
+        0xee, 0xa5, 0xf1, 0xed, 0x20, 0xfc, 0x5d, 0x98, 0x85, 0xa1, 0xb9, 0x0b,
+        0x93, 0x6d, 0xe1, 0x14, 0x61, 0x6a, 0x11, 0x37, 0x27, 0x65, 0xcb, 0xd2,
+        0x13, 0x91, 0x35, 0x7c, 0x8f, 0x98, 0xe4, 0x0b, 0xf7, 0x5b, 0xfb, 0x1b,
+        0x48, 0x94, 0x53, 0x97, 0x24, 0x6a, 0xf6, 0x8e, 0x77, 0xf3, 0xe7, 0x71,
+        0x54, 0xae, 0x0f, 0xfe, 0xfb, 0x78, 0x6f, 0x12, 0x31, 0x56, 0xeb, 0x47,
+        0x90, 0x45, 0x34, 0xfb, 0xab, 0x4a, 0x0f, 0xf9, 0x03, 0x49, 0x3c, 0x1b,
+        0x0d, 0x94, 0x9c, 0x24, 0x84, 0x7c, 0xd9, 0x34, 0x67, 0xee, 0xad, 0x72,
+        0xea, 0x65, 0xdf, 0xde, 0x10, 0x44, 0xbc, 0x5b, 0x76, 0xeb, 0x89, 0xa7,
+        0xba, 0x19, 0x2e,
+    };
+#if defined(USE_CERT_BUFFERS_2048)
+    byte   key[sizeof(client_key_der_2048)];
+    byte   cert[sizeof(client_cert_der_2048)];
+    word32 keySz = (word32)sizeof(key);
+    word32 certSz = (word32)sizeof(cert);
+    XMEMCPY(key, client_key_der_2048, keySz);
+    XMEMCPY(cert, client_cert_der_2048, certSz);
+#else
+    byte   key[sizeof_client_key_der_1024];
+    byte   cert[sizeof_client_cert_der_1024];
+    word32 keySz = (word32)sizeof(key);
+    word32 certSz = (word32)sizeof(cert);
+    XMEMCPY(key, client_key_der_1024, keySz);
+    XMEMCPY(cert, client_cert_der_1024, certSz);
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(output, 0, outputSz);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Sign a normal CMS SignedData (OCTET STRING eContent) over contentStr. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = (byte*)contentStr;
+        pkcs7->contentSz = contentSz;
+        pkcs7->privateKey = key;
+        pkcs7->privateKeySz = keySz;
+        pkcs7->encryptOID = RSAk;
+        pkcs7->hashOID = SHA256h;
+        pkcs7->rng = &rng;
+    }
+    ExpectIntGT(anySz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Locate the eContent OCTET STRING: the two bytes 0x04,len precede the
+     * signed content inside the eContent [0] wrapper. */
+    if (anySz > 0) {
+        for (i = 0; i + 2 + (int)contentSz <= anySz; i++) {
+            if (output[i] == 0x04 &&
+                    output[i + 1] == (byte)contentSz &&
+                    XMEMCMP(output + i + 2, contentStr, contentSz) == 0) {
+                octetOff = i;
+                break;
+            }
+        }
+    }
+    ExpectIntGE(octetOff, 0);
+
+    /* Positive: retag the element to SEQUENCE so it spans the whole content. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;   /* OCTET STRING (0x04) -> SEQUENCE (0x30) */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+            /* the whole ANY element is reported: tag (0x30), length, value. */
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectIntEQ(pkcs7->content[0], 0x30);
+                ExpectIntEQ(pkcs7->content[1], (int)contentSz);
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+            }
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: retag, and shorten the element's length so it stops before the
+     * end of the content, leaving trailing bytes the digest never covered. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);        /* short-form length */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: a high-tag-number identifier (multi-byte tag, low five bits
+     * all set) is not a supported eContent element form and is rejected. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x9f;   /* high-tag-number identifier */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: the end-of-contents identifier (0x00) is not a valid element
+     * tag. The length octet is left unchanged so the element still spans the
+     * whole content; only the tag rule can reject it. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x00;   /* end-of-contents identifier */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Same two cases through the precomputed-hash entry point
+     * (wc_PKCS7_VerifySignedData_ex, hashBuf != NULL): the value is still
+     * reported, and trailing data is still rejected, on that path too. */
+    if (octetOff >= 0) {
+        byte   hash[WC_SHA256_DIGEST_SIZE];
+        word32 hashSz = (word32)sizeof(hash);
+        ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, (const byte*)contentStr,
+                    contentSz, hash, hashSz), 0);
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectIntEQ(pkcs7->content[0], 0x30);
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+            }
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Reuse: after an ANY message, a CMS message verifies on the same object
+     * with no re-init, via both entry points, and reports the CMS content. */
+    if (octetOff >= 0) {
+        byte   hash[WC_SHA256_DIGEST_SIZE];
+        word32 hashSz = (word32)sizeof(hash);
+        ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, (const byte*)contentStr,
+                    contentSz, hash, hashSz), 0);
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+            /* Content lifetime: this verify's content is valid until the next
+             * verify on the object. Read it here, before the second verify
+             * below, to pin that the first verify's content is still intact. */
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectIntEQ(pkcs7->content[0], 0x30);
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+            }
+        }
+        /* same object, CMS message, ordinary entry point */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)anySz),
+                    0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 0);
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz);
+            ExpectIntEQ(XMEMCMP(pkcs7->content, contentStr, contentSz), 0);
+        }
+        /* ANY again, then CMS through the precomputed-hash entry point */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    output, (word32)anySz, NULL, 0), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 0);
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz);
+            ExpectIntEQ(XMEMCMP(pkcs7->content, contentStr, contentSz), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Reuse after a FAILED ANY verify: a malformed ANY (trailing bytes) is
+     * rejected with ASN_PARSE_E, during parsing of which contentIsPkcs7Type
+     * is set; the next verify on the same object must clear it. A following
+     * CMS verify parses fresh and reports flag 0, pinning the per-verify
+     * reset on the failure path. */
+    if (octetOff >= 0) {
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 0);
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz);
+            ExpectIntEQ(XMEMCMP(pkcs7->content, contentStr, contentSz), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+#ifndef NO_PKCS7_STREAM
+    /* Trailing data is also rejected when the message is fed one byte at a
+     * time, exercising the streaming parse path. */
+    if (octetOff >= 0) {
+        word32 idx;
+        int    ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        for (idx = 0; idx < (word32)anySz && ret != 0; idx++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, any + idx, 1);
+            if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                break;
+        }
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif /* !NO_PKCS7_STREAM */
+
+    /* No-certificate bundle: verification returns PKCS7_SIGNEEDS_CHECK (the
+     * caller verifies the signature itself), and the reported content is still
+     * narrowed to the signed value. */
+    if (octetOff >= 0) {
+        byte nc[FOURK_BUF];
+        int  ncSz = 0;
+        int  o2 = -1;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(pkcs7, 1), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = (byte*)contentStr;
+            pkcs7->contentSz = contentSz;
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(ncSz = wc_PKCS7_EncodeSignedData(pkcs7, nc, sizeof(nc)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        for (i = 0; ncSz > 0 && i + 2 + (int)contentSz <= ncSz; i++) {
+            if (nc[i] == 0x04 && nc[i + 1] == (byte)contentSz &&
+                    XMEMCMP(nc + i + 2, contentStr, contentSz) == 0) {
+                o2 = i;
+                break;
+            }
+        }
+        ExpectIntGE(o2, 0);
+        if (o2 >= 0) {
+            nc[o2] = 0x30;      /* retag to a spanning SEQUENCE */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, nc, (word32)ncSz),
+                        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL) {
+                    ExpectIntEQ(pkcs7->content[0], 0x30);
+                    ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                                contentSz), 0);
+                }
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+
+    /* Negative (crafted vectors): the span check rejects a one-octet element
+     * (no length octet) and the indefinite-length form, before any signature
+     * or digest work. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, (byte*)onebyteEContent,
+                (word32)sizeof(onebyteEContent)), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, (byte*)indefEContent,
+                (word32)sizeof(indefEContent)), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Negative: a declared length past the content is rejected on both the
+     * one-shot and precomputed-hash entry points. */
+    if (octetOff >= 0) {
+        byte   hash[WC_SHA256_DIGEST_SIZE];
+        word32 hashSz = (word32)sizeof(hash);
+        ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, (const byte*)contentStr,
+                    contentSz, hash, hashSz), 0);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x7f;   /* length past the element's bytes */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* Non-minimal long-form length (long form for a value that fits short
+         * form) is rejected on both entry points. The element still spans the
+         * whole content, so only the minimal-length rule can reject it. */
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x81;               /* long form, one length octet */
+        any[octetOff + 2] = (byte)(contentSz - 1); /* 0x30 0x81 L + (len-1) value */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: multi-octet long-form lengths rejected by GetLength_ex before
+     * the span comparison. Each overwrites only the length octets, so the tag
+     * stays a SEQUENCE and only the length rule can reject it:
+     *   0x82 0x00 0x13  non-minimal two-octet length (value fits one octet)
+     *   0x84 0x80 ...    four-octet length with the high bit set (out of range)
+     *   0x85 ...         overlong length (more than four octets). */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x82;
+        any[octetOff + 2] = 0x00;
+        any[octetOff + 3] = 0x13;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x84;
+        any[octetOff + 2] = 0x80;
+        any[octetOff + 3] = 0x00;
+        any[octetOff + 4] = 0x00;
+        any[octetOff + 5] = 0x00;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x85;
+        any[octetOff + 2] = 0x00;
+        any[octetOff + 3] = 0x00;
+        any[octetOff + 4] = 0x00;
+        any[octetOff + 5] = 0x00;
+        any[octetOff + 6] = 0x13;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+#ifndef NO_PKCS7_STREAM
+    /* Positive: a spanning element also verifies fed one byte at a time. */
+    if (octetOff >= 0) {
+        word32 idx;
+        int    ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        for (idx = 0; idx < (word32)anySz && ret != 0; idx++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, any + idx, 1);
+            if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                break;
+        }
+        ExpectIntEQ(ret, 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL)
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif /* !NO_PKCS7_STREAM */
+
+    /* Positive: a long-form (>=128-byte) element length spans the content. */
+    if (octetOff >= 0) {
+        byte   lcont[200];
+        int    lanySz = 0;
+        int    loff = -1;
+        int    j;
+        for (j = 0; j < (int)sizeof(lcont); j++)
+            lcont[j] = (byte)('A' + (j % 26));
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = lcont;
+            pkcs7->contentSz = (word32)sizeof(lcont);
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(lanySz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz),
+                    0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        /* eContent OCTET STRING is long-form (04 81 c8) for a 200-byte value */
+        for (i = 0; lanySz > 0 && i + 3 + (int)sizeof(lcont) <= lanySz; i++) {
+            if (output[i] == 0x04 && output[i + 1] == 0x81 &&
+                    output[i + 2] == (byte)sizeof(lcont) &&
+                    XMEMCMP(output + i + 3, lcont, sizeof(lcont)) == 0) {
+                loff = i;
+                break;
+            }
+        }
+        ExpectIntGE(loff, 0);
+        if (loff >= 0) {
+            XMEMCPY(any, output, (word32)lanySz);
+            any[loff] = 0x30;   /* OCTET STRING -> spanning SEQUENCE */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)lanySz),
+                        0);
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, (int)sizeof(lcont) + 3);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL)
+                    ExpectIntEQ(XMEMCMP(pkcs7->content + 3, lcont,
+                                sizeof(lcont)), 0);
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    /* Positive: a two-length-octet (>=256-byte) element length spans the
+     * content, exercising the 0x82 long-form length in the span check and in
+     * the value-skip digest (a slip here would reject every large real token
+     * while the short-length tests still pass). */
+    if (octetOff >= 0) {
+        byte   bcont[300];
+        int    banySz = 0;
+        int    boff = -1;
+        int    j;
+        for (j = 0; j < (int)sizeof(bcont); j++)
+            bcont[j] = (byte)('A' + (j % 26));
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = bcont;
+            pkcs7->contentSz = (word32)sizeof(bcont);
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(banySz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz),
+                    0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        /* eContent OCTET STRING is two-length-octet form (04 82 01 2c) */
+        for (i = 0; banySz > 0 && i + 4 + (int)sizeof(bcont) <= banySz; i++) {
+            if (output[i] == 0x04 && output[i + 1] == 0x82 &&
+                    output[i + 2] == (byte)(sizeof(bcont) >> 8) &&
+                    output[i + 3] == (byte)(sizeof(bcont) & 0xff) &&
+                    XMEMCMP(output + i + 4, bcont, sizeof(bcont)) == 0) {
+                boff = i;
+                break;
+            }
+        }
+        ExpectIntGE(boff, 0);
+        if (boff >= 0) {
+            XMEMCPY(any, output, (word32)banySz);
+            any[boff] = 0x30;   /* OCTET STRING -> spanning SEQUENCE */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)banySz),
+                        0);
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, (int)sizeof(bcont) + 4);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL)
+                    ExpectIntEQ(XMEMCMP(pkcs7->content + 4, bcont,
+                                sizeof(bcont)), 0);
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    /* Accept side of the contentSz<2 boundary: a 2-byte element (30 00) passes
+     * the span check and the digest of its empty value. No-cert bundle (no
+     * signature needed); patch messageDigest to the SHA-256 of the empty
+     * value, which the encoder leaves zero. */
+    if (octetOff >= 0) {
+        static const byte emptyHash[WC_SHA256_DIGEST_SIZE] = {
+            0xe3,0xb0,0xc4,0x42,0x98,0xfc,0x1c,0x14,0x9a,0xfb,0xf4,0xc8,
+            0x99,0x6f,0xb9,0x24,0x27,0xae,0x41,0xe4,0x64,0x9b,0x93,0x4c,
+            0xa4,0x95,0x99,0x1b,0x78,0x52,0xb8,0x55 };
+        static const byte mdOid[] = {
+            0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x04 };
+        byte eb[FOURK_BUF];
+        int  ebSz = 0, eoff = -1, moff = -1;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(pkcs7, 1), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = (byte*)contentStr;
+            pkcs7->contentSz = 0;
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(ebSz = wc_PKCS7_EncodeSignedData(pkcs7, eb, sizeof(eb)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        /* eContent [0] wraps an empty OCTET STRING (a0 02 04 00) */
+        for (i = 0; ebSz > 3 && i + 4 <= ebSz; i++) {
+            if (eb[i] == 0xa0 && eb[i + 1] == 0x02 && eb[i + 2] == 0x04 &&
+                    eb[i + 3] == 0x00) {
+                eoff = i + 2;
+                break;
+            }
+        }
+        /* messageDigest value follows its OID, then 31 22 04 20 */
+        for (i = 0; i + (int)sizeof(mdOid) + 4 + WC_SHA256_DIGEST_SIZE <= ebSz;
+                i++) {
+            if (XMEMCMP(eb + i, mdOid, sizeof(mdOid)) == 0) {
+                moff = i + (int)sizeof(mdOid) + 4;
+                break;
+            }
+        }
+        ExpectIntGE(eoff, 0);
+        ExpectIntGE(moff, 0);
+        if (eoff >= 0 && moff >= 0) {
+            eb[eoff] = 0x30;        /* 04 00 -> 30 00 */
+            XMEMCPY(eb + moff, emptyHash, WC_SHA256_DIGEST_SIZE);
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, eb, (word32)ebSz),
+                        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, 2);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL)
+                    ExpectIntEQ(pkcs7->content[0], 0x30);
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    /* No signed attributes: the span check is gated on the signed-attributes
+     * path, so it never runs here. The identical malformed ANY element that the
+     * signed-attributes path rejects with ASN_PARSE_E is accepted, and the
+     * whole eContent region (trailing bytes included) is reported as content.
+     * No certificates, so verification returns PKCS7_SIGNEEDS_CHECK without a
+     * signature check; the signature covers the region as received, so the
+     * shape is the signer's choice, not the verifier's guarantee. */
+    if (octetOff >= 0) {
+        byte na[FOURK_BUF];
+        int  naSz = 0;
+        int  o3 = -1;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        ExpectIntEQ(wc_PKCS7_NoDefaultSignedAttribs(pkcs7), 0);
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(pkcs7, 1), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = (byte*)contentStr;
+            pkcs7->contentSz = contentSz;
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(naSz = wc_PKCS7_EncodeSignedData(pkcs7, na, sizeof(na)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        for (i = 0; naSz > 0 && i + 2 + (int)contentSz <= naSz; i++) {
+            if (na[i] == 0x04 && na[i + 1] == (byte)contentSz &&
+                    XMEMCMP(na + i + 2, contentStr, contentSz) == 0) {
+                o3 = i;
+                break;
+            }
+        }
+        ExpectIntGE(o3, 0);
+        if (o3 >= 0) {
+            na[o3] = 0x30;                      /* retag to a SEQUENCE */
+            na[o3 + 1] = (byte)(contentSz - 4); /* shorten: 4 trailing bytes */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, na, (word32)naSz),
+                        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+            if (pkcs7 != NULL) {
+                ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+                ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL) {
+                    ExpectIntEQ(pkcs7->content[0], 0x30);
+                    ExpectIntEQ(pkcs7->content[1], (int)contentSz - 4);
+                }
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    ForceZero(key, sizeof(key));
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+
+/*
  * Test PKCS7 VerifySignedData with indefinite-length BER-encoded SignedData
  * containing mismatched nesting depth. Verifies bounds checking in the
  * end-of-content octet verification loop in streaming mode.

@@ -51,6 +51,7 @@ int test_wc_TspTstInfo_CheckRequest(void);
 int test_wc_TspTstInfo_CheckTsaName(void);
 int test_wc_TspTstInfo_SignWithPkcs7(void);
 int test_wc_TspTstInfo_SignWithPkcs7_create(void);
+int test_wc_TspTstInfo_VerifyWithPKCS7_legacyAny(void);
 int test_wc_TspTstInfo_SignWithPkcs7_signer_required(void);
 int test_wc_TspTstInfo_SignWithPkcs7_hash_and_buffer(void);
 int test_wc_TspTstInfo_Sign(void);
@@ -117,6 +118,7 @@ int test_wc_TspTstInfo_SetFromRequest(void);
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_CheckTsaName),         \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_SignWithPkcs7),          \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_SignWithPkcs7_create),   \
+    TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_VerifyWithPKCS7_legacyAny), \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_SignWithPkcs7_signer_required), \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_SignWithPkcs7_hash_and_buffer), \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_Sign),   \

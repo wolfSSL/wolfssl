@@ -2145,6 +2145,120 @@ int test_wc_TspTstInfo_SignWithPkcs7_create(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_TspTstInfo_VerifyWithPKCS7_legacyAny(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_TSP_REQUESTER) && defined(WOLFSSL_TSP_RESPONDER)
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    TspTstInfo tstDec;
+    byte token[3072];
+    byte mod[3072];
+    word32 tokenSz;
+    int i;
+    int off = -1;
+    int lenOff = -1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    tokenSz = (word32)sizeof(token);
+    ExpectIntEQ(test_tsp_make_token(token, &tokenSz, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, tsa_key_der_2048, sizeof_tsa_key_der_2048,
+        RSAk, &rng), TEST_SUCCESS);
+    ExpectIntGT(tokenSz, 0);
+
+    /* A wolfSSL-encoded token always has a CMS OCTET STRING eContent wrapping
+     * the TstInfo SEQUENCE; the well-formed success path is covered by
+     * test_wc_TspTstInfo_SignWithPkcs7_create. Here that eContent is retagged
+     * to an ANY SEQUENCE to drive the new span check on the TSP verify call. A
+     * true legacy token (the TstInfo SEQUENCE as the eContent directly) cannot
+     * be produced by retagging this token: the wolfSSL signer digested the
+     * OCTET STRING value, i.e. the whole TstInfo SEQUENCE TLV, while after
+     * retagging the ANY value-skip hashes only the SEQUENCE value, so the
+     * digests never match.
+     *
+     * Locate the eContent OCTET STRING: it wraps the TstInfo SEQUENCE, whose
+     * first field is the version INTEGER 1 (02 01 01). Short-form and one-byte
+     * long-form (0x81) OCTET STRING lengths are handled, covering a TstInfo up
+     * to 255 octets; the fixed test vectors stay within that, so a two-byte
+     * (0x82) long form does not arise here. */
+    for (i = 0; off < 0 && i + 8 <= (int)tokenSz; i++) {
+        int vOff, j;
+        if (token[i] != 0x04)
+            continue;
+        if (token[i + 1] < 0x80) {
+            lenOff = i + 1;
+            vOff   = i + 2;
+        }
+        else if (token[i + 1] == 0x81) {
+            lenOff = i + 2;
+            vOff   = i + 3;
+        }
+        else {
+            continue;
+        }
+        if (vOff >= (int)tokenSz || token[vOff] != 0x30)
+            continue;
+        for (j = vOff + 1; j + 2 < (int)tokenSz && j <= vOff + 3; j++) {
+            if (token[j] == 0x02 && token[j + 1] == 0x01 &&
+                    token[j + 2] == 0x01) {
+                off = i;
+                break;
+            }
+        }
+    }
+    ExpectIntGE(off, 0);
+
+    /* Retag the OCTET STRING to a SEQUENCE. The element now spans the eContent
+     * (its value is the original TstInfo SEQUENCE), so the value-skip digest
+     * still matches and the span check accepts it: wc_PKCS7_VerifySignedData
+     * passes. wc_TspTstInfo_VerifyWithPKCS7 then returns ASN_PARSE_E because the
+     * decoder sees a SEQUENCE wrapping a SEQUENCE, not a TstInfo. */
+    if (off >= 0) {
+        XMEMCPY(mod, token, tokenSz);
+        mod[off] = 0x30;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, mod, tokenSz), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_TspTstInfo_VerifyWithPKCS7(pkcs7, mod, tokenSz, &tstDec),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Trailing bytes: retag and shorten the element so four bytes trail it. The
+     * span check runs on the TSP verify call and rejects it with ASN_PARSE_E
+     * before the TSP decode is reached. */
+    if (off >= 0) {
+        XMEMCPY(mod, token, tokenSz);
+        mod[off] = 0x30;
+        mod[lenOff] = (byte)(token[lenOff] - 4);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, mod, tokenSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_TspTstInfo_VerifyWithPKCS7(pkcs7, mod, tokenSz, &tstDec),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_TspTstInfo_SignWithPkcs7_signer_required(void)
 {
     EXPECT_DECLS;
