@@ -265,6 +265,38 @@ static int update_test(void)
         return -1;
     }
 
+    /* START and FINISH on their own produce nothing. */
+    if (Csm_KeyElementSet(CBC_KEY_SLOT, CRYPTO_KE_CIPHER_KEY, key,
+                BLOCK_SIZE) != E_OK ||
+            Csm_KeyElementSet(CBC_IV_SLOT, CRYPTO_KE_CIPHER_IV, iv,
+                BLOCK_SIZE) != E_OK) {
+        printf("Issue with setting key and IV");
+        return -1;
+    }
+    XMEMSET(plain, 0, sizeof(plain));
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_START, NULL, 0, plain,
+            &plainSz);
+    if (ret != E_OK || plainSz != 0) {
+        printf("START alone reported output\n");
+        return -1;
+    }
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_UPDATE, msg, BLOCK_SIZE, plain,
+            &plainSz);
+    if (ret != E_OK || plainSz != BLOCK_SIZE ||
+            XMEMCMP(plain, cipher, BLOCK_SIZE) != 0) {
+        printf("UPDATE after a lone START did not encrypt\n");
+        return -1;
+    }
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_FINISH, NULL, 0, plain,
+            &plainSz);
+    if (ret != E_OK || plainSz != 0) {
+        printf("FINISH alone reported output\n");
+        return -1;
+    }
+
     return 0;
 }
 

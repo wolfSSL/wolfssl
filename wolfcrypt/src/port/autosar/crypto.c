@@ -1061,6 +1061,10 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
         }
         *outLen = job->jobPrimitiveInputOutput.inputLength;
     }
+    else if (job->jobPrimitiveInputOutput.outputLengthPtr != NULL) {
+        /* START and FINISH produce no output of their own. */
+        *job->jobPrimitiveInputOutput.outputLengthPtr = 0;
+    }
 
     if ((job->jobPrimitiveInputOutput.mode & CRYPTO_OPERATIONMODE_FINISH)
             != 0) {
