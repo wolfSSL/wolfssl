@@ -856,6 +856,12 @@ WOLFSSL_API int  wc_FreeRng_PreLocked(WC_RNG* rng);
 #define wc_FreeRng(rng) (void)NOT_COMPILED_IN
 #endif
 
+#ifdef WOLFSSL_FIPS_EXPORT_LOCAL_APIS
+    #define WC_FIPS_LOCAL_API   WOLFSSL_API
+#else
+    #define WC_FIPS_LOCAL_API   WOLFSSL_LOCAL
+#endif
+
 #ifdef WC_RNG_SEED_CB
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
 #endif
@@ -915,11 +921,11 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     /* SHA-256 Hash_DRBG health test entry points. SHA-512-only builds
      * (NO_SHA256 + WOLFSSL_DRBG_SHA512) use wc_RNG_HealthTest_SHA512_ex
      * declared below. */
-    WOLFSSL_API int wc_RNG_HealthTest(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz);
-    WOLFSSL_API int wc_RNG_HealthTest_ex(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_ex(int reseed,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
@@ -931,7 +937,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     /* Extended SHA-256 Hash_DRBG health test per SP 800-90A.
      * Flexible output size, prediction resistance, personalization
      * strings, and additional input support. */
-    WOLFSSL_API int wc_RNG_HealthTest_SHA256_ex(
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA256_ex(
                                         int predResistance,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* persoString,
@@ -953,11 +959,11 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #endif /* !NO_SHA256 && !HAVE_SELFTEST && FIPS v7+ */
 #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    WOLFSSL_API int wc_RNG_HealthTest_SHA512(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA512(int reseed,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz);
-    WOLFSSL_API int wc_RNG_HealthTest_SHA512_ex(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA512_ex(int reseed,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* persoString,
                                             word32 persoStringSz,
@@ -975,7 +981,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
      *                   Generate gets NULL additional input.
      * predResistance=0: additionalReseed goes to Reseed, additionalA/B go
      *                   to Generate calls 1 and 2 respectively. */
-    WOLFSSL_API int wc_RNG_HealthTest_SHA512_ex2(
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA512_ex2(
                                         int predResistance,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* persoString,

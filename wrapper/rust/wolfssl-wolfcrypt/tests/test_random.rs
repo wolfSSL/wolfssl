@@ -31,7 +31,7 @@ fn test_rng_new_with_nonce_ex_and_drop() {
 }
 
 #[test]
-#[cfg(random_hashdrbg)]
+#[cfg(random_health_test)]
 fn test_health_test() {
     let nonce = [99u8, 88, 77, 66];
     let seed_a = [42u8, 33, 55, 88];

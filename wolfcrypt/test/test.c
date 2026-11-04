@@ -382,6 +382,12 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
         #include <wolfssl/wolfcrypt/rng_noisesrc.h>
     #endif
 #endif
+/* wc_RNG_HealthTest*() are WOLFSSL_LOCAL in FIPS builds unless
+ * WOLFSSL_FIPS_EXPORT_LOCAL_APIS is set, but a kernel module build links the
+ * test into the module and can always reach them. */
+#if defined(WOLFSSL_KERNEL_MODE) || defined(WOLFSSL_FIPS_EXPORT_LOCAL_APIS)
+    #define TEST_FIPS_PRIVATE_APIS
+#endif
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/signature.h>
@@ -30434,11 +30440,12 @@ out:
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 {
     /* SHA-256 Hash_DRBG known-answer vectors. wc_RNG_HealthTest is
-     * gated on !NO_SHA256 in random.h (it operates on DRBG_internal),
-     * so the data and calls are gated together to keep SHA-512-only
-     * builds clean of unused-variable warnings. SHA-512 vectors below
-     * have their own WOLFSSL_DRBG_SHA512 guard. */
-#ifndef NO_SHA256
+     * gated on !NO_SHA256 in random.h (it operates on DRBG_internal)
+     * and only reachable with TEST_FIPS_PRIVATE_APIS, so the data and
+     * calls are gated together to keep other builds clean of
+     * unused-variable warnings. SHA-512 vectors below have their own
+     * WOLFSSL_DRBG_SHA512 guard. */
+#if !defined(NO_SHA256) && defined(TEST_FIPS_PRIVATE_APIS)
     WOLFSSL_SMALL_STACK_STATIC const byte test1Entropy[] =
     {
         0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
@@ -30487,7 +30494,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
         0x82, 0xc9, 0x55, 0xa8, 0x19, 0x69, 0xe0, 0x69, 0xfa, 0x8c, 0xe0, 0x07,
         0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
     };
-#endif /* !NO_SHA256 - SHA-256 DRBG KAT vector data */
+#endif /* !NO_SHA256 && TEST_FIPS_PRIVATE_APIS - SHA-256 DRBG KAT vector
+        * data */
 
     byte output[32 * 4];
     wc_test_ret_t ret;
@@ -30503,7 +30511,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     if (ret != 0)
         return ret;
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && defined(TEST_FIPS_PRIVATE_APIS)
     ret = wc_RNG_HealthTest(0, test1Entropy, sizeof(test1Entropy), NULL, 0,
                             output, sizeof(output));
     if (ret != 0)
@@ -30521,11 +30529,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     if (XMEMCMP(test2Output, output, sizeof(output)) != 0)
         return WC_TEST_RET_ENC_NC;
 #else
-    (void)ret; /* may not be reassigned before use under NO_SHA256 */
-#endif /* !NO_SHA256 - SHA-256 DRBG KAT calls */
+    (void)ret; /* may not be reassigned before use without the KAT calls */
+#endif /* !NO_SHA256 && TEST_FIPS_PRIVATE_APIS - SHA-256 DRBG KAT calls */
 
-#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if defined(WOLFSSL_DRBG_SHA512) && defined(TEST_FIPS_PRIVATE_APIS) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     /* SHA-512 DRBG Health Tests using NIST CAVP test vectors.
      * Source: NIST CAVP drbgtestvectors.zip, Hash_DRBG.rsp, [SHA-512],
      * https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-
@@ -30857,7 +30865,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                 return WC_TEST_RET_ENC_NC;
         }
     }
-#endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
+#endif /* WOLFSSL_DRBG_SHA512 && TEST_FIPS_PRIVATE_APIS &&
+        * !HAVE_SELFTEST && FIPS v7+ */
 
     /* Basic RNG generate block test */
     if ((ret = random_rng_test()) != 0)

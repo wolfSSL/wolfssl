@@ -218,7 +218,7 @@ impl RNG {
     /// # Example
     ///
     /// ```rust
-    /// #![cfg(random_hashdrbg)]
+    /// #![cfg(random_health_test)]
     /// use wolfssl_wolfcrypt::random::RNG;
     /// let nonce = [99u8, 88, 77, 66];
     /// let seed_a = [42u8, 33, 55, 88];
@@ -226,7 +226,7 @@ impl RNG {
     /// let mut output = [0u8; 128];
     /// RNG::health_test(Some(&nonce), &seed_a, Some(&seed_b), &mut output).expect("Error with health_test()");
     /// ```
-    #[cfg(random_hashdrbg)]
+    #[cfg(random_health_test)]
     pub fn health_test(nonce: Option<&[u8]>, seed_a: &[u8], seed_b: Option<&[u8]>, output: &mut [u8]) -> Result<(), i32> {
         Self::health_test_ex(nonce, seed_a, seed_b, output, None, None)
     }
@@ -251,7 +251,7 @@ impl RNG {
     /// # Example
     ///
     /// ```rust
-    /// #![cfg(random_hashdrbg)]
+    /// #![cfg(random_health_test)]
     /// use wolfssl_wolfcrypt::random::RNG;
     /// let nonce = [99u8, 88, 77, 66];
     /// let seed_a = [42u8, 33, 55, 88];
@@ -259,7 +259,7 @@ impl RNG {
     /// let mut output = [0u8; 128];
     /// RNG::health_test_ex(Some(&nonce), &seed_a, Some(&seed_b), &mut output, None, None).expect("Error with health_test_ex()");
     /// ```
-    #[cfg(random_hashdrbg)]
+    #[cfg(random_health_test)]
     pub fn health_test_ex(nonce: Option<&[u8]>, seed_a: &[u8], seed_b: Option<&[u8]>, output: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let mut nonce_ptr = core::ptr::null();
         let mut nonce_size = 0u32;

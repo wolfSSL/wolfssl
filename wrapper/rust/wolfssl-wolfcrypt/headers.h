@@ -33,6 +33,12 @@
 #ifdef HAVE_COMP_KEY
 #define WOLFSSL_RUST_HAVE_COMP_KEY 1
 #endif
+/* wc_RNG_HealthTest*() are always declared but only exported when
+ * WOLFSSL_FIPS_EXPORT_LOCAL_APIS is set (non-FIPS and HAVE_FORCE_FIPS_FAILURE
+ * builds, or FIPS builds that define it explicitly). */
+#ifdef WOLFSSL_FIPS_EXPORT_LOCAL_APIS
+#define WOLFSSL_RUST_FIPS_EXPORT_LOCAL_APIS 1
+#endif
 
 /* Sentinels for wolfSSL build configurations that the Rust wrapper does not
  * support.  build.rs fails the build if any of these appear in the generated

@@ -30,21 +30,6 @@ namespace wolfSSL.CSharp.Fips.Test
         {
             T.Section("Hash_DRBG");
 
-            T.Run("HealthTest argument contract (128-byte output, seedB with reseed)", () =>
-            {
-                byte[] seed = new byte[48];
-                foreach (int len in new[] { 64, 127, 129, -1 })
-                {
-                    bool threw = false;
-                    try { FipsRng.HealthTest(false, seed, null, len); } catch (ArgumentOutOfRangeException) { threw = true; }
-                    T.True(threw, "outputLen " + len + " accepted");
-                }
-                bool threwB = false;
-                try { FipsRng.HealthTest(true, seed, null); } catch (ArgumentNullException) { threwB = true; }
-                T.True(threwB, "reseed without seedB accepted");
-                T.Equal(128, FipsRng.HealthTest(false, seed, null).Length, "default length");
-            });
-
             T.Run("instantiate, generate, output is not constant", () =>
             {
                 using var rng = new FipsRng();

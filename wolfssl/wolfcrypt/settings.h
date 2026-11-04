@@ -4080,6 +4080,15 @@
     #define NO_OLD_TLS
 #endif
 
+/* The FIPS module's self-test entry points (wc_RNG_HealthTest*) are internal
+ * to the module and hidden from applications. Non-FIPS builds and
+ * HAVE_FORCE_FIPS_FAILURE builds export them; define
+ * WOLFSSL_FIPS_EXPORT_LOCAL_APIS to export them from any other FIPS build
+ * (e.g. for CAVP harnesses) without changing module behavior. */
+#if !defined(HAVE_FIPS) || defined(HAVE_FORCE_FIPS_FAILURE)
+    #undef  WOLFSSL_FIPS_EXPORT_LOCAL_APIS
+    #define WOLFSSL_FIPS_EXPORT_LOCAL_APIS
+#endif
 
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ
