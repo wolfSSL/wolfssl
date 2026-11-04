@@ -5484,12 +5484,20 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
             ret = 0;
         }
 #else
-        signatureLen = i2d_ECDSA_SIG(sig, &p);
-        if (signatureLen > 0) {
+        signatureLen = wolfSSL_i2d_ECDSA_SIG(sig, NULL);
+        if ((signatureLen <= 0) || (signatureLen > (int)sizeof(signature))) {
+            WOLFSSL_MSG("wolfSSL_ECDSA_do_verify signature length error");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (wolfSSL_i2d_ECDSA_SIG(sig, &p) != signatureLen) {
+            WOLFSSL_MSG("wolfSSL_i2d_ECDSA_SIG failed");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
             /* verify hash. expects to call wc_CryptoCb_EccVerify internally */
-            ret = wc_ecc_verify_hash(signature, signatureLen, dgst,
-                (word32)dLen, &verified, (ecc_key*)key->internal);
-            if (ret != MP_OKAY) {
+            if (wc_ecc_verify_hash(signature, (word32)signatureLen, dgst,
+                    (word32)dLen, &verified, (ecc_key*)key->internal) !=
+                    MP_OKAY) {
                 WOLFSSL_MSG("wc_ecc_verify_hash failed");
                 ret = WOLFSSL_FATAL_ERROR;
             }
@@ -5497,10 +5505,6 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
                 WOLFSSL_MSG("wc_ecc_verify_hash incorrect signature detected");
                 ret = 0;
             }
-        }
-        else {
-            WOLFSSL_MSG("i2d_ECDSA_SIG failed");
-            ret = WOLFSSL_FATAL_ERROR;
         }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
     }
