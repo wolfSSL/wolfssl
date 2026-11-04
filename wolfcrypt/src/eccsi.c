@@ -164,8 +164,8 @@ void wc_FreeEccsiKey(EccsiKey* key)
 
         wc_ecc_del_point_h(params->base, key->heap);
 #ifdef WOLFCRYPT_ECCSI_CLIENT
-        mp_free(&key->ssk);
-        mp_free(&key->tmp);
+        mp_forcezero(&key->ssk);
+        mp_forcezero(&key->tmp);
         mp_free(&params->prime);
         mp_free(&params->b);
         mp_free(&params->a);
