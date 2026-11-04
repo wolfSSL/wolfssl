@@ -397,6 +397,12 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #define wc_FreeRng(rng) (void)NOT_COMPILED_IN
 #endif
 
+#ifdef WOLFSSL_FIPS_EXPORT_LOCAL_APIS
+    #define WC_FIPS_LOCAL_API   WOLFSSL_API
+#else
+    #define WC_FIPS_LOCAL_API   WOLFSSL_LOCAL
+#endif
+
 #ifdef WC_RNG_SEED_CB
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
 #endif
@@ -417,18 +423,18 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
                                            word32 nonceSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
-    WOLFSSL_API int wc_RNG_HealthTest(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz);
-    WOLFSSL_API int wc_RNG_HealthTest_ex(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_ex(int reseed,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
     #define WC_RNG_HAVE_HEALTHTEST_ADDIN
-    WOLFSSL_API int wc_RNG_HealthTest_AddIn(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_AddIn(int reseed,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
                                         const byte* addInA, word32 addInASz,
