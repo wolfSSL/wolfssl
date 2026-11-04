@@ -703,10 +703,10 @@ fn scan_cfg() -> Result<()> {
     /* random */
     check_cfg(&binding, "wc_RNG_DRBG_Reseed", "random_hashdrbg");
     /* wc_RNG_HealthTest*() are declared regardless of
-     * WOLFSSL_FIPS_PRIVATE_API but hidden with it (FIPS builds), so also
-     * require the sentinel from headers.h to be absent. */
+     * WOLFSSL_FIPS_EXPORT_LOCAL_APIS but only exported with it, so also
+     * require the sentinel from headers.h to be present. */
     check_cfg_if(&binding, "wc_RNG_HealthTest_ex", "random_health_test",
-                 !has_symbol(&binding, "WOLFSSL_RUST_FIPS_PRIVATE_API"));
+                 has_symbol(&binding, "WOLFSSL_RUST_FIPS_EXPORT_LOCAL_APIS"));
     check_cfg(&binding, "wc_InitRng", "random");
     check_cfg(&binding, "wc_rng_new_ex", "rng_new_ex");
 
