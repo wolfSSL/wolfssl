@@ -2585,7 +2585,8 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             return BAD_FUNC_ARG;
         }
 
-    #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
+    #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM) || \
+        (defined(WOLFSSL_PPC64_ASM) && defined(LITTLE_ENDIAN_ORDER))
         #ifdef __aarch64__
         if (Transform_Sha256_Len_p == Transform_Sha256_Len) {
             return Transform_Sha256(sha256, data);
