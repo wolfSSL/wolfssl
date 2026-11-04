@@ -17591,14 +17591,15 @@ int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
  * @param [in, out] outLen  On in, the number of bytes in array.
  *                          On out, the number bytes put into array.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  BUFFER_E when outLen is less than WC_MLDSA_44_KEY_SIZE.
+ * @return  BAD_FUNC_ARG when a parameter is NULL, the private key is not set
+ *          or the level is not set.
+ * @return  BUFFER_E when outLen is less than the private key size.
  */
 int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
     word32* outLen)
 {
     int ret = 0;
-    word32 inLen = 0;
+    int privLen = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
@@ -17611,46 +17612,23 @@ int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
     }
 
     if (ret == 0) {
-        inLen = *outLen;
-        /* check and set up out length */
-    #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
-        if (key->params == NULL) {
-            ret = BAD_FUNC_ARG;
-        }
-        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            *outLen = WC_MLDSA_44_KEY_SIZE;
-        }
-        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            *outLen = WC_MLDSA_65_KEY_SIZE;
-        }
-        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            *outLen = WC_MLDSA_87_KEY_SIZE;
-        }
-        else
-    #endif
-        if (key->level == WC_ML_DSA_44) {
-            *outLen = WC_MLDSA_44_KEY_SIZE;
-        }
-        else if (key->level == WC_ML_DSA_65) {
-            *outLen = WC_MLDSA_65_KEY_SIZE;
-        }
-        else if (key->level == WC_ML_DSA_87) {
-            *outLen = WC_MLDSA_87_KEY_SIZE;
-        }
-        else {
+        privLen = wc_MlDsaKey_Size(key);
+        if (privLen <= 0) {
             /* Level not set. */
             ret = BAD_FUNC_ARG;
         }
     }
-
-    /* Check array length. */
-    if ((ret == 0) && (inLen < *outLen)) {
-        ret = BUFFER_E;
+    if (ret == 0) {
+        /* Validate length passed in, then set out length. */
+        if (*outLen < (word32)privLen) {
+            ret = BUFFER_E;
+        }
+        *outLen = (word32)privLen;
     }
 
     if (ret == 0) {
-        /* Copy private key out key. */
-        XMEMCPY(out, key->k, *outLen);
+        /* Copy private key out. */
+        XMEMCPY(out, key->k, (size_t)privLen);
     }
 
     return ret;
