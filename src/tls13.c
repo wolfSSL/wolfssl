@@ -2117,6 +2117,17 @@ end:
     }
 #endif
 
+#elif defined(WOLFSSL_OPTEE)
+    word32 TimeNowInMilliseconds(void)
+    {
+        TEE_Time now;
+
+        /* Monotonic within the TA, and not the normal world's clock. */
+        TEE_GetSystemTime(&now);
+
+        return (word32)((now.seconds * 1000) + now.millis);
+    }
+
 #elif defined(TIME_OVERRIDES)
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
     word32 TimeNowInMilliseconds(void)
@@ -2399,6 +2410,17 @@ end:
         */
     }
 #endif
+
+#elif defined(WOLFSSL_OPTEE)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        TEE_Time now;
+
+        /* Monotonic within the TA, and not the normal world's clock. */
+        TEE_GetSystemTime(&now);
+
+        return ((sword64)now.seconds * 1000) + (sword64)now.millis;
+    }
 
 #elif defined(TIME_OVERRIDES)
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)

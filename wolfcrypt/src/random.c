@@ -221,6 +221,7 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_DEOS)
 #elif defined(MICRIUM)
 #elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_OPTEE)
 #elif defined(WOLFSSL_PB)
 #elif defined(WOLFSSL_ZEPHYR)
 #elif defined(WOLFSSL_TELIT_M2MB)
@@ -10627,6 +10628,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 srand(xdc_runtime_Timestamp_get32());
             }
         }
+
+        return 0;
+    }
+
+#elif defined(WOLFSSL_OPTEE)
+
+    /* Seeds the DRBG rather than replacing it; a build wanting the TEE RNG
+     * directly can still set CUSTOM_RAND_GENERATE_BLOCK. */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+
+        TEE_GenerateRandom(output, (size_t)sz);
 
         return 0;
     }
