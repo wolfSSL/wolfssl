@@ -265,6 +265,7 @@ int sp_dsp_ecc_verify_256(remote_handle64 handleIn, const byte* hash, word32 has
 {
     int ret;
     remote_handle64 handle = handleIn;
+    wolfSSL_DSP_Handle_cb cb;
 
 #if 0
     /* calling to alloc memory on the ION using these settings slowed the performance down slightly */
@@ -293,15 +294,20 @@ int sp_dsp_ecc_verify_256(remote_handle64 handleIn, const byte* hash, word32 has
     int_256_from_mp(y, 10, pY);
     int_256_from_mp(z, 10, pZ);
 
-    if (handle_function != NULL) {
-        handle_function(&handle, WOLFSSL_HANDLE_GET, NULL);
+    /* read the callback once so GET and DONE go to the same function */
+    cb = handle_function;
+    if (cb != NULL) {
+        if (cb(&handle, WOLFSSL_HANDLE_GET, NULL) != 0) {
+            WOLFSSL_MSG("Unable to get DSP handle");
+            return WC_HW_E;
+        }
     }
 
     *res = 0;
     ret = wolfSSL_DSP_ECC_Verify_256(handle, u1, 10, u2, 10, s, 10, x, 10, y, 10, z, 10, res);
 
-    if (handle_function != NULL) {
-        handle_function(&handle, WOLFSSL_HANDLE_DONE, NULL);
+    if (cb != NULL) {
+        cb(&handle, WOLFSSL_HANDLE_DONE, NULL);
     }
 #if 0
     rpcmem_free(x);
