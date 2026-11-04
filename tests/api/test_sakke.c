@@ -816,3 +816,346 @@ int test_wc_Sakke_FeatureCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFCRYPT_HAVE_SAKKE) && defined(WOLFCRYPT_SAKKE_CLIENT)
+/* Returns the OR of all bytes in the range: 0 when every byte is zero. */
+static byte sakke_zero_or(const void* ptr, size_t len)
+{
+    const byte* p = (const byte*)ptr;
+    size_t i;
+    byte acc = 0;
+
+    for (i = 0; i < len; i++) {
+        acc |= p[i];
+    }
+    return acc;
+}
+#endif
+
+/* wc_FreeSakkeKey() must wipe the key: its temporaries hold secrets such as
+ * the pairing value w and the ephemeral r. Temporary allocator hooks check the
+ * blocks the key hands back to the allocator: the tmp.m1 and tmp.m2 digits
+ * under heap math, and the RSK, temporary and base points under SP math.
+ * WOLFSSL_CHECK_MEM_ZERO and WOLFSSL_MEMORY_LOG put a header in front of each
+ * allocation, so the hooks would never be handed the pointers they watch.
+ * Fast math is left out: fp_clear() already zeroes every digit, so the point
+ * wipes cannot be told apart there. */
+#if defined(WOLFCRYPT_HAVE_SAKKE) && defined(WOLFCRYPT_SAKKE_CLIENT) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_MEMORY_LOG) && (defined(USE_INTEGER_HEAP_MATH) || \
+    defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    !defined(USE_FAST_MATH)
+#define TEST_SAKKE_FREE_HOOKS
+
+/* These callback types take (func, line) too under WOLFSSL_DEBUG_MEMORY. */
+#ifdef WOLFSSL_DEBUG_MEMORY
+    #define SAKKE_ZERO_CB_TAIL   , const char* func, unsigned int line
+    #define SAKKE_ZERO_CB_ARGS   , func, line
+#else
+    #define SAKKE_ZERO_CB_TAIL
+    #define SAKKE_ZERO_CB_ARGS
+#endif
+
+/* The hooks delegate to the allocators that were installed before the test
+ * (e.g. WOLFSSL_TRACK_MEMORY's), so blocks that outlive the test, such as
+ * cached ECC curve values, can still be freed by them later. */
+static wolfSSL_Malloc_cb  sakke_zero_prev_mc;
+static wolfSSL_Free_cb    sakke_zero_prev_fc;
+static wolfSSL_Realloc_cb sakke_zero_prev_rc;
+
+/* State for sakke_zero_probe(). */
+static int         sakke_zero_probing;
+static const void* sakke_zero_probe_alloc;
+static int         sakke_zero_probe_freed;
+
+/* A byte range inside a block that must be zero when the block is freed: two
+ * heap math digit blocks, or the x, y and z digits of five points. */
+#define SAKKE_ZERO_WATCH_CNT 15
+typedef struct sakke_zero_watch_t {
+    const void* ptr;
+    size_t      off;
+    size_t      len;
+    int         seen;
+    int         clean;
+} sakke_zero_watch_t;
+static sakke_zero_watch_t sakke_zero_watch[SAKKE_ZERO_WATCH_CNT];
+static int                sakke_zero_watchCnt;
+
+static void* sakke_zero_malloc_cb(size_t size SAKKE_ZERO_CB_TAIL)
+{
+    void* p;
+
+    if (sakke_zero_prev_mc != NULL) {
+        p = sakke_zero_prev_mc(size SAKKE_ZERO_CB_ARGS);
+    }
+    else {
+        p = malloc(size);
+    }
+    if (sakke_zero_probing && (sakke_zero_probe_alloc == NULL)) {
+        sakke_zero_probe_alloc = p;
+    }
+    return p;
+}
+
+static void sakke_zero_free_cb(void* ptr SAKKE_ZERO_CB_TAIL)
+{
+    int w;
+
+    if (sakke_zero_probing && (ptr != NULL) &&
+            (ptr == sakke_zero_probe_alloc)) {
+        sakke_zero_probe_freed = 1;
+    }
+    for (w = 0; (ptr != NULL) && (w < sakke_zero_watchCnt); w++) {
+        if (ptr == sakke_zero_watch[w].ptr) {
+            sakke_zero_watch[w].seen = 1;
+            sakke_zero_watch[w].clean = (sakke_zero_or(
+                (const byte*)ptr + sakke_zero_watch[w].off,
+                sakke_zero_watch[w].len) == 0);
+        }
+    }
+    if (sakke_zero_prev_fc != NULL) {
+        sakke_zero_prev_fc(ptr SAKKE_ZERO_CB_ARGS);
+    }
+    else {
+        free(ptr);
+    }
+}
+
+static void* sakke_zero_realloc_cb(void* ptr, size_t size SAKKE_ZERO_CB_TAIL)
+{
+    if (sakke_zero_prev_rc != NULL) {
+        return sakke_zero_prev_rc(ptr, size SAKKE_ZERO_CB_ARGS);
+    }
+    return realloc(ptr, size);
+}
+
+/* Checks that XMALLOC()/XFREE() reach the hooks with the pointer unchanged.
+ * Returns 1 when they do and 0 when both bypass the hooks, as on platforms
+ * that map them to an OS or pool allocator (see types.h); the wipe cannot be
+ * observed there. Returns -1 when the hooks are reached but see a different
+ * pointer, or only one of the pair reaches them: that is a failure. */
+static int sakke_zero_probe(void)
+{
+    void* probe;
+    int ret;
+
+    sakke_zero_probe_alloc = NULL;
+    sakke_zero_probe_freed = 0;
+    sakke_zero_probing = 1;
+    probe = XMALLOC(8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (probe == NULL) {
+        ret = -1;
+    }
+    else {
+        ret = (sakke_zero_probe_alloc == probe) ? 1 :
+              (sakke_zero_probe_alloc == NULL) ? 0 : -1;
+        XFREE(probe, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sakke_zero_probe_freed != ret) {
+            ret = -1;
+        }
+    }
+    sakke_zero_probing = 0;
+    return ret;
+}
+
+/* Returns 0 when the watch is added and -1 when the table is full, so a watch
+ * is never dropped without failing the test. */
+static int sakke_zero_add_watch(const void* ptr, size_t off, size_t len)
+{
+    if (sakke_zero_watchCnt >= SAKKE_ZERO_WATCH_CNT) {
+        return -1;
+    }
+    sakke_zero_watch[sakke_zero_watchCnt].ptr = ptr;
+    sakke_zero_watch[sakke_zero_watchCnt].off = off;
+    sakke_zero_watch[sakke_zero_watchCnt].len = len;
+    sakke_zero_watchCnt++;
+    return 0;
+}
+#endif
+
+int test_wc_Sakke_FreeZeroizes(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFCRYPT_HAVE_SAKKE) && defined(WOLFCRYPT_SAKKE_CLIENT)
+    WC_RNG rng;
+    SakkeKey key;
+    ecc_point* rsk = NULL;
+    char mail[] = "test@wolfssl.com";
+    byte* id = (byte*)mail;
+    word16 idSz = (word16)XSTRLEN(mail);
+    byte ssv[16];
+    word16 ssvSz = sizeof(ssv);
+    byte auth[257];
+    word16 authSz = sizeof(auth);
+    /* USE_WOLFSSL_MEMORY is implied by TEST_SAKKE_FREE_HOOKS but is spelled
+     * out here and below so check-api-guards.py sees it at the allocator
+     * calls. */
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+    int hooked = 0;
+    int w;
+#if !defined(USE_INTEGER_HEAP_MATH)
+    ecc_point* pts[5];
+    mp_int* coord[3];
+    int c;
+    int seeded = 0;
+#endif
+
+    XMEMSET(sakke_zero_watch, 0, sizeof(sakke_zero_watch));
+    sakke_zero_watchCnt = 0;
+    sakke_zero_prev_mc = NULL;
+    sakke_zero_prev_fc = NULL;
+    sakke_zero_prev_rc = NULL;
+    ExpectIntEQ(wolfSSL_GetAllocators(&sakke_zero_prev_mc,
+        &sakke_zero_prev_fc, &sakke_zero_prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(sakke_zero_malloc_cb,
+        sakke_zero_free_cb, sakke_zero_realloc_cb), 0);
+    if (EXPECT_SUCCESS()) {
+        hooked = sakke_zero_probe();
+        ExpectIntGE(hooked, 0);
+    }
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(ssv, 0xA5, sizeof(ssv));
+    XMEMSET(auth, 0, sizeof(auth));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(rsk = wc_ecc_new_point());
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    ExpectIntEQ(wc_SetSakkeIdentity(&key, id, idSz), 0);
+    ExpectIntEQ(wc_SetSakkeRsk(&key, rsk, NULL, 0), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA256, ssv,
+        ssvSz, auth, &authSz), 0);
+    ExpectIntEQ(wc_DeriveSakkeSSV(&key, WC_HASH_TYPE_SHA256, ssv, ssvSz,
+        auth, authSz), 0);
+
+    /* Derivation leaves r in tmp.m1. mp_iszero() is a private function under
+     * fast math, so check the used count directly. */
+    ExpectIntGT(key.tmp.m1.used, 0);
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+#ifdef USE_INTEGER_HEAP_MATH
+    /* tmp.m2 can be left unused, e.g. with WOLFSSL_SP_1024, or zero. Give it
+     * digits so its wipe is checked too, reusing an existing block. The mp_*
+     * setters are only exported with WOLFSSL_PUBLIC_MP, so allocate the digits
+     * as integer.c does. */
+    if (EXPECT_SUCCESS() && (key.tmp.m2.dp == NULL)) {
+        ExpectNotNull(key.tmp.m2.dp = (mp_digit*)XMALLOC(4 * sizeof(mp_digit),
+            NULL, DYNAMIC_TYPE_BIGINT));
+        if (key.tmp.m2.dp != NULL) {
+            key.tmp.m2.alloc = 4;
+            key.tmp.m2.used = 0;
+        }
+    }
+    if (EXPECT_SUCCESS() && (key.tmp.m2.used == 0)) {
+        for (w = 0; (w < 4) && (w < key.tmp.m2.alloc); w++) {
+            key.tmp.m2.dp[w] = (mp_digit)(w + 1);
+        }
+        key.tmp.m2.used = w;
+    }
+    /* The digits are separate blocks; watch the used ones. A watch of no
+     * digits would pass without checking anything. */
+    ExpectNotNull(key.tmp.m1.dp);
+    ExpectNotNull(key.tmp.m2.dp);
+    ExpectIntGT(key.tmp.m1.used, 0);
+    ExpectIntGT(key.tmp.m2.used, 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(sakke_zero_add_watch(key.tmp.m1.dp, 0,
+            (size_t)key.tmp.m1.used * sizeof(mp_digit)), 0);
+        ExpectIntEQ(sakke_zero_add_watch(key.tmp.m2.dp, 0,
+            (size_t)key.tmp.m2.used * sizeof(mp_digit)), 0);
+    }
+#else
+    /* The point digits live inside each ecc_point block. mp_clear() only
+     * zeroes the used digits, so fill the unused ones: only the full wipe in
+     * wc_FreeSakkeKey() leaves every digit zero when the block is freed. */
+    pts[0] = key.rsk.rsk;
+    pts[1] = key.tmp.p1;
+    pts[2] = key.tmp.p2;
+    pts[3] = key.tmp.p3;
+    /* Without SP ECC, the pairing uses the base point as its accumulator. */
+    pts[4] = key.params.base;
+    for (w = 0; w < 5; w++) {
+        ExpectNotNull(pts[w]);
+        if (EXPECT_FAIL()) {
+            break;
+        }
+        coord[0] = pts[w]->x;
+        coord[1] = pts[w]->y;
+        coord[2] = pts[w]->z;
+        for (c = 0; c < 3; c++) {
+            size_t off = (size_t)((const byte*)coord[c]->dp -
+                                  (const byte*)pts[w]);
+            size_t len = (size_t)coord[c]->size * sizeof(mp_digit);
+
+            ExpectTrue(off + len <= sizeof(ecc_point));
+            if (EXPECT_FAIL()) {
+                break;
+            }
+            if (coord[c]->used < coord[c]->size) {
+                XMEMSET(&coord[c]->dp[coord[c]->used], 0xA5,
+                    (size_t)(coord[c]->size - coord[c]->used) *
+                    sizeof(mp_digit));
+                seeded++;
+            }
+            ExpectIntEQ(sakke_zero_add_watch(pts[w], off, len), 0);
+        }
+    }
+    ExpectIntGT(seeded, 0);
+#endif
+#endif
+
+    wc_FreeSakkeKey(&key);
+
+    /* The data buffer and hash state can hold r, g^r, w and the SSV. */
+    ExpectIntEQ(sakke_zero_or(key.data, sizeof(key.data)), 0);
+    ExpectIntEQ(sakke_zero_or(&key.hash, sizeof(key.hash)), 0);
+#ifndef USE_INTEGER_HEAP_MATH
+    /* The temporaries' digits are inline; check every one, not just the used
+     * ones. */
+    ExpectIntEQ(sakke_zero_or(key.tmp.m1.dp, sizeof(key.tmp.m1.dp)), 0);
+    ExpectIntEQ(sakke_zero_or(key.tmp.m2.dp, sizeof(key.tmp.m2.dp)), 0);
+#endif
+    ExpectNull(key.rsk.rsk);
+    ExpectNull(key.tmp.p1);
+    ExpectNull(key.tmp.p2);
+    ExpectNull(key.tmp.p3);
+    ExpectNull(key.params.base);
+    /* The ECC key's devId must stay a "no device" sentinel, not become 0, so
+     * a second free does not reach crypto callback device 0. */
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    ExpectIntEQ(key.ecc.devId, INVALID_DEVID);
+#endif
+    /* Freeing again, as callers do after a failed init, must be harmless. */
+    wc_FreeSakkeKey(&key);
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+    for (w = 0; w < sakke_zero_watchCnt; w++) {
+        sakke_zero_watch[w].ptr = NULL;
+        if (hooked == 1) {
+            ExpectIntEQ(sakke_zero_watch[w].seen, 1);
+            ExpectIntEQ(sakke_zero_watch[w].clean, 1);
+        }
+    }
+#endif
+
+    if (rsk != NULL) {
+        wc_ecc_forcezero_point(rsk);
+        wc_ecc_del_point(rsk);
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+    (void)wolfSSL_SetAllocators(sakke_zero_prev_mc, sakke_zero_prev_fc,
+        sakke_zero_prev_rc);
+    /* Report the hook checks as skipped, not passed, where XMALLOC() and
+     * XFREE() bypass the hooks. */
+    if ((hooked == 0) && EXPECT_SUCCESS()) {
+        return TEST_SKIPPED;
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
