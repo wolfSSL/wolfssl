@@ -648,6 +648,127 @@ int test_wc_falcon_der(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && \
+    (!defined(WOLFSSL_NO_FALCON_LEVEL1) || !defined(WOLFSSL_NO_FALCON_LEVEL5))
+/*
+ * fix is a liboqs-generated PKCS#8: SEQUENCE, version and AlgorithmIdentifier
+ * (bytes 4..15), a privateKey OCTET STRING wrapping an OCTET STRING whose raw
+ * key starts at 24, then a 4-byte [1] header and the raw public key, which
+ * ends the DER. h is fixed by (f, g), so changing one public coefficient
+ * yields a mismatched pair.
+ */
+static int falcon_pkcs8_mismatch_level(const byte* fix, word32 fixSz,
+    byte level, word32 keySz, word32 pubSz)
+{
+    EXPECT_DECLS;
+    const word32 privIdx = 24;
+    const word32 pubIdx = fixSz - pubSz;
+    const word32 rawSz = keySz + pubSz;
+    const word32 catSz = rawSz + 24;
+    static const byte msg[] = { 0x61, 0x62, 0x63 };
+    falcon_key key;
+    WC_RNG rng;
+    byte* der = NULL;
+    word32 idx;
+    word32 outLen;
+
+    ExpectIntEQ(privIdx + keySz + 4, pubIdx);
+    ExpectIntEQ(fix[privIdx - 4], 0x04);
+    ExpectIntEQ(fix[pubIdx - 4], 0x81);
+    ExpectIntLE(catSz, fixSz);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    der = (byte*)XMALLOC(fixSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(der);
+
+    /* [1] publicKey form: a valid key is loaded first, then the same object
+     * gets the mismatched DER. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, level), 0);
+    idx = 0;
+    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(fix, &idx, &key, fixSz), 0);
+    if (der != NULL) {
+        XMEMCPY(der, fix, fixSz);
+        /* Last coefficient goes 246 -> 247 (L1) or 6704 -> 6705 (L5), still
+         * < q: only the h*f == g relation fails. */
+        der[fixSz - 1] ^= 0x01;
+    }
+    idx = 0;
+    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(der, &idx, &key, fixSz),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    /* Neither the rejected pair nor the earlier key may remain usable. */
+    outLen = fixSz;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), der, &outLen,
+        &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = fixSz;
+    ExpectIntEQ(wc_falcon_export_private_only(&key, der, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = fixSz;
+    ExpectIntEQ(wc_falcon_export_public(&key, der, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_falcon_free(&key);
+
+    /* Legacy form: privateKey holds concat(priv, pub) and there is no [1]. */
+    if (der != NULL) {
+        der[0] = 0x30;
+        der[1] = 0x82;
+        der[2] = (byte)((catSz - 4) >> 8);
+        der[3] = (byte)(catSz - 4);
+        XMEMCPY(der + 4, fix + 4, 12);
+        der[16] = 0x04;
+        der[17] = 0x82;
+        der[18] = (byte)((rawSz + 4) >> 8);
+        der[19] = (byte)(rawSz + 4);
+        der[20] = 0x04;
+        der[21] = 0x82;
+        der[22] = (byte)(rawSz >> 8);
+        der[23] = (byte)rawSz;
+        XMEMCPY(der + 24, fix + privIdx, keySz);
+        XMEMCPY(der + 24 + keySz, fix + pubIdx, pubSz);
+    }
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, level), 0);
+    idx = 0;
+    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(der, &idx, &key, catSz), 0);
+    ExpectIntEQ(idx, catSz);
+    if (der != NULL) {
+        der[catSz - 1] ^= 0x01;
+    }
+    idx = 0;
+    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(der, &idx, &key, catSz),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    outLen = fixSz;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), der, &outLen,
+        &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_falcon_free(&key);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A PKCS#8 public key that does not match the private key must be rejected,
+ * whether it arrives in [1] or in the legacy concat privateKey. */
+int test_wc_falcon_pkcs8_pub_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && !defined(WOLFSSL_NO_FALCON_LEVEL1)
+    ExpectIntEQ(falcon_pkcs8_mismatch_level(bench_falcon_level1_key,
+        (word32)sizeof_bench_falcon_level1_key, FALCON_LEVEL1,
+        FALCON_LEVEL1_KEY_SIZE, FALCON_LEVEL1_PUB_KEY_SIZE), TEST_SUCCESS);
+#endif
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && !defined(WOLFSSL_NO_FALCON_LEVEL5)
+    ExpectIntEQ(falcon_pkcs8_mismatch_level(bench_falcon_level5_key,
+        (word32)sizeof_bench_falcon_level5_key, FALCON_LEVEL5,
+        FALCON_LEVEL5_KEY_SIZE, FALCON_LEVEL5_PUB_KEY_SIZE), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Exhaustive argument sanitising for the always-present entry points. Runs in
  * every HAVE_FALCON build (including verify-only / crypto-cb-only); make_key is
