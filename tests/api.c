@@ -40393,6 +40393,14 @@ static int test_openssl_FIPS_drbg(void)
         WOLFSSL_SUCCESS);
     ExpectIntNE(XMEMCMP(data1, zeroData, dlen), 0);
     ExpectIntNE(XMEMCMP(data1, data2, dlen), 0);
+    if (sizeof(size_t) > sizeof(word32)) {
+        /* an outlen that narrows to 0 as a word32 must not report success
+         * while leaving data1 untouched. */
+        XMEMSET(data1, 0, dlen);
+        ExpectIntNE(FIPS_drbg_generate(dctx, data1, (size_t)0xFFFFFFFFU + 1,
+            0, NULL, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(data1, zeroData, dlen), 0);
+    }
     ExpectIntEQ(FIPS_drbg_uninstantiate(dctx), WOLFSSL_SUCCESS);
 #ifndef HAVE_GLOBAL_RNG
     /* gets freed by wolfSSL_Cleanup() when HAVE_GLOBAL_RNG defined */
