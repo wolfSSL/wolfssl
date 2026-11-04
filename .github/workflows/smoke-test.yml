@@ -63,9 +63,11 @@ jobs:
       # For PRs we explicitly check out the PR head (not the auto-merge
       # ref) and do the merge ourselves below so we can fail fast on
       # conflicts. For push events we just check out the pushed SHA.
+      # The merge needs full history; old file contents download on demand.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          filter: blob:none
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Merge base into PR head (fail fast on conflict)
