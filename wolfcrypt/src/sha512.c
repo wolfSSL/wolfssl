@@ -2918,9 +2918,13 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
     /* data is const: byte-reverse a copy, never the caller's block. */
 #if (defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)) && \
-    !defined(LITTLE_ENDIAN_ORDER)
+    (!defined(LITTLE_ENDIAN_ORDER) || \
+     (defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)))
+    /* ARMv5 asm loads words with LDR, so it needs an aligned copy. */
     XMEMCPY(buffer, data, WC_SHA512_BLOCK_SIZE);
+#ifndef LITTLE_ENDIAN_ORDER
     ByteReverseWords64(buffer, buffer, WC_SHA512_BLOCK_SIZE);
+#endif
     ret = Transform_Sha512(sha, (const byte*)buffer);
 #elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM) || \
       defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
