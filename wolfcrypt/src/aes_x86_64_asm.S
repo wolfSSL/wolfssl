@@ -529,6 +529,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_AESNI)
 .p2align	4
 _AES_ECB_encrypt_AESNI:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
@@ -699,6 +700,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_AESNI)
 .p2align	4
 _AES_ECB_decrypt_AESNI:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
@@ -869,6 +871,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_AESNI)
 .p2align	4
 _AES_CBC_encrypt_AESNI:
 #endif /* __APPLE__ */
+        movl	%r9d, %r9d
         movdqu	(%rdx), %xmm0
         xorl	%eax, %eax
         cmpl	%ecx, %eax
@@ -940,6 +943,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_AESNI)
 _AES_CBC_decrypt_AESNI:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r9d, %r9d
         movdqu	(%rdx), %xmm4
         xorl	%eax, %eax
         cmpl	$0x40, %ecx
@@ -1149,6 +1153,7 @@ WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_AESNI)
 _AES_CTR_encrypt_AESNI:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         movdqu	L_aes_ctr_aesni_bswap(%rip), %xmm8
         movdqu	L_aes_ctr_aesni_one(%rip), %xmm9
         pxor	%xmm10, %xmm10
@@ -1373,6 +1378,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_avx1)
 .p2align	4
 _AES_ECB_encrypt_avx1:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
@@ -1543,6 +1549,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_avx1)
 .p2align	4
 _AES_ECB_decrypt_avx1:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
@@ -1713,6 +1720,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_avx1)
 .p2align	4
 _AES_CBC_encrypt_avx1:
 #endif /* __APPLE__ */
+        movl	%r9d, %r9d
         vmovdqu	(%rdx), %xmm0
         xorl	%eax, %eax
         cmpl	%ecx, %eax
@@ -1784,6 +1792,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_avx1)
 _AES_CBC_decrypt_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r9d, %r9d
         vmovdqu	(%rdx), %xmm4
         xorl	%eax, %eax
         cmpl	$0x40, %ecx
@@ -1990,6 +1999,7 @@ WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_avx1)
 _AES_CTR_encrypt_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         vmovdqu	L_aes_ctr_avx1_bswap(%rip), %xmm8
         vmovdqu	L_aes_ctr_avx1_one(%rip), %xmm9
         vpxor	%xmm10, %xmm10, %xmm10
@@ -2200,6 +2210,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_vaes)
 .p2align	4
 _AES_ECB_encrypt_vaes:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$0x80, %edx
         movl	%edx, %r9d
@@ -2487,6 +2498,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_vaes)
 .p2align	4
 _AES_ECB_decrypt_vaes:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$0x80, %edx
         movl	%edx, %r9d
@@ -2774,6 +2786,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_vaes)
 .p2align	4
 _AES_CBC_encrypt_vaes:
 #endif /* __APPLE__ */
+        movl	%r9d, %r9d
         vmovdqu	(%rdx), %xmm0
         xorl	%eax, %eax
         cmpl	%ecx, %eax
@@ -2845,6 +2858,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_vaes)
 _AES_CBC_decrypt_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r9d, %r9d
         vmovdqu	(%rdx), %xmm8
         xorl	%eax, %eax
         cmpl	$0x80, %ecx
@@ -3196,6 +3210,7 @@ WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_vaes)
 _AES_CTR_encrypt_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         vbroadcasti128	L_aes_ctr_bswap_vaes(%rip), %ymm8
         vbroadcasti128	(%r9), %ymm7
         vpshufb	%ymm8, %ymm7, %ymm7
@@ -3629,6 +3644,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_avx512)
 .p2align	4
 _AES_ECB_encrypt_avx512:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$32, %edx
         jb	L_AES_ECB_encrypt_avx512_done_32
@@ -3937,6 +3953,7 @@ WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_avx512)
 .p2align	4
 _AES_ECB_decrypt_avx512:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         xorl	%eax, %eax
         cmpl	$32, %edx
         jb	L_AES_ECB_decrypt_avx512_done_32
@@ -4245,6 +4262,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_avx512)
 .p2align	4
 _AES_CBC_encrypt_avx512:
 #endif /* __APPLE__ */
+        movl	%r9d, %r9d
         vmovdqu	(%rdx), %xmm0
         xorl	%eax, %eax
         cmpl	%ecx, %eax
@@ -4315,6 +4333,7 @@ WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_avx512)
 _AES_CBC_decrypt_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r9d, %r9d
         vmovdqu	(%rdx), %xmm8
         xorl	%eax, %eax
         cmpl	$32, %ecx
@@ -4693,6 +4712,7 @@ WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_avx512)
 _AES_CTR_encrypt_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         vbroadcasti32x4	L_aes_ctr_bswap_avx512(%rip), %zmm8
         vbroadcasti32x4	(%r9), %zmm7
         vpshufb	%zmm8, %zmm7, %zmm7

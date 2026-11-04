@@ -68,6 +68,7 @@ _chacha_encrypt_x64:
         pushq	%r13
         pushq	%r14
         pushq	%r15
+        movl	%ecx, %ecx
         subq	$0x48, %rsp
         cmpl	$0x40, %ecx
         jb	L_chacha_x64_small
@@ -511,6 +512,7 @@ _chacha_encrypt_sse3:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
+        movl	%ecx, %ecx
         leaq	L_chacha20_sse3_rotl8(%rip), %r11
         leaq	L_chacha20_sse3_rotl16(%rip), %r12
         leaq	L_chacha20_sse3_one(%rip), %r13
@@ -897,6 +899,7 @@ _chacha_encrypt_avx1:
         pushq	%r13
         pushq	%r14
         pushq	%r15
+        movl	%ecx, %ecx
         subq	$0x198, %rsp
         movq	%rsp, %r9
         leaq	256(%rsp), %r10
@@ -1470,6 +1473,7 @@ _chacha_encrypt_avx2:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%ecx, %ecx
         subq	$0x320, %rsp
         movq	%rsp, %r9
         leaq	L_chacha20_avx2_rotl8(%rip), %r11
@@ -1873,6 +1877,7 @@ _chacha_encrypt_avx512vl:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
+        movl	%ecx, %ecx
         subq	$0x198, %rsp
         movq	%rsp, %r9
         leaq	256(%rsp), %r10
@@ -2472,6 +2477,7 @@ WC_ASM_ATT_HIDDEN(_chacha_encrypt_avx512)
 .p2align	4
 _chacha_encrypt_avx512:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         subq	$8, %rsp
         leaq	L_chacha20_avx512_add(%rip), %r8
         cmpl	$0x400, %ecx
@@ -2798,6 +2804,7 @@ _chacha20_poly1305_avx512:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%r8d, %r8d
         subq	$0x2d8, %rsp
         leaq	L_chacha20_poly1305_add(%rip), %r10
         leaq	L_chacha20_poly1305_four(%rip), %r11
@@ -5014,6 +5021,7 @@ _chacha20_poly1305_ifma:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%r8d, %r8d
         subq	$0x4b0, %rsp
         leaq	L_cp512_pc(%rip), %rax
         leaq	L_cp512_rx(%rip), %r10
@@ -8315,6 +8323,7 @@ _chacha20_poly1305_ifma_decrypt:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%r8d, %r8d
         subq	$0x4b0, %rsp
         leaq	L_cp512_pc(%rip), %rax
         leaq	L_cp512_rx(%rip), %r10
@@ -10106,6 +10115,7 @@ _chacha20_poly1305_small_enc:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%r8d, %r8d
         subq	$0xc8, %rsp
         movl	256(%rsp), %eax
         movq	%rax, 128(%rsp)
@@ -10586,6 +10596,7 @@ _chacha20_poly1305_small_dec:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%r8d, %r8d
         subq	$0xa8, %rsp
         movl	224(%rsp), %eax
         movq	%rax, 128(%rsp)

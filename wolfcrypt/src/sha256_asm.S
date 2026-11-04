@@ -301,6 +301,7 @@ WC_ASM_ATT_HIDDEN(_Transform_Sha256_SSE2_Sha_Len)
 .p2align	4
 _Transform_Sha256_SSE2_Sha_Len:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         leaq	L_sse2_sha256_sha_k(%rip), %rax
         movdqa	L_sse2_sha256_shuf_mask(%rip), %xmm10
         movq	(%rdi), %xmm1
@@ -2968,7 +2969,7 @@ _Transform_Sha256_AVX1_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rdx, %rbp
+        movl	%edx, %ebp
         subq	$0x48, %rsp
         movl	%ebp, 64(%rsp)
         leaq	L_avx1_sha256_k(%rip), %rbp
@@ -7790,7 +7791,7 @@ _Transform_Sha256_AVX1_RORX_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rdx, %rbp
+        movl	%edx, %ebp
         subq	$0x48, %rsp
         movl	%ebp, 64(%rsp)
         leaq	L_avx1_rorx_sha256_k(%rip), %rbp
@@ -10361,6 +10362,7 @@ WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX1_Sha_Len)
 .p2align	4
 _Transform_Sha256_AVX1_Sha_Len:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         leaq	L_avx1_sha256_sha_k(%rip), %rax
         vmovdqa	L_avx1_sha256_shuf_mask(%rip), %xmm10
         vmovq	(%rdi), %xmm1
@@ -13021,7 +13023,7 @@ _Transform_Sha256_AVX2_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rdx, %rbp
+        movl	%edx, %ebp
         subq	$0x208, %rsp
         testb	$0x40, %bpl
         movl	%ebp, 512(%rsp)
@@ -19604,7 +19606,7 @@ _Transform_Sha256_AVX2_RORX_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rdx, %rbp
+        movl	%edx, %ebp
         subq	$0x208, %rsp
         testb	$0x40, %bpl
         movl	%ebp, 512(%rsp)
@@ -27669,6 +27671,7 @@ WC_ASM_ATT_HIDDEN(_Transform_Sha256_x16_LmsInit_AVX512)
 _Transform_Sha256_x16_LmsInit_AVX512:
 #endif /* __APPLE__ */
         pushq	%rbp
+        movl	%edx, %edx
         leaq	L_avx512_sha256_x16_k(%rip), %rbp
         leaq	L_avx512_sha256_x16_iv(%rip), %rcx
         # W from the template, all lanes alike but for the chain index
@@ -29563,6 +29566,7 @@ WC_ASM_ATT_HIDDEN(_Transform_Sha256_x16_LmsChain_AVX512)
 _Transform_Sha256_x16_LmsChain_AVX512:
 #endif /* __APPLE__ */
         pushq	%rbp
+        movl	%ecx, %ecx
         testl	%ecx, %ecx
         jz	L_sha256_x16_lms_chain_done
         leaq	L_avx512_sha256_x16_iv(%rip), %r8
@@ -30534,6 +30538,7 @@ WC_ASM_ATT_HIDDEN(_Transform_Sha256_x16_Lms192Init_AVX512)
 _Transform_Sha256_x16_Lms192Init_AVX512:
 #endif /* __APPLE__ */
         pushq	%rbp
+        movl	%edx, %edx
         leaq	L_avx512_sha256_x16_k(%rip), %rbp
         leaq	L_avx512_sha256_x16_iv(%rip), %rcx
         # W from the template, all lanes alike but for the chain index
@@ -32410,6 +32415,7 @@ WC_ASM_ATT_HIDDEN(_Transform_Sha256_x16_Lms192Chain_AVX512)
 _Transform_Sha256_x16_Lms192Chain_AVX512:
 #endif /* __APPLE__ */
         pushq	%rbp
+        movl	%ecx, %ecx
         testl	%ecx, %ecx
         jz	L_sha256_x16_lms192_chain_done
         leaq	L_avx512_sha256_x16_iv(%rip), %r8

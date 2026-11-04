@@ -1392,7 +1392,7 @@ Transform_Sha512_AVX1_Len PROC
         push	rsi
         push	rbp
         mov	rdi, rcx
-        mov	rbp, rdx
+        mov	ebp, edx
         sub	rsp, 296
         vmovdqu	OWORD PTR [rsp+152], xmm6
         vmovdqu	OWORD PTR [rsp+168], xmm7
@@ -3959,7 +3959,7 @@ Transform_Sha512_AVX1_RORX_Len PROC
         push	rsi
         push	rbp
         mov	rdi, rcx
-        mov	rbp, rdx
+        mov	ebp, edx
         sub	rsp, 296
         vmovdqu	OWORD PTR [rsp+152], xmm6
         vmovdqu	OWORD PTR [rsp+168], xmm7
@@ -6425,7 +6425,7 @@ Transform_Sha512_AVX2_Len PROC
         push	rdi
         push	rbp
         mov	rdi, rcx
-        mov	rbp, rdx
+        mov	ebp, edx
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -9224,7 +9224,7 @@ Transform_Sha512_AVX2_RORX_Len PROC
         push	rsi
         push	rbp
         mov	rdi, rcx
-        mov	rsi, rdx
+        mov	esi, edx
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7

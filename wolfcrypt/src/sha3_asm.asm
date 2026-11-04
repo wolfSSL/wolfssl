@@ -4596,6 +4596,7 @@ sha3_block_n_bmi2 PROC
         push	rsi
         push	rbx
         push	rbp
+        mov	r8d, r8d
         push	r9
         mov	rbp, r9
         mov	r9, QWORD PTR [rcx]
@@ -9530,6 +9531,7 @@ _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 sha3_block_n_avx2 PROC
         push	r12
+        mov	r8d, r8d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -15314,7 +15316,7 @@ _TEXT SEGMENT READONLY PARA
 sha3_xmss_blocksx4_avx2 PROC
         push	r12
         push	r13
-        mov	rax, QWORD PTR [rsp+56]
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -20809,7 +20811,7 @@ _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 sha3_lms_blocksx4_avx2 PROC
         push	r12
-        mov	rax, QWORD PTR [rsp+48]
+        mov	eax, DWORD PTR [rsp+48]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -26345,6 +26347,7 @@ _TEXT SEGMENT READONLY PARA
 sha3_lms_chainx4_avx2 PROC
         push	r12
         push	r13
+        mov	r9d, r9d
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -37191,6 +37194,7 @@ sha3_blocksx4_out_avx2 PROC
         push	r15
         push	rdi
         push	rsi
+        mov	r8d, r8d
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -53526,6 +53530,7 @@ sha3_blocksx8_out_avx512 PROC
         push	rsi
         push	rbx
         push	rbp
+        mov	r8d, r8d
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -59411,7 +59416,7 @@ ptr_L_sha3_xmss_blocksx8_avx512_not_hash QWORD L_sha3_xmss_blocksx8_avx512_not_h
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 sha3_xmss_blocksx8_avx512 PROC
-        mov	rax, QWORD PTR [rsp+40]
+        mov	eax, DWORD PTR [rsp+40]
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -62366,7 +62371,7 @@ ptr_L_sha3_lms_blocksx8_avx512_j_ff QWORD L_sha3_lms_blocksx8_avx512_j_ff
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 sha3_lms_blocksx8_avx512 PROC
-        mov	rax, QWORD PTR [rsp+40]
+        mov	eax, DWORD PTR [rsp+40]
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -65371,6 +65376,7 @@ ptr_L_sha3_lms_chainx8_avx512_j_ff QWORD L_sha3_lms_chainx8_avx512_j_ff
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 sha3_lms_chainx8_avx512 PROC
+        mov	r9d, r9d
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7

@@ -389,6 +389,18 @@ static WC_INLINE int chacha_avx512_beneficial(cpuid_flags_t flags)
 }
 #endif /* USE_INTEL_CHACHA_SPEEDUP && HAVE_INTEL_AVX512 */
 
+#ifdef USE_INTEL_CHACHA_SPEEDUP
+/* Whether the AVX-512VL kernel handles short input on this CPU.  It is only
+ * built with HAVE_INTEL_AVX512: without it (e.g. NO_AVX512_SUPPORT on MSVC) the
+ * CPUID bit must not steer short input away from the AVX1/SSSE3 paths, as
+ * nothing would pick it up but the scalar code. */
+#ifdef HAVE_INTEL_AVX512
+    #define CHACHA_USE_AVX512_VL(f) (IS_INTEL_AVX512_VL(f) != 0)
+#else
+    #define CHACHA_USE_AVX512_VL(f) 0
+#endif
+#endif /* USE_INTEL_CHACHA_SPEEDUP */
+
 
 #if (!defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP) && \
     !defined(USE_RISCV_CHACHA_SPEEDUP)) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
@@ -497,7 +509,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
      * cyc) beats the scalar block (~435) - e.g. the per-record Poly1305 key
      * derivation (a 32-byte ChaCha) in the ChaCha20-Poly1305 two-pass path.
      * The AVX-512VL path already uses SIMD for one block; match that here. */
-    if (msglen <= CHACHA_CHUNK_BYTES && IS_INTEL_AVX512_VL(cpuidFlags) == 0 &&
+    if (msglen <= CHACHA_CHUNK_BYTES && !CHACHA_USE_AVX512_VL(cpuidFlags) &&
             IS_INTEL_AVX1(cpuidFlags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         chacha_encrypt_avx1(ctx, input, output, msglen);
@@ -521,7 +533,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
      * key + <=2 data blocks).  At >=256 bytes the four-block AVX2/AVX1 kernels
      * take over below. */
 #ifdef HAVE_INTEL_SSSE3
-    if (IS_INTEL_AVX512_VL(cpuidFlags) == 0 &&
+    if (!CHACHA_USE_AVX512_VL(cpuidFlags) &&
             msglen < 4 * CHACHA_CHUNK_BYTES &&
             IS_INTEL_SSSE3(cpuidFlags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -530,7 +542,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
         return 0;
     }
 #endif
-    if (IS_INTEL_AVX512_VL(cpuidFlags) == 0 &&
+    if (!CHACHA_USE_AVX512_VL(cpuidFlags) &&
             msglen < 4 * CHACHA_CHUNK_BYTES) {
         chacha_encrypt_x64(ctx, input, output, msglen);
         return 0;
@@ -551,7 +563,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
      * partial four-block tail - using single-instruction vprold rotations on
      * 128-bit registers (no AVX-512 frequency penalty).  It does not fall back
      * to any other implementation. */
-    if (IS_INTEL_AVX512_VL(cpuidFlags) && msglen < 8 * CHACHA_CHUNK_BYTES) {
+    if (CHACHA_USE_AVX512_VL(cpuidFlags) && msglen < 8 * CHACHA_CHUNK_BYTES) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         chacha_encrypt_avx512vl(ctx, input, output, msglen);
         RESTORE_VECTOR_REGISTERS();

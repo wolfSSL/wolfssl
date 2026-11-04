@@ -272,6 +272,7 @@ Transform_Sha256_SSE2_Sha ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 Transform_Sha256_SSE2_Sha_Len PROC
+        mov	r8d, r8d
         sub	rsp, 88
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -2923,7 +2924,7 @@ Transform_Sha256_AVX1_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rbp, r8
+        mov	ebp, r8d
         sub	rsp, 200
         vmovdqu	OWORD PTR [rsp+72], xmm6
         vmovdqu	OWORD PTR [rsp+88], xmm7
@@ -7735,7 +7736,7 @@ Transform_Sha256_AVX1_RORX_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rbp, r8
+        mov	ebp, r8d
         sub	rsp, 200
         vmovdqu	OWORD PTR [rsp+72], xmm6
         vmovdqu	OWORD PTR [rsp+88], xmm7
@@ -10296,6 +10297,7 @@ Transform_Sha256_AVX1_Sha ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 Transform_Sha256_AVX1_Sha_Len PROC
+        mov	r8d, r8d
         sub	rsp, 88
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -12940,7 +12942,7 @@ Transform_Sha256_AVX2_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rbp, r8
+        mov	ebp, r8d
         sub	rsp, 648
         vmovdqu	OWORD PTR [rsp+520], xmm6
         vmovdqu	OWORD PTR [rsp+536], xmm7
@@ -19511,7 +19513,7 @@ Transform_Sha256_AVX2_RORX_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rbp, r8
+        mov	ebp, r8d
         sub	rsp, 648
         vmovdqu	OWORD PTR [rsp+520], xmm6
         vmovdqu	OWORD PTR [rsp+536], xmm7

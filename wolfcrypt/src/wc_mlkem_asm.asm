@@ -450,7 +450,7 @@ mlkem_keygen_avx2 PROC
         push	r12
         push	r13
         push	r14
-        mov	rax, QWORD PTR [rsp+64]
+        mov	eax, DWORD PTR [rsp+64]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -3133,7 +3133,7 @@ mlkem_encapsulate_avx2 PROC
         mov	r10, QWORD PTR [rsp+104]
         mov	r11, QWORD PTR [rsp+112]
         mov	r12, QWORD PTR [rsp+120]
-        mov	r13, QWORD PTR [rsp+128]
+        mov	r13d, DWORD PTR [rsp+128]
         sub	rsp, 208
         vmovdqu	OWORD PTR [rsp+48], xmm6
         vmovdqu	OWORD PTR [rsp+64], xmm7
@@ -7948,7 +7948,7 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decapsulate_avx2 PROC
         push	r12
-        mov	rax, QWORD PTR [rsp+48]
+        mov	eax, DWORD PTR [rsp+48]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -10993,6 +10993,8 @@ mlkem_rej_uniform_n_avx2 PROC
         push	rdi
         push	rsi
         push	rbp
+        mov	edx, edx
+        mov	r9d, r9d
         mov	r10, rcx
         sub	rsp, 72
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -11611,6 +11613,8 @@ mlkem_rej_uniform_avx2 PROC
         push	rdi
         push	rsi
         push	rbp
+        mov	edx, edx
+        mov	r9d, r9d
         mov	r10, rcx
         sub	rsp, 72
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -12434,6 +12438,7 @@ ptr_L_mlkem_compress_10_avx2_shift12 QWORD L_mlkem_compress_10_avx2_shift12
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_10_avx2 PROC
+        mov	r8d, r8d
         sub	rsp, 136
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -12802,6 +12807,7 @@ ptr_L_mlkem_decompress_10_avx2_shuf QWORD L_mlkem_decompress_10_avx2_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_10_avx2 PROC
+        mov	r8d, r8d
         sub	rsp, 40
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -12985,6 +12991,7 @@ ptr_L_mlkem_compress_11_avx2_shuf QWORD L_mlkem_compress_11_avx2_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_11_avx2 PROC
+        mov	r8d, r8d
         sub	rsp, 152
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -13416,6 +13423,7 @@ ptr_L_mlkem_decompress_11_avx2_mask QWORD L_mlkem_decompress_11_avx2_mask
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_11_avx2 PROC
+        mov	r8d, r8d
         sub	rsp, 72
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -14914,6 +14922,7 @@ mlkem_to_bytes_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_cmp_avx2 PROC
+        mov	r8d, r8d
         vpxor	ymm2, ymm2, ymm2
         vpxor	ymm3, ymm3, ymm3
         mov	r9d, 0
@@ -15846,7 +15855,7 @@ mlkem_keygen_avx512 PROC
         push	r14
         push	r15
         push	rdi
-        mov	rax, QWORD PTR [rsp+80]
+        mov	eax, DWORD PTR [rsp+80]
         sub	rsp, 1184
         vmovdqu	OWORD PTR [rsp+1024], xmm6
         vmovdqu	OWORD PTR [rsp+1040], xmm7
@@ -19520,7 +19529,7 @@ mlkem_encapsulate_avx512 PROC
         mov	r10, QWORD PTR [rsp+112]
         mov	r11, QWORD PTR [rsp+120]
         mov	r12, QWORD PTR [rsp+128]
-        mov	r13, QWORD PTR [rsp+136]
+        mov	r13d, DWORD PTR [rsp+136]
         sub	rsp, 216
         vmovdqu	OWORD PTR [rsp+56], xmm6
         vmovdqu	OWORD PTR [rsp+72], xmm7
@@ -26296,7 +26305,7 @@ mlkem_decapsulate_avx512 PROC
         push	r12
         push	r13
         push	r14
-        mov	rax, QWORD PTR [rsp+64]
+        mov	eax, DWORD PTR [rsp+64]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -29755,6 +29764,7 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_ptacc_x2_avx512 PROC
         push	r12
+        mov	r9d, r9d
         sub	rsp, 128
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -30873,6 +30883,8 @@ mlkem_rej_uniform_avx512 PROC
         push	rbx
         push	r12
         push	r13
+        mov	edx, edx
+        mov	r9d, r9d
         sub	rsp, 48
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -30988,6 +31000,8 @@ mlkem_rej_uniform_n_avx512 PROC
         push	rbx
         push	r12
         push	r13
+        mov	edx, edx
+        mov	r9d, r9d
         sub	rsp, 48
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -31475,6 +31489,7 @@ mlkem_redistribute_8_rand_x8_avx512 PROC
         push	r14
         push	r15
         push	rdi
+        mov	r8d, r8d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -31568,6 +31583,7 @@ mlkem_redistribute_16_rand_x8_avx512 PROC
         push	r14
         push	r15
         push	rdi
+        mov	r8d, r8d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -31701,6 +31717,7 @@ mlkem_redistribute_17_rand_x8_avx512 PROC
         push	r14
         push	r15
         push	rdi
+        mov	r8d, r8d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -31850,6 +31867,7 @@ mlkem_redistribute_21_rand_x8_avx512 PROC
         push	r14
         push	r15
         push	rdi
+        mov	r8d, r8d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -32131,6 +32149,7 @@ mlkem_csubq_avx512 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_cmp_avx512 PROC
+        mov	r8d, r8d
         vpxorq	zmm0, zmm0, zmm0
         vpxor	ymm2, ymm2, ymm2
         mov	r9d, 0
@@ -32937,6 +32956,7 @@ ptr_L_mlkem_decompress_10_avx512_shuf QWORD L_mlkem_decompress_10_avx512_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_10_avx512 PROC
+        mov	r8d, r8d
         vmovdqu64	zmm0, ZMMWORD PTR L_mlkem_decompress_10_avx512_mask
         vmovdqu64	zmm1, ZMMWORD PTR L_mlkem_decompress_10_avx512_q
         vmovdqu64	zmm2, ZMMWORD PTR L_mlkem_decompress_10_avx512_shuf
@@ -33076,6 +33096,7 @@ ptr_L_mlkem_decompress_11_avx512_mask QWORD L_mlkem_decompress_11_avx512_mask
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_11_avx512 PROC
+        mov	r8d, r8d
         sub	rsp, 40
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -33374,6 +33395,7 @@ ptr_L_mlkem_compress_10_avx512_shuf QWORD L_mlkem_compress_10_avx512_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_10_avx512 PROC
+        mov	r8d, r8d
         sub	rsp, 120
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -33667,6 +33689,7 @@ ptr_L_mlkem_compress_11_avx512_shuf QWORD L_mlkem_compress_11_avx512_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_11_avx512 PROC
+        mov	r8d, r8d
         sub	rsp, 136
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -34017,6 +34040,8 @@ _TEXT SEGMENT READONLY PARA
 mlkem_rej_uniform_avx512_vbmi2 PROC
         push	rbx
         push	r12
+        mov	edx, edx
+        mov	r9d, r9d
         mov	eax, edx
         mov	r12, 3329
         vmovd	xmm0, r12d
@@ -34110,6 +34135,8 @@ _TEXT SEGMENT READONLY PARA
 mlkem_rej_uniform_n_avx512_vbmi2 PROC
         push	rbx
         push	r12
+        mov	edx, edx
+        mov	r9d, r9d
         mov	eax, edx
         mov	r12, 3329
         vmovd	xmm0, r12d
@@ -34429,6 +34456,8 @@ mlkem_rej_uniform_avx512_vbmi PROC
         push	rbx
         push	r12
         push	r13
+        mov	edx, edx
+        mov	r9d, r9d
         sub	rsp, 48
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -34543,6 +34572,8 @@ mlkem_rej_uniform_n_avx512_vbmi PROC
         push	rbx
         push	r12
         push	r13
+        mov	edx, edx
+        mov	r9d, r9d
         sub	rsp, 48
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -34897,6 +34928,7 @@ ptr_L_mlkem_compress_10_avx512_vbmi_gather QWORD L_mlkem_compress_10_avx512_vbmi
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_10_avx512_vbmi PROC
+        mov	r8d, r8d
         sub	rsp, 120
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -35132,6 +35164,7 @@ ptr_L_mlkem_decompress_10_avx512_vbmi_hi QWORD L_mlkem_decompress_10_avx512_vbmi
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_10_avx512_vbmi PROC
+        mov	r8d, r8d
         vmovdqu64	zmm0, ZMMWORD PTR L_mlkem_decompress_10_avx512_vbmi_mask
         vmovdqu64	zmm1, ZMMWORD PTR L_mlkem_decompress_10_avx512_vbmi_q
         vmovdqu64	zmm2, ZMMWORD PTR L_mlkem_decompress_10_avx512_vbmi_sllv
@@ -35260,6 +35293,7 @@ ptr_L_mlkem_decompress_11_avx512_vbmi_hi QWORD L_mlkem_decompress_11_avx512_vbmi
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_11_avx512_vbmi PROC
+        mov	r8d, r8d
         sub	rsp, 40
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -35379,6 +35413,8 @@ _TEXT SEGMENT READONLY PARA
 mlkem_rej_uniform_avx512_vbmi_vbmi2 PROC
         push	rbx
         push	r12
+        mov	edx, edx
+        mov	r9d, r9d
         mov	eax, edx
         mov	r12, 3329
         vmovd	xmm0, r12d
@@ -35471,6 +35507,8 @@ _TEXT SEGMENT READONLY PARA
 mlkem_rej_uniform_n_avx512_vbmi_vbmi2 PROC
         push	rbx
         push	r12
+        mov	edx, edx
+        mov	r9d, r9d
         mov	eax, edx
         mov	r12, 3329
         vmovd	xmm0, r12d

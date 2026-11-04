@@ -1080,9 +1080,12 @@ static void wb_dispatch_rows(void)
     /* USE_INTEL_AVX512(f) is itself IS_INTEL_AVX512(f) && IS_INTEL_AVX512_BW(f)
      * (cpuid.h), so each AVX512 dispatch is a three-condition decision and the
      * F and BW bits need to be cleared separately.  SHA3_USE_AVX2(f) is
-     * IS_INTEL_AVX2(f) && IS_CPU_INTEL(f): its vendor operand is false on any
-     * AMD host, so CPUID_INTEL is forced on for the rows that need its true
-     * side -- the arm behind it is plain AVX2, which runs anywhere AVX2 does. */
+     * IS_INTEL_AVX2(f) && IS_CPU_INTEL(f) && !IS_CPU_SLOW_AVX2_SHA3(f): its
+     * vendor operand is false on any AMD host, so CPUID_INTEL is forced on for
+     * the rows that need its true side -- the arm behind it is plain AVX2,
+     * which runs anywhere AVX2 does.  The host's tuning bits are cleared on
+     * every row so the rows mean the same on Arrow Lake, and one row sets
+     * CPUID_SLOW_AVX2_SHA3 for that operand's true side. */
     static const struct {
         cpuid_flags_t set;
         cpuid_flags_t clear;
@@ -1110,6 +1113,9 @@ static void wb_dispatch_rows(void)
                        CPUID_AVX512_VBMI | CPUID_BMI2 |
                        CPUID_AVX2,                 0 },  /* portable C       */
         { 0,           CPUID_INTEL,                0 },  /* non-Intel vendor */
+        { CPUID_INTEL | CPUID_SLOW_AVX2_SHA3,
+                       CPUID_AVX512 | CPUID_AVX512_BW |
+                       CPUID_AVX512_VBMI,          0 },  /* AVX2, slow Keccak */
     };
 
     if (wc_InitRng(&rng) != 0) {
@@ -1120,6 +1126,7 @@ static void wb_dispatch_rows(void)
     for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
         cpuid_flags = WC_CPUID_INITIALIZER;
         (void)cpuid_get_flags_ex(&cpuid_flags);
+        cpuid_flags &= (cpuid_flags_t)~(CPUID_SLOW_VAES | CPUID_SLOW_AVX2_SHA3);
         cpuid_flags |= rows[i].set;
         cpuid_flags &= (cpuid_flags_t)~rows[i].clear;
         wb_intr_ret = rows[i].intr;

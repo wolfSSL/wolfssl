@@ -54,6 +54,9 @@ chacha_encrypt_x64 PROC
         push	r13
         push	r14
         push	r15
+        push	rdi
+        push	rsi
+        mov	r9d, r9d
         sub	rsp, 72
         cmp	r9d, 64
         jb	L_chacha_x64_small
@@ -70,8 +73,8 @@ L_chacha_x64_start:
         mov	ebx, DWORD PTR [rcx+4]
         mov	r9d, DWORD PTR [rcx+8]
         mov	r8d, DWORD PTR [rcx+12]
-        mov	r8d, DWORD PTR [rcx+16]
-        mov	r9d, DWORD PTR [rcx+20]
+        mov	edi, DWORD PTR [rcx+16]
+        mov	esi, DWORD PTR [rcx+20]
         mov	r10d, DWORD PTR [rcx+24]
         mov	r11d, DWORD PTR [rcx+28]
         mov	r12d, DWORD PTR [rcx+48]
@@ -80,8 +83,8 @@ L_chacha_x64_start:
         mov	r15d, DWORD PTR [rcx+60]
         mov	BYTE PTR [rsp], 10
 L_chacha_x64_block_crypt_start:
-        add	eax, r8d
-        add	ebx, r9d
+        add	eax, edi
+        add	ebx, esi
         add	r9d, r10d
         add	r8d, r11d
         xor	r12d, eax
@@ -96,16 +99,16 @@ L_chacha_x64_block_crypt_start:
         add	DWORD PTR [rsp+12], r13d
         add	DWORD PTR [rsp+16], r14d
         add	DWORD PTR [rsp+20], r15d
-        xor	r8d, DWORD PTR [rsp+8]
-        xor	r9d, DWORD PTR [rsp+12]
+        xor	edi, DWORD PTR [rsp+8]
+        xor	esi, DWORD PTR [rsp+12]
         xor	r10d, DWORD PTR [rsp+16]
         xor	r11d, DWORD PTR [rsp+20]
-        rol	r8d, 12
-        rol	r9d, 12
+        rol	edi, 12
+        rol	esi, 12
         rol	r10d, 12
         rol	r11d, 12
-        add	eax, r8d
-        add	ebx, r9d
+        add	eax, edi
+        add	ebx, esi
         add	r9d, r10d
         add	r8d, r11d
         xor	r12d, eax
@@ -120,18 +123,18 @@ L_chacha_x64_block_crypt_start:
         add	DWORD PTR [rsp+12], r13d
         add	DWORD PTR [rsp+16], r14d
         add	DWORD PTR [rsp+20], r15d
-        xor	r8d, DWORD PTR [rsp+8]
-        xor	r9d, DWORD PTR [rsp+12]
+        xor	edi, DWORD PTR [rsp+8]
+        xor	esi, DWORD PTR [rsp+12]
         xor	r10d, DWORD PTR [rsp+16]
         xor	r11d, DWORD PTR [rsp+20]
-        rol	r8d, 7
-        rol	r9d, 7
+        rol	edi, 7
+        rol	esi, 7
         rol	r10d, 7
         rol	r11d, 7
-        add	eax, r9d
+        add	eax, esi
         add	ebx, r10d
         add	r9d, r11d
-        add	r8d, r8d
+        add	r8d, edi
         xor	r15d, eax
         xor	r12d, ebx
         xor	r13d, r9d
@@ -144,18 +147,18 @@ L_chacha_x64_block_crypt_start:
         add	DWORD PTR [rsp+20], r12d
         add	DWORD PTR [rsp+8], r13d
         add	DWORD PTR [rsp+12], r14d
-        xor	r9d, DWORD PTR [rsp+16]
+        xor	esi, DWORD PTR [rsp+16]
         xor	r10d, DWORD PTR [rsp+20]
         xor	r11d, DWORD PTR [rsp+8]
-        xor	r8d, DWORD PTR [rsp+12]
-        rol	r9d, 12
+        xor	edi, DWORD PTR [rsp+12]
+        rol	esi, 12
         rol	r10d, 12
         rol	r11d, 12
-        rol	r8d, 12
-        add	eax, r9d
+        rol	edi, 12
+        add	eax, esi
         add	ebx, r10d
         add	r9d, r11d
-        add	r8d, r8d
+        add	r8d, edi
         xor	r15d, eax
         xor	r12d, ebx
         xor	r13d, r9d
@@ -168,14 +171,14 @@ L_chacha_x64_block_crypt_start:
         add	DWORD PTR [rsp+20], r12d
         add	DWORD PTR [rsp+8], r13d
         add	DWORD PTR [rsp+12], r14d
-        xor	r9d, DWORD PTR [rsp+16]
+        xor	esi, DWORD PTR [rsp+16]
         xor	r10d, DWORD PTR [rsp+20]
         xor	r11d, DWORD PTR [rsp+8]
-        xor	r8d, DWORD PTR [rsp+12]
-        rol	r9d, 7
+        xor	edi, DWORD PTR [rsp+12]
+        rol	esi, 7
         rol	r10d, 7
         rol	r11d, 7
-        rol	r8d, 7
+        rol	edi, 7
         dec	BYTE PTR [rsp]
         jnz	L_chacha_x64_block_crypt_start
         mov	rdx, QWORD PTR [rsp+32]
@@ -184,8 +187,8 @@ L_chacha_x64_block_crypt_start:
         add	ebx, DWORD PTR [rcx+4]
         add	r9d, DWORD PTR [rcx+8]
         add	r8d, DWORD PTR [rcx+12]
-        add	r8d, DWORD PTR [rcx+16]
-        add	r9d, DWORD PTR [rcx+20]
+        add	edi, DWORD PTR [rcx+16]
+        add	esi, DWORD PTR [rcx+20]
         add	r10d, DWORD PTR [rcx+24]
         add	r11d, DWORD PTR [rcx+28]
         add	r12d, DWORD PTR [rcx+48]
@@ -196,8 +199,8 @@ L_chacha_x64_block_crypt_start:
         xor	ebx, DWORD PTR [rdx+4]
         xor	r9d, DWORD PTR [rdx+8]
         xor	r8d, DWORD PTR [rdx+12]
-        xor	r8d, DWORD PTR [rdx+16]
-        xor	r9d, DWORD PTR [rdx+20]
+        xor	edi, DWORD PTR [rdx+16]
+        xor	esi, DWORD PTR [rdx+20]
         xor	r10d, DWORD PTR [rdx+24]
         xor	r11d, DWORD PTR [rdx+28]
         xor	r12d, DWORD PTR [rdx+48]
@@ -208,8 +211,8 @@ L_chacha_x64_block_crypt_start:
         mov	DWORD PTR [rbp+4], ebx
         mov	DWORD PTR [rbp+8], r9d
         mov	DWORD PTR [rbp+12], r8d
-        mov	DWORD PTR [rbp+16], r8d
-        mov	DWORD PTR [rbp+20], r9d
+        mov	DWORD PTR [rbp+16], edi
+        mov	DWORD PTR [rbp+20], esi
         mov	DWORD PTR [rbp+24], r10d
         mov	DWORD PTR [rbp+28], r11d
         mov	DWORD PTR [rbp+48], r12d
@@ -256,8 +259,8 @@ L_chacha_x64_small:
         mov	ebx, DWORD PTR [rcx+4]
         mov	r9d, DWORD PTR [rcx+8]
         mov	r8d, DWORD PTR [rcx+12]
-        mov	r8d, DWORD PTR [rcx+16]
-        mov	r9d, DWORD PTR [rcx+20]
+        mov	edi, DWORD PTR [rcx+16]
+        mov	esi, DWORD PTR [rcx+20]
         mov	r10d, DWORD PTR [rcx+24]
         mov	r11d, DWORD PTR [rcx+28]
         mov	r12d, DWORD PTR [rcx+48]
@@ -266,8 +269,8 @@ L_chacha_x64_small:
         mov	r15d, DWORD PTR [rcx+60]
         mov	BYTE PTR [rsp], 10
 L_chacha_x64_partial_crypt_start:
-        add	eax, r8d
-        add	ebx, r9d
+        add	eax, edi
+        add	ebx, esi
         add	r9d, r10d
         add	r8d, r11d
         xor	r12d, eax
@@ -282,16 +285,16 @@ L_chacha_x64_partial_crypt_start:
         add	DWORD PTR [rsp+12], r13d
         add	DWORD PTR [rsp+16], r14d
         add	DWORD PTR [rsp+20], r15d
-        xor	r8d, DWORD PTR [rsp+8]
-        xor	r9d, DWORD PTR [rsp+12]
+        xor	edi, DWORD PTR [rsp+8]
+        xor	esi, DWORD PTR [rsp+12]
         xor	r10d, DWORD PTR [rsp+16]
         xor	r11d, DWORD PTR [rsp+20]
-        rol	r8d, 12
-        rol	r9d, 12
+        rol	edi, 12
+        rol	esi, 12
         rol	r10d, 12
         rol	r11d, 12
-        add	eax, r8d
-        add	ebx, r9d
+        add	eax, edi
+        add	ebx, esi
         add	r9d, r10d
         add	r8d, r11d
         xor	r12d, eax
@@ -306,18 +309,18 @@ L_chacha_x64_partial_crypt_start:
         add	DWORD PTR [rsp+12], r13d
         add	DWORD PTR [rsp+16], r14d
         add	DWORD PTR [rsp+20], r15d
-        xor	r8d, DWORD PTR [rsp+8]
-        xor	r9d, DWORD PTR [rsp+12]
+        xor	edi, DWORD PTR [rsp+8]
+        xor	esi, DWORD PTR [rsp+12]
         xor	r10d, DWORD PTR [rsp+16]
         xor	r11d, DWORD PTR [rsp+20]
-        rol	r8d, 7
-        rol	r9d, 7
+        rol	edi, 7
+        rol	esi, 7
         rol	r10d, 7
         rol	r11d, 7
-        add	eax, r9d
+        add	eax, esi
         add	ebx, r10d
         add	r9d, r11d
-        add	r8d, r8d
+        add	r8d, edi
         xor	r15d, eax
         xor	r12d, ebx
         xor	r13d, r9d
@@ -330,18 +333,18 @@ L_chacha_x64_partial_crypt_start:
         add	DWORD PTR [rsp+20], r12d
         add	DWORD PTR [rsp+8], r13d
         add	DWORD PTR [rsp+12], r14d
-        xor	r9d, DWORD PTR [rsp+16]
+        xor	esi, DWORD PTR [rsp+16]
         xor	r10d, DWORD PTR [rsp+20]
         xor	r11d, DWORD PTR [rsp+8]
-        xor	r8d, DWORD PTR [rsp+12]
-        rol	r9d, 12
+        xor	edi, DWORD PTR [rsp+12]
+        rol	esi, 12
         rol	r10d, 12
         rol	r11d, 12
-        rol	r8d, 12
-        add	eax, r9d
+        rol	edi, 12
+        add	eax, esi
         add	ebx, r10d
         add	r9d, r11d
-        add	r8d, r8d
+        add	r8d, edi
         xor	r15d, eax
         xor	r12d, ebx
         xor	r13d, r9d
@@ -354,14 +357,14 @@ L_chacha_x64_partial_crypt_start:
         add	DWORD PTR [rsp+20], r12d
         add	DWORD PTR [rsp+8], r13d
         add	DWORD PTR [rsp+12], r14d
-        xor	r9d, DWORD PTR [rsp+16]
+        xor	esi, DWORD PTR [rsp+16]
         xor	r10d, DWORD PTR [rsp+20]
         xor	r11d, DWORD PTR [rsp+8]
-        xor	r8d, DWORD PTR [rsp+12]
-        rol	r9d, 7
+        xor	edi, DWORD PTR [rsp+12]
+        rol	esi, 7
         rol	r10d, 7
         rol	r11d, 7
-        rol	r8d, 7
+        rol	edi, 7
         dec	BYTE PTR [rsp]
         jnz	L_chacha_x64_partial_crypt_start
         mov	rdx, QWORD PTR [rsp+32]
@@ -369,8 +372,8 @@ L_chacha_x64_partial_crypt_start:
         add	ebx, DWORD PTR [rcx+4]
         add	r9d, DWORD PTR [rcx+8]
         add	r8d, DWORD PTR [rcx+12]
-        add	r8d, DWORD PTR [rcx+16]
-        add	r9d, DWORD PTR [rcx+20]
+        add	edi, DWORD PTR [rcx+16]
+        add	esi, DWORD PTR [rcx+20]
         add	r10d, DWORD PTR [rcx+24]
         add	r11d, DWORD PTR [rcx+28]
         add	r12d, DWORD PTR [rcx+48]
@@ -382,8 +385,8 @@ L_chacha_x64_partial_crypt_start:
         mov	DWORD PTR [rbp+4], ebx
         mov	DWORD PTR [rbp+8], r9d
         mov	DWORD PTR [rbp+12], r8d
-        mov	DWORD PTR [rbp+16], r8d
-        mov	DWORD PTR [rbp+20], r9d
+        mov	DWORD PTR [rbp+16], edi
+        mov	DWORD PTR [rbp+20], esi
         mov	DWORD PTR [rbp+24], r10d
         mov	DWORD PTR [rbp+28], r11d
         mov	DWORD PTR [rbp+48], r12d
@@ -406,16 +409,16 @@ L_chacha_x64_partial_crypt_start:
         mov	r9, QWORD PTR [rsp+40]
         add	DWORD PTR [rcx+48], 1
         add	rsp, 48
-        mov	r8d, r9d
+        mov	edi, r9d
         xor	rbx, rbx
-        and	r8d, 7
+        and	edi, 7
         jz	L_chacha_x64_partial_start64
 L_chacha_x64_partial_start8:
         movzx	eax, BYTE PTR [rbp+rbx]
         xor	al, BYTE PTR [rdx+rbx]
         mov	BYTE PTR [r8+rbx], al
         inc	ebx
-        cmp	ebx, r8d
+        cmp	ebx, edi
         jne	L_chacha_x64_partial_start8
         je	L_chacha_x64_partial_end64
 L_chacha_x64_partial_start64:
@@ -431,6 +434,8 @@ L_chacha_x64_partial_end64:
         mov	DWORD PTR [rcx+76], r9d
 L_chacha_x64_done:
         add	rsp, 72
+        pop	rsi
+        pop	rdi
         pop	r15
         pop	r14
         pop	r13
@@ -465,6 +470,7 @@ chacha_encrypt_sse3 PROC
         push	r13
         push	r14
         push	r15
+        mov	r9d, r9d
         sub	rsp, 168
         movdqu	OWORD PTR [rsp+8], xmm6
         movdqu	OWORD PTR [rsp+24], xmm7
@@ -836,6 +842,7 @@ chacha_encrypt_avx1 PROC
         push	r15
         push	rdi
         push	rsi
+        mov	r9d, r9d
         sub	rsp, 568
         vmovdqu	OWORD PTR [rsp+408], xmm6
         vmovdqu	OWORD PTR [rsp+424], xmm7
@@ -1392,6 +1399,7 @@ chacha_encrypt_avx2 PROC
         push	r14
         push	r15
         push	rdi
+        mov	r9d, r9d
         sub	rsp, 960
         vmovdqu	OWORD PTR [rsp+800], xmm6
         vmovdqu	OWORD PTR [rsp+816], xmm7
@@ -1790,6 +1798,7 @@ chacha_encrypt_avx512vl PROC
         push	r13
         push	r14
         push	r15
+        mov	r9d, r9d
         sub	rsp, 568
         vmovdqu	OWORD PTR [rsp+408], xmm6
         vmovdqu	OWORD PTR [rsp+424], xmm7
@@ -2391,6 +2400,7 @@ ptr_L_chacha20_avx512_add QWORD L_chacha20_avx512_add
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 chacha_encrypt_avx512 PROC
+        mov	r9d, r9d
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -2700,7 +2710,7 @@ chacha20_poly1305_avx512 PROC
         mov	rsi, rdx
         mov	rdx, r8
         mov	rcx, r9
-        mov	rax, QWORD PTR [rsp+104]
+        mov	eax, DWORD PTR [rsp+104]
         sub	rsp, 888
         vmovdqu	OWORD PTR [rsp+728], xmm6
         vmovdqu	OWORD PTR [rsp+744], xmm7
@@ -4911,7 +4921,7 @@ chacha20_poly1305_ifma PROC
         mov	rsi, rdx
         mov	rdx, r8
         mov	rcx, r9
-        mov	rax, QWORD PTR [rsp+80]
+        mov	eax, DWORD PTR [rsp+80]
         sub	rsp, 1360
         vmovdqu	OWORD PTR [rsp+1200], xmm6
         vmovdqu	OWORD PTR [rsp+1216], xmm7
@@ -8228,7 +8238,7 @@ chacha20_poly1305_ifma_decrypt PROC
         mov	rsi, rdx
         mov	rdx, r8
         mov	rcx, r9
-        mov	rax, QWORD PTR [rsp+80]
+        mov	eax, DWORD PTR [rsp+80]
         sub	rsp, 1360
         vmovdqu	OWORD PTR [rsp+1200], xmm6
         vmovdqu	OWORD PTR [rsp+1216], xmm7
@@ -10010,7 +10020,7 @@ chacha20_poly1305_small_enc PROC
         push	rsi
         push	rbx
         push	rbp
-        mov	r10, QWORD PTR [rsp+104]
+        mov	r10d, DWORD PTR [rsp+104]
         mov	r11, QWORD PTR [rsp+112]
         sub	rsp, 360
         vmovdqu	OWORD PTR [rsp+200], xmm6
@@ -10503,7 +10513,7 @@ chacha20_poly1305_small_dec PROC
         push	rsi
         push	rbx
         push	rbp
-        mov	r10, QWORD PTR [rsp+104]
+        mov	r10d, DWORD PTR [rsp+104]
         mov	r11, QWORD PTR [rsp+112]
         sub	rsp, 328
         vmovdqu	OWORD PTR [rsp+168], xmm6

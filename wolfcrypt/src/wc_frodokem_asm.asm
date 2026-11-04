@@ -61,7 +61,8 @@ frodokem_sa_accum_avx2 PROC
         push	r13
         push	r14
         push	r15
-        mov	rax, QWORD PTR [rsp+72]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+72]
         movsxd	r9, r9d
         shl	r9, 1
         add	rdx, r9
@@ -116,7 +117,8 @@ frodokem_as_accum_avx2 PROC
         push	rsi
         push	rbx
         push	rbp
-        mov	rax, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+104]
         sub	rsp, 120
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -239,7 +241,8 @@ frodokem_mul_bs_avx2 PROC
         push	rsi
         push	rbx
         push	rbp
-        mov	rax, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+104]
         sub	rsp, 120
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -357,7 +360,8 @@ frodokem_mul_add_sb_plus_e_avx2 PROC
         push	rdi
         push	rsi
         push	rbx
-        mov	rax, QWORD PTR [rsp+96]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+96]
         sub	rsp, 32
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -434,6 +438,7 @@ frodokem_mul_add_sb_plus_e_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 frodokem_add_avx2 PROC
+        mov	r8d, r8d
         vmovd	xmm0, r8
         vpbroadcastw	ymm0, xmm0
         vmovdqu	ymm1, YMMWORD PTR [rcx]
@@ -458,6 +463,8 @@ frodokem_add_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 frodokem_a_rows_reduce_avx2 PROC
+        mov	edx, edx
+        mov	r8d, r8d
         vmovd	xmm0, r8
         vpbroadcastw	ymm0, xmm0
         mov	eax, edx
@@ -487,6 +494,8 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 frodokem_sample_avx2 PROC
         push	r12
+        mov	edx, edx
+        mov	r9d, r9d
         sub	rsp, 32
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -534,9 +543,10 @@ frodokem_gen_a_rows_aes_avx2 PROC
         push	r15
         push	rdi
         push	rsi
-        mov	rax, QWORD PTR [rsp+88]
-        mov	r10, QWORD PTR [rsp+96]
-        mov	r11, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+88]
+        mov	r10d, DWORD PTR [rsp+96]
+        mov	r11d, DWORD PTR [rsp+104]
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -704,9 +714,10 @@ frodokem_gen_a_rows_aes_aesni PROC
         push	r15
         push	rdi
         push	rsi
-        mov	rax, QWORD PTR [rsp+88]
-        mov	r10, QWORD PTR [rsp+96]
-        mov	r11, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+88]
+        mov	r10d, DWORD PTR [rsp+96]
+        mov	r11d, DWORD PTR [rsp+104]
         sub	rsp, 56
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -909,7 +920,8 @@ frodokem_sa_accum_avx512 PROC
         push	rsi
         push	rbx
         push	rbp
-        mov	rax, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+104]
         sub	rsp, 72
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -1021,7 +1033,8 @@ frodokem_as_accum_avx512 PROC
         push	rsi
         push	rbx
         push	rbp
-        mov	rax, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+104]
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -1196,7 +1209,8 @@ frodokem_mul_bs_avx512 PROC
         push	rsi
         push	rbx
         push	rbp
-        mov	rax, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+104]
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -1366,7 +1380,8 @@ frodokem_mul_add_sb_plus_e_avx512 PROC
         push	rdi
         push	rsi
         push	rbx
-        mov	rax, QWORD PTR [rsp+96]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+96]
         movsxd	r10, r9d
         shl	r10, 1
         mov	r11, r8
@@ -1429,6 +1444,7 @@ frodokem_mul_add_sb_plus_e_avx512 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 frodokem_add_avx512 PROC
+        mov	r8d, r8d
         vmovd	xmm0, r8
         vpbroadcastw	zmm0, xmm0
         vmovdqu64	zmm1, [rcx]
@@ -1446,6 +1462,8 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 frodokem_sample_avx512 PROC
         push	r12
+        mov	edx, edx
+        mov	r9d, r9d
         sub	rsp, 32
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -1493,9 +1511,10 @@ frodokem_gen_a_rows_aes_avx512 PROC
         push	r15
         push	rdi
         push	rsi
-        mov	rax, QWORD PTR [rsp+88]
-        mov	r10, QWORD PTR [rsp+96]
-        mov	r11, QWORD PTR [rsp+104]
+        mov	r9d, r9d
+        mov	eax, DWORD PTR [rsp+88]
+        mov	r10d, DWORD PTR [rsp+96]
+        mov	r11d, DWORD PTR [rsp+104]
         sub	rsp, 168
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7

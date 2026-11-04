@@ -408,8 +408,11 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
      * functions.  Measured (Ethereum "Optimizing Keccak"; OpenSSL
      * keccak1600-x86_64.pl): AVX2 is ~13-17% faster than BMI2 on Intel
      * Haswell..Skylake, tied on Ice Lake, but ~2x SLOWER on AMD Zen, so AVX2
-     * is Intel-only.  (Single-stream AVX-512 is vpermt2q-bound and slower
-     * than BMI2 everywhere measured, so it is not built.)
+     * is Intel-only.  On Intel Arrow Lake and Lunar Lake AVX2 is slower
+     * than BMI2 and C, so it is also skipped on CPUs marked
+     * CPUID_SLOW_AVX2_SHA3.
+     * (Single-stream AVX-512 is vpermt2q-bound and slower than BMI2
+     * everywhere measured, so it is not built.)
      * Every caller of sha3_block_avx2()/sha3_block_n_avx2() must select with
      * this and not with IS_INTEL_AVX2() alone.
      * sha3.c puts BMI2 ahead of AVX2 because the BMI2 block needs no
@@ -421,7 +424,8 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #elif defined(WOLFSSL_SHA3_AVX2)
     #define SHA3_USE_AVX2(f) IS_INTEL_AVX2(f)
 #else
-    #define SHA3_USE_AVX2(f) (IS_INTEL_AVX2(f) && IS_CPU_INTEL(f))
+    #define SHA3_USE_AVX2(f) \
+        (IS_INTEL_AVX2(f) && IS_CPU_INTEL(f) && !IS_CPU_SLOW_AVX2_SHA3(f))
 #endif
 
     WOLFSSL_LOCAL void sha3_block_n_bmi2(word64* s, const byte* data, word32 n,

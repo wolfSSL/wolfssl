@@ -1407,7 +1407,7 @@ _Transform_Sha512_AVX1_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rsi, %rbp
+        movl	%esi, %ebp
         subq	$0x98, %rsp
         movq	224(%rdi), %rsi
         leaq	L_avx1_sha512_k(%rip), %rdx
@@ -3968,7 +3968,7 @@ _Transform_Sha512_AVX1_RORX_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rsi, %rbp
+        movl	%esi, %ebp
         subq	$0x98, %rsp
         movq	224(%rdi), %rsi
         leaq	L_avx1_rorx_sha512_k(%rip), %rcx
@@ -6440,7 +6440,7 @@ _Transform_Sha512_AVX2_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rsi, %rbp
+        movl	%esi, %ebp
         testb	$0x80, %bpl
         je	L_sha512_len_avx2_block
         movq	224(%rdi), %rbx
@@ -9245,6 +9245,7 @@ _Transform_Sha512_AVX2_RORX_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
+        movl	%esi, %esi
         testb	$0x80, %sil
         je	L_sha512_len_avx2_rorx_block
         movq	224(%rdi), %rax
