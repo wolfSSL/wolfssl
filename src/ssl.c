@@ -11377,7 +11377,8 @@ int wolfSSL_FIPS_drbg_generate(WOLFSSL_DRBG_CTX* ctx, unsigned char* out,
     size_t adinlen)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-    if (ctx != NULL && ctx->rng != NULL) {
+    if (ctx != NULL && ctx->rng != NULL &&
+            outlen <= (size_t)WC_MAX_UINT_OF(word32)) {
         ret = wc_RNG_GenerateBlock(ctx->rng, out, (word32)outlen);
         if (ret == 0) {
             ret = WOLFSSL_SUCCESS;
