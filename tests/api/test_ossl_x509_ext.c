@@ -2179,6 +2179,19 @@ int test_wolfSSL_NAME_CONSTRAINTS_uri(void)
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
             "https://[fe80::1%25eth0]:443/", 29), 0);
 
+        /* Escaped unreserved characters are decoded before comparison
+         * (RFC 5280 7.4). URI constraints require a valid reg-name host, so
+         * malformed escapes and other invalid hosts are rejected, even though
+         * the raw suffix matches. */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://w%77w.wolfssl.com/", 26), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://w%ZZw.wolfssl.com/", 26), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://w%2Fw.wolfssl.com/", 26), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://w!w.wolfssl.com/", 24), 0);
+
         /* IPv6 with userinfo */
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
             "https://user@[::1]:8080/", 24), 0);
@@ -2434,6 +2447,71 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
             "foo.example.com", 15), 0);
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
             "bar.example.com", 15), 1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* A percent-encoded host decodes to the permitted host:
+         * permitted;URI:host.example.com */
+        GENERAL_SUBTREE* subtree = NULL;
+
+        ExpectNotNull(subtree =
+            wolfSSL_sk_GENERAL_SUBTREE_value(nc->excludedSubtrees, 0));
+        if (EXPECT_SUCCESS()) {
+            subtree->base->type = GEN_URI;
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "host.example.com", 16), WOLFSSL_SUCCESS);
+            nc->permittedSubtrees = nc->excludedSubtrees;
+            nc->excludedSubtrees = NULL;
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://h%6Fst.example.com/", 27), 1);
+
+        /* A URI base that is not a valid reg-name host matches no valid host,
+         * so permitted;URI:h%6Fst.example.com satisfies nothing. */
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "h%6Fst.example.com", 18), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://host.example.com/", 25), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://h%6Fst.example.com/", 27), 0);
+
+        /* RFC 5280 4.2.1.10: a URI without a DNS host is rejected under
+         * any URI constraint, even one it is outside of:
+         * excluded;URI:host.example.com */
+        if (EXPECT_SUCCESS()) {
+            nc->excludedSubtrees = nc->permittedSubtrees;
+            nc->permittedSubtrees = NULL;
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "host.example.com", 16), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://other.example.com/", 26), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://12.31.2.3/", 18), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://[2001:db8::1]/", 22), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://h%5Fst.example.com/", 27), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "urn:example:host.example.com", 28), 0);
+        /* A percent-encoded host decodes to the excluded host. */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://h%6Fst.example.com/", 27), 0);
+
+        /* The base is not decoded, so excluded;URI:h%6Fst.example.com excludes
+         * nothing. A URI without a DNS host is still rejected. */
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "h%6Fst.example.com", 18), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://host.example.com/", 25), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://h%6Fst.example.com/", 27), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
+            "https://12.31.2.3/", 18), 0);
     }
 
     NAME_CONSTRAINTS_free(nc);
