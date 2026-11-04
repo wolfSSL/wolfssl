@@ -1257,6 +1257,7 @@ int test_wolfSSL_X509_NAME_oneline_escape(void)
         }
     }
 #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(NO_ASN_TIME) && defined(USE_CERT_BUFFERS_2048)
     /* Names parsed from a certificate, as in the report: the flat string is
      * produced by the certificate parser, not by the entry functions. */
