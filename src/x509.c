@@ -11634,11 +11634,15 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 #ifndef NO_FILESYSTEM
     char* buf = NULL;
-    char* p = NULL;
     word32 val = 0;
     int i;
+    int n;
+    int runStart = 0;
+    int runLen = 0;
+    int zeroStart = -1;
+    int zeroLen = 0;
+    size_t idx = 0;
     const size_t max_ipv6_len = 40;
-    byte write_zero = 0;
 #endif
 
     /* sanity check */
@@ -11693,43 +11697,47 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
             WOLFSSL_MSG("failed malloc");
             return ret;
         }
-        p = buf;
-        for (i = 0; i < 16; i += 2) {
-            val = (((word32)(ip[i]<<8)) | (ip[i+1])) & 0xFFFF;
-            if (val == 0) {
-                if (!write_zero) {
-                    *p = ':';
+        /* RFC 5952 4.2: compress only the first longest run of two or more
+         * zero groups, every other zero group is written as 0. */
+        for (i = 0; i < 8; i++) {
+            if (ip[2 * i] == 0 && ip[2 * i + 1] == 0) {
+                if (runLen == 0)
+                    runStart = i;
+                runLen++;
+                if (runLen > zeroLen) {
+                    zeroStart = runStart;
+                    zeroLen = runLen;
                 }
-                p++;
-                *p = '\0';
-                write_zero = 1;
             }
             else {
-                if (i != 0) {
-                    *p++ = ':';
-                }
-                (void)XSNPRINTF(p, max_ipv6_len - (size_t)(p - buf), "%x", val);
+                runLen = 0;
             }
-            /* sanity check */
-            if (XSTRLEN(buf) > max_ipv6_len) {
+        }
+        if (zeroLen < 2) {
+            zeroStart = -1;
+            zeroLen = 0;
+        }
+
+        for (i = 0; i < 8 && buf != NULL; i++) {
+            if (i == zeroStart) {
+                n = XSNPRINTF(buf + idx, max_ipv6_len - idx, "::");
+            }
+            else if (i > zeroStart && i < zeroStart + zeroLen) {
+                n = 0;
+            }
+            else {
+                val = ((word32)ip[2 * i] << 8) | ip[2 * i + 1];
+                n = XSNPRINTF(buf + idx, max_ipv6_len - idx, "%s%x",
+                    (i == 0 || i == zeroStart + zeroLen) ? "" : ":",
+                    (unsigned int)val);
+            }
+            if (n < 0 || (size_t)n >= max_ipv6_len - idx) {
                 WOLFSSL_MSG("The target ip address exceeds buffer length(40)");
                 XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 buf = NULL;
-                break;
             }
-            /* move the pointer to the last */
-            /* XSTRLEN includes NULL because of XSPRINTF use */
-            p = buf + (XSTRLEN(buf));
-        }
-        /* termination */
-        if (i == 16 && buf) {
-            p--;
-            if ((*p) == ':') {
-                /* when the last character is :, the following segments are zero
-                 * Therefore, adding : and null termination */
-                p++;
-                *p++ = ':';
-                *p = '\0';
+            else {
+                idx += (size_t)n;
             }
         }
     }
