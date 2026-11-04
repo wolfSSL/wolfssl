@@ -4108,6 +4108,10 @@ typedef struct InternalTicket {
 #define WOLFSSL_TICKET_ENC_SZ \
     (WOLFSSL_INTERNAL_TICKET_MAX_SZ + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
 
+/* Encrypted size of a ticket that carries no peer certificate */
+#define WOLFSSL_TICKET_ENC_BASE_SZ \
+    (WOLFSSL_INTERNAL_TICKET_BASE_SZ + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
+
 /* RFC 5077 defines this for session tickets. All members need to be a byte or
  * array of byte to avoid alignment issues */
 typedef struct ExternalTicket {
@@ -4126,6 +4130,12 @@ typedef struct ExternalTicket {
 /* Maximum session ticket length */
 #define SESSION_TICKET_LEN  \
     ((int)(WOLFSSL_TICKET_FIXED_SZ + WOLFSSL_TICKET_ENC_SZ))
+
+/* Length of a session ticket that carries no peer certificate. Sizes the
+ * static ticket buffer of WOLFSSL_SESSION; a longer ticket is kept in a
+ * dynamic buffer. Same as SESSION_TICKET_LEN when tickets carry no cert. */
+#define SESSION_TICKET_STATIC_LEN  \
+    ((int)(WOLFSSL_TICKET_FIXED_SZ + WOLFSSL_TICKET_ENC_BASE_SZ))
 
 typedef struct SessionTicket {
     word32 lifetime;
@@ -4180,8 +4190,10 @@ WOLFSSL_TEST_VIS void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap)
 #ifndef MAX_PSK_ID_LEN
     /* max psk identity/hint supported */
     #if defined(WOLFSSL_TLS13)
-        #ifdef SESSION_TICKET_LEN
-            #define MAX_PSK_ID_LEN SESSION_TICKET_LEN
+        #ifdef SESSION_TICKET_STATIC_LEN
+            /* Not grown by a peer cert in the ticket: a server accepts its
+             * longer tickets up to MAX_PSK_ID_WIRE_LEN. */
+            #define MAX_PSK_ID_LEN SESSION_TICKET_STATIC_LEN
         #else
             /* Previous value. Use as fallback for when tickets are disabled. */
             #define MAX_PSK_ID_LEN 1536
@@ -4189,6 +4201,16 @@ WOLFSSL_TEST_VIS void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap)
     #else
         #define MAX_PSK_ID_LEN 128
     #endif
+#endif
+
+/* Longest identity a server accepts in a TLS 1.3 pre_shared_key extension:
+ * an external PSK identity or one of its session tickets. */
+#ifdef HAVE_SESSION_TICKET
+    #define MAX_PSK_ID_WIRE_LEN \
+        ((int)MAX_PSK_ID_LEN > SESSION_TICKET_LEN ? (int)MAX_PSK_ID_LEN : \
+            SESSION_TICKET_LEN)
+#else
+    #define MAX_PSK_ID_WIRE_LEN MAX_PSK_ID_LEN
 #endif
 
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -5425,7 +5447,7 @@ struct WOLFSSL_SESSION {
     #endif /* WOLFSSL_EARLY_DATA */
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef HAVE_SESSION_TICKET
-    byte               staticTicket[SESSION_TICKET_LEN];
+    byte               staticTicket[SESSION_TICKET_STATIC_LEN];
     byte*              ticket;
     word16             ticketLen;
     word16             ticketLenAlloc;    /* is dynamic */

@@ -1625,7 +1625,7 @@ int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
 
     if ((ret == WOLFSSL_SUCCESS) && (bufSz > 0)) {
         /* Ticket will fit into static ticket */
-        if (bufSz <= SESSION_TICKET_LEN) {
+        if (bufSz <= sizeof(ssl->session->staticTicket)) {
             if (ssl->session->ticketLenAlloc > 0) {
                 XFREE(ssl->session->ticket, ssl->session->heap,
                       DYNAMIC_TYPE_SESSION_TICK);
@@ -1635,7 +1635,7 @@ int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
         }
         else { /* Ticket requires dynamic ticket storage */
             /* is dyn buffer big enough */
-            if (ssl->session->ticketLen < bufSz) {
+            if (ssl->session->ticketLenAlloc < bufSz) {
                 if (ssl->session->ticketLenAlloc > 0) {
                     XFREE(ssl->session->ticket, ssl->session->heap,
                           DYNAMIC_TYPE_SESSION_TICK);
@@ -1645,6 +1645,7 @@ int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
                 if (ssl->session->ticket == NULL) {
                     ssl->session->ticket = ssl->session->staticTicket;
                     ssl->session->ticketLenAlloc = 0;
+                    ssl->session->ticketLen = 0;
                     ret = MEMORY_ERROR;
                 }
                 else {
