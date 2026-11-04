@@ -2556,6 +2556,39 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
 
     /**
+     * Parse a decimal port string. Only digits are accepted, no sign or
+     * whitespace.
+     * @param str port string to parse
+     * @param port parsed port value
+     * @return 0 on success and -1 on failure
+     */
+    static int wolfssl_bio_parse_port(const char* str, word16* port)
+    {
+        const char* p;
+        word32 portVal = 0;
+
+        if (*str == '\0') {
+            WOLFSSL_MSG("Invalid port format");
+            return -1;
+        }
+        for (p = str; *p != '\0'; p++) {
+            if (*p < '0' || *p > '9') {
+                WOLFSSL_MSG("Invalid port value could not parse as number");
+                return -1;
+            }
+            portVal = (portVal * 10) + (word32)(*p - '0');
+            if (portVal > WOLFSSL_MAX_16BIT) {
+                WOLFSSL_MSG("Invalid port value not in range: [0, 65535]");
+                return -1;
+            }
+        }
+
+        *port = (word16)portVal;
+        return 0;
+    }
+
+
+    /**
      * Create new socket BIO object. This is a pure TCP connection with
      * no SSL or TLS protection.
      * @param str IP address to connect to
@@ -2568,7 +2601,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
             const char* port;
-            int portVal = 0;
 #ifdef WOLFSSL_IPV6
             const char* ipv6Start = XSTRSTR(str, "[");
             const char* ipv6End = XSTRSTR(str, "]");
@@ -2580,11 +2612,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 port = XSTRSTR(str, ":");
 
             if (port != NULL) {
-                portVal = XATOI(port + 1);
-                /* Reject out-of-range ports instead of truncating to word16. */
-                if ((portVal < 0) || (portVal > 65535))
-                    portVal = 0;
-                bio->port = (word16)portVal;
+                /* Invalid ports leave the port as 0 instead of truncating
+                 * to word16. */
+                if (wolfssl_bio_parse_port(port + 1, &bio->port) != 0)
+                    bio->port = 0;
             }
             else
                 port = str + XSTRLEN(str); /* point to null terminator */
@@ -2613,30 +2644,43 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     /**
      * Create new socket BIO object. This is a pure TCP connection with
-     * no SSL or TLS protection.
-     * @param port port  to connect to
+     * no SSL or TLS protection. If host is passed it is ignored.
+     * @param port port to listen on: host:port, *:port, port, [ipv6]:port
      * @return New BIO object or NULL on failure
      */
     WOLFSSL_BIO *wolfSSL_BIO_new_accept(const char *port)
     {
         WOLFSSL_BIO *bio;
+        word16 portVal = 0;
+        const char* portStr;
+        const char* hostEnd;
+        const char* sep;
         WOLFSSL_ENTER("wolfSSL_BIO_new_accept");
 
         if (port == NULL) {
             return NULL;
         }
 
+        portStr = port;
+        hostEnd = XSTRSTR(port, "]");
+        sep = XSTRSTR(hostEnd != NULL ? hostEnd : port, ":");
+        if (sep != NULL) {
+            portStr = sep + 1;
+        }
+        else if (hostEnd != NULL) {
+            WOLFSSL_MSG("Invalid port format");
+            return NULL;
+        }
+
+        /* explicit 0 port will let rest of system decide if it is valid */
+        if (wolfssl_bio_parse_port(portStr, &portVal) != 0) {
+            return NULL;
+        }
+
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
-        if (bio) {
-            const char* portStr = port;
-#ifdef WOLFSSL_IPV6
-            const char* ipv6End = XSTRSTR(port, "]");
-            if (ipv6End) {
-                portStr = XSTRSTR(ipv6End, ":");
-            }
-#endif
-            bio->port = (word16)XATOI(portStr);
+        if (bio != NULL) {
             bio->type  = WOLFSSL_BIO_SOCKET;
+            bio->port = portVal;
         }
         return bio;
     }
@@ -2650,7 +2694,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
      */
     long wolfSSL_BIO_set_conn_port(WOLFSSL_BIO *b, char* port)
     {
-        int p;
+        word16 p = 0;
         WOLFSSL_ENTER("wolfSSL_BIO_set_conn_port");
 
         if (!b || !port) {
@@ -2658,8 +2702,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             return WOLFSSL_FAILURE;
         }
 
-        p = XATOI(port);
-        if (!p || p < 0) {
+        if (wolfssl_bio_parse_port(port, &p) != 0 || p == 0) {
             WOLFSSL_MSG("Port parsing error");
             return WOLFSSL_FAILURE;
         }
@@ -2672,7 +2715,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             return WOLFSSL_FAILURE;
         }
 
-        b->port = (word16)p;
+        b->port = p;
         return WOLFSSL_SUCCESS;
     }
 
