@@ -31163,21 +31163,6 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
     }
 
-#if defined(WOLFSSL_RW_THREADED) && defined(WOLFSSL_TLS13)
-    /* Output is flushed, so a WANT_WRITE here means the message is queued. */
-    if (ssl->options.sendKeyUpdate) {
-        ssl->options.sendKeyUpdate = 0;
-        ret = IsWriteClosed(ssl) ? 0 : SendTls13KeyUpdate(ssl);
-        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
-            return (ssl->error = ret);
-        }
-        if (ret != 0) {
-            ssl->error = BUILD_MSG_ERROR;
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
-#endif
-
     ret = RetrySendAlert(ssl);
     if (ret != 0) {
         ssl->error = ret;
@@ -31226,6 +31211,11 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             if (ssl->options.dtls)
                 ssl->options.sendKeyUpdate = 0;
             ret = SendTls13KeyUpdate(ssl);
+        }
+        /* Output is flushed, so a WANT_WRITE here means the message is
+         * queued. */
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
+            return (ssl->error = ret);
         }
         if (ret != 0) {
             ssl->error = BUILD_MSG_ERROR;
