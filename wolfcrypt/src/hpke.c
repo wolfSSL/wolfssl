@@ -370,7 +370,16 @@ int wc_HpkeSerializePublicKey(Hpke* hpke, void* key, byte* out, word16* outSz)
         case DHKEM_P384_HKDF_SHA384:
         case DHKEM_P521_HKDF_SHA512:
             /* export x963 uncompressed */
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+            /* in FIPS v6, but only v6, wc_ecc_export_x963_ex_fips() checks
+             * privateKeyReadEnable. */
+            PRIVATE_KEY_UNLOCK();
+#endif
             ret = wc_ecc_export_x963_ex((ecc_key*)key, out, &tmpOutSz, 0);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+            PRIVATE_KEY_LOCK();
+#endif
+
             break;
 #endif
 #if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
