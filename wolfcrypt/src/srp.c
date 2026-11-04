@@ -352,6 +352,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     SrpHash hash;
     byte digest1[SRP_MAX_DIGEST_SIZE];
     byte digest2[SRP_MAX_DIGEST_SIZE];
+    WC_DECLARE_VAR(t, mp_int, 1, 0);
     byte pad = 0;
     int r;
     word32 i;
@@ -374,12 +375,38 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (mp_count_bits(&srp->N) < SRP_MODULUS_MIN_BITS)
         return BAD_FUNC_ARG;
 
+    /* N = 2q + 1 is a safe prime, so it is odd. */
+    if (mp_iseven(&srp->N))
+        return BAD_FUNC_ARG;
+
     /* Set g */
     if (mp_read_unsigned_bin(&srp->g, g, gSz) != MP_OKAY)
         return MP_READ_E;
 
     if (mp_cmp(&srp->N, &srp->g) != MP_GT)
         return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((t = (mp_int *)XMALLOC(sizeof(*t), srp->heap, DYNAMIC_TYPE_TMP_BUFFER))
+            == NULL)
+        return MEMORY_E;
+#endif
+
+    r = mp_init(t);
+    if (r != MP_OKAY)
+        r = MP_INIT_E;
+    /* 2 <= g <= N - 2, the range wc_DhCheckPubKey_ex() requires of a DH
+     * public value. 0, 1 and N - 1 have order at most 2, so with them
+     * v = g ^ x % N stops depending on the password. */
+    if (!r) r = mp_cmp_d(&srp->g, 2) == MP_LT ? BAD_FUNC_ARG : MP_OKAY;
+    if (!r) r = mp_sub(&srp->N, &srp->g, t);
+    if (!r) r = mp_cmp_d(t, 1) == MP_GT ? MP_OKAY : BAD_FUNC_ARG;
+
+    mp_clear(t);
+    WC_FREE_VAR_EX(t, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (r != MP_OKAY)
+        return r;
 
     /* Set salt */
     if (srp->salt) {
