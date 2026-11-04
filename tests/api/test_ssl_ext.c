@@ -2637,11 +2637,13 @@ int test_ssl_api_decision_coverage(void)
     }
 #endif
 
+#ifdef HAVE_EXTENDED_MASTER
     /* --- 5837:0/1 wolfSSL_clear EMS re-arm: side==CLIENT && !disableEMS -- */
     ssl->options.disableEMS = 1;
     wolfSSL_clear(ssl);
     ssl->options.disableEMS = 0;
     wolfSSL_clear(ssl);
+#endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     /* --- 6208:1 wolfSSL_session_reused: resuming || resumed -------------- */

@@ -14883,7 +14883,9 @@ int test_wc_AesGcm_PrimitiveFailureCleanup(void)
 int test_wc_AesReworkDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if !defined(NO_AES) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (defined(HAVE_AESGCM) || defined(WOLFSSL_AES_COUNTER) || \
+     defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_XTS))
     Aes        aes;
     byte       key16[16];
     byte       iv[WC_AES_BLOCK_SIZE];

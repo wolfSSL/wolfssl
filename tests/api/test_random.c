@@ -1745,7 +1745,10 @@ int test_wc_DrbgReworkDecisionCoverage(void)
     (void)wc_Sha256Drbg_Disable();
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
-    if (rng.drbgType == WC_DRBG_SHA512) {
+    /* RDRAND builds (HAVE_INTEL_RDRAND on a RDRAND CPU) bypass DRBG
+     * instantiation: drbgType is set but drbg512 stays NULL, so the arms
+     * below are unreachable and the section is skipped. */
+    if (rng.drbgType == WC_DRBG_SHA512 && wc_RNG_DRBG_Present(&rng)) {
         ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 1);
         /* drbg512-NULL side of the SHA-512 clause. */
         savedPtr = rng.drbg512;
@@ -1770,7 +1773,8 @@ int test_wc_DrbgReworkDecisionCoverage(void)
 #endif
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
-    if (rng.drbgType == WC_DRBG_SHA256) {
+    /* RDRAND builds bypass DRBG instantiation (see SHA-512 section). */
+    if (rng.drbgType == WC_DRBG_SHA256 && wc_RNG_DRBG_Present(&rng)) {
         ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 1);
         /* drbg-NULL side of the SHA-256 clause. */
         savedPtr = rng.drbg;
