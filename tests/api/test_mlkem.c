@@ -5559,34 +5559,40 @@ int test_wc_mlkem_decode_alloc_fail(void)
 int test_wc_mlkem_pct_alloc_fail(void)
 {
     EXPECT_DECLS;
-    MlKemKey key;
+    MlKemKey* key = NULL;
     WC_RNG rng;
     byte pub[WC_ML_KEM_768_PUBLIC_KEY_SIZE];
     byte ct[WC_ML_KEM_768_CIPHER_TEXT_SIZE];
     byte ss[WC_ML_KEM_SS_SZ];
     int ret = -1;
 
-    XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(ct, 0, sizeof(ct));
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_MlKemKey_Init(&key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
+    ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(*key), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
 
     /* Fail the key-pair test's ciphertext buffer. */
     mlkem_oom_size = WC_ML_KEM_MAX_CIPHER_TEXT_SIZE;
     if (EXPECT_SUCCESS() && (mlkem_oom_arm() == 0)) {
-        ret = wc_MlKemKey_MakeKey(&key, &rng);
+        ret = wc_MlKemKey_MakeKey(key, &rng);
         mlkem_oom_disarm();
     }
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(MEMORY_E));
 
-    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(&key, pub, sizeof(pub)),
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pub, sizeof(pub)),
         WC_NO_ERR_TRACE(BAD_STATE_E));
-    ExpectIntEQ(wc_MlKemKey_Encapsulate(&key, ct, ss, &rng),
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
         WC_NO_ERR_TRACE(BAD_STATE_E));
-    ExpectIntNE(wc_MlKemKey_Decapsulate(&key, ss, ct, sizeof(ct)), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, sizeof(ct)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
 
-    ExpectIntEQ(wc_MlKemKey_Free(&key), 0);
+    DoExpectIntEQ(wc_MlKemKey_Free(key), 0);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     return EXPECT_RESULT();
 }
