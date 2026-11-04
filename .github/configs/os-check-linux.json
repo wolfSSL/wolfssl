@@ -176,7 +176,7 @@
   "--enable-cryptocbutils", "CPPFLAGS=-DWC_SHE_SW_DEFAULT"]},
 {"name": "sniffer-curves-enckeys", "minutes": 2.2,
  "configure": ["--enable-sniffer", "--enable-curve25519", "--enable-curve448",
-  "--enable-enckeys", "CPPFLAGS=-DWOLFSSL_DH_EXTRA"]},
+  "--enable-enckeys", "--enable-aesccm", "CPPFLAGS=-DWOLFSSL_DH_EXTRA"]},
 {"name": "sniffer-keylog-storedata", "minutes": 2.5,
  "comment": "The sniffer keylog legs of scripts/sniffer-testsuite.test only run with WOLFSSL_SNIFFER_KEYLOGFILE, and the store data callback path is only compiled with WOLFSSL_SNIFFER_STORE_DATA_CB. Neither is set by any other entry.",
  "configure": ["--enable-sniffer", "--enable-session-ticket",

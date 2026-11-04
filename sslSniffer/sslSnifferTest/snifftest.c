@@ -492,6 +492,9 @@ static void show_appinfo(void)
     #ifdef WOLFSSL_STATIC_DH
         "dh_static "
     #endif
+    #ifdef HAVE_AESCCM
+        "aes_ccm "
+    #endif
     #ifdef WOLFSSL_SNIFFER_KEYLOGFILE
         "ssl_keylog_file "
     #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
@@ -1060,6 +1063,8 @@ int main(int argc, char** argv)
 #ifdef THREADED_SNIFFTEST
     int workerThreadCount;
     const char* keyLogFileArg = NULL;
+    SnifferWorker* workers = NULL;
+    int* used = NULL;
 #endif
 
 #ifdef DEBUG_WOLFSSL
@@ -1367,10 +1372,14 @@ int main(int argc, char** argv)
         frame = NULL_IF_FRAME_LEN;
 
 #ifdef THREADED_SNIFFTEST
-    SnifferWorker workers[workerThreadCount];
-    int           used[workerThreadCount];
-    XMEMSET(used, 0, sizeof(used));
-    XMEMSET(&workers, 0, sizeof(workers));
+    workers = (SnifferWorker*)XMALLOC(sizeof(SnifferWorker) * workerThreadCount,
+                                      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    used = (int*)XMALLOC(sizeof(int) * workerThreadCount, NULL,
+                         DYNAMIC_TYPE_TMP_BUFFER);
+    if (workers == NULL || used == NULL)
+        err_sys("Unable to allocate sniffer workers");
+    XMEMSET(used, 0, sizeof(int) * workerThreadCount);
+    XMEMSET(workers, 0, sizeof(SnifferWorker) * workerThreadCount);
 
     for (i=0; i<workerThreadCount; i++) {
         ssl_Init_SnifferWorker(&workers[i], port, server, keyFilesSrc,
@@ -1498,6 +1507,8 @@ int main(int argc, char** argv)
         }
         ssl_Free_SnifferWorker(&workers[i]);
     }
+    XFREE(used, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(workers, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     FreeAll();

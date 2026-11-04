@@ -103,6 +103,9 @@ run_sequence() {
         run_test "ECDHE-RSA-AES256-SHA384" "-v 3" "-v 3"
     elif [ "$1" == "static-rsa" ] || [ "$1" == "ipv6" ]; then # TLS v1.2 static RSA
         run_test "AES128-SHA" "-v 3" "-v 3"
+    elif [ "$1" == "tls12-ccm" ]; then # TLS v1.2 static RSA AES-CCM
+        run_test "AES128-CCM-8" "-v 3" "-v 3"
+        run_test "AES256-CCM-8" "-v 3" "-v 3"
     elif [ "$1" == "tls13-hrr" ]; then # TLS v1.3 Hello Retry Request
         run_test "" "-v 4 -g" "-v 4 -J"
     else
@@ -158,7 +161,7 @@ run_snifftest() {
     local args=()
 
     case "$1" in
-        tls12-etm)
+        tls12-etm|tls12-ccm)
             args=(-key ./certs/server-key.pem) ;;
         tls12-keylog|tls13-keylog|tls12-etm-keylog)
             args=(-keylogfile "./scripts/sniffer-${1}.sslkeylog") ;;
@@ -192,6 +195,7 @@ run_snifftest() {
 
 run_capture "static-rsa"          "--enable-enc-then-mac=no"
 run_capture "ipv6"                "--enable-enc-then-mac=no --enable-ipv6"
+run_capture "tls12-ccm"           "--enable-aesccm"
 run_capture "tls12"               ""
 run_capture "tls12-keylog"        "--enable-enc-then-mac=no --enable-keylog-export CFLAGS='-Wno-cpp -DWOLFSSL_SNIFFER_KEYLOGFILE'"
 run_capture "tls13-keylog"        "--enable-keylog-export CFLAGS='-Wno-cpp -DWOLFSSL_SNIFFER_KEYLOGFILE'"
