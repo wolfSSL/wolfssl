@@ -1363,6 +1363,8 @@ static int test_ca_names_sent_case(method_provider client_meth,
         const byte* rdns = NULL;
         word32 rdnsSz = 0;
 
+        XMEMSET(dn, 0, sizeof(dn));
+        XMEMSET(dnSz, 0, sizeof(dnSz));
         ExpectIntGT(req->msgSz, 0);
         /* A name with no encoding is left out rather than sent empty. */
         ExpectIntEQ(test_ca_names_req_dns(req, dn, dnSz, 2), expCnt);
