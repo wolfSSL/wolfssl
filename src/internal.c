@@ -45204,36 +45204,113 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         InternalTicket* it;
         ExternalTicket* et;
         int encLen;
+        int encMax;
         int ret;
         int error;
         word32 itHash = 0;
         byte zeros[WOLFSSL_TICKET_MAC_SZ];   /* biggest cmp size */
         int internalTicketSz;
+        word32 ticketSz;
         byte* mac;
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     !defined(NO_CERT_IN_TICKET)
+        const byte* peerCertDer = NULL;
         word16 peerCertSz = 0;
 #endif
 
-        WOLFSSL_ASSERT_GE(sizeof(ssl->session->staticTicket), WOLFSSL_TICKET_ENC_SZ);
         WOLFSSL_ASSERT_SIZEOF_GE(ssl->session->staticTicket, *et);
 
-        if (ssl->session->ticket != ssl->session->staticTicket) {
-            /* Always use the static ticket buffer */
-            XFREE(ssl->session->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
-            ssl->session->ticket = ssl->session->staticTicket;
-            ssl->session->ticketLenAlloc = 0;
-        }
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        /* Store peer certificate in ticket for session resumption.
+         * Try ssl->peerCert first, then ssl->session->chain as fallback.
+         * Skip for DTLS to keep ticket size small for MTU constraints. */
+        if (!ssl->options.dtls) {
+            const byte* certDer = NULL;
+            word32 certDerSz = 0;
 
-        et = (ExternalTicket*)ssl->session->ticket;
-        it = (InternalTicket*)et->enc_ticket;
+            if (ssl->peerCert.derCert != NULL &&
+                    ssl->peerCert.derCert->length > 0) {
+                /* Use current peer certificate */
+                certDer = ssl->peerCert.derCert->buffer;
+                certDerSz = ssl->peerCert.derCert->length;
+            }
+#ifdef SESSION_CERTS
+            else if (ssl->session->chain.count > 0) {
+                /* Use peer certificate from session chain */
+                certDer = ssl->session->chain.certs[0].buffer;
+                certDerSz = ssl->session->chain.certs[0].length;
+            }
+#endif
+
+            if (certDer != NULL && certDerSz > 0 &&
+                    certDerSz <= MAX_TICKET_PEER_CERT_SZ
+#ifdef HAVE_MAX_FRAGMENT
+                    /* We don't support fragmentation in
+                     * SendTls13NewSessionTicket yet. */
+                    && (!IsAtLeastTLSv1_3(ssl->version) ||
+                        ssl->max_fragment == MAX_RECORD_SIZE)
+#endif
+                    ) {
+                peerCertDer = certDer;
+                peerCertSz = (word16)certDerSz;
+            }
+            else if (certDerSz > MAX_TICKET_PEER_CERT_SZ) {
+                WOLFSSL_MSG("Peer cert too large for ticket, skipping");
+            }
+        }
+#endif
+
+        internalTicketSz = (int)WOLFSSL_INTERNAL_TICKET_BASE_SZ;
+        /* Space for the encrypt callback: WOLFSSL_TICKET_ENC_SZ less the
+         * certificate space this ticket does not use. */
+        encMax = (int)WOLFSSL_TICKET_ENC_BASE_SZ;
+#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET)
+        internalTicketSz += peerCertSz;
+        encMax += peerCertSz;
+#endif
+#ifdef WOLFSSL_TICKET_ENC_CBC_HMAC
+        internalTicketSz = (internalTicketSz + 15) & (~0xf);
+#endif
+        ticketSz = WOLFSSL_TICKET_FIXED_SZ + (word32)encMax;
+
+        /* The static buffer holds a ticket without a peer certificate. On an
+         * async re-entry the size is the same and the buffer is kept. */
+        if (ticketSz <= sizeof(ssl->session->staticTicket)) {
+            if (ssl->session->ticket != ssl->session->staticTicket) {
+                XFREE(ssl->session->ticket, ssl->session->heap,
+                      DYNAMIC_TYPE_SESSION_TICK);
+                ssl->session->ticket = ssl->session->staticTicket;
+                ssl->session->ticketLenAlloc = 0;
+            }
+        }
+        else if (ssl->session->ticketLenAlloc < ticketSz) {
+            byte* ticket = (byte*)XMALLOC(ticketSz, ssl->session->heap,
+                                          DYNAMIC_TYPE_SESSION_TICK);
+            if (ticket == NULL) {
+                WOLFSSL_ERROR_VERBOSE(MEMORY_E);
+                return MEMORY_E;
+            }
+            if (ssl->session->ticketLenAlloc > 0) {
+                XFREE(ssl->session->ticket, ssl->session->heap,
+                      DYNAMIC_TYPE_SESSION_TICK);
+            }
+            ssl->session->ticket = ticket;
+            ssl->session->ticketLenAlloc = (word16)ticketSz;
+        }
+        /* Set once the new ticket is made */
+        ssl->session->ticketLen = 0;
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
     #endif
         {
-            XMEMSET(ssl->session->ticket, 0, SESSION_TICKET_LEN);
+            XMEMSET(ssl->session->ticket, 0, ticketSz);
         }
+
+        et = (ExternalTicket*)ssl->session->ticket;
+        it = (InternalTicket*)et->enc_ticket;
 
         /* build internal */
         it->pv.major = ssl->version.major;
@@ -45313,51 +45390,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     !defined(NO_CERT_IN_TICKET)
-        /* Store peer certificate in ticket for session resumption.
-         * Try ssl->peerCert first, then ssl->session->chain as fallback.
-         * Skip for DTLS to keep ticket size small for MTU constraints. */
-        if (ssl->options.dtls) {
-            c16toa(0, it->peerCertLen);
-            peerCertSz = 0;
-        }
-        else {
-            const byte* certDer = NULL;
-            word32 certDerSz = 0;
-
-            if (ssl->peerCert.derCert != NULL &&
-                    ssl->peerCert.derCert->length > 0) {
-                /* Use current peer certificate */
-                certDer = ssl->peerCert.derCert->buffer;
-                certDerSz = ssl->peerCert.derCert->length;
-            }
-#ifdef SESSION_CERTS
-            else if (ssl->session->chain.count > 0) {
-                /* Use peer certificate from session chain */
-                certDer = ssl->session->chain.certs[0].buffer;
-                certDerSz = ssl->session->chain.certs[0].length;
-            }
-#endif
-
-            if (certDer != NULL && certDerSz > 0 &&
-                    certDerSz <= MAX_TICKET_PEER_CERT_SZ
-#ifdef HAVE_MAX_FRAGMENT
-                    /* We don't support fragmentation in
-                     * SendTls13NewSessionTicket yet. */
-                    && (!IsAtLeastTLSv1_3(ssl->version) ||
-                        ssl->max_fragment == MAX_RECORD_SIZE)
-#endif
-                    ) {
-                c16toa((word16)certDerSz, it->peerCertLen);
-                XMEMCPY(it->peerCert, certDer, certDerSz);
-                peerCertSz = (word16)certDerSz;
-            }
-            else {
-                if (certDerSz > MAX_TICKET_PEER_CERT_SZ)
-                    WOLFSSL_MSG("Peer cert too large for ticket, skipping");
-                c16toa(0, it->peerCertLen);
-                peerCertSz = 0;
-            }
-        }
+        c16toa(peerCertSz, it->peerCertLen);
+        if (peerCertSz > 0)
+            XMEMCPY(it->peerCert, peerCertDer, peerCertSz);
 #endif
 
 #ifdef WOLFSSL_TICKET_HAVE_ID
@@ -45372,19 +45407,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 #endif
 
-        internalTicketSz = (int)WOLFSSL_INTERNAL_TICKET_BASE_SZ;
-#if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
-    !defined(NO_CERT_IN_TICKET)
-        internalTicketSz += peerCertSz;
-#endif
-#ifdef WOLFSSL_TICKET_ENC_CBC_HMAC
-        internalTicketSz = (internalTicketSz + 15) & (~0xf);
-#endif
         /* MAC is placed after the encrypted data */
-        mac = et->enc_ticket + WOLFSSL_TICKET_ENC_SZ;
+        mac = et->enc_ticket + encMax;
 
         /* encrypt */
-        encLen = WOLFSSL_TICKET_ENC_SZ;  /* max size user can use */
+        encLen = encMax;  /* max size user can use */
         if (ssl->ctx->ticketEncCb == NULL
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
                 ||
@@ -45417,10 +45444,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
             goto error;
         }
-        if (encLen < internalTicketSz ||
-                encLen > (int)WOLFSSL_TICKET_ENC_SZ) {
+        if (encLen < internalTicketSz || encLen > encMax) {
             WOLFSSL_MSG("Bad user ticket encrypt size");
             ret = BAD_TICKET_KEY_CB_SZ;
+            goto error;
         }
 
         /* sanity checks on encrypt callback */
@@ -45459,7 +45486,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         /* set size */
         c16toa((word16)encLen, et->enc_len);
-        if (encLen < (int)WOLFSSL_TICKET_ENC_SZ) {
+        if (encLen < encMax) {
             /* move mac up since whole enc buffer not used */
             XMEMMOVE(et->enc_ticket + encLen, mac,
                     WOLFSSL_TICKET_MAC_SZ);
@@ -45471,12 +45498,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     error:
 #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Ticket has sensitive data in it now. */
-        wc_MemZero_Add("Create Ticket internal", it,
-                       WOLFSSL_INTERNAL_TICKET_MAX_SZ);
+        wc_MemZero_Add("Create Ticket internal", it, (word32)encMax);
 #endif
-        ForceZero(it, WOLFSSL_INTERNAL_TICKET_MAX_SZ);
+        ForceZero(it, (word32)encMax);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(it, WOLFSSL_INTERNAL_TICKET_MAX_SZ);
+        wc_MemZero_Check(it, (word32)encMax);
 #endif
         WOLFSSL_ERROR_VERBOSE(ret);
         return ret;

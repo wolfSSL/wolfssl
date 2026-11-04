@@ -1679,7 +1679,7 @@ int test_tls_msgtype_sni_parse_ech_public(void)
 /* if (len < MIN_PSK_ID_LEN || length - idx < len) return BUFFER_E;
  * ...
  * if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
- *         identityLen > MAX_PSK_ID_LEN) return BUFFER_E; */
+ *         identityLen > MAX_PSK_ID_WIRE_LEN) return BUFFER_E; */
 int test_tls_msgtype_psk_ch_id_gates(void)
 {
     EXPECT_DECLS;
@@ -1687,8 +1687,8 @@ int test_tls_msgtype_psk_ch_id_gates(void)
     defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    byte buf[MAX_PSK_ID_LEN + 64];
-    byte body[MAX_PSK_ID_LEN + 48];
+    byte buf[MAX_PSK_ID_WIRE_LEN + 64];
+    byte body[MAX_PSK_ID_WIRE_LEN + 48];
     word16 len;
     Suites suites;
 
@@ -1748,12 +1748,12 @@ int test_tls_msgtype_psk_ch_id_gates(void)
     ctx = NULL;
 
     /* Per-identity op0 false, op1 true: identityLen is one more than
-     * MAX_PSK_ID_LEN, with enough buffer supplied to hold it in full. */
+     * MAX_PSK_ID_WIRE_LEN, with enough buffer supplied to hold it in full. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     XMEMSET(&suites, 0, sizeof(suites));
     {
-        word16 idLen = MAX_PSK_ID_LEN + 1;
+        word16 idLen = (word16)(MAX_PSK_ID_WIRE_LEN + 1);
         word16 identitiesLen = (word16)(OPAQUE16_LEN + idLen + OPAQUE32_LEN);
         word16 idx = 0;
 

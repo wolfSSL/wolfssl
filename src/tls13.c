@@ -6848,6 +6848,13 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
     *found = 0;
     (void)suite;
 
+    /* A longer identity can only be a session ticket */
+    if (psk->identityLen > MAX_PSK_ID_LEN) {
+        WOLFSSL_MSG("PSK identity longer than MAX_PSK_ID_LEN, not offered to "
+                    "the PSK callback");
+        return 0;
+    }
+
     if (ssl->options.server_psk_tls13_cb != NULL) {
          *psk_keySz = ssl->options.server_psk_tls13_cb((WOLFSSL*)ssl,
              (char*)psk->identity, psk_key, MAX_PSK_KEY_LEN, &cipherName);
@@ -7021,13 +7028,15 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     for (current = (PreSharedKey*)ext->data; current != NULL;
             current = current->next) {
     #ifndef NO_PSK
-        if (current->identityLen > MAX_PSK_ID_LEN) {
-            ret = BUFFER_ERROR;
-            goto cleanup;
+        /* A session ticket can be longer than an external PSK identity. */
+        if (current->identityLen <= MAX_PSK_ID_LEN) {
+            XMEMCPY(ssl->arrays->client_identity, current->identity,
+                    current->identityLen);
+            ssl->arrays->client_identity[current->identityLen] = '\0';
         }
-        XMEMCPY(ssl->arrays->client_identity, current->identity,
-                current->identityLen);
-        ssl->arrays->client_identity[current->identityLen] = '\0';
+        else {
+            ssl->arrays->client_identity[0] = '\0';
+        }
     #endif
 
     #ifdef HAVE_SESSION_TICKET

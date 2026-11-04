@@ -2096,7 +2096,8 @@ int test_wolfSSL_SESSION_dup_peer_fail(void)
     !defined(NO_TLS)
 
 /* Cache a client session under id with a ticLen byte ticket of fill bytes.
- * ticLen over SESSION_TICKET_LEN makes the cache allocate a ticket buffer. */
+ * ticLen over SESSION_TICKET_STATIC_LEN makes the cache allocate a ticket
+ * buffer. */
 static int test_session_at_index_add(WOLFSSL_CTX* ctx, const byte* id,
     word16 ticLen, byte fill, int* idx)
 {
@@ -2150,7 +2151,7 @@ int test_wolfSSL_GetSessionAtIndex(void)
     WOLFSSL_SESSION* copy = NULL;
     WOLFSSL_SESSION* copy2 = NULL;
     byte id[ID_LEN];
-    word16 ticLen = (word16)(SESSION_TICKET_LEN + 128);
+    word16 ticLen = (word16)(SESSION_TICKET_STATIC_LEN + 128);
     int idx = -1;
 
     XMEMSET(id, 0x5A, sizeof(id));
@@ -2217,7 +2218,7 @@ int test_wolfSSL_session_cache_short_ticket_reuse(void)
     XMEMSET(id, 0x5A, sizeof(id));
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectIntEQ(test_session_at_index_add(ctx, id,
-        (word16)(SESSION_TICKET_LEN + 128), 0xA1, NULL), TEST_SUCCESS);
+        (word16)(SESSION_TICKET_STATIC_LEN + 128), 0xA1, NULL), TEST_SUCCESS);
 
     /* Same ID, short ticket in the session's static buffer. */
     ExpectNotNull(sess = wolfSSL_SESSION_new());
@@ -2891,7 +2892,7 @@ static void test_set_sessions(sess_cache_t * cache_mem)
              * canary values. These should be sanitized on session restore. */
             s->type = WOLFSSL_SESSION_TYPE_UNKNOWN;
             #ifdef HAVE_SESSION_TICKET
-            s->ticketLen = SESSION_TICKET_LEN + 1;
+            s->ticketLen = SESSION_TICKET_STATIC_LEN + 1;
             s->ticketLenAlloc = 1;
             #endif /* HAVE_SESSION_TICKET */
             #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
@@ -2941,8 +2942,9 @@ static int test_sanity_sessions(const sess_cache_t * cache_mem,
             #endif /* HAVE_EX_DATA */
 
             #ifdef HAVE_SESSION_TICKET
-            if (s->ticketLenAlloc != 0 ||
-                s->ticketLen > SESSION_TICKET_LEN) {
+            /* The canary ticket did not fit the static buffer, so the
+             * restore drops it. */
+            if (s->ticketLenAlloc != 0 || s->ticketLen != 0) {
                 WOLFSSL_MSG_EX("error: %s: s = %p, id = 0x%02x%02x: "
                                "ticketLenAlloc = %d, ticketLen = %d\n",
                                what, s,

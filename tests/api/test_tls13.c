@@ -12954,6 +12954,240 @@ int test_tls13_ticket_peer_cert_reverify(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SESSION_TICKET) && defined(OPENSSL_ALL) && \
+    defined(KEEP_PEER_CERT) && !defined(NO_CERT_IN_TICKET) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+/* Resume with sess and check the server's peer certificate is cliCert. The
+ * server has no session cache, so the certificate can only come from the
+ * ticket. */
+static int test_ticket_peer_cert_resume_one(WOLFSSL_CTX* ctx_c,
+    WOLFSSL_CTX* ctx_s, WOLFSSL_SESSION* sess, WOLFSSL_X509* cliCert)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_X509 *peer = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    ExpectIntEQ(wolfSSL_X509_cmp(peer, cliCert), 0);
+
+    wolfSSL_X509_free(peer);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    return EXPECT_RESULT();
+}
+
+/* Full handshake with client authentication, then resume with the ticket,
+ * which carries the client certificate. */
+static int test_ticket_peer_cert_resume_run(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    WOLFSSL_SESSION *copy = NULL;
+    WOLFSSL_X509 *cliCert = NULL;
+    char readBuf[64];
+#ifdef HAVE_EXT_CACHE
+    unsigned char* der = NULL;
+    const unsigned char* p = NULL;
+    int derSz = 0;
+#endif
+
+    ExpectNotNull(cliCert = wolfSSL_X509_load_certificate_file(cliCertFile,
+        CERT_FILETYPE));
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(method_c()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseSessionTicket(ctx_c), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(method_s()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, 0),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    /* Resumption can only use the ticket */
+    ExpectIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx_s,
+        WOLFSSL_SESS_CACHE_OFF), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Take delivery of a TLS 1.3 NewSessionTicket */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* With the certificate the ticket does not fit the static buffer on
+     * either side. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(ssl_s->session->ticketLen, SESSION_TICKET_STATIC_LEN);
+        ExpectIntGE(ssl_s->session->ticketLenAlloc,
+            ssl_s->session->ticketLen);
+    }
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(sess->ticketLen, SESSION_TICKET_STATIC_LEN);
+        ExpectIntLE(sess->ticketLen, SESSION_TICKET_LEN);
+        ExpectPtrNE(sess->ticket, sess->staticTicket);
+    }
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_ticket_peer_cert_resume_one(ctx_c, ctx_s, sess, cliCert),
+        TEST_SUCCESS);
+
+    /* A copy of the session carries its own copy of the ticket */
+    ExpectNotNull(copy = wolfSSL_SESSION_dup(sess));
+    if (EXPECT_SUCCESS()) {
+        ExpectPtrNE(copy->ticket, sess->ticket);
+        ExpectIntEQ(copy->ticketLen, sess->ticketLen);
+    }
+    ExpectIntEQ(test_ticket_peer_cert_resume_one(ctx_c, ctx_s, copy, cliCert),
+        TEST_SUCCESS);
+    wolfSSL_SESSION_free(copy);
+    copy = NULL;
+
+#ifdef HAVE_EXT_CACHE
+    /* So does a session read back from its DER encoding */
+    ExpectIntGT((derSz = wolfSSL_i2d_SSL_SESSION(sess, &der)), 0);
+    p = der;
+    ExpectNotNull(copy = wolfSSL_d2i_SSL_SESSION(NULL, &p, derSz));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(copy->ticketLen, sess->ticketLen);
+        ExpectPtrNE(copy->ticket, copy->staticTicket);
+    }
+    ExpectIntEQ(test_ticket_peer_cert_resume_one(ctx_c, ctx_s, copy, cliCert),
+        TEST_SUCCESS);
+    wolfSSL_SESSION_free(copy);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_X509_free(cliCert);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Resume from a session ticket that carries the peer certificate. The ticket
+ * is longer than the static ticket buffer of a session, so it is kept in a
+ * dynamic buffer by the server that makes it, the client that keeps it and
+ * every copy of the client's session. */
+int test_tls13_ticket_peer_cert_resume(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SESSION_TICKET) && defined(OPENSSL_ALL) && \
+    defined(KEEP_PEER_CERT) && !defined(NO_CERT_IN_TICKET) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_ticket_peer_cert_resume_run(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_ticket_peer_cert_resume_run(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+/* Encrypts the ticket but reports one byte more than the space it was
+ * given. */
+static int test_ticket_enc_long_cb(WOLFSSL* ssl,
+    byte key_name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
+    byte mac[WOLFSSL_TICKET_MAC_SZ], int enc, byte* ticket, int inLen,
+    int* outLen, void* userCtx)
+{
+    int i;
+
+    (void)ssl;
+    (void)userCtx;
+
+    if (!enc)
+        return WOLFSSL_TICKET_RET_REJECT;
+    XMEMSET(key_name, 0x11, WOLFSSL_TICKET_NAME_SZ);
+    XMEMSET(iv, 0x22, WOLFSSL_TICKET_IV_SZ);
+    XMEMSET(mac, 0x33, WOLFSSL_TICKET_MAC_SZ);
+    for (i = 0; i < inLen; i++)
+        ticket[i] ^= 0x5a;
+    *outLen += 1;
+    return WOLFSSL_TICKET_RET_OK;
+}
+#endif
+
+/* A ticket encrypt callback that reports more output than the space it was
+ * given fails ticket creation, and the session is left without a ticket
+ * rather than with a length past the end of the ticket buffer. */
+int test_tls13_ticket_enc_too_long(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_TicketEncCb(ctx_s, test_ticket_enc_long_cb),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(BAD_TICKET_KEY_CB_SZ));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(ssl_s->session->ticketLen, 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Verify that a TLS 1.3 server never stores a session in its cache under the
  * client-chosen legacy_session_id. A second client that replays another
  * client's legacy_session_id in a full handshake but sends no certificate must

@@ -1098,7 +1098,7 @@ int test_wolfSSL_SessionTicket_inval_ext(void)
     ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
     ExpectIntEQ(outSz, 0);
 
-    /* A ticket larger than the static buffer (SESSION_TICKET_LEN) uses
+    /* A ticket larger than the static buffer (SESSION_TICKET_STATIC_LEN) uses
      * dynamic storage; growing it again frees the previous allocation, and a
      * later short ticket returns to the static buffer. */
     ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, 3000), WOLFSSL_SUCCESS);

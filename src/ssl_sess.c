@@ -413,12 +413,13 @@ static int SessionSanityPointerSet(int row)
         s->type = WOLFSSL_SESSION_TYPE_CACHE;
         s->cacheRow = row;
 
-        /* clamp ticketLen */
+        /* drop a ticket that was not in the static buffer: the row copy
+         * only has the static buffer's (stale) bytes for it */
         #ifdef HAVE_SESSION_TICKET
         s->ticket = s->staticTicket;
         s->ticketLenAlloc = 0;
-        if (s->ticketLen > SESSION_TICKET_LEN) {
-            s->ticketLen = SESSION_TICKET_LEN;
+        if (s->ticketLen > sizeof(s->staticTicket)) {
+            s->ticketLen = 0;
         }
         #endif /* HAVE_SESSION_TICKET */
         #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
@@ -1495,7 +1496,7 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
 #ifdef HAVE_SESSION_TICKET
     if (tmpBufSet) {
         if (error == WOLFSSL_SUCCESS) {
-            if (output->ticketLen > SESSION_TICKET_LEN) {
+            if (output->ticketLen > sizeof(output->staticTicket)) {
                 output->ticket = (byte*)XMALLOC(output->ticketLen, output->heap,
                         DYNAMIC_TYPE_SESSION_TICK);
                 if (output->ticket == NULL) {
@@ -1503,6 +1504,9 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
                     output->ticket = output->staticTicket;
                     output->ticketLenAlloc = 0;
                     output->ticketLen = 0;
+                }
+                else {
+                    output->ticketLenAlloc = output->ticketLen;
                 }
             }
             else {
@@ -2012,7 +2016,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #ifdef HAVE_SESSION_TICKET
     ticLen = addSession->ticketLen;
     /* Alloc Memory here to avoid syscalls during lock */
-    if (ticLen > SESSION_TICKET_LEN) {
+    if (ticLen > (int)sizeof(addSession->staticTicket)) {
         ticBuff = (byte*)XMALLOC((size_t)ticLen, NULL,
                 DYNAMIC_TYPE_SESSION_TICK);
         if (ticBuff == NULL) {
@@ -3363,7 +3367,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     if (s->ticketLenAlloc > 0) {
         XFREE(s->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
     }
-    if (s->ticketLen <= SESSION_TICKET_LEN)
+    if (s->ticketLen <= sizeof(s->staticTicket))
         s->ticket = s->staticTicket;
     else {
         s->ticket = (byte*)XMALLOC(s->ticketLen, NULL,
@@ -4300,7 +4304,7 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
         output->cacheRow = INVALID_SESSION_ROW;
 #endif
 #ifdef HAVE_SESSION_TICKET
-    if (input->ticketLen > SESSION_TICKET_LEN) {
+    if (input->ticketLen > sizeof(output->staticTicket)) {
         /* Need dynamic buffer */
         if (ticBuff == NULL || ticLenAlloc < input->ticketLen) {
             /* allocate new one */

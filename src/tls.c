@@ -12850,7 +12850,7 @@ int TLSX_PreSharedKey_Parse_ClientHello(TLSX** extensions, const byte* input,
         ato16(input + idx, &identityLen);
         idx += OPAQUE16_LEN;
         if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
-                identityLen > MAX_PSK_ID_LEN)
+                identityLen > MAX_PSK_ID_WIRE_LEN)
             return BUFFER_E;
         /* Cache identity pointer. */
         identity = input + idx;
