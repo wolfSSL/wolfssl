@@ -33603,6 +33603,7 @@ int test_wc_MldsaReworkDecisionCoverage(void)
         pubLen = (word32)sizeof(pub);
         ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&key, pub, &pubLen), 0);
 
+        wc_MlDsaKey_Free(&key);
         XMEMSET(&key, 0, sizeof(key));
         ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
