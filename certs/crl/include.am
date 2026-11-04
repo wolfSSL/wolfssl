@@ -19,6 +19,8 @@ EXTRA_DIST += \
 		certs/crl/crl_rsapss.pem \
 		certs/crl/crl_reason.pem \
 		certs/crl/crl_no_next_update.pem \
+		certs/crl/crl_dup_next_update.pem \
+		certs/crl/crl_rsapss_no_dates.pem \
 		certs/crl/bad_time_fmt.pem
 
 EXTRA_DIST += \

@@ -39798,7 +39798,9 @@ static const ASNItem crlASN[] = {
                                                /* Optional - each format is a
                                                 * separate optional item as a
                                                 * numbered choice requires one
-                                                * of the items to be present. */
+                                                * of the items to be present.
+                                                * Both present is rejected after
+                                                * decoding. */
 /* TBS_NEXTUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 1 },
 /* TBS_NEXTUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 1 },
 #else
@@ -39910,6 +39912,19 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     if ((ret == 0) && (nextDateSz < MIN_DATE_SIZE)) {
         ret = ASN_PARSE_E;
     }
+#ifdef WOLFSSL_NO_CRL_NEXT_DATE
+    /* thisUpdate is mandatory. Choice 2 is shared with the RSA-PSS parameters
+     * and, with nextUpdate optional, no other choice requires a date. */
+    if ((ret == 0) && (dataASN[CRLASN_IDX_TBS_THISUPDATE_UTC].tag == 0) &&
+            (dataASN[CRLASN_IDX_TBS_THISUPDATE_GT].tag == 0)) {
+        ret = ASN_PARSE_E;
+    }
+    /* nextUpdate is a single optional Time (CHOICE) - only one allowed. */
+    if ((ret == 0) && (dataASN[CRLASN_IDX_TBS_NEXTUPDATE_UTC].tag != 0) &&
+            (dataASN[CRLASN_IDX_TBS_NEXTUPDATE_GT].tag != 0)) {
+        ret = ASN_PARSE_E;
+    }
+#endif
     /* 'signatureAlgorithm' OID must be the same as 'signature' OID. */
     if ((ret == 0) && (dataASN[CRLASN_IDX_SIGALGO_OID].data.oid.sum !=
             dataASN[CRLASN_IDX_TBS_SIGALGO_OID].data.oid.sum)) {

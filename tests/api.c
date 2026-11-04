@@ -33180,11 +33180,15 @@ static int test_wolfSSL_X509_CRL_no_next_update(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
     defined(WOLFSSL_NO_CRL_NEXT_DATE) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_BIO)
+    defined(WOLFSSL_PEM_TO_DER)
     /* nextUpdate is optional in RFC 5280 and this build allows it to be
      * missing. The CRL is a static file as the OpenSSL command line tool
      * cannot generate a CRL without a next update. */
     const char* file = "./certs/crl/crl_no_next_update.pem";
+    /* Malformed: nextUpdate present twice (UTCTime and GeneralizedTime). */
+    const char* dupNextFile = "./certs/crl/crl_dup_next_update.pem";
+    /* Malformed: RSA-PSS signed with neither thisUpdate nor nextUpdate. */
+    const char* noDatesFile = "./certs/crl/crl_rsapss_no_dates.pem";
     XFILE fp = XBADFILE;
     X509_CRL* crl = NULL;
 
@@ -33192,7 +33196,26 @@ static int test_wolfSSL_X509_CRL_no_next_update(void)
     ExpectNotNull(crl = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
     ExpectNotNull(X509_CRL_get0_lastUpdate(crl));
     ExpectNull(X509_CRL_get0_nextUpdate(crl));
+    X509_CRL_free(crl);
+    crl = NULL;
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
 
+    /* nextUpdate is a single optional Time - two values must be rejected. */
+    ExpectTrue((fp = XFOPEN(dupNextFile, "rb")) != XBADFILE);
+    ExpectNull(crl = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+    X509_CRL_free(crl);
+    crl = NULL;
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* thisUpdate is mandatory even when nextUpdate may be omitted. */
+    ExpectTrue((fp = XFOPEN(noDatesFile, "rb")) != XBADFILE);
+    ExpectNull(crl = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
     X509_CRL_free(crl);
     if (fp != XBADFILE)
         XFCLOSE(fp);
