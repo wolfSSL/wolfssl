@@ -73,15 +73,18 @@ static void wb_alpn_new_null(void)
 * list row, the NULL name row on a live node, and the valid baseline. */
 static void wb_alpn_find_nulls(void)
 {
-    ALPN alpn;
+    ALPN* alpn;
     char name[] = "http/1.1";
 
-    XMEMSET(&alpn, 0, sizeof(alpn));
-    alpn.protocol_name = name;
-    alpn.protocol_nameSz = (word16)sizeof(name) - 1;
-    (void)TLSX_ALPN_Find(NULL, name, alpn.protocol_nameSz);
-    (void)TLSX_ALPN_Find(&alpn, NULL, 0);
-    (void)TLSX_ALPN_Find(&alpn, name, alpn.protocol_nameSz);
+    alpn = TLSX_ALPN_New(name, (word16)sizeof(name) - 1, NULL);
+    if (alpn == NULL) {
+        wb_fail++;
+        return;
+    }
+    (void)TLSX_ALPN_Find(NULL, name, alpn->protocol_nameSz);
+    (void)TLSX_ALPN_Find(alpn, NULL, 0);
+    (void)TLSX_ALPN_Find(alpn, name, alpn->protocol_nameSz);
+    TLSX_ALPN_Free(alpn, NULL);
 }
 
 /* TLSX_SetALPN: (extensions == NULL) || (data == NULL) -- both NULL rows
