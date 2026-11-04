@@ -8158,6 +8158,14 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
             hashSz = ((word32)qbits + (WOLFSSL_BIT_SIZE - 1)) / WOLFSSL_BIT_SIZE;
         }
         ret = mp_read_unsigned_bin(z1, hash, hashSz);
+    #if !defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+        /* RFC 6979 2.3.2 bits2int: keep only the leftmost qlen bits, the
+         * byte truncation above can leave up to 7 extra low bits */
+        if ((ret == 0) &&
+                (((WOLFSSL_BIT_SIZE) * hashSz) > (word32)qbits)) {
+            mp_rshb(z1, (int)((WOLFSSL_BIT_SIZE * hashSz) - (word32)qbits));
+        }
+    #endif
     }
 
     /* bits2octets on h1 */
@@ -8168,17 +8176,19 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         /* mod reduce by order using conditional subtract
          * RFC6979 lists a variant that uses the hash directly instead of
          * doing bits2octets(H(m)), when variant macro is used avoid this
-         * bits2octets operation */
-        if (mp_cmp(z1, order) == MP_GT) {
+         * bits2octets operation. */
+        if (mp_cmp(z1, order) != MP_LT) {
             int z1Sz;
 
-            mp_sub(z1, order, z1);
+            ret  = mp_sub(z1, order, z1);
             z1Sz = mp_unsigned_bin_size(z1);
-            if (z1Sz < 0 || z1Sz > MAX_ECC_ORDER_BYTES) {
-                ret = BUFFER_E;
-            }
-            else {
-                ret = mp_to_unsigned_bin_len(z1, h1, (int)h1len);
+            if (ret == 0) {
+                if (z1Sz < 0 || z1Sz > MAX_ECC_ORDER_BYTES) {
+                    ret = BUFFER_E;
+                }
+                else {
+                    ret = mp_to_unsigned_bin_len(z1, h1, (int)h1len);
+                }
             }
         }
         else

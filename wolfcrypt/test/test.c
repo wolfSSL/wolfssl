@@ -57383,9 +57383,134 @@ static wc_test_ret_t ecc_test_all_curves(WC_RNG* rng)
     (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
      defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) && \
      (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+/* K-163 order is 163 bits, needs 21 bytes of order buffer */
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT) && !defined(HAVE_FIPS) && \
+    (MAX_ECC_ORDER_BYTES >= 21)
+    #define ECC_TEST_DETERMINISTIC_K_BITS2INT
+#endif
+
+#ifdef ECC_TEST_DETERMINISTIC_K_BITS2INT
+/* KATs from RFC 6979 A.2.8 K-163 "sample" */
+static wc_test_ret_t ecc_test_deterministic_k_bits2int(void)
+{
+    wc_test_ret_t ret = 0;
+    int i;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    WC_DECLARE_VAR(mpi, mp_int, 4, HEAP_HINT);
+    mp_int *q, *x, *k, *expK;
+    int mp_inited = 0;
+    WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
+    WOLFSSL_SMALL_STACK_STATIC const char* q163 =
+        "04000000000000000000020108A2E0CC0D99F8A5EF";
+    WOLFSSL_SMALL_STACK_STATIC const char* x163 =
+        "009A4D6792295A7F730FC3F2B49CBC0F62E862272F";
+    WOLFSSL_SMALL_STACK_STATIC const struct {
+        enum wc_HashType hashType;
+        const char* expK;
+    } kat163[] = {
+    #ifdef WOLFSSL_SHA224
+        { WC_HASH_TYPE_SHA224, "0323E7B28BFD64E6082F5B12110AA87BC0D6A6E159" },
+    #endif
+    #ifndef NO_SHA256
+        { WC_HASH_TYPE_SHA256, "023AF4074C90A02B3FE61D286D5C87F425E6BDD81B" },
+    #endif
+    #ifdef WOLFSSL_SHA384
+        { WC_HASH_TYPE_SHA384, "02132ABE0ED518487D3E4FA7FD24F8BED1F29CCFCE" },
+    #endif
+    #ifdef WOLFSSL_SHA512
+        { WC_HASH_TYPE_SHA512, "00BBCC2F39939388FDFE841892537EC7B1FF33AA3" },
+    #endif
+        { WC_HASH_TYPE_NONE, NULL }
+    };
+#if !defined(NO_SHA256) && (MAX_ECC_ORDER_BYTES >= 32)
+    /* P-256 order, used as the hash value itself */
+    WOLFSSL_SMALL_STACK_STATIC const byte q256Bin[32] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
+        0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51
+    };
+    WOLFSSL_SMALL_STACK_STATIC const char* x256 =
+        "C9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721";
+    WOLFSSL_SMALL_STACK_STATIC const char* expKEq =
+        "474874F8AF658F7C5C527BF10649B364B8E581B7A58C1D3804F492F71B51CBD4";
+#endif
+
+    WC_ALLOC_VAR_EX(mpi, mp_int, 4, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+        return WC_TEST_RET_ENC_EC(MEMORY_E));
+    q = &mpi[0];
+    x = &mpi[1];
+    k = &mpi[2];
+    expK = &mpi[3];
+
+    ret = mp_init_multi(q, x, k, expK, NULL, NULL);
+    if (ret != MP_OKAY)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    mp_inited = 1;
+
+    ret = mp_read_radix(q, q163, MP_RADIX_HEX);
+    if (ret == MP_OKAY)
+        ret = mp_read_radix(x, x163, MP_RADIX_HEX);
+    if (ret != MP_OKAY)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    for (i = 0; kat163[i].expK != NULL; i++) {
+        ret = wc_Hash(kat163[i].hashType, (const byte*)msg,
+            (word32)XSTRLEN(msg), hash, sizeof(hash));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
+        ret = wc_ecc_gen_deterministic_k(hash,
+            (word32)wc_HashGetDigestSize(kat163[i].hashType),
+            kat163[i].hashType, x, k, q, HEAP_HINT);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
+        ret = mp_read_radix(expK, kat163[i].expK, MP_RADIX_HEX);
+        if (ret != MP_OKAY)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        if (mp_cmp(k, expK) != MP_EQ)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
+    }
+
+#if !defined(NO_SHA256) && (MAX_ECC_ORDER_BYTES >= 32)
+    ret = mp_read_unsigned_bin(q, q256Bin, (word32)sizeof(q256Bin));
+    if (ret == MP_OKAY)
+        ret = mp_read_radix(x, x256, MP_RADIX_HEX);
+    if (ret == MP_OKAY)
+        ret = mp_read_radix(expK, expKEq, MP_RADIX_HEX);
+    if (ret != MP_OKAY)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = wc_ecc_gen_deterministic_k(q256Bin, (word32)sizeof(q256Bin),
+        WC_HASH_TYPE_SHA256, x, k, q, HEAP_HINT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if (mp_cmp(k, expK) != MP_EQ)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+#endif
+
+done:
+    if (mp_inited) {
+        mp_free(q);
+        mp_free(x);
+        mp_free(k);
+        mp_free(expK);
+    }
+    WC_FREE_VAR_EX(mpi, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
+
 static wc_test_ret_t ecc_test_all_deterministic_k(WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
+
+#ifdef ECC_TEST_DETERMINISTIC_K_BITS2INT
+    ret = ecc_test_deterministic_k_bits2int();
+    if (ret != 0) {
+        printf("ecc_test_deterministic_k_bits2int failed!\n");
+        return ret;
+    }
+#endif
 
     #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
     ret = ecc_test_deterministic_k(rng);
