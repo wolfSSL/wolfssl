@@ -332,7 +332,7 @@ static int ecjpake_zkp_write(EcJpake* jp, ecc_point* gen, mp_int* x,
         err = mp_mulmod(x, h, &jp->order, h);
     }
     if (err == MP_OKAY) {
-        err = mp_submod(v, h, &jp->order, v);
+        err = mp_submod_ct(v, h, &jp->order, v);
     }
     if (err == MP_OKAY) {
         err = ecjpake_write_point(V, out, idx);

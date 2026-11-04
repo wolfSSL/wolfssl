@@ -460,6 +460,20 @@ int test_wolfSSL_ecjpake_set_password(void)
                 WC_NO_ERR_TRACE(BAD_STATE_E));
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ecjpake_cleanup(ctx_c, ctx_s, ssl_c, ssl_s);
+    ctx_c = NULL; ctx_s = NULL; ssl_c = NULL; ssl_s = NULL;
+
+    /* Clearing an unfinished handshake allows a new password. */
+    ExpectIntEQ(ecjpake_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    ecjpakeOtherPw, ecjpakePw), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectNull(ssl_c == NULL ? NULL : ssl_c->ecJpake);
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(wolfSSL_set_ecjpake_password(ssl_c, ecjpakePw,
+                    (unsigned int)XSTRLEN((const char*)ecjpakePw)),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ecjpake_cleanup(ctx_c, ctx_s, ssl_c, ssl_s);
 
     /* A version-flexible DTLS method could negotiate DTLS 1.3. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_client_method()));
