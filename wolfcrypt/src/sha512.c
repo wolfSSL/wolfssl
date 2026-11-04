@@ -2886,7 +2886,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
 int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 {
     int ret;
-    /* back up buffer */
+    /* aligned copy of data, or backup of sha->buffer */
     WC_DECLARE_VAR(buffer, word64, WC_SHA512_BLOCK_SIZE  / sizeof(word64),
         0);
 
@@ -2917,9 +2917,10 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 #endif
 
     /* data is const: never modify the caller's block. */
-#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARM_ARCH) && \
-    (WOLFSSL_ARM_ARCH < 6)
-    /* ARMv5 asm loads words with LDR, so it needs an aligned copy. */
+#if (defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARM_ARCH) && \
+     (WOLFSSL_ARM_ARCH < 6)) || \
+    (defined(WOLFSSL_RISCV_ASM) && defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM))
+    /* ARMv5 LDR and RISC-V vl8re64.v loads need an aligned copy. */
     XMEMCPY(buffer, data, WC_SHA512_BLOCK_SIZE);
     ret = Transform_Sha512(sha, (const byte*)buffer);
 #elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
