@@ -2078,13 +2078,15 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
-#ifdef WOLF_C99
+/* Checked before WOLF_C99, which follows __STDC_VERSION__ and so is set on
+ * IAR by default: IAR and Keil's AC5 armcc reject __asm__.  __asm works on
+ * IAR, including under --strict where plain asm does not, and on AC5 and
+ * AC6 alike. */
+#if defined(__IAR_SYSTEMS_ICC__) || defined(__KEIL__)
+    #define XASM_VOLATILE(a) __asm volatile(a)
+#elif defined(WOLF_C99)
     /* use alternate keyword for compatibility with -std=c99 */
     #define XASM_VOLATILE(a) __asm__ volatile(a)
-#elif defined(__IAR_SYSTEMS_ICC__)
-    #define XASM_VOLATILE(a) asm volatile(a)
-#elif defined(__KEIL__)
-    #define XASM_VOLATILE(a) __asm volatile(a)
 #else
     #define XASM_VOLATILE(a) __asm__ __volatile__(a)
 #endif
