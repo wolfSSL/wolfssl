@@ -22230,13 +22230,31 @@ static int test_WOLFSSL_ERROR_MSG(void)
  */
 static int test_wc_ERR_remove_state(void)
 {
-    int res = TEST_SKIPPED;
+    EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    wc_ERR_remove_state();
+    ExpectIntEQ(wc_ERR_remove_state(), 0);
 
-    res = TEST_SUCCESS;
+#if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_WOLFSSL) && !defined(ERROR_QUEUE_PER_THREAD)
+    {
+        /* with the global queue the returned file string must not point into
+         * the node, which is freed when the error is removed */
+        const char* file = NULL;
+        int line = 0;
+
+        ERR_clear_error();
+        ERR_put_error(0, SYS_F_BIND, -275, "asn.c", 100);
+        ExpectIntNE(ERR_peek_last_error_line(&file, &line), 0);
+        ExpectIntNE(ERR_get_error(), 0);
+        ExpectNotNull(file);
+        if (file != NULL) {
+            ExpectIntEQ(XSTRCMP(file, "asn.c"), 0);
+        }
+        ExpectIntEQ(line, 100);
+    }
 #endif
-    return res;
+#endif
+    return EXPECT_RESULT();
 } /* End test_wc_ERR_remove_state */
 /*
  * Testing wc_ERR_print_errors_fp
