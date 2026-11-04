@@ -3319,6 +3319,9 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      const unsigned char *in, size_t inLen)
 {
     int len = 0;
+#if !defined(NO_RSA)
+    int rsaSz;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_encrypt");
 
@@ -3342,9 +3345,6 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA)
     case WC_EVP_PKEY_RSA:
-    {
-        int rsaSz;
-
         if (ctx->pkey->rsa == NULL) {
             WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
             return WOLFSSL_FAILURE;
@@ -3370,14 +3370,13 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
         }
 
         len = wolfSSL_RSA_public_encrypt((int)inLen, (unsigned char *)in, out,
-              ctx->pkey->rsa, ctx->padding);
+                  ctx->pkey->rsa, ctx->padding);
         if (len < 0)
             break;
         else {
             *outLen = (size_t)len;
             return WOLFSSL_SUCCESS;
         }
-    }
 #endif /* NO_RSA */
 
     case WC_EVP_PKEY_EC:
