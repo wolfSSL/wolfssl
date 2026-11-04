@@ -15862,8 +15862,10 @@ static int SetIssuer(DecodedCert* cert, int id, const byte* str, int strLen,
 
 /* Get a RelativeDistinguishedName from the encoding and put in certificate.
  *
- * @param [in, out] cert       Certificate object.
+ * @param [in, out] cert       Certificate object. NULL to only check the RDN
+ *                             and get its NID.
  * @param [in, out] full       Full name string. ([/<type>=<value>]*)
+ *                             NULL when not wanted.
  * @param [in, out] idx        Index int full name to place next component.
  * @param [in, out] nid        NID of component type.
  * @param [in]      isSubject  Whether this data is for a subject name.
@@ -16041,18 +16043,18 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
             }
         }
 
-        if ((ret == 0) && isSubject) {
+        if ((ret == 0) && (cert != NULL) && isSubject) {
             /* Store subject field components. */
             ret = SetSubject(cert, id, str, (int)strLen, tag);
         }
     #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)) && \
         defined(WOLFSSL_HAVE_ISSUER_NAMES)
         /* Put issuer common name string and encoding into certificate. */
-        else if (ret == 0) {
+        else if ((ret == 0) && (cert != NULL)) {
             ret = SetIssuer(cert, id, str, (int)strLen, tag);
         }
     #endif
-        if (ret == 0) {
+        if ((ret == 0) && (full != NULL)) {
             /* Check there is space for this in the full name string and
              * terminating NUL character. */
             if ((typeStrLen + strLen) < (word32)(WC_ASN_NAME_MAX - *idx))
@@ -16076,16 +16078,20 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
 
 /* Add the attribute value last parsed into an X509_NAME.
  *
- * @param [in, out] dName  X509_NAME to add to. NULL is ignored.
- * @param [in]      nid    OpenSSL NID of the attribute type. 0 when unknown,
- *                         in which case nothing is added.
- * @param [in]      val    Parsed attribute value (rdnChoice data).
+ * @param [in, out] dName    X509_NAME to add to. NULL when the X509_NAME is
+ *                           not being built.
+ * @param [in]      nid      OpenSSL NID of the attribute type. 0 when unknown,
+ *                           in which case nothing is added.
+ * @param [in]      val      Parsed attribute value (rdnChoice data).
+ * @param [in, out] entries  Number of entries the X509_NAME would hold. Used
+ *                           when dName is NULL.
  * @return  0 on success.
  * @return  ASN_PARSE_E when the string is empty or the entry could not be
  *          added.
  */
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val)
+static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val,
+    int* entries)
 {
     int ret = 0;
     int enc;
@@ -16137,7 +16143,165 @@ static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val)
             ret = ASN_PARSE_E;
         }
     }
+    else if (nid != 0) {
+        /* Fail when the X509_NAME, built later by GetCertX509Name(), can't
+         * hold all the entries - as when it is built now. */
+        if (++(*entries) > MAX_NAME_ENTRIES) {
+            WOLFSSL_MSG("Too many entries for X509_NAME");
+            ret = ASN_PARSE_E;
+        }
+    }
     return ret;
+}
+#endif /* WOLFSSL_X509_NAME_AVAILABLE */
+#endif /* WOLFSSL_ASN_TEMPLATE */
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* Parse the RDNs of an encoded certificate name.
+ *
+ * Used when parsing a certificate and by GetCertX509Name() to build the
+ * X509_NAME of a parsed certificate later.
+ *
+ * @param [in, out] cert       Certificate object to put the name components
+ *                             in. NULL to not store them.
+ * @param [out]     full       Buffer to hold full name as a string. NULL when
+ *                             not wanted.
+ * @param [in, out] fullIdx    Index into full to place next component.
+ * @param [in]      isSubject  Whether this is a subject name.
+ * @param [in, out] name       WOLFSSL_X509_NAME to add the entries to. NULL
+ *                             when the X509_NAME is not being built.
+ * @param [in]      input      Buffer holding certificate name.
+ * @param [in, out] inOutIdx   On in, start of the first RDN.
+ *                             On out, end of the name.
+ * @param [in]      maxIdx     End of the name.
+ * @param [in]      heap       Dynamic memory hint.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int GetCertNameRDNs(DecodedCert* cert, char* full, word32* fullIdx,
+    int isSubject, void* name, const byte* input, word32* inOutIdx,
+    word32 maxIdx, void* heap)
+{
+    DECL_ASNGETDATA(dataASN, rdnASN_Length);
+    int    ret = 0;
+    word32 srcIdx = *inOutIdx;
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+    WOLFSSL_X509_NAME* dName = (WOLFSSL_X509_NAME*)name;
+    int    nameEntries = 0;
+#endif /* WOLFSSL_X509_NAME_AVAILABLE */
+
+    (void)name;
+    (void)heap;
+
+    CALLOC_ASNGETDATA(dataASN, rdnASN_Length, ret, heap);
+
+    /* Process all RDNs in name. */
+    while ((ret == 0) && (srcIdx < maxIdx)) {
+        int nid = 0;
+        /* End of the SET holding this RDN's AttributeTypeAndValues. */
+        word32 setEnd = 0;
+
+        /* Initialize for data and setup RDN choice. */
+        GetASN_Choice(&dataASN[RDNASN_IDX_ATTR_VAL], rdnChoice);
+        /* Ignore type OID as too many to store in table. */
+        GetASN_OID(&dataASN[RDNASN_IDX_ATTR_TYPE], oidIgnoreType);
+        /* Parse the SET and its first AttributeTypeAndValue. The SET is
+         * not required to be fully used: RFC 5280 4.1.2.4 defines an RDN
+         * as SET SIZE (1..MAX) OF AttributeTypeAndValue, so a
+         * multi-valued RDN holds more than one. */
+        ret = GetASN_Items(rdnASN, dataASN, rdnASN_Length, 0, input,
+                           &srcIdx, maxIdx);
+        if (ret == 0) {
+            /* SET contents start at its first member. */
+            setEnd = dataASN[RDNASN_IDX_ATTR_SEQ].offset +
+                     dataASN[RDNASN_IDX_SET].length;
+            /* Not parsing completely, so check the first
+             * AttributeTypeAndValue has no trailing data. */
+            if (srcIdx != dataASN[RDNASN_IDX_ATTR_TYPE].offset +
+                          dataASN[RDNASN_IDX_ATTR_SEQ].length) {
+                ret = ASN_PARSE_E;
+            }
+        }
+        if (ret == 0) {
+            /* Put RDN data into certificate. */
+            ret = GetRDN(cert, full, fullIdx, &nid, isSubject, dataASN);
+        }
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        /* The entry is only added when the X509_NAME is being built.
+         * GetCertX509Name() builds it on demand when parsing skipped it,
+         * but the checks are always done. */
+        if (ret == 0) {
+            ret = AddRDNToName(dName, nid, &dataASN[RDNASN_IDX_ATTR_VAL],
+                               &nameEntries);
+        }
+    #endif
+
+        /* Remaining AttributeTypeAndValues of a multi-valued RDN. Bound
+         * by the SET so an AttributeTypeAndValue outside it is not
+         * folded into this RDN. */
+        while ((ret == 0) && (srcIdx < setEnd)) {
+            /* Each AttributeTypeAndValue starts with no NID: an unknown
+             * type OID must not be filed under the previous entry's
+             * NID. */
+            nid = 0;
+            GetASN_Choice(&dataASN[RDNASN_IDX_ATTR_VAL], rdnChoice);
+            GetASN_OID(&dataASN[RDNASN_IDX_ATTR_TYPE], oidIgnoreType);
+            /* avaASN items align onto the rdnASN data items. */
+            ret = GetASN_Items(avaASN, dataASN + RDNASN_IDX_ATTR_SEQ,
+                               avaASN_Length, 1, input, &srcIdx, setEnd);
+            if (ret == 0) {
+                ret = GetRDN(cert, full, fullIdx, &nid, isSubject, dataASN);
+            }
+        #ifdef WOLFSSL_X509_NAME_AVAILABLE
+            if (ret == 0) {
+                ret = AddRDNToName(dName, nid,
+                                   &dataASN[RDNASN_IDX_ATTR_VAL],
+                                   &nameEntries);
+            }
+        #endif
+        }
+    }
+    if (ret == 0) {
+        /* Return index into encoding after name. */
+        *inOutIdx = srcIdx;
+    }
+
+    FREE_ASNGETDATA(dataASN, heap);
+    return ret;
+}
+
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+/* Keep the encoding of a name in its X509_NAME, in the builds that use it.
+ *
+ * @param [in, out] dName     X509_NAME built from the encoding.
+ * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
+ * @param [in]      raw       Contents of the Name SEQUENCE.
+ * @param [in]      rawLen    Length of the contents in bytes.
+ */
+static void SetX509NameRaw(WOLFSSL_X509_NAME* dName, int nameType,
+    const byte* raw, int rawLen)
+{
+    if (nameType == ASN_ISSUER) {
+    #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+         defined(HAVE_LIGHTY)) && \
+        (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
+        dName->rawLen = (int)min((word32)rawLen, WC_ASN_NAME_MAX);
+        XMEMCPY(dName->raw, raw, (size_t)dName->rawLen);
+    #endif
+    }
+    else {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+        dName->rawLen = (int)min((word32)rawLen, WC_ASN_NAME_MAX);
+        XMEMCPY(dName->raw, raw, (size_t)dName->rawLen);
+    #endif
+    }
+
+    (void)dName;
+    (void)raw;
+    (void)rawLen;
 }
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -16164,13 +16328,15 @@ static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val)
 static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                        const byte* input, word32* inOutIdx, word32 maxIdx)
 {
-    DECL_ASNGETDATA(dataASN, rdnASN_Length);
     int    ret = 0;
     word32 idx = 0;
     int    len = 0;
     word32 srcIdx = *inOutIdx;
+    const byte* raw = NULL;
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
     WOLFSSL_X509_NAME* dName = NULL;
+#else
+    void* dName = NULL;
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
 
     WOLFSSL_MSG_VERBOSE("Getting Cert Name");
@@ -16190,10 +16356,18 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     }
 #endif
 
-    CALLOC_ASNGETDATA(dataASN, rdnASN_Length, ret, cert->heap);
-
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-    if (ret == 0) {
+    /* Keep where the encoded name is so GetCertX509Name() can build the
+     * X509_NAME later. */
+    if (nameType == ASN_ISSUER) {
+        cert->issuerNameDer = input + srcIdx;
+        cert->issuerNameDerSz = maxIdx - srcIdx;
+    }
+    else {
+        cert->subjectNameDer = input + srcIdx;
+        cert->subjectNameDerSz = maxIdx - srcIdx;
+    }
+    if ((ret == 0) && (!cert->noX509Name)) {
         /* Create an X509_NAME to hold data for OpenSSL compatibility APIs. */
         dName = wolfSSL_X509_NAME_new_ex(cert->heap);
         if (dName == NULL) {
@@ -16207,86 +16381,24 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         ret = GetASN_Sequence(input, &srcIdx, &len, maxIdx, 1);
     }
     if (ret == 0) {
+        raw = &input[srcIdx];
     #if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
         /* Store pointer and length to raw issuer. */
         if (nameType == ASN_ISSUER) {
-            cert->issuerRaw = &input[srcIdx];
+            cert->issuerRaw = raw;
             cert->issuerRawLen = len;
         }
     #endif
     #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT)
         /* Store pointer and length to raw subject. */
         if (nameType == ASN_SUBJECT) {
-            cert->subjectRaw = &input[srcIdx];
+            cert->subjectRaw = raw;
             cert->subjectRawLen = len;
         }
     #endif
 
-        /* Process all RDNs in name. */
-        while ((ret == 0) && (srcIdx < maxIdx)) {
-            int nid = 0;
-            /* End of the SET holding this RDN's AttributeTypeAndValues. */
-            word32 setEnd = 0;
-
-            /* Initialize for data and setup RDN choice. */
-            GetASN_Choice(&dataASN[RDNASN_IDX_ATTR_VAL], rdnChoice);
-            /* Ignore type OID as too many to store in table. */
-            GetASN_OID(&dataASN[RDNASN_IDX_ATTR_TYPE], oidIgnoreType);
-            /* Parse the SET and its first AttributeTypeAndValue. The SET is
-             * not required to be fully used: RFC 5280 4.1.2.4 defines an RDN
-             * as SET SIZE (1..MAX) OF AttributeTypeAndValue, so a
-             * multi-valued RDN holds more than one. */
-            ret = GetASN_Items(rdnASN, dataASN, rdnASN_Length, 0, input,
-                               &srcIdx, maxIdx);
-            if (ret == 0) {
-                /* SET contents start at its first member. */
-                setEnd = dataASN[RDNASN_IDX_ATTR_SEQ].offset +
-                         dataASN[RDNASN_IDX_SET].length;
-                /* Not parsing completely, so check the first
-                 * AttributeTypeAndValue has no trailing data. */
-                if (srcIdx != dataASN[RDNASN_IDX_ATTR_TYPE].offset +
-                              dataASN[RDNASN_IDX_ATTR_SEQ].length) {
-                    ret = ASN_PARSE_E;
-                }
-            }
-            if (ret == 0) {
-                /* Put RDN data into certificate. */
-                ret = GetRDN(cert, full, &idx, &nid, nameType == ASN_SUBJECT,
-                             dataASN);
-            }
-        #ifdef WOLFSSL_X509_NAME_AVAILABLE
-            /* TODO: push this back up to ssl.c
-             * (do parsing for WOLFSSL_X509_NAME on demand) */
-            if (ret == 0) {
-                ret = AddRDNToName(dName, nid, &dataASN[RDNASN_IDX_ATTR_VAL]);
-            }
-        #endif
-
-            /* Remaining AttributeTypeAndValues of a multi-valued RDN. Bound
-             * by the SET so an AttributeTypeAndValue outside it is not
-             * folded into this RDN. */
-            while ((ret == 0) && (srcIdx < setEnd)) {
-                /* Each AttributeTypeAndValue starts with no NID: an unknown
-                 * type OID must not be filed under the previous entry's
-                 * NID. */
-                nid = 0;
-                GetASN_Choice(&dataASN[RDNASN_IDX_ATTR_VAL], rdnChoice);
-                GetASN_OID(&dataASN[RDNASN_IDX_ATTR_TYPE], oidIgnoreType);
-                /* avaASN items align onto the rdnASN data items. */
-                ret = GetASN_Items(avaASN, dataASN + RDNASN_IDX_ATTR_SEQ,
-                                   avaASN_Length, 1, input, &srcIdx, setEnd);
-                if (ret == 0) {
-                    ret = GetRDN(cert, full, &idx, &nid,
-                                 nameType == ASN_SUBJECT, dataASN);
-                }
-            #ifdef WOLFSSL_X509_NAME_AVAILABLE
-                if (ret == 0) {
-                    ret = AddRDNToName(dName, nid,
-                                       &dataASN[RDNASN_IDX_ATTR_VAL]);
-                }
-            #endif
-            }
-        }
+        ret = GetCertNameRDNs(cert, full, &idx, nameType == ASN_SUBJECT,
+                              dName, input, &srcIdx, maxIdx, cert->heap);
     }
     if (ret == 0) {
         /* Terminate string. */
@@ -16295,24 +16407,15 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         *inOutIdx = srcIdx;
 
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        /* Store X509_NAME in certificate. */
-        if (nameType == ASN_ISSUER) {
-        #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-             defined(HAVE_LIGHTY)) && \
-            (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-            dName->rawLen = (int)min((word32)cert->issuerRawLen,
-                WC_ASN_NAME_MAX);
-            XMEMCPY(dName->raw, cert->issuerRaw, (size_t)dName->rawLen);
-        #endif
-            cert->issuerName = dName;
-        }
-        else {
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-            dName->rawLen = (int)min((word32)cert->subjectRawLen,
-                WC_ASN_NAME_MAX);
-            XMEMCPY(dName->raw, cert->subjectRaw, (size_t)dName->rawLen);
-        #endif
-            cert->subjectName = dName;
+        /* Store X509_NAME in certificate, when it was built. */
+        if (dName != NULL) {
+            SetX509NameRaw(dName, nameType, raw, len);
+            if (nameType == ASN_ISSUER) {
+                cert->issuerName = dName;
+            }
+            else {
+                cert->subjectName = dName;
+            }
         }
     }
     else {
@@ -16321,7 +16424,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #endif
     }
 
-    FREE_ASNGETDATA(dataASN, cert->heap);
+    (void)raw;
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -16394,6 +16497,91 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
+
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+/* Build the WOLFSSL_X509_NAME for the issuer or subject of a parsed
+ * certificate when parsing skipped it (noX509Name set).
+ *
+ * Only the RDNs of the encoded name are parsed again, so the fields of cert
+ * are left as they are.
+ *
+ * @param [in, out] cert      Decoded certificate object.
+ * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
+ * @param [in, out] target    Empty WOLFSSL_X509_NAME to add the entries to.
+ *                            NULL to store a new one in cert.
+ * @return  0 on success, including when the name in cert was already built.
+ * @return  BAD_FUNC_ARG when cert is NULL or the encoded name is not known.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other negative values when parsing the name fails.
+ */
+int GetCertX509Name(DecodedCert* cert, int nameType, void* target)
+{
+    int ret = 0;
+    void** name;
+    const byte* der;
+    word32 derSz;
+#ifdef WOLFSSL_ASN_TEMPLATE
+    WOLFSSL_X509_NAME* dName = (WOLFSSL_X509_NAME*)target;
+    word32 idx = 0;
+    int len = 0;
+#endif
+
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (nameType == ASN_ISSUER) {
+        name = &cert->issuerName;
+        der = cert->issuerNameDer;
+        derSz = cert->issuerNameDerSz;
+    }
+    else {
+        name = &cert->subjectName;
+        der = cert->subjectNameDer;
+        derSz = cert->subjectNameDerSz;
+    }
+    if ((target == NULL) && (*name != NULL)) {
+        return 0;
+    }
+    if ((der == NULL) || (derSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+    if (dName == NULL) {
+        dName = wolfSSL_X509_NAME_new_ex(cert->heap);
+        if (dName == NULL) {
+            return MEMORY_E;
+        }
+    }
+    /* Expecting a SEQUENCE of RDNs using up all data. */
+    ret = GetASN_Sequence(der, &idx, &len, derSz, 1);
+    if (ret == 0) {
+        const byte* raw = &der[idx];
+
+        ret = GetCertNameRDNs(NULL, NULL, NULL, nameType == ASN_SUBJECT,
+                              dName, der, &idx, derSz, cert->heap);
+        if (ret == 0) {
+            SetX509NameRaw(dName, nameType, raw, len);
+        }
+    }
+    if (target == NULL) {
+        if (ret == 0) {
+            *name = dName;
+        }
+        else {
+            wolfSSL_X509_NAME_free(dName);
+        }
+    }
+#else
+    /* The original ASN.1 code builds the names when parsing and doesn't keep
+     * where they are. */
+    ret = NOT_COMPILED_IN;
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_X509_NAME_AVAILABLE */
+
 #ifndef NO_ASN_TIME
 
 /* two byte date/time, add to value */
