@@ -881,6 +881,7 @@ int test_wc_Eccsi_KeyReuse(void)
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ssk, 0, sizeof(ssk));
     idSz = (word32)XSTRLEN(mail);
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
@@ -893,6 +894,13 @@ int test_wc_Eccsi_KeyReuse(void)
     for (round = 0; round < 2; round++) {
         verified = 0;
         ExpectIntEQ(wc_MakeEccsiKey(&key, &rng), 0);
+        if (round > 0) {
+            /* The identity hash set in the first round is for the old KPAK. */
+            sigSz = sizeof(sig);
+            ExpectIntEQ(wc_SignEccsiHash(&key, &rng, WC_HASH_TYPE_SHA256, msg,
+                (word32)sizeof(msg), sig, &sigSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+        }
         ExpectIntEQ(wc_MakeEccsiPair(&key, &rng, WC_HASH_TYPE_SHA256, id,
             idSz, &ssk, pvt), 0);
         valid = 0;

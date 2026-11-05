@@ -470,6 +470,7 @@ static int eccsi_compute_hs(EccsiKey* key, enum wc_HashType hashType,
  *
  * Creates a random private key and multiplies it by the base point to calculate
  * the public key.
+ * Clears the identity hash, as it was computed with the previous KPAK.
  *
  * @param  [in]  key      ECCSI key.
  * @param  [in]  rng      Random number generator.
@@ -487,6 +488,7 @@ int wc_MakeEccsiKey(EccsiKey* key, WC_RNG* rng)
     }
 
     if (err == 0) {
+        key->idHashSz = 0;
         err = eccsi_kpak_from_mont(key);
     }
     if (err == 0) {
