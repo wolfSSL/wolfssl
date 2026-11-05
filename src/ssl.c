@@ -4022,8 +4022,8 @@ const char *wolfSSL_get0_peername(WOLFSSL *ssl) {
     else if (ssl->session && ssl->session->peer)
         return ssl->session->peer->subjectCN;
 #ifdef KEEP_PEER_CERT
-    else if (ssl->peerCert.subjectCN[0])
-        return ssl->peerCert.subjectCN;
+    else if (GetPeerCert(ssl) != NULL && GetPeerCert(ssl)->subjectCN[0])
+        return GetPeerCert(ssl)->subjectCN;
 #endif
     else {
         ssl->error = NO_PEER_CERT;
@@ -6141,8 +6141,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
 
 #ifdef KEEP_PEER_CERT
-        FreeX509(&ssl->peerCert);
-        InitX509(&ssl->peerCert, 0, ssl->heap);
+        FreePeerCert(ssl);
 #endif
 
 #ifdef WOLFSSL_QUIC

@@ -12692,9 +12692,9 @@ static int decodeRsaKey(WOLFSSL* ssl)
         return PEER_KEY_ERROR;
 
     ssl->peerRsaKeyPresent = 1;
-    keyRet = wc_RsaPublicKeyDecode(ssl->peerCert.sapkiDer, &tmpIdx,
+    keyRet = wc_RsaPublicKeyDecode(GetPeerCert(ssl)->sapkiDer, &tmpIdx,
                                    ssl->peerRsaKey,
-                                   ssl->peerCert.sapkiLen);
+                                   GetPeerCert(ssl)->sapkiLen);
     if (keyRet != 0)
         return PEER_KEY_ERROR;
 
@@ -12718,9 +12718,9 @@ static int decodeEccKey(WOLFSSL* ssl)
         return PEER_KEY_ERROR;
 
     ssl->peerEccDsaKeyPresent = 1;
-    keyRet = wc_EccPublicKeyDecode(ssl->peerCert.sapkiDer, &tmpIdx,
+    keyRet = wc_EccPublicKeyDecode(GetPeerCert(ssl)->sapkiDer, &tmpIdx,
                                    ssl->peerEccDsaKey,
-                                   ssl->peerCert.sapkiLen);
+                                   GetPeerCert(ssl)->sapkiLen);
     if (keyRet != 0)
         return PEER_KEY_ERROR;
 
@@ -12750,8 +12750,8 @@ static int decodeMlDsaKey(WOLFSSL* ssl, int level)
         return PEER_KEY_ERROR;
 
     keyRet = wc_MlDsaKey_PublicKeyDecode(ssl->peerMlDsaKey,
-                                         ssl->peerCert.sapkiDer,
-                                         ssl->peerCert.sapkiLen, &tmpIdx);
+                                         GetPeerCert(ssl)->sapkiDer,
+                                         GetPeerCert(ssl)->sapkiLen, &tmpIdx);
     if (keyRet != 0)
         return PEER_KEY_ERROR;
 
@@ -12779,9 +12779,9 @@ static int decodeFalconKey(WOLFSSL* ssl, int level)
     if (keyRet != 0)
         return PEER_KEY_ERROR;
 
-    keyRet = wc_Falcon_PublicKeyDecode(ssl->peerCert.sapkiDer, &tmpIdx,
+    keyRet = wc_Falcon_PublicKeyDecode(GetPeerCert(ssl)->sapkiDer, &tmpIdx,
                                        ssl->peerFalconKey,
-                                       ssl->peerCert.sapkiLen);
+                                       GetPeerCert(ssl)->sapkiLen);
     if (keyRet != 0)
         return PEER_KEY_ERROR;
 
@@ -12947,6 +12947,11 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 (*ssl->sigSpec != WOLFSSL_CKS_SIGSPEC_NATIVE)) {
 
                 word16 sa;
+                /* The alternative public key comes from the kept peer
+                 * certificate. */
+                if (GetPeerCert(ssl) == NULL) {
+                    ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
+                }
                 if (args->altSigAlgo == 0)
                     sa = ssl->options.peerSigAlgo;
                 else

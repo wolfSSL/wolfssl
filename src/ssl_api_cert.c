@@ -2227,12 +2227,12 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         XFILE file = XBADFILE;
         long sz = 0;
         void* heap = ssl->ctx->heap;
-        WOLFSSL_X509* peer_cert = &ssl->peerCert;
+        WOLFSSL_X509* peer_cert = GetPeerCert(ssl);
         DerBuffer* fileDer = NULL;
 
         /* handle gracefully if called before handshake, or if peer did not
          * present a cert. */
-        if (peer_cert->derCert == NULL) {
+        if ((peer_cert == NULL) || (peer_cert->derCert == NULL)) {
             WOLFSSL_MSG("wolfSSL_cmp_peer_cert_to_file without peer cert");
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -3053,11 +3053,59 @@ static int DecodeToX509(WOLFSSL_X509* x509, const byte* in, int len)
 
 
 #ifdef KEEP_PEER_CERT
-/* Get a copy of the peer's certificate.
+/* Get the kept peer certificate, owned by the SSL/TLS object.
  *
- * The certificate is decoded from the session chain when not already
- * available on the object. Caller must free the returned certificate with
- * wolfSSL_X509_free().
+ * The certificate is decoded from the session chain, and kept, when not
+ * already available on the object.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  Kept peer certificate on success.
+ * @return  NULL when no peer certificate is available or it cannot be
+ *          decoded.
+ */
+static WOLFSSL_X509* LoadPeerCert(WOLFSSL* ssl)
+{
+    WOLFSSL_X509* peer = GetPeerCert(ssl);
+
+    #ifdef SESSION_CERTS
+    if (((peer == NULL) || (peer->issuer.sz == 0)) &&
+            (ssl->session->chain.count > 0)) {
+        #ifdef WOLFSSL_DYNAMIC_PEER_CERT
+        WOLFSSL_X509* x509 = wolfSSL_X509_new_ex(ssl->heap);
+        if ((x509 != NULL) && (DecodeToX509(x509,
+                ssl->session->chain.certs[0].buffer,
+                ssl->session->chain.certs[0].length) == 0)) {
+            FreePeerCert(ssl);
+            ssl->peerCert = x509;
+            peer = x509;
+        }
+        else {
+            wolfSSL_X509_free(x509);
+            peer = NULL;
+        }
+        #else
+        if (DecodeToX509(peer, ssl->session->chain.certs[0].buffer,
+                ssl->session->chain.certs[0].length) != 0) {
+            peer = NULL;
+        }
+        #endif
+    }
+    #endif
+    if ((peer != NULL) && (peer->issuer.sz == 0)) {
+        peer = NULL;
+    }
+
+    return peer;
+}
+
+/* Get the peer's certificate.
+ *
+ * The certificate is decoded from the session chain, and kept, when not
+ * already available on the object. With WOLFSSL_DYNAMIC_PEER_CERT and X509
+ * reference counting (OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL) the kept
+ * object is returned with a new reference, as OpenSSL does; otherwise a copy
+ * is returned. Either way the caller must free the returned certificate with
+ * wolfSSL_X509_free() and it stays valid after the SSL/TLS object is freed.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  Peer's X509 certificate on success.
@@ -3068,22 +3116,22 @@ WOLFSSL_ABI
 WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
 {
     WOLFSSL_X509* ret = NULL;
+    WOLFSSL_X509* peer = NULL;
 
     WOLFSSL_ENTER("wolfSSL_get_peer_certificate");
 
     if (ssl != NULL) {
-        if (ssl->peerCert.issuer.sz > 0) {
-            ret = wolfSSL_X509_dup(&ssl->peerCert);
+        peer = LoadPeerCert(ssl);
+    }
+    if (peer != NULL) {
+    #if defined(WOLFSSL_DYNAMIC_PEER_CERT) && \
+        (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+        if (wolfSSL_X509_up_ref(peer) == WOLFSSL_SUCCESS) {
+            ret = peer;
         }
-        #ifdef SESSION_CERTS
-        else if (ssl->session->chain.count > 0) {
-            if (DecodeToX509(&ssl->peerCert,
-                    ssl->session->chain.certs[0].buffer,
-                    ssl->session->chain.certs[0].length) == 0) {
-                ret = wolfSSL_X509_dup(&ssl->peerCert);
-            }
-        }
-        #endif
+    #else
+        ret = wolfSSL_X509_dup(peer);
+    #endif
     }
     WOLFSSL_LEAVE("wolfSSL_get_peer_certificate", ret != NULL);
     return ret;
@@ -3187,8 +3235,9 @@ static int PushPeerCertToChain(const WOLFSSL* ssl, int idx, WOLFSSL_STACK* sk,
 
     if (ssl->session->chain.certs[idx].length == 0) {
     #ifdef KEEP_PEER_CERT
-        if ((idx == 0) && (ssl->peerCert.issuer.sz > 0)) {
-            x509 = wolfSSL_X509_dup((WOLFSSL_X509*)&ssl->peerCert);
+        if ((idx == 0) && (GetPeerCert(ssl) != NULL) &&
+                (GetPeerCert(ssl)->issuer.sz > 0)) {
+            x509 = wolfSSL_X509_dup(GetPeerCert(ssl));
             if (x509 == NULL) {
                 WOLFSSL_MSG("Error duplicating peer certificate");
                 ret = MEMORY_E;
@@ -3374,18 +3423,11 @@ WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
     }
 
     if (!err) {
-        peerCert = wolfSSL_get_peer_certificate((WOLFSSL*)ssl);
+        /* Owned by ssl, so not freed here. */
+        peerCert = LoadPeerCert((WOLFSSL*)ssl);
         if (peerCert == NULL) {
-            WOLFSSL_MSG("wolfSSL_get_peer_certificate error");
+            WOLFSSL_MSG("No peer certificate");
             err = 1;
-        }
-        else {
-            /* wolfSSL_get_peer_certificate returns a copy. We want the
-             * internal member so that we don't have to worry about free'ing
-             * it. We call wolfSSL_get_peer_certificate so that we don't have
-             * to worry about setting up the internal pointer. */
-            wolfSSL_X509_free(peerCert);
-            peerCert = (WOLFSSL_X509*)&ssl->peerCert;
         }
     }
 

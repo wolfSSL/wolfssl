@@ -4268,9 +4268,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 
     WOLFSSL_ENTER("ExternalFreeX509");
     if (x509) {
-#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-        wolfSSL_CRYPTO_cleanup_ex_data(&x509->ex_data);
-#endif
         if (x509->dynamicMemory) {
         #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
             int ret;
@@ -4281,6 +4278,11 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
             if (doFree)
         #endif /* OPENSSL_EXTRA_X509_SMALL || OPENSSL_EXTRA */
             {
+            #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+                /* Only with the last reference, as other holders may still
+                 * use the ex_data. */
+                wolfSSL_CRYPTO_cleanup_ex_data(&x509->ex_data);
+            #endif
                 FreeX509(x509);
                 XFREE(x509, x509->heap, DYNAMIC_TYPE_X509);
             }
