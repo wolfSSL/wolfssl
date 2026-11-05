@@ -14375,6 +14375,14 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
 
     AddTls13Headers(output, OPAQUE8_LEN, key_update, ssl);
 
+    /* A TLS response left for SendData() is owed even if a later
+     * update_not_requested cleared keyUpdateRespond, and this KeyUpdate,
+     * whoever asked for it, answers it. */
+    if (!ssl->options.dtls && ssl->options.sendKeyUpdate) {
+        ssl->keys.keyUpdateRespond = 1;
+        ssl->options.sendKeyUpdate = 0;
+    }
+
     /* If:
      *   1. I haven't sent a KeyUpdate requesting a response and
      *   2. This isn't responding to peer KeyUpdate requiring a response then,
@@ -14561,19 +14569,28 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
 #ifndef WOLFSSL_RW_THREADED
-        ret = SendTls13KeyUpdate(ssl);
-    #ifdef WOLFSSL_DTLS13
-        if (ssl->options.dtls)
+        /* RFC 8446 Section 4.6.3: the response is due before the next
+         * application data record, and one KeyUpdate answers every request
+         * received while we are silent. While earlier output is still waiting
+         * for the peer to read it, don't queue a response per request behind
+         * it; leave one for SendData() to send. DTLS has at most one KeyUpdate
+         * in flight, see above. */
+        if (ssl->options.dtls || ssl->buffers.outputBuffer.length == 0) {
+            /* This response answers a deferred request as well. */
+            ssl->options.sendKeyUpdate = 0;
+            ret = SendTls13KeyUpdate(ssl);
+        #ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                return ret;
+        #endif
+            /* reply is sent by the next write */
+            if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
+                ret = 0;
             return ret;
-    #endif
-        /* reply is sent by the next write */
-        if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
-            ret = 0;
-        return ret;
-#else
+        }
+#endif
         ssl->options.sendKeyUpdate = 1;
         return 0;
-#endif
     }
 
     WOLFSSL_LEAVE("DoTls13KeyUpdate", ret);
