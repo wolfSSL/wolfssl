@@ -2864,7 +2864,7 @@ int wc_ecc_get_curve_id_from_name(const char* curveName);
     \return Curve ID on success
     \return negative on error
 
-    \param fieldSize Field size
+    \param fieldSize Field size in bits
     \param prime Prime modulus
     \param primeSz Prime size
     \param Af Curve parameter A

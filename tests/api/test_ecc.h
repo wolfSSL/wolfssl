@@ -27,6 +27,7 @@
 int test_wc_ecc_get_curve_size_from_name(void);
 int test_wc_ecc_get_curve_id_from_name(void);
 int test_wc_ecc_get_curve_id_from_params(void);
+int test_wc_ecc_get_curve_id_from_params_all(void);
 int test_wc_ecc_get_curve_id_from_dp_params(void);
 int test_wc_ecc_make_key(void);
 int test_wc_ecc_init(void);
@@ -91,6 +92,7 @@ int test_wc_ecc_make_key_id_dev(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_size_from_name),       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_id_from_name),         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_id_from_params),       \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_id_from_params_all),   \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_curve_id_from_dp_params),    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_make_key),                       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_init),                           \
