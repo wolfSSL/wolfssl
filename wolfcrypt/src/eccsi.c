@@ -1395,7 +1395,7 @@ static int eccsi_mulmod_base_add(EccsiKey* key, const mp_int* n,
                     &params->prime, mp);
         }
         if ((err == 0) && map) {
-            err = ecc_map(res, &params->prime, mp);
+            err = ecc_map_ex(res, &params->prime, mp, 1);
         }
     }
 #else

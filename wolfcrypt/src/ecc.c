@@ -4062,7 +4062,8 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif
    /* map R back from projective space */
    if (err == MP_OKAY && map)
-       err = ecc_map(R, modulus, mp);
+       /* The scalar may be secret. Constant time if compiled in. */
+       err = ecc_map_ex(R, modulus, mp, 1);
 
 exit:
 
@@ -4298,7 +4299,8 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point* G, ecc_point* R, mp_int* a,
 #endif
    /* map R back from projective space */
    if (err == MP_OKAY && map)
-      err = ecc_map(R, modulus, mp);
+      /* The scalar may be secret. Constant time if compiled in. */
+      err = ecc_map_ex(R, modulus, mp, 1);
 
 exit:
 
