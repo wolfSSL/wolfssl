@@ -276,6 +276,9 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         pkcs7->stream->buffer   = NULL;
         pkcs7->stream->bufferPt = NULL;
         pkcs7->stream->key      = NULL;
+        pkcs7->stream->aadSz    = 0;
+        pkcs7->stream->tagSz    = 0;
+        pkcs7->stream->nonceSz  = 0;
 
         /* reset values, note that content and tmpCert are saved */
         pkcs7->stream->maxLen   = 0;
