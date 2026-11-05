@@ -93526,6 +93526,86 @@ static int pkcs7_slhdsa_verify(byte* in, word32 inSz, int* hashOID)
     return ret;
 }
 
+/* Insert insSz bytes at offset pos of the DER encoding in der, growing the
+ * length of every constructed TLV whose contents end at or contain pos. Each
+ * of those lengths must keep the size of its encoding. Used to build
+ * otherwise valid SignedData that carries signatureAlgorithm parameters. */
+static int pkcs7_der_insert(byte* der, word32* derSz, word32 maxSz, word32 pos,
+    const byte* ins, word32 insSz)
+{
+    word32 lenOff[8];
+    word32 lenBytes[8];
+    word32 lenVal[8];
+    int depth = 0;
+    word32 idx = 0;
+    word32 end = *derSz;
+    int d;
+    word32 k;
+
+    if (pos > *derSz || *derSz + insSz > maxSz)
+        return BUFFER_E;
+
+    while (idx < end) {
+        byte tag;
+        word32 hdr = 2;
+        word32 len;
+        word32 cstart;
+
+        if (idx + 2 > end)
+            return ASN_PARSE_E;
+        tag = der[idx];
+        len = der[idx + 1];
+        if (len & 0x80) {
+            word32 n = len & 0x7f;
+            if (n == 0 || n > 3 || idx + 2 + n > end)
+                return ASN_PARSE_E;
+            len = 0;
+            for (k = 0; k < n; k++)
+                len = (len << 8) | der[idx + 2 + k];
+            hdr += n;
+        }
+        cstart = idx + hdr;
+        if (cstart + len > end)
+            return ASN_PARSE_E;
+
+        if ((tag & ASN_CONSTRUCTED) && cstart <= pos && pos <= cstart + len) {
+            if (depth == (int)(sizeof(lenOff) / sizeof(lenOff[0])))
+                return ASN_PARSE_E;
+            lenOff[depth] = idx + 1;
+            lenBytes[depth] = hdr - 1;
+            lenVal[depth] = len;
+            depth++;
+            idx = cstart;
+            end = cstart + len;
+        }
+        else {
+            idx = cstart + len;
+        }
+    }
+
+    /* Rewrite the lengths in place; their encoded size must not change. */
+    for (d = 0; d < depth; d++) {
+        word32 len = lenVal[d] + insSz;
+        if (lenBytes[d] == 1) {
+            if (len >= 0x80)
+                return BUFFER_E;
+            der[lenOff[d]] = (byte)len;
+        }
+        else {
+            word32 n = lenBytes[d] - 1;
+            if (n < 3 && (len >> (8 * n)) != 0)
+                return BUFFER_E;
+            for (k = 0; k < n; k++)
+                der[lenOff[d] + n - k] = (byte)(len >> (8 * k));
+        }
+    }
+
+    XMEMMOVE(der + pos + insSz, der + pos, *derSz - pos);
+    XMEMCPY(der + pos, ins, insSz);
+    *derSz += insSz;
+    return 0;
+}
+
 /* Sign and verify SignedData with each fast ("f") SLH-DSA parameter set,
  * checking the RFC 9814 digestAlgorithm rules. The small ("s") sets take
  * seconds per signature and use the same code paths, so they are covered by
@@ -93621,6 +93701,7 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
         DYNAMIC_TYPE_TMP_BUFFER);
     if (slhdsa == NULL || cert == NULL || key == NULL || out == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    XMEMSET(slhdsa, 0, sizeof(*slhdsa));
 
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     if (ret != 0)
@@ -93640,8 +93721,11 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
 
     for (i = 0; i < (int)(sizeof(params) / sizeof(params[0])) - 1; i++) {
         ret = wc_SlhDsaKey_Init(slhdsa, params[i].param, HEAP_HINT, devId);
-        if (ret != 0)
+        if (ret != 0) {
+            /* Init may fail after setting up a hash object */
+            wc_SlhDsaKey_Free(slhdsa);
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        }
         ret = wc_SlhDsaKey_MakeKey(slhdsa, &rng);
         if (ret == 0)
             ret = pkcs7_slhdsa_make_cert(slhdsa, params[i].keyType, ca, &rng,
@@ -93686,6 +93770,23 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
         ret = pkcs7_slhdsa_verify(out, (word32)outSz, NULL);
         if (ret == 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out_lbl);
+        out[found] ^= 0x01;
+
+        /* RFC 9814: the signatureAlgorithm parameters MUST be absent. The
+         * field is not covered by the signature, so add NULL parameters after
+         * the OID and check that the otherwise valid SignedData is rejected. */
+        {
+            static const byte asnNull[] = { 0x05, 0x00 };
+            word32 nullSz = (word32)outSz;
+
+            ret = pkcs7_der_insert(out, &nullSz, SLHDSA_PKCS7_OUT_SZ,
+                (word32)found + 1, asnNull, sizeof(asnNull));
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+            ret = pkcs7_slhdsa_verify(out, nullSz, NULL);
+            if (ret == 0)
+                ERROR_OUT(WC_TEST_RET_ENC_I(i), out_lbl);
+        }
 
         /* without signed attributes the content is signed directly */
         outSz = pkcs7_slhdsa_encode(cert, (word32)certSz, key, (word32)keySz,

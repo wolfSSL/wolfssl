@@ -1371,6 +1371,10 @@ static int wc_PKCS7_CheckPublicKeyDer(wc_PKCS7* pkcs7, int keyOID,
                 ret = MEMORY_E;
                 break;
             }
+            /* Zeroed so that wc_SlhDsaKey_Free() is safe whether or not
+             * wc_SlhDsaKey_Init() ran, and releases any hash object that a
+             * failed Init set up. */
+            XMEMSET(slhdsa, 0, sizeof(*slhdsa));
             ret = wc_PKCS7_SlhDsaParamFromOID((word32)keyOID, &param);
             if (ret == 0) {
                 ret = wc_SlhDsaKey_Init(slhdsa, param, pkcs7->heap,
@@ -1379,8 +1383,8 @@ static int wc_PKCS7_CheckPublicKeyDer(wc_PKCS7* pkcs7, int keyOID,
             if (ret == 0) {
                 ret = wc_SlhDsaKey_PublicKeyDecode(key, &scratch, slhdsa,
                                                    keySz);
-                wc_SlhDsaKey_Free(slhdsa);
             }
+            wc_SlhDsaKey_Free(slhdsa);
             XFREE(slhdsa, pkcs7->heap, DYNAMIC_TYPE_SLHDSA);
             break;
         }
@@ -3388,6 +3392,9 @@ static int wc_PKCS7_SlhDsaSign(wc_PKCS7* pkcs7, const byte* msg, word32 msgSz,
     if (key == NULL) {
         return MEMORY_E;
     }
+    /* Zeroed so that wc_SlhDsaKey_Free() also cleans up after a failed
+     * wc_SlhDsaKey_Init(). */
+    XMEMSET(key, 0, sizeof(*key));
 
     ret = wc_SlhDsaKey_Init(key, param, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
@@ -3401,8 +3408,8 @@ static int wc_PKCS7_SlhDsaSign(wc_PKCS7* pkcs7, const byte* msg, word32 msgSz,
                                     esd->encContentDigest, &sigSz,
                                     pkcs7->rng);
         }
-        wc_SlhDsaKey_Free(key);
     }
+    wc_SlhDsaKey_Free(key);
     XFREE(key, pkcs7->heap, DYNAMIC_TYPE_SLHDSA);
 
     if (ret == 0) {
@@ -6185,6 +6192,10 @@ static int wc_PKCS7_SlhDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         return MEMORY_E;
     }
 
+    /* Zeroed so that wc_SlhDsaKey_Free() also cleans up after a failed
+     * wc_SlhDsaKey_Init(). */
+    XMEMSET(key, 0, sizeof(*key));
+
     WC_ALLOC_VAR_EX(dCert, DecodedCert, 1, pkcs7->heap, DYNAMIC_TYPE_DCERT,
         { XFREE(key, pkcs7->heap, DYNAMIC_TYPE_SLHDSA);
           return MEMORY_E; });
@@ -6199,6 +6210,8 @@ static int wc_PKCS7_SlhDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 
         ret = wc_SlhDsaKey_Init(key, param, pkcs7->heap, pkcs7->devId);
         if (ret != 0) {
+            /* Init may fail after setting up a hash object */
+            wc_SlhDsaKey_Free(key);
             XFREE(key, pkcs7->heap, DYNAMIC_TYPE_SLHDSA);
             WC_FREE_VAR_EX(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
             return ret;
@@ -7233,6 +7246,14 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                         GetLength(in, &idx, &paramLen, inSz) < 0) {
                         ret = ASN_PARSE_E;
                     }
+#ifdef WC_PKCS7_HAVE_SLHDSA
+                    /* RFC 9814: the parameters of an id-slh-dsa-*
+                     * signatureAlgorithm MUST be absent. */
+                    else if (wc_IsSlhDsaOid((int)sigOID)) {
+                        WOLFSSL_MSG("SLH-DSA signature algorithm has params");
+                        ret = ASN_PARSE_E;
+                    }
+#endif
                     else {
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
                         if ((word32)sigOID == (word32)CTC_RSASSAPSS &&
