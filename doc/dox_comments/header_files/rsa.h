@@ -1519,6 +1519,10 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
     library used while generating the RSA key
     \return MP_ZERO_E May be returned if there is an error in the math
     library used while generating the RSA key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param key pointer to the RsaKey structure in which to store the
     generated private key

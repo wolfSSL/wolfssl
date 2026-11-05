@@ -192,10 +192,10 @@ static int IntelQaGetCyInstanceCount(void);
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
         static int IntelQaSymAesCbcEncrypt(IntelQaDev*, byte*,
-                const byte*, word32, const byte*, word32, const byte*, word32);
+                const byte*, word32, const byte*, word32, byte*, word32);
     #ifdef HAVE_AES_DECRYPT
         static int IntelQaSymAesCbcDecrypt(IntelQaDev*, byte*,
-                const byte*, word32, const byte*, word32, const byte*, word32);
+                const byte*, word32, const byte*, word32, byte*, word32);
     #endif /* HAVE_AES_DECRYPT */
     #endif /* HAVE_AES_CBC */
 
@@ -213,9 +213,9 @@ static int IntelQaGetCyInstanceCount(void);
 
 #ifndef NO_DES3
     static int IntelQaSymDes3CbcEncrypt(IntelQaDev*, byte*,
-            const byte*, word32, const byte*, word32, const byte* iv, word32);
+            const byte*, word32, const byte*, word32, byte* iv, word32);
     static int IntelQaSymDes3CbcDecrypt(IntelQaDev* dev, byte*,
-            const byte*, word32, const byte*, word32, const byte* iv, word32);
+            const byte*, word32, const byte*, word32, byte* iv, word32);
 #endif /*! NO_DES3 */
 
 #ifdef WOLF_CRYPTO_CB
@@ -1124,15 +1124,30 @@ exit:
 int IntelQaSymAesCbcEncrypt(IntelQaDev* dev,
             byte* out, const byte* in, word32 sz,
             const byte* key, word32 keySz,
-            const byte* iv, word32 ivSz)
+            byte* iv, word32 ivSz)
 {
-    int ret = IntelQaSymCipher(dev, out, in, sz,
+    int ret;
+
+    /* the last block is used as the next IV, so a full block IV and a
+     * positive block aligned size are required */
+    if (out == NULL || in == NULL || iv == NULL || ivSz != WC_AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_AES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
 
-    XMEMCPY((byte*)iv, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+    /* only advance the chaining state if the operation succeeded, a failed
+     * operation leaves the output undefined */
+    if (ret == 0) {
+        XMEMCPY(iv, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+    }
     return ret;
 }
 
@@ -1140,19 +1155,34 @@ int IntelQaSymAesCbcEncrypt(IntelQaDev* dev,
 int IntelQaSymAesCbcDecrypt(IntelQaDev* dev,
             byte* out, const byte* in, word32 sz,
             const byte* key, word32 keySz,
-            const byte* iv, word32 ivSz)
+            byte* iv, word32 ivSz)
 {
     byte nextIv[WC_AES_BLOCK_SIZE];
     int ret;
 
+    /* the last block is used as the next IV, so a full block IV and a
+     * positive block aligned size are required */
+    if (out == NULL || in == NULL || iv == NULL || ivSz != WC_AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    /* capture the last cipher text block before the operation, it can be
+     * done in-place over the input */
     XMEMCPY(nextIv, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+
     ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_AES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
 
-    XMEMCPY((byte*)iv, nextIv, WC_AES_BLOCK_SIZE);
+    /* only advance the chaining state if the operation succeeded */
+    if (ret == 0) {
+        XMEMCPY(iv, nextIv, WC_AES_BLOCK_SIZE);
+    }
     return ret;
 }
 #endif /* HAVE_AES_DECRYPT */
@@ -1194,25 +1224,66 @@ int IntelQaSymAesGcmDecrypt(IntelQaDev* dev,
 int IntelQaSymDes3CbcEncrypt(IntelQaDev* dev,
             byte* out, const byte* in, word32 sz,
             const byte* key, word32 keySz,
-            const byte* iv, word32 ivSz)
+            byte* iv, word32 ivSz)
 {
-    return IntelQaSymCipher(dev, out, in, sz,
+    int ret;
+
+    /* the last block is used as the next IV, so a full block IV and a
+     * positive block aligned size are required */
+    if (out == NULL || in == NULL || iv == NULL || ivSz != DES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0 || (sz % DES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_3DES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
+
+    /* advance the chaining state so that split calls on the same context
+     * match a single combined operation */
+    if (ret == 0) {
+        XMEMCPY(iv, out + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+    }
+    return ret;
 }
 
 int IntelQaSymDes3CbcDecrypt(IntelQaDev* dev,
             byte* out, const byte* in, word32 sz,
             const byte* key, word32 keySz,
-            const byte* iv, word32 ivSz)
+            byte* iv, word32 ivSz)
 {
-    return IntelQaSymCipher(dev, out, in, sz,
+    byte nextIv[DES_BLOCK_SIZE];
+    int ret;
+
+    /* the last block is used as the next IV, so a full block IV and a
+     * positive block aligned size are required */
+    if (out == NULL || in == NULL || iv == NULL || ivSz != DES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0 || (sz % DES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    /* capture the last cipher text block before the operation, it can be
+     * done in-place over the input */
+    XMEMCPY(nextIv, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+
+    ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_3DES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
+
+    /* advance the chaining state so that split calls on the same context
+     * match a single combined operation */
+    if (ret == 0) {
+        XMEMCPY(iv, nextIv, DES_BLOCK_SIZE);
+    }
+    return ret;
 }
 #endif /* !NO_DES3 */
 

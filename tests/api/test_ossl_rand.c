@@ -231,7 +231,18 @@ int test_wolfSSL_RAND_bytes(void)
         ok = (RAND_bytes(randbuf, sizeof(randbuf)) == 1);
         n_written = write(pipefds[1], randbuf, sizeof(randbuf));
         close(pipefds[1]);
-        exit((ok && n_written == sizeof(randbuf)) ? 0 : 1);
+        /* Free the child's copy of the global RNG, inherited from the
+         * pre-fork RAND_seed() -- _exit() cleans up nothing, and valgrind
+         * tracks the child. */
+        wolfSSL_RAND_Cleanup();
+    #ifndef NO_SESSION_CACHE
+        /* Likewise the child's copy of the session cache: entries left by
+         * earlier tests can hold dynamically allocated tickets. */
+        wolfSSL_CTX_flush_sessions(NULL, -1);
+    #endif
+        /* Must terminate via _exit() to avoid provoking LSAN via the atexit
+         * handlers. */
+        _exit((ok && n_written == sizeof(randbuf)) ? 0 : 1);
     }
     else if (pid > 0) {
         /* Parent process. */

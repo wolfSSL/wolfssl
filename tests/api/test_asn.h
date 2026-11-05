@@ -40,6 +40,8 @@ int test_DecodeCertExtensions_crldp_multiple_uri(void);
 int test_DecodeCertExtensions_empty_certpol(void);
 int test_DecodeCertExtensions_certpol_trailing_junk(void);
 int test_DecodeCertExtensions_empty_certpol_trailing(void);
+int test_DecodeExtensions_der_boolean(void);
+int test_ParseCRLEntryExtensions_der_boolean(void);
 int test_ParseCert_validity_length_overrun(void);
 int test_DecodeCertPolicy_tooMany(void);
 int test_ParseCert_SM3wSM2_short_pubkey(void);
@@ -51,8 +53,12 @@ int test_ParseCert_empty_san(void);
 int test_ParseCert_multi_valued_rdn(void);
 int test_ParseCert_critical_qc_statements(void);
 int test_ParseCert_nc_before_basic_constraints(void);
-int test_wc_DecodeObjectId(void);
 int test_SetCertificatePolicies_no_empty_qualifiers(void);
+int test_ParseCert_unknownExtCallback32(void);
+int test_wc_DecodeObjectId32(void);
+int test_wc_DecodeObjectId_FIPS16(void);
+int test_wc_EncodeObjectId(void);
+int test_wc_EncodeObjectId32(void);
 int test_ToTraditional_ex_handcrafted(void);
 int test_ToTraditional_ex_roundtrip(void);
 int test_ToTraditional_ex_negative(void);
@@ -66,6 +72,7 @@ int test_wc_DecodeExtKeyUsage_ssh_oid_collision(void);
 int test_wc_DecodeExtKeyUsage_oidSumCollision(void);
 int test_wc_AsnDecisionCoverage(void);
 int test_wc_AsnFeatureCoverage(void);
+int test_wc_Pkcs8EncryptDecisionCoverage(void);
 int test_wc_AltNameNewEx(void);
 
 #define TEST_ASN_DECLS                                              \
@@ -85,18 +92,24 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_empty_certpol), \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_certpol_trailing_junk), \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_empty_certpol_trailing), \
+    TEST_DECL_GROUP("asn", test_DecodeExtensions_der_boolean),      \
+    TEST_DECL_GROUP("asn", test_ParseCRLEntryExtensions_der_boolean), \
     TEST_DECL_GROUP("asn", test_ParseCert_validity_length_overrun), \
     TEST_DECL_GROUP("asn", test_DecodeCertPolicy_tooMany),          \
     TEST_DECL_GROUP("asn", test_ParseCert_SM3wSM2_short_pubkey),    \
     TEST_DECL_GROUP("asn", test_ParseCert_dnBufferBoundary),        \
-    TEST_DECL_GROUP("asn", test_ParseCert_nameComponentIds),       \
-    TEST_DECL_GROUP("asn", test_ParseCert_issuerNameNoField),      \
+    TEST_DECL_GROUP("asn", test_ParseCert_nameComponentIds),        \
+    TEST_DECL_GROUP("asn", test_ParseCert_issuerNameNoField),       \
     TEST_DECL_GROUP("asn", test_ParseCert_tbs_sig_oid_mismatch),    \
     TEST_DECL_GROUP("asn", test_ParseCert_empty_san),               \
     TEST_DECL_GROUP("asn", test_ParseCert_multi_valued_rdn),        \
     TEST_DECL_GROUP("asn", test_ParseCert_critical_qc_statements),  \
     TEST_DECL_GROUP("asn", test_ParseCert_nc_before_basic_constraints), \
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_ParseCert_unknownExtCallback32),    \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId32),               \
+    TEST_DECL_GROUP("asn", test_wc_EncodeObjectId32),               \
+    TEST_DECL_GROUP("asn", test_wc_EncodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId_FIPS16),          \
     TEST_DECL_GROUP("asn", test_SetCertificatePolicies_no_empty_qualifiers), \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
@@ -111,6 +124,7 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_wc_DecodeExtKeyUsage_oidSumCollision), \
     TEST_DECL_GROUP("asn", test_wc_AsnDecisionCoverage),           \
     TEST_DECL_GROUP("asn", test_wc_AsnFeatureCoverage),             \
+    TEST_DECL_GROUP("asn", test_wc_Pkcs8EncryptDecisionCoverage),   \
     TEST_DECL_GROUP("asn", test_wc_AltNameNewEx)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */

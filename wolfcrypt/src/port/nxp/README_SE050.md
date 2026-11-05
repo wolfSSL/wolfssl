@@ -314,13 +314,10 @@ modular exponentiation (including the SP and non-blocking variants and the
 800-56B input bounds check), the prime search behind `wc_MakeRsaKey()` and the
 software key consistency check (`wc_CheckRsaKey()`, which is forced off along
 with `WOLFSSL_RSA_KEY_CHECK`) are left out of the build, and every RSA
-operation is performed by the SE050. The macro is not SE050-specific; the rest
-of this section describes what it means for the SE050.
+operation is performed by the SE050.
 
-Requires an RSA hardware implementation that pads in hardware and generates
-keys on-chip: `WOLFSSL_SE050` without `WOLFSSL_SE050_NO_RSA`, or Arm
-CryptoCell-310 (`WOLFSSL_CRYPTOCELL`, documented in
-`IDE/CRYPTOCELL/README.md`). It is rejected at
+Requires `WOLFSSL_SE050` without `WOLFSSL_SE050_NO_RSA`, so RSA padding and
+key generation are performed by the SE050. It is rejected at
 compile time together with `WOLFSSL_SE050_ONLY_KEY_ID` and
 `WOLFSSL_SE050_NO_RSA_VERIFY` (both route some operations to wolfCrypt
 software by design), `WOLF_CRYPTO_CB_ONLY_RSA`, `WC_RSA_NONBLOCK` and
@@ -360,17 +357,16 @@ verify), the software signer, the software ECDH and the software derivation of
 a public key from a private scalar are all left out, and every keyed ECC
 operation is performed by the SE050.
 
-`ecc.c` already excludes that code for the ATECC508A/608A, TA100, CryptoCell,
-SiLabs and KCAPI ports and for `WOLF_CRYPTO_CB_ONLY_ECC`; this macro extends
+`ecc.c` already excludes that code for the ATECC508A/608A, TA100, SiLabs and
+KCAPI ports and for `WOLF_CRYPTO_CB_ONLY_ECC`; this macro extends
 the same treatment to the SE05x port, which offloads every keyed ECC operation
 but otherwise still compiled the software curve math. On a 3-curve build
 (P-256/P-384/P-521) that takes `ecc.o` from roughly 30 KB to 17 KB. The macro
 does not remove the SP ECC code, so also select an SP variant without ECC if
 that is compiled in - otherwise it stays as dead weight.
 
-Requires `WOLFSSL_SE050` (or `WOLFSSL_CRYPTOCELL`, where the exclusions are
-already unconditional, so the macro is accepted but changes nothing). It is
-rejected at compile time together with `WOLFSSL_SE050_ONLY_KEY_ID`,
+Requires `WOLFSSL_SE050`. It is rejected at compile time together with
+`WOLFSSL_SE050_ONLY_KEY_ID`,
 `WOLFSSL_SE050_NO_ECDHE` (which also puts key generation back in software),
 `WOLFSSL_SE050_NO_ECDSA_VERIFY`, `WOLF_CRYPTO_CB_ONLY_ECC` and asynchronous
 ECC.

@@ -29,9 +29,10 @@
     extern "C" {
 #endif
 
-/* implementation specific structure, for now not used */
+/* implementation specific structure, carried down from Csm_ConfigType */
 typedef struct CryIf_ConfigType {
     void* heap;
+    int   devId;
 } CryIf_ConfigType;
 
 WOLFSSL_LOCAL void CryIf_Init(const CryIf_ConfigType* in);
@@ -40,6 +41,12 @@ WOLFSSL_LOCAL Std_ReturnType CryIf_ProcessJob(uint32 id, Crypto_JobType* job);
 WOLFSSL_LOCAL Std_ReturnType CryIf_CancelJob(uint32 id, Crypto_JobType* job);
 WOLFSSL_LOCAL Std_ReturnType CryIf_KeyElementSet(uint32 keyId, uint32 eId,
         const uint8* key, uint32 keySz);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_LOCAL Std_ReturnType CryIf_KeyElementSetId(uint32 keyId, uint32 eId,
+        const uint8* id, uint32 idLen);
+WOLFSSL_LOCAL Std_ReturnType CryIf_KeyElementSetLabel(uint32 keyId, uint32 eId,
+        const char* label);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

@@ -32,9 +32,6 @@ extern "C" {
 /* Public Functions */
 int nrf51_random_generate(byte* output, word32 sz);
 
-int nrf51_aes_set_key(const byte* key);
-int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out);
-
 double current_time(int reset);
 
 #ifdef __cplusplus

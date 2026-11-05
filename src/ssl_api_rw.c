@@ -142,6 +142,17 @@ static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
 {
     int ret = 0;
 
+    if (IsWriteClosed(ssl)) {
+        WOLFSSL_MSG("Dropping delegated responses after close_notify");
+        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        ssl->postHandshakeAuthPending = 0;
+        #endif
+        ssl->keys.keyUpdateRespond = 0;
+        #ifdef WOLFSSL_DTLS13
+        ssl->dtls13DoKeyUpdate = 0;
+        #endif
+    }
+
     if (IsAtLeastTLSv1_3(ssl->version)) {
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         /* Read side received a CertificateRequest but couldn't write;
@@ -1001,6 +1012,8 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
         ret = WOLFSSL_SHUTDOWN_NOT_DONE;
     }
     else {
+        if (ssl->error == WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E))
+            ssl->error = WOLFSSL_ERROR_NONE;
         ret = ProcessReply(ssl);
         if ((ret == WC_NO_ERR_TRACE(ZERO_RETURN)) ||
                 (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))) {
@@ -1010,11 +1023,10 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
             ssl->error = WOLFSSL_ERROR_NONE;
             ret = WOLFSSL_SUCCESS;
         }
-        else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-        else if (ret == WC_NO_ERR_TRACE(WANT_READ)) {
+        else if ((ret < 0) && (ret != WC_NO_ERR_TRACE(APP_DATA_READY))) {
+            /* Retry would process the same bad record again, error out. */
             ssl->error = ret;
+            WOLFSSL_ERROR(ret);
             ret = WOLFSSL_FATAL_ERROR;
         }
         else if (ssl->error == WOLFSSL_ERROR_NONE) {

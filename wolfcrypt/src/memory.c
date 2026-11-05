@@ -79,6 +79,16 @@ void *z_realloc(void *ptr, size_t size)
 #define realloc z_realloc
 #endif
 
+#ifdef WOLFSSL_OPTEE
+/* The native heap of a trusted application is libutee's. FILL_ZERO because a
+ * trusted application holds key material. Only the fallback below is
+ * redirected, so pools, WOLFSSL_NO_MALLOC and registered callbacks still
+ * take precedence. */
+#define malloc(s)     TEE_Malloc((s), TEE_MALLOC_FILL_ZERO) /* native heap */
+#define realloc(p, s) TEE_Realloc((p), (s)) /* native heap */
+#define free(p)       TEE_Free(p) /* native heap */
+#endif
+
 #ifdef USE_WOLFSSL_MEMORY
 
 #include <wolfssl/wolfcrypt/memory.h>
@@ -501,7 +511,8 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
 #else
     void* res = wolfSSL_Malloc(size);
 #endif
-    if (ptr != NULL) {
+    /* On failure leave the original pointer untouched like realloc. */
+    if (res != NULL && ptr != NULL) {
         /* Copy the minimum of old and new size. */
         size_t copySize = *(size_t*)(((unsigned char*)ptr) - MEM_ALIGN);
         if (size < copySize) {

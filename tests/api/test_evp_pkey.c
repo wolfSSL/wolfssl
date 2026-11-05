@@ -2047,6 +2047,81 @@ int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void)
 #endif
     return EXPECT_RESULT();
 }
+/* FIPS 186-4 4.6: a DSA signature covers the leftmost min(N, outlen) bits of
+ * the digest. A 2048-bit key has a 256-bit q, so a SHA-256 digest is used
+ * whole and two digests that agree only on their first 20 bytes must not share
+ * a signature. */
+int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DSA) && \
+    !defined(WC_FIPS_186_5_PLUS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_SHA256)
+    WOLFSSL_DSA* dsa = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctxVerify = NULL;
+    WOLFSSL_EVP_MD_CTX* mdCtx = NULL;
+    byte   digest[SHA256_DIGEST_LENGTH];
+    byte   other[SHA256_DIGEST_LENGTH];
+    byte   sig[DSA_MAX_SIG_SIZE];
+    byte   msg[16];
+    size_t siglen = sizeof(sig);
+    unsigned int sigFinalLen = sizeof(sig);
+    SHA256_CTX shaCtx;
+
+    XMEMSET(msg, 0x33, sizeof(msg));
+    XMEMSET(digest, 0x5a, sizeof(digest));
+    XMEMCPY(other, digest, sizeof(other));
+    /* Differ only beyond the first WC_SHA_DIGEST_SIZE bytes. */
+    other[WC_SHA_DIGEST_SIZE] = (byte)~other[WC_SHA_DIGEST_SIZE];
+
+    ExpectNotNull(dsa = DSA_new());
+    ExpectIntEQ(DSA_generate_parameters_ex(dsa, 2048, NULL, 0, NULL, NULL,
+        NULL), 1);
+    ExpectIntEQ(DSA_generate_key(dsa), 1);
+    ExpectIntEQ(wolfSSL_BN_num_bytes(dsa->q), SHA256_DIGEST_LENGTH);
+
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectNotNull(ctxVerify = EVP_PKEY_CTX_new(pkey, NULL));
+
+    ExpectIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, digest, sizeof(digest)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(EVP_PKEY_verify_init(ctxVerify), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, sig, siglen, digest,
+        sizeof(digest)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, sig, siglen, other, sizeof(other)),
+        WOLFSSL_FAILURE);
+
+    /* EVP_SignFinal() hands the digest over separately: what it signs has to
+     * be what EVP_PKEY_verify() checks. */
+    ExpectNotNull(mdCtx = EVP_MD_CTX_new());
+    ExpectIntEQ(EVP_SignInit(mdCtx, EVP_sha256()), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_SignUpdate(mdCtx, msg, sizeof(msg)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_SignFinal(mdCtx, sig, &sigFinalLen, pkey),
+        WOLFSSL_SUCCESS);
+    SHA256_Init(&shaCtx);
+    SHA256_Update(&shaCtx, msg, sizeof(msg));
+    SHA256_Final(digest, &shaCtx);
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256Free((wc_Sha256*)&shaCtx);
+#endif
+    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, sig, (size_t)sigFinalLen, digest,
+        sizeof(digest)), WOLFSSL_SUCCESS);
+    EVP_MD_CTX_free(mdCtx);
+
+    EVP_PKEY_CTX_free(ctxVerify);
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    DSA_free(dsa);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_sign_verify_ec(void)
 {
     EXPECT_DECLS;
@@ -2626,6 +2701,8 @@ int test_wolfSSL_EVP_PKEY_encrypt(void)
     ExpectIntEQ(EVP_PKEY_encrypt(ctx, outEncTmp, &outEncLen, inTmp, rsaKeySz),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_PKEY_decrypt_init(ctx), WOLFSSL_SUCCESS);
+    /* Still holds the plaintext length from the decrypt above. */
+    outDecLen = rsaKeySz;
     ExpectIntEQ(EVP_PKEY_decrypt(ctx, outDecTmp, &outDecLen, outEncTmp,
         outEncLen), WOLFSSL_SUCCESS);
     ExpectIntEQ(XMEMCMP(inTmp, outDecTmp, outDecLen), 0);
@@ -2638,6 +2715,91 @@ int test_wolfSSL_EVP_PKEY_encrypt(void)
     XFREE(outEncTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(outDecTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* On input *outLen is the size of out, so a plaintext longer than that must be
+ * refused rather than written out. */
+int test_wolfSSL_EVP_PKEY_decrypt_outLen(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    WOLFSSL_RSA* rsa = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+    const size_t rsaKeySz = 2048/8;  /* Bytes */
+    const size_t bufSz = 32;         /* What the caller says it has room for */
+    byte   in[200];                  /* Over bufSz, under the key size */
+    byte*  enc = NULL;
+    byte*  dec = NULL;
+    size_t encLen = 2048/8;
+    size_t decLen = 0;
+    size_t i = 0;
+
+    XMEMSET(in, 0x5a, sizeof(in));
+
+    ExpectNotNull(enc = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (enc != NULL) {
+        XMEMSET(enc, 0, rsaKeySz);
+    }
+    /* Only the first bufSz bytes are the caller's, the rest is a guard. */
+    ExpectNotNull(dec = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (dec != NULL) {
+        XMEMSET(dec, 0xa5, rsaKeySz);
+    }
+
+    ExpectNotNull(rsa = RSA_generate_key(2048, WC_RSA_EXPONENT, NULL, NULL));
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
+    if (EXPECT_FAIL()) {
+        RSA_free(rsa);
+    }
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    if (pkey != NULL) {
+        EVP_PKEY_free(pkey);
+    }
+
+    ExpectIntEQ(EVP_PKEY_encrypt_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_encrypt(ctx, enc, &encLen, in, sizeof(in)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(encLen, rsaKeySz);
+
+    ExpectIntEQ(EVP_PKEY_decrypt_init(ctx), WOLFSSL_SUCCESS);
+
+    decLen = bufSz;
+    ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
+        WOLFSSL_FAILURE);
+    if (dec != NULL) {
+        for (i = 0; i < rsaKeySz; i++) {
+            if (dec[i] != 0xa5)
+                break;
+        }
+    }
+    ExpectIntEQ(i, rsaKeySz);
+
+    /* The same ciphertext decrypts once there is room for the plaintext. */
+    decLen = rsaKeySz;
+    ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(decLen, sizeof(in));
+    ExpectIntEQ(XMEMCMP(dec, in, sizeof(in)), 0);
+
+    /* A ciphertext that does not decrypt fails rather than reporting a
+     * length. */
+    if (enc != NULL)
+        enc[rsaKeySz / 2] = (byte)~enc[rsaKeySz / 2];
+    decLen = rsaKeySz;
+    ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
+        WOLFSSL_FAILURE);
+
+    EVP_PKEY_CTX_free(ctx);
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
@@ -2954,6 +3116,76 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
 
 #endif /* !NO_DH && WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
 
+    /*
+     *  test Ed25519 public key print from a SubjectPublicKeyInfo
+     */
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+    !defined(NO_CERTS)
+    {
+        WOLFSSL_X509* x509 = NULL;
+        const unsigned char* p = ca_ed25519_cert;
+        unsigned char spki[64];
+        int spkiSz = (int)sizeof(spki);
+
+        ExpectNotNull(x509 = wolfSSL_d2i_X509(NULL, &p,
+            (int)sizeof_ca_ed25519_cert));
+        ExpectIntEQ(wolfSSL_X509_get_pubkey_buffer(x509, spki, &spkiSz),
+            WOLFSSL_SUCCESS);
+        wolfSSL_X509_free(x509);
+        p = spki;
+        ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, spkiSz));
+        ExpectNotNull(wbio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(EVP_PKEY_print_public(wbio, pkey, 2, NULL), 1);
+
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line, "  ED25519 Public-Key:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line, "  pub:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line,
+            "      42:3B:7A:F9:82:CF:F9:DF:19:DD:F3:F0:32:29:6D:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line,
+            "      FA:FD:76:4F:68:C2:C2:E0:6C:47:AE:C2:55:68:AC:\n");
+        ExpectIntGT(BIO_gets(wbio, line, sizeof(line)), 0);
+        ExpectStrEQ(line, "      0D:4D\n");
+        /* should reach EOF */
+        ExpectIntLE(BIO_gets(wbio, line, sizeof(line)), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+        BIO_free(wbio);
+        wbio = NULL;
+    }
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT && !NO_CERTS */
+
+    /*
+     *  test Ed448 key holding only the private seed: no public key to print
+     */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    {
+        static const unsigned char seed[ED448_KEY_SIZE] = { 1 };
+
+        ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_private_key(
+            WC_EVP_PKEY_ED448, NULL, seed, sizeof(seed)));
+        if (pkey != NULL) {
+            ExpectNotNull(pkey->ed448);
+            if (pkey->ed448 != NULL) {
+                ExpectIntEQ(pkey->ed448->pubKeySet, 0);
+            }
+        }
+        ExpectNotNull(wbio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(EVP_PKEY_print_public(wbio, pkey, 0, NULL),
+            WC_NO_ERR_TRACE(WOLFSSL_UNKNOWN));
+        ExpectIntEQ(BIO_pending(wbio), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+        BIO_free(wbio);
+        wbio = NULL;
+    }
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
+
     /* to prevent "unused variable" warning */
     (void)pkey;
     (void)wbio;
@@ -3231,6 +3463,56 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
     wolfSSL_EVP_PKEY_free(pkey);
     XFREE(der65, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(der44, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Raw ML-DSA public key bytes must decode into an EVP_PKEY holding the
+ * whole key. */
+int test_wolfSSL_d2i_PUBKEY_mldsa_raw(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+    const unsigned char* raw = NULL;
+    unsigned char* der = NULL;
+    int derSz = 0;
+    XFILE f = XBADFILE;
+
+    ExpectNotNull(der = (unsigned char*)XMALLOC(2048, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, 2048, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+    }
+    /* The raw key is the tail of the SPKI BIT STRING. */
+    ExpectIntGT(derSz, WC_MLDSA_44_PUB_KEY_SIZE);
+    if (EXPECT_SUCCESS()) {
+        raw = der + derSz - WC_MLDSA_44_PUB_KEY_SIZE;
+    }
+
+    p = raw;
+    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p,
+        (long)WC_MLDSA_44_PUB_KEY_SIZE));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(WOLFSSL_MLDSA_NO_ASN1)
+    /* Raw input is cached as SPKI DER. */
+    if (pkey != NULL) {
+        ExpectIntEQ(pkey->pkey_sz, derSz);
+        ExpectNotNull(pkey->pkey.ptr);
+        if (pkey->pkey.ptr != NULL) {
+            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, der, (size_t)derSz), 0);
+        }
+    }
+#endif
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
@@ -3590,6 +3872,7 @@ int test_wolfSSL_EVP_PKEY_encoded_public_key(void)
         EVP_PKEY_free(pkey2);
     }
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
     /* set1 must produce a peer key usable for ECDH, i.e. the internal wolfCrypt
      * key (consumed by EVP_PKEY_derive) is synced, not just the wire bytes. */
     {
@@ -3654,6 +3937,7 @@ int test_wolfSSL_EVP_PKEY_encoded_public_key(void)
         EVP_PKEY_free(bob);
         EVP_PKEY_free(peer);
     }
+#endif /* !WOLF_CRYPTO_CB_ONLY_ECC */
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519

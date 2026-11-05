@@ -49,7 +49,7 @@ if(CONFIG_WOLFSSL)
     if(CONFIG_WOLFCRYPT_FIPS_V7 OR CONFIG_WOLFCRYPT_FIPS_READY)
       # src/include.am BUILD_FIPS_V7_PLUS order; files a build does not select compile empty.
       set(WOLF_BOUNDARY hmac random kdf rsa ecc aes sha sha256 sha512 sha3 dh cmac
-          curve448 ed448 curve25519 ed25519 pwdbased sp_c32 sp_c64 sp_x86_64
+          ed448 ed25519 pwdbased sp_c32 sp_c64 sp_x86_64
           sp_arm32 sp_armthumb sp_arm64 sp_cortexm wc_mlkem wc_mlkem_poly
           wc_mldsa wc_lms wc_lms_impl wc_xmss wc_xmss_impl wc_slhdsa)
       set(WOLF_BOUNDARY_ASM ON)
@@ -59,6 +59,12 @@ if(CONFIG_WOLFSSL)
     endif()
     # The v7 boundary carries each algorithm's assembly right after it.
     set(WOLF_ARM_ASM_aes aes-asm_c)
+    # SHA-1 has an AArch64 port only - there is no thumb2-sha1-asm_c.c or
+    # armv8-32-sha1-asm_c.c - so unlike its neighbours this mapping is set for
+    # that one prefix rather than unconditionally.
+    if(WOLF_ARM_ASM_PREFIX STREQUAL "armv8")
+      set(WOLF_ARM_ASM_sha sha1-asm_c)
+    endif()
     set(WOLF_ARM_ASM_sha256 sha256-asm_c)
     set(WOLF_ARM_ASM_sha512 sha512-asm_c)
     set(WOLF_ARM_ASM_sha3 sha3-asm_c)
@@ -181,6 +187,14 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/psa/psa_pkcbs.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/st/stm32.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/realtek/rtl8735b.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/nxp/els_pkc_port.c)
+
+    # Not under TF-M, where els_pkc does not create McuxElsPkc.
+    if(CONFIG_MCUX_ELS_PKC AND NOT CONFIG_BUILD_WITH_TFM)
+      zephyr_library_include_directories(
+        $<TARGET_PROPERTY:McuxElsPkc,INTERFACE_INCLUDE_DIRECTORIES>
+      )
+    endif()
 
     if(CONFIG_WOLFCRYPT_ASM)
       if(CONFIG_WOLFCRYPT_ARM_SYMMETRIC_ASM)
@@ -190,6 +204,13 @@ if(CONFIG_WOLFSSL)
             zephyr_library_sources(${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-${f}.c)
           endif()
         endforeach()
+        # SHA-1 cannot join the loop above: it has an AArch64 port only.  When
+        # the boundary carries the assembly, WOLF_ARM_ASM_sha has placed it
+        # already, and adding it here would duplicate it and break the file
+        # order the integrity test depends on.
+        if(CONFIG_ARM64 AND NOT WOLF_BOUNDARY_ASM)
+          zephyr_library_sources(${WOLF_ARM_ASM_DIR}/armv8-sha1-asm_c.c)
+        endif()
       elseif(CONFIG_X86_64)
         # fe_x25519_asm.S, wc_mlkem_asm.S and wc_mldsa_asm.S are here because
         # curve25519.c, wc_mlkem_poly.c and wc_mldsa.c all take the Intel path

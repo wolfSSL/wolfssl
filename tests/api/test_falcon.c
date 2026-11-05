@@ -47,7 +47,7 @@
  * naming one level has to be #ifdef-guarded.
  *
  * Tests that need key generation or signing are gated on
- * WC_FALCON_HAVE_NATIVE_SIGN; argument-sanitising tests only need the
+ * TEST_FALCON_HAVE_SIGN; argument-sanitising tests only need the
  * always-present entry points and run under HAVE_FALCON.
  */
 
@@ -152,7 +152,7 @@ int test_wc_falcon_sizes(void)
 int test_wc_falcon_make_key(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     int li;
@@ -182,7 +182,7 @@ int test_wc_falcon_make_key(void)
     }
 
     wc_FreeRng(&rng);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -194,7 +194,7 @@ int test_wc_falcon_make_key(void)
 int test_wc_falcon_sign_vfy(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     byte* sig = NULL;
@@ -264,7 +264,7 @@ int test_wc_falcon_sign_vfy(void)
 
     wc_FreeRng(&rng);
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -276,7 +276,7 @@ int test_wc_falcon_sign_vfy(void)
 int test_wc_falcon_import_export(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     falcon_key key2;
     WC_RNG rng;
@@ -431,7 +431,7 @@ int test_wc_falcon_import_export(void)
     XFREE(prvpub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -443,7 +443,7 @@ int test_wc_falcon_import_export(void)
 int test_wc_falcon_check_key(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     byte* pub = NULL;
@@ -533,7 +533,7 @@ int test_wc_falcon_check_key(void)
     wc_FreeRng(&rng);
     XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -547,7 +547,7 @@ int test_wc_falcon_check_key(void)
 int test_wc_falcon_der(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     falcon_key key2;
     WC_RNG rng;
@@ -644,7 +644,7 @@ int test_wc_falcon_der(void)
     wc_FreeRng(&rng);
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+#endif /* TEST_FALCON_HAVE_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -820,7 +820,7 @@ int test_wc_falcon_error_paths(void)
  * SHA-256 and SHA-512 Hash_DRBG take different seed sizes, so one seed gives
  * two unrelated streams. Hence the SHA-512 requirement below and the run-time
  * check for wc_Sha512Drbg_Disable(); anything bypassing the DRBG is excluded. */
-#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+#if defined(TEST_FALCON_HAVE_SIGN) && defined(WC_RNG_SEED_CB) && \
     defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
@@ -876,7 +876,7 @@ static int falcon_det_digest(const byte* buf, word32 sz, byte* out)
 int test_wc_falcon_deterministic(void)
 {
     EXPECT_DECLS;
-#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+#if defined(TEST_FALCON_HAVE_SIGN) && defined(WC_RNG_SEED_CB) && \
     defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
@@ -1021,7 +1021,7 @@ int test_wc_falcon_deterministic(void)
 int test_wc_falcon_key_reuse(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     falcon_key other;
     WC_RNG rng;
@@ -1140,7 +1140,7 @@ int test_wc_falcon_key_reuse(void)
 int test_wc_falcon_level_overwrite(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     falcon_key key;
     WC_RNG rng;
     byte* sig = NULL;
@@ -1237,7 +1237,8 @@ int test_wc_falcon_level_overwrite(void)
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 #define FALCON_OOM_TEST
 #endif
-#ifndef WOLFSSL_NO_MALLOC
+/* swdev verifies in its own copy of wolfCrypt, out of the hook's reach. */
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_SWDEV)
 #define FALCON_VERIFY_OOM_TEST
 #endif
 #endif
@@ -1523,6 +1524,15 @@ int test_wc_FalconDecisionCoverage(void)
     falcon_key key;
     byte out[64];
     word32 outLen;
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+    defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(WOLFSSL_RNG_USE_FULL_SEED) && defined(WOLFSSL_DRBG_SHA512)
+    WC_RNG rng;
+    int i;
+    int rngInited = 0;
+#endif
     /* Buffers sized for a raw Falcon-512 private/public import so the ret==0
      * arm of wc_falcon_import_private_key is reachable without keygen. */
     /* Sized for the largest level built; the imports below use the exact size
@@ -1656,16 +1666,16 @@ int test_wc_FalconDecisionCoverage(void)
      * The (!prvKeySet) F + valid-rng fall-through into the native signer is
      * owned by test_wc_falcon_sign_vfy (real key). */
     {
-        WC_RNG rng;
+        WC_RNG rng2;
         byte msg[4];
-        XMEMSET(&rng, 0, sizeof(rng));
+        XMEMSET(&rng2, 0, sizeof(rng2));
         XMEMSET(msg, 0, sizeof(msg));
         XMEMSET(&key, 0, sizeof(key));
         ExpectIntEQ(wc_falcon_init(&key), 0);
         ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
         outLen = (word32)sizeof(out);
         ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
-            &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* !prvKeySet T */
+            &key, &rng2), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* !prvKeySet T */
         key.prvKeySet = 1;                                 /* !prvKeySet F */
         outLen = (word32)sizeof(out);
         ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
@@ -1760,6 +1770,54 @@ int test_wc_FalconDecisionCoverage(void)
             WC_NO_ERR_TRACE(BUFFER_E));
     }
 #endif /* WOLF_PRIVATE_KEY_ID */
+
+    /* ---- wc_falcon_make_key: (f[u] >= lim || f[u] <= -lim ||
+     *      g[u] >= lim || g[u] <= -lim) COMP_TRIM encodability check -----
+     * Each keygen attempt samples (f,g) and rejects out-of-range
+     * coefficients; the deterministic seed callback makes the attempt
+     * stream reproducible, and enough attempts fire each bound operand. */
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+    defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(WOLFSSL_RNG_USE_FULL_SEED) && defined(WOLFSSL_DRBG_SHA512)
+    XMEMSET(&rng, 0, sizeof(rng));
+    DoExpectIntEQ(wc_SetSeed_Cb(falcon_det_seed_cb), 0);
+    if (wc_InitRng(&rng) == 0) {
+        rngInited = 1;
+    }
+    DoExpectIntEQ(rngInited, 1);
+    for (i = 0; i < 64; i++) {
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+        ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+        wc_falcon_free(&key);
+    }
+    if (rngInited) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+#endif /* det seed-cb guard */
+
+    /* ---- wc_Falcon_KeyToDer / wc_Falcon_PrivateKeyToDer:
+     *      (key == NULL) || !falcon_level_ok(key) ------------------------
+     * key==NULL is owned by the error-paths test; here the level operand is
+     * flipped: a fresh init (level 0) fails falcon_level_ok in the guard,
+     * a valid level passes the guard and fails later on the unset key
+     * material (same code, different decision outcome). */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_Falcon_KeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Falcon_PrivateKeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+    ExpectIntEQ(wc_Falcon_KeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Falcon_PrivateKeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_falcon_free(&key);
 #endif /* HAVE_FALCON */
     return EXPECT_RESULT();
 }
@@ -1773,7 +1831,7 @@ int test_wc_FalconDecisionCoverage(void)
 #ifdef TEST_FALCON_CB_FREE
 /* What the free callback saw, so the test can check the contract rather than
  * just that something fired. */
-typedef struct {
+typedef struct FalconCbFreeCtx {
     int frees;        /* matching free callbacks seen */
     int badObj;       /* callback was handed the wrong object */
     int wiped;        /* callback saw a key already cleaned up */
@@ -1862,6 +1920,175 @@ int test_falcon_cb_free(void)
     ExpectIntEQ(seen.frees, 2);
 
     wc_CryptoCb_UnRegisterDevice(TEST_FALCON_CB_FREE_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_FALCON) && defined(WOLF_CRYPTO_CB)
+    #define TEST_FALCON_VERIFY_CB_RES
+    #define TEST_FALCON_VERIFY_CB_RES_DEVID 0x46414C56
+#endif
+
+#ifdef TEST_FALCON_VERIFY_CB_RES
+typedef struct FalconVerifyResCtx {
+    int ret;       /* Value the device returns. */
+    int writeRes;  /* Whether the device writes *res = 1 first. */
+} FalconVerifyResCtx;
+
+/* A device that may claim the signature is valid and then returns ctx->ret,
+ * which may be 0, an error or CRYPTOCB_UNAVAILABLE. */
+static int falcon_verify_res_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    FalconVerifyResCtx* cbCtx = (FalconVerifyResCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY) &&
+            (info->pk.pqc_verify.type == WC_PQC_SIG_TYPE_FALCON)) {
+        if (cbCtx->writeRes) {
+            *info->pk.pqc_verify.res = 1;
+        }
+        return cbCtx->ret;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_FALCON_VERIFY_CB_RES */
+
+/* *res must only be 1 when verify returns 0 and the signature was found
+ * valid. Cases expecting 0 start res at 1 to catch a stale value. */
+int test_falcon_verify_cb_res(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_FALCON_VERIFY_CB_RES
+    falcon_key key;
+    byte sig[16];
+    byte msg[16];
+    FalconVerifyResCtx cbCtx;
+    int res;
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    const int declineRet = WC_NO_ERR_TRACE(NO_VALID_DEVID);
+#else
+    /* The software fallback rejects a key with no public key set. */
+    const int declineRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_FALCON_VERIFY_CB_RES_DEVID,
+        falcon_verify_res_cb, &cbCtx), 0);
+    ExpectIntEQ(wc_falcon_init_ex(&key, NULL,
+        TEST_FALCON_VERIFY_CB_RES_DEVID), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+
+    /* The device verifies the signature. */
+    cbCtx.ret = 0;
+    cbCtx.writeRes = 1;
+    res = 0;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), 0);
+    ExpectIntEQ(res, 1);
+
+    /* The device completes without writing *res. */
+    cbCtx.writeRes = 0;
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), 0);
+    ExpectIntEQ(res, 0);
+
+    /* The device fails. */
+    cbCtx.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    cbCtx.writeRes = 1;
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+
+    /* The device declines, then the fallback rejects the call. */
+    cbCtx.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    cbCtx.writeRes = 1;
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(sig, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), declineRet);
+    ExpectIntEQ(res, 0);
+
+    /* A bad argument is rejected before the device is reached. */
+    res = 1;
+    ExpectIntEQ(wc_falcon_verify_msg(NULL, (word32)sizeof(sig), msg,
+        (word32)sizeof(msg), &res, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+
+    wc_falcon_free(&key);
+    wc_CryptoCb_UnRegisterDevice(TEST_FALCON_VERIFY_CB_RES_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(HAVE_FIPS)
+static int falcon_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_falcon_make_key() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_falcon_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(HAVE_FIPS)
+    int devId = 2407;
+    falcon_key key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, falcon_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_falcon_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_falcon_free(&key);
+
+    ExpectIntEQ(wc_falcon_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_falcon_free(&key);
+
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_falcon_init_id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+    wc_falcon_free(&key);
+
+    ExpectIntEQ(wc_falcon_init_ex(&key, NULL, devId), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+    wc_falcon_free(&key);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
 }

@@ -3021,10 +3021,18 @@ int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff)
                 WOLFSSL_MSG("wc_SrpSetPassword failed.");
                 return WOLFSSL_FAILURE;
             }
+            if (ctx->srp_password != NULL) {
+                ForceZero(ctx->srp_password,
+                          (word32)XSTRLEN((char*)ctx->srp_password));
+            }
             XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
             ctx->srp_password = NULL;
         } else {
             /* save password for wolfSSL_set_srp_username */
+            if (ctx->srp_password != NULL) {
+                ForceZero(ctx->srp_password,
+                          (word32)XSTRLEN((char*)ctx->srp_password));
+            }
             XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
 
             ctx->srp_password = (byte*)XMALLOC(XSTRLEN(password) + 1, ctx->heap,

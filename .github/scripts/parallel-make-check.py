@@ -308,6 +308,10 @@ def load_configs(opts: argparse.Namespace,
         for key in ("cflags", "extra_cflags", "ldflags"):
             if not isinstance(entry.get(key, ""), str):
                 error(f"{opts.json}: \"{key}\" must be a string in {name!r}")
+        if entry.get("cflags") == "" and not opts.cflags:
+            warn(f"{opts.json}: empty \"cflags\" in {name!r} has no effect "
+                 f"without --cflags; \"extra_cflags\": \"\" opts out of "
+                 f"--extra-cflags")
         minutes = entry.get("minutes", 1.0)
         if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) \
                 or minutes < 0:

@@ -65,6 +65,15 @@
 #if defined(WC_TEST_RNG_HOLD) && defined(WC_RNG_LOCK_ATFORK)
     #define WC_TEST_RNG_AUTOFORK
 #endif
+/* fork() across a held WC_RNG.lock word: needs the word, a pid to compare,
+ * and a process model.  No threads: the forking thread's own lease is the
+ * orphan. */
+#if defined(WC_RNG_HAVE_LOCK) && defined(HAVE_HASHDRBG) && \
+    defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
+    !defined(__STRICT_ANSI__) && \
+    (defined(__unix__) || defined(__linux__) || defined(__APPLE__))
+    #define WC_TEST_RNG_LOCKFORK
+#endif
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
@@ -147,6 +156,7 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
  */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  flags_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
@@ -283,7 +293,6 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
-extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
 #ifdef WC_TEST_RNG_AUTOLOCK
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
 #endif
@@ -298,6 +307,8 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseedstest(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_epoch_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_lifecycle_test(void);
 #endif /* WC_NO_RNG */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \

@@ -530,6 +530,10 @@ def run_tls13_test(cipher_wolf, cert_chain, priv_key, label):
         st.join(timeout=5)
 
     if proc.returncode != 0 or not result["ok"]:
+        # No shared key exchange group, e.g. pure ML-KEM, which tlslite-ng lacks
+        if "No acceptable group" in result["error"]:
+            skipped(f"{label} - no key exchange group shared with tlslite-ng")
+            return True
         err = _describe_failure(proc, result)
         failed(f"{label}: handshake failed ({err})")
         return False

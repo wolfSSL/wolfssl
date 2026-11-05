@@ -31,7 +31,8 @@
  * fixture plus the test(s) that use it, so the condition is written once
  * and the region and the in-body guard cannot drift apart. */
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_CERTS)
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT)
     #define TEST_TLS_BOUNDS_CSR2_REQUESTS
 #endif
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \

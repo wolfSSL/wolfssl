@@ -93,7 +93,7 @@ fn test_rsa_encrypt_decrypt() {
 }
 
 #[test]
-#[cfg(all(sha256, random, rsa_pss, rsa_private, rsa_sign))]
+#[cfg(all(sha256, random, rsa_pss, rsa_const_api, rsa_private, rsa_sign))]
 fn test_rsa_pss() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));
 
@@ -120,7 +120,7 @@ fn test_rsa_pss() {
 }
 
 #[test]
-#[cfg(all(random, rsa_direct, rsa_private))]
+#[cfg(all(random, rsa_direct, rsa_const_api, rsa_private))]
 fn test_rsa_direct() {
     let rng = RNG::new().expect("Error creating RNG");
 

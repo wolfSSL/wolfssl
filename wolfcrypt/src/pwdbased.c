@@ -227,6 +227,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     Hmac   hmac[1];
 #endif
     enum wc_HashType hashT;
+    byte*  outStart = output;
+    int    outLen = kLen;
 
     if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
@@ -361,6 +363,10 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
             i++;
         }
         wc_HmacFree(hmac);
+    }
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(outStart, (word32)outLen);
     }
 
     ForceZero(buffer, (word32)hLen);
@@ -689,7 +695,9 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                        const byte* salt, int saltLen, int iterations, int kLen,
                        int hashType, int id, void* heap)
 {
-    word32 u, v, pLen, iLen, sLen, totalLen;
+    word32 u, v, pLen, sLen;
+    word32 iLen = 0;
+    word32 totalLen = 0;
     /* nwc:     v / sizeof(PKCS12_WORD) - words per v-byte block
      *          (v is always a multiple of sizeof(PKCS12_WORD))
      * nBlocks: iLen / v - number of v-byte blocks in I */

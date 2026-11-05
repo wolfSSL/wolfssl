@@ -138,6 +138,9 @@ typedef struct {
      * (in bytes) at sign-setup time so GetResult can use it. V1 HAL
      * reads from RAM and works fine; V2 HAL keeps it on the handle. */
     uint32_t primeordersize;
+    /* Same for RAM[PKA_ECC_SCALAR_MUL_IN_OP_NB_BITS] and the scalar
+     * multiply: saved at ECCMul-setup time for ECCMul_GetResult. */
+    uint32_t modulussize;
 } PKA_HandleTypeDef;
 
 typedef struct {
@@ -518,7 +521,17 @@ static HAL_StatusTypeDef HAL_PKA_Init(PKA_HandleTypeDef *hpkah)
      * wait, an immediate ECDSA SIGN can race the init and silently
      * fail with OUT_ERROR = 0xCBC9 (PKA_FAILED_COMPUTATION) on U5 / H5
      * / WBA / N6 / C5 / H7S. V1 PKA does not have INITOK and the bit
-     * is undefined there. */
+     * is undefined there.
+     *
+     * The V2 PKA draws on the RNG during that self-check: with the RNG
+     * IP unclocked, INITOK never asserts (CR.EN sticks at 1, SR stays
+     * 0) and every PKA operation afterwards fails with WC_HW_E. Bring
+     * the RNG up first -- ST's own C5 PKA sequence does the same.
+     * wc_stm32_rng_ensure_ready() is the mutex-free bring-up already
+     * shared with the SAES self-init path. */
+#ifdef WC_STM32_HAS_RNG_READY
+    (void)wc_stm32_rng_ensure_ready();
+#endif
     t = 0;
     while ((hpkah->Instance->SR & PKA_SR_INITOK) == 0U) {
         if (++t >= WC_STM32_PKA_INIT_TIMEOUT) {
@@ -768,6 +781,8 @@ static HAL_StatusTypeDef HAL_PKA_ECCMul(PKA_HandleTypeDef *hpkah,
     }
 #endif /* WOLFSSL_STM32_PKA_V2 */
 
+    hpkah->modulussize = in->modulusSize;
+
     return wc_stm32_pka_process(hpkah, PKA_MODE_ECC_MUL);
 }
 
@@ -781,9 +796,15 @@ static void HAL_PKA_ECCMul_GetResult(PKA_HandleTypeDef *hpkah,
     /* Word view: STM32C5 types PKA RAM as uint8_t[]; others as uint32_t[]. */
     RAM = (volatile const uint32_t*)(void*)hpkah->Instance->RAM;
 
-    /* The HAL recomputes the byte size from the saved IN_OP_NB_BITS
-     * slot. We do the same. */
+    /* V2 PKA clobbers RAM[IN_OP_NB_BITS] during compute, leaving a size
+     * of zero and a result read of nothing -- the caller then sees its
+     * own input point handed back. Use the size saved on the handle, as
+     * the V2 HAL does. V1 still reads from RAM. */
+#ifdef WOLFSSL_STM32_PKA_V2
+    size = hpkah->modulussize;
+#else
     size = (RAM[PKA_ECC_SCALAR_MUL_IN_OP_NB_BITS] + 7U) / 8U;
+#endif
 
     if (out->ptX != NULL) {
         wc_stm32_pka_read_be(out->ptX,

@@ -97,7 +97,9 @@ jobs:
 
       - name: Run Membrowse PR Action
         id: analyze
-        uses: membrowse/membrowse-action@v1
+        # Pinned to a full commit SHA so a moved v1 tag cannot break or
+        # swap the action out from under this job. v1.2.15.
+        uses: membrowse/membrowse-action@34719bdb04722be5cbe9c1d6df4a1567ae98238d
         with:
           target_name: ${{ matrix.target_name }}
           elf: ${{ needs.check-changes.outputs.needs_build == 'true' && matrix.elf || '' }}

@@ -1021,6 +1021,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 {
     word32 i;
     word32 blocks;
+    word32 blockSz;
     int ret = 0;
 #ifdef WC_SHA3_FAULT_HARDEN
     word32 check = 0;
@@ -1036,6 +1037,8 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 
     if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
         return BAD_STATE_E;
+
+    blockSz = p * 8U;
 
 #if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
@@ -1055,11 +1058,11 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     if (sha3->i > 0) {
         byte *t;
         word32 l;
-        if (p * 8 < sha3->i) {
+        if (blockSz < sha3->i) {
             ret = BAD_STATE_E;
             goto out;
         }
-        l = (p * 8 - sha3->i);
+        l = (blockSz - sha3->i);
         if (l > len) {
             l = len;
         }
@@ -1082,10 +1085,10 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
         len -= i;
         sha3->i += i;
 
-        if (sha3->i == p * 8) {
+        if (sha3->i == blockSz) {
     #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
         !defined(WOLFSSL_WIDE_BYTE)
-            xorbuf(sha3->s, sha3->t, (word32)(p * 8));
+            xorbuf(sha3->s, sha3->t, blockSz);
     #else
             for (i = 0; i < p; i++) {
                 sha3->s[i] ^= Load64BitLittleEndian(sha3->t + 8 * i);
@@ -1109,12 +1112,12 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
             sha3->i = 0;
         }
     }
-    blocks = len / (p * 8U);
+    blocks = len / blockSz;
     #ifdef SHA3_FUNC_PTR
     if ((sha3_block_n != NULL) && (blocks > 0)) {
-        (*sha3_block_n)(sha3->s, data, blocks, p * 8U);
-        len -= blocks * (p * 8U);
-        data += blocks * (p * 8U);
+        (*sha3_block_n)(sha3->s, data, blocks, blockSz);
+        len -= blocks * blockSz;
+        data += blocks * blockSz;
         blocks = 0;
     }
     #endif
@@ -1124,7 +1127,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     for (; blocks > 0; blocks--) {
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
     !defined(WOLFSSL_WIDE_BYTE)
-        xorbuf(sha3->s, data, (word32)(p * 8));
+        xorbuf(sha3->s, data, blockSz);
 #else
         for (i = 0; i < p; i++) {
             sha3->s[i] ^= Load64Unaligned(data + 8 * i);
@@ -1144,8 +1147,8 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     #else
         BlockSha3(sha3->s);
     #endif
-        len -= p * 8U;
-        data += p * 8U;
+        len -= blockSz;
+        data += blockSz;
     }
 #ifdef WC_SHA3_FAULT_HARDEN
     if (check != total_check) {
@@ -1640,18 +1643,33 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
+/* Wipe the SSP-bearing state but keep the object usable: SLH-DSA reuses it
+ * after Free and the block function pointers live in it under
+ * WC_C_DYNAMIC_FALLBACK. */
+static void wc_Sha3Wipe(wc_Sha3* sha3)
+{
+#ifdef PSOC6_HASH_SHA3
+    ForceZero(sha3, sizeof(*sha3));
+#else
+    ForceZero(sha3->s, sizeof(sha3->s));
+    ForceZero(sha3->t, sizeof(sha3->t));
+#ifdef STM32_HASH_SHA3
+    ForceZero(&sha3->stmCtx, sizeof(sha3->stmCtx));
+#endif
+    sha3->i = 0;
+#endif
+}
+
 static void wc_Sha3Free(wc_Sha3* sha3)
 {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     int ret = 0;
 #endif
 
-    (void)sha3;
-
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (sha3 == NULL)
         return;
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (sha3->devId != INVALID_DEVID)
     #endif
@@ -1681,6 +1699,10 @@ static void wc_Sha3Free(wc_Sha3* sha3)
 #if defined(PSOC6_HASH_SHA3)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* s and t hold absorbed keys and seeds for Ed448, ML-KEM, ML-DSA,
+     * SLH-DSA, LMS, XMSS and HMAC-SHA3 (ISO/IEC 19790:2012 7.9.7). */
+    wc_Sha3Wipe(sha3);
 }
 
 /* Reset a SHA-3/SHAKE context to its freshly initialized state, reusing its
@@ -1805,10 +1827,18 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
                     return MEMORY_E);
 
     XMEMSET(tmpSha3, 0, sizeof(*tmpSha3));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Sha3GetHash tmpSha3", tmpSha3, sizeof(*tmpSha3));
+#endif
     ret = wc_Sha3Copy(sha3, tmpSha3);
     if (ret == 0) {
         ret = wc_Sha3Final(tmpSha3, hash, p, len);
     }
+
+    ForceZero(tmpSha3, sizeof(*tmpSha3));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha3, sizeof(*tmpSha3));
+#endif
 
     WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
@@ -3126,6 +3156,8 @@ static int KmacInit(wc_Kmac* kmac, word32 count, const byte* key, word32 keyLen,
             if (ret == 0) {
                 ret = CshakeBytePad(&kmac->shake, count, rate);
             }
+            /* The block buffer staged the key (ISO/IEC 19790 7.9.7). */
+            ForceZero(kmac->shake.t, sizeof(kmac->shake.t));
         }
     }
 

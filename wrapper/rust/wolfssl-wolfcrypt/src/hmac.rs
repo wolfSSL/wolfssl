@@ -361,6 +361,7 @@ impl HMAC {
     /// let mut forked = hmac.copy().expect("Error with copy()");
     /// forked.update(b"suffix").expect("Error with update()");
     /// ```
+    #[cfg(hmac_copy)]
     pub fn copy(&mut self) -> Result<Self, i32> {
         /* &mut self, so a writable pointer to the context is available
          * directly. */
@@ -374,6 +375,7 @@ impl HMAC {
     /// `src` must point to an initialized `Hmac` context that nothing else is
     /// accessing for the duration of the call; `wc_HmacCopy()` may write
     /// through it.
+    #[cfg(hmac_copy)]
     unsafe fn copy_from(src: *mut sys::Hmac) -> Result<Self, i32> {
         /* wc_HmacCopy() fills dst with XMEMCPY() before touching it, so an
          * uninitialized destination is fine here (unlike wc_Sha256Copy(),
@@ -392,6 +394,7 @@ impl HMAC {
     }
 }
 
+#[cfg(hmac_copy)]
 impl Clone for HMAC {
     /// Deep-copy the HMAC state via `wc_HmacCopy()`.
     ///

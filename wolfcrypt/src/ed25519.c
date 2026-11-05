@@ -401,6 +401,12 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     if (ret == 0)
         ret = NO_VALID_DEVID;
 #else
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Zero first: the registration call takes const void*, and a pointer to
+     * an uninitialized object trips -Wmaybe-uninitialized under -Werror. */
+    XMEMSET(az, 0, sizeof(az));
+    wc_MemZero_Add("wc_ed25519_make_public az", az, sizeof(az));
+#endif
     if (ret == 0)
         ret = ed25519_hash(key, key->k, ED25519_KEY_SIZE, az);
     if (ret == 0) {
@@ -417,8 +423,16 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
             ED25519_KEY_SIZE, &publicKey, kLTC_Ed25519 /* result on Ed25519 */);
         LTC_PKHA_Ed25519_Compress(&publicKey, pubKey);
     #else
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_ed25519_make_public A", &A, sizeof(A));
+        #endif
         ge_scalarmult_base(&A, az);
         ge_p3_tobytes(pubKey, &A);
+        /* Projective A leaks bits of the private scalar. */
+        ForceZero(&A, sizeof(A));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&A, sizeof(A));
+        #endif
     #endif
 
         if (storePub)
@@ -427,6 +441,14 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ED25519
+    /* az holds the clamped secret scalar (ISO/IEC 19790:2012 7.9.7). The
+     * crypto-callback return above happens before az is written. */
+    ForceZero(az, sizeof(az));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(az, sizeof(az));
+#endif
+#endif
     return ret;
 }
 
@@ -436,6 +458,10 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
 int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 {
     int ret;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
 
     if (rng == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -447,6 +473,10 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     key->privKeySet = 0;
     key->pubKeySet = 0;
 
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    idKey = WC_CRYPTOCB_HAS_ID(key);
+    idDevId = key->devId;
+#endif
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -457,6 +487,10 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
             return ret;
         /* fall-through when unavailable */
     }
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (idKey && wc_CryptoCb_HasPkDevice(idDevId))
+        return NO_VALID_DEVID;
+    #endif
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_ED25519
@@ -480,6 +514,13 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     ret = wc_ed25519_check_key(key);
     if (ret == 0) {
         ret = ed25519_pairwise_consistency_test(key, rng);
+    }
+    if (ret != 0) {
+        /* Do not hand back a key that failed its check or PCT. */
+        key->privKeySet = 0;
+        key->pubKeySet = 0;
+        ForceZero(key->k, ED25519_PRV_KEY_SIZE);
+        ForceZero(key->p, ED25519_PUB_KEY_SIZE);
     }
 #endif
 
@@ -508,16 +549,26 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 {
     int    ret;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* This path signs pure Ed25519 only: the SE050 callout takes no type
+     * and no context, so an Ed25519ctx or Ed25519ph request, or any
+     * non-empty context, cannot be honored here -- reject it rather than
+     * producing a signature for the wrong algorithm (cf. the
+     * WOLFSSL_SE050_ONLY_KEY_ID rejection on the software path). */
+    if ((type == Ed25519ctx) || (type == Ed25519ph) || (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     (void)context;
-    (void)contextLen;
-    (void)type;
     ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
 #elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
     (void)ed25519Ctx;
     ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
     if (((in == NULL) && (inLen != 0)) || out == NULL || outLen == NULL ||
-            key == NULL || (context == NULL && contextLen != 0)) {
+            key == NULL || (context == NULL && contextLen != 0))
+    {
+        return BAD_FUNC_ARG;
+    }
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
         return BAD_FUNC_ARG;
     }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
@@ -561,6 +612,16 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     /* sanity check on arguments */
     if (((in == NULL) && (inLen != 0)) || out == NULL || outLen == NULL ||
             key == NULL || (context == NULL && contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+    /* RFC 8032 defines no context for pure Ed25519 -- only Ed25519ctx
+     * and Ed25519ph take one, bound via dom2 -- so a non-empty context
+     * with type Ed25519 cannot be honored.  Reject it rather than
+     * signing without it, which would silently void the caller's
+     * intended domain separation.  The pure path is every type other
+     * than Ed25519ctx/Ed25519ph (the type parameter is a byte, so the
+     * Ed25519 enumerator, -1, is not directly representable in it). */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
         return BAD_FUNC_ARG;
     }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
@@ -673,6 +734,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
         ed25519_hash_free(key, sha);
         WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#else
+        /* On failure the absorbed prefix must not stay in the key's hash. */
+        if (ret != 0)
+            ed25519_hash_free(key, sha);
 #endif
     }
 
@@ -690,8 +755,16 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
         /* step 2: computing R = rB where rB is the scalar multiplication of
            r and B */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_ed25519_sign_msg_ex R", &R, sizeof(R));
+    #endif
         ge_scalarmult_base(&R,nonce);
         ge_p3_tobytes(out,&R);
+        /* Projective R leaks bits of the nonce. */
+        ForceZero(&R, sizeof(R));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&R, sizeof(R));
+    #endif
 #endif
     }
 
@@ -1097,6 +1170,10 @@ int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen) {
     if (key == NULL)
         return BAD_FUNC_ARG;
+    /* see wc_ed25519_sign_msg_ex(): RFC 8032 defines no context for
+     * pure Ed25519. */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0))
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
                                         type, context, contextLen);
 }
@@ -1135,9 +1212,12 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 {
     int ret;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
-    (void)type;
+    /* see wc_ed25519_sign_msg_ex(): this path verifies pure Ed25519
+     * only. */
+    if ((type == Ed25519ctx) || (type == Ed25519ph) || (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     (void)context;
-    (void)contextLen;
     (void)ed25519Ctx;
     ret = se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
 #elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
@@ -1147,6 +1227,9 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     if (sig == NULL || ((msg == NULL) && (msgLen != 0)) || res == NULL ||
             key == NULL || (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
@@ -1196,6 +1279,12 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     if (sig == NULL || ((msg == NULL) && (msgLen != 0)) || res == NULL ||
             key == NULL || (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+    /* see wc_ed25519_sign_msg_ex(): RFC 8032 defines no context for
+     * pure Ed25519, so reject a non-empty one rather than silently
+     * verifying without it. */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
@@ -1816,10 +1905,18 @@ int wc_ed25519_export_key(const ed25519_key* key,
     int ret;
 
     /* export 'full' private part */
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
     ret = wc_ed25519_export_private(key, priv, privSz);
     if (ret == 0) {
         /* export public part */
         ret = wc_ed25519_export_public(key, pub, pubSz);
+        if (ret != 0) {
+            /* Public export failed: do not hand back the private key. */
+            ForceZero(priv, *privSz);
+        }
     }
 
     return ret;

@@ -76,7 +76,11 @@ static long wb_intr_ix  = 0;   /* SAVE_VECTOR_REGISTERS2() calls seen     */
 static long wb_intr_mod = 0;   /* > 0: refuse when (ix % mod) == res      */
 static long wb_intr_res = 0;
 
+#if defined(__GNUC__) || defined(__clang__)
+static int __attribute__((unused)) wb_intr_hook(void)
+#else
 static int wb_intr_hook(void)
+#endif
 {
     long ix = wb_intr_ix++;
 
@@ -1274,14 +1278,20 @@ static void wb_gen_lane_rows(void)
  * Argument guards on file-static entry points.
  *
  * mldsa_verify_ctx_msg() / mldsa_verify_ctx_hash() open with
+ * mldsa_verify_key_check(), which tests
  *
  *     if ((key == NULL) || (key->params == NULL)) ...
  *
- * but every public caller has already rejected a NULL key and a key without
- * params, so along the API only the (F,F) row is ever seen.  Both are file
- * static and this TU #includes wc_mldsa.c, so they take the two rejecting rows
- * directly: a NULL key for operand 0, and a zeroed key object (params NULL,
- * never dereferenced past the guard) for operand 1.
+ * Every public caller rejects a NULL key, so only the key == NULL operand is
+ * unreachable from the API.  The key->params == NULL row (a key with no level
+ * set, through wc_MlDsaKey_VerifyCtx() / wc_MlDsaKey_VerifyCtxHash()) and
+ * the TRUE row of the !key->pubKeySet check after it are reached from the
+ * API by test_mldsa_verify_pubkeyset_guard(); the FALSE row comes from any
+ * successful verify, and from wb_verify_invalid() in this binary.  The
+ * helpers are file static and this TU #includes wc_mldsa.c, so each
+ * independence pair is also completed within this binary by taking the two
+ * rejecting rows directly: a NULL key for operand 0, and a zeroed key object
+ * (params NULL, never dereferenced past the guard) for operand 1.
  *
  * mldsa_get_hash_oid()'s first operand is the "is this hash algorithm known"
  * result; an unrecognised algorithm gives it the NULL side that no caller with
@@ -1347,11 +1357,12 @@ static void wb_arg_guards(void)
  *
  *     if ((ret == 0) && valid) { ... }
  *
- * guards: `valid` goes false when a decoded hint is malformed, a norm check
- * fails, or the recomputed commitment differs.  A suite that only ever
- * verifies signatures it just produced sees valid == 1 at every one of them,
- * so the operand is undriven -- and a genuinely corrupt signature is the
- * ordinary, in-spec way to drive it.
+ * guards: `valid` goes false when a norm check fails or the recomputed
+ * commitment differs.  A malformed hint is rejected through ret
+ * (SIG_VERIFY_E).
+ * A suite that only ever verifies signatures it just produced sees valid == 1
+ * at every one of them, so the operand is undriven -- and a genuinely corrupt
+ * signature is the ordinary, in-spec way to drive it.
  *
  * Single-bit flips are spread across the signature so different structural
  * parts (c-tilde, the z vector, the hint block, and its trailing padding)
@@ -1359,8 +1370,10 @@ static void wb_arg_guards(void)
  * so every guard also has its true row in this binary; both rows are what the
  * independence pair needs.
  *
- * mldsa_verify_ctx_hash() gets its (F,F) row here as well: the key is real and
- * carries params, which is the one row a NULL/param-less key cannot show.
+ * mldsa_verify_key_check() gets its (F,F) row here as well, through
+ * mldsa_verify_ctx_hash(): the key is real and carries params, which is the
+ * one row a NULL/param-less key cannot show.  The key also has its public
+ * half, giving the FALSE row of the !key->pubKeySet check.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
@@ -1436,7 +1449,8 @@ static void wb_verify_invalid(void)
 
 #if !defined(WOLFSSL_MLDSA_NO_CTX)
     /* mldsa_verify_ctx_hash() with a real, params-carrying key: the (F,F) row
-     * of its (key == NULL) || (key->params == NULL) guard. */
+     * of mldsa_verify_key_check()'s (key == NULL) || (key->params == NULL)
+     * guard, and the FALSE row of its !key->pubKeySet check. */
     res = 0;
     (void)mldsa_verify_ctx_hash(&key, NULL, 0, WC_HASH_TYPE_SHA256, hash,
         (word32)sizeof(hash), sig, sigLen, &res);
@@ -1452,8 +1466,8 @@ static void wb_verify_invalid(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:12517,
- * :12522, :12523).
+ * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check: the s1 range test,
+ * the s2 loop header and the s2 range test.
  *
  *     for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
  *         if (s1[c] < -eta || s1[c] > eta) { ret = PUBLIC_KEY_E; break; }
@@ -1530,8 +1544,8 @@ static void wb_check_key_range(void)
     savedS1 = s1p[0];
     savedS2 = s2p[0];
 
-    /* s1[0] out of range on the low side: :12517 idx0 true, and the s2 loop
-     * header (:12522 idx0) is then evaluated with ret != 0. */
+    /* s1[0] out of range on the low side: the s1 range test's idx0 is true,
+     * and the s2 loop header's idx0 is then evaluated with ret != 0. */
     s1p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1540,7 +1554,7 @@ static void wb_check_key_range(void)
     s1p[0] = savedS1;
 
     /* s2[0] out of range: the s1 loop runs clean, the s2 header is true, and
-     * :12523 idx0 takes its true side. */
+     * the s2 range test's idx0 takes its true side. */
     s2p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1549,7 +1563,7 @@ static void wb_check_key_range(void)
     s2p[0] = savedS2;
 
     wc_MlDsaKey_Free(&key);
-    WB_NOTE("CheckKey s1/s2 range rows exercised (12517, 12522, 12523)");
+    WB_NOTE("CheckKey s1/s2 range rows exercised");
 }
 #else
 static void wb_check_key_range(void)
@@ -1558,6 +1572,150 @@ static void wb_check_key_range(void)
 }
 #endif
 
+/* ------------------------------------------------------------------ *
+ * SignCtxWithSeed's msg guard (11670/11677): the (msg == NULL) &&
+ * (msgLen != 0) compound clause and the empty-message canonicalization
+ * (msg == NULL, msgLen == 0 -> readable stand-in). A valid key keeps
+ * the rows on the guard itself.
+ * ------------------------------------------------------------------ */
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+static void wb_sign_ctx_msg_guard_rows(void)
+{
+    static const byte seed[32] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+    wc_MlDsaKey key;
+    static byte sig[MLDSA_MAX_SIG_SIZE];
+    word32 sigLen = (word32)sizeof(sig);
+    int    ret;
+
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0 ||
+            wc_MlDsaKey_MakeKeyFromSeed(&key, seed) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+
+    /* (msg == NULL) && (msgLen != 0): both clauses true -> guard fires. */
+    ret = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen, NULL,
+        8, seed);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("SignCtxWithSeed (NULL msg, len!=0) expected BAD_FUNC_ARG");
+    }
+
+    /* (msg == NULL) && (msgLen == 0): clause 2 false -> canonicalize to
+     * the empty stand-in and sign for real. */
+    sigLen = (word32)sizeof(sig);
+    ret = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen, NULL,
+        0, seed);
+    if (ret != 0) {
+        WB_NOTE("SignCtxWithSeed (NULL msg, len==0) expected 0");
+    }
+
+    wc_MlDsaKey_Free(&key);
+    printf("  [wb] SignCtxWithSeed msg-guard rows exercised\n");
+}
+#else
+static void wb_sign_ctx_msg_guard_rows(void)
+{
+    printf("  [wb] SignCtxWithSeed msg-guard rows skipped (not compiled)\n");
+}
+#endif
+
+
+
+/* ------------------------------------------------------------------ *
+ * wc_MlDsaKey_PrivateKeyDecode's keyType/autoKeyType dispatch and the
+ * pubKey/privKey length cascade (13592, 13672). Inputs are the
+ * library's own encodings of a freshly generated key: the active
+ * template parser walks the key data, so hand-crafted junk bytes
+ * trip it. Traditional form = the bare inner OCTET STRING of the
+ * PKCS8 DER (no OID -> autoKeyType ANONk); priv-only = the PKCS8 DER
+ * itself (pubKeyLen 0, privKeyLen != 0).
+ * Residuals: 13667 c1 is structural (the arm only runs inside the
+ * pubKeyLen == 0 branch, where its first clause is always false);
+ * 13672 c0-F likewise (the cascade only runs when pubKeyLen == 0);
+ * 13672 c1-F needs a successful seed-only decode, and the template
+ * parse rejects the hand-crafted seed-only DER (ASN_PARSE_E).
+ * ------------------------------------------------------------------ */
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) \
+    && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+
+static void wb_decode_dispatch_rows(void)
+{
+    static const byte seed[32] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+    byte der[MLDSA_MAX_BOTH_KEY_DER_SIZE];
+    wc_MlDsaKey key;
+    word32 derLen = (word32)sizeof(der);
+    word32 idx = 0;
+    int n;
+    int ret;
+
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0 ||
+            wc_MlDsaKey_MakeKeyFromSeed(&key, seed) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+    n = wc_MlDsaKey_PrivateKeyToDer(&key, der, derLen);
+    wc_MlDsaKey_Free(&key);
+    if (n <= 0) {
+        WB_NOTE("PrivateKeyToDer failed");
+        return;
+    }
+
+    /* (a) Traditional form: the bare inner OCTET STRING of the PKCS8
+     * DER (bytes 24..2588: 04 82 0a 00 + 2560 key bytes). No OID ->
+     * autoKeyType ANONk with an explicit level -> the
+     * (keyType != ANONk) && (autoKeyType == ANONk) arm. */
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+    idx = 0;
+    (void)wc_MlDsaKey_PrivateKeyDecode(&key, der + 24, 2564, &idx);
+    wc_MlDsaKey_Free(&key);
+
+    /* (b) Private key only: (pubKeyLen == 0) && (privKeyLen != 0) ->
+     * the ImportPrivRaw arm. */
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+    idx = 0;
+    ret = wc_MlDsaKey_PrivateKeyDecode(&key, der, (word32)n, &idx);
+    if (ret != 0) {
+        WB_NOTE("decode priv-only expected 0");
+    }
+    wc_MlDsaKey_Free(&key);
+
+    printf("  [wb] PrivateKeyDecode dispatch rows exercised\n");
+}
+#else
+static void wb_decode_dispatch_rows(void)
+{
+    printf("  [wb] PrivateKeyDecode dispatch rows skipped (not compiled)\n");
+}
+#endif
 int main(void)
 {
     /* Unbuffered: on a timeout the process is killed and anything still
@@ -1606,6 +1764,8 @@ int main(void)
     wb_arg_guards();
     wb_verify_invalid();
     wb_check_key_range();
+    wb_sign_ctx_msg_guard_rows();
+    wb_decode_dispatch_rows();
     printf("done (%d note%s)\n", wb_notes, (wb_notes == 1) ? "" : "s");
     return 0;
 #endif

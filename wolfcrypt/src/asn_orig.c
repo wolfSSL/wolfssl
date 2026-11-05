@@ -252,7 +252,7 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
          }
    #endif
 
-    #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
+    #if defined(WOLFSSL_XILINX_CRYPT)
         if (wc_InitRsaHw(key) != 0) {
             return BAD_STATE_E;
         }
@@ -1903,6 +1903,18 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         return ASN_PARSE_E;
     }
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* Keep where the encoded name is, as the template parser does. */
+    if (nameType == ASN_ISSUER) {
+        cert->issuerNameDer = input + *inOutIdx;
+        cert->issuerNameDerSz = maxIdx - *inOutIdx;
+    }
+    else {
+        cert->subjectNameDer = input + *inOutIdx;
+        cert->subjectNameDerSz = maxIdx - *inOutIdx;
+    }
+#endif
+
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)
     dName = wolfSSL_X509_NAME_new_ex(cert->heap);
@@ -2551,18 +2563,9 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
     if (nameType == ASN_ISSUER) {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) &&\
-    (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-        dName->rawLen = min(cert->issuerRawLen, WC_ASN_NAME_MAX);
-        XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
-#endif
         cert->issuerName = dName;
     }
     else {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-        dName->rawLen = min(cert->subjectRawLen, WC_ASN_NAME_MAX);
-        XMEMCPY(dName->raw, cert->subjectRaw, dName->rawLen);
-#endif
         cert->subjectName = dName;
     }
 #endif
@@ -4529,7 +4532,7 @@ end:
 #if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         WOLFSSL_CERT_MANAGER* cm, const byte* pubKey, word32 pubKeySz,
-        int pubKeyOID, int req)
+        int pubKeyOID, int req, const byte** caKey, word32* caKeySz)
 {
 #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
     SignatureCtx  sigCtx[1];
@@ -4558,6 +4561,11 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     const byte*   sigParams = NULL;
     word32        sigParamsSz = 0;
 
+
+    if (caKey != NULL) {
+        *caKey = NULL;
+        *caKeySz = 0;
+    }
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -4862,6 +4870,10 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                 sigIndex - tbsCertIdx, ca->publicKey, ca->pubKeySize,
                 ca->keyOID, cert + idx, len, signatureOID, sigParams,
                 sigParamsSz, NULL);
+            if (ret == 0 && caKey != NULL) {
+                *caKey = ca->publicKey;
+                *caKeySz = ca->pubKeySize;
+            }
         }
         if (ret != 0) {
             WOLFSSL_ERROR_VERBOSE(ret);

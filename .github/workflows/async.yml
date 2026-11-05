@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential bubblewrap
+          packages: autoconf automake libtool build-essential bubblewrap libpcap-dev
           ghcr-debs-tag: ubuntu-24.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
@@ -92,6 +92,14 @@ jobs:
            "configure": ["--enable-asynccrypt-sw", "--enable-ocspstapling",
             "--enable-ocspstapling2",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"comment": "The API tests do not finish with WC_ASYNC_THRESH_NONE, so only the sniffer suite runs.",
+           "name": "asynccrypt-sw-sniffer",
+           "configure": ["--enable-asynccrypt-sw", "--enable-sniffer",
+            "--enable-aesccm", "--enable-session-ticket",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWC_ASYNC_THRESH_NONE -DWOLFSSL_SNIFFER_KEYLOGFILE"],
+           "check": false,
+           "run": [["test", "-x", "sslSniffer/sslSnifferTest/snifftest"],
+                   ["../scripts/sniffer-testsuite.test"]]},
           {"name": "ocsp-nonblock-certs", "minutes": 1.5,
            "configure": ["--enable-ocsp",
             "CFLAGS=-DTEST_NONBLOCK_CERTS -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]}

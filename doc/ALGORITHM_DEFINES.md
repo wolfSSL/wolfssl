@@ -167,6 +167,7 @@ Size and side channels:
 | `WOLFSSL_AES_SMALL_TABLES` | 256-byte tables instead of 4 × 1 kB |
 | `WOLFSSL_AES_NO_UNROLL` | Do not unroll the round loop |
 | `WOLFSSL_AES_TOUCH_LINES` | Touch every cache line — cache-timing resistance |
+| `WOLFSSL_AES_NO_TOUCH_LINES` | Clear the RISC-V touch-lines default on its own; `WC_NO_CACHE_RESISTANT` also drops the ECC/RSA cache resistance |
 | `WC_AES_BITSLICED` | Bitsliced implementation, constant time by construction |
 | `AES_GCM_GMULT_NCT` | Non-constant-time GHASH. Faster, weaker |
 | `WOLFSSL_AESGCM_STREAM` | Streaming GCM API for data that does not fit in memory |

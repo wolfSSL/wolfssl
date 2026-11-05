@@ -37,6 +37,8 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_AES_SETKEY: Enable callback for AES key setup default: off
  * WOLF_CRYPTO_CB_RSA_PAD: Enable callback for RSA padding      default: off
  *                      operations (custom padding handling).
+ * WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK:                           default: off
+ *                      Software keygen for id/label keys a device declines.
  * DEBUG_CRYPTOCB:      Enable debug InfoString functions        default: off
  *
  * Device ID options:
@@ -70,6 +72,7 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_MLDSA: Use only callbacks for ML-DSA    default: off
  * WOLF_CRYPTO_CB_ONLY_LMS: Use only callbacks for LMS/HSS     default: off
  * WOLF_CRYPTO_CB_ONLY_XMSS: Use only callbacks for XMSS       default: off
+ * WOLF_CRYPTO_CB_ONLY_FRODOKEM: Use only callbacks for FrodoKEM default: off
  * WOLF_CRYPTO_CB_SHAKE_XOF: Dispatch SHAKE absorb and squeeze  default: off
  *                      as well as update and final. Off by
  *                      default because a callback that predates
@@ -182,6 +185,7 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_ED448_VERIFY: return "ED448-Verify";
         case WC_PK_TYPE_ED448_MAKE_PUB: return "ED448 MakePub";
         case WC_PK_TYPE_ED448_CHECK_KEY: return "ED448 CheckKey";
+        case WC_PK_TYPE_ED448_KEYGEN: return "ED448 KeyGen";
         case WC_PK_TYPE_CURVE25519: return "CURVE25519";
         case WC_PK_TYPE_RSA_KEYGEN: return "RSA KeyGen";
         case WC_PK_TYPE_EC_KEYGEN: return "ECC KeyGen";
@@ -515,6 +519,16 @@ static CryptoCb* wc_CryptoCb_FindDevice(int devId, int algoType)
     (void)algoType;
     return wc_CryptoCb_GetDevice(localDevId);
 }
+
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+/* Returns 1 if public key operations on devId reach a registered device. */
+int wc_CryptoCb_HasPkDevice(int devId)
+{
+    CryptoCb* dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+
+    return (dev != NULL) && (dev->cb != NULL) && (dev->devId != INVALID_DEVID);
+}
+#endif
 
 
 static CryptoCb* wc_CryptoCb_FindDeviceByIndex(int startIdx)
@@ -1858,6 +1872,31 @@ int wc_CryptoCb_Curve448Generic(int devId, int public_size, byte* pub,
 #endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
+int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize, ed448_key* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED448_KEYGEN;
+        cryptoInfo.pk.ed448kg.rng = rng;
+        cryptoInfo.pk.ed448kg.size = keySize;
+        cryptoInfo.pk.ed448kg.key = key;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
 int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen, byte* out,
     word32 *outLen, ed448_key* key, byte type, const byte* context,
     byte contextLen)
@@ -2106,7 +2145,14 @@ int wc_CryptoCb_PqcStatefulSigVerify(const byte* sig, word32 sigSz,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);
+    ret = wc_CryptoCb_TranslateErrorCode(ret);
+    /* A device may write *res and then fail or decline; any non-zero
+     * return reports the signature as invalid. */
+    if ((ret != 0) && (res != NULL)) {
+        *res = 0;
+    }
+
+    return ret;
 }
 
 int wc_CryptoCb_PqcStatefulSigSigsLeft(int type, void* key, word32* sigsLeft)
@@ -2473,7 +2519,14 @@ int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);
+    ret = wc_CryptoCb_TranslateErrorCode(ret);
+    /* A device may write *res and then fail or decline; any non-zero
+     * return reports the signature as invalid. */
+    if ((ret != 0) && (res != NULL)) {
+        *res = 0;
+    }
+
+    return ret;
 }
 
 int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen, const byte* mprime,
@@ -2508,7 +2561,14 @@ int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen, const byte* mprime,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);
+    ret = wc_CryptoCb_TranslateErrorCode(ret);
+    /* A device may write *res and then fail or decline; any non-zero
+     * return reports the signature as invalid. */
+    if ((ret != 0) && (res != NULL)) {
+        *res = 0;
+    }
+
+    return ret;
 }
 
 int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,

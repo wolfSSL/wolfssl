@@ -956,3 +956,158 @@ int test_wolfSSL_X509_NAME_ENTRY_get_object(void)
     return EXPECT_RESULT();
 }
 
+/* Test the name entries of the common attributes share read-only objects that
+ * are the same as the objects made for their NIDs.
+ */
+int test_wolfSSL_X509_NAME_ENTRY_shared_object(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(NO_CERTS) && !defined(NO_ASN)
+    static const int nids[] = {
+        WC_NID_commonName, WC_NID_organizationName,
+        WC_NID_organizationalUnitName, WC_NID_countryName,
+        WC_NID_stateOrProvinceName, WC_NID_localityName, WC_NID_emailAddress,
+        WC_NID_serialNumber, WC_NID_domainComponent
+    };
+    static const byte val[] = "wolfSSL";
+    int valSz = (int)sizeof(val) - 1;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_X509_NAME* name2 = NULL;
+    WOLFSSL_X509_NAME_ENTRY* ne = NULL;
+    WOLFSSL_ASN1_OBJECT* shared = NULL;
+    WOLFSSL_ASN1_OBJECT* cn = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    char txt[2][64];
+    size_t i;
+
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectNotNull(name2 = wolfSSL_X509_NAME_new());
+    for (i = 0; EXPECT_SUCCESS() && (i < XELEM_CNT(nids)); i++) {
+        ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name, nids[i],
+            WOLFSSL_MBSTRING_UTF8, val, valSz, -1, 0), 1);
+        ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name2, nids[i],
+            WOLFSSL_MBSTRING_UTF8, val, valSz, -1, 0), 1);
+        ExpectNotNull(shared = wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(name, (int)i)));
+        /* The entries of all names share the attribute's object. */
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(name2, (int)i)), shared);
+        /* It is not freed with an entry. */
+        ExpectIntEQ(shared->dynamic, 0);
+
+        /* It is the same as the object made for the NID. */
+        ExpectNotNull(obj = wolfSSL_OBJ_nid2obj(nids[i]));
+        ExpectIntEQ(shared->nid, obj->nid);
+        ExpectIntEQ(shared->type, obj->type);
+        ExpectIntEQ(shared->grp, obj->grp);
+        ExpectStrEQ(shared->sName, obj->sName);
+        ExpectIntEQ(shared->objSz, obj->objSz);
+        ExpectBufEQ(shared->obj, obj->obj, obj->objSz);
+        /* The fields before d are set by position: one out of place shows
+         * here. */
+        ExpectPtrEq(shared->heap, obj->heap);
+    #ifdef OPENSSL_EXTRA
+        ExpectIntEQ(shared->ca, obj->ca);
+        ExpectPtrEq(shared->pathlen, obj->pathlen);
+    #endif
+    #ifdef WOLFSSL_APACHE_HTTPD
+        ExpectPtrEq(shared->gn, obj->gn);
+    #endif
+    #ifdef OPENSSL_EXTRA
+        ExpectIntEQ(wolfSSL_OBJ_cmp(shared, obj), 0);
+    #endif
+        ExpectIntEQ(wolfSSL_OBJ_obj2txt(txt[0], sizeof(txt[0]), shared, 0),
+            wolfSSL_OBJ_obj2txt(txt[1], sizeof(txt[1]), obj, 0));
+        ExpectStrEQ(txt[0], txt[1]);
+        wolfSSL_ASN1_OBJECT_free(obj);
+        obj = NULL;
+    }
+    ExpectNotNull(cn = wolfSSL_X509_NAME_ENTRY_get_object(
+        wolfSSL_X509_NAME_get_entry(name2, 0)));
+
+    /* Freeing a shared object leaves it as it is. */
+    wolfSSL_ASN1_OBJECT_free(shared);
+    ExpectIntEQ(shared->nid, WC_NID_domainComponent);
+    /* A copy of it is dynamic. */
+    ExpectNotNull(obj = wolfSSL_ASN1_OBJECT_dup(cn));
+    ExpectIntNE(obj->dynamic & WOLFSSL_ASN1_DYNAMIC, 0);
+    ExpectIntEQ(obj->nid, WC_NID_commonName);
+#ifdef OPENSSL_EXTRA
+    ExpectIntEQ(wolfSSL_OBJ_cmp(obj, cn), 0);
+#endif
+    wolfSSL_ASN1_OBJECT_free(obj);
+    obj = NULL;
+
+    /* Setting an entry to an attribute with no shared object gives the entry
+     * an object of its own, rather than writing to the shared one. */
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name, WC_NID_title,
+        WOLFSSL_MBSTRING_UTF8, val, valSz, 0, 0), 1);
+    ExpectNotNull(obj = wolfSSL_X509_NAME_ENTRY_get_object(
+        wolfSSL_X509_NAME_get_entry(name, 0)));
+    ExpectIntEQ(obj->nid, WC_NID_title);
+    ExpectIntNE(obj->dynamic & WOLFSSL_ASN1_DYNAMIC, 0);
+    ExpectIntEQ(cn->nid, WC_NID_commonName);
+    ExpectStrEQ(cn->sName, "CN");
+    /* And back to the shared one, freeing the entry's own. */
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name, WC_NID_commonName,
+        WOLFSSL_MBSTRING_UTF8, val, valSz, 0, 0), 1);
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+        wolfSSL_X509_NAME_get_entry(name, 0)), cn);
+    obj = NULL;
+
+    /* The same when reusing an entry that is not in a name. */
+    ExpectNotNull(ne = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL,
+        WC_NID_commonName, WOLFSSL_MBSTRING_UTF8, val, valSz));
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(ne), cn);
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_create_by_NID(&ne, WC_NID_title,
+        WOLFSSL_MBSTRING_UTF8, val, valSz), ne);
+    ExpectNotNull(obj = wolfSSL_X509_NAME_ENTRY_get_object(ne));
+    ExpectIntEQ(obj->nid, WC_NID_title);
+    ExpectIntEQ(cn->nid, WC_NID_commonName);
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_create_by_NID(&ne, WC_NID_countryName,
+        WOLFSSL_MBSTRING_UTF8, (const byte*)"US", 2), ne);
+    ExpectIntEQ(wolfSSL_X509_NAME_ENTRY_get_object(ne)->nid,
+        WC_NID_countryName);
+    wolfSSL_X509_NAME_ENTRY_free(ne);
+    ne = NULL;
+    obj = NULL;
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    {
+        WOLFSSL_X509* x509 = NULL;
+        WOLFSSL_X509_NAME* subject = NULL;
+        WOLFSSL_X509_NAME* dup = NULL;
+        int idx = -1;
+
+        /* A certificate's names use the shared objects too. The CA is
+         * self-signed so its issuer and subject have the same attributes. */
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(caCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(subject = wolfSSL_X509_get_subject_name(x509));
+        ExpectIntGE(idx = wolfSSL_X509_NAME_get_index_by_NID(subject,
+            WC_NID_commonName, -1), 0);
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(subject, idx)), cn);
+        ExpectIntEQ(wolfSSL_X509_NAME_get_index_by_OBJ(subject, cn, -1), idx);
+        ExpectIntGE(idx = wolfSSL_X509_NAME_get_index_by_NID(
+            wolfSSL_X509_get_issuer_name(x509), WC_NID_commonName, -1), 0);
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(wolfSSL_X509_get_issuer_name(x509),
+            idx)), cn);
+        ExpectNotNull(dup = wolfSSL_X509_NAME_dup(subject));
+        ExpectIntGE(idx = wolfSSL_X509_NAME_get_index_by_NID(dup,
+            WC_NID_commonName, -1), 0);
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(dup, idx)), cn);
+        wolfSSL_X509_NAME_free(dup);
+        wolfSSL_X509_free(x509);
+    }
+#endif
+
+    wolfSSL_X509_NAME_free(name2);
+    wolfSSL_X509_NAME_free(name);
+#endif
+    return EXPECT_RESULT();
+}
+

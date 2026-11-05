@@ -46,9 +46,13 @@
 
 int SetCipherSpecs(WOLFSSL* ssl)
 {
-    int ret = GetCipherSpec(ssl->options.side, ssl->options.cipherSuite0,
-                                ssl->options.cipherSuite, &ssl->specs,
-                                &ssl->options);
+    int ret;
+
+    /* GetCipherSpec only sets these, for the suite being set. */
+    ssl->options.usingPSK_cipher = 0;
+    ssl->options.usingAnon_cipher = 0;
+    ret = GetCipherSpec(ssl->options.side, ssl->options.cipherSuite0,
+                        ssl->options.cipherSuite, &ssl->specs, &ssl->options);
     if (ret == 0) {
     #ifdef WOLFSSL_TLS13
         /* The client only checks that the ServerHello suite was offered, and

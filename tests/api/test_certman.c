@@ -2514,6 +2514,272 @@ int test_wolfSSL_CertManagerCRL(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* 2021-01-01, before the test certs are valid, before the CRL expires. */
+#define TEST_CM_CRL_BEFORE_NOTBEFORE 1609459200L
+
+/* 2037-12-31, after the test certs and the CRL expire, and before a 32-bit
+ * time_t runs out. */
+#define TEST_CM_CRL_AFTER_NEXTUPDATE 2145830400L
+
+static time_t test_cm_crl_out_of_date_now;
+
+static time_t test_cm_crl_out_of_date_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_cm_crl_out_of_date_now;
+    return test_cm_crl_out_of_date_now;
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+static int test_cm_crl_error_queued(int err)
+{
+    unsigned long e;
+    int found = 0;
+
+    while ((e = wolfSSL_ERR_get_error()) != 0) {
+        if (e == (unsigned long)-err)
+            found = 1;
+    }
+    return found;
+}
+#endif
+#endif
+
+int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* crl_revoked = "./certs/crl/crl.revoked";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl_revoked,
+        WOLFSSL_FILETYPE_PEM), 1);
+
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    /* Backwards, so the cert is not yet valid but the CRL is still current. */
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+    /* A revocation question must not be answered with a date error. */
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    /* Forwards, so the CRL has expired too and must not hide behind the
+     * waivable date error. */
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_AFTER_NEXTUPDATE;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    wolfSSL_ERR_clear_error();
+#endif
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    ExpectIntEQ(test_cm_crl_error_queued(WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)),
+        1);
+#endif
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
+    wc_SetTimeCb(NULL);
+
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* With no CRL loaded the date error stays, as CRL_MISSING may be waived
+     * as well. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    wolfSSL_ERR_clear_error();
+#endif
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E));
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    ExpectIntEQ(test_cm_crl_error_queued(WC_NO_ERR_TRACE(CRL_MISSING)), 1);
+#endif
+    wc_SetTimeCb(NULL);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    defined(HAVE_CRL_IO) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+static int test_cm_crl_would_block_err_calls;
+
+static int test_cm_crl_would_block_io_cb(WOLFSSL_CRL* crl, const char* url,
+    int urlSz)
+{
+    (void)crl;
+    (void)url;
+    (void)urlSz;
+    return WOLFSSL_CBIO_ERR_WANT_READ;
+}
+
+static int test_cm_crl_would_block_err_cb(int ret, WOLFSSL_CRL* crl,
+    WOLFSSL_CERT_MANAGER* cm, void* ctx)
+{
+    (void)crl;
+    (void)cm;
+    (void)ctx;
+    test_cm_crl_would_block_err_calls++;
+    return ret == WC_NO_ERR_TRACE(CRL_MISSING);
+}
+#endif
+
+/* A synchronous check cannot retry a fetch that would block, so it treats the
+ * CRL as missing, which the CRL error callback may waive. */
+int test_wolfSSL_CertManagerCheckCRL_would_block(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    defined(HAVE_CRL_IO) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, "./certs/ca-cert.pem", NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_IOCb(cm,
+        test_cm_crl_would_block_io_cb), 1);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_MISSING));
+
+    test_cm_crl_would_block_err_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_ErrorCb(cm,
+        test_cm_crl_would_block_err_cb, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), 1);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), 1);
+    ExpectIntEQ(test_cm_crl_would_block_err_calls, 2);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+static int test_cm_crl_date_cb_waive;
+static int test_cm_crl_date_cb_seen[2];
+static int test_cm_crl_date_cb_calls;
+
+static int test_cm_crl_date_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    if (preverify)
+        return preverify;
+    if (test_cm_crl_date_cb_calls < 2)
+        test_cm_crl_date_cb_seen[test_cm_crl_date_cb_calls] = store->error;
+    test_cm_crl_date_cb_calls++;
+    return test_cm_crl_date_cb_calls <= test_cm_crl_date_cb_waive;
+}
+#endif
+
+int test_wolfSSL_CertManagerVerify_crl_date_callback(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, "./certs/ca-cert.pem", NULL),
+        1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    wolfSSL_CertManagerSetVerify(cm, test_cm_crl_date_verify_cb);
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+
+    /* Waiving the date error leaves the missing CRL for the callback. */
+    test_cm_crl_date_cb_waive = 1;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 2);
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+    ExpectIntEQ(test_cm_crl_date_cb_seen[0],
+        WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E));
+    ExpectIntEQ(test_cm_crl_date_cb_seen[1], WC_NO_ERR_TRACE(CRL_MISSING));
+#endif
+
+    test_cm_crl_date_cb_waive = 2;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 2);
+
+    /* Rejecting the date error returns the revocation, as without a
+     * callback. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, "./certs/crl/crl.revoked",
+        WOLFSSL_FILETYPE_PEM), 1);
+    test_cm_crl_date_cb_waive = 0;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 1);
+    wolfSSL_CertManagerSetVerify(cm, NULL);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    wc_SetTimeCb(NULL);
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    {
+        WOLFSSL_CTX* ctx = NULL;
+
+        /* A certificate whose load error the callback waives is not
+         * checked against a CRL, like any other certificate load. */
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 4096), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+        if (ctx != NULL) {
+            wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx),
+                test_cm_crl_date_verify_cb);
+        }
+        test_cm_crl_date_cb_waive = 1;
+        test_cm_crl_date_cb_calls = 0;
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+            "./certs/server-cert.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_cm_crl_date_cb_calls, 1);
+        wolfSSL_CTX_free(ctx);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CRL_reason_extensions_cleanup(void)
 {
     EXPECT_DECLS;
@@ -3746,6 +4012,25 @@ static int crl_unk_ext_cb_accept(const word16* oid, word32 oidSz,
     return 0; /* accept */
 }
 
+/* CRL Reason OID 2.5.29.21 (last component for the entry-ext test) and
+ * obsolete X.509v2 AKI 2.5.29.1 (last component for the CRL-level test). */
+static int crl_unk_ext_cb_accept32(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    CRLUnkExtCtx* ctx = (CRLUnkExtCtx*)ctxIn;
+    (void)der;
+    (void)derSz;
+    if (ctx != NULL) {
+        ctx->calls++;
+        if (crit)
+            ctx->sawCritical = 1;
+        /* Expect OID arc starts at {2, 5, 29, ...}. */
+        if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
+            ctx->oidMatched = 1;
+    }
+    return 0; /* accept */
+}
+
 static int crl_unk_ext_cb_reject(const word16* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
@@ -3755,7 +4040,25 @@ static int crl_unk_ext_cb_reject(const word16* oid, word32 oidSz,
     return ASN_PARSE_E;
 }
 
+static int crl_unk_ext_cb_reject32(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    if (ctxIn != NULL)
+        ((CRLUnkExtCtx*)ctxIn)->calls++;
+    return ASN_PARSE_E;
+}
+
 static int crl_unk_ext_cb_reject_positive(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    if (ctxIn != NULL)
+        ((CRLUnkExtCtx*)ctxIn)->calls++;
+    return 1;
+}
+
+static int crl_unk_ext_cb_reject_positive32(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
@@ -3786,7 +4089,29 @@ static int crl_unk_ext_cb_noctx_accept(const word16* oid, word32 oidSz,
     return 0; /* accept */
 }
 
+static int crl_unk_ext_cb_noctx_accept32(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz)
+{
+    (void)der;
+    (void)derSz;
+    crl_unk_ext_noctx_calls++;
+    if (crit)
+        crl_unk_ext_noctx_sawCritical = 1;
+    /* Expect OID arc starts at {2, 5, 29, ...}. */
+    if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
+        crl_unk_ext_noctx_oidMatched = 1;
+    return 0; /* accept */
+}
+
 static int crl_unk_ext_cb_noctx_reject(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    crl_unk_ext_noctx_calls++;
+    return ASN_PARSE_E;
+}
+
+static int crl_unk_ext_cb_noctx_reject32(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
@@ -3804,31 +4129,63 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_entry_ext(void)
 #if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
-    CRLUnkExtCtx ctx = { 0, 0, 0 };
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
+    CRLUnkExtCtx ctx;
 
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
-        "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+            "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
 
-    /* Register a callback that accepts any unknown extension. */
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+        /* Register a callback that accepts any unknown extension. */
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    /* Without the callback, this load fails (see
-     * test_wolfSSL_CRL_unknown_critical_entry_ext above).  With an
-     * accepting callback registered, the load must succeed. */
-    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
-        "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM),
-        WOLFSSL_SUCCESS);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_accept32, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    /* Callback must have fired at least once on the unknown critical OID. */
-    ExpectIntGT(ctx.calls, 0);
-    ExpectIntEQ(ctx.sawCritical, 1);
-    ExpectIntEQ(ctx.oidMatched, 1);
+            case CallbackTypeEnd:
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
 
-    wolfSSL_CertManagerFree(cm);
+        /* Without the callback, this load fails (see
+         * test_wolfSSL_CRL_unknown_critical_entry_ext above).  With an
+         * accepting callback registered, the load must succeed. */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+            "./certs/crl/extra-crls/crl_critical_entry.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        /* Callback must have fired at least once on the unknown critical
+         * OID. */
+        ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(ctx.sawCritical, 1);
+        ExpectIntEQ(ctx.oidMatched, 1);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -3844,41 +4201,95 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
 #if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
     CRLUnkExtCtx ctx = { 0, 0, 0 };
 
     /* Accepting callback: the load must succeed and the callback must have
      * seen the critical unknown OID. */
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(ctx.calls, 0);
-    ExpectIntEQ(ctx.sawCritical, 1);
-    ExpectIntEQ(ctx.oidMatched, 1);
-    wolfSSL_CertManagerFree(cm);
-    cm = NULL;
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+                break;
+
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_accept32, &ctx), WOLFSSL_SUCCESS);
+                break;
+
+            case CallbackTypeEnd:
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(ctx.sawCritical, 1);
+        ExpectIntEQ(ctx.oidMatched, 1);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 
     /* Rejecting callback: the same CRL must fail to load. */
-    ctx.calls = 0;
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_reject, &ctx), WOLFSSL_SUCCESS);
-    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(ctx.calls, 0);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_reject, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    wolfSSL_CertManagerFree(cm);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_reject32, &ctx), WOLFSSL_SUCCESS);
+                break;
+
+            case CallbackTypeEnd:
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+        ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(ctx.calls, 0);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -3895,24 +4306,54 @@ int test_wolfSSL_CRL_unknown_ext_cb_positive_return_fails_load(void)
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     CRLUnkExtCtx ctx = { 0, 0, 0 };
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
     int rc;
 
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
-        "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+            "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_reject_positive, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_reject_positive, &ctx), WOLFSSL_SUCCESS);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_reject_positive32, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    rc = wolfSSL_CertManagerLoadCRLFile(cm,
-        "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM);
-    ExpectIntNE(rc, WOLFSSL_SUCCESS);
-    ExpectIntLT(rc, 0);
-    ExpectIntGT(ctx.calls, 0);
+            case CallbackTypeEnd:
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
 
-    wolfSSL_CertManagerFree(cm);
+        rc = wolfSSL_CertManagerLoadCRLFile(cm,
+            "./certs/crl/extra-crls/crl_critical_entry.pem",
+            WOLFSSL_FILETYPE_PEM);
+        ExpectIntNE(rc, WOLFSSL_SUCCESS);
+        ExpectIntLT(rc, 0);
+        ExpectIntGT(ctx.calls, 0);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -3928,50 +4369,204 @@ int test_wolfSSL_CRL_unknown_ext_cb_noctx(void)
 #if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
 
     /* A NULL cert manager is rejected by both registration entry points. */
     ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(NULL,
         crl_unk_ext_cb_noctx_accept), BAD_FUNC_ARG);
     ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(NULL,
         crl_unk_ext_cb_accept, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32(NULL,
+        crl_unk_ext_cb_noctx_accept32), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(NULL,
+        crl_unk_ext_cb_accept32, NULL), BAD_FUNC_ARG);
 
     /* Accepting callback: the critical unknown CRL-level extension in the
      * crl_obsolete_critical fixture is rescued and the load succeeds.  The
      * callback must have seen the critical unknown OID. */
-    crl_unk_ext_noctx_calls = 0;
-    crl_unk_ext_noctx_sawCritical = 0;
-    crl_unk_ext_noctx_oidMatched = 0;
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
-        crl_unk_ext_cb_noctx_accept), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(crl_unk_ext_noctx_calls, 0);
-    ExpectIntEQ(crl_unk_ext_noctx_sawCritical, 1);
-    ExpectIntEQ(crl_unk_ext_noctx_oidMatched, 1);
-    wolfSSL_CertManagerFree(cm);
-    cm = NULL;
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        crl_unk_ext_noctx_calls = 0;
+        crl_unk_ext_noctx_sawCritical = 0;
+        crl_unk_ext_noctx_oidMatched = 0;
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch(CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
+                    crl_unk_ext_cb_noctx_accept), WOLFSSL_SUCCESS);
+                break;
+
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32(cm,
+                    crl_unk_ext_cb_noctx_accept32), WOLFSSL_SUCCESS);
+                break;
+
+            case CallbackTypeEnd:
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(crl_unk_ext_noctx_calls, 0);
+        ExpectIntEQ(crl_unk_ext_noctx_sawCritical, 1);
+        ExpectIntEQ(crl_unk_ext_noctx_oidMatched, 1);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 
     /* Rejecting callback: the same CRL must fail to load. */
-    crl_unk_ext_noctx_calls = 0;
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
-        crl_unk_ext_cb_noctx_reject), WOLFSSL_SUCCESS);
-    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(crl_unk_ext_noctx_calls, 0);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        crl_unk_ext_noctx_calls = 0;
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
+                    crl_unk_ext_cb_noctx_reject), WOLFSSL_SUCCESS);
+                break;
 
-    wolfSSL_CertManagerFree(cm);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32(cm,
+                    crl_unk_ext_cb_noctx_reject32), WOLFSSL_SUCCESS);
+                break;
+
+            case CallbackTypeEnd:
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+        ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(crl_unk_ext_noctx_calls, 0);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+/* Which unknown-extension callback the parser last invoked:
+ * -1 = neither, 0 = the word16 one, 1 = the word32 one. */
+static int crl_unk_ext_last_cb = -1;
+
+/* When both a word16 and a word32 unknown-extension callback are registered,
+ * only the word32 one may run.  The word16 callback here rejects the CRL and
+ * the word32 callback accepts it, so a successful load proves the word32
+ * callback took precedence. */
+static int crl_unk_ext_cb_16_reject(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    if (ctxIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    ((CRLUnkExtCtx*)ctxIn)->calls++;
+    crl_unk_ext_last_cb = 0;
+    return 1;
+}
+
+static int crl_unk_ext_cb_32_accept(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    if (ctxIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    ((CRLUnkExtCtx*)ctxIn)->calls++;
+    crl_unk_ext_last_cb = 1;
+    return 0;
+}
+#endif
+
+int test_wolfSSL_CRL_unknown_ext_cb_32_preferred(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+    int reg32First;
+
+    /* Precedence must not depend on registration order, so run it both
+     * ways. */
+    for (reg32First = 0; reg32First < 2; reg32First++) {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        /* Separate contexts: each Ex callback must receive its own. */
+        CRLUnkExtCtx ctx = { 0, 0, 0 };
+        CRLUnkExtCtx ctx16 = { 0, 0, 0 };
+
+        crl_unk_ext_last_cb = -1;
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+            "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        if (reg32First) {
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                crl_unk_ext_cb_16_reject, &ctx16), WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                crl_unk_ext_cb_16_reject, &ctx16), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
+        }
+
+        /* This CRL carries an unknown critical entry extension, so it only
+         * loads when a callback accepts it (see
+         * test_wolfSSL_CRL_unknown_critical_entry_ext above).  The word16
+         * callback rejects, so success means the word32 callback ran. */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+            "./certs/crl/extra-crls/crl_critical_entry.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(ctx16.calls, 0);
+        ExpectIntEQ(crl_unk_ext_last_cb, 1);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s callback registered first; "
+                "last callback invoked: %s)\n",
+                reg32First ? "word32" : "word16",
+                (crl_unk_ext_last_cb < 0) ? "none" :
+                    (crl_unk_ext_last_cb == 0) ? "word16" : "word32");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -4796,6 +5391,71 @@ int test_wolfSSL_trust_peer_cert_dates(void)
 
         test_ssl_memio_cleanup(&test_ctx);
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Decision-coverage drivers for the ssl_certman.c argument guards left
+ * unpaired by the functional tests. The cert-manager helpers are
+ * WOLFSSL_LOCAL, so this white-box test calls them directly. Each block
+ * names the source line:condition it closes. */
+int test_certman_decision_coverage(void)
+{
+    EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL certman fns, hidden from the .so - shared builds
+     * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
+     * builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte hash[SIGNER_DIGEST_SIZE];
+    Signer signer;
+    Signer* hs = NULL;
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(&signer, 0, sizeof(signer));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    cm = ctx->cm;
+    ExpectNotNull(cm);
+
+    /* --- 2700:0/1 AlreadySigner: cm==NULL || hash==NULL ------------------ */
+    (void)AlreadySigner(NULL, hash);
+    (void)AlreadySigner(cm, NULL);
+    (void)AlreadySigner(cm, hash);
+
+    /* --- 2812:0/1 GetCA: cm==NULL || hash==NULL -------------------------- */
+    (void)GetCA(NULL, hash);
+    (void)GetCA(cm, NULL);
+    (void)GetCA(cm, hash);
+
+    /* --- 3037:0/1 AddSigner: cm==NULL || s==NULL ------------------------- */
+    (void)AddSigner(NULL, &signer);
+    (void)AddSigner(cm, NULL);
+    /* The all-valid case inserts the Signer into the cm's CA table, which the
+     * cm then owns and frees on ctx-free; use a heap Signer and remove it
+     * before freeing so ownership stays clean. */
+    hs = (Signer*)XMALLOC(sizeof(Signer), cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (hs != NULL) {
+        XMEMSET(hs, 0, sizeof(Signer));
+        hs->type = WOLFSSL_USER_CA;
+        (void)AddSigner(cm, hs);
+        /* RemoveCA frees the signer it removes; no XFREE after it. */
+        (void)RemoveCA(cm, hash, WOLFSSL_USER_CA);
+    }
+
+    /* --- 3352/3372:0/1 RemoveCA: cm==NULL || hash==NULL ------------------ */
+    (void)RemoveCA(NULL, hash, WOLFSSL_USER_CA);
+    (void)RemoveCA(cm, NULL, WOLFSSL_USER_CA);
+    (void)RemoveCA(cm, hash, WOLFSSL_USER_CA);
+
+    /* --- 3399:0/1/2 SetCAType: cm==NULL || hash==NULL || type range ------ */
+    (void)SetCAType(NULL, hash, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, NULL, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, hash, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, hash, 0);
+
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

@@ -177,7 +177,7 @@ static WC_INLINE void* TrackMalloc(size_t sz)
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY_PRINT
-    wc_mem_printf("Alloc: %p -> %u at %s:%d\n",
+    wc_mem_printf("Alloc: %p -> %u at %s:%u\n",
         header->thisMemory, (word32)sz, func, line);
 #else
     (void)func;
@@ -298,7 +298,7 @@ static WC_INLINE void TrackFree(void* ptr)
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY_PRINT
-    wc_mem_printf("Free: %p -> %u at %s:%d\n", ptr, (word32)sz, func, line);
+    wc_mem_printf("Free: %p -> %u at %s:%u\n", ptr, (word32)sz, func, line);
 #else
     (void)func;
     (void)line;
@@ -438,7 +438,7 @@ static WC_INLINE void ShowMemoryTracker(void)
                  header != NULL;
                  header = header->next) {
         #ifdef WOLFSSL_DEBUG_MEMORY
-                wc_mem_printf("Leak: Ptr %p, Size %u, Func %s, Line %d\n",
+                wc_mem_printf("Leak: Ptr %p, Size %u, Func %s, Line %u\n",
                     (byte*)header + sizeof(memHint),
                     (unsigned int)header->thisSize, header->func, header->line);
         #else

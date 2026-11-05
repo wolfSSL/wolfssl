@@ -300,7 +300,7 @@ int test_wolfSSL_i2d_ECPKParameters(void)
 int test_wolfSSL_EC_POINT(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_SP_MATH) && \
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
 
 #ifdef OPENSSL_EXTRA
@@ -532,6 +532,7 @@ int test_wolfSSL_EC_POINT(void)
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     {
         EC_POINT* orig_point = NULL;
+        EC_POINT* neg_g = NULL;
         ExpectNotNull(orig_point = EC_POINT_new(group));
         ExpectIntEQ(EC_POINT_add(group, orig_point, set_point, set_point, NULL),
                     1);
@@ -546,6 +547,22 @@ int test_wolfSSL_EC_POINT(void)
         ExpectIntEQ(EC_POINT_add(group, orig_point, orig_point, new_point,
                                  NULL), 1);
         ExpectIntEQ(EC_POINT_cmp(group, orig_point, set_point, NULL), 0);
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
+        /* new_point is set_point inverted, so the sum is infinity */
+        ExpectIntEQ(EC_POINT_add(group, orig_point, set_point, new_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+        ExpectIntEQ(EC_POINT_add(group, orig_point, new_point, set_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+        /* 1*G + 1*(-G) is infinity */
+        ExpectNotNull(neg_g = EC_POINT_dup(Gxy, group));
+        ExpectIntEQ(EC_POINT_invert(group, neg_g, NULL), 1);
+        ExpectIntEQ(EC_POINT_mul(group, orig_point, BN_value_one(), neg_g,
+                                 BN_value_one(), NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+#endif
+        EC_POINT_free(neg_g);
         EC_POINT_free(orig_point);
     }
 #endif
@@ -1656,6 +1673,44 @@ int test_ECDSA_size_sign(void)
 
     EC_KEY_free(key);
 #endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP */
+    return EXPECT_RESULT();
+}
+
+int test_ECDSA_do_verify_oversized_sig(void)
+{
+    EXPECT_DECLS;
+    /* NO_RSA builds may size big integers too small to hold an r of
+     * ECC_MAX_SIG_SIZE bytes. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !defined(NO_RSA)
+    EC_KEY* key = NULL;
+    ECDSA_SIG* sig = NULL;
+    BIGNUM* r = NULL;
+    BIGNUM* s = NULL;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    byte big[ECC_MAX_SIG_SIZE];
+
+    XMEMSET(hash, 123, sizeof(hash));
+    XMEMSET(big, 0xff, sizeof(big));
+
+    ExpectNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(sig = ECDSA_SIG_new());
+    /* r alone DER encodes to more than ECC_MAX_SIG_SIZE bytes. */
+    ExpectNotNull(r = BN_bin2bn(big, (int)sizeof(big), NULL));
+    ExpectNotNull(s = BN_new());
+    ExpectIntEQ(BN_set_word(s, 1), 1);
+    ExpectIntEQ(ECDSA_SIG_set0(sig, r, s), 1);
+    if (EXPECT_FAIL()) {
+        BN_free(r);
+        BN_free(s);
+    }
+
+    ExpectIntEQ(ECDSA_do_verify(hash, sizeof(hash), sig, key),
+        WOLFSSL_FATAL_ERROR);
+
+    ECDSA_SIG_free(sig);
+    EC_KEY_free(key);
+#endif
     return EXPECT_RESULT();
 }
 

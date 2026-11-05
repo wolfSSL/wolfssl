@@ -147,6 +147,9 @@ int test_wolfSSL_DES(void)
     ExpectIntEQ((DES_cbc_cksum(msg, NULL, sizeof(msg), &myDes, &iv)), 0);
     ExpectIntEQ((DES_cbc_cksum(msg, &key, sizeof(msg), NULL, &iv)), 0);
     ExpectIntEQ((DES_cbc_cksum(msg, &key, sizeof(msg), &myDes, NULL)), 0);
+    ExpectIntEQ((DES_cbc_cksum(msg, &key, 0, &myDes, &iv)), 0);
+    ExpectIntEQ((DES_cbc_cksum(msg, &key, -1, &myDes, &iv)), 0);
+
     /* DES_cbc_cksum should return the last 4 of the last 8 bytes after
      * DES_cbc_encrypt on the input */
     XMEMSET(iv, 0, sizeof(DES_cblock));

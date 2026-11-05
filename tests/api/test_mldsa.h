@@ -23,6 +23,16 @@
 #define WOLFCRYPT_TEST_MLDSA_H
 
 #include <tests/api/api_decl.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
+#endif
+
+/* Native core, or swdev (which declines sign/verify under NO_CTX). */
+#if defined(WC_MLDSA_HAVE_NATIVE) || \
+    (defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_SWDEV) && \
+     !defined(WOLFSSL_MLDSA_NO_CTX))
+    #define TEST_MLDSA_HAVE_IMPL
+#endif
 
 /* Canonical ML-DSA tests defined in tests/api/test_mldsa.c.
  * These exercise the wc_MlDsaKey / wc_MlDsaKey_* / WC_MLDSA_* API surface
@@ -34,6 +44,7 @@ int test_mldsa_sign(void);
 int test_mldsa_verify(void);
 int test_mldsa_sign_vfy(void);
 int test_mldsa_prehash_strength(void);
+int test_mldsa_verify_err_res(void);
 int test_mldsa_check_key(void);
 int test_mldsa_public_der_decode(void);
 int test_mldsa_der(void);
@@ -41,6 +52,10 @@ int test_mldsa_oneasymkey_version(void);
 int test_mldsa_make_key_from_seed(void);
 int test_mldsa_make_key_twice(void);
 int test_mldsa_make_public_key(void);
+int test_mldsa_make_public_key_then_export(void);
+int test_mldsa_export_key_pair_check(void);
+int test_mldsa_verify_pubkeyset_guard(void);
+int test_mldsa_verify_cb_before_pubkeyset(void);
 int test_mldsa_make_public_key_oom(void);
 int test_mldsa_make_public_key_keeps_cache(void);
 int test_mldsa_make_public_key_tr_mismatch(void);
@@ -76,11 +91,13 @@ int test_wc_MldsaFeatureCoverage(void);
 int test_mldsa_legacy_shim(void);
 int test_wc_MldsaDecisionCoverage2(void);
 int test_wc_MldsaDerDecisionCoverage(void);
+int test_wc_MldsaReworkDecisionCoverage(void);
 int test_mldsa_cb_free(void);
 
 int test_wc_MlDsaKey_seed_service_indicator(void);
 int test_wc_MlDsaKey_SetPrecompA(void);
 int test_mldsa_make_key_rej_ntt_fail(void);
+int test_mldsa_make_key_id_dev(void);
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_mldsa),                                      \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_pubonly_fails),                   \
@@ -89,6 +106,7 @@ int test_mldsa_make_key_rej_ntt_fail(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_verify),                               \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_vfy),                             \
     TEST_DECL_GROUP("mldsa", test_mldsa_prehash_strength),                     \
+    TEST_DECL_GROUP("mldsa", test_mldsa_verify_err_res),                       \
     TEST_DECL_GROUP("mldsa", test_mldsa_check_key),                            \
     TEST_DECL_GROUP("mldsa", test_mldsa_public_der_decode),                    \
     TEST_DECL_GROUP("mldsa", test_mldsa_der),                                  \
@@ -96,6 +114,10 @@ int test_mldsa_make_key_rej_ntt_fail(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_from_seed),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_twice),                       \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key),                      \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_then_export),          \
+    TEST_DECL_GROUP("mldsa", test_mldsa_export_key_pair_check),                \
+    TEST_DECL_GROUP("mldsa", test_mldsa_verify_pubkeyset_guard),               \
+    TEST_DECL_GROUP("mldsa", test_mldsa_verify_cb_before_pubkeyset),           \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_oom),                  \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_keeps_cache),          \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_tr_mismatch),          \
@@ -121,8 +143,10 @@ int test_mldsa_make_key_rej_ntt_fail(void);
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDecisionCoverage2),                  \
     TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_seed_service_indicator),         \
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDerDecisionCoverage),                \
+    TEST_DECL_GROUP("mldsa", test_wc_MldsaReworkDecisionCoverage),             \
     TEST_DECL_GROUP("mldsa", test_mldsa_cb_free),                              \
     TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_SetPrecompA),                    \
-    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_rej_ntt_fail)
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_rej_ntt_fail),                \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_id_dev)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */

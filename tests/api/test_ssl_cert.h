@@ -23,6 +23,7 @@
 #define TESTS_API_SSL_CERT_H
 
 int test_wolfSSL_cert_api_arg_guards(void);
+int test_ssl_cert_decision_coverage(void);
 int test_wolfSSL_crl_ocsp_api_arg_guards(void);
 int test_wolfSSL_ocsp_stapling_accessors(void);
 int test_wolfSSL_crl_io_mock(void);
@@ -41,6 +42,8 @@ int test_wolfSSL_get_peer_chain(void);
 int test_wolfSSL_get_chain_X509(void);
 int test_wolfSSL_get_chain_cert_pem(void);
 int test_wolfSSL_cmp_peer_cert_to_file(void);
+int test_wolfSSL_peer_cert_copy_oom(void);
+int test_wolfSSL_get_peer_certificate_ref(void);
 int test_wolfSSL_CTX_set_client_cert_cb(void);
 int test_wolfSSL_CTX_set_cert_cb(void);
 int test_wolfSSL_cert_setup_cb_ret(void);
@@ -50,6 +53,8 @@ int test_wolfSSL_get0_verified_chain(void);
 int test_wolfSSL_CA_list_add(void);
 int test_wolfSSL_CA_list_get(void);
 int test_wolfSSL_load_client_CA_file(void);
+int test_wolfSSL_CA_names_sent(void);
+int test_wolfSSL_X509_NAME_dup_encoding(void);
 int test_wolfSSL_mutual_auth(void);
 int test_wolfSSL_post_handshake_auth(void);
 int test_wolfSSL_verify_cert_store(void);
@@ -74,6 +79,7 @@ int test_wolfSSL_session_chain_oversized_cert(void);
 int test_wolfSSL_session_ticket_oversized_peer_cert(void);
 int test_wolfSSL_session_chain_tls13_pha(void);
 int test_wolfSSL_session_chain_resume_declined(void);
+int test_wolfSSL_clear_peer_cert_key(void);
 int test_wolfSSL_SESSION_get0_peer_full_chain(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
@@ -85,6 +91,8 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_X509),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_cert_pem),          \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cmp_peer_cert_to_file),       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_peer_cert_copy_oom),          \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_peer_certificate_ref),    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_client_cert_cb),      \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_cert_cb),             \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_setup_cb_ret),           \
@@ -94,6 +102,8 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_add),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_get),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_client_CA_file),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_names_sent),               \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_X509_NAME_dup_encoding),      \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_mutual_auth),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_post_handshake_auth),         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_cert_store),           \
@@ -130,6 +140,7 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_session_chain_tls13_pha),     \
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_session_chain_resume_declined),                       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_clear_peer_cert_key),         \
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_SESSION_get0_peer_full_chain),                        \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_api_arg_guards),         \
@@ -141,6 +152,7 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_pathological_files),     \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_from_fifo),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_more_guards),              \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep), \
+        TEST_DECL_GROUP("ssl_cert", test_ssl_cert_decision_coverage)
 
 #endif /* TESTS_API_SSL_CERT_H */

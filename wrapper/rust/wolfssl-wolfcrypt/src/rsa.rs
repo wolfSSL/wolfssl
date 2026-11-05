@@ -1261,13 +1261,14 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// }
     /// ```
-    #[cfg(all(rsa_pss, rsa_const_api))]
+    #[cfg(all(rsa_pss, any(rsa_const_api, fips_v5_2_3)))]
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let digest_size = crate::buffer_len_to_u32(digest.len())?;
         let rc = unsafe {
-            sys::wc_RsaPSS_VerifyCheck(din.as_ptr(), din_size,
+            // FIPS v5.2.3 declares the input non const but only reads it.
+            sys::wc_RsaPSS_VerifyCheck(din.as_ptr().cast_mut(), din_size,
                 dout.as_mut_ptr(), dout_size, digest.as_ptr(), digest_size,
                 hash_algo, mgf, &mut self.wc_rsakey)
         };
@@ -1385,13 +1386,7 @@ impl RSA {
     /// ```
     #[cfg(random)]
     pub fn set_rng(&mut self, rng: RNG) -> Result<(), i32> {
-        let wc_rng = rng.wc_rng;
-        let rc = unsafe {
-            sys::wc_RsaSetRNG(&mut self.wc_rsakey, wc_rng)
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
+        self.set_wc_rng(&rng)?;
         self.rng = Some(RngHandle::Owned(rng));
         Ok(())
     }
@@ -1403,14 +1398,26 @@ impl RSA {
     /// when the `alloc` feature is enabled.
     #[cfg(all(random, feature = "alloc"))]
     pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
-        let wc_rng = rng.wc_rng;
-        let rc = unsafe {
-            sys::wc_RsaSetRNG(&mut self.wc_rsakey, wc_rng)
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
+        self.set_wc_rng(&rng)?;
         self.rng = Some(RngHandle::Shared(rng));
+        Ok(())
+    }
+
+    /// Point the wolfCrypt key at `rng` for blinding.
+    #[cfg(random)]
+    #[cfg_attr(fips_v5_2_3, allow(unused_variables))]
+    fn set_wc_rng(&mut self, rng: &RNG) -> Result<(), i32> {
+        // FIPS v5.2.3 builds without RSA blinding, so there is no
+        // wc_RsaSetRNG() and private operations need no RNG.
+        #[cfg(not(fips_v5_2_3))]
+        {
+            let rc = unsafe {
+                sys::wc_RsaSetRNG(&mut self.wc_rsakey, rng.wc_rng)
+            };
+            if rc != 0 {
+                return Err(rc);
+            }
+        }
         Ok(())
     }
 

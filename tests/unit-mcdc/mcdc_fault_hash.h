@@ -207,7 +207,7 @@ MCDC_FH_MAYBE_UNUSED static int mcdc_fh_Sha256Final(wc_Sha256* sha, byte* hash)
         return MCDC_FH_ERR;
     return wc_Sha256Final(sha, hash);
 }
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
 MCDC_FH_MAYBE_UNUSED static int mcdc_fh_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
     unsigned char* hash)
 {
@@ -385,7 +385,7 @@ MCDC_FH_MAYBE_UNUSED static int mcdc_fh_AesSetKeyDirect(Aes* aes, const byte* ke
     #define wc_Sha256Update(a, b, c)      mcdc_fh_Sha256Update((a), (b), (c))
     #undef  wc_Sha256Final
     #define wc_Sha256Final(a, b)          mcdc_fh_Sha256Final((a), (b))
-    #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+    #ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
         #undef  wc_Sha256HashBlock
         #define wc_Sha256HashBlock(a, b, c) \
             mcdc_fh_Sha256HashBlock((a), (b), (c))

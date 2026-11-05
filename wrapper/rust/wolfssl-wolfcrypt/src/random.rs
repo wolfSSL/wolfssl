@@ -131,7 +131,7 @@ impl RNG {
             None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            sys::wc_rng_new_ex(&mut wc_rng, core::ptr::null_mut(), 0, heap, dev_id)
+            rng_new_ex(&mut wc_rng, core::ptr::null_mut(), 0, heap, dev_id)
         };
         if rc == 0 {
             Ok(RNG {wc_rng})
@@ -191,7 +191,7 @@ impl RNG {
             None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            sys::wc_rng_new_ex(&mut wc_rng, ptr, size, heap, dev_id)
+            rng_new_ex(&mut wc_rng, ptr, size, heap, dev_id)
         };
         if rc == 0 {
             Ok(RNG {wc_rng})
@@ -218,7 +218,7 @@ impl RNG {
     /// # Example
     ///
     /// ```rust
-    /// #![cfg(random_hashdrbg)]
+    /// #![cfg(random_health_test)]
     /// use wolfssl_wolfcrypt::random::RNG;
     /// let nonce = [99u8, 88, 77, 66];
     /// let seed_a = [42u8, 33, 55, 88];
@@ -226,7 +226,7 @@ impl RNG {
     /// let mut output = [0u8; 128];
     /// RNG::health_test(Some(&nonce), &seed_a, Some(&seed_b), &mut output).expect("Error with health_test()");
     /// ```
-    #[cfg(random_hashdrbg)]
+    #[cfg(random_health_test)]
     pub fn health_test(nonce: Option<&[u8]>, seed_a: &[u8], seed_b: Option<&[u8]>, output: &mut [u8]) -> Result<(), i32> {
         Self::health_test_ex(nonce, seed_a, seed_b, output, None, None)
     }
@@ -251,7 +251,7 @@ impl RNG {
     /// # Example
     ///
     /// ```rust
-    /// #![cfg(random_hashdrbg)]
+    /// #![cfg(random_health_test)]
     /// use wolfssl_wolfcrypt::random::RNG;
     /// let nonce = [99u8, 88, 77, 66];
     /// let seed_a = [42u8, 33, 55, 88];
@@ -259,7 +259,7 @@ impl RNG {
     /// let mut output = [0u8; 128];
     /// RNG::health_test_ex(Some(&nonce), &seed_a, Some(&seed_b), &mut output, None, None).expect("Error with health_test_ex()");
     /// ```
-    #[cfg(random_hashdrbg)]
+    #[cfg(random_health_test)]
     pub fn health_test_ex(nonce: Option<&[u8]>, seed_a: &[u8], seed_b: Option<&[u8]>, output: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let mut nonce_ptr = core::ptr::null();
         let mut nonce_size = 0u32;
@@ -351,6 +351,10 @@ impl RNG {
     /// random bytes. It calculates the total size of the slice in bytes and
     /// calls the underlying `wc_RNG_GenerateBlock` wolfssl library function.
     ///
+    /// A single DRBG generate request is limited to `RNG_MAX_BLOCK_LEN` bytes
+    /// (the SP 800-90A per-request maximum). Larger buffers are filled with
+    /// multiple consecutive requests of at most that size each.
+    ///
     /// # Parameters
     ///
     /// * `buf`: A mutable slice of any type `T` to be filled with random data.
@@ -358,16 +362,26 @@ impl RNG {
     /// # Returns
     ///
     /// A `Result` which is `Ok(())` on success or an `Err` with the wolfssl
-    /// library return code on failure.
+    /// library return code on failure. On failure the buffer may have been
+    /// partially filled and its contents must not be used.
     pub fn generate_block<T: PrimInt>(&self, buf: &mut [T]) -> Result<(), i32> {
-        let ptr = buf.as_mut_ptr() as *mut u8;
-        let size = crate::buffer_len_to_u32(size_of_val(buf))?;
-        let rc = unsafe { sys::wc_RNG_GenerateBlock(self.wc_rng, ptr, size) };
-        if rc == 0 {
-            Ok(())
-        } else {
-            Err(rc)
+        let len = size_of_val(buf);
+        // SAFETY: PrimInt types are plain integers with no padding bytes and
+        // for which every bit pattern is valid, so viewing the slice as bytes
+        // and overwriting them is sound.
+        let bytes = unsafe {
+            core::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u8, len)
+        };
+        for chunk in bytes.chunks_mut(sys::RNG_MAX_BLOCK_LEN as usize) {
+            let size = crate::buffer_len_to_u32(chunk.len())?;
+            let rc = unsafe {
+                sys::wc_RNG_GenerateBlock(self.wc_rng, chunk.as_mut_ptr(), size)
+            };
+            if rc != 0 {
+                return Err(rc);
+            }
         }
+        Ok(())
     }
 
     /// Reseed random number generator.
@@ -390,7 +404,7 @@ impl RNG {
     /// let seed = [1u8, 2, 3, 4];
     /// rng.reseed(&seed).expect("Error with reseed()");
     /// ```
-    #[cfg(random_hashdrbg)]
+    #[cfg(all(random_hashdrbg, not(fips_v5_2_3)))]
     pub fn reseed(&self, seed: &[u8]) -> Result<(), i32> {
         let seed_size = crate::buffer_len_to_u32(seed.len())?;
         let rc = unsafe {
@@ -409,11 +423,11 @@ impl RNG {
 /// It carries the wolfSSL library error code of the failed
 /// `wc_RNG_GenerateBlock()` call, so that entropy, reseed and hardware
 /// failures are reported to the caller instead of terminating the process.
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RngError(i32);
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl RngError {
     /// Return the wolfSSL library error code that caused the failure.
     pub fn code(&self) -> i32 {
@@ -421,17 +435,17 @@ impl RngError {
     }
 }
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl core::fmt::Display for RngError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "wolfSSL RNG failure (error code {})", self.0)
     }
 }
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl core::error::Error for RngError {}
 
-#[cfg(feature = "rand_core")]
+#[cfg(any(feature = "rand_core", feature = "rand_core_0_9"))]
 impl From<RngError> for i32 {
     fn from(err: RngError) -> i32 {
         err.0
@@ -481,6 +495,76 @@ impl rand_core::TryRng for RNG {
 /// Mark `RNG` as a cryptographically secure random number generator.
 #[cfg(feature = "rand_core")]
 impl rand_core::TryCryptoRng for RNG {}
+
+/// Implement `rand_core` 0.9's `TryRngCore` for `RNG`, for callers still on
+/// the `rand` 0.9 ecosystem.
+///
+/// This mirrors the `rand_core` 0.10 `TryRng` implementation, failures are
+/// returned as an [`RngError`]. Wrap the RNG in the 0.9 `UnwrapErr` adapter
+/// to get the infallible `RngCore` and `CryptoRng` traits, which panic on RNG
+/// failure.
+///
+/// ```rust
+/// #![cfg(feature = "rand_core_0_9")]
+/// use rand_core_0_9::{RngCore, UnwrapErr};
+/// use wolfssl_wolfcrypt::random::RNG;
+///
+/// let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+/// let mut buf = [0u8; 32];
+/// // Panics on RNG failure.
+/// rng.fill_bytes(&mut buf);
+/// ```
+#[cfg(feature = "rand_core_0_9")]
+impl rand_core_0_9::TryRngCore for RNG {
+    type Error = RngError;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        let mut buf = [0u8; 4];
+        self.generate_block(&mut buf).map_err(RngError)?;
+        Ok(u32::from_le_bytes(buf))
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        let mut buf = [0u8; 8];
+        self.generate_block(&mut buf).map_err(RngError)?;
+        Ok(u64::from_le_bytes(buf))
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.generate_block(dest).map_err(RngError)
+    }
+}
+
+/// Mark `RNG` as a cryptographically secure random number generator for
+/// `rand_core` 0.9.
+#[cfg(feature = "rand_core_0_9")]
+impl rand_core_0_9::TryCryptoRng for RNG {}
+
+/// `wc_rng_new_ex()`, or on libraries without it (FIPS v5) the older
+/// `wc_rng_new()`, which takes no device ID, so any device ID is refused there.
+///
+/// # Safety
+///
+/// Same as `wc_rng_new_ex()`.
+unsafe fn rng_new_ex(rng: &mut *mut sys::WC_RNG, nonce: *mut u8,
+        nonce_size: u32, heap: *mut core::ffi::c_void, dev_id: i32) -> i32 {
+    #[cfg(rng_new_ex)]
+    {
+        unsafe { sys::wc_rng_new_ex(rng, nonce, nonce_size, heap, dev_id) }
+    }
+    #[cfg(not(rng_new_ex))]
+    {
+        if dev_id != sys::INVALID_DEVID {
+            return sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG;
+        }
+        *rng = unsafe { sys::wc_rng_new(nonce, nonce_size, heap) };
+        if rng.is_null() {
+            sys::wolfCrypt_ErrorCodes_RNG_FAILURE_E
+        } else {
+            0
+        }
+    }
+}
 
 impl Drop for RNG {
     /// Safely free the underlying wolfSSL RNG context.

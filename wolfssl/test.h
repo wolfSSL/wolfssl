@@ -663,10 +663,6 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
 #define noIssuerCertFile  "certs/empty-issuer-cert.der"
 #endif
 #define caCertFolder      "certs/"
-#ifdef HAVE_WNR
-    /* Whitewood netRandom default config file */
-    #define wnrConfig     "wnr-example.conf"
-#endif
 #elif defined(NETOS) && defined(HAVE_FIPS)
     /* These defines specify the file system volume and root directory used by
      * the FTP server used in the only supported NETOS FIPS solution (at this
@@ -688,10 +684,6 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
     #define cliEccCertFile FS_VOLUME1_DIR "certs/client-ecc-cert.pem"
     #define caEccCertFile  FS_VOLUME1_DIR "certs/ca-ecc-cert/pem"
     #define crlPemDir      FS_VOLUME1_DIR "certs/crl"
-    #ifdef HAVE_WNR
-        /* Whitewood netRandom default config file */
-        #define wnrConfig  "wnr-example.conf"
-    #endif
 #else
 #ifdef WOLFSSL_PEM_TO_DER
 #define caCertFile        "./certs/ca-cert.pem"
@@ -763,10 +755,6 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
 #define noIssuerCertFile  "./certs/empty-issuer-cert.der"
 #endif
 #define caCertFolder      "./certs/"
-#ifdef HAVE_WNR
-    /* Whitewood netRandom default config file */
-    #define wnrConfig     "./wnr-example.conf"
-#endif
 #endif
 
 /* ML-DSA (FIPS 204) certificate material. The mldsa<N>-cert files are

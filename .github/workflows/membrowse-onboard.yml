@@ -50,7 +50,9 @@ jobs:
           ghcr-debs-tag: ${{ matrix.ghcr_tag }}
 
       - name: Run Membrowse Onboard Action
-        uses: membrowse/membrowse-action/onboard-action@v1
+        # Pinned to a full commit SHA, same rationale as the report
+        # workflow. v1.2.15.
+        uses: membrowse/membrowse-action/onboard-action@34719bdb04722be5cbe9c1d6df4a1567ae98238d
         with:
           target_name: ${{ matrix.target_name }}
           num_commits: ${{ github.event.inputs.num_commits }}

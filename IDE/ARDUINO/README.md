@@ -95,7 +95,6 @@ from within the `wolfssl/IDE/ARDUINO` directory:
 ### Step 2:
 
 Edit `<arduino-libraries>/wolfSSL/src/user_settings.h`
-If building for Intel Galileo platform add: `#define INTEL_GALILEO`.
 Add any other custom settings. For a good start see the examples in wolfssl root
 "[/examples/configs/user_settings_*.h](https://github.com/wolfssl/wolfssl/tree/master/examples/configs)"
 

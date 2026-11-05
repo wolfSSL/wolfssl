@@ -1448,7 +1448,7 @@ int wolfSSL_dtls13_pending_work(WOLFSSL* ssl)
     /* dtls13WaitKeyUpdateAck deliberately does not count as work: it says we
      * are waiting on the peer, not that we have anything to send. */
     if (!pending && (ssl->dtls13DoKeyUpdate || ssl->options.sendKeyUpdate) &&
-            Dtls13CanSendKeyUpdate(ssl)) {
+            !IsWriteClosed(ssl) && Dtls13CanSendKeyUpdate(ssl)) {
         pending = 1;
     }
 
@@ -1556,6 +1556,9 @@ int wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl)
         WOLFSSL_ERROR(ret);
         return WOLFSSL_FATAL_ERROR;
     }
+
+    if (IsWriteClosed(ssl))
+        ssl->options.sendKeyUpdate = 0;
 
     /* Answer a KeyUpdate the peer requested. The read path defers this the
      * same way, and SendData() is otherwise the only thing that clears it.
@@ -1976,7 +1979,7 @@ int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
 #if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 static int CheckCookieSide(WOLFSSL* ssl)
 {
     if (ssl == NULL)
@@ -2183,7 +2186,8 @@ int wolfSSL_enable_cookie(WOLFSSL* ssl)
 
     return CookiePolicyEnable(ssl);
 }
-#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER */
+#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER && */
+       /* !NO_TLS                                                            */
 
 #endif /* !WOLFCRYPT_ONLY */
 

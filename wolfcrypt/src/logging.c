@@ -132,13 +132,6 @@ static int loggingCertEnabled = WOLFSSL_CERT_LOG_ENABLED_DEFAULT;
 #endif
 THREAD_LS_T const char* log_prefix = NULL;
 
-#if defined(WOLFSSL_APACHE_MYNEWT)
-#include "log/log.h"
-static struct log mynewt_log;
-#define WOLFSSL_APACHE_MYNEWT_NOT_INITALIZED 0
-#define WOLFSSL_APACHE_MYNEWT_INITALIZED     1
-static int loggingApacheNewtRegistered = WOLFSSL_APACHE_MYNEWT_NOT_INITALIZED;
-#endif /* WOLFSSL_APACHE_MYNEWT */
 #endif /* DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS */
 
 int wolfSSL_CertDebugging_ON(void)
@@ -150,13 +143,6 @@ int wolfSSL_CertDebugging_ON(void)
     #else
         loggingCertEnabled = 1;
     #endif
-    #if defined(WOLFSSL_APACHE_MYNEWT)
-        if (loggingApacheNewtRegistered != WOLFSSL_APACHE_MYNEWT_INITALIZED) {
-            log_register("wolfcrypt", &mynewt_log, &log_console_handler,
-                                      NULL, LOG_SYSLEVEL);
-            loggingApacheNewtRegistered = WOLFSSL_APACHE_MYNEWT_INITALIZED;
-        }
-    #endif /* WOLFSSL_APACHE_MYNEWT */
     return 0;
 #else
     return NOT_COMPILED_IN;
@@ -209,13 +195,6 @@ int wolfSSL_Debugging_ON(void)
          * unless explicitly disabled with NO_WOLFSSL_DEBUG_CERTS */
         loggingCertEnabled = 1;
     #endif
-    #if defined(WOLFSSL_APACHE_MYNEWT)
-        if (loggingApacheNewtRegistered != WOLFSSL_APACHE_MYNEWT_INITALIZED) {
-            log_register("wolfcrypt", &mynewt_log, &log_console_handler,
-                                      NULL, LOG_SYSLEVEL);
-            loggingApacheNewtRegistered = WOLFSSL_APACHE_MYNEWT_INITALIZED;
-        }
-    #endif /* WOLFSSL_APACHE_MYNEWT */
     return 0;
 #else
     return NOT_COMPILED_IN;
@@ -1775,6 +1754,7 @@ void WOLFSSL_ERROR(int error)
                     "wolfSSL error occurred, error = %d", error);
         }
         else {
+            int len;
             #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
             /* If running in compatibility mode do not add want read and
                want right to error queue */
@@ -1783,9 +1763,14 @@ void WOLFSSL_ERROR(int error)
             #endif
             if (error < 0)
                 error = error - (2 * error); /* get absolute value */
-            (void)XSNPRINTF(buffer, sizeof(buffer),
-                    "wolfSSL error occurred, error = %d line:%u file:%s",
-                    error, line, file);
+            /* XSNPRINTF ignores the size under WOLF_C89. */
+            len = XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d line:%u file:",
+                    error, line);
+            if ((len > 0) && (len < (int)sizeof(buffer))) {
+                (void)XSNPRINTF(buffer + len, sizeof(buffer) - (size_t)len,
+                        "%.*s", (int)sizeof(buffer) - 1 - len, file);
+            }
 
             if (wc_AddErrorNode(error, (int)line, buffer, (char*)file) != 0) {
                 WOLFSSL_MSG("Error creating logging node");

@@ -162,6 +162,58 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
     return EXPECT_RESULT();
 }
 
+/* Test a larger AuthenticatedSafe which makes the ASN1 syntax lengths use more
+ * bytes. */
+int test_wc_i2d_PKCS12_large_safe(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && !defined(NO_HMAC) && \
+    !defined(NO_CERTS) && !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048)
+    /* Enough CA certificates to push the safe past 64 KiB. */
+    #define P12_CA_CNT  50
+    WC_PKCS12* pkcs12 = NULL;
+    WC_PKCS12* decoded = NULL;
+    WC_DerCertList* caList = NULL;
+    byte* out = NULL;
+    byte* pt;
+    char pass[] = "test_wc_i2d_PKCS12_large_safe";
+    int sz = 0;
+    int i;
+
+    ExpectNotNull(caList = (WC_DerCertList*)XMALLOC(
+        sizeof(WC_DerCertList) * P12_CA_CNT, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    for (i = 0; (caList != NULL) && (i < P12_CA_CNT); i++) {
+        caList[i].buffer = (byte*)ca_cert_der_2048;
+        caList[i].bufferSz = sizeof_ca_cert_der_2048;
+        caList[i].next = (i + 1 < P12_CA_CNT) ? &caList[i + 1] : NULL;
+    }
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+        (char*)"friendlyName", (byte*)server_key_der_2048,
+        sizeof_server_key_der_2048, (byte*)server_cert_der_2048,
+        sizeof_server_cert_der_2048, caList, -1, -1, 2048, 2048, 0, NULL));
+
+    ExpectIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &sz),
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT(sz, 65536);
+
+    ExpectNotNull(out = (byte*)XMALLOC((word32)sz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    pt = out;
+    ExpectIntEQ(wc_i2d_PKCS12(pkcs12, &pt, &sz), sz);
+    ExpectNotNull(decoded = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(out, (word32)sz, decoded), 0);
+
+    wc_PKCS12_free(decoded);
+    wc_PKCS12_free(pkcs12);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(caList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #undef P12_CA_CNT
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_PKCS12_create(void)
 {
     EXPECT_DECLS;
@@ -178,18 +230,19 @@ int test_wc_PKCS12_create(void)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3));
 #endif
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
-    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE)
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_PBKDF2)
     /* Encoding certificate with PBE_AES256_CBC needs WOLFSSL_ASN_TEMPLATE */
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_AES256_CBC));
 #endif
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_128) && \
-    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE)
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_PBKDF2)
     /* Encoding certificate with PBE_AES128_CBC needs WOLFSSL_ASN_TEMPLATE */
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES128_CBC, PBE_AES128_CBC));
 #endif
 /* Testing a mixture of 2 algorithms */
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
-    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_DES3)
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_DES3) && \
+    defined(HAVE_PBKDF2)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_SHA1_DES3));
 #endif
 #endif
@@ -424,7 +477,8 @@ int test_wc_PKCS12_encrypted_content_bounds(void)
 #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) && \
     defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
     defined(HAVE_AES_DECRYPT) && !defined(NO_SHA256) && !defined(NO_HMAC) && \
-    defined(WOLFSSL_ASN_TEMPLATE) && !defined(HAVE_FIPS)
+    defined(WOLFSSL_ASN_TEMPLATE) && !defined(HAVE_FIPS) && \
+    defined(HAVE_PBKDF2)
     {
         static const char regPassword[] = "test";
         static const byte regSalt[8] = {1, 2, 3, 4, 5, 6, 7, 8};

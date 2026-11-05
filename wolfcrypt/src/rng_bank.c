@@ -26,6 +26,25 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
+/* Retry timeouts.  WC_RNG_BANK_TS_START() is taken before a retry loop and
+ * WC_RNG_BANK_TS_ELAPSED() is checked once per retry and compared against
+ * timeout_secs.  Without a wall clock (no XTIME, e.g. NO_ASN_TIME) each check
+ * instead counts one retry, and WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC retries
+ * stand in for a second, so a positive timeout_secs still bounds the loop.
+ * USER_TIME declares XTIME as a function rather than defining a macro.
+ */
+#if defined(XTIME) || (defined(USER_TIME) && !defined(NO_ASN_TIME))
+    #define WC_RNG_BANK_TS_START()        XTIME(0)
+    #define WC_RNG_BANK_TS_ELAPSED(ts1)   (XTIME(0) - (ts1))
+#else
+    #ifndef WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC
+        #define WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC 1000
+    #endif
+    #define WC_RNG_BANK_TS_START()        0
+    #define WC_RNG_BANK_TS_ELAPSED(ts1)   \
+        (++(ts1) / WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC)
+#endif
+
 #ifndef WC_RNG_HAVE_LOCK
     /* feature-gap helper declarations */
     static int wc_rng_bank_inst_recovery_enter(
@@ -54,6 +73,9 @@
     #define WC_DRBG_OK 1
     #undef WC_DRBG_FAILED
     #define WC_DRBG_FAILED 2
+    #define wc_RNG_Status(rng) (((rng) == NULL) ? BAD_FUNC_ARG : \
+                                ((rng)->status != WC_DRBG_OK) ? \
+                                RNG_FAILURE_E : WC_SUCCESS)
 #endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
 
 /* DRBG status and reseed-counter access, and reseed forcing, are via the
@@ -78,8 +100,9 @@
  * retry loop or a root reinstantiation, i.e. seed-acquisition timescales.
  * Never called with the gate already held (no recursion), and gate holders
  * take no locks a spinner can hold, so the wait always resolves. */
-static void wc_rng_bank_inst_op_gate_spinenter(struct wc_rng_bank *bank,
-                                               WC_ATOMIC_INT_ARG op)
+static WC_MAYBE_UNUSED void wc_rng_bank_inst_op_gate_spinenter(
+    struct wc_rng_bank *bank,
+    WC_ATOMIC_INT_ARG op)
 {
     WC_ATOMIC_INT_ARG cur_gate = WC_RNG_BANK_INST_OP_FREE;
     int cas_ret;
@@ -117,8 +140,9 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     int ret;
     int need_reenable_vec = 0;
     wc_static_assert(WC_DRBG_NOT_INIT == 0); /* make sure assumptions are met */
-#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
+#ifdef WC_RNG_HAVE_LOCK
     word32 rng_flags = WC_RNG_INIT_FLAG_LOCK_REQUIRED;
+    int root_rng_locked = 0;
 #else
     WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAG_NONE;
 #endif
@@ -151,9 +175,9 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     wolfSSL_Atomic_Int_Init(&ctx->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
 #endif
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
-#ifdef WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
-    if (flags & WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE)
-        rng_flags |= WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
+        rng_flags |= WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
 #endif
     ctx->heap = heap;
     ctx->devId = devId;
@@ -175,7 +199,17 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
         /* Note we initialize the root_rng even if ! (flags &
          * WC_RNG_BANK_FLAG_RBGC) -- it can be used for other purposes, such as
          * pool replenishment, as in the linuxkm entropy daemon. */
-        ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz, 0);
+        ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz,
+    #ifdef WC_RNG_HAVE_LOCK
+                                        WC_RNG_INIT_FLAG_LOCK_INITIALLY
+    #else
+                                        WC_RNG_INIT_FLAG_NONE
+    #endif
+                                       );
+#ifdef WC_RNG_HAVE_LOCK
+        if (ret == 0)
+            root_rng_locked = 1;
+#endif
     }
 #endif
 
@@ -190,10 +224,9 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 #ifdef WC_VERBOSE_RNG
             int nretries = 0;
 #endif
-            time_t ts1 = XTIME(0);
+            time_t ts1 = WC_RNG_BANK_TS_START();
             rng_inst->bank = ctx;
             for (;;) {
-                time_t ts2;
                 if (flags & WC_RNG_BANK_FLAG_NO_VECTOR_OPS)
                     need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
 
@@ -203,16 +236,14 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                         WC_RNG_BANK_INST_TO_RNG(rng_inst),
                         &ctx->root_rng,
                         (byte *)&rng_inst, sizeof(byte *),
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
                         NULL, 0,
-#endif
                         rng_flags
                         );
                 }
                 else
 #endif
                 {
-#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
+#ifdef WC_RNG_HAVE_LOCK
                     ret = wc_InitRngNonce_ex2(
                         WC_RNG_BANK_INST_TO_RNG(rng_inst),
                         (byte *)&rng_inst, sizeof(byte *),
@@ -234,22 +265,10 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                 if (ret == 0)
                     break;
 
-                /* Several plausible error codes are non-retryable -- fail early
-                 * for these.
-                 */
-                switch (ret) {
-                case WC_NO_ERR_TRACE(BAD_MUTEX_E):
-                case WC_NO_ERR_TRACE(BAD_FUNC_ARG):
-                case WC_NO_ERR_TRACE(MEMORY_E):
-                case WC_NO_ERR_TRACE(NOT_COMPILED_IN):
-                case WC_NO_ERR_TRACE(MISSING_RNG_E):
-                case WC_NO_ERR_TRACE(BUFFER_E):
-                case WC_NO_ERR_TRACE(OPEN_RAN_E):
-                case WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E):
-                case WC_NO_ERR_TRACE(DRBG_KAT_FIPS_E):
-                case WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E):
+                /* The transient codes are retryable -- fail early for the
+                 * rest. */
+                if (! WC_RNG_ERR_IS_TRANSIENT(ret))
                     goto out;
-                }
 
                 if (timeout_secs == 0) {
                     break; /* Retry disabled -- return the real error, not
@@ -263,8 +282,8 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                 ret = WC_CHECK_FOR_INTR_SIGNALS();
                 if (ret == WC_NO_ERR_TRACE(INTERRUPTED_E))
                     break;
-                ts2 = XTIME(0);
-                if ((timeout_secs > 0) && (ts2 - ts1 > timeout_secs)) {
+                if ((timeout_secs > 0) &&
+                    (WC_RNG_BANK_TS_ELAPSED(ts1) > timeout_secs)) {
                     ret = WC_TIMEOUT_E;
                     break;
                 }
@@ -284,6 +303,11 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     }
 
 out:
+
+#ifdef WC_RNG_HAVE_LOCK
+    if (root_rng_locked)
+        wc_RNG_lock_put_unconditional(&ctx->root_rng);
+#endif
 
     if (ret != 0)
         (void)wc_rng_bank_fini(ctx);
@@ -403,8 +427,48 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
             (void)wc_rng_bank_inst_lock_read(&ctx->rngs[i], &pre_lock_state);
             if (pre_lock_state & WC_RNG_LOCK_HELD)
                 return BUSY_E;
+#ifdef WC_RNG_RBGC_REFCOUNT
+            if (WC_RNG_RBGC_REFCOUNT(&ctx->rngs[i].rng) > 0)
+                return STILL_REFERENCED_E;
+#endif
         }
     }
+
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+    /* The root, whatever its status: a root torn down by an earlier failed
+     * reinit is WC_DRBG_NOT_INIT with its lock word live, and can still be
+     * held and still be pinned.  Member pins on the root are released by the
+     * member frees below and are not counted; any pin beyond those is an
+     * external (caller-spawned) child of the root, whose RBGC_parent would
+     * dangle if this bank were deallocated.  Both refusals leave the bank
+     * fully intact. */
+    {
+#ifdef WC_RNG_HAVE_LOCK
+        WC_RNG_lock_arg_t root_lock_state = 0;
+        if ((wc_RNG_lock_read(&ctx->root_rng, &root_lock_state) == 0) &&
+            (root_lock_state & WC_RNG_LOCK_HELD))
+        {
+            return BUSY_E;
+        }
+#endif
+#ifdef WC_RNG_RBGC_REFCOUNT
+        {
+            WC_ATOMIC_UINT_ARG member_pins = 0;
+#ifndef WC_RNG_BANK_STATIC
+            if (ctx->rngs)
+#endif
+            {
+                for (i = 0; i < ctx->n_rngs; ++i) {
+                    if (ctx->rngs[i].rng.RBGC_parent == &ctx->root_rng)
+                        ++member_pins;
+                }
+            }
+            if (WC_RNG_RBGC_REFCOUNT(&ctx->root_rng) > member_pins)
+                return STILL_REFERENCED_E;
+        }
+#endif
+    }
+#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
     wolfSSL_RefDec_IfEquals(&ctx->refcount, 1, &new_refcount, &ret);
     if (ret != 0) {
@@ -418,20 +482,6 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
         else
             return ret;
     }
-
-#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
-    if (wc_RNG_GetStatus(&ctx->root_rng) != WC_DRBG_NOT_INIT) {
-        int free_ret = wc_FreeRng(&ctx->root_rng);
-        if (free_ret != 0) {
-#ifdef WC_VERBOSE_RNG
-            WOLFSSL_DEBUG_PRINTF(
-                "wc_rng_bank_fini(): wc_FreeRng() on root_rng returned "
-                "error %d.\n", free_ret);
-#endif
-            ++rng_free_failed;
-        }
-    }
-#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifndef WC_RNG_BANK_STATIC
     if (ctx->rngs)
@@ -471,23 +521,6 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
         }
 
         for (i = 0; i < ctx->n_rngs; ++i) {
-            /* Lease-taking teardown, for internal consistency checking --
-             * structurally uncontended at refcount zero with the held-check
-             * above passed.  The latch dies held in dying memory, per the
-             * lock-uncleared-on-free contract of wc_FreeRng(). */
-            if ((wc_rng_bank_inst_lock_get(&ctx->rngs[i], 0) != 0) &&
-                (wc_rng_bank_inst_lock_get_conditional(&ctx->rngs[i],
-                     WC_RNG_LOCK_ENTROPY_INVALIDATED, 0) != 0))
-            {
-                /* can't happen absent corruption; leak, don't crash. */
-#ifdef WC_VERBOSE_RNG
-                WOLFSSL_DEBUG_PRINTF(
-                    "BUG: wc_rng_bank_fini() couldn't take the teardown "
-                    "lease on RNG #%d.\n", i);
-#endif
-                ret = BAD_STATE_E;
-                continue;
-            }
             {
                 int free_ret = wc_FreeRng(&ctx->rngs[i].rng);
                 if (free_ret != 0) {
@@ -496,12 +529,65 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
                         "wc_rng_bank_fini(): wc_FreeRng() on RNG #%d returned "
                         "error %d.\n", i, free_ret);
 #endif
+                    /* If any of the RNGs is actively referenced when we try to
+                     * free it, we must summarily abandon the attempt to free
+                     * the bank -- it can be retried again, and proceeding to
+                     * the final deallocation would only induce UB.
+                     *
+                     * Note that the refcount is restored -- the caller can and
+                     * must retry.  The free hook has already fired (one-shot):
+                     * until the retry succeeds the bank is alive and
+                     * unregistered, and any invalidation event in that window
+                     * is the caller's to propagate (and if not
+                     * WC_RNG_HAVE_ENTROPY_EPOCH, to deliver in the first
+                     * place).  Retry promptly.
+                     */
+                    if ((free_ret == WC_NO_ERR_TRACE(BUSY_E)) ||
+                        (free_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E)))
+                    {
+                        wolfSSL_RefInc2(&ctx->refcount, &new_refcount, &ret);
+                        (void)new_refcount;
+                        (void)ret;
+                        return free_ret;
+                    }
                     ++rng_free_failed;
                 }
             }
         }
-        if (ret == WC_NO_ERR_TRACE(BAD_STATE_E))
-            return ret;
+
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+        /* The root is freed after the member instances: members recycled through
+         * the RBGC rebirth path retain the root as their reseed parent, and each
+         * member's teardown releases its pin -- freeing the root first would
+         * report STILL_REFERENCED_E against pins the member frees are about to
+         * release anyway.  A STILL_REFERENCED_E here is therefore an external
+         * (caller-spawned) child of the root that arrived after the pre-commit
+         * check above, and the report is honest. */
+        if (wc_RNG_GetStatus(&ctx->root_rng) != WC_DRBG_NOT_INIT) {
+            int free_ret = wc_FreeRng(&ctx->root_rng);
+            if (free_ret != 0) {
+#ifdef WC_VERBOSE_RNG
+                WOLFSSL_DEBUG_PRINTF(
+                    "wc_rng_bank_fini(): wc_FreeRng() on root_rng returned "
+                    "error %d.\n", free_ret);
+#endif
+                /* As for a member: a refusal restores the refcount and keeps
+                 * the bank -- rngs and all -- allocated for the retry.  The
+                 * root's zeroized shell stays pinned until the external child
+                 * releases it; a retry before that is refused by the
+                 * pre-commit check, bank intact. */
+                if ((free_ret == WC_NO_ERR_TRACE(BUSY_E)) ||
+                    (free_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E)))
+                {
+                    wolfSSL_RefInc2(&ctx->refcount, &new_refcount, &ret);
+                    (void)new_refcount;
+                    (void)ret;
+                    return free_ret;
+                }
+                ++rng_free_failed;
+            }
+        }
+#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifndef WC_RNG_BANK_STATIC
         XFREE(ctx->rngs, ctx->heap, DYNAMIC_TYPE_RNG);
@@ -713,7 +799,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
 {
     WC_RNG_lock_arg_t lock_extra_bits = 0;
     int ret = 0;
-    time_t ts1, ts2;
+    time_t ts1;
     int n_rngs_tried = 0;
     int diverted_unusable = 0;
     WC_ATOMIC_INT_ARG new_refcount;
@@ -806,7 +892,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
     }
 
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
-        ts1 = XTIME(0);
+        ts1 = WC_RNG_BANK_TS_START();
     else
         ts1 = 0; /* mollify -Wmaybe-uninitialized... */
 
@@ -1082,8 +1168,19 @@ WOLFSSL_API int wc_rng_bank_checkout(
                      WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE) &&
                     (! (flags & WC_RNG_BANK_FLAG_FOR_RECOVERY)))
                 {
+#ifdef WC_RNG_HAVE_LOCK
+                    ret = wc_RNG_DRBG_Reseed_Now_Primary(
+                        WC_RNG_BANK_INST_TO_RNG(*rng_inst), NULL, 0);
+#else
+                    /* Without the lock facility an instance retains no chain
+                     * parent for a reseed to defer to, so the plain reseed
+                     * is the primary reseed, and the lease just taken is the
+                     * exclusion -- reseed and the holder's draws under one
+                     * hold -- that _Primary() insists on for a bare instance
+                     * and refuses to assume in a multithreaded build. */
                     ret = wc_RNG_DRBG_Reseed_Now(
                         WC_RNG_BANK_INST_TO_RNG(*rng_inst), NULL, 0);
+#endif
                     if (ret != 0) {
                         (void)wc_rng_bank_inst_lock_put(*rng_inst);
                         *rng_inst = NULL;
@@ -1196,8 +1293,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
                 break;
 
             if (timeout_secs > 0) {
-                ts2 = XTIME(0);
-                if (ts2 - ts1 >= timeout_secs) {
+                if (WC_RNG_BANK_TS_ELAPSED(ts1) >= timeout_secs) {
                     ret = WC_TIMEOUT_E;
                     break;
                 }
@@ -1379,6 +1475,112 @@ WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
 
 #endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
+/* Retire and reinstantiate an rng, protected either by WC_RNG.lock (new
+ * semantics: the lease is taken by try-lock and held across the cycle under
+ * _PRESERVE_LOCK, so a held root yields BUSY_E rather than a wait) or the
+ * inst-op gate (legacy semantics, to exclude the entropy invalidation walk's
+ * dereference of the rng's live DRBG state; the gate exists in every build
+ * without WC_RNG_HAVE_LOCK, so the gate ops in that arm are unconditional).
+ * The reinstantiation performs a full seed acquisition. */
+int wc_rng_bank_reinit_rng(struct wc_rng_bank *bank,
+                                  WC_RNG *rng,
+                                  WC_RNG *seedRng,
+                                  const byte *nonce, word32 nonceSz,
+                                  const byte *perso, word32 persoSz,
+                                  word32 flags)
+{
+    int ret;
+#ifdef WC_RNG_DEBUG_STATS
+    struct wc_rng_debug_stats_snapshot s;
+    int stats_snap_ret;
+#endif
+
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+
+#ifndef WC_RNG_HAVE_RBGC
+    if (seedRng != NULL)
+        return NOT_COMPILED_IN;
+#endif
+
+#ifdef WC_RNG_HAVE_LOCK
+  #if defined(WC_RNG_HAVE_LOCK_FULL_MUTEX) && defined(WC_RNG_FLAG_FULL_MUTEX)
+    /* The lease below is the lock word alone; a full-mutex instance's
+     * teardown would release a mutex this cycle never took.  The bank's
+     * constructors never produce one (wc_rng_bank_root_rng_init() refuses
+     * the flag), so this is a tripwire. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+        return WRONG_TYPE_OBJECT_E;
+  #endif
+    ret = wc_RNG_lock_get_unconditional(rng);
+    if (ret != 0)
+        return ret;
+#else
+    wc_rng_bank_inst_op_gate_spinenter(bank, WC_RNG_BANK_INST_OP_ROOT);
+#endif
+
+#ifdef WC_RNG_DEBUG_STATS
+    stats_snap_ret = wc_rng_debug_stats_snap(&s, rng);
+#endif
+
+    if (wc_RNG_GetStatus(rng) != WC_DRBG_NOT_INIT) {
+#ifdef WC_RNG_HAVE_LOCK
+        ret = wc_FreeRng_PreLocked(rng);
+#else
+        ret = wc_FreeRng(rng);
+#endif
+        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(STILL_REFERENCED_E)))
+            goto out;
+    }
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#ifdef WC_RNG_HAVE_LOCK
+    /* The lease taken at entry is held across the cycle.  Only where the
+     * lock exists: _InitRng() refuses the flag with NOT_COMPILED_IN
+     * otherwise, and the inst-op gate is the exclusion in that arm. */
+    flags |= WC_RNG_INIT_FLAG_PRESERVE_LOCK;
+#endif
+#ifdef WC_RNG_HAVE_RBGC
+    if (seedRng != NULL) {
+        ret = wc_InitRngNonceRBGC(rng, seedRng, nonce, nonceSz, perso, persoSz,
+                                  flags);
+    }
+    else
+#endif /* WC_RNG_HAVE_RBGC */
+    {
+        ret = wc_InitRngNonce_ex2(rng, nonce, nonceSz, perso, persoSz,
+                                  bank->heap, bank->devId, flags);
+    }
+#else
+    (void)perso;
+    (void)persoSz;
+    (void)seedRng;
+    if (flags != 0)
+        ret = NOT_COMPILED_IN;
+    else {
+        ret = wc_InitRngNonce_ex(rng, (byte *)nonce, nonceSz, bank->heap,
+                                 bank->devId);
+    }
+#endif
+
+#ifdef WC_RNG_DEBUG_STATS
+    if (ret == 0) {
+        if (stats_snap_ret == 0)
+            wc_rng_debug_stats_restore(&s, rng);
+    }
+#endif
+
+  out:
+
+#ifdef WC_RNG_HAVE_LOCK
+    wc_RNG_lock_put_unconditional(rng);
+#else
+    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+#endif
+
+    return ret;
+}
+
 #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
 
 WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
@@ -1386,25 +1588,54 @@ WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
                                           const byte *perso, word32 persoSz,
                                           word32 flags)
 {
+    int ret;
+
     if (bank == NULL)
         return BAD_FUNC_ARG;
 
     if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT)
         return ALREADY_E;
 
+    /* The root is driven by lock-word operations alone -- the daemon's
+     * claims, reinit-in-place (wc_rng_bank_reinit_rng()), the invalidation
+     * walk -- none of which take the outer mutex, so a full-mutex root would
+     * be bypassed by every one of them, and its teardown would release a
+     * mutex the bank never took. */
+#ifdef WC_RNG_INIT_FLAG_USE_FULL_MUTEX
+    if (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)
+        return BAD_FUNC_ARG;
+#endif
+
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-    return wc_InitRngNonce_ex2(&bank->root_rng,
-                               nonce, nonceSz,
-                               perso, persoSz,
-                               bank->heap, bank->devId, flags);
+    ret = wc_InitRngNonce_ex2(&bank->root_rng,
+                              nonce, nonceSz,
+                              perso, persoSz,
+                              bank->heap, bank->devId, flags
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_INIT_FLAG_LOCK_REQUIRED)
+                              | WC_RNG_INIT_FLAG_LOCK_REQUIRED
+#endif
+                             );
 #else
     (void)perso;
     (void)persoSz;
     if (flags != 0)
         return NOT_COMPILED_IN;
-    return wc_InitRngNonce_ex(&bank->root_rng, nonce, nonceSz,
-                              bank->heap, bank->devId);
+    ret = wc_InitRngNonce_ex(&bank->root_rng, nonce, nonceSz,
+                             bank->heap, bank->devId);
 #endif
+
+    /* If lock state preservation wasn't requested, make sure the rng is zeroed,
+     * otherwise access to it during bank cleanup is UB. */
+    if (ret != 0) {
+#ifdef WC_RNG_INIT_FLAG_PRESERVE_LOCK
+        if (! (flags & WC_RNG_INIT_FLAG_PRESERVE_LOCK))
+#endif
+        {
+            XMEMSET(&bank->root_rng, 0, sizeof(bank->root_rng));
+        }
+    }
+
+    return ret;
 }
 
 WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank)
@@ -1416,42 +1647,99 @@ WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank)
     return &bank->root_rng;
 }
 
-/* Retire and reinstantiate the bank's root_rng under the inst-op gate,
- * excluding the entropy invalidation walk (which dereferences the root's live
- * DRBG state) and instance ops for the span of the transition.  The recovery
- * path of last resort for a condemned root -- see the linuxkm entropy
- * daemon's post-invalidation arm.  Task context only: the gate is
- * spin-acquired, and the reinstantiation performs a full seed acquisition.
- * WC_RNG_BANK_HAVE_ROOT_RNG implies WC_RNG_BANK_HAVE_INST_OP_GATE, so the
- * gate ops here are unconditional -- if the derivations ever diverge, this
- * breaks loudly rather than compiling unprotected. */
 WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
                                             const byte *nonce, word32 nonceSz,
                                             const byte *perso, word32 persoSz,
                                             word32 flags)
+{
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+    /* same flags posture as wc_rng_bank_root_rng_init(): the root is
+     * _LOCK_REQUIRED. */
+    return wc_rng_bank_reinit_rng(bank, &bank->root_rng, NULL, nonce, nonceSz,
+                      perso, persoSz, flags
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_INIT_FLAG_LOCK_REQUIRED)
+                      | WC_RNG_INIT_FLAG_LOCK_REQUIRED
+#endif
+                     );
+}
+
+#ifdef HAVE_HASHDRBG
+/* Forced reseed of the bank root, serialized however the configuration
+ * serializes root access.  With WC_RNG_HAVE_LOCK, the root's lease is
+ * taken by unconditional try-lock and held across the reseed.  Without
+ * it, every other root toucher serializes on the inst-op gate -- member
+ * reinstantiation chaining from the root (wc_rng_bank_inst_reinit()),
+ * the invalidation walk's counter saturation
+ * (wc_rng_bank_invalidate_entropy()), and root reinstantiation
+ * (wc_rng_bank_root_rng_reinit()) -- so the reseed holds the gate,
+ * claimed per the holder contract try-once, fail-fast (atomic-legal).
+ * Either way a refusal (BUSY_E) means nothing was touched, and the
+ * caller's next pass retries.
+ *
+ * The threshold form reseeds only when the root's reseed counter has
+ * reached threshold, with the counter read under the same hold as the
+ * reseed -- no TOCTOU, and on legacy boundaries (where the read
+ * dereferences internal DRBG state) no unexcluded deref.  A below-
+ * threshold counter returns ALREADY_E: steady state, not an error.
+ * threshold == 0 reseeds unconditionally.  Without the lock facility
+ * the saturated counter is the invalidation walk's only root-side
+ * record, so threshold == WC_RESEED_INTERVAL makes this the root's
+ * deterministic post-invalidation recovery. */
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_if_due(
+    struct wc_rng_bank *bank, const byte *nonce, word32 nonceSz,
+    wc_drbg_reseed_ctr_t threshold)
 {
     int ret;
 
     if (bank == NULL)
         return BAD_FUNC_ARG;
 
-    wc_rng_bank_inst_op_gate_spinenter(bank, WC_RNG_BANK_INST_OP_ROOT);
+#ifdef WC_RNG_HAVE_LOCK
+    ret = wc_RNG_lock_get_unconditional(&bank->root_rng);
+    if (ret != 0)
+        return ret;
+#else /* WC_RNG_BANK_HAVE_INST_OP_GATE */
+    {
+        WC_ATOMIC_INT_ARG expected = WC_RNG_BANK_INST_OP_FREE;
+        if (! wolfSSL_Atomic_Int_CompareExchange(&bank->inst_op_gate,
+                                                 &expected,
+                                                 WC_RNG_BANK_INST_OP_DAEMON))
+        {
+            return BUSY_E;
+        }
+    }
+#endif
 
-    if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT) {
-        ret = wc_FreeRng(&bank->root_rng);
-        if (ret != 0)
-            goto out;
+    if (threshold > 0) {
+        wc_drbg_reseed_ctr_t cur_ctr = 0;
+        ret = wc_RNG_DRBG_GetReseedCtr(&bank->root_rng, &cur_ctr);
+        if ((ret == 0) && (cur_ctr < threshold))
+            ret = WC_NO_ERR_TRACE(ALREADY_E); /* avoid polling noise. */
+    }
+    else {
+        ret = 0;
     }
 
-    ret = wc_rng_bank_root_rng_init(bank, nonce, nonceSz, perso, persoSz,
-                                    flags);
+    if (ret == 0)
+        ret = wc_RNG_DRBG_Reseed_Now(&bank->root_rng, nonce, nonceSz);
 
-  out:
-
+#ifdef WC_RNG_HAVE_LOCK
+    wc_RNG_lock_put_unconditional(&bank->root_rng);
+#else /* WC_RNG_BANK_HAVE_INST_OP_GATE */
     WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+#endif
 
     return ret;
 }
+
+WOLFSSL_API int wc_rng_bank_root_rng_reseed_now(struct wc_rng_bank *bank,
+                                                const byte *nonce,
+                                                word32 nonceSz)
+{
+    return wc_rng_bank_root_rng_reseed_if_due(bank, nonce, nonceSz, 0);
+}
+#endif /* HAVE_HASHDRBG */
 
 #endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
@@ -1666,7 +1954,9 @@ static int wc_rng_bank_next_seed_generate_local(
     WC_RNG *root)
 {
     int ret;
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
     WC_ATOMIC_INT_ARG expected = WC_RNG_BANK_INST_OP_FREE;
+#endif
 
     if (bank == NULL)
         return BAD_FUNC_ARG;
@@ -1677,18 +1967,28 @@ static int wc_rng_bank_next_seed_generate_local(
     if (inst_offset >= bank->n_rngs)
         return BAD_FUNC_ARG;
 
+    if (root != NULL) {
 #ifndef WC_RNG_HAVE_RBGC
-    if (root != NULL)
         return NOT_COMPILED_IN;
 #endif
 
+#ifdef WC_RNG_HAVE_LOCK
+        ret = wc_RNG_lock_get(root, 0);
+        if (ret != 0)
+            return ret;
+#endif
+    }
+
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
     if (! wolfSSL_Atomic_Int_CompareExchange(&bank->inst_op_gate, &expected,
                                              WC_RNG_BANK_INST_OP_DAEMON))
     {
         /* A whole-instance operation (reinit) is in progress somewhere in
          * the bank -- skip this turn. */
-        return BUSY_E;
+        ret = BUSY_E;
+        goto out;
     }
+#endif
 
 #ifdef WC_RNG_HAVE_RBGC
     if (root != NULL) {
@@ -1702,7 +2002,37 @@ static int wc_rng_bank_next_seed_generate_local(
             WC_RNG_BANK_INST_TO_RNG(&bank->rngs[inst_offset]), n);
     }
 
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
     WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+
+    out:
+#endif
+
+#ifdef WC_RNG_HAVE_LOCK
+    if (root != NULL) {
+        int put_ret = wc_RNG_lock_put(root, 0);
+        if (put_ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) {
+            /* An invalidation landed on root under our hold, so whatever was
+             * banked above was drawn from pre-event material.  The walk's
+             * own purge of the member does not necessarily cover it: if the
+             * walk visited the member before our claim, the fill that
+             * followed published a READY bank into an already-latched,
+             * already-stamped instance, which the cheap inline recovery in
+             * wc_RNG_lock_get() would then redeem as post-event.  Purge
+             * explicitly (idempotent against the walk's delivery) and report
+             * the event over the fill's result, as the chain arm of
+             * wc_RNG_DRBG_NextSeedGenerate() does. */
+#ifdef HAVE_HASHDRBG
+            (void)wc_rng_bank_inst_invalidate_entropy(
+                &bank->rngs[inst_offset]);
+#endif
+            return put_ret;
+        }
+        else if (put_ret != 0) {
+            return put_ret;
+        }
+    }
+#endif
 
     return ret;
 }
@@ -1750,9 +2080,9 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_debug_stats_snapshot s;
     int stats_snap_ret;
 #endif
-#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
+#ifdef WC_RNG_HAVE_LOCK
     word32 rng_flags = WC_RNG_INIT_FLAG_LOCK_REQUIRED |
-        WC_RNG_INIT_FLAG_LOCK_INITIALLY;
+        WC_RNG_INIT_FLAG_PRESERVE_LOCK;
 #else
     WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAG_NONE;
 #endif
@@ -1767,9 +2097,9 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     if (ret < 0)
         return ret;
 
-#ifdef WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
-    if (flags & WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE)
-        rng_flags |= WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
+        rng_flags |= WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
 #endif
 
     /* No DRBG-NULL rejection here.  wc_FreeRng() below nulls the DRBG, so an
@@ -1779,7 +2109,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
      * it is a safe no-op when called on an already-freed instance.
      */
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
-        ts1 = XTIME(0);
+        ts1 = WC_RNG_BANK_TS_START();
 
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     devId = rng_inst->rng.devId;
@@ -1808,10 +2138,10 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
 
     /* Pre-read the held latch's annotation bits -- an owner-context read
      * of a live object (the constructor itself never reads its target).
-     * The reinit is declared _LOCK_INITIALLY, so the instance is
-     * invariantly locked across the free/reinstantiate cycle, and the
-     * annotations (including a sticky WC_RNG_LOCK_REQUIRED, when the
-     * instance carries one) are re-asserted below on success. */
+     * The reinit is declared _PRESERVE_LOCK, so the instance stays locked
+     * across the free/reinstantiate cycle, and the annotations (including
+     * a sticky WC_RNG_LOCK_REQUIRED, when the instance carries one) are
+     * re-asserted below on success. */
     ret = wc_rng_bank_inst_lock_read(rng_inst, &cur_lock);
     if (ret < 0) {
 #ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
@@ -1825,18 +2155,93 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
         wc_rng_debug_stats_snap(&s, WC_RNG_BANK_INST_TO_RNG(rng_inst));
 #endif
 
-    wc_FreeRng(&rng_inst->rng);
+    /* The free is the first mutating step, and it can refuse: BUSY_E means
+     * a pool writer holds the ring's claim (the entropy daemon mid-top-off),
+     * and nothing was touched.  Surface it exactly as a held inst-op gate is
+     * surfaced -- skip this attempt, instance intact and still out of
+     * service, a later checkout retries.  STILL_REFERENCED_E (RBGC children
+     * pin the shell) is a completed teardown and reinstantiation proceeds. */
+#ifdef WC_RNG_HAVE_LOCK
+    ret = wc_FreeRng_PreLocked(&rng_inst->rng);
+#else
+    ret = wc_FreeRng(&rng_inst->rng);
+#endif
+    if ((ret != 0) && (ret != WC_NO_ERR_TRACE(STILL_REFERENCED_E))) {
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+        WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+#endif
+        return ret;
+    }
 
     for (;;) {
-#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
-        ret = wc_InitRngNonce_ex2(WC_RNG_BANK_INST_TO_RNG(rng_inst),
-                                  (byte *)&rng_inst, sizeof(byte *),
-                                  NULL, 0, bank->heap, devId, rng_flags);
-#else
-        ret = wc_InitRngNonce_ex(WC_RNG_BANK_INST_TO_RNG(rng_inst),
-                                  (byte *)&rng_inst, sizeof(byte *),
-                                  bank->heap, devId);
+#ifdef WC_RNG_HAVE_RBGC
+        if (bank->flags & WC_RNG_BANK_FLAG_RBGC) {
+            /* An RBGC bank's members are chain children of its root, at
+             * instantiation and at every reinstantiation alike --
+             * wc_rng_bank_init() has no primary arm for them, and neither
+             * does this.  A member reborn from the primary source would
+             * silently change the bank's posture: a stratum-0,
+             * primary-seeded instance among chain children, permanently so
+             * under WC_RNG_RBGC_STRATUM_IMMUTABLE.  So a root that cannot
+             * serve right now is a reason to retry, never to substitute:
+             * out of service (NOT_READY_E / RNG_FAILURE_E, the daemon's
+             * root recovery is one pass away), latched (NEEDS_RECOVERY_E
+             * from the lease, likewise), or held (BUSY_E).  None of those
+             * is in the non-retryable list below, so a _CAN_WAIT caller
+             * relaxes and retries until root is back or the timeout
+             * expires, and an atomic-context caller returns at once with
+             * the member still out of service -- checkout diverts, and
+             * whatever detected the need for this reinit detects the need
+             * for the next one.
+             *
+             * Without the lock facility there is no waiting on the root at
+             * all: this transition holds the inst-op gate, and the root's
+             * recovery (wc_rng_bank_root_rng_reinit()) needs that same gate,
+             * so a wait here would be for an event this hold forecloses.
+             * Leave through the cleanup below, gate released, member out of
+             * service, verdict retryable. */
+            ret = wc_RNG_Status(&bank->root_rng);
+  #ifndef WC_RNG_HAVE_LOCK
+            if (ret != 0)
+                goto out;
+  #endif
+            if (ret == 0) {
+  #ifdef WC_RNG_HAVE_LOCK
+                ret = wc_RNG_lock_get(&bank->root_rng, 0);
+                if (ret == 0) {
+  #endif
+                    ret = wc_InitRngNonceRBGC(
+                        WC_RNG_BANK_INST_TO_RNG(rng_inst), &bank->root_rng,
+                        (byte *)&rng_inst, sizeof(byte *),
+                        NULL, 0, rng_flags);
+  #ifdef WC_RNG_HAVE_LOCK
+                    /* A NEEDS_RECOVERY_E from the release means the
+                     * invalidation walk latched root under our hold, so the
+                     * child's seed predates the event.  Covered without
+                     * action here: in epoch builds the child's stamp is
+                     * stale and its first generate recovers; otherwise the
+                     * walk is root-first, so having latched root after our
+                     * draw it latches the child next -- after the child's
+                     * entry discharge, so the latch survives instantiation
+                     * and the child's first generate recovers. */
+                    (void)wc_RNG_lock_put(&bank->root_rng, 0);
+                }
+  #endif
+            }
+        }
+        else
 #endif
+        {
+#ifdef WC_RNG_HAVE_LOCK
+            ret = wc_InitRngNonce_ex2(WC_RNG_BANK_INST_TO_RNG(rng_inst),
+                                      (byte *)&rng_inst, sizeof(byte *),
+                                      NULL, 0, bank->heap, devId, rng_flags);
+#else
+            ret = wc_InitRngNonce_ex(WC_RNG_BANK_INST_TO_RNG(rng_inst),
+                                     (byte *)&rng_inst, sizeof(byte *),
+                                     bank->heap, devId);
+#endif
+        }
 
         if (ret == 0) {
             if (cur_lock != 0) {
@@ -1857,21 +2262,8 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
          */
         WC_RELAX_LONG_LOOP();
 
-        /* Several plausible error codes are non-retryable -- fail early for
-         * these rather than reattempting until the timeout.  Same list as
-         * wc_rng_bank_init().
-         */
-        switch (ret) {
-        case WC_NO_ERR_TRACE(BAD_MUTEX_E):
-        case WC_NO_ERR_TRACE(BAD_FUNC_ARG):
-        case WC_NO_ERR_TRACE(MEMORY_E):
-        case WC_NO_ERR_TRACE(NOT_COMPILED_IN):
-        case WC_NO_ERR_TRACE(MISSING_RNG_E):
-        case WC_NO_ERR_TRACE(BUFFER_E):
-        case WC_NO_ERR_TRACE(OPEN_RAN_E):
-        case WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E):
-        case WC_NO_ERR_TRACE(DRBG_KAT_FIPS_E):
-        case WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E):
+        /* The transient codes are retryable -- fail early for the rest. */
+        if (! WC_RNG_ERR_IS_TRANSIENT(ret)) {
 #ifdef WC_VERBOSE_RNG
             if (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))
                 WOLFSSL_DEBUG_PRINTF(
@@ -1904,8 +2296,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
         }
 
         if (timeout_secs > 0) {
-            time_t ts2 = XTIME(0);
-            if (ts2 - ts1 >= timeout_secs) {
+            if (WC_RNG_BANK_TS_ELAPSED(ts1) >= timeout_secs) {
 #ifdef WC_VERBOSE_RNG
                 if (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))
                     WOLFSSL_DEBUG_PRINTF(
@@ -1929,8 +2320,13 @@ out:
      * away from such an instance when the caller allows failover, and the
      * seed/reseed walks refuse it.
      */
-    if (ret != 0)
+    if (ret != 0) {
+#ifdef WC_RNG_HAVE_LOCK
+        (void)wc_FreeRng_PreLocked(WC_RNG_BANK_INST_TO_RNG(rng_inst));
+#else
         (void)wc_FreeRng(WC_RNG_BANK_INST_TO_RNG(rng_inst));
+#endif
+    }
 
 #ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
     WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
@@ -1953,7 +2349,7 @@ WOLFSSL_API int wc_rng_bank_recover_inst(
         (flags & ~(word32)(WC_RNG_BANK_FLAG_CAN_WAIT |
                            WC_RNG_BANK_FLAG_AFFINITY_LOCK |
                            WC_RNG_BANK_FLAG_RBGC |
-                           WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE)))
+                           WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)))
     {
         return BAD_FUNC_ARG;
     }
@@ -2059,18 +2455,16 @@ static int rng_bank_spawn(
 
     {
         word32 child_init_flags = WC_RNG_INIT_FLAG_NONE;
-#ifdef WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
-        if (flags & WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE)
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        if (flags & WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED)
             child_init_flags |=
-                WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
+                WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED;
 #endif
     if (leaf_stack != NULL) {
         ret = wc_InitRngNonceRBGC(leaf_stack,
                                   WC_RNG_BANK_INST_TO_RNG(rng_inst),
                                   nonce, nonceSz,
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
                                   perso, persoSz,
-#endif
                                   child_init_flags
                                  );
     }
@@ -2396,7 +2790,7 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
 #endif
 
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
-        ts1 = XTIME(0);
+        ts1 = WC_RNG_BANK_TS_START();
 
     for (n = last_inst; n >= first_inst; --n) {
         struct wc_rng_bank_inst *drbg;
@@ -2429,8 +2823,6 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
 
         if (flags & WC_RNG_BANK_FLAG_CAN_WAIT) {
             for (;;) {
-                time_t ts2;
-
 #ifndef WC_RNG_HAVE_LOCK
                 /* the pre-lock boundary can't see the inst-side latch:
                  * mirror the in-boundary _RECOVERING protocol around the
@@ -2473,47 +2865,61 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                     }
                 }
 #else /* WC_RNG_HAVE_LOCK */
-    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-                (void)nonce;
-                (void)nonceSz;
         #ifdef WC_RNG_HAVE_RBGC
                 if (flags & WC_RNG_BANK_FLAG_RBGC) {
-                    ret = wc_RNG_DRBG_ReseedRBGC(
-                        WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng);
+                    /* The root is _LOCK_REQUIRED: a chain draw needs its
+                     * lease, as in wc_rng_bank_inst_reinit().  A root that
+                     * cannot serve right now -- held (BUSY_E), latched
+                     * (NEEDS_RECOVERY_E) -- is a reason to retry below,
+                     * never to substitute a primary reseed. */
+                    ret = wc_RNG_lock_get(&bank->root_rng, 0);
+                    if (ret == 0) {
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+                        ret = wc_RNG_DRBG_ReseedRBGC(
+                            WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng);
+    #else
+                        ret = wc_RNG_DRBG_ReseedRBGC(
+                            WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng,
+                            NULL, 0);
+    #endif
+                        /* A NEEDS_RECOVERY_E from the release means the walk
+                         * latched root under our hold; the member's own
+                         * latch, set by the same walk after root's, stands,
+                         * so this reseed's verdict is the one to keep. */
+                        (void)wc_RNG_lock_put(&bank->root_rng, 0);
+                    }
                 }
                 else
         #endif
                 {
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+                    (void)nonce;
+                    (void)nonceSz;
                     ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
                                                  NULL, 0);
-                }
     #else
-        #ifdef WC_RNG_HAVE_RBGC
-                if (flags & WC_RNG_BANK_FLAG_RBGC) {
-                    ret = wc_RNG_DRBG_ReseedRBGC(
-                        WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng,
-                        NULL, 0);
-                }
-                else
-        #endif
-                {
                     ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
                                                  nonce, nonceSz);
-                }
     #endif
+                }
 #endif /* WC_RNG_HAVE_LOCK */
 
                 if (ret == 0) {
                     break;
                 }
-                if ((timeout_secs == 0) ||
-                    (! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)))
-                {
+                /* The transient codes are retryable -- fail early for the
+                 * rest, as wc_rng_bank_inst_reinit() does: a verdict
+                 * (WRONG_TYPE_OBJECT_E for a chain reseed of a stratum-0
+                 * member under WC_RNG_RBGC_STRATUM_IMMUTABLE, say) does not
+                 * change with waiting, and the lease is held meanwhile. */
+                if (! WC_RNG_ERR_IS_TRANSIENT(ret))
                     break;
-                }
+                if (timeout_secs == 0)
+                    break;
                 if (timeout_secs > 0) {
-                    ts2 = XTIME(0);
-                    if (ts2 - ts1 > timeout_secs) {
+                    if ((WC_RNG_BANK_TS_ELAPSED(ts1) > timeout_secs) &&
+                        !((flags | bank->flags) & WC_RNG_BANK_FLAG_QUIET))
+                    {
 #ifdef WC_VERBOSE_RNG
                         WOLFSSL_DEBUG_PRINTF(
                             "ERROR: timeout trying wc_RNG_DRBG_Reseed_Now() "
@@ -2535,10 +2941,16 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                 (void)wc_RNG_DRBG_ScheduleReseed(WC_RNG_BANK_INST_TO_RNG(drbg));
             }
 #ifdef WC_VERBOSE_RNG
-            if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WC_TIMEOUT_E)))
+            /* transient codes are one pass away from resolving on their own
+             * -- the instance is marked due below -- so they're not errors. */
+            if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WC_TIMEOUT_E)) &&
+                !WC_RNG_ERR_IS_TRANSIENT(ret) &&
+                !((flags | bank->flags) & WC_RNG_BANK_FLAG_QUIET))
+            {
                 WOLFSSL_DEBUG_PRINTF(
                     "ERROR: wc_rng_bank_reseed() wc_RNG_DRBG_Reseed_Now() "
                     "for DRBG #%d returned %d.", n, ret);
+            }
 #endif
             (void)wc_rng_bank_checkin(bank, &drbg);
             if ((ret == WC_NO_ERR_TRACE(WC_TIMEOUT_E)) ||
@@ -2546,8 +2958,10 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
             {
                 goto out;
             }
-            /* reseed the rest of the bank, keeping the first error seen for
-             * the return value */
+            /* Reseed the rest of the bank, keeping the first per-instance
+             * failure for the return value: the walk completes and every
+             * failed instance is marked due, but the caller learns that not
+             * all of them were reseeded here and now. */
             if ((ret != 0) && (first_ret == 0))
                 first_ret = ret;
 
@@ -2571,7 +2985,11 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
 
 out:
 
-    if (first_ret != 0)
+    /* A code that aborted the walk (WC_TIMEOUT_E, INTERRUPTED_E, a checkout
+     * failure) outranks a per-instance failure the walk carried on past:
+     * the former left instances unvisited and not even marked due, which
+     * the caller must hear about first. */
+    if ((ret == 0) && (first_ret != 0))
         ret = first_ret;
 
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
@@ -2631,15 +3049,18 @@ WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
 #endif
 
 #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
-    {
-        if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT) {
-        #if !defined(WC_RNG_HAVE_LOCK)
-            ret = wc_RNG_DRBG_ScheduleReseed(&bank->root_rng);
-        #else
-            ret = wc_RNG_invalidate_entropy(&bank->root_rng);
-        #endif
-        }
-    }
+    #ifdef WC_RNG_HAVE_LOCK
+    /* Unconditional, like the member arm: a root mid-reinit
+     * (wc_rng_bank_root_rng_reinit()) is NOT_INIT with its lock word live
+     * under _PRESERVE_LOCK, and wc_RNG_invalidate_entropy() marks that word
+     * so the event latches the reborn root rather than being lost. */
+    ret = wc_RNG_invalidate_entropy(&bank->root_rng);
+    #else
+    /* The gate held above excludes a reinit, so NOT_INIT here means an
+     * uninstantiated root: nothing to schedule. */
+    if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT)
+        ret = wc_RNG_DRBG_ScheduleReseed(&bank->root_rng);
+    #endif
 #endif
 
     /* Best-effort-complete: an error on one instance must not leave the
@@ -2706,8 +3127,12 @@ static int wc_InitRng_BankRef_local(struct wc_rng_bank *bank, WC_RNG **rng) {
 
     XMEMSET(*rng, 0, sizeof(**rng));
     (*rng)->heap = bank->heap;
-    (*rng)->flags |= WC_RNG_FLAG_BANKREF;
     (*rng)->bankref = bank;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    (*rng)->status = WC_DRBG_BANKREF;
+#else
+    (*rng)->flags |= WC_RNG_FLAG_BANKREF;
+#endif
 
     ret = 0;
 
@@ -2738,8 +3163,13 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     int ret = 0;
     if (rng == NULL)
         return BAD_FUNC_ARG;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    if (rng->status != WC_DRBG_BANKREF)
+        return WRONG_TYPE_OBJECT_E;
+#else
     if (! (rng->flags & WC_RNG_FLAG_BANKREF))
         return WRONG_TYPE_OBJECT_E;
+#endif
     if (rng->bankref == NULL)
         return BAD_FUNC_ARG;
     wolfSSL_RefDec(&rng->bankref->refcount, &isZero, &ret);
@@ -2751,7 +3181,11 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     (void)isZero;
 #endif
     rng->heap = NULL;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    rng->status = WC_DRBG_NOT_INIT;
+#else
     rng->flags &= ~WC_RNG_FLAG_BANKREF;
+#endif
     rng->bankref = NULL;
     return ret;
 }
@@ -2878,6 +3312,26 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
         return UNEXPECTED_STATE_E;
 }
 
+WOLFSSL_LOCAL int wc_rng_bank_inst_lock_get_unconditional(struct wc_rng_bank_inst *inst)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
+        (wolfSSL_Atomic_Uint_CompareExchange(
+            &inst->lock, &cur_lock,
+            cur_lock | WC_RNG_LOCK_HELD)))
+    {
+        return 0;
+    }
+
+    return BUSY_E;
+}
+
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
 {
     WC_RNG_lock_arg_t cur_lock, new_lock;
@@ -2957,6 +3411,13 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_in
     }
     /* conditional release failed: the caller is still the holder. */
     return UNEXPECTED_STATE_E;
+}
+
+WOLFSSL_LOCAL void wc_rng_bank_inst_lock_put_unconditional(struct wc_rng_bank_inst *inst)
+{
+    if (inst == NULL)
+        return;
+    (void)wolfSSL_Atomic_Uint_FetchSub(&inst->lock, WC_RNG_LOCK_HELD);
 }
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state)
@@ -3140,10 +3601,12 @@ static int wc_rng_bank_inst_recovery_exit(
             wolfSSL_Atomic_Uint_CompareExchange, &inst->lock, cur_lock,
             (ret == 0)
             ? (cur_lock & ~(WC_RNG_LOCK_ENTROPY_INVALIDATED |
-                            WC_RNG_LOCK_ENTROPY_RECOVERING))
+                            WC_RNG_LOCK_ENTROPY_RECOVERING |
+                            WC_RNG_LOCK_ORPHANED))
             : (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING),
             cas_ret);
     } WC_CAS_WITH_RETRY_END;
+    (void)cas_ret; /* the forever loop exits only on success. */
 
     return ret;
 }
@@ -3272,10 +3735,6 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_rbgc(
 
 #ifdef WC_RNG_HAVE_RBGC
 
-/* Note, no perso/persoSz in backported wc_InitRngNonceRBGC() */
-#define wc_InitRngRBGC(leaf, root, flags) \
-    wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
-
 WOLFSSL_TEST_VIS int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags) {
     int ret;
     if ((leaf == NULL) || (root == NULL))
@@ -3283,7 +3742,7 @@ WOLFSSL_TEST_VIS int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flag
     *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
     if (*leaf == NULL)
         return MEMORY_E;
-    ret = wc_InitRngNonceRBGC(*leaf, root, NULL, 0, flags);
+    ret = wc_InitRngNonceRBGC(*leaf, root, NULL, 0, NULL, 0, flags);
     if (ret != 0) {
         XFREE(*leaf, root->heap, DYNAMIC_TYPE_RNG);
         *leaf = NULL;
@@ -3304,7 +3763,7 @@ WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
     *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
     if (*leaf == NULL)
         return MEMORY_E;
-    ret = wc_InitRngNonceRBGC(*leaf, root, nonce, nonceSz, flags);
+    ret = wc_InitRngNonceRBGC(*leaf, root, nonce, nonceSz, NULL, 0, flags);
     if (ret != 0) {
         XFREE(*leaf, root->heap, DYNAMIC_TYPE_RNG);
         *leaf = NULL;

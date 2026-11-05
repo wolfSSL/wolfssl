@@ -142,6 +142,12 @@ In your build configuration or `wolfssl/wolfcrypt/settings.h`:
 - ECC hardware operations are not mutex-protected; if you use ECC functions from multiple threads, you must provide your own synchronization.
 - The implementation is designed to be compatible with the wolfSSL API, so existing code using wolfSSL hash/AES/ECC functions will automatically benefit from hardware acceleration when enabled.
 
+## PSOC Edge E8
+
+The same port runs on the PSOC Edge E8 family (PSE8x, CAT1D), whose crypto block is the same MXCRYPTO v2 IP, using the PDL crypto core drivers from Infineon's `mtb-dsl-pse8xxgp`. Only those drivers are needed; build them for the CM33 Secure core with `COMPONENT_CM33`, `CORE_NAME_CM33_0`, `COMPONENT_SECURE_DEVICE` and the part macro (for example `PSE846GPS2DBZC4A`).
+
+The crypto engine reads memory over the system bus, so the port translates code-bus addresses, such as data in XIP flash, the way the PDL does. A bare-metal test and benchmark for KIT_PSE84_AI is in wolfssl-examples under `embedded/infineon_psoc_e8`.
+
 ---
 
 For further details, refer to the comments in [`psoc6_crypto.h`](wolfssl/wolfssl-master/wolfcrypt/port/cypress/psoc6_crypto.h) and [`psoc6_crypto.c`](wolfssl/wolfssl-master/wolfcrypt/src/port/cypress/psoc6_crypto.c)

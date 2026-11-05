@@ -39,6 +39,7 @@ int test_tls13_pha_after_early_data(void);
 int test_tls13_pha_resumption_bare_finished(void);
 int test_tls13_pha_resumption_blank_cert(void);
 int test_tls13_psk_cert_request_in_handshake(void);
+int test_tls13_cert_with_extern_psk_not_offered(void);
 int test_tls13_pha_resumption_second_round(void);
 int test_tls13_rpk_untrusted(void);
 int test_tls13_rpk_trust(void);
@@ -61,7 +62,11 @@ int test_key_share_mismatch(void);
 int test_key_share_mismatch_psk_dhe(void);
 int test_tls13_middlebox_compat_empty_session_id(void);
 int test_tls13_middlebox_compat_session_id(void);
+int test_tls13_expired_session_id(void);
+int test_tls13_expired_tls12_session_id(void);
+int test_tls13_clear_expired_session_id(void);
 int test_tls13_middlebox_compat_server_ccs(void);
+int test_tls13_repeated_ccs(void);
 int test_tls13_middlebox_compat_server_reuse(void);
 int test_tls13_middlebox_compat_hrr_ccs(void);
 int test_tls13_hrr_ch2_record_version(void);
@@ -109,6 +114,7 @@ int test_tls13_post_handshake_auth_no_ext(void);
 int test_tls13_post_handshake_auth_late_allow(void);
 int test_tls13_pha_group_messages(void);
 int test_tls13_downgrade_sentinel(void);
+int test_tls13_downgrade_sentinel_resumption(void);
 int test_tls13_serverhello_legacy_version(void);
 int test_tls13_serverhello_bad_cipher_suites(void);
 int test_tls13_psk_no_cert_bad_binder(void);
@@ -133,6 +139,9 @@ int test_tls13_fail_if_no_psk_no_cert_server(void);
 int test_tls13_fail_if_no_psk_dtls13_handshake(void);
 int test_tls13_fail_if_no_psk_dtls13_rejects_no_psk(void);
 int test_tls13_ticket_peer_cert_reverify(void);
+int test_tls13_ticket_peer_cert_resume(void);
+int test_tls13_ticket_enc_too_long(void);
+int test_tls13_ticket_set_alloc_fail(void);
 int test_tls13_legacy_session_id_peer_chain(void);
 int test_tls13_clear_preserves_psk_dhe(void);
 int test_tls13_cipher_fuzz_aes128_gcm_sha256(void);
@@ -156,6 +165,19 @@ int test_tls13_user_canceled_fatal_level(void);
 int test_tls13_user_canceled_encrypted(void);
 int test_tls12_fatal_alert_closes_and_evicts(void);
 int test_tls13_no_app_data_after_fatal_alert(void);
+int test_tls13_warning_error_alert_is_fatal(void);
+int test_tls13_cert_failure_sets_fatal_alert(void);
+int test_tls13_write_after_transport_close(void);
+int test_tls13_no_write_after_close_notify(void);
+int test_tls13_shutdown_after_refused_write(void);
+int test_tls13_no_handshake_after_user_canceled(void);
+int test_tls13_no_key_update_after_close_notify(void);
+int test_tls13_no_key_update_response_after_close_notify(void);
+int test_tls13_no_pha_response_after_close_notify(void);
+int test_tls13_write_dup_no_response_after_close_notify(void);
+int test_tls12_no_renegotiation_after_close_notify(void);
+int test_tls13_refused_write_after_peek(void);
+int test_tls_sni_callback_alerts(void);
 int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
@@ -180,8 +202,14 @@ int test_tls13_export_server_ticket_after_import(void);
 int test_tls13_export_client_ticket_after_import(void);
 int test_tls13_export_server_key_update(void);
 int test_tls13_export_client_key_update(void);
+int test_tls13_export_keeps_fatal_alert(void);
+int test_tls13_export_keeps_transport_close(void);
+int test_tls12_export_v6_closed_refuses_write(void);
 int test_tls13_chain_verify_cb_rpk(void);
 int test_tls13_cks_hrr_reparse(void);
+int test_tls13_update_keys_want_write(void);
+int test_tls13_AEAD_limit_KeyUpdate_want_write(void);
+int test_tls13_exporter_suite_decision_coverage(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -199,6 +227,7 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_bare_finished), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_blank_cert), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_cert_request_in_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_not_offered), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_second_round), \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_untrusted),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_trust),             \
@@ -221,7 +250,11 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_key_share_mismatch_psk_dhe),  \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_empty_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_expired_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_expired_tls12_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_clear_expired_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_ccs), \
+    TEST_DECL_GROUP("tls13", test_tls13_repeated_ccs), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_reuse), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_hrr_ccs), \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_ch2_record_version), \
@@ -270,6 +303,7 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_late_allow), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_group_messages), \
     TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
+    TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel_resumption), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_legacy_version), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_no_cert_bad_binder), \
@@ -294,6 +328,9 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_handshake), \
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_rejects_no_psk), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_reverify), \
+    TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_resume), \
+    TEST_DECL_GROUP("tls13", test_tls13_ticket_enc_too_long), \
+    TEST_DECL_GROUP("tls13", test_tls13_ticket_set_alloc_fail), \
     TEST_DECL_GROUP("tls13", test_tls13_legacy_session_id_peer_chain), \
     TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe), \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_gcm_sha256), \
@@ -317,6 +354,19 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_user_canceled_encrypted), \
     TEST_DECL_GROUP("tls13", test_tls12_fatal_alert_closes_and_evicts), \
     TEST_DECL_GROUP("tls13", test_tls13_no_app_data_after_fatal_alert), \
+    TEST_DECL_GROUP("tls13", test_tls13_warning_error_alert_is_fatal), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_failure_sets_fatal_alert), \
+    TEST_DECL_GROUP("tls13", test_tls13_write_after_transport_close), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_write_after_close_notify), \
+    TEST_DECL_GROUP("tls13", test_tls13_shutdown_after_refused_write), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_handshake_after_user_canceled), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_key_update_after_close_notify), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_key_update_response_after_close_notify), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_pha_response_after_close_notify), \
+    TEST_DECL_GROUP("tls13", test_tls13_write_dup_no_response_after_close_notify), \
+    TEST_DECL_GROUP("tls13", test_tls12_no_renegotiation_after_close_notify), \
+    TEST_DECL_GROUP("tls13", test_tls13_refused_write_after_peek), \
+    TEST_DECL_GROUP("tls13", test_tls_sni_callback_alerts), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
     TEST_DECL_GROUP("tls13", test_tls13_is_init_finished_want_write), \
@@ -341,7 +391,13 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_export_client_ticket_after_import), \
     TEST_DECL_GROUP("tls13", test_tls13_export_server_key_update), \
     TEST_DECL_GROUP("tls13", test_tls13_export_client_key_update), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_keeps_fatal_alert), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_keeps_transport_close), \
+    TEST_DECL_GROUP("tls13", test_tls12_export_v6_closed_refuses_write), \
     TEST_DECL_GROUP("tls13", test_tls13_chain_verify_cb_rpk), \
-    TEST_DECL_GROUP("tls13", test_tls13_cks_hrr_reparse)
+    TEST_DECL_GROUP("tls13", test_tls13_cks_hrr_reparse), \
+    TEST_DECL_GROUP("tls13", test_tls13_update_keys_want_write), \
+    TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KeyUpdate_want_write), \
+    TEST_DECL_GROUP("tls13", test_tls13_exporter_suite_decision_coverage)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

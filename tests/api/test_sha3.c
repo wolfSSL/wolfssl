@@ -19,6 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if defined(V5_NONFIPS_SHAKE)
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+    #endif
+    #ifndef WOLFSSL_USER_SETTINGS
+        #include <wolfssl/options.h>
+    #endif
+    #include <wolfssl/wolfcrypt/settings.h>
+    #ifdef WOLFSSL_SHA3
+        #include <wolfssl/wolfcrypt/shake.h>
+    #endif
+#endif
+
 #include <tests/unit.h>
 
 #ifdef NO_INLINE

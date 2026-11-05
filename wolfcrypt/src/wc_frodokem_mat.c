@@ -184,28 +184,16 @@
     #define FRODOKEM_D15_SHAKE128
 #endif
 
-/* restrict qualifier for the matrix multiply inner loops. The A-row scratch
- * and the output-row slices never overlap, so flagging them lets the compiler
- * vectorize each contiguous accumulation stream (without it the aliasing
- * analysis gives up and the loops stay scalar). Falls back to nothing on
- * compilers without a restrict keyword - the code stays correct either way. */
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-    #define FRODOKEM_RESTRICT restrict
-#elif defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
-    #define FRODOKEM_RESTRICT __restrict
-#else
-    #define FRODOKEM_RESTRICT
-#endif
-
-#if defined(USE_INTEL_SPEEDUP) || defined(FRODOKEM_HAVE_SVE) || \
-    defined(FRODOKEM_HAVE_NEON_RUNTIME)
+#if (defined(USE_INTEL_SPEEDUP) || defined(FRODOKEM_HAVE_SVE) || \
+    defined(FRODOKEM_HAVE_NEON_RUNTIME)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 /* Cached CPU feature flags used to select SIMD routines: AVX2 / BMI2 Keccak in
  * matrix-A generation on Intel, and the SVE / NEON matrix ops on AArch64 (NEON
  * is gated on Advanced SIMD). Populated once by frodokem_init(). */
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #endif
 
-#ifdef FRODOKEM_HAVE_SME
+#if defined(FRODOKEM_HAVE_SME) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 /* The SME kernels compute the whole nbar x nbar (8 x 8) product in one ZA.S
  * tile, which needs a streaming vector length (SVL) of at least 256 bits (32
  * bytes). HWCAP2_SME alone does not guarantee that, so the SVL is measured and
@@ -231,16 +219,22 @@ static WC_INLINE int frodokem_sme_svl_bytes(void)
  * call repeatedly (the flags are read from the CPU only once). */
 void frodokem_init(void)
 {
-#if defined(USE_INTEL_SPEEDUP) || defined(FRODOKEM_HAVE_SVE) || \
-    defined(FRODOKEM_HAVE_NEON_RUNTIME)
+#if (defined(USE_INTEL_SPEEDUP) || defined(FRODOKEM_HAVE_SVE) || \
+    defined(FRODOKEM_HAVE_NEON_RUNTIME)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
     cpuid_get_flags_ex(&cpuid_flags);
 #endif
-#ifdef FRODOKEM_HAVE_SME
+#if defined(FRODOKEM_HAVE_SME) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
     /* SME needs SVL >= 256 bits (>= 32 bytes) for the 8 x 8 ZA.S tile. */
     frodokem_sme_svl_ok = IS_AARCH64_SME(cpuid_flags) &&
         (frodokem_sme_svl_bytes() >= 32);
 #endif
 }
+
+/* In a callback-only build every operation that uses the lattice math is
+ * serviced by a crypto callback, so only the matrix store/load and the one-shot
+ * hash stay: the key encode and decode API is all that still calls in here. */
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
 
 #ifdef FRODOKEM_HAVE_SME
 /* Portable-C A * S accumulate (defined later): the SME fallback on allocation
@@ -468,6 +462,8 @@ void frodokem_unpack(word16* out, const byte* in, int nElem, int d)
 #endif
 }
 
+#endif /* !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+
 /* Serialize a matrix of word16 coefficients as little-endian 16-bit values.
  *
  * Used for the secret matrix S^T in the private key, whose two's-complement
@@ -521,6 +517,8 @@ void frodokem_load_matrix(word16* mat, const byte* in, int cnt)
 /* Encoding and decoding of messages to/from matrices (Section 6.1).          */
 /******************************************************************************/
 
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+
 /* Encode a message bit string into an nbar x nbar matrix.
  *
  * Groups of B bits (least-significant bit of each byte first, Section 6.1) are
@@ -570,8 +568,8 @@ void frodokem_key_decode(byte* msg, const word16* c, const FrodoKemParams* p)
     int nElem = FRODOKEM_NBAR_SQ;
     int shift = p->d - p->b;
     /* Rounding constant: q / 2^(B+1) = 2^(D - B - 1). */
-    unsigned int rnd = 1u << (shift - 1);
-    unsigned int mask = (1u << p->b) - 1;
+    unsigned int rnd = 1U << (shift - 1);
+    unsigned int mask = (1U << p->b) - 1;
 
     XMEMSET(msg, 0, (size_t)p->lenSec);
 
@@ -699,6 +697,8 @@ int frodokem_shake(const FrodoKemParams* p, wc_Shake* shake, const byte* in0,
     return ret;
 }
 
+#endif /* !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+
 /* One-shot SHAKE over a single contiguous input buffer, selecting SHAKE128 for
  * FrodoKEM-640 and SHAKE256 for FrodoKEM-976 / -1344.
  *
@@ -749,6 +749,8 @@ int frodokem_shake_oneshot(const FrodoKemParams* p, wc_Shake* shake,
 
     return ret;
 }
+
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
 
 /******************************************************************************/
 /* Error sampling (Section 6.5).                                              */
@@ -1550,8 +1552,13 @@ static int frodokem_gen_a_row_shake_x2(word16* rows, const byte* seedA,
  * @param  [in]       j    Index of the generated A row.
  * @param  [in]       n    Matrix dimension n.
  */
+/* restrict qualifier for the matrix multiply inner loops. The A-row scratch
+ * and the output-row slices never overlap, so flagging them lets the compiler
+ * vectorize each contiguous accumulation stream (without it the aliasing
+ * analysis gives up and the loops stay scalar). Falls back to nothing on
+ * compilers without a restrict keyword - the code stays correct either way. */
 static void frodokem_sa_accum(word16* out, const word16* s,
-    const word16* FRODOKEM_RESTRICT row, int j, int n)
+    const word16* WC_RESTRICT row, int j, int n)
 {
     int k;
 #ifdef WOLFSSL_FRODOKEM_SMALL
@@ -1559,7 +1566,7 @@ static void frodokem_sa_accum(word16* out, const word16* s,
 
     for (i = 0; i < FRODOKEM_NBAR; i++) {
         word16 sij = s[i * n + j];
-        word16* FRODOKEM_RESTRICT o = out + i * n;
+        word16* WC_RESTRICT o = out + i * n;
 
         for (k = 0; k < n; k++) {
             o[k] = (word16)(o[k] + sij * row[k]);
@@ -1575,7 +1582,7 @@ static void frodokem_sa_accum(word16* out, const word16* s,
      * with each S coefficient read just before its loop, keeps only one stream
      * live at a time (low register pressure). The output slice, wherever o
      * points, never overlaps row. */
-    word16* FRODOKEM_RESTRICT o = out;
+    word16* WC_RESTRICT o = out;
     word16 sij;
 
     sij = s[0 * n + j];
@@ -3077,5 +3084,6 @@ void frodokem_add(word16* a, const word16* b, int qmask)
     }
 #endif /* FRODOKEM_HAVE_ARM_ASM */
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
 #endif /* WOLFSSL_HAVE_FRODOKEM */

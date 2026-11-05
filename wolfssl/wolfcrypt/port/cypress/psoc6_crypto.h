@@ -28,7 +28,8 @@
 
 #if defined(WOLFSSL_PSOC6_CRYPTO)
 
-#include "cy_pdl.h"
+#include "cy_result.h"
+#include "cy_crypto_core.h"
 
 /* Enable SHA-1 hardware acceleration if SHA-1 is enabled in wolfSSL */
 #if !defined(NO_SHA)
@@ -50,6 +51,12 @@
 #ifndef NO_AES
     #define PSOC6_CRYPTO_AES
 #endif /* !NO_AES */
+
+/* Enable ECDSA verify on the crypto engine. Define NO_PSOC6_CRYPTO_ECC to
+ * keep it in software, which can be faster with the SP math assembly. */
+#if defined(HAVE_ECC) && !defined(NO_PSOC6_CRYPTO_ECC)
+    #define PSOC6_CRYPTO_ECC
+#endif
 
 typedef enum {
     WC_PSOC6_SHA1       = 0,
@@ -140,7 +147,7 @@ int wc_Psoc6_Aes_GcmDecrypt(struct Aes* aes, byte* out, const byte* in,
 #endif /* HAVE_AESGCM */
 #endif /* NO_AES */
 
-#ifdef HAVE_ECC
+#ifdef PSOC6_CRYPTO_ECC
 
 /* Forward declaration of ecc_key structure.
  * Only pointers to struct ecc_key are used in this header,
@@ -152,7 +159,7 @@ struct ecc_key;
 int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
                              word32 hashlen, int* verif_res,
                              struct ecc_key* key);
-#endif /* HAVE_ECC */
+#endif /* PSOC6_CRYPTO_ECC */
 
 #define PSOC6_CRYPTO_BASE ((CRYPTO_Type*)CRYPTO_BASE)
 

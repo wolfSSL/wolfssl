@@ -29,6 +29,13 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    /* Must come after sha3.h here, unlike the other override sites: sha3.h
+    * processes first with SHAKE off, so shake.h's own fallback typedef and
+    * prototypes are what actually declare wc_Shake here. Moving it ahead
+    * breaks the build. */
+    #include <wolfssl/wolfcrypt/shake.h>
+#endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
 
@@ -859,16 +866,6 @@ WOLFSSL_LOCAL void mlkem_add3_reduce(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_rsub_reduce(sword16* r, const sword16* a);
 WOLFSSL_LOCAL void mlkem_to_mont(sword16* p);
 WOLFSSL_LOCAL void mlkem_to_mont_sqrdmlsh(sword16* p);
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_neon(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed);
-#ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_crypto(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-#endif
 WOLFSSL_LOCAL unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len,
     const byte* r, unsigned int rLen);
 WOLFSSL_LOCAL int mlkem_cmp_neon(const byte* a, const byte* b, int sz);
@@ -889,6 +886,9 @@ WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b);
 WOLFSSL_LOCAL void mlkem_thumb2_csubq(sword16* p);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_10(byte* r, sword16* v,
+    unsigned int k);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_11(byte* r, sword16* v);
 WOLFSSL_LOCAL unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen);
 #elif defined(WOLFSSL_ARMASM)

@@ -61,21 +61,24 @@ for s in $SRCS; do
     fi
 done
 
-# random.c again with the entropy gate on: that turns WOLFSSL_NOISE_SRC on and
-# pulls in the generic SP800-90B noise-source layer, which is otherwise left
+# rng_noisesrc.c and random.c again with the entropy gate on: that turns
+# WOLFSSL_NOISE_SRC on, compiling the generic SP800-90B noise-source layer in
+# rng_noisesrc.c and the C2000 wc_GenerateSeed() branch in random.c, both left
 # out of the sweep above.  Needs no C2000Ware - only the port .c touches
 # driverlib.
-printf 'CC  random.c (WOLFSSL_C2000_ENTROPY) ... '
-if "$CL" $CFLAGS $INCS --define=WOLFSSL_C2000_ENTROPY \
-        --compile_only --skip_assembler \
-        --asm_directory="$OUT" --obj_directory="$OUT" \
-        "$WOLFROOT/wolfcrypt/src/random.c" > "$OUT/random-noise.log" 2>&1; then
-    echo "ok"
-else
-    echo "FAIL"
-    cat "$OUT/random-noise.log"
-    rc=1
-fi
+for s in rng_noisesrc random; do
+    printf 'CC  %s.c (WOLFSSL_C2000_ENTROPY) ... ' "$s"
+    if "$CL" $CFLAGS $INCS --define=WOLFSSL_C2000_ENTROPY \
+            --compile_only --skip_assembler \
+            --asm_directory="$OUT" --obj_directory="$OUT" \
+            "$WOLFROOT/wolfcrypt/src/$s.c" > "$OUT/$s-noise.log" 2>&1; then
+        echo "ok"
+    else
+        echo "FAIL"
+        cat "$OUT/$s-noise.log"
+        rc=1
+    fi
+done
 
 # The AESA hardware-AES port needs C2000Ware driverlib headers, which CI does
 # not download, so it is an opt-in extra leg: set C2000WARE to a C2000Ware

@@ -109,6 +109,7 @@
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
+    #include <wolfssl/wolfcrypt/rng_bank.h>
     #include <wolfssl/wolfcrypt/des3.h>
     #include <wolfssl/wolfcrypt/ecc.h>
     #include <wolfssl/wolfcrypt/md4.h>
@@ -3870,16 +3871,20 @@ int wolfssl_local_IsValidFQDN(const char* name, word32 nameSz)
     int curLabelHasAlpha = 0;
     int curLabelHasUnderscore = 0;
 
-    if (name == NULL || nameSz == 0)
+    if (name == NULL || nameSz == 0 || nameSz > 254)
         return 0;
 
+    /* Bound before touching name[]: a valid name is at most 253 octets
+     * plus an optional trailing dot, so longer sizes are rejected here
+     * without reading past the caller's buffer.
+     */
     /* Strip a single optional trailing dot before measuring.  "example.com."
      * is the absolute form of the same FQDN.
      */
     if (name[nameSz - 1] == '.')
         --nameSz;
 
-    if (nameSz < 1 || nameSz > 253)
+    if (nameSz > 253)
         return 0;
 
     for (i = 0; i < nameSz; i++) {
@@ -3918,7 +3923,12 @@ int wolfssl_local_IsValidFQDN(const char* name, word32 nameSz)
         return 0;
     ++labelCount;
 
+#ifdef WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME
+    (void)labelCount;
+    return curLabelHasAlpha;
+#else
     return ((labelCount > 1) && curLabelHasAlpha);
+#endif
 }
 
 /* call before SSL_connect, if verifying will add name check to
@@ -4016,8 +4026,8 @@ const char *wolfSSL_get0_peername(WOLFSSL *ssl) {
     else if (ssl->session && ssl->session->peer)
         return ssl->session->peer->subjectCN;
 #ifdef KEEP_PEER_CERT
-    else if (ssl->peerCert.subjectCN[0])
-        return ssl->peerCert.subjectCN;
+    else if (GetPeerCert(ssl) != NULL && GetPeerCert(ssl)->subjectCN[0])
+        return GetPeerCert(ssl)->subjectCN;
 #endif
     else {
         ssl->error = NO_PEER_CERT;
@@ -5792,13 +5802,29 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
         }
 
-        if (!ssl->options.handShakeDone) {
-            /* Only reset the session if we didn't complete a handshake */
+        /* A client keeps the session it may resume. A server's is per
+         * connection: take a new one when the application holds a reference,
+         * else reset ours, as wolfSSL_get_session() hands out a pointer
+         * without taking one. */
+        if (!ssl->options.handShakeDone ||
+                ((ssl->options.side == WOLFSSL_SERVER_END) &&
+                 (wolfSSL_RefCur(ssl->session->ref) > 1))) {
             wolfSSL_FreeSession(ssl->ctx, ssl->session);
             ssl->session = wolfSSL_NewSession(ssl->heap);
             if (ssl->session == NULL) {
                 return WOLFSSL_FAILURE;
             }
+        }
+        else if (ssl->options.side == WOLFSSL_SERVER_END) {
+            ssl->session->haveAltSessionID = 0;
+            ForceZero(ssl->session->altSessionID, ID_LEN);
+#ifndef NO_WOLFSSL_SERVER
+            ssl->session->peerAuthOk = 0;
+            ssl->session->isPSK = 0;
+#endif
+        #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
+            ssl->session->ticketNonce.len = 0;
+        #endif
         }
 
         /* reset error */
@@ -5806,9 +5832,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         /* reset option bits */
         ssl->options.isClosed = 0;
+        ssl->options.fatalAlert = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
         ssl->options.closeNotify = 0;
+        /* Per-connection budgets, not cumulative across a reused object. */
+        ssl->options.alertCount = 0;
+        ssl->options.emptyRecordCount = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
@@ -5832,12 +5862,18 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
               DYNAMIC_TYPE_TMP_BUFFER);
         ssl->buffers.certVerifyMsg.buffer = NULL;
         ssl->buffers.certVerifyMsg.length = 0;
-        ssl->fragOffset = 0;
 #endif
+        ssl->fragOffset = 0;
+        ssl->options.buildingMsg = 0;
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;
         ssl->options.havePeerCert = 0;
         ssl->options.peerAuthGood = 0;
+        ssl->options.usingPSK_cipher = 0;
+        ssl->options.usingAnon_cipher = 0;
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+        ssl->options.pskNegotiated = 0;
+#endif
         ssl->options.tls1_3 = 0;
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
@@ -5865,6 +5901,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #endif
         ssl->options.hrrSentKeyShare = 0;
         ssl->options.sentChangeCipher = 0;
+        ssl->options.ccsIgnoredCount = 0;
         /* Matches InitSSL_Tls13Options(); the server clears it again when the
          * next ClientHello carries an empty session id. */
         ssl->options.tls13MiddleBoxCompat = 1;
@@ -5896,11 +5933,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_CURVE448
         ssl->peerX448KeyPresent = 0;
     #endif
+        /* Drop the peer certificate public key left by an abandoned handshake. */
+        FreePeerCertKeys(ssl);
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
     #endif
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        ssl->options.pskNegotiated = 0;
         ssl->options.noPskDheKe = ssl->ctx->noPskDheKe;
         ssl->options.noPskDheKePolicy = ssl->ctx->noPskDheKe;
         #ifdef HAVE_SUPPORTED_CURVES
@@ -5936,10 +5976,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
         ssl->options.ticketsSent = 0;
-        #ifndef NO_WOLFSSL_SERVER
-        if (ssl->options.side == WOLFSSL_SERVER_END)
-            ssl->session->ticketNonce.len = 0;
-        #endif
         #if !defined(NO_WOLFSSL_SERVER) && \
             defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
         /* Recorded from the ClientHello, so it must not carry into the next
@@ -5952,6 +5988,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         #endif
         #endif
         ssl->options.rejectTicket = 0;
+        ssl->options.useTicket = 0;
+        ssl->options.createTicket = 0;
     #endif
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;
@@ -6107,8 +6145,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
 
 #ifdef KEEP_PEER_CERT
-        FreeX509(&ssl->peerCert);
-        InitX509(&ssl->peerCert, 0, ssl->heap);
+        FreePeerCert(ssl);
 #endif
 
 #ifdef WOLFSSL_QUIC
@@ -9000,6 +9037,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return NULL;
     if (ssl->ctx == ctx)
         return ssl->ctx;
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* the SSL and its heap hint are freed through ssl->ctx->heap */
+    if (ssl->ctx != NULL && ssl->ctx->heap != ctx->heap) {
+        WOLFSSL_MSG("Cannot switch to a CTX with a different heap");
+        return NULL;
+    }
+#endif
 
     /* suites, allocated and derived under the CTX mutex as this CTX may be
      * shared with other threads. Done before taking a reference below so that
@@ -11307,8 +11351,16 @@ int wolfSSL_FIPS_drbg_reseed(WOLFSSL_DRBG_CTX* ctx, const unsigned char* adin,
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL && ctx->rng != NULL) {
-    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
+    #ifdef WC_RNG_HAVE_RESEED_NOW
+        /* OpenSSL FIPS_drbg_reseed semantics: reseed from the module's
+         * source with adin as additional input.  (A credited user-class
+         * reseed of a conformant instance is refused with
+         * WC_RNG_RBGC_STRATUM_IMMUTABLE.) */
+        if (wc_RNG_DRBG_Reseed_Now(ctx->rng, adin, (word32)adinlen) == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+    #elif !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+          (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
         if (wc_RNG_DRBG_Reseed(ctx->rng, adin, (word32)adinlen) == 0) {
             ret = WOLFSSL_SUCCESS;
         }

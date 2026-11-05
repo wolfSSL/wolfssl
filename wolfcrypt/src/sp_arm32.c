@@ -18521,7 +18521,7 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_2048_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -19122,7 +19122,7 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -19177,7 +19177,7 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
         mp_clamp(res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -46579,7 +46579,7 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_3072_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -47372,7 +47372,7 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -47427,7 +47427,7 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
         mp_clamp(res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -62404,7 +62404,7 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_4096_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -63389,7 +63389,7 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -77335,7 +77335,7 @@ static void sp_256_ecc_recode_6_8(const sp_digit* k, ecc_recode_256* v)
     n = k[j];
     o = 0;
     for (i=0; i<43; i++) {
-        y = (word8)(int8_t)n;
+        y = (word8)(n & 0xff);
         if (o + 6 < 32) {
             y &= 0x3f;
             n >>= 6;
@@ -79516,53 +79516,26 @@ static int sp_256_ecc_gen_k_8(WC_RNG* rng, sp_digit* k)
  * @param [in]  heap  Heap to use for allocation.
  *
  * @return  MP_OKAY on success.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
 int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_DECL_VAR(sp_point_256, point, 2);
-#else
     SP_DECL_VAR(sp_point_256, point, 1);
-#endif
     SP_DECL_VAR(sp_digit, k, 8);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_256* infinity = NULL;
-#endif
     int err = MP_OKAY;
 
 
     (void)heap;
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_ALLOC_VAR(sp_point_256, point, 2, heap, DYNAMIC_TYPE_ECC);
-#else
     SP_ALLOC_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
-#endif
     SP_ALLOC_VAR(sp_digit, k, 8, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-        infinity = point + 1;
-    #endif
-
         err = sp_256_ecc_gen_k_8(rng, k);
     }
     if (err == MP_OKAY) {
             err = sp_256_ecc_mulmod_base_8(point, k, 1, 1, NULL);
     }
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, 1, NULL);
-    }
-    if (err == MP_OKAY) {
-        if (sp_256_iszero_8(point->x) || sp_256_iszero_8(point->y)) {
-            err = ECC_INF_E;
-        }
-    }
-#endif
 
     if (err == MP_OKAY) {
         err = sp_256_to_mp(k, priv);
@@ -79583,11 +79556,7 @@ typedef struct sp_ecc_key_gen_256_ctx {
     int state;
     sp_256_ecc_mulmod_8_ctx mulmod_ctx;
     sp_digit k[8];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_256  point[2];
-#else
     sp_point_256 point[1];
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 } sp_ecc_key_gen_256_ctx;
 
 /* Makes a random EC key pair.
@@ -79603,7 +79572,6 @@ typedef struct sp_ecc_key_gen_256_ctx {
  *
  * @return  MP_OKAY on success.
  * @return  FP_WOULDBLOCK while more work remains.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
@@ -79612,9 +79580,6 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_key_gen_256_ctx* ctx = (sp_ecc_key_gen_256_ctx*)sp_ctx->data;
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_256* infinity = ctx->point + 1;
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 
     typedef char ctx_size_test[sizeof(sp_ecc_key_gen_256_ctx)
                                >= sizeof(*sp_ctx) ? -1 : 1];
@@ -79633,31 +79598,10 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
                       ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 err = FP_WOULDBLOCK;
-            #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-                XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
                 ctx->state = 2;
-            #else
-                ctx->state = 3;
-            #endif
             }
             break;
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
-            err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p256_order, 1, 1, heap);
-            if (err == MP_OKAY) {
-                if (sp_256_iszero_8(ctx->point->x) ||
-                    sp_256_iszero_8(ctx->point->y)) {
-                    err = ECC_INF_E;
-                }
-                else {
-                    err = FP_WOULDBLOCK;
-                    ctx->state = 3;
-                }
-            }
-            break;
-    #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
-        case 3:
             err = sp_256_to_mp(ctx->k, priv);
             if (err == MP_OKAY) {
                 err = sp_256_point_to_ecc_point_8(ctx->point, pub);
@@ -79666,7 +79610,7 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_256_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_key_gen_256_ctx));
     }
 
     return err;
@@ -79798,7 +79742,7 @@ int sp_ecc_secret_gen_256_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_256_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_sec_gen_256_ctx));
     }
 
     return err;
@@ -81177,11 +81121,7 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 8U);
+        ForceZero(ctx, sizeof(sp_ecc_sign_256_ctx));
     }
 
     return err;
@@ -82828,17 +82768,21 @@ static int sp_256_mont_sqrt_8(sp_digit* y)
  * @param [out] ym   Calculated Y ordinate.
  *
  * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when no point on the curve has the X ordinate.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 {
-    SP_DECL_VAR(sp_digit, x, 4 * 8);
+    SP_DECL_VAR(sp_digit, x, 6 * 8);
     sp_digit* y = NULL;
+    sp_digit* t = NULL;
+    sp_int32 n;
     int err = MP_OKAY;
 
-    SP_ALLOC_VAR(sp_digit, x, 4 * 8, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, x, 6 * 8, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         y = x + 2 * 8;
+        t = x + 4 * 8;
 
         sp_256_from_mp(x, 8, xm);
         err = sp_256_mod_mul_norm_8(x, x, p256_mod);
@@ -82858,8 +82802,30 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     }
     if (err == MP_OKAY) {
         sp_256_mont_add_8(y, y, x, p256_mod);
+        /* t = x^3 - 3x + b */
+        XMEMCPY(t, y, 8U * sizeof(sp_digit));
         /* y = sqrt(x^3 - 3x + b) */
         err = sp_256_mont_sqrt_8(y);
+    }
+    if (err == MP_OKAY) {
+        /* x = y^2 */
+        sp_256_mont_sqr_8(x, y, p256_mod, p256_mp_mod);
+        /* Reduce both sides to less than the modulus before comparing: a
+         * Montgomery result may still be in [p, 2^bits) or carry an
+         * unpropagated limb. */
+        sp_256_norm_8(x);
+        n = sp_256_cmp_8(x, p256_mod);
+        sp_256_cond_sub_8(x, x, p256_mod, (sp_digit)~(n >> 31));
+        sp_256_norm_8(x);
+        sp_256_norm_8(t);
+        n = sp_256_cmp_8(t, p256_mod);
+        sp_256_cond_sub_8(t, t, p256_mod, (sp_digit)~(n >> 31));
+        sp_256_norm_8(t);
+        /* No square root exists when y^2 != x^3 - 3x + b: no point has this
+         * x ordinate. */
+        if (sp_256_cmp_equal_8(x, t) == 0) {
+            err = MP_VAL;
+        }
     }
     if (err == MP_OKAY) {
         XMEMSET(y + 8, 0, 8U * sizeof(sp_digit));
@@ -96285,7 +96251,7 @@ static void sp_384_ecc_recode_6_12(const sp_digit* k, ecc_recode_384* v)
     n = k[j];
     o = 0;
     for (i=0; i<65; i++) {
-        y = (word8)(int8_t)n;
+        y = (word8)(n & 0xff);
         if (o + 6 < 32) {
             y &= 0x3f;
             n >>= 6;
@@ -98496,53 +98462,26 @@ static int sp_384_ecc_gen_k_12(WC_RNG* rng, sp_digit* k)
  * @param [in]  heap  Heap to use for allocation.
  *
  * @return  MP_OKAY on success.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
 int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_DECL_VAR(sp_point_384, point, 2);
-#else
     SP_DECL_VAR(sp_point_384, point, 1);
-#endif
     SP_DECL_VAR(sp_digit, k, 12);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_384* infinity = NULL;
-#endif
     int err = MP_OKAY;
 
 
     (void)heap;
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_ALLOC_VAR(sp_point_384, point, 2, heap, DYNAMIC_TYPE_ECC);
-#else
     SP_ALLOC_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
-#endif
     SP_ALLOC_VAR(sp_digit, k, 12, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-        infinity = point + 1;
-    #endif
-
         err = sp_384_ecc_gen_k_12(rng, k);
     }
     if (err == MP_OKAY) {
             err = sp_384_ecc_mulmod_base_12(point, k, 1, 1, NULL);
     }
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_12(infinity, point, p384_order, 1, 1, NULL);
-    }
-    if (err == MP_OKAY) {
-        if (sp_384_iszero_12(point->x) || sp_384_iszero_12(point->y)) {
-            err = ECC_INF_E;
-        }
-    }
-#endif
 
     if (err == MP_OKAY) {
         err = sp_384_to_mp(k, priv);
@@ -98563,11 +98502,7 @@ typedef struct sp_ecc_key_gen_384_ctx {
     int state;
     sp_384_ecc_mulmod_12_ctx mulmod_ctx;
     sp_digit k[12];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_384  point[2];
-#else
     sp_point_384 point[1];
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 } sp_ecc_key_gen_384_ctx;
 
 /* Makes a random EC key pair.
@@ -98583,7 +98518,6 @@ typedef struct sp_ecc_key_gen_384_ctx {
  *
  * @return  MP_OKAY on success.
  * @return  FP_WOULDBLOCK while more work remains.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
@@ -98592,9 +98526,6 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_key_gen_384_ctx* ctx = (sp_ecc_key_gen_384_ctx*)sp_ctx->data;
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_384* infinity = ctx->point + 1;
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 
     typedef char ctx_size_test[sizeof(sp_ecc_key_gen_384_ctx)
                                >= sizeof(*sp_ctx) ? -1 : 1];
@@ -98613,31 +98544,10 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
                       ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 err = FP_WOULDBLOCK;
-            #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-                XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
                 ctx->state = 2;
-            #else
-                ctx->state = 3;
-            #endif
             }
             break;
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
-            err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p384_order, 1, 1, heap);
-            if (err == MP_OKAY) {
-                if (sp_384_iszero_12(ctx->point->x) ||
-                    sp_384_iszero_12(ctx->point->y)) {
-                    err = ECC_INF_E;
-                }
-                else {
-                    err = FP_WOULDBLOCK;
-                    ctx->state = 3;
-                }
-            }
-            break;
-    #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
-        case 3:
             err = sp_384_to_mp(ctx->k, priv);
             if (err == MP_OKAY) {
                 err = sp_384_point_to_ecc_point_12(ctx->point, pub);
@@ -98646,7 +98556,7 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_384_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_key_gen_384_ctx));
     }
 
     return err;
@@ -98778,7 +98688,7 @@ int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_384_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_sec_gen_384_ctx));
     }
 
     return err;
@@ -100263,11 +100173,7 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 12U);
+        ForceZero(ctx, sizeof(sp_ecc_sign_384_ctx));
     }
 
     return err;
@@ -102061,17 +101967,21 @@ static int sp_384_mont_sqrt_12(sp_digit* y)
  * @param [out] ym   Calculated Y ordinate.
  *
  * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when no point on the curve has the X ordinate.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
 {
-    SP_DECL_VAR(sp_digit, x, 4 * 12);
+    SP_DECL_VAR(sp_digit, x, 6 * 12);
     sp_digit* y = NULL;
+    sp_digit* t = NULL;
+    sp_int32 n;
     int err = MP_OKAY;
 
-    SP_ALLOC_VAR(sp_digit, x, 4 * 12, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, x, 6 * 12, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         y = x + 2 * 12;
+        t = x + 4 * 12;
 
         sp_384_from_mp(x, 12, xm);
         err = sp_384_mod_mul_norm_12(x, x, p384_mod);
@@ -102091,8 +102001,30 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
     }
     if (err == MP_OKAY) {
         sp_384_mont_add_12(y, y, x, p384_mod);
+        /* t = x^3 - 3x + b */
+        XMEMCPY(t, y, 12U * sizeof(sp_digit));
         /* y = sqrt(x^3 - 3x + b) */
         err = sp_384_mont_sqrt_12(y);
+    }
+    if (err == MP_OKAY) {
+        /* x = y^2 */
+        sp_384_mont_sqr_12(x, y, p384_mod, p384_mp_mod);
+        /* Reduce both sides to less than the modulus before comparing: a
+         * Montgomery result may still be in [p, 2^bits) or carry an
+         * unpropagated limb. */
+        sp_384_norm_12(x);
+        n = sp_384_cmp_12(x, p384_mod);
+        sp_384_cond_sub_12(x, x, p384_mod, (sp_digit)~(n >> 31));
+        sp_384_norm_12(x);
+        sp_384_norm_12(t);
+        n = sp_384_cmp_12(t, p384_mod);
+        sp_384_cond_sub_12(t, t, p384_mod, (sp_digit)~(n >> 31));
+        sp_384_norm_12(t);
+        /* No square root exists when y^2 != x^3 - 3x + b: no point has this
+         * x ordinate. */
+        if (sp_384_cmp_equal_12(x, t) == 0) {
+            err = MP_VAL;
+        }
     }
     if (err == MP_OKAY) {
         XMEMSET(y + 12, 0, 12U * sizeof(sp_digit));
@@ -124385,7 +124317,7 @@ static void sp_521_ecc_recode_6_17(const sp_digit* k, ecc_recode_521* v)
     n = k[j];
     o = 0;
     for (i=0; i<87; i++) {
-        y = (word8)(int8_t)n;
+        y = (word8)(n & 0xff);
         if (o + 6 < 32) {
             y &= 0x3f;
             n >>= 6;
@@ -127180,53 +127112,26 @@ static int sp_521_ecc_gen_k_17(WC_RNG* rng, sp_digit* k)
  * @param [in]  heap  Heap to use for allocation.
  *
  * @return  MP_OKAY on success.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
 int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_DECL_VAR(sp_point_521, point, 2);
-#else
     SP_DECL_VAR(sp_point_521, point, 1);
-#endif
     SP_DECL_VAR(sp_digit, k, 17);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_521* infinity = NULL;
-#endif
     int err = MP_OKAY;
 
 
     (void)heap;
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_ALLOC_VAR(sp_point_521, point, 2, heap, DYNAMIC_TYPE_ECC);
-#else
     SP_ALLOC_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
-#endif
     SP_ALLOC_VAR(sp_digit, k, 17, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-        infinity = point + 1;
-    #endif
-
         err = sp_521_ecc_gen_k_17(rng, k);
     }
     if (err == MP_OKAY) {
             err = sp_521_ecc_mulmod_base_17(point, k, 1, 1, NULL);
     }
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-            err = sp_521_ecc_mulmod_17(infinity, point, p521_order, 1, 1, NULL);
-    }
-    if (err == MP_OKAY) {
-        if (sp_521_iszero_17(point->x) || sp_521_iszero_17(point->y)) {
-            err = ECC_INF_E;
-        }
-    }
-#endif
 
     if (err == MP_OKAY) {
         err = sp_521_to_mp(k, priv);
@@ -127247,11 +127152,7 @@ typedef struct sp_ecc_key_gen_521_ctx {
     int state;
     sp_521_ecc_mulmod_17_ctx mulmod_ctx;
     sp_digit k[17];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_521  point[2];
-#else
     sp_point_521 point[1];
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 } sp_ecc_key_gen_521_ctx;
 
 /* Makes a random EC key pair.
@@ -127267,7 +127168,6 @@ typedef struct sp_ecc_key_gen_521_ctx {
  *
  * @return  MP_OKAY on success.
  * @return  FP_WOULDBLOCK while more work remains.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
@@ -127276,9 +127176,6 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_key_gen_521_ctx* ctx = (sp_ecc_key_gen_521_ctx*)sp_ctx->data;
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_521* infinity = ctx->point + 1;
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 
     typedef char ctx_size_test[sizeof(sp_ecc_key_gen_521_ctx)
                                >= sizeof(*sp_ctx) ? -1 : 1];
@@ -127297,31 +127194,10 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
                       ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 err = FP_WOULDBLOCK;
-            #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-                XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
                 ctx->state = 2;
-            #else
-                ctx->state = 3;
-            #endif
             }
             break;
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
-            err = sp_521_ecc_mulmod_17_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p521_order, 1, 1, heap);
-            if (err == MP_OKAY) {
-                if (sp_521_iszero_17(ctx->point->x) ||
-                    sp_521_iszero_17(ctx->point->y)) {
-                    err = ECC_INF_E;
-                }
-                else {
-                    err = FP_WOULDBLOCK;
-                    ctx->state = 3;
-                }
-            }
-            break;
-    #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
-        case 3:
             err = sp_521_to_mp(ctx->k, priv);
             if (err == MP_OKAY) {
                 err = sp_521_point_to_ecc_point_17(ctx->point, pub);
@@ -127330,7 +127206,7 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_521_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_key_gen_521_ctx));
     }
 
     return err;
@@ -127464,7 +127340,7 @@ int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_521_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_sec_gen_521_ctx));
     }
 
     return err;
@@ -129649,11 +129525,7 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 17U);
+        ForceZero(ctx, sizeof(sp_ecc_sign_521_ctx));
     }
 
     return err;
@@ -131927,17 +131799,21 @@ static int sp_521_mont_sqrt_17(sp_digit* y)
  * @param [out] ym   Calculated Y ordinate.
  *
  * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when no point on the curve has the X ordinate.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
 {
-    SP_DECL_VAR(sp_digit, x, 4 * 17);
+    SP_DECL_VAR(sp_digit, x, 6 * 17);
     sp_digit* y = NULL;
+    sp_digit* t = NULL;
+    sp_int32 n;
     int err = MP_OKAY;
 
-    SP_ALLOC_VAR(sp_digit, x, 4 * 17, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, x, 6 * 17, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         y = x + 2 * 17;
+        t = x + 4 * 17;
 
         sp_521_from_mp(x, 17, xm);
         err = sp_521_mod_mul_norm_17(x, x, p521_mod);
@@ -131957,8 +131833,30 @@ int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
     }
     if (err == MP_OKAY) {
         sp_521_mont_add_17(y, y, x, p521_mod);
+        /* t = x^3 - 3x + b */
+        XMEMCPY(t, y, 17U * sizeof(sp_digit));
         /* y = sqrt(x^3 - 3x + b) */
         err = sp_521_mont_sqrt_17(y);
+    }
+    if (err == MP_OKAY) {
+        /* x = y^2 */
+        sp_521_mont_sqr_17(x, y, p521_mod, p521_mp_mod);
+        /* Reduce both sides to less than the modulus before comparing: a
+         * Montgomery result may still be in [p, 2^bits) or carry an
+         * unpropagated limb. */
+        sp_521_norm_17(x);
+        n = sp_521_cmp_17(x, p521_mod);
+        sp_521_cond_sub_17(x, x, p521_mod, (sp_digit)~(n >> 31));
+        sp_521_norm_17(x);
+        sp_521_norm_17(t);
+        n = sp_521_cmp_17(t, p521_mod);
+        sp_521_cond_sub_17(t, t, p521_mod, (sp_digit)~(n >> 31));
+        sp_521_norm_17(t);
+        /* No square root exists when y^2 != x^3 - 3x + b: no point has this
+         * x ordinate. */
+        if (sp_521_cmp_equal_17(x, t) == 0) {
+            err = MP_VAL;
+        }
     }
     if (err == MP_OKAY) {
         XMEMSET(y + 17, 0, 17U * sizeof(sp_digit));
@@ -150157,14 +150055,14 @@ static void sp_1024_point_free_32(sp_point_1024* p, int clear, void* heap)
     /* If valid pointer then clear point data if requested and free data. */
     if (p != NULL) {
         if (clear) {
-            XMEMSET(p, 0, sizeof(*p));
+            ForceZero(p, sizeof(*p));
         }
         XFREE(p, heap, DYNAMIC_TYPE_ECC);
     }
 #else
     /* Clear point data if requested. */
     if ((p != NULL) && clear) {
-        XMEMSET(p, 0, sizeof(*p));
+        ForceZero(p, sizeof(*p));
     }
 #endif
     (void)heap;

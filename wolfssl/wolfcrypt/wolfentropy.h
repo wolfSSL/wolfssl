@@ -30,6 +30,8 @@
 
 #ifdef HAVE_ENTROPY_MEMUSE
 
+#include <wolfssl/wolfcrypt/entropy-timers.h>
+
 #if defined(ENTROPY_SCALE_FACTOR) && FIPS_VERSION3_GE(5,2,4) && \
     FIPS_VERSION3_NE(6,0,0)
     #error "ENTROPY_SCALE_FACTOR defined elsewhere than wolfEntropy.h"

@@ -5133,7 +5133,7 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
         }
     } while (res == MP_NO);
 
-    XMEMSET(buf, 0, len);
+    ForceZero(buf, len);
     XFREE(buf, heap, DYNAMIC_TYPE_RSA);
 
     return MP_OKAY;

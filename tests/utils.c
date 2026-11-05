@@ -22,6 +22,7 @@
 #include <tests/unit.h>
 #include <tests/utils.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/internal.h>
 
 #ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 
@@ -878,6 +879,35 @@ int test_memio_setup(struct test_memio_ctx *ctx,
     return test_memio_setup_ex(ctx, ctx_c, ctx_s, ssl_c, ssl_s, method_c,
                                method_s, NULL, 0, NULL, 0, NULL, 0);
 }
+
+#ifdef WOLFSSL_SESSION_EXPORT
+/* Relabel a session export as version 6 and drop fatalAlert, the options byte
+ * ahead of the two connection version bytes that version 6 does not have. */
+void test_export_options_v6(unsigned char* session, unsigned int* sessionSz)
+{
+    const unsigned int totalLenAt = WOLFSSL_EXPORT_LEN;
+    const unsigned int optLenAt = 2 * WOLFSSL_EXPORT_LEN;
+    const unsigned int optAt = 3 * WOLFSSL_EXPORT_LEN;
+    unsigned int totalLen;
+    unsigned int optSz;
+    unsigned int at;
+
+    totalLen = ((unsigned int)session[totalLenAt] << 8) |
+        session[totalLenAt + 1];
+    optSz = ((unsigned int)session[optLenAt] << 8) | session[optLenAt + 1];
+    at = optAt + optSz - 3;
+
+    XMEMMOVE(session + at, session + at + 1, *sessionSz - at - 1);
+    *sessionSz -= 1;
+    totalLen -= 1;
+    optSz -= 1;
+    session[1] = (byte)((session[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
+    session[totalLenAt] = (byte)(totalLen >> 8);
+    session[totalLenAt + 1] = (byte)totalLen;
+    session[optLenAt] = (byte)(optSz >> 8);
+    session[optLenAt + 1] = (byte)optSz;
+}
+#endif /* WOLFSSL_SESSION_EXPORT */
 
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD */
 

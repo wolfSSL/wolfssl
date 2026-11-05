@@ -1034,6 +1034,14 @@ void wc_PKCS7_SetUnknownExtCallback(wc_PKCS7* pkcs7, wc_UnknownExtCallback cb)
         pkcs7->unknownExtCallback = cb;
     }
 }
+
+void wc_PKCS7_SetUnknownExtCallback32(wc_PKCS7* pkcs7,
+        wc_UnknownExtCallback32 cb)
+{
+    if (pkcs7 != NULL) {
+        pkcs7->unknownExtCallback32 = cb;
+    }
+}
 #endif
 
 /* Certificate structure holding der pointer, size, and pointer to next
@@ -1351,6 +1359,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
     Pkcs7Cert* lastCert;
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback cb;
+    wc_UnknownExtCallback32 cb32;
 #endif
 
     if (pkcs7 == NULL || (derCert == NULL && derCertSz != 0)) {
@@ -1361,6 +1370,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
     devId = pkcs7->devId;
     cert = pkcs7->certList;
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    cb32 = pkcs7->unknownExtCallback32; /* save / restore callback */
     cb = pkcs7->unknownExtCallback; /* save / restore callback */
 #endif
     ret = wc_PKCS7_Init(pkcs7, heap, devId);
@@ -1368,6 +1378,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         return ret;
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    pkcs7->unknownExtCallback32 = cb32;
     pkcs7->unknownExtCallback = cb;
 #endif
     pkcs7->certList = cert;
@@ -1417,8 +1428,13 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 
         InitDecodedCert(dCert, derCert, derCertSz, pkcs7->heap);
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-        if (pkcs7->unknownExtCallback != NULL)
+        if (pkcs7->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(dCert, pkcs7->unknownExtCallback32);
+        }
+
+        if (pkcs7->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+        }
 #endif
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
@@ -5582,8 +5598,13 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         /* This allows the user to not error out in the case of extensions that
          * we are not aware of. */
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-        if (pkcs7->unknownExtCallback != NULL)
+        if (pkcs7->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(dCert, pkcs7->unknownExtCallback32);
+        }
+
+        if (pkcs7->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+        }
 #endif
 
         /* not verifying, only using this to extract public key */
@@ -5720,8 +5741,13 @@ static int wc_PKCS7_MlDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-        if (pkcs7->unknownExtCallback != NULL)
+        if (pkcs7->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(dCert, pkcs7->unknownExtCallback32);
+        }
+
+        if (pkcs7->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+        }
 #endif
 
         /* not verifying, only using this to extract public key */
@@ -10164,8 +10190,10 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
             }
 
             ret = wc_Des_SetKey(&des, key, iv, DES_ENCRYPTION);
-            if (ret == 0)
+            if (ret == 0) {
                 ret = wc_Des_CbcEncrypt(&des, out, in, (word32)inSz);
+            }
+            ForceZero(&des, sizeof(Des));
 
             break;
 
@@ -10518,6 +10546,7 @@ static void wc_PKCS7_DecryptContentFree(wc_PKCS7* pkcs7, word32 encryptOID,
 #ifndef NO_DES3
         case DESb:
             if (pkcs7->decryptKey.des != NULL) {
+                ForceZero(pkcs7->decryptKey.des, sizeof(Des));
                 XFREE(pkcs7->decryptKey.des, heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->decryptKey.des = NULL;
             }
@@ -10904,8 +10933,12 @@ static int wc_PKCS7_GenerateKEK_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
 
         case PBKDF2_OID:
 
+            /* The KEK is consumed internally to wrap/unwrap the CEK -- do
+             * the FIPS private-key unlock for the caller. */
+            PRIVATE_KEY_UNLOCK();
             ret = wc_PBKDF2(out, passwd, (int)pLen, salt, (int)saltSz,
                             iterations, (int)outSz, prfOID);
+            PRIVATE_KEY_LOCK();
             if (ret != 0) {
                 return ret;
             }
@@ -12162,7 +12195,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* decryptedKeySz, int* recipFound)
 {
     int length, encryptedKeySz = 0, ret = 0;
-    int keySz, version, sidType = 0;
+    int keySz, version = -1, sidType = 0;
     int keyIdSize;
     word32 encOID = 0;
     word32 keyIdx;

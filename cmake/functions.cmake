@@ -222,6 +222,16 @@ function(generate_build_flags)
     set(BUILD_AFALG ${WOLFSSL_AFALG} PARENT_SCOPE)
     set(BUILD_DEVCRYPTO ${WOLFSSL_DEVCRYPTO} PARENT_SCOPE)
     set(BUILD_ELE ${WOLFSSL_ELE} PARENT_SCOPE)
+    # OR WOLFSSL_USER_SETTINGS, as the feature flags around this do: a
+    # user-settings build takes WOLFSSL_AUTOSAR from user_settings.h, where
+    # CMake cannot see it, so keying the source list on the CMake option alone
+    # would leave an ECU build linking against Csm.h with nothing behind it --
+    # the unresolved Csm_* symbols this list exists to fix. The three sources
+    # are each wrapped in #ifdef WOLFSSL_AUTOSAR, so compiling them into a
+    # build that does not want them costs three empty objects.
+    if(WOLFSSL_AUTOSAR OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_AUTOSAR "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_CAMELLIA OR WOLFSSL_USER_SETTINGS)
         set(BUILD_CAMELLIA "yes" PARENT_SCOPE)
     endif()
@@ -383,12 +393,14 @@ function(generate_build_flags)
         set(BUILD_CRL_MONITOR "yes" PARENT_SCOPE)
     endif()
     set(BUILD_QUIC ${WOLFSSL_QUIC} PARENT_SCOPE)
-    set(BUILD_WNR ${WOLFSSL_WNR} PARENT_SCOPE)
     if(WOLFSSL_SRP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SRP "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_RNG_BANK OR WOLFSSL_USER_SETTINGS)
         set(BUILD_RNG_BANK "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_NOISESRC OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_NOISESRC "yes" PARENT_SCOPE)
     endif()
     set(USE_VALGRIND ${WOLFSSL_VALGRIND})
     if(WOLFSSL_MD4 OR WOLFSSL_USER_SETTINGS)
@@ -617,6 +629,16 @@ function(generate_lib_src_list LIB_SOURCES)
 
             if(BUILD_SHA)
                 list(APPEND LIB_SOURCES wolfcrypt/src/sha.c)
+
+                if(BUILD_ARMASM AND BUILD_FIPS_READY)
+                    if(BUILD_ARMASM_INLINE)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha1-asm_c.c)
+                    else()
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha1-asm.S)
+                    endif()
+                endif()
             endif()
 
             if(BUILD_ARMASM AND BUILD_FIPS_READY)
@@ -764,6 +786,11 @@ function(generate_lib_src_list LIB_SOURCES)
         wolfcrypt/src/hash.c
         wolfcrypt/src/cpuid.c)
 
+    # Outside the FIPS module boundary; configure rejects it for wolfRand.
+    if(BUILD_NOISESRC)
+        list(APPEND LIB_SOURCES wolfcrypt/src/rng_noisesrc.c)
+    endif()
+
     if(NOT BUILD_FIPS_RAND)
         if(NOT BUILD_FIPS_V5)
             list(APPEND LIB_SOURCES wolfcrypt/src/kdf.c)
@@ -899,6 +926,19 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(NOT BUILD_FIPS_V2 AND BUILD_SHA)
             list(APPEND LIB_SOURCES wolfcrypt/src/sha.c)
+
+            # FIPS v5 and v6 supply their own sha.c, which has no assembly arm,
+            # so src/include.am blanks NEW_ARMASM_SHA1_ASM_{C,S} for both.  Match
+            # that here or the two builds take different low-level sources.
+            if(BUILD_ARMASM AND NOT BUILD_FIPS_V5 AND NOT BUILD_FIPS_V6)
+                if(BUILD_ARMASM_INLINE)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-sha1-asm_c.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-sha1-asm.S)
+                endif()
+            endif()
         endif()
 
         if(NOT BUILD_FIPS_V2 AND BUILD_SHA512)
@@ -1537,6 +1577,16 @@ function(generate_lib_src_list LIB_SOURCES)
             wolfcrypt/src/port/caam/wolfcaam_hash.c
             wolfcrypt/src/port/caam/wolfcaam_rsa.c
             wolfcrypt/src/port/caam/wolfcaam_hmac.c)
+    endif()
+
+    # Corresponds to wolfcrypt/src/port/autosar/include.am. Without these the
+    # WOLFSSL_AUTOSAR define still reaches options.h, so an application's Csm_*
+    # calls compile against Csm.h and then fail to link.
+    if(BUILD_AUTOSAR)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/autosar/csm.c
+            wolfcrypt/src/port/autosar/crypto.c
+            wolfcrypt/src/port/autosar/cryif.c)
     endif()
 
     if(BUILD_HPKE)

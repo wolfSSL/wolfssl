@@ -1077,16 +1077,20 @@ WOLFSSL_API int  wolfSSL_OpenSSL_add_all_algorithms_conf(void);
 WOLFSSL_API int  wolfSSL_OpenSSL_add_all_algorithms_noconf(void);
 WOLFSSL_API int wolfSSL_EVP_read_pw_string(char*, int, const char*, int);
 
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_HMAC)
+#ifndef NO_SHA
 WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char * pass, int passlen,
                                                const unsigned char * salt,
                                                int saltlen, int iter,
                                                int keylen, unsigned char *out);
+#endif /* !NO_SHA */
 
 WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const unsigned char *salt,
                                            int saltlen, int iter,
                                            const WOLFSSL_EVP_MD *digest,
                                            int keylen, unsigned char *out);
+#endif /* HAVE_PBKDF2 && !NO_PWDBASED && !NO_HMAC */
 
 #if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
                                                     !defined(NO_SHA256)

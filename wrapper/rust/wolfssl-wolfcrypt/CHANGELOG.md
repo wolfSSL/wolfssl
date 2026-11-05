@@ -40,6 +40,9 @@ Breaking changes:
 
 New features:
 
+- Add the rand_core_0_9 feature: RNG implements the rand_core 0.9
+  TryRngCore and TryCryptoRng traits, alongside the rand_core 0.10 ones, for
+  users of the rand 0.9 ecosystem
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
 - Add HMAC::copy(), a fallible equivalent of HMAC::clone()
@@ -64,6 +67,13 @@ Fixes and improvements:
   4112-byte buffer on the stack for every call and no longer limits messages to
   4096 bytes. Decryption now verifies the authentication tag before decrypting,
   so the caller's buffer is left unmodified when verification fails
+- XChaCha20Poly1305Aead's AeadInPlace implementation now absorbs and pads the
+  AAD itself instead of passing it to wc_XChaCha20Poly1305_Init(). The wolfSSL
+  fix that makes that function usable with the streaming API (it now leaves
+  the AAD pad to wc_ChaCha20Poly1305_UpdateData()/Final()) would otherwise
+  have made this path produce wrong authentication tags for any AAD whose
+  length is not a multiple of 16; the wrapper now produces correct tags with
+  wolfSSL releases from before and after that fix
 - The rsa_oaep feature (RSA::public_encrypt_oaep(),
   RSA::private_decrypt_oaep() and the rsa_oaep module) is no longer enabled
   when wolfSSL is built with WC_NO_RSA_OAEP. Previously it failed to link, or
@@ -74,6 +84,9 @@ Fixes and improvements:
 - Ed25519 and Ed448 streaming verification with the prehash variant now
   requires exactly PREHASH_SIZE (64) bytes of input, matching one-shot
   verification
+- RNG::generate_block() (and the rand_core implementation built on it) now
+  fills buffers larger than RNG_MAX_BLOCK_LEN by splitting them into multiple
+  DRBG requests, instead of failing with BAD_FUNC_ARG
 
 ## v2.2.0
 

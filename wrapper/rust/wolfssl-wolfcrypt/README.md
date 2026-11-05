@@ -74,6 +74,7 @@ default.
 | `cipher`        | `cipher`         | AES (aes)                             |
 | `aead`          | `aead`           | AES-GCM/CCM/EAX (aes), ChaCha20-Poly1305 |
 | `rand_core`     | `rand_core`      | RNG (random)                          |
+| `rand_core_0_9` | `rand_core` 0.9  | RNG (random)                          |
 | `kem`           | `kem`            | ML-KEM (mlkem_kem)                    |
 | `password-hash` | `password-hash`  | PBKDF2 (pbkdf2_password_hash), scrypt (scrypt_password_hash) |
 
@@ -94,6 +95,12 @@ let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
 let mut buf = [0u8; 32];
 rng.fill_bytes(&mut buf);
 ```
+
+For projects still on the `rand` 0.9 ecosystem, the `rand_core_0_9` feature
+implements the equivalent `rand_core` 0.9 traits, `TryRngCore` and
+`TryCryptoRng`, with the same `RngError`. Wrap the RNG in the 0.9
+`UnwrapErr` to get `RngCore` and `CryptoRng`. Both features can be enabled at
+once.
 
 Enable features in your `Cargo.toml`, for example:
 

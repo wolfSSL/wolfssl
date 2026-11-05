@@ -23,6 +23,7 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 * `user_settings_dtls13.h`: DTLS 1.3 for IoT and embedded. Includes connection ID support and smaller MTU options.
 * `user_settings_pq.h`: Post-quantum TLS with ML-KEM (Kyber) key exchange and ML-DSA (Dilithium) certificates.
 * `user_settings_openssl_compat.h`: OpenSSL compatibility layer for drop-in replacement. Enables OPENSSL_ALL and related APIs.
+* `user_settings_arm_thumb2_aes.h`: Minimal Arm Thumb-2 software-table AES (wolfCrypt only), ECB/CBC/CTR/GCM/GCM-SIV. Add `WOLFSSL_AES_TOUCH_LINES` to route AES through the C constant-time core.
 * `user_settings_baremetal.h`: Bare metal configuration. No filesystem, static memory only, minimal footprint.
 * `user_settings_rsa_only.h`: RSA-only configuration (no ECC). For legacy systems requiring RSA cipher suites.
 * `user_settings_pkcs7.h`: PKCS#7/CMS configuration for signing and encryption. S/MIME, firmware signing. For RSA-PSS SignedData (CMS RSASSA-PSS), define `WC_RSA_PSS`; see doxygen \ref PKCS7_RSA_PSS.

@@ -22,6 +22,12 @@
     #include <wolfssl/options.h>
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* The library's falcon_key has no signing caches under CB_ONLY. */
+    #undef WC_FALCON_CACHE_EXPANDED_KEY
+    #undef WC_FALCON_CACHE_PRIV_BASIS
+#endif
+
 #undef WOLF_CRYPTO_CB_ONLY_RSA
 #undef WOLF_CRYPTO_CB_ONLY_ECC
 #undef WOLF_CRYPTO_CB_ONLY_SHA256
@@ -31,9 +37,12 @@
 #undef WOLF_CRYPTO_CB_ONLY_CURVE25519
 #undef WOLF_CRYPTO_CB_ONLY_CURVE448
 #undef WOLF_CRYPTO_CB_ONLY_SLHDSA
+#undef WOLF_CRYPTO_CB_ONLY_FALCON
+#undef WOLF_CRYPTO_CB_ONLY_MLDSA
 #undef WOLF_CRYPTO_CB_ONLY_MLKEM
 #undef WOLF_CRYPTO_CB_ONLY_LMS
 #undef WOLF_CRYPTO_CB_ONLY_XMSS
+#undef WOLF_CRYPTO_CB_ONLY_FRODOKEM
 /* swdev is the software provider, so it needs the software implementations
  * that these leave out of the library. */
 #undef WOLFSSL_NO_RSA_SW

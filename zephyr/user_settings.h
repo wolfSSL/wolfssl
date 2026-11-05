@@ -56,7 +56,9 @@ extern "C" {
 
 /* Network stack */
 /* Default is POSIX sockets */
-//#define WOLFSSL_USER_IO /* Use the SetIO callbacks, not the internal wolfio.c socket code */
+#if defined(CONFIG_WOLFSSL_USER_IO)
+    #define WOLFSSL_USER_IO /* Use the SetIO callbacks, not the internal wolfio.c socket code */
+#endif
 //#define WOLFSSL_LWIP
 //#define WOLFSSL_LWIP_NATIVE
 //#define FREERTOS_TCP
@@ -71,11 +73,6 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Hardware */
 /* ------------------------------------------------------------------------- */
-/* CryptoCell support */
-#if 0
-    //#define WOLFSSL_CRYPTOCELL
-    //#define WOLFSSL_CRYPTOCELL_AES
-#endif
 /* PSA support */
 #ifdef CONFIG_MBEDTLS_PSA_CRYPTO_C
     #define WOLFSSL_HAVE_PSA
@@ -196,6 +193,9 @@ extern "C" {
 #if defined(CONFIG_WOLFSSL_SNI)
     #define HAVE_SNI /* optional Server Name Indication (SNI) */
 #endif
+#if defined(CONFIG_WOLFSSL_POST_HANDSHAKE_AUTH)
+    #define WOLFSSL_POST_HANDSHAKE_AUTH
+#endif
 
 /* ASN */
 #define WOLFSSL_ASN_TEMPLATE /* use newer ASN template asn.c code (default) */
@@ -286,6 +286,14 @@ extern "C" {
     #define WOLFSSL_AES_CFB
 #endif
 
+/* No WOLF_CRYPTO_CB_FIND: the Zephyr entropy driver supplies the seed. */
+#ifdef CONFIG_WOLFSSL_ELS_PKC
+    #define WOLFSSL_ELS_PKC
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+#endif
+
 /* ------------------------------------------------------------------------- */
 /* Algorithms */
 /* ------------------------------------------------------------------------- */
@@ -368,9 +376,6 @@ extern "C" {
     //#define WC_RSA_NO_PADDING
     //#define RSA_LOW_MEM
 
-    #if 0
-        #define WOLFSSL_KEY_GEN /* For RSA Key gen only */
-    #endif
     #if defined(WOLFSSL_TLS13) || defined(CONFIG_WOLFSSL_RSA_PSS)
         /* TLS v1.3 requires RSA PSS padding */
         #define WC_RSA_PSS
@@ -404,10 +409,19 @@ extern "C" {
 /* Ed25519 / Curve25519 */
 #if defined(CONFIG_WOLFSSL_CURVE25519)
     #define HAVE_CURVE25519
+#endif
+#if defined(CONFIG_WOLFSSL_ED25519)
     #define HAVE_ED25519 /* ED25519 Requires SHA512 */
+#endif
+/* Optionally use small math (less flash usage, but much slower) */
+//#define CURVED25519_SMALL
 
-    /* Optionally use small math (less flash usage, but much slower) */
-    //#define CURVED25519_SMALL
+/* Ed448 / Curve448 */
+#if defined(CONFIG_WOLFSSL_CURVE448)
+    #define HAVE_CURVE448
+#endif
+#if defined(CONFIG_WOLFSSL_ED448)
+    #define HAVE_ED448 /* ED448 Requires SHAKE256 */
 #endif
 
 /* SHA-1 */
@@ -498,10 +512,44 @@ extern "C" {
 /* Optional Features */
 #define WOLFSSL_BASE64_ENCODE /* Enable Base64 encoding */
 //#define WC_NO_CACHE_RESISTANT /* systems with cache should enable this for AES, ECC, RSA and DH */
-//#define WOLFSSL_CERT_GEN
-//#define WOLFSSL_CERT_REQ
-//#define WOLFSSL_CERT_EXT
 //#define NO_PWDBASED
+
+/* Certificate generation */
+#if defined(CONFIG_WOLFSSL_CERT_GEN)
+    #define WOLFSSL_CERT_GEN
+#endif
+#if defined(CONFIG_WOLFSSL_CERT_REQ)
+    #define WOLFSSL_CERT_REQ
+#endif
+#if defined(CONFIG_WOLFSSL_CERT_EXT)
+    #define WOLFSSL_CERT_EXT
+#endif
+#if defined(CONFIG_WOLFSSL_ALT_NAMES)
+    #define WOLFSSL_ALT_NAMES
+#endif
+#if defined(CONFIG_WOLFSSL_IP_ALT_NAME)
+    #define WOLFSSL_IP_ALT_NAME
+#endif
+#if defined(CONFIG_WOLFSSL_CERT_NAME_ALL)
+    #define WOLFSSL_CERT_NAME_ALL
+#endif
+#if defined(CONFIG_WOLFSSL_PUBLIC_ASN)
+    #define WOLFSSL_PUBLIC_ASN
+#endif
+
+/* Key generation */
+#if defined(CONFIG_WOLFSSL_KEY_GEN)
+    #define WOLFSSL_KEY_GEN
+#endif
+
+/* PKCS#7 */
+#if defined(CONFIG_WOLFSSL_PKCS7)
+    #define HAVE_PKCS7
+    #define HAVE_AES_KEYWRAP
+    #ifdef HAVE_ECC
+        #define HAVE_X963_KDF
+    #endif
+#endif
 
 
 /* Disable Algorithms */
@@ -569,6 +617,9 @@ extern "C" {
     defined(CONFIG_WOLFSSL_XMSS) || defined(CONFIG_WOLFSSL_FALCON)
     #define WOLFSSL_SHA3_SMALL
     #define WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE256
+#elif defined(CONFIG_WOLFSSL_ED448)
+    #define WOLFSSL_NO_SHAKE128
     #define WOLFSSL_SHAKE256
 #else
     #define WOLFSSL_NO_SHAKE128
@@ -749,6 +800,13 @@ extern "C" {
 #endif
 
 #endif /* WOLFSSL_SETTINGS_FILE */
+
+/* The port is silent when its define is missing: els_pkc_port.c compiles to
+ * nothing and no crypto callback is ever registered. */
+#if defined(CONFIG_WOLFSSL_ELS_PKC) && \
+    (!defined(WOLFSSL_ELS_PKC) || !defined(WOLF_CRYPTO_CB))
+#error "CONFIG_WOLFSSL_ELS_PKC=y needs the settings file to define WOLFSSL_ELS_PKC and WOLF_CRYPTO_CB"
+#endif
 
 #endif /* CONFIG_WOLFSSL */
 

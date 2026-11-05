@@ -2021,6 +2021,9 @@ void wolfSSL_TS_RESP_CTX_free(WOLFSSL_TS_RESP_CTX* ctx)
 {
     if (ctx != NULL) {
         XFREE(ctx->certDer, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (ctx->keyDer != NULL) {
+            ForceZero(ctx->keyDer, ctx->keySz);
+        }
         XFREE(ctx->keyDer, NULL, DYNAMIC_TYPE_OPENSSL);
         XFREE(ctx->policy, NULL, DYNAMIC_TYPE_OPENSSL);
         XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -2096,6 +2099,9 @@ int wolfSSL_TS_RESP_CTX_set_signer_key(WOLFSSL_TS_RESP_CTX* ctx,
     if ((derSz <= 0) || (der == NULL))
         return 0;
 
+    if (ctx->keyDer != NULL) {
+        ForceZero(ctx->keyDer, ctx->keySz);
+    }
     XFREE(ctx->keyDer, NULL, DYNAMIC_TYPE_OPENSSL);
     ctx->keyDer = der;
     ctx->keySz = (word32)derSz;

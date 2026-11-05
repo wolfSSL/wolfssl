@@ -59,6 +59,16 @@ CRL Options:
     #endif
 #endif /* HAVE_CRL_MONITOR */
 
+/* A CRL missing from the list is loaded from the X509_STORE hash directory
+ * by the certificate's issuer X509_NAME. */
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
+    !defined(NO_STDIO_FILESYSTEM) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    #define CRL_LOAD_BY_ISSUER
+#endif
+
 
 /* Initialize CRL members */
 int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
@@ -618,13 +628,15 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
  * with X509_STORE_CTX_set0_crls. The caller-owned crl is not modified. */
 static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm)
+        int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm,
+        int canRetry)
 {
     int        foundEntry = 0;
     int        ret = 0;
 
     WOLFSSL_ENTER("CheckCertCRL");
     (void)issuerName;
+    (void)canRetry;
 
     if ((serial == NULL || serialSz == 0) && serialHash == NULL) {
         WOLFSSL_MSG("Either serial or hash has to be provided");
@@ -659,11 +671,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     }
 #endif
 
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
-    !defined(NO_STDIO_FILESYSTEM) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+#ifdef CRL_LOAD_BY_ISSUER
     /* if not find entry in the CRL list, it looks at the folder that sets  */
     /* by LOOKUP_ctrl because user would want to use hash_dir.              */
     /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */
@@ -681,7 +689,12 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         }
     }
 #endif
-    if (foundEntry == 0) {
+    /* A fetch that would block is retried, not a CRL found missing. */
+    if (foundEntry == 0
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+            && (!canRetry || ret != WC_NO_ERR_TRACE(OCSP_WANT_READ))
+    #endif
+            ) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
         if (ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)) {
             ret = CRL_MISSING;
@@ -721,19 +734,39 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int extCrlInfoSz, void* issuerName)
 {
     return CheckCertCRLCm(crl, issuerHash, serial, serialSz, serialHash,
-            extCrlInfo, extCrlInfoSz, issuerName, crl->cm);
+            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1);
+}
+
+/* Get the issuer X509_NAME of cert to pass to CheckCertCRLCm(). */
+static void* CertCrlIssuerName(DecodedCert* cert)
+{
+#ifdef CRL_LOAD_BY_ISSUER
+    /* Used to load a CRL from the hash directory. The cert may have been
+     * parsed without its X509_NAMEs. */
+    (void)GetCertX509Name(cert, ASN_ISSUER, NULL);
+    return cert->issuerName;
+#elif defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    return cert->issuerName;
+#else
+    (void)cert;
+    return NULL;
+#endif
+}
+
+static int CheckDecodedCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
+        WOLFSSL_CERT_MANAGER* cm, int canRetry)
+{
+    void* issuerName = CertCrlIssuerName(cert);
+
+    return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
+            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm,
+            canRetry);
 }
 
 /* Is the cert ok with CRL, return 0 on success */
 int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 {
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    void* issuerName = cert->issuerName;
-#else
-    void* issuerName = NULL;
-#endif
-    return CheckCertCRL_ex(crl, cert->issuerHash, cert->serial, cert->serialSz,
-            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName);
+    return CheckDecodedCertCRL(crl, cert, crl->cm, 1);
 }
 
 /* Check cert against crl using cm for CRL signature verification. Does not
@@ -742,13 +775,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 int CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_CRL* crl,
         DecodedCert* cert)
 {
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    void* issuerName = cert->issuerName;
-#else
-    void* issuerName = NULL;
-#endif
-    return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
-            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm);
+    return CheckDecodedCertCRL(crl, cert, cm, 0);
 }
 
 #ifdef HAVE_CRL_UPDATE_CB
@@ -993,8 +1020,12 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     if (crl->cm != NULL) {
         dcrl->unknownExtCallback      = crl->cm->crlUnknownExtCallback;
+        dcrl->unknownExtCallback32    = crl->cm->crlUnknownExtCallback32;
         dcrl->unknownExtCallbackEx    = crl->cm->crlUnknownExtCallbackEx;
+        dcrl->unknownExtCallback32Ex  = crl->cm->crlUnknownExtCallback32Ex;
         dcrl->unknownExtCallbackExCtx = crl->cm->crlUnknownExtCallbackExCtx;
+        dcrl->unknownExtCallback32ExCtx =
+            crl->cm->crlUnknownExtCallback32ExCtx;
     }
 #endif
     ret = ParseCRL(currentEntry->certs, dcrl, myBuffer, (word32)sz,
@@ -1325,8 +1356,12 @@ int GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     if (crl->cm != NULL) {
         dcrl->unknownExtCallback      = crl->cm->crlUnknownExtCallback;
+        dcrl->unknownExtCallback32    = crl->cm->crlUnknownExtCallback32;
         dcrl->unknownExtCallbackEx    = crl->cm->crlUnknownExtCallbackEx;
+        dcrl->unknownExtCallback32Ex  = crl->cm->crlUnknownExtCallback32Ex;
         dcrl->unknownExtCallbackExCtx = crl->cm->crlUnknownExtCallbackExCtx;
+        dcrl->unknownExtCallback32ExCtx =
+            crl->cm->crlUnknownExtCallback32ExCtx;
     }
 #endif
     ret = ParseCRL(crle->certs, dcrl, myBuffer, (word32)sz,

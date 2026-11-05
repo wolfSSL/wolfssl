@@ -1451,9 +1451,6 @@ static const char* client_usage_msg[][81] = {
 #ifdef WOLFSSL_TRUST_PEER_CERT
         "-E <file>   Path to load trusted peer cert\n",                 /* 48 */
 #endif
-#ifdef HAVE_WNR
-        "-q <file>   Whitewood config file,      defaults\n",           /* 49 */
-#endif
         "-H <arg>    Internal tests"
             " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
             "                            loadSSL, disallowETM]\n",      /* 50 */
@@ -1722,9 +1719,6 @@ static const char* client_usage_msg[][81] = {
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
         "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 48 */
-#endif
-#ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 49 */
 #endif
         "-H <arg>    内部テスト"
             " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
@@ -2009,9 +2003,6 @@ static void Usage(void)
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     printf("%s", msg[++msgid]); /* -E */
-#endif
-#ifdef HAVE_WNR
-    printf("%s %s\n", msg[++msgid], wnrConfig); /* -q */
 #endif
     printf("%s", msg[++msgid]);                /* -H  */
     printf("%s", msg[++msgid]);                /* more -H options  */
@@ -2413,9 +2404,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int disallowETM = 0;
 #endif
 
-#ifdef HAVE_WNR
-    const char* wnrConfigFile = wnrConfig;
-#endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
@@ -2557,7 +2545,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifndef WOLFSSL_VXWORKS
     /* Not used: All used */
     while ((ch = mygetopt_long(argc, argv, "?:"
-            "ab:c:defgh:i;jk:l:mnop:q:rstu;v:wxyz"
+            "ab:c:defgh:i;jk:l:mnop:rstu;v:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
             "01:23:4567:89"
             "@#", long_options, 0)) != -1) {
@@ -2960,12 +2948,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
                 break;
 
-            case 'q' :
-                #ifdef HAVE_WNR
-                    wnrConfigFile = myoptarg;
-                #endif
-                break;
-
             case 'J' :
                 #ifdef WOLFSSL_TLS13
                     helloRetry = 1;
@@ -3346,11 +3328,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if ((version >= 4) && resumeSession) {
         LOG_ERROR("Can't do TLS 1.3 resumption; need session tickets!\n");
     }
-#endif
-
-#ifdef HAVE_WNR
-    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
-        err_sys("can't load whitewood net random config file");
 #endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
@@ -5227,11 +5204,6 @@ exit:
         wc_SwDev_Cleanup();
 #endif
         wolfSSL_Cleanup();
-
-#ifdef HAVE_WNR
-    if (wc_FreeNetRandom() < 0)
-        err_sys("Failed to free netRandom context");
-#endif /* HAVE_WNR */
 
         return args.return_code;
     }

@@ -55,8 +55,17 @@
 #ifdef WOLFSSL_HAVE_SLHDSA
 #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 #endif
+#ifdef HAVE_FALCON
+#include <wolfssl/wolfcrypt/falcon.h>
+#endif
+#ifdef WOLFSSL_HAVE_MLDSA
+#include <wolfssl/wolfcrypt/wc_mldsa.h>
+#endif
 #ifdef WOLFSSL_HAVE_MLKEM
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+#include <wolfssl/wolfcrypt/wc_frodokem.h>
 #endif
 
 static int swdev_initialized = 0;
@@ -341,6 +350,12 @@ static int swdev_ed25519_check_key(wc_CryptoInfo* info)
 #endif /* HAVE_ED25519 */
 
 #ifdef HAVE_ED448
+static int swdev_ed448_keygen(wc_CryptoInfo* info)
+{
+    return wc_ed448_make_key(info->pk.ed448kg.rng,
+        info->pk.ed448kg.size, info->pk.ed448kg.key);
+}
+
 #ifdef HAVE_ED448_SIGN
 static int swdev_ed448_sign(wc_CryptoInfo* info)
 {
@@ -704,13 +719,8 @@ static int swdev_slhdsa_check_priv_key(wc_CryptoInfo* info)
 
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
-/* Dispatch a PQC signature operation, declining the families swdev has no
- * handler for so the caller can fall back. */
-static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
+static int swdev_slhdsa(wc_CryptoInfo* info, int pkType)
 {
-    if (type != WC_PQC_SIG_TYPE_SLHDSA)
-        return CRYPTOCB_UNAVAILABLE;
-
     switch (pkType) {
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     case WC_PK_TYPE_PQC_SIG_KEYGEN:
@@ -732,6 +742,159 @@ static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
     }
 }
 #endif /* WOLFSSL_HAVE_SLHDSA */
+
+#ifdef HAVE_FALCON
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+static int swdev_falcon_keygen(wc_CryptoInfo* info)
+{
+    return wc_falcon_make_key((falcon_key*)info->pk.pqc_sig_kg.key,
+        info->pk.pqc_sig_kg.rng);
+}
+
+static int swdev_falcon_sign(wc_CryptoInfo* info)
+{
+    return wc_falcon_sign_msg(info->pk.pqc_sign.in, info->pk.pqc_sign.inlen,
+        info->pk.pqc_sign.out, info->pk.pqc_sign.outlen,
+        (falcon_key*)info->pk.pqc_sign.key, info->pk.pqc_sign.rng);
+}
+#endif
+
+static int swdev_falcon_verify(wc_CryptoInfo* info)
+{
+    return wc_falcon_verify_msg(info->pk.pqc_verify.sig,
+        info->pk.pqc_verify.siglen, info->pk.pqc_verify.msg,
+        info->pk.pqc_verify.msglen, info->pk.pqc_verify.res,
+        (falcon_key*)info->pk.pqc_verify.key);
+}
+
+static int swdev_falcon(wc_CryptoInfo* info, int pkType)
+{
+    switch (pkType) {
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+    case WC_PK_TYPE_PQC_SIG_KEYGEN:
+        return swdev_falcon_keygen(info);
+    case WC_PK_TYPE_PQC_SIG_SIGN:
+        return swdev_falcon_sign(info);
+#endif
+    case WC_PK_TYPE_PQC_SIG_VERIFY:
+        return swdev_falcon_verify(info);
+    case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:
+        /* The public key sent alongside is the key's own copy. */
+        return wc_falcon_check_key((falcon_key*)info->pk.pqc_sig_check.key);
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+#endif /* HAVE_FALCON */
+
+/* NO_CTX makes Sign() and SignCtx() with no context look the same here. */
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_CTX)
+    #define SWDEV_MLDSA
+#endif
+
+#ifdef SWDEV_MLDSA
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+static int swdev_mldsa_keygen(wc_CryptoInfo* info)
+{
+    wc_MlDsaKey* key = (wc_MlDsaKey*)info->pk.pqc_sig_kg.key;
+
+    if (info->pk.pqc_sig_kg.seed == NULL)
+        return wc_MlDsaKey_MakeKey(key, info->pk.pqc_sig_kg.rng);
+    if (info->pk.pqc_sig_kg.seedSz != MLDSA_SEED_SZ)
+        return BUFFER_E;
+    return wc_MlDsaKey_MakeKeyFromSeed(key, info->pk.pqc_sig_kg.seed);
+}
+#endif
+
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+static int swdev_mldsa_sign(wc_CryptoInfo* info)
+{
+    wc_MlDsaKey* key = (wc_MlDsaKey*)info->pk.pqc_sign.key;
+
+    if (info->pk.pqc_sign.preHashType == WC_HASH_TYPE_NONE) {
+        return wc_MlDsaKey_SignCtx(key, info->pk.pqc_sign.context,
+            info->pk.pqc_sign.contextLen, info->pk.pqc_sign.out,
+            info->pk.pqc_sign.outlen, info->pk.pqc_sign.in,
+            info->pk.pqc_sign.inlen, info->pk.pqc_sign.rng);
+    }
+    return wc_MlDsaKey_SignCtxHash(key, info->pk.pqc_sign.context,
+        info->pk.pqc_sign.contextLen, info->pk.pqc_sign.out,
+        info->pk.pqc_sign.outlen, info->pk.pqc_sign.in,
+        info->pk.pqc_sign.inlen, (int)info->pk.pqc_sign.preHashType,
+        info->pk.pqc_sign.rng);
+}
+#endif
+
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+/* res and ret both report the result, so unlike SLH-DSA pass ret through. */
+static int swdev_mldsa_verify(wc_CryptoInfo* info)
+{
+    wc_MlDsaKey* key = (wc_MlDsaKey*)info->pk.pqc_verify.key;
+
+    if (info->pk.pqc_verify.preHashType == WC_HASH_TYPE_NONE) {
+        return wc_MlDsaKey_VerifyCtx(key, info->pk.pqc_verify.sig,
+            info->pk.pqc_verify.siglen, info->pk.pqc_verify.context,
+            info->pk.pqc_verify.contextLen, info->pk.pqc_verify.msg,
+            info->pk.pqc_verify.msglen, info->pk.pqc_verify.res);
+    }
+    return wc_MlDsaKey_VerifyCtxHash(key, info->pk.pqc_verify.sig,
+        info->pk.pqc_verify.siglen, info->pk.pqc_verify.context,
+        info->pk.pqc_verify.contextLen, info->pk.pqc_verify.msg,
+        info->pk.pqc_verify.msglen, (int)info->pk.pqc_verify.preHashType,
+        info->pk.pqc_verify.res);
+}
+#endif
+
+static int swdev_mldsa(wc_CryptoInfo* info, int pkType)
+{
+    switch (pkType) {
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    case WC_PK_TYPE_PQC_SIG_KEYGEN:
+    case WC_PK_TYPE_PQC_SIG_KEYGEN_SEED:
+        return swdev_mldsa_keygen(info);
+#endif
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    case WC_PK_TYPE_PQC_SIG_SIGN:
+        return swdev_mldsa_sign(info);
+#endif
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    case WC_PK_TYPE_PQC_SIG_VERIFY:
+        return swdev_mldsa_verify(info);
+#endif
+#ifdef WOLFSSL_MLDSA_CHECK_KEY
+    case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:
+        /* The public key sent alongside is the key's own copy. */
+        return wc_MlDsaKey_CheckKey((wc_MlDsaKey*)info->pk.pqc_sig_check.key);
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+#endif /* SWDEV_MLDSA */
+
+#if defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_FALCON) || \
+    defined(SWDEV_MLDSA)
+/* Decline the families swdev has no handler for, so the caller falls back. */
+static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
+{
+    switch (type) {
+#ifdef WOLFSSL_HAVE_SLHDSA
+    case WC_PQC_SIG_TYPE_SLHDSA:
+        return swdev_slhdsa(info, pkType);
+#endif
+#ifdef HAVE_FALCON
+    case WC_PQC_SIG_TYPE_FALCON:
+        return swdev_falcon(info, pkType);
+#endif
+#ifdef SWDEV_MLDSA
+    case WC_PQC_SIG_TYPE_MLDSA:
+        return swdev_mldsa(info, pkType);
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+#endif /* WOLFSSL_HAVE_SLHDSA || HAVE_FALCON || SWDEV_MLDSA */
 
 #ifdef WOLFSSL_HAVE_MLKEM
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
@@ -774,13 +937,8 @@ static int swdev_mlkem_decaps(wc_CryptoInfo* info)
 }
 #endif
 
-/* Dispatch a PQC KEM operation, declining the families swdev has no handler
- * for so the caller can fall back. */
-static int swdev_pqc_kem(wc_CryptoInfo* info, int type, int pkType)
+static int swdev_mlkem(wc_CryptoInfo* info, int pkType)
 {
-    if (type != WC_PQC_KEM_TYPE_MLKEM)
-        return CRYPTOCB_UNAVAILABLE;
-
     switch (pkType) {
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
     case WC_PK_TYPE_PQC_KEM_KEYGEN:
@@ -799,6 +957,99 @@ static int swdev_pqc_kem(wc_CryptoInfo* info, int type, int pkType)
     }
 }
 #endif /* WOLFSSL_HAVE_MLKEM */
+
+#ifdef WOLFSSL_HAVE_FRODOKEM
+#ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
+static int swdev_frodokem_keygen(wc_CryptoInfo* info)
+{
+    return wc_FrodoKemKey_MakeKey((FrodoKemKey*)info->pk.pqc_kem_kg.key,
+        info->pk.pqc_kem_kg.rng);
+}
+#endif
+
+#ifndef WOLFSSL_FRODOKEM_NO_ENCAPSULATE
+static int swdev_frodokem_encaps(wc_CryptoInfo* info)
+{
+    FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_encaps.key;
+    word32 ctSz = 0;
+    word32 ssSz = 0;
+    int ret;
+
+    ret = wc_FrodoKemKey_CipherTextSize(key, &ctSz);
+    if (ret == 0)
+        ret = wc_FrodoKemKey_SharedSecretSize(key, &ssSz);
+    if ((ret == 0) && ((info->pk.pqc_encaps.ciphertextLen != ctSz) ||
+            (info->pk.pqc_encaps.sharedSecretLen != ssSz))) {
+        ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_Encapsulate(key, info->pk.pqc_encaps.ciphertext,
+            info->pk.pqc_encaps.sharedSecret, info->pk.pqc_encaps.rng);
+    }
+
+    return ret;
+}
+#endif
+
+#ifndef WOLFSSL_FRODOKEM_NO_DECAPSULATE
+static int swdev_frodokem_decaps(wc_CryptoInfo* info)
+{
+    FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_decaps.key;
+    word32 ssSz = 0;
+    int ret;
+
+    ret = wc_FrodoKemKey_SharedSecretSize(key, &ssSz);
+    if ((ret == 0) && (info->pk.pqc_decaps.sharedSecretLen != ssSz))
+        ret = BUFFER_E;
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_Decapsulate(key, info->pk.pqc_decaps.sharedSecret,
+            info->pk.pqc_decaps.ciphertext, info->pk.pqc_decaps.ciphertextLen);
+    }
+
+    return ret;
+}
+#endif
+
+static int swdev_frodokem(wc_CryptoInfo* info, int pkType)
+{
+    switch (pkType) {
+#ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
+    case WC_PK_TYPE_PQC_KEM_KEYGEN:
+        return swdev_frodokem_keygen(info);
+#endif
+#ifndef WOLFSSL_FRODOKEM_NO_ENCAPSULATE
+    case WC_PK_TYPE_PQC_KEM_ENCAPS:
+        return swdev_frodokem_encaps(info);
+#endif
+#ifndef WOLFSSL_FRODOKEM_NO_DECAPSULATE
+    case WC_PK_TYPE_PQC_KEM_DECAPS:
+        return swdev_frodokem_decaps(info);
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+#endif /* WOLFSSL_HAVE_FRODOKEM */
+
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
+/* Dispatch a PQC KEM operation, declining the families swdev has no handler
+ * for so the caller can fall back. */
+static int swdev_pqc_kem(wc_CryptoInfo* info, int type, int pkType)
+{
+    switch (type) {
+#ifdef WOLFSSL_HAVE_MLKEM
+    case WC_PQC_KEM_TYPE_MLKEM:
+        return swdev_mlkem(info, pkType);
+#endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    case WC_PQC_KEM_TYPE_FRODOKEM:
+        return swdev_frodokem(info, pkType);
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+#endif /* WOLFSSL_HAVE_MLKEM || WOLFSSL_HAVE_FRODOKEM */
 
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
 
@@ -2106,8 +2357,9 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_ED448) || defined(WOLFSSL_HAVE_SLHDSA) || \
-    defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_LMS) || \
-    defined(WOLFSSL_HAVE_XMSS)
+    defined(HAVE_FALCON) || defined(SWDEV_MLDSA) || \
+    defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+    defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
 #if defined(WOLF_CRYPTO_CB_FREE) && \
     (defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS))
     case WC_ALGO_TYPE_FREE:
@@ -2192,6 +2444,8 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_curve448_generic(info);
     #endif /* HAVE_CURVE448 */
     #ifdef HAVE_ED448
+        case WC_PK_TYPE_ED448_KEYGEN:
+            return swdev_ed448_keygen(info);
         #ifdef HAVE_ED448_SIGN
         case WC_PK_TYPE_ED448:
             return swdev_ed448_sign(info);
@@ -2205,8 +2459,8 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_ED448_CHECK_KEY:
             return swdev_ed448_check_key(info);
     #endif /* HAVE_ED448 */
-    #ifdef WOLFSSL_HAVE_SLHDSA
-        #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    #if defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_FALCON) || \
+        defined(SWDEV_MLDSA)
         case WC_PK_TYPE_PQC_SIG_KEYGEN:
         case WC_PK_TYPE_PQC_SIG_KEYGEN_SEED:
             return swdev_pqc_sig(info, info->pk.pqc_sig_kg.type,
@@ -2217,12 +2471,11 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:
             return swdev_pqc_sig(info, info->pk.pqc_sig_check.type,
                 info->pk.type);
-        #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
         case WC_PK_TYPE_PQC_SIG_VERIFY:
         case WC_PK_TYPE_PQC_SIG_VERIFY_MSG:
             return swdev_pqc_sig(info, info->pk.pqc_verify.type, info->pk.type);
-    #endif /* WOLFSSL_HAVE_SLHDSA */
-    #ifdef WOLFSSL_HAVE_MLKEM
+    #endif /* WOLFSSL_HAVE_SLHDSA || HAVE_FALCON || SWDEV_MLDSA */
+    #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
         case WC_PK_TYPE_PQC_KEM_KEYGEN:
             return swdev_pqc_kem(info, info->pk.pqc_kem_kg.type,
                 info->pk.type);
@@ -2232,7 +2485,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_PQC_KEM_DECAPS:
             return swdev_pqc_kem(info, info->pk.pqc_decaps.type,
                 info->pk.type);
-    #endif /* WOLFSSL_HAVE_MLKEM */
+    #endif /* WOLFSSL_HAVE_MLKEM || WOLFSSL_HAVE_FRODOKEM */
     #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
         case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
         case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN:

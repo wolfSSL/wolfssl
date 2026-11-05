@@ -24,7 +24,9 @@ jobs:
 
       - name: Post Membrowse PR comment
         if: ${{ env.MEMBROWSE_API_KEY != '' }}
-        uses: membrowse/membrowse-action/comment-action@v1
+        # Pinned to a full commit SHA, same rationale as the report
+        # workflow. v1.2.15.
+        uses: membrowse/membrowse-action/comment-action@34719bdb04722be5cbe9c1d6df4a1567ae98238d
         with:
           api_key: ${{ secrets.MEMBROWSE_API_KEY }}
           commit: ${{ github.event.workflow_run.head_sha }}

@@ -47,8 +47,8 @@
  *
  * WHY V3 NEEDS AN INTERPOSER (source-derived)
  * -------------------------------------------
- * In this variant (software RSA only: no WOLFSSL_CRYPTOCELL, no SE050, no
- * WOLF_CRYPTO_CB_RSA_PAD) the two operands are perfectly coupled and
+ * In this variant (software RSA only: no SE050 and no WOLF_CRYPTO_CB_RSA_PAD)
+ * the two operands are perfectly coupled and
  * (ret >= 0 && plain_ptr == NULL) is structurally unreachable:
  *
  *   - signature.c line 292/295: this variant is NOT WOLFSSL_SMALL_STACK, so
@@ -122,7 +122,7 @@
 #endif
 
 /* ---- V3 lever: wc_RsaSSL_VerifyInline interposer (see header comment) ---- */
-#if !defined(NO_RSA) && !defined(WOLFSSL_CRYPTOCELL)
+#if !defined(NO_RSA)
 
 #define MCDC_SIG_VI_REAL       0   /* pass through to the real RSA backend  */
 #define MCDC_SIG_VI_OK_NO_PTR  1   /* return >= 0 and leave *out untouched  */
@@ -147,7 +147,7 @@ static int mcdc_sig_verify_inline(byte* in, word32 inLen, byte** out,
 #define wc_RsaSSL_VerifyInline(a, b, c, d) \
     mcdc_sig_verify_inline((a), (b), (c), (d))
 
-#endif /* !NO_RSA && !WOLFSSL_CRYPTOCELL */
+#endif /* !NO_RSA */
 
 #include <wolfcrypt/src/signature.c>
 
@@ -158,7 +158,7 @@ static int wb_fail = 0;
  * wc_SignatureVerifyHash(): "ret >= 0 && plain_ptr" independence pairs.
  * ----------------------------------------------------------------------- */
 #if !defined(NO_SIG_WRAPPER) && !defined(NO_RSA) && !defined(NO_ASN) && \
-    !defined(NO_SHA256) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(NO_SHA256) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WC_NO_RNG)
 static void wb_sig_plainptr_guard(void)

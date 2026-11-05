@@ -89,7 +89,9 @@
 
 #include <wolfcrypt/src/kdf.c>
 
-#include "mcdc_fault_alloc.h"
+#ifdef WOLFSSL_SMALL_STACK
+    #include "mcdc_fault_alloc.h"
+#endif
 
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/hash.h>

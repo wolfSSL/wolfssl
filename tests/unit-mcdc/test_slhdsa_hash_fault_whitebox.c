@@ -69,18 +69,17 @@
  * ImportPublic() (whose SHA-2 midstate precompute is the only caller of
  * slhdsakey_precompute_sha2_midstates()).
  *
+ * NOT COMPILED HERE: the SHA-512 code is only built with a category 3/5 SHA2
+ * parameter set (WC_SLHDSA_NEED_SHA512), and this module's base config
+ * compiles ONLY the 128-bit sets (WOLFSSL_SLHDSA_PARAM_NO_192/256 and
+ * *_NO_SHA2_192/256), so these decisions are not in the build to cover:
+ *   - `(ret == 0) && (n > 16)` / `(ret == 0) && (key->params->n > 16)` in
+ *     slhdsakey_precompute_sha2_midstates() and wc_SlhDsaKey_Init().
+ *   - slhdsakey_h_msg_sha2()'s `(ret == 0) && (hdr != NULL)` and
+ *     `(ret == 0) && (ctxSz > 0) && (ctx != NULL)` in its SHA-512 arm.
+ *
  * NOT REACHABLE HERE (documented residuals, mirrored in
  * the exclusion record):
- *   - `(ret == 0) && (n > 16)` / `(ret == 0) && (key->params->n > 16)`: the
- *     second operand needs a category 3/5 parameter set, and this module's base
- *     config compiles ONLY the 128-bit sets (WOLFSSL_SLHDSA_PARAM_NO_192/256
- *     and *_NO_SHA2_192/256), so n is always 16. NEITHER operand pairs: with
- *     `n > 16` pinned false the decision is false in every vector, so flipping
- *     `ret == 0` cannot change the outcome either.
- *   - slhdsakey_h_msg_sha2()'s `(ret == 0) && (hdr != NULL)` and
- *     `(ret == 0) && (ctxSz > 0) && (ctx != NULL)`: those two live in the
- *     `else` arm of `if (n == WC_SLHDSA_N_128)`, i.e. the SHA-512 category 3/5
- *     arm, which the 128-bit-only parameter table can never select.
  *   - `(ret != 0) && WC_VAR_OK(sk)`: without WOLFSSL_SMALL_STACK, types.h
  *     defines WC_VAR_OK(x) as the literal 1, so the operand is not merely
  *     undriven -- it has no false side to drive. No slhdsa variant sets
@@ -94,13 +93,15 @@
  * skip stub. main() always returns 0.
  */
 
-/* wc_SlhDsaKey_Init()'s `(ret == 0) && (key->params->n > 16)` takes its ret
- * from wc_InitSha256() and from nothing else, so the SHA context-init family
+/* wc_SlhDsaKey_Init()'s hash-object init checks take their ret from
+ * wc_InitSha256() (and, with a category 3/5 SHA2 set compiled in, feed
+ * `(ret == 0) && (key->params->n > 16)`), so the SHA context-init family
  * has to be interposed too. It is opt-in, and armed only inside
  * wb_init_rows(); every other sweep here builds its keys while disarmed. */
 #define MCDC_FH_WITH_SHA_INIT
 
 #include "mcdc_fault_hash.h"
+#include "mcdc_fault_alloc.h"
 
 /* wc_slhdsa.c is #included AFTER the interposers are installed. */
 #include <wolfcrypt/src/wc_slhdsa.c>
@@ -423,8 +424,9 @@ static void wb_sweep_checkkey(int param)
 
 /* Raw import: slhdsakey_precompute_sha2_midstates() is reached only from
  * ImportPrivate / ImportPublic / MakeKeyWithRandom, and an armed import is the
- * cheapest way to make its `(ret == 0) && (n > 16)` guard see ret != 0 -- the
- * import does almost nothing before the precompute, so a low fault index lands
+ * cheapest way to make its ret checks (and, with a category 3/5 SHA2 set
+ * compiled in, its `(ret == 0) && (n > 16)` guard) see ret != 0 -- the import
+ * does almost nothing before the precompute, so a low fault index lands
  * squarely inside it. */
 static void wb_sweep_import(int param)
 {
@@ -458,9 +460,11 @@ static void wb_sweep_import(int param)
     printf("  [wb] param %d: import sweep: %ld points\n", param, points);
 }
 
-/* wc_SlhDsaKey_Init()'s `(ret == 0) && (key->params->n > 16)` -- the only
- * assignment to ret before it is wc_InitSha256()'s, so the SHA context-init
- * interposer is what drives the first operand false. */
+/* wc_SlhDsaKey_Init()'s hash-object init checks -- for the SHA2 sets the
+ * first assignment to ret is wc_InitSha256()'s, so the SHA context-init
+ * interposer is what drives `ret == 0` false, including in
+ * `(ret == 0) && (key->params->n > 16)` when a category 3/5 SHA2 set is
+ * compiled in. */
 static void wb_init_rows(int param)
 {
     SlhDsaKey k2;
@@ -477,6 +481,101 @@ static void wb_init_rows(int param)
     printf("  [wb] param %d: init hash-object rows exercised\n", param);
 }
 
+/* slhdsakey_precompute_sha2_midstates()'s "(ret == 0) && (n > 16)" clause-1
+ * FALSE row: the SHA-256 midstate setup (init/update) must fail. The
+ * midstate calls sit at the TAIL of MakeKey (precompute runs after the WOTS/
+ * FORS/hypertree keygen, whose hundreds of hash calls push it past the dense
+ * head of wb_sweep_makekey), so arm the last WB_PRECOMP_TAIL primitive calls
+ * of a baseline keygen. */
+#define WB_PRECOMP_TAIL 16
+
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+static void wb_precompute_fault_rows(int param)
+{
+    long       k, n;
+    SlhDsaKey  k2;
+
+    mcdc_fh_disarm();
+    XMEMSET(&k2, 0, sizeof(k2));
+    if (wc_SlhDsaKey_Init(&k2, (enum SlhDsaParam)param, NULL,
+            INVALID_DEVID) == 0) {
+        if (wc_SlhDsaKey_MakeKey(&k2, &wb_rng) == 0) {
+            k = mcdc_fh_seen();
+            for (n = k - (long)WB_PRECOMP_TAIL; (n <= k) && !wb_expired();
+                    n++) {
+                SlhDsaKey k3;
+
+                XMEMSET(&k3, 0, sizeof(k3));
+                if (wc_SlhDsaKey_Init(&k3, (enum SlhDsaParam)param, NULL,
+                        INVALID_DEVID) == 0) {
+                    mcdc_fh_arm(n);
+                    (void)wc_SlhDsaKey_MakeKey(&k3, &wb_rng);
+                    mcdc_fh_disarm();
+                    wc_SlhDsaKey_Free(&k3);
+                }
+            }
+        }
+        wc_SlhDsaKey_Free(&k2);
+    }
+    printf("  [wb] param %d: precompute midstate-fault rows exercised\n",
+            param);
+}
+#endif
+
+/* slhdsakey_h_msg_sha2()'s "(ret == 0) && (hdr != NULL)" / "(ret == 0) &&
+ * (ctxSz > 0) && (ctx != NULL)" clause-1 FALSE rows: the SHA-256_2 init and
+ * its first updates sit within the first few primitive calls of a sign (the
+ * M' computation runs before the WOTS+ signing), so a dense head over sign
+ * faults them. The SHAKE-family variants take a different h function; these
+ * rows only exist in the SHA-2 build. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+static void wb_h_msg_fault_rows(int param)
+{
+    long n;
+    int  ret;
+
+    mcdc_fh_disarm();
+    for (n = 1; (n <= 16L) && !wb_expired(); n++) {
+        byte   s2[WC_SLHDSA_MAX_SIG_LEN];
+        word32 l2 = (word32)sizeof(s2);
+        mcdc_fh_arm(n);
+        ret = wc_SlhDsaKey_Sign(&wb_key, wb_ctx, (word32)sizeof(wb_ctx),
+            wb_msg, (word32)sizeof(wb_msg), s2, &l2, &wb_rng);
+        mcdc_fh_disarm();
+        (void)ret;
+    }
+    printf("  [wb] param %d: h_msg_sha2-fault rows exercised\n", param);
+}
+#endif
+
+/* slhdsakey_wots_pkgen_chain_c()'s "(ret != 0) && WC_VAR_OK(sk)" clause-2
+ * FALSE row: the sk buffer's allocation itself must fail, so the variable is
+ * not OK while ret != 0. The sk allocation is among the first allocations of
+ * MakeKey (WOTS+ pkgen runs before the hypertree), so a dense head over the
+ * allocator finds it. */
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && !defined(MCDC_FA_UNAVAILABLE)
+static void wb_pkgen_alloc_rows(int param)
+{
+    long n;
+
+    mcdc_fa_install();
+    for (n = 1; (n <= 24L) && !wb_expired(); n++) {
+        SlhDsaKey k2;
+        XMEMSET(&k2, 0, sizeof(k2));
+        if (wc_SlhDsaKey_Init(&k2, (enum SlhDsaParam)param, NULL,
+                INVALID_DEVID) == 0) {
+            mcdc_fa_arm((int)n);
+            (void)wc_SlhDsaKey_MakeKey(&k2, &wb_rng);
+            mcdc_fa_disarm();
+            wc_SlhDsaKey_Free(&k2);
+        }
+    }
+    mcdc_fa_restore();
+    printf("  [wb] param %d: pkgen alloc-fail rows exercised\n", param);
+}
+#endif
+
+#ifndef NO_ASN
 /* Import/export + DER encode/decode: the ASN-side residuals
  * (`(key->params != NULL) && ...`, `while (ret == 0 && *inOutIdx < seqEnd)`)
  * live here and cost nothing to drive. */
@@ -568,6 +667,7 @@ static void wb_der_rows(int param)
 
     (void)wc_SlhDsaKey_ExportPublic(&wb_key, pub, &idx);
 }
+#endif /* !NO_ASN */
 
 static void wb_run_param(int param)
 {
@@ -594,8 +694,10 @@ static void wb_run_param(int param)
         wb_sweep_verify(param);
     if (!wb_expired())
         wb_sweep_prehash(param);
+#ifndef NO_ASN
     if (!wb_expired())
         wb_der_rows(param);
+#endif
     if (!wb_expired())
         wb_sweep_import(param);
     if (!wb_expired())
@@ -604,6 +706,16 @@ static void wb_run_param(int param)
         wb_sweep_checkkey(param);
     if (!wb_expired())
         wb_sweep_makekey(param);
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    if (!wb_expired())
+        wb_precompute_fault_rows(param);
+    if (!wb_expired())
+        wb_h_msg_fault_rows(param);
+#endif
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && !defined(MCDC_FA_UNAVAILABLE)
+    if (!wb_expired())
+        wb_pkgen_alloc_rows(param);
+#endif
 
     mcdc_fh_disarm();
     wc_SlhDsaKey_Free(&wb_key);

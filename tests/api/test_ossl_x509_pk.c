@@ -616,13 +616,11 @@ int test_wolfSSL_X509_set_pubkey(void)
             const unsigned char* dp;
             int rngRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
             int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-        #ifdef OPENSSL_ALL
             WOLFSSL_X509* parsed = NULL;
             WOLFSSL_EVP_PKEY* parsedPub = NULL;
             unsigned char* certDer = NULL;
             const unsigned char* cp;
             int certDerSz = 0;
-        #endif
 
             ExpectNotNull(draftDer = (byte*)XMALLOC(4096, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
@@ -657,7 +655,6 @@ int test_wolfSSL_X509_set_pubkey(void)
             ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
             ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
 
-        #ifdef OPENSSL_ALL
             /* A parsed draft certificate's X509_PUBKEY must keep the draft
              * OID, or it verifies with the final ML-DSA-44 parameters. */
             ExpectIntGT(certDerSz = wolfSSL_i2d_X509(x509, &certDer), 0);
@@ -674,7 +671,6 @@ int test_wolfSSL_X509_set_pubkey(void)
             wolfSSL_EVP_PKEY_free(parsedPub);
             wolfSSL_X509_free(parsed);
             XFREE(certDer, NULL, DYNAMIC_TYPE_OPENSSL);
-        #endif
 
             wolfSSL_EVP_PKEY_free(pubkey);
             pubkey = NULL;
@@ -754,3 +750,276 @@ int test_wolfSSL_X509_set_pubkey(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_get0_pubkey(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
+    X509* x509 = NULL;
+    EVP_PKEY* borrowed = NULL;
+    EVP_PKEY* owned = NULL;
+    ASN1_OBJECT* obj = NULL;
+    const unsigned char* pk = NULL;
+    int pkLen = 0;
+
+    ExpectNull(X509_get0_pubkey(NULL));
+    ExpectNull(X509_get_pubkey(NULL));
+
+    /* A certificate without a public key has nothing to hand out. */
+    ExpectNotNull(x509 = X509_new());
+    ExpectNull(X509_get0_pubkey(x509));
+    ExpectNull(X509_get_pubkey(x509));
+    X509_free(x509);
+    x509 = NULL;
+
+    ExpectNotNull(x509 = X509_load_certificate_file(caCertFile,
+        SSL_FILETYPE_PEM));
+
+    /* get0 hands out the same borrowed key every time. */
+    ExpectNotNull(borrowed = X509_get0_pubkey(x509));
+    ExpectPtrEq(X509_get0_pubkey(x509), borrowed);
+    ExpectIntEQ(EVP_PKEY_id(borrowed), EVP_PKEY_RSA);
+    ExpectIntEQ(X509_verify(x509, borrowed), WOLFSSL_SUCCESS);
+    /* The embedded X509_PUBKEY reports the same key. */
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, &pk, &pkLen, NULL,
+        X509_get_X509_PUBKEY(x509)), 1);
+    ExpectIntEQ(OBJ_obj2nid(obj), EVP_PKEY_RSA);
+    ExpectNotNull(pk);
+    ExpectIntGT(pkLen, 0);
+
+    /* get_pubkey hands out a new reference to that same key. */
+    ExpectNotNull(owned = X509_get_pubkey(x509));
+    ExpectPtrEq(owned, borrowed);
+    EVP_PKEY_free(owned);
+    owned = NULL;
+    /* The borrowed key is still alive after the owned reference is freed. */
+    ExpectPtrEq(X509_get0_pubkey(x509), borrowed);
+    ExpectIntEQ(X509_verify(x509, borrowed), WOLFSSL_SUCCESS);
+
+    /* X509_PUBKEY_get returns yet another reference to the same key, and
+     * X509_PUBKEY_get0 the same borrowed pointer. */
+    ExpectNotNull(owned = X509_PUBKEY_get(X509_get_X509_PUBKEY(x509)));
+    ExpectPtrEq(owned, borrowed);
+    EVP_PKEY_free(owned);
+    owned = NULL;
+    ExpectPtrEq(X509_PUBKEY_get0(X509_get_X509_PUBKEY(x509)), borrowed);
+    ExpectNull(X509_PUBKEY_get0(NULL));
+
+    /* Setting the certificate's own key back keeps the cached key. */
+    ExpectIntEQ(X509_set_pubkey(x509, borrowed), WOLFSSL_SUCCESS);
+    ExpectPtrEq(X509_get0_pubkey(x509), borrowed);
+    ExpectIntEQ(X509_verify(x509, borrowed), WOLFSSL_SUCCESS);
+
+    /* An owned reference outlives the certificate. */
+    ExpectNotNull(owned = X509_get_pubkey(x509));
+    X509_free(x509);
+    x509 = NULL;
+    ExpectIntEQ(EVP_PKEY_bits(owned), 2048);
+    EVP_PKEY_free(owned);
+    owned = NULL;
+
+    /* Freeing the owned reference before the certificate is fine too. */
+    ExpectNotNull(x509 = X509_load_certificate_file(caCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(owned = X509_get_pubkey(x509));
+    ExpectNotNull(borrowed = X509_get0_pubkey(x509));
+    EVP_PKEY_free(owned);
+    owned = NULL;
+    ExpectIntEQ(EVP_PKEY_bits(borrowed), 2048);
+    X509_free(x509);
+    x509 = NULL;
+
+#ifdef HAVE_ECC
+    /* Setting a new public key drops the cached key. */
+    {
+        X509* ecX509 = NULL;
+        EVP_PKEY* ecKey = NULL;
+        EVP_PKEY* rsaKey = NULL;
+
+        ExpectNotNull(x509 = X509_load_certificate_file(caCertFile,
+            SSL_FILETYPE_PEM));
+        ExpectNotNull(ecX509 = X509_load_certificate_file(caEccCertFile,
+            SSL_FILETYPE_PEM));
+        ExpectNotNull(rsaKey = X509_get_pubkey(x509));
+        ExpectNotNull(ecKey = X509_get_pubkey(ecX509));
+        ExpectIntEQ(X509_set_pubkey(x509, ecKey), WOLFSSL_SUCCESS);
+        ExpectNotNull(borrowed = X509_get0_pubkey(x509));
+        ExpectIntEQ(EVP_PKEY_id(borrowed), EVP_PKEY_EC);
+        /* The algorithm reported by the X509_PUBKEY follows the key. */
+        ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, NULL,
+            X509_get_X509_PUBKEY(x509)), 1);
+        ExpectIntEQ(OBJ_obj2nid(obj), EVP_PKEY_EC);
+        ExpectIntEQ(X509_set_pubkey(x509, rsaKey), WOLFSSL_SUCCESS);
+        ExpectNotNull(borrowed = X509_get0_pubkey(x509));
+        ExpectIntEQ(EVP_PKEY_id(borrowed), EVP_PKEY_RSA);
+        ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, NULL,
+            X509_get_X509_PUBKEY(x509)), 1);
+        ExpectIntEQ(OBJ_obj2nid(obj), EVP_PKEY_RSA);
+        /* rsaKey is a separate reference and survives the cache drop. */
+        ExpectIntEQ(EVP_PKEY_bits(rsaKey), 2048);
+        EVP_PKEY_free(rsaKey);
+        EVP_PKEY_free(ecKey);
+        X509_free(ecX509);
+        X509_free(x509);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The public key of a certificate is decoded on first use for every key type,
+ * not only those decoded when the certificate is parsed. */
+int test_wolfSSL_X509_get_pubkey_key_types(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT)
+    {
+        X509* x509 = NULL;
+        EVP_PKEY* key = NULL;
+        ASN1_OBJECT* obj = NULL;
+        const unsigned char* pk = NULL;
+        int pkLen = 0;
+        byte pub[ED448_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        ExpectNotNull(x509 = X509_load_certificate_file(
+            "./certs/ed448/ca-ed448.pem", SSL_FILETYPE_PEM));
+        ExpectNotNull(key = X509_get_pubkey(x509));
+        ExpectPtrEq(X509_get0_pubkey(x509), key);
+        ExpectIntEQ(EVP_PKEY_id(key), EVP_PKEY_ED448);
+        /* The decoded key is the key in the certificate. */
+        ExpectIntEQ(X509_PUBKEY_get0_param(&obj, &pk, &pkLen, NULL,
+            X509_get_X509_PUBKEY(x509)), 1);
+        ExpectIntEQ(pkLen, ED448_PUB_KEY_SIZE);
+        ExpectNotNull(key == NULL ? NULL : key->ed448);
+        ExpectIntEQ(wc_ed448_export_public(key == NULL ? NULL : key->ed448,
+            pub, &pubSz), 0);
+        ExpectIntEQ(pubSz, ED448_PUB_KEY_SIZE);
+        if ((pk != NULL) && (pkLen == ED448_PUB_KEY_SIZE)) {
+            ExpectBufEQ(pub, pk, ED448_PUB_KEY_SIZE);
+        }
+        EVP_PKEY_free(key);
+        X509_free(x509);
+    }
+#endif
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    {
+        X509* x509 = NULL;
+        EVP_PKEY* key = NULL;
+
+        ExpectNotNull(x509 = X509_load_certificate_file(
+            "./certs/rsapss/ca-rsapss.pem", SSL_FILETYPE_PEM));
+        ExpectNotNull(key = X509_get0_pubkey(x509));
+        ExpectIntEQ(EVP_PKEY_id(key), EVP_PKEY_RSA);
+        ExpectIntEQ(EVP_PKEY_bits(key), 2048);
+        X509_free(x509);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(SINGLE_THREADED)
+#define X509_PUBKEY_THREADS 4
+
+typedef struct X509PubKeyThreadData {
+    X509* x509;
+    EVP_PKEY* key;
+    X509_ALGOR* algor;
+} X509PubKeyThreadData;
+
+static THREAD_RETURN WOLFSSL_THREAD test_X509_pubkey_thread(void* arg)
+{
+    X509PubKeyThreadData* data = (X509PubKeyThreadData*)arg;
+
+    data->key = X509_get0_pubkey(data->x509);
+    if (X509_PUBKEY_get0_param(NULL, NULL, NULL, &data->algor,
+            X509_get_X509_PUBKEY(data->x509)) != 1) {
+        data->algor = NULL;
+    }
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* Threads getting the public key of a shared X509 for the first time all get
+ * the one key and algorithm that are cached. */
+int test_wolfSSL_X509_get0_pubkey_threads(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(SINGLE_THREADED)
+    X509PubKeyThreadData data[X509_PUBKEY_THREADS];
+    THREAD_TYPE threads[X509_PUBKEY_THREADS];
+    X509* x509 = NULL;
+    int started;
+    int round;
+    int i;
+
+    for (round = 0; (round < 16) && EXPECT_SUCCESS(); round++) {
+        ExpectNotNull(x509 = X509_load_certificate_file(caCertFile,
+            SSL_FILETYPE_PEM));
+        XMEMSET(data, 0, sizeof(data));
+        started = 0;
+        while ((started < X509_PUBKEY_THREADS) && EXPECT_SUCCESS()) {
+            data[started].x509 = x509;
+            ExpectIntEQ(wolfSSL_NewThread(&threads[started],
+                test_X509_pubkey_thread, &data[started]), 0);
+            if (EXPECT_SUCCESS()) {
+                started++;
+            }
+        }
+        for (i = 0; i < started; i++) {
+            ExpectIntEQ(wolfSSL_JoinThread(threads[i]), 0);
+        }
+        for (i = 0; i < started; i++) {
+            ExpectNotNull(data[i].key);
+            ExpectPtrEq(data[i].key, X509_get0_pubkey(x509));
+            ExpectNotNull(data[i].algor);
+            ExpectPtrEq(data[i].algor, data[0].algor);
+        }
+        X509_free(x509);
+        x509 = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A failed X509_PUBKEY_get0_param() must not leave a half built algorithm
+ * that later calls report as success. */
+int test_wolfSSL_X509_PUBKEY_get0_param_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_QT) && !defined(NO_RSA)
+    X509_PUBKEY* pub = NULL;
+    ASN1_OBJECT* obj = NULL;
+    X509_ALGOR* pa = NULL;
+
+    ExpectNotNull(pub = X509_PUBKEY_new());
+    if (pub != NULL) {
+        X509_ALGOR_free(pub->algor);
+        pub->algor = NULL;
+        /* Key OID with no object table entry. */
+        pub->pubKeyOID = 0x7ffffff0;
+    }
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, &pa, pub),
+        WOLFSSL_FAILURE);
+    ExpectNull(pub == NULL ? NULL : pub->algor);
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, &pa, pub),
+        WOLFSSL_FAILURE);
+    ExpectNull(pub == NULL ? NULL : pub->algor);
+
+    /* A known OID builds the algorithm. */
+    if (pub != NULL) {
+        pub->pubKeyOID = RSAk;
+    }
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, &pa, pub),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(pa);
+    ExpectIntEQ(OBJ_obj2nid(obj), EVP_PKEY_RSA);
+    X509_PUBKEY_free(pub);
+#endif
+    return EXPECT_RESULT();
+}

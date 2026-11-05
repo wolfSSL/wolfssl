@@ -176,6 +176,10 @@ int wc_MlKemKey_Init_Label(MlKemKey* key, int type, const char* label,
     \return 0 on success.
     \return BAD_FUNC_ARG if key or rng is NULL.
     \return MEMORY_E on allocation failure.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in,out] key Pointer to an initialized MlKemKey.
     \param [in] rng Pointer to an initialized WC_RNG.
@@ -378,7 +382,8 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
 
     \brief Decodes a raw ML-KEM public key into key. The variant must
     already be selected on the key and len must match the public key
-    size for that variant.
+    size for that variant. A private key held by key that does not match
+    the new public key is zeroized and dropped.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL or len does

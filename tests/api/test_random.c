@@ -97,6 +97,13 @@ int test_wc_RNG_GenerateBlock_Reseed(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define RESEED_CTR(rng) ((rng)->reseedCtr)
+#else
+    #define RESEED_CTR(rng) (((struct DRBG_internal *)(rng)->drbg)->reseedCtr)
+#endif
+
 int test_wc_RNG_ReseedBoundary(void)
 {
     EXPECT_DECLS;
@@ -111,20 +118,19 @@ int test_wc_RNG_ReseedBoundary(void)
 
 #ifndef NO_SHA256
     if (rng.drbgType == WC_DRBG_SHA256) {
-        struct DRBG_internal* drbg = (struct DRBG_internal*)rng.drbg;
-        if (drbg != NULL && rng.status == WC_DRBG_OK) {
+        if (rng.drbg != NULL && rng.status == WC_DRBG_OK) {
         #ifdef WORD64_AVAILABLE
-            word64 startCtr = drbg->reseedCtr;
+            word64 startCtr = RESEED_CTR(&rng);
         #else
-            word32 startCtr = drbg->reseedCtr;
+            word32 startCtr = RESEED_CTR(&rng);
         #endif
             ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-            if (drbg->reseedCtr == startCtr + 1) {
-                drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+            if (RESEED_CTR(&rng) == startCtr + 1) {
+                RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == 2);
+                ExpectTrue(RESEED_CTR(&rng) == 2);
                 drbgChecked = 1;
             }
         }
@@ -132,17 +138,15 @@ int test_wc_RNG_ReseedBoundary(void)
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
     if (!drbgChecked && rng.drbgType == WC_DRBG_SHA512) {
-        struct DRBG_SHA512_internal* drbg =
-            (struct DRBG_SHA512_internal*)rng.drbg512;
-        if (drbg != NULL && rng.status == WC_DRBG_OK) {
-            word64 startCtr = drbg->reseedCtr;
+        if (rng.drbg512 != NULL && rng.status == WC_DRBG_OK) {
+            word64 startCtr = RESEED_CTR(&rng);
             ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-            if (drbg->reseedCtr == startCtr + 1) {
-                drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+            if (RESEED_CTR(&rng) == startCtr + 1) {
+                RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == 2);
+                ExpectTrue(RESEED_CTR(&rng) == 2);
                 drbgChecked = 1;
             }
         }
@@ -403,9 +407,20 @@ int test_wc_RNG_DRBG_Reseed(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Good Parameters. */
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    /* credited user-class reseeds of conformant instances are refused. */
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, entropySz),
+                WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
     ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, entropySz), 0);
+#endif
     ExpectIntEQ(wc_RNG_GenerateBlock(rng, entropy, entropySz), 0);
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, 0),
+                WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
     ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, 0), 0);
+#endif
     ExpectIntEQ(wc_RNG_GenerateBlock(rng, entropy, entropySz), 0);
 
     ExpectIntEQ(wc_FreeRng(rng), 0);
@@ -686,7 +701,7 @@ int test_wc_RNG_TestSeed(void)
 int test_wc_RNG_HealthTest(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG)
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_FIPS_EXPORT_LOCAL_APIS)
     static const byte test1Seed[] = {
         0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e,
         0xff, 0xe8, 0x75, 0xc3, 0xa2, 0xe7, 0x1f, 0x42,
@@ -877,8 +892,8 @@ int test_wc_RNG_HealthTest(void)
 int test_wc_RNG_HealthTest_SHA512(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
-    !defined(HAVE_SELFTEST) && \
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_FIPS_EXPORT_LOCAL_APIS) && \
+    defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 
     /* No-reseed test: drbgvectors_no_reseed/Hash_DRBG.rsp, [SHA-512],
@@ -1012,7 +1027,8 @@ int test_wc_RNG_HealthTest_SHA512(void)
         test2SeedB, sizeof(test2SeedB), output, sizeof(output)), 0);
     ExpectBufEQ(test2Output, output, sizeof(output));
 
-#endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
+#endif /* HAVE_HASHDRBG && WOLFSSL_FIPS_EXPORT_LOCAL_APIS && WOLFSSL_DRBG_SHA512
+        * && !HAVE_SELFTEST && FIPS v7+ */
     return EXPECT_RESULT();
 }
 
@@ -1025,8 +1041,9 @@ int test_wc_RNG_HealthTest_SHA512(void)
 int test_wc_RNG_HealthTest_SHA256_Ext(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_SHA256) && defined(HAVE_HASHDRBG) && !defined(HAVE_SELFTEST) \
-    && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if !defined(NO_SHA256) && defined(HAVE_HASHDRBG) && \
+    defined(WOLFSSL_FIPS_EXPORT_LOCAL_APIS) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     byte entropyA[48], entropyB[48], entropyC[48];
     byte nonce[16], perso[16], addA[16], addB[16], addReseed[16];
     byte output[WC_SHA256_DIGEST_SIZE * 4];
@@ -1133,8 +1150,9 @@ int test_wc_RNG_HealthTest_SHA256_Ext(void)
 int test_wc_RNG_HealthTest_SHA512_Ext(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_FIPS_EXPORT_LOCAL_APIS) && \
+    defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     byte entropyA[32], entropyB[32], entropyC[32];
     byte nonce[16], perso[16], addA[16], addB[16];
     byte output[WC_SHA512_DIGEST_SIZE * 4];
@@ -1364,7 +1382,9 @@ static int test_random_seedCb_broken(OS_Seed* os, byte* seed, word32 sz)
     (void)os;
     (void)seed;
     (void)sz;
-    return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    /* ASN_OCSP_CONFIRM_E here is a nonsense error code used to inhibit the
+     * WC_VERBOSE_RNG message in PollAndReSeed(). */
+    return WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E);
 }
 #endif
 
@@ -1396,6 +1416,12 @@ int test_wc_RNG_ReseedVerdict(void)
     rng.pid = 0;
     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
         WC_NO_ERR_TRACE(ENTROPY_RT_E));
+  #ifdef WC_RNG_HAVE_LOCK
+    /* Saturate the reseed counter to force condemnation on reseed failure. */
+    RESEED_CTR(&rng) = WC_RESEED_INTERVAL;
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(ENTROPY_RT_E));
+  #endif
     /* The failed instance stays failed. */
     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
         WC_NO_ERR_TRACE(RNG_FAILURE_E));
@@ -1417,6 +1443,8 @@ int test_wc_RNG_ReseedVerdict(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_broken), 0);
     rng.pid = 0;
+    /* Saturate the reseed counter to force condemnation on reseed failure. */
+    RESEED_CTR(&rng) = WC_RESEED_INTERVAL;
     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
         WC_NO_ERR_TRACE(RNG_FAILURE_E));
 
@@ -1582,7 +1610,12 @@ int test_wc_DrbgDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, NULL, sizeof(seed)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, seed, sizeof(seed)),
+                WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
     ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, seed, sizeof(seed)), 0);
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
@@ -1639,37 +1672,34 @@ int test_wc_DrbgFeatureCoverage(void)
          * that bypass the Hash_DRBG path (e.g. --enable-intelrand) skip it. */
     #ifndef NO_SHA256
         if (rng.drbgType == WC_DRBG_SHA256) {
-            struct DRBG_internal* drbg = (struct DRBG_internal*)rng.drbg;
-            if (drbg != NULL && rng.status == WC_DRBG_OK) {
+            if (rng.drbg != NULL && rng.status == WC_DRBG_OK) {
             #ifdef WORD64_AVAILABLE
-                word64 startCtr = drbg->reseedCtr;
+                word64 startCtr = RESEED_CTR(&rng);
             #else
-                word32 startCtr = drbg->reseedCtr;
+                word32 startCtr = RESEED_CTR(&rng);
             #endif
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                if (drbg->reseedCtr == startCtr + 1) {
-                    drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+                if (RESEED_CTR(&rng) == startCtr + 1) {
+                    RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg->reseedCtr == 2);
+                    ExpectTrue(RESEED_CTR(&rng) == 2);
                 }
             }
         }
     #endif
     #ifdef WOLFSSL_DRBG_SHA512
         if (rng.drbgType == WC_DRBG_SHA512) {
-            struct DRBG_SHA512_internal* drbg512 =
-                (struct DRBG_SHA512_internal*)rng.drbg512;
-            if (drbg512 != NULL && rng.status == WC_DRBG_OK) {
-                word64 startCtr = drbg512->reseedCtr;
+            if (rng.drbg512 != NULL && rng.status == WC_DRBG_OK) {
+                word64 startCtr = RESEED_CTR(&rng);
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                if (drbg512->reseedCtr == startCtr + 1) {
-                    drbg512->reseedCtr = WC_RESEED_INTERVAL - 1;
+                if (RESEED_CTR(&rng) == startCtr + 1) {
+                    RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg512->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg512->reseedCtr == 2);
+                    ExpectTrue(RESEED_CTR(&rng) == 2);
                 }
             }
         }
@@ -1683,6 +1713,254 @@ int test_wc_DrbgFeatureCoverage(void)
         (void)wc_Sha512Drbg_Enable();
     #endif
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The 2026 RNG rework (DRBG threading, lock rework) added per-width
+ * getter/stir arms and init flags.  Drive those new decisions through the
+ * public API; the type/pointer pairings the API alone cannot reach are
+ * poked on a live instance and restored before the next use (same idiom as
+ * the reseedCtr pokes in test_wc_DrbgFeatureCoverage). */
+int test_wc_DrbgReworkDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    WC_RNG               rng;
+    byte                 seed[32];
+    byte                 nonce[16];
+#ifdef WOLFSSL_TEST_STATIC_BUILD
+    wc_drbg_reseed_ctr_t ctr;
+#endif
+    void*                savedPtr = NULL;
+
+    XMEMSET(seed, 7, sizeof(seed));
+    XMEMSET(nonce, 9, sizeof(nonce));
+
+#if defined(WOLFSSL_DRBG_SHA512) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    /* SHA-512 width: SHA-256 clause false / SHA-512 clause true. */
+    (void)wc_Sha256Drbg_Disable();
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+    /* RDRAND builds (HAVE_INTEL_RDRAND on a RDRAND CPU) bypass DRBG
+     * instantiation: drbgType is set but drbg512 stays NULL, so the arms
+     * below are unreachable and the section is skipped. */
+    if (rng.drbgType == WC_DRBG_SHA512 && wc_RNG_DRBG_Present(&rng)) {
+        ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 1);
+        /* drbg512-NULL side of the SHA-512 clause. */
+        savedPtr = rng.drbg512;
+        rng.drbg512 = NULL;
+        ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
+        rng.drbg512 = (struct DRBG_SHA512 *)savedPtr;
+        /* SHA-256 arm skipped (type mismatch), SHA-512 arm taken. */
+#ifdef WOLFSSL_TEST_STATIC_BUILD
+        ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr), 0);
+#endif
+        ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng), 0);
+        /* The SHA-256 type check is false on this live SHA-512 instance. */
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    (void)wc_Sha256Drbg_Enable();
+#endif
+
+    /* SHA-256 width: SHA-256 clause true / SHA-512 clause false. */
+#if defined(WOLFSSL_DRBG_SHA512) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (void)wc_Sha512Drbg_Disable();
+#endif
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+    /* RDRAND builds bypass DRBG instantiation (see SHA-512 section). */
+    if (rng.drbgType == WC_DRBG_SHA256 && wc_RNG_DRBG_Present(&rng)) {
+        ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 1);
+        /* drbg-NULL side of the SHA-256 clause. */
+        savedPtr = rng.drbg;
+        rng.drbg = NULL;
+        ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
+        rng.drbg = (struct DRBG *)savedPtr;
+        /* SHA-256 arm taken, SHA-512 arm skipped. */
+#ifdef WOLFSSL_TEST_STATIC_BUILD
+        ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr), 0);
+#endif
+        ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng), 0);
+        /* The SHA-512 type check is false on this live SHA-256 instance. */
+        /* SHA-256 arm skipped (drbg NULL): the Present() guard turns the
+         * type/pointer mismatch into WRONG_TYPE_OBJECT_E before the arms.
+         * (The arm's drbg-NULL side is unreachable -- Present forces it.) */
+        rng.drbg = NULL;
+#ifdef WOLFSSL_TEST_STATIC_BUILD
+        ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr),
+            WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#endif
+        rng.drbg = (struct DRBG *)savedPtr;
+    }
+    /* No-DRBG instance: both arms false (zeroed type, NULL pointers). */
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    /* Re-initialise for the nonce-driven entry points. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+
+    /* wc_RNG_DRBG_Reseed_Nonce: "nonce == NULL && nonceSz > 0" pair. */
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), NULL,
+                                         sizeof(nonce)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce,
+                                         sizeof(nonce)),
+        WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce, 0),
+        WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce,
+                                         sizeof(nonce)), 0);
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce, 0),
+        0);
+#endif
+
+    /* wc_RNG_DRBG_Stir_Nonce: rng/seed NULL pair, nonce pair, and the
+     * second-chunk decision (nonce non-NULL with zero size). */
+    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(NULL, seed, sizeof(seed), nonce,
+                                       sizeof(nonce)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, NULL, sizeof(seed), nonce,
+                                       sizeof(nonce)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, seed, sizeof(seed), NULL,
+                                       sizeof(nonce)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, seed, sizeof(seed), nonce,
+                                       sizeof(nonce)), 0);
+    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, seed, sizeof(seed), nonce, 0),
+        0);
+
+    /* wc_RNG_DRBG_Stir: valid seed only (no nonce chunk). */
+    ExpectIntEQ(wc_RNG_DRBG_Stir(&rng, seed, sizeof(seed)), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    /* Init flags: USE_FULL_MUTEX and NO_AUTO_LOCK arms of _InitRng(). The
+     * condition is compiled in every build; only the mutex body is gated,
+     * so a build without the full mutex answers NOT_COMPILED_IN. */
+    XMEMSET(&rng, 0, sizeof(rng));
+#if defined(WC_RNG_HAVE_LOCK_FULL_MUTEX)
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+                               WC_RNG_INIT_FLAG_USE_FULL_MUTEX), 0);
+#else
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+                               WC_RNG_INIT_FLAG_USE_FULL_MUTEX),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+#endif
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+                               WC_RNG_INIT_FLAG_NO_AUTO_LOCK), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    /* wc_InitRngNonce_ex2: "perso == NULL && persoSz != 0" pair. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRngNonce_ex2(&rng, nonce, sizeof(nonce), NULL,
+                                    sizeof(nonce), HEAP_HINT, INVALID_DEVID,
+                                    0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRngNonce_ex2(&rng, nonce, sizeof(nonce), nonce,
+                                    sizeof(nonce), HEAP_HINT, INVALID_DEVID,
+                                    0), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRngNonce_ex2(&rng, nonce, sizeof(nonce), nonce, 0,
+                                    HEAP_HINT, INVALID_DEVID, 0), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+#if defined(WOLFSSL_DRBG_SHA512) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    /* Restore the SHA-512 DRBG for the rest of the process; it stays
+     * disabled through the nonce section so those entry points run on
+     * the SHA-256 width. */
+    (void)wc_Sha512Drbg_Enable();
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC decision coverage for the RNG init-flag guards, the TestSeed
+ * majority-test window guard, and the seed/stir NULL-argument guards
+ * (master drift, 2026-10-06).
+ */
+int test_wc_RngInitFlagsDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    WC_RNG  rng;
+    OS_Seed os;
+    byte    seed[32];
+    byte    out[16];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&os, 0, sizeof(os));
+    XMEMSET(seed, 7, sizeof(seed));
+    XMEMSET(out, 0, sizeof(out));
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* USE_FULL_MUTEX: the full-mutex clause's true side. */
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+                               WC_RNG_INIT_FLAG_USE_FULL_MUTEX), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+#ifdef WC_RNG_HAVE_AUTO_LOCK
+    /* USE_AUTO_LOCK: the auto-lock clause's true side. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+        WC_RNG_INIT_FLAG_USE_AUTO_LOCK), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+    /* NO_AUTO_LOCK: the auto-lock clause's false side. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+        WC_RNG_INIT_FLAG_NO_AUTO_LOCK), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* UPGRADE_FROM_NEXT_SEED: the seedRng-non-NULL side of the
+     * primary-seed health-check clause. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+        WC_RNG_INIT_FLAG_UPGRADE_FROM_NEXT_SEED), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+    /* wc_RNG_TestSeed on a short seed: the window stays below the
+     * majority-test threshold, the cutoff > window/2 clause's false side. */
+    (void)wc_RNG_TestSeed(seed, 16);
+
+    /* wc_GenerateSeed NULL-argument guards. */
+#ifdef TEST_WC_GENERATE_SEED_PARAMS
+    ExpectIntEQ(wc_GenerateSeed(NULL, out, sizeof(out)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_GenerateSeed(&os, NULL, sizeof(out)), BAD_FUNC_ARG);
+#endif
+
+    /* wc_RNG_DRBG_Stir_Nonce with a valid rng and a NULL seed: the
+     * rng-NULL clause's false side. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+                               WC_RNG_INIT_FLAG_NONE), 0);
+    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, NULL, 0, out, sizeof(out)),
+                BAD_FUNC_ARG);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
 }

@@ -756,6 +756,82 @@ static void dsa_test_fill_hex(char* dst, int len)
  * (WC_MIN_DIGEST_SIZE_FOR_SIGN/_VERIFY / WC_MAX_DIGEST_SIZE) and the
  * qMinus1 iszero/isneg guard in wc_DsaSign_ex (q == 1 -> qMinus1 == 0).
  */
+/* FIPS 186-4 4.2: when the digest is longer than q, only its leftmost N bits
+ * take part, so two digests that differ only past |q| share a signature. The
+ * truncation sits inside wc_DsaSign_ex()/wc_DsaVerify_ex(), after their length
+ * checks, so a caller-supplied length is validated as given. */
+int test_wc_DsaSign_digest_truncation(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DSA) && !defined(WC_FIPS_186_5_PLUS) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    DsaKey key;
+    WC_RNG rng;
+    byte   signature[DSA_SIG_SIZE];
+    byte   digest[WC_MAX_DIGEST_SIZE];
+    byte   other[WC_MAX_DIGEST_SIZE];
+    word32 pSz = 0, qSz = 0, gSz = 0;
+    int    answer = 0;
+#ifdef USE_CERT_BUFFERS_1024
+    byte   tmp[ONEK_BUF];
+    word32 bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte   tmp[TWOK_BUF];
+    word32 bytes = sizeof_dsa_key_der_2048;
+#else
+    byte   tmp[TWOK_BUF];
+    XFILE  fp = XBADFILE;
+    word32 bytes = 0;
+#endif
+    word32 idx = 0;
+
+    XMEMSET(digest, 0x3c, sizeof(digest));
+    XMEMSET(other, 0x3c, sizeof(other));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+#else
+    XMEMSET(tmp, 0, sizeof(tmp));
+    ExpectTrue((fp = XFOPEN("./certs/dsa2048.der", "rb")) != XBADFILE);
+    ExpectTrue((bytes = (word32)XFREAD(tmp, 1, sizeof(tmp), fp)) > 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+#endif
+
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Length-only query: all three buffers NULL reports the parameter sizes. */
+    ExpectIntEQ(wc_DsaExportParamsRaw(&key, NULL, &pSz, NULL, &qSz, NULL,
+        &gSz), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT(qSz, 0);
+
+    ExpectIntEQ(wc_DsaSign_ex(digest, (word32)sizeof(digest), signature, &key,
+        &rng), 0);
+    ExpectIntEQ(wc_DsaVerify_ex(digest, (word32)sizeof(digest), signature,
+        &key, &answer), 0);
+    ExpectIntEQ(answer, 1);
+
+    /* Only meaningful while the digest is longer than q. */
+    if (qSz < (word32)sizeof(other)) {
+        other[qSz] = (byte)~other[qSz];
+        answer = 0;
+        ExpectIntEQ(wc_DsaVerify_ex(other, (word32)sizeof(other), signature,
+            &key, &answer), 0);
+        ExpectIntEQ(answer, 1);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_FreeDsaKey(&key);
+#endif /* !NO_DSA && !WC_FIPS_186_5_PLUS */
+    return EXPECT_RESULT();
+}
+
 int test_wc_DsaSign_bad_digestSz(void)
 {
     EXPECT_DECLS;

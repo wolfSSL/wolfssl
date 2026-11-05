@@ -230,6 +230,7 @@
 
 #define CPUID_AARCH64_FEAT_AES         ((word64)1 << 4)
 #define CPUID_AARCH64_FEAT_AES_PMULL   ((word64)1 << 5)
+#define CPUID_AARCH64_FEAT_SHA1        ((word64)1 << 8)
 #define CPUID_AARCH64_FEAT_SHA256      ((word64)1 << 12)
 #define CPUID_AARCH64_FEAT_SHA256_512  ((word64)1 << 13)
 #define CPUID_AARCH64_FEAT_RDM         ((word64)1 << 28)
@@ -305,6 +306,8 @@
                 new_cpuid_flags |= CPUID_AES;
                 new_cpuid_flags |= CPUID_PMULL;
             }
+            if (features & CPUID_AARCH64_FEAT_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
             if (features & CPUID_AARCH64_FEAT_SHA256)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -333,12 +336,52 @@
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
-#elif defined(__linux__)
+/* A trusted application is cross compiled with a Linux toolchain that
+ * predefines __linux__, but libutee has no getauxval, so it takes the
+ * compiled-in flags below instead. */
+#elif defined(__linux__) && !defined(WOLFSSL_OPTEE)
     /* https://community.arm.com/arm-community-blogs/b/operating-systems-blog/
      * posts/runtime-detection-of-cpu-features-on-an-armv8-a-cpu */
 
     #include <sys/auxv.h>
-    #include <asm/hwcap.h>
+
+    /* Kernel <asm/hwcap.h> values, for C libraries that lack them. */
+    #ifndef AT_HWCAP2
+        #define AT_HWCAP2       26
+    #endif
+    #ifndef HWCAP_ASIMD
+        #define HWCAP_ASIMD     (1 << 1)
+    #endif
+    #ifndef HWCAP_AES
+        #define HWCAP_AES       (1 << 3)
+    #endif
+    #ifndef HWCAP_PMULL
+        #define HWCAP_PMULL     (1 << 4)
+    #endif
+    #ifndef HWCAP_SHA2
+        #define HWCAP_SHA2      (1 << 6)
+    #endif
+    #ifndef HWCAP_ASIMDRDM
+        #define HWCAP_ASIMDRDM  (1 << 12)
+    #endif
+    #ifndef HWCAP_SHA3
+        #define HWCAP_SHA3      (1 << 17)
+    #endif
+    #ifndef HWCAP_SM3
+        #define HWCAP_SM3       (1 << 18)
+    #endif
+    #ifndef HWCAP_SM4
+        #define HWCAP_SM4       (1 << 19)
+    #endif
+    #ifndef HWCAP_SHA512
+        #define HWCAP_SHA512    (1 << 21)
+    #endif
+    #ifndef HWCAP_SVE
+        #define HWCAP_SVE       (1 << 22)
+    #endif
+    #ifndef HWCAP2_SME
+        #define HWCAP2_SME      (1 << 23)
+    #endif
 
     static WC_INLINE void cpuid_set_flags(void)
     {
@@ -357,6 +400,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (hwcaps & HWCAP_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef HWCAP_SHA1
+            if (hwcaps & HWCAP_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (hwcaps & HWCAP_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -364,7 +411,7 @@
             if (hwcaps & HWCAP_SHA512)
                 new_cpuid_flags |= CPUID_SHA512;
         #endif
-        #if defined(HWCAP_ASIMDRDM) && !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
+        #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
             if (hwcaps & HWCAP_ASIMDRDM)
                 new_cpuid_flags |= CPUID_RDM;
         #endif
@@ -380,17 +427,12 @@
             if (hwcaps & HWCAP_SM4)
                 new_cpuid_flags |= CPUID_SM4;
         #endif
-        #ifdef HWCAP_SVE
             if (hwcaps & HWCAP_SVE)
                 new_cpuid_flags |= CPUID_SVE;
-        #endif
-        #ifdef HWCAP2_SME
             /* SME is reported in the second HWCAP word. */
             if (getauxval(AT_HWCAP2) & HWCAP2_SME)
                 new_cpuid_flags |= CPUID_SME;
-        #endif
 
-            (void)hwcaps;
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
@@ -417,6 +459,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (features & ANDROID_CPU_ARM_FEATURE_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef ANDROID_CPU_ARM_FEATURE_SHA1
+            if (features & ANDROID_CPU_ARM_FEATURE_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (features & ANDROID_CPU_ARM_FEATURE_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -456,6 +502,8 @@
                 new_cpuid_flags |= CPUID_AES;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_PMULL") != 0)
                 new_cpuid_flags |= CPUID_PMULL;
+            if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA1") != 0)
+                new_cpuid_flags |= CPUID_SHA1;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA256") != 0)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -506,6 +554,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (features & HWCAP_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef HWCAP_SHA1
+            if (features & HWCAP_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (features & HWCAP_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -579,6 +631,7 @@
                     PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
                 new_cpuid_flags |= CPUID_AES;
                 new_cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_SHA1;
                 new_cpuid_flags |= CPUID_SHA256;
             }
         #endif
@@ -614,6 +667,7 @@
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             new_cpuid_flags |= CPUID_AES;
             new_cpuid_flags |= CPUID_PMULL;
+            new_cpuid_flags |= CPUID_SHA1;
             new_cpuid_flags |= CPUID_SHA256;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512

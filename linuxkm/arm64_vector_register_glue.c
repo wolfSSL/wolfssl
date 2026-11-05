@@ -35,9 +35,9 @@
 #endif
 
 #if defined(CONFIG_ARM64) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 19, 0)
-    /* Written against the void kernel_neon_begin() of linux-6.6.99.  6.19
-     * changes that signature and has not been read here. */
-    #error arm64 vector register glue does not yet support kernel_neon_begin() with a state buffer (6.19+).
+    /* 6.19 takes a buffer that must live until kernel_neon_end(); it holds the
+     * task's kernel FPSIMD state over a softirq (linux-7.0.14 fpsimd.c:1819) */
+    #define WC_SVR_ARM64_NEON_BUF
 #endif
 
 #if defined(CONFIG_ARM) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
@@ -65,6 +65,9 @@ struct wc_svr_arm64_ctx_state {
     unsigned int inhibit_at; /* depth of the open inhibit claim, 0 when none */
     unsigned int neon_held;  /* 1 between kernel_neon_begin() and _end() */
     unsigned int bh_held;    /* 1 while a pin-only section holds local_bh_disable() */
+#ifdef WC_SVR_ARM64_NEON_BUF
+    struct user_fpsimd_state neon_buf; /* this context's, while neon_held */
+#endif
 };
 
 struct wc_svr_arm64_cpu_state {
@@ -199,7 +202,11 @@ __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         return WC_ACCEL_INHIBIT_E;
     }
 
+#ifdef WC_SVR_ARM64_NEON_BUF
+    kernel_neon_begin(&st->neon_buf);
+#else
     kernel_neon_begin();
+#endif
     st->depth = 1;
     st->neon_held = 1;
     return 0;
@@ -244,7 +251,11 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
     if (--st->depth == 0) {
         if (st->neon_held) {
             st->neon_held = 0;
+#ifdef WC_SVR_ARM64_NEON_BUF
+            kernel_neon_end(&st->neon_buf);
+#else
             kernel_neon_end();
+#endif
         }
         if (st->bh_held) {
             st->bh_held = 0;

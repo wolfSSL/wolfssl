@@ -4260,12 +4260,134 @@ int test_wc_MlkemFeatureCoverage(void)
     return EXPECT_RESULT();
 } /* END test_wc_MlkemFeatureCoverage */
 
+/* DER TLV writer for the hand-crafted ML-KEM private-key shapes (RFC 9935
+ * Section 6): a seed-only [0] under the privateKey OCTET STRING, or a
+ * SEQUENCE carrying both the seed and the expanded key. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1)
+static word32 test_mlkem_der_tlv(byte* p, byte tag, word32 len)
+{
+    word32 i = 0;
+    p[i++] = tag;
+    if (len < 128) {
+        p[i++] = (byte)len;
+    }
+    else if (len < 256) {
+        p[i++] = (byte)0x81;
+        p[i++] = (byte)len;
+    }
+    else {
+        p[i++] = (byte)0x82;
+        p[i++] = (byte)(len >> 8);
+        p[i++] = (byte)(len & 0xFF);
+    }
+    return i;
+}
+
+static word32 test_mlkem_der_tlv_size(word32 len)
+{
+    return (len < 128U ? 2U : len < 256U ? 3U : 4U) + len;
+}
+
+/* OneAsymmetricKey header: SEQUENCE { INTEGER 0, SEQUENCE { OID } }.
+ * Returns the position after the header (16 bytes for the ML-KEM OIDs). */
+static byte* test_mlkem_der_header(byte* p, int t)
+{
+    p[0] = 0x02;
+    p[1] = 0x01;
+    p[2] = 0x00;
+    p += 3;
+    p += test_mlkem_der_tlv(p, 0x30, 11);
+    p += test_mlkem_der_tlv(p, 0x06, 9);
+    p[0] = 96;  p[1] = 134; p[2] = 72;  p[3] = 1;
+    p[4] = 101; p[5] = 3;   p[6] = 4;   p[7] = 4;
+    /* Level index: the library OIDs end in 1/2/3 for 512/768/1024. */
+    p[8] = (byte)((t == WC_ML_KEM_512) ? 1 :
+                  (t == WC_ML_KEM_768) ? 2 : 3);
+    p += 9;
+    return p;
+}
+
+/* OneAsymmetricKey { 0, ML-KEM-<t>, OCTET STRING { [0] { seed } } }.
+ * extra adds trailing bytes inside the privateKey OCTET STRING so the
+ * template parse fails after the seed has been reported. */
+static word32 test_mlkem_der_seed_only(byte* der, int t,
+    const byte* seed, word32 seedLen, int extra)
+{
+    word32 seedTlvSz = test_mlkem_der_tlv_size(seedLen);
+    word32 pkeySz    = test_mlkem_der_tlv_size(seedTlvSz + (word32)extra);
+    word32 seqSz     = 16 + pkeySz;
+    byte*  p = der;
+
+    p += test_mlkem_der_tlv(p, 0x30, seqSz);
+    p = test_mlkem_der_header(p, t);
+    p += test_mlkem_der_tlv(p, 0x04, seedTlvSz + (word32)extra);
+    p += test_mlkem_der_tlv(p, (byte)(ASN_CONTEXT_SPECIFIC | ASN_PKEY_SEED),
+        seedLen);
+    XMEMCPY(p, seed, seedLen);
+    p += seedLen;
+    if (extra > 0) {
+        XMEMSET(p, 0, (word32)extra);
+        p += (word32)extra;
+    }
+    return (word32)(p - der);
+}
+
+/* OneAsymmetricKey { 0, ML-KEM-<t>, OCTET STRING { SEQUENCE {
+ * OCTET STRING { seed }, OCTET STRING { expanded key } } } }. */
+static word32 test_mlkem_der_both(byte* der, int t,
+    const byte* seed, word32 seedLen,
+    const byte* key, word32 keyLen)
+{
+    word32 keyTlvSz = test_mlkem_der_tlv_size(keyLen);
+    word32 bothSz   = test_mlkem_der_tlv_size(seedLen) + keyTlvSz;
+    word32 bothTlvSz = test_mlkem_der_tlv_size(bothSz);
+    word32 pkeySz   = test_mlkem_der_tlv_size(bothTlvSz);
+    word32 seqSz    = 16 + pkeySz;
+    byte*  p = der;
+
+    p += test_mlkem_der_tlv(p, 0x30, seqSz);
+    p = test_mlkem_der_header(p, t);
+    p += test_mlkem_der_tlv(p, 0x04, bothTlvSz);
+    p += test_mlkem_der_tlv(p, 0x30, bothSz);
+    p += test_mlkem_der_tlv(p, 0x04, seedLen);
+    XMEMCPY(p, seed, seedLen);
+    p += seedLen;
+    p += test_mlkem_der_tlv(p, 0x04, keyLen);
+    XMEMCPY(p, key, keyLen);
+    p += keyLen;
+    return (word32)(p - der);
+}
+#endif /* WOLFSSL_HAVE_MLKEM && WOLFSSL_ASN_TEMPLATE */
+
 int test_wc_MlkemDecisionCoverage(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     defined(WC_MLKEM_HAVE_NATIVE)
     MlKemKey* key = NULL;
+    MlKemKey* key2 = NULL;
+    MlKemKey* adopt = NULL;
+    MlKemKey* fresh = NULL;
+    MlKemKey  unset;
+    byte      der[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE + 256];
+    word32    idx = 0;
+    word32    sz = 0;
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1)
+    MlKemKey* seedKey = NULL;
+    byte      expanded[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    word32    privLen = 0;
+    word32    derSz = 0;
+#endif
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    word32    ctLen = 0;
+#endif
 #ifndef WC_NO_CONSTRUCTORS
     MlKemKey* newKey = NULL;
 #endif
@@ -4410,9 +4532,177 @@ int test_wc_MlkemDecisionCoverage(void)
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, out, sizeof(out)),
         WC_NO_ERR_TRACE(BAD_STATE_E));
 
+#if !defined(WOLFSSL_MLKEM_NO_ASN1) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+    /* --- DER encode/decode decisions: the (ret == 0) operand of the ToDer
+     *     output blocks, the decode NULL rows, and the type-set / adopt-type
+     *     checks. --- */
+    XMEMSET(&unset, 0, sizeof(unset));
+    XMEMSET(der, 0, sizeof(der));
+
+    /* ToDer: a key with no type set fails the oid lookup before the
+     * output blocks, so (ret == 0) is false with output != NULL; the
+     * populated key below takes the true side. */
+    ExpectIntNE(wc_MlKemKey_PublicKeyToDer(&unset, out, sizeof(out), 0),
+        0);
+    ExpectIntNE(wc_MlKemKey_PrivateKeyToDer(&unset, out, sizeof(out)), 0);
+
+    key2 = (MlKemKey*)XMALLOC(sizeof(*key2), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key2);
+    ExpectIntEQ(wc_MlKemKey_Init(key2, t, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key2, &rng), 0);
+
+    /* Public key DER: the NULL rows, then the valid decode. ToDer returns
+     * the encoding length on success, so query it first and match it.
+     * withAlg=1: the SubjectPublicKeyInfo wrapper the decode expects; the
+     * decode consumes exactly sz bytes, so pass sz, not sizeof(der). */
+    sz = wc_MlKemKey_PublicKeyToDer(key2, NULL, 0, 1);
+    ExpectIntGT(sz, 0);
+    ExpectIntEQ(wc_MlKemKey_PublicKeyToDer(key2, der, sizeof(der), 1), sz);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PublicKeyDecode(NULL, der, sizeof(der), &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PublicKeyDecode(key2, NULL, sizeof(der), &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PublicKeyDecode(key2, der, sizeof(der), NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    fresh = (MlKemKey*)XMALLOC(sizeof(*fresh), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(fresh);
+    XMEMSET(fresh, 0, sizeof(*fresh));
+    ExpectIntEQ(wc_MlKemKey_Init(fresh, WC_ML_KEM_TYPE_UNSET, NULL,
+        INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PublicKeyDecode(fresh, der, sz, &idx), 0);
+    wc_MlKemKey_Free(fresh);
+    XFREE(fresh, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PublicKeyDecode(key2, der, sz, &idx), 0);
+
+    /* Private key DER: the NULL rows, the valid decode (type already
+     * set, so the adopt check takes its false side), and the adopt:
+     * an initialized key with no type takes the DER's type. */
+    sz = wc_MlKemKey_PrivateKeyToDer(key2, NULL, 0);
+    ExpectIntGT(sz, 0);
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyToDer(key2, der, sizeof(der)), sz);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(NULL, der, sizeof(der), &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(key2, NULL, sizeof(der), &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(key2, der, sizeof(der), NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(key2, der, sz, &idx), 0);
+    adopt = (MlKemKey*)XMALLOC(sizeof(*adopt), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(adopt);
+    XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, WC_ML_KEM_TYPE_UNSET, NULL,
+        INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, sz, &idx), 0);
+    wc_MlKemKey_Free(adopt);
+    XFREE(adopt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* ASN.1 and key generation */
+
+    /* --- RFC 9935 Section 6 privateKey shapes: seed-only and "both".
+     *     The seed expands through the real keygen so the "both" key agrees
+     *     with its seed. --- */
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1)
+    seedKey = (MlKemKey*)XMALLOC(sizeof(*seedKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(seedKey);
+    ExpectIntEQ(wc_MlKemKey_Init(seedKey, t, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(seedKey, rndMk,
+        sizeof(rndMk)), SEED_OK);
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(seedKey, &privLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(seedKey, expanded, privLen),
+        0);
+
+    adopt = (MlKemKey*)XMALLOC(sizeof(*adopt), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(adopt);
+
+    /* Valid RFC 9935 seed-only shape. */
+    derSz = test_mlkem_der_seed_only(der, t, rndMk, sizeof(rndMk), 0);
+    XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
+    wc_MlKemKey_Free(adopt);
+
+    /* Seed-only shape with a trailing byte inside the privateKey OCTET
+     * STRING: the template parse fails after the seed is reported, so
+     * (ret == 0) is false with seed != NULL. */
+    derSz = test_mlkem_der_seed_only(der, t, rndMk, sizeof(rndMk), 1);
+    XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntNE(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
+    wc_MlKemKey_Free(adopt);
+
+    /* Valid "both" shape: seed and expanded key agree. */
+    derSz = test_mlkem_der_both(der, t, rndMk, sizeof(rndMk),
+        expanded, privLen);
+    XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
+    wc_MlKemKey_Free(adopt);
+
+    /* "Both" shape with the expanded key one byte short of the key's
+     * size: (ret == 0) && (expandedLen != privKeyLen) true side. */
+    derSz = test_mlkem_der_both(der, t, rndMk, sizeof(rndMk),
+        expanded, privLen - 1);
+    XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_MlKemKey_Free(adopt);
+
+    /* "Both" shape with a short seed and the short key: the seed block
+     * fails first, so (ret == 0) is false with the mismatch held. */
+    derSz = test_mlkem_der_both(der, t, rndMk, 32, expanded, privLen - 1);
+    XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_MlKemKey_Free(adopt);
+    XFREE(adopt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    wc_MlKemKey_Free(seedKey);
+    XFREE(seedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* WOLFSSL_ASN_TEMPLATE && !WOLFSSL_MLKEM_NO_MAKE_KEY */
+
+    /* --- mlkem_derive_secret: (ret == 0) && MLKEM_PRF_SW_ONLY(prf). The SW
+     *     decaps shows the true side; a prf with a non-default devId shows
+     *     the false side (the SW-only fast path is skipped and the software
+     *     sponge runs instead). --- */
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key2, &ctLen), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key2, ct, ss, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key2, ss, ct, ctLen), 0);
+    key2->prf.devId = 0;
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key2, ss, ct, ctLen), 0);
+    key2->prf.devId = INVALID_DEVID;
+#endif
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_MlKemKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_MlKemKey_Free(key2);
+    XFREE(key2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* Silence -Werror unused warnings when make-key / encapsulate / decapsulate
      * are individually compiled out (the buffers are used only in those
@@ -4421,6 +4711,12 @@ int test_wc_MlkemDecisionCoverage(void)
     (void)ss;
     (void)rndMk;
     (void)rndEnc;
+    (void)der;
+    (void)idx;
+    (void)sz;
+    (void)fresh;
+    (void)adopt;
+    (void)unset;
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_MlkemDecisionCoverage */
@@ -5141,12 +5437,101 @@ int test_wc_mlkem_decapsulate_id_key(void)
         WC_NO_ERR_TRACE(BAD_STATE_E));
     ExpectIntEQ(seen.calls, 2);
 
+    /* A key bound to the device only by its devId reaches it too. */
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+        keyInit = 0;
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_PENDING_TYPE, NULL,
+        TEST_MLKEM_CB_PENDING_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    seen.ret = 0;
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, ctLen), 0);
+    ExpectIntEQ(seen.calls, 3);
+
     if (keyInit) {
         wc_MlKemKey_Free(key);
     }
     wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_PENDING_DEVID);
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A key named by id holds no public key in software, so encapsulating with it
+ * must reach the device. Only a declined call falls to the local key check. */
+int test_wc_mlkem_encapsulate_id_key(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_MLKEM_CB_PENDING) && defined(WOLF_PRIVATE_KEY_ID)
+    MlKemKey* key = NULL;
+    MlKemCbPendingCtx seen;
+    WC_RNG rng;
+    byte* ct = NULL;
+    byte ss[WC_ML_KEM_SS_SZ];
+    word32 ctLen = 0;
+    const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    int keyInit = 0;
+
+    XMEMSET(&seen, 0, sizeof(seen));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLKEM_CB_PENDING_DEVID,
+        mlkem_cb_pending_cb, &seen), 0);
+    ExpectIntEQ(wc_MlKemKey_Init_Id(key, TEST_MLKEM_CB_PENDING_TYPE, id,
+        (int)sizeof(id), NULL, TEST_MLKEM_CB_PENDING_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &ctLen), 0);
+    ExpectNotNull(ct = (byte*)XMALLOC(ctLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    seen.ret = 0;
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
+    ExpectIntEQ(seen.calls, 1);
+
+    seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 2);
+
+    /* A key with no id, label or device context never reaches the device. */
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+        keyInit = 0;
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_PENDING_TYPE, NULL,
+        TEST_MLKEM_CB_PENDING_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    seen.ret = 0;
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 2);
+
+    /* A device context names the key as an id does. */
+    if (key != NULL) {
+        key->devCtx = &seen;
+    }
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
+    ExpectIntEQ(seen.calls, 3);
+    if (key != NULL) {
+        key->devCtx = NULL;
+    }
+
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+    }
+    wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_PENDING_DEVID);
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
 #endif
     return EXPECT_RESULT();
 }
@@ -5315,6 +5700,10 @@ int test_wc_mlkem_decode_reused_key(void)
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 #define MLKEM_OOM_TEST
+#endif
+
+#if (defined(MLKEM_OOM_TEST) || defined(MLKEM_PCT_OOM_TEST)) && \
+    defined(USE_WOLFSSL_MEMORY)
 
 static wolfSSL_Malloc_cb  mlkem_oom_mf;
 static wolfSSL_Free_cb    mlkem_oom_ff;
@@ -5347,12 +5736,9 @@ static void* mlkem_oom_realloc(void* p, size_t n)
     return (mlkem_oom_rf != NULL) ? mlkem_oom_rf(p, n) : realloc(p, n);
 }
 
-/* Decodes into kA with one key vector allocation failing. */
-static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
-    word32 inLen)
+/* Fails the next allocation of mlkem_oom_size bytes. */
+static int mlkem_oom_arm(void)
 {
-    int ret;
-
     if ((wolfSSL_GetAllocators(&mlkem_oom_mf, &mlkem_oom_ff,
             &mlkem_oom_rf) != 0) ||
         (wolfSSL_SetAllocators(mlkem_oom_malloc, mlkem_oom_free,
@@ -5360,14 +5746,33 @@ static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
         return -1;
     }
     mlkem_oom_armed = 1;
+    return 0;
+}
+
+static void mlkem_oom_disarm(void)
+{
+    mlkem_oom_armed = 0;
+    (void)wolfSSL_SetAllocators(mlkem_oom_mf, mlkem_oom_ff, mlkem_oom_rf);
+}
+#endif
+
+#ifdef MLKEM_OOM_TEST
+/* Decodes into kA with one key vector allocation failing. */
+static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
+    word32 inLen)
+{
+    int ret;
+
+    if (mlkem_oom_arm() != 0) {
+        return -1;
+    }
     if (priv) {
         ret = wc_MlKemKey_DecodePrivateKey(kA, in, inLen);
     }
     else {
         ret = wc_MlKemKey_DecodePublicKey(kA, in, inLen);
     }
-    mlkem_oom_armed = 0;
-    (void)wolfSSL_SetAllocators(mlkem_oom_mf, mlkem_oom_ff, mlkem_oom_rf);
+    mlkem_oom_disarm();
     return ret;
 }
 #endif
@@ -5440,6 +5845,196 @@ int test_wc_mlkem_decode_alloc_fail(void)
     XFREE(kB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(kA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+#ifdef MLKEM_PCT_OOM_TEST
+/* ISO/IEC 19790:2012 sec 7.10.3.3: every generated key pair is tested; a key
+ * whose test cannot finish is freed, so it cannot be exported or used. */
+int test_wc_mlkem_pct_alloc_fail(void)
+{
+    EXPECT_DECLS;
+    MlKemKey* key = NULL;
+    WC_RNG rng;
+    byte pub[WC_ML_KEM_768_PUBLIC_KEY_SIZE];
+    byte ct[WC_ML_KEM_768_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    int ret = -1;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(ct, 0, sizeof(ct));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(*key), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
+
+    /* Fail the key-pair test's ciphertext buffer. */
+    mlkem_oom_size = WC_ML_KEM_MAX_CIPHER_TEXT_SIZE;
+    if (EXPECT_SUCCESS() && (mlkem_oom_arm() == 0)) {
+        ret = wc_MlKemKey_MakeKey(key, &rng);
+        mlkem_oom_disarm();
+    }
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(MEMORY_E));
+
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pub, sizeof(pub)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, sizeof(ct)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    DoExpectIntEQ(wc_MlKemKey_Free(key), 0);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+static int mlkem_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_MlKemKey_MakeKey() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_mlkem_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    int devId = 2406;
+    MlKemKey* key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, mlkem_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_MlKemKey_Init_Id(key, WC_ML_KEM_768, id, (int)sizeof(id),
+        NULL, devId), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_MlKemKey_Free(key);
+
+    ExpectIntEQ(wc_MlKemKey_Init_Label(key, WC_ML_KEM_768, "dev-key", NULL,
+        devId), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_MlKemKey_Free(key);
+
+#if defined(WC_MLKEM_HAVE_NATIVE) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_MlKemKey_Init_Id(key, WC_ML_KEM_768, id, (int)sizeof(id),
+        NULL, devId + 100), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    wc_MlKemKey_Free(key);
+
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, devId), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    wc_MlKemKey_Free(key);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* FIPS 203 3.3: retain the key and designated output, but no hash or PRF
+ * intermediates, when a complete ML-KEM operation returns. */
+int test_wc_mlkem_operation_cleanup(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WC_MLKEM_HAVE_NATIVE) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(PSOC6_HASH_SHA3) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    static const int types[] = {
+#ifndef WOLFSSL_NO_ML_KEM_512
+        WC_ML_KEM_512,
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_768
+        WC_ML_KEM_768,
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_1024
+        WC_ML_KEM_1024,
+#endif
+        -1
+    };
+    static const byte zero[sizeof(wc_Sha3)] = {0};
+    MlKemKey* key = NULL;
+    byte seeds[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    byte recovered[WC_ML_KEM_SS_SZ];
+    word32 ctSz = 0;
+    int t, repeat, op, h;
+
+    key = (MlKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    XMEMSET(seeds, 0x71, sizeof(seeds));
+    PRIVATE_KEY_UNLOCK();
+    for (t = 0; EXPECT_SUCCESS() && types[t] != -1; t++) {
+        ExpectIntEQ(wc_MlKemKey_Init(key, types[t], NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &ctSz), 0);
+        for (repeat = 0; EXPECT_SUCCESS() && repeat < 2; repeat++) {
+            for (op = 0; EXPECT_SUCCESS() && op < 5; op++) {
+                if (op == 0) {
+                    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seeds,
+                        sizeof(seeds)), SEED_OK);
+                }
+                else if (op == 1) {
+                    ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss,
+                        seeds, WC_ML_KEM_ENC_RAND_SZ), SEED_OK);
+                }
+                else if (op == 2) {
+                    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, recovered, ct,
+                        ctSz), 0);
+                    ExpectBufEQ(ss, recovered, sizeof(ss));
+                }
+                else if (op == 3) {
+                    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, recovered, ct,
+                        ctSz - 1), WC_NO_ERR_TRACE(BUFFER_E));
+                }
+                else {
+                    ct[32] ^= 1;
+                    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, recovered, ct,
+                        ctSz), 0);
+                }
+                for (h = 0; h < 2; h++) {
+                    const wc_Sha3* hash = h == 0 ? &key->hash : &key->prf;
+                    ExpectBufEQ(hash->s, zero, sizeof(hash->s));
+                    ExpectBufEQ(hash->t, zero, sizeof(hash->t));
+                    ExpectIntEQ(hash->i, 0);
+                }
+            }
+        }
+        wc_MlKemKey_Free(key);
+    }
+    PRIVATE_KEY_LOCK();
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }

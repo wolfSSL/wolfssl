@@ -11,7 +11,9 @@
     f = fast signing).
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL or param is invalid.
+    \return BAD_FUNC_ARG if key is NULL.
+    \return NOT_COMPILED_IN if param is not a parameter set built in. The key
+    is zeroed first, so wc_SlhDsaKey_Free() is safe after any failure.
 
     \param [in,out] key Pointer to the SlhDsaKey to initialize.
     \param [in] param Parameter set to use. One of: SLHDSA_SHAKE128S,
@@ -166,6 +168,10 @@ void wc_SlhDsaKey_Free(SlhDsaKey* key);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key or rng is NULL, or key is not initialized.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in,out] key Pointer to an initialized SlhDsaKey.
     \param [in] rng Pointer to an initialized WC_RNG.

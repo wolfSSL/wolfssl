@@ -5642,6 +5642,92 @@ char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 /*!
     \ingroup CertsKeys
 
+    \brief This function returns the public key of the certificate with a new
+    reference. The key is decoded once and cached on the certificate, so the
+    same object is returned on every call. Treat it as read only. Free the
+    reference with wolfSSL_EVP_PKEY_free().
+
+    \return pointer to the WOLFSSL_EVP_PKEY on success.
+    \return NULL if x509 is NULL, has no public key, or the key cannot be
+    decoded.
+
+    \param x509 pointer to a WOLFSSL_X509 structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509;
+    WOLFSSL_EVP_PKEY* key;
+    ...
+    key = wolfSSL_X509_get_pubkey(x509);
+    if (key == NULL) {
+        // failed to get the public key
+    }
+    ...
+    wolfSSL_EVP_PKEY_free(key);
+    \endcode
+
+    \sa wolfSSL_X509_get0_pubkey
+    \sa wolfSSL_EVP_PKEY_free
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function returns the public key of the certificate without a
+    new reference. The key is owned by the certificate and must not be freed.
+    It stays valid until the certificate is freed or its public key is
+    changed. Treat it as read only.
+
+    \return pointer to the WOLFSSL_EVP_PKEY on success.
+    \return NULL if x509 is NULL, has no public key, or the key cannot be
+    decoded.
+
+    \param x509 pointer to a WOLFSSL_X509 structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509;
+    WOLFSSL_EVP_PKEY* key;
+    ...
+    key = wolfSSL_X509_get0_pubkey(x509);
+    if (key == NULL) {
+        // failed to get the public key
+    }
+    // do not free key
+    \endcode
+
+    \sa wolfSSL_X509_get_pubkey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(const WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function returns the key held by a WOLFSSL_X509_PUBKEY without
+    a new reference. The key must not be freed.
+
+    \return pointer to the WOLFSSL_EVP_PKEY on success.
+    \return NULL if key is NULL or holds no key.
+
+    \param key pointer to a WOLFSSL_X509_PUBKEY structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509;
+    WOLFSSL_EVP_PKEY* pkey;
+    ...
+    pkey = wolfSSL_X509_PUBKEY_get0(wolfSSL_X509_get_X509_PUBKEY(x509));
+    \endcode
+
+    \sa wolfSSL_X509_PUBKEY_get
+    \sa wolfSSL_X509_get_X509_PUBKEY
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(const WOLFSSL_X509_PUBKEY* key);
+
+/*!
+    \ingroup CertsKeys
+
     \brief This function returns the name of the certificate issuer.
 
     \return point a pointer to the WOLFSSL_X509 struct’s issuer member is
@@ -7406,9 +7492,13 @@ int  wolfSSL_state(WOLFSSL* ssl);
 
     \brief This function gets the peer’s certificate.
 
-    \return pointer a pointer to the peerCert member of the WOLFSSL_X509
-    structure if it exists.
-    \return 0 returned if the peer certificate issuer size is not defined.
+    \return pointer to the peer's WOLFSSL_X509 certificate if one was kept.
+    With WOLFSSL_DYNAMIC_PEER_CERT (on by default with WOLFSSL_SMALL_STACK)
+    and OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL this is the certificate
+    object kept by the WOLFSSL with its reference count incremented, as
+    OpenSSL does; otherwise it is a copy. Either way the caller must free it
+    with wolfSSL_X509_free(), and it stays valid after wolfSSL_free().
+    \return NULL if there is no peer certificate or memory allocation fails.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -7421,6 +7511,7 @@ int  wolfSSL_state(WOLFSSL* ssl);
 
     if(peerCert){
     	// You have a pointer peerCert to the peer certification
+        wolfSSL_X509_free(peerCert);
     }
     \endcode
 
@@ -7532,6 +7623,11 @@ int wolfSSL_want(WOLFSSL* ssl);
     wolfSSL_connect() or wolfSSL_accept() will add a domain name check to
     the list of checks to perform.  dn holds the domain name to check
     against the peer certificate when it’s received.
+
+    dn must be a fully qualified domain name or "localhost", otherwise
+    SSL_FAILURE is returned.  To also accept single-label names such as
+    "intranet", as issued by some private PKIs, build wolfSSL with
+    WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME defined.
 
     \return SSL_SUCCESS upon success.
     \return SSL_FAILURE will be returned if a memory error was encountered.
@@ -8520,6 +8616,68 @@ WC_PKCS12* wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO* bio,
 */
 int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
      WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert, WOLF_STACK_OF(WOLFSSL_X509)** ca);
+
+/*!
+    \ingroup openSSL
+
+    \brief wolfSSL_PKCS12_create (PKCS12_create) builds a new WC_PKCS12
+    structure from a private key, its certificate, and an optional stack of
+    extra certificates. The key and certificate are each placed in their own
+    ContentInfo, encrypted with the password as selected by keyNID and
+    certNID, and a MAC is computed over the result unless macItt is -1. The
+    returned structure can be written out with wolfSSL_i2d_PKCS12_bio() or
+    wc_i2d_PKCS12() and must be freed with wc_PKCS12_free().
+
+    \return WC_PKCS12 pointer to the new WC_PKCS12 structure on success.
+    \return NULL if pass, pkey or cert is NULL, if macItt is less than -1, if
+    keyNID or certNID is not supported, or if memory allocation or encoding
+    fails.
+
+    \param pass NUL-terminated password used for encryption and for the MAC.
+    \param name friendlyName to use. Not currently used.
+    \param pkey private key to place in the bundle.
+    \param cert certificate to place in the bundle.
+    \param ca optional stack of extra certificates to include, or NULL.
+    \param keyNID encryption to apply to the private key: one of
+    NID_pbe_WithSHA1And128BitRC4, NID_pbe_WithSHA1AndDES_CBC or
+    NID_pbe_WithSHA1And3_Key_TripleDES_CBC, PBE_AES128_CBC or PBE_AES256_CBC,
+    or -1 for none. The cipher must be enabled in the build.
+    \param certNID encryption to apply to the certificate, using the same
+    values as keyNID.
+    \param itt number of iterations to use for the encryption. Values of 0
+    or less select WC_PKCS12_ITT_DEFAULT.
+    \param macItt number of iterations to use when creating the MAC. 0 selects
+    WC_PKCS12_ITT_DEFAULT, -1 creates no MAC, and values less than -1 are
+    rejected.
+    \param keytype flag for a signature and/or encryption key. Not currently
+    used.
+
+    _Example_
+    \code
+    WC_PKCS12* pkcs12;
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_X509* cert;
+    WOLFSSL_BIO* bio;
+    // pkey and cert loaded beforehand, bio created for output
+    pkcs12 = wolfSSL_PKCS12_create("a password", NULL, pkey, cert, NULL,
+            PBE_AES256_CBC, PBE_AES256_CBC,
+            PKCS12_DEFAULT_ITER, PKCS12_DEFAULT_ITER, 0);
+    if (pkcs12 == NULL) {
+        // error creating the PKCS12 bundle
+    }
+    wolfSSL_i2d_PKCS12_bio(bio, pkcs12);
+    wc_PKCS12_free(pkcs12);
+    \endcode
+
+    \sa wolfSSL_PKCS12_parse
+    \sa wolfSSL_i2d_PKCS12_bio
+    \sa wc_PKCS12_create
+    \sa wc_PKCS12_free
+*/
+WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
+        WOLFSSL_EVP_PKEY* pkey, WOLFSSL_X509* cert,
+        WOLF_STACK_OF(WOLFSSL_X509)* ca,
+        int keyNID, int certNID, int itt, int macItt, int keytype);
 
 /*!
     \ingroup CertsKeys
@@ -11407,7 +11565,8 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
     \brief The function sets the verifyCallback function in the Certificate
     Manager. If present, it will be called for each cert loaded. If there is
     a verification error, the verify callback can be used to over-ride the
-    error.
+    error. A waived date error is followed by a second call for the CRL
+    error, if there is one.
 
     \return none No return.
 
@@ -15327,8 +15486,11 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
-    \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
-    \return WANT_WRITE if the writing is not ready.
+    \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or running over
+    QUIC.
+    \return WOLFSSL_ERROR_WANT_WRITE if non-blocking I/O is not ready to write.
+    The KeyUpdate message is queued and the next wolfSSL_write() call sends
+    it; do not call wolfSSL_update_keys() again for this update.
     \return BAD_STATE_E if the connection has already performed the maximum
     number of key updates. RFC 9846, Section 4.7.3 caps a TLS 1.3 sender at
     2^48-1 key updates; beyond that the connection must be closed rather than
@@ -15336,7 +15498,11 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
     request_update set is ignored once this cap is reached, rather than
     failing the connection, so only an application-initiated update reports
     this error.
-    \return WOLFSSL_SUCCESS if successful.
+    \return WOLFSSL_SUCCESS if successful. With DTLS v1.3 this means the
+    KeyUpdate was sent, not that the peer has acknowledged it. Keep calling
+    wolfSSL_read() and servicing the DTLS timers so the ACK is processed. A
+    further wolfSSL_update_keys() call while that ACK is outstanding returns
+    WOLFSSL_SUCCESS without sending anything.
 
     _Example_
     \code
@@ -15344,8 +15510,8 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
     WOLFSSL* ssl;
     ...
     ret = wolfSSL_update_keys(ssl);
-    if (ret == WANT_WRITE) {
-        // need to call again when I/O ready
+    if (ret == WOLFSSL_ERROR_WANT_WRITE) {
+        // KeyUpdate queued: the next wolfSSL_write() sends it when I/O ready
     }
     else if (ret != WOLFSSL_SUCCESS) {
         // failed to send key update
@@ -15353,6 +15519,8 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_write
+    \sa wolfSSL_key_update_response
+    \sa wolfSSL_dtls13_has_pending_msg
 */
 int  wolfSSL_update_keys(WOLFSSL* ssl);
 
@@ -15466,8 +15634,11 @@ int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
-    \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
-    \return WANT_WRITE if the writing is not ready.
+    \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or running over
+    QUIC.
+    \return WOLFSSL_ERROR_WANT_WRITE if non-blocking I/O is not ready to write.
+    The CertificateRequest message is queued and the next wolfSSL_write() call
+    sends it; do not call wolfSSL_request_certificate() again for this request.
     \return SIDE_ERROR if called with a client.
     \return NOT_READY_ERROR if called when the handshake is not finished.
     \return POST_HAND_AUTH_ERROR if posthandshake authentication is disallowed.
@@ -15480,8 +15651,8 @@ int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
     WOLFSSL* ssl;
     ...
     ret = wolfSSL_request_certificate(ssl);
-    if (ret == WANT_WRITE) {
-        // need to call again when I/O ready
+    if (ret == WOLFSSL_ERROR_WANT_WRITE) {
+        // CertificateRequest queued: the next wolfSSL_write() sends it
     }
     else if (ret != WOLFSSL_SUCCESS) {
         // failed to request a client certificate

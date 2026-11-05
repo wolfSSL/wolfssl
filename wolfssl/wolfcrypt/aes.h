@@ -174,10 +174,6 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #include <psa/crypto.h>
 #endif
 
-#if defined(WOLFSSL_CRYPTOCELL)
-    #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
-#endif
-
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
@@ -204,7 +200,6 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     defined(FREESCALE_LTC) || \
     defined(FREESCALE_MMCAU) || \
     (defined(MAX3266X_AES) && !defined(MAX3266X_CB)) || \
-    (defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)) || \
     (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || \
     defined(WOLFSSL_TI_CRYPT) || \
@@ -483,9 +478,6 @@ struct Aes {
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     WC_CRYPTODEV ctx;
 #endif
-#if defined(WOLFSSL_CRYPTOCELL)
-    aes_context_t ctx;
-#endif
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
@@ -542,7 +534,8 @@ struct Aes {
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
     /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
-     * GcmSetKey), including when a crypto callback takes ownership of it.
+     * GcmSetKey). A key a crypto callback claims counts only if the callback
+     * also wrote a software key schedule.
      * Checked by the mode APIs so they fail instead of running with the
      * all-zero key schedule left by wc_AesInit. Distinct from the Cavium-only
      * keySet field. Appended at the end of the struct so existing member

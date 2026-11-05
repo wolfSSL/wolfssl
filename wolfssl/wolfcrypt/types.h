@@ -346,6 +346,9 @@ typedef const char wcchar[];
  * octets per cell, low octet first.  Convert at the boundary with
  * wc_UnpackOctets()/wc_PackOctets(), declared only where a cell is wider than
  * an octet - elsewhere the two layouts coincide and there is nothing to do. */
+#if (CHAR_BIT <= 0) || (CHAR_BIT % 8 != 0)
+    #error CHAR_BIT must be a positive multiple of 8.
+#endif
 #define WC_OCTETS_PER_BYTE       ((word32)(CHAR_BIT / 8))
 /* Cells needed to hold octetSz octets packed.  Divides before adding the
  * round-up so a near-WORD32_MAX octetSz cannot wrap.  octetSz is evaluated
@@ -533,6 +536,17 @@ enum {
 #define WOLFSSL_MAX_8BIT  0xffU
 #define WOLFSSL_MAX_16BIT 0xffffU
 #define WOLFSSL_MAX_32BIT 0xffffffffU
+
+#ifndef WC_STATIC_STRUCT_INITIALIZER
+    /* Note, don't use this to dynamically initialize structs on the stack.
+     * On some targets/toolchains/configs, that pattern is an implicit
+     * memset reference that is unmaskable. */
+    #ifdef __cplusplus
+        #define WC_STATIC_STRUCT_INITIALIZER {}
+    #else
+        #define WC_STATIC_STRUCT_INITIALIZER {0}
+    #endif
+#endif
 
 #ifndef WC_DO_NOTHING
     #define WC_DO_NOTHING do {} while (0)
@@ -882,7 +896,7 @@ enum {
                 wolfSSL_Malloc((s), (h), (t), __func__, __LINE__)
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                 #define XFREE(p, h, t)   \
-                    wolfSSL_Free(xp, h, t, __func__, __LINE__)
+                    wolfSSL_Free((p), h, t, __func__, __LINE__)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t, __func__, __LINE__); } while (0)
@@ -892,7 +906,7 @@ enum {
         #else
             #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                #define XFREE(p, h, t)   wolfSSL_Free(xp, h, t)
+                #define XFREE(p, h, t)   wolfSSL_Free((p), h, t)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t); } while (0)
@@ -1140,7 +1154,7 @@ enum {
             #define XSTRCASECMP(s1,s2) _stricmp((s1),(s2))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
@@ -1174,7 +1188,7 @@ enum {
             #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
@@ -1415,6 +1429,10 @@ WOLFSSL_API int wc_PackOctets(byte* out, word32 outSz, const byte* in,
     #else
         #define WC_OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
     #endif
+#endif
+
+#ifndef WC_SIZEOFMEMBER
+    #define WC_SIZEOFMEMBER(type, field) sizeof(((type *)0)->field)
 #endif
 
 
@@ -1800,8 +1818,9 @@ enum wc_PkType {
 #endif
     WC_PK_TYPE_ED448_MAKE_PUB  = 54,
     WC_PK_TYPE_ED448_CHECK_KEY = 55,
+    WC_PK_TYPE_ED448_KEYGEN    = 56,
     #undef _WC_PK_TYPE_MAX
-    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_CHECK_KEY
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_KEYGEN
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
@@ -2411,7 +2430,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_GCC_DIAG_POP /* null expansion */
 #endif
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__ti__)
     #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
     #define PRAGMA_CLANG(str) _Pragma(str)
     #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
@@ -2428,7 +2447,10 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_DIAG_PUSH /* null expansion */
 #endif
 #ifndef PRAGMA
+/* for ti, PRAGMA is defined in the mcu plus sdk... */
+# if !(defined(__ti__) && defined(TI_MCU_PLUS_SDK))
     #define PRAGMA(str) /* null expansion */
+# endif
 #endif
 #ifndef PRAGMA_DIAG_POP
     #define PRAGMA_DIAG_POP /* null expansion */
@@ -2549,6 +2571,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #endif
 #ifndef WC_SIG_IGNORE_END
     #define WC_SIG_IGNORE_END() 0
+#endif
+
+#ifndef WC_CAN_BLOCK
+    #define WC_CAN_BLOCK() 1
+#endif
+#ifndef WC_CAN_LONG_LOOP
+    #define WC_CAN_LONG_LOOP() 1
 #endif
 
 #ifndef RESTORE_NO_VECTOR_REGISTERS

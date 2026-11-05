@@ -1135,12 +1135,6 @@ int main(int argc, char** argv)
 
     StartTCP();
 
-#ifdef HAVE_WNR
-    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
-        err_sys("Whitewood netRandom global config failed");
-    }
-#endif
-
     ret = wolfSSL_Init();
     if (ret != WOLFSSL_SUCCESS) {
         err_sys("wolfSSL_Init failed");
@@ -1154,11 +1148,6 @@ int main(int argc, char** argv)
     ocsp_responder_test(&args);
 
     wolfSSL_Cleanup();
-
-#ifdef HAVE_WNR
-    if (wc_FreeNetRandom() < 0)
-        err_sys("Failed to free netRandom context");
-#endif
 
     return args.return_code;
 }

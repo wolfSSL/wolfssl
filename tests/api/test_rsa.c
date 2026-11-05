@@ -653,6 +653,147 @@ int test_wc_RsaPSS_VerifyCheck(void)
     return EXPECT_RESULT();
 } /* END  test_wc_RsaPSS_VerifyCheck */
 
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_SHA512) && \
+    (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    (defined(USE_CERT_BUFFERS_1024) || !defined(NO_FILESYSTEM))
+    #define TEST_RSA_ID_PSS
+#endif
+
+#if !defined(NO_RSA) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && defined(USE_CERT_BUFFERS_2048) && \
+    (defined(WC_RSA_NO_PADDING) || defined(TEST_RSA_ID_PSS)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV)) && \
+    !defined(WOLFSSL_NO_RSA_SW)
+#define TEST_RSA_ID_CB
+#define TEST_RSA_ID_DEVID 0x52534149 /* "RSAI" */
+
+typedef struct {
+    RsaKey* key;   /* the key the device holds */
+    int     calls; /* RSA operations done by the device */
+} RsaIdCbCtx;
+
+/* A device holding one RSA key: it does the raw operation and reports the
+ * key size, and declines the rest. */
+static int test_rsa_id_cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    RsaIdCbCtx* dev = (RsaIdCbCtx*)ctx;
+
+    (void)devId;
+
+    if ((info == NULL) || (info->algo_type != WC_ALGO_TYPE_PK)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type == WC_PK_TYPE_RSA) {
+        dev->calls++;
+        return wc_RsaFunction(info->pk.rsa.in, info->pk.rsa.inLen,
+            info->pk.rsa.out, info->pk.rsa.outLen, info->pk.rsa.type,
+            dev->key, info->pk.rsa.rng);
+    }
+    if (info->pk.type == WC_PK_TYPE_RSA_GET_SIZE) {
+        *info->pk.rsa_get_size.keySize = wc_RsaEncryptSize(dev->key);
+        return 0;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#endif
+
+/* Padding with a key named by id takes the modulus size from the device. */
+int test_wc_RsaId_CryptoCb(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_ID_CB
+    RsaKey     devKey;
+    RsaKey     key;
+    WC_RNG     rng;
+    RsaIdCbCtx dev;
+    const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+#ifdef WC_RSA_NO_PADDING
+    byte       in[256];
+#endif
+    byte       out[256];
+    byte       dec[256];
+    word32     idx = 0;
+#ifdef TEST_RSA_ID_PSS
+    byte       hash[WC_SHA512_DIGEST_SIZE];
+    int        sigSz = 0;
+#ifdef USE_CERT_BUFFERS_1024
+    const byte* keyDer = client_key_der_1024;
+    word32     keyDerSz = (word32)sizeof_client_key_der_1024;
+#else
+    byte       keyDer[ONEK_BUF];
+    word32     keyDerSz = 0;
+    XFILE      fp = XBADFILE;
+#endif
+#endif
+
+    XMEMSET(&devKey, 0, sizeof(devKey));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&dev, 0, sizeof(dev));
+#ifdef WC_RSA_NO_PADDING
+    XMEMSET(in, 0x11, sizeof(in));
+    in[0] = 0x00; /* keep the value below the modulus */
+#endif
+    dev.key = &devKey;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitRsaKey(&devKey, HEAP_HINT), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &devKey,
+        sizeof_client_key_der_2048), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&devKey, &rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_RSA_ID_DEVID, test_rsa_id_cb,
+        &dev), 0);
+    ExpectIntEQ(wc_InitRsaKey_Id(&key, (byte*)id, (int)sizeof(id), HEAP_HINT,
+        TEST_RSA_ID_DEVID), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+
+#ifdef WC_RSA_NO_PADDING
+    ExpectIntEQ(wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out), &key,
+        &rng, WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0),
+        (int)sizeof(in));
+    ExpectIntEQ(wc_RsaPrivateDecrypt_ex(out, sizeof(out), dec, sizeof(dec),
+        &key, WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0),
+        (int)sizeof(in));
+    ExpectBufEQ(dec, in, sizeof(in));
+    ExpectIntEQ(wc_RsaSSL_Verify_ex(out, sizeof(out), dec, sizeof(dec), &key,
+        WC_RSA_NO_PAD), (int)sizeof(in));
+    ExpectIntEQ(dev.calls, 3);
+#endif
+
+#ifdef TEST_RSA_ID_PSS
+    /* A 1024-bit key with SHA-512 has its own default salt length. */
+#ifndef USE_CERT_BUFFERS_1024
+    ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
+        XBADFILE);
+    ExpectIntGT(keyDerSz = (word32)XFREAD(keyDer, 1, sizeof(keyDer), fp), 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+#endif
+    wc_FreeRsaKey(&devKey);
+    ExpectIntEQ(wc_InitRsaKey(&devKey, HEAP_HINT), 0);
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(keyDer, &idx, &devKey, keyDerSz), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&devKey, &rng), 0);
+    XMEMSET(hash, 0x5A, sizeof(hash));
+    ExpectIntGT(sigSz = wc_RsaPSS_Sign(hash, sizeof(hash), out, sizeof(out),
+        WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &key, &rng), 0);
+    ExpectIntGT(wc_RsaPSS_VerifyCheck(out, (word32)sigSz, dec, sizeof(dec),
+        hash, sizeof(hash), WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &devKey), 0);
+    ExpectIntGT(wc_RsaPSS_VerifyCheck(out, (word32)sigSz, dec, sizeof(dec),
+        hash, sizeof(hash), WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &key), 0);
+#endif
+
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRsaKey(&devKey), 0);
+    wc_CryptoCb_UnRegisterDevice(TEST_RSA_ID_DEVID);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaId_CryptoCb */
+
 /*
  * Testing wc_RsaPSS_VerifyCheckInline()
  */
@@ -2417,3 +2558,159 @@ int test_wc_CryptoCb_RsaPssVerifyRecover(void)
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCb_RsaPssVerifyRecover */
 
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA) || \
+     defined(WOLFSSL_SE050_ONLY_KEY_ID)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int rsa_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_MakeRsaKey() on an id or label key whose device declines keygen.
+ */
+int test_wc_MakeRsaKey_id_dev(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA) || \
+     defined(WOLFSSL_SE050_ONLY_KEY_ID)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    int devId = 2402;
+    int ret;
+    RsaKey key;
+    WC_RNG rng;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, rsa_keygen_decline_cb, NULL),
+        0);
+
+    ExpectIntEQ(wc_InitRsaKey_Id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, TEST_RSA_BITS, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    ExpectIntEQ(wc_InitRsaKey_Label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, TEST_RSA_BITS, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_InitRsaKey_Id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ret = wc_MakeRsaKey(&key, TEST_RSA_BITS, WC_RSA_EXPONENT, &rng);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, NULL, devId), 0);
+    ret = wc_MakeRsaKey(&key, TEST_RSA_BITS, WC_RSA_EXPONENT, &rng);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_RSA) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_NO_RSA_SW_PAD) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(WC_NO_RNG) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(HAVE_FIPS)
+/* Fail RSAEP only after software OAEP has placed EM in the output buffer. */
+static int rsa_oaep_fail_cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devId;
+    if (info->algo_type == WC_ALGO_TYPE_PK &&
+            info->pk.type == WC_PK_TYPE_RSA &&
+            info->pk.rsa.type == RSA_PUBLIC_ENCRYPT) {
+        (*(int*)ctx)++;
+        return WC_HW_E;
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif
+
+int test_wc_RsaOaep_EncryptFailureWipe(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_NO_RNG) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_NO_RSA_SW_PAD) && \
+    !defined(NO_SHA256) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    RsaKey key;
+    WC_RNG rng;
+    byte out[TEST_RSA_BYTES + 8];
+    const byte msg[16] = {1};
+    int i;
+#ifdef WOLF_CRYPTO_CB
+    int calls = 0;
+    int registered = 0;
+    const int devId = 23;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(MAKE_RSA_KEY(&key, TEST_RSA_BITS, WC_RSA_EXPONENT, &rng), 0);
+    XMEMSET(out, 0xa5, sizeof(out));
+    /* Invalid MGF fails after the message has been copied into DB. */
+    ExpectIntLT(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), out, sizeof(out),
+        &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, -1, NULL, 0), 0);
+    for (i = 0; i < TEST_RSA_BYTES; i++)
+        ExpectIntEQ(out[i], 0);
+    for (; i < (int)sizeof(out); i++)
+        ExpectIntEQ(out[i], 0xa5);
+
+#ifdef WOLF_CRYPTO_CB
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, rsa_oaep_fail_cb, &calls), 0);
+    if (EXPECT_SUCCESS()) {
+        registered = 1;
+        key.devId = devId;
+        XMEMSET(out, 0xa5, sizeof(out));
+        ExpectIntEQ(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), out, sizeof(out),
+            &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+            NULL, 0), WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectIntEQ(calls, 1);
+        for (i = 0; i < TEST_RSA_BYTES; i++)
+            ExpectIntEQ(out[i], 0);
+        for (; i < (int)sizeof(out); i++)
+            ExpectIntEQ(out[i], 0xa5);
+        key.devId = INVALID_DEVID;
+    }
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    /* Cleanup must also reset the operation state so the key remains usable. */
+    ExpectIntEQ(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), out, sizeof(out),
+        &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
+        TEST_RSA_BYTES);
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#else
+    return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}

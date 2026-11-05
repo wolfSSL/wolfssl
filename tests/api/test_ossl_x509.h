@@ -35,6 +35,7 @@ int test_wolfSSL_X509_issuer_name_hash(void);
 int test_wolfSSL_X509_check_host(void);
 int test_wolfSSL_X509_check_host_len(void);
 int test_wolfSSL_X509_check_email(void);
+int test_wolfSSL_X509_check_email_san(void);
 int test_wolfSSL_X509(void);
 int test_wolfSSL_X509_get0_tbs_sigalg(void);
 int test_wolfSSL_X509_set_name(void);
@@ -55,6 +56,7 @@ int test_wolfSSL_X509_check_host_embedded_nul_san(void);
 int test_wolfSSL_MatchDomainName_wildcard(void);
 int test_wolfSSL_X509_max_altnames(void);
 int test_wolfSSL_X509_max_name_constraints(void);
+int test_wolfSSL_X509_max_name_entries(void);
 int test_wolfSSL_X509_check_ca(void);
 int test_X509_get_signature_nid(void);
 int test_wolfSSL_X509_cmp(void);
@@ -71,6 +73,7 @@ int test_wolfSSL_X509_cmp(void);
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_host),                \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_host_len),            \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_email),               \
+    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_email_san),           \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509),                           \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_get0_tbs_sigalg),           \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_set_name),                  \
@@ -91,6 +94,7 @@ int test_wolfSSL_X509_cmp(void);
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_MatchDomainName_wildcard),       \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_max_altnames),              \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_max_name_constraints),      \
+    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_max_name_entries),         \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_ca),                  \
     TEST_DECL_GROUP("ossl_x509", test_X509_get_signature_nid),                 \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_cmp)

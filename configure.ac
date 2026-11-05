@@ -824,6 +824,23 @@ AS_CASE([$FIPS_VERSION],
     ]
 )
 
+case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
+    *-DV5_NONFIPS_SHAKE*) ENABLED_V5_NONFIPS_SHAKE=yes ;;
+    *) ENABLED_V5_NONFIPS_SHAKE=no ;;
+esac
+if test "x$HAVE_FIPS_VERSION_MAJOR" != "x5"
+then
+    ENABLED_V5_NONFIPS_SHAKE=no
+fi
+dnl shake.c/shake.h live in the internal fips repo, not this one; a wolfssl
+dnl checkout without them dropped into wolfcrypt/src/ and wolfssl/wolfcrypt/
+dnl would otherwise fail deep in the build with a bare "No rule to make target".
+AS_IF([ test "x$ENABLED_V5_NONFIPS_SHAKE" = "xyes" && \
+        ( ! test -s $srcdir/wolfcrypt/src/shake.c || \
+          ! test -s $srcdir/wolfssl/wolfcrypt/shake.h ) ],
+      [AC_MSG_ERROR([wolfcrypt/src/shake.c and/or wolfssl/wolfcrypt/shake.h not found. V5_NONFIPS_SHAKE needs the internal fips repo overlay.])])
+AM_CONDITIONAL([BUILD_V5_NONFIPS_SHAKE],[test "x$ENABLED_V5_NONFIPS_SHAKE" = "xyes"])
+
 if test "$ENABLED_FIPS_DEV" = "yes"
 then
     # Only signal WOLFSSL_FIPS_DEV if there is no wolfCrypt overlay, assuring
@@ -1357,9 +1374,9 @@ fi
 
 # wolfCrypt Only Build
 AC_ARG_ENABLE([cryptonly],
-    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
+    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled unless --enable-kernel-settings)])],
     [ENABLED_CRYPTONLY=$enableval],
-    [ENABLED_CRYPTONLY=no])
+    [ENABLED_CRYPTONLY=$KERNEL_MODE_DEFAULTS])
 
 AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
@@ -1819,7 +1836,6 @@ then
     test "$enable_certext" = "" && enable_certext=yes
     test "$enable_sep" = "" && enable_sep=yes
     test "$enable_hkdf" = "" && enable_hkdf=yes
-    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
@@ -1842,6 +1858,11 @@ then
     test "$enable_rng_extras" = "" && enable_rng_extras=yes
     test "$enable_dh" = "" && enable_dh=yes
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
+
+    if test "$KERNEL_MODE_DEFAULTS" != "yes"
+    then
+        test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    fi
 
     if test "$ENABLED_FIPS" = "no"
     then
@@ -2014,7 +2035,11 @@ then
 
     if test "$ENABLED_EXPERIMENTAL" = "yes"
     then
-        test "$enable_extra_pqc_hybrids" = "" && enable_extra_pqc_hybrids=yes
+        # FIPS v7 allows only the draft-ietf-tls-ecdhe-mlkem hybrid groups.
+        if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+        then
+            test "$enable_extra_pqc_hybrids" = "" && enable_extra_pqc_hybrids=yes
+        fi
         test "$enable_frodokem" = "" && enable_frodokem=yes
         test "$enable_frodokem" = yes && test "$enable_frodokem_shake" = "" && enable_frodokem_shake=yes
         test "$enable_frodokem" = yes && test "$enable_frodokem_aes" = "" && enable_frodokem_aes=yes
@@ -2059,7 +2084,6 @@ then
     if test "$enable_ecc" != "no"
     then
         test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
-        test "$enable_fpecc" = "" && enable_fpecc=yes
         test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     fi
     test "$enable_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
@@ -3575,6 +3599,21 @@ else
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_HARDEN -DWC_NO_CACHE_RESISTANT"
 fi
 
+# AES table cache-line touching (WOLFSSL_AES_TOUCH_LINES). aes.c turns it on
+# for RISC-V; "no" clears that default without the rest of --disable-harden.
+AC_ARG_ENABLE([aes-touch-lines],
+    [AS_HELP_STRING([--enable-aes-touch-lines],[Touch every AES table cache line per lookup for cache-timing resistance (default: enabled on RISC-V, disabled elsewhere)])],
+    [ENABLED_AES_TOUCH_LINES=$enableval],
+    [ENABLED_AES_TOUCH_LINES=default])
+
+if test "$ENABLED_AES_TOUCH_LINES" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_TOUCH_LINES"
+elif test "$ENABLED_AES_TOUCH_LINES" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_NO_TOUCH_LINES"
+fi
+
 # Fault protection hardening
 AC_ARG_ENABLE([faultharden],
     [AS_HELP_STRING([--enable-faultharden],[Enable Fault Hardened build (default: disabled)])],
@@ -4193,6 +4232,152 @@ then
             AC_MSG_ERROR([unknown --enable-silabs-cryptocb value '$ENABLED_SILABS_CRYPTOCB'; use host-test or target])
             ;;
     esac
+fi
+
+
+# Microchip PolarFire SoC Athena F5200 (TeraFire) crypto-callback port.
+#
+# "S" grade parts only (e.g. MPFS250TS; a plain MPFS250T has no engine). The
+# argument is the path to Microchip's user-crypto (CAL) directory, which supplies
+# both the headers and the archive. CAL is referenced, never vendored: it carries
+# a Mercury Systems notice. Two published builds are recognised: the rv64imac one
+# shipped with hart-software-services (E51/M-mode) and the rv64imafd one under
+# polarfire-soc-bare-metal-examples .../middleware/cal (U54). Both archives are
+# soft-float lp64, so the whole build must be -mabi=lp64.
+#
+# Example: ./configure --host=riscv64-unknown-elf \
+#              --with-mpfs-athena=<hart-software-services>/services/crypto \
+#              CFLAGS="-march=rv64imac -mabi=lp64 -mcmodel=medany"
+#
+# Forces crypto callbacks on (see the cryptocb block).
+ENABLED_MPFS_ATHENA="no"
+AC_ARG_WITH([mpfs-athena],
+    [AS_HELP_STRING([--with-mpfs-athena=PATH],[PATH to the Microchip PolarFire SoC user-crypto (CAL) directory, enabling the Athena F5200 crypto-callback port.])],
+    [
+        # --without-mpfs-athena lands here with withval=no, which is the
+        # conventional explicit disable and leaves the port off.
+        if test "x$withval" != "xno"; then
+            AC_MSG_CHECKING([for the Microchip user-crypto (CAL) directory])
+            if test "x$withval" = "xyes"; then
+                AC_MSG_ERROR([--with-mpfs-athena needs the path to the Microchip user-crypto (CAL) directory])
+            fi
+            if test ! -f "$withval/calini.h" || test ! -f "$withval/config_user.h"; then
+                AC_MSG_ERROR([no calini.h/config_user.h in $withval -- --with-mpfs-athena wants the CAL directory])
+            fi
+            MPFS_ATHENA_CAL_LIB=""
+            for mpfs_athena_a in mpfs-rv64imac-user-crypto-lib.a mss-user-crypto-lib.a; do
+                if test -f "$withval/$mpfs_athena_a"; then
+                    MPFS_ATHENA_CAL_LIB="$withval/$mpfs_athena_a"
+                fi
+            done
+            if test "x$MPFS_ATHENA_CAL_LIB" = "x"; then
+                AC_MSG_ERROR([no user-crypto archive in $withval; expected mpfs-rv64imac-user-crypto-lib.a or mss-user-crypto-lib.a])
+            fi
+            CPPFLAGS="$CPPFLAGS -I$withval"
+            LIB_STATIC_ADD="$MPFS_ATHENA_CAL_LIB $LIB_STATIC_ADD"
+            # The CAL archive is non-PIC, so it cannot go into a shared library.
+            enable_shared=no
+            enable_static=yes
+            # WOLFSSL_MICROCHIP_MPFS selects the SoC family; WOLFSSL_MPFS_ATHENA
+            # says the part carries the engine, which asking for the CAL implies.
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MICROCHIP_MPFS -DWOLFSSL_MPFS_ATHENA"
+            ENABLED_MPFS_ATHENA="yes"
+            AC_MSG_RESULT([$withval])
+        fi
+    ]
+)
+
+# NXP EdgeLock (ELS + PKC) crypto callback port, built against an els_pkc
+# checkout. The application links the CLNS library.
+ENABLED_ELS_PKC="no"
+els_pkc_dir=""
+mcux_sdk_dir=""
+els_pkc_platform="rw61x"
+els_pkc_opt_given="no"
+
+AC_ARG_WITH([mcux-sdk],
+    [AS_HELP_STRING([--with-mcux-sdk=PATH],
+        [PATH to an MCUXpresso SDK checkout (mcux-sdk-ng), for the SoC device headers the els_pkc platform layer includes])],
+    [ AS_CASE([$withval],
+        [no],  [ mcux_sdk_dir="" ],
+        [yes], [ AC_MSG_ERROR([--with-mcux-sdk needs the path to an MCUXpresso SDK checkout, e.g. --with-mcux-sdk=/path/to/mcux-sdk-ng]) ],
+               [ mcux_sdk_dir=$withval; els_pkc_opt_given=yes ]) ])
+
+AC_ARG_WITH([els-pkc-platform],
+    [AS_HELP_STRING([--with-els-pkc-platform=SOC],
+        [els_pkc platform layer to build against (default: rw61x)])],
+    [ AS_CASE([$withval],
+        [no|yes], [ AC_MSG_ERROR([--with-els-pkc-platform needs a platform name, e.g. --with-els-pkc-platform=rw61x]) ],
+                  [ els_pkc_platform=$withval ])
+      els_pkc_opt_given=yes ])
+
+AC_ARG_WITH([els-pkc],
+    [AS_HELP_STRING([--with-els-pkc=PATH],
+        [Enable the NXP EdgeLock (ELS/PKC) crypto callback port, built against the els_pkc checkout at PATH])],
+    [ AS_CASE([$withval],
+        [no],  [ ENABLED_ELS_PKC=no ],
+        [yes], [ AC_MSG_ERROR([--with-els-pkc needs the path to an els_pkc checkout, e.g. --with-els-pkc=/path/to/els_pkc]) ],
+               [ ENABLED_ELS_PKC=yes; els_pkc_dir=$withval ]) ])
+
+if test "x$ENABLED_ELS_PKC" = "xyes"
+then
+    AC_MSG_CHECKING([for els_pkc in $els_pkc_dir])
+    if test ! -f "$els_pkc_dir/src/comps/mcuxClEls/inc/mcuxClEls.h"; then
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([mcuxClEls.h not found under --with-els-pkc=$els_pkc_dir])
+    fi
+    AC_MSG_RESULT([yes])
+
+    if test "x$mcux_sdk_dir" = "x"; then
+        AC_MSG_ERROR([--with-els-pkc also needs --with-mcux-sdk=PATH: the els_pkc platform layer includes the SoC device headers (fsl_common.h, fsl_device_registers.h) from an MCUXpresso SDK checkout])
+    fi
+    if test ! -d "$mcux_sdk_dir/drivers/common"; then
+        AC_MSG_ERROR([no drivers/common under --with-mcux-sdk=$mcux_sdk_dir])
+    fi
+
+    if test ! -d "$els_pkc_dir/src/platforms/$els_pkc_platform"; then
+        AC_MSG_ERROR([els_pkc has no platform layer "$els_pkc_platform"; select one with --with-els-pkc-platform=SOC])
+    fi
+
+    # Globbed: the component list runs to about fifty directories.
+    for els_pkc_inc in "$els_pkc_dir"/src/comps/*/inc \
+                       "$els_pkc_dir"/src/comps/*/inc/internal; do
+        if test -d "$els_pkc_inc"; then
+            CPPFLAGS="$CPPFLAGS -I$els_pkc_inc"
+        fi
+    done
+
+    CPPFLAGS="$CPPFLAGS -I$els_pkc_dir/src/inc -I$els_pkc_dir/src/compiler"
+    CPPFLAGS="$CPPFLAGS -I$els_pkc_dir/src/platforms/$els_pkc_platform"
+    CPPFLAGS="$CPPFLAGS -I$els_pkc_dir/src/platforms/$els_pkc_platform/inc"
+    CPPFLAGS="$CPPFLAGS -I$els_pkc_dir/includes/platform/$els_pkc_platform"
+
+    # els_pkc's bundled CMSIS; the directory name carries its version.
+    for els_pkc_inc in "$els_pkc_dir"/src/platforms/"$els_pkc_platform"/cmsis_*/inc; do
+        if test -d "$els_pkc_inc"; then
+            CPPFLAGS="$CPPFLAGS -I$els_pkc_inc"
+        fi
+    done
+
+    # Only the platforms the port was brought up on have a known header layout.
+    AS_CASE([$els_pkc_platform],
+        [rw61x], [
+            CPPFLAGS="$CPPFLAGS -I$mcux_sdk_dir/devices/Wireless/RW/RW612"
+            CPPFLAGS="$CPPFLAGS -I$mcux_sdk_dir/devices/Wireless/RW/RW612/drivers"
+            CPPFLAGS="$CPPFLAGS -I$mcux_sdk_dir/devices/Wireless/RW/periph"
+            # The register map is chosen by part number; override with
+            # -UCPU_RW612ETA2I -DCPU_<part> in CPPFLAGS.
+            AM_CPPFLAGS="$AM_CPPFLAGS -DCPU_RW612ETA2I"
+        ],
+        [ AC_MSG_WARN([no known MCUXpresso device header layout for els_pkc platform "$els_pkc_platform"; pass the SoC include paths in CPPFLAGS and the part number in CFLAGS]) ])
+
+    CPPFLAGS="$CPPFLAGS -I$mcux_sdk_dir/drivers/common"
+
+    # WOLF_CRYPTO_CB, and with it WOLF_PRIVATE_KEY_ID, is promoted further down.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ELS_PKC"
+elif test "x$els_pkc_opt_given" = "xyes"
+then
+    AC_MSG_WARN([--with-mcux-sdk and --with-els-pkc-platform do nothing without --with-els-pkc=PATH; the EdgeLock port is not being built])
 fi
 
 
@@ -5246,6 +5431,18 @@ AC_ARG_ENABLE([intelasm],
     [ ENABLED_INTELASM=$enableval ],
     [ ENABLED_INTELASM=no ]
     )
+
+if test "$ENABLED_INTELASM" != "no" || test "$ENABLED_AESNI" != "no" ||
+   test "$ENABLED_AESNI_WITH_AVX" != "no"
+then
+    case "$host_cpu" in
+    x86_64* | amd64 | x86 | i?86)
+        ;;
+    *)
+        AC_MSG_ERROR([--enable-intelasm and --enable-aesni need an x86 or x86_64 host, not $host_cpu. Use --enable-all-asm to pick the assembly for the host.])
+        ;;
+    esac
+fi
 
 if test "$ENABLED_ASM" = "yes"
 then
@@ -7595,6 +7792,14 @@ AC_ARG_ENABLE([entropy-memuse],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ]
     )
 
+# Generic SP800-90B noise source (wc_NoiseSrc_*) for ports with a raw physical
+# noise source, e.g. the TI C2000 DCC entropy port
+AC_ARG_ENABLE([noisesrc],
+    [AS_HELP_STRING([--enable-noisesrc],[Enable the generic SP800-90B noise source layer (default: disabled)])],
+    [ ENABLED_NOISESRC=$enableval ],
+    [ ENABLED_NOISESRC=no ]
+    )
+
 # AES key wrap
 # Accepts a comma-separated value list; "padding" adds RFC 5649 key wrap with
 # padding on top of the base RFC 3394 key wrap.
@@ -7702,17 +7907,9 @@ AS_CASE([$FIPS_VERSION],
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed25519" != "no")],
             [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
 
-        AS_IF([test "$ENABLED_CURVE25519" != "no" &&
-               (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_curve25519" = "")],
-            [ENABLED_CURVE25519="no"; AM_CFLAGS="$AM_CFLAGS"])
-
         AS_IF([test "x$ENABLED_ED448" != "xyes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed448" != "no")],
             [ENABLED_ED448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448 -DHAVE_ED448_KEY_IMPORT"])
-
-        AS_IF([test "$ENABLED_CURVE448" != "no" &&
-               (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_curve448" = "")],
-            [ENABLED_CURVE448="no"; AM_CFLAGS="$AM_CFLAGS"])
 
         AS_IF([test "x$ENABLED_ED25519_STREAM" != "xyes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed25519_stream" != "no")],
@@ -7831,6 +8028,9 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_LMS="yes"])
         # LMS: enable SHA-256/192 and SHAKE256 parameter sets for FIPS v7
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_SHA256_192 -DWOLFSSL_LMS_SHAKE256"
+        # SP 800-208 sec 8.1: LMS/XMSS keygen and signing are validated only in
+        # hardware modules; a software module verifies only (sec 8.2).
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_VERIFY_ONLY -DWOLFSSL_XMSS_VERIFY_ONLY"
 
         AS_IF([test "$ENABLED_SLHDSA" != "yes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_slhdsa" != "no")],
@@ -8749,12 +8949,28 @@ then
     ENABLED_SHAKE128=yes
     ENABLED_SHAKE256=yes
 fi
+# The noise source conditions with SHA3-256, which wolfRand does not build.
+if test "$ENABLED_NOISESRC" != "no"
+then
+    if test "$FIPS_VERSION" = "rand"
+    then
+        AC_MSG_ERROR([--enable-noisesrc is not supported with --enable-fips=rand.])
+    fi
+    ENABLED_SHA3=yes
+fi
 # Falcon uses SHA-3 / SHAKE256 for hash-to-point.
 if test "$ENABLED_FALCON" != "no"
 then
     ENABLED_SHA3=yes
     ENABLED_SHAKE256=yes
 fi
+# The LMS SHAKE256 parameter sets (--enable-lms=shake256) hash with SHAKE256.
+case $ENABLED_LMS in
+  *shake256*)
+    ENABLED_SHA3=yes
+    ENABLED_SHAKE256=yes
+    ;;
+esac
 
 # Set SHA-3 flags
 if test "$ENABLED_SHA3" != "no"
@@ -8947,6 +9163,7 @@ if test "$ENABLED_EXTRA_PQC_HYBRIDS" = "yes"
 then
     AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires --enable-experimental.]) ])
     AS_IF([ test "$ENABLED_ML_KEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
+    AS_IF([ test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 ],[ AC_MSG_ERROR([extra-pqc-hybrids is not available in FIPS v7 builds.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
 fi
 
@@ -9379,14 +9596,35 @@ then
       thread)
         AM_CFLAGS="$AM_CFLAGS -DENTROPY_MEMUSE_THREAD"
         ;;
+      amd-aperf)
+        if (test "$host_cpu" != "x86_64" && test "$host_cpu" != "amd64") ||
+           test "$KERNEL_MODE_DEFAULTS" = "yes"
+        then
+            AC_MSG_ERROR([--enable-wolfEntropy=amd-aperf needs an x86_64 user-space build.])
+        fi
+        case "$host_os" in
+            linux*) ;;
+            *) AC_MSG_ERROR([--enable-wolfEntropy=amd-aperf needs Linux.]) ;;
+        esac
+        AM_CFLAGS="$AM_CFLAGS -DWC_ENTROPY_TIMER_AMD_APERF"
+        ;;
       nofallback)
         AM_CFLAGS="$AM_CFLAGS -DENTROPY_MEMUSE_FORCE_FAILURE"
         ;;
       *)
-        AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, nofallback. Seen: $ENABLED_ENTROPY_MEMUSE.])
+        AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, amd-aperf, nofallback. Seen: $ENABLED_ENTROPY_MEMUSE.])
         break;;
       esac
     done
+    case "$ENABLED_ENTROPY_MEMUSE" in
+      *thread*amd-aperf*|*amd-aperf*thread*)
+        AC_MSG_ERROR([--enable-wolfEntropy: thread and amd-aperf cannot be combined.]) ;;
+    esac
+fi
+
+if test "$ENABLED_NOISESRC" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOISE_SRC"
 fi
 
 if (test "$ENABLED_RNG" = "yes" && test "$ENABLED_ENTROPY_MEMUSE" != "no") || test "$ENABLED_BENCHMARK" = "yes"
@@ -9611,46 +9849,14 @@ then
     esac
 fi
 
-# Whitewood netRandom client library
-ENABLED_WNR="no"
-trywnrdir=""
+# Reject the retired option instead of silently ignoring it.
 AC_ARG_WITH([wnr],
-    [AS_HELP_STRING([--with-wnr=PATH],[Path to Whitewood netRandom install (default /usr/local)])],
-    [
-        AC_MSG_CHECKING([for Whitewood netRandom])
-        LIBS="$LIBS -lwnr"
-
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
-
-        if test "x$wnr_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                trywnrdir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                trywnrdir="/usr/local"
-            fi
-
-            CPPFLAGS="$AM_CPPFLAGS -DHAVE_WNR -I$trywnrdir/include"
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$trywnrdir/lib"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
-
-            if test "x$wnr_linked" = "xno" ; then
-                AC_MSG_ERROR([Whitewood netRandom isn't found.
-                If it's already installed, specify its path using --with-wnr=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            AM_CPPFLAGS="$CPPFLAGS"
-            AM_LDFLAGS="$AM_LDFLAGS -L$trywnrdir/lib"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_WNR"
-        ENABLED_WNR="yes"
-    ]
-)
-
+    [AS_HELP_STRING([--with-wnr=PATH],
+        [Whitewood netRandom support has been removed])],
+    [if test "x$withval" != "xno"; then
+        AC_MSG_ERROR([Whitewood netRandom support has been removed])
+    fi],
+    [])
 
 # SNI
 # enable SNI automatically for x86_64/x86/aarch64/amd64
@@ -11305,10 +11511,15 @@ AC_ARG_ENABLE([examples],
 
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
+# Nothing linked here has the CLNS library the application supplies.
+AS_IF([test "x$ENABLED_ELS_PKC" = "xyes"], [ENABLED_EXAMPLES="no"])
 
 
 # Enable wolfCrypt test and benchmark
 if test "$HAVE_KERNEL_MODE" = "yes"
+then
+    ENABLED_CRYPT_TESTS_DEFAULT=no
+elif test "x$ENABLED_ELS_PKC" = "xyes"
 then
     ENABLED_CRYPT_TESTS_DEFAULT=no
 else
@@ -12288,7 +12499,19 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes" || test "x$ENABLED_ELE" != "xno"
+if test "x$ENABLED_MPFS_ATHENA" = "xyes"
+then
+    # The port offloads what the ordinary wolfCrypt gates turn on, so without
+    # these it would compile to nothing.
+    if test "x$ENABLED_SHA384" = "xno"; then
+        AC_MSG_ERROR([--with-mpfs-athena needs SHA-384; drop --disable-sha384])
+    fi
+    if test "x$ENABLED_AESCTR" = "xno"; then
+        AC_MSG_ERROR([--with-mpfs-athena needs AES-CTR; add --enable-aesctr])
+    fi
+fi
+
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes" || test "x$ENABLED_ELE" != "xno" || test "x$ENABLED_MPFS_ATHENA" = "xyes" || test "x$ENABLED_ELS_PKC" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -12344,6 +12567,9 @@ then
     fi
     if test "$ENABLED_XMSS" != "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_XMSS"
+    fi
+    if test "$ENABLED_FRODOKEM" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_FRODOKEM"
     fi
 fi
 
@@ -12531,6 +12757,31 @@ then
 fi
 
 
+# Support for the autosar MAC services (AES-CMAC), an add-on to --enable-autosar
+AC_ARG_ENABLE([autosar-cmac],
+    [AS_HELP_STRING([--enable-autosar-cmac],[Enable AutoSAR MAC generate/verify services using AES-CMAC, requires --enable-autosar (default: disabled)])],
+    [ ENABLED_AUTOSAR_CMAC=$enableval ],
+    [ ENABLED_AUTOSAR_CMAC=no ]
+    )
+
+if test "$ENABLED_AUTOSAR_CMAC" = "yes"
+then
+    if test "$ENABLED_AUTOSAR" != "yes"
+    then
+        AC_MSG_ERROR([--enable-autosar-cmac requires --enable-autosar])
+    fi
+
+    # The driver calls wc_InitCmac()/wc_CmacUpdate()/wc_CmacFinalNoFree().
+    # WOLFSSL_AES_DIRECT comes with it: the WC_CMAC_AES case in cmac.c is
+    # compiled out without it, so wc_InitCmac() would fail at runtime.
+    AS_IF([test "$ENABLED_CMAC" != "yes"],
+          [ENABLED_CMAC="yes"
+           AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AUTOSAR_CMAC"
+fi
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
@@ -12668,7 +12919,8 @@ AC_ARG_ENABLE([linuxkm-lkcapi-register],
     [AS_HELP_STRING([--enable-linuxkm-lkcapi-register],[Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.
     Possible values are "none" or a comma-separated combination of "all", "all-kconfig", "sysfs-nodes-only", "cbc(aes)", "cfb(aes)",
     "gcm(aes)", "rfc4106(gcm(aes))", "xts(aes)", "ctr(aes)", "ofb(aes)", "ecb(aes)", "all-aes", "sha1", "sha2", "sha3", "all-sha",
-    "hmac(sha1)", "hmac(sha2)", "hmac(sha3)", "all-hmac", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", and negations of
+    "hmac(sha1)", "hmac(sha2)", "hmac(sha3)", "all-hmac", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", "ed", "falcon",
+    "mldsa", "mlkem", "slhdsa", "lms", "xmss", "frodokem", and negations of
     the foregoing algorithms by prefixing "-".
     (default: none)])],
     [ENABLED_LINUXKM_LKCAPI_REGISTER=$enableval],
@@ -12747,6 +12999,29 @@ then
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_RSA -DWC_RSA_NO_PADDING" ;;
         'dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_DH -DWOLFSSL_DH_EXTRA"
                     ;;
+        'ed')       if test "$ENABLED_ED25519" = "no" && test "$ENABLED_ED448" = "no"; then
+                        AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: no EdDSA implementation enabled.])
+                    fi
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ED" ;;
+        'falcon')   test "$ENABLED_FALCON" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: Falcon implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_FALCON" ;;
+        'mldsa')    test "$ENABLED_MLDSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-DSA implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_MLDSA" ;;
+        'mlkem')    test "$ENABLED_MLKEM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-KEM implementation not enabled.])
+                    case "$AM_CFLAGS" in
+                    *WOLFSSL_MLKEM_NO_MAKE_KEY*|*WOLFSSL_MLKEM_NO_ENCAPSULATE*|*WOLFSSL_MLKEM_NO_DECAPSULATE*)
+                        AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-KEM key generation, encapsulation, and decapsulation are all required.]) ;;
+                    esac
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_MLKEM" ;;
+        'slhdsa')   test "$ENABLED_SLHDSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SLH-DSA implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SLHDSA" ;;
+        'lms')      test "$ENABLED_LMS" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: LMS implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_LMS" ;;
+        'xmss')     test "$ENABLED_XMSS" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: XMSS implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_XMSS" ;;
+        'frodokem') test "$ENABLED_FRODOKEM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: FrodoKEM implementation not enabled.])
+                    test "$ENABLED_SHA256" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-256 implementation not enabled (required for FrodoKEM encapsulation-side bookkeeping).])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_FRODOKEM" ;;
         # disable options
         '-cbc(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCBC" ;;
         '-cfb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCFB" ;;
@@ -12776,6 +13051,14 @@ then
         '-ecdh')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ECDH" ;;
         '-rsa')      AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_RSA" ;;
         '-dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_DH" ;;
+        '-ed')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ED" ;;
+        '-falcon')   AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_FALCON" ;;
+        '-mldsa')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_MLDSA" ;;
+        '-mlkem')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_MLKEM" ;;
+        '-slhdsa')   AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SLHDSA" ;;
+        '-lms')      AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_LMS" ;;
+        '-xmss')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_XMSS" ;;
+        '-frodokem') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_FRODOKEM" ;;
         *) AC_MSG_ERROR([Unsupported LKCAPI algorithm "$lkcapi_alg".])      ;;
         esac
     done
@@ -14029,10 +14312,10 @@ then
     esac
     if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
        test "$ENABLED_ENTROPY_MEMUSE" != "no" || \
-       test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
+       test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, static memory, netRandom, memory zero checking or memory tracking"
+        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, static memory, memory zero checking or memory tracking"
     fi
     if test -z "$RNG_AUTOFORK_NEEDS"
     then
@@ -14420,6 +14703,7 @@ AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_NOISESRC],[test "x$ENABLED_NOISESRC" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RNG_BANK],[test "$ENABLED_RNG_BANK" = "yes" || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -14463,7 +14747,6 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING_MULTI],[test "x$ENABLED_CERTIFICATE_STATUS_R
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
-AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
 AM_CONDITIONAL([BUILD_MD4],[test "x$ENABLED_MD4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -14538,8 +14821,10 @@ AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])
 AM_CONDITIONAL([BUILD_ELE],[test "x$ENABLED_ELE" != "xno"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
+AM_CONDITIONAL([BUILD_ELS_PKC],[test "x$ENABLED_ELS_PKC" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
+AM_CONDITIONAL([BUILD_MPFS_ATHENA],[test "x$ENABLED_MPFS_ATHENA" = "xyes"])
 AM_CONDITIONAL([BUILD_SILABS_CRYPTOCB],[test "x$ENABLED_SILABS_CRYPTOCB" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
@@ -14567,10 +14852,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_INTROSPECTION"
 fi
 
+BUILD_PARAMS_INCLUDE=
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -include ${output_objdir}/.build_params"
+    BUILD_PARAMS_INCLUDE="-include ${output_objdir}/.build_params"
+    AM_CFLAGS="$AM_CFLAGS $BUILD_PARAMS_INCLUDE"
 fi
+AC_SUBST([BUILD_PARAMS_INCLUDE])
 
 AM_CPPFLAGS="$AM_CPPFLAGS $EXTRA_CPPFLAGS"
 AM_CFLAGS="$AM_CFLAGS $EXTRA_CFLAGS"
@@ -14894,6 +15182,7 @@ echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * Enterprise Build:           $ENABLED_ENTERPRISE"
 echo "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
 echo "   * Side-channel Hardening:     $ENABLED_HARDEN"
+echo "   * AES touch lines:            $ENABLED_AES_TOUCH_LINES"
 
 echo "   * Single Precision Math:      $ENABLED_SP"
 if test "$ENABLED_SP_MATH_ALL" != "no"
@@ -14983,6 +15272,7 @@ echo "   * RNG lock on by default:     $ENABLED_RNG_AUTOLOCK_DEFAULT"
 echo "   * RNG fork handlers:          $ENABLED_RNG_AUTOFORK"
 echo "   * MmemUse Entropy:"
 echo "   * (AKA: wolfEntropy):         $ENABLED_ENTROPY_MEMUSE"
+echo "   * Noise source:               $ENABLED_NOISESRC"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * Encrypted keys:             $ENABLED_ENCKEYS"
 echo "   * scrypt:                     $ENABLED_SCRYPT"
@@ -15078,7 +15368,6 @@ echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
 echo "   * Falcon:                     $ENABLED_FALCON"
-echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
@@ -15173,6 +15462,8 @@ echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * STMicro STSAFE:             $ENABLED_STSAFE"
 echo "   * RealTek RTL8735B HUK:       $ENABLED_RTL8735B"
+echo "   * Microchip MPFS Athena:      $ENABLED_MPFS_ATHENA"
+echo "   * NXP EdgeLock ELS/PKC:       $ENABLED_ELS_PKC"
 echo "   * TROPIC01:                   $ENABLED_TROPIC01"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
@@ -15193,6 +15484,7 @@ echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
 echo "   * TLS receive read-ahead:     $ENABLED_READAHEAD"
 echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
+echo "   * AutoSAR CMAC :              $ENABLED_AUTOSAR_CMAC"
 echo "   * ML-KEM  standalone:         $ENABLED_MLKEM_STANDALONE"
 echo "   * PQ/T hybrids:               $ENABLED_PQC_HYBRIDS"
 echo "   * Extra PQ/T hybrids:         $ENABLED_EXTRA_PQC_HYBRIDS"

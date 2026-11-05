@@ -578,7 +578,11 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
     int                  ret = 0;
     CK_RV                rv = CKR_OK;
 #if !defined(HAVE_PKCS11_STATIC) && !defined(HAVE_PKCS11_V3_STATIC)
-    void*                func;
+    union {
+        void*                p;
+        CK_C_GetInterface    getInterface;
+        CK_C_GetFunctionList getFunctionList;
+    } func;
 #endif
     CK_C_INITIALIZE_ARGS args;
     CK_VERSION_PTR       version_ptr = NULL;
@@ -694,8 +698,8 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
             /* Check if the library supports PKCS#11 version 3.0 (or above) by
              * looking for the C_GetInterface method (only present for >= V3.0).
              */
-            func = dlsym(dev->dlHandle, "C_GetInterface");
-            if (func != NULL) {
+            func.p = dlsym(dev->dlHandle, "C_GetInterface");
+            if (func.p != NULL) {
                 /* Function is present, use it */
                 CK_INTERFACE_PTR interface = NULL;
                 CK_VERSION pkcs11_version = {0, 0};
@@ -726,8 +730,8 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
                     version_ptr = NULL;
                 }
 
-                rv = ((CK_C_GetInterface)func)((CK_UTF8CHAR_PTR) interfaceName,
-                                               version_ptr, &interface, 0);
+                rv = func.getInterface((CK_UTF8CHAR_PTR) interfaceName,
+                                       version_ptr, &interface, 0);
                 if (rv == CKR_OK) {
                     dev->func = interface->pFunctionList;
                     version_ptr = (CK_VERSION_PTR) interface->pFunctionList;
@@ -764,8 +768,8 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
             else {
                 /* Function not present, try a 2.x library by looking for
                 * C_GetFunctionList. */
-                func = dlsym(dev->dlHandle, "C_GetFunctionList");
-                if (func == NULL) {
+                func.p = dlsym(dev->dlHandle, "C_GetFunctionList");
+                if (func.p == NULL) {
             #if defined(_WIN32)
                     WOLFSSL_MSG_EX("GetProcAddress(): %d", GetLastError());
             #else
@@ -774,7 +778,7 @@ int wc_Pkcs11_Initialize_v3(Pkcs11Dev* dev, const char* library,
                     ret = WC_HW_E;
                 }
                 if (ret == 0) {
-                    rv = ((CK_C_GetFunctionList)func)(&dev->func);
+                    rv = func.getFunctionList(&dev->func);
                     if (rv == CKR_OK) {
                         version_ptr = (CK_VERSION_PTR) dev->func;
                         if (version_ptr->major == 2 &&
@@ -1384,7 +1388,7 @@ static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* tmpl, int idx)
         unsigned char* derParams = tmpl[idx].pValue;
     #if defined(HAVE_OID_ENCODING)
         word32 oidSz = ECC_MAX_OID_LEN - 2;
-        ret = wc_EncodeObjectId(key->dp->oid, key->dp->oidSz, derParams+2, &oidSz);
+        ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, derParams+2, &oidSz);
         if (ret != 0) {
             return ret;
         }
@@ -1781,6 +1785,7 @@ static int Pkcs11CreateMlKemPrivateKey(CK_OBJECT_HANDLE* privateKey,
  * @param   session     [in]    Session object.
  * @param   key         [in]    ML-DSA key.
  * @param   mechInfo    [in]    Pointer to a filled MECHANISM_INFO object.
+ * @return  PUBLIC_KEY_E when the key has no public key set.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  MEMORY_E when a memory allocation fails.
  * @return  0 on success.
@@ -1808,7 +1813,7 @@ static int Pkcs11CreateMldsaPublicKey(CK_OBJECT_HANDLE* handle,
     CK_ULONG keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate) - 2;
 
     if (!key->pubKeySet) {
-        ret = BAD_FUNC_ARG;
+        ret = PUBLIC_KEY_E;
     }
 
     if (key->labelLen > 0) {
@@ -4919,7 +4924,7 @@ static int Pkcs11GetMldsaPublicKey(wc_MlDsaKey* key,
             ret = WC_KEY_SIZE_E;
     }
     if (ret == 0)
-        ret = wc_MlDsaKey_ImportPubRaw(key, pubKey, pubKeySize);
+        ret = wc_MlDsaKey_ImportPubRaw(key, pubKey, (word32)pubKeySize);
 
     if (pubKey != NULL)
         XFREE(pubKey, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5231,7 +5236,7 @@ static int Pkcs11MldsaSign(Pkcs11Session* session, wc_CryptoInfo* info)
     }
 
     if (ret == 0) {
-        *info->pk.pqc_sign.outlen = outLen;
+        *info->pk.pqc_sign.outlen = (word32)outLen;
     }
 
     if (sessionKey)
@@ -6122,10 +6127,11 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0 && !hmac->innerHashKeyed) {
         WOLFSSL_MSG("PKCS#11: HMAC Init");
 
-        /* Check device supports key length. */
-        if (mechInfo.ulMaxKeySize > 0 &&
-                                       (hmac->keyLen < mechInfo.ulMinKeySize ||
-                                        hmac->keyLen > mechInfo.ulMaxKeySize)) {
+        /* Check device supports key length. A token key has no keyLen. */
+        if (mechInfo.ulMaxKeySize > 0 && hmac->idLen == 0 &&
+                hmac->labelLen == 0 &&
+                (hmac->keyLen < mechInfo.ulMinKeySize ||
+                 hmac->keyLen > mechInfo.ulMaxKeySize)) {
             WOLFSSL_MSG("PKCS#11: Key Length not supported");
             ret = NOT_COMPILED_IN;
         }

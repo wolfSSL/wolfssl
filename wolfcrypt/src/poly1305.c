@@ -323,8 +323,9 @@ WOLFSSL_LOCAL void poly1305_final_avx512ifma(Poly1305* ctx, byte* mac);
         p[7] = (byte)(v >> 56);
     }
 #endif/* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
-/* if not 64 bit then use 32 bit */
-#elif !defined(WOLFSSL_ARMASM)
+/* if not 64 bit then use 32 bit (also the aarch64 assembly's software
+ * fallback when there is no 128-bit integer for POLY130564) */
+#elif !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_ARM_POLY1305_NEED_C)
 
     static word32 U8TO32(const byte *p)
     {
@@ -404,22 +405,22 @@ static void poly1305_c_setkey(Poly1305* ctx, const byte* key)
     ctx->POLY1305_CTX_PAD[1] = U8TO64(key + 24);
 #else
     /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-    ctx->r[0] = (U8TO32(key +  0)     ) & 0x3ffffff;
-    ctx->r[1] = (U8TO32(key +  3) >> 2) & 0x3ffff03;
-    ctx->r[2] = (U8TO32(key +  6) >> 4) & 0x3ffc0ff;
-    ctx->r[3] = (U8TO32(key +  9) >> 6) & 0x3f03fff;
-    ctx->r[4] = (U8TO32(key + 12) >> 8) & 0x00fffff;
+    ctx->POLY1305_CTX_R[0] = (U8TO32(key +  0)     ) & 0x3ffffff;
+    ctx->POLY1305_CTX_R[1] = (U8TO32(key +  3) >> 2) & 0x3ffff03;
+    ctx->POLY1305_CTX_R[2] = (U8TO32(key +  6) >> 4) & 0x3ffc0ff;
+    ctx->POLY1305_CTX_R[3] = (U8TO32(key +  9) >> 6) & 0x3f03fff;
+    ctx->POLY1305_CTX_R[4] = (U8TO32(key + 12) >> 8) & 0x00fffff;
 
-    ctx->h[0] = 0;
-    ctx->h[1] = 0;
-    ctx->h[2] = 0;
-    ctx->h[3] = 0;
-    ctx->h[4] = 0;
+    ctx->POLY1305_CTX_H[0] = 0;
+    ctx->POLY1305_CTX_H[1] = 0;
+    ctx->POLY1305_CTX_H[2] = 0;
+    ctx->POLY1305_CTX_H[3] = 0;
+    ctx->POLY1305_CTX_H[4] = 0;
 
-    ctx->pad[0] = U8TO32(key + 16);
-    ctx->pad[1] = U8TO32(key + 20);
-    ctx->pad[2] = U8TO32(key + 24);
-    ctx->pad[3] = U8TO32(key + 28);
+    ctx->POLY1305_CTX_PAD[0] = U8TO32(key + 16);
+    ctx->POLY1305_CTX_PAD[1] = U8TO32(key + 20);
+    ctx->POLY1305_CTX_PAD[2] = U8TO32(key + 24);
+    ctx->POLY1305_CTX_PAD[3] = U8TO32(key + 28);
 #endif
 
     ctx->leftover = 0;
@@ -503,22 +504,22 @@ static int poly1305_c_blocks(Poly1305* ctx, const byte* m, size_t bytes)
 #endif
 
 
-    r0 = ctx->r[0];
-    r1 = ctx->r[1];
-    r2 = ctx->r[2];
-    r3 = ctx->r[3];
-    r4 = ctx->r[4];
+    r0 = ctx->POLY1305_CTX_R[0];
+    r1 = ctx->POLY1305_CTX_R[1];
+    r2 = ctx->POLY1305_CTX_R[2];
+    r3 = ctx->POLY1305_CTX_R[3];
+    r4 = ctx->POLY1305_CTX_R[4];
 
     s1 = r1 * 5;
     s2 = r2 * 5;
     s3 = r3 * 5;
     s4 = r4 * 5;
 
-    h0 = ctx->h[0];
-    h1 = ctx->h[1];
-    h2 = ctx->h[2];
-    h3 = ctx->h[3];
-    h4 = ctx->h[4];
+    h0 = ctx->POLY1305_CTX_H[0];
+    h1 = ctx->POLY1305_CTX_H[1];
+    h2 = ctx->POLY1305_CTX_H[2];
+    h3 = ctx->POLY1305_CTX_H[3];
+    h4 = ctx->POLY1305_CTX_H[4];
 
     while (bytes >= POLY1305_BLOCK_SIZE) {
         /* h += m[i] */
@@ -606,11 +607,11 @@ static int poly1305_c_blocks(Poly1305* ctx, const byte* m, size_t bytes)
         bytes -= POLY1305_BLOCK_SIZE;
     }
 
-    ctx->h[0] = h0;
-    ctx->h[1] = h1;
-    ctx->h[2] = h2;
-    ctx->h[3] = h3;
-    ctx->h[4] = h4;
+    ctx->POLY1305_CTX_H[0] = h0;
+    ctx->POLY1305_CTX_H[1] = h1;
+    ctx->POLY1305_CTX_H[2] = h2;
+    ctx->POLY1305_CTX_H[3] = h3;
+    ctx->POLY1305_CTX_H[4] = h4;
 
 #if defined(WOLFSSL_W64_WRAPPER) && defined(WOLFSSL_SMALL_STACK)
     XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -695,11 +696,11 @@ static void poly1305_c_final(Poly1305* ctx, byte* mac)
     word32 mask;
 
     /* fully carry h */
-    h0 = ctx->h[0];
-    h1 = ctx->h[1];
-    h2 = ctx->h[2];
-    h3 = ctx->h[3];
-    h4 = ctx->h[4];
+    h0 = ctx->POLY1305_CTX_H[0];
+    h1 = ctx->POLY1305_CTX_H[1];
+    h2 = ctx->POLY1305_CTX_H[2];
+    h3 = ctx->POLY1305_CTX_H[3];
+    h4 = ctx->POLY1305_CTX_H[4];
 
                  c = h1 >> 26; h1 = h1 & 0x3ffffff;
     h2 +=     c; c = h2 >> 26; h2 = h2 & 0x3ffffff;
@@ -738,28 +739,28 @@ static void poly1305_c_final(Poly1305* ctx, byte* mac)
     /* mac = (h + pad) % (2^128) */
 #ifdef WOLFSSL_W64_WRAPPER
     f = w64From32(0, h0);
-    f = w64Add32(f, ctx->pad[0], NULL);
+    f = w64Add32(f, ctx->POLY1305_CTX_PAD[0], NULL);
     h0 = w64GetLow32(f);
 
     f = w64ShiftRight(f, 32);
     f = w64Add32(f, h1, NULL);
-    f = w64Add32(f, ctx->pad[1], NULL);
+    f = w64Add32(f, ctx->POLY1305_CTX_PAD[1], NULL);
     h1 = w64GetLow32(f);
 
     f = w64ShiftRight(f, 32);
     f = w64Add32(f, h2, NULL);
-    f = w64Add32(f, ctx->pad[2], NULL);
+    f = w64Add32(f, ctx->POLY1305_CTX_PAD[2], NULL);
     h2 = w64GetLow32(f);
 
     f = w64ShiftRight(f, 32);
     f = w64Add32(f, h3, NULL);
-    f = w64Add32(f, ctx->pad[3], NULL);
+    f = w64Add32(f, ctx->POLY1305_CTX_PAD[3], NULL);
     h3 = w64GetLow32(f);
 #else
-    f = (word64)h0 + ctx->pad[0]            ; h0 = (word32)f;
-    f = (word64)h1 + ctx->pad[1] + (f >> 32); h1 = (word32)f;
-    f = (word64)h2 + ctx->pad[2] + (f >> 32); h2 = (word32)f;
-    f = (word64)h3 + ctx->pad[3] + (f >> 32); h3 = (word32)f;
+    f = (word64)h0 + ctx->POLY1305_CTX_PAD[0]            ; h0 = (word32)f;
+    f = (word64)h1 + ctx->POLY1305_CTX_PAD[1] + (f >> 32); h1 = (word32)f;
+    f = (word64)h2 + ctx->POLY1305_CTX_PAD[2] + (f >> 32); h2 = (word32)f;
+    f = (word64)h3 + ctx->POLY1305_CTX_PAD[3] + (f >> 32); h3 = (word32)f;
 #endif
 
     U32TO8(mac + 0, h0);
@@ -768,20 +769,20 @@ static void poly1305_c_final(Poly1305* ctx, byte* mac)
     U32TO8(mac + 12, h3);
 
     /* zero out the state */
-    ctx->h[0] = 0;
-    ctx->h[1] = 0;
-    ctx->h[2] = 0;
-    ctx->h[3] = 0;
-    ctx->h[4] = 0;
-    ctx->r[0] = 0;
-    ctx->r[1] = 0;
-    ctx->r[2] = 0;
-    ctx->r[3] = 0;
-    ctx->r[4] = 0;
-    ctx->pad[0] = 0;
-    ctx->pad[1] = 0;
-    ctx->pad[2] = 0;
-    ctx->pad[3] = 0;
+    ctx->POLY1305_CTX_H[0] = 0;
+    ctx->POLY1305_CTX_H[1] = 0;
+    ctx->POLY1305_CTX_H[2] = 0;
+    ctx->POLY1305_CTX_H[3] = 0;
+    ctx->POLY1305_CTX_H[4] = 0;
+    ctx->POLY1305_CTX_R[0] = 0;
+    ctx->POLY1305_CTX_R[1] = 0;
+    ctx->POLY1305_CTX_R[2] = 0;
+    ctx->POLY1305_CTX_R[3] = 0;
+    ctx->POLY1305_CTX_R[4] = 0;
+    ctx->POLY1305_CTX_PAD[0] = 0;
+    ctx->POLY1305_CTX_PAD[1] = 0;
+    ctx->POLY1305_CTX_PAD[2] = 0;
+    ctx->POLY1305_CTX_PAD[3] = 0;
 #endif
 }
 

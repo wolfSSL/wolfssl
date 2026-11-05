@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_i2d_PKCS12(void);
+int test_wc_i2d_PKCS12_large_safe(void);
 int test_wc_PKCS12_create(void);
 int test_wc_PKCS12_create_guardrails(void);
 int test_wc_PKCS12_parse_guardrails(void);
@@ -45,6 +46,7 @@ int test_wc_PKCS12DecisionCoverage(void);
 
 #define TEST_PKCS12_DECLS                                               \
     TEST_DECL_GROUP("pkcs12", test_wc_i2d_PKCS12),                     \
+    TEST_DECL_GROUP("pkcs12", test_wc_i2d_PKCS12_large_safe),          \
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_create),                  \
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_create_guardrails),       \
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_parse_guardrails),        \

@@ -38,6 +38,8 @@ int test_tls_ems_server_disable_secret_cb(void);
 int test_tls12_chacha20_poly1305_bad_tag(void);
 int test_tls13_null_cipher_bad_hmac(void);
 int test_scr_verify_data_mismatch(void);
+int test_scr_different_cert(void);
+int test_scr_resumed_different_cert(void);
 int test_scr_no_renegotiation_option(void);
 int test_helloRequest_no_renegotiation_option(void);
 int test_helloRequest_advertise_only_refused(void);
@@ -68,6 +70,14 @@ int test_TLSX_QUIC_TP_non_quic(void);
 int test_TLSX_ALPN_server_response_count(void);
 int test_TLSX_SupportedCurve_empty_or_unsupported(void);
 int test_TLSX_SignatureAlgorithmsCert_parse(void);
+int test_TLSX_PointFormat_list(void);
+int test_TLSX_MaxFragment_value(void);
+int test_TLSX_SupportedCurve_append(void);
+int test_TLSX_SupportedCurve_grow(void);
+int test_TLSX_SupportedCurve_intersection(void);
+int test_TLSX_SupportedCurve_check_priority(void);
+int test_TLSX_SupportedFFDHE_Set(void);
+int test_TLSX_SupportedGroups_default_filter(void);
 int test_TLSX_PointFormat_uncompressed_required(void);
 int test_wolfSSL_CTX_add_client_custom_ext(void);
 int test_wolfSSL_custom_ext_handshake(void);
@@ -86,6 +96,8 @@ int test_wolfSSL_custom_ext_add_null(void);
         TEST_DECL_GROUP("tls", test_tls_ems_resumption_downgrade),           \
         TEST_DECL_GROUP("tls", test_tls_ems_resumption_server_downgrade),    \
         TEST_DECL_GROUP("tls", test_scr_verify_data_mismatch),               \
+        TEST_DECL_GROUP("tls", test_scr_different_cert),                     \
+        TEST_DECL_GROUP("tls", test_scr_resumed_different_cert),             \
         TEST_DECL_GROUP("tls", test_scr_no_renegotiation_option),            \
         TEST_DECL_GROUP("tls", test_helloRequest_no_renegotiation_option),   \
         TEST_DECL_GROUP("tls", test_helloRequest_advertise_only_refused),    \

@@ -530,6 +530,8 @@ struct WOLFSSL_X509V3_CTX {
     WOLFSSL_X509* x509;
 };
 
+/* The fields before d are given in order by X509_NAME_OBJ() in src/x509.c,
+ * which makes the shared objects of name entries: change it with them. */
 struct WOLFSSL_ASN1_OBJECT {
     void*  heap;
     const unsigned char* obj;
@@ -2624,6 +2626,8 @@ WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL*
 WOLFSSL_API int wolfSSL_X509_CRL_set_nextUpdate(WOLFSSL_X509_CRL* crl,
                                                 const WOLFSSL_ASN1_TIME* time);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(
+    const WOLFSSL_X509* x509);
 WOLFSSL_API int       wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey);
 WOLFSSL_API void      wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj);
 WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(
@@ -4036,8 +4040,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
         #elif defined(NUCLEUS_PLUS_2_3)
             #include "services/sys/uio.h"
         #elif !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)    && \
-              !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_ROWLEY_ARM) && \
-              !defined(WOLFSSL_EMBOS)   && !defined(WOLFSSL_FROSTED)    && \
+              !defined(WOLFSSL_ROWLEY_ARM) && !defined(WOLFSSL_EMBOS)   && \
+              !defined(WOLFSSL_FROSTED) && \
               !defined(WOLFSSL_CHIBIOS) && !defined(WOLFSSL_CONTIKI)    && \
               !defined(WOLFSSL_ZEPHYR)  && !defined(NETOS) && \
               !defined(WOLFSSL_NDS)
@@ -4672,9 +4676,20 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm);
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    /* Register a callback invoked for each certificate extension whose OID
+     * the parser does not recognize.  Returning 0 accepts the extension; a
+     * non-zero return rejects the certificate.
+     *
+     * The word16 form truncates OID arcs with values > 65535; the ...32 form
+     * receives every arc untruncated and should be preferred in new code.
+     * A registered word32 callback takes precedence: when both are set on the
+     * same cert manager only the word32 callback is invoked. */
     WOLFSSL_API void wolfSSL_CertManagerSetUnknownExtCallback(
         WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallback cb);
+    WOLFSSL_API void wolfSSL_CertManagerSetUnknownExtCallback32(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32 cb);
 #if defined(HAVE_CRL)
     /* Register a callback invoked for each CRL extension (CRL-level and
      * revoked-entry) whose OID the parser does not recognize, critical or
@@ -4691,6 +4706,26 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(
         WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallbackEx cb,
+        void* ctx);
+
+    /* word32 forms of the two registration calls above.  Each OID arc is
+     * passed to the callback as a word32, so arcs with values > 65535 are
+     * not truncated; prefer these in new code.
+     *
+     * A registered word32 callback takes precedence: when both a word16 and
+     * a word32 CRL callback are set on the same cert manager, only the word32
+     * callback is invoked.
+     *
+     * The word32 Ex variant keeps its own context, independent of the one
+     * registered with wolfSSL_CertManagerSetCRLUnknownExtCallbackEx().
+     *
+     * Both return WOLFSSL_SUCCESS, or BAD_FUNC_ARG when cm is NULL. */
+    WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallback32(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32 cb);
+    WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32Ex cb,
         void* ctx);
 #endif
 #endif
@@ -5394,7 +5429,7 @@ WOLFSSL_API int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
 
 
 #if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 WOLFSSL_API int wolfSSL_disable_cookie(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_enable_cookie(WOLFSSL* ssl);
 #endif
@@ -6443,6 +6478,8 @@ WOLFSSL_API void wolfSSL_X509_PUBKEY_free(WOLFSSL_X509_PUBKEY *x);
 WOLFSSL_API WOLFSSL_X509_PUBKEY *wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509);
 WOLFSSL_API int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, WOLFSSL_X509_ALGOR **pa, WOLFSSL_X509_PUBKEY *pub);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(
+    const WOLFSSL_X509_PUBKEY* key);
 WOLFSSL_API int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key);
 WOLFSSL_API int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,

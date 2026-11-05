@@ -822,12 +822,30 @@ if(WOLFSSL_DEBUG)
         "-DDEBUG")
 endif()
 
+add_option("WOLFSSL_LINUXKM_DEFAULTS"
+    "Alias for WOLFSSL_KERNEL_SETTINGS, matching autotools --enable-linuxkm-defaults (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_LINUXKM_DEFAULTS)
+    default_option(WOLFSSL_KERNEL_SETTINGS "yes")
+endif()
+
+add_option("WOLFSSL_KERNEL_SETTINGS"
+    "Enable default settings appropriate for kernel modules, matching autotools --enable-kernel-settings (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_KERNEL_SETTINGS)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_KERNEL_MODE_DEFAULTS"
+        )
+    set(WOLFSSL_CRYPT_ONLY_DEFAULT "yes")
+else()
+    set(WOLFSSL_CRYPT_ONLY_DEFAULT "no")
+endif()
 
 # wolfCrypt only (no TLS). Declared ahead of the TLS-layer options so the
 # forces below land before their add_option() calls.
 add_option("WOLFSSL_CRYPT_ONLY"
-    "Enable wolfCrypt Only build (default: disabled)"
-    "no" "yes;no")
+    "Enable wolfCrypt Only build (default: disabled unless WOLFSSL_KERNEL_SETTINGS)"
+    "${WOLFSSL_CRYPT_ONLY_DEFAULT}" "yes;no")
 
 if(WOLFSSL_CRYPT_ONLY)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_ONLY")
@@ -842,6 +860,7 @@ if(WOLFSSL_CRYPT_ONLY)
                WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2
                WOLFSSL_PKCALLBACKS WOLFSSL_QUIC
                WOLFSSL_RENEGOTIATION_INDICATION WOLFSSL_SECURE_RENEGOTIATION
+               WOLFSSL_SECURE_RENEGOTIATION_INFO
                WOLFSSL_SNI WOLFSSL_SRTP WOLFSSL_TLSX)
         force_option(${_o} "no")
     endforeach()
@@ -1150,6 +1169,24 @@ else()
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN")
 endif()
 
+# AES table cache-line touching: aes.c turns it on for RISC-V by default, and
+# "no" clears that default without the rest of WOLFSSL_HARDEN=no. Raw cache
+# STRING as for WOLFSSL_HARDEN_TLS: the option shares the macro's name, so
+# "default" is blanked below to keep the #cmakedefine in options.h.in from
+# seeing a true value when neither macro is emitted.
+set(WOLFSSL_AES_TOUCH_LINES "default" CACHE STRING
+    "Touch every AES table cache line per lookup for cache-timing resistance, one of default/yes/no (default: aes.c decides, on for RISC-V)")
+set_property(CACHE WOLFSSL_AES_TOUCH_LINES PROPERTY STRINGS "default;yes;no")
+if(WOLFSSL_AES_TOUCH_LINES STREQUAL "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_TOUCH_LINES")
+elseif(WOLFSSL_AES_TOUCH_LINES STREQUAL "no")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_NO_TOUCH_LINES")
+elseif(WOLFSSL_AES_TOUCH_LINES STREQUAL "default")
+    set(WOLFSSL_AES_TOUCH_LINES "")
+else()
+    message(FATAL_ERROR "Invalid value for WOLFSSL_AES_TOUCH_LINES -- must be default, yes, or no.")
+endif()
+
 add_option(WOLFSSL_OPENSSLEXTRA
     "Enable extra OpenSSL API, size+ (default: disabled)"
     "no" "yes;no")
@@ -1339,8 +1376,12 @@ if (WOLFSSL_LMS)
 
     if (WOLFSSL_LMSSHAKE256)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LMS_SHAKE256")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
 
         set_wolfssl_definitions("WOLFSSL_LMS_SHAKE256"      RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHA3"              RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE256"          RESULT)
     endif()
 endif()
 
@@ -1829,6 +1870,19 @@ if(WOLFSSL_CSHAKE)
     override_cache(WOLFSSL_SHAKE256 "yes")
 endif()
 
+# Generic SP800-90B noise source (wc_NoiseSrc_*); conditions with SHA3-256
+add_option("WOLFSSL_NOISESRC"
+    "Enable the generic SP800-90B noise source layer (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_NOISESRC)
+    # wolfRand does not build SHA3.
+    if("${FIPS_VERSION}" STREQUAL "rand")
+        message(FATAL_ERROR "WOLFSSL_NOISESRC is not supported with FIPS rand")
+    endif()
+    override_cache(WOLFSSL_SHA3 "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NOISE_SRC")
+endif()
+
 # SHA512
 add_option("WOLFSSL_SHA512"
     "Enable wolfSSL SHA-512 support (default: enabled)"
@@ -2184,6 +2238,7 @@ endif()
 add_option("WOLFSSL_TLS" "Enable TLS (default: enabled)" "yes" "yes;no")
 if(NOT WOLFSSL_TLS)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_TLS")
+    default_option(WOLFSSL_SECURE_RENEGOTIATION_INFO "no")
 endif()
 
 # TLSv1.2
@@ -2763,7 +2818,6 @@ endif()
 # TODO:
 #       - CRL monitor
 #       - User crypto
-#       - Whitewood netRandom client library
 #       - Max fragment length
 #       - ALPN
 #       - Trusted CA indication
@@ -3670,15 +3724,6 @@ if(WOLFSSL_KERNEL_STACK_DEBUG)
         )
 endif()
 
-add_option("WOLFSSL_LINUXKM_DEFAULTS"
-    "Enable default settings appropriate for kernel modules (default: disabled)"
-    "no" "yes;no")
-if(WOLFSSL_LINUXKM_DEFAULTS)
-    list(APPEND WOLFSSL_DEFINITIONS
-        "-DWOLFSSL_KERNEL_MODE_DEFAULTS"
-        )
-endif()
-
 add_option("WOLFSSL_LINUXKM_PIE"
     "Alias for kernel relocation tables, requires Linux kernel module build (default: disabled)"
     "no" "yes;no")
@@ -4081,8 +4126,48 @@ add_option("WOLFSSL_AUTOSAR"
     "Enable AUTOSAR support (default: disabled)"
     "no" "yes;no")
 if(WOLFSSL_AUTOSAR)
+    # The Crypto driver is built around Aes and the AES APIs, and this option
+    # now compiles csm.c/cryif.c/crypto.c rather than only defining a macro,
+    # so AES is a prerequisite of the port itself and not just of its MAC
+    # services. Without this the build reaches C compilation with Aes
+    # unavailable.
+    if(NOT WOLFSSL_AES)
+        message(FATAL_ERROR "WOLFSSL_AUTOSAR requires AES")
+    endif()
+    # The cipher services are AES-CBC specifically: wc_AesCbcEncrypt() and
+    # wc_AesCbcDecrypt() are compiled out with WOLFSSL_AESCBC=no, so AES alone
+    # is not enough to build the driver.
+    if(NOT WOLFSSL_AESCBC)
+        message(FATAL_ERROR "WOLFSSL_AUTOSAR requires AES-CBC")
+    endif()
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_AUTOSAR"
+        )
+endif()
+
+add_option("WOLFSSL_AUTOSAR_CMAC"
+    "Enable AUTOSAR MAC generate/verify services using AES-CMAC, requires WOLFSSL_AUTOSAR (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_AUTOSAR_CMAC)
+    if(NOT WOLFSSL_AUTOSAR)
+        message(FATAL_ERROR
+            "WOLFSSL_AUTOSAR_CMAC requires WOLFSSL_AUTOSAR")
+    endif()
+    # AES is checked by the WOLFSSL_AUTOSAR block above, which this option
+    # requires, so there is nothing to repeat here.
+    # The driver calls wc_InitCmac()/wc_CmacUpdate()/wc_CmacFinalNoFree().
+    # The WOLFSSL_CMAC block runs earlier in this file, so turning the option
+    # on here also has to add the definitions it would have added --
+    # WOLFSSL_AES_DIRECT included, since cmac.c compiles out its WC_CMAC_AES
+    # case without it and wc_InitCmac() then fails at runtime.
+    if(NOT WOLFSSL_CMAC)
+        override_cache(WOLFSSL_CMAC "yes")
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_CMAC"
+            "-DWOLFSSL_AES_DIRECT")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_AUTOSAR_CMAC"
         )
 endif()
 
@@ -4391,6 +4476,16 @@ if(WOLFSSL_SECURE_RENEGOTIATION)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SECURE_RENEGOTIATION"
         "-DHAVE_SERVER_RENEGOTIATION_INFO")
+endif()
+
+# Secure renegotiation info
+add_option("WOLFSSL_SECURE_RENEGOTIATION_INFO"
+    "Enable secure renegotiation info extension (default: enabled)"
+    "yes" "yes;no")
+if(WOLFSSL_SECURE_RENEGOTIATION_INFO AND WOLFSSL_ASN AND WOLFSSL_TLSV12
+   AND NOT WOLFSSL_RENEGOTIATION_INDICATION)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SERVER_RENEGOTIATION_INFO")
 endif()
 
 # Per-thread OpenSSL-compat error queue
