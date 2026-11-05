@@ -7023,6 +7023,8 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
             (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
             else if (x509->pubKeyOID == ED448k) {
                 key->type = WC_EVP_PKEY_ED448;
+                /* Certificate holds the raw key, not an SPKI. */
+                key->isRaw = 1;
             }
         #endif
         #ifdef OPENSSL_EXTRA

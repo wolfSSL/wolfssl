@@ -1195,6 +1195,24 @@ int test_wolfSSL_EVP_PKEY_dup(void)
         ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_ED448, 0, pub,
             sizeof(pub), pubHdr, sizeof(pubHdr)), TEST_SUCCESS);
     }
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    /* X509_get_pubkey() caches the raw key from the certificate. */
+    {
+        X509* x509 = NULL;
+
+        ExpectNotNull(x509 = X509_load_certificate_file(
+            "./certs/ed448/server-ed448.pem", SSL_FILETYPE_PEM));
+        ExpectNotNull(key = X509_get_pubkey(x509));
+        ExpectIntEQ(key->isRaw, 1);
+        ExpectIntEQ(key->pkey_sz, ED448_PUB_KEY_SIZE);
+        ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, EVP_PKEY_ED448, 0),
+            TEST_SUCCESS);
+        EVP_PKEY_free(key);
+        key = NULL;
+        X509_free(x509);
+    }
+#endif
 #endif
 #ifdef HAVE_CURVE25519
     {
