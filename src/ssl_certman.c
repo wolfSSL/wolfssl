@@ -3221,6 +3221,179 @@ int AddSigner(WOLFSSL_CERT_MANAGER* cm, Signer *s)
     return 0;
 }
 
+#ifndef NO_RSA
+/* Returns the size in bytes of the modulus of an RSA public key, 0 when it
+ * does not decode. */
+static word32 CAKeyRsaSize(const byte* pubKey, word32 pubKeySz)
+{
+    const byte* n = NULL;
+    word32 nSz = 0;
+    word32 idx = 0;
+
+    if (wc_RsaPublicKeyDecode_ex(pubKey, &idx, pubKeySz, &n, &nSz, NULL,
+            NULL) != 0) {
+        return 0;
+    }
+    while (nSz > 0 && *n == 0) {
+        n++;
+        nSz--;
+    }
+    return nSz;
+}
+#endif /* !NO_RSA */
+
+#ifdef HAVE_ECC
+/* Returns the size in bytes of the curve of an ECC public key, 0 when it
+ * does not decode. */
+static word32 CAKeyEccSize(const byte* pubKey, word32 pubKeySz, void* heap)
+{
+    word32 sz = 0;
+    word32 idx = 0;
+    WC_DECLARE_VAR(key, ecc_key, 1, 0);
+
+    WC_ALLOC_VAR_EX(key, ecc_key, 1, heap, DYNAMIC_TYPE_ECC, return 0);
+    if (wc_ecc_init_ex(key, heap, INVALID_DEVID) == 0) {
+        if (wc_EccPublicKeyDecode(pubKey, &idx, key, pubKeySz) == 0) {
+            sz = (word32)wc_ecc_size(key);
+        }
+        wc_ecc_free(key);
+    }
+    WC_FREE_VAR_EX(key, heap, DYNAMIC_TYPE_ECC);
+    return sz;
+}
+#endif /* HAVE_ECC */
+
+/* Checks a CA's key against the cert manager's minimum key sizes, in bytes:
+ * of the modulus for RSA, of the curve for ECC. pubKey is the key as a
+ * DecodedCert stores it.
+ * Returns 0, or a key size error when the key is too small. */
+int CheckCAKeySize(WOLFSSL_CERT_MANAGER* cm, word32 keyOID,
+    const byte* pubKey, word32 pubKeySize)
+{
+    int ret = 0;
+    word32 keySz;
+
+    (void)pubKey;
+    (void)pubKeySize;
+    (void)keySz;
+
+    switch (keyOID) {
+    #ifndef NO_RSA
+        #ifdef WC_RSA_PSS
+        case RSAPSSk:
+        #endif
+        case RSAk:
+            keySz = CAKeyRsaSize(pubKey, pubKeySize);
+            if (cm->minRsaKeySz < 0 || keySz < (word32)cm->minRsaKeySz) {
+                ret = RSA_KEY_SIZE_E;
+                WOLFSSL_MSG_CERT_LOG("\tCA RSA key size error");
+                WOLFSSL_MSG_CERT_EX("\tCA RSA key size = %d; "
+                    "minRsaKeySz = %d", keySz, cm->minRsaKeySz);
+            }
+            break;
+    #endif /* !NO_RSA */
+        #ifdef HAVE_ECC
+        case ECDSAk:
+            keySz = CAKeyEccSize(pubKey, pubKeySize, cm->heap);
+            if (cm->minEccKeySz < 0 || keySz < (word32)cm->minEccKeySz) {
+                ret = ECC_KEY_SIZE_E;
+                WOLFSSL_MSG_CERT_LOG("\tCA ECC key size error");
+                WOLFSSL_MSG_CERT_EX("\tCA ECC key size = %d; "
+                    "minEccKeySz = %d", keySz, cm->minEccKeySz);
+            }
+            break;
+        #endif /* HAVE_ECC */
+        #ifdef HAVE_ED25519
+        case ED25519k:
+            if (cm->minEccKeySz < 0 ||
+                               ED25519_KEY_SIZE < (word16)cm->minEccKeySz) {
+                ret = ECC_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ECC key size error");
+            }
+            break;
+        #endif /* HAVE_ED25519 */
+        #ifdef HAVE_ED448
+        case ED448k:
+            if (cm->minEccKeySz < 0 ||
+                                 ED448_KEY_SIZE < (word16)cm->minEccKeySz) {
+                ret = ECC_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ECC key size error");
+            }
+            break;
+        #endif /* HAVE_ED448 */
+        #if defined(HAVE_FALCON)
+        case FALCON_LEVEL1k:
+            if (cm->minFalconKeySz < 0 ||
+                      FALCON_LEVEL1_KEY_SIZE < (word16)cm->minFalconKeySz) {
+                ret = FALCON_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA Falcon level 1 key size error");
+            }
+            break;
+        case FALCON_LEVEL5k:
+            if (cm->minFalconKeySz < 0 ||
+                      FALCON_LEVEL5_KEY_SIZE < (word16)cm->minFalconKeySz) {
+                ret = FALCON_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA Falcon level 5 key size error");
+            }
+            break;
+        #endif /* HAVE_FALCON */
+        #if defined(WOLFSSL_HAVE_MLDSA)
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+            if (cm->minMlDsaKeySz < 0 ||
+                WC_MLDSA_44_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                ret = MLDSA_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ML-DSA level 2 key size error");
+            }
+            break;
+        case DILITHIUM_LEVEL3k:
+            if (cm->minMlDsaKeySz < 0 ||
+                WC_MLDSA_65_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                ret = MLDSA_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ML-DSA level 3 key size error");
+            }
+            break;
+        case DILITHIUM_LEVEL5k:
+            if (cm->minMlDsaKeySz < 0 ||
+                WC_MLDSA_87_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                ret = MLDSA_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ML-DSA level 5 key size error");
+            }
+            break;
+        #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
+        case ML_DSA_44k:
+            if (cm->minMlDsaKeySz < 0 ||
+                WC_MLDSA_44_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                ret = MLDSA_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ML-DSA level 2 key size error");
+            }
+            break;
+        case ML_DSA_65k:
+            if (cm->minMlDsaKeySz < 0 ||
+                WC_MLDSA_65_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                ret = MLDSA_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ML-DSA level 3 key size error");
+            }
+            break;
+        case ML_DSA_87k:
+            if (cm->minMlDsaKeySz < 0 ||
+                WC_MLDSA_87_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                ret = MLDSA_KEY_SIZE_E;
+                WOLFSSL_MSG("\tCA ML-DSA level 5 key size error");
+            }
+            break;
+        #endif /* WOLFSSL_HAVE_MLDSA */
+
+        default:
+            WOLFSSL_MSG("\tNo key size check done on CA");
+            break; /* no size check if key type is not in switch */
+    }
+
+    (void)cm;
+    (void)pubKeySize;
+    return ret;
+}
+
 /* owns der, internal now uses too */
 /* type flag ids from user or from chain received during verify
    don't allow chain ones to be added w/o isCA extension */
@@ -3294,119 +3467,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
     /* check CA key size */
     if (verify && (ret == 0 )) {
-        switch (cert->keyOID) {
-        #ifndef NO_RSA
-            #ifdef WC_RSA_PSS
-            case RSAPSSk:
-            #endif
-            case RSAk:
-                if (cm->minRsaKeySz < 0 ||
-                                   cert->pubKeySize < (word16)cm->minRsaKeySz) {
-                    ret = RSA_KEY_SIZE_E;
-                    WOLFSSL_MSG_CERT_LOG("\tCA RSA key size error");
-                    WOLFSSL_MSG_CERT_EX("\tCA RSA pubKeySize = %d; "
-                                                "minRsaKeySz = %d",
-                                   cert->pubKeySize, cm->minRsaKeySz);
-                }
-                break;
-        #endif /* !NO_RSA */
-            #ifdef HAVE_ECC
-            case ECDSAk:
-                if (cm->minEccKeySz < 0 ||
-                                   cert->pubKeySize < (word16)cm->minEccKeySz) {
-                    ret = ECC_KEY_SIZE_E;
-                    WOLFSSL_MSG_CERT_LOG("\tCA ECC key size error");
-                    WOLFSSL_MSG_CERT_EX("\tCA ECC pubKeySize = %d; "
-                                                 "minEccKeySz = %d",
-                                   cert->pubKeySize, cm->minEccKeySz);
-                }
-                break;
-            #endif /* HAVE_ECC */
-            #ifdef HAVE_ED25519
-            case ED25519k:
-                if (cm->minEccKeySz < 0 ||
-                                   ED25519_KEY_SIZE < (word16)cm->minEccKeySz) {
-                    ret = ECC_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ECC key size error");
-                }
-                break;
-            #endif /* HAVE_ED25519 */
-            #ifdef HAVE_ED448
-            case ED448k:
-                if (cm->minEccKeySz < 0 ||
-                                     ED448_KEY_SIZE < (word16)cm->minEccKeySz) {
-                    ret = ECC_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ECC key size error");
-                }
-                break;
-            #endif /* HAVE_ED448 */
-            #if defined(HAVE_FALCON)
-            case FALCON_LEVEL1k:
-                if (cm->minFalconKeySz < 0 ||
-                          FALCON_LEVEL1_KEY_SIZE < (word16)cm->minFalconKeySz) {
-                    ret = FALCON_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Falcon level 1 key size error");
-                }
-                break;
-            case FALCON_LEVEL5k:
-                if (cm->minFalconKeySz < 0 ||
-                          FALCON_LEVEL5_KEY_SIZE < (word16)cm->minFalconKeySz) {
-                    ret = FALCON_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Falcon level 5 key size error");
-                }
-                break;
-            #endif /* HAVE_FALCON */
-            #if defined(WOLFSSL_HAVE_MLDSA)
-            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
-            case DILITHIUM_LEVEL2k:
-                if (cm->minMlDsaKeySz < 0 ||
-                    WC_MLDSA_44_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
-                    ret = MLDSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ML-DSA level 2 key size error");
-                }
-                break;
-            case DILITHIUM_LEVEL3k:
-                if (cm->minMlDsaKeySz < 0 ||
-                    WC_MLDSA_65_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
-                    ret = MLDSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ML-DSA level 3 key size error");
-                }
-                break;
-            case DILITHIUM_LEVEL5k:
-                if (cm->minMlDsaKeySz < 0 ||
-                    WC_MLDSA_87_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
-                    ret = MLDSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ML-DSA level 5 key size error");
-                }
-                break;
-            #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
-            case ML_DSA_44k:
-                if (cm->minMlDsaKeySz < 0 ||
-                    WC_MLDSA_44_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
-                    ret = MLDSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ML-DSA level 2 key size error");
-                }
-                break;
-            case ML_DSA_65k:
-                if (cm->minMlDsaKeySz < 0 ||
-                    WC_MLDSA_65_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
-                    ret = MLDSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ML-DSA level 3 key size error");
-                }
-                break;
-            case ML_DSA_87k:
-                if (cm->minMlDsaKeySz < 0 ||
-                    WC_MLDSA_87_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
-                    ret = MLDSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ML-DSA level 5 key size error");
-                }
-                break;
-            #endif /* WOLFSSL_HAVE_MLDSA */
-
-            default:
-                WOLFSSL_MSG("\tNo key size check done on CA");
-                break; /* no size check if key type is not in switch */
-        }
+        ret = CheckCAKeySize(cm, cert->keyOID, cert->publicKey,
+            cert->pubKeySize);
     }
 
     if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA &&
