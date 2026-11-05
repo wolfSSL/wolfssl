@@ -1618,7 +1618,7 @@ int wc_ValidateEccsiPvt(EccsiKey* key, const ecc_point* pvt, int* valid)
 {
     int err = 0;
 
-    if ((key == NULL)| (pvt == NULL) || (valid == NULL)) {
+    if ((key == NULL) || (pvt == NULL) || (valid == NULL)) {
         err = BAD_FUNC_ARG;
     }
 
@@ -1630,6 +1630,7 @@ int wc_ValidateEccsiPvt(EccsiKey* key, const ecc_point* pvt, int* valid)
         err = wc_ecc_copy_point(pvt, &key->pubkey.pubkey);
     }
     if (err == 0) {
+        key->pubkey.type = ECC_PUBLICKEY;
         *valid = (wc_ecc_check_key(&key->pubkey) == 0);
     }
 

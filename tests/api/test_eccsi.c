@@ -485,11 +485,7 @@ int test_wc_Eccsi_DecisionCoverage(void)
 #endif
 
     /* --- wc_ValidateEccsiPvt() (CLIENT) ---
-     * eccsi.c ~line 1579: (key==NULL) | (pvt==NULL) || (valid==NULL)
-     * (first two operands are combined with a bitwise '|', not '&&'/'||',
-     *  so both are always evaluated; MC/DC's baseline+single-flip pattern
-     *  still applies since the result is the same 0/1 boolean algebra.)
-     */
+     * eccsi.c: (key==NULL) || (pvt==NULL) || (valid==NULL) */
     ExpectIntEQ(wc_ValidateEccsiPvt(NULL, pvt, &valid),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ValidateEccsiPvt(&keyPub, NULL, &valid),
@@ -870,9 +866,11 @@ int test_wc_Eccsi_KeyReuse(void)
     WC_RNG rng;
     mp_int ssk;
     ecc_point* pvt = NULL;
+    ecc_point* badPvt = NULL;
     char mail[] = "test@wolfssl.com";
     byte* id = (byte*)mail;
     word32 idSz;
+    int valid;
     int verified;
     int round;
     byte hash[WC_MAX_DIGEST_SIZE];
@@ -887,6 +885,7 @@ int test_wc_Eccsi_KeyReuse(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(pvt = wc_ecc_new_point());
+    ExpectNotNull(badPvt = wc_ecc_new_point());
     ExpectIntEQ(mp_init(&ssk), MP_OKAY);
     ExpectIntEQ(wc_InitEccsiKey(&key, HEAP_HINT, INVALID_DEVID), 0);
 
@@ -896,6 +895,9 @@ int test_wc_Eccsi_KeyReuse(void)
         ExpectIntEQ(wc_MakeEccsiKey(&key, &rng), 0);
         ExpectIntEQ(wc_MakeEccsiPair(&key, &rng, WC_HASH_TYPE_SHA256, id,
             idSz, &ssk, pvt), 0);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
         ExpectIntEQ(wc_HashEccsiId(&key, WC_HASH_TYPE_SHA256, id, idSz, pvt,
             hash, &hashSz), 0);
         ExpectIntEQ(wc_SetEccsiHash(&key, hash, hashSz), 0);
@@ -903,11 +905,32 @@ int test_wc_Eccsi_KeyReuse(void)
         sigSz = sizeof(sig);
         ExpectIntEQ(wc_SignEccsiHash(&key, &rng, WC_HASH_TYPE_SHA256, msg,
             (word32)sizeof(msg), sig, &sigSz), 0);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
         ExpectIntEQ(wc_VerifyEccsiHash(&key, WC_HASH_TYPE_SHA256, msg,
             (word32)sizeof(msg), sig, sigSz, &verified), 0);
         ExpectIntEQ(verified, 1);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
     }
 
+    /* A PVT off the curve or at infinity is rejected. */
+    ExpectIntEQ(wc_ecc_copy_point(pvt, badPvt), 0);
+    ExpectIntEQ(mp_add_d(badPvt->y, 1, badPvt->y), MP_OKAY);
+    valid = 1;
+    ExpectIntEQ(wc_ValidateEccsiPvt(&key, badPvt, &valid), 0);
+    ExpectIntEQ(valid, 0);
+    ExpectIntEQ(mp_set(badPvt->x, 0), MP_OKAY);
+    ExpectIntEQ(mp_set(badPvt->y, 0), MP_OKAY);
+    valid = 1;
+    ExpectIntEQ(wc_ValidateEccsiPvt(&key, badPvt, &valid), 0);
+    ExpectIntEQ(valid, 0);
+
+    if (badPvt != NULL) {
+        wc_ecc_del_point(badPvt);
+    }
     if (pvt != NULL) {
         wc_ecc_del_point(pvt);
     }
