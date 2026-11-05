@@ -7089,6 +7089,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     byte* der;
 #endif
     int multiPart = 0, keepContent;
+    int hasFooter, hashedFooter;
     int contentLen = 0;
 
     byte* pkiMsg    = in;
@@ -7100,7 +7101,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     byte*   src = NULL;
     word32  srcSz;
 #else
-    word32 callerContentSz;
+    word32 callerContentSz = 0;
 #endif
     byte* callerContent = NULL;
     byte  restoreContent = 1;
@@ -7123,12 +7124,9 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     if ((hashSz > 0 && hashBuf == NULL) || (pkiMsg2Sz > 0 && pkiMsg2 == NULL)) {
         return BAD_FUNC_ARG;
     }
+    hasFooter = (in2 != NULL && in2Sz > 0);
+    hashedFooter = (hasFooter && hashBuf != NULL && hashSz > 0);
     idx = 0;
-#ifdef NO_PKCS7_STREAM
-    wc_PKCS7_DropVerifyContent(pkcs7, in2 != NULL && in2Sz > 0);
-    callerContent   = pkcs7->content;
-    callerContentSz = pkcs7->contentSz;
-#endif
 
 #ifdef ASN_BER_TO_DER
     if (pkcs7->derSz > 0 && pkcs7->der) {
@@ -7146,8 +7144,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
     switch (pkcs7->state) {
         case WC_PKCS7_START:
-        #ifndef NO_PKCS7_STREAM
-            wc_PKCS7_DropVerifyContent(pkcs7, in2 != NULL && in2Sz > 0);
+            wc_PKCS7_DropVerifyContent(pkcs7, hashedFooter);
+        #ifdef NO_PKCS7_STREAM
+            callerContent   = pkcs7->content;
+            callerContentSz = pkcs7->contentSz;
+        #else
             pkcs7->stream->callerContent   = pkcs7->content;
             pkcs7->stream->callerContentSz = pkcs7->contentSz;
 
@@ -7177,7 +7178,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
             /* determine total message size */
             totalSz = pkiMsgSz;
-            if (pkiMsg2 && pkiMsg2Sz > 0) {
+            if (hashedFooter) {
                 totalSz += pkiMsg2Sz + pkcs7->contentSz;
             }
 
@@ -7221,7 +7222,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                                                         inSz;
 
                 totalSz = pkiMsgSz;
-                if (pkiMsg2 && pkiMsg2Sz > 0) {
+                if (hashedFooter) {
                     totalSz += pkiMsg2Sz + pkcs7->contentSz;
                 }
 
@@ -7336,7 +7337,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &stateIdx, &idx)) != 0) {
                 break;
             }
-            if (pkiMsg2 && pkiMsg2Sz > 0) {
+            if (hashedFooter) {
                 pkcs7->stream->maxLen += pkiMsg2Sz + pkcs7->contentSz;
             }
             wc_PKCS7_StreamStoreVar(pkcs7, totalSz, 0, 0);
@@ -7586,7 +7587,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* update idx if successful */
             if (ret == 0) {
                 /* support using header and footer without content */
-                if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
+                if (hashedFooter) {
                     localIdx = 0;
             #ifndef NO_PKCS7_STREAM
                     pkcs7->stream->noContent = 1;
@@ -7658,7 +7659,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 if (multiPart) {
                     idx = pkcs7->stream->currContIdx;
                 }
-                if (in2Sz > 0 && hashSz > 0) {
+                if (hashedFooter) {
                     /* seems no content included */
                     pkcs7->stream->expected = + ASN_TAG_SZ + MAX_LENGTH_SZ;
                 }
@@ -7696,7 +7697,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             FALL_THROUGH;
 
         case WC_PKCS7_VERIFY_STAGE3:
-            keepContent = !(pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0);
+            keepContent = !hashedFooter;
         #ifndef NO_PKCS7_STREAM
             ret = wc_PKCS7_HandleOctetStrings(pkcs7, in, inSz,
                                                 &stateIdx, &idx, keepContent);
@@ -7761,8 +7762,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* get parts of content */
             if (ret == 0 && multiPart) {
                 int i = 0;
-                keepContent = !(pkiMsg2 && pkiMsg2Sz > 0 && hashBuf &&
-                                                                hashSz > 0);
+                keepContent = !hashedFooter;
 
                 if (keepContent) {
                     /* Create a buffer to hold content of OCTET_STRINGs. */
@@ -7804,7 +7804,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 contentSz = length;
 
                 /* support using header and footer without content */
-                if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
+                if (hashedFooter) {
                     /* Content not provided, use provided pkiMsg2 footer */
                     content = NULL;
                     localIdx = 0;
@@ -7863,7 +7863,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
        case WC_PKCS7_VERIFY_STAGE4:
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;
@@ -7962,7 +7962,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 break;
             }
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0 && hashBuf && hashSz > 0) {
+            if (hashedFooter) {
                 stateIdx = idx; /* case where all data was read from in2 */
             }
 
@@ -7987,7 +7987,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE5:
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;
@@ -8022,7 +8022,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* store current index to get the signerInfo index later  */
             certIdx2 = idx;
             /* store certificate if needed */
-            if (length > 0 && in2Sz == 0) {
+            if (length > 0 && !hasFooter) {
                 /* free tmpCert if not NULL */
                 XFREE(pkcs7->stream->tmpCert, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->stream->tmpCert = (byte*)XMALLOC((word32)length,
@@ -8232,7 +8232,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         case WC_PKCS7_VERIFY_STAGE6:
         #ifndef NO_PKCS7_STREAM
 
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;
@@ -8373,7 +8373,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
             wc_PKCS7_StreamStoreVar(pkcs7, pkiMsg2Sz, 0, length);
 
-            if (in2 && in2Sz > 0 && hashBuf && hashSz > 0) {
+            if (hashedFooter) {
                 if (length > 0) {
                     pkcs7->stream->expected = (word32)length;
                 }
@@ -8402,7 +8402,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE7:
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;

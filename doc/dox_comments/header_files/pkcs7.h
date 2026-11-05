@@ -416,6 +416,9 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     the next verify or wc_PKCS7_Free() on the same structure. A verify that
     fails with an error other than PKCS7_SIGNEEDS_CHECK leaves pkcs7->content
     as the caller set it.
+    Set pkcs7->contentSz to the content length before each header/footer
+    verify, since a value left by an earlier verify on the same structure is
+    kept.
 
     \return 0 Returned on successfully extracting the information
     from the message
@@ -460,7 +463,7 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     to verify and decode
     \param pkiMsgHeadSz size of the signed message header
     \param pkiMsgFoot pointer to the buffer containing the signed message footer
-    to verify and decode
+    to verify and decode, only supported together with hashBuf
     \param pkiMsgFootSz size of the signed message footer
 
     _Example_

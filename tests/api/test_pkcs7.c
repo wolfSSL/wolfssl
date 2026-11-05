@@ -9247,6 +9247,7 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void)
     byte*  msgCopy = NULL;
     byte*  head = NULL;
     byte*  foot = NULL;
+    byte*  full = NULL;
     word32 headSz = 0;
     word32 footSz = 0;
     byte   hash[WC_SHA256_DIGEST_SIZE];
@@ -9453,6 +9454,58 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void)
     wc_PKCS7_Free(other);
     other = NULL;
 
+    /* A footer without a hash gives the same result after a full verify as on
+     * a fresh object. */
+    ExpectNotNull(full = (byte*)XMALLOC(headSz + sizeof(bigData) + footSz,
+        HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+    if (full != NULL) {
+        XMEMCPY(full, head, headSz);
+        XMEMCPY(full + headSz, bigData, sizeof(bigData));
+        XMEMCPY(full + headSz + sizeof(bigData), foot, footSz);
+    }
+    for (i = 0; i < 2; i++) {
+        byte*  in2 = (i == 0) ? foot : bigData;
+        word32 in2Sz = (i == 0) ? footSz : (word32)sizeof(bigData);
+        int    freshRet = 0;
+
+        ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+        if (other != NULL) {
+            freshRet = wc_PKCS7_VerifySignedData_ex(other, NULL, 0, full,
+                headSz + (word32)sizeof(bigData) + footSz, in2, in2Sz);
+        }
+        wc_PKCS7_Free(other);
+        other = NULL;
+        ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg,
+            (word32)signedSz), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(other, NULL, 0, full,
+            headSz + (word32)sizeof(bigData) + footSz, in2, in2Sz), freshRet);
+        wc_PKCS7_Free(other);
+        other = NULL;
+    }
+
+    /* A verify called in another operation's state leaves the content the
+     * last verify handed back. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    if (other != NULL) {
+        other->state = WC_PKCS7_AUTHENV_7;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (other != NULL) {
+        ExpectIntEQ(other->contentSz, sizeof(data));
+        ExpectNotNull(other->content);
+        if (other->content != NULL) {
+            ExpectBufEQ(other->content, data, sizeof(data));
+        }
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
     /* Larger detached content than the previous verify left behind. */
     ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
@@ -9483,6 +9536,7 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void)
         (word32)detachedSz), 0);
     wc_PKCS7_Free(other);
 
+    XFREE(full, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(foot, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(head, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(badMsg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
