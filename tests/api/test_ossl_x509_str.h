@@ -48,6 +48,10 @@ int test_X509_verify_cert_internal_err(void);
 int test_X509_verify_cert_ca_no_keycertsign(void);
 int test_X509_verify_cert_selfsigned_anchor_no_keycertsign(void);
 int test_X509_verify_cert_stale_temp_ca(void);
+int test_X509_verify_cert_chains(void);
+int test_X509_verify_cert_oom(void);
+int test_X509_verify_cert_tls_cached_ca(void);
+int test_X509_STORE_add_cert_expired(void);
 int test_X509_STORE_untrusted(void);
 int test_X509_STORE_InvalidCa(void);
 int test_X509_STORE_InvalidCa_CtxCallback(void);
@@ -108,6 +112,10 @@ int test_wolfSSL_CTX_set_cert_store(void);
     TEST_DECL_GROUP("ossl_x509_store",                                         \
                     test_X509_verify_cert_selfsigned_anchor_no_keycertsign),   \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_verify_cert_stale_temp_ca),   \
+    TEST_DECL_GROUP("ossl_x509_store", test_X509_verify_cert_chains),          \
+    TEST_DECL_GROUP("ossl_x509_store", test_X509_verify_cert_oom),             \
+    TEST_DECL_GROUP("ossl_x509_store", test_X509_verify_cert_tls_cached_ca),   \
+    TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_add_cert_expired),      \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_untrusted),             \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_InvalidCa),             \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_InvalidCa_CtxCallback), \
