@@ -5980,10 +5980,10 @@ int test_dtls12_nonblock_ocsp(void)
 }
 #endif
 
-/* WOLFSSL_COPY_CERT (implied by OPENSSL_ALL) gives every WOLFSSL its own copy of
- * the CTX certificate, which sets ssl->buffers.weOwnCert and takes the CTX
- * request cache out of play entirely - there is nothing to test in that
- * configuration. */
+/* WOLFSSL_COPY_CERT (implied by OPENSSL_ALL) gives every WOLFSSL its own
+ * reference to, or copy of, the CTX certificate, which sets
+ * ssl->buffers.weOwnCert and takes the CTX request cache out of play entirely -
+ * there is nothing to test in that configuration. */
 #if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER) && \

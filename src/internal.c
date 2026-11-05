@@ -3563,17 +3563,14 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif /* SINGLE_THREADED */
 
 #ifndef NO_CERTS
-    if (ctx->privateKey != NULL && ctx->privateKey->buffer != NULL) {
-        ForceZero(ctx->privateKey->buffer, ctx->privateKey->length);
-    }
+    /* FreeDer() zeroes a private key when the last holder lets go of it. An
+     * SSL made from this CTX can still hold it (WOLFSSL_DER_REFCOUNT), so it
+     * must not be zeroed here. */
     FreeDer(&ctx->privateKey);
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
     FreeDer(&ctx->privateKeyMask);
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    if (ctx->altPrivateKey != NULL && ctx->altPrivateKey->buffer != NULL) {
-        ForceZero(ctx->altPrivateKey->buffer, ctx->altPrivateKey->length);
-    }
     FreeDer(&ctx->altPrivateKey);
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
     FreeDer(&ctx->altPrivateKeyMask);
@@ -8282,18 +8279,22 @@ static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
-/* Copy the certificate, certificate chain and private key buffers from the
- * CTX into the SSL object. Returns 0 on success. */
-static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+/* Give the SSL object the certificate, certificate chain and private key of
+ * the CTX. The SSL must not hold any of its own yet.
+ *
+ * With WOLFSSL_COPY_CERT and WOLFSSL_COPY_KEY the SSL keeps what it is given
+ * even if the CTX replaces or frees them later, as with OpenSSL: it holds a
+ * reference to the CTX's buffer (WOLFSSL_DER_REFCOUNT) or a copy, and owns
+ * that. Otherwise it points at the CTX's buffers and owns nothing.
+ *
+ * Returns 0 on success. */
+int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     int ret = 0;
 
 #ifdef WOLFSSL_COPY_CERT
-    /* If WOLFSSL_COPY_CERT is defined, always copy the cert */
     if (ctx->certificate != NULL) {
-        ret = AllocCopyDer(&ssl->buffers.certificate, ctx->certificate->buffer,
-            ctx->certificate->length, ctx->certificate->type,
-            ctx->certificate->heap);
+        ret = ShareDer(&ssl->buffers.certificate, ctx->certificate);
         if (ret != 0) {
             return ret;
         }
@@ -8301,9 +8302,7 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.weOwnCert = 1;
     }
     if (ctx->certChain != NULL) {
-        ret = AllocCopyDer(&ssl->buffers.certChain, ctx->certChain->buffer,
-            ctx->certChain->length, ctx->certChain->type,
-            ctx->certChain->heap);
+        ret = ShareDer(&ssl->buffers.certChain, ctx->certChain);
         if (ret != 0) {
             return ret;
         }
@@ -8319,12 +8318,10 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
 #ifdef WOLFSSL_COPY_KEY
     if (ctx->privateKey != NULL) {
-        if (ssl->buffers.key != NULL) {
+        if (ssl->buffers.weOwnKey) {
             FreeDer(&ssl->buffers.key);
         }
-        ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
-            ctx->privateKey->length, ctx->privateKey->type,
-            ctx->privateKey->heap);
+        ret = ShareDer(&ssl->buffers.key, ctx->privateKey);
         if (ret != 0) {
             return ret;
         }

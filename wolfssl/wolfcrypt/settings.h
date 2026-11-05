@@ -5235,17 +5235,21 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef WOLFSSL_DYNAMIC_PEER_CERT
 #endif
 
-/* Always copy certificate(s) from SSL CTX to each SSL object on creation,
- * if this is not defined then each SSL object shares a pointer to the
- * original certificate buffer owned by the SSL CTX. */
+/* Each SSL object keeps the certificate(s) of its SSL CTX as they were when it
+ * was created, even if the CTX replaces or frees them later, as OpenSSL does.
+ * The SSL holds a reference to the CTX's buffer, or a copy of it where DER
+ * buffers cannot be reference counted (see WOLFSSL_DER_REFCOUNT). If this is
+ * not defined then each SSL object shares a pointer to the original
+ * certificate buffer owned by the SSL CTX, which must then not be replaced
+ * while SSL objects made from it exist. */
 #if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_CERT)
     #undef WOLFSSL_COPY_CERT
     #define WOLFSSL_COPY_CERT
 #endif
 
-/* Always copy private key from SSL CTX to each SSL object on creation,
- * if this is not defined then each SSL object shares a pointer to the
- * original key buffer owned by the SSL CTX. */
+/* As WOLFSSL_COPY_CERT, for the private key. With WOLFSSL_BLIND_PRIVATE_KEY
+ * each SSL object always gets its own copy of the key, blinded with its own
+ * mask. */
 #if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_KEY)
     #undef WOLFSSL_COPY_KEY
     #define WOLFSSL_COPY_KEY

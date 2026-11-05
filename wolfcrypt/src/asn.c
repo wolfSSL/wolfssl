@@ -27206,6 +27206,9 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
     if (pDer) {
         int dynType = 0;
         DerBuffer* der;
+    #ifdef WOLFSSL_DER_REFCOUNT
+        int refErr;
+    #endif
 
         /* Determine dynamic type */
         switch (type) {
@@ -27232,6 +27235,11 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
         der->heap = heap;
         der->buffer = (byte*)der + sizeof(DerBuffer);
         der->length = length;
+    #ifdef WOLFSSL_DER_REFCOUNT
+        /* Cannot fail without a mutex, which WOLFSSL_DER_REFCOUNT excludes. */
+        wolfSSL_RefInit(&der->ref, &refErr);
+        (void)refErr;
+    #endif
         ret = 0; /* Success */
     } else {
         ret = BAD_FUNC_ARG;
@@ -27250,10 +27258,53 @@ int AllocCopyDer(DerBuffer** pDer, const unsigned char* buff, word32 length,
     return ret;
 }
 
+/* Makes *pDer a holder of "src" that is independent of where "src" is held:
+ * replacing or freeing the original holder's buffer does not affect it.
+ *
+ * With WOLFSSL_DER_REFCOUNT this takes a reference to "src" itself, so no
+ * holder may change the contents of a buffer once it can be shared - a holder
+ * that needs different contents replaces its buffer instead. Otherwise *pDer
+ * gets a copy of "src". Either way the caller gives it up with FreeDer().
+ *
+ * Returns 0 on success, BAD_FUNC_ARG or MEMORY_E on failure.
+ */
+int ShareDer(DerBuffer** pDer, DerBuffer* src)
+{
+    int ret;
+
+    if ((pDer == NULL) || (src == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+#ifdef WOLFSSL_DER_REFCOUNT
+    /* Cannot fail without a mutex, which WOLFSSL_DER_REFCOUNT excludes. */
+    wolfSSL_RefInc(&src->ref, &ret);
+    if (ret == 0) {
+        *pDer = src;
+    }
+#else
+    ret = AllocCopyDer(pDer, src->buffer, src->length, src->type, src->heap);
+#endif
+
+    return ret;
+}
+
 void FreeDer(DerBuffer** pDer)
 {
     if (pDer && *pDer) {
         DerBuffer* der = (DerBuffer*)*pDer;
+    #ifdef WOLFSSL_DER_REFCOUNT
+        int isZero = 0;
+        int err = 0;
+
+        /* Only the last holder frees the buffer. */
+        *pDer = NULL;
+        wolfSSL_RefDec(&der->ref, &isZero, &err);
+        (void)err;
+        if (!isZero) {
+            return;
+        }
+        wolfSSL_RefFree(&der->ref);
+    #endif
 
         /* ForceZero private keys */
         if (((der->type == PRIVATEKEY_TYPE) ||

@@ -5779,6 +5779,9 @@ typedef struct Buffers {
  * not reference counted, so a session must not point at the context's. */
 WOLFSSL_LOCAL int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
 #endif
+#ifndef NO_CERTS
+WOLFSSL_LOCAL int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
+#endif
 #if !defined(NO_CERTS) && \
     (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB))
 #ifdef WOLFSSL_API_PREFIX_MAP
