@@ -372,13 +372,32 @@ int test_wolfSSL_OBJ_txt2obj(void)
 
     for (i = 0; objs_named[i].numeric != NULL; i++) {
         ExpectNotNull(obj = OBJ_txt2obj(objs_named[i].numeric, 1));
-        wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0);
+        ExpectIntEQ(wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0),
+                (int)XSTRLEN(objs_named[i].name));
         ExpectIntEQ(XSTRNCMP(buf, objs_named[i].name, (int)XSTRLEN(buf)), 0);
-        wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1);
+        ExpectIntEQ(wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1),
+                (int)XSTRLEN(objs_named[i].numeric));
         ExpectIntEQ(XSTRNCMP(buf, objs_named[i].numeric, (int)XSTRLEN(buf)), 0);
         ASN1_OBJECT_free(obj);
         obj = NULL;
     }
+
+    /* Truncation of long name. */
+    ExpectNotNull(obj = OBJ_nid2obj(NID_commonName));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_OBJ_obj2txt(buf, 12, obj, 0), 10);
+    ExpectStrEQ(buf, "commonName");
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_OBJ_obj2txt(buf, 11, obj, 0), 10);
+    ExpectStrEQ(buf, "commonName");
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_OBJ_obj2txt(buf, 10, obj, 0), 9);
+    ExpectStrEQ(buf, "commonNam");
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_OBJ_obj2txt(buf, 5, obj, 0), 4);
+    ExpectStrEQ(buf, "comm");
+    ASN1_OBJECT_free(obj);
+    obj = NULL;
 #endif
     return EXPECT_RESULT();
 }
