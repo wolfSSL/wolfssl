@@ -408,6 +408,88 @@ int test_wolfSSL_pending_api(void)
     return EXPECT_RESULT();
 }
 
+/* Test wolfSSL_has_pending() with two DTLS records in one datagram.
+ *
+ * A DTLS read takes the whole datagram, so the second record is still
+ * buffered, though not decrypted, after the first one is read.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_has_pending_dtls_datagram(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte reply[1];
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* cipher;
+    } params[] = {
+#ifndef WOLFSSL_NO_TLS12
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, NULL },
+#if !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && !defined(NO_SHA256) && defined(HAVE_ECC)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+          "ECDHE-RSA-AES128-SHA256" },
+#endif
+#endif
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, NULL },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, params[i].client_meth, params[i].server_meth), 0);
+        if (params[i].cipher != NULL) {
+            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i].cipher),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i].cipher),
+                WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+
+        ExpectIntEQ(wolfSSL_write(ssl_s, "A", 1), 1);
+        ExpectIntEQ(wolfSSL_write(ssl_s, "B", 1), 1);
+
+        /* Deliver both records in one datagram */
+        ExpectIntEQ(test_ctx.c_msg_count, 2);
+        if (EXPECT_SUCCESS()) {
+            test_ctx.c_msg_sizes[0] += test_ctx.c_msg_sizes[1];
+            test_ctx.c_msg_count = 1;
+        }
+
+        ExpectIntEQ(wolfSSL_read(ssl_c, reply, sizeof(reply)), 1);
+        ExpectIntEQ(reply[0], 'A');
+        ExpectIntEQ(wolfSSL_pending(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_has_pending(ssl_c), 1);
+
+        ExpectIntEQ(wolfSSL_read(ssl_c, reply, sizeof(reply)), 1);
+        ExpectIntEQ(reply[0], 'B');
+        ExpectIntEQ(wolfSSL_has_pending(ssl_c), 0);
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test parameter validation across the read/write APIs.
  *
  * Every entry point in ssl_api_rw.c rejects a NULL object, a NULL buffer or a
