@@ -2227,12 +2227,12 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         XFILE file = XBADFILE;
         long sz = 0;
         void* heap = ssl->ctx->heap;
-        WOLFSSL_X509* peer_cert = GetPeerCert(ssl);
+        const DerBuffer* peerDer = GetPeerCertDer(ssl);
         DerBuffer* fileDer = NULL;
 
         /* handle gracefully if called before handshake, or if peer did not
          * present a cert. */
-        if ((peer_cert == NULL) || (peer_cert->derCert == NULL)) {
+        if (peerDer == NULL) {
             WOLFSSL_MSG("wolfSSL_cmp_peer_cert_to_file without peer cert");
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -2262,8 +2262,8 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         }
         /* Peer certificate matches when the DER lengths and bytes are equal. */
         if ((ret == 0) && ((fileDer->length == 0) ||
-                (fileDer->length != peer_cert->derCert->length) ||
-                (XMEMCMP(peer_cert->derCert->buffer, fileDer->buffer,
+                (fileDer->length != peerDer->length) ||
+                (XMEMCMP(peerDer->buffer, fileDer->buffer,
                          fileDer->length) != 0))) {
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -3055,8 +3055,9 @@ static int DecodeToX509(WOLFSSL_X509* x509, const byte* in, int len)
 #ifdef KEEP_PEER_CERT
 /* Get the kept peer certificate, owned by the SSL/TLS object.
  *
- * The certificate is decoded from the session chain, and kept, when not
- * already available on the object.
+ * The certificate is built from its kept encoding on first use. Otherwise it
+ * is decoded from the session chain, and kept, when not already available on
+ * the object.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  Kept peer certificate on success.
@@ -3215,7 +3216,8 @@ static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
  * certificate, index 0, is taken from the copy kept on the SSL/TLS object
  * instead; any other is left out of the stack, as it was before it had a slot.
  *
- * @param [in]      ssl     SSL/TLS object.
+ * @param [in, out] ssl     SSL/TLS object. The kept peer certificate may be
+ *                          built from its encoding.
  * @param [in]      idx     Index of the certificate in the chain.
  * @param [in, out] sk      Stack to add the certificate to.
  * @param [out]     pushed  Certificate added to the stack, NULL when the slot
@@ -3225,7 +3227,7 @@ static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
  * @return  Other negative value when the certificate cannot be decoded or
  *          stored.
  */
-static int PushPeerCertToChain(const WOLFSSL* ssl, int idx, WOLFSSL_STACK* sk,
+static int PushPeerCertToChain(WOLFSSL* ssl, int idx, WOLFSSL_STACK* sk,
     WOLFSSL_X509** pushed)
 {
     int ret = 0;
@@ -3235,9 +3237,10 @@ static int PushPeerCertToChain(const WOLFSSL* ssl, int idx, WOLFSSL_STACK* sk,
 
     if (ssl->session->chain.certs[idx].length == 0) {
     #ifdef KEEP_PEER_CERT
-        if ((idx == 0) && (GetPeerCert(ssl) != NULL) &&
-                (GetPeerCert(ssl)->issuer.sz > 0)) {
-            x509 = wolfSSL_X509_dup(GetPeerCert(ssl));
+        WOLFSSL_X509* peer = (idx == 0) ? GetPeerCert(ssl) : NULL;
+
+        if ((peer != NULL) && (peer->issuer.sz > 0)) {
+            x509 = wolfSSL_X509_dup(peer);
             if (x509 == NULL) {
                 WOLFSSL_MSG("Error duplicating peer certificate");
                 ret = MEMORY_E;
@@ -3290,13 +3293,14 @@ static int PushPeerCertToChain(const WOLFSSL* ssl, int idx, WOLFSSL_STACK* sk,
  * For a verified chain the CA certificates known for the last certificate are
  * placed at the bottom of the stack.
  *
- * @param [in] ssl           SSL/TLS object.
- * @param [in] verifiedFlag  Whether to append the known CA chain.
+ * @param [in, out] ssl           SSL/TLS object. The kept peer certificate
+ *                                may be built from its encoding.
+ * @param [in]      verifiedFlag  Whether to append the known CA chain.
  * @return  Stack of the peer's certificates on success.
  * @return  NULL when ssl is NULL, the session holds no chain, or a certificate
  *          cannot be created, decoded or stored.
  */
-static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
+static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(WOLFSSL* ssl,
     int verifiedFlag)
 {
     WOLFSSL_STACK* sk = NULL;
