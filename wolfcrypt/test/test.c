@@ -45420,6 +45420,39 @@ static wc_test_ret_t dh_agree_ct_test(DhKey* key, DhKey* key2,
 exit_dh_agree_ct:
     return ret;
 }
+#ifndef WOLFSSL_KCAPI_DH
+/* wc_DhAgree rejects an invalid peer public value, whichever backend it uses. */
+static wc_test_ret_t dh_agree_bad_pub_test(DhKey* key, const byte* priv,
+    word32 privSz, word32 pubSz, byte* y, byte* agree, word32 bufSize)
+{
+    wc_test_ret_t ret;
+    word32 agreeSz;
+    word32 ySz;
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        /* 0, 1, and a value larger than the prime. A generated public key
+         * can be shorter than the prime, so fill the whole buffer, which
+         * holds at least the prime, for that one. */
+        ySz = (i == 2) ? bufSize : pubSz;
+        XMEMSET(y, (i == 2) ? 0xFF : 0x00, ySz);
+        if (i == 1)
+            y[ySz - 1] = 1;
+
+        agreeSz = bufSize;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_DhAgree(key, agree, &agreeSz, priv, privSz, y, ySz);
+        PRIVATE_KEY_LOCK();
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != WC_NO_ERR_TRACE(DH_CHECK_PUB_E))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+#endif
 #endif /* !WC_NO_RNG && (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
 
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
@@ -45746,6 +45779,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
         priv2, privSz2, pub2, pubSz2, agree, agree2, DH_TEST_BUF_SIZE);
     if (ret != 0)
         ERROR_OUT(ret, done);
+
+#ifndef WOLFSSL_KCAPI_DH
+    ret = dh_agree_bad_pub_test(key, priv, privSz, pubSz, agree2, agree,
+        DH_TEST_BUF_SIZE);
+    if (ret != 0)
+        ERROR_OUT(ret, done);
+#endif
 #endif /* !WC_NO_RNG && (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
 
     /* Test DH key import / export */

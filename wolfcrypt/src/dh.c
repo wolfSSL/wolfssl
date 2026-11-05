@@ -2446,6 +2446,26 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
     pBits = mp_unsigned_bin_size(&key->p) * 8;
     if (pBits == 768 ||  pBits == 1024 || pBits == 1536 ||
         pBits == 2048 || pBits == 3072 || pBits == 4096) {
+        /* same checks as wc_DhAgree_Sync */
+        if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+            WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+            return WC_KEY_SIZE_E;
+        }
+        if (mp_iseven(&key->p) == MP_YES) {
+            return MP_VAL;
+        }
+    #ifdef WOLFSSL_VALIDATE_FFC_IMPORT
+        if (wc_DhCheckPrivKey(key, priv, privSz) != 0) {
+            WOLFSSL_MSG("wc_DhAgree wc_DhCheckPrivKey failed");
+            return DH_CHECK_PRIV_E;
+        }
+    #endif
+        /* Always validate peer public key (2 <= y <= p-2) per SP 800-56A */
+        if (wc_DhCheckPubKey_ex(key, otherPub, pubSz, NULL, 0) != 0) {
+            WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
+            return DH_CHECK_PUB_E;
+        }
+
         ret = wc_mp_to_bigint(&key->p, &key->p.raw);
         if (ret == MP_OKAY)
             ret = IntelQaDhAgree(&key->asyncDev, &key->p.raw,

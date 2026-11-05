@@ -4443,23 +4443,31 @@ static void IntelQaDhAgreeCallback(void *pCallbackTag, CpaStatus status,
         }
 
         /* count leading zeros */
-        while (out[idxTrim] == 0 && idxTrim < pOut->dataLenInBytes) {
+        while (idxTrim < pOut->dataLenInBytes && out[idxTrim] == 0) {
             idxTrim++;
         }
         pOut->dataLenInBytes -= idxTrim;
 
-        /* return data and trim leading zeros */
-        if (dev->qat.out && (dev->qat.out != pOut->pData || idxTrim > 0)) {
-            XMEMMOVE(dev->qat.out, &out[idxTrim], pOut->dataLenInBytes);
+        /* The shared secret must not be 0 or 1 (SP 800-56A 5.7.1.1). */
+        if (pOut->dataLenInBytes == 0 ||
+                (pOut->dataLenInBytes == 1 && out[idxTrim] == 1)) {
+            WOLFSSL_MSG("IntelQaDhAgreeCallback: invalid shared secret");
+            ret = MP_VAL;
         }
+        else {
+            /* return data and trim leading zeros */
+            if (dev->qat.out && (dev->qat.out != pOut->pData || idxTrim > 0)) {
+                XMEMMOVE(dev->qat.out, &out[idxTrim], pOut->dataLenInBytes);
+            }
 
-        /* return final length */
-        if (dev->qat.outLenPtr) {
-            *dev->qat.outLenPtr = pOut->dataLenInBytes;
+            /* return final length */
+            if (dev->qat.outLenPtr) {
+                *dev->qat.outLenPtr = pOut->dataLenInBytes;
+            }
+
+            /* mark event result */
+            ret = 0; /* success */
         }
-
-        /* mark event result */
-        ret = 0; /* success */
     }
     (void)opData;
 
