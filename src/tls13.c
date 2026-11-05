@@ -5196,8 +5196,11 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #ifdef WOLFSSL_EARLY_DATA
     if (!EarlyDataPossible(ssl))
         ssl->earlyData = no_early_data;
-    if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
+    if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
         ssl->earlyData = no_early_data;
+        ssl->buffers.prevSent = 0;
+        ssl->buffers.plainSz = 0;
+    }
     if (ssl->earlyData == no_early_data)
         TLSX_Remove(&ssl->extensions, TLSX_EARLY_DATA, ssl->heap);
     if (ssl->earlyData != no_early_data &&
@@ -6601,6 +6604,8 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
             WOLFSSL_MSG("Early data rejected by server (no early_data "
                         "EncryptedExtensions response)");
             ssl->earlyData = no_early_data;
+            ssl->buffers.prevSent = 0;
+            ssl->buffers.plainSz = 0;
         }
     }
 
