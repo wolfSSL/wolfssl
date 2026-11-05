@@ -403,8 +403,7 @@ int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
     \brief Copies SHA256 context.
 
     The memory regions occupied by the source and destination structures
-    must not overlap. If they overlap, including when src == dst, the
-    behavior is undefined.
+    must not overlap.
 
     \return 0 on success
     \return negative on error
@@ -618,8 +617,7 @@ int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash);
     \brief Copies SHA224 context.
 
     The memory regions occupied by the source and destination structures
-    must not overlap. If they overlap, including when src == dst, the
-    behavior is undefined.
+    must not overlap.
 
     \return 0 on success
     \return negative on error
