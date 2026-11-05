@@ -306,7 +306,12 @@ int test_wolfSSL_X509_subject_name_hash(void)
 
     ExpectNotNull(x509 = X509_new());
     ExpectIntEQ(X509_subject_name_hash(NULL), 0);
-    ExpectIntEQ(X509_subject_name_hash(x509), 0);
+    /* Empty name: hash of an empty encoding, as OpenSSL. */
+#ifndef NO_SHA
+    ExpectIntEQ(X509_subject_name_hash(x509), 0xeea339daUL);
+#else
+    ExpectIntEQ(X509_subject_name_hash(x509), 0x42c4b0e3UL);
+#endif
     X509_free(x509);
     x509 = NULL;
 
@@ -348,7 +353,12 @@ int test_wolfSSL_X509_issuer_name_hash(void)
 
     ExpectNotNull(x509 = X509_new());
     ExpectIntEQ(X509_issuer_name_hash(NULL), 0);
-    ExpectIntEQ(X509_issuer_name_hash(x509), 0);
+    /* Empty name: hash of an empty encoding, as OpenSSL. */
+#ifndef NO_SHA
+    ExpectIntEQ(X509_issuer_name_hash(x509), 0xeea339daUL);
+#else
+    ExpectIntEQ(X509_issuer_name_hash(x509), 0x42c4b0e3UL);
+#endif
     X509_free(x509);
     x509 = NULL;
 

@@ -1331,13 +1331,20 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
         ret = 1;
     }
     else {
+        /* Compare the magnitudes from the accessors: data may hold the DER
+         * encoding or only the content. */
+        const unsigned char* aData = wolfSSL_ASN1_INTEGER_get0_data(a);
+        const unsigned char* bData = wolfSSL_ASN1_INTEGER_get0_data(b);
+        int aLen = wolfSSL_ASN1_INTEGER_get_length(a);
+        int bLen = wolfSSL_ASN1_INTEGER_get_length(b);
+
         /* Check for difference in length. */
-        if (a->length != b->length) {
-            ret = a->length - b->length;
+        if (aLen != bLen) {
+            ret = aLen - bLen;
         }
-        else {
+        else if (aLen > 0) {
             /* Compare data given they are the same length. */
-            ret = XMEMCMP(a->data, b->data, (size_t)a->length);
+            ret = XMEMCMP(aData, bData, (size_t)aLen);
         }
         /* Reverse comparison result when both negative. */
         if (a->negative) {
@@ -6343,6 +6350,19 @@ int wc_OBJ_sn2nid(const char *sn)
         WOLFSSL_ENTER("wolfSSL_OBJ_cmp");
 
         if (a && b && a->obj && b->obj) {
+            /* An object made from a NID that has no OID encoding here, as for
+             * name attribute types, is only the tag and a zero length:
+             * compare NIDs. */
+            if (a->objSz <= 2 || b->objSz <= 2) {
+                int nidA = wolfSSL_OBJ_obj2nid(a);
+                int nidB = wolfSSL_OBJ_obj2nid(b);
+
+                if (nidA > 0 && nidB > 0) {
+                    if (nidA == nidB)
+                        return 0;
+                    return (nidA < nidB) ? -1 : 1;
+                }
+            }
             if (a->objSz == b->objSz) {
                 return XMEMCMP(a->obj, b->obj, a->objSz);
             }

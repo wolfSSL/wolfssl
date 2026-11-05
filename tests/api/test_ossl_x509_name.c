@@ -323,7 +323,8 @@ int test_wolfSSL_X509_NAME_hash(void)
 
     ExpectIntEQ(X509_NAME_hash(NULL), 0);
     ExpectNotNull(name = wolfSSL_X509_NAME_new_ex(NULL));
-    ExpectIntEQ(X509_NAME_hash(name), 0);
+    /* SHA-1 of an empty encoding, as OpenSSL. */
+    ExpectIntEQ(X509_NAME_hash(name), 0xeea339daUL);
     X509_NAME_free(name);
 
     ExpectNotNull(bio = BIO_new(BIO_s_file()));
@@ -926,6 +927,89 @@ int test_wolfSSL_X509_NAME_ENTRY(void)
     BIO_free(bio);
 #endif
     X509_free(x509); /* free's nm */
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_NAME_ENTRY_dup(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509* x509 = NULL;
+    X509_NAME* name = NULL;
+    X509_NAME_ENTRY* ne = NULL;
+    X509_NAME_ENTRY* dup = NULL;
+    STACK_OF(X509_NAME_ENTRY)* sk = NULL;
+    ASN1_STRING* val = NULL;
+    ASN1_STRING* dupVal = NULL;
+    int i;
+    int cnt = 0;
+    int nid = 0;
+
+    ExpectNull(X509_NAME_ENTRY_dup(NULL));
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = X509_get_subject_name(x509));
+    ExpectIntGT(cnt = X509_NAME_entry_count(name), 0);
+
+    /* Copies of all entries, freed with the stack. */
+    ExpectNotNull(sk = sk_X509_NAME_ENTRY_new(NULL));
+    for (i = 0; i < cnt; i++) {
+        ExpectNotNull(ne = X509_NAME_get_entry(name, i));
+        ExpectNotNull(dup = X509_NAME_ENTRY_dup(ne));
+        ExpectTrue(dup != ne);
+        ExpectNotNull(val = X509_NAME_ENTRY_get_data(ne));
+        ExpectNotNull(dupVal = X509_NAME_ENTRY_get_data(dup));
+        ExpectTrue(val != dupVal);
+        ExpectIntEQ(ASN1_STRING_length(dupVal), ASN1_STRING_length(val));
+        ExpectIntEQ(ASN1_STRING_type(dupVal), ASN1_STRING_type(val));
+        ExpectIntEQ(XMEMCMP(ASN1_STRING_get0_data(dupVal),
+            ASN1_STRING_get0_data(val), (size_t)ASN1_STRING_length(val)), 0);
+        ExpectIntEQ(OBJ_cmp(X509_NAME_ENTRY_get_object(dup),
+            X509_NAME_ENTRY_get_object(ne)), 0);
+        ExpectIntEQ(OBJ_obj2nid(X509_NAME_ENTRY_get_object(dup)),
+            OBJ_obj2nid(X509_NAME_ENTRY_get_object(ne)));
+        if (EXPECT_SUCCESS() && (sk_X509_NAME_ENTRY_push(sk, dup) > 0)) {
+            dup = NULL;
+        }
+        X509_NAME_ENTRY_free(dup);
+        dup = NULL;
+    }
+    ExpectIntEQ(sk_X509_NAME_ENTRY_num(sk), cnt);
+    sk_X509_NAME_ENTRY_pop_free(sk, X509_NAME_ENTRY_free);
+    sk_X509_NAME_ENTRY_pop_free(NULL, X509_NAME_ENTRY_free);
+
+    /* The copy outlives the original. */
+    ExpectNotNull(ne = X509_NAME_get_entry(name, 0));
+    nid = OBJ_obj2nid(X509_NAME_ENTRY_get_object(ne));
+    ExpectNotNull(dup = X509_NAME_ENTRY_dup(ne));
+    X509_free(x509);
+    ExpectNotNull(val = X509_NAME_ENTRY_get_data(dup));
+    ExpectIntGT(ASN1_STRING_length(val), 0);
+    ExpectIntEQ(OBJ_obj2nid(X509_NAME_ENTRY_get_object(dup)), nid);
+    X509_NAME_ENTRY_free(dup);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_NAME_ENTRY_octet_string(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    X509_NAME_ENTRY* ne = NULL;
+    ASN1_STRING* val = NULL;
+    const unsigned char raw[] = { 0x04, 0x03, 0x00, 0xab, 0xcd };
+
+    /* Same value as OpenSSL. */
+    ExpectIntEQ(B_ASN1_OCTET_STRING, 0x0200);
+    /* Not an MBSTRING_* type: the type is kept as given. */
+    ExpectNotNull(ne = X509_NAME_ENTRY_create_by_txt(NULL, "CN",
+        B_ASN1_OCTET_STRING, raw, (int)sizeof(raw)));
+    ExpectNotNull(val = X509_NAME_ENTRY_get_data(ne));
+    ExpectIntEQ(ASN1_STRING_type(val), B_ASN1_OCTET_STRING);
+    ExpectIntEQ(ASN1_STRING_length(val), (int)sizeof(raw));
+    ExpectIntEQ(XMEMCMP(ASN1_STRING_get0_data(val), raw, sizeof(raw)), 0);
+    X509_NAME_ENTRY_free(ne);
 #endif
     return EXPECT_RESULT();
 }

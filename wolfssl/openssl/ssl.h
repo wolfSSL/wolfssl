@@ -720,6 +720,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_NAME_cmp                   wolfSSL_X509_NAME_cmp
 #define X509_NAME_ENTRY_new             wolfSSL_X509_NAME_ENTRY_new
 #define X509_NAME_ENTRY_free            wolfSSL_X509_NAME_ENTRY_free
+#define X509_NAME_ENTRY_dup             wolfSSL_X509_NAME_ENTRY_dup
 #define X509_NAME_ENTRY_create_by_NID   wolfSSL_X509_NAME_ENTRY_create_by_NID
 #define X509_NAME_ENTRY_create_by_txt   wolfSSL_X509_NAME_ENTRY_create_by_txt
 #define X509_NAME_add_entry             wolfSSL_X509_NAME_add_entry
@@ -766,6 +767,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define sk_X509_NAME_ENTRY_num          wolfSSL_sk_X509_NAME_ENTRY_num
 #define sk_X509_NAME_ENTRY_value        wolfSSL_sk_X509_NAME_ENTRY_value
 #define sk_X509_NAME_ENTRY_free         wolfSSL_sk_X509_NAME_ENTRY_free
+#define sk_X509_NAME_ENTRY_pop_free     wolfSSL_sk_X509_NAME_ENTRY_pop_free
 
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_X509_V_FLAG_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL

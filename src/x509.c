@@ -2218,8 +2218,10 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                 break;
             }
-            ret = wolfSSL_ASN1_STRING_set(newString, cert->extSubjKeyId,
-                                          cert->extSubjKeyIdSz);
+            /* The identifier itself. extSubjKeyId holds a hash of it when
+             * it is not KEYID_SIZE bytes long. */
+            ret = wolfSSL_ASN1_STRING_set(newString, cert->extSubjKeyIdSrc,
+                                          (int)cert->extSubjKeyIdSz);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
@@ -4314,6 +4316,11 @@ char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 
     WOLFSSL_ENTER("wolfSSL_X509_NAME_oneline");
 
+    /* An empty name gives an empty string, as OpenSSL. */
+    if (in != NULL && sz > 0) {
+        in[0] = '\0';
+    }
+
     if (name == NULL) {
         WOLFSSL_MSG("WOLFSSL_X509_NAME pointer was NULL");
         return NULL;
@@ -4365,20 +4372,22 @@ static unsigned long X509NameHash(WOLFSSL_X509_NAME* name,
         return 0;
     }
 
-    if (name->sz == 0) {
-        WOLFSSL_ERROR_MSG("Nothing to hash in WOLFSSL_X509_NAME");
-        return 0;
+    if (name->sz == 0 || wolfSSL_X509_NAME_entry_count(name) == 0) {
+        /* Empty name: hash of an empty encoding, as OpenSSL. */
+        size = 0;
+    }
+    else {
+        size = wolfSSL_i2d_X509_NAME_canon(name, &canonName);
+
+        if (size <= 0 || canonName == NULL) {
+            WOLFSSL_ERROR_MSG("wolfSSL_i2d_X509_NAME_canon error");
+            return 0;
+        }
     }
 
-    size = wolfSSL_i2d_X509_NAME_canon(name, &canonName);
-
-    if (size <= 0 || canonName == NULL) {
-        WOLFSSL_ERROR_MSG("wolfSSL_i2d_X509_NAME_canon error");
-        return 0;
-    }
-
-    rc = wc_Hash(hashType, (const byte*)canonName, (word32)size, digest,
-        sizeof(digest));
+    rc = wc_Hash(hashType,
+        (canonName != NULL) ? (const byte*)canonName : (const byte*)"",
+        (word32)size, digest, sizeof(digest));
 
     if (rc == 0) {
         hash = (((unsigned long)digest[3] << 24) |
@@ -16069,6 +16078,48 @@ err:
 
         return ne;
     }
+
+#ifdef OPENSSL_EXTRA
+    /* Duplicate a name entry with copies of its object and value.
+     * Returns the new entry or NULL on failure. */
+    WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_dup(
+        const WOLFSSL_X509_NAME_ENTRY* ne)
+    {
+        WOLFSSL_X509_NAME_ENTRY* dupl = NULL;
+        int err = 0;
+
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_dup");
+
+        if (ne == NULL) {
+            return NULL;
+        }
+        dupl = wolfSSL_X509_NAME_ENTRY_new();
+        if (dupl == NULL) {
+            return NULL;
+        }
+        dupl->nid = ne->nid;
+        dupl->set = ne->set;
+        dupl->size = ne->size;
+        if (ne->object != NULL) {
+            dupl->object = wolfSSL_ASN1_OBJECT_dup(ne->object);
+            if (dupl->object == NULL) {
+                err = 1;
+            }
+        }
+        if ((err == 0) && (ne->value != NULL)) {
+            dupl->value = wolfSSL_ASN1_STRING_dup(ne->value);
+            if (dupl->value == NULL) {
+                err = 1;
+            }
+        }
+        if (err != 0) {
+            wolfSSL_X509_NAME_ENTRY_free(dupl);
+            dupl = NULL;
+        }
+
+        return dupl;
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
@@ -16757,6 +16808,14 @@ int wolfSSL_sk_X509_NAME_ENTRY_num(
 void wolfSSL_sk_X509_NAME_ENTRY_free(WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk)
 {
     wolfSSL_sk_free(sk);
+}
+
+/* Free the stack and each entry in it with f. */
+void wolfSSL_sk_X509_NAME_ENTRY_pop_free(
+    WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk,
+    void (*f)(WOLFSSL_X509_NAME_ENTRY*))
+{
+    wolfSSL_sk_pop_free(sk, (wolfSSL_sk_freefunc)f);
 }
 
 #endif /* OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX ||

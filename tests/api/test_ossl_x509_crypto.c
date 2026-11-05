@@ -937,8 +937,12 @@ int test_wolfSSL_X509_sign(void)
     ExpectIntGT(cnSz = X509_NAME_get_sz(name), 0);
     ExpectNotNull(cn = (char*)XMALLOC(cnSz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL));
     ExpectNull(X509_NAME_oneline(NULL, cn, (int)cnSz));
+    ExpectTrue(cn == NULL || cn[0] == '\0');
     ExpectPtrEq(X509_NAME_oneline(name, cn, 0), cn);
+    if (cn != NULL)
+        cn[0] = 'x';
     ExpectPtrEq(X509_NAME_oneline(emptyName, cn, (int)cnSz), cn);
+    ExpectTrue(cn == NULL || cn[0] == '\0');
     ExpectNull(X509_NAME_oneline(emptyName, NULL, 0));
     ExpectPtrEq(X509_NAME_oneline(name, cn, (int)cnSz), cn);
     ExpectIntEQ(0, XSTRNCMP(cn, dCert.subject, XSTRLEN(cn)));

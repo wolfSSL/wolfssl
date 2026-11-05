@@ -29,6 +29,8 @@ int test_wolfSSL_X509_NAME(void);
 int test_wolfSSL_X509_NAME_hash(void);
 int test_wolfSSL_X509_NAME_print_ex(void);
 int test_wolfSSL_X509_NAME_ENTRY(void);
+int test_wolfSSL_X509_NAME_ENTRY_dup(void);
+int test_wolfSSL_X509_NAME_ENTRY_octet_string(void);
 int test_wolfSSL_X509_NAME_ENTRY_get_object(void);
 int test_wolfSSL_X509_NAME_ENTRY_shared_object(void);
 
@@ -38,6 +40,9 @@ int test_wolfSSL_X509_NAME_ENTRY_shared_object(void);
     TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_hash),            \
     TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_print_ex),        \
     TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_ENTRY),           \
+    TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_ENTRY_dup),       \
+    TEST_DECL_GROUP("ossl_x509_name",                                          \
+        test_wolfSSL_X509_NAME_ENTRY_octet_string),                            \
     TEST_DECL_GROUP("ossl_x509_name",                                          \
         test_wolfSSL_X509_NAME_ENTRY_get_object),                              \
     TEST_DECL_GROUP("ossl_x509_name",                                          \
