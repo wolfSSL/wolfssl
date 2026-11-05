@@ -6306,6 +6306,7 @@ struct WOLFSSL_STACK {
     #if defined(OPENSSL_ALL)
     wolf_sk_hash_cb hash_fn;
     unsigned long hash;
+    wolf_sk_compare_cb comp; /* used by sort */
     #endif
 
     union {

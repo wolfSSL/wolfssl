@@ -672,6 +672,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_dup                     wolfSSL_shallow_sk_dup
 #define sk_X509_delete(sk, i) \
     ((WOLFSSL_X509*)wolfSSL_sk_delete((sk), (i)))
+#define sk_X509_delete_ptr(sk, x) \
+    ((WOLFSSL_X509*)wolfSSL_sk_delete_ptr((sk), (x)))
+#define sk_X509_insert(sk, x, i)        wolfSSL_sk_insert((sk), (x), (i))
 #define sk_X509_free                    wolfSSL_sk_X509_free
 #define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
 
@@ -768,6 +771,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define sk_X509_NAME_ENTRY_value        wolfSSL_sk_X509_NAME_ENTRY_value
 #define sk_X509_NAME_ENTRY_free         wolfSSL_sk_X509_NAME_ENTRY_free
 #define sk_X509_NAME_ENTRY_pop_free     wolfSSL_sk_X509_NAME_ENTRY_pop_free
+#define sk_X509_NAME_ENTRY_set_cmp_func wolfSSL_sk_X509_NAME_ENTRY_set_cmp_func
+#define sk_X509_NAME_ENTRY_sort         wolfSSL_sk_X509_NAME_ENTRY_sort
 
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_X509_V_FLAG_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL
@@ -1355,6 +1360,8 @@ typedef wolfSSL_custom_ext_parse_cb custom_ext_parse_cb;
 #define sk_value                        wolfSSL_sk_value
 #define sk_ASN1_OBJECT_value            wolfSSL_sk_value
 #define OPENSSL_sk_value                wolfSSL_sk_value
+#define OPENSSL_sk_set_cmp_func         wolfSSL_sk_set_cmp_func
+#define OPENSSL_sk_sort                 wolfSSL_sk_sort
 
 #define d2i_PKCS12_bio                  wolfSSL_d2i_PKCS12_bio
 #define d2i_PKCS12_fp                   wolfSSL_d2i_PKCS12_fp

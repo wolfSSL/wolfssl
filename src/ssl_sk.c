@@ -756,6 +756,7 @@ int wolfSSL_sk_insert(WOLFSSL_STACK *stack, const void *data, int idx)
                 node->type    = stack->type;
             #ifdef OPENSSL_ALL
                 node->hash_fn = stack->hash_fn;
+                node->comp = stack->comp;
             #endif
                 /* Put data into new node. */
                 wolfssl_sk_node_set_data(node, stack->type, data);
@@ -814,6 +815,113 @@ void* wolfSSL_sk_delete(WOLFSSL_STACK* stack, int idx)
 
     return wolfSSL_sk_pop_node(stack, idx);
 }
+
+/* Remove the first node that holds the data pointer and return the data.
+ *
+ * @param [in, out] stack  Stack of nodes with data.
+ * @param [in]      data   Data to find.
+ * @return  data when found and removed.
+ * @return  NULL when stack or data is NULL or data is not in the stack.
+ */
+void* wolfSSL_sk_delete_ptr(WOLFSSL_STACK* stack, const void* data)
+{
+    WOLFSSL_STACK* node;
+    int idx = 0;
+
+    WOLFSSL_ENTER("wolfSSL_sk_delete_ptr");
+
+    /* Cipher stacks hold copies, not pointers. */
+    if ((stack == NULL) || (data == NULL) ||
+            (stack->type == STACK_TYPE_CIPHER)) {
+        return NULL;
+    }
+
+    for (node = stack; (node != NULL) && ((unsigned long)idx < stack->num);
+            node = node->next) {
+        if (node->data.generic == data) {
+            return wolfSSL_sk_pop_node(stack, idx);
+        }
+        idx++;
+    }
+
+    return NULL;
+}
+
+#ifdef OPENSSL_ALL
+/* Set the comparator used by sort.
+ *
+ * Set on every node as a removed first node is replaced by the next one.
+ *
+ * @param [in, out] stack  Stack of data.
+ * @param [in]      cb     Comparator. May be NULL.
+ * @return  Previous comparator.
+ * @return  NULL when stack is NULL or no comparator was set.
+ */
+wolf_sk_compare_cb wolfSSL_sk_set_cmp_func(WOLFSSL_STACK* stack,
+    wolf_sk_compare_cb cb)
+{
+    wolf_sk_compare_cb old = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_sk_set_cmp_func");
+
+    if (stack != NULL) {
+        old = stack->comp;
+    }
+    for (; stack != NULL; stack = stack->next) {
+        stack->comp = cb;
+    }
+
+    return old;
+}
+
+/* Sort the data in the stack with the stack's comparator.
+ *
+ * Stable insertion sort: the first node starts as the sorted part and each
+ * following node's data is moved into place. Nodes stay, data moves.
+ * Cipher stacks hold their data in the node and are not sorted.
+ *
+ * @param [in, out] stack  Stack of data.
+ */
+void wolfSSL_sk_sort(WOLFSSL_STACK* stack)
+{
+    WOLFSSL_STACK* cur;
+    WOLFSSL_STACK* pos;
+    void* data;
+    void* next;
+    unsigned long hash;
+    unsigned long nextHash;
+
+    WOLFSSL_ENTER("wolfSSL_sk_sort");
+
+    if ((stack == NULL) || (stack->comp == NULL) ||
+            (stack->type == STACK_TYPE_CIPHER)) {
+        return;
+    }
+
+    for (cur = stack->next; cur != NULL; cur = cur->next) {
+        /* Find the first entry greater than cur. */
+        for (pos = stack; pos != cur; pos = pos->next) {
+            if (stack->comp((const void* const*)&cur->data.generic,
+                            (const void* const*)&pos->data.generic) < 0) {
+                break;
+            }
+        }
+        /* Move cur's data and hash there and shift the rest up. */
+        data = cur->data.generic;
+        hash = cur->hash;
+        for (; pos != cur; pos = pos->next) {
+            next = pos->data.generic;
+            nextHash = pos->hash;
+            pos->data.generic = data;
+            pos->hash = hash;
+            data = next;
+            hash = nextHash;
+        }
+        cur->data.generic = data;
+        cur->hash = hash;
+    }
+}
+#endif /* OPENSSL_ALL */
 
 /* Pop off data from the stack. Checks that the type matches the stack type.
  *
