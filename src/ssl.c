@@ -8915,6 +8915,45 @@ static void* OSSL_Realloc(void *ptr, size_t size)
 #endif /* USE_WOLFSSL_MEMORY && !WOLFSSL_DEBUG_MEMORY &&
         * !WOLFSSL_STATIC_MEMORY */
 
+/* The allocators CRYPTO_get_mem_functions returns when none are set. They
+ * don't call into wolfSSL's allocator, so a wrapper of them passed to
+ * CRYPTO_set_mem_functions does not recurse. */
+#if !defined(USE_WOLFSSL_MEMORY) || defined(WOLFSSL_STATIC_MEMORY)
+    #define OSSL_DEF_MALLOC(s)      XMALLOC(s, NULL, DYNAMIC_TYPE_OPENSSL)
+    #define OSSL_DEF_REALLOC(p, s)  XREALLOC(p, s, NULL, DYNAMIC_TYPE_OPENSSL)
+    #define OSSL_DEF_FREE(p)        XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL)
+#elif !defined(WOLFSSL_NO_MALLOC)
+    #define OSSL_DEF_MALLOC(s)      malloc(s) /* native heap */
+    #define OSSL_DEF_REALLOC(p, s)  realloc(p, s) /* native heap */
+    #define OSSL_DEF_FREE(p)        free(p) /* native heap */
+#else
+    #define OSSL_DEF_MALLOC(s)      ((void)(s), (void*)NULL)
+    #define OSSL_DEF_REALLOC(p, s)  ((void)(p), (void)(s), (void*)NULL)
+    #define OSSL_DEF_FREE(p)        (void)(p)
+#endif
+
+static void* OSSL_DefMalloc(size_t size, const char* file, int line)
+{
+    (void)file;
+    (void)line;
+    return OSSL_DEF_MALLOC(size);
+}
+
+static void* OSSL_DefRealloc(void* ptr, size_t size, const char* file,
+    int line)
+{
+    (void)file;
+    (void)line;
+    return OSSL_DEF_REALLOC(ptr, size);
+}
+
+static void OSSL_DefFree(void* ptr, const char* file, int line)
+{
+    (void)file;
+    (void)line;
+    OSSL_DEF_FREE(ptr);
+}
+
 int wolfSSL_CRYPTO_set_mem_functions(
         wolfSSL_OSSL_Malloc_cb  m,
         wolfSSL_OSSL_Realloc_cb r,
@@ -8948,6 +8987,57 @@ int wolfSSL_CRYPTO_set_mem_functions(
     WOLFSSL_MSG("wolfSSL allocator callback functions not compiled in");
     return WOLFSSL_FAILURE;
 #endif
+}
+
+/* Get the allocators set with CRYPTO_set_mem_functions, as in OpenSSL 3.0.
+ *
+ * When none are set, the returned functions use the C library. They can be
+ * wrapped and the wrappers passed to CRYPTO_set_mem_functions.
+ * Where that is not supported they allocate as OPENSSL_malloc does.
+ *
+ * @param [out] m  Malloc function. May be NULL.
+ * @param [out] r  Realloc function. May be NULL.
+ * @param [out] f  Free function. May be NULL.
+ */
+void wolfSSL_CRYPTO_get_mem_functions(
+        wolfSSL_OSSL_Malloc_cb*  m,
+        wolfSSL_OSSL_Realloc_cb* r,
+        wolfSSL_OSSL_Free_cb*    f)
+{
+    wolfSSL_OSSL_Malloc_cb  mf = OSSL_DefMalloc;
+    wolfSSL_OSSL_Realloc_cb rf = OSSL_DefRealloc;
+    wolfSSL_OSSL_Free_cb    ff = OSSL_DefFree;
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+    if (ossl_malloc != NULL) {
+        mf = ossl_malloc;
+        rf = ossl_realloc;
+        ff = ossl_free;
+    }
+#elif defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+    {
+        wolfSSL_Malloc_cb  wmf = NULL;
+        wolfSSL_Free_cb    wff = NULL;
+        wolfSSL_Realloc_cb wrf = NULL;
+
+        /* CRYPTO_set_mem_functions sets them as wolfSSL's allocators. */
+        (void)wolfSSL_GetAllocators(&wmf, &wff, &wrf);
+        if (wmf != NULL)
+            mf = (wolfSSL_OSSL_Malloc_cb)wmf;
+        if (wrf != NULL)
+            rf = (wolfSSL_OSSL_Realloc_cb)wrf;
+        if (wff != NULL)
+            ff = (wolfSSL_OSSL_Free_cb)wff;
+    }
+#endif
+
+    if (m != NULL)
+        *m = mf;
+    if (r != NULL)
+        *r = rf;
+    if (f != NULL)
+        *f = ff;
 }
 
 int wolfSSL_FIPS_mode(void)

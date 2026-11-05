@@ -28181,6 +28181,156 @@ static int test_wolfSSL_CRYPTO_memcmp(void)
     return EXPECT_RESULT();
 }
 
+#ifdef OPENSSL_EXTRA
+static CRYPTO_malloc_fn  test_mem_prev_malloc = NULL;
+static CRYPTO_realloc_fn test_mem_prev_realloc = NULL;
+static CRYPTO_free_fn    test_mem_prev_free = NULL;
+static int test_mem_allocs = 0;
+static int test_mem_frees = 0;
+
+static void* test_mem_malloc(size_t sz, const char* file, int line)
+{
+    test_mem_allocs++;
+    return test_mem_prev_malloc(sz, file, line);
+}
+
+static void* test_mem_realloc(void* p, size_t sz, const char* file, int line)
+{
+    if (p == NULL)
+        test_mem_allocs++;
+    return test_mem_prev_realloc(p, sz, file, line);
+}
+
+static void test_mem_free(void* p, const char* file, int line)
+{
+    if (p != NULL)
+        test_mem_frees++;
+    test_mem_prev_free(p, file, line);
+}
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY)
+/* A native wrapper of wolfSSL's allocators that stops a loop. */
+static wolfSSL_Malloc_cb  test_mem_native_malloc = NULL;
+static wolfSSL_Free_cb    test_mem_native_free = NULL;
+static wolfSSL_Realloc_cb test_mem_native_realloc = NULL;
+static int test_mem_native_depth = 0;
+static int test_mem_native_loop = 0;
+
+static void* test_mem_native_wrap_malloc(size_t sz)
+{
+    void* p = NULL;
+
+    if (++test_mem_native_depth > 1)
+        test_mem_native_loop = 1;
+    else
+        p = test_mem_native_malloc(sz);
+    test_mem_native_depth--;
+    return p;
+}
+
+static void* test_mem_native_wrap_realloc(void* p, size_t sz)
+{
+    void* q = NULL;
+
+    if (++test_mem_native_depth > 1)
+        test_mem_native_loop = 1;
+    else
+        q = test_mem_native_realloc(p, sz);
+    test_mem_native_depth--;
+    return q;
+}
+
+static void test_mem_native_wrap_free(void* p)
+{
+    if (++test_mem_native_depth > 1)
+        test_mem_native_loop = 1;
+    else
+        test_mem_native_free(p);
+    test_mem_native_depth--;
+}
+#endif
+#endif
+
+static int test_wolfSSL_CRYPTO_get_mem_functions(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_EXTRA
+    CRYPTO_malloc_fn  m = NULL;
+    CRYPTO_realloc_fn r = NULL;
+    CRYPTO_free_fn    f = NULL;
+    void* p = NULL;
+    void* q = NULL;
+    int ret = 0;
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+    X509* x509 = NULL;
+#endif
+
+    CRYPTO_get_mem_functions(NULL, NULL, NULL);
+    CRYPTO_get_mem_functions(&test_mem_prev_malloc, &test_mem_prev_realloc,
+        &test_mem_prev_free);
+    ExpectTrue(test_mem_prev_malloc != NULL);
+    ExpectTrue(test_mem_prev_realloc != NULL);
+    ExpectTrue(test_mem_prev_free != NULL);
+
+    /* The returned functions can be called directly. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(p = test_mem_prev_malloc(16, __FILE__, __LINE__));
+        ExpectNotNull(q = test_mem_prev_realloc(p, 32, __FILE__, __LINE__));
+        if (q != NULL)
+            p = q;
+        test_mem_prev_free(p, __FILE__, __LINE__);
+        p = NULL;
+    }
+
+    /* Wrap them, allocate through wolfSSL and restore them. */
+    if (EXPECT_SUCCESS()) {
+        ret = CRYPTO_set_mem_functions(test_mem_malloc, test_mem_realloc,
+            test_mem_free);
+    }
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+    ExpectIntEQ(ret, 1);
+    CRYPTO_get_mem_functions(&m, &r, &f);
+    ExpectTrue(m == test_mem_malloc);
+    ExpectTrue(r == test_mem_realloc);
+    ExpectTrue(f == test_mem_free);
+    ExpectNotNull(x509 = X509_new());
+    X509_free(x509);
+    ExpectNotNull(p = OPENSSL_malloc(8));
+    OPENSSL_free(p);
+#ifndef WOLFSSL_DEBUG_MEMORY
+    /* Getting them while a native wrapper is installed changes nothing. */
+    if (EXPECT_SUCCESS()) {
+        (void)wolfSSL_GetAllocators(&test_mem_native_malloc,
+            &test_mem_native_free, &test_mem_native_realloc);
+        ExpectIntEQ(wolfSSL_SetAllocators(test_mem_native_wrap_malloc,
+            test_mem_native_wrap_free, test_mem_native_wrap_realloc), 0);
+        CRYPTO_get_mem_functions(&m, &r, &f);
+        ExpectIntEQ(wolfSSL_SetAllocators(test_mem_native_malloc,
+            test_mem_native_free, test_mem_native_realloc), 0);
+    }
+    ExpectNotNull(p = OPENSSL_malloc(8));
+    OPENSSL_free(p);
+    ExpectIntEQ(test_mem_native_loop, 0);
+#endif
+    if (ret == 1) {
+        ret = CRYPTO_set_mem_functions(test_mem_prev_malloc,
+            test_mem_prev_realloc, test_mem_prev_free);
+    }
+    ExpectIntEQ(ret, 1);
+    ExpectIntGT(test_mem_allocs, 1);
+    ExpectIntEQ(test_mem_allocs, test_mem_frees);
+#else
+    ExpectIntEQ(ret, 0);
+#endif
+    CRYPTO_get_mem_functions(&m, &r, &f);
+    ExpectTrue(m == test_mem_prev_malloc);
+    ExpectTrue(r == test_mem_prev_realloc);
+    ExpectTrue(f == test_mem_prev_free);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ASN
  *----------------------------------------------------------------------------*/
@@ -47516,6 +47666,7 @@ TEST_CASE testCases[] = {
 #endif
 
     TEST_DECL(test_wolfSSL_CRYPTO_memcmp),
+    TEST_DECL(test_wolfSSL_CRYPTO_get_mem_functions),
     TEST_DECL(test_wolfSSL_CRYPTO_get_ex_new_index),
     TEST_DECL(test_CRYPTO_set_dynlock_xxx),
     TEST_DECL(test_CRYPTO_THREADID_xxx),

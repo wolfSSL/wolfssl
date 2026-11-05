@@ -17146,6 +17146,48 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                     WOLFSSL_CRYPTO_EX_free* free_func);
 
 /*!
+    \ingroup SSL
+    \brief Get the memory functions set with CRYPTO_set_mem_functions, as
+    OpenSSL 3.0's CRYPTO_get_mem_functions. Each output may be NULL.
+
+    When none are set, the returned functions use the C library. They do
+    not call back into wolfSSL, so wrappers of them may be passed to
+    CRYPTO_set_mem_functions.
+
+    CRYPTO_set_mem_functions needs USE_WOLFSSL_MEMORY and no
+    WOLFSSL_STATIC_MEMORY. Otherwise it fails and the returned functions
+    allocate as OPENSSL_malloc does.
+
+    \param [out] m  Malloc function. May be NULL.
+    \param [out] r  Realloc function. May be NULL.
+    \param [out] f  Free function. May be NULL.
+
+    _Example_
+    \code
+    static CRYPTO_malloc_fn prev_malloc;
+    static CRYPTO_realloc_fn prev_realloc;
+    static CRYPTO_free_fn prev_free;
+
+    static void* my_malloc(size_t sz, const char* file, int line)
+    {
+        return prev_malloc(sz, file, line);
+    }
+    // my_realloc and my_free alike
+
+    CRYPTO_get_mem_functions(&prev_malloc, &prev_realloc, &prev_free);
+    CRYPTO_set_mem_functions(my_malloc, my_realloc, my_free);
+    // ...
+    CRYPTO_set_mem_functions(prev_malloc, prev_realloc, prev_free);
+    \endcode
+
+    \sa wolfSSL_CRYPTO_set_mem_functions
+    \sa wolfSSL_SetAllocators
+*/
+void wolfSSL_CRYPTO_get_mem_functions(wolfSSL_OSSL_Malloc_cb* m,
+                                      wolfSSL_OSSL_Realloc_cb* r,
+                                      wolfSSL_OSSL_Free_cb* f);
+
+/*!
  \ingroup Setup
  \brief  In case this function is called in a client side, set certificate types
  that can be sent to its peer. In case called in a server side,

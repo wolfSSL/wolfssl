@@ -113,6 +113,11 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const WOLFSSL_INIT_SETT
 /* this function was used to set the default malloc, free, and realloc */
 #define CRYPTO_malloc_init() 0 /* CRYPTO_malloc_init is not needed */
 
+#define CRYPTO_malloc_fn                 wolfSSL_OSSL_Malloc_cb
+#define CRYPTO_realloc_fn                wolfSSL_OSSL_Realloc_cb
+#define CRYPTO_free_fn                   wolfSSL_OSSL_Free_cb
+#define CRYPTO_get_mem_functions         wolfSSL_CRYPTO_get_mem_functions
+
 #define OPENSSL_free wolfSSL_OPENSSL_free
 #define OPENSSL_malloc wolfSSL_OPENSSL_malloc
 #define OPENSSL_hexchar2int wolfSSL_OPENSSL_hexchar2int

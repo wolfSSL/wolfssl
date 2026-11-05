@@ -5988,6 +5988,10 @@ WOLFSSL_API int wolfSSL_CRYPTO_set_mem_functions(
         wolfSSL_OSSL_Malloc_cb  m,
         wolfSSL_OSSL_Realloc_cb r,
         wolfSSL_OSSL_Free_cb    f);
+WOLFSSL_API void wolfSSL_CRYPTO_get_mem_functions(
+        wolfSSL_OSSL_Malloc_cb*  m,
+        wolfSSL_OSSL_Realloc_cb* r,
+        wolfSSL_OSSL_Free_cb*    f);
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     void *(*r) (void *, size_t, const char *, int), void (*f) (void *));
 
