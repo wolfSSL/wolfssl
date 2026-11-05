@@ -55,11 +55,17 @@ jobs:
       # One entry per compiler (the former one-runner-per-compiler matrix):
       # default-config build plus "make dist", with the compiler routed
       # through ccache via the per-config "cc" key. CXX rides along as a
-      # configure argument.
+      # configure argument. gcc-9-all also compiles the code a default config
+      # leaves out, such as the OpenSSL compat tests, under the oldest gcc.
       - name: Build all configs (parallel, out-of-tree)
         run: |
           cat > "$RUNNER_TEMP/multi-compiler-configs.json" <<'EOF'
           [
+          {"name": "gcc-9-all", "minutes": 1.5,
+           "cc": "ccache gcc-9",
+           "configure": ["CXX=g++-9", "--enable-all",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false},
           {"name": "gcc-9", "minutes": 1.5,
            "cc": "ccache gcc-9",
            "configure": ["CXX=g++-9",
