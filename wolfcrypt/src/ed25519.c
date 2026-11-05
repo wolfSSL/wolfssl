@@ -1461,6 +1461,10 @@ int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
 {
     if (key == NULL)
         return BAD_FUNC_ARG;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(key, ed25519_key))
+        return BAD_ALIGN_E;
+#endif
 
     /* for init, ensure the key is zeroed*/
     XMEMSET(key, 0, sizeof(ed25519_key));
@@ -1544,6 +1548,12 @@ void wc_ed25519_free(ed25519_key* key)
 {
     if (key == NULL)
         return;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(key, ed25519_key)) {
+        ForceZero(key, sizeof(*key));
+        return;
+    }
+#endif
 
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     ed25519_hash_free(key, &key->sha);

@@ -528,6 +528,8 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
 
     \return 0 Returned upon successfully initializing the ed25519_key object.
     \return BAD_FUNC_ARG Returned if key is NULL.
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param [in,out] key Pointer to the ed25519_key object to initialize.
 
@@ -1241,6 +1243,8 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen,
 
     \return 0 on success
     \return negative on failure
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param key Ed25519 key structure
     \param heap Heap hint for memory allocation
@@ -1267,6 +1271,8 @@ int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
     \return BAD_FUNC_ARG if key is NULL, or id is NULL and len is greater
     than 0.
     \return BUFFER_E if len is negative or greater than ED25519_MAX_ID_LEN.
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param [in,out] key Pointer to the ed25519_key to initialize.
     \param [in] id Key identifier bytes.
@@ -1297,6 +1303,8 @@ int wc_ed25519_init_id(ed25519_key* key, const unsigned char* id, int len,
     \return 0 on success.
     \return BAD_FUNC_ARG if key or label is NULL.
     \return BUFFER_E if label is empty or longer than ED25519_MAX_LABEL_LEN.
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param [in,out] key Pointer to the ed25519_key to initialize.
     \param [in] label NUL-terminated label string.
