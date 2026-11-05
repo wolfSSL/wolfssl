@@ -4584,6 +4584,13 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_ReuseAfterError(void)
     }
     ExpectIntLT(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, badTag,
         (word32)encSz, decoded, sizeof(decoded)), 0);
+    /* Resuming at the tag stage after the stream was reset finds no saved
+     * nonce, tag or attributes. */
+    if (pkcs7 != NULL) {
+        pkcs7->state = WC_PKCS7_AUTHENV_6;
+    }
+    ExpectIntLT(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
+        (word32)encSz, decoded, sizeof(decoded)), 0);
     ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
         (word32)encSz, decoded, sizeof(decoded)), (int)sizeof(data));
     ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
