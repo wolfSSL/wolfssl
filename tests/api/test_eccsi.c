@@ -948,3 +948,78 @@ int test_wc_Eccsi_KeyReuse(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Sign and verify on each 256-bit curve compiled in. */
+int test_wc_Eccsi_Curves(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_ECCSI
+    static const int curves[] = {
+        ECC_SECP256R1,
+    #ifdef HAVE_ECC_BRAINPOOL
+        ECC_BRAINPOOLP256R1,
+    #endif
+    #ifdef HAVE_ECC_KOBLITZ
+        ECC_SECP256K1,
+    #endif
+    };
+    EccsiKey key;
+    WC_RNG rng;
+    mp_int ssk;
+    ecc_point* pvt = NULL;
+    char mail[] = "test@wolfssl.com";
+    byte* id = (byte*)mail;
+    word32 idSz;
+    int valid;
+    int verified;
+    int i;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    byte hashSz = 0;
+    byte sig[32 * 4 + 1];
+    word32 sigSz;
+    byte msg[1] = { 0x00 };
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ssk, 0, sizeof(ssk));
+    idSz = (word32)XSTRLEN(mail);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pvt = wc_ecc_new_point());
+    ExpectIntEQ(mp_init(&ssk), MP_OKAY);
+
+    for (i = 0; i < (int)(sizeof(curves) / sizeof(curves[0])); i++) {
+        verified = 0;
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_InitEccsiKey_ex(&key, 32, curves[i], HEAP_HINT,
+            INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MakeEccsiKey(&key, &rng), 0);
+        ExpectIntEQ(wc_MakeEccsiPair(&key, &rng, WC_HASH_TYPE_SHA256, id,
+            idSz, &ssk, pvt), 0);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPair(&key, WC_HASH_TYPE_SHA256, id, idSz,
+            &ssk, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
+        ExpectIntEQ(wc_HashEccsiId(&key, WC_HASH_TYPE_SHA256, id, idSz, pvt,
+            hash, &hashSz), 0);
+        ExpectIntEQ(wc_SetEccsiHash(&key, hash, hashSz), 0);
+        ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt), 0);
+        sigSz = sizeof(sig);
+        ExpectIntEQ(wc_SignEccsiHash(&key, &rng, WC_HASH_TYPE_SHA256, msg,
+            (word32)sizeof(msg), sig, &sigSz), 0);
+        ExpectIntEQ(wc_VerifyEccsiHash(&key, WC_HASH_TYPE_SHA256, msg,
+            (word32)sizeof(msg), sig, sigSz, &verified), 0);
+        ExpectIntEQ(verified, 1);
+        wc_FreeEccsiKey(&key);
+    }
+
+    if (pvt != NULL) {
+        wc_ecc_del_point(pvt);
+    }
+    mp_free(&ssk);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
