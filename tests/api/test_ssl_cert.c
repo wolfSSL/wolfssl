@@ -6452,3 +6452,88 @@ int test_wolfSSL_chain_ca_not_cached_on_override(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Test that a chain CA reported revoked is not cached as a trust anchor when
+ * the application's verify callback overrides the revocation.
+ *
+ * The intermediate's signature verifies against the trusted root, but the
+ * root's CRL revokes it. Overriding the revocation decides this handshake.
+ * Caching the intermediate would make it a trust anchor for every later
+ * connection out of the same context, and a certificate it issued would then
+ * verify without its revocation ever being looked at again.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_revoked_chain_ca_not_cached_on_override(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Leaf, ca-int2 and ca-int, where the root's CRL revokes ca-int. */
+    const char* svrChain = "./certs/intermediate/server-chain.pem";
+    const char* svrKey = "./certs/server-key.pem";
+    /* Issued by the revoked ca-int, so it verifies only if ca-int is cached. */
+    const char* issuedCert = "./certs/intermediate/ca-int2-cert.pem";
+    const char* rootCert = "./certs/ca-cert.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    if ((ctx_c != NULL) && (ctx_s != NULL)) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, rootCert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrChain),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx_c));
+    /* Nothing the client holds signed it yet, so the check after the
+     * handshake is reporting a change and not a constant. */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, issuedCert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* Only the root's CRL can be loaded before the handshake. The CRLs of the
+     * intermediates stay missing and the callback accepts that as well. */
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx_c, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx_c,
+        "./certs/crl/extra-crls/ca-int-cert-revoked.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_chain_ca_override_cb);
+
+    /* The override carries the handshake past the revoked intermediate. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The revoked intermediate must not have become a trust anchor. CRL
+     * checking is off so that only the signer lookup decides the result. */
+    ExpectIntEQ(wolfSSL_CertManagerDisableCRL(cm), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, issuedCert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

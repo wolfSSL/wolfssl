@@ -20213,10 +20213,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      * a trusted anchor stays out of the cache even when the
                      * verify callback waved it through: cached CAs are trust
                      * anchors for every later connection and the callback only
-                     * runs on an error. A failure raised after the signature
-                     * verified leaves the key authentic, and the rest of the
-                     * chain needs the cached entry. */
-                    if (preCbRet != 0 && !args->dCert->sigVerified) {
+                     * runs on an error. A revoked CA stays out for the same
+                     * reason even though its key is authentic. Other failures
+                     * raised after the signature verified leave the key
+                     * trustworthy, and the rest of the chain needs the cached
+                     * entry. */
+                    if (preCbRet != 0 && (!args->dCert->sigVerified ||
+                            preCbRet == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED) ||
+                            preCbRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED))) {
                         skipAddCA = 1;
                     }
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)

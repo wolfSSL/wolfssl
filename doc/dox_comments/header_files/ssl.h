@@ -3207,14 +3207,14 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     How far the acceptance reaches depends on why the certificate was
     rejected. A chain certificate whose signature was confirmed against a
     trusted anchor, and which failed a later check such as its validity
-    dates, its revocation status or its key usage, is still added to the
-    certificate manager: accepting it also makes it a trust anchor for later
-    connections from the same context, and verify_callback is not consulted
-    about it again. A certificate whose signature was never confirmed is not
-    added, so that acceptance applies to this handshake alone. It is then not
-    available as the signer of the next certificate in the chain, which is
-    reported to verify_callback in its turn, and accepting each one in turn
-    completes the handshake.
+    dates or its key usage, is still added to the certificate manager:
+    accepting it also makes it a trust anchor for later connections from the
+    same context, and verify_callback is not consulted about it again. A
+    certificate whose signature was never confirmed, or which an OCSP or CRL
+    lookup reported revoked, is not added, so that acceptance applies to this
+    handshake alone. It is then not available as the signer of the next
+    certificate in the chain, which is reported to verify_callback in its
+    turn, and accepting each one in turn completes the handshake.
 
     OCSP is the exception. A stapled response is verified against the
     certificate manager, which does not hold the accepted certificate, so the
@@ -3285,14 +3285,15 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
     How far the acceptance reaches depends on why the certificate was
     rejected. A chain certificate whose signature was confirmed against a
     trusted anchor, and which failed a later check such as its validity
-    dates, its revocation status or its key usage, is still added to the
-    certificate manager: accepting it also makes it a trust anchor for later
-    connections from the same session's context, and verify_callback is not
-    consulted about it again. A certificate whose signature was never
-    confirmed is not added, so that acceptance applies to this handshake
-    alone. It is then not available as the signer of the next certificate in
-    the chain, which is reported to verify_callback in its turn, and
-    accepting each one in turn completes the handshake.
+    dates or its key usage, is still added to the certificate manager:
+    accepting it also makes it a trust anchor for later connections from the
+    same session's context, and verify_callback is not consulted about it
+    again. A certificate whose signature was never confirmed, or which an
+    OCSP or CRL lookup reported revoked, is not added, so that acceptance
+    applies to this handshake alone. It is then not available as the signer
+    of the next certificate in the chain, which is reported to
+    verify_callback in its turn, and accepting each one in turn completes the
+    handshake.
 
     OCSP is the exception. A stapled response is verified against the
     certificate manager, which does not hold the accepted certificate, so the
