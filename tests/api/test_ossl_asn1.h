@@ -29,6 +29,7 @@ int test_wolfSSL_ASN1_INTEGER(void);
 int test_wolfSSL_ASN1_INTEGER_cmp(void);
 int test_wolfSSL_ASN1_INTEGER_BN(void);
 int test_wolfSSL_ASN1_INTEGER_get_set(void);
+int test_wolfSSL_ASN1_INTEGER_STRING(void);
 int test_wolfSSL_d2i_ASN1_INTEGER(void);
 int test_wolfSSL_a2i_ASN1_INTEGER(void);
 int test_wolfSSL_i2c_ASN1_INTEGER(void);
@@ -68,6 +69,7 @@ int test_ASN1_strings(void);
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_ASN1_INTEGER_cmp),        \
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_ASN1_INTEGER_BN),         \
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_ASN1_INTEGER_get_set),    \
+    TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_ASN1_INTEGER_STRING),     \
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_d2i_ASN1_INTEGER),        \
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_a2i_ASN1_INTEGER),        \
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_i2c_ASN1_INTEGER)

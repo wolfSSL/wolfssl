@@ -1074,8 +1074,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_OCTET_STRING_cmp           wolfSSL_ASN1_STRING_cmp
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
 /* In OpenSSL, ASN1_INTEGER is a typedef alias of ASN1_STRING (same struct),
- * so ASN1_STRING_length/get0_data work on ASN1_INTEGER* as well.
- * In wolfSSL they are distinct structs, so dispatch by type using _Generic. */
+ * so ASN1_STRING_length/get0_data/type work on ASN1_INTEGER* as well.
+ * In wolfSSL they are distinct structs, so dispatch by type. */
 #if !defined(__cplusplus) && defined(__STDC_VERSION__) && \
         __STDC_VERSION__ >= 201112L
 #define ASN1_STRING_length(x) \
@@ -1090,9 +1090,42 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
         const WOLFSSL_ASN1_INTEGER*: wolfSSL_ASN1_INTEGER_get0_data, \
         default:                     wolfSSL_ASN1_STRING_get0_data \
     )(x)
+#define ASN1_STRING_type(x) \
+    _Generic((x), \
+        WOLFSSL_ASN1_INTEGER*:       wolfSSL_ASN1_INTEGER_get_type, \
+        const WOLFSSL_ASN1_INTEGER*: wolfSSL_ASN1_INTEGER_get_type, \
+        default:                     wolfSSL_ASN1_STRING_type \
+    )(x)
+#elif !defined(__cplusplus) && (defined(__GNUC__) || defined(__clang__))
+/* Before C11. The call not taken gets a NULL of its parameter type, so x is
+ * still type checked and evaluated once. As with _Generic, these are
+ * function-like macros: for a function pointer use
+ * wolfSSL_ASN1_STRING_length or wolfSSL_ASN1_INTEGER_get_length. */
+#define WOLFSSL_ASN1_IS_INTEGER(x) \
+    (__builtin_types_compatible_p(__typeof__(x), WOLFSSL_ASN1_INTEGER*) || \
+     __builtin_types_compatible_p(__typeof__(x), const WOLFSSL_ASN1_INTEGER*))
+#define WOLFSSL_ASN1_INTEGER_ARG(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), (x), \
+        (const WOLFSSL_ASN1_INTEGER*)0)
+#define WOLFSSL_ASN1_STRING_ARG(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        (const WOLFSSL_ASN1_STRING*)0, (x))
+#define ASN1_STRING_length(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        wolfSSL_ASN1_INTEGER_get_length(WOLFSSL_ASN1_INTEGER_ARG(x)), \
+        wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING_ARG(x)))
+#define ASN1_STRING_get0_data(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        wolfSSL_ASN1_INTEGER_get0_data(WOLFSSL_ASN1_INTEGER_ARG(x)), \
+        wolfSSL_ASN1_STRING_get0_data(WOLFSSL_ASN1_STRING_ARG(x)))
+#define ASN1_STRING_type(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        wolfSSL_ASN1_INTEGER_get_type(WOLFSSL_ASN1_INTEGER_ARG(x)), \
+        wolfSSL_ASN1_STRING_type(WOLFSSL_ASN1_STRING_ARG(x)))
 #else
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_get0_data
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length
+#define ASN1_STRING_type                wolfSSL_ASN1_STRING_type
 #endif
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
 #define ASN1_UNIVERSALSTRING_to_string  wolfSSL_ASN1_UNIVERSALSTRING_to_string
