@@ -1094,6 +1094,26 @@ const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(const WOLFSSL_ASN1_INTEGER* 
     return ai->data;
 }
 
+/* Get the type of the INTEGER, as ASN1_STRING_type() on an ASN1_INTEGER in
+ * OpenSSL. The sign is in the negative flag, as for the other INTEGER APIs.
+ *
+ * @param [in] ai  ASN.1 INTEGER object.
+ * @return  WOLFSSL_V_ASN1_NEG_INTEGER when negative.
+ * @return  WOLFSSL_V_ASN1_INTEGER when not negative.
+ * @return  0 when ai is NULL.
+ */
+int wolfSSL_ASN1_INTEGER_get_type(const WOLFSSL_ASN1_INTEGER* ai)
+{
+    int type = 0;
+
+    if (ai != NULL) {
+        type = ai->negative ? WOLFSSL_V_ASN1_NEG_INTEGER :
+            WOLFSSL_V_ASN1_INTEGER;
+    }
+
+    return type;
+}
+
 #if defined(OPENSSL_EXTRA)
 /* Reset the data of ASN.1 INTEGER object back to empty fixed array.
  *
