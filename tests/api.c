@@ -39094,6 +39094,7 @@ static int test_wc_CryptoCb(void)
 #define RSAPSS_ROOT     "./certs/rsapss/root-rsapss.pem"
 #define RSAPSS3072_SVR_CERT "./certs/rsapss/server-3072-rsapss.pem"
 #define RSAPSS3072_SVR_KEY  "./certs/rsapss/server-3072-rsapss-priv.pem"
+#define RSAPSS3072_ROOT     "./certs/rsapss/root-3072-rsapss.pem"
 
 /* Hash each side is expected to have signed with. */
 static int test_rsa_pss_pss_client_hash = sha256_mac;
@@ -39149,6 +39150,7 @@ static int test_rsa_pss_pss_only_ssl_ready(WOLFSSL* ssl)
     return EXPECT_RESULT();
 }
 
+#ifdef WOLFSSL_SHA384
 static int test_rsa_pss_pss_sha384_ssl_ready(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -39156,6 +39158,7 @@ static int test_rsa_pss_pss_sha384_ssl_ready(WOLFSSL* ssl)
         WOLFSSL_SUCCESS);
     return EXPECT_RESULT();
 }
+#endif
 
 /* rsa_pkcs1_sha256 for RSA keys; the ECDSA entry stops the server from
  * replacing a list that leaves an advertised certificate type uncovered. */
@@ -39239,6 +39242,7 @@ static int test_tls_rsa_pss_pss_key(void)
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
             &server_cbf, NULL), TEST_SUCCESS);
 
+    #ifdef WOLFSSL_SHA384
         /* ... a key whose parameters declare SHA-256 cannot take SHA-384: the
          * server refuses the ClientHello with handshake_failure ... */
         test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
@@ -39249,17 +39253,20 @@ static int test_tls_rsa_pss_pss_key(void)
         ExpectIntEQ(client_cbf.last_err, WC_NO_ERR_TRACE(FATAL_ERROR));
         ExpectIntEQ(test_rsa_pss_pss_rx_alert, handshake_failure);
 
-        /* ... a key without parameters follows the offer ... */
+        /* ... a key without parameters follows the offer (the 3072-bit chain
+         * is SHA-384 signed) ... */
         test_rsa_pss_pss_server_hash = sha384_mac;
         test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
         client_cbf.ssl_ready   = test_rsa_pss_pss_sha384_ssl_ready;
         client_cbf.on_result   = test_rsa_pss_pss_on_result;
+        client_cbf.caPemFile   = RSAPSS3072_ROOT;
         server_cbf.on_result   = test_rsa_pss_pss_on_result;
         server_cbf.certPemFile = RSAPSS3072_SVR_CERT;
         server_cbf.keyPemFile  = RSAPSS3072_SVR_KEY;
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
             &server_cbf, NULL), TEST_SUCCESS);
         test_rsa_pss_pss_server_hash = sha256_mac;
+    #endif /* WOLFSSL_SHA384 */
 
         /* ... and an rsaEncryption key cannot use rsa_pss_pss_*. */
         test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);

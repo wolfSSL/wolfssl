@@ -6500,10 +6500,28 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 #endif
 
 #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+/* Whether rsa_pss_*_<hashAlgo> fits an id-RSASSA-PSS key's parameters: the
+ * declared hash and MGF, and a salt no shorter than declared (RFC 4055 3.3);
+ * the scheme's salt is the digest length (RFC 8446 4.2.3). */
+static int MatchRsaPssParams(byte keyHash, byte keyMgf, word16 keySaltLen,
+    byte hashAlgo)
+{
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+    int mgf = WC_MGF1NONE;
+
+    if (ConvertHashPss(hashAlgo, &hashType, &mgf) != 0)
+        return 0;
+    if (keyHash != 0 && hashType != (enum wc_HashType)keyHash)
+        return 0;
+    if (keyMgf != 0 && mgf != (int)keyMgf)
+        return 0;
+    return (int)keySaltLen <= wc_HashGetDigestSize(hashType);
+}
+
 /* Check the peer's RSA signature scheme against its key: rsa_pss_rsae_* needs
  * an rsaEncryption key and rsa_pss_pss_* an id-RSASSA-PSS key (RFC 8446 4.2.3),
- * used only with the hash and salt length its parameters declare (RFC 4055
- * 1.2). Returns 0 or INVALID_PARAMETER. */
+ * used only as its parameters allow (RFC 4055 1.2).
+ * Returns 0 or INVALID_PARAMETER. */
 int CheckPeerRsaSigAlgo(const WOLFSSL* ssl, byte sigAlgo, byte hashAlgo)
 {
     if (ssl->peerRsaPss) {
@@ -6512,15 +6530,9 @@ int CheckPeerRsaSigAlgo(const WOLFSSL* ssl, byte sigAlgo, byte hashAlgo)
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
         }
-        if (ssl->peerRsaPssHash != 0 && HashAlgoToType(hashAlgo) !=
-                (enum wc_HashType)ssl->peerRsaPssHash) {
-            WOLFSSL_MSG("Peer RSA-PSS hash differs from key parameters");
-            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
-            return INVALID_PARAMETER;
-        }
-        if (ssl->peerRsaPssSaltLen != 0 && (int)ssl->peerRsaPssSaltLen !=
-                wc_HashGetDigestSize(HashAlgoToType(hashAlgo))) {
-            WOLFSSL_MSG("Peer RSA-PSS salt length differs from key parameters");
+        if (!MatchRsaPssParams(ssl->peerRsaPssHash, ssl->peerRsaPssMgf,
+                ssl->peerRsaPssSaltLen, hashAlgo)) {
+            WOLFSSL_MSG("Peer RSA-PSS scheme not allowed by key parameters");
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
         }
@@ -8689,6 +8701,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
   #ifdef WC_RSA_PSS
     ssl->useRsaPss = ctx->useRsaPss;
     ssl->rsaPssHash = ctx->rsaPssHash;
+    ssl->rsaPssMgf = ctx->rsaPssMgf;
     ssl->rsaPssSaltLen = ctx->rsaPssSaltLen;
   #endif
 #endif
@@ -18858,6 +18871,7 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
             #ifdef WC_RSA_PSS
                 ssl->peerRsaPss = (args->dCert->keyOID == RSAPSSk);
                 ssl->peerRsaPssHash = args->dCert->keyPssHash;
+                ssl->peerRsaPssMgf = args->dCert->keyPssMgf;
                 ssl->peerRsaPssSaltLen = args->dCert->keyPssSaltLen;
             #endif
         #if defined(WOLFSSL_RENESAS_TSIP_TLS) || \
@@ -35047,18 +35061,18 @@ static int MatchSigAlgo(WOLFSSL* ssl, int hashAlgo, int sigAlgo)
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
 #ifdef WC_RSA_PSS
-    /* RSA certificate and PSS sig alg. */
-    if (ssl->options.sigAlgo == rsa_sa_algo) {
+    /* RSA certificate and PSS sig alg. Also entered once a candidate was
+     * chosen, so each later one is held to the key as well. */
+    if (ssl->options.sigAlgo == rsa_sa_algo ||
+            ssl->options.sigAlgo == rsa_pss_sa_algo ||
+            ssl->options.sigAlgo == rsa_pss_pss_algo) {
         if (ssl->useRsaPss) {
-            /* id-RSASSA-PSS key: rsa_pss_pss_* only (RFC 8446 4.2.3), with
-             * the hash and salt length its parameters declare (RFC 4055 1.2). */
+            /* id-RSASSA-PSS key: rsa_pss_pss_* only (RFC 8446 4.2.3), as its
+             * parameters allow (RFC 4055 1.2). */
             if (sigAlgo != rsa_pss_pss_algo)
                 return 0;
-            if (ssl->rsaPssHash != 0 && HashAlgoToType(hashAlgo) !=
-                    (enum wc_HashType)ssl->rsaPssHash)
-                return 0;
-            if (ssl->rsaPssSaltLen != 0 && (int)ssl->rsaPssSaltLen !=
-                    wc_HashGetDigestSize(HashAlgoToType(hashAlgo)))
+            if (!MatchRsaPssParams(ssl->rsaPssHash, ssl->rsaPssMgf,
+                    ssl->rsaPssSaltLen, hashAlgo))
                 return 0;
         }
         else {

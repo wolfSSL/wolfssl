@@ -4690,6 +4690,7 @@ struct WOLFSSL_CTX {
 #ifdef WC_RSA_PSS
     word8       useRsaPss;        /* cert supports RSA-PSS */
     word8       rsaPssHash;       /* hash declared by a PSS key, 0 if none */
+    word8       rsaPssMgf;        /* MGF declared by a PSS key, 0 if none */
     word16      rsaPssSaltLen;    /* salt length declared by a PSS key */
 #endif
 #endif
@@ -7162,9 +7163,11 @@ struct WOLFSSL {
 #ifdef WC_RSA_PSS
     word8           useRsaPss;           /* cert supports RSA-PSS */
     word8           rsaPssHash;          /* hash declared by own PSS key */
+    word8           rsaPssMgf;           /* MGF declared by own PSS key */
     word16          rsaPssSaltLen;       /* salt length declared by own key */
     byte            peerRsaPss;          /* peer key has id-RSASSA-PSS OID */
     byte            peerRsaPssHash;      /* hash declared by peer PSS key */
+    byte            peerRsaPssMgf;       /* MGF declared by peer PSS key */
     word16          peerRsaPssSaltLen;   /* salt length declared by peer key */
 #endif
 #endif

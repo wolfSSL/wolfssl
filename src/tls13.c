@@ -12696,6 +12696,7 @@ static int decodeRsaKey(WOLFSSL* ssl)
     /* Raw public key: OID not tracked, stay lenient. */
     ssl->peerRsaPss = 0;
     ssl->peerRsaPssHash = 0;
+    ssl->peerRsaPssMgf = 0;
     ssl->peerRsaPssSaltLen = 0;
 #endif
     keyRet = wc_RsaPublicKeyDecode(GetPeerCert(ssl)->sapkiDer, &tmpIdx,

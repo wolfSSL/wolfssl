@@ -1861,11 +1861,13 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             if (ssl) {
                 ssl->useRsaPss = cert->keyOID == RSAPSSk;
                 ssl->rsaPssHash = cert->keyPssHash;
+                ssl->rsaPssMgf = cert->keyPssMgf;
                 ssl->rsaPssSaltLen = cert->keyPssSaltLen;
             }
             if (ctx) {
                 ctx->useRsaPss = cert->keyOID == RSAPSSk;
                 ctx->rsaPssHash = cert->keyPssHash;
+                ctx->rsaPssMgf = cert->keyPssMgf;
                 ctx->rsaPssSaltLen = cert->keyPssSaltLen;
             }
     #endif

@@ -1941,6 +1941,7 @@ struct DecodedCert {
     word32  sigParamsIndex;          /* start of signature parameters    */
     word32  sigParamsLength;         /* length of signature parameters   */
     byte    keyPssHash;              /* hash in PSS key params, 0 if none */
+    byte    keyPssMgf;               /* MGF in PSS key params, 0 if none  */
     word16  keyPssSaltLen;           /* salt length in PSS key params    */
 #endif
     int     version;                 /* cert version, 1 or 3             */
