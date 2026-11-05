@@ -84,6 +84,7 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_fragmented(void);
 int test_wc_PKCS7_DecodeOpenSslStream(void);
 int test_wc_PKCS7_DecodeEnvelopedData_split(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void);
+int test_wc_PKCS7_DecodeAuthEnvelopedData_ReuseAfterError(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked(void);
@@ -100,6 +101,9 @@ int test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos(void);
 int test_wc_PKCS7_VerifySignedData_DegenerateWithCert(void);
 int test_wc_PKCS7_VerifySignedData_NoDegenerateAcceptsRealSigner(void);
 int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
+int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void);
+int test_wc_PKCS7_VerifySignedData_CertSetOverflow(void);
+int test_wc_PKCS7_VerifySignedData_CertSetAttrCert(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -163,7 +167,10 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateWithCert), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDegenerateAcceptsRealSigner), \
-    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDigestParams)
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDigestParams), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ReuseAfterContent), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_CertSetOverflow), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_CertSetAttrCert)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \
@@ -193,6 +200,7 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeOpenSslStream), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_split), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_truncated), \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_ReuseAfterError), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked), \
