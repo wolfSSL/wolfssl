@@ -3871,16 +3871,13 @@ int wolfssl_local_IsValidFQDN(const char* name, word32 nameSz)
     int curLabelHasAlpha = 0;
     int curLabelHasUnderscore = 0;
 
-    if (name == NULL || nameSz == 0)
+    if (name == NULL || nameSz == 0 || nameSz > 254)
         return 0;
 
     /* Bound before touching name[]: a valid name is at most 253 octets
      * plus an optional trailing dot, so longer sizes are rejected here
      * without reading past the caller's buffer.
      */
-    if (nameSz > 254)
-        return 0;
-
     /* Strip a single optional trailing dot before measuring.  "example.com."
      * is the absolute form of the same FQDN.
      */

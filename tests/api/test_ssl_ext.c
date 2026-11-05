@@ -2388,6 +2388,7 @@ int test_ssl_api_decision_coverage(void)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     char buf[64];
+    int initRet;
 
     XMEMSET(buf, 0, sizeof(buf));
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -2401,7 +2402,10 @@ int test_ssl_api_decision_coverage(void)
     ExpectTrue(ssl->arrays != NULL);
 
     /* --- 2509:1 wolfSSL_Init: initRefCount == 0 (second call -> refcount>0) */
-    (void)wolfSSL_Init();
+    initRet = wolfSSL_Init();
+    ExpectIntEQ(initRet, WOLFSSL_SUCCESS);
+    if (initRet == WOLFSSL_SUCCESS)
+        ExpectIntEQ(wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
 
     /* --- 1187:0/1 wolfSSL_get_cipher_list: priority >= size || < 0 ------ */
     (void)wolfSSL_get_cipher_list(0);

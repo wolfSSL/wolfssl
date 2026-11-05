@@ -4264,7 +4264,9 @@ int test_wc_MlkemFeatureCoverage(void)
  * Section 6): a seed-only [0] under the privateKey OCTET STRING, or a
  * SEQUENCE carrying both the seed and the expanded key. */
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
-    defined(WC_MLKEM_HAVE_NATIVE) && defined(WOLFSSL_ASN_TEMPLATE)
+    defined(WC_MLKEM_HAVE_NATIVE) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1)
 static word32 test_mlkem_der_tlv(byte* p, byte tag, word32 len)
 {
     word32 i = 0;
@@ -4282,6 +4284,11 @@ static word32 test_mlkem_der_tlv(byte* p, byte tag, word32 len)
         p[i++] = (byte)(len & 0xFF);
     }
     return i;
+}
+
+static word32 test_mlkem_der_tlv_size(word32 len)
+{
+    return (len < 128U ? 2U : len < 256U ? 3U : 4U) + len;
 }
 
 /* OneAsymmetricKey header: SEQUENCE { INTEGER 0, SEQUENCE { OID } }.
@@ -4309,9 +4316,9 @@ static byte* test_mlkem_der_header(byte* p, int t)
 static word32 test_mlkem_der_seed_only(byte* der, int t,
     const byte* seed, word32 seedLen, int extra)
 {
-    word32 seedTlvSz = 2 + seedLen;
-    word32 pkeySz    = 2 + seedTlvSz + (word32)extra;
-    word32 seqSz     = 3 + 16 + pkeySz;
+    word32 seedTlvSz = test_mlkem_der_tlv_size(seedLen);
+    word32 pkeySz    = test_mlkem_der_tlv_size(seedTlvSz + (word32)extra);
+    word32 seqSz     = 16 + pkeySz;
     byte*  p = der;
 
     p += test_mlkem_der_tlv(p, 0x30, seqSz);
@@ -4334,16 +4341,17 @@ static word32 test_mlkem_der_both(byte* der, int t,
     const byte* seed, word32 seedLen,
     const byte* key, word32 keyLen)
 {
-    word32 keyTlvSz = 3 + keyLen;
-    word32 bothSz   = 5 + 3 + seedLen + keyTlvSz;
-    word32 pkeySz   = 5 + bothSz;
-    word32 seqSz    = 3 + 16 + pkeySz;
+    word32 keyTlvSz = test_mlkem_der_tlv_size(keyLen);
+    word32 bothSz   = test_mlkem_der_tlv_size(seedLen) + keyTlvSz;
+    word32 bothTlvSz = test_mlkem_der_tlv_size(bothSz);
+    word32 pkeySz   = test_mlkem_der_tlv_size(bothTlvSz);
+    word32 seqSz    = 16 + pkeySz;
     byte*  p = der;
 
     p += test_mlkem_der_tlv(p, 0x30, seqSz);
     p = test_mlkem_der_header(p, t);
-    p += test_mlkem_der_tlv(p, 0x04, bothSz);
-    p += test_mlkem_der_tlv(p, 0x30, 3 + seedLen + keyTlvSz);
+    p += test_mlkem_der_tlv(p, 0x04, bothTlvSz);
+    p += test_mlkem_der_tlv(p, 0x30, bothSz);
     p += test_mlkem_der_tlv(p, 0x04, seedLen);
     XMEMCPY(p, seed, seedLen);
     p += seedLen;
@@ -4367,7 +4375,8 @@ int test_wc_MlkemDecisionCoverage(void)
     byte      der[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE + 256];
     word32    idx = 0;
     word32    sz = 0;
-#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1)
     MlKemKey* seedKey = NULL;
     byte      expanded[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
     word32    privLen = 0;
@@ -4604,7 +4613,8 @@ int test_wc_MlkemDecisionCoverage(void)
     /* --- RFC 9935 Section 6 privateKey shapes: seed-only and "both".
      *     The seed expands through the real keygen so the "both" key agrees
      *     with its seed. --- */
-#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1)
     seedKey = (MlKemKey*)XMALLOC(sizeof(*seedKey), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(seedKey);
@@ -4619,15 +4629,12 @@ int test_wc_MlkemDecisionCoverage(void)
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(adopt);
 
-    /* Seed-only shape. Library bug (canary): the ASN template parser
-     * rejects the RFC 9935 seed-only shape with ASN_PARSE_E even on a
-     * valid DER, so the (ret == 0) && (seed != NULL) true side stays
-     * uncovered until the parser is fixed; expect the failure. */
+    /* Valid RFC 9935 seed-only shape. */
     derSz = test_mlkem_der_seed_only(der, t, rndMk, sizeof(rndMk), 0);
     XMEMSET(adopt, 0, sizeof(*adopt));
     ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
     idx = 0;
-    ExpectIntNE(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
     wc_MlKemKey_Free(adopt);
 
     /* Seed-only shape with a trailing byte inside the privateKey OCTET
@@ -4640,16 +4647,13 @@ int test_wc_MlkemDecisionCoverage(void)
     ExpectIntNE(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
     wc_MlKemKey_Free(adopt);
 
-    /* "Both" shape, seed and expanded key agree. Library bug (canary):
-     * the parser rejects this shape too (ASN_PARSE_E), so the
-     * (expandedLen != privKeyLen) false side stays uncovered until
-     * fixed; expect the failure. */
+    /* Valid "both" shape: seed and expanded key agree. */
     derSz = test_mlkem_der_both(der, t, rndMk, sizeof(rndMk),
         expanded, privLen);
     XMEMSET(adopt, 0, sizeof(*adopt));
     ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
     idx = 0;
-    ExpectIntNE(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
+    ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
     wc_MlKemKey_Free(adopt);
 
     /* "Both" shape with the expanded key one byte short of the key's

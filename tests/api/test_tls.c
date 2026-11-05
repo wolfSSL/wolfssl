@@ -8640,7 +8640,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
      * SetSSL_CTX() takes the side from the ctx method (7944) and the keyType
      * from the key loaded in the ctx (SetSSL_CTX_CertsAndKeys), so each pair
      * is a ctx with the matching key loaded. */
-#if defined(HAVE_ED25519) && defined(HAVE_ED448)
+#if defined(HAVE_ED25519) && defined(HAVE_ED448) && !defined(NO_RSA)
     {
         WOLFSSL_CTX *ctxSrv = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
         ExpectNotNull(ctxSrv);
@@ -8730,7 +8730,8 @@ int test_internal_CheckVersion_DecisionCoverage(void)
      * builds compile this out; WOLFSSL_TEST_STATIC_BUILD is set for
      * static-only builds (configure) and by the MC/DC variant. */
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_SECURE_RENEGOTIATION) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(WOLFCRYPT_ONLY)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     ProtocolVersion pv;

@@ -33161,7 +33161,7 @@ static word32 mldsa_test_build_pub_der(byte* buf, const byte* oid,
 }
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
-#if !defined(WOLFSSL_MLDSA_NO_ASN1)
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44)
 /* SEQUENCE of INTEGER 0, a SEQUENCE of OID, and nested OCTET STRINGs
  * wrapping the private key. Private key only: no [1] public key
  * component. */

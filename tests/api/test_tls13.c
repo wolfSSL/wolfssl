@@ -18113,21 +18113,23 @@ int test_tls13_exporter_suite_decision_coverage(void)
 #endif /* HAVE_KEYING_MATERIAL */
 
 #if defined(WOLFSSL_TEST_STATIC_BUILD)
-        byte probe[2];
-        const Suites* suites = WOLFSSL_SUITES(ssl_c);
+        {
+            byte probe[2];
+            const Suites* suites = WOLFSSL_SUITES(ssl_c);
 
-        /* FindSuiteSSL: (suites[i] == suite[0]) && (suites[i+1] == suite[1]).
-         * The object's own first suite is the both-true row; its first byte with
-         * 0xFF as the second is the first-true/second-false row (no cipher
-         * suite's second byte is 0xFF). */
-        ExpectNotNull(suites);
-        if (suites != NULL) {
-            ExpectTrue(suites->suiteSz >= 2);
-            if (suites->suiteSz >= 2) {
-                ExpectIntEQ(FindSuiteSSL(ssl_c, (byte*)suites->suites), 1);
-                probe[0] = suites->suites[0];
-                probe[1] = 0xFF;
-                ExpectIntEQ(FindSuiteSSL(ssl_c, probe), 0);
+            /* FindSuiteSSL: (suites[i] == suite[0]) && (suites[i+1] == suite[1]).
+             * The object's own first suite is the both-true row; its first byte with
+             * 0xFF as the second is the first-true/second-false row (no cipher
+             * suite's second byte is 0xFF). */
+            ExpectNotNull(suites);
+            if (suites != NULL) {
+                ExpectTrue(suites->suiteSz >= 2);
+                if (suites->suiteSz >= 2) {
+                    ExpectIntEQ(FindSuiteSSL(ssl_c, (byte*)suites->suites), 1);
+                    probe[0] = suites->suites[0];
+                    probe[1] = 0xFF;
+                    ExpectIntEQ(FindSuiteSSL(ssl_c, probe), 0);
+                }
             }
         }
 #endif /* WOLFSSL_TEST_STATIC_BUILD */
