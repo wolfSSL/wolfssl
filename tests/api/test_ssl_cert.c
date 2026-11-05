@@ -1035,6 +1035,7 @@ int test_wolfSSL_peer_cert_kept_decode_err(void)
     word32 idx = 0;
     int keyInit = 0;
     int rngInit = 0;
+    int certInit = 0;
 
     ExpectNotNull(leafDer = (byte*)XMALLOC(FOURK_BUF, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
@@ -1050,6 +1051,7 @@ int test_wolfSSL_peer_cert_kept_decode_err(void)
     /* Self-signed leaf with keyCertSign but not a CA. */
     ExpectIntEQ(wc_InitCert(&cert), 0);
     if (EXPECT_SUCCESS()) {
+        certInit = 1;
         cert.isCA = 0;
         cert.sigType = CTC_SHA256wRSA;
         XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
@@ -1063,8 +1065,10 @@ int test_wolfSSL_peer_cert_kept_decode_err(void)
     ExpectIntGT(leafDerSz = wc_SignCert(cert.bodySz, cert.sigType, leafDer,
         FOURK_BUF, &key, NULL, &rng), 0);
 #ifdef WOLFSSL_CERT_GEN_CACHE
-    wc_SetCert_Free(&cert);
+    if (certInit)
+        wc_SetCert_Free(&cert);
 #endif
+    (void)certInit;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 #ifdef WOLFSSL_TLS13
