@@ -17246,11 +17246,12 @@ authenv_atrbend:
         }
     }
 
-#ifndef NO_PKCS7_STREAM
     if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+    #ifndef NO_PKCS7_STREAM
         wc_PKCS7_ResetStream(pkcs7);
+    #endif
+        wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
     }
-#endif
 
     return ret;
 

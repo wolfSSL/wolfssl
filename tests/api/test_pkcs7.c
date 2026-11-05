@@ -4543,6 +4543,56 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
 } /* END test_wc_PKCS7_DecodeAuthEnvelopedData_truncated() */
 
 
+/* A failed AuthEnvelopedData decode leaves the object ready for the next
+ * operation. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_ReuseAfterError(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[2048];
+    byte   badTag[2048];
+    byte   decoded[256];
+    byte   data[] = "authEnvelopedData reuse test";
+    int    encSz = 0;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES128GCMb;
+    }
+    ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
+        sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    if (encSz > 0) {
+        XMEMCPY(badTag, enveloped, (size_t)encSz);
+        badTag[encSz - 1] ^= 0x01;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+    ExpectIntLT(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, badTag,
+        (word32)encSz, decoded, sizeof(decoded)), 0);
+    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
+        (word32)encSz, decoded, sizeof(decoded)), (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_ReuseAfterError() */
+
+
 #if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
     defined(WOLFSSL_AES_128) && (defined(HAVE_AESGCM) || defined(HAVE_AESCCM))
 /* Encode an AuthEnvelopedData bundle, then cut its tag down to tagSz bytes
