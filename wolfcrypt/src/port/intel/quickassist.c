@@ -4786,20 +4786,18 @@ int IntelQaDrbg(WC_ASYNC_DEV* dev, byte* rngBuf, word32 rngSz)
     /* chunk into LAC_DRBG_MAX_NUM_OF_BYTES (0xFFFF) */
     while (ret == 0 && idx < rngSz) {
         /* setup operation data */
-        gen = rngSz - gen;
+        gen = rngSz - idx;
         if (gen > 0xFFFF)
             gen = 0xFFFF;
 
+        /* the buffer is freed when the previous chunk completes */
         pOut->dataLenInBytes = gen;
-        if (idx == 0 && pOut->pData == NULL) {
-            pOut->pData = XREALLOC(rngBuf, gen, dev->heap,
+        if (pOut->pData == NULL) {
+            pOut->pData = (Cpa8U*)XMALLOC(gen, dev->heap,
                 DYNAMIC_TYPE_ASYNC_NUMA);
             if (pOut->pData == NULL) {
                 ret = MEMORY_E; goto exit;
             }
-        }
-        else {
-            XMEMCPY(pOut->pData, &rngBuf[idx], gen);
         }
 
         opData->sessionHandle = dev->qat.op.drbg.handle;
