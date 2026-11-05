@@ -7886,12 +7886,15 @@ WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL* ssl);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
-                       buffer* response, byte* ctxOwnsRequest);
+                       buffer* response);
 #endif
 #if !defined(NO_WOLFSSL_SERVER) && \
     (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-WOLFSSL_LOCAL void FreeCtxOcspRequestCache(WOLFSSL_CTX* ctx);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define FreeCtxOcspRequestCache wolfSSL_FreeCtxOcspRequestCache
+#endif
+WOLFSSL_TEST_VIS void FreeCtxOcspRequestCache(WOLFSSL_CTX* ctx);
 #else
     #define FreeCtxOcspRequestCache(ctx) WC_DO_NOTHING
 #endif

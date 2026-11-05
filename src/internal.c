@@ -29614,11 +29614,11 @@ static wolfSSL_Mutex* GetCtxOcspLock(WOLFSSL_CTX* ctx)
  * responder about, and staple the status of, the certificate the CTX used to
  * have. The next connection that staples builds and caches a new one.
  *
- * Only connections that share the CTX certificate use the cached request, and
- * replacing that certificate frees the buffer they share, so none of them can
- * still be using it here. The lock orders this against a connection publishing
- * a request. When it cannot be taken the request is still dropped: keeping it
- * would be wrong for every connection to come.
+ * Connections only ever use copies of the cached request, taken under the lock
+ * (see CopyCtxOcspRequest()), so freeing it cannot pull it out from under one
+ * that is still checking its request. When the lock cannot be taken the
+ * request is still dropped: keeping it would be wrong for every connection to
+ * come.
  */
 void FreeCtxOcspRequestCache(WOLFSSL_CTX* ctx)
 {
@@ -29683,45 +29683,91 @@ int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
 }
 
 
+/* Copies a request made by InitOcspRequest() into a new allocation from
+ * "heap", which the caller frees with FreeOcspRequest() and XFREE().
+ *
+ * The OCSP request cached on the CTX is only ever touched under
+ * GetCtxOcspLock(): it is stored as a copy and handed out as a copy. A
+ * connection then never holds the CTX's own request, which
+ * FreeCtxOcspRequestCache() can free at any time, while it checks the
+ * request. That check can block on the responder, so it cannot be done under
+ * the lock.
+ *
+ * Returns the copy, or NULL when it cannot be allocated.
+ */
+static OcspRequest* CopyCtxOcspRequest(const OcspRequest* src, void* heap)
+{
+    OcspRequest* dst;
+
+    dst = (OcspRequest*)XMALLOC(sizeof(OcspRequest), heap,
+        DYNAMIC_TYPE_OCSP_REQUEST);
+    if (dst == NULL) {
+        return NULL;
+    }
+    XMEMCPY(dst, src, sizeof(OcspRequest));
+    dst->heap = heap;
+    dst->serial = NULL;
+    dst->url = NULL;
+#ifdef OPENSSL_EXTRA
+    /* Not set by InitOcspRequest(). */
+    dst->serialInt = NULL;
+    dst->cid = NULL;
+#endif
+
+    if ((src->serial != NULL) && (src->serialSz > 0)) {
+        dst->serial = (byte*)XMALLOC((size_t)src->serialSz, heap,
+            DYNAMIC_TYPE_OCSP_REQUEST);
+        if (dst->serial == NULL) {
+            goto fail;
+        }
+        XMEMCPY(dst->serial, src->serial, (size_t)src->serialSz);
+    }
+    if ((src->url != NULL) && (src->urlSz > 0)) {
+        dst->url = (byte*)XMALLOC((size_t)src->urlSz + 1, heap,
+            DYNAMIC_TYPE_OCSP_REQUEST);
+        if (dst->url == NULL) {
+            goto fail;
+        }
+        XMEMCPY(dst->url, src->url, (size_t)src->urlSz);
+        dst->url[src->urlSz] = '\0';
+    }
+
+    return dst;
+
+fail:
+    FreeOcspRequest(dst);
+    XFREE(dst, heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    return NULL;
+}
+
 /* Creates OCSP response and places it in variable "response". Memory
  * management for "buffer* response" is up to the caller.
  *
  * Also creates an OcspRequest in the case that ocspRequest is null or that
- * ssl->buffers.weOwnCert is set. A newly created request may be cached on the
- * CTX, which then owns it and frees it in wolfSSL_CTX_free(). "ctxOwnsRequest"
- * carries that ownership: it tells this function whether the CTX already owns
- * the request handed in, and on success it reports whether the CTX owns the
- * request handed back. The caller may only free the request when the flag is
- * clear. "*ocspRequest" and "*ctxOwnsRequest" are written together on success
- * and both left untouched on failure, so the flag always describes the request
- * the caller is actually holding.
- *
- * A request published to the CTX becomes shared with every other connection on
- * it and is read without a lock, so it must be treated as immutable from that
- * point on. See GetCtxOcspRequest().
+ * ssl->buffers.weOwnCert is set, and returns it in "*ocspRequest" for the
+ * caller to free. A request created from the CTX certificate is also cached on
+ * the CTX, as a copy that only GetCtxOcspRequest() reads (see
+ * CopyCtxOcspRequest()). "*ocspRequest" is only written on success.
  *
  * Returns 0 on success
  */
 int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
-                       buffer* response, byte* ctxOwnsRequest)
+                       buffer* response)
 {
     int          ret = 0;
     OcspRequest* request = NULL;
     byte createdRequest  = 0;
-    byte ctxOwns = 0;
 
     /* Zero the output before any exit so that a caller freeing response->buffer
      * without checking the return code never acts on an indeterminate value. */
     if (response != NULL)
         XMEMSET(response, 0, sizeof(*response));
 
-    if (ssl == NULL || ocspRequest == NULL || response == NULL ||
-            ctxOwnsRequest == NULL) {
+    if (ssl == NULL || ocspRequest == NULL || response == NULL) {
         return BAD_FUNC_ARG;
     }
 
     request = *ocspRequest;
-    ctxOwns = *ctxOwnsRequest;
 
     /* unable to fetch status. skip. The stapling object is checked here so that
      * every use of it below needs no further guarding. */
@@ -29746,28 +29792,33 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
             ret = MEMORY_E;
 
         createdRequest = 1;
-        ctxOwns = 0;
         if (ret == 0) {
             ret = CreateOcspRequest(ssl, request, cert, der->buffer,
                       der->length);
         }
 
         /* Only a request built from a CTX-held certificate may be cached, since
-         * the cache outlives this connection.
+         * the cache outlives this connection. The CTX keeps a copy, so this
+         * connection still owns, and frees, the request it built.
          *
-         * Not being able to cache is not an error. ctxOwns stays 0, so this
-         * connection keeps ownership of the request and frees it as it would
-         * any other one it built; all that is lost is the reuse by later
-         * connections on this CTX. Failing the handshake over a missed
-         * optimization would be the worse outcome. */
+         * Not being able to cache is not an error: all that is lost is the
+         * reuse by later connections on this CTX. Failing the handshake over a
+         * missed optimization would be the worse outcome. */
         if (ret == 0 && !ssl->buffers.weOwnCert) {
             wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl->ctx);
+            OcspRequest*   cached = NULL;
 
             /* SSL_CM(ssl) can resolve through ssl->x509_store_pt, so a stapling
              * object on the CTX manager is not implied by the one checked
              * above. */
+            if (ocspLock != NULL) {
+                cached = CopyCtxOcspRequest(request, ssl->ctx->heap);
+            }
             if (ocspLock == NULL) {
                 WOLFSSL_MSG("No CTX OCSP lock, not caching the request");
+            }
+            else if (cached == NULL) {
+                WOLFSSL_MSG("Couldn't copy the request, not caching it");
             }
             else if (wc_LockMutex(ocspLock) != 0) {
                 WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, not caching the "
@@ -29775,10 +29826,15 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
             }
             else {
                 if (ssl->ctx->certOcspRequest == NULL) {
-                    ssl->ctx->certOcspRequest = request;
-                    ctxOwns = 1;
+                    ssl->ctx->certOcspRequest = cached;
+                    cached = NULL;
                 }
                 wc_UnLockMutex(ocspLock);
+            }
+            /* Another connection cached one first, or it was not cached. */
+            if (cached != NULL) {
+                FreeOcspRequest(cached);
+                XFREE(cached, ssl->ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
             }
         }
 
@@ -29808,7 +29864,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
     }
 
     /* free request up if error case found otherwise return it */
-    if (ret != 0 && createdRequest && !ctxOwns) {
+    if (ret != 0 && createdRequest) {
         FreeOcspRequest(request);
         XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         request = NULL;
@@ -29816,12 +29872,9 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 
 exit_cor:
 
-    /* The request and the flag describing it are handed back as a pair, so the
-     * caller never decides ownership against a request it is not holding. On
-     * failure both of the caller's values are left as they were. */
+    /* On failure the caller's request is left as it was. */
     if (ret == 0) {
         *ocspRequest = request;
-        *ctxOwnsRequest = ctxOwns;
     }
 
     return ret;
@@ -30623,36 +30676,36 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-/* Reads the OCSP request cached on the CTX. The field is shared by every
- * connection on that CTX, so it is read once under GetCtxOcspLock() - the same
- * lock the publishing side in CreateOcspResponse() takes - instead of being
- * consulted again later. The CTX keeps ownership of what is returned, which
- * "ctxOwnsRequest" reports to the caller.
+/* Returns a copy of the OCSP request cached on the CTX, for the caller to free.
+ * The cached request is read under GetCtxOcspLock(), the lock it is published
+ * under in CreateOcspResponse() and dropped under in FreeCtxOcspRequestCache(),
+ * and the caller only ever uses its copy (see CopyCtxOcspRequest()).
  *
- * The request handed back is shared with every other connection on the CTX and
- * is read by all of them without holding a lock, so it must be treated as
- * immutable: no field of it may be written once it has been published. Adding a
- * field that the stapling path writes would reintroduce a data race here.
+ * The cache is built from the CTX certificate, so it is only used when the
+ * connection shares that certificate.
  *
- * Returns the cached request, or NULL when there is none.
+ * Returns the copy, or NULL when there is no cached request, the connection has
+ * a certificate of its own, or the copy cannot be made. The caller then builds
+ * the request from the certificate.
  */
-static OcspRequest* GetCtxOcspRequest(WOLFSSL* ssl, byte* ctxOwnsRequest)
+static OcspRequest* GetCtxOcspRequest(WOLFSSL* ssl)
 {
     wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl->ctx);
     OcspRequest*   request  = NULL;
 
-    *ctxOwnsRequest = 0;
-
-    if (ocspLock == NULL) {
+    if (ssl->buffers.weOwnCert) {
+        /* Not the certificate the cache was built from. */
+    }
+    else if (ocspLock == NULL) {
         WOLFSSL_MSG("No CTX OCSP lock, skipping the request cache");
     }
     else if (wc_LockMutex(ocspLock) != 0) {
         WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, skipping the request cache");
     }
     else {
-        request = ssl->ctx->certOcspRequest;
-        if (request != NULL)
-            *ctxOwnsRequest = 1;
+        if (ssl->ctx->certOcspRequest != NULL) {
+            request = CopyCtxOcspRequest(ssl->ctx->certOcspRequest, ssl->heap);
+        }
         wc_UnLockMutex(ocspLock);
     }
 
@@ -30749,16 +30802,14 @@ int SendCertificateStatus(WOLFSSL* ssl)
         /* case WOLFSSL_CSR_OCSP: */
         case WOLFSSL_CSR2_OCSP:
         {
-            byte ctxOwnsRequest = 0;
-            OcspRequest* request = GetCtxOcspRequest(ssl, &ctxOwnsRequest);
+            OcspRequest* request = GetCtxOcspRequest(ssl);
             buffer response;
 
-            ret = CreateOcspResponse(ssl, &request, &response,
-                                     &ctxOwnsRequest);
+            ret = CreateOcspResponse(ssl, &request, &response);
 
-            /* if a request was successfully created and not stored in
-             * ssl->ctx then free it */
-            if (ret == 0 && request != NULL && !ctxOwnsRequest) {
+            /* The request is this connection's, whether it is the copy of the
+             * cached one or one CreateOcspResponse() built. */
+            if (request != NULL) {
                 FreeOcspRequest(request);
                 XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                 request = NULL;
@@ -30786,22 +30837,18 @@ int SendCertificateStatus(WOLFSSL* ssl)
     #if defined HAVE_CERTIFICATE_STATUS_REQUEST_V2
         case WOLFSSL_CSR2_OCSP_MULTI:
         {
-            /* Three requests with three different owners are in play, so they
-             * are kept in separate variables. "ctxOwnsRequest" tracks the leaf
-             * one only. */
-            byte ctxOwnsRequest = 0;
-            OcspRequest* leafRequest = GetCtxOcspRequest(ssl, &ctxOwnsRequest);
+            /* The leaf and chain requests are kept in separate variables. */
+            OcspRequest* leafRequest = GetCtxOcspRequest(ssl);
             buffer responses[1 + MAX_CHAIN_DEPTH];
             word32 i = 0;
 
             XMEMSET(responses, 0, sizeof(responses));
 
-            ret = CreateOcspResponse(ssl, &leafRequest, &responses[0],
-                                     &ctxOwnsRequest);
+            ret = CreateOcspResponse(ssl, &leafRequest, &responses[0]);
 
-            /* if a request was successfully created and not stored in
-             * ssl->ctx then free it */
-            if (ret == 0 && leafRequest != NULL && !ctxOwnsRequest) {
+            /* The request is this connection's, whether it is the copy of the
+             * cached one or one CreateOcspResponse() built. */
+            if (leafRequest != NULL) {
                 FreeOcspRequest(leafRequest);
                 XFREE(leafRequest, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                 leafRequest = NULL;

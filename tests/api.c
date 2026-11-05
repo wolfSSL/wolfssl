@@ -47498,6 +47498,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_dtls12_nonblock_ocsp),
     TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache),
     TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache_cert_change),
+    TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache_drop_in_use),
     TEST_DECL_GROUP("ocsp", test_ocsp_responder),
     TEST_DECL_GROUP("ocsp", test_wolfIO_DecodeUrl_crlf_reject),
     TEST_DECL_GROUP("ocsp", test_wolfIO_DecodeUrl_host_bounds),
