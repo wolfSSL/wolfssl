@@ -858,6 +858,9 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
 
 #ifdef HAVE_ECC
     /* private key helpers */
+    /* Note: if RFC 5915 DER omits publicKey, key->type is ECC_PRIVATEKEY_ONLY;
+     * call wc_ecc_make_pub_ex() with an RNG if the public point is needed.
+     * Self-test and pre-v5 FIPS builds use wc_ecc_make_pub() instead. */
     WOLFSSL_ABI
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                            ecc_key* key, word32 inSz);

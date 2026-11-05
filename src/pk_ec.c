@@ -3499,22 +3499,12 @@ WOLFSSL_EC_KEY* wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY** key,
         /* Internal EC key setup. */
         ret->inSet = 1;
 
-        /* When the RFC 5915 DER encoding omits the optional publicKey field,
-         * wc_EccPrivateKeyDecode leaves type == ECC_PRIVATEKEY_ONLY with the
-         * public point uninitialised.  Derive the public point now so that
-         * all downstream operations (sign, ECDH, export) have a valid key,
-         * matching the behaviour of OpenSSL's d2i_ECPrivateKey.
-         * In builds without HAVE_ECC_MAKE_PUB (e.g. hardware/CB-only),
-         * keep the historical import behaviour and leave the key as
-         * private-only instead of failing import. */
-    #ifdef HAVE_ECC_MAKE_PUB
-        if (((ecc_key*)ret->internal)->type == ECC_PRIVATEKEY_ONLY) {
-            if (wc_ecc_make_pub((ecc_key*)ret->internal, NULL) != 0) {
-                WOLFSSL_MSG("wc_ecc_make_pub error deriving public key");
-                err = 1;
-            }
+        /* RFC 5915 makes publicKey optional: derive the point, as OpenSSL
+         * does, so sign, ECDH and export have a full key. */
+        if (wc_ecc_derive_pub_if_needed((ecc_key*)ret->internal, NULL) != 0) {
+            WOLFSSL_MSG("error deriving public key");
+            err = 1;
         }
-    #endif
     }
 
     if (!err) {
@@ -3696,8 +3686,46 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     if (res == 1) {
         /* Load into internal EC key based on key type option. */
         if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
-            ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
-                (word32)derSz);
+            ecc_key* cur = (ecc_key*)key->internal;
+            void* heap = cur->heap;
+        #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+            int devId = cur->devId;
+        #else
+            int devId = INVALID_DEVID;
+        #endif
+            /* Decode into a new key so a rejected one leaves the internal key
+             * as it was. */
+            ecc_key* tmp = (ecc_key*)XMALLOC(sizeof(ecc_key), heap,
+                DYNAMIC_TYPE_ECC);
+
+            if (tmp == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                ret = wc_ecc_init_ex(tmp, heap, devId);
+                if (ret == 0) {
+                #ifdef ECC_TIMING_RESISTANT
+                    /* Caller-owned. devCtx is not carried over: freeing the
+                     * old key tells the device to release it. */
+                    tmp->rng = cur->rng;
+                #endif
+                    ret = wc_EccPrivateKeyDecode(derBuf, &idx, tmp,
+                        (word32)derSz);
+                    /* RFC 5915 makes publicKey optional. */
+                    if (ret == 0) {
+                        ret = wc_ecc_derive_pub_if_needed(tmp, NULL);
+                    }
+                    if (ret == 0) {
+                        /* Take ownership of new key - set tmp to the old
+                         * key which will then be freed below. */
+                        ecc_key* old = (ecc_key*)key->internal;
+                        key->internal = tmp;
+                        tmp = old;
+                    }
+                    wc_ecc_free(tmp);
+                }
+                XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+            }
         }
         else {
             ret = wc_EccPublicKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
@@ -4424,7 +4452,8 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
         }
 
         /* set the external privkey */
-        if ((ret == 1) && (key->type == ECC_PRIVATEKEY) &&
+        if ((ret == 1) && ((key->type == ECC_PRIVATEKEY) ||
+                (key->type == ECC_PRIVATEKEY_ONLY)) &&
                 (wolfssl_bn_set_value(&eckey->priv_key,
                 wc_ecc_key_get_priv(key)) != 1)) {
             WOLFSSL_MSG("ec priv key error");

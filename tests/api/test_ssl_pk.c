@@ -33,6 +33,7 @@
 #include <wolfssl/openssl/ec.h>
 
 #include <tests/utils.h>
+#include <tests/api/api.h>
 #include <tests/api/test_ssl_pk.h>
 
 /* Tests for the public-key APIs in src/ssl_api_pk.c (moved from ssl.c). */
@@ -603,6 +604,261 @@ int test_wolfSSL_CTX_set_dh_auto(void)
     ExpectIntEQ(wolfSSL_CTX_set_dh_auto(ctx, 1), WOLFSSL_SUCCESS);
 
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_STATIC_EPHEMERAL) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(USE_CERT_BUFFERS_256) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+    #define TEST_STATIC_EPHEMERAL_PRIV_ONLY
+
+/* SEC1 encoding without public point. */
+static byte staticEphPrivOnlyDer[128];
+static int  staticEphPrivOnlyDerSz = 0;
+
+static int test_static_eph_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    static const int group = WOLFSSL_ECC_SECP256R1;
+
+    ExpectIntEQ(wolfSSL_CTX_set_ephemeral_key(ctx, WC_PK_TYPE_ECDH,
+        (const char*)staticEphPrivOnlyDer,
+        (unsigned int)staticEphPrivOnlyDerSz, WOLFSSL_FILETYPE_ASN1), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_groups(ctx, (int*)&group, 1), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+/* The peer uses an ordinary generated ephemeral key, so the two shared
+ * secrets agree only if the derived point really is d*G. */
+static int test_static_eph_peer_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    static const int group = WOLFSSL_ECC_SECP256R1;
+
+    ExpectIntEQ(wolfSSL_CTX_set_groups(ctx, (int*)&group, 1), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Decoding a SEC1 ECDH key without a public point must still produce a
+ * usable key share. */
+int test_wolfSSL_StaticEphemeralKeyLoad_priv_only(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_STATIC_EPHEMERAL_PRIV_ONLY
+    ecc_key      key;
+    word32       idx = 0;
+    byte         expectedPub[65];
+    word32       expectedPubSz = (word32)sizeof(expectedPub);
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+    int          canDerive = test_ecc_can_derive_pub();
+
+    if (canDerive == 0) {
+        return TEST_SKIPPED;
+    }
+    ExpectIntEQ(canDerive, 1);
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    /* wc_EccPrivateKeyToDer() emits SEC1 that may omit publicKey. */
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &key,
+        (word32)sizeof_ecc_clikey_der_256), 0);
+    ExpectIntGT(staticEphPrivOnlyDerSz = wc_EccPrivateKeyToDer(&key,
+        staticEphPrivOnlyDer, (word32)sizeof(staticEphPrivOnlyDer)), 0);
+    /* The point the key share must carry. */
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&key, expectedPub, &expectedPubSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(expectedPubSz, (word32)sizeof(expectedPub));
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(staticEphPrivOnlyDer, &idx, &key,
+        (word32)staticEphPrivOnlyDerSz), 0);
+    ExpectIntEQ(key.type, ECC_PRIVATEKEY_ONLY);
+    wc_ecc_free(&key);
+
+    /* The point is derived per handshake, so the stored key is the one
+     * that was set. */
+    {
+        WOLFSSL_CTX*         ctx = NULL;
+        const unsigned char* stored = NULL;
+        unsigned int         storedSz = 0;
+
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_set_ephemeral_key(ctx, WC_PK_TYPE_ECDH,
+            (const char*)staticEphPrivOnlyDer,
+            (unsigned int)staticEphPrivOnlyDerSz, WOLFSSL_FILETYPE_ASN1), 0);
+        ExpectIntEQ(wolfSSL_CTX_get_ephemeral_key(ctx, WC_PK_TYPE_ECDH,
+            &stored, &storedSz), 0);
+        ExpectIntEQ(storedSz, (unsigned int)staticEphPrivOnlyDerSz);
+        ExpectNotNull(stored);
+        if (stored != NULL) {
+            ExpectBufEQ(stored, staticEphPrivOnlyDer, storedSz);
+        }
+        wolfSSL_CTX_free(ctx);
+    }
+
+    /* The ClientHello key share must carry the point derived from the static
+     * scalar. A handshake alone cannot show this: any load error sends
+     * TLSX_KeyShare_GenEccKey() off to generate a fresh key, and the
+     * handshake then succeeds without the configured key. */
+    {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL*     ssl_c = NULL;
+        WOLFSSL*     ssl_s = NULL;
+        int          found = 0;
+        int          i;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_ephemeral_key(ssl_c, WC_PK_TYPE_ECDH,
+            (const char*)staticEphPrivOnlyDer,
+            (unsigned int)staticEphPrivOnlyDerSz, WOLFSSL_FILETYPE_ASN1), 0);
+        ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP256R1),
+            WOLFSSL_SUCCESS);
+
+        /* First flight only - the ClientHello lands in the server buffer. */
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(
+            WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntGT(test_ctx.s_len, (int)expectedPubSz);
+
+        for (i = 0; i + (int)expectedPubSz <= test_ctx.s_len; i++) {
+            if (XMEMCMP(test_ctx.s_buff + i, expectedPub, expectedPubSz) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        ExpectIntEQ(found, 1);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+
+    /* Only the client loads the private-only static key. The server keeps a
+     * generated ephemeral, so the handshake completes only if the client's
+     * derived point matches the scalar it holds. */
+    client_cbf.method = wolfTLSv1_3_client_method;
+    client_cbf.ctx_ready = test_static_eph_ctx_ready;
+    server_cbf.method = wolfTLSv1_3_server_method;
+    server_cbf.ctx_ready = test_static_eph_peer_ctx_ready;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(TEST_STATIC_EPHEMERAL_PRIV_ONLY) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    #define TEST_STATIC_EPHEMERAL_NO_DERIVE
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_STATIC_EPH_NO_DERIVE_DEVID 0x5345504B /* "SEPK" */
+
+static int staticEphMakePubDeclined = 0;
+/* What the first make-pub returns. Later ones fall through to software, so a
+ * load error would be hidden by the generated key. */
+static int staticEphMakePubResult = NO_VALID_DEVID;
+
+/* Fails the first make-pub and leaves everything else to software. */
+static int test_static_eph_no_derive_cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)ctx;
+
+    if ((devId == TEST_STATIC_EPH_NO_DERIVE_DEVID) &&
+            (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_EC_MAKE_PUB) &&
+            (staticEphMakePubDeclined == 0)) {
+        staticEphMakePubDeclined = 1;
+        return staticEphMakePubResult;
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif
+
+/* A static ECDH key whose point cannot be derived must fail the handshake,
+ * not silently fall back to a fresh key. */
+int test_wolfSSL_StaticEphemeralKeyLoad_no_derive(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_STATIC_EPHEMERAL_NO_DERIVE
+    ecc_key      key;
+    word32       idx = 0;
+    byte         der[128];
+    int          derSz = 0;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    int          canDerive = test_ecc_can_derive_pub();
+
+    /* NO_VALID_DEVID is a device with no derivation. MEMORY_E is a multiply
+     * that failed outright; import already rejects an out-of-range scalar,
+     * so this is the error the load must not turn into a generated key. */
+    static const int makePubResult[] = { NO_VALID_DEVID, MEMORY_E };
+    int r;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntGE(canDerive, 0);
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &key,
+        (word32)sizeof_ecc_clikey_der_256), 0);
+    ExpectIntGT(derSz = wc_EccPrivateKeyToDer(&key, der, (word32)sizeof(der)),
+        0);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_STATIC_EPH_NO_DERIVE_DEVID,
+        test_static_eph_no_derive_cb, NULL), 0);
+
+    for (r = 0; r < (int)(sizeof(makePubResult) / sizeof(makePubResult[0]));
+            r++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        staticEphMakePubDeclined = 0;
+        staticEphMakePubResult = makePubResult[r];
+        ctx_c = NULL;
+        ctx_s = NULL;
+        ssl_c = NULL;
+        ssl_s = NULL;
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_SetDevId(ssl_c, TEST_STATIC_EPH_NO_DERIVE_DEVID),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_ephemeral_key(ssl_c, WC_PK_TYPE_ECDH,
+            (const char*)der, (unsigned int)derSz, WOLFSSL_FILETYPE_ASN1), 0);
+        /* The key share is built here, from the private-only static key. */
+        ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP256R1),
+            WC_NO_ERR_TRACE(ECC_EXPORT_ERROR));
+        /* A build without derivation never asks the device. */
+        if (canDerive == 1) {
+            ExpectIntEQ(staticEphMakePubDeclined, 1);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+    wc_CryptoCb_UnRegisterDevice(TEST_STATIC_EPH_NO_DERIVE_DEVID);
 #endif
     return EXPECT_RESULT();
 }
