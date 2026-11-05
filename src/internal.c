@@ -31318,7 +31318,10 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             return WOLFSSL_FATAL_ERROR;
         }
     #ifdef WOLFSSL_EARLY_DATA_GROUP
-        groupMsgs = 1;
+        /* A retry of a blocked write flushes its record instead. */
+        if (ssl->buffers.prevSent == 0 && ssl->buffers.plainSz == 0) {
+            groupMsgs = 1;
+        }
     #endif
     }
     else
@@ -31374,17 +31377,19 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             }
             return (ssl->error = error);
         }
-        else {
-            /* advance sent to previous sent + plain size just sent */
-            sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
-            ssl->buffers.prevSent = 0;
-            ssl->buffers.plainSz = 0;
-            WOLFSSL_MSG("sent write buffered data");
+    }
+    /* The record the last write queued has been sent, by the flush above or
+     * by another call such as wolfSSL_negotiate(). */
+    if (ssl->buffers.outputBuffer.length == 0 &&
+            (ssl->buffers.prevSent != 0 || ssl->buffers.plainSz != 0)) {
+        sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
+        ssl->buffers.prevSent = 0;
+        ssl->buffers.plainSz = 0;
+        WOLFSSL_MSG("sent write buffered data");
 
-            if (sent > (word32)sz) {
-                WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
-                return (ssl->error = BAD_FUNC_ARG);
-            }
+        if (sent > (word32)sz) {
+            WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
+            return (ssl->error = BAD_FUNC_ARG);
         }
     }
 
