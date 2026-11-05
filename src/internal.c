@@ -3351,6 +3351,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         return MEMORY_E;
     }
     XMEMSET(ctx->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+    ctx->param->depth = -1;
 
     /* WOLFSSL_X509_LOOKUP */
     if ((ctx->x509_store.lookup.dirs = (WOLFSSL_BY_DIR*)XMALLOC(
@@ -3369,6 +3370,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         return MEMORY_E;
     }
     XMEMSET(ctx->x509_store.param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+    ctx->x509_store.param->depth = -1;
 
     if (wc_InitMutex(&ctx->x509_store.lookup.dirs->lock) != 0) {
         WOLFSSL_MSG("Bad mutex init");
@@ -9564,6 +9566,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return MEMORY_E;
         }
         XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+        ssl->param->depth = -1;
 
         /* pass on PARAM values from ctx to ssl, including the expected
          * hostname / IP */
@@ -15879,6 +15882,8 @@ WC_MAYBE_UNUSED static void ResetSessionCertChain(WOLFSSL* ssl)
     ssl->session->peer = NULL;
     wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
     ssl->peerCertChain = NULL;
+    wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+    ssl->verifiedChain = NULL;
 #endif
 }
 #endif
@@ -17537,7 +17542,6 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         store->store = SSL_STORE(ssl);
 #if defined(OPENSSL_EXTRA)
-        store->depth = args->count;
         /* Overwrite with non-default param values in SSL */
         if (ssl->param) {
             if (ssl->param->check_time)
@@ -17989,7 +17993,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
             /* Point to current cm to be able to verify CRL */
             userCrl->cm = SSL_CM(ssl);
             *outRet = CheckCertCRLFromCm(SSL_CM(ssl), userCrl,
-                    args->dCert, ssl->waivedCAs);
+                    args->dCert, ssl->waivedCAs, NULL, NULL);
         }
         else
             *outRet = CRL_MISSING;
@@ -18951,8 +18955,9 @@ static int AdjustCMForParams(WOLFSSL* ssl)
     param = wolfSSL_get0_param(ssl);
     flags = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
     /* 0x2 in a param is X509_V_FLAG_USE_CHECK_TIME, but
-     * wolfSSL_X509_STORE_set_flags() reads it as WOLFSSL_CRL_CHECK. */
-    flags &= ~WOLFSSL_USE_CHECK_TIME;
+     * wolfSSL_X509_STORE_set_flags() reads it as WOLFSSL_CRL_CHECK. The
+     * X509_STRICT flag of the connection is not for the store. */
+    flags &= ~(WOLFSSL_USE_CHECK_TIME | WOLFSSL_X509_STRICT);
 
     /* For now there is a possible contradiction of PARAM flags and store flags.
      * Do not disable CRL support if it has already been enabled with store. */
@@ -46810,7 +46815,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             #ifdef HAVE_CRL
                 if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
                     ret = CheckCertCRLFromCm(SSL_CM(ssl), SSL_CM(ssl)->crl,
-                            dCert, ssl->waivedCAs);
+                            dCert, ssl->waivedCAs, NULL, NULL);
                 }
             #endif
                 if (ret == 0) {

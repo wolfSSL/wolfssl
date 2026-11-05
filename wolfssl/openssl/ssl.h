@@ -860,10 +860,12 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_STORE_CTX_get1_issuer      wolfSSL_X509_STORE_CTX_get1_issuer
 #define X509_STORE_CTX_set_time         wolfSSL_X509_STORE_CTX_set_time
 #define X509_STORE_CTX_get0_param       wolfSSL_X509_STORE_CTX_get0_param
+#define X509_STORE_CTX_set0_param       wolfSSL_X509_STORE_CTX_set0_param
 #define X509_VERIFY_PARAM_new           wolfSSL_X509_VERIFY_PARAM_new
 #define X509_VERIFY_PARAM_free          wolfSSL_X509_VERIFY_PARAM_free
 #define X509_VERIFY_PARAM_set_flags     wolfSSL_X509_VERIFY_PARAM_set_flags
 #define X509_VERIFY_PARAM_set_time      wolfSSL_X509_VERIFY_PARAM_set_time
+#define X509_VERIFY_PARAM_set_depth     wolfSSL_X509_VERIFY_PARAM_set_depth
 #define X509_VERIFY_PARAM_get_flags     wolfSSL_X509_VERIFY_PARAM_get_flags
 #define X509_VERIFY_PARAM_clear_flags   wolfSSL_X509_VERIFY_PARAM_clear_flags
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags

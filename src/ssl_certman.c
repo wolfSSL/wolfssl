@@ -518,15 +518,6 @@ int wolfSSL_CertManagerUnloadTypeCerts(
     return ret;
 }
 
-#if defined(OPENSSL_EXTRA)
-static int wolfSSL_CertManagerUnloadTempIntermediateCerts(
-    WOLFSSL_CERT_MANAGER* cm)
-{
-    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTempIntermediateCerts");
-    return wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_TEMP_CA);
-}
-#endif
-
 int wolfSSL_CertManagerUnloadIntermediateCerts(
     WOLFSSL_CERT_MANAGER* cm)
 {
@@ -962,7 +953,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     if (cm->crlEnabled && ((ret == 0) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
-        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert, extraCa);
+        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert, extraCa, NULL, NULL);
         if (crlRet != 0) {
             WOLFSSL_MSG("CheckCertCRL failed");
         }
@@ -2146,7 +2137,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
                 /* A date error is returned only after the parse completed,
                  * so still answer the revocation question that was asked. */
                 ret = cm_crl_merge(ret,
-                    CheckCertCRLFromCm(cm, cm->crl, cert, NULL));
+                    CheckCertCRLFromCm(cm, cm->crl, cert, NULL, NULL, NULL));
             }
 
             /* Dispose of dynamically allocated memory. */
