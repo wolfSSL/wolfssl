@@ -230,6 +230,7 @@ static void wb_parse_unified_guard(WOLFSSL* ssl)
     WB_NOTE(Dtls13ParseUnifiedRecordLayer(ssl, hdr, sizeof(hdr), &info));
 }
 
+#ifdef WOLFSSL_DTLS_CID
 static void wb_unified_cid_bit(void)
 {
     WB_NOTE(Dtls13UnifiedHeaderCIDPresent(DTLS13_FIXED_BITS |
@@ -237,6 +238,9 @@ static void wb_unified_cid_bit(void)
     WB_NOTE(Dtls13UnifiedHeaderCIDPresent(DTLS13_FIXED_BITS));
     WB_NOTE(Dtls13UnifiedHeaderCIDPresent(0x00));
 }
+#else
+static void wb_unified_cid_bit(void) { }
+#endif
 
 /* ------------------------------------------- frag/send-now rows :452/478/481 */
 static void wb_frag_in_output_buffer(WOLFSSL* ssl)
@@ -467,8 +471,10 @@ static void wb_opts_epoch_rows(WOLFSSL* ssl)
     Dtls13RecordNumber* save_seen;
     Dtls13Epoch* save_encEpoch;
     Dtls13RecordNumber* seen;
+#ifdef WOLFSSL_DTLS_CID
     byte buf[13];
     word32 idx;
+#endif
 
     save_maxFrag = ssl->max_fragment;
     save_fragOff = ssl->dtls13FragOffset;
@@ -549,6 +555,7 @@ static void wb_opts_epoch_rows(WOLFSSL* ssl)
     }
 
     /* -- DoDtls13NewConnectionId :3071 c0 -- */
+#ifdef WOLFSSL_DTLS_CID
     buf[0] = 0;
     buf[1] = 5;
     buf[2] = 4;
@@ -575,6 +582,7 @@ static void wb_opts_epoch_rows(WOLFSSL* ssl)
     buf[12] = cid_spare;
     idx = 0;
     WB_NOTE(DoDtls13NewConnectionId(ssl, buf, &idx, 13));
+#endif
 
     /* -- SendDtls13Ack :3207 c2 -- */
     ssl->dtls13Epochs[0].epochNumber.n = 0;

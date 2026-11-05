@@ -602,7 +602,7 @@ int test_ssl_crl_ocsp_decision_coverage(void)
         return EXPECT_RESULT();
     }
 
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_CERTS)
     /* --- 77:0/1 wolfSSL_LoadCRLBuffer: ssl==NULL || ssl->ctx==NULL ------ */
     {
         WOLFSSL* cssl = wolfSSL_new(ctx);
@@ -633,7 +633,8 @@ int test_ssl_crl_ocsp_decision_coverage(void)
     (void)wolfSSL_get_ocsp_producedDate_tm(ssl, &tm);
 #endif
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) ||     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if !defined(NO_CERTS) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
     /* --- 1120/1152/1187:1 CTX status cb/arg: ctx->cm == NULL ------------ */
     {
         WOLFSSL_CTX* nctx = wolfSSL_CTX_new(wolfSSLv23_client_method());

@@ -8562,6 +8562,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
     }
 
     /* 7910: !got_client_hello && !got_server_hello -> version from ctx. */
+#ifndef WOLFSSL_NO_TLS12
     {
         WOLFSSL_CTX *ctx2 = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
         ExpectNotNull(ctx2);
@@ -8581,6 +8582,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         wolfSSL_CTX_free(ctx2);
     }
+#endif
 
     /* 7944: newSSL || ctx->method->side != WOLFSSL_NEITHER_END */
     {
@@ -8976,8 +8978,18 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
     /* dtls T, cidTxSize T. */
     ExpectIntEQ(wolfSSL_dtls_cid_use(dssl), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls_cid_set(dssl, cid, sizeof(cid)), WOLFSSL_SUCCESS);
+    {
+        byte peerCid[] = { sizeof(cid), 5, 6, 7, 8 };
+        unsigned int txSize = 0;
+
+        ExpectIntEQ(TLSX_ConnectionID_Parse(dssl, peerCid,
+            (word16)sizeof(peerCid), 0), 0);
+        ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(dssl, &txSize),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(txSize, sizeof(cid));
+    }
     ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 0),
-                0);
+                BAD_FUNC_ARG);
     /* content == dtls12_cid: the first clause's true side. */
     ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, dtls12_cid, 0),
                 BAD_FUNC_ARG);

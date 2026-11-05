@@ -1578,7 +1578,8 @@ static void wb_check_key_range(void)
  * (msg == NULL, msgLen == 0 -> readable stand-in). A valid key keeps
  * the rows on the guard itself.
  * ------------------------------------------------------------------ */
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
 static void wb_sign_ctx_msg_guard_rows(void)
 {
     static const byte seed[32] = {

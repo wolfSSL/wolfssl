@@ -1427,6 +1427,7 @@ int test_x509_decision_coverage(void)
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509* fresh = NULL;
     WOLFSSL_X509* loaded = NULL;
+    WOLFSSL_X509* probe = NULL;
     int sz = 0;
     byte buf[512];
 
@@ -1458,10 +1459,11 @@ int test_x509_decision_coverage(void)
     /* --- 6090:0/1 load_certificate_file: fname==NULL || format ----------- */
     (void)wolfSSL_X509_load_certificate_file(NULL, WOLFSSL_FILETYPE_PEM);
     (void)wolfSSL_X509_load_certificate_file(svrCertFile, 99);
-    (void)wolfSSL_X509_load_certificate_file(svrCertFile,
-                                             WOLFSSL_FILETYPE_ASN1);
+    probe = wolfSSL_X509_load_certificate_file(svrCertFile,
+                                               WOLFSSL_FILETYPE_ASN1);
+    wolfSSL_X509_free(probe);
     loaded = wolfSSL_X509_load_certificate_file(svrCertFile,
-                                                WOLFSSL_FILETYPE_PEM);
+                                                CERT_FILETYPE);
     ExpectNotNull(loaded);
     (void)wolfSSL_X509_get_der(loaded, &sz);
 

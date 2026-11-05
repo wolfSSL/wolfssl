@@ -28,6 +28,9 @@ static int wb_fail = 0;
 /* Hmac_OuterHash: (digestSz >= 0) && (blockSz >= 0). A macType with no
  * hash-table entry makes both sizes negative: the false sides; the
  * SHA-256 row is the same-binary true baseline. */
+#if !defined(WOLFSSL_AEAD_ONLY) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(NO_SHA256)
 static void wb_hmac_outer_hash(void)
 {
     Hmac hmac;
@@ -72,6 +75,10 @@ static void wb_hmac_updatefinal_ct(void)
                               header, sizeof(header));
     wc_HmacFree(&hmac);
 }
+#else
+static void wb_hmac_outer_hash(void) { WB_NOTE("HMAC rows skipped"); }
+static void wb_hmac_updatefinal_ct(void) { }
+#endif
 
 #if defined(HAVE_ALPN)
 

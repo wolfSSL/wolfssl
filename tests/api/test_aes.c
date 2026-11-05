@@ -14986,7 +14986,7 @@ int test_wc_AesReworkDecisionCoverage(void)
 
     /* CFB decrypt chunk loop: exactly two blocks drains sz below the loop
      * threshold inside the loop, evaluating the false side. */
-#if defined(WOLFSSL_AES_CFB)
+#if defined(WOLFSSL_AES_CFB) && defined(HAVE_AES_DECRYPT)
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
     /* CFB always uses the forward cipher for both directions. */
     ExpectIntEQ(wc_AesSetKey(&aes, key16, sizeof(key16), iv, AES_ENCRYPTION),
@@ -15001,21 +15001,27 @@ int test_wc_AesReworkDecisionCoverage(void)
     /* keylen == 0 side of the unset-key guard, both directions. */
     ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef HAVE_AES_DECRYPT
     ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     /* rounds == 0 side: a key length with no software schedule. */
     xaes.aes.keylen = (int)sizeof(key16);
     ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef HAVE_AES_DECRYPT
     ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     /* keylen == 0 with rounds set: the OR's first operand alone. */
     xaes.aes.keylen = 0;
     xaes.aes.rounds = 10;
     ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef HAVE_AES_DECRYPT
     ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 #endif
 
     /* wc_AesGcmInit(): direct argument checks - (ivSz > 0) with iv NULL is
@@ -15042,7 +15048,8 @@ int test_wc_AesReworkDecisionCoverage(void)
 
     /* GCM tag-failure output wipe: a corrupted tag with out non-NULL and
      * sz > 0 wipes the unauthenticated plaintext (AES_GCM_AUTH_E). */
-#if defined(HAVE_AESGCM)
+#if defined(HAVE_AESGCM) && \
+    (defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT))
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key16, sizeof(key16)), 0);
     ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in), iv,
@@ -15057,7 +15064,7 @@ int test_wc_AesReworkDecisionCoverage(void)
     /* CFB leftover-drain loop: a partial decrypt leaves aes->left, an empty
      * request evaluates the loop with sz == 0, and a call longer than the
      * leftover exits with left == 0 while sz is still positive. */
-#if defined(WOLFSSL_AES_CFB)
+#if defined(WOLFSSL_AES_CFB) && defined(HAVE_AES_DECRYPT)
     ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
     /* CFB always uses the forward cipher for both directions. */
     ExpectIntEQ(wc_AesSetKey(&aes, key16, sizeof(key16), iv, AES_ENCRYPTION),

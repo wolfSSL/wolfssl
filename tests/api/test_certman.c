@@ -5441,7 +5441,7 @@ int test_certman_decision_coverage(void)
         hs->type = WOLFSSL_USER_CA;
         (void)AddSigner(cm, hs);
         /* RemoveCA frees the signer it removes; no XFREE after it. */
-        (void)RemoveCA(cm, hs->subjectKeyIdHash, WOLFSSL_USER_CA);
+        (void)RemoveCA(cm, hash, WOLFSSL_USER_CA);
     }
 
     /* --- 3352/3372:0/1 RemoveCA: cm==NULL || hash==NULL ------------------ */

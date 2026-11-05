@@ -667,19 +667,67 @@ static void wb_guard_rows(void)
      * compiled-in set, shared by all six wrappers. */
     XMEMSET(&key, 0, sizeof(key));
     param = -1;
-#ifndef WC_SLHDSA_ALL_NO_128F
+#if !defined(WOLFSSL_SLHDSA_NO_SHAKE) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_128F)
     param = SLHDSA_SHAKE128F;
 #endif
-#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WC_SLHDSA_ALL_NO_128F)
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128F)
     if (param < 0)
         param = SLHDSA_SHA2_128F;
 #endif
-#ifndef WC_SLHDSA_ALL_NO_128S
+#if !defined(WOLFSSL_SLHDSA_NO_SHAKE) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_128S)
     if (param < 0)
         param = SLHDSA_SHAKE128S;
 #endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128S)
+    if (param < 0)
+        param = SLHDSA_SHA2_128S;
+#endif
+#if !defined(WOLFSSL_SLHDSA_NO_SHAKE) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_192F)
+    if (param < 0)
+        param = SLHDSA_SHAKE192F;
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192F)
+    if (param < 0)
+        param = SLHDSA_SHA2_192F;
+#endif
+#if !defined(WOLFSSL_SLHDSA_NO_SHAKE) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_192S)
+    if (param < 0)
+        param = SLHDSA_SHAKE192S;
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192S)
+    if (param < 0)
+        param = SLHDSA_SHA2_192S;
+#endif
+#if !defined(WOLFSSL_SLHDSA_NO_SHAKE) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_256F)
+    if (param < 0)
+        param = SLHDSA_SHAKE256F;
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256F)
+    if (param < 0)
+        param = SLHDSA_SHA2_256F;
+#endif
+#if !defined(WOLFSSL_SLHDSA_NO_SHAKE) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_256S)
+    if (param < 0)
+        param = SLHDSA_SHAKE256S;
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256S)
+    if (param < 0)
+        param = SLHDSA_SHA2_256S;
+#endif
     if (param < 0) {
-        WB_NOTE("no 128-bit parameter set compiled in; TRUE rows skipped");
+        WB_NOTE("no SLH-DSA parameter set compiled in; TRUE rows skipped");
         wc_FreeRng(&rng);
         return;
     }

@@ -1275,6 +1275,7 @@ static void wb_drbg_reseedctr_type_rows(void)
     }
     (void)wc_FreeRng(&rng);
 
+#ifndef NO_SHA256
     /* SHA-256, drbg != NULL: 1354 c0-T + c1-T. */
     (void)wc_Sha512Drbg_Disable();
     XMEMSET(&rng, 0, sizeof(rng));
@@ -1290,6 +1291,7 @@ static void wb_drbg_reseedctr_type_rows(void)
         (void)wc_FreeRng(&rng);
     }
     (void)wc_Sha512Drbg_Enable();
+#endif
 
     WB_NOTE("GetReseedCtr DRBG-type rows driven");
 }
