@@ -33108,6 +33108,7 @@ int test_wc_MldsaDerDecisionCoverage(void)
     !defined(WOLF_CRYPTO_CB_ONLY_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+#if defined(WOLFSSL_MLDSA_NO_ASN1) || !defined(WOLFSSL_NO_ML_DSA_44)
 /* DER length: short form, or 0x82 two-byte long form. Every crafted
  * buffer below stays under 64 KiB, so two length bytes always suffice. */
 static word32 mldsa_test_der_len_sz(word32 len)
@@ -33129,6 +33130,7 @@ static word32 mldsa_test_der_put_len(byte* p, word32 len)
     p[2] = (byte)len;
     return 3;
 }
+#endif /* NO_ASN1 or ML-DSA-44 */
 
 #if defined(WOLFSSL_MLDSA_NO_ASN1)
 /* SEQUENCE { SEQUENCE { OID } BIT STRING }. BIT STRING content is the

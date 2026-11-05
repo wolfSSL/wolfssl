@@ -1128,7 +1128,8 @@ int test_wc_Tls13_HybridSharedSecret(void)
  *   - a registered device with a NULL callback: operand 1 false
  * Every call returns CRYPTOCB_UNAVAILABLE in all three rows.
  */
-#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
 #define TEST_CRYPTOCB_DISPATCH_DEVID 0x44495350 /* "DISP" */
 
 static int test_cryptocb_dispatch_decline_cb(int cbDevId, wc_CryptoInfo* info,
@@ -1144,7 +1145,8 @@ static int test_cryptocb_dispatch_decline_cb(int cbDevId, wc_CryptoInfo* info,
 int test_wc_CryptoCbDispatchDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
     byte   in[8] = {0};
     byte   out[16] = {0};
     byte   tag[16] = {0};

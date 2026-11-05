@@ -1811,10 +1811,18 @@ int test_wc_DrbgReworkDecisionCoverage(void)
     ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), NULL,
                                          sizeof(nonce)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce,
+                                         sizeof(nonce)),
+        WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce, 0),
+        WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
     ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce,
                                          sizeof(nonce)), 0);
     ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce, 0),
         0);
+#endif
 
     /* wc_RNG_DRBG_Stir_Nonce: rng/seed NULL pair, nonce pair, and the
      * second-chunk decision (nonce non-NULL with zero size). */

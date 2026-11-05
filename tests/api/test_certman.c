@@ -5438,6 +5438,7 @@ int test_certman_decision_coverage(void)
     hs = (Signer*)XMALLOC(sizeof(Signer), cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (hs != NULL) {
         XMEMSET(hs, 0, sizeof(Signer));
+        hs->type = WOLFSSL_USER_CA;
         (void)AddSigner(cm, hs);
         /* RemoveCA frees the signer it removes; no XFREE after it. */
         (void)RemoveCA(cm, hs->subjectKeyIdHash, WOLFSSL_USER_CA);

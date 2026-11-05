@@ -8640,7 +8640,9 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
      * SetSSL_CTX() takes the side from the ctx method (7944) and the keyType
      * from the key loaded in the ctx (SetSSL_CTX_CertsAndKeys), so each pair
      * is a ctx with the matching key loaded. */
-#if defined(HAVE_ED25519) && defined(HAVE_ED448) && !defined(NO_RSA)
+#if defined(HAVE_ED25519) && defined(HAVE_ED448) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    !defined(NO_ED25519_CLIENT_AUTH) && !defined(NO_ED448_CLIENT_AUTH)
     {
         WOLFSSL_CTX *ctxSrv = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
         ExpectNotNull(ctxSrv);
@@ -8658,20 +8660,20 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         ExpectIntEQ(ssl->options.cacheMessages, 1);
         /* cond1 T: ed25519 key */
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx,
-            "certs/ed25519/server-ed25519-priv.pem", CERT_FILETYPE),
+            edKeyFile, CERT_FILETYPE),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
-            "certs/ed25519/server-ed25519-cert.pem", CERT_FILETYPE),
+            edCertFile, CERT_FILETYPE),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.cacheMessages, 1);
         /* cond2 T: ed448 key */
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx,
-            "certs/ed448/server-ed448-priv.pem", CERT_FILETYPE),
+            ed448KeyFile, CERT_FILETYPE),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
-            "certs/ed448/server-ed448-cert.pem", CERT_FILETYPE),
+            ed448CertFile, CERT_FILETYPE),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
@@ -8679,15 +8681,24 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         /* cond3 T: sm2 key (structural gap when WOLFSSL_SM2 is off: no sm2
          * key can load, so keyType can never be sm2_sa_algo) */
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+#ifdef WOLFSSL_PEM_TO_DER
+#define MCDC_SM2_KEY_FILE "certs/sm2/server-sm2-priv.pem"
+#define MCDC_SM2_CERT_FILE "certs/sm2/server-sm2-cert.pem"
+#else
+#define MCDC_SM2_KEY_FILE "certs/sm2/server-sm2-priv.der"
+#define MCDC_SM2_CERT_FILE "certs/sm2/server-sm2-cert.der"
+#endif
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx,
-            "certs/sm2/server-sm2-priv.pem", CERT_FILETYPE),
+            MCDC_SM2_KEY_FILE, CERT_FILETYPE),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
-            "certs/sm2/server-sm2-cert.pem", CERT_FILETYPE),
+            MCDC_SM2_CERT_FILE, CERT_FILETYPE),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), 1);
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.cacheMessages, 1);
+#undef MCDC_SM2_KEY_FILE
+#undef MCDC_SM2_CERT_FILE
 #endif
         wolfSSL_CTX_free(ctxSrv);
     }
