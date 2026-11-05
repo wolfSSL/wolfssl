@@ -6379,6 +6379,11 @@ struct WOLFSSL_X509 {
 #endif
     buffer           pubKey;
     int              pubKeyOID;
+#ifdef WC_RSA_PSS
+    byte             keyPssHash;                     /* PSS key parameters, */
+    byte             keyPssMgf;                      /* 0 if not declared   */
+    word16           keyPssSaltLen;
+#endif
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \

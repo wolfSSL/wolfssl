@@ -39314,6 +39314,70 @@ static int test_tls_rsa_pss_pss_key(void)
     return EXPECT_RESULT();
 }
 
+/* The id-RSASSA-PSS key's parameters follow the certificate through the
+ * other install paths too, and no RSA-PSS scheme is listed with a hash it
+ * does not exist for. */
+static int test_tls_rsa_pss_pss_key_install(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS_RSA_PSS_PSS_KEY) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* rsaCtx = NULL;
+    WOLFSSL_CTX* pssCtx = NULL;
+    WOLFSSL_CTX* x509Ctx = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(rsaCtx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(rsaCtx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(rsaCtx, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(pssCtx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(pssCtx, RSAPSS_SVR_CERT,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(pssCtx, RSAPSS_SVR_KEY,
+        WOLFSSL_FILETYPE_PEM));
+
+    /* Swapping the context, as an SNI callback does, carries them over. */
+    ExpectNotNull(ssl = wolfSSL_new(rsaCtx));
+    ExpectIntEQ(ssl->useRsaPss, 0);
+    ExpectNotNull(wolfSSL_set_SSL_CTX(ssl, pssCtx));
+    ExpectIntEQ(ssl->useRsaPss, 1);
+    ExpectIntEQ(ssl->rsaPssHash, WC_HASH_TYPE_SHA256);
+    ExpectIntEQ(ssl->rsaPssMgf, WC_MGF1SHA256);
+    ExpectIntEQ(ssl->rsaPssSaltLen, WC_SHA256_DIGEST_SIZE);
+    ExpectNotNull(wolfSSL_set_SSL_CTX(ssl, rsaCtx));
+    ExpectIntEQ(ssl->useRsaPss, 0);
+    ExpectIntEQ(ssl->rsaPssHash, 0);
+
+    /* So does installing the certificate as an X509 object. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(RSAPSS_SVR_CERT,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(x509Ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate(x509Ctx, x509), 1);
+    ExpectIntEQ(x509Ctx->useRsaPss, 1);
+    ExpectIntEQ(x509Ctx->rsaPssHash, WC_HASH_TYPE_SHA256);
+    ExpectIntEQ(x509Ctx->rsaPssMgf, WC_MGF1SHA256);
+    ExpectIntEQ(x509Ctx->rsaPssSaltLen, WC_SHA256_DIGEST_SIZE);
+
+    /* RSA-PSS schemes exist for SHA-256, SHA-384 and SHA-512 only. */
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA-PSS-PSS+SHA1"), 0);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA-PSS+SHA224"), 0);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA-PSS-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_X509_free(x509);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(x509Ctx);
+    wolfSSL_CTX_free(pssCtx);
+    wolfSSL_CTX_free(rsaCtx);
+#else
+    return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Regression: a TLS 1.2 CBC MtE handshake whose record MAC is computed by a
  * callback that leaves the software hash state empty. Without routing
  * device-backed verify through update/final, TLS_hmac() reads that empty state
@@ -47577,6 +47641,7 @@ TEST_CASE testCases[] = {
     /* Unconditional shells (bodies self-guard on their feature macros). */
     TEST_DECL(test_wc_CryptoCb_TLS_CBC_HMAC),
     TEST_DECL(test_tls_rsa_pss_pss_key),
+    TEST_DECL(test_tls_rsa_pss_pss_key_install),
     TEST_DECL(test_wc_CryptoCb_Hmac_Find),
     TEST_DECL(test_wc_CryptoCb_AesGcm_SetKey),
     TEST_DECL(test_wc_CryptoCb_Aes_SetKey_Declined),

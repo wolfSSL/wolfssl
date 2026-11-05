@@ -9134,6 +9134,12 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.keyLabel = ctx->privateKeyLabel;
     ssl->buffers.keySz    = ctx->privateKeySz;
     ssl->buffers.keyDevId = ctx->privateKeyDevId;
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    ssl->useRsaPss     = ctx->useRsaPss;
+    ssl->rsaPssHash    = ctx->rsaPssHash;
+    ssl->rsaPssMgf     = ctx->rsaPssMgf;
+    ssl->rsaPssSaltLen = ctx->rsaPssSaltLen;
+#endif
     /* flags indicating what certs/keys are available */
     ssl->options.haveRSA          = ctx->haveRSA;
     ssl->options.haveDH           = ctx->haveDH;

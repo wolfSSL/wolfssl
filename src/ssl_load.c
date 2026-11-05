@@ -5454,6 +5454,12 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if (res == 1) {
         /* Set have options based on public key OID. */
         wolfssl_set_have_from_key_oid(ctx, NULL, x->pubKeyOID);
+    #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+        ctx->useRsaPss = (x->pubKeyOID == RSAPSSk);
+        ctx->rsaPssHash = x->keyPssHash;
+        ctx->rsaPssMgf = x->keyPssMgf;
+        ctx->rsaPssSaltLen = x->keyPssSaltLen;
+    #endif
     }
 
     return res;

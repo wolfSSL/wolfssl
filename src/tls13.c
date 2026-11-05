@@ -9751,6 +9751,14 @@ static void EncodeDualSigAlg(byte sigAlg, byte altSigAlg, byte* output)
     output[0] = 0x0;
     output[1] = 0x0;
 
+#ifdef WC_RSA_PSS
+    /* The hybrid code points do not tell the RSA key OIDs apart. */
+    if (sigAlg == rsa_pss_pss_algo)
+        sigAlg = rsa_pss_sa_algo;
+    if (altSigAlg == rsa_pss_pss_algo)
+        altSigAlg = rsa_pss_sa_algo;
+#endif
+
     if (sigAlg == ecc_dsa_sa_algo && altSigAlg == mldsa_44_sa_algo) {
         output[1] = HYBRID_P256_MLDSA_44_SA_MINOR;
     }

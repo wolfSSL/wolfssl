@@ -4127,17 +4127,18 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
       #endif
     #endif /* WOLFSSL_HAVE_SLHDSA */
 #ifdef WC_RSA_PSS
-        if (sigAlgo == rsa_pss_sa_algo) {
-            /* RSA PSS is sig then mac */
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo, macAlgo);
-            /* rsa_pss_pss_* too, also in TLS 1.2 (RFC 8446 1.3). */
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo,
-                PSS_RSAE_TO_PSS_PSS(macAlgo));
-        }
-        else if (sigAlgo == rsa_pss_pss_algo) {
-            /* Only the id-RSASSA-PSS key scheme. */
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, rsa_pss_sa_algo,
-                PSS_RSAE_TO_PSS_PSS(macAlgo));
+        /* RSA-PSS schemes exist for SHA-256, SHA-384 and SHA-512 only. */
+        if (sigAlgo == rsa_pss_sa_algo || sigAlgo == rsa_pss_pss_algo) {
+            if (macAlgo >= sha256_mac && macAlgo <= sha512_mac) {
+                if (sigAlgo == rsa_pss_sa_algo) {
+                    /* RSA PSS is sig then mac */
+                    ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo,
+                        macAlgo);
+                }
+                /* rsa_pss_pss_* too, also in TLS 1.2 (RFC 8446 1.3). */
+                ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, rsa_pss_sa_algo,
+                    PSS_RSAE_TO_PSS_PSS(macAlgo));
+            }
         }
         else
 #endif
@@ -16235,6 +16236,11 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
                         dCert->pubKeySize, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if (x509->pubKey.buffer != NULL) {
             x509->pubKeyOID = (int)dCert->keyOID;
+        #ifdef WC_RSA_PSS
+            x509->keyPssHash = dCert->keyPssHash;
+            x509->keyPssMgf = dCert->keyPssMgf;
+            x509->keyPssSaltLen = dCert->keyPssSaltLen;
+        #endif
         #ifdef OPENSSL_EXTRA_X509_SMALL
             /* Set now as the getters that cache objects made from the key
              * may run in parallel. */
@@ -34921,6 +34927,15 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     ret = 0;
                     break;
                 }
+            #ifdef WC_RSA_PSS
+                /* No RSA-PSS scheme with any other hash. */
+                if ((sig_alg == rsa_pss_sa_algo ||
+                        sig_alg == rsa_pss_pss_algo) &&
+                        (mac_alg < sha256_mac || mac_alg > sha512_mac)) {
+                    ret = 0;
+                    break;
+                }
+            #endif
             }
             {
                 word32 needed = 2;
@@ -35228,6 +35243,17 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
     }
     ssl->options.hashAlgo = minHash = MinHashAlgo(ssl);
 
+#ifdef WC_RSA_PSS
+    /* Without a list a TLS 1.2 server signs rsa_pkcs1 (RFC 5246 7.4.1.4.1),
+     * which an id-RSASSA-PSS key must not do (RFC 4055 1.2). */
+    if (hashSigAlgoSz == 0 && ssl->useRsaPss &&
+            ssl->options.sigAlgo == rsa_sa_algo &&
+            ssl->options.side == WOLFSSL_SERVER_END &&
+            !IsAtLeastTLSv1_3(ssl->version)) {
+        WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
+        return MATCH_SUITE_ERROR;
+    }
+#endif
     /* No list means go with the defaults. */
     if (hashSigAlgoSz == 0)
         return 0;
