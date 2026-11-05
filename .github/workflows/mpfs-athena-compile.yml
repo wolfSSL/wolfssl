@@ -79,6 +79,14 @@ jobs:
             extra: '-DWOLFSSL_AES_COUNTER'
           - leg: sha384-only
             extra: '-DWOLFSSL_SHA512 -DWOLFSSL_SHA384'
+          # The cipher case is shared by CTR and ECB, so each must build with
+          # the other gate off.
+          - leg: aesecb-only
+            extra: '-DHAVE_AES_ECB'
+          # The XTS build the ECB path exists for, with a raised minimum so the
+          # self-test takes its larger-buffer branch.
+          - leg: aesxts
+            extra: '-DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DWOLFSSL_AES_COUNTER -DHAVE_AES_ECB -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT -DWC_MPFS_ATHENA_AES_MIN_SZ=512'
           - leg: no-selftest
             extra: '-DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DWOLFSSL_AES_COUNTER -DWC_MPFS_ATHENA_NO_SELFTEST'
     steps:

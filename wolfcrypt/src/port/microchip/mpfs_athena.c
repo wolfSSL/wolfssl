@@ -19,9 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* SHA-384 and AES-256-CTR on the PolarFire SoC Athena F5200, through the
- * wolfCrypt crypto callback. See wolfssl/wolfcrypt/port/microchip/mpfs_athena.h
- * and the README in this directory. */
+/* SHA-384, AES-256-CTR and AES-256-ECB on the PolarFire SoC Athena F5200,
+ * through the wolfCrypt crypto callback. See
+ * wolfssl/wolfcrypt/port/microchip/mpfs_athena.h and the README in this
+ * directory. */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -262,6 +263,43 @@ static int wc_MpfsAthenaAesCtr(const word32* key, byte* ctr, const byte* in,
     return 0;
 }
 #endif /* WOLFSSL_AES_COUNTER && !NO_AES */
+
+#if defined(HAVE_AES_ECB) && !defined(NO_AES)
+/* sz must be whole blocks. ECB carries no chaining state, so each call is
+ * self-contained and the direction comes from the caller. */
+static int wc_MpfsAthenaAesEcb(const word32* key, const byte* in, byte* out,
+    word32 sz, int enc)
+{
+    SATR rc;
+    int ret;
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    if (enc) {
+        rc = CALSymEncrypt(SATSYMTYPE_AES256, (const SATUINT32_t*)key,
+            SATSYMMODE_ECB, NULL, SAT_FALSE, in, out, (SATUINT32_t)sz);
+    }
+    else {
+        rc = CALSymDecrypt(SATSYMTYPE_AES256, (const SATUINT32_t*)key,
+            SATSYMMODE_ECB, NULL, SAT_FALSE, in, out, (SATUINT32_t)sz);
+    }
+    if (rc == SATR_SUCCESS) {
+        /* As with CTR, the call above only starts the transfer. */
+        rc = CALSymTrfRes(SAT_TRUE);
+    }
+    if (rc != SATR_SUCCESS) {
+        mpfsAthenaCalRc = (int)rc;
+    }
+    wolfSSL_CryptHwMutexUnLock();
+
+    if (rc != SATR_SUCCESS) {
+        return WC_HW_E;
+    }
+    return 0;
+}
+#endif /* HAVE_AES_ECB && !NO_AES */
 
 #ifdef WOLFSSL_SHA384
 
@@ -621,16 +659,32 @@ static int wc_MpfsAthenaShaCopyDev(wc_CryptoInfo* info)
 #endif /* WOLFSSL_SHA384 */
 
 #if defined(WOLFSSL_AES_COUNTER) && !defined(NO_AES)
+/* Big-endian add over the whole counter block, the increment wolfCrypt's own
+ * CTR does. */
+static void wc_MpfsAthenaCtrAdd(byte* ctr, word32 blocks)
+{
+    word32 carry = blocks;
+    int i;
+
+    for (i = WC_AES_BLOCK_SIZE - 1; i >= 0 && carry != 0; i--) {
+        word32 sum = (word32)ctr[i] + (carry & 0xFFU);
+        ctr[i] = (byte)sum;
+        carry = (carry >> 8) + (sum >> 8);
+    }
+}
+
 /* AES-256-CTR, one path for both directions (info->cipher.enc unread).
  * Keystream state is wolfCrypt's own: aes->tmp holds one front-aligned block,
  * aes->left counts its unconsumed tail, aes->reg is already past it. Every
- * bail-out is above the first engine call, or the counter desynchronises. */
+ * decline is above the first engine call; after one, a failure returns with
+ * aes->reg still matching the output already written. */
 static int wc_MpfsAthenaAesCtrDev(wc_CryptoInfo* info)
 {
     Aes* aes = info->cipher.aesctr.aes;
     const byte* in = info->cipher.aesctr.in;
     byte* out = info->cipher.aesctr.out;
     word32 sz = info->cipher.aesctr.sz;
+    byte ctr[WC_AES_BLOCK_SIZE];
     word32 whole;
     word32 processed;
     int ret;
@@ -661,15 +715,31 @@ static int wc_MpfsAthenaAesCtrDev(wc_CryptoInfo* info)
         sz -= processed;
     }
 
+    /* The engine carries only the low 32 bits of the counter block;
+     * wc_AesCtrEncrypt() counts over all 128. Stop each transfer at that wrap
+     * and recompute the counter here. */
     whole = sz - (sz % WC_AES_BLOCK_SIZE);
-    if (whole > 0) {
-        ret = wc_MpfsAthenaAesCtr(aes->devKey, (byte*)aes->reg, in, out, whole);
+    while (whole > 0) {
+        word32 run = whole;
+        word32 low = ((word32)((byte*)aes->reg)[12] << 24) |
+                     ((word32)((byte*)aes->reg)[13] << 16) |
+                     ((word32)((byte*)aes->reg)[14] << 8) |
+                      (word32)((byte*)aes->reg)[15];
+        word32 toWrap = ~low + 1U;  /* blocks left before the low word wraps */
+
+        if (toWrap != 0 && run / WC_AES_BLOCK_SIZE > toWrap) {
+            run = toWrap * WC_AES_BLOCK_SIZE;
+        }
+        XMEMCPY(ctr, aes->reg, WC_AES_BLOCK_SIZE);
+        ret = wc_MpfsAthenaAesCtr(aes->devKey, ctr, in, out, run);
         if (ret != 0) {
             return ret;
         }
-        in += whole;
-        out += whole;
-        sz -= whole;
+        wc_MpfsAthenaCtrAdd((byte*)aes->reg, run / WC_AES_BLOCK_SIZE);
+        in += run;
+        out += run;
+        sz -= run;
+        whole -= run;
     }
 
     if (sz > 0) {
@@ -680,12 +750,13 @@ static int wc_MpfsAthenaAesCtrDev(wc_CryptoInfo* info)
         byte ks[WC_AES_BLOCK_SIZE];
 
         XMEMSET(ks, 0, sizeof(ks));
-        ret = wc_MpfsAthenaAesCtr(aes->devKey, (byte*)aes->reg, ks, ks,
-            WC_AES_BLOCK_SIZE);
+        XMEMCPY(ctr, aes->reg, WC_AES_BLOCK_SIZE);
+        ret = wc_MpfsAthenaAesCtr(aes->devKey, ctr, ks, ks, WC_AES_BLOCK_SIZE);
         if (ret != 0) {
             ForceZero(ks, sizeof(ks));
             return ret;
         }
+        wc_MpfsAthenaCtrAdd((byte*)aes->reg, 1U);
         xorbufout(out, in, ks, sz);
         XMEMCPY(aes->tmp, ks, WC_AES_BLOCK_SIZE);
         aes->left = WC_AES_BLOCK_SIZE - sz;
@@ -696,6 +767,45 @@ static int wc_MpfsAthenaAesCtrDev(wc_CryptoInfo* info)
     return 0;
 }
 #endif /* WOLFSSL_AES_COUNTER && !NO_AES */
+
+#if defined(HAVE_AES_ECB) && !defined(NO_AES)
+/* AES-256-ECB, which is what carries AES-XTS: _AesXtsHelper() masks the whole
+ * buffer with the tweak chain and issues one ECB call for it, so the engine
+ * gets one bulk transfer per XTS call. Needs HAVE_AES_ECB; without it XTS runs
+ * block-at-a-time through wc_AesEncryptDirect(), slower than software. */
+static int wc_MpfsAthenaAesEcbDev(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aesecb.aes;
+    const byte* in = info->cipher.aesecb.in;
+    byte* out = info->cipher.aesecb.out;
+    word32 sz = info->cipher.aesecb.sz;
+    int ret;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    /* AES-256 only, as for CTR: the engine does 128 and 192, but only 256 has
+     * been run on silicon here. */
+    if (aes->keylen != 32) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    /* A partial block has no ECB meaning; leave it to software to reject. */
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (sz < WC_MPFS_ATHENA_AES_MIN_SZ) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    ret = wc_MpfsAthenaAesEcb(aes->devKey, in, out, sz, info->cipher.enc);
+    if (ret != 0) {
+        return ret;
+    }
+
+    wc_MpfsAthenaCountCall();
+    return 0;
+}
+#endif /* HAVE_AES_ECB && !NO_AES */
 
 int wc_MpfsAthena_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 {
@@ -719,11 +829,19 @@ int wc_MpfsAthena_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             break;
 #endif
 
-#if defined(WOLFSSL_AES_COUNTER) && !defined(NO_AES)
+#if (defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)) && \
+        !defined(NO_AES)
         case WC_ALGO_TYPE_CIPHER:
+#if defined(WOLFSSL_AES_COUNTER)
             if (info->cipher.type == WC_CIPHER_AES_CTR) {
                 return wc_MpfsAthenaAesCtrDev(info);
             }
+#endif
+#if defined(HAVE_AES_ECB)
+            if (info->cipher.type == WC_CIPHER_AES_ECB) {
+                return wc_MpfsAthenaAesEcbDev(info);
+            }
+#endif
             break;
 #endif
 
@@ -837,6 +955,17 @@ static const byte mpfsAthenaKatAesCtr[32] = {
     0x70, 0xe2, 0x02, 0xc6, 0xd7, 0x90, 0x4e, 0x4a,
     0x4d, 0x0f, 0xe1, 0x4a, 0x6e, 0xf8, 0x3e, 0xd0
 };
+
+/* AES-256-CTR of the 48 bytes 0x00..0x2F under the same key, counter block
+ * 0x00..0x0B followed by ff ff ff fe. */
+static const byte mpfsAthenaKatAesCtrWrap[48] = {
+    0x8b, 0x65, 0xb1, 0x2c, 0xf3, 0xb6, 0x96, 0x55,
+    0xb3, 0xa0, 0x70, 0x5f, 0x80, 0xd8, 0x41, 0x6b,
+    0x8d, 0x43, 0xf8, 0x94, 0x09, 0x22, 0xf4, 0x11,
+    0xae, 0x57, 0x8a, 0x36, 0x01, 0x98, 0x60, 0x5b,
+    0xfa, 0x87, 0x6a, 0xdc, 0xe3, 0xea, 0xe5, 0x81,
+    0xf1, 0xdf, 0x7e, 0xb2, 0xd3, 0x26, 0x39, 0xae
+};
 #endif
 
 #ifdef WOLFSSL_SHA384
@@ -845,9 +974,10 @@ static const byte mpfsAthenaKatAesCtr[32] = {
 static int wc_MpfsAthenaKatSha384(byte* buf, byte* digest)
 {
     wc_Sha384 sha;
+    word32 calls;
     int ret;
 
-    mpfsAthenaCbCalls = 0;
+    calls = mpfsAthenaCbCalls;
 
     ret = wc_InitSha384_ex(&sha, NULL, WC_MPFS_ATHENA_DEVID);
     if (ret != 0) {
@@ -875,7 +1005,7 @@ static int wc_MpfsAthenaKatSha384(byte* buf, byte* digest)
         return ret;
     }
 
-    if (mpfsAthenaCbCalls == 0) {
+    if (mpfsAthenaCbCalls == calls) {
         mpfsAthenaFailWhat = "SHA-384 never reached the engine (software)";
         return WC_HW_E;
     }
@@ -964,6 +1094,7 @@ static int wc_MpfsAthenaKatAesCtr(const byte* in)
     byte key[32];
     byte ctr[WC_AES_BLOCK_SIZE];
     byte out[32];
+    word32 calls;
     int ret;
     int i;
 
@@ -975,9 +1106,9 @@ static int wc_MpfsAthenaKatAesCtr(const byte* in)
     }
 
     /* One 32-byte call: two whole blocks in a single engine transfer. */
-    mpfsAthenaCbCalls = 0;
+    calls = mpfsAthenaCbCalls;
     ret = wc_MpfsAthenaKatAesRun(key, ctr, in, out, 32);
-    if (ret == 0 && mpfsAthenaCbCalls == 0) {
+    if (ret == 0 && mpfsAthenaCbCalls == calls) {
         mpfsAthenaFailWhat = "AES-256-CTR never reached the engine (software)";
         ret = WC_HW_E;
     }
@@ -1012,6 +1143,20 @@ static int wc_MpfsAthenaKatAesCtr(const byte* in)
         }
     }
 
+    /* Counter 0x...fffffffe for 48 bytes: the third block is past the low
+     * word's wrap, which the engine does not carry on its own. */
+    if (ret == 0) {
+        byte wrap[48];
+        ctr[12] = 0xff; ctr[13] = 0xff; ctr[14] = 0xff; ctr[15] = 0xfe;
+        ret = wc_MpfsAthenaKatAesRun(key, ctr, in, wrap, sizeof(wrap));
+        if (ret == 0 &&
+                XMEMCMP(wrap, mpfsAthenaKatAesCtrWrap, sizeof(wrap)) != 0) {
+            mpfsAthenaFailWhat = "AES-256-CTR counter does not carry past "
+                "32 bits";
+            ret = WC_HW_E;
+        }
+    }
+
     if (ret != 0 && mpfsAthenaFailWhat == NULL) {
         mpfsAthenaFailWhat = "AES-256-CTR";
     }
@@ -1020,13 +1165,166 @@ static int wc_MpfsAthenaKatAesCtr(const byte* in)
 }
 #endif /* WOLFSSL_AES_COUNTER && !NO_AES */
 
-/* 256 message bytes, plus room for a digest after them when SHA-384 is in the
- * build. WC_SHA384_DIGEST_SIZE only exists under WOLFSSL_SHA384, so an AES-only
- * build must not name it. */
-#ifdef WOLFSSL_SHA384
-    #define WC_MPFS_ATHENA_KAT_BUF_SZ (256 + WC_SHA384_DIGEST_SIZE)
+#if defined(HAVE_AES_ECB) && !defined(NO_AES)
+/* AES-256-ECB of 0x00..0x1F under the key 0x00..0x1F. Blocks are independent,
+ * so this is also the first 32 bytes of the longer run. */
+static const byte mpfsAthenaKatAesEcb[32] = {
+    0x5a, 0x6e, 0x04, 0x57, 0x08, 0xfb, 0x71, 0x96,
+    0xf0, 0x2e, 0x55, 0x3d, 0x02, 0xc3, 0xa6, 0x92,
+    0xe9, 0xc3, 0xef, 0x8a, 0xb2, 0x34, 0x53, 0xe6,
+    0xf0, 0x74, 0x9c, 0xd6, 0x36, 0xe7, 0xa8, 0x8e
+};
+
+/* At least WC_MPFS_ATHENA_AES_MIN_SZ, or the engine declines and the count
+ * check means nothing; and at least the two blocks the vector covers. */
+#if WC_MPFS_ATHENA_AES_MIN_SZ > 32
+    /* 16, not WC_AES_BLOCK_SIZE: that is an enum, which the preprocessor
+     * reads as 0. */
+    #define WC_MPFS_ATHENA_KAT_ECB_SZ \
+        (((WC_MPFS_ATHENA_AES_MIN_SZ + 15) / 16) * 16)
 #else
-    #define WC_MPFS_ATHENA_KAT_BUF_SZ (256)
+    #define WC_MPFS_ATHENA_KAT_ECB_SZ 32
+#endif
+
+/* in and out are WC_MPFS_ATHENA_KAT_ECB_SZ scratch each. Both shapes are run:
+ * distinct buffers, and in place, which is what XTS sends. */
+static int wc_MpfsAthenaKatAesEcb(byte* in, byte* out)
+{
+    Aes enc;
+#ifdef HAVE_AES_DECRYPT
+    Aes dec;
+#endif
+    byte key[32];
+    word32 calls;
+    int ret;
+    int i;
+
+    for (i = 0; i < (int)sizeof(key); i++) {
+        key[i] = (byte)i;
+    }
+    /* The SHA-384 KAT leaves its digest in the shared buffer, so the pattern
+     * is laid down here rather than assumed. */
+    for (i = 0; i < WC_MPFS_ATHENA_KAT_ECB_SZ; i++) {
+        in[i] = (byte)i;
+    }
+
+    ret = wc_AesInit(&enc, NULL, WC_MPFS_ATHENA_DEVID);
+    if (ret != 0) {
+        ForceZero(key, sizeof(key));
+        return ret;
+    }
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesInit(&dec, NULL, WC_MPFS_ATHENA_DEVID);
+    if (ret != 0) {
+        wc_AesFree(&enc);
+        ForceZero(key, sizeof(key));
+        return ret;
+    }
+#endif
+    ret = wc_AesSetKey(&enc, key, sizeof(key), NULL, AES_ENCRYPTION);
+#ifdef HAVE_AES_DECRYPT
+    if (ret == 0) {
+        ret = wc_AesSetKey(&dec, key, sizeof(key), NULL, AES_DECRYPTION);
+    }
+#endif
+
+    /* One call of the minimum size: a single engine transfer. */
+    if (ret == 0) {
+        calls = mpfsAthenaCbCalls;
+        ret = wc_AesEcbEncrypt(&enc, out, in, WC_MPFS_ATHENA_KAT_ECB_SZ);
+        if (ret == 0 && mpfsAthenaCbCalls == calls) {
+            mpfsAthenaFailWhat =
+                "AES-256-ECB never reached the engine (software)";
+            ret = WC_HW_E;
+        }
+        if (ret == 0 && XMEMCMP(out, mpfsAthenaKatAesEcb,
+                sizeof(mpfsAthenaKatAesEcb)) != 0) {
+            mpfsAthenaFailWhat = "AES-256-ECB known-answer mismatch";
+            ret = WC_HW_E;
+        }
+    }
+
+#ifdef HAVE_AES_DECRYPT
+    /* Decrypt in place and expect the pattern back. */
+    if (ret == 0) {
+        calls = mpfsAthenaCbCalls;
+        ret = wc_AesEcbDecrypt(&dec, out, out, WC_MPFS_ATHENA_KAT_ECB_SZ);
+        if (ret == 0 && mpfsAthenaCbCalls == calls) {
+            mpfsAthenaFailWhat =
+                "AES-256-ECB decrypt never reached the engine (software)";
+            ret = WC_HW_E;
+        }
+        for (i = 0; ret == 0 && i < WC_MPFS_ATHENA_KAT_ECB_SZ; i++) {
+            if (out[i] != (byte)i) {
+                mpfsAthenaFailWhat = "AES-256-ECB in-place decrypt mismatch";
+                ret = WC_HW_E;
+            }
+        }
+    }
+#endif
+
+    /* Encrypt in place, the XTS shape, from a fresh copy of the pattern. */
+    if (ret == 0) {
+        for (i = 0; i < WC_MPFS_ATHENA_KAT_ECB_SZ; i++) {
+            out[i] = (byte)i;
+        }
+        calls = mpfsAthenaCbCalls;
+        ret = wc_AesEcbEncrypt(&enc, out, out, WC_MPFS_ATHENA_KAT_ECB_SZ);
+        if (ret == 0 && mpfsAthenaCbCalls == calls) {
+            mpfsAthenaFailWhat =
+                "AES-256-ECB in-place encrypt never reached the engine";
+            ret = WC_HW_E;
+        }
+        if (ret == 0 && XMEMCMP(out, mpfsAthenaKatAesEcb,
+                sizeof(mpfsAthenaKatAesEcb)) != 0) {
+            mpfsAthenaFailWhat = "AES-256-ECB in-place encrypt mismatch";
+            ret = WC_HW_E;
+        }
+    }
+
+#if WC_MPFS_ATHENA_AES_MIN_SZ > 16
+    /* One block is below the minimum: software must serve it on this same
+     * context, with no engine call, and still get the vector right. */
+    if (ret == 0) {
+        calls = mpfsAthenaCbCalls;
+        ret = wc_AesEcbEncrypt(&enc, out, in, WC_AES_BLOCK_SIZE);
+        if (ret == 0 && mpfsAthenaCbCalls != calls) {
+            mpfsAthenaFailWhat = "AES-256-ECB one block went to the engine";
+            ret = WC_HW_E;
+        }
+        if (ret == 0 && XMEMCMP(out, mpfsAthenaKatAesEcb,
+                WC_AES_BLOCK_SIZE) != 0) {
+            mpfsAthenaFailWhat = "AES-256-ECB software block mismatch";
+            ret = WC_HW_E;
+        }
+    }
+#endif
+
+    if (ret != 0 && mpfsAthenaFailWhat == NULL) {
+        mpfsAthenaFailWhat = "AES-256-ECB";
+    }
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(&dec);
+#endif
+    wc_AesFree(&enc);
+    ForceZero(key, sizeof(key));
+    return ret;
+}
+#endif /* HAVE_AES_ECB && !NO_AES */
+
+/* 256 message bytes plus room for a 48-byte SHA-384 digest (a literal:
+ * WC_SHA384_DIGEST_SIZE is an enum, which the #if below reads as 0). The ECB
+ * run's in/out pair only exceeds that with a raised AES minimum. */
+#ifdef WOLFSSL_SHA384
+    #define WC_MPFS_ATHENA_KAT_MSG_SZ (256 + 48)
+#else
+    #define WC_MPFS_ATHENA_KAT_MSG_SZ (256)
+#endif
+#if defined(HAVE_AES_ECB) && !defined(NO_AES) && \
+        (2 * WC_MPFS_ATHENA_KAT_ECB_SZ) > WC_MPFS_ATHENA_KAT_MSG_SZ
+    #define WC_MPFS_ATHENA_KAT_BUF_SZ (2 * WC_MPFS_ATHENA_KAT_ECB_SZ)
+#else
+    #define WC_MPFS_ATHENA_KAT_BUF_SZ WC_MPFS_ATHENA_KAT_MSG_SZ
 #endif
 
 int wc_MpfsAthena_SelfTest(void)
@@ -1062,6 +1360,11 @@ int wc_MpfsAthena_SelfTest(void)
 #if defined(WOLFSSL_AES_COUNTER) && !defined(NO_AES)
     if (ret == 0) {
         ret = wc_MpfsAthenaKatAesCtr(buf);
+    }
+#endif
+#if defined(HAVE_AES_ECB) && !defined(NO_AES)
+    if (ret == 0) {
+        ret = wc_MpfsAthenaKatAesEcb(buf, buf + WC_MPFS_ATHENA_KAT_ECB_SZ);
     }
 #endif
 

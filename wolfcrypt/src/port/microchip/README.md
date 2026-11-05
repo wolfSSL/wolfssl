@@ -1,7 +1,8 @@
 # Microchip PolarFire SoC Athena F5200 (TeraFire)
 
-SHA-384 and AES-256-CTR offload on the Athena F5200 "TeraFire" user
-cryptoprocessor, through the wolfCrypt crypto callback.
+SHA-384, AES-256-CTR and AES-256-ECB offload on the Athena F5200 "TeraFire"
+user cryptoprocessor, through the wolfCrypt crypto callback. The ECB path is
+what carries AES-256-XTS.
 
 ## Hardware
 
@@ -75,9 +76,39 @@ it by turning on `WOLF_CRYPTO_CB`,
 stock `wolfcrypt_test()` and `benchmark()` drive the engine with no argument.
 
 Which engines are offloaded follows the ordinary wolfCrypt feature gates rather
-than port-specific ones: `WOLFSSL_SHA384` for the hash, and
-`WOLFSSL_AES_COUNTER` with `!NO_AES` for AES-256-CTR. AES-128 and AES-192
-requests are declined to software, as are all other hash types.
+than port-specific ones: `WOLFSSL_SHA384` for the hash, `WOLFSSL_AES_COUNTER`
+with `!NO_AES` for AES-256-CTR, and `HAVE_AES_ECB` with `!NO_AES` for
+AES-256-ECB. AES-128 and AES-192 requests are declined to software, as are all
+other hash types.
+
+### AES-XTS
+
+XTS is AES-ECB over tweak-masked data, and `_AesXtsHelper()` already issues one
+bulk `wc_AesEcbEncrypt()`/`wc_AesEcbDecrypt()` per XTS call, which lands on this
+port's ECB case. An `XtsAes` tagged with the port's devId is therefore offloaded
+with no XTS code here, given:
+
+- `HAVE_AES_ECB` (`--enable-aesecb`; configure adds it for `--with-mpfs-athena`
+  with `--enable-aesxts`). Without it XTS runs a block at a time through
+  `wc_AesEncryptDirect()`, slower than software.
+- Distinct input and output buffers; the helper is not used in place.
+- A 64-byte XTS key (AES-256). AES-128-XTS stays in software.
+
+The tweak encrypt and the stealing tail arrive as single-block calls and stay in
+software, as do the GF(2^128) tweak multiply and both XORs. XTS therefore gains
+less than bulk CTR, and improves with call size since the engine setup is paid
+once per call - measure at the size the application uses.
+
+Stock benchmark, MPFS250TS Video Kit, E51 at 600 MHz, bare metal; the software
+column is wolfCrypt's default cache-line-touch-hardened C AES for RISC-V:
+
+| Call size | AES-256-XTS software | AES-256-XTS engine | AES-256-CTR engine | SHA-384 engine |
+|---|---|---|---|---|
+| 512 B | 48 KiB/s | 1.23 MiB/s | 12.9 MiB/s | 11.4 MiB/s |
+| 1 KiB | 49 KiB/s | 2.06 MiB/s | 14.6 MiB/s | 13.2 MiB/s |
+| 4 KiB | 49 KiB/s | 4.2 MiB/s | 16.1 MiB/s | 14.8 MiB/s |
+
+Software SHA-384 is 5.8 MiB/s.
 
 ## Using it
 
@@ -115,6 +146,7 @@ except `WC_MPFS_ATHENA_DEVID`, which `settings.h` sets so it can also drive
 |---|---|---|
 | `WC_MPFS_ATHENA_DEVID` | `0xA7` | crypto callback device id |
 | `WC_MPFS_ATHENA_HASH_SLOTS` | 4 | concurrent offloaded SHA-384 contexts when there is no heap |
+| `WC_MPFS_ATHENA_AES_MIN_SZ` | 32 | smallest AES-ECB request the engine serves; self-test needs twice this as scratch |
 | `WC_MPFS_ATHENA_BASE_ADDR` | `0x22000000` | user-crypto base, for `g_user_crypto_base_addr` |
 | `WC_MPFS_ATHENA_REG_BASE` | `0x20127000` | `ATHENAREG` |
 | `WC_MPFS_ATHENA_SYSREG_BASE` | `0x20002000` | MSS SYSREG |
@@ -146,6 +178,10 @@ None of this is in the CAL headers.
   report success.
 - **The AES counter is advanced in place**, so consecutive calls on one context
   continue the keystream.
+- **The engine's CTR counter is 32 bits wide.** It carries nothing past the low
+  word, where `wc_AesCtrEncrypt()` counts over all 128. The port stops each
+  transfer at that wrap and recomputes the counter itself; the self-test covers
+  a stream across it.
 - **The DMA entry points do nothing.** `CALHashDMA()` and `aesf5200dma()` are
   declared, but the shipped archive is built with `USE_X52EXEC_DMA 0` and they
   return success without moving data. The port uses the non-DMA calls.
@@ -178,7 +214,9 @@ None of this is in the CAL headers.
 
 ## Not yet offloaded
 
-The CAL also exposes SHA-1/224/256/512, AES-128/192, AES-GCM/CCM/key-wrap, HMAC,
-DRBG/NRBG, ECDSA, ECDH, RSA, DSA and DH. None of those have been run on this
-silicon, so they are left in software rather than shipped untested. ECDSA P-384
-verify is the one most worth adding next.
+The CAL also exposes SHA-1/224/256/512, AES-128/192, AES-CBC/CFB/OFB,
+AES-GCM/CCM/key-wrap, HMAC, DRBG/NRBG, ECDSA, ECDH, RSA, DSA and DH. None of
+those have been run on this silicon, so they are left in software rather than
+shipped untested. ECDSA P-384 verify is the one most worth adding next;
+AES-128-ECB (for AES-128-XTS) is a one-line `SATSYMTYPE_AES128` lookup once
+wanted.

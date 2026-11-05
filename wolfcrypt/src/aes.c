@@ -9991,6 +9991,9 @@ static void GMULT(byte *x, byte m[256][WC_AES_BLOCK_SIZE],
     XMEMCPY(x, Z + 1, WC_AES_BLOCK_SIZE);
 #endif
 #else
+/* The 64-bit word path reads Z at odd offsets, so it needs unaligned loads
+ * just as the 32-bit one does. */
+#ifndef WOLFSSL_USE_ALIGN
     byte* Z = ws->b;
     byte a;
     word64* pZ;
@@ -10017,6 +10020,24 @@ static void GMULT(byte *x, byte m[256][WC_AES_BLOCK_SIZE],
     pZ = (word64*)(Z + 1);
     pm = (word64*)(m[x[0]]);
     px[0] = pZ[0] ^ pm[0]; px[1] = pZ[1] ^ pm[1];
+#else
+    byte* Z = ws->b;
+    byte a;
+    int i;
+
+    XMEMCPY(Z + 16, m[x[15]], WC_AES_BLOCK_SIZE);
+    a = Z[16 + 15];
+    Z[15]  = R[a][0];
+    Z[16] ^= R[a][1];
+    for (i = 14; i > 0; i--) {
+        xorbuf(Z + i + 1, m[x[i]], WC_AES_BLOCK_SIZE);
+        a = Z[16 + i];
+        Z[i]    = R[a][0];
+        Z[i+1] ^= R[a][1];
+    }
+    xorbuf(Z + 1, m[x[0]], WC_AES_BLOCK_SIZE);
+    XMEMCPY(x, Z + 1, WC_AES_BLOCK_SIZE);
+#endif
 #endif
 }
 #endif

@@ -19,8 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* SHA-384 and AES-256-CTR on the Athena F5200 "TeraFire" user cryptoprocessor
- * of the PolarFire SoC "S" grade parts, through the wolfCrypt crypto callback.
+/* SHA-384, AES-256-CTR and AES-256-ECB on the Athena F5200 "TeraFire" user
+ * cryptoprocessor of the PolarFire SoC "S" grade parts, through the wolfCrypt
+ * crypto callback. The ECB path is what carries AES-256-XTS.
  *
  * The engine is driven by Microchip's CAL (Crypto Abstraction Library), which
  * is referenced by include path and never vendored: it carries a Mercury
@@ -95,6 +96,13 @@
  * to software. Each slot costs WC_MPFS_ATHENA_CTX_WORDS words plus a block. */
 #ifndef WC_MPFS_ATHENA_HASH_SLOTS
     #define WC_MPFS_ATHENA_HASH_SLOTS 4
+#endif
+
+/* Smallest AES-ECB request the engine serves; shorter ones go to software.
+ * XTS sends its tweak and stealing tail as one-block calls, and a CAL round
+ * trip per block loses to software. Self-test needs twice this as scratch. */
+#ifndef WC_MPFS_ATHENA_AES_MIN_SZ
+    #define WC_MPFS_ATHENA_AES_MIN_SZ 32
 #endif
 
 WOLFSSL_API int wc_MpfsAthena_Init(void);
