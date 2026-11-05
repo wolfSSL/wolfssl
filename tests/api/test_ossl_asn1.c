@@ -441,12 +441,17 @@ int test_wolfSSL_ASN1_INTEGER_get_set(void)
     return EXPECT_RESULT();
 }
 
+/* ASN1_STRING_length/get0_data on an ASN1_INTEGER give the magnitude, as in
+ * OpenSSL. */
 int test_wolfSSL_ASN1_INTEGER_STRING(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     static const unsigned char p128[] = { 0x02, 0x02, 0x00, 0x80 };
     static const unsigned char m129[] = { 0x02, 0x02, 0xff, 0x7f };
+    static const unsigned char v0[] = { 0x00 };
+    static const unsigned char v80[] = { 0x80 };
+    static const unsigned char v81[] = { 0x81 };
     static const unsigned char v100[] = { 0x01, 0x00 };
     ASN1_INTEGER* a = NULL;
     const ASN1_INTEGER* ca = NULL;
@@ -457,7 +462,15 @@ int test_wolfSSL_ASN1_INTEGER_STRING(void)
     static const unsigned char serial[] = {
         0xe3, 0x81, 0x4b, 0x48, 0xa5, 0x70, 0x61, 0x70
     };
+    static const unsigned char serialDer[] = {
+        0x02, 0x09, 0x00, 0xe3, 0x81, 0x4b, 0x48, 0xa5, 0x70, 0x61, 0x70
+    };
+    unsigned char* der = NULL;
     X509* x509 = NULL;
+#ifndef NO_BIO
+    BIO* bio = NULL;
+    char* str = NULL;
+#endif
 #endif
 
     ExpectIntEQ(ASN1_STRING_length(ca), 0);
@@ -467,10 +480,17 @@ int test_wolfSSL_ASN1_INTEGER_STRING(void)
     ExpectNotNull(a = ASN1_INTEGER_new());
     ExpectIntEQ(ASN1_STRING_type(a), V_ASN1_INTEGER);
     ExpectIntEQ(ASN1_INTEGER_set(a, 0x80), 1);
+    ExpectIntEQ(ASN1_STRING_length(a), 1);
+    ExpectBufEQ(ASN1_STRING_get0_data(a), v80, 1);
     ExpectIntEQ(ASN1_STRING_type(a), V_ASN1_INTEGER);
     ExpectIntEQ(ASN1_INTEGER_set(a, -128), 1);
+    ExpectIntEQ(a->type, V_ASN1_NEG_INTEGER);
+    ExpectIntEQ(ASN1_STRING_length(a), 1);
+    ExpectBufEQ(ASN1_STRING_get0_data(a), v80, 1);
     ExpectIntEQ(ASN1_STRING_type(a), V_ASN1_NEG_INTEGER);
     ExpectIntEQ(ASN1_INTEGER_set(a, 0), 1);
+    ExpectIntEQ(ASN1_STRING_length(a), 1);
+    ExpectBufEQ(ASN1_STRING_get0_data(a), v0, 1);
     ExpectIntEQ(ASN1_STRING_type(a), V_ASN1_INTEGER);
     ExpectIntEQ(ASN1_INTEGER_set(a, 256), 1);
     ca = a;
@@ -482,6 +502,9 @@ int test_wolfSSL_ASN1_INTEGER_STRING(void)
 
     ExpectIntGT(BN_hex2bn(&bn, "-80"), 0);
     ExpectNotNull(a = BN_to_ASN1_INTEGER(bn, NULL));
+    ExpectIntEQ(a->type, V_ASN1_NEG_INTEGER);
+    ExpectIntEQ(ASN1_STRING_length(a), 1);
+    ExpectBufEQ(ASN1_STRING_get0_data(a), v80, 1);
     ExpectIntEQ(ASN1_STRING_type(a), V_ASN1_NEG_INTEGER);
     ASN1_INTEGER_free(a);
     a = NULL;
@@ -489,11 +512,16 @@ int test_wolfSSL_ASN1_INTEGER_STRING(void)
 
     p = p128;
     ExpectNotNull(a = d2i_ASN1_INTEGER(NULL, &p, (long)sizeof(p128)));
+    ExpectIntEQ(ASN1_STRING_length(a), 1);
+    ExpectBufEQ(ASN1_STRING_get0_data(a), v80, 1);
     ExpectIntEQ(ASN1_STRING_type(a), V_ASN1_INTEGER);
     ASN1_INTEGER_free(a);
     a = NULL;
     p = m129;
     ExpectNotNull(a = d2i_ASN1_INTEGER(NULL, &p, (long)sizeof(m129)));
+    ExpectIntEQ(a->type, V_ASN1_NEG_INTEGER);
+    ExpectIntEQ(ASN1_STRING_length(a), 1);
+    ExpectBufEQ(ASN1_STRING_get0_data(a), v81, 1);
     ExpectIntEQ(ASN1_STRING_type(a), V_ASN1_NEG_INTEGER);
     ExpectNotNull(dup = wolfSSL_ASN1_INTEGER_dup(a));
     ExpectIntEQ(ASN1_STRING_type(dup), V_ASN1_NEG_INTEGER);
@@ -502,14 +530,27 @@ int test_wolfSSL_ASN1_INTEGER_STRING(void)
     a = NULL;
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_ECC)
+    /* The DER serial has a leading zero octet. */
     ExpectNotNull(x509 = X509_load_certificate_file("./certs/test/digsigku.pem",
         SSL_FILETYPE_PEM));
+    ExpectIntEQ(X509_get_serialNumber(x509)->type, V_ASN1_INTEGER);
     ExpectIntEQ(ASN1_STRING_type(X509_get_serialNumber(x509)),
         V_ASN1_INTEGER);
     ExpectIntEQ(ASN1_STRING_length(X509_get_serialNumber(x509)),
         (int)sizeof(serial));
     ExpectBufEQ(ASN1_STRING_get0_data(X509_get_serialNumber(x509)), serial,
         sizeof(serial));
+    ExpectIntEQ(i2d_ASN1_INTEGER(X509_get_serialNumber(x509), &der),
+        (int)sizeof(serialDer));
+    ExpectBufEQ(der, serialDer, sizeof(serialDer));
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+#ifndef NO_BIO
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(i2a_ASN1_INTEGER(bio, X509_get_serialNumber(x509)), 16);
+    ExpectIntEQ(BIO_get_mem_data(bio, &str), 16);
+    ExpectBufEQ(str, "E3814B48A5706170", 16);
+    BIO_free(bio);
+#endif
     X509_free(x509);
 #endif
 #endif
