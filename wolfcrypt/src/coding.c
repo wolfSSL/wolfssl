@@ -166,6 +166,41 @@ int Base64_SkipNewline(const byte* in, word32 *inLen,
     return 0;
 }
 
+/* Decide whether Base64_SkipNewline() has anything to do before calling it.
+ *
+ * Every character of the input passes through that function, and for an
+ * ordinary base64 character it walks none of its loops and writes back the
+ * values it was given, so the call is the whole cost. Only a space, a carriage
+ * return or a line feed makes it do any work, so testing for those here leaves
+ * the common character paying for a load and two comparisons instead.
+ *
+ * @param [in]      in     Base64 encoded data.
+ * @param [in, out] inLen  Length of data remaining.
+ * @param [in, out] outJ   Index into data.
+ * @return  0 when the next character is ready to use.
+ * @return  BUFFER_E when there is no data left.
+ * @return  Whatever Base64_SkipNewline() returns otherwise.
+ */
+static WC_INLINE int Base64_SkipNewlineCheck(const byte* in, word32* inLen,
+    word32* outJ)
+{
+    if (*inLen == 0) {
+        /* The answer Base64_SkipNewline() gives for an empty remainder. */
+        return BUFFER_E;
+    }
+    else {
+        byte curChar = in[*outJ];
+
+        if ((curChar != ' ') && (curChar != '\r') && (curChar != '\n')) {
+            /* Nothing to skip, and nothing for it to change. */
+            return 0;
+        }
+    }
+
+    return Base64_SkipNewline(in, inLen, outJ);
+}
+
+
 #ifndef BASE64_NO_TABLE
 
 int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
@@ -184,7 +219,7 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
         byte b1, b2, b3;
         byte e1, e2, e3, e4;
 
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
             if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
                 /* Running out of buffer here is not an error */
                 break;
@@ -197,17 +232,17 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
             break;
         }
         inLen--;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
             return ret;
         }
         e2 = in[j++];
         inLen--;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
             return ret;
         }
         e3 = in[j++];
         inLen--;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
             return ret;
         }
         e4 = in[j++];
@@ -267,7 +302,7 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
         word32 cur_j = j;
         if (in[j] == 0)
             break;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
             if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
                 /* Running out of buffer here is not an error */
                 break;
@@ -290,10 +325,23 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
 
 #endif /* !BASE64_NO_TABLE */
 
-int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
+/* Decode base64, optionally reporting how much input was consumed.
+ *
+ * With inConsumed NULL this decodes a complete encoding: anything left over
+ * that is not whitespace makes the input invalid.
+ *
+ * With inConsumed given, the caller is decoding a stream and will supply the
+ * rest later, so a trailing partial group is not an error. The index one past
+ * the last character used is stored through it, which is what lets the caller
+ * resume - a streaming caller cannot otherwise work out where this got to,
+ * because the output length says nothing about the whitespace skipped.
+ */
+static int Base64_Decode_impl(const byte* in, word32 inLen, byte* out,
+    word32* outLen, word32* inConsumed)
 {
     word32 i = 0;
     word32 j = 0;
+    word32 inLenOrig = inLen;
     int ret;
 
     if ((in == NULL && inLen > 0) || out == NULL || outLen == NULL)
@@ -304,8 +352,12 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         int pad4 = 0;
         byte b1, b2, b3;
         byte e1, e2, e3, e4;
+        /* Where this group starts. A streaming caller is given back any group
+         * the input runs out in the middle of, to complete next time. */
+        word32 groupJ = j;
+        word32 groupInLen = inLen;
 
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
             if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
                 /* Running out of buffer here is not an error */
                 break;
@@ -318,17 +370,35 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             break;
         }
         inLen--;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
+            if ((ret == WC_NO_ERR_TRACE(BUFFER_E)) && (inConsumed != NULL)) {
+                /* Group cut short by the end of the chunk. */
+                j = groupJ;
+                inLen = groupInLen;
+                break;
+            }
             return ret;
         }
         e2 = in[j++];
         inLen--;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
+            if ((ret == WC_NO_ERR_TRACE(BUFFER_E)) && (inConsumed != NULL)) {
+                /* Group cut short by the end of the chunk. */
+                j = groupJ;
+                inLen = groupInLen;
+                break;
+            }
             return ret;
         }
         e3 = in[j++];
         inLen--;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+        if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
+            if ((ret == WC_NO_ERR_TRACE(BUFFER_E)) && (inConsumed != NULL)) {
+                /* Group cut short by the end of the chunk. */
+                j = groupJ;
+                inLen = groupInLen;
+                break;
+            }
             return ret;
         }
         e4 = in[j++];
@@ -374,22 +444,34 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             break;
     }
 
-    /* If there is still input available, and it's not whitespace or nulls, then
-     * the input is invalid.
-     */
-    while (inLen > 0) {
-        word32 cur_j = j;
-        if (in[j] == 0)
-            break;
-        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
-                /* Running out of buffer here is not an error */
+    if (inConsumed != NULL) {
+        /* Streaming: what is left is a partial group the caller will complete
+         * with data it has yet to supply, not bad input.
+         *
+         * Report what was accounted for rather than the index reached: a NUL
+         * ends the input, and the loop marks that by dropping inLen to zero
+         * without walking the rest, so the caller has to treat the remainder
+         * as gone too. */
+        *inConsumed = inLenOrig - inLen;
+    }
+    else {
+        /* If there is still input available, and it's not whitespace or nulls,
+         * then the input is invalid.
+         */
+        while (inLen > 0) {
+            word32 cur_j = j;
+            if (in[j] == 0)
                 break;
+            if ((ret = Base64_SkipNewlineCheck(in, &inLen, &j)) != 0) {
+                if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
+                    /* Running out of buffer here is not an error */
+                    break;
+                }
+                return ret;
             }
-            return ret;
+            if (j == cur_j)
+                return ASN_INPUT_E;
         }
-        if (j == cur_j)
-            return ASN_INPUT_E;
     }
 
     /* If the output buffer has a room for an extra byte, add a null terminator */
@@ -400,6 +482,19 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     *outLen = i;
 
     return 0;
+}
+
+int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
+{
+    return Base64_Decode_impl(in, inLen, out, outLen, NULL);
+}
+
+int Base64_Decode_ex(const byte* in, word32 inLen, byte* out, word32* outLen,
+    word32* inConsumed)
+{
+    if (inConsumed == NULL)
+        return BAD_FUNC_ARG;
+    return Base64_Decode_impl(in, inLen, out, outLen, inConsumed);
 }
 
 #ifdef BASE64_NO_TABLE
@@ -508,6 +603,64 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 maxSz,
 }
 
 
+/* Encode with no escaping, which is what both WC_STD_ENC and WC_NO_NL_ENC
+ * want. Keeping this separate from the escaped case means the per-character
+ * work CEscape() has to do - a call, a switch on a mode that cannot change
+ * inside the loop, a table bound check and a buffer bound check, for every
+ * output byte - becomes a single store here.
+ *
+ * The caller has established that the output fits, so there is no bound check
+ * in the loop. Returns the number of bytes written. */
+static word32 Base64_EncodePlain(const byte* in, word32 inLen, byte* out,
+                                 int addNl)
+{
+    /* Number of 4-character groups that make up one output line. */
+    const word32 perLine = BASE64_LINE_SZ / 4;
+    word32 i = 0;   /* output index */
+    word32 j = 0;   /* input index */
+    word32 g = 0;   /* groups written to the current line so far */
+
+    while (inLen > 2) {
+        byte b1 = in[j++];
+        byte b2 = in[j++];
+        byte b3 = in[j++];
+
+        /* Each index is masked to 6 bits, so all four are inside
+         * base64Encode[] without needing a check. */
+        out[i++] = base64Encode[b1 >> 2];
+        out[i++] = base64Encode[((b1 & 0x3) << 4) | (b2 >> 4)];
+        out[i++] = base64Encode[((b2 & 0xF) << 2) | (b3 >> 6)];
+        out[i++] = base64Encode[b3 & 0x3F];
+
+        inLen -= 3;
+
+        /* Break the line, unless this was the last of the data. */
+        if (addNl && (++g == perLine) && (inLen > 0)) {
+            out[i++] = '\n';
+            g = 0;
+        }
+    }
+
+    /* Trailing one or two bytes, padded out to a full group. */
+    if (inLen > 0) {
+        int  twoBytes = (inLen == 2);
+        byte b1 = in[j++];
+        byte b2 = (byte)(twoBytes ? in[j] : 0);
+
+        out[i++] = base64Encode[b1 >> 2];
+        out[i++] = base64Encode[((b1 & 0x3) << 4) | (b2 >> 4)];
+        out[i++] = (byte)(twoBytes ? base64Encode[(b2 & 0xF) << 2] : '=');
+        out[i++] = '=';
+    }
+
+    if (addNl) {
+        out[i++] = '\n';
+    }
+
+    return i;
+}
+
+
 /* internal worker, handles both escaped and normal line endings.
    If out buffer is NULL, will return sz needed in outLen */
 static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
@@ -544,6 +697,24 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
      * make sure we have enough if no escapes are in input
      * Also need to ensure outLen valid before dereference */
     if (!outLen || (outSz > *outLen && !getSzOnly)) return BAD_FUNC_ARG;
+
+    /* Unescaped output is exactly outSz bytes, which the check above has just
+     * shown will fit, so it can be written without per-character bound checks.
+     * An empty input is left to the general path: it is the one case where the
+     * two disagree, emitting a line ending while outSz is 0, and so has to be
+     * refused by a bound check rather than written. */
+    if ((escaped != WC_ESC_NL_ENC) && !getSzOnly && (inLen > 0)) {
+        i = Base64_EncodePlain(in, inLen, out, escaped != WC_NO_NL_ENC);
+
+        if (i != outSz)
+            return ASN_INPUT_E;
+        /* Null terminate when the buffer has room, as below. */
+        if (*outLen > i)
+            out[i] = '\0';
+        *outLen = i;
+
+        return 0;
+    }
 
     while (inLen > 2) {
         byte b1 = in[j++];

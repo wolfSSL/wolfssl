@@ -50,6 +50,13 @@ int test_wolfSSL_EVP_aes_192_ccm(void);
 int test_wolfSSL_EVP_aes_128_ccm(void);
 int test_wolfssl_EVP_aes_ccm(void);
 int test_wolfssl_EVP_aes_ccm_zeroLen(void);
+int test_wolfssl_EVP_aes_ccm_openssl_semantics(void);
+int test_wolfssl_EVP_cipher_switch_reinit(void);
+int test_wolfssl_EVP_chacha20_poly1305_key_free(void);
+int test_wolfssl_EVP_sm4_ccm_openssl_semantics(void);
+int test_wolfssl_EVP_aes_ccm_decrypt_verify(void);
+int test_wolfssl_EVP_cipher_reinit(void);
+int test_wolfssl_EVP_cipher_name_copy(void);
 int test_wolfssl_EVP_chacha20(void);
 int test_wolfssl_EVP_chacha20_poly1305(void);
 int test_wolfssl_EVP_aria_gcm(void);
@@ -70,6 +77,7 @@ int test_evp_cipher_pkcs7_pad_zero(void);
 int test_evp_cipher_aead_aad_overflow(void);
 int test_evp_cipher_update_chunked_bound(void);
 int test_evp_cipher_update_no_padding_buffered(void);
+int test_wolfSSL_EVP_get_cipherbyname_names(void);
 
 #define TEST_EVP_CIPHER_DECLS                                               \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX),             \
@@ -98,6 +106,18 @@ int test_evp_cipher_update_no_padding_buffered(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_128_ccm),            \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_ccm),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_ccm_zeroLen),        \
+    TEST_DECL_GROUP("evp_cipher",                                          \
+        test_wolfssl_EVP_aes_ccm_openssl_semantics),                       \
+    TEST_DECL_GROUP("evp_cipher",                                          \
+        test_wolfssl_EVP_cipher_switch_reinit),                            \
+    TEST_DECL_GROUP("evp_cipher",                                          \
+        test_wolfssl_EVP_chacha20_poly1305_key_free),                      \
+    TEST_DECL_GROUP("evp_cipher",                                          \
+        test_wolfssl_EVP_sm4_ccm_openssl_semantics),                       \
+    TEST_DECL_GROUP("evp_cipher",                                          \
+        test_wolfssl_EVP_aes_ccm_decrypt_verify),                          \
+    TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_cipher_reinit),          \
+    TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_cipher_name_copy),       \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_chacha20),               \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_chacha20_poly1305),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aria_gcm),               \
@@ -117,6 +137,9 @@ int test_evp_cipher_update_no_padding_buffered(void);
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_pkcs7_pad_zero),           \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aead_aad_overflow),      \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_update_chunked_bound),   \
-    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_update_no_padding_buffered)
+    TEST_DECL_GROUP("evp_cipher",                                          \
+        test_evp_cipher_update_no_padding_buffered),                       \
+    TEST_DECL_GROUP("evp_cipher",                                          \
+        test_wolfSSL_EVP_get_cipherbyname_names)
 
 #endif /* WOLFCRYPT_TEST_EVP_CIPHER_H */

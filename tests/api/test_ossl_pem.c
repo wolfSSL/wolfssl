@@ -540,8 +540,13 @@ int test_wolfSSL_PEM_PrivateKey_dsa(void)
 #else
     ExpectIntEQ(BIO_pending(bio), 2390);
 #endif
-    BIO_reset(bio);
 #endif
+    /* Drop what was written above so the check below counts one write. This
+     * reset used to sit inside the WOLFSSL_KEY_GEN block, which left the
+     * PKCS#8 output pending - and the count 1216 over - in a build with
+     * HAVE_PKCS8 but not WOLFSSL_KEY_GEN, --enable-opensslall
+     * --enable-dsa among them. */
+    BIO_reset(bio);
 
     ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
         1);

@@ -219,6 +219,183 @@ int test_wolfSSL_EVP_get_digestbynid(void)
     return EXPECT_RESULT();
 }
 
+/* EVP_DigestUpdate() and friends read the hash type from the context, where
+ * EVP_DigestInit() recorded it. The cases that used to be rejected by the
+ * lookup that recovered it - no context, and a context set up for HMAC rather
+ * than a bare digest - still have to be rejected.
+ */
+int test_wolfSSL_EVP_DigestUpdate_bad_ctx(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    EVP_MD_CTX* ctx = NULL;
+    byte data[16];
+    byte md[64];
+    unsigned int mdLen = 0;
+    int i;
+
+    for (i = 0; i < (int)sizeof(data); i++) data[i] = (byte)i;
+
+    /* No context at all. */
+    ExpectIntEQ(0, wolfSSL_EVP_DigestUpdate(NULL, data, sizeof(data)));
+
+    /* A context that was never given a digest. */
+    ExpectNotNull(ctx = EVP_MD_CTX_new());
+    ExpectIntEQ(0, wolfSSL_EVP_DigestUpdate(ctx, data, sizeof(data)));
+    ExpectIntEQ(0, EVP_DigestFinal(ctx, md, &mdLen));
+    EVP_MD_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Initializing with no digest type succeeds and leaves the context
+     * carrying no hash, so it is the update that has to refuse it. */
+    ExpectNotNull(ctx = EVP_MD_CTX_new());
+    ExpectIntEQ(1, EVP_DigestInit(ctx, NULL));
+    ExpectNull(EVP_MD_CTX_md(ctx));
+    ExpectIntEQ(0, wolfSSL_EVP_DigestUpdate(ctx, data, sizeof(data)));
+    EVP_MD_CTX_free(ctx);
+    ctx = NULL;
+
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Every digest the build provides has to hash the same whether it is fed in
+ * one piece or several, and a copied context has to carry on from where the
+ * original stood. Both read the hash type out of the context on every call.
+ */
+/* A context set up for HMAC carries a MAC rather than a bare digest, and
+ * EVP_DigestUpdate() feeds it: OpenSSL defines EVP_DigestSignUpdate() as
+ * EVP_DigestUpdate(), so code that signs with the digest entry points has to
+ * work. Feeding it through both names has to produce the same MAC - if the
+ * update ever went down the bare-digest path it would write through the wrong
+ * member of the context's union and the MACs would differ. */
+int test_wolfSSL_EVP_DigestUpdate_hmac_ctx(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_HMAC)
+    EVP_MD_CTX* ctx = NULL;
+    EVP_PKEY* pkey = NULL;
+    const byte hmacKey[] = "0123456789012345";
+    byte data[16];
+    byte viaDigest[WC_SHA256_DIGEST_SIZE];
+    byte viaSign[WC_SHA256_DIGEST_SIZE];
+    size_t viaDigestSz = sizeof(viaDigest);
+    size_t viaSignSz = sizeof(viaSign);
+    int i;
+
+    for (i = 0; i < (int)sizeof(data); i++) data[i] = (byte)i;
+
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+        hmacKey, (int)XSTRLEN((const char*)hmacKey)));
+
+    /* Fed with EVP_DigestUpdate(). */
+    ExpectNotNull(ctx = EVP_MD_CTX_new());
+    ExpectIntEQ(1, EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, pkey));
+    ExpectIntEQ(1, wolfSSL_EVP_DigestUpdate(ctx, data, sizeof(data)));
+    ExpectIntEQ(1, EVP_DigestSignFinal(ctx, viaDigest, &viaDigestSz));
+    ExpectIntEQ((int)viaDigestSz, WC_SHA256_DIGEST_SIZE);
+    EVP_MD_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Fed with EVP_DigestSignUpdate(), for the same key and data. */
+    ExpectNotNull(ctx = EVP_MD_CTX_new());
+    ExpectIntEQ(1, EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, pkey));
+    ExpectIntEQ(1, EVP_DigestSignUpdate(ctx, data, sizeof(data)));
+    ExpectIntEQ(1, EVP_DigestSignFinal(ctx, viaSign, &viaSignSz));
+    ExpectIntEQ((int)viaSignSz, WC_SHA256_DIGEST_SIZE);
+    EVP_MD_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectIntEQ(XMEMCMP(viaDigest, viaSign, WC_SHA256_DIGEST_SIZE), 0);
+
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_Digest_chunked(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    const char* names[] = {
+    #ifndef NO_SHA
+        "SHA1",
+    #endif
+    #ifndef NO_SHA256
+        "SHA256",
+    #endif
+    #ifdef WOLFSSL_SHA224
+        "SHA224",
+    #endif
+    #ifdef WOLFSSL_SHA384
+        "SHA384",
+    #endif
+    #ifdef WOLFSSL_SHA512
+        "SHA512",
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+        "SHA3-256",
+    #endif
+    #ifndef NO_MD5
+        "MD5",
+    #endif
+        NULL
+    };
+    byte data[200];
+    int i;
+    int n;
+
+    for (i = 0; i < (int)sizeof(data); i++) data[i] = (byte)(i * 7 + 3);
+
+    for (n = 0; names[n] != NULL; n++) {
+        const EVP_MD* md = NULL;
+        EVP_MD_CTX* whole = NULL;
+        EVP_MD_CTX* parts = NULL;
+        EVP_MD_CTX* copy = NULL;
+        byte mdWhole[64];
+        byte mdParts[64];
+        byte mdCopy[64];
+        unsigned int lenWhole = 0;
+        unsigned int lenParts = 0;
+        unsigned int lenCopy = 0;
+
+        ExpectNotNull(md = EVP_get_digestbyname(names[n]));
+
+        /* In one piece. */
+        ExpectNotNull(whole = EVP_MD_CTX_new());
+        ExpectIntEQ(1, EVP_DigestInit(whole, md));
+        ExpectIntEQ(1, EVP_DigestUpdate(whole, data, sizeof(data)));
+        ExpectIntEQ(1, EVP_DigestFinal(whole, mdWhole, &lenWhole));
+        ExpectIntEQ((unsigned int)EVP_MD_size(md), lenWhole);
+
+        /* In uneven chunks, copying the context part way through. */
+        ExpectNotNull(parts = EVP_MD_CTX_new());
+        ExpectIntEQ(1, EVP_DigestInit(parts, md));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data, 1));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data + 1, 63));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data + 64, 0));
+        ExpectNotNull(copy = EVP_MD_CTX_new());
+        ExpectIntEQ(1, EVP_MD_CTX_copy_ex(copy, parts));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data + 64, sizeof(data) - 64));
+        ExpectIntEQ(1, EVP_DigestFinal(parts, mdParts, &lenParts));
+
+        /* The copy finishes the same message independently. */
+        ExpectIntEQ(1, EVP_DigestUpdate(copy, data + 64, sizeof(data) - 64));
+        ExpectIntEQ(1, EVP_DigestFinal(copy, mdCopy, &lenCopy));
+
+        ExpectIntEQ(lenWhole, lenParts);
+        ExpectIntEQ(lenWhole, lenCopy);
+        ExpectIntEQ(0, XMEMCMP(mdWhole, mdParts, lenWhole));
+        ExpectIntEQ(0, XMEMCMP(mdWhole, mdCopy, lenWhole));
+
+        EVP_MD_CTX_free(copy);
+        EVP_MD_CTX_free(parts);
+        EVP_MD_CTX_free(whole);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_Digest(void)
 {
     EXPECT_DECLS;
@@ -307,19 +484,16 @@ int test_wolfSSL_EVP_DigestFinal_ex(void)
     unsigned char      md[WC_SHA256_DIGEST_SIZE];
     unsigned char      md2[WC_SHA256_DIGEST_SIZE];
 
-    /* Bad Case */
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION > 2))
+    /* Bad Case: a context that has been initialized but handed no digest
+     * carries none, so finalizing it has to fail. This used to depend on the
+     * FIPS version, because zero is MD5 - not "no digest" - in the selftest
+     * and FIPS v2 numbering of wc_HashType, so the zeroed context those
+     * builds got out of EVP_MD_CTX_init() looked like an MD5 one and was
+     * finalized as such. EVP_MD_CTX_init() now sets WC_HASH_TYPE_NONE the
+     * way EVP_MD_CTX_cleanup() already did, making this uniform. */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     ExpectIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, md, &s), 0);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
-
-#else
-    wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    ExpectIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, md, &s), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
-
-#endif
 
     /* Good Case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);

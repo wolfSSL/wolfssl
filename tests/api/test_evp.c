@@ -615,6 +615,168 @@ int test_wolfSSL_EVP_DecodeUpdate(void)
 #endif /* OPENSSL && WOLFSSL_BASE_DECODE */
     return EXPECT_RESULT();
 }
+/* A chunk whose last base64 group is left incomplete by trailing whitespace
+ * takes the streaming rollback in Base64_Decode_impl(): the bulk decoder is
+ * reached - it needs four bytes or more - walks into the group, runs out of
+ * input part way through it, and hands the whole group back for the next call
+ * to finish. Getting that wrong loses or duplicates decoded bytes, and a
+ * single call decode cannot show it, because there is no resume point for it
+ * to get wrong. Each case holds one, two or three base64 characters back,
+ * alone and after a group the same call does decode, and the resumed stream
+ * has to produce the plaintext with nothing missing or repeated. */
+int test_wolfSSL_EVP_DecodeUpdate_partial_group(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_DECODE)
+    /* "abcdefghi" encodes to twelve characters with no padding, so a split
+     * can fall anywhere in it without the padding rules coming into it. */
+    static const char plain[] = "abcdefghi";
+    static const struct {
+        const char* chunk1;     /* ends mid group, with the whitespace */
+        const char* chunk2;     /* the rest of the encoding */
+        int         firstOutl;  /* bytes the first call can already produce */
+        int         held;       /* base64 characters left in the context */
+    } cases[] = {
+        /* Held back on their own: nothing is decodable yet. */
+        { "Y\n\n\n",     "WJjZGVmZ2hp", 0, 1 },
+        { "YW\n\n",      "JjZGVmZ2hp",  0, 2 },
+        { "YWJ\n",       "jZGVmZ2hp",   0, 3 },
+        /* The same, after one whole group the call does decode. */
+        { "YWJjZ\n\n\n", "GVmZ2hp",     3, 1 },
+        { "YWJjZG\n\n",  "VmZ2hp",      3, 2 },
+        { "YWJjZGV\n",   "mZ2hp",       3, 3 }
+    };
+    size_t c;
+
+    for (c = 0; c < sizeof(cases) / sizeof(cases[0]); c++) {
+        EVP_ENCODE_CTX* ctx = NULL;
+        unsigned char   out[64];
+        int             used = 0;
+        int             outl = 0;
+
+        XMEMSET(out, 0, sizeof(out));
+        ExpectNotNull(ctx = EVP_ENCODE_CTX_new());
+        EVP_DecodeInit(ctx);
+
+        /* Four bytes or more, so it is the bulk decoder that runs and not the
+         * block at a time path above it. */
+        ExpectIntGE((int)XSTRLEN(cases[c].chunk1), 4);
+
+        /* 0 and 1 both report success; 0 only asks the caller to finalize. */
+        ExpectIntGE(EVP_DecodeUpdate(ctx, out, &outl,
+            (const unsigned char*)cases[c].chunk1,
+            (int)XSTRLEN(cases[c].chunk1)), 0);
+        ExpectIntEQ(outl, cases[c].firstOutl);
+        ExpectIntEQ(ctx->remaining, cases[c].held);
+        used = outl;
+
+        outl = 0;
+        ExpectIntGE(EVP_DecodeUpdate(ctx, out + used, &outl,
+            (const unsigned char*)cases[c].chunk2,
+            (int)XSTRLEN(cases[c].chunk2)), 0);
+        used += outl;
+
+        /* Nothing held over: the two chunks are a whole number of groups. */
+        ExpectIntEQ(ctx->remaining, 0);
+        ExpectIntEQ(used, (int)XSTRLEN(plain));
+        ExpectIntEQ(XMEMCMP(out, plain, XSTRLEN(plain)), 0);
+
+        EVP_ENCODE_CTX_free(ctx);
+        ctx = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A chunk holding nothing but whitespace, arriving while characters are
+ * already buffered, must leave those characters alone. The leftover-store path
+ * used to clear ctx->data on entry while leaving ctx->remaining counting the
+ * characters it had just zeroed, so the next call decoded a group starting
+ * with NULs - which Base64_Decode() reads as the end of its input. The group
+ * before the whitespace was then dropped and success still reported, so only
+ * checking the decoded output catches it: ctx->remaining was right all along.
+ * The buffered bytes are checked directly for that reason.
+ *
+ * Each whitespace chunk here carries at most one line ending. A chunk with two
+ * or more of them is a separate, pre-existing defect (F-14258): the copy loop
+ * below takes whatever Base64_SkipNewline() stops on, and that call only skips
+ * one line ending, so the second is stored into ctx->data as though it were a
+ * base64 character. Measured, with "YW" buffered: "\n\n" leaves
+ * ctx->data[2] = 0x0a and the next call fails. Those inputs are left out so
+ * this test fails only for the defect it is about. */
+int test_wolfSSL_EVP_DecodeUpdate_whitespace_chunk(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_DECODE)
+    static const struct {
+        const char* chunk1;  /* leaves 1-3 characters buffered */
+        const char* ws;      /* a chunk with nothing but whitespace in it */
+        const char* chunk3;  /* the rest of the encoding */
+        const char* plain;   /* what the whole stream has to decode to */
+        int         held;    /* characters buffered after chunk1 */
+    } cases[] = {
+        { "Y",   "\n",     "WJjZGVmZ2hp", "abcdefghi", 1 },
+        { "YW",  "\n",     "JjZGVmZ2hp",  "abcdefghi", 2 },
+        { "YWJ", "\n",     "jZGVmZ2hp",   "abcdefghi", 3 },
+        { "YW",  "\r\n",   "JjZGVmZ2hp",  "abcdefghi", 2 },
+        /* Four bytes, so the bulk decoder is handed the whitespace as well. */
+        { "YW",  " \r\n ", "JjZGVmZ2hp",  "abcdefghi", 2 },
+        { "YW",  "  ",     "JjZGVmZ2hp",  "abcdefghi", 2 },
+        /* The padded case as reported. */
+        { "VG",  "\n",     "g=",          "Th",        2 }
+    };
+    size_t c;
+
+    for (c = 0; c < sizeof(cases) / sizeof(cases[0]); c++) {
+        EVP_ENCODE_CTX* ctx = NULL;
+        unsigned char   out[64];
+        int             plainLen = (int)XSTRLEN(cases[c].plain);
+        int             used = 0;
+        int             outl = 0;
+
+        XMEMSET(out, 0, sizeof(out));
+        ExpectNotNull(ctx = EVP_ENCODE_CTX_new());
+        EVP_DecodeInit(ctx);
+
+        /* Buffer a partial group. */
+        ExpectIntGE(EVP_DecodeUpdate(ctx, out, &outl,
+            (const unsigned char*)cases[c].chunk1,
+            (int)XSTRLEN(cases[c].chunk1)), 0);
+        ExpectIntEQ(outl, 0);
+        ExpectIntEQ(ctx->remaining, cases[c].held);
+        ExpectIntEQ(XMEMCMP(ctx->data, cases[c].chunk1,
+            (size_t)cases[c].held), 0);
+
+        /* The whitespace call must not disturb what is buffered. */
+        outl = 0;
+        ExpectIntGE(EVP_DecodeUpdate(ctx, out, &outl,
+            (const unsigned char*)cases[c].ws,
+            (int)XSTRLEN(cases[c].ws)), 0);
+        ExpectIntEQ(outl, 0);
+        ExpectIntEQ(ctx->remaining, cases[c].held);
+        ExpectIntEQ(XMEMCMP(ctx->data, cases[c].chunk1,
+            (size_t)cases[c].held), 0);
+
+        /* Finish the stream: nothing may be missing or repeated. */
+        outl = 0;
+        ExpectIntGE(EVP_DecodeUpdate(ctx, out + used, &outl,
+            (const unsigned char*)cases[c].chunk3,
+            (int)XSTRLEN(cases[c].chunk3)), 0);
+        used += outl;
+        outl = 0;
+        ExpectIntGE(EVP_DecodeFinal(ctx, out + used, &outl), 0);
+        used += outl;
+
+        ExpectIntEQ(used, plainLen);
+        ExpectIntEQ(XMEMCMP(out, cases[c].plain, (size_t)plainLen), 0);
+
+        EVP_ENCODE_CTX_free(ctx);
+        ctx = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_DecodeFinal(void)
 {
     int res = TEST_SKIPPED;
@@ -627,3 +789,84 @@ int test_wolfSSL_EVP_DecodeFinal(void)
     return res;
 }
 
+
+/*
+ * EVP_EncodeUpdate() across chunk boundaries.
+ *
+ * The encoder works in 48-byte blocks, one output line each, and holds back a
+ * partial block in the ctx for the next call. The result must not depend on how
+ * the caller splits the input, so each size below is fed in every chunking and
+ * compared against the same data encoded in a single call.
+ */
+int test_wolfSSL_EVP_EncodeUpdate_chunked(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
+    static const int totals[] = { 1, 47, 48, 49, 95, 96, 97, 144, 145, 200 };
+    byte   in[256];
+    byte   whole[512];
+    byte   piece[512];
+    int    wholeLen = 0;
+    size_t t;
+    int    i;
+
+    for (i = 0; i < (int)sizeof(in); i++) {
+        in[i] = (byte)(i * 7 + 3);
+    }
+
+    for (t = 0; t < sizeof(totals) / sizeof(totals[0]); t++) {
+        int total = totals[t];
+        int chunk;
+
+        /* Reference: the whole input in one call. */
+        {
+            EVP_ENCODE_CTX* ctx = NULL;
+            int outl = 0;
+
+            ExpectNotNull(ctx = EVP_ENCODE_CTX_new());
+            EVP_EncodeInit(ctx);
+            ExpectIntEQ(EVP_EncodeUpdate(ctx, whole, &outl, in, total), 1);
+            wholeLen = outl;
+            outl = 0;
+            EVP_EncodeFinal(ctx, whole + wholeLen, &outl);
+            wholeLen += outl;
+            EVP_ENCODE_CTX_free(ctx);
+            ExpectIntGT(wholeLen, 0);
+        }
+
+        /* Every chunk size has to reproduce it exactly. */
+        for (chunk = 1; chunk <= total; chunk++) {
+            EVP_ENCODE_CTX* ctx = NULL;
+            int used = 0;
+            int off  = 0;
+
+            XMEMSET(piece, 0xEE, sizeof(piece));
+            ExpectNotNull(ctx = EVP_ENCODE_CTX_new());
+            EVP_EncodeInit(ctx);
+
+            while (off < total) {
+                int n = chunk;
+                int outl = 0;
+
+                if (n > total - off) {
+                    n = total - off;
+                }
+                ExpectIntEQ(EVP_EncodeUpdate(ctx, piece + used, &outl,
+                    in + off, n), 1);
+                used += outl;
+                off  += n;
+            }
+            {
+                int outl = 0;
+                EVP_EncodeFinal(ctx, piece + used, &outl);
+                used += outl;
+            }
+            EVP_ENCODE_CTX_free(ctx);
+
+            ExpectIntEQ(used, wholeLen);
+            ExpectIntEQ(XMEMCMP(piece, whole, (size_t)wholeLen), 0);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}

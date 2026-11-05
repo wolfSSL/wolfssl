@@ -111,11 +111,17 @@ typedef struct WOLFSSL_RSA {
     wolfSSL_Ref ref;                 /* Reference count information. */
     word16 pkcs8HeaderSz;            /* Size of PKCS#8 header from decode. */
     int flags;                       /* Flags of implementation. */
+    int devId;                       /* Device id, for the deferred RNG. */
 
     /* bits */
     WC_BITFIELD inSet:1;             /* Internal set from external. */
     WC_BITFIELD exSet:1;             /* External set from internal. */
     WC_BITFIELD ownRng:1;            /* Rng needs to be free'd. */
+    /* The blinding RNG seeds a DRBG, which costs far more than everything else
+     * about creating an RSA object put together, and only private key
+     * operations ever use it. It is set up on first use, and this records
+     * whether that has happened. */
+    WC_BITFIELD rngInited:1;
 } WOLFSSL_RSA;
 #endif
 

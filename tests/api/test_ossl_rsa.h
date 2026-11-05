@@ -40,6 +40,7 @@ int test_wolfSSL_RSA_public_encrypt(void);
 int test_wolfSSL_RSA_private_decrypt(void);
 int test_wolfSSL_RSA_GenAdd(void);
 int test_wolfSSL_RSA_blinding_on(void);
+int test_wolfSSL_RSA_lazy_blinding_rng(void);
 int test_wolfSSL_RSA_ex_data(void);
 int test_wolfSSL_RSA_LoadDer(void);
 int test_wolfSSL_RSA_To_Der(void);
@@ -65,6 +66,7 @@ int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void);
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_private_decrypt),          \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_GenAdd),                   \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_blinding_on),              \
+    TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_lazy_blinding_rng),         \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_ex_data),                  \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_LoadDer),                  \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_To_Der),                   \
