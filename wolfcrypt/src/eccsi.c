@@ -487,6 +487,9 @@ int wc_MakeEccsiKey(EccsiKey* key, WC_RNG* rng)
     }
 
     if (err == 0) {
+        err = eccsi_kpak_from_mont(key);
+    }
+    if (err == 0) {
         err = wc_ecc_make_key_ex(rng, key->ecc.dp->size, &key->ecc,
                 key->ecc.dp->id);
 #ifdef WOLFSSL_ASYNC_CRYPT

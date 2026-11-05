@@ -26,9 +26,11 @@
 
 int test_wc_Eccsi_DecisionCoverage(void);
 int test_wc_Eccsi_FeatureCoverage(void);
+int test_wc_Eccsi_KeyReuse(void);
 
 #define TEST_ECCSI_DECLS                                          \
     TEST_DECL_GROUP("eccsi", test_wc_Eccsi_DecisionCoverage),     \
-    TEST_DECL_GROUP("eccsi", test_wc_Eccsi_FeatureCoverage)
+    TEST_DECL_GROUP("eccsi", test_wc_Eccsi_FeatureCoverage),      \
+    TEST_DECL_GROUP("eccsi", test_wc_Eccsi_KeyReuse)
 
 #endif /* WOLFCRYPT_TEST_ECCSI_H */
