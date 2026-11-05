@@ -243,10 +243,10 @@ check_result $? "Export ${BENCH} public key"
 tail -c 32 "${BENCH}_pub.der" > "${BENCH}_pub.bin"
 rm -f "${BENCH}_pub.der"
 
-# RFC 9814 SignedData interop vectors, verified by pkcs7signed_slhdsa_test()
-# in wolfcrypt/test/test.c. One per hash family, covering both the
-# signed-attributes and the no-signed-attributes form. OpenSSL picks the
-# RFC 9814 digestAlgorithm for the parameter set.
+# RFC 9814 SignedData interop vectors, verified by
+# pkcs7signed_slhdsa_interop_test() in wolfcrypt/test/test.c. One per hash
+# family, covering both the signed-attributes and the no-signed-attributes
+# form. OpenSSL picks the RFC 9814 digestAlgorithm for the parameter set.
 printf 'RFC 9814 SLH-DSA SignedData from OpenSSL' > cms-content.tmp
 openssl cms -sign -binary -nodetach -outform DER -in cms-content.tmp \
     -signer root-slhdsa-shake-128s.pem -inkey root-slhdsa-shake-128s-priv.pem \
