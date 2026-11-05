@@ -29588,11 +29588,9 @@ int SendFinished(WOLFSSL* ssl)
 #endif /* WOLFSSL_NO_TLS12 */
 #endif /* !NO_TLS */
 
-#ifndef NO_WOLFSSL_SERVER
-#if (!defined(WOLFSSL_NO_TLS12) && \
-        (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-         defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))) || \
-    (defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST))
+#if !defined(NO_WOLFSSL_SERVER) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
 /* Returns the lock that guards the OCSP request cache on the WOLFSSL_CTX.
  *
  * The cache is a field of the CTX, so it has to be serialized with a lock whose
@@ -29604,13 +29602,63 @@ int SendFinished(WOLFSSL* ssl)
  * Returns NULL when the CTX has no cert manager to take a lock from, in which
  * case the caller skips the cache rather than running unserialized.
  */
-static wolfSSL_Mutex* GetCtxOcspLock(WOLFSSL* ssl)
+static wolfSSL_Mutex* GetCtxOcspLock(WOLFSSL_CTX* ctx)
 {
-    if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocsp_stapling == NULL)
+    if (ctx->cm == NULL || ctx->cm->ocsp_stapling == NULL)
         return NULL;
 
-    return &ssl->ctx->cm->ocsp_stapling->ocspLock;
+    return &ctx->cm->ocsp_stapling->ocspLock;
 }
+
+/* Drops the leaf OCSP request cached on the CTX.
+ *
+ * The request is built from the CTX certificate, so it has to go whenever that
+ * certificate is replaced. Left in place, every later connection would ask the
+ * responder about, and staple the status of, the certificate the CTX used to
+ * have. The next connection that staples builds and caches a new one.
+ *
+ * Only connections that share the CTX certificate use the cached request, and
+ * replacing that certificate frees the buffer they share, so none of them can
+ * still be using it here. The lock orders this against a connection publishing
+ * a request. When it cannot be taken the request is still dropped: keeping it
+ * would be wrong for every connection to come.
+ */
+void FreeCtxOcspRequestCache(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_Mutex* ocspLock;
+    OcspRequest*   request;
+    int            locked = 0;
+
+    if (ctx == NULL)
+        return;
+
+    ocspLock = GetCtxOcspLock(ctx);
+    if (ocspLock != NULL) {
+        if (wc_LockMutex(ocspLock) == 0) {
+            locked = 1;
+        }
+        else {
+            WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, dropping the request");
+        }
+    }
+    request = ctx->certOcspRequest;
+    ctx->certOcspRequest = NULL;
+    if (locked) {
+        wc_UnLockMutex(ocspLock);
+    }
+
+    if (request != NULL) {
+        FreeOcspRequest(request);
+        XFREE(request, ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
+}
+#endif
+
+#ifndef NO_WOLFSSL_SERVER
+#if (!defined(WOLFSSL_NO_TLS12) && \
+        (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+         defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST))
 
 /* Parses and decodes the certificate then initializes "request".
  *
@@ -29716,7 +29764,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
          * connections on this CTX. Failing the handshake over a missed
          * optimization would be the worse outcome. */
         if (ret == 0 && !ssl->buffers.weOwnCert) {
-            wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl);
+            wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl->ctx);
 
             /* SSL_CM(ssl) can resolve through ssl->x509_store_pt, so a stapling
              * object on the CTX manager is not implied by the one checked
@@ -30593,7 +30641,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
  */
 static OcspRequest* GetCtxOcspRequest(WOLFSSL* ssl, byte* ctxOwnsRequest)
 {
-    wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl);
+    wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl->ctx);
     OcspRequest*   request  = NULL;
 
     *ctxOwnsRequest = 0;

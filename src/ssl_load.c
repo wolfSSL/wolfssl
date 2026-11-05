@@ -2535,6 +2535,8 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Store certificate as ours. */
             ctx->certificate = der;
             /* ourCert is created on demand. */
+            /* The cached OCSP request was built from the old certificate. */
+            FreeCtxOcspRequestCache(ctx);
         }
     }
     else {
@@ -5413,6 +5415,8 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if (res == 1) {
         /* Replace certificate buffer with one holding the new certificate. */
         FreeDer(&ctx->certificate);
+        /* The cached OCSP request was built from the old certificate. */
+        FreeCtxOcspRequestCache(ctx);
         ret = AllocCopyDer(&ctx->certificate, x->derCert->buffer,
             x->derCert->length, CERT_TYPE, ctx->heap);
         if (ret != 0) {

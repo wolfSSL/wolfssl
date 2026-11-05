@@ -67,6 +67,7 @@ int test_dtls13_nonblock_ocsp_unfragmented_cert(void);
 int test_ocsp_status_verify_cb_would_block(void);
 int test_dtls12_nonblock_ocsp(void);
 int test_ocsp_ctx_request_cache(void);
+int test_ocsp_ctx_request_cache_cert_change(void);
 int test_ocsp_responder(void);
 int test_ocsp_ancestor_responder_rejected(void);
 int test_ocsp_forged_responder_cert_rejected(void);
