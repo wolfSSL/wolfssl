@@ -1158,13 +1158,14 @@ int IntelQaGenPrime(WC_ASYNC_DEV* dev, WC_RNG* rng, byte* primeBuf,
                 /* if rollover occurred increment high order bytes */
                 /* increment by 1 does not affect odd/even */
                 int j;
+                primeData[byteCheck] = 0x01;
                 for (j = primeSz - 2; j >= 0; j--) {
-                    if (primeData[i] != 0xFF) {
-                        primeData[i] += 1;
+                    if (primeData[j] != 0xFF) {
+                        primeData[j] += 1;
                         break;
                     }
                     else {
-                        primeData[i] = 0;
+                        primeData[j] = 0;
                     }
                 }
             }
