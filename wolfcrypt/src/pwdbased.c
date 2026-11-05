@@ -937,6 +937,7 @@ static void scryptBlockMix(byte* b, byte* y, int r)
 {
 #ifdef WORD64_AVAILABLE
     word64  x[8];
+    word32  x32[16];
     word64* b64 = (word64*)b;
     word64* y64 = (word64*)y;
 #else
@@ -955,12 +956,15 @@ static void scryptBlockMix(byte* b, byte* y, int r)
 #ifdef WORD64_AVAILABLE
         for (j = 0; j < 8; j++)
             x[j] ^= b64[i * 8 + j];
-
+        /* C11 6.5p7: x is word64, so run the word32 Salsa on a word32 copy. */
+        XMEMCPY(x32, x, sizeof(x32));
+        scryptSalsa(x32, x32);
+        XMEMCPY(x, x32, sizeof(x));
 #else
         for (j = 0; j < 16; j++)
             x[j] ^= b32[i * 16 + j];
+        scryptSalsa(x, x);
 #endif
-        scryptSalsa((word32*)x, (word32*)x);
         XMEMCPY(y + i * 64, x, sizeof(x));
     }
     /* Step 3. */

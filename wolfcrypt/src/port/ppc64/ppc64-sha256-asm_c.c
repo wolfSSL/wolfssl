@@ -3422,22 +3422,39 @@ void Transform_Sha256_Len_crypto(wc_Sha256* sha256, const byte* data,
         "vsldoi  6, 4, 4, 8\n\t"
         "vsldoi  7, 4, 4, 12\n\t"
         /* Load message, one word per vector register */
+#ifdef __LITTLE_ENDIAN__
+        "lvsl    9, 0, 8\n\t"
+        "vspltisb        10, 3\n\t"
+        "vxor    9, 9, 10\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "lxvw4x  48, 0, %[data]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 9\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[data], %[data], 16\n\t"
         "vsldoi  17, 16, 16, 4\n\t"
         "vsldoi  18, 16, 16, 8\n\t"
         "vsldoi  19, 16, 16, 12\n\t"
         "lxvw4x  52, 0, %[data]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 9\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[data], %[data], 16\n\t"
         "vsldoi  21, 20, 20, 4\n\t"
         "vsldoi  22, 20, 20, 8\n\t"
         "vsldoi  23, 20, 20, 12\n\t"
         "lxvw4x  56, 0, %[data]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 9\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[data], %[data], 16\n\t"
         "vsldoi  25, 24, 24, 4\n\t"
         "vsldoi  26, 24, 24, 8\n\t"
         "vsldoi  27, 24, 24, 12\n\t"
         "lxvw4x  60, 0, %[data]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 9\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[data], %[data], 16\n\t"
         "vsldoi  29, 28, 28, 4\n\t"
         "vsldoi  30, 28, 28, 8\n\t"

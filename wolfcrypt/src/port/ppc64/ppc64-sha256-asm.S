@@ -3494,22 +3494,39 @@ L_SHA256_crypto_begin:
 	vsldoi	6, 4, 4, 8
 	vsldoi	7, 4, 4, 12
 	# Load message, one word per vector register
+#ifdef __LITTLE_ENDIAN__
+	lvsl	9, 0, 8
+	vspltisb	10, 3
+	vxor	9, 9, 10
+#endif /* __LITTLE_ENDIAN__ */
 	lxvw4x	48, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	17, 16, 16, 4
 	vsldoi	18, 16, 16, 8
 	vsldoi	19, 16, 16, 12
 	lxvw4x	52, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	21, 20, 20, 4
 	vsldoi	22, 20, 20, 8
 	vsldoi	23, 20, 20, 12
 	lxvw4x	56, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	25, 24, 24, 4
 	vsldoi	26, 24, 24, 8
 	vsldoi	27, 24, 24, 12
 	lxvw4x	60, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	29, 28, 28, 4
 	vsldoi	30, 28, 28, 8

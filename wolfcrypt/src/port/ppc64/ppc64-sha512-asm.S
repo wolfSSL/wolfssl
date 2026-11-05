@@ -4185,28 +4185,57 @@ L_SHA512_crypto_begin:
 	vsldoi	5, 4, 4, 8
 	vsldoi	7, 6, 6, 8
 	# Load message, one doubleword per vector register
+#ifdef __LITTLE_ENDIAN__
+	lvsl	9, 0, 8
+	vspltisb	10, 7
+	vxor	9, 9, 10
+#endif /* __LITTLE_ENDIAN__ */
 	lxvd2x	48, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	17, 16, 16, 8
 	lxvd2x	50, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	19, 18, 18, 8
 	lxvd2x	52, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	21, 20, 20, 8
 	lxvd2x	54, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	23, 22, 22, 8
 	lxvd2x	56, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	25, 24, 24, 8
 	lxvd2x	58, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	27, 26, 26, 8
 	lxvd2x	60, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	29, 28, 28, 8
 	lxvd2x	62, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 9
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	vsldoi	31, 30, 30, 8
 	# Preload first key
