@@ -915,8 +915,16 @@ static int test_EVP_PKEY_dup_check(EVP_PKEY** src, int id, int priv)
     #define TEST_EVP_PKEY_DUP_RAW
 #endif
 
+/* X509_get_pubkey() re-encodes ML-DSA keys as an SPKI in these builds. */
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
+    #define TEST_EVP_PKEY_DUP_MLDSA_CERT
+#endif
+
 #if defined(TEST_EVP_PKEY_DUP_DSA) || defined(TEST_EVP_PKEY_DUP_DH) || \
-    defined(TEST_EVP_PKEY_DUP_RAW)
+    defined(TEST_EVP_PKEY_DUP_RAW) || defined(TEST_EVP_PKEY_DUP_MLDSA_CERT)
 /* Check dup carries the same cached key data in the same format and the same
  * private/public state, and that it left the error queue clean. */
 static int test_EVP_PKEY_dup_data_check(EVP_PKEY* src, int id, int priv)
@@ -941,7 +949,7 @@ static int test_EVP_PKEY_dup_data_check(EVP_PKEY* src, int id, int priv)
     return EXPECT_RESULT();
 }
 #endif /* TEST_EVP_PKEY_DUP_DSA || TEST_EVP_PKEY_DUP_DH ||
-        * TEST_EVP_PKEY_DUP_RAW */
+        * TEST_EVP_PKEY_DUP_RAW || TEST_EVP_PKEY_DUP_MLDSA_CERT */
 
 #ifdef TEST_EVP_PKEY_DUP_RAW
 /* Dup a raw key and, when hdr is given, the same key wrapped in DER. Both
@@ -1262,6 +1270,22 @@ int test_wolfSSL_EVP_PKEY_dup(void)
             sizeof(priv), NULL, 0), TEST_SUCCESS);
         ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_X448, 0, pub,
             sizeof(pub), NULL, 0), TEST_SUCCESS);
+    }
+#endif
+#ifdef TEST_EVP_PKEY_DUP_MLDSA_CERT
+    /* X509_get_pubkey() replaces the raw ML-DSA key with an SPKI. */
+    {
+        X509* x509 = NULL;
+
+        ExpectNotNull(x509 = X509_load_certificate_file(
+            "./certs/mldsa/mldsa44-cert.pem", SSL_FILETYPE_PEM));
+        ExpectNotNull(key = X509_get_pubkey(x509));
+        ExpectIntEQ(key->isRaw, 0);
+        ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, EVP_PKEY_DILITHIUM, 0),
+            TEST_SUCCESS);
+        EVP_PKEY_free(key);
+        key = NULL;
+        X509_free(x509);
     }
 #endif
 
