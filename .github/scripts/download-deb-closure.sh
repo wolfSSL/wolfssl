@@ -16,27 +16,14 @@ set -uo pipefail
 LIST=${1:?package list}
 DEST=${2:?destination directory}
 
+APT_INSTALL="$(dirname "$0")/../actions/install-apt-deps/apt-install.sh"
+
 mapfile -t PKGS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$LIST")
 echo "Packages (${#PKGS[@]}): ${PKGS[*]}"
-export DEBIAN_FRONTEND=noninteractive
 # Not rm -rf: in the container this directory is a bind mount.
 mkdir -p "$DEST" && rm -f "$DEST"/*.deb
 apt-get clean
-# No wolfSSL job installs from the runner's Google/Microsoft apt repos, and a
-# bad index on either fails apt-get update for everyone. Drop them. Already
-# root here, so no sudo; the container images carry neither repo, so this is a
-# no-op there.
-grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
-  /etc/apt/sources.list.d/ 2>/dev/null | xargs -r rm -vf || true
-# A single stalled mirror connection once hung -full for ~20 min (it normally
-# finishes in a few). retry() only re-runs on a non-zero exit, so a hang never
-# tripped it. Defend in depth: apt drops a stalled connection after 30s and
-# retries it (Acquire timeouts), `timeout` hard-kills a wedged apt-get, then
-# retry() re-runs from scratch.
-APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
-          -o Acquire::https::Timeout=30)
-retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-retry timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
+"$APT_INSTALL" --tries 5 --update-timeout 120 --drop-vendor-sources
 # Download each package's closure independently (requested package + any
 # dependency not already installed) without installing. Per package, not one
 # resolve of the whole list, so one unbundleable package - e.g. a conflict in
@@ -44,10 +31,56 @@ retry timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
 # apt for anything missing.
 skipped=0
 for pkg in "${PKGS[@]}"; do
-  retry timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y --download-only "$pkg" \
-    || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
+  "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only "$pkg" \
+    || skipped=$((skipped+1))
 done
-cp /var/cache/apt/archives/*.deb "$DEST/" 2>/dev/null || true
+# Bundle exact (=) deps even if installed, as older images may differ, and
+# the installed packages that pin a bundled one, as an older image has to
+# upgrade those with it.
+ARCHIVES=/var/cache/apt/archives
+DEPS='${Package} ${Pre-Depends}, ${Depends}\n'
+export LC_ALL=C  # sort, comm and join must agree on the order
+# "name=version owner" for each exact (=) dep in "owner deps" lines.
+exact() {
+  awk '{
+    n = split(substr($0, length($1) + 2), d, ",")
+    for (i = 1; i <= n; i++) {
+      sub(/\|.*/, "", d[i])  # apt prefers the first alternative
+      if (d[i] !~ /^ *[^ :(|]+(:[^ ]+)? *\(= *[^ )]+\) *$/) continue
+      sub(/^ +/, "", d[i]); split(d[i], f, /[ (=)]+/); sub(/:.*/, "", f[1])
+      print f[1] "=" f[2], $1
+    }
+  }'
+}
+debs() {
+  for deb in "$ARCHIVES"/*.deb; do
+    dpkg-deb -W --showformat="$1" "$deb"
+  done | sort -u
+}
+missing() {
+  local bundled names
+  bundled=$(debs '${Package}=${Version}\n')
+  names=$(cut -d= -f1 <<< "$bundled" | sort -u)
+  debs "$DEPS" | exact | cut -d' ' -f1 | sort -u | comm -23 - <(echo "$bundled")
+  dpkg-query -W -f="\${db:Status-Status} $DEPS" | sed -n 's/^installed //p' \
+    | exact | sed 's/=[^ ]*//' | sort | join -o 1.2 - <(echo "$names") \
+    | sort -u | comm -23 - <(echo "$names")
+}
+declare -A tried=()
+while :; do
+  need=()
+  while read -r pin; do
+    [ -n "${tried[$pin]:-}" ] || need+=("$pin")
+  done < <(missing)
+  [ "${#need[@]}" -gt 0 ] || break
+  echo "Pinned (${#need[@]}): ${need[*]}"
+  for pin in "${need[@]}"; do
+    tried[$pin]=1
+    "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only \
+      --reinstall "$pin" || skipped=$((skipped+1))
+  done
+done
+cp "$ARCHIVES"/*.deb "$DEST/" 2>/dev/null || true
 # The steps that index and package these run unprivileged, and in the
 # container we are root over a bind mount owned by the runner user.
 chown --reference="$DEST" "$DEST"/*.deb 2>/dev/null || true
