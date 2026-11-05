@@ -815,8 +815,8 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  * verification.  rho is checked against the imported key to catch a mismatched
  * or stale matrix, so import the public key first.
  *
- * Returns 0, BAD_FUNC_ARG on NULL, a bad length, or no public key imported
- * yet, PUBLIC_KEY_E when rho does not match the imported key. */
+ * Returns 0, BAD_FUNC_ARG on NULL or a bad length, PUBLIC_KEY_E when no
+ * public key is imported yet or rho does not match the imported key. */
 WOLFSSL_API
 int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
     const byte* rho, word32 rhoLen);

@@ -101,6 +101,20 @@
   leak must stop doing so, and the returned key is shared with the
   certificate, so it must be treated as read only.
 
+* **Behavioral change (ML-DSA operations require the public key)**: ML-DSA
+  verify (`wc_MlDsaKey_Verify*()`), public-key export and DER encoding, and
+  `wc_MlDsaKey_SetPrecompA()` now return `PUBLIC_KEY_E` when no public key is
+  set (previously verify used an empty or, with `WOLFSSL_MLDSA_DYNAMIC_KEYS`,
+  unallocated public key, and the others returned `BAD_FUNC_ARG`).
+  `wc_MlDsaKey_ExportPubRaw()` checks this before the buffer size, so a size
+  probe on such a key gets `PUBLIC_KEY_E`, not `BUFFER_E`.
+  `wc_MlDsaKey_ExportKey()` and `wc_MlDsaKey_KeyToDer()` also return
+  `PUBLIC_KEY_E` if the public key does not match the private key, and
+  `wc_MlDsaKey_ExportKey()` now writes neither key on failure and sets both
+  `*privSz` and `*pubSz` on `BUFFER_E`. For private-only keys (e.g. from
+  PKCS#8), call `wc_MlDsaKey_MakePublicKey()` or import the public key before
+  verifying or exporting.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi

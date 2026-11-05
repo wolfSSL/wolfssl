@@ -1274,14 +1274,20 @@ static void wb_gen_lane_rows(void)
  * Argument guards on file-static entry points.
  *
  * mldsa_verify_ctx_msg() / mldsa_verify_ctx_hash() open with
+ * mldsa_verify_key_check(), which tests
  *
  *     if ((key == NULL) || (key->params == NULL)) ...
  *
- * but every public caller has already rejected a NULL key and a key without
- * params, so along the API only the (F,F) row is ever seen.  Both are file
- * static and this TU #includes wc_mldsa.c, so they take the two rejecting rows
- * directly: a NULL key for operand 0, and a zeroed key object (params NULL,
- * never dereferenced past the guard) for operand 1.
+ * Every public caller rejects a NULL key, so only the key == NULL operand is
+ * unreachable from the API.  The key->params == NULL row (a key with no level
+ * set, through wc_MlDsaKey_VerifyCtx() / wc_MlDsaKey_VerifyCtxHash()) and
+ * the TRUE row of the !key->pubKeySet check after it are reached from the
+ * API by test_mldsa_verify_pubkeyset_guard(); the FALSE row comes from any
+ * successful verify, and from wb_verify_invalid() in this binary.  The
+ * helpers are file static and this TU #includes wc_mldsa.c, so each
+ * independence pair is also completed within this binary by taking the two
+ * rejecting rows directly: a NULL key for operand 0, and a zeroed key object
+ * (params NULL, never dereferenced past the guard) for operand 1.
  *
  * mldsa_get_hash_oid()'s first operand is the "is this hash algorithm known"
  * result; an unrecognised algorithm gives it the NULL side that no caller with
@@ -1360,8 +1366,10 @@ static void wb_arg_guards(void)
  * so every guard also has its true row in this binary; both rows are what the
  * independence pair needs.
  *
- * mldsa_verify_ctx_hash() gets its (F,F) row here as well: the key is real and
- * carries params, which is the one row a NULL/param-less key cannot show.
+ * mldsa_verify_key_check() gets its (F,F) row here as well, through
+ * mldsa_verify_ctx_hash(): the key is real and carries params, which is the
+ * one row a NULL/param-less key cannot show.  The key also has its public
+ * half, giving the FALSE row of the !key->pubKeySet check.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
@@ -1437,7 +1445,8 @@ static void wb_verify_invalid(void)
 
 #if !defined(WOLFSSL_MLDSA_NO_CTX)
     /* mldsa_verify_ctx_hash() with a real, params-carrying key: the (F,F) row
-     * of its (key == NULL) || (key->params == NULL) guard. */
+     * of mldsa_verify_key_check()'s (key == NULL) || (key->params == NULL)
+     * guard, and the FALSE row of its !key->pubKeySet check. */
     res = 0;
     (void)mldsa_verify_ctx_hash(&key, NULL, 0, WC_HASH_TYPE_SHA256, hash,
         (word32)sizeof(hash), sig, sigLen, &res);
@@ -1453,8 +1462,8 @@ static void wb_verify_invalid(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:14283,
- * :14288, :14289).
+ * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check: the s1 range test,
+ * the s2 loop header and the s2 range test.
  *
  *     for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
  *         if (s1[c] < -eta || s1[c] > eta) { ret = PUBLIC_KEY_E; break; }
@@ -1531,8 +1540,8 @@ static void wb_check_key_range(void)
     savedS1 = s1p[0];
     savedS2 = s2p[0];
 
-    /* s1[0] out of range on the low side: :14283 idx0 true, and the s2 loop
-     * header (:14288 idx0) is then evaluated with ret != 0. */
+    /* s1[0] out of range on the low side: the s1 range test's idx0 is true,
+     * and the s2 loop header's idx0 is then evaluated with ret != 0. */
     s1p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1541,7 +1550,7 @@ static void wb_check_key_range(void)
     s1p[0] = savedS1;
 
     /* s2[0] out of range: the s1 loop runs clean, the s2 header is true, and
-     * :14289 idx0 takes its true side. */
+     * the s2 range test's idx0 takes its true side. */
     s2p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1550,7 +1559,7 @@ static void wb_check_key_range(void)
     s2p[0] = savedS2;
 
     wc_MlDsaKey_Free(&key);
-    WB_NOTE("CheckKey s1/s2 range rows exercised (14283, 14288, 14289)");
+    WB_NOTE("CheckKey s1/s2 range rows exercised");
 }
 #else
 static void wb_check_key_range(void)
