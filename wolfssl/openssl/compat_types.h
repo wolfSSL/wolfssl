@@ -66,5 +66,7 @@ typedef WOLFSSL_EVP_PKEY_CTX   EVP_PKEY_CTX;
 #endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
 typedef unsigned long (*wolf_sk_hash_cb) (const void *v);
+typedef int (*wolf_sk_compare_cb) (const void* const* a,
+                                   const void* const* b);
 
 #endif /* !WOLFSSL_OPENSSL_COMPAT_TYPES_H_ */
