@@ -799,6 +799,32 @@ static int peer_on_demand_verify_cb(int preverify,
     return 1;
 }
 
+/* Give the client a new server to handshake with.
+ *
+ * @param [in]      ctx_s     Server context.
+ * @param [in, out] ssl_s     Server object, replaced by a new one.
+ * @param [in, out] test_ctx  Memory I/O, emptied.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_peer_cert_on_demand_new_server(WOLFSSL_CTX* ctx_s,
+    WOLFSSL** ssl_s, struct test_memio_ctx* test_ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_free(*ssl_s);
+    *ssl_s = NULL;
+    ExpectNotNull(*ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(*ssl_s, test_ctx);
+    wolfSSL_SetIOReadCtx(*ssl_s, test_ctx);
+#ifndef NO_DH
+    SetDH(*ssl_s);
+#endif
+    test_memio_clear_buffer(test_ctx, 0);
+    test_memio_clear_buffer(test_ctx, 1);
+
+    return EXPECT_RESULT();
+}
+
 /* Check that a connection keeps only the peer certificate's encoding until
  * the object is asked for, and that the object then built is the one sent.
  *
@@ -886,7 +912,21 @@ static int test_peer_cert_on_demand(method_provider method_c,
     wolfSSL_X509_free(peer);
     peer = NULL;
 
-    /* Reusing the object for a new connection drops the encoding. */
+    /* Reusing the object for a new connection drops the built object. */
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+        ExpectNull(ssl_c->peerCertDer);
+    }
+
+    /* It also drops the encoding when no object was built from it. */
+    ExpectIntEQ(test_peer_cert_on_demand_new_server(ctx_s, &ssl_s, &test_ctx),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+        ExpectNotNull(ssl_c->peerCertDer);
+    }
     ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
     if (EXPECT_SUCCESS()) {
         ExpectNull(ssl_c->peerCert);
@@ -895,16 +935,8 @@ static int test_peer_cert_on_demand(method_provider method_c,
 
     /* With a verify callback the object is built from the decoded leaf for
      * the callback, and that object is the one kept. */
-    wolfSSL_free(ssl_s);
-    ssl_s = NULL;
-    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
-    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
-    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
-#ifndef NO_DH
-    SetDH(ssl_s);
-#endif
-    test_memio_clear_buffer(&test_ctx, 0);
-    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(test_peer_cert_on_demand_new_server(ctx_s, &ssl_s, &test_ctx),
+        TEST_SUCCESS);
     peer_on_demand_cb_leaf = NULL;
     wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, peer_on_demand_verify_cb);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
