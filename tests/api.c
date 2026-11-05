@@ -3725,9 +3725,11 @@ static int test_wolfSSL_CTX_use_PrivateKey(void)
     /* Works without WOLFSSL_KEY_GEN too, and the key loaded is the one
      * decoded: it matches its certificate. */
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WOLFSSL_SUCCESS);
+#if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, client_cert_der_2048,
         sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
+#endif
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
