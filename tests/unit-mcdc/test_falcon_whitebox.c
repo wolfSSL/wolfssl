@@ -327,6 +327,19 @@ static void wb_prng_sampler_init(WC_RNG* rng)
     if (r != 0) {
         WB_FAIL("prng_init(valid) expected 0");
     }
+    else {
+        /* A u64 read spanning a block boundary tests both operands of the
+         * refill decision. The second read starts with no buffered bytes;
+         * the block index still permits a boundary refill. */
+        p.ptr = FALCON_PRNG_BUFLEN - 4U;
+        p.len = FALCON_PRNG_BUFLEN;
+        p.blk = 0;
+        (void)falcon_prng_get_u64(&p);
+        p.ptr = 0;
+        p.len = 0;
+        p.blk = 0;
+        (void)falcon_prng_get_u64(&p);
+    }
     /* p==NULL (cond0 TRUE, early return before deref). */
     r = falcon_prng_init(NULL, rng);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {

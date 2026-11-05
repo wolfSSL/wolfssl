@@ -6854,3 +6854,51 @@ int test_SetCertificatePolicies_no_empty_qualifiers(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the PKCS#8 key-creation/encryption guards in
+ * wolfcrypt/src/asn.c: the LENGTH_ONLY_E size-query row of
+ * wc_CreatePKCS8Key, the GetAlgoV2-failure row of wc_EncryptPKCS8Key_ex,
+ * the undersized-buffer row, and the NULL-hmacOid PBES2 row. A raw key
+ * buffer is used (no cert-buffer dependency) so the rows run in every
+ * variant.
+ */
+int test_wc_Pkcs8EncryptDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && \
+    defined(HAVE_AES_CBC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_ECC) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    WC_RNG rng;
+    byte   key[32];
+    byte   out[512];
+    byte   salt[8];
+    word32 outSz;
+
+    XMEMSET(key, 3, sizeof(key));
+    XMEMSET(salt, 4, sizeof(salt));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+
+    /* The size query exercises the true side of the length-only check. */
+    outSz = sizeof(out);
+    ExpectIntEQ(wc_CreatePKCS8Key(NULL, &outSz, key, sizeof(key), RSAk,
+        NULL, 0), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+
+    /* wc_EncryptPKCS8Key_ex: a bogus PBES2 encAlgId fails GetAlgoV2, so
+     * the (ret == 0) operand of the encOid check takes its false side. */
+    outSz = sizeof(out);
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
+        "pw", 2, PKCS5, PBES2, 0x7FFFFFFF, salt, sizeof(salt), 1000, 0,
+        &rng, HEAP_HINT), WC_NO_ERR_TRACE(ALGO_ID_E));
+
+    /* Invalid HMAC OID reaches the PBES2 OID check with a valid cipher. */
+    outSz = sizeof(out);
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
+        "pw", 2, PKCS5, PBES2, AES128CBCb, salt, sizeof(salt), 1000,
+        0x7FFFFFFF, &rng, HEAP_HINT), WC_NO_ERR_TRACE(ALGO_ID_E));
+
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif /* HAVE_AES_CBC && !NO_AES && WOLFSSL_AES_128 && !FIPS */
+    return EXPECT_RESULT();
+}

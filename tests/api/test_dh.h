@@ -38,6 +38,7 @@ int test_wc_DhCheckPrivKey(void);
 int test_wc_DhCheckKeyPair(void);
 int test_wc_DhGenerateParams_and_ExportRaw(void);
 int test_wc_DhGenerateKeyPair_CheckDhLN(void);
+int test_dh_decision_coverage(void);
 
 #define TEST_DH_DECLS                                              \
     TEST_DECL_GROUP("dh", test_wc_DhPublicKeyDecode),               \
@@ -53,6 +54,7 @@ int test_wc_DhGenerateKeyPair_CheckDhLN(void);
     TEST_DECL_GROUP("dh", test_wc_DhCheckPrivKey),                  \
     TEST_DECL_GROUP("dh", test_wc_DhCheckKeyPair),                  \
     TEST_DECL_GROUP("dh", test_wc_DhGenerateParams_and_ExportRaw),  \
-    TEST_DECL_GROUP("dh", test_wc_DhGenerateKeyPair_CheckDhLN)
+    TEST_DECL_GROUP("dh", test_wc_DhGenerateKeyPair_CheckDhLN), \
+    TEST_DECL_GROUP("dh", test_dh_decision_coverage)
 
 #endif /* WOLFCRYPT_TEST_DH_H */

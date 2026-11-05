@@ -95,6 +95,8 @@ typedef struct McdcCbState {
     int failed;     /* matching operations actually failed               */
     int seen;       /* every operation the device was offered            */
     int armed;      /* zero disarms without unregistering the device     */
+    int once;       /* answer failCode on the first match only, then let
+                     * later matches run in software                     */
 } McdcCbState;
 
 static McdcCbState mcdc_cb_state;
@@ -151,6 +153,16 @@ static WC_INLINE void mcdc_cb_fail_algo(int algoType, int failCode)
 static WC_INLINE void mcdc_cb_after(int n)
 {
     mcdc_cb_state.after = n;
+}
+
+/* Answer WC_PENDING_E on the FIRST matching operation only, then let later
+ * matches run in software. The async state machines (wc_RsaFunction /
+ * wc_RsaDirect) save their state and resume on re-invocation; the second
+ * dispatch must complete, so a persistent PENDING answer would loop forever. */
+static WC_INLINE void mcdc_cb_pending_once(int pkType)
+{
+    mcdc_cb_answer_pk(pkType, WC_PENDING_E);
+    mcdc_cb_state.once = 1;
 }
 
 static WC_INLINE void mcdc_cb_disarm(void)
@@ -218,16 +230,30 @@ static WC_INLINE int mcdc_cb_callback(int devId, wc_CryptoInfo* info, void* ctx)
     }
 
     st->failed++;
+    if (st->once) {
+        st->once = 0;
+        st->armed = 0;
+    }
     return st->failCode;
 }
 
 /* Registration is global and idempotent; the state is reset separately so a
- * vector can re-arm without re-registering. */
+ * vector can re-arm without re-registering. A white-box binary that never
+ * calls wolfSSL_Init() has an all-zero device table (no free slot), so a
+ * BUFFER_E answer means "uninitialised": init it once and retry. */
 static WC_INLINE int mcdc_cb_install(void)
 {
+    int rc;
+
     mcdc_cb_reset();
-    return wc_CryptoCb_RegisterDevice(MCDC_CB_DEVID, mcdc_cb_callback,
-                                      &mcdc_cb_state);
+    rc = wc_CryptoCb_RegisterDevice(MCDC_CB_DEVID, mcdc_cb_callback,
+                                    &mcdc_cb_state);
+    if (rc == WC_NO_ERR_TRACE(BUFFER_E)) {
+        wc_CryptoCb_Init();
+        rc = wc_CryptoCb_RegisterDevice(MCDC_CB_DEVID, mcdc_cb_callback,
+                                        &mcdc_cb_state);
+    }
+    return rc;
 }
 
 static WC_INLINE void mcdc_cb_uninstall(void)

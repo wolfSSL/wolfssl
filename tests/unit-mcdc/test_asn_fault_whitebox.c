@@ -295,8 +295,12 @@ static void wb_get_key_oid_null_args(void)
      * the false path, but one of the inner decoders then returns BAD_FUNC_ARG
      * of its own, which says nothing about this guard. */
 #ifdef USE_CERT_BUFFERS_2048
-    ret = wc_GetKeyOID(client_key_der_2048, (word32)sizeof_client_key_der_2048,
-            &curveOID, &oidSz, &algoID, NULL);
+    {
+        byte key[sizeof_client_key_der_2048];
+        XMEMCPY(key, client_key_der_2048, sizeof(key));
+        ret = wc_GetKeyOID(key, (word32)sizeof(key), &curveOID, &oidSz,
+                &algoID, NULL);
+    }
     /* wc_GetKeyOID() returns 1 when it identified the key type. */
     WB_CHECK(ret >= 0 && algoID == RSAk, "baseline (both false)");
 #else

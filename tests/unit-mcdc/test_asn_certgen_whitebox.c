@@ -280,12 +280,15 @@ static void wb_set_cert_policies(void)
 #if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES)
 static void wb_flatten_alt_names(void)
 {
-    DNS_entry dns   = { NULL, ASN_DNS_TYPE,   9, "host.com", 0 };
-    DNS_entry dir   = { NULL, ASN_DIR_TYPE,   4, "abcd",     0 };
-    DNS_entry other = { NULL, ASN_OTHER_TYPE, 4, "abcd",     0 };
+    DNS_entry dns   = { 0 };
+    DNS_entry dir   = { 0 };
+    DNS_entry other = { 0 };
     byte out[128];
     int ret;
 
+    dns.type = ASN_DNS_TYPE; dns.len = 9; dns.name = "host.com";
+    dir.type = ASN_DIR_TYPE; dir.len = 4; dir.name = "abcd";
+    other.type = ASN_OTHER_TYPE; other.len = 4; other.name = "abcd";
     WB_NOTE("FlattenAltNames(): DIR/OTHER constructed-tag OR [~27837]");
 
     /* type==ASN_DNS_TYPE: both operands false. */
@@ -2321,7 +2324,11 @@ static void wb_parse_acert_bad_dates(void)
 #else
                 XMEMSET(acert, 0, sizeof(DecodedAcert));
 #endif
+#ifdef WOLFSSL_SMALL_STACK
                 if (acert != NULL) {
+#else
+                {
+#endif
                     wc_InitDecodedAcert(acert, shortDer, sz, NULL);
                     ret = wc_ParseX509Acert(acert, modes[m]);
                     /* CheckDate()'s tag/length checks are outside the

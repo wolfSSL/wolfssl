@@ -1348,7 +1348,11 @@ static int wb_verify_head_foot_plain(word32 footSz, byte* hashBuf,
  * while `hashSz` is 0 -- a single-buffer call cannot, because stage 3 has to
  * read the content out of the stream itself and answers WANT_READ instead.
  * Bounded by a chunk count, never by elapsed time. */
+#if defined(__GNUC__) || defined(__clang__)
+static int __attribute__((unused)) wb_verify_head_foot_chunked(word32 hashSz)
+#else
 static int wb_verify_head_foot_chunked(word32 hashSz)
+#endif
 {
     wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
     int ret = -1;

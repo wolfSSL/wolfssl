@@ -761,7 +761,6 @@ static void wb_kari_full(void)
             " used elsewhere");
 #if !defined(NO_AES) && defined(WOLFSSL_AES_128)
     {
-        byte out[512];
         byte ukm[8] = { 1,2,3,4,5,6,7,8 };
         XMEMSET(&pkcs7, 0, sizeof(pkcs7));
         pkcs7.encryptOID = AES128CBCb;

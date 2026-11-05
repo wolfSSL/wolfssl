@@ -225,7 +225,6 @@ static void wb_missing_crl_callbacks(WOLFSSL_CERT_MANAGER* cm)
 static void wb_buffer_load_store(WOLFSSL_CERT_MANAGER* cm)
 {
     static const char* kDer = "certs/crl/crl.der";
-    static const char* kPem = "certs/crl/crl.pem";
     byte  der[4096];
     long  n = 0;
     int   loaded = 0;

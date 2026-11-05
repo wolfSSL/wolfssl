@@ -5394,3 +5394,68 @@ int test_wolfSSL_trust_peer_cert_dates(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Decision-coverage drivers for the ssl_certman.c argument guards left
+ * unpaired by the functional tests. The cert-manager helpers are
+ * WOLFSSL_LOCAL, so this white-box test calls them directly. Each block
+ * names the source line:condition it closes. */
+int test_certman_decision_coverage(void)
+{
+    EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL certman fns, hidden from the .so - shared builds
+     * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
+     * builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte hash[SIGNER_DIGEST_SIZE];
+    Signer signer;
+    Signer* hs = NULL;
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(&signer, 0, sizeof(signer));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    cm = ctx->cm;
+    ExpectNotNull(cm);
+
+    /* --- 2700:0/1 AlreadySigner: cm==NULL || hash==NULL ------------------ */
+    (void)AlreadySigner(NULL, hash);
+    (void)AlreadySigner(cm, NULL);
+    (void)AlreadySigner(cm, hash);
+
+    /* --- 2812:0/1 GetCA: cm==NULL || hash==NULL -------------------------- */
+    (void)GetCA(NULL, hash);
+    (void)GetCA(cm, NULL);
+    (void)GetCA(cm, hash);
+
+    /* --- 3037:0/1 AddSigner: cm==NULL || s==NULL ------------------------- */
+    (void)AddSigner(NULL, &signer);
+    (void)AddSigner(cm, NULL);
+    /* The all-valid case inserts the Signer into the cm's CA table, which the
+     * cm then owns and frees on ctx-free; use a heap Signer and remove it
+     * before freeing so ownership stays clean. */
+    hs = (Signer*)XMALLOC(sizeof(Signer), cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (hs != NULL) {
+        XMEMSET(hs, 0, sizeof(Signer));
+        hs->type = WOLFSSL_USER_CA;
+        (void)AddSigner(cm, hs);
+        /* RemoveCA frees the signer it removes; no XFREE after it. */
+        (void)RemoveCA(cm, hash, WOLFSSL_USER_CA);
+    }
+
+    /* --- 3352/3372:0/1 RemoveCA: cm==NULL || hash==NULL ------------------ */
+    (void)RemoveCA(NULL, hash, WOLFSSL_USER_CA);
+    (void)RemoveCA(cm, NULL, WOLFSSL_USER_CA);
+    (void)RemoveCA(cm, hash, WOLFSSL_USER_CA);
+
+    /* --- 3399:0/1/2 SetCAType: cm==NULL || hash==NULL || type range ------ */
+    (void)SetCAType(NULL, hash, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, NULL, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, hash, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, hash, 0);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

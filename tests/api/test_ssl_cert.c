@@ -6276,3 +6276,105 @@ int test_wolfSSL_dtls_api_more_guards(void)
 #endif
     return EXPECT_RESULT();
 }
+int test_ssl_cert_decision_coverage(void)
+{
+    EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL certman fns, hidden from the .so - shared builds
+     * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
+     * builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_CERTS) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    if (ctx != NULL)
+        ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
+
+    /* --- 105:1/2 CTX_set_verify_depth: depth < 0 || depth > MAX ---------- */
+    wolfSSL_CTX_set_verify_depth(ctx, -1);
+    wolfSSL_CTX_set_verify_depth(ctx, MAX_CHAIN_DEPTH + 1);
+    wolfSSL_CTX_set_verify_depth(ctx, 5);
+
+    /* --- 738:1 CTX_SetCACb: ctx->cm != NULL ----------------------------- */
+    {
+        WOLFSSL_CTX* nctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        WOLFSSL_CERT_MANAGER* saved;
+
+        ExpectNotNull(nctx);
+        if (nctx != NULL) {
+            saved = nctx->cm;
+            nctx->cm = NULL;
+            wolfSSL_CTX_SetCACb(nctx, NULL);
+            nctx->cm = saved;
+        }
+        wolfSSL_CTX_free(nctx);
+    }
+
+#ifdef SESSION_CERTS
+    /* --- 2301:1 get_chain_X509: idx >= 0 -------------------------------- */
+    {
+        WOLFSSL_X509_CHAIN chain;
+
+        XMEMSET(&chain, 0, sizeof(chain));
+        chain.count = 1;
+        (void)wolfSSL_get_chain_X509(NULL, 0);
+        (void)wolfSSL_get_chain_X509(&chain, -1);
+        (void)wolfSSL_get_chain_X509(&chain, 0);
+    }
+#endif
+
+    /* --- 984:1/1002:0/1 UnloadCertsKeys: keepCert, key, key->buffer ----- */
+    {
+        DerBuffer* key;
+
+        /* 984:1 weOwnCert && !keepCert */
+        ssl->buffers.weOwnCert = 1;
+        ssl->buffers.certificate = NULL;
+        ssl->keepCert = 0;
+        (void)wolfSSL_UnloadCertsKeys(ssl);
+        ssl->buffers.weOwnCert = 1;
+        ssl->keepCert = 1;
+        (void)wolfSSL_UnloadCertsKeys(ssl);
+        ssl->keepCert = 0;
+        ssl->buffers.weOwnCert = 0;
+
+        /* 1002:0/1 weOwnKey && key!=NULL && key->buffer!=NULL */
+        ssl->buffers.weOwnKey = 1;
+        ssl->buffers.key = NULL;
+        (void)wolfSSL_UnloadCertsKeys(ssl);
+
+        key = (DerBuffer*)XMALLOC(sizeof(DerBuffer), ssl->heap,
+                                  DYNAMIC_TYPE_DER);
+        ExpectNotNull(key);
+        if (key != NULL) {
+            XMEMSET(key, 0, sizeof(DerBuffer));
+            key->heap = ssl->heap;
+            key->type = PRIVATEKEY_TYPE;
+            key->dynType = DYNAMIC_TYPE_DER;
+            ssl->buffers.key = key;
+            ssl->buffers.weOwnKey = 1;
+            (void)wolfSSL_UnloadCertsKeys(ssl);
+        }
+
+        key = NULL;
+        ExpectIntEQ(AllocDer(&key, 16, PRIVATEKEY_TYPE, ssl->heap), 0);
+        if (key != NULL) {
+            ssl->buffers.key = key;
+            ssl->buffers.weOwnKey = 1;
+            (void)wolfSSL_UnloadCertsKeys(ssl);
+        }
+        ssl->buffers.weOwnKey = 0;
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

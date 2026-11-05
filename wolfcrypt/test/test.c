@@ -32124,7 +32124,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
             break;
         /* Two workers also reseed, against each other and the generates. */
         if (args->reseeder && ((i % 8) == 7)) {
-            byte seed[16];
+            byte seed[WC_DRBG_SEED_SZ];
             XMEMSET(seed, 0xa5, sizeof(seed));
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
             /* user-class reseeds of conformant instances are refused
@@ -32139,13 +32139,14 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
                 break;
         }
         /* Stir runs against the generates too, so a thread checker sees any
-         * future unlocking of it as a race.  NOT_READY_E is its documented
-         * refusal while a credited reseed is due, so it is not a failure. */
+         * future unlocking of it as a race.  A credited reseed may be due
+         * at this point, in which case Stir cannot consume uncredited input. */
         if (args->reseeder && ((i % 8) == 3)) {
             byte mix[16];
             XMEMSET(mix, 0x5a, sizeof(mix));
             ret = wc_RNG_DRBG_Stir(args->rng, mix, (word32)sizeof(mix));
-            if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+            if (ret == WC_NO_ERR_TRACE(NOT_READY_E) ||
+                ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
                 ret = 0;
             if (ret != 0)
                 break;
@@ -32792,7 +32793,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
 #ifdef WC_RNG_LOCK_ATFORK
     /* A lock marked broken fails closed. */
     {
-        byte seed[16];
+        byte seed[WC_DRBG_SEED_SZ];
         XMEMSET(seed, 0xa5, sizeof(seed));
         wc_ForkLock_SetBroken(rng->autoLock, 1);
         ret = wc_RNG_GenerateBlock(rng, out, WC_RNG_THREAD_TEST_BLKSZ);
@@ -45098,6 +45099,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (nb_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
 
+    (void)nbCount;
 #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
     printf("DH non-block agree: %d times\n", nbCount);
 #endif

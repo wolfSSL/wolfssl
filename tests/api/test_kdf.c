@@ -55,7 +55,8 @@
 /* ------------------------------------------------------------------ */
 /* WOLF_CRYPTO_CB support for wc_KDA_KDF_twostep_cmac's dispatch guard */
 /* ------------------------------------------------------------------ */
-#if defined(HAVE_CMAC_KDF) && defined(WOLF_CRYPTO_CB)
+#if defined(HAVE_CMAC_KDF) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_USER_SETTINGS)
 #define TEST_KDF_CRYPTOCB_DEVID 0x4b444630 /* "KDF0" */
 
 /* Toggled by the test below: when set, the callback fails outright instead
@@ -83,7 +84,7 @@ static WC_MAYBE_UNUSED int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, v
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
-#endif /* HAVE_CMAC_KDF && WOLF_CRYPTO_CB */
+#endif /* HAVE_CMAC_KDF && WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
 
 /*
  * MC/DC decision coverage: negative / argument-check / bad-selector /
@@ -391,6 +392,12 @@ int test_wc_KdfDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)), 0);
+        /* A 15-byte key passes the outer size check, then fails AES setup.
+         * This exercises the initialized-AES error cleanup. */
+        XMEMSET(outKey, 0xA5, sizeof(outKey));
+        ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key) - 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTP_KDF_label(NULL, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -400,6 +407,10 @@ int test_wc_KdfDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)), 0);
+        XMEMSET(outKey, 0xA5, sizeof(outKey));
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key) - 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTCP_KDF_label(NULL, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -631,7 +642,7 @@ int test_wc_KdfDecisionCoverage(void)
             sizeof(z), fixedInfo, sizeof(fixedInfo), output, sizeof(output),
             HEAP_HINT, INVALID_DEVID), 0);
 
-#if defined(WOLF_CRYPTO_CB)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS)
         /* devId != INVALID_DEVID: dispatch taken. Independence pair for
          * the CRYPTOCB_UNAVAILABLE fall-through guard: succeeds, then fails
          * outright, both via the SAME registered devId. */
@@ -651,7 +662,7 @@ int test_wc_KdfDecisionCoverage(void)
         test_kdf_cryptocb_force_fail = 0;
 
         wc_CryptoCb_UnRegisterDevice(TEST_KDF_CRYPTOCB_DEVID);
-#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
     }
 #endif /* HAVE_CMAC_KDF && WOLFSSL_AES_128 */
 
@@ -1104,3 +1115,120 @@ int test_wc_Tls13_HybridSharedSecret(void)
 #endif
     return EXPECT_RESULT();
 }
+/*
+ * MC/DC decision coverage for the wolfcrypt/src/cryptocb.c dispatch guards:
+ * each wc_CryptoCb_* operation starts with
+ *     dev = wc_CryptoCb_FindDevice(devId, algoType);
+ *     if (dev && dev->cb) { ... }
+ * The four decisions below had never seen a registered device, so both
+ * operands were uncovered. Three calls per site:
+ *   - an unregistered devId: dev == NULL (operand 0 false)
+ *   - a registered device with a real, declining callback: both operands
+ *     true, the body runs and the callback declines
+ *   - a registered device with a NULL callback: operand 1 false
+ * Every call returns CRYPTOCB_UNAVAILABLE in all three rows.
+ */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
+#define TEST_CRYPTOCB_DISPATCH_DEVID 0x44495350 /* "DISP" */
+
+static int test_cryptocb_dispatch_decline_cb(int cbDevId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)cbDevId;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
+
+int test_wc_CryptoCbDispatchDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
+    byte   in[8] = {0};
+    byte   out[16] = {0};
+    byte   tag[16] = {0};
+    byte   passwd[8] = {0};
+    byte   salt[8] = {0};
+    word32 agreeSz = 0;
+
+#ifndef NO_DH
+    DhKey dh;
+    XMEMSET(&dh, 0, sizeof(dh));
+
+    /* --- wc_CryptoCb_Dh: (dev) && (dev->cb). --- */
+    dh.devId = TEST_CRYPTOCB_DISPATCH_DEVID + 1; /* unregistered slot */
+    agreeSz = sizeof(out);
+    ExpectIntEQ(wc_CryptoCb_Dh(&dh, in, 1, in, 1, out, &agreeSz),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    dh.devId = TEST_CRYPTOCB_DISPATCH_DEVID;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        test_cryptocb_dispatch_decline_cb, NULL), 0);
+    agreeSz = sizeof(out);
+    ExpectIntEQ(wc_CryptoCb_Dh(&dh, in, 1, in, 1, out, &agreeSz),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        NULL, NULL), 0);
+    agreeSz = sizeof(out);
+    ExpectIntEQ(wc_CryptoCb_Dh(&dh, in, 1, in, 1, out, &agreeSz),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+#endif /* !NO_DH */
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    /* --- wc_CryptoCb_Chacha20Poly1305Encrypt / Decrypt: (dev) && (dev->cb).
+     *     The buffers are never dereferenced: the declining callback and the
+     *     skipped body both leave them untouched. --- */
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Encrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID + 1, in, in, NULL, 0, in, sizeof(in),
+        out, tag), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        test_cryptocb_dispatch_decline_cb, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Encrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        out, tag), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Decrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        tag, out), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Encrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        out, tag), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Decrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        tag, out), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+
+#if defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED)
+    /* --- wc_CryptoCb_Pbkdf2: (dev) && (dev->cb). --- */
+    ExpectIntEQ(wc_CryptoCb_Pbkdf2(out, passwd, (int)sizeof(passwd), salt,
+        (int)sizeof(salt), 1000, 32, WC_HASH_TYPE_SHA256,
+        TEST_CRYPTOCB_DISPATCH_DEVID + 1),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        test_cryptocb_dispatch_decline_cb, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Pbkdf2(out, passwd, (int)sizeof(passwd), salt,
+        (int)sizeof(salt), 1000, 32, WC_HASH_TYPE_SHA256,
+        TEST_CRYPTOCB_DISPATCH_DEVID),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Pbkdf2(out, passwd, (int)sizeof(passwd), salt,
+        (int)sizeof(salt), 1000, 32, WC_HASH_TYPE_SHA256,
+        TEST_CRYPTOCB_DISPATCH_DEVID),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+#endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
+
+    (void)out;
+    (void)tag;
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
+    return EXPECT_RESULT();
+} /* END test_wc_CryptoCbDispatchDecisionCoverage */

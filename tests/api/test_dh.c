@@ -1137,3 +1137,41 @@ int test_wc_DhGenerateKeyPair_CheckDhLN(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Decision-coverage drivers for the ssl_load.c DH argument guards left
+ * unpaired by the functional tests. Each block names the
+ * source line:condition it closes. */
+int test_dh_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_DH) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte p[512];
+    byte g[8];
+    byte bigP[4096];
+
+    XMEMSET(p, 0, sizeof(p));
+    XMEMSET(g, 0, sizeof(g));
+    XMEMSET(bigP, 0, sizeof(bigP));
+    p[0] = 0x01;
+    g[0] = 0x02;
+    bigP[0] = 0x01;
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- 6024/6311:0/1 wolfSSL_CTX_SetTmpDH: ctx/p/g NULL guards ---------- */
+    (void)wolfSSL_CTX_SetTmpDH(NULL, p, (int)sizeof(p), g, (int)sizeof(g));
+    (void)wolfSSL_CTX_SetTmpDH(ctx, NULL, 0, g, (int)sizeof(g));
+    (void)wolfSSL_CTX_SetTmpDH(ctx, p, (int)sizeof(p), NULL, 0);
+
+    /* --- 5848:0/1 wolfSSL_SetTmpDH: pSz < minDhKeySz || > maxDhKeySz ----- */
+    (void)wolfSSL_SetTmpDH(ssl, p, 1, g, (int)sizeof(g));
+    (void)wolfSSL_SetTmpDH(ssl, bigP, (int)sizeof(bigP), g, (int)sizeof(g));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

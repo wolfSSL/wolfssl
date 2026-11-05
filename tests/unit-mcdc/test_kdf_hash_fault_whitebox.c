@@ -138,7 +138,7 @@ static int wb_fail = 0;
 
 static void wb_ssh_kdf_kpad_errprop(void)
 {
-    byte key[WC_SHA256_DIGEST_SIZE + 5];   /* blocks == 1, remainder == 5 */
+    byte key[2 * WC_SHA256_DIGEST_SIZE + 5]; /* two blocks and a tail */
     byte k[32];
     byte h[32];
     byte sessionId[32];
