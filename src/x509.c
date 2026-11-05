@@ -7196,6 +7196,7 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
                 XFREE(key->pkey.ptr, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                 key->pkey.ptr = (char*)spki;
                 key->pkey_sz = (int)spkiSz;
+                key->isRaw = 0;
             }
             #endif /* WOLFSSL_HAVE_MLDSA */
         }
