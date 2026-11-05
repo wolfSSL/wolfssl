@@ -814,6 +814,16 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_set_error_depth  wolfSSL_X509_STORE_CTX_set_error_depth
 #define X509_STORE_CTX_get_ex_data      wolfSSL_X509_STORE_CTX_get_ex_data
 #define X509_STORE_CTX_set_ex_data      wolfSSL_X509_STORE_CTX_set_ex_data
+#ifdef OPENSSL_EXTRA
+/* wolfSSL keeps the SSL at index 0 in a TLS verify callback. */
+#define WOLFSSL_X509_STORE_CTX_APP_DATA_IDX 1
+#define X509_STORE_CTX_set_app_data(ctx, data) \
+    wolfSSL_X509_STORE_CTX_set_ex_data((ctx), \
+        WOLFSSL_X509_STORE_CTX_APP_DATA_IDX, (data))
+#define X509_STORE_CTX_get_app_data(ctx) \
+    wolfSSL_X509_STORE_CTX_get_ex_data((ctx), \
+        WOLFSSL_X509_STORE_CTX_APP_DATA_IDX)
+#endif
 #define X509_STORE_CTX_set_depth        wolfSSL_X509_STORE_CTX_set_depth
 #define X509_STORE_CTX_verify_cb        WOLFSSL_X509_STORE_CTX_verify_cb
 #define X509_STORE_CTX_get0_current_issuer \
