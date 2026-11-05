@@ -29,6 +29,10 @@ int test_wolfSSL_X509_check_private_key_mldsa(void);
 int test_wolfSSL_X509_verify(void);
 int test_wolfSSL_X509_verify_mldsa_cross_level(void);
 int test_wolfSSL_X509_verify_mldsa_privkey_pkey(void);
+int test_wolfSSL_X509_CRL_verify(void);
+int test_wolfSSL_X509_verify_privkey(void);
+int test_wolfSSL_X509_CRL_get_REVOKED_serial(void);
+int test_wolfSSL_X509_CRL_add_revoked_serial(void);
 int test_wolfSSL_X509_sign(void);
 int test_wolfSSL_X509_sign2(void);
 int test_wolfSSL_make_cert(void);
@@ -42,6 +46,12 @@ int test_wolfSSL_make_cert(void);
         test_wolfSSL_X509_verify_mldsa_cross_level),                           \
     TEST_DECL_GROUP("ossl_x509_crypto",                                        \
         test_wolfSSL_X509_verify_mldsa_privkey_pkey),                          \
+    TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_X509_CRL_verify),         \
+    TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_X509_verify_privkey),     \
+    TEST_DECL_GROUP("ossl_x509_crypto",                                        \
+        test_wolfSSL_X509_CRL_get_REVOKED_serial),                             \
+    TEST_DECL_GROUP("ossl_x509_crypto",                                        \
+        test_wolfSSL_X509_CRL_add_revoked_serial),                             \
     TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_X509_sign),               \
     TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_X509_sign2),              \
     TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_make_cert)

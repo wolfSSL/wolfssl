@@ -2653,6 +2653,13 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         int i;
         int allZero = 1;
 
+        /* An INTEGER made by the library holds the DER encoding. One built
+         * by hand holds the content bytes. */
+        if (rev->serialNumber->type == WOLFSSL_V_ASN1_INTEGER) {
+            serial = wolfSSL_ASN1_INTEGER_get0_data(rev->serialNumber);
+            serialSz = wolfSSL_ASN1_INTEGER_get_length(rev->serialNumber);
+        }
+
         if (serial == NULL || serialSz <= 0) {
             return BAD_FUNC_ARG;
         }

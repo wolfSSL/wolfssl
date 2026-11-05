@@ -5249,9 +5249,11 @@ void wolfSSL_sk_X509_CRL_pop_free(WOLF_STACK_OF(WOLFSSL_X509_CRL)* sk,
     wolfSSL_sk_pop_free(sk, (wolfSSL_sk_freefunc)f);
 }
 
+/* Free the stack only, not the CRLs, as OpenSSL does. */
 void wolfSSL_sk_X509_CRL_free(WOLF_STACK_OF(WOLFSSL_X509_CRL)* sk)
 {
-    wolfSSL_sk_X509_CRL_pop_free(sk, NULL);
+    WOLFSSL_ENTER("wolfSSL_sk_X509_CRL_free");
+    wolfSSL_sk_free(sk);
 }
 
 /* return number of elements on success 0 on fail */
@@ -9843,34 +9845,62 @@ WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 #endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA
-/* Use the public key to verify the signature. Note: this only verifies
- * the certificate signature.
- * returns WOLFSSL_SUCCESS on successful signature verification */
-static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
-    int req)
+/* Public key to verify a signature with. */
+typedef struct X509VerifyKey {
+    const byte* pubKey;
+    int         pubKeySz;
+    int         type;
+    byte*       pubDer; /* public key of a private key, freed by caller */
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    byte        edPubKey[ED25519_PUB_KEY_SIZE];
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
+    byte        ed448PubKey[ED448_PUB_KEY_SIZE];
+#endif
+} X509VerifyKey;
+
+/* Returns 1 when pkey is an RSA, EC or DSA key with its private part, whose
+ * cached DER is then the private key, otherwise 0. */
+static int X509PkeyIsPrivate(WOLFSSL_EVP_PKEY* pkey)
 {
-    int ret;
-    const byte* der;
-    int derSz = 0;
+#ifndef NO_RSA
+    if (pkey->type == WC_EVP_PKEY_RSA) {
+        return pkey->rsa != NULL && pkey->rsa->internal != NULL &&
+            ((RsaKey*)pkey->rsa->internal)->type == RSA_PRIVATE;
+    }
+#endif
+#ifdef HAVE_ECC
+    if (pkey->type == WC_EVP_PKEY_EC) {
+        return pkey->ecc != NULL && pkey->ecc->internal != NULL &&
+            (((ecc_key*)pkey->ecc->internal)->type == ECC_PRIVATEKEY ||
+             ((ecc_key*)pkey->ecc->internal)->type == ECC_PRIVATEKEY_ONLY);
+    }
+#endif
+#ifndef NO_DSA
+    if (pkey->type == WC_EVP_PKEY_DSA) {
+        return pkey->dsa != NULL && pkey->dsa->internal != NULL &&
+            ((DsaKey*)pkey->dsa->internal)->type == DSA_PRIVATE;
+    }
+#endif
+    (void)pkey;
+    return 0;
+}
+
+/* Get the public key and key type of pkey to verify a signature with.
+ * returns 0 on success */
+static int X509GetVerifyKey(WOLFSSL_EVP_PKEY* pkey, X509VerifyKey* key)
+{
     int type;
     const byte* pubKey;
     int pubKeySz;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
-    byte edPubKey[ED25519_PUB_KEY_SIZE];
-    word32 edPubKeySz = (word32)sizeof(edPubKey);
+    word32 edPubKeySz = (word32)sizeof(key->edPubKey);
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
+    word32 ed448PubKeySz = (word32)sizeof(key->ed448PubKey);
 #endif
 
-    (void)req;
-
-    if (x509 == NULL || pkey == NULL) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    der = wolfSSL_X509_get_der(x509, &derSz);
-    if (der == NULL) {
-        WOLFSSL_MSG("Error getting WOLFSSL_X509 DER");
-        return WOLFSSL_FATAL_ERROR;
-    }
+    key->pubDer = NULL;
 
     /* Most key types verify against the cached public-key DER. */
     pubKey   = (const byte*)pkey->pkey.ptr;
@@ -9904,14 +9934,31 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
              * pkey->pkey.ptr holds a PKCS#8 private blob (or nothing), so
              * export the public key from the ed25519_key instead. */
             if (pkey->ed25519 == NULL ||
-                    wc_ed25519_export_public(pkey->ed25519, edPubKey,
+                    wc_ed25519_export_public(pkey->ed25519, key->edPubKey,
                         &edPubKeySz) != 0) {
                 WOLFSSL_MSG("Unable to export Ed25519 public key");
                 return WOLFSSL_FATAL_ERROR;
             }
-            pubKey   = edPubKey;
+            pubKey   = key->edPubKey;
             pubKeySz = (int)edPubKeySz;
             type     = ED25519k;
+            break;
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
+        case WC_EVP_PKEY_ED448:
+            /* As Ed25519: the raw public key of the ed448_key, made from
+             * the private key when it was decoded without one */
+            if (pkey->ed448 == NULL ||
+                    (wc_ed448_export_public(pkey->ed448, key->ed448PubKey,
+                        &ed448PubKeySz) != 0 &&
+                    wc_ed448_make_public(pkey->ed448, key->ed448PubKey,
+                        (word32)sizeof(key->ed448PubKey)) != 0)) {
+                WOLFSSL_MSG("Unable to export Ed448 public key");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            pubKey   = key->ed448PubKey;
+            pubKeySz = (int)sizeof(key->ed448PubKey);
+            type     = ED448k;
             break;
     #endif
 
@@ -9920,14 +9967,69 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
             return WOLFSSL_FATAL_ERROR;
     }
 
+    /* As OpenSSL, a private key verifies with its public part. When that
+     * cannot be encoded, as for DSA, the signature cannot be checked. */
+    if (X509PkeyIsPrivate(pkey)) {
+        byte* der;
+
+        pubKeySz = wolfSSL_i2d_PUBKEY(pkey, NULL);
+        if (pubKeySz <= 0) {
+            WOLFSSL_MSG("Unable to get the public key of a private key");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        key->pubDer = (byte*)XMALLOC((size_t)pubKeySz, pkey->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+        der = key->pubDer;
+        if (der == NULL || wolfSSL_i2d_PUBKEY(pkey, &der) != pubKeySz) {
+            XFREE(key->pubDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            key->pubDer = NULL;
+            return WOLFSSL_FATAL_ERROR;
+        }
+        pubKey = key->pubDer;
+    }
+
+    key->pubKey   = pubKey;
+    key->pubKeySz = pubKeySz;
+    key->type     = type;
+    return 0;
+}
+
+/* Use the public key to verify the signature. Note: this only verifies
+ * the certificate signature.
+ * returns WOLFSSL_SUCCESS on successful signature verification */
+static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
+    int req)
+{
+    int ret;
+    const byte* der;
+    int derSz = 0;
+    X509VerifyKey key;
+
+    (void)req;
+
+    if (x509 == NULL || pkey == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    der = wolfSSL_X509_get_der(x509, &derSz);
+    if (der == NULL) {
+        WOLFSSL_MSG("Error getting WOLFSSL_X509 DER");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (X509GetVerifyKey(pkey, &key) != 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
 #ifdef WOLFSSL_CERT_REQ
     if (req)
         ret = CheckCSRSignaturePubKey(der, (word32)derSz, x509->heap,
-                (unsigned char*)pubKey, pubKeySz, type);
+                (unsigned char*)key.pubKey, key.pubKeySz, key.type);
     else
 #endif
         ret = CheckCertSignaturePubKey(der, (word32)derSz, x509->heap,
-                (unsigned char*)pubKey, pubKeySz, type);
+                (unsigned char*)key.pubKey, key.pubKeySz, key.type);
+    XFREE(key.pubDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (ret == 0) {
         return WOLFSSL_SUCCESS;
     }
@@ -11190,15 +11292,73 @@ int wolfSSL_X509_CRL_set_nextUpdate(WOLFSSL_X509_CRL* crl,
     return WOLFSSL_FAILURE;
 }
 
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
+/* Verify the signature of a CRL with pkey.
+ * Uses the TBS and signature kept for a CRL that was not verified when it was
+ * loaded, as with d2i and PEM. A CRL verified on load does not keep them.
+ * returns 1 when the signature verifies, 0 when it does not and -1 when it
+ * cannot be checked, as for a key of the wrong type */
+int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey)
 {
-    (void)crl;
-    (void)key;
-    WOLFSSL_STUB("X509_CRL_verify");
-    return 0;
+    int ret;
+    CRL_Entry* ent;
+    X509VerifyKey key;
+    const byte* sigParams = NULL;
+    word32 sigParamsSz = 0;
+    WC_DECLARE_VAR(sigCtx, SignatureCtx, 1, 0);
+
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_verify");
+
+    if (crl == NULL || pkey == NULL || X509GetVerifyKey(pkey, &key) != 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    WC_ALLOC_VAR_EX(sigCtx, SignatureCtx, 1, crl->heap, DYNAMIC_TYPE_SIGNATURE,
+        { XFREE(key.pubDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+          return WOLFSSL_FATAL_ERROR; });
+
+    if (wc_LockRwLock_Rd(&crl->crlLock) != 0) {
+        WC_FREE_VAR_EX(sigCtx, crl->heap, DYNAMIC_TYPE_SIGNATURE);
+        XFREE(key.pubDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    ent = crl->crlList;
+    if (ent == NULL || ent->toBeSigned == NULL || ent->signature == NULL) {
+        WOLFSSL_MSG("No TBS and signature kept for the CRL");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    else {
+    #ifdef WC_RSA_PSS
+        sigParams = ent->sigParams;
+        sigParamsSz = ent->sigParamsSz;
+    #endif
+        InitSignatureCtx(sigCtx, crl->heap, INVALID_DEVID);
+        ret = ConfirmSignature(sigCtx, ent->toBeSigned, ent->tbsSz,
+            key.pubKey, (word32)key.pubKeySz, (word32)key.type,
+            ent->signature, ent->signatureSz, ent->signatureOID,
+            sigParams, sigParamsSz, NULL);
+        FreeSignatureCtx(sigCtx);
+        if (ret == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+        else if (ret == WC_NO_ERR_TRACE(ASN_SIG_OID_E) ||
+                 ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E) ||
+                 ret == WC_NO_ERR_TRACE(HASH_TYPE_E) ||
+                 ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN) ||
+                 ret == WC_NO_ERR_TRACE(MEMORY_E)) {
+            WOLFSSL_MSG("CRL signature cannot be checked with this key");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            WOLFSSL_MSG("CRL signature did not verify");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    wc_UnLockRwLock(&crl->crlLock);
+
+    WC_FREE_VAR_EX(sigCtx, crl->heap, DYNAMIC_TYPE_SIGNATURE);
+    XFREE(key.pubDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    return ret;
 }
-#endif
 
 /* Encode CRL to DER format in memory.
  *
@@ -12024,17 +12184,26 @@ static WOLFSSL_X509_REVOKED* RevokedCertToRevoked(RevokedCert* rc, int seq)
         return NULL;
     }
     if (rc->serialSz > 0 && rc->serialSz <= EXTERNAL_SERIAL_SIZE) {
-        serial->data = (unsigned char*)XMALLOC((size_t)rc->serialSz, NULL,
-                                               DYNAMIC_TYPE_OPENSSL);
+        /* Serials are positive: a high bit needs a zero octet. */
+        int pad = (rc->serialNumber[0] & 0x80) ? 1 : 0;
+
+        /* DER encoding: tag, length, content. */
+        serial->data = (unsigned char*)XMALLOC(
+            (size_t)(rc->serialSz + 2 + pad), NULL, DYNAMIC_TYPE_OPENSSL);
         if (serial->data == NULL) {
             wolfSSL_ASN1_INTEGER_free(serial);
             XFREE(rev, NULL, DYNAMIC_TYPE_OPENSSL);
             return NULL;
         }
-        XMEMCPY(serial->data, rc->serialNumber, (size_t)rc->serialSz);
-        serial->length = rc->serialSz;
-        serial->dataMax = rc->serialSz;
+        serial->data[0] = ASN_INTEGER;
+        serial->data[1] = (byte)(rc->serialSz + pad);
+        serial->data[2] = 0x00;
+        XMEMCPY(serial->data + 2 + pad, rc->serialNumber,
+            (size_t)rc->serialSz);
+        serial->length = rc->serialSz + 2 + pad;
+        serial->dataMax = (unsigned int)serial->length;
         serial->isDynamic = 1;
+        serial->type = WOLFSSL_V_ASN1_INTEGER;
     }
     rev->serialNumber = serial;
 

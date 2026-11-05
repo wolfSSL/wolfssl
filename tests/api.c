@@ -31352,7 +31352,6 @@ static int test_sk_X509_CRL_decode(void)
         ExpectNull(wolfSSL_sk_X509_REVOKED_value(NULL, 0));
     }
 #ifndef NO_WOLFSSL_STUB
-    ExpectIntEQ(wolfSSL_X509_CRL_verify(NULL, NULL), 0);
     ExpectIntEQ(X509_OBJECT_set1_X509_CRL(NULL, NULL), 0);
     ExpectIntEQ(X509_OBJECT_set1_X509(NULL, NULL), 0);
 #endif
@@ -31398,7 +31397,16 @@ static int test_sk_X509_CRL_decode(void)
     ExpectIntEQ(sk_X509_CRL_num(s), 0);
     ExpectIntEQ(sk_X509_CRL_push(s, crl), 1);
 
+    /* Frees the stack only. */
     sk_X509_CRL_free(s);
+    s = NULL;
+    ExpectNotNull(X509_CRL_get_issuer(crl));
+    ExpectNotNull(s = sk_X509_CRL_new());
+    ExpectIntEQ(sk_X509_CRL_push(s, crl), 1);
+    if (EXPECT_FAIL()) {
+        X509_CRL_free(crl);
+    }
+    sk_X509_CRL_pop_free(s, X509_CRL_free);
 #endif
     return EXPECT_RESULT();
 }
@@ -31491,8 +31499,7 @@ static int test_wolfSSL_X509_CRL_get_REVOKED_after_update(void)
     ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(revokedSk), 1);
     ExpectNotNull(rev = wolfSSL_sk_X509_REVOKED_value(revokedSk, 0));
     ExpectNotNull(serial = wolfSSL_X509_REVOKED_get0_serial_number(rev));
-    ExpectIntEQ(serial->length, 1);
-    ExpectIntEQ(serial->data[0], 0x02);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(serial), 0x02);
 
     wolfSSL_CTX_free(ctx);
 
