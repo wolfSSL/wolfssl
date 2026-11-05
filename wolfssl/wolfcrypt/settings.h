@@ -5251,9 +5251,10 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WOLFSSL_COPY_KEY
 #endif
 
-/* X509_STORE_get0_objects() can only enumerate a store's certificates when the
- * CA table keeps their DER. Costs one DER copy per loaded CA, so it stays
- * optional; define WOLFSSL_NO_SIGNER_DER_CERT to opt back out. */
+/* X509_verify_cert() can only put a CA of the cert manager on the chain and
+ * check it, and X509_STORE_get0_objects() can only enumerate a store's
+ * certificates, when the CA table keeps their DER. Costs one DER copy per
+ * loaded CA; define WOLFSSL_NO_SIGNER_DER_CERT to opt back out. */
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_SIGNER_DER_CERT)
     #undef  WOLFSSL_SIGNER_DER_CERT
     #define WOLFSSL_SIGNER_DER_CERT

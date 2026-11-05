@@ -518,15 +518,6 @@ int wolfSSL_CertManagerUnloadTypeCerts(
     return ret;
 }
 
-#if defined(OPENSSL_EXTRA)
-static int wolfSSL_CertManagerUnloadTempIntermediateCerts(
-    WOLFSSL_CERT_MANAGER* cm)
-{
-    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTempIntermediateCerts");
-    return wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_TEMP_CA);
-}
-#endif
-
 int wolfSSL_CertManagerUnloadIntermediateCerts(
     WOLFSSL_CERT_MANAGER* cm)
 {

@@ -11659,8 +11659,10 @@ WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void)
     WOLFSSL_X509_VERIFY_PARAM *param = NULL;
     param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
             sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL, DYNAMIC_TYPE_OPENSSL);
-    if (param != NULL)
+    if (param != NULL) {
         XMEMSET(param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
+        param->depth = -1;
+    }
 
     return(param);
 }
@@ -11698,6 +11700,18 @@ void wolfSSL_X509_VERIFY_PARAM_set_time(WOLFSSL_X509_VERIFY_PARAM *param,
 }
 
 
+/* Sets the maximum number of intermediate CAs that X509_verify_cert() allows.
+ * -1 means unset. TLS verification does not use it. */
+void wolfSSL_X509_VERIFY_PARAM_set_depth(WOLFSSL_X509_VERIFY_PARAM *param,
+        int depth)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_VERIFY_PARAM_set_depth");
+    if (param != NULL) {
+        param->depth = depth;
+    }
+}
+
+
 int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param)
 {
     int ret = 0;
@@ -11723,7 +11737,7 @@ int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
     return ret;
 }
 
-/* note WOLFSSL_X509_VERIFY_PARAM does not record purpose, trust, depth, or
+/* note WOLFSSL_X509_VERIFY_PARAM does not record purpose, trust, or
  * auth_level.
  */
 static const WOLFSSL_X509_VERIFY_PARAM x509_verify_param_builtins[] = {
@@ -11734,7 +11748,8 @@ static const WOLFSSL_X509_VERIFY_PARAM x509_verify_param_builtins[] = {
      0,                         /* flags */
      "",                        /* hostname */
      0,                         /* hostFlags */
-     ""                         /* ipasc */
+     "",                        /* ipasc */
+     -1                         /* depth */
     },
     {
      "ssl_server",              /* name */
@@ -11743,7 +11758,8 @@ static const WOLFSSL_X509_VERIFY_PARAM x509_verify_param_builtins[] = {
      0,                         /* flags */
      "",                        /* hostname */
      0,                         /* hostFlags */
-     ""                         /* ipasc */
+     "",                        /* ipasc */
+     -1                         /* depth */
     }
 };
 
@@ -11799,6 +11815,12 @@ int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
 
     isOverWrite = (flags & WOLFSSL_VPARAM_OVERWRITE);
     isDefault = (flags & WOLFSSL_VPARAM_DEFAULT);
+
+    /* copy depth if set, -1 is unset */
+    if (isOverWrite ||
+        (from->depth != -1 && (to->depth == -1 || isDefault))) {
+        to->depth = from->depth;
+    }
 
     /* copy check_time if check time is not set */
     if ((to->flags & WOLFSSL_USE_CHECK_TIME) == 0 || isOverWrite) {

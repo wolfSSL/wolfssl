@@ -715,10 +715,6 @@ struct WOLFSSL_X509_STORE_CTX {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
-    int depth;                   /* used in X509_STORE_CTX_*_depth: defaults
-                                    to WOLFSSL_X509_STORE_DEFAULT_MAX_DEPTH */
-#endif
     void* userCtx;               /* user ctx */
     int   error;                 /* current error */
     int   error_depth;           /* index of cert depth for this error */
@@ -730,7 +726,6 @@ struct WOLFSSL_X509_STORE_CTX {
     int   flags;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    WOLF_STACK_OF(WOLFSSL_X509)* owned;  /* Certs owned by this CTX */
     WOLF_STACK_OF(WOLFSSL_X509)* ctxIntermediates; /* Intermediates specified
                                                     * on store ctx init */
     WOLF_STACK_OF(WOLFSSL_X509)* setTrustedSk;/* A trusted stack override
@@ -904,6 +899,7 @@ struct WOLFSSL_X509_STORE {
     WOLF_STACK_OF(WOLFSSL_X509)* trusted;
     WOLF_STACK_OF(WOLFSSL_X509)* owned;
     word32 numAdded; /* Unused, retained for ABI */
+    WOLF_STACK_OF(WOLFSSL_X509)* added; /* certs and trusted, as added */
 };
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -932,6 +928,7 @@ struct WOLFSSL_X509_VERIFY_PARAM {
     char           hostName[WOLFSSL_HOST_NAME_MAX];
     unsigned int   hostFlags;
     char           ipasc[WOLFSSL_MAX_IPSTR];
+    int            depth; /* max intermediate CAs, -1 when unset */
 };
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
@@ -2628,6 +2625,8 @@ WOLFSSL_API int wolfSSL_X509_STORE_CTX_get_by_subject(
     WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_CTX_get0_param(
         WOLFSSL_X509_STORE_CTX *ctx);
+WOLFSSL_API void wolfSSL_X509_STORE_CTX_set0_param(WOLFSSL_X509_STORE_CTX *ctx,
+        WOLFSSL_X509_VERIFY_PARAM *param);
 WOLFSSL_API int  wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
                       WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509, WOLF_STACK_OF(WOLFSSL_X509)*);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx);
@@ -2705,6 +2704,8 @@ WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *p
         unsigned long flags);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_time(
         WOLFSSL_X509_VERIFY_PARAM *param, time_t t);
+WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_depth(
+        WOLFSSL_X509_VERIFY_PARAM *param, int depth);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
         unsigned long flags);
@@ -2975,14 +2976,19 @@ WOLFSSL_API long wolfSSL_get_default_read_buffer_len(const WOLFSSL* ssl);
 enum {
     WOLFSSL_X509_V_OK                                    = 0,
     WOLFSSL_X509_V_ERR_UNSPECIFIED                       = 1,
+    WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT         = 2,
     WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL                 = 3,
     WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE            = 7,
+    WOLFSSL_X509_V_ERR_CRL_SIGNATURE_FAILURE             = 8,
     WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID                = 9,
     WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED                  = 10,
+    WOLFSSL_X509_V_ERR_CRL_NOT_YET_VALID                 = 11,
     WOLFSSL_X509_V_ERR_CRL_HAS_EXPIRED                   = 12,
     WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD    = 13,
     WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD     = 14,
+    WOLFSSL_X509_V_ERR_OUT_OF_MEM                        = 17,
     WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT       = 18,
+    WOLFSSL_X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN         = 19,
     WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY = 20,
     WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE   = 21,
     WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG               = 22,
@@ -2991,9 +2997,15 @@ enum {
     WOLFSSL_X509_V_ERR_INVALID_PURPOSE                   = 26,
     WOLFSSL_X509_V_ERR_CERT_REJECTED                     = 28,
     WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH           = 29,
+    WOLFSSL_X509_V_ERR_KEYUSAGE_NO_CERTSIGN              = 32,
+    WOLFSSL_X509_V_ERR_KEYUSAGE_NO_CRL_SIGN              = 35,
+    WOLFSSL_X509_V_ERR_PERMITTED_VIOLATION               = 47,
+    WOLFSSL_X509_V_ERR_EXCLUDED_VIOLATION                = 48,
+    WOLFSSL_X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE       = 51,
     WOLFSSL_X509_V_ERR_APPLICATION_VERIFICATION          = 50,
     WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH                 = 62,
     WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH               = 64,
+    WOLFSSL_X509_V_ERR_CA_KEY_TOO_SMALL                  = 67,
     WOLFSSL_X509_V_ERR_INVALID_CA                        = 79,
     WC_OSSL_V509_V_ERR_MAX = 80,
     /* 95 matches OpenSSL's X509_V_ERR_RPK_UNTRUSTED (OpenSSL 3.2+). It is

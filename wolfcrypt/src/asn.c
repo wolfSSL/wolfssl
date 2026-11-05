@@ -18304,7 +18304,7 @@ static int DecodeDsaAsn1Sig(const byte* sig, word32 sigSz, byte* sigCpy,
 /* The certificate's signatureAlgorithm (sigOID) must match the issuer's
  * key type (keyOID). sigOID picks the pre-hash; keyOID picks the
  * verifier. They need to agree or the verifier gets the wrong input. */
-static int SigOidMatchesKeyOid(word32 sigOID, word32 keyOID)
+int SigOidMatchesKeyOid(word32 sigOID, word32 keyOID)
 {
     switch (keyOID) {
     #ifndef NO_RSA
@@ -21044,6 +21044,63 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
     }
 
     return 1;
+}
+
+/* Checks the names of cert against the name constraints of caCert, as for a
+ * cert below caCert in a chain, leaf when it ends it. *violation is 0 when
+ * they are met, else NC_VIOLATION_EXCLUDED, NC_VIOLATION_PERMITTED or, for a
+ * critical constraint of a form that is not supported,
+ * NC_VIOLATION_UNSUPPORTED.
+ * Returns 0, or an error when a cert cannot be parsed. */
+int CheckCertNameConstraints(const byte* caCert, word32 caCertSz,
+        const byte* cert, word32 certSz, int leaf, void* heap, int* violation)
+{
+    int ret = WC_NO_ERR_TRACE(MEMORY_E);
+    Signer signer;
+    WC_DECLARE_VAR(ca, DecodedCert, 1, heap);
+    WC_DECLARE_VAR(dc, DecodedCert, 1, heap);
+
+    *violation = 0;
+    WC_ALLOC_VAR_EX(ca, DecodedCert, 1, heap, DYNAMIC_TYPE_DCERT, goto end);
+    InitDecodedCert(ca, caCert, caCertSz, heap);
+    WC_ALLOC_VAR_EX(dc, DecodedCert, 1, heap, DYNAMIC_TYPE_DCERT, goto end);
+    InitDecodedCert(dc, cert, certSz, heap);
+    ret = ParseCertRelative(ca, CA_TYPE, NO_VERIFY, NULL, NULL);
+    if (ret == 0) {
+        ret = ParseCertRelative(dc, CERT_TYPE, NO_VERIFY, NULL, NULL);
+    }
+    if (ret != 0) {
+        goto end;
+    }
+    /* As OpenSSL, the CN of the leaf is checked, CA or not */
+    if (leaf)
+        dc->isCA = 0;
+    XMEMSET(&signer, 0, sizeof(signer));
+    signer.excludedNames = ca->excludedNames;
+    if (!ConfirmNameConstraints(&signer, dc)) {
+        *violation = NC_VIOLATION_EXCLUDED;
+    }
+    else {
+        signer.permittedNames = ca->permittedNames;
+        if (!ConfirmNameConstraints(&signer, dc)) {
+            *violation = NC_VIOLATION_PERMITTED;
+        }
+        else {
+            signer.extNameConstraintCrit = ca->extNameConstraintCrit;
+            signer.extNameConstraintHasUnsupported =
+                ca->extNameConstraintHasUnsupported;
+            if (!ConfirmNameConstraints(&signer, dc)) {
+                *violation = NC_VIOLATION_UNSUPPORTED;
+            }
+        }
+    }
+end:
+    /* ca and dc are each NULL or initialised */
+    FreeDecodedCert(dc);
+    FreeDecodedCert(ca);
+    WC_FREE_VAR_EX(dc, heap, DYNAMIC_TYPE_DCERT);
+    WC_FREE_VAR_EX(ca, heap, DYNAMIC_TYPE_DCERT);
+    return ret;
 }
 
 #endif /* IGNORE_NAME_CONSTRAINTS */
@@ -39581,6 +39638,8 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
                         word32 signatureOID, const byte* sigParams,
                         int sigParamsSz, Signer *ca, void* heap)
 {
+    int ret;
+
     /* try to confirm/verify signature */
     /* Enforced by default (RFC 5280 4.2.1.3 / 5.2: a CRL issuer MUST assert
      * cRLSign). IGNORE_KEY_EXTENSIONS is a deliberate, RFC-non-conformant
@@ -39594,12 +39653,17 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
 #endif /* IGNORE_KEY_EXTENSIONS */
 
     InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
-    if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
+    ret = ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
-                         signatureOID, sigParams, (word32)sigParamsSz, NULL) != 0) {
+                         signatureOID, sigParams, (word32)sigParamsSz, NULL);
+    if (ret != 0) {
         WOLFSSL_MSG("CRL Confirm signature failed");
-        WOLFSSL_ERROR_VERBOSE(ASN_CRL_CONFIRM_E);
-        return ASN_CRL_CONFIRM_E;
+        /* Running out of memory is not a bad signature */
+        if (ret != WC_NO_ERR_TRACE(MEMORY_E)) {
+            ret = ASN_CRL_CONFIRM_E;
+        }
+        WOLFSSL_ERROR_VERBOSE(ret);
+        return ret;
     }
 
     return 0;

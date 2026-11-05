@@ -5945,6 +5945,11 @@ int wolfSSL_X509_get_signature(WOLFSSL_X509* x509, unsigned char* buf, int* bufS
     \ingroup CertsKeys
 
     \brief This function adds a certificate to the WOLFSSL_X509_STRE structure.
+    As in OpenSSL, a store made with wolfSSL_X509_STORE_new() also takes a
+    self-signed certificate that is not valid now.
+    wolfSSL_X509_verify_cert() checks its dates at the verification time.
+    It is not trusted for TLS, and it is dropped when the store is given to
+    an SSL_CTX with wolfSSL_CTX_set_cert_store().
 
     \return SSL_SUCCESS If certificate is added successfully.
     \return SSL_FATAL_ERROR: If certificate is not added successfully.

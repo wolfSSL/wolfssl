@@ -433,11 +433,15 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
  * them here, next to the includes, rather than inside the files that need
  * them.
  *
- * x509GetIssuerFromCM() is defined in src/x509_str.c, which also requires
- * NO_CERTS to be undefined. */
+ * x509GetIssuerFromCM() and X509StoreCmIsIssuer() are defined in
+ * src/x509_str.c, which also requires NO_CERTS to be undefined. */
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
 static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x);
+#ifdef KEEP_PEER_CERT
+static int X509StoreCmIsIssuer(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_X509* ca,
+        WOLFSSL_X509* x509);
+#endif
 #endif
 
 #define WOLFSSL_SSL_API_CERT_INCLUDED
@@ -6146,6 +6150,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 #ifdef KEEP_PEER_CERT
         FreePeerCert(ssl);
+#endif
+#ifdef OPENSSL_EXTRA
+        /* The next connection builds its own verified chain. */
+        wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+        ssl->verifiedChain = NULL;
 #endif
 
 #ifdef WOLFSSL_QUIC
