@@ -17,11 +17,34 @@ cd "$(dirname "$0")" || exit 1
 # stated here, not parsed, since old OpenSSL cannot decode an ML-DSA cert. A
 # multi-certificate file is checked on its first certificate, which is the leaf.
 # Add lines here.
+# Of the X509_verify_cert() test certs, those whose issuer is kept and in date.
+ta=intermediate/trust_anchor
 pairs="rsapss/ecc-leaf-rsapss.pem rsapss/ca-rsapss.pem classic
 mldsa/ecc-leaf-mldsa44.pem mldsa/mldsa44-cert.pem mldsa
 server-cert-sha1.pem ca-cert.pem sha1
 client-cert-sha1.pem ca-cert.pem sha1
-server-cert-sha1-root.pem ca-cert.pem classic"
+server-cert-sha1-root.pem ca-cert.pem classic
+$ta/link-cert.pem $ta/root-cert.pem classic
+$ta/leaf-cert.pem $ta/link-cert.pem classic
+$ta/notca-twin-cert.pem $ta/root-cert.pem classic
+$ta/dated-int-cert.pem $ta/dated-root-cert.pem classic
+$ta/dated-int-leaf-cert.pem $ta/dated-int-cert.pem classic
+$ta/v1-root-leaf-cert.pem $ta/v1-root-cert.pem classic
+$ta/renewed-root-leaf-cert.pem $ta/renewed-root-cert.pem classic
+$ta/expired-root-int-leaf-cert.pem $ta/expired-root-int-cert.pem classic
+$ta/expired-root-link-leaf-cert.pem $ta/expired-root-link-cert.pem classic
+$ta/noaki-root-link-cert.pem $ta/noaki-root-cert.pem classic
+$ta/noaki-root-leaf-cert.pem $ta/noaki-root-cert.pem classic
+$ta/forge-int-cert.pem $ta/forge-root-cert.pem classic
+$ta/forge-fake-int-cert.pem $ta/forge-q-cert.pem classic
+$ta/forge-fake-int-leaf-cert.pem $ta/forge-fake-int-cert.pem classic
+$ta/forge-sub-leaf-cert.pem $ta/forge-sub-cert.pem classic
+$ta/alt-int-cert.pem $ta/alt-root-cert.pem classic
+$ta/alt-end-int-cert.pem $ta/alt-end-cert.pem classic
+$ta/alt-notca-int-cert.pem $ta/alt-end-cert.pem classic
+$ta/alt-int-leaf-cert.pem $ta/alt-int-cert.pem classic
+$ta/wrongca-cert.pem $ta/wrongca-root-cert.pem classic
+$ta/wrongca-int-leaf-cert.pem $ta/wrongca-int-cert.pem classic"
 
 failed=0
 
