@@ -13540,7 +13540,8 @@ static int test_wolfSSL_PKCS8_ED448(void)
 static int test_wolfSSL_PKCS5(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA) && !defined(NO_PWDBASED)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA) && !defined(NO_PWDBASED) && \
+    !defined(NO_HMAC) && defined(HAVE_PBKDF2)
 #ifdef HAVE_FIPS /* Password minimum length is 14 (112-bit) in FIPS MODE */
     const char* passwd = "myfipsPa$$W0rd";
 #else
@@ -13563,7 +13564,8 @@ static int test_wolfSSL_PKCS5(void)
 #endif
 
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_SHA) */
+#endif /* OPENSSL_EXTRA && !NO_SHA && !NO_PWDBASED && !NO_HMAC && \
+        * HAVE_PBKDF2 */
     return EXPECT_RESULT();
 }
 
@@ -21770,7 +21772,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_aes_128_gcm(),
         NULL, 0, PasswordCallBack, (void*)"yassl123"), 0);
 #endif
-#if !defined(NO_DES3) && !defined(NO_SHA)
+#if !defined(NO_DES3) && !defined(NO_SHA) && defined(HAVE_PBKDF2)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write Encrypted PKCS#8 PEM to BIO. */
     bytes = 1834;
@@ -21784,7 +21786,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     evpPkey = NULL;
     BIO_free(bio);
     bio = NULL;
-#endif /* !NO_DES3 && !NO_SHA */
+#endif /* !NO_DES3 && !NO_SHA && HAVE_PBKDF2 */
 #endif /* !NO_BIO && !NO_PWDBASED && HAVE_PKCS8 */
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -21854,6 +21856,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     ExpectIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
     BIO_free(bio);
     bio = NULL;
+#ifdef HAVE_PBKDF2
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write Encrypted PKCS#8 PEM to BIO (test write 0 then 379) */
     bytes = 379;
@@ -21881,6 +21884,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     evpPkey = NULL;
     BIO_free(bio);
     bio = NULL;
+#endif /* HAVE_PBKDF2 */
 
     /* https://github.com/wolfSSL/wolfssl/issues/8610 */
     bytes = (int)XSTRLEN((char *)pkcs8_buffer);
@@ -28117,7 +28121,7 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && defined(WOLFSSL_AES_256) \
  && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA) && \
-    !defined(NO_ASN_CRYPT)
+    !defined(NO_ASN_CRYPT) && defined(HAVE_PBKDF2)
     WC_RNG rng;
     byte* encKey = NULL;
     word32 encKeySz = 0;
@@ -28159,7 +28163,8 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
 
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
     !defined(NO_SHA) && !defined(NO_ASN_CRYPT) && ((defined(WOLFSSL_AES_256) && \
-    !defined(NO_AES_CBC)) || !defined(NO_DES3) || !defined(NO_RC4))
+    !defined(NO_AES_CBC) && defined(HAVE_PBKDF2)) || !defined(NO_DES3) || \
+    !defined(NO_RC4))
 /* Encrypt a block-aligned plaintext PKCS#8 and verify the trailing encrypted
  * OCTET STRING length. expExtra is the padding expected: a full block for CBC
  * ciphers, 0 for stream ciphers. Also confirms a decrypt round-trip. */
@@ -28228,7 +28233,7 @@ static int test_wc_EncryptPKCS8Key_blockAligned(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
  && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_SHA) \
- && !defined(NO_ASN_CRYPT)
+ && !defined(NO_ASN_CRYPT) && defined(HAVE_PBKDF2)
     EXPECT_TEST(enc_pkcs8_pad_check(PKCS5, PBES2, AES256CBCb, AES_BLOCK_SIZE));
 #endif
     return EXPECT_RESULT();
@@ -28303,7 +28308,7 @@ static int test_wc_EncryptPKCS8Key_ex_goodHmac(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
  && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_ASN_CRYPT) \
- && !defined(NO_SHA256) && !defined(NO_HMAC)
+ && !defined(NO_SHA256) && !defined(NO_HMAC) && defined(HAVE_PBKDF2)
     WC_RNG rng;
     word32 outSz = 0;
     word32 encSz = 0;

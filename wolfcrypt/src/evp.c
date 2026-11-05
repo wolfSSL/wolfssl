@@ -5499,7 +5499,8 @@ int wolfSSL_EVP_read_pw_string(char* buf, int bufSz, const char* banner, int v)
 }
 #endif /* WOLFSSL_APACHE_HTTPD */
 
-#if !defined(NO_PWDBASED) && !defined(NO_SHA) && !defined(NO_HMAC)
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_SHA) && \
+    !defined(NO_HMAC)
 int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
                                                const unsigned char *salt,
                                                int saltlen, int iter,
@@ -5523,9 +5524,9 @@ int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
     else
         return WOLFSSL_FAILURE;
 }
-#endif /* !NO_PWDBASED !NO_SHA*/
+#endif /* HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA && !NO_HMAC */
 
-#if !defined(NO_PWDBASED) && !defined(NO_HMAC)
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_HMAC)
 int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const unsigned char *salt,
                                            int saltlen, int iter,
@@ -5552,7 +5553,7 @@ int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
     else
         return WOLFSSL_FAILURE;
 }
-#endif /* !NO_PWDBASED */
+#endif /* HAVE_PBKDF2 && !NO_PWDBASED && !NO_HMAC */
 
 
 #if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \

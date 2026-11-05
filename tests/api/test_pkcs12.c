@@ -230,18 +230,19 @@ int test_wc_PKCS12_create(void)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3));
 #endif
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
-    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE)
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_PBKDF2)
     /* Encoding certificate with PBE_AES256_CBC needs WOLFSSL_ASN_TEMPLATE */
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_AES256_CBC));
 #endif
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_128) && \
-    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE)
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_PBKDF2)
     /* Encoding certificate with PBE_AES128_CBC needs WOLFSSL_ASN_TEMPLATE */
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES128_CBC, PBE_AES128_CBC));
 #endif
 /* Testing a mixture of 2 algorithms */
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
-    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_DES3)
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_DES3) && \
+    defined(HAVE_PBKDF2)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_SHA1_DES3));
 #endif
 #endif
@@ -476,7 +477,8 @@ int test_wc_PKCS12_encrypted_content_bounds(void)
 #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) && \
     defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
     defined(HAVE_AES_DECRYPT) && !defined(NO_SHA256) && !defined(NO_HMAC) && \
-    defined(WOLFSSL_ASN_TEMPLATE) && !defined(HAVE_FIPS)
+    defined(WOLFSSL_ASN_TEMPLATE) && !defined(HAVE_FIPS) && \
+    defined(HAVE_PBKDF2)
     {
         static const char regPassword[] = "test";
         static const byte regSalt[8] = {1, 2, 3, 4, 5, 6, 7, 8};
