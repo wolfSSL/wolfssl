@@ -29,6 +29,7 @@ int test_certman_decision_coverage(void);
 int test_wolfSSL_CertManagerLoadCABuffer(void);
 int test_wolfSSL_CertManagerLoadCABuffer_ex(void);
 int test_wolfSSL_CertManagerLoadCABufferType(void);
+int test_wolfSSL_CertManagerCAKeySize(void);
 int test_wolfSSL_CertManagerGetCerts(void);
 int test_wolfSSL_CertManagerSetVerify(void);
 int test_wolfSSL_CertManagerNameConstraint(void);
@@ -75,6 +76,7 @@ int test_wolfSSL_trust_peer_cert_dates(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerLoadCABuffer),       \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerLoadCABuffer_ex),    \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerLoadCABufferType),   \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCAKeySize),          \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerGetCerts),           \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerSetVerify),          \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint),     \
