@@ -4141,12 +4141,12 @@ int test_wolfSSL_d2i_PrivateKey_reuse_resets_state(void)
  * test_wolfSSL_EVP_PKEY_set1_shrinking_der() covers the same sink through
  * EVP_PKEY_set1_*; this covers the only other caller. The overrun needs a
  * sanitizer on a WOLFSSL_NO_REALLOC build to see; the sizes below hold either
- * way. WOLFSSL_KEY_GEN is required. */
+ * way. WOLFSSL_KEY_TO_DER is required. */
 int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_TO_DER) && \
-    defined(WOLFSSL_KEY_GEN) && defined(HAVE_PKCS8) && !defined(NO_RSA) && \
+    defined(HAVE_PKCS8) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX*      ctx = NULL;
