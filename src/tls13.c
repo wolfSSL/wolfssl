@@ -11460,7 +11460,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.keySz = ssl->buffers.altKeySz;
                     /* If we own it, free key before overriding it. */
                     if (ssl->buffers.weOwnKey) {
-                        FreeDer(&ssl->buffers.key);
+                        FreeKeyDer(&ssl->buffers.key);
                     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                         FreeDer(&ssl->buffers.keyMask);
                     #endif

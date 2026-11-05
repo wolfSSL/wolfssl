@@ -8645,7 +8645,7 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     }
 #endif
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -8662,7 +8662,7 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     ssl->buffers.keyDevId = 0;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if (ssl->buffers.weOwnAltKey) {
-        FreeDer(&ssl->buffers.altKey);
+        FreeKeyDer(&ssl->buffers.altKey);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.altKeyMask);
     #endif

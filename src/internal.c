@@ -3563,15 +3563,15 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif /* SINGLE_THREADED */
 
 #ifndef NO_CERTS
-    /* FreeDer() zeroes a private key when the last holder lets go of it. An
-     * SSL made from this CTX can still hold it (WOLFSSL_DER_REFCOUNT), so it
-     * must not be zeroed here. */
-    FreeDer(&ctx->privateKey);
+    /* FreeKeyDer() zeroes the key when the last holder lets go of it. An SSL
+     * made from this CTX can still hold it (WOLFSSL_DER_REFCOUNT), so it must
+     * not be zeroed here. */
+    FreeKeyDer(&ctx->privateKey);
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
     FreeDer(&ctx->privateKeyMask);
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    FreeDer(&ctx->altPrivateKey);
+    FreeKeyDer(&ctx->altPrivateKey);
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
     FreeDer(&ctx->altPrivateKeyMask);
 #endif
@@ -8319,7 +8319,7 @@ int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_COPY_KEY
     if (ctx->privateKey != NULL) {
         if (ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
+            FreeKeyDer(&ssl->buffers.key);
         }
         ret = ShareDer(&ssl->buffers.key, ctx->privateKey);
         if (ret != 0) {
@@ -8336,7 +8336,7 @@ int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #else
     if (ctx->privateKey != NULL) {
         if (ssl->buffers.key != NULL) {
-            FreeDer(&ssl->buffers.key);
+            FreeKeyDer(&ssl->buffers.key);
         }
         ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,

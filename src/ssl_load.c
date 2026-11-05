@@ -1426,7 +1426,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if (ssl != NULL) {
             /* Dispose of previous key if not context's. */
             if (ssl->buffers.weOwnAltKey) {
-                FreeDer(&ssl->buffers.altKey);
+                FreeKeyDer(&ssl->buffers.altKey);
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                 FreeDer(&ssl->buffers.altKeyMask);
             #endif
@@ -1443,7 +1443,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         else if (ctx != NULL) {
             /* Dispose of previous key. */
-            FreeDer(&ctx->altPrivateKey);
+            FreeKeyDer(&ctx->altPrivateKey);
             ctx->altPrivateKeyId = 0;
             ctx->altPrivateKeyLabel = 0;
             ctx->altPrivateKeyDevId = INVALID_DEVID;
@@ -1459,7 +1459,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (ssl != NULL) {
         /* Dispose of previous key if not context's. */
         if (ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
+            FreeKeyDer(&ssl->buffers.key);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
         #endif
@@ -1476,7 +1476,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
     else if (ctx != NULL) {
         /* Dispose of previous key. */
-        FreeDer(&ctx->privateKey);
+        FreeKeyDer(&ctx->privateKey);
         ctx->privateKeyId = 0;
         ctx->privateKeyLabel = 0;
         ctx->privateKeyDevId = INVALID_DEVID;
@@ -4578,7 +4578,7 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     }
 
     /* Dispose of old private key and allocate and copy in id. */
-    FreeDer(&ctx->privateKey);
+    FreeKeyDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, id, (word32)sz, PRIVATEKEY_TYPE,
             ctx->heap) != 0) {
         ret = 0;
@@ -4656,7 +4656,7 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     sz = (word32)XSTRLEN(label) + 1;
 
     /* Dispose of old private key and allocate and copy in label. */
-    FreeDer(&ctx->privateKey);
+    FreeKeyDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, (const byte*)label, (word32)sz,
             PRIVATEKEY_TYPE, ctx->heap) != 0) {
         ret = 0;
@@ -4697,7 +4697,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     }
 
     if (ret == 1) {
-        FreeDer(&ctx->altPrivateKey);
+        FreeKeyDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ctx->heap) != 0) {
             ret = 0;
@@ -4748,7 +4748,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
-        FreeDer(&ctx->altPrivateKey);
+        FreeKeyDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ctx->heap) != 0) {
             ret = 0;
@@ -4991,7 +4991,7 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
 
     /* Dispose of old private key if owned and allocate and copy in id. */
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -5067,7 +5067,7 @@ int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
 
     /* Dispose of old private key if owned and allocate and copy in label. */
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -5112,7 +5112,7 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
 
     if (ret == 1) {
         if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
         #endif
@@ -5160,7 +5160,7 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
         if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
         #endif

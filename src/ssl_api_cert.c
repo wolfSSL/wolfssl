@@ -1126,12 +1126,12 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
             ssl->buffers.weOwnCertChain = 0;
         }
 
-        /* FreeDer() zeroes a private key when the last holder lets go of it.
-         * The key can be shared with the CTX (WOLFSSL_DER_REFCOUNT), so it
-         * must not be zeroed here. */
+        /* FreeKeyDer() zeroes the key when the last holder lets go of it. It
+         * can be shared with the CTX (WOLFSSL_DER_REFCOUNT), so it must not
+         * be zeroed here. */
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
-            FreeDer(&ssl->buffers.key);
+            FreeKeyDer(&ssl->buffers.key);
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
             #endif
@@ -1141,7 +1141,7 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
         #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (ssl->buffers.weOwnAltKey) {
             WOLFSSL_MSG("Unloading alt key");
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
             #endif

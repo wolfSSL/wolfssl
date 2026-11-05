@@ -27288,7 +27288,9 @@ int ShareDer(DerBuffer** pDer, DerBuffer* src)
     return ret;
 }
 
-void FreeDer(DerBuffer** pDer)
+/* Gives up *pDer and sets it to NULL. The buffer is freed, and zeroed first if
+ * "zero" is set or it is a private key, when this was its last holder. */
+static void FreeDerEx(DerBuffer** pDer, int zero)
 {
     if (pDer && *pDer) {
         DerBuffer* der = (DerBuffer*)*pDer;
@@ -27307,7 +27309,7 @@ void FreeDer(DerBuffer** pDer)
     #endif
 
         /* ForceZero private keys */
-        if (((der->type == PRIVATEKEY_TYPE) ||
+        if ((zero || (der->type == PRIVATEKEY_TYPE) ||
              (der->type == ALT_PRIVATEKEY_TYPE)) && der->buffer != NULL) {
             ForceZero(der->buffer, der->length);
         }
@@ -27317,6 +27319,20 @@ void FreeDer(DerBuffer** pDer)
 
         *pDer = NULL;
     }
+}
+
+void FreeDer(DerBuffer** pDer)
+{
+    FreeDerEx(pDer, 0);
+}
+
+/* As FreeDer(), for a buffer held as a private key: it is zeroed whatever its
+ * type, as it can hold a public key, or a key id or label, when the private key
+ * is on a device. With WOLFSSL_DER_REFCOUNT that happens when the last holder
+ * lets go, so a holder must not zero it before calling this. */
+void FreeKeyDer(DerBuffer** pDer)
+{
+    FreeDerEx(pDer, 1);
 }
 
 #ifndef WOLFSSL_API_PREFIX_MAP
