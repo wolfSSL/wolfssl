@@ -737,6 +737,73 @@ static int verify_cb(int ok, X509_STORE_CTX *ctx)
 }
 #endif
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_TLS)
+static WOLFSSL* test_app_data_ssl;
+static int test_app_data_calls;
+static int test_app_data_bad;
+
+/* App data starts NULL and is apart from the SSL. */
+static int test_app_data_verify_cb(int ok, X509_STORE_CTX* ctx)
+{
+    static int data;
+    int idx = SSL_get_ex_data_X509_STORE_CTX_idx();
+
+    test_app_data_calls++;
+    if ((test_app_data_calls == 1) &&
+            (X509_STORE_CTX_get_app_data(ctx) != NULL)) {
+        test_app_data_bad = 1;
+    }
+#ifdef HAVE_EX_DATA
+    if ((X509_STORE_CTX_set_app_data(ctx, &data) != WOLFSSL_SUCCESS) ||
+            (X509_STORE_CTX_get_app_data(ctx) != &data) ||
+            (X509_STORE_CTX_get_ex_data(ctx, idx) != test_app_data_ssl)) {
+        test_app_data_bad = 1;
+    }
+#else
+    (void)idx;
+    if ((X509_STORE_CTX_set_app_data(ctx, &data) !=
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) ||
+            (X509_STORE_CTX_get_app_data(ctx) != NULL)) {
+        test_app_data_bad = 1;
+    }
+#endif
+    return ok;
+}
+
+static int test_X509_STORE_CTX_app_data_tls(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#else
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+#endif
+    test_app_data_ssl = ssl_c;
+    test_app_data_calls = 0;
+    test_app_data_bad = 0;
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_app_data_verify_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntGT(test_app_data_calls, 0);
+    ExpectIntEQ(test_app_data_bad, 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    return EXPECT_RESULT();
+}
+#endif
+
 int test_wolfSSL_X509_STORE_CTX(void)
 {
     EXPECT_DECLS;
@@ -840,6 +907,36 @@ int test_wolfSSL_X509_STORE_CTX(void)
         X509_STORE_CTX_free(ctx);
         ctx = NULL;
     }
+
+    /* test X509_STORE_CTX_get/set_app_data */
+    {
+        int tmpData = 7;
+        ExpectNotNull(ctx = X509_STORE_CTX_new());
+        ExpectNull(X509_STORE_CTX_get_app_data(ctx));
+    #ifdef HAVE_EX_DATA
+        ExpectIntEQ(X509_STORE_CTX_set_app_data(ctx, &tmpData),
+                    WOLFSSL_SUCCESS);
+        ExpectPtrEq(X509_STORE_CTX_get_app_data(ctx), &tmpData);
+        ExpectNull(X509_STORE_CTX_get_ex_data(ctx, 0));
+        /* init and cleanup clear it */
+        ExpectIntEQ(X509_STORE_CTX_init(ctx, NULL, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectNull(X509_STORE_CTX_get_app_data(ctx));
+        ExpectIntEQ(X509_STORE_CTX_set_app_data(ctx, &tmpData),
+                    WOLFSSL_SUCCESS);
+        X509_STORE_CTX_cleanup(ctx);
+        ExpectNull(X509_STORE_CTX_get_app_data(ctx));
+    #else
+        ExpectIntEQ(X509_STORE_CTX_set_app_data(ctx, &tmpData),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectNull(X509_STORE_CTX_get_app_data(ctx));
+    #endif
+        X509_STORE_CTX_free(ctx);
+        ctx = NULL;
+    }
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+    ExpectIntEQ(test_X509_STORE_CTX_app_data_tls(), TEST_SUCCESS);
+#endif
 
     /* test X509_STORE_get/set_ex_data */
     {
