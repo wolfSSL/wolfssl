@@ -57,6 +57,7 @@ int test_wc_InitRsaKey(void)
 
     /* Test bad args. */
     ExpectIntEQ(wc_InitRsaKey(NULL, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FreeRsaKey(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
 #endif
@@ -2711,6 +2712,110 @@ int test_wc_RsaOaep_EncryptFailureWipe(void)
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #else
     return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_RSA) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_FREE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    (defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#define TEST_RSA_CB_FREE
+#define TEST_RSA_CB_FREE_DEVID 0x52534146 /* "RSAF" */
+
+typedef struct {
+    int frees; /* RSA free callbacks seen */
+    int ret;   /* what the callback returns */
+} RsaCbFreeCtx;
+
+/* Device that never wipes the software key fields on free. */
+static int rsa_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    RsaCbFreeCtx* seen = (RsaCbFreeCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((seen != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_RSA)) {
+        seen->frees++;
+        return seen->ret;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_FreeRsaKey() wipes the key whatever the free callback returns.
+ */
+int test_wc_FreeRsaKey_CryptoCb(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_CB_FREE
+    RsaKey key;
+    RsaCbFreeCtx seen;
+    const byte* der;
+    word32 derSz;
+    word32 idx;
+    int cbRet[4];
+    int wantRet[4];
+    int devId;
+    int freeRet;
+    int i;
+
+#ifdef USE_CERT_BUFFERS_1024
+    der = client_key_der_1024;
+    derSz = (word32)sizeof_client_key_der_1024;
+#else
+    der = client_key_der_2048;
+    derSz = (word32)sizeof_client_key_der_2048;
+#endif
+
+    /* device handles it, device fails, device declines, no device */
+    cbRet[0] = 0;
+    wantRet[0] = 0;
+    cbRet[1] = WC_NO_ERR_TRACE(WC_HW_E);
+    wantRet[1] = WC_NO_ERR_TRACE(WC_HW_E);
+    cbRet[2] = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    wantRet[2] = 0;
+    cbRet[3] = 0;
+    wantRet[3] = 0;
+
+    XMEMSET(&seen, 0, sizeof(seen));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_RSA_CB_FREE_DEVID,
+        rsa_cb_free_cb, &seen), 0);
+
+    for (i = 0; i < 4; i++) {
+        devId = (i < 3) ? TEST_RSA_CB_FREE_DEVID : INVALID_DEVID;
+        seen.frees = 0;
+        seen.ret = cbRet[i];
+        idx = 0;
+        XMEMSET(&key, 0, sizeof(key));
+
+        ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, devId), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(der, &idx, &key, derSz), 0);
+        ExpectFalse(mp_iszero(&key.d));
+
+        freeRet = wc_FreeRsaKey(&key);
+        ExpectIntEQ(freeRet, wantRet[i]);
+    #ifndef WOLF_CRYPTO_CB_FIND
+        ExpectIntEQ(seen.frees, (devId == INVALID_DEVID) ? 0 : 1);
+    #endif
+        ExpectTrue(mp_iszero(&key.d));
+        ExpectTrue(mp_iszero(&key.p));
+        ExpectTrue(mp_iszero(&key.q));
+    #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+        !defined(RSA_LOW_MEM)
+        ExpectTrue(mp_iszero(&key.dP));
+        ExpectTrue(mp_iszero(&key.dQ));
+        ExpectTrue(mp_iszero(&key.u));
+    #endif
+        ExpectTrue(mp_iszero(&key.n));
+        ExpectTrue(mp_iszero(&key.e));
+    }
+
+    wc_CryptoCb_UnRegisterDevice(TEST_RSA_CB_FREE_DEVID);
 #endif
     return EXPECT_RESULT();
 }
