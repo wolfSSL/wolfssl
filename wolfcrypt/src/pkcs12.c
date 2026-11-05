@@ -60,6 +60,11 @@ static const byte WC_PKCS12_KeyBag_OID[] =
              {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x0c, 0x0a, 0x01, 0x01};
 static const byte WC_PKCS12_ShroudedKeyBag_OID[] =
              {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x0c, 0x0a, 0x01, 0x02};
+/* PKCS#9 friendlyName and localKeyId bag attributes */
+static const byte WC_PKCS12_FriendlyName_OID[] =
+                         {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x14};
+static const byte WC_PKCS12_LocalKeyId_OID[] =
+                         {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x15};
 
 
 typedef struct ContentInfo {
@@ -1342,6 +1347,126 @@ static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
 }
 #endif
 
+/* friendlyName and localKeyId bag attributes of a cert */
+typedef struct Pkcs12CertAttrs {
+    const byte* cert;
+    byte* friendlyName;
+    word32 friendlyNameSz;
+    byte* localKeyId;
+    word32 localKeyIdSz;
+    struct Pkcs12CertAttrs* next;
+} Pkcs12CertAttrs;
+
+static void PKCS12_FreeCertAttrs(Pkcs12CertAttrs* attrs, void* heap)
+{
+    while (attrs != NULL) {
+        Pkcs12CertAttrs* next = attrs->next;
+        XFREE(attrs->friendlyName, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(attrs->localKeyId, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(attrs, heap, DYNAMIC_TYPE_PKCS);
+        attrs = next;
+    }
+    (void)heap;
+}
+
+/* Copy the value of an attribute when it has the expected tag. */
+static int PKCS12_CopyAttrValue(const byte* data, word32 idx, word32 maxIdx,
+    byte expTag, byte** out, word32* outSz, void* heap)
+{
+    int ret = 0;
+    int len = 0;
+    byte tag = 0;
+
+    if ((*out != NULL) || (GetASNTag(data, &idx, &tag, maxIdx) < 0) ||
+            (tag != expTag) || (GetLength(data, &idx, &len, maxIdx) < 0)) {
+        /* Not used: a second attribute or another type. */
+        return 0;
+    }
+    *out = (byte*)XMALLOC((size_t)len + 1, heap, DYNAMIC_TYPE_PKCS);
+    if (*out == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        XMEMCPY(*out, data + idx, (size_t)len);
+        *outSz = (word32)len;
+    }
+    (void)heap;
+    return ret;
+}
+
+/* Get the friendlyName and localKeyId bag attributes of a cert.
+ * PKCS#12 (RFC 7292), 4.2: SafeBag bagAttributes SET OF PKCS12Attribute.
+ * Bad attributes are skipped as other attributes are.
+ *
+ * data   : decoded content
+ * idx    : index of the attributes after the bag value
+ * bagEnd : index of the end of the bag
+ * cert   : cert of the bag
+ * list   : list of the attributes of the certs, the new entry is added
+ */
+static int PKCS12_GetCertAttrs(const byte* data, word32 idx, word32 bagEnd,
+    const byte* cert, Pkcs12CertAttrs** list, void* heap)
+{
+    int ret = 0;
+    int len = 0;
+    int oidSz = 0;
+    word32 setEnd;
+    word32 attrEnd;
+    word32 oidIdx;
+    Pkcs12CertAttrs* attrs;
+
+    if ((idx >= bagEnd) || (GetSet(data, &idx, &len, bagEnd) < 0)) {
+        return 0;
+    }
+    setEnd = idx + (word32)len;
+
+    attrs = (Pkcs12CertAttrs*)XMALLOC(sizeof(Pkcs12CertAttrs), heap,
+        DYNAMIC_TYPE_PKCS);
+    if (attrs == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(attrs, 0, sizeof(Pkcs12CertAttrs));
+    attrs->cert = cert;
+
+    while ((ret == 0) && (idx < setEnd)) {
+        if (GetSequence(data, &idx, &len, setEnd) < 0) {
+            break;
+        }
+        attrEnd = idx + (word32)len;
+        if (GetASNObjectId(data, &idx, &oidSz, attrEnd) < 0) {
+            break;
+        }
+        oidIdx = idx;
+        idx += (word32)oidSz;
+        /* The first of the attribute values is used. */
+        if (GetSet(data, &idx, &len, attrEnd) >= 0) {
+            if ((oidSz == (int)sizeof(WC_PKCS12_FriendlyName_OID)) &&
+                    (XMEMCMP(data + oidIdx, WC_PKCS12_FriendlyName_OID,
+                     sizeof(WC_PKCS12_FriendlyName_OID)) == 0)) {
+                ret = PKCS12_CopyAttrValue(data, idx, attrEnd, ASN_BMPSTRING,
+                    &attrs->friendlyName, &attrs->friendlyNameSz, heap);
+            }
+            else if ((oidSz == (int)sizeof(WC_PKCS12_LocalKeyId_OID)) &&
+                    (XMEMCMP(data + oidIdx, WC_PKCS12_LocalKeyId_OID,
+                     sizeof(WC_PKCS12_LocalKeyId_OID)) == 0)) {
+                ret = PKCS12_CopyAttrValue(data, idx, attrEnd,
+                    ASN_OCTET_STRING, &attrs->localKeyId,
+                    &attrs->localKeyIdSz, heap);
+            }
+        }
+        idx = attrEnd;
+    }
+
+    if (ret != 0) {
+        PKCS12_FreeCertAttrs(attrs, heap);
+    }
+    else {
+        attrs->next = *list;
+        *list = attrs;
+    }
+    return ret;
+}
+
 /* return 0 on success and negative on failure.
  * By side effect returns private key, cert, and optionally ca.
  * Parses and decodes the parts of PKCS12
@@ -1380,9 +1505,27 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
         byte** pkey, word32* pkeySz, byte** cert, word32* certSz,
         WC_DerCertList** ca, int keepKeyHeader)
 {
+    return wc_PKCS12_parse_ex2(pkcs12, psw, pkey, pkeySz, cert, certSz, ca,
+        keepKeyHeader, NULL, NULL, NULL, NULL);
+}
+
+/* As wc_PKCS12_parse_ex, and also returns the bag attributes of cert.
+ *
+ * friendlyName   : optional BMPString of the friendlyName returned, NULL
+ *                  when cert has none
+ * localKeyId     : optional localKeyId returned, NULL when cert has none
+ */
+int wc_PKCS12_parse_ex2(WC_PKCS12* pkcs12, const char* psw,
+        byte** pkey, word32* pkeySz, byte** cert, word32* certSz,
+        WC_DerCertList** ca, int keepKeyHeader,
+        byte** friendlyName, word32* friendlyNameSz,
+        byte** localKeyId, word32* localKeyIdSz)
+{
     ContentInfo* ci       = NULL;
     WC_DerCertList* certList = NULL;
     WC_DerCertList* tailList = NULL;
+    Pkcs12CertAttrs* attrs = NULL;
+    int wantAttrs = (friendlyName != NULL) || (localKeyId != NULL);
     byte* buf             = NULL;
     word32 bufSz          = 0;
     word32 i, oid;
@@ -1405,6 +1548,14 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     *pkey = NULL;
     if (ca != NULL)
         *ca = NULL;
+    if (friendlyName != NULL) {
+        *friendlyName = NULL;
+        *friendlyNameSz = 0;
+    }
+    if (localKeyId != NULL) {
+        *localKeyId = NULL;
+        *localKeyIdSz = 0;
+    }
 
     /* if there is sign data then verify the MAC */
     if (pkcs12->signData != NULL ) {
@@ -1785,6 +1936,14 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
 
                     /* on to next */
                     idx += (word32)size;
+
+                    if (wantAttrs) {
+                        ret = PKCS12_GetCertAttrs(data, idx, (word32)bagSz,
+                            node->buffer, &attrs, pkcs12->heap);
+                        if (ret != 0) {
+                            goto exit_pk12par;
+                        }
+                    }
                 }
                     break;
 
@@ -1829,6 +1988,26 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
         if (ret < 0)
             goto exit_pk12par;
     }
+    if (*cert != NULL) {
+        Pkcs12CertAttrs* cur;
+
+        for (cur = attrs; cur != NULL; cur = cur->next) {
+            if (cur->cert != *cert) {
+                continue;
+            }
+            if (friendlyName != NULL) {
+                *friendlyName = cur->friendlyName;
+                *friendlyNameSz = cur->friendlyNameSz;
+                cur->friendlyName = NULL;
+            }
+            if (localKeyId != NULL) {
+                *localKeyId = cur->localKeyId;
+                *localKeyIdSz = cur->localKeyIdSz;
+                cur->localKeyId = NULL;
+            }
+            break;
+        }
+    }
 
     /* if ca arg provided return certList, otherwise free it */
     if (ca != NULL) {
@@ -1859,6 +2038,7 @@ exit_pk12par:
 
         wc_FreeCertList(certList, pkcs12->heap);
     }
+    PKCS12_FreeCertAttrs(attrs, pkcs12->heap);
 
     return ret;
 }

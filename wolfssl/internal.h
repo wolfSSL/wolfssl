@@ -6368,6 +6368,13 @@ struct WOLFSSL_X509 {
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     WOLFSSL_ASN1_INTEGER* serialNumber; /* Stores SN from wolfSSL_X509_get_serialNumber */
 #endif
+#ifdef OPENSSL_EXTRA
+    /* friendlyName, as UTF-8, and localKeyId from a PKCS#12 bag */
+    byte*            alias;
+    int              aliasSz;
+    byte*            keyid;
+    int              keyidSz;
+#endif
     WOLFSSL_ASN1_TIME notBefore;
     WOLFSSL_ASN1_TIME notAfter;
     buffer           sig;

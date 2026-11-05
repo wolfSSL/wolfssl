@@ -7393,6 +7393,36 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         return ret;
     }
+
+    /* Get the alias of the cert: the friendlyName of its PKCS#12 bag.
+     * Returns the UTF-8 alias or NULL when the cert has none. */
+    unsigned char* wolfSSL_X509_alias_get0(WOLFSSL_X509* x509, int* len)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_alias_get0");
+
+        if ((x509 == NULL) || (x509->alias == NULL)) {
+            return NULL;
+        }
+        if (len != NULL) {
+            *len = x509->aliasSz;
+        }
+        return x509->alias;
+    }
+
+    /* Get the key id of the cert: the localKeyId of its PKCS#12 bag.
+     * Returns the key id or NULL when the cert has none. */
+    unsigned char* wolfSSL_X509_keyid_get0(WOLFSSL_X509* x509, int* len)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_keyid_get0");
+
+        if ((x509 == NULL) || (x509->keyid == NULL)) {
+            return NULL;
+        }
+        if (len != NULL) {
+            *len = x509->keyidSz;
+        }
+        return x509->keyid;
+    }
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \

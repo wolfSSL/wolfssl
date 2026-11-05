@@ -2509,6 +2509,12 @@ WOLFSSL_API unsigned char* wolfSSL_X509_get_subjectKeyID(
                                             WOLFSSL_X509* x509, unsigned char* dst, int* dstLen);
 WOLFSSL_API const WOLFSSL_ASN1_STRING *wolfSSL_X509_get0_subject_key_id(
         WOLFSSL_X509 *x509);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API unsigned char* wolfSSL_X509_alias_get0(WOLFSSL_X509* x509,
+        int* len);
+WOLFSSL_API unsigned char* wolfSSL_X509_keyid_get0(WOLFSSL_X509* x509,
+        int* len);
+#endif
 
 WOLFSSL_API int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey);
 #ifdef WOLFSSL_CERT_REQ

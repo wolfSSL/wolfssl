@@ -6055,6 +6055,10 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
         if (x509->serialNumber != NULL) {
             wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
         }
+        XFREE(x509->alias, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->alias = NULL;
+        XFREE(x509->keyid, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->keyid = NULL;
         #endif
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
