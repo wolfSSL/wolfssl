@@ -16701,6 +16701,32 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifndef NO_WOLFSSL_CLIENT
 
+#if defined(HAVE_WRITE_DUP) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+static int Tls13WriteDupPublishPhaHashes(WOLFSSL* ssl)
+{
+    int ret = 0;
+
+    if ((ssl->hsHashes != NULL) && (ssl->dupWrite != NULL)) {
+        if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0) {
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes,
+                &ssl->dupWrite->postHandshakeSyncedHashState);
+            if (ret != 0) {
+                /* Drop a partial copy so the read side never hashes onto it */
+                Free_HS_Hashes(ssl->dupWrite->postHandshakeSyncedHashState,
+                    ssl->heap);
+                ssl->dupWrite->postHandshakeSyncedHashState = NULL;
+            }
+            wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+        }
+    }
+
+    return ret;
+}
+#endif /* HAVE_WRITE_DUP && WOLFSSL_POST_HANDSHAKE_AUTH */
+
 /* The client connecting to the server.
  * The protocol version is expecting to be TLS v1.3.
  * If the server downgrades, and older versions of the protocol are compiled
@@ -17138,6 +17164,17 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         #if defined(WOLFSSL_ASYNC_IO) && !defined(WOLFSSL_ASYNC_CRYPT)
             /* Free the remaining async context if not using it for crypto */
             FreeAsyncCtx(ssl, 1);
+        #endif
+
+        #if defined(HAVE_WRITE_DUP) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            if (ssl->postHandshakeAuthPublish) {
+                ssl->postHandshakeAuthPublish = 0;
+                ssl->error = Tls13WriteDupPublishPhaHashes(ssl);
+                if (ssl->error != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
         #endif
 
             ssl->error = 0; /* clear the error */

@@ -133,8 +133,6 @@ static int wolfssl_write_dup_take_tls13_work(WOLFSSL* ssl)
  *
  * @param [in, out] ssl  SSL/TLS object of the write side.
  * @return  0 on success.
- * @return  BAD_MUTEX_E when the write duplicate could not be locked. Returned
- *          as-is by the caller, so ssl->error is not set for it.
  * @return  WOLFSSL_FATAL_ERROR on error. Call wolfSSL_get_error() for the
  *          reason.
  */
@@ -161,6 +159,7 @@ static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
         if (ssl->postHandshakeAuthPending) {
             /* reset handshake states */
             ssl->postHandshakeAuthPending = 0;
+            ssl->postHandshakeAuthPublish = 1;
             ssl->options.clientState = CLIENT_HELLO_COMPLETE;
             ssl->options.connectState = FIRST_REPLY_DONE;
             ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
@@ -172,34 +171,6 @@ static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
                     ssl->error = POST_HAND_AUTH_ERROR;
                 }
                 ret = WOLFSSL_FATAL_ERROR;
-            }
-            /* PHA response fully sent: publish the write side's updated
-             * transcript to the read side for the next PHA round. */
-            else if ((ssl->hsHashes != NULL) && (ssl->dupWrite != NULL)) {
-                if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0) {
-                    ret = BAD_MUTEX_E;
-                }
-                else {
-                    int syncRet = InitHandshakeHashesAndCopy(ssl,
-                        ssl->hsHashes,
-                        &ssl->dupWrite->postHandshakeSyncedHashState);
-                    if (syncRet != 0) {
-                        /* On failure the copy may have left a partially
-                         * initialized transcript. The read side only checks
-                         * for non-NULL before consuming it, so drop it here to
-                         * avoid hashing onto a corrupt transcript, and surface
-                         * the error to the caller. */
-                        Free_HS_Hashes(
-                            ssl->dupWrite->postHandshakeSyncedHashState,
-                            ssl->heap);
-                        ssl->dupWrite->postHandshakeSyncedHashState = NULL;
-                    }
-                    wc_UnLockMutex(&ssl->dupWrite->dupMutex);
-                    if (syncRet != 0) {
-                        ssl->error = syncRet;
-                        ret = WOLFSSL_FATAL_ERROR;
-                    }
-                }
             }
         }
         #endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
