@@ -89,6 +89,7 @@ int test_tls13_short_session_ticket(void);
 int test_tls13_zero_length_session_ticket(void);
 int test_tls13_new_session_ticket_max_lifetime(void);
 int test_tls13_fragmented_session_ticket(void);
+int test_tls13_fragmented_msg_with_trailing_msg(void);
 int test_tls13_early_data_0rtt_replay(void);
 int test_tls13_0rtt_default_off(void);
 int test_tls13_0rtt_stateless_replay(void);
@@ -288,6 +289,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_zero_length_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_max_lifetime), \
     TEST_DECL_GROUP("tls13", test_tls13_fragmented_session_ticket), \
+    TEST_DECL_GROUP("tls13", test_tls13_fragmented_msg_with_trailing_msg), \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_0rtt_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_default_off),      \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_stateless_replay), \
