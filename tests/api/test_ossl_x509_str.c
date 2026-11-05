@@ -4210,6 +4210,16 @@ int test_wolfSSL_X509_STORE_load_locations(void)
     ExpectIntEQ(wolfSSL_CertManagerLoadCA(store->cm, ca_file, NULL),
         WOLFSSL_SUCCESS);
 
+    /* The default dir is optional. */
+    {
+        X509_LOOKUP* lookup = NULL;
+
+        ExpectNotNull(lookup = X509_STORE_add_lookup(store,
+            X509_LOOKUP_hash_dir()));
+        ExpectIntEQ(X509_LOOKUP_add_dir(lookup, NULL, X509_FILETYPE_DEFAULT),
+            WOLFSSL_SUCCESS);
+    }
+
     /* Test bad arguments */
     ExpectIntEQ(X509_STORE_load_locations(NULL, ca_file, NULL),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -4247,6 +4257,16 @@ int test_wolfSSL_X509_STORE_load_locations(void)
     ExpectIntEQ(setenv("SSL_CERT_FILE", client_pem_file, 1), 0);
     ExpectIntEQ(setenv("SSL_CERT_DIR", certs_path, 1), 0);
     ExpectIntEQ(X509_STORE_set_default_paths(store), WOLFSSL_SUCCESS);
+    /* Default locations are optional, as with OpenSSL. */
+    ExpectIntEQ(X509_STORE_set_default_paths(NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(unsetenv("SSL_CERT_FILE"), 0);
+    ExpectIntEQ(unsetenv("SSL_CERT_DIR"), 0);
+    ExpectIntEQ(X509_STORE_set_default_paths(store), WOLFSSL_SUCCESS);
+    ExpectIntEQ(setenv("SSL_CERT_DIR", bad_path, 1), 0);
+    ExpectIntEQ(X509_STORE_set_default_paths(store), WOLFSSL_SUCCESS);
+    ExpectIntEQ(setenv("SSL_CERT_FILE", client_pem_file, 1), 0);
+    ExpectIntEQ(setenv("SSL_CERT_DIR", certs_path, 1), 0);
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
@@ -4469,6 +4489,103 @@ int test_wolfSSL_X509_STORE_get1_certs(void)
     X509_free(svrX509);
     X509_free(caX509);
 #endif /* OPENSSL_EXTRA && WOLFSSL_SIGNER_DER_CERT && !NO_FILESYSTEM */
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_STORE_CTX_get_by_subject(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509_STORE_CTX* ctx = NULL;
+    X509_STORE* store = NULL;
+    X509* ca = NULL;
+    X509* svr = NULL;
+    X509* cli = NULL;
+    X509_OBJECT* obj = NULL;
+
+    ExpectNotNull(ca = X509_load_certificate_file(caCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(svr = X509_load_certificate_file(svrCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(cli = X509_load_certificate_file(cliCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(obj = X509_OBJECT_new());
+
+    /* Errors */
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(NULL, X509_LU_X509,
+        X509_get_subject_name(ca), obj), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509,
+        X509_get_subject_name(ca), obj), 0);
+
+    /* Trusted self-signed cert and untrusted intermediate. */
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, svr), 1);
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, NULL, NULL), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509, NULL, obj),
+        0);
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509,
+        X509_get_subject_name(ca), NULL), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_CRL,
+        X509_get_subject_name(ca), obj), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509,
+        X509_get_subject_name(cli), obj), 0);
+    ExpectTrue(X509_OBJECT_get_type(obj) == X509_LU_NONE);
+
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509,
+        X509_get_subject_name(ca), obj), 1);
+    ExpectTrue(X509_OBJECT_get_type(obj) == X509_LU_X509);
+    ExpectPtrEq(X509_OBJECT_get0_X509(obj), ca);
+    X509_OBJECT_free(obj);
+    obj = NULL;
+
+    /* free_contents releases the reference and empties the object */
+    ExpectNotNull(obj = X509_OBJECT_new());
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509,
+        X509_get_subject_name(ca), obj), 1);
+    X509_OBJECT_free_contents(obj);
+    ExpectTrue(X509_OBJECT_get_type(obj) == X509_LU_NONE);
+    ExpectNull(X509_OBJECT_get0_X509(obj));
+    X509_OBJECT_free_contents(obj);
+    X509_OBJECT_free(obj);
+    obj = NULL;
+
+    ExpectNotNull(obj = X509_OBJECT_new());
+    ExpectIntEQ(X509_STORE_get_by_subject(ctx, X509_LU_X509,
+        X509_get_subject_name(svr), obj), 1);
+    ExpectPtrEq(X509_OBJECT_get0_X509(obj), svr);
+    X509_STORE_CTX_cleanup(ctx);
+    X509_STORE_free(store);
+    store = NULL;
+    X509_free(svr);
+    svr = NULL;
+
+    /* The object holds the last reference to the cert. */
+    ExpectIntEQ(X509_check_issued(ca, X509_OBJECT_get0_X509(obj)), X509_V_OK);
+    X509_OBJECT_free(obj);
+    obj = NULL;
+
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    /* CA loaded from a file into the cert manager. */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_load_locations(store, caCertFile, NULL), 1);
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, NULL, NULL), 1);
+    ExpectNotNull(obj = X509_OBJECT_new());
+    ExpectIntEQ(X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509,
+        X509_get_subject_name(ca), obj), 1);
+    ExpectIntEQ(X509_cmp(X509_OBJECT_get0_X509(obj), ca), 0);
+    X509_STORE_CTX_cleanup(ctx);
+    X509_STORE_free(store);
+    ExpectNotNull(X509_get_subject_name(X509_OBJECT_get0_X509(obj)));
+#endif
+
+    X509_OBJECT_free(obj);
+    X509_STORE_CTX_free(ctx);
+    X509_free(cli);
+    X509_free(svr);
+    X509_free(ca);
+#endif
     return EXPECT_RESULT();
 }
 

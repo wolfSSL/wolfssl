@@ -2616,7 +2616,10 @@ WOLFSSL_API WOLFSSL_X509_STORE_CTX *wolfSSL_X509_STORE_CTX_get0_parent_ctx(
 WOLFSSL_API int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store,
                                                             unsigned long flag);
 WOLFSSL_API int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx,
-                    int idx, WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
+                   int type, WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
+WOLFSSL_API int wolfSSL_X509_STORE_CTX_get_by_subject(
+    WOLFSSL_X509_STORE_CTX* ctx, WOLFSSL_X509_LOOKUP_TYPE type,
+    WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_CTX_get0_param(
         WOLFSSL_X509_STORE_CTX *ctx);
 WOLFSSL_API int  wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,

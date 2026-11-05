@@ -27950,10 +27950,7 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
             X509_LU_X509, X509_get_issuer_name(cert)));
     ExpectNotNull(issuer = X509_OBJECT_get0_X509(x509_obj));
     ExpectTrue(wolfSSL_X509_OBJECT_get_type(NULL) == WOLFSSL_X509_LU_NONE);
-#ifndef NO_WOLFSSL_STUB
-    /* Not implemented and not in OpenSSL 1.1.0+ */
-    wolfSSL_X509_OBJECT_free_contents(x509_obj);
-#endif
+    wolfSSL_X509_OBJECT_free_contents(NULL);
     wolfSSL_X509_OBJECT_free(NULL);
 
     ExpectNotNull(req = OCSP_REQUEST_new());

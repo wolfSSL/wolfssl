@@ -9485,6 +9485,18 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         case WOLFSSL_X509_L_ADD_DIR:
             /* store directory location to use it later */
 #if !defined(NO_WOLFSSL_DIR)
+            if (argc == NULL && argl == WOLFSSL_FILETYPE_DEFAULT) {
+                /* Default dir: $SSL_CERT_DIR, as OpenSSL. There is no
+                 * built-in one, so add nothing without it. */
+            #ifdef XGETENV
+                argc = XGETENV("SSL_CERT_DIR");
+            #endif
+                argl = WOLFSSL_FILETYPE_PEM;
+                if (argc == NULL || *argc == '\0') {
+                    lret = WOLFSSL_SUCCESS;
+                    break;
+                }
+            }
             lret = x509AddCertDir(ctx->dirs, argc, argl);
 #else
             (void)x509AddCertDir;
@@ -12052,13 +12064,23 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
     return ret;
 }
 
-#ifndef NO_WOLFSSL_STUB
+/* Frees what the object holds and leaves it empty. */
 void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
 {
-    (void)obj;
-    WOLFSSL_STUB("X509_OBJECT_free_contents");
-}
+    WOLFSSL_ENTER("wolfSSL_X509_OBJECT_free_contents");
+    if (obj == NULL)
+        return;
+    if (obj->type == WOLFSSL_X509_LU_X509) {
+        wolfSSL_X509_free(obj->data.x509);
+    }
+#ifdef HAVE_CRL
+    else if (obj->type == WOLFSSL_X509_LU_CRL) {
+        wolfSSL_X509_CRL_free(obj->data.crl);
+    }
 #endif
+    obj->type = WOLFSSL_X509_LU_NONE;
+    obj->data.ptr = NULL;
+}
 
 #ifndef NO_ASN_TIME
 int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
@@ -17414,19 +17436,7 @@ void wolfSSL_X509_OBJECT_free(WOLFSSL_X509_OBJECT *obj)
 {
     WOLFSSL_ENTER("wolfSSL_X509_OBJECT_free");
     if (obj != NULL) {
-        if (obj->type == WOLFSSL_X509_LU_X509) {
-            wolfSSL_X509_free(obj->data.x509);
-        }
-    #ifdef HAVE_CRL
-        else if (obj->type == WOLFSSL_X509_LU_CRL) {
-            wolfSSL_X509_CRL_free(obj->data.crl);
-        }
-    #endif
-        else {
-            /* We don't free as this will point to
-             * store->cm->crl which we don't own */
-            WOLFSSL_MSG("Not free'ing CRL in WOLFSSL_X509_OBJECT");
-        }
+        wolfSSL_X509_OBJECT_free_contents(obj);
         XFREE(obj, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }

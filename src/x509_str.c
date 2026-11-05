@@ -1697,18 +1697,75 @@ WOLFSSL_X509_STORE_CTX *wolfSSL_X509_STORE_CTX_get0_parent_ctx(
     WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_get0_parent_ctx");
     return NULL;
 }
+#endif
 
-int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx, int idx,
+/* Returns the first cert in certs with the subject name. */
+static WOLFSSL_X509* X509StoreFindBySubject(WOLFSSL_STACK* certs,
+    const WOLFSSL_X509_NAME* name)
+{
+    int i;
+
+    for (i = 0; i < wolfSSL_sk_X509_num(certs); i++) {
+        WOLFSSL_X509* x509 = wolfSSL_sk_X509_value(certs, i);
+        if ((x509 != NULL) &&
+                (wolfSSL_X509_NAME_cmp(&x509->subject, name) == 0)) {
+            return x509;
+        }
+    }
+    return NULL;
+}
+
+/* Looks up a cert in the store by subject name. CRLs are not looked up.
+ * Returns 1 and puts a reference in obj when found, 0 otherwise. */
+int wolfSSL_X509_STORE_CTX_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx,
+    WOLFSSL_X509_LOOKUP_TYPE type, WOLFSSL_X509_NAME* name,
+    WOLFSSL_X509_OBJECT* obj)
+{
+    WOLFSSL_X509* x509;
+#if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
+    WOLF_STACK_OF(WOLFSSL_X509)* sk;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_by_subject");
+
+    if ((ctx == NULL) || (ctx->store == NULL) || (name == NULL) ||
+            (obj == NULL) || (type != WOLFSSL_X509_LU_X509)) {
+        return 0;
+    }
+
+    x509 = X509StoreFindBySubject(ctx->store->trusted, name);
+    if (x509 == NULL) {
+        x509 = X509StoreFindBySubject(ctx->store->certs, name);
+    }
+    if ((x509 != NULL) && (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS)) {
+        return 0;
+    }
+#if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
+    /* CAs loaded into the cert manager from files. */
+    if (x509 == NULL) {
+        sk = wolfSSL_X509_STORE_get1_certs(ctx, name);
+        x509 = wolfSSL_sk_X509_value(sk, 0);
+        if ((x509 != NULL) && (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS)) {
+            x509 = NULL;
+        }
+        wolfSSL_sk_X509_pop_free(sk, NULL);
+    }
+#endif
+    if (x509 == NULL) {
+        return 0;
+    }
+
+    obj->type = WOLFSSL_X509_LU_X509;
+    obj->data.x509 = x509;
+    return 1;
+}
+
+int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx, int type,
                             WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj)
 {
-    (void)ctx;
-    (void)idx;
-    (void)name;
-    (void)obj;
-    WOLFSSL_STUB("X509_STORE_get_by_subject");
-    return 0;
+    return wolfSSL_X509_STORE_CTX_get_by_subject(ctx,
+        (WOLFSSL_X509_LOOKUP_TYPE)type, name, obj);
 }
-#endif
 
 WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_CTX_get0_param(
         WOLFSSL_X509_STORE_CTX *ctx)
@@ -2580,10 +2637,21 @@ int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE *str)
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_set_default_paths");
 
+    if (str == NULL)
+        return WOLFSSL_FAILURE;
+
     certFile = wc_strdup_ex(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
     certDir = wc_strdup_ex(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
 
-    ret = wolfSSL_X509_STORE_load_locations(str, certFile, certDir);
+    /* As OpenSSL: the default locations are optional. There is no built-in
+     * bundle, and one that does not load is not an error. */
+    ret = WOLFSSL_SUCCESS;
+    if ((certFile != NULL || certDir != NULL) &&
+            wolfSSL_X509_STORE_load_locations(str, certFile, certDir) !=
+            WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Default locations not loaded");
+        wolfSSL_ERR_clear_error();
+    }
 
     XFREE(certFile, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(certDir, NULL, DYNAMIC_TYPE_TMP_BUFFER);
