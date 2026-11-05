@@ -15583,7 +15583,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 }
 #endif /* WOLFSSL_RID_ALT_NAME && !WC_ASN_NO_HEAP */
 
-static int DoesCharNeedEscape(char c)
+static WC_INLINE int DoesCharNeedEscape(char c)
 {
     return (c == '/' || c == '+' || c == '\\');
 }

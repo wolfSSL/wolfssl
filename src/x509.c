@@ -15886,6 +15886,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                         return BUFFER_E;
                     }
                 }
+
                 ret++;
             }
         }
@@ -15915,16 +15916,13 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 if (obj == NULL)
                     return BAD_FUNC_ARG;
 
-                /* Each addition is checked against the room left below
-                 * INT_MAX - 1, which keeps totalLen + 1 (the null added
-                 * later) representable as a positive int. */
-                /*+2 for '/' and '=' */
+                /* +2 for '/' and '=' */
                 intermediateVal = (word32)XSTRLEN(obj->sName) + 2;
                 if (intermediateVal > (word32)INT_MAX - 1 - totalLen)
                     return BUFFER_E;
                 totalLen += intermediateVal;
 
-                data = (e->value != NULL) ? e->value->data : NULL;
+                data = (const char*)wolfSSL_ASN1_STRING_data(e->value);
                 if (data == NULL) {
                     continue;
                 }

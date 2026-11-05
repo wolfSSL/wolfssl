@@ -1955,6 +1955,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         int         oidSz;
         const char* copy    = NULL;
         int         copyLen = 0;
+        word32      escLen;
         int         strLen  = 0;
         byte        id      = 0;
     #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
@@ -2522,16 +2523,12 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 }
             }
         }
-        {
-            /* Length of the value once special characters are escaped. */
-            word32 escLen = X509CertEscapeName(NULL,
-                    (const char*)&input[srcIdx], (word32)strLen);
-
-            if (((word32)copyLen + escLen) >= (word32)(WC_ASN_NAME_MAX - idx))
-            {
-                WOLFSSL_MSG("ASN Name too big, skipping");
-                tooBig = TRUE;
-            }
+        /* Length of the value once special characters are escaped. */
+        escLen = X509CertEscapeName(NULL, (const char*)&input[srcIdx],
+            (word32)strLen);
+        if (((word32)copyLen + escLen) >= (word32)(WC_ASN_NAME_MAX - idx)) {
+            WOLFSSL_MSG("ASN Name too big, skipping");
+            tooBig = TRUE;
         }
         if ((copy != NULL) && !tooBig) {
             XMEMCPY(&full[idx], copy, (size_t)copyLen);
