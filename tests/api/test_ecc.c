@@ -711,6 +711,101 @@ int test_wc_ecc_shared_secret(void)
     return EXPECT_RESULT();
 } /* END tests_wc_ecc_shared_secret */
 
+/*
+ * Testing the private key n - 1 on curves whose order has one bit more than
+ * the field. [n - 1]G is -G, so its x-ordinate is Gx.
+ */
+int test_wc_ecc_order_wider_than_field(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    static const int curves[] = {
+        ECC_SECP160R1, ECC_SECP160R2, ECC_SECP160K1, ECC_SECP224K1
+    };
+    const ecc_set_type* dp = NULL;
+    ecc_key key;
+    ecc_key peer;
+    WC_RNG  rng;
+    char    d[2 * (MAX_ECC_BYTES + 1) + 1];
+    byte    secret[MAX_ECC_BYTES + 1];
+    byte    gx[MAX_ECC_BYTES + 1];
+    byte    gy[MAX_ECC_BYTES + 1];
+    byte    x[MAX_ECC_BYTES + 1];
+    byte    y[MAX_ECC_BYTES + 1];
+    word32  secretSz;
+    word32  gxSz;
+    word32  gySz;
+    word32  xSz;
+    word32  ySz;
+    size_t  len = 0;
+    int     i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < (int)(sizeof(curves) / sizeof(curves[0])); i++) {
+        if (wc_ecc_get_curve_idx(curves[i]) < 0) {
+            continue;
+        }
+        ExpectNotNull(dp = wc_ecc_get_curve_params(
+            wc_ecc_get_curve_idx(curves[i])));
+        if (dp == NULL) {
+            break;
+        }
+        /* The order is prime, so n - 1 only changes the last hex digit. */
+        if (dp != NULL) {
+            len = XSTRLEN(dp->order);
+        }
+        ExpectIntGT(len, 0);
+        ExpectIntLT(len, sizeof(d));
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(d, dp->order, len + 1);
+            d[len - 1]--;
+        }
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&peer, 0, sizeof(peer));
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_ecc_init(&peer), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&peer, dp->Gx, dp->Gy, NULL,
+            curves[i]), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key, dp->Gx, dp->Gy, d, curves[i]),
+            0);
+    #ifdef ECC_TIMING_RESISTANT
+        ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
+    #endif
+        gxSz = (word32)sizeof(gx);
+        gySz = (word32)sizeof(gy);
+        ExpectIntEQ(wc_ecc_export_public_raw(&peer, gx, &gxSz, gy, &gySz), 0);
+
+        secretSz = (word32)sizeof(secret);
+        ExpectIntEQ(wc_ecc_shared_secret(&key, &peer, secret, &secretSz), 0);
+        ExpectIntEQ(secretSz, gxSz);
+        ExpectBufEQ(secret, gx, gxSz);
+
+        /* The public key made from n - 1 is -G: same x, other y. */
+        ExpectIntEQ(wc_ecc_make_pub(&key, NULL), 0);
+        xSz = (word32)sizeof(x);
+        ySz = (word32)sizeof(y);
+        ExpectIntEQ(wc_ecc_export_public_raw(&key, x, &xSz, y, &ySz), 0);
+        ExpectIntEQ(xSz, gxSz);
+        ExpectBufEQ(x, gx, gxSz);
+        ExpectIntEQ(ySz, gySz);
+        ExpectBufNE(y, gy, gySz);
+
+        wc_ecc_free(&peer);
+        wc_ecc_free(&key);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_order_wider_than_field */
+
 /* ECC_INF_E rejection is not present in the frozen ecc.c of older
  * FIPS-certified modules, so restrict to non-FIPS or FIPS v7 and later, and
  * skip the CAVP selftest build. The hardware ports listed here either do not

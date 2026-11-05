@@ -383,9 +383,13 @@ ECC Curve Sizes:
         ((unsigned)((key)->dp->size * 8 + MAX_ECC_BITS_EXTRA)))
 
 #ifdef WOLFSSL_ECC_BLIND_K
+/* Width of the XORs below. It covers the order, which can be a bit longer
+ * than the prime. */
+#define ECC_BLIND_K_BYTES(key) \
+    ((int)((ECC_KEY_MAX_BITS_NONULLCHECK(key) + 7) / 8))
 /* Number of digits covered by the fixed-width XORs below. */
 #define ECC_BLIND_K_DIGITS(key) \
-    ((int)(((key)->dp->size + sizeof(mp_digit) - 1) / sizeof(mp_digit)))
+    ((int)((ECC_BLIND_K_BYTES(key) + sizeof(mp_digit) - 1) / sizeof(mp_digit)))
 
 /* The XORs read this many whole digits regardless of each operand's current
  * length, so operands written at partial width (e.g. by mp_copy()) must be
@@ -398,7 +402,7 @@ mp_int* ecc_get_k(ecc_key* key)
         mp_forcezero(key->ku);
     }
     else {
-        mp_xor_ct(key->k, key->kb, key->dp->size, key->ku);
+        mp_xor_ct(key->k, key->kb, ECC_BLIND_K_BYTES(key), key->ku);
     }
     return key->ku;
 }
@@ -407,8 +411,8 @@ void ecc_blind_k(ecc_key* key, mp_int* b)
     if ((mp_grow(key->k, ECC_BLIND_K_DIGITS(key)) == MP_OKAY) &&
         (mp_grow(key->kb, ECC_BLIND_K_DIGITS(key)) == MP_OKAY) &&
         (mp_grow(b, ECC_BLIND_K_DIGITS(key)) == MP_OKAY)) {
-        mp_xor_ct(key->k, b, key->dp->size, key->k);
-        mp_xor_ct(key->kb, b, key->dp->size, key->kb);
+        mp_xor_ct(key->k, b, ECC_BLIND_K_BYTES(key), key->k);
+        mp_xor_ct(key->kb, b, ECC_BLIND_K_BYTES(key), key->kb);
     }
 }
 int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng)
@@ -433,7 +437,7 @@ int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng)
             ret = mp_grow(key->k, ECC_BLIND_K_DIGITS(key));
         }
         if (ret == 0) {
-            mp_xor_ct(key->k, key->kb, key->dp->size, key->k);
+            mp_xor_ct(key->k, key->kb, ECC_BLIND_K_BYTES(key), key->k);
         }
         else {
             /* No blind installed - keep the stored pair consistent. */
