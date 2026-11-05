@@ -129,9 +129,12 @@ Possible ECC enable options:
  *                      Auto-enabled unless using hardware accelerators.
  * WOLFSSL_PUBLIC_ECC_ADD_DBL: Makes ecc_projective_add_point   default: off
  *                      and ecc_projective_dbl_point public APIs.
- * SQRTMOD_USE_MOD_EXP: Computes square root mod prime using    default: off
- *                      modular exponentiation instead of Jacobi method
- *                      for compressed key decompression.
+ * SQRTMOD_USE_MOD_EXP: Computes square root mod prime with a    default: off
+ *                      single modular exponentiation, using less
+ *                      stack than Tonelli-Shanks. Primes that are
+ *                      1 mod 8 (P-224) are not supported, and
+ *                      5 mod 8 (secp224k1) only with
+ *                      HAVE_ECC_KOBLITZ or WOLFSSL_CUSTOM_CURVES.
  *
  * ECIES options:
  * WOLFSSL_ECIES_OLD:   Uses original wolfSSL ECIES format      default: off
@@ -17035,48 +17038,134 @@ done:
  * The result is returned in the third argument x
  * the function returns MP_OKAY on success, MP_VAL or another error on failure
  */
+#if defined(SQRTMOD_USE_MOD_EXP)
+/* Temporaries of the single exponentiation square root: the p = 5 mod 8
+ * method needs one more. */
+#if defined(HAVE_ECC_KOBLITZ) || defined(WOLFSSL_CUSTOM_CURVES)
+    #define SQRTMOD_MOD_EXP_TMP_CNT 4
+#else
+    #define SQRTMOD_MOD_EXP_TMP_CNT 3
+#endif
+#endif
 static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
 #if defined(SQRTMOD_USE_MOD_EXP)
+  /* One modular exponentiation: n^((p+1)/4) for p = 3 mod 4 (HAC 3.36) and,
+   * only when a curve with such a prime can be present, Atkin's method for
+   * p = 5 mod 8. A prime that is 1 mod 8 has no single exponent square root
+   * and is refused. Three or four temporaries instead of the ten
+   * Tonelli-Shanks needs, which matters to callers on a small thread stack. */
   int res;
   mp_digit i;
-  mp_int e;
+#ifdef WOLFSSL_SMALL_STACK
+  mp_int* t = (mp_int*)XMALLOC(SQRTMOD_MOD_EXP_TMP_CNT * sizeof(mp_int), NULL,
+                               DYNAMIC_TYPE_ECC_BUFFER);
+#else
+  mp_int t[SQRTMOD_MOD_EXP_TMP_CNT];
+#endif
+  mp_int* N;
+  mp_int* e;
+  mp_int* c;
+#if defined(HAVE_ECC_KOBLITZ) || defined(WOLFSSL_CUSTOM_CURVES)
+  mp_int* v;
+#endif
 
-  /* first handle the simple cases n = 0 or n = 1 */
-  if (mp_cmp_d(n, 0) == MP_EQ) {
-      mp_zero(ret);
-      return MP_OKAY;
+#ifdef WOLFSSL_SMALL_STACK
+  if (t == NULL) {
+      return MEMORY_E;
   }
-  if (mp_cmp_d(n, 1) == MP_EQ) {
-      return mp_set(ret, 1);
+#endif
+  N = &t[0];
+  e = &t[1];
+  c = &t[2];
+#if defined(HAVE_ECC_KOBLITZ) || defined(WOLFSSL_CUSTOM_CURVES)
+  v = &t[3];
+
+  res = mp_init_multi(N, e, c, v, NULL, NULL);
+#else
+  res = mp_init_multi(N, e, c, NULL, NULL, NULL);
+#endif
+  if (res != MP_OKAY) {
+  #ifdef WOLFSSL_SMALL_STACK
+      XFREE(t, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  #endif
+      return res;
   }
 
   if (mp_iseven(prime)) {
-      return MP_VAL;
+      res = MP_VAL;
+      goto out;
   }
-
-  res = mp_init(&e);
-  if (res == MP_OKAY)
-      res = mp_mod_d(prime, 8, &i);
+  res = mp_mod_d(prime, 8, &i);
   if (res == MP_OKAY && i == 1) {
-      return MP_VAL;
+      res = MP_VAL;
   }
-  /* prime mod 8 = 5 */
-  else if (res == MP_OKAY && i == 5) {
-      res = mp_sub_d(prime, 1, &e);
-      if (res == MP_OKAY)
-          res = mp_div_2d(&e, 2, &e, NULL);
+#if !defined(HAVE_ECC_KOBLITZ) && !defined(WOLFSSL_CUSTOM_CURVES)
+  /* secp224k1 is the only built-in curve with a prime that is 5 mod 8. */
+  if (res == MP_OKAY && i == 5) {
+      res = MP_VAL;
   }
-  /* prime mod 4 = 3 */
-  else if (res == MP_OKAY && ((i == 3) || (i == 7))) {
-      res = mp_add_d(prime, 1, &e);
-      if (res == MP_OKAY)
-          res = mp_div_2d(&e, 2, &e, NULL);
-  }
-  if (res == MP_OKAY)
-      res = mp_exptmod(n, &e, prime, ret);
+#endif
 
-  mp_clear(&e);
+  /* reduce n to less than prime */
+  if (res == MP_OKAY)
+      res = mp_mod(n, prime, N);
+  /* when N is zero, sqrt is zero */
+  if (res == MP_OKAY && mp_iszero(N)) {
+      mp_zero(ret);
+      goto out;
+  }
+
+#if defined(HAVE_ECC_KOBLITZ) || defined(WOLFSSL_CUSTOM_CURVES)
+  /* prime mod 8 = 5: v = (2N)^((p-5)/8), i = 2N.v^2, ret = N.v.(i-1) */
+  if (res == MP_OKAY && i == 5) {
+      res = mp_addmod(N, N, prime, c);
+      if (res == MP_OKAY)
+          res = mp_sub_d(prime, 5, e);
+      if (res == MP_OKAY)
+          res = mp_div_2d(e, 3, e, NULL);
+      if (res == MP_OKAY)
+          res = mp_exptmod(c, e, prime, v);
+      if (res == MP_OKAY)
+          res = mp_sqrmod(v, prime, ret);
+      if (res == MP_OKAY)
+          res = mp_mulmod(ret, c, prime, ret);
+      if (res == MP_OKAY)
+          res = mp_sub_d(ret, 1, ret);
+      if (res == MP_OKAY)
+          res = mp_mulmod(ret, v, prime, ret);
+      if (res == MP_OKAY)
+          res = mp_mulmod(ret, N, prime, ret);
+  }
+  else
+#endif
+  /* prime mod 4 = 3: ret = N^((p+1)/4) */
+  if (res == MP_OKAY) {
+      res = mp_add_d(prime, 1, e);
+      if (res == MP_OKAY)
+          res = mp_div_2d(e, 2, e, NULL);
+      if (res == MP_OKAY)
+          res = mp_exptmod(N, e, prime, ret);
+  }
+
+  /* Both formulas return a value for a non-residue too; only a value that
+   * squares back to N is a root. */
+  if (res == MP_OKAY)
+      res = mp_sqrmod(ret, prime, c);
+  if (res == MP_OKAY && mp_cmp(c, N) != MP_EQ) {
+      res = MP_VAL;
+  }
+
+out:
+  mp_clear(N);
+  mp_clear(e);
+  mp_clear(c);
+#if defined(HAVE_ECC_KOBLITZ) || defined(WOLFSSL_CUSTOM_CURVES)
+  mp_clear(v);
+#endif
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
 
   return res;
 #else

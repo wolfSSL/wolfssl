@@ -1172,6 +1172,214 @@ int test_wc_ecc_import_x963(void)
     return EXPECT_RESULT();
 } /* END wc_ecc_import_x963 */
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_COMP_KEY) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(NO_ECC_SECP) && \
+    (((!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 256) || \
+     ((defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 384) || \
+     ((defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 521))
+/* Import a compressed x ordinate that no point on the curve has through the
+ * trusted importer and expect it to be refused, import an x whose right-hand
+ * side sits on a reduction boundary of the SP Montgomery arithmetic and expect
+ * it to be accepted, then round trip a generated key through the same importer
+ * to show a valid compressed point still decompresses to the right y. */
+static int test_ecc_import_compressed_no_root(int curveId, const byte* noRoot,
+    word32 noRootSz, const byte* boundary, word32 boundarySz)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    ecc_point* pt = NULL;
+    WC_RNG rng;
+    byte out[ECC_ASN963_MAX_BUF_SZ];
+    word32 outLen = (word32)sizeof(out);
+    int idx = wc_ecc_get_curve_idx(curveId);
+    int ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntNE(idx, ECC_CURVE_INVALID);
+    ExpectNotNull(pt = wc_ecc_new_point());
+
+    ExpectIntEQ(wc_ecc_import_point_der_ex(noRoot, noRootSz, idx, pt, 0),
+        WC_NO_ERR_TRACE(MP_VAL));
+    if (boundary != NULL) {
+        ExpectIntEQ(wc_ecc_import_point_der_ex(boundary, boundarySz, idx, pt,
+            0), 0);
+    }
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ret = wc_ecc_make_key_ex(&rng, 0, &key, curveId);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963_ex(&key, out, &outLen, 1), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ecc_import_point_der_ex(out, outLen, idx, pt, 0), 0);
+    ExpectIntEQ(wc_ecc_cmp_point(&key.pubkey, pt), MP_EQ);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&key);
+    wc_ecc_del_point(pt);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/*
+ * testing compressed point import on each class of field prime: P-224
+ * (p = 1 mod 8) and secp224k1 (p = 5 mod 8) decompress to the generator's y,
+ * and an x ordinate with no square root is refused on P-256, P-384 and P-521.
+ */
+int test_wc_ecc_import_compressed_sqrt(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_COMP_KEY) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(NO_ECC_SECP)
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 224 && !defined(WOLFSSL_SP_MATH)
+#ifndef SQRTMOD_USE_MOD_EXP
+    /* 02 || Gx of P-224 and the expected Gy. The single exponentiation
+     * square root does not support this prime (1 mod 8). */
+    static const byte p224G[] = {
+        0x02, 0xb7, 0x0e, 0x0c, 0xbd, 0x6b, 0xb4, 0xbf, 0x7f, 0x32, 0x13,
+        0x90, 0xb9, 0x4a, 0x03, 0xc1, 0xd3, 0x56, 0xc2, 0x11, 0x22, 0x34,
+        0x32, 0x80, 0xd6, 0x11, 0x5c, 0x1d, 0x21
+    };
+    static const byte p224Gy[] = {
+        0xbd, 0x37, 0x63, 0x88, 0xb5, 0xf7, 0x23, 0xfb, 0x4c, 0x22, 0xdf,
+        0xe6, 0xcd, 0x43, 0x75, 0xa0, 0x5a, 0x07, 0x47, 0x64, 0x44, 0xd5,
+        0x81, 0x99, 0x85, 0x00, 0x7e, 0x34
+    };
+#endif
+#if defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC)
+    /* 03 || Gx of secp224k1 and the expected Gy. */
+    static const byte k224G[] = {
+        0x03, 0xa1, 0x45, 0x5b, 0x33, 0x4d, 0xf0, 0x99, 0xdf, 0x30, 0xfc,
+        0x28, 0xa1, 0x69, 0xa4, 0x67, 0xe9, 0xe4, 0x70, 0x75, 0xa9, 0x0f,
+        0x7e, 0x65, 0x0e, 0xb6, 0xb7, 0xa4, 0x5c
+    };
+    static const byte k224Gy[] = {
+        0x7e, 0x08, 0x9f, 0xed, 0x7f, 0xba, 0x34, 0x42, 0x82, 0xca, 0xfb,
+        0xd6, 0xf7, 0xe3, 0x19, 0xf7, 0xc0, 0xb0, 0xbd, 0x59, 0xe2, 0xca,
+        0x4b, 0xdb, 0x55, 0x6d, 0x61, 0xa5
+    };
+#endif
+#if !defined(SQRTMOD_USE_MOD_EXP) || \
+    (defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC))
+    ecc_key key;
+    byte out[ECC_ASN963_MAX_BUF_SZ];
+    word32 outLen;
+#endif
+#endif
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    /* 02 || x with x^3 - 3x + b congruent to R^-1 mod p, so its Montgomery
+     * form is 1 and a non-canonical helper may hold it as p + 1. */
+    static const byte p256Boundary[] = {
+        0x02, 0xa0, 0x4a, 0x5c, 0xf3, 0x2f, 0x3a, 0x01, 0xbc, 0x8a, 0xba,
+        0x5d, 0x63, 0xfa, 0x20, 0x7c, 0x70, 0x53, 0xaf, 0xd9, 0xf4, 0x9c,
+        0xa1, 0x01, 0xc8, 0x19, 0x24, 0xc5, 0x74, 0xf5, 0x3c, 0x1e, 0x49
+    };
+    /* 02 || x with x = 1: x^3 - 3x + b has no square root mod p. */
+    static const byte p256NoRoot[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    /* 02 || x with x = 1. */
+    static const byte p384NoRoot[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x01
+    };
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+    /* 02 || x with x = 0x5701500: the square of the recovered y carries an
+     * unpropagated limb in the 32-bit SP arithmetic. */
+    static const byte p521Boundary[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x70, 0x15,
+        0x00
+    };
+    /* 02 || x with x = 3. */
+    static const byte p521NoRoot[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x03
+    };
+#endif
+
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 224 && !defined(WOLFSSL_SP_MATH)
+#ifndef SQRTMOD_USE_MOD_EXP
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(p224G, (word32)sizeof(p224G), &key,
+        ECC_SECP224R1), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_export_x963(&key, out, &outLen), 0);
+    ExpectIntEQ(outLen, 1 + 2 * (word32)sizeof(p224Gy));
+    ExpectBufEQ(out + 1 + sizeof(p224Gy), p224Gy, sizeof(p224Gy));
+    wc_ecc_free(&key);
+#endif
+
+#if defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC)
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(k224G, (word32)sizeof(k224G), &key,
+        ECC_SECP224K1), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_export_x963(&key, out, &outLen), 0);
+    ExpectIntEQ(outLen, 1 + 2 * (word32)sizeof(k224Gy));
+    ExpectBufEQ(out + 1 + sizeof(k224Gy), k224Gy, sizeof(k224Gy));
+    wc_ecc_free(&key);
+#endif
+#endif
+
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    ExpectIntEQ(test_ecc_import_compressed_no_root(ECC_SECP256R1, p256NoRoot,
+        (word32)sizeof(p256NoRoot), p256Boundary, (word32)sizeof(p256Boundary)),
+        TEST_SUCCESS);
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    ExpectIntEQ(test_ecc_import_compressed_no_root(ECC_SECP384R1, p384NoRoot,
+        (word32)sizeof(p384NoRoot), NULL, 0), TEST_SUCCESS);
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+    ExpectIntEQ(test_ecc_import_compressed_no_root(ECC_SECP521R1, p521NoRoot,
+        (word32)sizeof(p521NoRoot), p521Boundary, (word32)sizeof(p521Boundary)),
+        TEST_SUCCESS);
+#endif
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_import_compressed_sqrt */
+
 /*
  * testing wc_ecc_import_x963() rejects an off-curve public point.
  *

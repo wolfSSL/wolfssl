@@ -4833,13 +4833,16 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 #else
     sp_digit xd[2 * 10];
     sp_digit yd[2 * 10];
+    sp_digit td[2 * 10];
 #endif
     sp_digit* x = NULL;
     sp_digit* y = NULL;
+    sp_digit* t = NULL;
+    int32_t n;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 10, NULL, DYNAMIC_TYPE_ECC);
+    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 6 * 10, NULL, DYNAMIC_TYPE_ECC);
     if (d == NULL) {
         err = MEMORY_E;
     }
@@ -4849,9 +4852,11 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
         x = d + 0 * 10;
         y = d + 2 * 10;
+        t = d + 4 * 10;
 #else
         x = xd;
         y = yd;
+        t = td;
 #endif
 
         sp_256_from_mp(x, 10, xm);
@@ -4872,8 +4877,32 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     }
     if (err == MP_OKAY) {
         sp_256_mont_add_10(y, y, x, p256_mod);
+        /* t = x^3 - 3x + b */
+        XMEMCPY(t, y, 10U * sizeof(sp_digit));
         /* y = sqrt(x^3 - 3x + b) */
         err = sp_256_mont_sqrt_10(y);
+    }
+    if (err == MP_OKAY) {
+        /* x = y^2 */
+        sp_256_mont_sqr_10(x, y, p256_mod, p256_mp_mod);
+        /* Reduce both sides to less than the modulus before comparing: a
+         * Montgomery result may still be in [p, 2^bits) or carry an
+         * unpropagated limb. */
+        sp_256_norm_10(x);
+        n = sp_256_cmp_10(x, p256_mod);
+        sp_256_cond_sub_10(x, x, p256_mod, 0 - ((n >= 0) ?
+                    (sp_digit)1 : (sp_digit)0));
+        sp_256_norm_10(x);
+        sp_256_norm_10(t);
+        n = sp_256_cmp_10(t, p256_mod);
+        sp_256_cond_sub_10(t, t, p256_mod, 0 - ((n >= 0) ?
+                    (sp_digit)1 : (sp_digit)0));
+        sp_256_norm_10(t);
+        /* No square root exists when y^2 != x^3 - 3x + b: no point has this
+         * x ordinate. */
+        if (sp_256_cmp_equal_10(x, t) == 0) {
+            err = MP_VAL;
+        }
     }
     if (err == MP_OKAY) {
         XMEMSET(y + 10, 0, 10U * sizeof(sp_digit));
