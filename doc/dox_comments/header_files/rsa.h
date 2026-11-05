@@ -1523,6 +1523,9 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
     its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
     registered device that did not generate it, unless
     WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
+    \return BAD_STATE_E Returned when the key has an id or label and its
+    PKCS#11 token has no session from wc_Pkcs11Token_Open; a key with neither
+    is generated in software instead
 
     \param key pointer to the RsaKey structure in which to store the
     generated private key

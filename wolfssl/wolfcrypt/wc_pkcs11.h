@@ -69,6 +69,7 @@ typedef struct Pkcs11Session {
     CK_SLOT_ID        slotId;           /* Id of slot to use                  */
     CK_SESSION_HANDLE handle;           /* Handle to active session           */
     int               version;          /* Pkcs11InterfaceVersionType         */
+    WC_BITFIELD       closes:1;         /* Closed after this operation        */
 } Pkcs11Session;
 
 /* Types of keys that can be stored. */
