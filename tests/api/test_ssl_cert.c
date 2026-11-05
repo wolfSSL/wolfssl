@@ -846,7 +846,7 @@ static int test_peer_cert_on_demand(method_provider method_c,
         ExpectNull(ssl_c->peerCert);
     }
 #endif
-#ifdef TEST_PEER_CERT_COPY_OOM
+#if defined(TEST_PEER_CERT_COPY_OOM) && defined(USE_WOLFSSL_MEMORY)
     /* Out of memory, no object is returned and the encoding stays. */
     (void)wolfSSL_GetAllocators(&peer_copy_prev_malloc,
          &peer_copy_prev_free, &peer_copy_prev_realloc);
