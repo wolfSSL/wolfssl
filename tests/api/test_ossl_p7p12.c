@@ -2059,48 +2059,70 @@ int test_wolfSSL_PKCS12_create_mac(void)
 
 static int pkcs12_fail_alloc_at = -1;
 static int pkcs12_alloc_seen = 0;
+/* Allocators in place before the test, used for all real allocations so
+ * memory can be freed after they are restored. */
+static wolfSSL_Malloc_cb  pkcs12_prev_malloc = NULL;
+static wolfSSL_Free_cb    pkcs12_prev_free = NULL;
+static wolfSSL_Realloc_cb pkcs12_prev_realloc = NULL;
 
 /* Fail only the allocation at index pkcs12_fail_alloc_at. */
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void* pkcs12_oom_malloc_cb(size_t size, const char* func,
     unsigned int line)
 {
-    (void)func;
-    (void)line;
-#else
-static void* pkcs12_oom_malloc_cb(size_t size)
-{
-#endif
     if (pkcs12_alloc_seen++ == pkcs12_fail_alloc_at) {
         return NULL;
     }
-    return malloc(size);
+    return (pkcs12_prev_malloc != NULL) ?
+        pkcs12_prev_malloc(size, func, line) : malloc(size);
 }
+#else
+static void* pkcs12_oom_malloc_cb(size_t size)
+{
+    if (pkcs12_alloc_seen++ == pkcs12_fail_alloc_at) {
+        return NULL;
+    }
+    return (pkcs12_prev_malloc != NULL) ? pkcs12_prev_malloc(size) :
+        malloc(size);
+}
+#endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void pkcs12_oom_free_cb(void* ptr, const char* func, unsigned int line)
 {
-    (void)func;
-    (void)line;
+    if (pkcs12_prev_free != NULL) {
+        pkcs12_prev_free(ptr, func, line);
+    }
+    else {
+        free(ptr);
+    }
+}
 #else
 static void pkcs12_oom_free_cb(void* ptr)
 {
-#endif
-    free(ptr);
+    if (pkcs12_prev_free != NULL) {
+        pkcs12_prev_free(ptr);
+    }
+    else {
+        free(ptr);
+    }
 }
+#endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void* pkcs12_oom_realloc_cb(void* ptr, size_t size, const char* func,
     unsigned int line)
 {
-    (void)func;
-    (void)line;
+    return (pkcs12_prev_realloc != NULL) ?
+        pkcs12_prev_realloc(ptr, size, func, line) : realloc(ptr, size);
+}
 #else
 static void* pkcs12_oom_realloc_cb(void* ptr, size_t size)
 {
-#endif
-    return realloc(ptr, size);
+    return (pkcs12_prev_realloc != NULL) ? pkcs12_prev_realloc(ptr, size) :
+        realloc(ptr, size);
 }
+#endif
 
 /* Parse a new PKCS#12 object with custom allocators in place.
  *
@@ -2112,14 +2134,10 @@ static int pkcs12_oom_parse(const byte* der, word32 derSz, int failAt,
 {
     EXPECT_DECLS;
     WC_PKCS12* pkcs12 = NULL;
-    wolfSSL_Malloc_cb prevM = NULL;
-    wolfSSL_Free_cb prevF = NULL;
-    wolfSSL_Realloc_cb prevR = NULL;
     int ret = WOLFSSL_FAILURE;
-
     ExpectNotNull(pkcs12 = wc_PKCS12_new());
     ExpectIntEQ(wc_d2i_PKCS12(der, derSz, pkcs12), 0);
-    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_GetAllocators(&pkcs12_prev_malloc, &pkcs12_prev_free, &pkcs12_prev_realloc), 0);
     ExpectIntEQ(wolfSSL_SetAllocators(pkcs12_oom_malloc_cb, pkcs12_oom_free_cb,
         pkcs12_oom_realloc_cb), 0);
 
@@ -2130,7 +2148,7 @@ static int pkcs12_oom_parse(const byte* der, word32 derSz, int failAt,
         pkcs12_fail_alloc_at = -1;
     }
 
-    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    (void)wolfSSL_SetAllocators(pkcs12_prev_malloc, pkcs12_prev_free, pkcs12_prev_realloc);
     wc_PKCS12_free(pkcs12);
 
     return EXPECT_SUCCESS() ? ret : TEST_FAIL;
