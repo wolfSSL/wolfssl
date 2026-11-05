@@ -3978,6 +3978,146 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_ALT_CERT_CHAINS) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_SHA256) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+static int test_alt_chain_forged_ca_cb_calls;
+
+/* Accept every certificate and leave the decision to
+ * wolfSSL_get_verify_result() once the handshake is done. */
+static int test_alt_chain_forged_ca_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    test_alt_chain_forged_ca_cb_calls++;
+    return 1;
+}
+
+#ifndef NO_WOLFSSL_CM_VERIFY
+static int test_alt_chain_forged_ca_cm_calls;
+
+/* Certificate manager callback that rejects every certificate that failed. */
+static int test_alt_chain_forged_ca_cm_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)store;
+    test_alt_chain_forged_ca_cm_calls++;
+    return preverify;
+}
+#endif
+#endif
+
+/* Test that bypassing a CA error for the alternate certificate chain does not
+ * also erase an error recorded by an earlier certificate in the chain.
+ *
+ * The server sends leaf, intermediate, attackerCA. attackerCA names the
+ * trusted root as its issuer, with a matching AKID, but is signed by another
+ * key, so its signature check fails. The intermediate is an unrelated
+ * self-signed CA, so it fails with ASN_SELF_SIGNED_E, which the alternate
+ * chain code bypasses. The leaf is issued by attackerCA.
+ *
+ * Cases:
+ *  0. No callback: the forged chain is refused.
+ *  1. A verify callback accepts every certificate and then checks
+ *     wolfSSL_get_verify_result(). That must report the forged CA's
+ *     WOLFSSL_X509_V_ERR_INVALID_CA. Before the fix, the intermediate's
+ *     bypass reset peerVerifyRet to 0, so the leaf was reported as verified.
+ *  2. A certificate manager callback rejects the forged CA but the verify
+ *     callback overrides the error, so the chain carries on with
+ *     args->verifyErr set. The handshake must still fail at the leaf. Before
+ *     the fix, the intermediate's bypass cleared args->verifyErr and the
+ *     handshake completed.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_alt_chain_forged_ca(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_ALT_CERT_CHAINS) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_SHA256) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    const char* rootFile =
+        "./certs/test/alt-chain-forged-ca/realRoot-cert.pem";
+    const char* chainFile =
+        "./certs/test/alt-chain-forged-ca/server-chain.pem";
+    const char* keyFile =
+        "./certs/test/alt-chain-forged-ca/leaf-key.pem";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int mode;
+#ifndef NO_WOLFSSL_CM_VERIFY
+    const int lastMode = 2;
+#else
+    const int lastMode = 1;
+#endif
+
+    for (mode = 0; mode <= lastMode && EXPECT_SUCCESS(); mode++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, rootFile, NULL),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, chainFile),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, keyFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        if (mode == 0) {
+            /* Without a callback the forged chain must be refused. */
+            wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntNE(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
+        }
+        else if (mode == 1) {
+            test_alt_chain_forged_ca_cb_calls = 0;
+            wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER,
+                test_alt_chain_forged_ca_cb);
+            /* The callback waives every error, so the handshake completes,
+             * but the forged CA's error must still be reported. */
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntGT(test_alt_chain_forged_ca_cb_calls, 0);
+            ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                WOLFSSL_X509_V_ERR_INVALID_CA);
+        }
+#ifndef NO_WOLFSSL_CM_VERIFY
+        else {
+            test_alt_chain_forged_ca_cb_calls = 0;
+            test_alt_chain_forged_ca_cm_calls = 0;
+            if (ctx_c != NULL) {
+                wolfSSL_CertManagerSetVerify(
+                    wolfSSL_CTX_GetCertManager(ctx_c),
+                    test_alt_chain_forged_ca_cm_cb);
+            }
+            wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER,
+                test_alt_chain_forged_ca_cb);
+            /* The certificate manager's rejection of the forged CA must
+             * survive the intermediate's bypass and fail the leaf. */
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntGT(test_alt_chain_forged_ca_cm_calls, 0);
+            ExpectIntGT(test_alt_chain_forged_ca_cb_calls, 0);
+        }
+#endif
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_SMALL_CERT_VERIFY) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \

@@ -19873,11 +19873,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     && !args->haveTrustPeer
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
-                #ifdef WOLFSSL_ALT_CERT_CHAINS
-                    word16 verifyErr = args->verifyErr;
-                    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(WOLFSSL_ALT_CERT_CHAINS) || \
+                     (defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS))) && \
+                    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+                    /* Error recorded by earlier certs, restored when this
+                     * cert's CA error below is bypassed instead of wiped. */
                     unsigned long peerVerifyRet = ssl->peerVerifyRet;
-                    #endif
                 #endif
                     int skipAddCA = 0;
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL)
@@ -20177,12 +20178,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             }
 
                             ret = 0; /* clear errors and continue */
-                            /* restore previous errors so chain is rejected
-                             * if it should be */
+                            /* Only this cert's error is waived. Keep the
+                             * errors from earlier certs, including
+                             * args->verifyErr, so the chain is still
+                             * rejected if it should be. */
                     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                             ssl->peerVerifyRet = peerVerifyRet;
                     #endif
-                            args->verifyErr = verifyErr;
 
                             /* do not add to certificate manager */
                             skipAddCA = 1;
@@ -20217,10 +20219,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_MSG("Bypassing errors to allow for Apple native"
                                     " CA validation");
                         ret = 0; /* clear errors and continue */
-                        args->verifyErr = 0;
+                        /* Only this cert's error is waived. Keep the errors
+                         * from earlier certs, including args->verifyErr, so
+                         * the chain is still rejected if it should be. */
                         #if defined(OPENSSL_EXTRA) \
                             || defined(OPENSSL_EXTRA_X509_SMALL)
-                        ssl->peerVerifyRet = 0;
+                        ssl->peerVerifyRet = peerVerifyRet;
                         #endif
                         /* do not add to certificate manager */
                         skipAddCA = 1;
