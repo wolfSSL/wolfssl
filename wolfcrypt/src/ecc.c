@@ -160,6 +160,7 @@ Possible ECC enable options:
  * FP_ENTRIES:          Number of FP cache entries               default: 15
  * FP_LUT:              FP lookup table bit size (2-12). Larger  default: 8
  *                      values use more memory but faster verify.
+ *                      Defaults to 6 with ECC_TIMING_RESISTANT.
  * FP_ECC_CONTROL:      Auto-selects cached FP ECC verify with  default: on
  *                      SP when WOLFSSL_HAVE_SP_ECC is available.
  *
@@ -13400,9 +13401,35 @@ int wc_ecc_sig_size(const ecc_key* key)
     #define FP_ENTRIES 15
 #endif
 
+#if defined(USE_INTEGER_HEAP_MATH) && defined(ECC_TIMING_RESISTANT)
+    /* No constant time conversion of the scalar to bytes: use the ladder. A
+     * table for mulmod would have no reader, so leave it to ecc_mul2add(). */
+    #define FP_MULMOD_USES_LUT   0
+    #define FP_K_FITS_COMB(k, m) 0
+#elif defined(ECC_TIMING_RESISTANT)
+    #define FP_MULMOD_USES_LUT   1
+    /* Largest modulus accel_fp_mul()'s scalar buffer holds, in bytes. */
+    #ifdef WOLFCRYPT_HAVE_SAKKE
+        #define FP_COMB_MAX_MOD_SZ 254
+    #else
+        #define FP_COMB_MAX_MOD_SZ 126
+    #endif
+    /* The comb covers the bits of the modulus. An order can be a bit longer. */
+    #define FP_K_FITS_COMB(k, m) ((mp_count_bits(k) <= mp_count_bits(m)) && \
+        (mp_unsigned_bin_size(m) <= FP_COMB_MAX_MOD_SZ))
+#else
+    #define FP_MULMOD_USES_LUT   1
+    #define FP_K_FITS_COMB(k, m) 1
+#endif
+
 /* number of bits in LUT */
 #ifndef FP_LUT
-    #define FP_LUT     8U
+    #ifdef ECC_TIMING_RESISTANT
+        /* Every comb step reads the whole table when the scalar is secret. */
+        #define FP_LUT 6U
+    #else
+        #define FP_LUT 8U
+    #endif
 #endif
 
 #ifdef ECC_SHAMIR
@@ -13430,10 +13457,6 @@ typedef struct {
                                /* permitted (0) or not (1) */
 } fp_cache_t;
 
-#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
-/* The cache, its lock, the LUT table and the cache-entry helpers below are
- * only compiled when something can consume the FP cache: the variable-time
- * path, or Shamir's trick in ecc_mul2add(). */
 /* if HAVE_THREAD_LS this cache is per thread, no locking needed */
 static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 
@@ -14070,11 +14093,9 @@ static int add_entry(int idx, ecc_point *g)
 
    return MP_OKAY;
 }
-#endif /* !ECC_TIMING_RESISTANT || ECC_SHAMIR */
 #endif
 
 #if !defined(WOLFSSL_SP_MATH)
-#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
 /* build the LUT by spacing the bits of the input by #modulus/FP_LUT bits apart
  *
  * The algorithm builds patterns in increasing bit order by first making all
@@ -14231,13 +14252,150 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 
    return err;
 }
-#endif /* !ECC_TIMING_RESISTANT || ECC_SHAMIR */
 
-#ifndef ECC_TIMING_RESISTANT
-/* perform a fixed point ECC mulmod. Not constant-time; do not use with
- * secret scalars. */
+#ifdef ECC_TIMING_RESISTANT
+/* Clear n digits of an mp_int that holds at least that many. mp_forcezero() is
+ * not usable between table reads: it frees the digits of a heap-math mp_int.
+ */
+static void fp_lut_clear(mp_int* dst, int n)
+{
+    int i;
+
+    for (i = 0; i < n; i++) {
+        dst->dp[i] = 0;
+    }
+    dst->used = 0;
+}
+
+/* Select dst = src when sel is non-zero without branching on sel, reading the
+ * same digits of src whatever the value of sel.
+ *
+ * dst must have been cleared and hold at least n digits.
+ */
+static void fp_lut_select(mp_int* dst, mp_int* src, int n, word32 sel)
+{
+    int i;
+    /* volatile so that the compiler can't turn the mask back into a branch. */
+    volatile mp_digit mask;
+
+    mask = (mp_digit)0 - (mp_digit)(((sel | (0U - sel)) >> 31) & 1U);
+    for (i = 0; i < n; i++) {
+        dst->dp[i] |= mp_get_digit(src, i) & mask;
+    }
+    dst->used |= (wc_mp_size_t)((mp_digit)src->used & mask);
+}
+
+/* Double and always add over the comb, reading every table entry each step.
+ *
+ * kb holds a little-endian scalar of fixed length so that neither its value nor
+ * its length decide the operations.
+ *
+ * Math on a point at infinity is much cheaper than on any other, so neither
+ * operand of an add may be one because of the scalar. R starts at the base
+ * point G, which the doublings make 2^gap * G: that is LUT[2], taken off at the
+ * end. A zero comb digit adds a real point and discards the result.
+ */
+static int fp_comb_ct(int idx, const unsigned char* kb, unsigned lut_gap,
+    ecc_point* R, mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
+{
+    int err;
+    int x;
+    int inf = 0;
+    int n = (int)modulus->used;
+    unsigned y, z, bitpos, j;
+    ecc_point* Q = NULL;
+    ecc_point* t = NULL;
+
+    err = wc_ecc_new_point_ex(&Q, NULL);
+    if (err == MP_OKAY) {
+        err = wc_ecc_new_point_ex(&t, NULL);
+    }
+    if (err == MP_OKAY) {
+        err = mp_copy(fp_cache[idx].LUT[1]->x, R->x);
+    }
+    if (err == MP_OKAY) {
+        err = mp_copy(fp_cache[idx].LUT[1]->y, R->y);
+    }
+    if (err == MP_OKAY) {
+        err = mp_copy(&fp_cache[idx].mu, R->z);
+    }
+    if ((err == MP_OKAY) && (rng != NULL)) {
+        err = wc_ecc_gen_z(rng, mp_unsigned_bin_size(modulus), R, modulus, mp,
+            t->x, t->y, t->z);
+    }
+    if (err == MP_OKAY) {
+        err = mp_grow(Q->x, n + 1);
+    }
+    if (err == MP_OKAY) {
+        err = mp_grow(Q->y, n + 1);
+    }
+    if (err == MP_OKAY) {
+        err = mp_copy(&fp_cache[idx].mu, Q->z);
+    }
+
+    for (x = (int)lut_gap - 1; (err == MP_OKAY) && (x >= 0); x--) {
+        volatile word32 zeroDigit;
+
+        bitpos = (unsigned)x;
+        for (y = z = 0; y < FP_LUT; y++) {
+            z |= (((word32)kb[bitpos>>3U] >> (bitpos&7U)) & 1U) << y;
+            bitpos += lut_gap;
+        }
+        /* 1 when z is zero and otherwise 0 */
+        zeroDigit = (((word32)z | (0U - (word32)z)) >> 31) ^ 1U;
+
+        err = ecc_projective_dbl_point_safe(R, R, a, modulus, mp);
+
+        if (err == MP_OKAY) {
+            fp_lut_clear(Q->x, n);
+            fp_lut_clear(Q->y, n);
+            for (j = 1; j < (1U << FP_LUT); j++) {
+                volatile word32 sel = (word32)(j ^ z);
+                /* 1 when j == z, or for the dummy when z is zero */
+                sel = (((sel | (0U - sel)) >> 31) ^ 1U) |
+                    (zeroDigit & (word32)(j == 1));
+                fp_lut_select(Q->x, fp_cache[idx].LUT[j]->x, n, sel);
+                fp_lut_select(Q->y, fp_cache[idx].LUT[j]->y, n, sel);
+            }
+            err = ecc_projective_add_point_safe(R, Q, t, a, modulus, mp, &inf);
+        }
+        if (err == MP_OKAY) {
+            err = ecc_cond_copy_point(t, (int)(zeroDigit ^ 1U), R);
+        }
+    }
+
+    /* Take off 2^gap * G. */
+    if (err == MP_OKAY) {
+        err = mp_copy(fp_cache[idx].LUT[2]->x, Q->x);
+    }
+    if (err == MP_OKAY) {
+        err = mp_sub(modulus, fp_cache[idx].LUT[2]->y, Q->y);
+    }
+    if (err == MP_OKAY) {
+        err = ecc_projective_add_point_safe(R, Q, R, a, modulus, mp, &inf);
+    }
+
+    /* Q's ordinates identify a window of the scalar and t is a partial sum. */
+    if (Q != NULL) {
+        mp_forcezero(Q->x);
+        mp_forcezero(Q->y);
+    }
+    if (t != NULL) {
+        mp_forcezero(t->x);
+        mp_forcezero(t->y);
+        mp_forcezero(t->z);
+    }
+    wc_ecc_del_point_ex(t, NULL);
+    wc_ecc_del_point_ex(Q, NULL);
+    (void)inf;
+
+    return err;
+}
+#endif /* ECC_TIMING_RESISTANT */
+
+/* perform a fixed point ECC mulmod */
 static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
-                        mp_int* modulus, mp_digit mp, int map)
+                        mp_int* modulus, mp_digit mp, WC_RNG* rng, int map)
 {
 #ifdef WOLFCRYPT_HAVE_SAKKE
     #define KB_SIZE 256
@@ -14255,9 +14413,16 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
    mp_int        order[1];
 #endif
    int      x, err;
-   unsigned y, z = 0, bitlen, bitpos, lut_gap;
+   unsigned y, z = 0, bitlen, lut_gap;
+#ifndef ECC_TIMING_RESISTANT
+   unsigned bitpos;
    int first;
+#endif
    int tk_zeroize = 0;
+
+#ifndef ECC_TIMING_RESISTANT
+   (void)rng;
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
    tk = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
@@ -14308,7 +14473,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 
    /* get bitlen and round up to next multiple of FP_LUT */
    bitlen  = (unsigned)mp_unsigned_bin_size(modulus) << 3;
-   x       = bitlen % FP_LUT;
+   x       = (int)(bitlen % FP_LUT);
    if (x) {
       bitlen += FP_LUT - (unsigned)x;
    }
@@ -14318,6 +14483,12 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
    if (mp_unsigned_bin_size(tk) > (int)(KB_SIZE - 2)) {
       err = BUFFER_E; goto done;
    }
+#ifdef ECC_TIMING_RESISTANT
+   /* The scalar is written at the length of the modulus. */
+   if (mp_unsigned_bin_size(modulus) > (int)(KB_SIZE - 2)) {
+      err = BUFFER_E; goto done;
+   }
+#endif
 
    /* store k */
 #ifdef WOLFSSL_SMALL_STACK
@@ -14328,6 +14499,21 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 #endif
 
    XMEMSET(kb, 0, KB_SIZE);
+#ifdef ECC_TIMING_RESISTANT
+   /* A fixed length so that the scalar's leading zeros are not revealed. */
+   y = (unsigned)mp_unsigned_bin_size(modulus);
+   if ((err = mp_to_unsigned_bin_len_ct(tk, kb, (int)y)) == MP_OKAY) {
+   #ifdef WOLFSSL_CHECK_MEM_ZERO
+      wc_MemZero_Add("accel_fp_mul kb", kb, KB_SIZE);
+   #endif
+      y -= 1;
+      for (x = 0; (unsigned)x < y; x++, y--) {
+         z = kb[x]; kb[x] = kb[y]; kb[y] = (byte)z;
+      }
+      z = 0;
+      err = fp_comb_ct(idx, kb, lut_gap, R, a, modulus, mp, rng);
+      ForceZero(kb, KB_SIZE);
+   #else
    if ((err = mp_to_unsigned_bin(tk, kb)) == MP_OKAY) {
    #ifdef WOLFSSL_CHECK_MEM_ZERO
       wc_MemZero_Add("accel_fp_mul kb", kb, KB_SIZE);
@@ -14385,6 +14571,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
       if ((err == MP_OKAY) && (first == 1)) {
          err = ecc_set_point_infinity(R);
       }
+   #endif /* ECC_TIMING_RESISTANT */
    }
 
    if (err == MP_OKAY) {
@@ -14393,7 +14580,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 
       /* map R back from projective space */
       if (map) {
-         err = ecc_map(R, modulus, mp);
+         err = ecc_map_ex(R, modulus, mp, 1);
       } else {
          err = MP_OKAY;
       }
@@ -14420,7 +14607,6 @@ done:
 
    return err;
 }
-#endif /* !ECC_TIMING_RESISTANT */
 #endif
 
 #ifdef ECC_SHAMIR
@@ -14544,7 +14730,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
    /* get bitlen and round up to next multiple of FP_LUT */
    bitlen  = (unsigned)mp_unsigned_bin_size(modulus) << 3;
-   x       = bitlen % FP_LUT;
+   x       = (int)(bitlen % FP_LUT);
    if (x) {
       bitlen += FP_LUT - (unsigned)x;
    }
@@ -14879,20 +15065,6 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     mp_int* modulus, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_MATH)
-#ifdef ECC_TIMING_RESISTANT
-   if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL) {
-       return ECC_BAD_ARG_E;
-   }
-
-   /* k can't have more bits than modulus count plus 1 */
-   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
-      return ECC_OUT_OF_RANGE_E;
-   }
-
-   /* The FP-cache LUT is not constant-time, so secret scalars bypass the
-    * cache and its lock entirely. */
-   return normal_ecc_mulmod(k, G, R, a, modulus, NULL, map, heap);
-#else
    int   idx, err = MP_OKAY;
    mp_digit mp = 0;
    WC_DECLARE_VAR(mu, mp_int, 1, 0);
@@ -14959,7 +15131,8 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
       if (err == MP_OKAY) {
         /* if it's 2 build the LUT, if it's higher just use the LUT */
-        if (idx >= 0 && fp_cache[idx].lru_count >= 2 && !fp_cache[idx].LUT_set) {
+        if (FP_MULMOD_USES_LUT && idx >= 0 && fp_cache[idx].lru_count >= 2 &&
+                !fp_cache[idx].LUT_set) {
            /* compute mp */
            err = mp_montgomery_setup(modulus, &mp);
 
@@ -14976,13 +15149,13 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       }
 
       if (err == MP_OKAY) {
-        if (idx >= 0 && fp_cache[idx].LUT_set) {
+        if (idx >= 0 && fp_cache[idx].LUT_set && FP_K_FITS_COMB(k, modulus)) {
            if (mpSetup == 0) {
               /* compute mp */
               err = mp_montgomery_setup(modulus, &mp);
            }
            if (err == MP_OKAY)
-             err = accel_fp_mul(idx, k, R, a, modulus, mp, map);
+             err = accel_fp_mul(idx, k, R, a, modulus, mp, NULL, map);
         } else {
            err = normal_ecc_mulmod(k, G, R, a, modulus, NULL, map, heap);
         }
@@ -14998,7 +15171,6 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 
     return err;
-#endif /* ECC_TIMING_RESISTANT */
 
 #else /* WOLFSSL_SP_MATH */
 
@@ -15057,21 +15229,6 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     mp_int* modulus, mp_int* order, WC_RNG* rng, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_MATH)
-#ifdef ECC_TIMING_RESISTANT
-   if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL ||
-                                                                order == NULL) {
-       return ECC_BAD_ARG_E;
-   }
-
-   /* k can't have more bits than order */
-   if (mp_count_bits(k) > mp_count_bits(order)) {
-      return ECC_OUT_OF_RANGE_E;
-   }
-
-   /* The FP-cache LUT is not constant-time, so secret scalars bypass the
-    * cache and its lock entirely. */
-   return normal_ecc_mulmod(k, G, R, a, modulus, rng, map, heap);
-#else
    int   idx, err = MP_OKAY;
    mp_digit mp = 0;
    WC_DECLARE_VAR(mu, mp_int, 1, 0);
@@ -15139,7 +15296,8 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
       if (err == MP_OKAY) {
         /* if it's 2 build the LUT, if it's higher just use the LUT */
-        if (idx >= 0 && fp_cache[idx].lru_count >= 2 && !fp_cache[idx].LUT_set) {
+        if (FP_MULMOD_USES_LUT && idx >= 0 && fp_cache[idx].lru_count >= 2 &&
+                !fp_cache[idx].LUT_set) {
            /* compute mp */
            err = mp_montgomery_setup(modulus, &mp);
 
@@ -15156,13 +15314,13 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       }
 
       if (err == MP_OKAY) {
-        if (idx >= 0 && fp_cache[idx].LUT_set) {
+        if (idx >= 0 && fp_cache[idx].LUT_set && FP_K_FITS_COMB(k, modulus)) {
            if (mpSetup == 0) {
               /* compute mp */
               err = mp_montgomery_setup(modulus, &mp);
            }
            if (err == MP_OKAY)
-             err = accel_fp_mul(idx, k, R, a, modulus, mp, map);
+             err = accel_fp_mul(idx, k, R, a, modulus, mp, rng, map);
         } else {
           err = normal_ecc_mulmod(k, G, R, a, modulus, rng, map, heap);
         }
@@ -15178,7 +15336,6 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 
     return err;
-#endif /* ECC_TIMING_RESISTANT */
 
 #else /* WOLFSSL_SP_MATH */
 
@@ -15226,8 +15383,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif /* WOLFSSL_SP_MATH */
 }
 
-#if !defined(WOLFSSL_SP_MATH) && \
-    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
+#if !defined(WOLFSSL_SP_MATH)
 /* helper function for freeing the cache ...
    must be called with the cache mutex locked */
 static void wc_ecc_fp_free_cache(void)
@@ -15254,8 +15410,7 @@ static void wc_ecc_fp_free_cache(void)
 /** Init the Fixed Point cache */
 void wc_ecc_fp_init(void)
 {
-#if !defined(WOLFSSL_SP_MATH) && \
-    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
+#ifndef WOLFSSL_SP_MATH
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
    /* Losing the election is fine - the winner finishes the init. */
@@ -15270,8 +15425,7 @@ void wc_ecc_fp_init(void)
 WOLFSSL_ABI
 void wc_ecc_fp_free(void)
 {
-#if !defined(WOLFSSL_SP_MATH) && \
-    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
+#if !defined(WOLFSSL_SP_MATH)
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
    /* extra sanity check if wolfCrypt_Init not called */

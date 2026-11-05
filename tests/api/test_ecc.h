@@ -50,6 +50,7 @@ int test_wc_ecc_import_x963_oversized(void);
 int test_wc_ecc_import_x963_non_canonical(void);
 int test_wc_ecc_import_private_key(void);
 int test_wc_ecc_make_pub_order_minus_1(void);
+int test_wc_ecc_fp_cached_matches_uncached(void);
 int test_wc_ecc_export_private_only(void);
 int test_wc_ecc_rs_to_sig(void);
 int test_wc_ecc_import_raw(void);
@@ -116,6 +117,7 @@ int test_wc_ecc_make_key_id_dev(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963_non_canonical),      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_private_key),             \
     TEST_DECL_GROUP("ecc", test_wc_ecc_make_pub_order_minus_1),         \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_fp_cached_matches_uncached), \
     TEST_DECL_GROUP("ecc", test_wc_ecc_export_private_only),            \
     TEST_DECL_GROUP("ecc", test_wc_ecc_rs_to_sig),                      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_raw),                     \
