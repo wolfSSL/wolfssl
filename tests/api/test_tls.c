@@ -8941,6 +8941,7 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
     !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *dctx = NULL;
     WOLFSSL     *dssl = NULL;
+    ConnectionID *txCid = NULL;
     byte         cid[4] = { 1, 2, 3, 4 };
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
@@ -8978,18 +8979,28 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
     /* dtls T, cidTxSize T. */
     ExpectIntEQ(wolfSSL_dtls_cid_use(dssl), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls_cid_set(dssl, cid, sizeof(cid)), WOLFSSL_SUCCESS);
+    /* Model the peer CID installed by the CID extension parser. The parser
+     * is library-local and cannot be linked from the API test binary. The
+     * SSL extension owns this allocation and frees it with dssl. */
+    txCid = (ConnectionID*)XMALLOC(sizeof(ConnectionID) + sizeof(cid),
+                                  dssl->heap, DYNAMIC_TYPE_TLSX);
+    ExpectNotNull(txCid);
+    if (txCid != NULL) {
+        txCid->length = (byte)sizeof(cid);
+        XMEMCPY(txCid->id, cid, sizeof(cid));
+        dssl->dtlsCidInfo->tx = txCid;
+    }
     {
-        byte peerCid[] = { sizeof(cid), 5, 6, 7, 8 };
         unsigned int txSize = 0;
 
-        ExpectIntEQ(TLSX_ConnectionID_Parse(dssl, peerCid,
-            (word16)sizeof(peerCid), 0), 0);
         ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(dssl, &txSize),
             WOLFSSL_SUCCESS);
-        ExpectIntEQ(txSize, sizeof(cid));
+        if (txCid != NULL)
+            ExpectIntEQ(txSize, sizeof(cid));
     }
-    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 0),
-                BAD_FUNC_ARG);
+    if (txCid != NULL)
+        ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0,
+                                           application_data, 0), BAD_FUNC_ARG);
     /* content == dtls12_cid: the first clause's true side. */
     ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, dtls12_cid, 0),
                 BAD_FUNC_ARG);
