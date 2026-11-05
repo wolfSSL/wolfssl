@@ -623,7 +623,7 @@
  "check": false,
  "run": [["./wolfcrypt/test/testwolfcrypt"]]},
 {"name": "fpecc-no-shamir",
- "comment": "FP_ECC with ECC_TIMING_RESISTANT but no ECC_SHAMIR: nothing consumes the fixed-point cache, so its table, lock and helpers are compiled out.",
+ "comment": "FP_ECC with ECC_TIMING_RESISTANT but no ECC_SHAMIR: only the constant-time comb consumes the fixed-point cache.",
  "configure": ["--enable-fpecc", "--disable-eccshamir"]},
 {"name": "sp-math-sakke",
  "comment": "SAKKE on WOLFSSL_SP_MATH without RSA, DH, or ECCSI: its blinded RSK inverse needs sp_mulmod, which nothing else builds in this shape.",
