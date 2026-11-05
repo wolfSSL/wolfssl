@@ -3319,6 +3319,9 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      const unsigned char *in, size_t inLen)
 {
     int len = 0;
+#if !defined(NO_RSA)
+    int rsaSz;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_encrypt");
 
@@ -3342,23 +3345,28 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA)
     case WC_EVP_PKEY_RSA:
-        if (out == NULL) {
-            if (ctx->pkey->rsa == NULL) {
-                WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
-                return WOLFSSL_FAILURE;
-            }
-            len = wolfSSL_RSA_size(ctx->pkey->rsa);
-            if (len <= 0) {
-                WOLFSSL_MSG("Error getting RSA size.");
-                return WOLFSSL_FAILURE;
-            }
-            if (outLen == NULL) {
-                WOLFSSL_MSG("outLen is NULL.");
-                return WOLFSSL_FAILURE;
-            }
+        if (ctx->pkey->rsa == NULL) {
+            WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        if (outLen == NULL) {
+            WOLFSSL_MSG("outLen is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        rsaSz = wolfSSL_RSA_size(ctx->pkey->rsa);
+        if (rsaSz <= 0) {
+            WOLFSSL_MSG("Error getting RSA size.");
+            return WOLFSSL_FAILURE;
+        }
 
-            *outLen = (size_t)len;
+        if (out == NULL) {
+            *outLen = (size_t)rsaSz;
             return WOLFSSL_SUCCESS;
+        }
+
+        if (*outLen < (size_t)rsaSz) {
+            WOLFSSL_MSG("Output buffer too small.");
+            return WOLFSSL_FAILURE;
         }
 
         len = wolfSSL_RSA_public_encrypt((int)inLen, (unsigned char *)in, out,
