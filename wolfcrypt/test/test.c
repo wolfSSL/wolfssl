@@ -38777,6 +38777,54 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
     }
 #endif
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_INTEL_QA)
+    /* A DMA copy made with XREALLOC leaves the caller's buffer allocated. */
+    {
+        byte *b = (byte*)XMALLOC(12, HEAP_HINT,
+                                 DYNAMIC_TYPE_CIPHER);
+        byte *c = NULL;
+        if (b == NULL)
+            return WC_TEST_RET_ENC_ERRNO;
+        XMEMSET(b, 0xA5, 12);
+        c = (byte*)XREALLOC(b, 16, HEAP_HINT,
+                            DYNAMIC_TYPE_ASYNC_NUMA);
+        if (c == NULL) {
+            XFREE(b, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+            return WC_TEST_RET_ENC_ERRNO;
+        }
+        if (c == b || XMEMCMP(c, b, 12) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        XMEMSET(b, 0x5A, 12);
+        if (c != b)
+            XFREE(c, HEAP_HINT, DYNAMIC_TYPE_ASYNC_NUMA);
+        XFREE(b, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+        if (ret != 0)
+            return ret;
+    }
+    /* Any other XREALLOC is a normal realloc, even for a type the device can
+     * use, and the old buffer is released. */
+    {
+        byte *b = (byte*)XMALLOC(16, HEAP_HINT, DYNAMIC_TYPE_PUBLIC_KEY);
+        byte *c = NULL;
+        int k;
+        if (b == NULL)
+            return WC_TEST_RET_ENC_ERRNO;
+        XMEMSET(b, 0xA5, 16);
+        c = (byte*)XREALLOC(b, 64, HEAP_HINT, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (c == NULL) {
+            XFREE(b, HEAP_HINT, DYNAMIC_TYPE_PUBLIC_KEY);
+            return WC_TEST_RET_ENC_ERRNO;
+        }
+        for (k = 0; k < 16; k++) {
+            if (c[k] != 0xA5)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        XFREE(c, HEAP_HINT, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (ret != 0)
+            return ret;
+    }
+#endif
+
     if (ret == 0) {
         /* This test is only interesting on embedded R/O Flash systems */
         if (const_byte_ptr_test(const_byte_array, &j) != CBPTR_EXPECTED) {
