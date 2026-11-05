@@ -1112,16 +1112,14 @@ int test_wolfSSL_X509_NAME_ENTRY_shared_object(void)
 }
 
 /* X509_NAME_oneline() must escape the '/' RDN separator and the '+'
- * multi-valued RDN separator when they appear inside an attribute value, as
- * OpenSSL 3 does. Otherwise a single attribute whose value contains them
- * (CN="foo/O=bar") renders byte-identical to a name made of several
- * attributes (CN=foo, O=bar) and the two are indistinguishable to callers
- * that compare the one-line form (wolfSSL/wolfssl#11392). The same flat
- * string backs X509_NAME_cmp() and X509_check_issued().
+ * multi-valued RDN separator when they appear inside an attribute value,
+ * similar to OpenSSL 3 (wolfSSL also escapes '\' itself).
  *
- * Unlike OpenSSL, a '\' inside a value is escaped as well. Otherwise
- * CN="foo\", O=bar still renders as CN="foo/O=bar" does, and CN="a\+b" as
- * CN="a+b" does, and wolfSSL compares names by this string. */
+ * Otherwise a single attribute whose value contains them (CN="foo/O=bar")
+ * renders byte-identical to a name made of several attributes (CN=foo, O=bar)
+ * and the two are indistinguishable to callers that compare the one-line form
+ * (wolfSSL/wolfssl#11392).
+ */
 int test_wolfSSL_X509_NAME_oneline_escape(void)
 {
     EXPECT_DECLS;
@@ -1214,7 +1212,7 @@ int test_wolfSSL_X509_NAME_oneline_escape(void)
 
         ExpectIntEQ(XSTRNCMP(onelineLong, "/CN=", XSTRLEN("/CN=")), 0);
         len = (int)XSTRLEN(val);
-        ExpectIntEQ(len, (sizeof(longName) - 1) * 2);
+        ExpectIntEQ(len, (int)(sizeof(longName) - 1) * 2);
         for (i = 0; EXPECT_SUCCESS() && (i + 1 < len); i += 2) {
             ExpectIntEQ(val[i], '\\');
             ExpectIntEQ(val[i + 1], '+');
@@ -1234,7 +1232,6 @@ int test_wolfSSL_X509_NAME_oneline_escape(void)
         };
         int origSz = (int)(sizeof(orig) / sizeof(orig[0]));
         int i;
-
 
         for (i = 0; i < origSz; i++) {
             X509_NAME* dup = NULL;
