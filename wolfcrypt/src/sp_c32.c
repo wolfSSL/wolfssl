@@ -794,15 +794,6 @@ SP_NOINLINE static int sp_2048_sub_24(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    /* Inputs to sp_2048_mul_36() and sp_2048_sqr_36() have limbs 0..34 below
-     * 2^29 and each 12-limb chunk below 2^(12*29) + 2^(11*29).  This holds for
-     * normalized 36-limb operands and normalized Karatsuba sums built by
-     * sp_2048_mul_72() and sp_2048_sqr_72(). The final Toom-3 cross terms sum
-     * two chunk products: low limbs are in [-2, 3]*(2^29-1), and the high limb
-     * is below 2*2^29+7. The following add_24 keeps the overlapping high limb
-     * below 3*2^29+7. These bounds show add_24 and norm_24 cannot overflow.
-     * The subtraction itself keeps the low word, identical to -fwrapv
-     * regardless of the bounds; cancellation precedes normalization. */
     for (i = 0; i < 24; i += 8) {
         r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
         r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
@@ -1035,14 +1026,14 @@ SP_NOINLINE static int sp_2048_sub_72(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 72; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
 
     return 0;
@@ -1335,7 +1326,7 @@ SP_NOINLINE static int sp_2048_sub_72(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 72; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -1496,7 +1487,7 @@ SP_NOINLINE static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 36; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -1515,19 +1506,19 @@ SP_NOINLINE static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 32; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[32] = a[32] - b[32];
-    r[33] = a[33] - b[33];
-    r[34] = a[34] - b[34];
-    r[35] = a[35] - b[35];
+    r[32] = (sp_digit)((sp_uint32)a[32] - (sp_uint32)b[32]);
+    r[33] = (sp_digit)((sp_uint32)a[33] - (sp_uint32)b[33]);
+    r[34] = (sp_digit)((sp_uint32)a[34] - (sp_uint32)b[34]);
+    r[35] = (sp_digit)((sp_uint32)a[35] - (sp_uint32)b[35]);
 
     return 0;
 }
@@ -6351,7 +6342,7 @@ SP_NOINLINE static int sp_3072_sub_53(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 53; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -7518,7 +7509,7 @@ SP_NOINLINE static int sp_3072_sub_106(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 106; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -10723,13 +10714,6 @@ SP_NOINLINE static int sp_3072_sub_28(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    /* In sp_3072_mul_28() and sp_3072_sqr_28(), the leaf multipliers
-     * accumulate in sp_uint64. Their top limb is converted to sp_digit
-     * and may wrap (implementation-defined, not undefined behaviour).
-     * Each 14-limb half is below 2*2^(14*28), so the final Karatsuba cross
-     * term is below 4*2^(28*28) and its true high limb fits sp_digit. Both
-     * subtractions are done modulo 2^32 so the wrap cancels before carry
-     * normalization. */
     for (i = 0; i < 24; i += 8) {
         r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
         r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
@@ -10833,14 +10817,14 @@ SP_NOINLINE static int sp_3072_sub_56(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 56; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
 
     return 0;
@@ -10932,14 +10916,14 @@ SP_NOINLINE static int sp_3072_sub_112(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 112; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
 
     return 0;
@@ -15316,7 +15300,7 @@ SP_NOINLINE static int sp_4096_sub_71(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 71; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -16490,7 +16474,7 @@ SP_NOINLINE static int sp_4096_sub_142(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 142; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -19423,17 +19407,17 @@ SP_NOINLINE static int sp_4096_sub_18(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 16; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[16] = a[16] - b[16];
-    r[17] = a[17] - b[17];
+    r[16] = (sp_digit)((sp_uint32)a[16] - (sp_uint32)b[16]);
+    r[17] = (sp_digit)((sp_uint32)a[17] - (sp_uint32)b[17]);
 
     return 0;
 }
@@ -19631,21 +19615,21 @@ SP_NOINLINE static int sp_4096_sub_54(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 48; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[48] = a[48] - b[48];
-    r[49] = a[49] - b[49];
-    r[50] = a[50] - b[50];
-    r[51] = a[51] - b[51];
-    r[52] = a[52] - b[52];
-    r[53] = a[53] - b[53];
+    r[48] = (sp_digit)((sp_uint32)a[48] - (sp_uint32)b[48]);
+    r[49] = (sp_digit)((sp_uint32)a[49] - (sp_uint32)b[49]);
+    r[50] = (sp_digit)((sp_uint32)a[50] - (sp_uint32)b[50]);
+    r[51] = (sp_digit)((sp_uint32)a[51] - (sp_uint32)b[51]);
+    r[52] = (sp_digit)((sp_uint32)a[52] - (sp_uint32)b[52]);
+    r[53] = (sp_digit)((sp_uint32)a[53] - (sp_uint32)b[53]);
 
     return 0;
 }
@@ -19833,17 +19817,17 @@ SP_NOINLINE static int sp_4096_sub_162(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 160; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[160] = a[160] - b[160];
-    r[161] = a[161] - b[161];
+    r[160] = (sp_digit)((sp_uint32)a[160] - (sp_uint32)b[160]);
+    r[161] = (sp_digit)((sp_uint32)a[161] - (sp_uint32)b[161]);
 
     return 0;
 }
@@ -20188,16 +20172,16 @@ SP_NOINLINE static int sp_4096_sub_81(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 80; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[80] = a[80] - b[80];
+    r[80] = (sp_digit)((sp_uint32)a[80] - (sp_uint32)b[80]);
 
     return 0;
 }
@@ -24231,7 +24215,7 @@ SP_NOINLINE static int sp_256_sub_9(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 9; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -24247,15 +24231,15 @@ SP_NOINLINE static int sp_256_sub_9(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static int sp_256_sub_9(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
-    r[ 0] = a[ 0] - b[ 0];
-    r[ 1] = a[ 1] - b[ 1];
-    r[ 2] = a[ 2] - b[ 2];
-    r[ 3] = a[ 3] - b[ 3];
-    r[ 4] = a[ 4] - b[ 4];
-    r[ 5] = a[ 5] - b[ 5];
-    r[ 6] = a[ 6] - b[ 6];
-    r[ 7] = a[ 7] - b[ 7];
-    r[ 8] = a[ 8] - b[ 8];
+    r[ 0] = (sp_digit)((sp_uint32)a[ 0] - (sp_uint32)b[ 0]);
+    r[ 1] = (sp_digit)((sp_uint32)a[ 1] - (sp_uint32)b[ 1]);
+    r[ 2] = (sp_digit)((sp_uint32)a[ 2] - (sp_uint32)b[ 2]);
+    r[ 3] = (sp_digit)((sp_uint32)a[ 3] - (sp_uint32)b[ 3]);
+    r[ 4] = (sp_digit)((sp_uint32)a[ 4] - (sp_uint32)b[ 4]);
+    r[ 5] = (sp_digit)((sp_uint32)a[ 5] - (sp_uint32)b[ 5]);
+    r[ 6] = (sp_digit)((sp_uint32)a[ 6] - (sp_uint32)b[ 6]);
+    r[ 7] = (sp_digit)((sp_uint32)a[ 7] - (sp_uint32)b[ 7]);
+    r[ 8] = (sp_digit)((sp_uint32)a[ 8] - (sp_uint32)b[ 8]);
 
     return 0;
 }
@@ -25664,20 +25648,13 @@ static int sp_256_mod_mul_norm_9(sp_digit* r, const sp_digit* a, const sp_digit*
         a32 = t + 8;
 
         a32[0] = (sp_uint32)a[0] | ((sp_uint32)a[1] << 29U);
-        a32[1] = ((sp_uint32)a[1] >> 3U) |
-            ((sp_uint32)a[2] << 26U);
-        a32[2] = ((sp_uint32)a[2] >> 6U) |
-            ((sp_uint32)a[3] << 23U);
-        a32[3] = ((sp_uint32)a[3] >> 9U) |
-            ((sp_uint32)a[4] << 20U);
-        a32[4] = ((sp_uint32)a[4] >> 12U) |
-            ((sp_uint32)a[5] << 17U);
-        a32[5] = ((sp_uint32)a[5] >> 15U) |
-            ((sp_uint32)a[6] << 14U);
-        a32[6] = ((sp_uint32)a[6] >> 18U) |
-            ((sp_uint32)a[7] << 11U);
-        a32[7] = ((sp_uint32)a[7] >> 21U) |
-            ((sp_uint32)a[8] << 8U);
+        a32[1] = ((sp_uint32)a[1] >> 3U) | ((sp_uint32)a[2] << 26U);
+        a32[2] = ((sp_uint32)a[2] >> 6U) | ((sp_uint32)a[3] << 23U);
+        a32[3] = ((sp_uint32)a[3] >> 9U) | ((sp_uint32)a[4] << 20U);
+        a32[4] = ((sp_uint32)a[4] >> 12U) | ((sp_uint32)a[5] << 17U);
+        a32[5] = ((sp_uint32)a[5] >> 15U) | ((sp_uint32)a[6] << 14U);
+        a32[6] = ((sp_uint32)a[6] >> 18U) | ((sp_uint32)a[7] << 11U);
+        a32[7] = ((sp_uint32)a[7] >> 21U) | ((sp_uint32)a[8] << 8U);
 
         /*  1  1  0 -1 -1 -1 -1  0 */
         t[0] = 0 + a32[0] + a32[1] - a32[3] - a32[4] - a32[5] - a32[6];
@@ -31743,7 +31720,7 @@ SP_NOINLINE static int sp_384_sub_15(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 15; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -31759,21 +31736,21 @@ SP_NOINLINE static int sp_384_sub_15(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static int sp_384_sub_15(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
-    r[ 0] = a[ 0] - b[ 0];
-    r[ 1] = a[ 1] - b[ 1];
-    r[ 2] = a[ 2] - b[ 2];
-    r[ 3] = a[ 3] - b[ 3];
-    r[ 4] = a[ 4] - b[ 4];
-    r[ 5] = a[ 5] - b[ 5];
-    r[ 6] = a[ 6] - b[ 6];
-    r[ 7] = a[ 7] - b[ 7];
-    r[ 8] = a[ 8] - b[ 8];
-    r[ 9] = a[ 9] - b[ 9];
-    r[10] = a[10] - b[10];
-    r[11] = a[11] - b[11];
-    r[12] = a[12] - b[12];
-    r[13] = a[13] - b[13];
-    r[14] = a[14] - b[14];
+    r[ 0] = (sp_digit)((sp_uint32)a[ 0] - (sp_uint32)b[ 0]);
+    r[ 1] = (sp_digit)((sp_uint32)a[ 1] - (sp_uint32)b[ 1]);
+    r[ 2] = (sp_digit)((sp_uint32)a[ 2] - (sp_uint32)b[ 2]);
+    r[ 3] = (sp_digit)((sp_uint32)a[ 3] - (sp_uint32)b[ 3]);
+    r[ 4] = (sp_digit)((sp_uint32)a[ 4] - (sp_uint32)b[ 4]);
+    r[ 5] = (sp_digit)((sp_uint32)a[ 5] - (sp_uint32)b[ 5]);
+    r[ 6] = (sp_digit)((sp_uint32)a[ 6] - (sp_uint32)b[ 6]);
+    r[ 7] = (sp_digit)((sp_uint32)a[ 7] - (sp_uint32)b[ 7]);
+    r[ 8] = (sp_digit)((sp_uint32)a[ 8] - (sp_uint32)b[ 8]);
+    r[ 9] = (sp_digit)((sp_uint32)a[ 9] - (sp_uint32)b[ 9]);
+    r[10] = (sp_digit)((sp_uint32)a[10] - (sp_uint32)b[10]);
+    r[11] = (sp_digit)((sp_uint32)a[11] - (sp_uint32)b[11]);
+    r[12] = (sp_digit)((sp_uint32)a[12] - (sp_uint32)b[12]);
+    r[13] = (sp_digit)((sp_uint32)a[13] - (sp_uint32)b[13]);
+    r[14] = (sp_digit)((sp_uint32)a[14] - (sp_uint32)b[14]);
 
     return 0;
 }
@@ -33256,28 +33233,19 @@ static int sp_384_mod_mul_norm_15(sp_digit* r, const sp_digit* a, const sp_digit
         a32 = t + 12;
 
         a32[0] = (sp_uint32)a[0] | ((sp_uint32)a[1] << 26U);
-        a32[1] = ((sp_uint32)a[1] >> 6U) |
-            ((sp_uint32)a[2] << 20U);
-        a32[2] = ((sp_uint32)a[2] >> 12U) |
-            ((sp_uint32)a[3] << 14U);
-        a32[3] = ((sp_uint32)a[3] >> 18U) |
-            ((sp_uint32)a[4] << 8U);
-        a32[4] = ((sp_uint32)a[4] >> 24U) |
-            ((sp_uint32)a[5] << 2U) | ((sp_uint32)a[6] << 28U);
-        a32[5] = ((sp_uint32)a[6] >> 4U) |
-            ((sp_uint32)a[7] << 22U);
-        a32[6] = ((sp_uint32)a[7] >> 10U) |
-            ((sp_uint32)a[8] << 16U);
-        a32[7] = ((sp_uint32)a[8] >> 16U) |
-            ((sp_uint32)a[9] << 10U);
-        a32[8] = ((sp_uint32)a[9] >> 22U) |
-            ((sp_uint32)a[10] << 4U) | ((sp_uint32)a[11] << 30U);
-        a32[9] = ((sp_uint32)a[11] >> 2U) |
-            ((sp_uint32)a[12] << 24U);
-        a32[10] = ((sp_uint32)a[12] >> 8U) |
-            ((sp_uint32)a[13] << 18U);
-        a32[11] = ((sp_uint32)a[13] >> 14U) |
-            ((sp_uint32)a[14] << 12U);
+        a32[1] = ((sp_uint32)a[1] >> 6U) | ((sp_uint32)a[2] << 20U);
+        a32[2] = ((sp_uint32)a[2] >> 12U) | ((sp_uint32)a[3] << 14U);
+        a32[3] = ((sp_uint32)a[3] >> 18U) | ((sp_uint32)a[4] << 8U);
+        a32[4] = ((sp_uint32)a[4] >> 24U) | ((sp_uint32)a[5] << 2U) |
+            ((sp_uint32)a[6] << 28U);
+        a32[5] = ((sp_uint32)a[6] >> 4U) | ((sp_uint32)a[7] << 22U);
+        a32[6] = ((sp_uint32)a[7] >> 10U) | ((sp_uint32)a[8] << 16U);
+        a32[7] = ((sp_uint32)a[8] >> 16U) | ((sp_uint32)a[9] << 10U);
+        a32[8] = ((sp_uint32)a[9] >> 22U) | ((sp_uint32)a[10] << 4U) |
+            ((sp_uint32)a[11] << 30U);
+        a32[9] = ((sp_uint32)a[11] >> 2U) | ((sp_uint32)a[12] << 24U);
+        a32[10] = ((sp_uint32)a[12] >> 8U) | ((sp_uint32)a[13] << 18U);
+        a32[11] = ((sp_uint32)a[13] >> 14U) | ((sp_uint32)a[14] << 12U);
 
         /*  1  0  0  0  0  0  0  0  1  1  0 -1 */
         t[0] = 0 + a32[0] + a32[8] + a32[9] - a32[11];
@@ -39626,7 +39594,7 @@ SP_NOINLINE static int sp_521_sub_21(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 21; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
@@ -39645,20 +39613,20 @@ SP_NOINLINE static int sp_521_sub_21(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 16; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[16] = a[16] - b[16];
-    r[17] = a[17] - b[17];
-    r[18] = a[18] - b[18];
-    r[19] = a[19] - b[19];
-    r[20] = a[20] - b[20];
+    r[16] = (sp_digit)((sp_uint32)a[16] - (sp_uint32)b[16]);
+    r[17] = (sp_digit)((sp_uint32)a[17] - (sp_uint32)b[17]);
+    r[18] = (sp_digit)((sp_uint32)a[18] - (sp_uint32)b[18]);
+    r[19] = (sp_digit)((sp_uint32)a[19] - (sp_uint32)b[19]);
+    r[20] = (sp_digit)((sp_uint32)a[20] - (sp_uint32)b[20]);
 
     return 0;
 }
@@ -47808,20 +47776,20 @@ SP_NOINLINE static int sp_1024_add_7(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static int sp_1024_sub_14(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
-    r[ 0] = a[ 0] - b[ 0];
-    r[ 1] = a[ 1] - b[ 1];
-    r[ 2] = a[ 2] - b[ 2];
-    r[ 3] = a[ 3] - b[ 3];
-    r[ 4] = a[ 4] - b[ 4];
-    r[ 5] = a[ 5] - b[ 5];
-    r[ 6] = a[ 6] - b[ 6];
-    r[ 7] = a[ 7] - b[ 7];
-    r[ 8] = a[ 8] - b[ 8];
-    r[ 9] = a[ 9] - b[ 9];
-    r[10] = a[10] - b[10];
-    r[11] = a[11] - b[11];
-    r[12] = a[12] - b[12];
-    r[13] = a[13] - b[13];
+    r[ 0] = (sp_digit)((sp_uint32)a[ 0] - (sp_uint32)b[ 0]);
+    r[ 1] = (sp_digit)((sp_uint32)a[ 1] - (sp_uint32)b[ 1]);
+    r[ 2] = (sp_digit)((sp_uint32)a[ 2] - (sp_uint32)b[ 2]);
+    r[ 3] = (sp_digit)((sp_uint32)a[ 3] - (sp_uint32)b[ 3]);
+    r[ 4] = (sp_digit)((sp_uint32)a[ 4] - (sp_uint32)b[ 4]);
+    r[ 5] = (sp_digit)((sp_uint32)a[ 5] - (sp_uint32)b[ 5]);
+    r[ 6] = (sp_digit)((sp_uint32)a[ 6] - (sp_uint32)b[ 6]);
+    r[ 7] = (sp_digit)((sp_uint32)a[ 7] - (sp_uint32)b[ 7]);
+    r[ 8] = (sp_digit)((sp_uint32)a[ 8] - (sp_uint32)b[ 8]);
+    r[ 9] = (sp_digit)((sp_uint32)a[ 9] - (sp_uint32)b[ 9]);
+    r[10] = (sp_digit)((sp_uint32)a[10] - (sp_uint32)b[10]);
+    r[11] = (sp_digit)((sp_uint32)a[11] - (sp_uint32)b[11]);
+    r[12] = (sp_digit)((sp_uint32)a[12] - (sp_uint32)b[12]);
+    r[13] = (sp_digit)((sp_uint32)a[13] - (sp_uint32)b[13]);
 
     return 0;
 }
@@ -48026,17 +47994,17 @@ SP_NOINLINE static int sp_1024_sub_42(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 40; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[40] = a[40] - b[40];
-    r[41] = a[41] - b[41];
+    r[40] = (sp_digit)((sp_uint32)a[40] - (sp_uint32)b[40]);
+    r[41] = (sp_digit)((sp_uint32)a[41] - (sp_uint32)b[41]);
 
     return 0;
 }
@@ -48461,7 +48429,7 @@ SP_NOINLINE static int sp_1024_sub_42(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i = 0; i < 42; i++) {
-        r[i] = a[i] - b[i];
+        r[i] = (sp_digit)((sp_uint32)a[i] - (sp_uint32)b[i]);
     }
 
     return 0;
