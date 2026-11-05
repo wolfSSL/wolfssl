@@ -34971,7 +34971,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
 #endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_TLS) && (!defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS))
-#ifdef WC_RSA_PSS
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
 /* Smallest RSA key able to make an RSA-PSS signature with the given hash:
  * emLen >= 2*hLen + 2 (RFC 8017 9.1.1, salt length = hash length).
  * Returns 0 when the hash isn't one used with RSA-PSS - no restriction. */
@@ -35075,7 +35075,7 @@ static int MatchSigAlgo(WOLFSSL* ssl, int hashAlgo, int sigAlgo)
         return sigAlgo == mldsa_87_sa_algo;
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
-#ifdef WC_RSA_PSS
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
     /* RSA certificate and PSS sig alg. Also entered once a candidate was
      * chosen, so each later one is held to the key as well. */
     if (ssl->options.sigAlgo == rsa_sa_algo ||
@@ -35243,7 +35243,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
     }
     ssl->options.hashAlgo = minHash = MinHashAlgo(ssl);
 
-#ifdef WC_RSA_PSS
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
     /* Without a list a TLS 1.2 server signs rsa_pkcs1 (RFC 5246 7.4.1.4.1),
      * which an id-RSASSA-PSS key must not do (RFC 4055 1.2). */
     if (hashSigAlgoSz == 0 && ssl->useRsaPss &&
@@ -40612,7 +40612,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-        #ifdef WC_RSA_PSS
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
                 if (IsAtLeastTLSv1_2(ssl) && ssl->useRsaPss) {
                     /* id-RSASSA-PSS key: rsa_pss_pss_* (RFC 8446 4.2.3). */
                     args->sigAlgo = rsa_pss_pss_algo;
@@ -43286,6 +43286,20 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 return 0;
             }
         }
+
+    #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+        /* An id-RSASSA-PSS key only signs (RFC 4055 1.2): no RSA key
+         * transport, so none of the static RSA suites. */
+        if (ssl->useRsaPss && CipherRequires(first, second, REQUIRES_RSA)) {
+            CipherSpecs specs;
+
+            if (GetCipherSpec(ssl->options.side, first, second, &specs,
+                    NULL) == 0 && specs.kea == rsa_kea) {
+                WOLFSSL_MSG("id-RSASSA-PSS key cannot do RSA key transport");
+                return 0;
+            }
+        }
+    #endif
 
         if (CipherRequires(first, second, REQUIRES_DHE)) {
             WOLFSSL_MSG("Requires DHE");

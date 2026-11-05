@@ -39084,8 +39084,9 @@ static int test_wc_CryptoCb(void)
  * TLS 1.2 too, with the hash its parameters declare (RFC 4055 1.2). The
  * 2048-bit certs/rsapss keys declare SHA-256, the 3072-bit ones nothing.
  * Mislabelled or PKCS#1 v1.5 signatures from such a key are refused. */
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WC_RSA_PSS) && \
-    defined(HAVE_ECC) && (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(WC_RSA_PSS) && defined(HAVE_ECC) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
 #define TEST_TLS_RSA_PSS_PSS_KEY
 #define RSAPSS_SVR_CERT "./certs/rsapss/server-rsapss.pem"
 #define RSAPSS_SVR_KEY  "./certs/rsapss/server-rsapss-priv.pem"
@@ -39138,6 +39139,16 @@ static int test_rsa_pss_pss_mislabel_ssl_ready(WOLFSSL* ssl)
     ssl->useRsaPss = 0;
     return TEST_SUCCESS;
 }
+
+#if defined(WOLFSSL_STATIC_RSA) && defined(BUILD_TLS_RSA_WITH_AES_128_CBC_SHA)
+/* Offer RSA key transport only. */
+static int test_rsa_pss_pss_static_rsa_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "AES128-SHA"), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
 
 #ifdef OPENSSL_EXTRA
 /* Set on the session: the context setter allocates the suites before
@@ -39232,6 +39243,18 @@ static int test_tls_rsa_pss_pss_key(void)
         ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cbf,
             &server_cbf, NULL), TEST_SUCCESS);
         ExpectIntEQ(server_cbf.last_err, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    #if defined(WOLFSSL_STATIC_RSA) && \
+        defined(BUILD_TLS_RSA_WITH_AES_128_CBC_SHA)
+        if (!v->tls13) {
+            /* The key cannot do RSA key transport either (RFC 4055 1.2): a
+             * client offering only a static RSA suite is refused. */
+            test_rsa_pss_pss_setup(&client_cbf, &server_cbf, v);
+            client_cbf.ssl_ready = test_rsa_pss_pss_static_rsa_ssl_ready;
+            ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+                &server_cbf, NULL), TEST_SUCCESS);
+        }
+    #endif
 
     #ifdef OPENSSL_EXTRA
         /* Offered rsa_pss_pss_sha256 alone, the server selects it ... */

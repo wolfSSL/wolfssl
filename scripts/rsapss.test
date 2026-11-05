@@ -38,6 +38,15 @@ if [ "$HAVE_TLS12" = no ] && [ "$HAVE_TLS13" = no ]; then
     echo "skipping because neither TLS 1.2 nor TLS 1.3 is enabled in this build"
     exit 0
 fi
+# In sniffer builds the example server pins RSA key transport suites for
+# TLS 1.2 and below (examples/server/server.c), which carry no server
+# signature: only the TLS 1.3 server cases apply there.
+SVR_TLS12=$HAVE_TLS12
+SVR_DTLS12=$HAVE_DTLS12
+if grep -q -- '-DWOLFSSL_SNIFFER\b' config.log 2>/dev/null; then
+    SVR_TLS12=no
+    SVR_DTLS12=no
+fi
 HAVE_SHA384=no
 HAVE_SHA512=no
 grep -q -- '-DWOLFSSL_SHA384\b' config.log 2>/dev/null && HAVE_SHA384=yes
@@ -55,7 +64,8 @@ if grep -q -- '-DNO_CODING' config.log 2>/dev/null; then
     exit 0
 fi
 
-CERT_DIR="$PWD/$(dirname "$0")/../certs"
+# Resolved through cd: make check runs out of tree with an absolute $0.
+CERT_DIR="$(cd "$(dirname "$0")/../certs" && pwd)"
 if [ "$OPENSSL" = "" ]; then
     OPENSSL=openssl
 fi
@@ -176,6 +186,13 @@ fail_case() {
     fails=$((fails+1))
 }
 
+# A case whose client never reached a server proves nothing, whatever it
+# expected.
+no_connection() {
+    grep -q "connect:errno\|tcp connect failed" rsapss.client.log ||
+        grep -q "can't load" rsapss.server.log
+}
+
 # SignatureScheme code point (RFC 8446 4.2.3) of a scheme name.
 scheme_code() {
     case "$1" in
@@ -230,7 +247,8 @@ wire_sig_scheme() {
 
 # wolfSSL server, OpenSSL s_client: $1 name, $2 scheme the server must sign
 # with or FAIL, $3 server arguments, $4 s_client arguments. SIG_MSG names the
-# message carrying the server's signature.
+# message carrying the server's signature. Suites with RSA key transport carry
+# no server signature, so s_client leaves them out.
 wolfssl_server_case() {
     local name="$1" expect="$2" sargs="$3" cargs="$4" result
     cases=$((cases+1))
@@ -240,12 +258,15 @@ wolfssl_server_case() {
     server_pid=$!
     sleep 1
     echo "test connection" | $TIMEOUT_KILL_2M $OPENSSL s_client \
-        -connect 127.0.0.1:"$port" -msg $cargs > rsapss.client.log 2>&1
+        -connect 127.0.0.1:"$port" -msg -cipher DEFAULT:!kRSA $cargs \
+        > rsapss.client.log 2>&1
     result=$?
     sleep 0.2
     kill $server_pid 2>/dev/null
     wait $server_pid 2>/dev/null
-    if [ "$expect" = FAIL ]; then
+    if no_connection; then
+        fail_case "$name: no connection"
+    elif [ "$expect" = FAIL ]; then
         if [ "$result" = 0 ]; then
             fail_case "$name: handshake completed but must fail"
         fi
@@ -278,7 +299,9 @@ openssl_server_case() {
     result=$?
     kill $server_pid 2>/dev/null
     wait $server_pid 2>/dev/null
-    if [ "$expect" = FAIL ]; then
+    if no_connection; then
+        fail_case "$name: no connection"
+    elif [ "$expect" = FAIL ]; then
         if [ "$result" = 0 ]; then
             fail_case "$name: handshake completed but must fail"
         fi
@@ -296,11 +319,11 @@ openssl_server_case() {
 # (D)TLS 1.2 as well (RFC 8446 1.3).
 for ver in tls12 tls13 dtls12; do
     case $ver in
-        tls12)  [ "$HAVE_TLS12"  = yes ] || continue
+        tls12)  [ "$SVR_TLS12"   = yes ] || continue
                 sv="-v 3";    cv="-tls1_2"; SIG_MSG=ServerKeyExchange ;;
         tls13)  [ "$HAVE_TLS13"  = yes ] || continue
                 sv="-v 4";    cv="-tls1_3"; SIG_MSG=CertificateVerify ;;
-        dtls12) [ "$HAVE_DTLS12" = yes ] || continue
+        dtls12) [ "$SVR_DTLS12"  = yes ] || continue
                 # Explicit MTU: s_client cannot query the loopback path MTU on
                 # every platform and would otherwise fragment the ClientHello.
                 sv="-v 3 -u"; cv="-dtls1_2 -mtu 1500"; SIG_MSG=ServerKeyExchange ;;

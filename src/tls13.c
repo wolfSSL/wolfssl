@@ -11646,7 +11646,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
             /* Add signature algorithm. */
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-        #ifdef WC_RSA_PSS
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
                 /* id-RSASSA-PSS key: rsa_pss_pss_* (RFC 8446 4.2.3) */
                 if (ssl->useRsaPss)
                     args->sigAlgo = rsa_pss_pss_algo;
