@@ -2137,6 +2137,12 @@ WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 WOLFSSL_API int wolfSSL_sk_insert(WOLFSSL_STACK *sk, const void *data, int idx);
 WOLFSSL_API void* wolfSSL_sk_pop(WOLFSSL_STACK* sk);
 WOLFSSL_API void* wolfSSL_sk_delete(WOLFSSL_STACK* sk, int idx);
+WOLFSSL_API void* wolfSSL_sk_delete_ptr(WOLFSSL_STACK* sk, const void* data);
+#ifdef OPENSSL_ALL
+WOLFSSL_API wolf_sk_compare_cb wolfSSL_sk_set_cmp_func(WOLFSSL_STACK* sk,
+    wolf_sk_compare_cb cb);
+WOLFSSL_API void wolfSSL_sk_sort(WOLFSSL_STACK* sk);
+#endif
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_ALL)
@@ -6064,6 +6070,16 @@ WOLFSSL_API void wolfSSL_sk_X509_NAME_ENTRY_free(WOLF_STACK_OF(WOLFSSL_X509_NAME
 WOLFSSL_API void wolfSSL_sk_X509_NAME_ENTRY_pop_free(
     WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk,
     void (*f)(WOLFSSL_X509_NAME_ENTRY*));
+#ifdef OPENSSL_ALL
+typedef WOLF_SK_COMPARE_CB(WOLFSSL_X509_NAME_ENTRY,
+    wolf_sk_X509_NAME_ENTRY_cmp_cb);
+WOLFSSL_API wolf_sk_X509_NAME_ENTRY_cmp_cb
+    wolfSSL_sk_X509_NAME_ENTRY_set_cmp_func(
+        WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk,
+        wolf_sk_X509_NAME_ENTRY_cmp_cb cb);
+WOLFSSL_API void wolfSSL_sk_X509_NAME_ENTRY_sort(
+    WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk);
+#endif
 
 
 WOLFSSL_API int wolfSSL_sk_X509_OBJECT_num(const WOLF_STACK_OF(WOLFSSL_X509_OBJECT) *s);

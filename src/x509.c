@@ -16780,6 +16780,9 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* wolfSSL_sk_X509_NAME_ENTRY_new(
     WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
     if (sk != NULL) {
         sk->type = STACK_TYPE_X509_NAME_ENTRY;
+    #ifdef OPENSSL_ALL
+        sk->comp = (wolf_sk_compare_cb)cb;
+    #endif
         (void)cb;
     }
     return sk;
@@ -16817,6 +16820,25 @@ void wolfSSL_sk_X509_NAME_ENTRY_pop_free(
 {
     wolfSSL_sk_pop_free(sk, (wolfSSL_sk_freefunc)f);
 }
+
+#ifdef OPENSSL_ALL
+/* Sets the comparator used by sort. Returns the previous one. */
+wolf_sk_X509_NAME_ENTRY_cmp_cb wolfSSL_sk_X509_NAME_ENTRY_set_cmp_func(
+    WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk,
+    wolf_sk_X509_NAME_ENTRY_cmp_cb cb)
+{
+    return (wolf_sk_X509_NAME_ENTRY_cmp_cb)wolfSSL_sk_set_cmp_func(sk,
+        (wolf_sk_compare_cb)cb);
+}
+
+/* Sorts the entries with the comparator. */
+void wolfSSL_sk_X509_NAME_ENTRY_sort(WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_ENTRY_sort");
+
+    wolfSSL_sk_sort(sk);
+}
+#endif /* OPENSSL_ALL */
 
 #endif /* OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX ||
             HAVE_LIGHTY || WOLFSSL_HAPROXY ||

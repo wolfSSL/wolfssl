@@ -931,6 +931,96 @@ int test_wolfSSL_X509_NAME_ENTRY(void)
     return EXPECT_RESULT();
 }
 
+#ifdef OPENSSL_ALL
+/* Orders entries by the first byte of their value. */
+static int test_name_entry_cmp(const X509_NAME_ENTRY* const* a,
+    const X509_NAME_ENTRY* const* b)
+{
+    return (int)ASN1_STRING_get0_data(
+               X509_NAME_ENTRY_get_data((X509_NAME_ENTRY*)*a))[0] -
+           (int)ASN1_STRING_get0_data(
+               X509_NAME_ENTRY_get_data((X509_NAME_ENTRY*)*b))[0];
+}
+
+static int test_name_entry_cmp_rev(const X509_NAME_ENTRY* const* a,
+    const X509_NAME_ENTRY* const* b)
+{
+    return test_name_entry_cmp(b, a);
+}
+#endif
+
+int test_wolfSSL_sk_X509_NAME_ENTRY_sort(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_ALL
+    static const char* vals[] = { "c1", "a1", "d", "b", "a2", "c2" };
+    static const char* sorted[] = { "a1", "a2", "b", "c1", "c2", "d" };
+    X509_NAME_ENTRY* ents[6];
+    STACK_OF(X509_NAME_ENTRY)* sk = NULL;
+    X509_NAME_ENTRY* e;
+    int i;
+
+    XMEMSET(ents, 0, sizeof(ents));
+    for (i = 0; i < 6; i++) {
+        ExpectNotNull(ents[i] = X509_NAME_ENTRY_create_by_txt(NULL,
+            "commonName", MBSTRING_UTF8, (const byte*)vals[i],
+            (int)XSTRLEN(vals[i])));
+    }
+
+    /* NULL stack, empty stack and no comparator. */
+    sk_X509_NAME_ENTRY_sort(NULL);
+    ExpectTrue(sk_X509_NAME_ENTRY_set_cmp_func(NULL, test_name_entry_cmp) ==
+        NULL);
+    ExpectNotNull(sk = sk_X509_NAME_ENTRY_new(NULL));
+    sk_X509_NAME_ENTRY_sort(sk);
+    for (i = 0; i < 6; i++) {
+        ExpectIntGT(sk_X509_NAME_ENTRY_push(sk, ents[i]), 0);
+    }
+    sk_X509_NAME_ENTRY_sort(sk);
+    ExpectPtrEq(sk_X509_NAME_ENTRY_value(sk, 0), ents[0]);
+    ExpectPtrEq(sk_X509_NAME_ENTRY_value(sk, 5), ents[5]);
+
+    /* Stable sort, equal entries keep their order. */
+    ExpectTrue(sk_X509_NAME_ENTRY_set_cmp_func(sk, test_name_entry_cmp) ==
+        NULL);
+    sk_X509_NAME_ENTRY_sort(sk);
+    ExpectIntEQ(sk_X509_NAME_ENTRY_num(sk), 6);
+    for (i = 0; i < 6; i++) {
+        ExpectNotNull(e = sk_X509_NAME_ENTRY_value(sk, i));
+        ExpectIntEQ(XMEMCMP(ASN1_STRING_get0_data(X509_NAME_ENTRY_get_data(e)),
+            sorted[i], XSTRLEN(sorted[i])), 0);
+    }
+    ExpectTrue(sk_X509_NAME_ENTRY_set_cmp_func(sk, test_name_entry_cmp_rev)
+        == test_name_entry_cmp);
+    sk_X509_NAME_ENTRY_sort(sk);
+    ExpectPtrEq(sk_X509_NAME_ENTRY_value(sk, 0), ents[2]);
+    ExpectPtrEq(sk_X509_NAME_ENTRY_value(sk, 5), ents[4]);
+
+    /* The comparator survives removing the first node. */
+    ExpectPtrEq(wolfSSL_sk_delete(sk, 0), ents[2]);
+    ExpectIntGT(sk_X509_NAME_ENTRY_push(sk, ents[2]), 0);
+    sk_X509_NAME_ENTRY_sort(sk);
+    ExpectPtrEq(sk_X509_NAME_ENTRY_value(sk, 0), ents[2]);
+    sk_X509_NAME_ENTRY_free(sk);
+    sk = NULL;
+
+    /* Comparator given to new(). */
+    ExpectNotNull(sk = sk_X509_NAME_ENTRY_new(test_name_entry_cmp));
+    for (i = 0; i < 6; i++) {
+        ExpectIntGT(sk_X509_NAME_ENTRY_push(sk, ents[5 - i]), 0);
+    }
+    sk_X509_NAME_ENTRY_sort(sk);
+    ExpectPtrEq(sk_X509_NAME_ENTRY_value(sk, 0), ents[4]);
+    ExpectPtrEq(sk_X509_NAME_ENTRY_value(sk, 5), ents[2]);
+    sk_X509_NAME_ENTRY_free(sk);
+
+    for (i = 0; i < 6; i++) {
+        X509_NAME_ENTRY_free(ents[i]);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_NAME_ENTRY_dup(void)
 {
     EXPECT_DECLS;

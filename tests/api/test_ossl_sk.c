@@ -179,6 +179,148 @@ int test_wolfSSL_sk_delete(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_sk_delete_ptr(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+    WOLFSSL_STACK* stack = NULL;
+    unsigned char data_1[1] = { 1 };
+    unsigned char data_2[1] = { 2 };
+    unsigned char data_3[1] = { 3 };
+
+    ExpectNotNull(stack = wolfSSL_sk_new_node(HEAP_HINT));
+
+    ExpectNull(wolfSSL_sk_delete_ptr(NULL, data_1));
+    ExpectNull(wolfSSL_sk_delete_ptr(stack, NULL));
+    ExpectNull(wolfSSL_sk_delete_ptr(stack, data_1));
+
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_1), 1);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_2), 2);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_3), 3);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_2), 4);
+
+    /* Only the first match is removed. */
+    ExpectPtrEq(wolfSSL_sk_delete_ptr(stack, data_2), data_2);
+    ExpectIntEQ(wolfSSL_sk_num(stack), 3);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 0), data_1);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 1), data_3);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 2), data_2);
+    /* Last, first and only. */
+    ExpectPtrEq(wolfSSL_sk_delete_ptr(stack, data_2), data_2);
+    ExpectNull(wolfSSL_sk_delete_ptr(stack, data_2));
+    ExpectPtrEq(wolfSSL_sk_delete_ptr(stack, data_1), data_1);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 0), data_3);
+    ExpectPtrEq(wolfSSL_sk_delete_ptr(stack, data_3), data_3);
+    ExpectIntEQ(wolfSSL_sk_num(stack), 0);
+    ExpectNull(wolfSSL_sk_delete_ptr(stack, data_3));
+
+    wolfSSL_sk_free(stack);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_sk_X509_insert_delete_ptr(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* srv = NULL;
+    WOLFSSL_X509* cli = NULL;
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(srv = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(cli = wolfSSL_X509_load_certificate_file(cliCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(certs = sk_X509_new_null());
+
+    ExpectIntLE(sk_X509_insert(NULL, ca, 0), 0);
+    ExpectIntEQ(sk_X509_insert(certs, ca, 0), 1);
+    ExpectIntEQ(sk_X509_insert(certs, srv, -1), 2);
+    /* Key cert goes first. */
+    ExpectIntEQ(sk_X509_insert(certs, cli, 0), 3);
+    ExpectPtrEq(sk_X509_value(certs, 0), cli);
+    ExpectPtrEq(sk_X509_value(certs, 1), ca);
+    ExpectPtrEq(sk_X509_value(certs, 2), srv);
+
+    ExpectNull(sk_X509_delete_ptr(NULL, ca));
+    ExpectPtrEq(sk_X509_delete_ptr(certs, ca), ca);
+    ExpectNull(sk_X509_delete_ptr(certs, ca));
+    ExpectIntEQ(sk_X509_num(certs), 2);
+    ExpectPtrEq(sk_X509_value(certs, 0), cli);
+    ExpectPtrEq(sk_X509_value(certs, 1), srv);
+    /* Insert in the middle. */
+    ExpectIntEQ(sk_X509_insert(certs, ca, 1), 3);
+    ExpectPtrEq(sk_X509_value(certs, 1), ca);
+    ExpectPtrEq(sk_X509_value(certs, 2), srv);
+
+    /* Stack only borrows the certs. */
+    sk_X509_free(certs);
+    X509_free(ca);
+    X509_free(srv);
+    X509_free(cli);
+#endif
+    return EXPECT_RESULT();
+}
+
+#ifdef OPENSSL_ALL
+static int test_sk_sort_cmp(const void* const* a, const void* const* b)
+{
+    return (int)**(const unsigned char* const*)a -
+           (int)**(const unsigned char* const*)b;
+}
+#endif
+
+int test_wolfSSL_sk_sort(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_ALL
+    WOLFSSL_STACK* stack = NULL;
+    WOLFSSL_STACK* node;
+    unsigned char data_3[1] = { 3 };
+    unsigned char data_1[1] = { 1 };
+    unsigned char data_2[1] = { 2 };
+    unsigned char data_1b[1] = { 1 };
+
+    wolfSSL_sk_sort(NULL);
+    ExpectTrue(wolfSSL_sk_set_cmp_func(NULL, test_sk_sort_cmp) == NULL);
+    ExpectNotNull(stack = wolfSSL_sk_new_node(HEAP_HINT));
+    wolfSSL_sk_sort(stack);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_3), 1);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_1), 2);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_2), 3);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_1b), 4);
+
+    /* No comparator: order kept. */
+    wolfSSL_sk_sort(stack);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 0), data_3);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 3), data_1b);
+
+    /* Stable, and each hash moves with its data. */
+    ExpectTrue(wolfSSL_sk_set_cmp_func(stack, test_sk_sort_cmp) == NULL);
+    for (node = stack; EXPECT_SUCCESS() && (node != NULL); node = node->next) {
+        ExpectTrue(node->comp == test_sk_sort_cmp);
+        node->hash = *(unsigned char*)node->data.generic;
+    }
+    wolfSSL_sk_sort(stack);
+    ExpectIntEQ(wolfSSL_sk_num(stack), 4);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 0), data_1);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 1), data_1b);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 2), data_2);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 3), data_3);
+    for (node = stack; EXPECT_SUCCESS() && (node != NULL); node = node->next) {
+        ExpectIntEQ(node->hash, *(unsigned char*)node->data.generic);
+    }
+    ExpectTrue(wolfSSL_sk_set_cmp_func(stack, NULL) == test_sk_sort_cmp);
+
+    wolfSSL_sk_free(stack);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_sk_insert(void)
 {
     EXPECT_DECLS;
