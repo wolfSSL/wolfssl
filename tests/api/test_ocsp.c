@@ -6103,7 +6103,8 @@ int test_ocsp_status_verify_cb_would_block(void)
     defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER) &&    \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                  \
     !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_COPY_CERT) &&      \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_SHA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) &&                  \
+    !defined(NO_RSA) && !defined(NO_SHA) && \
     !defined(NO_ASN_TIME)
 
 /* Number of times the server's OCSP IO callback has been called. */

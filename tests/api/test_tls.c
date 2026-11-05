@@ -6227,12 +6227,15 @@ int test_tls_ssl_ctx_certs_check(void)
 
 #if defined(WOLFSSL_COPY_CERT) && defined(WOLFSSL_COPY_KEY) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
-    defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     defined(WOLFSSL_PEM_TO_DER)
     #define TEST_SSL_KEEPS_CTX_CERTS
 #endif
 
-#ifdef TEST_SSL_KEEPS_CTX_CERTS
+/* The conditions are spelled out again for check-api-guards.py, which reads
+ * the guard around each call site. */
+#if defined(TEST_SSL_KEEPS_CTX_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
 /* Takes a copy of what "der" holds, to compare against later. */
 static int test_ssl_keeps_ctx_certs_save(const DerBuffer* der, byte** copy,
     word32* copySz)
