@@ -12164,6 +12164,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 {
     WOLFSSL_ASN1_INTEGER* a;
     int i = 0;
+    int pad;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_serialNumber");
 
@@ -12184,16 +12185,19 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
     if (a == NULL)
         return NULL;
 
+    /* Serials are positive: a high bit needs a zero octet in DER. */
+    pad = ((x509->serialSz > 0) && (x509->serial[0] & 0x80)) ? 1 : 0;
+
     /* Make sure there is space for the data, ASN.1 type and length. */
-    if (x509->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
+    if (x509->serialSz + pad > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
         /* dynamically create data buffer, +2 for type and length */
-        a->data = (unsigned char*)XMALLOC(x509->serialSz + 2, NULL,
+        a->data = (unsigned char*)XMALLOC(x509->serialSz + pad + 2, NULL,
                 DYNAMIC_TYPE_OPENSSL);
         if (a->data == NULL) {
             wolfSSL_ASN1_INTEGER_free(a);
             return NULL;
         }
-        a->dataMax   = (unsigned int)x509->serialSz + 2;
+        a->dataMax   = (unsigned int)(x509->serialSz + pad + 2);
         a->isDynamic = 1;
     }
     else {
@@ -12207,10 +12211,13 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
         a->length = x509->serialSz;
     #else
         a->data[i++] = ASN_INTEGER;
-        i += SetLength(x509->serialSz, a->data + i);
+        i += SetLength(x509->serialSz + pad, a->data + i);
+        if (pad)
+            a->data[i++] = 0x00;
         XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
-        a->length = x509->serialSz + 2;
+        a->length = i + x509->serialSz;
     #endif
+    a->type = WOLFSSL_V_ASN1_INTEGER;
 
     x509->serialNumber = a;
 

@@ -1040,58 +1040,68 @@ void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
     XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
-/* Get the length of the raw integer value bytes, stripping the DER tag/length
- * header if present. Required for OpenSSL compatibility where ASN1_INTEGER is
- * typedef'd to ASN1_STRING and callers use ASN1_STRING_length() on integers.
+/* Get the value of the INTEGER as OpenSSL holds it: the magnitude without the
+ * DER header and leading zero octets. Data without a DER header is the value
+ * (WOLFSSL_QT / WOLFSSL_HAPROXY format).
+ *
+ * @param [in]  ai   ASN.1 INTEGER object.
+ * @param [out] len  Length of the value in bytes.
+ * @return  Pointer to the value on success.
+ * @return  NULL when ai is NULL or has no data.
+ */
+static const unsigned char* wolfssl_asn1_integer_value(
+    const WOLFSSL_ASN1_INTEGER* ai, int* len)
+{
+    const unsigned char* data = NULL;
+    word32 idx = 1;
+    int derLen = 0;
+
+    *len = 0;
+    if ((ai != NULL) && (ai->data != NULL) && (ai->length > 0)) {
+        data = ai->data;
+        *len = ai->length;
+        if ((data[0] == ASN_INTEGER) &&
+                (GetLength(data, &idx, &derLen, (word32)ai->length) >= 0) &&
+                (idx + (word32)derLen == (word32)ai->length)) {
+            data += idx;
+            *len = derLen;
+        }
+        while ((*len > 1) && (data[0] == 0x00)) {
+            data++;
+            (*len)--;
+        }
+    }
+
+    return data;
+}
+
+/* Get the length of the value of the INTEGER, as ASN1_STRING_length() on an
+ * ASN1_INTEGER in OpenSSL.
  *
  * @param [in] ai  ASN.1 INTEGER object.
- * @return  Length of the raw integer value on success.
- * @return  0 when ai is NULL or data is invalid.
+ * @return  Length of the value on success.
+ * @return  0 when ai is NULL or has no data.
  */
 int wolfSSL_ASN1_INTEGER_get_length(const WOLFSSL_ASN1_INTEGER* ai)
 {
-    if (ai == NULL || ai->data == NULL || ai->length <= 0) {
-        return 0;
-    }
-    if (ai->data[0] == ASN_INTEGER) {
-        word32 idx = 1;
-        int len = 0;
-        if (GetLength(ai->data, &idx, &len, (word32)ai->length) >= 0 &&
-                idx + (word32)len == (word32)ai->length) {
-            return len;
-        }
-    }
-    /* WOLFSSL_QT / WOLFSSL_HAPROXY format: raw bytes without DER header,
-     * or data that coincidentally starts with 0x02 but whose header+value
-     * boundaries do not span exactly ai->length. */
-    return ai->length;
+    int len;
+
+    (void)wolfssl_asn1_integer_value(ai, &len);
+    return len;
 }
 
-/* Get a pointer to the raw integer value bytes, skipping the DER tag/length
- * header if present. Required for OpenSSL compatibility where ASN1_INTEGER is
- * typedef'd to ASN1_STRING and callers use ASN1_STRING_get0_data() on integers.
+/* Get the value of the INTEGER, as ASN1_STRING_get0_data() on an ASN1_INTEGER
+ * in OpenSSL: the magnitude, big-endian. The sign is in the type.
  *
  * @param [in] ai  ASN.1 INTEGER object.
- * @return  Pointer to the raw integer value bytes on success.
- * @return  NULL when ai is NULL or data is invalid.
+ * @return  Pointer to the value on success.
+ * @return  NULL when ai is NULL or has no data.
  */
 const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(const WOLFSSL_ASN1_INTEGER* ai)
 {
-    if (ai == NULL || ai->data == NULL || ai->length <= 0) {
-        return NULL;
-    }
-    if (ai->data[0] == ASN_INTEGER) {
-        word32 idx = 1;
-        int len = 0;
-        if (GetLength(ai->data, &idx, &len, (word32)ai->length) >= 0 &&
-                idx + (word32)len == (word32)ai->length) {
-            return ai->data + idx;
-        }
-    }
-    /* WOLFSSL_QT / WOLFSSL_HAPROXY format: raw bytes without DER header,
-     * or data that coincidentally starts with 0x02 but whose header+value
-     * boundaries do not span exactly ai->length. */
-    return ai->data;
+    int len;
+
+    return wolfssl_asn1_integer_value(ai, &len);
 }
 
 /* Get the type of the INTEGER, as ASN1_STRING_type() on an ASN1_INTEGER in
@@ -1741,6 +1751,11 @@ int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
         if (GetLength(a->data, &idx, &len, (word32)a->length) <= 0) {
             err = 1;
         }
+    }
+    /* Write the magnitude, without the DER zero octet, as OpenSSL. */
+    while ((!err) && (len > 1) && (a->data[idx] == 0x00)) {
+        idx++;
+        len--;
     }
 
     /* Keep encoding and writing while no error and bytes in data. */
