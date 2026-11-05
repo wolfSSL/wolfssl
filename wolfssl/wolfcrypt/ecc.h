@@ -1038,6 +1038,8 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
                      int encType);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+WOLFSSL_LOCAL
+int wc_ecc_export_private_order(ecc_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_ecc_export_public_raw(ecc_key* key, byte* qx, word32* qxLen,
                              byte* qy, word32* qyLen);

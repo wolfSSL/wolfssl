@@ -711,6 +711,52 @@ int test_wc_ecc_shared_secret(void)
     return EXPECT_RESULT();
 } /* END tests_wc_ecc_shared_secret */
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(NO_ECC_MAKE_PUB)
+#define TEST_ECC_ORDER_WIDER_THAN_FIELD
+/* Load a private key from raw bytes or DER and check its ECDH result with
+ * peer is expected. */
+static int test_ecc_order_key_ecdh(const byte* priv, word32 privSz,
+    const byte* der, word32 derSz, ecc_key* peer, int curveId, WC_RNG* rng,
+    const byte* expected, word32 expectedSz)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    byte    secret[MAX_ECC_ORDER_BYTES];
+    word32  secretSz = (word32)sizeof(secret);
+    word32  idx = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    if (der == NULL) {
+        ExpectIntEQ(wc_ecc_import_private_key_ex(priv, privSz, NULL, 0, &key,
+            curveId), 0);
+    }
+#if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+    else {
+        ExpectIntEQ(wc_EccPrivateKeyDecode(der, &idx, &key, derSz), 0);
+    }
+#else
+    (void)derSz;
+    (void)idx;
+#endif
+#ifdef ECC_TIMING_RESISTANT
+    ExpectIntEQ(wc_ecc_set_rng(&key, rng), 0);
+#else
+    (void)rng;
+#endif
+    ExpectIntEQ(wc_ecc_shared_secret(&key, peer, secret, &secretSz), 0);
+    ExpectIntEQ(secretSz, expectedSz);
+    ExpectBufEQ(secret, expected, expectedSz);
+    wc_ecc_free(&key);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 /*
  * Testing the private key n - 1 on curves whose order has one bit more than
  * the field. [n - 1]G is -G, so its x-ordinate is Gx.
@@ -718,11 +764,7 @@ int test_wc_ecc_shared_secret(void)
 int test_wc_ecc_order_wider_than_field(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
-    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#ifdef TEST_ECC_ORDER_WIDER_THAN_FIELD
     static const int curves[] = {
         ECC_SECP160R1, ECC_SECP160R2, ECC_SECP160K1, ECC_SECP224K1
     };
@@ -730,12 +772,18 @@ int test_wc_ecc_order_wider_than_field(void)
     ecc_key key;
     ecc_key peer;
     WC_RNG  rng;
-    char    d[2 * (MAX_ECC_BYTES + 1) + 1];
-    byte    secret[MAX_ECC_BYTES + 1];
-    byte    gx[MAX_ECC_BYTES + 1];
-    byte    gy[MAX_ECC_BYTES + 1];
-    byte    x[MAX_ECC_BYTES + 1];
-    byte    y[MAX_ECC_BYTES + 1];
+    char    d[2 * MAX_ECC_ORDER_BYTES + 1];
+    byte    secret[MAX_ECC_ORDER_BYTES];
+    byte    gx[MAX_ECC_ORDER_BYTES];
+    byte    gy[MAX_ECC_ORDER_BYTES];
+    byte    x[MAX_ECC_ORDER_BYTES];
+    byte    y[MAX_ECC_ORDER_BYTES];
+    byte    priv[MAX_ECC_ORDER_BYTES];
+#if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+    byte    der[ECC_BUFSIZE];
+    int     derSz = 0;
+#endif
+    word32  privSz;
     word32  secretSz;
     word32  gxSz;
     word32  gySz;
@@ -796,6 +844,58 @@ int test_wc_ecc_order_wider_than_field(void)
         ExpectBufEQ(x, gx, gxSz);
         ExpectIntEQ(ySz, gySz);
         ExpectBufNE(y, gy, gySz);
+
+        /* The raw export stays at the prime size, which n - 1 exceeds. */
+        privSz = (word32)sizeof(priv);
+        ExpectIntEQ(wc_ecc_export_private_only(&key, priv, &privSz),
+            WC_NO_ERR_TRACE(BUFFER_E));
+
+    #if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+        /* DER holds the private key at the size of the order. */
+        ExpectIntGT(derSz = wc_EccKeyToDer(&key, der, (word32)sizeof(der)), 0);
+        ExpectIntEQ(wc_EccKeyDerSize(&key, 1), derSz);
+        ExpectIntEQ(test_ecc_order_key_ecdh(NULL, 0, der, (word32)derSz,
+            &peer, curves[i], &rng, gx, gxSz), TEST_SUCCESS);
+        ExpectIntGT(derSz = wc_EccPrivateKeyToDer(&key, der,
+            (word32)sizeof(der)), 0);
+        ExpectIntEQ(wc_EccKeyDerSize(&key, 0), derSz);
+        ExpectIntEQ(der[5], ASN_OCTET_STRING);
+        ExpectIntEQ(der[6], gxSz + 1);
+        ExpectIntEQ(test_ecc_order_key_ecdh(NULL, 0, der, (word32)derSz,
+            &peer, curves[i], &rng, gx, gxSz), TEST_SUCCESS);
+        /* Without a curve id the order size still selects the curve. */
+        if ((curves[i] == ECC_SECP160R1) || (curves[i] == ECC_SECP224K1)) {
+            ExpectIntEQ(test_ecc_order_key_ecdh(der + 7, gxSz + 1, NULL, 0,
+                &peer, ECC_CURVE_DEF, &rng, gx, gxSz), TEST_SUCCESS);
+        }
+        ExpectIntLT(wc_EccPrivateKeyToDer(&key, der, (word32)derSz - 1), 0);
+    #endif
+
+        /* A small key exports raw at the prime size, which
+         * wc_ecc_import_unsigned() reads, and in DER at the order size. */
+        wc_ecc_free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key, dp->Gx, dp->Gy, "01",
+            curves[i]), 0);
+        privSz = (word32)sizeof(priv);
+        ExpectIntEQ(wc_ecc_export_private_only(&key, priv, &privSz), 0);
+        ExpectIntEQ(privSz, gxSz);
+        ExpectIntEQ(priv[privSz - 1], 1);
+        ExpectIntEQ(test_ecc_order_key_ecdh(priv, privSz, NULL, 0, &peer,
+            curves[i], &rng, gx, gxSz), TEST_SUCCESS);
+        xSz = (word32)sizeof(x);
+        ySz = (word32)sizeof(y);
+        privSz = (word32)sizeof(priv);
+        ExpectIntEQ(wc_ecc_export_private_raw(&key, x, &xSz, y, &ySz, priv,
+            &privSz), 0);
+        ExpectIntEQ(privSz, gxSz);
+        ExpectIntEQ(priv[privSz - 1], 1);
+    #if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+        ExpectIntGT(wc_EccPrivateKeyToDer(&key, der, (word32)sizeof(der)), 0);
+        ExpectIntEQ(der[6], gxSz + 1);
+        ExpectIntEQ(der[7], 0);
+    #endif
 
         wc_ecc_free(&peer);
         wc_ecc_free(&key);

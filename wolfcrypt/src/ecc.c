@@ -6899,6 +6899,27 @@ static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
     return orderBits;
 }
 
+#if defined(HAVE_ECC_KEY_EXPORT) || defined(HAVE_ECC_KEY_IMPORT) || \
+    (defined(NO_ASN) && defined(HAVE_ECC_VERIFY) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_ECC))
+/* Size in bytes of a value modulo the order: the private key, r and s. */
+static word32 ecc_order_size(const ecc_set_type* dp)
+{
+    word32 sz = (word32)dp->size;
+    word32 i = 0;
+    word32 digits;
+
+    while (dp->order[i] == '0') {
+        i++;
+    }
+    digits = (word32)XSTRLEN(dp->order + i);
+    if ((digits + 1) / 2 > sz) {
+        sz = (digits + 1) / 2;
+    }
+    return sz;
+}
+#endif
+
 #ifdef HAVE_ECC_SIGN
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) ||  \
@@ -7209,7 +7230,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     DECL_MP_INT_SIZE_DYN(r, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
     DECL_MP_INT_SIZE_DYN(s, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
 #endif
-#ifdef NO_ASN
+#if defined(NO_ASN) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     word32 keySz;
 #endif
 
@@ -7246,6 +7267,22 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     (void)err;
     return NO_VALID_DEVID;
 #else /* !WOLF_CRYPTO_CB_ONLY_ECC */
+#ifdef NO_ASN
+    /* No support for DSA ASN.1 header.
+     * Signature will be r+s directly. */
+    keySz = 0;
+    if (key->dp != NULL) {
+        keySz = (word32)key->dp->size;
+    }
+    if (keySz == 0) {
+        WOLFSSL_MSG("Error: ECDSA sign raw signature size");
+        return WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+    }
+    if (*outlen < keySz * 2) {
+        *outlen = keySz * 2;
+        return BUFFER_E;
+    }
+#endif
     if (rng == NULL) {
         WOLFSSL_MSG("ECC sign RNG missing");
         return ECC_BAD_ARG_E;
@@ -7311,21 +7348,14 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     /* encoded with DSA header */
     err = StoreECC_DSA_Sig(out, outlen, r, s);
 #else
-    /* No support for DSA ASN.1 header.
-     * Signature will be r+s directly. */
-    keySz = 0;
-    if (key->dp != NULL) {
-        keySz = (word32)key->dp->size;
-    }
-    if (keySz <= 0) {
-        WOLFSSL_MSG("Error: ECDSA sign raw signature size");
-        return WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
-    }
-    *outlen = keySz * 2;
-
     /* Export signature into r,s */
-    mp_to_unsigned_bin_len(r, out, keySz);
-    mp_to_unsigned_bin_len(s, out + keySz, keySz);
+    err = mp_to_unsigned_bin_len(r, out, (int)keySz);
+    if (err == MP_OKAY) {
+        err = mp_to_unsigned_bin_len(s, out + keySz, (int)keySz);
+    }
+    if (err == MP_OKAY) {
+        *outlen = keySz * 2;
+    }
 #endif /* !NO_ASN */
 
     /* cleanup */
@@ -9466,7 +9496,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 #ifdef WOLFSSL_ASYNC_CRYPT
     int isPrivateKeyOnly = 0;
 #endif
-#ifdef NO_ASN
+#if defined(NO_ASN) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     word32 keySz;
 #endif
 
@@ -9568,17 +9598,31 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             keySz = 0;
             if (key->dp != NULL) {
                 keySz = (word32)key->dp->size;
+                /* Also accept r and s at the size of the order. */
+                if (siglen == ecc_order_size(key->dp) * 2) {
+                    keySz = siglen / 2;
+                }
             }
-            if (siglen != keySz * 2) {
+            if ((keySz == 0) || (siglen != keySz * 2)) {
                 WOLFSSL_MSG("Error: ECDSA Verify raw signature size");
-                return WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+                err = WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+                break;
             }
 
             /* Import signature into r,s */
-            mp_init(r);
-            mp_init(s);
-            mp_read_unsigned_bin(r, sig, keySz);
-            mp_read_unsigned_bin(s, sig + keySz, keySz);
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+            err = mp_init_multi(r, s, NULL, NULL, NULL, NULL);
+            if (err != MP_OKAY) {
+                break;
+            }
+        #endif
+            err = mp_read_unsigned_bin(r, sig, keySz);
+            if (err == MP_OKAY) {
+                err = mp_read_unsigned_bin(s, sig + keySz, keySz);
+            }
+            if (err != MP_OKAY) {
+                break;
+            }
     #endif /* !NO_ASN */
             FALL_THROUGH;
 
@@ -12276,7 +12320,7 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
  * This internal helper avoids recursion when called from the EXPORT_KEY path. */
 static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
                           byte* qy, word32* qyLen, byte* d, word32* dLen,
-                          int encType)
+                          int encType, int dOrderSz)
 {
     int err = 0;
     word32 keySz;
@@ -12299,6 +12343,7 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
     #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
         defined(WOLFSSL_MICROCHIP_TA100)
         /* Hardware cannot export private portion */
+        (void)dOrderSz;
         return NOT_COMPILED_IN;
     #else
     #if defined(WOLFSSL_SECO_CAAM)
@@ -12338,7 +12383,8 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         else
     #endif
         {
-            err = wc_export_int(ecc_get_k(key), d, dLen, keySz, encType);
+            err = wc_export_int(ecc_get_k(key), d, dLen,
+                dOrderSz ? ecc_order_size(key->dp) : keySz, encType);
             ecc_put_k(key);
             if (err != MP_OKAY)
                 return err;
@@ -12370,11 +12416,10 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 }
 
 
-/* export ecc key to component form, d is optional if only exporting public
- * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
- * return MP_OKAY on success */
-int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
-                 byte* qy, word32* qyLen, byte* d, word32* dLen, int encType)
+/* Export with d at the size of the order when dOrderSz is set. */
+static int ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
+                 byte* qy, word32* qyLen, byte* d, word32* dLen, int encType,
+                 int dOrderSz)
 {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
     int err;
@@ -12407,7 +12452,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         if (err == 0) {
             /* Call software helper (no callback recursion) */
             err = _ecc_export_ex(tmpKey, qx, qxLen, qy, qyLen, d, dLen,
-                                  encType);
+                                  encType, dOrderSz);
         }
 
         wc_ecc_free(tmpKey);
@@ -12419,7 +12464,40 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
     }
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_EXPORT_KEY */
 
-    return _ecc_export_ex(key, qx, qxLen, qy, qyLen, d, dLen, encType);
+    return _ecc_export_ex(key, qx, qxLen, qy, qyLen, d, dLen, encType,
+        dOrderSz);
+}
+
+/* export ecc key to component form, d is optional if only exporting public
+ * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
+ * return MP_OKAY on success */
+int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
+                 byte* qy, word32* qyLen, byte* d, word32* dLen, int encType)
+{
+    return ecc_export_ex(key, qx, qxLen, qy, qyLen, d, dLen, encType, 0);
+}
+
+/* Export the private key only, with d at the size of the order when dOrderSz
+ * is set. */
+static int ecc_export_private(ecc_key* key, byte* out, word32* outLen,
+    int dOrderSz)
+{
+    int encType = WC_TYPE_UNSIGNED_BIN;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+    /* check if black key in secure memory */
+    if ((key->blackKey != CAAM_BLACK_KEY_CCM &&
+         key->blackKey != CAAM_BLACK_KEY_ECB) && key->blackKey > 0) {
+        encType = WC_TYPE_BLACK_KEY;
+    }
+#endif
+
+    return ecc_export_ex(key, NULL, NULL, NULL, NULL, out, outLen, encType,
+        dOrderSz);
 }
 
 /* export ecc private key only raw, outLen is in/out size as unsigned bin
@@ -12431,17 +12509,40 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
-    /* check if black key in secure memory */
-    if ((key->blackKey != CAAM_BLACK_KEY_CCM &&
-         key->blackKey != CAAM_BLACK_KEY_ECB) && key->blackKey > 0) {
-        return wc_ecc_export_ex(key, NULL, NULL, NULL, NULL, out, outLen,
-            WC_TYPE_BLACK_KEY);
-    }
-#endif
+    return ecc_export_private(key, out, outLen, 0);
+}
 
-    return wc_ecc_export_ex(key, NULL, NULL, NULL, NULL, out, outLen,
-        WC_TYPE_UNSIGNED_BIN);
+/* Export the private key zero-padded to the size of the order, as RFC 5915
+ * encodes it. A NULL out returns LENGTH_ONLY_E with the size needed. */
+int wc_ecc_export_private_order(ecc_key* key, byte* out, word32* outLen)
+{
+    if ((key == NULL) || (outLen == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (out == NULL) {
+        if ((key->dp == NULL) || (wc_ecc_is_valid_idx(key->idx) == 0)) {
+            return ECC_BAD_ARG_E;
+        }
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+        if (key->devId == INVALID_DEVID)
+    #endif
+        {
+            if ((key->type != ECC_PRIVATEKEY) &&
+                    (key->type != ECC_PRIVATEKEY_ONLY)) {
+                return BAD_FUNC_ARG;
+            }
+        }
+        *outLen = ecc_order_size(key->dp);
+    #if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+        if ((key->blackKey > 0) && (key->blackKey != CAAM_BLACK_KEY_ECB)) {
+            *outLen = (word32)key->dp->size + WC_CAAM_MAC_SZ;
+        }
+    #endif
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+    }
+
+    return ecc_export_private(key, out, outLen, 1);
 }
 
 /* export public key to raw elements including public (Qx,Qy) as unsigned bin
@@ -12538,6 +12639,29 @@ static int ecc_check_privkey_range(ecc_key* key)
     return ret;
 }
 
+/* Without a curve id, a private key whose size no curve has, but which is the
+ * order size of a curve one byte shorter, is taken as that curve's. */
+static int ecc_priv_curve_id(word32 privSz, int curve_id)
+{
+    int x;
+
+    if (curve_id > ECC_CURVE_DEF) {
+        return curve_id;
+    }
+    for (x = 0; ecc_sets[x].size != 0; x++) {
+        if ((word32)ecc_sets[x].size == privSz) {
+            return curve_id;
+        }
+    }
+    for (x = 0; ecc_sets[x].size != 0; x++) {
+        if (((word32)ecc_sets[x].size + 1 == privSz) &&
+                (ecc_order_size(&ecc_sets[x]) == privSz)) {
+            return ecc_sets[x].id;
+        }
+    }
+    return curve_id;
+}
+
 /* Software-only import of private key, public part optional.
  * This internal helper avoids recursion when called from the SETKEY path. */
 static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
@@ -12569,7 +12693,8 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
         /* set key size */
         /* NOTE: FIPS v6.0.0 or greater, no restriction on imported keys, only
          *       on created keys or signatures */
-        ret = wc_ecc_set_curve(key, (int)privSz, curve_id);
+        ret = wc_ecc_set_curve(key, (int)privSz,
+            ecc_priv_curve_id(privSz, curve_id));
         key->type = ECC_PRIVATEKEY_ONLY;
     }
 

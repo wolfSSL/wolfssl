@@ -1437,19 +1437,19 @@ static void wb_idx_dp_guard_export_paths(void)
     key.idx = 9999; key.dp = cs;
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
-        WC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN, 0);
     if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.idx = idx; key.dp = NULL;
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
-        WC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN, 0);
     if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.idx = idx; key.dp = cs; /* baseline: real export */
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
-        WC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN, 0);
     if (ret != MP_OKAY) { wb_fail = 1; }
 
     /* ---- wc_ecc_export_public_raw: qx/qxLen/qy/qyLen NULL guard,
