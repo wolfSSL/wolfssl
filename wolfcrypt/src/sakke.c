@@ -422,7 +422,7 @@ static int sakke_mulmod_base_add(SakkeKey* key, const mp_int* n, ecc_point* a,
     }
     if ((err == 0) && map) {
         /* Map result back to affine coordinates. */
-        err = ecc_map(res, &params->prime, mp);
+        err = ecc_map_ex(res, &params->prime, mp, 1);
     }
 
     return err;
@@ -1334,6 +1334,54 @@ static int sakke_load_pairing_base(SakkeKey* key)
 
     return err;
 }
+
+#if defined(WOLFCRYPT_SAKKE_CLIENT) && !defined(WOLFSSL_HAVE_SP_ECC)
+/*
+ * Convert a value from PF_p[q] to F_p: r = y / x.
+ *
+ * The ordinates are derived from secrets, so invert with Fermat's little
+ * theorem over the public prime when the math library has it.
+ *
+ * @param  [in]   v      Value in PF_p[q] with ordinates in Montgomery form.
+ *                       y ordinate is modified.
+ * @param  [in]   prime  Prime modulus.
+ * @param  [in]   mp     Montgomery multiplier.
+ * @param  [out]  r      MP integer to hold the result.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other -ve value on internal failure.
+ */
+static int sakke_proj_to_fp(mp_proj* v, mp_int* prime, mp_digit mp, mp_int* r)
+{
+    int err = 0;
+
+#if defined(ECC_TIMING_RESISTANT) && (defined(USE_FAST_MATH) || \
+                defined(WOLFSSL_SP_MATH_ALL))
+    /* Not every math library's constant time inversion rejects zero. */
+    if (mp_iszero(v->x)) {
+        err = MP_VAL;
+    }
+    if (err == 0) {
+        err = mp_invmod_mont_ct(v->x, prime, r, mp);
+    }
+    if (err == 0) {
+        err = mp_montgomery_reduce(r, prime, mp);
+    }
+    if (err == 0) {
+        err = mp_montgomery_reduce(v->y, prime, mp);
+    }
+#else
+    (void)mp;
+    /* The Montgomery factors of x and y cancel. */
+    err = mp_invmod(v->x, prime, r);
+#endif
+    if (err == 0) {
+        err = mp_mulmod(r, v->y, prime, r);
+    }
+
+    return err;
+}
+#endif
 
 #ifndef WOLFSSL_HAVE_SP_ECC
 /*
@@ -2450,10 +2498,7 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
     }
     /* Convert from PF_p[q] to F_p */
     if (err == 0) {
-        err = mp_invmod(v->x, prime, r);
-    }
-    if (err == 0) {
-        err = mp_mulmod(r, v->y, prime, r);
+        err = sakke_proj_to_fp(v, prime, mp, r);
     }
 
     if (err == 0) {
@@ -6235,18 +6280,9 @@ static int sakke_modexp(SakkeKey* key, mp_int* b, mp_int* e, mp_int* r)
         err = sakke_modexp_loop(key, b, e, c, mp);
     }
 
-    if (err == 0) {
-        err = mp_montgomery_reduce(c->x, prime, mp);
-    }
-    if (err == 0) {
-        err = mp_montgomery_reduce(c->y, prime, mp);
-    }
     /* Convert value back from PF_p[q] to F_p* */
     if (err == 0) {
-        err = mp_invmod(c->x, prime, c->x);
-    }
-    if (err == 0) {
-        err = mp_mulmod(c->x, c->y, prime, r);
+        err = sakke_proj_to_fp(c, prime, mp, r);
     }
 
     return err;
