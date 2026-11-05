@@ -27207,7 +27207,7 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
         int dynType = 0;
         DerBuffer* der;
     #ifdef WOLFSSL_DER_REFCOUNT
-        int refErr;
+        int err;
     #endif
 
         /* Determine dynamic type */
@@ -27237,8 +27237,8 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
         der->length = length;
     #ifdef WOLFSSL_DER_REFCOUNT
         /* Cannot fail without a mutex, which WOLFSSL_DER_REFCOUNT excludes. */
-        wolfSSL_RefInit(&der->ref, &refErr);
-        (void)refErr;
+        wolfSSL_RefInit(&der->ref, &err);
+        (void)err;
     #endif
         ret = 0; /* Success */
     } else {
