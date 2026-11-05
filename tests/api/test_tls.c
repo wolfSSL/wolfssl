@@ -6251,9 +6251,9 @@ static int test_ssl_keeps_ctx_certs_save(const DerBuffer* der, byte** copy,
     return EXPECT_RESULT();
 }
 
-/* Checks "der" still holds what was saved and frees the saved copy. */
-static int test_ssl_keeps_ctx_certs_check(const DerBuffer* der, byte* copy,
-    word32 copySz)
+/* Checks "der" still holds what was saved. */
+static int test_ssl_keeps_ctx_certs_check(const DerBuffer* der,
+    const byte* copy, word32 copySz)
 {
     EXPECT_DECLS;
 
@@ -6265,7 +6265,6 @@ static int test_ssl_keeps_ctx_certs_check(const DerBuffer* der, byte* copy,
             ExpectBufEQ(der->buffer, copy, copySz);
         }
     }
-    XFREE(copy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return EXPECT_RESULT();
 }
 
@@ -6334,16 +6333,15 @@ static int test_ssl_keeps_ctx_certs_one(method_provider client,
         ExpectIntEQ(test_ssl_keeps_ctx_certs_check(ssl_s->buffers.key, key,
             keySz), TEST_SUCCESS);
     }
-    else {
-        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(chain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 
     /* And it is what the handshake runs on: the client only trusts the RSA
      * CA, and the server has to sign with the RSA key. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
+    /* Freed here, as the checks above are skipped once one fails. */
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
