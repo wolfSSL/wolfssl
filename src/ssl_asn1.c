@@ -6276,6 +6276,19 @@ int wc_OBJ_sn2nid(const char *sn)
         WOLFSSL_ENTER("wolfSSL_OBJ_cmp");
 
         if (a && b && a->obj && b->obj) {
+            /* An object made from a NID that has no OID encoding here, as for
+             * name attribute types, is only the tag and a zero length:
+             * compare NIDs. */
+            if (a->objSz <= 2 || b->objSz <= 2) {
+                int nidA = wolfSSL_OBJ_obj2nid(a);
+                int nidB = wolfSSL_OBJ_obj2nid(b);
+
+                if (nidA > 0 && nidB > 0) {
+                    if (nidA == nidB)
+                        return 0;
+                    return (nidA < nidB) ? -1 : 1;
+                }
+            }
             if (a->objSz == b->objSz) {
                 return XMEMCMP(a->obj, b->obj, a->objSz);
             }
