@@ -11006,6 +11006,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
     KeyShareEntry *ecc_kse = NULL;
     word32   ctSz = 0;
     word32   ssSzPqc = 0;
+    byte     ssPqc[WC_ML_KEM_SS_SZ];
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* I am the server, the shared secret has already been generated and
@@ -11146,15 +11147,15 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
     #endif
     }
 
-    /* Process ECDH key share part. The generated shared secret is directly
-     * stored in the ssl->arrays->preMasterSecret buffer. Depending on the
-     * pqc_first flag, the ECDH shared secret part goes before or after the
-     * KEM part. */
+    /* Process ECDH key share part into ssl->arrays->preMasterSecret: at the
+     * start, or after the KEM part if pqc_first and the module cannot join. */
     if (ret == 0) {
         int offset = 0;
 
+    #ifndef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
         if (pqc_first)
             offset = ssSzPqc;
+    #endif
 
     #ifdef HAVE_CURVE25519
         if (ecc_group == WOLFSSL_ECC_X25519) {
@@ -11212,9 +11213,12 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
         }
     }
 
-    /* Process PQC KEM key share part. Depending on the pqc_first flag, the
-     * KEM shared secret part goes before or after the ECDH part. */
+    /* Process PQC KEM key share part. The module joins its shared secret, or
+     * without WOLFSSL_HAVE_TLS13_HYBRID_SECRET pqc_first places it. */
     if (ret == 0) {
+    #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+        ret = TLSX_KeyShare_ProcessPqcClient_ex(ssl, pqc_kse, ssPqc, &ssSzPqc);
+    #else
         int offset = ssl->arrays->preMasterSz;
 
         if (pqc_first)
@@ -11222,12 +11226,23 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
         ret = TLSX_KeyShare_ProcessPqcClient_ex(ssl, pqc_kse,
                 ssl->arrays->preMasterSecret + offset, &ssSzPqc);
+    #endif
     }
 
     if (ret == 0) {
         keyShareEntry->privKey = (byte*)pqc_kse->key;
 
+    #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+        /* The module joins the secrets; FIPS builds enforce the group's
+         * order and sizes. */
+        ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
+                ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
+                &ssl->arrays->preMasterSz, ssPqc, ssSzPqc);
+        if (ret != 0)
+            ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
+    #else
         ssl->arrays->preMasterSz += ssSzPqc;
+    #endif
     }
     else
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -11252,6 +11267,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
         }
     }
 
+    ForceZero(ssPqc, sizeof(ssPqc));
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
     TLSX_KeyShare_FreeAll(pqc_kse, ssl->heap);
 
@@ -11772,6 +11788,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     word32 pubSz = 0;
     word32 ctSz = 0;
     word32 ssSzPqc = 0;
+    byte   ssPqc[WC_ML_KEM_SS_SZ];
 
     if (data == NULL) {
         WOLFSSL_MSG("No hybrid key share data from the client.");
@@ -11918,10 +11935,8 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         }
     }
 
-    /* Process ECDH key share part. The generated shared secret is directly
-     * stored in the ssl->arrays->preMasterSecret buffer. Depending on the
-     * pqc_first flag, the ECDH shared secret part goes before or after the
-     * KEM part. */
+    /* Process ECDH key share part into ssl->arrays->preMasterSecret: at the
+     * start, or after the KEM part if pqc_first and the module cannot join. */
     if (ret == 0) {
         ecc_kse->keLen = len - pubSz;
         ecc_kse->ke = (byte*)XMALLOC(ecc_kse->keLen, ssl->heap,
@@ -11936,7 +11951,9 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 
             if (pqc_first) {
                 pubOffset = pubSz;
+            #ifndef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
                 ssOffset = ssSzPqc;
+            #endif
             }
 
             XMEMCPY(ecc_kse->ke, data + pubOffset, ecc_kse->keLen);
@@ -11987,26 +12004,44 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         ret = LENGTH_ERROR;
     }
 
-    /* Process PQC KEM key share part. Depending on the pqc_first flag, the
-     * KEM shared secret part goes before or after the ECDH part. */
+    /* Process PQC KEM key share part. The module joins its shared secret, or
+     * without WOLFSSL_HAVE_TLS13_HYBRID_SECRET pqc_first places it. */
     if (ret == 0) {
         int input_offset = ecc_kse->keLen;
-        int output_offset = ssl->arrays->preMasterSz;
+    #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+        byte* output = ssPqc;
+    #else
+        byte* output = ssl->arrays->preMasterSecret + ssl->arrays->preMasterSz;
+    #endif
 
         if (pqc_first) {
             input_offset = 0;
-            output_offset = 0;
+        #ifndef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+            output = ssl->arrays->preMasterSecret;
+        #endif
         }
 
         ret = TLSX_KeyShare_HandlePqcKeyServer(ssl, pqc_kse,
-                data + input_offset, pubSz,
-                ssl->arrays->preMasterSecret + output_offset, &ssSzPqc);
+                data + input_offset, pubSz, output, &ssSzPqc);
     }
+
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+    /* The module joins the secrets; FIPS builds enforce the group's order and
+     * sizes. */
+    if (ret == 0) {
+        ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
+                ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
+                &ssl->arrays->preMasterSz, ssPqc, ssSzPqc);
+    }
+#endif
+    ForceZero(ssPqc, sizeof(ssPqc));
 
     if (ret == 0) {
         XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
 
+    #ifndef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
         ssl->arrays->preMasterSz += ssSzPqc;
+    #endif
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
     #ifdef WOLFSSL_ASYNC_CRYPT

@@ -5404,6 +5404,10 @@ int test_wc_mlkem_decode_reused_key(void)
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 #define MLKEM_OOM_TEST
+#endif
+
+#if (defined(MLKEM_OOM_TEST) || defined(MLKEM_PCT_OOM_TEST)) && \
+    defined(USE_WOLFSSL_MEMORY)
 
 static wolfSSL_Malloc_cb  mlkem_oom_mf;
 static wolfSSL_Free_cb    mlkem_oom_ff;
@@ -5436,12 +5440,9 @@ static void* mlkem_oom_realloc(void* p, size_t n)
     return (mlkem_oom_rf != NULL) ? mlkem_oom_rf(p, n) : realloc(p, n);
 }
 
-/* Decodes into kA with one key vector allocation failing. */
-static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
-    word32 inLen)
+/* Fails the next allocation of mlkem_oom_size bytes. */
+static int mlkem_oom_arm(void)
 {
-    int ret;
-
     if ((wolfSSL_GetAllocators(&mlkem_oom_mf, &mlkem_oom_ff,
             &mlkem_oom_rf) != 0) ||
         (wolfSSL_SetAllocators(mlkem_oom_malloc, mlkem_oom_free,
@@ -5449,14 +5450,33 @@ static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
         return -1;
     }
     mlkem_oom_armed = 1;
+    return 0;
+}
+
+static void mlkem_oom_disarm(void)
+{
+    mlkem_oom_armed = 0;
+    (void)wolfSSL_SetAllocators(mlkem_oom_mf, mlkem_oom_ff, mlkem_oom_rf);
+}
+#endif
+
+#ifdef MLKEM_OOM_TEST
+/* Decodes into kA with one key vector allocation failing. */
+static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
+    word32 inLen)
+{
+    int ret;
+
+    if (mlkem_oom_arm() != 0) {
+        return -1;
+    }
     if (priv) {
         ret = wc_MlKemKey_DecodePrivateKey(kA, in, inLen);
     }
     else {
         ret = wc_MlKemKey_DecodePublicKey(kA, in, inLen);
     }
-    mlkem_oom_armed = 0;
-    (void)wolfSSL_SetAllocators(mlkem_oom_mf, mlkem_oom_ff, mlkem_oom_rf);
+    mlkem_oom_disarm();
     return ret;
 }
 #endif
@@ -5532,6 +5552,51 @@ int test_wc_mlkem_decode_alloc_fail(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#ifdef MLKEM_PCT_OOM_TEST
+/* ISO/IEC 19790:2012 sec 7.10.3.3: every generated key pair is tested; a key
+ * whose test cannot finish is freed, so it cannot be exported or used. */
+int test_wc_mlkem_pct_alloc_fail(void)
+{
+    EXPECT_DECLS;
+    MlKemKey* key = NULL;
+    WC_RNG rng;
+    byte pub[WC_ML_KEM_768_PUBLIC_KEY_SIZE];
+    byte ct[WC_ML_KEM_768_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    int ret = -1;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(ct, 0, sizeof(ct));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(*key), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
+
+    /* Fail the key-pair test's ciphertext buffer. */
+    mlkem_oom_size = WC_ML_KEM_MAX_CIPHER_TEXT_SIZE;
+    if (EXPECT_SUCCESS() && (mlkem_oom_arm() == 0)) {
+        ret = wc_MlKemKey_MakeKey(key, &rng);
+        mlkem_oom_disarm();
+    }
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(MEMORY_E));
+
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pub, sizeof(pub)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, sizeof(ct)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    DoExpectIntEQ(wc_MlKemKey_Free(key), 0);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    return EXPECT_RESULT();
+}
+#endif
 
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM_768) && \

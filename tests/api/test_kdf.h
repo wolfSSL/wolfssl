@@ -27,10 +27,12 @@
 int test_wc_KdfDecisionCoverage(void);
 int test_wc_KdfFeatureCoverage(void);
 int test_wc_SshKdfReuse(void);
+int test_wc_Tls13_HybridSharedSecret(void);
 
 #define TEST_KDF_DECLS                                       \
     TEST_DECL_GROUP("kdf", test_wc_KdfDecisionCoverage),      \
     TEST_DECL_GROUP("kdf", test_wc_KdfFeatureCoverage),     \
-    TEST_DECL_GROUP("kdf", test_wc_SshKdfReuse)
+    TEST_DECL_GROUP("kdf", test_wc_SshKdfReuse),          \
+    TEST_DECL_GROUP("kdf", test_wc_Tls13_HybridSharedSecret)
 
 #endif /* WOLFCRYPT_TEST_KDF_H */

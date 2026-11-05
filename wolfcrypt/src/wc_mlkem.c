@@ -871,8 +871,9 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  * @return  BAD_COND_E when fault attack detected.
- * @return  ML_KEM_PCT_E when the key pair fails its consistency test.  The
- *          key is freed in that case and must be re-initialised before reuse.
+ * @return  ML_KEM_PCT_E when the key pair fails its consistency test.  On
+ *          any error from that test the key is freed and must be
+ *          re-initialised before reuse.
  */
 int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     int len)
@@ -1226,12 +1227,12 @@ key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
 
         WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-        /* Free a key that failed the test, so a caller ignoring the return
-         * value cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
-         * anything that failed a self-test.  MEMORY_E is excluded: it
-         * means the test never ran, so the key is not implicated. */
-        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
-            wc_MlKemKey_Free(key);
+        /* Free a key that failed or could not finish the test.
+         * ISO/IEC 19790:2012 sec 7.10.3.3: every generated key pair is tested. */
+        if (ret != 0) {
+            int freeRet = wc_MlKemKey_Free(key);
+            if (freeRet != 0)
+                ret = freeRet;
         }
     }
 #endif /* FIPS v7 or WOLFSSL_VALIDATE_MLKEM_KEYGEN */

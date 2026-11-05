@@ -2035,7 +2035,11 @@ then
 
     if test "$ENABLED_EXPERIMENTAL" = "yes"
     then
-        test "$enable_extra_pqc_hybrids" = "" && enable_extra_pqc_hybrids=yes
+        # FIPS v7 allows only the draft-ietf-tls-ecdhe-mlkem hybrid groups.
+        if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+        then
+            test "$enable_extra_pqc_hybrids" = "" && enable_extra_pqc_hybrids=yes
+        fi
         test "$enable_frodokem" = "" && enable_frodokem=yes
         test "$enable_frodokem" = yes && test "$enable_frodokem_shake" = "" && enable_frodokem_shake=yes
         test "$enable_frodokem" = yes && test "$enable_frodokem_aes" = "" && enable_frodokem_aes=yes
@@ -7903,17 +7907,9 @@ AS_CASE([$FIPS_VERSION],
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed25519" != "no")],
             [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
 
-        AS_IF([test "$ENABLED_CURVE25519" != "no" &&
-               (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_curve25519" = "")],
-            [ENABLED_CURVE25519="no"; AM_CFLAGS="$AM_CFLAGS"])
-
         AS_IF([test "x$ENABLED_ED448" != "xyes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed448" != "no")],
             [ENABLED_ED448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448 -DHAVE_ED448_KEY_IMPORT"])
-
-        AS_IF([test "$ENABLED_CURVE448" != "no" &&
-               (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_curve448" = "")],
-            [ENABLED_CURVE448="no"; AM_CFLAGS="$AM_CFLAGS"])
 
         AS_IF([test "x$ENABLED_ED25519_STREAM" != "xyes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed25519_stream" != "no")],
@@ -9167,6 +9163,7 @@ if test "$ENABLED_EXTRA_PQC_HYBRIDS" = "yes"
 then
     AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires --enable-experimental.]) ])
     AS_IF([ test "$ENABLED_ML_KEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
+    AS_IF([ test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 ],[ AC_MSG_ERROR([extra-pqc-hybrids is not available in FIPS v7 builds.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
 fi
 

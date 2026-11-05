@@ -625,6 +625,59 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 #endif /* HAVE_HKDF && !NO_HMAC */
 
+#ifdef WOLFSSL_HAVE_MLKEM
+/* Puts the ML-KEM secret after the ECDH secret in ss, or before it if kemFirst.
+ * FIPS builds allow only the groups, orders and sizes of
+ * draft-ietf-tls-ecdhe-mlkem-03 sec 4.3. */
+int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
+    word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz)
+{
+#ifdef HAVE_FIPS
+    /* TLS code point, ML-KEM first, ECDH size; ML-KEM is 32 (FIPS 203). */
+    static const word16 hybrid[][3] = {
+        { 4587, 0, 32 },  /* SecP256r1MLKEM768 */
+        { 4588, 1, 32 },  /* X25519MLKEM768 */
+        { 4589, 0, 48 }   /* SecP384r1MLKEM1024 */
+    };
+    word32 i;
+#endif
+    word32 ecSz;
+
+    if ((ss == NULL) || (ssSz == NULL) || (kemSs == NULL) || (*ssSz == 0) ||
+            (kemSsSz == 0))
+        return BAD_FUNC_ARG;
+    kemFirst = (kemFirst != 0);
+
+#ifdef HAVE_FIPS
+    for (i = 0; i < sizeof(hybrid) / sizeof(hybrid[0]); i++) {
+        if (hybrid[i][0] == group)
+            break;
+    }
+    if ((i == sizeof(hybrid) / sizeof(hybrid[0])) ||
+            (hybrid[i][1] != kemFirst) || (hybrid[i][2] != *ssSz) ||
+            (kemSsSz != 32))
+        return BAD_FUNC_ARG;
+#else
+    (void)group;
+#endif
+
+    ecSz = *ssSz;
+    if ((ecSz > ssMax) || (kemSsSz > ssMax - ecSz))
+        return BUFFER_E;
+
+    if (kemFirst) {
+        XMEMMOVE(ss + kemSsSz, ss, ecSz);
+        XMEMCPY(ss, kemSs, kemSsSz);
+    }
+    else {
+        XMEMCPY(ss + ecSz, kemSs, kemSsSz);
+    }
+    *ssSz = ecSz + kemSsSz;
+
+    return 0;
+}
+#endif /* WOLFSSL_HAVE_MLKEM */
+
 
 #ifdef WOLFSSL_WOLFSSH
 
