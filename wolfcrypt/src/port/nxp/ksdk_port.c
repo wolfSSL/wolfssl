@@ -1006,12 +1006,20 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
         return ECC_BAD_ARG_E;
     }
+    if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus) + 1)) {
+        return ECC_OUT_OF_RANGE_E;
+    }
+    if ((mp_count_bits(G->x) > mp_count_bits(modulus)) ||
+            (mp_count_bits(G->y) > mp_count_bits(modulus))) {
+        return IS_POINT_E;
+    }
 
     szModulus = mp_unsigned_bin_size(modulus);
     szkbin = mp_unsigned_bin_size(k);
 
     /* make sure LTC big number variable is large enough */
-    if (szModulus > LTC_MAX_INT_BYTES / 2) {
+    if ((szModulus > LTC_MAX_INT_BYTES / 2) ||
+            (szModulus > (int)sizeof(Gxbin))) {
         return MP_MEM;
     }
 
@@ -1046,12 +1054,9 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     res = mp_read_unsigned_bin(R->x, Gxbin, size);
     if (res == MP_OKAY) {
         res = mp_read_unsigned_bin(R->y, Gybin, size);
-        /* if k is negative, we compute the multiplication with abs(-k)
-         * with result (x, y) and modify the result to (x, -y)
-         */
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
       defined(WOLFSSL_SP_INT_NEGATIVE)
-        R->y->sign = k->sign;
+        R->y->sign = MP_ZPOS;
 #endif
     }
     if (res == MP_OKAY)

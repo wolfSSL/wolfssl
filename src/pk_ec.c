@@ -2484,6 +2484,57 @@ static int wolfssl_ec_point_mul(int curveIdx, ecc_point* r, mp_int* n,
     return ret;
 }
 
+/* Reduce a scalar that is negative or wider than the prime modulo the number
+ * of points on the curve, as OpenSSL does.
+ *
+ * @param [in]      group  EC group.
+ * @param [in, out] s      Scalar. May point to NULL. Set to *r when reduced.
+ * @param [out]     r      New BN holding the reduced scalar.
+ * @param [in, out] card   Order times cofactor. Computed when first needed.
+ * @return  1 on success.
+ * @return  0 on error.
+ */
+static int ec_scalar_nnmod(const WOLFSSL_EC_GROUP* group,
+    const WOLFSSL_BIGNUM** s, WOLFSSL_BIGNUM** r, WOLFSSL_BIGNUM** card)
+{
+    int ret = 1;
+
+    if ((*s == NULL) || ((!wolfSSL_BN_is_negative(*s)) &&
+            (wolfSSL_BN_num_bits(*s) <= wolfSSL_EC_GROUP_get_degree(group)))) {
+        return 1;
+    }
+
+    if (*card == NULL) {
+        *card = wolfSSL_BN_new();
+        if ((*card == NULL) ||
+                (wolfSSL_EC_GROUP_get_order(group, *card, NULL) != 1) ||
+                (wolfSSL_BN_mul_word(*card,
+                    (WOLFSSL_BN_ULONG)ecc_sets[group->curve_idx].cofactor) !=
+                    1)) {
+            WOLFSSL_MSG("Getting the number of points failed");
+            ret = 0;
+        }
+    }
+    if (ret == 1) {
+        *r = wolfSSL_BN_new();
+        if ((*r == NULL) || (wolfSSL_BN_mod(*r, *s, *card, NULL) != 1)) {
+            WOLFSSL_MSG("wolfSSL_BN_mod error");
+            ret = 0;
+        }
+    }
+    /* The remainder keeps the sign of s with some math libraries. */
+    if ((ret == 1) && wolfSSL_BN_is_negative(*r) &&
+            (wolfSSL_BN_add(*r, *r, *card) != 1)) {
+        WOLFSSL_MSG("wolfSSL_BN_add error");
+        ret = 0;
+    }
+    if (ret == 1) {
+        *s = *r;
+    }
+
+    return ret;
+}
+
 /* Sum the scalar multiplications of the base point and n, and q and m.
  *
  * r = base point * n + q * m
@@ -2504,6 +2555,9 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     WOLFSSL_BN_CTX *ctx)
 {
     int ret = 1;
+    WOLFSSL_BIGNUM* nr = NULL;
+    WOLFSSL_BIGNUM* mr = NULL;
+    WOLFSSL_BIGNUM* card = NULL;
 
     /* No BN operations performed. */
     (void)ctx;
@@ -2543,6 +2597,13 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 #endif
 
     if (ret == 1) {
+        ret = ec_scalar_nnmod(group, &n, &nr, &card);
+    }
+    if (ret == 1) {
+        ret = ec_scalar_nnmod(group, &m, &mr, &card);
+    }
+
+    if (ret == 1) {
         mp_int* ni = (n != NULL) ? (mp_int*)n->internal : NULL;
         ecc_point* qi = (q != NULL) ? (ecc_point*)q->internal : NULL;
         mp_int* mi = (m != NULL) ? (mp_int*)m->internal : NULL;
@@ -2568,6 +2629,9 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     }
 #endif
 
+    wolfSSL_BN_free(card);
+    wolfSSL_BN_clear_free(mr);
+    wolfSSL_BN_clear_free(nr);
     return ret;
 }
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A && !HAVE_SELFTEST &&

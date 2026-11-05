@@ -897,6 +897,96 @@ int test_wolfSSL_EC_POINT(void)
     return EXPECT_RESULT();
 }
 
+/* EC_POINT_mul() reduces a negative or over-wide scalar modulo the order, as
+ * OpenSSL does. */
+int test_wolfSSL_EC_POINT_mul_negative(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_SP_MATH) && \
+    (!defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(NO_ECC256) && \
+    !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+    EC_GROUP* group = NULL;
+    EC_POINT* g = NULL;
+    EC_POINT* r1 = NULL;
+    EC_POINT* r2 = NULL;
+    BIGNUM* order = NULL;
+    BIGNUM* neg = NULL;
+    BIGNUM* pos = NULL;
+
+    ExpectNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(g = EC_POINT_new(group));
+    ExpectNotNull(r1 = EC_POINT_new(group));
+    ExpectNotNull(r2 = EC_POINT_new(group));
+    ExpectNotNull(order = BN_new());
+    ExpectNotNull(neg = BN_new());
+    ExpectNotNull(pos = BN_new());
+    ExpectIntEQ(EC_GROUP_get_order(group, order, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, g, BN_value_one(), NULL, NULL, NULL), 1);
+
+    /* -5 and order - 5 */
+    ExpectIntGT(BN_hex2bn(&neg, "-5"), 0);
+    ExpectIntEQ(BN_is_negative(neg), 1);
+    ExpectIntEQ(BN_add(pos, order, neg), 1);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, pos, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, NULL, g, neg, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, NULL, g, pos, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, neg, g, BN_value_one(), NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, pos, g, BN_value_one(), NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, BN_value_one(), g, neg, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    /* The caller's scalar is left as it was. */
+    ExpectIntEQ(BN_is_negative(neg), 1);
+
+    /* -order is 0 modulo the order. */
+    BN_zero(neg);
+    ExpectIntEQ(BN_sub(neg, neg, order), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r1, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_is_at_infinity(group, r1), 1);
+
+    /* order * 2^64 + 5 is 5 modulo the order. */
+    ExpectIntEQ(BN_lshift(pos, order, 64), 1);
+    ExpectIntEQ(BN_add_word(pos, 5), 1);
+    ExpectIntEQ(BN_set_word(neg, 5), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r1, pos, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+    ExpectIntEQ(EC_POINT_mul(group, r1, NULL, g, pos, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    /* 2^256 + 5 is one bit wider than the prime. */
+    ExpectIntEQ(BN_set_word(pos, 1), 1);
+    ExpectIntEQ(BN_lshift(pos, pos, 256), 1);
+    ExpectIntEQ(BN_add_word(pos, 5), 1);
+    ExpectIntEQ(BN_mod(neg, pos, order, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r1, pos, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    BN_free(pos);
+    BN_free(neg);
+    BN_free(order);
+    EC_POINT_free(r2);
+    EC_POINT_free(r1);
+    EC_POINT_free(g);
+    EC_GROUP_free(group);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_SPAKE(void)
 {
     EXPECT_DECLS;
