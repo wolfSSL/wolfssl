@@ -16534,7 +16534,10 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     if (wolfSSL_connect_TLSv13(ssl) != WOLFSSL_SUCCESS) {
                         ret = ssl->error;
-                        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        /* DTLS does not yet resume a blocked response */
+                        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                                (ret != WC_NO_ERR_TRACE(WANT_WRITE) ||
+                                 ssl->options.dtls))
                             ret = POST_HAND_AUTH_ERROR;
                     }
                 }
