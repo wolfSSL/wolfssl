@@ -14200,7 +14200,7 @@ static int _sp_exptmod_base_2(const sp_int* e, int digits, const sp_int* m,
  * @return  MP_OKAY on success.
  * @return  MP_VAL when b, e, m or r is NULL, digits is negative, or m <= 0 or
  *          e is negative; or m is even in an RSA verify/public only build
- *          without DH.
+ *          without DH or OPENSSL_ALL.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
@@ -14380,7 +14380,9 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
  * @param [out] r  SP integer to hold result.
  *
  * @return  MP_OKAY on success.
- * @return  MP_VAL when b, e, m or r is NULL; or m <= 0 or e is negative.
+ * @return  MP_VAL when b, e, m or r is NULL; or m <= 0 or e is negative; or
+ *          m is even in an RSA verify/public only build without DH or
+ *          OPENSSL_ALL.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 int sp_exptmod(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
@@ -14841,7 +14843,8 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
  *
  * @return  MP_OKAY on success.
  * @return  MP_VAL when b, e, m or r is NULL; or m <= 0 or e is negative; or
- *          m is even in an RSA verify/public only build without DH.
+ *          m is even in an RSA verify/public only build without DH or
+ *          OPENSSL_ALL.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 int sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
@@ -14888,19 +14891,18 @@ int sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
     else if (m->used * 2 >= r->size) {
         err = MP_VAL;
     }
+    else if (mp_iseven(m)) {
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
     defined(OPENSSL_ALL)
-    else if (mp_iseven(m)) {
         err = _sp_exptmod_ex(b, e, (int)(e->used * SP_WORD_SIZE), m, r);
-    }
 #else
-    /* Montgomery form requires an odd modulus and the generic implementation
-     * is not compiled in (RSA verify/public only without DH). */
-    else if (mp_iseven(m)) {
+        /* Montgomery form requires an odd modulus and the generic
+         * implementation is not compiled in (RSA verify/public only without
+         * DH). */
         err = MP_VAL;
-    }
 #endif
+    }
     else {
         err = _sp_exptmod_nct(b, e, m, r);
     }
