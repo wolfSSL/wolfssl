@@ -596,8 +596,12 @@ int test_wolfSSL_peer_cert_copy_oom(void)
  */
 static int test_peer_cert_kept(const WOLFSSL* ssl)
 {
-    WOLFSSL_X509* peer = GetPeerCert(ssl);
-    return (peer != NULL) && (peer->issuer.sz > 0);
+#ifdef WOLFSSL_DYNAMIC_PEER_CERT
+    /* The object, or only the encoding until the object is asked for. */
+    return (ssl->peerCert != NULL) || (ssl->peerCertDer != NULL);
+#else
+    return ssl->peerCert.issuer.sz > 0;
+#endif
 }
 
 #if defined(HAVE_EX_DATA) && defined(HAVE_EX_DATA_CLEANUP_HOOKS)
@@ -770,6 +774,355 @@ int test_wolfSSL_get_peer_certificate_ref(void)
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_DYNAMIC_PEER_CERT) && !defined(NO_RSA) && \
+    !defined(NO_TLS)
+/* Leaf certificate the verify callback was given. */
+static WOLFSSL_X509* peer_on_demand_cb_leaf = NULL;
+
+/* Record the leaf certificate the verify callback is given and accept it.
+ *
+ * @param [in] preverify  Result of verification so far.
+ * @param [in] store      Store context with the certificate being checked.
+ * @return  1 to accept the certificate.
+ */
+static int peer_on_demand_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    if (wolfSSL_X509_STORE_CTX_get_error_depth(store) == 0)
+        peer_on_demand_cb_leaf = wolfSSL_X509_STORE_CTX_get_current_cert(store);
+    return 1;
+}
+
+/* Give the client a new server to handshake with.
+ *
+ * @param [in]      ctx_s     Server context.
+ * @param [in, out] ssl_s     Server object, replaced by a new one.
+ * @param [in, out] test_ctx  Memory I/O, emptied.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_peer_cert_on_demand_new_server(WOLFSSL_CTX* ctx_s,
+    WOLFSSL** ssl_s, struct test_memio_ctx* test_ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_free(*ssl_s);
+    *ssl_s = NULL;
+    ExpectNotNull(*ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(*ssl_s, test_ctx);
+    wolfSSL_SetIOReadCtx(*ssl_s, test_ctx);
+#ifndef NO_DH
+    SetDH(*ssl_s);
+#endif
+    test_memio_clear_buffer(test_ctx, 0);
+    test_memio_clear_buffer(test_ctx, 1);
+
+    return EXPECT_RESULT();
+}
+
+/* Check that a connection keeps only the peer certificate's encoding until
+ * the object is asked for, and that the object then built is the one sent.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_peer_cert_on_demand(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509* srv = NULL;
+    WOLFSSL_X509* peer = NULL;
+    const unsigned char* srvDer = NULL;
+    const unsigned char* der = NULL;
+    int srvDerSz = 0;
+    int derSz = 0;
+
+    ExpectNotNull(srv = wolfSSL_X509_load_certificate_file(svrCertFile,
+        CERT_FILETYPE));
+    ExpectNotNull(srvDer = wolfSSL_X509_get_der(srv, &srvDerSz));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Only the encoding of the certificate the server sent is kept. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+        ExpectNotNull(ssl_c->peerCertDer);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ((int)ssl_c->peerCertDer->length, srvDerSz);
+        ExpectBufEQ(ssl_c->peerCertDer->buffer, srvDer, srvDerSz);
+    }
+#if defined(HAVE_EX_DATA) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    /* Comparing with a file uses the encoding and builds nothing. */
+    ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c, svrCertFile), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+    }
+#endif
+#if defined(TEST_PEER_CERT_COPY_OOM) && defined(USE_WOLFSSL_MEMORY)
+    /* Out of memory, no object is returned and the encoding stays. */
+    (void)wolfSSL_GetAllocators(&peer_copy_prev_malloc,
+         &peer_copy_prev_free, &peer_copy_prev_realloc);
+    ExpectIntEQ(wolfSSL_SetAllocators(peer_copy_fail_malloc,
+        peer_copy_fail_free, peer_copy_fail_realloc), 0);
+    peer_copy_fail_alloc = 1;
+    peer = wolfSSL_get_peer_certificate(ssl_c);
+    peer_copy_fail_alloc = 0;
+    (void)wolfSSL_SetAllocators(peer_copy_prev_malloc, peer_copy_prev_free,
+        peer_copy_prev_realloc);
+    ExpectNull(peer);
+    wolfSSL_X509_free(peer);
+    peer = NULL;
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+        ExpectNotNull(ssl_c->peerCertDer);
+    }
+#endif
+
+    /* Asking builds the object, which takes the place of the encoding. */
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+    if (EXPECT_SUCCESS()) {
+        ExpectPtrEq(peer, ssl_c->peerCert);
+        ExpectNull(ssl_c->peerCertDer);
+    }
+    ExpectNotNull(der = wolfSSL_X509_get_der(peer, &derSz));
+    ExpectIntEQ(derSz, srvDerSz);
+    ExpectBufEQ(der, srvDer, srvDerSz);
+    ExpectIntEQ(wolfSSL_X509_NAME_cmp(wolfSSL_X509_get_subject_name(peer),
+        wolfSSL_X509_get_subject_name(srv)), 0);
+    ExpectIntEQ(wolfSSL_X509_NAME_cmp(wolfSSL_X509_get_issuer_name(peer),
+        wolfSSL_X509_get_issuer_name(srv)), 0);
+    ExpectIntEQ(wolfSSL_X509_NAME_entry_count(
+        wolfSSL_X509_get_subject_name(peer)),
+        wolfSSL_X509_NAME_entry_count(wolfSSL_X509_get_subject_name(srv)));
+    ExpectIntEQ(wolfSSL_X509_cmp(peer, srv), 0);
+    wolfSSL_X509_free(peer);
+    peer = NULL;
+
+    /* Reusing the object for a new connection drops the built object. */
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+        ExpectNull(ssl_c->peerCertDer);
+    }
+
+    /* It also drops the encoding when no object was built from it. */
+    ExpectIntEQ(test_peer_cert_on_demand_new_server(ctx_s, &ssl_s, &test_ctx),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+        ExpectNotNull(ssl_c->peerCertDer);
+    }
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->peerCert);
+        ExpectNull(ssl_c->peerCertDer);
+    }
+
+    /* With a verify callback the object is built from the decoded leaf for
+     * the callback, and that object is the one kept. */
+    ExpectIntEQ(test_peer_cert_on_demand_new_server(ctx_s, &ssl_s, &test_ctx),
+        TEST_SUCCESS);
+    peer_on_demand_cb_leaf = NULL;
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, peer_on_demand_verify_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(ssl_c->peerCert);
+        ExpectNull(ssl_c->peerCertDer);
+        ExpectPtrEq(peer_on_demand_cb_leaf, ssl_c->peerCert);
+    }
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+    if (EXPECT_SUCCESS()) {
+        ExpectPtrEq(peer, ssl_c->peerCert);
+    }
+    ExpectIntEQ(wolfSSL_X509_cmp(peer, srv), 0);
+    peer_on_demand_cb_leaf = NULL;
+
+    wolfSSL_X509_free(peer);
+    wolfSSL_X509_free(srv);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that only the encoding of the peer's certificate is kept until the
+ * certificate object is asked for.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_peer_cert_on_demand(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_DYNAMIC_PEER_CERT) && !defined(NO_RSA) && \
+    !defined(NO_TLS)
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_peer_cert_on_demand(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_peer_cert_on_demand(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT) && defined(WOLFSSL_CHAIN_VERIFY_CB) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_SHA256) && \
+    !defined(NO_ASN_TIME) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(USE_CERT_BUFFERS_2048)
+#define TEST_PEER_CERT_DECODE_ERR
+
+/* Accept the peer's chain, whatever wolfSSL makes of its content.
+ *
+ * @return  0 to accept the chain.
+ */
+static int peer_cert_decode_err_chain_cb(WOLFSSL* ssl,
+    const WOLFSSL_BUFFER_INFO* certs, int certsSz, void* ctx)
+{
+    (void)ssl;
+    (void)certs;
+    (void)certsSz;
+    (void)ctx;
+    return 0;
+}
+#endif
+
+/* Test that a peer certificate accepted despite an error decoding it is still
+ * kept as an object.
+ *
+ * The leaf has keyCertSign without being a CA, which parsing reports however
+ * it is done, and the chain verify callback accepts it. Decoding the kept
+ * encoding again would fail, so the decoded leaf is kept as the object.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_peer_cert_kept_decode_err(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PEER_CERT_DECODE_ERR
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509* peer = NULL;
+    const unsigned char* der = NULL;
+    byte* leafDer = NULL;
+    int leafDerSz = 0;
+    int derSz = 0;
+    RsaKey key;
+    WC_RNG rng;
+    Cert cert;
+    word32 idx = 0;
+    int keyInit = 0;
+    int rngInit = 0;
+    int certInit = 0;
+
+    ExpectNotNull(leafDer = (byte*)XMALLOC(FOURK_BUF, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&key, NULL), 0);
+    if (EXPECT_SUCCESS())
+        keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        (word32)sizeof_server_key_der_2048), 0);
+
+    /* Self-signed leaf with keyCertSign but not a CA. */
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    if (EXPECT_SUCCESS()) {
+        certInit = 1;
+        cert.isCA = 0;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, "keyCertSign leaf",
+            CTC_NAME_SIZE - 1);
+    }
+    ExpectIntEQ(wc_SetKeyUsage(&cert,
+        "digitalSignature,keyEncipherment,keyCertSign"), 0);
+    ExpectIntGT(wc_MakeCert(&cert, leafDer, FOURK_BUF, &key, NULL, &rng), 0);
+    ExpectIntGT(leafDerSz = wc_SignCert(cert.bodySz, cert.sigType, leafDer,
+        FOURK_BUF, &key, NULL, &rng), 0);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    if (certInit)
+        wc_SetCert_Free(&cert);
+#endif
+    (void)certInit;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+#else
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#endif
+    ExpectIntEQ(wolfSSL_use_certificate_buffer(ssl_s, leafDer, leafDerSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_s, server_key_der_2048,
+        sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_c,
+        peer_cert_decode_err_chain_cb), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+#ifdef WOLFSSL_DYNAMIC_PEER_CERT
+    #ifndef ALLOW_INVALID_CERTSIGN
+    /* The decoded leaf is kept, not only its encoding. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(ssl_c->peerCert);
+        ExpectNull(ssl_c->peerCertDer);
+    }
+    #endif
+    /* The kept object is handed out with a reference. */
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+    ExpectNotNull(der = wolfSSL_X509_get_der(peer, &derSz));
+#else
+    /* A copy is handed out, made by decoding the certificate again, which
+     * fails for this one, so check the kept object itself. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(ssl_c->peerCert.issuer.sz, 0);
+        ExpectNotNull(ssl_c->peerCert.derCert);
+    }
+    if (EXPECT_SUCCESS()) {
+        der = ssl_c->peerCert.derCert->buffer;
+        derSz = (int)ssl_c->peerCert.derCert->length;
+    }
+#endif
+    ExpectIntEQ(derSz, leafDerSz);
+    ExpectBufEQ(der, leafDer, leafDerSz);
+
+    wolfSSL_X509_free(peer);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    if (keyInit)
+        wc_FreeRsaKey(&key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }

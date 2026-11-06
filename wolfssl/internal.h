@@ -3035,7 +3035,10 @@ typedef struct ProcPeerCertArgs {
     word16 csrAcked:1; /* survives the staple checks clearing status_request */
 #endif
 #ifdef KEEP_PEER_CERT
-    word16 peerCertSet:1; /* leaf already copied into ssl->peerCert */
+    word16 peerCertSet:1; /* leaf already kept in ssl->peerCert, or only its
+                           * encoding in ssl->peerCertDer */
+    word16 leafDecodeErr:1; /* parsing the leaf returned an error, so a later
+                             * decode of it may not give the same result */
 #endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
@@ -7322,9 +7325,14 @@ struct WOLFSSL {
 #endif
 #ifdef KEEP_PEER_CERT
 #ifdef WOLFSSL_DYNAMIC_PEER_CERT
-    WOLFSSL_X509*    peerCert;           /* X509 peer cert, NULL when none.
-                                            Holds one reference; replaced,
-                                            never reused, by a new cert */
+    WOLFSSL_X509*    peerCert;           /* X509 peer cert, NULL when none
+                                            or not built yet from
+                                            peerCertDer. Holds one reference;
+                                            replaced, never reused, by a new
+                                            cert */
+    DerBuffer*       peerCertDer;        /* Encoding of the peer cert until
+                                            peerCert is built from it, then
+                                            NULL. See GetPeerCert() */
 #else
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
@@ -8221,19 +8229,31 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
                                          DecodedCert* dCert);
     #endif
     #ifdef KEEP_PEER_CERT
-    /* The kept peer certificate object. NULL only with
-     * WOLFSSL_DYNAMIC_PEER_CERT, when no certificate is kept. */
+        #ifdef WOLFSSL_DYNAMIC_PEER_CERT
+    WOLFSSL_LOCAL WOLFSSL_X509* GetPeerCert(WOLFSSL* ssl);
+        #else
+    /* The kept peer certificate object. */
     static WC_INLINE WOLFSSL_X509* GetPeerCert(const WOLFSSL* ssl)
     {
-    #ifdef WOLFSSL_DYNAMIC_PEER_CERT
-        return ssl->peerCert;
-    #else
         return (WOLFSSL_X509*)&ssl->peerCert;
-    #endif
+    }
+        #endif
+    /* The encoding of the kept peer certificate, without building the X509
+     * object. NULL when no certificate is kept. */
+    static WC_INLINE const DerBuffer* GetPeerCertDer(const WOLFSSL* ssl)
+    {
+        #ifdef WOLFSSL_DYNAMIC_PEER_CERT
+        if (ssl->peerCertDer != NULL)
+            return ssl->peerCertDer;
+        return (ssl->peerCert != NULL) ? ssl->peerCert->derCert : NULL;
+        #else
+        return ssl->peerCert.derCert;
+        #endif
     }
     WOLFSSL_LOCAL void FreePeerCert(WOLFSSL* ssl);
         #ifndef NO_ASN
     WOLFSSL_LOCAL int  SetPeerCert(WOLFSSL* ssl, DecodedCert* dCert);
+    WOLFSSL_LOCAL int  SetPeerCertDer(WOLFSSL* ssl, DecodedCert* dCert);
         #endif
     #endif
 #endif
