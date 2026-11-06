@@ -509,7 +509,7 @@ static int test_crl_date_reject_cb(int ok, X509_STORE_CTX* ctx)
 #endif
 
 #if !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_SIGNER_DER_CERT)
 static int test_crl_date_read_crl(STACK_OF(X509_CRL)* sk, const char* file)
 {
     XFILE fp = XFOPEN(file, "rb");
@@ -608,13 +608,13 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
 #endif
 
 #if !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_SIGNER_DER_CERT)
     {
         WOLFSSL_CTX* sslCtx = NULL;
         X509_STORE* ctxStore = NULL;
 
         /* A CertManager callback on the context's store sees the CRL
-         * verdict. */
+         * verdict. The context's CA goes on the chain only with its DER. */
         ExpectNotNull(sslCtx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
         ExpectIntEQ(wolfSSL_CTX_load_verify_locations(sslCtx,
             "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
