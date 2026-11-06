@@ -90622,6 +90622,7 @@ static wc_test_ret_t pkcs7signed_mldsa_test(void)
     word32  certSz, keySz;
     word32  outHeadSz, outFootSz;
     int     encodedSz;
+    int     preHashSz;
     int     i, testSz;
     int     rngInit = 0;
     byte    preHash[WC_MAX_DIGEST_SIZE];
@@ -90886,6 +90887,61 @@ static wc_test_ret_t pkcs7signed_mldsa_test(void)
             out, &outHeadSz, out, &outFootSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* negative: pure-mode ML-DSA (RFC 9882) signs the complete message,
+     * not a digest, so a caller-supplied hashBuf must be rejected rather
+     * than silently ignored. Reuses the last vector's cert/key. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    pkcs7->rng          = &rng;
+    pkcs7->content      = (byte*)content;
+    pkcs7->contentSz    = (word32)sizeof(content);
+    pkcs7->contentOID   = DATA;
+    pkcs7->hashOID      = MLDSA_TEST_HASH;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+
+    ret = wc_PKCS7_SetDefaultSignedAttribs(pkcs7, WOLFSSL_NO_ATTRIBUTES);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    encodedSz = wc_PKCS7_EncodeSignedData(pkcs7, out, FOURK_BUF * 5);
+    if (encodedSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encodedSz), out_lbl);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* preHash is already zeroed above and was never computed over
+     * content; confirm it gets rejected rather than silently accepted.
+     * Must match MLDSA_TEST_HASH's digest size, or wc_PKCS7_BuildSignedDataDigest()
+     * rejects the length mismatch before the guard under test runs. */
+    preHashSz = wc_HashGetDigestSize(wc_OidGetHash(MLDSA_TEST_HASH));
+    if (preHashSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(preHashSz), out_lbl);
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    ret = wc_PKCS7_VerifySignedData_ex(pkcs7, preHash, (word32)preHashSz,
+            out, (word32)encodedSz, NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+    ret = 0;
 
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;

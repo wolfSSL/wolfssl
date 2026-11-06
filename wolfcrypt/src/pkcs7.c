@@ -6301,6 +6301,15 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
             word32 msgSz = 0;
             int    msgAlloc = 0;
 
+            /* RFC 9882: without signed attributes there is no digest, and
+             * the digestAlgorithm field is meaningless and must be
+             * ignored. Reject caller-supplied hashBuf instead of
+             * silently ignoring it. */
+            if (signedAttrib == NULL && hashBuf != NULL) {
+                ret = BAD_FUNC_ARG;
+                break;
+            }
+
             ret = wc_PKCS7_BuildPureSigMessage(pkcs7, signedAttrib,
                                                signedAttribSz, &msg, &msgSz,
                                                &msgAlloc);
