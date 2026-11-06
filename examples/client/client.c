@@ -1310,7 +1310,11 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
 /*  3. increase the array dimension                       */
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
-/*  5. add printf() into suitable position of Usage()     */
+/*  5. Usage() prints the messages that take an argument  */
+/*     (-h to -Z) one by one, then prints the rest in     */
+/*     table order up to the NULL terminator. Only a new  */
+/*     message that takes an argument needs a printf() in */
+/*     Usage(); keep NULL as the last entry of each table */
 static const char* client_usage_msg[][81] = {
     /* English */
     {
@@ -1524,7 +1528,6 @@ static const char* client_usage_msg[][81] = {
             "            SecP384r1MLKEM768,\n"
             "            SecP521r1MLKEM1024,\n"
             "            SecP256r1MLKEM768,\n"
-            "            SecP521r1MLKEM1024,\n"
             "            SecP384r1MLKEM1024,\n"
             "            X25519MLKEM512,\n"
             "            X25519MLKEM768,\n"
@@ -1698,10 +1701,10 @@ static const char* client_usage_msg[][81] = {
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         "-W <num>    OCSP Staplingを使用する"
                                          " (1 v1, 2 v2, 3 v2 multi)\n", /* 41 */
-        "            'm' を最後に指定すると必ず staple を使用する\n"       /* 42 */
+        "            'm' を最後に指定すると必ず staple を使用する\n",      /* 42 */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
         "            -W 1 -v 4, "
-        "TLS13 使用時に複数(Multi)の OCSP を実施します\n"                   /* 43 */
+        "TLS13 使用時に複数(Multi)の OCSP を実施します\n",                  /* 43 */
 #endif
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
@@ -1794,7 +1797,6 @@ static const char* client_usage_msg[][81] = {
             "            SecP384r1MLKEM768,\n"
             "            SecP521r1MLKEM1024,\n"
             "            SecP256r1MLKEM768,\n"
-            "            SecP521r1MLKEM1024,\n"
             "            SecP384r1MLKEM1024,\n"
             "            X25519MLKEM512,\n"
             "            X25519MLKEM768,\n"
@@ -1834,10 +1836,16 @@ static const char* client_usage_msg[][81] = {
 #ifdef HAVE_ECC_BRAINPOOL
         "--bpKs  Use Brainpool ECC group for key share\n",             /* 78 */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        /* TODO: Need Japanese translation */
+        "--ech <base64>  Use Encrypted Client Hello with base64 encoded "
+            "ECH configs\n",
+                                                                        /* 79 */
+#endif
         "\n"
         "より簡単なwolfSSL TLS クライアントの例については"
                                          "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 79 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 80 */
         NULL,
     },
 #endif
@@ -1928,163 +1936,12 @@ static void Usage(void)
 #ifndef NO_DH
     printf("%s %d\n", msg[++msgid], DEFAULT_MIN_DHKEY_BITS);
 #endif
-    printf("%s", msg[++msgid]); /* -b */
-#ifdef HAVE_ALPN
-    printf("%s", msg[++msgid]); /* -L <str> */
-#endif
-    printf("%s", msg[++msgid]); /* -B <num> */
-#ifndef NO_PSK
-    printf("%s", msg[++msgid]); /* -s */
-#endif
-    printf("%s", msg[++msgid]); /* -d */
-    printf("%s", msg[++msgid]); /* -D */
-    printf("%s", msg[++msgid]); /* -e */
-    printf("%s", msg[++msgid]); /* -g */
-#ifdef WOLFSSL_DTLS
-    printf("%s", msg[++msgid]); /* -u */
-#endif
-#ifdef WOLFSSL_SCTP
-    printf("%s", msg[++msgid]); /* -G */
-#endif
-#ifndef NO_CERTS
-    printf("%s", msg[++msgid]); /* -m */
-#endif
-    printf("%s", msg[++msgid]); /* -N */
-#ifndef NO_SESSION_CACHE
-    printf("%s", msg[++msgid]); /* -r */
-#endif
-    printf("%s", msg[++msgid]); /* -w */
-    printf("%s", msg[++msgid]); /* -M */
-#ifdef HAVE_SECURE_RENEGOTIATION
-    printf("%s", msg[++msgid]); /* -R */
-    printf("%s", msg[++msgid]); /* -i */
-#endif
-    printf("%s", msg[++msgid]); /* -f */
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
-    printf("%s", msg[++msgid]); /* -x */
-#endif
-    printf("%s", msg[++msgid]); /* -X */
-    printf("%s", msg[++msgid]); /* -j */
-#ifdef SHOW_SIZES
-    printf("%s", msg[++msgid]); /* -z */
-#endif
-#ifdef HAVE_SNI
-    printf("%s", msg[++msgid]); /* -S */
-#endif
-#ifdef HAVE_MAX_FRAGMENT
-    printf("%s", msg[++msgid]); /* -F */
-#endif
-#ifdef HAVE_TRUNCATED_HMAC
-    printf("%s", msg[++msgid]); /* -T */
-#endif
-#ifdef HAVE_EXTENDED_MASTER
-    printf("%s", msg[++msgid]); /* -n */
-#endif
-#ifdef HAVE_OCSP
-    printf("%s", msg[++msgid]); /* -o */
-    printf("%s", msg[++msgid]); /* -O */
-#endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    printf("%s", msg[++msgid]); /* -W */
-    printf("%s", msg[++msgid]); /* note for -W */
-#endif
-#if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
-    printf("%s", msg[++msgid]); /* -U */
-#endif
-#ifdef HAVE_PK_CALLBACKS
-    printf("%s", msg[++msgid]); /* -P */
-#endif
-#ifdef HAVE_ANON
-    printf("%s", msg[++msgid]); /* -a */
-#endif
-#ifdef HAVE_CRL
-    printf("%s", msg[++msgid]); /* -C */
-#endif
-#ifdef WOLFSSL_TRUST_PEER_CERT
-    printf("%s", msg[++msgid]); /* -E */
-#endif
-    printf("%s", msg[++msgid]);                /* -H  */
-    printf("%s", msg[++msgid]);                /* more -H options  */
-#ifdef WOLFSSL_TLS13
-    printf("%s", msg[++msgid]); /* -J */
-    printf("%s", msg[++msgid]); /* -K */
-    printf("%s", msg[++msgid]); /* -I */
-#ifndef NO_DH
-    printf("%s", msg[++msgid]); /* -y */
-#endif
-#ifdef HAVE_ECC
-    printf("%s", msg[++msgid]); /* -Y */
-#endif
-#endif /* WOLFSSL_TLS13 */
-#ifdef HAVE_CURVE25519
-    printf("%s", msg[++msgid]); /* -t */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
-    !defined(WOLFSSL_NO_CLIENT_AUTH)
-    printf("%s", msg[++msgid]); /* -Q */
-#endif
-#ifdef WOLFSSL_EARLY_DATA
-    printf("%s", msg[++msgid]); /* -0 */
-#endif
-#ifdef WOLFSSL_MULTICAST
-    printf("%s", msg[++msgid]); /* -3 */
-#endif
-    printf("%s", msg[++msgid]);  /* -1 */
-#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-    printf("%s", msg[++msgid]);  /* -2 */
-#endif
-#ifdef HAVE_SECURE_RENEGOTIATION
-    printf("%s", msg[++msgid]);  /* -4 */
-#endif
-#ifdef HAVE_TRUSTED_CA
-    printf("%s", msg[++msgid]);  /* -5 */
-#endif
-    printf("%s", msg[++msgid]);  /* -6 */
-#ifdef HAVE_CURVE448
-    printf("%s", msg[++msgid]); /* -8 */
-#endif
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-    printf("%s", msg[++msgid]); /* -9 */
-#endif
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSENTRY_NO_JSON)
-    printf("%s", msg[++msgid]); /* --wolfsentry-config */
-#endif
-    printf("%s", msg[++msgid]); /* -7 */
-#ifdef WOLFSSL_HAVE_MLKEM
-    printf("%s", msg[++msgid]);     /* --pqc */
-#endif
-#ifdef WOLFSSL_SRTP
-    printf("%s", msg[++msgid]);     /* dtls-srtp */
-#endif
-#ifdef WOLFSSL_SYS_CA_CERTS
-    printf("%s", msg[++msgid]); /* --sys-ca-certs */
-#endif
-#ifdef HAVE_SUPPORTED_CURVES
-    printf("%s", msg[++msgid]); /* --onlyPskDheKe */
-#endif
-#ifndef NO_PSK
-    printf("%s", msg[++msgid]); /* --openssl-psk */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
-    !defined(NO_PSK)
-    printf("%s", msg[++msgid]); /* --psk-with-certs */
-#endif
-#ifdef HAVE_RPK
-    printf("%s", msg[++msgid]); /* --rpk */
-#endif
-#ifdef HAVE_ECC_BRAINPOOL
-    printf("%s", msg[++msgid]); /* --bpKs */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    printf("%s", msg[++msgid]); /* --ech */
-#endif
-    printf("%s", msg[++msgid]); /* --files-are-der */
-    printf("%s", msg[++msgid]); /* Documentation Hint */
+    /* The remaining messages take no arguments. Print them in table order
+     * up to the NULL terminator so that Usage() cannot run past the end of
+     * the table whatever options are compiled in. */
+    while (msg[++msgid] != NULL) {
+        printf("%s", msg[msgid]);
+    }
 }
 
 #ifdef WOLFSSL_SRTP
