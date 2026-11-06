@@ -28,6 +28,8 @@ int test_wolfSSL_RSA(void);
 int test_wolfSSL_RSA_DER(void);
 int test_wolfSSL_RSA_print(void);
 int test_wolfSSL_RSA_padding_add_PKCS1_PSS(void);
+int test_wolfSSL_RSA_padding_PKCS1_OAEP(void);
+int test_wolfSSL_RSA_padding_PKCS1_OAEP_mgf1(void);
 int test_wolfSSL_RSA_sign_sha3(void);
 int test_wolfSSL_RSA_get0_key(void);
 int test_wolfSSL_RSA_meth(void);
@@ -53,6 +55,8 @@ int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void);
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_DER),                      \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_print),                    \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_padding_add_PKCS1_PSS),    \
+    TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_padding_PKCS1_OAEP),       \
+    TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_padding_PKCS1_OAEP_mgf1),  \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_sign_sha3),                \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_get0_key),                 \
     TEST_DECL_GROUP("ossl_rsa", test_wolfSSL_RSA_meth),                     \

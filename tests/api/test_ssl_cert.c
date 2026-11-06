@@ -1077,6 +1077,20 @@ int test_wolfSSL_set_peer_cert_chain(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(SESSION_CERTS) && \
+    defined(OPENSSL_EXTRA) && defined(KEEP_PEER_CERT) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && !defined(NO_TLS)
+static int test_verified_chain_cm_calls = 0;
+
+/* CertManager verify callback that counts calls and rejects any error. */
+static int test_verified_chain_cm_cb(int ok, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)store;
+    test_verified_chain_cm_calls++;
+    return ok;
+}
+#endif
+
 /* Test getting the verified certificate chain.
  *
  * @return  TEST_SUCCESS on success.
@@ -1091,6 +1105,11 @@ int test_wolfSSL_get0_verified_chain(void)
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    WOLFSSL_X509_STORE_CTX* storeCtx = NULL;
+    WOLFSSL_X509* peer = NULL;
+    int calls = 0;
+#endif
 
     ExpectNull(wolfSSL_get0_verified_chain(NULL));
 
@@ -1101,19 +1120,77 @@ int test_wolfSSL_get0_verified_chain(void)
     /* Without a peer certificate there is nothing to verify. */
     ExpectNull(wolfSSL_get0_verified_chain(ssl_c));
 
+    /* The app's CertManager callback is not used to build the chain. */
+    test_verified_chain_cm_calls = 0;
+    wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx_c),
+        test_verified_chain_cm_cb);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    calls = test_verified_chain_cm_calls;
     /* The server's chain verifies against the CA the client loaded. */
     ExpectNotNull(chain = wolfSSL_get0_verified_chain(ssl_c));
     ExpectIntGT(wolfSSL_sk_X509_num(chain), 0);
+    ExpectIntEQ(test_verified_chain_cm_calls, calls);
+    wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx_c), NULL);
     if (ssl_c != NULL) {
         ExpectPtrEq(ssl_c->verifiedChain, chain);
     }
-    /* Called again the previous chain is released and a new one stored. */
+    /* Called again, the same chain is returned, as by OpenSSL. */
+    ExpectPtrEq(wolfSSL_get0_verified_chain(ssl_c), chain);
+    if (ssl_c != NULL) {
+        ExpectPtrEq(ssl_c->verifiedChain, chain);
+    }
+
+    /* Built once: without the CA it does not verify, but is still there. */
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
+    ExpectNotNull(storeCtx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(storeCtx,
+        wolfSSL_CTX_get_cert_store(ctx_c), wolfSSL_sk_X509_value(chain, 0),
+        NULL), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_X509_verify_cert(storeCtx), WOLFSSL_SUCCESS);
+    wolfSSL_X509_STORE_CTX_free(storeCtx);
+    ExpectPtrEq(wolfSSL_get0_verified_chain(ssl_c), chain);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, NULL),
+        WOLFSSL_SUCCESS);
+
+    /* Dropped by wolfSSL_clear() and by a new peer chain. */
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL) {
+        ExpectNull(ssl_c->verifiedChain);
+    }
+    ExpectNotNull(wolfSSL_get0_verified_chain(ssl_c));
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx_s,
+        WOLFSSL_SESS_CACHE_OFF), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/intermediate/server-chain.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+        NULL, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+    if (ssl_c != NULL) {
+        ExpectNull(ssl_c->verifiedChain);
+    }
     ExpectNotNull(chain = wolfSSL_get0_verified_chain(ssl_c));
-    if (ssl_c != NULL) {
-        ExpectPtrEq(ssl_c->verifiedChain, chain);
-    }
+    ExpectIntEQ(wolfSSL_sk_X509_num(chain), 4);
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+    ExpectIntEQ(wolfSSL_X509_cmp(wolfSSL_sk_X509_value(chain, 0), peer), 0);
+    wolfSSL_X509_free(peer);
+#else
+    /* Without its DER that CA cannot go on the chain. */
+    ExpectNull(chain = wolfSSL_get0_verified_chain(ssl_c));
+#endif
 
     wolfSSL_free(ssl_s);
     wolfSSL_free(ssl_c);
@@ -4484,9 +4561,14 @@ static int test_chain_slot_case_run(const test_chain_slot_case* tc,
 
     /* A certificate too large for its slot must not let the one behind it take
      * its index, which is what this getter reads as the peer. */
+#ifdef WOLFSSL_SIGNER_DER_CERT
     ExpectNotNull(sk = wolfSSL_get0_verified_chain(ssl));
     ExpectIntEQ(test_chain_is_cert(wolfSSL_sk_X509_value(sk, 0), leafDer,
         leafSz), 1);
+#else
+    /* Without its DER the CA cannot go on the chain. */
+    ExpectNull(wolfSSL_get0_verified_chain(ssl));
+#endif
 
     ExpectIntEQ(wolfSSL_get_chain_count(wolfSSL_get_peer_chain(ssl)), 2);
 
@@ -4565,6 +4647,205 @@ static int test_chain_slot_case_run(const test_chain_slot_case* tc,
 
     return EXPECT_RESULT();
 }
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_SIGNER_DER_CERT)
+/* Build a CA cert of key with the validity period of the cert datesDer:
+ * issued by issuerDer with issuerKey or, without issuerDer, self-signed.
+ * Returns the DER length, or < 0 on failure. */
+static int test_verified_chain_gen_ca(byte* out, int outMax, RsaKey* key,
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
+    const char* cn, const byte* datesDer, int datesDerSz)
+{
+    Cert cert;
+    int  ret;
+
+    if (wc_InitCert(&cert) != 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    cert.isCA    = 1;
+    cert.sigType = CTC_SHA256wRSA;
+    XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    ret = wc_SetDatesBuffer(&cert, datesDer, datesDerSz);
+    if (ret == 0)
+        ret = wc_SetSubjectKeyIdFromPublicKey(&cert, key, NULL);
+    if (ret == 0)
+        ret = wc_SetKeyUsage(&cert, "keyCertSign,cRLSign");
+    if (ret == 0 && issuerDer == NULL) {
+        ret = wc_MakeSelfCert(&cert, out, (word32)outMax, key, rng);
+    }
+    else if (ret == 0) {
+        ret = wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz);
+        if (ret == 0)
+            ret = wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz);
+        if (ret == 0)
+            ret = wc_MakeCert(&cert, out, (word32)outMax, key, NULL, rng);
+        if (ret >= 0)
+            ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+                issuerKey, NULL, rng);
+    }
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+
+    return ret;
+}
+
+/* How the handshake of test_verified_chain_run() verifies the peer. */
+#define TEST_VCHAIN_NONE   0 /* not at all */
+#define TEST_VCHAIN_PEER   1 /* verified */
+#define TEST_VCHAIN_HOST   2 /* a verify callback accepts a host name error */
+#define TEST_VCHAIN_RESUME 3 /* verified, then resumed */
+#define TEST_VCHAIN_KEYSZ  4 /* verified, then CA keys must be 4096 bits */
+
+static int test_verified_chain_accept(int ok, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)ok;
+    (void)store;
+    return 1;
+}
+
+/* Check the verified chain of ssl: none when num is 0, else num certs, the
+ * peer's, issuerDer and ca-cert. */
+static int test_verified_chain_check(WOLFSSL* ssl, int num,
+    const byte* issuerDer, int issuerSz)
+{
+    EXPECT_DECLS;
+    WOLF_STACK_OF(WOLFSSL_X509)* sk = NULL;
+    WOLFSSL_X509* peer = NULL;
+
+    sk = wolfSSL_get0_verified_chain(ssl);
+    if (num == 0) {
+        ExpectNull(sk);
+    }
+    else {
+        ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl));
+        ExpectIntEQ(wolfSSL_sk_X509_num(sk), num);
+        ExpectIntEQ(wolfSSL_X509_cmp(wolfSSL_sk_X509_value(sk, 0), peer), 0);
+        ExpectIntEQ(test_chain_is_cert(wolfSSL_sk_X509_value(sk, 1),
+            issuerDer, issuerSz), 1);
+        if (num > 2) {
+            ExpectIntEQ(test_chain_is_cert(wolfSSL_sk_X509_value(sk, 2),
+                ca_cert_der_2048, (int)sizeof_ca_cert_der_2048), 1);
+        }
+        /* As OpenSSL, the same chain again */
+        ExpectPtrEq(wolfSSL_get0_verified_chain(ssl), sk);
+    }
+    wolfSSL_X509_free(peer);
+
+    return EXPECT_RESULT();
+}
+
+/* A handshake to a client that loads ca1 and ca2, when set, into its cert
+ * manager with their date errors allowed, or that verifies with store. The
+ * server sends peerDer. The handshake checks neither the dates of a CA of the
+ * cert manager nor that it is a CA; X509_verify_cert() does, failing with err
+ * at depth 1. The verified chain is checked as test_verified_chain_check()
+ * does, with num 0 when the handshake does not verify the peer. */
+static int test_verified_chain_run(const byte* ca1, int ca1Sz,
+    const byte* ca2, int ca2Sz, WOLFSSL_X509_STORE* store,
+    const byte* peerDer, int peerSz, const byte* issuerDer, int issuerSz,
+    int mode, int err, int num)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509_STORE_CTX* storeCtx = NULL;
+    WOLFSSL_X509* peer = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+#ifndef WOLFSSL_NO_TLS12
+    method_provider method_c = wolfTLSv1_2_client_method;
+    method_provider method_s = wolfTLSv1_2_server_method;
+#else
+    method_provider method_c = wolfTLSv1_3_client_method;
+    method_provider method_s = wolfTLSv1_3_server_method;
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(method_c()));
+    if (ctx_c != NULL) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+    }
+    if (ca1 != NULL) {
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx_c, ca1, ca1Sz,
+            WOLFSSL_FILETYPE_ASN1, 0, WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY),
+            WOLFSSL_SUCCESS);
+    }
+    if (ca2 != NULL) {
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx_c, ca2, ca2Sz,
+            WOLFSSL_FILETYPE_ASN1, 0, WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY),
+            WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s, NULL, 0, (byte*)peerDer, peerSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+    if (store != NULL) {
+        ExpectIntEQ(wolfSSL_set1_verify_cert_store(ssl_c, store),
+            WOLFSSL_SUCCESS);
+    }
+    if (mode == TEST_VCHAIN_HOST) {
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(
+            wolfSSL_get0_param(ssl_c), "wrong.example.com", 0),
+            WOLFSSL_SUCCESS);
+    }
+    wolfSSL_set_verify(ssl_c, (mode == TEST_VCHAIN_NONE) ?
+        WOLFSSL_VERIFY_NONE : WOLFSSL_VERIFY_PEER,
+        (mode == TEST_VCHAIN_HOST) ? test_verified_chain_accept : NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), (mode == TEST_VCHAIN_HOST) ?
+        WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH : WOLFSSL_X509_V_OK);
+    if (mode == TEST_VCHAIN_KEYSZ) {
+        ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx_c, 4096),
+            WOLFSSL_SUCCESS);
+    }
+
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+    ExpectNotNull(storeCtx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(storeCtx, (store != NULL) ? store :
+        wolfSSL_CTX_get_cert_store(ctx_c), peer, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_verify_cert(storeCtx), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(storeCtx), err);
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error_depth(storeCtx), 1);
+
+    ExpectIntEQ(test_verified_chain_check(ssl_c,
+        (mode == TEST_VCHAIN_PEER || mode == TEST_VCHAIN_RESUME) ? num : 0,
+        issuerDer, issuerSz), TEST_SUCCESS);
+
+    if (mode == TEST_VCHAIN_RESUME) {
+        /* Resumed, the peer is not verified again: every check applies */
+        ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, method_c, method_s, NULL, 0, (byte*)peerDer, peerSz,
+            (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+        ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
+        ExpectIntEQ(test_verified_chain_check(ssl_c, 0, NULL, 0),
+            TEST_SUCCESS);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_X509_STORE_CTX_free(storeCtx);
+    wolfSSL_X509_free(peer);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+#endif /* !NO_FILESYSTEM && WOLFSSL_SIGNER_DER_CERT */
 #endif /* session chain slot test dependencies */
 
 /* Test that a certificate too large for a session chain slot does not let the
@@ -4672,6 +4953,180 @@ int test_wolfSSL_session_chain_oversized_cert(void)
     if (caInit)    wc_FreeRsaKey(&caKey);
     if (interInit) wc_FreeRsaKey(&interKey);
     if (leafInit)  wc_FreeRsaKey(&leafKey);
+    XFREE(interDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that the verified chain is the one the handshake verified, also when
+ * X509_verify_cert() rejects a CA of the cert manager that has expired or is
+ * not a CA, the trust anchor or not. Only those errors of only such a CA, and
+ * only after a full handshake that verified the peer, are not failed.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_get0_verified_chain_anchor(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_SIGNER_DER_CERT)
+    WC_RNG rng;
+    RsaKey caKey;
+    RsaKey interKey;
+    RsaKey leafKey;
+    WOLFSSL_X509* expired = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_X509_STORE* store = NULL;
+    const byte* expiredDer = NULL;
+    const byte* caDer = ca_cert_der_2048;
+    int caSz = (int)sizeof_ca_cert_der_2048;
+    byte* anchorDer = NULL;
+    byte* interDer = NULL;
+    byte* leafDer = NULL;
+    byte* chainDer = NULL;
+    int expiredSz = 0;
+    int anchorSz = 0;
+    int interSz = 0;
+    int leafSz = 0;
+    int rngInit = 0;
+    int caInit = 0;
+    int interInit = 0;
+    int leafInit = 0;
+    word32 idx;
+
+    ExpectNotNull(anchorDer = (byte*)XMALLOC(TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(interDer = (byte*)XMALLOC(TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(chainDer = (byte*)XMALLOC(2 * TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        (word32)sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&interKey, NULL), 0);
+    if (EXPECT_SUCCESS()) interInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &interKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    /* A CA that expired in 2018 */
+    ExpectNotNull(expired = wolfSSL_X509_load_certificate_file(
+        "./certs/test/expired/expired-ca.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull(expiredDer = wolfSSL_X509_get_der(expired, &expiredSz));
+
+    /* The trust anchor expired */
+    ExpectIntGT((anchorSz = test_verified_chain_gen_ca(anchorDer,
+        TEST_CHAIN_BUF_SZ, &caKey, NULL, 0, NULL, &rng, "Expired Anchor",
+        expiredDer, expiredSz)), 0);
+    ExpectIntGT((leafSz = test_chain_gen_cert(leafDer, TEST_CHAIN_BUF_SZ,
+        &leafKey, anchorDer, anchorSz, &caKey, &rng, "Expired Anchor Leaf", 0,
+        0)), 0);
+    ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
+        leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_PEER,
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED, 2), TEST_SUCCESS);
+    ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
+        leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_NONE,
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED, 2), TEST_SUCCESS);
+    ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
+        leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_HOST,
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED, 2), TEST_SUCCESS);
+#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE)
+    ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
+        leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_RESUME,
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED, 2), TEST_SUCCESS);
+#endif
+
+    /* An intermediate that expired, below ca-cert */
+    ExpectIntGT((interSz = test_verified_chain_gen_ca(interDer,
+        TEST_CHAIN_BUF_SZ, &interKey, caDer, caSz, &caKey, &rng,
+        "Expired Int", expiredDer, expiredSz)), 0);
+    ExpectIntGT((leafSz = test_chain_gen_cert(leafDer, TEST_CHAIN_BUF_SZ,
+        &leafKey, interDer, interSz, &interKey, &rng, "Expired Int Leaf", 0,
+        0)), 0);
+    ExpectIntEQ(test_verified_chain_run(caDer, caSz, interDer, interSz, NULL,
+        leafDer, leafSz, interDer, interSz, TEST_VCHAIN_PEER,
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED, 3), TEST_SUCCESS);
+
+    /* A cert that is not a CA, issued by ca-cert, alone and below it */
+    ExpectIntGT((anchorSz = test_chain_gen_cert(anchorDer, TEST_CHAIN_BUF_SZ,
+        &interKey, caDer, caSz, &caKey, &rng, "Not CA Anchor", 0, 0)), 0);
+    ExpectIntGT((leafSz = test_chain_gen_cert(leafDer, TEST_CHAIN_BUF_SZ,
+        &leafKey, anchorDer, anchorSz, &interKey, &rng, "Not CA Anchor Leaf",
+        0, 0)), 0);
+    ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
+        leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_PEER,
+        WOLFSSL_X509_V_ERR_INVALID_CA, 2), TEST_SUCCESS);
+    ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
+        leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_NONE,
+        WOLFSSL_X509_V_ERR_INVALID_CA, 2), TEST_SUCCESS);
+    ExpectIntEQ(test_verified_chain_run(caDer, caSz, anchorDer, anchorSz,
+        NULL, leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_PEER,
+        WOLFSSL_X509_V_ERR_INVALID_CA, 3), TEST_SUCCESS);
+
+    /* Any other error of such a CA fails: a key that is now too small */
+    ExpectIntGT((interSz = test_chain_gen_cert(interDer, TEST_CHAIN_BUF_SZ,
+        &interKey, caDer, caSz, &caKey, &rng, "Valid Int", 1, 0)), 0);
+    ExpectIntGT((leafSz = test_chain_gen_cert(leafDer, TEST_CHAIN_BUF_SZ,
+        &leafKey, interDer, interSz, &interKey, &rng, "Valid Int Leaf", 0,
+        0)), 0);
+    ExpectIntEQ(test_verified_chain_run(caDer, caSz, interDer, interSz, NULL,
+        leafDer, leafSz, interDer, interSz, TEST_VCHAIN_KEYSZ,
+        WOLFSSL_X509_V_ERR_CA_KEY_TOO_SMALL, 0), TEST_SUCCESS);
+
+    /* An expired intermediate that only a store of its own trusts, outside
+     * its cert manager, while the peer sends a valid one of the same name
+     * and key that ca-cert issued */
+    ExpectIntGT((interSz = test_verified_chain_gen_ca(interDer,
+        TEST_CHAIN_BUF_SZ, &interKey, caDer, caSz, &caKey, &rng, "Store Int",
+        expiredDer, expiredSz)), 0);
+    ExpectIntGT((anchorSz = test_chain_gen_cert(anchorDer, TEST_CHAIN_BUF_SZ,
+        &interKey, caDer, caSz, &caKey, &rng, "Store Int", 1, 0)), 0);
+    ExpectIntGT((leafSz = test_chain_gen_cert(leafDer, TEST_CHAIN_BUF_SZ,
+        &leafKey, anchorDer, anchorSz, &interKey, &rng, "Store Int Leaf", 0,
+        0)), 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chainDer, leafDer, (size_t)leafSz);
+        XMEMCPY(chainDer + leafSz, anchorDer, (size_t)anchorSz);
+    }
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, caDer, caSz));
+    ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, x509), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, interDer, interSz));
+    ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, x509), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectIntEQ(test_verified_chain_run(NULL, 0, NULL, 0, store, chainDer,
+        leafSz + anchorSz, NULL, 0, TEST_VCHAIN_PEER,
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED, 0), TEST_SUCCESS);
+
+    wolfSSL_X509_STORE_free(store);
+    wolfSSL_X509_free(expired);
+    if (rngInit)   wc_FreeRng(&rng);
+    if (caInit)    wc_FreeRsaKey(&caKey);
+    if (interInit) wc_FreeRsaKey(&interKey);
+    if (leafInit)  wc_FreeRsaKey(&leafKey);
+    XFREE(anchorDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(interDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);

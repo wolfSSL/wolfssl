@@ -28,6 +28,7 @@ int test_wolfSSL_EVP_CIPHER_CTX(void);
 int test_wolfSSL_EVP_CIPHER_CTX_iv_length(void);
 int test_wolfSSL_EVP_CIPHER_CTX_key_length(void);
 int test_wolfSSL_EVP_CIPHER_CTX_set_iv(void);
+int test_wolfSSL_EVP_CIPHER_CTX_cleanup_wipe(void);
 int test_wolfSSL_EVP_get_cipherbynid(void);
 int test_wolfSSL_EVP_CIPHER_block_size(void);
 int test_wolfSSL_EVP_CIPHER_iv_length(void);
@@ -76,6 +77,7 @@ int test_evp_cipher_update_no_padding_buffered(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_iv_length),   \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_key_length),  \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_set_iv),      \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_cleanup_wipe), \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_get_cipherbynid),        \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_block_size),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_iv_length),       \

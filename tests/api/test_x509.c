@@ -840,6 +840,9 @@ int test_x509_CertFromX509_akid_overflow(void)
     unsigned char* akid_val = NULL;
     WOLFSSL_X509* x = NULL;
     WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* keyDer = ecc_key_der_256;
+    char* bioData = NULL;
 
 #ifdef WOLFSSL_SMALL_STACK
     buf = (unsigned char*)XMALLOC(16384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1038,13 +1041,21 @@ int test_x509_CertFromX509_akid_overflow(void)
     x = wolfSSL_X509_d2i(NULL, buf, (int)pos);
     ExpectNotNull(x);
 
-    /* Attempt re-encode via i2d_X509_bio -- must fail gracefully, not
-     * overflow. Before the fix this would write ~4000 bytes past the
-     * end of cert->akid[]. */
+    /* i2d_X509_bio writes the parsed DER, it does not re-encode. */
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
     ExpectNotNull(bio);
-    ExpectIntEQ(wolfSSL_i2d_X509_bio(bio, x), 0);
+    ExpectIntEQ(wolfSSL_i2d_X509_bio(bio, x), 1);
+    ExpectIntEQ(wolfSSL_BIO_get_mem_data(bio, &bioData), (int)pos);
+    ExpectBufEQ(bioData, buf, pos);
 
+    /* Attempt re-encode via X509_sign -- must fail gracefully, not
+     * overflow. Before the fix this would write ~4000 bytes past the
+     * end of cert->akid[]. */
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_EC, NULL, &keyDer,
+        (long)sizeof_ecc_key_der_256));
+    ExpectIntEQ(wolfSSL_X509_sign(x, pkey, wolfSSL_EVP_sha256()), 0);
+
+    wolfSSL_EVP_PKEY_free(pkey);
     wolfSSL_BIO_free(bio);
     wolfSSL_X509_free(x);
     XFREE(akid_val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1134,6 +1145,9 @@ int test_x509_ReqCertFromX509_skid_overflow(void)
 
     WOLFSSL_X509* req = NULL;
     WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* keyDer = ecc_key_der_256;
+    char* bioData = NULL;
 
     /* Step 1: Parse the crafted CSR -- this should succeed (the parser
      * dynamically allocates subjKeyId to the parsed size). */
@@ -1141,13 +1155,23 @@ int test_x509_ReqCertFromX509_skid_overflow(void)
                                 (int)sizeof(crafted_csr_der));
     ExpectNotNull(req);
 
-    /* Step 2: Attempt to re-encode. Before the fix, this triggered a
-     * heap buffer overflow in ReqCertFromX509() writing 64 bytes into
-     * cert->skid[32]. With the fix, it must return failure. */
+    /* i2d_X509_REQ_bio writes the parsed DER, it does not re-encode. */
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
     ExpectNotNull(bio);
-    ExpectIntNE(wolfSSL_i2d_X509_REQ_bio(bio, req), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_i2d_X509_REQ_bio(bio, req), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_BIO_get_mem_data(bio, &bioData),
+        (int)sizeof(crafted_csr_der));
+    ExpectBufEQ(bioData, crafted_csr_der, sizeof(crafted_csr_der));
 
+    /* Step 2: Attempt to re-encode via X509_REQ_sign. Before the fix, this
+     * triggered a heap buffer overflow in ReqCertFromX509() writing 64 bytes
+     * into cert->skid[32]. With the fix, it must return failure. */
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_EC, NULL, &keyDer,
+        (long)sizeof_ecc_key_der_256));
+    ExpectIntNE(wolfSSL_X509_REQ_sign(req, pkey, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_EVP_PKEY_free(pkey);
     wolfSSL_BIO_free(bio);
     wolfSSL_X509_free(req);
 #endif
@@ -1482,6 +1506,441 @@ int test_x509_decision_coverage(void)
     wolfSSL_X509_free(x509);
     wolfSSL_X509_free(fresh);
     wolfSSL_X509_free(loaded);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that i2d_X509_REQ() writes a parsed request as it was read and writes
+ * nothing for a request that was never signed. */
+int test_x509_REQ_i2d_stored_der(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(HAVE_ECC)
+    const char* csrFiles[] = {
+        "./certs/csr.attr.der",
+        "./certs/csr.ext.der",
+        "./certs/csr.signed.der",
+    #ifndef NO_DSA
+        "./certs/csr.dsa.der",
+    #endif
+    };
+    byte buf[1024];
+    int bufSz = 0;
+    XFILE f = XBADFILE;
+    WOLFSSL_X509* req = NULL;
+    WOLFSSL_X509* parsed = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* exts = NULL;
+    WOLFSSL_EVP_PKEY* priv = NULL;
+    WOLFSSL_EVP_PKEY* pub = NULL;
+    const unsigned char* ecPriv = ecc_clikey_der_256;
+    const unsigned char* ecPub = ecc_clikeypub_der_256;
+    unsigned char* der = NULL;
+    int derSz = 0;
+    size_t i;
+
+    for (i = 0; i < sizeof(csrFiles) / sizeof(csrFiles[0]); i++) {
+        ExpectTrue((f = XFOPEN(csrFiles[i], "rb")) != XBADFILE);
+        ExpectIntGT(bufSz = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+        ExpectNotNull(req = wolfSSL_X509_REQ_d2i(NULL, buf, bufSz));
+        ExpectIntEQ(derSz = wolfSSL_i2d_X509_REQ(req, &der), bufSz);
+        ExpectBufEQ(der, buf, bufSz);
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+        der = NULL;
+        wolfSSL_X509_free(req);
+        req = NULL;
+    }
+
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_EC, NULL, &ecPriv,
+        (long)sizeof_ecc_clikey_der_256));
+    ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &ecPub,
+        (long)sizeof_ecc_clikeypub_der_256));
+    ExpectNotNull(req = wolfSSL_X509_REQ_new());
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
+        MBSTRING_UTF8, (const byte*)"Test", 4, -1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
+    ExpectNotNull(ext = wolfSSL_X509V3_EXT_nconf_nid(NULL, NULL,
+        WC_NID_key_usage, "digitalSignature"));
+    ExpectNotNull(exts = wolfSSL_sk_X509_EXTENSION_new_null());
+    ExpectIntEQ(wolfSSL_sk_X509_EXTENSION_push(exts, ext), 1);
+    if (EXPECT_FAIL()) {
+        wolfSSL_X509_EXTENSION_free(ext);
+    }
+    ExpectIntEQ(wolfSSL_X509_REQ_add_extensions(req, exts), WOLFSSL_SUCCESS);
+
+    /* Not signed yet. */
+    ExpectNull(wolfSSL_X509_get_der(req, &derSz));
+    ExpectIntLE(wolfSSL_i2d_X509_REQ(req, &der), 0);
+    ExpectNull(der);
+
+    ExpectIntEQ(wolfSSL_X509_REQ_sign(req, priv, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_REQ(req, &der), 0);
+    ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
+    ExpectIntEQ(wolfSSL_X509_REQ_verify(parsed, pub), WOLFSSL_SUCCESS);
+    if (parsed != NULL) {
+        ExpectIntEQ(parsed->keyUsageSet, 1);
+        ExpectIntEQ(parsed->keyUsage, KEYUSE_DIGITAL_SIG);
+    }
+
+    wolfSSL_X509_free(parsed);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    wolfSSL_sk_X509_EXTENSION_pop_free(exts, wolfSSL_X509_EXTENSION_free);
+    wolfSSL_X509_NAME_free(name);
+    wolfSSL_X509_free(req);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that X509_REQ_add_extensions() on a parsed request stores the whole
+ * request, with the new extension and the old signature. */
+int test_x509_REQ_add_extensions_parsed(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_BIO) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    byte buf[1024];
+    int bufSz = 0;
+    XFILE f = XBADFILE;
+    WOLFSSL_X509* req = NULL;
+    WOLFSSL_X509* parsed = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* exts = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* reqExts = NULL;
+    WOLFSSL_EVP_PKEY* pub = NULL;
+    const unsigned char* der = NULL;
+    int derSz = 0;
+    unsigned char* out = NULL;
+
+    /* Has subjectAltName and keyUsage. */
+    ExpectTrue((f = XFOPEN("./certs/csr.ext.der", "rb")) != XBADFILE);
+    ExpectIntGT(bufSz = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+    }
+    ExpectNotNull(req = wolfSSL_X509_REQ_d2i(NULL, buf, bufSz));
+    ExpectNotNull(pub = wolfSSL_X509_get_pubkey(req));
+    ExpectIntEQ(wolfSSL_X509_REQ_verify(req, pub), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_get_ext_count(req), 2);
+
+    ExpectNotNull(ext = wolfSSL_X509V3_EXT_nconf_nid(NULL, NULL,
+        WC_NID_ext_key_usage, "serverAuth"));
+    ExpectNotNull(exts = wolfSSL_sk_X509_EXTENSION_new_null());
+    ExpectIntEQ(wolfSSL_sk_X509_EXTENSION_push(exts, ext), 1);
+    if (EXPECT_FAIL()) {
+        wolfSSL_X509_EXTENSION_free(ext);
+    }
+    ExpectIntEQ(wolfSSL_X509_REQ_add_extensions(req, exts), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_X509_get_ext_count(req), 3);
+    ExpectNotNull(reqExts = (WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)*)
+        wolfSSL_X509_REQ_get_extensions(req));
+    ExpectIntEQ(wolfSSL_sk_X509_EXTENSION_num(reqExts), 3);
+
+    /* The stored encoding is the whole request. */
+    ExpectNotNull(der = wolfSSL_X509_get_der(req, &derSz));
+    ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
+    ExpectIntEQ(wolfSSL_X509_get_ext_count(parsed), 3);
+    ExpectIntGE(wolfSSL_X509_get_ext_by_NID(parsed, WC_NID_ext_key_usage, -1),
+        0);
+    ExpectIntEQ(wolfSSL_i2d_X509_REQ(req, &out), derSz);
+    ExpectBufEQ(out, der, derSz);
+
+    /* The old signature does not cover the new extension. */
+    ExpectIntNE(wolfSSL_X509_REQ_verify(req, pub), WOLFSSL_SUCCESS);
+
+    XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
+    wolfSSL_X509_free(parsed);
+    wolfSSL_sk_X509_EXTENSION_pop_free(reqExts, wolfSSL_X509_EXTENSION_free);
+    wolfSSL_sk_X509_EXTENSION_pop_free(exts, wolfSSL_X509_EXTENSION_free);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_X509_free(req);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a signed request changed by X509_REQ_add_extensions() verifies
+ * again once it is signed again. */
+int test_x509_REQ_add_extensions_resign(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
+    WOLFSSL_X509* req = NULL;
+    WOLFSSL_X509* parsed = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* exts = NULL;
+    WOLFSSL_EVP_PKEY* priv = NULL;
+    WOLFSSL_EVP_PKEY* pub = NULL;
+    const unsigned char* rsaPriv = client_key_der_2048;
+    const unsigned char* rsaPub = client_keypub_der_2048;
+    unsigned char* der = NULL;
+    int derSz = 0;
+
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_RSA, NULL,
+        &rsaPriv, (long)sizeof_client_key_der_2048));
+    ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &rsaPub,
+        (long)sizeof_client_keypub_der_2048));
+    ExpectNotNull(req = wolfSSL_X509_REQ_new());
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
+        MBSTRING_UTF8, (const byte*)"Test", 4, -1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_sign(req, priv, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_REQ(req, &der), 0);
+    ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
+    ExpectIntEQ(wolfSSL_X509_REQ_verify(parsed, pub), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ext = wolfSSL_X509V3_EXT_nconf_nid(NULL, NULL,
+        WC_NID_ext_key_usage, "serverAuth"));
+    ExpectNotNull(exts = wolfSSL_sk_X509_EXTENSION_new_null());
+    ExpectIntEQ(wolfSSL_sk_X509_EXTENSION_push(exts, ext), 1);
+    if (EXPECT_FAIL()) {
+        wolfSSL_X509_EXTENSION_free(ext);
+    }
+    ExpectIntEQ(wolfSSL_X509_REQ_add_extensions(parsed, exts),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_get_ext_count(parsed), 1);
+    ExpectIntNE(wolfSSL_X509_REQ_verify(parsed, pub), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_X509_REQ_sign(parsed, priv, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_get_ext_count(parsed), 1);
+    ExpectIntEQ(wolfSSL_X509_REQ_verify(parsed, pub), WOLFSSL_SUCCESS);
+
+    wolfSSL_X509_free(parsed);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    wolfSSL_sk_X509_EXTENSION_pop_free(exts, wolfSSL_X509_EXTENSION_free);
+    wolfSSL_X509_NAME_free(name);
+    wolfSSL_X509_free(req);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a request changed by a setter is encoded again, with its old
+ * signature, as in OpenSSL, while a certificate keeps its stored encoding
+ * until it is signed again, as in OpenSSL 3.0. */
+int test_x509_REQ_setters_reencode(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_BIO) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_X509* req = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_X509* parsed = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_X509_NAME* same = NULL;
+    WOLFSSL_EVP_PKEY* pub = NULL;
+    WOLFSSL_EVP_PKEY* newPub = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    XFILE f = XBADFILE;
+    byte fileDer[1024];
+    int fileSz = 0;
+    WOLFSSL_EVP_PKEY* parsedPub = NULL;
+    unsigned char* keyA = NULL;
+    unsigned char* keyB = NULL;
+    int keySz = 0;
+    unsigned char* der = NULL;
+    int derSz = 0;
+    char cn[64];
+    int i;
+
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
+        MBSTRING_UTF8, (const byte*)"changed", -1, -1, 0), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < 2; i++) {
+        ExpectNotNull(bio = wolfSSL_BIO_new_file("./certs/csr.signed.der",
+            "rb"));
+        ExpectNotNull(req = wolfSSL_d2i_X509_REQ_bio(bio, NULL));
+        wolfSSL_BIO_free(bio);
+        bio = NULL;
+        ExpectNotNull(pub = wolfSSL_X509_get_pubkey(req));
+        ExpectIntEQ(wolfSSL_X509_REQ_verify(req, pub), WOLFSSL_SUCCESS);
+        if (i == 0) {
+            ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name),
+                WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_X509_REQ_add1_attr_by_NID(req,
+                WC_NID_pkcs9_challengePassword, WOLFSSL_MBSTRING_ASC,
+                (const unsigned char*)"password", -1), WOLFSSL_SUCCESS);
+        }
+        /* The old signature no longer verifies */
+        ExpectIntNE(wolfSSL_X509_REQ_verify(req, pub), WOLFSSL_SUCCESS);
+
+        ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        ExpectIntEQ(wolfSSL_i2d_X509_REQ_bio(bio, req), WOLFSSL_SUCCESS);
+        ExpectNotNull(parsed = wolfSSL_d2i_X509_REQ_bio(bio, NULL));
+        if (i == 0) {
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(
+                wolfSSL_X509_get_subject_name(parsed), WC_NID_commonName, cn,
+                (int)sizeof(cn)), 0);
+            ExpectStrEQ(cn, "changed");
+        }
+        else {
+            if (parsed != NULL) {
+                ExpectStrEQ(parsed->challengePw, "password");
+            }
+        #ifdef OPENSSL_ALL
+            /* Only then are the attributes of a parsed request kept */
+            ExpectIntGE(wolfSSL_X509_REQ_get_attr_by_NID(parsed,
+                WC_NID_pkcs9_challengePassword, -1), 0);
+        #endif
+        }
+        wolfSSL_X509_free(parsed);
+        parsed = NULL;
+        wolfSSL_BIO_free(bio);
+        bio = NULL;
+        wolfSSL_EVP_PKEY_free(pub);
+        pub = NULL;
+        wolfSSL_X509_free(req);
+        req = NULL;
+    }
+
+    /* As OpenSSL, the version is the value of its field, and a field set to
+     * what it holds leaves the request as it was */
+    ExpectTrue((f = XFOPEN("./certs/csr.signed.der", "rb")) != XBADFILE);
+    ExpectIntGT(fileSz = (int)XFREAD(fileDer, 1, sizeof(fileDer), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+    }
+    ExpectNotNull(req = wolfSSL_X509_REQ_d2i(NULL, fileDer, fileSz));
+    ExpectIntEQ(wolfSSL_X509_REQ_get_version(req), 0);
+    ExpectNotNull(same = wolfSSL_X509_NAME_dup(
+        wolfSSL_X509_get_subject_name(req)));
+    ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, same), WOLFSSL_SUCCESS);
+    ExpectNotNull(pub = wolfSSL_X509_get_pubkey(req));
+    ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_version(req, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(derSz = wolfSSL_i2d_X509_REQ(req, &der), fileSz);
+    ExpectBufEQ(der, fileDer, fileSz);
+    ExpectIntEQ(wolfSSL_X509_REQ_verify(req, pub), WOLFSSL_SUCCESS);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+
+    /* Another version and key are encoded */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(newPub = wolfSSL_X509_get_pubkey(x509));
+    ExpectIntEQ(wolfSSL_X509_REQ_set_version(req, 1), WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_REQ(req, &der), 0);
+    ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
+    ExpectIntEQ(wolfSSL_X509_REQ_get_version(parsed), 1);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+    wolfSSL_X509_free(parsed);
+    parsed = NULL;
+    ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, newPub), WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_REQ(req, &der), 0);
+    ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
+    ExpectNotNull(parsedPub = wolfSSL_X509_get_pubkey(parsed));
+    ExpectIntGT(keySz = wolfSSL_i2d_PUBKEY(parsedPub, &keyA), 0);
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY(newPub, &keyB), keySz);
+    ExpectBufEQ(keyA, keyB, keySz);
+    XFREE(keyA, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(keyB, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+    wolfSSL_EVP_PKEY_free(parsedPub);
+    wolfSSL_X509_free(parsed);
+    parsed = NULL;
+    wolfSSL_EVP_PKEY_free(newPub);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_X509_NAME_free(same);
+    wolfSSL_X509_free(req);
+    req = NULL;
+
+#ifndef NO_DSA
+    /* A DSA request cannot be encoded again: the change stands and no
+     * encoding out of date is kept */
+    ExpectNotNull(bio = wolfSSL_BIO_new_file("./certs/csr.dsa.der", "rb"));
+    ExpectNotNull(req = wolfSSL_d2i_X509_REQ_bio(bio, NULL));
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+    ExpectNotNull(wolfSSL_X509_get_der(req, &derSz));
+    ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectNull(wolfSSL_X509_get_der(req, &derSz));
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_i2d_X509_REQ_bio(bio, req), WOLFSSL_FAILURE);
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+    wolfSSL_X509_free(req);
+    req = NULL;
+#endif
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_i2d_X509_bio(bio, x509), WOLFSSL_SUCCESS);
+    ExpectNotNull(parsed = wolfSSL_d2i_X509_bio(bio, NULL));
+    ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(
+        wolfSSL_X509_get_subject_name(parsed), WC_NID_commonName, cn,
+        (int)sizeof(cn)), 0);
+    ExpectStrEQ(cn, "www.wolfssl.com");
+
+    wolfSSL_X509_free(parsed);
+    wolfSSL_BIO_free(bio);
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_NAME_free(name);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that d2i_X509_bio() replaces the object passed in and, as OpenSSL,
+ * frees it when what it read does not decode. */
+int test_x509_d2i_bio_reuse(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    static const byte bad[] = { 0x30, 0x04, 0x02, 0x01, 0x01, 0x05 };
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_X509* ret = NULL;
+    WOLFSSL_BIO* bio = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(bio = wolfSSL_BIO_new_file("./certs/ca-cert.der", "rb"));
+    ExpectNotNull(ret = wolfSSL_d2i_X509_bio(bio, &x509));
+    ExpectPtrEq(ret, x509);
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+
+    ExpectNotNull(bio = wolfSSL_BIO_new_mem_buf(bad, (int)sizeof(bad)));
+    ExpectNull(wolfSSL_d2i_X509_bio(bio, &x509));
+    ExpectNull(x509);
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+
+    /* Nothing read: kept */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectNull(wolfSSL_d2i_X509_bio(bio, &x509));
+    ExpectNotNull(x509);
+    wolfSSL_BIO_free(bio);
+    wolfSSL_X509_free(x509);
 #endif
     return EXPECT_RESULT();
 }

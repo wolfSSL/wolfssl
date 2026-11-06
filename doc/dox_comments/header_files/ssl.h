@@ -5945,6 +5945,11 @@ int wolfSSL_X509_get_signature(WOLFSSL_X509* x509, unsigned char* buf, int* bufS
     \ingroup CertsKeys
 
     \brief This function adds a certificate to the WOLFSSL_X509_STRE structure.
+    As in OpenSSL, a store made with wolfSSL_X509_STORE_new() also takes a
+    self-signed certificate that is not valid now.
+    wolfSSL_X509_verify_cert() checks its dates at the verification time.
+    It is not trusted for TLS, and it is dropped when the store is given to
+    an SSL_CTX with wolfSSL_CTX_set_cert_store().
 
     \return SSL_SUCCESS If certificate is added successfully.
     \return SSL_FATAL_ERROR: If certificate is not added successfully.
@@ -17144,6 +17149,48 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                     WOLFSSL_CRYPTO_EX_new* new_func,
                                     WOLFSSL_CRYPTO_EX_dup* dup_func,
                                     WOLFSSL_CRYPTO_EX_free* free_func);
+
+/*!
+    \ingroup SSL
+    \brief Get the memory functions set with CRYPTO_set_mem_functions, as
+    OpenSSL 3.0's CRYPTO_get_mem_functions. Each output may be NULL.
+
+    When none are set, the returned functions use the C library. They do
+    not call back into wolfSSL, so wrappers of them may be passed to
+    CRYPTO_set_mem_functions.
+
+    CRYPTO_set_mem_functions needs USE_WOLFSSL_MEMORY and no
+    WOLFSSL_STATIC_MEMORY. Otherwise it fails and the returned functions
+    allocate as OPENSSL_malloc does.
+
+    \param [out] m  Malloc function. May be NULL.
+    \param [out] r  Realloc function. May be NULL.
+    \param [out] f  Free function. May be NULL.
+
+    _Example_
+    \code
+    static CRYPTO_malloc_fn prev_malloc;
+    static CRYPTO_realloc_fn prev_realloc;
+    static CRYPTO_free_fn prev_free;
+
+    static void* my_malloc(size_t sz, const char* file, int line)
+    {
+        return prev_malloc(sz, file, line);
+    }
+    // my_realloc and my_free alike
+
+    CRYPTO_get_mem_functions(&prev_malloc, &prev_realloc, &prev_free);
+    CRYPTO_set_mem_functions(my_malloc, my_realloc, my_free);
+    // ...
+    CRYPTO_set_mem_functions(prev_malloc, prev_realloc, prev_free);
+    \endcode
+
+    \sa wolfSSL_CRYPTO_set_mem_functions
+    \sa wolfSSL_SetAllocators
+*/
+void wolfSSL_CRYPTO_get_mem_functions(wolfSSL_OSSL_Malloc_cb* m,
+                                      wolfSSL_OSSL_Realloc_cb* r,
+                                      wolfSSL_OSSL_Free_cb* f);
 
 /*!
  \ingroup Setup

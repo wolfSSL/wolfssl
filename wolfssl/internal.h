@@ -3052,6 +3052,10 @@ WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type);
 WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store);
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT)
+WOLFSSL_LOCAL int VerifiedChainCb(int ok, WOLFSSL_X509_STORE_CTX* ctx);
+#endif
 #endif /* !defined NO_CERTS */
 
 /* wolfSSL Sock Addr */
@@ -5037,6 +5041,8 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL int AddSigner(WOLFSSL_CERT_MANAGER* cm, Signer *s);
     WOLFSSL_LOCAL
     int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify);
+    WOLFSSL_LOCAL int CheckCAKeySize(WOLFSSL_CERT_MANAGER* cm, word32 keyOID,
+        const byte* pubKey, word32 pubKeySize);
     WOLFSSL_LOCAL int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type);
     WOLFSSL_LOCAL int SetCAType(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type);
     WOLFSSL_LOCAL
@@ -6262,6 +6268,7 @@ struct WOLFSSL_STACK {
     #if defined(OPENSSL_ALL)
     wolf_sk_hash_cb hash_fn;
     unsigned long hash;
+    wolf_sk_compare_cb comp; /* used by sort */
     #endif
 
     union {
@@ -6366,6 +6373,13 @@ struct WOLFSSL_X509 {
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     WOLFSSL_ASN1_INTEGER* serialNumber; /* Stores SN from wolfSSL_X509_get_serialNumber */
+#endif
+#ifdef OPENSSL_EXTRA
+    /* friendlyName, as UTF-8, and localKeyId from a PKCS#12 bag */
+    byte*            alias;
+    int              aliasSz;
+    byte*            keyid;
+    int              keyidSz;
 #endif
     WOLFSSL_ASN1_TIME notBefore;
     WOLFSSL_ASN1_TIME notAfter;

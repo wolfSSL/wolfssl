@@ -51,11 +51,13 @@ struct WOLFSSL_DSA {
     void*          internal;     /* our Dsa Key */
     char           inSet;        /* internal set from external ? */
     char           exSet;        /* external set from internal ? */
+    wolfSSL_Ref    ref;          /* Reference count information. */
 };
 
 
 WOLFSSL_API WOLFSSL_DSA* wolfSSL_DSA_new(void);
 WOLFSSL_API void wolfSSL_DSA_free(WOLFSSL_DSA* dsa);
+WOLFSSL_API int wolfSSL_DSA_up_ref(WOLFSSL_DSA* dsa);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 WOLFSSL_API int wolfSSL_DSA_print_fp(XFILE fp, WOLFSSL_DSA* dsa, int indent);
 #endif /* !NO_FILESYSTEM && NO_STDIO_FILESYSTEM */
@@ -96,6 +98,7 @@ WOLFSSL_API int wolfSSL_DSA_do_verify(
     const unsigned char* d, unsigned char* sig, WOLFSSL_DSA* dsa, int *dsacheck);
 
 WOLFSSL_API int wolfSSL_DSA_bits(const WOLFSSL_DSA *d);
+WOLFSSL_API int wolfSSL_DSA_size(const WOLFSSL_DSA *dsa);
 
 WOLFSSL_API WOLFSSL_DSA_SIG* wolfSSL_DSA_SIG_new(void);
 WOLFSSL_API void wolfSSL_DSA_SIG_free(WOLFSSL_DSA_SIG *sig);
@@ -131,12 +134,14 @@ typedef WOLFSSL_DSA                   DSA;
 
 #define DSA_new wolfSSL_DSA_new
 #define DSA_free wolfSSL_DSA_free
+#define DSA_up_ref wolfSSL_DSA_up_ref
 #define DSA_print_fp wolfSSL_DSA_print_fp
 
 #define DSA_LoadDer                wolfSSL_DSA_LoadDer
 #define DSA_generate_key           wolfSSL_DSA_generate_key
 #define DSA_generate_parameters    wolfSSL_DSA_generate_parameters
 #define DSA_generate_parameters_ex wolfSSL_DSA_generate_parameters_ex
+#define DSA_size                   wolfSSL_DSA_size
 #define DSA_get0_pqg               wolfSSL_DSA_get0_pqg
 #define DSA_set0_pqg               wolfSSL_DSA_set0_pqg
 #define DSA_get0_key               wolfSSL_DSA_get0_key

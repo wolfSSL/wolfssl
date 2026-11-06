@@ -3646,3 +3646,38 @@ int wc_ecc_use_key_id(ecc_key* key, word32 keyId, word32 flags);
     \sa wc_ecc_use_key_id
 */
 int wc_ecc_get_key_id(ecc_key* key, word32* keyId);
+
+/*!
+    \ingroup ECC
+    \brief Encodes an ECDSA signature as DER, as OpenSSL's i2d_ECDSA_SIG().
+
+    With pp NULL only the length is returned. When *pp is a buffer, the
+    encoding is written to it and *pp is moved past it. When *pp is NULL and
+    WOLFSSL_I2D_ECDSA_SIG_ALLOC is defined, a buffer is allocated for the
+    encoding and *pp is set to it, as OpenSSL does. Free it with
+    OPENSSL_free(). Otherwise only the length is returned and *pp stays
+    NULL. --enable-opensslall defines WOLFSSL_I2D_ECDSA_SIG_ALLOC, and so
+    do --enable-all, the application options that enable opensslall and the
+    matching CMake options. Use pp NULL to get the length in every build.
+
+    \return Length of the encoding on success.
+    \return 0 on error. A buffer allocated here is freed and *pp set to NULL.
+
+    \param sig ECDSA signature to encode.
+    \param pp NULL, or the address of the output buffer pointer.
+
+    _Example_
+    \code
+    unsigned char* der = NULL;
+    int derSz = wolfSSL_i2d_ECDSA_SIG(sig, NULL);
+    // With WOLFSSL_I2D_ECDSA_SIG_ALLOC, allocates der
+    derSz = wolfSSL_i2d_ECDSA_SIG(sig, &der);
+    if (derSz > 0) {
+        // use der
+        OPENSSL_free(der);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_ECDSA_SIG
+*/
+int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp);
