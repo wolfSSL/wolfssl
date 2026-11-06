@@ -201,6 +201,33 @@ static int eccsi_load_order(EccsiKey* key)
     return err;
 }
 
+/* Check SSK is in [1, q-1]. */
+static int eccsi_check_ssk(const EccsiKey* key, const mp_int* ssk)
+{
+    int err = 0;
+    WC_DECLARE_VAR(order, mp_int, 1, key->heap);
+
+    if (mp_iszero(ssk) || mp_isneg(ssk)) {
+        return ECC_PRIV_KEY_E;
+    }
+
+    WC_ALLOC_VAR_EX(order, mp_int, 1, key->heap, DYNAMIC_TYPE_ECC,
+        err = MEMORY_E);
+    if (err == 0) {
+        err = mp_init(order);
+    }
+    if (err == 0) {
+        err = mp_read_radix(order, key->ecc.dp->order, MP_RADIX_HEX);
+        if ((err == 0) && (mp_cmp(ssk, order) != MP_LT)) {
+            err = ECC_PRIV_KEY_E;
+        }
+        mp_clear(order);
+    }
+    WC_FREE_VAR_EX(order, key->heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+
 #ifdef WOLFCRYPT_ECCSI_CLIENT
 /*
  * Parameters, as a hex strings in the ECC object, loaded into mp_ints in key.
@@ -1126,6 +1153,7 @@ int wc_EncodeEccsiSsk(const EccsiKey* key, mp_int* ssk, byte* data, word32* sz)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, data or ssk is NULL.
  * @return  BUFFER_E when size of data is not equal to the expected size.
+ * @return  ECC_PRIV_KEY_E when SSK is not in [1, q-1].
  * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
  */
 int wc_DecodeEccsiSsk(const EccsiKey* key, const byte* data, word32 sz,
@@ -1142,6 +1170,9 @@ int wc_DecodeEccsiSsk(const EccsiKey* key, const byte* data, word32 sz,
 
     if (err == 0) {
         err = mp_read_unsigned_bin(ssk, data, (word32)key->ecc.dp->size);
+    }
+    if (err == 0) {
+        err = eccsi_check_ssk(key, ssk);
     }
 
     return err;
@@ -1202,6 +1233,7 @@ int wc_EncodeEccsiPvt(const EccsiKey* key, ecc_point* pvt, byte* data,
  * @return  BAD_FUNC_ARG when key, data, ssk or pvt is NULL.
  * @return  LENGTH_ONLY_E when data is NULL - sz is set.
  * @return  BUFFER_E when size of data is not equal to the expected size.
+ * @return  ECC_PRIV_KEY_E when SSK is not in [1, q-1].
  * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
  */
 int wc_DecodeEccsiPair(const EccsiKey* key, const byte* data, word32 sz,
@@ -1219,6 +1251,9 @@ int wc_DecodeEccsiPair(const EccsiKey* key, const byte* data, word32 sz,
     if (err == 0) {
         /* Read the SSK value from key size bytes. */
         err = mp_read_unsigned_bin(ssk, data, (word32)key->ecc.dp->size);
+    }
+    if (err == 0) {
+        err = eccsi_check_ssk(key, ssk);
     }
     if (err == 0) {
         data += key->ecc.dp->size;
@@ -1736,6 +1771,7 @@ int wc_SetEccsiHash(EccsiKey* key, const byte* hash, byte hashSz)
  * @param  [in]   pvt  Public Validation Token (PVT) as an ECC point.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, ssk or pvt is NULL.
+ * @return  ECC_PRIV_KEY_E when SSK is not in [1, q-1].
  * @return  MP math errors when copy fails
  */
 int wc_SetEccsiPair(EccsiKey* key, const mp_int* ssk, const ecc_point* pvt)
@@ -1746,6 +1782,9 @@ int wc_SetEccsiPair(EccsiKey* key, const mp_int* ssk, const ecc_point* pvt)
         err = BAD_FUNC_ARG;
     }
 
+    if (err == 0) {
+        err = eccsi_check_ssk(key, ssk);
+    }
     if (err == 0) {
         err = mp_copy(ssk, &key->ssk);
     }

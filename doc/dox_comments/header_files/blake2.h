@@ -66,7 +66,9 @@ int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
     each piece of input data desired.
 
     \return 0 Returned upon successfully computing the Blake2b hash
-    \return -1 Returned if there is a failure while parsing the Blake2b hash
+    \return BAD_FUNC_ARG Returned if b2b or final is NULL, or the digest
+    size is 0 or larger than BLAKE2B_OUTBYTES
+    \return MEMORY_E Returned if memory allocation fails
 
     \param b2b pointer to the Blake2b structure to update
     \param final pointer to a buffer in which to store the blake2b hash.
