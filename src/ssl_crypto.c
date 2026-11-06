@@ -122,8 +122,9 @@ int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
 {
     WOLFSSL_ENTER("MD5_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("MD5 Update size is to long, would have been truncated.");
         return 0;
     }
     /* Update wolfCrypt MD5 object with data. */
@@ -245,8 +246,9 @@ int wolfSSL_SHA_Update(WOLFSSL_SHA_CTX* sha, const void* input,
 {
     WOLFSSL_ENTER("SHA_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA Update size is to long, would have been truncated.");
         return 0;
     }
     /* Update wolfCrypt SHA object with data. */
@@ -398,8 +400,9 @@ int wolfSSL_SHA224_Update(WOLFSSL_SHA224_CTX* sha224, const void* input,
 {
     WOLFSSL_ENTER("SHA224_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA224 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA-224 object with data. */
@@ -461,8 +464,9 @@ int wolfSSL_SHA256_Update(WOLFSSL_SHA256_CTX* sha256, const void* input,
 {
     WOLFSSL_ENTER("SHA256_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA256 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA-256 object with data. */
@@ -554,8 +558,9 @@ int wolfSSL_SHA384_Update(WOLFSSL_SHA384_CTX* sha384, const void* input,
 {
     WOLFSSL_ENTER("SHA384_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA384 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA-384 object with data. */
@@ -617,8 +622,9 @@ int wolfSSL_SHA512_Update(WOLFSSL_SHA512_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA512 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA-512 object with data. */
@@ -699,8 +705,9 @@ int wolfSSL_SHA512_224_Update(WOLFSSL_SHA512_224_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_224_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA512-224 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA-512-224 object with data. */
@@ -782,8 +789,9 @@ int wolfSSL_SHA512_256_Update(WOLFSSL_SHA512_256_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_256_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA512-256 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA-512-256 object with data. */
@@ -868,8 +876,9 @@ int wolfSSL_SHA3_224_Update(WOLFSSL_SHA3_224_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_224_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-224 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA3-224 object with data. */
@@ -931,8 +940,9 @@ int wolfSSL_SHA3_256_Update(WOLFSSL_SHA3_256_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_256_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-256 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA3-256 object with data. */
@@ -994,8 +1004,9 @@ int wolfSSL_SHA3_384_Update(WOLFSSL_SHA3_384_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_384_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-384 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA3-384 object with data. */
@@ -1057,8 +1068,9 @@ int wolfSSL_SHA3_512_Update(WOLFSSL_SHA3_512_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_512_Update");
 
-    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-512 Update size is to long.");
         return 0;
     }
     /* Update wolfCrypt SHA3-512 object with data. */
@@ -2137,9 +2149,10 @@ unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
     if ((evp_md == NULL) || (key == NULL) || (md == NULL)) {
         rc = BAD_FUNC_ARG;
     }
-    /* wc_HmacUpdate takes a word32 length - reject data that would be
+    /* wc_HmacUpdate takes a word32 length, reject data that would be
      * truncated. */
     if ((rc == 0) && !WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("HMAC size is to long.");
         rc = BAD_FUNC_ARG;
     }
 
@@ -2390,9 +2403,9 @@ int wolfSSL_CMAC_Update(WOLFSSL_CMAC_CTX* ctx, const void* data, size_t len)
 
     WOLFSSL_ENTER("wolfSSL_CMAC_Update");
 
-    /* Validate parameters. wolfCrypt takes a word32 length - fail rather than
-     * truncate. */
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
     if ((ctx == NULL) || !WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("CMAC size is to long.");
         ret = 0;
     }
 
