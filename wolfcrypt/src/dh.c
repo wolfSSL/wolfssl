@@ -1522,6 +1522,17 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
 
     return ret;
 }
+#else
+int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
+    byte* pub, word32* pubSz)
+{
+    if (key == NULL || priv == NULL || privSz == 0 ||
+        pub == NULL || pubSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return NOT_COMPILED_IN;
+}
 #endif /* !WOLFSSL_KCAPI_DH */
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
@@ -2501,6 +2512,10 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
         WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
         return WC_KEY_SIZE_E;
     }
+    if (wc_DhCheckPubKey_ex(key, otherPub, pubSz, NULL, 0) != 0) {
+        WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
+        return DH_CHECK_PUB_E;
+    }
     ret = KcapiDh_SharedSecret(key, otherPub, pubSz, agree, agreeSz);
 #else
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
@@ -2530,7 +2545,9 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
             word32 privSz, const byte* otherPub, word32 pubSz)
 {
+#ifndef WOLFSSL_KCAPI_DH
     word32 requested_agreeSz;
+#endif
 
     if (key == NULL || agree == NULL || agreeSz == NULL || priv == NULL ||
                                                             otherPub == NULL) {
@@ -2542,6 +2559,12 @@ int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
         return FIPS_NOT_ALLOWED_E;
 #endif
 
+#ifdef WOLFSSL_KCAPI_DH
+    /* The kernel KPP interface makes no constant-time guarantee. */
+    (void)privSz;
+    (void)pubSz;
+    return NOT_COMPILED_IN;
+#else
     requested_agreeSz = (word32)mp_unsigned_bin_size(&key->p);
     if (requested_agreeSz > *agreeSz) {
         return BUFFER_E;
@@ -2550,6 +2573,7 @@ int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
 
     return wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz,
                            1);
+#endif
 }
 
 #ifdef WOLFSSL_DH_EXTRA
