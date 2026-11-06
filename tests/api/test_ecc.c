@@ -4317,6 +4317,145 @@ int test_wc_ecc_mulmod_curves(void)
 } /* END test_wc_ecc_mulmod_curves */
 
 /*
+ * Testing wc_ecc_mulmod() and wc_ecc_mulmod_ex2() with a base point that is
+ * not affine.
+ *
+ * With FP_ECC, the SP code caches a table for a point keyed on its x and y
+ * ordinates only. (Gx, Gy, p - 1) is -G but has the same x and y as G, so with
+ * SP math only a table built from one was used for the other. That build now
+ * rejects a point whose z is not 1; other builds return the right point.
+ */
+int test_wc_ecc_mulmod_projective(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(NO_ECC_SECP) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(FREESCALE_LTC_ECC) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+    static const int curves[] = {
+    #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+        (ECC_MIN_KEY_SZ <= 256) && \
+        (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256))
+        ECC_SECP256R1,
+    #endif
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+        (ECC_MIN_KEY_SZ <= 384) && \
+        (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
+        ECC_SECP384R1,
+    #endif
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+        (ECC_MIN_KEY_SZ <= 521) && \
+        (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521))
+        ECC_SECP521R1,
+    #endif
+        ECC_CURVE_INVALID
+    };
+#if defined(WOLFSSL_SP_MATH) && defined(FP_ECC)
+    const int   projRet = WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+#else
+    const int   projRet = 0;
+#endif
+    const ecc_set_type* dp = NULL;
+    ecc_point*  g = NULL;
+    ecc_point*  r = NULL;
+    ecc_point*  kG = NULL;
+    ecc_point*  negKG = NULL;
+    mp_int      k;
+    mp_int      a;
+    mp_int      prime;
+    mp_int      order;
+    int         c;
+    int         i;
+    int         cnt = 1;
+
+    XMEMSET(&k, 0, sizeof(mp_int));
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(&prime, 0, sizeof(mp_int));
+    XMEMSET(&order, 0, sizeof(mp_int));
+
+    ExpectIntEQ(mp_init_multi(&k, &a, &prime, &order, NULL, NULL), 0);
+    ExpectIntEQ(mp_read_radix(&k,
+        "1A2B3C4D5E6F708192A3B4C5D6E7F8091A2B3C4D5E6F708192A3B4C5D6E7F80",
+        MP_RADIX_HEX), 0);
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(r = wc_ecc_new_point());
+    ExpectNotNull(kG = wc_ecc_new_point());
+    ExpectNotNull(negKG = wc_ecc_new_point());
+
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    /* Also test wc_ecc_mulmod_ex2(). */
+    cnt = 2;
+#endif
+
+    for (c = 0; curves[c] != ECC_CURVE_INVALID; c++) {
+        ExpectNotNull(dp = wc_ecc_get_curve_params(
+            wc_ecc_get_curve_idx(curves[c])));
+        if (dp != NULL) {
+            ExpectIntEQ(mp_read_radix(&a, dp->Af, MP_RADIX_HEX), 0);
+            ExpectIntEQ(mp_read_radix(&prime, dp->prime, MP_RADIX_HEX), 0);
+            ExpectIntEQ(mp_read_radix(&order, dp->order, MP_RADIX_HEX), 0);
+            ExpectIntEQ(mp_read_radix(g->x, dp->Gx, MP_RADIX_HEX), 0);
+            ExpectIntEQ(mp_read_radix(g->y, dp->Gy, MP_RADIX_HEX), 0);
+        }
+        ExpectIntEQ(mp_set(g->z, 1), 0);
+
+        /* kG from the affine base point, and -kG. */
+        ExpectIntEQ(wc_ecc_mulmod(&k, g, kG, &a, &prime, 1), 0);
+        ExpectIntEQ(wc_ecc_copy_point(kG, negKG), 0);
+        ExpectIntEQ(mp_sub(&prime, kG->y, negKG->y), 0);
+
+        for (i = 0; i < cnt; i++) {
+            /* (Gx, Gy, p - 1) is -G. */
+            ExpectIntEQ(mp_sub_d(&prime, 1, g->z), 0);
+        #ifdef FP_ECC
+            /* Don't let a table in the generic cache hide the SP code. */
+            wc_ecc_fp_free();
+        #endif
+            if (i == 0) {
+                ExpectIntEQ(wc_ecc_mulmod(&k, g, r, &a, &prime, 1), projRet);
+            }
+        #ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+            else {
+                ExpectIntEQ(wc_ecc_mulmod_ex2(&k, g, r, &a, &prime, &order,
+                    NULL, 1, NULL), projRet);
+            }
+        #endif
+        #if !defined(WOLFSSL_SP_MATH) || !defined(FP_ECC)
+            ExpectIntEQ(wc_ecc_cmp_point(r, negKG), MP_EQ);
+        #endif
+
+            /* G again: a table of -G must not be used. */
+            ExpectIntEQ(mp_set(g->z, 1), 0);
+        #ifdef FP_ECC
+            wc_ecc_fp_free();
+        #endif
+            ExpectIntEQ(wc_ecc_mulmod(&k, g, r, &a, &prime, 1), 0);
+            ExpectIntEQ(wc_ecc_cmp_point(r, kG), MP_EQ);
+        }
+    }
+
+    wc_ecc_del_point(negKG);
+    wc_ecc_del_point(kG);
+    wc_ecc_del_point(r);
+    wc_ecc_del_point(g);
+    mp_free(&order);
+    mp_free(&prime);
+    mp_free(&a);
+    mp_free(&k);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_projective */
+
+/*
  * Testing wc_ecc_is_valid_idx()
  */
 int test_wc_ecc_is_valid_idx(void)
