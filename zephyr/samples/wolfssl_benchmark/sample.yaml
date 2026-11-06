@@ -2,7 +2,11 @@ sample:
   description: wolfCrypt benchmark sample app
   name: wolfCrypt benchmark
 common:
-  tags: crypto wolfssl userspace random
+  tags:
+    - crypto
+    - wolfssl
+    - userspace
+    - random
   harness: console
   harness_config:
     type: one_line

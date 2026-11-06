@@ -1284,6 +1284,13 @@ int wolfSSL_has_pending(const WOLFSSL* ssl)
     else if (ssl->buffers.inputBuffer.length > ssl->buffers.inputBuffer.idx) {
         ret = 1;
     }
+    #elif defined(WOLFSSL_DTLS)
+    /* A DTLS read takes a whole datagram, which can hold more records. They
+     * may carry no application data, so wolfSSL_read() can still WANT_READ. */
+    else if (ssl->options.dtls &&
+             ssl->buffers.inputBuffer.length > ssl->buffers.inputBuffer.idx) {
+        ret = 1;
+    }
     #endif
 
     return ret;

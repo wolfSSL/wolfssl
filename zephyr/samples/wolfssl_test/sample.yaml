@@ -33,6 +33,43 @@ tests:
     extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
     integration_platforms:
       - qemu_x86
+  sample.crypto.wolfssl_test_rsa_2048:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_2048=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_2048_ecc_custom:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_2048=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_3072:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_3072=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_3072_ecc_custom:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_3072=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_sp_stack:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFCRYPT_SP_SMALL_STACK=n
+    integration_platforms:
+      - qemu_x86
   sample.crypto.wolfssl_test_ghash_table_4bit:
     timeout: 120
     platform_allow: qemu_x86
