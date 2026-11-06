@@ -93,7 +93,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
     (void)heap;
 
-    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 || ivLen < 0){
+    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 ||
+        ivLen < 0 || (salt == NULL && saltLen > 0)){
         return BAD_FUNC_ARG;
     }
 

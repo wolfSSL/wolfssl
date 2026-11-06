@@ -126,6 +126,14 @@ int test_wc_PBKDF1DecisionCoverage(void)
     ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
                     passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
                     2, WC_SHA, HEAP_HINT), 0);
+        /* salt == NULL with saltLen > 0 must be rejected, not treated as no salt */
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), NULL, (int)sizeof(salt),
+                    2, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* salt == NULL with saltLen == 0 is still allowed */
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), NULL, 0,
+                    2, WC_SHA, HEAP_HINT), 0);
 
     /* `if (ivLeft && digestLeft)` independence pairs. keyLen == digestLen
      * (20 for SHA-1) with ivLen > 0: the first D-iteration exactly
