@@ -61,6 +61,53 @@ cd ../wolfssl
 make
 ```
 
+An Intel QAT 8970 adapter appears as three C62x devices, as in the output above.
+
+### After a kernel upgrade
+
+The QAT driver is built out of tree, so it has to be rebuilt and reinstalled for each new kernel. Until then `systemctl status qat` still reports `active`, but its log shows `modprobe: FATAL: Module usdm_drv not found`, `adf_ctl status` cannot open `/dev/qat_adf_ctl`, and wolfCrypt prints `Running without async`.
+
+### Building QAT 4.28 on Linux 7.0
+
+Linux 7.0 removed two things the QAT 4.28 driver uses. Linux 6.14 still has both.
+
+* `iommu_domain_alloc()` is gone. In `quickassist/qat/drivers/crypto/qat/qat_common/qdm.c`, `qdm_init()` allocates the domain for an IOMMU-mapped PCI device instead:
+
+```c
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+    {
+        struct pci_dev *pdev = NULL;
+
+        domain = NULL;
+        while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev))) {
+            if (device_iommu_mapped(&pdev->dev)) {
+                domain = iommu_paging_domain_alloc(&pdev->dev);
+                pci_dev_put(pdev);
+                if (IS_ERR(domain))
+                    domain = NULL;
+                break;
+            }
+        }
+    }
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0)
+```
+
+* Kbuild no longer reads `EXTRA_CFLAGS`, so the utility modules cannot find their headers. Pass the flags as `ccflags-y`. The driver itself sets its own `ccflags-y`, so build it first without the override:
+
+```sh
+./configure --enable-legacy-algorithms
+(cd quickassist/qat && make)
+make quickassist-all 'ccflags-y=$(EXTRA_CFLAGS)' KBUILD_MODPOST_WARN=1
+make adf-ctl-all
+sudo make qat-driver-install quickassist-install adf-ctl-install \
+    qat-conf-install qat-fw-install qat-service-files-install \
+    qat-service-install
+```
+
+`qat_api.ko`, the in-kernel crypto API module, reports an unresolved `__SCK__WARN_trap` symbol. The QAT service does not load it and user-space crypto does not need it.
+
+`qat-conf-install` moves the existing `/etc/<device>_dev*.conf` files to `/etc/qat_conf_backup/` before copying new ones from `build/`, which this build does not populate. The devices then stay `down` and the service log shows `No GENERAL section found`. Back up the configuration files first and copy them back, or copy the defaults from `quickassist/utilities/adf_ctl/conf_files/`, then `sudo systemctl restart qat`.
+
 
 ## Usage
 
@@ -126,6 +173,7 @@ ls /sys/kernel/debug/qat_c6xx_<bdf>/                          # heartbeat, fw_co
 Common causes seen in practice:
 
 - Hugepage mismatch: `usdm_drv` loaded with `max_huge_pages` > 0 but `HugePages_Total` is smaller (or 0) -- every QAT process then fails its SAL memory init. Either reserve enough hugepages at boot (GRUB `default_hugepagesz=2M hugepagesz=2M hugepages=N`) or reload `usdm_drv` with `max_huge_pages=0` (non-hugepage contiguous memory). Runtime `sysctl vm.nr_hugepages=N` is unreliable once memory is fragmented.
+- Fragmented memory without hugepages: processes fail with `ioctl_alloc_slab ... ioctl call for mem allocation failed` and `Lac_MemPoolCreate() - : Unable to allocate contiguous chunk of memory`, although plenty of memory is free. The last columns of `/proc/buddyinfo` (the largest free blocks) are 0 or close to it. Dropping caches and compacting memory restores them without a reboot: `sudo bash -c 'sync; echo 3 > /proc/sys/vm/drop_caches; echo 1 > /proc/sys/vm/compact_memory'`.
 - Orphan rings: `dmesg` shows `Process <pid> ... exit with orphan rings`. A QAT process exited (often killed by a test timeout) without an orderly `wolfAsync_HardwareStop`/`icp_sal_userStop`, leaking instance rings. These accumulate (especially under `make -j` test runs) until the device's instance pool is exhausted and new processes can no longer init. Recover with a full driver-stack reload (`systemctl stop qat; rmmod usdm_drv qat_c62x intel_qat; modprobe qat_c62x; modprobe usdm_drv; systemctl start qat`) or a reboot. Always shut down QAT-using processes cleanly; avoid `make -j` (see make check above).
 - PCIe Advanced Error Reporting errors (`UESta`/`CESta` flags set) or `dmesg` heartbeat/RAS/reset messages indicate a real firmware hang or bus error; with `AutoResetOnError = 0` (default in the device conf) the device stays down until a manual `adf_ctl reset`. Set `AutoResetOnError = 1` in `/etc/<device>_dev*.conf` for self-healing.
 

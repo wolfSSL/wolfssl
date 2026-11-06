@@ -1158,13 +1158,14 @@ int IntelQaGenPrime(WC_ASYNC_DEV* dev, WC_RNG* rng, byte* primeBuf,
                 /* if rollover occurred increment high order bytes */
                 /* increment by 1 does not affect odd/even */
                 int j;
+                primeData[byteCheck] = 0x01;
                 for (j = primeSz - 2; j >= 0; j--) {
-                    if (primeData[i] != 0xFF) {
-                        primeData[i] += 1;
+                    if (primeData[j] != 0xFF) {
+                        primeData[j] += 1;
                         break;
                     }
                     else {
-                        primeData[i] = 0;
+                        primeData[j] = 0;
                     }
                 }
             }
@@ -4443,23 +4444,31 @@ static void IntelQaDhAgreeCallback(void *pCallbackTag, CpaStatus status,
         }
 
         /* count leading zeros */
-        while (out[idxTrim] == 0 && idxTrim < pOut->dataLenInBytes) {
+        while (idxTrim < pOut->dataLenInBytes && out[idxTrim] == 0) {
             idxTrim++;
         }
         pOut->dataLenInBytes -= idxTrim;
 
-        /* return data and trim leading zeros */
-        if (dev->qat.out && (dev->qat.out != pOut->pData || idxTrim > 0)) {
-            XMEMMOVE(dev->qat.out, &out[idxTrim], pOut->dataLenInBytes);
+        /* The shared secret must not be 0 or 1 (SP 800-56A 5.7.1.1). */
+        if (pOut->dataLenInBytes == 0 ||
+                (pOut->dataLenInBytes == 1 && out[idxTrim] == 1)) {
+            WOLFSSL_MSG("IntelQaDhAgreeCallback: invalid shared secret");
+            ret = MP_VAL;
         }
+        else {
+            /* return data and trim leading zeros */
+            if (dev->qat.out && (dev->qat.out != pOut->pData || idxTrim > 0)) {
+                XMEMMOVE(dev->qat.out, &out[idxTrim], pOut->dataLenInBytes);
+            }
 
-        /* return final length */
-        if (dev->qat.outLenPtr) {
-            *dev->qat.outLenPtr = pOut->dataLenInBytes;
+            /* return final length */
+            if (dev->qat.outLenPtr) {
+                *dev->qat.outLenPtr = pOut->dataLenInBytes;
+            }
+
+            /* mark event result */
+            ret = 0; /* success */
         }
-
-        /* mark event result */
-        ret = 0; /* success */
     }
     (void)opData;
 
@@ -4777,20 +4786,18 @@ int IntelQaDrbg(WC_ASYNC_DEV* dev, byte* rngBuf, word32 rngSz)
     /* chunk into LAC_DRBG_MAX_NUM_OF_BYTES (0xFFFF) */
     while (ret == 0 && idx < rngSz) {
         /* setup operation data */
-        gen = rngSz - gen;
+        gen = rngSz - idx;
         if (gen > 0xFFFF)
             gen = 0xFFFF;
 
+        /* the buffer is freed when the previous chunk completes */
         pOut->dataLenInBytes = gen;
-        if (idx == 0 && pOut->pData == NULL) {
-            pOut->pData = XREALLOC(rngBuf, gen, dev->heap,
+        if (pOut->pData == NULL) {
+            pOut->pData = (Cpa8U*)XMALLOC(gen, dev->heap,
                 DYNAMIC_TYPE_ASYNC_NUMA);
             if (pOut->pData == NULL) {
                 ret = MEMORY_E; goto exit;
             }
-        }
-        else {
-            XMEMCPY(pOut->pData, &rngBuf[idx], gen);
         }
 
         opData->sessionHandle = dev->qat.op.drbg.handle;
