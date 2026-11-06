@@ -3722,10 +3722,13 @@ static int test_wolfSSL_CTX_use_PrivateKey(void)
     p = client_key_der_2048;
     ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &p,
         sizeof_client_key_der_2048));
-#if defined(WOLFSSL_KEY_GEN)
+    /* Works without WOLFSSL_KEY_GEN too, and the key loaded is the one
+     * decoded: it matches its certificate. */
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WOLFSSL_SUCCESS);
-#else
-    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#if !defined(NO_CHECK_PRIVATE_KEY)
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, client_cert_der_2048,
+        sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
 #endif
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;

@@ -5691,12 +5691,19 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
     if (ret == 1) {
         switch (pkey->type) {
-    #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+    #ifndef NO_RSA
         case WC_EVP_PKEY_RSA:
+        #ifdef WOLFSSL_KEY_TO_DER
             WOLFSSL_MSG("populating RSA key");
             ret = PopulateRSAEvpPkeyDer(pkey);
+        #else
+            /* No RSA key encoder (FIPS or selftest without WOLFSSL_KEY_GEN):
+             * use the DER the key was decoded from, as
+             * wolfSSL_use_PrivateKey() does. */
+            WOLFSSL_MSG("using stored RSA key DER");
+        #endif
             break;
-    #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+    #endif /* !NO_RSA */
     #if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
             defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
         case WC_EVP_PKEY_DSA:
