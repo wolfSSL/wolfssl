@@ -14979,8 +14979,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
         return ECC_BAD_ARG_E;
     }
     if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
-        mp_count_bits(G->y) > mp_count_bits(modulus) ||
-        mp_count_bits(G->z) > mp_count_bits(modulus)) {
+        mp_count_bits(G->y) > mp_count_bits(modulus)) {
         return IS_POINT_E;
     }
     /* The SP code caches tables for points keyed on x and y only, so a point
@@ -15152,8 +15151,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
         return ECC_BAD_ARG_E;
     }
     if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
-        mp_count_bits(G->y) > mp_count_bits(modulus) ||
-        mp_count_bits(G->z) > mp_count_bits(modulus)) {
+        mp_count_bits(G->y) > mp_count_bits(modulus)) {
         return IS_POINT_E;
     }
     /* Only affine points are supported - see wc_ecc_mulmod_ex(). */
