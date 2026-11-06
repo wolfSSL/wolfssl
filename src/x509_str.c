@@ -1686,7 +1686,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     /* create duplicate of ctx chain */
-    return wolfSSL_sk_dup(ref);
+    return wolfSSL_X509_chain_up_ref(ref);
 }
 
 #ifndef NO_WOLFSSL_STUB

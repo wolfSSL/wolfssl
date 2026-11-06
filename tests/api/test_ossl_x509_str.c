@@ -906,6 +906,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex1(X509_STORE_test_data *testData)
     X509_STORE* store = NULL;
     X509_STORE_CTX* ctx = NULL;
     STACK_OF(X509)* chain = NULL;
+    STACK_OF(X509)* chain1 = NULL;
     int i = 0;
 
     /* Test case 1, add X509 certs to store and verify */
@@ -922,6 +923,13 @@ static int test_wolfSSL_X509_STORE_CTX_ex1(X509_STORE_test_data *testData)
         ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
                              sk_X509_value(testData->expectedChain, i)), 0);
     }
+    /* get1_chain references the same certs. */
+    ExpectNotNull(chain1 = X509_STORE_CTX_get1_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain1), sk_X509_num(chain));
+    for (i = 0; i < sk_X509_num(chain1); i++) {
+        ExpectPtrEq(sk_X509_value(chain1, i), sk_X509_value(chain, i));
+    }
+    sk_X509_pop_free(chain1, X509_free);
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
     return EXPECT_RESULT();

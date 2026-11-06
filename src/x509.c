@@ -13094,8 +13094,28 @@ int wolfSSL_X509_up_ref(WOLFSSL_X509* x509)
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         WOLF_STACK_OF(WOLFSSL_X509)* chain)
 {
-    /* wolfSSL_sk_dup takes care of doing a deep copy */
-    return wolfSSL_sk_dup(chain);
+    WOLFSSL_STACK* ret;
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* fail = NULL;
+
+    /* As OpenSSL: the same certs, each with a new reference. */
+    ret = wolfSSL_shallow_sk_dup(chain);
+    for (node = ret; node != NULL; node = node->next) {
+        if ((node->data.x509 != NULL) &&
+                (wolfSSL_X509_up_ref(node->data.x509) != WOLFSSL_SUCCESS)) {
+            fail = node;
+            break;
+        }
+    }
+    if (fail != NULL) {
+        for (node = ret; node != fail; node = node->next) {
+            wolfSSL_X509_free(node->data.x509);
+        }
+        wolfSSL_sk_free(ret);
+        ret = NULL;
+    }
+
+    return ret;
 }
 #endif
 

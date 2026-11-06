@@ -407,6 +407,60 @@ int test_wolfSSL_shallow_sk_dup(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_chain_up_ref(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* copy = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* srv = NULL;
+    WOLFSSL_X509* x509;
+    unsigned char* der = NULL;
+    int i;
+
+    ExpectNull(X509_chain_up_ref(NULL));
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(srv = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(chain = sk_X509_new_null());
+    ExpectIntEQ(sk_X509_push(chain, srv), 1);
+    if (EXPECT_FAIL())
+        X509_free(srv);
+    ExpectIntEQ(sk_X509_push(chain, ca), 2);
+    if (EXPECT_FAIL())
+        X509_free(ca);
+
+    /* Same certs in the same order. */
+    ExpectNotNull(copy = X509_chain_up_ref(chain));
+    ExpectIntEQ(sk_X509_num(copy), 2);
+    ExpectPtrEq(sk_X509_value(copy, 0), srv);
+    ExpectPtrEq(sk_X509_value(copy, 1), ca);
+
+    /* The copy holds its own references. */
+    sk_X509_pop_free(chain, X509_free);
+    chain = NULL;
+    for (i = 0; i < 2; i++) {
+        x509 = sk_X509_value(copy, i);
+        ExpectNotNull(X509_get_subject_name(x509));
+        ExpectIntGT(i2d_X509(x509, &der), 0);
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+        der = NULL;
+    }
+    sk_X509_pop_free(copy, X509_free);
+
+    /* An empty chain gives an empty copy. */
+    ExpectNotNull(chain = sk_X509_new_null());
+    ExpectNotNull(copy = X509_chain_up_ref(chain));
+    ExpectIntEQ(sk_X509_num(copy), 0);
+    sk_X509_pop_free(copy, X509_free);
+    sk_X509_pop_free(chain, X509_free);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_sk_num(void)
 {
     EXPECT_DECLS;
