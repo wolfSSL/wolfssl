@@ -25,7 +25,7 @@
 #   -h, --help             Show this help
 #
 # Examples:
-#   # Test master against Zephyr 4.1.0 for native_sim
+#   # Test master against Zephyr 4.3.0 for native_sim
 #   ./zephyr-test.sh
 #
 #   # Test a specific branch for frdm_rw612 on Zephyr 4.3.0
@@ -54,7 +54,7 @@ set -euo pipefail
 # Defaults
 WOLFSSL_REPO="https://github.com/wolfSSL/wolfssl"
 WOLFSSL_BRANCH="master"
-ZEPHYR_VERSION="v4.1.0"
+ZEPHYR_VERSION="v4.3.0"
 BOARD_TARGET="native_sim"
 SAMPLE_NAME="wolfssl_tls_sock"
 SUBDIR="samples"
