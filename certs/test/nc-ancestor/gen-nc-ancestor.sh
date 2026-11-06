@@ -73,6 +73,29 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid
 EOF
 
+cat > "$WORK/selfissued-ca.cnf" <<'EOF'
+[req]
+distinguished_name = dn
+prompt = no
+[dn]
+[v3_selfissued_ca]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = 11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11
+authorityKeyIdentifier = keyid
+EOF
+
+cat > "$WORK/selfloop-ca.cnf" <<'EOF'
+[req]
+distinguished_name = dn
+prompt = no
+[v3_selfloop_ca]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = 22:22:22:00:22:22:22:22:22:22:22:22:22:22:22:22:22:22:22:22
+authorityKeyIdentifier = issuer:always
+EOF
+
 cat > "$WORK/leaf-attacker.cnf" <<'EOF'
 [req]
 distinguished_name = dn
@@ -148,6 +171,44 @@ mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
 mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
     "$DIR/03-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
     v3_leaf_valid 0x31
+
+# ---- 01 uri-permit-ca-selfissued: subject == issuer == uri-permit-ca's DN
+# and uri-permit-ca's key, no NC, distinct SKID. Issued by uri-permit-ca,
+# so it reaches a peer in the chain below it. ----
+
+issuer_cert="$DIR/01-uri-permit-ca-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/01-uri-permit-ca-key.pem" "URI Permit CA" \
+    "$DIR/01-uri-permit-ca-selfissued-cert.pem" "$WORK/selfissued-ca.cnf" \
+    v3_selfissued_ca 0x13
+
+# ---- 03 leaves issued by the self-issued CA ----
+
+issuer_cert="$DIR/01-uri-permit-ca-selfissued-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
+    "$DIR/03-selfissued-leaf-cert.pem" "$WORK/leaf-attacker.cnf" \
+    v3_leaf_attacker 0x32
+mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
+    "$DIR/03-selfissued-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
+    v3_leaf_valid 0x33
+
+# ---- 01 uri-permit-ca-selfloop: same DN as uri-permit-ca, own key, and an
+# AKID with no keyIdentifier. Its SKID is pinned to uri-permit-ca's CA-table
+# row (first 4 bytes big-endian, modulo 11) so a name lookup reaches it
+# first. ----
+
+issuer_cert="$DIR/01-uri-permit-ca-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/01-uri-permit-ca-selfloop-key.pem" "URI Permit CA" \
+    "$DIR/01-uri-permit-ca-selfloop-cert.pem" "$WORK/selfloop-ca.cnf" \
+    v3_selfloop_ca 0x14
+
+issuer_cert="$DIR/01-uri-permit-ca-selfloop-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-selfloop-key.pem"
+mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
+    "$DIR/03-selfloop-leaf-cert.pem" "$WORK/leaf-attacker.cnf" \
+    v3_leaf_attacker 0x34
 
 # ---- Concatenated bundle: attacker leaf + benign-sub-ca + uri-permit-ca ----
 

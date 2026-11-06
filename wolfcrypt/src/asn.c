@@ -25885,6 +25885,34 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 
     return signer;
 }
+
+/* A CA cached from a peer's chain. Always 0 without a certificate
+ * manager, which only keeps application-loaded CAs. */
+static int SignerFromPeerChain(const Signer* signer)
+{
+#ifndef WOLFCRYPT_ONLY
+    return signer->type == WOLFSSL_CHAIN_CA;
+#else
+    (void)signer;
+    return 0;
+#endif
+}
+
+/* A self-signed CA ends the ancestor walk only when the application loaded
+ * it. One cached from a peer's chain is not a trust anchor. */
+static int SignerIsTrustAnchor(const Signer* signer)
+{
+    if (!signer->selfSigned) {
+        return 0;
+    }
+#ifndef WOLFCRYPT_ONLY
+    /* X509_verify_cert() holds its own intermediates as WOLFSSL_TEMP_CA. */
+    if (SignerFromPeerChain(signer) || signer->type == WOLFSSL_TEMP_CA) {
+        return 0;
+    }
+#endif
+    return 1;
+}
 #endif /* !IGNORE_NAME_CONSTRAINTS */
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -26851,10 +26879,18 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                 WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
                 return ASN_NAME_INVALID_E;
             }
-            /* Stop at trust anchor (self-signed). */
-            if (ncSigner->selfSigned)
+            /* Stop at trust anchor. */
+            if (SignerIsTrustAnchor(ncSigner))
                 break;
             ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
+            /* A CA from the peer's chain cannot end the walk: the
+             * constraints of whatever issued it would go unapplied. */
+            if ((ncParent == ncSigner || ncParent == ncPrev) &&
+                    SignerFromPeerChain(ncSigner)) {
+                WOLFSSL_MSG("NC ancestor walk ended below a trust anchor");
+                WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
+                return ASN_NAME_INVALID_E;
+            }
             /* Stop on missing parent, self-loop, or A->B->A cycle. */
             if (ncParent == NULL || ncParent == ncSigner ||
                     ncParent == ncPrev)
