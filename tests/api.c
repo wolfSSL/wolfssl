@@ -26658,6 +26658,13 @@ static int TXT_DB_cmp(const WOLFSSL_STRING *a, const WOLFSSL_STRING *b)
 {
     return XSTRCMP(a[3], b[3]);
 }
+
+/* Every row collides, so only TXT_DB_cmp can tell rows apart */
+static word32 TXT_DB_hash_const(const WOLFSSL_STRING *s)
+{
+    (void)s;
+    return 1;
+}
 #endif
 
 static int test_wolfSSL_TXT_DB(void)
@@ -26666,6 +26673,7 @@ static int test_wolfSSL_TXT_DB(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_BIO)
     BIO *bio = NULL;
     TXT_DB *db = NULL;
+    WOLFSSL_STRING *row = NULL;
     const int columns = 6;
     const char *fields[6] = {
         "V",
@@ -26708,6 +26716,18 @@ static int test_wolfSSL_TXT_DB(void)
     fields[3] = "FFFF";
     ExpectNull(TXT_DB_get_by_index(db, 3, (WOLFSSL_STRING*)fields));
     fields[3] = "";
+    ExpectNull(TXT_DB_get_by_index(db, 3, (WOLFSSL_STRING*)fields));
+
+    /* Colliding hashes: the row returned must be the one cmp matches */
+    ExpectIntEQ(TXT_DB_create_index(db, 3, NULL,
+        (wolf_sk_hash_cb)(wc_ptr_t)TXT_DB_hash_const,
+        (wolf_lh_compare_cb)TXT_DB_cmp), 1);
+    fields[3] = "12DA";
+    ExpectNotNull(row = TXT_DB_get_by_index(db, 3, (WOLFSSL_STRING*)fields));
+    if (row != NULL) {
+        ExpectStrEQ(row[3], "12DA");
+    }
+    fields[3] = "FFFF";
     ExpectNull(TXT_DB_get_by_index(db, 3, (WOLFSSL_STRING*)fields));
 
     TXT_DB_free(db);
