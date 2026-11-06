@@ -59,8 +59,8 @@ static int singleshot_test(void)
     uint8 cipher[BLOCK_SIZE * 2];
     uint8 plain[BLOCK_SIZE * 2];
 
-    uint32 cipherSz = 0;
-    uint32 plainSz  = 0;
+    uint32 cipherSz = sizeof(cipher);
+    uint32 plainSz  = sizeof(plain);
     const uint8 msg[] = { /* "Now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20
@@ -103,6 +103,29 @@ static int singleshot_test(void)
         return -1;
     }
 
+    /* the length produced is reported back */
+    if (cipherSz != BLOCK_SIZE) {
+        printf("Encrypt did not report the output length\n");
+        return -1;
+    }
+
+    /* an output buffer smaller than the input is refused */
+    cipherSz = BLOCK_SIZE - 1;
+    ret = Csm_Encrypt(1U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
+        cipher, &cipherSz);
+    if (ret != E_SMALL_BUFFER) {
+        printf("A too small output buffer was accepted\n");
+        return -1;
+    }
+
+    /* and so is a missing output length */
+    ret = Csm_Encrypt(1U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
+        cipher, NULL);
+    if (ret != E_NOT_OK) {
+        printf("A NULL output length was accepted\n");
+        return -1;
+    }
+
     /* set key that will be used for decryption */
     ret = Csm_KeyElementSet(CBC_KEY_SLOT, CRYPTO_KE_CIPHER_KEY, key,
             BLOCK_SIZE);
@@ -125,6 +148,11 @@ static int singleshot_test(void)
         return -1;
     }
 
+    if (plainSz != BLOCK_SIZE) {
+        printf("Decrypt did not report the output length\n");
+        return -1;
+    }
+
     if (XMEMCMP(msg, plain, BLOCK_SIZE) != 0) {
         printf("Error with plain data\n");
         return -1;
@@ -141,8 +169,8 @@ static int update_test(void)
     uint8 cipher[BLOCK_SIZE * 3];
     uint8 plain[BLOCK_SIZE * 3];
 
-    uint32 cipherSz = 0;
-    uint32 plainSz  = 0;
+    uint32 cipherSz = sizeof(cipher);
+    uint32 plainSz  = sizeof(plain);
     const uint8 msg[] = { /* "Now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20
@@ -234,6 +262,59 @@ static int update_test(void)
         XMEMCMP(msg, plain + BLOCK_SIZE, BLOCK_SIZE) != 0 ||
         XMEMCMP(msg, plain + (BLOCK_SIZE * 2), BLOCK_SIZE) != 0) {
         printf("Error with plain data\n");
+        return -1;
+    }
+
+    /* START and FINISH on their own produce nothing. */
+    if (Csm_KeyElementSet(CBC_KEY_SLOT, CRYPTO_KE_CIPHER_KEY, key,
+                BLOCK_SIZE) != E_OK ||
+            Csm_KeyElementSet(CBC_IV_SLOT, CRYPTO_KE_CIPHER_IV, iv,
+                BLOCK_SIZE) != E_OK) {
+        printf("Issue with setting key and IV");
+        return -1;
+    }
+    XMEMSET(plain, 0, sizeof(plain));
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_START, NULL, 0, plain,
+            &plainSz);
+    if (ret != E_OK || plainSz != 0) {
+        printf("START alone reported output\n");
+        return -1;
+    }
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_UPDATE, msg, BLOCK_SIZE, plain,
+            &plainSz);
+    if (ret != E_OK || plainSz != BLOCK_SIZE ||
+            XMEMCMP(plain, cipher, BLOCK_SIZE) != 0) {
+        printf("UPDATE after a lone START did not encrypt\n");
+        return -1;
+    }
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_FINISH, NULL, 0, plain,
+            &plainSz);
+    if (ret != E_OK || plainSz != 0) {
+        printf("FINISH alone reported output\n");
+        return -1;
+    }
+
+    /* A partial block is rejected rather than silently dropped while being
+     * reported as output. The failure frees the slot, so a new START on the
+     * same job works afterwards. */
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U,
+            CRYPTO_OPERATIONMODE_START | CRYPTO_OPERATIONMODE_UPDATE,
+            msg, BLOCK_SIZE - 1, plain, &plainSz);
+    if (ret == E_OK) {
+        printf("UPDATE with a partial block was accepted\n");
+        return -1;
+    }
+    XMEMSET(plain, 0, sizeof(plain));
+    plainSz = sizeof(plain);
+    ret = Csm_Encrypt(3U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
+            plain, &plainSz);
+    if (ret != E_OK || plainSz != BLOCK_SIZE ||
+            XMEMCMP(plain, cipher, BLOCK_SIZE) != 0) {
+        printf("Job unusable after a rejected partial block\n");
         return -1;
     }
 
@@ -649,7 +730,7 @@ static int keysep_test(void)
 
     /* The cipher side honours the name too: the same plaintext under the two
      * slots must not produce the same ciphertext. */
-    encDecoySz = 0;
+    encDecoySz = sizeof(encDecoy);
     ret = wolfSSL_Csm_EncryptWithKey(8U, CBC_KEY_SLOT,
             CRYPTO_OPERATIONMODE_SINGLECALL, cmacMsg, BLOCK_SIZE, encDecoy,
             &encDecoySz);
@@ -658,7 +739,7 @@ static int keysep_test(void)
         return -1;
     }
 
-    encMacSz = 0;
+    encMacSz = sizeof(encMac);
     ret = wolfSSL_Csm_EncryptWithKey(9U, MAC_KEY_SLOT,
             CRYPTO_OPERATIONMODE_SINGLECALL, cmacMsg, BLOCK_SIZE, encMac,
             &encMacSz);
@@ -673,7 +754,7 @@ static int keysep_test(void)
     }
 
     /* and it round trips under the slot it was encrypted with */
-    plainSz = 0;
+    plainSz = sizeof(plain);
     ret = wolfSSL_Csm_DecryptWithKey(10U, CBC_KEY_SLOT,
             CRYPTO_OPERATIONMODE_SINGLECALL, encDecoy, BLOCK_SIZE, plain,
             &plainSz);
@@ -684,7 +765,7 @@ static int keysep_test(void)
 
     /* a slot out of range, and an empty one, are refused rather than scanned
      * for something that happens to fit */
-    encMacSz = 0;
+    encMacSz = sizeof(encMac);
     if (wolfSSL_Csm_EncryptWithKey(11U, (uint32)MAX_KEYSTORE,
                 CRYPTO_OPERATIONMODE_SINGLECALL, cmacMsg, BLOCK_SIZE, encMac,
                 &encMacSz) != E_NOT_OK) {
@@ -709,7 +790,7 @@ static int keysep_test(void)
         }
 
         if (empty != (uint32)MAX_KEYSTORE) {
-            encMacSz = 0;
+            encMacSz = sizeof(encMac);
             if (wolfSSL_Csm_EncryptWithKey(12U, empty,
                         CRYPTO_OPERATIONMODE_SINGLECALL, cmacMsg, BLOCK_SIZE,
                         encMac, &encMacSz) != E_NOT_OK) {
@@ -731,7 +812,7 @@ static int redirect_test(void)
     Std_ReturnType ret;
 
     uint8 cipher[BLOCK_SIZE * 2];
-    uint32 cipherSz = 0;
+    uint32 cipherSz = sizeof(cipher);
     const uint8 msg[] = { /* "Now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20
@@ -817,7 +898,7 @@ static int redirect_test(void)
         return -1;
     }
 
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     ret = Csm_Encrypt(0U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
         cipher, &cipherSz);
     if (ret != E_NOT_OK) {
@@ -1765,14 +1846,14 @@ static int joblife_test(void)
         }
         lengthsRun++;
 
-        cipherSz = 0;
+        cipherSz = sizeof(cipher);
         if (Csm_Encrypt(20U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
                     cipher, &cipherSz) != E_OK) {
             printf("encrypt failed with a %u byte key", (unsigned int)keySz);
             return -1;
         }
 
-        plainSz = 0;
+        plainSz = sizeof(plain);
         if (Csm_Decrypt(21U, CRYPTO_OPERATIONMODE_SINGLECALL, cipher,
                     BLOCK_SIZE, plain, &plainSz) != E_OK ||
                 XMEMCMP(plain, msg, BLOCK_SIZE) != 0) {
@@ -1798,7 +1879,7 @@ static int joblife_test(void)
                 (unsigned int)sizeof(kbad));
         return -1;
     }
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     if (Csm_Encrypt(22U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
                 cipher, &cipherSz) != E_NOT_OK) {
         printf("a %u byte key was accepted as an AES key\n",
@@ -1820,7 +1901,7 @@ static int joblife_test(void)
     }
     /* feed it a block, then START again: the restart must discard that state,
      * so the result equals a single shot over one block */
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     if (Csm_Encrypt(23U, CRYPTO_OPERATIONMODE_UPDATE, msg, BLOCK_SIZE,
                 cipher, &cipherSz) != E_OK) {
         printf("could not update a streaming job");
@@ -1832,7 +1913,7 @@ static int joblife_test(void)
         return -1;
     }
     XMEMSET(cipher, 0, sizeof(cipher));
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     if (Csm_Encrypt(23U,
                 CRYPTO_OPERATIONMODE_UPDATE | CRYPTO_OPERATIONMODE_FINISH,
                 msg, BLOCK_SIZE, cipher, &cipherSz) != E_OK) {
@@ -1840,7 +1921,7 @@ static int joblife_test(void)
         return -1;
     }
     XMEMSET(plain, 0, sizeof(plain));
-    plainSz = 0;
+    plainSz = sizeof(plain);
     if (Csm_Decrypt(24U, CRYPTO_OPERATIONMODE_SINGLECALL, cipher, BLOCK_SIZE,
                 plain, &plainSz) != E_OK ||
             XMEMCMP(plain, msg, BLOCK_SIZE) != 0) {
@@ -1862,7 +1943,7 @@ static int joblife_test(void)
         printf("could not start the job to restart");
         return -1;
     }
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     if (Csm_Encrypt(25U, CRYPTO_OPERATIONMODE_UPDATE, msg, BLOCK_SIZE, cipher,
                 &cipherSz) != E_OK) {
         printf("could not update the job to restart");
@@ -1883,7 +1964,7 @@ static int joblife_test(void)
 
     /* The old context has to be gone with it: an UPDATE finds nothing rather
      * than encrypting under the key that was replaced. */
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     if (Csm_Encrypt(25U, CRYPTO_OPERATIONMODE_UPDATE, msg, BLOCK_SIZE, cipher,
                 &cipherSz) == E_OK) {
         printf("a failed restart left the job running under the old key\n");
@@ -1929,7 +2010,7 @@ static int joblife_test(void)
             }
         }
 
-        cipherSz = 0;
+        cipherSz = sizeof(cipher);
         if (Csm_Encrypt(25U, CRYPTO_OPERATIONMODE_SINGLECALL, msg, BLOCK_SIZE,
                     cipher, &cipherSz) != E_OK) {
             printf("the job table did not recover from failed jobs\n");
@@ -1938,7 +2019,7 @@ static int joblife_test(void)
     }
 
     /* --- FINISH on a job that was never started is an error --- */
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     if (Csm_Encrypt(26U, CRYPTO_OPERATIONMODE_FINISH, msg, BLOCK_SIZE, cipher,
                 &cipherSz) != E_NOT_OK) {
         printf("FINISH on an unstarted job reported success\n");
@@ -2013,7 +2094,7 @@ static int reinit_test(void)
 
     /* FINISH them, which is what the caller is expected to do first. */
     for (n = 0; n < MAX_JOBS; n++) {
-        cipherSz = 0;
+        cipherSz = sizeof(cipher);
         if (Csm_Encrypt(40U + (uint32)n, CRYPTO_OPERATIONMODE_FINISH, NULL, 0,
                     NULL, &cipherSz) != E_OK) {
             printf("could not finish job %d", n);
@@ -2043,7 +2124,7 @@ static int reinit_test(void)
 
     /* And a jobId from before the re-init no longer has a context: its UPDATE
      * finds nothing rather than something stale. */
-    cipherSz = 0;
+    cipherSz = sizeof(cipher);
     if (Csm_Encrypt(40U, CRYPTO_OPERATIONMODE_UPDATE, msg, BLOCK_SIZE, cipher,
                 &cipherSz) == E_OK) {
         printf("a job from before Csm_Init still had a context\n");
@@ -2052,7 +2133,7 @@ static int reinit_test(void)
 
     /* Leave nothing open for the next case. */
     for (n = 0; n < MAX_JOBS; n++) {
-        cipherSz = 0;
+        cipherSz = sizeof(cipher);
         (void)Csm_Encrypt(70U + (uint32)n, CRYPTO_OPERATIONMODE_FINISH, NULL,
                 0, NULL, &cipherSz);
     }
@@ -2100,7 +2181,7 @@ static int reinit_test(void)
         cbFree = 0;
         before = cbFree;
         for (n = 0; n < FEW_JOBS; n++) {
-            cipherSz = 0;
+            cipherSz = sizeof(cipher);
             if (Csm_Encrypt(80U + (uint32)n, CRYPTO_OPERATIONMODE_FINISH, NULL,
                         0, NULL, &cipherSz) != E_OK) {
                 printf("could not finish device job %d", n);
@@ -2231,7 +2312,7 @@ static int cancel_test(void)
         }
     }
     for (n = 0; n < MAX_JOBS; n++) {
-        cipherSz = 0;
+        cipherSz = sizeof(cipher);
         (void)Csm_Encrypt(120U + (uint32)n, CRYPTO_OPERATIONMODE_FINISH, NULL,
                 0, NULL, &cipherSz);
     }
@@ -2511,7 +2592,7 @@ static THREAD_RETURN WOLFSSL_THREAD gate_worker(void* arg)
             gateWrongAnswer[slot] = 1;
         }
 
-        cipherSz = 0;
+        cipherSz = sizeof(cipher);
         (void)Csm_Encrypt(id, CRYPTO_OPERATIONMODE_FINISH, NULL, 0, NULL,
                 &cipherSz);
     }
