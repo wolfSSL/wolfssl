@@ -206,9 +206,10 @@ void wc_FreeSakkeKey(SakkeKey* key)
             mp_free(&params->q);
             mp_free(&params->g);
             mp_free(&params->a);
-            mp_free(&key->tmp.m1);
+            /* Temporaries hold secrets such as (a + z_T)^-1, w and r. */
+            mp_forcezero(&key->tmp.m1);
 #ifdef WOLFCRYPT_SAKKE_CLIENT
-            mp_free(&key->tmp.m2);
+            mp_forcezero(&key->tmp.m2);
 #endif
             key->mpInit = 0;
         }
@@ -218,27 +219,35 @@ void wc_FreeSakkeKey(SakkeKey* key)
             key->i.i = NULL;
         }
         if (key->rsk.rsk != NULL) {
+            wc_ecc_forcezero_point(key->rsk.rsk);
             wc_ecc_del_point_h(key->rsk.rsk, key->ecc.heap);
             key->rsk.rsk = NULL;
         }
         if (key->tmp.p3 != NULL) {
+            wc_ecc_forcezero_point(key->tmp.p3);
             wc_ecc_del_point_h(key->tmp.p3, key->ecc.heap);
             key->tmp.p3 = NULL;
         }
         if (key->tmp.p2 != NULL) {
+            wc_ecc_forcezero_point(key->tmp.p2);
             wc_ecc_del_point_h(key->tmp.p2, key->ecc.heap);
             key->tmp.p2 = NULL;
         }
         if (key->tmp.p1 != NULL) {
+            wc_ecc_forcezero_point(key->tmp.p1);
             wc_ecc_del_point_h(key->tmp.p1, key->ecc.heap);
             key->tmp.p1 = NULL;
         }
 #endif
         if (params->base != NULL) {
+            /* Without SP ECC, the pairing accumulates into the base point. */
+            wc_ecc_forcezero_point(params->base);
             wc_ecc_del_point_h(params->base, key->ecc.heap);
             params->base = NULL;
         }
         wc_ecc_free(&key->ecc);
+        /* Inline digits, data and hash state can hold secrets. */
+        ForceZero(key, sizeof(*key));
     }
 }
 
