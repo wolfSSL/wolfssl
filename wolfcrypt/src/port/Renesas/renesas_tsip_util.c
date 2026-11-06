@@ -1178,10 +1178,12 @@ int tsip_Tls13DeriveMasterSecret(struct WOLFSSL* ssl)
 /* verify handshake
  * ssl     WOLFSSL object
  * hash    buffer holding decrypted finished message content from server.
+ * hashSz  length of the finished message content.
  *
  */
 static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
-                                    const byte* hash)/*finished message*/
+                                    const byte* hash,/*finished message*/
+                                    word32 hashSz)
 {
     int             ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -1218,6 +1220,14 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
         if (!tuc->internal->HandshakeServerTrafficKey_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    if (ret == 0) {
+        /* TSIP supports SHA-256 cipher suites only */
+        if (hashSz != WC_SHA256_DIGEST_SIZE) {
+            WOLFSSL_MSG("Invalid finished message size");
+            ret = BUFFER_ERROR;
         }
     }
     /* get digest of handshake messages */
@@ -1293,7 +1303,7 @@ int tsip_Tls13HandleFinished(
     }
 
     if (ret == 0) {
-        ret = tsipTls13VerifyHandshake(ssl, input + *inOutIdx);
+        ret = tsipTls13VerifyHandshake(ssl, input + *inOutIdx, size);
     }
 
     if (ret == 0) {
