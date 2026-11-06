@@ -15183,8 +15183,8 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \param [in] secretSz Size of the secret in bytes.
     Passing 0 indicates to use the default size: the digest size of the hash
     the cookie MAC uses, WC_SHA256_DIGEST_SIZE, or when SHA-256 is not
-    available WC_SHA384_DIGEST_SIZE, WC_SHA512_DIGEST_SIZE or
-    WC_SM3_DIGEST_SIZE, in that order.
+    available WC_SHA384_DIGEST_SIZE, WC_SHA512_DIGEST_SIZE (with
+    WOLFSSL_TLS13_SHA512) or WC_SM3_DIGEST_SIZE, in that order.
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return SIDE_ERROR if called with a client.
@@ -15203,9 +15203,9 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \code
     int ret;
     WOLFSSL* ssl;
-    char secret[32];
+    unsigned char secret[32];
     ...
-    ret = wolfSSL__send_hrr_cookie(ssl, secret, sizeof(secret));
+    ret = wolfSSL_send_hrr_cookie(ssl, secret, sizeof(secret));
     if (ret != WOLFSSL_SUCCESS) {
         // failed to set use of Cookie and secret
     }
