@@ -423,6 +423,12 @@ static int test_openssl_hmac(const WOLFSSL_EVP_MD* md, int md_len)
         &len));
     /* With zero length data. */
     ExpectNotNull(HMAC(md, key, (int)sizeof(key), key, 0, hash, &len));
+    /* With data length that doesn't fit in 32 bits - must not be truncated.
+     * Rejected before data is read. */
+    if (sizeof(size_t) > sizeof(word32)) {
+        ExpectNull(HMAC(md, key, (int)sizeof(key), key,
+            (size_t)WOLFSSL_MAX_32BIT + 1 + sizeof(key), hash, &len));
+    }
 
     return EXPECT_RESULT();
 }
@@ -520,6 +526,17 @@ int test_wolfSSL_CMAC(void)
     ExpectIntEQ(CMAC_Update(cmacCtx, key, 0), 1);
     ExpectIntEQ(CMAC_Update(cmacCtx, NULL, 0), 1);
     ExpectIntEQ(CMAC_Update(cmacCtx, NULL, AES_128_KEY_SIZE), 1);
+    /* Data length that doesn't fit in 32 bits must fail, not be truncated.
+     * Rejected before data is read. */
+    if (sizeof(size_t) > sizeof(word32)) {
+        ExpectIntEQ(CMAC_Update(cmacCtx, key,
+            (size_t)WOLFSSL_MAX_32BIT + 1 + AES_128_KEY_SIZE), 0);
+        ExpectIntEQ(CMAC_Init(cmacCtx, key,
+            (size_t)WOLFSSL_MAX_32BIT + 1 + AES_128_KEY_SIZE,
+            EVP_aes_128_cbc(), NULL), 0);
+        ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE,
+            EVP_aes_128_cbc(), NULL), 1);
+    }
     /* Test parameters with CMAC_Final. */
     ExpectIntEQ(CMAC_Final(NULL, NULL, NULL), 0);
     ExpectIntEQ(CMAC_Final(NULL, out, NULL), 0);

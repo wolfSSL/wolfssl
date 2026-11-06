@@ -230,6 +230,21 @@ int test_wolfSSL_DES_ncbc_zero_length(void)
     XMEMCPY(&ivSaved, &iv, DES_BLOCK_SIZE);
     DES_ncbc_encrypt(msg, out, 0, &myDes, &iv, DES_DECRYPT);
     ExpectIntEQ(XMEMCMP(&iv, &ivSaved, DES_BLOCK_SIZE), 0);
+
+    /* Negative length must no-op: block calculations would otherwise produce
+     * huge copy and cipher lengths. msg is all zeros so out must stay zero. */
+    XMEMSET(out, 0, sizeof(out));
+    DES_cbc_encrypt(msg, out, -1, &myDes, &iv, DES_ENCRYPT);
+    DES_cbc_encrypt(msg, out, -8, &myDes, &iv, DES_ENCRYPT);
+    DES_cbc_encrypt(msg, out, -1, &myDes, &iv, DES_DECRYPT);
+    DES_cbc_encrypt(msg, out, -8, &myDes, &iv, DES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(msg, out, DES_BLOCK_SIZE), 0);
+    /* Length that doesn't fit in 32 bits must no-op, not be truncated. */
+    if (sizeof(long) > sizeof(word32)) {
+        DES_cbc_encrypt(msg, out, (long)WOLFSSL_MAX_32BIT + 1 + DES_BLOCK_SIZE,
+            &myDes, &iv, DES_ENCRYPT);
+        ExpectIntEQ(XMEMCMP(msg, out, DES_BLOCK_SIZE), 0);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -530,6 +545,16 @@ int test_wolfSSL_AES_cbc_encrypt(void)
     ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, &aes), 0);
     wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128tmp, AES_ENCRYPT);
     ExpectIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
+    /* Length that doesn't fit in 32 bits must no-op, not be truncated.
+     * Rejected before data is read. */
+    if (sizeof(size_t) > sizeof(word32)) {
+        XMEMSET(out, 0, AES_BLOCK_SIZE);
+        RESET_IV(iv128tmp, iv128);
+        wolfSSL_AES_cbc_encrypt(pt128, out, (size_t)WOLFSSL_MAX_32BIT + 1 + len,
+            &aes, iv128tmp, AES_ENCRYPT);
+        ExpectIntEQ(XMEMCMP(out, pt128, AES_BLOCK_SIZE), 0);
+        ExpectIntEQ(XMEMCMP(iv128tmp, iv128, AES_BLOCK_SIZE), 0);
+    }
     wc_AesFree((Aes*)&aes);
 
     #ifdef HAVE_AES_DECRYPT
@@ -966,6 +991,17 @@ int test_wolfSSL_RC4(void)
     wolfSSL_RC4(&rc4Key, 0, data, NULL);
     wolfSSL_RC4(&rc4Key, 0, NULL, enc);
     wolfSSL_RC4(NULL, 0, data, enc);
+
+    /* Length that doesn't fit in 32 bits must no-op, not be truncated.
+     * Rejected before data is read. */
+    if (sizeof(size_t) > sizeof(word32)) {
+        XMEMSET(enc, 0, sizeof(enc));
+        XMEMSET(dec, 0, sizeof(dec));
+        wolfSSL_RC4_set_key(&rc4Key, (int)sizeof(key), key);
+        wolfSSL_RC4(&rc4Key, (size_t)WOLFSSL_MAX_32BIT + 1 + sizeof(data), data,
+            enc);
+        ExpectIntEQ(XMEMCMP(enc, dec, sizeof(enc)), 0);
+    }
 
     ExpectIntEQ(1, 1);
     /* Start at a key length of 1: a zero-length key is invalid and leaves the
