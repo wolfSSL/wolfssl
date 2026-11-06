@@ -97122,17 +97122,11 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
     if ((ret = mp_set(m, 1)) != MP_OKAY ||
             (ret = mp_mul_2d(m, 521, m)) != MP_OKAY ||   /* m = 2^521 (even) */
             (ret = mp_set(b, 7)) != MP_OKAY ||
-            (ret = mp_set(e, 6)) != MP_OKAY ||
-            (ret = mp_set(t, 1)) != MP_OKAY) {
+            (ret = mp_set(e, 6)) != MP_OKAY) {
         return WC_TEST_RET_ENC_EC(ret);
     }
-    for (k = 0; k < 6; k++) {
-        if ((ret = mp_mulmod(t, b, m, t)) != MP_OKAY) {
-            return WC_TEST_RET_ENC_EC(ret);
-        }
-    }
-#if defined(WOLFSSL_RSA_PUBLIC_ONLY) && defined(NO_DH) && \
-    !defined(OPENSSL_ALL)
+#if (defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)) && \
+    defined(NO_DH) && !defined(OPENSSL_ALL)
     ret = mp_exptmod_ex(b, e, (int)e->used, m, r);
     if (ret != WC_NO_ERR_TRACE(MP_VAL)) {
         return WC_TEST_RET_ENC_EC(ret);
@@ -97142,6 +97136,14 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
         return WC_TEST_RET_ENC_EC(ret);
     }
 #else
+    if ((ret = mp_set(t, 1)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    for (k = 0; k < 6; k++) {
+        if ((ret = mp_mulmod(t, b, m, t)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+    }
     if ((ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
         return WC_TEST_RET_ENC_EC(ret);
     }
