@@ -1330,7 +1330,8 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         /* ecdsa is not fips_allowed in crypto/testmgr.c before v6.3, so with
          * fips_enabled, crypto/api.c crypto_alg_lookup() fails with -ELIBBAD
          * before v5.18 and -ENOENT from v5.18. */
-        if (((PTR_ERR(tfm) == -ENOENT) || (PTR_ERR(tfm) == -ELIBBAD)) &&
+        if (((PTR_ERR(tfm) == -ENOENT) ||
+             (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ELIBBAD))) &&
             fips_enabled) {
             pr_info("info: skipping unsupported akcipher algorithm %s: %d\n",
                     driver, (int)PTR_ERR(tfm));
