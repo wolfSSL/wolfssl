@@ -373,6 +373,14 @@ ECC Curve Sizes:
 #define MAX_ECC_BITS_USE    (MAX_ECC_BITS + MAX_ECC_BITS_EXTRA)
 #endif
 
+/* Size sp_int curve parameters for the largest curve, up to SP_INT_DIGITS */
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+    #define ECC_SPEC_INTS_SIZED
+    #define ECC_SPEC_INT_CNT                                        \
+        ((MP_BITS_CNT(MAX_ECC_BITS_USE) < SP_INT_DIGITS) ?          \
+         MP_BITS_CNT(MAX_ECC_BITS_USE) : (unsigned int)SP_INT_DIGITS)
+#endif
+
 /* MAX_ECC_BITS_EXTRA (ecc.h) is the one bit the builds whose order can be a bit
  * greater than the prime need, and the ceiling is sized from the same macro. */
 #define ECC_KEY_MAX_BITS(key)                                       \
@@ -1613,7 +1621,7 @@ typedef struct ecc_curve_spec {
     mp_int Gx_lcl;
     mp_int Gy_lcl;
 #else
-#ifdef WOLFSSL_SP_MATH_ALL
+#ifdef ECC_SPEC_INTS_SIZED
     unsigned char* spec_ints;
 #else
     mp_int* spec_ints;
@@ -1700,7 +1708,7 @@ static int xil_mpi_import(mp_int *mpi,
     #define ALLOC_CURVE_SPECS(intcount, err) (err) = MP_OKAY
     #define FREE_CURVE_SPECS() WC_DO_NOTHING
 #elif defined(WOLFSSL_SMALL_STACK)
-#ifdef WOLFSSL_SP_MATH_ALL
+#ifdef ECC_SPEC_INTS_SIZED
     #define DECLARE_CURVE_SPECS(intcount)                               \
         unsigned char* spec_ints = NULL;                                \
         ecc_curve_spec curve_lcl;                                       \
@@ -1710,8 +1718,8 @@ static int xil_mpi_import(mp_int *mpi,
 
     #define ALLOC_CURVE_SPECS(intcount, err)                            \
     do {                                                                \
-        spec_ints = (unsigned char*)XMALLOC(MP_INT_SIZEOF(MP_BITS_CNT(  \
-            MAX_ECC_BITS_USE)) * (intcount), NULL,                      \
+        spec_ints = (unsigned char*)XMALLOC(MP_INT_SIZEOF(              \
+            ECC_SPEC_INT_CNT) * (intcount), NULL,                       \
             DYNAMIC_TYPE_ECC);                                          \
         if (spec_ints == NULL)                                          \
             (err) = MEMORY_E;                                           \
@@ -1743,14 +1751,14 @@ static int xil_mpi_import(mp_int *mpi,
     #define FREE_CURVE_SPECS()                                          \
         XFREE(spec_ints, NULL, DYNAMIC_TYPE_ECC)
 #else
-#ifdef WOLFSSL_SP_MATH_ALL
+#ifdef ECC_SPEC_INTS_SIZED
     #define DECLARE_CURVE_SPECS(intcount)                               \
-        unsigned char spec_ints[MP_INT_SIZEOF(MP_BITS_CNT(              \
-            MAX_ECC_BITS_USE)) * (intcount)];                           \
+        sp_int_digit spec_ints[MP_INT_SIZEOF_DIGITS(ECC_SPEC_INT_CNT) * \
+            (intcount)];                                                \
         ecc_curve_spec curve_lcl;                                       \
         ecc_curve_spec* curve = &curve_lcl;                             \
         XMEMSET(curve, 0, sizeof(ecc_curve_spec));                      \
-        curve->spec_ints = spec_ints;                                   \
+        curve->spec_ints = (unsigned char*)spec_ints;                   \
         curve->spec_count = (intcount)
 #else
     #define DECLARE_CURVE_SPECS(intcount)                               \
@@ -1826,16 +1834,16 @@ static int wc_ecc_curve_cache_load_item(ecc_curve_spec* curve, const char* src,
         WOLFSSL_MSG("Invalid DECLARE_CURVE_SPECS count");
         return ECC_BAD_ARG_E;
     }
-#ifdef WOLFSSL_SP_MATH_ALL
-    *dst = (mp_int*)(curve->spec_ints + MP_INT_SIZEOF(MP_BITS_CNT(
-        MAX_ECC_BITS_USE)) * curve->spec_use++);
+#ifdef ECC_SPEC_INTS_SIZED
+    *dst = (mp_int*)(curve->spec_ints + MP_INT_SIZEOF(ECC_SPEC_INT_CNT) *
+        curve->spec_use++);
 #else
     *dst = &curve->spec_ints[curve->spec_use++];
 #endif
 #endif
 
-#ifdef WOLFSSL_SP_MATH_ALL
-    err = mp_init_size(*dst, MP_BITS_CNT(MAX_ECC_BITS_USE));
+#ifdef ECC_SPEC_INTS_SIZED
+    err = mp_init_size(*dst, ECC_SPEC_INT_CNT);
 #else
     err = mp_init(*dst);
 #endif
