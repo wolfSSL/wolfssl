@@ -732,8 +732,18 @@ extern "C" {
     #ifndef NO_RSA
         #define WOLFSSL_HAVE_SP_RSA
         //#define WOLFSSL_SP_NO_2048
-        //#define WOLFSSL_SP_NO_3072
-        //#define WOLFSSL_SP_4096
+        #if defined(CONFIG_WOLFSSL_RSA_MAX_BITS_2048)
+            #define WOLFSSL_SP_NO_3072
+            #ifdef WOLFSSL_SP_MATH_ALL
+                #define SP_INT_BITS 2048
+            #endif
+        #elif defined(CONFIG_WOLFSSL_RSA_MAX_BITS_3072)
+            #ifdef WOLFSSL_SP_MATH_ALL
+                #define SP_INT_BITS 3072
+            #endif
+        #elif defined(CONFIG_WOLFSSL_RSA_MAX_BITS_4096)
+            #define WOLFSSL_SP_4096
+        #endif
     #endif
     #ifndef NO_DH
         #define WOLFSSL_HAVE_SP_DH

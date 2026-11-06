@@ -312,6 +312,30 @@ config WOLFSSL_RSA
   help
     Enable RSA (define RSA support; NO_RSA when off).
 
+choice WOLFSSL_RSA_MAX_BITS
+  prompt "Largest RSA key size"
+  depends on WOLFSSL_RSA && !WOLFCRYPT_FIPS
+  default WOLFSSL_RSA_MAX_BITS_4096
+  help
+    Largest RSA modulus wolfCrypt can sign, verify or decrypt with, so
+    also the largest RSA key a certificate chain may carry. The big
+    integers of the RSA and DH math are sized for this length, so a
+    smaller choice saves stack and heap in each handshake. The
+    single-precision math handles 2048, 3072 and 4096-bit keys up to the
+    chosen size; other sizes need WOLFSSL_SP_MATH_ALL.
+    A FIPS build takes its math sizes from the module settings instead.
+
+config WOLFSSL_RSA_MAX_BITS_2048
+  bool "2048 bits"
+
+config WOLFSSL_RSA_MAX_BITS_3072
+  bool "3072 bits"
+
+config WOLFSSL_RSA_MAX_BITS_4096
+  bool "4096 bits"
+
+endchoice
+
 config WOLFSSL_ECC
   bool "wolfCrypt ECC support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
