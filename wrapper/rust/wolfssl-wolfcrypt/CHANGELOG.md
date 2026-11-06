@@ -37,25 +37,66 @@ Breaking changes:
   where the exported key ended
 - ChaCha20Poly1305::finalize() now fails with BAD_FUNC_ARG on a decryption
   instance; use finalize_verify() to authenticate decrypted data
+- Ed25519 signing and verification methods taking a variant and context now
+  return BAD_FUNC_ARG when a non-empty context is passed with the pure
+  Ed25519::ED25519 variant, which does not bind a context and previously
+  silently ignored it. Ed25519 and Ed448 also reject unknown variant values
+- The crate build now fails instead of falling back to another wolfSSL when
+  WOLFSSL_PREFIX is set but does not point at a usable installation, or when
+  the containing wolfSSL repository is configured (wolfssl/options.h exists)
+  but the library has not been built there. Previously the build could
+  silently link against a system library built with different options
+- The crate build now fails if wolfSSL was built with asynchronous crypto
+  support (WOLFSSL_ASYNC_CRYPT), which the wrapper does not support
 
 New features:
 
+- Support building against the wolfSSL FIPS v5.2.3 module. On that module
+  the HKDF and RNG constructors fall back to the older wolfCrypt functions
+  and refuse a heap hint or device ID, RSA::set_rng() does not bind the RNG
+  for blinding (the module is built without RSA blinding), RNG::reseed() is
+  not available, and RSA::pss_verify_check() is available
+- Add fips::PrivateKeyRead, a guard that enables FIPS private key reads on
+  the current thread until it is dropped; guards can be nested
+- Add fips::run_all_self_tests() to run all FIPS self tests (CASTs) once, so
+  concurrent first use of an algorithm cannot fail while its self test is
+  running
 - Add the rand_core_0_9 feature: RNG implements the rand_core 0.9
   TryRngCore and TryCryptoRng traits, alongside the rand_core 0.10 ones, for
   users of the rand 0.9 ecosystem
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
-- Add HMAC::copy(), a fallible equivalent of HMAC::clone()
+- Add HMAC::copy(), a fallible equivalent of HMAC::clone(). HMAC::copy(),
+  the Clone implementation for HMAC and the hmac_mac types are only available
+  when the wolfSSL library provides wc_HmacCopy()
 - Add ed25519::SigningKey and ed448::SigningKey, which always carry a public
   key and so implement Keypair::verifying_key() without it being able to fail
 - Add Lms::export_pub_ex() to set the heap hint and device ID of the exported
   verify only key
+- The crate now declares `links = "wolfssl"` and publishes the directory of a
+  shared wolfSSL library as the LIBDIRS metadata, so dependent crates' build
+  scripts can read it from DEP_WOLFSSL_LIBDIRS (e.g. to set an rpath)
+- Add Ed25519::PREHASH_SIZE and Ed448::PREHASH_SIZE, the required input size
+  for prehash signing and verification
+- Publish build metadata to dependent crates' build scripts: the directory of
+  a shared wolfSSL library as DEP_WOLFSSL_LIBDIRS (e.g. to set an rpath), and
+  DEP_WOLFSSL_FIPS and DEP_WOLFSSL_FIPS_V5_2_3 when wolfSSL is a FIPS build or
+  specifically the FIPS v5.2.3 module
+- build.rs looks for the library under either lib or lib64 in WOLFSSL_PREFIX,
+  recognizes MinGW, Cygwin and MSVC library file names, and reruns when
+  WOLFSSL_PREFIX changes
 
 Fixes and improvements:
 
 - Fix undefined behavior in HMAC::clone(): wc_HmacCopy() takes its source by
   non-const pointer and may write through it, but the pointer was cast from a
   shared reference. The wolfSSL context is now held in an UnsafeCell
+- AES-GCM encryption with a caller-supplied IV (GCM::encrypt() and the
+  Aes128Gcm/Aes192Gcm/Aes256Gcm AEAD types) now works in FIPS builds, which do
+  not export wc_AesGcmEncrypt(); the same operation is done with FIPS
+  approved calls instead
+- rsa_oaep::DecryptingKey::generate() and rsa_pkcs1v15::SigningKey::generate()
+  return BAD_FUNC_ARG instead of overflowing on extremely large key sizes
 - Fix a panic in Keypair::verifying_key() for Ed25519 and Ed448 keys with no
   public key, such as after new() or import_private_only()
 - Validate PBKDF2 and scrypt password hash output length against the PHC
@@ -87,6 +128,37 @@ Fixes and improvements:
 - RNG::generate_block() (and the rand_core implementation built on it) now
   fills buffers larger than RNG_MAX_BLOCK_LEN by splitting them into multiple
   DRBG requests, instead of failing with BAD_FUNC_ARG
+- RustCrypto digest and MAC update implementations (SHA, BLAKE2, HMAC, CMAC)
+  now split inputs larger than 4GB into multiple wolfCrypt updates instead of
+  panicking
+- AES CTR and OFB StreamCipher implementations no longer panic on buffers of
+  4GB or more, and no longer create aliasing shared and mutable references to
+  in-place buffers
+- rsa_pkcs1v15::SigningKey validates its public components at construction,
+  so Keypair::verifying_key() can no longer panic; rsa_pkcs1v15::VerifyingKey
+  is now usable in builds without RNG support
+- Fix memory leak when re-initializing SHA, SHA-2, SHA-3 and SHAKE instances
+- Fix a possible dangling WC_RNG pointer held by a Curve25519Key
+- ECC keys are created with wc_ecc_key_new_ex() when available so the heap
+  hint and device ID are applied at initialization
+- kdf::ssh_kdf() rejects hash type values that do not fit in a byte instead
+  of truncating them
+- Zeroize additional sensitive temporaries: ML-KEM private keys and shared
+  secrets, PBKDF2/scrypt intermediate password hashes, AEAD keys, and the
+  ChaCha20-Poly1305 context on error paths
+- Numerous cfg detection fixes so the crate builds and links against reduced
+  wolfSSL configurations, including: separate SHA3-224/256/384/512 detection;
+  AES-CFB/OFB decrypt; verify-only ECC (ecdsa module) and ECC export;
+  RSA without RNG, private key or signing support; Ed25519/Ed448 without RNG
+  or key generation; Curve25519 import, export and shared secret; ML-KEM per
+  operation and parameter set, and builds with WC_NO_CONSTRUCTORS; ML-DSA
+  public/private import and export; LMS without key generation; PBKDF2
+  password hashing with only some of SHA-256/384/512 enabled; and the rsa_oaep
+  probe under FIPS
+- Numerous documentation corrections, including output buffer sizes for HKDF,
+  KDF and BLAKE2, AES-XTS key sizes, Ed448 prehash (SHAKE256), and documenting
+  wolfcrypt_cleanup() preconditions and RNG::health_test_ex() seed_b
+  requirements
 
 ## v2.2.0
 
