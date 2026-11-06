@@ -399,7 +399,13 @@ int mp_grow (mp_int * a, int size)
      * in case the operation failed we don't want
      * to overwrite the dp member of a.
      */
-    tmp = (mp_digit *)XREALLOC (a->dp, sizeof (mp_digit) * size, NULL,
+    /* mp_ints routinely hold private keys and other secret values, so the
+     * old digit array must not be abandoned on the free list with live
+     * limbs: XREALLOC_SCRUBBED() ForceZero()s it before releasing it.  This
+     * also scrubs public values, an acceptable cost for correctness. */
+    tmp = (mp_digit *)XREALLOC_SCRUBBED (a->dp,
+                                sizeof (mp_digit) * a->alloc,
+                                sizeof (mp_digit) * size, NULL,
                                                            DYNAMIC_TYPE_BIGINT);
     if (tmp == NULL) {
       /* reallocation failed but "a" is still valid [can be freed] */
