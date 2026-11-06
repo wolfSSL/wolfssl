@@ -154,15 +154,25 @@
  *     wc_ecc_sign_hash(...);   (unwraps + signs under the HUK)
  *
  * The pointed-at buffers must stay valid for the key's lifetime (borrowed, not
- * copied). seed is the 256-bit HKDF input. The private scalar is AUTHENTICATED-
- * wrapped with AES-GCM under the HUK-derived key: wrapped is the ciphertext
- * (wrappedLen == plainLen, no block padding, <= WC_RTL8735B_MAX_WRAPPED), iv the
- * 12-byte nonce, tag the 16-byte auth tag; plainLen is the scalar size (32 for
- * P-256). GCM means a tampered, corrupted, or wrong-device blob fails at unwrap
- * (AES_GCM_AUTH_E) instead of silently yielding a garbage scalar. Requires
- * HAVE_AESGCM.
+ * copied). seed is the 256-bit HKDF input; plainLen is the scalar size (32 for
+ * P-256). The private scalar is wrapped under the HUK-derived key in one of two
+ * formats, selected by the iv/tag fields:
  *
- * By default the sign runs in software after the HUK GCM-unwrap. Set useHwEngine
+ *   AES-GCM (iv, ivSz, tag, tagSz all set; recommended): wrapped is the
+ *     ciphertext (wrappedLen == plainLen, no block padding,
+ *     <= WC_RTL8735B_MAX_WRAPPED), iv the 12-byte nonce, tag the 16-byte auth
+ *     tag. A tampered, corrupted, or wrong-device blob fails at unwrap
+ *     (AES_GCM_AUTH_E) instead of yielding a garbage scalar.
+ *   AES-ECB (iv, ivSz, tag, tagSz all NULL/0): wrapped is the ECB ciphertext of
+ *     the scalar zero-padded to a multiple of 16 (plainLen <= wrappedLen <=
+ *     WC_RTL8735B_MAX_WRAPPED), the same layout as the STM32 DHUK blob for
+ *     wc_ecc_import_wrapped_private(), so one wrap format serves both. ECB has
+ *     no integrity check: a wrong blob signs with a wrong scalar and the
+ *     signature fails to verify. Needs HAVE_AES_ECB or WOLFSSL_AES_DIRECT.
+ *
+ * A partial iv/tag set is rejected with BAD_FUNC_ARG. HAVE_AESGCM is required.
+ *
+ * By default the sign runs in software after the HUK unwrap. Set useHwEngine
  * to route the sign through the HW ECDSA engine (hal_ecdsa, P-256 only). With
  * otpPrkSel != 0 the private scalar is sourced from OTP via hal_ecdsa_select_prk
  * and never enters software -- seed/wrapped/iv/tag/plainLen are then unused and
@@ -171,7 +181,7 @@
 typedef struct wc_Rtl8735b_EccKey {
     const byte* seed;
     word32      seedSz;
-    const byte* wrapped;     /* AES-GCM ciphertext of the scalar (== plainLen) */
+    const byte* wrapped;     /* GCM or ECB ciphertext of the scalar */
     word32      wrappedLen;
     word32      plainLen;
     /* --- HW ECDSA engine extensions (appended; zero keeps legacy behavior) --- */
@@ -179,7 +189,7 @@ typedef struct wc_Rtl8735b_EccKey {
     byte        otpPrkSel;   /* HW private-key source: 0 = unwrapped INPUT scalar,
                               * 1 = ECDSA_OTP_PRK_1, 2 = ECDSA_OTP_PRK_2 (scalar
                               * never in software; seed/wrapped may be NULL) */
-    /* --- AES-GCM wrap parameters (authenticated unwrap) --- */
+    /* --- AES-GCM wrap parameters (all NULL/0 selects the ECB format) --- */
     const byte* iv;          /* 12-byte GCM nonce for the wrapped scalar */
     word32      ivSz;
     const byte* tag;         /* 16-byte GCM auth tag */
@@ -213,7 +223,8 @@ WOLFSSL_API int wc_Rtl8735b_AesUnRegister(int devId);
 
 #if defined(WOLFSSL_RTL8735B_HUK) && defined(WOLFSSL_RTL8735B_HOST_TEST)
 /* Host-only KAT of the port's silicon-independent helpers (BE/LE word conversion,
- * CTR counter increment, HMAC accumulator growth/overflow/cap, bounce alignment).
+ * wrapped-scalar format checks, CTR counter increment, HMAC accumulator
+ * growth/overflow/cap, bounce alignment).
  * A build/CI aid for the --enable-rtl8735b compile-test -- NOT shipped production
  * API. Returns 0 on success, negative on the first failing check. */
 WOLFSSL_API int wc_Rtl8735b_HukSelfTest(void);

@@ -133,6 +133,22 @@ scalar is briefly in software during the sign; an OTP-resident model
 through the HW ECDSA engine (`hal_ecdsa`) are follow-ons. (The GCM unwrap makes
 the ECDSA sign path require `HAVE_AESGCM`.)
 
+The scalar can instead be AES-ECB-wrapped, the same blob layout as the STM32
+DHUK `wc_ecc_import_wrapped_private()` uses, so one wrap format serves both
+parts.
+Leave `iv`, `ivSz`, `tag` and `tagSz` all NULL/0, and pass the ECB ciphertext of
+the scalar zero-padded to a multiple of 16 (`wrappedLen` up to
+`WC_RTL8735B_MAX_WRAPPED`, the scalar in the first `plainLen` bytes):
+
+```c
+wc_Rtl8735b_EccKey hk = { seed, 32, wrapped, 32, 32 };   /* ECB, P-256 */
+```
+
+ECB has no integrity check: a damaged or wrong-device blob signs with a wrong
+scalar and the signature fails to verify, so prefer GCM where only RTL8735B is
+involved. A partial `iv`/`tag` set is rejected with `BAD_FUNC_ARG`. The ECB
+format needs `HAVE_AES_ECB` or `WOLFSSL_AES_DIRECT`.
+
 ### Additional HUK operations
 
 HMAC-SHA256 under the HUK (the 32-byte key is the HKDF seed; the MAC runs over
