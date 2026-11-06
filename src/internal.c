@@ -10641,12 +10641,7 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
      * using stream ciphers where it is retained. */
 
 #ifndef NO_CERTS
-    while (ssl->waivedCAs != NULL) {
-        Signer* waived = ssl->waivedCAs;
-
-        ssl->waivedCAs = waived->next;
-        FreeSigner(waived, SSL_CM(ssl)->heap);
-    }
+    SslWaivedCAsFree(ssl);
 #endif
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
@@ -17285,6 +17280,17 @@ void SslWaivedCAsSplit(Signer* tail)
 {
     if (tail != NULL)
         tail->next = NULL;
+}
+
+/* Drop the CAs that were accepted by a verify callback */
+void SslWaivedCAsFree(WOLFSSL* ssl)
+{
+    while (ssl->waivedCAs != NULL) {
+        Signer* waived = ssl->waivedCAs;
+
+        ssl->waivedCAs = waived->next;
+        FreeSigner(waived, SSL_CM(ssl)->heap);
+    }
 }
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)

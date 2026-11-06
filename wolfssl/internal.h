@@ -3000,6 +3000,7 @@ WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 WOLFSSL_LOCAL Signer* SslWaivedCAsJoin(WOLFSSL* ssl, Signer* base,
         Signer** pTail);
 WOLFSSL_LOCAL void SslWaivedCAsSplit(Signer* tail);
+WOLFSSL_LOCAL void SslWaivedCAsFree(WOLFSSL* ssl);
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 typedef struct ProcPeerCertArgs {
