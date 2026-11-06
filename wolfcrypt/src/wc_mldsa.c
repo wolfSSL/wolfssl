@@ -12445,6 +12445,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                             ret = mldsa_sub(w0 + i * MLDSA_N,
                                 cs2 + i * MLDSA_N);
                         }
+                        if (ret == 0) {
+                            ret = mldsa_poly_red(w0 + i * MLDSA_N);
+                        }
                         /* Step 23: Check w0 - cs2 has low enough values. */
                         if (ret == 0) {
                             ret = mldsa_vec_check_low(w0 + i * MLDSA_N, 1, hi,
@@ -12480,6 +12483,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                             /* Step 25: ct0 = NTT-1(c o t0) */
                             ret = mldsa_mul_invntt(ct0 + i * MLDSA_N, c,
                                 t0 + i * MLDSA_N);
+                            if (ret == 0) {
+                                ret = mldsa_poly_red(ct0 + i * MLDSA_N);
+                            }
                             /* Step 27: Check ct0 has low enough values. */
                             if (ret == 0) {
                                 ret = mldsa_vec_check_low(ct0 + i * MLDSA_N, 1,
@@ -13140,6 +13146,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     #endif
                         if (ret == 0) {
                             ret = mldsa_invntt(ct0);
+                        }
+                        if (ret == 0) {
+                            ret = mldsa_poly_red(ct0);
                         }
                         /* Step 27: Check ct0 has low enough values. Every
                          * row: ct0 has no mask, so a failing index leaks t0. */
