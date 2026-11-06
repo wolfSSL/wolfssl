@@ -50,61 +50,62 @@
  *
  * Guards covered (operand order matches the source's left-to-right ||/&&):
  *
- * wc_InitSakkeKey_ex()  (sakke.c:119)   key == NULL
- * wc_FreeSakkeKey()     (sakke.c:193)   key != NULL
- * wc_MakeSakkeKey()     (sakke.c:507)   key == NULL || rng == NULL
- * wc_MakeSakkePublicKey (sakke.c:566)   key == NULL || pub == NULL
- * wc_ExportSakkeKey     (sakke.c:604,608,612)
+ * wc_InitSakkeKey_ex()  (sakke.c:132)   key == NULL
+ * wc_FreeSakkeKey()     (sakke.c:200)   key != NULL
+ * wc_MakeSakkeKey()     (sakke.c:552)   key == NULL || rng == NULL
+ * wc_MakeSakkePublicKey (sakke.c:597)   key == NULL || pub == NULL
+ * wc_ExportSakkeKey     (sakke.c:635,639,643)
  *     key == NULL || sz == NULL; data == NULL (LENGTH_ONLY_E);
  *     *sz < 3*size (BUFFER_E)
- * wc_ImportSakkeKey     (sakke.c:659,662)
+ * wc_ImportSakkeKey     (sakke.c:690,693)
  *     key == NULL || data == NULL; sz != size*3 (BUFFER_E)
- * wc_ExportSakkePrivateKey (sakke.c:713,717,721) -- same shape as
+ * wc_ExportSakkePrivateKey (sakke.c:747,751,755) -- same shape as
  *     wc_ExportSakkeKey with size instead of 3*size
- * wc_ImportSakkePrivateKey (sakke.c:756,760) -- same shape as
+ * wc_ImportSakkePrivateKey (sakke.c:790,794) -- same shape as
  *     wc_ImportSakkeKey with size instead of size*3
- * wc_ExportSakkePublicKey  (sakke.c:938,942)
+ * wc_ExportSakkePublicKey  (sakke.c:975,979)
  *     key == NULL || sz == NULL; data != NULL (drives sakke_z_from_mont())
- * wc_MakeSakkeRsk       (sakke.c:976)   key==NULL || id==NULL || rsk==NULL
- * wc_EncodeSakkeRsk     (sakke.c:1036)  key==NULL || rsk==NULL || sz==NULL
- * wc_ImportSakkePublicKey (sakke.c:1077,1089)
+ * wc_MakeSakkeRsk_ex    (sakke.c:1055)  key==NULL || id==NULL || rsk==NULL
+ * wc_MakeSakkeRsk       -- same guard, via wc_MakeSakkeRsk_ex() with no RNG
+ * wc_EncodeSakkeRsk     (sakke.c:1157)  key==NULL || rsk==NULL || sz==NULL
+ * wc_ImportSakkePublicKey (sakke.c:1198,1210)
  *     key==NULL || data==NULL; !trusted (drives wc_ecc_check_key())
- * wc_DecodeSakkeRsk     (sakke.c:1119)  key==NULL||data==NULL||rsk==NULL
- * wc_ImportSakkeRsk     (sakke.c:1151)  key==NULL || data==NULL
- * wc_GenerateSakkeRskTable (sakke.c:1319/1400 -- WOLFSSL_HAVE_SP_ECC has a
+ * wc_DecodeSakkeRsk     (sakke.c:1240)  key==NULL||data==NULL||rsk==NULL
+ * wc_ImportSakkeRsk     (sakke.c:1272)  key==NULL || data==NULL
+ * wc_GenerateSakkeRskTable (sakke.c:1440/1521 -- WOLFSSL_HAVE_SP_ECC has a
  *     second, functionally-equivalent definition at the argument-validation
  *     level) key==NULL || rsk==NULL || len==NULL; table==NULL
  *     (LENGTH_ONLY_E); *len != 0 (BUFFER_E)
- * wc_SetSakkeRsk        (sakke.c:2350)  key==NULL || rsk==NULL
- * wc_ValidateSakkeRsk   (sakke.c:2430)
+ * wc_SetSakkeRsk        (sakke.c:2481)  key==NULL || rsk==NULL
+ * wc_ValidateSakkeRsk   (sakke.c:2561)
  *     key==NULL||id==NULL||rsk==NULL||valid==NULL
- * wc_GetSakkeAuthSize   (sakke.c:2491)  key==NULL || authSz==NULL
- * wc_SetSakkeIdentity   (sakke.c:6357)
+ * wc_GetSakkeAuthSize   (sakke.c:2622)  key==NULL || authSz==NULL
+ * wc_SetSakkeIdentity   (sakke.c:6488)
  *     key==NULL || id==NULL || idSz > SAKKE_ID_MAX_SIZE
- * wc_MakeSakkePointI    (sakke.c:6388) -- same shape as
+ * wc_MakeSakkePointI    (sakke.c:6519) -- same shape as
  *     wc_SetSakkeIdentity
- * wc_GetSakkePointI     (sakke.c:6428,6432,6436)
+ * wc_GetSakkePointI     (sakke.c:6559,6563,6567)
  *     key==NULL || sz==NULL; data==NULL (LENGTH_ONLY_E);
  *     *sz < size*2 (BUFFER_E)
- * wc_SetSakkePointI     (sakke.c:6478,6481)
+ * wc_SetSakkePointI     (sakke.c:6609,6612)
  *     key==NULL||id==NULL||data==NULL;
  *     idSz > SAKKE_ID_MAX_SIZE || sz != size*2 (BUFFER_E)
- * wc_GenerateSakkePointITable (sakke.c:6527,6540,6544)
+ * wc_GenerateSakkePointITable (sakke.c:6658,6671,6675)
  *     key==NULL || len==NULL; table==NULL (LENGTH_ONLY_E);
  *     *len != 0 (BUFFER_E)
- * wc_SetSakkePointITable (sakke.c:6575,6590)
+ * wc_SetSakkePointITable (sakke.c:6706,6721)
  *     key==NULL || table==NULL; len != 0 (BUFFER_E)
- * wc_ClearSakkePointITable (sakke.c:6616)  key == NULL
- * wc_MakeSakkeEncapsulatedSSV (sakke.c:6714,6717,6735,6738,6745)
+ * wc_ClearSakkePointITable (sakke.c:6747)  key == NULL
+ * wc_MakeSakkeEncapsulatedSSV (sakke.c:6845,6848,6866,6869,6876)
  *     key==NULL||ssv==NULL||authSz==NULL||ssvSz==0;
  *     key->idSz == 0 (BAD_STATE_E); ssvSz > n; auth!=NULL && *authSz<outSz;
  *     auth == NULL (LENGTH_ONLY_E); hashType (drives wc_HashInit_ex() in
  *     sakke_calc_a(), called before the digest-size check in
  *     sakke_hash_to_range() -- see note below)
- * wc_GenerateSakkeSSV   (sakke.c:6820,6822,6831,6837)
+ * wc_GenerateSakkeSSV   (sakke.c:6951,6953,6962,6968)
  *     key==NULL||rng==NULL||ssvSz==NULL;
  *     ssv!=NULL && (*ssvSz==0 || *ssvSz>n); ssv==NULL (LENGTH_ONLY_E)
- * wc_DeriveSakkeSSV     (sakke.c:6897,6900,6911,6916)
+ * wc_DeriveSakkeSSV     (sakke.c:7028,7031,7042,7047)
  *     key==NULL||ssv==NULL||auth==NULL||ssvSz==0;
  *     !key->rsk.set || key->idSz==0 (BAD_STATE_E);
  *     authSz != 2*n+1; ssvSz > n; hashType (as above)
@@ -146,6 +147,7 @@ int test_wc_Sakke_DecisionCoverage(void)
     SakkeKey key2;
     ecc_point* pub = NULL;
     ecc_point* rsk = NULL;
+    ecc_point* rsk2 = NULL;
     byte id[1] = { 0x00 };
     byte idMax[SAKKE_ID_MAX_SIZE];
     byte data[600];
@@ -173,6 +175,7 @@ int test_wc_Sakke_DecisionCoverage(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(rsk = wc_ecc_new_point());
+    ExpectNotNull(rsk2 = wc_ecc_new_point());
     ExpectNotNull(pub = wc_ecc_new_point());
 
     /* --- wc_InitSakkeKey_ex() / wc_InitSakkeKey() --- */
@@ -211,6 +214,18 @@ int test_wc_Sakke_DecisionCoverage(void)
     ExpectIntEQ(wc_MakeSakkeRsk(&key, id, 1, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeSakkeRsk(&key, id, 1, rsk), 0);
+
+    /* --- wc_MakeSakkeRsk_ex() --- */
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(NULL, id, 1, rsk2, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, NULL, 1, rsk2, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, id, 1, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The blinding factor comes from the caller's RNG; the RSK itself is
+     * deterministic, so it must match the one made with a local RNG. */
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, id, 1, rsk2, &rng), 0);
+    ExpectIntEQ(wc_ecc_cmp_point(rsk, rsk2), MP_EQ);
 
     /* --- wc_ValidateSakkeRsk() --- */
     ExpectIntEQ(wc_ValidateSakkeRsk(NULL, id, 1, rsk, &valid),
@@ -629,6 +644,10 @@ int test_wc_Sakke_DecisionCoverage(void)
     if (rsk != NULL) {
         wc_ecc_forcezero_point(rsk);
         wc_ecc_del_point(rsk);
+    }
+    if (rsk2 != NULL) {
+        wc_ecc_forcezero_point(rsk2);
+        wc_ecc_del_point(rsk2);
     }
     if (pub != NULL) {
         wc_ecc_del_point(pub);

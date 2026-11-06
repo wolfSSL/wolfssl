@@ -49,17 +49,17 @@
  * llvm-cov attributes the coverage to sakke.c's own decisions.
  *
  * Targeted the uncovered-condition report residuals (err==0 FALSE half unless noted):
- *   411  sakke_mulmod_base_add "(err==0) && map"      (non-SP build only)
- *   536  wc_MakeSakkeKey       "(err==0) && mp_iszero(..)"  cond 0 only;
+ *   423  sakke_mulmod_base_add "(err==0) && map"      (non-SP build only)
+ *   524  sakke_rand_nonzero_mod_q "(err==0) && mp_iszero(..)"  cond 0 only;
  *        cond 1 (mp_iszero true, random scalar == 0) is crypto-unreachable.
- *   1483 sakke_addmod          "(err==0) && (mp_cmp!=MP_LT)"
- *   1505/1508/1511 sakke_tplmod  three sequential reductions, same shape
- *   2282 sakke_pairing loop    "(err==0) && (i>=0)"
- *   2302 sakke_pairing         "(err==0) && (i>0) && mp_is_bit_set(..)"
- *   2454 wc_ValidateSakkeRsk   "(err==0) && (idSz<=SAKKE_ID_MAX_SIZE)"
- *   2646 sakke_modexp_loop     "(err==0) && (i>=0)"
- *   6289 sakke_hash_to_range   "(err==0) && (i<n)"
- *   6657 sakke_compute_point_r "(err==0) && (idSz<=SAKKE_ID_MAX_SIZE)"
+ *   1604 sakke_addmod          "(err==0) && (mp_cmp!=MP_LT)"
+ *   1626/1629/1632 sakke_tplmod  three sequential reductions, same shape
+ *   2413 sakke_pairing loop    "(err==0) && (i>=0)"
+ *   2433 sakke_pairing         "(err==0) && (i>0) && mp_is_bit_set(..)"
+ *   2585 wc_ValidateSakkeRsk   "(err==0) && (idSz<=SAKKE_ID_MAX_SIZE)"
+ *   2777 sakke_modexp_loop     "(err==0) && (i>=0)"
+ *   6420 sakke_hash_to_range   "(err==0) && (i<n)"
+ *   6788 sakke_compute_point_r "(err==0) && (idSz<=SAKKE_ID_MAX_SIZE)"
  *
  * Crash-safety: all key/point/mp inputs are prepared while DISARMED; every
  * armed call either returns an error before building anything, or fails a
@@ -81,8 +81,8 @@
 
 /* Installed BEFORE sakke.c so its mp_* calls resolve to the fault wrappers.
  * sakke.c's residuals are the `(err == 0) && <next step>` halves of its
- * big-integer chains (1490/1512/1515/1518 mp_cmp range checks, the 2653
- * bit-scan loop, the 543 key-generation retry). No mp_* call fails on a
+ * big-integer chains (1604/1626/1629/1632 mp_cmp range checks, the 2777
+ * bit-scan loop, the 524 random-scalar retry). No mp_* call fails on a
  * healthy machine and the mp scratch is on the stack, so neither the ordinary
  * tests nor the heap-fault sweep below can drive `err == 0` FALSE there.
  * mcdc_fault_mp.h interposes the value-returning mp_* API for this TU only;
@@ -92,23 +92,25 @@
 #include "mcdc_fault_mp.h"
 
 /* --------------------------------------------------------------------------
- * Value-forcing mp_rand() interposer for the 543 master-secret retry loop.
+ * Value-forcing mp_rand() interposer for the 524 retry loop in
+ * sakke_rand_nonzero_mod_q().
  *
- *     do { ... err = mp_rand(priv, digits, rng);
- *              err = mp_mod(priv, &key->params.q, priv); }
- *     while ((err == 0) && mp_iszero(wc_ecc_key_get_priv(&key->ecc)));
+ *     do { ... err = mp_rand(r, digits, rng);
+ *              err = mp_mod(r, &key->params.q, r); }
+ *     while ((err == 0) && mp_iszero(r));
  *
  * Both conditions need the loop to actually RETRY, which only happens when the
  * drawn scalar reduces to zero -- a ~2^-1024 event under real entropy, and one
  * a seeded RNG cannot force either, because mp_rand() is served by the sp_int
  * layer in a different TU (the seeded-RNG macro only rewrites call sites in the
  * TU it is included in). Interposing mp_rand() here is the one lever that
- * reaches it: sakke.c has exactly ONE mp_rand() call site (line 536), so no
- * disambiguation is needed.
+ * reaches it. sakke.c has one mp_rand() call site, shared by the master
+ * secret in wc_MakeSakkeKey() and the inverse's blinding factor in
+ * wc_MakeSakkeRsk_ex(); each is armed around its own entry point.
  *
- * Modes are ONE-SHOT, so the loop's second iteration draws a genuine random
- * scalar and the loop terminates on real data -- there is no retry loop here
- * whose termination depends on a random draw going a particular way.
+ * ZERO and FAIL are ONE-SHOT, so the loop's second iteration draws a genuine
+ * random scalar and the loop terminates on real data. ZERO_ALL keeps returning
+ * zero so the loop reaches its SAKKE_MAX_GEN_COUNT cap; that cap bounds it.
  *
  * Ordering is the same load-bearing trick as mcdc_fault_mp.h: the wrapper is
  * compiled while mp_rand still names the real entry point, and only then is the
@@ -117,6 +119,7 @@
 #define WB_SR_OFF   0   /* pass through */
 #define WB_SR_ZERO  1   /* succeed, but hand back the scalar 0 */
 #define WB_SR_FAIL  2   /* fail the draw */
+#define WB_SR_ZERO_ALL 3 /* hand back 0 on every draw until disarmed */
 
 static int wb_sr_mode = WB_SR_OFF;
 
@@ -124,13 +127,13 @@ MCDC_FM_MAYBE_UNUSED static int wb_sr_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int mode = wb_sr_mode;
 
-    if (mode != WB_SR_OFF) {
+    if ((mode != WB_SR_OFF) && (mode != WB_SR_ZERO_ALL)) {
         wb_sr_mode = WB_SR_OFF;   /* one-shot */
     }
     if (mode == WB_SR_FAIL) {
         return MCDC_FM_ERR;
     }
-    if (mode == WB_SR_ZERO) {
+    if ((mode == WB_SR_ZERO) || (mode == WB_SR_ZERO_ALL)) {
         mp_zero(a);
         return 0;
     }
@@ -197,7 +200,7 @@ static const word16 gIdSz = (word16)sizeof(gId);
 #ifndef SAKKE_K_VALIDATE
 #define SAKKE_K_VALIDATE  340   /* past the 261-alloc FP build into pairing,
                                  * so under WOLFSSL_SMALL_STACK the pairing
-                                 * accumulate-line faults flip 2282/2302 */
+                                 * accumulate-line faults flip 2413/2433 */
 #endif
 #ifndef SAKKE_K_ENCAP
 #define SAKKE_K_ENCAP     540
@@ -301,7 +304,8 @@ static void wb_mp_sweeps(SakkeKey* key, WC_RNG* rng, ecc_point* rsk)
     XMEMSET(auth2, 0, sizeof(auth2));
 
     /* Fresh key per iteration: MakeSakkeKey mutates it, and its retry loop
-     * (543) plus the point-I/RSK derivation chains are what the sweep is for. */
+     * (524) plus the point-I/RSK derivation chains are what the sweep is
+     * for. */
     WB_MP_SWEEP("MakeSakkeKey", 150,
         {
             SakkeKey k2;
@@ -476,8 +480,9 @@ int main(int argc, char** argv)
          * key internals.
          * ============================================================ */
 
-        /* --- wc_MakeSakkeKey (536:0): the master-secret loop's mp_rand /
-         * mp_mod allocate; failing one sets err != 0 so the while's
+        /* --- wc_MakeSakkeKey (524:0, in sakke_rand_nonzero_mod_q): the
+         * master-secret loop's mp_rand / mp_mod allocate; failing one sets
+         * err != 0 so the while's
          * "(err==0) && mp_iszero(..)" exits on the err==0 false half. Also
          * drives the earlier "(err==0) && ..." chain in key generation.
          * Fresh init'd key per iteration (MakeSakkeKey overwrites state and a
@@ -496,15 +501,16 @@ int main(int argc, char** argv)
         }
         WB_NOTE("wc_MakeSakkeKey fault sweep done");
 
-        /* --- wc_MakeSakkeKey 543: the master-secret retry loop
-         *       while ((err == 0) && mp_iszero(wc_ecc_key_get_priv(..)))
+        /* --- wc_MakeSakkeKey: the master-secret draw via the 524 loop
+         *       while ((err == 0) && mp_iszero(r))
          * Both conditions need the loop to actually RETRY, i.e. a drawn scalar
          * that reduces to zero -- a ~2^-1024 event that no heap fault and no
          * seeded RNG can produce (mp_rand() is served from another TU, so the
          * seeded-RNG macro never reaches it). The value-forcing mp_rand()
-         * interposer at the top of this file is the lever; sakke.c has exactly
-         * one mp_rand() call site, and both modes are ONE-SHOT so the second
-         * iteration draws real entropy and the loop terminates on real data.
+         * interposer at the top of this file is the lever; arming it around
+         * wc_MakeSakkeKey() alone selects the master secret, and both modes are
+         * ONE-SHOT so the second iteration draws real entropy and the loop
+         * terminates on real data.
          *
          *   WB_SR_ZERO -> (T,T) decision TRUE, retries; the retry supplies the
          *                 accepting (T,F) row -> closes idx1 and gives idx0
@@ -529,6 +535,41 @@ int main(int argc, char** argv)
             }
         }
 
+        /* --- wc_MakeSakkeRsk_ex: the blinding-factor draw via the 524 loop
+         *       if ((++genTryCnt) > SAKKE_MAX_GEN_COUNT) ...
+         *       while ((err == 0) && mp_iszero(r))
+         * Same lever as the master-secret draw above, armed around the RSK
+         * call alone so it selects the blinding draw:
+         *   WB_SR_ZERO     -> while TRUE, retries; the retry accepts
+         *   WB_SR_FAIL     -> while FALSE on err != 0
+         *   WB_SR_ZERO_ALL -> genTryCnt passes the cap -> RNG_FAILURE_E
+         * Only rsk is written, so the prepared key is reused. --- */
+        {
+            int mode;
+            for (mode = WB_SR_ZERO; mode <= WB_SR_ZERO_ALL; mode++) {
+                ecc_point* rp = wc_ecc_new_point();
+                if (rp != NULL) {
+                    int e2;
+                    wb_sr_mode = mode;
+                    e2 = wc_MakeSakkeRsk(&key, gId, gIdSz, rp);
+                    wb_sr_mode = WB_SR_OFF;
+                    printf("  [wb] MakeSakkeRsk rand mode %d -> %d\n",
+                           mode, e2);
+                    if ((e2 == 0) != (mode == WB_SR_ZERO)) {
+                        WB_NOTE("MakeSakkeRsk blind retry: unexpected result");
+                        wb_fail = 1;
+                    }
+                    if ((mode == WB_SR_ZERO_ALL) &&
+                            (e2 != WC_NO_ERR_TRACE(RNG_FAILURE_E))) {
+                        WB_NOTE("MakeSakkeRsk blind cap: not RNG_FAILURE_E");
+                        wb_fail = 1;
+                    }
+                    wc_ecc_forcezero_point(rp);
+                    wc_ecc_del_point(rp);
+                }
+            }
+        }
+
         /* --- wc_MakeSakkeRsk: sweeps its own success chain. rsk output only;
          * key state (public key + master secret) untouched, so reuse key.
          * Fresh rsk point per iteration. --- */
@@ -546,7 +587,7 @@ int main(int argc, char** argv)
         WB_NOTE("wc_MakeSakkeRsk fault sweep done");
 
 #ifndef WOLFSSL_HAVE_SP_ECC
-        /* --- sakke_mulmod_base_add (411): its wc_ecc_mulmod /
+        /* --- sakke_mulmod_base_add (423): its wc_ecc_mulmod /
          * mp_montgomery_setup / ecc_projective_add_point each allocate;
          * failing one sets err != 0 so "(err==0) && map" takes the err==0
          * false half. map fixed at 1 (the value the existing whitebox could
@@ -570,24 +611,24 @@ int main(int argc, char** argv)
             WB_NOTE("sakke_mulmod_base_add fault sweep done");
         }
 
-        /* --- sakke_addmod (1483) / sakke_tplmod (1505/1508/1511): pure
+        /* --- sakke_addmod (1604) / sakke_tplmod (1626/1629/1632): pure
          * mp_int helpers. Their leading mp_add / mp_mul_d only allocate under
          * a heap-backed math backend; where they do, a fault sets err != 0 so
          * each "(err==0) && (mp_cmp != MP_LT)" reduction check takes its
          * err==0 false half. Where mp_add/mp_mul_d never allocate (fixed
          * sp_int), the sweep is a no-op and these stay justified residuals. */
         {
-            /* sakke_tplmod 1518 idx0 (`err == 0` FALSE) -- the THIRD of the
+            /* sakke_tplmod 1632 idx0 (`err == 0` FALSE) -- the THIRD of the
              * helper's three sequential reductions:
              *
-             *     err = mp_mul_d(a, 3, r);                          (1511)
-             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1512)
-             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1515)
-             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1518)
+             *     err = mp_mul_d(a, 3, r);                          (1625)
+             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1626)
+             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1629)
+             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1632)
              *
-             * 1512 and 1515 get their err!=0 halves for free -- an earlier
-             * mp_sub failing carries err forward -- but 1518 needs the mp_sub
-             * at 1516 to have RUN and FAILED, which needs an input where the
+             * 1626 and 1629 get their err!=0 halves for free -- an earlier
+             * mp_sub failing carries err forward -- but 1632 needs the mp_sub
+             * at 1630 to have RUN and FAILED, which needs an input where the
              * first two reductions both fire. Every in-product caller passes
              * a < m, so 3a < 3m and the third check is only ever reached with
              * err == 0; a direct call on the file-static helper with a == m
@@ -596,10 +637,10 @@ int main(int argc, char** argv)
              * The heap lever cannot do it: under a fixed sp_int backend
              * mp_sub() never allocates, so it never fails. mcdc_fault_mp.h's
              * lever can -- interposed mp_* call 1 is the mp_mul_d, 2 is the
-             * mp_sub at 1513 and 3 is the mp_sub at 1516, so arming index 3
-             * fails exactly that one and 1518 is reached with err != 0.
+             * mp_sub at 1627 and 3 is the mp_sub at 1630, so arming index 3
+             * fails exactly that one and 1632 is reached with err != 0.
              *
-             * The accepting (T,T) row at 1518 is the unarmed a == m call right
+             * The accepting (T,T) row at 1632 is the unarmed a == m call right
              * before it; the (T,F) row comes from the a=40,m=100 tplmod calls
              * in the sweep below (300 -> 200 -> 100 -> stop). */
             {
@@ -607,16 +648,16 @@ int main(int argc, char** argv)
                 int e0, e1;
                 mp_init(&a); mp_init(&m); mp_init(&r);
                 mp_set(&a, 100); mp_set(&m, 100);
-                e1 = sakke_tplmod(&a, &m, &r);              /* 1518 (T,T) */
+                e1 = sakke_tplmod(&a, &m, &r);              /* 1632 (T,T) */
                 mcdc_fm_arm(3);
-                e0 = sakke_tplmod(&a, &m, &r);              /* 1518 (F,-) */
+                e0 = sakke_tplmod(&a, &m, &r);              /* 1632 (F,-) */
                 mcdc_fm_disarm();
-                printf("  [wb] sakke_tplmod 1518 vectors: (T,T)=%d armed=%d\n",
+                printf("  [wb] sakke_tplmod 1632 vectors: (T,T)=%d armed=%d\n",
                        e1, e0);
                 mp_free(&a); mp_free(&m); mp_free(&r);
             }
 
-            /* sakke_addmod 1490 idx0, same shape but one reduction: a direct
+            /* sakke_addmod 1604 idx0, same shape but one reduction: a direct
              * armed call is the only way to reach it with err != 0. */
             {
                 mp_int a, b, m, r;
@@ -624,12 +665,12 @@ int main(int argc, char** argv)
                 mp_init(&a); mp_init(&b); mp_init(&m); mp_init(&r);
                 mp_set(&a, 60); mp_set(&b, 70); mp_set(&m, 100);
                 mcdc_fm_arm(1);
-                e0 = sakke_addmod(&a, &b, &m, &r);          /* 1490 (F,-) */
+                e0 = sakke_addmod(&a, &b, &m, &r);          /* 1604 (F,-) */
                 mcdc_fm_disarm();
-                (void)sakke_addmod(&a, &b, &m, &r);         /* 1490 (T,T) */
+                (void)sakke_addmod(&a, &b, &m, &r);         /* 1604 (T,T) */
                 mp_set(&a, 10); mp_set(&b, 20);
-                (void)sakke_addmod(&a, &b, &m, &r);         /* 1490 (T,F) */
-                printf("  [wb] sakke_addmod 1490 armed=%d\n", e0);
+                (void)sakke_addmod(&a, &b, &m, &r);         /* 1604 (T,F) */
+                printf("  [wb] sakke_addmod 1604 armed=%d\n", e0);
                 mp_free(&a); mp_free(&b); mp_free(&m); mp_free(&r);
             }
 
@@ -650,12 +691,12 @@ int main(int argc, char** argv)
         }
 #endif /* !WOLFSSL_HAVE_SP_ECC */
 
-        /* --- wc_ValidateSakkeRsk (2454, and 2282/2302 in sakke_pairing):
+        /* --- wc_ValidateSakkeRsk (2585, and 2413/2433 in sakke_pairing):
          * sakke_compute_point_i() runs first (heavy ECC precompute) -- a fault
-         * there sets err != 0 before the 2454 idSz guard, driving its err==0
+         * there sets err != 0 before the 2585 idSz guard, driving its err==0
          * false half. Faults deeper in the run land inside sakke_pairing's
-         * accumulate-line loop, setting err != 0 so the 2282 loop check and
-         * 2302 inner guard take their err==0 false halves on the next
+         * accumulate-line loop, setting err != 0 so the 2413 loop check and
+         * 2433 inner guard take their err==0 false halves on the next
          * iteration. Validate does not need the master secret (only the public
          * key + params), and resets key->i.table = NULL on recompute, so the
          * shared prepared key is reused; a fault leaves key->i partial but
@@ -670,11 +711,11 @@ int main(int argc, char** argv)
         }
         WB_NOTE("wc_ValidateSakkeRsk fault sweep done");
 
-        /* --- wc_MakeSakkeEncapsulatedSSV (6289 in sakke_hash_to_range, plus
+        /* --- wc_MakeSakkeEncapsulatedSSV (6420 in sakke_hash_to_range, plus
          * the pairing/modexp loops it drives): sakke_calc_a ->
          * sakke_hash_to_range runs the "(err==0) && (i<n)" digest loop; a
          * fault inside sakke_calc_h_v sets err != 0 so the loop check takes
-         * its err==0 false half. Deeper faults drive sakke_modexp_loop's 2646
+         * its err==0 false half. Deeper faults drive sakke_modexp_loop's 2777
          * check. Encapsulate uses the public key + identity, not the master
          * secret; reuse key. --- */
         for (n = 1; n <= SAKKE_K_ENCAP; n++) {
@@ -690,10 +731,10 @@ int main(int argc, char** argv)
         }
         WB_NOTE("wc_MakeSakkeEncapsulatedSSV fault sweep done");
 
-        /* --- wc_DeriveSakkeSSV (6657 in sakke_compute_point_r, 6289, 2646):
+        /* --- wc_DeriveSakkeSSV (6788 in sakke_compute_point_r, 6420, 2777):
          * sakke_compute_point_r() runs sakke_compute_point_i() then the r
          * scalar multiply; a fault in compute_point_i sets err != 0 before the
-         * 6657 idSz guard (err==0 false half). Derive uses the RSK; reuse key.
+         * 6788 idSz guard (err==0 false half). Derive uses the RSK; reuse key.
          * A valid auth/authSz pair is not required for the fault paths (the
          * failure occurs before the SSV is checked). --- */
         for (n = 1; n <= SAKKE_K_DERIVE; n++) {
@@ -708,9 +749,9 @@ int main(int argc, char** argv)
         }
         WB_NOTE("wc_DeriveSakkeSSV fault sweep done");
 
-        /* --- sakke_compute_point_r (6657) direct: force the recompute branch
+        /* --- sakke_compute_point_r (6788) direct: force the recompute branch
          * (key->i.idSz = 0) with idSz > SAKKE_ID_MAX_SIZE while faulting
-         * compute_point_i, isolating the 6657 idSz operand with err both 0
+         * compute_point_i, isolating the 6788 idSz operand with err both 0
          * (unarmed, from the baseline above) and != 0 (armed here). --- */
         {
             mp_int rS;

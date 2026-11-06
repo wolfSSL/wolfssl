@@ -1676,22 +1676,88 @@ int mp_div_2(mp_int * a, mp_int * b)
   return MP_OKAY;
 }
 
+/* mp_clamp() without branching on limb values: used is found by masking
+ * across all limbs rather than stopping at the first non-zero one. Limbs keep
+ * their top bit clear (DIGIT_BIT < bits in mp_digit), so (d - 1) has its top
+ * bit set exactly when d is zero. */
+static int mp_clamp_ct(mp_int* a)
+{
+    int i;
+    int used;
+    volatile mp_digit mask = (mp_digit)-1;
+
+    used = a->used;
+    for (i = a->used - 1; i >= 0; i--) {
+        mp_digit isZero = (mp_digit)(a->dp[i] - 1) >>
+                          (CHAR_BIT * sizeof(mp_digit) - 1);
+        mask &= (mp_digit)0 - isZero;
+        used -= (int)(mask & 1);
+    }
+    a->used = used;
+
+    return MP_OKAY;
+}
+
+/* Load limb i of a for the constant-time helpers below, without growing a:
+ * the index is clamped to the last allocated limb rather than the load
+ * skipped. Callers mask off limbs at and above a->used. */
+static mp_digit mp_load_ct(const mp_int* a, int i)
+{
+    int last = a->alloc - 1;
+
+    if (a->alloc == 0) {
+        /* dp may be NULL; used is 0, so every limb is masked off. */
+        return 0;
+    }
+    return a->dp[i - ((i - last) & (0 - (int)(i > last)))];
+}
+
 /* c = a / 2 (mod b) - constant time (a < b and positive) */
 int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c)
 {
-    int res;
+    int res, i;
+    mp_digit u;
+    volatile mp_digit mask;
+    volatile mp_digit mask_a;
+    volatile mp_digit nz_a;
 
-    if (mp_isodd(a)) {
-        res = mp_add(a, b, c);
-        if (res == MP_OKAY) {
-            res = mp_div_2(c, c);
-        }
-    }
-    else {
-        res = mp_div_2(a, c);
+    if ((a == NULL) || (b == NULL) || (c == NULL)) {
+        return MP_VAL;
     }
 
-    return res;
+    if ((b->used == 0) || (a->used > b->used) || (a->sign == MP_NEG)) {
+        return MP_VAL;
+    }
+
+    if ((res = mp_grow(c, b->used + 1)) != MP_OKAY) {
+        return res;
+    }
+
+    /* Limbs at and above a->used are masked off rather than skipped. */
+    nz_a = (mp_digit)0 - (mp_digit)(a->used != 0);
+    mask = (mp_digit)0 - (mp_load_ct(a, 0) & nz_a & 1);
+    mask_a = (mp_digit)-1;
+    u = 0;
+    for (i = 0; i < b->used; i++) {
+        mask_a += (mp_digit)(i == a->used);
+        c->dp[i] = (mp_load_ct(a, i) & mask_a) + (b->dp[i] & mask) + u;
+        u = c->dp[i] >> DIGIT_BIT;
+        c->dp[i] &= MP_MASK;
+    }
+    c->dp[b->used] = u;
+
+    for (i = 0; i < b->used; i++) {
+        c->dp[i] = (c->dp[i] >> 1) | ((c->dp[i+1] & 1) << (DIGIT_BIT - 1));
+    }
+
+    /* Clear up to alloc, not the old used, which may follow a secret. */
+    c->used = b->used;
+    for (i = b->used; i < c->alloc; i++) {
+        c->dp[i] = 0;
+    }
+    c->sign = MP_ZPOS;
+
+    return mp_clamp_ct(c);
 }
 
 
@@ -3095,26 +3161,66 @@ int mp_submod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
   int     res;
   mp_int  t;
   mp_int* r = d;
+  mp_digit u;
+  volatile mp_digit mask;
+  volatile mp_digit mask_a = (mp_digit)-1;
+  volatile mp_digit mask_b = (mp_digit)-1;
+  int i;
+
+  if ((a == NULL) || (b == NULL) || (c == NULL) || (d == NULL)) {
+    return MP_VAL;
+  }
+
+  if ((c->used == 0) || (a->used > c->used) || (b->used > c->used) ||
+      (a->sign == MP_NEG) || (b->sign == MP_NEG)) {
+    return MP_VAL;
+  }
 
   if (c == d) {
     r = &t;
-
     if ((res = mp_init (r)) != MP_OKAY) {
       return res;
     }
   }
 
-  res = mp_sub (a, b, r);
-  if (res == MP_OKAY) {
-    if (mp_isneg (r)) {
-      res = mp_add (r, c, d);
-    } else if (c == d) {
-      res = mp_copy (r, d);
-    }
+  if ((res = mp_grow(r, c->used)) != MP_OKAY) {
+    if (c == d) { mp_clear(r); }
+    return res;
   }
 
+  u = 0;
+  for (i = 0; i < c->used; i++) {
+    mp_digit val;
+    /* Limbs at and above used are masked off rather than skipped. */
+    mask_a += (mp_digit)(i == a->used);
+    mask_b += (mp_digit)(i == b->used);
+    val = (mp_load_ct(a, i) & mask_a) - (mp_load_ct(b, i) & mask_b) - u;
+    r->dp[i] = val & MP_MASK;
+    u = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+
+  mask = (mp_digit)0 - u;
+  u = 0;
+  for (i = 0; i < c->used; i++) {
+    r->dp[i] += (c->dp[i] & mask) + u;
+    u = r->dp[i] >> DIGIT_BIT;
+    r->dp[i] &= MP_MASK;
+  }
+
+  /* Clear up to alloc, not the old used, which may follow a secret. */
+  r->used = c->used;
+  for (i = c->used; i < r->alloc; i++) {
+    r->dp[i] = 0;
+  }
+  r->sign = MP_ZPOS;
+
+  /* Copy before clamping: mp_copy() only walks r->used limbs. */
   if (c == d) {
-    mp_clear (r);
+    res = mp_copy(r, d);
+    mp_clear(r);
+  }
+  if (res == MP_OKAY) {
+    res = mp_clamp_ct(d);
   }
 
   return res;
@@ -3126,26 +3232,78 @@ int mp_addmod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
   int     res;
   mp_int  t;
   mp_int* r = d;
+  mp_digit u, borrow;
+  volatile mp_digit mask;
+  volatile mp_digit mask_a = (mp_digit)-1;
+  volatile mp_digit mask_b = (mp_digit)-1;
+  int i;
+
+  if ((a == NULL) || (b == NULL) || (c == NULL) || (d == NULL)) {
+    return MP_VAL;
+  }
+
+  if ((c->used == 0) || (a->used > c->used) || (b->used > c->used) ||
+      (a->sign == MP_NEG) || (b->sign == MP_NEG)) {
+    return MP_VAL;
+  }
 
   if (c == d) {
     r = &t;
-
     if ((res = mp_init (r)) != MP_OKAY) {
       return res;
     }
   }
 
-  res = mp_add (a, b, r);
-  if (res == MP_OKAY) {
-    if (mp_cmp (r, c) != MP_LT) {
-      res = mp_sub (r, c, d);
-    } else if (c == d) {
-      res = mp_copy (r, d);
-    }
+  if ((res = mp_grow(r, c->used + 1)) != MP_OKAY) {
+    if (c == d) { mp_clear(r); }
+    return res;
   }
 
+  u = 0;
+  for (i = 0; i < c->used; i++) {
+    /* Limbs at and above used are masked off rather than skipped. */
+    mask_a += (mp_digit)(i == a->used);
+    mask_b += (mp_digit)(i == b->used);
+    r->dp[i] = (mp_load_ct(a, i) & mask_a) + (mp_load_ct(b, i) & mask_b) +
+               u;
+    u = r->dp[i] >> DIGIT_BIT;
+    r->dp[i] &= MP_MASK;
+  }
+  r->dp[c->used] = u;
+
+  borrow = 0;
+  for (i = 0; i < c->used; i++) {
+    mp_digit val = r->dp[i] - c->dp[i] - borrow;
+    borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+  {
+    mp_digit val = r->dp[c->used] - borrow;
+    borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+
+  mask = (mp_digit)0 - (1 - borrow);
+
+  borrow = 0;
+  for (i = 0; i < c->used; i++) {
+    mp_digit val = r->dp[i] - (c->dp[i] & mask) - borrow;
+    r->dp[i] = val & MP_MASK;
+    borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+
+  /* Clear up to alloc, not the old used, which may follow a secret. */
+  r->used = c->used;
+  for (i = c->used; i < r->alloc; i++) {
+    r->dp[i] = 0;
+  }
+  r->sign = MP_ZPOS;
+
+  /* Copy before clamping: mp_copy() only walks r->used limbs. */
   if (c == d) {
-    mp_clear (r);
+    res = mp_copy(r, d);
+    mp_clear(r);
+  }
+  if (res == MP_OKAY) {
+    res = mp_clamp_ct(d);
   }
 
   return res;

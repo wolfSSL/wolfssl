@@ -601,5 +601,12 @@
  "configure": ["--enable-leanpsk"],
  "extra_cflags": "-Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -Werror=implicit-function-declaration -Wno-error=cpp",
  "check": false,
- "run": [["./wolfcrypt/test/testwolfcrypt"]]}
+ "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+{"name": "fpecc-no-shamir",
+ "comment": "FP_ECC with ECC_TIMING_RESISTANT but no ECC_SHAMIR: only the constant-time comb consumes the fixed-point cache.",
+ "configure": ["--enable-fpecc", "--disable-eccshamir"]},
+{"name": "sp-math-sakke",
+ "comment": "SAKKE on WOLFSSL_SP_MATH without RSA, DH, or ECCSI: its blinded RSK inverse needs sp_mulmod, which nothing else builds in this shape.",
+ "configure": ["--enable-cryptonly", "--enable-sp-math", "--enable-sp",
+  "--disable-rsa", "--disable-dh", "--enable-sakke"]}
 ]

@@ -210,7 +210,7 @@
         -# wc_MakeSakkeKey(), wc_ExportSakkeKey(), wc_ExportSakkePublicKey() or
         -# wc_ImportSakkeKey()
       -# Wait for request:
-        -# Make an RSK base on ID for the client: wc_MakeSakkeRsk()
+        -# Make an RSK base on ID for the client: wc_MakeSakkeRsk_ex()
         -# Encode RSK for transfer to client: wc_EncodeSakkeRsk()
       -# Free SAKKE Key: wc_FreeSakkeKey()
 
@@ -271,7 +271,7 @@
     These operations make, validate, encode and decode a Receiver Secret Key (RSK).
 
     An RSK is required to derive an SSV (see wc_DeriveSakkeSSV()).\n
-    On the KMS, make an RSK (wc_MakeSakkeRsk()) from the client's ID.\n
+    On the KMS, make an RSK (wc_MakeSakkeRsk_ex()) from the client's ID.\n
     On the client, validate the RSK (wc_ValidateSakkeRsk()) with the ID.\n
     Encode the RSK (wc_EncodeSakkeRsk()) to pass to client or for storage.\n
     Decode the RSK (wc_DecodeSakkeRsk()) on the client when needed.\n
