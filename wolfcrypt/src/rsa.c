@@ -614,14 +614,12 @@ int wc_FreeRsaKey(RsaKey* key)
     if (key->devId != INVALID_DEVID)
     #endif
     {
-        ret = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
-                               WC_PK_TYPE_RSA, 0, key);
-        /* If callback wants standard free, it returns CRYPTOCB_UNAVAILABLE.
-         * Otherwise assume the callback handled cleanup. */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
-            return ret;
-        /* fall-through to software cleanup */
-        ret = 0;
+        int cbRet = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                                     WC_PK_TYPE_RSA, 0, key);
+        /* Keep the device status but always run the software cleanup below,
+         * since private key fields may still hold data. */
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            ret = cbRet;
     }
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
