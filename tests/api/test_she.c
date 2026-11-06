@@ -628,6 +628,36 @@ int test_wc_SHE_CryptoCb(void)
                         em3, WC_SHE_M3_SZ, em4, WC_SHE_M4_SZ,
                         em5, WC_SHE_M5_SZ, NULL),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_ExportKey(&she,
+                        em1, WC_SHE_M1_SZ - 1, em2, WC_SHE_M2_SZ,
+                        em3, WC_SHE_M3_SZ, em4, WC_SHE_M4_SZ,
+                        em5, WC_SHE_M5_SZ, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_ExportKey(&she,
+                        em1, WC_SHE_M1_SZ, em2, WC_SHE_M2_SZ - 1,
+                        em3, WC_SHE_M3_SZ, em4, WC_SHE_M4_SZ,
+                        em5, WC_SHE_M5_SZ, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_ExportKey(&she,
+                        em1, WC_SHE_M1_SZ, em2, WC_SHE_M2_SZ,
+                        em3, WC_SHE_M3_SZ - 1, em4, WC_SHE_M4_SZ,
+                        em5, WC_SHE_M5_SZ, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_ExportKey(&she,
+                        em1, WC_SHE_M1_SZ, em2, WC_SHE_M2_SZ,
+                        em3, WC_SHE_M3_SZ, em4, WC_SHE_M4_SZ - 1,
+                        em5, WC_SHE_M5_SZ, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_ExportKey(&she,
+                        em1, WC_SHE_M1_SZ, em2, WC_SHE_M2_SZ,
+                        em3, WC_SHE_M3_SZ, em4, WC_SHE_M4_SZ,
+                        em5, WC_SHE_M5_SZ - 1, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* NULL buffers skip that message, so their size is not checked */
+        ExpectIntEQ(wc_SHE_ExportKey(&she,
+                        NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL),
+                    0);
     }
 #endif
 
