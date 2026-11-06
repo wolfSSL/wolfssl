@@ -2051,7 +2051,8 @@ static int wolfssl_bn_invmod_blind(mp_int* a, const WOLFSSL_BIGNUM* m,
  *
  * A new big number is allocated when r is NULL.
  *
- * The operand is always blinded; BN_FLG_CONSTTIME is not needed or checked.
+ * The operand is blinded when a random blinding factor can be generated, and
+ * inverted unblinded otherwise. BN_FLG_CONSTTIME is not checked.
  *
  * @param [in, out] r    Big number to hold result. May be NULL.
  * @param [in]      a    Big number to invert.
