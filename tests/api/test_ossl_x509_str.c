@@ -448,7 +448,8 @@ int test_wolfSSL_X509_verify_cert_crl_date_override(void)
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && !defined(NO_ASN_TIME) && \
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
-static int test_crl_date_cb_waive[2];
+/* The third verdict to waive is set by the test itself. */
+static int test_crl_date_cb_waive[3];
 static int test_crl_date_cb_seen[4];
 static int test_crl_date_cb_calls;
 #ifdef OPENSSL_ALL
@@ -469,7 +470,8 @@ static int test_crl_date_verify_cb(int ok, X509_STORE_CTX* ctx)
         test_crl_date_cb_seen[test_crl_date_cb_calls] = err;
     test_crl_date_cb_calls++;
     return (err == test_crl_date_cb_waive[0]) ||
-           (err == test_crl_date_cb_waive[1]);
+           (err == test_crl_date_cb_waive[1]) ||
+           (err == test_crl_date_cb_waive[2]);
 }
 
 static int test_crl_date_verify(X509_STORE* store, X509* cert, int waive0,
@@ -562,8 +564,11 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
     const int noCrl = WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL;
     const int notYet = WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
     const int revokedErr = WOLFSSL_X509_V_ERR_CERT_REVOKED;
+    const int crlNotYet = WOLFSSL_X509_V_ERR_CRL_NOT_YET_VALID;
     /* Waives no verdict the store reports. */
     const int none = -1;
+
+    test_crl_date_cb_waive[2] = none;
 
     ExpectNotNull(store = X509_STORE_new());
     ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(
@@ -586,11 +591,12 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
     ExpectIntEQ(test_crl_date_cb_calls, 1);
 
 #ifdef OPENSSL_ALL
-    /* A certificate that verified is passed to the callback once. */
+    /* Each certificate that verified is passed to the callback once, the
+     * trust anchor included, as in OpenSSL. */
     ExpectNotNull(plainStore = X509_STORE_new());
     ExpectIntEQ(X509_STORE_add_cert(plainStore, ca), SSL_SUCCESS);
     ExpectIntEQ(test_crl_date_verify(plainStore, cert, none, none, &err), 1);
-    ExpectIntEQ(test_crl_date_cb_ok_calls, 1);
+    ExpectIntEQ(test_crl_date_cb_ok_calls, 2);
     ExpectIntEQ(test_crl_date_cb_calls, 0);
     /* A store callback can still reject it. */
     if (plainStore != NULL)
@@ -686,18 +692,21 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
     ExpectIntEQ(test_crl_date_cb_seen[0], noCrl);
     ExpectIntEQ(test_crl_date_cb_seen[1], notYet);
 
+    /* As in OpenSSL, the dates of the trust anchor are checked too. */
     ExpectIntEQ(test_crl_date_verify(store, cert, noCrl, notYet, &err), 1);
     ExpectIntEQ(err, notYet);
-    ExpectIntEQ(test_crl_date_cb_calls, 2);
+    ExpectIntEQ(test_crl_date_cb_calls, 3);
 
 #ifdef OPENSSL_ALL
-    /* The dates are still checked once a missing issuer is waived. */
+    /* The dates are still checked once a missing issuer is waived. As in
+     * OpenSSL, the leaf signature that cannot be verified is reported too. */
     ExpectNotNull(plainStore = X509_STORE_new());
     ExpectIntEQ(test_crl_date_verify(plainStore, cert,
-        WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, none, &err), 0);
+        WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY,
+        WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE, &err), 0);
     ExpectIntEQ(err, notYet);
-    ExpectIntEQ(test_crl_date_cb_calls, 2);
-    ExpectIntEQ(test_crl_date_cb_seen[1], notYet);
+    ExpectIntEQ(test_crl_date_cb_calls, 3);
+    ExpectIntEQ(test_crl_date_cb_seen[2], notYet);
     X509_STORE_free(plainStore);
     plainStore = NULL;
 #endif
@@ -717,12 +726,17 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
         XFCLOSE(fp);
     ExpectIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
 
+    /* As in OpenSSL, the CRL is not yet valid either, and that is reported
+     * first. */
+    test_crl_date_cb_waive[2] = crlNotYet;
     ExpectIntEQ(test_crl_date_verify(store, revoked, revokedErr, notYet,
         &err), 1);
     ExpectIntEQ(err, notYet);
-    ExpectIntEQ(test_crl_date_cb_calls, 2);
-    ExpectIntEQ(test_crl_date_cb_seen[0], revokedErr);
-    ExpectIntEQ(test_crl_date_cb_seen[1], notYet);
+    ExpectIntEQ(test_crl_date_cb_calls, 4);
+    ExpectIntEQ(test_crl_date_cb_seen[0], crlNotYet);
+    ExpectIntEQ(test_crl_date_cb_seen[1], revokedErr);
+    ExpectIntEQ(test_crl_date_cb_seen[2], notYet);
+    ExpectIntEQ(test_crl_date_cb_seen[3], notYet);
 
     /* A CRL set on the context is consulted before the dates as well. */
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.revoked", "rb")) != XBADFILE);
@@ -744,8 +758,10 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
     test_crl_date_cb_calls = 0;
     ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
     ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx), revokedErr);
-    ExpectIntEQ(test_crl_date_cb_calls, 1);
+    ExpectIntEQ(test_crl_date_cb_calls, 2);
+    ExpectIntEQ(test_crl_date_cb_seen[0], crlNotYet);
     X509_STORE_CTX_free(storeCtx);
+    test_crl_date_cb_waive[2] = none;
 
     wc_SetTimeCb(NULL);
 
