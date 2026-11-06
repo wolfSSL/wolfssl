@@ -37,6 +37,8 @@ int test_wolfSSL_inject_app_data_partial_record(void);
 int test_wolfSSL_clear_app_data_pending(void);
 int test_wolfSSL_write_retry_flushed_by_update_keys(void);
 int test_wolfSSL_clear_write_pending(void);
+int test_wolfSSL_write_retry_keyupdate_blocked(void);
+int test_wolfSSL_write_retry_alert_blocked(void);
 int test_wolfSSL_rehandshake_app_data_pending(void);
 int test_wolfSSL_rehandshake_app_data_partial_record(void);
 int test_wolfSSL_accept_early_data_pending(void);
@@ -70,6 +72,8 @@ int test_wolfSSL_write_dup_max_fragment(void);
         TEST_DECL_GROUP("ssl_rw",                                              \
             test_wolfSSL_write_retry_flushed_by_update_keys),                  \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_clear_write_pending),           \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_retry_keyupdate_blocked), \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_retry_alert_blocked),     \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_rehandshake_app_data_pending),  \
         TEST_DECL_GROUP("ssl_rw",                                              \
             test_wolfSSL_rehandshake_app_data_partial_record),                 \

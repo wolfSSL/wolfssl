@@ -990,6 +990,161 @@ int test_wolfSSL_clear_write_pending(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+struct test_write_retry_block_ctx {
+    struct test_memio_ctx* test_ctx;
+    int calls;
+};
+
+/* Return WANT_WRITE on the first and third send, pass the rest to memio. */
+static int test_write_retry_block_send_cb(WOLFSSL* ssl, char* data, int sz,
+    void* ctx)
+{
+    struct test_write_retry_block_ctx* wctx =
+        (struct test_write_retry_block_ctx*)ctx;
+
+    wctx->calls++;
+    if (wctx->calls == 1 || wctx->calls == 3) {
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+    return test_memio_write_cb(ssl, data, sz, wctx->test_ctx);
+}
+#endif
+
+/* Test that a retried write does not send again a record that went out before
+ * the deferred KeyUpdate reply blocked. */
+int test_wolfSSL_write_retry_keyupdate_blocked(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_write_retry_block_ctx wctx;
+    const char msg[] = "sent before the KeyUpdate reply";
+    char reply[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&wctx, 0, sizeof(wctx));
+    wctx.test_ctx = &test_ctx;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_SSLSetIOSend(ssl_c, test_write_retry_block_send_cb);
+    wolfSSL_SetIOWriteCtx(ssl_c, &wctx);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+
+    /* The read leaves the KeyUpdate reply to the next write. */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 1);
+    }
+
+    /* The record goes out, then the KeyUpdate reply blocks. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    /* Record, record, KeyUpdate, KeyUpdate: no new record. */
+    ExpectIntEQ(wctx.calls, 4);
+
+    /* One copy only. */
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+        (int)sizeof(msg));
+    ExpectBufEQ(reply, msg, sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a retried write does not send again a record that went out before
+ * a pending alert blocked. */
+int test_wolfSSL_write_retry_alert_blocked(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_write_retry_block_ctx wctx;
+    const char msg[] = "sent before the pending alert";
+    char reply[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&wctx, 0, sizeof(wctx));
+    wctx.test_ctx = &test_ctx;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_SSLSetIOSend(ssl_c, test_write_retry_block_send_cb);
+    wolfSSL_SetIOWriteCtx(ssl_c, &wctx);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+
+    /* A warning alert that leaves the connection open is waiting to go. */
+    if (ssl_c != NULL) {
+        ssl_c->pendingAlert.code = user_canceled;
+        ssl_c->pendingAlert.level = alert_warning;
+    }
+
+    /* The record goes out, then the alert blocks. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    /* Record, record, alert, alert: no new record. */
+    ExpectIntEQ(wctx.calls, 4);
+
+    /* One copy only. */
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+        (int)sizeof(msg));
+    ExpectBufEQ(reply, msg, sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a renegotiation does not read input while decrypted application
  * data is still waiting to be read.
  *

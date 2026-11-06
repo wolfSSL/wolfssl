@@ -31378,20 +31378,6 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             return (ssl->error = error);
         }
     }
-    /* The record the last write queued has been sent, by the flush above or
-     * by another call such as wolfSSL_negotiate(). */
-    if (ssl->buffers.outputBuffer.length == 0 &&
-            (ssl->buffers.prevSent != 0 || ssl->buffers.plainSz != 0)) {
-        sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
-        ssl->buffers.prevSent = 0;
-        ssl->buffers.plainSz = 0;
-        WOLFSSL_MSG("sent write buffered data");
-
-        if (sent > (word32)sz) {
-            WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
-            return (ssl->error = BAD_FUNC_ARG);
-        }
-    }
 
     ret = RetrySendAlert(ssl);
     if (ret != 0) {
@@ -31421,9 +31407,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 
 #ifdef WOLFSSL_TLS13
     /* A KeyUpdate response the read side left for the write side to send. It
-     * goes out ahead of the application data, and only once the output buffer
-     * is flushed, so that the record of an earlier call is accounted for above
-     * instead of being sent from here and then built again. */
+     * goes out ahead of the application data, once the output buffer is
+     * flushed. */
     if (ssl->options.sendKeyUpdate) {
         /* RFC 9846 Section 4.7.3: at the key update limit, ignore the
          * request rather than fail the write. */
@@ -31453,6 +31438,22 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
     }
 #endif
+
+    /* The record the last write queued has been sent, by this call's flush or
+     * by another call such as wolfSSL_negotiate(). Taken only after the early
+     * returns, so a WANT_WRITE from the KeyUpdate or alert keeps the credit. */
+    if (ssl->buffers.outputBuffer.length == 0 &&
+            (ssl->buffers.prevSent != 0 || ssl->buffers.plainSz != 0)) {
+        sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
+        ssl->buffers.prevSent = 0;
+        ssl->buffers.plainSz = 0;
+        WOLFSSL_MSG("sent write buffered data");
+
+        if (sent > (word32)sz) {
+            WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
+            return (ssl->error = BAD_FUNC_ARG);
+        }
+    }
 
 #ifdef WOLFSSL_THREADED_CRYPT
     ret = SendAsyncData(ssl);
