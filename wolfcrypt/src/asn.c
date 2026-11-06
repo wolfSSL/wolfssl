@@ -38142,7 +38142,7 @@ static Signer *OcspFindSigner(OcspResponse *resp, WOLFSSL_CERT_MANAGER *cm)
         if (s)
             return s;
     }
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#ifndef NO_CERTS
     if (resp->pendingCAs == NULL)
         return NULL;
 
