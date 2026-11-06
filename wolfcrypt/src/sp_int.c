@@ -4173,33 +4173,50 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
  * CPU: MIPS 64-bit
  */
 
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 6)
+/* MIPS Release 6 removed the HI/LO registers and dmultu/mflo/mfhi.
+ * Multiply va by vb putting the high and low words directly into registers.
+ * High word is calculated first so the low word output may share a register
+ * with an input. The high word output must be early clobber.
+ */
+#define SP_ASM_MIPS_MUL(l, h, a, b)                      \
+        "dmuhu\t" h ", " a ", " b "\n\t"                 \
+        "dmulu\t" l ", " a ", " b "\n\t"
+/* No HI/LO registers to clobber. */
+#define SP_ASM_MIPS_HILO
+#define SP_ASM_MIPS_HILO_C
+#else
+/* Multiply va by vb into HI/LO and move the low and high words out. */
+#define SP_ASM_MIPS_MUL(l, h, a, b)                      \
+        "dmultu\t" a ", " b "\n\t"                       \
+        "mflo\t" l "\n\t"                                \
+        "mfhi\t" h "\n\t"
+/* HI/LO registers are clobbered by multiplication. */
+#define SP_ASM_MIPS_HILO        "$lo", "$hi"
+#define SP_ASM_MIPS_HILO_C      , "$lo", "$hi"
+#endif
+
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[b]		\n\t"            \
-        "mflo	%[l]			\n\t"            \
-        "mfhi	%[h]			\n\t"            \
-        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        SP_ASM_MIPS_MUL("%[l]", "%[h]", "%[a]", "%[b]")  \
+        : [h] "+&r" (vh), [l] "+r" (vl)                  \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$lo", "$hi"                                   \
+        : SP_ASM_MIPS_HILO                               \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[b]		\n\t"            \
-        "mflo	%[l]			\n\t"            \
-        "mfhi	%[h]			\n\t"            \
+        SP_ASM_MIPS_MUL("%[l]", "%[h]", "%[a]", "%[b]")  \
         "move	%[o], $0		\n\t"            \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
+        : [l] "+r" (vl), [h] "+&r" (vh), [o] "=r" (vo)   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$lo", "$hi"                                   \
+        : SP_ASM_MIPS_HILO                               \
     )
 /* Multiply va by vb and add double size result into: vo | vh | vl */
 #define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "daddu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "daddu	%[h], %[h], $12		\n\t"            \
@@ -4210,28 +4227,24 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "daddu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Multiply va by vb and add double size result into: vh | vl */
 #define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "daddu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "daddu	%[h], %[h], $11		\n\t"            \
         "daddu	%[h], %[h], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl */
 #define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "daddu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "daddu	%[h], %[h], $12		\n\t"            \
@@ -4250,16 +4263,14 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "daddu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl
  * Assumes first add will not overflow vh | vl
  */
 #define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "daddu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "daddu	%[h], %[h], $11		\n\t"            \
@@ -4274,24 +4285,20 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "daddu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Square va and store double size result in: vh | vl */
 #define SP_ASM_SQR(vl, vh, va)                           \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[a]		\n\t"            \
-        "mflo	%[l]			\n\t"            \
-        "mfhi	%[h]			\n\t"            \
-        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        SP_ASM_MIPS_MUL("%[l]", "%[h]", "%[a]", "%[a]")  \
+        : [h] "+&r" (vh), [l] "+r" (vl)                  \
         : [a] "r" (va)                                   \
-        : "$lo", "$hi"                                   \
+        : SP_ASM_MIPS_HILO                               \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[a]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[a]")    \
         "daddu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "daddu	%[h], %[h], $12		\n\t"            \
@@ -4302,21 +4309,19 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "daddu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va)                                   \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Square va and add double size result into: vh | vl */
 #define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
     __asm__ __volatile__ (                               \
-        "dmultu	%[a], %[a]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[a]")    \
         "daddu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "daddu	%[h], %[h], $11		\n\t"            \
         "daddu	%[h], %[h], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va)                                   \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Add va into: vh | vl */
 #define SP_ASM_ADDC(vl, vh, va)                          \
@@ -4374,33 +4379,50 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
  * CPU: MIPS 32-bit
  */
 
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 6)
+/* MIPS Release 6 removed the HI/LO registers and multu/mflo/mfhi.
+ * Multiply va by vb putting the high and low words directly into registers.
+ * High word is calculated first so the low word output may share a register
+ * with an input. The high word output must be early clobber.
+ */
+#define SP_ASM_MIPS_MUL(l, h, a, b)                      \
+        "muhu\t" h ", " a ", " b "\n\t"                  \
+        "mulu\t" l ", " a ", " b "\n\t"
+/* No HI/LO registers to clobber. */
+#define SP_ASM_MIPS_HILO
+#define SP_ASM_MIPS_HILO_C
+#else
+/* Multiply va by vb into HI/LO and move the low and high words out. */
+#define SP_ASM_MIPS_MUL(l, h, a, b)                      \
+        "multu\t" a ", " b "\n\t"                        \
+        "mflo\t" l "\n\t"                                \
+        "mfhi\t" h "\n\t"
+/* HI/LO registers are clobbered by multiplication. */
+#define SP_ASM_MIPS_HILO        "%lo", "%hi"
+#define SP_ASM_MIPS_HILO_C      , "%lo", "%hi"
+#endif
+
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[b]		\n\t"            \
-        "mflo	%[l]			\n\t"            \
-        "mfhi	%[h]			\n\t"            \
-        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        SP_ASM_MIPS_MUL("%[l]", "%[h]", "%[a]", "%[b]")  \
+        : [h] "+&r" (vh), [l] "+r" (vl)                  \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "%lo", "%hi"                                   \
+        : SP_ASM_MIPS_HILO                               \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[b]		\n\t"            \
-        "mflo	%[l]			\n\t"            \
-        "mfhi	%[h]			\n\t"            \
+        SP_ASM_MIPS_MUL("%[l]", "%[h]", "%[a]", "%[b]")  \
         "move	%[o], $0		\n\t"            \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
+        : [l] "+r" (vl), [h] "+&r" (vh), [o] "=r" (vo)   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "%lo", "%hi"                                   \
+        : SP_ASM_MIPS_HILO                               \
     )
 /* Multiply va by vb and add double size result into: vo | vh | vl */
 #define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "addu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "addu	%[h], %[h], $12		\n\t"            \
@@ -4411,28 +4433,24 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "%lo", "%hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Multiply va by vb and add double size result into: vh | vl */
 #define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "addu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "addu	%[h], %[h], $11		\n\t"            \
         "addu	%[h], %[h], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "%lo", "%hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl */
 #define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "addu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "addu	%[h], %[h], $12		\n\t"            \
@@ -4451,16 +4469,14 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "%lo", "%hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl
  * Assumes first add will not overflow vh | vl
  */
 #define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[b]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[b]")    \
         "addu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "addu	%[h], %[h], $11		\n\t"            \
@@ -4475,24 +4491,20 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "%lo", "%hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Square va and store double size result in: vh | vl */
 #define SP_ASM_SQR(vl, vh, va)                           \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[a]		\n\t"            \
-        "mflo	%[l]			\n\t"            \
-        "mfhi	%[h]			\n\t"            \
-        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        SP_ASM_MIPS_MUL("%[l]", "%[h]", "%[a]", "%[a]")  \
+        : [h] "+&r" (vh), [l] "+r" (vl)                  \
         : [a] "r" (va)                                   \
-        : "%lo", "%hi"                                   \
+        : SP_ASM_MIPS_HILO                               \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[a]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[a]")    \
         "addu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "addu	%[h], %[h], $12		\n\t"            \
@@ -4503,21 +4515,19 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va)                                   \
-        : "$10", "$11", "$12", "%lo", "%hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Square va and add double size result into: vh | vl */
 #define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
     __asm__ __volatile__ (                               \
-        "multu	%[a], %[a]		\n\t"            \
-        "mflo	$10			\n\t"            \
-        "mfhi	$11			\n\t"            \
+        SP_ASM_MIPS_MUL("$10", "$11", "%[a]", "%[a]")    \
         "addu	%[l], %[l], $10		\n\t"            \
         "sltu	$12, %[l], $10		\n\t"            \
         "addu	%[h], %[h], $11		\n\t"            \
         "addu	%[h], %[h], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va)                                   \
-        : "$10", "$11", "$12", "%lo", "%hi"              \
+        : "$10", "$11", "$12" SP_ASM_MIPS_HILO_C         \
     )
 /* Add va into: vh | vl */
 #define SP_ASM_ADDC(vl, vh, va)                          \

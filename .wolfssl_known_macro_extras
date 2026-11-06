@@ -1490,6 +1490,7 @@ __linux__
 __llvm__
 __mips
 __mips64
+__mips_isa_rev
 __must_check
 __ppc64__
 __ppc__
