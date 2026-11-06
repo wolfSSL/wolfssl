@@ -10083,20 +10083,64 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
+#if defined(WC_RSA_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_RSA)
+    RsaNb* rsaNb;
+#endif
+#if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_ECC)
+    ecc_nb_ctx_t* eccNbCtx;
+#endif
+#if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_X25519)
+    x25519_nb_ctx_t* x25519NbCtx;
+#endif
 
     (void)ssl;
 
     switch (type) {
     #ifndef NO_RSA
         case DYNAMIC_TYPE_RSA:
+        #if defined(WC_RSA_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_RSA)
+            rsaNb = ((RsaKey*)pKey)->nb;
+        #endif
             wc_FreeRsaKey((RsaKey*)pKey);
             ret = wc_InitRsaKey_ex((RsaKey*)pKey, ssl->heap, ssl->devId);
+        #if defined(WC_RSA_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_RSA)
+            if (rsaNb != NULL) {
+                if (ret == 0) {
+                    ret = wc_RsaSetNonBlock((RsaKey*)pKey, rsaNb);
+                }
+                if (ret != 0) {
+                    XFREE(rsaNb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            }
+        #endif
             break;
     #endif /* ! NO_RSA */
     #ifdef HAVE_ECC
         case DYNAMIC_TYPE_ECC:
+        #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_ECC)
+            /* Keep the non-blocking context AllocKey attached; init clears it
+             * from the key. */
+            eccNbCtx = ((ecc_key*)pKey)->nb_ctx;
+        #endif
             wc_ecc_free((ecc_key*)pKey);
             ret = wc_ecc_init_ex((ecc_key*)pKey, ssl->heap, ssl->devId);
+        #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_ECC)
+            if (eccNbCtx != NULL) {
+                if (ret == 0) {
+                    ret = wc_ecc_set_nonblock((ecc_key*)pKey, eccNbCtx);
+                }
+                if (ret != 0) {
+                    XFREE(eccNbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            }
+        #endif
             break;
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
@@ -10108,9 +10152,25 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_CURVE25519
         case DYNAMIC_TYPE_CURVE25519:
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_X25519)
+            x25519NbCtx = ((curve25519_key*)pKey)->nb_ctx;
+        #endif
             wc_curve25519_free((curve25519_key*)pKey);
             ret = wc_curve25519_init_ex((curve25519_key*)pKey, ssl->heap,
                 ssl->devId);
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_X25519)
+            if (x25519NbCtx != NULL) {
+                if (ret == 0) {
+                    ret = wc_curve25519_set_nonblock((curve25519_key*)pKey,
+                        x25519NbCtx);
+                }
+                if (ret != 0) {
+                    XFREE(x25519NbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            }
+        #endif
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_ED448
