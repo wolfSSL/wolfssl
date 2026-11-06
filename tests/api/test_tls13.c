@@ -13746,6 +13746,28 @@ int test_tls13_AEAD_limit_macros(void)
     limit = DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT;
     ExpectIntEQ(w64GetHigh32(limit), 0);
     ExpectIntEQ(w64GetLow32(limit),  0x005A8279);
+
+    /* RFC 9147 (AES-CCM confidentiality): 2^23 (0x00800000). */
+    limit = DTLS_AEAD_AES_CCM_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0);
+    ExpectIntEQ(w64GetLow32(limit),  0x00800000);
+
+    /* RFC 9147 (AES-GCM, ChaCha20-Poly1305 integrity): 2^36, key update at
+     * 2^35. */
+    limit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0x10);
+    ExpectIntEQ(w64GetLow32(limit),  0);
+    limit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0x08);
+    ExpectIntEQ(w64GetLow32(limit),  0);
+
+    /* RFC 9147 (AES-CCM-8 integrity): 2^7, key update at 2^6. */
+    limit = DTLS_AEAD_AES_CCM_8_FAIL_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0);
+    ExpectIntEQ(w64GetLow32(limit),  0x80);
+    limit = DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0);
+    ExpectIntEQ(w64GetLow32(limit),  0x40);
 #endif
 #endif
     return EXPECT_RESULT();
