@@ -1904,6 +1904,53 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
 #endif /* WOLFSSL_TLS13 */
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+/*  Convert a DER encoded ECDSA signature into the raw r || s form TSIP uses.
+ *  r and s are each right aligned and zero padded to half of
+ *  R_TSIP_ECDSA_DATA_BYTE_SIZE.
+ *  parameters:
+ *   sig    buffer holding DER encoded ecdsa signature data
+ *   sigSz  signature data size
+ *   out    buffer of R_TSIP_ECDSA_DATA_BYTE_SIZE bytes to hold r || s
+ *  return 0 on success, otherwise negative error code
+ */
+static int tsip_EccSigDerToRaw(const byte* sig, word32 sigSz, byte* out)
+{
+    int         ret;
+    const word32 rs_size = R_TSIP_ECDSA_DATA_BYTE_SIZE / 2;
+    byte        r[R_TSIP_ECDSA_DATA_BYTE_SIZE / 2 + 1];
+    byte        s[R_TSIP_ECDSA_DATA_BYTE_SIZE / 2 + 1];
+    word32      rLen = (word32)sizeof(r);
+    word32      sLen = (word32)sizeof(s);
+    word32      rIdx = 0;
+    word32      sIdx = 0;
+
+    if (sig == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_ecc_sig_to_rs(sig, sigSz, r, &rLen, s, &sLen);
+    if (ret == 0) {
+        while (rIdx < rLen && r[rIdx] == 0) {
+            rIdx++;
+        }
+        while (sIdx < sLen && s[sIdx] == 0) {
+            sIdx++;
+        }
+        if ((rLen - rIdx) > rs_size || (sLen - sIdx) > rs_size) {
+            ret = ASN_PARSE_E;
+        }
+    }
+    if (ret == 0) {
+        XMEMSET(out, 0, R_TSIP_ECDSA_DATA_BYTE_SIZE);
+        XMEMCPY(&out[rs_size - (rLen - rIdx)], &r[rIdx], rLen - rIdx);
+        XMEMCPY(&out[R_TSIP_ECDSA_DATA_BYTE_SIZE - (sLen - sIdx)], &s[sIdx],
+                sLen - sIdx);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >=109)
 
@@ -2104,8 +2151,6 @@ int wc_tsip_EccVerify(
 {
     int         ret = WOLFSSL_FAILURE;
     uint8_t     sigforSCE [R_TSIP_ECDSA_DATA_BYTE_SIZE] = {0};
-    const byte  rs_size = R_TSIP_ECDSA_DATA_BYTE_SIZE/2;
-    byte        offset = 0x3;
 
     WOLFSSL_ENTER("wc_tsip_EccVerify");
 
@@ -2124,30 +2169,11 @@ int wc_tsip_EccVerify(
     }
 
     /* concatenate r and s parts of the signature so that TSIP can handle it */
-    /* r */
-    if (sig[offset] == 0x20) {
-        XMEMCPY(sigforSCE, &sig[offset+1], rs_size);
-
-        offset = 0x25;
-        /* s */
-        if (sig[offset] == 0x20) {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+1], rs_size);
-        }
-        else {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+2], rs_size);
-        }
-    }
-    else {
-        XMEMCPY(sigforSCE, &sig[offset+2], rs_size);
-
-        offset = 0x26;
-        /* s */
-        if (sig[offset] == rs_size) {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+1], rs_size);
-        }
-        else {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+2], rs_size);
-        }
+    ret = tsip_EccSigDerToRaw(sig, sigSz, sigforSCE);
+    if (ret != 0) {
+        *result = 0;
+        WOLFSSL_LEAVE("wc_tsip_EccVerify", ret);
+        return ret;
     }
 
     ret = tsip_ServerKeyExVerify(2, ssl, sigforSCE, 64, ctx);
@@ -3527,8 +3553,6 @@ int wc_tsip_tls_CertVerify(
     int ret;
     uint8_t *sigforSCE = NULL;
     uint8_t *pSig = NULL;
-    const byte rs_size = 0x20;
-    byte offset = 0x3;
 
     WOLFSSL_ENTER("wc_tsip_tls_CertVerify");
 
@@ -3556,27 +3580,11 @@ int wc_tsip_tls_CertVerify(
         /* initialization */
         ForceZero(sigforSCE, R_TSIP_ECDSA_DATA_BYTE_SIZE);
 
-        if (signature[offset] == 0x20) {
-            XMEMCPY(sigforSCE, &signature[offset+1], rs_size);
-
-            offset = 0x25;
-            if (signature[offset] == 0x20) {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+1], rs_size);
-            }
-            else {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+2], rs_size);
-            }
-        }
-        else {
-            XMEMCPY(sigforSCE, &signature[offset+2], rs_size);
-            offset = 0x26;
-
-            if (signature[offset] == rs_size) {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+1], rs_size);
-            }
-            else {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+2], rs_size);
-            }
+        ret = tsip_EccSigDerToRaw(signature, sigSz, sigforSCE);
+        if (ret != 0) {
+            XFREE(sigforSCE, NULL, DYNAMIC_TYPE_ECC);
+            WOLFSSL_LEAVE("wc_tsip_tls_CertVerify", ret);
+            return ret;
         }
         pSig = sigforSCE;
     }
