@@ -10193,11 +10193,6 @@ int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         return ret;
     }
 
-    if (wolfSSL_BIO_read_filename(bio, file) <= 0) {
-        wolfSSL_BIO_free(bio);
-        return ret;
-    }
-
     if (type == WOLFSSL_FILETYPE_PEM) {
         do {
             crl = wolfSSL_PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
