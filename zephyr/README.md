@@ -104,6 +104,18 @@ FIPS v2, v5 and v6 `CONFIG_WOLFCRYPT_ASM` accelerates only the SP math: those
 boundaries keep their AES and SHA assembly in a form this module does not
 build.
 
+The `crypto_only` scenario of `tests/wolfssl_condvar` also calls
+`wc_InitRng()`, which under v5 only works once the hook in `zephyr_init.c`
+has registered the seed callback; `wolfcrypt_test()` registers it itself, so
+the test sample cannot tell. CI runs it without a bundle. With one:
+
+```
+west build -p always -b native_sim modules/crypto/wolfssl/zephyr/tests/wolfssl_condvar -- -DCONFIG_WOLFSSL_CRYPTO_ONLY=y -DCONFIG_WOLFCRYPT_FIPS=y -DCONFIG_WOLFCRYPT_FIPS_V5=y -DCONFIG_LINKER_SORT_BY_ALIGNMENT=n
+west build -t run
+```
+
+Add `-DCONFIG_WOLFCRYPT_FIPS_V5_2_3=y` for a 5.2.3 bundle.
+
 ## Build and Run wolfCrypt Benchmark Application
 
 build and execute `wolfssl_benchmark`
