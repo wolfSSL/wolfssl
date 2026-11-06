@@ -8819,6 +8819,24 @@ do
   esac
 done
 
+# Default the parameter sets and operations when only a mode is named.
+if test "x$ENABLED_MLKEM" != "xno" && test "x$ENABLED_MLKEM512" = "x" && \
+   test "x$ENABLED_MLKEM768" = "x" && test "x$ENABLED_MLKEM1024" = "x"
+then
+    ENABLED_MLKEM512=yes
+    ENABLED_MLKEM768=yes
+    ENABLED_MLKEM1024=yes
+fi
+if test "x$ENABLED_MLKEM" != "xno" && \
+   test "x$ENABLED_MLKEM_MAKE_KEY" = "xno" && \
+   test "x$ENABLED_MLKEM_ENCAPSULATE" = "xno" && \
+   test "x$ENABLED_MLKEM_DECAPSULATE" = "xno"
+then
+    ENABLED_MLKEM_MAKE_KEY=yes
+    ENABLED_MLKEM_ENCAPSULATE=yes
+    ENABLED_MLKEM_DECAPSULATE=yes
+fi
+
 # Selftest uses its own random.c which doesn't support SHA-512 DRBG
 # or runtime DRBG disable/enable APIs
 AS_IF([test "x$ENABLED_SELFTEST" = "xyes"],

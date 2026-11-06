@@ -3981,6 +3981,7 @@ int test_wc_mlkem_decap_fo_reject(void)
     byte ssDec[WC_ML_KEM_SS_SZ];
     byte ssTampered[WC_ML_KEM_SS_SZ];
     word32 ctLen = 0;
+    int i;
 #ifdef WOLFSSL_SHAKE256
     byte priv[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
     byte ssExpected[WC_ML_KEM_SS_SZ];
@@ -4044,7 +4045,6 @@ int test_wc_mlkem_decap_fo_reject(void)
     ExpectIntEQ(wc_Shake256_Final(&shake, ssExpected, WC_ML_KEM_SS_SZ), 0);
     wc_Shake256_Free(&shake);
     ExpectIntEQ(XMEMCMP(ssTampered, ssExpected, WC_ML_KEM_SS_SZ), 0);
-    ForceZero(priv, sizeof(priv));
 #endif
 
     /* Tamper at byte 0: decapsulation must still return 0. We do NOT assert
@@ -4058,6 +4058,30 @@ int test_wc_mlkem_decap_fo_reject(void)
     PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
     PRIVATE_KEY_LOCK();
+
+    /* Tamper in a later block of u and in c_2. */
+    for (i = 0; (i < 2) && EXPECT_SUCCESS(); i++) {
+        XMEMCPY(ctTampered, ct, ctLen);
+        ctTampered[(i == 0) ? (ctLen - 200) : (ctLen - 1)] ^= 0x01;
+        XMEMSET(ssTampered, 0, sizeof(ssTampered));
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen),
+            0);
+        PRIVATE_KEY_LOCK();
+        ExpectIntNE(XMEMCMP(ssTampered, ss, WC_ML_KEM_SS_SZ), 0);
+    #ifdef WOLFSSL_SHAKE256
+        ExpectIntEQ(wc_InitShake256(&shake, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_Shake256_Update(&shake,
+            priv + privLen - WC_ML_KEM_SYM_SZ, WC_ML_KEM_SYM_SZ), 0);
+        ExpectIntEQ(wc_Shake256_Update(&shake, ctTampered, ctLen), 0);
+        ExpectIntEQ(wc_Shake256_Final(&shake, ssExpected, WC_ML_KEM_SS_SZ), 0);
+        wc_Shake256_Free(&shake);
+        ExpectIntEQ(XMEMCMP(ssTampered, ssExpected, WC_ML_KEM_SS_SZ), 0);
+    #endif
+    }
+#ifdef WOLFSSL_SHAKE256
+    ForceZero(priv, sizeof(priv));
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_MlKemKey_Free(key);
