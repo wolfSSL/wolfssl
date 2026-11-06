@@ -121,6 +121,13 @@
     #include <wolfssl/wolfcrypt/cpuid.h>
 
     static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+
+    static WC_INLINE cpuid_flags_t sha3_cpuid_flags(void)
+    {
+        if (cpuid_flags == WC_CPUID_INITIALIZER)
+            cpuid_get_flags_ex(&cpuid_flags);
+        return cpuid_flags;
+    }
 #ifdef WC_C_DYNAMIC_FALLBACK
     #define SHA3_BLOCK (sha3->sha3_block)
     #define SHA3_BLOCK_N (sha3->sha3_block_n)
@@ -951,7 +958,7 @@ static int InitSha3(wc_Sha3* sha3)
 #endif
 #if defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
         /* WOLFSSL_SHA3_AVX2 asks for AVX2 ahead of BMI2. */
-        if (SHA3_USE_AVX2(cpuid_flags)) {
+        if (SHA3_USE_AVX2(sha3_cpuid_flags())) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
@@ -959,14 +966,14 @@ static int InitSha3(wc_Sha3* sha3)
 #endif
         /* BMI2 before AVX2: sha3_block_bmi2 uses general registers only, so
          * it needs no vector-register save. */
-        if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+        if (IS_INTEL_BMI1(sha3_cpuid_flags()) && IS_INTEL_BMI2(sha3_cpuid_flags())) {
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
         }
 #if !defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
         /* AVX2 without BMI2.  Only live in the plain build: the overrides
          * either select AVX2 above or disable it outright. */
-        else if (SHA3_USE_AVX2(cpuid_flags)) {
+        else if (SHA3_USE_AVX2(sha3_cpuid_flags())) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
@@ -985,7 +992,7 @@ static int InitSha3(wc_Sha3* sha3)
         }
         else
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-        if (IS_AARCH64_SHA3(cpuid_flags)) {
+        if (IS_AARCH64_SHA3(sha3_cpuid_flags())) {
             SHA3_BLOCK = BlockSha3_crypto;
             SHA3_BLOCK_N = NULL;
         }

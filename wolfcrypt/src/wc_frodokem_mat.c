@@ -94,10 +94,10 @@
 #define FRODOKEM_SA_ACCUM(out, s, row, j, n)                                   \
     do {                                                                       \
         FRODOKEM_SA_ACCUM_SME(out, s, row, j, n)                               \
-        if (IS_AARCH64_SVE(cpuid_flags)) {                                     \
+        if (IS_AARCH64_SVE(frodokem_mat_cpuid_flags())) {                                     \
             frodokem_sa_accum_sve((out), (s), (row), (j), (n));                \
         }                                                                      \
-        else if (IS_AARCH64_ASIMD(cpuid_flags)) {                             \
+        else if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {                             \
             frodokem_sa_accum_arm((out), (s), (row), (j), (n));                \
         }                                                                      \
         else {                                                                 \
@@ -107,10 +107,10 @@
 #define FRODOKEM_AS_ACCUM(out, s, row, i, n)                                   \
     do {                                                                       \
         FRODOKEM_AS_ACCUM_SME(out, s, row, i, n)                               \
-        if (IS_AARCH64_SVE(cpuid_flags)) {                                     \
+        if (IS_AARCH64_SVE(frodokem_mat_cpuid_flags())) {                                     \
             frodokem_as_accum_sve((out), (s), (row), (i), (n));                \
         }                                                                      \
-        else if (IS_AARCH64_ASIMD(cpuid_flags)) {                             \
+        else if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {                             \
             frodokem_as_accum_arm((out), (s), (row), (i), (n));                \
         }                                                                      \
         else {                                                                 \
@@ -121,7 +121,7 @@
 #define FRODOKEM_SA_ACCUM(out, s, row, j, n)                                   \
     do {                                                                       \
         FRODOKEM_SA_ACCUM_SME(out, s, row, j, n)                               \
-        if (IS_AARCH64_ASIMD(cpuid_flags)) {                                   \
+        if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {                                   \
             frodokem_sa_accum_arm((out), (s), (row), (j), (n));                \
         }                                                                      \
         else {                                                                 \
@@ -131,7 +131,7 @@
 #define FRODOKEM_AS_ACCUM(out, s, row, i, n)                                   \
     do {                                                                       \
         FRODOKEM_AS_ACCUM_SME(out, s, row, i, n)                               \
-        if (IS_AARCH64_ASIMD(cpuid_flags)) {                                   \
+        if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {                                   \
             frodokem_as_accum_arm((out), (s), (row), (i), (n));                \
         }                                                                      \
         else {                                                                 \
@@ -191,6 +191,13 @@
  * matrix-A generation on Intel, and the SVE / NEON matrix ops on AArch64 (NEON
  * is gated on Advanced SIMD). Populated once by frodokem_init(). */
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+
+static WC_INLINE cpuid_flags_t frodokem_mat_cpuid_flags(void)
+{
+    if (cpuid_flags == WC_CPUID_INITIALIZER)
+        cpuid_get_flags_ex(&cpuid_flags);
+    return cpuid_flags;
+}
 #endif
 
 #if defined(FRODOKEM_HAVE_SME) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
@@ -226,7 +233,7 @@ void frodokem_init(void)
 #endif
 #if defined(FRODOKEM_HAVE_SME) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
     /* SME needs SVL >= 256 bits (>= 32 bytes) for the 8 x 8 ZA.S tile. */
-    frodokem_sme_svl_ok = IS_AARCH64_SME(cpuid_flags) &&
+    frodokem_sme_svl_ok = IS_AARCH64_SME(frodokem_mat_cpuid_flags()) &&
         (frodokem_sme_svl_bytes() >= 32);
 #endif
 }
@@ -929,20 +936,20 @@ static void frodokem_sample_matrix(word16* mat, int cnt, const byte* r,
     frodokem_sample_neon(mat, cnt, p->cdf, p->cdfLen);
 #else
 #ifdef FRODOKEM_HAVE_NEON_RUNTIME
-    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+    if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {
         frodokem_sample_neon(mat, cnt, p->cdf, p->cdfLen);
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_sample_avx512(mat, cnt, p->cdf, p->cdfLen);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_sample_avx2(mat, cnt, p->cdf, p->cdfLen);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -1509,7 +1516,7 @@ static int frodokem_gen_a_row_shake_x2(word16* rows, const byte* seedA,
         }
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
         /* Use the SHA3 crypto extension (EOR3/RAX1/XAR/BCAX) when present. */
-        if (IS_AARCH64_SHA3(cpuid_flags)) {
+        if (IS_AARCH64_SHA3(frodokem_mat_cpuid_flags())) {
             frodokem_sha3_x2_crypto(state);
         }
         else
@@ -1735,7 +1742,7 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
     /* Generate the A rows in batches matching the fused asm accumulate (eight
      * with AVX512, four with AVX2); n is a multiple of 8 for every set. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
+    if ((ret == 0) && USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* The AES-NI/VAES row kernels below consume aes->key directly, which
          * holds a valid AES-NI-layout key schedule only when the
@@ -1745,7 +1752,7 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
          * only the C-fallback schedule (aes->key_C_fallback) - re-key under
          * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
          * succeeds, so aes->key is valid for the kernels. */
-        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+        if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags()) && (! aes->use_aesni)) {
             ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
                 AES_ENCRYPTION);
         }
@@ -1754,13 +1761,13 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
-            if (IS_INTEL_VAES(cpuid_flags)) {
+            if (IS_INTEL_VAES(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_avx512((byte*)row, row,
                     (const byte*)aes->key, i, 8, n, (int)p->qMask);
             }
             else
 #endif
-            if (IS_INTEL_AESNI(cpuid_flags)) {
+            if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_aesni((byte*)row, row,
                     (const byte*)aes->key, i, 8, n, (int)p->qMask);
             }
@@ -1777,11 +1784,11 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
-    if ((ret == 0) && IS_INTEL_AVX2(cpuid_flags) &&
+    if ((ret == 0) && IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Re-key if SetKey lacked vector registers - see the note in the
          * AVX512 branch above (or in frodokem_mul_add_as_plus_e_aes). */
-        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+        if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags()) && (! aes->use_aesni)) {
             ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
                 AES_ENCRYPTION);
         }
@@ -1790,13 +1797,13 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
-            if (IS_INTEL_VAES(cpuid_flags)) {
+            if (IS_INTEL_VAES(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_avx2((byte*)row, row,
                     (const byte*)aes->key, i, 4, n, (int)p->qMask);
             }
             else
 #endif
-            if (IS_INTEL_AESNI(cpuid_flags)) {
+            if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_aesni((byte*)row, row,
                     (const byte*)aes->key, i, 4, n, (int)p->qMask);
             }
@@ -1883,7 +1890,7 @@ static int frodokem_mul_add_as_plus_e_shake(word16* out, const word16* s,
     /* When AVX512 is available, generate and consume eight A rows at a time
      * with the 8-way SHAKE permutation. n is a multiple of 8 for every param
      * set, so there is no remainder loop. */
-    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = 0;
         for (i = 0; i < n; i += 8) {
             ret = frodokem_gen_a_row_shake_x8(row, seedA, i, p);
@@ -1901,7 +1908,7 @@ static int frodokem_mul_add_as_plus_e_shake(word16* out, const word16* s,
     /* When AVX2 is available, generate and consume four A rows at a time with
      * the 4-way SHAKE permutation. n is a multiple of 4 for every parameter
      * set, so there is no remainder loop. */
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = 0;
         for (i = 0; i < n; i += 4) {
             ret = frodokem_gen_a_row_shake_x4(row, seedA, i, p);
@@ -1920,7 +1927,7 @@ static int frodokem_mul_add_as_plus_e_shake(word16* out, const word16* s,
      * with the 2-way NEON SHAKE; without it, fall back to the scalar SHAKE and
      * portable-C accumulate (the 2-way permute is itself NEON). n is a multiple
      * of 2 for every set. */
-    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+    if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {
         (void)shake;
         ret = 0;
         for (i = 0; i < n; i += 2) {
@@ -2057,7 +2064,7 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
     /* Generate the A rows in batches matching the fused asm accumulate (eight
      * with AVX512, four with AVX2); n is a multiple of 8 for every set. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
+    if ((ret == 0) && USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* The AES-NI/VAES row kernels below consume aes->key directly, which
          * holds a valid AES-NI-layout key schedule only when the
@@ -2067,7 +2074,7 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
          * only the C-fallback schedule (aes->key_C_fallback) - re-key under
          * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
          * succeeds, so aes->key is valid for the kernels. */
-        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+        if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags()) && (! aes->use_aesni)) {
             ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
                 AES_ENCRYPTION);
         }
@@ -2076,13 +2083,13 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
-            if (IS_INTEL_VAES(cpuid_flags)) {
+            if (IS_INTEL_VAES(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_avx512((byte*)row, row,
                     (const byte*)aes->key, j, 8, n, (int)p->qMask);
             }
             else
 #endif
-            if (IS_INTEL_AESNI(cpuid_flags)) {
+            if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_aesni((byte*)row, row,
                     (const byte*)aes->key, j, 8, n, (int)p->qMask);
             }
@@ -2099,11 +2106,11 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
-    if ((ret == 0) && IS_INTEL_AVX2(cpuid_flags) &&
+    if ((ret == 0) && IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Re-key if SetKey lacked vector registers - see the note in the
          * AVX512 branch above (or in frodokem_mul_add_as_plus_e_aes). */
-        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+        if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags()) && (! aes->use_aesni)) {
             ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
                 AES_ENCRYPTION);
         }
@@ -2112,13 +2119,13 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
-            if (IS_INTEL_VAES(cpuid_flags)) {
+            if (IS_INTEL_VAES(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_avx2((byte*)row, row,
                     (const byte*)aes->key, j, 4, n, (int)p->qMask);
             }
             else
 #endif
-            if (IS_INTEL_AESNI(cpuid_flags)) {
+            if (IS_INTEL_AESNI(frodokem_mat_cpuid_flags())) {
                 frodokem_gen_a_rows_aes_aesni((byte*)row, row,
                     (const byte*)aes->key, j, 4, n, (int)p->qMask);
             }
@@ -2209,7 +2216,7 @@ static int frodokem_mul_add_sa_plus_e_shake(word16* out, const word16* s,
     /* When AVX512 is available, generate and consume eight A rows at a time
      * with the 8-way SHAKE permutation. n is a multiple of 8 for every param
      * set, so there is no remainder loop. */
-    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = 0;
         for (j = 0; j < n; j += 8) {
             ret = frodokem_gen_a_row_shake_x8(row, seedA, j, p);
@@ -2227,7 +2234,7 @@ static int frodokem_mul_add_sa_plus_e_shake(word16* out, const word16* s,
     /* When AVX2 is available, generate and consume four A rows at a time with
      * the 4-way SHAKE permutation. n is a multiple of 4 for every parameter
      * set, so there is no remainder loop. */
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = 0;
         for (j = 0; j < n; j += 4) {
             ret = frodokem_gen_a_row_shake_x4(row, seedA, j, p);
@@ -2246,7 +2253,7 @@ static int frodokem_mul_add_sa_plus_e_shake(word16* out, const word16* s,
      * with the 2-way NEON SHAKE (SVE or NEON accumulate); without it, fall back
      * to the scalar SHAKE and portable-C accumulate (the 2-way permute is
      * itself NEON). n is a multiple of 2 for every set. */
-    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+    if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {
         (void)shake;
         ret = 0;
         for (j = 0; j < n; j += 2) {
@@ -2369,20 +2376,20 @@ void frodokem_mul_add_sb_plus_e(word16* out, const word16* b, const word16* s,
     frodokem_mul_add_sb_plus_e_arm(out, b, s, n, qmask);
 #else
 #ifdef FRODOKEM_HAVE_NEON_RUNTIME
-    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+    if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {
         frodokem_mul_add_sb_plus_e_arm(out, b, s, n, qmask);
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_mul_add_sb_plus_e_avx512(out, b, s, n, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_mul_add_sb_plus_e_avx2(out, b, s, n, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -2641,26 +2648,26 @@ void frodokem_mul_bs(word16* out, const word16* b, const word16* s,
     frodokem_mul_bs_arm(out, b, s, n, qmask);
 #else
 #ifdef FRODOKEM_HAVE_SVE
-    if (IS_AARCH64_SVE(cpuid_flags)) {
+    if (IS_AARCH64_SVE(frodokem_mat_cpuid_flags())) {
         frodokem_mul_bs_sve(out, b, s, n, qmask);
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_NEON_RUNTIME
-    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+    if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {
         frodokem_mul_bs_arm(out, b, s, n, qmask);
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_mul_bs_avx512(out, b, s, n, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_mul_bs_avx2(out, b, s, n, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -2902,26 +2909,26 @@ void frodokem_add(word16* a, const word16* b, int qmask)
     frodokem_add_arm(a, b, qmask);
 #else
 #ifdef FRODOKEM_HAVE_SVE
-    if (IS_AARCH64_SVE(cpuid_flags)) {
+    if (IS_AARCH64_SVE(frodokem_mat_cpuid_flags())) {
         frodokem_add_sve(a, b, qmask);
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_NEON_RUNTIME
-    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+    if (IS_AARCH64_ASIMD(frodokem_mat_cpuid_flags())) {
         frodokem_add_arm(a, b, qmask);
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_add_avx512(a, b, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (IS_INTEL_AVX2(frodokem_mat_cpuid_flags()) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_add_avx2(a, b, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
