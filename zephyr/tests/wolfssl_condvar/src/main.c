@@ -26,6 +26,13 @@
  * CONFIG_PTHREAD_IPC). Covers the producer/consumer wakeup handshake (the
  * atomic release/re-acquire semantics of wolfSSL_CondWait and signalling under
  * the lock) and the NULL-pointer guards of all six condition-variable calls.
+ *
+ * Also brings up the wolfCrypt DRBG. Nothing in this image calls wolfSSL_Init()
+ * or wolfcrypt_test(), both of which register the DRBG seed callback themselves
+ * and so would hide a port that fails to register it; under FIPS v5 the module
+ * refuses to seed until it is set, so wc_InitRng() fails unless the
+ * APPLICATION-level hook in zephyr_init.c ran. Without a bundle, which is how
+ * CI runs it, the same check covers the tree's Zephyr wc_GenerateSeed().
  */
 
 #include <zephyr/ztest.h>
@@ -35,6 +42,7 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/random.h>
 
 static COND_TYPE   g_cond;
 static volatile int g_predicate;
@@ -86,6 +94,31 @@ ZTEST(wolfssl_condvar, test_null_guards)
     zassert_equal(wolfSSL_CondSignal(NULL), BAD_FUNC_ARG, "CondSignal NULL");
     zassert_equal(wolfSSL_CondWait(NULL),   BAD_FUNC_ARG, "CondWait NULL");
     zassert_equal(wolfSSL_CondEnd(NULL),    BAD_FUNC_ARG, "CondEnd NULL");
+}
+
+ZTEST(wolfssl_condvar, test_init_rng_at_boot)
+{
+    WC_RNG rng;
+    byte   block[32];
+    byte   zero[32];
+    int    ret;
+
+    zassert_equal(wolfCrypt_Init(), 0, "wolfCrypt_Init");
+
+    /* Nothing in this image calls wc_SetSeed_Cb(), so under FIPS v5 this is
+     * where a missing boot-time registration shows. */
+    ret = wc_InitRng(&rng);
+    zassert_equal(ret, 0, "wc_InitRng: %d", ret);
+
+    XMEMSET(block, 0, sizeof(block));
+    XMEMSET(zero, 0, sizeof(zero));
+    ret = wc_RNG_GenerateBlock(&rng, block, sizeof(block));
+    zassert_equal(ret, 0, "wc_RNG_GenerateBlock: %d", ret);
+    zassert_true(XMEMCMP(block, zero, sizeof(block)) != 0,
+                 "generated block is all zero");
+
+    zassert_equal(wc_FreeRng(&rng), 0, "wc_FreeRng");
+    zassert_equal(wolfCrypt_Cleanup(), 0, "wolfCrypt_Cleanup");
 }
 
 ZTEST_SUITE(wolfssl_condvar, NULL, NULL, NULL, NULL, NULL);

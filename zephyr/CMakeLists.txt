@@ -19,6 +19,16 @@ if(CONFIG_WOLFSSL)
         )
 
     zephyr_library()
+    # Library sources only, never the application, as the top-level CMake does.
+    # The v5 kdf.c predates libwolfssl_sources.h: without this, types.h pulls
+    # in wc_compat.h, which reaches fips.h before kdf.c sets FIPS_NO_WRAPPERS,
+    # and kdf.c then defines the wc_*_fips wrappers a second time.
+    zephyr_library_compile_definitions(BUILDING_WOLFSSL)
+    # The v5 random.c predates the zephyr/ include prefix; map its
+    # <random/rand32.h> and <posix/time.h> onto the current headers.
+    if(CONFIG_WOLFCRYPT_FIPS_V5)
+      zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/fips-v5-compat)
+    endif()
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/zephyr_init.c)
 
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/crl.c)
@@ -96,16 +106,30 @@ if(CONFIG_WOLFSSL)
 
     # The integrity test hashes the boundary .text and .rodata as two ranges, so
     # keep each in one piece and in file order: no sorting, splitting or merging.
-    if(WOLF_BOUNDARY_ASM AND CONFIG_WOLFCRYPT_FIPS)
+    # v5 hashes the same wolfCrypt_FIPS_first..last and ro_start..ro_end pair as
+    # v7, so this holds for every boundary, not only the one with assembly.
+    if(CONFIG_WOLFCRYPT_FIPS)
       if(CONFIG_LINKER_SORT_BY_ALIGNMENT)
         message(FATAL_ERROR "wolfCrypt FIPS needs CONFIG_LINKER_SORT_BY_ALIGNMENT=n: "
                 "sorting by alignment moves boundary code out of the hashed range")
+      endif()
+      # The v5 seed callback in zephyr_init.c draws on the Zephyr CSPRNG, which
+      # must read the entropy driver itself rather than pass the seed through
+      # a DRBG outside the module, as the CTR-DRBG and PSA generators do. Only
+      # with an entropy driver, which sets CSPRNG_ENABLED: without one the
+      # callback uses the test generator or fails the build. The test CSPRNG is
+      # sys_rand_get() under a name Zephyr already flags as insecure.
+      if(CONFIG_WOLFCRYPT_FIPS_V5 AND CONFIG_CSPRNG_ENABLED
+         AND NOT CONFIG_HARDWARE_DEVICE_CS_GENERATOR
+         AND NOT CONFIG_TEST_CSPRNG_GENERATOR)
+        message(FATAL_ERROR "wolfCrypt FIPS v5 needs CONFIG_HARDWARE_DEVICE_CS_GENERATOR=y: "
+                "the DRBG seed must come straight from the entropy driver")
       endif()
       set_source_files_properties(${WOLF_FIPS_SRCS} PROPERTIES COMPILE_OPTIONS
           "-fno-function-sections;-fno-data-sections;-fno-merge-constants")
     endif()
     # native_sim links like a host program and keeps file order without this.
-    if(WOLF_BOUNDARY_ASM AND CONFIG_WOLFCRYPT_FIPS AND NOT CONFIG_ARCH_POSIX)
+    if(CONFIG_WOLFCRYPT_FIPS AND NOT CONFIG_ARCH_POSIX)
       set(WOLF_FIPS_LD ${CMAKE_CURRENT_BINARY_DIR}/wolfcrypt_fips_rodata.ld)
       file(WRITE ${WOLF_FIPS_LD} "SECTION_PROLOGUE(wolfcrypt_fips_rodata,,)\n{\n")
       foreach(s ${WOLF_FIPS_SRCS})
@@ -211,7 +235,7 @@ if(CONFIG_WOLFSSL)
         if(CONFIG_ARM64 AND NOT WOLF_BOUNDARY_ASM)
           zephyr_library_sources(${WOLF_ARM_ASM_DIR}/armv8-sha1-asm_c.c)
         endif()
-      elseif(CONFIG_X86_64)
+      elseif(CONFIG_X86_64 AND NOT CONFIG_WOLFCRYPT_FIPS_PRE_V7_ASM)
         # fe_x25519_asm.S, wc_mlkem_asm.S and wc_mldsa_asm.S are here because
         # curve25519.c, wc_mlkem_poly.c and wc_mldsa.c all take the Intel path
         # whenever USE_INTEL_SPEEDUP is set, so leaving one out is a link error
