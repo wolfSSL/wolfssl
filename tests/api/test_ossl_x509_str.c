@@ -613,8 +613,9 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
         WOLFSSL_CTX* sslCtx = NULL;
         X509_STORE* ctxStore = NULL;
 
-        /* A CertManager callback on the context's store sees the CRL
-         * verdict. */
+        /* X509_verify_cert() builds the chain itself, as OpenSSL: a
+         * CertManager callback on the context's store is not asked about
+         * the CRL verdict. */
         ExpectNotNull(sslCtx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
         ExpectIntEQ(wolfSSL_CTX_load_verify_locations(sslCtx,
             "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
@@ -628,16 +629,11 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
 
         test_crl_date_cm_cb_waive = 1;
         test_crl_date_cm_cb_calls = 0;
-        ExpectIntEQ(test_crl_date_verify(ctxStore, cert, 0, 0, &err), 1);
-        ExpectIntEQ(test_crl_date_cm_cb_calls, 1);
-
-        test_crl_date_cm_cb_waive = 0;
-        test_crl_date_cm_cb_calls = 0;
         ExpectIntEQ(test_crl_date_verify(ctxStore, cert, 0, 0, &err), 0);
         ExpectIntEQ(err, noCrl);
-        ExpectIntEQ(test_crl_date_cm_cb_calls, 1);
+        ExpectIntEQ(test_crl_date_cm_cb_calls, 0);
 
-        /* The context CRLs still apply after it rejected the missing CRL. */
+        /* The context CRLs apply. */
         ExpectNotNull(crls = sk_X509_CRL_new_null());
         ExpectIntEQ(test_crl_date_read_crl(crls, "./certs/crl/crl.pem"),
             TEST_SUCCESS);
@@ -666,13 +662,13 @@ int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
         sk_X509_CRL_pop_free(crls, X509_CRL_free);
         crls = NULL;
 
-        /* Waiving the date error still leaves the CRL verdict to reject. */
+        /* Nor about the date error. */
         ExpectIntEQ(wc_SetTimeCb(test_crl_date_override_time_cb), 0);
-        test_crl_date_cm_cb_waive = 1;
+        test_crl_date_cm_cb_waive = 2;
         test_crl_date_cm_cb_calls = 0;
         ExpectIntEQ(test_crl_date_verify(ctxStore, cert, 0, 0, &err), 0);
         ExpectIntEQ(err, noCrl);
-        ExpectIntEQ(test_crl_date_cm_cb_calls, 2);
+        ExpectIntEQ(test_crl_date_cm_cb_calls, 0);
         wc_SetTimeCb(NULL);
 
         wolfSSL_CTX_free(sslCtx);
