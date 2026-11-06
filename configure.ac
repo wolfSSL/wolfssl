@@ -15074,6 +15074,27 @@ for option in $AM_CPPFLAGS $CPPFLAGS $AM_CFLAGS $CFLAGS; do
     esac
 done
 
+# Fingerprint the options so that wc_CompareBuildConfig() can detect an
+# application compiled against a different options.h than the library.  The
+# library gets the same value through .build_params (-include'd above).
+case " $AM_CPPFLAGS $CPPFLAGS $AM_CFLAGS $CFLAGS " in
+*" -DHAVE_WC_INTROSPECTION "*|*" -DHAVE_WC_INTROSPECTION="*)
+    if test "$ENABLED_USERSETTINGS" != "yes" &&
+       test -f "${output_objdir}/.build_params"
+    then
+        OPTIONS_HASH=$(cksum < $OPTION_FILE | awk '{ printf "0x%08xU", $1 }')
+        if test -n "$OPTIONS_HASH"
+        then
+            echo "#undef  WOLFSSL_OPTIONS_HASH" >> $OPTION_FILE
+            echo "#define WOLFSSL_OPTIONS_HASH $OPTIONS_HASH" >> $OPTION_FILE
+            echo "" >> $OPTION_FILE
+            echo "#define WOLFSSL_OPTIONS_HASH $OPTIONS_HASH" >> "${output_objdir}/.build_params" ||
+                AC_MSG_ERROR([Couldn't update ${output_objdir}/.build_params.])
+        fi
+    fi
+    ;;
+esac
+
 echo "" >> $OPTION_FILE
 echo "#ifdef __cplusplus" >> $OPTION_FILE
 echo "}" >> $OPTION_FILE

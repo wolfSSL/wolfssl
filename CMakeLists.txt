@@ -759,6 +759,21 @@ if(WOLFSSL_REPRODUCIBLE_BUILD)
     set(CMAKE_C_ARCHIVE_FINISH "<CMAKE_RANLIB> -D <TARGET>")
 endif()
 
+# Build introspection: wolfSSL_configure_args(), wolfSSL_global_cflags() and
+# the build configuration check wc_CheckBuildConfig(). On by default, as with
+# autotools, except for reproducible builds.
+if(WOLFSSL_REPRODUCIBLE_BUILD)
+    set(WOLFSSL_INTROSPECTION_DEFAULT "no")
+else()
+    set(WOLFSSL_INTROSPECTION_DEFAULT "yes")
+endif()
+add_option("WOLFSSL_INTROSPECTION"
+    "Enable build introspection and build configuration check APIs (default: enabled unless reproducible build)"
+    "${WOLFSSL_INTROSPECTION_DEFAULT}" "yes;no")
+if(WOLFSSL_INTROSPECTION)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_WC_INTROSPECTION")
+endif()
+
 add_option("WOLFSSL_INSTALL" "Create install target for WolfSSL project" "yes" "yes;no")
 
 # Support for forcing 32-bit mode
@@ -5126,6 +5141,25 @@ foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
 endforeach()
 
 # If new build options are added please update the cmake/options.h.in
+set(WOLFSSL_OPTIONS_HASH_DEFINE "")
+if(WOLFSSL_INTROSPECTION AND NOT WOLFSSL_USER_SETTINGS)
+    # Fingerprint options.h so that wc_CompareBuildConfig() can detect an
+    # application compiled against a different options.h than the library:
+    # configure it once without the hash, hash that, then configure the real
+    # header with the hash appended. The library gets the same value as a
+    # private definition.
+    set(OPTIONS_HASH_TMP "${CMAKE_CURRENT_BINARY_DIR}/options.h.hash-tmp")
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/options.h.in
+        ${OPTIONS_HASH_TMP})
+    file(SHA256 ${OPTIONS_HASH_TMP} OPTIONS_HASH_SHA256)
+    file(REMOVE ${OPTIONS_HASH_TMP})
+    string(SUBSTRING "${OPTIONS_HASH_SHA256}" 0 8 OPTIONS_HASH_HEX)
+    set(WOLFSSL_OPTIONS_HASH "0x${OPTIONS_HASH_HEX}U")
+    set(WOLFSSL_OPTIONS_HASH_DEFINE
+        "#undef  WOLFSSL_OPTIONS_HASH\n#define WOLFSSL_OPTIONS_HASH ${WOLFSSL_OPTIONS_HASH}")
+    target_compile_definitions(wolfssl PRIVATE
+        "WOLFSSL_OPTIONS_HASH=${WOLFSSL_OPTIONS_HASH}")
+endif()
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/options.h.in ${OPTION_FILE})
 
 set_target_properties(wolfssl
