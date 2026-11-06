@@ -18595,14 +18595,21 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
  */
 int sp_to_unsigned_bin_at_pos(int o, const sp_int* a, unsigned char* out)
 {
-    /* Get length of data that will be written. */
-    int len = sp_unsigned_bin_size(a);
-    /* Write number to buffer at offset. */
-    int ret = sp_to_unsigned_bin_len(a, out + o, len);
+    int ret;
 
-    if (ret == MP_OKAY) {
-        /* Return offset of next byte after number. */
-        ret = o + len;
+    /* Validate parameters before forming out + o. */
+    if ((a == NULL) || (out == NULL)) {
+        ret = MP_VAL;
+    }
+    else {
+        /* Get length of data that will be written. */
+        int len = sp_unsigned_bin_size(a);
+        /* Write number to buffer at offset. */
+        ret = sp_to_unsigned_bin_len(a, out + o, len);
+        if (ret == MP_OKAY) {
+            /* Return offset of next byte after number. */
+            ret = o + len;
+        }
     }
 
     return ret;
