@@ -990,6 +990,9 @@ int wc_AsyncThreadCreate_ex(pthread_t *thread,
     pthread_attr_t attr;
     struct sched_param param;
 
+    if (thread == NULL || function == NULL)
+        return BAD_FUNC_ARG;
+
     status = pthread_attr_init(&attr);
     if (status !=0) {
         fprintf(stderr, "pthread_attr_init error: %d\n", status);
