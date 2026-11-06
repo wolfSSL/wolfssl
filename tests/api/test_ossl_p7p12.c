@@ -2137,7 +2137,8 @@ static int pkcs12_oom_parse(const byte* der, word32 derSz, int failAt,
     int ret = WOLFSSL_FAILURE;
     ExpectNotNull(pkcs12 = wc_PKCS12_new());
     ExpectIntEQ(wc_d2i_PKCS12(der, derSz, pkcs12), 0);
-    ExpectIntEQ(wolfSSL_GetAllocators(&pkcs12_prev_malloc, &pkcs12_prev_free, &pkcs12_prev_realloc), 0);
+    ExpectIntEQ(wolfSSL_GetAllocators(&pkcs12_prev_malloc, &pkcs12_prev_free,
+                                    &pkcs12_prev_realloc), 0);
     ExpectIntEQ(wolfSSL_SetAllocators(pkcs12_oom_malloc_cb, pkcs12_oom_free_cb,
         pkcs12_oom_realloc_cb), 0);
 
@@ -2148,7 +2149,8 @@ static int pkcs12_oom_parse(const byte* der, word32 derSz, int failAt,
         pkcs12_fail_alloc_at = -1;
     }
 
-    (void)wolfSSL_SetAllocators(pkcs12_prev_malloc, pkcs12_prev_free, pkcs12_prev_realloc);
+    (void)wolfSSL_SetAllocators(pkcs12_prev_malloc, pkcs12_prev_free,
+                                pkcs12_prev_realloc);
     wc_PKCS12_free(pkcs12);
 
     return EXPECT_SUCCESS() ? ret : TEST_FAIL;
