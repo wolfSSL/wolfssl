@@ -127,3 +127,9 @@ EXTRA_DIST += \
          certs/test/nc-ancestor/03-leaf-chain.pem \
          certs/test/nc-ancestor/03-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-valid-leaf-key.pem
+
+EXTRA_DIST += \
+         certs/test/alt-chain-forged-ca/gen-alt-chain-forged-ca.sh \
+         certs/test/alt-chain-forged-ca/realRoot-cert.pem \
+         certs/test/alt-chain-forged-ca/leaf-key.pem \
+         certs/test/alt-chain-forged-ca/server-chain.pem
