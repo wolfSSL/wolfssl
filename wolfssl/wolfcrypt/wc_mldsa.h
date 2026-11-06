@@ -613,6 +613,23 @@ typedef struct wc_MlDsaParams {
 typedef struct wc_MlDsaParams MlDsaParams;
 #endif
 
+#ifdef WC_MLDSA_NONBLOCK
+/* Resumable state for a non-blocking ML-DSA operation. Attach one to a key with
+ * wc_MlDsaKey_set_nonblock(); the operation then runs one chunk per call,
+ * returning MP_WOULDBLOCK at each yield point until it returns a final result.
+ * Only the small-memory build (WOLFSSL_MLDSA_*_SMALL_MEM) is supported. */
+typedef struct wc_MlDsaNonBlock {
+    void*  work;    /* working allocation kept alive across yields */
+    word32 workSz;  /* size of work, for release on abandon or free */
+    int    state;   /* operation phase cursor */
+    word16 kappa;   /* sign: rejection nonce carried across attempts */
+    word16 row;     /* per-row loop cursor (keygen/verify/sign matrix row) */
+    byte   hintPos; /* verify: running hint offset across the row loop */
+    byte   started; /* seedMu has been drawn and stored */
+    byte   seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ]; /* sign: stable rnd||mu */
+} wc_MlDsaNonBlock;
+#endif /* WC_MLDSA_NONBLOCK */
+
 struct wc_MlDsaKey {
     /* Set when this object holds the public key bytes in p. A key generated
      * on a crypto-callback device has none here and leaves it clear. */
@@ -658,6 +675,9 @@ struct wc_MlDsaKey {
 
     const wc_MlDsaParams* params;
     wc_Shake shake;
+#ifdef WC_MLDSA_NONBLOCK
+    wc_MlDsaNonBlock* nb;  /* non-NULL selects resumable operation */
+#endif
 #ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
     /* Caller-supplied matrix A, expanded off-target and typically flash
      * resident.  NULL means expand it here as usual.  Read only, never freed:
@@ -831,6 +851,11 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
 
 WOLFSSL_API
 int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId);
+
+#ifdef WC_MLDSA_NONBLOCK
+WOLFSSL_API
+int wc_MlDsaKey_set_nonblock(wc_MlDsaKey* key, wc_MlDsaNonBlock* nb);
+#endif
 
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API

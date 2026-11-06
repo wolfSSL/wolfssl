@@ -383,6 +383,25 @@ enum {
 #define MLKEM_PRF_T     wc_Shake
 
 /* ML-KEM key. */
+#ifdef WC_MLKEM_NONBLOCK
+/* Resumable state for a non-blocking ML-KEM operation. Attach one to a key with
+ * wc_MlKemKey_set_nonblock(); the operation then runs one chunk per call,
+ * returning MP_WOULDBLOCK at each yield point until it returns a final result.
+ * Only the small-memory build (WOLFSSL_MLKEM_*_SMALL_MEM) is supported. */
+typedef struct wc_MlKemNonBlock {
+    void*  work;     /* keygen/encapsulate vectors, kept alive across yields */
+    void*  decWork;  /* decapsulate scratch: msg and kr for the re-encryption */
+    word32 workSz;   /* sizes of the two above, for release on abandon */
+    word32 decWorkSz;
+    int    state;    /* keygen / decapsulate phase cursor */
+    int    encState; /* encapsulate phase cursor (direct or re-encryption) */
+    int    cmpFail;  /* re-encryption block compare result so far */
+    word16 row;      /* per-row loop cursor */
+    byte   started;  /* keygen/encaps randomness has been drawn and stored */
+    byte   rand[WC_ML_KEM_MAKEKEY_RAND_SZ]; /* stable keygen/encaps seed */
+} wc_MlKemNonBlock;
+#endif /* WC_MLKEM_NONBLOCK */
+
 struct MlKemKey {
     /* Type of key: WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024 */
     int type;
@@ -412,6 +431,10 @@ struct MlKemKey {
     MLKEM_HASH_T hash;
     /* A pseudo-random function object. */
     MLKEM_PRF_T prf;
+#ifdef WC_MLKEM_NONBLOCK
+    /* Non-NULL selects resumable (non-blocking) operation. */
+    wc_MlKemNonBlock* nb;
+#endif
 
 #ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
     /* Private key as a vector. */
@@ -454,6 +477,9 @@ WOLFSSL_API int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
 WOLFSSL_API int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap,
     int devId);
 WOLFSSL_API int wc_MlKemKey_Free(MlKemKey* key);
+#ifdef WC_MLKEM_NONBLOCK
+WOLFSSL_API int wc_MlKemKey_set_nonblock(MlKemKey* key, wc_MlKemNonBlock* nb);
+#endif
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API int wc_MlKemKey_Init_Id(MlKemKey* key, int type,
     const unsigned char* id, int len, void* heap, int devId);
@@ -555,8 +581,10 @@ int mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     int kp);
 #else
 WOLFSSL_LOCAL
-int mlkem_keygen_seeds(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
-    sword16* e, sword16* cacheA, int kp, byte* seed, byte* noiseSeed);
+void mlkem_keygen_ntt_priv(sword16* priv, int kp);
+WOLFSSL_LOCAL
+int mlkem_keygen_seeds_row(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
+    sword16* e, sword16* cacheA, int kp, byte* seed, byte* noiseSeed, int i);
 #endif
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
@@ -565,10 +593,15 @@ int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* m, int kp);
 #else
 WOLFSSL_LOCAL
-int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
-    const byte* cmp, int* fail, sword16* bp, sword16* tp, sword16* sp, int kp,
-    const byte* msg, byte* seed, byte* coins, const sword16* cacheA,
-    sword16* fillA);
+void mlkem_encapsulate_ntt_y(sword16* sp, int kp);
+WOLFSSL_LOCAL
+int mlkem_encapsulate_seeds_row(MLKEM_PRF_T* prf, byte* c, const byte* cmp,
+    int* cmpFail, sword16* bp, sword16* tp, sword16* sp, int kp, byte* seed,
+    byte* coins, const sword16* cacheA, sword16* fillA, int i);
+WOLFSSL_LOCAL
+int mlkem_encapsulate_seeds_tail(const sword16* pub, MLKEM_PRF_T* prf,
+    byte* c, const byte* cmp, int* fail, int cmpFail, sword16* bp,
+    sword16* tp, sword16* sp, int kp, const byte* msg, byte* coins);
 #endif
 WOLFSSL_LOCAL
 int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
