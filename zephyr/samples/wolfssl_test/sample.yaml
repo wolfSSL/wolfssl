@@ -33,6 +33,13 @@ tests:
     extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
     integration_platforms:
       - qemu_x86
+  sample.crypto.wolfssl_test_sp_stack:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFCRYPT_SP_SMALL_STACK=n
+    integration_platforms:
+      - qemu_x86
   sample.crypto.wolfssl_test_ghash_table_4bit:
     timeout: 120
     platform_allow: qemu_x86
