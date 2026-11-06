@@ -346,9 +346,9 @@ static int test_X509_get0_pubkey_file(const char* file)
     /* The cert owns the key: the same key every time. */
     ExpectNotNull(key = X509_get0_pubkey(x509));
     ExpectPtrEq(X509_get0_pubkey(x509), key);
-    /* X509_get_pubkey returns a new key for the caller to free. */
+    /* X509_get_pubkey returns a new reference for the caller to free. */
     ExpectNotNull(pkey = X509_get_pubkey(x509));
-    ExpectPtrNE(pkey, key);
+    ExpectPtrEq(pkey, key);
     ExpectIntGT(derSz = i2d_PUBKEY(key, &der), 0);
     ExpectIntEQ(i2d_PUBKEY(pkey, &der2), derSz);
     ExpectBufEQ(der2, der, derSz);
@@ -374,7 +374,7 @@ static int test_X509_get0_pubkey_file(const char* file)
 }
 #endif
 
-int test_wolfSSL_X509_get0_pubkey(void)
+int test_wolfSSL_X509_get0_pubkey_files(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
