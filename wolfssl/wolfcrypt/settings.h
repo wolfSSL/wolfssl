@@ -498,7 +498,8 @@
     #ifndef WOLF_CRYPTO_CB_FREE
         #define WOLF_CRYPTO_CB_FREE
     #endif
-    /* Serves SHA-384 and AES-256-CTR only; software covers the rest. */
+    /* Serves SHA-384, AES-256-CTR and AES-256-ECB only; software covers the
+     * rest. */
     #if defined(WOLF_CRYPTO_CB_ONLY_SHA512) || defined(WOLF_CRYPTO_CB_ONLY_AES)
         #error "WOLFSSL_MPFS_ATHENA needs software SHA-512 and AES"
     #endif

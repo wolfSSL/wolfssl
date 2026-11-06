@@ -12527,6 +12527,14 @@ then
     if test "x$ENABLED_AESCTR" = "xno"; then
         AC_MSG_ERROR([--with-mpfs-athena needs AES-CTR; add --enable-aesctr])
     fi
+    # AES-XTS reaches the engine only through the bulk ECB call that
+    # HAVE_AES_ECB compiles in; without it every XTS block is its own engine
+    # transaction, slower than software.
+    if test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_AESECB" = "xno"; then
+        ENABLED_AESECB=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_ECB"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AES_ECB"
+    fi
 fi
 
 if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes" || test "x$ENABLED_ELE" != "xno" || test "x$ENABLED_MPFS_ATHENA" = "xyes" || test "x$ENABLED_ELS_PKC" = "xyes"
