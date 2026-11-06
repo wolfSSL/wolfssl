@@ -6562,6 +6562,92 @@ int test_tls13_early_data(void)
     return EXPECT_RESULT();
 }
 
+/* Early data grouped with the ClientHello blocks. The retry sends the queued
+ * record once, and the next write sends all of its data. */
+int test_tls13_early_data_group_write_retry(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(WOLFSSL_EARLY_DATA_GROUP) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    const char msg[] = "grouped with the ClientHello";
+    const char msg2[] = "first write after the handshake";
+    char buf[64];
+    int rd = 0;
+    int written = 0;
+
+    /* Full handshake for a ticket that allows early data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    /* The ClientHello and the early data record block together. */
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, (int)sizeof(msg),
+        &written), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, (int)sizeof(msg),
+        &written), (int)sizeof(msg));
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->buffers.prevSent, 0);
+        ExpectIntEQ(ssl_c->buffers.plainSz, 0);
+    }
+
+    /* One copy of the early data only. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(test_tls13_early_data_read_until_write_ok(ssl_s, buf,
+        sizeof(buf), &rd), (int)sizeof(msg));
+    ExpectBufEQ(buf, msg, sizeof(msg));
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_early_data_read_until_write_ok(ssl_s, buf,
+        sizeof(buf), &rd), 0);
+    ExpectIntEQ(wolfSSL_get_early_data_status(ssl_c),
+        WOLFSSL_EARLY_DATA_ACCEPTED);
+
+    /* The whole of the next write arrives. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg2, (int)sizeof(msg2)),
+        (int)sizeof(msg2));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), (int)sizeof(msg2));
+    ExpectBufEQ(buf, msg2, sizeof(msg2));
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
@@ -9859,6 +9945,142 @@ int test_tls13_middlebox_compat_client_ccs_retry_early_data(void)
 
     /* Still the one record, over the whole handshake. */
     ExpectIntEQ(ccs_ctx.sent, 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Resume with sess and leave a wolfSSL_write() of msg, sent as early data,
+ * blocked with WANT_WRITE. A wolfSSL_connect() then flushes its record. */
+static int test_tls13_early_data_write_blocked(struct test_memio_ctx* test_ctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    WOLFSSL_SESSION* sess, int noKeyShares, const char* msg, int msgSz)
+{
+    EXPECT_DECLS;
+    int written = 0;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(*ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(*ssl_c, sess), WOLFSSL_SUCCESS);
+    if (noKeyShares) {
+        ExpectIntEQ(wolfSSL_NoKeyShares(*ssl_c), WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(*ssl_c, "x", 1,
+        &written), 1);
+    test_memio_simulate_want_write(test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_write(*ssl_c, msg, msgSz), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+    test_memio_simulate_want_write(test_ctx, 1, 0);
+
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A wolfSSL_write() sent as early data blocks, and wolfSSL_connect() flushes
+ * its record. The retry sends nothing new when the server accepted early
+ * data, and sends all of msg again when the server rejected it. */
+int test_tls13_early_data_write_retry(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    const char msg[] = "blocked during early data";
+    char buf[64];
+    int rd = 0;
+    int hrr;
+
+    /* Full handshake for a ticket that allows early data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* Accepted: the server got msg as early data, so the retry is done. */
+    ExpectIntEQ(test_tls13_early_data_write_blocked(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, sess, 0, msg, (int)sizeof(msg)), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_early_data_read_until_write_ok(ssl_s, buf,
+        sizeof(buf), &rd), 1);
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(test_tls13_early_data_read_until_write_ok(ssl_s, buf,
+        sizeof(buf), &rd), (int)sizeof(msg));
+    ExpectBufEQ(buf, msg, sizeof(msg));
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_early_data_read_until_write_ok(ssl_s, buf,
+        sizeof(buf), &rd), 0);
+    ExpectIntEQ(wolfSSL_get_early_data_status(ssl_c),
+        WOLFSSL_EARLY_DATA_ACCEPTED);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* Rejected: the ticket's 0-RTT was used above, then by a
+     * HelloRetryRequest. The server dropped msg, so the retry resends it. */
+    for (hrr = 0; hrr < 2 && EXPECT_SUCCESS(); hrr++) {
+        ExpectIntEQ(test_tls13_early_data_write_blocked(&test_ctx, &ctx_c,
+            &ctx_s, &ssl_c, &ssl_s, sess, hrr, msg, (int)sizeof(msg)),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        if (ssl_c != NULL) {
+            ExpectIntEQ(ssl_c->options.hrrSentKeyShare, hrr);
+        }
+        ExpectIntEQ(wolfSSL_get_early_data_status(ssl_c),
+            WOLFSSL_EARLY_DATA_REJECTED);
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        XMEMSET(buf, 0, sizeof(buf));
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), (int)sizeof(msg));
+        ExpectBufEQ(buf, msg, sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+            WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
