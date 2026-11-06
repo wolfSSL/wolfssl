@@ -20237,6 +20237,89 @@ static int UriRegNameHasNonEmptyLabels(const char* host, int hostSz)
     return 1;
 }
 
+/* Check that a percent-decoded URI host is LDH. */
+static int UriHostIsLdh(const char* s, int sSz)
+{
+    int i;
+    char c;
+
+    for (i = 0; i < sSz; i++) {
+        c = s[i];
+
+        if (!(('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') ||
+                ('0' <= c && c <= '9') || c == '-' || c == '.')) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+/* Size of the buffer for a percent-decoded host.
+ * Holds the longest DNS name: 253 octets + the absolute-FQDN trailing dot. */
+#define URI_HOST_MAX_SZ 254
+
+/* RFC 3986 2.3: unreserved = ALPHA / DIGIT / "-" / "." / "_" / "~" */
+static int UriIsUnreserved(char c)
+{
+    return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') ||
+           ('0' <= c && c <= '9') ||
+           c == '-' || c == '.' || c == '_' || c == '~';
+}
+
+/* RFC 5280 7.4 step 3: percent-encoding normalization (RFC 3987 5.3.2.3)
+ * decodes escaped unreserved characters.
+ * An escape of any other character cannot leave an FQDN, so it fails like a
+ * malformed one.
+ * Returns 1 on success and 0 on failure. */
+static int UriHostPercentDecode(const char** host, int* hostSz, char* buf)
+{
+    const char* s = *host;
+    int i;
+    int j = 0;
+    signed char hi;
+    signed char lo;
+    char c;
+
+    for (i = 0; i < *hostSz; i++) {
+        if (s[i] == '%') {
+            break;
+        }
+    }
+    if (i == *hostSz) {
+        return 1;
+    }
+
+    for (i = 0; i < *hostSz; i++) {
+        c = s[i];
+
+        if (c == '%') {
+            if (i + 2 >= *hostSz) {
+                return 0;
+            }
+            hi = HexCharToByte(s[i + 1]);
+            lo = HexCharToByte(s[i + 2]);
+            if (hi < 0 || lo < 0) {
+                return 0;
+            }
+            c = (char)(((byte)hi << 4) | (byte)lo);
+            if (!UriIsUnreserved(c)) {
+                return 0;
+            }
+            i += 2;
+        }
+        if (j >= URI_HOST_MAX_SZ) {
+            return 0;
+        }
+        buf[j++] = c;
+    }
+
+    *host = buf;
+    *hostSz = j;
+
+    return 1;
+}
+
 /* Validate the RFC 3986 scheme and return its terminating colon, or NULL.
  * scheme = ALPHA *(ALPHA / DIGIT / "+" / "-" / ".") */
 static const char* GetUriSchemeEnd(const char* uri, int uriSz)
@@ -20270,8 +20353,9 @@ static const char* GetUriSchemeEnd(const char* uri, int uriSz)
     return NULL;
 }
 
+/* buf must hold URI_HOST_MAX_SZ bytes. *host may point into it on return. */
 static int GetUriHost(const char* uri, int uriSz, const char** host,
-    int* hostSz, UriHostType* hostType)
+    int* hostSz, UriHostType* hostType, char* buf)
 {
     const char* hostStart;
     const char* hostEnd;
@@ -20332,6 +20416,9 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
             hostEnd++;
         }
         *hostSz = (int)(hostEnd - hostStart);
+        if (!UriHostPercentDecode(&hostStart, hostSz, buf)) {
+            return 0;
+        }
         /* One trailing dot is the absolute-FQDN marker and not part of the
          * host: strip it before classifying so that "12.31.2.3." is
          * recognized as an IPv4 address and "host.com." denotes the same
@@ -20345,7 +20432,8 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
         *hostType = UriHostIsIpv4Address(hostStart, *hostSz) ?
             URI_HOST_IPV4 : URI_HOST_REG_NAME;
         if (*hostType == URI_HOST_REG_NAME &&
-                !UriRegNameHasNonEmptyLabels(hostStart, *hostSz)) {
+                (!UriRegNameHasNonEmptyLabels(hostStart, *hostSz) ||
+                 !UriHostIsLdh(hostStart, *hostSz))) {
             return 0;
         }
     }
@@ -20363,8 +20451,9 @@ int wolfssl_local_UriNameHasDnsHost(const char* uri, int uriSz)
     const char* host = NULL;
     int hostSz = 0;
     UriHostType hostType = URI_HOST_REG_NAME;
+    char hostBuf[URI_HOST_MAX_SZ];
 
-    if (!GetUriHost(uri, uriSz, &host, &hostSz, &hostType)) {
+    if (!GetUriHost(uri, uriSz, &host, &hostSz, &hostType, hostBuf)) {
         return 0;
     }
 
@@ -20373,15 +20462,20 @@ int wolfssl_local_UriNameHasDnsHost(const char* uri, int uriSz)
     return hostType == URI_HOST_REG_NAME;
 }
 
+/* Match the host of a URI against a URI name-constraint subtree.
+ *
+ * Returns 1 on match and 0 on no match, including when the URI has no FQDN
+ * host or the base is not an FQDN. */
 int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
     const char* base, int baseSz)
 {
     const char* hostStart = NULL;
     int hostSz = 0;
     UriHostType hostType = URI_HOST_REG_NAME;
+    char hostBuf[URI_HOST_MAX_SZ];
 
     if (base == NULL || baseSz <= 0 ||
-            !GetUriHost(uri, uriSz, &hostStart, &hostSz, &hostType)) {
+            !GetUriHost(uri, uriSz, &hostStart, &hostSz, &hostType, hostBuf)) {
         return 0;
     }
     /* RFC 5280 URI constraints apply only to host names specified as fully
