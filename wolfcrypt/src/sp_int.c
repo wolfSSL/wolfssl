@@ -9571,7 +9571,8 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
-#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
+#if defined(HAVE_ECC) && (!defined(WOLFSSL_HAVE_SP_ECC) || \
+    defined(WOLFSSL_SP_MATH_ALL))
 #if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
 #ifndef SQR_MUL_ASM
 /* Multiply a by b and store in r: r = a * b
@@ -10267,7 +10268,7 @@ static int _sp_mul_12(const sp_int* a, const sp_int* b, sp_int* r)
 }
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+#endif /* HAVE_ECC && (!WOLFSSL_HAVE_SP_ECC || WOLFSSL_SP_MATH_ALL) */
 
 #if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
     (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
@@ -12217,7 +12218,8 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
         }
         else
 #ifndef WOLFSSL_SP_SMALL
-#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
+#if defined(HAVE_ECC) && (!defined(WOLFSSL_HAVE_SP_ECC) || \
+    defined(WOLFSSL_SP_MATH_ALL))
 #if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
         if ((a->used == 4) && (b->used == 4)) {
             err = _sp_mul_4(a, b, r);
@@ -12248,7 +12250,7 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
         else
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+#endif /* HAVE_ECC && (!WOLFSSL_HAVE_SP_ECC || WOLFSSL_SP_MATH_ALL) */
 #if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
     (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
     (SP_WORD_SIZE == 64)))
@@ -15338,7 +15340,8 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
 #endif /* !WOLFSSL_SP_MATH || !WOLFSSL_SP_SMALL */
 
 #ifndef WOLFSSL_SP_SMALL
-#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
+#if defined(HAVE_ECC) && (!defined(WOLFSSL_HAVE_SP_ECC) || \
+    defined(WOLFSSL_SP_MATH_ALL))
 #if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
 #ifndef SQR_MUL_ASM
 /* Square a and store in r. r = a * a
@@ -15942,7 +15945,7 @@ static int _sp_sqr_12(const sp_int* a, sp_int* r)
 }
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+#endif /* HAVE_ECC && (!WOLFSSL_HAVE_SP_ECC || WOLFSSL_SP_MATH_ALL) */
 
 #if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
     (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
@@ -17450,7 +17453,8 @@ int sp_sqr(const sp_int* a, sp_int* r)
         }
     else
 #ifndef WOLFSSL_SP_SMALL
-#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
+#if defined(HAVE_ECC) && (!defined(WOLFSSL_HAVE_SP_ECC) || \
+    defined(WOLFSSL_SP_MATH_ALL))
 #if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
         if (a->used == 4) {
             err = _sp_sqr_4(a, r);
@@ -17481,7 +17485,7 @@ int sp_sqr(const sp_int* a, sp_int* r)
         else
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+#endif /* HAVE_ECC && (!WOLFSSL_HAVE_SP_ECC || WOLFSSL_SP_MATH_ALL) */
 #if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
     (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
     (SP_WORD_SIZE == 64)))
