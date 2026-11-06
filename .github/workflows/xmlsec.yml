@@ -56,8 +56,8 @@ jobs:
           - ref: 1.2.42
             tag: xmlsec-1_2_42
             sha256: 5359e3c19016ab164b505c1222ef5a2d87b34f50f85ff91d765f4aaa0df42db2
-            # wolfSSL PKCS12_parse() does not load DSA keys, and a DSA CA's
-            # key is not kept for chain verification.
+            checks: keys dsig enc
+            # wolfSSL does not load DSA private keys from PKCS#12.
             expect_fail: >-
               aleksey-xmldsig-01/enveloping-dsa-x509chain
               aleksey-xmldsig-01/enveloping-sha256-dsa2048-sha256
@@ -75,9 +75,32 @@ jobs:
               merlin-xmldsig-twenty-three/signature-x509-is
               merlin-xmldsig-twenty-three/signature-x509-ski
               merlin-xmldsig-twenty-three/signature-x509-sn
-              phaos-xmldsig-three/signature-dsa-detached
-              phaos-xmldsig-three/signature-dsa-enveloped
-              phaos-xmldsig-three/signature-dsa-enveloping
+          - ref: 1.3.12
+            tag: 1.3.12
+            sha256: 24045199af12d93fe5fdbbbf7e386e823e4842071e9432e2b90ac108b889a923
+            checks: unit-tests keys dsig enc
+            # wolfSSL does not load DSA private keys from PKCS#12 or PKCS#8.
+            expect_fail: >-
+              aleksey-xmldsig-01/enveloped-sha1-dsa-sha1
+              aleksey-xmldsig-01/enveloping-dsa-x509chain
+              aleksey-xmldsig-01/enveloping-sha1-dsa1024-der-encoded-key-value
+              aleksey-xmldsig-01/enveloping-sha256-dsa2048-der-encoded-key-value
+              aleksey-xmldsig-01/enveloping-sha256-dsa2048-sha256
+              aleksey-xmldsig-01/enveloping-sha256-dsa3072-sha256
+              dsa-1024
+              merlin-exc-c14n-one/exc-signature
+              merlin-xmldsig-twenty-three/signature
+              merlin-xmldsig-twenty-three/signature-enveloped-dsa
+              merlin-xmldsig-twenty-three/signature-enveloping-b64-dsa
+              merlin-xmldsig-twenty-three/signature-enveloping-dsa
+              merlin-xmldsig-twenty-three/signature-external-b64-dsa
+              merlin-xmldsig-twenty-three/signature-external-dsa
+              merlin-xmldsig-twenty-three/signature-keyname
+              merlin-xmldsig-twenty-three/signature-retrievalmethod-rawx509crt
+              merlin-xmldsig-twenty-three/signature-x509-crt
+              merlin-xmldsig-twenty-three/signature-x509-is
+              merlin-xmldsig-twenty-three/signature-x509-ski
+              merlin-xmldsig-twenty-three/signature-x509-sn
     name: ${{ matrix.ref }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
@@ -97,7 +120,7 @@ jobs:
           # Fit the loop inside this job's timeout-minutes.
           budget-seconds: '120'
           pull-timeout: '60'
-          packages: libltdl-dev libxml2-dev libxslt1-dev
+          packages: autoconf automake libtool pkg-config libltdl-dev libxml2-dev libxslt1-dev
           ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Download lib
@@ -125,11 +148,13 @@ jobs:
         working-directory: xmlsec1-${{ matrix.ref }}
         run: |
           patch -p1 < "$GITHUB_WORKSPACE/osp/xmlsec/${{ matrix.ref }}/xmlsec1-${{ matrix.ref }}.patch"
-          # --disable-ripemd160: wolfSSL EVP_ripemd160() is a stub
+          autoreconf -fi
+          # NO_OLD_WC_NAMES: wolfCrypt's old names (Sha256, ...) clash with xmlsec's
           OPENSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include -I$GITHUB_WORKSPACE/build-dir/include/wolfssl -DWOLFSSL_USE_OPTIONS_H" \
           OPENSSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath,$GITHUB_WORKSPACE/build-dir/lib -lwolfssl" \
+          CPPFLAGS="-DNO_OLD_WC_NAMES" \
           ./configure --with-default-crypto=openssl --without-nss --without-gnutls \
-              --without-gcrypt --disable-ripemd160 --disable-docs --disable-mans
+              --without-gcrypt --disable-docs --disable-mans
           make -j
           ldd src/openssl/.libs/libxmlsec1-openssl.so | grep wolfssl
           if ldd src/openssl/.libs/libxmlsec1-openssl.so | grep -E 'libssl|libcrypto'; then
@@ -141,22 +166,35 @@ jobs:
         working-directory: xmlsec1-${{ matrix.ref }}
         env:
           EXPECT_FAIL: ${{ matrix.expect_fail }}
+          CHECKS: ${{ matrix.checks }}
         run: |
           export TMPFOLDER="$GITHUB_WORKSPACE/xmlsec-logs"
           mkdir -p "$TMPFOLDER"
           # make check stops at the first failing script, so run each one
-          for t in keys dsig enc; do
-            make "check-$t" > "$TMPFOLDER/check-$t.log" 2>&1 || true
-            if ! grep -- '--- TOTAL' "$TMPFOLDER/check-$t.log"; then
+          for t in $CHECKS; do
+            rc=0
+            make "check-$t" > "$TMPFOLDER/check-$t.log" 2>&1 || rc=$?
+            if [ "$t" = unit-tests ]; then
+              # No expected failures: it must exit 0 and report success.
+              if [ $rc -ne 0 ] ||
+                  ! grep 'Checking xmlsec-core: SUCCESS' "$TMPFOLDER/check-$t.log"; then
+                tail -n 50 "$TMPFOLDER/check-$t.log"
+                echo "::error::check-$t failed"
+                exit 1
+              fi
+            elif ! grep -- '--- TOTAL' "$TMPFOLDER/check-$t.log"; then
               tail -n 50 "$TMPFOLDER/check-$t.log"
               echo "::error::check-$t did not finish"
               exit 1
             fi
           done
-          # A test name is an unindented line. Its steps are indented and end
-          # in OK, Fail or Skip.
-          for t in keys dsig enc; do
-            awk '/^--- TOTAL/ {exit} /^[^ \t]/ {name = $0} /[ \t]Fail$/ {print name}' "$TMPFOLDER/check-$t.log"
+          # A test name is an unindented line, "Test: " prefixed in 1.3. Its
+          # steps are indented and end in OK, Fail or Skip.
+          for t in $CHECKS; do
+            [ "$t" = unit-tests ] && continue
+            awk '/^--- TOTAL/ {exit}
+                 /^[^ \t]/ {name = $0; sub(/^Test: /, "", name); sub(/[ \t]+$/, "", name)}
+                 /[ \t]Fail$/ {print name}' "$TMPFOLDER/check-$t.log"
           done | sort -u > "$TMPFOLDER/failed.txt"
           # Tests are matched by name: a listed test that fails for another
           # reason is not caught.
