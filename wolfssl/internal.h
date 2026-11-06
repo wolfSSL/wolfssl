@@ -1237,11 +1237,40 @@ enum {
     #define WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER 500
 #endif /* WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER */
 
+/* Disjoint fragment buckets a buffered handshake message may have. A fragment
+ * that would open one more gap is dropped, not acknowledged. */
 #ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
     #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
 #endif
 #if WOLFSSL_DTLS_FRAG_POOL_SZ > 255
     #error "WOLFSSL_DTLS_FRAG_POOL_SZ must be at most 255"
+#endif
+
+/* Bytes a WOLFSSL's DTLS receive list retains, metadata included. Room for a
+ * maximum certificate message and other buffered messages. */
+#ifndef WOLFSSL_DTLS_RX_MAX_BYTES
+    #define WOLFSSL_DTLS_RX_MAX_BYTES (MAX_HANDSHAKE_SZ + 16UL * 1024UL)
+#endif
+/* The most a WOLFSSL_CTX holds for ClientHellos whose cookie has not verified,
+ * counted like the above: one budget for all its servers, one entry per peer. */
+#ifndef WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES
+    #define WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES (64UL * 1024UL)
+#endif
+/* Shards of the context pool, each with its own lock, peers spread over them
+ * by a hash of their address. The budget above is for all. More than one
+ * needs HashObject(), which NO_HASH_WRAPPER leaves out. */
+#ifndef WOLFSSL_DTLS_CH_POOL_SHARDS
+    #if defined(SINGLE_THREADED) || defined(NO_HASH_WRAPPER)
+        #define WOLFSSL_DTLS_CH_POOL_SHARDS 1
+    #else
+        #define WOLFSSL_DTLS_CH_POOL_SHARDS 8
+    #endif
+#endif
+#if WOLFSSL_DTLS_CH_POOL_SHARDS < 1
+    #error WOLFSSL_DTLS_CH_POOL_SHARDS must be at least 1
+#endif
+#if WOLFSSL_DTLS_CH_POOL_SHARDS > 1 && defined(NO_HASH_WRAPPER)
+    #error WOLFSSL_DTLS_CH_POOL_SHARDS above 1 needs the hash wrappers
 #endif
 
 /* set minimum DH key size allowed */
@@ -1660,8 +1689,7 @@ enum Misc {
     DTLS_RECORD_EXTRA        = 8,  /* diff from normal */
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
-    DTLS_POOL_SZ             = 20, /* allowed number of list items in TX and
-                                    * RX pool */
+    DTLS_POOL_SZ             = 20, /* allowed number of list items in TX pool */
     DTLS_FRAG_POOL_SZ        = WOLFSSL_DTLS_FRAG_POOL_SZ,
                                    /* allowed number of fragments per msg */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
@@ -3061,6 +3089,101 @@ struct WOLFSSL_SOCKADDR {
     void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
 };
 
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+/* The pool's budget and eviction order are kept with atomics, so threads
+ * storing for different peers never wait on each other */
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_NO_ATOMICS)
+    #error "WOLFSSL_DTLS_CH_FRAG needs atomics unless SINGLE_THREADED"
+#endif
+/* Entries expire by LowResTimer() */
+#ifdef NO_ASN_TIME
+    #error "WOLFSSL_DTLS_CH_FRAG needs a clock: NO_ASN_TIME is not supported"
+#endif
+
+/* The entries of the peers whose address hashes to one shard, least
+ * recently progressed first */
+typedef struct DtlsChPoolShard {
+    struct DtlsMsg* head;
+    size_t          bytes; /* retained by its entries */
+    /* Progress of the shard's two oldest entries, 0 when none, published at
+     * each unlock. Eviction scans them lock-free and checks the real entry
+     * under the lock: a stale value is only ever too old, so a miss. */
+    wolfSSL_Atomic_Uint headProgress;
+    wolfSSL_Atomic_Uint nextProgress;
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex   lock;
+#endif
+} DtlsChPoolShard;
+
+/* ClientHellos a DTLS 1.3 server holds before their cookie verifies, owned by
+ * a WOLFSSL_CTX whose heap each call takes. One entry per peer, one budget. */
+typedef struct DtlsChPool {
+    DtlsChPoolShard shard[WOLFSSL_DTLS_CH_POOL_SHARDS];
+    wolfSSL_Atomic_Uint reserved; /* shard bytes plus a bound per store in
+                                   * progress, evicted for before it locks */
+    wolfSSL_Atomic_Uint lastProgress; /* last progress value given out */
+    byte            ready;    /* initialized: only a DTLS context's is */
+} DtlsChPool;
+#endif
+
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Each cookie type gets its own key, an HMAC of a label under the context's
+ * secret, so a cookie of one type never verifies as the other. */
+#ifndef NO_SHA256
+    #define CTX_COOKIE_KEY_TYPE WC_SHA256
+    #define CTX_COOKIE_KEY_SZ   WC_SHA256_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA384)
+    #define CTX_COOKIE_KEY_TYPE WC_SHA384
+    #define CTX_COOKIE_KEY_SZ   WC_SHA384_DIGEST_SIZE
+#elif defined(WOLFSSL_TLS13_SHA512)
+    #define CTX_COOKIE_KEY_TYPE WC_SHA512
+    #define CTX_COOKIE_KEY_SZ   WC_SHA512_DIGEST_SIZE
+#elif defined(WOLFSSL_SM3)
+    #define CTX_COOKIE_KEY_TYPE WC_SM3
+    #define CTX_COOKIE_KEY_SZ   WC_SM3_DIGEST_SIZE
+#elif !defined(NO_SHA)
+    #define CTX_COOKIE_KEY_TYPE WC_SHA
+    #define CTX_COOKIE_KEY_SZ   WC_SHA_DIGEST_SIZE
+#else
+    #error "No digest available to make the cookie keys with."
+#endif
+#define CTX_COOKIE_DTLS12 0 /* HelloVerifyRequest cookie */
+#define CTX_COOKIE_HRR    1 /* HelloRetryRequest cookie */
+
+/* Cookie secret the servers of a context share, as the key of each type */
+typedef struct CookieSecretCtx {
+    /* The key of each cookie type, [primary, secondary] */
+    byte   hvrKey[2][CTX_COOKIE_KEY_SZ];
+    byte   hrrKey[2][CTX_COOKIE_KEY_SZ];
+    word32 keySz[2];      /* 0: not set */
+#ifndef SINGLE_THREADED
+    wolfSSL_RwLock* lock; /* NULL until the lock is ready */
+#endif
+} CookieSecretCtx;
+
+/* The secrets a cookie of one type is made and checked with, resolved at use:
+ * the object's own, else copies of the context's keys in key. */
+typedef struct CookieSecrets {
+    const byte* pri;     /* NULL: none */
+    const byte* sec;     /* NULL: none */
+    word32      priSz;
+    word32      secSz;
+    byte        key[2][CTX_COOKIE_KEY_SZ];
+} CookieSecrets;
+
+WOLFSSL_LOCAL int  CookieSecretCtxInit(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL void CookieSecretCtxFree(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL int  CookieSecretCtxDefault(WOLFSSL_CTX* ctx);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CookieSecretGet wolfSSL_CookieSecretGet
+    #define CookieSecretsClear wolfSSL_CookieSecretsClear
+#endif
+WOLFSSL_TEST_VIS int  CookieSecretGet(const WOLFSSL* ssl, int type,
+                                      CookieSecrets* cs);
+WOLFSSL_TEST_VIS void CookieSecretsClear(CookieSecrets* cs);
+#endif
+
 #ifdef WOLFSSL_DTLS
 typedef struct WOLFSSL_DTLS_CTX {
 #ifdef WOLFSSL_RW_THREADED
@@ -4179,11 +4302,12 @@ typedef struct TicketEncCbCtx {
     byte key[2][WOLFSSL_TICKET_KEY_SZ];
     /* Expirary date of keys. */
     word32 expirary[2];
-    /* Random number generator to use for generating name, keys and IV. */
+    /* Random number generator to use for generating name and keys. */
     WC_RNG rng;
 #ifndef SINGLE_THREADED
-    /* Mutex for access to changing keys. */
-    wolfSSL_Mutex mutex;
+    /* Read lock to use the name, keys and expirary. Write lock to change
+     * them; the RNG is only used while changing them. */
+    wolfSSL_RwLock lock;
 #endif
     /* Pointer back to SSL_CTX. */
     WOLFSSL_CTX* ctx;
@@ -4265,8 +4389,11 @@ typedef struct Cookie {
 
 WOLFSSL_LOCAL int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data,
         word16 len, byte* mac, byte macSz, int resp, TLSX** exts);
-WOLFSSL_LOCAL int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie,
-                                 word16 cookieSz);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TlsCheckCookie wolfSSL_TlsCheckCookie
+#endif
+WOLFSSL_TEST_VIS int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie,
+                                    word16 cookieSz);
 
 
 /* Key Share - TLS v1.3 Specification */
@@ -4658,6 +4785,10 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
     byte        dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+    byte        dtls13ReassembleChBeforeCookie:1; /* Server reassembles a CH
+                                                   * before the cookie check */
+#endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     byte        disableECH:1;
     byte        enableEchTrialDecrypt:1;  /* Trial decryption of the
@@ -4680,6 +4811,17 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_DTLS) && \
     (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU))
     word16      dtlsMtuSz;        /* DTLS MTU size */
+#endif
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    DtlsChPool      dtlsChPool;      /* unverified ClientHellos of all
+                                      * servers */
+#endif
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    CookieSecretCtx cookieSecret;
+#ifndef SINGLE_THREADED
+    wolfSSL_RwLock  cookieSecretLock; /* see cookieSecret.lock */
+#endif
 #endif
 #ifndef NO_DH
     word16      minDhKeySz;       /* minimum DH key size */
@@ -6055,6 +6197,7 @@ struct Options {
 #endif
 #ifdef WOLFSSL_DTLS_CH_FRAG
     word16            dtls13ChFrag:1;
+    word16            dtls13ReassembleChBeforeCookie:1;
 #endif
 #endif
 #ifdef WOLFSSL_TLS13
@@ -6583,9 +6726,16 @@ typedef struct DtlsMsg {
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole message      */
     byte            type;
-    byte            fragBucketListCount;
+    word32          fragBucketListCount;
     byte            ready:1;
     byte            encrypted:1;
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    WOLFSSL_SOCKADDR peer;     /* remote address a pooled ClientHello is
+                                * keyed on */
+    word32          heldAt;    /* LowResTimer() when a pooled ClientHello
+                                * last gained bytes */
+    word32          progress;  /* pool order of that gain */
+#endif
 } DtlsMsg;
 
 
@@ -7240,6 +7390,7 @@ struct WOLFSSL {
 #endif /* !NO_ASN_TIME */
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
+    size_t          dtls_rx_msg_list_bytes; /* retained by the list */
     DtlsMsg*        dtls_tx_msg_list;
     DtlsMsg*        dtls_tx_msg;
     DtlsMsg*        dtls_rx_msg_list;
@@ -8109,6 +8260,16 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
         #define DtlsMsgListNextReady wolfSSL_DtlsMsgListNextReady
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
+        #define DtlsMsgListRetainedBytes wolfSSL_DtlsMsgListRetainedBytes
+        #define DtlsMsgStoreFatal wolfSSL_DtlsMsgStoreFatal
+        #define DtlsChPoolInit wolfSSL_DtlsChPoolInit
+        #define DtlsChPoolFree wolfSSL_DtlsChPoolFree
+        #define DtlsChPoolClear wolfSSL_DtlsChPoolClear
+        #define DtlsChPoolStore wolfSSL_DtlsChPoolStore
+        #define DtlsChPoolDrop wolfSSL_DtlsChPoolDrop
+        #define DtlsChPoolTakeRest wolfSSL_DtlsChPoolTakeRest
+        #define DtlsChPoolShardIdx wolfSSL_DtlsChPoolShardIdx
+        #define DtlsMsgAdopt wolfSSL_DtlsMsgAdopt
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
@@ -8123,10 +8284,34 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
                                   word32 totalLen, byte encrypted);
     WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
 
+    WOLFSSL_TEST_VIS size_t DtlsMsgListRetainedBytes(const DtlsMsg* head);
+    /* DtlsMsgStore() kept nothing and that is not an error: the fragment
+     * must not be acknowledged */
+    #define DTLS_MSG_STORE_DROPPED 1
     WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);
+    WOLFSSL_LOCAL void DtlsMsgRxListInsert(WOLFSSL* ssl, DtlsMsg* msg);
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgRxListDetach(WOLFSSL* ssl, DtlsMsg* item);
+    WOLFSSL_LOCAL void DtlsMsgRxListFree(WOLFSSL* ssl);
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_TEST_VIS int  DtlsChPoolInit(DtlsChPool* pool);
+    WOLFSSL_TEST_VIS void DtlsChPoolFree(DtlsChPool* pool, void* heap);
+    WOLFSSL_TEST_VIS void DtlsChPoolClear(DtlsChPool* pool, void* heap);
+    WOLFSSL_TEST_VIS int  DtlsChPoolStore(DtlsChPool* pool, void* heap,
+            const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq,
+            const byte* data, word32 dataSz, byte type, word32 fragOffset,
+            word32 fragSz, word32 maxAge, void* outHeap, DtlsMsg** done);
+    WOLFSSL_TEST_VIS void DtlsChPoolDrop(DtlsChPool* pool, void* heap,
+            const WOLFSSL_SOCKADDR* peer, word32 maxAge);
+    WOLFSSL_TEST_VIS DtlsMsg* DtlsChPoolTakeRest(DtlsChPool* pool, void* heap,
+            const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq,
+            word32 fragSz, word32 msgSz, word32 maxAge, void* outHeap);
+    WOLFSSL_TEST_VIS word32 DtlsChPoolShardIdx(const WOLFSSL_SOCKADDR* peer);
+    WOLFSSL_TEST_VIS int  DtlsMsgAdopt(DtlsMsg** msg, void* from, void* to);
+#endif
+    WOLFSSL_TEST_VIS int DtlsMsgStoreFatal(WOLFSSL* ssl, int ret);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item);
 
     WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data,
@@ -8151,7 +8336,7 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 
 #if !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl,
-            const byte* input, word32 helloSz, byte isFirstCHFrag, byte* tls13);
+            const byte* input, word32 fragSz, word32 msgSz);
 #endif /* !defined(NO_WOLFSSL_SERVER) */
 #if !defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_NO_SOCK) && \
     (defined(USE_WOLFSSL_IO) || defined(WOLFSSL_USER_IO))
@@ -8636,9 +8821,12 @@ WOLFSSL_LOCAL int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk,
 WOLFSSL_LOCAL int wolfSSL_GetHmacType_ex(CipherSpecs* specs);
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
-WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
-                                  word16 hashSz, TLSX** exts,
-                                  byte cipherSuite0, byte cipherSuite);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CreateCookieExt wolfSSL_CreateCookieExt
+#endif
+WOLFSSL_TEST_VIS int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
+                                     word16 hashSz, TLSX** exts,
+                                     byte cipherSuite0, byte cipherSuite);
 #endif
 
 WOLFSSL_LOCAL int TranslateErrorToAlert(int err);

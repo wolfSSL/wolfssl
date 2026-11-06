@@ -1726,21 +1726,400 @@ int SetCookieSecret(WOLFSSL* ssl, buffer* dst, const byte* secret,
 
 #endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER */
 
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+
+/* A context's cookie secret is a leaf lock: hold it only for memcpy and field
+ * updates, never with another lock held. Readers share it. */
+static int CookieSecretLockRd(CookieSecretCtx* cs)
+{
+#ifndef SINGLE_THREADED
+    if (cs->lock != NULL && wc_LockRwLock_Rd(cs->lock) != 0)
+        return BAD_MUTEX_E;
+#else
+    (void)cs;
+#endif
+    return 0;
+}
+
+static int CookieSecretLockWr(CookieSecretCtx* cs)
+{
+#ifndef SINGLE_THREADED
+    if (cs->lock != NULL && wc_LockRwLock_Wr(cs->lock) != 0)
+        return BAD_MUTEX_E;
+#else
+    (void)cs;
+#endif
+    return 0;
+}
+
+static void CookieSecretUnlock(CookieSecretCtx* cs)
+{
+#ifndef SINGLE_THREADED
+    if (cs->lock != NULL)
+        wc_UnLockRwLock(cs->lock);
+#else
+    (void)cs;
+#endif
+}
+
+/* Prepare the cookie secret of a new server context. It starts empty. */
+int CookieSecretCtxInit(WOLFSSL_CTX* ctx)
+{
+#ifndef SINGLE_THREADED
+    if (wc_InitRwLock(&ctx->cookieSecretLock) != 0) {
+        WOLFSSL_MSG("Bad rwlock init");
+        WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
+        return BAD_MUTEX_E;
+    }
+    ctx->cookieSecret.lock = &ctx->cookieSecretLock;
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ctx cookie hvr keys", ctx->cookieSecret.hvrKey,
+        sizeof(ctx->cookieSecret.hvrKey));
+    wc_MemZero_Add("ctx cookie hrr keys", ctx->cookieSecret.hrrKey,
+        sizeof(ctx->cookieSecret.hrrKey));
+#endif
+    (void)ctx;
+    return 0;
+}
+
+/* Erase the cookie secret of a context no object uses any more */
+void CookieSecretCtxFree(WOLFSSL_CTX* ctx)
+{
+    ForceZero(ctx->cookieSecret.hvrKey, sizeof(ctx->cookieSecret.hvrKey));
+    ForceZero(ctx->cookieSecret.hrrKey, sizeof(ctx->cookieSecret.hrrKey));
+    ctx->cookieSecret.keySz[0] = 0;
+    ctx->cookieSecret.keySz[1] = 0;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(ctx->cookieSecret.hvrKey,
+        sizeof(ctx->cookieSecret.hvrKey));
+    wc_MemZero_Check(ctx->cookieSecret.hrrKey,
+        sizeof(ctx->cookieSecret.hrrKey));
+#endif
+#ifndef SINGLE_THREADED
+    if (ctx->cookieSecret.lock != NULL) {
+        wc_FreeRwLock(ctx->cookieSecret.lock);
+        ctx->cookieSecret.lock = NULL;
+    }
+#endif
+}
+
+/* The secrets a cookie of type uses. An own primary rules the context out for
+ * the type; an own secondary wins over the context's. Both of the context's
+ * are read under one lock. COOKIE_ERROR: no primary anywhere. */
+int CookieSecretGet(const WOLFSSL* ssl, int type, CookieSecrets* cs)
+{
+    const buffer* own = NULL;
+    const buffer* ownSec = NULL;
+    CookieSecretCtx* ctxCs;
+
+    XMEMSET(cs, 0, sizeof(*cs));
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (type == CTX_COOKIE_HRR) {
+        own = &ssl->buffers.tls13CookieSecret;
+        ownSec = &ssl->buffers.tls13CookieSecretSecondary;
+    }
+#endif
+#ifdef WOLFSSL_DTLS
+    if (type == CTX_COOKIE_DTLS12) {
+        own = &ssl->buffers.dtlsCookieSecret;
+        ownSec = &ssl->buffers.dtlsCookieSecretSecondary;
+    }
+#endif
+    if (own == NULL)
+        return BAD_FUNC_ARG;
+    if (ownSec->buffer != NULL) {
+        cs->sec = ownSec->buffer;
+        cs->secSz = ownSec->length;
+    }
+    if (own->buffer != NULL) {
+        cs->pri = own->buffer;
+        cs->priSz = own->length;
+        return 0;
+    }
+    if (ssl->ctx == NULL)
+        return COOKIE_ERROR;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("cookie secret keys", cs->key, sizeof(cs->key));
+#endif
+    ctxCs = &ssl->ctx->cookieSecret;
+    if (CookieSecretLockRd(ctxCs) != 0) {
+        CookieSecretsClear(cs);
+        return BAD_MUTEX_E;
+    }
+    if (ctxCs->keySz[0] != 0) {
+        const byte* pri = (type == CTX_COOKIE_HRR) ? ctxCs->hrrKey[0] :
+                                                     ctxCs->hvrKey[0];
+        const byte* sec = (type == CTX_COOKIE_HRR) ? ctxCs->hrrKey[1] :
+                                                     ctxCs->hvrKey[1];
+
+        XMEMCPY(cs->key[0], pri, CTX_COOKIE_KEY_SZ);
+        cs->pri = cs->key[0];
+        cs->priSz = ctxCs->keySz[0];
+        if (cs->sec == NULL && ctxCs->keySz[1] != 0) {
+            XMEMCPY(cs->key[1], sec, CTX_COOKIE_KEY_SZ);
+            cs->sec = cs->key[1];
+            cs->secSz = ctxCs->keySz[1];
+        }
+    }
+    CookieSecretUnlock(ctxCs);
+    if (cs->pri == NULL) {
+        WOLFSSL_MSG("No cookie secret on the object or its context");
+        CookieSecretsClear(cs);
+        return COOKIE_ERROR;
+    }
+    return 0;
+}
+
+/* Erase the copies of the context's keys */
+void CookieSecretsClear(CookieSecrets* cs)
+{
+    ForceZero(cs->key, sizeof(cs->key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(cs->key, sizeof(cs->key));
+#endif
+}
+
+#define CTX_COOKIE_SET       0
+#define CTX_COOKIE_SECONDARY 1
+#define CTX_COOKIE_ROTATE    2
+#define CTX_COOKIE_DEFAULT   3 /* a random primary, only if there is none */
+
+/* Generate a random cookie secret of sz bytes with a temporary RNG */
+static int CtxCookieSecretGenerate(WOLFSSL_CTX* ctx, byte* out, word32 sz)
+{
+    int ret;
+    WC_DECLARE_VAR(rng, WC_RNG, 1, ctx->heap);
+
+    WC_ALLOC_VAR_EX(rng, WC_RNG, 1, ctx->heap, DYNAMIC_TYPE_RNG,
+        return MEMORY_E);
+    /* Unused when the RNG is on the stack and FIPS takes no heap */
+    (void)ctx;
+#ifdef HAVE_FIPS
+    ret = wc_InitRng(rng);
+#else
+    ret = wc_InitRng_ex(rng, ctx->heap, ctx->devId);
+#endif
+    if (ret == 0) {
+        ret = wc_RNG_GenerateBlock(rng, out, sz);
+        wc_FreeRng(rng);
+    }
+    WC_FREE_VAR_EX(rng, ctx->heap, DYNAMIC_TYPE_RNG);
+    return ret;
+}
+
+static const char ctxCookieLabelDtls12[] =
+    "wolfSSL DTLS HelloVerifyRequest cookie";
+static const char ctxCookieLabelHrr[] =
+    "wolfSSL HelloRetryRequest cookie";
+
+/* Wait out a hardware HMAC, as HKDF does. A crypto callback pending is
+ * returned: the context is unchanged and the call can be made again. */
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+    (defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+    #define CTX_COOKIE_HMAC_WAIT(ret, hmac)                                    \
+        (ret) = wc_AsyncWait((ret), &(hmac)->asyncDev, WC_ASYNC_FLAG_NONE)
+#else
+    #define CTX_COOKIE_HMAC_WAIT(ret, hmac) WC_DO_NOTHING
+#endif
+
+/* Make the key of each cookie type: an HMAC of a label per type under the
+ * secret, so a cookie of one type cannot pass as the other. */
+static int CtxCookieKeysMake(WOLFSSL_CTX* ctx, const byte* secret,
+                             word32 secretSz, byte* hvrKey, byte* hrrKey)
+{
+    int ret = 0;
+    int i;
+    WC_DECLARE_VAR(hmac, Hmac, 1, ctx->heap);
+
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, ctx->heap, DYNAMIC_TYPE_HMAC,
+        return MEMORY_E);
+    for (i = 0; i < 2 && ret == 0; i++) {
+        const char* label = (i == CTX_COOKIE_HRR) ? ctxCookieLabelHrr :
+                                                    ctxCookieLabelDtls12;
+        byte* key = (i == CTX_COOKIE_HRR) ? hrrKey : hvrKey;
+
+        ret = wc_HmacInit(hmac, ctx->heap, ctx->devId);
+        if (ret == 0) {
+            ret = wc_HmacSetKey(hmac, CTX_COOKIE_KEY_TYPE, secret, secretSz);
+            CTX_COOKIE_HMAC_WAIT(ret, hmac);
+            if (ret == 0) {
+                ret = wc_HmacUpdate(hmac, (const byte*)label,
+                                    (word32)XSTRLEN(label));
+                CTX_COOKIE_HMAC_WAIT(ret, hmac);
+            }
+            if (ret == 0) {
+                ret = wc_HmacFinal(hmac, key);
+                CTX_COOKIE_HMAC_WAIT(ret, hmac);
+            }
+            wc_HmacFree(hmac);
+        }
+    }
+    WC_FREE_VAR_EX(hmac, ctx->heap, DYNAMIC_TYPE_HMAC);
+    return ret;
+}
+
+/* Change the cookie secret of a server context: CTX_COOKIE_SET, _SECONDARY,
+ * _ROTATE or _DEFAULT. NULL generates a secret, or clears the secondary. */
+static int CtxCookieSecretUpdate(WOLFSSL_CTX* ctx, int op,
+                                 const byte* secret, word32 secretSz)
+{
+    int ret = 0;
+    int slot = (op == CTX_COOKIE_SECONDARY) ? 1 : 0;
+    CookieSecretCtx* cs;
+    const byte* src = secret;
+    byte buf[CTX_COOKIE_KEY_SZ];
+    byte hvr[CTX_COOKIE_KEY_SZ];
+    byte hrr[CTX_COOKIE_KEY_SZ];
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+    if (op == CTX_COOKIE_SECONDARY && (secret == NULL || secretSz == 0)) {
+        secretSz = 0;
+    }
+    else if (secret == NULL) {
+        /* A random secret as long as the keys made from it */
+        secretSz = (word32)sizeof(buf);
+    }
+    else if (secretSz == 0) {
+        WOLFSSL_MSG("Cookie secret without a size");
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(hvr, 0, sizeof(hvr));
+    XMEMSET(hrr, 0, sizeof(hrr));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(buf, 0, sizeof(buf));
+    wc_MemZero_Add("ctx cookie secret new", buf, sizeof(buf));
+    wc_MemZero_Add("ctx cookie hvr key new", hvr, sizeof(hvr));
+    wc_MemZero_Add("ctx cookie hrr key new", hrr, sizeof(hrr));
+#endif
+    if (secret == NULL && secretSz != 0) {
+        ret = CtxCookieSecretGenerate(ctx, buf, secretSz);
+        src = buf;
+    }
+    if (ret == 0 && secretSz != 0)
+        ret = CtxCookieKeysMake(ctx, src, secretSz, hvr, hrr);
+
+    cs = &ctx->cookieSecret;
+    if (ret == 0 && CookieSecretLockWr(cs) != 0)
+        ret = BAD_MUTEX_E;
+    if (ret == 0) {
+        /* Of racing defaults, the first one installed stays */
+        if (op != CTX_COOKIE_DEFAULT || cs->keySz[0] == 0) {
+            if (op == CTX_COOKIE_ROTATE) {
+                XMEMCPY(cs->hvrKey[1], cs->hvrKey[0], CTX_COOKIE_KEY_SZ);
+                XMEMCPY(cs->hrrKey[1], cs->hrrKey[0], CTX_COOKIE_KEY_SZ);
+                cs->keySz[1] = cs->keySz[0];
+            }
+            XMEMCPY(cs->hvrKey[slot], hvr, CTX_COOKIE_KEY_SZ);
+            XMEMCPY(cs->hrrKey[slot], hrr, CTX_COOKIE_KEY_SZ);
+            cs->keySz[slot] = (secretSz != 0) ? CTX_COOKIE_KEY_SZ : 0;
+        }
+        CookieSecretUnlock(cs);
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    ForceZero(buf, sizeof(buf));
+    ForceZero(hvr, sizeof(hvr));
+    ForceZero(hrr, sizeof(hrr));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(buf, sizeof(buf));
+    wc_MemZero_Check(hvr, sizeof(hvr));
+    wc_MemZero_Check(hrr, sizeof(hrr));
+#endif
+    return ret;
+}
+
+/* Give a context without a cookie secret a random one, so its servers' cookies
+ * verify at each other. Returns 0 when it has one. */
+int CookieSecretCtxDefault(WOLFSSL_CTX* ctx)
+{
+    CookieSecretCtx* cs;
+    word32 sz;
+    int ret;
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    cs = &ctx->cookieSecret;
+    if (CookieSecretLockRd(cs) != 0)
+        return BAD_MUTEX_E;
+    sz = cs->keySz[0];
+    CookieSecretUnlock(cs);
+    if (sz != 0)
+        return 0;
+    ret = CtxCookieSecretUpdate(ctx, CTX_COOKIE_DEFAULT, NULL, 0);
+    return (ret == WOLFSSL_SUCCESS) ? 0 : ret;
+}
+
+int wolfSSL_CTX_set_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_cookie_secret");
+    return CtxCookieSecretUpdate(ctx, CTX_COOKIE_SET, secret, secretSz);
+}
+
+int wolfSSL_CTX_set_cookie_secret_secondary(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_cookie_secret_secondary");
+    return CtxCookieSecretUpdate(ctx, CTX_COOKIE_SECONDARY, secret, secretSz);
+}
+
+int wolfSSL_CTX_rotate_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_rotate_cookie_secret");
+    return CtxCookieSecretUpdate(ctx, CTX_COOKIE_ROTATE, secret, secretSz);
+}
+
+#elif defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)
+
+int wolfSSL_CTX_set_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz)
+{
+    (void)secret;
+    (void)secretSz;
+    return (ctx == NULL) ? BAD_FUNC_ARG : SIDE_ERROR;
+}
+
+int wolfSSL_CTX_set_cookie_secret_secondary(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz)
+{
+    (void)secret;
+    (void)secretSz;
+    return (ctx == NULL) ? BAD_FUNC_ARG : SIDE_ERROR;
+}
+
+int wolfSSL_CTX_rotate_cookie_secret(WOLFSSL_CTX* ctx,
+    const unsigned char* secret, unsigned int secretSz)
+{
+    (void)secret;
+    (void)secretSz;
+    return (ctx == NULL) ? BAD_FUNC_ARG : SIDE_ERROR;
+}
+
+#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER */
+
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 
 /* Set the DTLS cookie secret used to generate HelloVerifyRequest cookies.
  *
- * When secret is NULL a new secret is randomly generated. The object's RNG
- * must be initialized. This is not an SSL function.
+ * A secret given here wins over the context's. NULL drops the object's own
+ * and uses the context's secret, made now if the context has none. This is
+ * not an SSL function.
  *
  * @param [in] ssl       SSL/TLS object.
- * @param [in] secret    Cookie secret data, or NULL to generate one.
- * @param [in] secretSz  Length of secret in bytes, 0 to use the default.
+ * @param [in] secret    Cookie secret data, or NULL to use the context's.
+ * @param [in] secretSz  Length of secret in bytes. Not used with NULL.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or secret is set with size 0.
- * @return  BAD_STATE_E when a secret must be generated and the RNG has been
- *          released. The secret in use is unchanged.
+ * @return  BAD_MUTEX_E when the context cannot be locked.
  * @return  MEMORY_ERROR on allocation failure. The secret in use is unchanged.
+ * @return  A negative error code when the context's secret cannot be made.
  */
 int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                                  const byte* secret, word32 secretSz)
@@ -1754,14 +2133,18 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         return BAD_FUNC_ARG;
     }
 
-    if (secret != NULL && secretSz == 0) {
+    if (secret == NULL) {
+        ret = CookieSecretCtxDefault(ssl->ctx);
+        if (ret == 0)
+            FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret);
+        WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecret", ret);
+        return ret;
+    }
+
+    if (secretSz == 0) {
         WOLFSSL_MSG("can't have a new secret without a size");
         return BAD_FUNC_ARG;
     }
-
-    /* If secretSz is 0, use the default size. */
-    if (secretSz == 0)
-        secretSz = COOKIE_SECRET_SZ;
 
     ret = SetCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret, secret, secretSz,
                           "wolfSSL_DTLS_SetCookieSecret secret");
@@ -1927,7 +2310,8 @@ int DtlsNoCookieChGood(WOLFSSL* ssl)
 
 /* Set a secondary DTLS 1.2 cookie secret used only when verifying a received
  * HelloVerifyRequest cookie, and only if the primary secret (set by
- * wolfSSL_DTLS_SetCookieSecret()) fails to verify it.
+ * wolfSSL_DTLS_SetCookieSecret()) fails to verify it. On an object that uses
+ * its context's secret, the secret it holds becomes its own.
  *
  * This supports an application-driven cookie-secret rotation on a stateless
  * server: after rotating the primary secret, install the previous secret here
@@ -2069,66 +2453,74 @@ int wolfSSL_disable_cookie(WOLFSSL* ssl)
 /* Turn the cookie policy on, optionally replacing the HelloRetryRequest
  * cookie secret.
  *
- * Every secret the policy needs, including the DTLS 1.2 fallback secret of a
- * DTLS 1.3 server, is built before any is installed, so a failure leaves the
- * object as it was found. The handshake state is not checked here: the public
- * entry points check it, and InitSSL_DtlsServer() runs before it matters.
+ * A secret given is the object's own. A cookie type the object has no secret
+ * of its own for uses the context's, made now if the context has none. The
+ * handshake state is not checked here: the public entry points check it, and
+ * InitSSL_DtlsServer() runs before it matters.
  *
  * @param [in, out] ssl          SSL/TLS object.
- * @param [in]      hrrSecret    HRR cookie secret to install, or NULL to
- *                               generate one.
+ * @param [in]      hrrSecret    HRR cookie secret to install, or NULL to use
+ *                               the context's.
  * @param [in]      hrrSecretSz  Length of hrrSecret in bytes, 0 for the
  *                               default size.
  * @param [in]      replaceHrr   Replace an HRR secret that is already set.
- *                               When 0, only missing secrets are generated and
- *                               application-supplied secrets are kept.
+ *                               When 0, an application-supplied secret is kept.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or the protocol has no cookie.
  * @return  SIDE_ERROR when called on a client.
- * @return  A negative error code when a secret cannot be generated. The
- *          object is left as it was found.
+ * @return  A negative error code when a secret cannot be stored or the
+ *          context's made. The object is left as it was found.
  */
 int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret, word32 hrrSecretSz,
                     int replaceHrr)
 {
     int ret;
+    int needCtx = 0;
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     buffer newTls13Secret;
-#endif
-#ifdef WOLFSSL_DTLS
-    buffer newDtlsSecret;
-#endif
+    int dropHrr = 0;
 
-#ifdef WOLFSSL_SEND_HRR_COOKIE
     XMEMSET(&newTls13Secret, 0, sizeof(newTls13Secret));
-#endif
-#ifdef WOLFSSL_DTLS
-    XMEMSET(&newDtlsSecret, 0, sizeof(newDtlsSecret));
 #endif
 
     ret = CheckCookieSide(ssl);
     if (ret != WOLFSSL_SUCCESS)
         return ret;
 
-    /* Prepare. Every step that can fail runs here. */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    if (IsAtLeastTLSv1_3(ssl->version) &&
-            (replaceHrr || ssl->buffers.tls13CookieSecret.buffer == NULL)) {
-        ret = NewCookieSecret(ssl, &newTls13Secret, hrrSecret,
-                              (hrrSecretSz != 0) ? hrrSecretSz
-                                  : (word32)TLS13_COOKIE_SECRET_SZ);
-        if (ret != 0)
-            goto cleanup;
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (hrrSecret != NULL) {
+            if (replaceHrr || ssl->buffers.tls13CookieSecret.buffer == NULL) {
+                ret = NewCookieSecret(ssl, &newTls13Secret, hrrSecret,
+                                      (hrrSecretSz != 0) ? hrrSecretSz
+                                          : (word32)TLS13_COOKIE_SECRET_SZ);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        else if (replaceHrr) {
+            dropHrr = 1;
+            needCtx = 1;
+        }
+        else if (ssl->buffers.tls13CookieSecret.buffer == NULL) {
+            needCtx = 1;
+        }
     }
 #endif
 #ifdef WOLFSSL_DTLS
     /* DTLS 1.3 also needs this secret for DTLS 1.2 fallback. */
-    if (ssl->options.dtls && ssl->buffers.dtlsCookieSecret.buffer == NULL) {
-        ret = NewCookieSecret(ssl, &newDtlsSecret, NULL, COOKIE_SECRET_SZ);
-        if (ret != 0)
-            goto cleanup;
-    }
+    if (ssl->options.dtls && ssl->buffers.dtlsCookieSecret.buffer == NULL)
+        needCtx = 1;
 #endif
+    if (needCtx) {
+        ret = CookieSecretCtxDefault(ssl->ctx);
+        if (ret != 0) {
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+            FreeCookieSecret(ssl, &newTls13Secret);
+#endif
+            return ret;
+        }
+    }
 
     /* Install. Nothing below this point can fail. */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
@@ -2136,11 +2528,8 @@ int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret, word32 hrrSecretSz,
         InstallCookieSecret(ssl, &ssl->buffers.tls13CookieSecret,
                             &newTls13Secret, "tls13CookieSecret");
     }
-#endif
-#ifdef WOLFSSL_DTLS
-    if (newDtlsSecret.buffer != NULL) {
-        InstallCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret,
-                            &newDtlsSecret, "dtlsCookieSecret");
+    else if (dropHrr) {
+        FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecret);
     }
 #endif
     ssl->options.sendCookie = 1;
@@ -2149,16 +2538,6 @@ int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret, word32 hrrSecretSz,
     (void)hrrSecretSz;
     (void)replaceHrr;
     return WOLFSSL_SUCCESS;
-
-cleanup:
-    /* Only the secrets this call built are dropped. */
-#ifdef WOLFSSL_SEND_HRR_COOKIE
-    FreeCookieSecret(ssl, &newTls13Secret);
-#endif
-#ifdef WOLFSSL_DTLS
-    FreeCookieSecret(ssl, &newDtlsSecret);
-#endif
-    return ret;
 }
 
 /* Prepare missing secrets without replacing application-supplied secrets.

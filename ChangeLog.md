@@ -28,6 +28,71 @@
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
 
 ## Behavioral Changes
+* **Behavioral change (a DTLS 1.3 server reassembles a fragmented first
+  ClientHello before the cookie exchange)**: a stateless server dropped every
+  fragment of a first ClientHello, so a client whose ClientHello does not fit
+  one datagram (a post-quantum key share, a small MTU) failed in silence. In a
+  `WOLFSSL_DTLS_CH_FRAG` build (`--enable-dtls-frag-ch`, automatic with ML-KEM)
+  the fragments are now held in a pool owned by the `WOLFSSL_CTX` until the
+  ClientHello is complete, and the cookie check runs on the whole message; no
+  key, group or transcript state is kept until a cookie verifies. Any
+  stateless server made from the context can complete a ClientHello another
+  one started. This is on by default: the new
+  `wolfSSL_CTX_dtls13_reassemble_ch_before_cookie()` and
+  `wolfSSL_dtls13_reassemble_ch_before_cookie()` turn it off, and
+  `wolfSSL_CTX_dtls13_clear_ch_pool()` frees what is held. Fragmented
+  ClientHello support, `wolfSSL_dtls13_allow_ch_frag()`, is now on for every
+  DTLS 1.3 server of such a build, not only with ML-KEM, which supersedes the
+  5.9.4 note below that the fragments were still dropped; without
+  `WOLFSSL_DTLS_CH_FRAG` they still are. The unverified bytes a context holds
+  are bounded by `WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES`, 64 KiB by default,
+  metadata included: when the budget is short the least recently progressed
+  entry is evicted, and an entry that gains no bytes for the server's
+  retransmission maximum expires. The pool is split into
+  `WOLFSSL_DTLS_CH_POOL_SHARDS` lists (8; 1 with `SINGLE_THREADED` or
+  `NO_HASH_WRAPPER`) picked by a hash of the peer address, each with its own
+  lock. It needs atomics in a
+  threaded build and a clock in any (`NO_ASN_TIME` is not supported). The
+  first fragment of a DTLS 1.2 ClientHello whose cookie verifies is now kept
+  and the rest of the message taken from the pool, where before it was
+  ignored and the client had to resend the message. The example server takes
+  `--reassemble-before-cookie [n]`.
+
+* **Behavioral change (the DTLS receive list is bounded by bytes)**: the list
+  of out-of-order and fragmented handshake messages was bounded by
+  `DTLS_POOL_SZ` entries, 20, whatever their size, and a fragment the list
+  could not take ended the connection, also from a plaintext record anyone can
+  send. `WOLFSSL_DTLS_RX_MAX_BYTES` now bounds the bytes it retains, metadata
+  and payload, `MAX_HANDSHAKE_SZ` plus 16 KiB by default. A plaintext
+  fragment that does not fit, or reaches past its message, is dropped and not
+  acknowledged, so its sender resends it; only running out of memory, or a
+  peer whose records authenticate exceeding the budget, ends the connection.
+  The per-message cap on fragment buckets, `WOLFSSL_DTLS_FRAG_POOL_SZ`, is
+  checked before anything is allocated. A buffered DTLS 1.3 message older
+  than the next expected one is dropped instead of stalling the list, and
+  `wolfSSL_clear()` frees the DTLS 1.3 receive list.
+
+* **Behavioral change (the servers of a context share a cookie secret)**:
+  cookie secrets were per `WOLFSSL`, so a server could not verify a cookie
+  another server of the same context issued, and a second ClientHello handed
+  to a new listener failed: a fatal alert in DTLS 1.3, a new
+  HelloVerifyRequest in DTLS 1.2. Every server context now holds a cookie
+  secret, kept as a key per cookie type so a HelloVerifyRequest cookie never
+  verifies as a HelloRetryRequest cookie, and a context without one gets a
+  random secret the first time one of its objects enables cookies, so the
+  servers of one context verify each other's cookies with no API call. TLS
+  1.3 HelloRetryRequest cookies use it as the DTLS ones do. The new
+  `wolfSSL_CTX_set_cookie_secret()`,
+  `wolfSSL_CTX_set_cookie_secret_secondary()` and
+  `wolfSSL_CTX_rotate_cookie_secret()` set it: rotate moves the primary to the
+  secondary, so cookies issued before it keep verifying, while set discards
+  the previous key. A secret may be of any non-zero size, and NULL generates
+  a random one. A secret given to `wolfSSL_send_hrr_cookie()` or
+  `wolfSSL_DTLS_SetCookieSecret()` still overrides the context's for that
+  object, and NULL to either now drops the object's own secret in favour of
+  the context's. A DTLS 1.3 cookie is checked before the SNI callback, so a
+  `wolfSSL_set_SSL_CTX()` made there cannot change the secret the check uses.
+
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
   paths always read 20 bytes, so neither followed FIPS 186-4 4.2.  Both now use
@@ -129,6 +194,15 @@
 * AutoSAR: the Csm/CryIf/Crypto port gained the MAC generate and verify services, device offload and key handles, and had its thread safety, key handling and development error reporting fixed. `Csm_MacGenerate()` and `Csm_MacVerify()` use AES-CMAC behind the new `--enable-autosar-cmac` (CMake `WOLFSSL_AUTOSAR_CMAC`), which requires `--enable-autosar` and enables wolfCrypt CMAC (`WOLFSSL_CMAC` and `WOLFSSL_AES_DIRECT`) by itself; the key is read from `CRYPTO_KE_MAC_KEY`, which the specification gives the same value as `CRYPTO_KE_CIPHER_KEY`. This port's keystore is flat, so the element ID alone cannot tell a cipher key from a MAC key and a job that lets the driver resolve its own key takes the first slot holding 0x01, whichever service provisioned it. A build using both services names the slot it means, with the new `wolfSSL_Csm_EncryptWithKey()`, `wolfSSL_Csm_DecryptWithKey()`, `wolfSSL_Csm_MacGenerateWithKey()` and `wolfSSL_Csm_MacVerifyWithKey()` (wolfSSL extensions): `keyId` selects the slot holding the key element, while other elements such as the cipher IV stay resolved by the driver, their IDs being unambiguous. A build with the MAC services refuses a job that did not name its slot when more than one populated slot holds element 0x01, rather than resolving to the first match -- a SW-C written against the standard Csm API would otherwise compute a CMAC under the AES-CBC key and the verifying side, set up the same way, would accept it. One such slot is unambiguous whichever service provisioned it, so a single-key ECU is unaffected, and `WOLFSSL_AUTOSAR_ALLOW_AMBIGUOUS_KEY_ELEMENT` restores the first-match scan for an ECU that keeps several keys for a single service. Key input redirection with `--enable-autosar-cmac` is refused at build time, that combination mapping element 0x01 to one slot for every service with nothing left to disambiguate; `--enable-autosar-cmac` also now requires `WOLFSSL_CMAC` and `WOLFSSL_AES_DIRECT` at compile time rather than failing every MAC job at run time in a `user_settings.h` build that forgot them. Key input redirection does NOT separate them -- it maps an element ID to one slot for every service -- so an earlier draft of this port documented a workaround that could not work. `Csm_MacVerify()`'s `macLength` is in bits, as the specification defines it: the driver converts to `ceil(macLength / 8)` bytes, compares the whole bytes and then the trailing partial byte under a mask, and rejects anything longer than the 128 bit tag -- which is also where a byte count passed by mistake lands. `Csm_MacGenerate()`'s `macLengthPtr` is in bytes and its specified unit is unverified here, so passing the length it returns straight into `Csm_MacVerify()` asks for eight times less than intended; multiply by 8. `wolfSSL_Csm_MacVerifyWithKey()` is byte-based throughout, being a wolfSSL extension, and takes the buffer size beside the length. Verify also enforces a floor, `WOLFSSL_AUTOSAR_MAC_MIN_SZ`, which defaults to the 3 bytes AUTOSAR SecOC profile 1 truncates to -- below wolfCrypt's own `WC_CMAC_TAG_MIN_SZ` deliberately, so that the port does not refuse its own standard's profile, and raisable per build; a 1 or 2 byte tag, forged by guessing, is refused outright. A MAC shorter than the full tag compares against the leading bytes, and a mismatch is reported through `verifyPtr` as `CRYPTO_E_VER_NOT_OK` with an `E_OK` return rather than as a job failure. `Csm_ConfigType` gained a `devId` alongside its `heap` and `Csm_Init()` now passes both down through `CryIf_Init()` to `Crypto_Init()` instead of discarding the config, so the driver can be a front end for an HSM, SHE block or accelerator rather than a software implementation; `Csm_Init(NULL)` still selects the default allocator and software and `WOLFSSL_AUTOSAR_DEVID` sets that default for builds with no runtime configuration to plumb, a repeated `Csm_Init()` is now safe to make: it frees the DRBG built under the previous configuration while holding the RNG lock, publishes the new heap and `devId` while holding every lock their readers use, and creates the driver mutexes once instead of re-initializing them under a thread that may hold one. It is refused outright while any job owns a slot or is starting -- a job runs its wolfCrypt context outside the driver's locks, so freeing one under a live job would be a use-after-free -- and because the service returns void the refusal is reported to the DET as `CSM_E_INIT_FAILED`; `Csm_CancelJob()` (`CryIf_CancelJob()` was a stub) releases the slot of a job that will never send its FINISH, so an abandoned stream cannot wedge reconfiguration for the life of the ECU, and `CryIf_ConfigType` and `Crypto_ConfigType` gained the same field -- applications compiled against the older headers must be rebuilt. A keystore slot can now name a key that lives in a device instead of holding the key material, so the key never enters RAM: `wolfSSL_Csm_KeyElementSetId()` and `wolfSSL_Csm_KeyElementSetLabel()` (wolfSSL extensions, not AUTOSAR 4.4 Csm API, hence the prefix) point a slot at a hardware key and a cipher job is then built with `wc_AesInit_Id()` or `wc_AesInit_Label()` rather than `wc_AesSetKey()`, so a fall-through to software fails instead of encrypting under an all-zero key; needs `WOLF_PRIVATE_KEY_ID` and a configured `devId`. A job naming a key is refused outright when the port is in software mode, and on any build where wolfCrypt's key-is-set check is not enforced -- either because `WOLFSSL_AES_REQUIRE_KEY_SET` is absent, or because the back end is one of those listed under `WC_AES_KEY_SET_CHECK_UNSUPPORTED` in `aes.h`, which replace the AES entry points with implementations that never consult the check, so forcing the macro on such a target makes it true without making the job safe. The MAC services can use such a slot as well, under those same conditions: wolfCrypt stores the name on the `Cmac`, offers the job to the crypto callback, and rejects a NULL key once the callback has declined -- which covers a device that refuses the work, but not one that claims the initialization and then declines an update or the final, leaving wolfCrypt to fall through to software over a context with no subkeys and no key. The key-is-set check is what fails that job instead of returning a tag computed from nothing, so key handles are unavailable on a back end without it and the keystore has to hold the key material there. Fixed: two data races in the Crypto driver, the `MAX_JOBS` job table having no lock of its own (two SW-Cs calling `Csm_Encrypt()` concurrently could claim one slot and initialize one `Aes` context twice) and `GetKey()` returning a pointer into the keystore after dropping the mutex (a concurrent `Csm_KeyElementSet()` could overwrite the key bytes in use); the key input redirection build, where `GetKey()` used runtime struct members as `switch` case labels, so no build defining `REDIRECTION_CONFIG` compiled and `redirect_test`, gated behind the same macro, never ran; cipher jobs now take the key length from the keystore, so 128, 192 and 256 bit keys set with `Csm_KeyElementSet()` all work, where `csm.c` previously asked every cipher job for a 16 byte key and the driver required an exact match, and a stored key whose length is not a valid AES key length is rejected by the job that tries to use it; development errors now carry the IDs the CSM specification assigns, where a local 0-based enum in `csm.c` shadowed the header's correct values and reported 0 for `CSM_E_PARAM_POINTER`, which the specification assigns to no error at all, and `ReportToDET()` takes the arguments of the AUTOSAR entry point and forwards to `Det_ReportError()` under `WOLFSSL_AUTOSAR_DET`; the dead `WOLFSSL_CSM_E_PROCESSING_MOD` macro is spelled `WOLFSSL_CSM_E_PROCESSING_MODE` as the specification does, and the enum's `CSM_E_UNINT` misspelling of `CSM_E_UNINIT` went with it; the DRBG was initialized with a device ID of 0 rather than `INVALID_DEVID`, which under `WOLF_CRYPTO_CB` could match a registered device by accident; `CRYPTO_OPERATIONMODE_FINISH` naming a job that was never started returns `E_NOT_OK` instead of reporting success; and a cipher job that fails mid-stream now frees its job slot, where it used to leak it and leave a stale context that the next `CRYPTO_OPERATIONMODE_START` for the same `jobId` would keep using while claiming a second slot -- a START on a job that is already active now restarts it instead. `WOLFSSL_AUTOSAR=yes` under CMake defined the macro into `options.h` without compiling `csm.c`, `cryif.c` or `crypto.c`, so an application's `Csm_*` calls compiled against `Csm.h` and then failed to link; the port sources are now part of the CMake build. `Csm.h` gained the module identity AUTOSAR expects (`WOLFSSL_CSM_MODULE_ID` 110, a vendor ID and the `AR_RELEASE` version macros), which `Csm_GetVersionInfo()` now reports. The port test provisions its key and IV into the slots redirection points at so it passes with and without `REDIRECTION_CONFIG`, and gained an AES-CMAC known answer case, a case checking a configured `devId` reaches a registered crypto callback, a case checking a key named rather than stored produces the same ciphertext as the key itself, a case checking a development error arrives with the specified module and error IDs, a case provisioning a cipher key and a MAC key at once and checking each service picks the right one, a case for cancelling a job and for the refusal and DET report a re-init gives while one is open, and a threaded case running cipher jobs against a concurrent `Csm_Init()`; it also no longer trips the `settings.h` header order warning. A new `autosar.yml` workflow runs all nine configurations, including development error reporting without the MAC services -- which did not link, because `csm.c` compiles the `Det_ReportError()` call whenever `WOLFSSL_AUTOSAR_DET` is defined while the test program defined the symbol only alongside CMAC -- each asserting its feature-gated test actually ran, plus a CMake job that links an application against the AUTOSAR API -- `--enable-autosar` previously had no CI coverage at all. Key material in a keystore slot is wiped with `ForceZero()` rather than `XMEMSET()` when the slot is overwritten or the driver re-initialized, a CMAC context whose initialization failed is freed rather than left behind, and the port test gained cases for the job slot lifecycle -- a restart of an active job, a job failing after START not leaking its slot, and every AES key length the keystore can hold. The port README documents the supported services, the compile time `MAX_KEYSTORE` and `MAX_JOBS` limits, the `heap` and `devId` configuration, key handles, the module identity and DET wiring, the `resultLengthPtr` and MAC length deviations from the specification, and what still does not conform if certification is the goal. by @SparkiDev (PR TBD)
 
 ## Bug Fixes
+
+* **Fix (data races on the default session ticket key context)**:
+  `DefTicketEncCb()` read whether the context's ticket keys were set up, and
+  chose the encryption key, without the context's lock, racing the thread
+  that set them up and `wolfSSL_CTX_set_tlsext_ticket_keys()` replacing them.
+  The lock is now a `wolfSSL_RwLock`: readers copy the key under the read
+  lock and run the AEAD on the copy, writers take the write lock. Tickets run
+  in parallel with `--enable-rwlock`; otherwise the lock is a mutex held only
+  for the copy.
 
 * Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
 

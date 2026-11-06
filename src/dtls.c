@@ -40,12 +40,32 @@
  *       disable the cookie exchange on resumption
  *     - Continue like with a normal connection
  * WOLFSSL_DTLS_CH_FRAG
- *     Allow a server to process a fragmented second/verified (one containing a
- *     valid cookie response) ClientHello message. The first/unverified (one
- *     without a cookie extension) ClientHello MUST be unfragmented so that the
- *     DTLS server can process it statelessly. This is only implemented for
- *     DTLS 1.3. The user MUST call wolfSSL_dtls13_allow_ch_frag() on the server
- *     to explicitly enable this during runtime.
+ *     DTLS 1.3 ClientHello fragmentation. Server: reassemble a fragmented
+ *     ClientHello, before its cookie is verified too, and run the cookie check
+ *     on the complete message (RFC 9147 Section 5.5: a receiver must buffer or
+ *     process a fragment). Unverified fragments are held in a pool per
+ *     WOLFSSL_CTX, keyed on the remote address and bounded by
+ *     WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES, so any stateless server of the
+ *     context can complete them. A server without the peer's address holds
+ *     nothing. On by default: wolfSSL_CTX_dtls13_reassemble_ch_before_cookie()
+ *     turns the holding off, wolfSSL_dtls13_allow_ch_frag() the reassembly,
+ *     and wolfSSL_CTX_dtls13_clear_ch_pool() empties the pool. The pool
+ *     needs a clock, so not NO_ASN_TIME, and atomics in a threaded build.
+ *     Client: send an empty key share when the first ClientHello would not fit
+ *     one datagram, at the cost of a HelloRetryRequest round trip.
+ *     With the cookie exchange disabled the server is stateful from the first
+ *     datagram and reassembles any ClientHello.
+ * WOLFSSL_DTLS_RX_MAX_BYTES
+ *     Bound on the bytes the receive list of one WOLFSSL retains for
+ *     out-of-order and fragmented handshake messages, DTLS 1.2 and 1.3,
+ *     metadata included. A byte bound rather than a message count because
+ *     MAX_HANDSHAKE_SZ varies a lot between builds, by an order of magnitude
+ *     with post-quantum certificates, while a flight has at most one message
+ *     that large. The default is one such message plus 16 KiB for the rest.
+ *     A message has at most WOLFSSL_DTLS_FRAG_POOL_SZ disjoint fragment
+ *     ranges, since every store walks them. Past either, a plaintext fragment
+ *     is dropped without an ACK; an authenticated record past the byte bound
+ *     ends the connection.
  */
 
 #ifndef WOLFCRYPT_ONLY
@@ -312,33 +332,36 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
     else
 #endif
     {
+        CookieSecrets cs;
+
         if (ch->cookie.size != DTLS_COOKIE_SZ)
             return 0;
+        ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
+        if (ret != 0)
+            return ret;
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecret.buffer,
-                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
-            if (ret != 0)
-                return ret;
-            ch->dtls12cookieSet = 1;
+            ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz,
+                                     ch->dtls12cookie);
+            if (ret == 0)
+                ch->dtls12cookieSet = 1;
         }
-        *cookieGood = ConstantCompare(ch->cookie.elements, ch->dtls12cookie,
-                                      DTLS_COOKIE_SZ) == 0;
-        /* If the primary secret didn't match, try the secondary (verify-only)
-         * secret.  This lets a stateless server keep accepting cookies issued
-         * under the secret it held before an application-driven rotation. */
-        if (!*cookieGood &&
-                ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL &&
-                ssl->buffers.dtlsCookieSecretSecondary.length > 0) {
-            byte altCookie[DTLS_COOKIE_SZ];
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecretSecondary.buffer,
-                    ssl->buffers.dtlsCookieSecretSecondary.length, altCookie);
-            if (ret != 0)
-                return ret;
-            *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+        if (ret == 0) {
+            *cookieGood = ConstantCompare(ch->cookie.elements,
+                                          ch->dtls12cookie,
                                           DTLS_COOKIE_SZ) == 0;
         }
+        /* The secondary, verify only, keeps cookies issued before a rotation
+         * of the secret valid */
+        if (ret == 0 && !*cookieGood && cs.sec != NULL) {
+            byte altCookie[DTLS_COOKIE_SZ];
+
+            ret = CreateDtls12Cookie(ssl, ch, cs.sec, cs.secSz, altCookie);
+            if (ret == 0) {
+                *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+                                              DTLS_COOKIE_SZ) == 0;
+            }
+        }
+        CookieSecretsClear(&cs);
     }
     return ret;
 }
@@ -985,9 +1008,14 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
     {
 #if !defined(WOLFSSL_NO_TLS12)
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecret.buffer,
-                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
+            CookieSecrets cs;
+
+            ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
+            if (ret == 0) {
+                ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz,
+                                         ch->dtls12cookie);
+                CookieSecretsClear(&cs);
+            }
             if (ret != 0)
                 return ret;
             ch->dtls12cookieSet = 1;
@@ -1024,8 +1052,8 @@ static int ClientHelloSanityCheck(WolfSSL_CH* ch, byte isTls13)
     return 0;
 }
 
-int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
-        byte isFirstCHFrag, byte* tls13)
+static int _DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
+        word32 helloSz, byte isFirstCHFrag)
 {
     int ret;
     WolfSSL_CH ch;
@@ -1041,9 +1069,6 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return BAD_STATE_E;
 #endif
     }
-    if (tls13 != NULL)
-        *tls13 = 0;
-
     XMEMSET(&ch, 0, sizeof(ch));
 
     ssl->options.dtlsStateful = 0;
@@ -1056,8 +1081,6 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
         ret = TlsCheckSupportedVersion(ssl, &ch, &isTls13);
         if (ret != 0)
             return ret;
-        if (tls13 != NULL)
-            *tls13 = isTls13;
         if (isTls13) {
             int tlsxFound;
             ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
@@ -1146,6 +1169,43 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
         }
     }
 
+    return ret;
+}
+
+/* input holds the first fragSz bytes of a msgSz byte ClientHello. They are
+ * equal when input is the whole message. */
+int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 fragSz,
+        word32 msgSz)
+{
+    byte isFrag = fragSz < msgSz;
+    int ret;
+
+    if (fragSz > msgSz)
+        return BAD_FUNC_ARG;
+    ret = _DoClientHelloStateless(ssl, input, fragSz, isFrag);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    /* The verified peer's entry leaves the pool: kept only as the rest of the
+     * ClientHello whose first fragment verified. Other peers' entries stay. */
+    if (ssl->options.dtlsStateful && ssl->buffers.dtlsCtx.peer.sz > 0) {
+        DtlsMsg* rest = NULL;
+
+        if (ret == 0 && isFrag) {
+            rest = DtlsChPoolTakeRest(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
+                &ssl->buffers.dtlsCtx.peer,
+                (word16)w64GetLow32(ssl->keys.curEpoch64),
+                ssl->keys.dtls_peer_handshake_number, fragSz, msgSz,
+                (word32)ssl->dtls_timeout_max, ssl->heap);
+        }
+        else {
+            /* What is held is a copy of the verified message or of an older
+             * attempt, and this object no longer reads the pool */
+            DtlsChPoolDrop(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
+                &ssl->buffers.dtlsCtx.peer, (word32)ssl->dtls_timeout_max);
+        }
+        if (rest != NULL)
+            DtlsMsgRxListInsert(ssl, rest);
+    }
+#endif
     return ret;
 }
 #endif /* !defined(NO_WOLFSSL_SERVER) */

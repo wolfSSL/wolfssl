@@ -358,10 +358,68 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
     }
 }
 
+/* Process one complete buffered handshake message. *processed is set when the
+ * message was consumed and its entry can be removed from the list. */
+static int Dtls13ProcessBufferedMsg(WOLFSSL* ssl, DtlsMsg* msg, int* processed)
+{
+    word32 idx = 0;
+    int downgraded = 0;
+    int ret;
+
+    *processed = 0;
+
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
+    ret = MsgCheckEncryption(ssl, msg->type, msg->encrypted);
+    if (ret != 0) {
+        SendAlert(ssl, alert_fatal, unexpected_message);
+        return ret;
+    }
+#endif
+
+    /* We may have DTLS <=1.2 msgs stored from before we knew which version
+     * we were going to use. Interpret correctly. */
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        ret = DoTls13HandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
+                msg->sz, msg->sz);
+        if (!IsAtLeastTLSv1_3(ssl->version))
+            downgraded = 1;
+    }
+    else {
+#if !defined(WOLFSSL_NO_TLS12)
+        ret = DoHandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
+                msg->sz, msg->sz);
+#else
+        WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
+        WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
+        ret = NOT_COMPILED_IN;
+#endif
+    }
+
+    /* processing certificate_request triggers a connect. The error came
+     * from there, the message can be considered processed successfully.
+     * WANT_WRITE means that we are done with processing the msg and we are
+     * waiting to flush the output buffer. */
+    if ((ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE)) ||
+                    (msg->type == certificate_request &&
+                     ssl->options.handShakeDone &&
+                     ret == WC_NO_ERR_TRACE(WC_PENDING_E))) {
+        if (IsAtLeastTLSv1_3(ssl->version))
+            Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
+        else if (downgraded)
+            /* DoHandShakeMsgType normally handles the hs number but if
+             * DoTls13HandShakeMsgType processed 1.2 msgs then this wasn't
+             * incremented. */
+            ssl->keys.dtls_expected_peer_handshake_number++;
+        *processed = 1;
+    }
+
+    return ret;
+}
+
 int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 {
     DtlsMsg* msg;
-    word32 idx = 0;
+    int processed;
     int ret = 0;
 
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
@@ -369,55 +427,16 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     DtlsMsgListPurge(ssl);
 
     while ((msg = DtlsMsgListNextReady(ssl)) != NULL) {
-        int downgraded = 0;
-        idx = 0;
-
-#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
-        ret = MsgCheckEncryption(ssl, msg->type, msg->encrypted);
-        if (ret != 0) {
-            SendAlert(ssl, alert_fatal, unexpected_message);
-            break;
-        }
-#endif
-
-        /* We may have DTLS <=1.2 msgs stored from before we knew which version
-         * we were going to use. Interpret correctly. */
-        if (IsAtLeastTLSv1_3(ssl->version)) {
-            ret = DoTls13HandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
-                    msg->sz, msg->sz);
-            if (!IsAtLeastTLSv1_3(ssl->version))
-                downgraded = 1;
-        }
-        else {
-#if !defined(WOLFSSL_NO_TLS12)
-            ret = DoHandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
-                    msg->sz, msg->sz);
-#else
-            WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
-            WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
-            ret = NOT_COMPILED_IN;
-#endif
-        }
-
-        /* processing certificate_request triggers a connect. The error came
-         * from there, the message can be considered processed successfully.
-         * WANT_WRITE means that we are done with processing the msg and we are
-         * waiting to flush the output buffer. */
-        if ((ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE)) ||
-                        (msg->type == certificate_request &&
-                         ssl->options.handShakeDone &&
-                         ret == WC_NO_ERR_TRACE(WC_PENDING_E))) {
-            if (IsAtLeastTLSv1_3(ssl->version))
-                Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
-            else if (downgraded)
-                /* DoHandShakeMsgType normally handles the hs number but if
-                 * DoTls13HandShakeMsgType processed 1.2 msgs then this wasn't
-                 * incremented. */
-                ssl->keys.dtls_expected_peer_handshake_number++;
-
-            DtlsMsgListRemove(ssl, msg);
+        /* Processing a ClientHello that turns the server stateful empties
+         * the list, so the entry is out of it meanwhile */
+        DtlsMsgRxListDetach(ssl, msg);
+        ret = Dtls13ProcessBufferedMsg(ssl, msg, &processed);
+        if (processed) {
+            DtlsMsgDelete(msg, ssl->heap);
             DtlsMsgListPurge(ssl);
         }
+        else
+            DtlsMsgRxListInsert(ssl, msg);
 
         if (ret != 0)
             break;
@@ -433,6 +452,18 @@ static int Dtls13NextMessageComplete(WOLFSSL* ssl)
     DtlsMsgListPurge(ssl);
     return DtlsMsgListNextReady(ssl) != NULL;
 }
+
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+/* A plaintext ClientHello a server that reassembles them receives before a
+ * cookie verifies. Its fragments are held in the context's pool, keyed on the
+ * sender's address. */
+static int Dtls13ChBeforeCookie(WOLFSSL* ssl, enum HandShakeType type)
+{
+    return ssl->options.side == WOLFSSL_SERVER_END &&
+        ssl->options.dtls13ChFrag && !ssl->options.dtlsStateful &&
+        type == client_hello && !IsEncryptionOn(ssl, 0);
+}
+#endif /* WOLFSSL_DTLS_CH_FRAG && !NO_WOLFSSL_SERVER */
 
 static WC_INLINE int FragIsInOutputBuffer(WOLFSSL* ssl, const byte* frag)
 {
@@ -1940,11 +1971,16 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         return 0;
     }
 
-    /* Same error code as the DTLS 1.2 check so a stateless server drops it */
+    /* A fragment reaching past the end of its message: like the size cap,
+     * error out only on an authenticated record. */
     if (fragOff + fragLength > messageLength) {
         WOLFSSL_MSG("Fragment outside of the handshake message");
-        WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
-        return LENGTH_ERROR;
+        if (IsEncryptionOn(ssl, 0)) {
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+            return LENGTH_ERROR;
+        }
+        *processedSize = idx + fragLength;
+        return 0;
     }
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff,
@@ -1971,13 +2007,20 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     if (!isComplete && !Dtls13AcceptFragmented(ssl, (enum HandShakeType)handshakeType)) {
 #if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
-        byte tls13 = 0;
+        int unverifiedCh = Dtls13ChBeforeCookie(ssl,
+            (enum HandShakeType)handshakeType);
+        /* The cookie check's verdict on a first fragment: COOKIE_ERROR with no
+         * cookie, BUFFER_ERROR when it ends before the fields checked. */
+        int chRet = WC_NO_ERR_TRACE(COOKIE_ERROR);
+
+        if (unverifiedCh && isFirst) {
+            chRet = DoClientHelloStateless(ssl, input + idx, fragLength,
+                messageLength);
+        }
         /* check if the first CH fragment contains a valid cookie */
-        if (ssl->options.dtls13ChFrag && !ssl->options.dtlsStateful &&
-                isFirst && handshakeType == client_hello &&
-                DoClientHelloStateless(ssl, input + idx, fragLength, 1, &tls13)
-                    == 0 && tls13) {
-            /* We can save this message and continue as stateful. */
+        if (chRet == 0 && ssl->options.dtlsStateful) {
+            /* We can save this message and continue as stateful, a DTLS 1.2
+             * ClientHello included. */
             if (ssl->chGoodCb != NULL) {
                 int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
                 if (cbret < 0) {
@@ -1987,6 +2030,36 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
                 }
             }
             WOLFSSL_MSG("ClientHello fragment verified");
+        }
+        /* A cookie that failed is answered as a whole ClientHello's is, by
+         * DoTls13HandShakeMsgType(), and nothing of this peer is held */
+        else if (unverifiedCh && !ssl->options.dtlsStateful &&
+                chRet == WC_NO_ERR_TRACE(INVALID_PARAMETER)) {
+            if (ssl->buffers.dtlsCtx.peer.sz > 0) {
+                DtlsChPoolDrop(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
+                    &ssl->buffers.dtlsCtx.peer, (word32)ssl->dtls_timeout_max);
+            }
+            if (ssl->alert_history.last_tx.level != alert_fatal) {
+                DtlsSetSeqNumForReply(ssl);
+                if (SendAlert(ssl, alert_fatal, illegal_parameter) ==
+                        WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                    return SOCKET_ERROR_E;
+                }
+            }
+            DtlsResetState(ssl);
+            *processedSize = idx + fragLength;
+            return 0;
+        }
+        /* Only a fragment the check could not judge is held, by a server
+         * still stateless, for a peer with an address */
+        else if (unverifiedCh && !ssl->options.dtlsStateful &&
+                (chRet == WC_NO_ERR_TRACE(COOKIE_ERROR) ||
+                 chRet == WC_NO_ERR_TRACE(BUFFER_ERROR)) &&
+                ssl->options.dtls13ReassembleChBeforeCookie &&
+                ssl->buffers.dtlsCtx.peer.sz > 0) {
+            /* No cookie to verify yet. Hold the fragments, within a bound, and
+             * run the cookie check on the complete message. */
+            WOLFSSL_MSG("Buffering fragment of an unverified ClientHello");
         }
         else
 #endif
@@ -2000,6 +2073,32 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         }
     }
 
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    /* A fragment of a ClientHello whose cookie has not verified goes to the
+     * context's pool. The message it completes is drained like any other. */
+    if (!isComplete &&
+            Dtls13ChBeforeCookie(ssl, (enum HandShakeType)handshakeType)) {
+        DtlsMsg* done = NULL;
+
+        if (ssl->buffers.dtlsCtx.peer.sz > 0) {
+            (void)DtlsChPoolStore(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
+                &ssl->buffers.dtlsCtx.peer,
+                (word16)w64GetLow32(ssl->keys.curEpoch64),
+                ssl->keys.dtls_peer_handshake_number,
+                input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
+                fragOff, fragLength, (word32)ssl->dtls_timeout_max, ssl->heap,
+                &done);
+        }
+        *processedSize = idx + fragLength;
+        if (done == NULL)
+            return 0;
+        DtlsMsgRxListInsert(ssl, done);
+        if (Dtls13NextMessageComplete(ssl))
+            return Dtls13ProcessBufferedMessages(ssl);
+        return 0;
+    }
+#endif
+
     usingAsyncCrypto = ssl->devId != INVALID_DEVID;
 
     /* store the message if any of the following: (a) incomplete message, (b)
@@ -2012,21 +2111,16 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
         DtlsMsgListPurge(ssl);
-        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
-            /* Only ack a fragment we really buffered. */
-            if (DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
-                    ssl->keys.dtls_peer_handshake_number,
-                    input + DTLS_HANDSHAKE_HEADER_SZ, messageLength,
-                    handshakeType, fragOff, fragLength, ssl->heap) == 0) {
-                Dtls13RtxAddAckForCurRecord(ssl);
-            }
-        }
-        else {
-            /* DTLS_POOL_SZ outstanding messages is way more than enough for any
-             * valid peer */
-            WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
-            return DTLS_TOO_MANY_FRAGMENTS_E;
-        }
+        ret = DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
+            ssl->keys.dtls_peer_handshake_number,
+            input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
+            fragOff, fragLength, ssl->heap);
+        if (DtlsMsgStoreFatal(ssl, ret))
+            return ret;
+        /* Only ack a fragment we really buffered: the peer does not resend an
+         * acknowledged record. */
+        if (ret == 0)
+            Dtls13RtxAddAckForCurRecord(ssl);
 
         *processedSize = idx + fragLength;
         if (Dtls13NextMessageComplete(ssl))
@@ -3907,10 +4001,49 @@ int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS_CH_FRAG
 int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled)
 {
-    if ((ssl == NULL) || (ssl->options.side == WOLFSSL_CLIENT_END)) {
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
         return WOLFSSL_FAILURE;
     }
     ssl->options.dtls13ChFrag = !!enabled;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_dtls13_reassemble_ch_before_cookie(WOLFSSL* ssl, int enabled)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        return WOLFSSL_FAILURE;
+    ssl->options.dtls13ReassembleChBeforeCookie = !!enabled;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(WOLFSSL_CTX* ctx,
+    int enabled)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return WOLFSSL_FAILURE;
+    ctx->dtls13ReassembleChBeforeCookie = !!enabled;
+#ifndef NO_WOLFSSL_SERVER
+    if (!enabled)
+        DtlsChPoolClear(&ctx->dtlsChPool, ctx->heap);
+#endif
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_CTX_dtls13_clear_ch_pool(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return WOLFSSL_FAILURE;
+#ifndef NO_WOLFSSL_SERVER
+    DtlsChPoolClear(&ctx->dtlsChPool, ctx->heap);
+#endif
     return WOLFSSL_SUCCESS;
 }
 #endif
@@ -3918,7 +4051,9 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled)
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
 int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL *ssl, int enabled)
 {
-    if ((ssl == NULL) || (ssl->options.side == WOLFSSL_CLIENT_END)) {
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
         return WOLFSSL_FAILURE;
     }
     ssl->options.dtls13NoHrrOnResume = !!enabled;

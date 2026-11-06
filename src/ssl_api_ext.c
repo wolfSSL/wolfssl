@@ -2647,7 +2647,7 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, ticketCompatCb cb)
  * @param [in]  keylen  Length of buffer.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL, keylen is not the
- *          correct length or the key context mutex cannot be locked.
+ *          correct length or the key context cannot be read locked.
  */
 long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      unsigned char *keys, int keylen)
@@ -2659,8 +2659,8 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         ret = WOLFSSL_FAILURE;
     }
 #ifndef SINGLE_THREADED
-    else if (wc_LockMutex(&ctx->ticketKeyCtx.mutex) != 0) {
-        WOLFSSL_MSG("Couldn't lock key context mutex");
+    else if (wc_LockRwLock_Rd(&ctx->ticketKeyCtx.lock) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context");
         ret = WOLFSSL_FAILURE;
     }
 #endif
@@ -2675,7 +2675,7 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         keys += OPAQUE32_LEN;
         c32toa(ctx->ticketKeyCtx.expirary[1], keys);
 #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&ctx->ticketKeyCtx.mutex);
+        wc_UnLockRwLock(&ctx->ticketKeyCtx.lock);
 #endif
     }
 
@@ -2689,7 +2689,7 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
  * @param [in]      keylen   Length of data.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL, keylen is not the
- *          correct length or the key context mutex cannot be locked.
+ *          correct length or the key context cannot be write locked.
  */
 long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      const void *keys_vp, int keylen)
@@ -2702,8 +2702,8 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         ret = WOLFSSL_FAILURE;
     }
 #ifndef SINGLE_THREADED
-    else if (wc_LockMutex(&ctx->ticketKeyCtx.mutex) != 0) {
-        WOLFSSL_MSG("Couldn't lock key context mutex");
+    else if (wc_LockRwLock_Wr(&ctx->ticketKeyCtx.lock) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context");
         ret = WOLFSSL_FAILURE;
     }
 #endif
@@ -2718,7 +2718,7 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         keys += OPAQUE32_LEN;
         ato32(keys, &ctx->ticketKeyCtx.expirary[1]);
 #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&ctx->ticketKeyCtx.mutex);
+        wc_UnLockRwLock(&ctx->ticketKeyCtx.lock);
 #endif
     }
 
