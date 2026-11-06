@@ -4132,6 +4132,8 @@ int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     /* hard coding largest digest size, since WC_MAX_DIGEST_SZ could be 32
      * if using SHA2-256 with ECDSA SECP384R1 */
     uint8_t hash[TSIP_MAX_ECC_BYTES];
+    int     curveSz = 0;
+    int     curveId = ECC_CURVE_INVALID;
 
     WOLFSSL_ENTER("tsip_VerifyEcdsa");
 
@@ -4142,12 +4144,43 @@ int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     XMEMSET(hash, 0, sizeof(hash));
 
     if (ret == 0) {
+        if (info->pk.eccverify.key == NULL ||
+            info->pk.eccverify.key->dp == NULL) {
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    /* the key must be on the curve of the wrapped TSIP key */
+    if (ret == 0) {
+        switch (tuc->wrappedKeyType) {
+        #if !defined(NO_ECC256)
+            case TSIP_KEY_TYPE_ECDSAP256:
+                curveId = ECC_SECP256R1;
+                break;
+        #endif
+        #if defined(HAVE_ECC384)
+            case TSIP_KEY_TYPE_ECDSAP384:
+                curveId = ECC_SECP384R1;
+                break;
+        #endif
+            default:
+                break;
+        }
+        curveSz = info->pk.eccverify.key->dp->size;
+        if (curveId == ECC_CURVE_INVALID ||
+            info->pk.eccverify.key->dp->id != curveId ||
+            curveSz <= 0 || curveSz > (int)sizeof(hash)) {
+            WOLFSSL_MSG("ECC key curve does not match wrapped key");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    if (ret == 0) {
         /* import public key_index from wrapped key */
         ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
     }
 
     if (ret == 0) {
-        int curveSz = info->pk.eccverify.key->dp->size;
         hashData.pdata      = (uint8_t*)hash;
         hashData.data_type  = tuc->keyflgs_crypt.bits.message_type;
         sigData.pdata       = (uint8_t*)info->pk.eccverify.sig;
