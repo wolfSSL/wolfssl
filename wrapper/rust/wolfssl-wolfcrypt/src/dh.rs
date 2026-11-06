@@ -1170,6 +1170,11 @@ impl DH {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dh::DH;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let p = [
     ///     0xc5u8, 0x7c, 0xa2, 0x4f, 0x4b, 0xd6, 0x8c, 0x3c,
     ///     0xda, 0xc7, 0xba, 0xaa, 0xea, 0x2e, 0x5c, 0x1e,
@@ -1337,6 +1342,11 @@ impl DH {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::dh::DH;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let p = [
     ///     0xc5u8, 0x7c, 0xa2, 0x4f, 0x4b, 0xd6, 0x8c, 0x3c,
     ///     0xda, 0xc7, 0xba, 0xaa, 0xea, 0x2e, 0x5c, 0x1e,
