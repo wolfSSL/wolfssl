@@ -605,28 +605,47 @@ void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
 /*!
     \ingroup Memory
 
-    \brief This function calculates the required buffer size for static memory allocation
-    with custom bucket sizes and distributions. This extended version allows for custom
-    bucket sizes instead of using the default predefined sizes.
+    \brief This function is available when the static memory feature is used
+    (--enable-staticmemory). It is the same as wolfSSL_StaticBufferSz() except
+    that the bucket sizes and distribution are passed in instead of using the
+    compile time defaults (WOLFMEM_BUCKETS and WOLFMEM_DIST). It works out how
+    sz bytes of buffer would be partitioned into buckets and returns the
+    number of bytes that would be used, so that the buffer size passed to
+    wc_LoadStaticMemory_ex() can be chosen to leave no unused memory at the
+    end of the buffer. The buffer itself is not modified, but its alignment is
+    taken into account, so pass the buffer that will be used.
 
-    \return On successfully completing buffer size calculations a positive value is returned.
-    \return All negative values are considered to be error cases.
+    \return The number of bytes of buffer that would be used, rounded down to
+    a whole number of buckets. 0 is returned if sz is too small to hold even
+    one bucket.
+    \return BAD_FUNC_ARG if buffer, sizeList or distList is NULL.
 
-    \param bucket_sizes array of bucket sizes to use
-    \param bucket_count number of bucket sizes in the array
-    \param flag desired type of memory ie WOLFMEM_GENERAL or WOLFMEM_IO_POOL
+    \param listSz number of entries in sizeList and distList. Values larger
+    than WOLFMEM_MAX_BUCKETS are capped to WOLFMEM_MAX_BUCKETS.
+    \param sizeList array of bucket sizes in bytes, in ascending order.
+    \param distList array with the number of buckets of each size in
+    sizeList.
+    \param buffer pointer to the memory that will be handed to the static
+    memory allocator.
+    \param sz size of buffer in bytes.
+    \param flag desired type of memory, WOLFMEM_GENERAL, or WOLFMEM_IO_POOL or
+    WOLFMEM_IO_POOL_FIXED for an I/O pool. For an I/O pool the buffer is split
+    into WOLFMEM_IO_SZ sized buckets and sizeList and distList are not used
+    (but must still be non-NULL).
 
     _Example_
     \code
     word32 sizeList[] = {64, 128, 256, 512, 1024};
     word32 distList[] = {1, 2, 1, 1, 1};
-    int listSz = 5;
+    byte buffer[16000];
     int optimum;
 
-    optimum = wolfSSL_StaticBufferSz_ex(listSz, sizeList, distList, NULL, 0,
-        WOLFMEM_GENERAL);
-    if (optimum < 0) { //handle error case }
-    printf("The optimum buffer size with custom buckets is %d\n", optimum);
+    optimum = wolfSSL_StaticBufferSz_ex(5, sizeList, distList, buffer,
+        sizeof(buffer), WOLFMEM_GENERAL);
+    if (optimum <= 0) {
+        // handle error case
+    }
+    printf("%d bytes of the buffer will be used\n", optimum);
     ...
     \endcode
 

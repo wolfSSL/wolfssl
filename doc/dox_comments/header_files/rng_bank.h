@@ -867,7 +867,7 @@ int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
                                WC_ATOMIC_UINT_ARG magic);
 
 /*!
-    \ingroup RNGBank
+    \ingroup Random
 
     \brief Initialize the bank's root RNG -- the primary-sourced parent
     that seeds and recovers the bank's instances.  The root is
@@ -896,7 +896,7 @@ int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
                               word32 flags);
 
 /*!
-    \ingroup RNGBank
+    \ingroup Random
 
     \brief Report the bank's root RNG.
 
@@ -910,7 +910,7 @@ int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
 WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank);
 
 /*!
-    \ingroup RNGBank
+    \ingroup Random
 
     \brief Retire and reinstantiate the bank's root RNG as one serialized
     transition, excluding concurrent entropy-invalidation walks and
@@ -945,7 +945,7 @@ int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
                                 word32 flags);
 
 /*!
-    \ingroup RNGBank
+    \ingroup Random
 
     \brief Force an immediate reseed of the bank's root RNG, serialized
     against other root touchers.  With WC_RNG_HAVE_LOCK, the root's lease
@@ -972,7 +972,7 @@ int wc_rng_bank_root_rng_reseed_now(struct wc_rng_bank *bank,
                                     const byte *nonce, word32 nonceSz);
 
 /*!
-    \ingroup RNGBank
+    \ingroup Random
 
     \brief Threshold form of wc_rng_bank_root_rng_reseed_now(): reseed the
     bank's root RNG only when its reseed counter has reached threshold,

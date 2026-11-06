@@ -2209,7 +2209,7 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
                              word32* outLen);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH parameters to DER format.
 
     \return 0 on success
@@ -2232,7 +2232,7 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
 int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH public key to DER format.
 
     \return 0 on success
@@ -2255,7 +2255,7 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH private key to DER format.
 
     \return 0 on success
@@ -2827,7 +2827,7 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 outLen,
                           int withAlg);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 private key from DER format.
 
     \return 0 on success
@@ -2853,7 +2853,7 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                 ed25519_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 private key from DER format with control over
     validation of a bundled public key. When the DER contains a public key
     and trusted is 0, the public key is validated with
@@ -2890,7 +2890,7 @@ int wc_Ed25519PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
                                   ed25519_key* key, word32 inSz, int trusted);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 public key from DER format.
 
     \return 0 on success
@@ -2915,7 +2915,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
                                ed25519_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 key to DER format.
 
     \return Size on success
@@ -2938,7 +2938,7 @@ int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
                        word32 outLen);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 private key to DER format.
 
     \return Size on success
@@ -2962,7 +2962,7 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
                                word32 outLen);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 public key to DER format.
 
     \return Size on success
@@ -2987,7 +2987,7 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
         word32 outLen, int withAlg);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 private key from DER format.
 
     \return 0 on success
@@ -3013,7 +3013,7 @@ int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
                               ed448_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 private key from DER format with control over
     validation of a bundled public key. When the DER contains a public key
     and trusted is 0, the public key is validated with wc_ed448_check_key(),
@@ -3050,7 +3050,7 @@ int wc_Ed448PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
                                 ed448_key* key, word32 inSz, int trusted);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 public key from DER format.
 
     \return 0 on success
@@ -3075,7 +3075,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
                              ed448_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 key to DER format.
 
     \return Size on success
@@ -3097,7 +3097,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 outLen);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 private key to DER format.
 
     \return Size on success
@@ -3121,7 +3121,7 @@ int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output,
                              word32 outLen);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 public key to DER format.
 
     \return Size on success

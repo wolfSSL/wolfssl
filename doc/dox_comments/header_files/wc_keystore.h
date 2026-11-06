@@ -1,5 +1,5 @@
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief Place plaintext key material into a device's key store. This is the
     counterpart to wc_KeyStore_ImportWrapped for devices that accept a key in
     the clear; a device holding keys that may never appear in plaintext
@@ -62,7 +62,7 @@ int wc_KeyStore_ImportPlain(int devId,
     word32 attrs, const void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief Read a stored key back as plaintext. Typically requires the key to
     have been created with WC_KEYSTORE_ATTR_EXPORTABLE, and many devices refuse
     this operation entirely; wc_KeyStore_ExportWrapped is the form that keeps
@@ -113,7 +113,7 @@ int wc_KeyStore_ExportPlain(int devId,
     byte* key, word32* keySz, const void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief Unwrap a key blob directly into a device's key store. The key
     material is never plaintext on this side of the boundary: the device
     unwraps it internally and the result exists only at keyRef.
@@ -179,7 +179,7 @@ int wc_KeyStore_ImportWrapped(int devId,
     word32 attrs, const void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief Wrap a stored key under another stored key and emit the blob.
     Typically requires the key to have been created with
     WC_KEYSTORE_ATTR_EXPORTABLE, which is irrevocable on most hardware.
@@ -227,7 +227,7 @@ int wc_KeyStore_ExportWrapped(int devId,
     word32 format, byte* blob, word32* blobSz, const void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief Derive a new stored key from an existing one without either key
     touching RAM.
 
@@ -284,7 +284,7 @@ int wc_KeyStore_Derive(int devId,
     word32 attrs, const void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief Destroy a stored key. Deliberately separate from
     WC_ALGO_TYPE_FREE: freeing a wolfCrypt key object must never destroy the
     hardware key it refers to.
@@ -309,7 +309,7 @@ int wc_KeyStore_Delete(int devId, const byte* keyRef, word32 keyRefSz,
     const void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief Report what a slot holds: key type, size in bits, and attributes.
 
     Any WC_KEYSTORE_ATTR_* the device can represent is reported here, so a

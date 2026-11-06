@@ -118,7 +118,8 @@
  * WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT:
  *                  Resend previous flight only on timeout             default: off
  * WOLFSSL_DTLS_DISALLOW_FUTURE:
- *                  Reject DTLS records with future epoch              default: off
+ *                  Reject DTLS records whose sequence number is more
+ *                  than DTLS_SEQ_BITS ahead of the next expected one  default: off
  * WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS:
  *                  Allow DTLS records to span datagrams               default: off
  * WOLFSSL_DEBUG_DTLS:         Debug logging for DTLS operations       default: off
@@ -128,7 +129,8 @@
  * WOLFSSL_SESSION_EXPORT_DEBUG:
  *                  Debug logging for session export/import            default: off
  * WOLFSSL_SESSION_EXPORT_NOPEER:
- *                  Export sessions without peer cert info             default: off
+ *                  Leave the peer IP address and port out of
+ *                  exported sessions                                  default: off
  *
  * Compatibility Layers:
  * WOLFSSL_MYSQL_COMPATIBLE:   MySQL protocol compatibility            default: off

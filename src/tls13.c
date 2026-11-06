@@ -60,7 +60,10 @@
  *                            client rejects, so enable it only where the peer
  *                            is wolfSSL <= 5.9.0 or shares this option.
  * WOLFSSL_NO_CLIENT_AUTH:   Disable TLS 1.3 client authentication default: off
- * WOLFSSL_NO_CLIENT_CERT_ERROR: Require client certificate        default: off
+ * WOLFSSL_NO_CLIENT_CERT_ERROR: TLS 1.3 client aborts the         default: off
+ *                            handshake when the server requests a
+ *                            certificate it cannot provide, instead of
+ *                            sending an empty Certificate message
  * WOLFSSL_CERT_SETUP_CB:    Certificate setup callback            default: off
  * WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION: Allow bad legacy version  default: off
  *
