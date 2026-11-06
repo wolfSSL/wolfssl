@@ -8532,7 +8532,8 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
     /* The guard (7870) tests only server_hint[0]; a single store keeps the
      * state minimal and stays clear of strncpy range analysis on the
      * macro-sized member. */
-    ctxHint->server_hint[0] = 'h';
+    if (EXPECT_SUCCESS())
+        ctxHint->server_hint[0] = 'h';
     {
         WOLFSSL *raw = (WOLFSSL *)XMALLOC(sizeof(WOLFSSL), NULL,
                 DYNAMIC_TYPE_SSL);
@@ -8593,7 +8594,8 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
         ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.side, WOLFSSL_CLIENT_END);
         /* cond1 F: existing SSL, ctx side poked to NEITHER */
-        ctxNoSide->method->side = WOLFSSL_NEITHER_END;
+        if (EXPECT_SUCCESS())
+            ctxNoSide->method->side = WOLFSSL_NEITHER_END;
         ssl->options.side = WOLFSSL_CLIENT_END;
         ExpectIntEQ(SetSSL_CTX(ssl, ctxNoSide, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(ssl->options.side, WOLFSSL_CLIENT_END);
