@@ -1265,6 +1265,70 @@ int test_wc_HmacId_NoDevice(void)
     return EXPECT_RESULT();
 } /* END test_wc_HmacId_NoDevice */
 
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(WOLFSSL_NO_HMAC_KEY_LOCATION) && !defined(WOLFSSL_KCAPI_HMAC)
+#define TEST_HMAC_NOSW_DEVID 0x484d4b48 /* "HMKH" */
+
+/* Set to make the mock decline SetKey, so software keeps the key. */
+static int test_hmac_nosw_decline = 0;
+
+/* Mock device that keeps the key in hardware: SetKey succeeds and marks the
+ * key HW stored. Every HMAC request is declined. */
+static int test_hmac_nosw_cb(int cbDevId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)ctx;
+    if (cbDevId != TEST_HMAC_NOSW_DEVID || info == NULL)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_HMAC && !test_hmac_nosw_decline) {
+        return wc_CryptoCb_SetKeyLocation(info, WC_KEY_HW_STORED);
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/* A SetKey callback that keeps the key in hardware leaves software with no
+ * ipad/opad, so a declined update/final must fail rather than MAC with an
+ * empty key. */
+int test_wc_HmacNoSwKey_CryptoCb(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(WOLFSSL_NO_HMAC_KEY_LOCATION) && !defined(WOLFSSL_KCAPI_HMAC)
+    Hmac hmac;
+    byte msg[16];
+    byte out[WC_SHA256_DIGEST_SIZE];
+
+    XMEMSET(msg, 0, sizeof(msg));
+    XMEMSET(&hmac, 0, sizeof(hmac));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_HMAC_NOSW_DEVID,
+        test_hmac_nosw_cb, NULL), 0);
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, TEST_HMAC_NOSW_DEVID), 0);
+
+    /* The device took the key; software has none to fall back on */
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256,
+        (const byte*)"0123456789abcdef", 16), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_HmacFinal(&hmac, out), WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* A new key the device declines is kept in software and must work */
+    test_hmac_nosw_decline = 1;
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256,
+        (const byte*)"0123456789abcdef", 16), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, out), 0);
+    test_hmac_nosw_decline = 0;
+
+    wc_HmacFree(&hmac);
+    wc_CryptoCb_UnRegisterDevice(TEST_HMAC_NOSW_DEVID);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_HmacNoSwKey_CryptoCb */
+
 /*
  * MC/DC: wc_HKDF_Extract_ex()/wc_HKDF_Expand_ex() share the guard shape
  * (out == NULL || (inKey == NULL && inKeySz > 0)) at two physical
