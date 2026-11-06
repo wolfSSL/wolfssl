@@ -43,6 +43,7 @@ int test_wolfSSL_X509_EXTENSION_create_by_OBJ(void);
 int test_wolfSSL_X509V3_set_ctx(void);
 int test_wolfSSL_X509V3_EXT_get(void);
 int test_wolfSSL_X509V3_EXT_nconf(void);
+int test_wolfSSL_X509V3_EXT_add_nconf(void);
 int test_wolfSSL_X509V3_EXT_bc(void);
 int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void);
 int test_wolfSSL_X509V3_EXT_san(void);
@@ -83,6 +84,7 @@ int test_wolfSSL_X509_set_ext_oid_collision(void);
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_set_ctx),             \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_get),             \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_nconf),           \
+    TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_add_nconf),       \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_bc),              \
     TEST_DECL_GROUP("ossl_x509_ext",                                           \
                           test_wolfSSL_X509_get_ext_d2i_basic_constraints),    \
