@@ -19,6 +19,9 @@
 /* Define to 1 if you have the `getaddrinfo' function. */
 #cmakedefine HAVE_GETADDRINFO @HAVE_GETADDRINFO@
 
+/* Define to 1 if you have the `gettimeofday' function. */
+#cmakedefine HAVE_GETTIMEOFDAY @HAVE_GETTIMEOFDAY@
+
 /* Define to 1 if you have the `gmtime_r' function. */
 #cmakedefine HAVE_GMTIME_R @HAVE_GMTIME_R@
 
