@@ -8472,8 +8472,7 @@ void wolfSSL_EVP_init(void)
             else if (type != NULL)
                 ctx->authIvUsed = 1;
         }
-    #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
-            * HAVE_FIPS_VERSION >= 2 */
+    #endif /* HAVE_ARIA */
 
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
