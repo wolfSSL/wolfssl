@@ -467,7 +467,7 @@ static int show_macro(char* s, char* not_defined)
     #define ESP_SMS_DIS_POS 42
 
     /* save our string (s) into the space-padded message (msg) */
-    while (s[i] != '\0' && msg[i] != '\0' && (i < MAX_STATUS_NAME_LENGTH)) {
+    while ((i < MAX_STATUS_NAME_LENGTH) && s[i] != '\0' && msg[i] != '\0') {
         msg[i] = s[i];
         i++;
     }
