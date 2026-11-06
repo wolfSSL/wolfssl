@@ -192,7 +192,7 @@
 #endif
 
 #ifndef WC_OMIT_FRAME_POINTER
-    #if defined(__GNUC__)
+    #if defined(__GNUC__) && !defined(__clang__)
         #define WC_OMIT_FRAME_POINTER  \
             __attribute__((optimize("-fomit-frame-pointer")))
     #else
