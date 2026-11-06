@@ -734,6 +734,834 @@ WOLFSSL_METHOD *wolfDTLSv1_2_server_method(void);
 /*!
     \ingroup Setup
 
+    \brief This function generates a new HPKE key pair and a matching ECH
+    configuration (ECHConfig) and adds it to ctx. It is intended for the
+    server side: server WOLFSSL objects created from ctx use the context's
+    configurations to decrypt the client's encrypted inner ClientHello.
+    Each call adds a configuration to the head of the context's list, so
+    repeated calls accumulate configurations (most recent first) instead of
+    replacing them. A random one byte config_id is chosen and the
+    configuration's maximum_name_length is set to 0 (see
+    wolfSSL_CTX_GenerateEchConfigEx()). publicName is copied. Use
+    wolfSSL_CTX_GetEchConfigs() to obtain the public ECHConfigList to
+    distribute to clients. This function is available when wolfSSL is built
+    with ECH support (--enable-ech, which defines HAVE_ECH) and TLS 1.3.
+
+    The algorithm identifiers are defined in wolfssl/wolfcrypt/hpke.h.
+    Passing 0 selects the default for that parameter. Accepted values,
+    subject to the algorithms compiled in:
+
+    - kemId: DHKEM_X25519_HKDF_SHA256 (default), DHKEM_P256_HKDF_SHA256,
+      DHKEM_P384_HKDF_SHA384, DHKEM_P521_HKDF_SHA512.
+      DHKEM_X448_HKDF_SHA512 is defined but not currently supported.
+    - kdfId: HKDF_SHA256 (default), HKDF_SHA384, HKDF_SHA512.
+    - aeadId: HPKE_AES_128_GCM (default), HPKE_AES_256_GCM.
+
+    The default KEM needs Curve25519 support (enabled by --enable-ech unless
+    explicitly disabled); without it, passing 0 for kemId fails.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx or publicName is NULL, if publicName is
+    longer than 255 characters, or if kemId, kdfId or aeadId (after
+    applying the defaults) is unknown or not compiled in.
+    \return MEMORY_E if a memory allocation fails.
+    \return Other negative values on RNG initialization, key generation or
+    public key encoding failure.
+
+    \param ctx pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new() using a TLS 1.3 capable server method.
+    \param publicName NUL terminated public name, 1 to 255 characters. The
+    client sends it as the SNI of the outer ClientHello, and if ECH is
+    rejected the client verifies the server certificate against it, so the
+    server must be able to authenticate as this name. An empty string is
+    not rejected here, but the resulting configuration is rejected by
+    wolfSSL_SetEchConfigs().
+    \param kemId HPKE KEM identifier, or 0 for DHKEM_X25519_HKDF_SHA256.
+    \param kdfId HPKE KDF identifier, or 0 for HKDF_SHA256.
+    \param aeadId HPKE AEAD identifier, or 0 for HPKE_AES_128_GCM.
+
+    _Example_
+    \code
+    #include <wolfssl/wolfcrypt/hpke.h> // DHKEM_*, HKDF_*, HPKE_* ids
+
+    WOLFSSL_CTX* ctx;
+    int ret;
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    if (ctx == NULL) {
+        // context creation failed
+    }
+    ...
+    ret = wolfSSL_CTX_GenerateEchConfig(ctx, "public.example.com",
+        DHKEM_P256_HKDF_SHA256, HKDF_SHA256, HPKE_AES_128_GCM);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to generate ECH config
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_GenerateEchConfigEx
+    \sa wolfSSL_CTX_GetEchConfigs
+    \sa wolfSSL_CTX_SetEchEnable
+    \sa wolfSSL_CTX_SetEchEnableTrialDecrypt
+    \sa wolfSSL_SetEchConfigs
+*/
+int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx,
+    const char* publicName, word16 kemId, word16 kdfId, word16 aeadId);
+
+/*!
+    \ingroup Setup
+
+    \brief This function is the same as wolfSSL_CTX_GenerateEchConfig()
+    (which calls it with maxNameLen set to 0), except that it also sets the
+    maximum_name_length field of the generated ECHConfig to maxNameLen. All
+    other behaviour, the kemId/kdfId/aeadId values and their defaults when
+    0 is passed are as described for wolfSSL_CTX_GenerateEchConfig(). This
+    function is available when wolfSSL is built with ECH support
+    (--enable-ech, which defines HAVE_ECH) and TLS 1.3.
+
+    maximum_name_length tells the client how much to pad the encrypted inner
+    ClientHello so that the length of the real server name is not revealed
+    (RFC 9849, section 6.1.3). A wolfSSL client pads by
+    (maxNameLen - inner SNI length) when the inner SNI is no longer than
+    maxNameLen, by 0 when it is longer, or by maxNameLen + 9 when no SNI is
+    set, and then rounds the result up to a multiple of 32 bytes. Set
+    maxNameLen to the length of the longest server name hosted behind
+    publicName, or 0 if unknown.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx or publicName is NULL, if publicName is
+    longer than 255 characters, or if kemId, kdfId or aeadId (after
+    applying the defaults) is unknown or not compiled in.
+    \return MEMORY_E if a memory allocation fails.
+    \return Other negative values on RNG initialization, key generation or
+    public key encoding failure.
+
+    \param ctx pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new() using a TLS 1.3 capable server method.
+    \param publicName NUL terminated public name, 1 to 255 characters. See
+    wolfSSL_CTX_GenerateEchConfig().
+    \param kemId HPKE KEM identifier, or 0 for DHKEM_X25519_HKDF_SHA256.
+    \param kdfId HPKE KDF identifier, or 0 for HKDF_SHA256.
+    \param aeadId HPKE AEAD identifier, or 0 for HPKE_AES_128_GCM.
+    \param maxNameLen value for the ECHConfig maximum_name_length field.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    int ret;
+    ...
+    // default algorithms, pad inner server names up to 32 bytes
+    ret = wolfSSL_CTX_GenerateEchConfigEx(ctx, "public.example.com",
+        0, 0, 0, 32);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to generate ECH config
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_GenerateEchConfig
+    \sa wolfSSL_CTX_GetEchConfigs
+    \sa wolfSSL_SetEchConfigs
+*/
+int wolfSSL_CTX_GenerateEchConfigEx(WOLFSSL_CTX* ctx,
+    const char* publicName, word16 kemId, word16 kdfId, word16 aeadId,
+    byte maxNameLen);
+
+/*!
+    \ingroup Setup
+
+    \brief This function Base64 decodes echConfigs64 and passes the result
+    to wolfSSL_CTX_SetEchConfigs(), replacing the ECH configurations held by
+    ctx. Base64 is the text form in which an ECHConfigList is commonly
+    distributed, and is what the wolfSSL example server prints. The input
+    does not need to be NUL terminated; echConfigs64Len gives its length.
+    The decoded data is held in a temporary buffer that is freed before
+    returning; the caller keeps ownership of echConfigs64. If the Base64
+    decode fails the existing configurations are left unchanged; otherwise
+    the behaviour, including the limitations noted for
+    wolfSSL_CTX_SetEchConfigs(), is that of wolfSSL_CTX_SetEchConfigs().
+    This function is available when wolfSSL is built with ECH support
+    (--enable-ech, which defines HAVE_ECH) and TLS 1.3.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx or echConfigs64 is NULL or echConfigs64Len
+    is 0.
+    \return MEMORY_E if a memory allocation fails.
+    \return A negative Base64 decoding error (for example ASN_INPUT_E) if
+    echConfigs64 is not valid Base64.
+    \return Any other value returned by wolfSSL_CTX_SetEchConfigs() for the
+    decoded data (BUFFER_E, UNSUPPORTED_SUITE, UNSUPPORTED_PROTO_VERSION,
+    ...).
+
+    \param ctx pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new().
+    \param echConfigs64 Base64 encoded ECHConfigList.
+    \param echConfigs64Len length of echConfigs64 in characters.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    const char* configs64 = "..."; // Base64 encoded ECHConfigList
+    int ret;
+    ...
+    ret = wolfSSL_CTX_SetEchConfigsBase64(ctx, configs64,
+        (word32)strlen(configs64));
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set ECH configs
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchConfigs
+    \sa wolfSSL_SetEchConfigsBase64
+    \sa wolfSSL_CTX_GetEchConfigs
+*/
+int wolfSSL_CTX_SetEchConfigsBase64(WOLFSSL_CTX* ctx,
+    const char* echConfigs64, word32 echConfigs64Len);
+
+/*!
+    \ingroup Setup
+
+    \brief This function replaces the ECH configurations held by ctx with
+    the ones parsed from echConfigs, a binary ECHConfigList (a two byte
+    length followed by one or more ECHConfig entries, RFC 9849 section 4)
+    such as the output of wolfSSL_CTX_GetEchConfigs(). The configurations
+    already held by ctx, including any created with
+    wolfSSL_CTX_GenerateEchConfig() and their private keys, are freed before
+    the new data is parsed, so they are lost even if this call fails.
+    Entries whose version is not 0xfe0d are skipped, and entries with an
+    unsupported KEM, no supported KDF/AEAD pair, or a mandatory extension
+    are dropped; at least one usable entry must remain. The data is copied;
+    the caller keeps ownership of echConfigs. This function is available
+    when wolfSSL is built with ECH support (--enable-ech, which defines
+    HAVE_ECH) and TLS 1.3.
+
+    Note that an ECHConfigList only carries public keys. Configurations
+    loaded with this function have no HPKE private key, so a server using
+    ctx cannot decrypt ECH with them: it rejects ECH and sends the loaded
+    configurations to the client as retry_configs. Client WOLFSSL objects
+    do not use the context's ECH configurations at all; a client must call
+    wolfSSL_SetEchConfigs() or wolfSSL_SetEchConfigsBase64() on each
+    WOLFSSL object. Do not call this function while WOLFSSL objects created
+    from ctx are in a handshake.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx or echConfigs is NULL, or echConfigsLen is
+    0 or 1.
+    \return BUFFER_E if the data is malformed: the list length does not
+    match echConfigsLen, an entry is truncated, or an entry has
+    inconsistent contents (public key length not matching the KEM, empty or
+    oversized cipher suite list, empty public_name, bad extensions length).
+    \return MEMORY_E if a memory allocation fails.
+    \return UNSUPPORTED_SUITE if the list is well formed but every entry
+    with version 0xfe0d uses an unsupported KEM, has no supported KDF/AEAD
+    pair or has a mandatory extension.
+    \return UNSUPPORTED_PROTO_VERSION if the list is well formed but has no
+    entry with version 0xfe0d.
+
+    \param ctx pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new().
+    \param echConfigs binary ECHConfigList.
+    \param echConfigsLen length of echConfigs in bytes.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    byte configs[512];   // binary ECHConfigList
+    word32 configsLen;   // number of valid bytes in configs
+    int ret;
+    ...
+    ret = wolfSSL_CTX_SetEchConfigs(ctx, configs, configsLen);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set ECH configs, ctx now holds none
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchConfigsBase64
+    \sa wolfSSL_CTX_GetEchConfigs
+    \sa wolfSSL_CTX_GenerateEchConfig
+    \sa wolfSSL_SetEchConfigs
+*/
+int wolfSSL_CTX_SetEchConfigs(WOLFSSL_CTX* ctx,
+    const byte* echConfigs, word32 echConfigsLen);
+
+/*!
+    \ingroup Setup
+
+    \brief This function writes the ECH configurations held by ctx to output
+    as a binary ECHConfigList (a two byte length followed by each ECHConfig),
+    the format accepted by wolfSSL_SetEchConfigs(). Only public data is
+    written, never the HPKE private keys, so on a server the output can be
+    published to clients (for example Base64 encoded in DNS). Entries are
+    written in list order, which for generated configurations is most
+    recent first. Each entry is re-encoded from wolfSSL's parsed form with
+    an empty extensions list. To find the required size, call with output
+    set to NULL: *outputLen is set to the size and LENGTH_ONLY_E is
+    returned. This function is available when wolfSSL is built with ECH
+    support (--enable-ech, which defines HAVE_ECH) and TLS 1.3.
+
+    \return WOLFSSL_SUCCESS on success; *outputLen is set to the number of
+    bytes written.
+    \return LENGTH_ONLY_E if output is NULL; *outputLen is set to the
+    required size.
+    \return INPUT_SIZE_E if *outputLen (at least 2) is too small; *outputLen
+    is set to the required size and the contents of output are undefined.
+    \return BAD_FUNC_ARG if ctx or outputLen is NULL, if output is not NULL
+    and *outputLen is less than 2 (*outputLen is not updated in this case),
+    or if a stored configuration cannot be encoded.
+    \return WOLFSSL_FATAL_ERROR if ctx holds no ECH configurations, for
+    example none were generated or set, or ECH was disabled with
+    wolfSSL_CTX_SetEchEnable().
+
+    \param ctx pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new().
+    \param output buffer to receive the ECHConfigList, or NULL to query the
+    required size.
+    \param outputLen [in,out] on input the size of output in bytes; on
+    output the number of bytes written or required.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    byte* configs;
+    word32 configsLen = 0;
+    int ret;
+    ...
+    // query the required size
+    ret = wolfSSL_CTX_GetEchConfigs(ctx, NULL, &configsLen);
+    if (ret != LENGTH_ONLY_E) {
+        // no ECH configs or error
+    }
+    configs = (byte*)malloc(configsLen);
+    if (configs == NULL) {
+        // out of memory
+    }
+    ret = wolfSSL_CTX_GetEchConfigs(ctx, configs, &configsLen);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to get ECH configs
+    }
+    // publish configs (configsLen bytes), e.g. Base64 encoded
+    ...
+    free(configs);
+    \endcode
+
+    \sa wolfSSL_CTX_GenerateEchConfig
+    \sa wolfSSL_CTX_GenerateEchConfigEx
+    \sa wolfSSL_CTX_SetEchConfigs
+    \sa wolfSSL_SetEchConfigs
+    \sa wolfSSL_GetEchConfigs
+*/
+int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
+    word32* outputLen);
+
+/*!
+    \ingroup Setup
+
+    \brief This function enables (enable non-zero) or disables (enable 0)
+    ECH for WOLFSSL objects created from ctx after the call. ECH is enabled
+    by default. The setting is copied into each WOLFSSL object by
+    wolfSSL_new() and does not change WOLFSSL objects that already exist;
+    use wolfSSL_SetEchEnable() for those. Disabling also frees all ECH
+    configurations held by ctx, including generated HPKE private keys;
+    enabling again does not restore them. This function is available when
+    wolfSSL is built with ECH support (--enable-ech, which defines HAVE_ECH)
+    and TLS 1.3.
+
+    While ECH is enabled, a TLS 1.3 client that has no ECH configuration
+    sends a GREASE ECH extension, and a client with a configuration set by
+    wolfSSL_SetEchConfigs() offers real ECH. A server processes ECH only if
+    it is enabled and ctx holds configurations. While ECH is disabled, a
+    client sends no ECH extension and a server ignores any ECH extension it
+    receives. Server WOLFSSL objects reference the context's configuration
+    list directly, so do not disable ECH on ctx while any of them is in a
+    handshake.
+
+    \return none No return.
+
+    \param ctx pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new(). If NULL the call does nothing.
+    \param enable 0 to disable ECH, any other value to enable it.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    ...
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    if (ctx == NULL) {
+        // context creation failed
+    }
+    // no real or GREASE ECH from WOLFSSL objects created from ctx
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    \endcode
+
+    \sa wolfSSL_SetEchEnable
+    \sa wolfSSL_CTX_GenerateEchConfig
+    \sa wolfSSL_CTX_SetEchEnableTrialDecrypt
+    \sa wolfSSL_GetEchStatus
+*/
+void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable);
+
+/*!
+    \ingroup Setup
+
+    \brief This function enables (enable non-zero) or disables (enable 0)
+    ECH trial decryption for server WOLFSSL objects created from ctx after
+    the call. It is disabled by default, in which case a server only tries
+    to decrypt the client's ECH payload with configurations whose config_id
+    matches the one the client sent, and rejects ECH if none of them
+    succeeds. When enabled, a server that fails with every matching
+    configuration also tries every other configuration held by ctx. This
+    allows ECH from clients that do not send the config_id of the
+    configuration they used, at the cost of extra HPKE operations for each
+    rejected ClientHello. The setting is copied into each WOLFSSL object by
+    wolfSSL_new() and has no effect on clients. This function is available
+    when wolfSSL is built with ECH support (--enable-ech, which defines
+    HAVE_ECH) and TLS 1.3.
+
+    \return none No return.
+
+    \param ctx pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new(). If NULL the call does nothing.
+    \param enable 0 to disable trial decryption, any other value to enable
+    it.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
+    ...
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    ...
+    if (wolfSSL_CTX_GenerateEchConfig(ctx, "public.example.com", 0, 0, 0)
+            != WOLFSSL_SUCCESS) {
+        // failed to generate ECH config
+    }
+    wolfSSL_CTX_SetEchEnableTrialDecrypt(ctx, 1);
+    ssl = wolfSSL_new(ctx); // inherits trial decryption
+    \endcode
+
+    \sa wolfSSL_SetEchEnableTrialDecrypt
+    \sa wolfSSL_CTX_GenerateEchConfig
+    \sa wolfSSL_CTX_SetEchEnable
+*/
+void wolfSSL_CTX_SetEchEnableTrialDecrypt(WOLFSSL_CTX* ctx,
+    byte enable);
+
+/*!
+    \ingroup Setup
+
+    \brief This function Base64 decodes echConfigs64 and passes the result
+    to wolfSSL_SetEchConfigs() to set the ECH configurations that the client
+    ssl uses. Base64 is the text form in which an ECHConfigList is commonly
+    distributed (for example from DNS), and is what the wolfSSL example
+    server prints. The input does not need to be NUL terminated;
+    echConfigs64Len gives its length. The decoded data is held in a
+    temporary buffer that is freed before returning; the caller keeps
+    ownership of echConfigs64. This function is intended for clients and
+    must be called before wolfSSL_connect(). This function is available
+    when wolfSSL is built with ECH support (--enable-ech, which defines
+    HAVE_ECH) and TLS 1.3.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl or echConfigs64 is NULL or echConfigs64Len
+    is 0.
+    \return MEMORY_E if a memory allocation fails.
+    \return A negative Base64 decoding error (for example ASN_INPUT_E) if
+    echConfigs64 is not valid Base64.
+    \return Any other value returned by wolfSSL_SetEchConfigs() for the
+    decoded data (WOLFSSL_FATAL_ERROR if ssl already has ECH configurations,
+    BUFFER_E, UNSUPPORTED_SUITE, UNSUPPORTED_PROTO_VERSION, ...).
+
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param echConfigs64 Base64 encoded ECHConfigList.
+    \param echConfigs64Len length of echConfigs64 in characters.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
+    const char* configs64 = "..."; // Base64 ECHConfigList, e.g. from DNS
+    const char* name = "private.example.com";
+    int ret;
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    ...
+    ssl = wolfSSL_new(ctx);
+    ...
+    ret = wolfSSL_SetEchConfigsBase64(ssl, configs64,
+        (word32)strlen(configs64));
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set ECH configs
+    }
+    // the real server name is only sent in the encrypted inner ClientHello
+    ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, name,
+        (unsigned short)strlen(name));
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set SNI
+    }
+    ret = wolfSSL_connect(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEchConfigs
+    \sa wolfSSL_CTX_SetEchConfigsBase64
+    \sa wolfSSL_GetEchStatus
+    \sa wolfSSL_GetEchRetryConfigs
+*/
+int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl,
+    const char* echConfigs64, word32 echConfigs64Len);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the ECH configurations that the client ssl
+    uses to encrypt its ClientHello. echConfigs is a binary ECHConfigList (a
+    two byte length followed by one or more ECHConfig entries, RFC 9849
+    section 4), for example obtained from the server operator, from DNS
+    after Base64 decoding, or from wolfSSL_GetEchRetryConfigs(). Entries
+    whose version is not 0xfe0d are skipped, and entries with an
+    unsupported KEM, no supported KDF/AEAD pair, or a mandatory extension
+    are dropped; at least one usable entry must remain. The data is copied;
+    the caller keeps ownership of echConfigs. This function is available
+    when wolfSSL is built with ECH support (--enable-ech, which defines
+    HAVE_ECH) and TLS 1.3.
+
+    This function is intended for clients and must be called before
+    wolfSSL_connect(). The client offers ECH with the first usable entry
+    in the list: the real (inner) ClientHello, including any SNI set with
+    wolfSSL_UseSNI(), is encrypted to that entry's public key, and the
+    outer ClientHello carries the entry's public_name as its SNI. If the
+    configurations of a WOLFSSL object are already set they cannot be
+    replaced; use a new WOLFSSL object. ssl must be able to negotiate
+    TLS 1.3: if configurations are set and only older versions are
+    enabled, wolfSSL_connect() fails with BAD_STATE_E. Setting
+    configurations does not enable ECH; if ECH is disabled on ssl they are
+    stored but not used.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl or echConfigs is NULL, or echConfigsLen is
+    0 or 1.
+    \return WOLFSSL_FATAL_ERROR if ssl already has ECH configurations.
+    \return BUFFER_E if the data is malformed: the list length does not
+    match echConfigsLen, an entry is truncated, or an entry has
+    inconsistent contents (public key length not matching the KEM, empty or
+    oversized cipher suite list, empty public_name, bad extensions length).
+    \return MEMORY_E if a memory allocation fails.
+    \return UNSUPPORTED_SUITE if the list is well formed but every entry
+    with version 0xfe0d uses an unsupported KEM, has no supported KDF/AEAD
+    pair or has a mandatory extension.
+    \return UNSUPPORTED_PROTO_VERSION if the list is well formed but has no
+    entry with version 0xfe0d.
+
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param echConfigs binary ECHConfigList.
+    \param echConfigsLen length of echConfigs in bytes.
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    byte configs[512];   // binary ECHConfigList
+    word32 configsLen;   // number of valid bytes in configs
+    int ret;
+    ...
+    ret = wolfSSL_SetEchConfigs(ssl, configs, configsLen);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set ECH configs
+    }
+    ret = wolfSSL_connect(ssl);
+    \endcode
+
+    \sa wolfSSL_SetEchConfigsBase64
+    \sa wolfSSL_GetEchConfigs
+    \sa wolfSSL_GetEchRetryConfigs
+    \sa wolfSSL_GetEchStatus
+    \sa wolfSSL_SetEchEnable
+    \sa wolfSSL_CTX_GetEchConfigs
+*/
+int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
+    word32 echConfigsLen);
+
+/*!
+    \ingroup Setup
+
+    \brief This function writes the ECH configurations set on ssl with
+    wolfSSL_SetEchConfigs() or wolfSSL_SetEchConfigsBase64() to echConfigs
+    as a binary ECHConfigList (a two byte length followed by each
+    ECHConfig). Only entries that were kept when the configurations were
+    parsed are written, each re-encoded with an empty extensions list, so
+    the output may differ from the data originally set. Server WOLFSSL
+    objects do not hold their own configurations (the server uses those of
+    its WOLFSSL_CTX), so on a server this function returns
+    WOLFSSL_FATAL_ERROR; use wolfSSL_CTX_GetEchConfigs() instead. To find
+    the required size, call with echConfigs set to NULL: *echConfigsLen is
+    set to the size and LENGTH_ONLY_E is returned. This function is
+    available when wolfSSL is built with ECH support (--enable-ech, which
+    defines HAVE_ECH) and TLS 1.3.
+
+    \return WOLFSSL_SUCCESS on success; *echConfigsLen is set to the number
+    of bytes written.
+    \return LENGTH_ONLY_E if echConfigs is NULL; *echConfigsLen is set to
+    the required size.
+    \return INPUT_SIZE_E if *echConfigsLen (at least 2) is too small;
+    *echConfigsLen is set to the required size and the contents of
+    echConfigs are undefined.
+    \return BAD_FUNC_ARG if ssl or echConfigsLen is NULL, if echConfigs is
+    not NULL and *echConfigsLen is less than 2 (*echConfigsLen is not
+    updated in this case), or if a stored configuration cannot be encoded.
+    \return WOLFSSL_FATAL_ERROR if ssl has no ECH configurations (none set,
+    a server WOLFSSL object, or ECH disabled with wolfSSL_SetEchEnable()).
+
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param echConfigs buffer to receive the ECHConfigList, or NULL to query
+    the required size.
+    \param echConfigsLen [in,out] on input the size of echConfigs in bytes;
+    on output the number of bytes written or required.
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    byte configs[512];
+    word32 configsLen = sizeof(configs);
+    int ret;
+    ...
+    ret = wolfSSL_GetEchConfigs(ssl, configs, &configsLen);
+    if (ret != WOLFSSL_SUCCESS) {
+        // no ECH configs set, buffer too small, or error
+    }
+    \endcode
+
+    \sa wolfSSL_SetEchConfigs
+    \sa wolfSSL_SetEchConfigsBase64
+    \sa wolfSSL_GetEchRetryConfigs
+    \sa wolfSSL_CTX_GetEchConfigs
+*/
+int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* echConfigs,
+    word32* echConfigsLen);
+
+/*!
+    \ingroup Setup
+
+    \brief This function retrieves the retry configurations (retry_configs)
+    that the server sent when it rejected the client's ECH offer, as a
+    binary ECHConfigList that can be passed to wolfSSL_SetEchConfigs() on a
+    new WOLFSSL object for a new connection. It is intended for clients,
+    after wolfSSL_connect() has failed and wolfSSL_get_error() returns
+    ECH_REQUIRED_E. Retry configurations are only made available when the
+    client offered real ECH (configurations set with
+    wolfSSL_SetEchConfigs()), the server rejected it and sent
+    retry_configs, and the outer handshake then completed, including
+    verification of the server certificate against the public_name of the
+    offered configuration; only at that point does the client send the
+    ech_required alert and fail. In every other case WOLFSSL_FATAL_ERROR is
+    returned: before or during the handshake, after ECH was accepted, on a
+    connection that only sent GREASE ECH (retry_configs are checked for
+    syntax but discarded), when the outer handshake fails (for example
+    certificate verification), when the server rejected ECH without sending
+    retry_configs, or when none of the received entries is supported. The
+    entries are re-encoded with an empty extensions list. To find the
+    required size, call with echConfigs set to NULL: *echConfigsLen is set
+    to the size and LENGTH_ONLY_E is returned. This function is available
+    when wolfSSL is built with ECH support (--enable-ech, which defines
+    HAVE_ECH) and TLS 1.3.
+
+    \return WOLFSSL_SUCCESS on success; *echConfigsLen is set to the number
+    of bytes written.
+    \return LENGTH_ONLY_E if echConfigs is NULL; *echConfigsLen is set to
+    the required size.
+    \return INPUT_SIZE_E if *echConfigsLen (at least 2) is too small;
+    *echConfigsLen is set to the required size and the contents of
+    echConfigs are undefined.
+    \return BAD_FUNC_ARG if ssl or echConfigsLen is NULL, if echConfigs is
+    not NULL and *echConfigsLen is less than 2 (*echConfigsLen is not
+    updated in this case), or if a stored configuration cannot be encoded.
+    \return WOLFSSL_FATAL_ERROR if no usable retry configurations are
+    available (see above).
+
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param echConfigs buffer to receive the ECHConfigList, or NULL to query
+    the required size.
+    \param echConfigsLen [in,out] on input the size of echConfigs in bytes;
+    on output the number of bytes written or required.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
+    byte retry[512];
+    word32 retryLen = sizeof(retry);
+    int ret;
+    ...
+    ret = wolfSSL_connect(ssl);
+    if (ret != WOLFSSL_SUCCESS &&
+            wolfSSL_get_error(ssl, ret) == ECH_REQUIRED_E) {
+        ret = wolfSSL_GetEchRetryConfigs(ssl, retry, &retryLen);
+        wolfSSL_free(ssl);
+        ssl = NULL;
+        if (ret == WOLFSSL_SUCCESS) {
+            // reconnect on a new socket with the server's new configs
+            ssl = wolfSSL_new(ctx);
+            ...
+            ret = wolfSSL_SetEchConfigs(ssl, retry, retryLen);
+            if (ret != WOLFSSL_SUCCESS) {
+                // failed to set ECH configs
+            }
+            ...
+            ret = wolfSSL_connect(ssl);
+        }
+    }
+    \endcode
+
+    \sa wolfSSL_SetEchConfigs
+    \sa wolfSSL_GetEchStatus
+    \sa wolfSSL_GetEchConfigs
+*/
+int wolfSSL_GetEchRetryConfigs(WOLFSSL* ssl, byte* echConfigs,
+    word32* echConfigsLen);
+
+/*!
+    \ingroup Setup
+
+    \brief This function enables (enable non-zero) or disables (enable 0)
+    ECH on ssl, overriding the value inherited from its WOLFSSL_CTX when
+    ssl was created. Disabling removes any ECH extension already prepared
+    for ssl and frees the ECH configurations set on ssl with
+    wolfSSL_SetEchConfigs(); enabling again does not restore them. On a
+    client, disabling stops both real and GREASE ECH. On a server,
+    disabling makes ssl ignore the client's ECH extension; the
+    configurations held by the WOLFSSL_CTX are not affected. Call this
+    function before the handshake starts. This function is available when
+    wolfSSL is built with ECH support (--enable-ech, which defines HAVE_ECH)
+    and TLS 1.3.
+
+    \return none No return.
+
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    If NULL the call does nothing.
+    \param enable 0 to disable ECH, any other value to enable it.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
+    int ret;
+    ...
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        // ssl creation failed
+    }
+    // no real or GREASE ECH on this connection
+    wolfSSL_SetEchEnable(ssl, 0);
+    ret = wolfSSL_connect(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchEnable
+    \sa wolfSSL_SetEchConfigs
+    \sa wolfSSL_GetEchStatus
+*/
+void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable);
+
+/*!
+    \ingroup Setup
+
+    \brief This function enables (enable non-zero) or disables (enable 0)
+    ECH trial decryption on the server ssl, overriding the value inherited
+    from its WOLFSSL_CTX when ssl was created. When disabled (the default)
+    the server only tries the context's configurations whose config_id
+    matches the one sent by the client; when enabled it also tries every
+    other configuration if those fail. See
+    wolfSSL_CTX_SetEchEnableTrialDecrypt(). It has no effect on clients.
+    Call this function before the ClientHello is processed. This function
+    is available when wolfSSL is built with ECH support (--enable-ech,
+    which defines HAVE_ECH) and TLS 1.3.
+
+    \return none No return.
+
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+    If NULL the call does nothing.
+    \param enable 0 to disable trial decryption, any other value to enable
+    it.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx; // server context with ECH configs
+    WOLFSSL* ssl;
+    int ret;
+    ...
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        // ssl creation failed
+    }
+    wolfSSL_SetEchEnableTrialDecrypt(ssl, 1);
+    ret = wolfSSL_accept(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_SetEchEnableTrialDecrypt
+    \sa wolfSSL_CTX_GenerateEchConfig
+    \sa wolfSSL_SetEchEnable
+*/
+void wolfSSL_SetEchEnableTrialDecrypt(WOLFSSL* ssl, byte enable);
+
+/*!
+    \ingroup Setup
+
+    \brief This function returns the ECH status of ssl, on either the client
+    or the server side, as one of the WOLFSSL_ECH_STATUS_* values defined
+    in wolfssl/ssl.h. The result is only conclusive once the handshake has
+    completed or failed: in particular a client that offered real ECH
+    reports WOLFSSL_ECH_STATUS_REJECTED from the time its ClientHello is
+    sent until the server confirms acceptance. This function is available
+    when wolfSSL is built with ECH support (--enable-ech, which defines
+    HAVE_ECH) and TLS 1.3.
+
+    \return WOLFSSL_ECH_STATUS_NOT_OFFERED (0) if ECH is disabled on ssl;
+    on a server, if ECH is not set up (the WOLFSSL_CTX has no ECH
+    configurations), the client did not send an ECH extension, or no
+    ClientHello has been processed yet; on a client, if the ClientHello has
+    not been sent yet.
+    \return WOLFSSL_ECH_STATUS_GREASE (1) on a client that sent a GREASE ECH
+    extension because no ECH configurations were set. Not returned on a
+    server.
+    \return WOLFSSL_ECH_STATUS_REJECTED (2) on a server, if the client sent
+    an ECH extension that could not be decrypted with any configuration
+    (this includes GREASE ECH, which a server cannot tell apart from real
+    ECH); on a client, if ECH configurations were set and the ClientHello
+    was sent but ECH has not been accepted. In both cases the connection
+    uses the outer ClientHello.
+    \return WOLFSSL_ECH_STATUS_ACCEPTED (3) if the server decrypted the
+    inner ClientHello and the handshake uses it.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    int ret;
+    ...
+    ret = wolfSSL_connect(ssl);
+    switch (wolfSSL_GetEchStatus(ssl)) {
+        case WOLFSSL_ECH_STATUS_ACCEPTED:
+            // the inner ClientHello was used
+            break;
+        case WOLFSSL_ECH_STATUS_REJECTED:
+            // see wolfSSL_GetEchRetryConfigs()
+            break;
+        case WOLFSSL_ECH_STATUS_GREASE:
+        case WOLFSSL_ECH_STATUS_NOT_OFFERED:
+        default:
+            // ECH was not used
+            break;
+    }
+    \endcode
+
+    \sa wolfSSL_SetEchConfigs
+    \sa wolfSSL_GetEchRetryConfigs
+    \sa wolfSSL_SetEchEnable
+    \sa wolfSSL_CTX_SetEchEnable
+    \sa wolfSSL_CTX_GenerateEchConfig
+*/
+int wolfSSL_GetEchStatus(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
     \brief Since there is some differences between the first release and
     newer versions of chacha-poly AEAD construction we have added an option
     to communicate with servers/clients using the older version. By default
