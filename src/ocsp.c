@@ -2110,44 +2110,49 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
 
     /* build up ASN1_INTEGER for serial */
     if (serial != NULL) {
-        int i = 0;
-        WOLFSSL_ASN1_INTEGER* ser;
-
-        ser = wolfSSL_ASN1_INTEGER_new();
-        if (ser == NULL)
-            return 0;
-
-        if (cid->status->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
-            /* allocate data buffer, +2 for type and length */
-            ser->data = (unsigned char*)XMALLOC((size_t)cid->status->serialSz + 2, NULL,
-                DYNAMIC_TYPE_OPENSSL);
-            if (ser->data == NULL) {
-                wolfSSL_ASN1_INTEGER_free(ser);
-                return 0;
-            }
-            ser->dataMax = (unsigned int)cid->status->serialSz + 2;
-            ser->isDynamic = 1;
+        if (cid->status->serialInt != NULL) {
+            *serial = cid->status->serialInt;
         } else {
-            /* Use array instead of dynamic memory */
-            ser->data    = ser->intData;
-            ser->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
+            int i = 0;
+            WOLFSSL_ASN1_INTEGER* ser;
+
+            ser = wolfSSL_ASN1_INTEGER_new();
+            if (ser == NULL)
+                return 0;
+
+            if (cid->status->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
+                /* allocate data buffer, +2 for type and length */
+                ser->data = (unsigned char*)XMALLOC(
+                    (size_t)cid->status->serialSz + 2, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
+                if (ser->data == NULL) {
+                    wolfSSL_ASN1_INTEGER_free(ser);
+                    return 0;
+                }
+                ser->dataMax = (unsigned int)cid->status->serialSz + 2;
+                ser->isDynamic = 1;
+            } else {
+                /* Use array instead of dynamic memory */
+                ser->data    = ser->intData;
+                ser->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
+            }
+
+            #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+                /* Serial number starts at 0 index of ser->data */
+                XMEMCPY(&ser->data[i], cid->status->serial,
+                    (size_t)cid->status->serialSz);
+                ser->length = cid->status->serialSz;
+            #else
+                ser->data[i++] = ASN_INTEGER;
+                i += SetLength(cid->status->serialSz, ser->data + i);
+                XMEMCPY(&ser->data[i], cid->status->serial,
+                    (size_t)cid->status->serialSz);
+                ser->length = i + cid->status->serialSz;
+            #endif
+
+            cid->status->serialInt = ser;
+            *serial = ser;
         }
-
-        #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-            /* Serial number starts at 0 index of ser->data */
-            XMEMCPY(&ser->data[i], cid->status->serial,
-                (size_t)cid->status->serialSz);
-            ser->length = cid->status->serialSz;
-        #else
-            ser->data[i++] = ASN_INTEGER;
-            i += SetLength(cid->status->serialSz, ser->data + i);
-            XMEMCPY(&ser->data[i], cid->status->serial,
-                (size_t)cid->status->serialSz);
-            ser->length = i + cid->status->serialSz;
-        #endif
-
-        cid->status->serialInt = ser;
-        *serial = ser;
     }
 
     /* Not needed for Apache, return error if user is requesting */
