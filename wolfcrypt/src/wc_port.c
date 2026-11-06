@@ -3081,7 +3081,7 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
 #if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
     WC_ATOMIC_UINT_ARG expected;
 
-    if (WOLFSSL_ATOMIC_LOAD(*flag) == 2) {
+    if (WOLFSSL_ATOMIC_LOAD(*flag) == WC_MUTEX_READY_ONCE) {
         return 0;
     }
 
@@ -3090,10 +3090,11 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
         if (wolfSSL_Atomic_Uint_CompareExchange(flag, &expected, 1) == 1) {
             /* Won the race. On failure reset to 0 so a later call retries. */
             ret = wc_InitMutex(m);
-            WOLFSSL_ATOMIC_STORE(*flag, (ret == 0) ? 2U : 0U);
+            WOLFSSL_ATOMIC_STORE(*flag,
+                (ret == 0) ? WC_MUTEX_READY_ONCE : 0U);
             break;
         }
-        if (expected == 2) {
+        if (expected == WC_MUTEX_READY_ONCE) {
             /* Another thread completed the initialization. */
             break;
         }
@@ -3103,10 +3104,10 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
 #else
     /* No atomics to elect with: single-threaded cannot race, and opt-out
      * builds keep their existing behavior. */
-    if (*flag != 2) {
+    if (*flag != WC_MUTEX_READY_ONCE) {
         ret = wc_InitMutex(m);
         if (ret == 0) {
-            *flag = 2;
+            *flag = WC_MUTEX_READY_ONCE;
         }
     }
 #endif
