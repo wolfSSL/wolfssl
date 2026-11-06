@@ -1148,7 +1148,12 @@ int wc_SHE_ExportKey(wc_SHE* she,
                       byte* m5, word32 m5Sz,
                       const void* ctx)
 {
-    if (she == NULL) {
+    if (she == NULL ||
+        (m1 != NULL && m1Sz < WC_SHE_M1_SZ) ||
+        (m2 != NULL && m2Sz < WC_SHE_M2_SZ) ||
+        (m3 != NULL && m3Sz < WC_SHE_M3_SZ) ||
+        (m4 != NULL && m4Sz < WC_SHE_M4_SZ) ||
+        (m5 != NULL && m5Sz < WC_SHE_M5_SZ)) {
         return BAD_FUNC_ARG;
     }
 
