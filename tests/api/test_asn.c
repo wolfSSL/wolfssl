@@ -28,6 +28,14 @@
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rsa.h>
+
+/* A lone "." dNSName constraint base covers every DNS name, except with
+ * OPENSSL_COMPATIBLE_DEFAULTS where it matches no name. */
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    #define NC_DNS_DOT_BASE_MATCH 0
+#else
+    #define NC_DNS_DOT_BASE_MATCH 1
+#endif
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
@@ -1054,12 +1062,24 @@ int test_wolfssl_local_MatchBaseName(void)
     /* @ at end is invalid */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
                 "user@", 5, ".domain.com", 11), 0);
-    /* double @ is invalid */
+    /* An '@' outside a quoted local-part cannot be compared */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
-                "user@@domain.com", 16, ".domain.com", 11), 0);
-    /* multiple @ is invalid */
+                "user@@domain.com", 16, ".domain.com", 11),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
-                "user@domain@extra.com", 21, ".domain.com", 11), 0);
+                "user@domain@extra.com", 21, ".domain.com", 11),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain@extra.com", 21, "extra.com", 9),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "x@evil.com@good.com", 19, "good.com", 8),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    /* RFC 5322 quoted local-part containing @ */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "\"x@y\"@evil.com", 14, "evil.com", 8), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "\"x@y\"@good.com", 14, "evil.com", 8), 0);
     /* No @ in email name */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
                 "userdomain.com", 14, ".domain.com", 11), 0);
@@ -1725,14 +1745,26 @@ int test_wolfssl_local_MatchBaseName(void)
     /* Empty/zero size */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
                 "", 0, "domain.com", 10), 0);
+    /* RFC 5280 4.2.1.10: an empty dNSName base covers every DNS name. */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
-                "domain.com", 10, "", 0), 0);
+                "domain.com", 10, "", 0), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com", 10, ".", 1), NC_DNS_DOT_BASE_MATCH);
+    ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard(
+                "*.domain.com", 12, "", 0, 0), 1);
+    ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard(
+                "*.domain.com", 12, ".", 1, 1), NC_DNS_DOT_BASE_MATCH);
+    /* An empty rfc822Name base names no host. */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "user@domain.com", 15, "", 0), 0);
     /* Invalid type */
     ExpectIntEQ(wolfssl_local_MatchBaseName(0xFF,
                 "domain.com", 10, "domain.com", 10), 0);
-    /* Name starting with dot */
+    /* Name starting with dot, whatever the base */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
                 ".", 1, ".", 1), 0);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                ".domain.com", 11, "", 0), 0);
     /* Name shorter than base */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
                 "a.com", 5, "domain.com", 10), 0);
@@ -1858,13 +1890,16 @@ int test_wolfssl_local_MatchDnsConstraintWildcard(void)
                 NULL, 3, 1), 0);
     ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard("*.com", 0,
                 "com", 3, 1), 0);
+    /* A zero-length base covers every DNS name (RFC 5280 4.2.1.10). */
     ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard("*.com", 5,
-                "com", 0, 1), 0);
+                "com", 0, 1), 1);
     /* Name beginning with a dot is invalid. */
     ExpectIntEQ(dnsWildPermitted(".x.com",            "com"),             0);
     ExpectIntEQ(dnsWildExcluded(".x.com",             "com"),             0);
-    /* Base that is only dots collapses to nothing. */
-    ExpectIntEQ(dnsWildExcluded("*.example.com",      "."),               0);
+    /* A lone dot is the empty base unless OpenSSL compatible. */
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "."),
+                NC_DNS_DOT_BASE_MATCH);
+    /* A base of more than one dot has an empty label. */
     ExpectIntEQ(dnsWildExcluded("*.example.com",      ".."),              0);
     /* SAN has an empty interior label ("*..com"), but only the right-most
      * "com" label overlaps the base "com" -- the empty label sits outside the
@@ -1892,6 +1927,9 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
      * Exact host match (no leading dot in the constraint).
      */
     ExpectIntEQ(uriNC("https://host.com/path",        "host.com"), 1);
+    /* A lone "." base is a leading-dot base with no labels. */
+    ExpectIntEQ(uriNC("https://host.com/path",        "."),
+                NC_DNS_DOT_BASE_MATCH);
     ExpectIntEQ(uriNC("https://host.com",             "host.com"), 1);
     ExpectIntEQ(uriNC("https://host.com:8443/x",      "host.com"), 1);
     ExpectIntEQ(uriNC("ftp://user@host.com/x",        "host.com"), 1);
