@@ -537,6 +537,11 @@ static WOLFSSL_X509_STORE_CTX_verify_cb X509StoreGetVerifyCb(
     if (ctx == NULL)
         return NULL;
 
+    /* A CertManager callback, as of an SSL_CTX's store, is used instead. */
+    if (ctx->store != NULL && ctx->store->cm != NULL &&
+            ctx->store->cm->verifyCallback != NULL)
+        return ctx->store->cm->verifyCallback;
+
     if (ctx->verify_cb != NULL)
         return ctx->verify_cb;
 
