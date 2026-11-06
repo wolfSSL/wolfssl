@@ -9650,12 +9650,16 @@ static void GMULT(byte* X, byte* Y, GcmScratch* WC_RESTRICT ws)
         byte y = Y[i];
         for (j = 0; j < 8; j++)
         {
-            if (y & 0x80) {
-                xorbuf(Z, V, WC_AES_BLOCK_SIZE);
+            byte mask;
+            int  k;
+
+            mask = (byte)(0U - ((y >> 7) & 0x01U));
+            for (k = 0; k < WC_AES_BLOCK_SIZE; k++) {
+                Z[k] ^= (byte)(V[k] & mask);
             }
 
             RIGHTSHIFTX(V);
-            y = y << 1;
+            y = (byte)(y << 1);
         }
     }
     XMEMCPY(X, Z, WC_AES_BLOCK_SIZE);
@@ -11023,31 +11027,18 @@ static void GMULT(word32* X, word32* Y, GcmScratch* WC_RESTRICT ws)
         word32 y = Y[i];
         for (j = 0; j < 32; j++)
         {
-            if (y & 0x80000000) {
-                Z[0] ^= V[0];
-                Z[1] ^= V[1];
-                Z[2] ^= V[2];
-                Z[3] ^= V[3];
-            }
+            word32 mask  = (word32)0U - (y >> 31);
+            word32 carry = (word32)0U - (V[3] & 0x00000001);
 
-            if (V[3] & 0x00000001) {
-                V[3] >>= 1;
-                V[3] |= ((V[2] & 0x00000001) ? 0x80000000 : 0);
-                V[2] >>= 1;
-                V[2] |= ((V[1] & 0x00000001) ? 0x80000000 : 0);
-                V[1] >>= 1;
-                V[1] |= ((V[0] & 0x00000001) ? 0x80000000 : 0);
-                V[0] >>= 1;
-                V[0] ^= 0xE1000000;
-            } else {
-                V[3] >>= 1;
-                V[3] |= ((V[2] & 0x00000001) ? 0x80000000 : 0);
-                V[2] >>= 1;
-                V[2] |= ((V[1] & 0x00000001) ? 0x80000000 : 0);
-                V[1] >>= 1;
-                V[1] |= ((V[0] & 0x00000001) ? 0x80000000 : 0);
-                V[0] >>= 1;
-            }
+            Z[0] ^= V[0] & mask;
+            Z[1] ^= V[1] & mask;
+            Z[2] ^= V[2] & mask;
+            Z[3] ^= V[3] & mask;
+
+            V[3] = (V[3] >> 1) | (V[2] << 31);
+            V[2] = (V[2] >> 1) | (V[1] << 31);
+            V[1] = (V[1] >> 1) | (V[0] << 31);
+            V[0] = (V[0] >> 1) ^ (0xE1000000 & carry);
             y <<= 1;
         }
     }
@@ -21620,8 +21611,12 @@ static void AesGcmSivGMult(AesGcmSivPolyval* poly)
     for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
         byte y = poly->h[i];
         for (j = 0; j < 8; j++) {
-            if (y & 0x80) {
-                xorbuf(Z, V, WC_AES_BLOCK_SIZE);
+            byte mask;
+            int  k;
+
+            mask = (byte)(0U - ((y >> 7) & 0x01U));
+            for (k = 0; k < WC_AES_BLOCK_SIZE; k++) {
+                Z[k] ^= (byte)(V[k] & mask);
             }
             AesGcmSivMulX(V);
             y = (byte)(y << 1);

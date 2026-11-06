@@ -571,6 +571,7 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             out += size;
 
         }
+        ForceZero(secKey, secDesc->length3);
         wc_UnLockMutex(&Mutex_DesSEC) ;
 
     }

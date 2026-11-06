@@ -22244,6 +22244,9 @@ static int test_wolfSSL_ERR_print_errors_cb(void)
          "wolfSSL error occurred, error = 275 line:100 file:asn.c",
          buf + 53, 55), 0);
     ExpectIntEQ(BIO_gets(bio, buf, sizeof(buf)), 0);
+    /* queue and its read cursor were reset, nothing left to pull */
+    ExpectIntEQ(ERR_get_error_line(NULL, NULL), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
 
     BIO_free(bio);
 #endif
@@ -22271,13 +22274,43 @@ static int test_WOLFSSL_ERROR_MSG(void)
  */
 static int test_wc_ERR_remove_state(void)
 {
-    int res = TEST_SKIPPED;
+    EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    wc_ERR_remove_state();
+    ExpectIntEQ(wc_ERR_remove_state(), 0);
 
-    res = TEST_SUCCESS;
+#if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_WOLFSSL)
+    /* the read cursor must be reset with the nodes it points into */
+    ERR_clear_error();
+    ERR_put_error(0, SYS_F_ACCEPT, -173, "ssl.c", 0);
+    ERR_put_error(0, SYS_F_BIND, -275, "asn.c", 100);
+    ExpectIntEQ(wc_ERR_remove_state(), 0);
+    ExpectIntEQ(ERR_get_error_line(NULL, NULL), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
 #endif
-    return res;
+
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && !defined(NO_ERROR_QUEUE) && \
+    defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL) && \
+    !defined(ERROR_QUEUE_PER_THREAD)
+    {
+        /* with the global queue the returned file string must not point into
+         * the node, which is freed when the error is removed */
+        const char* file = NULL;
+        int line = 0;
+
+        ERR_clear_error();
+        ERR_put_error(0, SYS_F_BIND, -275, "asn.c", 100);
+        ExpectIntNE(ERR_peek_last_error_line(&file, &line), 0);
+        ExpectIntNE(ERR_get_error(), 0);
+        ExpectNotNull(file);
+        if (file != NULL) {
+            ExpectIntEQ(XSTRCMP(file, "asn.c"), 0);
+        }
+        ExpectIntEQ(line, 100);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
 } /* End test_wc_ERR_remove_state */
 /*
  * Testing wc_ERR_print_errors_fp
