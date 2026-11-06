@@ -17598,7 +17598,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
             /* Point to current cm to be able to verify CRL */
             userCrl->cm = SSL_CM(ssl);
             *outRet = CheckCertCRLFromCm(SSL_CM(ssl), userCrl,
-                    args->dCert);
+                    args->dCert, NULL, NULL);
         }
         else
             *outRet = CRL_MISSING;
@@ -46091,7 +46091,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             #ifdef HAVE_CRL
                 if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
                     ret = CheckCertCRLFromCm(SSL_CM(ssl), SSL_CM(ssl)->crl,
-                            dCert);
+                            dCert, NULL, NULL);
                 }
             #endif
                 if (ret == 0) {
