@@ -44,6 +44,10 @@
 
 
 /* GENERIC INCLUDE SECTION */
+#ifndef NO_STDDEF_H
+    #include <stddef.h> /* for size_t */
+#endif
+
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
     #if (defined(MQX_USE_IO_OLD) && MQX_USE_IO_OLD) || \
@@ -2035,9 +2039,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    #ifndef NO_STDDEF_H
-        #include <stddef.h> /* for size_t */
-    #endif /* NO_STDDEF_H */
     WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n);
 #endif
 
@@ -2159,12 +2160,37 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         } while(0)
 #endif
 
+/* Defined in wc_port.c. */
+#ifdef WOLFSSL_NO_FORCE_ZERO
+    /* The application supplies ForceZero(); wc_ForceZero() maps onto it.
+     * Same tokens as misc.h. */
+    /* NOLINTNEXTLINE(readability-redundant-declaration) */
+    void ForceZero(void* mem, size_t len);
+    #undef wc_ForceZero
+    #define wc_ForceZero ForceZero
+#else
+    /* Zero len bytes at mem. mem may be NULL when len is 0. */
+    /* NOLINTNEXTLINE(readability-redundant-declaration) */
+    WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
+#endif
+
+#ifndef WOLFSSL_NO_CONST_CMP
+/* unsigned char: byte is not typedef'd yet. */
+WOLFSSL_API int wc_ConstantCompare(const unsigned char* a,
+    const unsigned char* b, int length);
+#endif
+
 /* Compiler barrier that also treats the memory at ptr as read, so a wipe of
  * that memory cannot be dropped as a dead store. The GNU form emits no CPU
  * fence; cross-thread ordering is the caller's job. Without GNU asm (other
  * compilers, or WOLFSSL_NO_ASM) ptr escapes to an out-of-line call in
  * wc_port.c, since a bare compiler barrier does not cover a local whose
  * address never escaped. */
+
+/* Internal to WC_BARRIER_DATA(). ptr is never dereferenced.  Declared on
+ * every build: code that includes misc.c may take a different arm. */
+WOLFSSL_API void wc_BarrierDataSink(void* ptr);
+
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
 #elif defined(__CC_ARM)
@@ -2176,8 +2202,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         __asm__ __volatile__("" : : "r"(ptr) : "memory")
 #else
     #define WC_BARRIER_DATA_USES_SINK
-    /* Internal to WC_BARRIER_DATA(). ptr is never dereferenced. */
-    WOLFSSL_API void wc_BarrierDataSink(void* ptr);
     #define WC_BARRIER_DATA(ptr) do { wc_BarrierDataSink((ptr)); } while (0)
 #endif
 

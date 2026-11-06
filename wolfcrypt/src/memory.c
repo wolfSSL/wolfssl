@@ -1839,23 +1839,6 @@ void __attribute__((no_instrument_function))
 }
 #endif
 
-#ifndef WOLFSSL_NO_FORCE_ZERO
-/* Exported version of ForceZero(). */
-void wc_ForceZero(void *mem, size_t len)
-{
-    ForceZero(mem, len);
-}
-#endif
-
-#ifndef WOLFSSL_NO_CONST_CMP
-/* Exported version of ConstantCompare(). */
-int wc_ConstantCompare(const byte* a, const byte* b, int length)
-
-{
-    return ConstantCompare(a, b, length);
-}
-#endif
-
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
 static const byte wc_debug_cipher_lifecycle_tag_value[] =
     { 'W', 'o', 'l', 'f' };
