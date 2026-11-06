@@ -22248,8 +22248,9 @@ static int test_wc_ERR_remove_state(void)
     ExpectIntEQ(ERR_get_error(), 0);
 #endif
 
-#if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
-    defined(DEBUG_WOLFSSL) && !defined(ERROR_QUEUE_PER_THREAD)
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && !defined(NO_ERROR_QUEUE) && \
+    defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL) && \
+    !defined(ERROR_QUEUE_PER_THREAD)
     {
         /* with the global queue the returned file string must not point into
          * the node, which is freed when the error is removed */

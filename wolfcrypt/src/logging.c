@@ -1074,10 +1074,11 @@ static void* wc_error_heap;
  * Pointers returned to the caller point here rather than into a node, so a
  * remove or clear from another thread after the mutex is released can not
  * leave the caller with a pointer to freed memory. The contents are only valid
- * until the next peek or pull. Only written with the mutex held and the last
- * byte is never written, so the strings are always terminated. */
-static char wc_errq_file[WOLFSSL_MAX_ERROR_SZ];
-static char wc_errq_reason[WOLFSSL_MAX_ERROR_SZ];
+ * until the next peek or pull by the same thread. Only written with the mutex
+ * held and the last byte is never written, so the strings are always
+ * terminated. */
+static THREAD_LS_T char wc_errq_file[WOLFSSL_MAX_ERROR_SZ];
+static THREAD_LS_T char wc_errq_reason[WOLFSSL_MAX_ERROR_SZ];
 
 /* mutex for list operation protection */
 static wolfSSL_Mutex wc_error_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wc_error_mutex);
