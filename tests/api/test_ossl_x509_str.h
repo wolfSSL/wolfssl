@@ -62,6 +62,7 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void);
 int test_wolfSSL_X509_CA_num(void);
 int test_X509_STORE_No_SSL_CTX(void);
 int test_wolfSSL_CTX_set_cert_store(void);
+int test_wolfSSL_CTX_set_cert_store_non_ca(void);
 
 #define TEST_OSSL_X509_STORE_DECLS                                             \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX_set_time),  \
@@ -121,6 +122,7 @@ int test_wolfSSL_CTX_set_cert_store(void);
                             test_wolfSSL_X509_STORE_CTX_set0_crls_handshake),  \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_CA_num),              \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_No_SSL_CTX),             \
-    TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_CTX_set_cert_store)
+    TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_CTX_set_cert_store),       \
+    TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_CTX_set_cert_store_non_ca)
 
 #endif /* WOLFCRYPT_TEST_OSSL_X509_STR_H */
