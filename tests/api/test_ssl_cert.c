@@ -1077,6 +1077,20 @@ int test_wolfSSL_set_peer_cert_chain(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(SESSION_CERTS) && \
+    defined(OPENSSL_EXTRA) && defined(KEEP_PEER_CERT) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && !defined(NO_TLS)
+static int test_verified_chain_cm_calls = 0;
+
+/* CertManager verify callback that counts calls and rejects any error. */
+static int test_verified_chain_cm_cb(int ok, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)store;
+    test_verified_chain_cm_calls++;
+    return ok;
+}
+#endif
+
 /* Test getting the verified certificate chain.
  *
  * @return  TEST_SUCCESS on success.
@@ -1094,6 +1108,7 @@ int test_wolfSSL_get0_verified_chain(void)
 #ifdef WOLFSSL_SIGNER_DER_CERT
     WOLFSSL_X509_STORE_CTX* storeCtx = NULL;
     WOLFSSL_X509* peer = NULL;
+    int calls = 0;
 #endif
 
     ExpectNull(wolfSSL_get0_verified_chain(NULL));
@@ -1105,12 +1120,20 @@ int test_wolfSSL_get0_verified_chain(void)
     /* Without a peer certificate there is nothing to verify. */
     ExpectNull(wolfSSL_get0_verified_chain(ssl_c));
 
+    /* The app's CertManager callback is not used to build the chain. */
+    test_verified_chain_cm_calls = 0;
+    wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx_c),
+        test_verified_chain_cm_cb);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
+    calls = test_verified_chain_cm_calls;
     /* The server's chain verifies against the CA the client loaded. */
     ExpectNotNull(chain = wolfSSL_get0_verified_chain(ssl_c));
     ExpectIntGT(wolfSSL_sk_X509_num(chain), 0);
+    ExpectIntEQ(test_verified_chain_cm_calls, calls);
+    wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx_c), NULL);
     if (ssl_c != NULL) {
         ExpectPtrEq(ssl_c->verifiedChain, chain);
     }

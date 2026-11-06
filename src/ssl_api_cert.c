@@ -3403,7 +3403,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
  * @param [in] ctx  X509 store context.
  * @return  1 when verification is to continue, 0 to fail.
  */
-static int VerifiedChainCb(int ok, WOLFSSL_X509_STORE_CTX* ctx)
+int VerifiedChainCb(int ok, WOLFSSL_X509_STORE_CTX* ctx)
 {
     if ((!ok) && (ctx->error_depth > 0)) {
         switch (ctx->error) {

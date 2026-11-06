@@ -537,6 +537,12 @@ static WOLFSSL_X509_STORE_CTX_verify_cb X509StoreGetVerifyCb(
     if (ctx == NULL)
         return NULL;
 
+#if defined(SESSION_CERTS) && defined(KEEP_PEER_CERT)
+    /* An internal callback, as of SSL_get0_verified_chain, comes first. */
+    if (ctx->verify_cb == VerifiedChainCb)
+        return ctx->verify_cb;
+#endif
+
     /* A CertManager callback, as of an SSL_CTX's store, is used instead. */
     if (ctx->store != NULL && ctx->store->cm != NULL &&
             ctx->store->cm->verifyCallback != NULL)

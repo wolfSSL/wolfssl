@@ -3052,6 +3052,10 @@ WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type);
 WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store);
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT)
+WOLFSSL_LOCAL int VerifiedChainCb(int ok, WOLFSSL_X509_STORE_CTX* ctx);
+#endif
 #endif /* !defined NO_CERTS */
 
 /* wolfSSL Sock Addr */
