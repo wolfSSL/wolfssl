@@ -16673,9 +16673,13 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
     }
     else {
-        if (inputLength + ssl->pendingMsgOffset > ssl->pendingMsgSz) {
-            inputLength = ssl->pendingMsgSz - ssl->pendingMsgOffset;
-        }
+        word32 pendSz = ssl->pendingMsgSz - ssl->pendingMsgOffset;
+
+        /* Catch the case where there may be the remainder of a fragmented
+         * handshake message and the next handshake message in the same
+         * record. */
+        if (inputLength > pendSz)
+            inputLength = pendSz;
 
         ret = EarlySanityCheckMsgReceived(ssl, ssl->pendingMsgType,
                 inputLength);
