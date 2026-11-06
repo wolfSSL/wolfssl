@@ -723,6 +723,11 @@ extern "C" {
         #if defined(HAVE_ECC521)
             #define WOLFSSL_SP_521
         #endif
+        /* Sizes ECC keys and points for the largest curve */
+        #if (!defined(NO_RSA) || !defined(NO_DH)) && !defined(WOLFSSL_NO_MALLOC) && \
+            !defined(HAVE_FIPS)
+            #define ALT_ECC_SIZE
+        #endif
     #endif
     #ifndef NO_RSA
         #define WOLFSSL_HAVE_SP_RSA
@@ -739,6 +744,10 @@ extern "C" {
     #endif
     //#define WOLFSSL_SP_NO_MALLOC /* disable heap in wolf/SP math */
     //#define SP_DIV_WORD_USE_DIV /* no div64 */
+    #if defined(CONFIG_WOLFCRYPT_SP_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+        !defined(WOLFSSL_SP_NO_MALLOC)
+        #define WOLFSSL_SP_SMALL_STACK
+    #endif
 
     /* Assembly speedup, keyed on the CPU Zephyr reports. Anything not named
      * here keeps the C backend. Each pair is two separate backends: the _ASM

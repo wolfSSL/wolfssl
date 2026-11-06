@@ -787,6 +787,18 @@ config WOLFCRYPT_SP_SMALL
 	  turning it off is what makes WOLFCRYPT_ASM pay off on a part with
 	  the flash to spare.
 
+config WOLFCRYPT_SP_SMALL_STACK
+	bool "Single-precision math temporaries on the heap"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE && !WOLFCRYPT_FIPS
+	default y
+	help
+	  Allocate the temporaries of the fixed-size single-precision RSA, DH
+	  and ECC routines (sp_c32.c, sp_c64.c and the assembly sources) on
+	  the heap (WOLFSSL_SP_SMALL_STACK) instead of the stack of the calling
+	  thread. An RSA-3072 operation otherwise needs over 4 KB of stack. The
+	  generic sp_int.c math and the rest of wolfSSL keep their stack use
+	  unless WOLFSSL_SMALL_STACK is set in a settings file.
+
 config WOLFSSL_NO_HAVE_MIN_MAX
 	bool "Force wolfSSL to use its own min/max"
 	help
