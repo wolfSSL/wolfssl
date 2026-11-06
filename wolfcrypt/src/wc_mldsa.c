@@ -272,6 +272,19 @@
 #if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM))
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+
+/* cpuid_flags starts out as WC_CPUID_INITIALIZER, which is all ones: a
+ * dispatch read before cpuid_get_flags_ex() would report every feature
+ * present and send a CPU without the extension into the asm path, where it
+ * SIGILLs. The dispatchers can be reached without a prior init (the unit
+ * tests and white-box harnesses call them directly), so every dispatch reads
+ * the flags through this helper. */
+static WC_INLINE cpuid_flags_t mldsa_cpuid_flags(void)
+{
+    if (cpuid_flags == WC_CPUID_INITIALIZER)
+        cpuid_get_flags_ex(&cpuid_flags);
+    return cpuid_flags;
+}
 #endif
 
 #if defined(USE_INTEL_SPEEDUP)
@@ -317,7 +330,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
 #define MLDSA_NEON_PICK(fn, ...)                                               \
     do {                                                                       \
-        if (IS_AARCH64_RDM(cpuid_flags)) {                                     \
+        if (IS_AARCH64_RDM(mldsa_cpuid_flags())) {                                     \
             fn##_sqrdmlsh_neon(__VA_ARGS__);                                   \
         }                                                                      \
         else {                                                                 \
@@ -361,7 +374,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
     !defined(WOLFSSL_MLDSA_NO_SIGN)
 static void mlkem_sha3_blocksx3(word64* state)
 {
-    if (IS_AARCH64_SHA3(cpuid_flags)) {
+    if (IS_AARCH64_SHA3(mldsa_cpuid_flags())) {
         sha3_blocksx3_crypto(state);
     }
     else {
@@ -373,7 +386,7 @@ static void mlkem_sha3_blocksx3(word64* state)
 #ifdef MLDSA_NEON_EXPAND_A
 static void mlkem_shake128_blocksx3_seed(word64* state, byte* seed)
 {
-    if (IS_AARCH64_SHA3(cpuid_flags)) {
+    if (IS_AARCH64_SHA3(mldsa_cpuid_flags())) {
         sha3_128_blocksx3_seed_crypto(state, seed);
     }
     else {
@@ -386,7 +399,7 @@ static void mlkem_shake128_blocksx3_seed(word64* state, byte* seed)
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || !defined(WOLFSSL_MLDSA_NO_SIGN)
 static void mlkem_shake256_blocksx3_seed_64(word64* state, byte* seed)
 {
-    if (IS_AARCH64_SHA3(cpuid_flags)) {
+    if (IS_AARCH64_SHA3(mldsa_cpuid_flags())) {
         sha3_256_blocksx3_seed_64_crypto(state, seed);
     }
     else {
@@ -817,14 +830,14 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
         dataLen -= WC_SHA3_256_COUNT * 8;
         data    += WC_SHA3_256_COUNT * 8;
 #ifndef WC_SHA3_NO_ASM
-        if (SHA3_USE_AVX2(cpuid_flags)) {
+        if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
         }
-        else if (IS_INTEL_BMI2(cpuid_flags)) {
+        else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
             sha3_block_bmi2(state);
         }
         else
@@ -835,7 +848,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
         if (dataLen >= WC_SHA3_256_COUNT * 8) {
 #ifndef WC_SHA3_NO_ASM
             word32 n = dataLen / (WC_SHA3_256_COUNT * 8);
-            if (SHA3_USE_AVX2(cpuid_flags)) {
+            if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
                 int svr_ret = SAVE_VECTOR_REGISTERS2();
                 if (svr_ret != 0)
                     return svr_ret;
@@ -845,7 +858,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
                 dataLen -= n;
                 data    += n;
             }
-            else if (IS_INTEL_BMI2(cpuid_flags)) {
+            else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
                 sha3_block_n_bmi2(state, data, n, WC_SHA3_256_COUNT * 8);
                 n *= WC_SHA3_256_COUNT * 8;
                 dataLen -= n;
@@ -876,14 +889,14 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
     }
 
 #ifndef WC_SHA3_NO_ASM
-    if (SHA3_USE_AVX2(cpuid_flags)) {
+    if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
     }
-    else if (IS_INTEL_BMI2(cpuid_flags)) {
+    else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         sha3_block_bmi2(state);
     }
     else
@@ -992,14 +1005,14 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
         data2Len -= WC_SHA3_256_COUNT * 8 - data1Len;
         data2    += WC_SHA3_256_COUNT * 8 - data1Len;
 #ifndef WC_SHA3_NO_ASM
-        if (SHA3_USE_AVX2(cpuid_flags)) {
+        if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
         }
-        else if (IS_INTEL_BMI2(cpuid_flags)) {
+        else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
             sha3_block_bmi2(state);
         }
         else
@@ -1011,7 +1024,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
         if (data2Len >= WC_SHA3_256_COUNT * 8) {
 #ifndef WC_SHA3_NO_ASM
             word32 n = data2Len / (WC_SHA3_256_COUNT * 8);
-            if (SHA3_USE_AVX2(cpuid_flags)) {
+            if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
                 int svr_ret = SAVE_VECTOR_REGISTERS2();
                 if (svr_ret != 0)
                     return svr_ret;
@@ -1021,7 +1034,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
                 data2Len -= n;
                 data2    += n;
             }
-            else if (IS_INTEL_BMI2(cpuid_flags)) {
+            else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
                 sha3_block_n_bmi2(state, data2, n, WC_SHA3_256_COUNT * 8);
                 n *= WC_SHA3_256_COUNT * 8;
                 data2Len -= n;
@@ -1056,14 +1069,14 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
     }
 
 #ifndef WC_SHA3_NO_ASM
-    if (SHA3_USE_AVX2(cpuid_flags)) {
+    if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
     }
-    else if (IS_INTEL_BMI2(cpuid_flags)) {
+    else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         sha3_block_bmi2(state);
     }
     else
@@ -1444,14 +1457,14 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
 
     for (; outBlocks > 0; outBlocks--) {
 #ifndef WC_SHA3_NO_ASM
-        if (SHA3_USE_AVX2(cpuid_flags)) {
+        if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
         }
-        else if (IS_INTEL_BMI2(cpuid_flags)) {
+        else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
             sha3_block_bmi2(state);
         }
         else
@@ -1623,7 +1636,7 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
     /* eta = 4 packs one polynomial per call - vpmovqb needs no lane pairing.
      * eta = 2 still pairs, so an odd trailing polynomial is left to the C
      * code: the AVX2 entry points take a whole vector, not one polynomial. */
-    if (USE_INTEL_AVX512(cpuid_flags) && (eta == MLDSA_ETA_4)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags()) && (eta == MLDSA_ETA_4)) {
         unsigned int i;
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
@@ -1636,7 +1649,7 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
         }
         RESTORE_VECTOR_REGISTERS();
     }
-    else if (USE_INTEL_AVX512(cpuid_flags) && (eta == MLDSA_ETA_2) &&
+    else if (USE_INTEL_AVX512(mldsa_cpuid_flags()) && (eta == MLDSA_ETA_2) &&
             ((d & 1) == 0)) {
         unsigned int i;
         unsigned int e = MLDSA_ETA_2_BITS * MLDSA_N / 8;
@@ -1653,7 +1666,7 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -1748,7 +1761,7 @@ static int mldsa_decode_eta_2_bits(const byte* p, sword32* s)
     }
 #else
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -1836,7 +1849,7 @@ static int mldsa_decode_eta_4_bits(const byte* p, sword32* s)
     }
 #else
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -1896,7 +1909,7 @@ static int mldsa_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
         i = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
         /* Two polynomials per call; an odd trailing one falls through. */
-        if (USE_INTEL_AVX512(cpuid_flags)) {
+        if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -1924,7 +1937,7 @@ static int mldsa_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
         unsigned int e = MLDSA_N / 2;
         i = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-        if (USE_INTEL_AVX512(cpuid_flags)) {
+        if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -2094,7 +2107,7 @@ static int mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI
     /* vpermb gathers a whole register's encoded bytes, so this needs no
      * polynomial pairing and takes any dimension. */
-    if (IS_INTEL_AVX512_VBMI(cpuid_flags)) {
+    if (IS_INTEL_AVX512_VBMI(mldsa_cpuid_flags())) {
         unsigned int i;
         unsigned int e0 = MLDSA_D * MLDSA_N / 8;
         unsigned int e1 = MLDSA_U * MLDSA_N / 8;
@@ -2114,7 +2127,7 @@ static int mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
 #endif
     /* Two polynomials per call; the AVX2 entry takes a whole vector, so an
      * odd dimension stays on it. */
-    if (USE_INTEL_AVX512(cpuid_flags) && ((d & 1) == 0)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags()) && ((d & 1) == 0)) {
         unsigned int i;
         unsigned int e0 = MLDSA_D * MLDSA_N / 8;
         unsigned int e1 = MLDSA_U * MLDSA_N / 8;
@@ -2133,7 +2146,7 @@ static int mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2248,7 +2261,7 @@ static int mldsa_decode_t0(const byte* t0, sword32* t)
     }
 #else
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2290,7 +2303,7 @@ static int mldsa_vec_decode_t0(const byte* t0, byte d, sword32* t)
     i = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     /* Two polynomials per call; an odd trailing one falls through. */
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2416,7 +2429,7 @@ static int mldsa_decode_t1(const byte* t1, sword32* t)
     }
 #else
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2458,7 +2471,7 @@ static int mldsa_vec_decode_t1(const byte* t1, byte d, sword32* t)
     i = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     /* Two polynomials per call; an odd trailing one falls through. */
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2553,7 +2566,7 @@ static int mldsa_encode_gamma1_17_bits(const sword32* z, byte* s)
     }
 #else
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2563,7 +2576,7 @@ static int mldsa_encode_gamma1_17_bits(const sword32* z, byte* s)
     else
 #endif
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2650,7 +2663,7 @@ static int mldsa_encode_gamma1_19_bits(const sword32* z, byte* s)
     }
 #else
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -2660,7 +2673,7 @@ static int mldsa_encode_gamma1_19_bits(const sword32* z, byte* s)
     else
 #endif
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -3035,7 +3048,7 @@ static int mldsa_decode_gamma1(const byte* s, int bits, sword32* z)
     }
 #else
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -3086,7 +3099,7 @@ static int mldsa_vec_decode_gamma1(const byte* x, byte l, int bits,
     i = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     /* Two polynomials per call; an odd trailing one falls through. */
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -3201,7 +3214,7 @@ static int mldsa_encode_w1_88(const sword32* w1, byte* w1e)
 #ifdef USE_INTEL_SPEEDUP
     /* Tests call this without wc_MlDsaKey_Init. */
     cpuid_get_flags_ex(&cpuid_flags);
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -3298,7 +3311,7 @@ static int mldsa_encode_w1_32(const sword32* w1, byte* w1e)
 #ifdef USE_INTEL_SPEEDUP
     /* Tests call this without wc_MlDsaKey_Init. */
     cpuid_get_flags_ex(&cpuid_flags);
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -3401,7 +3414,7 @@ static int mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
     defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI)
         /* vpermb gathers the encoded bytes of a whole register, so the VBMI
          * encoder needs no polynomial pairing and does the entire vector. */
-        if (IS_INTEL_AVX512_VBMI(cpuid_flags)) {
+        if (IS_INTEL_AVX512_VBMI(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -3415,7 +3428,7 @@ static int mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
 #endif
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
         /* Two polynomials per pass; an odd trailing one falls through. */
-        if ((i == 0) && USE_INTEL_AVX512(cpuid_flags)) {
+        if ((i == 0) && USE_INTEL_AVX512(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -3444,7 +3457,7 @@ static int mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
         i = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
         /* One polynomial per pass - vpmovqb needs no lane pairing. */
-        if (USE_INTEL_AVX512(cpuid_flags)) {
+        if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -4655,7 +4668,7 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
     /* Eight SHAKE-128 instances per permutation instead of four. Handles any
      * k x l, so it comes before the fixed-size AVX2 implementations. */
-    if (USE_INTEL_AVX512(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags()) && IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -4666,8 +4679,8 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
     else
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if ((k == 4) && (l == 4) && IS_INTEL_AVX2(cpuid_flags) &&
-            IS_INTEL_BMI2(cpuid_flags)) {
+    if ((k == 4) && (l == 4) && IS_INTEL_AVX2(mldsa_cpuid_flags()) &&
+            IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -4678,8 +4691,8 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
     else
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    if ((k == 6) && (l == 5) && IS_INTEL_AVX2(cpuid_flags) &&
-            IS_INTEL_BMI2(cpuid_flags)) {
+    if ((k == 6) && (l == 5) && IS_INTEL_AVX2(mldsa_cpuid_flags()) &&
+            IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -4690,8 +4703,8 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
     else
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    if ((k == 8) && (l == 7) && IS_INTEL_AVX2(cpuid_flags) &&
-            IS_INTEL_BMI2(cpuid_flags)) {
+    if ((k == 8) && (l == 7) && IS_INTEL_AVX2(mldsa_cpuid_flags()) &&
+            IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -6134,7 +6147,7 @@ static int mldsa_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
     #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
     /* Eight SHAKE-256 instances per permutation instead of four. Handles any
      * vector dimensions, so it comes before the fixed-size AVX2 code. */
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -6145,7 +6158,7 @@ static int mldsa_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
     else
     #endif
     #ifndef WOLFSSL_NO_ML_DSA_44
-    if ((s1Len == 4) && IS_INTEL_AVX2(cpuid_flags)) {
+    if ((s1Len == 4) && IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         sword32* s[2] = { s1, s2 };
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
@@ -6157,7 +6170,7 @@ static int mldsa_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
     else
     #endif
     #ifndef WOLFSSL_NO_ML_DSA_65
-    if ((s1Len == 5) && IS_INTEL_AVX2(cpuid_flags)) {
+    if ((s1Len == 5) && IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         sword32* s[2] = { s1, s2 };
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
@@ -6169,7 +6182,7 @@ static int mldsa_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
     else
     #endif
     #ifndef WOLFSSL_NO_ML_DSA_87
-    if ((s1Len == 7) && IS_INTEL_AVX2(cpuid_flags)) {
+    if ((s1Len == 7) && IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         sword32* s[2] = { s1, s2 };
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
@@ -6960,7 +6973,7 @@ static int mldsa_vec_expand_mask(wc_Shake* shake256, byte* seed,
 #elif defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
     /* Whole vector in one eight-way run, whatever the dimension. */
-    if (USE_INTEL_AVX512(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags()) && IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -6972,7 +6985,7 @@ static int mldsa_vec_expand_mask(wc_Shake* shake256, byte* seed,
     /* Each generator handles one dimension only, so test it before saving
      * the vector registers. */
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if ((l == 4) && IS_INTEL_AVX2(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+    if ((l == 4) && IS_INTEL_AVX2(mldsa_cpuid_flags()) && IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -6982,7 +6995,7 @@ static int mldsa_vec_expand_mask(wc_Shake* shake256, byte* seed,
     else
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    if ((l == 5) && IS_INTEL_AVX2(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+    if ((l == 5) && IS_INTEL_AVX2(mldsa_cpuid_flags()) && IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -6992,7 +7005,7 @@ static int mldsa_vec_expand_mask(wc_Shake* shake256, byte* seed,
     else
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    if ((l == 7) && IS_INTEL_AVX2(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+    if ((l == 7) && IS_INTEL_AVX2(mldsa_cpuid_flags()) && IS_INTEL_BMI2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -7082,14 +7095,14 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
                 if (k == MLDSA_GEN_C_BLOCK_BYTES) {
                     /* Generate a new block. */
 #ifndef WC_SHA3_NO_ASM
-                    if (SHA3_USE_AVX2(cpuid_flags)) {
+                    if (SHA3_USE_AVX2(mldsa_cpuid_flags())) {
                         int svr_ret = SAVE_VECTOR_REGISTERS2();
                         if (svr_ret != 0)
                             return svr_ret;
                         sha3_block_avx2(state);
                         RESTORE_VECTOR_REGISTERS();
                     }
-                    else if (IS_INTEL_BMI2(cpuid_flags)) {
+                    else if (IS_INTEL_BMI2(mldsa_cpuid_flags())) {
                         sha3_block_bmi2(state);
                     }
                     else
@@ -7527,7 +7540,7 @@ static int mldsa_vec_decompose(const sword32* r, byte k, sword32 gamma2,
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -7545,7 +7558,7 @@ static int mldsa_vec_decompose(const sword32* r, byte k, sword32 gamma2,
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -7677,7 +7690,7 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi,
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
         if (svr_ret != 0) {
@@ -7690,7 +7703,7 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi,
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
         if (svr_ret != 0) {
@@ -7787,7 +7800,7 @@ static int mldsa_make_hint_88(const sword32* s, const sword32* w1, byte* h,
     byte idx;
 
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
         if (svr_ret != 0) {
@@ -7903,7 +7916,7 @@ static int mldsa_make_hint_32(const sword32* s, const sword32* w1,
     (void)omega;
 
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
         if (svr_ret != 0) {
@@ -8387,7 +8400,7 @@ static int mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
     if (gamma2 == MLDSA_Q_LOW_88) {
     #ifdef USE_INTEL_SPEEDUP
     #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-        if (USE_INTEL_AVX512(cpuid_flags)) {
+        if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -8396,7 +8409,7 @@ static int mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
         }
         else
     #endif
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -8427,7 +8440,7 @@ static int mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
     if (gamma2 == MLDSA_Q_LOW_32) {
     #ifdef USE_INTEL_SPEEDUP
     #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-        if (USE_INTEL_AVX512(cpuid_flags)) {
+        if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -8436,7 +8449,7 @@ static int mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
         }
         else
     #endif
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
             int svr_ret = SAVE_VECTOR_REGISTERS2();
             if (svr_ret != 0)
                 return svr_ret;
@@ -9054,7 +9067,7 @@ static int mldsa_ntt(sword32* r)
     }
 #else
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9065,7 +9078,7 @@ static int mldsa_ntt(sword32* r)
 #endif
 #ifdef USE_INTEL_SPEEDUP
     /* MLDSA_NTT_AVX2: see the flavor-selection note by its definition. */
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9116,7 +9129,7 @@ static int mldsa_ntt_full(sword32* r)
     }
 #else
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9126,7 +9139,7 @@ static int mldsa_ntt_full(sword32* r)
     else
 #endif
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9160,7 +9173,7 @@ static int mldsa_vec_ntt(sword32* r, byte l)
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     /* One polynomial per call, so there is no odd trailing polynomial to
      * hand back to mldsa_ntt() below. */
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9582,7 +9595,7 @@ static int mldsa_ntt_small(sword32* r)
 {
     int ret = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9594,7 +9607,7 @@ static int mldsa_ntt_small(sword32* r)
 #ifdef USE_INTEL_SPEEDUP
     /* MLDSA_NTT_SMALL_AVX2: see the flavor-selection note by its
      * definition. */
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9627,7 +9640,7 @@ static int mldsa_ntt_small_full(sword32* r)
 {
     int ret = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -9637,7 +9650,7 @@ static int mldsa_ntt_small_full(sword32* r)
     else
 #endif
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10174,7 +10187,7 @@ static int mldsa_invntt(sword32* r)
     }
 #else
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10187,7 +10200,7 @@ static int mldsa_invntt(sword32* r)
 #endif
 #ifdef USE_INTEL_SPEEDUP
     /* MLDSA_INVNTT_AVX2: see the flavor-selection note by its definition. */
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10266,7 +10279,7 @@ static int mldsa_invntt_full(sword32* r)
     }
 #else
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10276,7 +10289,7 @@ static int mldsa_invntt_full(sword32* r)
     else
 #endif
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10311,7 +10324,7 @@ static int mldsa_vec_invntt_full(sword32* r, byte l)
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     /* One polynomial per call, so there is no odd trailing polynomial to
      * hand back to mldsa_invntt_full() below. */
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10539,7 +10552,7 @@ static int mldsa_matrix_mul(sword32* r, const sword32* m, const sword32* v,
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int i;
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
@@ -10570,7 +10583,7 @@ static int mldsa_matrix_mul(sword32* r, const sword32* m, const sword32* v,
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int i;
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
@@ -10692,7 +10705,7 @@ static int mldsa_mul(sword32* r, sword32* a, sword32* b)
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10701,7 +10714,7 @@ static int mldsa_mul(sword32* r, sword32* a, sword32* b)
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10730,7 +10743,7 @@ static int mldsa_mul_invntt(sword32* r, sword32* c, sword32* v)
     int ret = 0;
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     /* Both steps under one save/restore of the vector registers. */
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10806,7 +10819,7 @@ static int mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
 
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10819,7 +10832,7 @@ static int mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10902,7 +10915,7 @@ static int mldsa_poly_red(sword32* a)
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -10911,7 +10924,7 @@ static int mldsa_poly_red(sword32* a)
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -11033,7 +11046,7 @@ static int mldsa_sub(sword32* r, const sword32* a)
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -11042,7 +11055,7 @@ static int mldsa_sub(sword32* r, const sword32* a)
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -11131,7 +11144,7 @@ static int mldsa_add(sword32* r, const sword32* a)
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -11140,7 +11153,7 @@ static int mldsa_add(sword32* r, const sword32* a)
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -11233,7 +11246,7 @@ static int mldsa_make_pos(sword32* a)
 #else
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -11242,7 +11255,7 @@ static int mldsa_make_pos(sword32* a)
     }
     else
 #endif
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(mldsa_cpuid_flags())) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
         if (svr_ret != 0)
             return svr_ret;
@@ -16333,11 +16346,9 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
 #if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM))
     /* AArch64 needs these for the FEAT_RDM check that picks the NTT flavor and
-     * the FEAT_SHA3 check that picks the Keccak one. This has to stay ahead of
-     * anything that can reach those dispatchers: cpuid_flags starts out as
-     * WC_CPUID_INITIALIZER, which is all ones, so a read before this call
-     * reports every feature present and would send a CPU without FEAT_SHA3
-     * into the SHA-3 instruction path and SIGILL. */
+     * the FEAT_SHA3 check that picks the Keccak one. The dispatchers are
+     * self-guarding (mldsa_cpuid_flags() resolves the all-ones sentinel), so
+     * this call is what turns the fast paths on from the first operation. */
     cpuid_get_flags_ex(&cpuid_flags);
 #endif
 #if defined(MLDSA_SHAKE_DIRECT)
