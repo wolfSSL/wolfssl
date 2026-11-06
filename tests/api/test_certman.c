@@ -5416,7 +5416,11 @@ int test_certman_decision_coverage(void)
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(&signer, 0, sizeof(signer));
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    cm = ctx->cm;
+    /* ExpectNotNull() only assigns while the test is still passing, so ctx
+     * can still be NULL here. */
+    if (ctx != NULL) {
+        cm = ctx->cm;
+    }
     ExpectNotNull(cm);
 
     /* --- 2700:0/1 AlreadySigner: cm==NULL || hash==NULL ------------------ */
@@ -5435,7 +5439,10 @@ int test_certman_decision_coverage(void)
     /* The all-valid case inserts the Signer into the cm's CA table, which the
      * cm then owns and frees on ctx-free; use a heap Signer and remove it
      * before freeing so ownership stays clean. */
-    hs = (Signer*)XMALLOC(sizeof(Signer), cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cm != NULL) {
+        hs = (Signer*)XMALLOC(sizeof(Signer), cm->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+    }
     if (hs != NULL) {
         XMEMSET(hs, 0, sizeof(Signer));
         hs->type = WOLFSSL_USER_CA;
