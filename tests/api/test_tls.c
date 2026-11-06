@@ -9010,3 +9010,73 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
 #endif /* WOLFSSL_DTLS */
     return EXPECT_RESULT();
 } /* END test_tls_hmac_inner_cid_decision_coverage */
+
+int test_tls_unset_fd_no_stdin_io(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(USE_WOLFSSL_IO) && (defined(__unix__) || defined(__APPLE__)) && \
+    !defined(WOLFSSL_LEANPSK)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int sv[2] = { -1, -1 };
+    int wr[2] = { -1, -1 };
+    int savedStdin = -1;
+    byte buf[1] = { 0 };
+
+    /* Put a socket on fd 0 so that any I/O on it is visible. */
+    ExpectIntEQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+    ExpectIntEQ(socketpair(AF_UNIX, SOCK_STREAM, 0, wr), 0);
+    ExpectIntEQ(fcntl(sv[0], F_SETFL, O_NONBLOCK), 0);
+    ExpectIntEQ(fcntl(sv[1], F_SETFL, O_NONBLOCK), 0);
+    ExpectIntEQ(fcntl(wr[0], F_SETFL, O_NONBLOCK), 0);
+    ExpectIntGE(savedStdin = dup(0), 0);
+    ExpectIntEQ(dup2(sv[0], 0), 0);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectPtrEq(wolfSSL_GetIOReadCtx(ssl), &ssl->rfd);
+    ExpectPtrEq(wolfSSL_GetIOWriteCtx(ssl), &ssl->wfd);
+    ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(SOCKET_ERROR_E));
+    ExpectIntEQ(recv(sv[1], buf, sizeof(buf), 0), -1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    ExpectIntEQ(send(sv[1], buf, sizeof(buf), 0), 1);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_write_fd(ssl, wr[0]), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(SOCKET_ERROR_E));
+    ExpectIntEQ(recv(sv[0], buf, sizeof(buf), MSG_PEEK), 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+#ifdef WOLFSSL_DTLS
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectPtrEq(wolfSSL_GetIOReadCtx(ssl), &ssl->buffers.dtlsCtx);
+    ExpectPtrEq(wolfSSL_GetIOWriteCtx(ssl), &ssl->buffers.dtlsCtx);
+#endif
+
+    if (savedStdin >= 0) {
+        (void)dup2(savedStdin, 0);
+        close(savedStdin);
+    }
+    if (sv[0] >= 0)
+        close(sv[0]);
+    if (sv[1] >= 0)
+        close(sv[1]);
+    if (wr[0] >= 0)
+        close(wr[0]);
+    if (wr[1] >= 0)
+        close(wr[1]);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
