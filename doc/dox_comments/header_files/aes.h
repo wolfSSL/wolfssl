@@ -1098,6 +1098,9 @@ int wc_AesXtsFree(XtsAes* aes);
     \param heap heap hint to use for malloc / free if needed
     \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
+    \note Aes has 16-byte alignment (64 on Xilinx Versal) if WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
+
     _Example_
     \code
     Aes enc;

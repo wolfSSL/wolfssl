@@ -8,6 +8,9 @@
 
     \param sha256 pointer to the sha256 structure to use for encryption
 
+    \note On 64-bit CPUs, wc_Sha256 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
+
     _Example_
     \code
     Sha256 sha256[1];
@@ -202,6 +205,9 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
 
     \param sha224 Pointer to a Sha224 struct to initialize.
 
+    \note On 64-bit CPUs, wc_Sha224 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
+
     _Example_
     \code
     Sha224 sha224;
@@ -295,6 +301,9 @@ int wc_Sha224Final(wc_Sha224* sha224, byte* hash);
     \param sha SHA256 structure
     \param heap Heap hint
     \param devId Device ID
+
+    \note On 64-bit CPUs, wc_Sha256 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -495,6 +504,9 @@ int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags);
     \param sha224 SHA224 structure
     \param heap Heap hint
     \param devId Device ID
+
+    \note On 64-bit CPUs, wc_Sha224 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
