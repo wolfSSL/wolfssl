@@ -1807,37 +1807,37 @@ int test_wc_DrbgReworkDecisionCoverage(void)
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
 
-    /* wc_RNG_DRBG_Reseed_Nonce: "nonce == NULL && nonceSz > 0" pair. */
-    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), NULL,
+    /* wc_RNG_DRBG_Reseed_AddIn: "nonce == NULL && nonceSz > 0" pair. */
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_AddIn(&rng, seed, sizeof(seed), NULL,
                                          sizeof(nonce)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
-    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce,
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_AddIn(&rng, seed, sizeof(seed), nonce,
                                          sizeof(nonce)),
         WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
-    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce, 0),
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_AddIn(&rng, seed, sizeof(seed), nonce, 0),
         WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
 #else
-    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce,
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_AddIn(&rng, seed, sizeof(seed), nonce,
                                          sizeof(nonce)), 0);
-    ExpectIntEQ(wc_RNG_DRBG_Reseed_Nonce(&rng, seed, sizeof(seed), nonce, 0),
+    ExpectIntEQ(wc_RNG_DRBG_Reseed_AddIn(&rng, seed, sizeof(seed), nonce, 0),
         0);
 #endif
 
-    /* wc_RNG_DRBG_Stir_Nonce: rng/seed NULL pair, nonce pair, and the
+    /* wc_RNG_DRBG_Stir_AddIn: rng/seed NULL pair, nonce pair, and the
      * second-chunk decision (nonce non-NULL with zero size). */
-    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(NULL, seed, sizeof(seed), nonce,
+    ExpectIntEQ(wc_RNG_DRBG_Stir_AddIn(NULL, seed, sizeof(seed), nonce,
                                        sizeof(nonce)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, NULL, sizeof(seed), nonce,
+    ExpectIntEQ(wc_RNG_DRBG_Stir_AddIn(&rng, NULL, sizeof(seed), nonce,
                                        sizeof(nonce)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, seed, sizeof(seed), NULL,
+    ExpectIntEQ(wc_RNG_DRBG_Stir_AddIn(&rng, seed, sizeof(seed), NULL,
                                        sizeof(nonce)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, seed, sizeof(seed), nonce,
+    ExpectIntEQ(wc_RNG_DRBG_Stir_AddIn(&rng, seed, sizeof(seed), nonce,
                                        sizeof(nonce)), 0);
-    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, seed, sizeof(seed), nonce, 0),
+    ExpectIntEQ(wc_RNG_DRBG_Stir_AddIn(&rng, seed, sizeof(seed), nonce, 0),
         0);
 
     /* wc_RNG_DRBG_Stir: valid seed only (no nonce chunk). */
@@ -1953,12 +1953,12 @@ int test_wc_RngInitFlagsDecisionCoverage(void)
     ExpectIntEQ(wc_GenerateSeed(&os, NULL, sizeof(out)), BAD_FUNC_ARG);
 #endif
 
-    /* wc_RNG_DRBG_Stir_Nonce with a valid rng and a NULL seed: the
+    /* wc_RNG_DRBG_Stir_AddIn with a valid rng and a NULL seed: the
      * rng-NULL clause's false side. */
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
                                WC_RNG_INIT_FLAG_NONE), 0);
-    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, NULL, 0, out, sizeof(out)),
+    ExpectIntEQ(wc_RNG_DRBG_Stir_AddIn(&rng, NULL, 0, out, sizeof(out)),
                 BAD_FUNC_ARG);
     ExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
