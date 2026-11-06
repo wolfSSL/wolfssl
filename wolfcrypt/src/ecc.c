@@ -3978,8 +3978,8 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        goto exit;
    }
 
-   /* k can't have more bits than modulus count plus 1 */
-   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+   /* k can't be negative or have more bits than modulus count plus 1 */
+   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus) + 1)) {
        err = ECC_OUT_OF_RANGE_E;
        goto exit;
    }
@@ -4082,7 +4082,7 @@ exit:
    /* For supported curves the order is the same length in bits as the modulus.
     * Can't have more than order bits for the scalar.
     */
-   if (mp_count_bits(k) > mp_count_bits(modulus)) {
+   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
        return ECC_OUT_OF_RANGE_E;
    }
    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
@@ -4204,6 +4204,9 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point* G, ecc_point* R, mp_int* a,
    if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
       return ECC_BAD_ARG_E;
    }
+   if (mp_isneg(k) == MP_YES) {
+      return ECC_OUT_OF_RANGE_E;
+   }
 
 #ifdef HAVE_ECC_CDH
    if (mp_count_bits(modulus) > mp_count_bits(order)) {
@@ -4306,6 +4309,9 @@ exit:
 {
    if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
        return ECC_BAD_ARG_E;
+   }
+   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+       return ECC_OUT_OF_RANGE_E;
    }
    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
        mp_count_bits(G->y) > mp_count_bits(modulus) ||
@@ -9162,6 +9168,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   if (A == NULL || kA == NULL || B == NULL || kB == NULL || C == NULL ||
                                                          modulus == NULL) {
      return ECC_BAD_ARG_E;
+  }
+  if ((mp_isneg(kA) == MP_YES) || (mp_isneg(kB) == MP_YES)) {
+     return ECC_OUT_OF_RANGE_E;
   }
 
 #ifndef WOLFSSL_NO_MALLOC
@@ -14730,12 +14739,23 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
    int  idx1 = -1, idx2 = -1, err, mpInit = 0;
    mp_digit mp = 0;
 #ifdef WOLFSSL_SMALL_STACK
-   mp_int   *mu = (mp_int *)XMALLOC(sizeof *mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-
-   if (mu == NULL)
-       return MP_MEM;
+   mp_int   *mu = NULL;
 #else
    mp_int   mu[1];
+#endif
+
+   if ((A == NULL) || (kA == NULL) || (B == NULL) || (kB == NULL) ||
+           (C == NULL) || (modulus == NULL)) {
+       return ECC_BAD_ARG_E;
+   }
+   if ((mp_isneg(kA) == MP_YES) || (mp_isneg(kB) == MP_YES)) {
+       return ECC_OUT_OF_RANGE_E;
+   }
+
+#ifdef WOLFSSL_SMALL_STACK
+   mu = (mp_int *)XMALLOC(sizeof *mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   if (mu == NULL)
+       return MP_MEM;
 #endif
 
    err = mp_init(mu);
@@ -14879,8 +14899,8 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        return ECC_BAD_ARG_E;
    }
 
-   /* k can't have more bits than modulus count plus 1 */
-   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+   /* k can't be negative or have more bits than modulus count plus 1 */
+   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus) + 1)) {
       return ECC_OUT_OF_RANGE_E;
    }
 
@@ -14978,6 +14998,9 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL) {
         return ECC_BAD_ARG_E;
     }
+    if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+        return ECC_OUT_OF_RANGE_E;
+    }
     if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
         mp_count_bits(G->y) > mp_count_bits(modulus) ||
         mp_count_bits(G->z) > mp_count_bits(modulus)) {
@@ -15043,8 +15066,8 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        return ECC_BAD_ARG_E;
    }
 
-   /* k can't have more bits than order */
-   if (mp_count_bits(k) > mp_count_bits(order)) {
+   /* k can't be negative or have more bits than order */
+   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(order))) {
       return ECC_OUT_OF_RANGE_E;
    }
 
@@ -15144,6 +15167,9 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL ||
                                                                 order == NULL) {
         return ECC_BAD_ARG_E;
+    }
+    if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+        return ECC_OUT_OF_RANGE_E;
     }
     if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
         mp_count_bits(G->y) > mp_count_bits(modulus) ||
