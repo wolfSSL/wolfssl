@@ -14016,7 +14016,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         "STR	r3, [sp, #4]\n\t"
         /* A[0] * A[2] */
@@ -14029,7 +14028,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[1] * A[1] */
         "LDR	r10, [r1, #4]\n\t"
@@ -14048,7 +14046,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[1] * A[2] */
         "LDR	r10, [r1, #8]\n\t"
@@ -14071,7 +14068,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[1] * A[3] */
         "LDR	r10, [r1, #12]\n\t"
@@ -14592,7 +14588,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[8] * A[10] */
         "LDR	r10, [r1, #40]\n\t"
@@ -14621,7 +14616,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[9] * A[10] */
         "LDR	r10, [r1, #40]\n\t"
@@ -14644,7 +14638,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[10] * A[10] */
         "LDR	r10, [r1, #40]\n\t"
@@ -14663,7 +14656,6 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         "STR	r2, [r0, #84]\n\t"
         /* A[11] * A[11] */
@@ -48815,7 +48807,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         "STR	r3, [sp, #4]\n\t"
         /* A[0] * A[2] */
@@ -48828,7 +48819,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[1] * A[1] */
         "LDR	r10, [r1, #4]\n\t"
@@ -48847,7 +48837,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[1] * A[2] */
         "LDR	r10, [r1, #8]\n\t"
@@ -48870,7 +48859,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[1] * A[3] */
         "LDR	r10, [r1, #12]\n\t"
@@ -49391,7 +49379,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[8] * A[10] */
         "LDR	r10, [r1, #40]\n\t"
@@ -49420,7 +49407,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[9] * A[10] */
         "LDR	r10, [r1, #40]\n\t"
@@ -49443,7 +49429,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[10] * A[10] */
         "LDR	r10, [r1, #40]\n\t"
@@ -49462,7 +49447,6 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         "STR	r2, [r0, #84]\n\t"
         /* A[11] * A[11] */
@@ -61404,7 +61388,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         "STR	r3, [sp, #4]\n\t"
         /* A[0] * A[2] */
@@ -61417,7 +61400,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[1] * A[1] */
         "LDR	r10, [r1, #4]\n\t"
@@ -61436,7 +61418,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[1] * A[2] */
         "LDR	r10, [r1, #8]\n\t"
@@ -61459,7 +61440,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[1] * A[3] */
         "LDR	r10, [r1, #12]\n\t"
@@ -62560,7 +62540,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[13] * A[15] */
         "LDR	r10, [r1, #60]\n\t"
@@ -62589,7 +62568,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[14] * A[15] */
         "LDR	r10, [r1, #60]\n\t"
@@ -62612,7 +62590,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[15] * A[15] */
         "LDR	r10, [r1, #60]\n\t"
@@ -62631,7 +62608,6 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         "STR	r3, [r0, #124]\n\t"
         /* A[16] * A[16] */
@@ -75663,7 +75639,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         "STR	r3, [sp, #4]\n\t"
         /* A[0] * A[2] */
@@ -75676,7 +75651,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[1] * A[1] */
         "LDR	r10, [r1, #4]\n\t"
@@ -75695,7 +75669,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[1] * A[2] */
         "LDR	r10, [r1, #8]\n\t"
@@ -75718,7 +75691,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[1] * A[3] */
         "LDR	r10, [r1, #12]\n\t"
@@ -76689,7 +76661,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         /* A[12] * A[14] */
         "LDR	r10, [r1, #56]\n\t"
@@ -76718,7 +76689,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r4, r4, #0\n\t"
         "ADDS	r2, r2, r8\n\t"
         "ADCS	r3, r3, r9\n\t"
-        "MOV	r4, #0\n\t"
         "ADC	r4, r4, #0\n\t"
         /* A[13] * A[14] */
         "LDR	r10, [r1, #56]\n\t"
@@ -76741,7 +76711,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r2, r2, #0\n\t"
         "ADDS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
-        "MOV	r2, #0\n\t"
         "ADC	r2, r2, #0\n\t"
         /* A[14] * A[14] */
         "LDR	r10, [r1, #56]\n\t"
@@ -76760,7 +76729,6 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "ADC	r3, r3, #0\n\t"
         "ADDS	r4, r4, r8\n\t"
         "ADCS	r2, r2, r9\n\t"
-        "MOV	r3, #0\n\t"
         "ADC	r3, r3, #0\n\t"
         "STR	r4, [r0, #116]\n\t"
         /* A[15] * A[15] */
