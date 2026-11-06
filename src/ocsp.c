@@ -1393,8 +1393,24 @@ int wolfSSL_i2d_OCSP_REQUEST(OcspRequest* request, unsigned char** data)
 WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     WOLFSSL_OCSP_CERTID *cid)
 {
+    byte* serial = NULL;
+
     if (req == NULL || cid == NULL || cid->status == NULL)
         return NULL;
+
+    /* Allocate before changing req so that it is unchanged on failure and the
+     * caller still owns cid. */
+    if (cid->status->serialSz > req->serialSz) {
+        serial = (byte*)XMALLOC((size_t)cid->status->serialSz,
+                req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        if (serial == NULL)
+            return NULL;
+    }
+
+    if (serial != NULL) {
+        XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        req->serial = serial;
+    }
 
     if (req->cid != NULL)
         wolfSSL_OCSP_CERTID_free((WOLFSSL_OCSP_CERTID*)req->cid);
@@ -1404,13 +1420,6 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     XMEMCPY(req->issuerHash, cid->issuerHash, WC_MAX_DIGEST_SIZE);
     XMEMCPY(req->issuerKeyHash, cid->issuerKeyHash, WC_MAX_DIGEST_SIZE);
     req->hashAlg = (int)cid->hashAlgoOID;
-    if (cid->status->serialSz > req->serialSz) {
-        XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
-        req->serial = (byte*)XMALLOC((size_t)cid->status->serialSz,
-                req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
-        if (req->serial == NULL)
-            return NULL;
-    }
     XMEMCPY(req->serial, cid->status->serial, (size_t)cid->status->serialSz);
     req->serialSz = cid->status->serialSz;
 
