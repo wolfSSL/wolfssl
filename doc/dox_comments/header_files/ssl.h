@@ -1,4 +1,6 @@
 /*!
+    \ingroup Setup
+
     \brief This function initializes the DTLS v1.2 client method.
 
     \return pointer This function returns a pointer to a new
@@ -9,10 +11,10 @@
     _Example_
     \code
     wolfSSL_Init();
-    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
-    …
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method_ex(NULL));
+    ...
     WOLFSSL* ssl = wolfSSL_new(ctx);
-    …
+    ...
     \endcode
 
     \sa wolfSSL_Init
@@ -516,6 +518,44 @@ WOLFSSL_METHOD *wolfDTLSv1_3_server_method(void);
 /*!
     \ingroup Setup
 
+    \brief The wolfDTLSv1_3_server_method_ex() function is the same as
+    wolfDTLSv1_3_server_method() except that the WOLFSSL_METHOD structure
+    is allocated using the heap hint passed in. It is used to indicate that
+    the application is a server and will only support the DTLS 1.3
+    protocol. This function is only available when wolfSSL has been
+    compiled with DTLSv1.3 support (--enable-dtls13, or by defining
+    WOLFSSL_DTLS13).
+
+    \param [in] heap a pointer to a heap hint used when allocating the
+    WOLFSSL_METHOD structure (for example a static memory heap hint), or
+    NULL to use the default allocator.
+
+    \return * If successful, the call will return a pointer to the newly
+    created WOLFSSL_METHOD structure.
+    \return NULL If memory allocation fails.
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method;
+    WOLFSSL_CTX* ctx;
+
+    method = wolfDTLSv1_3_server_method_ex(NULL);
+    if (method == NULL) {
+        // unable to get method
+    }
+
+    ctx = wolfSSL_CTX_new(method);
+    ...
+    \endcode
+
+    \sa wolfDTLSv1_3_server_method
+    \sa wolfDTLSv1_3_client_method_ex
+    \sa wolfSSL_CTX_new
+*/
+WOLFSSL_METHOD *wolfDTLSv1_3_server_method_ex(void* heap);
+/*!
+    \ingroup Setup
+
     \brief The wolfDTLSv1_3_client_method() function is used to indicate that
     the application is a client and will only support the DTLS 1.3
     protocol. This function allocates memory for and initializes a new
@@ -550,6 +590,44 @@ WOLFSSL_METHOD *wolfDTLSv1_3_server_method(void);
     \sa wolfDTLSv1_3_server_method
 */
 WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void);
+/*!
+    \ingroup Setup
+
+    \brief The wolfDTLSv1_3_client_method_ex() function is the same as
+    wolfDTLSv1_3_client_method() except that the WOLFSSL_METHOD structure
+    is allocated using the heap hint passed in. It is used to indicate that
+    the application is a client and will only support the DTLS 1.3
+    protocol. This function is only available when wolfSSL has been
+    compiled with DTLSv1.3 support (--enable-dtls13, or by defining
+    WOLFSSL_DTLS13).
+
+    \param [in] heap a pointer to a heap hint used when allocating the
+    WOLFSSL_METHOD structure (for example a static memory heap hint), or
+    NULL to use the default allocator.
+
+    \return * If successful, the call will return a pointer to the newly
+    created WOLFSSL_METHOD structure.
+    \return NULL If memory allocation fails.
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method;
+    WOLFSSL_CTX* ctx;
+
+    method = wolfDTLSv1_3_client_method_ex(NULL);
+    if (method == NULL) {
+        // unable to get method
+    }
+
+    ctx = wolfSSL_CTX_new(method);
+    ...
+    \endcode
+
+    \sa wolfDTLSv1_3_client_method
+    \sa wolfDTLSv1_3_server_method_ex
+    \sa wolfSSL_CTX_new
+*/
+WOLFSSL_METHOD *wolfDTLSv1_3_client_method_ex(void* heap);
 /*!
     \ingroup Setup
 
@@ -633,8 +711,10 @@ WOLFSSL_METHOD *wolfDTLS_server_method(void);
 */
 WOLFSSL_METHOD *wolfDTLS_client_method(void);
 /*!
+    \ingroup Setup
+
     \brief This function creates and initializes a WOLFSSL_METHOD for the
-    server side.
+    server side that will only support the DTLS 1.2 protocol.
 
     \return This function returns a WOLFSSL_METHOD pointer.
 
@@ -643,8 +723,8 @@ WOLFSSL_METHOD *wolfDTLS_client_method(void);
     _Example_
     \code
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method());
-    WOLFSSL* ssl = WOLFSSL_new(ctx);
-    …
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    ...
     \endcode
 
     \sa wolfSSL_CTX_new
@@ -15791,10 +15871,12 @@ int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
     list is a null-terminated, colon-delimited text string of group names, for
     example "P-384:P-256:X25519". Call this function to set the key-exchange
     parameters used with TLS v1.3 connections (the function is compiled in
-    only when HAVE_ECC, WOLFSSL_TLS13, and HAVE_SUPPORTED_CURVES are defined).
+    only when OPENSSL_EXTRA, WOLFSSL_TLS13 and HAVE_SUPPORTED_CURVES are
+    defined and at least one of ECC, Curve25519, Curve448 or DH is enabled).
 
     Recognized group names and the build options each one requires are listed
-    below. Names are matched case-sensitively against the table.
+    below. Names are matched case-insensitively against the table, so for
+    example "x25519" and "p-256" are also accepted.
 
     NIST / SEC curves (require HAVE_ECC):
 
@@ -15937,7 +16019,7 @@ int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
     WOLFSSL* ssl;
     const char* list = "P-384:P-256";
     ...
-    ret = wolfSSL_CTX_set1_groups_list(ssl, list);
+    ret = wolfSSL_set1_groups_list(ssl, list);
     if (ret != WOLFSSL_SUCCESS) {
         // failed to set group list
     }
@@ -15973,7 +16055,7 @@ int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
     int group;
     WOLFSSL* ssl;
     ...
-    ret = wolfSSL_CTX_set1_groups_list(ssl)
+    ret = wolfSSL_preferred_group(ssl);
     if (ret < 0) {
         // failed to get group
     }
@@ -17015,7 +17097,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_method_ex(void* heap);
 WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 
 /*!
- \ingroup SSL
+ \ingroup CertsKeys
  \brief This function sets a fixed / static ephemeral key for testing only
  \return 0 Key loaded successfully
  \param ctx A WOLFSSL_CTX context pointer
@@ -17028,7 +17110,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, const char* key, unsigned int keySz, int format);
 
 /*!
- \ingroup SSL
+ \ingroup CertsKeys
  \brief This function sets a fixed / static ephemeral key for testing only
  \return 0 Key loaded successfully
  \param ssl A WOLFSSL object pointer
@@ -17041,7 +17123,7 @@ int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, const char* key
 int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsigned int keySz, int format);
 
 /*!
- \ingroup SSL
+ \ingroup CertsKeys
  \brief This function returns pointer to loaded key as ASN.1/DER
  \return 0 Key returned successfully
  \param ctx A WOLFSSL_CTX context pointer
@@ -17054,7 +17136,7 @@ int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 
 /*!
- \ingroup SSL
+ \ingroup CertsKeys
  \brief This function returns pointer to loaded key as ASN.1/DER
  \return 0 Key returned successfully
  \param ssl A WOLFSSL object pointer
@@ -17067,7 +17149,7 @@ int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 
 /*!
- \ingroup SSL
+ \ingroup openSSL
  \brief Sign a message with the chosen message digest, padding, and RSA key
  \return WOLFSSL_SUCCESS on success and c on error
  \param type      Hash NID
@@ -17101,7 +17183,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
 int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);
 
 /*!
-    \ingroup SSL
+    \ingroup Setup
     \brief Get the maximum size of Early Data from a session.
 
     \param [in] s  the WOLFSSL_SESSION instance.
@@ -17116,7 +17198,7 @@ int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);
 unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
 
 /*!
-    \ingroup SSL
+    \ingroup openSSL
     \brief Get a new index for external data. This entry applies also for the
            following API:
            - wolfSSL_CTX_get_ex_new_index
@@ -17338,7 +17420,7 @@ int wolfSSL_CTX_clear_group_messages(WOLFSSL_CTX* ctx);
 int wolfSSL_clear_group_messages(WOLFSSL* ssl);
 
 /*!
- \ingroup SSL
+ \ingroup Setup
  \brief  This function returns the result of the client certificate type
  negotiation done in ClientHello and ServerHello. WOLFSSL_SUCCESS is returned as
   a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is
@@ -17369,7 +17451,7 @@ int wolfSSL_clear_group_messages(WOLFSSL* ssl);
 int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
 
 /*!
- \ingroup SSL
+ \ingroup Setup
  \brief  This function returns the result of the server certificate type
  negotiation done in ClientHello and ServerHello. WOLFSSL_SUCCESS is returned as
   a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is
@@ -17386,7 +17468,7 @@ int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
   int ret;
   WOLFSSL* ssl;
   int tp;
-　...
+  ...
 
   ret = wolfSSL_get_negotiated_server_cert_type(ssl, &tp);
  \endcode
