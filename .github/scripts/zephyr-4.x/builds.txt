@@ -12,6 +12,9 @@ native_sim          samples/wolfssl_test        prj-cert.conf
 native_sim          samples/wolfssl_test        prj-x25519-ed448.conf
 native_sim          samples/wolfssl_test        prj-ed25519-x448.conf
 native_sim          samples/wolfssl_test        sp_stack.conf
+native_sim          samples/wolfssl_test        rsa_2048.conf
+native_sim          samples/wolfssl_test        rsa_3072.conf
+native_sim          samples/wolfssl_test        rsa_3072_ecc_custom.conf
 # external_libc overlay is native_sim-only in the original Jenkins matrix
 frdm_rw612/rw612    samples/wolfssl_tls_sock
 frdm_rw612/rw612    samples/wolfssl_test
