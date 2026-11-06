@@ -242,7 +242,7 @@ for; OpenSSL is the reverse.
 | Attribute certificates — *not in OpenSSL* | `--enable-acert` | — |
 | Encrypted Client Hello — not in 3.5; **added in 4.0** (RFC 9849) | `--enable-ech` | `-DWOLFSSL_ECH=yes` |
 | Compression (`no-comp`, zlib) | `--with-libz` | `-DWOLFSSL_LIBZ=yes` |
-| Per-thread error queue | `--enable-error-queue-per-thread` (auto-detected) | `-DWOLFSSL_ERROR_QUEUE_PER_THREAD=yes` |
+| Per-thread error queue | `--enable-error-queue-per-thread` (auto-detected; needs thread-local storage) | `-DWOLFSSL_ERROR_QUEUE_PER_THREAD=yes` (a threaded build without real thread-local storage falls back to the shared, mutex protected queue) |
 | System CA store | `--enable-sys-ca-certs` (default on) | `-DWOLFSSL_SYS_CA_CERTS=yes` |
 
 ## Runtime behaviour, not build options
