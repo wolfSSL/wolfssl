@@ -80,8 +80,8 @@ New features:
   for prehash signing and verification
 - Publish build metadata to dependent crates' build scripts: the directory of
   a shared wolfSSL library as DEP_WOLFSSL_LIBDIRS (e.g. to set an rpath), and
-  DEP_WOLFSSL_FIPS and DEP_WOLFSSL_FIPS_V5_2_3 when wolfSSL is a FIPS build or
-  specifically the FIPS v5.2.3 module
+  DEP_WOLFSSL_FIPS and DEP_WOLFSSL_FIPS_V5 when wolfSSL is a FIPS build or
+  specifically a FIPS v5.x.x module
 - build.rs looks for the library under either lib or lib64 in WOLFSSL_PREFIX,
   recognizes MinGW, Cygwin and MSVC library file names, and reruns when
   WOLFSSL_PREFIX changes

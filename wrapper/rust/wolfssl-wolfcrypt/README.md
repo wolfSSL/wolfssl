@@ -163,7 +163,7 @@ the build scripts of crates that depend on it directly:
 | ------------------------- | ----- |
 | `DEP_WOLFSSL_LIBDIRS`     | Directory containing a shared wolfSSL library (e.g. to set an rpath) |
 | `DEP_WOLFSSL_FIPS`        | `1` when wolfSSL is a FIPS build |
-| `DEP_WOLFSSL_FIPS_V5_2_3` | `1` when wolfSSL is the FIPS v5.2.3 module |
+| `DEP_WOLFSSL_FIPS_V5`     | `1` when wolfSSL is the FIPS v5 module |
 
 ### Cross-Compiling
 
