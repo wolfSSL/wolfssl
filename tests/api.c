@@ -19891,6 +19891,87 @@ static int test_wolfSSL_Tls13_ECH_read_ahead(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#ifdef WOLFSSL_DTLS
+/* ECH is not supported over DTLS: a client with ECH configs and a server with
+ * generated ECH configs must fail before anything is sent */
+static int test_wolfSSL_Dtls_ECH_unsupported_ex(method_provider c_method,
+    method_provider s_method)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = s_method;
+    test_ctx.c_cb.method = c_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(test_ctx.c_ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    /* no ClientHello was sent */
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    ExpectIntEQ(wolfSSL_accept(test_ctx.s_ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    /* no reply was sent */
+    ExpectIntEQ(test_ctx.c_len, 0);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* disabling ECH on the objects lets the same setup connect */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = s_method;
+    test_ctx.c_cb.method = c_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    wolfSSL_SetEchEnable(test_ctx.s_ssl, 0);
+    wolfSSL_SetEchEnable(test_ctx.c_ssl, 0);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Dtls_ECH_unsupported(void)
+{
+    EXPECT_DECLS;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* DTLS 1.2 and version-flexible peers: with ECH on, each side fails before
+     * sending anything */
+    ExpectIntEQ(test_wolfSSL_Dtls_ECH_unsupported_ex(
+        wolfDTLS_client_method, wolfDTLSv1_2_server_method), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Dtls_ECH_unsupported_ex(
+        wolfDTLSv1_2_client_method, wolfDTLS_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_wolfSSL_Dtls_ECH_unsupported_ex(
+        wolfDTLS_client_method, wolfDTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_DTLS */
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 /* verify that ECH can be enabled/disabled without issue */
@@ -47273,6 +47354,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_tls12_resume),
     TEST_DECL(test_wolfSSL_Tls13_ECH_sni_parse),
     TEST_DECL(test_wolfSSL_Tls13_ECH_read_ahead),
+#endif
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+    TEST_DECL(test_wolfSSL_Dtls_ECH_unsupported),
 #endif
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TEST_ECH) && \
     !defined(WOLFSSL_NO_TLS12)
