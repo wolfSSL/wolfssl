@@ -342,6 +342,9 @@ int wolfAsync_DevOpenThread(int *pDevId, void* threadId)
     int ret = 0;
     int devId = INVALID_DEVID;
 
+    if (pDevId == NULL)
+        return BAD_FUNC_ARG;
+
 #ifdef HAVE_CAVIUM
     ret = NitroxOpenDeviceDefault();
     if (ret >= 0)
@@ -363,9 +366,7 @@ int wolfAsync_DevOpenThread(int *pDevId, void* threadId)
 
     (void)threadId;
 
-    /* return devId if requested */
-    if (*pDevId)
-        *pDevId = devId;
+    *pDevId = devId;
 
     return ret;
 }
