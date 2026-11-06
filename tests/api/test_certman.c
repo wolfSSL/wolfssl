@@ -2971,6 +2971,170 @@ int test_wolfSSL_CRL_static_revoked_list_dup(void)
     return EXPECT_RESULT();
 }
 
+#if defined(CRL_STATIC_REVOKED_LIST) && defined(HAVE_CRL) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_BIO)
+/* Length of the revoked cert chain, or -1 if it leaves the used part of the
+ * CRL's own array or visits it out of order. */
+static int crl_static_chain_len(const WOLFSSL_X509_CRL* crl)
+{
+    const CRL_Entry* entry;
+    const RevokedCert* rc;
+    int n = 0;
+
+    if (crl == NULL || crl->crlList == NULL) {
+        return -1;
+    }
+    entry = crl->crlList;
+
+    for (rc = (entry->totalCerts > 0) ? entry->certs : NULL; rc != NULL;
+            rc = rc->next) {
+        if (n >= entry->totalCerts || rc != &entry->certs[n]) {
+            return -1;
+        }
+        n++;
+    }
+
+    return n;
+}
+#endif
+
+int test_wolfSSL_CRL_static_revoked_list_add(void)
+{
+    EXPECT_DECLS;
+#if defined(CRL_STATIC_REVOKED_LIST) && defined(HAVE_CRL) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_BIO)
+    XFILE fp = XBADFILE;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_X509_CRL* decoded = NULL;
+    WOLFSSL_X509_CRL* empty = NULL;
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_X509_CRL* copy = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_REVOKED)* sk = NULL;
+    WOLFSSL_X509_REVOKED rev;
+    WOLFSSL_ASN1_INTEGER sn;
+    unsigned char* der = NULL;
+    byte serial[1];
+    int derSz = 0;
+    int base = 0;
+    int i;
+
+    XMEMSET(&rev, 0, sizeof(rev));
+    XMEMSET(&sn, 0, sizeof(sn));
+    sn.data = serial;
+    sn.dataMax = sizeof(serial);
+    sn.length = sizeof(serial);
+    rev.serialNumber = &sn;
+
+    ExpectTrue((fp = XFOPEN("./certs/ca-key.pem", "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectNotNull(pkey = wolfSSL_PEM_read_PrivateKey(fp, NULL, NULL, NULL));
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* Start from a parsed CRL since only those carry the issuer hash that
+     * the revocation lookup below matches on. */
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.pem", "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectNotNull(crl = wolfSSL_PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectNotNull(crl != NULL ? crl->crlList : NULL);
+    if (crl != NULL && crl->crlList != NULL) {
+        base = crl->crlList->totalCerts;
+    }
+    ExpectIntLE(base + 2, CRL_MAX_REVOKED_CERTS);
+    ExpectIntEQ(crl_static_chain_len(crl), base);
+
+    /* Add out of order. server-cert.pem has serial 01, which binary search
+     * misses when it is left after 05 in an unsorted array. */
+    serial[0] = 0x05;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev), WOLFSSL_SUCCESS);
+    serial[0] = 0x01;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev), WOLFSSL_SUCCESS);
+    ExpectIntEQ(crl_static_chain_len(crl), base + 2);
+
+    /* A copy has to be chained through its own array. */
+    ExpectNotNull(copy = wolfSSL_X509_CRL_dup(crl));
+    ExpectIntEQ(crl_static_chain_len(copy), base + 2);
+    wolfSSL_X509_CRL_free(copy);
+
+    /* Every entry of the array is visible through the accessors. */
+    ExpectNotNull(sk = wolfSSL_X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(wolfSSL_sk_num(sk), base + 2);
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_CRL_print(bio, crl), WOLFSSL_SUCCESS);
+    wolfSSL_BIO_free(bio);
+
+    /* Signing must encode every entry of the array, not just the first. */
+    ExpectIntEQ(wolfSSL_X509_CRL_sign(crl, pkey, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_CRL(crl, &der), 0);
+    ExpectNotNull(decoded = wolfSSL_d2i_X509_CRL(NULL, der, derSz));
+    ExpectIntEQ((decoded != NULL && decoded->crlList != NULL) ?
+        decoded->crlList->totalCerts : 0, base + 2);
+    wolfSSL_X509_CRL_free(decoded);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+
+    /* The store copies the entry as is, so this exercises the array built by
+     * wolfSSL_X509_CRL_add_revoked rather than a re-parsed and sorted one. */
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(store != NULL ? store->cm : NULL,
+        "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_add_crl(store, crl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(store != NULL ? store->cm : NULL,
+        server_cert_der_2048, sizeof_server_cert_der_2048),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    wolfSSL_X509_STORE_free(store);
+
+    /* Fill the array, then one more must fail. Run under ASan or valgrind
+     * to catch the entry being leaked on that path. */
+    for (i = base + 2; i < CRL_MAX_REVOKED_CERTS; i++) {
+        serial[0] = (byte)(0x10 + (i % 0xF0));
+        ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev), WOLFSSL_SUCCESS);
+    }
+    serial[0] = 0x0F;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ((crl != NULL && crl->crlList != NULL) ?
+        crl->crlList->totalCerts : 0, CRL_MAX_REVOKED_CERTS);
+
+    /* An empty array must not be encoded as one zeroed entry. */
+    ExpectNotNull(empty = wolfSSL_X509_CRL_new());
+    /* Nor walked as one zeroed entry by the accessor. The stack is cached in
+     * the CRL and released with it. */
+    ExpectNotNull(sk = wolfSSL_X509_CRL_get_REVOKED(empty));
+    ExpectIntEQ(wolfSSL_sk_num(sk), 0);
+    ExpectIntEQ(wolfSSL_X509_CRL_set_issuer_name(empty,
+        wolfSSL_X509_CRL_get_issuer_name(crl)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_CRL_sign(empty, pkey, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_CRL(empty, &der), 0);
+    decoded = NULL;
+    ExpectNotNull(decoded = wolfSSL_d2i_X509_CRL(NULL, der, derSz));
+    ExpectIntEQ((decoded != NULL && decoded->crlList != NULL) ?
+        decoded->crlList->totalCerts : -1, 0);
+    wolfSSL_X509_CRL_free(decoded);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    wolfSSL_X509_CRL_free(empty);
+    wolfSSL_X509_CRL_free(crl);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CRL_duplicate_extensions(void)
 {
     EXPECT_DECLS;

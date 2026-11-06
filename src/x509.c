@@ -12032,7 +12032,10 @@ WOLFSSL_STACK* wolfSSL_X509_CRL_get_REVOKED(WOLFSSL_X509_CRL* crl)
         }
         sk->type = STACK_TYPE_X509_REVOKED;
 
-        for (rc = crl->crlList->certs; rc != NULL; rc = rc->next) {
+        /* With CRL_STATIC_REVOKED_LIST certs is an array and never NULL, so an
+         * empty list has to be detected by count. */
+        for (rc = (crl->crlList->totalCerts > 0) ? crl->crlList->certs : NULL;
+                rc != NULL; rc = rc->next) {
             WOLFSSL_X509_REVOKED* rev = RevokedCertToRevoked(rc, seq);
             if (rev == NULL) {
                 /* Clean up on failure */
@@ -17115,6 +17118,16 @@ void wolfSSL_X509_OBJECT_free(WOLFSSL_X509_OBJECT *obj)
     }
 }
 
+/* Find the first object of the given type in the stack matching name.
+ *
+ * For WOLFSSL_X509_LU_X509 name is compared to the certificate subject. For
+ * WOLFSSL_X509_LU_CRL it is compared to the CRL issuer. Note that
+ * wolfSSL_X509_STORE_get0_objects publishes all of a store's CRLs as a single
+ * object and the WOLFSSL_X509_CRL accessors only read the head of that list,
+ * so only the issuer of the head CRL can be matched.
+ *
+ * Returns the matching object, which the stack still owns, or NULL.
+ */
 WOLFSSL_X509_OBJECT *wolfSSL_X509_OBJECT_retrieve_by_subject(
         WOLF_STACK_OF(WOLFSSL_X509_OBJECT) *sk,
         WOLFSSL_X509_LOOKUP_TYPE type,

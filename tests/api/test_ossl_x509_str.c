@@ -4421,7 +4421,7 @@ int test_X509_STORE_get0_objects_borrowed_crl(void)
 }
 
 /* X509_OBJECT_retrieve_by_subject must discriminate between and find
- * x509 and CRLs based on subject and issuer respectivly */
+ * x509 and CRLs based on subject and issuer respectively */
 int test_X509_OBJECT_retrieve_by_subject_crl(void)
 {
     EXPECT_DECLS;
@@ -4469,23 +4469,25 @@ int test_X509_OBJECT_retrieve_by_subject_crl(void)
     ExpectNotNull(objs = X509_STORE_get0_objects(store));
     ExpectIntEQ(sk_X509_OBJECT_num(objs), 3);
 
-    /* The CRL object is found by the first loaded CRL's issuer, even though
-     * certificate objects come before it in the stack. */
+    /* The CRL object is found by the head CRL's issuer, even though
+     * certificate objects come before it in the stack. X509_STORE_add_crl
+     * appends, so the head here is the first CRL added. Other load paths
+     * such as AddCRL prepend instead. */
     ExpectNotNull(obj = X509_OBJECT_retrieve_by_subject(objs, X509_LU_CRL,
         X509_get_subject_name(caRsa)));
-    ExpectIntEQ(X509_OBJECT_get_type(obj), X509_LU_CRL);
+    ExpectTrue(X509_OBJECT_get_type(obj) == X509_LU_CRL);
     ExpectNotNull(X509_OBJECT_get0_X509_CRL(obj));
-    /* Issuers of CRLs added later are not matched. */
+    /* Only the head CRL is matched, not the CRLs behind it. */
     ExpectNull(X509_OBJECT_retrieve_by_subject(objs, X509_LU_CRL,
         X509_get_subject_name(caEcc)));
 
     /* Certificate lookups still skip the CRL object. */
     ExpectNotNull(obj = X509_OBJECT_retrieve_by_subject(objs, X509_LU_X509,
         X509_get_subject_name(caRsa)));
-    ExpectIntEQ(X509_OBJECT_get_type(obj), X509_LU_X509);
+    ExpectTrue(X509_OBJECT_get_type(obj) == X509_LU_X509);
     ExpectNotNull(obj = X509_OBJECT_retrieve_by_subject(objs, X509_LU_X509,
         X509_get_subject_name(caEcc)));
-    ExpectIntEQ(X509_OBJECT_get_type(obj), X509_LU_X509);
+    ExpectTrue(X509_OBJECT_get_type(obj) == X509_LU_X509);
 
     /* No CRL or certificate for a name the store does not hold. */
     ExpectNull(X509_OBJECT_retrieve_by_subject(objs, X509_LU_CRL,
