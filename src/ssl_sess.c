@@ -1749,6 +1749,12 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     ssl->peerVerifyRet = (unsigned long)ssl->session->peerVerifyRet;
 #endif
+#ifdef WOLFSSL_DTLS
+    /* No version left is reported when the handshake starts. */
+    ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START);
+    if (ret < 0 && ret != WC_NO_ERR_TRACE(VERSION_ERROR))
+        return WOLFSSL_FAILURE;
+#endif
 
     return WOLFSSL_SUCCESS;
 }

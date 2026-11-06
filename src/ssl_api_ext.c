@@ -2139,7 +2139,8 @@ int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
         ret = WOLFSSL_FAILURE;
     }
     else {
-        ret = SetSuitesHashSigAlgo(ssl->suites, list);
+        ret = SetSuitesHashSigAlgo(SslSuitesToSet(ssl), list);
+        ret = SslSuitesSetDone(ssl, ret);
     }
 
     return ret;

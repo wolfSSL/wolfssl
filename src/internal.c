@@ -2816,10 +2816,6 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
     method->downgrade  = 0;
 }
 
-#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
-static int InitSSL_DtlsServer(WOLFSSL* ssl);
-#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
-
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE) || \
     defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 int InitSSL_Side(WOLFSSL* ssl, word16 side)
@@ -8050,7 +8046,7 @@ int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx)
 }
 #endif /* HAVE_PK_CALLBACKS */
 
-static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
+void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
         word16 haveRSA, word16 havePSK, word16 haveDH, word16 haveECDSAsig,
         word16 haveECC, word16 haveStaticECC,
         word16 haveAnon,
@@ -8092,6 +8088,20 @@ void InitSSL_CTX_Suites(const WOLFSSL_CTX* ctx, Suites* suites)
             haveRSA, havePSK, ctx->haveDH, ctx->haveECDSAsig, ctx->haveECC,
             ctx->haveStaticECC,
             haveAnon, ctx->method->side);
+}
+
+/* Returns the newest version a downgrade SSL can be moved back up to. DTLS
+ * minors count down. */
+ProtocolVersion SslNewestVersion(const WOLFSSL* ssl)
+{
+    ProtocolVersion pv = ssl->version;
+    byte methodMinor = ssl->ctx->method->version.minor;
+
+    if (ssl->options.downgrade && (ssl->options.dtls ?
+            methodMinor < pv.minor : methodMinor > pv.minor)) {
+        pv = ssl->ctx->method->version;
+    }
+    return pv;
 }
 
 int InitSSL_Suites(WOLFSSL* ssl)
@@ -8152,6 +8162,8 @@ int InitSSL_Suites(WOLFSSL* ssl)
                 havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                 ssl->options.haveECC, ssl->options.haveStaticECC,
                 ssl->options.useAnon, ssl->options.side);
+        if (FilterSuitesForVersion(ssl) != 0)
+            return MEMORY_E;
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
@@ -8200,6 +8212,61 @@ int InitSSL_Suites(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef WOLFSSL_DTLS
+/* Maps a TLS minimum to the DTLS version that shares its mask bit. */
+byte DtlsMinDowngrade(byte minDowngrade)
+{
+    if (minDowngrade == TLSv1_3_MINOR)
+        return DTLSv1_3_MINOR;
+    if (minDowngrade == TLSv1_2_MINOR)
+        return DTLSv1_2_MINOR;
+    if (minDowngrade < DTLSv1_3_MINOR)
+        return DTLS_MINOR;
+    return minDowngrade;
+}
+
+/* Returns the newest built DTLS minor, no newer than maxMinor, that the version
+ * mask and minDowngrade allow, or 0. DTLS minors count down. */
+byte DtlsMaskAllowedMinor(unsigned long mask, byte maxMinor, byte minDowngrade)
+{
+#ifdef WOLFSSL_DTLS13
+    if (maxMinor <= DTLSv1_3_MINOR &&
+            (mask & WOLFSSL_OP_NO_TLSv1_3) == 0) {
+        return DTLSv1_3_MINOR;
+    }
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    if (maxMinor <= DTLSv1_2_MINOR &&
+            (mask & WOLFSSL_OP_NO_TLSv1_2) == 0 &&
+            minDowngrade >= DTLSv1_2_MINOR) {
+        return DTLSv1_2_MINOR;
+    }
+#endif
+#ifndef NO_OLD_TLS
+    if ((mask & WOLFSSL_OP_NO_TLSv1_1) == 0 &&
+            minDowngrade >= DTLS_MINOR) {
+        return DTLS_MINOR;
+    }
+#endif
+    (void)mask;
+    (void)maxMinor;
+    (void)minDowngrade;
+    return 0;
+}
+
+/* DtlsMaskAllowedMinor() with the SSL's own version mask. */
+byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor, byte minDowngrade)
+{
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
+    return DtlsMaskAllowedMinor(ssl->options.mask, maxMinor, minDowngrade);
+#else
+    (void)ssl;
+    return DtlsMaskAllowedMinor(0, maxMinor, minDowngrade);
+#endif
+}
+#endif
+
 /* This function inherits a WOLFSSL_CTX's fields into an SSL object.
    It is used during initialization and to switch an ssl's CTX with
    wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
@@ -8226,6 +8293,25 @@ static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
         WOLFSSL_MSG("\tOption set to not allow TLSv1.3, Downgrading");
         ssl->version.minor = TLSv1_2_MINOR;
+    }
+    #endif
+    #ifdef WOLFSSL_DTLS13
+    if (ssl->version.major == DTLS_MAJOR &&
+            ssl->version.minor == DTLSv1_3_MINOR &&
+            (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) ==
+                WOLFSSL_OP_NO_TLSv1_3) {
+        byte minor = 0;
+
+        if (ctx->method->downgrade)
+            minor = DtlsAllowedMinor(ssl, DTLSv1_2_MINOR, ctx->minDowngrade);
+        if (minor == 0) {
+            WOLFSSL_MSG("\tInconsistent protocol options. DTLS 1.3 set but "
+                        "not allowed and no lower DTLS version allowed.");
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+            return VERSION_ERROR;
+        }
+        WOLFSSL_MSG("\tOption set to not allow DTLSv1.3, Downgrading");
+        ssl->version.minor = minor;
     }
     #endif
     if (ssl->version.minor == TLSv1_2_MINOR &&
@@ -9215,7 +9301,7 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
  * @return  0 on success, and when there is nothing to do.
  * @return  A negative error code when a secret cannot be generated.
  */
-static int InitSSL_DtlsServer(WOLFSSL* ssl)
+int InitSSL_DtlsServer(WOLFSSL* ssl)
 {
     int ret;
 
@@ -10373,6 +10459,8 @@ void FreeSuites(WOLFSSL* ssl)
 #endif
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->suites = NULL;
+    XFREE(ssl->suitesUser, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->suitesUser = NULL;
 }
 
 
@@ -34572,7 +34660,8 @@ int SetCipherList_ex(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl,
         side = ctx->method->side;
     }
     else if (ssl != NULL) {
-        version = ssl->version;
+        /* A later lift needs the suites of the newer version in the list. */
+        version = SslNewestVersion(ssl);
 #ifndef NO_CERTS
         privateKeySz = ssl->buffers.keySz;
 #endif
@@ -34854,9 +34943,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     const char* s = list;
     byte sig_alg = 0;
     byte mac_alg = no_mac;
-
-    /* Setting is destructive on error. */
-    suites->hashSigAlgoSz = 0;
+    byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
 
     do {
         if (*list == '+') {
@@ -34896,7 +34983,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     break;
                 }
             }
-            AddSuiteHashSigAlgo(suites->hashSigAlgo, mac_alg, sig_alg, 0, &idx);
+            AddSuiteHashSigAlgo(hashSigAlgo, mac_alg, sig_alg, 0, &idx);
             sig_alg = 0;
             mac_alg = no_mac;
             s = list + 1;
@@ -34909,7 +34996,8 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     if (s != list && (sig_alg != 0 || mac_alg != 0)) {
         ret = 0;
     }
-    else {
+    if (ret == 1) {
+        XMEMCPY(suites->hashSigAlgo, hashSigAlgo, idx);
         suites->hashSigAlgoSz = idx;
     }
 
@@ -37258,6 +37346,17 @@ static int IsTls13CipherSuite(byte first, byte second)
                 }
         }
 
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls && ssl->options.downgrade &&
+                !ssl->options.handShakeDone &&
+                DtlsAllowedMinor(ssl, ssl->version.minor, DTLS_MINOR) !=
+                    ssl->version.minor) {
+            WOLFSSL_MSG("\tOption set to not allow this DTLS version");
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+            return VERSION_ERROR;
+        }
+    #endif
+
         /* check if option is set to not allow the current version
          * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
         if (!ssl->options.dtls && ssl->options.downgrade &&
@@ -37354,6 +37453,24 @@ static int IsTls13CipherSuite(byte first, byte second)
             }
             return ret;
         }
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        if (ssl->options.echAccepted &&
+                ssl->msgsReceived.got_hello_retry_request) {
+            WOLFSSL_MSG("ECH accepted in HelloRetryRequest, ServerHello is "
+                        "not TLS 1.3");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            if (SendAlert(ssl, alert_fatal, illegal_parameter) ==
+                    WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                return SOCKET_ERROR_E;
+            }
+            return INVALID_PARAMETER;
+        }
+        /* A server negotiating TLS 1.2 or older answers the outer hello. */
+        ret = TLSX_EchReplaceExtensions(ssl, 0);
+        if (ret != 0)
+            return ret;
 #endif
 
         /* random */
@@ -44159,6 +44276,20 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                        ssl->options.useAnon,
                        TRUE, TRUE, TRUE, TRUE, ssl->options.side);
         }
+
+    #ifdef WOLFSSL_DTLS
+        ret = DtlsCheckVersionMask(ssl, DTLS_MASK_IN_HELLO);
+        if (ret == WC_NO_ERR_TRACE(VERSION_ERROR)) {
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+            /* propagate socket errors to avoid re-calling send alert */
+            if (SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version)
+                    == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                ret = SOCKET_ERROR_E;
+            }
+        }
+        if (ret != 0)
+            goto out;
+    #endif
 
         /* Version the record layer is on before the mask walk below steps it
          * down. It is one the client offered (or the server's own maximum
