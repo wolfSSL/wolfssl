@@ -2252,11 +2252,18 @@ int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void)
     WOLFSSL_EVP_MD_CTX* mdCtx = NULL;
     byte   digest[SHA256_DIGEST_LENGTH];
     byte   other[SHA256_DIGEST_LENGTH];
-    byte   sig[DSA_MAX_SIG_SIZE];
+    /* EVP_PKEY_sign() writes DER, EVP_SignFinal() raw r and s. */
+    byte   sig[DSA_MAX_SIG_SIZE + 16];
+    byte   rawSig[DSA_MAX_SIG_SIZE];
     byte   msg[16];
     size_t siglen = sizeof(sig);
-    unsigned int sigFinalLen = sizeof(sig);
+    unsigned int sigFinalLen = sizeof(rawSig);
     SHA256_CTX shaCtx;
+    DSA_SIG* dsaSig = NULL;
+    BIGNUM* r = NULL;
+    BIGNUM* s = NULL;
+    unsigned char* der = NULL;
+    int derSz = 0;
 
     XMEMSET(msg, 0x33, sizeof(msg));
     XMEMSET(digest, 0x5a, sizeof(digest));
@@ -2290,7 +2297,7 @@ int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void)
     ExpectNotNull(mdCtx = EVP_MD_CTX_new());
     ExpectIntEQ(EVP_SignInit(mdCtx, EVP_sha256()), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_SignUpdate(mdCtx, msg, sizeof(msg)), WOLFSSL_SUCCESS);
-    ExpectIntEQ(EVP_SignFinal(mdCtx, sig, &sigFinalLen, pkey),
+    ExpectIntEQ(EVP_SignFinal(mdCtx, rawSig, &sigFinalLen, pkey),
         WOLFSSL_SUCCESS);
     SHA256_Init(&shaCtx);
     SHA256_Update(&shaCtx, msg, sizeof(msg));
@@ -2298,8 +2305,24 @@ int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void)
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256Free((wc_Sha256*)&shaCtx);
 #endif
-    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, sig, (size_t)sigFinalLen, digest,
+    /* EVP_PKEY_verify() takes only the DER encoding. */
+    ExpectIntEQ(sigFinalLen, 2 * SHA256_DIGEST_LENGTH);
+    ExpectNotNull(dsaSig = DSA_SIG_new());
+    ExpectNotNull(r = BN_bin2bn(rawSig, SHA256_DIGEST_LENGTH, NULL));
+    ExpectNotNull(s = BN_bin2bn(rawSig + SHA256_DIGEST_LENGTH,
+        SHA256_DIGEST_LENGTH, NULL));
+    ExpectIntEQ(DSA_SIG_set0(dsaSig, r, s), 1);
+    if (EXPECT_SUCCESS()) {
+        r = NULL;
+        s = NULL;
+    }
+    ExpectIntGT(derSz = i2d_DSA_SIG(dsaSig, &der), 0);
+    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, der, (size_t)derSz, digest,
         sizeof(digest)), WOLFSSL_SUCCESS);
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+    BN_free(r);
+    BN_free(s);
+    DSA_SIG_free(dsaSig);
     EVP_MD_CTX_free(mdCtx);
 
     EVP_PKEY_CTX_free(ctxVerify);
