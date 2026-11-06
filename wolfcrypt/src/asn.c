@@ -26591,7 +26591,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             }
         #endif /* WOLFSSL_NO_TRUSTED_CERTS_VERIFY */
     #else
-            cert->ca = GetCA(cm, cert->issuerHash);
+            if (cert->ca == NULL)
+                cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
 
             if (cert->ca) {
