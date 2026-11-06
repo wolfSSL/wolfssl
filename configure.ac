@@ -398,7 +398,7 @@ fi
 #   ./configure CFLAGS="-m32" LDFLAGS="-m32" && make
 # The checks for sizeof long and long/long are run at the top of configure and require "-m32" to be set directly in the ./configure statement.
 AC_ARG_ENABLE([32bit],
-    [AS_HELP_STRING([--enable-32bit],[Enables 32-bit support (default: disabled)])],
+    [AS_HELP_STRING([--enable-32bit],[Use 32-bit machine words (WC_32BIT_CPU) and leave out 64-bit only code. Does not add -m32 (default: disabled)])],
     [ ENABLED_32BIT=$enableval ],
     [ ENABLED_32BIT=no ]
     )
@@ -420,7 +420,7 @@ then
 fi
 
 AC_ARG_ENABLE([64bit],
-    [AS_HELP_STRING([--enable-64bit],[Enables 64-bit support (default: disabled)])],
+    [AS_HELP_STRING([--enable-64bit],[Build only the 64-bit SP C code (sp_c64.c), not sp_c32.c (default: disabled)])],
     [ ENABLED_64BIT=$enableval ],
     [ ENABLED_64BIT=no ]
     )
@@ -2909,10 +2909,15 @@ fi
 
 # TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)
 AC_ARG_ENABLE([tls13-draft18],
-    [AS_HELP_STRING([--enable-tls13-draft18],[Enable wolfSSL TLS v1.3 Draft 18 (default: disabled)])],
+    [AS_HELP_STRING([--enable-tls13-draft18],[Obsolete and ignored, TLS v1.3 draft 18 is no longer supported (default: disabled)])],
     [ ENABLED_TLS13_DRAFT18=$enableval ],
     [ ENABLED_TLS13_DRAFT18=no ]
     )
+
+if test "$ENABLED_TLS13_DRAFT18" != "no"
+then
+    AC_MSG_WARN([--enable-tls13-draft18 is obsolete and ignored, only the final TLS v1.3 (RFC 8446) is supported.])
+fi
 
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
@@ -3553,7 +3558,7 @@ fi
 
 # One Error Queue per Thread
 AC_ARG_ENABLE([error-queue-per-thread],
-[AS_HELP_STRING([--enable-error-queue-per-thread],[Enable one error queue per thread. Requires thread local storage. (default: disabled)])],
+[AS_HELP_STRING([--enable-error-queue-per-thread],[Enable one error queue per thread. Requires thread local storage. (default: enabled when thread local storage is available and not single threaded)])],
 [ ENABLED_ERRORQUEUEPERTHREAD=$enableval ],
 [ ENABLED_ERRORQUEUEPERTHREAD=check ]
 )
@@ -4461,7 +4466,7 @@ AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
 
 # AES-ECB
 AC_ARG_ENABLE([aesecb],
-    [AS_HELP_STRING([--enable-aesecb],[Enable wolfSSL AES-ECB support (default: enabled)])],
+    [AS_HELP_STRING([--enable-aesecb],[Enable wolfSSL AES-ECB support (default: disabled)])],
     [ ENABLED_AESECB=$enableval ],
     [ ENABLED_AESECB=no ]
     )
@@ -4486,7 +4491,7 @@ then
 fi
 
 # AES-CBC length checks (checks that input lengths are multiples of block size)
-AC_ARG_ENABLE([aescbc_length_checks],
+AC_ARG_ENABLE([aescbc-length-checks],
     [AS_HELP_STRING([--enable-aescbc-length-checks],[Enable AES-CBC length validity checks (default: disabled)])],
     [ ENABLED_AESCBC_LENGTH_CHECKS=$enableval ],
     [ ENABLED_AESCBC_LENGTH_CHECKS=no ]
@@ -7323,7 +7328,7 @@ case $host_os in
 esac
 
 AC_ARG_ENABLE([asn-print],
-    [AS_HELP_STRING([--enable-asn-print],[Enable ASN Print API (default: enabled)])],
+    [AS_HELP_STRING([--enable-asn-print],[Enable ASN Print API (default: enabled on Linux, macOS and FreeBSD hosts)])],
     [ ENABLED_ASN_PRINT=$enableval ],
     [ ENABLED_ASN_PRINT=$DEF_ASN_PRINT ]
     )
@@ -10106,7 +10111,7 @@ then
 fi
 
 AC_ARG_ENABLE([ticket-nonce-malloc],
-    [AS_HELP_STRING([--enable-ticket-nonce-malloc], [Enable dynamic allocation of ticket nonces (default: disabled)])],
+    [AS_HELP_STRING([--enable-ticket-nonce-malloc], [Enable dynamic allocation of ticket nonces (default: disabled, enabled by --enable-curl)])],
     [ ENABLED_TICKET_NONCE_MALLOC=$enableval ],
     [ ENABLED_TICKET_NONCE_MALLOC=no_implicit ]
     )
@@ -11752,7 +11757,7 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
     [AC_MSG_CHECKING([for intelqa])
      AS_IF([test "x$ENABLED_INTEL_QA" = "xyes"],
            [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_INTEL_QA -DDO_CRYPTO -DUSER_SPACE"; intelqa_opt=""],
-           [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_INTEL_QA_SYNC -DQAT_USE_POLLING_THREAD -DO_CRYPTO -DUSER_SPACE"; intelqa_opt="-sync"])
+           [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_INTEL_QA_SYNC -DQAT_USE_POLLING_THREAD -DDO_CRYPTO -DUSER_SPACE"; intelqa_opt="-sync"])
      OLD_LIBS="$LIBS"
      OLD_CPPFLAGS="$CPPFLAGS"
 
