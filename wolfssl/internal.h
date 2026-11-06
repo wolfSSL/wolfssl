@@ -4689,6 +4689,9 @@ struct WOLFSSL_CTX {
     short       minRsaKeySz;      /* minimum RSA key size */
 #ifdef WC_RSA_PSS
     word8       useRsaPss;        /* cert supports RSA-PSS */
+    word8       rsaPssHash;       /* hash declared by a PSS key, 0 if none */
+    word8       rsaPssMgf;        /* MGF declared by a PSS key, 0 if none */
+    word16      rsaPssSaltLen;    /* salt length declared by a PSS key */
 #endif
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
@@ -6379,6 +6382,11 @@ struct WOLFSSL_X509 {
 #endif
     buffer           pubKey;
     int              pubKeyOID;
+#ifdef WC_RSA_PSS
+    byte             keyPssHash;                     /* PSS key parameters, */
+    byte             keyPssMgf;                      /* 0 if not declared   */
+    word16           keyPssSaltLen;
+#endif
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
@@ -7162,6 +7170,13 @@ struct WOLFSSL {
     byte            peerRsaKeyPresent;
 #ifdef WC_RSA_PSS
     word8           useRsaPss;           /* cert supports RSA-PSS */
+    word8           rsaPssHash;          /* hash declared by own PSS key */
+    word8           rsaPssMgf;           /* MGF declared by own PSS key */
+    word16          rsaPssSaltLen;       /* salt length declared by own key */
+    byte            peerRsaPss;          /* peer key has id-RSASSA-PSS OID */
+    byte            peerRsaPssHash;      /* hash declared by peer PSS key */
+    byte            peerRsaPssMgf;       /* MGF declared by peer PSS key */
+    word16          peerRsaPssSaltLen;   /* salt length declared by peer key */
 #endif
 #endif
 #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
@@ -8191,6 +8206,10 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
 WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+WOLFSSL_LOCAL int CheckPeerRsaSigAlgo(const WOLFSSL* ssl, byte sigAlgo,
+                                      byte hashAlgo);
+#endif
 WOLFSSL_LOCAL void DecodeSigAlg(const byte* input, byte* hashAlgo,
         byte* hsType);
 #ifdef WOLFSSL_HAVE_SLHDSA

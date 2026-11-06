@@ -26,10 +26,31 @@ if ./examples/server/server -? 2>&1 | grep "Server not compiled in!" ; then
     exit 77
 fi
 
-if ! ./examples/client/client -V | grep -q 4; then
-    echo "skipping because TLS 1.3 not enabled in this build"
+HAVE_TLS12=no
+HAVE_TLS13=no
+HAVE_DTLS12=no
+./examples/client/client -V | grep -q 3 && HAVE_TLS12=yes
+./examples/client/client -V | grep -q 4 && HAVE_TLS13=yes
+if [ "$HAVE_TLS12" = yes ] && grep -q -- '-DWOLFSSL_DTLS\b' config.log 2>/dev/null; then
+    HAVE_DTLS12=yes
+fi
+if [ "$HAVE_TLS12" = no ] && [ "$HAVE_TLS13" = no ]; then
+    echo "skipping because neither TLS 1.2 nor TLS 1.3 is enabled in this build"
     exit 0
 fi
+# In sniffer builds the example server pins RSA key transport suites for
+# TLS 1.2 and below (examples/server/server.c), which carry no server
+# signature: only the TLS 1.3 server cases apply there.
+SVR_TLS12=$HAVE_TLS12
+SVR_DTLS12=$HAVE_DTLS12
+if grep -q -- '-DWOLFSSL_SNIFFER\b' config.log 2>/dev/null; then
+    SVR_TLS12=no
+    SVR_DTLS12=no
+fi
+HAVE_SHA384=no
+HAVE_SHA512=no
+grep -q -- '-DWOLFSSL_SHA384\b' config.log 2>/dev/null && HAVE_SHA384=yes
+grep -q -- '-DWOLFSSL_SHA512\b' config.log 2>/dev/null && HAVE_SHA512=yes
 if ! grep -q -- -DWC_RSA_PSS config.log 2>/dev/null; then
     echo "skipping because WC_RSA_PSS not enabled in this build"
     exit 0
@@ -43,7 +64,8 @@ if grep -q -- '-DNO_CODING' config.log 2>/dev/null; then
     exit 0
 fi
 
-CERT_DIR="$PWD/$(dirname "$0")/../certs"
+# Resolved through cd: make check runs out of tree with an absolute $0.
+CERT_DIR="$(cd "$(dirname "$0")/../certs" && pwd)"
 if [ "$OPENSSL" = "" ]; then
     OPENSSL=openssl
 fi
@@ -121,37 +143,256 @@ generate_port() {
 }
 
 WOLFSSL_SERVER=./examples/server/server
+WOLFSSL_CLIENT=./examples/client/client
 
-start_wolfssl_server() {
+# id-RSASSA-PSS keys. The 2048-bit keys declare SHA-256 and a 32-byte salt,
+# binding per RFC 4055 1.2; the 3072-bit keys declare no parameters.
+PSS_SVR="-c $CERT_DIR/rsapss/server-rsapss.pem -k $CERT_DIR/rsapss/server-rsapss-priv.pem"
+PSS3072_SVR="-c $CERT_DIR/rsapss/server-3072-rsapss.pem -k $CERT_DIR/rsapss/server-3072-rsapss-priv.pem"
+PSS_CLI_OPENSSL="-cert $CERT_DIR/rsapss/client-rsapss.pem -key $CERT_DIR/rsapss/client-rsapss-priv.pem"
+PSS_CLI_WOLFSSL="-c $CERT_DIR/rsapss/client-rsapss.pem -k $CERT_DIR/rsapss/client-rsapss-priv.pem"
+PSS3072_CLI_WOLFSSL="-c $CERT_DIR/rsapss/client-3072-rsapss.pem -k $CERT_DIR/rsapss/client-3072-rsapss-priv.pem"
+# rsaEncryption key, for the control cases.
+RSA_SVR="-c $CERT_DIR/server-cert.pem -k $CERT_DIR/server-key.pem"
+
+cases=0
+fails=0
+
+# The examples check CRLs whenever CRL support is compiled in, and the RSA-PSS
+# test certificates have none, so turn that off on both sides.
+SVR_NO_CRL=""
+CLI_NO_CRL=""
+if grep -q -- '-DHAVE_CRL\b' config.log 2>/dev/null; then
+    SVR_NO_CRL="-V"
+    CLI_NO_CRL="-C"
+fi
+
+if ! command -v "$OPENSSL" >/dev/null 2>&1; then
+    echo "skipping because $OPENSSL is not available"
+    exit 0
+fi
+# The rsa_pss_pss_* scheme names need OpenSSL 1.1.1 or later.
+if ! "$OPENSSL" version 2>/dev/null | grep -Eq 'OpenSSL (1\.1\.1|[3-9]\.)'; then
+    echo "skipping because $OPENSSL is older than 1.1.1"
+    exit 0
+fi
+
+fail_case() {
+    echo "FAIL: $1"
+    echo "--- wolfSSL/OpenSSL server output ---"
+    cat rsapss.server.log
+    echo "--- client output ---"
+    cat rsapss.client.log
+    fails=$((fails+1))
+}
+
+# A case whose client never reached a server proves nothing, whatever it
+# expected.
+no_connection() {
+    grep -q "connect:errno\|tcp connect failed" rsapss.client.log ||
+        grep -q "can't load" rsapss.server.log
+}
+
+# SignatureScheme code point (RFC 8446 4.2.3) of a scheme name.
+scheme_code() {
+    case "$1" in
+        rsa_pss_rsae_sha256) echo 0804 ;;
+        rsa_pss_rsae_sha384) echo 0805 ;;
+        rsa_pss_rsae_sha512) echo 0806 ;;
+        rsa_pss_pss_sha256)  echo 0809 ;;
+        rsa_pss_pss_sha384)  echo 080a ;;
+        rsa_pss_pss_sha512)  echo 080b ;;
+        *)                   echo "unknown scheme $1" ;;
+    esac
+}
+
+# SignatureScheme, as four hex digits, of the first $2 (CertificateVerify or
+# ServerKeyExchange) received in the OpenSSL -msg dump $1, read off the wire
+# rather than from the summary line, which names the scheme only from OpenSSL
+# 3.2. Handshake messages are picked by their type byte: -msg does not name
+# DTLS 1.2 messages, only their content type 22. The scheme follows the
+# handshake header in a CertificateVerify and the ECDHE public key in a
+# ServerKeyExchange (RFC 5246 7.4.8, RFC 8422 5.4); the DTLS handshake header
+# is 12 bytes.
+wire_sig_scheme() {
+    awk -v type="$([ "$2" = ServerKeyExchange ] && echo 0c || echo 0f)" '
+        function hex(s,    i, v) {
+            v = 0
+            for (i = 1; i <= length(s); i++)
+                v = v * 16 + index("0123456789abcdef", substr(s, i, 1)) - 1
+            return v
+        }
+        function found() { return grab && n > 0 && m[0] == type }
+        /^(<<<|>>>) / {
+            if (found()) exit
+            n = 0
+            grab = ($1 == "<<<" && $0 ~ /Handshake|content_type=22/)
+            hdr = ($0 ~ /DTLS|version=6527[79]/) ? 12 : 4
+            next
+        }
+        grab && /^ +[0-9a-f][0-9a-f]( [0-9a-f][0-9a-f])*$/ {
+            c = split($0, b)
+            for (i = 1; i <= c; i++)
+                m[n++] = b[i]
+            next
+        }
+        { if (found()) exit; grab = 0 }
+        END {
+            if (!found()) exit 1
+            if (type == "0c")
+                hdr += 4 + hex(m[hdr + 3])
+            print m[hdr] m[hdr + 1]
+        }' "$1"
+}
+
+# wolfSSL server, OpenSSL s_client: $1 name, $2 scheme the server must sign
+# with or FAIL, $3 server arguments, $4 s_client arguments. SIG_MSG names the
+# message carrying the server's signature. Suites with RSA key transport carry
+# no server signature, so s_client leaves them out.
+wolfssl_server_case() {
+    local name="$1" expect="$2" sargs="$3" cargs="$4" result
+    cases=$((cases+1))
     generate_port
-    server_port=$port
-    $TIMEOUT_KILL_2M $WOLFSSL_SERVER -p "$server_port" -v 4 -c "$CERT_DIR"/rsapss/server-rsapss.pem -k "$CERT_DIR"/rsapss/server-rsapss-priv.pem -A "$CERT_DIR"/rsapss/root-rsapss.pem -d &
+    $TIMEOUT_KILL_2M $WOLFSSL_SERVER -p "$port" $SVR_NO_CRL $sargs \
+        > rsapss.server.log 2>&1 &
+    server_pid=$!
+    sleep 1
+    echo "test connection" | $TIMEOUT_KILL_2M $OPENSSL s_client \
+        -connect 127.0.0.1:"$port" -msg -cipher DEFAULT:!kRSA $cargs \
+        > rsapss.client.log 2>&1
+    result=$?
+    sleep 0.2
+    kill $server_pid 2>/dev/null
+    wait $server_pid 2>/dev/null
+    if no_connection; then
+        fail_case "$name: no connection"
+    elif [ "$expect" = FAIL ]; then
+        if [ "$result" = 0 ]; then
+            fail_case "$name: handshake completed but must fail"
+        fi
+    elif [ "$result" != 0 ]; then
+        fail_case "$name: handshake failed"
+    elif [ "$(wire_sig_scheme rsapss.client.log "$SIG_MSG")" != \
+            "$(scheme_code "$expect")" ]; then
+        fail_case "$name: server did not sign with $expect"
+    fi
+    rm -f rsapss.server.log rsapss.client.log
 }
 
-#
-# Run OpenSSL client against wolfSSL server
-#
-do_openssl_client() {
-    echo "test connection" | $TIMEOUT_KILL_2M $OPENSSL s_client -connect 127.0.0.1:"$server_port" -cert "$CERT_DIR"/rsapss/client-rsapss.pem -key "$CERT_DIR"/rsapss/client-rsapss-priv.pem -CAfile "$CERT_DIR"/rsapss/root-rsapss.pem > rsapss.test.log
+# OpenSSL s_server with client auth, wolfSSL client: $1 name, $2 scheme the
+# client must sign its CertificateVerify with or FAIL, $3 s_server arguments,
+# $4 client arguments, $5 client certificate and key arguments, $6 that
+# self-signed certificate as the s_server trust anchor.
+openssl_server_case() {
+    local name="$1" expect="$2" sargs="$3" cargs="$4" ccert="$5" cca="$6"
+    local result
+    cases=$((cases+1))
+    generate_port
+    $TIMEOUT_KILL_2M $OPENSSL s_server -www -accept "$port" -Verify 1 \
+        -CAfile "$cca" \
+        -cert "$CERT_DIR"/server-cert.pem -key "$CERT_DIR"/server-key.pem \
+        -msg $sargs > rsapss.server.log 2>&1 &
+    server_pid=$!
+    sleep 1
+    $TIMEOUT_KILL_2M $WOLFSSL_CLIENT -p "$port" $CLI_NO_CRL -g \
+        -A "$CERT_DIR"/ca-cert.pem $ccert $cargs > rsapss.client.log 2>&1
     result=$?
-    cat rsapss.test.log
-    if [ "$result" != 0 ]
-    then
-        echo "$OPENSSL s_client command failed"
-        exit 1
+    kill $server_pid 2>/dev/null
+    wait $server_pid 2>/dev/null
+    if no_connection; then
+        fail_case "$name: no connection"
+    elif [ "$expect" = FAIL ]; then
+        if [ "$result" = 0 ]; then
+            fail_case "$name: handshake completed but must fail"
+        fi
+    elif [ "$result" != 0 ]; then
+        fail_case "$name: handshake failed"
+    elif [ "$(wire_sig_scheme rsapss.server.log CertificateVerify)" != \
+            "$(scheme_code "$expect")" ]; then
+        fail_case "$name: client did not sign with $expect"
     fi
-    grep -q "Peer signature type:.*rsa_pss_rsae_sha256" rsapss.test.log
-    result=$?
-    rm -f rsapss.test.log
-    if [ "$result" == 0 ]
-    then
-        echo "Test failed: Peer signature type identified as rsa_pss_rsae_sha256"
-        exit 1
-    fi
+    rm -f rsapss.server.log rsapss.client.log
 }
 
-start_wolfssl_server
-sleep 1
-do_openssl_client
-echo -e "\nSuccess!\n\n"
+# An id-RSASSA-PSS key signs with rsa_pss_pss_* only, from the peer's offer, and
+# an rsaEncryption key never does (RFC 8446 4.2.3); the schemes apply to
+# (D)TLS 1.2 as well (RFC 8446 1.3).
+for ver in tls12 tls13 dtls12; do
+    case $ver in
+        tls12)  [ "$SVR_TLS12"   = yes ] || continue
+                sv="-v 3";    cv="-tls1_2"; SIG_MSG=ServerKeyExchange ;;
+        tls13)  [ "$HAVE_TLS13"  = yes ] || continue
+                sv="-v 4";    cv="-tls1_3"; SIG_MSG=CertificateVerify ;;
+        dtls12) [ "$SVR_DTLS12"  = yes ] || continue
+                # Explicit MTU: s_client cannot query the loopback path MTU on
+                # every platform and would otherwise fragment the ClientHello.
+                sv="-v 3 -u"; cv="-dtls1_2 -mtu 1500"; SIG_MSG=ServerKeyExchange ;;
+    esac
+    wolfssl_server_case "$ver PSS server, default list" rsa_pss_pss_sha256 \
+        "$sv -d $PSS_SVR" "$cv"
+    wolfssl_server_case "$ver PSS server, rsa_pss_pss_sha256 only" rsa_pss_pss_sha256 \
+        "$sv -d $PSS_SVR" "$cv -sigalgs rsa_pss_pss_sha256"
+    wolfssl_server_case "$ver PSS server, key parameters fix SHA-256" FAIL \
+        "$sv -d $PSS_SVR" "$cv -sigalgs rsa_pss_pss_sha384"
+    # The 3072-bit chain is SHA-384 signed.
+    if [ "$HAVE_SHA384" = yes ]; then
+        wolfssl_server_case "$ver PSS 3072 server, rsa_pss_pss_sha384 only" rsa_pss_pss_sha384 \
+            "$sv -d $PSS3072_SVR" "$cv -sigalgs rsa_pss_pss_sha384"
+        wolfssl_server_case "$ver PSS 3072 server, hash from the pss_pss offer" rsa_pss_pss_sha384 \
+            "$sv -d $PSS3072_SVR" "$cv -sigalgs rsa_pss_pss_sha384:rsa_pss_rsae_sha256"
+        if [ "$HAVE_SHA512" = yes ]; then
+            wolfssl_server_case "$ver PSS 3072 server, rsa_pss_pss_sha512 only" rsa_pss_pss_sha512 \
+                "$sv -d $PSS3072_SVR" "$cv -sigalgs rsa_pss_pss_sha512"
+        fi
+    fi
+    wolfssl_server_case "$ver PSS server, never rsa_pkcs1_*" rsa_pss_pss_sha256 \
+        "$sv -d $PSS_SVR" "$cv -sigalgs rsa_pss_pss_sha256:rsa_pkcs1_sha256"
+    wolfssl_server_case "$ver PSS server, hash from the pss_pss offer" rsa_pss_pss_sha256 \
+        "$sv -d $PSS_SVR" "$cv -sigalgs rsa_pss_pss_sha256:rsa_pss_rsae_sha384"
+    wolfssl_server_case "$ver PSS server, rsa_pss_rsae_* only offered" FAIL \
+        "$sv -d $PSS_SVR" "$cv -sigalgs rsa_pss_rsae_sha256"
+    wolfssl_server_case "$ver PSS server, PSS client certificate" rsa_pss_pss_sha256 \
+        "$sv $PSS_SVR -A $CERT_DIR/rsapss/client-rsapss.pem" "$cv $PSS_CLI_OPENSSL"
+    wolfssl_server_case "$ver rsaEncryption server, rsa_pss_rsae_*" rsa_pss_rsae_sha256 \
+        "$sv -d $RSA_SVR" "$cv -sigalgs rsa_pss_rsae_sha256:rsa_pss_pss_sha256"
+    wolfssl_server_case "$ver rsaEncryption server, rsa_pss_pss_* only offered" FAIL \
+        "$sv -d $RSA_SVR" "$cv -sigalgs rsa_pss_pss_sha256"
+done
+
+for ver in tls12 tls13; do
+    case $ver in
+        tls12) [ "$HAVE_TLS12" = yes ] || continue
+               ov="-tls1_2"; wv="-v 3" ;;
+        tls13) [ "$HAVE_TLS13" = yes ] || continue
+               ov="-tls1_3"; wv="-v 4" ;;
+    esac
+    cli="$PSS_CLI_WOLFSSL"
+    cca="$CERT_DIR/rsapss/client-rsapss.pem"
+    openssl_server_case "$ver PSS client, default list" rsa_pss_pss_sha256 \
+        "$ov" "$wv" "$cli" "$cca"
+    openssl_server_case "$ver PSS client, rsa_pss_pss_sha256 only" rsa_pss_pss_sha256 \
+        "$ov -client_sigalgs rsa_pss_pss_sha256" "$wv" "$cli" "$cca"
+    openssl_server_case "$ver PSS client, never rsa_pkcs1_*" rsa_pss_pss_sha256 \
+        "$ov -client_sigalgs rsa_pss_pss_sha256:rsa_pkcs1_sha256" "$wv" "$cli" "$cca"
+    openssl_server_case "$ver PSS client, rsa_pss_rsae_* only offered" FAIL \
+        "$ov -client_sigalgs rsa_pss_rsae_sha256" "$wv" "$cli" "$cca"
+    openssl_server_case "$ver PSS client, key parameters fix SHA-256" FAIL \
+        "$ov -client_sigalgs rsa_pss_pss_sha384" "$wv" "$cli" "$cca"
+    if [ "$ver" = tls12 ]; then
+        openssl_server_case "$ver PSS client, rsa_pkcs1_* only offered" FAIL \
+            "$ov -client_sigalgs rsa_pkcs1_sha256" "$wv" "$cli" "$cca"
+    fi
+    if [ "$HAVE_SHA384" = yes ]; then
+        cli="$PSS3072_CLI_WOLFSSL"
+        cca="$CERT_DIR/rsapss/client-3072-rsapss.pem"
+        openssl_server_case "$ver PSS 3072 client, rsa_pss_pss_sha384 only" rsa_pss_pss_sha384 \
+            "$ov -client_sigalgs rsa_pss_pss_sha384" "$wv" "$cli" "$cca"
+    fi
+done
+
+if [ "$fails" != 0 ]; then
+    echo -e "\n$fails of $cases cases failed\n"
+    exit 1
+fi
+echo -e "\nSuccess! ($cases cases)\n\n"
 exit 0
