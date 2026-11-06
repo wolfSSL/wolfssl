@@ -881,8 +881,9 @@ cleanup:
 /* AES-ECB under a HUK-derived slot key. sz must be a multiple of the block.
  * Unaligned caller in/out are bounced through 32-byte-aligned temporaries (the
  * HAL DMAs its buffers on cache-line boundaries), so callers need not align.
- * Guarded to match its only call site (the WC_CIPHER_AES_ECB dispatch case);
- * CBC/CTR drive hal_crypto_aes_ecb_* directly, not this helper. */
+ * Guarded to match its call sites (the WC_CIPHER_AES_ECB dispatch case and the
+ * ECB-wrapped ECC scalar unwrap); CBC/CTR drive hal_crypto_aes_ecb_* directly,
+ * not this helper. */
 static int Rtl8735bHuk_Ecb(int enc, const byte* seed, const byte* in,
     word32 sz, byte* out)
 {
@@ -1497,9 +1498,9 @@ static int Rtl8735bHuk_HmacCb(struct wc_CryptoInfo* info)
 #endif /* !NO_HMAC && !NO_SHA256 */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-/* The HUK-wrapped ECDSA scalar is AES-GCM decrypt-verified at unwrap
- * (Rtl8735bHuk_UnwrapScalar reuses Rtl8735bHuk_Gcm), so the ECDSA sign path
- * requires AES-GCM. */
+/* The default HUK-wrapped ECDSA scalar format is AES-GCM decrypt-verified at
+ * unwrap (Rtl8735bHuk_UnwrapScalar reuses Rtl8735bHuk_Gcm), so the ECDSA sign
+ * path requires AES-GCM. */
 #ifndef HAVE_AESGCM
     #error "RTL8735B HUK ECDSA needs HAVE_AESGCM (GCM-authenticated scalar unwrap)"
 #endif
@@ -1904,22 +1905,92 @@ done:
 }
 #endif /* HAVE_ECC_VERIFY */
 
-/* Unwrap the HUK-wrapped private scalar (hk->plainLen bytes). AES-GCM decrypt-
- * verify under the HUK-derived key (reusing the GCM path): a tampered/wrong blob
- * fails here with AES_GCM_AUTH_E, not silently as a garbage scalar downstream. */
-static int Rtl8735bHuk_UnwrapScalar(const wc_Rtl8735b_EccKey* hk,
-    byte* scalar, word32 scalarSz)
+/* Validate the wrapped-scalar fields of a HUK ECC key. iv, ivSz, tag and tagSz
+ * all set selects AES-GCM (wrappedLen == plainLen); all four NULL/0 selects
+ * AES-ECB, the STM32 DHUK blob layout (wrappedLen a multiple of 16, scalar in
+ * the first plainLen bytes). A partial set is rejected rather than guessed. */
+static int Rtl8735bHuk_EccKeyCheck(const wc_Rtl8735b_EccKey* hk, int* isEcb)
 {
-    (void)scalarSz;   /* out length is hk->plainLen (GCM: ciphertext == plaintext) */
+    int gcm;
+    int ecb;
+
+    if (hk->seed == NULL || hk->seedSz != WC_RTL8735B_KEYLEN ||
+            hk->wrapped == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    gcm = (hk->iv != NULL && hk->ivSz != 0 &&
+           hk->tag != NULL && hk->tagSz != 0);
+    ecb = (hk->iv == NULL && hk->ivSz == 0 &&
+           hk->tag == NULL && hk->tagSz == 0);
+    if (!gcm && !ecb) {
+        return BAD_FUNC_ARG;
+    }
+    if (hk->plainLen == 0 ||
+            hk->plainLen > WC_RTL8735B_MAX_WRAPPED ||
+            hk->plainLen > (word32)MAX_ECC_BYTES) {
+        return BAD_FUNC_ARG;
+    }
+    if (gcm) {
+        if (hk->wrappedLen != hk->plainLen) {   /* ciphertext == plaintext */
+            return BAD_FUNC_ARG;
+        }
+    }
+    else if (hk->wrappedLen < hk->plainLen ||
+             hk->wrappedLen > WC_RTL8735B_MAX_WRAPPED ||
+             (hk->wrappedLen % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    *isEcb = ecb;
+    return 0;
+}
+
+/* Unwrap the HUK-wrapped private scalar (hk->plainLen bytes) under the HUK-
+ * derived key. GCM is decrypt-verified: a tampered/wrong blob fails here with
+ * AES_GCM_AUTH_E. ECB has no integrity check: a wrong blob yields a wrong
+ * scalar and the signature fails to verify. */
+static int Rtl8735bHuk_UnwrapScalar(const wc_Rtl8735b_EccKey* hk, int isEcb,
+    byte* scalar)
+{
+    if (isEcb) {
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+        int   ret;
+    #ifdef WOLFSSL_SMALL_STACK
+        byte* buf;
+
+        buf = (byte*)XMALLOC(WC_RTL8735B_MAX_WRAPPED, NULL,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL) {
+            return MEMORY_E;
+        }
+    #else
+        byte  buf[WC_RTL8735B_MAX_WRAPPED];
+    #endif
+
+        ret = Rtl8735bHuk_Ecb(0, hk->seed, hk->wrapped, hk->wrappedLen, buf);
+        if (ret == 0) {
+            XMEMCPY(scalar, buf, hk->plainLen);
+        }
+        ForceZero(buf, WC_RTL8735B_MAX_WRAPPED);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+#else
+        /* Not CRYPTOCB_UNAVAILABLE: that would retry a software sign on the
+         * keyless HUK device key. */
+        return ALGO_ID_E;
+#endif
+    }
     return Rtl8735bHuk_Gcm(0, hk->seed, hk->wrapped, hk->plainLen, scalar,
                            hk->iv, hk->ivSz, NULL, 0, (byte*)hk->tag, hk->tagSz);
 }
 
 /* Route an ECDSA sign request to the HUK backend (wc_Rtl8735b_EccKey via
- * key->devCtx). Modes: 1 OTP-resident (scalar stays in OTP); 2 GCM-unwrap the
- * wrapped scalar then HW sign; 3 GCM-unwrap then software sign. The unwrap is
- * AES-GCM-authenticated (needs HAVE_AESGCM). A plain ecc_key with no devCtx is a
- * general HW offload. The wrapped blob unwraps only on its origin HUK. */
+ * key->devCtx). Modes: 1 OTP-resident (scalar stays in OTP); 2 unwrap the
+ * wrapped scalar (GCM or ECB) then HW sign; 3 unwrap then software sign. A
+ * plain ecc_key with no devCtx is a general HW offload. The wrapped blob
+ * unwraps only on its origin HUK. */
 static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
 {
     ecc_key* key = info->pk.eccsign.key;
@@ -1927,6 +1998,7 @@ static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
     ecc_key* tmp = NULL;
     int      ret;
     int      curveId;
+    int      isEcb = 0;
     word32   scalarSz;
 #ifdef WOLFSSL_SMALL_STACK
     byte*    scalar = NULL;
@@ -1972,17 +2044,9 @@ static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
         goto cleanup;
     }
 
-    /* Modes 2/3 need the seed + GCM-wrapped scalar (ciphertext + iv + tag). */
-    if (hk->seed == NULL || hk->seedSz != WC_RTL8735B_KEYLEN ||
-            hk->wrapped == NULL || hk->iv == NULL || hk->tag == NULL) {
-        ret = CRYPTOCB_UNAVAILABLE;
-        goto cleanup;
-    }
-    if (hk->plainLen == 0 ||
-            hk->wrappedLen != hk->plainLen ||   /* GCM: ciphertext == plaintext */
-            hk->plainLen > WC_RTL8735B_MAX_WRAPPED ||
-            hk->plainLen > (word32)MAX_ECC_BYTES) {
-        ret = BAD_FUNC_ARG;
+    /* Modes 2/3 need the seed + wrapped scalar (GCM: plus iv + tag). */
+    ret = Rtl8735bHuk_EccKeyCheck(hk, &isEcb);
+    if (ret != 0) {
         goto cleanup;
     }
     /* The caller must set the curve (wc_ecc_set_curve): a wrapped 32-byte scalar
@@ -1995,7 +2059,7 @@ static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
     curveId  = key->dp->id;
     scalarSz = hk->plainLen;
 
-    ret = Rtl8735bHuk_UnwrapScalar(hk, scalar, scalarSz);
+    ret = Rtl8735bHuk_UnwrapScalar(hk, isEcb, scalar);
     if (ret != 0) {
         goto cleanup;
     }
@@ -2198,8 +2262,9 @@ int wc_Rtl8735b_HukUnRegister(int devId)
 
 #ifdef WOLFSSL_RTL8735B_HOST_TEST
 /* Host self-test for the silicon-independent helpers (no HAL crypto needed):
- * BE<->LE word conversion, the AES-CTR counter increment, the HMAC accumulator
- * growth/overflow/cap logic, and the bounce-buffer alignment helpers. The
+ * BE<->LE word conversion, the wrapped-scalar format checks, the AES-CTR
+ * counter increment, the HMAC accumulator growth/overflow/cap logic, and the
+ * bounce-buffer alignment helpers. The
  * --enable-rtl8735b build is a compile + these-KATs gate; the cipher / GCM /
  * ECDSA crypto correctness is validated on RTL8735B hardware, not here. Returns
  * 0 on success, or a negative code identifying the first failing check. */
@@ -2214,6 +2279,9 @@ int wc_Rtl8735b_HukSelfTest(void)
     };
     word32 w[WC_RTL8735B_ECC_WORDS];
     byte   be2[WC_RTL8735B_ECC_BYTES];
+    byte   blob[WC_RTL8735B_MAX_WRAPPED];
+    wc_Rtl8735b_EccKey hk;
+    int    isEcb;
 #endif
 #ifdef WOLFSSL_AES_COUNTER
     byte ctr[WC_AES_BLOCK_SIZE];
@@ -2242,6 +2310,54 @@ int wc_Rtl8735b_HukSelfTest(void)
     Rtl8735b_LeWordsToBe(w, be2);       /* round-trip back to big-endian */
     if (XMEMCMP(kBe, be2, sizeof(kBe)) != 0) {
         return -2;
+    }
+
+    /* Wrapped-scalar format selection: iv/tag all set = GCM, all unset = ECB
+     * (block-padded), anything in between is rejected. */
+    XMEMSET(blob, 0, sizeof(blob));
+    XMEMSET(&hk, 0, sizeof(hk));
+    hk.seed = kBe;  hk.seedSz = WC_RTL8735B_KEYLEN;
+    hk.wrapped = blob;  hk.wrappedLen = 32;  hk.plainLen = 32;
+    isEcb = 0;
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != 0 || isEcb != 1) {
+        return -30;
+    }
+    hk.wrappedLen = 48;                     /* padded ECB blob */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != 0) {
+        return -31;
+    }
+    hk.wrappedLen = 40;                     /* not a block multiple */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -32;
+    }
+    hk.wrappedLen = 16;                     /* shorter than the scalar */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -33;
+    }
+    hk.wrappedLen = WC_RTL8735B_MAX_WRAPPED + WC_AES_BLOCK_SIZE;
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -34;
+    }
+    hk.wrappedLen = 32;
+    hk.iv = blob;  hk.ivSz = 12;            /* iv without a tag */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -35;
+    }
+    hk.iv = NULL;  hk.tagSz = 16;           /* a size without a pointer */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -36;
+    }
+    hk.iv = blob;  hk.tag = blob;           /* full GCM set */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != 0 || isEcb != 0) {
+        return -37;
+    }
+    hk.wrappedLen = 48;                     /* GCM blob is not padded */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -38;
+    }
+    hk.seed = NULL;
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != CRYPTOCB_UNAVAILABLE) {
+        return -39;
     }
 #endif
 
