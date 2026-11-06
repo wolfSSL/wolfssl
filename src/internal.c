@@ -9427,15 +9427,18 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #elif defined (WOLFSSL_GNRC)
     ssl->IOCB_ReadCtx = ssl->gnrcCtx;
     ssl->IOCB_WriteCtx = ssl->gnrcCtx;
-#else
-    ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
-    ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
-#ifdef WOLFSSL_DTLS
+#elif defined(WOLFSSL_DTLS)
     if (ctx->method->version.major == DTLS_MAJOR) {
         ssl->IOCB_ReadCtx  = &ssl->buffers.dtlsCtx;
         ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
     }
-#endif
+    else {
+        ssl->IOCB_ReadCtx  = &ssl->rfd;
+        ssl->IOCB_WriteCtx = &ssl->wfd;
+    }
+#else
+    ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
+    ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 #endif
 
 
