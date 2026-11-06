@@ -17127,13 +17127,36 @@ WOLFSSL_X509_OBJECT *wolfSSL_X509_OBJECT_retrieve_by_subject(
     if (sk == NULL || name == NULL)
         return NULL;
 
+    if (type != WOLFSSL_X509_LU_X509
+#ifdef HAVE_CRL
+            && type != WOLFSSL_X509_LU_CRL
+#endif
+            ) {
+        WOLFSSL_MSG("Bad type passed to "
+                "wolfSSL_X509_OBJECT_retrieve_by_subject");
+        return NULL;
+    }
+
     for (i = 0; i < wolfSSL_sk_X509_OBJECT_num(sk); i++) {
         WOLFSSL_X509_OBJECT* obj = (WOLFSSL_X509_OBJECT *)
             wolfSSL_sk_X509_OBJECT_value(sk, i);
-        if (obj != NULL && obj->type == type &&
-            wolfSSL_X509_NAME_cmp(
-                wolfSSL_X509_get_subject_name(obj->data.x509), name) == 0)
+        /* Objects of other types may sit anywhere in the stack, so skip them
+         * and keep searching. */
+        if (obj == NULL || obj->type != type)
+            continue;
+
+        if (type == WOLFSSL_X509_LU_X509) {
+            if (obj->data.x509 != NULL && wolfSSL_X509_NAME_cmp(
+                    wolfSSL_X509_get_subject_name(obj->data.x509), name) == 0) {
+                return obj;
+            }
+        }
+#ifdef HAVE_CRL
+        else if (obj->data.crl != NULL && wolfSSL_X509_NAME_cmp(
+                wolfSSL_X509_CRL_get_issuer_name(obj->data.crl), name) == 0) {
             return obj;
+        }
+#endif
     }
     return NULL;
 }
