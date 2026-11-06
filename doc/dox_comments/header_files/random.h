@@ -2787,16 +2787,21 @@ int wc_rng_debug_stats_sum(struct wc_rng_debug_stats_snapshot *s,
     call.  The pending event is delivered into each instance -- purging its
     banked and pooled pre-event material via wc_RNG_invalidate_entropy() --
     at the instance's next detection point: a generate, a recovery query, a
-    banked-seed redemption, or a pool extraction.  The call is lock-free and
-    safe from any context that may call the atomic-increment primitive.
+    banked-seed redemption, or a pool extraction.  If an auxiliary
+    invalidation publisher is registered (see
+    wc_RNG_entropy_epoch_extra_inv_init()), the fresh epoch is published
+    through it after the advance is globally visible.  The call is lock-free
+    and safe from any context that may call the atomic-increment primitive
+    (and, when a publisher is registered, the publisher).
 
     \return The new (post-increment) global entropy epoch.
 
     \sa wc_RNG_entropy_needs_recovery
     \sa wc_RNG_invalidate_entropy
+    \sa wc_RNG_entropy_epoch_extra_inv_init
     \sa wc_RNG_GenerateBlock
 */
-WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
+wc_RNG_entropy_epoch_t wc_RNG_global_invalidate_entropy(void);
 
 /*!
     \ingroup Random
@@ -2804,16 +2809,120 @@ WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
     \brief Read the process-global entropy epoch: the count of
     wc_RNG_global_invalidate_entropy() events so far.  An instance whose
     stamp differs from this value has an undelivered event pending (see
-    wc_RNG_entropy_needs_recovery(), which delivers it).  A relaxed
-    snapshot, for diagnostics and for callers that want to notice an event
-    without touching any instance; nothing is propagated.
+    wc_RNG_entropy_needs_recovery(), which delivers it).
+
+    \details Every epoch read is also a detection point for the auxiliary
+    pathway: with an external epoch source registered (see
+    wc_RNG_extra_entropy_epoch_init()), the source is consulted first, and
+    an external event detected there advances the global epoch before the
+    read returns -- so a read can itself move the epoch.  No per-instance
+    delivery is performed either way: this is for diagnostics and for
+    callers that want to notice an event without touching any instance.
 
     \return The current global epoch.
 
     \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_extra_entropy_epoch_init
     \sa wc_RNG_entropy_needs_recovery
 */
-WC_ATOMIC_UINT_ARG wc_RNG_get_global_entropy_epoch(void);
+wc_RNG_entropy_epoch_t wc_RNG_get_global_entropy_epoch(void);
+
+/*!
+    \ingroup Random
+
+    \brief Register a publisher for global entropy-epoch advances -- the
+    sender half of the auxiliary invalidation pathway, carrying
+    wc_RNG_global_invalidate_entropy() events to consumers outside the
+    process.
+
+    \details The canonical sender is a kernel module exporting its epoch to
+    user processes through read-only shared memory: the handler writes each
+    fresh epoch to the exported word, and user-mode libraries detect the
+    change through their own registered source (see
+    wc_RNG_extra_entropy_epoch_init() -- a build registering both is a
+    relay, receiving events upstream and republishing them downstream).
+    The "extra" here is an extra invalidation step -- transmission of the
+    one and only epoch -- not an extra epoch.
+
+    The handler is called after each advance is globally visible, with the
+    fresh epoch and the registered arg.  It must be cheap, nonblocking, and
+    safe in every context wc_RNG_global_invalidate_entropy() can run in,
+    and must not call back into wolfCrypt (a call back into the invalidator
+    is direct recursion).  Registration is one-shot for the life of the
+    process, with no deregistration, by design.
+
+    Publication is only guaranteed for advances after this call returns
+    success: either defer normal service until registration completes
+    (natural in module-init contexts), or accept that an advance racing the
+    registration may go unpublished.
+
+    \return 0 Success: the handler is registered and will receive every
+    subsequent advance.
+    \return BAD_FUNC_ARG handler is null.
+    \return ALREADY_E a publisher is already registered.
+    \return BUSY_E lost a registration race; nothing was registered by this
+    call.
+
+    \param handler The publisher callback.
+    \param arg Opaque argument passed to the callback.
+
+    \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_extra_entropy_epoch_init
+*/
+int wc_RNG_entropy_epoch_extra_inv_init(
+    wc_RNG_entropy_epoch_extra_inv_handler_t handler, void *arg);
+
+/*!
+    \ingroup Random
+
+    \brief Register a getter for an external entropy-epoch word -- the
+    receiver half of the auxiliary invalidation pathway, folding platform
+    entropy-invalidation events (a VM fork or resume, a snapshot restore)
+    into the process-global epoch.
+
+    \details The canonical receiver is a user-mode library polling a
+    kernel-exported epoch through read-only shared memory.  The "extra"
+    here is a whole extra epoch -- the external one, shadow-tracked
+    internally so that only its changes are forwarded.  Every epoch read
+    (every invalidation check, in every instance) consults the getter; a
+    changed value advances the process-global epoch exactly once per change
+    before the shadow is updated, so an external event is detected at the
+    first check after it lands, with no thread of control required on the
+    receiving side.  Events between checks coalesce into one advance.
+
+    The getter must be cheap, nonblocking, callable concurrently, and must
+    not call into wolfCrypt (every wolfCrypt invalidation check would
+    recurse).  It returns the external epoch, or
+    WC_RNG_ENTROPY_EPOCH_INVALID (0) when no signal is available yet, which
+    makes the read inert.
+
+    Registration probes the getter once: a 0 result refuses the
+    registration and leaves the slot unclaimed.  A successful registration
+    primes the shadow with the probed value, so registering is itself quiet
+    -- material seeded before registration is trusted.  For a conservative
+    start that distrusts it instead, call
+    wc_RNG_global_invalidate_entropy() after this call returns.
+    Registration is one-shot for the life of the process, with no
+    deregistration, by design.
+
+    \return 0 Success: every subsequent epoch read consults the getter.
+    \return BAD_FUNC_ARG handler is null, or its probe returned
+    WC_RNG_ENTROPY_EPOCH_INVALID.
+    \return ALREADY_E a source is already registered.
+    \return BUSY_E lost a registration race; nothing was registered by this
+    call.
+
+    \param handler The getter callback.
+    \param arg Opaque argument passed to the callback.
+
+    \sa wc_RNG_get_global_entropy_epoch
+    \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_entropy_epoch_extra_inv_init
+    \sa wc_RNG_entropy_needs_recovery
+*/
+int wc_RNG_extra_entropy_epoch_init(
+    wc_RNG_extra_entropy_epoch_get_handler_t handler,
+    void *arg);
 
 /*!
     \ingroup Random

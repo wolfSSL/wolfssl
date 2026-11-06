@@ -179,10 +179,6 @@ This library contains implementation for the random number generator.
     wc_static_assert(WC_RNG_LOCK_FREE == 0);
 #endif
 
-#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    static wolfSSL_Atomic_Uint global_entropy_epoch = WOLFSSL_ATOMIC_INITIALIZER(1U);
-#endif
-
 #if defined(WOLFSSL_SGX)
     #include <sgx_trts.h>
 #elif defined(USE_WINDOWS_API)
@@ -359,6 +355,114 @@ wc_static_assert(DRBG_SUCCESS == 0);
 #define DRBG_OK           WC_DRBG_OK
 #define DRBG_FAILED       WC_DRBG_FAILED
 #define DRBG_CONT_FAILED  WC_DRBG_CONT_FAILED
+
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+    static struct wc_RNG_entropy_epoch_atomic global_entropy_epoch =
+        WC_RNG_ENTROPY_EPOCH_ATOMIC_INITIALIZER;
+    static struct wc_RNG_entropy_epoch_atomic extra_entropy_epoch_local =
+        WC_RNG_ENTROPY_EPOCH_ATOMIC_INVALID;
+    static wc_RNG_extra_entropy_epoch_get_handler_t
+        extra_entropy_epoch_get_handler = NULL;
+    static byte invalid_arg_sentinel;
+    static void *extra_entropy_epoch_get_arg = &invalid_arg_sentinel;
+
+    int wc_RNG_extra_entropy_epoch_init(
+        wc_RNG_extra_entropy_epoch_get_handler_t handler,
+        void *arg)
+    {
+        wc_RNG_extra_entropy_epoch_get_handler_t
+            cur_extra_entropy_epoch_get_handler =
+            extra_entropy_epoch_get_handler;
+        wc_RNG_entropy_epoch_t init_extra_entropy_epoch;
+        if (handler == NULL)
+            return BAD_FUNC_ARG;
+        if (extra_entropy_epoch_get_handler != NULL)
+            return ALREADY_E;
+        init_extra_entropy_epoch = handler(arg);
+        if (init_extra_entropy_epoch == WC_RNG_ENTROPY_EPOCH_INVALID)
+            return BAD_FUNC_ARG;
+        if (wolfSSL_Atomic_Func_Ptr_CompareExchange(
+                &extra_entropy_epoch_get_handler,
+                &cur_extra_entropy_epoch_get_handler,
+                handler))
+        {
+            (void)wc_RNG_entropy_epoch_import(WC_RNG_ENTROPY_EPOCH_INVALID,
+                                              init_extra_entropy_epoch,
+                                              &extra_entropy_epoch_local);
+            extra_entropy_epoch_get_arg = arg;
+            return 0;
+        }
+        else
+            return BUSY_E;
+    }
+
+    static WC_INLINE wc_RNG_entropy_epoch_t current_entropy_epoch(void) {
+        if ((extra_entropy_epoch_get_handler != NULL) &&
+            (extra_entropy_epoch_get_arg != &invalid_arg_sentinel))
+        {
+            wc_RNG_entropy_epoch_t cur_extra_entropy_epoch =
+                extra_entropy_epoch_get_handler(extra_entropy_epoch_get_arg);
+            if (cur_extra_entropy_epoch != WC_RNG_ENTROPY_EPOCH_INVALID) {
+                wc_RNG_entropy_epoch_t cur_extra_entropy_epoch_local =
+                    wc_RNG_entropy_epoch_export(&extra_entropy_epoch_local);
+                if (cur_extra_entropy_epoch != cur_extra_entropy_epoch_local) {
+                    wc_RNG_global_invalidate_entropy();
+                    (void)wc_RNG_entropy_epoch_import(
+                        cur_extra_entropy_epoch_local,
+                        cur_extra_entropy_epoch,
+                        &extra_entropy_epoch_local);
+                }
+            }
+        }
+        return wc_RNG_entropy_epoch_export(&global_entropy_epoch);
+    }
+
+    wc_RNG_entropy_epoch_t wc_RNG_get_global_entropy_epoch(void) {
+        return current_entropy_epoch();
+    }
+
+    static wc_RNG_entropy_epoch_extra_inv_handler_t
+        entropy_epoch_extra_inv_handler = NULL;
+    static void *entropy_epoch_extra_inv_arg = &invalid_arg_sentinel;
+    int wc_RNG_entropy_epoch_extra_inv_init(
+        wc_RNG_entropy_epoch_extra_inv_handler_t handler, void *arg)
+    {
+        wc_RNG_entropy_epoch_extra_inv_handler_t
+            cur_entropy_epoch_extra_inv_handler =
+            entropy_epoch_extra_inv_handler;
+        if (handler == NULL)
+            return BAD_FUNC_ARG;
+        if (cur_entropy_epoch_extra_inv_handler != NULL)
+            return ALREADY_E;
+        if (wolfSSL_Atomic_Func_Ptr_CompareExchange(
+                &entropy_epoch_extra_inv_handler,
+                &cur_entropy_epoch_extra_inv_handler,
+                handler))
+        {
+            entropy_epoch_extra_inv_arg = arg;
+            return 0;
+        }
+        else
+            return BUSY_E;
+    }
+
+    wc_RNG_entropy_epoch_t wc_RNG_global_invalidate_entropy(void) {
+        wc_RNG_entropy_epoch_t new_epoch =
+            wc_RNG_entropy_epoch_increment_atomic(&global_entropy_epoch);
+        /* Note that extra invalidation propagation is only guaranteed after
+         * wc_RNG_entropy_epoch_extra_inv_init() has returned with success --
+         * for guaranteed propagation, callers must defer normal service until
+         * after completion. */
+        if ((entropy_epoch_extra_inv_handler != NULL) &&
+            (entropy_epoch_extra_inv_arg != &invalid_arg_sentinel))
+        {
+            entropy_epoch_extra_inv_handler(
+                new_epoch,
+                entropy_epoch_extra_inv_arg);
+        }
+        return new_epoch;
+    }
+#endif /* WC_RNG_HAVE_ENTROPY_EPOCH */
 
 /* enforcement helper for WC_RNG_LOCK_REQUIRED: instance-consuming public APIs
  * call this on entry.  (WC_RNG_LOCK_ENTROPY_INVALIDATED is deliberately not
@@ -1211,7 +1315,9 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                             word32 seedSz,
                             const byte* additional, word32 additionalSz,
                             int in_bracketed_consume,
-                            WC_ATOMIC_UINT_ARG cur_epoch,
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+                            wc_RNG_entropy_epoch_t cur_epoch,
+#endif
                             WC_RNG_PID_ARG my_pid)
 {
     int ret;
@@ -1219,9 +1325,6 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
     WC_RNG_lock_arg_t cur_lock;
 #endif
 
-#ifndef WC_RNG_HAVE_ENTROPY_EPOCH
-    (void)cur_epoch;
-#endif
 #if !defined(HAVE_GETPID) || defined(WOLFSSL_NO_GETPID)
     (void)my_pid;
 #endif
@@ -1426,7 +1529,7 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
      */
     if ((ret == 0) && (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-        && (cur_epoch == WOLFSSL_ATOMIC_LOAD(global_entropy_epoch))
+        && (cur_epoch == current_entropy_epoch())
 #endif
        )
     {
@@ -1491,13 +1594,9 @@ int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
                              const byte *addIn, word32 addInSz)
 {
     int ret;
-    WC_ATOMIC_UINT_ARG cur_epoch =
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-         WOLFSSL_ATOMIC_LOAD(global_entropy_epoch)
-#else
-         0
+    wc_RNG_entropy_epoch_t cur_epoch = current_entropy_epoch();
 #endif
-        ;
     WC_RNG_PID_ARG my_pid = WC_RNG_GETPID();
     if (rng == NULL || seed == NULL) {
         return BAD_FUNC_ARG;
@@ -1569,7 +1668,11 @@ int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
     }
 
     ret = Hash_DRBG_Reseed(rng, seed, seedSz, addIn, addInSz,
-                           0 /* in_bracketed_consume */, cur_epoch, my_pid);
+                           0 /* in_bracketed_consume */,
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+                           cur_epoch,
+#endif
+                           my_pid);
     if (ret > 0) /* DRBG-internal code: translate at the API */
         ret = RNG_FAILURE_E;
 #if defined(WC_RNG_HAVE_RBGC) && !defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
@@ -3595,7 +3698,7 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
     /* note this assignment must precede the later seed operation. */
-    rng->entropy_epoch = WOLFSSL_ATOMIC_LOAD(global_entropy_epoch);
+    rng->entropy_epoch = current_entropy_epoch();
 #endif
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
@@ -4682,7 +4785,7 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
             (wc_RNG_DRBG_NextSeedCurrent(rng, &NextSeedCurrent) == 0) &&
             (NextSeedCurrent == WC_DRBG_NEXT_SEED_READY)
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-            && (rng->entropy_epoch == WOLFSSL_ATOMIC_LOAD(global_entropy_epoch))
+            && (rng->entropy_epoch == current_entropy_epoch())
 #endif
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
             && (rng->pid == getpid())
@@ -4922,7 +5025,7 @@ int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
      * the latch carries, delivered lazily: report it here so that a holder
      * whose last operation straddled the event learns of it at release.  The
      * read is unleased by design (see rng_entropy_event_propagate()). */
-    if (rng->entropy_epoch != WOLFSSL_ATOMIC_LOAD(global_entropy_epoch))
+    if (rng->entropy_epoch != current_entropy_epoch())
         return NEEDS_RECOVERY_E;
 #endif
     return 0;
@@ -4985,7 +5088,7 @@ int wc_RNG_lock_put_conditional(WC_RNG* rng,
                 return NEEDS_RECOVERY_E;
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
             /* as in wc_RNG_lock_put() */
-            if (rng->entropy_epoch != WOLFSSL_ATOMIC_LOAD(global_entropy_epoch))
+            if (rng->entropy_epoch != current_entropy_epoch())
                 return NEEDS_RECOVERY_E;
 #endif
             return 0;
@@ -5107,7 +5210,7 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
   #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
     /* Load the event epoch before any purge: an increment mid-delivery leaves
      * the stamp stale, forcing a conservative propagation. */
-    WC_ATOMIC_UINT_ARG ev_epoch = WOLFSSL_ATOMIC_LOAD(global_entropy_epoch);
+    wc_RNG_entropy_epoch_t ev_epoch = current_entropy_epoch();
   #endif
   #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     pid_t my_pid = getpid();
@@ -5278,7 +5381,7 @@ static WC_MAYBE_UNUSED int rng_entropy_event_propagate(WC_RNG* rng)
     if (! wc_RNG_DRBG_Present(rng))
         return 0;
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    if (rng->entropy_epoch != WOLFSSL_ATOMIC_LOAD(global_entropy_epoch))
+    if (rng->entropy_epoch != current_entropy_epoch())
         ret = NEEDS_RECOVERY_E;
 #endif
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
@@ -5316,7 +5419,7 @@ WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng) {
         return ret;
   #else
     #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    if (rng->entropy_epoch != WOLFSSL_ATOMIC_LOAD(global_entropy_epoch))
+    if (rng->entropy_epoch != current_entropy_epoch())
         return NEEDS_RECOVERY_E;
     #endif
     #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
@@ -5336,16 +5439,6 @@ WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng) {
 
     return 0;
 }
-
-#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-WOLFSSL_API WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void) {
-    return wolfSSL_Atomic_Uint_AddFetch(&global_entropy_epoch, 1U);
-}
-
-WC_ATOMIC_UINT_ARG wc_RNG_get_global_entropy_epoch(void) {
-    return WOLFSSL_ATOMIC_LOAD(global_entropy_epoch);
-}
-#endif
 
 #ifdef WC_RNG_HAVE_FREE_HOOK
 /* This routine is used for mitigation of RNG cloning events, particularly by
@@ -6063,13 +6156,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_ReseedRBGC_local(
     byte seed[SEED_SZ];
 #endif
     int ret;
-    WC_ATOMIC_UINT_ARG cur_epoch =
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-         WOLFSSL_ATOMIC_LOAD(global_entropy_epoch)
-#else
-         0
+    wc_RNG_entropy_epoch_t cur_epoch = current_entropy_epoch();
 #endif
-        ;
     WC_RNG_PID_ARG my_pid = WC_RNG_GETPID();
 
     if ((rng == NULL) || (root == NULL) || (rng == root) ||
@@ -6174,7 +6263,10 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_ReseedRBGC_local(
     if (ret == 0) {
         if (credited) {
             ret = Hash_DRBG_Reseed(rng, seed, SEED_SZ, nonce, nonceSz,
-                                   0 /* in_bracketed_consume */, cur_epoch,
+                                   0 /* in_bracketed_consume */,
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+                                   cur_epoch,
+#endif
                                    my_pid);
             if (ret > 0) /* DRBG-internal code: translate at the API */
                 ret = RNG_FAILURE_E;
@@ -6226,13 +6318,9 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                          word32 additionalSz)
 {
     int ret   = WC_NO_ERR_TRACE(DRBG_NEED_RESEED);
-    WC_ATOMIC_UINT_ARG cur_epoch =
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-         WOLFSSL_ATOMIC_LOAD(global_entropy_epoch)
-#else
-         0
+    wc_RNG_entropy_epoch_t cur_epoch = current_entropy_epoch();
 #endif
-        ;
     WC_RNG_PID_ARG my_pid = WC_RNG_GETPID();
     int devId = INVALID_DEVID;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -6410,7 +6498,10 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
         if (ret == DRBG_SUCCESS) {
             ret = Hash_DRBG_Reseed(rng, newSeed + SEED_BLOCK_SZ, SEED_SZ,
                                    additional, additionalSz,
-                                   0 /* in_bracketed_consume */, cur_epoch,
+                                   0 /* in_bracketed_consume */,
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+                                   cur_epoch,
+#endif
                                    my_pid);
 
         #if defined(WC_RNG_HAVE_RBGC) && \
@@ -6450,7 +6541,7 @@ out:
 
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
     if ((ret == 0) &&
-        (cur_epoch != WOLFSSL_ATOMIC_LOAD(global_entropy_epoch)))
+        (cur_epoch != current_entropy_epoch()))
     {
         /* An event landed between the caller's capture and here: the material
          * reseeded is possibly pre-event.  The reseed stands (the state is no
@@ -7083,13 +7174,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
     WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_READY;
     int ret;
     int devId;
-    WC_ATOMIC_UINT_ARG cur_epoch =
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-         WOLFSSL_ATOMIC_LOAD(global_entropy_epoch)
-#else
-         0
+    wc_RNG_entropy_epoch_t cur_epoch = current_entropy_epoch();
 #endif
-        ;
     WC_RNG_PID_ARG my_pid = WC_RNG_GETPID();
 #ifdef WC_RNG_HAVE_LOCK
     wc_drbg_reseed_ctr_t baseline_reseedCtr;
@@ -7159,7 +7246,10 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
      * prefix was consumed by the bank-time health testing. */
     ret = Hash_DRBG_Reseed(rng, rng->nextSeed + SEED_BLOCK_SZ, SEED_SZ,
                            addIn, addInSz, 1 /* in_bracketed_consume */,
-                           cur_epoch, my_pid);
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+                           cur_epoch,
+#endif
+                           my_pid);
 
     /* Use-once: consumed by the attempt, success or not.  The scrub must be
      * visible before the aperture reopens. */
@@ -7495,7 +7585,7 @@ static WC_INLINE int RngFailFastVerdict(const WC_RNG* rng)
         return NEEDS_RECOVERY_E;
 #endif
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    if (rng->entropy_epoch != WOLFSSL_ATOMIC_LOAD(global_entropy_epoch))
+    if (rng->entropy_epoch != current_entropy_epoch())
         return NEEDS_RECOVERY_E;
 #endif
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)

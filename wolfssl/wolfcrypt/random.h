@@ -559,10 +559,15 @@ wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
     #endif
 #endif
 
-#if ((defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)) || \
+#if ((defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED) && \
+      defined(WORD64_AVAILABLE)) || \
      defined(WC_RNG_WANT_ENTROPY_EPOCH)) && \
     !defined(WC_RNG_NO_ENTROPY_EPOCH) && !defined(WC_NO_RNG)
+    #if !defined(WOLFSSL_ATOMIC_OPS) || !defined(WORD64_AVAILABLE)
+        #error WC_RNG_HAVE_ENTROPY_EPOCH requires WOLFSSL_ATOMIC_OPS and WORD64_AVAILABLE.
+    #endif
     #define WC_RNG_HAVE_ENTROPY_EPOCH
+    typedef word64 wc_RNG_entropy_epoch_t;
 #endif
 
 /* RNG context */
@@ -572,7 +577,7 @@ struct WC_RNG {
     byte status;
     word32 flags;
   #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    WC_ATOMIC_UINT_ARG entropy_epoch;
+    wc_RNG_entropy_epoch_t entropy_epoch;
   #endif
     #ifdef WC_RNG_DEBUG_STATS
         wc_rng_debug_counter_t _stats_total_bytes_requested;
@@ -1064,8 +1069,8 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
                                                    const byte* addIn,
                                                    word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
-    WOLFSSL_API int wc_RNG_DRBG_NextStirStore(WC_RNG* rng,
-                                              const byte *addIn, word32 addInSz);
+    WOLFSSL_API int wc_RNG_DRBG_NextStirStore(
+        WC_RNG* rng, const byte *addIn, word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_NextStirNow(WC_RNG* rng);
 
 #endif /* WC_RNG_HAVE_NEXT_SEED */
@@ -1112,8 +1117,85 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng);
 WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng);
 
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    WOLFSSL_API WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
-    WOLFSSL_API WC_ATOMIC_UINT_ARG wc_RNG_get_global_entropy_epoch(void);
+    struct wc_RNG_entropy_epoch_atomic {
+        wolfSSL_Atomic_Uint high;
+        wolfSSL_Atomic_Uint low;
+    };
+    #define WC_RNG_ENTROPY_EPOCH_ATOMIC_INITIALIZER { \
+        WOLFSSL_ATOMIC_INITIALIZER(0U), \
+        WOLFSSL_ATOMIC_INITIALIZER(1U)  \
+    }
+    #define WC_RNG_ENTROPY_EPOCH_ATOMIC_INVALID { \
+        WOLFSSL_ATOMIC_INITIALIZER(0U), \
+        WOLFSSL_ATOMIC_INITIALIZER(0U)  \
+    }
+    #define WC_RNG_ENTROPY_EPOCH_INVALID 0
+    static WC_INLINE wc_RNG_entropy_epoch_t wc_RNG_entropy_epoch_export(
+        struct wc_RNG_entropy_epoch_atomic *epoch)
+    {
+        wc_RNG_entropy_epoch_t epoch_export;
+        epoch_export = WOLFSSL_ATOMIC_LOAD(epoch->low);
+        /* A tear here will always preserve the epoch mismatch via the low word,
+         * and at worst have the wrong high word. */
+        epoch_export |=
+            (wc_RNG_entropy_epoch_t)WOLFSSL_ATOMIC_LOAD(epoch->high) <<
+            (wc_RNG_entropy_epoch_t)32;
+        return epoch_export;
+    }
+    static WC_INLINE int wc_RNG_entropy_epoch_import(
+        wc_RNG_entropy_epoch_t old_epoch,
+        wc_RNG_entropy_epoch_t new_epoch,
+        struct wc_RNG_entropy_epoch_atomic *dest)
+    {
+        int ret = 1;
+        WC_ATOMIC_UINT_ARG expected_low = (WC_ATOMIC_UINT_ARG)old_epoch;
+        WC_ATOMIC_UINT_ARG expected_high =
+            (WC_ATOMIC_UINT_ARG)(old_epoch >>
+                                 (wc_RNG_entropy_epoch_t)32);
+        if (! wolfSSL_Atomic_Uint_CompareExchange(
+                &dest->low,
+                &expected_low,
+                (WC_ATOMIC_UINT_ARG)new_epoch))
+            ret = 0;
+        if (((new_epoch >> 32) != (old_epoch >> 32)) &&
+            (! wolfSSL_Atomic_Uint_CompareExchange(
+                &dest->high,
+                &expected_high,
+                (WC_ATOMIC_UINT_ARG)(new_epoch >> (wc_RNG_entropy_epoch_t)32))))
+            ret = 0;
+        return ret;
+    }
+    static WC_INLINE wc_RNG_entropy_epoch_t wc_RNG_entropy_epoch_increment_atomic(
+        struct wc_RNG_entropy_epoch_atomic *epoch)
+    {
+        wc_RNG_entropy_epoch_t new_epoch =
+            wolfSSL_Atomic_Uint_AddFetch(&epoch->low, 1U);
+        if (new_epoch == 0)
+            new_epoch +=
+                (wc_RNG_entropy_epoch_t)wolfSSL_Atomic_Uint_AddFetch(
+                    &epoch->high, 1U) <<
+                (wc_RNG_entropy_epoch_t)32;
+        else {
+            /* Note this is a benign tear between .low and .high here -- worst
+             * case, the returned value glitches high by 2^32 - 1, resulting in
+             * an extra cycle of invalidation and recovery. */
+            new_epoch +=
+                (wc_RNG_entropy_epoch_t)WOLFSSL_ATOMIC_LOAD(epoch->high) <<
+                (wc_RNG_entropy_epoch_t)32;
+        }
+        return new_epoch;
+    }
+    WOLFSSL_API wc_RNG_entropy_epoch_t wc_RNG_global_invalidate_entropy(void);
+    WOLFSSL_API wc_RNG_entropy_epoch_t wc_RNG_get_global_entropy_epoch(void);
+    typedef void (*wc_RNG_entropy_epoch_extra_inv_handler_t)(
+        wc_RNG_entropy_epoch_t epoch, void *arg);
+    WOLFSSL_API int wc_RNG_entropy_epoch_extra_inv_init(
+        wc_RNG_entropy_epoch_extra_inv_handler_t handler, void *arg);
+    typedef wc_RNG_entropy_epoch_t (*wc_RNG_extra_entropy_epoch_get_handler_t)(
+        void *arg);
+    WOLFSSL_API int wc_RNG_extra_entropy_epoch_init(
+        wc_RNG_extra_entropy_epoch_get_handler_t handler,
+        void *arg);
 #endif
 
 #ifdef WC_RNG_HAVE_FREE_HOOK

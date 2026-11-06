@@ -1067,6 +1067,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_INTEL_RDRAND) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_epoch_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_epoch_extra_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(HAVE_SELFTEST) && \
@@ -2971,6 +2972,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RNGEPOCH test failed!\n", ret);
     else
         TEST_PASS("RNGEPOCH test passed!\n");
+    if ((ret = rng_epoch_extra_test()) != 0)
+        TEST_FAIL("RNGEPEXT test failed!\n", ret);
+    else
+        TEST_PASS("RNGEPEXT test passed!\n");
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(HAVE_SELFTEST) && \
@@ -36805,7 +36810,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
     WC_DECLARE_VAR(rng, WC_RNG, 1, HEAP_HINT);
     int rng_inited = 0;
     byte block[32];
-    WC_ATOMIC_UINT_ARG epoch_before, epoch_after;
+    wc_RNG_entropy_epoch_t epoch_before, epoch_after;
 
     RNG_STATS_DECLS;
 
@@ -37170,6 +37175,202 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     }
 #endif /* WC_RNG_SEED_CB && WC_RNG_HAVE_LOCK */
+
+out_l:
+
+    if (rng_inited) {
+        int cleanup_ret = wc_FreeRng(rng);
+        if ((cleanup_ret != 0) && (ret == 0))
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+    }
+    WC_FREE_VAR(rng, HEAP_HINT);
+
+    return ret;
+}
+
+/* Fixtures for rng_epoch_extra_test(): a stand-in "external" epoch word --
+ * the observable surface an mmap'd kernel counter presents, minus the
+ * kernel -- plus a recording publication handler.  Registration is
+ * process-lifetime one-shot by design, so these persist across reruns of
+ * the suite, and stay quiet for later tests: the word only moves when this
+ * test moves it. */
+static wolfSSL_Atomic_Uint rng_epoch_extra_ext_word =
+    WOLFSSL_ATOMIC_INITIALIZER(1U);
+static int rng_epoch_extra_get_zero_mode = 0;
+static void *rng_epoch_extra_get_arg_seen = NULL;
+static int rng_epoch_extra_get_marker = 0;
+static int rng_epoch_extra_inv_marker = 0;
+static unsigned int rng_epoch_extra_inv_count = 0;
+static wc_RNG_entropy_epoch_t rng_epoch_extra_inv_last_epoch = 0;
+static void *rng_epoch_extra_inv_arg_seen = NULL;
+static int rng_epoch_extra_registered = 0;
+
+static wc_RNG_entropy_epoch_t rng_epoch_extra_getCb(void *arg)
+{
+    rng_epoch_extra_get_arg_seen = arg;
+    if (rng_epoch_extra_get_zero_mode)
+        return 0;
+    return WOLFSSL_ATOMIC_LOAD(rng_epoch_extra_ext_word);
+}
+
+static void rng_epoch_extra_invCb(wc_RNG_entropy_epoch_t epoch, void *arg)
+{
+    ++rng_epoch_extra_inv_count;
+    rng_epoch_extra_inv_last_epoch = epoch;
+    rng_epoch_extra_inv_arg_seen = arg;
+}
+
+/* The auxiliary invalidation pathway: one-shot registration semantics for
+ * both handlers, publication of local events to the registered handler
+ * with the registrant's arg, detection of an external edge at the next
+ * epoch-reading call (with relay publication), exactly-once accounting
+ * per edge, and the 0-guard (a signalless getter is inert). */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_extra_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    WC_DECLARE_VAR(rng, WC_RNG, 1, HEAP_HINT);
+    int rng_inited = 0;
+    byte block[32];
+    wc_RNG_entropy_epoch_t epoch_before, epoch_after;
+    unsigned int inv_count_before;
+
+    WOLFSSL_ENTER("rng_epoch_extra_test");
+
+    WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+
+    if (! rng_epoch_extra_registered) {
+        /* refusals leave the slot unclaimed */
+        api_ret = wc_RNG_extra_entropy_epoch_init(NULL, NULL);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+        /* a getter with no signal yet is probed and refused -- and the
+         * probe demonstrably ran, with the caller's arg */
+        rng_epoch_extra_get_zero_mode = 1;
+        rng_epoch_extra_get_arg_seen = NULL;
+        api_ret = wc_RNG_extra_entropy_epoch_init(
+            rng_epoch_extra_getCb, &rng_epoch_extra_get_marker);
+        rng_epoch_extra_get_zero_mode = 0;
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+        if (rng_epoch_extra_get_arg_seen !=
+            (void *)&rng_epoch_extra_get_marker)
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_l);
+        }
+        api_ret = wc_RNG_entropy_epoch_extra_inv_init(NULL, NULL);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+        /* the real registrations */
+        api_ret = wc_RNG_extra_entropy_epoch_init(
+            rng_epoch_extra_getCb, &rng_epoch_extra_get_marker);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+        api_ret = wc_RNG_entropy_epoch_extra_inv_init(
+            rng_epoch_extra_invCb, &rng_epoch_extra_inv_marker);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+        rng_epoch_extra_registered = 1;
+    }
+
+    /* one-shot forever after */
+    api_ret = wc_RNG_extra_entropy_epoch_init(
+        rng_epoch_extra_getCb, &rng_epoch_extra_get_marker);
+    if (api_ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_entropy_epoch_extra_inv_init(
+        rng_epoch_extra_invCb, &rng_epoch_extra_inv_marker);
+    if (api_ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* quiet start: the registration probe primed the shadow word, so a
+     * read is just a read */
+    epoch_before = wc_RNG_get_global_entropy_epoch();
+    if (wc_RNG_get_global_entropy_epoch() != epoch_before)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_l);
+
+    /* a local event publishes the fresh epoch to the registered handler,
+     * with the registrant's arg */
+    inv_count_before = rng_epoch_extra_inv_count;
+    epoch_after = wc_RNG_global_invalidate_entropy();
+    if (epoch_after != epoch_before + 1U)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)epoch_after), out_l);
+    if (rng_epoch_extra_inv_count != inv_count_before + 1U)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_epoch_extra_inv_count), out_l);
+    if (rng_epoch_extra_inv_last_epoch != epoch_after)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_epoch_extra_inv_last_epoch),
+                  out_l);
+    if (rng_epoch_extra_inv_arg_seen != (void *)&rng_epoch_extra_inv_marker)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_l);
+
+    /* an instance stamped now is current */
+    api_ret = wc_InitRng_ex(rng, HEAP_HINT, RNG_DRBG_DEVID);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    rng_inited = 1;
+    api_ret = wc_RNG_entropy_needs_recovery(rng);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* the external edge: the instance learns of it at its next
+     * invalidation check, without anyone calling the invalidator -- the
+     * check itself is the detecting read, and detection relays through
+     * the publication handler */
+    inv_count_before = rng_epoch_extra_inv_count;
+    epoch_before = epoch_after;
+    (void)wolfSSL_Atomic_Uint_AddFetch(&rng_epoch_extra_ext_word, 1U);
+    api_ret = wc_RNG_entropy_needs_recovery(rng);
+    if (api_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    epoch_after = wc_RNG_get_global_entropy_epoch();
+    if (epoch_after != epoch_before + 1U)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)epoch_after), out_l);
+    if (rng_epoch_extra_inv_count != inv_count_before + 1U)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_epoch_extra_inv_count), out_l);
+    if (rng_epoch_extra_inv_last_epoch != epoch_after)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_epoch_extra_inv_last_epoch),
+                  out_l);
+    /* exactly-once per edge: more reads are just reads */
+    if (wc_RNG_get_global_entropy_epoch() != epoch_after)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_l);
+    if (rng_epoch_extra_inv_count != inv_count_before + 1U)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_epoch_extra_inv_count), out_l);
+
+    /* recovery is rng_epoch_test()'s story; here one credited generate
+     * (or a reinit where generate is remote) just clears the verdict so
+     * the 0-guard check below runs against a current instance */
+    if (rng_test_generate_is_local(rng)) {
+        api_ret = wc_RNG_GenerateBlock(rng, block, (word32)sizeof(block));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    }
+    else {
+        api_ret = wc_FreeRng(rng);
+        rng_inited = 0;
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+        api_ret = wc_InitRng_ex(rng, HEAP_HINT, RNG_DRBG_DEVID);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+        rng_inited = 1;
+    }
+    api_ret = wc_RNG_entropy_needs_recovery(rng);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* the 0-guard: a getter with no signal is inert, not an edge */
+    inv_count_before = rng_epoch_extra_inv_count;
+    rng_epoch_extra_get_zero_mode = 1;
+    api_ret = wc_RNG_entropy_needs_recovery(rng);
+    rng_epoch_extra_get_zero_mode = 0;
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (wc_RNG_get_global_entropy_epoch() != epoch_after)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_l);
+    if (rng_epoch_extra_inv_count != inv_count_before)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_epoch_extra_inv_count), out_l);
 
 out_l:
 
