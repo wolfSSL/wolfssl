@@ -4869,6 +4869,8 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
 
     \brief OCSPステータスレスポンスを検証するコールバックを設定します。
 
+    クライアントは処理するステープルOCSPレスポンスごとに、デコードできないものも含めてこのコールバックを呼び出します。クライアント証明書を検証するTLS 1.3サーバーも同様です。errにはライブラリの判定結果(0または負のエラーコード)が渡されます。証明書チェーンの処理は最初に失敗したレスポンスで停止するため、それ以降のレスポンスは渡されません。戻り値がerrを置き換えます。0はレスポンスを受け入れ、負の値はハンドシェイクを失敗させ、正の値はBAD_CERTIFICATE_STATUS_ERRORとして扱われます。
+
     OCSP検証中にピアの証明書チェーンにアクセスできるようにするため、SESSION_CERTSを有効にすることを推奨します。
 
     \param ctx WOLFSSL_CTXオブジェクト。

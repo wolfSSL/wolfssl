@@ -16843,7 +16843,6 @@ int CsrDoChainFallbackLookup(WOLFSSL* ssl, OcspRequest* request, int idx)
      (defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) && \
       defined(HAVE_CERTIFICATE_STATUS_REQUEST)))
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
-#ifndef NO_WOLFSSL_SERVER
 static int CsrDoStatusVerifyCb(WOLFSSL* ssl, byte* input, word32 inputSz, word32 idx,
         int ret)
 {
@@ -16866,7 +16865,6 @@ static int CsrDoStatusVerifyCb(WOLFSSL* ssl, byte* input, word32 inputSz, word32
     }
     return ret;
 }
-#endif /* !NO_WOLFSSL_SERVER */
 
 /* Parses one certificate_status message. TLS 1.3 reads the per-certificate
  * entries of the chain through this, so it is not tied to TLS 1.2. */
@@ -16950,8 +16948,10 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      ssl->heap);
 
     /* Extract producedDate */
-    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 1, 1) != 0)
+    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 1, 1) != 0) {
+        ssl->ocspProducedDateFormat = 0;
         ret = BAD_CERTIFICATE_STATUS_ERROR;
+    }
     if (ret == 0) {
         XMEMCPY(ssl->ocspProducedDate, response->producedDate,
                 sizeof(ssl->ocspProducedDate));
@@ -16972,11 +16972,9 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ret = OCSP_CERT_REVOKED;
         else if (response->single->status->status != CERT_GOOD)
             ret = BAD_CERTIFICATE_STATUS_ERROR;
-
-#ifndef NO_WOLFSSL_SERVER
-        ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx, status_length, idx, ret);
-#endif
     }
+
+    ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx, status_length, idx, ret);
 
     *inOutIdx += status_length;
 
@@ -21269,10 +21267,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* only frees 'single' if single->isDynamic is set */
                     FreeOcspResponse(response);
 
-               #ifndef NO_WOLFSSL_SERVER
                     ret = CsrDoStatusVerifyCb(ssl, input + *inOutIdx,
                                               status_length, idx, ret);
-               #endif
                     if (ret == 0 && idx == 0) /* server cert must be OK */
                         endCertificateOK = 1;
                #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)

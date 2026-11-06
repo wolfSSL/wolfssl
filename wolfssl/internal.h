@@ -4844,12 +4844,15 @@ struct WOLFSSL_CTX {
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* certOcspRequest;
-            ocspVerifyStatusCb ocspStatusVerifyCb;
-            void* ocspStatusVerifyCbArg;
         #endif
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* chainOcspRequest[MAX_CHAIN_DEPTH];
         #endif
+    #endif
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        ocspVerifyStatusCb ocspStatusVerifyCb;
+        void* ocspStatusVerifyCbArg;
     #endif
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */

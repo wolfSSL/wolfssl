@@ -1973,8 +1973,162 @@ int test_ocsp_status_request_v2_multi_revoked_single(void)
 }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 && !WOLFSSL_NO_TLS12 */
 
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+/* A SEQUENCE header that claims more bytes than follow */
+static const byte test_ocsp_undecodable_staple_junk[] = {
+    0x30, 0x05, 0x0a, 0x01, 0x00
+};
+static int test_ocsp_undecodable_staple_calls;
+static int test_ocsp_undecodable_staple_err;
+static word32 test_ocsp_undecodable_staple_idx;
+static word32 test_ocsp_undecodable_staple_sz;
+
+static int test_ocsp_undecodable_staple_status_cb(WOLFSSL* ssl, void* ioCtx)
+{
+    byte* staple;
+
+    (void)ioCtx;
+    staple = (byte*)XMALLOC(sizeof(test_ocsp_undecodable_staple_junk), NULL,
+            0);
+    if (staple == NULL)
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    XMEMCPY(staple, test_ocsp_undecodable_staple_junk,
+            sizeof(test_ocsp_undecodable_staple_junk));
+    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, staple,
+            sizeof(test_ocsp_undecodable_staple_junk), 0) != WOLFSSL_SUCCESS) {
+        XFREE(staple, NULL, 0);
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    }
+    return WOLFSSL_OCSP_STATUS_CB_OK;
+}
+
+static int test_ocsp_undecodable_staple_verify_cb(WOLFSSL* ssl, int err,
+        byte* staple, word32 stapleSz, word32 idx, void* arg)
+{
+    (void)ssl;
+    (void)staple;
+    test_ocsp_undecodable_staple_calls++;
+    test_ocsp_undecodable_staple_err = err;
+    test_ocsp_undecodable_staple_idx = idx;
+    test_ocsp_undecodable_staple_sz = stapleSz;
+    return (arg != NULL) ? 0 : err;
+}
+
+/*
+ * The OCSP status verify callback sees a stapled response that does not
+ * decode, and can override the error like any other staple failure.
+ */
+int test_ocsp_status_verify_cb_undecodable_staple(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    int override;
+    WOLFSSL_ALERT_HISTORY h;
+#ifndef NO_ASN_TIME
+    byte date[MAX_DATE_SIZE];
+    int fmt = 0;
+#endif
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+    } params[] = {
+#if !defined(WOLFSSL_NO_TLS12)
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2" },
+#endif
+#ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3" },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        for (override = 0; override <= 1 && !EXPECT_FAIL(); override++) {
+            struct test_ssl_memio_ctx test_ctx;
+
+            printf("\nTesting %s, %s\n", params[i].tls_version,
+                    override ? "callback overrides" : "callback keeps error");
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            test_ctx.c_cb.caPemFile = "";
+            test_ctx.s_cb.certPemFile = "";
+            test_ctx.s_cb.keyPemFile = "";
+            test_ctx.c_cb.method = params[i].client_meth;
+            test_ctx.s_cb.method = params[i].server_meth;
+            test_ocsp_tls_cert_cb_opts.chainLen = 1;
+            test_ocsp_tls_cert_cb_opts.failStaple = 0;
+            test_ctx.s_cb.ctx_ready = test_ocsp_tls_cert_cb_ctx_ready;
+
+            ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_UnloadCertsKeys(test_ctx.s_ssl),
+                    WOLFSSL_SUCCESS);
+
+            ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.s_ctx),
+                    WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx,
+                    test_ocsp_undecodable_staple_status_cb), WOLFSSL_SUCCESS);
+
+            wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT,
+                    test_ocsp_tls_cert_cb_verify_cb);
+            wolfSSL_SetCertCbCtx(test_ctx.c_ssl, test_ctx.c_ssl);
+            wolfSSL_CTX_set_ocsp_status_verify_cb(test_ctx.c_ctx,
+                    test_ocsp_undecodable_staple_verify_cb,
+                    override ? &test_ctx : NULL);
+            ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx),
+                    WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                    WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+
+        #ifndef NO_ASN_TIME
+            /* Stale date from an earlier staple */
+            if (test_ctx.c_ssl != NULL) {
+                XSTRNCPY((char*)test_ctx.c_ssl->ocspProducedDate,
+                        "260101000000Z",
+                        sizeof(test_ctx.c_ssl->ocspProducedDate));
+                test_ctx.c_ssl->ocspProducedDateFormat = ASN_UTC_TIME;
+            }
+        #endif
+
+            test_ocsp_undecodable_staple_calls = 0;
+            test_ocsp_undecodable_staple_err = 0;
+            test_ocsp_undecodable_staple_idx = 1;
+            test_ocsp_undecodable_staple_sz = 0;
+            ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                    override ? TEST_SUCCESS : TEST_FAIL);
+            ExpectIntEQ(test_ocsp_undecodable_staple_calls, 1);
+            ExpectIntEQ(test_ocsp_undecodable_staple_err,
+                    WC_NO_ERR_TRACE(BAD_CERTIFICATE_STATUS_ERROR));
+            ExpectIntEQ(test_ocsp_undecodable_staple_idx, 0);
+            ExpectIntEQ(test_ocsp_undecodable_staple_sz,
+                    sizeof(test_ocsp_undecodable_staple_junk));
+            if (!override) {
+                ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                        WOLFSSL_SUCCESS);
+                ExpectIntEQ(h.last_rx.level, alert_fatal);
+                ExpectIntEQ(h.last_rx.code, bad_certificate_status_response);
+            }
+        #ifndef NO_ASN_TIME
+            ExpectIntEQ(wolfSSL_get_ocsp_producedDate(test_ctx.c_ssl, date,
+                    sizeof(date), &fmt), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        #endif
+
+            test_ssl_memio_cleanup(&test_ctx);
+        }
+    }
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_status_verify_cb_undecodable_staple(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
+
 #else  /* feature guards */
 int test_ocsp_tls_cert_cb(void)
+{
+    return TEST_SKIPPED;
+}
+int test_ocsp_status_verify_cb_undecodable_staple(void)
 {
     return TEST_SKIPPED;
 }

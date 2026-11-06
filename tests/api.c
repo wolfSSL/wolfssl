@@ -48029,6 +48029,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_ocsp_resp_times),
     TEST_DECL(test_ocsp_tls_cert_cb),
     TEST_DECL_GROUP("ocsp", test_ocsp_status_request_v2_multi_revoked_single),
+    TEST_DECL_GROUP("ocsp", test_ocsp_status_verify_cb_undecodable_staple),
     TEST_DECL_GROUP("ocsp", test_ocsp_cert_unknown_crl_fallback),
     TEST_DECL_GROUP("ocsp", test_ocsp_cert_unknown_crl_fallback_nonleaf),
     TEST_DECL_GROUP("ocsp", test_ocsp_no_url_policy),

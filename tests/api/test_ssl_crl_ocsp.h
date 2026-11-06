@@ -28,6 +28,7 @@ int test_wolfSSL_ocsp_url_api(void);
 int test_wolfSSL_get_ocsp_producedDate(void);
 int test_wolfSSL_tlsext_status_type(void);
 int test_wolfSSL_CTX_tlsext_status_cb(void);
+int test_wolfSSL_CTX_set_ocsp_status_verify_cb(void);
 int test_wolfSSL_tlsext_status_ocsp_resp(void);
 int test_wolfSSL_OCSP_parse_url_api(void);
 int test_ssl_crl_ocsp_decision_coverage(void);
@@ -37,6 +38,8 @@ int test_ssl_crl_ocsp_decision_coverage(void);
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_get_ocsp_producedDate),   \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_tlsext_status_type),      \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_CTX_tlsext_status_cb),    \
+        TEST_DECL_GROUP("ssl_crl_ocsp",                                        \
+                        test_wolfSSL_CTX_set_ocsp_status_verify_cb),           \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_tlsext_status_ocsp_resp), \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_OCSP_parse_url_api), \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_ssl_crl_ocsp_decision_coverage)
