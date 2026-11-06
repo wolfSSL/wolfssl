@@ -6134,10 +6134,10 @@ int test_dtls12_nonblock_ocsp(void)
 }
 #endif
 
-/* WOLFSSL_COPY_CERT (implied by OPENSSL_ALL) gives every WOLFSSL its own copy of
- * the CTX certificate, which sets ssl->buffers.weOwnCert and takes the CTX
- * request cache out of play entirely - there is nothing to test in that
- * configuration. */
+/* WOLFSSL_COPY_CERT (implied by OPENSSL_ALL) gives every WOLFSSL its own
+ * reference to, or copy of, the CTX certificate, which sets
+ * ssl->buffers.weOwnCert and takes the CTX request cache out of play entirely -
+ * there is nothing to test in that configuration. */
 #if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER) && \
@@ -6257,7 +6257,8 @@ int test_ocsp_status_verify_cb_would_block(void)
     defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER) &&    \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                  \
     !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_COPY_CERT) &&      \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_SHA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) &&                  \
+    !defined(NO_RSA) && !defined(NO_SHA) && \
     !defined(NO_ASN_TIME)
 
 /* Number of times the server's OCSP IO callback has been called. */
@@ -6441,8 +6442,269 @@ int test_ocsp_ctx_request_cache(void)
 
     return EXPECT_RESULT();
 }
+
+/* Replaces the server certificate and key on the CTX. With "x509Api" set the
+ * certificate goes in through wolfSSL_CTX_use_certificate(), otherwise through
+ * the file loader, so both ways of replacing it are covered. */
+static int test_ocsp_ctx_request_rotate_cert(WOLFSSL_CTX* ctx,
+    const char* certFile, const char* keyFile, int x509Api)
+{
+    EXPECT_DECLS;
+
+#ifdef OPENSSL_EXTRA
+    if (x509Api) {
+        WOLFSSL_X509* x509 = NULL;
+
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(certFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_CTX_use_certificate(ctx, x509), WOLFSSL_SUCCESS);
+        wolfSSL_X509_free(x509);
+    }
+    else
+#endif
+    {
+        (void)x509Api;
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, certFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* The cached leaf request is built from the CTX certificate, so it has to go
+ * when that certificate is replaced. Otherwise every later connection asks the
+ * responder about, and staples the status of, the certificate the CTX used to
+ * have.
+ *
+ * Runs three handshakes over one CTX pair:
+ *   pass 0 - server1, builds the request and caches it,
+ *   pass 1 - after a switch to server2 through the file loader,
+ *   pass 2 - after a switch back to server1 through
+ *            wolfSSL_CTX_use_certificate() (the file loader without
+ *            OPENSSL_EXTRA).
+ * Both certificates have the same issuer and differ only in serial number
+ * (05 and 06), which is what the cached request is checked against. The
+ * responder always answers for server1, so pass 1 is only about which request
+ * went out, and pass 2 has to complete.
+ */
+int test_ocsp_ctx_request_cache_cert_change(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    int          i;
+    struct test_memio_ctx test_ctx;
+    static const byte serials[3] = { 0x05, 0x06, 0x05 };
+
+    test_ocsp_ctx_request_cache_cb_cnt = 0;
+    test_ocsp_ctx_request_cache_firstSz = 0;
+    test_ocsp_ctx_request_cache_differs = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* The chain file leaves intermediate1 on the CTX as the chain, which is
+     * also the issuer of server2, so only the leaf changes below. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/ocsp/server1-chain-noroot.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s,
+        "./certs/ocsp/server1-key.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx_s, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx_s,
+        WOLFSSL_OCSP_NO_NONCE | WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx_s,
+        test_ocsp_ctx_request_cache_io_cb, NULL, NULL), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < 3 && EXPECT_SUCCESS(); i++) {
+        if (i == 1) {
+            ExpectIntEQ(test_ocsp_ctx_request_rotate_cert(ctx_s,
+                "./certs/ocsp/server2-cert.pem",
+                "./certs/ocsp/server2-key.pem", 0), TEST_SUCCESS);
+        }
+        else if (i == 2) {
+            ExpectIntEQ(test_ocsp_ctx_request_rotate_cert(ctx_s,
+                "./certs/ocsp/server1-cert.pem",
+                "./certs/ocsp/server1-key.pem", 1), TEST_SUCCESS);
+        }
+        if (i > 0) {
+            /* Replacing the certificate drops the request built from the old
+             * one. */
+            ExpectNull(ctx_s->certOcspRequest);
+        }
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP, 0),
+            WOLFSSL_SUCCESS);
+
+        if (i == 1) {
+            /* The canned response is for server1, so whether this handshake
+             * completes is not the point. */
+            (void)test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+        }
+        else {
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+
+        ExpectIntEQ(test_ocsp_ctx_request_cache_cb_cnt, i + 1);
+        /* The responder was asked about the certificate in use: pass 1 sent
+         * something other than pass 0, pass 2 the same as pass 0 again. */
+        if (i > 0) {
+            ExpectIntEQ(test_ocsp_ctx_request_cache_differs, i == 1);
+        }
+        /* The request now cached is for the certificate in use. */
+        ExpectNotNull(ctx_s->certOcspRequest);
+        if (ctx_s->certOcspRequest != NULL) {
+            ExpectIntEQ(ctx_s->certOcspRequest->serialSz, 1);
+            if (ctx_s->certOcspRequest->serialSz == 1) {
+                ExpectIntEQ(ctx_s->certOcspRequest->serial[0], serials[i]);
+            }
+        }
+
+        /* The connections share the CTX certificate, so they have to be gone
+         * before it is replaced. */
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
+/* When set, the IO callback below drops the cached request of this CTX. */
+static WOLFSSL_CTX* test_ocsp_ctx_request_drop_ctx;
+
+/* Drops the CTX's cached request from inside the responder lookup, as
+ * replacing the CTX certificate does, while a connection is still checking the
+ * request it took from the cache. With two threads that is a certificate reload
+ * while a lookup blocks on the responder. The certificate itself is left alone:
+ * the connection borrows it from the CTX in these builds. */
+static int test_ocsp_ctx_request_drop_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** respBuf)
+{
+    if (test_ocsp_ctx_request_drop_ctx != NULL) {
+        FreeCtxOcspRequestCache(test_ocsp_ctx_request_drop_ctx);
+    }
+    return test_ocsp_ctx_request_cache_io_cb(ioCtx, url, urlSz, req, reqSz,
+        respBuf);
+}
+
+/* The CTX can drop its cached request while a connection is checking the one
+ * it got from the cache: connections only use a copy. The second handshake's
+ * request comes from the cache, and the cache is dropped from inside that
+ * handshake's responder lookup. The connection has to finish its check, after
+ * the lookup, on a request that is still there (ASan), and the handshake has
+ * to complete. */
+int test_ocsp_ctx_request_cache_drop_in_use(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    int          i;
+    struct test_memio_ctx test_ctx;
+
+    test_ocsp_ctx_request_cache_cb_cnt = 0;
+    test_ocsp_ctx_request_cache_firstSz = 0;
+    test_ocsp_ctx_request_cache_differs = 0;
+    test_ocsp_ctx_request_drop_ctx = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/ocsp/server1-chain-noroot.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s,
+        "./certs/ocsp/server1-key.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx_s, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx_s,
+        WOLFSSL_OCSP_NO_NONCE | WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx_s,
+        test_ocsp_ctx_request_drop_io_cb, NULL, NULL), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        /* Pass 0 builds and caches the request, pass 1 uses the cache. */
+        test_ocsp_ctx_request_drop_ctx = (i == 1) ? ctx_s : NULL;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(test_ocsp_ctx_request_cache_cb_cnt, i + 1);
+        if (i == 0) {
+            ExpectNotNull(ctx_s->certOcspRequest);
+        }
+        else {
+            /* Dropped from inside the lookup, and not cached again: this
+             * connection's request came from the cache. */
+            ExpectNull(ctx_s->certOcspRequest);
+        }
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
+    test_ocsp_ctx_request_drop_ctx = NULL;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
 #else
 int test_ocsp_ctx_request_cache(void)
+{
+    return TEST_SKIPPED;
+}
+int test_ocsp_ctx_request_cache_cert_change(void)
+{
+    return TEST_SKIPPED;
+}
+int test_ocsp_ctx_request_cache_drop_in_use(void)
 {
     return TEST_SKIPPED;
 }

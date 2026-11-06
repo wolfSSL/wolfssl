@@ -6350,14 +6350,12 @@ int test_ssl_cert_decision_coverage(void)
         ssl->buffers.key = NULL;
         (void)wolfSSL_UnloadCertsKeys(ssl);
 
-        key = (DerBuffer*)XMALLOC(sizeof(DerBuffer), ssl->heap,
-                                  DYNAMIC_TYPE_DER);
-        ExpectNotNull(key);
+        /* A key with no buffer. AllocDer() sets up everything FreeDer()
+         * relies on, such as the reference count with WOLFSSL_DER_REFCOUNT. */
+        key = NULL;
+        ExpectIntEQ(AllocDer(&key, 0, PRIVATEKEY_TYPE, ssl->heap), 0);
         if (key != NULL) {
-            XMEMSET(key, 0, sizeof(DerBuffer));
-            key->heap = ssl->heap;
-            key->type = PRIVATEKEY_TYPE;
-            key->dynType = DYNAMIC_TYPE_DER;
+            key->buffer = NULL;
             ssl->buffers.key = key;
             ssl->buffers.weOwnKey = 1;
             (void)wolfSSL_UnloadCertsKeys(ssl);

@@ -5163,24 +5163,18 @@ static int test_wolfSSL_CTX_add_extra_chain_cert_counts(void)
     /* A rejected append must leave the count alone. Plant a chain long enough
      * that appending overflows the size calculation. */
     if (EXPECT_SUCCESS()) {
-        fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16, ctx->heap,
-            DYNAMIC_TYPE_CERT);
-        ExpectNotNull(fakeChain);
+        /* AllocDer() sets up everything FreeDer() relies on, such as the
+         * reference count with WOLFSSL_DER_REFCOUNT. */
+        ExpectIntEQ(AllocDer(&fakeChain, 16, CERT_TYPE, ctx->heap), 0);
     }
     if (EXPECT_SUCCESS()) {
-        XMEMSET(fakeChain, 0, sizeof(DerBuffer) + 16);
-        fakeChain->buffer = (byte*)(fakeChain + 1);
         fakeChain->length = WOLFSSL_MAX_32BIT - 2;
-        fakeChain->type = CERT_TYPE;
-        fakeChain->dynType = DYNAMIC_TYPE_CERT;
         /* Replace the real chain with the fake one. */
-        if (ctx->certChain != NULL) {
-            XFREE(ctx->certChain, ctx->heap, DYNAMIC_TYPE_CERT);
-        }
+        FreeDer(&ctx->certChain);
         ctx->certChain = fakeChain;
     }
     else {
-        XFREE(fakeChain, (ctx != NULL) ? ctx->heap : NULL, DYNAMIC_TYPE_CERT);
+        FreeDer(&fakeChain);
     }
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
@@ -5363,24 +5357,18 @@ static int test_wolfSSL_add_to_chain_overflow(void)
         /* Now ctx->certificate is set, next add goes to certChain via
          * wolfssl_add_to_chain.  Fake a chain whose length is near UINT32_MAX
          * so the size calculation (len + CERT_HEADER_SZ + certSz) overflows. */
-        fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16, ctx->heap,
-            DYNAMIC_TYPE_CERT);
-        ExpectNotNull(fakeChain);
+        /* AllocDer() sets up everything FreeDer() relies on, such as the
+         * reference count with WOLFSSL_DER_REFCOUNT. */
+        ExpectIntEQ(AllocDer(&fakeChain, 16, CERT_TYPE, ctx->heap), 0);
     }
     if (EXPECT_SUCCESS()) {
-        XMEMSET(fakeChain, 0, sizeof(DerBuffer) + 16);
-        fakeChain->buffer = (byte*)(fakeChain + 1);
         fakeChain->length = WOLFSSL_MAX_32BIT - 2; /* will overflow with any cert */
-        fakeChain->type = CERT_TYPE;
-        fakeChain->dynType = DYNAMIC_TYPE_CERT;
         /* Replace the real chain with our fake one. */
-        if (ctx->certChain != NULL) {
-            XFREE(ctx->certChain, ctx->heap, DYNAMIC_TYPE_CERT);
-        }
+        FreeDer(&ctx->certChain);
         ctx->certChain = fakeChain;
     }
     else {
-        XFREE(fakeChain, ctx ? ctx->heap : NULL, DYNAMIC_TYPE_CERT);
+        FreeDer(&fakeChain);
     }
 
     /* Try to add another cert - this MUST fail due to overflow guard. */
@@ -35545,11 +35533,22 @@ static int test_wolfSSL_set_SSL_CTX(void)
     ExpectIntEQ(XMEMCMP(ssl->sessionCtx, session_id2, 4), 0);
 #endif
 #ifdef WOLFSSL_COPY_CERT
+    /* The SSL holds its own reference to the CTX buffer, or its own copy. */
     if (ctx2 != NULL && ctx2->certificate != NULL) {
+    #ifdef WOLFSSL_DER_REFCOUNT
+        ExpectTrue(ssl->buffers.certificate == ctx2->certificate);
+    #else
         ExpectFalse(ssl->buffers.certificate == ctx2->certificate);
+    #endif
+        ExpectIntEQ(ssl->buffers.weOwnCert, 1);
     }
     if (ctx2 != NULL && ctx2->certChain != NULL) {
+    #ifdef WOLFSSL_DER_REFCOUNT
+        ExpectTrue(ssl->buffers.certChain == ctx2->certChain);
+    #else
         ExpectFalse(ssl->buffers.certChain == ctx2->certChain);
+    #endif
+        ExpectIntEQ(ssl->buffers.weOwnCertChain, 1);
     }
 #else
     ExpectTrue(ssl->buffers.certificate == ctx2->certificate);
@@ -35574,10 +35573,20 @@ static int test_wolfSSL_set_SSL_CTX(void)
 #ifdef WOLFSSL_INT_H
 #ifdef WOLFSSL_COPY_CERT
     if (ctx1 != NULL && ctx1->certificate != NULL) {
+    #ifdef WOLFSSL_DER_REFCOUNT
+        ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
+    #else
         ExpectFalse(ssl->buffers.certificate == ctx1->certificate);
+    #endif
+        ExpectIntEQ(ssl->buffers.weOwnCert, 1);
     }
     if (ctx1 != NULL && ctx1->certChain != NULL) {
+    #ifdef WOLFSSL_DER_REFCOUNT
+        ExpectTrue(ssl->buffers.certChain == ctx1->certChain);
+    #else
         ExpectFalse(ssl->buffers.certChain == ctx1->certChain);
+    #endif
+        ExpectIntEQ(ssl->buffers.weOwnCertChain, 1);
     }
 #else
     ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
@@ -35587,9 +35596,19 @@ static int test_wolfSSL_set_SSL_CTX(void)
         ExpectIntGT(ctx1->certChainCnt, 0);
         ExpectIntEQ(ssl->buffers.certChainCnt, ctx1->certChainCnt);
     }
-#if defined(WOLFSSL_COPY_KEY) || defined(WOLFSSL_BLIND_PRIVATE_KEY)
+#if defined(WOLFSSL_BLIND_PRIVATE_KEY)
+    /* Blinded with its own mask, so always a copy. */
     if (ctx1 != NULL && ctx1->privateKey != NULL) {
         ExpectFalse(ssl->buffers.key == ctx1->privateKey);
+        ExpectIntEQ(ssl->buffers.weOwnKey, 1);
+    }
+#elif defined(WOLFSSL_COPY_KEY)
+    if (ctx1 != NULL && ctx1->privateKey != NULL) {
+    #ifdef WOLFSSL_DER_REFCOUNT
+        ExpectTrue(ssl->buffers.key == ctx1->privateKey);
+    #else
+        ExpectFalse(ssl->buffers.key == ctx1->privateKey);
+    #endif
         ExpectIntEQ(ssl->buffers.weOwnKey, 1);
     }
 #else
@@ -35651,7 +35670,12 @@ static int test_wolfSSL_set_SSL_CTX(void)
 #ifdef WOLFSSL_INT_H
     if (ssl != NULL && ctx1 != NULL) {
     #ifdef WOLFSSL_COPY_CERT
+        /* Its own reference to the buffer of ctx1, or its own copy. */
+        #ifdef WOLFSSL_DER_REFCOUNT
+        ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
+        #else
         ExpectFalse(ssl->buffers.certificate == ctx1->certificate);
+        #endif
         ExpectIntEQ(ssl->buffers.weOwnCert, 1);
     #else
         ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
@@ -48064,6 +48088,8 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_ocsp_status_verify_cb_would_block),
     TEST_DECL_GROUP("ocsp", test_dtls12_nonblock_ocsp),
     TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache),
+    TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache_cert_change),
+    TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache_drop_in_use),
     TEST_DECL_GROUP("ocsp", test_ocsp_responder),
     TEST_DECL_GROUP("ocsp", test_wolfIO_DecodeUrl_crlf_reject),
     TEST_DECL_GROUP("ocsp", test_wolfIO_DecodeUrl_host_bounds),
