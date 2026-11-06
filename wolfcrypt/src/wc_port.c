@@ -2639,6 +2639,12 @@ int wolfSSL_Atomic_Ptr_CompareExchange(
 
 #endif /* WOLFSSL_ATOMIC_OPS */
 
+/* Make sure the pointer size assumptions of
+ * wolfSSL_Atomic_Func_Ptr_CompareExchange() are met. */
+#ifdef wolfSSL_Atomic_Func_Ptr_CompareExchange
+    wc_static_assert(sizeof(void (*)(void)) == sizeof(void *));
+#endif
+
 #if !defined(SINGLE_THREADED)
 
 void wolfSSL_RefWithMutexInit(wolfSSL_RefWithMutex* ref, int* err)

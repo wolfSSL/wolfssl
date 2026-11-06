@@ -831,6 +831,12 @@
     }
 #endif
 
+#define wolfSSL_Atomic_Func_Ptr_CompareExchange(c, expected_ptr, new_ptr) \
+        wolfSSL_Atomic_Ptr_CompareExchange(                               \
+            (void * volatile *)(c),                                       \
+            (void **)(expected_ptr),                                      \
+            (void *)(wc_ptr_t)(new_ptr))
+
 /*** Macro abstractions for compare-and-exchange retry loops, allowing ***/
 /*** platform-specific instrumentation and failure paths.              ***/
 
