@@ -37349,8 +37349,10 @@ static int DecodeSingleResponse(const byte* source, word32* ioIndex,
     DECL_ASNGETDATA(dataASN, singleResponseASN_Length);
     int ret = 0;
     CertStatus* cs = NULL;
-    word32 thisDateLen;
-    word32 nextDateLen;
+    /* Maximum lengths for the date buffers. Initialized here so MSVC does not
+     * warn (C4701) about the WOLFSSL_OCSP_PARSE_STATUS uses below. */
+    word32 thisDateLen = MAX_DATE_SIZE;
+    word32 nextDateLen = MAX_DATE_SIZE;
     word32 certIdSeqIdx;
 
     (void)wrapperSz;
@@ -37361,10 +37363,6 @@ static int DecodeSingleResponse(const byte* source, word32* ioIndex,
 
     if (ret == 0) {
         cs = single->status;
-        /* Set maximum lengths for data. */
-        thisDateLen      = MAX_DATE_SIZE;
-        nextDateLen      = MAX_DATE_SIZE;
-
         /* Set OID type, buffers to hold data and variables to hold size. */
         GetASN_Buffer(&dataASN[SINGLERESPONSEASN_IDX_THISUPDATE_GT],
                 cs->thisDate, &thisDateLen);
