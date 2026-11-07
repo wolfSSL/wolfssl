@@ -3978,7 +3978,450 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_SMALL_CERT_VERIFY) && \
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    !defined(NO_ASN_TIME_CHECK)
+
+#define TEST_CA_DATE_DAY ((time_t)86400)
+
+static time_t test_ca_date_now = 0;
+
+/* Report test_ca_date_now as the current time. */
+static time_t test_ca_date_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_ca_date_now;
+
+    return test_ca_date_now;
+}
+
+/* Stand in for an application that accepts an expired certificate. */
+static int test_ca_date_accept_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    if (store->error == WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED)
+#else
+    if (store->error == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))
+#endif
+        return 1;
+
+    return preverify;
+}
+
+/* Stand in for an application that accepts a certificate that is not yet
+ * valid. */
+static int test_ca_date_accept_early_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    if (store->error == WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID)
+#else
+    if (store->error == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E))
+#endif
+        return 1;
+
+    return preverify;
+}
+
+/* Stand in for an application that accepts an expired CA only where the peer
+ * sends it, at depth 1. */
+static int test_ca_date_accept_depth1_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    if (store->error_depth == 1)
+        return test_ca_date_accept_cb(preverify, store);
+
+    return preverify;
+}
+
+/* Build a CA:TRUE certificate for subjKey. A NULL issuerDer makes it
+ * self-signed, otherwise it is signed by issuerKey in the name of issuerDer.
+ * When akid is set the Authority Key Identifier names the signing key,
+ * otherwise the extension is left out. Returns the DER length, or < 0 on
+ * failure. */
+static int test_ca_date_gen_ca(byte* out, int outMax, RsaKey* subjKey,
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
+    const char* cn, int akid)
+{
+    Cert cert;
+    int  ret = 0;
+    RsaKey* signKey = (issuerDer == NULL) ? subjKey : issuerKey;
+
+    if (wc_InitCert(&cert) != 0)
+        return -1;
+    cert.isCA    = 1;
+    cert.sigType = CTC_SHA256wRSA;
+    XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    if (wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL) != 0)
+        ret = -1;
+    if (ret == 0 && akid &&
+            wc_SetAuthKeyIdFromPublicKey(&cert, signKey, NULL) != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetKeyUsage(&cert, "keyCertSign,cRLSign") != 0)
+        ret = -1;
+    /* wc_InitCert() leaves selfSigned set, so naming no issuer is what makes
+     * the generated certificate self-signed. */
+    if (ret == 0 && issuerDer != NULL &&
+            wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz) != 0)
+        ret = -1;
+    if (ret == 0)
+        ret = wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng);
+    if (ret >= 0)
+        ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+            signKey, NULL, rng);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+    return ret;
+}
+
+/* Connect a new client from *ctx_c to a new server that presents chainDer,
+ * with the clock at now. *ctx_c is created on the first call and trusts only
+ * rootDer, so later calls share its certificate manager. The client's error,
+ * or 0 when the handshake completes, is returned through hsRet. */
+static int test_ca_date_connect(WOLFSSL_CTX** ctx_c, const byte* rootDer,
+    int rootSz, const byte* chainDer, int chainSz, time_t now,
+    VerifyCallback verifyCb, int* hsRet)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    *hsRet = -1;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)rootDer, rootSz, (byte*)chainDer, chainSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, verifyCb);
+        test_ca_date_now = now;
+        ExpectIntEQ(wc_SetTimeCb(test_ca_date_time_cb), 0);
+        if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) == 0)
+            *hsRet = 0;
+        else
+            *hsRet = wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR);
+        (void)wc_SetTimeCb(NULL);
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
+/* Verify leafDer with a certificate manager that trusts rootDer and holds
+ * caDer as a CA of type caType. A non-NULL subDer is a CA issued by caDer and
+ * is held as a CA of type subType. The clock is at now and a non-NULL
+ * verifyCb is the verify callback. Returns the result of
+ * wolfSSL_CertManagerVerifyBuffer(), or -1 when the setup fails. */
+static int test_ca_date_cm_verify(const byte* rootDer, int rootSz,
+    const byte* caDer, int caSz, int caType, const byte* subDer, int subSz,
+    int subType, const byte* leafDer, int leafSz, time_t now,
+    VerifyCallback verifyCb)
+{
+    WOLFSSL_CERT_MANAGER* cm;
+    int ret = -1;
+
+    cm = wolfSSL_CertManagerNew();
+    if (cm == NULL)
+        return ret;
+
+#ifndef NO_WOLFSSL_CM_VERIFY
+    if (verifyCb != NULL)
+        wolfSSL_CertManagerSetVerify(cm, verifyCb);
+#else
+    (void)verifyCb;
+#endif
+    if (wolfSSL_CertManagerLoadCABuffer(cm, rootDer, rootSz,
+            WOLFSSL_FILETYPE_ASN1) == WOLFSSL_SUCCESS &&
+        wolfSSL_CertManagerLoadCABufferType(cm, caDer, caSz,
+            WOLFSSL_FILETYPE_ASN1, 0, WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS,
+            caType) == WOLFSSL_SUCCESS &&
+        (subDer == NULL ||
+         wolfSSL_CertManagerLoadCABufferType(cm, subDer, subSz,
+            WOLFSSL_FILETYPE_ASN1, 0, WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS,
+            subType) == WOLFSSL_SUCCESS)) {
+        test_ca_date_now = now;
+        if (wc_SetTimeCb(test_ca_date_time_cb) == 0) {
+            ret = wolfSSL_CertManagerVerifyBuffer(cm, leafDer, leafSz,
+                WOLFSSL_FILETYPE_ASN1);
+            (void)wc_SetTimeCb(NULL);
+        }
+    }
+    wolfSSL_CertManagerFree(cm);
+
+    return ret;
+}
+#endif /* cached chain CA date test dependencies */
+
+/* Test that a CA cached from a peer's chain is not used once it has expired.
+ *
+ * After a handshake the client keeps the intermediate CA that the server sent.
+ * A later server that sends only its leaf is verified with that cached CA, so
+ * the CA's dates must be checked then too: the client must fail the same way
+ * it does when the expired CA is sent. A CA renewed with the same key and sent
+ * again replaces the cached dates. A CA that the application loaded is a trust
+ * anchor and its dates are not checked again.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_chain_ca_cached_dates(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    !defined(NO_ASN_TIME_CHECK)
+    const byte* rootDer = ca_cert_der_2048;
+    int rootSz = (int)sizeof_ca_cert_der_2048;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WC_RNG rng;
+    RsaKey caKey;
+    RsaKey intKey;
+    RsaKey leafKey;
+    int rngInit = 0;
+    int caInit = 0;
+    int intInit = 0;
+    int leafInit = 0;
+    byte* oldCaDer = NULL;
+    byte* newCaDer = NULL;
+    byte* chainDer = NULL;
+    byte* earlyDer = NULL;
+    byte* selfDer = NULL;
+    byte* noAkidDer = NULL;
+    byte* subDer = NULL;
+    byte* subLeafDer = NULL;
+    int oldCaSz = 0;
+    int newCaSz = 0;
+    int leafSz = 0;
+    int earlySz = 0;
+    int selfSz = 0;
+    int noAkidSz = 0;
+    int subSz = 0;
+    int subLeafSz = 0;
+    int hsRet = -1;
+    time_t now = wc_Time(NULL);
+    /* The old CA expires in 100 days. The leaf and the renewed CA are valid
+     * for 500 days. */
+    time_t later = now + 200 * TEST_CA_DATE_DAY;
+    word32 idx;
+
+    ExpectNotNull(oldCaDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(newCaDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(chainDer = (byte*)XMALLOC(3 * TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(earlyDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(selfDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(noAkidDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(subDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(subLeafDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        (word32)sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
+    if (EXPECT_SUCCESS()) intInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &intKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    /* The old CA was issued 400 days ago and is valid for 500 days. The
+     * renewed CA has the same name and key and is issued now. */
+    if (EXPECT_SUCCESS()) {
+        test_ca_date_now = now - 400 * TEST_CA_DATE_DAY;
+        ExpectIntEQ(wc_SetTimeCb(test_ca_date_time_cb), 0);
+        ExpectIntGT((oldCaSz = test_eku_gen_ca(oldCaDer, TEST_EKU_CERT_BUF_SZ,
+            &intKey, rootDer, rootSz, &caKey, &rng, NULL, "CA Date Inter", 0,
+            NULL)), 0);
+        (void)wc_SetTimeCb(NULL);
+    }
+    ExpectIntGT((newCaSz = test_eku_gen_ca(newCaDer, TEST_EKU_CERT_BUF_SZ,
+        &intKey, rootDer, rootSz, &caKey, &rng, NULL, "CA Date Inter", 0,
+        NULL)), 0);
+    /* chainDer holds the leaf followed by the old CA. */
+    ExpectIntGT((leafSz = test_eku_gen_leaf(chainDer, TEST_EKU_CERT_BUF_SZ,
+        &leafKey, oldCaDer, oldCaSz, &intKey, &rng)), 0);
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, oldCaDer, (size_t)oldCaSz);
+    /* A leaf from the old CA that is not valid until after later. */
+    if (EXPECT_SUCCESS()) {
+        test_ca_date_now = later + 10 * TEST_CA_DATE_DAY;
+        ExpectIntEQ(wc_SetTimeCb(test_ca_date_time_cb), 0);
+        ExpectIntGT((earlySz = test_eku_gen_leaf(earlyDer,
+            TEST_EKU_CERT_BUF_SZ, &leafKey, oldCaDer, oldCaSz, &intKey, &rng)),
+            0);
+        (void)wc_SetTimeCb(NULL);
+    }
+    /* A self-signed certificate with the name and key of the old CA. */
+    ExpectIntGT((selfSz = test_ca_date_gen_ca(selfDer, TEST_EKU_CERT_BUF_SZ,
+        &intKey, NULL, 0, NULL, &rng, "CA Date Inter", 1)), 0);
+    /* The old CA renewed with no Authority Key Identifier. */
+    ExpectIntGT((noAkidSz = test_ca_date_gen_ca(noAkidDer,
+        TEST_EKU_CERT_BUF_SZ, &intKey, rootDer, rootSz, &caKey, &rng,
+        "CA Date Inter", 0)), 0);
+    /* A CA below the old CA that the application loads, and its leaf. */
+    ExpectIntGT((subSz = test_eku_gen_ca(subDer, TEST_EKU_CERT_BUF_SZ,
+        &leafKey, oldCaDer, oldCaSz, &intKey, &rng, NULL, "CA Date Sub", 0,
+        NULL)), 0);
+    ExpectIntGT((subLeafSz = test_eku_gen_leaf(subLeafDer,
+        TEST_EKU_CERT_BUF_SZ, &caKey, subDer, subSz, &leafKey, &rng)), 0);
+
+    /* The first handshake sends the old CA and the client caches it. */
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    /* While it is valid, the cached CA verifies a leaf sent alone. */
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    /* Once it has expired, sending it fails and so must using the cached
+     * copy. */
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    /* A verify callback can accept the date error, as for any other. */
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, test_ca_date_accept_cb, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    /* A leaf date error that the callback accepts does not hide the date
+     * error of the cached CA. */
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, earlyDer,
+        earlySz, later, test_ca_date_accept_early_cb, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    /* The renewed CA is accepted and its dates replace the cached ones, so a
+     * leaf sent alone verifies again. */
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, newCaDer, (size_t)newCaSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + newCaSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+    /* An expired CA that the callback accepts at depth 1 is not reported
+     * again at depth 0. The cached copy keeps its old dates, so a leaf sent
+     * alone later fails at depth 0. */
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, oldCaDer, (size_t)oldCaSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, later, test_ca_date_accept_depth1_cb, &hsRet),
+        TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, test_ca_date_accept_depth1_cb, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+    /* A self-signed certificate with the name and key of the cached CA is not
+     * a renewal and does not change the cached dates. */
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, selfDer, (size_t)selfSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + selfSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+    /* A renewed CA with no Authority Key Identifier also replaces the cached
+     * dates. */
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, oldCaDer, (size_t)oldCaSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, noAkidDer, (size_t)noAkidSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + noAkidSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+    /* Certificate manager verification checks a cached chain CA the same way.
+     * A CA that the application loaded is a trust anchor: its dates and the
+     * dates of the CAs above it are not checked again.
+     * wolfSSL_CertManagerLoadCABufferType() finds the CA to set the type of by
+     * its subject key identifier. */
+#ifndef NO_SKID
+    ExpectIntEQ(test_ca_date_cm_verify(rootDer, rootSz, oldCaDer, oldCaSz,
+        WOLFSSL_CHAIN_CA, NULL, 0, 0, chainDer, leafSz, now, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ca_date_cm_verify(rootDer, rootSz, oldCaDer, oldCaSz,
+        WOLFSSL_CHAIN_CA, NULL, 0, 0, chainDer, leafSz, later, NULL),
+        WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+#ifndef NO_WOLFSSL_CM_VERIFY
+    ExpectIntEQ(test_ca_date_cm_verify(rootDer, rootSz, oldCaDer, oldCaSz,
+        WOLFSSL_CHAIN_CA, NULL, 0, 0, earlyDer, earlySz, later,
+        test_ca_date_accept_early_cb), WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+#endif
+    ExpectIntEQ(test_ca_date_cm_verify(rootDer, rootSz, oldCaDer, oldCaSz,
+        WOLFSSL_CHAIN_CA, subDer, subSz, WOLFSSL_USER_CA, subLeafDer,
+        subLeafSz, later, NULL), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_ca_date_cm_verify(rootDer, rootSz, oldCaDer, oldCaSz,
+        WOLFSSL_USER_CA, NULL, 0, 0, chainDer, leafSz, later, NULL),
+        WOLFSSL_SUCCESS);
+
+    if (rngInit)  wc_FreeRng(&rng);
+    if (caInit)   wc_FreeRsaKey(&caKey);
+    if (intInit)  wc_FreeRsaKey(&intKey);
+    if (leafInit) wc_FreeRsaKey(&leafKey);
+    XFREE(oldCaDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(newCaDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(earlyDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(selfDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(noAkidDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(subDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(subLeafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+ #if defined(WOLFSSL_SMALL_CERT_VERIFY) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \

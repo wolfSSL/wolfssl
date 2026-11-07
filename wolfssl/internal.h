@@ -2995,6 +2995,24 @@ WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                      long sz, int format, int prev_err,
                                      int* crlErr);
 
+#if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_CERTS)
+    #define WOLFSSL_CHAIN_CA_DATES
+#endif
+
+#ifdef WOLFSSL_CHAIN_CA_DATES
+/* Dates of a CA cached from a peer's chain, decided in this handshake. A
+ * waived entry is a CA whose date error the verify callback accepted. Other
+ * entries hold the dates of a renewed CA, stored on the cached CA only when
+ * the handshake verifies the peer. */
+typedef struct ChainCADate {
+    struct ChainCADate* next;
+    byte hash[SIGNER_DIGEST_SIZE];   /* hash AddCA() files the CA under */
+    byte keyHash[KEYID_SIZE];        /* CalcHashId() of its public key */
+    SignerValidity validity;
+    byte waived;
+} ChainCADate;
+#endif
 
 #ifndef NO_CERTS
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
@@ -5041,6 +5059,20 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL int SetCAType(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type);
     WOLFSSL_LOCAL
     int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    WOLFSSL_LOCAL int wolfssl_local_CheckChainCADates(WOLFSSL_CERT_MANAGER* cm,
+        Signer* ca, Signer* pending, const ChainCADate* dates);
+    WOLFSSL_LOCAL int wolfssl_local_SetChainCAValidity(
+        WOLFSSL_CERT_MANAGER* cm, const byte* hash, const byte* keyHash,
+        const SignerValidity* validity);
+    WOLFSSL_LOCAL int wolfssl_local_SetChainCADates(WOLFSSL_CERT_MANAGER* cm,
+        const byte* hash, const DecodedCert* cert);
+    WOLFSSL_LOCAL int wolfssl_local_IsChainCARenewal(WOLFSSL_CERT_MANAGER* cm,
+        const byte* hash, const byte* keyHash, const DecodedCert* cert,
+        const SignerValidity* validity);
+    WOLFSSL_LOCAL void wolfssl_local_CommitChainCADates(WOLFSSL* ssl);
+    WOLFSSL_LOCAL void wolfssl_local_FreeChainCADates(WOLFSSL* ssl);
+#endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     WOLFSSL_LOCAL
     int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify);
@@ -7341,6 +7373,9 @@ struct WOLFSSL {
     int              devId;             /* async device id to use */
 #ifdef HAVE_ONE_TIME_AUTH
     OneTimeAuth     auth;
+#endif
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    ChainCADate*    chainCaDates;      /* chain CA dates of this handshake */
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
