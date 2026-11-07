@@ -82,6 +82,12 @@
  * legacy compatibility shim is dropped. */
 #include <wolfssl/wolfcrypt/dilithium.h>
 
+/* The pre-FIPS 204 no-context API is not in the FIPS module boundary. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    (defined(WOLFSSL_MLDSA_NO_CTX) || defined(WOLFSSL_MLDSA_FIPS204_DRAFT))
+    #error "WOLFSSL_MLDSA_NO_CTX or WOLFSSL_MLDSA_FIPS204_DRAFT is not allowed in FIPS v7 or later."
+#endif
+
 /* Unconditional so the key layout does not depend on include order. */
 #if (defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM) || \
      defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) || \

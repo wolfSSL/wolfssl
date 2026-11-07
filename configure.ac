@@ -2551,6 +2551,7 @@ ENABLED_MLDSA_OPTS=$ENABLED_MLDSA
 ENABLED_MLDSA_MAKE_KEY=no
 ENABLED_MLDSA_SIGN=no
 ENABLED_MLDSA_VERIFY=no
+ENABLED_MLDSA_NO_CTX=no
 for v in `echo $ENABLED_MLDSA_OPTS | tr "," " "`
 do
   case $v in
@@ -2597,9 +2598,11 @@ do
     ENABLED_MLDSA87=yes
     ;;
   draft|fips204-draft)
+    ENABLED_MLDSA_NO_CTX=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_FIPS204_DRAFT"
     ;;
   no-ctx)
+    ENABLED_MLDSA_NO_CTX=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_CTX"
     ;;
   *)
@@ -2607,6 +2610,12 @@ do
     break;;
   esac
 done
+
+if test "$ENABLED_MLDSA_NO_CTX" = "yes" && test "$ENABLED_FIPS" != "no" && \
+   test "$HAVE_FIPS_VERSION" -ge 7
+then
+    AC_MSG_ERROR([ML-DSA no-ctx and draft are not in the FIPS module boundary: drop them from --enable-mldsa (or --enable-dilithium) in a FIPS v7 or later build.])
+fi
 
 # If ML-DSA is enabled but no specific level (44/65/87) was requested,
 # default to enabling all levels.
