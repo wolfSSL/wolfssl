@@ -17056,6 +17056,7 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                       word32 status_length, int idx)
 {
     int ret = 0;
+    Signer* waivedTail = NULL;
     OcspRequest* request;
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
     TLSX* ext =  TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
@@ -17130,6 +17131,8 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* InitOcspResponse sets single and status to response struct. */
     InitOcspResponse(response, single, status, input +*inOutIdx, status_length,
                      ssl->heap);
+    response->pendingCAs = SslWaivedCAsJoin(ssl, response->pendingCAs,
+                                            &waivedTail);
 
     /* Extract producedDate */
     if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 1, 1) != 0) {
@@ -17145,6 +17148,8 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         FreeOcspResponse(response);
         InitOcspResponse(response, single, status, input + *inOutIdx,
                          status_length, ssl->heap);
+        response->pendingCAs = SslWaivedCAsJoin(ssl, response->pendingCAs,
+                                                &waivedTail);
 
         if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 0, 0) != 0)
             ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -17165,6 +17170,7 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* FreeOcspResponse frees status and single only if
      * single->isDynamic is set. */
     FreeOcspResponse(response);
+    SslWaivedCAsSplit(waivedTail);
 
     WC_FREE_VAR_EX(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
     WC_FREE_VAR_EX(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
