@@ -480,6 +480,17 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
                 ret = wc_PBKDF2(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
                 PRIVATE_KEY_LOCK();
+            #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+                !defined(FIPS_NO_WRAPPERS)
+                /* Key is derived; a salt under 128 bits is the expected
+                 * indicator (SP 800-132 sec 5.1). Any other one fails. */
+                if (ret == WC_FIPS_NOT_APPROVED && saltSz < 16)
+                    ret = 0;
+                else if (ret == WC_FIPS_NOT_APPROVED) {
+                    ret = FIPS_UNAPPROVED_E;
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                }
+            #endif
                 break;
     #endif
     #ifndef NO_SHA

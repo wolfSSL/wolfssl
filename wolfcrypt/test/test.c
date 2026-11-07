@@ -49611,6 +49611,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
                        salt, (int)sizeof(salt), iterations,
                        kLen, WC_SHA256, HEAP_HINT, devId);
     PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* 8-byte salt: computed, but the module must deliver the
+     * WC_FIPS_NOT_APPROVED indicator to the caller per SP 800-132
+     * Section 5.1 ("shall be at least 128 bits") and FIPS 140-3 IG 2.4.C;
+     * the test fails if the indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 

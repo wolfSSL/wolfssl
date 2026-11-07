@@ -159,6 +159,12 @@ int test_wc_PBKDF2DecisionCoverage(void)
                                    0x5d, 0x63, 0xcb, 0x06 };
     byte derived[24] = {0};
     int  prevMax;
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    static const byte salt16[16] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63,
+                                     0xcb, 0x06, 0x78, 0x57, 0x8E, 0x5a,
+                                     0x5d, 0x63, 0xcb, 0x06 };
+#endif
 
     /* output==NULL || pLen<0 || sLen<0 || kLen<0 -- vary each operand alone. */
     ExpectIntEQ(wc_PBKDF2_ex(NULL, passwd, (int)sizeof(passwd),
@@ -200,9 +206,26 @@ int test_wc_PBKDF2DecisionCoverage(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* valid derivation */
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* The 8-byte salt is below the SP 800-132 Section 5.1 minimum of 128
+     * bits, so the v7 module derives the key and flags it not approved. */
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID), WC_FIPS_NOT_APPROVED);
+    /* wc_CryptKey and the EVP PBKDF2 calls clear the indicator only under
+     * 16 bytes, so the module must flag 15 and not 16. */
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt16, (int)sizeof(salt16) - 1, 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID), WC_FIPS_NOT_APPROVED);
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt16, (int)sizeof(salt16), 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID), 0);
+#else
     ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
                     salt, (int)sizeof(salt), 2, (int)sizeof(derived),
                     WC_SHA256, HEAP_HINT, INVALID_DEVID), 0);
+#endif
 #endif
     return EXPECT_RESULT();
 }

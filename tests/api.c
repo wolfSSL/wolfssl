@@ -13585,6 +13585,7 @@ static int test_wolfSSL_PKCS5(void)
     const char *passwd = "pass1234";
 #endif
     const unsigned char *salt = (unsigned char *)"salt1234";
+    const unsigned char *salt16 = (unsigned char *)"salt1234salt5678";
     unsigned char *out = (unsigned char *)XMALLOC(WC_SHA_DIGEST_SIZE, NULL,
                                                   DYNAMIC_TYPE_TMP_BUFFER);
     int ret = 0;
@@ -13593,11 +13594,16 @@ static int test_wolfSSL_PKCS5(void)
     ExpectIntEQ(ret = PKCS5_PBKDF2_HMAC_SHA1(passwd,(int)XSTRLEN(passwd), salt,
         (int)XSTRLEN((const char *) salt), 10, WC_SHA_DIGEST_SIZE,out),
         WOLFSSL_SUCCESS);
+    /* A 16-byte salt gets no FIPS v7 indicator, so none may be cleared. */
+    ExpectIntEQ(PKCS5_PBKDF2_HMAC_SHA1(passwd, (int)XSTRLEN(passwd), salt16,
+        16, 10, WC_SHA_DIGEST_SIZE, out), WOLFSSL_SUCCESS);
 
 #ifdef WOLFSSL_SHA512
     ExpectIntEQ(ret = PKCS5_PBKDF2_HMAC(passwd,(int)XSTRLEN(passwd), salt,
         (int)XSTRLEN((const char *) salt), 10, wolfSSL_EVP_sha512(),
         WC_SHA_DIGEST_SIZE, out), SSL_SUCCESS);
+    ExpectIntEQ(PKCS5_PBKDF2_HMAC(passwd, (int)XSTRLEN(passwd), salt16, 16,
+        10, wolfSSL_EVP_sha512(), WC_SHA_DIGEST_SIZE, out), SSL_SUCCESS);
 #endif
 
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -21812,7 +21818,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
 #if !defined(NO_DES3) && !defined(NO_SHA) && defined(HAVE_PBKDF2)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write Encrypted PKCS#8 PEM to BIO. */
-    bytes = 1834;
+    bytes = 1846;
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_des_ede3_cbc(),
         NULL, 0, PasswordCallBack, (void*)"yassl123"), bytes);
     ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_des_ede3_cbc(),
@@ -21895,8 +21901,8 @@ static int test_wolfSSL_PKCS8_d2i(void)
     bio = NULL;
 #ifdef HAVE_PBKDF2
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
-    /* Write Encrypted PKCS#8 PEM to BIO (test write 0 then 379) */
-    bytes = 379;
+    /* Write Encrypted PKCS#8 PEM to BIO (test write 0 then 391) */
+    bytes = 391;
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_aes_256_cbc(),
         NULL, 0, NoPasswordCallBack, (void*)"yassl123"), 0);
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_aes_256_cbc(),
@@ -28153,13 +28159,14 @@ static int test_wolfSSL_CRYPTO_memcmp(void)
  | wolfCrypt ASN
  *----------------------------------------------------------------------------*/
 
-static int test_wc_CreateEncryptedPKCS8Key(void)
-{
-    EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && defined(WOLFSSL_AES_256) \
  && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA) && \
     !defined(NO_ASN_CRYPT) && defined(HAVE_PBKDF2)
-    WC_RNG rng;
+/* Encrypt server_key_der_2048 with salt (NULL for the default), decrypt it
+ * and compare with the original. */
+static int create_enc_pkcs8_check(WC_RNG* rng, byte* salt, word32 saltSz)
+{
+    EXPECT_DECLS;
     byte* encKey = NULL;
     word32 encKeySz = 0;
     word32 decKeySz = 0;
@@ -28167,21 +28174,18 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     word32 passwordSz = (word32)XSTRLEN(password);
     word32 tradIdx = 0;
 
-    XMEMSET(&rng, 0, sizeof(WC_RNG));
-    ExpectIntEQ(wc_InitRng(&rng), 0);
-    PRIVATE_KEY_UNLOCK();
     /* Call with NULL for out buffer to get necessary length. */
     ExpectIntEQ(wc_CreateEncryptedPKCS8Key((byte*)server_key_der_2048,
         sizeof_server_key_der_2048, NULL, &encKeySz, password, (int)passwordSz,
-        PKCS5, PBES2, AES256CBCb, NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL),
-        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        PKCS5, PBES2, AES256CBCb, salt, saltSz, WC_PKCS12_ITT_DEFAULT, rng,
+        NULL), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
     ExpectNotNull(encKey = (byte*)XMALLOC(encKeySz, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
     /* Call with the allocated out buffer. */
     ExpectIntGT(wc_CreateEncryptedPKCS8Key((byte*)server_key_der_2048,
         sizeof_server_key_der_2048, encKey, &encKeySz, password, (int)passwordSz,
-        PKCS5, PBES2, AES256CBCb, NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL),
-        0);
+        PKCS5, PBES2, AES256CBCb, salt, saltSz, WC_PKCS12_ITT_DEFAULT, rng,
+        NULL), 0);
     /* Decrypt the encrypted PKCS8 key we just made. */
     ExpectIntGT((decKeySz = (word32)wc_DecryptPKCS8Key(encKey, encKeySz, password,
         (int)passwordSz)), 0);
@@ -28190,9 +28194,29 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     /* Check that the decrypted key matches the key prior to encryption. */
     ExpectIntEQ(XMEMCMP(encKey + tradIdx, server_key_der_2048,
         sizeof_server_key_der_2048), 0);
-    PRIVATE_KEY_LOCK();
 
     XFREE(encKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_wc_CreateEncryptedPKCS8Key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && defined(WOLFSSL_AES_256) \
+ && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA) && \
+    !defined(NO_ASN_CRYPT) && defined(HAVE_PBKDF2)
+    WC_RNG rng;
+    byte salt8[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    PRIVATE_KEY_UNLOCK();
+    EXPECT_TEST(create_enc_pkcs8_check(&rng, NULL, 0));
+    /* An 8-byte salt: FIPS v7 flags it, and the key must still round-trip. */
+    EXPECT_TEST(create_enc_pkcs8_check(&rng, salt8, sizeof(salt8)));
+    PRIVATE_KEY_LOCK();
+
     wc_FreeRng(&rng);
 #endif
     return EXPECT_RESULT();
