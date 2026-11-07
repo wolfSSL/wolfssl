@@ -676,6 +676,17 @@ int wc_FreeRsaKey(RsaKey* key)
     return ret;
 }
 
+#if defined(WOLFSSL_RSA_KEY_CHECK) || \
+    (defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+/* r = |p - q|, without relying on signed math support. */
+WC_MAYBE_UNUSED static int RsaAbsDiffPQ(mp_int* p, mp_int* q, mp_int* r)
+{
+    if (mp_cmp(p, q) == MP_LT)
+        return mp_sub(q, p, r);
+    return mp_sub(p, q, r);
+}
+#endif
+
 #ifdef WOLFSSL_RSA_KEY_CHECK
 /* Check the pair-wise consistency of the RSA key. */
 static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
@@ -905,7 +916,7 @@ int wc_CheckRsaKey(RsaKey* key)
      *  ~= 2^(bit count of n)^(1/4) + 32) = 2^((bit count of n)/4 + 32)
      */
     if (ret == 0) {
-        ret = mp_sub(&key->p, &key->q, tmp);
+        ret = RsaAbsDiffPQ(&key->p, &key->q, tmp);
     }
     if (ret == 0) {
         if (mp_count_bits(tmp) <= (mp_count_bits(&key->n) / 4 + 32)) {
@@ -5363,17 +5374,11 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
 
     /* d = |p-q| */
     if (ret == 0)
-        ret = mp_sub(p, q, d);
+        ret = RsaAbsDiffPQ(p, q, d);
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     if (ret == 0)
         mp_memzero_add("Compare PQ d", d);
-#endif
-
-#if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
-                                               defined(WOLFSSL_SP_INT_NEGATIVE))
-    if (ret == 0)
-        ret = mp_abs(d, d);
 #endif
 
     /* compare */
@@ -5974,7 +5979,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
                  *  ~= 2^(bit count of n)^(1/4) + 32)
                  *   = 2^((bit count of n)/4 + 32)
                  */
-                err = mp_sub(p, q, tmp1);
+                err = RsaAbsDiffPQ(p, q, tmp1);
                 if (err == MP_OKAY && mp_count_bits(tmp1) <= (size / 4) + 32) {
                     isPrime = 0;
                 }
