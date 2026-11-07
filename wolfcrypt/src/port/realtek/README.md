@@ -130,8 +130,25 @@ authenticated, a tampered, corrupted, or wrong-device blob fails at unwrap
 device-bound (it only unwraps on the silicon whose HUK produced the slot key). The
 scalar is briefly in software during the sign; an OTP-resident model
 (`hal_ecdsa_select_prk`, scalar never in software) and routing the sign itself
-through the HW ECDSA engine (`hal_ecdsa`) are follow-ons. (The GCM unwrap makes
-the ECDSA sign path require `HAVE_AESGCM`.)
+through the HW ECDSA engine (`hal_ecdsa`) are follow-ons. (The ECDSA sign path
+needs `HAVE_AESGCM`, `HAVE_AES_ECB` or both, one for each scalar format it
+unwraps.)
+
+The scalar can instead be AES-ECB-wrapped, the same blob layout as the STM32
+DHUK `wc_ecc_import_wrapped_private()` uses, so one wrap format serves both
+parts.
+Leave `iv`, `ivSz`, `tag` and `tagSz` all NULL/0, and pass the ECB ciphertext of
+the scalar zero-padded to a multiple of 16 (`wrappedLen` up to
+`WC_RTL8735B_MAX_WRAPPED`, the scalar in the first `plainLen` bytes):
+
+```c
+wc_Rtl8735b_EccKey hk = { seed, 32, wrapped, 32, 32 };   /* ECB, P-256 */
+```
+
+ECB has no integrity check: a damaged or wrong-device blob signs with a wrong
+scalar and the signature fails to verify, so prefer GCM where only RTL8735B is
+involved. A partial `iv`/`tag` set is rejected with `BAD_FUNC_ARG`. The ECB
+format needs `HAVE_AES_ECB` or `WOLFSSL_AES_DIRECT`.
 
 ### Additional HUK operations
 
@@ -187,6 +204,33 @@ wc_Rtl8735b_AesUnRegister(WC_RTL8735B_AES_DEVID);
 ```
 
 The device services AES-GCM and AES-ECB (ECB is needed so `wc_AesGcmSetKey` can derive the GHASH subkey H through the callback under `WOLF_CRYPTO_CB_ONLY_AES`); other modes return `CRYPTOCB_UNAVAILABLE` so wolfCrypt falls back to software with the same plaintext key. GCM correctness is validated on RTL8735B hardware; the host compile-test (`--enable-rtl8735b`) exercises the dispatch through HAL stubs only.
+
+## HUK-wrapped AES keys in key-storage slots
+
+A HUK seed derives a key; it cannot reproduce a chosen one. To use a specific AES key that is stored wrapped under the HUK, build with `WOLF_CRYPTO_CB_KEYSTORE` (`--enable-cryptocbutils=keystore`) and import it into a key-storage slot. After that, any `Aes` made with `wc_AesInit_Id()` on the HUK device runs GCM, ECB, CBC or CTR from the slot.
+
+```c
+byte   ref[WC_RTL8735B_KEYREF_SZ];
+word32 refSz = sizeof(ref);
+Aes    aes;
+
+wc_Rtl8735b_MakeKeyRef(WC_RTL8735B_KS_SLOT_FIRST, ref, &refSz);
+wc_KeyStore_ImportWrapped(WC_HUK_DEVID, ref, refSz, WC_KEYSTORE_KEY_AES,
+    seed, 32, WC_KEYWRAP_FORMAT_AESKW, blob, blobSz, 0, NULL);
+
+wc_AesInit_Id(&aes, ref, (int)refSz, NULL, WC_HUK_DEVID);
+wc_AesGcmEncrypt(&aes, ct, pt, ptSz, iv, 12, tag, tagSz, aad, aadSz);
+wc_AesFree(&aes);
+
+wc_KeyStore_Delete(WC_HUK_DEVID, ref, refSz, NULL);
+```
+
+`wrapKeyRef` is the 32-byte HUK seed, and the blob is the key wrapped under the HUK-derived key for that seed:
+
+- `WC_KEYWRAP_FORMAT_AESKW`: RFC 3394, made with `wc_AesKeyWrap_ex()` on a `WC_HUK_DEVID` `Aes` set to the seed. 16-, 24- or 32-byte keys. A damaged or wrong-device blob fails with `BAD_KEYWRAP_IV_E`. Needs `HAVE_AES_KEYWRAP` and `HAVE_AES_ECB`.
+- `WC_KEYWRAP_FORMAT_VENDOR`: the raw AES-ECB ciphertext of a 16- or 32-byte key, made with `wc_AesEcbEncrypt()` the same way. The blob size is the key size, so a 24-byte key has no VENDOR form (zero-padded to 32 bytes it would import as a different 256-bit key); use AESKW for it. This matches STM32 DHUK blobs, but it has no integrity check: a damaged blob imports a wrong key.
+
+The engine cannot unwrap directly into a slot (its AES output always goes to memory), so the import unwraps into a short-lived buffer, writes it to the slot with `hal_crypto_key_storage_writekey()` and scrubs it. From then on the key is used from the slot only. Slots `WC_RTL8735B_KS_SLOT_FIRST` to `_LAST` (default 5 to 7) are volatile and write-only: they are empty after reset, `EXPORT_*` and `DERIVE` are not supported, `attrs` must be 0, and a slot must be deleted before it is imported into again. `wc_KeyStore_ImportPlain()` loads a plaintext AES key the same way.
 
 ## Bringing the crypto engine up outside the FreeRTOS SDK (Zephyr and friends)
 
