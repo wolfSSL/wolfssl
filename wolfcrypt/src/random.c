@@ -4073,6 +4073,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
             ret = wc_RNG_GenerateBlock(seedRng, seed, seedSz);
         }
         else {
+#ifdef HAVE_FIPS
+            /* The caller nonce cannot be checked, so FIPS always draws the 3/2
+             * strength entropy input of SP 800-90A Rev1 8.6.7 case 1. */
+            seedSz = MAX_SEED_SZ;
+#endif
 #ifdef WC_RNG_SEED_CB
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
