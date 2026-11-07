@@ -10313,7 +10313,7 @@ int test_wc_AesGcmArgMcdc(void)
     }
 
     /* ---- wc_AesGcmEncryptUpdate(): sz term, overflow AND, ctrSet/aSz/cSz
-     * AND ---- */
+     * AND, sz/authInSz OR ---- */
     {
         Aes aes;
         byte data[8] = { 0 };
@@ -10351,28 +10351,38 @@ int test_wc_AesGcmArgMcdc(void)
         ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
             aad, sizeof(aad)), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
 
-        /* ctrSet && aSz==0 && cSz==0 (invocation-counter bump). This has
-         * no externally-visible effect on the return code, so assert on
+        /* ctrSet && (sz||authInSz) && aSz==0 && cSz==0 (counter bump). This
+         * has no externally-visible effect on the return code, so assert on
          * aes.invokeCtr directly (same white-box technique as above). */
         aes.aSz = 0;
         aes.cSz = 0;
         aes.ctrSet = 1;
         aes.invokeCtr[0] = 0;
         aes.invokeCtr[1] = 0;
+        /* cond sz > 0 || authInSz > 0: an empty Update -> no bump. */
         ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
             0);
+        ExpectIntEQ(aes.invokeCtr[0], 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), 0);
         ExpectIntEQ(aes.invokeCtr[0], 1);
         /* cond aSz == 0 independence: non-zero aSz -> no bump. */
         aes.aSz = 4;
-        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
-            0);
+        aes.cSz = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), 0);
         ExpectIntEQ(aes.invokeCtr[0], 1);
         /* cond cSz == 0 independence: non-zero cSz -> no bump. */
         aes.aSz = 0;
         aes.cSz = 4;
-        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
-            0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), 0);
         ExpectIntEQ(aes.invokeCtr[0], 1);
+        /* cond authInSz > 0 independence: AAD alone -> bump. */
+        aes.cSz = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, aad,
+            sizeof(aad)), 0);
+        ExpectIntEQ(aes.invokeCtr[0], 2);
 
         wc_AesFree(&aes);
     }

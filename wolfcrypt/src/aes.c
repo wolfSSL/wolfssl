@@ -8901,6 +8901,20 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 }
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
+#ifdef HAVE_AESGCM
+/* Count one use of the internal IV. Once the limit is reached every call
+ * fails until a new IV is set. (SP 800-38D 8.3) */
+static WARN_UNUSED_RESULT WC_INLINE int GcmCountInvocation(Aes* aes)
+{
+    if (aes->invokeCtr[0] == 0xFFFFFFFF && aes->invokeCtr[1] == 0xFFFFFFFF)
+        return AES_GCM_OVERFLOW_E;
+    aes->invokeCtr[0]++;
+    if (aes->invokeCtr[0] == 0)
+        aes->invokeCtr[1]++;
+    return 0;
+}
+#endif /* HAVE_AESGCM */
+
 
 #ifdef HAVE_AESGCM
 
@@ -15582,13 +15596,11 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = AES_GCM_OVERFLOW_E;
     }
 
-    if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
-        aes->invokeCtr[0]++;
-        if (aes->invokeCtr[0] == 0) {
-            aes->invokeCtr[1]++;
-            if (aes->invokeCtr[1] == 0)
-                ret = AES_GCM_OVERFLOW_E;
-        }
+    /* Count the stream at its first AAD or data; an empty stream counts in
+     * Final. */
+    if ((ret == 0) && aes->ctrSet && ((sz > 0) || (authInSz > 0)) &&
+            (aes->aSz == 0) && (aes->cSz == 0)) {
+        ret = GcmCountInvocation(aes);
     }
 
     if (ret == 0) {
@@ -15669,6 +15681,10 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 
     if (ret == 0) {
         ret = AesAssociateTagSz(aes, authTagSz);
+    }
+    /* A stream with no AAD or data has not been counted yet. */
+    if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
+        ret = GcmCountInvocation(aes);
     }
 
     if (ret == 0) {
@@ -15978,6 +15994,32 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
         aes->invokeCtr[0] = 0;
         aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ && ivFixedSz != 0) ?
                             0 : 0xFFFFFFFF;
+        if (ivFixedSz != 0) {
+            /* Count from the random invocation field so the limit is hit
+             * before a carry can change the fixed field. (SP 800-38D 8.2.1) */
+            const byte* field = (const byte*)aes->reg + ivFixedSz;
+            word32 i;
+
+            if (ivSz == GCM_NONCE_MID_SZ) {
+                for (i = 0; i < 4; i++) {
+                    aes->invokeCtr[1] = (aes->invokeCtr[1] << 8) | field[i];
+                    aes->invokeCtr[0] = (aes->invokeCtr[0] << 8) | field[i + 4];
+                }
+            }
+            else {
+                /* Within 2^32 calls a carry reaches the fixed field only when
+                 * every field byte before the last 4 is 0xFF. */
+                word32 last = ivSz - ivFixedSz - 4;
+
+                i = 0;
+                while (i < last && field[i] == 0xFF)
+                    i++;
+                if (i == last) {
+                    for (i = last; i < last + 4; i++)
+                        aes->invokeCtr[0] = (aes->invokeCtr[0] << 8) | field[i];
+                }
+            }
+        }
     #ifdef WOLFSSL_AESGCM_STREAM
         aes->ctrSet = 1;
     #endif
@@ -16008,12 +16050,7 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     if (ret == 0) {
-        aes->invokeCtr[0]++;
-        if (aes->invokeCtr[0] == 0) {
-            aes->invokeCtr[1]++;
-            if (aes->invokeCtr[1] == 0)
-                ret = AES_GCM_OVERFLOW_E;
-        }
+        ret = GcmCountInvocation(aes);
     }
 
     if (ret == 0) {
