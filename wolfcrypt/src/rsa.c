@@ -5877,9 +5877,14 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_set_int(tmp3, (unsigned long)e);
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* FIPS 186-5 A.1.3 step 4.7: 5 * nlen tries for p. */
+    failCount = 5 * size;
+#else
     /* The failCount value comes from NIST FIPS 186-4, section B.3.3,
      * process steps 4.7 and 5.8. */
     failCount = 5 * (size / 2);
+#endif
     primeSz = (word32)size / 16; /* size is the size of n in bits.
                             primeSz is in bytes. */
 
@@ -5944,6 +5949,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     /* make q */
     if (err == MP_OKAY) {
+#if FIPS_VERSION3_GE(7,0,0)
+        /* FIPS 186-5 A.1.3 step 5.8: 10 * nlen tries for q. */
+        failCount = 10 * size;
+#endif
         isPrime = 0;
         i = 0;
         do {
