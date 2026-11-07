@@ -25223,6 +25223,18 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 
     return NULL;
 }
+
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip);
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip)
+{
+    (void)cm;
+    (void)hash;
+    (void)skip;
+
+    return NULL;
+}
 #endif /* NO_SKID */
 
 #ifdef WOLFSSL_AKID_NAME
@@ -25850,7 +25862,8 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
          * is set (could substitute a same-DN sibling). */
     }
     else {
-        signer = GetCAByName(cm, cert->issuerNameHash);
+        /* A self-issued CA shares its issuer's name. */
+        signer = GetCAByNameSkip(cm, cert->issuerNameHash, cert);
     }
 #else
     signer = GetCA(cm, cert->issuerNameHash);
@@ -26883,18 +26896,19 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             if (SignerIsTrustAnchor(ncSigner))
                 break;
             ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
-            /* A CA from the peer's chain cannot end the walk: the
-             * constraints of whatever issued it would go unapplied. */
-            if ((ncParent == ncSigner || ncParent == ncPrev) &&
-                    SignerFromPeerChain(ncSigner)) {
-                WOLFSSL_MSG("NC ancestor walk ended below a trust anchor");
-                WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
-                return ASN_NAME_INVALID_E;
-            }
             /* Stop on missing parent, self-loop, or A->B->A cycle. */
             if (ncParent == NULL || ncParent == ncSigner ||
-                    ncParent == ncPrev)
+                    ncParent == ncPrev) {
+                /* A CA from the peer's chain cannot end the walk: the
+                 * constraints of whatever issued it would go unapplied. */
+                if (SignerFromPeerChain(ncSigner)) {
+                    WOLFSSL_MSG("NC ancestor walk found no issuer for a "
+                                "chain CA");
+                    WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
+                    return ASN_NO_SIGNER_E;
+                }
                 break;
+            }
             if (++ncDepth >= WOLFSSL_MAX_CHAIN_DEPTH) {
                 WOLFSSL_MSG("NC ancestor walk exceeded WOLFSSL_MAX_CHAIN_DEPTH");
                 WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);

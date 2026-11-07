@@ -131,5 +131,6 @@ EXTRA_DIST += \
          certs/test/nc-ancestor/03-selfissued-leaf-cert.pem \
          certs/test/nc-ancestor/03-selfissued-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-selfloop-leaf-cert.pem \
+         certs/test/nc-ancestor/03-selfloop-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-valid-leaf-key.pem

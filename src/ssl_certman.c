@@ -3070,6 +3070,13 @@ Signer* GetCAByAKID(WOLFSSL_CERT_MANAGER* cm, const byte* issuer,
 /* return CA if found, otherwise NULL. Walk through hash table. */
 Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
+    return GetCAByNameSkip(cm, hash, NULL);
+}
+
+/* As GetCAByName() but never returns skip. */
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip)
+{
     Signer* ret = NULL;
     Signer* signers;
     word32  row;
@@ -3083,7 +3090,7 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
     for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
         signers = cm->caTable[row];
         while (signers && ret == NULL) {
-            if (XMEMCMP(hash, signers->subjectNameHash,
+            if (signers != skip && XMEMCMP(hash, signers->subjectNameHash,
                         SIGNER_DIGEST_SIZE) == 0) {
                 ret = signers;
             }
