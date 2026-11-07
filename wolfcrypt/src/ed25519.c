@@ -267,6 +267,35 @@ static int ed25519_is_small_order(const byte p[ED25519_PUB_KEY_SIZE])
     }
     return 0;
 }
+
+/* Top bit of the last encoded byte is the sign of x (RFC 8032 5.1.2). */
+#define ED25519_X_SIGN_BIT 0x80
+
+/* Return 0 when the encoded y is less than p, else PUBLIC_KEY_E
+ * (RFC 8032 5.1.3). */
+static int ed25519_check_pub_y(const byte pub[ED25519_PUB_KEY_SIZE])
+{
+    /* p = 2^255 - 19, little-endian. */
+    static const byte ed25519_p[ED25519_PUB_KEY_SIZE] = {
+        0xed,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f
+    };
+    byte y[ED25519_PUB_KEY_SIZE];
+    int i;
+
+    XMEMCPY(y, pub, ED25519_PUB_KEY_SIZE);
+    y[ED25519_PUB_KEY_SIZE - 1] =
+        (byte)(y[ED25519_PUB_KEY_SIZE - 1] & ~ED25519_X_SIGN_BIT);
+    /* The most significant byte that differs from p decides. */
+    for (i = ED25519_PUB_KEY_SIZE - 1; i >= 0; i--) {
+        if (y[i] != ed25519_p[i])
+            return (y[i] < ed25519_p[i]) ? 0 : PUBLIC_KEY_E;
+    }
+    /* y == p */
+    return PUBLIC_KEY_E;
+}
 #endif /* !WOLF_CRYPTO_CB_ONLY_ED25519 */
 
 #ifdef HAVE_ED25519_MAKE_KEY
@@ -1100,9 +1129,15 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     if (i == -1)
         return BAD_FUNC_ARG;
 
-    /* Defence in depth: also catch small-order keys imported with trusted=1. */
+    /* Defence in depth: also catch small-order and non-canonical keys
+     * imported with trusted=1. */
     if (ed25519_is_small_order(key->p)) {
         WOLFSSL_MSG("Ed25519 small-order public key rejected during "
+                    "signature verification");
+        return BAD_FUNC_ARG;
+    }
+    if (ed25519_check_pub_y(key->p) != 0) {
+        WOLFSSL_MSG("Ed25519 public key with y >= p rejected during "
                     "signature verification");
         return BAD_FUNC_ARG;
     }
@@ -2001,23 +2036,8 @@ int wc_ed25519_check_key(ed25519_key* key)
 #endif
         ) {
         /* Verify that xQ and yQ are integers in the interval [0, p - 1].
-         * Only have yQ so check that ordinate. p = 2^255 - 19 */
-        if ((key->p[ED25519_PUB_KEY_SIZE - 1] & 0x7f) == 0x7f) {
-            int i;
-
-            ret = PUBLIC_KEY_E;
-            /* Check up to last byte. */
-            for (i = ED25519_PUB_KEY_SIZE - 2; i > 0; i--) {
-                if (key->p[i] != 0xff) {
-                    ret = 0;
-                    break;
-                }
-            }
-            /* Bits are all one up to last byte - check less than -19. */
-            if ((ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) && (key->p[0] < 0xed)) {
-                ret = 0;
-            }
-        }
+         * Only have yQ so check that ordinate. */
+        ret = ed25519_check_pub_y(key->p);
 
         if (ret == 0) {
             /* Verify that Q is on the curve.
