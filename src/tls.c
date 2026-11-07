@@ -7093,17 +7093,22 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
 #ifndef NO_WOLFSSL_SERVER
     else {
         /* server side */
-        if (ssl->ctx->ticketEncCb == NULL) {
-            WOLFSSL_MSG("Client sent session ticket, server has no callback");
-            return 0;
-        }
-
 #ifdef HAVE_SECURE_RENEGOTIATION
         if (IsSCR(ssl)) {
             WOLFSSL_MSG("Client sent session ticket during SCR. Ignoring.");
             return 0;
         }
 #endif
+
+        /* No stateful resumption with the session ID that came with a ticket
+         * (RFC 5077 Section 3.4) */
+        if (length > 0 && !IsAtLeastTLSv1_3(ssl->version))
+            ssl->options.resuming = 0;
+
+        if (ssl->ctx->ticketEncCb == NULL) {
+            WOLFSSL_MSG("Client sent session ticket, server has no callback");
+            return 0;
+        }
 
         if (length > SESSION_TICKET_LEN) {
             ret = BAD_TICKET_MSG_SZ;

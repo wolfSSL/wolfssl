@@ -3832,6 +3832,166 @@ int test_tls13_psk_clear_restores_verify_peer(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE)
+/* Puts id into the empty session ID of a captured ClientHello */
+static void test_hello_add_session_id(byte* hello, int* helloSz,
+                                      const byte* id, int dtls)
+{
+    int recHdr = dtls ? DTLS_RECORD_HEADER_SZ : RECORD_HEADER_SZ;
+    int sidOff = recHdr + (dtls ? DTLS_HANDSHAKE_HEADER_SZ :
+                           HANDSHAKE_HEADER_SZ) + VERSION_SZ + RAN_LEN;
+    word16 recSz = 0;
+    word32 hsSz = 0;
+
+    XMEMMOVE(hello + sidOff + 1 + ID_LEN, hello + sidOff + 1,
+             (size_t)(*helloSz - sidOff - 1));
+    hello[sidOff] = ID_LEN;
+    XMEMCPY(hello + sidOff + 1, id, ID_LEN);
+    *helloSz += ID_LEN;
+    ato16(hello + recHdr - OPAQUE16_LEN, &recSz);
+    c16toa((word16)(recSz + ID_LEN), hello + recHdr - OPAQUE16_LEN);
+    ato24(hello + recHdr + 1, &hsSz);
+    c32to24(hsSz + ID_LEN, hello + recHdr + 1);
+    if (dtls) {
+        /* fragment length */
+        ato24(hello + recHdr + 9, &hsSz);
+        c32to24(hsSz + ID_LEN, hello + recHdr + 9);
+    }
+}
+
+static int test_ticket_declined_no_id_resumption_ex(int dtls,
+                                                    int noTicketTls12,
+                                                    int noEncCb,
+                                                    int blankTicket)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL *ssl_c3 = NULL, *ssl_s3 = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    method_provider method_c = wolfTLSv1_2_client_method;
+    method_provider method_s = wolfTLSv1_2_server_method;
+    int recHdr = dtls ? DTLS_RECORD_HEADER_SZ : RECORD_HEADER_SZ;
+    int sidOff = recHdr + (dtls ? DTLS_HANDSHAKE_HEADER_SZ :
+                           HANDSHAKE_HEADER_SZ) + VERSION_SZ + RAN_LEN;
+    byte ticket[SESSION_TICKET_LEN];
+    word32 ticketSz = 64;
+    byte hello[2048];
+    int helloSz = (int)sizeof(hello) - ID_LEN;
+
+#ifdef WOLFSSL_DTLS
+    if (dtls) {
+        method_c = wolfDTLSv1_2_client_method;
+        method_s = wolfDTLSv1_2_server_method;
+    }
+#endif
+    XMEMSET(ticket, 0x5a, sizeof(ticket));
+
+    /* No ticket, so the server keeps the session in its cache. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    method_c, method_s), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(sess != NULL ? sess->sessionIDSz : 0, ID_LEN);
+
+    /* A ticket the server can decrypt, so only noTicketTls12 declines it */
+    if (noTicketTls12) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c3,
+                        &ssl_s3, method_c, method_s), 0);
+        ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c3), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c3, ssl_s3, 10, NULL), 0);
+        ticketSz = (word32)sizeof(ticket);
+        ExpectIntEQ(wolfSSL_get_SessionTicket(ssl_c3, ticket, &ticketSz),
+                    WOLFSSL_SUCCESS);
+        ExpectIntGT(ticketSz, 0);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    method_c, method_s), 0);
+    if (noTicketTls12)
+        ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s2), WOLFSSL_SUCCESS);
+    if (noEncCb)
+        ExpectIntEQ(wolfSSL_CTX_set_TicketEncCb(ctx_s, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    if (blankTicket) {
+        ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c2), WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_set_SessionTicket(ssl_c2, ticket, ticketSz),
+                    WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(test_memio_copy_message(&test_ctx, 0, (char*)hello, &helloSz,
+                    0), 0);
+    ExpectIntGT(helloSz, sidOff);
+    ExpectIntEQ(helloSz > sidOff ? hello[sidOff] : -1,
+                blankTicket ? ID_LEN : 0);
+    if (EXPECT_SUCCESS() && sess != NULL && !blankTicket)
+        test_hello_add_session_id(hello, &helloSz, sess->sessionID, dtls);
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (char*)hello,
+                    helloSz), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s2, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 0);
+    /* The DTLS server still asks for a cookie */
+    if (dtls) {
+        ExpectIntGT(test_ctx.c_len, recHdr);
+        ExpectIntEQ(test_ctx.c_buff[recHdr], hello_verify_request);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_free(ssl_c3);
+    wolfSSL_free(ssl_s3);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A server given a ticket does not resume by the session ID next to it (RFC
+ * 5077 Section 3.4). A wolfSSL client sends none, so the test adds one. */
+int test_tls12_ticket_declined_no_id_resumption(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE)
+    ExpectIntEQ(test_ticket_declined_no_id_resumption_ex(0, 0, 0, 0),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_ticket_declined_no_id_resumption_ex(0, 1, 0, 0),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_ticket_declined_no_id_resumption_ex(0, 0, 1, 0),
+                TEST_SUCCESS);
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
+    /* Only the stateless check can resume before the cookie exchange */
+    ExpectIntEQ(test_ticket_declined_no_id_resumption_ex(1, 0, 0, 0),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_ticket_declined_no_id_resumption_ex(1, 1, 0, 0),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_ticket_declined_no_id_resumption_ex(1, 0, 1, 0),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_ticket_declined_no_id_resumption_ex(1, 0, 0, 1),
+                TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* mutual_auth is an alternative to failNoCert in the full handshake, so
  * resumption has to agree. */
 int test_tls12_resume_ticket_mutual_auth(void)
