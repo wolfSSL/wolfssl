@@ -68,6 +68,11 @@ jobs:
            "comment": "Same algo coverage without WOLFSSL_SMALL_STACK -> exercises the on-stack (array) branch of the HW-ECDSA mp_int helpers.",
            "configure": ["--enable-rtl8735b", "--enable-cryptocb", "--enable-ecc",
             "--enable-aesgcm", "--enable-aesctr", "--enable-aescbc"]},
+          {"name": "keystore", "minutes": 2,
+           "comment": "Key-store slots: HUK-wrapped AES keys imported with wc_KeyStore_ImportWrapped and used through wc_AesInit_Id.",
+           "configure": ["--enable-rtl8735b", "--enable-cryptocb", "--enable-ecc",
+            "--enable-aesgcm", "--enable-aesctr", "--enable-aescbc",
+            "--enable-aeskeywrap", "--enable-cryptocbutils=keystore"]},
           {"name": "min", "minutes": 2,
            "comment": "Minimal: no ECC (HW/SW ECDSA sign code compiled out), AES + HMAC only -> exercises the non-ECC compile guards.",
            "configure": ["--enable-rtl8735b", "--enable-cryptocb"]}
@@ -80,7 +85,8 @@ jobs:
         run: |
           ./autogen.sh
           ./configure --enable-rtl8735b --enable-cryptocb --enable-ecc \
-            --enable-aesgcm --enable-aesctr --enable-aescbc
+            --enable-aesgcm --enable-aesctr --enable-aescbc \
+            --enable-aeskeywrap --enable-cryptocbutils=keystore
           make -j"$(nproc)"
           ./wolfcrypt/test/testwolfcrypt
 

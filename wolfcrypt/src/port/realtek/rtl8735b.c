@@ -726,13 +726,59 @@ static int Rtl8735bHuk_DeriveSlotKey(const byte* seed)
 
 #ifndef NO_AES
 
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+#define WC_RTL8735B_KS_SLOTS \
+    (WC_RTL8735B_KS_SLOT_LAST - WC_RTL8735B_KS_SLOT_FIRST + 1)
+
+/* What each key-store slot holds. The engine cannot read a slot back, so this
+ * is the only record. Guarded by the crypto mutex. */
+static struct {
+    byte   used;
+    word32 keyLen;
+} huk_ksSlot[WC_RTL8735B_KS_SLOTS];
+#endif
+
+/* The key a HUK-device AES operation runs under: a 32-byte seed the key ladder
+ * turns into a working key in WC_RTL8735B_DERIVED_WB_IDX, or (seed NULL) a key
+ * already held in a key-store slot. */
+typedef struct Rtl8735bHukKey {
+    const byte* seed;
+    byte        slot;
+    word32      keyLen;
+} Rtl8735bHukKey;
+
+static void Rtl8735bHuk_SeedKey(Rtl8735bHukKey* key, const byte* seed)
+{
+    key->seed   = seed;
+    key->slot   = (byte)WC_RTL8735B_DERIVED_WB_IDX;
+    key->keyLen = WC_RTL8735B_KEYLEN;
+}
+
+/* Make the key ready in key->slot. Caller holds the crypto mutex. */
+static int Rtl8735bHuk_LoadKey(const Rtl8735bHukKey* key)
+{
+    if (key->seed != NULL) {
+        return Rtl8735bHuk_DeriveSlotKey(key->seed);
+    }
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+    /* The slot was looked up before the mutex was taken; it may have been
+     * deleted or re-imported with another key size since. */
+    if (!huk_ksSlot[key->slot - WC_RTL8735B_KS_SLOT_FIRST].used ||
+            huk_ksSlot[key->slot - WC_RTL8735B_KS_SLOT_FIRST].keyLen !=
+            key->keyLen) {
+        return BAD_STATE_E;
+    }
+#endif
+    return 0;
+}
+
 #ifdef HAVE_AESGCM
 /* Full AES-GCM (encrypt or decrypt-verify) under a HUK-derived slot key. The HAL
  * assumes a 96-bit (12-byte) IV (standard J0); an unsupported IV length is a hard
  * BAD_FUNC_ARG. Do NOT return NOT_COMPILED_IN here -- the crypto-cb layer rewrites
  * it to CRYPTOCB_UNAVAILABLE, forcing an unwanted software GCM that would key off
  * the seed, not the device-bound key. */
-static int Rtl8735bHuk_Gcm(int enc, const byte* seed, const byte* in,
+static int Rtl8735bHuk_Gcm(int enc, const Rtl8735bHukKey* key, const byte* in,
     word32 sz, byte* out, const byte* iv, word32 ivSz, const byte* aad,
     word32 aadSz, byte* tag, word32 tagSz)
 {
@@ -751,7 +797,7 @@ static int Rtl8735bHuk_Gcm(int enc, const byte* seed, const byte* in,
 
     /* Validate args before any copy/bounce/dereference: the crypto-callback
      * wrapper does not, so a bad caller would otherwise crash inside the HAL. */
-    if (seed == NULL || iv == NULL) {
+    if (key == NULL || iv == NULL) {
         return BAD_FUNC_ARG;
     }
     if (sz > 0 && (in == NULL || out == NULL)) {
@@ -816,12 +862,11 @@ static int Rtl8735bHuk_Gcm(int enc, const byte* seed, const byte* in,
     if (ret != 0) {
         goto cleanup;
     }
-    ret = Rtl8735bHuk_DeriveSlotKey(seed);
+    ret = Rtl8735bHuk_LoadKey(key);
     if (ret != 0) {
         goto unlock;
     }
-    hw = hal_crypto_aes_gcm_sk_init((byte)WC_RTL8735B_DERIVED_WB_IDX,
-                                    WC_RTL8735B_KEYLEN);
+    hw = hal_crypto_aes_gcm_sk_init(key->slot, key->keyLen);
     if (hw != 0) {
         WC_RTL8735B_HW_FAIL("aes_gcm_sk_init", hw);
         ret = WC_HW_E;
@@ -881,9 +926,10 @@ cleanup:
 /* AES-ECB under a HUK-derived slot key. sz must be a multiple of the block.
  * Unaligned caller in/out are bounced through 32-byte-aligned temporaries (the
  * HAL DMAs its buffers on cache-line boundaries), so callers need not align.
- * Guarded to match its only call site (the WC_CIPHER_AES_ECB dispatch case);
- * CBC/CTR drive hal_crypto_aes_ecb_* directly, not this helper. */
-static int Rtl8735bHuk_Ecb(int enc, const byte* seed, const byte* in,
+ * Guarded to match its call sites (the WC_CIPHER_AES_ECB dispatch case and the
+ * ECB-wrapped ECC scalar unwrap and the key-store import); CBC/CTR drive
+ * hal_crypto_aes_ecb_* directly, not this helper. */
+static int Rtl8735bHuk_Ecb(int enc, const Rtl8735bHukKey* key, const byte* in,
     word32 sz, byte* out)
 {
     int         ret = 0;
@@ -892,7 +938,7 @@ static int Rtl8735bHuk_Ecb(int enc, const byte* seed, const byte* in,
     byte* inBounce  = NULL;
     byte* outBounce = NULL;
 
-    if (seed == NULL || in == NULL || out == NULL ||
+    if (key == NULL || in == NULL || out == NULL ||
             sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
     }
@@ -914,12 +960,11 @@ static int Rtl8735bHuk_Ecb(int enc, const byte* seed, const byte* in,
     if (ret != 0) {
         goto cleanup;
     }
-    ret = Rtl8735bHuk_DeriveSlotKey(seed);
+    ret = Rtl8735bHuk_LoadKey(key);
     if (ret != 0) {
         goto unlock;
     }
-    if (hal_crypto_aes_ecb_sk_init((byte)WC_RTL8735B_DERIVED_WB_IDX,
-            WC_RTL8735B_KEYLEN) != 0) {
+    if (hal_crypto_aes_ecb_sk_init(key->slot, key->keyLen) != 0) {
         ret = WC_HW_E;
         goto unlock;
     }
@@ -951,7 +996,7 @@ cleanup:
  * ECB-sk operations -- the key still never leaves hardware. iv is the 16-byte
  * chaining block (aes->reg); on success it is advanced to the last ciphertext
  * block for the next call. Handles in == out (in-place) for both directions. */
-static int Rtl8735bHuk_Cbc(int enc, const byte* seed, const byte* in,
+static int Rtl8735bHuk_Cbc(int enc, const Rtl8735bHukKey* key, const byte* in,
     word32 sz, byte* out, byte* iv)
 {
     int    ret;
@@ -960,7 +1005,7 @@ static int Rtl8735bHuk_Cbc(int enc, const byte* seed, const byte* in,
     XALIGNED(32) byte blk[WC_AES_BLOCK_SIZE];
     XALIGNED(32) byte cur[WC_AES_BLOCK_SIZE];
 
-    if (seed == NULL || in == NULL || out == NULL || iv == NULL ||
+    if (key == NULL || in == NULL || out == NULL || iv == NULL ||
             sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
     }
@@ -968,12 +1013,11 @@ static int Rtl8735bHuk_Cbc(int enc, const byte* seed, const byte* in,
     if (ret != 0) {
         return ret;
     }
-    ret = Rtl8735bHuk_DeriveSlotKey(seed);
+    ret = Rtl8735bHuk_LoadKey(key);
     if (ret != 0) {
         goto out;
     }
-    if (hal_crypto_aes_ecb_sk_init((byte)WC_RTL8735B_DERIVED_WB_IDX,
-            WC_RTL8735B_KEYLEN) != 0) {
+    if (hal_crypto_aes_ecb_sk_init(key->slot, key->keyLen) != 0) {
         ret = WC_HW_E;
         goto out;
     }
@@ -1043,7 +1087,7 @@ static void Rtl8735bHuk_IncCtr(byte* ctr)
  * keystream bytes at the tail of aes->tmp) so partial blocks continue across
  * calls exactly as the software path does. The counter is staged on an aligned
  * stack buffer, so caller in/out alignment does not matter (only XORed here). */
-static int Rtl8735bHuk_Ctr(Aes* aes, const byte* seed, const byte* in,
+static int Rtl8735bHuk_Ctr(Aes* aes, const Rtl8735bHukKey* key, const byte* in,
     word32 sz, byte* out)
 {
     int    ret;
@@ -1051,9 +1095,9 @@ static int Rtl8735bHuk_Ctr(Aes* aes, const byte* seed, const byte* in,
     XALIGNED(32) byte ctr[WC_AES_BLOCK_SIZE] = { 0 };
     XALIGNED(32) byte ks[WC_AES_BLOCK_SIZE]  = { 0 };
 
-    if (aes == NULL || seed == NULL ||
+    if (aes == NULL || key == NULL ||
             (sz != 0 && (in == NULL || out == NULL))) {
-        return BAD_FUNC_ARG;   /* seed check for parity with Gcm/Ecb/Cbc */
+        return BAD_FUNC_ARG;   /* key check for parity with Gcm/Ecb/Cbc */
     }
 
     /* If the whole request is covered by leftover keystream, no HW is needed:
@@ -1077,12 +1121,11 @@ static int Rtl8735bHuk_Ctr(Aes* aes, const byte* seed, const byte* in,
     /* Derive/init the HW key first: a failure here must leave the output and CTR
      * state untouched, so the leftover-keystream consumption (below) only runs
      * once the hardware is ready. */
-    ret = Rtl8735bHuk_DeriveSlotKey(seed);
+    ret = Rtl8735bHuk_LoadKey(key);
     if (ret != 0) {
         goto out;
     }
-    if (hal_crypto_aes_ecb_sk_init((byte)WC_RTL8735B_DERIVED_WB_IDX,
-            WC_RTL8735B_KEYLEN) != 0) {
+    if (hal_crypto_aes_ecb_sk_init(key->slot, key->keyLen) != 0) {
         ret = WC_HW_E;
         goto out;
     }
@@ -1134,64 +1177,388 @@ out:
 }
 #endif /* WOLFSSL_AES_COUNTER */
 
-/* The 256-bit seed an Aes carries in devKey (set via the normal key API) is the
- * per-operation HKDF input. Point *seed at it, or return CRYPTOCB_UNAVAILABLE if
- * this is not a 256-bit seed key (so non-HUK keys fall back to software). */
-static int Rtl8735bHuk_AesSeed(Aes* aes, const byte** seed)
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+static const byte huk_ksMagic[WC_RTL8735B_KEYREF_SZ - 1] = { 'R', 'T', 'K' };
+
+int wc_Rtl8735b_MakeKeyRef(int slot, byte* out, word32* outSz)
 {
-    if (aes == NULL || aes->keylen != WC_RTL8735B_KEYLEN) {
+    if (out == NULL || outSz == NULL || *outSz < WC_RTL8735B_KEYREF_SZ ||
+            slot < WC_RTL8735B_KS_SLOT_FIRST ||
+            slot > WC_RTL8735B_KS_SLOT_LAST) {
+        return BAD_FUNC_ARG;
+    }
+    XMEMCPY(out, huk_ksMagic, sizeof(huk_ksMagic));
+    out[WC_RTL8735B_KEYREF_SZ - 1] = (byte)slot;
+    *outSz = WC_RTL8735B_KEYREF_SZ;
+    return 0;
+}
+
+static int Rtl8735bKs_ParseRef(const byte* ref, word32 refSz, byte* slot)
+{
+    byte s;
+
+    if (ref == NULL || refSz != WC_RTL8735B_KEYREF_SZ ||
+            XMEMCMP(ref, huk_ksMagic, sizeof(huk_ksMagic)) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    s = ref[WC_RTL8735B_KEYREF_SZ - 1];
+    if (s < WC_RTL8735B_KS_SLOT_FIRST || s > WC_RTL8735B_KS_SLOT_LAST) {
+        return BAD_FUNC_ARG;
+    }
+    *slot = s;
+    return 0;
+}
+
+/* The key an Aes made with wc_AesInit_Id() names. An empty slot or a reference
+ * this device did not make fails: there is no software key to fall back to. */
+static int Rtl8735bKs_SlotKey(const byte* ref, int refSz, Rtl8735bHukKey* key)
+{
+    byte slot;
+    int  ret;
+
+    if (refSz <= 0) {
+        return BAD_FUNC_ARG;
+    }
+    ret = Rtl8735bKs_ParseRef(ref, (word32)refSz, &slot);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    if (!huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].used) {
+        ret = BAD_STATE_E;
+    }
+    else {
+        key->seed   = NULL;
+        key->slot   = slot;
+        key->keyLen = huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].keyLen;
+    }
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+/* Write a key into an empty slot. k must be 32-byte aligned (DMA). Each slot
+ * is 256 bits: writekey stores the key at the start and zero-fills the rest,
+ * and a 128- or 192-bit operation uses the leading bytes. */
+static int Rtl8735bKs_Store(byte slot, byte* k, word32 keyLen)
+{
+    int ret = wolfSSL_CryptHwMutexLock();
+
+    if (ret != 0) {
+        return ret;
+    }
+    if (huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].used) {
+        ret = BAD_STATE_E;
+    }
+    else if (hal_crypto_key_storage_writekey(k, (u8)keyLen, slot) != 0) {
+        ret = WC_HW_E;
+    }
+    else {
+        huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].used   = 1;
+        huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].keyLen = keyLen;
+    }
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+/* Overwrite a slot with zeros and mark it empty. Caller holds the mutex. */
+static int Rtl8735bKs_Clear(byte slot)
+{
+    XALIGNED(32) byte zero[WC_RTL8735B_KEYLEN];
+
+    XMEMSET(zero, 0, sizeof(zero));
+    if (hal_crypto_key_storage_writekey(zero, (u8)sizeof(zero), slot) != 0) {
+        return WC_HW_E;
+    }
+    huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].used   = 0;
+    huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].keyLen = 0;
+    return 0;
+}
+
+#if defined(HAVE_AES_KEYWRAP) && defined(HAVE_AES_ECB)
+/* RFC 3394 unwrap under the HUK-derived key for seed. wolfCrypt runs each block
+ * through wc_AesEcbDecrypt, which this device serves, so the KEK stays in the
+ * engine. Without HAVE_AES_ECB those blocks would run in software keyed on the
+ * seed, so the format is not offered then. */
+static int Rtl8735bKs_KeyUnwrap(int devId, const byte* seed, const byte* blob,
+    word32 blobSz, byte* out, word32* outSz)
+{
+    int  ret;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes* aes;
+
+    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
+    if (aes == NULL) {
+        return MEMORY_E;
+    }
+#else
+    Aes  aes[1];
+#endif
+
+    ret = wc_AesInit(aes, NULL, devId);
+    if (ret == 0) {
+        ret = wc_AesSetKey(aes, seed, WC_RTL8735B_KEYLEN, NULL,
+                           AES_DECRYPTION);
+        if (ret == 0) {
+            ret = wc_AesKeyUnWrap_ex(aes, blob, blobSz, out, *outSz, NULL);
+        }
+        wc_AesFree(aes);
+    }
+    if (ret > 0) {
+        *outSz = (word32)ret;
+        ret = 0;
+    }
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+    return ret;
+}
+#endif /* HAVE_AES_KEYWRAP && HAVE_AES_ECB */
+
+/* Unwrap an AES key under the HUK and write it into a key-store slot. The
+ * engine has no unwrap-into-slot path (its AES output always goes to memory),
+ * so the key passes through buf, which is scrubbed before return. */
+static int Rtl8735bKs_ImportWrapped(int devId, struct wc_CryptoInfo* info)
+{
+    const byte* seed   = info->keystore.op.importWrapped.wrapKeyRef;
+    const byte* blob   = info->keystore.op.importWrapped.blob;
+    word32      blobSz = info->keystore.op.importWrapped.blobSz;
+    word32      keyLen = 0;
+    byte        slot   = 0;
+    int         ret;
+    XALIGNED(32) byte buf[WC_RTL8735B_KEYLEN] = { 0 };
+
+    (void)devId;
+    (void)blob;
+    (void)blobSz;
+    if (info->keystore.op.importWrapped.keyType != WC_KEYSTORE_KEY_AES) {
         return CRYPTOCB_UNAVAILABLE;
     }
-    *seed = (const byte*)aes->devKey;
+    if (info->keystore.op.importWrapped.attrs != 0 || seed == NULL ||
+            info->keystore.op.importWrapped.wrapKeyRefSz !=
+                WC_RTL8735B_KEYLEN) {
+        return BAD_FUNC_ARG;
+    }
+    ret = Rtl8735bKs_ParseRef(info->keystore.op.importWrapped.keyRef,
+                              info->keystore.op.importWrapped.keyRefSz, &slot);
+    if (ret != 0) {
+        return ret;
+    }
+
+    switch (info->keystore.op.importWrapped.format) {
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    case WC_KEYWRAP_FORMAT_VENDOR: {
+        Rtl8735bHukKey wrapKey;
+
+        if (blobSz != 16 && blobSz != WC_RTL8735B_KEYLEN) {
+            return BAD_FUNC_ARG;
+        }
+        Rtl8735bHuk_SeedKey(&wrapKey, seed);
+        keyLen = blobSz;
+        ret = Rtl8735bHuk_Ecb(0, &wrapKey, blob, blobSz, buf);
+        break;
+    }
+#endif
+#if defined(HAVE_AES_KEYWRAP) && defined(HAVE_AES_ECB)
+    case WC_KEYWRAP_FORMAT_AESKW:
+        if (blobSz != 16 + 8 && blobSz != 24 + 8 &&
+                blobSz != WC_RTL8735B_KEYLEN + 8) {
+            return BAD_FUNC_ARG;
+        }
+        keyLen = sizeof(buf);
+        ret = Rtl8735bKs_KeyUnwrap(devId, seed, blob, blobSz, buf, &keyLen);
+        break;
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    if (ret == 0) {
+        ret = Rtl8735bKs_Store(slot, buf, keyLen);
+    }
+    ForceZero(buf, sizeof(buf));
+    return ret;
+}
+
+static int Rtl8735bKs_ImportPlain(struct wc_CryptoInfo* info)
+{
+    word32 keyLen = info->keystore.op.importPlain.keySz;
+    byte   slot   = 0;
+    int    ret;
+    XALIGNED(32) byte buf[WC_RTL8735B_KEYLEN] = { 0 };
+
+    if (info->keystore.op.importPlain.keyType != WC_KEYSTORE_KEY_AES) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (info->keystore.op.importPlain.attrs != 0 ||
+            info->keystore.op.importPlain.key == NULL ||
+            (keyLen != 16 && keyLen != 24 && keyLen != WC_RTL8735B_KEYLEN)) {
+        return BAD_FUNC_ARG;
+    }
+    ret = Rtl8735bKs_ParseRef(info->keystore.op.importPlain.keyRef,
+                              info->keystore.op.importPlain.keyRefSz, &slot);
+    if (ret != 0) {
+        return ret;
+    }
+    XMEMCPY(buf, info->keystore.op.importPlain.key, keyLen);
+    ret = Rtl8735bKs_Store(slot, buf, keyLen);
+    ForceZero(buf, sizeof(buf));
+    return ret;
+}
+
+static int Rtl8735bKs_Delete(struct wc_CryptoInfo* info)
+{
+    byte slot = 0;
+    int  ret;
+
+    ret = Rtl8735bKs_ParseRef(info->keystore.op.deleteKey.keyRef,
+                              info->keystore.op.deleteKey.keyRefSz, &slot);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    if (!huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].used) {
+        ret = BAD_STATE_E;
+    }
+    else {
+        ret = Rtl8735bKs_Clear(slot);
+    }
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+static int Rtl8735bKs_GetInfo(struct wc_CryptoInfo* info)
+{
+    byte   slot = 0;
+    word32 keyLen = 0;
+    int    ret;
+
+    ret = Rtl8735bKs_ParseRef(info->keystore.op.getInfo.keyRef,
+                              info->keystore.op.getInfo.keyRefSz, &slot);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    if (!huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].used) {
+        ret = BAD_STATE_E;
+    }
+    else {
+        keyLen = huk_ksSlot[slot - WC_RTL8735B_KS_SLOT_FIRST].keyLen;
+    }
+    wolfSSL_CryptHwMutexUnLock();
+    if (ret == 0) {
+        if (info->keystore.op.getInfo.keyType != NULL) {
+            *info->keystore.op.getInfo.keyType = WC_KEYSTORE_KEY_AES;
+        }
+        if (info->keystore.op.getInfo.keyBits != NULL) {
+            *info->keystore.op.getInfo.keyBits = keyLen * 8;
+        }
+        if (info->keystore.op.getInfo.attrs != NULL) {
+            *info->keystore.op.getInfo.attrs = 0;
+        }
+    }
+    return ret;
+}
+
+/* Slots are write-only and volatile: nothing can be exported or derived. */
+static int Rtl8735bHuk_KeyStore(int devId, struct wc_CryptoInfo* info)
+{
+    switch (info->keystore.type) {
+        case WC_KEYSTORE_IMPORT_WRAPPED:
+            return Rtl8735bKs_ImportWrapped(devId, info);
+        case WC_KEYSTORE_IMPORT_PLAIN:
+            return Rtl8735bKs_ImportPlain(info);
+        case WC_KEYSTORE_DELETE:
+            return Rtl8735bKs_Delete(info);
+        case WC_KEYSTORE_GET_INFO:
+            return Rtl8735bKs_GetInfo(info);
+        default:
+            return CRYPTOCB_UNAVAILABLE;
+    }
+}
+#endif /* WC_RTL8735B_HAVE_KEYSTORE */
+
+/* The key an Aes runs under on this device. An Aes made with wc_AesInit_Id()
+ * names a key-store slot. Otherwise the 256-bit key it carries in devKey (set
+ * via the normal key API) is the per-operation HKDF seed; any other key is not
+ * a seed and returns CRYPTOCB_UNAVAILABLE so it runs in software. */
+static int Rtl8735bHuk_AesKey(Aes* aes, Rtl8735bHukKey* key)
+{
+    if (aes == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+    if (aes->idLen > 0) {
+        /* A key set on an Aes made with wc_AesInit_Id() is ambiguous: refuse
+         * it rather than silently using one and dropping the other. */
+        if (aes->keylen != 0) {
+            return BAD_FUNC_ARG;
+        }
+        return Rtl8735bKs_SlotKey(aes->id, aes->idLen, key);
+    }
+#endif
+    if (aes->keylen != WC_RTL8735B_KEYLEN) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    Rtl8735bHuk_SeedKey(key, (const byte*)aes->devKey);
     return 0;
 }
 
 static int Rtl8735bHuk_Cipher(struct wc_CryptoInfo* info)
 {
     int ret;
-    const byte* seed = NULL;
+    Rtl8735bHukKey key;
 
     switch (info->cipher.type) {
 #if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
     defined(WOLF_CRYPTO_CB_ONLY_AES)
     case WC_CIPHER_AES_ECB:
-        ret = Rtl8735bHuk_AesSeed(info->cipher.aesecb.aes, &seed);
+        ret = Rtl8735bHuk_AesKey(info->cipher.aesecb.aes, &key);
         if (ret != 0) {
             return ret;
         }
-        return Rtl8735bHuk_Ecb(info->cipher.enc, seed, info->cipher.aesecb.in,
+        return Rtl8735bHuk_Ecb(info->cipher.enc, &key, info->cipher.aesecb.in,
                                 info->cipher.aesecb.sz, info->cipher.aesecb.out);
 #endif
 #if defined(HAVE_AES_CBC)
     case WC_CIPHER_AES_CBC:
-        ret = Rtl8735bHuk_AesSeed(info->cipher.aescbc.aes, &seed);
+        ret = Rtl8735bHuk_AesKey(info->cipher.aescbc.aes, &key);
         if (ret != 0) {
             return ret;
         }
         /* Rtl8735bHuk_Cbc advances aes->reg (the chaining IV) itself, correctly
          * for in-place and both directions. */
-        return Rtl8735bHuk_Cbc(info->cipher.enc, seed, info->cipher.aescbc.in,
+        return Rtl8735bHuk_Cbc(info->cipher.enc, &key, info->cipher.aescbc.in,
                                 info->cipher.aescbc.sz, info->cipher.aescbc.out,
                                 (byte*)info->cipher.aescbc.aes->reg);
 #endif
 #ifdef WOLFSSL_AES_COUNTER
     case WC_CIPHER_AES_CTR:
-        ret = Rtl8735bHuk_AesSeed(info->cipher.aesctr.aes, &seed);
+        ret = Rtl8735bHuk_AesKey(info->cipher.aesctr.aes, &key);
         if (ret != 0) {
             return ret;
         }
-        return Rtl8735bHuk_Ctr(info->cipher.aesctr.aes, seed,
+        return Rtl8735bHuk_Ctr(info->cipher.aesctr.aes, &key,
                                 info->cipher.aesctr.in, info->cipher.aesctr.sz,
                                 info->cipher.aesctr.out);
 #endif
 #ifdef HAVE_AESGCM
     case WC_CIPHER_AES_GCM:
         if (info->cipher.enc) {
-            ret = Rtl8735bHuk_AesSeed(info->cipher.aesgcm_enc.aes, &seed);
+            ret = Rtl8735bHuk_AesKey(info->cipher.aesgcm_enc.aes, &key);
             if (ret != 0) {
                 return ret;
             }
-            return Rtl8735bHuk_Gcm(1, seed,
+            return Rtl8735bHuk_Gcm(1, &key,
                                     info->cipher.aesgcm_enc.in,
                                     info->cipher.aesgcm_enc.sz,
                                     info->cipher.aesgcm_enc.out,
@@ -1203,11 +1570,11 @@ static int Rtl8735bHuk_Cipher(struct wc_CryptoInfo* info)
                                     info->cipher.aesgcm_enc.authTagSz);
         }
         else {
-            ret = Rtl8735bHuk_AesSeed(info->cipher.aesgcm_dec.aes, &seed);
+            ret = Rtl8735bHuk_AesKey(info->cipher.aesgcm_dec.aes, &key);
             if (ret != 0) {
                 return ret;
             }
-            return Rtl8735bHuk_Gcm(0, seed,
+            return Rtl8735bHuk_Gcm(0, &key,
                                     info->cipher.aesgcm_dec.in,
                                     info->cipher.aesgcm_dec.sz,
                                     info->cipher.aesgcm_dec.out,
@@ -1497,11 +1864,11 @@ static int Rtl8735bHuk_HmacCb(struct wc_CryptoInfo* info)
 #endif /* !NO_HMAC && !NO_SHA256 */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-/* The HUK-wrapped ECDSA scalar is AES-GCM decrypt-verified at unwrap
- * (Rtl8735bHuk_UnwrapScalar reuses Rtl8735bHuk_Gcm), so the ECDSA sign path
- * requires AES-GCM. */
-#ifndef HAVE_AESGCM
-    #error "RTL8735B HUK ECDSA needs HAVE_AESGCM (GCM-authenticated scalar unwrap)"
+/* The HUK-wrapped ECDSA scalar is unwrapped with AES-GCM or AES-ECB (see
+ * Rtl8735bHuk_UnwrapScalar), so the sign path needs at least one of them. */
+#if !defined(HAVE_AESGCM) && !defined(HAVE_AES_ECB) && \
+    !defined(WOLFSSL_AES_DIRECT) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #error "RTL8735B HUK ECDSA needs HAVE_AESGCM or HAVE_AES_ECB"
 #endif
 
 /* Big integers cross the HAL as little-endian 32-bit word arrays (word[0] =
@@ -1904,22 +2271,104 @@ done:
 }
 #endif /* HAVE_ECC_VERIFY */
 
-/* Unwrap the HUK-wrapped private scalar (hk->plainLen bytes). AES-GCM decrypt-
- * verify under the HUK-derived key (reusing the GCM path): a tampered/wrong blob
- * fails here with AES_GCM_AUTH_E, not silently as a garbage scalar downstream. */
-static int Rtl8735bHuk_UnwrapScalar(const wc_Rtl8735b_EccKey* hk,
-    byte* scalar, word32 scalarSz)
+/* Validate the wrapped-scalar fields of a HUK ECC key. iv, ivSz, tag and tagSz
+ * all set selects AES-GCM (wrappedLen == plainLen); all four NULL/0 selects
+ * AES-ECB, the STM32 DHUK blob layout (wrappedLen a multiple of 16, scalar in
+ * the first plainLen bytes). A partial set is rejected rather than guessed. */
+static int Rtl8735bHuk_EccKeyCheck(const wc_Rtl8735b_EccKey* hk, int* isEcb)
 {
-    (void)scalarSz;   /* out length is hk->plainLen (GCM: ciphertext == plaintext) */
-    return Rtl8735bHuk_Gcm(0, hk->seed, hk->wrapped, hk->plainLen, scalar,
-                           hk->iv, hk->ivSz, NULL, 0, (byte*)hk->tag, hk->tagSz);
+    int gcm;
+    int ecb;
+
+    if (hk->seed == NULL || hk->seedSz != WC_RTL8735B_KEYLEN ||
+            hk->wrapped == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    gcm = (hk->iv != NULL && hk->ivSz != 0 &&
+           hk->tag != NULL && hk->tagSz != 0);
+    ecb = (hk->iv == NULL && hk->ivSz == 0 &&
+           hk->tag == NULL && hk->tagSz == 0);
+    if (!gcm && !ecb) {
+        return BAD_FUNC_ARG;
+    }
+    if (hk->plainLen == 0 ||
+            hk->plainLen > WC_RTL8735B_MAX_WRAPPED ||
+            hk->plainLen > (word32)MAX_ECC_BYTES) {
+        return BAD_FUNC_ARG;
+    }
+    if (gcm) {
+        if (hk->wrappedLen != hk->plainLen) {   /* ciphertext == plaintext */
+            return BAD_FUNC_ARG;
+        }
+    }
+    else if (hk->wrappedLen < hk->plainLen ||
+             hk->wrappedLen > WC_RTL8735B_MAX_WRAPPED ||
+             (hk->wrappedLen % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    *isEcb = ecb;
+    return 0;
+}
+
+/* Unwrap the HUK-wrapped private scalar (hk->plainLen bytes) under the HUK-
+ * derived key. GCM is decrypt-verified: a tampered/wrong blob fails here with
+ * AES_GCM_AUTH_E. ECB has no integrity check: a wrong blob yields a wrong
+ * scalar and the signature fails to verify. */
+static int Rtl8735bHuk_UnwrapScalar(const wc_Rtl8735b_EccKey* hk, int isEcb,
+    byte* scalar)
+{
+    if (isEcb) {
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+        int            ret;
+        Rtl8735bHukKey key;
+    #ifdef WOLFSSL_SMALL_STACK
+        byte*          buf;
+
+        buf = (byte*)XMALLOC(WC_RTL8735B_MAX_WRAPPED, NULL,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL) {
+            return MEMORY_E;
+        }
+    #else
+        byte           buf[WC_RTL8735B_MAX_WRAPPED];
+    #endif
+
+        Rtl8735bHuk_SeedKey(&key, hk->seed);
+        ret = Rtl8735bHuk_Ecb(0, &key, hk->wrapped, hk->wrappedLen, buf);
+        if (ret == 0) {
+            XMEMCPY(scalar, buf, hk->plainLen);
+        }
+        ForceZero(buf, WC_RTL8735B_MAX_WRAPPED);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+#else
+        /* Not CRYPTOCB_UNAVAILABLE: that would retry a software sign on the
+         * keyless HUK device key. */
+        return ALGO_ID_E;
+#endif
+    }
+#ifdef HAVE_AESGCM
+    {
+        Rtl8735bHukKey key;
+
+        Rtl8735bHuk_SeedKey(&key, hk->seed);
+        return Rtl8735bHuk_Gcm(0, &key, hk->wrapped, hk->plainLen, scalar,
+                               hk->iv, hk->ivSz, NULL, 0, (byte*)hk->tag,
+                               hk->tagSz);
+    }
+#else
+    return ALGO_ID_E;   /* GCM blob, no GCM in this build; see above */
+#endif
 }
 
 /* Route an ECDSA sign request to the HUK backend (wc_Rtl8735b_EccKey via
- * key->devCtx). Modes: 1 OTP-resident (scalar stays in OTP); 2 GCM-unwrap the
- * wrapped scalar then HW sign; 3 GCM-unwrap then software sign. The unwrap is
- * AES-GCM-authenticated (needs HAVE_AESGCM). A plain ecc_key with no devCtx is a
- * general HW offload. The wrapped blob unwraps only on its origin HUK. */
+ * key->devCtx). Modes: 1 OTP-resident (scalar stays in OTP); 2 unwrap the
+ * wrapped scalar (GCM or ECB) then HW sign; 3 unwrap then software sign. A
+ * plain ecc_key with no devCtx is a general HW offload. The wrapped blob
+ * unwraps only on its origin HUK. */
 static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
 {
     ecc_key* key = info->pk.eccsign.key;
@@ -1927,6 +2376,7 @@ static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
     ecc_key* tmp = NULL;
     int      ret;
     int      curveId;
+    int      isEcb = 0;
     word32   scalarSz;
 #ifdef WOLFSSL_SMALL_STACK
     byte*    scalar = NULL;
@@ -1972,17 +2422,9 @@ static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
         goto cleanup;
     }
 
-    /* Modes 2/3 need the seed + GCM-wrapped scalar (ciphertext + iv + tag). */
-    if (hk->seed == NULL || hk->seedSz != WC_RTL8735B_KEYLEN ||
-            hk->wrapped == NULL || hk->iv == NULL || hk->tag == NULL) {
-        ret = CRYPTOCB_UNAVAILABLE;
-        goto cleanup;
-    }
-    if (hk->plainLen == 0 ||
-            hk->wrappedLen != hk->plainLen ||   /* GCM: ciphertext == plaintext */
-            hk->plainLen > WC_RTL8735B_MAX_WRAPPED ||
-            hk->plainLen > (word32)MAX_ECC_BYTES) {
-        ret = BAD_FUNC_ARG;
+    /* Modes 2/3 need the seed + wrapped scalar (GCM: plus iv + tag). */
+    ret = Rtl8735bHuk_EccKeyCheck(hk, &isEcb);
+    if (ret != 0) {
         goto cleanup;
     }
     /* The caller must set the curve (wc_ecc_set_curve): a wrapped 32-byte scalar
@@ -1995,7 +2437,7 @@ static int Rtl8735bHuk_PkSign(struct wc_CryptoInfo* info)
     curveId  = key->dp->id;
     scalarSz = hk->plainLen;
 
-    ret = Rtl8735bHuk_UnwrapScalar(hk, scalar, scalarSz);
+    ret = Rtl8735bHuk_UnwrapScalar(hk, isEcb, scalar);
     if (ret != 0) {
         goto cleanup;
     }
@@ -2154,6 +2596,10 @@ static int Rtl8735b_CryptoDevCb(int devId, struct wc_CryptoInfo* info,
         case WC_ALGO_TYPE_SEED:
             return Rtl8735b_Seed(info->seed.seed, info->seed.sz);
 #endif
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+        case WC_ALGO_TYPE_KEYSTORE:
+            return Rtl8735bHuk_KeyStore(devId, info);
+#endif
         default:
             return CRYPTOCB_UNAVAILABLE;
     }
@@ -2191,6 +2637,17 @@ int wc_Rtl8735b_HukUnRegister(int devId)
 #ifndef WC_NO_RNG
         huk_trngInit = 0;   /* re-arm TRNG init for a later re-register */
 #endif
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+        {
+            int i;
+            for (i = 0; i < WC_RTL8735B_KS_SLOTS; i++) {
+                if (huk_ksSlot[i].used && Rtl8735bKs_Clear(
+                        (byte)(WC_RTL8735B_KS_SLOT_FIRST + i)) != 0) {
+                    ret = WC_HW_E;
+                }
+            }
+        }
+#endif
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
@@ -2198,11 +2655,26 @@ int wc_Rtl8735b_HukUnRegister(int devId)
 
 #ifdef WOLFSSL_RTL8735B_HOST_TEST
 /* Host self-test for the silicon-independent helpers (no HAL crypto needed):
- * BE<->LE word conversion, the AES-CTR counter increment, the HMAC accumulator
- * growth/overflow/cap logic, and the bounce-buffer alignment helpers. The
+ * BE<->LE word conversion, the wrapped-scalar format checks, the AES-CTR
+ * counter increment, the HMAC accumulator growth/overflow/cap logic, the
+ * bounce-buffer alignment helpers, and the key-store references and slot
+ * bookkeeping. The
  * --enable-rtl8735b build is a compile + these-KATs gate; the cipher / GCM /
  * ECDSA crypto correctness is validated on RTL8735B hardware, not here. Returns
  * 0 on success, or a negative code identifying the first failing check. */
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+static int Rtl8735bHuk_TestLoadKey(const Rtl8735bHukKey* key)
+{
+    int ret = wolfSSL_CryptHwMutexLock();
+
+    if (ret == 0) {
+        ret = Rtl8735bHuk_LoadKey(key);
+        wolfSSL_CryptHwMutexUnLock();
+    }
+    return ret;
+}
+#endif
+
 int wc_Rtl8735b_HukSelfTest(void)
 {
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
@@ -2214,6 +2686,9 @@ int wc_Rtl8735b_HukSelfTest(void)
     };
     word32 w[WC_RTL8735B_ECC_WORDS];
     byte   be2[WC_RTL8735B_ECC_BYTES];
+    byte   blob[WC_RTL8735B_MAX_WRAPPED];
+    wc_Rtl8735b_EccKey hk;
+    int    isEcb;
 #endif
 #ifdef WOLFSSL_AES_COUNTER
     byte ctr[WC_AES_BLOCK_SIZE];
@@ -2230,6 +2705,18 @@ int wc_Rtl8735b_HukSelfTest(void)
     byte*       alloc;
     byte        aligned[64];
     byte*       ap;
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+    byte                  ref[WC_RTL8735B_KEYREF_SZ];
+    word32                refSz;
+    byte                  slot;
+    byte                  ksKey[WC_RTL8735B_KEYLEN];
+    word32                ksType;
+    word32                ksBits;
+    Rtl8735bHukKey        hkey;
+    struct wc_CryptoInfo  ksInfo;
+    struct wc_CryptoInfo  ksDel;
+    Aes                   ksAes;
+#endif
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
     /* BE->LE limb layout: word[0] is the least-significant limb (last 4 BE
@@ -2242,6 +2729,54 @@ int wc_Rtl8735b_HukSelfTest(void)
     Rtl8735b_LeWordsToBe(w, be2);       /* round-trip back to big-endian */
     if (XMEMCMP(kBe, be2, sizeof(kBe)) != 0) {
         return -2;
+    }
+
+    /* Wrapped-scalar format selection: iv/tag all set = GCM, all unset = ECB
+     * (block-padded), anything in between is rejected. */
+    XMEMSET(blob, 0, sizeof(blob));
+    XMEMSET(&hk, 0, sizeof(hk));
+    hk.seed = kBe;  hk.seedSz = WC_RTL8735B_KEYLEN;
+    hk.wrapped = blob;  hk.wrappedLen = 32;  hk.plainLen = 32;
+    isEcb = 0;
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != 0 || isEcb != 1) {
+        return -30;
+    }
+    hk.wrappedLen = 48;                     /* padded ECB blob */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != 0) {
+        return -31;
+    }
+    hk.wrappedLen = 40;                     /* not a block multiple */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -32;
+    }
+    hk.wrappedLen = 16;                     /* shorter than the scalar */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -33;
+    }
+    hk.wrappedLen = WC_RTL8735B_MAX_WRAPPED + WC_AES_BLOCK_SIZE;
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -34;
+    }
+    hk.wrappedLen = 32;
+    hk.iv = blob;  hk.ivSz = 12;            /* iv without a tag */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -35;
+    }
+    hk.iv = NULL;  hk.tagSz = 16;           /* a size without a pointer */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -36;
+    }
+    hk.iv = blob;  hk.tag = blob;           /* full GCM set */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != 0 || isEcb != 0) {
+        return -37;
+    }
+    hk.wrappedLen = 48;                     /* GCM blob is not padded */
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != BAD_FUNC_ARG) {
+        return -38;
+    }
+    hk.seed = NULL;
+    if (Rtl8735bHuk_EccKeyCheck(&hk, &isEcb) != CRYPTOCB_UNAVAILABLE) {
+        return -39;
     }
 #endif
 
@@ -2345,6 +2880,229 @@ int wc_Rtl8735b_HukSelfTest(void)
         return -14;
     }
     Rtl8735b_BounceFree(alloc, ap, 16);
+
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+    /* Key references: round trip, then slots outside the range, a short
+     * buffer, a wrong size and a wrong magic are all rejected. */
+    refSz = sizeof(ref);
+    if (wc_Rtl8735b_MakeKeyRef(WC_RTL8735B_KS_SLOT_FIRST, ref, &refSz) != 0 ||
+            refSz != WC_RTL8735B_KEYREF_SZ ||
+            Rtl8735bKs_ParseRef(ref, refSz, &slot) != 0 ||
+            slot != WC_RTL8735B_KS_SLOT_FIRST) {
+        return -40;
+    }
+    refSz = sizeof(ref);
+    if (wc_Rtl8735b_MakeKeyRef(WC_RTL8735B_KS_SLOT_FIRST - 1, ref,
+                &refSz) != BAD_FUNC_ARG ||
+            wc_Rtl8735b_MakeKeyRef(WC_RTL8735B_KS_SLOT_LAST + 1, ref,
+                &refSz) != BAD_FUNC_ARG) {
+        return -41;
+    }
+    refSz = WC_RTL8735B_KEYREF_SZ - 1;
+    if (wc_Rtl8735b_MakeKeyRef(WC_RTL8735B_KS_SLOT_LAST, ref,
+                &refSz) != BAD_FUNC_ARG) {
+        return -42;
+    }
+    refSz = sizeof(ref);
+    (void)wc_Rtl8735b_MakeKeyRef(WC_RTL8735B_KS_SLOT_LAST, ref, &refSz);
+    if (Rtl8735bKs_ParseRef(ref, refSz - 1, &slot) != BAD_FUNC_ARG) {
+        return -43;
+    }
+    ref[0] ^= 0x01;
+    if (Rtl8735bKs_ParseRef(ref, refSz, &slot) != BAD_FUNC_ARG) {
+        return -44;
+    }
+    ref[0] ^= 0x01;
+
+    /* Slot bookkeeping through the key-store dispatch: import into an empty
+     * slot, refuse a second import, report it, resolve it for an Aes, delete
+     * it, then the slot is empty again. */
+    XMEMSET(ksKey, 0x3C, sizeof(ksKey));
+    XMEMSET(&ksInfo, 0, sizeof(ksInfo));
+    ksInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+    ksInfo.keystore.type = WC_KEYSTORE_IMPORT_PLAIN;
+    ksInfo.keystore.op.importPlain.keyRef   = ref;
+    ksInfo.keystore.op.importPlain.keyRefSz = refSz;
+    ksInfo.keystore.op.importPlain.keyType  = WC_KEYSTORE_KEY_AES;
+    ksInfo.keystore.op.importPlain.key      = ksKey;
+    ksInfo.keystore.op.importPlain.keySz    = 24;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != 0) {
+        return -45;
+    }
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != BAD_STATE_E) {
+        return -46;
+    }
+    XMEMSET(&ksInfo.keystore.op, 0, sizeof(ksInfo.keystore.op));
+    ksInfo.keystore.type = WC_KEYSTORE_GET_INFO;
+    ksInfo.keystore.op.getInfo.keyRef   = ref;
+    ksInfo.keystore.op.getInfo.keyRefSz = refSz;
+    ksInfo.keystore.op.getInfo.keyType  = &ksType;
+    ksInfo.keystore.op.getInfo.keyBits  = &ksBits;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != 0 ||
+            ksType != WC_KEYSTORE_KEY_AES || ksBits != 192) {
+        return -47;
+    }
+    if (Rtl8735bKs_SlotKey(ref, (int)refSz, &hkey) != 0 ||
+            hkey.seed != NULL || hkey.slot != WC_RTL8735B_KS_SLOT_LAST ||
+            hkey.keyLen != 24) {
+        return -48;
+    }
+    XMEMSET(&ksInfo.keystore.op, 0, sizeof(ksInfo.keystore.op));
+    ksInfo.keystore.type = WC_KEYSTORE_DELETE;
+    ksInfo.keystore.op.deleteKey.keyRef   = ref;
+    ksInfo.keystore.op.deleteKey.keyRefSz = refSz;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != 0 ||
+            Rtl8735bHuk_KeyStore(0, &ksInfo) != BAD_STATE_E ||
+            Rtl8735bKs_SlotKey(ref, (int)refSz, &hkey) != BAD_STATE_E) {
+        return -49;
+    }
+    /* Attributes the slots cannot honour, and non-AES keys, are refused. */
+    XMEMSET(&ksInfo.keystore.op, 0, sizeof(ksInfo.keystore.op));
+    ksInfo.keystore.type = WC_KEYSTORE_IMPORT_PLAIN;
+    ksInfo.keystore.op.importPlain.keyRef   = ref;
+    ksInfo.keystore.op.importPlain.keyRefSz = refSz;
+    ksInfo.keystore.op.importPlain.keyType  = WC_KEYSTORE_KEY_AES;
+    ksInfo.keystore.op.importPlain.key      = ksKey;
+    ksInfo.keystore.op.importPlain.keySz    = WC_RTL8735B_KEYLEN;
+    ksInfo.keystore.op.importPlain.attrs    = WC_KEYSTORE_ATTR_PERSISTENT;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != BAD_FUNC_ARG) {
+        return -50;
+    }
+    ksInfo.keystore.op.importPlain.attrs   = 0;
+    ksInfo.keystore.op.importPlain.keyType = WC_KEYSTORE_KEY_HMAC;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != CRYPTOCB_UNAVAILABLE) {
+        return -51;
+    }
+    ksInfo.keystore.type = WC_KEYSTORE_EXPORT_PLAIN;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != CRYPTOCB_UNAVAILABLE) {
+        return -52;
+    }
+
+    /* Wrapped imports: argument and blob-size checks, which all run before
+     * any unwrap. The seed is ksKey; the blob contents do not matter here. */
+    XMEMSET(&ksInfo.keystore.op, 0, sizeof(ksInfo.keystore.op));
+    ksInfo.keystore.type = WC_KEYSTORE_IMPORT_WRAPPED;
+    ksInfo.keystore.op.importWrapped.keyRef       = ref;
+    ksInfo.keystore.op.importWrapped.keyRefSz     = refSz;
+    ksInfo.keystore.op.importWrapped.keyType      = WC_KEYSTORE_KEY_HMAC;
+    ksInfo.keystore.op.importWrapped.wrapKeyRef   = ksKey;
+    ksInfo.keystore.op.importWrapped.wrapKeyRefSz = WC_RTL8735B_KEYLEN;
+    ksInfo.keystore.op.importWrapped.blob         = ksKey;
+    ksInfo.keystore.op.importWrapped.blobSz       = WC_RTL8735B_KEYLEN;
+    ksInfo.keystore.op.importWrapped.format       = WC_KEYWRAP_FORMAT_VENDOR;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != CRYPTOCB_UNAVAILABLE) {
+        return -53;
+    }
+    ksInfo.keystore.op.importWrapped.keyType = WC_KEYSTORE_KEY_AES;
+    ksInfo.keystore.op.importWrapped.attrs   = WC_KEYSTORE_ATTR_EXPORTABLE;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != BAD_FUNC_ARG) {
+        return -54;
+    }
+    ksInfo.keystore.op.importWrapped.attrs        = 0;
+    ksInfo.keystore.op.importWrapped.wrapKeyRefSz = 16;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != BAD_FUNC_ARG) {
+        return -55;
+    }
+    ksInfo.keystore.op.importWrapped.wrapKeyRefSz = WC_RTL8735B_KEYLEN;
+    ksInfo.keystore.op.importWrapped.format       = 0x7F;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != CRYPTOCB_UNAVAILABLE) {
+        return -56;
+    }
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    ksInfo.keystore.op.importWrapped.format = WC_KEYWRAP_FORMAT_VENDOR;
+    ksInfo.keystore.op.importWrapped.blobSz = 24;   /* only 16 or 32 */
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != BAD_FUNC_ARG) {
+        return -57;
+    }
+#endif
+#if defined(HAVE_AES_KEYWRAP) && defined(HAVE_AES_ECB)
+    ksInfo.keystore.op.importWrapped.format = WC_KEYWRAP_FORMAT_AESKW;
+    ksInfo.keystore.op.importWrapped.blobSz = 20;   /* not 24, 32 or 40 */
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != BAD_FUNC_ARG) {
+        return -58;
+    }
+#endif
+    if (Rtl8735bKs_SlotKey(ref, (int)refSz, &hkey) != BAD_STATE_E) {
+        return -59;                         /* nothing was stored */
+    }
+
+    /* An Aes naming a slot must not also carry a key. */
+    XMEMSET(&ksAes, 0, sizeof(ksAes));
+    XMEMCPY(ksAes.id, ref, refSz);
+    ksAes.idLen  = (int)refSz;
+    ksAes.keylen = WC_RTL8735B_KEYLEN;
+    if (Rtl8735bHuk_AesKey(&ksAes, &hkey) != BAD_FUNC_ARG) {
+        return -62;
+    }
+
+    /* Successful wrapped imports record the unwrapped key length. The stub
+     * HAL returns no real ciphertext, so these check the plumbing only. */
+    XMEMSET(&ksDel, 0, sizeof(ksDel));
+    ksDel.algo_type = WC_ALGO_TYPE_KEYSTORE;
+    ksDel.keystore.type = WC_KEYSTORE_DELETE;
+    ksDel.keystore.op.deleteKey.keyRef   = ref;
+    ksDel.keystore.op.deleteKey.keyRefSz = refSz;
+    XMEMSET(&ksInfo.keystore.op, 0, sizeof(ksInfo.keystore.op));
+    ksInfo.keystore.type = WC_KEYSTORE_IMPORT_WRAPPED;
+    ksInfo.keystore.op.importWrapped.keyRef       = ref;
+    ksInfo.keystore.op.importWrapped.keyRefSz     = refSz;
+    ksInfo.keystore.op.importWrapped.keyType      = WC_KEYSTORE_KEY_AES;
+    ksInfo.keystore.op.importWrapped.wrapKeyRef   = ksKey;
+    ksInfo.keystore.op.importWrapped.wrapKeyRefSz = WC_RTL8735B_KEYLEN;
+    ksInfo.keystore.op.importWrapped.blob         = ksKey;
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    ksInfo.keystore.op.importWrapped.format = WC_KEYWRAP_FORMAT_VENDOR;
+    ksInfo.keystore.op.importWrapped.blobSz = 16;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != 0 ||
+            Rtl8735bKs_SlotKey(ref, (int)refSz, &hkey) != 0 ||
+            hkey.keyLen != 16 || Rtl8735bHuk_TestLoadKey(&hkey) != 0 ||
+            Rtl8735bHuk_KeyStore(0, &ksDel) != 0) {
+        return -60;
+    }
+    /* A key looked up before a delete, or before a re-import of another
+     * size, must not run from the slot. */
+    if (Rtl8735bHuk_TestLoadKey(&hkey) != BAD_STATE_E) {
+        return -63;
+    }
+    ksInfo.keystore.op.importWrapped.blobSz = 32;
+    if (Rtl8735bHuk_KeyStore(0, &ksInfo) != 0 ||
+            Rtl8735bHuk_TestLoadKey(&hkey) != BAD_STATE_E ||
+            Rtl8735bHuk_KeyStore(0, &ksDel) != 0) {
+        return -64;
+    }
+#endif
+#if defined(HAVE_AES_KEYWRAP) && defined(HAVE_AES_ECB)
+    {
+        /* devId 0 has no device, so this unwrap runs in software with the
+         * seed as the key; the blob is wrapped the same way. */
+        Aes  kw;
+        byte kwBlob[16 + 8];
+        int  kwRet;
+
+        kwRet = wc_AesInit(&kw, NULL, INVALID_DEVID);
+        if (kwRet == 0) {
+            kwRet = wc_AesSetKey(&kw, ksKey, WC_RTL8735B_KEYLEN, NULL,
+                                 AES_ENCRYPTION);
+            if (kwRet == 0) {
+                kwRet = wc_AesKeyWrap_ex(&kw, ksKey, 16, kwBlob,
+                                         sizeof(kwBlob), NULL);
+            }
+            wc_AesFree(&kw);
+        }
+        ksInfo.keystore.op.importWrapped.format = WC_KEYWRAP_FORMAT_AESKW;
+        ksInfo.keystore.op.importWrapped.blob   = kwBlob;
+        ksInfo.keystore.op.importWrapped.blobSz = sizeof(kwBlob);
+        if (kwRet != (int)sizeof(kwBlob) ||
+                Rtl8735bHuk_KeyStore(0, &ksInfo) != 0 ||
+                Rtl8735bKs_SlotKey(ref, (int)refSz, &hkey) != 0 ||
+                hkey.keyLen != 16 || Rtl8735bHuk_KeyStore(0, &ksDel) != 0) {
+            return -61;
+        }
+    }
+#endif
+#endif /* WC_RTL8735B_HAVE_KEYSTORE */
 
     return 0;
 }
