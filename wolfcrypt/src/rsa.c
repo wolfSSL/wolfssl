@@ -6060,7 +6060,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_mul(&key->p, &key->e, &key->e);
 #endif
-    if (err == MP_OKAY)                /* key->d = 1/e mod lcm(p-1, q-1) */
+    if (err == MP_OKAY)                /* key->d = 1/e mod tmp3 */
         err = mp_invmod(&key->e, tmp3, &key->d);
 #ifdef WC_RSA_BLINDING
     /* Take off blinding from d and reset e */
@@ -6073,6 +6073,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_set_int(&key->e, (unsigned long)e);
 #endif
+    /* FIPS 186-5 A.1.1 step 3: d must exceed 2^(nlen/2); no key otherwise. */
+    if (err == MP_OKAY && mp_count_bits(&key->d) <= size / 2)
+        err = PRIME_GEN_E;
     if (err == MP_OKAY)                /* key->n = pq */
         err = mp_mul(p, q, &key->n);
     if (err == MP_OKAY)                /* key->dP = d mod(p-1) */
