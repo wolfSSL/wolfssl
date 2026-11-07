@@ -674,6 +674,67 @@ static int test_wc_ecc_ctx_new_ex_heap(void)
     return EXPECT_RESULT();
 }
 
+/* wc_ecc_gen_k allocates its scratch mp_int from the RNG's heap hint. */
+static int test_wc_ecc_gen_k_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    defined(HAVE_ECC) && !defined(WC_NO_RNG) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_SMALL_STACK) && \
+    !defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    byte staticMemory[TEST_LSM_STATIC_SIZE];
+    word32 sizeList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_BUCKETS };
+    word32 distList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_DIST };
+    byte n[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
+    byte buf[8];
+    WOLFSSL_HEAP_HINT* heap = NULL;
+    WOLFSSL_MEM_STATS before, mid, after;
+    WC_RNG rng;
+    mp_int k, order;
+    int rngInit = 0;
+
+    XMEMSET(&before, 0, sizeof(before));
+    XMEMSET(&mid, 0, sizeof(mid));
+    XMEMSET(&after, 0, sizeof(after));
+    XMEMSET(&k, 0, sizeof(k));
+    XMEMSET(&order, 0, sizeof(order));
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            0);
+    ExpectIntEQ(wc_InitRng_ex(&rng, heap, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+    ExpectIntEQ(mp_init(&k), MP_OKAY);
+    ExpectIntEQ(mp_init(&order), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&order, n, sizeof(n)), MP_OKAY);
+
+    /* gen_k is one 8-byte RNG draw plus one scratch mp_int, both taken from
+     * the RNG's heap and freed before return. */
+    if (EXPECT_SUCCESS() && (heap != NULL)) {
+        ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &before), 1);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, buf, sizeof(buf)), 0);
+        ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &mid), 1);
+        ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order), 0);
+        ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &after), 1);
+        ExpectIntEQ(after.totalAlloc - mid.totalAlloc,
+            mid.totalAlloc - before.totalAlloc + 1);
+        ExpectIntEQ(after.curAlloc, before.curAlloc);
+    }
+
+    mp_clear(&k);
+    mp_clear(&order);
+    if (rngInit) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    wc_UnloadStaticMemory(heap);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 /*----------------------------------------------------------------------------*
  | Platform dependent function test
@@ -47206,6 +47267,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_LoadStaticMemory_ex),
     TEST_DECL(test_wc_LoadStaticMemory_CTX),
     TEST_DECL(test_wc_ecc_ctx_new_ex_heap),
+    TEST_DECL(test_wc_ecc_gen_k_heap),
 
     TEST_DECL(test_wc_FreeCertList),
     TEST_DECL(test_wc_ParseCert_uniqueIdentifier),
