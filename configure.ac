@@ -7840,6 +7840,13 @@ do
     esac
 done
 
+if test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 && \
+   { test "$ENABLED_AESGCMSIV" = "yes" || test "$ENABLED_AESCTS" = "yes" || \
+     test "$ENABLED_AESKEYWRAP_PADDING" = "yes"; }
+then
+    AC_MSG_ERROR([AES-GCM-SIV, AES-CTS and AES-KWP are not in the FIPS module boundary: drop --enable-aesgcm-siv, --enable-aescts and --enable-aeskeywrap=padding from a FIPS v7 or later build.])
+fi
+
 # FIPS feature and macro setup
 
 AS_CASE([$FIPS_VERSION],

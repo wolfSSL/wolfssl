@@ -21048,10 +21048,12 @@ int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in, word32 inSz) {
 
 #endif /* WOLFSSL_CMAC */
 
-/* AES-SIV and AES-EAX are not Approved; keep them out of the FIPS image. */
+/* AES-SIV, EAX, GCM-SIV, CTS and KWP are kept out of the FIPS image. */
 #if FIPS_VERSION3_GE(7,0,0) && \
-    (defined(WOLFSSL_AES_SIV) || defined(WOLFSSL_AES_EAX))
-    #error "WOLFSSL_AES_SIV and WOLFSSL_AES_EAX are not in the FIPS module boundary."
+    (defined(WOLFSSL_AES_SIV) || defined(WOLFSSL_AES_EAX) || \
+     defined(WOLFSSL_AESGCM_SIV) || defined(WOLFSSL_AES_CTS) || \
+     defined(WOLFSSL_AES_KEYWRAP_PADDING))
+    #error "WOLFSSL_AES_SIV, WOLFSSL_AES_EAX, WOLFSSL_AESGCM_SIV, WOLFSSL_AES_CTS and WOLFSSL_AES_KEYWRAP_PADDING are not in the FIPS module boundary."
 #endif
 
 #ifdef WOLFSSL_AES_SIV
