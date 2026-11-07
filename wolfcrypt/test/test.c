@@ -54685,6 +54685,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
     word32  y;
+    int     doEcdh = 1;
 #endif
 #ifndef WC_NO_RNG
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -54854,7 +54855,27 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* v7 refuses ECDH outside P-256, P-384 and P-521: expect the refusal and
+     * skip only the shared secret steps for this curve. */
+    if (userA->dp != NULL &&
+        userA->dp->id != ECC_SECP256R1 &&
+        userA->dp->id != ECC_SECP384R1 &&
+        userA->dp->id != ECC_SECP521R1) {
+        x = ECC_SHARED_SIZE;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_shared_secret(userA, userB, sharedA, &x);
+        PRIVATE_KEY_LOCK();
+        if (ret != WC_NO_ERR_TRACE(ECC_CURVE_OID_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ret = 0;
+        doEcdh = 0;
+    }
+#endif
 
+    if (doEcdh)
+    {
     x = ECC_SHARED_SIZE;
     PRIVATE_KEY_UNLOCK();
     do {
@@ -54932,6 +54953,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     wc_ecc_set_flags(userA, 0);
     wc_ecc_set_flags(userB, 0);
 #endif /* HAVE_ECC_CDH */
+    }
 #endif /* HAVE_ECC_DHE */
 #endif /* !WOLFSSL_ATECC508A && WOLFSSL_ATECC608A */
 
@@ -54962,6 +54984,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100)
 #ifdef HAVE_ECC_DHE
+    if (doEcdh)
+    {
     y = ECC_SHARED_SIZE;
     PRIVATE_KEY_UNLOCK();
     do {
@@ -54978,6 +55002,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     if (XMEMCMP(sharedA, sharedB, y))
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     TEST_SLEEP();
+    }
 #endif /* HAVE_ECC_DHE */
 
     #ifdef HAVE_COMP_KEY
@@ -55015,6 +55040,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
     #ifdef HAVE_ECC_DHE
+        if (doEcdh)
+        {
         y = ECC_SHARED_SIZE;
         PRIVATE_KEY_UNLOCK();
         do {
@@ -55031,6 +55058,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
         if (XMEMCMP(sharedA, sharedB, y))
             ERROR_OUT(WC_TEST_RET_ENC_NC, done);
         TEST_SLEEP();
+        }
     #endif /* HAVE_ECC_DHE */
         }
     #endif /* HAVE_COMP_KEY */
