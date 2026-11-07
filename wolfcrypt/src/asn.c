@@ -25265,6 +25265,18 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 
     return NULL;
 }
+
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip);
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip)
+{
+    (void)cm;
+    (void)hash;
+    (void)skip;
+
+    return NULL;
+}
 #endif /* NO_SKID */
 
 #ifdef WOLFSSL_AKID_NAME
@@ -25892,7 +25904,8 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
          * is set (could substitute a same-DN sibling). */
     }
     else {
-        signer = GetCAByName(cm, cert->issuerNameHash);
+        /* A self-issued CA shares its issuer's name. */
+        signer = GetCAByNameSkip(cm, cert->issuerNameHash, cert);
     }
 #else
     signer = GetCA(cm, cert->issuerNameHash);
@@ -25926,6 +25939,34 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 #endif
 
     return signer;
+}
+
+/* A CA cached from a peer's chain. Always 0 without a certificate
+ * manager, which only keeps application-loaded CAs. */
+static int SignerFromPeerChain(const Signer* signer)
+{
+#ifndef WOLFCRYPT_ONLY
+    return signer->type == WOLFSSL_CHAIN_CA;
+#else
+    (void)signer;
+    return 0;
+#endif
+}
+
+/* A self-signed CA ends the ancestor walk only when the application loaded
+ * it. One cached from a peer's chain is not a trust anchor. */
+static int SignerIsTrustAnchor(const Signer* signer)
+{
+    if (!signer->selfSigned) {
+        return 0;
+    }
+#ifndef WOLFCRYPT_ONLY
+    /* X509_verify_cert() holds its own intermediates as WOLFSSL_TEMP_CA. */
+    if (SignerFromPeerChain(signer) || signer->type == WOLFSSL_TEMP_CA) {
+        return 0;
+    }
+#endif
+    return 1;
 }
 #endif /* !IGNORE_NAME_CONSTRAINTS */
 
@@ -26893,14 +26934,23 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                 WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
                 return ASN_NAME_INVALID_E;
             }
-            /* Stop at trust anchor (self-signed). */
-            if (ncSigner->selfSigned)
+            /* Stop at trust anchor. */
+            if (SignerIsTrustAnchor(ncSigner))
                 break;
             ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
             /* Stop on missing parent, self-loop, or A->B->A cycle. */
             if (ncParent == NULL || ncParent == ncSigner ||
-                    ncParent == ncPrev)
+                    ncParent == ncPrev) {
+                /* A CA from the peer's chain cannot end the walk: the
+                 * constraints of whatever issued it would go unapplied. */
+                if (SignerFromPeerChain(ncSigner)) {
+                    WOLFSSL_MSG("NC ancestor walk found no issuer for a "
+                                "chain CA");
+                    WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
+                    return ASN_NO_SIGNER_E;
+                }
                 break;
+            }
             if (++ncDepth >= WOLFSSL_MAX_CHAIN_DEPTH) {
                 WOLFSSL_MSG("NC ancestor walk exceeded WOLFSSL_MAX_CHAIN_DEPTH");
                 WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
