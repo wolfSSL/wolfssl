@@ -369,7 +369,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
         ForceZero(outStart, (word32)outLen);
     }
 
-    ForceZero(buffer, (word32)hLen);
+    /* All of buffer, so the compiler knows the length fits. */
+    ForceZero(buffer, WC_MAX_DIGEST_SIZE);
 #if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(buffer, (word32)hLen);
 #endif
