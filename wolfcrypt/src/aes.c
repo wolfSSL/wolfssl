@@ -15973,11 +15973,11 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
     }
 
     if (ret == 0) {
-        /* If the IV is 96, allow for a 2^64 invocation counter.
-         * For any other size for the nonce, limit the invocation
-         * counter to 32-bits. (SP 800-38D 8.3) */
+        /* Only a 96-bit IV with a fixed field may reach 2^64 invocations.
+         * RBG-based IVs and other sizes stop at 2^32. (SP 800-38D 8.3) */
         aes->invokeCtr[0] = 0;
-        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ && ivFixedSz != 0) ?
+                            0 : 0xFFFFFFFF;
     #ifdef WOLFSSL_AESGCM_STREAM
         aes->ctrSet = 1;
     #endif
