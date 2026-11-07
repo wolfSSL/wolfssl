@@ -58,10 +58,10 @@
         #define WC_RNG_INIT_FLAG_NONE 0
     #endif
     /* backward-compat shim and helper declarations */
-    static int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
+    static int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed,
                                         word32 seedSz, const byte *nonce,
                                         word32 nonceSz);
-    static int wc_RNG_DRBG_Stir_Nonce(
+    static int wc_RNG_DRBG_Stir_AddIn(
         WC_RNG* rng, const byte* seed, word32 seedSz, const byte *nonce,
         word32 nonceSz);
 
@@ -2649,27 +2649,27 @@ WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
         }
         else {
             if (flags & WC_RNG_BANK_FLAG_STIR) {
-                ret = wc_RNG_DRBG_Stir_Nonce(
+                ret = wc_RNG_DRBG_Stir_AddIn(
                                WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz,
                                nonce, nonceSz);
 #ifdef WC_VERBOSE_RNG
                 if ((ret != 0) && (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))) {
                     WOLFSSL_DEBUG_PRINTF(
                         "WARNING: wc_rng_bank_seed_range(): "
-                        "wc_RNG_DRBG_Stir_Nonce() for inst#%d "
+                        "wc_RNG_DRBG_Stir_AddIn() for inst#%d "
                         "returned %d\n", n, ret);
                 }
 #endif
             }
             else {
-                ret = wc_RNG_DRBG_Reseed_Nonce(
+                ret = wc_RNG_DRBG_Reseed_AddIn(
                     WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz,
                     nonce, nonceSz);
 #ifdef WC_VERBOSE_RNG
                 if ((ret != 0) && (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))) {
                     WOLFSSL_DEBUG_PRINTF(
                         "WARNING: wc_rng_bank_seed_range(): "
-                        "wc_RNG_DRBG_Reseed_Nonce() for inst#%d "
+                        "wc_RNG_DRBG_Reseed_AddIn() for inst#%d "
                         "returned %d\n", n, ret);
                 }
 #endif
@@ -3785,7 +3785,7 @@ WOLFSSL_TEST_VIS int wc_RNG_DRBG_Present(const WC_RNG* rng)
     return (rng != NULL) && (! WC_RNG_BANK_DRBG_NULL(rng));
 }
 
-static int wc_RNG_DRBG_Reseed_Nonce(
+static int wc_RNG_DRBG_Reseed_AddIn(
     WC_RNG* rng, const byte* seed,
     word32 seedSz, const byte *nonce,
     word32 nonceSz)
@@ -3820,7 +3820,7 @@ WOLFSSL_TEST_VIS int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng)
 
 #if FIPS_VERSION3_EQ(5,2,4)
 
-static int wc_RNG_DRBG_Stir_Nonce(
+static int wc_RNG_DRBG_Stir_AddIn(
     WC_RNG* rng, const byte* seed, word32 seedSz, const byte *nonce, word32 nonceSz)
 {
     (void)nonce;
@@ -3836,7 +3836,7 @@ WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(
 
 #else /* FIPS_VERSION3_NE(5,2,4) */
 
-static int wc_RNG_DRBG_Stir_Nonce(
+static int wc_RNG_DRBG_Stir_AddIn(
     WC_RNG* rng, const byte* seed, word32 seedSz, const byte *nonce, word32 nonceSz)
 {
     wc_drbg_reseed_ctr_t saved_ctr;
@@ -3862,7 +3862,7 @@ static int wc_RNG_DRBG_Stir_Nonce(
 WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(
     WC_RNG* rng, const byte* seed, word32 seedSz)
 {
-    return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL, 0);
+    return wc_RNG_DRBG_Stir_AddIn(rng, seed, seedSz, NULL, 0);
 }
 
 WOLFSSL_TEST_VIS int wc_RNG_DRBG_Reseed_Now(

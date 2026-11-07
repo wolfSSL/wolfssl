@@ -1301,11 +1301,11 @@ static void wb_drbg_reseedctr_type_rows(void)
 #endif
 
 /* --------------------------------------------------------------------------
- * 11. wc_RNG_DRBG_Stir_Nonce() argument guard:
+ * 11. wc_RNG_DRBG_Stir_AddIn() argument guard:
  *      :2550  (rng == NULL) || (seed == NULL)
  *
  * c0 (rng == NULL) is the open operand. c0-T is a structural residual: the
- * public wc_RNG_DRBG_Stir_Nonce wrapper guards rng == NULL before calling the
+ * public wc_RNG_DRBG_Stir_AddIn wrapper guards rng == NULL before calling the
  * _local function, so the _local guard never sees a NULL rng. The reachable
  * row is c0-F + c1-T (valid rng, seed == NULL).
  * ------------------------------------------------------------------------- */
@@ -1320,13 +1320,13 @@ static void wb_stir_nonce_null_rng(void)
     XMEMSET(nonce, 0xBB, sizeof(nonce));
 
     /* 2550 c0-T: rng == NULL (seed present, so the row is c0's). */
-    (void)wc_RNG_DRBG_Stir_Nonce(NULL, seed, sizeof(seed), nonce,
+    (void)wc_RNG_DRBG_Stir_AddIn(NULL, seed, sizeof(seed), nonce,
                                  sizeof(nonce));
 
     /* 2550 c0-F: valid rng, seed == NULL (decision true via the seed arm). */
     XMEMSET(&rng, 0, sizeof(rng));
     if (wc_InitRng(&rng) == 0) {
-        (void)wc_RNG_DRBG_Stir_Nonce(&rng, NULL, 0, nonce, sizeof(nonce));
+        (void)wc_RNG_DRBG_Stir_AddIn(&rng, NULL, 0, nonce, sizeof(nonce));
         (void)wc_FreeRng(&rng);
     }
 
