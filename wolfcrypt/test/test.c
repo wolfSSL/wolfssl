@@ -12592,7 +12592,9 @@ out:
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA256)) != WC_SHA256_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
-#if FIPS_VERSION3_GE(6,0,0) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#if FIPS_VERSION3_GE(6,0,0) && \
+    !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR)) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
     if ((ret = wc_HmacSizeByType(21)) != WC_NO_ERR_TRACE(HMAC_KAT_FIPS_E))
 #else
     if ((ret = wc_HmacSizeByType(21)) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
