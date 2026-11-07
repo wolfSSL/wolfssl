@@ -65,6 +65,8 @@ _frodokem_sa_accum_avx2:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rcx
         shlq	$1, %rcx
         addq	%rcx, %rsi
@@ -128,6 +130,8 @@ _frodokem_as_accum_avx2:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rcx
         shlq	$4, %rcx
         addq	%rcx, %rdi
@@ -243,6 +247,8 @@ _frodokem_mul_bs_avx2:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rax
         shlq	$1, %rax
         movq	%rdx, %r9
@@ -353,6 +359,8 @@ _frodokem_mul_add_sb_plus_e_avx2:
         pushq	%r14
         pushq	%r15
         pushq	%rbx
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rax
         shlq	$1, %rax
         movq	%rdx, %r9
@@ -434,6 +442,7 @@ WC_ASM_ATT_HIDDEN(_frodokem_add_avx2)
 .p2align	4
 _frodokem_add_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovd	%rdx, %xmm0
         vpbroadcastw	%xmm0, %ymm0
         vmovdqu	(%rdi), %ymm1
@@ -471,6 +480,8 @@ WC_ASM_ATT_HIDDEN(_frodokem_a_rows_reduce_avx2)
 .p2align	4
 _frodokem_a_rows_reduce_avx2:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
+        movl	%edx, %edx
         vmovd	%rdx, %xmm0
         vpbroadcastw	%xmm0, %ymm0
         movl	%esi, %eax
@@ -512,6 +523,8 @@ WC_ASM_ATT_HIDDEN(_frodokem_sample_avx2)
 .p2align	4
 _frodokem_sample_avx2:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movslq	%esi, %rax
         shlq	$1, %rax
         vpcmpeqw	%ymm0, %ymm0, %ymm0
@@ -563,7 +576,10 @@ _frodokem_gen_a_rows_aes_avx2:
         pushq	%r13
         pushq	%r14
         pushq	%r15
-        movq	40(%rsp), %rax
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
+        movl	%r9d, %r9d
+        movl	40(%rsp), %eax
         vbroadcasti128	(%rdx), %ymm0
         vbroadcasti128	16(%rdx), %ymm1
         vbroadcasti128	32(%rdx), %ymm2
@@ -718,7 +734,10 @@ _frodokem_gen_a_rows_aes_aesni:
         pushq	%r13
         pushq	%r14
         pushq	%r15
-        movq	40(%rsp), %rax
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
+        movl	%r9d, %r9d
+        movl	40(%rsp), %eax
         vmovd	%rax, %xmm8
         vpbroadcastw	%xmm8, %xmm8
         movslq	%r9d, %r10
@@ -915,6 +934,8 @@ _frodokem_sa_accum_avx512:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rcx
         shlq	$1, %rcx
         addq	%rcx, %rsi
@@ -1025,6 +1046,8 @@ _frodokem_as_accum_avx512:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rcx
         shlq	$4, %rcx
         addq	%rcx, %rdi
@@ -1186,6 +1209,8 @@ _frodokem_mul_bs_avx512:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rax
         shlq	$1, %rax
         movq	%rax, %rcx
@@ -1342,6 +1367,8 @@ _frodokem_mul_add_sb_plus_e_avx512:
         pushq	%r14
         pushq	%r15
         pushq	%rbx
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movslq	%ecx, %rax
         shlq	$1, %rax
         movq	%rdx, %r9
@@ -1415,6 +1442,7 @@ WC_ASM_ATT_HIDDEN(_frodokem_add_avx512)
 .p2align	4
 _frodokem_add_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovd	%rdx, %xmm0
         vpbroadcastw	%xmm0, %zmm0
         vmovdqu64	(%rdi), %zmm1
@@ -1444,6 +1472,8 @@ WC_ASM_ATT_HIDDEN(_frodokem_sample_avx512)
 .p2align	4
 _frodokem_sample_avx512:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movslq	%esi, %rax
         shlq	$1, %rax
         vpternlogd	$0xff, %zmm0, %zmm0, %zmm0
@@ -1495,7 +1525,10 @@ _frodokem_gen_a_rows_aes_avx512:
         pushq	%r13
         pushq	%r14
         pushq	%r15
-        movq	40(%rsp), %rax
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
+        movl	%r9d, %r9d
+        movl	40(%rsp), %eax
         vbroadcasti32x4	(%rdx), %zmm0
         vbroadcasti32x4	16(%rdx), %zmm1
         vbroadcasti32x4	32(%rdx), %zmm2

@@ -108,13 +108,17 @@ static void wb_sha3_dispatch(void)
     wb_init_with(CPUID_BMI1,              NULL);   /* [T,F] */
     wb_init_with(0,                       NULL);   /* [F,-] -> C block */
 
-    /* SHA3_USE_AVX2(f) = IS_INTEL_AVX2(f) && IS_CPU_INTEL(f).
+    /* SHA3_USE_AVX2(f) = IS_INTEL_AVX2(f) && IS_CPU_INTEL(f) &&
+     *                    !IS_CPU_SLOW_AVX2_SHA3(f).
      *   The [T,T] row cannot come from real cpuid on a non-Intel host, so
      *   neither operand's pair completes without forcing the vendor bit:
      *   AVX2-capable AMD reports [T,F], the same row as the AVX2-only call
      *   above. Supply [T,T]; it pairs with CPUID_AVX2 ([T,F]) for operand 1
      *   and with the BMI rows ([F,-]) for operand 0. */
     wb_init_with(CPUID_AVX2 | CPUID_INTEL, NULL);
+    /* Third operand, !IS_CPU_SLOW_AVX2_SHA3(f): [T,T,T] pairs with the row
+     *   above for its independence (Arrow Lake: AVX2 Keccak skipped). */
+    wb_init_with(CPUID_AVX2 | CPUID_INTEL | CPUID_SLOW_AVX2_SHA3, NULL);
 
     /* 874: (sha3_block_n != NULL) && (blocks > 0), in Sha3Update. MC/DC needs
      *   cond0's independence pair -- both the NULL and non-NULL multi-block

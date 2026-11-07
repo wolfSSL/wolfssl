@@ -3822,7 +3822,7 @@ AES_GCM_init_aesni PROC
         push	r13
         push	r14
         mov	rdi, rcx
-        mov	rsi, rdx
+        mov	esi, edx
         mov	r10, r8
         mov	r11d, r9d
         mov	rax, QWORD PTR [rsp+80]
@@ -4182,6 +4182,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_aad_update_aesni PROC
+        mov	edx, edx
         mov	rax, rcx
         sub	rsp, 40
         movdqu	OWORD PTR [rsp+8], xmm6
@@ -4267,6 +4268,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_encrypt_block_aesni PROC
+        mov	edx, edx
         mov	r10, r8
         mov	r11, r9
         mov	rax, QWORD PTR [rsp+40]
@@ -5645,6 +5647,7 @@ AES_GCM_encrypt_final_aesni PROC
         push	r12
         push	r14
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+64]
@@ -6558,6 +6561,7 @@ AES_GCM_decrypt_final_aesni PROC
         push	rbp
         push	r15
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+80]
@@ -6710,6 +6714,7 @@ _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCMSIV_polyval_aesni PROC
         push	r12
+        mov	r9d, r9d
         sub	rsp, 144
         movdqu	OWORD PTR [rsp], xmm6
         movdqu	OWORD PTR [rsp+16], xmm7
@@ -10519,7 +10524,7 @@ AES_GCM_init_avx1 PROC
         push	r12
         push	r13
         mov	rdi, rcx
-        mov	rsi, rdx
+        mov	esi, edx
         mov	r10, r8
         mov	r11d, r9d
         mov	rax, QWORD PTR [rsp+72]
@@ -10844,6 +10849,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_aad_update_avx1 PROC
+        mov	edx, edx
         mov	rax, rcx
         sub	rsp, 40
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -10918,6 +10924,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_encrypt_block_avx1 PROC
+        mov	edx, edx
         mov	r10, r8
         mov	r11, r9
         mov	rax, QWORD PTR [rsp+40]
@@ -12089,6 +12096,7 @@ AES_GCM_encrypt_final_avx1 PROC
         push	r12
         push	r14
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+64]
@@ -12834,6 +12842,7 @@ AES_GCM_decrypt_final_avx1 PROC
         push	rbp
         push	r15
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+80]
@@ -12975,6 +12984,7 @@ _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCMSIV_polyval_avx1 PROC
         push	r12
+        mov	r9d, r9d
         sub	rsp, 112
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -16564,7 +16574,7 @@ AES_GCM_init_avx2 PROC
         push	rsi
         push	r12
         mov	rdi, rcx
-        mov	rsi, rdx
+        mov	esi, edx
         mov	r10, r8
         mov	r11d, r9d
         mov	rax, QWORD PTR [rsp+72]
@@ -16843,6 +16853,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_aad_update_avx2 PROC
+        mov	edx, edx
         mov	rax, rcx
         sub	rsp, 24
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -16903,6 +16914,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_encrypt_block_avx2 PROC
+        mov	edx, edx
         mov	r10, r8
         mov	r11, r9
         mov	rax, QWORD PTR [rsp+40]
@@ -17905,6 +17917,8 @@ ENDIF
 AES_GCM_encrypt_final_avx2 PROC
         push	r12
         push	r13
+        mov	r8d, r8d
+        mov	r9d, r9d
         mov	eax, DWORD PTR [rsp+56]
         mov	r10, QWORD PTR [rsp+64]
         mov	r11, QWORD PTR [rsp+72]
@@ -18521,6 +18535,8 @@ AES_GCM_decrypt_final_avx2 PROC
         push	r12
         push	r13
         push	r14
+        mov	r8d, r8d
+        mov	r9d, r9d
         mov	eax, DWORD PTR [rsp+64]
         mov	r10, QWORD PTR [rsp+72]
         mov	r11, QWORD PTR [rsp+80]
@@ -23105,7 +23121,7 @@ AES_GCM_init_vaes PROC
         push	r12
         push	r13
         mov	rdi, rcx
-        mov	rsi, rdx
+        mov	esi, edx
         mov	r10, r8
         mov	r11d, r9d
         mov	rax, QWORD PTR [rsp+72]
@@ -23982,6 +23998,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_encrypt_block_vaes PROC
+        mov	edx, edx
         mov	r10, r8
         mov	r11, r9
         mov	rax, QWORD PTR [rsp+40]
@@ -25083,6 +25100,7 @@ AES_GCM_encrypt_final_vaes PROC
         push	r12
         push	r14
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+64]
@@ -26109,6 +26127,7 @@ AES_GCM_decrypt_final_vaes PROC
         push	rbp
         push	r15
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+80]
@@ -26236,6 +26255,7 @@ _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCMSIV_polyval_vaes PROC
         push	r12
+        mov	r9d, r9d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -32825,7 +32845,7 @@ AES_GCM_init_avx512 PROC
         push	r12
         push	r13
         mov	rdi, rcx
-        mov	rsi, rdx
+        mov	esi, edx
         mov	r10, r8
         mov	r11d, r9d
         mov	rax, QWORD PTR [rsp+72]
@@ -33601,6 +33621,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCM_encrypt_block_avx512 PROC
+        mov	edx, edx
         mov	r10, r8
         mov	r11, r9
         mov	rax, QWORD PTR [rsp+40]
@@ -35500,6 +35521,7 @@ AES_GCM_encrypt_final_avx512 PROC
         push	r12
         push	r14
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+64]
@@ -37170,6 +37192,7 @@ AES_GCM_decrypt_final_avx512 PROC
         push	rbp
         push	r15
         mov	rax, rcx
+        mov	r8d, r8d
         mov	r10d, r9d
         mov	r9, rdx
         mov	r11d, DWORD PTR [rsp+80]
@@ -37298,6 +37321,7 @@ _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_GCMSIV_polyval_avx512 PROC
         push	r12
+        mov	r9d, r9d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7

@@ -174,6 +174,45 @@
     }
 
 
+#ifndef WC_CPUID_NO_TUNING
+    /* Return the tuning bits (CPUID_SLOW_*) for an Intel CPU, chosen from the
+     * family and display model in CPUID.1:EAX. */
+    static cpuid_flags_t cpuid_intel_tuning(void)
+    {
+        unsigned int reg[5];
+        word32 family;
+        word32 model;
+
+        XMEMSET(reg, '\0', sizeof(reg));
+        cpuid(reg, 1, 0);
+
+        family = (reg[EAX] >> 8) & 0xf;
+        model  = (reg[EAX] >> 4) & 0xf;
+        if ((family == 0x6) || (family == 0xf)) {
+            model |= ((reg[EAX] >> 16) & 0xf) << 4;
+        }
+        if (family == 0xf) {
+            family += (reg[EAX] >> 20) & 0xff;
+        }
+
+        if (family == 0x6) {
+            switch (model) {
+                /* Arrow Lake and Lunar Lake (Lion Cove / Skymont): VAES AES
+                 * is no faster than AVX2, and the AVX2 Keccak block is slower
+                 * than BMI2 and C. */
+                case 0xB5: /* Arrow Lake U */
+                case 0xC5: /* Arrow Lake H */
+                case 0xC6: /* Arrow Lake S */
+                case 0xBD: /* Lunar Lake M */
+                    return CPUID_SLOW_VAES | CPUID_SLOW_AVX2_SHA3;
+                default:
+                    break;
+            }
+        }
+        return 0;
+    }
+#endif
+
     static WC_INLINE void cpuid_set_flags(void)
     {
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
@@ -222,6 +261,11 @@
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
             if (cpuid_flag(1, 0, ECX,  9)) { new_cpuid_flags |= CPUID_SSSE3 ; }
+        #ifndef WC_CPUID_NO_TUNING
+            if (cpuid_is_intel()) {
+                new_cpuid_flags |= cpuid_intel_tuning();
+            }
+        #endif
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }

@@ -38,6 +38,9 @@
  *   Class 9  wc_AesCcmEncrypt()'s use_aesni dispatch (WOLFSSL_AESNI)  1 condition
  *   Class 10 AArch64 CTR leftover-keystream loop (WOLFSSL_ARMASM,
  *            __aarch64__, qemu-aarch64 lane only) .. exclusion demonstration
+ *   Class 11 AES_USE_VAES / CPUID_SLOW_VAES fallback (x86_64 VAES
+ *            builds): forced on any host, dispatch counted, outputs
+ *            compared with the fallback ................. 2 conditions
  * Classes 4, 5 and 10 only compile in the qemu-aarch64 emulator lane (see
  * iso26262/mcdc-per-module suite, db/lanes.json); on every other build
  * they reduce to a no-op stub so this file still compiles+runs natively.
@@ -50,10 +53,86 @@
  * the exclusion record + the exclusion record and reports/aes/RESIDUALS.md.
  */
 
+/* Class 11 (CPUID_SLOW_VAES) call hooks.
+ *
+ * Every VAES (ymm) and AVX-512 (zmm, VAES-gated) AES routine aes.c calls
+ * directly is renamed to "wb_vaes_hit(), <name>".  A macro is not re-expanded
+ * inside its own replacement, so
+ *   - in aes.c's declarations it reads "void wb_vaes_hit(), <name>(...)
+ *     XASM_LINK(...)": a second declarator that still declares (and binds)
+ *     the real routine, and
+ *   - at each call site it reads "wb_vaes_hit(), <name>(...);": count, then
+ *     call the real routine.
+ * So wb_vaes_calls counts every entry into the VAES code without touching the
+ * link.  The declarator form has no prototype, so -Wstrict-prototypes is
+ * silenced around the include only.  The AES-GCM-SIV POLYVAL/CTR routines are
+ * not hooked: aes.c takes their address, which this form cannot express;
+ * their selectors are asserted directly instead (wb_slow_vaes_gcmsiv_sel). */
+#if defined(__GNUC__) && defined(__x86_64__)
+    #define WB_HOOK_VAES
+    void wb_vaes_hit(void);
+    #define AES_ECB_encrypt_vaes          wb_vaes_hit(), AES_ECB_encrypt_vaes
+    #define AES_ECB_decrypt_vaes          wb_vaes_hit(), AES_ECB_decrypt_vaes
+    #define AES_CBC_encrypt_vaes          wb_vaes_hit(), AES_CBC_encrypt_vaes
+    #define AES_CBC_decrypt_vaes          wb_vaes_hit(), AES_CBC_decrypt_vaes
+    #define AES_CTR_encrypt_vaes          wb_vaes_hit(), AES_CTR_encrypt_vaes
+    #define AES_GCM_encrypt_vaes          wb_vaes_hit(), AES_GCM_encrypt_vaes
+    #define AES_GCM_decrypt_vaes          wb_vaes_hit(), AES_GCM_decrypt_vaes
+    #define AES_GCM_init_vaes             wb_vaes_hit(), AES_GCM_init_vaes
+    #define AES_GCM_aad_update_vaes       wb_vaes_hit(), AES_GCM_aad_update_vaes
+    #define AES_GCM_encrypt_block_vaes    wb_vaes_hit(), AES_GCM_encrypt_block_vaes
+    #define AES_GCM_ghash_block_vaes      wb_vaes_hit(), AES_GCM_ghash_block_vaes
+    #define AES_GCM_encrypt_update_vaes   wb_vaes_hit(), AES_GCM_encrypt_update_vaes
+    #define AES_GCM_encrypt_final_vaes    wb_vaes_hit(), AES_GCM_encrypt_final_vaes
+    #define AES_GCM_decrypt_update_vaes   wb_vaes_hit(), AES_GCM_decrypt_update_vaes
+    #define AES_GCM_decrypt_final_vaes    wb_vaes_hit(), AES_GCM_decrypt_final_vaes
+    #define AES_XTS_encrypt_vaes          wb_vaes_hit(), AES_XTS_encrypt_vaes
+    #define AES_XTS_decrypt_vaes          wb_vaes_hit(), AES_XTS_decrypt_vaes
+    #define AES_XTS_init_vaes             wb_vaes_hit(), AES_XTS_init_vaes
+    #define AES_XTS_encrypt_update_vaes   wb_vaes_hit(), AES_XTS_encrypt_update_vaes
+    #define AES_XTS_decrypt_update_vaes   wb_vaes_hit(), AES_XTS_decrypt_update_vaes
+    #define AES_ECB_encrypt_avx512        wb_vaes_hit(), AES_ECB_encrypt_avx512
+    #define AES_ECB_decrypt_avx512        wb_vaes_hit(), AES_ECB_decrypt_avx512
+    #define AES_CBC_encrypt_avx512        wb_vaes_hit(), AES_CBC_encrypt_avx512
+    #define AES_CBC_decrypt_avx512        wb_vaes_hit(), AES_CBC_decrypt_avx512
+    #define AES_CTR_encrypt_avx512        wb_vaes_hit(), AES_CTR_encrypt_avx512
+    #define AES_GCM_encrypt_avx512        wb_vaes_hit(), AES_GCM_encrypt_avx512
+    #define AES_GCM_decrypt_avx512        wb_vaes_hit(), AES_GCM_decrypt_avx512
+    #define AES_GCM_init_avx512           wb_vaes_hit(), AES_GCM_init_avx512
+    #define AES_GCM_aad_update_avx512     wb_vaes_hit(), AES_GCM_aad_update_avx512
+    #define AES_GCM_encrypt_block_avx512  wb_vaes_hit(), AES_GCM_encrypt_block_avx512
+    #define AES_GCM_ghash_block_avx512    wb_vaes_hit(), AES_GCM_ghash_block_avx512
+    #define AES_GCM_encrypt_update_avx512 wb_vaes_hit(), AES_GCM_encrypt_update_avx512
+    #define AES_GCM_encrypt_final_avx512  wb_vaes_hit(), AES_GCM_encrypt_final_avx512
+    #define AES_GCM_decrypt_update_avx512 wb_vaes_hit(), AES_GCM_decrypt_update_avx512
+    #define AES_GCM_decrypt_final_avx512  wb_vaes_hit(), AES_GCM_decrypt_final_avx512
+    #define AES_XTS_encrypt_avx512        wb_vaes_hit(), AES_XTS_encrypt_avx512
+    #define AES_XTS_decrypt_avx512        wb_vaes_hit(), AES_XTS_decrypt_avx512
+    #define AES_XTS_init_avx512           wb_vaes_hit(), AES_XTS_init_avx512
+    #define AES_XTS_encrypt_update_avx512 wb_vaes_hit(), AES_XTS_encrypt_update_avx512
+    #define AES_XTS_decrypt_update_avx512 wb_vaes_hit(), AES_XTS_decrypt_update_avx512
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstrict-prototypes"
+    #if defined(__clang__) && defined(__has_warning)
+        #if __has_warning("-Wdeprecated-non-prototype")
+            #pragma GCC diagnostic ignored "-Wdeprecated-non-prototype"
+        #endif
+    #endif
+#endif
+
 /* Pull aes.c in verbatim so the file-static and WOLFSSL_LOCAL helpers below are
  * in scope and instrumented in THIS binary. aes.c includes settings.h (which
  * picks up user_settings.h via -DWOLFSSL_USER_SETTINGS) and aes.h itself. */
 #include <wolfcrypt/src/aes.c>
+
+#ifdef WB_HOOK_VAES
+    #pragma GCC diagnostic pop
+    static unsigned long wb_vaes_calls = 0;
+    void wb_vaes_hit(void)
+    {
+        wb_vaes_calls++;
+    }
+#endif
 
 #include <stdio.h>
 
@@ -68,6 +147,11 @@
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+/* A wrong result, as opposed to a skipped setup: reported as "with failures",
+ * which run-whitebox-smoke.sh fails on. */
+static int wb_err = 0;
+#define WB_CHECK(cond, msg) do { if (!(cond)) {                              \
+        printf("  [wb] FAIL: %s\n", (msg)); wb_err = 1; } } while (0)
 
 /* ------------------------------------------------------------------------- *
  * Class 1a: classic GHASH() internal guards.
@@ -1287,6 +1371,356 @@ static void wb_gcmccm_pending(void)
 #endif
 }
 
+/* ------------------------------------------------------------------------- *
+ * Class 11: CPUID_SLOW_VAES fallback (x86_64, WOLFSSL_AESNI + VAES built).
+ *
+ *   #define AES_USE_VAES(f) (IS_INTEL_VAES(f) && !IS_CPU_SLOW_VAES(f))
+ *
+ * CPUID_SLOW_VAES is only set from cpuid on Intel Arrow Lake / Lunar Lake, so
+ * on any other VAES host the fallback never runs.  Here intel_flags is forced
+ * per row, keeping the host's real instruction-feature bits (so only code
+ * this CPU can execute is reached):
+ *   row 0  host               widest VAES arm (zmm on AVX-512 hosts)
+ *   row 1  host - AVX512F     ymm VAES arm
+ *   row 2  host + SLOW_VAES   fallback (reference)
+ *   row 3  host - AVX512F + SLOW_VAES
+ * For each row ECB, CBC, CTR, GCM (one-shot and streaming), XTS (one-shot
+ * and streaming) and AES-GCM-SIV are run at 128/192/256-bit keys on inputs
+ * past every VAES threshold, decrypted and tag-checked; every row's
+ * ciphertexts and tags must equal row 2's.  The hooks above count entries
+ * into VAES code: a SLOW_VAES row must make none, and on a VAES host a row
+ * without it must make some (so the check is not vacuous).
+ * ------------------------------------------------------------------------- */
+#if defined(WB_HOOK_VAES) && defined(WOLFSSL_AESNI) && \
+    defined(HAVE_INTEL_VAES) && defined(USE_INTEL_SPEEDUP)
+
+#define WB_SV_MSG    (64 * WC_AES_BLOCK_SIZE + 5)  /* 1029: tail on stream */
+#define WB_SV_BLK    (64 * WC_AES_BLOCK_SIZE)      /* 1024: ECB/CBC        */
+#define WB_SV_AAD    37
+#define WB_SV_OUTCAP (48 * 1024)
+
+typedef struct WbSink {
+    byte*  p;
+    word32 n;
+} WbSink;
+
+static byte wb_sv_ref[WB_SV_OUTCAP];
+static byte wb_sv_cur[WB_SV_OUTCAP];
+
+static void wb_sv_put(WbSink* s, const byte* d, word32 n)
+{
+    if (s->n + n > WB_SV_OUTCAP) {
+        WB_CHECK(0, "SLOW_VAES: output sink overflow");
+        return;
+    }
+    XMEMCPY(s->p + s->n, d, n);
+    s->n += n;
+}
+
+static void wb_sv_fill(byte* b, word32 n, byte seed)
+{
+    word32 i;
+    for (i = 0; i < n; i++) {
+        b[i] = (byte)(seed + i * 7u + (i >> 8));
+    }
+}
+
+/* Run every AES mode once at key length keySz, appending ciphertexts and
+ * tags to s and checking each decrypt/verify. */
+static void wb_sv_modes(WbSink* s, word32 keySz)
+{
+    byte key[64], iv[WC_AES_BLOCK_SIZE], aad[WB_SV_AAD];
+    byte pt[WB_SV_MSG], ct[WB_SV_MSG], rt[WB_SV_MSG];
+    byte tag[WC_AES_BLOCK_SIZE];
+    Aes  aes;
+    int  ret;
+    (void)tag; (void)aad; (void)rt;
+
+    wb_sv_fill(key, sizeof(key), (byte)keySz);
+    wb_sv_fill(iv, sizeof(iv), 0x5a);
+    wb_sv_fill(aad, sizeof(aad), 0x33);
+    wb_sv_fill(pt, sizeof(pt), 0x11);
+
+#ifdef HAVE_AES_ECB
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_ENCRYPTION);
+    if (ret == 0) ret = wc_AesEcbEncrypt(&aes, ct, pt, WB_SV_BLK);
+    WB_CHECK(ret == 0, "SLOW_VAES: ECB encrypt");
+    wb_sv_put(s, ct, WB_SV_BLK);
+    #ifdef HAVE_AES_DECRYPT
+    if (ret == 0) ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_DECRYPTION);
+    if (ret == 0) ret = wc_AesEcbDecrypt(&aes, rt, ct, WB_SV_BLK);
+    WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_BLK) == 0,
+             "SLOW_VAES: ECB decrypt");
+    #endif
+    wc_AesFree(&aes);
+#endif
+
+#ifdef HAVE_AES_CBC
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
+    if (ret == 0) ret = wc_AesCbcEncrypt(&aes, ct, pt, WB_SV_BLK);
+    WB_CHECK(ret == 0, "SLOW_VAES: CBC encrypt");
+    wb_sv_put(s, ct, WB_SV_BLK);
+    #ifdef HAVE_AES_DECRYPT
+    if (ret == 0) ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
+    if (ret == 0) ret = wc_AesCbcDecrypt(&aes, rt, ct, WB_SV_BLK);
+    WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_BLK) == 0,
+             "SLOW_VAES: CBC decrypt");
+    #endif
+    wc_AesFree(&aes);
+#endif
+
+#ifdef WOLFSSL_AES_COUNTER
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) ret = wc_AesSetKeyDirect(&aes, key, keySz, iv,
+                                           AES_ENCRYPTION);
+    if (ret == 0) ret = wc_AesCtrEncrypt(&aes, ct, pt, WB_SV_MSG);
+    WB_CHECK(ret == 0, "SLOW_VAES: CTR encrypt");
+    wb_sv_put(s, ct, WB_SV_MSG);
+    if (ret == 0) ret = wc_AesSetKeyDirect(&aes, key, keySz, iv,
+                                           AES_ENCRYPTION);
+    if (ret == 0) ret = wc_AesCtrEncrypt(&aes, rt, ct, WB_SV_MSG);
+    WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_MSG) == 0,
+             "SLOW_VAES: CTR decrypt");
+    wc_AesFree(&aes);
+#endif
+
+#ifdef HAVE_AESGCM
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) ret = wc_AesGcmSetKey(&aes, key, keySz);
+    if (ret == 0) ret = wc_AesGcmEncrypt(&aes, ct, pt, WB_SV_MSG, iv,
+                                         GCM_NONCE_MID_SZ, tag, sizeof(tag),
+                                         aad, sizeof(aad));
+    WB_CHECK(ret == 0, "SLOW_VAES: GCM encrypt");
+    wb_sv_put(s, ct, WB_SV_MSG);
+    wb_sv_put(s, tag, sizeof(tag));
+    #ifdef HAVE_AES_DECRYPT
+    if (ret == 0) ret = wc_AesGcmDecrypt(&aes, rt, ct, WB_SV_MSG, iv,
+                                         GCM_NONCE_MID_SZ, tag, sizeof(tag),
+                                         aad, sizeof(aad));
+    WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_MSG) == 0,
+             "SLOW_VAES: GCM decrypt/verify");
+    #endif
+    wc_AesFree(&aes);
+
+    #ifdef WOLFSSL_AESGCM_STREAM
+    /* AAD first, then the message in two uneven pieces so both the bulk
+     * update and the partial-block carry run. */
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) ret = wc_AesGcmInit(&aes, key, keySz, iv, GCM_NONCE_MID_SZ);
+    if (ret == 0) ret = wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, aad,
+                                               sizeof(aad));
+    if (ret == 0) ret = wc_AesGcmEncryptUpdate(&aes, ct, pt, 1000, NULL, 0);
+    if (ret == 0) ret = wc_AesGcmEncryptUpdate(&aes, ct + 1000, pt + 1000,
+                                               WB_SV_MSG - 1000, NULL, 0);
+    if (ret == 0) ret = wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag));
+    WB_CHECK(ret == 0, "SLOW_VAES: GCM stream encrypt");
+    wb_sv_put(s, ct, WB_SV_MSG);
+    wb_sv_put(s, tag, sizeof(tag));
+        #ifdef HAVE_AES_DECRYPT
+    if (ret == 0) ret = wc_AesGcmInit(&aes, key, keySz, iv, GCM_NONCE_MID_SZ);
+    if (ret == 0) ret = wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad,
+                                               sizeof(aad));
+    if (ret == 0) ret = wc_AesGcmDecryptUpdate(&aes, rt, ct, 1000, NULL, 0);
+    if (ret == 0) ret = wc_AesGcmDecryptUpdate(&aes, rt + 1000, ct + 1000,
+                                               WB_SV_MSG - 1000, NULL, 0);
+    if (ret == 0) ret = wc_AesGcmDecryptFinal(&aes, tag, sizeof(tag));
+    WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_MSG) == 0,
+             "SLOW_VAES: GCM stream decrypt/verify");
+        #endif
+    wc_AesFree(&aes);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AESGCM_SIV
+    /* RFC 8452 defines AES-GCM-SIV for 128- and 256-bit keys only. */
+    if (keySz != 24) {
+    ret = wc_AesGcmSivEncrypt(key, keySz, iv, GCM_NONCE_MID_SZ, aad,
+                              sizeof(aad), pt, WB_SV_MSG, ct, tag,
+                              sizeof(tag));
+    WB_CHECK(ret == 0, "SLOW_VAES: GCM-SIV encrypt");
+    wb_sv_put(s, ct, WB_SV_MSG);
+    wb_sv_put(s, tag, sizeof(tag));
+    if (ret == 0) ret = wc_AesGcmSivDecrypt(key, keySz, iv, GCM_NONCE_MID_SZ,
+                                            aad, sizeof(aad), ct, WB_SV_MSG,
+                                            rt, tag, sizeof(tag));
+    WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_MSG) == 0,
+             "SLOW_VAES: GCM-SIV decrypt/verify");
+    }
+#endif
+
+#if defined(WOLFSSL_AES_XTS) && defined(HAVE_AES_DECRYPT)
+    /* XTS takes a double-length key; 192-bit is not an XTS size. */
+    if (keySz != 24) {
+        XtsAes xts;
+        word32 xKeySz = keySz * 2;
+
+        ret = wc_AesXtsSetKey(&xts, key, xKeySz, AES_ENCRYPTION, NULL,
+                              INVALID_DEVID);
+        if (ret == 0) ret = wc_AesXtsEncrypt(&xts, ct, pt, WB_SV_MSG, iv,
+                                             sizeof(iv));
+        WB_CHECK(ret == 0, "SLOW_VAES: XTS encrypt");
+        wb_sv_put(s, ct, WB_SV_MSG);
+        #ifdef WOLFSSL_AESXTS_STREAM
+        {
+            struct XtsAesStreamData stream;
+            byte sct[WB_SV_MSG];
+            /* 63 whole blocks through Update, the last block plus the
+             * 5-byte tail (ciphertext stealing) through Final. */
+            word32 head = 63 * WC_AES_BLOCK_SIZE;
+
+            if (ret == 0) ret = wc_AesXtsEncryptInit(&xts, iv, sizeof(iv),
+                                                     &stream);
+            if (ret == 0) ret = wc_AesXtsEncryptUpdate(&xts, sct, pt, head,
+                                                       &stream);
+            if (ret == 0) ret = wc_AesXtsEncryptFinal(&xts, sct + head,
+                                                      pt + head,
+                                                      WB_SV_MSG - head,
+                                                      &stream);
+            WB_CHECK(ret == 0 && XMEMCMP(sct, ct, WB_SV_MSG) == 0,
+                     "SLOW_VAES: XTS stream encrypt != one-shot");
+        }
+        #endif
+        wc_AesXtsFree(&xts);
+
+        ret = wc_AesXtsSetKey(&xts, key, xKeySz, AES_DECRYPTION, NULL,
+                              INVALID_DEVID);
+        if (ret == 0) ret = wc_AesXtsDecrypt(&xts, rt, ct, WB_SV_MSG, iv,
+                                             sizeof(iv));
+        WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_MSG) == 0,
+                 "SLOW_VAES: XTS decrypt");
+        #ifdef WOLFSSL_AESXTS_STREAM
+        {
+            struct XtsAesStreamData stream;
+            word32 head = 63 * WC_AES_BLOCK_SIZE;
+
+            XMEMSET(rt, 0, sizeof(rt));
+            if (ret == 0) ret = wc_AesXtsDecryptInit(&xts, iv, sizeof(iv),
+                                                     &stream);
+            if (ret == 0) ret = wc_AesXtsDecryptUpdate(&xts, rt, ct, head,
+                                                       &stream);
+            if (ret == 0) ret = wc_AesXtsDecryptFinal(&xts, rt + head,
+                                                      ct + head,
+                                                      WB_SV_MSG - head,
+                                                      &stream);
+            WB_CHECK(ret == 0 && XMEMCMP(rt, pt, WB_SV_MSG) == 0,
+                     "SLOW_VAES: XTS stream decrypt");
+        }
+        #endif
+        wc_AesXtsFree(&xts);
+    }
+#endif
+}
+
+/* The GCM-SIV POLYVAL and CTR routines are reached through a returned
+ * function pointer, so assert the selection itself. */
+static void wb_slow_vaes_gcmsiv_sel(int slow, int hostVaes)
+{
+#if defined(WOLFSSL_AESGCM_SIV) && defined(WC_POLYVAL_ASM) && \
+    defined(WC_GCMSIV_CTR_ASM) && defined(WOLFSSL_X86_64_BUILD) && \
+    !defined(WC_POLYVAL_ASM_AARCH64) && !defined(WC_POLYVAL_ASM_AARCH32)
+    AesGcmSivPolyvalFn pfn = AesGcmSivPolyvalAsm();
+    AesGcmSivCtrFn     cfn = AesGcmSivCtrAsm();
+    int pVaes = (pfn == &AES_GCMSIV_polyval_vaes);
+    int cVaes = (cfn == &AES_GCMSIV_ctr_vaes);
+    #ifdef HAVE_INTEL_AVX512
+    pVaes |= (pfn == &AES_GCMSIV_polyval_avx512);
+    cVaes |= (cfn == &AES_GCMSIV_ctr_avx512);
+    #endif
+    if (slow) {
+        WB_CHECK(!pVaes, "SLOW_VAES: GCM-SIV POLYVAL still selects VAES");
+        WB_CHECK(!cVaes, "SLOW_VAES: GCM-SIV CTR still selects VAES");
+    }
+    else if (hostVaes) {
+        WB_CHECK(pVaes, "SLOW_VAES clear: GCM-SIV POLYVAL did not pick VAES");
+        WB_CHECK(cVaes, "SLOW_VAES clear: GCM-SIV CTR did not pick VAES");
+    }
+#else
+    (void)slow; (void)hostVaes;
+#endif
+}
+
+static void wb_slow_vaes(void)
+{
+    static const word32 keySzs[3] = { 16, 24, 32 };
+    static const int    order[4]  = { 2, 0, 1, 3 };
+    cpuid_flags_t saved, base, rows[4];
+    WbSink cur;
+    word32 refLen = 0;
+    int    hostVaes, i;
+    unsigned k;
+
+    /* AES_USE_VAES truth table on synthetic flags (decision only, nothing
+     * executes): both operands' independence pairs. */
+    WB_CHECK(AES_USE_VAES((cpuid_flags_t)CPUID_VAES) != 0,
+             "AES_USE_VAES(VAES) is false");
+    WB_CHECK(AES_USE_VAES((cpuid_flags_t)(CPUID_VAES | CPUID_SLOW_VAES)) == 0,
+             "AES_USE_VAES(VAES|SLOW_VAES) is true");
+    WB_CHECK(AES_USE_VAES((cpuid_flags_t)0) == 0,
+             "AES_USE_VAES(0) is true");
+
+    cpuid_get_flags_ex(&intel_flags);
+    saved = intel_flags;
+    if (!IS_INTEL_AESNI(saved)) {
+        WB_NOTE("host has no AES-NI; SLOW_VAES rows skipped");
+        return;
+    }
+    /* The host's own tuning bit is cleared so row 0 means the same on
+     * Arrow Lake as elsewhere. */
+    base = saved & ~(cpuid_flags_t)CPUID_SLOW_VAES;
+    hostVaes = IS_INTEL_VAES(base) &&
+               (IS_INTEL_AVX2(base) || IS_INTEL_AVX512(base));
+    rows[0] = base;
+    rows[1] = base & ~(cpuid_flags_t)CPUID_AVX512;
+    rows[2] = base | CPUID_SLOW_VAES;
+    rows[3] = rows[1] | CPUID_SLOW_VAES;
+
+    /* Row 2 (the fallback) runs first and is the reference. */
+    for (i = 0; i < 4; i++) {
+        int r    = order[i];
+        int slow = IS_CPU_SLOW_VAES(rows[r]) != 0;
+
+        cur.p = (r == 2) ? wb_sv_ref : wb_sv_cur;
+        cur.n = 0;
+        intel_flags   = rows[r];
+        wb_vaes_calls = 0;
+        for (k = 0; k < sizeof(keySzs) / sizeof(keySzs[0]); k++) {
+            wb_sv_modes(&cur, keySzs[k]);
+        }
+        wb_slow_vaes_gcmsiv_sel(slow, hostVaes);
+
+        printf("  [wb] SLOW_VAES row %d (flags 0x%x): %lu VAES calls\n", r,
+               (unsigned)rows[r], wb_vaes_calls);
+        if (slow) {
+            WB_CHECK(wb_vaes_calls == 0,
+                     "SLOW_VAES set but VAES code was called");
+        }
+        else if (hostVaes && (r == 0 || IS_INTEL_AVX2(rows[r]))) {
+            WB_CHECK(wb_vaes_calls > 0,
+                     "SLOW_VAES clear on a VAES host but no VAES call "
+                     "(hooks or thresholds broken)");
+        }
+        if (r == 2) {
+            refLen = cur.n;
+        }
+        else {
+            WB_CHECK(cur.n == refLen &&
+                     XMEMCMP(wb_sv_cur, wb_sv_ref, refLen) == 0,
+                     "SLOW_VAES: ciphertext/tag differs from fallback");
+        }
+    }
+    intel_flags = saved;
+    if (!hostVaes) {
+        WB_NOTE("host has no VAES: rows compare the fallback with itself");
+    }
+    WB_NOTE("CPUID_SLOW_VAES fallback rows exercised");
+}
+#else
+static void wb_slow_vaes(void)
+{ WB_NOTE("x86_64 VAES AES not built in this variant; SLOW_VAES skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -1310,9 +1744,13 @@ int main(void)
     wb_ccm_aesni_dispatch();
     wb_aarch64_ctr_leftover();
     wb_gcmccm_pending();
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    wb_slow_vaes();
+    printf("done (%s)\n", wb_err ? "with failures" :
+                          wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the harness
-     * treats a nonzero exit as a failed variant and discards its coverage. */
+     * treats a nonzero exit as a failed variant and discards its coverage.
+     * Wrong results (wb_err) are reported as "with failures", which
+     * run-whitebox-smoke.sh fails on, and still exit 0 for the same reason. */
     return 0;
 #endif
 }

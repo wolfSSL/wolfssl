@@ -972,6 +972,13 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
             #define HAVE_INTEL_AVX512
         #endif
 
+        /* VAES is available and worth using for AES on this CPU.  CPUs marked
+         * CPUID_SLOW_VAES (Intel Arrow Lake and Lunar Lake) run the VAES code
+         * no faster than the AVX2 / AES-NI code, so they use that instead.
+         * Also used for the GCM-SIV POLYVAL selection. */
+        #define AES_USE_VAES(f) \
+            (IS_INTEL_VAES(f) && !IS_CPU_SLOW_VAES(f))
+
         /* Below this threshold the narrower path (AVX1 / AES-NI) is faster on
          * Zen 4 than the wide VAES/AVX512 path.  Verify and tune
          * per-microarchecture.
@@ -1058,14 +1065,14 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     {
     #ifdef HAVE_INTEL_AVX512
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_ECB_encrypt_avx512(in, out, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_ECB_encrypt_vaes(in, out, sz, key, nr);
         }
         else
@@ -1088,14 +1095,14 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     {
     #ifdef HAVE_INTEL_AVX512
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_ECB_decrypt_avx512(in, out, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_ECB_decrypt_vaes(in, out, sz, key, nr);
         }
         else
@@ -1119,14 +1126,14 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     {
     #ifdef HAVE_INTEL_AVX512
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_CBC_encrypt_avx512(in, out, iv, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_CBC_encrypt_vaes(in, out, iv, sz, key, nr);
         }
         else
@@ -1150,14 +1157,14 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     {
     #ifdef HAVE_INTEL_AVX512
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_CBC_decrypt_avx512(in, out, iv, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_CBC_decrypt_vaes(in, out, iv, sz, key, nr);
         }
         else
@@ -1181,14 +1188,14 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     {
     #ifdef HAVE_INTEL_AVX512
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_CTR_encrypt_avx512(in, out, sz, key, nr, ctr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_CTR_encrypt_vaes(in, out, sz, key, nr, ctr);
         }
         else
@@ -12355,7 +12362,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
 #ifdef HAVE_INTEL_AVX512
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_encrypt_avx512(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (const byte*)aes->key, (int)aes->rounds);
             ret = 0;
@@ -12364,7 +12371,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 #ifdef HAVE_INTEL_VAES
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_encrypt_vaes(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (const byte*)aes->key, (int)aes->rounds);
             ret = 0;
@@ -13271,7 +13278,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
 #ifdef HAVE_INTEL_AVX512
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_decrypt_avx512(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (byte*)aes->key, (int)aes->rounds, &res);
             if (res == 0)
@@ -13283,7 +13290,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 #ifdef HAVE_INTEL_VAES
         if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_decrypt_vaes(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (byte*)aes->key, (int)aes->rounds, &res);
             if (res == 0)
@@ -13674,14 +13681,14 @@ static WARN_UNUSED_RESULT int AesGcmInit_asm(
     aes->cOver = 0;
 
 #ifdef HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
         AES_GCM_init_avx512((byte*)aes->key, (int)aes->rounds, iv, ivSz,
             aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
     }
     else
 #endif
 #ifdef HAVE_INTEL_VAES
-    if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
         AES_GCM_init_vaes((byte*)aes->key, (int)aes->rounds, iv, ivSz,
             aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
     }
@@ -13742,14 +13749,14 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_asm(
             if (aes->aOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
 #ifdef HAVE_INTEL_AVX512
-                if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                     AES_GCM_ghash_block_avx512(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                              aes->gcm.H);
                 }
                 else
 #endif
 #ifdef HAVE_INTEL_VAES
-                if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                     AES_GCM_ghash_block_vaes(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                              aes->gcm.H);
                 }
@@ -13788,7 +13795,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_asm(
             /* GHASH full blocks now. */
 #ifdef HAVE_INTEL_AVX512
             if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
-                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_aad_update_avx512(a, blocks * WC_AES_BLOCK_SIZE,
                                         AES_TAG(aes), aes->gcm.H);
             }
@@ -13796,7 +13803,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_asm(
 #endif
 #ifdef HAVE_INTEL_VAES
             if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
-                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_aad_update_vaes(a, blocks * WC_AES_BLOCK_SIZE,
                                         AES_TAG(aes), aes->gcm.H);
             }
@@ -13836,14 +13843,14 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_asm(
                 (size_t)WC_AES_BLOCK_SIZE - aes->aOver);
         /* GHASH last AAD block. */
 #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_ghash_block_avx512(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                      aes->gcm.H);
         }
         else
 #endif
 #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_ghash_block_vaes(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                      aes->gcm.H);
         }
@@ -13917,14 +13924,14 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_asm(
             if (aes->cOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
 #ifdef HAVE_INTEL_AVX512
-                if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                     AES_GCM_ghash_block_avx512(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                              aes->gcm.H);
                 }
                 else
 #endif
 #ifdef HAVE_INTEL_VAES
-                if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                     AES_GCM_ghash_block_vaes(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                              aes->gcm.H);
                 }
@@ -13964,7 +13971,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_asm(
             /* Encrypt and GHASH full blocks now. */
 #ifdef HAVE_INTEL_AVX512
             if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
-                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_encrypt_update_avx512((byte*)aes->key, (int)aes->rounds,
                     c, p, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -13973,7 +13980,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_asm(
 #endif
 #ifdef HAVE_INTEL_VAES
             if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
-                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_encrypt_update_vaes((byte*)aes->key, (int)aes->rounds,
                     c, p, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -14009,14 +14016,14 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_asm(
             /* Encrypt the counter - XOR in zeros as proxy for plaintext. */
             XMEMSET(AES_LASTGBLOCK(aes), 0, WC_AES_BLOCK_SIZE);
 #ifdef HAVE_INTEL_AVX512
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_encrypt_block_avx512((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             else
 #endif
 #ifdef HAVE_INTEL_VAES
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_encrypt_block_vaes((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
@@ -14078,14 +14085,14 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_asm(
         XMEMSET(AES_LASTGBLOCK(aes) + over, 0, (size_t)WC_AES_BLOCK_SIZE - over);
         /* GHASH last cipher block. */
 #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_ghash_block_avx512(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                      aes->gcm.H);
         }
         else
 #endif
 #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_ghash_block_vaes(AES_LASTGBLOCK(aes), AES_TAG(aes),
                                      aes->gcm.H);
         }
@@ -14112,14 +14119,14 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_asm(
     }
     /* Calculate the authentication tag. */
 #ifdef HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
         AES_GCM_encrypt_final_avx512(AES_TAG(aes), authTag, authTagSz, aes->cSz,
             aes->aSz, aes->gcm.H, AES_INITCTR(aes));
     }
     else
 #endif
 #ifdef HAVE_INTEL_VAES
-    if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
         AES_GCM_encrypt_final_vaes(AES_TAG(aes), authTag, authTagSz, aes->cSz,
             aes->aSz, aes->gcm.H, AES_INITCTR(aes));
     }
@@ -14244,14 +14251,14 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_asm(
             if (aes->cOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
 #ifdef HAVE_INTEL_AVX512
-                if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                     AES_GCM_ghash_block_avx512(AES_LASTBLOCK(aes), AES_TAG(aes),
                                              aes->gcm.H);
                 }
                 else
 #endif
 #ifdef HAVE_INTEL_VAES
-                if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                     AES_GCM_ghash_block_vaes(AES_LASTBLOCK(aes), AES_TAG(aes),
                                              aes->gcm.H);
                 }
@@ -14291,7 +14298,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_asm(
             /* Decrypt and GHASH full blocks now. */
 #ifdef HAVE_INTEL_AVX512
             if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
-                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_decrypt_update_avx512((byte*)aes->key, (int)aes->rounds,
                     p, c, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -14300,7 +14307,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_asm(
 #endif
 #ifdef HAVE_INTEL_VAES
             if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
-                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+                IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_decrypt_update_vaes((byte*)aes->key, (int)aes->rounds,
                     p, c, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -14336,14 +14343,14 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_asm(
             /* Encrypt the counter - XOR in zeros as proxy for cipher text. */
             XMEMSET(AES_LASTGBLOCK(aes), 0, WC_AES_BLOCK_SIZE);
 #ifdef HAVE_INTEL_AVX512
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_encrypt_block_avx512((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
             else
 #endif
 #ifdef HAVE_INTEL_VAES
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_GCM_encrypt_block_vaes((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
             }
@@ -14412,13 +14419,13 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_asm(
         XMEMSET(lastBlock + over, 0, (size_t)WC_AES_BLOCK_SIZE - over);
         /* Hash the last block of cipher text. */
 #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_ghash_block_avx512(lastBlock, AES_TAG(aes), aes->gcm.H);
         }
         else
 #endif
 #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_GCM_ghash_block_vaes(lastBlock, AES_TAG(aes), aes->gcm.H);
         }
         else
@@ -14441,14 +14448,14 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_asm(
     }
     /* Calculate and compare the authentication tag. */
 #ifdef HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
         AES_GCM_decrypt_final_avx512(AES_TAG(aes), authTag, authTagSz, aes->cSz,
             aes->aSz, aes->gcm.H, AES_INITCTR(aes), &res);
     }
     else
 #endif
 #ifdef HAVE_INTEL_VAES
-    if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
         AES_GCM_decrypt_final_vaes(AES_TAG(aes), authTag, authTagSz, aes->cSz,
             aes->aSz, aes->gcm.H, AES_INITCTR(aes), &res);
     }
@@ -19863,7 +19870,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_XTS_encrypt_avx512(in, out, sz, i,
                                    (const byte*)aes->key,
                                    (const byte*)xaes->tweak.key,
@@ -19873,7 +19880,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         else
 #endif
 #if defined(HAVE_INTEL_VAES)
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_XTS_encrypt_vaes(in, out, sz, i,
                                  (const byte*)aes->key,
                                  (const byte*)xaes->tweak.key,
@@ -19990,7 +19997,7 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_init_avx512(stream->tweak_block,
                                     (const byte*)xaes->tweak.key,
                                     (int)xaes->tweak.rounds);
@@ -19999,7 +20006,7 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
             else
 #endif
 #if defined(HAVE_INTEL_VAES)
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_init_vaes(stream->tweak_block,
                                   (const byte*)xaes->tweak.key,
                                   (int)xaes->tweak.rounds);
@@ -20113,7 +20120,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_encrypt_update_avx512(in, out, sz,
                                               (const byte*)aes->key,
                                               stream->tweak_block,
@@ -20123,7 +20130,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
             else
 #endif
 #if defined(HAVE_INTEL_VAES)
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_encrypt_update_vaes(in, out, sz,
                                             (const byte*)aes->key,
                                             stream->tweak_block,
@@ -20495,7 +20502,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_XTS_decrypt_avx512(in, out, sz, i,
                                    (const byte*)aes->key,
                                    (const byte*)xaes->tweak.key,
@@ -20505,7 +20512,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         else
 #endif
 #if defined(HAVE_INTEL_VAES)
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
             AES_XTS_decrypt_vaes(in, out, sz, i,
                                  (const byte*)aes->key,
                                  (const byte*)xaes->tweak.key,
@@ -20625,7 +20632,7 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_init_avx512(stream->tweak_block,
                                     (const byte*)xaes->tweak.key,
                                     (int)xaes->tweak.rounds);
@@ -20634,7 +20641,7 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
             else
 #endif
 #if defined(HAVE_INTEL_VAES)
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_init_vaes(stream->tweak_block,
                                   (const byte*)xaes->tweak.key,
                                   (int)xaes->tweak.rounds);
@@ -20752,7 +20759,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_decrypt_update_avx512(in, out, sz,
                                               (const byte*)aes->key,
                                               stream->tweak_block,
@@ -20762,7 +20769,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
             else
 #endif
 #if defined(HAVE_INTEL_VAES)
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX2(intel_flags) && AES_USE_VAES(intel_flags)) {
                 AES_XTS_decrypt_update_vaes(in, out, sz,
                                             (const byte*)aes->key,
                                             stream->tweak_block,
@@ -21984,12 +21991,12 @@ static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
         return NULL;
     }
 #ifdef HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
         return &AES_GCMSIV_polyval_avx512;
     }
 #endif
 #ifdef HAVE_INTEL_VAES
-    if (IS_INTEL_VAES(intel_flags) && IS_INTEL_AVX2(intel_flags)) {
+    if (AES_USE_VAES(intel_flags) && IS_INTEL_AVX2(intel_flags)) {
         return &AES_GCMSIV_polyval_vaes;
     }
 #endif
@@ -22056,12 +22063,12 @@ static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
         return NULL;
     }
 #ifdef HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+    if (IS_INTEL_AVX512(intel_flags) && AES_USE_VAES(intel_flags)) {
         return &AES_GCMSIV_ctr_avx512;
     }
 #endif
 #ifdef HAVE_INTEL_VAES
-    if (IS_INTEL_VAES(intel_flags) && IS_INTEL_AVX2(intel_flags)) {
+    if (AES_USE_VAES(intel_flags) && IS_INTEL_AVX2(intel_flags)) {
         return &AES_GCMSIV_ctr_vaes;
     }
 #endif

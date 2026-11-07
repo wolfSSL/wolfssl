@@ -4631,6 +4631,7 @@ _sha3_block_n_bmi2:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%edx, %edx
         pushq	%rcx
         movq	%rcx, %rbp
         movq	(%rdi), %rcx
@@ -9594,6 +9595,7 @@ WC_ASM_ATT_HIDDEN(_sha3_block_n_avx2)
 .p2align	4
 _sha3_block_n_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         leaq	L_sha3_avx2_r(%rip), %rax
         leaq	L_sha3_block_n_avx2_rotl(%rip), %r8
         addq	$0x40, %r8
@@ -15366,6 +15368,7 @@ WC_ASM_ATT_HIDDEN(_sha3_xmss_blocksx4_avx2)
 .p2align	4
 _sha3_xmss_blocksx4_avx2:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         leaq	L_sha3_x4_avx2_r(%rip), %rax
         movq	%rdi, %r10
         movq	%rdi, %r11
@@ -20885,6 +20888,7 @@ WC_ASM_ATT_HIDDEN(_sha3_lms_blocksx4_avx2)
 .p2align	4
 _sha3_lms_blocksx4_avx2:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         leaq	L_sha3_x4_avx2_r(%rip), %rax
         movq	%rdi, %r9
         movq	%rdi, %r10
@@ -26444,6 +26448,7 @@ WC_ASM_ATT_HIDDEN(_sha3_lms_chainx4_avx2)
 .p2align	4
 _sha3_lms_chainx4_avx2:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         subq	$8, %rsp
         movl	%ecx, %r8d
         testl	%r8d, %r8d
@@ -37269,6 +37274,7 @@ _sha3_blocksx4_out_avx2:
         pushq	%r13
         pushq	%r14
         pushq	%r15
+        movl	%edx, %edx
         leaq	L_sha3_x4_avx2_r(%rip), %rax
         movl	%edx, %r12d
         movq	%rsi, %r9
@@ -53575,6 +53581,7 @@ _sha3_blocksx8_out_avx512:
         pushq	%r15
         pushq	%rbx
         pushq	%rbp
+        movl	%edx, %edx
         leaq	L_sha3_x8_avx512_r(%rip), %rax
         movl	%edx, %r14d
         movq	%rsi, %rcx
@@ -59452,6 +59459,7 @@ WC_ASM_ATT_HIDDEN(_sha3_xmss_blocksx8_avx512)
 .p2align	4
 _sha3_xmss_blocksx8_avx512:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         leaq	L_sha3_x8_avx512_r(%rip), %rax
         movl	%r8d, %r9d
         testb	$0xff, %r9b
@@ -62432,6 +62440,7 @@ WC_ASM_ATT_HIDDEN(_sha3_lms_blocksx8_avx512)
 .p2align	4
 _sha3_lms_blocksx8_avx512:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         leaq	L_sha3_x8_avx512_r(%rip), %rax
         vmovdqu64	(%rdi), %zmm0
         vmovdqu64	64(%rdi), %zmm1
@@ -65462,6 +65471,7 @@ WC_ASM_ATT_HIDDEN(_sha3_lms_chainx8_avx512)
 .p2align	4
 _sha3_lms_chainx8_avx512:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         subq	$8, %rsp
         movl	%ecx, %r8d
         testl	%r8d, %r8d

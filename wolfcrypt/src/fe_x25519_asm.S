@@ -673,6 +673,7 @@ WC_ASM_ATT_HIDDEN(_fe_cmov)
 .p2align	4
 _fe_cmov:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         cmpl	$0x01, %edx
         movq	(%rdi), %rcx
         movq	8(%rdi), %r8

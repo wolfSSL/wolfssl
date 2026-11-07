@@ -470,6 +470,7 @@ _AES_GCM_encrypt_aesni:
         pushq	%r15
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	48(%rsp), %r11d
         movl	56(%rsp), %ebx
         movl	64(%rsp), %r14d
@@ -2327,6 +2328,7 @@ _AES_GCM_decrypt_aesni:
         pushq	%rbp
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	56(%rsp), %r11d
         movl	64(%rsp), %ebx
         movl	72(%rsp), %r14d
@@ -3730,6 +3732,7 @@ _AES_GCM_init_aesni:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%esi, %esi
         movq	%rdx, %r10
         movl	%ecx, %r11d
         movq	32(%rsp), %rax
@@ -4082,6 +4085,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_aesni)
 .p2align	4
 _AES_GCM_aad_update_aesni:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rcx, %rax
         movdqa	(%rdx), %xmm5
         movdqa	(%rax), %xmm6
@@ -4166,6 +4170,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_aesni)
 .p2align	4
 _AES_GCM_encrypt_block_aesni:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rdx, %r10
         movq	%rcx, %r11
         movdqu	(%r8), %xmm0
@@ -4300,7 +4305,9 @@ _AES_GCM_encrypt_update_aesni:
         pushq	%r12
         pushq	%r14
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	32(%rsp), %rax
         movq	40(%rsp), %r12
         subq	$0xa0, %rsp
@@ -5628,7 +5635,9 @@ _AES_GCM_decrypt_update_aesni:
         pushq	%r14
         pushq	%r15
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	40(%rsp), %rax
         movq	48(%rsp), %r12
         subq	$0xa8, %rsp
@@ -6526,6 +6535,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_aesni)
 .p2align	4
 _AES_GCMSIV_polyval_aesni:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         movdqu	(%rsi), %xmm1
         movdqu	(%rdi), %xmm0
         pshufb	L_aes_gcm_siv_bswap_mask(%rip), %xmm0
@@ -6891,6 +6901,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_aesni)
 _AES_GCMSIV_ctr_aesni:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         movdqu	L_aes_gcmsiv_ctr_aesni_one(%rip), %xmm8
         movdqu	(%r9), %xmm7
         xorl	%eax, %eax
@@ -7455,6 +7466,7 @@ _AES_GCM_encrypt_avx1:
         pushq	%r15
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	48(%rsp), %r11d
         movl	56(%rsp), %ebx
         movl	64(%rsp), %r14d
@@ -9040,6 +9052,7 @@ _AES_GCM_decrypt_avx1:
         pushq	%rbp
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	56(%rsp), %r11d
         movl	64(%rsp), %ebx
         movl	72(%rsp), %r14d
@@ -10213,6 +10226,7 @@ _AES_GCM_init_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
+        movl	%esi, %esi
         movq	%rdx, %r10
         movl	%ecx, %r11d
         movq	24(%rsp), %rax
@@ -10530,6 +10544,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_avx1)
 .p2align	4
 _AES_GCM_aad_update_avx1:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rcx, %rax
         vmovdqa	(%rdx), %xmm5
         vmovdqa	(%rax), %xmm6
@@ -10603,6 +10618,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_avx1)
 .p2align	4
 _AES_GCM_encrypt_block_avx1:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rdx, %r10
         movq	%rcx, %r11
         vmovdqu	(%r8), %xmm1
@@ -10727,7 +10743,9 @@ _AES_GCM_encrypt_update_avx1:
         pushq	%r12
         pushq	%r14
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	32(%rsp), %rax
         movq	40(%rsp), %r12
         subq	$0xa0, %rsp
@@ -11846,7 +11864,9 @@ _AES_GCM_decrypt_update_avx1:
         pushq	%r12
         pushq	%r14
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	32(%rsp), %rax
         movq	40(%rsp), %r12
         subq	$0xb0, %rsp
@@ -12578,6 +12598,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_avx1)
 .p2align	4
 _AES_GCMSIV_polyval_avx1:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         vmovdqu	(%rsi), %xmm1
         vmovdqu	(%rdi), %xmm0
         vpshufb	L_aes_gcm_siv_bswap_mask_avx1(%rip), %xmm0, %xmm0
@@ -12847,6 +12868,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_avx1)
 _AES_GCMSIV_ctr_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         vmovdqu	L_aes_gcmsiv_ctr_avx1_one(%rip), %xmm8
         vmovdqu	(%r9), %xmm7
         xorl	%eax, %eax
@@ -16052,6 +16074,7 @@ _AES_GCM_init_avx2:
 #endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
+        movl	%esi, %esi
         movq	%rdx, %r10
         movl	%ecx, %r11d
         movq	24(%rsp), %rax
@@ -16327,6 +16350,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_avx2)
 .p2align	4
 _AES_GCM_aad_update_avx2:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rcx, %rax
         vmovdqu	(%rdx), %xmm4
         vmovdqu	(%rax), %xmm5
@@ -16388,6 +16412,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_avx2)
 .p2align	4
 _AES_GCM_encrypt_block_avx2:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rdx, %r10
         movq	%rcx, %r11
         subq	$0x98, %rsp
@@ -16514,7 +16539,9 @@ _AES_GCM_encrypt_update_avx2:
         pushq	%r13
         pushq	%r14
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	32(%rsp), %rax
         movq	40(%rsp), %r12
         subq	$0xa0, %rsp
@@ -17370,6 +17397,9 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_avx2)
 .p2align	4
 _AES_GCM_encrypt_final_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movq	8(%rsp), %rax
         subq	$24, %rsp
         vmovdqu	(%rdi), %xmm4
@@ -17448,7 +17478,9 @@ _AES_GCM_decrypt_update_avx2:
         pushq	%r12
         pushq	%r14
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	32(%rsp), %rax
         movq	40(%rsp), %r12
         subq	$0xb0, %rsp
@@ -17958,6 +17990,9 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_avx2)
 _AES_GCM_decrypt_final_avx2:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%edx, %edx
+        movl	%ecx, %ecx
+        movl	%r8d, %r8d
         movq	16(%rsp), %rax
         movq	24(%rsp), %r10
         subq	$16, %rsp
@@ -18473,6 +18508,7 @@ _AES_GCM_encrypt_vaes:
         pushq	%r15
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	48(%rsp), %r11d
         movl	56(%rsp), %ebx
         movl	64(%rsp), %r14d
@@ -20479,6 +20515,7 @@ _AES_GCM_decrypt_vaes:
         pushq	%rbp
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	56(%rsp), %r11d
         movl	64(%rsp), %ebx
         movl	72(%rsp), %r14d
@@ -22434,6 +22471,7 @@ _AES_GCM_init_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
+        movl	%esi, %esi
         movq	%rdx, %r10
         movl	%ecx, %r11d
         movq	24(%rsp), %rax
@@ -22751,6 +22789,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_vaes)
 .p2align	4
 _AES_GCM_aad_update_vaes:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rdx, %r8
         movq	%rcx, %r9
         subq	$0x208, %rsp
@@ -23286,6 +23325,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_vaes)
 .p2align	4
 _AES_GCM_encrypt_block_vaes:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rdx, %r10
         movq	%rcx, %r11
         vmovdqu	(%r8), %xmm1
@@ -23412,7 +23452,9 @@ _AES_GCM_encrypt_update_vaes:
         pushq	%r15
         pushq	%rbx
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	48(%rsp), %rax
         movq	56(%rsp), %r12
         subq	$0x210, %rsp
@@ -24447,7 +24489,9 @@ _AES_GCM_decrypt_update_vaes:
         pushq	%r15
         pushq	%rbx
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	48(%rsp), %rax
         movq	56(%rsp), %r12
         subq	$0x210, %rsp
@@ -25458,6 +25502,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_vaes)
 .p2align	4
 _AES_GCMSIV_polyval_vaes:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         vmovdqu	(%rsi), %xmm1
         vmovdqu	(%rdi), %xmm0
         vpshufb	L_aes_gcm_siv_bswap_mask_vaes(%rip), %xmm0, %xmm0
@@ -26007,6 +26052,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_vaes)
 _AES_GCMSIV_ctr_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         vbroadcasti128	(%r9), %ymm7
         vbroadcasti128	128+L_aes_gcmsiv_ctr_inc_vaes(%rip), %ymm8
         vbroadcasti128	32+L_aes_gcmsiv_ctr_inc_vaes(%rip), %ymm9
@@ -26698,6 +26744,7 @@ _AES_GCM_encrypt_avx512:
         pushq	%r15
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	48(%rsp), %r11d
         movl	56(%rsp), %ebx
         movl	64(%rsp), %r14d
@@ -29403,6 +29450,7 @@ _AES_GCM_decrypt_avx512:
         pushq	%rbp
         movq	%rdx, %r12
         movq	%rcx, %rax
+        movl	%r9d, %r9d
         movl	56(%rsp), %r11d
         movl	64(%rsp), %ebx
         movl	72(%rsp), %r14d
@@ -31902,6 +31950,7 @@ _AES_GCM_init_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
+        movl	%esi, %esi
         movq	%rdx, %r10
         movl	%ecx, %r11d
         movq	24(%rsp), %rax
@@ -32219,6 +32268,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_avx512)
 .p2align	4
 _AES_GCM_aad_update_avx512:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rdx, %r8
         movq	%rcx, %r9
         subq	$0x108, %rsp
@@ -32653,6 +32703,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_avx512)
 .p2align	4
 _AES_GCM_encrypt_block_avx512:
 #endif /* __APPLE__ */
+        movl	%esi, %esi
         movq	%rdx, %r10
         movq	%rcx, %r11
         vmovdqu	(%r8), %xmm1
@@ -32780,7 +32831,9 @@ _AES_GCM_encrypt_update_avx512:
         pushq	%rbx
         pushq	%rbp
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	56(%rsp), %rax
         movq	64(%rsp), %r12
         subq	$0x418, %rsp
@@ -34613,7 +34666,9 @@ _AES_GCM_decrypt_update_avx512:
         pushq	%r15
         pushq	%rbx
         movq	%rdx, %r10
+        movl	%esi, %esi
         movq	%rcx, %r11
+        movl	%r8d, %r8d
         movq	48(%rsp), %rax
         movq	56(%rsp), %r12
         subq	$0x410, %rsp
@@ -36268,6 +36323,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_avx512)
 .p2align	4
 _AES_GCMSIV_polyval_avx512:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         vmovdqu	(%rsi), %xmm1
         vmovdqu	(%rdi), %xmm0
         vpshufb	L_aes_gcm_siv_bswap_mask_avx512(%rip), %xmm0, %xmm0
@@ -37016,6 +37072,7 @@ WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_avx512)
 _AES_GCMSIV_ctr_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         vbroadcasti32x4	(%r9), %zmm7
         vbroadcasti32x4	256+L_aes_gcmsiv_ctr_inc_avx512(%rip), %zmm8
         vbroadcasti32x4	64+L_aes_gcmsiv_ctr_inc_avx512(%rip), %zmm9

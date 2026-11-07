@@ -64,6 +64,7 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_init_aesni)
 .p2align	4
 _AES_XTS_init_aesni:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         movdqu	(%rdi), %xmm0
         # aes_enc_block
         pxor	(%rsi), %xmm0
@@ -133,7 +134,7 @@ _AES_XTS_encrypt_aesni:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$0x48, %rsp
@@ -456,8 +457,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_aesni)
 _AES_XTS_encrypt_update_aesni:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$0x40, %rsp
         movdqu	L_aes_xts_gc_xts(%rip), %xmm12
         movdqu	(%r8), %xmm0
@@ -744,7 +746,7 @@ _AES_XTS_decrypt_aesni:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$24, %rsp
@@ -1121,8 +1123,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_aesni)
 _AES_XTS_decrypt_update_aesni:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$16, %rsp
         movdqu	L_aes_xts_gc_xts(%rip), %xmm12
         movdqu	(%r8), %xmm0
@@ -1462,6 +1465,7 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_init_avx1)
 .p2align	4
 _AES_XTS_init_avx1:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu	(%rdi), %xmm0
         # aes_enc_block
         vpxor	(%rsi), %xmm0, %xmm0
@@ -1531,7 +1535,7 @@ _AES_XTS_encrypt_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$0x48, %rsp
@@ -1845,8 +1849,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_avx1)
 _AES_XTS_encrypt_update_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$0x40, %rsp
         vmovdqu	L_avx1_aes_xts_gc_xts(%rip), %xmm12
         vmovdqu	(%r8), %xmm0
@@ -2124,7 +2129,7 @@ _AES_XTS_decrypt_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$24, %rsp
@@ -2490,8 +2495,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_avx1)
 _AES_XTS_decrypt_update_avx1:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$16, %rsp
         vmovdqu	L_avx1_aes_xts_gc_xts(%rip), %xmm12
         vmovdqu	(%r8), %xmm0
@@ -2821,6 +2827,7 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_init_vaes)
 .p2align	4
 _AES_XTS_init_vaes:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu	(%rdi), %xmm0
         # aes_enc_block
         vpxor	(%rsi), %xmm0, %xmm0
@@ -2928,7 +2935,7 @@ _AES_XTS_encrypt_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$0x48, %rsp
@@ -3429,8 +3436,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_vaes)
 _AES_XTS_encrypt_update_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$0x40, %rsp
         vmovdqu	L_vaes_aes_xts_gc_xts(%rip), %xmm12
         vbroadcasti128	L_vaes_aes_xts_poly(%rip), %ymm13
@@ -3895,7 +3903,7 @@ _AES_XTS_decrypt_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$0x48, %rsp
@@ -4470,8 +4478,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_vaes)
 _AES_XTS_decrypt_update_vaes:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$0x40, %rsp
         vmovdqu	L_vaes_aes_xts_gc_xts(%rip), %xmm12
         vbroadcasti128	L_vaes_aes_xts_poly(%rip), %ymm13
@@ -5010,6 +5019,7 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_init_avx512)
 .p2align	4
 _AES_XTS_init_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu	(%rdi), %xmm0
         # aes_enc_block
         vpxor	(%rsi), %xmm0, %xmm0
@@ -5121,7 +5131,7 @@ _AES_XTS_encrypt_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$0x48, %rsp
@@ -5629,8 +5639,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_avx512)
 _AES_XTS_encrypt_update_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$0x40, %rsp
         vmovdqu	L_avx512_aes_xts_gc_xts(%rip), %xmm12
         vbroadcasti32x4	L_avx512_aes_xts_poly(%rip), %zmm13
@@ -6102,7 +6113,7 @@ _AES_XTS_decrypt_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r12
         movl	24(%rsp), %r10d
         subq	$0x48, %rsp
@@ -6694,8 +6705,9 @@ WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_avx512)
 _AES_XTS_decrypt_update_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
-        movq	%rdx, %rax
+        movl	%edx, %eax
         movq	%rcx, %r10
+        movl	%r9d, %r9d
         subq	$0x40, %rsp
         vmovdqu	L_avx512_aes_xts_gc_xts(%rip), %xmm12
         vbroadcasti32x4	L_avx512_aes_xts_poly(%rip), %zmm13

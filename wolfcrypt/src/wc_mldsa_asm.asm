@@ -20992,9 +20992,9 @@ wc_mldsa_rej_uniform_n_avx2 PROC
         push	r14
         push	r15
         push	rdi
-        mov	r10, r9
+        mov	r10d, r9d
         mov	r9, r8
-        mov	r8, rdx
+        mov	r8d, edx
         mov	rdx, rcx
         sub	rsp, 72
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -21536,9 +21536,9 @@ wc_mldsa_rej_uniform_avx2 PROC
         push	r14
         push	r15
         push	rdi
-        mov	r10, r9
+        mov	r10d, r9d
         mov	r9, r8
-        mov	r8, rdx
+        mov	r8d, edx
         mov	rdx, rcx
         mov	eax, r8d
         cmp	r8d, 0
@@ -21881,6 +21881,7 @@ wc_mldsa_extract_coeffs_eta2_avx2 PROC
         push	r13
         push	r14
         push	r15
+        mov	edx, edx
         sub	rsp, 64
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -22501,6 +22502,7 @@ wc_mldsa_extract_coeffs_eta4_avx2 PROC
         push	r13
         push	r14
         push	r15
+        mov	edx, edx
         sub	rsp, 48
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -38317,6 +38319,7 @@ wc_mldsa_use_hint_32_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 wc_mldsa_vec_check_low_avx2 PROC
+        mov	r8d, r8d
         sub	rsp, 56
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
@@ -39069,9 +39072,9 @@ _TEXT SEGMENT READONLY PARA
 wc_mldsa_rej_uniform_n_avx512 PROC
         push	rbx
         push	r12
-        mov	r10, r9
+        mov	r10d, r9d
         mov	r9, r8
-        mov	r8, rdx
+        mov	r8d, edx
         mov	rdx, rcx
         mov	eax, r8d
         vbroadcasti64x4	zmm1, YMMWORD PTR L_mldsa_rej_q_avx512
@@ -39139,9 +39142,9 @@ _TEXT SEGMENT READONLY PARA
 wc_mldsa_rej_uniform_avx512 PROC
         push	rbx
         push	r12
-        mov	r10, r9
+        mov	r10d, r9d
         mov	r9, r8
-        mov	r8, rdx
+        mov	r8d, edx
         mov	rdx, rcx
         mov	eax, r8d
         vbroadcasti64x4	zmm1, YMMWORD PTR L_mldsa_rej_q_avx512
@@ -39250,6 +39253,7 @@ wc_mldsa_extract_coeffs_eta2_avx512 PROC
         push	rbx
         push	r12
         push	r13
+        mov	edx, edx
         sub	rsp, 16
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu64	zmm2, ZMMWORD PTR L_mldsa_extract_coeffs_eta2_avx512_dup
@@ -39549,6 +39553,7 @@ wc_mldsa_extract_coeffs_eta4_avx512 PROC
         push	rbx
         push	r12
         push	r13
+        mov	edx, edx
         sub	rsp, 16
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu64	zmm2, ZMMWORD PTR L_mldsa_extract_coeffs_eta4_avx512_dup
@@ -39838,6 +39843,7 @@ _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 wc_mldsa_make_hint_88_avx512 PROC
         push	rbx
+        mov	r8d, r8d
         mov	r10, QWORD PTR [rsp+48]
         sub	rsp, 16
         vmovdqu	OWORD PTR [rsp], xmm6
@@ -40232,6 +40238,7 @@ _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 wc_mldsa_make_hint_32_avx512 PROC
         push	rbx
+        mov	r8d, r8d
         mov	r10, QWORD PTR [rsp+48]
         sub	rsp, 16
         vmovdqu	OWORD PTR [rsp], xmm6
@@ -44361,6 +44368,7 @@ wc_mldsa_redistribute_21_rand_x8_avx512 PROC
         push	r14
         push	r15
         push	rdi
+        mov	r8d, r8d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -44574,6 +44582,7 @@ wc_mldsa_redistribute_17_rand_x8_avx512 PROC
         push	r14
         push	r15
         push	rdi
+        mov	r8d, r8d
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -62054,6 +62063,7 @@ wc_mldsa_decompose_q32_avx512 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 wc_mldsa_vec_check_low_avx512 PROC
+        mov	r8d, r8d
         sub	r8d, 1
         movd	xmm2, r8d
         neg	r8d
