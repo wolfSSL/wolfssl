@@ -1384,6 +1384,11 @@ int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId)
     if (key == NULL) {
        ret = BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    else if (!WC_CTX_IS_ALIGNED(key, curve25519_key)) {
+        ret = BAD_ALIGN_E;
+    }
+#endif
     else {
         XMEMSET(key, 0, sizeof(*key));
 
@@ -1426,6 +1431,12 @@ void wc_curve25519_free(curve25519_key* key)
 {
     if (key == NULL)
        return;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(key, curve25519_key)) {
+        ForceZero(key, sizeof(*key));
+        return;
+    }
+#endif
 
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);

@@ -5,6 +5,8 @@
     called by wc_Sha256Hash.
 
     \return 0 Returned upon successfully initializing
+    \return BAD_ALIGN_E On x86_64, if sha256 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha256 pointer to the sha256 structure to use for encryption
 
@@ -199,6 +201,8 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
 
     \return 0 Success
     \return 1 Error returned because sha224 is null.
+    \return BAD_ALIGN_E On x86_64, if sha224 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha224 Pointer to a Sha224 struct to initialize.
 
@@ -291,6 +295,8 @@ int wc_Sha224Final(wc_Sha224* sha224, byte* hash);
 
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if sha256 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha SHA256 structure
     \param heap Heap hint
@@ -407,6 +413,8 @@ int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
 
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if dst is not 16-byte aligned.
+        dst is left unmodified.
 
     \param src Source SHA256 structure
     \param dst Destination SHA256 structure;
@@ -491,6 +499,8 @@ int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags);
 
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if sha224 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha224 SHA224 structure
     \param heap Heap hint
@@ -621,6 +631,8 @@ int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash);
 
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if dst is not 16-byte aligned.
+        dst is left unmodified.
 
     \param src Source SHA224 structure
     \param dst Destination SHA224 structure
