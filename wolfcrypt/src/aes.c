@@ -12724,7 +12724,9 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 
 #endif /* STM32_CRYPTO_AES_GCM */
 
-#if !defined(WC_AES_USE_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if defined(WOLFSSL_RISCV_ASM)
+/* RISC-V assembly does the whole GCM decrypt. */
+#elif !defined(WC_AES_USE_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
@@ -13198,15 +13200,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
     defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
-    return AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
+    ret = AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
         authTagSz, authIn, authInSz, (byte*)aes->key, aes->gcm.H,
         (byte*)aes->tmp, (byte*)aes->reg, (int)aes->rounds);
 #elif defined(WOLFSSL_RISCV_ASM)
-    return AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
+    ret = AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
         authTagSz, authIn, authInSz, (byte*)aes->key, AES_GCM_H_PTR(aes),
         (byte*)aes->tmp, (byte*)aes->reg, (int)aes->rounds);
-#endif
-
+#else
     VECTOR_REGISTERS_PUSH;
 
 #if defined(WC_AES_USE_ARMASM)
@@ -13338,6 +13339,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     VECTOR_REGISTERS_POP;
+#endif /* RISC-V asm */
 
     /* Wipe the output on a failed tag so unauthenticated plaintext is not
      * handed back.  The hardware backends above return before this point. */
