@@ -209,6 +209,9 @@ issuer_key="$DIR/01-uri-permit-ca-selfloop-key.pem"
 mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
     "$DIR/03-selfloop-leaf-cert.pem" "$WORK/leaf-attacker.cnf" \
     v3_leaf_attacker 0x34
+mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
+    "$DIR/03-selfloop-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
+    v3_leaf_valid 0x35
 
 # ---- Concatenated bundle: attacker leaf + benign-sub-ca + uri-permit-ca ----
 
