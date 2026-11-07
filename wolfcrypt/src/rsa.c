@@ -3704,9 +3704,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
     !defined(NO_RSA_BOUNDS_CHECK)
-    if (type == RSA_PRIVATE_DECRYPT &&
-        key->state == RSA_STATE_DECRYPT_EXPTMOD) {
-
+    if (type == RSA_PRIVATE_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
         if (ret != 0) {
             return ret;
@@ -3715,9 +3713,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY && !TEST_UNPAD_CONSTANT_TIME && \
         * !NO_RSA_BOUNDS_CHECK */
 #if !defined(NO_RSA_BOUNDS_CHECK)
-    if (type == RSA_PUBLIC_DECRYPT &&
-        key->state == RSA_STATE_DECRYPT_EXPTMOD) {
-
+    if (type == RSA_PUBLIC_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
         if (ret != 0) {
             return ret;
@@ -3729,9 +3725,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     /* Reject a message outside 1 < m < n-1 before exponentiating.
      * SP 800-56B Rev2 sec 7.1.1 (RSAEP) step 1.  Passed 1 rather than the
      * caller's checkSmallCt: the standard gives no opt-out on this path. */
-    if ((type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) &&
-        key->state == RSA_STATE_ENCRYPT_EXPTMOD) {
-
+    if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, 1);
         if (ret != 0) {
             return ret;
