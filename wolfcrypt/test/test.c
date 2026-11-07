@@ -37173,8 +37173,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_epoch_test(void)
     }
 #endif /* WC_RNG_SEED_CB && WC_RNG_HAVE_LOCK */
 
-    api_ret = rng_epoch_extra_test();
-
 out_l:
 
     if (rng_inited) {
@@ -37183,6 +37181,9 @@ out_l:
             ret = WC_TEST_RET_ENC_EC(cleanup_ret);
     }
     WC_FREE_VAR(rng, HEAP_HINT);
+
+    if (ret == 0)
+        ret = rng_epoch_extra_test();
 
     return ret;
 }
@@ -37247,7 +37248,7 @@ static wc_test_ret_t rng_epoch_extra_test(void)
     WOLFSSL_ENTER("rng_epoch_extra_test");
 
     WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
-                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
 
     /* Retrieve-and-reset any installed handlers (e.g. the kernel
      * module's own production glue, registered at module init) --
