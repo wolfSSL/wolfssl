@@ -22543,9 +22543,8 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  * "certificate" or "server_key_exchange" are received then we
                  * are doing a full handshake */
 
-                /* If the server included a session id then we
-                 * treat this as a fatal error, since the server said it was
-                 * doing resumption, but did not. */
+                /* A server that echoed the client's session id said it was
+                 * resuming, so a full handshake after it is a fatal error. */
 
                 /* https://www.rfc-editor.org/rfc/rfc5077.html#section-3.4
                  *   Alternatively, the client MAY include an empty Session ID
@@ -22555,7 +22554,12 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  *   messages.
                  */
 #ifndef WOLFSSL_WPAS
-                if (ssl->arrays->sessionIDSz != 0) {
+                if (ssl->arrays->sessionIDSz != 0
+    #ifdef HAVE_SESSION_TICKET
+                        /* A ticket goes out with an empty session ID */
+                        && ssl->session->ticketLen == 0
+    #endif
+                        ) {
                     /* Fatal error. Only try to send an alert. RFC 5246 does not
                      * allow for reverting back to a full handshake after the
                      * server has indicated the intention to do a resumption. */
@@ -22571,6 +22575,24 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.resuming = 0;
                 /* No longer resuming, reset peer authentication state. */
                 ssl->options.peerAuthGood = 0;
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT)
+                /* The declined ticket does not belong to the new session */
+                if (ssl->session->ticketLen > 0) {
+                    if (!HaveUniqueSessionObj(ssl))
+                        return MEMORY_ERROR;
+                    ForceZero(ssl->session->ticket, ssl->session->ticketLen);
+                    if (ssl->session->ticketLenAlloc > 0) {
+                        XFREE(ssl->session->ticket, ssl->session->heap,
+                              DYNAMIC_TYPE_SESSION_TICK);
+                        ssl->session->ticket = ssl->session->staticTicket;
+                        ssl->session->ticketLenAlloc = 0;
+                    }
+                    ssl->session->ticketLen = 0;
+                    /* The ID made up for the ticket goes with it */
+                    ForceZero(ssl->session->altSessionID, ID_LEN);
+                    ssl->session->haveAltSessionID = 0;
+                }
+#endif
             }
         }
     }
