@@ -1934,8 +1934,11 @@ then
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
 
-    # Enable onestep KDF from NIST SP 800 56c option 1.
-    AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+    # Enable onestep KDF from NIST SP 800 56c option 1 (not in FIPS v7).
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+    fi
 fi
 
 # All non-FIPS wolfCrypt features except quantum-resistant asymmetric:
