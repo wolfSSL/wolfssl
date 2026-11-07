@@ -1191,11 +1191,16 @@ WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng);
         wc_RNG_entropy_epoch_t epoch, void *arg);
     WOLFSSL_API int wc_RNG_entropy_epoch_extra_inv_init(
         wc_RNG_entropy_epoch_extra_inv_handler_t handler, void *arg);
+    WOLFSSL_TEST_VIS int wc_RNG_entropy_epoch_extra_inv_reset(
+        wc_RNG_entropy_epoch_extra_inv_handler_t *handler, void **arg);
     typedef wc_RNG_entropy_epoch_t (*wc_RNG_extra_entropy_epoch_get_handler_t)(
         void *arg);
     WOLFSSL_API int wc_RNG_extra_entropy_epoch_init(
         wc_RNG_extra_entropy_epoch_get_handler_t handler,
         void *arg);
+    WOLFSSL_TEST_VIS int wc_RNG_extra_entropy_epoch_reset(
+        wc_RNG_extra_entropy_epoch_get_handler_t *handler,
+        void **arg);
 #endif
 
 #ifdef WC_RNG_HAVE_FREE_HOOK

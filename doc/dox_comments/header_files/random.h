@@ -2889,11 +2889,17 @@ int wc_RNG_entropy_epoch_extra_inv_init(
     before the shadow is updated, so an external event is detected at the
     first check after it lands, with no thread of control required on the
     receiving side.  Events between checks coalesce into one advance.
+    Under concurrency the accounting is best-effort in the safe direction:
+    racing readers can each advance for the same external change, and a
+    duplicate advance (with its duplicate publication, when a publisher is
+    registered) costs at most a spurious recovery cycle.  Duplicates are
+    tolerated by design -- the alternative single-broadcaster protocols
+    can lose an advance outright, which is never tolerable.
 
     The getter must be cheap, nonblocking, callable concurrently, and must
     not call into wolfCrypt (every wolfCrypt invalidation check would
     recurse).  It returns the external epoch, or
-    WC_RNG_ENTROPY_EPOCH_INVALID (0) when no signal is available yet, which
+    WC_RNG_ENTROPY_EPOCH_INVALID (0) when no signal is available, which
     makes the read inert.
 
     Registration probes the getter once: a 0 result refuses the

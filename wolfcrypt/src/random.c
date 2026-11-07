@@ -396,6 +396,42 @@ wc_static_assert(DRBG_SUCCESS == 0);
             return BUSY_E;
     }
 
+    /* _TEST_VIS routine to allow swapping of handlers.  Minimal safety
+     * provisions -- only safe to use where no threads need synchronizing, due
+     * to tearing of handler from arg. */
+    int wc_RNG_extra_entropy_epoch_reset(
+        wc_RNG_extra_entropy_epoch_get_handler_t *handler,
+        void **arg)
+    {
+        wc_RNG_entropy_epoch_t init_extra_entropy_epoch;
+        if ((handler == NULL) || (arg == NULL))
+            return BAD_FUNC_ARG;
+        *handler = extra_entropy_epoch_get_handler;
+        if (*handler == NULL)
+            return BAD_STATE_E;
+        *arg = extra_entropy_epoch_get_arg;
+        init_extra_entropy_epoch =
+            wc_RNG_entropy_epoch_export(&extra_entropy_epoch_local);
+        if (! wolfSSL_Atomic_Func_Ptr_CompareExchange(
+                &extra_entropy_epoch_get_handler,
+                handler,
+                NULL))
+            return BUSY_E;
+        if (! wc_RNG_entropy_epoch_import(init_extra_entropy_epoch,
+                                          WC_RNG_ENTROPY_EPOCH_INVALID,
+                                          &extra_entropy_epoch_local))
+        {
+            wc_RNG_extra_entropy_epoch_get_handler_t expected_null = NULL;
+            (void)wolfSSL_Atomic_Func_Ptr_CompareExchange(
+                &extra_entropy_epoch_get_handler,
+                &expected_null,
+                *handler);
+            return BUSY_E;
+        }
+        extra_entropy_epoch_get_arg = &invalid_arg_sentinel;
+        return 0;
+    }
+
     static WC_INLINE wc_RNG_entropy_epoch_t current_entropy_epoch(void) {
         if ((extra_entropy_epoch_get_handler != NULL) &&
             (extra_entropy_epoch_get_arg != &invalid_arg_sentinel))
@@ -446,13 +482,36 @@ wc_static_assert(DRBG_SUCCESS == 0);
             return BUSY_E;
     }
 
+    /* _TEST_VIS routine to allow swapping of handlers.  Minimal safety
+     * provisions -- only safe to use where no threads need synchronizing, due
+     * to tearing of handler from arg. */
+    int wc_RNG_entropy_epoch_extra_inv_reset(
+        wc_RNG_entropy_epoch_extra_inv_handler_t *handler, void **arg)
+    {
+        if ((handler == NULL) || (arg == NULL))
+            return BAD_FUNC_ARG;
+        *handler = entropy_epoch_extra_inv_handler;
+        if (*handler == NULL)
+            return BAD_STATE_E;
+        *arg = entropy_epoch_extra_inv_arg;
+        if (! wolfSSL_Atomic_Func_Ptr_CompareExchange(
+                &entropy_epoch_extra_inv_handler,
+                handler,
+                NULL))
+            return BUSY_E;
+        entropy_epoch_extra_inv_arg = &invalid_arg_sentinel;
+        return 0;
+    }
+
     wc_RNG_entropy_epoch_t wc_RNG_global_invalidate_entropy(void) {
         wc_RNG_entropy_epoch_t new_epoch =
             wc_RNG_entropy_epoch_increment_atomic(&global_entropy_epoch);
         /* Note that extra invalidation propagation is only guaranteed after
          * wc_RNG_entropy_epoch_extra_inv_init() has returned with success --
          * for guaranteed propagation, callers must defer normal service until
-         * after completion. */
+         * after completion.  The handler must not call back into wolfCrypt:
+         * any epoch read from inside it re-detects the same event and
+         * recurses. */
         if ((entropy_epoch_extra_inv_handler != NULL) &&
             (entropy_epoch_extra_inv_arg != &invalid_arg_sentinel))
         {
