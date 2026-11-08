@@ -27708,49 +27708,72 @@ static time_t test_wolfSSL_OCSP_REQ_CTX_time_cb(time_t* t)
 #define TEST_OCSP_OOM
 static int ocsp_fail_next_alloc = 0;
 static int ocsp_alloc_failed = 0;
+/* Allocators in place before the test, used for all real allocations so
+ * memory can be freed after they are restored. */
+static wolfSSL_Malloc_cb  ocsp_prev_malloc = NULL;
+static wolfSSL_Free_cb    ocsp_prev_free = NULL;
+static wolfSSL_Realloc_cb ocsp_prev_realloc = NULL;
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void* ocsp_oom_malloc_cb(size_t size, const char* func,
     unsigned int line)
 {
-    (void)func;
-    (void)line;
-#else
-static void* ocsp_oom_malloc_cb(size_t size)
-{
-#endif
     if (ocsp_fail_next_alloc) {
         ocsp_fail_next_alloc = 0;
         ocsp_alloc_failed = 1;
         return NULL;
     }
-    return malloc(size);
+    return (ocsp_prev_malloc != NULL) ? ocsp_prev_malloc(size, func, line) :
+        malloc(size);
 }
+#else
+static void* ocsp_oom_malloc_cb(size_t size)
+{
+    if (ocsp_fail_next_alloc) {
+        ocsp_fail_next_alloc = 0;
+        ocsp_alloc_failed = 1;
+        return NULL;
+    }
+    return (ocsp_prev_malloc != NULL) ? ocsp_prev_malloc(size) : malloc(size);
+}
+#endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void ocsp_oom_free_cb(void* ptr, const char* func, unsigned int line)
 {
-    (void)func;
-    (void)line;
+    if (ocsp_prev_free != NULL) {
+        ocsp_prev_free(ptr, func, line);
+    }
+    else {
+        free(ptr);
+    }
+}
 #else
 static void ocsp_oom_free_cb(void* ptr)
 {
-#endif
-    free(ptr);
+    if (ocsp_prev_free != NULL) {
+        ocsp_prev_free(ptr);
+    }
+    else {
+        free(ptr);
+    }
 }
+#endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void* ocsp_oom_realloc_cb(void* ptr, size_t size, const char* func,
     unsigned int line)
 {
-    (void)func;
-    (void)line;
+    return (ocsp_prev_realloc != NULL) ?
+        ocsp_prev_realloc(ptr, size, func, line) : realloc(ptr, size);
+}
 #else
 static void* ocsp_oom_realloc_cb(void* ptr, size_t size)
 {
-#endif
-    return realloc(ptr, size);
+    return (ocsp_prev_realloc != NULL) ? ocsp_prev_realloc(ptr, size) :
+        realloc(ptr, size);
 }
+#endif
 #endif
 
 static int test_wolfSSL_OCSP_REQ_CTX(void)
@@ -27941,9 +27964,6 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
 #ifdef TEST_OCSP_OOM
     OCSP_CERTID *cid2 = NULL;
     OCSP_REQUEST *req2 = NULL;
-    wolfSSL_Malloc_cb  prev_mc = NULL;
-    wolfSSL_Free_cb    prev_fc = NULL;
-    wolfSSL_Realloc_cb prev_rc = NULL;
     int allocators_set = 0;
 #endif
 
@@ -27992,7 +28012,8 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
      * caller. */
     ExpectNotNull(req2 = OCSP_REQUEST_new());
     ExpectNotNull(cid2 = OCSP_cert_to_id(EVP_sha1(), cert, issuer));
-    ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &prev_fc, &prev_rc), 0);
+    ExpectIntEQ(wolfSSL_GetAllocators(&ocsp_prev_malloc, &ocsp_prev_free,
+                &ocsp_prev_realloc), 0);
     ExpectIntEQ(wolfSSL_SetAllocators(ocsp_oom_malloc_cb, ocsp_oom_free_cb,
             ocsp_oom_realloc_cb), 0);
     if (EXPECT_SUCCESS())
@@ -28002,7 +28023,8 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     ExpectNull(OCSP_request_add0_id(req2, cid2));
     ocsp_fail_next_alloc = 0;
     if (allocators_set)
-        (void)wolfSSL_SetAllocators(prev_mc, prev_fc, prev_rc);
+        (void)wolfSSL_SetAllocators(ocsp_prev_malloc, ocsp_prev_free,
+                                    ocsp_prev_realloc);
     ExpectIntEQ(ocsp_alloc_failed, 1);
     if (req2 != NULL) {
         ExpectNull(req2->cid);
