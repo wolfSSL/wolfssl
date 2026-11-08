@@ -12105,7 +12105,7 @@ int  wolfSSL_connect(WOLFSSL* ssl);
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] secret secretを保持するバッファへのポインタ。NULLを渡すと、新しいランダムなsecretを生成することを示します。
-    \param [in] secretSz secretのサイズ(バイト単位)。0を渡すと、デフォルトサイズを使用することを示します:WC_SHA256_DIGEST_SIZE(SHA-256が利用できない場合はWC_SHA_DIGEST_SIZE)。
+    \param [in] secretSz secretのサイズ(バイト単位)。0を渡すと、デフォルトサイズを使用することを示します:cookie MACが使用するハッシュのダイジェストサイズで、WC_SHA256_DIGEST_SIZE、SHA-256が利用できない場合はWC_SHA384_DIGEST_SIZE、WC_SHA512_DIGEST_SIZE(WOLFSSL_TLS13_SHA512使用時)、WC_SM3_DIGEST_SIZEの順に選択されます。
 
     \return BAD_FUNC_ARG sslがNULLまたはTLS v1.3を使用していない場合。
     \return SIDE_ERROR クライアントで呼び出された場合。
@@ -12117,9 +12117,9 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \code
     int ret;
     WOLFSSL* ssl;
-    char secret[32];
+    unsigned char secret[32];
     ...
-    ret = wolfSSL__send_hrr_cookie(ssl, secret, sizeof(secret));
+    ret = wolfSSL_send_hrr_cookie(ssl, secret, sizeof(secret));
     if (ret != WOLFSSL_SUCCESS) {
         // Cookieとsecretの使用設定に失敗しました。
     }
