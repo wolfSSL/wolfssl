@@ -1703,14 +1703,14 @@ int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
     /* Never allow an undersized seed to clear an invalidated state.  Note that
      * the user seed is not evaluated by wc_RNG_TestSeed() -- calling
      * wc_RNG_TestSeed() is the user's responsibility, and is inapplicable when
-     * wc_InitRngAddIn_UserSeed() and wc_RNG_DRBG_Reseed_AddIn() are called from
+     * wc_InitRngNonce_UserSeed() and wc_RNG_DRBG_Reseed_AddIn() are called from
      * KAT tests, or are seeded by another healthy DRBG.
      *
      * Historically, wc_RNG_DRBG_Reseed() has never imposed wc_RNG_TestSeed(),
      * i.e. it has always succeeded deterministically when passed valid
      * arguments.  wc_RNG_DRBG_Reseed_AddIn() continues that semantic whether
      * called directly or via wc_RNG_DRBG_Reseed().  Novel enforcement here is
-     * frivolous in any case because wc_InitRngAddIn_UserSeed() imposes no
+     * frivolous in any case because wc_InitRngNonce_UserSeed() imposes no
      * wc_RNG_TestSeed().
      */
     {
@@ -6353,16 +6353,16 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_ReseedRBGC_local(
 
 /* safe (bounded-at-once) recursion for RBGC reseed. */
 /* NOLINTNEXTLINE(misc-no-recursion) */
-int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
-                           word32 nonceSz)
+int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* addIn,
+                           word32 addInSz)
 {
-    return wc_RNG_DRBG_ReseedRBGC_local(rng, root, nonce, nonceSz, 1);
+    return wc_RNG_DRBG_ReseedRBGC_local(rng, root, addIn, addInSz, 1);
 }
 
 int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
-                                      const byte* nonce, word32 nonceSz)
+                                      const byte* addIn, word32 addInSz)
 {
-    return wc_RNG_DRBG_ReseedRBGC_local(rng, root, nonce, nonceSz, 0);
+    return wc_RNG_DRBG_ReseedRBGC_local(rng, root, addIn, addInSz, 0);
 }
 
 #endif /* WC_RNG_HAVE_RBGC */
@@ -6725,7 +6725,7 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
      * _NextSeedNow() claims a ready bank and performs a source-free
      * credited reseed with it -- safe in atomic context -- or returns
      * NOT_READY_E when no bank is ready; _NextSeedNow_AddIn() is the same
-     * with a addIn as uncredited additional input.  An instance with no
+     * with an addIn as uncredited additional input.  An instance with no
      * DRBG (RDRAND et al.) never opens its seed aperture, and producers
      * and consumers alike refuse it with WRONG_TYPE_OBJECT_E.  The caller
      * must own the instance for _NextSeedNow[_AddIn](). */
