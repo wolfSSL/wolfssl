@@ -2134,7 +2134,7 @@ static int pkcs12_oom_parse(const byte* der, word32 derSz, int failAt,
 {
     EXPECT_DECLS;
     WC_PKCS12* pkcs12 = NULL;
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     ExpectNotNull(pkcs12 = wc_PKCS12_new());
     ExpectIntEQ(wc_d2i_PKCS12(der, derSz, pkcs12), 0);
     ExpectIntEQ(wolfSSL_GetAllocators(&pkcs12_prev_malloc, &pkcs12_prev_free,
