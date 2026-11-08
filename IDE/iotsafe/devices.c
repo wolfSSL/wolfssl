@@ -219,7 +219,7 @@ int _write(void *r, uint8_t *text, int len)
 {
     char *p = (char *)text;
     (void)r;
-    while(*p && (p < (char *)(text + len))) {
+    while((p < (char *)(text + len)) && *p) {
         usart_tx(USART2_BASE, *p);
         p++;
     }
