@@ -21113,44 +21113,82 @@ static const ASNItem otherNameASN[] = {
 /* VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 1, 0 },
 /* UPN      */     { 1, ASN_UTF8STRING, 0, 0, 2 },
 /* FASC-N   */     { 1, ASN_OCTET_STRING, 0, 0, 2 },
-/* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 2 },
-/* HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
+/* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 2 }
 };
 enum {
     OTHERNAMEASN_IDX_TYPEID = 0,
     OTHERNAMEASN_IDX_VALUE,
     OTHERNAMEASN_IDX_UPN,
     OTHERNAMEASN_IDX_FASCN,
-    OTHERNAMEASN_IDX_HWN_SEQ,
-    OTHERNAMEASN_IDX_HWN_TYPE,
-    OTHERNAMEASN_IDX_HWN_NUM
+    OTHERNAMEASN_IDX_HWN_SEQ
 };
 
 /* Number of items in ASN.1 template for OtherName of an X.509 certificate. */
 #define otherNameASN_Length (sizeof(otherNameASN) / sizeof(ASNItem))
 
 #ifdef WOLFSSL_SEP
+/* ASN.1 template for the contents of a HardwareModuleName.
+ * HW Name: RFC 4108, 5 - Hardware Module Name
+ * The OtherName template only takes the value's SEQUENCE, as other types of
+ * OtherName can have a SEQUENCE value too. The contents are decoded with this
+ * template once the type-id is known to be a HW Name.
+ */
+static const ASNItem hwNameASN[] = {
+/* TYPE */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
+/* NUM  */ { 0, ASN_OCTET_STRING, 0, 0, 0 }
+};
+enum {
+    HWNAMEASN_IDX_TYPE = 0,
+    HWNAMEASN_IDX_NUM
+};
+
+/* Number of items in ASN.1 template for HardwareModuleName contents. */
+#define hwNameASN_Length (sizeof(hwNameASN) / sizeof(ASNItem))
+
 static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
 {
+    ASNGetData hwDataASN[hwNameASN_Length];
     int ret = 0;
-    word32 oidLen, serialLen;
+    word32 idx = 0;
+    word32 oidLen = 0;
+    word32 serialLen = 0;
+    const byte* seq = dataASN[OTHERNAMEASN_IDX_HWN_SEQ].data.ref.data;
+    word32 seqLen = dataASN[OTHERNAMEASN_IDX_HWN_SEQ].data.ref.length;
 
-    oidLen = dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.length;
-    serialLen = dataASN[OTHERNAMEASN_IDX_HWN_NUM].data.ref.length;
+    /* Only one HardwareModuleName is stored (RFC 4108 Section 5). Reject a
+     * second one, as the non-template parser does, rather than overwriting
+     * and leaking the buffers from the first. */
+    if ((cert->hwType != NULL) || (cert->hwSerialNum != NULL)) {
+        WOLFSSL_MSG("\tAlready seen Hardware Module Name");
+        return ASN_PARSE_E;
+    }
+    /* Value must be a SEQUENCE. */
+    if (seq == NULL) {
+        WOLFSSL_MSG("\tHardware Module Name not a SEQUENCE");
+        return ASN_PARSE_E;
+    }
 
-    /* Allocate space for HW type OID. */
-    cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
-                                  DYNAMIC_TYPE_X509_EXT);
-    if (cert->hwType == NULL)
-        ret = MEMORY_E;
+    XMEMSET(hwDataASN, 0, sizeof(hwDataASN));
+    /* hwType can be any OID. */
+    GetASN_OID(&hwDataASN[HWNAMEASN_IDX_TYPE], oidIgnoreType);
+    ret = GetASN_Items(hwNameASN, hwDataASN, (int)hwNameASN_Length, 1, seq,
+                       &idx, seqLen);
+    if (ret == 0) {
+        oidLen = hwDataASN[HWNAMEASN_IDX_TYPE].data.oid.length;
+        serialLen = hwDataASN[HWNAMEASN_IDX_NUM].data.ref.length;
 
+        /* Allocate space for HW type OID. */
+        cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
+                                      DYNAMIC_TYPE_X509_EXT);
+        if (cert->hwType == NULL)
+            ret = MEMORY_E;
+    }
     if (ret == 0) {
         /* Copy, into cert HW type OID */
-        XMEMCPY(cert->hwType,
-                dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.data, oidLen);
+        XMEMCPY(cert->hwType, hwDataASN[HWNAMEASN_IDX_TYPE].data.oid.data,
+                oidLen);
         cert->hwTypeSz = (int)oidLen;
-        /* TODO: check this is the HW serial number OID - no test data. */
+        /* TODO: check this is the HW serial number OID. */
 
         /* Allocate space for HW serial number, +1 for null terminator. */
         cert->hwSerialNum = (byte*)XMALLOC(serialLen + 1, cert->heap,
@@ -21162,8 +21200,8 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
     }
     if (ret == 0) {
         /* Copy into cert HW serial number. */
-        XMEMCPY(cert->hwSerialNum,
-                dataASN[OTHERNAMEASN_IDX_HWN_NUM].data.ref.data, serialLen);
+        XMEMCPY(cert->hwSerialNum, hwDataASN[HWNAMEASN_IDX_NUM].data.ref.data,
+                serialLen);
         cert->hwSerialNum[serialLen] = '\0';
         cert->hwSerialNumSz = (int)serialLen;
     }
@@ -21246,7 +21284,6 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         #ifdef WOLFSSL_SEP
             case HW_NAME_OID:
                 /* Only support HW serial number. */
-                GetASN_OID(&dataASN[OTHERNAMEASN_IDX_HWN_TYPE], oidIgnoreType);
                 ret = DecodeSEP(dataASN, cert);
                 break;
         #endif /* WOLFSSL_SEP */
