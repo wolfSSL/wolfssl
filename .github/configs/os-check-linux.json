@@ -391,7 +391,7 @@
  "user_settings": "IDE/m33mu-falcon-verify/user_settings.h",
  "configure": ["--enable-usersettings", "--disable-examples",
   "--disable-crypttests", "--disable-shared",
-  "CPPFLAGS=-DWOLFCRYPT_ONLY -DHAVE_HASHDRBG -DWC_RESEED_INTERVAL=1000000 -DWOLFSSL_NO_GETPID"],
+  "CPPFLAGS=-DWOLFCRYPT_ONLY -DHAVE_HASHDRBG -DWC_RESEED_INTERVAL=1000000 -DWOLFSSL_NO_GETPID -DWOLFSSL_ACCEPT_WEAK_ENTROPY"],
  "check": false},
 {"name": "no-server-no-client-auth", "minutes": 1.0,
  "configure": ["CPPFLAGS=-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH"]},
@@ -598,7 +598,7 @@
  "configure": ["--enable-postauth", "--enable-sessioncerts"]},
 {"name": "leanpsk",
  "comment": "The NO_DEV_RANDOM seed path includes no system headers, so this catches an undeclared getpid() on GCC 13 too. The test-seed #warning fails -Werror and -pedantic, so extra_cflags repeats the global set minus -pedantic (and -Wno-overlength-strings, which only matters with it) and downgrades the #warning.",
- "configure": ["--enable-leanpsk"],
+ "configure": ["--enable-leanpsk", "--enable-weak-entropy"],
  "extra_cflags": "-Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -Werror=implicit-function-declaration -Wno-error=cpp",
  "check": false,
  "run": [["./wolfcrypt/test/testwolfcrypt"]]}

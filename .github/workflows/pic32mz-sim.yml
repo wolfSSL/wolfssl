@@ -75,6 +75,13 @@ jobs:
       - name: Clone PIC32MZ simulator
         run: git clone --depth 1 https://github.com/wolfSSL/simulators simulators
 
+      - name: Opt in to test-only PIC32MZ entropy
+        run: |
+          cp simulators/PIC32MZSim/firmware/common/user_settings.h \
+            "$RUNNER_TEMP/pic32mz-user-settings-ci.h"
+          sed -i '1i#define WOLFSSL_ACCEPT_WEAK_ENTROPY /* simulator only */' \
+            "$RUNNER_TEMP/pic32mz-user-settings-ci.h"
+
       - uses: docker/setup-buildx-action@v4
 
       - name: Log in to ghcr (cache refresh on cron/manual dispatch)
@@ -98,5 +105,6 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}/wolfssl:/opt/wolfssl:ro" \
+            -v "$RUNNER_TEMP/pic32mz-user-settings-ci.h:/app/firmware/common/user_settings.h:ro" \
             ${{ matrix.image_tag }} \
             /app/scripts/${{ matrix.script }}

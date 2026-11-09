@@ -68,6 +68,12 @@ jobs:
         working-directory: zephyr
         run: west update -n -o=--depth=1
 
+      - name: Opt in to test-only QEMU entropy
+        run: |
+          settings=zephyr/modules/crypto/wolfssl/zephyr/user_settings.h
+          test -f "$settings"
+          sed -i '1i#define WOLFSSL_ACCEPT_WEAK_ENTROPY /* QEMU test only */' "$settings"
+
       - name: Export zephyr
         working-directory: zephyr
         run: west zephyr-export

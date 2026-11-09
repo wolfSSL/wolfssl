@@ -85,6 +85,23 @@ class WeakEntropyDefaults(unittest.TestCase):
                         )
                         self.assertEqual(allowed.returncode, 0, allowed.stderr)
 
+    def test_zephyr_missing_chosen_entropy_allows_explicit_test_fallback(self):
+        source = (ROOT / "wolfcrypt/src/random.c").read_text()
+        start = source.index(
+            "    #if defined(CONFIG_ENTROPY_HAS_DRIVER) && DT_HAS_CHOSEN(zephyr_entropy)\n"
+            "        const struct device", source.index("#elif defined(WOLFSSL_ZEPHYR)"))
+        end = source.index("#elif defined(WOLFSSL_TELIT_M2MB)", start)
+        branch = source[start:end]
+        base = ["cc", "-E", "-x", "c", "-", "-DCONFIG_ENTROPY_HAS_DRIVER",
+                "-DDT_HAS_CHOSEN(x)=0"]
+        denied = subprocess.run(base, input=branch, text=True,
+                                capture_output=True, check=False)
+        self.assertNotEqual(denied.returncode, 0)
+        allowed = subprocess.run(base + ["-DWOLFSSL_ACCEPT_WEAK_ENTROPY"],
+                                 input=branch, text=True, capture_output=True,
+                                 check=False)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
