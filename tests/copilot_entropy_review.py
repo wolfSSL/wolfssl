@@ -76,6 +76,19 @@ class EntropyReview(unittest.TestCase):
                 allowed, _ = macros(branch, "NO_STM32_RNG", "WOLF_CONF_RNG=0")
                 self.assertEqual(allowed.returncode, 0, allowed.stderr)
 
+    def test_netos_seed_uses_pool_bytes_directly(self):
+        # F-16422: the NET+OS pool is the entropy source; funneling each byte
+        # through srand()/rand() added nothing and could lose entropy through
+        # libc low-order bits. The function is a source-level check because it
+        # needs the NET+OS BSP (tx_api.h, entropy.h) to run.
+        source = (ROOT / "IDE/NETOS/wolfssl_netos_custom.c").read_text()
+        start = source.index("int my_rng_generate_seed(")
+        end = source.index("static void appFipsCb", start)
+        function = source[start:end]
+        self.assertNotIn("srand(", function)
+        self.assertNotIn("rand()", function)
+        self.assertIn("output[i] = get_byte_from_pool()", function)
+
     def test_custom_block_precedes_platform_seed_guards(self):
         source = (ROOT / "wolfcrypt/src/random.c").read_text()
         seed = source[source.index("/* Begin wc_GenerateSeed Implementations */"):]
