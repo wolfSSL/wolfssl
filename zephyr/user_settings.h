@@ -275,6 +275,13 @@ extern "C" {
     #define WOLFSSL_DTLS
     #define HAVE_SOCKADDR
 #endif
+#if defined(CONFIG_WOLFSSL_DTLS_VERSION_1_3)
+    #define WOLFSSL_DTLS13
+    #define WOLFSSL_SEND_HRR_COOKIE
+    #if defined(CONFIG_WOLFSSL_MLKEM)
+        #define WOLFSSL_DTLS_CH_FRAG
+    #endif
+#endif
 
 /* PSK */
 #if defined(CONFIG_WOLFSSL_PSK)

@@ -251,8 +251,18 @@ config WOLFSSL_TLS_VERSION_1_3
 config WOLFSSL_DTLS
   bool "wolfSSL DTLS support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on WOLFSSL_TLS_VERSION_1_2 || WOLFSSL_TLS_VERSION_1_3
+  select WOLFSSL_DTLS_VERSION_1_3 if !WOLFSSL_TLS_VERSION_1_2
   help
-    Enable DTLS support
+    Enable DTLS (WOLFSSL_DTLS). DTLS 1.2 is built with
+    WOLFSSL_TLS_VERSION_1_2 and DTLS 1.3 with WOLFSSL_DTLS_VERSION_1_3.
+
+config WOLFSSL_DTLS_VERSION_1_3
+  bool "DTLS 1.3"
+  depends on WOLFSSL_DTLS && WOLFSSL_TLS_VERSION_1_3
+  help
+    Enable DTLS 1.3 (WOLFSSL_DTLS13). Zephyr's socket API offers DTLS 1.2
+    only, so this serves applications that use the wolfSSL API directly.
 
 config WOLFSSL_ALPN
   bool "wolfSSL ALPN support"
