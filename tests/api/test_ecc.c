@@ -2121,7 +2121,12 @@ int test_wc_ecc_ctx_new(void)
     /* Test bad args. */
     /* wc_ecc_ctx_new_ex() will free if returned NULL. */
     ExpectNull(cli = wc_ecc_ctx_new(0, &rng));
+    ExpectNull(cli = wc_ecc_ctx_new(100, &rng));
+    ExpectNull(cli = wc_ecc_ctx_new(-3, &rng));
+    /* Must not be truncated to a valid (byte) flag value. */
+    ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT + 256, &rng));
     ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT, NULL));
+    ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT | REQ_RESP_SERVER, &rng));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_ctx_free(cli);
