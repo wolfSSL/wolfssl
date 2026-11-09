@@ -109,6 +109,38 @@ EOF
 gen_cert
 rm -f ./certs/test/cert-ext-ncdns.cfg
 
+# excluded;DNS: with a zero-length base, the CA/Browser Forum encoding for a
+# CA that may not issue DNS names. The OpenSSL config syntax cannot express an
+# empty dNSName, so the extension is given as DER.
+OUT=certs/test/cert-ext-nc-empty-dns
+KEYFILE=certs/test/cert-ext-nc-empty-dns-key.der
+CONFIG=certs/test/cert-ext-nc-empty-dns.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = AU
+ST            = Queensland
+L             = Brisbane
+O             = wolfSSL Inc
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,DER:30:06:A1:04:30:02:82:00
+nsComment       = "Testing empty excluded dNSName constraint"
+
+EOF
+gen_cert
+rm -f ./certs/test/cert-ext-nc-empty-dns.cfg
+
 OUT=certs/test/cert-ext-nc-combined
 KEYFILE=certs/test/cert-ext-nc-combined-key.der
 CONFIG=certs/test/cert-ext-nc-combined.cfg

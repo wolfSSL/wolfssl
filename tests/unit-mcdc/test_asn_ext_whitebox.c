@@ -226,13 +226,16 @@ static void wb_match_base_name(void)
     WB_NOTE("MatchBaseName(): RFC822 '@' position validation [:18607]");
     /* atPos < 0: no '@' in name at all. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "nombre", 6,
-                "a.com", 5) == 0, "no '@' in name (atPos<0 true)");
+                "a.com", 5) < 0, "no '@' in name (atPos<0 true)");
     /* atPos == 0: '@' is the first character. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "@a.com", 6,
-                "a.com", 5) == 0, "'@' at start (atPos==0 true)");
+                "a.com", 5) < 0, "'@' at start (atPos==0 true)");
     /* atPos == nameSz-1: '@' is the last character. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "user@", 5,
-                "a.com", 5) == 0, "'@' at end (atPos==nameSz-1 true)");
+                "a.com", 5) < 0, "'@' at end (atPos==nameSz-1 true)");
+    /* Host-part starting with '.'. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "user@.a.com", 11,
+                "a.com", 5) < 0, "host-part starts with '.'");
     /* All three false: '@' present, not at start, not at end. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "user@a.com", 10,
                 "a.com", 5) == 1, "'@' well-formed (all three false)");
@@ -811,6 +814,16 @@ static void wb_permitted_excluded_lists(void)
     WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) < 0,
             "unquoted '@' in local-part is not shown outside");
 
+    /* A leading-dot local-part is judged by its host-part, and a mailbox
+     * with an empty host-part cannot be compared. */
+    emailName.name = ".x@evil.com";
+    emailName.len = 11;
+    WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) == 1,
+            "leading-dot local-part host is in excluded subtree");
+    emailName.name = "x@evil.com@";
+    WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) < 0,
+            "trailing '@' is not shown outside");
+
     WB_NOTE("PermittedListOk()/IsInExcludedList(): empty list -> not needed [need=0]");
     WB_CHECK(PermittedListOk(&dirName, NULL, ASN_DIR_TYPE) == 1,
             "no restriction of this type -> ok");
@@ -925,23 +938,51 @@ static void wb_confirm_name_constraints(void)
     cert.subjectCNLen = 13;
     WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
             "wildcard CN excluded by zero-length dNSName");
+    /* Single-label and IPv6 CNs can still be matched by hostname
+     * verification, so they stay subject to DNS constraints. */
+    cert.subjectCN = "localhost";
+    cert.subjectCNLen = 9;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "single-label CN excluded by zero-length dNSName");
+    cert.subjectCN = "2001:db8::1";
+    cert.subjectCNLen = 11;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "IPv6 CN excluded by zero-length dNSName");
 
-    WB_NOTE("CnIsDnsName(): host name syntax");
-    WB_CHECK(CnIsDnsName("www.example.com", 15) == 1, "plain host name");
-    WB_CHECK(CnIsDnsName("a-b_c.d", 7) == 1, "'-' and '_' inside");
-    WB_CHECK(CnIsDnsName("*.example.com", 13) == 1, "wildcard label");
-    WB_CHECK(CnIsDnsName("example.com.", 12) == 1, "one trailing dot");
-    WB_CHECK(CnIsDnsName(NULL, 3) == 0, "NULL");
-    WB_CHECK(CnIsDnsName("a.b", 0) == 0, "zero length");
-    WB_CHECK(CnIsDnsName("localhost", 9) == 0, "no dot");
-    WB_CHECK(CnIsDnsName("John Doe", 8) == 0, "space");
-    WB_CHECK(CnIsDnsName(".a.com", 6) == 0, "leading dot");
-    WB_CHECK(CnIsDnsName("-a.com", 6) == 0, "leading hyphen");
-    WB_CHECK(CnIsDnsName("a.com-", 6) == 0, "trailing hyphen");
-    WB_CHECK(CnIsDnsName("a..com", 6) == 0, "empty label");
-    WB_CHECK(CnIsDnsName("a-.com", 6) == 0, "hyphen before dot");
-    WB_CHECK(CnIsDnsName("a.com..", 7) == 0, "two trailing dots");
-    WB_CHECK(CnIsDnsName(".", 1) == 0, "lone dot");
+    /* Under a permitted dNSName subtree, a single-label or IPv6 CN is
+     * outside it and rejected. */
+    XMEMSET(&signer, 0, sizeof(signer));
+    signer.permittedNames = wb_mk_base(NULL, "example.com", 11, ASN_DNS_TYPE);
+    cert.subjectCN = "intranet";
+    cert.subjectCNLen = 8;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "single-label CN outside permitted dNSName");
+    cert.subjectCN = "2001:db8::1";
+    cert.subjectCNLen = 11;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "IPv6 CN outside permitted dNSName");
+    cert.subjectCN = "www.example.com";
+    cert.subjectCNLen = 15;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
+            "hostname CN inside permitted dNSName");
+
+    WB_NOTE("CnMayBeHostName(): host name or IP literal characters");
+    WB_CHECK(CnMayBeHostName("www.example.com", 15) == 1, "plain host name");
+    WB_CHECK(CnMayBeHostName("a-b_c.d", 7) == 1, "'-' and '_' inside");
+    WB_CHECK(CnMayBeHostName("*.example.com", 13) == 1, "wildcard label");
+    WB_CHECK(CnMayBeHostName("example.com.", 12) == 1, "trailing dot");
+    WB_CHECK(CnMayBeHostName("localhost", 9) == 1, "single label");
+    WB_CHECK(CnMayBeHostName("*", 1) == 1, "lone wildcard");
+    WB_CHECK(CnMayBeHostName("2001:db8::1", 11) == 1, "IPv6 literal");
+    WB_CHECK(CnMayBeHostName("::ffff:10.0.0.1", 15) == 1,
+            "IPv4-mapped IPv6 literal");
+    WB_CHECK(CnMayBeHostName("10.0.0.1", 8) == 1, "IPv4 literal");
+    WB_CHECK(CnMayBeHostName("a..com", 6) == 1, "malformed but matchable");
+    WB_CHECK(CnMayBeHostName(NULL, 3) == 0, "NULL");
+    WB_CHECK(CnMayBeHostName("a.b", 0) == 0, "zero length");
+    WB_CHECK(CnMayBeHostName("John Doe", 8) == 0, "space");
+    WB_CHECK(CnMayBeHostName("a@b.com", 7) == 0, "'@'");
+    WB_CHECK(CnMayBeHostName("a/b", 3) == 0, "'/'");
 
     WB_NOTE("ConfirmNameConstraints(): URI-without-DNS-host rejection [:19366-:19368]");
     XMEMSET(&signer, 0, sizeof(signer));
@@ -1551,6 +1592,14 @@ static void wb_decode_name_constraints(void)
             0x30,0x06,
               0x82,0x04, 'h','o','s','t'
     };
+    /* excludedSubtrees holding a zero-length dNSName, the CA/Browser Forum
+     * encoding for a CA that may not issue DNS names. */
+    static const byte ncEmptyDns[] = {
+        0x30,0x06,
+          0xA1,0x04,              /* [1] excludedSubtrees */
+            0x30,0x02,
+              0x82,0x00
+    };
 
     WB_NOTE("DecodeNameConstraints(): hasUnsupported -> extNameConstraintHasUnsupported [:21217]");
     XMEMSET(&cert, 0, sizeof(cert));
@@ -1562,6 +1611,15 @@ static void wb_decode_name_constraints(void)
     ret = DecodeNameConstraints(ncSupported, sizeof(ncSupported), &cert);
     WB_CHECK(ret == 0 && cert.extNameConstraintHasUnsupported == 0,
             "recognized form only (2nd operand false)");
+
+    WB_NOTE("DecodeNameConstraints(): zero-length dNSName subtree");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeNameConstraints(ncEmptyDns, sizeof(ncEmptyDns), &cert);
+    WB_CHECK(ret == 0 && cert.excludedNames != NULL &&
+            cert.excludedNames->type == ASN_DNS_TYPE &&
+            cert.excludedNames->nameSz == 0,
+            "zero-length dNSName stored as an empty excluded subtree");
+    FreeNameSubtrees(cert.excludedNames, NULL);
 }
 #else
 static void wb_decode_name_constraints(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS; skipped"); }

@@ -2728,6 +2728,19 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void)
         /* Excluded email .blocked.example.com, should be blocked */
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
             "user@www.blocked.example.com", 28), 0);
+
+        /* A leading '.' in the local-part does not hide the host-part */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            ".x@www.example.com", 18), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            ".x@www.blocked.example.com", 26), 0);
+
+        /* A malformed mailbox is not shown to be outside the excluded
+         * subtree */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "x@www.blocked.example.com@", 26), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "x@.www.blocked.example.com", 26), 0);
     }
 
     NAME_CONSTRAINTS_free(nc);

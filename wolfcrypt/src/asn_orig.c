@@ -4080,6 +4080,7 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
 
     while (idx < (word32)sz) {
         int seqLength, strLength;
+        int lenRet;
         word32 nameIdx;
         byte b, bType;
 
@@ -4104,7 +4105,11 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         nameIdx = idx;
         b = input[nameIdx++];
 
-        if (GetLength(input, &nameIdx, &strLength, sz) <= 0) {
+        /* A zero-length dNSName is the empty base covering every DNS name
+         * (RFC 5280 4.2.1.10). */
+        lenRet = GetLength(input, &nameIdx, &strLength, sz);
+        if (lenRet < 0 || (lenRet == 0 &&
+                b != (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE))) {
             WOLFSSL_MSG("\tinvalid length");
             return ASN_PARSE_E;
         }

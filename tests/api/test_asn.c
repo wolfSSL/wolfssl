@@ -1056,12 +1056,30 @@ int test_wolfssl_local_MatchBaseName(void)
     /* user@sub.domain.com should NOT match domain.com (exact domain only) */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
                 "user@sub.domain.com", 19, "domain.com", 10), 0);
-    /* @ at start is invalid */
+    /* A mailbox without a local-part or host-part cannot be compared */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
-                "@domain.com", 11, ".domain.com", 11), 0);
-    /* @ at end is invalid */
+                "@domain.com", 11, ".domain.com", 11),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
-                "user@", 5, ".domain.com", 11), 0);
+                "user@", 5, ".domain.com", 11),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    /* Validated before the name-shorter-than-base return */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "u@", 2, "evil.com", 8), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "x@evil.com@", 11, "evil.com", 8),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    /* A host-part starting with '.' cannot be compared */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "x@.evil.com", 11, "evil.com", 8),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    /* A local-part starting with '.' is judged by its host-part */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                ".x@evil.com", 11, "evil.com", 8), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                ".x@good.com", 11, "evil.com", 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                ".x@sub.evil.com", 15, ".evil.com", 9), 1);
     /* An '@' outside a quoted local-part cannot be compared */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
                 "user@@domain.com", 16, ".domain.com", 11),
@@ -1082,7 +1100,8 @@ int test_wolfssl_local_MatchBaseName(void)
                 "\"x@y\"@good.com", 14, "evil.com", 8), 0);
     /* No @ in email name */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
-                "userdomain.com", 14, ".domain.com", 11), 0);
+                "userdomain.com", 14, ".domain.com", 11),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
     /* Email domain doesn't match constraint */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
                 "user@other.com", 14, ".domain.com", 11), 0);
