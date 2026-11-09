@@ -1135,7 +1135,11 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
     const char *ext_values[] = {
         "hash",
         "hash",
+#ifndef WOLFSSL_USER_IO
         "DNS:example.com, IP:127.0.0.1",
+#else
+        "DNS:example.com",
+#endif
         "digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,"
             "keyAgreement,keyCertSign,cRLSign,encipherOnly,decipherOnly",
         "serverAuth,clientAuth,codeSigning,emailProtection,timeStamping,"
@@ -1148,9 +1152,9 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
     unsigned int extKeyUsageFlags;
     WOLFSSL_CONF conf;
     WOLFSSL_X509V3_CTX ctx;
-#ifndef NO_WOLFSSL_STUB
     WOLFSSL_LHASH lhash;
-#endif
+    GENERAL_NAMES* gns = NULL;
+    GENERAL_NAME* gn = NULL;
 
     ExpectNotNull(x509 = X509_new());
     ExpectNull(X509V3_EXT_nconf(NULL, NULL, ext_names[0], NULL));
@@ -1215,10 +1219,94 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
 #ifndef NO_WOLFSSL_STUB
     ExpectIntEQ(wolfSSL_X509V3_EXT_add_nconf(NULL, NULL, NULL, NULL),
         WOLFSSL_SUCCESS);
-    ExpectNull(wolfSSL_X509V3_EXT_conf_nid(NULL, NULL, 0, NULL));
-    ExpectNull(wolfSSL_X509V3_EXT_conf_nid(&lhash, NULL, 0, NULL));
     wolfSSL_X509V3_set_ctx_nodb(NULL);
 #endif
+    ExpectNull(wolfSSL_X509V3_EXT_conf_nid(NULL, NULL, 0, NULL));
+    ExpectNull(wolfSSL_X509V3_EXT_conf_nid(&lhash, NULL, 0, NULL));
+    ExpectNull(wolfSSL_X509V3_EXT_conf_nid(&lhash, NULL,
+        NID_subject_alt_name, (char*)"DNS:san.example.test"));
+
+    /* The SAN value is a list of "TYPE:value" entries. */
+    ExpectNotNull(ext = X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)"DNS:san.example.test"));
+    ExpectIntEQ(OBJ_obj2nid(X509_EXTENSION_get_object(ext)),
+        NID_subject_alt_name);
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509V3_EXT_d2i(ext));
+    ExpectIntEQ(sk_GENERAL_NAME_num(gns), 1);
+    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
+    ExpectIntEQ(gn != NULL ? gn->type : -1, GEN_DNS);
+    ExpectIntEQ(ASN1_STRING_length(gn != NULL ? gn->d.dNSName : NULL), 16);
+    ExpectBufEQ(ASN1_STRING_get0_data(gn != NULL ? gn->d.dNSName : NULL),
+        "san.example.test", 16);
+    GENERAL_NAMES_free(gns);
+    gns = NULL;
+    ExpectNotNull(x509 = X509_new());
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), WOLFSSL_SUCCESS);
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509_get_ext_d2i(x509,
+        NID_subject_alt_name, NULL, NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_num(gns), 1);
+    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
+    ExpectIntEQ(gn != NULL ? gn->type : -1, GEN_DNS);
+    ExpectBufEQ(ASN1_STRING_get0_data(gn != NULL ? gn->d.dNSName : NULL),
+        "san.example.test", 16);
+    GENERAL_NAMES_free(gns);
+    gns = NULL;
+    X509_free(x509);
+    x509 = NULL;
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+
+    ExpectNotNull(ext = X509V3_EXT_nconf_nid(NULL, NULL, NID_subject_alt_name,
+        ext_values[2]));
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509V3_EXT_d2i(ext));
+    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
+    ExpectIntEQ(gn != NULL ? gn->type : -1, GEN_DNS);
+    ExpectBufEQ(ASN1_STRING_get0_data(gn != NULL ? gn->d.dNSName : NULL),
+        "example.com", 11);
+#ifndef WOLFSSL_USER_IO
+    ExpectIntEQ(sk_GENERAL_NAME_num(gns), 2);
+    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 1));
+    ExpectIntEQ(gn != NULL ? gn->type : -1, GEN_IPADD);
+    ExpectIntEQ(ASN1_STRING_length(gn != NULL ? gn->d.iPAddress : NULL), 4);
+#endif
+    GENERAL_NAMES_free(gns);
+    gns = NULL;
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+
+    ExpectNull(X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)"bogus:san.example.test"));
+    ExpectNull(X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)"DNS:"));
+
+    /* Space around names and values is dropped, as in OpenSSL. */
+    ExpectNotNull(ext = X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)" DNS: a.test , DNS :b.test "));
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509V3_EXT_d2i(ext));
+    ExpectIntEQ(sk_GENERAL_NAME_num(gns), 2);
+    for (i = 0; i < 2; i++) {
+        gn = sk_GENERAL_NAME_value(gns, (int)i);
+        ExpectIntEQ(gn != NULL ? gn->type : -1, GEN_DNS);
+        ExpectIntEQ(ASN1_STRING_length(gn != NULL ? gn->d.dNSName : NULL), 6);
+        ExpectBufEQ(ASN1_STRING_get0_data(gn != NULL ? gn->d.dNSName : NULL),
+            i == 0 ? "a.test" : "b.test", 6);
+    }
+    GENERAL_NAMES_free(gns);
+    gns = NULL;
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+
+    /* An empty entry or value fails, as in OpenSSL. */
+    ExpectNull(X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)"DNS:a.test,"));
+    ExpectNull(X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)"DNS:a.test, "));
+    ExpectNull(X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)"DNS:a.test,,DNS:b.test"));
+    ExpectNull(X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)", DNS:a.test"));
+    ExpectNull(X509V3_EXT_conf_nid(NULL, NULL, NID_subject_alt_name,
+        (char*)"DNS: "));
 #endif
     return EXPECT_RESULT();
 }

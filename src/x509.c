@@ -3366,25 +3366,6 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509_delete_ext(WOLFSSL_X509 *x509, int loc)
     return NULL;
 }
 
-/* currently LHASH is not implemented (and not needed for Apache port) */
-WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_conf_nid(
-        WOLF_LHASH_OF(CONF_VALUE)* conf, WOLFSSL_X509V3_CTX* ctx, int nid,
-        char* value)
-{
-    WOLFSSL_STUB("wolfSSL_X509V3_EXT_conf_nid");
-
-    if (conf != NULL) {
-        WOLFSSL_MSG("Handling LHASH not implemented yet");
-        return NULL;
-    }
-
-    (void)conf;
-    (void)ctx;
-    (void)nid;
-    (void)value;
-    return NULL;
-}
-
 void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx)
 {
     WOLFSSL_STUB("wolfSSL_X509V3_set_ctx_nodb");
@@ -3393,6 +3374,122 @@ void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx)
 #endif /* !NO_WOLFSSL_STUB */
 
 #ifdef OPENSSL_EXTRA
+/* Add one general name of type to gns. An IP address is given as text. */
+static int ExtSanAdd(WOLFSSL_GENERAL_NAMES* gns, int type, const char* val,
+        int len)
+{
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    WOLFSSL_ASN1_STRING* bin = NULL;
+    DNS_entry dns;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+
+    if (len <= 0) {
+        WOLFSSL_MSG("Empty subject alternative name");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(&dns, 0, sizeof(dns));
+    dns.type = type;
+    dns.name = val;
+    dns.len = len;
+    if (type == ASN_IP_TYPE) {
+#ifndef WOLFSSL_USER_IO
+        char ip[WOLFSSL_MAX_IPSTR + 1];
+
+        if (len < (int)sizeof(ip)) {
+            XMEMCPY(ip, val, (size_t)len);
+            ip[len] = '\0';
+            bin = wolfSSL_a2i_IPADDRESS(ip);
+        }
+        if (bin != NULL) {
+            dns.name = (const char*)bin->data;
+            dns.len = bin->length;
+        }
+#else
+        WOLFSSL_MSG("IP address parsing not available");
+#endif
+    }
+    if (type != ASN_IP_TYPE || bin != NULL)
+        gn = wolfSSL_GENERAL_NAME_new();
+    if (gn != NULL) {
+        ret = DNS_to_GENERAL_NAME(gn, &dns);
+        gn->d.ia5->type = (type == ASN_IP_TYPE) ?
+            WOLFSSL_V_ASN1_OCTET_STRING : WOLFSSL_V_ASN1_IA5STRING;
+    }
+    wolfSSL_ASN1_STRING_free(bin);
+    if (ret == WOLFSSL_SUCCESS && wolfSSL_sk_GENERAL_NAME_push(gns, gn) <= 0)
+        ret = WOLFSSL_FAILURE;
+    if (ret != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to add subject alternative name");
+        wolfSSL_GENERAL_NAME_free(gn);
+    }
+    return ret;
+}
+
+#define SAN_IS_SPACE(c) ((c) == ' ' || ((c) >= '\t' && (c) <= '\r'))
+
+/* Parse an OpenSSL style "DNS:a, IP:b" list into gns. Types are DNS,
+ * email, URI and IP. Space around names and values is dropped, and an
+ * empty entry or value fails. A value with no ':' is one DNS name. */
+static int ExtSanFromStr(WOLFSSL_GENERAL_NAMES* gns, const char* value)
+{
+    static const struct {
+        const char* name;
+        int type;
+    } types[] = {
+        { "DNS",   ASN_DNS_TYPE },
+        { "email", ASN_RFC822_TYPE },
+        { "URI",   ASN_URI_TYPE },
+        { "IP",    ASN_IP_TYPE },
+    };
+    const char* cur = value;
+    int ret;
+
+    if (XSTRSTR(value, ":") == NULL)
+        return ExtSanAdd(gns, ASN_DNS_TYPE, value, (int)XSTRLEN(value));
+
+    for (;;) {
+        int len = 0;
+        int tLen = 0;
+        int vOff;
+        int vLen;
+        size_t i;
+
+        while (SAN_IS_SPACE(*cur))
+            cur++;
+        while (cur[len] != '\0' && cur[len] != ',')
+            len++;
+        while (tLen < len && cur[tLen] != ':')
+            tLen++;
+        vOff = tLen + 1;
+        vLen = len - vOff;
+        while (tLen > 0 && SAN_IS_SPACE(cur[tLen - 1]))
+            tLen--;
+        while (vLen > 0 && SAN_IS_SPACE(cur[vOff])) {
+            vOff++;
+            vLen--;
+        }
+        while (vLen > 0 && SAN_IS_SPACE(cur[vOff + vLen - 1]))
+            vLen--;
+        ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+        for (i = 0; vLen > 0 && i < sizeof(types) / sizeof(*types); i++) {
+            if ((int)XSTRLEN(types[i].name) == tLen &&
+                    XSTRNCMP(cur, types[i].name, (size_t)tLen) == 0) {
+                ret = ExtSanAdd(gns, types[i].type, cur + vOff, vLen);
+                break;
+            }
+        }
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Empty or unsupported subject alternative name entry");
+            break;
+        }
+        cur += len;
+        if (*cur == '\0')
+            break;
+        cur++;
+    }
+    return ret;
+}
+
 static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
 {
     WOLFSSL_X509_EXTENSION* ext;
@@ -3403,6 +3500,11 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
         return NULL;
     }
     ext->value.nid = nid;
+    ext->obj = wolfSSL_OBJ_nid2obj(nid);
+    if (ext->obj == NULL) {
+        WOLFSSL_MSG("wolfSSL_OBJ_nid2obj error");
+        goto err_cleanup;
+    }
 
     switch (nid) {
         case WC_NID_subject_key_identifier:
@@ -3417,7 +3519,6 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
         case WC_NID_subject_alt_name:
         {
             WOLFSSL_GENERAL_NAMES* gns;
-            WOLFSSL_GENERAL_NAME* gn;
 
             if (wolfSSL_ASN1_STRING_set(&ext->value, value, -1)
                     != WOLFSSL_SUCCESS) {
@@ -3435,22 +3536,8 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
             ext->ext_sk = gns; /* wolfSSL_X509_EXTENSION_free will handle
                                 * free'ing gns */
             gns->type = STACK_TYPE_GEN_NAME;
-            gn = wolfSSL_GENERAL_NAME_new();
-            if (gn == NULL) {
-                WOLFSSL_MSG("wolfSSL_GENERAL_NAME_new error");
+            if (ExtSanFromStr(gns, value) != WOLFSSL_SUCCESS)
                 goto err_cleanup;
-            }
-            if (wolfSSL_sk_GENERAL_NAME_push(gns, gn) <= 0) {
-                WOLFSSL_MSG("wolfSSL_sk_GENERAL_NAME_push error");
-                wolfSSL_GENERAL_NAME_free(gn);
-                goto err_cleanup;
-            }
-            if (wolfSSL_ASN1_STRING_set(gn->d.ia5, value, -1)
-                    != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("wolfSSL_ASN1_STRING_set failed");
-                goto err_cleanup;
-            }
-            gn->type = ASN_DNS_TYPE;
             break;
         }
         case WC_NID_key_usage:
@@ -3505,6 +3592,22 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
     }
 
     return createExtFromStr(nid, value);
+}
+
+/* X509V3_EXT_conf_nid() without a configuration database, which is not
+ * supported. Same as wolfSSL_X509V3_EXT_nconf_nid(). */
+WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_conf_nid(
+        WOLF_LHASH_OF(CONF_VALUE)* conf, WOLFSSL_X509V3_CTX* ctx, int nid,
+        char* value)
+{
+    WOLFSSL_ENTER("wolfSSL_X509V3_EXT_conf_nid");
+
+    if (conf != NULL) {
+        WOLFSSL_MSG("Handling LHASH not implemented yet");
+        return NULL;
+    }
+
+    return wolfSSL_X509V3_EXT_nconf_nid(NULL, ctx, nid, value);
 }
 
 /**
