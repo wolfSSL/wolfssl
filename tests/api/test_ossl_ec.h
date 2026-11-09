@@ -30,6 +30,7 @@ int test_wolfSSL_EC_GROUP(void);
 int test_wolfSSL_PEM_read_bio_ECPKParameters(void);
 int test_wolfSSL_i2d_ECPKParameters(void);
 int test_wolfSSL_EC_POINT(void);
+int test_wolfSSL_EC_POINT_mul_negative(void);
 int test_wolfSSL_SPAKE(void);
 int test_wolfSSL_EC_KEY_generate(void);
 int test_EC_i2d(void);
@@ -54,6 +55,7 @@ int test_wolfSSL_EC_POINT_point2hex_oversized(void);
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_PEM_read_bio_ECPKParameters),   \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_i2d_ECPKParameters),            \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_POINT),                      \
+    TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_POINT_mul_negative),         \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_SPAKE),                         \
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_KEY_generate),               \
     TEST_DECL_GROUP("ossl_ec", test_EC_i2d),                                \

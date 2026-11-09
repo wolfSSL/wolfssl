@@ -1027,6 +1027,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     \return MP_OKAY Returns on successful operation.
     \return MP_INIT_E Returned if there is an error initializing an integer
     for use with the multiple precision integer (mp_int) library.
+    \return ECC_OUT_OF_RANGE_E Returned if k is negative or too large.
 
     \param k The multiplicand.
     \param G Base point to multiply.

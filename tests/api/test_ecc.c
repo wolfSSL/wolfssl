@@ -4170,6 +4170,110 @@ int test_wc_ecc_mulmod_zero(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_mulmod_zero */
 
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(WOLFSSL_PUBLIC_ECC_ADD_DBL) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256)) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(FREESCALE_LTC_ECC) && \
+    !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW) && (defined(USE_FAST_MATH) || \
+    defined(USE_INTEGER_HEAP_MATH) || defined(WOLFSSL_SP_INT_NEGATIVE))
+#define TEST_ECC_MULMOD_NEGATIVE
+#endif
+
+/*
+ * Testing that scalar multiplication rejects a negative or oversized scalar.
+ */
+int test_wc_ecc_mulmod_negative(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_MULMOD_NEGATIVE
+    const ecc_set_type* dp = NULL;
+    ecc_key     base;
+    ecc_key     curve;
+    ecc_point*  r = NULL;
+    mp_int      neg;
+    mp_int      five;
+    mp_int      order;
+    mp_int      wide;
+
+    XMEMSET(&base, 0, sizeof(ecc_key));
+    XMEMSET(&curve, 0, sizeof(ecc_key));
+    XMEMSET(&neg, 0, sizeof(mp_int));
+    XMEMSET(&five, 0, sizeof(mp_int));
+    XMEMSET(&order, 0, sizeof(mp_int));
+    XMEMSET(&wide, 0, sizeof(mp_int));
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(ECC_SECP256R1)));
+    ExpectIntEQ(wc_ecc_init(&base), 0);
+    ExpectIntEQ(wc_ecc_init(&curve), 0);
+    ExpectIntEQ(mp_init_multi(&neg, &five, &order, &wide, NULL, NULL), 0);
+    ExpectIntEQ(mp_read_radix(&neg, "-5", MP_RADIX_HEX), 0);
+    /* 2^258 */
+    ExpectIntEQ(mp_read_radix(&wide, "4"
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        MP_RADIX_HEX), 0);
+    ExpectIntEQ(mp_set(&five, 5), 0);
+    ExpectNotNull(r = wc_ecc_new_point());
+
+    if (dp != NULL) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&base, dp->Gx, dp->Gy, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&curve, dp->Af, dp->prime, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(mp_read_radix(&order, dp->order, MP_RADIX_HEX), 0);
+    }
+    ExpectTrue(mp_isneg(&neg));
+
+    ExpectIntEQ(wc_ecc_mulmod(&neg, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod_ex(&neg, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 0, NULL), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod_ex2(&neg, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, &order, NULL, 1, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod(&wide, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod_ex2(&wide, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, &order, NULL, 1, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+#if defined(ECC_SHAMIR) && !defined(WOLFSSL_SP_MATH)
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &neg, &base.pubkey, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, &neg, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, NULL, &base.pubkey, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL), 0);
+#endif
+    /* Positive scalars are still accepted. */
+    ExpectIntEQ(wc_ecc_mulmod(&five, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1), 0);
+
+    wc_ecc_del_point(r);
+    mp_free(&wide);
+    mp_free(&order);
+    mp_free(&five);
+    mp_free(&neg);
+    wc_ecc_free(&curve);
+    wc_ecc_free(&base);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_negative */
+
 /*
  * Testing that wc_ecc_mulmod() of the private key and the base point gives
  * the public key, on every curve compiled in. This covers curves the SP code

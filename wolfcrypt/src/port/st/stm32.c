@@ -6405,6 +6405,9 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
         return ECC_BAD_ARG_E;
     }
+    if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+        return ECC_OUT_OF_RANGE_E;
+    }
 
     szModulus = mp_unsigned_bin_size(modulus);
 
@@ -6466,14 +6469,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     res = mp_read_unsigned_bin(R->x, Gxbin, szModulus);
     if (res == MP_OKAY) {
         res = mp_read_unsigned_bin(R->y, Gybin, szModulus);
-
 #if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
     ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
         defined(WOLFSSL_SP_INT_NEGATIVE))
-        /* if k is negative, we compute the multiplication with abs(-k)
-         * with result (x, y) and modify the result to (x, -y)
-         */
-        R->y->sign = k->sign;
+        R->y->sign = MP_ZPOS;
 #endif
     }
     if (res == MP_OKAY)
