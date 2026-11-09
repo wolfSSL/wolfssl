@@ -44,6 +44,13 @@ WOLFSSL_API int  wc_CracenCryptoCb_UnRegisterDevice(int devId);
 /* Hardware configuration snapshot taken at init, for diagnostics. */
 WOLFSSL_API int  wc_CracenGetInfo(wc_CracenHwInfo* info);
 
+/* Raw conditioned TRNG output, independent of the DRBG. Initialises the
+ * hardware if the application has not. */
+WOLFSSL_API int  wc_CracenTrngRead(byte* out, word32 sz);
+/* Power the TRNG down until the next read. */
+WOLFSSL_API void wc_CracenTrngOff(void);
+WOLFSSL_API int  wc_CracenTrngGetStats(wc_CracenTrngStats* stats);
+
 /* Marker values kept in an object's devCtx while the port owns it. */
 #define WC_CRACEN_MARK_FRESH ((void*)1) /* fields reset, no hardware state */
 #define WC_CRACEN_MARK_STATE ((void*)2) /* hardware state exported into object */

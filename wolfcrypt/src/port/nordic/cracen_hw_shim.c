@@ -125,9 +125,24 @@ int wc_CracenHw_TrngRead(byte* out, word32 sz)
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
 
+void wc_CracenHw_TrngOff(void)
+{
+}
+
+int wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats)
+{
+    if (stats == NULL)
+        return BAD_FUNC_ARG;
+    if (!gShimInit)
+        return BAD_STATE_E;
+    XMEMSET(stats, 0, sizeof(*stats));
+    return 0;
+}
+
 #else /* WOLFSSL_CRACEN_HOST_EMULATE */
 
 static word32 gEmuRng = 0x2545F491UL;
+static wc_CracenTrngStats gEmuTrng;
 
 int wc_CracenHw_Init(void)
 {
@@ -468,12 +483,30 @@ int wc_CracenHw_TrngRead(byte* out, word32 sz)
         return BAD_STATE_E;
     if (out == NULL && sz > 0)
         return BAD_FUNC_ARG;
+    if (gEmuTrng.starts == 0)
+        gEmuTrng.starts = 1;
     for (i = 0; i < sz; i++) {
         gEmuRng ^= gEmuRng << 13;
         gEmuRng ^= gEmuRng >> 17;
         gEmuRng ^= gEmuRng << 5;
         out[i] = (byte)gEmuRng;
     }
+    gEmuTrng.bytes += sz;
+    return 0;
+}
+
+void wc_CracenHw_TrngOff(void)
+{
+    gEmuTrng.starts++;
+}
+
+int wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats)
+{
+    if (stats == NULL)
+        return BAD_FUNC_ARG;
+    if (!gShimInit)
+        return BAD_STATE_E;
+    *stats = gEmuTrng;
     return 0;
 }
 

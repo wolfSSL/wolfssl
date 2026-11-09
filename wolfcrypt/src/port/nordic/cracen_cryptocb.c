@@ -108,4 +108,22 @@ int wc_CracenGetInfo(wc_CracenHwInfo* info)
     return wc_CracenHw_GetInfo(info);
 }
 
+int wc_CracenTrngRead(byte* out, word32 sz)
+{
+    int ret = wc_CracenHw_Init();
+    if (ret == 0)
+        ret = wc_CracenHw_TrngRead(out, sz);
+    return ret;
+}
+
+void wc_CracenTrngOff(void)
+{
+    wc_CracenHw_TrngOff();
+}
+
+int wc_CracenTrngGetStats(wc_CracenTrngStats* stats)
+{
+    return wc_CracenHw_TrngGetStats(stats);
+}
+
 #endif /* WOLFSSL_NRF54L_CRACEN */

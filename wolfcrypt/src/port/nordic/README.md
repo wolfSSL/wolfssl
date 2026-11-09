@@ -36,7 +36,7 @@ need no maintenance, but every buffer the pusher writes must be in RAM.
 | AES-CTR | BA411E | Partial blocks handled; unused key stream kept in `Aes.tmp` |
 | AES-GCM | BA411E | 96-bit IV, tag 4..16 bytes; other IV sizes go to software |
 | AES-CMAC | BA411E | Multi-part through state export |
-| Seed | BA431 TRNG | Conditioned output feeds the Hash-DRBG |
+| Seed | BA431 TRNG | Conditioned output feeds the Hash-DRBG; see RNG below |
 
 Not offloaded: AES-CCM, AES-CFB/OFB/XTS, ChaCha20-Poly1305, SHA-3, public key.
 Anything the port declines runs in software with no change of result.
@@ -50,6 +50,42 @@ so a hardware failure mid-stream is reported as `WC_HW_E`. The same holds for a
 CMAC object after its init was accepted. Cipher calls are independent, so any
 single call may fall back.
 
+## RNG
+
+The BA431 TRNG samples ring oscillators, runs the NIST SP 800-90B repetition
+count and adaptive proportion tests and the AIS31 tests on them, and conditions
+four raw 128-bit blocks into each output block with AES-CBC-MAC. The port
+programs it as Nordic's drivers do: sample divider 241, 512-cycle start-up
+wait, ring oscillators stopped as soon as the FIFO is full, and the
+conditioning key loaded from the first FIFO words with a restart afterwards,
+so nothing produced under the default key is handed out.
+
+Conditioned output seeds wolfCrypt's Hash-DRBG: `wc_GenerateSeed()` is routed
+to the TRNG (`CUSTOM_RAND_GENERATE_SEED`) and so is `WC_ALGO_TYPE_SEED` for
+objects carrying the devId. The DRBG itself stays in software, so SP 800-90A
+behaviour (reseed interval, health tests) is wolfCrypt's. With
+`WOLFSSL_CRACEN_RNG_DIRECT` the callback also serves `WC_ALGO_TYPE_RNG`,
+handing conditioned TRNG output out directly.
+
+A health test failure or a start-up test failure puts the FSM in its error
+state; the driver restarts the TRNG and retries up to
+`WOLFSSL_CRACEN_TRNG_MAX_RECOVERIES` times, then fails with `RNG_FAILURE_E`.
+A FIFO that never fills fails the same way after `WOLFSSL_CRACEN_TIMEOUT`
+polls. Alarm flags are counted on their rising edge and available with
+`wc_CracenTrngGetStats()`.
+
+Application API:
+
+```c
+int  wc_CracenTrngRead(byte* out, word32 sz);     /* raw conditioned output */
+void wc_CracenTrngOff(void);                       /* power down until next read */
+int  wc_CracenTrngGetStats(wc_CracenTrngStats*);   /* starts, recoveries, alarms, bytes */
+```
+
+The TRNG stays powered between reads by default; `WOLFSSL_CRACEN_TRNG_ON_DEMAND`
+powers it down after each one, which costs the start-up wait and a new
+conditioning key on every read.
+
 ## Options
 
 | Macro | Default | Meaning |
@@ -60,6 +96,10 @@ single call may fall back.
 | `WOLFSSL_CRACEN_RNG_DIRECT` | off | Serve `wc_RNG_GenerateBlock()` straight from the TRNG |
 | `WOLFSSL_CRACEN_TIMEOUT` | `0x400000` | Poll iterations before an operation fails with `WC_HW_E` |
 | `WOLFSSL_CRACEN_TRNG_CLKDIV` | 241 | Ring oscillator sample clock divider |
+| `WOLFSSL_CRACEN_TRNG_INITWAIT` | 512 | Cycles to wait before sampling after start |
+| `WOLFSSL_CRACEN_TRNG_OFFTIMER` | 0 | Cycles before the rings stop once the FIFO is full |
+| `WOLFSSL_CRACEN_TRNG_MAX_RECOVERIES` | 3 | Restarts tried on a health test failure before giving up |
+| `WOLFSSL_CRACEN_TRNG_ON_DEMAND` | off | Power the TRNG down after every read |
 | `WOLFSSL_CRACEN_HOST_TEST` | off | Build against a shim on a PC; everything declines |
 | `WOLFSSL_CRACEN_HOST_EMULATE` | off | Host build whose shim computes every operation in software behind the hardware interface |
 

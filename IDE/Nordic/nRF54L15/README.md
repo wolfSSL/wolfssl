@@ -38,7 +38,10 @@ picocom -b 115200 /dev/ttyACM0
 ```
 wolfCrypt CRACEN test, nRF54L15
 CRACEN engines 0x..., AES modes 0x..., AES ctr size 0x..., hash cfg 0x..., RNG cfg 0x...
-RNG      TRNG seed and Hash-DRBG: ok
+  TRNG 65536 bytes in ... cycles: ... kB/s
+  65536 bytes: ones .../1000, byte chi-square ... (255 dof), longest run ..., entropy ... mbit/byte, repeated blocks 0
+  TRNG starts 1, error recoveries 0, alarms: repetition 0, proportion 0, AIS31 preliminary 0, AIS31 0, last status 0x..., bytes ...
+RNG      TRNG sanity and Hash-DRBG: ok
 SHA-256  known answer: ok
 SHA-1    streaming vs software, 160 lengths: ok
 SHA-224  streaming vs software, 160 lengths: ok
@@ -82,10 +85,35 @@ The application runs in the secure state straight from reset, which is what
 CRACEN requires. Stack is 32 KB and heap 96 KB (`__STACK_SIZE`, `__HEAP_SIZE`
 in the Makefile).
 
+## TRNG checks
+
+The RNG section reads 64 KB of conditioned TRNG output, prints the
+throughput, and applies loose sanity bounds that a healthy source never trips:
+ones fraction within 0.496..0.504, byte chi-square between 150 and 400
+(255 degrees of freedom, expectation 255), no run of identical bits longer
+than 48, at least 7.95 bits of byte entropy, no repeated 16-byte block. It then
+reads odd sizes, powers the TRNG down and reads again (restart path), seeds
+the Hash-DRBG through `wc_GenerateSeed()`, and prints the driver's counters.
+Any error recovery (FSM error or start-up test failure) is reported as a
+failure, since a sound board should see none.
+
+For a proper statistical run on the host, build with a dump:
+
+```sh
+make TRNG_DUMP=1048576        # 1 MB of raw output, ~3 min at 115200 baud
+make flash
+picocom -b 115200 /dev/ttyACM0 --logfile trng.log      # wait for ---END TRNG---
+sed -n '/---BEGIN TRNG---/,/---END TRNG---/p' trng.log | grep -v -- '---' | tr -d '\r' | xxd -r -p > trng.bin
+ent trng.bin
+dieharder -a -g 201 -f trng.bin   # or rngtest < trng.bin
+```
+
 ## Variations
 
 - `make CFLAGS_EXTRA=-DWOLFSSL_CRACEN_RNG_DIRECT` serves `wc_RNG_GenerateBlock()`
   straight from the TRNG instead of the Hash-DRBG.
+- `make CFLAGS_EXTRA=-DWOLFSSL_CRACEN_TRNG_ON_DEMAND` powers the TRNG down
+  after every read, trading start-up latency for idle power.
 - Edit `user_settings.h` to drop algorithms; the port and the tests follow the
   same feature macros.
 - `make NRFX_TAG=<tag>` pins a different nrfx release for the MDK.

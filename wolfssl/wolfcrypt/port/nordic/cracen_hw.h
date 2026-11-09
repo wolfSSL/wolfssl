@@ -62,6 +62,18 @@ typedef struct wc_CracenHwInfo {
     word32 rngCfg;     /* RNGCONTROL.HWCONFIG                             */
 } wc_CracenHwInfo;
 
+/* TRNG diagnostics, accumulated since init. */
+typedef struct wc_CracenTrngStats {
+    word32 starts;      /* TRNG (re)initialisations                        */
+    word32 errors;      /* FSM error or start-up test failure recoveries    */
+    word32 repFail;     /* repetition count test alarms                    */
+    word32 propFail;    /* adaptive proportion test alarms                 */
+    word32 ais31Prelim; /* AIS31 preliminary noise alarms                  */
+    word32 ais31Alarm;  /* AIS31 noise alarms                              */
+    word32 bytes;       /* bytes delivered                                 */
+    word32 lastStatus;  /* last RNGCONTROL.STATUS read                     */
+} wc_CracenTrngStats;
+
 WOLFSSL_LOCAL int    wc_CracenHw_Init(void);
 WOLFSSL_LOCAL void   wc_CracenHw_Cleanup(void);
 WOLFSSL_LOCAL int    wc_CracenHw_GetInfo(wc_CracenHwInfo* info);
@@ -98,7 +110,14 @@ WOLFSSL_LOCAL int    wc_CracenHw_AesCmac(const byte* key, word32 keySz,
                          const byte* tail, word32 tailSz, byte* out,
                          int final);
 
+/* Conditioned TRNG output. Powers the RNG module up and starts it when
+ * needed, loads the conditioning key on first use, recovers from a health
+ * test failure by restarting, and fails with RNG_FAILURE_E after repeated
+ * failures or a stalled FIFO. */
 WOLFSSL_LOCAL int    wc_CracenHw_TrngRead(byte* out, word32 sz);
+/* Power the RNG module down; the next read starts it again. */
+WOLFSSL_LOCAL void   wc_CracenHw_TrngOff(void);
+WOLFSSL_LOCAL int    wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats);
 
 #ifdef __cplusplus
     }

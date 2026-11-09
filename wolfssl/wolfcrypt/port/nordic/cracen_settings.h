@@ -37,6 +37,10 @@
  *   WOLFSSL_CRACEN_RNG_DIRECT  also serve WC_ALGO_TYPE_RNG from the TRNG
  *   WOLFSSL_CRACEN_TIMEOUT     poll iterations before an op is failed
  *   WOLFSSL_CRACEN_TRNG_CLKDIV ring oscillator sample clock divider
+ *   WOLFSSL_CRACEN_TRNG_INITWAIT, _OFFTIMER, _MAX_RECOVERIES, _ON_DEMAND
+ *                              TRNG start-up wait, ring switch-off delay,
+ *                              restarts on a failed health test, power down
+ *                              after every read
  */
 
 #ifndef WOLFSSL_CRACEN_SETTINGS_H
