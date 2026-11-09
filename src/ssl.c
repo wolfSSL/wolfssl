@@ -9684,8 +9684,10 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     if (suites == NULL)
         return NULL;
 
-    /* check if stack needs populated */
-    if (ssl->suitesStack == NULL) {
+    /* Rebuild the stack when the cipher list changed since it was built. */
+    if (!CipherStackMatches(ssl->suitesStack, suites,
+            ssl->options.minDowngrade, ssl->options.mask)) {
+        wolfSSL_sk_CIPHER_free(ssl->suitesStack);
         ((WOLFSSL*)ssl)->suitesStack = CipherStackNew(suites,
             ssl->options.minDowngrade, ssl->options.mask, ssl->heap);
     }

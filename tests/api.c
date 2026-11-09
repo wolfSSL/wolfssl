@@ -3132,6 +3132,42 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
 #endif /* TEST_CIPHER_EXCLUDE_ANON || TEST_CIPHER_EXCLUDE_NULL */
     return EXPECT_RESULT();
 }
+
+/* SSL_get_ciphers() follows a cipher list set after it was first called. */
+static int test_wolfSSL_get_ciphers_after_set_cipher_list(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    int before = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+    ExpectIntGT(before = wolfSSL_sk_SSL_CIPHER_num(sk), 1);
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+    ExpectNotNull(ssl->suites);
+    if (ssl != NULL && ssl->suites != NULL) {
+        ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk),
+            ssl->suites->suiteSz / 2);
+    }
+    ExpectIntLT(wolfSSL_sk_SSL_CIPHER_num(sk), before);
+    /* Unchanged list: the same stack is returned. */
+    ExpectPtrEq(wolfSSL_get_ciphers_compat(ssl), sk);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
 #ifdef TEST_CIPHER_EXCLUDE_ANON
     #undef TEST_CIPHER_EXCLUDE_ANON
 #endif
@@ -47805,6 +47841,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_range_setters),
     TEST_DECL(test_wolfSSL_set_cipher_list_no_range),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
+    TEST_DECL(test_wolfSSL_get_ciphers_after_set_cipher_list),
     TEST_DECL(test_tls13_null_cipher_default_list),
     TEST_DECL(test_tls13_null_cipher_explicit_keep),
     TEST_DECL(test_wolfSSL_SSL_set_ciphersuites),
