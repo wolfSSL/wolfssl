@@ -150,35 +150,8 @@ int mp_init (mp_int * a)
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
-#ifdef HAVE_FIPS
+    /* Wipe all allocated digits before the memory is freed. */
     mp_forcezero(a);
-#else
-  int i;
-
-  if (a == NULL)
-      return;
-
-  /* only do anything if a hasn't been freed previously */
-#ifndef HAVE_WOLF_BIGINT
-  /* When HAVE_WOLF_BIGINT then mp_free -> wc_bigint_free needs to be called
-   * because a->raw->buf may be allocated even when a->dp == NULL. This is the
-   * case for when a zero is loaded into the mp_int. */
-  if (a->dp != NULL)
-#endif
-  {
-    /* first zero the digits */
-    for (i = 0; i < a->used; i++) {
-        a->dp[i] = 0;
-    }
-
-    /* free ram */
-    mp_free(a);
-
-    /* reset members to make debugging easier */
-    a->alloc = a->used = 0;
-    a->sign  = MP_ZPOS;
-  }
-#endif
 }
 
 void mp_free (mp_int * a)
@@ -201,9 +174,18 @@ void mp_forcezero(mp_int * a)
         return;
 
     /* only do anything if a hasn't been freed previously */
-    if (a->dp != NULL) {
-      /* force zero the used digits */
-      ForceZero(a->dp, a->used * sizeof(mp_digit));
+#ifndef HAVE_WOLF_BIGINT
+    /* When HAVE_WOLF_BIGINT then mp_free -> wc_bigint_free needs to be called
+     * because a->raw->buf may be allocated even when a->dp == NULL. This is the
+     * case for when a zero is loaded into the mp_int. */
+    if (a->dp != NULL)
+#endif
+    {
+      /* force zero all the allocated digits - digits above used are not
+       * zeroed when used decreases and may hold an earlier, larger value */
+      if (a->dp != NULL) {
+          ForceZero(a->dp, (size_t)a->alloc * sizeof(mp_digit));
+      }
 #ifdef HAVE_WOLF_BIGINT
       wc_bigint_zero(&a->raw);
 #endif

@@ -217,6 +217,73 @@ int test_mp_exptmod_even_2k(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_PUBLIC_MP) && defined(USE_INTEGER_HEAP_MATH) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_NO_MALLOC)
+/* Allocators that record each live buffer's size and, on free, count the
+ * buffers that still hold non-zero bytes. */
+#define MP_CLEAR_TRACK_MAX 8
+static void*  mp_clear_ptr[MP_CLEAR_TRACK_MAX];
+static size_t mp_clear_sz[MP_CLEAR_TRACK_MAX];
+static int    mp_clear_dirty = 0;
+
+static void mp_clear_track(void* p, size_t sz)
+{
+    int i;
+
+    for (i = 0; i < MP_CLEAR_TRACK_MAX; i++) {
+        if (mp_clear_ptr[i] == NULL) {
+            mp_clear_ptr[i] = p;
+            mp_clear_sz[i] = sz;
+            break;
+        }
+    }
+}
+
+static void mp_clear_untrack(void* p, int check)
+{
+    int i;
+    size_t j;
+
+    for (i = 0; i < MP_CLEAR_TRACK_MAX; i++) {
+        if ((p != NULL) && (mp_clear_ptr[i] == p)) {
+            for (j = 0; check && (j < mp_clear_sz[i]); j++) {
+                if (((byte*)p)[j] != 0) {
+                    mp_clear_dirty++;
+                    break;
+                }
+            }
+            mp_clear_ptr[i] = NULL;
+            break;
+        }
+    }
+}
+
+static void* mp_clear_malloc(size_t sz)
+{
+    void* p = malloc(sz);
+    if (p != NULL)
+        mp_clear_track(p, sz);
+    return p;
+}
+
+static void mp_clear_free(void* p)
+{
+    mp_clear_untrack(p, 1);
+    free(p);
+}
+
+static void* mp_clear_realloc(void* p, size_t sz)
+{
+    void* n = realloc(p, sz);
+    if (n != NULL) {
+        mp_clear_untrack(p, 0);
+        mp_clear_track(n, sz);
+    }
+    return n;
+}
+#endif
+
 /*
  * Testing that mp_clear() zeroizes every digit, including those above used.
  * Those can still hold part of an earlier, larger value.
@@ -247,6 +314,35 @@ int test_mp_clear_zeroize(void)
         nonZero |= (a.dp[i] != 0);
     }
     ExpectIntEQ(nonZero, 0);
+#elif defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(USE_INTEGER_HEAP_MATH) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_NO_MALLOC)
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    mp_int a;
+    byte   val[32];
+
+    XMEMSET(val, 0xA5, sizeof(val));
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(mp_clear_ptr, 0, sizeof(mp_clear_ptr));
+    mp_clear_dirty = 0;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(mp_clear_malloc, mp_clear_free,
+        mp_clear_realloc), 0);
+
+    ExpectIntEQ(mp_init(&a), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&a, val, (word32)sizeof(val)), MP_OKAY);
+    /* Make the value smaller without clearing the digits above used, as an
+     * operation that does not clear its excess digits would. */
+    a.used = 1;
+    mp_clear(&a);
+
+    /* The freed digit buffer must have been wiped in full. */
+    ExpectIntEQ(mp_clear_dirty, 0);
+
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
 #endif
     return EXPECT_RESULT();
 } /* End test_mp_clear_zeroize */
