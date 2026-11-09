@@ -6061,14 +6061,30 @@ int mp_lshd (mp_int * a, int b)
 }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+/* Number of bytes of digits in the integer. With ALT_ECC_SIZE, an ECC integer
+ * is an alt_fp_int with fewer digits than an fp_int, so use the size it was
+ * initialized with, as fp_forcezero() does, to stay inside it. */
+static size_t mp_memzero_len(mp_int* a)
+{
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    return (size_t)a->size * sizeof(fp_digit);
+#else
+    return sizeof(a->dp);
+#endif
+}
+
 void mp_memzero_add(const char* name, mp_int* a)
 {
-    wc_MemZero_Add(name, a->dp, sizeof(a->dp));
+    if (a != NULL) {
+        wc_MemZero_Add(name, a->dp, mp_memzero_len(a));
+    }
 }
 
 void mp_memzero_check(mp_int* a)
 {
-    wc_MemZero_Check(a->dp, sizeof(a->dp));
+    if (a != NULL) {
+        wc_MemZero_Check(a->dp, mp_memzero_len(a));
+    }
 }
 #endif /* WOLFSSL_CHECK_MEM_ZERO */
 
