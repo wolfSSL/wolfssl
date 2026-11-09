@@ -6,6 +6,8 @@
     written to the output buffer in the variable outLen.
 
     \return 0 Returned upon successfully decoding the Base64 encoded input
+    \return BAD_FUNC_ARG Returned if out or outLen is NULL, or if in is NULL
+    and inLen is not zero
     \return BUFFER_E Returned if the output buffer is too small to
     store the decoded input
     \return ASN_INPUT_E Returned if a character in the input buffer falls
@@ -171,8 +173,9 @@ int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out,
     to the output buffer in the variable outLen.
 
     \return 0 Returned upon successfully decoding the Base16 encoded input
-    \return BAD_FUNC_ARG Returned if the input length is odd, except a
-    single hex digit, which decodes to one byte holding its value
+    \return BAD_FUNC_ARG Returned if in, out or outLen is NULL, or if the
+    input length is odd, except a single hex digit, which decodes to one
+    byte holding its value
     \return BUFFER_E Returned if the output buffer is too small to store
     the decoded input
     \return ASN_INPUT_E Returned if a character in the input buffer falls
@@ -246,7 +249,8 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen);
     timing attacks are not a concern.
 
     \return 0 On successfully decoding the Base64 encoded input.
-    \return BAD_FUNC_ARG If out or outLen is NULL.
+    \return BAD_FUNC_ARG If out or outLen is NULL, or if in is NULL and
+    inLen is not zero.
     \return ASN_INPUT_E If a character in the input buffer falls outside
     of the Base64 range and is not a space, CR or LF, or if there is an
     invalid line ending.
