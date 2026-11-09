@@ -610,6 +610,61 @@ int test_wc_ecc_signVerify_hash(void)
     return EXPECT_RESULT();
 } /*  END test_wc_ecc_sign_hash */
 
+/* Testing deterministic signing with a digest length that does not match the
+ * hash type. */
+int test_wc_ecc_deterministic_hash_type(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(WC_NO_RNG) && \
+    (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(PLUTON_CRYPTO_ECC) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA)
+    ecc_key key;
+    WC_RNG  rng;
+    byte    digest[WC_SHA384_DIGEST_SIZE];
+    byte    sig[ECC_BUFSIZE];
+    word32  sigLen;
+
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(digest, 0x5c, sizeof(digest));
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &key), 0);
+
+    /* SHA-256 hash type with a SHA-256 sized digest. */
+    ExpectIntEQ(wc_ecc_set_deterministic_ex(&key, 1, WC_HASH_TYPE_SHA256), 0);
+    sigLen = (word32)sizeof(sig);
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_SHA256_DIGEST_SIZE, sig, &sigLen,
+        &rng, &key), 0);
+
+    /* SHA-256 hash type with a SHA-384 sized digest. */
+    sigLen = (word32)sizeof(sig);
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_SHA384_DIGEST_SIZE, sig, &sigLen,
+        &rng, &key), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    /* SHA-384 hash type with a SHA-256 sized digest. */
+    ExpectIntEQ(wc_ecc_set_deterministic_ex(&key, 1, WC_HASH_TYPE_SHA384), 0);
+    sigLen = (word32)sizeof(sig);
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_SHA256_DIGEST_SIZE, sig, &sigLen,
+        &rng, &key), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&key);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Testing wc_ecc_shared_secret()
  */

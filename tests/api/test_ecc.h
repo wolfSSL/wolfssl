@@ -37,6 +37,7 @@ int test_wc_ecc_get_generator(void);
 int test_wc_ecc_size(void);
 int test_wc_ecc_params(void);
 int test_wc_ecc_signVerify_hash(void);
+int test_wc_ecc_deterministic_hash_type(void);
 int test_wc_ecc_shared_secret(void);
 int test_wc_ecc_shared_secret_at_infinity(void);
 int test_wc_ecc_shared_secret_ex_peer_point(void);
@@ -102,6 +103,7 @@ int test_wc_ecc_make_key_id_dev(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_size),                           \
     TEST_DECL_GROUP("ecc", test_wc_ecc_params),                         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_signVerify_hash),                \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_deterministic_hash_type),        \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret),                  \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_at_infinity),      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_ex_peer_point),    \

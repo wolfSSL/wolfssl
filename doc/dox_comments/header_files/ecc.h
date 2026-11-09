@@ -2590,11 +2590,14 @@ int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag,
     \brief Generates deterministic k value for signing.
 
     \return 0 on success
+    \return BAD_FUNC_ARG when hashSz is not the digest size of hashType
     \return negative on error
 
     \param hash Hash value
-    \param hashSz Hash size
-    \param hashType Hash algorithm type
+    \param hashSz Hash size, must be the digest size of hashType, or 32, 48
+    or 64 when hashType is WC_HASH_TYPE_NONE
+    \param hashType Hash algorithm type, or WC_HASH_TYPE_NONE to select
+    SHA-256, SHA-384 or SHA-512 from hashSz
     \param priv Private key
     \param k Output k value
     \param order Curve order
