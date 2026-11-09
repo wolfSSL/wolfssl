@@ -33,6 +33,10 @@ endif
 include tests/api/include.am
 endif
 EXTRA_DIST += tests/unit.h \
+              tests/arduino_entropy_guard.py \
+              tests/copilot_entropy_review.py \
+              tests/cypress_trng_failure.py \
+              tests/weak_entropy_defaults.py \
               tests/test.conf \
               tests/test-sha2.conf \
               tests/test-tls13.conf \
