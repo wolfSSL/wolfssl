@@ -2,8 +2,7 @@
 #define _USER_SETTINGS_H_
 
 #define WOLFSSL_AZSPHERE
-/* Sample config: accept the weak/test entropy seed (see random.c) */
-#define WOLFSSL_ACCEPT_WEAK_ENTROPY
+/* Supply a real seed through CUSTOM_RAND_GENERATE_SEED. */
 /* Client connects to the server with these details. */
 #ifdef CUSTOM_SERVER_CONNECTION
     #ifndef SERVER_IP

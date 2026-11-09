@@ -38,9 +38,8 @@ extern "C" {
     #define BENCH_EMBEDDED
     #define WC_16BIT_CPU
     #define WORD64_AVAILABLE
-    #define WOLFSSL_GENSEED_FORTEST
-    /* Sample config: accept the weak/test entropy seed (see random.c) */
-    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
+    /* PIC24 has no configured seed source. Supply
+     * CUSTOM_RAND_GENERATE_SEED before using the RNG. */
 #endif
 
 /* ------------------------------------------------------------------------- */

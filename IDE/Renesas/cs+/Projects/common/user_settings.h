@@ -55,9 +55,7 @@
 
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
 
-#define WOLFSSL_GENSEED_FORTEST /* Wardning: define your own seed gen */
-/* Sample config: accept the weak/test entropy seed (see random.c) */
-#define WOLFSSL_ACCEPT_WEAK_ENTROPY
+/* Supply a real seed through CUSTOM_RAND_GENERATE_SEED before use. */
 
 #define SINGLE_THREADED  /* or define RTOS  option */
 /*#define WOLFSSL_CMSIS_RTOS */

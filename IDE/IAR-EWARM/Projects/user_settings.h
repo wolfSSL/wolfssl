@@ -14,9 +14,9 @@
 #define XVALIDATEDATE(d, f,t) (0)
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
 
-#define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
-/* Sample config: accept the weak/test entropy seed (see random.c) */
-#define WOLFSSL_ACCEPT_WEAK_ENTROPY
+/* Provide a real seed source through CUSTOM_RAND_GENERATE_SEED before use.
+ * The test seed requires explicit WOLFSSL_GENSEED_FORTEST and
+ * WOLFSSL_ACCEPT_WEAK_ENTROPY definitions in the application build. */
 
 /* A few examples of different math options below.
  *

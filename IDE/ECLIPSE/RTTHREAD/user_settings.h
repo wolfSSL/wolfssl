@@ -33,7 +33,7 @@
 #define WOLFSSL_BENCHMARK_TEST
 #define WOLFSSL_CLIENT_TEST
 #define WOLFSSL_SERVER_TEST
-#define USE_TEST_GENSEED
+/* Supply CUSTOM_RAND_GENERATE_SEED from a hardware entropy source. */
 #define NO_DEV_RANDOM
 #define HAVE_PKCS7
 #define HAVE_AES_KEYWRAP
