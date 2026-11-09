@@ -60,9 +60,7 @@ int wc_CracenRng(wc_CryptoInfo* info)
  * CUSTOM_RAND_GENERATE_SEED, and usable directly as a raw entropy source. */
 int wc_CracenGenerateSeed(unsigned char* output, unsigned int sz)
 {
-    int ret = wc_CracenHw_Init();
-    if (ret == 0)
-        ret = wc_CracenHw_TrngRead(output, sz);
+    int ret = wc_CracenTrngRead(output, sz);
     if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
         ret = RNG_FAILURE_E;
     return ret;

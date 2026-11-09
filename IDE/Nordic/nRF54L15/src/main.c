@@ -569,6 +569,9 @@ static void test_aes_cmac(void)
 
 /* RNG ---------------------------------------------------------------------*/
 
+#define TRNG_SAMPLE_SZ 65536UL
+static byte gRnd[TRNG_SAMPLE_SZ];
+
 static int all_zero(const byte* p, word32 n)
 {
     word32 i;
@@ -578,34 +581,166 @@ static int all_zero(const byte* p, word32 n)
     return acc == 0;
 }
 
+/* Cheap sanity statistics on raw conditioned output. These catch a stuck,
+ * biased or repeating source; they are not a certification test. Bounds are
+ * far from the expectation of a uniform source, so a healthy TRNG never trips
+ * them. */
+static void trng_sanity(const byte* p, word32 n)
+{
+    static word32 hist[256];
+    word32 ones = 0;
+    word32 run = 0;
+    word32 maxRun = 0;
+    word32 repeats = 0;
+    word32 i;
+    int    prev = -1;
+    double expect = (double)n / 256.0;
+    double chi = 0.0;
+    double entropy = 0.0;
+    long   onesPermille;
+    int    before = gFails;
+
+    memset(hist, 0, sizeof(hist));
+    for (i = 0; i < n; i++) {
+        int k;
+        hist[p[i]]++;
+        for (k = 7; k >= 0; k--) {
+            int bit = (p[i] >> k) & 1;
+            ones += (word32)bit;
+            if (bit == prev) {
+                run++;
+            }
+            else {
+                run = 1;
+                prev = bit;
+            }
+            if (run > maxRun)
+                maxRun = run;
+        }
+        if (i >= 16 && (i & 15) == 0 && memcmp(p + i, p + i - 16, 16) == 0)
+            repeats++;
+    }
+    for (i = 0; i < 256; i++) {
+        double d = (double)hist[i] - expect;
+        chi += d * d / expect;
+        if (hist[i] > 0) {
+            double pr = (double)hist[i] / (double)n;
+            /* log2 via natural log to keep libm use minimal */
+            entropy -= pr * (__builtin_log(pr) / 0.69314718055994530942);
+        }
+    }
+    onesPermille = (long)(((unsigned long long)ones * 1000ULL) / ((unsigned long long)n * 8ULL));
+
+    printf("  %lu bytes: ones %ld/1000, byte chi-square %ld (255 dof), "
+           "longest run %lu, entropy %ld mbit/byte, repeated blocks %lu\n",
+           (unsigned long)n, onesPermille, (long)chi, (unsigned long)maxRun,
+           (long)(entropy * 1000.0), (unsigned long)repeats);
+
+    CHECK(onesPermille >= 496 && onesPermille <= 504, "bit bias");
+    CHECK(chi > 150.0 && chi < 400.0, "byte distribution");
+    CHECK(maxRun <= 48, "long run of identical bits");
+    CHECK(entropy >= 7.95, "low byte entropy");
+    CHECK(repeats == 0, "repeated 16-byte blocks");
+    (void)before;
+}
+
 static void test_rng(void)
 {
     WC_RNG rng;
+    wc_CracenTrngStats st;
     byte   a[64];
     byte   b[64];
-    byte   raw[32];
+    byte   small[16];
     int    before = gFails;
     int    ret;
+    word32 off;
+    uint32_t t0, t1;
 
-#ifndef WOLFSSL_CRACEN_HOST_TEST
-    ret = wc_CracenGenerateSeed(raw, sizeof(raw));
-    CHECK(ret == 0 && !all_zero(raw, sizeof(raw)), "TRNG read ret %d", ret);
-#else
-    (void)raw;
-#endif
+    /* raw TRNG: throughput and statistics over a 64 KB sample */
+    t0 = board_cycles();
+    for (off = 0, ret = 0; ret == 0 && off < TRNG_SAMPLE_SZ; off += 1024)
+        ret = wc_CracenTrngRead(gRnd + off, 1024);
+    t1 = board_cycles();
+    CHECK(ret == 0, "TRNG read ret %d", ret);
+    if (ret == 0) {
+        unsigned long cyc = (unsigned long)(t1 - t0);
+        unsigned long hz  = (unsigned long)board_clock_hz();
+        if (cyc > 0) {
+            printf("  TRNG %lu bytes in %lu cycles: %lu kB/s\n",
+                (unsigned long)TRNG_SAMPLE_SZ, cyc,
+                (unsigned long)(((unsigned long long)TRNG_SAMPLE_SZ * hz) /
+                                ((unsigned long long)cyc * 1000ULL)));
+        }
+        trng_sanity(gRnd, TRNG_SAMPLE_SZ);
+    }
 
+    /* odd sizes and a restart after power-down */
+    ret = wc_CracenTrngRead(small, 1);
+    if (ret == 0)
+        ret = wc_CracenTrngRead(small + 1, 3);
+    if (ret == 0)
+        ret = wc_CracenTrngRead(small + 4, 12);
+    CHECK(ret == 0 && !all_zero(small, sizeof(small)), "TRNG odd sizes %d", ret);
+    wc_CracenTrngOff();
+    memset(small, 0, sizeof(small));
+    ret = wc_CracenTrngRead(small, sizeof(small));
+    CHECK(ret == 0 && !all_zero(small, sizeof(small)),
+        "TRNG restart after power-down %d", ret);
+
+    /* Hash-DRBG seeded from the TRNG through wc_GenerateSeed() */
     ret = wc_InitRng_ex(&rng, NULL, HW_DEVID);
     if (ret == 0)
         ret = wc_RNG_GenerateBlock(&rng, a, sizeof(a));
     if (ret == 0)
         ret = wc_RNG_GenerateBlock(&rng, b, sizeof(b));
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(&rng, small, 1);
     wc_FreeRng(&rng);
     CHECK(ret == 0, "Hash-DRBG ret %d", ret);
     CHECK(!all_zero(a, sizeof(a)) && memcmp(a, b, sizeof(a)) != 0,
         "DRBG output degenerate");
-    printf("%-8s TRNG seed and Hash-DRBG: %s\n", "RNG",
+
+    if (wc_CracenTrngGetStats(&st) == 0) {
+        printf("  TRNG starts %lu, error recoveries %lu, alarms: repetition %lu,"
+               " proportion %lu, AIS31 preliminary %lu, AIS31 %lu, "
+               "last status 0x%03lx, bytes %lu\n",
+               (unsigned long)st.starts, (unsigned long)st.errors,
+               (unsigned long)st.repFail, (unsigned long)st.propFail,
+               (unsigned long)st.ais31Prelim, (unsigned long)st.ais31Alarm,
+               (unsigned long)st.lastStatus, (unsigned long)st.bytes);
+        CHECK(st.errors == 0, "TRNG needed %lu error recoveries",
+            (unsigned long)st.errors);
+    }
+    printf("%-8s TRNG sanity and Hash-DRBG: %s\n", "RNG",
         gFails == before ? "ok" : "FAIL");
 }
+
+#ifndef CRACEN_TRNG_DUMP
+    #define CRACEN_TRNG_DUMP 0
+#endif
+#if CRACEN_TRNG_DUMP > 0
+/* Raw output as hex between markers, for ent/dieharder on the host. */
+static void trng_dump(void)
+{
+    word32 left = CRACEN_TRNG_DUMP;
+    byte   buf[64];
+
+    printf("---BEGIN TRNG---\n");
+    while (left > 0) {
+        word32 n = (left > sizeof(buf)) ? (word32)sizeof(buf) : left;
+        word32 i;
+        if (wc_CracenTrngRead(buf, n) != 0) {
+            printf("read error\n");
+            break;
+        }
+        for (i = 0; i < n; i++)
+            printf("%02x", buf[i]);
+        printf("\n");
+        left -= n;
+    }
+    printf("---END TRNG---\n");
+}
+#endif
 
 /* Timing ------------------------------------------------------------------*/
 
@@ -767,6 +902,10 @@ int main(void)
         printf("\nALL TESTS PASSED\n");
     else
         printf("\nFAILED: %d\n", gFails);
+
+#if CRACEN_TRNG_DUMP > 0
+    trng_dump();
+#endif
 
 #ifndef WOLFSSL_CRACEN_HOST_TEST
     for (;;) {

@@ -66,6 +66,12 @@
 #ifndef WOLFSSL_CRACEN_TRNG_INITWAIT
     #define WOLFSSL_CRACEN_TRNG_INITWAIT 512
 #endif
+#ifndef WOLFSSL_CRACEN_TRNG_OFFTIMER
+    #define WOLFSSL_CRACEN_TRNG_OFFTIMER 0
+#endif
+#ifndef WOLFSSL_CRACEN_TRNG_MAX_RECOVERIES
+    #define WOLFSSL_CRACEN_TRNG_MAX_RECOVERIES 3
+#endif
 #define WC_CRACEN_TRNG_NB128            4
 #define WC_CRACEN_TRNG_COND_KEY_WORDS   4
 #define WC_CRACEN_RESET_SPIN            256
@@ -79,10 +85,12 @@
 #endif
 
 static struct {
-    byte            init;
-    byte            trngReady;
-    byte            trngKeySet;
-    wc_CracenHwInfo info;
+    byte               init;
+    byte               trngReady;
+    byte               trngKeySet;
+    word32             trngPrevStatus;
+    wc_CracenHwInfo    info;
+    wc_CracenTrngStats trng;
 } gCracen;
 
 static WC_INLINE void cracen_wr(word32 base, word32 off, word32 val)
@@ -209,30 +217,65 @@ static int cm_load_mask(word32 rnd)
 
 /* TRNG -------------------------------------------------------------------- */
 
+/* The BA431 samples free running ring oscillators, runs the NIST SP 800-90B
+ * repetition count and adaptive proportion tests and the AIS31 tests on the
+ * samples, conditions them with AES-CBC-MAC (NB128BITBLOCKS raw blocks per
+ * output block) and queues the result in a 16-word FIFO. The ring oscillators
+ * stop once the FIFO is full and restart, with the start-up test, when a read
+ * takes the level below the threshold. A failed test puts the FSM in ERROR,
+ * from which only a restart recovers. */
+
+static void trng_power(int on)
+{
+    word32 en = CR_RD(WC_CRACEN_ENABLE);
+
+    if (on)
+        CR_WR(WC_CRACEN_ENABLE, en | WC_CRACEN_ENABLE_RNG);
+    else
+        CR_WR(WC_CRACEN_ENABLE, en & ~WC_CRACEN_ENABLE_RNG);
+    gCracen.trngReady  = 0;
+    gCracen.trngKeySet = 0;
+}
+
 static void trng_init(void)
 {
     word32 depth;
 
+    /* SOFTRST clears the tests, the conditioner and the FIFO; ENABLE low
+     * resets the FSM */
     CM_WR(WC_RNG_CONTROL, WC_RNG_CONTROL_SOFTRST);
     CM_WR(WC_RNG_CONTROL, 0);
 
     depth = CM_RD(WC_RNG_FIFODEPTH);
     if (depth >= 4)
         CM_WR(WC_RNG_FIFOTHRESHOLD, depth / 4 - 1);
-    CM_WR(WC_RNG_SWOFFTMRVAL, 0);
+    CM_WR(WC_RNG_SWOFFTMRVAL, WOLFSSL_CRACEN_TRNG_OFFTIMER);
     CM_WR(WC_RNG_CLKDIV, WOLFSSL_CRACEN_TRNG_CLKDIV);
     CM_WR(WC_RNG_INITWAITVAL, WOLFSSL_CRACEN_TRNG_INITWAIT);
 
     CM_WR(WC_RNG_CONTROL, WC_RNG_CONTROL_ENABLE |
         WC_RNG_CONTROL_NB128(WC_CRACEN_TRNG_NB128));
-    gCracen.trngKeySet = 0;
-    gCracen.trngReady  = 1;
+    gCracen.trngKeySet     = 0;
+    gCracen.trngReady      = 1;
+    gCracen.trngPrevStatus = 0;
+    gCracen.trng.starts++;
 }
 
-static WC_INLINE word32 trng_state(void)
+/* Count alarm flags on their rising edge; they stay set until a restart. */
+static void trng_note_status(word32 status)
 {
-    return (CM_RD(WC_RNG_STATUS) >> WC_RNG_STATUS_STATE_SHIFT) &
-        WC_RNG_STATUS_STATE_MASK;
+    word32 rose = status & ~gCracen.trngPrevStatus;
+
+    gCracen.trngPrevStatus = status;
+    gCracen.trng.lastStatus = status;
+    if (rose & WC_RNG_STATUS_REPFAIL)
+        gCracen.trng.repFail++;
+    if (rose & WC_RNG_STATUS_PROPFAIL)
+        gCracen.trng.propFail++;
+    if (rose & WC_RNG_STATUS_PREINT)
+        gCracen.trng.ais31Prelim++;
+    if (rose & WC_RNG_STATUS_ALMINT)
+        gCracen.trng.ais31Alarm++;
 }
 
 /* Load the AES-CBC-MAC conditioning key from the first FIFO words, then
@@ -254,24 +297,26 @@ static void trng_set_cond_key(void)
 static int trng_read(byte* out, word32 sz)
 {
     word32 timeout = WOLFSSL_CRACEN_TIMEOUT;
-    int    resets = 0;
+    int    recoveries = 0;
 
-    if ((CR_RD(WC_CRACEN_ENABLE) & WC_CRACEN_ENABLE_RNG) == 0) {
-        CR_WR(WC_CRACEN_ENABLE, CR_RD(WC_CRACEN_ENABLE) | WC_CRACEN_ENABLE_RNG);
-        gCracen.trngReady = 0;
-    }
+    if ((CR_RD(WC_CRACEN_ENABLE) & WC_CRACEN_ENABLE_RNG) == 0)
+        trng_power(1);
     if (!gCracen.trngReady)
         trng_init();
 
     while (sz > 0) {
-        word32 state  = trng_state();
         word32 status = CM_RD(WC_RNG_STATUS);
+        word32 state  = (status >> WC_RNG_STATUS_STATE_SHIFT) &
+                        WC_RNG_STATUS_STATE_MASK;
         word32 word;
         word32 n;
 
+        trng_note_status(status);
+
         if (state == WC_RNG_STATE_ERROR ||
                 (status & WC_RNG_STATUS_STARTUPFAIL) != 0) {
-            if (++resets > 3)
+            gCracen.trng.errors++;
+            if (++recoveries > WOLFSSL_CRACEN_TRNG_MAX_RECOVERIES)
                 return RNG_FAILURE_E;
             trng_init();
             timeout = WOLFSSL_CRACEN_TIMEOUT;
@@ -302,6 +347,7 @@ static int trng_read(byte* out, word32 sz)
         for (n = 0; n < 4 && sz > 0; n++, sz--) {
             *out++ = (byte)(word & 0xFF);
             word >>= 8;
+            gCracen.trng.bytes++;
         }
         timeout = WOLFSSL_CRACEN_TIMEOUT;
     }
@@ -338,13 +384,15 @@ int wc_CracenHw_Init(void)
 #ifdef WOLFSSL_CRACEN_TRNG
     if ((gCracen.info.engines & WC_CM_HW_BA431_NDRNG) != 0) {
         word32 rnd = 0;
-        CR_WR(WC_CRACEN_ENABLE, CR_RD(WC_CRACEN_ENABLE) | WC_CRACEN_ENABLE_RNG);
-        trng_init();
+        trng_power(1);
         gCracen.info.rngCfg = CM_RD(WC_RNG_HWCONFIG);
         if (trng_read((byte*)&rnd, sizeof(rnd)) == 0 &&
                 (gCracen.info.engines & WC_CM_HW_BA411_AES) != 0) {
             (void)cm_load_mask(rnd);
         }
+    #ifdef WOLFSSL_CRACEN_TRNG_ON_DEMAND
+        trng_power(0);
+    #endif
     }
 #endif
 
@@ -629,9 +677,32 @@ int wc_CracenHw_TrngRead(byte* out, word32 sz)
     ret = wolfSSL_CryptHwMutexLock();
     if (ret == 0) {
         ret = trng_read(out, sz);
+    #ifdef WOLFSSL_CRACEN_TRNG_ON_DEMAND
+        trng_power(0);
+    #endif
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
+}
+
+void wc_CracenHw_TrngOff(void)
+{
+    if (!gCracen.init)
+        return;
+    if (wolfSSL_CryptHwMutexLock() == 0) {
+        trng_power(0);
+        wolfSSL_CryptHwMutexUnLock();
+    }
+}
+
+int wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats)
+{
+    if (stats == NULL)
+        return BAD_FUNC_ARG;
+    if (!gCracen.init)
+        return BAD_STATE_E;
+    *stats = gCracen.trng;
+    return 0;
 }
 
 #endif /* WOLFSSL_NRF54L_CRACEN && !WOLFSSL_CRACEN_HOST_TEST */

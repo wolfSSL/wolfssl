@@ -23,9 +23,13 @@ SIZE    = $(TOOLCHAIN)size
 
 ARCHFLAGS = -mcpu=cortex-m33 -mthumb -mfloat-abi=soft
 
+# Bytes of raw TRNG output to print as hex after the tests (0 = none)
+TRNG_DUMP ?= 0
+
 # __STACK_SIZE / __HEAP_SIZE size the .stack/.heap sections in the MDK startup
 DEFS = -DNRF54L15_XXAA -DNRF_APPLICATION -DWOLFSSL_USER_SETTINGS \
-       -D__STACK_SIZE=0x8000 -D__HEAP_SIZE=0x18000
+       -D__STACK_SIZE=0x8000 -D__HEAP_SIZE=0x18000 \
+       -DCRACEN_TRNG_DUMP=$(TRNG_DUMP)
 
 INC  = -I. \
        -I$(WOLFSSL_ROOT) \
