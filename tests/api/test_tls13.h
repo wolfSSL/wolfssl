@@ -212,6 +212,7 @@ int test_tls13_cks_hrr_reparse(void);
 int test_tls13_update_keys_want_write(void);
 int test_tls13_AEAD_limit_KeyUpdate_want_write(void);
 int test_tls13_exporter_suite_decision_coverage(void);
+int test_tls13_msg_callback_server_hello(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -402,6 +403,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_cks_hrr_reparse), \
     TEST_DECL_GROUP("tls13", test_tls13_update_keys_want_write), \
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KeyUpdate_want_write), \
-    TEST_DECL_GROUP("tls13", test_tls13_exporter_suite_decision_coverage)
+    TEST_DECL_GROUP("tls13", test_tls13_exporter_suite_decision_coverage), \
+    TEST_DECL_GROUP("tls13", test_tls13_msg_callback_server_hello)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

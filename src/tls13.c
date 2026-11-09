@@ -16171,7 +16171,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return ret;
     }
 
-#if defined(WOLFSSL_CALLBACKS)
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
         ret = AddPacketInfo(ssl, 0, handshake, input + *inOutIdx -
@@ -16179,7 +16179,9 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             RECORD_HEADER_SZ, ssl->heap);
         if (ret != 0)
             return ret;
+#ifdef WOLFSSL_CALLBACKS
         AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
+#endif
     }
 #endif
 

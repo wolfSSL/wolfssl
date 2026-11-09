@@ -18481,3 +18481,133 @@ int test_tls13_exporter_suite_decision_coverage(void)
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
     return EXPECT_RESULT();
 } /* END test_tls13_exporter_suite_decision_coverage */
+
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+typedef struct TestTls13MsgCb {
+    int shCnt; /* ServerHello messages read */
+    int shOk;  /* ServerHello messages passed whole, header included */
+} TestTls13MsgCb;
+
+static void test_tls13_msg_cb(int write_p, int version, int content_type,
+    const void* buf, size_t len, WOLFSSL* ssl, void* arg)
+{
+    TestTls13MsgCb* rec = (TestTls13MsgCb*)arg;
+    const byte* p = (const byte*)buf;
+
+    (void)version;
+    (void)ssl;
+    if (rec == NULL || write_p || content_type != handshake ||
+            len < HANDSHAKE_HEADER_SZ || p[0] != server_hello) {
+        return;
+    }
+    rec->shCnt++;
+    if (len == HANDSHAKE_HEADER_SZ + (((size_t)p[1] << 16) |
+            ((size_t)p[2] << 8) | p[3])) {
+        rec->shOk++;
+    }
+}
+
+/* Split the first record for the client in two, after 8 bytes. Leave
+ * only the first part in the buffer and return the rest in *rest. */
+static int test_tls13_split_first_record(struct test_memio_ctx* test_ctx,
+    byte** rest, int* restSz)
+{
+    const int cut = 8;
+    byte* in = NULL;
+    int inSz = test_ctx->c_len;
+    int recSz;
+    int ret = -1;
+
+    *rest = NULL;
+    *restSz = 0;
+    if (inSz < RECORD_HEADER_SZ || test_ctx->c_buff[0] != handshake)
+        return -1;
+    recSz = (test_ctx->c_buff[3] << 8) | test_ctx->c_buff[4];
+    if (recSz <= cut || RECORD_HEADER_SZ + recSz > inSz)
+        return -1;
+    in = (byte*)XMALLOC((size_t)inSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    *rest = (byte*)XMALLOC((size_t)inSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (in != NULL && *rest != NULL) {
+        XMEMCPY(in, test_ctx->c_buff, (size_t)inSz);
+        /* Second record: same header, rest of the first record's body. */
+        XMEMCPY(*rest, in, RECORD_HEADER_SZ);
+        (*rest)[3] = (byte)((recSz - cut) >> 8);
+        (*rest)[4] = (byte)(recSz - cut);
+        XMEMCPY(*rest + RECORD_HEADER_SZ, in + RECORD_HEADER_SZ + cut,
+            (size_t)(inSz - RECORD_HEADER_SZ - cut));
+        *restSz = inSz - cut;
+        in[3] = 0;
+        in[4] = (byte)cut;
+        test_memio_clear_buffer(test_ctx, 1);
+        ret = test_memio_inject_message(test_ctx, 1, (const char*)in,
+            RECORD_HEADER_SZ + cut);
+    }
+    XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
+
+/* The msg callback sees the ServerHello a TLS 1.3 client reads, also when
+ * the message is split over two records. */
+int test_tls13_msg_callback_server_hello(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    TestTls13MsgCb rec;
+    int split;
+    char buf[8];
+
+    for (split = 0; split < 2; split++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(&rec, 0, sizeof(rec));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_msg_callback(ssl_c, test_tls13_msg_cb),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_msg_callback_arg(ssl_c, &rec),
+            WOLFSSL_SUCCESS);
+        if (split) {
+            byte* rest = NULL;
+            int restSz = 0;
+
+            ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+            ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+            ExpectIntEQ(test_tls13_split_first_record(&test_ctx, &rest,
+                &restSz), 0);
+            /* Only part of the ServerHello: nothing reported yet. */
+            ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+            ExpectIntGT((ssl_c != NULL) ? (int)ssl_c->pendingMsgSz : 0, 0);
+            ExpectIntEQ(rec.shCnt, 0);
+            ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+                (const char*)rest, restSz), 0);
+            XFREE(rest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(rec.shCnt, 1);
+        ExpectIntEQ(rec.shOk, 1);
+        /* Nothing but the server's records reached the client. */
+        ExpectIntEQ(wolfSSL_write(ssl_s, "x", 1), 1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), 1);
+        ExpectIntEQ(buf[0], 'x');
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
