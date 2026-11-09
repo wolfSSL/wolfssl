@@ -31684,6 +31684,152 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+#define MLDSA_TEST_ENC_MAX_K    8
+#define MLDSA_TEST_ENC_GUARD    32
+#define MLDSA_TEST_ENC_SZ       \
+    (MLDSA_TEST_ENC_MAX_K * MLDSA_N * MLDSA_D / 8 + MLDSA_TEST_ENC_GUARD)
+
+/* Pack n values of bits bits each, little-endian, as FIPS 204 does. */
+static void test_mldsa_pack_bits(const sword32* v, word32 n, word32 bits,
+    byte* out)
+{
+    word32 i;
+    word32 accBits = 0;
+    word64 acc = 0;
+
+    for (i = 0; i < n; i++) {
+        acc |= (word64)(word32)v[i] << accBits;
+        accBits += bits;
+        while (accBits >= 8) {
+            *(out++) = (byte)acc;
+            acc >>= 8;
+            accBits -= 8;
+        }
+    }
+}
+
+static int test_mldsa_guard_intact(const byte* p)
+{
+    int i;
+
+    for (i = 0; i < MLDSA_TEST_ENC_GUARD; i++) {
+        if (p[i] != 0xa5) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static word32 test_mldsa_rand(word32* state)
+{
+    *state = *state * 1103515245U + 12345U;
+    return *state >> 8;
+}
+#endif
+
+/* The vector encoders write exactly the encoded length, for every count. */
+int test_mldsa_vec_encode_exact_len(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    static const byte etas[] = {
+    #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
+        2,
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_65
+        4,
+    #endif
+    };
+    sword32* s = NULL;
+    sword32* v = NULL;
+    byte* enc = NULL;
+    byte* enc1 = NULL;
+    byte* exp = NULL;
+    word32 rnd = 1;
+    word32 len;
+    word32 len1;
+    word32 i;
+    word32 e;
+    byte d;
+
+    ExpectNotNull(s = (sword32*)XMALLOC(MLDSA_TEST_ENC_MAX_K * MLDSA_N *
+        sizeof(sword32), NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(v = (sword32*)XMALLOC(MLDSA_TEST_ENC_MAX_K * MLDSA_N *
+        sizeof(sword32), NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(enc = (byte*)XMALLOC(MLDSA_TEST_ENC_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(enc1 = (byte*)XMALLOC(MLDSA_TEST_ENC_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(exp = (byte*)XMALLOC(MLDSA_TEST_ENC_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+#endif
+
+    /* Every count, so the last store of each vector length is checked. */
+    for (e = 0; EXPECT_SUCCESS() && (e < sizeof(etas)); e++) {
+        byte eta = etas[e];
+        word32 bits = (eta == 2) ? 3 : 4;
+
+        for (d = 1; EXPECT_SUCCESS() && (d <= MLDSA_TEST_ENC_MAX_K); d++) {
+            len = (word32)d * MLDSA_N * bits / 8;
+            for (i = 0; i < (word32)d * MLDSA_N; i++) {
+                s[i] = (sword32)(test_mldsa_rand(&rnd) % (2U * eta + 1)) -
+                    eta;
+                v[i] = eta - s[i];
+            }
+            test_mldsa_pack_bits(v, (word32)d * MLDSA_N, bits, exp);
+            XMEMSET(enc, 0xa5, MLDSA_TEST_ENC_SZ);
+            ExpectIntEQ(wc_mldsa_vec_encode_eta(s, d, eta, enc), 0);
+            ExpectBufEQ(enc, exp, len);
+            ExpectIntEQ(test_mldsa_guard_intact(enc + len), 1);
+        }
+    }
+
+    for (d = 1; EXPECT_SUCCESS() && (d <= MLDSA_TEST_ENC_MAX_K); d++) {
+        len = (word32)d * MLDSA_N * MLDSA_D / 8;
+        len1 = (word32)d * MLDSA_N * MLDSA_U / 8;
+        for (i = 0; i < (word32)d * MLDSA_N; i++) {
+            s[i] = (sword32)(test_mldsa_rand(&rnd) % MLDSA_Q);
+        }
+        /* Power2Round: t1 in the top bits, 2^(d-1) - t0 in the low ones. */
+        for (i = 0; i < (word32)d * MLDSA_N; i++) {
+            sword32 t1 = (s[i] + (1 << (MLDSA_D - 1)) - 1) >> MLDSA_D;
+            v[i] = (1 << (MLDSA_D - 1)) - (s[i] - (t1 << MLDSA_D));
+        }
+        test_mldsa_pack_bits(v, (word32)d * MLDSA_N, MLDSA_D, exp);
+        XMEMSET(enc, 0xa5, MLDSA_TEST_ENC_SZ);
+        XMEMSET(enc1, 0xa5, MLDSA_TEST_ENC_SZ);
+        ExpectIntEQ(wc_mldsa_vec_encode_t0_t1(s, d, enc, enc1), 0);
+        ExpectBufEQ(enc, exp, len);
+        ExpectIntEQ(test_mldsa_guard_intact(enc + len), 1);
+        for (i = 0; i < (word32)d * MLDSA_N; i++) {
+            v[i] = (s[i] + (1 << (MLDSA_D - 1)) - 1) >> MLDSA_D;
+        }
+        test_mldsa_pack_bits(v, (word32)d * MLDSA_N, MLDSA_U, exp);
+        ExpectBufEQ(enc1, exp, len1);
+        ExpectIntEQ(test_mldsa_guard_intact(enc1 + len1), 1);
+    }
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+#endif
+
+    XFREE(exp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(enc1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(enc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(s, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Exercise w1 encoding with adversarial inputs to catch undefined behavior.
  *
  * The word32-optimized paths in mldsa_encode_w1_88_c and

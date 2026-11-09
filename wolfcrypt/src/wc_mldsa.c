@@ -1861,7 +1861,7 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
     #endif
     #ifndef WOLFSSL_NO_ML_DSA_65
         if (eta == MLDSA_ETA_4) {
-            wc_mldsa_vec_encode_eta_4_avx2(s, p);
+            wc_mldsa_vec_encode_eta_4_avx2(s, d, p);
         }
     #endif
         RESTORE_VECTOR_REGISTERS();
@@ -1872,6 +1872,12 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
         mldsa_vec_encode_eta_bits_c(s, d, eta, p);
     }
     return ret;
+}
+
+WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s, byte d,
+    byte eta, byte* p)
+{
+    return mldsa_vec_encode_eta_bits(s, d, eta, p);
 }
 #endif /* !WOLFSSL_MLDSA_NO_MAKE_KEY */
 
@@ -2342,6 +2348,12 @@ static int mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
         mldsa_vec_encode_t0_t1_c(t, d, t0, t1);
     }
     return ret;
+}
+
+WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t, byte d,
+    byte* t0, byte* t1)
+{
+    return mldsa_vec_encode_t0_t1(t, d, t0, t1);
 }
 #endif /* !WOLFSSL_MLDSA_NO_MAKE_KEY */
 

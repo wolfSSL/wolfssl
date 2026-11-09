@@ -1029,7 +1029,8 @@ WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta4_avx2(const byte* z,
 
 WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_2_avx2(const sword32* s, byte d,
     byte* p);
-WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_4_avx2(const sword32* t, byte* p);
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_4_avx2(const sword32* s, byte d,
+    byte* p);
 WOLFSSL_LOCAL void wc_mldsa_decode_eta_2_avx2(const byte* p, sword32* s);
 WOLFSSL_LOCAL void wc_mldsa_decode_eta_4_avx2(const byte* p, sword32* s);
 
@@ -1324,6 +1325,13 @@ WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e);
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
 WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
 #endif
+#endif
+
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s, byte d,
+    byte eta, byte* p);
+WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t, byte d,
+    byte* t0, byte* t1);
 #endif
 
 #if defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && \
