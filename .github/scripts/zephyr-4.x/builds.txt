@@ -5,6 +5,7 @@ native_sim          samples/wolfssl_tls_sock    external_libc.conf
 native_sim          samples/wolfssl_tls_sock    tls_cert.conf
 native_sim          samples/wolfssl_tls_sock    ocsp.conf
 native_sim          samples/wolfssl_tls_sock    dtls13.conf
+native_sim          samples/wolfssl_tls_sock    small_stack.conf
 native_sim          samples/wolfssl_test
 native_sim          samples/wolfssl_test        external_libc.conf
 native_sim          samples/wolfssl_benchmark
@@ -13,6 +14,7 @@ native_sim          samples/wolfssl_test        prj-cert.conf
 native_sim          samples/wolfssl_test        prj-x25519-ed448.conf
 native_sim          samples/wolfssl_test        prj-ed25519-x448.conf
 native_sim          samples/wolfssl_test        sp_stack.conf
+native_sim          samples/wolfssl_test        small_stack.conf
 native_sim          samples/wolfssl_test        rsa_2048.conf
 native_sim          samples/wolfssl_test        rsa_3072.conf
 native_sim          samples/wolfssl_test        rsa_3072_ecc_custom.conf

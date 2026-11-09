@@ -51,7 +51,9 @@ extern "C" {
 #define SIZEOF_LONG_LONG 8          /* long long is 8 bytes / 64-bit */
 //#define WOLFSSL_NO_ASM /* optionally disable inline assembly support */
 #define WOLFSSL_IGNORE_FILE_WARN /* ignore file includes not required */
-//#define WOLFSSL_SMALL_STACK /* option to reduce stack size, offload to heap */
+#if defined(CONFIG_WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    #define WOLFSSL_SMALL_STACK
+#endif
 #define BENCH_EMBEDDED /* use smaller buffers in benchmark / tests */
 
 /* Network stack */
