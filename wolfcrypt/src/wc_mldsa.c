@@ -272,9 +272,8 @@
     #endif
     #if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
         (defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) || \
-         defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A) || \
-         defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))
-        #error "WC_MLDSA_NONBLOCK sign needs plain SIGN_SMALL_MEM"
+         defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A))
+        #error "WC_MLDSA_NONBLOCK sign does not support the PRECALC signers"
     #endif
     #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
         !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)
@@ -289,9 +288,8 @@
         #error "WC_MLDSA_NONBLOCK keygen unsupported with the keygen PCT"
     #endif
     #if !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-        (defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) || \
-         defined(WOLFSSL_MLDSA_VERIFY_NO_MALLOC))
-        #error "WC_MLDSA_NONBLOCK verify needs plain VERIFY_SMALL_MEM"
+        defined(WOLFSSL_MLDSA_VERIFY_NO_MALLOC)
+        #error "WC_MLDSA_NONBLOCK verify keeps its buffers on the heap"
     #endif
     #ifdef WOLFSSL_NO_MALLOC
         #error "WC_MLDSA_NONBLOCK keeps working vectors on the heap"
@@ -3536,7 +3534,9 @@ WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e)
 #endif
 #endif
 
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) && defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && \
+    !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
 /* Decode one polynomial of w1 from its encoded form.
  *
  * The small memory signing implementations keep w1 only in the encoded form
@@ -13690,7 +13690,6 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     sword32* a = NULL;
     sword32* c = NULL;
     sword32* z = NULL;
-    byte* w1e = NULL;
     byte* blocks = NULL;
     byte priv_rand_seed[MLDSA_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
@@ -13700,21 +13699,31 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     /* Bytes of encoded s1 or s2 per polynomial. */
     unsigned int sStride = (unsigned int)params->s2EncSz / params->k;
     /* Checksum of each polynomial of y, to bind the two derivations. */
+#ifdef WC_MLDSA_NONBLOCK
+    word64* yChk = NULL;
+    int resume = 0;
+#else
     word64 yChk[MLDSA_MAX_L_VECTOR_COUNT / MLDSA_N];
+#endif
 #ifdef WC_MLDSA_FAULT_HARDEN
     sword32* w_check;
 #endif
 
-    /* priv_rand_seed will hold the secret signing seed (rho'') derived below
-     * and yChk a checksum over each polynomial of the secret mask y;
-     * baseline-zero and register both up front (single-exit function) so any
-     * later exit before the ForceZero is covered. */
+    /* rho'' and, in blocking builds, the yChk checksums of y are on the stack;
+     * register them up front so every exit before the ForceZero is covered. */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     XMEMSET(priv_rand_seed, 0, sizeof(priv_rand_seed));
     wc_MemZero_Add("mldsa sign priv_rand_seed", priv_rand_seed,
         sizeof(priv_rand_seed));
+#ifndef WC_MLDSA_NONBLOCK
     XMEMSET(yChk, 0, sizeof(yChk));
     wc_MemZero_Add("mldsa sign yChk", yChk, sizeof(yChk));
+#endif
+#endif
+#ifdef WC_MLDSA_NONBLOCK
+    /* Resume only the sign of this rnd||mu into this buffer. */
+    (void)mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
+        MLDSA_RND_SZ + MLDSA_MU_SZ, sig);
 #endif
     /* Check the signature buffer isn't too small. */
     if (*sigLen < params->sigSz) {
@@ -13727,14 +13736,30 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* w-k, y-1, a-1, c-1, z-1, w1e, blocks.
-         * w0 replaces w in place and w1 is only kept encoded, so w is the
-         * only vector held. */
+        /* w-k, y-1, a-1, c-1, [yChk]. z shares a, the sampling blocks
+         * share c then y, and w1 is hashed a polynomial at a time. */
         allocSz = (unsigned int)params->s2Sz +
-                  4U * (unsigned int)MLDSA_POLY_SIZE +
-                  (unsigned int)params->w1EncSz +
-                  (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
-        w = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
+                  3U * (unsigned int)MLDSA_POLY_SIZE;
+    #ifdef WC_MLDSA_NONBLOCK
+        /* yChk and the column walk's validity carried across yields. */
+        allocSz += ((unsigned int)params->l + 1U) *
+                   (unsigned int)sizeof(word64);
+        if ((key->nb != NULL) && (key->nb->work != NULL)) {
+            /* Resume: reuse the working allocation from the previous call. */
+            w = (sword32*)key->nb->work;
+            resume = 1;
+        }
+        else
+    #endif
+        {
+            w = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
+        #ifdef WC_MLDSA_NONBLOCK
+            if ((w != NULL) && (key->nb != NULL)) {
+                key->nb->work = w;
+                key->nb->workSz = allocSz;
+            }
+        #endif
+        }
         if (w == NULL) {
             ret = MEMORY_E;
         }
@@ -13745,9 +13770,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             y      = w + params->s2Sz / sizeof(*w);
             a      = y + MLDSA_N;
             c      = a + MLDSA_N;
-            z      = c + MLDSA_N;
-            w1e    = (byte*)(z + MLDSA_N);
-            blocks = w1e + params->w1EncSz;
+            z      = a;
+            blocks = (byte*)c;
+        #ifdef WC_MLDSA_NONBLOCK
+            yChk   = (word64*)(c + MLDSA_N);
+        #endif
         }
     }
 
@@ -13758,29 +13785,40 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             MLDSA_PRIV_RAND_SEED_SZ);
     }
     if (ret == 0) {
+    #ifdef WC_MLDSA_NONBLOCK
+        word16 kappa = (key->nb != NULL) ? key->nb->kappa : 0;
+    #else
         word16 kappa = 0;
+    #endif
         int valid;
 
         /* Step 11: Start rejection sampling loop */
         do {
             byte aseed[MLDSA_GEN_A_SEED_SZ];
             byte* commit = sig;
-            byte* w1et = w1e;
             const byte* sp;
             sword32* wt;
             unsigned int e;
             sword32 hi;
             byte r;
-            byte s;
+            byte s = 0;
 
             valid = 1;
+        #ifdef WC_MLDSA_NONBLOCK
+            /* Resume the column walk where the last yield left it. */
+            if (resume) {
+                s = (byte)key->nb->row;
+                valid = (int)yChk[params->l];
+                resume = 0;
+            }
+        #endif
             /* Copy the seed into a buffer that has space for s and r. */
             XMEMCPY(aseed, pub_seed, MLDSA_PUB_SEED_SZ);
 
             /* Alg 26. Step 2: Loop over second dimension of matrix. Working
              * down the columns keeps one polynomial of y and transforms it
              * once rather than once per row. */
-            for (s = 0; (ret == 0) && (s < params->l); s++) {
+            for (; (ret == 0) && (s < params->l); s++) {
             #ifdef WC_MLDSA_FAULT_HARDEN
                 if (w_check != w) {
                     valid = 0;
@@ -13789,10 +13827,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             #endif
                 /* Step 12: Compute polynomial of y from seed and kappa. */
-                /* z is not live yet, so it doubles as the expansion scratch
+                /* a is not live yet, so it doubles as the expansion scratch
                  * rather than allocating one per polynomial. */
                 ret = mldsa_expand_mask_poly(&key->shake, priv_rand_seed,
-                    (word16)(kappa + s), params->gamma1_bits, y, (byte*)z);
+                    (word16)(kappa + s), params->gamma1_bits, y, (byte*)a);
                 if (ret != 0) {
                     break;
                 }
@@ -13861,10 +13899,28 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     #endif
                     }
                 }
+            #ifdef WC_MLDSA_NONBLOCK
+                /* Yield per column; w and yChk persist in the allocation. */
+                if ((key->nb != NULL) && (ret == 0) &&
+                        (s + 1 < params->l)) {
+                    key->nb->row = (word16)(s + 1);
+                    yChk[params->l] = (word64)valid;
+                    ret = MP_WOULDBLOCK;
+                }
+            #endif
             }
 
+            /* Step 15: Hash mu and the encoded w1 a polynomial at a time. An
+             * attempt the y check rejected needs no commitment. */
+            if ((ret == 0) && valid) {
+                ret = wc_Shake256_Reset(&key->shake);
+            }
+            if ((ret == 0) && valid) {
+                ret = wc_Shake256_Update(&key->shake, mu, MLDSA_MU_SZ);
+            }
             wt = w;
-            for (r = 0; (ret == 0) && (r < params->k); r++) {
+            for (r = valid ? 0 : params->k; (ret == 0) && (r < params->k);
+                    r++) {
                 /* Step 13: w = NTT-1(A o NTT(y)) */
                 ret = mldsa_poly_red(wt);
             #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
@@ -13876,7 +13932,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 if (ret == 0) {
                     ret = mldsa_invntt_full(wt);
                 }
-                /* Step 14, Step 22: Make values positive and decompose. */
+                /* Step 14, Step 22: Make values positive and decompose. w is
+                 * kept whole and decomposed again for the hints. */
                 if (ret == 0) {
                     ret = mldsa_make_pos(wt);
                 }
@@ -13884,12 +13941,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 if (params->gamma2 == MLDSA_Q_LOW_88) {
                     /* For each value of polynomial. */
                     for (e = 0; e < MLDSA_N; e++) {
-                        /* w0 replaces w, w1 goes to the scratch polynomial. */
-                        mldsa_decompose_q88(wt[e], &wt[e], &a[e]);
+                        /* w0 goes to a, w1 to y. */
+                        mldsa_decompose_q88(wt[e], &a[e], &y[e]);
                     }
                     /* Step 15: Encode this polynomial of w1. */
                     if (ret == 0) {
-                        ret = mldsa_encode_w1_88(a, w1et);
+                        ret = mldsa_encode_w1_88(y, blocks);
                     }
                 }
             #endif
@@ -13897,35 +13954,36 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 if (params->gamma2 == MLDSA_Q_LOW_32) {
                     /* For each value of polynomial. */
                     for (e = 0; e < MLDSA_N; e++) {
-                        /* w0 replaces w, w1 goes to the scratch polynomial. */
-                        mldsa_decompose_q32(wt[e], &wt[e], &a[e]);
+                        /* w0 goes to a, w1 to y. */
+                        mldsa_decompose_q32(wt[e], &a[e], &y[e]);
                     }
                     /* Step 15: Encode this polynomial of w1. */
                     if (ret == 0) {
-                        ret = mldsa_encode_w1_32(a, w1et);
+                        ret = mldsa_encode_w1_32(y, blocks);
                     }
                 }
             #endif
             #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
                 /* Accumulate: w0 comes from the secret mask, so an early exit
                  * would leak which row rejected. */
-                valid &= mldsa_check_low(wt,
+                valid &= mldsa_check_low(a,
                     params->gamma2 - params->beta);
             #endif
+                if (ret == 0) {
+                    ret = wc_Shake256_Update(&key->shake, blocks, w1Stride);
+                }
                 wt += MLDSA_N;
-                w1et += w1Stride;
             }
 
             if ((ret == 0) && valid) {
-                /* Step 15: Hash mu and encoded w1.
-                 * Step 32: Hash is stored in signature. */
-                ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ, w1e,
-                    params->w1EncSz, commit, params->lambda / 4);
+                /* Step 32: Hash is stored in signature. */
+                ret = wc_Shake256_Final(&key->shake, commit,
+                    params->lambda / 4);
             }
             if ((ret == 0) && valid) {
                 /* Step 17: Compute c from first 256 bits of commit. */
                 ret = mldsa_sample_in_ball_ex(params->level, &key->shake,
-                    commit, params->lambda / 4, params->tau, c, blocks);
+                    commit, params->lambda / 4, params->tau, c, (byte*)y);
             }
             if ((ret == 0) && valid) {
                 /* Step 18: NTT(c). */
@@ -13941,10 +13999,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                  * discarded round; y masks which one it was. */
                 for (s = 0; (ret == 0) && valid && (s < params->l); s++) {
                     /* Vector y is not kept, so regenerate this polynomial. */
-                    /* z is overwritten by the multiply below, so it doubles
-                     * as the expansion scratch. */
                     ret = mldsa_expand_mask_poly(&key->shake, priv_rand_seed,
-                        (word16)(kappa + s), params->gamma1_bits, y, (byte*)z);
+                        (word16)(kappa + s), params->gamma1_bits, y, (byte*)a);
                     if (ret != 0) {
                         break;
                     }
@@ -13958,7 +14014,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     if (ret == 0) {
                         ret = mldsa_ntt_small(a);
                     }
-                    /* Step 19: cs1 = NTT-1(c o s1) */
+                    /* Step 19: cs1 = NTT-1(c o s1), in place as z shares a. */
                     if (ret == 0) {
                         ret = mldsa_mul(z, c, a);
                     }
@@ -14003,8 +14059,23 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
                 sp = s2p;
                 wt = w;
-                w1et = w1e;
                 for (r = 0; (ret == 0) && valid && (r < params->k); r++) {
+                    /* Decompose w again: w0 in place, w1 into y. */
+                #ifndef WOLFSSL_NO_ML_DSA_44
+                    if (params->gamma2 == MLDSA_Q_LOW_88) {
+                        for (e = 0; e < MLDSA_N; e++) {
+                            mldsa_decompose_q88(wt[e], &wt[e], &y[e]);
+                        }
+                    }
+                #endif
+                #if !defined(WOLFSSL_NO_ML_DSA_65) || \
+                    !defined(WOLFSSL_NO_ML_DSA_87)
+                    if (params->gamma2 == MLDSA_Q_LOW_32) {
+                        for (e = 0; e < MLDSA_N; e++) {
+                            mldsa_decompose_q32(wt[e], &wt[e], &y[e]);
+                        }
+                    }
+                #endif
                     ret = mldsa_vec_decode_eta_bits(sp, params->eta, a, 1);
                     if (ret == 0) {
                         ret = mldsa_ntt_small(a);
@@ -14049,10 +14120,6 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                             ret = mldsa_poly_red(z);
                         }
 
-                        /* w1 is only kept encoded, so recover the polynomial
-                         * the hint needs. */
-                        mldsa_decode_w1(w1et, params->gamma2, a);
-
                         /* Step 26, 27: Make hint from ct0 and w1 and check
                          * number of hints is valid.
                          * Step 32: h is encoded into signature.
@@ -14060,7 +14127,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     #ifndef WOLFSSL_NO_ML_DSA_44
                         if ((ret == 0) &&
                                 (params->gamma2 == MLDSA_Q_LOW_88)) {
-                            ret = mldsa_make_hint_88(z, a, h, &idx, &valid);
+                            ret = mldsa_make_hint_88(z, y, h, &idx, &valid);
                             /* Alg 14, Step 10: Store count of hints for
                              *                  polynomial at end of list. */
                             if (ret == 0) {
@@ -14072,7 +14139,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         !defined(WOLFSSL_NO_ML_DSA_87)
                         if ((ret == 0) &&
                                 (params->gamma2 == MLDSA_Q_LOW_32)) {
-                            ret = mldsa_make_hint_32(z, a, params->omega,
+                            ret = mldsa_make_hint_32(z, y, params->omega,
                                 h, &idx, &valid);
                             /* Alg 14, Step 10: Store count of hints for
                              *                  polynomial at end of list. */
@@ -14086,7 +14153,6 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     sp += sStride;
                     t0pt += MLDSA_D * MLDSA_N / 8;
                     wt += MLDSA_N;
-                    w1et += w1Stride;
                 }
                 valid &= ct0Valid;
                 /* Set remaining hints to zero. Only for a valid attempt: a
@@ -14097,7 +14163,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             }
 
-            if (!valid) {
+            if ((ret == 0) && (!valid)) {
+                /* Wipe the rejected candidate; yChk is rebuilt per column. */
+                ForceZero(w, allocSz);
+                ForceZero(sig, params->sigSz);
                 /* Too many attempts - something wrong with implementation. */
                 if ((kappa > (word16)(kappa + params->l))) {
                     ret = BAD_COND_E;
@@ -14106,34 +14175,59 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 /* Step 30: increment value to append to seed to unique value.
                  */
                 kappa = (word16)(kappa + params->l);
+            #ifdef WC_MLDSA_NONBLOCK
+                /* Rejected attempt: restart the column walk and yield. */
+                if ((key->nb != NULL) && (ret == 0)) {
+                    key->nb->kappa = kappa;
+                    key->nb->row = 0;
+                    yChk[params->l] = 1;
+                    ret = MP_WOULDBLOCK;
+                }
+            #endif
             }
         }
         /* Step 11: Check we have a valid signature. */
         while ((ret == 0) && (!valid));
     }
 
-    if ((ret != 0) && (*sigLen == params->sigSz)) {
+    if ((ret != 0) &&
+#ifdef WC_MLDSA_NONBLOCK
+        (ret != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) &&
+#endif
+        (*sigLen == params->sigSz)) {
         /* FIPS 204 3.6.3: a failed sign leaves no part of a signature. */
         ForceZero(sig, params->sigSz);
     }
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
-    /* The last expansion of y leaves rho'' recoverable from key->shake.
-     * Re-initializing clears the state but keeps what its free needs. */
-    if (wc_InitShake256(&key->shake, NULL, INVALID_DEVID) != 0) {
-        ForceZero(&key->shake, sizeof(key->shake));
-    }
+    /* The last expansion of y leaves rho'' recoverable from key->shake. */
+    mldsa_shake_wipe(&key->shake);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
 #endif
+#ifndef WC_MLDSA_NONBLOCK
     /* Checksums are derived from the secret mask y. */
     ForceZero(yChk, sizeof(yChk));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(yChk, sizeof(yChk));
 #endif
-    if (w != NULL) {
-        ForceZero(w, allocSz);
+#endif
+#ifdef WC_MLDSA_NONBLOCK
+    if ((key->nb != NULL) && (ret == WC_NO_ERR_TRACE(MP_WOULDBLOCK))) {
+        /* Yielding: keep the working allocation for the next call. */
     }
-    XFREE(w, key->heap, DYNAMIC_TYPE_MLDSA);
+    else if (key->nb != NULL) {
+        /* Final result: the context owns the allocation, even when this call
+         * failed before picking it up. */
+        mldsa_nb_release(key);
+    }
+    else
+#endif
+    {
+        if (w != NULL) {
+            ForceZero(w, allocSz);
+        }
+        XFREE(w, key->heap, DYNAMIC_TYPE_MLDSA);
+    }
     return ret;
 #endif
 }
