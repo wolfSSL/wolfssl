@@ -134,6 +134,11 @@ Threading/Mutex options:
     #endif
 #endif
 
+#ifdef MAXQ10XX_MUTEX
+    #include <errno.h>      /* EINTR from fcntl, EOWNERDEAD */
+    #include <sys/stat.h>   /* fstat */
+#endif
+
 #ifdef FREESCALE_LTC_TFM
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
@@ -3376,6 +3381,24 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
     }
 
 #elif defined(MAXQ10XX_MUTEX)
+    /* The hardware mutex lives in a POSIX shared memory object so that every
+     * process using the MAXQ10xx shares it. Creating that object and
+     * initializing the mutex in it is serialized between processes by a
+     * record lock on the object, which is released when its holder exits,
+     * and between the threads of a process by maxqInitLock.
+     *
+     * The size of the object records whether the mutex in it is ready: it is
+     * MAXQ_MUTEX_INIT_SIZE while the mutex is being initialized, and
+     * MAXQ_MUTEX_SIZE once it is ready. A process that exits part way through
+     * initializing it leaves the object to be initialized again.
+     *
+     * The mutex is robust, so a process that exits while holding it does not
+     * block the others: the next process to lock it takes it over. */
+    #define MAXQ_MUTEX_SHM_NAME  "/maxq-mutex"
+    #define MAXQ_MUTEX_SIZE      ((off_t)sizeof(pthread_mutex_t))
+    #define MAXQ_MUTEX_INIT_SIZE (MAXQ_MUTEX_SIZE + 1)
+
+    static pthread_mutex_t maxqInitLock = PTHREAD_MUTEX_INITIALIZER;
     static pthread_mutex_t *wcCryptHwSharedMutexPtr;
     static pthread_once_t key_once_own_hw_mutex = PTHREAD_ONCE_INIT;
     static pthread_key_t key_own_hw_mutex;
@@ -3392,37 +3415,82 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
         (void)pthread_key_create(&key_own_hw_mutex, destruct_key);
     }
 
-    int wc_InitMutex(wolfSSL_Mutex* m)
+    static int maxq_InitSharedMutex(pthread_mutex_t *mutex)
     {
         int ret = 0;
-        int created = 0;
-        int mutexInit = 0;
-        int shm_fd;
-        void *addr = MAP_FAILED;
+        pthread_mutexattr_t attr;
 
-        if (m != &wcCryptHwMutex) {
-            if (pthread_mutex_init(m, 0) == 0) {
-                return 0;
-            }
+        if (pthread_mutexattr_init(&attr)) {
+            WOLFSSL_MSG("wc_InitMutex: pthread_mutexattr_init() failed");
             return BAD_MUTEX_E;
         }
 
-        /* try to open mutex memory */
-        shm_fd = shm_open("/maxq-mutex", O_RDWR, 0666);
-        if (shm_fd < 0) {
-            /* create mutex memory */
-            shm_fd = shm_open("/maxq-mutex", O_RDWR | O_CREAT | O_EXCL, 0666);
-            created = 1;
+        if (pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) {
+            WOLFSSL_MSG("wc_InitMutex: pthread_mutexattr_setpshared() failed");
+            ret = BAD_MUTEX_E;
+        }
+        else if (pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST)) {
+            WOLFSSL_MSG("wc_InitMutex: pthread_mutexattr_setrobust() failed");
+            ret = BAD_MUTEX_E;
+        }
+        else if (pthread_mutex_init(mutex, &attr)) {
+            WOLFSSL_MSG("wc_InitMutex: pthread_mutex_init() failed");
+            ret = BAD_MUTEX_E;
         }
 
+        (void)pthread_mutexattr_destroy(&attr);
+        return ret;
+    }
+
+    /* Map the shared hardware mutex, creating the shared memory object and
+     * initializing the mutex in it if that has not been done yet. The caller
+     * must hold maxqInitLock. */
+    static int maxq_MapSharedMutex(pthread_mutex_t **mutex)
+    {
+        int ret = 0;
+        int initNeeded = 0;
+        int shm_fd;
+        struct stat st;
+        struct flock lock;
+        void *addr = MAP_FAILED;
+
+        shm_fd = shm_open(MAXQ_MUTEX_SHM_NAME, O_RDWR | O_CREAT, 0666);
         if (shm_fd < 0) {
             WOLFSSL_MSG("wc_InitMutex: shm_open() failed");
             return BAD_MUTEX_E;
         }
 
-        if (ftruncate(shm_fd, sizeof(pthread_mutex_t))) {
-            WOLFSSL_MSG("wc_InitMutex: ftruncate() failed");
+        /* Wait for any other process that is initializing the mutex. The lock
+         * is released when the descriptor is closed below, or when the
+         * process holding it exits. */
+        XMEMSET(&lock, 0, sizeof(lock));
+        lock.l_type = F_WRLCK;
+        lock.l_whence = SEEK_SET;
+        do {
+            ret = fcntl(shm_fd, F_SETLKW, &lock);
+        } while ((ret != 0) && (errno == EINTR));
+        if (ret != 0) {
+            WOLFSSL_MSG("wc_InitMutex: fcntl() lock failed");
             ret = BAD_MUTEX_E;
+        }
+
+        if ((ret == 0) && fstat(shm_fd, &st)) {
+            WOLFSSL_MSG("wc_InitMutex: fstat() failed");
+            ret = BAD_MUTEX_E;
+        }
+        if (ret == 0) {
+            if ((st.st_size == 0) || (st.st_size == MAXQ_MUTEX_INIT_SIZE)) {
+                /* Just created, or a process exited while initializing it. */
+                initNeeded = 1;
+                if (ftruncate(shm_fd, MAXQ_MUTEX_INIT_SIZE)) {
+                    WOLFSSL_MSG("wc_InitMutex: ftruncate() failed");
+                    ret = BAD_MUTEX_E;
+                }
+            }
+            else if (st.st_size != MAXQ_MUTEX_SIZE) {
+                WOLFSSL_MSG("wc_InitMutex: shared memory object wrong size");
+                ret = BAD_MUTEX_E;
+            }
         }
 
         if (ret == 0) {
@@ -3434,37 +3502,52 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
             }
         }
 
-        /* The descriptor is not needed after mmap(), and the mapping stays
-         * valid once it is closed. */
+        if ((ret == 0) && initNeeded) {
+            ret = maxq_InitSharedMutex((pthread_mutex_t *)addr);
+            /* Mark the mutex as ready to use. */
+            if ((ret == 0) && ftruncate(shm_fd, MAXQ_MUTEX_SIZE)) {
+                WOLFSSL_MSG("wc_InitMutex: ftruncate() failed");
+                ret = BAD_MUTEX_E;
+            }
+        }
+
+        /* Closing the descriptor releases the lock. The mapping stays valid
+         * once it is closed. */
         if (close(shm_fd)) {
             WOLFSSL_MSG("wc_InitMutex: close() failed");
             ret = BAD_MUTEX_E;
         }
 
-        if ((ret == 0) && created) {
-            /* initialize mutex */
-            pthread_mutexattr_t attr;
-            if (pthread_mutexattr_init(&attr)) {
-                WOLFSSL_MSG("wc_InitMutex: pthread_mutexattr_init() failed");
-                ret = BAD_MUTEX_E;
-            }
-            else {
-                if (pthread_mutexattr_setpshared(&attr,
-                                                 PTHREAD_PROCESS_SHARED)) {
-                    WOLFSSL_MSG(
-                        "wc_InitMutex: pthread_mutexattr_setpshared() failed");
-                    ret = BAD_MUTEX_E;
-                }
-                else if (pthread_mutex_init((pthread_mutex_t *)addr, &attr)) {
-                    WOLFSSL_MSG("wc_InitMutex: pthread_mutex_init() failed");
-                    ret = BAD_MUTEX_E;
-                }
-                else {
-                    mutexInit = 1;
-                }
-                (void)pthread_mutexattr_destroy(&attr);
-            }
+        if (ret == 0) {
+            *mutex = (pthread_mutex_t *)addr;
         }
+        else if (addr != MAP_FAILED) {
+            (void)munmap(addr, sizeof(pthread_mutex_t));
+        }
+
+        return ret;
+    }
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        int ret;
+        pthread_mutex_t *mutex = NULL;
+
+        if (m != &wcCryptHwMutex) {
+            if (pthread_mutex_init(m, 0) == 0) {
+                return 0;
+            }
+            return BAD_MUTEX_E;
+        }
+
+        /* Record locks are held by a process, so they do not exclude the
+         * other threads of this one. */
+        if (pthread_mutex_lock(&maxqInitLock)) {
+            WOLFSSL_MSG("wc_InitMutex: pthread_mutex_lock() failed");
+            return BAD_MUTEX_E;
+        }
+        ret = maxq_MapSharedMutex(&mutex);
+        (void)pthread_mutex_unlock(&maxqInitLock);
 
         if ((ret == 0) &&
                 pthread_once(&key_once_own_hw_mutex, make_key_own_hw_mutex)) {
@@ -3474,18 +3557,10 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
 
         if (ret == 0) {
             /* Only make the mutex visible once it is ready to use. */
-            wcCryptHwSharedMutexPtr = (pthread_mutex_t *)addr;
+            wcCryptHwSharedMutexPtr = mutex;
         }
-        else {
-            if (addr != MAP_FAILED) {
-                (void)munmap(addr, sizeof(pthread_mutex_t));
-            }
-            /* Remove a shared memory object created here whose mutex was
-             * never initialized. Left in place, the next open would succeed
-             * with created == 0, skip initialization and use it as is. */
-            if (created && !mutexInit) {
-                (void)shm_unlink("/maxq-mutex");
-            }
+        else if (mutex != NULL) {
+            (void)munmap((void *)mutex, sizeof(pthread_mutex_t));
         }
 
         return ret;
@@ -3563,6 +3638,19 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
             ret = pthread_mutex_lock(wcCryptHwSharedMutexPtr);
         }
 
+        if (ret == EOWNERDEAD) {
+            /* The holder exited without unlocking, part way through using the
+             * hardware. This thread now holds the mutex: mark it consistent so
+             * that it can go on being used. */
+            WOLFSSL_MSG("maxq_LockMutex: previous holder exited holding mutex");
+            ret = pthread_mutex_consistent(wcCryptHwSharedMutexPtr);
+            if (ret != 0) {
+                WOLFSSL_MSG("maxq_LockMutex: pthread_mutex_consistent() failed");
+                /* Leaves the mutex unusable, so that locking it fails. */
+                (void)pthread_mutex_unlock(wcCryptHwSharedMutexPtr);
+            }
+        }
+
         if (ret != 0) {
             return BAD_MUTEX_E;
         }
@@ -3576,7 +3664,7 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
         return maxq_LockMutex(m, 0);
     }
 
-    int maxq_CryptHwMutexTryLock()
+    int maxq_CryptHwMutexTryLock(void)
     {
         /* Make sure HW Mutex has been initialized */
         int ret = wolfSSL_CryptHwMutexInit();
