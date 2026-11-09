@@ -26,6 +26,9 @@
 
 #define WOLFSSL_TXT_DB_MAX_FIELDS 10
 
+typedef int (*wolf_lh_compare_cb)(const void* a,
+                                  const void* b);
+
 struct WOLFSSL_TXT_DB {
     int num_fields;
     WOLF_STACK_OF(WOLFSSL_STRING) *data;
@@ -33,11 +36,10 @@ struct WOLFSSL_TXT_DB {
     long arg1;
     long arg2;
     wolf_sk_hash_cb hash_fn[WOLFSSL_TXT_DB_MAX_FIELDS];
+    wolf_lh_compare_cb cmp_fn[WOLFSSL_TXT_DB_MAX_FIELDS];
 };
 
 typedef struct WOLFSSL_TXT_DB WOLFSSL_TXT_DB;
-typedef int (*wolf_lh_compare_cb)(const void* a,
-                                  const void* b);
 
 WOLFSSL_API WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num);
 WOLFSSL_API long wolfSSL_TXT_DB_write(WOLFSSL_BIO  *out, WOLFSSL_TXT_DB *db);
