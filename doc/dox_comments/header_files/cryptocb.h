@@ -1,5 +1,5 @@
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief This function registers a unique device identifier (devID) and
     callback function for offloading crypto operations to external
@@ -120,7 +120,7 @@
 int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief This function reports whether a crypto callback device identifier
     (devID) is currently registered. It is useful for checking registration
@@ -146,7 +146,7 @@ int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 int wc_CryptoCb_IsDeviceRegistered(int devId);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief This function un-registers a unique device identifier (devID)
     callback function.
@@ -169,7 +169,7 @@ int wc_CryptoCb_IsDeviceRegistered(int devId);
 void wc_CryptoCb_UnRegisterDevice(int devId);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief This function returns the default device ID for crypto
     callbacks. This is useful when you want to get the device ID that
     was set as the default for the library.
@@ -190,7 +190,7 @@ void wc_CryptoCb_UnRegisterDevice(int devId);
 int wc_CryptoCb_DefaultDevID(void);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief This function sets a callback for finding crypto devices.
     The callback is invoked when a device ID needs to be resolved to
     a device context. This is useful for dynamic device management.
@@ -215,7 +215,7 @@ int wc_CryptoCb_DefaultDevID(void);
 void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief This function converts a wc_CryptoInfo structure to a
     human-readable string for debugging purposes. The string is printed
     to stdout and describes the cryptographic operation being performed.
@@ -240,7 +240,7 @@ void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Import an AES key into a CryptoCB device for hardware offload.
 
@@ -310,7 +310,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload deriving an ECC public key Q = d*G from its private key to a
     CryptoCB device.
@@ -339,7 +339,7 @@ int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
 int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload validating an ECC key to a CryptoCB device.
 
@@ -370,7 +370,7 @@ int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
 int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload deriving an Ed25519 public key from its private key to a
     CryptoCB device.
@@ -399,7 +399,7 @@ int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
     word32 pubKeySz);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload validating an Ed25519 key to a CryptoCB device.
 
@@ -423,7 +423,7 @@ int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
 int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload Ed448 key generation to a CryptoCB device.
 
@@ -450,7 +450,7 @@ int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize, ed448_key* key);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload deriving an Ed448 public key from its private key to a
     CryptoCB device.
@@ -476,7 +476,7 @@ int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize, ed448_key* key);
 int wc_CryptoCb_Ed448MakePub(ed448_key* key, byte* pubKey, word32 pubKeySz);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload validating an Ed448 key to a CryptoCB device.
 

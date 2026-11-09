@@ -3,6 +3,7 @@
     \defgroup AES Algorithms - AES
     \defgroup ARC4 Algorithms - ARC4
     \defgroup ARGON2 Algorithms - Argon2
+    \defgroup ASCON Algorithms - Ascon
     \defgroup BLAKE2 Algorithms - BLAKE2
     \defgroup Camellia Algorithms - Camellia
     \defgroup ChaCha Algorithms - ChaCha
@@ -330,6 +331,7 @@
     \defgroup Base_Encoding Base Encoding
     \defgroup CertManager CertManager API
     \defgroup Compression Compression
+    \defgroup DSP Hexagon DSP Offload
     \defgroup Error Error Reporting
     \defgroup IoTSafe IoT-Safe Module
     IoT-Safe (IoT-SIM Applet For Secure End-2-End Communication) is a technology that leverage the SIM as robust,
@@ -348,8 +350,15 @@
     \defgroup PSA Platform Security Architecture (PSA) API
     \defgroup Keys Key and Cert Conversion
     \defgroup Logging Logging
+    \defgroup OCSP OCSP API
     \defgroup Math Math API
     \defgroup Memory Memory Handling
+    \defgroup Atomic Atomic Operations
+    \defgroup Mutex Mutexes
+    \defgroup RwLock Read/Write Locks
+    \defgroup Threading Threads and Condition Variables
+    \defgroup String String Functions
+    \defgroup File File System Helpers
     \defgroup Random Random Number Generation
     Makes the unguessable numbers used for keys and other secrets.  It
     takes a little true randomness from an entropy source and stretches
@@ -375,5 +384,6 @@
     \defgroup Setup wolfSSL Context and Session Set Up
     \defgroup IO wolfSSL Connection, Session, and I/O
     \defgroup Debug wolfSSL Error Handling and Reporting
+    \defgroup QUIC wolfSSL QUIC Support
     \defgroup STM32 STM32 Hardware Crypto Port
 */

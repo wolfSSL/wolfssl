@@ -61,14 +61,19 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  *
  * AES-GCM:
  * HAVE_AESGCM:             Enable AES-GCM mode                   default: off
- * HAVE_AESGCM_DECRYPT:     Enable AES-GCM decryption             default: on
- *                           (when HAVE_AESGCM is enabled)
+ * HAVE_AESGCM_DECRYPT:     Keep AES-GCM decryption when          default: off
+ *                           NO_AES_DECRYPT removes the rest of AES
+ *                           decryption (GCM decryption is otherwise
+ *                           built whenever HAVE_AES_DECRYPT is set)
  * WOLFSSL_AESGCM_STREAM:   Enable streaming AES-GCM API          default: off
  * WC_AESNI_GCM:            x86 AES-GCM asm in use, set by aes.c  (internal)
  * WC_AES_GCM_DEC_AUTH_EARLY: Authenticate tag before decryption  default: off
  * GCM_SMALL:               Small GCM table, saves memory         default: off
- * GCM_TABLE:               Full 4-bit GCM lookup table, faster   default: off
- * GCM_TABLE_4BIT:          Explicit 4-bit GCM table mode         default: off
+ * GCM_TABLE:               8-bit (256 entry, 4 KB per key) GCM   default: off
+ *                           table, fastest, --enable-aesgcm=table
+ * GCM_TABLE_4BIT:          4-bit (16 entry) GCM table, set by    default: off
+ *                           ./configure unless another table is
+ *                           chosen, and by WOLFSSL_ARMASM
  * GCM_WORD32:              Use 32-bit word GCM implementation    default: off
  * GCM_GMULT_LEN:           GCM GMULT length optimization         default: off
  *

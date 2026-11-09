@@ -37,7 +37,9 @@
  * WOLFSSL_EITHER_SIDE:      Allow same context for client/server  default: off
  * HAVE_TLS_EXTENSIONS:      Enable TLS extension support          default: on
  * HAVE_SNI:                 Server Name Indication extension      default: off
- * WOLFSSL_ALWAYS_KEEP_SNI:  Keep SNI after handshake              default: off
+ * WOLFSSL_ALWAYS_KEEP_SNI:  Server stores the SNI the client sent default: off
+ *                           even when it has not set one with
+ *                           wolfSSL_UseSNI()
  * HAVE_MAX_FRAGMENT:        Max Fragment Length extension          default: off
  * HAVE_TRUNCATED_HMAC:      Truncated HMAC extension              default: off
  * HAVE_SUPPORTED_CURVES:    Supported Curves extension            default: on
@@ -109,9 +111,14 @@
  * WOLFSSL_HAVE_PRF:         Enable TLS PRF function access        default: off
  * WOLFSSL_DEBUG_TLS:        Debug TLS protocol messages            default: off
  * WOLFSSL_32BIT_MILLI_TIME: 32-bit millisecond time function      default: off
- * WOLFSSL_REQUIRE_TCA:      Require Trusted CA extension          default: off
+ * WOLFSSL_REQUIRE_TCA:      Client fails the handshake when the   default: off
+ *                           server does not acknowledge the
+ *                           trusted_ca_keys extension it sent
  * WOLFSSL_DH_EXTRA:         Extra DH key info in SSL object       default: off
- * WOLFSSL_CURVE25519_BLINDING: Curve25519 blinding in TLS         default: off
+ * WOLFSSL_CURVE25519_BLINDING: Blind X25519 private key           default: on
+ *                           operations in wolfCrypt. On by default for
+ *                           the C implementation when an RNG is
+ *                           available; NO_CURVE25519_BLINDING disables
  * HAVE_NULL_CIPHER:         Allow NULL cipher suites               default: off
  * HAVE_WEBSERVER:           Enable web server features             default: off
  * NO_CERTS:                 Disable certificate processing        default: off
