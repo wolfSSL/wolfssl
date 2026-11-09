@@ -3394,8 +3394,11 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
+        int ret = 0;
         int created = 0;
-        void *addr = NULL;
+        int mutexInit = 0;
+        int shm_fd;
+        void *addr = MAP_FAILED;
 
         if (m != &wcCryptHwMutex) {
             if (pthread_mutex_init(m, 0) == 0) {
@@ -3405,7 +3408,7 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
         }
 
         /* try to open mutex memory */
-        int shm_fd = shm_open("/maxq-mutex", O_RDWR, 0666);
+        shm_fd = shm_open("/maxq-mutex", O_RDWR, 0666);
         if (shm_fd < 0) {
             /* create mutex memory */
             shm_fd = shm_open("/maxq-mutex", O_RDWR | O_CREAT | O_EXCL, 0666);
@@ -3419,51 +3422,73 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
 
         if (ftruncate(shm_fd, sizeof(pthread_mutex_t))) {
             WOLFSSL_MSG("wc_InitMutex: ftruncate() failed");
-            return BAD_MUTEX_E;
+            ret = BAD_MUTEX_E;
         }
 
-        addr = mmap(NULL, sizeof(pthread_mutex_t), PROT_READ | PROT_WRITE,
-                    MAP_SHARED, shm_fd, 0);
-
-        if (addr == MAP_FAILED) {
-            WOLFSSL_MSG("wc_InitMutex: mmap() failed");
-            return BAD_MUTEX_E;
+        if (ret == 0) {
+            addr = mmap(NULL, sizeof(pthread_mutex_t), PROT_READ | PROT_WRITE,
+                        MAP_SHARED, shm_fd, 0);
+            if (addr == MAP_FAILED) {
+                WOLFSSL_MSG("wc_InitMutex: mmap() failed");
+                ret = BAD_MUTEX_E;
+            }
         }
 
-        wcCryptHwSharedMutexPtr = (pthread_mutex_t *)addr;
-
+        /* The descriptor is not needed after mmap(), and the mapping stays
+         * valid once it is closed. */
         if (close(shm_fd)) {
             WOLFSSL_MSG("wc_InitMutex: close() failed");
-            return BAD_MUTEX_E;
+            ret = BAD_MUTEX_E;
         }
 
-        if (created) {
+        if ((ret == 0) && created) {
             /* initialize mutex */
             pthread_mutexattr_t attr;
             if (pthread_mutexattr_init(&attr)) {
                 WOLFSSL_MSG("wc_InitMutex: pthread_mutexattr_init() failed");
-                return BAD_MUTEX_E;
+                ret = BAD_MUTEX_E;
             }
-
-            if (pthread_mutexattr_setpshared(&attr,
-                                             PTHREAD_PROCESS_SHARED)) {
-                WOLFSSL_MSG(
-                    "wc_InitMutex: pthread_mutexattr_setpshared() failed");
-                return BAD_MUTEX_E;
-            }
-
-            if (pthread_mutex_init(wcCryptHwSharedMutexPtr, &attr)) {
-                WOLFSSL_MSG("wc_InitMutex: pthread_mutex_init() failed");
-                return BAD_MUTEX_E;
+            else {
+                if (pthread_mutexattr_setpshared(&attr,
+                                                 PTHREAD_PROCESS_SHARED)) {
+                    WOLFSSL_MSG(
+                        "wc_InitMutex: pthread_mutexattr_setpshared() failed");
+                    ret = BAD_MUTEX_E;
+                }
+                else if (pthread_mutex_init((pthread_mutex_t *)addr, &attr)) {
+                    WOLFSSL_MSG("wc_InitMutex: pthread_mutex_init() failed");
+                    ret = BAD_MUTEX_E;
+                }
+                else {
+                    mutexInit = 1;
+                }
+                (void)pthread_mutexattr_destroy(&attr);
             }
         }
 
-        if (pthread_once(&key_once_own_hw_mutex, make_key_own_hw_mutex)) {
+        if ((ret == 0) &&
+                pthread_once(&key_once_own_hw_mutex, make_key_own_hw_mutex)) {
             WOLFSSL_MSG("wc_InitMutex: pthread_once() failed");
-            return BAD_MUTEX_E;
+            ret = BAD_MUTEX_E;
         }
 
-        return 0;
+        if (ret == 0) {
+            /* Only make the mutex visible once it is ready to use. */
+            wcCryptHwSharedMutexPtr = (pthread_mutex_t *)addr;
+        }
+        else {
+            if (addr != MAP_FAILED) {
+                (void)munmap(addr, sizeof(pthread_mutex_t));
+            }
+            /* Remove a shared memory object created here whose mutex was
+             * never initialized. Left in place, the next open would succeed
+             * with created == 0, skip initialization and use it as is. */
+            if (created && !mutexInit) {
+                (void)shm_unlink("/maxq-mutex");
+            }
+        }
+
+        return ret;
     }
 
     int wc_FreeMutex(wolfSSL_Mutex* m)
@@ -3520,6 +3545,7 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
             memset(key_ptr, 0, sizeof(int));
 
             if (pthread_setspecific(key_own_hw_mutex, key_ptr)) {
+                XFREE(key_ptr, NULL, DYNAMIC_TYPE_OS_BUF);
                 return THREAD_STORE_SET_E;
             }
         }
