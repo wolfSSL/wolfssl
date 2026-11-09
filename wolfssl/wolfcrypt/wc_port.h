@@ -1023,7 +1023,8 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
     defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG) || \
     defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD) || \
     defined(WOLFSSL_RTL8735B_HUK) || defined(WOLFSSL_SEC_QORIQ) || \
-    defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT)
+    defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT) || \
+    defined(WOLFSSL_NRF54L_CRACEN)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif

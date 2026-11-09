@@ -165,6 +165,14 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/nuvoton/nuvoton_cb_pk.c \
               wolfcrypt/src/port/nuvoton/nuvoton_key.c \
               wolfcrypt/src/port/nuvoton/README.md \
+              wolfcrypt/src/port/nordic/cracen_hw_bare.c \
+              wolfcrypt/src/port/nordic/cracen_hw_shim.c \
+              wolfcrypt/src/port/nordic/cracen_cryptocb.c \
+              wolfcrypt/src/port/nordic/cracen_cb_hash.c \
+              wolfcrypt/src/port/nordic/cracen_cb_cipher.c \
+              wolfcrypt/src/port/nordic/cracen_cb_cmac.c \
+              wolfcrypt/src/port/nordic/cracen_cb_rng.c \
+              wolfcrypt/src/port/nordic/README.md \
               wolfcrypt/src/port/st/stm32.c \
               wolfcrypt/src/port/st/README.md \
               wolfcrypt/src/port/st/STM32MP13.md \
@@ -388,6 +396,16 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/silabs/silabs_cb_cmac
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/silabs/silabs_cb_pk.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/silabs/silabs_cb_kdf.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/silabs/silabs_key.c
+endif
+
+if BUILD_CRACEN
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nordic/cracen_hw_bare.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nordic/cracen_hw_shim.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nordic/cracen_cryptocb.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nordic/cracen_cb_hash.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nordic/cracen_cb_cipher.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nordic/cracen_cb_cmac.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nordic/cracen_cb_rng.c
 endif
 
 if BUILD_PSA

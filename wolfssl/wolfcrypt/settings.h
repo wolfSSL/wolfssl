@@ -494,6 +494,10 @@
     #include <wolfssl/wolfcrypt/port/nuvoton/nuvoton_settings.h>
 #endif
 
+#if defined(WOLFSSL_NRF54L_CRACEN)
+    #include <wolfssl/wolfcrypt/port/nordic/cracen_settings.h>
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still

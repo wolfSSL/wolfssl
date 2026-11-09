@@ -4196,6 +4196,54 @@ then
 fi
 
 
+# Nordic nRF54L CRACEN crypto-callback port.
+#
+#   host-test (the default for a bare --enable-cracen)
+#       Builds the port against a shim (WOLFSSL_CRACEN_HOST_TEST) that declines
+#       every operation, so the dispatch and the fall-back paths compile and
+#       run on the host.
+#
+#   emulate
+#       Host build whose shim computes every operation in software behind the
+#       hardware interface (WOLFSSL_CRACEN_HOST_EMULATE) and registers as the
+#       default device, so the test suite exercises the callback logic.
+#
+#   target
+#       The register-level driver, for a cross build. Needs no vendor SDK.
+#
+# Example: "./configure --enable-cracen --enable-aesctr --enable-aesecb --enable-cmac"
+ENABLED_CRACEN="no"
+AC_ARG_ENABLE([cracen],
+    [AS_HELP_STRING([--enable-cracen@<:@=host-test|emulate|target@:>@],
+        [Enable Nordic nRF54L CRACEN crypto-callback port. Default host-test, which builds the port against a shim and needs no hardware.])],
+    [ ENABLED_CRACEN=$enableval ],
+    [ ENABLED_CRACEN=no ])
+
+if test "x$ENABLED_CRACEN" = "xyes"
+then
+    ENABLED_CRACEN="host-test"
+fi
+
+if test "x$ENABLED_CRACEN" != "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NRF54L_CRACEN"
+
+    case "$ENABLED_CRACEN" in
+        host-test)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CRACEN_HOST_TEST"
+            ;;
+        emulate)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CRACEN_HOST_TEST -DWOLFSSL_CRACEN_HOST_EMULATE"
+            ;;
+        target)
+            ;;
+        *)
+            AC_MSG_ERROR([unknown --enable-cracen value '$ENABLED_CRACEN'; use host-test, emulate or target])
+            ;;
+    esac
+fi
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -12269,7 +12317,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes" || test "x$ENABLED_ELE" != "xno"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes" || test "x$ENABLED_ELE" != "xno" || test "x$ENABLED_CRACEN" != "xno"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -14522,6 +14570,7 @@ AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
 AM_CONDITIONAL([BUILD_SILABS_CRYPTOCB],[test "x$ENABLED_SILABS_CRYPTOCB" != "xno"])
+AM_CONDITIONAL([BUILD_CRACEN],[test "x$ENABLED_CRACEN" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
