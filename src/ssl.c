@@ -3161,6 +3161,21 @@ static int CheckcipherList(const char* list)
     return ret;
 }
 
+/* Does the list have a "-ALL" or "!ALL" token? */
+static int CipherListRemovesAll(const char* list)
+{
+    const char* p = list;
+
+    while ((p = XSTRSTR(p, "ALL")) != NULL) {
+        if (p > list && (p[-1] == '-' || p[-1] == '!') &&
+                (p - 1 == list || p[-2] == ':') &&
+                (p[3] == ':' || p[3] == '\0'))
+            return 1;
+        p += 3;
+    }
+    return 0;
+}
+
 /* parse some bulk lists like !eNULL / !aNULL
  *
  * returns WOLFSSL_SUCCESS on success and sets the cipher suite list
@@ -3171,6 +3186,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int     ret = 0;
     int     listattribute = 0;
     int     tls13Only = 0;
+    int     removeAll;
     WC_DECLARE_VAR(suitesCpy, byte, WOLFSSL_MAX_SUITE_SZ, 0);
     word16  suitesCpySz = 0;
     word16  i = 0;
@@ -3181,7 +3197,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         return WOLFSSL_FAILURE;
     }
 
-    listattribute = CheckcipherList(list);
+    /* "-ALL" and "!ALL" only set the TLS 1.2 and lower suites. */
+    removeAll = CipherListRemovesAll(list);
+    /* A new CTX has no suites yet: start from its defaults. */
+    if (removeAll && ctx != NULL && suites->suiteSz == 0)
+        InitSSL_CTX_Suites(ctx, suites);
+    listattribute = removeAll ? 1 : CheckcipherList(list);
 
     if (listattribute == 0) {
        /* list has mixed(pre-TLSv13 and TLSv13) suites
@@ -3238,6 +3259,20 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     ret = SetCipherList_ex(ctx, ssl, suites, list);
     if (ret != 1) {
+        if (removeAll) {
+            /* Nothing was added back: keep the TLS 1.3 suites and fail, as
+             * OpenSSL. */
+            suites->suiteSz = 0;
+            for (i = 0; i < suitesCpySz; i += 2) {
+                if (suitesCpy[i] == TLS13_BYTE || (suitesCpy[i] == CIPHER_BYTE
+                        && suitesCpy[i + 1] ==
+                        TLS_EMPTY_RENEGOTIATION_INFO_SCSV)) {
+                    suites->suites[suites->suiteSz++] = suitesCpy[i];
+                    suites->suites[suites->suiteSz++] = suitesCpy[i + 1];
+                }
+            }
+            suites->setSuites = 1;
+        }
         WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }

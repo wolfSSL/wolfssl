@@ -34047,6 +34047,7 @@ static int ParseCipherList(Suites* suites,
     word16    haveRC4          = 1; /* allowed by default if compiled in */
     int       excludeAnon      = 0; /* "!aNULL"/DEFAULT seen (applied at end) */
     int       excludeNull      = 0; /* "!eNULL"/"!NULL"/DEFAULT seen */
+    int       removeAll        = 0; /* 1: "-ALL" seen, 2: "!ALL" seen */
 #endif
     int       tls1_3        = 0;
     const int suiteSz       = GetCipherNamesSize();
@@ -34121,6 +34122,20 @@ static int ParseCipherList(Suites* suites,
 
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+        /* "-ALL" and "!ALL" delete every TLS 1.2 and lower suite. A "!"
+         * delete is permanent. */
+        if ((!allowing && XSTRCMP(name, "ALL") == 0) ||
+                XSTRCMP(name, "-ALL") == 0) {
+            removeAll = (!allowing || removeAll == 2) ? 2 : 1;
+            idx = 0;
+            callInitSuites = 0;
+            ret = 0;
+            continue;
+        }
+        /* "+" only moves suites. */
+        if (removeAll && *current == '+')
+            continue;
+
         if (length > 1) {
             char* substr = NULL;
             char* substrCurrent = name;
@@ -34363,6 +34378,17 @@ static int ParseCipherList(Suites* suites,
              ) {
                 int j;
 
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+                /* The TLS 1.3 suites are set apart. ALL has no NULL ciphers,
+                 * so only those are left after "!ALL". */
+                if (removeAll && (cipher_names[i].cipherSuite0 == TLS13_BYTE ||
+                        cipher_names[i].minor == TLSv1_3_MINOR ||
+                        (removeAll == 2 &&
+                         XSTRSTR(cipher_names[i].name, "NULL") == NULL))) {
+                    break;
+                }
+            #endif
+
             #ifdef WOLFSSL_DTLS
                 /* don't allow stream ciphers with DTLS */
                 if (version.major == DTLS_MAJOR) {
@@ -34495,6 +34521,15 @@ static int ParseCipherList(Suites* suites,
     if (excludeNull) {
         haveNull = 0;
         RemoveExcludedSuites(suites->suites, &idx, 0, 1);
+    }
+    if (removeAll) {
+        /* "!ALL" also deletes what keywords add back. */
+        if (removeAll == 2)
+            callInitSuites = 0;
+        if (idx == 0 && !callInitSuites) {
+            WOLFSSL_MSG("Cipher list removes all TLS 1.2 and lower suites");
+            return 0;
+        }
     }
     /* If the user named suites but every one was excluded, fail like OpenSSL
      * (empty list) rather than silently returning an unusable suite set.

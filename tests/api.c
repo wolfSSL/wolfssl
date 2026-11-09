@@ -3168,6 +3168,187 @@ static int test_wolfSSL_get_ciphers_after_set_cipher_list(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION)
+/* Is this a suite only TLS 1.3 negotiates? */
+static int test_is_tls13_suite(byte first, byte second)
+{
+    if (first == TLS13_BYTE)
+        return 1;
+#ifdef HAVE_NULL_CIPHER
+    if (first == ECC_BYTE && (second == TLS_SHA256_SHA256 ||
+            second == TLS_SHA384_SHA384))
+        return 1;
+#endif
+#if (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+    defined(WOLFSSL_SM3)
+    if (first == CIPHER_BYTE && (second == TLS_SM4_GCM_SM3 ||
+            second == TLS_SM4_CCM_SM3))
+        return 1;
+#endif
+    (void)second;
+    return 0;
+}
+
+/* Count the TLS 1.3 suites, or -1 when any other suite is present. */
+static int test_count_tls13_only(const Suites* suites)
+{
+    int cnt = 0;
+    word16 i;
+
+    for (i = 0; suites != NULL && i + 1 < suites->suiteSz; i += 2) {
+        if (!test_is_tls13_suite(suites->suites[i], suites->suites[i + 1]))
+            return -1;
+        cnt++;
+    }
+    return cnt;
+}
+
+/* Count the suites that are not TLS 1.3 suites. */
+static int test_count_tls12(const Suites* suites)
+{
+    int cnt = 0;
+    word16 i;
+
+    for (i = 0; suites != NULL && i + 1 < suites->suiteSz; i += 2) {
+        if (!test_is_tls13_suite(suites->suites[i], suites->suites[i + 1]))
+            cnt++;
+    }
+    return cnt;
+}
+#endif
+
+/* "-ALL" and "!ALL" drop every TLS 1.2 and lower suite and keep TLS 1.3.
+ * The call still fails, as in OpenSSL. */
+static int test_wolfSSL_set_cipher_list_remove_all(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION)
+    static const char* lists[] = {
+        "-ALL", "!ALL", "ALL:-ALL", "-ALL:!aNULL", "!ALL:ALL", "-ALL:+RSA",
+        "-ALL:@STRENGTH", "-ALL:@SECLEVEL=0", "-ALL:TLS_AES_128_GCM_SHA256",
+        "-ALL:TLS13-AES128-GCM-SHA256", "!ALL:ECDHE-RSA-AES128-GCM-SHA256",
+        "-ALL:ECDHE-RSA-AES128-GCM-SHA256:-ALL"
+    };
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    const Suites* suites = NULL;
+    size_t i;
+
+    for (i = 0; i < sizeof(lists) / sizeof(*lists); i++) {
+        int tls13 = 0;
+        word16 j;
+
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectNotNull(suites = (ssl != NULL) ? WOLFSSL_SUITES(ssl) : NULL);
+        for (j = 0; suites != NULL && j + 1 < suites->suiteSz; j += 2) {
+            if (test_is_tls13_suite(suites->suites[j], suites->suites[j + 1]))
+                tls13++;
+        }
+        ExpectIntGT(tls13, 0);
+        ExpectIntEQ(test_count_tls13_only(suites), -1);
+        ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl, lists[i]), WOLFSSL_FAILURE);
+        ExpectIntEQ(test_count_tls13_only(ssl->suites), tls13);
+        ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+        ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk), tls13);
+
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, lists[i]),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(test_count_tls13_only(ctx->suites), tls13);
+
+        wolfSSL_free(ssl);
+        ssl = NULL;
+        wolfSSL_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    /* A suite named after "-ALL" is added back. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "-ALL:ECDHE-RSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls13_only(ssl->suites), -1);
+    /* "+" only reorders: nothing more is added. */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "-ALL:+RSA:ECDHE-RSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls12(ssl->suites), 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+    /* ALL has no NULL ciphers, so "!ALL" leaves them to be added. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "!ALL:ECDHE-ECDSA-NULL-SHA"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls12(ssl->suites), 1);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "!ALL:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-NULL-SHA"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls12(ssl->suites), 1);
+    ExpectIntEQ(ssl->suites->suites[ssl->suites->suiteSz - 2], ECC_BYTE);
+    ExpectIntEQ(ssl->suites->suites[ssl->suites->suiteSz - 1],
+        TLS_ECDHE_ECDSA_WITH_NULL_SHA);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* "-ALL" on a CTX before any SSL is made keeps the default TLS 1.3 suites. */
+static int test_wolfSSL_CTX_set_cipher_list_remove_all_new(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && !defined(NO_RSA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    static const char* lists[] = { "-ALL", "!ALL" };
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    size_t i;
+
+    for (i = 0; i < sizeof(lists) / sizeof(*lists); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+            WOLFSSL_SUCCESS);
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c, lists[i]),
+            WOLFSSL_FAILURE);
+        ExpectIntGT(test_count_tls13_only(ctx_c->suites), 0);
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfSSLv23_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntGT(test_count_tls13_only(WOLFSSL_SUITES(ssl_c)), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_3_VERSION);
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
 #ifdef TEST_CIPHER_EXCLUDE_ANON
     #undef TEST_CIPHER_EXCLUDE_ANON
 #endif
@@ -47842,6 +48023,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_no_range),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
     TEST_DECL(test_wolfSSL_get_ciphers_after_set_cipher_list),
+    TEST_DECL(test_wolfSSL_set_cipher_list_remove_all),
+    TEST_DECL(test_wolfSSL_CTX_set_cipher_list_remove_all_new),
     TEST_DECL(test_tls13_null_cipher_default_list),
     TEST_DECL(test_tls13_null_cipher_explicit_keep),
     TEST_DECL(test_wolfSSL_SSL_set_ciphersuites),
