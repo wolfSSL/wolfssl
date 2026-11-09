@@ -15429,6 +15429,9 @@ static int WildcardPlacementOK(const char* pattern, word32 patternLen)
    If flags contains WOLFSSL_LEFT_MOST_WILDCARD_ONLY, wildcard only applies
    to left-most name component, compatible with RFC 2830 identity checking.
 
+   WOLFSSL_NO_WILDCARDS makes every '*' literal. WOLFSSL_NO_PARTIAL_WILDCARDS
+   does so unless the left-most label is exactly "*".
+
    return 1 on success */
 int MatchDomainName(const char* pattern, int patternLen, const char* str,
                     word32 strLen, unsigned int flags)
@@ -15439,6 +15442,12 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
 
     if (pattern == NULL || str == NULL || patternLen <= 0 || strLen == 0)
         return 0;
+
+    if ((flags & WOLFSSL_NO_WILDCARDS) ||
+            ((flags & WOLFSSL_NO_PARTIAL_WILDCARDS) &&
+             (patternLen < 2 || pattern[0] != '*' || pattern[1] != '.'))) {
+        wildcardEligible = 0;
+    }
 
 #if defined(WOLFSSL_IP_ALT_NAME) && !defined(WOLFSSL_USER_IO)
     /* First try to match IPv6 addresses */

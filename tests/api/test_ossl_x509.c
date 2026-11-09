@@ -425,9 +425,12 @@ int test_wolfSSL_X509_check_host(void)
             WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL),
             WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
+    /* An exact SAN match needs no wildcard. */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, altName, XSTRLEN(altName),
-        WOLFSSL_NO_WILDCARDS, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        WOLFSSL_NO_WILDCARDS, NULL), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_check_host(x509, altName, XSTRLEN(altName),
+        WOLFSSL_NO_PARTIAL_WILDCARDS, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, badAltName, XSTRLEN(badAltName),
         WOLFSSL_NO_PARTIAL_WILDCARDS, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(wolfSSL_X509_check_host(x509, altName, XSTRLEN(altName),
         WOLFSSL_MULTI_LABEL_WILDCARDS, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -2221,6 +2224,22 @@ int test_wolfSSL_MatchDomainName_wildcard(void)
         { "h*",                  "host",
           WOLFSSL_LEFT_MOST_WILDCARD_ONLY, 0,
           "single-label host, partial wildcard" },
+
+        /* Wildcard restricting flags, as in OpenSSL X509_check_host(). */
+        { "*.example.com",       "foo.example.com",
+          WOLFSSL_NO_PARTIAL_WILDCARDS, 1, "whole label wildcard" },
+        { "a*.example.com",      "abc.example.com",
+          WOLFSSL_NO_PARTIAL_WILDCARDS, 0, "partial wildcard refused" },
+        { "*c.example.com",      "abc.example.com",
+          WOLFSSL_NO_PARTIAL_WILDCARDS, 0, "partial wildcard refused 2" },
+        { "a*.example.com",      "a*.example.com",
+          WOLFSSL_NO_PARTIAL_WILDCARDS, 1, "refused wildcard is literal" },
+        { "www.example.com",     "WWW.example.com",
+          WOLFSSL_NO_PARTIAL_WILDCARDS, 1, "exact name" },
+        { "*.example.com",       "foo.example.com",
+          WOLFSSL_NO_WILDCARDS, 0, "no wildcards" },
+        { "www.example.com",     "www.example.com",
+          WOLFSSL_NO_WILDCARDS, 1, "no wildcards, exact name" },
     };
     size_t i;
 
