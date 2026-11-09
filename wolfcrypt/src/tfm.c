@@ -4376,20 +4376,10 @@ void fp_zero(fp_int *a)
 
 void fp_clear(fp_int *a)
 {
-#ifdef HAVE_FIPS
+    /* Wipe as fp_forcezero does. The fp_int is usually not used again, so
+     * the compiler may remove a plain memset as a dead store and leave the
+     * digits in memory. */
     fp_forcezero(a);
-#else
-    int size;
-    a->used = 0;
-    a->sign = FP_ZPOS;
-#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
-    size = a->size;
-#else
-    size = FP_SIZE;
-#endif
-    XMEMSET(a->dp, 0, size * sizeof(fp_digit));
-    fp_free(a);
-#endif
 }
 
 void fp_forcezero (mp_int * a)
