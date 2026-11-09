@@ -264,6 +264,14 @@ config WOLFSSL_DTLS_VERSION_1_3
     Enable DTLS 1.3 (WOLFSSL_DTLS13). Zephyr's socket API offers DTLS 1.2
     only, so this serves applications that use the wolfSSL API directly.
 
+config WOLFSSL_DTLS_CID
+  bool "DTLS Connection ID"
+  depends on WOLFSSL_DTLS
+  help
+    Enable the DTLS Connection ID extension (WOLFSSL_DTLS_CID) for DTLS 1.2
+    (RFC 9146) and DTLS 1.3 (RFC 9147), which lets a peer keep its session
+    when its address changes.
+
 config WOLFSSL_ALPN
   bool "wolfSSL ALPN support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE

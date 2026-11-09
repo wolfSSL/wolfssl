@@ -277,6 +277,9 @@ extern "C" {
     #define WOLFSSL_DTLS
     #define HAVE_SOCKADDR
 #endif
+#if defined(CONFIG_WOLFSSL_DTLS_CID)
+    #define WOLFSSL_DTLS_CID
+#endif
 #if defined(CONFIG_WOLFSSL_DTLS_VERSION_1_3)
     #define WOLFSSL_DTLS13
     #define WOLFSSL_SEND_HRR_COOKIE
