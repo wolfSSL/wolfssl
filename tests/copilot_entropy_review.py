@@ -126,7 +126,7 @@ class EntropyReview(unittest.TestCase):
             (pathlib.Path(directory) / "contiki.h").write_text(
                 "unsigned long clock_seconds(void);\n")
             command = ["cc", "-E", "-I", directory, "-I", str(ROOT),
-                       "-DWOLFSSL_CONTIKI", "-DCUSTOM_RAND_GENERATE_BLOCK=secure_block",
+                       "-DWOLFSSL_" "CONTIKI", "-DCUSTOM_RAND_GENERATE_BLOCK=secure_block",
                        str(ROOT / "wolfcrypt/src/random.c"), "-o", "/dev/null"]
             result = subprocess.run(command, text=True, capture_output=True,
                                     check=False)

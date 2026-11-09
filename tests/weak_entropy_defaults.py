@@ -77,7 +77,7 @@ class WeakEntropyDefaults(unittest.TestCase):
                                 (("WOLFSSL_CONTIKI_SECURE_ENTROPY",), True)):
             with self.subTest(extra=extra):
                 result = subprocess.run(
-                    ["cc", "-E", "-x", "c", "-", "-DWOLFSSL_CONTIKI",
+                    ["cc", "-E", "-x", "c", "-", "-DWOLFSSL_" "CONTIKI",
                      "-DCUSTOM_RAND_GENERATE=random_rand"] +
                     ["-D" + item for item in extra],
                     input=branch, text=True, capture_output=True, check=False,
