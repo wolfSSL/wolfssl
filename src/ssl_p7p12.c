@@ -1967,6 +1967,9 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                                     DYNAMIC_TYPE_DCERT);
     if (DeCert == NULL) {
         WOLFSSL_MSG("out of memory");
+        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
+        wc_FreeCertList(certList, heap);
         return WOLFSSL_FAILURE;
     }
 #endif
