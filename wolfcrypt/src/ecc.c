@@ -14408,23 +14408,11 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 }
 
 #ifdef ECC_TIMING_RESISTANT
-/* Clear n digits of an mp_int that holds at least that many. mp_forcezero() is
- * not usable between table reads: it frees the digits of a heap-math mp_int.
- */
-static void fp_lut_clear(mp_int* dst, int n)
-{
-    int i;
-
-    for (i = 0; i < n; i++) {
-        dst->dp[i] = 0;
-    }
-    dst->used = 0;
-}
-
 /* Select dst = src when sel is non-zero without branching on sel, reading the
  * same digits of src whatever the value of sel.
  *
- * dst must have been cleared and hold at least n digits.
+ * dst must hold at least n digits. Its digits are overwritten only when
+ * selected, so exactly one call per lookup must select.
  */
 static void fp_lut_select(mp_int* dst, mp_int* src, int n, word32 sel)
 {
@@ -14434,9 +14422,10 @@ static void fp_lut_select(mp_int* dst, mp_int* src, int n, word32 sel)
 
     mask = (mp_digit)0 - (mp_digit)(((sel | (0U - sel)) >> 31) & 1U);
     for (i = 0; i < n; i++) {
-        dst->dp[i] |= mp_get_digit(src, i) & mask;
+        dst->dp[i] = (dst->dp[i] & ~mask) | (mp_get_digit(src, i) & mask);
     }
-    dst->used |= (wc_mp_size_t)((mp_digit)src->used & mask);
+    dst->used = (wc_mp_size_t)(((mp_digit)dst->used & ~mask) |
+        ((mp_digit)src->used & mask));
 }
 
 /* Double and always add over the comb, reading every table entry each step.
@@ -14501,8 +14490,6 @@ static int fp_comb_ct(int idx, const unsigned char* kb, unsigned lut_gap,
         err = ecc_projective_dbl_point_safe(R, R, a, modulus, mp);
 
         if (err == MP_OKAY) {
-            fp_lut_clear(Q->x, n);
-            fp_lut_clear(Q->y, n);
             for (j = 1; j < (1U << FP_LUT); j++) {
                 volatile word32 sel = (word32)(j ^ z);
                 /* 1 when j == z, or for the dummy when z is zero */
@@ -14667,7 +14654,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
       z = 0;
       err = fp_comb_ct(idx, kb, lut_gap, R, a, modulus, mp, rng);
       ForceZero(kb, KB_SIZE);
-   #else
+#else
    if ((err = mp_to_unsigned_bin(tk, kb)) == MP_OKAY) {
    #ifdef WOLFSSL_CHECK_MEM_ZERO
       wc_MemZero_Add("accel_fp_mul kb", kb, KB_SIZE);
@@ -14725,7 +14712,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
       if ((err == MP_OKAY) && (first == 1)) {
          err = ecc_set_point_infinity(R);
       }
-   #endif /* ECC_TIMING_RESISTANT */
+#endif /* ECC_TIMING_RESISTANT */
    }
 
    if (err == MP_OKAY) {

@@ -3237,7 +3237,7 @@ int mp_addmod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
   int     res;
   mp_int  t;
   mp_int* r = d;
-  mp_digit u, borrow;
+  mp_digit u, borrow, val;
   volatile mp_digit mask;
   volatile mp_digit mask_a = (mp_digit)-1;
   volatile mp_digit mask_b = (mp_digit)-1;
@@ -3278,19 +3278,17 @@ int mp_addmod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
 
   borrow = 0;
   for (i = 0; i < c->used; i++) {
-    mp_digit val = r->dp[i] - c->dp[i] - borrow;
+    val = r->dp[i] - c->dp[i] - borrow;
     borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
   }
-  {
-    mp_digit val = r->dp[c->used] - borrow;
-    borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
-  }
+  val = r->dp[c->used] - borrow;
+  borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
 
   mask = (mp_digit)0 - (1 - borrow);
 
   borrow = 0;
   for (i = 0; i < c->used; i++) {
-    mp_digit val = r->dp[i] - (c->dp[i] & mask) - borrow;
+    val = r->dp[i] - (c->dp[i] & mask) - borrow;
     r->dp[i] = val & MP_MASK;
     borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
   }

@@ -569,7 +569,8 @@ static int sakke_rand_nonzero_mod_q(SakkeKey* key, mp_int* r, WC_RNG* rng)
 {
     int err = 0;
     int genTryCnt = 0;
-    int digits = (key->ecc.dp->size * 8 + DIGIT_BIT - 1) / DIGIT_BIT;
+    /* 64 more bits than q so that reducing modulo q has negligible bias. */
+    int digits = (key->ecc.dp->size * 8 + 64 + DIGIT_BIT - 1) / DIGIT_BIT;
 
     do {
         /* Don't infinitely loop on random number generation failure. */

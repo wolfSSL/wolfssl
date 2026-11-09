@@ -1975,8 +1975,8 @@ int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
 
 /* Compute r = a^-1 mod m with a blinded by a random factor.
  *
- * The factor is tested for an inverse by itself, so that whether one is used
- * does not depend on a, and a failure with it means that a has no inverse.
+ * When a*b has no inverse, the factor b is tested by itself: if it has one then
+ * a has none, otherwise another factor is tried.
  * Invert directly when there is no random number generator or no factor found:
  * this API has no way to ask for blinding, so it must not start failing for
  * lack of it. r may alias a or m.
@@ -2008,23 +2008,28 @@ static int wolfssl_bn_invmod_blind(mp_int* a, const WOLFSSL_BIGNUM* m,
             if (mp_iszero((mp_int*)b->internal)) {
                 continue;
             }
-            err = mp_invmod((mp_int*)b->internal, mod, (mp_int*)t->internal);
+            err = mp_mulmod(a, (mp_int*)b->internal, mod, (mp_int*)t->internal);
             if (err == MP_OKAY) {
-                found = 1;
+                err = mp_invmod((mp_int*)t->internal, mod,
+                    (mp_int*)t->internal);
+                if (err == MP_OKAY) {
+                    err = mp_mulmod((mp_int*)t->internal, (mp_int*)b->internal,
+                        mod, (mp_int*)t->internal);
+                    found = (err == MP_OKAY);
+                }
+                else if (err == WC_NO_ERR_TRACE(MP_VAL)) {
+                    /* b has an inverse, so a has none: fail. Otherwise b
+                     * shares a factor with m: try another. */
+                    err = mp_invmod((mp_int*)b->internal, mod,
+                        (mp_int*)t->internal);
+                    if (err == MP_OKAY) {
+                        err = MP_VAL;
+                    }
+                    else if (err == WC_NO_ERR_TRACE(MP_VAL)) {
+                        err = MP_OKAY;
+                    }
+                }
             }
-            else if (err == WC_NO_ERR_TRACE(MP_VAL)) {
-                err = MP_OKAY;
-            }
-        }
-    }
-    if ((err == MP_OKAY) && found) {
-        err = mp_mulmod(a, (mp_int*)b->internal, mod, (mp_int*)t->internal);
-        if (err == MP_OKAY) {
-            err = mp_invmod((mp_int*)t->internal, mod, (mp_int*)t->internal);
-        }
-        if (err == MP_OKAY) {
-            err = mp_mulmod((mp_int*)t->internal, (mp_int*)b->internal, mod,
-                (mp_int*)t->internal);
         }
     }
 #else
