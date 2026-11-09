@@ -12945,6 +12945,7 @@ int test_tls13_ticket_peer_cert_reverify(void)
      * fallback that may see stale cache state. */
 #ifdef WOLFSSL_DYNAMIC_PEER_CERT
     ExpectNull(ssl_s->peerCert);
+    ExpectNull(ssl_s->peerCertDer);
 #else
     ExpectIntEQ(ssl_s->peerCert.issuer.sz, 0);
 #endif

@@ -6182,6 +6182,7 @@ void FreePeerCert(WOLFSSL* ssl)
         wolfSSL_X509_free(ssl->peerCert);
         ssl->peerCert = NULL;
     }
+    FreeDer(&ssl->peerCertDer);
 #else
     FreeX509(&ssl->peerCert);
     InitX509(&ssl->peerCert, 0, ssl->heap);
@@ -16633,6 +16634,116 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     return ret;
 }
 
+#if defined(KEEP_PEER_CERT) && !defined(NO_ASN)
+/* Make the certificate in dCert the kept peer certificate, keeping only its
+ * encoding when the X509 object can be built from it later.
+ *
+ * With WOLFSSL_DYNAMIC_PEER_CERT, GetPeerCert() builds the X509 object from
+ * the encoding on first use, so a connection whose application never asks for
+ * it does not hold the decoded object, its names and their entries. Otherwise
+ * the object is filled in now, as by SetPeerCert().
+ *
+ * Only for a certificate that was parsed without error, so that decoding it
+ * again succeeds. Use SetPeerCert() for one accepted despite an error.
+ *
+ * @param [in, out] ssl    SSL/TLS object.
+ * @param [in]      dCert  Decoded peer certificate, with its encoding.
+ * @return  0 on success.
+ * @return  MEMORY_E when the encoding cannot be stored; no cert is kept.
+ * @return  Other error from SetPeerCert().
+ */
+int SetPeerCertDer(WOLFSSL* ssl, DecodedCert* dCert)
+{
+#ifdef WOLFSSL_DYNAMIC_PEER_CERT
+    if ((dCert->source != NULL) && (dCert->maxIdx > 0)) {
+        FreePeerCert(ssl);
+        if (AllocCopyDecodedDer(&ssl->peerCertDer, dCert->source,
+                dCert->maxIdx, dCert->srcIdx, ssl->heap) != 0) {
+            return MEMORY_E;
+        }
+        return 0;
+    }
+#endif
+    return SetPeerCert(ssl, dCert);
+}
+
+#ifdef WOLFSSL_DYNAMIC_PEER_CERT
+/* Build the kept peer certificate object from the kept encoding.
+ *
+ * Only the encoding of a certificate that parsed without error is kept, and
+ * the certificate was verified when it was received, so it is only decoded
+ * here, as by d2i_X509(). A copy that fails part way is still kept, as by
+ * SetPeerCert(). When memory runs out the encoding is kept instead, so a
+ * later call can try again.
+ *
+ * @param [in, out] ssl  SSL/TLS object with only the encoding kept.
+ */
+static void BuildPeerCert(WOLFSSL* ssl)
+{
+    int ret = 0;
+    WOLFSSL_X509* x509 = NULL;
+    WC_DECLARE_VAR(dCert, DecodedCert, 1, ssl->heap);
+
+    WC_ALLOC_VAR_EX(dCert, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
+        ret = MEMORY_E);
+    if (ret == 0) {
+        InitDecodedCert(dCert, ssl->peerCertDer->buffer,
+            ssl->peerCertDer->length, ssl->heap);
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        /* CopyDecodedToX509() adds the name entries to the X509 directly. */
+        dCert->noX509Name = 1;
+    #endif
+        ret = ParseCertRelative(dCert, CERT_TYPE, NO_VERIFY, NULL, NULL);
+        if (ret == 0) {
+            x509 = wolfSSL_X509_new_ex(ssl->heap);
+            if (x509 == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+        if (ret == 0) {
+            ret = CopyDecodedToX509(x509, dCert);
+            if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
+                wolfSSL_X509_free(x509);
+                x509 = NULL;
+            }
+        }
+        FreeDecodedCert(dCert);
+        WC_FREE_VAR_EX(dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
+    }
+
+    if (x509 != NULL) {
+        /* The object has its own copy of the encoding. */
+        FreeDer(&ssl->peerCertDer);
+        ssl->peerCert = x509;
+    }
+    else {
+        WOLFSSL_MSG("Unable to build peer certificate from its encoding");
+    }
+}
+#endif /* WOLFSSL_DYNAMIC_PEER_CERT */
+#endif /* KEEP_PEER_CERT && !NO_ASN */
+
+#if defined(KEEP_PEER_CERT) && defined(WOLFSSL_DYNAMIC_PEER_CERT)
+/* Get the kept peer certificate object.
+ *
+ * When only the certificate's encoding is kept, the object is built from it
+ * now and kept in its place.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  Kept peer certificate object.
+ * @return  NULL when no certificate is kept or the object cannot be built.
+ */
+WOLFSSL_X509* GetPeerCert(WOLFSSL* ssl)
+{
+#ifndef NO_ASN
+    if ((ssl->peerCert == NULL) && (ssl->peerCertDer != NULL)) {
+        BuildPeerCert(ssl);
+    }
+#endif
+    return ssl->peerCert;
+}
+#endif /* KEEP_PEER_CERT && WOLFSSL_DYNAMIC_PEER_CERT */
+
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
 #if defined(WOLFSSL_ACERT)
@@ -17249,8 +17360,14 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     #ifdef KEEP_PEER_CERT
         if (args->certIdx == 0) {
-            /* Copy the leaf once, here or in ProcessPeerCerts(). */
-            if (!args->peerCertSet) {
+            /* Copy the leaf once, here or in ProcessPeerCerts(). When
+             * ProcessPeerCerts() kept only its encoding, build the object
+             * from the decoded leaf rather than decoding it again. */
+            if (!args->peerCertSet
+            #ifdef WOLFSSL_DYNAMIC_PEER_CERT
+                    || ((ssl->peerCert == NULL) && args->dCertInit)
+            #endif
+                    ) {
                 if (SetPeerCert(ssl, args->dCert) == 0)
                     args->peerCertSet = 1;
                 else
@@ -17995,6 +18112,13 @@ PRAGMA_GCC_DIAG_POP
 #endif
     /* Parse Certificate */
     ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
+#ifdef KEEP_PEER_CERT
+    /* An error here can still be overridden and the leaf accepted, while
+     * decoding it again later fails the same way. */
+    if ((certType == CERT_TYPE) && (args->certIdx == 0)) {
+        args->leafDecodeErr = (ret != 0);
+    }
+#endif
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
     /* Self signed: the key that verified the signature is its own */
     if (verify == VERIFY_NAME && sigRet == 0 && sigCaKey != NULL &&
@@ -20700,12 +20824,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             #ifdef KEEP_PEER_CERT
                 /* The verify callback may have copied the leaf already, on an
-                 * error. Otherwise it is called later and uses this copy. */
+                 * error. Otherwise it is called later and uses what is kept
+                 * here. Only a leaf that parsed without error is kept as its
+                 * encoding alone, as only then can it be decoded again. */
                 if (args->fatal == 0 && !args->peerCertSet) {
                     int copyRet = 0;
 
                     /* replace old peer cert */
-                    copyRet = SetPeerCert(ssl, args->dCert);
+                    if (args->leafDecodeErr)
+                        copyRet = SetPeerCert(ssl, args->dCert);
+                    else
+                        copyRet = SetPeerCertDer(ssl, args->dCert);
                     if (copyRet == 0) {
                         args->peerCertSet = 1;
                     }
@@ -45499,13 +45628,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (!ssl->options.dtls) {
             const byte* certDer = NULL;
             word32 certDerSz = 0;
-            WOLFSSL_X509* peer = GetPeerCert(ssl);
+            const DerBuffer* peerDer = GetPeerCertDer(ssl);
 
-            if (peer != NULL && peer->derCert != NULL &&
-                    peer->derCert->length > 0) {
+            if (peerDer != NULL && peerDer->length > 0) {
                 /* Use current peer certificate */
-                certDer = peer->derCert->buffer;
-                certDerSz = peer->derCert->length;
+                certDer = peerDer->buffer;
+                certDerSz = peerDer->length;
             }
 #ifdef SESSION_CERTS
             else if (ssl->session->chain.count > 0) {
@@ -46041,7 +46169,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                     AddSessionCertToChain(&ssl->session->chain,
                                           it->peerCert, peerCertLen);
             #endif
-                    ret = SetPeerCert(ssl, dCert);
+                    ret = SetPeerCertDer(ssl, dCert);
                     if (ret != 0) {
                         FreePeerCert(ssl);
                     }
