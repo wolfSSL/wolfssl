@@ -8981,6 +8981,11 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
     /* dtls T, cidTxSize T. */
     ExpectIntEQ(wolfSSL_dtls_cid_use(dssl), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls_cid_set(dssl, cid, sizeof(cid)), WOLFSSL_SUCCESS);
+    /* Only a receive CID: verifying uses it, sending does not. */
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 1),
+                BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 0),
+                0);
     /* Model the peer CID installed by the CID extension parser. The parser
      * is library-local and cannot be linked from the API test binary. The
      * SSL extension owns this allocation and frees it with dssl. */
@@ -9006,6 +9011,28 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
     /* content == dtls12_cid: the first clause's true side. */
     ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, dtls12_cid, 0),
                 BAD_FUNC_ARG);
+    wolfSSL_free(dssl);
+    dssl = NULL;
+
+    /* Only a transmit CID: sending uses it, verifying does not. */
+    dssl = wolfSSL_new(dctx);
+    ExpectNotNull(dssl);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(dssl), WOLFSSL_SUCCESS);
+    txCid = NULL;
+    if (dssl != NULL && dssl->dtlsCidInfo != NULL) {
+        txCid = (ConnectionID*)XMALLOC(sizeof(ConnectionID) + sizeof(cid),
+                                      dssl->heap, DYNAMIC_TYPE_TLSX);
+    }
+    ExpectNotNull(txCid);
+    if (txCid != NULL) {
+        txCid->length = (byte)sizeof(cid);
+        XMEMCPY(txCid->id, cid, sizeof(cid));
+        dssl->dtlsCidInfo->tx = txCid;
+        ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0,
+                                           application_data, 1), 0);
+        ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0,
+                                           application_data, 0), BAD_FUNC_ARG);
+    }
     wolfSSL_free(dssl);
     wolfSSL_CTX_free(dctx);
 #endif /* WOLFSSL_DTLS_CID */

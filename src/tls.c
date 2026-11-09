@@ -878,6 +878,18 @@ int wolfSSL_GetHmacType(WOLFSSL* ssl)
 }
 
 
+static void TlsHmacInnerWrite(WOLFSSL* ssl, byte* inner, word32 sz,
+                              int content, int verify)
+{
+    XMEMSET(inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ);
+
+    WriteSEQ(ssl, verify, inner);
+    inner[SEQ_SZ] = (byte)content;
+    inner[SEQ_SZ + ENUM_LEN]            = ssl->version.major;
+    inner[SEQ_SZ + ENUM_LEN + ENUM_LEN] = ssl->version.minor;
+    c16toa((word16)sz, inner + SEQ_SZ + ENUM_LEN + VERSION_SZ);
+}
+
 int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
                            int verify)
 {
@@ -886,20 +898,15 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
 
     if (content == dtls12_cid
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-       || (ssl->options.dtls && DtlsGetCidTxSize(ssl) > 0)
+       || (ssl->options.dtls &&
+           (verify ? DtlsGetCidRxSize(ssl) : DtlsGetCidTxSize(ssl)) > 0)
 #endif
     ) {
         WOLFSSL_MSG("wolfSSL_SetTlsHmacInner doesn't support CID");
         return BAD_FUNC_ARG;
     }
 
-    XMEMSET(inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ);
-
-    WriteSEQ(ssl, verify, inner);
-    inner[SEQ_SZ] = (byte)content;
-    inner[SEQ_SZ + ENUM_LEN]            = ssl->version.major;
-    inner[SEQ_SZ + ENUM_LEN + ENUM_LEN] = ssl->version.minor;
-    c16toa((word16)sz, inner + SEQ_SZ + ENUM_LEN + VERSION_SZ);
+    TlsHmacInnerWrite(ssl, inner, sz, content, verify);
 
     return 0;
 }
@@ -1407,9 +1414,11 @@ static int TLS_hmac_SetInner(WOLFSSL* ssl, byte* inner, word32* innerSz,
         return 0;
     }
 #endif
+    /* No CID in this direction, even when the other direction uses one */
     *innerSz = WOLFSSL_TLS_HMAC_INNER_SZ;
-    return wolfSSL_SetTlsHmacInner(ssl, inner, sz, content,
+    TlsHmacInnerWrite(ssl, inner, sz, content,
             !ssl->options.dtls ? verify : epochOrder);
+    return 0;
 }
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
