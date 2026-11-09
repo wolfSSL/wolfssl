@@ -47,6 +47,8 @@
  *   Compiles in only the verification and public key operations.
  * WOLFSSL_MLDSA_VERIFY_SMALL_MEM                         Default: OFF
  *   Compiles verification implementation that uses smaller amounts of memory.
+ *   Holds c as the positions and signs of its non-zero coefficients and
+ *   rebuilds NTT(c) for each row, unless WC_MLDSA_CACHE_PUB_VECTORS is set.
  * WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM                      Default: OFF
  *   Implies WOLFSSL_MLDSA_VERIFY_SMALL_MEM. Decodes and transforms vector z a
  *   polynomial at a time instead of holding the whole vector, k times rather
@@ -757,6 +759,10 @@ wc_static_assert(sizeof(sword32) * MLDSA_N >= MLDSA_MAX_V);
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) && defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
 /* The small memory signers sample A into a polynomial buffer. */
 wc_static_assert(MLDSA_POLY_SIZE >= MLDSA_REJ_NTT_POLY_H_SIZE);
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_VERIFY) && defined(WOLFSSL_MLDSA_VERIFY_NO_MALLOC)
+/* The no-malloc verify samples c with key->h as its block. */
+wc_static_assert(MLDSA_REJ_NTT_POLY_H_SIZE >= MLDSA_GEN_C_BLOCK_BYTES);
 #endif
 
 
@@ -14795,6 +14801,44 @@ static int mldsa_make_pub_vec(wc_MlDsaKey* key, sword32* t1)
 }
 #endif
 
+#ifdef MLDSA_VERIFY_SPARSE_C
+/* Record the positions and signs of the tau non-zero coefficients of c.
+ *
+ * @param [in]  c        Polynomial with tau coefficients of 1 or -1.
+ * @param [in]  tau      Number of non-zero coefficients.
+ * @param [out] cSparse  Positions, then sign flags (1 for -1), tau bytes each.
+ */
+static void mldsa_make_sparse(const sword32* c, byte tau, byte* cSparse)
+{
+    unsigned int e;
+    unsigned int j = 0;
+
+    for (e = 0; (e < MLDSA_N) && (j < tau); e++) {
+        if (c[e] != 0) {
+            cSparse[j] = (byte)e;
+            cSparse[tau + j] = (byte)(c[e] < 0);
+            j++;
+        }
+    }
+}
+
+/* Rebuild c from its positions and signs.
+ *
+ * @param [in]  cSparse  Positions, then sign flags (1 for -1), tau bytes each.
+ * @param [in]  tau      Number of non-zero coefficients.
+ * @param [out] c        Polynomial with tau coefficients of 1 or -1.
+ */
+static void mldsa_expand_sparse(const byte* cSparse, byte tau, sword32* c)
+{
+    unsigned int j;
+
+    XMEMSET(c, 0, MLDSA_POLY_SIZE);
+    for (j = 0; j < tau; j++) {
+        c[cSparse[j]] = 1 - 2 * (sword32)cSparse[tau + j];
+    }
+}
+#endif /* MLDSA_VERIFY_SPARSE_C */
+
 /* Verify signature of message using public key.
  *
  * FIPS 204 Section 5.3, Algorithm 3 ML-DSA.Verify(pk, M, sigma, ctx)
@@ -15077,15 +15121,16 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
     const sword32* aPre = mldsa_precomp_a(key);
 #endif
+#ifdef MLDSA_VERIFY_SPARSE_C
+    byte* cSparse = NULL;
+#endif
     sword32* c = NULL;
     sword32* z = NULL;
     sword32* w = NULL;
 #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
     sword64* t64 = NULL;
 #endif
-#ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
     byte*    block = NULL;
-#endif
     byte* w1e = NULL;
     byte commit_calc[MLDSA_TR_SZ];
     int valid = 0;
@@ -15138,13 +15183,18 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* z, c-1, w-1, t1-1, [t64], block, w1e */
+        /* z, [c-1], w-1, t1-1, [t64], block, w1e, [cSparse] */
         unsigned int allocSz;
 
         allocSz  = zSz +
-                   3U * (unsigned int)MLDSA_POLY_SIZE +
+                   2U * (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
                    params->w1EncSz;
+    #ifdef MLDSA_VERIFY_SPARSE_C
+        allocSz += 2U * (unsigned int)params->tau;
+    #else
+        allocSz += (unsigned int)MLDSA_POLY_SIZE;
+    #endif
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
@@ -15176,8 +15226,12 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             {
                 XMEMSET(z, 0, allocSz);
             }
+        #ifdef MLDSA_VERIFY_SPARSE_C
+            w     = z + zSz / sizeof(*t1);
+        #else
             c     = z + zSz / sizeof(*t1);
             w     = c + MLDSA_N;
+        #endif
             t1    = w + MLDSA_N;
             aBuf  = t1;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
@@ -15187,16 +15241,25 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             block = (byte*)(t1 + MLDSA_N);
         #endif
             w1e   = block + MLDSA_REJ_NTT_POLY_H_SIZE;
+        #ifdef MLDSA_VERIFY_SPARSE_C
+            cSparse = w1e + params->w1EncSz;
+        #endif
         }
     }
 #else
     if (ret == 0) {
         z = key->z;
+    #ifdef MLDSA_VERIFY_SPARSE_C
+        cSparse = key->cSparse;
+    #else
         c = key->c;
+    #endif
         w = key->w;
         t1 = key->vt1;
         w1e = key->w1e;
         aBuf = t1;
+        /* The sampling block is done with before A needs key->h. */
+        block = key->h;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         t64 = key->t64;
     #endif
@@ -15255,9 +15318,12 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     if ((ret == 0) && valid) {
 
          /* Step 9: Compute c from first 256 bits of commit. */
-#ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
+#ifdef MLDSA_VERIFY_SPARSE_C
          ret = mldsa_sample_in_ball_ex(params->level, &key->shake, commit,
-             params->lambda / 4, params->tau, c, key->block);
+             params->lambda / 4, params->tau, w, block);
+         if (ret == 0) {
+             mldsa_make_sparse(w, params->tau, cSparse);
+         }
 #else
          ret = mldsa_sample_in_ball_ex(params->level, &key->shake, commit,
              params->lambda / 4, params->tau, c, block);
@@ -15274,16 +15340,20 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #endif
     FALL_THROUGH;
     case 1:
+#ifndef MLDSA_VERIFY_SPARSE_C
     if ((ret == 0) && valid) {
         ret = mldsa_ntt_small_full(c);
     }
+#endif
 #ifdef WC_MLDSA_NONBLOCK
     if ((key->nb != NULL) && (ret == 0) && valid) {
         key->nb->state = 2;
         key->nb->row = 0;
         key->nb->hintPos = 0;
+    #ifndef MLDSA_VERIFY_SPARSE_C
         ret = MP_WOULDBLOCK;
         break;
+    #endif
     }
 #endif
     FALL_THROUGH;
@@ -15314,6 +15384,14 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
              * result goes to w either way, so a cached polynomial is read in
              * place rather than copied. */
             const sword32* t1v = w;
+#ifdef MLDSA_VERIFY_SPARSE_C
+            /* Rebuild NTT(c) in the scratch of A, which is free until below. */
+            c = aBuf;
+            if (ret == 0) {
+                mldsa_expand_sparse(cSparse, params->tau, c);
+                ret = mldsa_ntt_small_full(c);
+            }
+#endif
 
 #ifdef WC_MLDSA_CACHE_PUB_VECTORS
             if (key->pubVecSet) {

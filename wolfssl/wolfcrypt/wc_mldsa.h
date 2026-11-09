@@ -437,6 +437,7 @@
 #define MLDSA_MAX_W1_ENC_SZ         PARAMS_ML_DSA_87_W1_ENC_SZ
 /* Maximum collision strength of c-tilde in bytes. */
 #define MLDSA_MAX_LAMBDA            PARAMS_ML_DSA_87_LAMBDA
+#define MLDSA_MAX_TAU               PARAMS_ML_DSA_87_TAU
 
 /* Maximum count of elements of a vector with dimension K. */
 #define MLDSA_MAX_K_VECTOR_COUNT     \
@@ -454,6 +455,7 @@
 #define MLDSA_MAX_W1_ENC_SZ         PARAMS_ML_DSA_65_W1_ENC_SZ
 /* Maximum collision strength of c-tilde in bytes. */
 #define MLDSA_MAX_LAMBDA            PARAMS_ML_DSA_65_LAMBDA
+#define MLDSA_MAX_TAU               PARAMS_ML_DSA_65_TAU
 
 /* Maximum count of elements of a vector with dimension K. */
 #define MLDSA_MAX_K_VECTOR_COUNT     \
@@ -471,6 +473,7 @@
 #define MLDSA_MAX_W1_ENC_SZ         PARAMS_ML_DSA_44_W1_ENC_SZ
 /* Maximum collision strength of c-tilde in bytes. */
 #define MLDSA_MAX_LAMBDA            PARAMS_ML_DSA_44_LAMBDA
+#define MLDSA_MAX_TAU               PARAMS_ML_DSA_44_TAU
 
 /* Maximum count of elements of a vector with dimension K. */
 #define MLDSA_MAX_K_VECTOR_COUNT     \
@@ -619,6 +622,12 @@ typedef struct wc_MlDsaParams {
 typedef struct wc_MlDsaParams MlDsaParams;
 #endif
 
+/* Small memory verify keeps c sparse unless NTT(t1) is cached. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+    !defined(WC_MLDSA_CACHE_PUB_VECTORS)
+    #define MLDSA_VERIFY_SPARSE_C
+#endif
+
 #ifdef WC_MLDSA_NONBLOCK
 /* Resumable state for a non-blocking ML-DSA operation. Attach one to a key with
  * wc_MlDsaKey_set_nonblock(); the operation then runs one chunk per call,
@@ -747,7 +756,11 @@ struct wc_MlDsaKey {
 #else
     sword32 z[MLDSA_MAX_L_VECTOR_COUNT];
 #endif
+#ifdef MLDSA_VERIFY_SPARSE_C
+    byte cSparse[2 * MLDSA_MAX_TAU];     /* positions then signs of c */
+#else
     sword32 c[MLDSA_N];
+#endif
     sword32 w[MLDSA_N];
     /* One t1 polynomial, also used for a polynomial of A. Not named t1 as
      * WC_MLDSA_CACHE_PUB_VECTORS already has a member of that name. */
@@ -757,7 +770,6 @@ struct wc_MlDsaKey {
     sword64 t64[MLDSA_N];
 #endif
     byte h[MLDSA_REJ_NTT_POLY_H_SIZE];
-    byte block[MLDSA_GEN_C_BLOCK_BYTES];
 #endif /* WOLFSSL_MLDSA_VERIFY_NO_MALLOC &&
         * WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
 };
