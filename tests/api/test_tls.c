@@ -7302,6 +7302,12 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ECC_NONBLOCK) && \
     !defined(WOLFSSL_SP_NONBLOCK)
     #define TEST_TLS12_NONCE_ASYNC
+    /* Handshake attempts, about 1ms apart, so a hardware device has at least
+     * 1 second to answer. */
+    #define TEST_TLS12_NONCE_HS_RETRIES 1000
+    #define TEST_TLS12_NONCE_HS_CAN_RETRY(e) \
+        ((e) == 0 || (e) == WC_NO_ERR_TRACE(WC_PENDING_E) || \
+         (e) == WOLFSSL_ERROR_WANT_READ || (e) == WOLFSSL_ERROR_WANT_WRITE)
 #endif
 
 /*
@@ -7361,8 +7367,29 @@ int test_tls12_aesgcm_record_nonce_unique(void)
 #ifdef TEST_TLS12_NONCE_ASYNC
     ExpectIntEQ(wolfSSL_SetDevId(ssl_c, devId), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_SetDevId(ssl_s, devId), WOLFSSL_SUCCESS);
-#endif
+
+    /* QAT adapter is really slow. This is required to handle that slowness
+     * while we wait for the hardware to do its magic. */
+    for (i = 0; i < TEST_TLS12_NONCE_HS_RETRIES && EXPECT_SUCCESS(); i++) {
+        ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+        if (ret == 0) {
+            break;
+        }
+        err = wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR);
+        if (!TEST_TLS12_NONCE_HS_CAN_RETRY(err)) {
+            break;
+        }
+        err = wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR);
+        if (!TEST_TLS12_NONCE_HS_CAN_RETRY(err)) {
+            break;
+        }
+        XSLEEP_MS(1);
+    }
+    err = 0;
+    ExpectIntEQ(ret, 0);
+#else
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#endif
     ExpectStrEQ(wolfSSL_get_cipher_name(ssl_c), "ECDHE-RSA-AES128-GCM-SHA256");
 
     /* Drop the handshake traffic so the buffer holds only application data.

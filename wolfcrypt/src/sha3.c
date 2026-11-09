@@ -1737,6 +1737,15 @@ static int wc_Sha3Reset(wc_Sha3* sha3)
         return wc_InitSha3(sha3, heap, devId);
     }
 #endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+    defined(HAVE_INTEL_QA) && defined(QAT_V2)
+    /* QAT caches updates in asyncDev, which InitSha3() cannot discard. */
+    {
+        int ret = IntelQaSymHashReset(&sha3->asyncDev);
+        if (ret != 0)
+            return ret;
+    }
+#endif
     /* InitSha3() reinitializes the sponge and block-dispatch state in place,
      * touching neither the heap hint nor the device association. */
     return InitSha3(sha3);

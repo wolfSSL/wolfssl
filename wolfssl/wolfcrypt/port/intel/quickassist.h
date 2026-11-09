@@ -432,6 +432,8 @@ WOLFSSL_LOCAL int IntelQaGetCyInstanceCount(void);
                 byte* iv, word32 ivSz);
 #endif /*! NO_DES3 */
 
+WOLFSSL_LOCAL int IntelQaSymHashReset(struct WC_ASYNC_DEV* dev);
+
 #ifdef WOLFSSL_SHA512
     WOLFSSL_LOCAL int IntelQaSymSha512(struct WC_ASYNC_DEV* dev, byte* out,
         const byte* in, word32 sz);

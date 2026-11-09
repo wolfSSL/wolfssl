@@ -182,6 +182,7 @@ int test_tls12_no_renegotiation_after_close_notify(void);
 int test_tls13_refused_write_after_peek(void);
 int test_tls_sni_callback_alerts(void);
 int test_tls13_pqc_hybrid_async_server(void);
+int test_tls13_pqc_hybrid_async_server_hrr(void);
 int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
 int test_tls13_is_init_finished_want_write(void);
@@ -374,6 +375,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_refused_write_after_peek), \
     TEST_DECL_GROUP("tls13", test_tls_sni_callback_alerts), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
+    TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server_hrr), \
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
     TEST_DECL_GROUP("tls13", test_tls13_is_init_finished_want_write), \
     TEST_DECL_GROUP("tls13", test_tls13_cryptocb_async), \
