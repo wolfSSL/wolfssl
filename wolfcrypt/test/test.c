@@ -58082,6 +58082,76 @@ static wc_test_ret_t ecc_test_nonblock_dhe(int curveId, word32 curveSz,
 #endif /* HAVE_ECC_DHE && !WOLFSSL_VALIDATE_ECC_KEYGEN */
 
 #if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+/* Two verifies through one key and non-blocking context: the second must start
+ * from a clean state and reject a corrupted signature. */
+static wc_test_ret_t crypto_ecc_verify_reuse(const byte *key,
+    const byte *hash, word32 hashSz, const byte *sig, word32 sigSz,
+    word32 curveSz, int curveId)
+{
+    wc_test_ret_t ret;
+    int i;
+    int verify_res;
+    mp_int r, s;
+    ecc_key ecc;
+    ecc_nb_ctx_t nb_ctx;
+    byte badSig[MAX_ECC_BYTES * 2];
+
+    if (sigSz > sizeof(badSig)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    XMEMCPY(badSig, sig, sigSz);
+    badSig[sigSz - 1] ^= 0x01;
+
+    ret = wc_ecc_init(&ecc);
+    if (ret < 0) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = mp_init(&r);
+    if (ret != MP_OKAY) {
+        wc_ecc_free(&ecc);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = mp_init(&s);
+    if (ret != MP_OKAY) {
+        mp_clear(&r);
+        wc_ecc_free(&ecc);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_ecc_set_nonblock(&ecc, &nb_ctx);
+    if (ret == 0) {
+        ret = wc_ecc_import_unsigned(&ecc, (byte*)key, (byte*)(key + curveSz),
+            NULL, curveId);
+    }
+    for (i = 0; ret == 0 && i < 2; i++) {
+        const byte* cur = (i == 0) ? sig : badSig;
+
+        ret = mp_read_unsigned_bin(&r, cur, curveSz);
+        if (ret == 0) {
+            ret = mp_read_unsigned_bin(&s, cur + curveSz, curveSz);
+        }
+        if (ret == 0) {
+            verify_res = 0;
+            do {
+                ret = wc_ecc_verify_hash_ex(&r, &s, hash, hashSz, &verify_res,
+                    &ecc);
+            } while (ret == FP_WOULDBLOCK);
+        }
+        if (ret < 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        else if (verify_res != (i == 0)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    mp_clear(&r);
+    mp_clear(&s);
+    wc_ecc_free(&ecc);
+
+    return ret;
+}
+
 static wc_test_ret_t ecc_test_nonblock_ecdsa(int curveId, word32 curveSz,
     const byte* privKey, word32 privKeySz, const byte* pubKey, word32 pubKeySz,
     WC_RNG* rng)
@@ -58111,6 +58181,10 @@ static wc_test_ret_t ecc_test_nonblock_ecdsa(int curveId, word32 curveSz,
         /* Verify generated signature is valid */
         ret = crypto_ecc_verify(pubKey, pubKeySz, hash, sizeof(hash), sig,
                   sigSz, curveSz, curveId);
+    }
+    if (ret == 0) {
+        ret = crypto_ecc_verify_reuse(pubKey, hash, sizeof(hash), sig, sigSz,
+                  curveSz, curveId);
     }
 
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_SIGNATURE);
