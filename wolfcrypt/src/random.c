@@ -9593,6 +9593,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             byte* op = output;
 
 #if ((__PIC32_FEATURE_SET0 == 'E') && (__PIC32_FEATURE_SET1 == 'C'))
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "PIC32MZ EC RNG is core-timer-seeded, not a TRNG: provide a real custom seed source; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
             RNGNUMGEN1 = _CP0_GET_COUNT();
             RNGPOLY1 = _CP0_GET_COUNT();
             RNGPOLY2 = _CP0_GET_COUNT();

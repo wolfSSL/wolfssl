@@ -474,26 +474,18 @@
 #elif defined(STM32F107xC)
     #define WOLFSSL_STM32F1
     #define NO_STM32_RNG
-    /* Sample config: accept the weak/test entropy seed (see random.c) */
-    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart4
     #endif
 #elif defined(STM32F401xE)
-    /* Sample config: accept the weak/test entropy seed (see random.c) */
-    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #define WOLFSSL_STM32F4
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
-    /* Sample config: accept the weak/test entropy seed (see random.c) */
-    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #endif
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
     #endif
@@ -550,15 +542,11 @@
         #define WOLFSSL_STM32_BARE
         #define WOLFSSL_STM32_PKA
         #define NO_STM32_HMAC
-        /* Sample config: accept the weak/test entropy seed (see random.c) */
-        #define WOLFSSL_ACCEPT_WEAK_ENTROPY
         #undef  NO_STM32_HASH
         #undef  NO_STM32_CRYPTO
     #else
         #define NO_STM32_HASH
         #define NO_STM32_CRYPTO
-        #define NO_STM32_RNG
-        #define WOLFSSL_GENSEED_FORTEST
     #endif
 #elif defined(STM32V873xx)
     /* STM32V8 (Cortex-M85): register-level crypto like the C5 above.
@@ -568,8 +556,6 @@
     #if defined(WOLF_CONF_HW_CRYPTO) && WOLF_CONF_HW_CRYPTO == 1
         #define WOLFSSL_STM32_BARE
         #define WOLFSSL_STM32_PKA
-        /* Sample config: accept the weak/test entropy seed (see random.c) */
-        #define WOLFSSL_ACCEPT_WEAK_ENTROPY
         #define WOLFSSL_STM32_USE_SAES
         #define NO_STM32_HMAC
         #undef  NO_STM32_HASH
@@ -577,8 +563,6 @@
     #else
         #define NO_STM32_HASH
         #define NO_STM32_CRYPTO
-        #define NO_STM32_RNG
-        #define WOLFSSL_GENSEED_FORTEST
     #endif
 #else
     #warning Please define a hardware platform!
@@ -604,16 +588,11 @@
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    /* if no HW RNG is available use test seed */
-    //#define WOLFSSL_GENSEED_FORTEST
+    /* If the device has no RNG, provide CUSTOM_RAND_GENERATE_SEED. */
 #endif
 
-/* Honor the hardware crypto toggle on every family: the per-family arms
- * above enable what each part supports; turning the toggle off forces the
- * software paths regardless of family. */
+/* Software crypto mode keeps the hardware RNG for secure seeding. */
 #if defined(WOLF_CONF_HW_CRYPTO) && WOLF_CONF_HW_CRYPTO == 0
-        /* Sample config: accept the weak/test entropy seed (see random.c) */
-        #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #undef  WOLFSSL_STM32_PKA
     #undef  WOLFSSL_STM32_BARE
     #ifndef NO_STM32_HASH
@@ -622,12 +601,15 @@
     #ifndef NO_STM32_CRYPTO
     #define NO_STM32_CRYPTO
     #endif
-    #ifndef NO_STM32_RNG
-    #define NO_STM32_RNG
-    #endif
-    #ifndef WOLFSSL_GENSEED_FORTEST
-    #define WOLFSSL_GENSEED_FORTEST
-    #endif
+#endif
+
+/* These devices have no on-chip RNG. Supply a real seed source or explicitly
+ * configure a test-only seed in your project. */
+#if defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+    #error "STM32 device has no RNG: provide CUSTOM_RAND_GENERATE_SEED or another real seed source"
 #endif
 
 /* ------------------------------------------------------------------------- */

@@ -24,8 +24,6 @@ extern "C" {
 
 #undef  MICROCHIP_PIC32
 #define MICROCHIP_PIC32
-/* Sample config: accept the weak/test entropy seed (see random.c) */
-#define WOLFSSL_ACCEPT_WEAK_ENTROPY
 
 #undef  WOLFSSL_MICROCHIP_PIC32MZ
 #define WOLFSSL_MICROCHIP_PIC32MZ

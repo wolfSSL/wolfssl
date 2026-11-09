@@ -12,8 +12,8 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 #undef  INTIME_RTOS
 #define INTIME_RTOS
-/* Sample config: accept the weak/test entropy seed (see random.c) */
-#define WOLFSSL_ACCEPT_WEAK_ENTROPY
+/* INtime v6+ uses arc4random() for seeding. Older releases must provide a
+ * custom seed source; random.c rejects their clock-seeded rand() fallback. */
 
 #undef  WOLF_EXAMPLES_STACK
 #define WOLF_EXAMPLES_STACK         (1<<17)

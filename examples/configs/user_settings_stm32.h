@@ -226,22 +226,14 @@ extern "C" {
     #define WOLFSSL_STM32F1
     #define HAL_CONSOLE_UART huart4
     #define NO_STM32_RNG
-    /* Sample config: accept the weak/test entropy seed (see random.c) */
-    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
 #elif defined(STM32F401xE)
     #define WOLFSSL_STM32F4
-    /* Sample config: accept the weak/test entropy seed (see random.c) */
-    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
-    /* Sample config: accept the weak/test entropy seed (see random.c) */
-    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
 #elif defined(STM32G491xx)
     #define WOLFSSL_STM32G4
     #define HAL_CONSOLE_UART hlpuart1
@@ -287,9 +279,17 @@ extern "C" {
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    /* if no HW RNG is available use test seed */
-    //#define WOLFSSL_GENSEED_FORTEST
+    /* If the device has no RNG, provide CUSTOM_RAND_GENERATE_SEED. */
     //#define STM32_HAL_V2
+#endif
+
+/* These devices have no on-chip RNG. Supply a real seed source or explicitly
+ * configure a test-only seed in your project. */
+#if defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+    #error "STM32 device has no RNG: provide CUSTOM_RAND_GENERATE_SEED or another real seed source"
 #endif
 
 
