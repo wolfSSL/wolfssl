@@ -15793,7 +15793,7 @@ static WC_INLINE int ecc_is_gcm(byte encAlgo)
 }
 #else
 /* Compile GCM branches out entirely when AES-GCM isn't available. */
-#define ecc_is_gcm(encAlgo) (0)
+#define ecc_is_gcm(encAlgo) 0
 #endif
 
 static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,

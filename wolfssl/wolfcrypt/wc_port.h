@@ -1752,7 +1752,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #include "dc_rtc_api.h"   /* to get current time */
 
     /* uses partial <time.h> structures */
-    #define XTIME(tl)       (0)
+    #define XTIME(tl)       0
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
 #elif defined(WOLFSSL_DEOS) || defined(WOLFSSL_DEOS_RTEMS)
@@ -1959,7 +1959,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* Map default time functions */
 #if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)
     #ifdef TEST_BEFORE_DATE
-    #define XTIME(tl)       (946681200UL) /* Jan 1, 2000 */
+    #define XTIME(tl)       946681200UL /* Jan 1, 2000 */
     #else
     #define XTIME(tl)       time((tl))
     #endif

@@ -447,7 +447,7 @@ WOLFSSL_API int wc_AsyncSleep(word32 ms);
 
 typedef void* (*AsyncThreadFunc_t) (void *);
 
-#define THREAD_DEFAULT_PRIORITY     (0)
+#define THREAD_DEFAULT_PRIORITY     0
 #define THREAD_DEFAULT_POLICY       SCHED_OTHER
 
 WOLFSSL_API int wc_AsyncGetNumberOfCpus(void);

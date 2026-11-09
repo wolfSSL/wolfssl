@@ -3679,7 +3679,7 @@ int GNRC_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
 /* GNRC DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
-#define GNRC_MAX_TOKEN_SIZE (32)
+#define GNRC_MAX_TOKEN_SIZE 32
 #if defined(NO_SHA) && !defined(NO_SHA256)
     #define GNRC_COOKIE_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
 #elif !defined(NO_SHA)

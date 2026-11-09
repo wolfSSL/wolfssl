@@ -334,12 +334,12 @@
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
         defined(SESSION_CERTS) || defined(WOLFSSL_HAVE_MLKEM)
         #ifdef OPENSSL_EXTRA
-            #define TEST_TLS_STATIC_MEMSZ (400000)
+            #define TEST_TLS_STATIC_MEMSZ 400000
         #else
-            #define TEST_TLS_STATIC_MEMSZ (320000)
+            #define TEST_TLS_STATIC_MEMSZ 320000
         #endif
     #else
-            #define TEST_TLS_STATIC_MEMSZ (80000)
+            #define TEST_TLS_STATIC_MEMSZ 80000
     #endif
 #endif
 

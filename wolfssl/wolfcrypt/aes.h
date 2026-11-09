@@ -227,7 +227,7 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #ifdef WOLFSSL_AES_REQUIRE_KEY_SET
     #define WC_AES_KEY_IS_SET(aes)  ((aes)->keyInstalled != 0)
 #else
-    #define WC_AES_KEY_IS_SET(aes)  (1)
+    #define WC_AES_KEY_IS_SET(aes)  1
 #endif
 
 /* Set when wc_AesEncryptDirect/DecryptDirect try the crypto callback first. */

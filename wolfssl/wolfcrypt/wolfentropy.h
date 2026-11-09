@@ -49,9 +49,9 @@
     /* Full strength, conditioned entropy is requested of MemUse Entropy. */
     #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
         (HAVE_FIPS_VERSION >= 2)
-        #define ENTROPY_SCALE_FACTOR (4)
+        #define ENTROPY_SCALE_FACTOR 4
     #else
-        #define ENTROPY_SCALE_FACTOR (1)
+        #define ENTROPY_SCALE_FACTOR 1
     #endif
 #endif
 
