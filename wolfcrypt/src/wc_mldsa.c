@@ -756,6 +756,10 @@ void print_data(const char* name, const byte* d, int len)
 /* The smallest memory signer expands the mask into a polynomial buffer. */
 wc_static_assert(sizeof(sword32) * MLDSA_N >= MLDSA_MAX_V);
 #endif
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
+/* The small memory signers sample A into a polynomial buffer. */
+wc_static_assert(MLDSA_POLY_SIZE >= MLDSA_REJ_NTT_POLY_H_SIZE);
+#endif
 
 
 /* 2 blocks, each block 136 bytes = 272 bytes.
@@ -12917,6 +12921,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     sword32* z = NULL;
     sword32* ct0 = NULL;
     byte* blocks = NULL;
+    byte* cBlocks = NULL;
     byte* w1e = NULL;
     byte priv_rand_seed[MLDSA_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
@@ -12955,22 +12960,22 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* y-l, w0-k, w-1, c-1, z-1, A-1, w1e, blocks.
-         * Walking A a column at a time makes w0 the vector of accumulators,
-         * w1 is only kept encoded, and w is the scratch for the hints. */
+        /* y-l, w0-k, c-1, z-1, A-1, w1e. w0 accumulates a column at a time;
+         * w shares A, and the sampling blocks share c then A. */
         allocSz  = (unsigned int)params->s1Sz + params->s2Sz +
                    (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)MLDSA_POLY_SIZE +
-                   (unsigned int)MLDSA_POLY_SIZE +
-                   (unsigned int)params->w1EncSz +
-                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
+                   (unsigned int)params->w1EncSz;
     #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
-        allocSz += (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
+        allocSz += (unsigned int)MLDSA_POLY_SIZE +
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
+                   (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
     #elif defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
         /* w is decomposed and encoded as a full k vector regardless of how
          * many rows of A are pre-calculated, so it must hold k polynomials. */
-        allocSz += (unsigned int)(params->k - 1) *
+        allocSz += (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
+                   (unsigned int)params->k *
                    (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)maxK * params->l *
                    (unsigned int)MLDSA_POLY_SIZE;
@@ -12999,8 +13004,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             y_check = y;
         #endif
             w0     = y  + params->s1Sz / sizeof(*y_ntt);
-            w      = w0 + params->s2Sz / sizeof(*w0);
     #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
+            w      = w0 + params->s2Sz / sizeof(*w0);
             /* Only maxK rows of w are multiplied into, but the ML-DSA-44
              * decompose kernels take no dimension and touch all k. One
              * zeroing covers every rejection round: decompose of zero is
@@ -13010,8 +13015,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     (size_t)(params->k - maxK) * MLDSA_POLY_SIZE);
             }
             c      = w  + (unsigned int)params->k * MLDSA_N;
-    #else
+    #elif defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC)
+            w      = w0 + params->s2Sz / sizeof(*w0);
             c      = w  + MLDSA_N;
+    #else
+            c      = w0 + params->s2Sz / sizeof(*w0);
     #endif
             z      = c  + MLDSA_N;
             a      = z  + MLDSA_N;
@@ -13023,6 +13031,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             t0     = z;
             w1e    = (byte*)(a + (1 + maxK * params->l) * MLDSA_N);
             blocks = w1e + params->w1EncSz;
+            cBlocks = blocks;
     #elif defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC)
             y_ntt  = z;
             s1     = a  + MLDSA_N;
@@ -13030,13 +13039,16 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             t0     = s2 + params->s2Sz / sizeof(*s2);
             w1e    = (byte*)(t0 + params->s2Sz / sizeof(*t0));
             blocks = w1e + params->w1EncSz;
+            cBlocks = blocks;
     #else
             y_ntt  = z;
             s1     = z;
             s2     = z;
             t0     = z;
+            w      = a;
             w1e    = (byte*)(a + MLDSA_N);
-            blocks = w1e + params->w1EncSz;
+            blocks = (byte*)c;
+            cBlocks = (byte*)a;
     #endif
         }
     }
@@ -13365,7 +13377,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     /* Step 17: Compute c from first 256 bits of commit. */
                     ret = mldsa_sample_in_ball_ex(params->level,
                         &key->shake, commit, params->lambda / 4, params->tau, c,
-                        blocks);
+                        cBlocks);
                 }
                 if (ret == 0) {
                     /* Step 18: NTT(c). */
@@ -13585,10 +13597,14 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             }
 
             if (!valid) {
-                /* Wipe the rejected candidate; A and cached keys stay. */
+                /* Wipe the rejected candidate; cached A and keys stay. */
+            #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A) || \
+                defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC)
                 ForceZero(y, (size_t)((byte*)a - (byte*)y));
-                ForceZero(w1e, (size_t)params->w1EncSz +
-                    MLDSA_REJ_NTT_POLY_H_SIZE);
+                ForceZero(w1e, (size_t)((byte*)y + allocSz - w1e));
+            #else
+                ForceZero(y, allocSz);
+            #endif
                 ForceZero(sig, params->sigSz);
                 /* Too many attempts - something wrong with implementation. */
                 if ((kappa > (word16)(kappa + params->l))) {
