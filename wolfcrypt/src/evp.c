@@ -3700,6 +3700,13 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
     }
 }
 
+/* Key bits that OpenSSL reports for RFC 7748 and RFC 8032 keys. X25519 uses
+ * the bit length of the group order. */
+#define WC_EVP_X25519_BITS  253
+#define WC_EVP_ED25519_BITS (ED25519_KEY_SIZE * WOLFSSL_BIT_SIZE)
+#define WC_EVP_X448_BITS    (CURVE448_KEY_SIZE * WOLFSSL_BIT_SIZE)
+#define WC_EVP_ED448_BITS   (ED448_KEY_SIZE * WOLFSSL_BIT_SIZE)
+
 /* Get the size in bits for WOLFSSL_EVP_PKEY key
  *
  * pkey WOLFSSL_EVP_PKEY structure to get key size of
@@ -3718,7 +3725,14 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
     switch (pkey->type) {
 #ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
-        ret = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->rsa));
+        if (pkey->rsa == NULL || (!pkey->rsa->inSet &&
+                SetRsaInternal(pkey->rsa) != WOLFSSL_SUCCESS))
+            break;
+        /* Modulus bits, not bytes * 8. */
+        ret = mp_count_bits(&((RsaKey*)pkey->rsa->internal)->n);
+        if (ret <= 0)
+            ret = wc_RsaEncryptSize((RsaKey*)pkey->rsa->internal) *
+                WOLFSSL_BIT_SIZE;
         break;
 #endif /* !NO_RSA */
 
@@ -3728,7 +3742,7 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
                 (!pkey->dsa->exSet &&
                         SetDsaExternal(pkey->dsa) != WOLFSSL_SUCCESS))
             break;
-        ret = wolfSSL_BN_num_bytes(pkey->dsa->p);
+        ret = wolfSSL_BN_num_bits(pkey->dsa->p);
         break;
 #endif
 
@@ -3738,14 +3752,40 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
             WOLFSSL_MSG("No ECC key has been set");
             break;
         }
-        ret = wc_ecc_size((ecc_key*)(pkey->ecc->internal));
+        /* Bits of the group order, as OpenSSL reports. */
+        if (pkey->ecc->group != NULL)
+            ret = wolfSSL_EC_GROUP_order_bits(pkey->ecc->group);
+        if (ret <= 0)
+            ret = wc_ecc_size((ecc_key*)(pkey->ecc->internal)) *
+                WOLFSSL_BIT_SIZE;
         break;
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_CURVE25519
+    case WC_EVP_PKEY_X25519:
+        ret = WC_EVP_X25519_BITS;
+        break;
+#endif
+#ifdef HAVE_ED25519
+    case WC_EVP_PKEY_ED25519:
+        ret = WC_EVP_ED25519_BITS;
+        break;
+#endif
+#ifdef HAVE_CURVE448
+    case WC_EVP_PKEY_X448:
+        ret = WC_EVP_X448_BITS;
+        break;
+#endif
+#ifdef HAVE_ED448
+    case WC_EVP_PKEY_ED448:
+        ret = WC_EVP_ED448_BITS;
+        break;
+#endif
 
     default:
         break;
     }
-    return ret > 0 ? ret * 8 : 0;
+    return ret > 0 ? ret : 0;
 }
 
 
