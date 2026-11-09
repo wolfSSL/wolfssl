@@ -13142,22 +13142,32 @@ int test_tls13_ticket_peer_cert_resume(void)
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(WOLFSSL_CHECK_MEM_ZERO)
 static size_t ticket_alloc_fail_sz = 0;
+/* Allocators in place before the test, used for all real allocations so
+ * memory can be freed after they are restored. */
+static wolfSSL_Malloc_cb  ticket_alloc_prev_malloc = NULL;
+static wolfSSL_Free_cb    ticket_alloc_prev_free = NULL;
+static wolfSSL_Realloc_cb ticket_alloc_prev_realloc = NULL;
 
 static void* ticket_alloc_fail_malloc(size_t size)
 {
     if (ticket_alloc_fail_sz != 0 && size == ticket_alloc_fail_sz)
         return NULL;
-    return malloc(size);
+    return (ticket_alloc_prev_malloc != NULL) ?
+        ticket_alloc_prev_malloc(size) : malloc(size);
 }
 
 static void ticket_alloc_fail_free(void* ptr)
 {
-    free(ptr);
+    if (ticket_alloc_prev_free != NULL)
+        ticket_alloc_prev_free(ptr);
+    else
+        free(ptr);
 }
 
 static void* ticket_alloc_fail_realloc(void* ptr, size_t size)
 {
-    return realloc(ptr, size);
+    return (ticket_alloc_prev_realloc != NULL) ?
+        ticket_alloc_prev_realloc(ptr, size) : realloc(ptr, size);
 }
 #endif
 
@@ -13178,9 +13188,6 @@ int test_tls13_ticket_set_alloc_fail(void)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    wolfSSL_Malloc_cb prevM = NULL;
-    wolfSSL_Free_cb prevF = NULL;
-    wolfSSL_Realloc_cb prevR = NULL;
     char readBuf[64];
 
     /* With client authentication the ticket carries the client certificate
@@ -13213,12 +13220,14 @@ int test_tls13_ticket_set_alloc_fail(void)
     ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
     if (EXPECT_SUCCESS()) {
         ticket_alloc_fail_sz = ssl_c->session->ticketLen;
-        ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+        ExpectIntEQ(wolfSSL_GetAllocators(&ticket_alloc_prev_malloc,
+            &ticket_alloc_prev_free, &ticket_alloc_prev_realloc), 0);
         ExpectIntEQ(wolfSSL_SetAllocators(ticket_alloc_fail_malloc,
             ticket_alloc_fail_free, ticket_alloc_fail_realloc), 0);
         ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
         ticket_alloc_fail_sz = 0;
-        (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+        (void)wolfSSL_SetAllocators(ticket_alloc_prev_malloc,
+            ticket_alloc_prev_free, ticket_alloc_prev_realloc);
         ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
             WC_NO_ERR_TRACE(MEMORY_E));
     }
