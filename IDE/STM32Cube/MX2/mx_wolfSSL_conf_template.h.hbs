@@ -545,8 +545,15 @@
         #undef  NO_STM32_HASH
         #undef  NO_STM32_CRYPTO
     #else
+        /* HAL2 has no HAL1 RNG API. Keep only the direct-register RNG. */
+        #include "stm32c5xx.h"
+        #define WOLFSSL_STM32_RNG_NOLIB
+        #define WC_STM32_RNG_CLK_ENABLE() \
+            do { RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN; \
+                 (void)RCC->AHB2ENR; } while (0)
         #define NO_STM32_HASH
         #define NO_STM32_CRYPTO
+        #define NO_STM32_HMAC
     #endif
 #elif defined(STM32V873xx)
     /* STM32V8 (Cortex-M85): register-level crypto like the C5 above.
@@ -561,8 +568,15 @@
         #undef  NO_STM32_HASH
         #undef  NO_STM32_CRYPTO
     #else
+        /* HAL2 has no HAL1 RNG API. Keep only the direct-register RNG. */
+        #include "stm32v8xx.h"
+        #define WOLFSSL_STM32_RNG_NOLIB
+        #define WC_STM32_RNG_CLK_ENABLE() \
+            do { RCC->AHB3ENR |= RCC_AHB3ENR_RNGEN; \
+                 (void)RCC->AHB3ENR; } while (0)
         #define NO_STM32_HASH
         #define NO_STM32_CRYPTO
+        #define NO_STM32_HMAC
     #endif
 #else
     #warning Please define a hardware platform!
@@ -601,11 +615,15 @@
     #ifndef NO_STM32_CRYPTO
     #define NO_STM32_CRYPTO
     #endif
+    #ifndef NO_STM32_HMAC
+    #define NO_STM32_HMAC
+    #endif
 #endif
 
 /* These devices have no on-chip RNG. Supply a real seed source or explicitly
  * configure a test-only seed in your project. */
-#if defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
+#if (!defined(WOLF_CONF_RNG) || WOLF_CONF_RNG != 0) && \
+    defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
     !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
@@ -617,9 +635,8 @@
 /* ------------------------------------------------------------------------- */
 #define SIZEOF_LONG_LONG 8
 #define WOLFSSL_GENERAL_ALIGNMENT 4
-#ifndef WOLFSSL_STM32_BARE
-    /* register-level (BARE) hardware crypto arms above take precedence;
-     * the two modes are mutually exclusive in wolfssl settings.h */
+#if !defined(WOLFSSL_STM32_BARE) && !defined(WOLFSSL_STM32_RNG_NOLIB)
+    /* HAL2 register-level RNG and BARE crypto must not select HAL1 CubeMX. */
     #define WOLFSSL_STM32_CUBEMX
 #endif
 #define WOLFSSL_SMALL_STACK

@@ -432,6 +432,13 @@
 
 #endif
 //  </e>
+#if MDK_CONF_STM32F2_CRYPTO == 0
+#define NO_STM32_CRYPTO
+#endif
+#if MDK_CONF_STM32F2_HASH == 0
+#define NO_STM32_HASH
+#define NO_STM32_HMAC
+#endif
 // </h>
 
 //  <h>Cert/Key Storage

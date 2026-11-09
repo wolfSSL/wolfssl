@@ -9405,6 +9405,9 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(CUSTOM_RAND_GENERATE_BLOCK)
+    /* The application supplies complete random blocks. No DRBG seed is used. */
+
 #elif defined(WOLFSSL_SGX)
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -10841,11 +10844,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return 0;
     }
-#elif defined(CUSTOM_RAND_GENERATE_BLOCK)
-    /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
-     * extern int myRngFunc(byte* output, word32 sz);
-     */
-
 #elif defined(__MICROBLAZE__)
     #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
         #error "MicroBlaze clock-seeded rand is weak: provide CUSTOM_RAND_GENERATE_SEED or CUSTOM_RAND_GENERATE_BLOCK; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
@@ -11631,7 +11629,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #endif
 
-#ifdef USE_TEST_GENSEED
+#if defined(USE_TEST_GENSEED) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS)
     #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
     #   error "USE_TEST_GENSEED is deterministic: provide a real entropy source; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
     #endif

@@ -288,7 +288,8 @@ extern ${variable.value} ${variable.name};
 
 /* These devices have no on-chip RNG. Supply a real seed source or explicitly
  * configure a test-only seed in your project. */
-#if defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
+#if (!defined(WOLF_CONF_RNG) || WOLF_CONF_RNG != 0) && \
+    defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
     !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
