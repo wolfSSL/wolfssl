@@ -550,7 +550,9 @@ static WC_INLINE cpuid_flags_t mldsa_cpuid_flags(void)
 #endif
 
 /* Expanding a, s (make key) and y (sign) all squeeze more blocks. */
-#if defined(MLDSA_NEON_EXPAND_A) || !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+#if defined(MLDSA_NEON_EXPAND_A) || \
+    (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
      !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))
 static void mlkem_sha3_blocksx3(word64* state)
@@ -577,7 +579,8 @@ static void mlkem_shake128_blocksx3_seed(word64* state, byte* seed)
 #endif
 
 /* Only expanding s (make key) and y (sign) use the 64-byte seed. */
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+#if (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
      !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))
 static void mlkem_shake256_blocksx3_seed_64(word64* state, byte* seed)
@@ -5362,6 +5365,7 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
 #endif
 }
 
+#ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
 #ifndef WOLFSSL_NO_ML_DSA_44
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
@@ -6213,6 +6217,7 @@ static int wc_mldsa_gen_s_7_8_arm(sword32* s[2], byte* seed)
 }
 #endif
 #endif
+#endif /* !WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
 
 /* Expand private seed into vectors s1 and s2.
  *
@@ -6281,6 +6286,7 @@ static int mldsa_expand_s_c(wc_Shake* shake256, byte* priv_seed, byte eta,
     return ret;
 }
 
+#ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
 /* Expand private seed into vectors s1 and s2.
  *
  * @param [in, out] shake256   SHAKE-256 object.
@@ -6396,6 +6402,7 @@ static int mldsa_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
 
     return ret;
 }
+#endif /* !WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
 #endif /* !WOLFSSL_MLDSA_NO_MAKE_KEY */
 
 #ifndef WOLFSSL_MLDSA_NO_SIGN
@@ -11556,7 +11563,7 @@ static void mldsa_shake_wipe(wc_Shake* shake)
 /* Calculate row r of t = NTT-1(A o NTT(s1)) + s2 and make it positive.
  *
  * Matrix A is expanded a polynomial at a time and the row of s2 is decoded
- * from its encoding, so only single polynomial scratch is needed.
+ * from its encoding into the same scratch polynomial once A is done with.
  *
  * @param [in, out] shake  SHAKE-128 object to expand A with.
  * @param [in, out] aseed  Public seed followed by space for column and row.
@@ -11566,8 +11573,8 @@ static void mldsa_shake_wipe(wc_Shake* shake)
  * @param [in]      s2p    Encoding of row r of s2.
  * @param [in]      eta    Range of s2 coefficients.
  * @param [out]     tt     Row r of t, made positive.
- * @param [out]     s2t    Scratch polynomial for row r of s2.
- * @param [out]     a      Scratch polynomial for an element of A.
+ * @param [out]     a      Scratch polynomial for an element of A and the row
+ *                         of s2.
  * @param [out]     h      Rejection sampling scratch.
  * @param [out]     t64    Accumulator polynomial. Only used with
  *                         WOLFSSL_MLDSA_SMALL_MEM_POLY64.
@@ -11576,7 +11583,7 @@ static void mldsa_shake_wipe(wc_Shake* shake)
  */
 static int mldsa_calc_t_row(wc_Shake* shake, byte* aseed, byte r,
     const sword32* s1, byte l, const byte* s2p, byte eta, sword32* tt,
-    sword32* s2t, sword32* a, byte* h, sword64* t64)
+    sword32* a, byte* h, sword64* t64)
 {
     int ret = 0;
     const sword32* s1t = s1;
@@ -11701,10 +11708,10 @@ static int mldsa_calc_t_row(wc_Shake* shake, byte* aseed, byte r,
     }
     /* Decode the row of s2 as the vector is not kept by the callers. */
     if (ret == 0) {
-        ret = mldsa_vec_decode_eta_bits(s2p, eta, s2t, 1);
+        ret = mldsa_vec_decode_eta_bits(s2p, eta, a, 1);
     }
     if (ret == 0) {
-        ret = mldsa_add(tt, s2t);
+        ret = mldsa_add(tt, a);
     }
     /* Make positive for decomposing. */
     if (ret == 0) {
@@ -11966,7 +11973,6 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     const wc_MlDsaParams* params = key->params;
     sword32* a = NULL;
     sword32* s1 = NULL;
-    sword32* s2 = NULL;
     sword32* t = NULL;
     sword64* t64 = NULL;
     byte* h = NULL;
@@ -11995,12 +12001,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* s1-l, s2-k, a-1, [t64], h. t is encoded a polynomial at a time,
-         * so it and the one decoded s2 polynomial share the s2 vector, which
-         * is dead once s2 has been encoded into the private key.
-         * h is last as its size may be odd. */
-        allocSz  = (unsigned int)params->s1Sz + params->s2Sz +
-                   (unsigned int)MLDSA_POLY_SIZE +
+        /* s1-l, t-1, a-1, [t64], h. s2 and t are encoded a polynomial at a
+         * time. h is last as its size may be odd. */
+        allocSz  = (unsigned int)params->s1Sz +
+                   2U * (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         /* t64 */
@@ -12028,9 +12032,8 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             ret = MEMORY_E;
         }
         else {
-            s2 = s1 + params->s1Sz / sizeof(*s1);
-            t  = s2;
-            a  = s2 + params->s2Sz / sizeof(*s2);
+            t  = s1 + params->s1Sz / sizeof(*s1);
+            a  = t + MLDSA_N;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64 = (sword64*)(a + MLDSA_N);
             h  = (byte*)(t64 + MLDSA_N);
@@ -12081,13 +12084,40 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     case 1:
     if (ret == 0) {
         byte* priv_seed = key->k + MLDSA_PUB_SEED_SZ;
+        byte* s2p = priv_seed + MLDSA_K_SZ + MLDSA_TR_SZ + params->s1EncSz;
+        word32 s2Stride = (word32)params->s2EncSz / params->k;
+        byte sseed[MLDSA_GEN_S_SEED_SZ];
 
         /* Step 7; Alg 22 Step 1: Copy public seed into public key. */
         XMEMCPY(key->p, pub_seed, MLDSA_PUB_SEED_SZ);
 
-        /* Step 4: Expand private seed into to vectors of polynomials. */
-        ret = mldsa_expand_s(&key->shake, priv_seed, params->eta, s1,
-            params->l, s2, params->k, key->heap);
+        /* Step 4: Expand private seed into vector s1. */
+        ret = mldsa_expand_s_c(&key->shake, priv_seed, params->eta, s1,
+            params->l, NULL, 0);
+        /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
+        if (ret == 0) {
+            ret = mldsa_vec_encode_eta_bits(s1, params->l, params->eta,
+                s2p - params->s1EncSz);
+        }
+        /* Step 4, Step 9. Alg 24 Steps 5-7: Expand and encode s2 a polynomial
+         * at a time. The encoding lies past rho' and K, still in use. */
+        XMEMCPY(sseed, priv_seed, MLDSA_PRIV_SEED_SZ);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mldsa make_key sseed", sseed, sizeof(sseed));
+    #endif
+        sseed[MLDSA_PRIV_SEED_SZ + 1] = 0;
+        for (r = 0; (ret == 0) && (r < params->k); r++) {
+            sseed[MLDSA_PRIV_SEED_SZ] = (byte)(r + params->l);
+            ret = mldsa_rej_bound_poly(&key->shake, sseed, a, params->eta);
+            if (ret == 0) {
+                ret = mldsa_vec_encode_eta_bits(a, 1, params->eta,
+                    s2p + (size_t)r * s2Stride);
+            }
+        }
+        ForceZero(sseed, sizeof(sseed));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(sseed, sizeof(sseed));
+    #endif
     }
 #ifdef WC_MLDSA_NONBLOCK
     if ((key->nb != NULL) && (ret == 0)) {
@@ -12100,8 +12130,6 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     case 2:
     if (ret == 0) {
         byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
-        byte* s1p = k + MLDSA_K_SZ + MLDSA_TR_SZ;
-        byte* s2p = s1p + params->s1EncSz;
         byte kBuf[MLDSA_K_SZ];
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -12112,14 +12140,6 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         ForceZero(k, MLDSA_PRIV_SEED_SZ + MLDSA_K_SZ);
         XMEMCPY(k, kBuf, MLDSA_K_SZ);
         ForceZero(kBuf, sizeof(kBuf));
-        /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
-        if (ret == 0) {
-            ret = mldsa_vec_encode_eta_bits(s1, params->l, params->eta, s1p);
-        }
-        /* Step 9. Alg 24 Steps 5-7: Encode s2 into private key. */
-        if (ret == 0) {
-            ret = mldsa_vec_encode_eta_bits(s2, params->k, params->eta, s2p);
-        }
         /* Step 5: NTT(s1) */
         if (ret == 0) {
             ret = mldsa_vec_ntt_small_full(s1, params->l);
@@ -12149,8 +12169,6 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         word32 s2Stride = (word32)params->s2EncSz / params->k;
         unsigned int r0 = 0;
         byte aseed[MLDSA_GEN_A_SEED_SZ];
-        /* One decoded s2 polynomial, held after t in the dead s2 vector. */
-        sword32* s2t = t + MLDSA_N;
         sword32* tt = t;
         const byte* s2pt;
         byte* t0;
@@ -12168,7 +12186,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         XMEMCPY(aseed, pub_seed, MLDSA_PUB_SEED_SZ);
         for (r = r0; (ret == 0) && (r < params->k); r++) {
             ret = mldsa_calc_t_row(&key->shake, aseed, (byte)r, s1,
-                params->l, s2pt, params->eta, tt, s2t, a, h, t64);
+                params->l, s2pt, params->eta, tt, a, h, t64);
             /* Decompose t into t0 and t1 and encode into the keys, one poly. */
             if (ret == 0) {
                 ret = mldsa_vec_encode_t0_t1(tt, 1, t0, t1);
@@ -12219,12 +12237,6 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         break;
     }
 
-    /* Zeroize the whole buffer before freeing. It holds the private vectors
-     * s1, s2 and t at the front, then the public matrix polynomial a, then
-     * (POLY64 builds) the t64 accumulator holding A o NTT(s1) - from which
-     * s1 is recoverable - and finally the public rejection-sampling buffer
-     * h. As the secret material is not contiguous, zeroize the entire
-     * allocation rather than a sub-range. */
 #ifdef WC_MLDSA_NONBLOCK
     if ((key->nb != NULL) && (ret == WC_NO_ERR_TRACE(MP_WOULDBLOCK))) {
         /* Yielding: keep the working allocation for the next call. */
@@ -16013,7 +16025,6 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
 #ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
     sword32* s2 = NULL;
 #else
-    sword32* s2t = NULL;
     sword64* t64 = NULL;
     byte* h = NULL;
 #endif
@@ -16073,10 +16084,9 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
     /* Matrix A is expanded a polynomial at a time, so any cache is left
      * alone. */
     if (ret == 0) {
-        /* s1-l, t-1, s2-1, a-1, [t64], h. h is last as its size may be
-         * odd. */
+        /* s1-l, t-1, a-1, [t64], h. h is last as its size may be odd. */
         allocSz = (unsigned int)params->s1Sz +
-            3U * (unsigned int)MLDSA_POLY_SIZE +
+            2U * (unsigned int)MLDSA_POLY_SIZE +
             (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         /* t64 */
@@ -16089,8 +16099,7 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
         }
         else {
             t   = s1 + params->s1Sz / sizeof(*s1);
-            s2t = t + MLDSA_N;
-            a   = s2t + MLDSA_N;
+            a   = t + MLDSA_N;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64 = (sword64*)(a + MLDSA_N);
             h   = (byte*)(t64 + MLDSA_N);
@@ -16172,8 +16181,8 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
             for (r = 0; (ret == 0) && (r < params->k); r++) {
                 /* Calculate row r of t = NTT-1(A o NTT(s1)) + s2 */
                 ret = mldsa_calc_t_row(&key->shake, aseed, (byte)r, s1,
-                    params->l, s2p + (r * s2Stride), params->eta, t, s2t, a,
-                    h, t64);
+                    params->l, s2p + (r * s2Stride), params->eta, t, a, h,
+                    t64);
                 /* Encode row r of t1 into the public key and check row r
                  * of the derived t0 against the private key's t0. */
                 if (ret == 0) {
@@ -16209,8 +16218,7 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
         /* s1, s2 and t at the front are secret; any A after is public. */
         ForceZero(s1, (unsigned int)params->s1Sz + (2U * params->s2Sz));
 #else
-        /* The public a and h sit between and after the secret s1, t, s2 and
-         * t64, so zeroize the entire allocation. */
+        /* a also holds the secret s2 rows, so zeroize the entire allocation. */
         ForceZero(s1, allocSz);
 #endif
         XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
