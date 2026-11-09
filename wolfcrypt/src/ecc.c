@@ -13430,8 +13430,8 @@ int wc_ecc_sig_size(const ecc_key* key)
 typedef struct {
    ecc_point* g;               /* cached COPY of base point */
    /* Slot 0 is not part of the table: it is the zero-bit pattern, so it holds
-      no multiple of the base point and is never read. It carries the curve
-      parameters this entry is keyed on instead - see fp_entry_a() below. */
+    * no multiple of the base point and is never read. It carries the curve
+    * parameters this entry is keyed on instead - see fp_entry_a() below. */
    ecc_point* LUT[1U<<FP_LUT]; /* fixed point lookup */
    int        LUT_set;         /* flag to determine if the LUT has been computed */
    mp_int     mu;              /* copy of the montgomery constant */
@@ -13444,11 +13444,11 @@ typedef struct {
 static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 
 /* The curve parameters an entry was created under, kept in LUT slot 0 so that
-   they are allocated and released with the rest of the LUT. This is safe
-   because build_lut() fills from index 1 and every read of the table in
-   accel_fp_mul() and accel_fp_mul2add() is guarded by a non-zero index: the
-   index is a window of the scalar, and a zero window contributes nothing to
-   add. Anything that gives slot 0 a meaning must stop using it here. */
+ * they are allocated and released with the rest of the LUT. This is safe
+ * because build_lut() fills from index 1 and every read of the table in
+ * accel_fp_mul() and accel_fp_mul2add() is guarded by a non-zero index: the
+ * index is a window of the scalar, and a zero window contributes nothing to
+ * add. Anything that gives slot 0 a meaning must stop using it here. */
 #define fp_entry_a(idx)        (fp_cache[idx].LUT[0]->x)
 #define fp_entry_modulus(idx)  (fp_cache[idx].LUT[0]->y)
 
@@ -14029,8 +14029,8 @@ static int find_hole(void)
 }
 
 /* determine if a base is already in the cache and if so, where.
-   An entry's table is only meaningful for the parameters it was computed
-   under, so those are part of the key along with the point. */
+ * An entry's table is only meaningful for the parameters it was computed
+ * under, so those are part of the key along with the point. */
 static int find_base(ecc_point* g, mp_int* a, mp_int* modulus)
 {
    int x;
@@ -14091,8 +14091,8 @@ static int add_entry(int idx, ecc_point *g, mp_int* a, mp_int* modulus)
       err = mp_copy(modulus, fp_entry_modulus(idx));
    }
    /* An ALT_ECC_SIZE ordinate is narrower than the curve parameters can be,
-      and mp_copy() reports success when it declines to copy into one, so
-      confirm the entry really is keyed on what was passed in. */
+    * and mp_copy() reports success when it declines to copy into one, so
+    * confirm the entry really is keyed on what was passed in. */
    if ((err == MP_OKAY) &&
        ((mp_cmp(fp_entry_a(idx), a) != MP_EQ) ||
         (mp_cmp(fp_entry_modulus(idx), modulus) != MP_EQ))) {
