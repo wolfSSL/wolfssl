@@ -52,6 +52,11 @@ use crate::hmac::HMAC;
 /// use wolfssl_wolfcrypt::hkdf::*;
 /// use wolfssl_wolfcrypt::hmac::HMAC;
 /// use wolfssl_wolfcrypt::sha::SHA256;
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1);
+/// }
 /// let ikm = b"MyPassword0";
 /// let salt = b"12345678ABCDEFGH";
 /// let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
@@ -87,6 +92,11 @@ pub fn hkdf_extract(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]) -
 /// use wolfssl_wolfcrypt::hkdf::*;
 /// use wolfssl_wolfcrypt::hmac::HMAC;
 /// use wolfssl_wolfcrypt::sha::SHA256;
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1);
+/// }
 /// let ikm = b"MyPassword0";
 /// let salt = b"12345678ABCDEFGH";
 /// let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
@@ -146,6 +156,11 @@ pub fn hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]
 /// use wolfssl_wolfcrypt::hkdf::*;
 /// use wolfssl_wolfcrypt::hmac::HMAC;
 /// use wolfssl_wolfcrypt::sha::SHA256;
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1);
+/// }
 /// let ikm = b"MyPassword0";
 /// let salt = b"12345678ABCDEFGH";
 /// let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
@@ -185,6 +200,11 @@ pub fn hkdf_expand(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8]) ->
 /// use wolfssl_wolfcrypt::hkdf::*;
 /// use wolfssl_wolfcrypt::hmac::HMAC;
 /// use wolfssl_wolfcrypt::sha::SHA256;
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1);
+/// }
 /// let ikm = b"MyPassword0";
 /// let salt = b"12345678ABCDEFGH";
 /// let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
@@ -247,6 +267,11 @@ pub fn hkdf_expand_ex(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8],
 /// ```rust
 /// use wolfssl_wolfcrypt::hkdf::*;
 /// use wolfssl_wolfcrypt::hmac::HMAC;
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1);
+/// }
 /// let ikm = b"MyPassword0";
 /// let salt = b"12345678ABCDEFGH";
 /// let info = b"0";

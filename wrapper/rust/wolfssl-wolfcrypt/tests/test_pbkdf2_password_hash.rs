@@ -10,7 +10,7 @@ use password_hash::phc::{Output, PasswordHash};
 use password_hash::{CustomizedPasswordHasher, PasswordHasher, PasswordVerifier};
 use wolfssl_wolfcrypt::pbkdf2_password_hash::*;
 
-// FIPS v5.2.3 refuses HMAC keys under 14 bytes, and PBKDF2 uses the password as
+// FIPS v5 refuses HMAC keys under 14 bytes, and PBKDF2 uses the password as
 // its HMAC key.
 const PASSWORD: &[u8] = b"correct horse battery staple";
 

@@ -404,7 +404,7 @@ impl RNG {
     /// let seed = [1u8, 2, 3, 4];
     /// rng.reseed(&seed).expect("Error with reseed()");
     /// ```
-    #[cfg(all(random_hashdrbg, not(fips_v5_2_3)))]
+    #[cfg(all(random_hashdrbg, not(fips_v5)))]
     pub fn reseed(&self, seed: &[u8]) -> Result<(), i32> {
         let seed_size = crate::buffer_len_to_u32(seed.len())?;
         let rc = unsafe {

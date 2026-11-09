@@ -199,7 +199,7 @@ impl TryFrom<&PasswordHash> for Params {
 ///
 /// let hasher = Pbkdf2::default();
 /// let salt = b"0123456789abcdef"; // 16 bytes
-/// let hash = hasher.hash_password_with_salt(b"password", salt)
+/// let hash = hasher.hash_password_with_salt(b"correct horse battery staple", salt)
 ///     .expect("hashing failed");
 /// ```
 #[derive(Clone, Debug, Default)]

@@ -665,19 +665,17 @@ fn scan_cfg() -> Result<()> {
         // Crates that depend on this one see it as DEP_WOLFSSL_FIPS.
         println!("cargo::metadata=FIPS=1");
     }
-    // FIPS v5.2.3 builds without RSA blinding, so it has no wc_RsaSetRNG(),
+    // FIPS v5 builds without RSA blinding, so it has no wc_RsaSetRNG(),
     // and keeps wc_RNG_DRBG_Reseed() internal though the header declares it.
-    println!("cargo::rustc-check-cfg=cfg(fips_v5_2_3)");
+    println!("cargo::rustc-check-cfg=cfg(fips_v5)");
     let version = |name: &str| {
         Regex::new(&format!(r"pub const {}: u32 = (\d+);", name)).unwrap()
             .captures(&binding).and_then(|cap| cap[1].parse::<u32>().ok())
     };
-    if fips && version("HAVE_FIPS_VERSION_MAJOR") == Some(5)
-            && version("HAVE_FIPS_VERSION_MINOR") == Some(2)
-            && version("HAVE_FIPS_VERSION_PATCH") == Some(3) {
-        println!("cargo::rustc-cfg=fips_v5_2_3");
-        // Crates that depend on this one see it as DEP_WOLFSSL_FIPS_V5_2_3.
-        println!("cargo::metadata=FIPS_V5_2_3=1");
+    if fips && version("HAVE_FIPS_VERSION_MAJOR").or_else(|| version("HAVE_FIPS_VERSION")) == Some(5) {
+        println!("cargo::rustc-cfg=fips_v5");
+        // Crates that depend on this one see it as DEP_WOLFSSL_FIPS_V5.
+        println!("cargo::metadata=FIPS_V5=1");
     }
 
     /* hkdf */

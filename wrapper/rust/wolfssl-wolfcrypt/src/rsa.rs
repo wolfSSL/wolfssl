@@ -575,6 +575,11 @@ impl RSA {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     ///
     /// let rng = RNG::new().expect("Error creating RNG");
     /// let mut rsa = RSA::generate(2048, 65537, &rng).expect("Error with generate()");
@@ -1034,7 +1039,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, rsa_private, rsa_sign, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1261,13 +1266,13 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// }
     /// ```
-    #[cfg(all(rsa_pss, any(rsa_const_api, fips_v5_2_3)))]
+    #[cfg(all(rsa_pss, any(rsa_const_api, fips_v5)))]
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let digest_size = crate::buffer_len_to_u32(digest.len())?;
         let rc = unsafe {
-            // FIPS v5.2.3 declares the input non const but only reads it.
+            // FIPS v5 declares the input non const but only reads it.
             sys::wc_RsaPSS_VerifyCheck(din.as_ptr().cast_mut(), din_size,
                 dout.as_mut_ptr(), dout_size, digest.as_ptr(), digest_size,
                 hash_algo, mgf, &mut self.wc_rsakey)
@@ -1405,11 +1410,9 @@ impl RSA {
 
     /// Point the wolfCrypt key at `rng` for blinding.
     #[cfg(random)]
-    #[cfg_attr(fips_v5_2_3, allow(unused_variables))]
+    #[cfg_attr(not(rsa_setrng), allow(unused_variables))]
     fn set_wc_rng(&mut self, rng: &RNG) -> Result<(), i32> {
-        // FIPS v5.2.3 builds without RSA blinding, so there is no
-        // wc_RsaSetRNG() and private operations need no RNG.
-        #[cfg(not(fips_v5_2_3))]
+        #[cfg(rsa_setrng)]
         {
             let rc = unsafe {
                 sys::wc_RsaSetRNG(&mut self.wc_rsakey, rng.wc_rng)
