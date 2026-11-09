@@ -9368,6 +9368,9 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return CUSTOM_RAND_GENERATE_SEED_OS(os, output, sz);
     }
 
+#elif defined(CUSTOM_RAND_GENERATE_BLOCK)
+    /* The application supplies complete random blocks. No DRBG seed is used. */
+
 #elif defined(CUSTOM_RAND_GENERATE)
 
     #if defined(WOLFSSL_CONTIKI) && \
@@ -9404,9 +9407,6 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-
-#elif defined(CUSTOM_RAND_GENERATE_BLOCK)
-    /* The application supplies complete random blocks. No DRBG seed is used. */
 
 #elif defined(WOLFSSL_SGX)
 
@@ -10324,6 +10324,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             _Vx_ticks_t           seed = 0;
 
             #ifdef VXWORKS_SIM
+                #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+                    #error "VXWORKS_SIM timestamp seed is weak: provide a real entropy source; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+                #endif
                 /* cannot generate true entropy with VxWorks simulator */
                 #warning "not enough entropy, simulator for testing only"
                 int i = 0;
@@ -10467,6 +10470,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_NETBURNER)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "NetBurner GetRandomByte is a pseudo-random seed: provide a real entropy source; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
     #warning using NetBurner pseudo random GetRandomByte for seed
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {

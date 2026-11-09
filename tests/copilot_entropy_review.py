@@ -75,6 +75,9 @@ class EntropyReview(unittest.TestCase):
                 self.assertNotEqual(denied.returncode, 0)
                 allowed, _ = macros(branch, "NO_STM32_RNG", "WOLF_CONF_RNG=0")
                 self.assertEqual(allowed.returncode, 0, allowed.stderr)
+                weak, _ = macros(branch, "NO_STM32_RNG", "WOLF_CONF_RNG=1",
+                                 "WOLFSSL_ACCEPT_WEAK_ENTROPY")
+                self.assertEqual(weak.returncode, 0, weak.stderr)
 
     def test_netos_seed_uses_pool_bytes_directly(self):
         # F-16422: the NET+OS pool is the entropy source; funneling each byte
@@ -93,6 +96,8 @@ class EntropyReview(unittest.TestCase):
         source = (ROOT / "wolfcrypt/src/random.c").read_text()
         seed = source[source.index("/* Begin wc_GenerateSeed Implementations */"):]
         self.assertLess(seed.index("#elif defined(CUSTOM_RAND_GENERATE_BLOCK)"),
+                        seed.index("#elif defined(CUSTOM_RAND_GENERATE)"))
+        self.assertLess(seed.index("#elif defined(CUSTOM_RAND_GENERATE_BLOCK)"),
                         seed.index("#elif defined(HAVE_RTP_SYS)"))
         self.assertLess(seed.index("#elif defined(CUSTOM_RAND_GENERATE_BLOCK)"),
                         seed.index("#elif !defined(WOLFSSL_CAAM)"))
@@ -107,6 +112,33 @@ class EntropyReview(unittest.TestCase):
             text=True, capture_output=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_windows_custom_block_skips_crypt_handle_calls(self):
+        source = (ROOT / "wolfcrypt/src/random.c").read_text()
+        seed = source[source.index("/* Begin wc_GenerateSeed Implementations */"):]
+        self.assertLess(seed.index("#elif defined(CUSTOM_RAND_GENERATE_BLOCK)"),
+                        seed.index("#elif defined(USE_WINDOWS_API)"))
+        port = (ROOT / "wolfcrypt/src/wc_port.c").read_text()
+        self.assertEqual(port.count("!defined(CUSTOM_RAND_GENERATE_BLOCK)"), 2)
+
+    def test_contiki_custom_block_bypasses_default_word_prng(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (pathlib.Path(directory) / "contiki.h").write_text(
+                "unsigned long clock_seconds(void);\n")
+            command = ["cc", "-E", "-I", directory, "-I", str(ROOT),
+                       "-DWOLFSSL_CONTIKI", "-DCUSTOM_RAND_GENERATE_BLOCK=secure_block",
+                       str(ROOT / "wolfcrypt/src/random.c"), "-o", "/dev/null"]
+            result = subprocess.run(command, text=True, capture_output=True,
+                                    check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_ci_runs_entropy_regressions(self):
+        workflow = ROOT / ".github/workflows/entropy.yml"
+        self.assertTrue(workflow.is_file())
+        text = workflow.read_text()
+        for name in ("weak_entropy_defaults", "arduino_entropy_guard",
+                     "cypress_trng_failure", "copilot_entropy_review"):
+            self.assertIn(name, text)
 
 
 if __name__ == "__main__":

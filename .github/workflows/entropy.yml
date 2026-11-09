@@ -1,0 +1,32 @@
+name: Entropy Regression Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  entropy:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Entropy regression tests
+        run: >-
+          python3 -m unittest
+          tests.weak_entropy_defaults
+          tests.arduino_entropy_guard
+          tests.cypress_trng_failure
+          tests.copilot_entropy_review
+          -v

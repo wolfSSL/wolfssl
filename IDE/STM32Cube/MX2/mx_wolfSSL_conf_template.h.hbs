@@ -626,7 +626,8 @@
     defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
     !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST) && \
+    !defined(WOLFSSL_ACCEPT_WEAK_ENTROPY)
     #error "STM32 device has no RNG: provide CUSTOM_RAND_GENERATE_SEED or another real seed source"
 #endif
 

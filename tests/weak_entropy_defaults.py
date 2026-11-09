@@ -29,7 +29,8 @@ class WeakEntropyDefaults(unittest.TestCase):
 
     def test_clock_and_prng_seed_branches_require_weak_opt_in(self):
         source = (ROOT / "wolfcrypt/src/random.c").read_text()
-        for name in ("WOLFSSL_PB", "MICRIUM", "__MICROBLAZE__"):
+        for name in ("WOLFSSL_PB", "MICRIUM", "__MICROBLAZE__",
+                     "WOLFSSL_NETBURNER"):
             with self.subTest(platform=name):
                 start = source.index("#elif defined(" + name + ")", source.index("/* Begin wc_GenerateSeed Implementations */"))
                 end = source.index("\n#elif defined(", start + 1)
@@ -40,6 +41,31 @@ class WeakEntropyDefaults(unittest.TestCase):
                 )
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("WOLFSSL_ACCEPT_WEAK_ENTROPY", result.stderr)
+                if name == "WOLFSSL_NETBURNER":
+                    accepted = subprocess.run(
+                        ["cc", "-E", "-x", "c", "-", "-D" + name,
+                         "-DWOLFSSL_ACCEPT_WEAK_ENTROPY"],
+                        input=branch, text=True, capture_output=True,
+                        check=False,
+                    )
+                    self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
+    def test_vxworks_simulator_requires_weak_opt_in(self):
+        source = (ROOT / "wolfcrypt/src/random.c").read_text()
+        start = source.index("#ifdef VXWORKS_SIM",
+                             source.index("#elif defined(WOLFSSL_VXWORKS)"))
+        end = source.index("#endif", source.index("randomAddTimeStamp();", start)) \
+              + len("#endif")
+        branch = source[start:end] + "\n"
+        for extra, expected in (((), False),
+                                (("WOLFSSL_ACCEPT_WEAK_ENTROPY",), True)):
+            with self.subTest(extra=extra):
+                result = subprocess.run(
+                    ["cc", "-E", "-x", "c", "-", "-DWOLFSSL_VXWORKS",
+                     "-DVXWORKS_SIM"] + ["-D" + item for item in extra],
+                    input=branch, text=True, capture_output=True, check=False,
+                )
+                self.assertEqual(result.returncode == 0, expected)
 
     def test_contiki_does_not_choose_framework_prng(self):
         source = (ROOT / "wolfcrypt/src/random.c").read_text()
