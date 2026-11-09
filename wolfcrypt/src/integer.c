@@ -375,20 +375,29 @@ int mp_grow (mp_int * a, int size)
     /* ensure there are always at least MP_PREC digits extra on top */
     size += (MP_PREC * 2) - (size % MP_PREC);
 
-    /* reallocate the array a->dp
+    /* Allocate a new array rather than XREALLOC() the old one. When realloc()
+     * cannot grow a block in place it copies it and frees the original
+     * without wiping it, leaving a copy of the value, which may be secret, in
+     * freed memory.
      *
      * We store the return in a temporary variable
      * in case the operation failed we don't want
      * to overwrite the dp member of a.
      */
-    tmp = (mp_digit *)XREALLOC (a->dp, sizeof (mp_digit) * size, NULL,
+    tmp = (mp_digit *)XMALLOC (sizeof (mp_digit) * size, NULL,
                                                            DYNAMIC_TYPE_BIGINT);
     if (tmp == NULL) {
-      /* reallocation failed but "a" is still valid [can be freed] */
+      /* allocation failed but "a" is still valid [can be freed] */
       return MP_MEM;
     }
 
-    /* reallocation succeeded so set a->dp */
+    if (a->dp != NULL) {
+      XMEMCPY(tmp, a->dp, sizeof (mp_digit) * (size_t)a->alloc);
+      ForceZero(a->dp, sizeof (mp_digit) * (size_t)a->alloc);
+      XFREE(a->dp, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+
+    /* allocation succeeded so set a->dp */
     a->dp = tmp;
 
     /* zero excess digits */
