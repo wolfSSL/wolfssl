@@ -44,7 +44,12 @@ $ta/alt-end-int-cert.pem $ta/alt-end-cert.pem classic
 $ta/alt-notca-int-cert.pem $ta/alt-end-cert.pem classic
 $ta/alt-int-leaf-cert.pem $ta/alt-int-cert.pem classic
 $ta/wrongca-cert.pem $ta/wrongca-root-cert.pem classic
-$ta/wrongca-int-leaf-cert.pem $ta/wrongca-int-cert.pem classic"
+$ta/wrongca-int-leaf-cert.pem $ta/wrongca-int-cert.pem classic
+server-ecc384-cert.pem ca-ecc384-cert.pem classic
+test/akid-serial/ca-cert.pem test/akid-serial/root-cert.pem classic
+test/akid-serial/ca-twin-cert.pem test/akid-serial/root-cert.pem classic
+test/akid-serial/leaf-cert.pem test/akid-serial/ca-cert.pem classic
+test/akid-serial/leaf-twin-cert.pem test/akid-serial/ca-twin-cert.pem classic"
 
 failed=0
 
