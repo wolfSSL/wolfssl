@@ -5699,4 +5699,28 @@ if(WOLFSSL_INSTALL)
     ${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config-version.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
     )
+
+    # SBOM. Hashes the installed library and reads wolfssl/options.h, the same
+    # inputs as `make sbom`. The helper is the vendored wolfssl-compliance-tooling
+    # snapshot in tools/sbom/. It stages the install, validates the SPDX file
+    # and writes the tag-value file. A missing python3 or pyspdxtools does not
+    # fail configure. The sbom target fails when someone runs it.
+    if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+        # A parent project owns the sbom target name.
+        include(${CMAKE_CURRENT_SOURCE_DIR}/tools/sbom/build/sbom.cmake)
+        if(WOLFSSL_LIBZ)
+            set(_sbom_libz yes)
+        else()
+            set(_sbom_libz no)
+        endif()
+        wolfssl_compliance_tooling_add_sbom(
+            NAME wolfssl
+            VERSION ${wolfssl_VERSION}
+            STAGE_TARGET wolfssl
+            VALIDATE
+            OPTIONS_H ${OPTION_FILE}
+            LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSING
+            ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+            DEP_LIBZ ${_sbom_libz})
+    endif()
 endif()
