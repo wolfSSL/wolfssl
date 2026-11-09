@@ -17141,6 +17141,15 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     ret = GREASE_ECH_USE(&(ssl->extensions), ssl->heap,
                             ssl->rng);
                 }
+            #ifdef WOLFSSL_DTLS13
+                else if (ssl->options.dtls) {
+                    /* ECH is not supported over DTLS, GREASE ECH is fine */
+                    WOLFSSL_MSG("ECH configs set but ECH is not supported "
+                                "with DTLS");
+                    WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+                    ret = BAD_STATE_E;
+                }
+            #endif
                 else if (ssl->echConfigs != NULL) {
                     ret = ECH_USE(ssl->echConfigs, &(ssl->extensions),
                             ssl->heap, ssl->rng);

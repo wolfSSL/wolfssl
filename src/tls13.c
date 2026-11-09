@@ -18045,6 +18045,14 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         ssl->options.dtls   = 1;
         if (!IsDtlsNotSctpMode(ssl) || !ssl->options.sendCookie)
             ssl->options.dtlsStateful = 1;
+    #ifdef HAVE_ECH
+        if (!ssl->options.disableECH && ssl->ctx->echConfigs != NULL) {
+            WOLFSSL_MSG("ECH configs set but ECH is not supported with DTLS");
+            ssl->error = BAD_STATE_E;
+            WOLFSSL_ERROR(ssl->error);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    #endif
     }
 #endif
 
