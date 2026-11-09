@@ -765,13 +765,13 @@ static void wb_stir_nonce_local(void)
     }
 
     /* :2550 rows: (rng==NULL) and (rng!=NULL, seed==NULL). */
-    if (wc_RNG_DRBG_Stir_Nonce_local(NULL, seed, sizeof(seed),
+    if (wc_RNG_DRBG_Stir_AddIn_local(NULL, seed, sizeof(seed),
                                      nonce, sizeof(nonce)) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("stir-nonce rng==NULL not rejected");
         wb_fail = 1;
     }
-    if (wc_RNG_DRBG_Stir_Nonce_local(&rng, NULL, 0,
+    if (wc_RNG_DRBG_Stir_AddIn_local(&rng, NULL, 0,
                                      nonce, sizeof(nonce)) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("stir-nonce seed==NULL not rejected");
@@ -779,7 +779,7 @@ static void wb_stir_nonce_local(void)
     }
 
     /* Baseline: all-valid stir, nonce chunk evaluated with ret==0. */
-    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+    ret = wc_RNG_DRBG_Stir_AddIn_local(&rng, seed, sizeof(seed),
                                        nonce, sizeof(nonce));
     if (ret != 0) {
         WB_NOTE("stir-nonce valid call failed");
@@ -788,13 +788,13 @@ static void wb_stir_nonce_local(void)
 
     /* :2566 nonce-operand rows: ret==0 with nonce==NULL and with
      * nonce!=NULL/nonceSz==0, pairing the nonce-true baseline above. */
-    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+    ret = wc_RNG_DRBG_Stir_AddIn_local(&rng, seed, sizeof(seed),
                                        NULL, 0);
     if (ret != 0) {
         WB_NOTE("stir-nonce no-nonce call failed");
         wb_fail = 1;
     }
-    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+    ret = wc_RNG_DRBG_Stir_AddIn_local(&rng, seed, sizeof(seed),
                                        nonce, 0);
     if (ret != 0) {
         WB_NOTE("stir-nonce zero-length-nonce call failed");
@@ -804,7 +804,7 @@ static void wb_stir_nonce_local(void)
     /* :2566 ret!=0 row: reseed due, live nonce pending. The reseed counter
      * now belongs to WC_RNG and is shared by both DRBG widths. */
     rng.reseedCtr = WC_RESEED_INTERVAL;
-    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+    ret = wc_RNG_DRBG_Stir_AddIn_local(&rng, seed, sizeof(seed),
                                        nonce, sizeof(nonce));
     if (ret == 0) {
         WB_NOTE("stir-nonce with saturated reseed counter succeeded");

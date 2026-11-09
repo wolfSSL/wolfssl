@@ -3568,7 +3568,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 if (ret == 0) {
                     ret = wc_RNG_lock_get_unconditional(global_fallback_rng);
                     if (ret == 0) {
-                        ret = wc_RNG_DRBG_NextSeedNow_Nonce(
+                        ret = wc_RNG_DRBG_NextSeedNow_AddIn(
                             global_fallback_rng,
                             (byte *)&uncredited_nonce,
                             (word32)sizeof uncredited_nonce);
@@ -4508,7 +4508,7 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
            )
         {
             unsigned long uncredited_nonce = random_get_entropy();
-            ret = wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG_BANK_INST_TO_RNG(drbg),
+            ret = wc_RNG_DRBG_NextSeedNow_AddIn(WC_RNG_BANK_INST_TO_RNG(drbg),
                                                 (byte *)&uncredited_nonce,
                                                 (word32)sizeof uncredited_nonce);
             ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);

@@ -6,12 +6,12 @@
     with wc_FreeRng).  This is a blocking operation.
 
     One WC_RNG may be shared between threads for generating and reseeding:
-    wc_RNG_GenerateBlock(), wc_RNG_DRBG_Reseed(), wc_RNG_DRBG_Reseed_Nonce()
+    wc_RNG_GenerateBlock(), wc_RNG_DRBG_Reseed(), wc_RNG_DRBG_Reseed_AddIn()
     and wc_RNG_DRBG_Reseed_Now() each hold the instance lock.  So do the DRBG
-    management calls: wc_RNG_DRBG_Stir(), wc_RNG_DRBG_Stir_Nonce() and
+    management calls: wc_RNG_DRBG_Stir(), wc_RNG_DRBG_Stir_AddIn() and
     wc_RNG_DRBG_ScheduleReseed(), and in --enable-rng-extras builds
     wc_RNG_DRBG_NextStirNow(), wc_RNG_DRBG_NextSeedNow() and
-    wc_RNG_DRBG_NextSeedNow_Nonce().  The generate path calls their internal
+    wc_RNG_DRBG_NextSeedNow_AddIn().  The generate path calls their internal
     cores, which already run under the lock.
 
     wc_RNG_DRBG_ReseedRBGC() and wc_RNG_DRBG_StirRBGC() are the exception:
@@ -1316,7 +1316,7 @@ int wc_RNG_global_fallback_free(void);
     \endcode
 
     \sa wc_InitRngNonce_ex2
-    \sa wc_RNG_DRBG_Reseed_Nonce
+    \sa wc_RNG_DRBG_Reseed_AddIn
     \sa wc_RNG_TestSeed
     \sa wc_RNG_DRBG_GetRBGCStratum
 */
@@ -1417,7 +1417,7 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
     \ingroup Random
 
     \brief Immediately reseed rng from the module's built-in, registered, or
-    associated seed source, with an optional nonce as additional input.  The
+    associated seed source, with an optional addIn as additional input.  The
     credited reseed resets the reseed counter.
 
     \details For an SP 800-90C chain member (RBGC stratum > 0, in builds with
@@ -1432,7 +1432,7 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
 
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.
-    \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng is null, or addIn is null with addInSz nonzero.
     \return OBJECT_NOT_LOCKED_E The instance requires its lock and the
     caller does not hold it.
     \return BAD_MUTEX_E The rng's lock could not be taken.
@@ -1453,21 +1453,21 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
     remains usable until its reseed interval is reached.
 
     \param rng The RNG object to reseed.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_ScheduleReseed
-    \sa wc_RNG_DRBG_Reseed_Nonce
+    \sa wc_RNG_DRBG_Reseed_AddIn
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
+int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn, word32 addInSz);
 
 /*!
     \ingroup Random
 
     \brief The forced-primary form of wc_RNG_DRBG_Reseed_Now(): reseed rng
     directly from the module's primary (initial) randomness source, bypassing
-    the chain fallback ladder, with an optional nonce as additional input.
+    the chain fallback ladder, with an optional addIn as additional input.
     This is the SP 800-90A prediction-resistance primitive -- a reseed from a
     live entropy source immediately ahead of generation -- and is available
     to SP 800-90C chain members (RBGC stratum > 0) as well: the initial
@@ -1501,7 +1501,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
     retryable from a blockable context.
 
     \return 0 Success
-    \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng is null, or addIn is null with addInSz nonzero.
     \return OBJECT_NOT_LOCKED_E The instance requires its lock and the
     caller does not hold it.
     \return WRONG_TYPE_OBJECT_E The instance does not assert
@@ -1518,8 +1518,8 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
 
     \param rng The RNG object to reseed; in builds with instance locking it
     must assert WC_RNG_LOCK_REQUIRED and be held by the caller.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     _Example_
     \code
@@ -1537,14 +1537,14 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
     \sa wc_RNG_DRBG_Present
     \sa wc_RNG_DRBG_NextSeedGenerate_Primary
 */
-int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* nonce,
-                                   word32 nonceSz);
+int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* addIn,
+                                   word32 addInSz);
 
 /*!
     \ingroup Random
 
     \brief Reseed rng's DRBG with caller-supplied seed material and an
-    optional nonce as additional input, folded in a single derivation pass.
+    optional addIn as additional input, folded in a single derivation pass.
     The material is credited: the reseed counter resets.
 
     \details The single pass is one reseed operation over both inputs, not
@@ -1557,7 +1557,7 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* nonce,
     \return RNG_FAILURE_E rng is condemned (status DRBG_FAILED): a
     condemned instance does not accept a credited reseed; recover with
     wc_FreeRng() then wc_InitRng*().  Also, the reseed itself failed.
-    \return BAD_FUNC_ARG rng or seed is null, or nonce is null with nonceSz
+    \return BAD_FUNC_ARG rng or seed is null, or addIn is null with addInSz
     nonzero.
     \return OBJECT_NOT_LOCKED_E The instance requires its lock and the
     caller does not hold it.
@@ -1574,15 +1574,15 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* nonce,
     \param rng The RNG object to reseed.
     \param seed Seed material.
     \param seedSz Length of seed in bytes.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
     \sa wc_RNG_DRBG_Present
 
     \sa wc_RNG_DRBG_Reseed
-    \sa wc_RNG_DRBG_Stir_Nonce
+    \sa wc_RNG_DRBG_Stir_AddIn
 */
-int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
-                             const byte *nonce, word32 nonceSz);
+int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
+                             const byte *addIn, word32 addInSz);
 
 /*!
     \ingroup Random
@@ -1618,7 +1618,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     \param seedSz Length of seed in bytes.
 
     \sa wc_RNG_DRBG_Reseed
-    \sa wc_RNG_DRBG_Stir_Nonce
+    \sa wc_RNG_DRBG_Stir_AddIn
     \sa wc_RNG_entropy_needs_recovery
     \sa wc_RNG_DRBG_Present
 */
@@ -1627,12 +1627,12 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
 /*!
     \ingroup Random
 
-    \brief The nonce-bearing form of wc_RNG_DRBG_Stir(): the nonce is
+    \brief The addIn-bearing form of wc_RNG_DRBG_Stir(): the addIn is
     mixed in as a second, separate generate with additional input.
 
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.
-    \return BAD_FUNC_ARG rng or seed is null, or nonce is null with nonceSz
+    \return BAD_FUNC_ARG rng or seed is null, or addIn is null with addInSz
     nonzero.
     \return OBJECT_NOT_LOCKED_E, NEEDS_RECOVERY_E, NOT_READY_E,
     RNG_FAILURE_E, BAD_MUTEX_E As for wc_RNG_DRBG_Stir().
@@ -1640,16 +1640,16 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
     \param rng The RNG object to stir.
     \param seed Material to mix in.
     \param seedSz Length of seed in bytes.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_Stir
-    \sa wc_RNG_DRBG_Reseed_Nonce
+    \sa wc_RNG_DRBG_Reseed_AddIn
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng, const byte* seed,
-                                        word32 seedSz, const byte *nonce,
-                                        word32 nonceSz);
+int wc_RNG_DRBG_Stir_AddIn(WC_RNG* rng, const byte* seed,
+                                        word32 seedSz, const byte *addIn,
+                                        word32 addInSz);
 
 /*!
     \ingroup Random
@@ -1748,7 +1748,7 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
     \ingroup Random
 
     \brief Reseed rng from root's generate output -- the SP 800-90C chain
-    reseed -- with an optional nonce as additional input.  The reseed is
+    reseed -- with an optional addIn as additional input.  The reseed is
     credited (the reseed counter resets); rng's stratum is updated to root's
     stratum + 1, unless built with WC_RNG_RBGC_STRATUM_IMMUTABLE (required for
     FIPS).  The caller must hold exclusive access to both instances.
@@ -1779,8 +1779,8 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.  (Refusals below take
     precedence.)
-    \return BAD_FUNC_ARG rng or root is null, rng equals root, nonce is
-    null with nonceSz nonzero, or the no-downgrade rule refuses root as a
+    \return BAD_FUNC_ARG rng or root is null, rng equals root, addIn is
+    null with addInSz nonzero, or the no-downgrade rule refuses root as a
     chain parent (see \details).
     \return WRONG_TYPE_OBJECT_E rng is primary-class (stratum 0) and the
     build is WC_RNG_RBGC_STRATUM_IMMUTABLE, or (under FIPS) root is neither
@@ -1798,16 +1798,16 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
 
     \param rng The chain member to reseed.
     \param root The chain parent to draw seed material from.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_InitRngRBGC
     \sa wc_RNG_DRBG_StirRBGC
     \sa wc_RNG_DRBG_Reseed_Now
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
-                           word32 nonceSz);
+int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* addIn,
+                           word32 addInSz);
 
 /*!
     \ingroup Random
@@ -1817,8 +1817,8 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
 
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.
-    \return BAD_FUNC_ARG rng or root is null, rng equals root, or nonce is
-    null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng or root is null, rng equals root, or addIn is
+    null with addInSz nonzero.
     \return OBJECT_NOT_LOCKED_E rng or root requires its lock and the
     caller does not hold it.
     \return NEEDS_RECOVERY_E A recovery obligation stands on rng; see
@@ -1828,8 +1828,8 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
 
     \param rng The chain member to stir.
     \param root The chain parent to draw material from.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_ReseedRBGC
     \sa wc_RNG_DRBG_Stir
@@ -1844,7 +1844,7 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
 
 */
 int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
-                                      const byte* nonce, word32 nonceSz);
+                                      const byte* addIn, word32 addInSz);
 
 /*!
     \ingroup Random
@@ -2091,14 +2091,14 @@ int wc_RNG_DRBG_NextSeedCurrent(const WC_RNG* rng, WC_ATOMIC_INT_ARG* n);
     \endcode
 
     \sa wc_RNG_DRBG_NextSeedGenerate
-    \sa wc_RNG_DRBG_NextSeedNow_Nonce
+    \sa wc_RNG_DRBG_NextSeedNow_AddIn
 */
 int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
 
 /*!
     \ingroup Random
 
-    \brief The nonce-bearing form of wc_RNG_DRBG_NextSeedNow(): the nonce is
+    \brief The addIn-bearing form of wc_RNG_DRBG_NextSeedNow(): the addIn is
     mixed in as uncredited additional input alongside the banked seed.
 
     \return 0 Success
@@ -2109,18 +2109,18 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
     (re-)asserted, and a recovery reseed is scheduled.
     \return NOT_READY_E No bank is ready, or the reseed failed retryably
     with reseed runway remaining.
-    \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng is null, or addIn is null with addInSz nonzero.
     \return WRONG_TYPE_OBJECT_E, OBJECT_NOT_LOCKED_E, BAD_MUTEX_E,
     RNG_FAILURE_E, DRBG_CONT_FIPS_E As for wc_RNG_DRBG_NextSeedNow().
 
     \param rng The RNG object to reseed.
-    \param nonce Additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_NextSeedNow
 */
-int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
-                                  word32 nonceSz);
+int wc_RNG_DRBG_NextSeedNow_AddIn(WC_RNG* rng, const byte* addIn,
+                                  word32 addInSz);
 
 /*!
     \ingroup Random
@@ -2135,18 +2135,18 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     \return 0 Success (an instance with no DRBG accumulates too; the stir
     that consumes it is then a no-op -- wc_RNG_DRBG_Present()
     disambiguates).
-    \return BAD_FUNC_ARG rng or nonce is null, or nonceSz is 0.
+    \return BAD_FUNC_ARG rng or addIn is null, or addInSz is 0.
 
     \param rng The RNG object whose accumulator to feed.
-    \param nonce Material to bank.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Material to bank.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_NextStirNow
     \sa wc_RNG_DRBG_Stir
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce,
-                                        word32 nonceSz);
+int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *addIn,
+                                        word32 addInSz);
 
 /*!
     \ingroup Random
@@ -2787,16 +2787,21 @@ int wc_rng_debug_stats_sum(struct wc_rng_debug_stats_snapshot *s,
     call.  The pending event is delivered into each instance -- purging its
     banked and pooled pre-event material via wc_RNG_invalidate_entropy() --
     at the instance's next detection point: a generate, a recovery query, a
-    banked-seed redemption, or a pool extraction.  The call is lock-free and
-    safe from any context that may call the atomic-increment primitive.
+    banked-seed redemption, or a pool extraction.  If an auxiliary
+    invalidation publisher is registered (see
+    wc_RNG_entropy_epoch_extra_inv_init()), the fresh epoch is published
+    through it after the advance is globally visible.  The call is lock-free
+    and safe from any context that may call the atomic-increment primitive
+    (and, when a publisher is registered, the publisher).
 
     \return The new (post-increment) global entropy epoch.
 
     \sa wc_RNG_entropy_needs_recovery
     \sa wc_RNG_invalidate_entropy
+    \sa wc_RNG_entropy_epoch_extra_inv_init
     \sa wc_RNG_GenerateBlock
 */
-WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
+wc_RNG_entropy_epoch_t wc_RNG_global_invalidate_entropy(void);
 
 /*!
     \ingroup Random
@@ -2804,16 +2809,126 @@ WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
     \brief Read the process-global entropy epoch: the count of
     wc_RNG_global_invalidate_entropy() events so far.  An instance whose
     stamp differs from this value has an undelivered event pending (see
-    wc_RNG_entropy_needs_recovery(), which delivers it).  A relaxed
-    snapshot, for diagnostics and for callers that want to notice an event
-    without touching any instance; nothing is propagated.
+    wc_RNG_entropy_needs_recovery(), which delivers it).
+
+    \details Every epoch read is also a detection point for the auxiliary
+    pathway: with an external epoch source registered (see
+    wc_RNG_extra_entropy_epoch_init()), the source is consulted first, and
+    an external event detected there advances the global epoch before the
+    read returns -- so a read can itself move the epoch.  No per-instance
+    delivery is performed either way: this is for diagnostics and for
+    callers that want to notice an event without touching any instance.
 
     \return The current global epoch.
 
     \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_extra_entropy_epoch_init
     \sa wc_RNG_entropy_needs_recovery
 */
-WC_ATOMIC_UINT_ARG wc_RNG_get_global_entropy_epoch(void);
+wc_RNG_entropy_epoch_t wc_RNG_get_global_entropy_epoch(void);
+
+/*!
+    \ingroup Random
+
+    \brief Register a publisher for global entropy-epoch advances -- the
+    sender half of the auxiliary invalidation pathway, carrying
+    wc_RNG_global_invalidate_entropy() events to consumers outside the
+    process.
+
+    \details The canonical sender is a kernel module exporting its epoch to
+    user processes through read-only shared memory: the handler writes each
+    fresh epoch to the exported word, and user-mode libraries detect the
+    change through their own registered source (see
+    wc_RNG_extra_entropy_epoch_init() -- a build registering both is a
+    relay, receiving events upstream and republishing them downstream).
+    The "extra" here is an extra invalidation step -- transmission of the
+    one and only epoch -- not an extra epoch.
+
+    The handler is called after each advance is globally visible, with the
+    fresh epoch and the registered arg.  It must be cheap, nonblocking, and
+    safe in every context wc_RNG_global_invalidate_entropy() can run in,
+    and must not call back into wolfCrypt (a call back into the invalidator
+    is direct recursion).  Registration is one-shot for the life of the
+    process, with no deregistration, by design.
+
+    Publication is only guaranteed for advances after this call returns
+    success: either defer normal service until registration completes
+    (natural in module-init contexts), or accept that an advance racing the
+    registration may go unpublished.
+
+    \return 0 Success: the handler is registered and will receive every
+    subsequent advance.
+    \return BAD_FUNC_ARG handler is null.
+    \return ALREADY_E a publisher is already registered.
+    \return BUSY_E lost a registration race; nothing was registered by this
+    call.
+
+    \param handler The publisher callback.
+    \param arg Opaque argument passed to the callback.
+
+    \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_extra_entropy_epoch_init
+*/
+int wc_RNG_entropy_epoch_extra_inv_init(
+    wc_RNG_entropy_epoch_extra_inv_handler_t handler, void *arg);
+
+/*!
+    \ingroup Random
+
+    \brief Register a getter for an external entropy-epoch word -- the
+    receiver half of the auxiliary invalidation pathway, folding platform
+    entropy-invalidation events (a VM fork or resume, a snapshot restore)
+    into the process-global epoch.
+
+    \details The canonical receiver is a user-mode library polling a
+    kernel-exported epoch through read-only shared memory.  The "extra"
+    here is a whole extra epoch -- the external one, shadow-tracked
+    internally so that only its changes are forwarded.  Every epoch read
+    (every invalidation check, in every instance) consults the getter; a
+    changed value advances the process-global epoch exactly once per change
+    before the shadow is updated, so an external event is detected at the
+    first check after it lands, with no thread of control required on the
+    receiving side.  Events between checks coalesce into one advance.
+    Under concurrency the accounting is best-effort in the safe direction:
+    racing readers can each advance for the same external change, and a
+    duplicate advance (with its duplicate publication, when a publisher is
+    registered) costs at most a spurious recovery cycle.  Duplicates are
+    tolerated by design -- the alternative single-broadcaster protocols
+    can lose an advance outright, which is never tolerable.
+
+    The getter must be cheap, nonblocking, callable concurrently, and must
+    not call into wolfCrypt (every wolfCrypt invalidation check would
+    recurse).  It returns the external epoch, or
+    WC_RNG_ENTROPY_EPOCH_INVALID (0) when no signal is available, which
+    makes the read inert.
+
+    Registration probes the getter once: a 0 result refuses the
+    registration and leaves the slot unclaimed.  A successful registration
+    primes the shadow with the probed value, so registering is itself quiet
+    -- material seeded before registration is trusted.  For a conservative
+    start that distrusts it instead, call
+    wc_RNG_global_invalidate_entropy() after this call returns.
+    Registration is one-shot for the life of the process, with no
+    deregistration, by design.
+
+    \return 0 Success: every subsequent epoch read consults the getter.
+    \return BAD_FUNC_ARG handler is null, or its probe returned
+    WC_RNG_ENTROPY_EPOCH_INVALID.
+    \return ALREADY_E a source is already registered.
+    \return BUSY_E lost a registration race; nothing was registered by this
+    call.
+
+    \param handler The getter callback.
+    \param arg Opaque argument passed to the callback.
+
+    \sa wc_RNG_get_global_entropy_epoch
+    \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_entropy_epoch_extra_inv_init
+    \sa wc_RNG_entropy_needs_recovery
+*/
+int wc_RNG_extra_entropy_epoch_init(
+    wc_RNG_extra_entropy_epoch_get_handler_t handler,
+    void *arg);
 
 /*!
     \ingroup Random
