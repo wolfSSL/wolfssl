@@ -308,7 +308,9 @@ TESTS += $(check_SCRIPTS)
 # for an out-of-tree build it exists only in the source tree.  Symlink it into
 # the build tree so the tests can find it.  This is driven by a stamp file in
 # BUILT_SOURCES so it runs once, before anything else, for "make", "make all"
-# and "make check".  It is a no-op for in-tree builds.
+# and "make check".  It is a no-op for in-tree builds.  The trees are
+# compared by physical path: a symlinked source dir can make abs_top_srcdir
+# and abs_top_builddir differ as strings for an in-tree build.
 #
 # The setup and the distclean cleanup use rm -rf: a --private-dir run of
 # .github/scripts/parallel-make-check.py replaces the certs symlink with a
@@ -320,7 +322,8 @@ BUILT_SOURCES += wolfssl-test-data.stamp
 
 wolfssl-test-data.stamp:
 	$(AM_V_at)set -e; \
-	if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
+	if test "`cd "$(abs_top_srcdir)" && pwd -P`" != \
+	   "`cd "$(abs_top_builddir)" && pwd -P`"; then \
 		$(MKDIR_P) tests scripts examples; \
 		for f in certs input quit; do \
 			rm -rf "$$f"; \
@@ -364,9 +367,11 @@ clean-local:
 	-rm -rf $(ADVISORY_OUT_DIR)
 
 # Remove the symlinks created for out-of-tree builds.  Gated on
-# srcdir != builddir so an in-tree build never touches the real source files.
+# physical srcdir != builddir so an in-tree build never touches the real
+# source files.
 distclean-local:
-	$(AM_V_at)if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
+	$(AM_V_at)if test "`cd "$(abs_top_srcdir)" && pwd -P`" != \
+	   "`cd "$(abs_top_builddir)" && pwd -P`"; then \
 		rm -rf certs input quit; \
 		rm -f tests/*.conf tests/*.cnf tests/TXT_DB.txt; \
 		rm -f scripts/*.pcap scripts/*.out scripts/*.sslkeylog \
