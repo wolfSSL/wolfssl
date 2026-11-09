@@ -23597,6 +23597,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         /* Authority Key Identifier. */
         case AUTH_KEY_OID:
             VERIFY_AND_SET_OID(cert->extAuthKeyIdSet);
+            cert->extAuthKeyIdPresent = 1;
             cert->extAuthKeyIdCrit = critical ? 1 : 0;
         #ifndef WOLFSSL_ALLOW_CRIT_AKID
             /* This check is added due to RFC 5280 section 4.2.1.1
@@ -23618,6 +23619,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         /* Stripped: reject critical even under ALLOW_CRIT_AKID - can't honor an
          * undecoded extension (RFC 5280 4.2.1.1). No SET_OID, bit means decoded. */
         case AUTH_KEY_OID:
+            cert->extAuthKeyIdPresent = 1;
             if (critical) {
                 ret = ASN_CRIT_EXT_E;
             }
