@@ -556,6 +556,24 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
+    ########## update and sign server-ecc384-cert.pem ##########
+    ############################################################
+    # AKID names the CA serial, so re-sign after ca-ecc384-cert.pem.
+    echo "Updating server-ecc384-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nWashington\\nSeattle\\nElliptic\\nECC384Srv\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-ecc384-key.pem -config ./wolfssl.cnf -nodes -sha384 -out server-ecc384-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in server-ecc384-cert.csr -days 10950 -extfile ./ecc/wolfssl_384.cnf -extensions server_cert -CA ca-ecc384-cert.pem -CAkey ca-ecc384-key.pem -set_serial 0x1001 -sha384 -out server-ecc384-cert.pem
+    check_result $? "Step 2"
+    rm server-ecc384-cert.csr
+
+    openssl x509 -in server-ecc384-cert.pem -outform DER -out server-ecc384-cert.der
+    check_result $? "Step 3"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ##### update the self-signed (1024-bit) ca-cert.pem ########
     ############################################################
     echo "Updating 1024-bit ca-cert.pem"

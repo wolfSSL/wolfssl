@@ -1145,10 +1145,10 @@ static void wb_decode_auth_key_id(void)
     };
     /* Empty SEQUENCE: no fields at all -> every data.ref.data stays NULL. */
     static const byte akidEmpty[] = { 0x30, 0x00 };
-    /* ISSUER only: [1] IMPLICIT GeneralNames containing one dNSName
-     * "host" (context tag 0x82, primitive). */
+    /* ISSUER only: [1] IMPLICIT GeneralNames containing one directoryName
+     * holding an empty Name (context tag 0xA4, constructed). */
     static const byte akidIssuerOnly[] = {
-        0x30,0x08, 0xA1,0x06, 0x82,0x04, 'h','o','s','t'
+        0x30,0x06, 0xA1,0x04, 0xA4,0x02, 0x30,0x00
     };
     /* SERIAL only: [2] IMPLICIT INTEGER (primitive, tag 0x82 collides in
      * value with dNSName above but is a different template slot). */
@@ -1936,9 +1936,9 @@ static void wb_ext_alloc_faults(void)
     /* AKID carrying keyIdentifier, authorityCertIssuer and
      * authorityCertSerialNumber, so all three post-hash steps are reached. */
     static const byte akidFull[] = {
-        0x30,0x13,
+        0x30,0x11,
           0x80,0x04, 0xAA,0xBB,0xCC,0xDD,
-          0xA1,0x06, 0x82,0x04, 'h','o','s','t',
+          0xA1,0x04, 0xA4,0x02, 0x30,0x00,
           0x82,0x03, 0x01,0x02,0x03
     };
     static const byte sdaCoc2[] = {

@@ -22147,7 +22147,10 @@ int DecodeAuthKeyId(const byte* input, word32 sz, const byte **extAuthKeyId,
                 dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data, &idx,
                 dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.length);
 
-        if (ret == 0 && extAuthKeyIdIssuer && extAuthKeyIdIssuerSz) {
+        /* Only a directoryName names the issuer's issuer. */
+        if (ret == 0 && extAuthKeyIdIssuer && extAuthKeyIdIssuerSz &&
+                nameASN[ALTNAMEASN_IDX_GN].tag ==
+                    (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
             GetASN_GetConstRef(&nameASN[ALTNAMEASN_IDX_GN],
                     extAuthKeyIdIssuer, extAuthKeyIdIssuerSz);
         }
@@ -22156,6 +22159,11 @@ int DecodeAuthKeyId(const byte* input, word32 sz, const byte **extAuthKeyId,
             dataASN[AUTHKEYIDASN_IDX_SERIAL].data.ref.data != NULL) {
         GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_SERIAL],
                 extAuthKeyIdIssuerSN, extAuthKeyIdIssuerSNSz);
+        /* Drop the sign byte as for a certificate's serial number. */
+        if (*extAuthKeyIdIssuerSNSz > 1 && (*extAuthKeyIdIssuerSN)[0] == 0) {
+            (*extAuthKeyIdIssuerSN)++;
+            (*extAuthKeyIdIssuerSNSz)--;
+        }
     }
     if (ret == 0 && extAuthKeyIdIssuerSz && extAuthKeyIdIssuerSNSz) {
         if ((*extAuthKeyIdIssuerSz > 0) ^
@@ -26072,6 +26080,63 @@ static WC_NO_INLINE int ConfirmSelfSignature(DecodedCert* cert)
     return ret;
 }
 
+#ifdef WOLFSSL_AKID_NAME
+/* RFC 5280, 4.2.1.1: the AKID's authorityCertIssuer and
+ * authorityCertSerialNumber name the issuer and serial of the signer's
+ * certificate. Returns 1 when ca is not ruled out by them. */
+static int SignerMatchesAkidName(DecodedCert* cert, Signer* ca)
+{
+    byte hash[SIGNER_DIGEST_SIZE];
+
+    if (cert->extAuthKeyIdIssuerSNSz > 0 &&
+            (CalcHashId(cert->extAuthKeyIdIssuerSN,
+                cert->extAuthKeyIdIssuerSNSz, hash) != 0 ||
+             XMEMCMP(hash, ca->serialHash, SIGNER_DIGEST_SIZE) != 0)) {
+        return 0;
+    }
+    if (cert->extAuthKeyIdIssuerSz > 0 &&
+            (CalcHashId_ex(cert->extAuthKeyIdIssuer,
+                cert->extAuthKeyIdIssuerSz, hash,
+                HashIdAlg(cert->signatureOID)) != 0 ||
+             XMEMCMP(hash, ca->issuerNameHash, SIGNER_DIGEST_SIZE) != 0)) {
+        return 0;
+    }
+    return 1;
+}
+
+/* Returns 1 when the AKID issuer and serial of cert rule out ca. A
+ * self-issued cert with the key of ca is a copy of ca: its AKID names
+ * itself. */
+int SignerAkidNameRulesOut(DecodedCert* cert, Signer* ca)
+{
+    if (cert->selfIssued && ca->publicKey != NULL &&
+            cert->pubKeySize == ca->pubKeySize &&
+            XMEMCMP(cert->publicKey, ca->publicKey, cert->pubKeySize) == 0) {
+        return 0;
+    }
+    return !SignerMatchesAkidName(cert, ca);
+}
+
+/* Returns 1 when ca has the key that the AKID key id names and no other CA
+ * of cm has the AKID issuer and serial. The AKID then names another cert of
+ * the key of ca, such as a re-issued CA, and ca is the signer. */
+static int SignerHasAkidKeyId(DecodedCert* cert, WOLFSSL_CERT_MANAGER* cm,
+    const Signer* ca)
+{
+#ifndef NO_SKID
+    return cert->extAuthKeyIdSet &&
+        XMEMCMP(cert->extAuthKeyId, ca->subjectKeyIdHash, KEYID_SIZE) == 0 &&
+        GetCAByAKID(cm, cert->extAuthKeyIdIssuer, cert->extAuthKeyIdIssuerSz,
+            cert->extAuthKeyIdIssuerSN, cert->extAuthKeyIdIssuerSNSz) == NULL;
+#else
+    (void)cert;
+    (void)cm;
+    (void)ca;
+    return 0;
+#endif
+}
+#endif /* WOLFSSL_AKID_NAME */
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify,
                       WOLFSSL_CERT_MANAGER* cm, Signer *extraCAList)
 {
@@ -26584,6 +26649,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
     #else
             cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
+    #ifdef WOLFSSL_AKID_NAME
+            if (cert->ca != NULL && SignerAkidNameRulesOut(cert, cert->ca) &&
+                    !SignerHasAkidKeyId(cert, cm, cert->ca)) {
+                WOLFSSL_MSG("CA issuer or serial doesn't match AKID");
+                cert->ca = NULL;
+            }
+    #endif
 
             if (cert->ca) {
                 WOLFSSL_MSG("CA found");

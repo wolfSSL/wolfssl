@@ -807,6 +807,12 @@ static int X509StoreCmVerify(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_X509* x509,
     if (ret == 0 && !X509StoreCmCaLoaded(cert->ca)) {
         ret = WC_NO_ERR_TRACE(ASN_NO_SIGNER_E);
     }
+#ifdef WOLFSSL_AKID_NAME
+    /* As OpenSSL's X509_check_akid(), also for a CA of the AKID key id. */
+    if (ret == 0 && SignerAkidNameRulesOut(cert, cert->ca)) {
+        ret = WC_NO_ERR_TRACE(ASN_NO_SIGNER_E);
+    }
+#endif
 #ifdef WOLFSSL_SIGNER_DER_CERT
     /* A signer restored from a cert cache has no DER */
     if (ret == 0 && issuer != NULL && cert->ca->derCert != NULL) {

@@ -127,3 +127,17 @@ EXTRA_DIST += \
          certs/test/nc-ancestor/03-leaf-chain.pem \
          certs/test/nc-ancestor/03-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-valid-leaf-key.pem
+
+EXTRA_DIST += \
+         certs/test/akid-serial/gen-akid-serial.sh \
+         certs/test/akid-serial/root-cert.pem \
+         certs/test/akid-serial/root-key.pem \
+         certs/test/akid-serial/ca-cert.pem \
+         certs/test/akid-serial/ca-key.pem \
+         certs/test/akid-serial/ca-twin-cert.pem \
+         certs/test/akid-serial/ca-otherkey-cert.pem \
+         certs/test/akid-serial/leaf-cert.pem \
+         certs/test/akid-serial/leaf-key.pem \
+         certs/test/akid-serial/leaf-twin-cert.pem \
+         certs/test/akid-serial/leaf-issuer-cert.pem \
+         certs/test/akid-serial/leaf-otherkey-cert.pem

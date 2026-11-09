@@ -18124,6 +18124,64 @@ WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ca_issuers(WOLFSSL_X509 *x)
 }
 #endif /* WOLFSSL_ASN_CA_ISSUER */
 
+#if defined(WOLFSSL_AKID_NAME) && defined(OPENSSL_EXTRA)
+/* Returns 1 when the encoded name is the issuer name of x509, else 0. */
+static int X509IssuerNameIs(WOLFSSL_X509* x509, const byte* der, word32 derSz)
+{
+    WOLFSSL_X509_NAME* issuerName = wolfSSL_X509_get_issuer_name(x509);
+    WOLFSSL_X509_NAME* name;
+    unsigned char* p = (unsigned char*)der;
+    int ret;
+#ifndef WOLFSSL_NO_CA_NAMES
+    const DerBuffer* cert = x509->derCert;
+    word32 off = issuerName->rawCertOff;
+    word32 idx = 0;
+    int len = 0;
+
+    /* Compare the encodings when the name is as in the certificate. */
+    if (off != 0 && cert != NULL && off < cert->length) {
+        return GetSequence(cert->buffer + off, &idx, &len,
+                cert->length - off) >= 0 && idx + (word32)len == derSz &&
+            XMEMCMP(cert->buffer + off, der, derSz) == 0;
+    }
+#endif
+    name = wolfSSL_d2i_X509_NAME(NULL, &p, (long)derSz);
+    /* Literal matching as for the subject and issuer names. */
+    ret = name != NULL && name->sz == issuerName->sz &&
+        XMEMCMP(name->name, issuerName->name, (size_t)name->sz) == 0;
+    wolfSSL_X509_NAME_free(name);
+    return ret;
+}
+
+/* RFC 5280, 4.2.1.1: the AKID's authorityCertIssuer and
+ * authorityCertSerialNumber name the issuer and serial of the issuer's
+ * certificate. As OpenSSL's X509_check_akid(). */
+static int X509CheckAkidName(WOLFSSL_X509* issuer, WOLFSSL_X509* subject)
+{
+    const byte* akidName = NULL;
+    word32 akidNameSz = 0;
+    const byte* akidSerial = NULL;
+    word32 akidSerialSz = 0;
+
+    if (subject->authKeyIdSrc == NULL) {
+        return WOLFSSL_X509_V_OK;
+    }
+    if (DecodeAuthKeyId(subject->authKeyIdSrc, subject->authKeyIdSrcSz, NULL,
+            NULL, &akidName, &akidNameSz, &akidSerial, &akidSerialSz) != 0) {
+        return WOLFSSL_X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
+    }
+    if (akidSerialSz > 0 && (akidSerialSz != (word32)issuer->serialSz ||
+            XMEMCMP(akidSerial, issuer->serial, akidSerialSz) != 0)) {
+        return WOLFSSL_X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
+    }
+    if (akidNameSz > 0 && !X509IssuerNameIs(issuer, akidName, akidNameSz)) {
+        return WOLFSSL_X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
+    }
+
+    return WOLFSSL_X509_V_OK;
+}
+#endif
+
 int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 {
     WOLFSSL_X509_NAME *issuerName = wolfSSL_X509_get_issuer_name(subject);
@@ -18146,7 +18204,11 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
         }
     }
 
+#if defined(WOLFSSL_AKID_NAME) && defined(OPENSSL_EXTRA)
+    return X509CheckAkidName(issuer, subject);
+#else
     return WOLFSSL_X509_V_OK;
+#endif
 }
 
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */

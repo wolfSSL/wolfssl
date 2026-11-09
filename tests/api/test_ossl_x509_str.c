@@ -5666,6 +5666,44 @@ static const x509_vfy_case x509VfyCases[] = {
       0, 0, 0, VE_PATHLEN, 2, NULL, { 0 } },
 #endif
 #endif
+
+#if defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(HAVE_ECC) && !defined(NO_SHA256)
+    /* RFC 5280, 4.2.1.1: akid-twin has the name and key of akid-ca but not
+     * the serial in the AKID of akid-leaf, so it is not its issuer, as in
+     * OpenSSL's X509_check_akid(). akid-leaf-twin names akid-twin. The AKID
+     * of akid-leaf-issuer has the serial of akid-ca and another issuer. */
+    { "akid_serial: trusted CA of the AKID",
+      "akid-root akid-ca", NULL, NULL, "akid-leaf", NULL,
+      0, 0, 1, VE_OK, 0, "akid-leaf akid-ca akid-root", { 0 } },
+    { "akid_serial: trusted CA of another serial",
+      "akid-root akid-twin", NULL, NULL, "akid-leaf", NULL,
+      0, 0, 0, VE_LOCAL, 0, NULL, { 0 } },
+    { "akid_serial: trusted CAs of both serials",
+      "akid-root akid-twin akid-ca", NULL, NULL, "akid-leaf-twin", NULL,
+      0, 0, 1, VE_OK, 0, "akid-leaf-twin akid-twin akid-root", { 0 } },
+    { "akid_serial: untrusted CA of another serial",
+      "akid-root", NULL, "akid-twin", "akid-leaf", NULL,
+      0, 0, 0, VE_LOCAL, 0, NULL, { 0 } },
+    { "akid_serial: untrusted CAs of both serials",
+      "akid-root", NULL, "akid-twin akid-ca", "akid-leaf", NULL,
+      0, 0, 1, VE_OK, 0, "akid-leaf akid-ca akid-root", { 0 } },
+    { "akid_serial: callback accepts",
+      "akid-root", NULL, "akid-twin", "akid-leaf", NULL,
+      0, VA_ALL, 1, VE_LEAFSIG, 0, "akid-leaf",
+      { VE_LOCAL, 0, VE_LEAFSIG, 0 } },
+    { "akid_serial: another issuer of the CA",
+      "akid-root akid-ca", NULL, NULL, "akid-leaf-issuer", NULL,
+      0, 0, 0, VE_LOCAL, 0, NULL, { 0 } },
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    { "akid_serial: CA of another serial in an SSL_CTX",
+      "akid-root akid-twin", NULL, NULL, "akid-leaf", NULL,
+      VO_SSLCTX, 0, 0, VE_LOCAL, 0, NULL, { 0 } },
+    { "akid_serial: CA of the AKID in an SSL_CTX",
+      "akid-root akid-ca", NULL, NULL, "akid-leaf", NULL,
+      VO_SSLCTX, 0, 1, VE_OK, 0, NULL, { 0 } },
+#endif
+#endif
 };
 
 /* Files of the names not in TA_CERT_DIR */
@@ -5692,7 +5730,13 @@ static const struct {
     { "ncdns-ca",   "./certs/test/cert-ext-ncmulti.pem" },
     { "pl0-int",    "./certs/test-pathlen/chainF-ICA2-pathlen0.pem" },
     { "pl0-sub",    "./certs/test-pathlen/chainF-ICA1-pathlen1.pem" },
-    { "pl0-leaf",   "./certs/test-pathlen/chainF-entity.pem" }
+    { "pl0-leaf",   "./certs/test-pathlen/chainF-entity.pem" },
+    { "akid-root",  "./certs/test/akid-serial/root-cert.pem" },
+    { "akid-ca",    "./certs/test/akid-serial/ca-cert.pem" },
+    { "akid-twin",  "./certs/test/akid-serial/ca-twin-cert.pem" },
+    { "akid-leaf",  "./certs/test/akid-serial/leaf-cert.pem" },
+    { "akid-leaf-twin", "./certs/test/akid-serial/leaf-twin-cert.pem" },
+    { "akid-leaf-issuer", "./certs/test/akid-serial/leaf-issuer-cert.pem" }
 };
 
 /* The certs by name, loaded once */
@@ -5700,7 +5744,7 @@ static const struct {
 static struct {
     char name[X509_VFY_NAME_SZ];
     X509* x509;
-} x509VfyCerts[96];
+} x509VfyCerts[128];
 static int x509VfyCertsNum = 0;
 
 /* What the verify callback saw */
@@ -6621,6 +6665,43 @@ static int x509_vfy_oom_rsa_allocs(X509* ca, wolfSSL_Free_cb freeCb)
     return ret;
 }
 #endif
+
+/* RFC 5280, 4.2.1.1: as OpenSSL's X509_check_akid(), a cert of another
+ * serial or issuer name than the AKID's did not issue the subject. */
+int test_X509_check_issued_akid(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(HAVE_ECC) && !defined(NO_SHA256)
+    X509* ca = NULL;
+    X509* twin = NULL;
+    X509* leaf = NULL;
+    X509* leafIssuer = NULL;
+
+    ExpectNotNull(ca = X509_load_certificate_file(
+        "./certs/test/akid-serial/ca-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(twin = X509_load_certificate_file(
+        "./certs/test/akid-serial/ca-twin-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(leaf = X509_load_certificate_file(
+        "./certs/test/akid-serial/leaf-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(leafIssuer = X509_load_certificate_file(
+        "./certs/test/akid-serial/leaf-issuer-cert.pem",
+        WOLFSSL_FILETYPE_PEM));
+
+    ExpectIntEQ(X509_check_issued(ca, leaf), X509_V_OK);
+    ExpectIntEQ(X509_check_issued(twin, leaf),
+        X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH);
+    ExpectIntEQ(X509_check_issued(ca, leafIssuer),
+        X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH);
+
+    X509_free(leafIssuer);
+    X509_free(leaf);
+    X509_free(twin);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* X509_verify_cert() rejects whichever allocation fails: a chain without a
  * trusted issuer, a chain through a CA of an SSL_CTX of pathlen:0, a cert

@@ -2664,6 +2664,9 @@ WOLFSSL_ASN_API int AddSignature(byte* buf, int bodySz, const byte* sig, int sig
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert* cert, int type, int verify,
                                     WOLFSSL_CERT_MANAGER* cm,
                                     Signer *extraCa);
+#ifdef WOLFSSL_AKID_NAME
+WOLFSSL_LOCAL int SignerAkidNameRulesOut(DecodedCert* cert, Signer* ca);
+#endif
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert* cert, int verify);
 #ifdef WOLFSSL_ASN_TEMPLATE
 WOLFSSL_LOCAL int DecodeCert(DecodedCert* cert, int verify, int* criticalExt);
