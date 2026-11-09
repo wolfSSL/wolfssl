@@ -15727,7 +15727,9 @@ int CheckHostName(DecodedCert* dCert, const char *domainName,
     /* RFC 6125: IP address identities must appear in an iPAddress SAN and
      * must never be matched against the Subject Common Name. Skip the CN
      * fallback when verifying an IP address. */
-    if (checkCN == 1 && !isIP) {
+    /* WOLFSSL_ALWAYS_CHECK_SUBJECT: try the CN when no SAN matched. */
+    if ((checkCN == 1 ||
+            (ret != 0 && (flags & WOLFSSL_ALWAYS_CHECK_SUBJECT))) && !isIP) {
         if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
                             domainName, (word32)domainNameLen, flags) == 1) {
             ret = 0;

@@ -425,6 +425,19 @@ int test_wolfSSL_X509_check_host(void)
             WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL),
             WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
+    /* The subject CN www.wolfssl.com is only used when asked for, since
+     * the certificate has DNS SANs. */
+    ExpectIntEQ(X509_check_host(x509, "www.wolfssl.com", 0, 0, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
+    ExpectIntEQ(X509_check_host(x509, "www.wolfssl.com", 0,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(X509_check_host(x509, badAltName, XSTRLEN(badAltName),
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(X509_check_host(x509, altName, XSTRLEN(altName),
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+
     /* An exact SAN match needs no wildcard. */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, altName, XSTRLEN(altName),
         WOLFSSL_NO_WILDCARDS, NULL), WOLFSSL_SUCCESS);
