@@ -1081,11 +1081,18 @@ int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 int fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 {
   mp_int  x, y, u, v, B, D;
-  int     res, loop_check = 0;
+  int     res, loop_check = 0, max_loops;
 
   /* 2. [modified] b must be odd   */
   if (mp_iseven (b) == MP_YES) {
     return MP_VAL;
+  }
+
+  /* Each pass shortens u or v by at least one bit, and both start
+   * no longer than b, so 2 * bits(b) passes always suffice. */
+  max_loops = 2 * mp_count_bits (b) + 2;
+  if (max_loops < MAX_INVMOD_SZ) {
+    max_loops = MAX_INVMOD_SZ;
   }
 
   /* init all our temps */
@@ -1181,7 +1188,7 @@ top:
 
   /* if not zero goto step 4 */
   if (mp_iszero (&u) == MP_NO) {
-    if (++loop_check > MAX_INVMOD_SZ) {
+    if (++loop_check > max_loops) {
         res = MP_VAL;
         goto LBL_ERR;
     }
