@@ -8586,10 +8586,10 @@ int test_client_nofail(void* args, cbType cb)
         goto done;
     }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (sharedCtx && wolfSSL_use_certificate_file(ssl, cliCertFile,
+    if (sharedCtx && wolfSSL_use_certificate_file(ssl, certFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_use_certificate_file(ssl, cliCertFile,
+    if (wolfSSL_use_certificate_file(ssl, certFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load client cert file, "
@@ -8597,10 +8597,10 @@ int test_client_nofail(void* args, cbType cb)
         goto done;
     }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
+    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, keyFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
+    if (wolfSSL_use_PrivateKey_file(ssl, keyFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load client key file, "
@@ -8763,18 +8763,16 @@ void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
     test_wolfSSL_client_server_nofail_ex(client_cb, server_cb, NULL);
 }
 
-#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_ECC)
+#ifdef HAVE_ECC
 /* Regression test: test_client_nofail() (the client half of the driver
  * above) used to ignore callback_functions.caPemFile/certPemFile/keyPemFile
- * entirely and always load the hardcoded classical caCertFile/cliCertFile/
- * cliKeyFile (see #defines tests.h, e.g., l:684), 
- * even though its counterpart test_server_nofail() already
- * honors the equivalent server-side fields. Therefore, a caller could set
- * client_cb.caPemFile and it would be silently ignored since the client kept
- * trusting the default CA instead. The test bellow demonstrates the issue with
- * an ECC server cert/key (certs/server-ecc.pem, signed by certs/ca-ecc-cert.pem already
- * available in wolfssl) that the default classical CA (certs/ca-cert.pem) cannot verify: 
- * before the fix, the handshake fails even though the correct CA was supplied. */
+ * and always load the default caCertFile/cliCertFile/cliKeyFile (see
+ * wolfssl/test.h), even though test_server_nofail() already honors the
+ * equivalent server-side fields. A caller setting client_cb.caPemFile was
+ * silently ignored and the client kept trusting the default CA. This test
+ * uses the ECC server cert/key (signed by the ECC test CA), which the
+ * default RSA CA cannot verify: before the fix, the handshake fails even
+ * though the correct CA was supplied. */
 static int test_client_nofail_custom_ca(void)
 {
     EXPECT_DECLS;
@@ -8784,9 +8782,9 @@ static int test_client_nofail_custom_ca(void)
     XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
     XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
 
-    func_cb_server.certPemFile = "./certs/server-ecc.pem";
-    func_cb_server.keyPemFile  = "./certs/ecc-key.pem";
-    func_cb_client.caPemFile   = "./certs/ca-ecc-cert.pem";
+    func_cb_server.certPemFile = eccCertFile;
+    func_cb_server.keyPemFile  = eccKeyFile;
+    func_cb_client.caPemFile   = caEccCertFile;
 
     test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
@@ -47458,7 +47456,9 @@ TEST_CASE testCases[] = {
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     TEST_DECL(test_wolfSSL_ERR_peek_last_error_line),
 #endif
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
     TEST_DECL(test_client_nofail_custom_ca),
+#endif
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_ERR_print_errors_cb),
     TEST_DECL(test_wolfSSL_GetLoggingCb),
