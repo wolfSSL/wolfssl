@@ -1160,11 +1160,11 @@ int test_wolfSSL_EVP_PKEY_reassign_der_cache(void)
     /* Unencodable RSA key: old DSA DER must not remain. */
     DER_WATCH_BEGIN(pkey);
     ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsaEmpty), WOLFSSL_SUCCESS);
-    DER_WATCH_END();
     if (EXPECT_FAIL()) {
         RSA_free(rsaEmpty);
     }
     rsaEmpty = NULL;
+    DER_WATCH_END();
     ExpectNull(pkey == NULL ? (char*)1 : pkey->pkey.ptr);
     ExpectIntEQ(pkey == NULL ? -1 : pkey->pkey_sz, 0);
 
