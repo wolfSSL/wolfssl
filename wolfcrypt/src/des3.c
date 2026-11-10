@@ -154,7 +154,7 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
     #else
-        word32 *dkey, *iv;
+        word32 *dkey;
         CRYP_InitTypeDef DES_CRYP_InitStructure;
         CRYP_KeyInitTypeDef DES_CRYP_KeyInitStructure;
         CRYP_IVInitTypeDef DES_CRYP_IVInitStructure;
@@ -255,7 +255,6 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         HAL_CRYP_DeInit(&hcryp);
     #else
         dkey = des->key;
-        iv = des->reg;
 
         /* crypto structure initialization */
         CRYP_KeyStructInit(&DES_CRYP_KeyInitStructure);
@@ -286,30 +285,37 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         DES_CRYP_KeyInitStructure.CRYP_Key1Right = dkey[1];
         CRYP_KeyInit(&DES_CRYP_KeyInitStructure);
 
-        /* set iv */
-        ByteReverseWords(iv, iv, DES_BLOCK_SIZE);
-        DES_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
-        DES_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+        /* set iv, leaving des->reg untouched so ECB keeps the CBC IV */
+        DES_CRYP_IVInitStructure.CRYP_IV0Left  = ByteReverseWord32(des->reg[0]);
+        DES_CRYP_IVInitStructure.CRYP_IV0Right = ByteReverseWord32(des->reg[1]);
         CRYP_IVInit(&DES_CRYP_IVInitStructure);
 
         /* enable crypto processor */
         CRYP_Cmd(ENABLE);
 
+        /* CRYP chains the blocks of this call itself, so des->reg only has to
+         * carry the CBC IV into the next call: the last ciphertext block.
+         * When decrypting that is the last input block, saved here before an
+         * in-place operation overwrites it. ECB has no IV to carry. */
+        if (mode == DES_CBC && dir == DES_DECRYPTION)
+            XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+
         while (sz > 0) {
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            /* if input and output same will overwrite input iv */
-            XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-
             wc_Stm32_CrypDesBlock(in, out);
-
-            /* store iv for next call */
-            XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
 
             sz  -= DES_BLOCK_SIZE;
             in  += DES_BLOCK_SIZE;
             out += DES_BLOCK_SIZE;
+        }
+
+        if (mode == DES_CBC) {
+            if (dir == DES_ENCRYPTION)
+                XMEMCPY(des->reg, out - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+            else
+                XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
         }
 
         /* disable crypto processor */
