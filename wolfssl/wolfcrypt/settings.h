@@ -4701,16 +4701,18 @@
     #undef HAVE_PTHREAD
     #undef HAVE_STRINGS_H
     #undef HAVE_LIMITS_H
+    #undef HAVE_ERRNO_H
+    #undef HAVE_THREAD_LS
+    #undef HAVE_ATEXIT
+    #undef WOLFSSL_HAVE_ASSERT_H
+    /* none of these userspace headers should be included */
     #define NO_STRING_H
     #define NO_LIMITS_H
     #define NO_STDDEF_H
     #define NO_STDLIB_H
     #define NO_STDINT_H
     #define NO_CTYPE_H
-    #undef HAVE_ERRNO_H
-    #undef HAVE_THREAD_LS
-    #undef HAVE_ATEXIT
-    #undef WOLFSSL_HAVE_ASSERT_H
+    #define NO_STDATOMIC_H
     #define WOLFSSL_NO_ASSERT_H
     #ifndef WOLFSSL_NO_GETPID
         #define WOLFSSL_NO_GETPID
