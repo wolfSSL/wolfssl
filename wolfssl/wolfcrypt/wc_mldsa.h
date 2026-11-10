@@ -613,6 +613,38 @@ typedef struct wc_MlDsaParams {
 typedef struct wc_MlDsaParams MlDsaParams;
 #endif
 
+#ifdef WC_MLDSA_NONBLOCK
+/* Resumable state for a non-blocking ML-DSA operation. Attach one to a key with
+ * wc_MlDsaKey_set_nonblock(); the operation then runs one chunk per call,
+ * returning MP_WOULDBLOCK at each yield point until it returns a final result.
+ * Only the small-memory build (WOLFSSL_MLDSA_*_SMALL_MEM) is supported.
+ *
+ * Re-invoke the same function with the same arguments until it stops returning
+ * MP_WOULDBLOCK. The context records which operation owns it and what that
+ * operation was started with: calling a different operation, or the same one
+ * with other arguments, releases what was in flight and starts over. A resumed
+ * operation whose message or signature buffer was rewritten in place since it
+ * started returns BAD_STATE_E. A key generation from an RNG has no
+ * arguments to tell it from the one in flight, so it resumes that one:
+ * re-attach the context to start another. */
+typedef struct wc_MlDsaNonBlock {
+    void*  work;    /* working allocation kept alive across yields */
+    const void* in; /* message the operation was started with */
+    const void* out; /* signature buffer the operation was started with */
+    word32 workSz;  /* size of work, for release on abandon or free */
+    word32 inLen;   /* length of the message at in */
+    int    state;   /* operation phase cursor */
+    word16 kappa;   /* sign: rejection nonce carried across attempts */
+    word16 row;     /* per-row loop cursor (keygen/verify/sign matrix row) */
+    byte   hintPos; /* verify: running hint offset across the row loop */
+    byte   op;      /* operation that owns the context, 0 when idle */
+    byte   fromRng; /* its randomness was drawn here, not passed in */
+    /* What the operation is bound to. keygen: seed. sign: rnd||mu.
+     * verify: digest of the signature||mu. */
+    byte   seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+} wc_MlDsaNonBlock;
+#endif /* WC_MLDSA_NONBLOCK */
+
 struct wc_MlDsaKey {
     /* Set when this object holds the public key bytes in p. A key generated
      * on a crypto-callback device has none here and leaves it clear. */
@@ -658,6 +690,9 @@ struct wc_MlDsaKey {
 
     const wc_MlDsaParams* params;
     wc_Shake shake;
+#ifdef WC_MLDSA_NONBLOCK
+    wc_MlDsaNonBlock* nb;  /* non-NULL selects resumable operation */
+#endif
 #ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
     /* Caller-supplied matrix A, expanded off-target and typically flash
      * resident.  NULL means expand it here as usual.  Read only, never freed:
@@ -831,6 +866,11 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
 
 WOLFSSL_API
 int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId);
+
+#ifdef WC_MLDSA_NONBLOCK
+WOLFSSL_API
+int wc_MlDsaKey_set_nonblock(wc_MlDsaKey* key, wc_MlDsaNonBlock* nb);
+#endif
 
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API
