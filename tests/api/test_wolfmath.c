@@ -218,6 +218,40 @@ int test_mp_exptmod_even_2k(void)
 }
 
 /*
+ * Testing that mp_clear() zeroizes every digit, including those above used.
+ * Those can still hold part of an earlier, larger value.
+ */
+int test_mp_clear_zeroize(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
+    mp_int a;
+    byte   val[32];
+    word32 i;
+    int    nonZero = 0;
+
+    XMEMSET(val, 0xA5, sizeof(val));
+    XMEMSET(&a, 0, sizeof(mp_int));
+
+    ExpectIntEQ(mp_init(&a), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&a, val, (word32)sizeof(val)), MP_OKAY);
+    /* Make the value smaller. With SP math the digits above used keep the
+     * earlier value. */
+    ExpectIntEQ(mp_set(&a, 1), MP_OKAY);
+    mp_clear(&a);
+
+    /* The digits are held in the mp_int itself, so can be checked. */
+    for (i = 0; i < (word32)((sizeof(val) + sizeof(mp_digit) - 1) /
+                              sizeof(mp_digit)); i++) {
+        nonZero |= (a.dp[i] != 0);
+    }
+    ExpectIntEQ(nonZero, 0);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_clear_zeroize */
+
+/*
  * Testing wc_export_int
  */
 int test_wc_export_int(void)

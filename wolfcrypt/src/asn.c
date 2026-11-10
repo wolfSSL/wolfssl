@@ -39979,7 +39979,15 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                             }
                         }
                         if (ret == 0) {
-                            ret = GetInt(m, buf, &localIdx, maxIdx);
+                            /* Decode into m as initialized above, to the size
+                             * of its storage. GetInt() would initialize it
+                             * again, to the maximum size. */
+                            ASNGetData intData[intASN_Length];
+
+                            XMEMSET(intData, 0, sizeof(intData));
+                            GetASN_MP_Inited(&intData[INTASN_IDX_INT], m);
+                            ret = GetASN_Items(intASN, intData, intASN_Length,
+                                0, buf, &localIdx, maxIdx);
                         }
                     }
                     if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
