@@ -9606,25 +9606,18 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo,
             break;
 #endif
 #ifndef NO_RSA
-        /* PSS signatures: 0x080[4-6] or 0x080[9-B] */
+        /* PSS signatures with an rsaEncryption key: 0x080[4-6] */
         case rsa_pss_sa_algo:
             output[0] = rsa_pss_sa_algo;
-#ifdef WC_RSA_PSS
-            /* If the private key uses the RSA-PSS OID, and the peer supports
-             * the rsa_pss_pss_* signature algorithm in use, then report
-             * rsa_pss_pss_* rather than rsa_pss_rsae_*. */
-            if (ssl->useRsaPss &&
-                ((ssl->pssAlgo & (1U << hashAlgo)) != 0U) &&
-                (sha256_mac <= hashAlgo) && (hashAlgo <= sha512_mac))
-            {
-                output[1] = PSS_RSAE_TO_PSS_PSS(hashAlgo);
-            }
-            else
-#endif
-            {
-                output[1] = hashAlgo;
-            }
+            output[1] = hashAlgo;
             break;
+#ifdef WC_RSA_PSS
+        /* PSS signatures with an id-RSASSA-PSS key: 0x080[9-b] */
+        case rsa_pss_pss_algo:
+            output[0] = rsa_pss_sa_algo;
+            output[1] = PSS_RSAE_TO_PSS_PSS(hashAlgo);
+            break;
+#endif
 #endif
 #ifdef HAVE_FALCON
         case falcon_level1_sa_algo:
@@ -9760,6 +9753,14 @@ static void EncodeDualSigAlg(byte sigAlg, byte altSigAlg, byte* output)
     /* Initialize output to error indicator. */
     output[0] = 0x0;
     output[1] = 0x0;
+
+#ifdef WC_RSA_PSS
+    /* The hybrid code points do not tell the RSA key OIDs apart. */
+    if (sigAlg == rsa_pss_pss_algo)
+        sigAlg = rsa_pss_sa_algo;
+    if (altSigAlg == rsa_pss_pss_algo)
+        altSigAlg = rsa_pss_sa_algo;
+#endif
 
     if (sigAlg == ecc_dsa_sa_algo && altSigAlg == mldsa_44_sa_algo) {
         output[1] = HYBRID_P256_MLDSA_44_SA_MINOR;
@@ -11644,8 +11645,15 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
 
             /* Add signature algorithm. */
-            if (ssl->hsType == DYNAMIC_TYPE_RSA)
-                args->sigAlgo = rsa_pss_sa_algo;
+            if (ssl->hsType == DYNAMIC_TYPE_RSA) {
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+                /* id-RSASSA-PSS key: rsa_pss_pss_* (RFC 8446 4.2.3) */
+                if (ssl->useRsaPss)
+                    args->sigAlgo = rsa_pss_pss_algo;
+                else
+        #endif
+                    args->sigAlgo = rsa_pss_sa_algo;
+            }
         #ifdef HAVE_ECC
             else if (ssl->hsType == DYNAMIC_TYPE_ECC) {
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -12692,6 +12700,13 @@ static int decodeRsaKey(WOLFSSL* ssl)
         return PEER_KEY_ERROR;
 
     ssl->peerRsaKeyPresent = 1;
+#ifdef WC_RSA_PSS
+    /* Raw public key: OID not tracked, stay lenient. */
+    ssl->peerRsaPss = 0;
+    ssl->peerRsaPssHash = 0;
+    ssl->peerRsaPssMgf = 0;
+    ssl->peerRsaPssSaltLen = 0;
+#endif
     keyRet = wc_RsaPublicKeyDecode(GetPeerCert(ssl)->sapkiDer, &tmpIdx,
                                    ssl->peerRsaKey,
                                    GetPeerCert(ssl)->sapkiLen);
@@ -12928,6 +12943,22 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
             if (ret < 0)
                 goto exit_dcv;
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+            /* The PSS scheme must match the peer key's OID (RFC 8446 4.2.3).
+             * DecodeTls13SigAlg() folds both families together, so decode
+             * the bytes again to tell them apart. */
+            if (ssl->peerRsaKeyPresent && input[args->idx] == NEW_SA_MAJOR) {
+                byte sa = invalid_sa_algo;
+                byte ha = 0;
+
+                DecodeSigAlg(input + args->idx, &ha, &sa);
+                if (sa == rsa_pss_sa_algo || sa == rsa_pss_pss_algo) {
+                    ret = CheckPeerRsaSigAlgo(ssl, sa, ha);
+                    if (ret != 0)
+                        goto exit_dcv;
+                }
+            }
+        #endif
             args->idx += OPAQUE16_LEN;
 
             /* Signature length. */
