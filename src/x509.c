@@ -4582,6 +4582,9 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 #endif
 
 
+static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
+        const byte* in, int len, int req, byte allowTrailing, void* heap);
+
 /* Wraps wolfSSL_X509_d2i
  *
  * returns a WOLFSSL_X509 structure pointer on success and NULL on fail
@@ -4597,7 +4600,8 @@ WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
         return NULL;
     }
 
-    newX509 = wolfSSL_X509_d2i(x509, *in, len);
+    /* len only bounds the input; *in is advanced past this certificate. */
+    newX509 = d2i_X509orX509REQ(x509, *in, len, 0, 1, NULL);
     if (newX509 != NULL) {
         *in += newX509->derCert->length;
     }
@@ -4605,7 +4609,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
 }
 
 static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
-                                  const byte* in, int len, int req, void* heap)
+        const byte* in, int len, int req, byte allowTrailing, void* heap)
 {
     WOLFSSL_X509 *newX509 = NULL;
     int type = req ? CERTREQ_TYPE : CERT_TYPE;
@@ -4628,6 +4632,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
     #ifdef WOLFSSL_CERT_REQ
         cert->isCSR = (byte)req;
     #endif
+        cert->allowTrailing = allowTrailing;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         /* CopyDecodedToX509() adds the name entries to the X509 directly. */
         cert->noX509Name = 1;
@@ -4668,7 +4673,7 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
 WOLFSSL_X509* wolfSSL_X509_d2i_ex(WOLFSSL_X509** x509, const byte* in, int len,
     void* heap)
 {
-    return d2i_X509orX509REQ(x509, in, len, 0, heap);
+    return d2i_X509orX509REQ(x509, in, len, 0, 0, heap);
 }
 
 WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
@@ -4680,7 +4685,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 WOLFSSL_X509* wolfSSL_X509_REQ_d2i(WOLFSSL_X509** x509,
         const unsigned char* in, int len)
 {
-    return d2i_X509orX509REQ(x509, in, len, 1, NULL);
+    return d2i_X509orX509REQ(x509, in, len, 1, 0, NULL);
 }
 
 WOLFSSL_X509* wolfSSL_d2i_X509_REQ_INFO(WOLFSSL_X509** req,

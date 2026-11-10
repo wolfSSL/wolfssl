@@ -72,6 +72,70 @@ int test_wolfSSL_i2d_X509(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_d2i_X509_concatenated(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    const word32 srvSz = (word32)sizeof_server_cert_der_2048;
+    const word32 caSz = (word32)sizeof_ca_cert_der_2048;
+    const word32 junkSz = 8;
+    byte* buf = NULL;
+    const unsigned char* p = NULL;
+    const byte* der = NULL;
+    int derSz = 0;
+    X509* cert = NULL;
+
+    ExpectNotNull(buf = (byte*)XMALLOC(srvSz + caSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (buf != NULL) {
+        XMEMCPY(buf, server_cert_der_2048, srvSz);
+        XMEMCPY(buf + srvSz, ca_cert_der_2048, caSz);
+    }
+
+    /* Each call decodes one certificate and advances past it only. */
+    p = buf;
+    ExpectNotNull(cert = d2i_X509(NULL, &p, (long)(srvSz + caSz)));
+    ExpectPtrEq(p, buf + srvSz);
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, (int)srvSz);
+    ExpectBufEQ(der, server_cert_der_2048, srvSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNotNull(cert = d2i_X509(NULL, &p, (long)caSz));
+    ExpectPtrEq(p, buf + srvSz + caSz);
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, (int)caSz);
+    ExpectBufEQ(der, ca_cert_der_2048, caSz);
+    X509_free(cert);
+    cert = NULL;
+
+    /* A truncated certificate is rejected and the pointer is untouched. */
+    p = buf;
+    ExpectNull(d2i_X509(NULL, &p, (long)(srvSz - 1)));
+    ExpectPtrEq(p, buf);
+
+    /* Trailing junk is left for the caller and fails to decode on its own. */
+    if (buf != NULL) {
+        XMEMSET(buf + srvSz, 0xA5, junkSz);
+    }
+    p = buf;
+    ExpectNotNull(cert = d2i_X509(NULL, &p, (long)(srvSz + junkSz)));
+    ExpectPtrEq(p, buf + srvSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNull(d2i_X509(NULL, &p, (long)junkSz));
+    ExpectPtrEq(p, buf + srvSz);
+
+    /* wolfSSL_X509_d2i() takes an exact length and still rejects junk. */
+#ifndef WOLFSSL_NO_ASN_STRICT
+    ExpectNull(wolfSSL_X509_d2i(NULL, buf, (int)(srvSz + junkSz)));
+#endif
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_get_der_length_guards(void)
 {
     EXPECT_DECLS;
