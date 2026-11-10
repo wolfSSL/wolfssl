@@ -12366,6 +12366,94 @@ int test_tls13_post_handshake_auth_late_allow(void)
     return EXPECT_RESULT();
 }
 
+/* A client that reads a post-handshake CertificateRequest while its socket
+ * takes no writes reports WANT_WRITE, then finishes the response from the
+ * next wolfSSL_read() or wolfSSL_write(). */
+int test_tls13_pha_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "after post-handshake auth";
+    char readBuf[64];
+    int retryByWrite;
+
+    for (retryByWrite = 0; retryByWrite <= 1 && !EXPECT_FAIL();
+            retryByWrite++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile,
+            NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+
+        test_memio_simulate_want_write(&test_ctx, 1, 1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+            WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_WRITE);
+        ExpectIntEQ(test_ctx.s_len, 0);
+        test_memio_simulate_want_write(&test_ctx, 1, 0);
+
+        if (retryByWrite) {
+            ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+                (int)sizeof(msg));
+            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)),
+                (int)sizeof(msg));
+        }
+        else {
+            ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+                WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectIntGT(test_ctx.s_len, 0);
+            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)),
+                WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+        }
+        ExpectIntEQ(ssl_s->options.havePeerCert, 1);
+        ExpectIntEQ(ssl_s->options.havePeerVerify, 1);
+        ExpectIntEQ(ssl_s->msgsReceived.got_finished, 1);
+
+        /* The client's read side is intact after the response. */
+        ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+            (int)sizeof(msg));
+        ExpectBufEQ(readBuf, msg, sizeof(msg));
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A post-handshake CertificateRequest must reach the wire from
  * wolfSSL_request_certificate() even when the server groups messages. */
 int test_tls13_pha_group_messages(void)

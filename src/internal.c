@@ -28235,20 +28235,15 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                             }
                         }
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-                        /* Post-handshake auth resumes through
-                         * wolfSSL_negotiate() instead of reprocessing this
-                         * record, so it leaves processReply at doProcessInit
-                         * (an ordinary pending message leaves it at
-                         * runProcessingOneMessage). Finish the record here or
-                         * the trailing MAC is read as the next record header
-                         * and fails with VERSION_ERROR. Mirrors the end of
-                         * record block below: resume inside the record when
-                         * content is left, else skip the padding. Skipped for
-                         * a key-schedule pend (kdfMsgStep != 0): the block
-                         * above already finished the record, and running this
-                         * one too would skip the padding twice. */
-                        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+                        /* An unfinished post-handshake auth response resumes
+                         * through wolfSSL_negotiate(), so finish this record
+                         * now. A key-schedule pend already finished it. */
+                        if ((ret == WC_NO_ERR_TRACE(WANT_WRITE)
+        #ifdef WOLFSSL_ASYNC_CRYPT
+                                || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
+        #endif
+                                ) &&
                                 ssl->kdfMsgStep == TLS13_MSG_KDF_NONE &&
                                 ssl->options.processReply == doProcessInit) {
                             if ((ssl->buffers.inputBuffer.idx -
