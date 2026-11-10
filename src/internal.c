@@ -10652,6 +10652,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_CRYPTO_cleanup_ex_data(&ssl->ex_data);
 #endif
 
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    wolfssl_local_FreeChainCADates(ssl);
+#endif
+
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
     /* Defrag buffer for fragmented handshake messages. Lives in WOLFSSL (not
@@ -10948,10 +10952,50 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_STATIC_MEMORY */
 }
 
+#ifdef WOLFSSL_CHAIN_CA_DATES
+/* Free the chain CA dates of this handshake without storing them. */
+void wolfssl_local_FreeChainCADates(WOLFSSL* ssl)
+{
+    ChainCADate* entry;
+
+    if (ssl == NULL)
+        return;
+
+    while ((entry = ssl->chainCaDates) != NULL) {
+        ssl->chainCaDates = entry->next;
+        XFREE(entry, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+}
+
+/* Store the renewed dates of this handshake on the cached chain CAs, then free
+ * the list. Call this only when the handshake verified the peer, including
+ * its certificate status. A failure leaves the cached dates as they were. */
+void wolfssl_local_CommitChainCADates(WOLFSSL* ssl)
+{
+    ChainCADate* entry;
+
+    if (ssl == NULL)
+        return;
+
+    for (entry = ssl->chainCaDates; entry != NULL; entry = entry->next) {
+        if (!entry->waived &&
+                wolfssl_local_SetChainCAValidity(SSL_CM(ssl), entry->hash,
+                    entry->keyHash, &entry->validity) != 0) {
+            WOLFSSL_MSG("Could not store dates of renewed chain CA");
+        }
+    }
+    wolfssl_local_FreeChainCADates(ssl);
+}
+#endif /* WOLFSSL_CHAIN_CA_DATES */
+
 /* Free any handshake resources no longer needed */
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("FreeHandshakeResources");
+
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    wolfssl_local_FreeChainCADates(ssl);
+#endif
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
@@ -18640,6 +18684,76 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
 }
 #endif /* IGNORE_KEY_EXTENSIONS */
 
+#ifdef WOLFSSL_CHAIN_CA_DATES
+/* Record the dates of the chain CA in cert for this handshake. A waived
+ * entry is a CA whose date error the verify callback accepted, and the walk
+ * over cached CAs does not report that error again. Otherwise cert renews a
+ * cached CA, and the walk uses its dates. The renewed dates are stored on the
+ * cached CA by wolfssl_local_CommitChainCADates() when the handshake verifies
+ * the peer.
+ * Returns 0, MEMORY_E, BAD_MUTEX_E or a CalcHashId() or date error. */
+static int AddChainCADate(WOLFSSL* ssl, const DecodedCert* cert, int waived)
+{
+    int ret;
+    ChainCADate* entry;
+
+    if (cert->publicKey == NULL)
+        return 0;
+
+    entry = (ChainCADate*)XMALLOC(sizeof(ChainCADate), ssl->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (entry == NULL)
+        return MEMORY_E;
+    XMEMSET(entry, 0, sizeof(ChainCADate));
+    entry->waived = (byte)(waived != 0);
+
+#ifndef NO_SKID
+    XMEMCPY(entry->hash, cert->extSubjKeyId, SIGNER_DIGEST_SIZE);
+#else
+    XMEMCPY(entry->hash, cert->subjectHash, SIGNER_DIGEST_SIZE);
+#endif
+    ret = CalcHashId(cert->publicKey, cert->pubKeySize, entry->keyHash);
+    if (ret == 0)
+        ret = wolfssl_local_SetSignerValidity(&entry->validity, cert);
+    if (ret == 0 && !waived) {
+        ret = wolfssl_local_IsChainCARenewal(SSL_CM(ssl), entry->hash,
+            entry->keyHash, cert, &entry->validity);
+        if (ret == 1) {
+            WOLFSSL_MSG("Peer sent a renewed cached chain CA");
+            ret = 0;
+        }
+        else if (ret == 0) {
+            /* Not a renewal, so there is nothing to record. */
+            ret = 1;
+        }
+    }
+    if (ret != 0) {
+        XFREE(entry, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return (ret == 1) ? 0 : ret;
+    }
+
+    entry->next = ssl->chainCaDates;
+    ssl->chainCaDates = entry;
+
+    return 0;
+}
+
+/* Check the cached chain CAs on the path above the leaf, with the dates this
+ * handshake decided. */
+static int CheckPeerChainCADates(WOLFSSL* ssl, Signer* ca)
+{
+    Signer* pending = NULL;
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
+    if (TLSX_CSR2_IsMulti(ssl->extensions))
+        pending = TLSX_CSR2_GetPendingSigners(ssl->extensions);
+#endif
+
+    return wolfssl_local_CheckChainCADates(SSL_CM(ssl), ca, pending,
+        ssl->chainCaDates);
+}
+#endif /* WOLFSSL_CHAIN_CA_DATES */
+
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 /* Parse a chain certificate as a CA and add it to the pending signers list
  * for Certificate Status Request v2. */
@@ -19732,6 +19846,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         {
             word32 listSz;
 
+        #ifdef WOLFSSL_CHAIN_CA_DATES
+            /* Drop the dates of an earlier chain that was not verified. */
+            wolfssl_local_FreeChainCADates(ssl);
+        #endif
+
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
                 AddPacketName(ssl, "Certificate");
@@ -20062,6 +20181,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                #ifdef WOLFSSL_CHAIN_CA_DATES
+                    int caVerifyRet = 0;
+                #endif
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL)
                     int ocspNoUrl = 0;
                     int ocspStapleDeferred = 0;
@@ -20407,11 +20529,33 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
+                #ifdef WOLFSSL_CHAIN_CA_DATES
+                    caVerifyRet = ret;
+                #endif
                     SetRevocationVerifyRet(ssl, ret);
                     /* Do verify callback */
                     ret = DoVerifyCallbackHeldCrl(ssl, args, ret, &heldCrlRet);
                     if (CrlErrWaived(ssl, ret))
                         ret = ssl->error = 0;
+                #ifdef WOLFSSL_CHAIN_CA_DATES
+                    /* The walk at the leaf checks cached CAs again. It must
+                     * not report a date error on this CA that the callback
+                     * accepted, and it uses the dates of a renewed CA. Those
+                     * dates reach the cached CA only when the handshake
+                     * verifies the peer. */
+                    if (ret == 0 && args->dCert->isCA &&
+                            !ssl->options.verifyNone) {
+                        if (caVerifyRet == 0) {
+                            ret = AddChainCADate(ssl, args->dCert, 0);
+                        }
+                        else if (caVerifyRet ==
+                                     WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
+                                 caVerifyRet ==
+                                     WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
+                            ret = AddChainCADate(ssl, args->dCert, 1);
+                        }
+                    }
+                #endif
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
                     (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
@@ -20548,6 +20692,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         case TLS_ASYNC_DO:
         {
+        #ifdef WOLFSSL_CHAIN_CA_DATES
+            int caDateRet = 0;
+        #endif
+
             /* peer's, may not have one if blank client cert sent by TLSv1.2 */
             if (args->count > 0) {
                 WOLFSSL_MSG("Verifying Peer's cert");
@@ -20605,6 +20753,24 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     goto exit_ppc;
+            #endif
+            #ifdef WOLFSSL_CHAIN_CA_DATES
+                /* A CA cached from an earlier peer chain may have expired
+                 * since. A date error on the leaf does not hide that one: the
+                 * callback is asked about it after it accepts the leaf's. */
+                if ((ret == 0 || ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
+                        ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) &&
+                        !ssl->options.verifyNone && !UsingChainVerifyCb(ssl)
+                    #ifdef WOLFSSL_TRUST_PEER_CERT
+                        && !args->haveTrustPeer
+                    #endif
+                        ) {
+                    caDateRet = CheckPeerChainCADates(ssl, args->dCert->ca);
+                    if (ret == 0) {
+                        ret = caDateRet;
+                        caDateRet = 0;
+                    }
+                }
             #endif
 
                 if (ret == 0) {
@@ -20787,6 +20953,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* Do verify callback. */
                         args->leafVerifyErr = ret =
                                 DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    #ifdef WOLFSSL_CHAIN_CA_DATES
+                        if (ret == 0 && caDateRet != 0) {
+                            args->leafVerifyErr = ret = DoVerifyCallback(
+                                SSL_CM(ssl), ssl, caDateRet, args);
+                        }
+                    #endif
 
                         if (ret != 0) {
                             WOLFSSL_MSG("\tfatal cert error");
@@ -21200,6 +21372,22 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ret == 0 && ssl->options.side == WOLFSSL_CLIENT_END) {
                 ssl->options.serverState = SERVER_CERT_COMPLETE;
             }
+
+        #ifdef WOLFSSL_CHAIN_CA_DATES
+            if (ret != 0) {
+                wolfssl_local_FreeChainCADates(ssl);
+            }
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
+            else if (TLSX_CSR2_IsMulti(ssl->extensions)) {
+                /* The stapled status of the chain CAs is checked later.
+                 * TLSX_CSR2_MergePendingCA() stores the renewed dates and
+                 * TLSX_CSR2_ClearPendingCA() drops them. */
+            }
+        #endif
+            else {
+                wolfssl_local_CommitChainCADates(ssl);
+            }
+        #endif
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;

@@ -4543,6 +4543,10 @@ int TLSX_CSR2_ClearPendingCA(WOLFSSL *ssl)
 
     TLSX_CSR2_FreePendingSigners(csr2->pendingSigners, SSL_CM(ssl)->heap);
     csr2->pendingSigners = NULL;
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    /* The status checks failed, so a renewed chain CA keeps its old dates. */
+    wolfssl_local_FreeChainCADates(ssl);
+#endif
     return 0;
 }
 
@@ -4565,6 +4569,10 @@ int TLSX_CSR2_MergePendingCA(WOLFSSL* ssl)
         s = next;
     }
     csr2->pendingSigners = NULL;
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    /* The status checks passed, so store the dates of renewed chain CAs. */
+    wolfssl_local_CommitChainCADates(ssl);
+#endif
     return r;
 }
 

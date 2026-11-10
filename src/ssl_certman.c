@@ -664,6 +664,15 @@ int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
                 } else {
                     ret = SetCAType(cm, dCert->extSubjKeyId, type);
                 }
+            #ifdef WOLFSSL_CHAIN_CA_DATES
+                /* A chain CA is not a trust anchor and its dates are checked
+                 * each time it is used. */
+                if (ret == WOLFSSL_SUCCESS && type == WOLFSSL_CHAIN_CA &&
+                        wolfssl_local_SetChainCADates(cm, dCert->extSubjKeyId,
+                            dCert) != 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            #endif
             }
 
             if (dCert) {
@@ -900,6 +909,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 {
     int ret = 0;
     int crlRet = 0;
+    int caDateRet = 0;
     int fatal = 0;
     DerBuffer* der = NULL;
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
@@ -956,6 +966,19 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
          * against a known CA. */
         ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, NULL);
      }
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    if ((ret == 0) || (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
+        /* A CA cached from a peer's chain may have expired since. A date
+         * error on cert does not hide that one: the callback is asked about
+         * it after it accepts the error on cert. */
+        caDateRet = wolfssl_local_CheckChainCADates(cm, cert->ca, NULL, NULL);
+        if (ret == 0) {
+            ret = caDateRet;
+            caDateRet = 0;
+        }
+    }
+#endif
 
 #ifdef HAVE_CRL
     if (cm->crlEnabled && ((ret == 0) ||
@@ -969,6 +992,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 #endif
 
     (void)fatal;
+    (void)caDateRet;
 
 #if !defined(NO_WOLFSSL_CM_VERIFY) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
@@ -1026,6 +1050,11 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
             }
             /* Use callback to verify certificate. */
             ret = DoVerifyCallback(cm, NULL, ret, args);
+            /* Waiving the date error on cert must not waive the one on a
+             * cached chain CA. */
+            if ((ret == 0) && (caDateRet != 0)) {
+                ret = DoVerifyCallback(cm, NULL, caDateRet, args);
+            }
             /* Waiving the date error must not waive the CRL result. */
             if ((ret == 0) && (crlRet != 0)) {
                 ret = DoVerifyCallback(cm, NULL, crlRet, args);
@@ -2883,6 +2912,288 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 
     return ret;
 }
+
+#ifdef WOLFSSL_CHAIN_CA_DATES
+/* Find the signer that AddCA() filed under hash. Call with caLock held. */
+static Signer* cm_find_signer_locked(WOLFSSL_CERT_MANAGER* cm,
+    const byte* hash)
+{
+    Signer* signer = cm->caTable[HashSigner(hash)];
+
+    while (signer != NULL) {
+    #ifndef NO_SKID
+        if (XMEMCMP(hash, signer->subjectKeyIdHash, SIGNER_DIGEST_SIZE) == 0)
+    #else
+        if (XMEMCMP(hash, signer->subjectNameHash, SIGNER_DIGEST_SIZE) == 0)
+    #endif
+            break;
+        signer = signer->next;
+    }
+
+    return signer;
+}
+
+/* Returns 1 when the public key of signer hashes to keyHash. */
+static int cm_signer_key_is(const Signer* signer, const byte* keyHash)
+{
+    byte hash[KEYID_SIZE];
+
+    if (signer->publicKey == NULL || signer->pubKeySize == 0)
+        return 0;
+    if (CalcHashId(signer->publicKey, signer->pubKeySize, hash) != 0)
+        return 0;
+
+    return XMEMCMP(hash, keyHash, KEYID_SIZE) == 0;
+}
+
+/* Find the entry in dates for signer. AddCA() files a signer under the same
+ * hash as the entry, and the entry also names the public key. */
+static const ChainCADate* cm_find_chain_ca_date(const ChainCADate* dates,
+    const Signer* signer)
+{
+    for (; dates != NULL; dates = dates->next) {
+    #ifndef NO_SKID
+        if (XMEMCMP(dates->hash, signer->subjectKeyIdHash,
+                SIGNER_DIGEST_SIZE) == 0 &&
+    #else
+        if (XMEMCMP(dates->hash, signer->subjectNameHash,
+                SIGNER_DIGEST_SIZE) == 0 &&
+    #endif
+                cm_signer_key_is(signer, dates->keyHash)) {
+            break;
+        }
+    }
+
+    return dates;
+}
+
+/* Check the dates of each CA cached from a peer's chain on the path from ca up
+ * to the trust anchor. Such a CA is not a trust anchor, so it is checked each
+ * time it is used and not only when the peer that sent it was verified. Other
+ * CAs keep no dates and are skipped. The walk stops at a self-signed CA and at
+ * a CA the application loaded (WOLFSSL_USER_CA or WOLFSSL_USER_INTER): the
+ * path ends at that trust anchor. With IGNORE_NAME_CONSTRAINTS there is no
+ * issuer lookup and only ca is checked.
+ *
+ * @param [in] cm       Certificate manager.
+ * @param [in] ca       CA that verified the certificate. May be NULL.
+ * @param [in] pending  Certificate Status Request v2 signers that are not in
+ *                      the certificate manager yet. May be NULL.
+ * @param [in] dates    Dates from this handshake. A CA with a waived entry is
+ *                      not checked. A CA with renewed dates is checked against
+ *                      them. May be NULL.
+ * @return  0 when no cached chain CA on the path is out of date.
+ * @return  ASN_BEFORE_DATE_E when a cached chain CA is not valid yet.
+ * @return  ASN_AFTER_DATE_E when a cached chain CA has expired.
+ * @return  BAD_MUTEX_E when the CA lock cannot be taken.
+ * @return  MAX_CHAIN_ERROR when the path is longer than
+ *          WOLFSSL_MAX_CHAIN_DEPTH.
+ */
+int wolfssl_local_CheckChainCADates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
+    Signer* pending, const ChainCADate* dates)
+{
+    int ret = 0;
+    int depth = 0;
+    int type;
+    int haveDates;
+    Signer* prev = NULL;
+    Signer* parent;
+    const ChainCADate* entry;
+    SignerValidity validity;
+
+    if (cm == NULL || wc_AsnGetSkipDateCheck())
+        return 0;
+
+    while (ret == 0 && ca != NULL) {
+        /* Another handshake can set the dates, and the application can
+         * change the type. Read both under the lock. */
+        if (wc_LockMutex(&cm->caLock) != 0) {
+            ret = BAD_MUTEX_E;
+            break;
+        }
+        type = ca->type;
+        haveDates = (type == WOLFSSL_CHAIN_CA && ca->validity != NULL);
+        if (haveDates)
+            XMEMCPY(&validity, ca->validity, sizeof(validity));
+        wc_UnLockMutex(&cm->caLock);
+
+        if (type == WOLFSSL_USER_CA || type == WOLFSSL_USER_INTER)
+            break;
+        if (haveDates) {
+            entry = cm_find_chain_ca_date(dates, ca);
+            if (entry != NULL && !entry->waived)
+                XMEMCPY(&validity, &entry->validity, sizeof(validity));
+            if (entry != NULL && entry->waived) {
+                WOLFSSL_MSG("Date error of cached chain CA already accepted");
+            }
+            else if (!XVALIDATE_DATE(&validity.notBefore[2],
+                    validity.notBefore[0], ASN_BEFORE,
+                    validity.notBefore[1])) {
+                WOLFSSL_MSG("Cached chain CA is not yet valid");
+                ret = ASN_BEFORE_DATE_E;
+                break;
+            }
+            else if (!XVALIDATE_DATE(&validity.notAfter[2],
+                    validity.notAfter[0], ASN_AFTER,
+                    validity.notAfter[1])) {
+                WOLFSSL_MSG("Cached chain CA has expired");
+                ret = ASN_AFTER_DATE_E;
+                break;
+            }
+        }
+        if (ca->selfSigned)
+            break;
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        parent = wolfssl_local_FindSignerByAkidOrName(cm, pending, ca);
+    #else
+        (void)pending;
+        parent = NULL;
+    #endif
+        /* Stop on missing parent, self-loop, or A->B->A cycle. */
+        if (parent == NULL || parent == ca || parent == prev)
+            break;
+        if (++depth >= WOLFSSL_MAX_CHAIN_DEPTH) {
+            ret = MAX_CHAIN_ERROR;
+            break;
+        }
+        prev = ca;
+        ca = parent;
+    }
+
+    if (ret != 0)
+        WOLFSSL_ERROR_VERBOSE(ret);
+
+    return ret;
+}
+
+/* Store validity on the CA cached from a peer's chain that AddCA() filed
+ * under hash. A CA of any other type, or with a different public key, is left
+ * unchanged.
+ *
+ * @param [in] cm        Certificate manager.
+ * @param [in] hash      Hash identifying the CA, as AddCA() files it.
+ * @param [in] keyHash   CalcHashId() of the public key of the CA.
+ * @param [in] validity  Dates to store.
+ * @return  0 on success, including when there is nothing to change.
+ * @return  BAD_FUNC_ARG when an argument is NULL.
+ * @return  BAD_MUTEX_E when the CA lock cannot be taken.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int wolfssl_local_SetChainCAValidity(WOLFSSL_CERT_MANAGER* cm,
+    const byte* hash, const byte* keyHash, const SignerValidity* validity)
+{
+    int ret = 0;
+    Signer* signer;
+
+    if (cm == NULL || hash == NULL || keyHash == NULL || validity == NULL)
+        return BAD_FUNC_ARG;
+
+    if (wc_LockMutex(&cm->caLock) != 0)
+        return BAD_MUTEX_E;
+    signer = cm_find_signer_locked(cm, hash);
+    if (signer != NULL && signer->type == WOLFSSL_CHAIN_CA &&
+            cm_signer_key_is(signer, keyHash)) {
+        if (signer->validity == NULL) {
+            signer->validity = (SignerValidity*)XMALLOC(
+                sizeof(SignerValidity), cm->heap, DYNAMIC_TYPE_SIGNER);
+            if (signer->validity == NULL)
+                ret = MEMORY_E;
+            else
+                XMEMCPY(signer->validity, validity, sizeof(*validity));
+        }
+        else if (XMEMCMP(signer->validity, validity,
+                sizeof(*validity)) != 0) {
+            WOLFSSL_MSG("Updating dates of cached chain CA");
+            XMEMCPY(signer->validity, validity, sizeof(*validity));
+        }
+    }
+    wc_UnLockMutex(&cm->caLock);
+
+    return ret;
+}
+
+/* Store the dates of cert on the CA cached from a peer's chain that it is the
+ * certificate for. Used when an application loads a CA as WOLFSSL_CHAIN_CA.
+ *
+ * @param [in] cm    Certificate manager.
+ * @param [in] hash  Hash identifying the CA, as AddCA() files it.
+ * @param [in] cert  Certificate for the CA.
+ * @return  0 on success, including when there is nothing to change.
+ * @return  BAD_FUNC_ARG when cm, hash or cert is NULL.
+ * @return  ASN_DATE_SZ_E when a date in cert is too long.
+ * @return  BAD_MUTEX_E when the CA lock cannot be taken.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int wolfssl_local_SetChainCADates(WOLFSSL_CERT_MANAGER* cm, const byte* hash,
+    const DecodedCert* cert)
+{
+    int ret;
+    byte keyHash[KEYID_SIZE];
+    SignerValidity validity;
+
+    if (cm == NULL || hash == NULL || cert == NULL ||
+            cert->publicKey == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wolfssl_local_SetSignerValidity(&validity, cert);
+    if (ret == 0)
+        ret = CalcHashId(cert->publicKey, cert->pubKeySize, keyHash);
+    if (ret == 0)
+        ret = wolfssl_local_SetChainCAValidity(cm, hash, keyHash, &validity);
+
+    return ret;
+}
+
+/* Decide whether cert renews the CA cached from a peer's chain under hash.
+ * The cached CA must be a WOLFSSL_CHAIN_CA with the same public key and other
+ * dates. The issuer of the cached CA must have signed cert: cert names the
+ * same issuer, and the key that verified it is not the key of the cached CA.
+ * Without that, the holder of the cached CA's key could sign a new
+ * certificate for it with later dates.
+ *
+ * @param [in] cm        Certificate manager.
+ * @param [in] hash      Hash identifying the CA, as AddCA() files it.
+ * @param [in] keyHash   CalcHashId() of the public key of cert.
+ * @param [in] cert      Verified certificate from the peer's chain.
+ * @param [in] validity  Dates of cert.
+ * @return  1 when cert renews the cached CA.
+ * @return  0 when it does not.
+ * @return  BAD_MUTEX_E when the CA lock cannot be taken.
+ */
+int wolfssl_local_IsChainCARenewal(WOLFSSL_CERT_MANAGER* cm,
+    const byte* hash, const byte* keyHash, const DecodedCert* cert,
+    const SignerValidity* validity)
+{
+    int ret = 0;
+    Signer* signer;
+    const Signer* issuer = cert->ca;
+
+    if (cert->selfSigned || issuer == NULL || issuer->publicKey == NULL)
+        return 0;
+
+    if (wc_LockMutex(&cm->caLock) != 0)
+        return BAD_MUTEX_E;
+    signer = cm_find_signer_locked(cm, hash);
+    if (signer != NULL && signer != issuer &&
+            signer->type == WOLFSSL_CHAIN_CA && signer->validity != NULL &&
+            XMEMCMP(signer->validity, validity, sizeof(*validity)) != 0 &&
+            cm_signer_key_is(signer, keyHash) &&
+            !(issuer->pubKeySize == signer->pubKeySize &&
+              XMEMCMP(issuer->publicKey, signer->publicKey,
+                  signer->pubKeySize) == 0)
+        #if defined(HAVE_OCSP) || defined(HAVE_CRL) || \
+            defined(WOLFSSL_AKID_NAME) || !defined(IGNORE_NAME_CONSTRAINTS)
+            && XMEMCMP(signer->issuerNameHash, cert->issuerHash,
+                SIGNER_DIGEST_SIZE) == 0
+        #endif
+            ) {
+        ret = 1;
+    }
+    wc_UnLockMutex(&cm->caLock);
+
+    return ret;
+}
+#endif /* WOLFSSL_CHAIN_CA_DATES */
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* use the first 32 bits of the digest as the table row */
