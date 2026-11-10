@@ -323,6 +323,10 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
     {
         if (des == NULL || out == NULL || in == NULL)
             return BAD_FUNC_ARG;
+        /* CRYP only processes whole blocks. A partial final block would read
+         * and write past in/out, and wrap sz in the per-block loops. */
+        if (sz % DES_BLOCK_SIZE != 0)
+            return BAD_LENGTH_E;
 
     #ifdef WOLFSSL_STM32_CUBEMX
         {
