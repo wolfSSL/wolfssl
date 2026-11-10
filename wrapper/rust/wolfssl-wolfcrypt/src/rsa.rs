@@ -1556,6 +1556,56 @@ impl RSA {
         }
         Ok(rc as usize)
     }
+
+    /// Sign a message with RSA PKCS#1 v1.5. The message is hashed with the
+    /// given hash type and the hash is wrapped in its DigestInfo header first,
+    /// so this is the standard signature, for any key size.
+    ///
+    /// The messages must not be empty. wolfCrypt refuses an empty messages
+    /// and this returns its error code, BAD_FUNC_ARG.
+    ///
+    /// Returns the signature length in bytes, which is the key size.
+    #[cfg(all(sig_wrapper, random, rsa_private, rsa_sign))]
+    pub fn pkcs1v15_sign(&mut self, msg: &[u8], dout: &mut [u8], hash_algo: u32, rng: &RNG) -> Result<usize, i32> {
+        let msg_size = crate::buffer_len_to_u32(msg.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(dout.len())?;
+        let rc = unsafe {
+            sys::wc_SignatureGenerate(hash_algo,
+                sys::wc_SignatureType_WC_SIGNATURE_TYPE_RSA_W_ENC,
+                msg.as_ptr(), msg_size,
+                dout.as_mut_ptr(), &mut sig_len,
+                &mut self.wc_rsakey as *mut _ as *mut core::ffi::c_void,
+                core::mem::size_of::<sys::RsaKey>() as u32,
+                rng.wc_rng)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(sig_len as usize)
+    }
+
+    /// Check an RSA PKCS#1 v1.5 signature over a message, made with the given
+    /// hash type, for any key size. Returns an error if it does not match.
+    ///
+    /// The messages must not be empty. wolfCrypt refuses an empty messages
+    /// and this returns its error code, BAD_FUNC_ARG.
+    #[cfg(sig_wrapper)]
+    pub fn pkcs1v15_verify(&mut self, msg: &[u8], sig: &[u8], hash_algo: u32) -> Result<(), i32> {
+        let msg_size = crate::buffer_len_to_u32(msg.len())?;
+        let sig_size = crate::buffer_len_to_u32(sig.len())?;
+        let rc = unsafe {
+            sys::wc_SignatureVerify(hash_algo,
+                sys::wc_SignatureType_WC_SIGNATURE_TYPE_RSA_W_ENC,
+                msg.as_ptr(), msg_size,
+                sig.as_ptr(), sig_size,
+                &mut self.wc_rsakey as *mut _ as *mut core::ffi::c_void,
+                core::mem::size_of::<sys::RsaKey>() as u32)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
 }
 
 impl RSA {

@@ -225,3 +225,39 @@ fn test_rsa_ssl() {
     let verify_out_size = rsa.ssl_verify(signature, &mut verify_out).expect("Error with ssl_verify()");
     assert!(verify_out_size > 0 && verify_out_size <= 512);
 }
+
+#[test]
+#[cfg(all(sig_wrapper, sha256, random, rsa_private, rsa_sign))]
+fn test_rsa_pkcs1v15_sign_verify() {
+    common::setup();
+    let rng = RNG::new().expect("Error creating RNG");
+    let msg: &[u8] = b"This is the string to be signed!";
+
+    // A 2048 and a 4096 bit key, so the size must be taken at run time.
+    for (dir, size) in [("../../../certs", 256), ("../../../certs/4096", 512)] {
+        let der = fs::read(format!("{dir}/client-key.der")).expect("Error reading key file");
+        let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+        let mut sig = [0u8; 512];
+        let sig_len = rsa.pkcs1v15_sign(msg, &mut sig, RSA::HASH_TYPE_SHA256, &rng)
+            .expect("Error with pkcs1v15_sign()");
+        assert_eq!(sig_len, size);
+        assert!(rsa.pkcs1v15_sign(b"", &mut sig, RSA::HASH_TYPE_SHA256, &rng).is_err());
+        let sig = &sig[..sig_len];
+
+        let der = fs::read(format!("{dir}/client-keyPub.der")).expect("Error reading key file");
+        let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+        rsa.pkcs1v15_verify(msg, sig, RSA::HASH_TYPE_SHA256)
+            .expect("Error with pkcs1v15_verify()");
+        assert!(rsa.pkcs1v15_verify(b"Some other message", sig, RSA::HASH_TYPE_SHA256).is_err());
+    }
+
+    // A signature from one key must not pass with another.
+    let der = fs::read("../../../certs/client-key.der").expect("Error reading key file");
+    let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    let mut sig = [0u8; 256];
+    let sig_len = rsa.pkcs1v15_sign(msg, &mut sig, RSA::HASH_TYPE_SHA256, &rng)
+        .expect("Error with pkcs1v15_sign()");
+    let der = fs::read("../../../certs/server-keyPub.der").expect("Error reading key file");
+    let mut other = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    assert!(other.pkcs1v15_verify(msg, &sig[..sig_len], RSA::HASH_TYPE_SHA256).is_err());
+}
