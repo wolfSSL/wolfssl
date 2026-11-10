@@ -7620,6 +7620,7 @@ struct WOLFSSL {
 #ifdef WOLFSSL_TLS13
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     WC_BITFIELD postHandshakeAuthPending:1;
+    WC_BITFIELD postHandshakeAuthPublish:1;
 #endif
 #endif
 #endif
