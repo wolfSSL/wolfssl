@@ -30,8 +30,12 @@ jobs:
       matrix:
         include:
           - name: all-sanitizer
+            extra_configure: ''
             extra_cppflags: ''
           - name: all-callbacks-sanitizer
+            # WOLFSSL_QUIC is declared incompatible with WOLFSSL_CALLBACKS
+            # (settings.h #error), and --enable-all enables QUIC.
+            extra_configure: '--disable-quic'
             extra_cppflags: '-DWOLFSSL_CALLBACKS'
     name: ${{ matrix.name }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
@@ -57,7 +61,7 @@ jobs:
       - name: Build and test
         run: |
           ./autogen.sh
-          ./configure --enable-all \
+          ./configure --enable-all ${{ matrix.extra_configure }} \
             CFLAGS="$SANITIZE_FLAGS" LDFLAGS="$SANITIZE_FLAGS" \
             CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -DWOLFSSL_SLHDSA_VERIFY_ONLY -DWOLFSSL_XMSS_VERIFY_ONLY -DWOLFSSL_LMS_VERIFY_ONLY ${{ matrix.extra_cppflags }}"
           make -j 4
