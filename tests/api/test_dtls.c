@@ -428,6 +428,69 @@ loop_exit:
     return EXPECT_RESULT();
 }
 
+/* Only one side gives the other a CID, so the other side's records carry none */
+int test_dtls12_one_sided_connection_id(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_ECC) && ((defined(HAVE_AES_CBC) && \
+    !defined(WOLFSSL_AEAD_ONLY)) || defined(HAVE_AESGCM))
+    unsigned char cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
+    const char* params[] = {
+#if defined(HAVE_AES_CBC) && !defined(WOLFSSL_AEAD_ONLY)
+        "ECDHE-RSA-AES128-SHA256",
+#endif
+#ifdef HAVE_AESGCM
+        "ECDHE-RSA-AES128-GCM-SHA256",
+#endif
+    };
+    unsigned char readBuf[40];
+    size_t i;
+    int side;
+
+    for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
+        for (side = 0; side < 2 && EXPECT_SUCCESS(); side++) {
+            WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+            WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+            struct test_memio_ctx test_ctx;
+            int len = (int)XSTRLEN(params[i]);
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s, wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method),
+                0);
+            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i]), 1);
+            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i]), 1);
+            ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+            ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+            ExpectIntEQ(wolfSSL_dtls_cid_set(side == 0 ? ssl_c : ssl_s, cid,
+                    sizeof(cid)), 1);
+
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl_c), 1);
+            ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl_s), 1);
+
+            ExpectIntEQ(wolfSSL_write(ssl_c, params[i], len), len);
+            XMEMSET(readBuf, 0, sizeof(readBuf));
+            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), len);
+            ExpectStrEQ(readBuf, params[i]);
+            ExpectIntEQ(wolfSSL_write(ssl_s, params[i], len), len);
+            XMEMSET(readBuf, 0, sizeof(readBuf));
+            ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), len);
+            ExpectStrEQ(readBuf, params[i]);
+
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 
 /** Test DTLS 1.3 behavior when server hits WANT_WRITE during HRR
  * The test sets up a DTLS 1.3 connection where the server is forced to

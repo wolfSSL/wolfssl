@@ -29,6 +29,7 @@ int test_dtls13_packet_forgeries(void);
 int test_dtls13_wire_mangle(void);
 
 int test_dtls12_basic_connection_id(void);
+int test_dtls12_one_sided_connection_id(void);
 int test_wolfSSL_dtls_cid_parse(void);
 int test_wolfSSL_dtls_cid_args(void);
 int test_wolfSSL_dtls_set_pending_peer(void);
@@ -216,6 +217,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
 
 #define TEST_DTLS_DECLS                                                        \
         TEST_DECL_GROUP("dtls", test_dtls12_basic_connection_id),              \
+        TEST_DECL_GROUP("dtls", test_dtls12_one_sided_connection_id),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_parse),                  \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_args),                   \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer),           \

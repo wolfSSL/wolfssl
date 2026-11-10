@@ -23,10 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - zephyr-ref: v3.4.0
-            zephyr-sdk: 0.16.1
-          - zephyr-ref: v3.5.0
-            zephyr-sdk: 0.16.3
+          - zephyr-ref: v3.7.2
+            zephyr-sdk: 0.16.8
           - zephyr-ref: v2.7.4
             zephyr-sdk: 0.16.3
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
@@ -98,17 +96,8 @@ jobs:
       - name: Run wolfssl test
         id: wolfssl-test
         working-directory: zephyr
-        # Scope -T to the sample directory (not the whole module) so twister does
-        # not load zephyr/tests/*/testcase.yaml. The condvar test's modern
-        # list-form platform_allow is rejected by the 2.7.4 twister schema, and
-        # this is the only sample step that runs on 2.7.4.
-        #
-        # Name the two scenarios rather than running the whole sample: the rest
-        # need a Zephyr these versions predate - hierarchical board names,
-        # COMMON_LIBC_MALLOC_ARENA_SIZE, and toolchains beyond the x86_64 one
-        # installed above. --test drops the others before their platform_allow
-        # is resolved, so an unrecognized board does not abort the run - but
-        # the yaml is still parsed, so a modern-only key would.
+        # 2.7.4's twister rejects the zephyr/tests yaml, so -T stays on the
+        # sample; the other scenarios need boards or toolchains not set up here.
         run: |
           ./zephyr/scripts/twister -T modules/crypto/wolfssl/zephyr/samples/wolfssl_test \
             --test sample.crypto.wolfssl_test \

@@ -18,6 +18,16 @@ if(CONFIG_WOLFSSL)
         ${ZEPHYR_CURRENT_MODULE_DIR}/zephyr
         )
 
+    # user_settings.h builds without DH, so TLS needs one of these groups.
+    if(NOT CONFIG_WOLFSSL_HAS_SETTINGS_FILE AND NOT CONFIG_WOLFCRYPT_FIPS
+       AND NOT CONFIG_WOLFSSL_CRYPTO_ONLY AND NOT CONFIG_WOLFSSL_ECC
+       AND NOT CONFIG_WOLFSSL_CURVE25519 AND NOT CONFIG_WOLFSSL_CURVE448
+       AND NOT CONFIG_WOLFSSL_MLKEM)
+      message(FATAL_ERROR "wolfSSL TLS needs a key exchange group: enable "
+              "CONFIG_WOLFSSL_ECC, CONFIG_WOLFSSL_CURVE25519, CONFIG_WOLFSSL_CURVE448 "
+              "or CONFIG_WOLFSSL_MLKEM, or set CONFIG_WOLFSSL_CRYPTO_ONLY")
+    endif()
+
     zephyr_library()
     # Library sources only, never the application, as the top-level CMake does.
     # The v5 kdf.c predates libwolfssl_sources.h: without this, types.h pulls

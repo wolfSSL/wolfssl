@@ -3176,6 +3176,14 @@
     #include <zephyr/kernel.h>
     #include <zephyr/sys/printk.h>
     #include <zephyr/sys/util.h>
+    #if defined(WOLFSSL_HAVE_MIN) || defined(WOLFSSL_HAVE_MAX)
+        /* Zephyr 4.5 moved the lowercase min() and max() out of util.h */
+        #ifdef __has_include
+            #if __has_include(<zephyr/sys/minmax.h>)
+                #include <zephyr/sys/minmax.h>
+            #endif
+        #endif
+    #endif
 #else
     #include <kernel.h>
     #include <sys/printk.h>

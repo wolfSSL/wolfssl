@@ -51,7 +51,9 @@ extern "C" {
 #define SIZEOF_LONG_LONG 8          /* long long is 8 bytes / 64-bit */
 //#define WOLFSSL_NO_ASM /* optionally disable inline assembly support */
 #define WOLFSSL_IGNORE_FILE_WARN /* ignore file includes not required */
-//#define WOLFSSL_SMALL_STACK /* option to reduce stack size, offload to heap */
+#if defined(CONFIG_WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    #define WOLFSSL_SMALL_STACK
+#endif
 #define BENCH_EMBEDDED /* use smaller buffers in benchmark / tests */
 
 /* Network stack */
@@ -274,6 +276,16 @@ extern "C" {
 #if defined(CONFIG_WOLFSSL_DTLS)
     #define WOLFSSL_DTLS
     #define HAVE_SOCKADDR
+#endif
+#if defined(CONFIG_WOLFSSL_DTLS_CID)
+    #define WOLFSSL_DTLS_CID
+#endif
+#if defined(CONFIG_WOLFSSL_DTLS_VERSION_1_3)
+    #define WOLFSSL_DTLS13
+    #define WOLFSSL_SEND_HRR_COOKIE
+    #if defined(CONFIG_WOLFSSL_MLKEM)
+        #define WOLFSSL_DTLS_CH_FRAG
+    #endif
 #endif
 
 /* PSK */
@@ -723,12 +735,27 @@ extern "C" {
         #if defined(HAVE_ECC521)
             #define WOLFSSL_SP_521
         #endif
+        /* Sizes ECC keys and points for the largest curve */
+        #if (!defined(NO_RSA) || !defined(NO_DH)) && !defined(WOLFSSL_NO_MALLOC) && \
+            !defined(HAVE_FIPS)
+            #define ALT_ECC_SIZE
+        #endif
     #endif
     #ifndef NO_RSA
         #define WOLFSSL_HAVE_SP_RSA
         //#define WOLFSSL_SP_NO_2048
-        //#define WOLFSSL_SP_NO_3072
-        //#define WOLFSSL_SP_4096
+        #if defined(CONFIG_WOLFSSL_RSA_MAX_BITS_2048)
+            #define WOLFSSL_SP_NO_3072
+            #ifdef WOLFSSL_SP_MATH_ALL
+                #define SP_INT_BITS 2048
+            #endif
+        #elif defined(CONFIG_WOLFSSL_RSA_MAX_BITS_3072)
+            #ifdef WOLFSSL_SP_MATH_ALL
+                #define SP_INT_BITS 3072
+            #endif
+        #elif defined(CONFIG_WOLFSSL_RSA_MAX_BITS_4096)
+            #define WOLFSSL_SP_4096
+        #endif
     #endif
     #ifndef NO_DH
         #define WOLFSSL_HAVE_SP_DH
@@ -739,6 +766,10 @@ extern "C" {
     #endif
     //#define WOLFSSL_SP_NO_MALLOC /* disable heap in wolf/SP math */
     //#define SP_DIV_WORD_USE_DIV /* no div64 */
+    #if defined(CONFIG_WOLFCRYPT_SP_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+        !defined(WOLFSSL_SP_NO_MALLOC)
+        #define WOLFSSL_SP_SMALL_STACK
+    #endif
 
     /* Assembly speedup, keyed on the CPU Zephyr reports. Anything not named
      * here keeps the C backend. Each pair is two separate backends: the _ASM
@@ -829,6 +860,11 @@ extern "C" {
 #endif
 
 #endif /* WOLFSSL_SETTINGS_FILE */
+
+/* <zephyr/kernel.h> pulls in SoC headers that define RNG, such as STM32's */
+#ifndef NO_OLD_RNGNAME
+#define NO_OLD_RNGNAME
+#endif
 
 /* The port is silent when its define is missing: els_pkc_port.c compiles to
  * nothing and no crypto callback is ever registered. */

@@ -40119,6 +40119,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         break;
                     }
                 #endif
+                #ifdef HAVE_ECC
                     ret = EccSharedSecret(
                         ssl,
                         (ecc_key*)ssl->hsKey, ssl->peerEccKey,
@@ -40136,6 +40137,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                                       (void**)&ssl->peerEccKey);
                         ssl->peerEccKeyPresent = 0;
                     }
+                #else
+                    ret = BAD_KEA_TYPE_E;
+                #endif
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
@@ -48444,6 +48448,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                             break;
                         }
                     #endif
+                    #ifdef HAVE_ECC
                         /* Generate shared secret */
                         ret = EccSharedSecret(ssl,
                             ssl->eccTempKey, ssl->peerEccKey,
@@ -48461,6 +48466,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                                                       (void**)&ssl->peerEccKey);
                             ssl->peerEccKeyPresent = 0;
                         }
+                    #else
+                        ret = BAD_KEA_TYPE_E;
+                    #endif
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */

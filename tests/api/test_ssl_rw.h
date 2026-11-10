@@ -29,6 +29,7 @@ int test_wolfSSL_writev(void);
 int test_wolfSSL_get_shutdown(void);
 int test_wolfSSL_want(void);
 int test_wolfSSL_pending_api(void);
+int test_wolfSSL_has_pending_dtls_datagram(void);
 int test_wolfSSL_rw_bad_args(void);
 int test_wolfSSL_rw_info_callback(void);
 int test_wolfSSL_write_ex_partial(void);
@@ -58,6 +59,7 @@ int test_wolfSSL_write_dup_max_fragment(void);
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_get_shutdown),                  \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_want),                          \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_pending_api),                   \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_has_pending_dtls_datagram),     \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_rw_bad_args),                   \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_rw_info_callback),              \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_ex_partial),              \

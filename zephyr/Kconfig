@@ -251,8 +251,26 @@ config WOLFSSL_TLS_VERSION_1_3
 config WOLFSSL_DTLS
   bool "wolfSSL DTLS support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on WOLFSSL_TLS_VERSION_1_2 || WOLFSSL_TLS_VERSION_1_3
+  select WOLFSSL_DTLS_VERSION_1_3 if !WOLFSSL_TLS_VERSION_1_2
   help
-    Enable DTLS support
+    Enable DTLS (WOLFSSL_DTLS). DTLS 1.2 is built with
+    WOLFSSL_TLS_VERSION_1_2 and DTLS 1.3 with WOLFSSL_DTLS_VERSION_1_3.
+
+config WOLFSSL_DTLS_VERSION_1_3
+  bool "DTLS 1.3"
+  depends on WOLFSSL_DTLS && WOLFSSL_TLS_VERSION_1_3
+  help
+    Enable DTLS 1.3 (WOLFSSL_DTLS13). Zephyr's socket API offers DTLS 1.2
+    only, so this serves applications that use the wolfSSL API directly.
+
+config WOLFSSL_DTLS_CID
+  bool "DTLS Connection ID"
+  depends on WOLFSSL_DTLS
+  help
+    Enable the DTLS Connection ID extension (WOLFSSL_DTLS_CID) for DTLS 1.2
+    (RFC 9146) and DTLS 1.3 (RFC 9147), which lets a peer keep its session
+    when its address changes.
 
 config WOLFSSL_ALPN
   bool "wolfSSL ALPN support"
@@ -312,6 +330,30 @@ config WOLFSSL_RSA
   help
     Enable RSA (define RSA support; NO_RSA when off).
 
+choice WOLFSSL_RSA_MAX_BITS
+  prompt "Largest RSA key size"
+  depends on WOLFSSL_RSA && !WOLFCRYPT_FIPS
+  default WOLFSSL_RSA_MAX_BITS_4096
+  help
+    Largest RSA modulus wolfCrypt can sign, verify or decrypt with, so
+    also the largest RSA key a certificate chain may carry. The big
+    integers of the RSA and DH math are sized for this length, so a
+    smaller choice saves stack and heap in each handshake. The
+    single-precision math handles 2048, 3072 and 4096-bit keys up to the
+    chosen size; other sizes need WOLFSSL_SP_MATH_ALL.
+    A FIPS build takes its math sizes from the module settings instead.
+
+config WOLFSSL_RSA_MAX_BITS_2048
+  bool "2048 bits"
+
+config WOLFSSL_RSA_MAX_BITS_3072
+  bool "3072 bits"
+
+config WOLFSSL_RSA_MAX_BITS_4096
+  bool "4096 bits"
+
+endchoice
+
 config WOLFSSL_ECC
   bool "wolfCrypt ECC support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
@@ -358,7 +400,7 @@ config WOLFSSL_ECC_521
     Its SP implementation is also the most stack-hungry: a thread signing on
     P-521 overflowed a 16 KB stack during bring-up and needed roughly three
     times that. Raise CONFIG_MAIN_STACK_SIZE and any relevant thread stack,
-    or set WOLFSSL_SMALL_STACK to move the intermediates onto the heap.
+    or set CONFIG_WOLFSSL_SMALL_STACK to move the intermediates onto the heap.
 
 config WOLFSSL_ECC_BRAINPOOL
   bool "Brainpool curves"
@@ -786,6 +828,27 @@ config WOLFCRYPT_SP_SMALL
 	  therefore keeps the smaller, slower half of the assembly, so
 	  turning it off is what makes WOLFCRYPT_ASM pay off on a part with
 	  the flash to spare.
+
+config WOLFSSL_SMALL_STACK
+	bool "Large wolfSSL temporaries on the heap"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE && !WOLFCRYPT_FIPS
+	help
+	  Allocate the large temporaries of wolfSSL and wolfCrypt on the heap
+	  (WOLFSSL_SMALL_STACK) instead of the stack of the calling thread. A
+	  TLS handshake then needs about 2 KB of stack instead of about 5 KB,
+	  for a little more heap and run time.
+
+config WOLFCRYPT_SP_SMALL_STACK
+	bool "Single-precision math temporaries on the heap"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE && !WOLFCRYPT_FIPS
+	default y
+	help
+	  Allocate the temporaries of the fixed-size single-precision RSA, DH
+	  and ECC routines (sp_c32.c, sp_c64.c and the assembly sources) on
+	  the heap (WOLFSSL_SP_SMALL_STACK) instead of the stack of the calling
+	  thread. An RSA-3072 operation otherwise needs over 4 KB of stack. The
+	  generic sp_int.c math and the rest of wolfSSL keep their stack use
+	  unless WOLFSSL_SMALL_STACK is set as well.
 
 config WOLFSSL_NO_HAVE_MIN_MAX
 	bool "Force wolfSSL to use its own min/max"
