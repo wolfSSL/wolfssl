@@ -14188,7 +14188,8 @@ static int _sp_exptmod_base_2(const sp_int* e, int digits, const sp_int* m,
     defined(OPENSSL_ALL)
 /* Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  *
- * Error returned when parameters r == e or r == m and base >= modulus.
+ * Error returned when parameters r == e or r == m and base >= modulus or base
+ * is negative.
  *
  * @param [in]  b       SP integer that is the base.
  * @param [in]  e       SP integer that is the exponent.
@@ -14249,8 +14250,9 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
         done = 1;
     }
 
-    /* Ensure base is less than modulus. */
-    if ((!done) && (err == MP_OKAY) && (_sp_cmp_abs(b, m) != MP_LT)) {
+    /* Ensure base is non-negative and less than modulus. */
+    if ((!done) && (err == MP_OKAY) &&
+            ((_sp_cmp_abs(b, m) != MP_LT) || sp_isneg(b))) {
         if ((r == e) || (r == m)) {
             err = MP_VAL;
         }
@@ -14499,7 +14501,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         _sp_init_size(bm, (sp_size_t)(m->used * 2 + 1));
 
         /* 1. Ensure base is less than modulus. */
-        if (_sp_cmp_abs(b, m) != MP_LT) {
+        if ((_sp_cmp_abs(b, m) != MP_LT) || sp_isneg(b)) {
             err = sp_mod(b, m, bm);
             /* Handle base == modulus. */
             if ((err == MP_OKAY) && sp_iszero(bm)) {
@@ -14762,7 +14764,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         _sp_init_size(t[1], m->used * 2 + 1);
 
         /* Ensure base is less than modulus and copy into temp. */
-        if (_sp_cmp_abs(b, m) != MP_LT) {
+        if ((_sp_cmp_abs(b, m) != MP_LT) || sp_isneg(b)) {
             err = sp_mod(b, m, t[0]);
             /* Handle base == modulus. */
             if ((err == MP_OKAY) && sp_iszero(t[0])) {
