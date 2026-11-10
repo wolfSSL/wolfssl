@@ -10656,6 +10656,14 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
+#ifdef WOLFSSL_CALLBACKS
+    /* Free buffers allocated by AddPacketInfo().  The _ex handshake entry
+     * points free them after invoking the timeout callback, but a session
+     * that records packet info via the msg callback (toInfoOn) without the
+     * _ex entry points reaches here still holding them.  FreeTimeoutInfo()
+     * nulls the pointers, so the earlier free is safely repeated. */
+    FreeTimeoutInfo(&ssl->timeoutInfo, ssl->heap);
+#endif
     /* Defrag buffer for fragmented handshake messages. Lives in WOLFSSL (not
      * Arrays) so it survives FreeArrays()/FreeHandshakeResources() and can be
      * used to reassemble post-handshake messages; release it here. */
