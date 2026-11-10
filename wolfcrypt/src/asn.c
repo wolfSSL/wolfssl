@@ -11213,6 +11213,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
     word32 pbeLen = 0;
     word32 kdfLen = 0;
     word32 encLen = 0;
+    word32 outerLen = 0;
     byte cbcIv[MAX_IV_SIZE];
     word32 idx = 0;
     word32 encIdx = 0;
@@ -11234,7 +11235,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
     }
     if (ret == 0 && (salt == NULL || saltSz == 0)) {
         genSalt = 1;
-        saltSz = 8;
+        saltSz = (version == PKCS5v2) ? PKCS5V2_SALT_SZ : PKCS5_SALT_SZ;
     }
     if (ret == 0 && version == PKCS5v2) {
         ret = GetAlgoV2(encAlgId, &encOid, &encOidSz, &pbeId, &blockSz);
@@ -11296,7 +11297,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
     if (ret == 0) {
         /* outerLen = length of PBE encoding + octet string data */
         /* Plus 2 for tag and length for pbe */
-        word32 outerLen = 2 + pbeLen;
+        outerLen = 2 + pbeLen;
         /* Octet string tag, length */
         outerLen += 1 + SetLength(keySz + padSz, NULL);
         /* Octet string bytes */
@@ -11306,6 +11307,10 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
             *outSz = 1 + SetLength(outerLen, NULL) + outerLen;
             return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
+        if (*outSz < 1 + SetLength(outerLen, NULL) + outerLen)
+            ret = BUFFER_E;
+    }
+    if (ret == 0) {
         SetOctetString(keySz + padSz, out);
 
         idx += SetSequence(outerLen, out + idx);

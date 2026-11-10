@@ -6923,8 +6923,10 @@ int test_wc_Pkcs8EncryptDecisionCoverage(void)
     WC_RNG rng;
     byte   key[32];
     byte   out[512];
+    byte   fill[512];
     byte   salt[8];
     word32 outSz;
+    word32 need = 0;
 
     XMEMSET(key, 3, sizeof(key));
     XMEMSET(salt, 4, sizeof(salt));
@@ -6948,6 +6950,34 @@ int test_wc_Pkcs8EncryptDecisionCoverage(void)
     ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
         "pw", 2, PKCS5, PBES2, AES128CBCb, salt, sizeof(salt), 1000,
         0x7FFFFFFF, &rng, HEAP_HINT), WC_NO_ERR_TRACE(ALGO_ID_E));
+
+    /* Zero and one byte short return BUFFER_E and leave the buffer
+     * untouched; the queried size succeeds. */
+    outSz = 0;
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz,
+        "pw", 2, PKCS5, PBES2, AES128CBCb, NULL, 0, 1000, 0, &rng,
+        HEAP_HINT), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    need = outSz;
+    ExpectIntGT(need, 1);
+    ExpectIntLE(need, sizeof(out));
+    XMEMSET(out, 0xA5, sizeof(out));
+    XMEMSET(fill, 0xA5, sizeof(fill));
+    outSz = 0;
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
+        "pw", 2, PKCS5, PBES2, AES128CBCb, NULL, 0, 1000, 0, &rng,
+        HEAP_HINT), WC_NO_ERR_TRACE(BUFFER_E));
+    outSz = need - 1;
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
+        "pw", 2, PKCS5, PBES2, AES128CBCb, NULL, 0, 1000, 0, &rng,
+        HEAP_HINT), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectBufEQ(out, fill, sizeof(out));
+#if defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_SHA)
+    outSz = need;
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(key, sizeof(key), out, &outSz,
+        "pw", 2, PKCS5, PBES2, AES128CBCb, NULL, 0, 1000, 0, &rng,
+        HEAP_HINT), (int)need);
+    ExpectBufEQ(out + need, fill + need, sizeof(out) - need);
+#endif
 
     ExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif /* HAVE_AES_CBC && !NO_AES && WOLFSSL_AES_128 && !FIPS */
