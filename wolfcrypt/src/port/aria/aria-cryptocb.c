@@ -39,7 +39,12 @@ size and a key size of 128, 192, or 256 bits.
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#include <wolfssl/wolfcrypt/misc.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
 
 int wc_AriaInit(void)
