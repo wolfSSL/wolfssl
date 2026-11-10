@@ -12413,6 +12413,10 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (GetLength(pkiMsg, idx, &encryptedKeySz, pkiMsgSz) < 0) {
                 return ASN_PARSE_E;
             }
+            if (encryptedKeySz <= 0) {
+                WOLFSSL_MSG("KTRI encryptedKey is empty");
+                return ASN_PARSE_E;
+            }
             if (encryptedKeySz > MAX_ENCRYPTED_KEY_SZ) {
                return BUFFER_E;
             }

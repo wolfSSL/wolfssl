@@ -79,6 +79,7 @@ int test_wc_PKCS7_SetOriDecryptCtx(void);
 int test_wc_PKCS7_DecodeCompressedData(void);
 int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void);
 int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void);
+int test_wc_PKCS7_DecodeEnvelopedData_KTRI_emptyEncryptedKey(void);
 int test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet(void);
 int test_wc_PKCS7_DecodeEnvelopedData_version(void);
 int test_wc_PKCS7_DecodeEnvelopedData_fragmented(void);
@@ -190,6 +191,7 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_SetOriDecryptCtx),            \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen), \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_KTRI_emptyEncryptedKey), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_version), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_fragmented), \
