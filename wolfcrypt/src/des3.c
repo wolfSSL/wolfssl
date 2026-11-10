@@ -327,12 +327,19 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
     static int Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
                    int dir)
     {
+        int ret;
+
         if (des == NULL || out == NULL || in == NULL)
             return BAD_FUNC_ARG;
         /* CRYP only processes whole blocks. A partial final block would read
          * and write past in/out, and wrap sz in the per-block loops. */
         if (sz % DES_BLOCK_SIZE != 0)
             return BAD_LENGTH_E;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
     #ifdef WOLFSSL_STM32_CUBEMX
         {
@@ -458,6 +465,8 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             CRYP_Cmd(DISABLE);
         }
     #endif /* WOLFSSL_STM32_CUBEMX */
+        wolfSSL_CryptHwMutexUnLock();
+
         return 0;
     }
 
