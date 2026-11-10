@@ -115,8 +115,15 @@ extern "C" {
 
 #define CUSTOM_RAND_TYPE      unsigned int
 extern unsigned int msp430_rnd(void);
-#undef  CUSTOM_RAND_GENERATE
-#define CUSTOM_RAND_GENERATE  msp430_rnd
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "MSP430 timer XOR is not an entropy source: provide a secure custom seed; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
+    #define CUSTOM_RAND_GENERATE msp430_rnd
+#endif
 
 extern unsigned int msp430_time(long *x);
 #undef XTIME

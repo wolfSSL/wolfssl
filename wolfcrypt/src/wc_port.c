@@ -1097,7 +1097,8 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
+    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK)
         /* A failure here should not happen, but if it does the actual RNG seed
          * call will fail. This init is for a shared crypt provider handle for
          * RNG */
@@ -1374,7 +1375,8 @@ int wolfCrypt_Cleanup(void)
         Entropy_Final();
     #endif
 
-    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
+    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK)
         wc_WinCryptHandleCleanup();
     #endif
 

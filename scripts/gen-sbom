@@ -21,7 +21,20 @@ from datetime import datetime, timezone
 # fields.  Reproducibility CI keys on byte-equal SBOMs across re-runs,
 # so this constant must change in lockstep with the output it produces.
 GEN_SBOM_TOOL_NAME = 'wolfssl-sbom-gen'
-GEN_SBOM_VERSION = '1.2'
+GEN_SBOM_VERSION = '1.3'
+
+_WEAK_ENTROPY_NOTE = (
+    'WARNING: WOLFSSL_ACCEPT_WEAK_ENTROPY permits weak or deterministic '
+    'seed sources. Keys and nonces may be predictable if such a source is '
+    'selected. Verify the actual entropy source and remove this opt-in '
+    'before deployment.'
+)
+
+
+def weak_entropy_permitted(build_props):
+    """A defined opt-in permits weak seeds even when its value is zero."""
+    return any(name == 'WOLFSSL_ACCEPT_WEAK_ENTROPY'
+               for name, _value in build_props)
 
 # Placeholder recorded in the component checksum fields when the operator
 # passes --no-artifact-hash: a build (ROM image, HSM firmware, binary-only
@@ -804,6 +817,12 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
         {'name': f'wolfssl:build:{k}', 'value': v if v else '1'}
         for k, v in build_props
     ]
+    if weak_entropy_permitted(build_props):
+        properties.extend([
+            {'name': 'wolfssl:security:weak-entropy', 'value': 'permitted'},
+            {'name': 'wolfssl:security:weak-entropy-note',
+             'value': _WEAK_ENTROPY_NOTE},
+        ])
     # Document what the SHA-256 in `hashes` represents, on every entry
     # point.  Without this property an auditor reading the SBOM has to
     # guess whether the SHA-256 is over a library binary, a source-set
@@ -929,6 +948,9 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
 
     _annotate(f'wolfssl:sbom:hash-kind={hash_kind}')
     _annotate(f'wolfssl:sbom:hash-source={hash_source}')
+    if weak_entropy_permitted(build_props):
+        _annotate('wolfssl:security:weak-entropy=permitted')
+        _annotate(f'wolfssl:security:weak-entropy-note={_WEAK_ENTROPY_NOTE}')
     if hash_source == 'none':
         _annotate(f'wolfssl:sbom:no-artifact-hash-note={_NO_HASH_NOTE}')
     if srcs_basenames:
@@ -1278,6 +1300,8 @@ def main():
             args.user_settings_include,
             args.user_settings_define,
         )
+    if weak_entropy_permitted(build_props):
+        print(_WEAK_ENTROPY_NOTE, file=sys.stderr)
 
     file_entries = None
     if args.lib:

@@ -42,7 +42,7 @@ CFLAGS="-v28 --abi=eabi --float_support=fpu32 --tmu_support=tmu1 -O2 \
 # regression surface for this port, plus hash.c, which HashML-DSA
 # (wc_MlDsaKey_VerifyCtxHash) calls for the digest size and OID.
 SRCS="error wc_port memory logging misc coding hash \
-  sha sha256 sha512 sha3 wc_mldsa random ecc sp_int sp_c32 \
+  sha sha256 sha512 sha3 wc_mldsa random rng_noisesrc ecc sp_int sp_c32 \
   aes cmac chacha poly1305 cryptocb \
   curve25519 ed25519 fe_operations ge_operations \
   curve448 ed448 fe_448 ge_448"
@@ -61,25 +61,6 @@ for s in $SRCS; do
     fi
 done
 
-# rng_noisesrc.c and random.c again with the entropy gate on: that turns
-# WOLFSSL_NOISE_SRC on, compiling the generic SP800-90B noise-source layer in
-# rng_noisesrc.c and the C2000 wc_GenerateSeed() branch in random.c, both left
-# out of the sweep above.  Needs no C2000Ware - only the port .c touches
-# driverlib.
-for s in rng_noisesrc random; do
-    printf 'CC  %s.c (WOLFSSL_C2000_ENTROPY) ... ' "$s"
-    if "$CL" $CFLAGS $INCS --define=WOLFSSL_C2000_ENTROPY \
-            --compile_only --skip_assembler \
-            --asm_directory="$OUT" --obj_directory="$OUT" \
-            "$WOLFROOT/wolfcrypt/src/$s.c" > "$OUT/$s-noise.log" 2>&1; then
-        echo "ok"
-    else
-        echo "FAIL"
-        cat "$OUT/$s-noise.log"
-        rc=1
-    fi
-done
-
 # The AESA hardware-AES port needs C2000Ware driverlib headers, which CI does
 # not download, so it is an opt-in extra leg: set C2000WARE to a C2000Ware
 # install to include it.
@@ -89,7 +70,7 @@ if [ -n "${C2000WARE:-}" ]; then
         -I$C2000WARE/device_support/f28p55x/common/include \
         -I$C2000WARE/device_support/f28p55x/headers/include"
     for p in "ti-c2000-aes:--define=WOLF_CRYPTO_CB --define=WOLFSSL_C2000_AES" \
-             "ti-c2000-entropy:--define=WOLFSSL_C2000_ENTROPY"; do
+             "ti-c2000-entropy:"; do
         f=${p%%:*}
         d=${p#*:}
         printf 'CC  port/ti/%s.c ... ' "$f"

@@ -12,7 +12,15 @@
 #define NO_WOLFSSL_DIR
 #define WOLFSSL_NO_ASM
 #define WC_NO_HARDEN
-#define CUSTOM_RAND_GENERATE_BLOCK custom_rand_generate_block
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "m33mu Falcon deterministic RNG is test-only: provide a secure source or explicitly define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
+    #define CUSTOM_RAND_GENERATE_BLOCK custom_rand_generate_block
+#endif
 
 /* Native Falcon, verify-only (no sign/keygen), experimental. The verify path
  * needs SHA-3 / SHAKE256 for hash-to-point. The DSP NTT auto-enables on

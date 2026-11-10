@@ -3,6 +3,7 @@
 
     #undef WOLFSSL_EMBOS
     #define WOLFSSL_EMBOS
+    /* Supply a real seed through CUSTOM_RAND_GENERATE_SEED. */
 
     #undef WOLFCRYPT_ONLY
     #define WOLFCRYPT_ONLY

@@ -1478,6 +1478,16 @@ class TestCliMutualExclusion(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('--options-h or --user-settings', result.stderr)
 
+    def test_weak_entropy_opt_in_warns_at_generation_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            options = pathlib.Path(directory) / 'options.h'
+            options.write_text('#define WOLFSSL_ACCEPT_WEAK_ENTROPY 1\n')
+            result = self._run(
+                *self.BASE, '--options-h', str(options),
+                '--no-artifact-hash')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('WARNING: WOLFSSL_ACCEPT_WEAK_ENTROPY', result.stderr)
+
     def test_lib_and_srcs_together_fail(self):
         result = self._run(
             *self.BASE,
@@ -1914,6 +1924,19 @@ class TestGenerateCdx(unittest.TestCase):
         # consumer can't distinguish '#define X' from '#define X 1'.
         self.assertEqual(names['wolfssl:build:NO_DES3'], '1')
 
+    def test_weak_entropy_opt_in_has_visible_security_warning(self):
+        doc = gs.generate_cdx(**{
+            **self.BASE_KW,
+            'build_props': [('WOLFSSL_ACCEPT_WEAK_ENTROPY', '1')],
+        })
+        props = {p['name']: p['value']
+                 for p in doc['metadata']['component']['properties']}
+        self.assertEqual(props['wolfssl:security:weak-entropy'], 'permitted')
+        self.assertIn('WARNING', props['wolfssl:security:weak-entropy-note'])
+        clean = gs.generate_cdx(**self.BASE_KW)
+        clean_props = {p['name'] for p in clean['metadata']['component']['properties']}
+        self.assertNotIn('wolfssl:security:weak-entropy', clean_props)
+
     def test_dependency_refs_match_components(self):
         # Critical invariant: every bom-ref in `dependencies` must
         # appear as a `bom-ref` on either the main component or one
@@ -2240,6 +2263,23 @@ class TestGenerateSpdx(unittest.TestCase):
         # it is reserved for the human-readable build-config defines.
         self.assertNotIn('hash-kind=', wolfssl_pkg['comment'])
         self.assertNotIn('source-set=', wolfssl_pkg['comment'])
+
+    def test_weak_entropy_opt_in_has_visible_security_annotation(self):
+        doc = gs.generate_spdx(**{
+            **self.BASE_KW,
+            'build_props': [('WOLFSSL_ACCEPT_WEAK_ENTROPY', '1')],
+        })
+        package = next(p for p in doc['packages']
+                       if p['SPDXID'] == 'SPDXRef-Package-wolfssl')
+        comments = [a['comment'] for a in package['annotations']]
+        self.assertIn('wolfssl:security:weak-entropy=permitted', comments)
+        self.assertTrue(any(c.startswith('wolfssl:security:weak-entropy-note=WARNING')
+                            for c in comments))
+        clean = gs.generate_spdx(**self.BASE_KW)
+        clean_package = next(p for p in clean['packages']
+                             if p['SPDXID'] == 'SPDXRef-Package-wolfssl')
+        self.assertFalse(any('weak-entropy' in a['comment']
+                             for a in clean_package['annotations']))
 
     def test_library_binary_path_annotates_via_annotations(self):
         # Companion to the source-merkle test: library-binary also

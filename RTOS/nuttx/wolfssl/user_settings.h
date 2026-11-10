@@ -33,7 +33,19 @@
 #define NO_DSA
 
 /* RNG */
-#define WOLFSSL_GENSEED_FORTEST
+#if defined(STM32_NUTTX_RNG)
+    /* NuttX enables the peripheral clock; wolfCrypt reads the STM32 RNG. */
+    #include <wolfssl/version.h>
+    #if LIBWOLFSSL_VERSION_HEX < 0x05009004
+        #error "STM32_NUTTX_RNG needs wolfSSL 5.9.4 or newer; use a current source tree or provide a custom seed"
+    #endif
+    #define STM32_RNG
+#elif !defined(CUSTOM_RAND_GENERATE_SEED) && \
+      !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+      !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+      !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+    #error "Enable STM32_NUTTX_RNG or provide a real custom seed; test only: define WOLFSSL_GENSEED_FORTEST and WOLFSSL_ACCEPT_WEAK_ENTROPY"
+#endif
 
 /* Applications */
 #define NO_MAIN_FUNCTION

@@ -468,11 +468,18 @@ extern "C" {
 
 /* Seed Source */
 /* Seed Source */
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "STARCORE example time-seeded rand is weak: provide a secure custom seed; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
 #if 1
     extern int my_rng_generate_seed(unsigned char* output, int sz);
-    #undef CUSTOM_RAND_GENERATE_SEED
     #define CUSTOM_RAND_GENERATE_SEED my_rng_generate_seed
 #endif
+#endif /* no application seed source */
 
 /* NETOS */
 #if 0

@@ -480,14 +480,12 @@
 #elif defined(STM32F401xE)
     #define WOLFSSL_STM32F4
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
     #endif
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
     #endif
@@ -547,10 +545,15 @@
         #undef  NO_STM32_HASH
         #undef  NO_STM32_CRYPTO
     #else
+        /* HAL2 has no HAL1 RNG API. Keep only the direct-register RNG. */
+        #include "stm32c5xx.h"
+        #define WOLFSSL_STM32_RNG_NOLIB
+        #define WC_STM32_RNG_CLK_ENABLE() \
+            do { RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN; \
+                 (void)RCC->AHB2ENR; } while (0)
         #define NO_STM32_HASH
         #define NO_STM32_CRYPTO
-        #define NO_STM32_RNG
-        #define WOLFSSL_GENSEED_FORTEST
+        #define NO_STM32_HMAC
     #endif
 #elif defined(STM32V873xx)
     /* STM32V8 (Cortex-M85): register-level crypto like the C5 above.
@@ -565,10 +568,15 @@
         #undef  NO_STM32_HASH
         #undef  NO_STM32_CRYPTO
     #else
+        /* HAL2 has no HAL1 RNG API. Keep only the direct-register RNG. */
+        #include "stm32v8xx.h"
+        #define WOLFSSL_STM32_RNG_NOLIB
+        #define WC_STM32_RNG_CLK_ENABLE() \
+            do { RCC->AHB3ENR |= RCC_AHB3ENR_RNGEN; \
+                 (void)RCC->AHB3ENR; } while (0)
         #define NO_STM32_HASH
         #define NO_STM32_CRYPTO
-        #define NO_STM32_RNG
-        #define WOLFSSL_GENSEED_FORTEST
+        #define NO_STM32_HMAC
     #endif
 #else
     #warning Please define a hardware platform!
@@ -594,13 +602,10 @@
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    /* if no HW RNG is available use test seed */
-    //#define WOLFSSL_GENSEED_FORTEST
+    /* If the device has no RNG, provide CUSTOM_RAND_GENERATE_SEED. */
 #endif
 
-/* Honor the hardware crypto toggle on every family: the per-family arms
- * above enable what each part supports; turning the toggle off forces the
- * software paths regardless of family. */
+/* Software crypto mode keeps the hardware RNG for secure seeding. */
 #if defined(WOLF_CONF_HW_CRYPTO) && WOLF_CONF_HW_CRYPTO == 0
     #undef  WOLFSSL_STM32_PKA
     #undef  WOLFSSL_STM32_BARE
@@ -610,12 +615,20 @@
     #ifndef NO_STM32_CRYPTO
     #define NO_STM32_CRYPTO
     #endif
-    #ifndef NO_STM32_RNG
-    #define NO_STM32_RNG
+    #ifndef NO_STM32_HMAC
+    #define NO_STM32_HMAC
     #endif
-    #ifndef WOLFSSL_GENSEED_FORTEST
-    #define WOLFSSL_GENSEED_FORTEST
-    #endif
+#endif
+
+/* These devices have no on-chip RNG. Supply a real seed source or explicitly
+ * configure a test-only seed in your project. */
+#if (!defined(WOLF_CONF_RNG) || WOLF_CONF_RNG != 0) && \
+    defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST) && \
+    !defined(WOLFSSL_ACCEPT_WEAK_ENTROPY)
+    #error "STM32 device has no RNG: provide CUSTOM_RAND_GENERATE_SEED or another real seed source"
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -623,9 +636,8 @@
 /* ------------------------------------------------------------------------- */
 #define SIZEOF_LONG_LONG 8
 #define WOLFSSL_GENERAL_ALIGNMENT 4
-#ifndef WOLFSSL_STM32_BARE
-    /* register-level (BARE) hardware crypto arms above take precedence;
-     * the two modes are mutually exclusive in wolfssl settings.h */
+#if !defined(WOLFSSL_STM32_BARE) && !defined(WOLFSSL_STM32_RNG_NOLIB)
+    /* HAL2 register-level RNG and BARE crypto must not select HAL1 CubeMX. */
     #define WOLFSSL_STM32_CUBEMX
 #endif
 #define WOLFSSL_SMALL_STACK

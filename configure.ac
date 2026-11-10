@@ -5565,6 +5565,22 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AMD_RDSEED"
 fi
 
+# WEAK ENTROPY ACCEPTANCE
+AC_ARG_ENABLE([weak-entropy],
+    [AS_HELP_STRING([--enable-weak-entropy],
+        [Accept weak/test entropy seed sources; NEVER for production (default: disabled)])],
+    [ ENABLED_WEAK_ENTROPY=$enableval ],
+    [ ENABLED_WEAK_ENTROPY=no ]
+)
+
+if test "$ENABLED_WEAK_ENTROPY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ACCEPT_WEAK_ENTROPY"
+elif test "$ENABLED_LEANPSK" = "yes"
+then
+    AC_MSG_WARN([leanpsk has no default entropy source; pass --enable-weak-entropy to accept the test seed, or provide a real one via CUSTOM_RAND_GENERATE_SEED])
+fi
+
 
 # Linux af_alg
 AC_ARG_ENABLE([afalg],
@@ -15307,6 +15323,7 @@ echo "   * SRTP-KDF:                   $ENABLED_SRTP_KDF"
 echo "   * PSK:                        $ENABLED_PSK"
 echo "   * Poly1305:                   $ENABLED_POLY1305"
 echo "   * LEANPSK:                    $ENABLED_LEANPSK"
+echo "   * WEAK ENTROPY ACCEPTANCE:    $ENABLED_WEAK_ENTROPY"
 echo "   * LEANTLS:                    $ENABLED_LEANTLS"
 echo "   * RSA:                        $ENABLED_RSA"
 echo "   * RSA-PSS:                    $ENABLED_RSAPSS"

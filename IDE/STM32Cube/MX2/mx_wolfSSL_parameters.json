@@ -284,7 +284,7 @@
             "hwCrypto": {
               "type": "boolean",
               "title": "STM32 Hardware Crypto",
-              "description": "Use the STM32 hardware crypto peripherals (RNG, HASH, AES, PKA) where the selected device has wolfSSL support; software fallback otherwise",
+              "description": "Use STM32 hardware acceleration for HASH, AES and PKA where supported; the hardware RNG remains enabled for secure seeding when present",
               "default": true
             },
             "consoleUart": {

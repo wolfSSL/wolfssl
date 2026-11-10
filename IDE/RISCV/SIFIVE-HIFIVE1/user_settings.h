@@ -458,6 +458,13 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* RNG */
 /* ------------------------------------------------------------------------- */
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "HiFive1 example counter seed is predictable: provide a secure custom seed; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
 #if 0
     /* Bypass P-RNG and use only HW RNG */
     #define CUSTOM_RAND_TYPE      unsigned int
@@ -471,9 +478,9 @@ extern "C" {
     /* Size of returned HW RNG value */
     #define CUSTOM_RAND_TYPE      unsigned int
     extern unsigned int my_rng_seed_gen(void);
-    #undef  CUSTOM_RAND_GENERATE
     #define CUSTOM_RAND_GENERATE  my_rng_seed_gen
 #endif
+#endif /* no application seed source */
 
 /* ------------------------------------------------------------------------- */
 /* Enable Features */

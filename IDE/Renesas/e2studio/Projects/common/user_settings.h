@@ -71,7 +71,12 @@
 /* TSIP TLS specific definitions */
 #if !defined(WOLFSSL_RENESAS_TSIP)
     #define OPENSSL_EXTRA
-    #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+    #if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+        !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+        !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+        #error "Enable Renesas TSIP or provide a real custom seed; test only: define WOLFSSL_GENSEED_FORTEST and WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
 #else
 #if defined(WOLFSSL_RENESAS_RX65N)
     /* In the case of Static RSA and AES-CBC use */
