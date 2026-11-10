@@ -2010,8 +2010,8 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #define WOLFSSL_NAMED_GROUP_IS_PQC(group) NamedGroupIsPqc(group)
 #define WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group) NamedGroupIsPqcHybrid(group)
 #else
-#define WOLFSSL_NAMED_GROUP_IS_PQC(group)        ((void)(group), 0)
-#define WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group) ((void)(group), 0)
+#define WOLFSSL_NAMED_GROUP_IS_PQC(group)        0
+#define WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group) 0
 #endif /* WOLFSSL_HAVE_MLKEM */
 
 /* minimum Downgrade Minor version */
