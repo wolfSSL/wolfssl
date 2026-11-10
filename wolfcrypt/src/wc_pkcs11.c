@@ -959,6 +959,7 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->userPinLogin = 0;
         token->pinCopy = NULL_PTR;
         token->pinCopySz = 0;
+        token->pinDropped = 0;
         token->version = dev->version;
         token->heap = dev->heap;
     }
@@ -1139,6 +1140,7 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token)
         token->func->C_CloseAllSessions(token->slotId);
         token->handle = NULL_PTR;
         Pkcs11Token_ClearPin(token);
+        token->pinDropped = 0;
     }
 }
 
@@ -1184,6 +1186,7 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
                 PKCS11_RV("C_Login", rv);
                 /* Another token in this process may have logged in already. */
                 if (rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN) {
+                    token->func->C_CloseSession(session->handle);
                     ret = WC_HW_E;
                 }
             }
@@ -1245,10 +1248,29 @@ static int Pkcs11KeyGenSessionCheck(Pkcs11Session* session, int idLen,
  * @param  [in]  token      Token object.
  * @param  [in]  readWrite  Boolean indicating to open session for Read/Write.
  * @return  BAD_FUNC_ARG when token is NULL.
- * @return  WC_HW_E when opening the session fails.
- * @return  0 on success.
+ * @return  BAD_STATE_E when the PIN was discarded by an earlier open.
+ * @return  WC_HW_E when opening the session or logging in fails.
+ * @return  0 on success, or when a session is already open.
  */
 int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite)
+{
+    return wc_Pkcs11Token_Open_ex(token, readWrite, 0);
+}
+
+/**
+ * Open a session on the token to be used for all operations.
+ * Optionally discard the copy of the user's PIN once this call has opened and
+ * logged in the session.
+ *
+ * @param  [in]  token       Token object.
+ * @param  [in]  readWrite   Boolean indicating to open session for Read/Write.
+ * @param  [in]  discardPin  Boolean indicating to discard the user's PIN.
+ * @return  BAD_FUNC_ARG when token is NULL.
+ * @return  BAD_STATE_E when the PIN was discarded by an earlier open.
+ * @return  WC_HW_E when opening the session or logging in fails.
+ * @return  0 on success, or when a session is already open.
+ */
+int wc_Pkcs11Token_Open_ex(Pkcs11Token* token, int readWrite, int discardPin)
 {
     int ret = 0;
     Pkcs11Session session;
@@ -1256,9 +1278,17 @@ int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite)
     if (token == NULL)
         ret = BAD_FUNC_ARG;
 
-    if (ret == 0) {
+    if (ret == 0 && token->handle == NULL_PTR && token->pinDropped)
+        ret = BAD_STATE_E;
+    else if (ret == 0 && token->handle == NULL_PTR) {
         ret = Pkcs11OpenSession(token, &session, readWrite);
-        token->handle = session.handle;
+        if (ret == 0)
+            token->handle = session.handle;
+        /* The login lasts while this session is open. */
+        if (ret == 0 && discardPin && token->userPinLogin) {
+            Pkcs11Token_ClearPin(token);
+            token->pinDropped = 1;
+        }
     }
 
     return ret;
