@@ -37,7 +37,7 @@ jobs:
     name: ${{ matrix.leg }} (Cortex-M4, Thumb-2)
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -57,9 +57,10 @@ jobs:
         name: Checkout wolfSSL
 
       - name: Install the toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: gcc-arm-none-eabi
+          ghcr-debs-tag: ubuntu-24.04-embedded
 
       - name: Compile aes.c for Thumb-2 and check the routing
         run: |
