@@ -454,12 +454,25 @@ int test_wolfSSL_SHA256(void)
         "\x06\xC1";
     size_t inLen;
     byte hash[WC_SHA256_DIGEST_SIZE];
+    SHA256_CTX ctx;
 
     inLen  = XSTRLEN((char*)input);
 
     XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
     ExpectNotNull(SHA256(input, inLen, hash));
     ExpectIntEQ(XMEMCMP(hash, output, WC_SHA256_DIGEST_SIZE), 0);
+
+    /* Data length that doesn't fit in 32 bits must fail, not be truncated.
+     * Rejected before data is read. */
+    if (sizeof(size_t) > sizeof(word32)) {
+        ExpectNull(SHA256(input, (size_t)WOLFSSL_MAX_32BIT + 1 + inLen, hash));
+    }
+    if (sizeof(unsigned long) > sizeof(word32)) {
+        ExpectIntEQ(SHA256_Init(&ctx), 1);
+        ExpectIntEQ(SHA256_Update(&ctx, input,
+            (unsigned long)WOLFSSL_MAX_32BIT + 1 + inLen), 0);
+        ExpectIntEQ(SHA256_Final(hash, &ctx), 1);
+    }
 #endif
     return EXPECT_RESULT();
 }
