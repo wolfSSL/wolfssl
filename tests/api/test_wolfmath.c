@@ -1055,3 +1055,62 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 } /* End test_wc_SpIntExptGcdDecisionCoverage */
+
+/*
+ * Testing mp_exptmod and mp_exptmod_nct with a negative base
+ */
+int test_mp_exptmod_neg_base(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(HAVE_ECC) || !defined(NO_DSA) || defined(OPENSSL_EXTRA)) && \
+    (defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
+     (defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_SP_INT_NEGATIVE) && \
+      !defined(WOLFSSL_RSA_VERIFY_ONLY))) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    mp_int g;
+    mp_int x;
+    mp_int p;
+    mp_int r;
+    mp_int want;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&r, 0, sizeof(r));
+    XMEMSET(&want, 0, sizeof(want));
+    ExpectIntEQ(mp_init_multi(&g, &x, &p, &r, &want, NULL), MP_OKAY);
+
+    /* Base -2 must not take the base-2 shortcut. */
+    ExpectIntEQ(mp_read_radix(&g, "-2", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&x, "3", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&p, "65", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&want, "5D", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&r, &want), MP_EQ);
+
+#ifdef WOLFSSL_SP_MATH_ALL
+    /* Multi-digit odd modulus on the nct path. */
+    ExpectIntEQ(mp_read_radix(&g, "-3", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&x, "5", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&p,
+        "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
+        MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&want,
+        "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFF0C",
+        MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_nct(&g, &x, &p, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&r, &want), MP_EQ);
+
+    /* A negative base is reduced into r, so r may not alias m. */
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &p), WC_NO_ERR_TRACE(MP_VAL));
+#endif
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&r);
+    mp_clear(&want);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_exptmod_neg_base */
