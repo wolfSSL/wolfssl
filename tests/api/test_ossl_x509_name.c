@@ -1422,6 +1422,37 @@ int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
     ExpectStrEQ(escapedLine, "/C=US/CN=admin\\\\x00.evil.com/O=Corp");
     ExpectIntNE(X509_NAME_cmp(escaped, spoof), 0);
 
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    /* The certificate parser's flat subject escapes the NUL too. The subject
+     * CN "www.wolfssl.com" is overwritten in place with a value of the same
+     * length; the signature is not checked. */
+    {
+        static const byte cnHdr[] = {
+            0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0f
+        };
+        byte der[sizeof_server_cert_der_2048];
+        DecodedCert dCert;
+        word32 i;
+        int seen = 0;
+
+        XMEMCPY(der, server_cert_der_2048, sizeof(der));
+        /* Issuer CN first, subject CN second. */
+        for (i = 0; i + sizeof(cnHdr) + sizeof(nulCn) <= sizeof(der); i++) {
+            if ((XMEMCMP(der + i, cnHdr, sizeof(cnHdr)) == 0) &&
+                    (++seen == 2)) {
+                XMEMCPY(der + i + sizeof(cnHdr), nulCn, sizeof(nulCn));
+                break;
+            }
+        }
+        ExpectIntEQ(seen, 2);
+
+        wc_InitDecodedCert(&dCert, der, (word32)sizeof(der), NULL);
+        ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+        ExpectNotNull(XSTRSTR(dCert.subject, "/CN=admin\\x00.evil.com/"));
+        wc_FreeDecodedCert(&dCert);
+    }
+#endif
+
     X509_NAME_free(legit);
     X509_NAME_free(spoof);
     X509_NAME_free(escaped);

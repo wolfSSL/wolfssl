@@ -15589,7 +15589,8 @@ static WC_INLINE int DoesCharNeedEscape(char c)
 }
 
 /* Escape the characters of an X509 name component that would make the
- * one-line form of the name ambiguous: \, +, and / are all escaped.
+ * one-line form of the name ambiguous: \, +, and / are all escaped, and a NUL
+ * is written as \x00.
  *
  * @param [out] out     Buffer the escaped name is written to. May be NULL to
  *                      only calculate the required length.
@@ -15608,6 +15609,16 @@ word32 X509CertEscapeName(char* out, const char* in, word32 inSz)
     }
 
     for (i = 0; i < inSz; i++) {
+        /* Too long for any caller's buffer, so their size checks fail. */
+        if (escSz > (word32)INT_MAX) {
+            return escSz;
+        }
+        if (in[i] == '\0') {
+            if (out != NULL)
+                XMEMCPY(&out[escSz], "\\x00", 4);
+            escSz += 4;
+            continue;
+        }
         if (DoesCharNeedEscape(in[i])) {
             if (out != NULL)
                 out[escSz] = '\\';
@@ -16101,9 +16112,8 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
              * terminating NUL character. */
             if ((typeStrLen + escLen) < (word32)(WC_ASN_NAME_MAX - *idx))
             {
-                /* Add RDN to full string. Values are escaped but not decoded,
-                 * so this display string may truncate at an embedded NUL - use
-                 * the WOLFSSL_X509_NAME entry for the full value. */
+                /* Add RDN to full string. Values are escaped but not decoded.
+                 */
                 XMEMCPY(&full[*idx], typeStr, typeStrLen);
                 *idx += typeStrLen;
                 *idx += X509CertEscapeName(&full[*idx], (const char*)str,
