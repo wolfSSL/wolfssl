@@ -1222,16 +1222,18 @@ static int Dtls13GotTimeout(WOLFSSL* ssl, int expired)
 /* Get the time left on the DTLS timers.
  *
  * @param [in]  ssl      SSL/TLS object.
+ * @param [out] running  1 when a timer runs, 0 otherwise.
  * @param [out] left     Milliseconds until the first timer expires.
  * @param [out] ackOnly  1 when only the DTLS 1.3 ack timer expired.
- * @return  1 when a timer runs.
- * @return  0 when no timer runs.
+ * @return  0 on success.
  * @return  BAD_MUTEX_E when locking fails.
  */
-static int DtlsTimerLeft(WOLFSSL* ssl, word32* left, int* ackOnly)
+static int DtlsTimerLeft(WOLFSSL* ssl, int* running, word32* left,
+    int* ackOnly)
 {
 #ifndef NO_ASN_TIME
-    int running;
+    int ret;
+    int timers = 0;
     word32 timeout;
     word32 elapsed;
 #ifdef WOLFSSL_DTLS13
@@ -1239,22 +1241,25 @@ static int DtlsTimerLeft(WOLFSSL* ssl, word32* left, int* ackOnly)
 #endif
     word32 ackStart = 0;
 
+    *running = 0;
     if (!IsDtlsNotSctpMode(ssl) || ssl->dtls_timeout <= 0 ||
             ssl->buffers.outputBuffer.length > 0)
         return 0;
-    running = DtlsTimersRunning(ssl, &ackStart);
+    ret = DtlsTimersRunning(ssl, &timers, &ackStart);
+    if (ret != 0)
+        return ret;
 #ifdef WOLFSSL_HAVE_HS_SUSPEND
     /* A suspended handshake has not finished sending its flight. */
-    if (running > 0 && IsHsSuspendErr(ssl->error))
-        running &= ~DTLS_TIMER_RTX;
+    if (IsHsSuspendErr(ssl->error))
+        timers &= ~DTLS_TIMER_RTX;
 #endif
-    if (running <= 0)
-        return running;
+    if (timers == 0)
+        return 0;
 
     timeout = DtlsTimerTimeoutMs(ssl);
     *left = timeout;
     *ackOnly = 1;
-    if (running & DTLS_TIMER_RTX) {
+    if (timers & DTLS_TIMER_RTX) {
         elapsed = DtlsTimerElapsedMs(ssl->dtls_timer_start);
         *left = (elapsed < timeout) ? timeout - elapsed : 0;
 #ifdef WOLFSSL_DTLS13
@@ -1264,16 +1269,18 @@ static int DtlsTimerLeft(WOLFSSL* ssl, word32* left, int* ackOnly)
         *ackOnly = (*left > 0);
     }
 #ifdef WOLFSSL_DTLS13
-    if (running & DTLS_TIMER_ACK) {
+    if (timers & DTLS_TIMER_ACK) {
         elapsed = DtlsTimerNowMs() - ackStart;
         ackLeft = (elapsed < timeout / 4) ? timeout / 4 - elapsed : 0;
-        if (ackLeft < *left || !(running & DTLS_TIMER_RTX))
+        if (ackLeft < *left || !(timers & DTLS_TIMER_RTX))
             *left = ackLeft;
     }
 #endif
-    return 1;
+    *running = 1;
+    return 0;
 #else
     (void)ssl;
+    *running = 0;
     (void)left;
     (void)ackOnly;
     return 0;
@@ -1291,16 +1298,17 @@ int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, WOLFSSL_TIMEVAL* timeleft)
 {
     word32 left = 0;
     int ackOnly = 0;
+    int running = 0;
     int ret;
 
     if (ssl == NULL || timeleft == NULL)
         return 0;
 
     XMEMSET(timeleft, 0, sizeof(WOLFSSL_TIMEVAL));
-    ret = DtlsTimerLeft(ssl, &left, &ackOnly);
-    if (ret < 0)
+    ret = DtlsTimerLeft(ssl, &running, &left, &ackOnly);
+    if (ret != 0)
         WOLFSSL_MSG("Getting the DTLS timers failed");
-    if (ret <= 0)
+    if (ret != 0 || !running)
         return 0;
 
     timeleft->tv_sec = left / 1000;
@@ -1322,18 +1330,19 @@ int wolfSSL_DTLSv1_handle_timeout(WOLFSSL* ssl)
 {
     word32 left = 0;
     int ackOnly = 0;
+    int running = 0;
     int ret;
 
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    ret = DtlsTimerLeft(ssl, &left, &ackOnly);
-    if (ret < 0) {
+    ret = DtlsTimerLeft(ssl, &running, &left, &ackOnly);
+    if (ret != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ret);
         return WOLFSSL_FATAL_ERROR;
     }
-    if (ret == 0 || left > 0)
+    if (!running || left > 0)
         return 0;
 
 #ifdef WOLFSSL_DTLS13

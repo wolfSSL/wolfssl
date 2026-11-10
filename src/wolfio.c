@@ -683,6 +683,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
     byte doDtlsTimeout;
+    int running = 0;
     SOCKADDR_S lclPeer;
     SOCKADDR_S* peer;
     XSOCKLENT peerSz = 0;
@@ -736,12 +737,13 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (ret != 0)
         return ret;
 
+    ret = DtlsTimersRunning(ssl, &running, NULL);
+    if (ret != 0)
+        return ret;
     /* Don't use ssl->options.handShakeDone since it is true even if
      * we are in the process of renegotiation */
-    ret = DtlsTimersRunning(ssl, NULL);
-    if (ret < 0)
-        return ret;
-    doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE || ret != 0;
+    doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE ||
+        running != 0;
 
     do {
         int ignore = 0;

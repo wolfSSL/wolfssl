@@ -12082,7 +12082,7 @@ word32 DtlsTimerElapsedMs(word32 start)
     word32 elapsed = DtlsTimerNowMs() - start;
 
     /* Both readings were truncated to whole seconds. */
-    if (DtlsTimerLowRes())
+    if (DtlsTimerIsLowRes())
         elapsed = (elapsed >= 1000) ? elapsed - 1000 : 0;
     return elapsed;
 }
@@ -12134,26 +12134,27 @@ static int DtlsMsgPoolWaiting(WOLFSSL* ssl)
 /* Get the DTLS timers that run.
  *
  * @param [in]  ssl       SSL/TLS object.
+ * @param [out] running   DTLS_TIMER_RTX and DTLS_TIMER_ACK bits, 0 when none
+ *                        runs.
  * @param [out] ackStart  Start of the DTLS 1.3 ack timer. May be NULL.
- * @return  DTLS_TIMER_RTX and DTLS_TIMER_ACK bits, 0 when none runs.
+ * @return  0 on success.
  * @return  BAD_MUTEX_E when locking fails.
  */
-int DtlsTimersRunning(WOLFSSL* ssl, word32* ackStart)
+int DtlsTimersRunning(WOLFSSL* ssl, int* running, word32* ackStart)
 {
-    int running = 0;
-
     (void)ackStart;
 
+    *running = 0;
 #ifdef WOLFSSL_DTLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
         if (ssl->dtls13Rtx.rtxRecords != NULL)
-            running |= DTLS_TIMER_RTX;
+            *running |= DTLS_TIMER_RTX;
     #ifdef WOLFSSL_RW_THREADED
         if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0)
             return BAD_MUTEX_E;
     #endif
         if (ssl->dtls13FastTimeout && Dtls13AckSendable(ssl))
-            running |= DTLS_TIMER_ACK;
+            *running |= DTLS_TIMER_ACK;
     #ifndef NO_ASN_TIME
         if (ackStart != NULL)
             *ackStart = ssl->dtls_ack_timer_start;
@@ -12161,16 +12162,16 @@ int DtlsTimersRunning(WOLFSSL* ssl, word32* ackStart)
     #ifdef WOLFSSL_RW_THREADED
         wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
     #endif
-        return running;
+        return 0;
     }
 #endif /* WOLFSSL_DTLS13 */
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE &&
             (ssl->dtls_tx_msg_list != NULL || ssl->dtls_tx_msg != NULL) &&
             DtlsMsgPoolWaiting(ssl))
-        running |= DTLS_TIMER_RTX;
+        *running |= DTLS_TIMER_RTX;
 
-    return running;
+    return 0;
 }
 
 
@@ -12939,7 +12940,7 @@ word32 DtlsTimerNowMs(void)
 }
 
 /* Return 1 when the DTLS timer clock counts whole seconds. */
-int DtlsTimerLowRes(void)
+int DtlsTimerIsLowRes(void)
 {
 #if defined(MS_TIME_LOW_RES) || defined(MS_TIME_FALLBACK)
     return 1;

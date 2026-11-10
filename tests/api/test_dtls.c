@@ -13861,7 +13861,7 @@ static int test_DTLSv1_timer(method_provider method_c,
     ExpectIntEQ(wolfSSL_DTLSv1_handle_timeout(ssl_c), 0);
     ExpectIntEQ(test_ctx.s_msg_count, 1);
 
-    if (DtlsTimerLowRes()) {
+    if (DtlsTimerIsLowRes()) {
         /* A start one tick ago may be under a second, so 1 s hasn't passed. */
         for (i = 0; i < 3 && EXPECT_SUCCESS(); i++) {
             now = DtlsTimerNowMs();

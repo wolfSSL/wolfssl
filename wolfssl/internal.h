@@ -8123,7 +8123,7 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
         #define DtlsTimerNowMs wolfSSL_DtlsTimerNowMs
-        #define DtlsTimerLowRes wolfSSL_DtlsTimerLowRes
+        #define DtlsTimerIsLowRes wolfSSL_DtlsTimerIsLowRes
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
@@ -8154,10 +8154,11 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgPoolTimeout(WOLFSSL* ssl);
     WOLFSSL_LOCAL void DtlsTimerStart(WOLFSSL* ssl);
     WOLFSSL_LOCAL void DtlsTimeoutReset(WOLFSSL* ssl);
-    WOLFSSL_LOCAL int  DtlsTimersRunning(WOLFSSL* ssl, word32* ackStart);
+    WOLFSSL_LOCAL int  DtlsTimersRunning(WOLFSSL* ssl, int* running,
+                                         word32* ackStart);
 #ifndef NO_ASN_TIME
     WOLFSSL_TEST_VIS word32 DtlsTimerNowMs(void);
-    WOLFSSL_TEST_VIS int DtlsTimerLowRes(void);
+    WOLFSSL_TEST_VIS int DtlsTimerIsLowRes(void);
     WOLFSSL_LOCAL word32 DtlsTimerElapsedMs(word32 start);
     WOLFSSL_LOCAL word32 DtlsTimerTimeoutMs(const WOLFSSL* ssl);
 #endif
