@@ -36,6 +36,7 @@ int test_wolfSSL_tls_decompression_lowered_limit(void);
 int test_wolfSSL_tls_decompression_send_cap(void);
 int test_wolfSSL_tls_compression_output_size(void);
 int test_wolfSSL_dtls_compression_off(void);
+int test_wolfSSL_tls_compression_record_size_limit(void);
 
 #define TEST_COMPRESS_DECLS                                                    \
     TEST_DECL_GROUP("compress", test_wc_DeCompressDynamic_maxSz),              \
@@ -50,6 +51,8 @@ int test_wolfSSL_dtls_compression_off(void);
         test_wolfSSL_tls_decompression_lowered_limit),                         \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_send_cap),      \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_output_size),     \
-    TEST_DECL_GROUP("compress", test_wolfSSL_dtls_compression_off)
+    TEST_DECL_GROUP("compress", test_wolfSSL_dtls_compression_off),            \
+    TEST_DECL_GROUP("compress",                                                \
+        test_wolfSSL_tls_compression_record_size_limit)
 
 #endif /* WOLFCRYPT_TEST_COMPRESS_H */

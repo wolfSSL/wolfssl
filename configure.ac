@@ -1583,6 +1583,21 @@ then
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_rpk" = "" && enable_rpk=yes
 
+    test "$enable_sct" = "" && enable_sct=yes
+    test "$enable_recordsizelimit" = "" && enable_recordsizelimit=yes
+    # Certificate compression needs zlib, and --enable-all deliberately does
+    # not pull libz in: that gave every --enable-all build a dependency on
+    # libz.so and made wolfio.h include zlib.h, which broke the OpenWrt image
+    # and the kernel module among others. So it joins only when libz was asked
+    # for, and then as an implicit enable that steps aside with a warning
+    # rather than stopping configure. Any form of --with-libz counts, since
+    # autoconf puts an argument such as --with-libz=/usr/local in with_libz.
+    if test "$enable_certcomp" = "" && test "x$with_libz" != "x" && \
+       test "x$with_libz" != "xno"; then
+        enable_certcomp=yes
+        certcomp_implicit=yes
+    fi
+
     if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
         # Disable QUIC with JNI since incompatible with client-side
@@ -10175,6 +10190,12 @@ then
     ENABLED_ALPN=yes
     ENABLED_TRUSTED_CA=yes
     ENABLED_ENCRYPT_THEN_MAC=yes
+    dnl Seeds rather than ENABLED_ vars: this block runs before those options
+    dnl are declared, and AC_ARG_ENABLE keys off ${enable_X+set}. Both are pure
+    dnl extensions, which is what --enable-tlsx means; certificate compression
+    dnl is excluded because it needs libz.
+    test "$enable_sct" = "" && enable_sct=yes
+    test "$enable_recordsizelimit" = "" && enable_recordsizelimit=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" != "xno" || test "$ENABLED_CURVE25519" != "no" || test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
@@ -11596,8 +11617,8 @@ AC_ARG_WITH([libz],
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <zlib.h>]], [[ deflateInit(0, 8); ]])],[ libz_linked=yes ],[ libz_linked=no ])
 
             if test "x$libz_linked" = "xno" ; then
-                AC_MSG_ERROR([libz isn't found.
-                If it's already installed, specify its path using --with-libz=/dir/])
+                AC_MSG_ERROR([libz isn't found. If it's already
+                installed, specify its path using --with-libz=/dir/])
             fi
             AC_MSG_RESULT([yes])
         else
@@ -11606,6 +11627,74 @@ AC_ARG_WITH([libz],
         ENABLED_LIBZ="yes"
     ]
 )
+
+# Signed Certificate Timestamp (RFC 6962)
+AC_ARG_ENABLE([sct],
+    [AS_HELP_STRING([--enable-sct],[Enable RFC 6962 signed_certificate_timestamp. Carries a Certificate Transparency SCT list between peers; validating it is left to the application (default: disabled)])],
+    [ ENABLED_SCT=$enableval ],
+    [ ENABLED_SCT=no ]
+    )
+if test "$ENABLED_SCT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SIGNED_CERT_TIMESTAMP"
+fi
+
+# Record Size Limit (RFC 8449)
+AC_ARG_ENABLE([recordsizelimit],
+    [AS_HELP_STRING([--enable-recordsizelimit],[Enable RFC 8449 record_size_limit, the byte-exact replacement for max_fragment_length. Applies to TLS 1.2 and TLS 1.3. A connection cannot both use it and compress its records, so wolfSSL_set_compression() and wolfSSL_UseRecordSizeLimit() refuse each other (default: disabled)])],
+    [ ENABLED_RECORD_SIZE_LIMIT=$enableval ],
+    [ ENABLED_RECORD_SIZE_LIMIT=no ]
+    )
+dnl RFC 8449 defines the extension for TLS 1.2 as well as TLS 1.3, where the
+dnl server answers in the ServerHello rather than EncryptedExtensions, so no
+dnl TLS 1.3 dependency is imposed here.
+if test "$ENABLED_RECORD_SIZE_LIMIT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_RECORD_SIZE_LIMIT"
+fi
+
+# Certificate Compression (RFC 8879)
+AC_ARG_ENABLE([certcomp],
+    [AS_HELP_STRING([--enable-certcomp],[Enable RFC 8879 TLS 1.3 certificate compression. Accepts a CompressedCertificate from the peer, and sends one when the certificate has been compressed with wolfSSL_CTX_compress_certs(). Needs --with-libz (default: disabled)])],
+    [ ENABLED_CERTCOMP=$enableval ],
+    [ ENABLED_CERTCOMP=no ]
+    )
+if test "$ENABLED_CERTCOMP" = "yes"
+then
+    dnl Appended, not assigned, so a build missing both prerequisites reports
+    dnl both rather than sending the user round twice.
+    certcomp_missing=""
+    if test "x$ENABLED_TLS13" = "xno"
+    then
+        certcomp_missing="TLS 1.3"
+    fi
+    if test "x$ENABLED_LIBZ" = "xno"
+    then
+        if test "x$certcomp_missing" = "x"
+        then
+            certcomp_missing="libz"
+        else
+            certcomp_missing="$certcomp_missing and libz"
+        fi
+    fi
+    if test "x$certcomp_missing" != "x"
+    then
+        if test "x$certcomp_implicit" = "xyes"
+        then
+            dnl Switched on by --enable-all rather than asked for, so its
+            dnl requirements are not the user's to satisfy.
+            AC_MSG_WARN([certificate compression needs $certcomp_missing;
+                         turning it off])
+            ENABLED_CERTCOMP=no
+        else
+            AC_MSG_ERROR([Certificate compression requires $certcomp_missing.])
+        fi
+    fi
+fi
+if test "$ENABLED_CERTCOMP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_COMPRESSION"
+fi
 
 
 # PKCS#11
@@ -13634,6 +13723,18 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_LEANPSK" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and Lean PSK at the same time.])])
 
+dnl Certificate compression carries a Certificate message, so it needs
+dnl certificates. Checked here, not beside the option: ENABLED_CERTS is still
+dnl being assigned well past that point.
+AS_IF([test "x$ENABLED_CERTCOMP" = "xyes" && test "x$ENABLED_CERTS" = "xno"],
+      [AS_IF([test "x$certcomp_implicit" = "xyes"],
+             [AC_MSG_WARN([certificate compression needs certificates;
+                           turning it off])
+              ENABLED_CERTCOMP=no
+              AM_CFLAGS=`echo "$AM_CFLAGS" | \
+                  sed 's/ -DHAVE_CERTIFICATE_COMPRESSION//'`],
+             [AC_MSG_ERROR([Certificate compression requires certificates.])])])
+
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xno" && \
        test "x$ENABLED_PSK" = "xno" && \
        test "x$ENABLED_ASN" = "xno"],
@@ -15394,6 +15495,9 @@ echo "   * Falcon:                     $ENABLED_FALCON"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+echo "   * Record Size Limit:          $ENABLED_RECORD_SIZE_LIMIT"
+echo "   * Certificate Compression:    $ENABLED_CERTCOMP"
+echo "   * Signed Cert Timestamps:     $ENABLED_SCT"
 echo "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
