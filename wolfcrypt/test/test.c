@@ -15639,13 +15639,9 @@ static wc_test_ret_t des3_cbc_test(Des3* enc, Des3* dec)
  * guard once its port chains the IV:
  *  - Cavium Octeon sync: IV is never read back from the hardware.
  *  - PIC32MZ: wc_Pic32DesCrypt only loads the IV into the SA.
- *  - Freescale LTC: LTC_DES3_*Cbc takes the IV as const.
- *  - STM32 without HAL_V2: saves the last output block, which is plaintext
- *    on decrypt. */
+ *  - Freescale LTC: LTC_DES3_*Cbc takes the IV as const. */
 #if !defined(HAVE_CAVIUM_OCTEON_SYNC) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
-    !defined(FREESCALE_LTC_DES) && \
-    !(defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY) && \
-      !defined(STM32_HAL_V2))
+    !defined(FREESCALE_LTC_DES)
     #define DES3_CBC_SPLIT_TEST
 #endif
 
