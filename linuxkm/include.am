@@ -6,6 +6,14 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/Kbuild \
 	      linuxkm/Makefile \
 	      linuxkm/README.md \
+	      linuxkm/luks/wolfcrypt-luks-guard \
+	      linuxkm/luks/wolfcrypt-luks-guard.service \
+	      linuxkm/luks/systemd-cryptsetup.conf \
+	      linuxkm/luks/debian13/README.md \
+	      linuxkm/luks/debian13/initramfs-hook \
+	      linuxkm/luks/debian13/initramfs-premount \
+	      linuxkm/luks/rhel9/README.md \
+	      linuxkm/luks/rhel9/dracut.conf \
 	      linuxkm/get_thread_size.c \
 	      linuxkm/linuxkm-fips-hash.c \
 	      linuxkm/linuxkm-fips-hash-wrapper.sh \

@@ -87,6 +87,11 @@ kernel symbols, available to other in-kernel consumers via
 | `--enable-debug-trace-errcodes=backtrace` | Even more profuse debug logging (_not appropriate for production_) |
 
 
+## LUKS
+
+FIPS `libwolfssl.ko` as the dm-crypt provider for LUKS:
+[Debian 13](luks/debian13/README.md), [RHEL 9](luks/rhel9/README.md).
+
 ## Kernel Patches
 
 The `linuxkm/patches` directory in the source distribution contains a patch to the linux kernel CRNG. The
