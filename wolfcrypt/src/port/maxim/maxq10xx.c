@@ -1893,7 +1893,7 @@ int wolfSSL_MAXQ10XX_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     }
 #ifdef WOLFSSL_MAXQ108X
     else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
-        if (info->hmac.in != NULL && info->hmac.digest == NULL) {
+        if (info->hmac.in != NULL) {
             rc = 0;
             if (mac_comp_active == 0) {
                 rc = wc_MAXQ10XX_HmacSetKey(info->hmac.macType);
@@ -1901,8 +1901,11 @@ int wolfSSL_MAXQ10XX_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             if (rc == 0) {
                 rc = wc_MAXQ10XX_HmacUpdate(info->hmac.in, info->hmac.inSz);
             }
+            if (rc == 0 && info->hmac.digest != NULL) {
+                rc = wc_MAXQ10XX_HmacFinal(info->hmac.digest);
+            }
         }
-        else if (info->hmac.in == NULL && info->hmac.digest != NULL) {
+        else if (info->hmac.digest != NULL) {
             rc = wc_MAXQ10XX_HmacFinal(info->hmac.digest);
         }
         else {

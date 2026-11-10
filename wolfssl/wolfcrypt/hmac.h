@@ -213,6 +213,23 @@ WOLFSSL_API void wc_HmacFree(Hmac* hmac);
 
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
+WOLFSSL_API int wc_HmacGenerate(int type, byte* out, word32* outSz,
+                                const byte* in, word32 inSz,
+                                const byte* key, word32 keySz);
+WOLFSSL_API int wc_HmacGenerate_ex(Hmac* hmac, int type,
+                                   byte* out, word32* outSz,
+                                   const byte* in, word32 inSz,
+                                   const byte* key, word32 keySz,
+                                   void* heap, int devId);
+WOLFSSL_API int wc_HmacVerify(int type, const byte* check, word32 checkSz,
+                              const byte* in, word32 inSz,
+                              const byte* key, word32 keySz);
+WOLFSSL_API int wc_HmacVerify_ex(Hmac* hmac, int type,
+                                 const byte* check, word32 checkSz,
+                                 const byte* in, word32 inSz,
+                                 const byte* key, word32 keySz,
+                                 void* heap, int devId);
+
 WOLFSSL_LOCAL int _InitHmac(Hmac* hmac, int type, void* heap);
 WOLFSSL_LOCAL int _HmacInitIOHashes(Hmac* hmac);
 #ifdef WC_HMAC_HAVE_KEY_LOCATION
