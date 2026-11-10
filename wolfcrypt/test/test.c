@@ -56577,6 +56577,7 @@ done:
 #endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFSSL_CUSTOM_CURVES
+#ifndef NO_ASN
 static const byte eccKeyExplicitCurve[] = {
     0x30, 0x81, 0xf5, 0x30, 0x81, 0xae, 0x06, 0x07,
     0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x30,
@@ -56646,11 +56647,14 @@ static const byte eccKeyExplicitCurveAlgIdLenLong[] = {
     0x38, 0x96, 0x29, 0x7d, 0x9c, 0xe1, 0x50, 0xbe,
     0xac, 0xf0, 0x1d, 0x86, 0xf4, 0x2f, 0x65, 0x0b
 };
+#endif /* !NO_ASN */
 
 static wc_test_ret_t ecc_test_custom_curves(WC_RNG* rng)
 {
     wc_test_ret_t ret;
+#ifndef NO_ASN
     word32  inOutIdx;
+#endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
@@ -56729,6 +56733,7 @@ static wc_test_ret_t ecc_test_custom_curves(WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
+#ifndef NO_ASN
     inOutIdx = 0;
     ret = wc_EccPublicKeyDecode(eccKeyExplicitCurve, &inOutIdx, key,
                                                    sizeof(eccKeyExplicitCurve));
@@ -56747,6 +56752,7 @@ static wc_test_ret_t ecc_test_custom_curves(WC_RNG* rng)
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
+#endif /* !NO_ASN */
     ret = 0;
 
   done:
@@ -59093,6 +59099,110 @@ done:
 }
 #endif
 
+#if defined(NO_ASN) && defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 160 && !defined(NO_ECC_SECP) && !defined(FP_ECC) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+/* Raw r || s signatures on secp160r1, whose order is a byte longer than the
+ * prime: written at the size of the prime, read at either size. */
+static wc_test_ret_t ecc_test_raw_sig_size(WC_RNG* rng)
+{
+    wc_test_ret_t ret;
+    WC_DECLARE_VAR(key, ecc_key, 1, HEAP_HINT);
+    byte   hash[WC_MAX_DIGEST_SIZE];
+    byte   sig[2 * 20];
+    byte   wideSig[2 * 21];
+    word32 sigSz;
+    int    verify = 0;
+    int    keyInit = 0;
+
+    WC_ALLOC_VAR(key, ecc_key, 1, HEAP_HINT);
+    if (!WC_VAR_OK(key))
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(hash, 0x5a, sizeof(hash));
+
+    ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    keyInit = 1;
+    ret = wc_ecc_make_key_ex(rng, 20, key, ECC_SECP160R1);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+    if (ret == WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ret = 0;
+        goto done; /* no software case */
+    }
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+#ifdef ECC_TIMING_RESISTANT
+    ret = wc_ecc_set_rng(key, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+#endif
+
+    sigSz = (word32)sizeof(sig) - 1;
+    ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
+    if ((ret != WC_NO_ERR_TRACE(BUFFER_E)) || (sigSz != sizeof(sig)))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    sigSz = (word32)sizeof(sig);
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    if ((ret != 0) || (sigSz != sizeof(sig)))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(sig, sigSz, hash, sizeof(hash), &verify,
+                key);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    if ((ret != 0) || (verify != 1))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    /* r and s at the size of the order. */
+    XMEMSET(wideSig, 0, sizeof(wideSig));
+    XMEMCPY(wideSig + 1, sig, 20);
+    XMEMCPY(wideSig + 22, sig + 20, 20);
+    verify = 0;
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(wideSig, sizeof(wideSig), hash,
+                sizeof(hash), &verify, key);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    if ((ret != 0) || (verify != 1))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    ret = wc_ecc_verify_hash(sig, sizeof(sig) - 1, hash, sizeof(hash),
+        &verify, key);
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = 0;
+
+done:
+    if (keyInit)
+        wc_ecc_free(key);
+    WC_FREE_VAR(key, HEAP_HINT);
+    return ret;
+}
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 {
     wc_test_ret_t ret;
@@ -59151,6 +59261,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     ret = ecc_test_custom_curves(&rng);
     if (ret != 0) {
         printf("Custom\n");
+        goto done;
+    }
+#endif
+#if defined(NO_ASN) && defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 160 && !defined(NO_ECC_SECP) && !defined(FP_ECC) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    ret = ecc_test_raw_sig_size(&rng);
+    if (ret != 0) {
+        printf("Raw signature size\n");
         goto done;
     }
 #endif

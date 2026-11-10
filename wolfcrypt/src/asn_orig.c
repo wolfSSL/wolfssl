@@ -8281,7 +8281,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     int    privHdrSz  = ASN_ECC_HEADER_SZ;
     int    pubHdrSz   = ASN_ECC_CONTEXT_SZ + ASN_ECC_HEADER_SZ;
 #ifdef WOLFSSL_NO_MALLOC
-    byte   prv[MAX_ECC_BYTES + ASN_ECC_HEADER_SZ + MAX_SEQ_SZ];
+    byte   prv[MAX_ECC_BYTES + 1 + ASN_ECC_HEADER_SZ + MAX_SEQ_SZ];
     byte   pub[(MAX_ECC_BYTES * 2) + 1 + ASN_ECC_CONTEXT_SZ +
                               ASN_ECC_HEADER_SZ + MAX_SEQ_SZ];
 #else
@@ -8291,7 +8291,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     word32 idx = 0, prvidx = 0, pubidx = 0, curveidx = 0;
     word32 seqSz, privSz, pubSz = ECC_BUFSIZE;
 
-    if (key == NULL || (output == NULL && inLen == NULL))
+    if (key == NULL || key->dp == NULL || (output == NULL && inLen == NULL))
         return BAD_FUNC_ARG;
 
     if (curveIn) {
@@ -8306,15 +8306,18 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         curveidx += (word32)curveSz;
     }
 
-    /* private */
-    privSz = (word32)key->dp->size;
-
-#ifdef WOLFSSL_QNX_CAAM
-    /* check if is a black key, and add MAC size if needed */
-    if (key->blackKey > 0 && key->blackKey != CAAM_BLACK_KEY_ECB) {
-        privSz = privSz + WC_CAAM_MAC_SZ;
+    /* private: the export reports its size, which is the size of the order or
+     * of a black key. */
+    if (EccExportPrivateDer(key, NULL, &privSz) !=
+            WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+        privSz = (word32)key->dp->size;
+    #ifdef WOLFSSL_QNX_CAAM
+        /* check if is a black key, and add MAC size if needed */
+        if (key->blackKey > 0 && key->blackKey != CAAM_BLACK_KEY_ECB) {
+            privSz = privSz + WC_CAAM_MAC_SZ;
+        }
+    #endif
     }
-#endif
 
 #ifndef WOLFSSL_NO_MALLOC
     prv = (byte*)XMALLOC(privSz + (word32)privHdrSz + MAX_SEQ_SZ,
@@ -8334,7 +8337,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         prvidx += SetOctetString(privSz, &prv[prvidx]);
     }
     PRIVATE_KEY_UNLOCK();
-    ret = wc_ecc_export_private_only(key, prv + prvidx, &privSz);
+    ret = EccExportPrivateDer(key, prv + prvidx, &privSz);
     PRIVATE_KEY_LOCK();
     if (ret < 0) {
     #ifndef WOLFSSL_NO_MALLOC

@@ -35770,6 +35770,12 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
 #ifdef HAVE_ECC_KEY_EXPORT
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* The private key is encoded at the size of the order (RFC 5915). */
+    #define EccExportPrivateDer     wc_ecc_export_private_order
+#else
+    #define EccExportPrivateDer     wc_ecc_export_private_only
+#endif
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -35797,8 +35803,11 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *outLen,
         CALLOC_ASNSETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
-        /* Private key size is the curve size. */
-        privSz = (word32)key->dp->size;
+        /* Private key size is reported by the export, else the curve size. */
+        if (EccExportPrivateDer(key, NULL, &privSz) !=
+                WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+            privSz = (word32)key->dp->size;
+        }
         if (pubIn) {
             /* Get the length of the public key. */
             PRIVATE_KEY_UNLOCK();
@@ -35872,7 +35881,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *outLen,
             /* Export the private value into the buffer. */
             PRIVATE_KEY_UNLOCK();
             /* safe cast -- the pointer is actually inside the output buffer. */
-            ret = wc_ecc_export_private_only(
+            ret = EccExportPrivateDer(
                 key,
                 (byte*)(wc_ptr_t)
                     dataASN[ECCKEYASN_IDX_PKEY].data.buffer.data,
