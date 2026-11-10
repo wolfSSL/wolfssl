@@ -4734,33 +4734,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_set_rfd(WOLFSSL* ssl, int rfd)
     {
         WOLFSSL_ENTER("wolfSSL_set_rfd");
-        ssl->rfd = rfd;      /* not used directly to allow IO callbacks */
-
-        ssl->IOCB_ReadCtx  = &ssl->rfd;
-
-    #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
-            ssl->buffers.dtlsCtx.rfd = rfd;
-        #ifdef USE_WOLFSSL_IO
-            ssl->buffers.dtlsCtx.rfdIsDGram =
-                (byte)(wolfIO_SockIsDGram(rfd) != 0);
-        #endif
-        }
-    #endif
-
-        return WOLFSSL_SUCCESS;
+        return wolfSSL_set_read_fd(ssl, rfd);
     }
 
 
     int wolfSSL_set_wfd(WOLFSSL* ssl, int wfd)
     {
         WOLFSSL_ENTER("wolfSSL_set_wfd");
-        ssl->wfd = wfd;      /* not used directly to allow IO callbacks */
-
-        ssl->IOCB_WriteCtx  = &ssl->wfd;
-
-        return WOLFSSL_SUCCESS;
+        return wolfSSL_set_write_fd(ssl, wfd);
     }
 #endif /* OPENSSL_EXTRA */
 

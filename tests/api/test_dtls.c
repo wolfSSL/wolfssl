@@ -16431,3 +16431,41 @@ int test_dtls_max_fragment_write(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_dtls_set_rfd_wfd(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_DTLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(USE_WOLFSSL_IO) && \
+    (defined(__unix__) || defined(__APPLE__))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int sv[2] = { -1, -1 };
+    byte buf[1];
+
+    ExpectIntEQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, sv), 0);
+    ExpectIntEQ(fcntl(sv[0], F_SETFL, O_NONBLOCK), 0);
+    ExpectIntEQ(fcntl(sv[1], F_SETFL, O_NONBLOCK), 0);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_rfd(ssl, sv[0]), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_wfd(ssl, sv[0]), WOLFSSL_SUCCESS);
+    ExpectPtrEq(wolfSSL_GetIOReadCtx(ssl), &ssl->buffers.dtlsCtx);
+    ExpectPtrEq(wolfSSL_GetIOWriteCtx(ssl), &ssl->buffers.dtlsCtx);
+    ExpectIntEQ(ssl->buffers.dtlsCtx.rfd, sv[0]);
+    ExpectIntEQ(ssl->buffers.dtlsCtx.wfd, sv[0]);
+    wolfSSL_dtls_set_using_nonblock(ssl, 1);
+    ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(recv(sv[1], buf, sizeof(buf), MSG_PEEK), 1);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    if (sv[0] >= 0)
+        close(sv[0]);
+    if (sv[1] >= 0)
+        close(sv[1]);
+#endif
+    return EXPECT_RESULT();
+}

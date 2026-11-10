@@ -9422,25 +9422,27 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (wc_InitRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
         return BAD_MUTEX_E;
 #endif
-#ifdef HAVE_NETX
-    ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
-    ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
-#else
-    ssl->IOCB_ReadCtx  = &ssl->buffers.dtlsCtx;  /* prevent invalid pointer access if not */
-    ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;  /* correctly set */
-#endif
-#else
+#endif /* WOLFSSL_DTLS */
+
 #ifdef HAVE_NETX
     ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
     ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
 #elif defined (WOLFSSL_GNRC)
     ssl->IOCB_ReadCtx = ssl->gnrcCtx;
     ssl->IOCB_WriteCtx = ssl->gnrcCtx;
+#elif defined(WOLFSSL_DTLS)
+    if (ctx->method->version.major == DTLS_MAJOR) {
+        ssl->IOCB_ReadCtx  = &ssl->buffers.dtlsCtx;
+        ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
+    }
+    else {
+        ssl->IOCB_ReadCtx  = &ssl->rfd;
+        ssl->IOCB_WriteCtx = &ssl->wfd;
+    }
 #else
     ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 #endif
-#endif /* WOLFSSL_DTLS */
 
 
 #ifndef WOLFSSL_AEAD_ONLY
