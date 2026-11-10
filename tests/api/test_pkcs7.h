@@ -103,6 +103,7 @@ int test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos(void);
 int test_wc_PKCS7_VerifySignedData_DegenerateWithCert(void);
 int test_wc_PKCS7_VerifySignedData_NoDegenerateAcceptsRealSigner(void);
 int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
+int test_wc_PKCS7_VerifySignedData_NonSequence(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -168,7 +169,8 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateWithCert), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDegenerateAcceptsRealSigner), \
-    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDigestParams)
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDigestParams), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NonSequence)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \

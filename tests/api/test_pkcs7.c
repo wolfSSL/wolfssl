@@ -9331,3 +9331,45 @@ int test_wc_PKCS7_CertFooterDecisionCoverage(void)
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
     return EXPECT_RESULT();
 }
+
+/*
+ * Test on state of PKCS7 when failing to parse input buffer.
+ */
+int test_wc_PKCS7_VerifySignedData_NonSequence(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    PKCS7* pkcs7 = NULL;
+    byte   buf[128];
+    word32 sz;
+
+    XMEMSET(buf, 'A', sizeof(buf));
+
+    for (sz = 1; sz <= (word32)sizeof(buf) && EXPECT_SUCCESS(); sz++) {
+        int ret;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        if (pkcs7 != NULL)
+            wc_PKCS7_AllowDegenerate(pkcs7, 0);
+        ret = wc_PKCS7_VerifySignedData(pkcs7, buf, sz);
+        ExpectIntNE(ret, 0);
+        if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+        }
+        if (pkcs7 != NULL)
+            ExpectNull(pkcs7->verifyCert);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+}

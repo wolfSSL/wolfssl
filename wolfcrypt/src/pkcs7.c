@@ -7131,6 +7131,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             localIdx = 0;
             if (GetSequence_ex(pkiMsg, &localIdx, &length, pkiMsgSz,
                                         NO_USER_CHECK) < 0) {
+                ret = ASN_PARSE_E;
                 break;
             }
             if (ret == 0 && length > 0)
