@@ -5877,6 +5877,10 @@ struct Options {
     void*             psk_ctx;
 #endif /* NO_PSK */
     unsigned long     mask; /* store SSL_OP_ flags */
+#ifdef OPENSSL_EXTRA
+    unsigned long     minProtoMask; /* SSL_OP_NO_* set by min version */
+    unsigned long     maxProtoMask; /* SSL_OP_NO_* set by max version */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     word16            minProto:1; /* sets min to min available */
     word16            maxProto:1; /* sets max to max available */

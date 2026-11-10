@@ -8755,6 +8755,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         WOLFSSL_MSG("wolfSSL_set_options error");
         return BAD_FUNC_ARG;
     }
+#ifdef OPENSSL_EXTRA
+    /* after wolfSSL_set_options(), which drops them */
+    ssl->options.minProtoMask = ctx->minProtoMask;
+    ssl->options.maxProtoMask = ctx->maxProtoMask;
+#endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
     #ifdef WOLFSSL_DTLS
