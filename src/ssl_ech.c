@@ -245,9 +245,9 @@ int wolfSSL_CTX_SetEchConfigs(WOLFSSL_CTX* ctx, const byte* echConfigs,
     if (ctx == NULL || echConfigs == NULL || echConfigsLen == 0)
         return BAD_FUNC_ARG;
 
-    FreeEchConfigs(ctx->echConfigs, ctx->heap);
+    wolfSSL_local_FreeEchConfigs(ctx->echConfigs, ctx->heap);
     ctx->echConfigs = NULL;
-    ret = SetEchConfigsEx(&ctx->echConfigs, ctx->heap, echConfigs,
+    ret = wolfSSL_local_SetEchConfigsEx(&ctx->echConfigs, ctx->heap, echConfigs,
         echConfigsLen);
 
     if (ret == 0)
@@ -266,7 +266,7 @@ int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
     if (ctx->echConfigs == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    return GetEchConfigsEx(ctx->echConfigs, output, outputLen);
+    return wolfSSL_local_GetEchConfigsEx(ctx->echConfigs, output, outputLen);
 }
 
 void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable)
@@ -275,7 +275,7 @@ void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable)
         ctx->disableECH = !enable;
         if (ctx->disableECH) {
             TLSX_Remove(&ctx->extensions, TLSX_ECH, ctx->heap);
-            FreeEchConfigs(ctx->echConfigs, ctx->heap);
+            wolfSSL_local_FreeEchConfigs(ctx->echConfigs, ctx->heap);
             ctx->echConfigs = NULL;
         }
     }
@@ -329,7 +329,7 @@ int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    ret = SetEchConfigsEx(&ssl->echConfigs, ssl->heap, echConfigs,
+    ret = wolfSSL_local_SetEchConfigsEx(&ssl->echConfigs, ssl->heap, echConfigs,
         echConfigsLen);
 
     /* if we found valid configs */
@@ -342,7 +342,8 @@ int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
 
 /* store retry configs received during ECH rejection
  * returns 0 on success, error otherwise */
-int SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs, word32 echConfigsLen)
+int wolfSSL_local_SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs,
+                                  word32 echConfigsLen)
 {
     int ret;
 
@@ -353,14 +354,15 @@ int SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs, word32 echConfigsLen)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    ret = SetEchConfigsEx(&ssl->echRetryConfigs, ssl->heap, echConfigs,
-        echConfigsLen);
+    ret = wolfSSL_local_SetEchConfigsEx(&ssl->echRetryConfigs, ssl->heap,
+                                        echConfigs, echConfigsLen);
 
     return ret;
 }
 
 /* get the raw ech config from our struct */
-int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
+int wolfSSL_local_GetEchConfig(WOLFSSL_EchConfig* config, byte* output,
+                               word32* outputLen)
 {
     int i;
     word16 totalLen = 0;
@@ -479,7 +481,7 @@ int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    return GetEchConfigsEx(ssl->echConfigs, output, outputLen);
+    return wolfSSL_local_GetEchConfigsEx(ssl->echConfigs, output, outputLen);
 }
 
 /* wrapper function to get retry configs
@@ -494,7 +496,8 @@ int wolfSSL_GetEchRetryConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    return GetEchConfigsEx(ssl->echRetryConfigs, output, outputLen);
+    return wolfSSL_local_GetEchConfigsEx(ssl->echRetryConfigs, output,
+                                         outputLen);
 }
 
 void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable)
@@ -503,7 +506,7 @@ void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable)
         ssl->options.disableECH = !enable;
         if (ssl->options.disableECH) {
             TLSX_Remove(&ssl->extensions, TLSX_ECH, ssl->heap);
-            FreeEchConfigs(ssl->echConfigs, ssl->heap);
+            wolfSSL_local_FreeEchConfigs(ssl->echConfigs, ssl->heap);
             ssl->echConfigs = NULL;
         }
     }
@@ -603,7 +606,7 @@ static int EchConfigCheckExtensions(const byte* exts, word16 extsLen)
 
 /* Parse the ECH configs and output to the corresponding outputConfigs
  * return 0 on success, error otherwise */
-int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
+int wolfSSL_local_SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen)
 {
     int ret = 0;
@@ -850,7 +853,8 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
 }
 
 /* get the raw ech configs from our linked list of ech config structs */
-int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
+int wolfSSL_local_GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output,
+                                  word32* outputLen)
 {
     int ret = 0;
     WOLFSSL_EchConfig* workingConfig = NULL;
@@ -877,7 +881,8 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
 
     while (workingConfig != NULL) {
         /* get this config */
-        ret = GetEchConfig(workingConfig, output, &workingOutputLen);
+        ret = wolfSSL_local_GetEchConfig(workingConfig, output,
+                                         &workingOutputLen);
 
         if (output != NULL)
             output += workingOutputLen;

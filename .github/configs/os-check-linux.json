@@ -1,4 +1,7 @@
 [
+{"name": "all-static", "minutes": 8,
+ "comment": "Static-only build, so configure defines WOLFSSL_TEST_STATIC_BUILD and the tests that call WOLFSSL_LOCAL functions directly are compiled and run.",
+ "configure": ["--enable-all", "--enable-static", "--disable-shared"]},
 {"name": "user-settings-all-compat", "minutes": 9.5,
  "comment": "user_settings_all.h with the compatibility layer enabled by flipping its \"#if 0\" block, as a build-dir copy.",
  "user_settings": "examples/configs/user_settings_all.h",

@@ -3588,19 +3588,21 @@ WOLFSSL_TEST_VIS int TLSX_EchSwapExtensions(TLSX** sslExts, TLSX** echExts,
 WOLFSSL_TEST_VIS int TLSX_ServerECH_Use(TLSX** extensions, void* heap,
     WOLFSSL_EchConfig* configs);
 
-WOLFSSL_LOCAL int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
+WOLFSSL_TEST_VIS int wolfSSL_local_SetEchConfigsEx(
+    WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen);
 
-WOLFSSL_LOCAL int GetEchConfig(WOLFSSL_EchConfig* config, byte* output,
-    word32* outputLen);
+WOLFSSL_TEST_VIS int wolfSSL_local_GetEchConfig(WOLFSSL_EchConfig* config,
+                                               byte* output, word32* outputLen);
 
-WOLFSSL_LOCAL int GetEchConfigsEx(WOLFSSL_EchConfig* configs,
+WOLFSSL_TEST_VIS int wolfSSL_local_GetEchConfigsEx(WOLFSSL_EchConfig* configs,
     byte* output, word32* outputLen);
 
-WOLFSSL_LOCAL void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap);
+WOLFSSL_TEST_VIS void wolfSSL_local_FreeEchConfigs(WOLFSSL_EchConfig* configs,
+                                                   void* heap);
 
-WOLFSSL_LOCAL int SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs,
-    word32 echConfigsLen);
+WOLFSSL_TEST_VIS int wolfSSL_local_SetRetryConfigs(WOLFSSL* ssl,
+                                  const byte* echConfigs, word32 echConfigsLen);
 
 WOLFSSL_LOCAL int EchRejected(const WOLFSSL* ssl);
 #endif

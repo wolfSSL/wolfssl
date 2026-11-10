@@ -3481,7 +3481,7 @@ void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 /* free all ech configs in the list */
-void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
+void wolfSSL_local_FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
 {
     WOLFSSL_EchConfig* working_config = configs;
     WOLFSSL_EchConfig* next_config;
@@ -3714,7 +3714,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     #endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    FreeEchConfigs(ctx->echConfigs, ctx->heap);
+    wolfSSL_local_FreeEchConfigs(ctx->echConfigs, ctx->heap);
     ctx->echConfigs = NULL;
 #endif
     (void)heapAtCTXInit;
@@ -10703,11 +10703,11 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 
 #if defined(HAVE_ECH)
     if (ssl->echConfigs != NULL) {
-        FreeEchConfigs(ssl->echConfigs, ssl->heap);
+        wolfSSL_local_FreeEchConfigs(ssl->echConfigs, ssl->heap);
         ssl->echConfigs = NULL;
     }
     if (ssl->echRetryConfigs != NULL) {
-        FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
+        wolfSSL_local_FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
         ssl->echRetryConfigs = NULL;
     }
 #endif /* HAVE_ECH */

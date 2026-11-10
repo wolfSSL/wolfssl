@@ -2761,8 +2761,7 @@ int test_ech_decision_coverage(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECH) && defined(WOLFSSL_TLS13) && \
-    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD)
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     WOLFSSL_EchConfig cfg;
@@ -2776,26 +2775,29 @@ int test_ech_decision_coverage(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    /* --- 349:0/1/2 SetRetryConfigs: ssl==NULL || configs==NULL || len==0 -- */
-    (void)SetRetryConfigs(NULL, buf, sizeof(buf));
-    (void)SetRetryConfigs(ssl, NULL, sizeof(buf));
-    (void)SetRetryConfigs(ssl, buf, 0);
-    (void)SetRetryConfigs(ssl, buf, sizeof(buf));
+    if (ssl != NULL) {
+        /* wolfSSL_local_SetRetryConfigs: ssl==NULL || configs==NULL || len==0 */
+        (void)wolfSSL_local_SetRetryConfigs(NULL, buf, sizeof(buf));
+        (void)wolfSSL_local_SetRetryConfigs(ssl, NULL, sizeof(buf));
+        (void)wolfSSL_local_SetRetryConfigs(ssl, buf, 0);
+        (void)wolfSSL_local_SetRetryConfigs(ssl, buf, sizeof(buf));
 
-    /* --- 370:0/1/2 GetEchConfig: config==NULL || (out==NULL&&outLen==NULL) */
-    (void)GetEchConfig(NULL, out, &outLen);
-    (void)GetEchConfig(&cfg, NULL, NULL);
-    (void)GetEchConfig(&cfg, out, &outLen);
+        /* wolfSSL_local_GetEchConfig: config==NULL || (out==NULL&&outLen==NULL) */
+        (void)wolfSSL_local_GetEchConfig(NULL, out, &outLen);
+        (void)wolfSSL_local_GetEchConfig(&cfg, NULL, NULL);
+        (void)wolfSSL_local_GetEchConfig(&cfg, out, &outLen);
 
-    /* --- 626:0/1/2 SetEchConfigsEx: outCfg==NULL || cfgs==NULL || len<2 --- */
-    (void)SetEchConfigsEx(NULL, ssl->heap, buf, sizeof(buf));
-    (void)SetEchConfigsEx(&outCfg, ssl->heap, NULL, sizeof(buf));
-    (void)SetEchConfigsEx(&outCfg, ssl->heap, buf, 1);
+        /* wolfSSL_local_SetEchConfigsEx: outCfg==NULL || cfgs==NULL || len<2 */
+        (void)wolfSSL_local_SetEchConfigsEx(NULL, ssl->heap, buf, sizeof(buf));
+        (void)wolfSSL_local_SetEchConfigsEx(&outCfg, ssl->heap, NULL,
+                                            sizeof(buf));
+        (void)wolfSSL_local_SetEchConfigsEx(&outCfg, ssl->heap, buf, 1);
 
-    /* --- 861:0/1/2 GetEchConfigsEx: cfgs==NULL || outLen==NULL || too small */
-    (void)GetEchConfigsEx(NULL, out, &outLen);
-    (void)GetEchConfigsEx(&cfg, out, NULL);
-    (void)GetEchConfigsEx(&cfg, out, &outLen);
+        /* wolfSSL_local_GetEchConfigsEx: cfgs==NULL || outLen==NULL || too small */
+        (void)wolfSSL_local_GetEchConfigsEx(NULL, out, &outLen);
+        (void)wolfSSL_local_GetEchConfigsEx(&cfg, out, NULL);
+        (void)wolfSSL_local_GetEchConfigsEx(&cfg, out, &outLen);
+    }
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
