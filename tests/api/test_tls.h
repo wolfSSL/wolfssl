@@ -132,6 +132,9 @@ int test_wolfSSL_get_shared_ciphers(void);
 int test_tls12_aesgcm_record_nonce_unique(void);
 int test_tls_param_flags_crl_check(void);
 int test_tls_hmac_inner_cid_decision_coverage(void);
+int test_wolfSSL_client_hello_cb(void);
+int test_wolfSSL_client_hello_cb_no_extensions(void);
+int test_wolfSSL_client_hello_cb_bad_extensions(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
@@ -250,6 +253,9 @@ int test_tls_hmac_inner_cid_decision_coverage(void);
         TEST_DECL_GROUP("tls", test_chain_verify_cb_stapling),                 \
         TEST_DECL_GROUP("tls", test_internal_SetSSL_CTX_DecisionCoverage),     \
         TEST_DECL_GROUP("tls", test_internal_CheckVersion_DecisionCoverage), \
-        TEST_DECL_GROUP("tls", test_tls_hmac_inner_cid_decision_coverage)
+        TEST_DECL_GROUP("tls", test_tls_hmac_inner_cid_decision_coverage),     \
+        TEST_DECL_GROUP("tls", test_wolfSSL_client_hello_cb),                  \
+        TEST_DECL_GROUP("tls", test_wolfSSL_client_hello_cb_no_extensions),    \
+        TEST_DECL_GROUP("tls", test_wolfSSL_client_hello_cb_bad_extensions)
 
 #endif /* TESTS_API_TEST_TLS_H */
