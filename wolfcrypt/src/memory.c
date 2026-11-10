@@ -177,7 +177,7 @@ static int wc_MemFailCount_AllocMem(void)
  * allocator via wolfSSL_SetAllocators(), or a genuine out-of-memory). No
  * block exists to be freed, so undo the count to keep Total (allocs)
  * balanced with Frees. */
-#if !defined(WOLFSSL_STATIC_MEMORY)
+#if !defined(WOLFSSL_STATIC_MEMORY) || defined(WOLFSSL_MEMORY_LOG)
 static void wc_MemFailCount_AllocFailed(void)
 {
     wc_LockMutex(&memFailMutex);
