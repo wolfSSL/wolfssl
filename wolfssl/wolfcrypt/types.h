@@ -2372,7 +2372,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define __GNUC_PREREQ(maj, min) \
             ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
     #else
-        #define __GNUC_PREREQ(maj, min) (0) /* not GNUC */
+        #define __GNUC_PREREQ(maj, min) 0 /* not GNUC */
     #endif
 #endif
 

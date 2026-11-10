@@ -59287,7 +59287,7 @@ static wc_test_ret_t ecc_ctx_apply_devid(ecEncCtx* ctx)
     return (ret == 0) ? 0 : WC_TEST_RET_ENC_EC(ret);
 }
 #else
-#define ecc_ctx_apply_devid(ctx) (0)
+#define ecc_ctx_apply_devid(ctx) 0
 #endif
 
 #if !defined(WOLFSSL_NO_MALLOC)
@@ -78876,13 +78876,13 @@ static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
  * that has it: SHA-256/256, then SHA-256/192, then SHAKE-256/256, then
  * SHAKE-256/192.  A 32-byte hash gives 8688 bytes and a 24-byte one 4960. */
 #if !defined(WOLFSSL_NO_LMS_SHA256_256)
-#define WC_TEST_LMS_SIG_LEN (8688)
+#define WC_TEST_LMS_SIG_LEN 8688
 #elif defined(WOLFSSL_LMS_SHA256_192)
-#define WC_TEST_LMS_SIG_LEN (4960)
+#define WC_TEST_LMS_SIG_LEN 4960
 #elif defined(WOLFSSL_LMS_SHAKE256) && !defined(WOLFSSL_NO_LMS_SHAKE256_256)
-#define WC_TEST_LMS_SIG_LEN (8688)
+#define WC_TEST_LMS_SIG_LEN 8688
 #else
-#define WC_TEST_LMS_SIG_LEN (4960)
+#define WC_TEST_LMS_SIG_LEN 4960
 #endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
@@ -79174,7 +79174,7 @@ static const byte lms_L1H10W8_pub[HSS_MAX_PUBLIC_KEY_LEN] =
     0xC5,0xB4,0x8F,0x23
 };
 
-#define LMS_L1H10W8_SIGLEN (1456)
+#define LMS_L1H10W8_SIGLEN 1456
 
 static byte lms_L1H10W8_sig[LMS_L1H10W8_SIGLEN] =
 {
@@ -84574,7 +84574,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
         0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
         0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10
     };
-    #define MLEN_0 (0)
+    #define MLEN_0 0
     #define MLEN_128 (128/8)
     #define MLEN_320 (320/8)
     #define MLEN_319 (MLEN_320 - 1)

@@ -198,9 +198,9 @@
  /* Maximum generate block length */
 #ifndef RNG_MAX_BLOCK_LEN
     #ifdef HAVE_INTEL_QA
-        #define RNG_MAX_BLOCK_LEN (0xFFFFl)
+        #define RNG_MAX_BLOCK_LEN 0xFFFFL
     #else
-        #define RNG_MAX_BLOCK_LEN (0x10000l)
+        #define RNG_MAX_BLOCK_LEN 0x10000L
     #endif
 #endif
 
@@ -339,7 +339,7 @@ struct OS_Seed {
 /* RNG_SECURITY_STRENGTH is unprefixed for backward compat. */
 #ifndef RNG_SECURITY_STRENGTH
     /* SHA-256 requires a minimum of 256-bits of entropy. */
-    #define RNG_SECURITY_STRENGTH (256)
+    #define RNG_SECURITY_STRENGTH 256
 #endif
 
 /* wolfentropy.h will define for HAVE_ENTROPY_MEMUSE */
@@ -362,7 +362,7 @@ struct OS_Seed {
          * 2024 specifies 0.656 to 1.312 bits of entropy per 128 bit block of
          * RDSEED output, depending on CPU family.
          */
-        #define ENTROPY_SCALE_FACTOR  (512)
+        #define ENTROPY_SCALE_FACTOR  512
     #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
         /* The value of 2 applies to Intel's RDSEED which provides about
          * 0.5 bits minimum of entropy per bit. The value of 4 gives a
@@ -372,17 +372,17 @@ struct OS_Seed {
             #define ENTROPY_SCALE_FACTOR (2*4)
         #else
             /* Not FIPS, but Intel RDSEED, only double. */
-            #define ENTROPY_SCALE_FACTOR (2)
+            #define ENTROPY_SCALE_FACTOR 2
         #endif
     #elif defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
         (HAVE_FIPS_VERSION >= 2)
         /* If doing a FIPS build without a specific scale factor, default
          * to 4. This will give 1024 bits of entropy. More is better, but
          * more is also slower. */
-        #define ENTROPY_SCALE_FACTOR (4)
+        #define ENTROPY_SCALE_FACTOR 4
     #else
         /* Setting the default to 1. */
-        #define ENTROPY_SCALE_FACTOR (1)
+        #define ENTROPY_SCALE_FACTOR 1
     #endif
     /* tells test.c the seed-callback known answers apply */
     #define WC_DRBG_ENTROPY_SCALE_FACTOR_DEFAULTED

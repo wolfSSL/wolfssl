@@ -2845,7 +2845,7 @@ struct CRL_Monitor {
 #endif
 
 /* PEM and DER possible */
-#define WOLFSSL_CRL_MONITORS_LEN (2)
+#define WOLFSSL_CRL_MONITORS_LEN 2
 
 #if defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__)
 typedef int    wolfSSL_CRL_mfd_t; /* monitor fd, -1 if no init yet */
@@ -8517,7 +8517,7 @@ WOLFSSL_TEST_VIS int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input,
     word32* inOutIdx, word32 totalSz);
 WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
     enum HandShakeType msg_type, word32 length);
-#define EE_MASK (0x3)
+#define EE_MASK 0x3
 WOLFSSL_LOCAL int Dtls13FragmentsContinue(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DoDtls13KeyUpdateAck(WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS_CID

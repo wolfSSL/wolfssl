@@ -712,7 +712,7 @@ static WC_MAYBE_UNUSED int rng_entropy_event_propagate(WC_RNG* rng);
 #ifdef HAVE_HASHDRBG
 
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
-#define MAX_REQUEST_LEN   (0x10000)
+#define MAX_REQUEST_LEN   0x10000
 
 #ifdef WC_RNG_SEED_CB
 
@@ -10679,32 +10679,32 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             /* See: https://github.com/avrxml/asf/tree/master/sam/utils/cmsis/sam3x/include */
             #if defined(__SAM3A4C__)
                 #ifndef TRNG
-                    #define TRNG (0x400BC000U)
+                    #define TRNG 0x400BC000U
                 #endif
             #elif defined(__SAM3A8C__)
                 #ifndef TRNG
-                    #define TRNG (0x400BC000U)
+                    #define TRNG 0x400BC000U
                 #endif
             #elif defined(__SAM3X4C__)
                 #ifndef TRNG
-                    #define TRNG (0x400BC000U)
+                    #define TRNG 0x400BC000U
                 #endif
             #elif defined(__SAM3X4E__)
                 #ifndef TRNG
-                    #define TRNG (0x400BC000U)
+                    #define TRNG 0x400BC000U
                 #endif
             #elif defined(__SAM3X8C__)
                 #ifndef TRNG
-                    #define TRNG (0x400BC000U)
+                    #define TRNG 0x400BC000U
                 #endif
             #elif defined(__SAM3X8E__)
                 /* This is the Arduino Due */
                 #ifndef TRNG
-                    #define TRNG (0x400BC000U)
+                    #define TRNG 0x400BC000U
                 #endif
             #elif  defined(__SAM3A8H__)
                 #ifndef TRNG
-                    #define TRNG (0x400BC000U)
+                    #define TRNG 0x400BC000U
                 #endif
             #else
                 #ifndef TRNG

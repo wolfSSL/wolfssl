@@ -749,7 +749,7 @@ typedef struct sp_dh_ctx {
  * @param  [in]  d  SP integer digit.
  * @return 0 indicating not negative always.
  */
-#define sp_isneg(a)      (0)
+#define sp_isneg(a)      0
 /* Sets the multi-precision number negative.
  *
  * Negative support not compiled in, so does nothing. */

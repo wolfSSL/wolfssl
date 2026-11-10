@@ -2428,13 +2428,13 @@
         #ifdef FREESCALE_KSDK_1_3
             #include "fsl_rnga_driver.h"
             #define FREESCALE_RNGA
-            #define RNGA_INSTANCE (0)
+            #define RNGA_INSTANCE 0
         #else
             #define FREESCALE_KSDK_2_0_RNGA
         #endif
     #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS) && !defined(FREESCALE_KSDK_FREERTOS)
         #define FREESCALE_RNGA
-        #define RNGA_INSTANCE (0)
+        #define RNGA_INSTANCE 0
         /* defaulting to K70 RNGA, user should change if different */
         /* #define FREESCALE_K53_RNGB */
         #define FREESCALE_K70_RNGA
@@ -2528,7 +2528,7 @@
                    the LTC_MAX_ECC_BITS defines the size of local variables that hold ECC parameters
                    and point coordinates */
                 #ifndef LTC_MAX_ECC_BITS
-                    #define LTC_MAX_ECC_BITS (384)
+                    #define LTC_MAX_ECC_BITS 384
                 #endif
 
                 /* Enable curves up to 384 bits */
@@ -2571,9 +2571,9 @@
     #undef  USE_CERT_BUFFERS_4096
     #define USE_CERT_BUFFERS_4096
     #undef  FP_MAX_BITS
-    #define FP_MAX_BITS (8192)
+    #define FP_MAX_BITS 8192
     #undef  SP_INT_BITS
-    #define SP_INT_BITS (4096)
+    #define SP_INT_BITS 4096
 
     #undef  NO_DH
     #define NO_DH

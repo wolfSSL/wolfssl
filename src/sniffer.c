@@ -7866,13 +7866,13 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
 
 /* Maximum length of the NSS Keylog prefix string */
-#define MAX_PREFIX_LENGTH (31)
+#define MAX_PREFIX_LENGTH 31
 /* Maximum length (in bytes) required to store the binary representation of
  * the "client random" value parsed from keylog file */
-#define CLIENT_RANDOM_LENGTH (32)
+#define CLIENT_RANDOM_LENGTH 32
 /* Maximum length (in bytes) required to store the binary representation of the
  * "secret" value parsed from keylog file */
-#define SECRET_LENGTH (48)
+#define SECRET_LENGTH 48
 
 typedef struct SecretNode {
     unsigned char clientRandom[CLIENT_RANDOM_LENGTH];
