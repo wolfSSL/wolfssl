@@ -1510,6 +1510,11 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
             ret = wc_ed448_check_key(key);
         }
     }
+    if (ret == 0) {
+        /* Keep the public key copy synchronized. */
+        XMEMCPY(key->k + ED448_KEY_SIZE,
+                key->p, ED448_PUB_KEY_SIZE);
+    }
 
     if ((ret != 0) && (key != NULL)) {
         /* No public key set on failure. */

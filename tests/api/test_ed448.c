@@ -2182,3 +2182,95 @@ int test_wc_ed448_make_key_id_dev(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Verify that separately imported Ed448 keys export a valid key pair. */
+int test_wc_ed448_separate_import_roundtrip(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    ed448_key original;
+    ed448_key imported;
+    ed448_key restored;
+    WC_RNG rng;
+    byte seed[ED448_KEY_SIZE];
+    byte wrongSeed[ED448_KEY_SIZE];
+    byte pub[ED448_PUB_KEY_SIZE];
+    byte combined[ED448_PRV_KEY_SIZE];
+    word32 seedSz = sizeof(seed);
+    word32 pubSz = sizeof(pub);
+    word32 combinedSz;
+    int order;
+
+    XMEMSET(&original, 0, sizeof(original));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_ed448_init(&original), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &original), 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private_only(&original, seed,
+        &seedSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ed448_export_public(&original, pub, &pubSz), 0);
+    ExpectIntEQ(seedSz, ED448_KEY_SIZE);
+    ExpectIntEQ(pubSz, ED448_PUB_KEY_SIZE);
+
+    XMEMCPY(wrongSeed, seed, sizeof(seed));
+    wrongSeed[0] ^= 1;
+
+    for (order = 0; order < 2 && EXPECT_SUCCESS(); order++) {
+        XMEMSET(&imported, 0, sizeof(imported));
+        XMEMSET(&restored, 0, sizeof(restored));
+        ExpectIntEQ(wc_ed448_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed448_import_private_only(seed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+        }
+        else {
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed448_import_private_only(seed, seedSz,
+                &imported), 0);
+        }
+        ExpectIntEQ(wc_ed448_check_key(&imported), 0);
+        combinedSz = sizeof(combined);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ed448_export_private(&imported, combined,
+            &combinedSz), 0);
+        PRIVATE_KEY_LOCK();
+        ExpectIntEQ(combinedSz, ED448_PRV_KEY_SIZE);
+        ExpectBufEQ(combined, seed, ED448_KEY_SIZE);
+        ExpectBufEQ(combined + ED448_KEY_SIZE, pub, ED448_PUB_KEY_SIZE);
+
+        ExpectIntEQ(wc_ed448_init(&restored), 0);
+        ExpectIntEQ(wc_ed448_import_private_key(combined, combinedSz,
+            NULL, 0, &restored), 0);
+        ExpectIntEQ(wc_ed448_check_key(&restored), 0);
+        wc_ed448_free(&restored);
+        wc_ed448_free(&imported);
+
+        /* A different seed must not be accepted with the public key. */
+        XMEMSET(&imported, 0, sizeof(imported));
+        ExpectIntEQ(wc_ed448_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed448_import_private_only(wrongSeed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported),
+                WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        else {
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed448_import_private_only(wrongSeed, seedSz,
+                &imported), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        wc_ed448_free(&imported);
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&original);
+    ForceZero(seed, sizeof(seed));
+    ForceZero(wrongSeed, sizeof(wrongSeed));
+    ForceZero(combined, sizeof(combined));
+#endif
+    return EXPECT_RESULT();
+}

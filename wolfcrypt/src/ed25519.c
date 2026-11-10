@@ -1692,6 +1692,11 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
         if (!trusted) {
             ret = wc_ed25519_check_key(key);
         }
+        if (ret == 0) {
+            /* Keep the public key copy synchronized. */
+            XMEMCPY(key->k + ED25519_KEY_SIZE,
+                    key->p, ED25519_PUB_KEY_SIZE);
+        }
     }
     if (ret != 0) {
         key->pubKeySet = 0;
