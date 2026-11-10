@@ -5610,14 +5610,17 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     #endif
     #ifdef WOLFSSL_DTLS
         case DTLS1_VERSION:
-            ctx->method->version.minor = DTLS_MINOR;
+            if (ctx->method->downgrade)
+                ctx->method->version.minor = DTLS_MINOR;
             break;
         case DTLS1_2_VERSION:
-            ctx->method->version.minor = DTLSv1_2_MINOR;
+            if (ctx->method->downgrade)
+                ctx->method->version.minor = DTLSv1_2_MINOR;
             break;
         #ifdef WOLFSSL_DTLS13
         case DTLS1_3_VERSION:
-            ctx->method->version.minor = DTLSv1_3_MINOR;
+            if (ctx->method->downgrade)
+                ctx->method->version.minor = DTLSv1_3_MINOR;
             break;
         #endif
     #endif
