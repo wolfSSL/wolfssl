@@ -166,6 +166,9 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
          * and write past in/out, and wrap sz in the per-block loops. */
         if (sz % DES_BLOCK_SIZE != 0)
             return BAD_LENGTH_E;
+        /* nothing to do, and the IV handling below needs a block */
+        if (sz == 0)
+            return 0;
 
         ret = wolfSSL_CryptHwMutexLock();
         if (ret != 0) {
@@ -207,10 +210,14 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             des->reg[1] = hcryp.Instance->IV0RR;
         #endif
     #else
-        while (sz > 0) {
-            /* if input and output same will overwrite input iv */
+        /* CRYP chains the blocks of this call itself, so des->reg only has to
+         * carry the CBC IV into the next call: the last ciphertext block.
+         * When decrypting that is the last input block, saved here before an
+         * in-place operation overwrites it. ECB has no IV to carry. */
+        if (mode == DES_CBC && dir == DES_DECRYPTION)
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
+        while (sz > 0) {
             if (mode == DES_CBC) {
                 if (dir == DES_ENCRYPTION) {
                     HAL_CRYP_DESCBC_Encrypt(&hcryp, (uint8_t*)in,
@@ -232,12 +239,16 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
                 }
             }
 
-            /* store iv for next call */
-            XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
-
             sz  -= DES_BLOCK_SIZE;
             in  += DES_BLOCK_SIZE;
             out += DES_BLOCK_SIZE;
+        }
+
+        if (mode == DES_CBC) {
+            if (dir == DES_ENCRYPTION)
+                XMEMCPY(des->reg, out - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+            else
+                XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
         }
     #endif /* STM32_HAL_V2 */
 
