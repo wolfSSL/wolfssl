@@ -1921,6 +1921,73 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
 }
 
 
+/* Get a BMPString as ASCII, the low byte of each character.
+ *
+ * @param [in]  in    BMPString, UCS-2 big endian.
+ * @param [in]  inSz  Length of in in bytes.
+ * @param [out] out   Buffer for ASCII. NULL to get the length.
+ * @return  Length of ASCII string on success.
+ * @return  -1 when in has an odd length or a character that is not ASCII.
+ */
+static int wolfssl_bmp_to_ascii(const byte* in, word32 inSz, byte* out)
+{
+    word32 i;
+
+    if ((inSz % 2) != 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    for (i = 0; i < inSz; i += 2) {
+        if ((in[i] != 0) || (in[i + 1] >= 0x80)) {
+            return WOLFSSL_FATAL_ERROR;
+        }
+        if (out != NULL) {
+            out[i / 2] = in[i + 1];
+        }
+    }
+
+    return (int)(inSz / 2);
+}
+
+/* Keep the friendlyName and the localKeyId of the PKCS#12 bag of the cert, as
+ * OpenSSL does with X509_alias_set1 and X509_keyid_set1.
+ * A friendlyName that is not ASCII is left out. */
+static int wolfssl_x509_set_pkcs12_attrs(WOLFSSL_X509* x509,
+    const byte* name, word32 nameSz, const byte* keyId, word32 keyIdSz)
+{
+    int ret = 1;
+    int len;
+
+    if (name != NULL) {
+        len = wolfssl_bmp_to_ascii(name, nameSz, NULL);
+        if (len >= 0) {
+            x509->alias = (byte*)XMALLOC((size_t)len + 1, x509->heap,
+                DYNAMIC_TYPE_X509_EXT);
+            if (x509->alias == NULL) {
+                ret = 0;
+            }
+            else {
+                (void)wolfssl_bmp_to_ascii(name, nameSz, x509->alias);
+                x509->alias[len] = '\0';
+                x509->aliasSz = len;
+            }
+        }
+    }
+    if ((ret == 1) && (keyId != NULL)) {
+        x509->keyid = (byte*)XMALLOC((size_t)keyIdSz + 1, x509->heap,
+            DYNAMIC_TYPE_X509_EXT);
+        if (x509->keyid == NULL) {
+            ret = 0;
+        }
+        else {
+            XMEMCPY(x509->keyid, keyId, keyIdSz);
+            x509->keyid[keyIdSz] = '\0';
+            x509->keyidSz = (int)keyIdSz;
+        }
+    }
+
+    return ret;
+}
+
 /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure */
 int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
           WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert,
@@ -1932,6 +1999,10 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     word32 certDataSz;
     byte* pk = NULL;
     word32 pkSz;
+    byte* name = NULL;
+    word32 nameSz = 0;
+    byte* keyId = NULL;
+    word32 keyIdSz = 0;
     WC_DerCertList* certList = NULL;
     WC_DECLARE_VAR(DeCert, DecodedCert, 1, 0);
 
@@ -1949,14 +2020,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
     heap  = wc_PKCS12_GetHeap(pkcs12);
 
-    if (ca == NULL) {
-        ret = wc_PKCS12_parse(pkcs12, psw, &pk, &pkSz, &certData, &certDataSz,
-            NULL);
-    }
-    else {
-        ret = wc_PKCS12_parse(pkcs12, psw, &pk, &pkSz, &certData, &certDataSz,
-            &certList);
-    }
+    ret = wc_PKCS12_parse_ex2(pkcs12, psw, &pk, &pkSz, &certData, &certDataSz,
+        (ca == NULL) ? NULL : &certList, 0, &name, &nameSz, &keyId, &keyIdSz);
     if (ret < 0) {
         WOLFSSL_LEAVE("wolfSSL_PKCS12_parse", ret);
         return WOLFSSL_FAILURE;
@@ -1967,6 +2032,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                                     DYNAMIC_TYPE_DCERT);
     if (DeCert == NULL) {
         WOLFSSL_MSG("out of memory");
+        XFREE(name, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(keyId, heap, DYNAMIC_TYPE_PKCS);
         return WOLFSSL_FAILURE;
     }
 #endif
@@ -2090,6 +2157,16 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         }
         FreeDecodedCert(DeCert);
         XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
+        if (wolfssl_x509_set_pkcs12_attrs(*cert, name, nameSz, keyId,
+                keyIdSz) != 1) {
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (ca != NULL) {
+                wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
+            }
+            wolfSSL_X509_free(*cert); *cert = NULL;
+            ret = WOLFSSL_FAILURE;
+            goto out;
+        }
     }
 
 
@@ -2150,6 +2227,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
 out:
 
+    XFREE(name, heap, DYNAMIC_TYPE_PKCS);
+    XFREE(keyId, heap, DYNAMIC_TYPE_PKCS);
     WC_FREE_VAR_EX(DeCert, heap, DYNAMIC_TYPE_DCERT);
 
     return ret;

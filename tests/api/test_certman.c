@@ -626,6 +626,63 @@ int test_wolfSSL_CertManagerLoadCABufferType(void)
     return EXPECT_RESULT();
 }
 
+/* AddCA() checks the RSA modulus and ECC curve size of a CA against the
+ * minimum key sizes when the CTX verifies peers. */
+int test_wolfSSL_CertManagerCAKeySize(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    byte* buf = NULL;
+    size_t sz = 0;
+
+#if !defined(NO_RSA) && !defined(NO_SHA256)
+    /* A 2048-bit modulus. */
+    ExpectIntEQ(load_file("./certs/ca-cert.der", &buf, &sz), 0);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 2048), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 2056), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+#endif
+#if defined(HAVE_ECC) && !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    /* P-256 is below a minimum of 384 bits, P-384 is not. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_SetMinEccKey_Sz(ctx, 384), WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file("./certs/ca-ecc-cert.der", &buf, &sz), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ECC_KEY_SIZE_E));
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+    ExpectIntEQ(load_file("./certs/ca-ecc384-cert.der", &buf, &sz), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+    (void)ctx;
+    (void)buf;
+    (void)sz;
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CertManagerGetCerts(void)
 {
     EXPECT_DECLS;

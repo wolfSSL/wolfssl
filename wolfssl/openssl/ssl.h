@@ -656,6 +656,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_add1_ext_i2d               wolfSSL_X509_add1_ext_i2d
 #define X509_delete_ext                 wolfSSL_X509_delete_ext
 #define X509_get0_subject_key_id        wolfSSL_X509_get0_subject_key_id
+#define X509_alias_get0                 wolfSSL_X509_alias_get0
+#define X509_keyid_get0                 wolfSSL_X509_keyid_get0
 
 #define X509_EXTENSION_get_object       wolfSSL_X509_EXTENSION_get_object
 #define X509_EXTENSION_get_data         wolfSSL_X509_EXTENSION_get_data
@@ -672,6 +674,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_dup                     wolfSSL_shallow_sk_dup
 #define sk_X509_delete(sk, i) \
     ((WOLFSSL_X509*)wolfSSL_sk_delete((sk), (i)))
+#define sk_X509_delete_ptr(sk, x) \
+    ((WOLFSSL_X509*)wolfSSL_sk_delete_ptr((sk), (x)))
+#define sk_X509_insert(sk, x, i)        wolfSSL_sk_insert((sk), (x), (i))
 #define sk_X509_free                    wolfSSL_sk_X509_free
 #define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
 
@@ -720,6 +725,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_NAME_cmp                   wolfSSL_X509_NAME_cmp
 #define X509_NAME_ENTRY_new             wolfSSL_X509_NAME_ENTRY_new
 #define X509_NAME_ENTRY_free            wolfSSL_X509_NAME_ENTRY_free
+#define X509_NAME_ENTRY_dup             wolfSSL_X509_NAME_ENTRY_dup
 #define X509_NAME_ENTRY_create_by_NID   wolfSSL_X509_NAME_ENTRY_create_by_NID
 #define X509_NAME_ENTRY_create_by_txt   wolfSSL_X509_NAME_ENTRY_create_by_txt
 #define X509_NAME_add_entry             wolfSSL_X509_NAME_add_entry
@@ -766,6 +772,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define sk_X509_NAME_ENTRY_num          wolfSSL_sk_X509_NAME_ENTRY_num
 #define sk_X509_NAME_ENTRY_value        wolfSSL_sk_X509_NAME_ENTRY_value
 #define sk_X509_NAME_ENTRY_free         wolfSSL_sk_X509_NAME_ENTRY_free
+#define sk_X509_NAME_ENTRY_pop_free     wolfSSL_sk_X509_NAME_ENTRY_pop_free
+#define sk_X509_NAME_ENTRY_set_cmp_func wolfSSL_sk_X509_NAME_ENTRY_set_cmp_func
+#define sk_X509_NAME_ENTRY_sort         wolfSSL_sk_X509_NAME_ENTRY_sort
 
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_X509_V_FLAG_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL
@@ -805,6 +814,16 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_set_error_depth  wolfSSL_X509_STORE_CTX_set_error_depth
 #define X509_STORE_CTX_get_ex_data      wolfSSL_X509_STORE_CTX_get_ex_data
 #define X509_STORE_CTX_set_ex_data      wolfSSL_X509_STORE_CTX_set_ex_data
+#ifdef OPENSSL_EXTRA
+/* wolfSSL keeps the SSL at index 0 in a TLS verify callback. */
+#define WOLFSSL_X509_STORE_CTX_APP_DATA_IDX 1
+#define X509_STORE_CTX_set_app_data(ctx, data) \
+    wolfSSL_X509_STORE_CTX_set_ex_data((ctx), \
+        WOLFSSL_X509_STORE_CTX_APP_DATA_IDX, (data))
+#define X509_STORE_CTX_get_app_data(ctx) \
+    wolfSSL_X509_STORE_CTX_get_ex_data((ctx), \
+        WOLFSSL_X509_STORE_CTX_APP_DATA_IDX)
+#endif
 #define X509_STORE_CTX_set_depth        wolfSSL_X509_STORE_CTX_set_depth
 #define X509_STORE_CTX_verify_cb        WOLFSSL_X509_STORE_CTX_verify_cb
 #define X509_STORE_CTX_get0_current_issuer \
@@ -833,6 +852,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_STORE_set_flags            wolfSSL_X509_STORE_set_flags
 #define X509_STORE_get1_certs           wolfSSL_X509_STORE_get1_certs
 #define X509_STORE_get_by_subject       wolfSSL_X509_STORE_get_by_subject
+#define X509_STORE_CTX_get_by_subject   wolfSSL_X509_STORE_CTX_get_by_subject
 #define X509_STORE_set_ex_data          wolfSSL_X509_STORE_set_ex_data
 #define X509_STORE_get_ex_data          wolfSSL_X509_STORE_get_ex_data
 #define X509_STORE_get0_param           wolfSSL_X509_STORE_get0_param
@@ -840,10 +860,12 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_STORE_CTX_get1_issuer      wolfSSL_X509_STORE_CTX_get1_issuer
 #define X509_STORE_CTX_set_time         wolfSSL_X509_STORE_CTX_set_time
 #define X509_STORE_CTX_get0_param       wolfSSL_X509_STORE_CTX_get0_param
+#define X509_STORE_CTX_set0_param       wolfSSL_X509_STORE_CTX_set0_param
 #define X509_VERIFY_PARAM_new           wolfSSL_X509_VERIFY_PARAM_new
 #define X509_VERIFY_PARAM_free          wolfSSL_X509_VERIFY_PARAM_free
 #define X509_VERIFY_PARAM_set_flags     wolfSSL_X509_VERIFY_PARAM_set_flags
 #define X509_VERIFY_PARAM_set_time      wolfSSL_X509_VERIFY_PARAM_set_time
+#define X509_VERIFY_PARAM_set_depth     wolfSSL_X509_VERIFY_PARAM_set_depth
 #define X509_VERIFY_PARAM_get_flags     wolfSSL_X509_VERIFY_PARAM_get_flags
 #define X509_VERIFY_PARAM_clear_flags   wolfSSL_X509_VERIFY_PARAM_clear_flags
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
@@ -1074,8 +1096,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_OCTET_STRING_cmp           wolfSSL_ASN1_STRING_cmp
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
 /* In OpenSSL, ASN1_INTEGER is a typedef alias of ASN1_STRING (same struct),
- * so ASN1_STRING_length/get0_data work on ASN1_INTEGER* as well.
- * In wolfSSL they are distinct structs, so dispatch by type using _Generic. */
+ * so ASN1_STRING_length/get0_data/type work on ASN1_INTEGER* as well.
+ * In wolfSSL they are distinct structs, so dispatch by type. */
 #if !defined(__cplusplus) && defined(__STDC_VERSION__) && \
         __STDC_VERSION__ >= 201112L
 #define ASN1_STRING_length(x) \
@@ -1090,9 +1112,42 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
         const WOLFSSL_ASN1_INTEGER*: wolfSSL_ASN1_INTEGER_get0_data, \
         default:                     wolfSSL_ASN1_STRING_get0_data \
     )(x)
+#define ASN1_STRING_type(x) \
+    _Generic((x), \
+        WOLFSSL_ASN1_INTEGER*:       wolfSSL_ASN1_INTEGER_get_type, \
+        const WOLFSSL_ASN1_INTEGER*: wolfSSL_ASN1_INTEGER_get_type, \
+        default:                     wolfSSL_ASN1_STRING_type \
+    )(x)
+#elif !defined(__cplusplus) && (defined(__GNUC__) || defined(__clang__))
+/* Before C11. The call not taken gets a NULL of its parameter type, so x is
+ * still type checked and evaluated once. As with _Generic, these are
+ * function-like macros: for a function pointer use
+ * wolfSSL_ASN1_STRING_length or wolfSSL_ASN1_INTEGER_get_length. */
+#define WOLFSSL_ASN1_IS_INTEGER(x) \
+    (__builtin_types_compatible_p(__typeof__(x), WOLFSSL_ASN1_INTEGER*) || \
+     __builtin_types_compatible_p(__typeof__(x), const WOLFSSL_ASN1_INTEGER*))
+#define WOLFSSL_ASN1_INTEGER_ARG(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), (x), \
+        (const WOLFSSL_ASN1_INTEGER*)0)
+#define WOLFSSL_ASN1_STRING_ARG(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        (const WOLFSSL_ASN1_STRING*)0, (x))
+#define ASN1_STRING_length(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        wolfSSL_ASN1_INTEGER_get_length(WOLFSSL_ASN1_INTEGER_ARG(x)), \
+        wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING_ARG(x)))
+#define ASN1_STRING_get0_data(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        wolfSSL_ASN1_INTEGER_get0_data(WOLFSSL_ASN1_INTEGER_ARG(x)), \
+        wolfSSL_ASN1_STRING_get0_data(WOLFSSL_ASN1_STRING_ARG(x)))
+#define ASN1_STRING_type(x) \
+    __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
+        wolfSSL_ASN1_INTEGER_get_type(WOLFSSL_ASN1_INTEGER_ARG(x)), \
+        wolfSSL_ASN1_STRING_type(WOLFSSL_ASN1_STRING_ARG(x)))
 #else
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_get0_data
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length
+#define ASN1_STRING_type                wolfSSL_ASN1_STRING_type
 #endif
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
 #define ASN1_UNIVERSALSTRING_to_string  wolfSSL_ASN1_UNIVERSALSTRING_to_string
@@ -1320,6 +1375,8 @@ typedef wolfSSL_custom_ext_parse_cb custom_ext_parse_cb;
 #define sk_value                        wolfSSL_sk_value
 #define sk_ASN1_OBJECT_value            wolfSSL_sk_value
 #define OPENSSL_sk_value                wolfSSL_sk_value
+#define OPENSSL_sk_set_cmp_func         wolfSSL_sk_set_cmp_func
+#define OPENSSL_sk_sort                 wolfSSL_sk_sort
 
 #define d2i_PKCS12_bio                  wolfSSL_d2i_PKCS12_bio
 #define d2i_PKCS12_fp                   wolfSSL_d2i_PKCS12_fp

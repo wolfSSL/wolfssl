@@ -2613,8 +2613,20 @@ WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
 WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                                          word32 oid, byte critical,
                                          DecodedCert* cert, int *isUnknownExt);
+WOLFSSL_LOCAL int SigOidMatchesKeyOid(word32 sigOID, word32 keyOID);
 WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
+#ifndef IGNORE_NAME_CONSTRAINTS
+/* Name constraint violations of CheckCertNameConstraints() */
+enum {
+    NC_VIOLATION_EXCLUDED    = 1,
+    NC_VIOLATION_PERMITTED   = 2,
+    NC_VIOLATION_UNSUPPORTED = 3
+};
+WOLFSSL_LOCAL int CheckCertNameConstraints(const byte* caCert,
+        word32 caCertSz, const byte* cert, word32 certSz, int leaf, void* heap,
+        int* violation);
+#endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SMALL_CERT_VERIFY)
     WOLFSSL_API int wc_CheckCertSignature(const byte* cert, word32 certSz,
                                           void* heap,

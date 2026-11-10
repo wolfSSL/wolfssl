@@ -260,6 +260,33 @@ int test_wolfSSL_OBJ_cmp(void)
     ExpectIntEQ(OBJ_cmp(obj2, obj2), 0);
 
     ASN1_OBJECT_free(obj);
+    obj = NULL;
+    ASN1_OBJECT_free(obj2);
+    obj2 = NULL;
+
+    /* Name attribute types differ. */
+    ExpectNotNull(obj = OBJ_nid2obj(NID_commonName));
+    ExpectNotNull(obj2 = OBJ_nid2obj(NID_organizationName));
+    ExpectIntNE(OBJ_cmp(obj, obj2), 0);
+    ExpectIntEQ(OBJ_cmp(obj, obj2), -OBJ_cmp(obj2, obj));
+    ExpectIntEQ(OBJ_cmp(obj, obj), 0);
+    ASN1_OBJECT_free(obj2);
+    obj2 = NULL;
+    ExpectNotNull(obj2 = OBJ_nid2obj(NID_commonName));
+    ExpectIntEQ(OBJ_cmp(obj, obj2), 0);
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    ASN1_OBJECT_free(obj2);
+    obj2 = NULL;
+    ExpectNotNull(obj2 = OBJ_txt2obj("2.5.4.3", 1));
+    ExpectIntEQ(OBJ_cmp(obj, obj2), 0);
+    ExpectIntEQ(OBJ_cmp(obj2, obj), 0);
+    ASN1_OBJECT_free(obj2);
+    obj2 = NULL;
+    ExpectNotNull(obj2 = OBJ_txt2obj("2.5.4.10", 1));
+    ExpectIntNE(OBJ_cmp(obj, obj2), 0);
+#endif
+
+    ASN1_OBJECT_free(obj);
     ASN1_OBJECT_free(obj2);
 #endif
     return EXPECT_RESULT();

@@ -132,6 +132,7 @@ int test_wolfSSL_get_shared_ciphers(void);
 int test_tls12_aesgcm_record_nonce_unique(void);
 int test_tls_param_flags_crl_check(void);
 int test_tls_hmac_inner_cid_decision_coverage(void);
+int test_tls_param_flags_not_on_store(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
@@ -235,6 +236,7 @@ int test_tls_hmac_inner_cid_decision_coverage(void);
         TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers),               \
         TEST_DECL_GROUP("tls", test_tls12_aesgcm_record_nonce_unique),         \
         TEST_DECL_GROUP("tls", test_tls_param_flags_crl_check),                \
+        TEST_DECL_GROUP("tls", test_tls_param_flags_not_on_store),             \
         TEST_DECL_GROUP("tls", test_dhe_psk_max_premaster),                    \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb),                    \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_server),             \

@@ -485,7 +485,7 @@ static int FindRevokedSerial(RevokedCert* rc, byte* serial, int serialSz,
 /* cacheResult should only be set when cm is the owning cm of crl. A cached
  * result is not valid for other cms because they can trust different CAs. */
 static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
-        WOLFSSL_CERT_MANAGER* cm, int cacheResult)
+        WOLFSSL_CERT_MANAGER* cm, int cacheResult, Signer* issuer)
 {
     Signer* ca = NULL;
     SignatureCtx sigCtx;
@@ -510,6 +510,27 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
 #else /* NO_SKID */
     ca = GetCA(cm, crle->issuerHash);
 #endif /* NO_SKID */
+    /* Verified when loaded, it has no signature left: the CA that verified
+     * it must have the key of the chain issuer */
+    if (issuer != NULL && crle->toBeSigned == NULL) {
+    #ifndef IGNORE_KEY_EXTENSIONS
+        if ((issuer->keyUsage & KEYUSE_CRL_SIGN) == 0) {
+            return ASN_CRL_NO_SIGNER_E;
+        }
+    #endif
+        if (crle->verified <= 0 || ca == NULL || ca->publicKey == NULL ||
+                ca->pubKeySize != issuer->pubKeySize ||
+                XMEMCMP(ca->publicKey, issuer->publicKey,
+                    issuer->pubKeySize) != 0) {
+            return ASN_CRL_CONFIRM_E;
+        }
+        return 0;
+    }
+    /* As OpenSSL, the issuer on the chain must have signed it */
+    if (issuer != NULL) {
+        ca = issuer;
+        cacheResult = 0;
+    }
     if (ca == NULL) {
         WOLFSSL_MSG("Did NOT find CRL issuer CA");
         return ASN_CRL_NO_SIGNER_E;
@@ -536,31 +557,216 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
     return ret;
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_SKID) && !defined(NO_ASN)
+/* Returns 1 when crle is the CRL of another key than issuer's: as OpenSSL's
+ * X509_check_akid(), its authority key id is not the issuer's subject key
+ * id, both being known. A zero subjectKeyIdHash is not known. */
+static int CrlOfOtherKey(const CRL_Entry* crle, const Signer* issuer)
+{
+    byte known = 0;
+    int i;
+
+    for (i = 0; i < KEYID_SIZE; i++) {
+        known |= issuer->subjectKeyIdHash[i];
+    }
+    return crle->extAuthKeyIdSet && known != 0 &&
+        XMEMCMP(crle->extAuthKeyId, issuer->subjectKeyIdHash,
+            KEYID_SIZE) != 0;
+}
+#endif
+
+#if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
+/* As XVALIDATE_DATE, at checkTime unless it is 0 */
+static int CrlValidDate(const byte* date, byte format, int dateType,
+        time_t checkTime)
+{
+#ifdef USE_WOLF_VALIDDATE
+    if (checkTime != 0) {
+        return wc_ValidateDateWithTime(date, format, dateType, checkTime,
+            MAX_DATE_SIZE);
+    }
+#else
+    (void)checkTime;
+#endif
+    return XVALIDATE_DATE(date, format, dateType, MAX_DATE_SIZE);
+}
+#endif
+
+/* Returns 0 when crle is current. With issuer, as OpenSSL's
+ * check_crl_time(): always without checkTime, else from its thisUpdate to
+ * its nextUpdate, if any, at *checkTime, now when it is 0. Without issuer,
+ * as the handshake checks it: before its nextUpdate, now.
+ * Returns ASN_BEFORE_DATE_E when it is not yet valid, CRL_CERT_DATE_ERR when
+ * it has expired. */
+static int CrlDateErr(const CRL_Entry* crle, const Signer* issuer,
+        const time_t* checkTime)
+{
+#if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
+    if (issuer != NULL) {
+        if (checkTime == NULL) {
+            return 0;
+        }
+        if (!CrlValidDate(crle->lastDate, crle->lastDateFormat, ASN_BEFORE,
+                *checkTime)) {
+            WOLFSSL_MSG("CRL last date is not yet valid");
+            return ASN_BEFORE_DATE_E;
+        }
+        /* Expired at its nextUpdate, as OpenSSL's X509_cmp_time() */
+        if (crle->nextDateFormat != ASN_OTHER_TYPE &&
+                !CrlValidDate(crle->nextDate, crle->nextDateFormat, ASN_AFTER,
+                    (*checkTime != 0) ? *checkTime + 1 : 0)) {
+            WOLFSSL_MSG("CRL next date is no longer valid");
+            return CRL_CERT_DATE_ERR;
+        }
+        return 0;
+    }
+#ifdef WOLFSSL_NO_CRL_NEXT_DATE
+    if (crle->nextDateFormat == ASN_OTHER_TYPE) {
+        return 0;
+    }
+#endif
+    if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat, ASN_AFTER,
+            MAX_DATE_SIZE)) {
+        WOLFSSL_MSG("CRL next date is no longer valid");
+        return CRL_CERT_DATE_ERR;
+    }
+#else
+    (void)crle;
+    (void)issuer;
+    (void)checkTime;
+#endif
+    return 0;
+}
+
+#ifdef OPENSSL_EXTRA
+/* As OpenSSL's get_crl_sk(), of the CRLs in list of the chain issuer: one
+ * current at *checkTime over one that is not, then a later thisUpdate.
+ * *cur, 0 for none, and *last are of the best so far.
+ * Returns the entry that is better, else NULL. */
+static CRL_Entry* CrlPick(CRL_Entry* list, const byte* issuerHash,
+        const Signer* issuer, const time_t* checkTime, int* cur,
+        WOLFSSL_ASN1_TIME* last)
+{
+    CRL_Entry* best = NULL;
+    int c;
+
+    for (; list != NULL; list = list->next) {
+        if (XMEMCMP(list->issuerHash, issuerHash, CRL_DIGEST_SIZE) != 0) {
+            continue;
+        }
+    #if !defined(NO_SKID) && !defined(NO_ASN)
+        if (CrlOfOtherKey(list, issuer)) {
+            continue;
+        }
+    #endif
+        /* 2 when current, else 1 */
+        c = (CrlDateErr(list, issuer, checkTime) == 0) ? 2 : 1;
+    #ifndef NO_ASN_TIME
+        if (c < *cur || (c == *cur &&
+                wolfSSL_ASN1_TIME_compare(&list->lastDateAsn1, last) <= 0)) {
+            continue;
+        }
+    #else
+        if (c <= *cur) {
+            continue;
+        }
+    #endif
+        best = list;
+        *cur = c;
+        *last = list->lastDateAsn1;
+    }
+    return best;
+}
+
+/* For X509_verify_cert(): returns 1 when crl has a CRL of cert's issuer,
+ * the chain issuer, better than *cur and *last, as CrlPick(), else 0 or
+ * BAD_MUTEX_E. */
+int PickCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert, Signer* issuer,
+        const time_t* checkTime, int* cur, WOLFSSL_ASN1_TIME* last)
+{
+    int ret;
+
+    if (wc_LockRwLock_Rd(&crl->crlLock) != 0) {
+        WOLFSSL_MSG("wc_LockRwLock_Rd failed");
+        return BAD_MUTEX_E;
+    }
+    ret = CrlPick(crl->crlList, cert->issuerHash, issuer, checkTime, cur,
+        last) != NULL;
+    wc_UnLockRwLock(&crl->crlLock);
+
+    return ret;
+}
+#endif
+
+/* Without a current CRL, returns the date error of one. With issuer, only
+ * the CRL CrlPick() picks is checked. */
 static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, int *pFoundEntry,
-        WOLFSSL_CERT_MANAGER* cm)
+        WOLFSSL_CERT_MANAGER* cm, Signer* issuer, const time_t* checkTime)
 {
     CRL_Entry* crle;
     int        foundEntry = 0;
     int        ret = 0;
+    int        dateErr = 0;
+#ifdef OPENSSL_EXTRA
+    CRL_Entry* best = NULL;
+    int        cur = 0;
+    WOLFSSL_ASN1_TIME last;
+#endif
 
     if (wc_LockRwLock_Rd(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Rd failed");
         return BAD_MUTEX_E;
     }
 
+#ifdef OPENSSL_EXTRA
+    if (issuer != NULL) {
+        XMEMSET(&last, 0, sizeof(last));
+        best = CrlPick(crl->crlList, issuerHash, issuer, checkTime, &cur,
+            &last);
+    }
+#endif
     for (crle = crl->crlList; crle != NULL; crle = crle->next) {
         if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) == 0) {
-            int nextDateValid = 1;
+            int curDateErr;
 
+        #ifdef OPENSSL_EXTRA
+            if (issuer != NULL && crle != best) {
+                continue;
+            }
+        #endif
             WOLFSSL_MSG("Found CRL Entry on list");
 
-            if (cm != crl->cm) {
+        #ifndef IGNORE_KEY_EXTENSIONS
+            /* As OpenSSL's check_crl(), cRLSign before the dates */
+            if (issuer != NULL && (issuer->keyUsage & KEYUSE_CRL_SIGN) == 0) {
+                WOLFSSL_MSG("CA cannot sign CRLs");
+                ret = ASN_CRL_NO_SIGNER_E;
+                foundEntry = 1;
+                break;
+            }
+        #endif
+
+            WOLFSSL_MSG("Checking next date validity");
+            curDateErr = CrlDateErr(crle, issuer, checkTime);
+            /* As OpenSSL, the dates of a CRL of the chain issuer are checked
+             * before its signature */
+            if (curDateErr != 0 && issuer != NULL) {
+                if (dateErr != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E))
+                    dateErr = curDateErr;
+                continue;
+            }
+
+            if (cm != crl->cm || issuer != NULL) {
                 /* cm is not the owning cm of crl. The cached result is only
                  * valid for the owning cm. Verify again without caching. */
-                ret = VerifyCRLE(crl, crle, cm, 0);
+                ret = VerifyCRLE(crl, crle, cm, 0, issuer);
                 if (ret != 0) {
                     WOLFSSL_MSG("Cannot use CRL as it didn't verify");
+                    /* With a chain issuer it is a signature failure, as
+                     * in OpenSSL, not a missing CRL */
+                    if (issuer != NULL)
+                        foundEntry = 1;
                     break;
                 }
             }
@@ -574,7 +780,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
                     /* A different thread may have verified the entry while we
                      * were waiting for the mutex. */
                     if (crle->verified == 0)
-                        ret = VerifyCRLE(crl, crle, cm, 1);
+                        ret = VerifyCRLE(crl, crle, cm, 1, NULL);
 
                     wc_UnLockMutex(&crle->verifyMutex);
 
@@ -589,35 +795,24 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
                 }
             }
 
-            WOLFSSL_MSG("Checking next date validity");
-
-        #ifdef WOLFSSL_NO_CRL_NEXT_DATE
-            if (crle->nextDateFormat != ASN_OTHER_TYPE)
-        #endif
-            {
-            #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
-                if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
-                                   ASN_AFTER, MAX_DATE_SIZE)) {
-                    WOLFSSL_MSG("CRL next date is no longer valid");
-                    nextDateValid = 0;
-                }
-            #endif
-            }
-            if (nextDateValid) {
+            if (curDateErr == 0) {
                 foundEntry = 1;
                 ret = FindRevokedSerial(crle->certs, serial, serialSz,
                         serialHash, crle->totalCerts);
                 if (ret != 0)
                     break;
             }
-            else if (foundEntry == 0) {
-                ret = CRL_CERT_DATE_ERR;
+            else if (dateErr != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) {
+                dateErr = curDateErr;
             }
         }
     }
 
     wc_UnLockRwLock(&crl->crlLock);
 
+    if (foundEntry == 0 && ret == 0) {
+        ret = dateErr;
+    }
     *pFoundEntry = foundEntry;
 
     return ret;
@@ -629,7 +824,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
         int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm,
-        int canRetry)
+        int canRetry, Signer* issuer, const time_t* checkTime)
 {
     int        foundEntry = 0;
     int        ret = 0;
@@ -644,14 +839,15 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     }
 
 #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
-    /* Skip CRL verification in case no CDP in peer cert */
-    if (!extCrlInfo) {
+    /* Skip CRL verification in case no CDP in peer cert. As OpenSSL, a chain
+     * issuer's CRLs are checked. */
+    if (!extCrlInfo && issuer == NULL) {
         return ret;
     }
 #endif
 
     ret = CheckCertCRLList(crl, issuerHash, serial, serialSz, serialHash,
-            &foundEntry, cm);
+            &foundEntry, cm, issuer, checkTime);
 
 #ifdef HAVE_CRL_IO
     if (foundEntry == 0) {
@@ -665,7 +861,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             else if (cbRet >= 0) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry, cm);
+                        serialHash, &foundEntry, cm, issuer, checkTime);
             }
         }
     }
@@ -684,7 +880,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             if (loadRet == WOLFSSL_SUCCESS) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry, cm);
+                        serialHash, &foundEntry, cm, issuer, checkTime);
             }
         }
     }
@@ -696,7 +892,8 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     #endif
             ) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
-        if (ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)) {
+        if (ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR) &&
+                ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) {
             ret = CRL_MISSING;
         }
 
@@ -734,7 +931,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int extCrlInfoSz, void* issuerName)
 {
     return CheckCertCRLCm(crl, issuerHash, serial, serialSz, serialHash,
-            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1);
+            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1, NULL, NULL);
 }
 
 /* Get the issuer X509_NAME of cert to pass to CheckCertCRLCm(). */
@@ -754,28 +951,34 @@ static void* CertCrlIssuerName(DecodedCert* cert)
 }
 
 static int CheckDecodedCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
-        WOLFSSL_CERT_MANAGER* cm, int canRetry)
+        WOLFSSL_CERT_MANAGER* cm, int canRetry, Signer* issuer,
+        const time_t* checkTime)
 {
     void* issuerName = CertCrlIssuerName(cert);
 
     return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
             NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm,
-            canRetry);
+            canRetry, issuer, checkTime);
 }
 
 /* Is the cert ok with CRL, return 0 on success */
 int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 {
-    return CheckDecodedCertCRL(crl, cert, crl->cm, 1);
+    return CheckDecodedCertCRL(crl, cert, crl->cm, 1, NULL, NULL);
 }
 
 /* Check cert against crl using cm for CRL signature verification. Does not
  * modify crl, so crl can be a caller-owned object shared between threads.
- * Return 0 on success. */
+ * As in OpenSSL, issuer, the cert's issuer on the chain, must have signed
+ * the CRL, and a CRL is current from its thisUpdate to its nextUpdate, if
+ * any, at *checkTime, now when it is 0. Without checkTime CRL dates are not
+ * checked.
+ * Return 0 on success, ASN_BEFORE_DATE_E or CRL_CERT_DATE_ERR when no CRL is
+ * current. */
 int CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_CRL* crl,
-        DecodedCert* cert)
+        DecodedCert* cert, Signer* issuer, const time_t* checkTime)
 {
-    return CheckDecodedCertCRL(crl, cert, cm, 0);
+    return CheckDecodedCertCRL(crl, cert, cm, 0, issuer, checkTime);
 }
 
 #ifdef HAVE_CRL_UPDATE_CB
@@ -2652,6 +2855,13 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         int serialSz = rev->serialNumber->length;
         int i;
         int allZero = 1;
+
+        /* An INTEGER made by the library holds the DER encoding. One built
+         * by hand holds the content bytes. */
+        if (rev->serialNumber->type == WOLFSSL_V_ASN1_INTEGER) {
+            serial = wolfSSL_ASN1_INTEGER_get0_data(rev->serialNumber);
+            serialSz = wolfSSL_ASN1_INTEGER_get_length(rev->serialNumber);
+        }
 
         if (serial == NULL || serialSz <= 0) {
             return BAD_FUNC_ARG;

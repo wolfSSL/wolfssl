@@ -49,7 +49,13 @@ WOLFSSL_LOCAL int  CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
         int extCrlInfoSz, void* issuerName);
 WOLFSSL_LOCAL int  CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm,
-        WOLFSSL_CRL* crl, DecodedCert* cert);
+        WOLFSSL_CRL* crl, DecodedCert* cert, Signer* issuer,
+        const time_t* checkTime);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_LOCAL int  PickCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
+        Signer* issuer, const time_t* checkTime, int* cur,
+        WOLFSSL_ASN1_TIME* last);
+#endif
 #ifdef HAVE_CRL_UPDATE_CB
 WOLFSSL_LOCAL int  GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
         long sz, int type);

@@ -35,6 +35,11 @@ int test_x509_ReqCertFromX509_skid_boundary(void);
 int test_x509_ReqCertFromX509_ext_critical(void);
 int test_x509_REQ_sign_mldsa(void);
 int test_x509_decision_coverage(void);
+int test_x509_REQ_i2d_stored_der(void);
+int test_x509_REQ_add_extensions_parsed(void);
+int test_x509_REQ_add_extensions_resign(void);
+int test_x509_REQ_setters_reencode(void);
+int test_x509_d2i_bio_reuse(void);
 
 #define TEST_X509_DECLS                                                        \
     TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
@@ -48,7 +53,12 @@ int test_x509_decision_coverage(void);
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_overflow),          \
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_boundary),          \
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_ext_critical),           \
-    TEST_DECL_GROUP("x509", test_x509_REQ_sign_mldsa), \
-    TEST_DECL_GROUP("x509", test_x509_decision_coverage)
+    TEST_DECL_GROUP("x509", test_x509_REQ_sign_mldsa),                         \
+    TEST_DECL_GROUP("x509", test_x509_decision_coverage),                      \
+    TEST_DECL_GROUP("x509", test_x509_REQ_i2d_stored_der),                     \
+    TEST_DECL_GROUP("x509", test_x509_REQ_add_extensions_parsed),              \
+    TEST_DECL_GROUP("x509", test_x509_REQ_add_extensions_resign),              \
+    TEST_DECL_GROUP("x509", test_x509_REQ_setters_reencode),                   \
+    TEST_DECL_GROUP("x509", test_x509_d2i_bio_reuse)
 
 #endif /* WOLFCRYPT_TEST_X509_H */

@@ -30,6 +30,9 @@
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
+#ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/pem.h>
+#endif
 #include <tests/utils.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_crypto.h>
@@ -364,6 +367,379 @@ int test_wolfSSL_X509_verify_mldsa_privkey_pkey(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
+static int test_X509_CRL_verify_file(const char* crlFile, const char* caFile,
+    int expected)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    XFILE fp = XBADFILE;
+
+    ExpectTrue((fp = XFOPEN(crlFile, "rb")) != XBADFILE);
+    ExpectNotNull(crl = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(pkey = X509_get_pubkey(ca));
+    ExpectIntEQ(X509_CRL_verify(crl, pkey), expected);
+
+    EVP_PKEY_free(pkey);
+    X509_free(ca);
+    X509_CRL_free(crl);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_X509_CRL_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    byte der[4096];
+    int derSz = 0;
+    XFILE fp = XBADFILE;
+
+    ExpectIntEQ(test_X509_CRL_verify_file("./certs/crl/crl.pem", caCertFile,
+        1), TEST_SUCCESS);
+    ExpectIntEQ(test_X509_CRL_verify_file("./certs/crl/crl.pem", svrCertFile,
+        0), TEST_SUCCESS);
+#ifdef HAVE_ECC
+    ExpectIntEQ(test_X509_CRL_verify_file("./certs/crl/caEccCrl.pem",
+        caEccCertFile, 1), TEST_SUCCESS);
+    /* Key type does not match the signature. */
+    ExpectIntEQ(test_X509_CRL_verify_file("./certs/crl/caEccCrl.pem",
+        caCertFile, -1), TEST_SUCCESS);
+#endif
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(pkey = X509_get_pubkey(ca));
+    ExpectIntEQ(X509_CRL_verify(NULL, pkey), -1);
+
+    /* Changed signature. */
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.der", "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), fp), 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    if (derSz > 0)
+        der[derSz - 1] ^= 0x01;
+    ExpectNotNull(crl = wolfSSL_d2i_X509_CRL(NULL, der, derSz));
+    ExpectIntEQ(X509_CRL_verify(crl, NULL), -1);
+    ExpectIntEQ(X509_CRL_verify(crl, pkey), 0);
+    X509_CRL_free(crl);
+    crl = NULL;
+
+    /* Nothing signed yet. */
+    ExpectNotNull(crl = X509_CRL_new());
+    ExpectIntEQ(X509_CRL_verify(crl, pkey), -1);
+    X509_CRL_free(crl);
+
+    EVP_PKEY_free(pkey);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_BIO) && \
+    !defined(NO_CERTS)
+static WOLFSSL_EVP_PKEY* test_x509_verify_privkey_load(const char* file)
+{
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_file(file, "rb");
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+
+    if (bio != NULL) {
+        pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+        wolfSSL_BIO_free(bio);
+    }
+    return pkey;
+}
+
+/* X509_verify() of certFile and, with crlFile, X509_CRL_verify() with the
+ * private key in keyFile. */
+static int test_x509_verify_privkey_file(const char* certFile,
+    const char* crlFile, const char* keyFile, int expected)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+#ifdef HAVE_CRL
+    WOLFSSL_X509_CRL* crl = NULL;
+    XFILE fp = XBADFILE;
+#endif
+
+    ExpectNotNull(pkey = test_x509_verify_privkey_load(keyFile));
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(certFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_verify(x509, pkey), expected);
+#ifdef HAVE_CRL
+    if (crlFile != NULL) {
+        ExpectTrue((fp = XFOPEN(crlFile, "rb")) != XBADFILE);
+        ExpectNotNull(crl = wolfSSL_PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+        if (fp != XBADFILE)
+            XFCLOSE(fp);
+        ExpectIntEQ(wolfSSL_X509_CRL_verify(crl, pkey), expected);
+        wolfSSL_X509_CRL_free(crl);
+    }
+#else
+    (void)crlFile;
+#endif
+
+    wolfSSL_X509_free(x509);
+    wolfSSL_EVP_PKEY_free(pkey);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* As OpenSSL, a private key verifies with its public part. */
+int test_wolfSSL_X509_verify_privkey(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_BIO) && \
+    !defined(NO_CERTS)
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    defined(HAVE_ED448_KEY_IMPORT)
+    WOLFSSL_X509* root = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_EVP_PKEY* pub = NULL;
+    unsigned char buf[256];
+    const unsigned char* p = NULL;
+    int bufSz = (int)sizeof(buf);
+#endif
+
+#ifndef NO_RSA
+    ExpectIntEQ(test_x509_verify_privkey_file(caCertFile,
+        "./certs/crl/crl.pem", "./certs/ca-key.pem", WOLFSSL_SUCCESS),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_x509_verify_privkey_file(caCertFile,
+        "./certs/crl/crl.pem", "./certs/server-key.pem", WOLFSSL_FAILURE),
+        TEST_SUCCESS);
+#endif
+#ifdef HAVE_ECC
+    ExpectIntEQ(test_x509_verify_privkey_file(caEccCertFile,
+        "./certs/crl/caEccCrl.pem", "./certs/ca-ecc-key.pem",
+        WOLFSSL_SUCCESS), TEST_SUCCESS);
+    ExpectIntEQ(test_x509_verify_privkey_file(caEccCertFile,
+        "./certs/crl/caEccCrl.pem", "./certs/ecc-key.pem", WOLFSSL_FAILURE),
+        TEST_SUCCESS);
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    defined(HAVE_ED448_KEY_IMPORT)
+    ExpectIntEQ(test_x509_verify_privkey_file("./certs/ed448/ca-ed448.pem",
+        NULL, "./certs/ed448/root-ed448-priv.pem", WOLFSSL_SUCCESS),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_x509_verify_privkey_file("./certs/ed448/ca-ed448.pem",
+        NULL, "./certs/ed448/ca-ed448-priv.pem", WOLFSSL_FAILURE),
+        TEST_SUCCESS);
+    /* And with the public key */
+    ExpectNotNull(root = wolfSSL_X509_load_certificate_file(
+        "./certs/ed448/root-ed448.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(
+        "./certs/ed448/ca-ed448.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_get_pubkey_buffer(root, buf, &bufSz),
+        WOLFSSL_SUCCESS);
+    p = buf;
+    ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &p, bufSz));
+    ExpectIntEQ(wolfSSL_X509_verify(ca, pub), WOLFSSL_SUCCESS);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_X509_free(ca);
+    wolfSSL_X509_free(root);
+#endif
+#if !defined(NO_DSA) && !defined(NO_RSA) && \
+    (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+    /* The public part of a DSA key cannot be encoded: not checked. A DSA PEM
+     * private key is read with WOLFSSL_QT or OPENSSL_ALL. */
+    ExpectIntEQ(test_x509_verify_privkey_file(caCertFile, NULL,
+        "./certs/dsa2048.pem", WOLFSSL_FATAL_ERROR), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_CRL_get_REVOKED_serial(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+    /* CRL that revokes serial 0x020105. These bytes also read as the DER
+     * encoding of 5. */
+    static const unsigned char crlDer[] = {
+        0x30, 0x81, 0xba, 0x30, 0x63, 0x02, 0x01, 0x01, 0x30, 0x0a, 0x06, 0x08,
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02, 0x30, 0x1a, 0x31, 0x18,
+        0x30, 0x16, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0f, 0x43, 0x52, 0x4c,
+        0x20, 0x73, 0x65, 0x72, 0x69, 0x61, 0x6c, 0x20, 0x74, 0x65, 0x73, 0x74,
+        0x17, 0x0d, 0x32, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x5a, 0x18, 0x0f, 0x32, 0x31, 0x32, 0x35, 0x31, 0x32, 0x30,
+        0x38, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a, 0x30, 0x16, 0x30, 0x14,
+        0x02, 0x03, 0x02, 0x01, 0x05, 0x17, 0x0d, 0x32, 0x36, 0x30, 0x31, 0x30,
+        0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a, 0x30, 0x0a, 0x06, 0x08,
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02, 0x03, 0x47, 0x00, 0x30,
+        0x44, 0x02, 0x20, 0x7a, 0xfe, 0xd1, 0xa0, 0x33, 0x2a, 0xff, 0xad, 0x51,
+        0x36, 0x78, 0x60, 0x63, 0x46, 0x52, 0x8e, 0x74, 0x2e, 0xf1, 0xe5, 0x72,
+        0x5f, 0x0e, 0x81, 0xd9, 0x5c, 0xca, 0x2b, 0xbb, 0x32, 0xb6, 0x80, 0x02,
+        0x20, 0x2e, 0xa2, 0x8b, 0x7a, 0x2c, 0x44, 0x3f, 0x2b, 0xee, 0xe4, 0x64,
+        0x73, 0x04, 0xea, 0x83, 0x49, 0x62, 0x0c, 0x44, 0xa3, 0x63, 0xc2, 0xfd,
+        0xbe, 0x01, 0x7c, 0x5f, 0x31, 0x72, 0x9a, 0xd7, 0x76,
+    };
+#ifdef WOLFSSL_CERT_GEN
+    /* Content of a serial built by hand, and its DER */
+    static unsigned char highSerial[] = { 0x8a, 0x01 };
+    static const unsigned char highDer[] = { 0x02, 0x03, 0x00, 0x8a, 0x01 };
+    WOLFSSL_ASN1_INTEGER high;
+    WOLFSSL_X509_REVOKED highRev;
+    unsigned char* highOut = NULL;
+#endif
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_REVOKED)* revs = NULL;
+    WOLFSSL_X509_REVOKED* rev = NULL;
+    const WOLFSSL_ASN1_INTEGER* serial = NULL;
+    WOLFSSL_ASN1_INTEGER* ai = NULL;
+    WOLFSSL_BIGNUM* bn = NULL;
+#ifdef WOLFSSL_CERT_GEN
+    static const unsigned char p128[] = { 0x02, 0x02, 0x00, 0x80 };
+    WOLFSSL_X509_REVOKED add;
+    unsigned char* der = NULL;
+#endif
+
+    ExpectNotNull(crl = wolfSSL_d2i_X509_CRL(NULL, crlDer,
+        (int)sizeof(crlDer)));
+    ExpectNotNull(revs = X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(sk_X509_REVOKED_num(revs), 1);
+    ExpectNotNull(rev = sk_X509_REVOKED_value(revs, 0));
+    ExpectNotNull(serial = X509_REVOKED_get0_serialNumber(rev));
+    ExpectIntEQ(ASN1_INTEGER_get(serial), 0x020105);
+    ExpectNotNull(bn = ASN1_INTEGER_to_BN(serial, NULL));
+    ExpectIntEQ(BN_get_word(bn), 0x020105);
+    ExpectNotNull(ai = ASN1_INTEGER_new());
+    ExpectIntEQ(ASN1_INTEGER_set(ai, 0x020105), 1);
+    ExpectIntEQ(ASN1_INTEGER_cmp(serial, ai), 0);
+    ExpectIntEQ(ASN1_INTEGER_set(ai, 5), 1);
+    ExpectIntNE(ASN1_INTEGER_cmp(serial, ai), 0);
+#ifdef WOLFSSL_CERT_GEN
+    /* An entry added back keeps its serial. */
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, rev), WOLFSSL_SUCCESS);
+    ExpectNotNull(revs = X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(sk_X509_REVOKED_num(revs), 2);
+    ExpectNotNull(rev = sk_X509_REVOKED_value(revs, 1));
+    ExpectIntEQ(ASN1_INTEGER_get(X509_REVOKED_get0_serialNumber(rev)),
+        0x020105);
+    /* A serial with the top bit set is encoded with a zero octet. */
+    XMEMSET(&add, 0, sizeof(add));
+    ExpectIntEQ(ASN1_INTEGER_set(ai, 0x80), 1);
+    add.serialNumber = ai;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &add), WOLFSSL_SUCCESS);
+    ExpectNotNull(revs = X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(sk_X509_REVOKED_num(revs), 3);
+    ExpectNotNull(rev = sk_X509_REVOKED_value(revs, 2));
+    ExpectIntEQ(i2d_ASN1_INTEGER(X509_REVOKED_get0_serialNumber(rev), &der),
+        (int)sizeof(p128));
+    ExpectBufEQ(der, p128, sizeof(p128));
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+#endif
+
+    BN_free(bn);
+    ASN1_INTEGER_free(ai);
+    X509_CRL_free(crl);
+#ifdef WOLFSSL_CERT_GEN
+    /* An entry serial with the top bit set is encoded with a zero octet. */
+    crl = NULL;
+    XMEMSET(&high, 0, sizeof(high));
+    high.data = highSerial;
+    high.length = (int)sizeof(highSerial);
+    XMEMSET(&highRev, 0, sizeof(highRev));
+    highRev.serialNumber = &high;
+    ExpectNotNull(crl = wolfSSL_d2i_X509_CRL(NULL, crlDer,
+        (int)sizeof(crlDer)));
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &highRev), WOLFSSL_SUCCESS);
+    ExpectNotNull(revs = X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(sk_X509_REVOKED_num(revs), 2);
+    ExpectNotNull(rev = sk_X509_REVOKED_value(revs, 1));
+    ExpectIntEQ(i2d_ASN1_INTEGER(X509_REVOKED_get0_serialNumber(rev),
+        &highOut), (int)sizeof(highDer));
+    ExpectBufEQ(highOut, highDer, sizeof(highDer));
+    XFREE(highOut, NULL, DYNAMIC_TYPE_ASN1);
+    X509_CRL_free(crl);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A cert whose serial has the top bit set is revoked by the entry that
+ * X509_CRL_add_revoked makes from X509_get_serialNumber. */
+int test_wolfSSL_X509_CRL_add_revoked_serial(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && !defined(NO_CERTS) && !defined(NO_RSA)
+    /* 0x8a0102030405060708 */
+    static const unsigned char serialDer[] = {
+        0x02, 0x0a, 0x00, 0x8a, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+    };
+    const unsigned char* p = serialDer;
+    unsigned char* der = NULL;
+    int derSz = 0;
+    WOLFSSL_ASN1_INTEGER* ai = NULL;
+    WOLFSSL_EVP_PKEY* key = NULL;
+    WOLFSSL_X509* tmp = NULL;
+    WOLFSSL_X509* leaf = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_X509_STORE_CTX* ctx = NULL;
+    WOLFSSL_X509_REVOKED rev;
+    XFILE fp = XBADFILE;
+
+    /* Issue the server cert again with the serial. */
+    ExpectNotNull(ai = d2i_ASN1_INTEGER(NULL, &p, (long)sizeof(serialDer)));
+    ExpectNotNull(tmp = X509_load_certificate_file(svrCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectIntEQ(X509_set_serialNumber(tmp, ai), WOLFSSL_SUCCESS);
+    ExpectNotNull(key = test_x509_verify_privkey_load("./certs/ca-key.pem"));
+    ExpectIntGT(X509_sign(tmp, key, EVP_sha256()), 0);
+    ExpectIntGT(derSz = i2d_X509(tmp, &der), 0);
+    p = der;
+    ExpectNotNull(leaf = d2i_X509(NULL, &p, derSz));
+    ExpectIntEQ(ASN1_INTEGER_cmp(X509_get_serialNumber(leaf), ai), 0);
+
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.pem", "rb")) != XBADFILE);
+    ExpectNotNull(crl = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    XMEMSET(&rev, 0, sizeof(rev));
+    rev.serialNumber = X509_get_serialNumber(leaf);
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ca = X509_load_certificate_file(caCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_crl(store, crl), WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), WOLFSSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_ERR_CERT_REVOKED);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    X509_free(ca);
+    X509_CRL_free(crl);
+    X509_free(leaf);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    X509_free(tmp);
+    EVP_PKEY_free(key);
+    ASN1_INTEGER_free(ai);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_sign(void)
 {
     EXPECT_DECLS;
@@ -561,8 +937,12 @@ int test_wolfSSL_X509_sign(void)
     ExpectIntGT(cnSz = X509_NAME_get_sz(name), 0);
     ExpectNotNull(cn = (char*)XMALLOC(cnSz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL));
     ExpectNull(X509_NAME_oneline(NULL, cn, (int)cnSz));
+    ExpectTrue(cn == NULL || cn[0] == '\0');
     ExpectPtrEq(X509_NAME_oneline(name, cn, 0), cn);
+    if (cn != NULL)
+        cn[0] = 'x';
     ExpectPtrEq(X509_NAME_oneline(emptyName, cn, (int)cnSz), cn);
+    ExpectTrue(cn == NULL || cn[0] == '\0');
     ExpectNull(X509_NAME_oneline(emptyName, NULL, 0));
     ExpectPtrEq(X509_NAME_oneline(name, cn, (int)cnSz), cn);
     ExpectIntEQ(0, XSTRNCMP(cn, dCert.subject, XSTRLEN(cn)));

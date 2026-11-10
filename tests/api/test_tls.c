@@ -763,6 +763,48 @@ int test_tls_check_domain_name_single_label(void)
     return EXPECT_RESULT();
 }
 
+/* As in OpenSSL, the X509_STRICT and NO_CHECK_TIME flags of a connection do
+ * not reach the store of its SSL_CTX. */
+int test_tls_param_flags_not_on_store(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SHA256) && !defined(NO_ASN_TIME)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_X509* expired = NULL;
+    unsigned long flags = WOLFSSL_NO_CHECK_TIME | WOLFSSL_X509_STRICT;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(wolfSSL_get0_param(ssl_c),
+        flags), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(store = wolfSSL_CTX_get_cert_store(ctx_c));
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_get_flags(
+        wolfSSL_X509_STORE_get0_param(store)) & flags, 0);
+    /* An expired CA still does not become a signer */
+    ExpectNotNull(expired = wolfSSL_X509_load_certificate_file(
+        "./certs/test/expired/expired-ca.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntNE(wolfSSL_X509_STORE_add_cert(store, expired),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_X509_free(expired);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* One macro per group test_tls_get_peer_tmp_key() can exercise, so that the
  * helper below is never compiled without a caller. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \

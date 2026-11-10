@@ -3399,21 +3399,64 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
 }
 
 #ifdef KEEP_PEER_CERT
-/* Get the peer's certificate chain, verified against the store.
+/* Verify callback for a chain the handshake verified. As the handshake, it
+ * accepts the date and CA errors of a cert manager CA where that CA verifies
+ * the cert below it. Any other error fails.
  *
- * Implemented in a similar way to ngx_ssl_ocsp_validate() when
- * SSL_get0_verified_chain is not available. The chain is stored on the SSL/TLS
- * object and disposed of with it, so the caller must not free it.
+ * @param [in] ok   1 when the cert at the error depth passed its checks.
+ * @param [in] ctx  X509 store context.
+ * @return  1 when verification is to continue, 0 to fail.
+ */
+int VerifiedChainCb(int ok, WOLFSSL_X509_STORE_CTX* ctx)
+{
+    if ((!ok) && (ctx->error_depth > 0)) {
+        switch (ctx->error) {
+            case WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
+            case WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED:
+            case WOLFSSL_X509_V_ERR_INVALID_CA:
+            case WOLFSSL_X509_V_ERR_KEYUSAGE_NO_CERTSIGN:
+                ok = X509StoreCmIsIssuer(ctx->store->cm,
+                    wolfSSL_sk_X509_value(ctx->chain, ctx->error_depth),
+                    wolfSSL_sk_X509_value(ctx->chain, ctx->error_depth - 1));
+                break;
+            default:
+                break;
+        }
+    }
+
+    return ok;
+}
+
+/* Returns 1 when the verified chain kept on ssl is of the peer's cert. */
+static int VerifiedChainIsPeer(const WOLFSSL* ssl)
+{
+    WOLFSSL_X509* x = wolfSSL_sk_X509_value(ssl->verifiedChain, 0);
+    const WOLFSSL_X509_CHAIN* peer = &ssl->session->chain;
+
+    return (x != NULL) && (x->derCert != NULL) && (peer->count > 0) &&
+        ((int)x->derCert->length == peer->certs[0].length) &&
+        (XMEMCMP(x->derCert->buffer, peer->certs[0].buffer,
+            x->derCert->length) == 0);
+}
+
+/* Get the peer's chain as verified, from its cert to the trust anchor.
+ *
+ * Built with wolfSSL_X509_verify_cert() once per peer cert and kept on ssl
+ * until a new peer chain or wolfSSL_clear(), as OpenSSL keeps the chain of the
+ * handshake. After a full handshake that verified the peer, VerifiedChainCb()
+ * applies; else every check does. Without WOLFSSL_SIGNER_DER_CERT a CA of the
+ * cert manager cannot go on the chain.
  *
  * @param [in, out] ssl  SSL/TLS object. Declared const, but the verified
  *                       chain is stored into it.
- * @return  Stack of verified certificates on success.
+ * @return  Stack of verified certificates on success. Owned by ssl.
  * @return  NULL when ssl or its context is NULL, no peer certificate was kept,
  *          the chain cannot be built, or verification fails.
  */
 WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
 {
     WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* peerChain = NULL;
     WOLFSSL_X509_STORE_CTX* storeCtx = NULL;
     WOLFSSL_X509* peerCert = NULL;
     int err = 0;
@@ -3424,6 +3467,9 @@ WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
     if ((ssl == NULL) || (ssl->ctx == NULL)) {
         WOLFSSL_MSG("Bad parameter");
         err = 1;
+    }
+    else if (VerifiedChainIsPeer(ssl)) {
+        return ssl->verifiedChain;
     }
 
     if (!err) {
@@ -3436,18 +3482,11 @@ WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
     }
 
     if (!err) {
-        chain = CreatePeerCertChain((WOLFSSL*)ssl, 1);
-        if (chain == NULL) {
+        /* The peer's certificate first, then its chain and the CA chain. */
+        peerChain = CreatePeerCertChain((WOLFSSL*)ssl, 1);
+        if (peerChain == NULL) {
             WOLFSSL_MSG("wolfSSL_get_peer_cert_chain error");
             err = 1;
-        }
-        else {
-            /* Replace any chain kept from a previous call. */
-            if (ssl->verifiedChain != NULL) {
-                wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
-            }
-            /* This is Free'd when ssl is Free'd */
-            ((WOLFSSL*)ssl)->verifiedChain = chain;
         }
     }
 
@@ -3460,22 +3499,40 @@ WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
     }
 
     if (!err) {
-        if (wolfSSL_X509_STORE_CTX_init(storeCtx, SSL_STORE(ssl), peerCert,
-                chain) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_X509_STORE_CTX_init(storeCtx, SSL_STORE(ssl),
+                wolfSSL_sk_X509_value(peerChain, 0), peerChain) !=
+                WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init error");
             err = 1;
         }
-        else if (wolfSSL_X509_verify_cert(storeCtx) <= 0) {
+    }
+
+    if (!err) {
+        /* A full handshake verified the peer: no error, not even one a
+         * verify callback accepted. */
+        if ((!ssl->options.verifyNone) &&
+                (ssl->peerVerifyRet == WOLFSSL_X509_V_OK) &&
+                (!wolfSSL_session_reused((WOLFSSL*)ssl))) {
+            wolfSSL_X509_STORE_CTX_set_verify_cb(storeCtx, VerifiedChainCb);
+        }
+        if (wolfSSL_X509_verify_cert(storeCtx) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_X509_verify_cert error");
             err = 1;
         }
     }
 
-    wolfSSL_X509_STORE_CTX_free(storeCtx);
-    if (err) {
-        /* The chain stays owned by the object; report failure only. */
-        chain = NULL;
+    if (!err) {
+        /* Take the chain built, leaf to trust anchor. */
+        chain = storeCtx->chain;
+        storeCtx->chain = NULL;
+        /* Replace a chain of an earlier peer. */
+        wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+        /* This is Free'd when ssl is Free'd */
+        ((WOLFSSL*)ssl)->verifiedChain = chain;
     }
+
+    wolfSSL_X509_STORE_CTX_free(storeCtx);
+    wolfSSL_sk_X509_pop_free(peerChain, NULL);
 
     return chain;
 }
