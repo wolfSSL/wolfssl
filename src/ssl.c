@@ -5396,6 +5396,16 @@ static int applyMinProtoVersion(ProtoLimits* lim, int version)
  * This API also accept 0 as version, to set the minimum version automatically.
  * CheckSslMethodVersion() is called to check if any remaining protocol versions
  * are enabled.
+ * Options precedence: this call records the versions it disables, and the
+ * next min call enables them again. wolfSSL_CTX_set_options() and
+ * wolfSSL_CTX_clear_options() take a version out of that record, so a version
+ * disabled with wolfSSL_CTX_set_options() stays disabled whatever min or max
+ * is set later. Unlike OpenSSL, options and min/max are not kept apart.
+ * The SSL setters work the same way on the SSL options.
+ * wolfSSL_CTX_SetMinVersion() replaces the min. A min above the max drops the
+ * max.
+ * Configure the CTX before creating SSL objects from it. Later changes may
+ * affect them.
  * @param ctx The wolfSSL CONTEXT factory for spawning SSL/TLS objects
  * @param version Any of the following
  *          * 0
@@ -5524,6 +5534,15 @@ static int applyMaxProtoVersion(ProtoLimits* lim, int version)
  * This API also accept 0 as version, to set the maximum version automatically.
  * CheckSslMethodVersion() is called to check if any remaining protocol versions
  * are enabled.
+ * Options precedence: this call records the versions it disables, and the
+ * next max call enables them again. wolfSSL_CTX_set_options() and
+ * wolfSSL_CTX_clear_options() take a version out of that record, so a version
+ * disabled with wolfSSL_CTX_set_options() stays disabled whatever min or max
+ * is set later. Unlike OpenSSL, options and min/max are not kept apart.
+ * The SSL setters work the same way on the SSL options. The CTX max bounds
+ * the versions of its SSLs, so an SSL max or min above it fails.
+ * Configure the CTX before creating SSL objects from it. Later changes may
+ * affect them.
  * @param ctx The wolfSSL CONTEXT factory for spawning SSL/TLS objects
  * @param version Any of the following
  *          * 0
