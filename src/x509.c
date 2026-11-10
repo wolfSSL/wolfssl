@@ -17165,9 +17165,12 @@ WOLFSSL_X509_OBJECT *wolfSSL_X509_OBJECT_retrieve_by_subject(
             }
         }
 #ifdef HAVE_CRL
-        else if (obj->data.crl != NULL && wolfSSL_X509_NAME_cmp(
-                wolfSSL_X509_CRL_get_issuer_name(obj->data.crl), name) == 0) {
-            return obj;
+        else if (obj->data.crl != NULL) {
+            CRL_Entry* crlEntry = obj->data.crl->crlList;
+            if (crlEntry != NULL &&
+                    wolfSSL_X509_NAME_cmp(crlEntry->issuer, name) == 0) {
+                return obj;
+            }
         }
 #endif
     }

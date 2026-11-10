@@ -2699,8 +2699,12 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
             return BAD_FUNC_ARG;
         }
 
+#ifdef CRL_STATIC_REVOKED_LIST
+        rc = &entry->certs[entry->totalCerts];
+#else
         rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), crl->heap,
                                    DYNAMIC_TYPE_REVOKED);
+#endif
         if (rc == NULL) {
             return MEMORY_E;
         }
@@ -2721,7 +2725,9 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         XMEMSET(&revDate, 0, sizeof(revDate));
         if (wolfSSL_ASN1_TIME_adj(&revDate, XTIME(NULL), 0, 0) == NULL) {
             WOLFSSL_MSG("Failed to get current time");
+#ifndef CRL_STATIC_REVOKED_LIST
             XFREE(rc, crl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
             return BAD_STATE_E;
         }
         XMEMCPY(rc->revDate, revDate.data, revDate.length);
@@ -2733,8 +2739,6 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
 
 #ifdef CRL_STATIC_REVOKED_LIST
     /* Keep the array sorted, FindRevokedSerial binary searches it. */
-    XMEMCPY(&entry->certs[entry->totalCerts], rc, sizeof(RevokedCert));
-    XFREE(rc, crl->heap, DYNAMIC_TYPE_REVOKED);
     entry->totalCerts++;
     SortCRL_CertList(entry->certs, entry->totalCerts);
 #else
