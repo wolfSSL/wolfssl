@@ -4085,10 +4085,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         ctx->havePSK = 1;
         ctx->client_psk_cb = cb;
-        if (ctx->suites != NULL) {
-            /* add PSK to the suites derived before */
-            InitSSL_CTX_Suites(ctx, ctx->suites);
-        }
+        /* add PSK to the suites derived before */
+        RefreshCtxSuites(ctx);
     }
 
     void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,wc_psk_client_callback cb)
@@ -4167,10 +4165,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return;
         ctx->havePSK = 1;
         ctx->server_psk_cb = cb;
-        if (ctx->suites != NULL) {
-            /* add PSK to the suites derived before */
-            InitSSL_CTX_Suites(ctx, ctx->suites);
-        }
+        /* add PSK to the suites derived before */
+        RefreshCtxSuites(ctx);
     }
 
     void wolfSSL_set_psk_server_callback(WOLFSSL* ssl,wc_psk_server_callback cb)
@@ -4288,10 +4284,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
 
         ctx->useAnon = 1;
-        if (ctx->suites != NULL) {
-            /* add anon to the suites derived before */
-            InitSSL_CTX_Suites(ctx, ctx->suites);
-        }
+        /* add anon to the suites derived before */
+        RefreshCtxSuites(ctx);
 
         return WOLFSSL_SUCCESS;
     }
@@ -5146,12 +5140,18 @@ static void getCtxProtoLimits(const WOLFSSL_CTX* ctx, ProtoLimits* lim)
 
 static void setCtxProtoLimits(WOLFSSL_CTX* ctx, const ProtoLimits* lim)
 {
+    byte minor = ctx->method->version.minor;
+
     ctx->mask = lim->mask;
     ctx->minProtoMask = lim->minProtoMask;
     ctx->maxProtoMask = lim->maxProtoMask;
     /* the method version is the max */
     ctx->method->version.minor = lim->maxMinor;
     ctx->minDowngrade = lim->minDowngrade;
+    if (lim->maxMinor != minor) {
+        /* the suites depend on the max */
+        RefreshCtxSuites(ctx);
+    }
 }
 
 /* An SSL does not record the options its setters set, so they only add
@@ -5449,14 +5449,8 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        byte minor = ctx->method->version.minor;
-
         setCtxProtoLimits(ctx, &lim);
         ctx->maxProto = (version == 0);
-        if (ctx->suites != NULL && lim.maxMinor != minor) {
-            /* rebuild the suites derived for the previous max */
-            InitSSL_CTX_Suites(ctx, ctx->suites);
-        }
     }
 
     return ret;

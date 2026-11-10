@@ -7375,6 +7375,56 @@ static int test_wolfSSL_CTX_set_max_proto_version_suites(void)
     return EXPECT_RESULT();
 }
 
+/* A new max derives the sigalgs again, unless they were set by the user. */
+static int test_wolfSSL_CTX_set_max_proto_version_sigalgs(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(NO_SHA256)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* ctx_ref = NULL;
+    WOLFSSL* ssl = NULL;
+    word16 sz = 0;
+
+    ExpectNotNull(ctx_ref = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx_ref));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx->suites);
+    ExpectNotNull(ctx_ref->suites);
+    ExpectIntEQ(ctx->suites->hashSigAlgoSz, ctx_ref->suites->hashSigAlgoSz);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(XMEMCMP(ctx->suites->hashSigAlgo,
+            ctx_ref->suites->hashSigAlgo, ctx->suites->hashSigAlgoSz), 0);
+    }
+
+    /* Sigalgs set by the user are kept */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        sz = ctx->suites->hashSigAlgoSz;
+    }
+    ExpectIntEQ(sz, 2);
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->suites->hashSigAlgoSz, sz);
+
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx_ref);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && \
     defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
@@ -49443,6 +49493,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_set_minmax_proto_version_opts),
     TEST_DECL(test_wolfSSL_CTX_set_max_proto_version),
     TEST_DECL(test_wolfSSL_CTX_set_max_proto_version_suites),
+    TEST_DECL(test_wolfSSL_CTX_set_max_proto_version_sigalgs),
     TEST_DECL(test_wolfSSL_CTX_set_psk_client_callback_suites),
     TEST_DECL(test_wolfSSL_CTX_allow_anon_cipher_suites),
     TEST_DECL(test_wolfSSL_THREADID_hash),

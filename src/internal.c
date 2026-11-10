@@ -4409,6 +4409,23 @@ int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx)
     return ret;
 }
 
+/* Drop derived sigalgs so that InitSuites derives them again. */
+void ResetSuitesHashSigAlgo(Suites* suites)
+{
+    if (!suites->setSuites && !suites->setHashSigAlgo)
+        suites->hashSigAlgoSz = 0;
+}
+
+/* Derive ctx->suites again after a setting they depend on changed. */
+void RefreshCtxSuites(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL || ctx->suites == NULL || ctx->suites->setSuites)
+        return;
+
+    ResetSuitesHashSigAlgo(ctx->suites);
+    InitSSL_CTX_Suites(ctx, ctx->suites);
+}
+
 /* Call this when the ssl object needs to have its own ssl->suites object */
 int AllocateSuites(WOLFSSL* ssl)
 {
@@ -35362,6 +35379,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     if (ret == 1) {
         XMEMCPY(suites->hashSigAlgo, hashSigAlgo, idx);
         suites->hashSigAlgoSz = idx;
+        suites->setHashSigAlgo = 1;
     }
 
     return ret;

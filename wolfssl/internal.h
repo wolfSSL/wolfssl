@@ -2665,6 +2665,7 @@ struct Suites {
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
     byte   hashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* sig/algo to offer */
     byte   setSuites:1;             /* user set suites from default */
+    byte   setHashSigAlgo:1;        /* user set sigalgs */
 };
 
 typedef struct CipherSuite {
@@ -2685,6 +2686,8 @@ WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                        word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL void RefreshCtxSuites(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL void ResetSuitesHashSigAlgo(Suites* suites);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
