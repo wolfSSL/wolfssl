@@ -3160,17 +3160,17 @@ static int wc_PKCS7_BuildPureSigMessage(wc_PKCS7* pkcs7, const byte* attribs,
     }
     else {
         /* No signed attributes: the signature is over the eContent directly,
-         * which must be present. ML-DSA "pure" Sign/Verify require a non-NULL
-         * message pointer (a zero-length eContent is still passed by pointer),
-         * so a missing eContent with no signed attributes is rejected here
-         * rather than failing later with the same error.
+         * which must be present. ML-DSA and SLH-DSA "pure" Sign/Verify require
+         * a non-NULL message pointer (a zero-length eContent is still passed
+         * by pointer), so a missing eContent with no signed attributes is
+         * rejected here rather than failing later with the same error.
          *
          * Scope: the eContent is signed verbatim. Unlike the RSA/ECC digest
          * path (wc_PKCS7_SignedDataGetDigest), this does not strip the ASN.1
          * tag/length for legacy PKCS#7 ANY-typed content (contentIsPkcs7Type
-         * == 1). Only CMS (OCTET STRING) eContent is supported for the ML-DSA
-         * no-signed-attributes path; the common RFC 9882 case carries signed
-         * attributes and is unaffected. */
+         * == 1). Only CMS (OCTET STRING) eContent is supported for the
+         * ML-DSA/SLH-DSA no-signed-attributes path; the common RFC 9882 and
+         * RFC 9814 case carries signed attributes and is unaffected. */
         if (pkcs7->content == NULL) {
             return BAD_FUNC_ARG;
         }
@@ -3248,18 +3248,11 @@ static int wc_PKCS7_MlDsaSign(wc_PKCS7* pkcs7, const byte* msg, word32 msgSz,
 
 
 #ifdef WC_PKCS7_HAVE_SLHDSA
-/*
- * SLH-DSA (FIPS 205) SignedData support, per RFC 9814.
- *
- * Follows the same "pure" signing model as ML-DSA (RFC 9882): the signature
- * is computed over the complete message with an empty context string and
- * absent signatureAlgorithm parameters.  The shared helper
- * wc_PKCS7_BuildPureSigMessage() constructs the message to sign/verify.
- */
+/* SLH-DSA (FIPS 205) SignedData per RFC 9814: pure mode like ML-DSA, see
+ * wc_PKCS7_BuildPureSigMessage(). */
 
-/* Map an SLH-DSA public key OID to its parameter set.
- * Returns 0 and sets *param on success, NOT_COMPILED_IN if the parameter set
- * is not built, BAD_FUNC_ARG otherwise. */
+/* Returns 0, NOT_COMPILED_IN if the parameter set isn't built, or
+ * BAD_FUNC_ARG. */
 static int wc_PKCS7_SlhDsaParamFromOID(word32 publicKeyOID,
                                        enum SlhDsaParam* param)
 {
@@ -3275,12 +3268,8 @@ static int wc_PKCS7_SlhDsaParamFromOID(word32 publicKeyOID,
     return 0;
 }
 
-/* RFC 9814 Section 4: digestAlgorithm to use for an SLH-DSA signer when the
- * caller did not set pkcs7->hashOID. These are the hash functions that
- * receivers MUST support for each parameter set. Falls back to the SHA-2
- * function of the same size when the SHAKE variant is not compiled in.
- *
- * Returns hash OID, or 0 if none is available. */
+/* RFC 9814 Section 4: MUST-support digestAlgorithm of the parameter set, used
+ * when pkcs7->hashOID is not set. Returns 0 if it isn't compiled in. */
 static int wc_PKCS7_SlhDsaDefaultHashOID(word32 publicKeyOID)
 {
     enum SlhDsaParam param;
@@ -3294,8 +3283,6 @@ static int wc_PKCS7_SlhDsaDefaultHashOID(word32 publicKeyOID)
         case SLHDSA_SHAKE128F:
         #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
             return SHAKE128h;
-        #elif !defined(NO_SHA256)
-            return SHA256h;
         #else
             return 0;
         #endif
@@ -3305,8 +3292,6 @@ static int wc_PKCS7_SlhDsaDefaultHashOID(word32 publicKeyOID)
         case SLHDSA_SHAKE256F:
         #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
             return SHAKE256h;
-        #elif defined(WOLFSSL_SHA512)
-            return SHA512h;
         #else
             return 0;
         #endif
@@ -3333,12 +3318,8 @@ static int wc_PKCS7_SlhDsaDefaultHashOID(word32 publicKeyOID)
     }
 }
 
-/* RFC 9814 Section 4: when signed attributes are present, the digestAlgorithm
- * MUST produce a hash value at least twice the size of the hash used in the
- * SLH-DSA tree (n). An SLH-DSA public key is 2n bytes long, so compare the
- * digest size against the public key size.
- *
- * Returns 0 if hashOID is strong enough, BAD_FUNC_ARG otherwise. */
+/* RFC 9814 Section 4: with signed attributes the digest must be at least 2n
+ * bytes, i.e. the public key size. Returns 0 or BAD_FUNC_ARG if too short. */
 static int wc_PKCS7_SlhDsaCheckDigest(word32 publicKeyOID, int hashOID)
 {
     enum SlhDsaParam param;
@@ -3392,9 +3373,6 @@ static int wc_PKCS7_SlhDsaSign(wc_PKCS7* pkcs7, const byte* msg, word32 msgSz,
     if (key == NULL) {
         return MEMORY_E;
     }
-    /* Zeroed so that wc_SlhDsaKey_Free() also cleans up after a failed
-     * wc_SlhDsaKey_Init(). */
-    XMEMSET(key, 0, sizeof(*key));
 
     ret = wc_SlhDsaKey_Init(key, param, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
@@ -3600,13 +3578,7 @@ static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
             word32 msgSz = 0;
             int    msgAlloc = 0;
 
-            if (flatSignedAttribsSz > 0) {
-                ret = wc_PKCS7_SlhDsaCheckDigest(pkcs7->publicKeyOID,
-                                                 pkcs7->hashOID);
-                if (ret != 0) {
-                    break;
-                }
-            }
+            /* digest strength was checked in PKCS7_EncodeSigned() */
             ret = wc_PKCS7_BuildPureSigMessage(pkcs7, flatSignedAttribs,
                                                flatSignedAttribsSz, &msg,
                                                &msgSz, &msgAlloc);
@@ -3987,21 +3959,15 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
 
     byte signingTime[MAX_TIME_STRING_SZ];
 
-#ifdef WC_PKCS7_HAVE_SLHDSA
-    /* RFC 9814 names a digestAlgorithm for each SLH-DSA parameter set, so use
-     * it when the caller has not chosen one */
-    if (pkcs7 != NULL && pkcs7->hashOID == 0 &&
-            pkcs7->sidType != DEGENERATE_SID &&
-            wc_IsSlhDsaOid((int)pkcs7->publicKeyOID)) {
-        pkcs7->hashOID = wc_PKCS7_SlhDsaDefaultHashOID(pkcs7->publicKeyOID);
-    }
-#endif
-
     /* hashOID is unused on the degenerate (certs-only) path, so only require
-     * it when an actual signer is present */
+     * it when an actual signer is present. SLH-DSA signers get a default
+     * below. */
     if (pkcs7 == NULL ||
-        (pkcs7->hashOID == 0 && pkcs7->sidType != DEGENERATE_SID) ||
-        outputSz == NULL) {
+        (pkcs7->hashOID == 0 && pkcs7->sidType != DEGENERATE_SID
+    #ifdef WC_PKCS7_HAVE_SLHDSA
+         && !wc_IsSlhDsaOid((int)pkcs7->publicKeyOID)
+    #endif
+        ) || outputSz == NULL) {
         WOLFSSL_MSG("PKCS7 struct / outputSz null, or hashOID is 0");
         return BAD_FUNC_ARG;
     }
@@ -4044,9 +4010,9 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
      * hash (passing a non-NULL hashBuf) for the detached-over-empty-content
      * case (pkcs7->detached set with contentSz == 0, e.g. an SCEP CertRep
      * PENDING/FAILURE). That specific combination is therefore unsupported for
-     * ML-DSA and returns BAD_FUNC_ARG here, whereas RSA/ECDSA support it.
-     * Detached-over-non-empty content and embedded ML-DSA SignedData both
-     * work. */
+     * ML-DSA and SLH-DSA and returns BAD_FUNC_ARG here, whereas RSA/ECDSA
+     * support it. Detached-over-non-empty content and embedded ML-DSA or
+     * SLH-DSA SignedData both work. */
     if (hashBuf != NULL &&
         (pkcs7->publicKeyOID == ML_DSA_44k ||
          pkcs7->publicKeyOID == ML_DSA_65k ||
@@ -4056,9 +4022,31 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
     }
 #endif
 #ifdef WC_PKCS7_HAVE_SLHDSA
-    if (hashBuf != NULL && wc_IsSlhDsaOid((int)pkcs7->publicKeyOID)) {
-        WOLFSSL_MSG("Pre-calculated content hash not supported for SLH-DSA");
-        return BAD_FUNC_ARG;
+    if (pkcs7->sidType != DEGENERATE_SID &&
+            wc_IsSlhDsaOid((int)pkcs7->publicKeyOID)) {
+        if (hashBuf != NULL) {
+            WOLFSSL_MSG("Pre-calculated content hash not supported for "
+                        "SLH-DSA");
+            return BAD_FUNC_ARG;
+        }
+        /* RFC 9814 Section 4: default digestAlgorithm per parameter set, and
+         * at least 2n bytes with signed attributes. Checked before any
+         * output is written. */
+        if (pkcs7->hashOID == 0) {
+            pkcs7->hashOID = wc_PKCS7_SlhDsaDefaultHashOID(
+                                 pkcs7->publicKeyOID);
+            if (pkcs7->hashOID == 0) {
+                return BAD_FUNC_ARG;
+            }
+        }
+        if (wc_PKCS7_GetDefaultSignedAttribCount(pkcs7) +
+                pkcs7->signedAttribsSz > 0) {
+            ret = wc_PKCS7_SlhDsaCheckDigest(pkcs7->publicKeyOID,
+                                             pkcs7->hashOID);
+            if (ret != 0) {
+                return ret;
+            }
+        }
     }
 #endif
 
@@ -4321,8 +4309,8 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
         }
 
         /* Size and allocate the single signature buffer (one storage path for
-         * every algorithm). Deterministic-size algorithms (RSA and ML-DSA, when
-         * no caller hash is supplied) get their exact size from
+         * every algorithm). Deterministic-size algorithms (RSA, ML-DSA and
+         * SLH-DSA, when no caller hash is supplied) get their exact size from
          * wc_PKCS7_GetSignSize() so the SignerInfo lengths can be reserved
          * before the final signing pass, and the buffer is right-sized.
          *
@@ -4698,11 +4686,12 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
     }
 
     if (hashBuf == NULL && pkcs7->sidType != DEGENERATE_SID) {
-        /* Only RSA (PKCS#1 v1.5) and ML-DSA reach this final signing pass.
-         * ECDSA and RSA-PSS both require a pre-supplied hash and sign earlier
-         * via the immediate-sign (signNow) path. The signature is now produced
-         * over the finalized attributes, and the size reserved during the
-         * sizing pass above is baked into the SignerInfo/SEQUENCE lengths. */
+        /* Only RSA (PKCS#1 v1.5), ML-DSA and SLH-DSA reach this final signing
+         * pass. ECDSA and RSA-PSS both require a pre-supplied hash and sign
+         * earlier via the immediate-sign (signNow) path. The signature is now
+         * produced over the finalized attributes, and the size reserved during
+         * the sizing pass above is baked into the SignerInfo/SEQUENCE
+         * lengths. */
         word32 reservedSigSz = esd->encContentDigestSz;
 
         /* Calculate the final hash and encrypt it. */
@@ -6192,10 +6181,6 @@ static int wc_PKCS7_SlhDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         return MEMORY_E;
     }
 
-    /* Zeroed so that wc_SlhDsaKey_Free() also cleans up after a failed
-     * wc_SlhDsaKey_Init(). */
-    XMEMSET(key, 0, sizeof(*key));
-
     WC_ALLOC_VAR_EX(dCert, DecodedCert, 1, pkcs7->heap, DYNAMIC_TYPE_DCERT,
         { XFREE(key, pkcs7->heap, DYNAMIC_TYPE_SLHDSA);
           return MEMORY_E; });
@@ -6808,11 +6793,16 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
             word32 msgSz = 0;
             int    msgAlloc = 0;
 
-            if (signedAttribSz > 0 &&
-                    wc_PKCS7_SlhDsaCheckDigest(pkcs7->publicKeyOID,
-                                               pkcs7->hashOID) != 0) {
-                ret = SIG_VERIFY_E;
-                break;
+            if (signedAttribSz > 0) {
+                ret = wc_PKCS7_SlhDsaCheckDigest(pkcs7->publicKeyOID,
+                                                 pkcs7->hashOID);
+                /* a too weak digestAlgorithm is a verification failure */
+                if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                    ret = SIG_VERIFY_E;
+                }
+                if (ret != 0) {
+                    break;
+                }
             }
             ret = wc_PKCS7_BuildPureSigMessage(pkcs7, signedAttrib,
                                                signedAttribSz, &msg, &msgSz,

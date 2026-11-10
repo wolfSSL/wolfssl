@@ -93195,7 +93195,6 @@ typedef struct {
     const char* certFile;
     const char* keyFile;
     int         hashOID;
-    int         noSignedAttribs;
 } pkcs7SlhDsaVector;
 
 static wc_test_ret_t pkcs7signed_slhdsa_test(void)
@@ -93228,7 +93227,7 @@ static wc_test_ret_t pkcs7signed_slhdsa_test(void)
         #define SLHDSA_TEST_HASH 0
     #endif
 
-    pkcs7SlhDsaVector vectors[4];
+    pkcs7SlhDsaVector vectors[2];
     testSz = 0;
     XMEMSET(vectors, 0, sizeof(vectors));
 
@@ -93250,23 +93249,10 @@ static wc_test_ret_t pkcs7signed_slhdsa_test(void)
 #endif
 #endif
 
-    /* no-signed-attributes path */
-#ifndef WOLFSSL_SLHDSA_PARAM_NO_128S
-    vectors[testSz].certFile = SLHDSA_CERT_DIR "root-slhdsa-shake-128s.der";
-    vectors[testSz].keyFile  = SLHDSA_CERT_DIR
-                                   "root-slhdsa-shake-128s-priv.der";
-    vectors[testSz].hashOID         = SLHDSA_TEST_HASH;
-    vectors[testSz].noSignedAttribs = 1;
-    testSz++;
-#elif defined(WOLFSSL_SLHDSA_SHA2) && \
-      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128S)
-    vectors[testSz].certFile = SLHDSA_CERT_DIR "root-slhdsa-sha2-128s.der";
-    vectors[testSz].keyFile  = SLHDSA_CERT_DIR
-                                   "root-slhdsa-sha2-128s-priv.der";
-    vectors[testSz].hashOID         = SLHDSA_TEST_HASH;
-    vectors[testSz].noSignedAttribs = 1;
-    testSz++;
-#endif
+    /* the signing keys are 128s only; the fast sets are covered by
+     * pkcs7signed_slhdsa_params_test() */
+    if (testSz == 0)
+        return 0;
 
     XMEMSET(&rng, 0, sizeof(rng));
 
@@ -93280,9 +93266,6 @@ static wc_test_ret_t pkcs7signed_slhdsa_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
     rngInit = 1;
-
-    if (testSz == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
 
     for (i = 0; i < testSz; i++) {
         f = XFOPEN(vectors[i].certFile, "rb");
@@ -93319,13 +93302,6 @@ static wc_test_ret_t pkcs7signed_slhdsa_test(void)
         pkcs7->hashOID      = vectors[i].hashOID;
         pkcs7->privateKey   = key;
         pkcs7->privateKeySz = keySz;
-
-        if (vectors[i].noSignedAttribs) {
-            ret = wc_PKCS7_SetDefaultSignedAttribs(pkcs7,
-                                                   WOLFSSL_NO_ATTRIBUTES);
-            if (ret != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
-        }
 
         encodedSz = wc_PKCS7_EncodeSignedData(pkcs7, out, FOURK_BUF * 6);
         if (encodedSz <= 0)
@@ -93619,33 +93595,19 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
         int              weakHashOID;
         byte             oidLastByte;
     } params[] = {
-#ifdef WOLFSSL_SLHDSA_PARAM_128F
-    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+#if defined(WOLFSSL_SLHDSA_PARAM_128F) && defined(WOLFSSL_SHA3) && \
+    defined(WOLFSSL_SHAKE128)
         { SLHDSA_SHAKE128F, SLH_DSA_SHAKE_128F_TYPE,
           SHAKE128h, 0, 27 },
-    #else
-        { SLHDSA_SHAKE128F, SLH_DSA_SHAKE_128F_TYPE,
-          SHA256h, 0, 27 },
-    #endif
 #endif
-#if defined(WOLFSSL_SHA512)
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256) && !defined(NO_SHA256)
     #ifdef WOLFSSL_SLHDSA_PARAM_192F
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         { SLHDSA_SHAKE192F, SLH_DSA_SHAKE_192F_TYPE,
           SHAKE256h, SHA256h, 29 },
-        #else
-        { SLHDSA_SHAKE192F, SLH_DSA_SHAKE_192F_TYPE,
-          SHA512h, SHA256h, 29 },
-        #endif
     #endif
     #ifdef WOLFSSL_SLHDSA_PARAM_256F
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         { SLHDSA_SHAKE256F, SLH_DSA_SHAKE_256F_TYPE,
           SHAKE256h, SHA256h, 31 },
-        #else
-        { SLHDSA_SHAKE256F, SLH_DSA_SHAKE_256F_TYPE,
-          SHA512h, SHA256h, 31 },
-        #endif
     #endif
 #endif
 #ifdef WOLFSSL_SLHDSA_SHA2
@@ -93672,6 +93634,8 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
     static const byte slhDsaOidPrefix[] = {
         0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03
     };
+    static const byte asnNull[] = { 0x05, 0x00 };
+    word32 nullSz;
     wc_test_ret_t ret = 0;
     WC_RNG rng;
     int rngInit = 0;
@@ -93768,25 +93732,23 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out_lbl);
         out[found] ^= 0x01; /* s <-> f of the same family and level */
         ret = pkcs7_slhdsa_verify(out, (word32)outSz, NULL);
-        if (ret == 0)
+        /* NOT_COMPILED_IN if the other parameter set isn't built */
+        if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E) &&
+                ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out_lbl);
         out[found] ^= 0x01;
 
         /* RFC 9814: the signatureAlgorithm parameters MUST be absent. The
          * field is not covered by the signature, so add NULL parameters after
          * the OID and check that the otherwise valid SignedData is rejected. */
-        {
-            static const byte asnNull[] = { 0x05, 0x00 };
-            word32 nullSz = (word32)outSz;
-
-            ret = pkcs7_der_insert(out, &nullSz, SLHDSA_PKCS7_OUT_SZ,
-                (word32)found + 1, asnNull, sizeof(asnNull));
-            if (ret != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
-            ret = pkcs7_slhdsa_verify(out, nullSz, NULL);
-            if (ret == 0)
-                ERROR_OUT(WC_TEST_RET_ENC_I(i), out_lbl);
-        }
+        nullSz = (word32)outSz;
+        ret = pkcs7_der_insert(out, &nullSz, SLHDSA_PKCS7_OUT_SZ,
+            (word32)found + 1, asnNull, sizeof(asnNull));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        ret = pkcs7_slhdsa_verify(out, nullSz, NULL);
+        if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out_lbl);
 
         /* without signed attributes the content is signed directly */
         outSz = pkcs7_slhdsa_encode(cert, (word32)certSz, key, (word32)keySz,
