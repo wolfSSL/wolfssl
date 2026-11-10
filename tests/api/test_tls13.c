@@ -13849,6 +13849,7 @@ int test_tls13_AEAD_limit_macros(void)
        defined(BUILD_TLS_AES_128_CCM_SHA256) || \
        defined(BUILD_TLS_AES_128_CCM_8_SHA256))) || \
      defined(BUILD_TLS_CHACHA20_POLY1305_SHA256) || \
+     defined(BUILD_TLS_SHA256_SHA256) || \
      (defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
       defined(BUILD_TLS_AES_128_GCM_SHA256)))
 /* Drive the client's encrypt sequence number towards the spec limit for
@@ -13858,8 +13859,7 @@ int test_tls13_AEAD_limit_macros(void)
  * Two writes are exercised:
  *   1. Counter set to limit - 2. After the write the counter must read
  *      limit - 1 (record incremented it by 1) and no KeyUpdate must have
- *      been emitted. CheckTLS13AEADSendLimit and Tls13SeqWrapPending use
- *      `seq >= limit`, so neither
+ *      been emitted. CheckTLS13AEADSendLimit uses `seq >= limit`, so neither
  *      the pre-send check nor the trailing loop check (which runs once more
  *      after the last record before wolfSSL_write exits) is allowed to fire.
  *   2. A second write follows with the counter already sitting at limit - 1
@@ -14050,8 +14050,9 @@ int test_tls13_seq_wrap_KU_chacha20_poly1305_sha256(void)
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(BUILD_TLS_CHACHA20_POLY1305_SHA256)
     ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
-            "TLS13-CHACHA20-POLY1305-SHA256", TLS13_SEQ_REKEY_HI32,
-            TLS13_SEQ_REKEY_LO32, wolfssl_chacha),
+            "TLS13-CHACHA20-POLY1305-SHA256",
+            w64GetHigh32(TLS13_SEQ_REKEY_LIMIT),
+            w64GetLow32(TLS13_SEQ_REKEY_LIMIT), wolfssl_chacha),
             TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
@@ -14065,8 +14066,23 @@ int test_tls13_seq_wrap_KU_aes128_gcm_sha256(void)
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(BUILD_TLS_AES_128_GCM_SHA256)
     ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
-            "TLS13-AES128-GCM-SHA256", TLS13_SEQ_REKEY_HI32,
-            TLS13_SEQ_REKEY_LO32, wolfssl_aes_gcm),
+            "TLS13-AES128-GCM-SHA256", w64GetHigh32(TLS13_SEQ_REKEY_LIMIT),
+            w64GetLow32(TLS13_SEQ_REKEY_LIMIT), wolfssl_aes_gcm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_seq_wrap_KU_sha256_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_SHA256_SHA256)
+    ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-SHA256-SHA256", w64GetHigh32(TLS13_SEQ_REKEY_LIMIT),
+            w64GetLow32(TLS13_SEQ_REKEY_LIMIT), wolfssl_cipher_null),
             TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
@@ -14089,24 +14105,27 @@ int test_tls13_seq_wrap_hard_stop(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     if (EXPECT_SUCCESS() && ssl_c != NULL) {
-        ssl_c->keys.sequence_number_hi = 0xFFFFFFFF;
-        ssl_c->keys.sequence_number_lo = 0xFFFFFFFF;
+        ssl_c->keys.sequence_number_hi = w64GetHigh32(TLS13_SEQ_MAX);
+        ssl_c->keys.sequence_number_lo = w64GetLow32(TLS13_SEQ_MAX);
         kuCount = ssl_c->keys.keyUpdateCount;
     }
     test_memio_clear_buffer(&test_ctx, 0);
 
     ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
-            WOLFSSL_FATAL_ERROR);
+        WOLFSSL_FATAL_ERROR);
+    /* SEQUENCE_NUMBER_E is masked by BUILD_MSG_ERROR */
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
-            WC_NO_ERR_TRACE(BUILD_MSG_ERROR));
+        WC_NO_ERR_TRACE(BUILD_MSG_ERROR));
     ExpectIntEQ(test_ctx.s_len, 0);
     if (EXPECT_SUCCESS() && ssl_c != NULL) {
-        ExpectIntEQ(ssl_c->keys.sequence_number_hi, 0xFFFFFFFF);
-        ExpectIntEQ(ssl_c->keys.sequence_number_lo, 0xFFFFFFFF);
+        ExpectIntEQ(ssl_c->keys.sequence_number_hi,
+            w64GetHigh32(TLS13_SEQ_MAX));
+        ExpectIntEQ(ssl_c->keys.sequence_number_lo,
+            w64GetLow32(TLS13_SEQ_MAX));
         ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, kuCount));
     }
 
@@ -16547,7 +16566,7 @@ static int test_tls13_cryptocb_pend_one(int target, int mutual)
     char buf[64];
     w64wrapper kuCount = w64From32(0, 0);
 #ifdef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
-    w64wrapper limit = w64From32(TLS13_SEQ_REKEY_HI32, TLS13_SEQ_REKEY_LO32);
+    w64wrapper limit = TLS13_SEQ_REKEY_LIMIT;
 #else
     w64wrapper limit = AEAD_AES_LIMIT;
 #endif

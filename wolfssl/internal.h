@@ -3351,8 +3351,8 @@ typedef struct Keys {
  * post-handshake auth cannot be interrupted by a KeyUpdate, and at its
  * largest (a 2^24 byte Certificate and a 2^16 byte CertificateVerify in 512
  * byte max_fragment_length records) it takes about 2^15 records. */
-#define TLS13_SEQ_REKEY_HI32 0xFFFFFFFFU
-#define TLS13_SEQ_REKEY_LO32 0xFFFF0000U
+#define TLS13_SEQ_REKEY_LIMIT w64From32(0xFFFFFFFFU, 0xFFFF0000U)
+#define TLS13_SEQ_MAX         w64From32(0xFFFFFFFFU, 0xFFFFFFFFU)
 
 /* Forward declare opaque pointer to make available for func def */
 typedef struct Options Options;
@@ -8119,7 +8119,6 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 #ifdef WOLFSSL_TLS13
     WOLFSSL_LOCAL int SendTls13KeyUpdate(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
-WOLFSSL_LOCAL int Tls13SeqWrapPending(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS

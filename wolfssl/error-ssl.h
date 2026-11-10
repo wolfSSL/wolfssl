@@ -260,7 +260,9 @@ enum wolfSSL_ErrorCodes {
     CHAIN_VERIFY_UNSUPPORTED_E   = -525,   /* Chain verify callback used with
                                             * DTLS, RPK or OCSP stapling */
 
-    WOLFSSL_LAST_E               = -525
+    DTLS_MSG_SEQUENCE_E          = -526,   /* DTLS message_seq would wrap */
+
+    WOLFSSL_LAST_E               = -526
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };

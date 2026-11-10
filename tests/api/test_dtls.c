@@ -13715,6 +13715,424 @@ int test_dtls13_scheduled_work_after_shutdown(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+/* Set the client's sequence number and align the server's peer count. */
+static void test_dtls13_seq_wrap_stage(WOLFSSL* ssl_c, WOLFSSL* ssl_s,
+    w64wrapper seq)
+{
+    Dtls13Epoch* e;
+
+    if (ssl_c == NULL || ssl_s == NULL)
+        return;
+
+    e = Dtls13GetEpoch(ssl_c, ssl_c->dtls13Epoch);
+    if (e != NULL)
+        e->nextSeqNumber = seq;
+    e = Dtls13GetEpoch(ssl_s, ssl_s->dtls13PeerEpoch);
+    if (e != NULL)
+        e->nextPeerSeqNumber = seq;
+}
+#endif
+
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    ((!defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+      (defined(BUILD_TLS_AES_128_GCM_SHA256) || \
+       defined(BUILD_TLS_AES_256_GCM_SHA384) || \
+       defined(BUILD_TLS_AES_128_CCM_SHA256) || \
+       defined(BUILD_TLS_AES_128_CCM_8_SHA256))) || \
+     defined(BUILD_TLS_CHACHA20_POLY1305_SHA256) || \
+     defined(BUILD_TLS_SHA256_SHA256) || \
+     (defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+      defined(BUILD_TLS_AES_128_GCM_SHA256)))
+/* Drive the client's encrypt sequence number towards the limit for `suite` and
+ * verify SendData's KeyUpdate trigger fires at exactly the right boundary.
+ *
+ * Three writes are exercised:
+ *   1. Counter set to limit - 2. After the write the counter must read
+ *      limit - 1 and no KeyUpdate must have been emitted.
+ *   2. A second write follows with the counter at limit - 1. The user record
+ *      bumps the counter to limit and the trailing check in SendData's loop
+ *      sends the KeyUpdate at seq = limit.
+ *   3. A third write before the KeyUpdate is ACKed. It must not send a second
+ *      KeyUpdate and its record stays in the old epoch.
+ *
+ * Unlike TLS, the sending keys only rotate once the KeyUpdate is ACKed, so the
+ * ACK is processed afterwards and the new epoch is checked with a round trip
+ * in each direction. */
+static int test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(const char* suite,
+        word32 limit_hi, word32 limit_lo, int expected_bulk_cipher)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "post-limit-record";
+    char buf[sizeof(msg)];
+    int written;
+    int i;
+    Dtls13Epoch* e = NULL;
+    w64wrapper epoch = w64From32(0, 0);
+    w64wrapper peerEpoch = w64From32(0, 0);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = suite;
+    test_ctx.s_ciphers = suite;
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Process what is left of the handshake in both directions. */
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), -1);
+    }
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_c), 0);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL && ssl_s != NULL) {
+        /* Sanity check: the negotiated bulk cipher matches what the caller
+         * intends to exercise. If a build flag combination falls through to
+         * a different suite, the limit constant would be wrong. */
+        ExpectIntEQ(ssl_c->specs.bulk_cipher_algorithm, expected_bulk_cipher);
+
+        epoch = ssl_c->dtls13Epoch;
+        peerEpoch = ssl_s->dtls13PeerEpoch;
+
+        /* Stage the counters two below the limit so the first write stays
+         * comfortably below the trigger threshold. */
+        test_dtls13_seq_wrap_stage(ssl_c, ssl_s,
+            w64From32(limit_hi, limit_lo - 2));
+    }
+
+    /* First write: below the limit, no KeyUpdate expected. */
+    written = wolfSSL_write(ssl_c, msg, (int)sizeof(msg));
+    ExpectIntEQ(written, (int)sizeof(msg));
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->dtls13EncryptEpoch->nextSeqNumber,
+            w64From32(limit_hi, limit_lo - 1)));
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 0);
+    }
+
+    /* Server consumes the below-limit record with its existing keys. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+
+    /* Second write: the client's counter is now at limit-1. Sending this
+     * record will push it to limit, at which point the trailing check
+     * inside SendData's loop fires the KeyUpdate. */
+    written = wolfSSL_write(ssl_c, msg, (int)sizeof(msg));
+    ExpectIntEQ(written, (int)sizeof(msg));
+
+    /* The KeyUpdate took seq = limit, in the old epoch. */
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->dtls13EncryptEpoch->nextSeqNumber,
+            w64From32(limit_hi, limit_lo + 1)));
+        ExpectTrue(w64Equal(ssl_c->dtls13Epoch, epoch));
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 1);
+    }
+
+    /* Third write: nothing is ACKed yet, so there is no second KeyUpdate and
+     * the record still uses the old epoch. */
+    written = wolfSSL_write(ssl_c, msg, (int)sizeof(msg));
+    ExpectIntEQ(written, (int)sizeof(msg));
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->dtls13EncryptEpoch->nextSeqNumber,
+            w64From32(limit_hi, limit_lo + 2)));
+        ExpectTrue(w64Equal(ssl_c->dtls13Epoch, epoch));
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 1);
+    }
+
+    /* The server reads the user record (seq = limit - 1) before it sees the
+     * KeyUpdate record. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+    if (EXPECT_SUCCESS() && ssl_s != NULL) {
+        ExpectNotNull(e = Dtls13GetEpoch(ssl_s, ssl_s->dtls13PeerEpoch));
+        ExpectTrue(w64Equal(e->nextPeerSeqNumber,
+            w64From32(limit_hi, limit_lo)));
+    }
+
+    /* The KeyUpdate is next on the wire, at seq = limit, followed by the third
+     * record under the old epoch. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    if (EXPECT_SUCCESS() && ssl_s != NULL) {
+        w64Increment(&peerEpoch);
+        ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, peerEpoch));
+        ExpectNotNull(e = Dtls13GetEpoch(ssl_s, ssl_s->dtls13PeerEpoch));
+        ExpectTrue(w64IsZero(e->nextPeerSeqNumber));
+    }
+
+    /* The ACK moves the client to a new epoch with a new sequence space. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        w64Increment(&epoch);
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 0);
+        ExpectTrue(w64Equal(ssl_c->dtls13Epoch, epoch));
+        ExpectTrue(w64LT(ssl_c->dtls13EncryptEpoch->nextSeqNumber,
+            w64From32(limit_hi, limit_lo)));
+    }
+
+    /* The new keys work in both directions. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_dtls13_AEAD_limit_KU_aes128_gcm_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    ExpectIntEQ(test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES128-GCM-SHA256", w64GetHigh32(AEAD_AES_LIMIT),
+            w64GetLow32(AEAD_AES_LIMIT), wolfssl_aes_gcm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_AEAD_limit_KU_aes256_gcm_sha384(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384)
+    ExpectIntEQ(test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES256-GCM-SHA384", w64GetHigh32(AEAD_AES_LIMIT),
+            w64GetLow32(AEAD_AES_LIMIT), wolfssl_aes_gcm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_AEAD_limit_KU_aes128_ccm_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_CCM_SHA256)
+    ExpectIntEQ(test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES128-CCM-SHA256", w64GetHigh32(DTLS_AEAD_AES_CCM_LIMIT),
+            w64GetLow32(DTLS_AEAD_AES_CCM_LIMIT), wolfssl_aes_ccm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_AEAD_limit_KU_aes128_ccm_8_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_CCM_8_SHA256)
+    ExpectIntEQ(test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES128-CCM-8-SHA256", w64GetHigh32(DTLS_AEAD_AES_CCM_LIMIT),
+            w64GetLow32(DTLS_AEAD_AES_CCM_LIMIT), wolfssl_aes_ccm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* When the AEAD limit exceeds 2^64 - 1 or is unbounded it would wrap first, so
+ * check that rekey happens before then */
+int test_dtls13_seq_wrap_KU_chacha20_poly1305_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_CHACHA20_POLY1305_SHA256)
+    ExpectIntEQ(test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-CHACHA20-POLY1305-SHA256",
+            w64GetHigh32(TLS13_SEQ_REKEY_LIMIT),
+            w64GetLow32(TLS13_SEQ_REKEY_LIMIT), wolfssl_chacha),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_seq_wrap_KU_aes128_gcm_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    ExpectIntEQ(test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES128-GCM-SHA256", w64GetHigh32(TLS13_SEQ_REKEY_LIMIT),
+            w64GetLow32(TLS13_SEQ_REKEY_LIMIT), wolfssl_aes_gcm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_seq_wrap_KU_sha256_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_SHA256_SHA256)
+    ExpectIntEQ(test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-SHA256-SHA256", w64GetHigh32(TLS13_SEQ_REKEY_LIMIT),
+            w64GetLow32(TLS13_SEQ_REKEY_LIMIT), wolfssl_cipher_null),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The last sequence number is never used. */
+int test_dtls13_seq_wrap_hard_stop(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "wrap-record";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    test_dtls13_seq_wrap_stage(ssl_c, ssl_s, TLS13_SEQ_REKEY_LIMIT);
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    /* The write sends the KeyUpdate and then its record. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(test_ctx.s_msg_count, 2);
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 1);
+
+    test_dtls13_seq_wrap_stage(ssl_c, ssl_s, TLS13_SEQ_MAX);
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(SEQUENCE_NUMBER_E));
+    ExpectIntEQ(test_ctx.s_len, 0);
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->dtls13EncryptEpoch->nextSeqNumber,
+            TLS13_SEQ_MAX));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The handshake's message_seq counter must not wrap. */
+int test_dtls13_message_seq_hard_stop(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "message-seq-record";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 1, NULL), -1);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ssl_c->keys.dtls_handshake_number = WOLFSSL_MAX_16BIT;
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 9, NULL), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+        WC_NO_ERR_TRACE(DTLS_MSG_SEQUENCE_E));
+    ExpectIntEQ(test_ctx.s_len, 0);
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ExpectIntEQ(ssl_c->keys.dtls_handshake_number, WOLFSSL_MAX_16BIT);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* After the handshake, the KeyUpdate a write owes at the sequence limit
+     * can't be sent either. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ssl_c->keys.dtls_handshake_number = WOLFSSL_MAX_16BIT;
+    test_dtls13_seq_wrap_stage(ssl_c, ssl_s, TLS13_SEQ_REKEY_LIMIT);
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(DTLS_MSG_SEQUENCE_E));
+    ExpectIntEQ(test_ctx.s_len, 0);
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->keys.dtls_handshake_number, WOLFSSL_MAX_16BIT);
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_dtls_get0_peer(void)
 {
     EXPECT_DECLS;
