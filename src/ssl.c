@@ -2295,6 +2295,11 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
     ret = SetMinVersionHelper(&ssl->options.minDowngrade, version);
     if (ret == WOLFSSL_SUCCESS) {
         ssl->options.minVersionSet = 1;
+    #ifdef OPENSSL_EXTRA
+        /* replaces a min set with wolfSSL_set_min_proto_version() */
+        ssl->options.mask &= ~ssl->options.minProtoMask;
+        ssl->options.minProtoMask = 0;
+    #endif
         RestoreDowngrade(ssl);
     }
 
@@ -5126,6 +5131,7 @@ typedef struct ProtoLimits {
     byte          major;
     byte          maxMinor;
     byte          minDowngrade;
+    byte          maxProto;     /* max set to the highest available */
 } ProtoLimits;
 
 static void getCtxProtoLimits(const WOLFSSL_CTX* ctx, ProtoLimits* lim)
@@ -5136,6 +5142,7 @@ static void getCtxProtoLimits(const WOLFSSL_CTX* ctx, ProtoLimits* lim)
     lim->major = ctx->method->version.major;
     lim->maxMinor = ctx->method->version.minor;
     lim->minDowngrade = ctx->minDowngrade;
+    lim->maxProto = (byte)ctx->maxProto;
 }
 
 static void setCtxProtoLimits(WOLFSSL_CTX* ctx, const ProtoLimits* lim)
@@ -5154,23 +5161,92 @@ static void setCtxProtoLimits(WOLFSSL_CTX* ctx, const ProtoLimits* lim)
     }
 }
 
-/* An SSL does not record the options its setters set, so they only add
- * options. */
 static void getSslProtoLimits(const WOLFSSL* ssl, ProtoLimits* lim)
 {
     lim->mask = ssl->options.mask;
-    lim->minProtoMask = 0;
-    lim->maxProtoMask = 0;
+    lim->minProtoMask = ssl->options.minProtoMask;
+    lim->maxProtoMask = ssl->options.maxProtoMask;
     lim->major = ssl->version.major;
     lim->maxMinor = ssl->version.minor;
     lim->minDowngrade = ssl->options.minDowngrade;
+    lim->maxProto = (byte)ssl->options.maxProto;
 }
 
-/* An SSL max is held in the mask only, so the SSL version is kept. */
-static void setSslProtoLimits(WOLFSSL* ssl, const ProtoLimits* lim)
+/* Whether the SSL TLS version is bounded by the max of the CTX. A pinned
+ * version is not. */
+static int sslHasCtxMax(const WOLFSSL* ssl, const ProtoLimits* lim)
 {
+    return lim->major == SSLv3_MAJOR && ssl->options.downgrade;
+}
+
+/* Returns the TLS minor an SSL version is raised to for the limits, or 0
+ * when it is kept. A lower max is held in the mask only. The handshake takes
+ * the CTX max as the highest version, so the SSL is not raised above it. */
+static byte getSslRaisedMinor(const WOLFSSL* ssl, const ProtoLimits* lim)
+{
+    int top;
+    byte minor;
+
+    if (!sslHasCtxMax(ssl, lim))
+        return 0;
+    top = GetMaxProtoVersion((long)lim->mask);
+    if (top <= 0)
+        return 0;
+    minor = (byte)top;
+    if (minor > lim->maxMinor)
+        minor = lim->maxMinor;
+    if (minor > ssl->ctx->method->version.minor)
+        minor = ssl->ctx->method->version.minor;
+    return (minor > ssl->version.minor) ? minor : 0;
+}
+
+/* Stores the limits in ssl. Fails, leaving ssl unchanged, for a min above the
+ * CTX max or when the suites for a raised version can't be allocated. */
+static int setSslProtoLimits(WOLFSSL* ssl, const ProtoLimits* lim)
+{
+    byte minor = getSslRaisedMinor(ssl, lim);
+
+    if (sslHasCtxMax(ssl, lim) &&
+            lim->minDowngrade > ssl->ctx->method->version.minor) {
+        WOLFSSL_MSG("Min above the max of the CTX");
+        return WOLFSSL_FAILURE;
+    }
+    if (minor != 0 && ssl->options.side != WOLFSSL_NEITHER_END &&
+            AllocateSuites(ssl) != 0) {
+        return WOLFSSL_FAILURE;
+    }
+
     ssl->options.mask = lim->mask;
+    ssl->options.minProtoMask = lim->minProtoMask;
+    ssl->options.maxProtoMask = lim->maxProtoMask;
     ssl->options.minDowngrade = lim->minDowngrade;
+    if (minor != 0) {
+        ssl->version.minor = minor;
+        if (ssl->options.side != WOLFSSL_NEITHER_END) {
+            word16 haveRSA = 1;
+            word16 havePSK = 0;
+            int    keySz   = 0;
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+        #ifndef NO_CERTS
+            keySz = ssl->buffers.keySz;
+        #endif
+            /* derive the suites for the raised version */
+            ResetSuitesHashSigAlgo(ssl->suites);
+            InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                ssl->options.side == WOLFSSL_CLIENT_END ? TRUE :
+                ssl->options.haveDH,
+                ssl->options.haveECDSAsig, ssl->options.haveECC, TRUE,
+                ssl->options.haveStaticECC, ssl->options.useAnon,
+                TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+        }
+    }
+
+    return WOLFSSL_SUCCESS;
 }
 
 /* Disables versions for a min or max limit. Only options not already set are
@@ -5194,11 +5270,17 @@ static int checkProtoLimits(const ProtoLimits* lim)
 }
 
 /* Applies a min version to the limits: sets minDowngrade and disables the TLS
- * versions below it. Fails for an unknown version or when no version is left.
+ * versions below it. Fails for an unknown version, a version of the other
+ * major or when no version is left.
  */
 static int setMinProtoVersion(ProtoLimits* lim, int version)
 {
     WOLFSSL_ENTER("setMinProtoVersion");
+
+    if ((version >> 8) != lim->major) {
+        WOLFSSL_MSG("Mismatched protocol version");
+        return WOLFSSL_FAILURE;
+    }
 
     switch (version) {
 #ifndef NO_TLS
@@ -5250,6 +5332,61 @@ static int setMinProtoVersion(ProtoLimits* lim, int version)
     return checkProtoLimits(lim);
 }
 
+/* Replaces the min of the limits. Version 0 picks the lowest version left. A
+ * min above the max drops the max, so the highest version left is the max.
+ */
+static int applyMinProtoVersion(ProtoLimits* lim, int version)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int proto = 0;
+    int maxProto;
+    int i;
+    int idx;
+
+    /* drop the versions disabled for the previous min */
+    lim->mask &= ~lim->minProtoMask;
+    lim->minProtoMask = 0;
+
+    if (version != 0) {
+        proto = version;
+        for (i = 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            if (protoVerTbl[i] == version) {
+                break;
+            }
+        }
+    }
+    else {
+        /* when 0 is specified as version, try to find out the min version */
+        for (i = 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            ret = setMinProtoVersion(lim, protoVerTbl[i]);
+            if (ret == WOLFSSL_SUCCESS) {
+                proto = protoVerTbl[i];
+                break;
+            }
+        }
+    }
+
+    /* i is the table index of the min and idx the one of the max */
+    maxProto = lim->maxProto ? 0 : GetMaxProtoVersion((long)lim->mask);
+    for (idx = 0; (unsigned)idx < NUMBER_OF_PROTOCOLS; idx++) {
+        if (protoVerTbl[idx] == maxProto) {
+            break;
+        }
+    }
+    if (idx < i) {
+        lim->mask &= ~lim->maxProtoMask;
+        lim->maxProtoMask = 0;
+        if (lim->major == SSLv3_MAJOR) {
+            maxProto = GetMaxProtoVersion((long)lim->mask);
+            if (maxProto > 0) {
+                lim->maxMinor = (byte)maxProto;
+            }
+        }
+    }
+
+    return setMinProtoVersion(lim, proto);
+}
+
 /**
  * wolfSSL_CTX_set_min_proto_version attempts to set the minimum protocol
  * version to use by SSL objects created from this WOLFSSL_CTX.
@@ -5275,10 +5412,6 @@ static int setMinProtoVersion(ProtoLimits* lim, int version)
 int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
 {
     int ret;
-    int proto    = 0;
-    int maxProto = 0;
-    int i;
-    int idx = 0;
     ProtoLimits lim;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_min_proto_version");
@@ -5286,52 +5419,9 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     if (ctx == NULL) {
         return WOLFSSL_FAILURE;
     }
-#ifdef WOLFSSL_DTLS
-    if ((version >> 8) == DTLS_MAJOR &&
-            ctx->method->version.major != DTLS_MAJOR) {
-        WOLFSSL_MSG("Mismatched protocol version");
-        return WOLFSSL_FAILURE;
-    }
-#endif
 
     getCtxProtoLimits(ctx, &lim);
-    /* drop the versions disabled for the previous min */
-    lim.mask &= ~lim.minProtoMask;
-    lim.minProtoMask = 0;
-
-    if (version != 0) {
-        proto = version;
-        for (i = 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
-            if (protoVerTbl[i] == version) {
-                break;
-            }
-        }
-    }
-    else {
-        /* when 0 is specified as version, try to find out the min version */
-        for (i = 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
-            ret = setMinProtoVersion(&lim, protoVerTbl[i]);
-            if (ret == WOLFSSL_SUCCESS) {
-                proto = protoVerTbl[i];
-                break;
-            }
-        }
-    }
-
-    /* A min above the max drops the NO_* options set for the max. i is the
-     * table index of the min and idx the one of the max. */
-    maxProto = ctx->maxProto ? 0 : GetMaxProtoVersion((long)lim.mask);
-    for (idx = 0; (unsigned)idx < NUMBER_OF_PROTOCOLS; idx++) {
-        if (protoVerTbl[idx] == maxProto) {
-            break;
-        }
-    }
-    if (idx < i) {
-        lim.mask &= ~lim.maxProtoMask;
-        lim.maxProtoMask = 0;
-    }
-
-    ret = setMinProtoVersion(&lim, proto);
+    ret = applyMinProtoVersion(&lim, version);
     if (ret == WOLFSSL_SUCCESS) {
         setCtxProtoLimits(ctx, &lim);
         ctx->minProto = (version == 0);
@@ -5395,6 +5485,36 @@ static int setMaxProtoVersion(ProtoLimits* lim, int ver)
 }
 
 
+/* Replaces the max of the limits. Version 0 picks the highest version left.
+ */
+static int applyMaxProtoVersion(ProtoLimits* lim, int version)
+{
+    int i;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+
+    /* drop the versions disabled for the previous max */
+    lim->mask &= ~lim->maxProtoMask;
+    lim->maxProtoMask = 0;
+    if (version != 0) {
+        ret = setMaxProtoVersion(lim, version);
+    }
+    else {
+        /* when 0 is specified as version, try to find out the max version
+         * from the bottom to top of the protoverTbl.
+         */
+        for (i = NUMBER_OF_PROTOCOLS -1; i >= 0; i--) {
+            ret = setMaxProtoVersion(lim, protoVerTbl[i]);
+            if (ret == WOLFSSL_SUCCESS) {
+                break;
+            }
+        }
+    }
+    lim->maxProto = (version == 0);
+
+    return ret;
+}
+
+
 /**
  * wolfSSL_CTX_set_max_proto_version attempts to set the maximum protocol
  * version to use by SSL objects created from this WOLFSSL_CTX.
@@ -5419,7 +5539,6 @@ static int setMaxProtoVersion(ProtoLimits* lim, int ver)
  */
 int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
 {
-    int i;
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     ProtoLimits lim;
 
@@ -5430,27 +5549,10 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     getCtxProtoLimits(ctx, &lim);
-    /* drop the versions disabled for the previous max */
-    lim.mask &= ~lim.maxProtoMask;
-    lim.maxProtoMask = 0;
-    if (version != 0) {
-        ret = setMaxProtoVersion(&lim, version);
-    }
-    else {
-        /* when 0 is specified as version, try to find out the max version
-         * from the bottom to top of the protoverTbl.
-         */
-        for (i = NUMBER_OF_PROTOCOLS -1; i >= 0; i--) {
-            ret = setMaxProtoVersion(&lim, protoVerTbl[i]);
-            if (ret == WOLFSSL_SUCCESS) {
-                break;
-            }
-        }
-    }
-
+    ret = applyMaxProtoVersion(&lim, version);
     if (ret == WOLFSSL_SUCCESS) {
         setCtxProtoLimits(ctx, &lim);
-        ctx->maxProto = (version == 0);
+        ctx->maxProto = lim.maxProto;
     }
 
     return ret;
@@ -5458,8 +5560,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
 
 int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
 {
-    int i;
-    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int ret;
     ProtoLimits lim;
 
     WOLFSSL_ENTER("wolfSSL_set_min_proto_version");
@@ -5469,20 +5570,12 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
     }
 
     getSslProtoLimits(ssl, &lim);
-    if (version != 0) {
-        ret = setMinProtoVersion(&lim, version);
-    }
-    else {
-        /* when 0 is specified as version, try to find out the min version */
-        for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
-            ret = setMinProtoVersion(&lim, protoVerTbl[i]);
-            if (ret == WOLFSSL_SUCCESS)
-                break;
-        }
-    }
-
+    ret = applyMinProtoVersion(&lim, version);
     if (ret == WOLFSSL_SUCCESS) {
-        setSslProtoLimits(ssl, &lim);
+        ret = setSslProtoLimits(ssl, &lim);
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->options.minProto = (version == 0);
         /* Version 0 picks the lowest, so the user set no minimum */
         ssl->options.minVersionSet = (version != 0);
         RestoreDowngrade(ssl);
@@ -5493,8 +5586,7 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
 
 int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int version)
 {
-    int i;
-    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int ret;
     ProtoLimits lim;
 
     WOLFSSL_ENTER("wolfSSL_set_max_proto_version");
@@ -5504,22 +5596,17 @@ int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int version)
     }
 
     getSslProtoLimits(ssl, &lim);
-    if (version != 0) {
-        ret = setMaxProtoVersion(&lim, version);
+    ret = applyMaxProtoVersion(&lim, version);
+    if (ret == WOLFSSL_SUCCESS && version != 0 && sslHasCtxMax(ssl, &lim) &&
+            lim.maxMinor > ssl->ctx->method->version.minor) {
+        WOLFSSL_MSG("Max above the max of the CTX");
+        ret = WOLFSSL_FAILURE;
     }
-    else {
-        /* when 0 is specified as version, try to find out the max version
-         * from the bottom to top of the protoverTbl.
-         */
-        for (i = NUMBER_OF_PROTOCOLS -1; i >= 0; i--) {
-            ret = setMaxProtoVersion(&lim, protoVerTbl[i]);
-            if (ret == WOLFSSL_SUCCESS)
-                break;
-        }
-    }
-
     if (ret == WOLFSSL_SUCCESS) {
-        setSslProtoLimits(ssl, &lim);
+        ret = setSslProtoLimits(ssl, &lim);
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->options.maxProto = lim.maxProto;
     }
 
     return ret;
@@ -7557,6 +7644,11 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     }
 
     ssl->options.mask = (unsigned long)wolf_set_options((long)ssl->options.mask, op);
+#ifdef OPENSSL_EXTRA
+    /* Versions disabled here belong to the application */
+    ssl->options.minProtoMask &= ~(unsigned long)op;
+    ssl->options.maxProtoMask &= ~(unsigned long)op;
+#endif
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
         WOLFSSL_MSG("Disabling TLS 1.3");
@@ -7737,6 +7829,8 @@ long wolfSSL_clear_options(WOLFSSL* ssl, long opt)
     if(ssl == NULL)
         return WOLFSSL_FAILURE;
     ssl->options.mask &= (unsigned long)~opt;
+    ssl->options.minProtoMask &= (unsigned long)~opt;
+    ssl->options.maxProtoMask &= (unsigned long)~opt;
     return (long)ssl->options.mask;
 }
 
