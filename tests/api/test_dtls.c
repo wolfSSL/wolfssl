@@ -17010,9 +17010,8 @@ static int test_dtls13_ctx_max_proto_reset(void)
     return EXPECT_RESULT();
 }
 
-/* A CTX maximum moves a fixed DTLS method down and back up, as it does a fixed
- * TLS method. */
-static int test_dtls13_ctx_max_proto_fixed(method_provider method)
+/* A CTX maximum never moves a fixed DTLS method, and one below it fails. */
+static int test_dtls13_ctx_max_proto_fixed(method_provider method, int ver)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -17023,17 +17022,19 @@ static int test_dtls13_ctx_max_proto_fixed(method_provider method)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
         method, wolfDTLS_server_method), 0);
     ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, DTLS1_2_VERSION),
-        WOLFSSL_SUCCESS);
+        ver == DTLS1_2_VERSION ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
+#ifndef NO_OLD_TLS
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, DTLS1_VERSION),
+        WOLFSSL_FAILURE);
+#endif
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, DTLS1_3_VERSION),
         WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, DTLS1_2_VERSION),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         method, wolfDTLS_server_method), 0);
-    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_3_VERSION);
+    ExpectIntEQ(wolfSSL_version(ssl_c), ver);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_3_VERSION);
+    ExpectIntEQ(wolfSSL_version(ssl_s), ver);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -18327,10 +18328,10 @@ int test_dtls13_no_tls13_option(void)
     ExpectIntEQ(test_dtls13_mask_client_check(), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_mask_negotiate(), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_ctx_max_proto_reset(), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_ctx_max_proto_fixed(wolfDTLSv1_3_client_method),
-        TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_ctx_max_proto_fixed(wolfDTLSv1_2_client_method),
-        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_ctx_max_proto_fixed(wolfDTLSv1_3_client_method,
+        DTLS1_3_VERSION), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_ctx_max_proto_fixed(wolfDTLSv1_2_client_method,
+        DTLS1_2_VERSION), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_min_max_tls_version(0), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_min_max_tls_version(1), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_min_max_tls_version(2), TEST_SUCCESS);
