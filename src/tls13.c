@@ -11458,6 +11458,26 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     }
                     ssl->buffers.keyType = ssl->buffers.altKeyType;
                     ssl->buffers.keySz = ssl->buffers.altKeySz;
+                #ifdef HAVE_ECC
+                    /* hashAlgo was picked for the native key. */
+                    if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
+                        switch (ssl->buffers.keySz) {
+                        #ifdef WOLFSSL_SHA384
+                            case 48:
+                                ssl->options.hashAlgo = sha384_mac;
+                                break;
+                        #endif
+                        #ifdef WOLFSSL_SHA512
+                            case 66:
+                                ssl->options.hashAlgo = sha512_mac;
+                                break;
+                        #endif
+                            default:
+                                ssl->options.hashAlgo = sha256_mac;
+                                break;
+                        }
+                    }
+                #endif
                     /* If we own it, free key before overriding it. */
                     if (ssl->buffers.weOwnKey) {
                         FreeKeyDer(&ssl->buffers.key);
@@ -13779,6 +13799,7 @@ exit_dcv:
 #endif /* WOLFSSL_ASYNC_CRYPT */
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
+        ssl->options.peerAuthGood = 0;
 
         if (ret != WC_NO_ERR_TRACE(INVALID_PARAMETER)) {
             SendAlert(ssl, alert_fatal, decrypt_error);

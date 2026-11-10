@@ -1224,27 +1224,30 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     !defined(WOLFSSL_NO_ML_DSA_44) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     !defined(NO_BIO)
 /* do_dual_alg_root_certgen() with ECC as the base algorithm and ML-DSA as the
- * alternative one. */
+ * alternative one, or the reverse when mldsaNative is set. */
 static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
                                           char *sapkiFile, char *altPrivFile,
-                                          int level)
+                                          int level, int mldsaNative)
 {
     EXPECT_DECLS;
     FILE* file = NULL;
     Cert newCert;
     DecodedCert preTBS;
-    int sigOid = (level == WC_ML_DSA_65) ? CTC_ML_DSA_65 : CTC_ML_DSA_44;
-    int keyType = (level == WC_ML_DSA_65) ? ML_DSA_65_TYPE : ML_DSA_44_TYPE;
+    int mldsaOid = (level == WC_ML_DSA_65) ? CTC_ML_DSA_65 : CTC_ML_DSA_44;
+    int mldsaType = (level == WC_ML_DSA_65) ? ML_DSA_65_TYPE : ML_DSA_44_TYPE;
+    int sigOid = mldsaNative ? CTC_SHA256wECDSA : mldsaOid;
+    int keyType = mldsaNative ? ECC_TYPE : mldsaType;
+    int caType = mldsaNative ? mldsaType : ECC_TYPE;
 
     /* holds the CA key, then the alternative key, then the scratch cert */
-    byte caKeyBuf[LARGE_TEMP_SZ];
+    byte caKeyBuf[2 * LARGE_TEMP_SZ];
     word32 caKeySz = LARGE_TEMP_SZ;
     byte sapkiBuf[ML_DSA_LEVEL3_PUB_KEY_DER_SIZE];
     word32 sapkiSz = ML_DSA_LEVEL3_PUB_KEY_DER_SIZE;
     word32 altPrivSz = LARGE_TEMP_SZ;
     byte altSigAlgBuf[MAX_ALGO_SZ];
     word32 altSigAlgSz = MAX_ALGO_SZ;
-    word32 scratchSz = LARGE_TEMP_SZ;
+    word32 scratchSz = (word32)sizeof(caKeyBuf);
     byte preTbsBuf[LARGE_TEMP_SZ];
     word32 preTbsSz = LARGE_TEMP_SZ;
     /* the signature wrapped in a BIT STRING */
@@ -1254,17 +1257,22 @@ static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
     /* the ML-DSA public key and signature do not fit in LARGE_TEMP_SZ */
     word32 outSz = 2 * LARGE_TEMP_SZ;
     WC_RNG rng;
-    ecc_key caKey;
-    wc_MlDsaKey altCaKey;
+    ecc_key eccKey;
+    wc_MlDsaKey mldsaKey;
+    void* caKey = mldsaNative ? (void*)&mldsaKey : (void*)&eccKey;
+    void* altCaKey = mldsaNative ? (void*)&eccKey : (void*)&mldsaKey;
     word32 idx = 0;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
-    XMEMSET(&caKey, 0, sizeof(ecc_key));
-    XMEMSET(&altCaKey, 0, sizeof(wc_MlDsaKey));
+    XMEMSET(&eccKey, 0, sizeof(ecc_key));
+    XMEMSET(&mldsaKey, 0, sizeof(wc_MlDsaKey));
 
     ExpectNotNull(outBuf = (byte*)XMALLOC(outSz, NULL,
                   DYNAMIC_TYPE_TMP_BUFFER));
     ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&eccKey), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&mldsaKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&mldsaKey, level), 0);
     XMEMSET(caKeyBuf, 0, caKeySz);
     ExpectNotNull(file = fopen(caKeyFile, "rb"));
     ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
@@ -1272,9 +1280,15 @@ static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
         fclose(file);
         file = NULL;
     }
-    ExpectIntEQ(wc_ecc_init(&caKey), 0);
     idx = 0;
-    ExpectIntEQ(wc_EccPrivateKeyDecode(caKeyBuf, &idx, &caKey, caKeySz), 0);
+    if (mldsaNative) {
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&mldsaKey, caKeyBuf, caKeySz,
+                                                 &idx), 0);
+    }
+    else {
+        ExpectIntEQ(wc_EccPrivateKeyDecode(caKeyBuf, &idx, &eccKey, caKeySz),
+                    0);
+    }
     XMEMSET(sapkiBuf, 0, sapkiSz);
     ExpectNotNull(file = fopen(sapkiFile, "rb"));
     ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
@@ -1289,11 +1303,15 @@ static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
         fclose(file);
         file = NULL;
     }
-    ExpectIntEQ(wc_MlDsaKey_Init(&altCaKey, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_MlDsaKey_SetParams(&altCaKey, level), 0);
     idx = 0;
-    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&altCaKey, caKeyBuf, altPrivSz,
-                                             &idx), 0);
+    if (mldsaNative) {
+        ExpectIntEQ(wc_EccPrivateKeyDecode(caKeyBuf, &idx, &eccKey, altPrivSz),
+                    0);
+    }
+    else {
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&mldsaKey, caKeyBuf,
+                                                 altPrivSz, &idx), 0);
+    }
     XMEMSET(altSigAlgBuf, 0, altSigAlgSz);
     ExpectIntGT(altSigAlgSz = SetAlgoID(sigOid, altSigAlgBuf, oidSigType, 0),
                 0);
@@ -1311,7 +1329,7 @@ static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
     strncpy((char*)newCert.afterDate, "\x18\x0f""20491231115959Z",
         CTC_DATE_SIZE);
     newCert.afterDateSz = 17;
-    newCert.sigType = CTC_SHA256wECDSA;
+    newCert.sigType = mldsaNative ? mldsaOid : CTC_SHA256wECDSA;
     newCert.isCA    = 1;
 
     ExpectIntEQ(wc_SetCustomExtension(&newCert, 0, "2.5.29.72", sapkiBuf,
@@ -1320,10 +1338,10 @@ static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
                                 altSigAlgSz), 0);
 
     XMEMSET(caKeyBuf, 0, scratchSz);
-    ExpectIntGT(wc_MakeCert_ex(&newCert, caKeyBuf, scratchSz, ECC_TYPE,
-                &caKey, &rng), 0);
+    ExpectIntGT(wc_MakeCert_ex(&newCert, caKeyBuf, scratchSz, caType,
+                caKey, &rng), 0);
     ExpectIntGT(scratchSz = wc_SignCert_ex(newCert.bodySz, newCert.sigType,
-                caKeyBuf, scratchSz, ECC_TYPE, &caKey, &rng), 0);
+                caKeyBuf, scratchSz, caType, caKey, &rng), 0);
 
     wc_InitDecodedCert(&preTBS, caKeyBuf, scratchSz, 0);
     ExpectIntEQ(wc_ParseCert(&preTBS, CERT_TYPE, NO_VERIFY, NULL), 0);
@@ -1332,7 +1350,7 @@ static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
     ExpectIntGT(preTbsSz = wc_GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
     XMEMSET(altSigValBuf, 0, altSigValSz);
     ExpectIntGT(altSigValSz = wc_MakeSigWithBitStr(altSigValBuf, altSigValSz,
-                sigOid, preTbsBuf, preTbsSz, keyType, &altCaKey, &rng), 0);
+                sigOid, preTbsBuf, preTbsSz, keyType, altCaKey, &rng), 0);
     ExpectIntEQ(wc_SetCustomExtension(&newCert, 0, "2.5.29.74", altSigValBuf,
                 altSigValSz), 0);
 
@@ -1340,14 +1358,14 @@ static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
     if (outBuf != NULL) {
         XMEMSET(outBuf, 0, outSz);
     }
-    ExpectIntGT(wc_MakeCert_ex(&newCert, outBuf, outSz, ECC_TYPE, &caKey,
+    ExpectIntGT(wc_MakeCert_ex(&newCert, outBuf, outSz, caType, caKey,
                 &rng), 0);
     ExpectIntGT(outSz = wc_SignCert_ex(newCert.bodySz, newCert.sigType, outBuf,
-                outSz, ECC_TYPE, &caKey, &rng), 0);
+                outSz, caType, caKey, &rng), 0);
     *out = outBuf;
 
-    wc_ecc_free(&caKey);
-    wc_MlDsaKey_Free(&altCaKey);
+    wc_ecc_free(&eccKey);
+    wc_MlDsaKey_Free(&mldsaKey);
     wc_FreeRng(&rng);
     wc_FreeDecodedCert(&preTBS);
     return outSz;
@@ -1496,7 +1514,8 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
 static int do_dual_alg_tls13_connection(byte *caCert, word32 caCertSz,
                                         byte *serverCert, word32 serverCertSz,
                                         byte *serverKey, word32 serverKeySz,
-                                        int negative_test, int altSigSpec)
+                                        int negative_test,
+                                        const char *altKeyFile)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL;
@@ -1515,11 +1534,11 @@ static int do_dual_alg_tls13_connection(byte *caCert, word32 caCertSz,
                 wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
                 caCert, caCertSz, serverCert, serverCertSz,
                 serverKey, serverKeySz), 0);
-    if (altSigSpec) {
+    if (altKeyFile != NULL) {
         /* The server ignores the CKS list unless buffers.altKey is set, and
          * a client list of only ALTERNATIVE makes it sign with the
          * alternative key in place of the native one. */
-        ExpectIntEQ(load_file("./certs/ecc-key.der", &altKey, &altKeySz), 0);
+        ExpectIntEQ(load_file(altKeyFile, &altKey, &altKeySz), 0);
         ExpectIntEQ(wolfSSL_use_AltPrivateKey_buffer(ssl_s, altKey,
             (long)altKeySz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
         XFREE(altKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1530,6 +1549,8 @@ static int do_dual_alg_tls13_connection(byte *caCert, word32 caCertSz,
     }
     else {
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        if (altKeyFile != NULL)
+            ExpectIntEQ(ssl_c->options.peerSigAlgo, ecc_dsa_sa_algo);
     }
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -1941,6 +1962,11 @@ static int test_dual_alg_support(void)
     char sapkiFile[] = "./certs/ecc-keyPub.der";
     char altPrivFile[] = "./certs/ecc-key.der";
     char wrongPrivFile[] = "./certs/ecc-client-key.der";
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA512)
+    char sapki521File[] = "./certs/p521/server-p521-key.der";
+    char altPriv521File[] = "./certs/p521/server-p521-priv.der";
+#endif
     byte *serverKey = NULL;
     size_t serverKeySz = 0;
     byte *root = NULL;
@@ -1964,17 +1990,41 @@ static int test_dual_alg_support(void)
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
-                server, serverSz, serverKey, (word32)serverKeySz, 0, 0),
+                server, serverSz, serverKey, (word32)serverKeySz, 0, NULL),
                 TEST_SUCCESS);
     /* Same certificates, but the server signs with the alternative key only.
      * The key then moves into buffers.key and must be freed once. */
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
-                server, serverSz, serverKey, (word32)serverKeySz, 0, 1),
-                TEST_SUCCESS);
+                server, serverSz, serverKey, (word32)serverKeySz, 0,
+                altPrivFile), TEST_SUCCESS);
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     root = NULL;
     XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     server = NULL;
+
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA512)
+    /* The alternative key's curve, not the native key, sets the hash. */
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen(&root, keyFile, sapki521File,
+            altPriv521File);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+    if (EXPECT_SUCCESS()) {
+        serverSz = do_dual_alg_server_certgen(&server, keyFile, sapki521File,
+            altPriv521File, keyFile, root, rootSz);
+    }
+    ExpectNotNull(server);
+    ExpectIntGT(serverSz, 0);
+    ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
+                server, serverSz, serverKey, (word32)serverKeySz, 0,
+                altPriv521File), TEST_SUCCESS);
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    root = NULL;
+    XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    server = NULL;
+#endif
 
     /* Now we try a negative case. Note that we use wrongPrivFile to generate
      * the alternative signature and then set negative_test to true for the
@@ -1996,11 +2046,11 @@ static int test_dual_alg_support(void)
     ExpectIntGT(serverSz, 0);
 #ifdef WOLFSSL_TRUST_PEER_CERT
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
-                server, serverSz, serverKey, (word32)serverKeySz, 0, 0),
+                server, serverSz, serverKey, (word32)serverKeySz, 0, NULL),
                 TEST_SUCCESS);
 #else
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
-                server, serverSz, serverKey, (word32)serverKeySz, 1, 0),
+                server, serverSz, serverKey, (word32)serverKeySz, 1, NULL),
                 TEST_SUCCESS);
 #endif
 
@@ -2275,8 +2325,8 @@ static int test_dual_alg_ecdsa_mldsa(void)
  * keys of its dual-algorithm certificate (CKS BOTH), under one hybrid
  * SignatureScheme. */
 static int do_dual_alg_both_tls13_connection(byte* cert, int certSz,
-    const char* keyFile, const char* altKeyFile, int keySz, byte hashAlgo,
-    int expectFail)
+    const char* keyFile, const char* altKeyFile, int keySz, byte sigAlgo,
+    byte hashAlgo, int expectFail)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -2306,7 +2356,7 @@ static int do_dual_alg_both_tls13_connection(byte* cert, int certSz,
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
         ExpectIntEQ(ssl_c->options.peerAuthGood, 1);
     }
-    ExpectIntEQ(ssl_c->options.peerSigAlgo, ecc_dsa_sa_algo);
+    ExpectIntEQ(ssl_c->options.peerSigAlgo, sigAlgo);
     ExpectIntEQ(ssl_c->options.peerHashAlgo, hashAlgo);
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2335,6 +2385,12 @@ static int test_dual_alg_both_ecdsa_mldsa(void)
     char keyFile[] = "./certs/ecc-key.der";
     char sapkiFile[] = "./certs/mldsa/mldsa44_pub-spki.der";
     char altPrivFile[] = "./certs/mldsa/mldsa44_priv-only.der";
+    char mldsa44KeyFile[] = "./certs/mldsa/mldsa44_seed-priv.der";
+    char eccSapkiFile[] = "./certs/ecc-keyPub.der";
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    char ecc521SapkiFile[] = "./certs/p521/server-p521-key.der";
+    char ecc521PrivFile[] = "./certs/p521/server-p521-priv.der";
+#endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) && defined(WOLFSSL_SHA384)
     char sapki65File[] = "./certs/mldsa/mldsa65_pub-spki.der";
     char altPriv65File[] = "./certs/mldsa/mldsa65_priv-only.der";
@@ -2345,12 +2401,12 @@ static int test_dual_alg_both_ecdsa_mldsa(void)
     /* P-256 with ML-DSA-44 is the pair the hybrid scheme names. */
     if (EXPECT_SUCCESS()) {
         rootSz = do_dual_alg_root_certgen_mldsa(&root, keyFile, sapkiFile,
-            altPrivFile, WC_ML_DSA_44);
+            altPrivFile, WC_ML_DSA_44, 0);
     }
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
     ExpectIntEQ(do_dual_alg_both_tls13_connection(root, rootSz, keyFile,
-        altPrivFile, 0, sha256_mac, 0), TEST_SUCCESS);
+        altPrivFile, 0, ecc_dsa_sa_algo, sha256_mac, 0), TEST_SUCCESS);
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     root = NULL;
 
@@ -2360,12 +2416,39 @@ static int test_dual_alg_both_ecdsa_mldsa(void)
      * so only the curve check can reject it. */
     if (EXPECT_SUCCESS()) {
         rootSz = do_dual_alg_root_certgen_mldsa(&root, keyFile, sapki65File,
-            altPriv65File, WC_ML_DSA_65);
+            altPriv65File, WC_ML_DSA_65, 0);
     }
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
     ExpectIntEQ(do_dual_alg_both_tls13_connection(root, rootSz, keyFile,
-        altPriv65File, 48, sha384_mac, 1), TEST_SUCCESS);
+        altPriv65File, 48, ecc_dsa_sa_algo, sha384_mac, 1), TEST_SUCCESS);
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    root = NULL;
+#endif
+
+    /* ML-DSA-44 with P-256 as the alternative key. */
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen_mldsa(&root, mldsa44KeyFile,
+            eccSapkiFile, keyFile, WC_ML_DSA_44, 1);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+    ExpectIntEQ(do_dual_alg_both_tls13_connection(root, rootSz, mldsa44KeyFile,
+        keyFile, 0, mldsa_44_sa_algo, sha256_mac, 0), TEST_SUCCESS);
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    root = NULL;
+
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    /* P-521 as the alternative key goes out under the scheme that names
+     * P-256. */
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen_mldsa(&root, mldsa44KeyFile,
+            ecc521SapkiFile, ecc521PrivFile, WC_ML_DSA_44, 1);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+    ExpectIntEQ(do_dual_alg_both_tls13_connection(root, rootSz, mldsa44KeyFile,
+        ecc521PrivFile, 0, mldsa_44_sa_algo, sha256_mac, 1), TEST_SUCCESS);
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #endif
@@ -34559,7 +34642,7 @@ static int test_wolfSSL_X509_print_dual_alg_mldsa(void)
 
     if (EXPECT_SUCCESS()) {
         rootSz = do_dual_alg_root_certgen_mldsa(&root, keyFile, sapkiFile,
-            altPrivFile, WC_ML_DSA_44);
+            altPrivFile, WC_ML_DSA_44, 0);
     }
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
