@@ -109,6 +109,11 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 #ifdef HAVE_FIPS
     if (length < HMAC_FIPS_MIN_KEY)
         return HMAC_MIN_KEYLEN_E;
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Same approved-mode maximum as wc_HmacSetKey_ex() in hmac.c. */
+    if (length > HMAC_FIPS_MAX_KEY)
+        return BAD_LENGTH_E;
+#endif
 #endif
 
     if (ret == 0) {
