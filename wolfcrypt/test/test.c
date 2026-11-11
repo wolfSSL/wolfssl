@@ -90949,6 +90949,65 @@ static wc_test_ret_t pkcs7_signed_no_content_test(byte* cert, word32 certSz,
     if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
 
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Attached SignedData carrying its own eContent. When the caller also
+     * supplies pkcs7->content for detached verification, the embedded eContent
+     * must equal that content, otherwise a genuinely-signed eContent would
+     * verify arbitrary caller content. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    pkcs7->rng          = &rng;
+    pkcs7->content      = (byte*)content;
+    pkcs7->contentSz    = (word32)XSTRLEN((const char*)content);
+    pkcs7->contentOID   = DATA;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out_lbl);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* caller content equal to the embedded eContent still verifies */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    pkcs7->content   = (byte*)content;
+    pkcs7->contentSz = (word32)XSTRLEN((const char*)content);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* caller content differing from the embedded eContent (same length) must
+     * be rejected, not silently verified against the signed eContent */
+    {
+        byte evil[sizeof(content)];
+        XMEMCPY(evil, content, sizeof(content));
+        evil[0] ^= 0xFF;
+
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+        pkcs7->content   = evil;
+        pkcs7->contentSz = (word32)XSTRLEN((const char*)content);
+        ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+        if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+    }
+
     ret = 0;
 
 out_lbl:
