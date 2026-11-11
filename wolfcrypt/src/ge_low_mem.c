@@ -113,6 +113,7 @@ static void reduce_add_sub(word32 *r)
     pb = b;
   }
   mask = b - 1;
+  FE_CT_BARRIER(mask);
   for(i=0;i<32;i++)
     r[i] ^= mask & (r[i] ^ t[i]);
 }

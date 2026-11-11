@@ -36,16 +36,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-/* Hide a secret-derived mask from the optimizer so that masked selection
- * (fe_cswap, fe_cmov) is not converted into a conditional branch or
- * conditional loads (seen with GCC -O3 on PPC64).
- */
-#if defined(__GNUC__) && !defined(WOLFSSL_NO_ASM_BARRIER)
-    #define FE_CT_BARRIER(v)    __asm__ __volatile__ ("" : "+r" (v))
-#else
-    #define FE_CT_BARRIER(v)    (void)(v)
-#endif
-
 /* On some CPUs the latency of a 64-bit multiply depends on the operand
  * values. Cortex-A55: "64-bit multiplies take two or three cycles, depending
  * on whether both operands contain '1's in their top 32 bits" (Software
