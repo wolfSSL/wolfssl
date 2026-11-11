@@ -379,6 +379,15 @@ int wc_Sha256Reset(wc_Sha256* sha256) {
         return wc_InitSha256_ex(sha256, heap, devId);
     }
 #endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256) && \
+    defined(HAVE_INTEL_QA)
+    /* QAT caches updates in asyncDev, which InitSha256() cannot discard. */
+    {
+        int ret = IntelQaSymHashReset(&sha256->asyncDev);
+        if (ret != 0)
+            return ret;
+    }
+#endif
     return InitSha256(sha256);
 }
 #define WC_SHA256RESET_DEFINED
@@ -3037,6 +3046,15 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         int devId = sha224->devId;
         wc_Sha224Free(sha224);
         return wc_InitSha224_ex(sha224, heap, devId);
+    }
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224) && \
+    defined(HAVE_INTEL_QA)
+    /* QAT caches updates in asyncDev, which InitSha224() cannot discard. */
+    {
+        int ret = IntelQaSymHashReset(&sha224->asyncDev);
+        if (ret != 0)
+            return ret;
     }
 #endif
     return InitSha224(sha224);

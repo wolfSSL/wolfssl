@@ -3453,6 +3453,29 @@ static int IntelQaSymHash(WC_ASYNC_DEV* dev, byte* out, const byte* in,
         hashAlgorithm, authKey, authKeyLenInBytes);
 }
 
+/* Discard cached input and any open session so a hash context can be restarted
+ * in place, keeping its device association. A context that is not bound to QAT
+ * has nothing to discard. */
+int IntelQaSymHashReset(WC_ASYNC_DEV* dev)
+{
+    word32 marker;
+    void* heap;
+    int devId;
+
+    if (dev == NULL || !IntelQaDevIsHash(dev)) {
+        return 0;
+    }
+
+    marker = dev->marker;
+    heap = dev->heap;
+    devId = dev->qat.devId;
+
+    /* IntelQaSymClose() leaves tmpIn dangling, so the re-init must follow to
+     * clear it along with the session state. */
+    wolfAsync_DevCtxFree(dev, marker);
+    return wolfAsync_DevCtxInit(dev, marker, heap, devId);
+}
+
 #ifdef WOLFSSL_SHA512
 int IntelQaSymSha512(WC_ASYNC_DEV* dev, byte* out, const byte* in, word32 sz)
 {

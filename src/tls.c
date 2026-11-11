@@ -12564,11 +12564,11 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
         /* Outside of the async case this path should not be taken. */
         int ret = WC_NO_ERR_TRACE(INCOMPLETE_DATA);
     #ifdef WOLFSSL_ASYNC_CRYPT
-        /* in async case make sure key generation is finalized */
+        /* in async case make sure key generation is finalized. The share was
+         * already chosen, so searched stays 0: a NULL kse here does not mean
+         * that no usable share was found. */
         KeyShareEntry* serverKSE = (KeyShareEntry*)extension->data;
         if (serverKSE && serverKSE->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
-                *searched = 1;
             ret = TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
         }
         else

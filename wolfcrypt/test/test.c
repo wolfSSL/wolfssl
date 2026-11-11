@@ -7531,6 +7531,59 @@ exit:
 }
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+static wc_test_ret_t sha224_reset_test(wc_Sha224* sha)
+{
+    static const char* test_input  = "reset equivalence test input";
+    static const char* dirty_input = "reset must discard this";
+    byte hash_ref[WC_SHA224_DIGEST_SIZE];
+    byte hash[WC_SHA224_DIGEST_SIZE];
+    wc_test_ret_t ret;
+    int i;
+
+    /* reference digest from a freshly initialized context */
+    ret = wc_InitSha224_ex(sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Sha224Update(sha, (const byte*)test_input,
+        (word32)XSTRLEN(test_input));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha224Final(sha, hash_ref);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    wc_Sha224Free(sha);
+
+    /* the same digest must emerge from a dirtied, then reset, context */
+    ret = wc_InitSha224_ex(sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* dirty both the block buffer and the chaining state */
+    for (i = 0; i < 8; i++) {
+        ret = wc_Sha224Update(sha, (const byte*)dirty_input,
+            (word32)XSTRLEN(dirty_input));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), exit);
+    }
+    ret = wc_Sha224Reset(sha);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha224Update(sha, (const byte*)test_input,
+        (word32)XSTRLEN(test_input));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha224Final(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, hash_ref, WC_SHA224_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+exit:
+    wc_Sha224Free(sha);
+    return ret;
+}
+#endif /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) && !HAVE_SELFTEST */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha224_test(void)
 {
     wc_Sha224 sha, shaCopy;
@@ -7544,6 +7597,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha224_test(void)
 #endif
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     if ((ret = sha224_copy_test(&sha, &shaCopy)) != 0)
+        return ret;
+#endif
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+    if ((ret = sha224_reset_test(&sha)) != 0)
         return ret;
 #endif
     return 0;
@@ -7972,6 +8030,59 @@ exit:
 #endif /* !NO_WOLFSSL_SHA256_INTERLEAVE */
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+static wc_test_ret_t sha256_reset_test(wc_Sha256* sha)
+{
+    static const char* test_input  = "reset equivalence test input";
+    static const char* dirty_input = "reset must discard this";
+    byte hash_ref[WC_SHA256_DIGEST_SIZE];
+    byte hash[WC_SHA256_DIGEST_SIZE];
+    wc_test_ret_t ret;
+    int i;
+
+    /* reference digest from a freshly initialized context */
+    ret = wc_InitSha256_ex(sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Sha256Update(sha, (const byte*)test_input,
+        (word32)XSTRLEN(test_input));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha256Final(sha, hash_ref);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    wc_Sha256Free(sha);
+
+    /* the same digest must emerge from a dirtied, then reset, context */
+    ret = wc_InitSha256_ex(sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* dirty both the block buffer and the chaining state */
+    for (i = 0; i < 8; i++) {
+        ret = wc_Sha256Update(sha, (const byte*)dirty_input,
+            (word32)XSTRLEN(dirty_input));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), exit);
+    }
+    ret = wc_Sha256Reset(sha);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha256Update(sha, (const byte*)test_input,
+        (word32)XSTRLEN(test_input));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    ret = wc_Sha256Final(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, hash_ref, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+exit:
+    wc_Sha256Free(sha);
+    return ret;
+}
+#endif /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) && !HAVE_SELFTEST */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 {
     wc_Sha256 sha, shaCopy;
@@ -7994,6 +8105,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     if ((ret = sha256_copy_update_test(&sha, &shaCopy)) != 0)
         return ret;
 # endif
+#endif
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+    if ((ret = sha256_reset_test(&sha)) != 0)
+        return ret;
 #endif
     return 0;
 }

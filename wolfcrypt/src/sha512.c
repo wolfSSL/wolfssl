@@ -1047,6 +1047,15 @@ int wc_Sha512Reset(wc_Sha512* sha512) {
         return wc_InitSha512_ex(sha512, heap, devId);
     }
 #endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512) && \
+    defined(HAVE_INTEL_QA)
+    /* QAT caches updates in asyncDev, which InitSha512() cannot discard. */
+    {
+        int ret = IntelQaSymHashReset(&sha512->asyncDev);
+        if (ret != 0)
+            return ret;
+    }
+#endif
     return InitSha512(sha512);
 }
 #define WC_SHA512RESET_DEFINED
@@ -3143,6 +3152,15 @@ int wc_Sha384Reset(wc_Sha384* sha384) {
         int devId = sha384->devId;
         wc_Sha384Free(sha384);
         return wc_InitSha384_ex(sha384, heap, devId);
+    }
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384) && \
+    defined(HAVE_INTEL_QA)
+    /* QAT caches updates in asyncDev, which InitSha384() cannot discard. */
+    {
+        int ret = IntelQaSymHashReset(&sha384->asyncDev);
+        if (ret != 0)
+            return ret;
     }
 #endif
     return InitSha384(sha384);
