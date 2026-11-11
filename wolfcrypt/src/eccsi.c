@@ -2035,7 +2035,20 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
     }
 
     /* Step 5: s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j
-     * Invert with multiplicative blinding for constant-time operation. */
+     * HE + r * SSK depends on the secret signing key and the nonce. With SP
+     * assembly, calculate s' in constant time without exposing the inverse.
+     * Otherwise, invert with multiplicative blinding for constant-time
+     * operation. SP C code is slower than blinding. */
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256) && \
+    defined(WOLFSSL_SP_ASM) && defined(HAVE_ECC_SIGN)
+    if ((err == 0) && (key->ecc.idx != ECC_CUSTOM_IDX) &&
+            (ecc_sets[key->ecc.idx].id == ECC_SECP256R1)) {
+        /* s' = j / s mod order - s is less than the order and non-zero. */
+        j = wc_ecc_key_get_priv(&key->pubkey);
+        err = sp_ModDiv_order_256(s, j, s, key->heap);
+    }
+    else
+#endif
     if (err == 0) {
         int loop_check = 0;
         do {
@@ -2046,22 +2059,23 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
             err = wc_ecc_gen_k(rng, (int)sz, &key->tmp, &key->params.order);
         }
         while (err == WC_NO_ERR_TRACE(MP_ZERO_E));
-    }
-    /* Blind: s = (s * b) mod order */
-    if (err == 0) {
-        err = mp_mulmod(s, &key->tmp, &key->params.order, s);
-    }
-    /* Invert: s = (s * b)^-1 mod order */
-    if (err == 0) {
-        err = mp_invmod(s, &key->params.order, s);
-    }
-    /* Unblind: s = (s * b)^-1 * b mod order = s^-1 mod order */
-    if (err == 0) {
-        err = mp_mulmod(s, &key->tmp, &key->params.order, s);
-    }
-    if (err == 0) {
-        j = wc_ecc_key_get_priv(&key->pubkey);
-        err = mp_mulmod(s, j, &key->params.order, s);
+
+        /* Blind: s = (s * b) mod order */
+        if (err == 0) {
+            err = mp_mulmod(s, &key->tmp, &key->params.order, s);
+        }
+        /* Invert: s = (s * b)^-1 mod order */
+        if (err == 0) {
+            err = mp_invmod(s, &key->params.order, s);
+        }
+        /* Unblind: s = (s * b)^-1 * b mod order = s^-1 mod order */
+        if (err == 0) {
+            err = mp_mulmod(s, &key->tmp, &key->params.order, s);
+        }
+        if (err == 0) {
+            j = wc_ecc_key_get_priv(&key->pubkey);
+            err = mp_mulmod(s, j, &key->params.order, s);
+        }
     }
     /* Erase blinding factor and j on every path past argument checks. */
     if (s != NULL) {

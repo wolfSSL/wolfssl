@@ -218,9 +218,13 @@ jobs:
         run: |
           defs=$(grep -cE '^static (void|int) sp_[0-9]+_from_mp\(' \
                    wolfcrypt/src/sp_c32.c || true)
-          n=$(grep -c 'sizeof(mp_digit) \* CHAR_BIT - 1' \
-                wolfcrypt/src/sp_c32.c || true)
-          echo "from_mp functions: $defs  CHAR_BIT masks: $n"
+          # Functions whose body uses the CHAR_BIT mask at least once - a
+          # function may have more than one constant-time conversion path.
+          n=$(awk '/^static (void|int) sp_[0-9]+_from_mp\(/ { f = 1; u = 0 }
+                   f && /sizeof\(mp_digit\) \* CHAR_BIT - 1/ { u = 1 }
+                   f && /^}/ { if (u) c++; f = 0 }
+                   END { print c + 0 }' wolfcrypt/src/sp_c32.c)
+          echo "from_mp functions: $defs  using CHAR_BIT masks: $n"
           if grep -q 'sizeof(mp_digit) \* 8 - 1' wolfcrypt/src/sp_c32.c; then
             echo "::error::sp_c32.c uses sizeof(mp_digit) * 8; must be CHAR_BIT"
             exit 1

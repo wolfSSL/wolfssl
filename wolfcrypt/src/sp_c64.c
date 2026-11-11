@@ -365,10 +365,20 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 61 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 61 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 61) {
             r[j] &= 0x1fffffffffffffffL;
             if (j + 1 >= size) {
@@ -380,13 +390,19 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -4502,10 +4518,20 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 57 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 57 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 57) {
             r[j] &= 0x1ffffffffffffffL;
             if (j + 1 >= size) {
@@ -4517,13 +4543,19 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -8624,10 +8656,20 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 60 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 60 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 60) {
             r[j] &= 0xfffffffffffffffL;
             if (j + 1 >= size) {
@@ -8639,13 +8681,19 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -12692,10 +12740,20 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 57 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 57 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 57) {
             r[j] &= 0x1ffffffffffffffL;
             if (j + 1 >= size) {
@@ -12707,13 +12765,19 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -17011,10 +17075,20 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 59 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 59 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 59) {
             r[j] &= 0x7ffffffffffffffL;
             if (j + 1 >= size) {
@@ -17026,13 +17100,19 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -20977,10 +21057,20 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 53 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 53 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 53) {
             r[j] &= 0x1fffffffffffffL;
             if (j + 1 >= size) {
@@ -20992,13 +21082,19 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -25733,10 +25829,20 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 52 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 52 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 52) {
             r[j] &= 0xfffffffffffffL;
             if (j + 1 >= size) {
@@ -25748,13 +25854,19 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -32375,10 +32487,20 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 55 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 55 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 55) {
             r[j] &= 0x7fffffffffffffL;
             if (j + 1 >= size) {
@@ -32390,13 +32512,19 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -39710,10 +39838,20 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 58 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 58 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 58) {
             r[j] &= 0x3ffffffffffffffL;
             if (j + 1 >= size) {
@@ -39725,13 +39863,19 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -47505,10 +47649,20 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 57 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 57 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 57) {
             r[j] &= 0x1ffffffffffffffL;
             if (j + 1 >= size) {
@@ -47520,13 +47674,19 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) -
+            (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * CHAR_BIT - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
