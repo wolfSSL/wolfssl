@@ -254,9 +254,13 @@ menu "wolfSSL"
                 default y
                 depends on ESP_TLS_USING_WOLFSSL
                 help
-                    Although not recommended, there may be certificates in the bundle that are missing
-                    a serial number. This option allows the missing value without having to fully
-                    disable strict ASN checking with WOLFSSL_NO_ASN_STRICT.
+                    Accept certificates with a serial number of 0 (RFC 5280 requires a
+                    positive serial), without fully disabling strict ASN checking with
+                    WOLFSSL_NO_ASN_STRICT. The certificate bundle itself does not need
+                    this: bundle roots are self-signed CAs, which wolfSSL accepts with a
+                    zero serial when loaded as trust anchors. It is on by default
+                    because some servers, e.g. www.godaddy.com, send a serial-0 root
+                    in their chain, and strict checking rejects that chain.
 
             choice WOLFSSL_DEFAULT_CERTIFICATE_BUNDLE
                 bool "Default certificate bundle options"
