@@ -636,6 +636,7 @@ int wc_MakeSakkeKey(SakkeKey* key, WC_RNG* rng)
     }
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
+        key->zMont = 0;
     }
 
     return err;
@@ -821,6 +822,7 @@ int wc_ImportSakkeKey(SakkeKey* key, const byte* data, word32 sz)
     }
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
+        key->zMont = 0;
     }
 
     return err;

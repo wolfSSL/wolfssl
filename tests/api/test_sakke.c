@@ -1220,6 +1220,21 @@ int test_wc_Sakke_KmsKeyAfterClientOp(void)
     ExpectIntEQ(wc_ExportSakkeKey(&key, keyData2, &keySz2), 0);
     ExpectBufEQ(keyData2, keyData, sizeof(keyData));
 
+    /* Validate again to set zMont before wc_ImportSakkeKey() and
+     * wc_MakeSakkeKey() store a normal-form key pair. */
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(wc_ImportSakkeKey(&key, keyData, keySz), 0);
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    valid = 0;
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(valid, 1);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    valid = 0;
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(valid, 1);
+
     if (rsk != NULL) {
         wc_ecc_forcezero_point(rsk);
         wc_ecc_del_point(rsk);
