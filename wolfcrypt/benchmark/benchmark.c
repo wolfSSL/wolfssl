@@ -2902,18 +2902,12 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 }
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    /* we're using floating point to figure the statistics, so we need to
+     * FPU save+lock even without SIMD.  */
     #define bench_stats_start(count, start) do {                               \
         SAVE_VECTOR_REGISTERS(WOLFSSL_DEBUG_PRINTF(                            \
             "ERROR: SAVE_VECTOR_REGISTERS failed for benchmark run.");         \
                               return; );                                       \
-        bench_stats_start(count, start);                                       \
-    } while (0)
-#elif defined(WOLFSSL_LINUXKM)
-    /* we're using floating point to figure the statistics, so we need to
-     * FPU save+lock even without SIMD.
-     */
-    #define bench_stats_start(count, start) do {                               \
-        kernel_fpu_begin();                                                    \
         bench_stats_start(count, start);                                       \
     } while (0)
 #endif
@@ -3381,8 +3375,6 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     RESTORE_VECTOR_REGISTERS();
-#elif defined(WOLFSSL_LINUXKM)
-    kernel_fpu_end();
 #endif
 
     bench_stats_prepare();
@@ -3482,8 +3474,6 @@ static void bench_stats_ops_finish(const char* algo, int strength,
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     RESTORE_VECTOR_REGISTERS();
-#elif defined(WOLFSSL_LINUXKM)
-    kernel_fpu_end();
 #endif
 
     bench_stats_prepare();
@@ -3891,8 +3881,6 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     RESTORE_VECTOR_REGISTERS();
-#elif defined(WOLFSSL_LINUXKM)
-    kernel_fpu_end();
 #endif
 
     bench_stats_prepare();
