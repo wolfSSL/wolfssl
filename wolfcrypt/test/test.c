@@ -50991,6 +50991,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
         return WC_TEST_RET_ENC_NC;
     }
 
+#if FIPS_VERSION3_GE(7,0,0)
+    {
+        /* v7 keeps the 112-bit HMAC minimum for the PRF secret but exempts
+         * it from the 1024-bit HMAC maximum: a (pre-)master secret is e.g.
+         * 256 bytes for a 2048-bit DHE group. */
+        byte longSecret[256];
+
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_PRF(dig, (word32)digL, secret, HMAC_FIPS_MIN_KEY - 1, lablSd,
+                     (word32)lblsdL, hash_type, HEAP_HINT, devId);
+        PRIVATE_KEY_LOCK();
+        if (ret != WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E))
+            return WC_TEST_RET_ENC_EC(ret);
+
+        XMEMSET(longSecret, 0x5a, sizeof(longSecret));
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_PRF(dig, (word32)digL, longSecret, (word32)sizeof(longSecret),
+                     lablSd, (word32)lblsdL, hash_type, HEAP_HINT, devId);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+    }
+#endif
+
     return 0;
 }
 #endif /* WOLFSSL_HAVE_PRF && !NO_HMAC && WOLFSSL_SHA384 && !WOLFSSL_NO_TLS12 */
