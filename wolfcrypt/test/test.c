@@ -91017,6 +91017,8 @@ static wc_test_ret_t pkcs7_signed_no_content_test(byte* cert, word32 certSz,
         ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
         if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
     }
 
     /* caller content buffer present but zero-length must not let a non-empty
