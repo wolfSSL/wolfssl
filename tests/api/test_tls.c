@@ -7368,8 +7368,8 @@ int test_tls12_aesgcm_record_nonce_unique(void)
     ExpectIntEQ(wolfSSL_SetDevId(ssl_c, devId), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_SetDevId(ssl_s, devId), WOLFSSL_SUCCESS);
 
-    /* QAT adapter is really slow. This is required to handle that slowness
-     * while we wait for the hardware to do its magic. */
+    /* QAT adapter is async. So we wait up to a second for operations to
+     * complete. */
     for (i = 0; i < TEST_TLS12_NONCE_HS_RETRIES && EXPECT_SUCCESS(); i++) {
         ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
         if (ret == 0) {

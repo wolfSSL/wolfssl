@@ -791,6 +791,7 @@ int IntelQaDevCopy(WC_ASYNC_DEV* src, WC_ASYNC_DEV* dst)
     IntelQaSymCtx *ctxSrc, *ctxDst;
 #ifdef QAT_ENABLE_HASH
     int isHash;
+    const byte* state;
 #endif
 #endif
 
@@ -814,6 +815,8 @@ int IntelQaDevCopy(WC_ASYNC_DEV* src, WC_ASYNC_DEV* dst)
     /* force alloc/init on open for copy */
     ctxDst->symCtx = NULL;
     ctxDst->isOpen = 0;
+    /* dst was struct copied from src, so it does not own anything yet */
+    ctxDst->ownsSymCtxSrc = 0;
     /* if src is not open, then don't set source ctx */
     if (!ctxSrc->isOpen)
         ctxDst->symCtxSrc = NULL;
@@ -821,6 +824,36 @@ int IntelQaDevCopy(WC_ASYNC_DEV* src, WC_ASYNC_DEV* dst)
 #ifdef QAT_ENABLE_HASH
     isHash = IntelQaDevIsHash(src);
     if (isHash) {
+        /* dst must never share tmpIn with src: clear it before any early
+         * return so freeing dst cannot free src's buffer */
+        dst->qat.op.hash.tmpIn = NULL;
+        dst->qat.op.hash.tmpInSz = 0;
+        dst->qat.op.hash.tmpInBufSz = 0;
+
+        /* Snapshot the source hash state so the copy does not reference
+         * session memory the source may free or reuse (reset, free, final
+         * then reuse) before the copy's next operation. An open source holds
+         * its live state in symCtx; an unopened copy still holds its pending
+         * state in its own snapshot. */
+        state = NULL;
+        if (ctxSrc->isOpen) {
+            state = (const byte*)ctxSrc->symCtx;
+        }
+        else if (ctxSrc->ownsSymCtxSrc) {
+            state = (const byte*)ctxSrc->symCtxSrc;
+        }
+
+        ctxDst->symCtxSrc = NULL;
+        if (state != NULL && ctxSrc->symCtxSize > 0) {
+            ctxDst->symCtxSrc = XMALLOC(ctxSrc->symCtxSize, dst->heap,
+                DYNAMIC_TYPE_ASYNC_NUMA64);
+            if (ctxDst->symCtxSrc == NULL) {
+                return MEMORY_E;
+            }
+            XMEMCPY(ctxDst->symCtxSrc, state, ctxSrc->symCtxSize);
+            ctxDst->ownsSymCtxSrc = 1;
+        }
+
         /* need to duplicate tmpIn */
         if (src->qat.op.hash.tmpIn) {
             dst->qat.op.hash.tmpIn = (byte*)XMALLOC(src->qat.op.hash.tmpInBufSz,
@@ -2224,6 +2257,10 @@ static int IntelQaSymClose(WC_ASYNC_DEV* dev, int doFree)
     }
 
     if (doFree) {
+        if (ctx->ownsSymCtxSrc && ctx->symCtxSrc != ctx->symCtx) {
+            XFREE(ctx->symCtxSrc, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA64);
+        }
+        ctx->ownsSymCtxSrc = 0;
         XFREE(ctx->symCtx, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA64);
         ctx->symCtx = NULL;
         ctx->symCtxSrc = NULL;
