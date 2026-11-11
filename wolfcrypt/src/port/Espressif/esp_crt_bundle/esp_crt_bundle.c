@@ -218,8 +218,6 @@ static crt_bundle_t s_crt_bundle = { 0 };
 
 static int _cert_bundle_loaded = 0;
 
-static int _crt_found = 0;
-
 static int _need_bundle_cert = 0;
 
 /* API for determining if the wolfSSL cert bundle is loaded. */
@@ -296,11 +294,13 @@ int wolfSSL_X509_get_cert_items(char* CERT_TAG,
 
 
 /* wolfSSL_X509_verify_cert() for the cert the store is reporting an error for.
- * The other peer certs are passed in as untrusted intermediates: with alt cert
- * chains ProcessPeerCerts() keeps them out of the Certificate Manager, leaving
- * nothing to build a path from. The store ctx given to the callback belongs to
- * the TLS layer, so verify through a private one. */
-static CB_INLINE int store_verify_peer(WOLFSSL_X509_STORE_CTX* store)
+ * The peer certs above it, up to index `last`, are passed in as untrusted
+ * intermediates: with alt cert chains ProcessPeerCerts() keeps them out of
+ * the Certificate Manager, leaving nothing to build a path from. Certs above
+ * `last` are left out, so the path can't go past the bundle root issuing
+ * `last` to an expired cross-sign above it. The store ctx given to the
+ * callback belongs to the TLS layer, so verify through a private one. */
+static CB_INLINE int store_verify_peer(WOLFSSL_X509_STORE_CTX* store, int last)
 {
     int ret = WOLFSSL_FAILURE;
     int i;
@@ -314,7 +314,8 @@ static CB_INLINE int store_verify_peer(WOLFSSL_X509_STORE_CTX* store)
         ESP_LOGE(TAG, "store_verify_peer out of memory");
     }
     else {
-        for (i = store->error_depth + 1; i < store->totalCerts; i++) {
+        for (i = store->error_depth + 1;
+             (i <= last) && (i < store->totalCerts); i++) {
             /* A cert missing here can only make the verify below fail. */
             this_cert = wolfSSL_X509_d2i(NULL, store->certs[i].buffer,
                                          (int)store->certs[i].length);
@@ -356,10 +357,14 @@ static CB_INLINE int store_verify_peer(WOLFSSL_X509_STORE_CTX* store)
  * store->store->cm:    WOLFSSL_CERT_MANAGER
  * store->ex_data:      The WOLFSSL object pointer
  * store->discardSessionCerts: When set to non-zero value session certs
-                               will be discarded (only with SESSION_CERTS) */
+                               will be discarded (only with SESSION_CERTS)
+ *
+ * last:                Index of the highest peer cert that store_verify_peer()
+ *                      passes as an untrusted intermediate. */
 static CB_INLINE int cert_manager_load(int preverify,
                                        WOLFSSL_X509_STORE_CTX* store,
-                                       const unsigned char * der, long derSz)
+                                       const unsigned char * der, long derSz,
+                                       int last)
 {
     int ret;
     WOLFSSL_CERT_MANAGER* cm = NULL; /* points to wolfSSL cm, no cleanup need */
@@ -406,7 +411,7 @@ static CB_INLINE int cert_manager_load(int preverify,
                                           WOLFSSL_FILETYPE_ASN1);
     if (ret == WOLFSSL_SUCCESS) {
         /* Attempt to validate the peer certificate again */
-        ret = store_verify_peer(store);
+        ret = store_verify_peer(store, last);
 
         if (ret == WOLFSSL_SUCCESS) {
             ESP_LOGCBI(TAG, "Successfully validated cert: %s\n", subject->name);
@@ -415,17 +420,296 @@ static CB_INLINE int cert_manager_load(int preverify,
             preverify = 1;
         }
         else {
-            ESP_LOGE(TAG, "Failed to verify cert after loading new CA. "
+            ESP_LOGCBW(TAG, "Failed to verify cert after loading new CA. "
                           "err = %d", ret);
         }
     }
     else {
-        ESP_LOGE(TAG, "Failed to load CA, ret = %d", ret);
+        ESP_LOGCBW(TAG, "Failed to load CA, ret = %d", ret);
         SHOW_WOLFSSL_BUNDLE_ERROR(ret);
     }
 
     /* We don't free the issue and subject, as they are
      * pointers to current store->current_cert values. */
+    return preverify;
+}
+
+/* Search the bundle for the cert whose subject name is `name`.
+ * dcert is scratch space for parsing bundle certs.
+ * Returns 1 and sets der, derSz and isCa when found, otherwise 0. */
+static int wolfssl_bundle_find(DecodedCert* dcert, const char* name,
+                               const unsigned char** der, int* derSz,
+                               int* isCa)
+{
+    const unsigned char* cert_data = NULL;
+    int cert_len = 0;
+    int start = 0;
+    int end = (int)s_crt_bundle.num_certs - 1;
+    int middle;
+    int i;
+    int cmp_res;
+    int found = 0;
+    int ret = 0;
+
+    while ((found == 0) && (start <= end)) {
+#ifndef CERT_BUNDLE_UNSORTED
+        /* When sorted (not unsorted), binary search: */
+        middle = start + ((end - start) / 2);
+#else
+        /* When not sorted, typically during debugging, look at each: */
+        middle = start;
+#endif
+        ESP_LOGCBNW(TAG, "Looking at CA #%d; start = %d, end = %d",
+                         middle, start, end);
+
+        /* Compare with the first entry from middle on that parses. An entry
+         * that doesn't parse, e.g. with a key type this build lacks, can't
+         * be the match, so each pass drops the entries it looked at. */
+        for (i = middle; i <= end; i++) {
+            /* Each cert length was saved by gen_crt_bundle.py: */
+            cert_len = (s_crt_bundle.crts[i][0] << 8) |
+                        s_crt_bundle.crts[i][1];
+            cert_data = s_crt_bundle.crts[i] + CRT_HEADER_OFFSET;
+
+            /* Parse the bundle cert as a CA. Some trusted roots have serial
+             * number 0, which strict ASN checking only accepts in a
+             * self-signed CA loaded as a trust anchor. */
+            wc_InitDecodedCert(dcert, cert_data, (word32)cert_len, NULL);
+            ret = wc_ParseCert(dcert, CA_TYPE, NO_VERIFY, NULL);
+            if (ret == 0) {
+                break;
+            }
+            wc_FreeDecodedCert(dcert);
+            if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
+                ESP_LOGE(TAG, "Out of memory parsing bundle cert #%d", i);
+                break;
+            }
+            ESP_LOGCBW(TAG, "Skipping certificate #%d from bundle: %d",
+                            i, ret);
+        }
+        if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
+            /* Not a property of the entry: stop instead of searching on as
+             * if it were absent. */
+            break;
+        }
+        if (i > end) {
+            /* Nothing from middle to end parses. */
+            end = middle - 1;
+            continue;
+        }
+
+        ESP_LOGCBNI(TAG, "This Bundle Item Subject Name: %s",
+                         dcert->subject);
+        /* gen_crt_bundle.py sorts with its own key, which only approximates
+         * this name string. The binary search needs both orders to agree;
+         * test_esp_crt_bundle.sh checks that. */
+        cmp_res = XSTRCMP(dcert->subject, name);
+        if (cmp_res == 0) {
+            *der = cert_data;
+            *derSz = cert_len;
+            *isCa = dcert->isCA;
+            found = 1;
+        }
+        wc_FreeDecodedCert(dcert);
+
+#ifndef CERT_BUNDLE_UNSORTED
+        if (cmp_res < 0) {
+            start = i + 1;
+        }
+        else {
+            /* Entries middle to i - 1 don't parse. */
+            end = middle - 1;
+        }
+#else
+        start = i + 1;
+#endif
+    }
+
+    ESP_LOGCBI(TAG, "%s in bundle: %s", found ? "Found" : "Not found", name);
+    return found;
+}
+
+#ifndef WOLFSSL_ALT_CERT_CHAINS
+/* Returns 1 when root is a self-issued CA with no path length, name or policy
+ * constraints, and cross has the same subject, public key and key ID.
+ *
+ * Once the callback accepts cross, wolfSSL keeps it only on this connection's
+ * waived-CA list, not in the Certificate Manager. Signers are looked up in the
+ * Certificate Manager first, and cross has the root's key ID, so the next cert
+ * down is verified with the root loaded here. Allowing only roots without
+ * constraints keeps this safe whichever of the two is used. */
+static int wolfssl_bundle_same_root_key(const DecodedCert* root,
+                                        const DecodedCert* cross)
+{
+    int ret = 1;
+
+    if ((!root->selfIssued) || (!root->isCA)) {
+        ESP_LOGCBW(TAG, "Bundle cert is not a self-issued CA.");
+        ret = 0;
+    }
+    /* Only roots without constraints: whatever is accepted on the root's
+     * key then can't be held to more than the root itself. */
+    else if (root->pathLengthSet || root->extPolicyConstSet
+#ifndef IGNORE_NAME_CONSTRAINTS
+             || root->extNameConstraintSet
+#endif
+            ) {
+        ESP_LOGCBW(TAG, "Bundle root has constraints.");
+        ret = 0;
+    }
+    else if (!cross->isCA) {
+        ESP_LOGCBW(TAG, "Cross-signed cert is not a CA.");
+        ret = 0;
+    }
+    else if ((XMEMCMP(root->subjectHash, cross->subjectHash,
+                      sizeof(root->subjectHash)) != 0) ||
+             (root->keyOID != cross->keyOID) ||
+#ifdef HAVE_ECC
+             (root->pkCurveOID != cross->pkCurveOID) ||
+#endif
+             (root->pubKeySize != cross->pubKeySize) ||
+             (XMEMCMP(root->publicKey, cross->publicKey,
+                      root->pubKeySize) != 0)) {
+        ESP_LOGCBW(TAG, "Bundle root has a different public key.");
+        ret = 0;
+    }
+#ifndef NO_SKID
+    /* The key ID is the subject key identifier, or else a hash of the key. */
+    else if (XMEMCMP(root->extSubjKeyId, cross->extSubjKeyId,
+                     sizeof(root->extSubjKeyId)) != 0) {
+        ESP_LOGCBW(TAG, "Bundle root has a different subject key ID.");
+        ret = 0;
+    }
+#endif
+
+    return ret;
+}
+
+/* Accept `cross` when it is a cross-signed copy of a bundle root (same
+ * subject and key), e.g. GTS Root R4 by GlobalSign Root CA. The bundle root
+ * is loaded as the CA. Not needed with alt cert chains, which check the next
+ * cert down against the root. dcert is scratch space. Returns preverify. */
+static int wolfssl_bundle_cross_sign(int preverify,
+                                     WOLFSSL_X509_STORE_CTX* store,
+                                     WOLFSSL_X509* cross,
+                                     DecodedCert* dcert)
+{
+    WOLFSSL_X509_NAME* cross_subject;
+    WC_DECLARE_VAR(cross_dcert, DecodedCert, 1, NULL);
+    const unsigned char* root_der = NULL;
+    const unsigned char* cross_der = NULL;
+    int root_sz = 0;
+    int cross_sz = 0;
+    int is_ca = 0;
+    int same_key = 0;
+    int ret;
+
+    cross_subject = wolfSSL_X509_get_subject_name(cross);
+    if ((cross_subject == NULL) || (cross_subject->name == NULL) ||
+        (wolfssl_bundle_find(dcert, cross_subject->name, &root_der, &root_sz,
+                             &is_ca) == 0)) {
+        return preverify;
+    }
+
+    cross_der = wolfSSL_X509_get_der(cross, &cross_sz);
+    if (cross_der == NULL) {
+        ESP_LOGE(TAG, "Cross-signed cert check failed.");
+        return preverify;
+    }
+    WC_ALLOC_VAR_EX(cross_dcert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
+    {
+        ESP_LOGE(TAG, "Cross-signed cert check failed.");
+        return preverify;
+    });
+
+    wc_InitDecodedCert(dcert, root_der, (word32)root_sz, NULL);
+    wc_InitDecodedCert(cross_dcert, cross_der, (word32)cross_sz, NULL);
+    if ((wc_ParseCert(dcert, CA_TYPE, NO_VERIFY, NULL) == 0) &&
+        (wc_ParseCert(cross_dcert, CERT_TYPE, NO_VERIFY, NULL) == 0)) {
+        same_key = wolfssl_bundle_same_root_key(dcert, cross_dcert);
+    }
+    wc_FreeDecodedCert(cross_dcert);
+    wc_FreeDecodedCert(dcert);
+    WC_FREE_VAR_EX(cross_dcert, NULL, DYNAMIC_TYPE_DCERT);
+
+    if (same_key) {
+        ESP_LOGCBI(TAG, "Cross-signed cert has the key of a bundle root.");
+        /* The store reports the cross-signed cert itself. Its signature is
+         * from an issuer outside the bundle, so accept it on its key. */
+        ret = wolfSSL_CertManagerLoadCABuffer(store->store->cm, root_der,
+                                              root_sz, WOLFSSL_FILETYPE_ASN1);
+        if (ret == WOLFSSL_SUCCESS) {
+            preverify = 1;
+        }
+        else {
+            ESP_LOGCBW(TAG, "Failed to load CA, ret = %d", ret);
+        }
+    }
+
+    return preverify;
+}
+#endif /* !WOLFSSL_ALT_CERT_CHAINS */
+
+/* Look for a bundle root that `cert` leads to: the bundle cert that issued
+ * it, or else (without alt cert chains) a bundle root that `cert` is a
+ * cross-signed copy of.
+ * `last` is the index of `cert` in the peer chain.
+ * Sets found when the issuer is in the bundle, and cross_signed when the
+ * cross-signed copy was accepted.
+ * dcert is scratch space for parsing bundle certs.
+ * Returns preverify. */
+static int wolfssl_bundle_check_cert(int preverify,
+                                     WOLFSSL_X509_STORE_CTX* store,
+                                     WOLFSSL_X509* cert, int last,
+                                     DecodedCert* dcert, int* found,
+                                     int* is_ca, int* cross_signed)
+{
+    WOLFSSL_X509_NAME* issuer;
+    const unsigned char* der = NULL;
+    int der_sz = 0;
+
+    *found = 0;
+    *cross_signed = 0;
+
+    issuer = wolfSSL_X509_get_issuer_name(cert);
+    if ((issuer == NULL) || (issuer->name == NULL)) {
+        ESP_LOGE(TAG, "Error getting the cert issuer.");
+        return preverify;
+    }
+    ESP_LOGCBI(TAG, "Store Cert Issuer:  %s", issuer->name);
+
+    /* Look for the bundle cert whose subject is the cert's issuer: */
+    *found = wolfssl_bundle_find(dcert, issuer->name, &der, &der_sz, is_ca);
+
+    /* After searching the bundle for an appropriate CA, if found then
+     * load into the provided cert manager. */
+    if (*found) {
+        ESP_LOGCBW(TAG, "Found a Matching Certificate Name in the bundle!");
+        preverify = cert_manager_load(preverify, store, der, der_sz, last);
+        if (preverify == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            /* cert_manager_load() logged whether the load or the verify
+             * failed. */
+            ESP_LOGCBW(TAG, "Warning: found a matching cert, but it did not "
+                            "verify the peer cert.");
+        }
+        else {
+            ESP_LOGCBI(TAG, "New CA verified the peer cert.");
+        }
+    }
+    else {
+        ESP_LOGCBW(TAG, "Matching Certificate Name not found in bundle!");
+    }
+
+#ifndef WOLFSSL_ALT_CERT_CHAINS
+    /* The cert may be a cross-signed copy of a bundle root. Try that also
+     * when its issuer is in the bundle but no longer verifies it, such as
+     * GTS Root R4 issued by GlobalSign Root CA after both expire. */
+    if (preverify != WOLFSSL_SUCCESS) {
+        preverify = wolfssl_bundle_cross_sign(preverify, store, cert, dcert);
+        *cross_signed = (preverify == WOLFSSL_SUCCESS);
+    }
+#endif
+
     return preverify;
 }
 
@@ -522,25 +806,19 @@ static CB_INLINE int wolfssl_ssl_conf_verify_cb_no_signer(int preverify,
 {
     char subjectName[X509_MAX_SUBJECT_LEN + 1];
 
-    const unsigned char* cert_data = NULL;
-
     WOLFSSL_X509_NAME* store_cert_subject = NULL; /* part of store_cert*/
-    WOLFSSL_X509_NAME* store_cert_issuer = NULL;  /* part of store_cert*/
     /* the bundle cert being looked at */
     WC_DECLARE_VAR(bundle_dcert, DecodedCert, 1, NULL);
     int bundle_is_ca = 0;
+    /* per call: tasks can verify chains at the same time */
+    int crt_found = 0;
 
-    intptr_t this_addr = 0; /* Beginning of the bundle object: [size][cert]  */
-    int derCertLength = 0; /* The [size] value: length of [cert] budnle item */
-    int cmp_res = 0;
-    int last_cmp = -1;
-
-    int start = 0;  /* Beginning of search; only changes if binary search.   */
-    int end = 0;    /* End of bunndle search; only changes if binary search. */
-    int middle = 0; /* Middle value for binary search, otherwise increments. */
+    int cross_signed = 0;
 
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     WOLFSSL_BUFFER_INFO buffer;
+    WOLFSSL_X509* chain_cert;
+    int i;
 #endif
 #ifdef CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE
     WOLFSSL_STACK* chain;
@@ -636,156 +914,50 @@ static CB_INLINE int wolfssl_ssl_conf_verify_cb_no_signer(int preverify,
         else {
             ESP_LOGCBNI(TAG, "Store Cert Subject: %s", subjectName );
         }
-        store_cert_issuer = wolfSSL_X509_get_issuer_name(store_cert);
-        if (store_cert_issuer == NULL) {
-            ESP_LOGE(TAG, "Error converting Store Cert Issuer to string");
-            ret = WOLFSSL_FAILURE;
-        }
-        else {
-            ESP_LOGCBI(TAG, "Store Cert Issuer:  %s", store_cert_issuer->name );
-        }
     }
 
     /* When the server presents its certificate, the client checks if this
      * certificate can be traced back to one of the CA certificates in the
-     * bundle.
-     *
-     * NOTE: To save memory, the store `cert` from above is overwritten below.
-     * Any details needed from the store `cert` should have been saved.
-     *
-     * We'll proceed by assigning `cert` to each of the respective items in
-     * bundle as we attempt to find the desired cert: */
+     * bundle. */
     if (ret == WOLFSSL_SUCCESS) {
         _cert_bundle_loaded = 1;
-        start = 0;
-        if (s_crt_bundle.num_certs > 0) {
-            end = s_crt_bundle.num_certs - 1;
-        }
-        else {
-            ESP_LOGCBW(TAG, "The certificate bundle is empty.");
-            end = -1;
-        }
 
-#ifndef CERT_BUNDLE_UNSORTED
-        /* When sorted (not unsorted), binary search: */
-        middle = (end - start) / 2;
-#else
-        /* When not sorted, we start at beginning and look at each: */
-        ESP_LOGCBW(TAG, "Looking at CA indexed. Start = %d, end = %d",
-                         start, end);
-        middle = 0;
-#endif
-        /* Look for the certificate searching on subject name: */
-        while (start <= end) {
-#ifndef CERT_BUNDLE_UNSORTED
-            ESP_LOGCBNW(TAG, "Looking at CA #%d; Binary Search start = %d,"
-                            "end = %d", middle, start, end);
-#else
-            ESP_LOGCBNW(TAG, "Looking at CA index #%d", middle);
-#endif
-#ifndef IS_WOLFSSL_CERT_BUNDLE_FORMAT
-            /* For reference only */
-            name_len = s_crt_bundle.crts[middle][0] << 8 |
-                       s_crt_bundle.crts[middle][1];
-            crt_name = s_crt_bundle.crts[middle] + CRT_HEADER_OFFSET;
-            ESP_LOGI(TAG, "String: %.*s", name_len, crt_name);
-            int cmp_res =  memcmp(subject, crt_name, name_len);
-#else
-            /* Each cert length should have been saved via python script: */
-            derCertLength = (s_crt_bundle.crts[middle][0] << 8) |
-                             s_crt_bundle.crts[middle][1];
-            this_addr = (intptr_t)s_crt_bundle.crts[middle];
-            ESP_LOGCBI(TAG, "This addr = 0x%x", this_addr);
-
-            cert_data = (const unsigned char*)(this_addr + CRT_HEADER_OFFSET);
-
-            ESP_LOGCBI(TAG, "s_crt_bundle ptr = 0x%x", (intptr_t)cert_data);
-            ESP_LOGCBI(TAG, "derCertLength    = %d", derCertLength);
-
-            /* Parse the bundle cert as a CA. Some trusted roots have serial
-             * number 0, which strict ASN checking only accepts in a
-             * self-signed CA loaded as a trust anchor. */
-            wc_InitDecodedCert(bundle_dcert, cert_data, (word32)derCertLength,
-                               NULL);
-            ret = wc_ParseCert(bundle_dcert, CA_TYPE, NO_VERIFY, NULL);
-            if (ret == 0) {
-                ESP_LOGCBNI(TAG, "This Bundle Item Subject Name: %s",
-                                 bundle_dcert->subject);
-
-                /* Match this bundle item's subject with the store cert's
-                 * issuer. The bundle is sorted on the same name string. */
-                cmp_res = strcmp(bundle_dcert->subject,
-                                 store_cert_issuer->name);
-                last_cmp = cmp_res; /* in case we have to skip an item, save */
-                bundle_is_ca = bundle_dcert->isCA;
-                ret = WOLFSSL_SUCCESS;
-            }
-            else {
-                ESP_LOGE(TAG, "Error parsing certificate #%d from bundle: %d",
-                              middle, ret);
-                ESP_LOGCBW(TAG, "Skipping CA #%d due to failure", middle);
-                cmp_res = last_cmp;
-                ret = WOLFSSL_FAILURE;
-            }
-            wc_FreeDecodedCert(bundle_dcert);
-    #ifdef CERT_BUNDLE_UNSORTED
-            if (cmp_res != last_cmp) {
-                ESP_LOGE(TAG, "Warning: unsorted!");
-            }
-    #endif
-#endif
-            ESP_LOGCBV(TAG, "This cmp_res = %d", cmp_res);
-            if (cmp_res == 0) {
-                ESP_LOGCBI(TAG, "Found a cert issuer match: %s",
-                                store_cert_issuer->name);
-                _crt_found = 1;
-                break;
-            }
-
-            /* The next indexed cert item to look at: [middle] value: */
-#ifndef CERT_BUNDLE_UNSORTED
-            /* If the list is presorted, we can use a binary search. */
-            else if (cmp_res < 0) {
-                start = middle + 1;
-            }
-            else {
-                end = middle - 1;
-            }
-            middle = start + ((end - start) / 2);
-#else
-            /* When the list is NOT presorted, typically during debugging,
-             * just step though in the order found until one is found: */
-            else {
-                middle++;
-                start = middle;
-            }
-#endif
-            ESP_LOGCBV(TAG, "Item = %d; start: %d, end: %d",
-                             middle, start, end);
-        } /* while (start <= end) */
-
-        /************************* END Bundle Search. *************************/
-
-        /* After searching the bundle for an appropriate CA, if found then
-         * load into the provided cert manager. */
-        if (_crt_found) {
-            ESP_LOGCBW(TAG, "Found a Matching Certificate Name in the bundle!");
-            ret = cert_manager_load(preverify, store, cert_data, derCertLength);
-            if (ret == WOLFSSL_FAILURE) {
-                ESP_LOGW(TAG, "Warning: found a matching cert, but not added "
-                              "to the Certificate Manager. error: %d", ret);
-                SHOW_WOLFSSL_BUNDLE_ERROR(ret);
-            }
-            else {
-                ESP_LOGCBI(TAG, "New CA added to the Certificate Manager.");
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+        /* The path may end at any cert the server sent (RFC 4158), so try
+         * each one from the top down, until a bundle root issued it. This
+         * passes over a cross-sign whose issuer is not in the bundle, and a
+         * root the server sent that is not in the bundle, such as AAA
+         * Certificate Services above the USERTrust cross-sign. Each try
+         * verifies the reported cert through the bundle root, so nothing is
+         * accepted without a path to that root. With alt cert chains,
+         * store_cert is the top cert, certs[totalCerts - 1]. */
+        ret = wolfssl_bundle_check_cert(preverify, store, store_cert,
+                                        store->totalCerts - 1, bundle_dcert,
+                                        &crt_found, &bundle_is_ca,
+                                        &cross_signed);
+        for (i = store->totalCerts - 2;
+             (ret != WOLFSSL_SUCCESS) && (i >= store->error_depth); i--) {
+            chain_cert = wolfSSL_X509_d2i(NULL, store->certs[i].buffer,
+                                          (int)store->certs[i].length);
+            if (chain_cert != NULL) {
+                ret = wolfssl_bundle_check_cert(preverify, store, chain_cert,
+                                                i, bundle_dcert, &crt_found,
+                                                &bundle_is_ca, &cross_signed);
+                wolfSSL_X509_free(chain_cert);
             }
         }
-        else {
-            ESP_LOGCBW(TAG, "Matching Certificate Name not found in bundle!");
-            ret = WOLFSSL_FAILURE;
-        } /* crt search result */
+#else
+        /* wolfSSL trusts each chain CA the callback accepts for the rest of
+         * this connection, so only the reported cert can be tried: skipping
+         * an untrusted root here would make it a trusted signer for the rest
+         * of the chain. */
+        ret = wolfssl_bundle_check_cert(preverify, store, store_cert,
+                                        store->error_depth, bundle_dcert,
+                                        &crt_found, &bundle_is_ca,
+                                        &cross_signed);
+#endif
 
-        if ((_crt_found == 1) && (ret == WOLFSSL_SUCCESS)) {
+        if ((crt_found == 1) && (ret == WOLFSSL_SUCCESS) && !cross_signed) {
             if (bundle_is_ca) {
                 ESP_LOGCBI(TAG, "Added Certificate Authority.");
             }
@@ -812,8 +984,15 @@ static CB_INLINE int wolfssl_ssl_conf_verify_cb_no_signer(int preverify,
             }
 #endif
         } /* crt_found */
+        else if (cross_signed) {
+            ESP_LOGCBI(TAG, "Accepted a cross-signed copy of a bundle root.");
+        }
         else {
-            ESP_LOGE(TAG, "Did not find a matching crt");
+            ESP_LOGE(TAG, "No certificate bundle root verifies the chain.");
+#ifndef WOLFSSL_ALT_CERT_CHAINS
+            ESP_LOGE(TAG, "If the server sends a root that is not in the "
+                          "bundle, enable WOLFSSL_ALT_CERT_CHAINS.");
+#endif
             ret = WOLFSSL_FAILURE;
         }
     } /* Did not find a cert */
@@ -1138,7 +1317,6 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
     _esp_crt_bundle_is_valid = ESP_OK; /* Assume valid until proven otherwise. */
 
     _cert_bundle_loaded = 0;
-    _crt_found = 0;
     _need_bundle_cert = 0;
 
     /* Basic check of bundle size. */
@@ -1336,7 +1514,6 @@ void esp_crt_bundle_detach(wolfssl_ssl_config *conf)
 {
     ESP_LOGI(TAG, "esp_crt_bundle_detach");
     _cert_bundle_loaded = 0;
-    _crt_found = 0;
     _need_bundle_cert = 0;
 
     if (s_crt_bundle.crts != NULL) {

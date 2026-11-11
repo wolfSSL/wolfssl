@@ -140,14 +140,12 @@ See the `.timeout_ms` and make adjustments as necessary in the `esp_http_client_
     };
 ```
 
-## Failed to load CA
+## No certificate bundle root verifies the chain
 
 This is expected to be a common error to encounter:
 
 ```
-E (28454) esp_crt_bundle-wolfssl: Failed to load CA
-W (28454) esp_crt_bundle-wolfssl: Warning: found a matching cert, but not added to the Certificate Manager. error: 0
-E (28454) esp_crt_bundle-wolfssl: Did not find a matching crt
+E (28454) esp_crt_bundle-wolfssl: No certificate bundle root verifies the chain.
 E (28464) internal.c: ssl != NULL; no callback, verifyFail = 1
 W (28474) internal.c: CleanupStoreCtxCallback
 E (28474) internal.c: DoCertFatalAlert = -188
@@ -158,6 +156,9 @@ E (28504) transport_base: Failed to open a new connection
 E (28514) HTTP_CLIENT: Connection failed, sock < 0
 E (28514) HTTP_CLIENT: HTTP request failed: ESP_ERR_HTTP_CONNECT
 ```
+
+Which bundle roots were found, and whether loading or verifying with them
+failed, is logged only with `CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE`.
 
 The problem here is that the example [esp_http_client](https://github.com/espressif/esp-idf/tree/master/examples/protocols/esp_http_client)
 app _does not work_ immediately out of the box unless changes are made to the source:
