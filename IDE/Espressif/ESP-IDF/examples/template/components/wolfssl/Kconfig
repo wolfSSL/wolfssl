@@ -274,8 +274,9 @@ menu "wolfSSL"
                 config WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_CMN
                     bool "Use only the most common certificates from the default bundles"
                     help
-                        Use only the most common certificates from the default bundles, reducing the size with 50%,
-                        while still having around 99% coverage.
+                        Use only the most common certificates from the default bundles (about a quarter of
+                        the roots), while still having around 99% coverage. The roots are listed in
+                        wolfcrypt/src/port/Espressif/esp_crt_bundle/cmn_crt_authorities.csv.
                 config WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE
                     bool "Do not use the default certificate bundle"
             endchoice

@@ -311,9 +311,20 @@ class CertificateBundle:
             pem_crts = re.findall(r'(^.+?)\n(=+\n[\s\S]+?END CERTIFICATE-----\n)', crt_str, re.MULTILINE)
 
             filtered_crts = ''
+            matched = set()
             for name, crt in pem_crts:
                 if name in filter_set:
                     filtered_crts += crt
+                    matched.add(name)
+
+        # An unmatched name would drop that CA from the bundle, so fail: the
+        # filter file must be updated together with cacrt_all.pem.
+        unmatched = sorted(filter_set - matched)
+        for name in unmatched:
+            critical('Filter name not found in %s: %s' % (crts_path, name))
+        if unmatched:
+            raise InputError('%d filter name(s) not found in %s' %
+                             (len(unmatched), crts_path))
 
         self.add_from_pem(filtered_crts)
 
