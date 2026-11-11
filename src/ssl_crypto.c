@@ -856,6 +856,15 @@ int wolfSSL_SHA3_224_Init(WOLFSSL_SHA3_224_CTX* sha3_224)
 {
     /* Ensure WOLFSSL_SHA3_224_CTX is big enough for wolfCrypt wc_Sha3. */
     WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA3_224_CTX, wc_Sha3);
+    /* And no bigger than it needs to be. The holder is an array of pointers,
+     * so a size in bytes used as the element count inflates it eightfold -
+     * which nothing else notices, because it is still big enough. This
+     * context is the largest member of the union in WOLFSSL_EVP_MD_CTX, so
+     * the cost lands on every digest context in the compatibility layer.
+     * Measured on the holder rather than the context, because ALIGN16 rounds
+     * the context's size up and that tail padding is not waste to report. */
+    wc_static_assert(sizeof(((WOLFSSL_SHA3_224_CTX*)0)->holder) <
+        sizeof(wc_Sha3) + sizeof(void*));
 
     WOLFSSL_ENTER("SHA3_224_Init");
 
@@ -3768,6 +3777,23 @@ int wolfSSL_RAND_Init(void)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 #ifdef HAVE_GLOBAL_RNG
+#if !defined(WOLFSSL_MUTEX_INITIALIZER) && !defined(SINGLE_THREADED)
+    /* Without a static initializer the mutex exists only once wolfSSL_Init()
+     * has made it. Locking it before then locks uninitialized memory - a
+     * zeroed CRITICAL_SECTION faults on Windows - so report no global RNG and
+     * let the caller make one of its own. This is the only place the global
+     * RNG is created, so it cannot exist before its mutex does.
+     *
+     * Not for SINGLE_THREADED: there wc_LockMutex() is (void)m; return 0, so
+     * there is no uninitialized mutex to come to grief on, and refusing here
+     * would turn RAND_status(), RAND_seed(), RAND_add(), RAND_load_file() and
+     * BN_rand() before wolfSSL_Init() - or after wolfSSL_Cleanup() - into
+     * failures they never were. */
+    if (globalRNGMutex_valid != 1) {
+        WOLFSSL_MSG("Global RNG mutex not initialized - call wolfSSL_Init()");
+        return ret;
+    }
+#endif
     if (wc_LockMutex(&globalRNGMutex) == 0) {
         if (initGlobalRNG == 0) {
             ret = wc_InitRng(&globalRNG);

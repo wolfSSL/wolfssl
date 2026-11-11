@@ -860,6 +860,114 @@ static int test_quic_crypt(void) {
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
+/* QUIC over TLS_AES_128_CCM_SHA256.
+ *
+ * CCM is not GCM in two ways that matter here. Its EVP defaults are OpenSSL's
+ * - a 7 byte nonce and a 12 byte tag - where QUIC needs 12 and 16 (RFC 9001
+ * 5.3), and it has to be told the payload length before any AAD, because the
+ * length goes into its first block. wolfSSL_quic_crypt_new() and the aead
+ * helpers carry both for the caller, and this checks they do.
+ *
+ * A published QUIC CCM vector to compare against does not exist - RFC 9001's
+ * appendix is GCM - so instead of a fixed ciphertext this pins the two
+ * parameters directly and tampers with the message to show the tag is really
+ * being checked, which a round trip on its own would not. */
+static int test_quic_crypt_ccm(void) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx = NULL;
+    WOLFSSL *     ssl = NULL;
+    const WOLFSSL_EVP_CIPHER * aead_cipher = NULL;
+    static const uint8_t key[16] =
+    {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+     0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
+    static const uint8_t aad[] =
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    /* Twelve bytes, as QUIC builds. A context left on CCM's 7 byte default
+     * would quietly use only part of it. */
+    static const uint8_t iv[12] =
+    {20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+    static const uint8_t plaintext[] =
+    "hello world\nhello world\nhello world\n";
+    WOLFSSL_EVP_CIPHER_CTX * enc_ctx = NULL;
+    WOLFSSL_EVP_CIPHER_CTX * dec_ctx = NULL;
+    uint8_t * encrypted = NULL;
+    uint8_t * decrypted = NULL;
+    size_t tag_len = 0;
+    size_t enc_len = 0;
+    size_t dec_len = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method)
+               == WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectNotNull(aead_cipher = wolfSSL_EVP_aes_128_ccm());
+    ExpectTrue(wolfSSL_quic_aead_is_ccm(aead_cipher) != 0);
+    ExpectTrue(wolfSSL_quic_aead_is_gcm(aead_cipher) == 0);
+    ExpectTrue(wolfSSL_quic_aead_is_chacha20(aead_cipher) == 0);
+
+    /* QUIC's tag length, not CCM's 12 byte default. */
+    tag_len = wolfSSL_quic_get_aead_tag_len(aead_cipher);
+    ExpectTrue(tag_len == 16);
+
+    dec_len = sizeof(plaintext);
+    enc_len = dec_len + tag_len;
+    encrypted = (uint8_t*)XMALLOC(enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(encrypted);
+    decrypted = (uint8_t*)XMALLOC(dec_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(decrypted);
+
+    ExpectNotNull(enc_ctx = wolfSSL_quic_crypt_new(aead_cipher, key, iv, 1));
+    /* QUIC's nonce length, not CCM's 7 byte default. */
+    if (enc_ctx != NULL) {
+        ExpectIntEQ(enc_ctx->ivSz, 12);
+        ExpectIntEQ(enc_ctx->authTagSz, 16);
+    }
+
+    /* Fails outright if the helper hands over AAD before declaring the
+     * payload length. */
+    ExpectTrue(wolfSSL_quic_aead_encrypt(encrypted, enc_ctx,
+                                         plaintext, sizeof(plaintext),
+                                         NULL, aad, sizeof(aad))
+               == WOLFSSL_SUCCESS);
+
+    ExpectNotNull(dec_ctx = wolfSSL_quic_crypt_new(aead_cipher, key, iv, 0));
+    ExpectTrue(wolfSSL_quic_aead_decrypt(decrypted, dec_ctx,
+                                         encrypted, enc_len,
+                                         NULL, aad, sizeof(aad))
+               == WOLFSSL_SUCCESS);
+    ExpectTrue(XMEMCMP(plaintext, decrypted, dec_len) == 0);
+
+    /* One flipped ciphertext bit has to be caught, or the round trip above
+     * says nothing about the tag being verified. */
+    if ((encrypted != NULL) && (dec_ctx != NULL)) {
+        WOLFSSL_EVP_CIPHER_CTX * bad_ctx = NULL;
+
+        encrypted[0] ^= 0x01;
+        ExpectNotNull(bad_ctx = wolfSSL_quic_crypt_new(aead_cipher, key, iv,
+                                                       0));
+        ExpectTrue(wolfSSL_quic_aead_decrypt(decrypted, bad_ctx,
+                                             encrypted, enc_len,
+                                             NULL, aad, sizeof(aad))
+                   != WOLFSSL_SUCCESS);
+        wolfSSL_EVP_CIPHER_CTX_free(bad_ctx);
+        encrypted[0] ^= 0x01;
+    }
+
+    XFREE(encrypted, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decrypted, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_EVP_CIPHER_CTX_free(enc_ctx);
+    wolfSSL_EVP_CIPHER_CTX_free(dec_ctx);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    printf("    test_quic_crypt_ccm: %s\n", (EXPECT_SUCCESS()) ? pass : fail);
+    return EXPECT_RESULT();
+}
+#endif /* !NO_AES && HAVE_AESCCM && WOLFSSL_AES_128 */
+
+
 typedef struct OutputBuffer {
     byte data[64*1024];
     size_t len;
@@ -2866,6 +2974,9 @@ int QuicTest(void)
     if ((ret = test_quic_post_handshake_return()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_record_split()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_crypt()) != TEST_SUCCESS) goto leave;
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
+    if ((ret = test_quic_crypt_ccm()) != TEST_SUCCESS) goto leave;
+#endif
     if ((ret = test_quic_client_hello(verbose)) != TEST_SUCCESS) goto leave;
 #endif
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
