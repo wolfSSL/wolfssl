@@ -7188,7 +7188,8 @@ void wolfSSL_EVP_init(void)
             count = 1;
 
         ret = wc_PBKDF1_ex(key, (int)info->keySz, iv, (int)info->ivSz, data, sz,
-                           salt, EVP_SALT_SIZE, count, hashType, NULL);
+                           salt, (salt != NULL) ? EVP_SALT_SIZE : 0, count,
+                           hashType, NULL);
         if (ret == 0)
             ret = (int)info->keySz;
 
