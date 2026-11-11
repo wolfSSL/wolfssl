@@ -2205,7 +2205,13 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 
 #if defined(WC_RNG_SEED_CB) && !defined(WC_GENERATE_SEED_DEFAULT)
-    #define WC_GENERATE_SEED_DEFAULT wc_GenerateSeed
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+        !defined(FIPS_NO_WRAPPERS)
+        /* wc_SetSeed_Cb_fips(NULL) installs the module's own seed source */
+        #define WC_GENERATE_SEED_DEFAULT NULL
+    #else
+        #define WC_GENERATE_SEED_DEFAULT wc_GenerateSeed
+    #endif
 #endif
 
 #if (defined(__unix__) || defined(__APPLE__)) && \

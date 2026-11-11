@@ -31215,7 +31215,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                 lret = WC_TEST_RET_ENC_I(ret);
                 break;
             }
-#if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
+#ifdef HAVE_FIPS
+            /* FIPS: a caller seed is never tested or credited as entropy */
+            ret = wc_InitRngNonce_UserSeed(&u_seed, u_seed_buf,
+                                           (word32)WC_DRBG_SEED_BUF_SIZE,
+                                           NULL, 0, NULL, 0, HEAP_HINT, devId,
+                                           WC_RNG_INIT_FLAG_TEST_USER_SEED);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                lret = WC_TEST_RET_ENC_I(ret);
+                break;
+            }
+#elif !defined(WOLFSSL_RNG_USE_FULL_SEED)
             ret = wc_InitRngNonce_UserSeed(&u_seed, u_seed_buf,
                                            (word32)WC_DRBG_SEED_BUF_SIZE - 1U,
                                            NULL, 0, NULL, 0, HEAP_HINT, devId,
@@ -31232,7 +31242,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                 lret = WC_TEST_RET_ENC_I(ret);
                 break;
             }
-#ifdef WC_RNG_HAVE_RBGC
+#if defined(WC_RNG_HAVE_RBGC) && !defined(HAVE_FIPS)
             /* Under the flag the material is health-tested as the module's
              * own would be: a constant seed trips the repetition count test,
              * and nothing is instantiated. */
@@ -31579,29 +31589,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
         * WC_RNG_INIT_FLAG_PRESERVE_LOCK && (!HAVE_FIPS || FIPS >= 7) &&
         * !HAVE_SELFTEST */
 
-    /* WC_RNG_RBGC_STRATUM_IMMUTABLE freezes RBGCStratum at birth, so
-     * credited user-class reseeds of conformant (sub-sentinel) instances
-     * are refused with WRONG_TYPE_OBJECT_E.  The refusal precedes length
-     * handling (zero-length probe below), and generation is unaffected.
-     * The acceptance counterpart -- a user reseed of a born-user-seeded
-     * instance -- is exercised in rng_drbg_rbgc_test(). */
+    /* A caller seed is refused, except in FIPS, where it is additional input
+     * to a reseed from the module source. */
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
     {
         WC_RNG c_rng;
         byte c_buf[16];
+#ifdef HAVE_FIPS
+        const int c_expect = 0;
+#else
+        const int c_expect = WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E);
+#endif
 
         ret = wc_InitRng_ex(&c_rng, HEAP_HINT, devId);
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
         XMEMSET(c_buf, 0x3c, sizeof(c_buf));
         ret = wc_RNG_DRBG_Reseed(&c_rng, c_buf, (word32)sizeof(c_buf));
-        if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+        if (ret != c_expect) {
             (void)wc_FreeRng(&c_rng);
             return WC_TEST_RET_ENC_I(ret);
         }
         ret = wc_RNG_DRBG_Reseed(&c_rng, c_buf, 0);
-        if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+        if (ret != c_expect) {
             (void)wc_FreeRng(&c_rng);
             return WC_TEST_RET_ENC_I(ret);
         }
@@ -32714,10 +32725,10 @@ static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
         rc = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
     else
         rc = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
-#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
-    /* The user-reseed class refusal precedes the lock wait, so the !useNow
-     * leg reports WRONG_TYPE_OBJECT_E before condemnation can surface;
-     * condemnation reporting stays covered by the useNow leg. */
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
+    !defined(HAVE_FIPS)
+    /* Non-FIPS refuses a caller seed before the lock wait; FIPS reseeds
+     * from the module source, like the useNow leg. */
     if (rc != (useNow ? WC_NO_ERR_TRACE(RNG_FAILURE_E)
                       : WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)))
 #else
@@ -33509,8 +33520,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND)
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+#ifdef HAVE_FIPS
+    /* FIPS: the seed is additional input to a module reseed */
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 #endif
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), NULL, 0, 10, BANK_USER_SEED_FLAGS);
     if (! BANK_USER_SEED_OK(ret))
@@ -34513,7 +34530,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         /* credited reseed resets the counter */
-#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
+    !defined(HAVE_FIPS)
         /* user-class credited reseeds of the conformant root are refused;
          * probe the counter reset with a credited primary reseed, with the
          * material as nonce. */
@@ -35812,6 +35830,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
      * generates. */
     {
         WC_RNG u_seed;
+#ifdef HAVE_FIPS
+        /* FIPS: the seed is additional input, so the module source seeds it */
+        const int u_expect = 0;
+#else
+        const int u_expect = WC_RNG_RBGC_USER_SEED_STRATUM;
+#endif
         /* structured, full-length: _InitRng() requires the born seed to be
          * at least WC_DRBG_SEED_SZ, and applies no statistical test to it.
          * WC_DRBG_SEED_SZ can be huge (e.g. AMD RDSEED), hence
@@ -35828,7 +35852,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_DRBG_GetRBGCStratum(&u_seed);
-        if (api_ret != WC_RNG_RBGC_USER_SEED_STRATUM) {
+        if (api_ret != u_expect) {
             (void)wc_FreeRng(&u_seed);
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
         }
@@ -35838,7 +35862,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         }
         api_ret = wc_RNG_DRBG_GetRBGCStratum(&u_seed);
-        if (api_ret != WC_RNG_RBGC_USER_SEED_STRATUM) {
+        if (api_ret != u_expect) {
             (void)wc_FreeRng(&u_seed);
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
         }
@@ -37686,6 +37710,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
     (void)block;
 
 #ifdef WC_RNG_HAVE_RBGC
+#ifdef HAVE_FIPS
+    /* FIPS: a caller seed is not entropy, so a member with no module
+     * source cannot be instantiated */
+    {
+        WC_RNG u;
+        WC_DECLARE_VAR(user_seed, byte, WC_DRBG_SEED_SZ, HEAP_HINT);
+
+        WC_ALLOC_VAR(user_seed, byte, WC_DRBG_SEED_SZ, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        if (user_seed == NULL)
+            ERROR_OUT(MEMORY_E, out_l);
+#endif
+        XMEMSET(user_seed, 0x5a, WC_DRBG_SEED_SZ);
+        api_ret = wc_InitRngNonce_UserSeed(&u, user_seed,
+                                           WC_DRBG_SEED_SZ,
+                                           NULL, 0, NULL, 0, HEAP_HINT,
+                                           RNG_DRBG_DEVID,
+                                           WC_RNG_INIT_FLAG_NO_PRIMARY_SEED);
+        WC_FREE_VAR(user_seed, HEAP_HINT);
+        if (api_ret == 0) {
+            (void)wc_FreeRng(&u);
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_l);
+        }
+        if (api_ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    }
+#else
     /* B7: a user-seeded instance with WC_RNG_INIT_FLAG_NO_PRIMARY_SEED is
      * legal (a KAT harness that must never touch the primary source), is
      * labeled with the user-provenance sentinel stratum, and accepts the
@@ -37799,6 +37850,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         if (api_ret != 0)
             ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
+#endif /* HAVE_FIPS */
 #endif /* WC_RNG_HAVE_RBGC */
 
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
