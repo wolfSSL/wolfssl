@@ -1162,7 +1162,7 @@ if(WOLFSSL_HARDEN)
         list(APPEND WOLFSSL_DEFINITIONS "-DWC_RSA_BLINDING")
     endif()
 else()
-    list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN" "-DWC_NO_CACHE_RESISTANT")
 endif()
 
 # AES table cache-line touching: aes.c turns it on for RISC-V by default, and
@@ -1659,18 +1659,32 @@ endif()
 # AES-GCM
 add_option("WOLFSSL_AESGCM"
     "Enable wolfSSL AES-GCM support (default: enabled)"
-    "yes" "yes;no;table;small;word32;4bit")
+    "yes" "yes;no;table;small;word;word32;4bit;intmul")
 
 # leanpsk and leantls don't need gcm
 if(WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
     override_cache(WOLFSSL_AESGCM "no")
 endif()
 
-if(WOLFSSL_AESGCM AND CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
-    override_cache(WOLFSSL_AESGCM "4bit")
+# Default GHASH implementation, as configure: FIPS modules before v7 don't
+# have GCM_INT_MUL and keep the 4-bit table. Otherwise settings.h's choice is
+# recorded in options.h once all options are known (see "Default GHASH
+# implementation: when none is chosen" below).
+set(_wolfssl_gcm_default_ghash FALSE)
+if("${WOLFSSL_AESGCM}" STREQUAL "yes")
+    if(WOLFSSL_FIPS AND ("${FIPS_VERSION}" MATCHES "^(v1|v2|rand|v5|v6)"))
+        override_cache(WOLFSSL_AESGCM "4bit")
+    elseif(NOT WOLFSSL_LOW_RESOURCE)
+        set(_wolfssl_gcm_default_ghash TRUE)
+    endif()
 endif()
 
 if(WOLFSSL_AESGCM)
+    if("${WOLFSSL_AESGCM}" STREQUAL "word")
+        list(APPEND WOLFSSL_DEFINITIONS "-DGCM_WORD64")
+        override_cache(WOLFSSL_AESGCM "yes")
+    endif()
+
     if("${WOLFSSL_AESGCM}" STREQUAL "word32")
         list(APPEND WOLFSSL_DEFINITIONS "-DGCM_WORD32")
         override_cache(WOLFSSL_AESGCM "yes")
@@ -1688,6 +1702,18 @@ if(WOLFSSL_AESGCM)
 
     if("${WOLFSSL_AESGCM}" STREQUAL "4bit")
         list(APPEND WOLFSSL_DEFINITIONS "-DGCM_TABLE_4BIT")
+        override_cache(WOLFSSL_AESGCM "yes")
+    endif()
+
+    if("${WOLFSSL_AESGCM}" STREQUAL "intmul")
+        # The Arm assembly GHASH is built on the 4-bit table.
+        if("${CMAKE_C_FLAGS};${WOLFSSL_DEFINITIONS}" MATCHES
+           "(^|[ ;])-DWOLFSSL_ARMASM([ ;=]|$)")
+            message(FATAL_ERROR "WOLFSSL_AESGCM=intmul can't be used with "
+                "WOLFSSL_ARMASM: the Arm assembly GHASH uses the 4-bit table "
+                "(WOLFSSL_AESGCM=4bit).")
+        endif()
+        list(APPEND WOLFSSL_DEFINITIONS "-DGCM_INT_MUL")
         override_cache(WOLFSSL_AESGCM "yes")
     endif()
 
@@ -4812,6 +4838,82 @@ endif()
 add_option("WOLFSSL_PPC64_ASM" "Enable PowerPC 64-bit assembly acceleration (default: disabled)" "no" "yes;no")
 if(WOLFSSL_PPC64_ASM AND WOLFSSL_ASM)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PPC64_ASM")
+endif()
+
+# Default GHASH implementation: when none is chosen, settings.h picks it from
+# the cache-resistance options and the CPU, whose compiler macros (__ARM_ARCH,
+# __riscv_zkt, ...) depend on flags like -march, and aes.h picks the
+# GCM_INT_MUL multiply variant the same way. Compile them with the library's
+# compiler, flags and definitions to get the choices, and record them in
+# options.h: the Gcm layout depends on them, so an application built with other
+# CPU flags still agrees with the library. As configure does.
+if("${WOLFSSL_DEFINITIONS}" MATCHES "(^|;)-DGCM_INT_MUL(;|$)")
+    set(_wolfssl_gcm_int_mul TRUE)
+else()
+    set(_wolfssl_gcm_int_mul FALSE)
+endif()
+if((_wolfssl_gcm_default_ghash OR _wolfssl_gcm_int_mul) AND
+   NOT WOLFSSL_USER_SETTINGS)
+    include(CMakePushCheckState)
+    cmake_push_check_state(RESET)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _wolfssl_build_type)
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_C_FLAGS_${_wolfssl_build_type}}")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        string(APPEND CMAKE_REQUIRED_FLAGS " -Wno-error")
+    endif()
+    set(CMAKE_REQUIRED_DEFINITIONS ${WOLFSSL_DEFINITIONS})
+    set(CMAKE_REQUIRED_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(CMAKE_REQUIRED_QUIET TRUE)
+    set(_wolfssl_gcm_ghash "")
+    if(_wolfssl_gcm_default_ghash)
+        foreach(_wolfssl_ghash GCM_INT_MUL GCM_SMALL GCM_TABLE_4BIT)
+            unset(WOLFSSL_GCM_DEFAULT_${_wolfssl_ghash} CACHE)
+            check_c_source_compiles("
+#include <wolfssl/wolfcrypt/settings.h>
+#ifndef ${_wolfssl_ghash}
+#error not the default GHASH
+#endif
+int main(void) { return 0; }" WOLFSSL_GCM_DEFAULT_${_wolfssl_ghash})
+            if(WOLFSSL_GCM_DEFAULT_${_wolfssl_ghash})
+                set(_wolfssl_gcm_ghash ${_wolfssl_ghash})
+                break()
+            endif()
+        endforeach()
+        if(_wolfssl_gcm_ghash)
+            message(STATUS "Default AES-GCM GHASH: ${_wolfssl_gcm_ghash}")
+        else()
+            message(STATUS "Default AES-GCM GHASH: not determined, settings.h chooses at build time")
+        endif()
+    endif()
+    # The GCM_INT_MUL multiply variant sizes Gcm too, whether GCM_INT_MUL was
+    # chosen or is the default.
+    set(_wolfssl_gcm_im "")
+    if((_wolfssl_gcm_int_mul OR _wolfssl_gcm_ghash STREQUAL "GCM_INT_MUL") AND
+       NOT "${WOLFSSL_DEFINITIONS}" MATCHES "(^|;)-DGCM_IM_(64|32W|32)(;|$)")
+        foreach(_wolfssl_im GCM_IM_64 GCM_IM_32W GCM_IM_32)
+            unset(WOLFSSL_GCM_VARIANT_${_wolfssl_im} CACHE)
+            check_c_source_compiles("
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#ifndef ${_wolfssl_im}
+#error not the GCM_INT_MUL multiply variant
+#endif
+int main(void) { return 0; }" WOLFSSL_GCM_VARIANT_${_wolfssl_im})
+            if(WOLFSSL_GCM_VARIANT_${_wolfssl_im})
+                set(_wolfssl_gcm_im ${_wolfssl_im})
+                break()
+            endif()
+        endforeach()
+        if(_wolfssl_gcm_im)
+            message(STATUS "GCM_INT_MUL multiply variant: ${_wolfssl_gcm_im}")
+        else()
+            message(STATUS "GCM_INT_MUL multiply variant: not determined, aes.h chooses at build time")
+        endif()
+    endif()
+    cmake_pop_check_state()
+    foreach(_wolfssl_def ${_wolfssl_gcm_ghash} ${_wolfssl_gcm_im})
+        list(APPEND WOLFSSL_DEFINITIONS "-D${_wolfssl_def}")
+    endforeach()
 endif()
 
 # All options are declared by this point; report any force_option() that no

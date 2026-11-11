@@ -75,6 +75,18 @@ extern "C" {
 #cmakedefine GCM_TABLE_4BIT
 #undef GCM_WORD32
 #cmakedefine GCM_WORD32
+#undef GCM_WORD64
+#cmakedefine GCM_WORD64
+#undef GCM_INT_MUL
+#cmakedefine GCM_INT_MUL
+#undef GCM_INT_MUL_32_ONLY
+#cmakedefine GCM_INT_MUL_32_ONLY
+#undef GCM_IM_64
+#cmakedefine GCM_IM_64
+#undef GCM_IM_32W
+#cmakedefine GCM_IM_32W
+#undef GCM_IM_32
+#cmakedefine GCM_IM_32
 #undef HAVE___UINT128_T
 #cmakedefine HAVE___UINT128_T 1
 #undef HAVE_AES_KEYWRAP
@@ -267,6 +279,8 @@ extern "C" {
 #cmakedefine WC_ECC_NONBLOCK
 #undef WC_NO_ASYNC_THREADING
 #cmakedefine WC_NO_ASYNC_THREADING
+#undef WC_NO_CACHE_RESISTANT
+#cmakedefine WC_NO_CACHE_RESISTANT
 #undef WC_NO_HARDEN
 #cmakedefine WC_NO_HARDEN
 #undef WC_NO_HASHDRBG

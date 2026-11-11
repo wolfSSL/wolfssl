@@ -43,11 +43,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #error "WOLFSSL_NO_AES_TAG_ASSOCIATION is not allowed in FIPS v7 or later"
 #endif
 
-#if defined(WOLFSSL_ARMASM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
-    !defined(GCM_TABLE_4BIT)
-    #define GCM_TABLE_4BIT
-#endif
-
 /* WOLFSSL_ARM32_AES_HW_FLAGS - whether the Aes object carries the run-time
  * implementation-selection flags on 32-bit Arm.
  *
@@ -76,6 +71,44 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #if !defined(NO_AES) || defined(WOLFSSL_SM4)
 
+#ifdef GCM_INT_MUL
+/* GCM_INT_MUL multiply variant (see aes.c): GCM_IM_64 (64x64 multiplies),
+ * GCM_IM_32W (32x32->64 multiplies) or GCM_IM_32 (32x32->32 multiplies only).
+ * It sizes Gcm and depends on CPU macros, so configure and CMake record it in
+ * options.h; one given there, or by the user, is used as is. */
+#if (defined(GCM_IM_64) + defined(GCM_IM_32W) + defined(GCM_IM_32)) > 1
+    #error "Define at most one of GCM_IM_64, GCM_IM_32W and GCM_IM_32"
+#elif defined(GCM_IM_64) || defined(GCM_IM_32W) || defined(GCM_IM_32)
+    #if !defined(GCM_IM_32) && !defined(WORD64_AVAILABLE)
+        #error "GCM_IM_64 and GCM_IM_32W need a 64-bit type (WORD64_AVAILABLE)"
+    #endif
+    #if defined(GCM_INT_MUL_32_ONLY) && !defined(GCM_IM_32)
+        #error "GCM_INT_MUL_32_ONLY needs GCM_IM_32"
+    #endif
+#elif defined(WC_64BIT_CPU) && defined(WORD64_AVAILABLE)
+    #define GCM_IM_64
+#elif !defined(GCM_INT_MUL_32_ONLY) && defined(WORD64_AVAILABLE) && \
+      !defined(WC_16BIT_CPU) && !defined(WC_GCM_IM_32_ONLY_CPU)
+    #define GCM_IM_32W
+#else
+    #define GCM_IM_32
+#endif
+
+/* H prepared for the GCM_INT_MUL GHASH multiply by GenerateM0(): 64-bit
+ * CPUs use words and bit-reversed words, 32-bit CPUs Karatsuba operands (and,
+ * for GCM_IM_32, those of the bit-reversed words). Sized for the variant:
+ * keeps sizeof(Aes) small for fixed-size wrappers like mcapi. */
+typedef union GcmIntMulKey {
+#if defined(GCM_IM_64)
+    word64 w64[4];
+#elif defined(GCM_IM_32W)
+    word32 w32[9];
+#else
+    word32 w32[18];
+#endif
+} GcmIntMulKey;
+#endif
+
 typedef struct Gcm {
     ALIGN16 byte H[16];
 #ifdef GCM_TABLE
@@ -87,6 +120,10 @@ typedef struct Gcm {
     #else
         ALIGN16 byte M0[32][16];
     #endif
+#elif defined(GCM_INT_MUL)
+    /* The C GHASH reads only this, not H: x86 AES-NI streaming asm stores H
+     * in its own format. */
+    ALIGN16 GcmIntMulKey M0;
 #endif /* GCM_TABLE */
 } Gcm;
 
