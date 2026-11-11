@@ -2731,14 +2731,14 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
         key->i.tableLen = 0;
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, key->i.i);
-        if (err == 0) {
-            XMEMCPY(key->i.id, id, idSz);
-            key->i.idSz = idSz;
-        }
     }
     /* < [a]P + Z, K_(a,T) > = < K_(a,T), [a]P + Z > = < rsk, i >*/
     if (err == 0) {
         err = sakke_pairing(key, rsk, key->i.i, a, NULL, 0);
+    }
+    if (err == 0) {
+        XMEMCPY(key->i.id, id, idSz);
+        key->i.idSz = idSz;
     }
 
     /* Compare pairing result with generator. */
@@ -6929,14 +6929,15 @@ static int sakke_compute_point_r(SakkeKey* key, const byte* id, word16 idSz,
 
     if ((key->i.idSz == 0) || (key->i.idSz != idSz) ||
             (XMEMCMP(id, key->i.id, idSz) != 0)) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, i);
         if ((err == 0) && (idSz <= SAKKE_ID_MAX_SIZE)) {
             XMEMCPY(key->i.id, id, idSz);
             key->i.idSz = idSz;
         }
-        key->i.table = NULL;
-        key->i.tableLen = 0;
     }
     /* [r]([b]P + Z_S) */
     if (err == 0) {
