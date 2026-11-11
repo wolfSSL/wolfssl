@@ -5722,18 +5722,30 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 #ifndef WOLFSSL_ECC_GEN_REJECT_SAMPLING
     int err;
     byte buf[ECC_MAXSIZE_GEN];
+    DECL_MP_INT_SIZE_DYN(nm1, MAX_ECC_BITS_USE, MAX_ECC_BITS_USE);
 
     if (rng == NULL || size < 0 || size + 8 > ECC_MAXSIZE_GEN || k == NULL ||
                                                                 order == NULL) {
         return BAD_FUNC_ARG;
     }
+    /* FIPS 186-5 A.4.1 input 2: the order must be at least 2. */
+    if (mp_cmp_d(order, 1) != MP_GT) {
+        return BAD_FUNC_ARG;
+    }
 
-    /* generate 8 extra bytes to mitigate bias from the modulo operation below */
-    /* see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)' */
+    NEW_MP_INT_SIZE(nm1, MAX_ECC_BITS_USE, rng->heap, DYNAMIC_TYPE_ECC);
+#ifdef MP_INT_SIZE_CHECK_NULL
+    if (nm1 == NULL)
+        return MEMORY_E;
+#endif
+    err = INIT_MP_INT_SIZE(nm1, MAX_ECC_BITS_USE);
+
+    /* 8 extra bytes: t >= 64 in FIPS 186-5 A.2.1 step 3 and A.3.1 step 3. */
     size += 8;
 
     /* make up random string */
-    err = wc_RNG_GenerateBlock(rng, buf, (word32)size);
+    if (err == MP_OKAY)
+        err = wc_RNG_GenerateBlock(rng, buf, (word32)size);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("wc_ecc_gen_k buf", buf, size);
 #endif
@@ -5742,19 +5754,16 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     if (err == 0)
         err = mp_read_unsigned_bin(k, buf, (word32)size);
 
-    /* the key should be smaller than the order of base point */
-    if (err == MP_OKAY) {
-        if (mp_cmp(k, order) != MP_LT) {
-            err = mp_mod(k, order, k);
-        }
-    }
+    /* FIPS 186-5 A.4.1 steps 4-5: k = (k mod (n - 1)) + 1, in [1, n - 1]. */
+    if (err == MP_OKAY)
+        err = mp_sub_d(order, 1, nm1);
+    if (err == MP_OKAY)
+        err = mp_mod(k, nm1, k);
+    if (err == MP_OKAY)
+        err = mp_add_d(k, 1, k);
 
-    /* quick sanity check to make sure we're not dealing with a 0 key */
-    if (err == MP_OKAY) {
-        if (mp_iszero(k) == MP_YES)
-          err = MP_ZERO_E;
-    }
-
+    mp_clear(nm1);
+    FREE_MP_INT_SIZE(nm1, rng->heap, DYNAMIC_TYPE_ECC);
     ForceZero(buf, ECC_MAXSIZE_GEN);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(buf, ECC_MAXSIZE_GEN);
@@ -6164,29 +6173,23 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     wc_ecc_reset(key);
 
     #if FIPS_VERSION3_GE(6,0,0)
-    /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
-     * both keysize == 0 and curve_id == 0 ensure we select an appropriate
-     * keysize here when relying on default selection */
+    /* Refuse a key size below the FIPS minimum unless keysize is 0 and an
+     * approved curve is named. */
     if (keysize < WC_ECC_FIPS_GEN_MIN) {
         if (keysize == 0 && (curve_id == ECC_SECP256R1 ||
              curve_id == ECC_SECP224R1 || curve_id == ECC_SECP384R1 ||
              curve_id == ECC_SECP521R1)) {
             WOLFSSL_MSG("ECC keysize zero but curve_id sufficient for FIPS");
-            err = 0;
         } else {
             WOLFSSL_MSG("ECC curve too small for FIPS mode");
-            err = ECC_CURVE_OID_E;
+            return BAD_FUNC_ARG;
         }
     }
-    if (err == 0) { /* FIPS specific check */
     #endif
     err = wc_ecc_set_curve(key, keysize, curve_id);
     if (err != 0) {
         return err;
     }
-    #if FIPS_VERSION3_GE(6,0,0)
-    } /* end FIPS specific check */
-    #endif
     key->flags = (byte)flags;
 
 #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK

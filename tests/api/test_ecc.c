@@ -4863,6 +4863,76 @@ int test_wc_EccPrivateKeyToDer(void)
     return EXPECT_RESULT();
 } /* End test_wc_EccPrivateKeyToDer */
 
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+/* RNG device that returns the 8 bytes in ctx, so gen_k sees a chosen c. */
+static int ecc_gen_k_fixed_rng_cb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    if (info->algo_type != WC_ALGO_TYPE_RNG || info->rng.sz != 8)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    XMEMCPY(info->rng.out, ctx, 8);
+    return 0;
+}
+#endif
+
+/* wc_ecc_gen_k maps c to (c mod (n - 1)) + 1, FIPS 186-5 A.4.1. */
+int test_wc_ecc_gen_k_boundaries(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    int    devId = 4486;
+    byte   c[8];
+    byte   n[4]   = { 0xFF, 0xFF, 0xFF, 0xFF };
+    byte   nm1[4] = { 0xFF, 0xFF, 0xFF, 0xFE };
+    WC_RNG rng;
+    mp_int k, order, want;
+
+    XMEMSET(c, 0, sizeof(c));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&k, 0, sizeof(k));
+    XMEMSET(&order, 0, sizeof(order));
+    XMEMSET(&want, 0, sizeof(want));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ecc_gen_k_fixed_rng_cb, c),
+        0);
+    ExpectIntEQ(wc_InitRng_ex(&rng, NULL, devId), 0);
+    ExpectIntEQ(mp_init(&k), MP_OKAY);
+    ExpectIntEQ(mp_init(&order), MP_OKAY);
+    ExpectIntEQ(mp_init(&want), MP_OKAY);
+
+    /* n = 0xFFFFFFFF, read from bytes so any digit size holds it; size 0
+     * makes gen_k read 8 bytes. */
+    ExpectIntEQ(mp_read_unsigned_bin(&order, n, sizeof(n)), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&want, nm1, sizeof(nm1)), MP_OKAY);
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order), 0); /* c = 0 */
+    ExpectIntEQ(mp_cmp_d(&k, 1), MP_EQ);
+    c[4] = 0xFF; c[5] = 0xFF; c[6] = 0xFF; c[7] = 0xFD; /* c = n - 2 */
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order), 0);
+    ExpectIntEQ(mp_cmp(&k, &want), MP_EQ);
+    c[7] = 0xFE; /* c = n - 1 */
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order), 0);
+    ExpectIntEQ(mp_cmp_d(&k, 1), MP_EQ);
+
+    ExpectIntEQ(mp_set(&order, 1), MP_OKAY);
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    mp_zero(&order);
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    mp_clear(&k);
+    mp_clear(&order);
+    mp_clear(&want);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_gen_k_boundaries */
+
 /*
  * MC/DC wave 1 - decision-targeted negative/edge paths for wolfcrypt/src/
  * ecc.c that the existing (already extensive) API tests above do not drive.

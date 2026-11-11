@@ -1934,8 +1934,11 @@ then
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
 
-    # Enable onestep KDF from NIST SP 800 56c option 1.
-    AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+    # Enable onestep KDF from NIST SP 800 56c option 1 (not in FIPS v7).
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+    fi
 fi
 
 # All non-FIPS wolfCrypt features except quantum-resistant asymmetric:
@@ -2551,6 +2554,7 @@ ENABLED_MLDSA_OPTS=$ENABLED_MLDSA
 ENABLED_MLDSA_MAKE_KEY=no
 ENABLED_MLDSA_SIGN=no
 ENABLED_MLDSA_VERIFY=no
+ENABLED_MLDSA_NO_CTX=no
 for v in `echo $ENABLED_MLDSA_OPTS | tr "," " "`
 do
   case $v in
@@ -2597,9 +2601,11 @@ do
     ENABLED_MLDSA87=yes
     ;;
   draft|fips204-draft)
+    ENABLED_MLDSA_NO_CTX=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_FIPS204_DRAFT"
     ;;
   no-ctx)
+    ENABLED_MLDSA_NO_CTX=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_CTX"
     ;;
   *)
@@ -2607,6 +2613,12 @@ do
     break;;
   esac
 done
+
+if test "$ENABLED_MLDSA_NO_CTX" = "yes" && test "$ENABLED_FIPS" != "no" && \
+   test "$HAVE_FIPS_VERSION" -ge 7
+then
+    AC_MSG_ERROR([ML-DSA no-ctx and draft are not in the FIPS module boundary: drop them from --enable-mldsa (or --enable-dilithium) in a FIPS v7 or later build.])
+fi
 
 # If ML-DSA is enabled but no specific level (44/65/87) was requested,
 # default to enabling all levels.
@@ -7846,6 +7858,13 @@ do
         ;;
     esac
 done
+
+if test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 && \
+   { test "$ENABLED_AESGCMSIV" = "yes" || test "$ENABLED_AESCTS" = "yes" || \
+     test "$ENABLED_AESKEYWRAP_PADDING" = "yes"; }
+then
+    AC_MSG_ERROR([AES-GCM-SIV, AES-CTS and AES-KWP are not in the FIPS module boundary: drop --enable-aesgcm-siv, --enable-aescts and --enable-aeskeywrap=padding from a FIPS v7 or later build.])
+fi
 
 # FIPS feature and macro setup
 

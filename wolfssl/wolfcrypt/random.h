@@ -439,7 +439,8 @@ struct OS_Seed {
 /* The maximum seed size will be the seed size plus a seed block for the
  * test, and an additional half of the seed size. This additional half
  * is in case the user does not supply a nonce. A nonce will be obtained
- * from the NDRNG. */
+ * from the NDRNG. FIPS builds draw it from the seed source even when a
+ * nonce is supplied. */
 #define WC_DRBG_MAX_SEED_SZ    (WC_DRBG_SEED_SZ + WC_DRBG_SEED_SZ/2 + \
                                 SEED_BLOCK_SZ)
 

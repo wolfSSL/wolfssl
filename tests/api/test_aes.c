@@ -9627,7 +9627,8 @@ int test_wc_AesFeatureCoverage(void)
 /* This function's value is MC/DC of the *open* wolfcrypt/src/aes.c feature
  * paths. Frozen crypto modules (self-test v4.1.0, old FIPS v2/v5 = WCv4) do not
  * exercise that aes.c and predate some modern behaviours asserted here. The
- * GCM/GMAC block works on all of them, so it only excludes HAVE_SELFTEST; the
+ * GCM/GMAC block works on all of them (its late-AAD probes need FIPS v7+),
+ * so it only excludes HAVE_SELFTEST; the
  * CCM block additionally excludes old FIPS (its AAD-only case diverges there,
  * see the per-block note); the key-wrap block excludes all FIPS + self-test.
  * The open MC/DC builds are unaffected. */
@@ -9676,6 +9677,11 @@ int test_wc_AesFeatureCoverage(void)
             NULL, 0), 0);
         ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher + 32, plain + 32, 8,
             NULL, 0), 0);
+    #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        /* AAD after message data is refused and leaves the stream intact. */
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, aad2,
+            sizeof(aad2)), WC_NO_ERR_TRACE(BAD_STATE_E));
+    #endif
         ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
 
         /* Decrypt: same chunking, must recover plaintext and tag must match. */
@@ -9689,16 +9695,21 @@ int test_wc_AesFeatureCoverage(void)
             16, NULL, 0), 0);
         ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered + 32, cipher + 32,
             8, NULL, 0), 0);
+    #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        /* AAD after message data is refused and leaves the stream intact. */
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad2,
+            sizeof(aad2)), WC_NO_ERR_TRACE(BAD_STATE_E));
+    #endif
         ExpectIntEQ(wc_AesGcmDecryptFinal(&aes, tag, sizeof(tag)), 0);
         ExpectBufEQ(recovered, plain, sizeof(plain));
 
         /* Tampered tag must be rejected. */
         ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, sizeof(key), iv,
             sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad1,
+            sizeof(aad1)), 0);
         ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered, cipher,
-            sizeof(plain), aad1, sizeof(aad1)), 0);
-        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad2,
-            sizeof(aad2)), 0);
+            sizeof(plain), aad2, sizeof(aad2)), 0);
         {
             byte badTag[AES_BLOCK_SIZE];
             XMEMCPY(badTag, tag, sizeof(badTag));
@@ -10313,7 +10324,7 @@ int test_wc_AesGcmArgMcdc(void)
     }
 
     /* ---- wc_AesGcmEncryptUpdate(): sz term, overflow AND, ctrSet/aSz/cSz
-     * AND ---- */
+     * AND, sz/authInSz OR ---- */
     {
         Aes aes;
         byte data[8] = { 0 };
@@ -10351,28 +10362,38 @@ int test_wc_AesGcmArgMcdc(void)
         ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
             aad, sizeof(aad)), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
 
-        /* ctrSet && aSz==0 && cSz==0 (invocation-counter bump). This has
-         * no externally-visible effect on the return code, so assert on
+        /* ctrSet && (sz||authInSz) && aSz==0 && cSz==0 (counter bump). This
+         * has no externally-visible effect on the return code, so assert on
          * aes.invokeCtr directly (same white-box technique as above). */
         aes.aSz = 0;
         aes.cSz = 0;
         aes.ctrSet = 1;
         aes.invokeCtr[0] = 0;
         aes.invokeCtr[1] = 0;
+        /* cond sz > 0 || authInSz > 0: an empty Update -> no bump. */
         ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
             0);
+        ExpectIntEQ(aes.invokeCtr[0], 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), 0);
         ExpectIntEQ(aes.invokeCtr[0], 1);
         /* cond aSz == 0 independence: non-zero aSz -> no bump. */
         aes.aSz = 4;
-        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
-            0);
+        aes.cSz = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), 0);
         ExpectIntEQ(aes.invokeCtr[0], 1);
         /* cond cSz == 0 independence: non-zero cSz -> no bump. */
         aes.aSz = 0;
         aes.cSz = 4;
-        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
-            0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), 0);
         ExpectIntEQ(aes.invokeCtr[0], 1);
+        /* cond authInSz > 0 independence: AAD alone -> bump. */
+        aes.cSz = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, aad,
+            sizeof(aad)), 0);
+        ExpectIntEQ(aes.invokeCtr[0], 2);
 
         wc_AesFree(&aes);
     }

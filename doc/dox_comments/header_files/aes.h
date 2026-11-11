@@ -2599,6 +2599,7 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len,
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
     buffer is NULL.
+    \return BAD_STATE_E If AAD is passed after plaintext.
 
     \param aes pointer to the AES structure
     \param out pointer to buffer to store ciphertext (can be NULL if sz=0)
@@ -2724,6 +2725,7 @@ int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len,
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
     buffer is NULL.
+    \return BAD_STATE_E If AAD is passed after ciphertext.
 
     \param aes pointer to the AES structure
     \param out pointer to buffer to store plaintext (can be NULL if sz=0)

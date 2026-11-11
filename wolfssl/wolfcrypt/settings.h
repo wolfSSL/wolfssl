@@ -6499,6 +6499,11 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error FIPS v7 needs WOLFSSL_LMS_VERIFY_ONLY and WOLFSSL_XMSS_VERIFY_ONLY
 #endif
 
+/* The SP 800-56C one-step KDF is outside the FIPS v7 module boundary. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_KDF_NIST_SP_800_56C)
+    #error FIPS v7 does not include WC_KDF_NIST_SP_800_56C
+#endif
+
 /* setup for opt-in DH in FIPS v7+ */
 #if FIPS_VERSION3_GE(7,0,0) && !defined(HAVE_DH) && !defined(NO_DH)
     #define NO_DH

@@ -1030,6 +1030,26 @@ int test_wc_ed25519_reject_small_order_keys(void)
             wc_ed25519_free(&key);
         }
     }
+    /* (4) y = p + 3 is on the curve and not small order, so only the
+     * y >= p check in verify rejects it (RFC 8032 5.1.3). */
+    {
+        byte nonCanon[ED25519_PUB_KEY_SIZE];
+        const char* msg = "forged message";
+        int verify_result = 1;
+
+        XMEMSET(nonCanon, 0xff, sizeof(nonCanon));
+        nonCanon[0] = 0xf0;
+        nonCanon[ED25519_PUB_KEY_SIZE - 1] = 0x7f;
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed25519_init(&key), 0);
+        ExpectIntEQ(wc_ed25519_import_public_ex(nonCanon, sizeof(nonCanon),
+            &key, 1), 0);
+        ExpectIntEQ(wc_ed25519_verify_msg(forged_sig, sizeof(forged_sig),
+            (const byte*)msg, (word32)XSTRLEN(msg), &verify_result, &key),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(verify_result, 0);
+        wc_ed25519_free(&key);
+    }
 #endif
 #endif
     return EXPECT_RESULT();
@@ -1293,7 +1313,7 @@ int test_wc_ed25519_verify_streaming(void)
 /*
  * Testing wc_ed25519_check_key edge cases: NULL key, pubKeySet==0,
  * privKeySet-mismatch, and the no-private-key Y-range boundary decision
- * (key->p[31]&0x7f==0x7f, the byte-loop, and the p[0]<0xed compound).
+ * (y compared byte by byte from the top against p = 2^255 - 19).
  */
 int test_wc_ed25519_check_key_edgecases(void)
 {
@@ -1329,7 +1349,8 @@ int test_wc_ed25519_check_key_edgecases(void)
 
     /* No private key: Y-range boundary, "order or higher" (deterministic
      * reject: top byte 0x7f, all mid bytes 0xff, low byte 0xff so the
-     * post-loop p[0]<0xed check is false -> stays PUBLIC_KEY_E without
+     * low byte is above p's, so ed25519_check_pub_y() returns PUBLIC_KEY_E
+     * without
      * reaching ge_frombytes_negate_vartime). */
     XMEMSET(&key, 0, sizeof(key));
     ExpectIntEQ(wc_ed25519_init(&key), 0);
@@ -1342,7 +1363,8 @@ int test_wc_ed25519_check_key_edgecases(void)
 
     /* No private key, Y-range boundary loop breaks early (a middle byte
      * is not 0xff): first operand's false side, second never evaluated,
-     * ret reset to 0 by the break -- lands in ge_frombytes_negate_vartime
+     * ed25519_check_pub_y() returns 0 at that byte -- lands in
+     * ge_frombytes_negate_vartime
      * on an arbitrary (not necessarily on-curve) point, so only the
      * decision shape is asserted here, not a specific final verdict. */
     XMEMSET(&key, 0, sizeof(key));

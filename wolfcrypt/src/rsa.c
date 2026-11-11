@@ -676,6 +676,17 @@ int wc_FreeRsaKey(RsaKey* key)
     return ret;
 }
 
+#if defined(WOLFSSL_RSA_KEY_CHECK) || \
+    (defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+/* r = |p - q|, without relying on signed math support. */
+WC_MAYBE_UNUSED static int RsaAbsDiffPQ(mp_int* p, mp_int* q, mp_int* r)
+{
+    if (mp_cmp(p, q) == MP_LT)
+        return mp_sub(q, p, r);
+    return mp_sub(p, q, r);
+}
+#endif
+
 #ifdef WOLFSSL_RSA_KEY_CHECK
 /* Check the pair-wise consistency of the RSA key. */
 static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
@@ -905,7 +916,7 @@ int wc_CheckRsaKey(RsaKey* key)
      *  ~= 2^(bit count of n)^(1/4) + 32) = 2^((bit count of n)/4 + 32)
      */
     if (ret == 0) {
-        ret = mp_sub(&key->p, &key->q, tmp);
+        ret = RsaAbsDiffPQ(&key->p, &key->q, tmp);
     }
     if (ret == 0) {
         if (mp_count_bits(tmp) <= (mp_count_bits(&key->n) / 4 + 32)) {
@@ -3693,9 +3704,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
     !defined(NO_RSA_BOUNDS_CHECK)
-    if (type == RSA_PRIVATE_DECRYPT &&
-        key->state == RSA_STATE_DECRYPT_EXPTMOD) {
-
+    if (type == RSA_PRIVATE_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
         if (ret != 0) {
             return ret;
@@ -3704,9 +3713,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY && !TEST_UNPAD_CONSTANT_TIME && \
         * !NO_RSA_BOUNDS_CHECK */
 #if !defined(NO_RSA_BOUNDS_CHECK)
-    if (type == RSA_PUBLIC_DECRYPT &&
-        key->state == RSA_STATE_DECRYPT_EXPTMOD) {
-
+    if (type == RSA_PUBLIC_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
         if (ret != 0) {
             return ret;
@@ -3718,9 +3725,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     /* Reject a message outside 1 < m < n-1 before exponentiating.
      * SP 800-56B Rev2 sec 7.1.1 (RSAEP) step 1.  Passed 1 rather than the
      * caller's checkSmallCt: the standard gives no opt-out on this path. */
-    if ((type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) &&
-        key->state == RSA_STATE_ENCRYPT_EXPTMOD) {
-
+    if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, 1);
         if (ret != 0) {
             return ret;
@@ -5363,17 +5368,11 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
 
     /* d = |p-q| */
     if (ret == 0)
-        ret = mp_sub(p, q, d);
+        ret = RsaAbsDiffPQ(p, q, d);
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     if (ret == 0)
         mp_memzero_add("Compare PQ d", d);
-#endif
-
-#if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
-                                               defined(WOLFSSL_SP_INT_NEGATIVE))
-    if (ret == 0)
-        ret = mp_abs(d, d);
 #endif
 
     /* compare */
@@ -5878,9 +5877,14 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_set_int(tmp3, (unsigned long)e);
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* FIPS 186-5 A.1.3 step 4.7: 5 * nlen tries for p. */
+    failCount = 5 * size;
+#else
     /* The failCount value comes from NIST FIPS 186-4, section B.3.3,
      * process steps 4.7 and 5.8. */
     failCount = 5 * (size / 2);
+#endif
     primeSz = (word32)size / 16; /* size is the size of n in bits.
                             primeSz is in bytes. */
 
@@ -5945,6 +5949,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     /* make q */
     if (err == MP_OKAY) {
+#if FIPS_VERSION3_GE(7,0,0)
+        /* FIPS 186-5 A.1.3 step 5.8: 10 * nlen tries for q. */
+        failCount = 10 * size;
+#endif
         isPrime = 0;
         i = 0;
         do {
@@ -5974,7 +5982,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
                  *  ~= 2^(bit count of n)^(1/4) + 32)
                  *   = 2^((bit count of n)/4 + 32)
                  */
-                err = mp_sub(p, q, tmp1);
+                err = RsaAbsDiffPQ(p, q, tmp1);
                 if (err == MP_OKAY && mp_count_bits(tmp1) <= (size / 4) + 32) {
                     isPrime = 0;
                 }
@@ -6061,7 +6069,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_mul(&key->p, &key->e, &key->e);
 #endif
-    if (err == MP_OKAY)                /* key->d = 1/e mod lcm(p-1, q-1) */
+    if (err == MP_OKAY)                /* key->d = 1/e mod tmp3 */
         err = mp_invmod(&key->e, tmp3, &key->d);
 #ifdef WC_RSA_BLINDING
     /* Take off blinding from d and reset e */
@@ -6074,6 +6082,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_set_int(&key->e, (unsigned long)e);
 #endif
+    /* FIPS 186-5 A.1.1 step 3: d must exceed 2^(nlen/2); no key otherwise. */
+    if (err == MP_OKAY && mp_count_bits(&key->d) <= size / 2)
+        err = PRIME_GEN_E;
     if (err == MP_OKAY)                /* key->n = pq */
         err = mp_mul(p, q, &key->n);
     if (err == MP_OKAY)                /* key->dP = d mod(p-1) */

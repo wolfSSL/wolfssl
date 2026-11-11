@@ -8901,6 +8901,20 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 }
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
+#ifdef HAVE_AESGCM
+/* Count one use of the internal IV. Once the limit is reached every call
+ * fails until a new IV is set. (SP 800-38D 8.3) */
+static WARN_UNUSED_RESULT WC_INLINE int GcmCountInvocation(Aes* aes)
+{
+    if (aes->invokeCtr[0] == 0xFFFFFFFF && aes->invokeCtr[1] == 0xFFFFFFFF)
+        return AES_GCM_OVERFLOW_E;
+    aes->invokeCtr[0]++;
+    if (aes->invokeCtr[0] == 0)
+        aes->invokeCtr[1]++;
+    return 0;
+}
+#endif /* HAVE_AESGCM */
+
 
 #ifdef HAVE_AESGCM
 
@@ -12724,7 +12738,9 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 
 #endif /* STM32_CRYPTO_AES_GCM */
 
-#if !defined(WC_AES_USE_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if defined(WOLFSSL_RISCV_ASM)
+/* RISC-V assembly does the whole GCM decrypt. */
+#elif !defined(WC_AES_USE_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
@@ -13198,15 +13214,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
     defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
-    return AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
+    ret = AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
         authTagSz, authIn, authInSz, (byte*)aes->key, aes->gcm.H,
         (byte*)aes->tmp, (byte*)aes->reg, (int)aes->rounds);
 #elif defined(WOLFSSL_RISCV_ASM)
-    return AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
+    ret = AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
         authTagSz, authIn, authInSz, (byte*)aes->key, AES_GCM_H_PTR(aes),
         (byte*)aes->tmp, (byte*)aes->reg, (int)aes->rounds);
-#endif
-
+#else
     VECTOR_REGISTERS_PUSH;
 
 #if defined(WC_AES_USE_ARMASM)
@@ -13338,6 +13353,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     VECTOR_REGISTERS_POP;
+#endif /* RISC-V asm */
 
     /* Wipe the output on a failed tag so unauthenticated plaintext is not
      * handed back.  The hardware backends above return before this point. */
@@ -15580,13 +15596,16 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = AES_GCM_OVERFLOW_E;
     }
 
-    if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
-        aes->invokeCtr[0]++;
-        if (aes->invokeCtr[0] == 0) {
-            aes->invokeCtr[1]++;
-            if (aes->invokeCtr[1] == 0)
-                ret = AES_GCM_OVERFLOW_E;
-        }
+    /* All AAD must come before message data. (SP 800-38D 7.1, 7.2) */
+    if ((ret == 0) && (authInSz > 0) && (aes->cSz != 0)) {
+        ret = BAD_STATE_E;
+    }
+
+    /* Count the stream at its first AAD or data; an empty stream counts in
+     * Final. */
+    if ((ret == 0) && aes->ctrSet && ((sz > 0) || (authInSz > 0)) &&
+            (aes->aSz == 0) && (aes->cSz == 0)) {
+        ret = GcmCountInvocation(aes);
     }
 
     if (ret == 0) {
@@ -15667,6 +15686,10 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 
     if (ret == 0) {
         ret = AesAssociateTagSz(aes, authTagSz);
+    }
+    /* A stream with no AAD or data has not been counted yet. */
+    if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
+        ret = GcmCountInvocation(aes);
     }
 
     if (ret == 0) {
@@ -15771,6 +15794,11 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
          (aes->aSz > WOLFSSL_MAX_32BIT - authInSz)))
     {
         ret = AES_GCM_OVERFLOW_E;
+    }
+
+    /* All AAD must come before message data. (SP 800-38D 7.1, 7.2) */
+    if ((ret == 0) && (authInSz > 0) && (aes->cSz != 0)) {
+        ret = BAD_STATE_E;
     }
 
     if (ret == 0) {
@@ -15971,11 +15999,37 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
     }
 
     if (ret == 0) {
-        /* If the IV is 96, allow for a 2^64 invocation counter.
-         * For any other size for the nonce, limit the invocation
-         * counter to 32-bits. (SP 800-38D 8.3) */
+        /* Only a 96-bit IV with a fixed field may reach 2^64 invocations.
+         * RBG-based IVs and other sizes stop at 2^32. (SP 800-38D 8.3) */
         aes->invokeCtr[0] = 0;
-        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ && ivFixedSz != 0) ?
+                            0 : 0xFFFFFFFF;
+        if (ivFixedSz != 0) {
+            /* Count from the random invocation field so the limit is hit
+             * before a carry can change the fixed field. (SP 800-38D 8.2.1) */
+            const byte* field = (const byte*)aes->reg + ivFixedSz;
+            word32 i;
+
+            if (ivSz == GCM_NONCE_MID_SZ) {
+                for (i = 0; i < 4; i++) {
+                    aes->invokeCtr[1] = (aes->invokeCtr[1] << 8) | field[i];
+                    aes->invokeCtr[0] = (aes->invokeCtr[0] << 8) | field[i + 4];
+                }
+            }
+            else {
+                /* Within 2^32 calls a carry reaches the fixed field only when
+                 * every field byte before the last 4 is 0xFF. */
+                word32 last = ivSz - ivFixedSz - 4;
+
+                i = 0;
+                while (i < last && field[i] == 0xFF)
+                    i++;
+                if (i == last) {
+                    for (i = last; i < last + 4; i++)
+                        aes->invokeCtr[0] = (aes->invokeCtr[0] << 8) | field[i];
+                }
+            }
+        }
     #ifdef WOLFSSL_AESGCM_STREAM
         aes->ctrSet = 1;
     #endif
@@ -16006,12 +16060,7 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     if (ret == 0) {
-        aes->invokeCtr[0]++;
-        if (aes->invokeCtr[0] == 0) {
-            aes->invokeCtr[1]++;
-            if (aes->invokeCtr[1] == 0)
-                ret = AES_GCM_OVERFLOW_E;
-        }
+        ret = GcmCountInvocation(aes);
     }
 
     if (ret == 0) {
@@ -20999,10 +21048,12 @@ int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in, word32 inSz) {
 
 #endif /* WOLFSSL_CMAC */
 
-/* AES-SIV and AES-EAX are not Approved; keep them out of the FIPS image. */
+/* AES-SIV, EAX, GCM-SIV, CTS and KWP are kept out of the FIPS image. */
 #if FIPS_VERSION3_GE(7,0,0) && \
-    (defined(WOLFSSL_AES_SIV) || defined(WOLFSSL_AES_EAX))
-    #error "WOLFSSL_AES_SIV and WOLFSSL_AES_EAX are not in the FIPS module boundary."
+    (defined(WOLFSSL_AES_SIV) || defined(WOLFSSL_AES_EAX) || \
+     defined(WOLFSSL_AESGCM_SIV) || defined(WOLFSSL_AES_CTS) || \
+     defined(WOLFSSL_AES_KEYWRAP_PADDING))
+    #error "WOLFSSL_AES_SIV, WOLFSSL_AES_EAX, WOLFSSL_AESGCM_SIV, WOLFSSL_AES_CTS and WOLFSSL_AES_KEYWRAP_PADDING are not in the FIPS module boundary."
 #endif
 
 #ifdef WOLFSSL_AES_SIV
