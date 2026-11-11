@@ -849,6 +849,33 @@ int test_wolfSSL_CTX_set0_chain_bad_cert(void)
         sk_X509_pop_free(chain, X509_free);
     }
 
+    /* A valid chain can be set again after the failure. */
+    goodChain = NULL;
+    goodCa = NULL;
+    ExpectNotNull(goodChain = sk_X509_new_null());
+    ExpectNotNull(goodCa = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntGT(sk_X509_push(goodChain, goodCa), 0);
+    if (EXPECT_FAIL()) {
+        X509_free(goodCa);
+    }
+    ret = (int)SSL_CTX_set0_chain(ctx, goodChain);
+    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    /* ctx owns goodChain on success */
+    if (ret != WOLFSSL_SUCCESS) {
+        sk_X509_pop_free(goodChain, X509_free);
+    }
+    if (ctx != NULL) {
+        ExpectIntGT(ctx->certChainCnt, 0);
+    }
+
+    /* Clearing the chain on success must also reset the chain count. */
+    ExpectIntEQ((int)SSL_CTX_set0_chain(ctx, NULL), WOLFSSL_SUCCESS);
+    if (ctx != NULL) {
+        ExpectNull(ctx->certChain);
+        ExpectIntEQ(ctx->certChainCnt, 0);
+    }
+
     wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
