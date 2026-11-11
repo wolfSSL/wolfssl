@@ -1456,17 +1456,17 @@ enum {
  * Without the fraction is 23726566 (0x016A09E6) */
 #define AEAD_AES_LIMIT                           w64From32(0, 0x016A09E6)
 /* Limit is 2^23
- * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits */
-#define DTLS_AEAD_AES_CCM_LIMIT                  w64From32(0, 1 << 22)
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-confidentiality-limits */
+#define DTLS_AEAD_AES_CCM_LIMIT                  w64From32(0, 1 << 23)
 
-/* Limit is 2^36
+/* Limit is 2^36 (2^4 in the high 32 bits)
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits */
-#define DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT      w64From32(1 << 3, 0)
-#define DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT   w64From32(1 << 2, 0)
+#define DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT      w64From32(1 << 4, 0)
+#define DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT   w64From32(1 << 3, 0)
 /* Limit is 2^7
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-limits-for-aead_aes_128_ccm */
-#define DTLS_AEAD_AES_CCM_8_FAIL_LIMIT           w64From32(0, 1 << 6)
-#define DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT        w64From32(0, 1 << 5)
+#define DTLS_AEAD_AES_CCM_8_FAIL_LIMIT           w64From32(0, 1 << 7)
+#define DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT        w64From32(0, 1 << 6)
 /* Limit is 2^23.5.
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits
  * Without the fraction is 11863283 (0x00B504F3)
