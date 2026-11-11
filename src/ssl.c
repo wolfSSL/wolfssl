@@ -8714,6 +8714,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         }
         /* Clear certificate chain */
         FreeDer(&ctx->certChain);
+        ctx->certChainCnt = 0;
         if (sk) {
             for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
                 x509 = wolfSSL_sk_X509_value(sk, i);
