@@ -3979,21 +3979,33 @@ int fp_to_unsigned_bin_len_ct(fp_int *a, unsigned char *out, int outSz)
     /* Start at the end of the buffer - least significant byte. */
     int j;
     unsigned int i;
-    fp_digit mask = (fp_digit)-1;
     fp_digit d;
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    /* Allocated digit count - may be less than FP_SIZE (e.g. alt_fp_int). */
+    const unsigned int maxIdx = (unsigned int)a->size - 1;
+#else
+    const unsigned int maxIdx = (unsigned int)FP_SIZE - 1;
+#endif
 
-    /* Put each digit in. */
+    /* Put each digit in.
+     * Digit index advances every iteration independent of a->used so that the
+     * memory access pattern only depends on outSz and the allocated size
+     * (public). Digits at or above a->used are masked out in constant time.
+     */
     i = 0;
-    for (j = outSz - 1; j >= 0; ) {
+    for (j = outSz - 1; j >= 0; i++) {
       unsigned int b;
-      d = a->dp[i];
+      /* Index to load from - limited by allocated size (public). */
+      unsigned int idx = (i < maxIdx) ? i : maxIdx;
+      volatile fp_digit mask = (fp_digit)0 -
+          (fp_digit)(i < (unsigned int)a->used);
+
+      d = a->dp[idx];
       /* Place each byte of a digit into the buffer. */
       for (b = 0; (j >= 0) && (b < (DIGIT_BIT / 8)); b++) {
         out[j--] = (byte)(d & mask);
         d >>= 8;
       }
-      mask &= (fp_digit)0 - (i < (unsigned int)a->used - 1);
-      i += (unsigned int)(1 & mask);
     }
   }
 #else
@@ -4003,13 +4015,25 @@ int fp_to_unsigned_bin_len_ct(fp_int *a, unsigned char *out, int outSz)
   if (err == MP_OKAY) {
     unsigned int i;
     int j;
-    fp_digit mask = (fp_digit)-1;
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    /* Allocated digit count - may be less than FP_SIZE (e.g. alt_fp_int). */
+    const unsigned int maxIdx = (unsigned int)a->size - 1;
+#else
+    const unsigned int maxIdx = (unsigned int)FP_SIZE - 1;
+#endif
 
+    /* Digit index advances every iteration independent of a->used so that the
+     * memory access pattern only depends on outSz and the allocated size
+     * (public). Digits at or above a->used are masked out in constant time.
+     */
     i = 0;
-    for (j = outSz - 1; j >= 0; j--) {
-      out[j] = a->dp[i] & mask;
-      mask &= (fp_digit)0 - (i < (unsigned int)a->used - 1);
-      i += (unsigned int)(1 & mask);
+    for (j = outSz - 1; j >= 0; j--, i++) {
+      /* Index to load from - limited by allocated size (public). */
+      unsigned int idx = (i < maxIdx) ? i : maxIdx;
+      volatile fp_digit mask = (fp_digit)0 -
+          (fp_digit)(i < (unsigned int)a->used);
+
+      out[j] = (byte)(a->dp[idx] & mask);
     }
   }
 #endif
