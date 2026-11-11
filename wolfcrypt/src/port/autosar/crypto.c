@@ -1030,8 +1030,13 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
 
         /* outputLengthPtr holds the size of the output buffer on the way in
          * and the number of bytes produced on the way out */
-        if (job->jobPrimitiveInputOutput.outputPtr == NULL || outLen == NULL) {
+        if (job->jobPrimitiveInputOutput.outputPtr == NULL) {
             WOLFSSL_MSG("No output buffer for AES-CBC");
+            (void)FreeJobSlot(job);
+            return E_NOT_OK;
+        }
+        if (outLen == NULL) {
+            WOLFSSL_MSG("No output length pointer for AES-CBC");
             (void)FreeJobSlot(job);
             return E_NOT_OK;
         }

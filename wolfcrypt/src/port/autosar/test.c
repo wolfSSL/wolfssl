@@ -270,7 +270,7 @@ static int update_test(void)
                 BLOCK_SIZE) != E_OK ||
             Csm_KeyElementSet(CBC_IV_SLOT, CRYPTO_KE_CIPHER_IV, iv,
                 BLOCK_SIZE) != E_OK) {
-        printf("Issue with setting key and IV");
+        printf("Issue with setting key and IV\n");
         return -1;
     }
     XMEMSET(plain, 0, sizeof(plain));
