@@ -787,6 +787,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
     wc_AesXtsFree on aes key when done.
 
     \return 0 Success
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes   AES keys for encrypt/decrypt process
     \param heap  heap hint to use for memory. Can be NULL
@@ -1093,6 +1095,8 @@ int wc_AesXtsFree(XtsAes* aes);
     with async hardware. It is up to the user to call wc_AesFree on the Aes
     structure when done.
     \return 0 Success
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes aes structure in to initialize
     \param heap heap hint to use for malloc / free if needed
@@ -3619,6 +3623,8 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize);
     \return BAD_FUNC_ARG If aes is NULL, or if id is NULL while len is
     positive.
     \return BUFFER_E If len is negative or greater than AES_MAX_ID_LEN.
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes pointer to the AES structure to initialize
     \param id pointer to the ID buffer
@@ -3656,6 +3662,8 @@ int wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap,
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes or label is NULL.
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes pointer to the AES structure to initialize
     \param label pointer to the null-terminated label string

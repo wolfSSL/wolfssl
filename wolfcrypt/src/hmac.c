@@ -474,6 +474,10 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
 
     if ((src == NULL) || (dst == NULL))
         return BAD_FUNC_ARG;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(dst, Hmac))
+        return BAD_ALIGN_E;
+#endif
 
     XMEMCPY(dst, src, sizeof(*dst));
 
@@ -1734,6 +1738,10 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 
     if (hmac == NULL)
         return BAD_FUNC_ARG;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(hmac, Hmac))
+        return BAD_ALIGN_E;
+#endif
 
     XMEMSET(hmac, 0, sizeof(Hmac));
     hmac->macType = WC_HASH_TYPE_NONE;
@@ -1807,6 +1815,12 @@ void wc_HmacFree(Hmac* hmac)
 {
     if (hmac == NULL)
         return;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(hmac, Hmac)) {
+        ForceZero(hmac, sizeof(*hmac));
+        return;
+    }
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     /* Let a device release any per-context state it hung off devCtx directly. If

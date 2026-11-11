@@ -2034,6 +2034,30 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define ALIGN256 WOLFSSL_ALIGN(256)
 #endif
 
+#ifndef WC_ALIGNOF
+    #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+        #define WC_ALIGNOF(T) _Alignof(T)
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define WC_ALIGNOF(T) __alignof__(T)
+    #elif defined(_MSC_VER)
+        #define WC_ALIGNOF(T) __alignof(T)
+    #endif
+#endif
+
+#ifndef WC_IS_ALIGNED
+    #define WC_IS_ALIGNED(p, a) \
+        ((((wc_ptr_t)(p)) & ((wc_ptr_t)(a) - 1)) == 0)
+#endif
+
+/* Capped at 16, the alignment malloc() guarantees on x86_64. */
+#if defined(WC_ALIGNOF) && (defined(__x86_64__) || defined(_M_X64)) && \
+    !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    (!defined(__STDC_HOSTED__) || (__STDC_HOSTED__ != 0)) && \
+    !defined(WC_NO_CTX_ALIGN_CHECK)
+    #define WC_CTX_IS_ALIGNED(p, T) \
+        WC_IS_ALIGNED(p, (WC_ALIGNOF(T) < 16) ? WC_ALIGNOF(T) : 16)
+#endif
+
 /* Define the unaligned type modifier across different compilers */
 #if defined(__GNUC__) || defined(__clang__)
     /* Works on GCC 2.0+ and all versions of Clang */

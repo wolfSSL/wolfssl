@@ -17099,6 +17099,10 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
     if (aes == NULL)
         return BAD_FUNC_ARG;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(aes, Aes))
+        return BAD_ALIGN_E;
+#endif
 
     XMEMSET(aes, 0, sizeof(*aes));
 
@@ -17195,6 +17199,12 @@ void wc_AesFree(Aes* aes)
     if (aes == NULL) {
         return;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(aes, Aes)) {
+        ForceZero(aes, sizeof(Aes));
+        return;
+    }
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND

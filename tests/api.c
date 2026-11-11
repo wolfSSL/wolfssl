@@ -14212,6 +14212,126 @@ static int test_wc_SetMutexCb(void)
     return EXPECT_RESULT();
 } /* End test_wc_SetMutexCb*/
 
+#if defined(WC_CTX_IS_ALIGNED) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && (!defined(NO_SHA256) || !defined(NO_AES) || \
+    !defined(NO_HMAC) || defined(HAVE_CURVE25519) || defined(HAVE_ED25519))
+#define TEST_CTX_MISALIGNED_ENABLED
+
+/* Returns sz usable bytes starting 8 bytes past a 16-byte boundary. */
+static void* test_misaligned_alloc(byte** buf, size_t sz)
+{
+    *buf = (byte*)XMALLOC(sz + 32, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (*buf == NULL)
+        return NULL;
+    return *buf + 24 - ((wc_ptr_t)*buf & 15);
+}
+
+static int test_misaligned_filled(const void* ctx, size_t sz, byte val)
+{
+    const byte* p = (const byte*)ctx;
+    size_t i;
+
+    for (i = 0; i < sz; i++) {
+        if (p[i] != val)
+            return 0;
+    }
+    return 1;
+}
+
+#define TEST_MISALIGNED_RET(T) \
+    ((WC_ALIGNOF(T) >= 16) ? WC_NO_ERR_TRACE(BAD_ALIGN_E) : 0)
+
+#define TEST_CTX_MISALIGNED(T, initCall, freeCall)                      \
+    do {                                                                \
+        ExpectNotNull(ctx = test_misaligned_alloc(&buf, sizeof(T)));    \
+        if (ctx != NULL) {                                              \
+            XMEMSET(ctx, 0xA5, sizeof(T));                              \
+            ret = (initCall);                                           \
+            ExpectIntEQ(ret, TEST_MISALIGNED_RET(T));                   \
+            if (ret != 0)                                               \
+                ExpectTrue(test_misaligned_filled(ctx, sizeof(T), 0xA5)); \
+            freeCall;                                                   \
+            if (ret != 0)                                               \
+                ExpectTrue(test_misaligned_filled(ctx, sizeof(T), 0));  \
+        }                                                               \
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);                 \
+        buf = NULL;                                                     \
+        ctx = NULL;                                                     \
+    } while (0)
+#endif
+
+/*
+ * Testing init functions on a context below its type's alignment
+ */
+static int test_wc_CtxInit_misaligned(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CTX_MISALIGNED_ENABLED
+    byte* buf = NULL;
+    void* ctx = NULL;
+    int ret = 0;
+#ifndef NO_SHA256
+    wc_Sha256 sha256;
+#endif
+#ifdef WOLFSSL_SHA224
+    wc_Sha224 sha224;
+#endif
+#ifndef NO_HMAC
+    Hmac hmac;
+#endif
+
+#ifndef NO_SHA256
+    TEST_CTX_MISALIGNED(wc_Sha256, wc_InitSha256((wc_Sha256*)ctx),
+        wc_Sha256Free((wc_Sha256*)ctx));
+    XMEMSET(&sha256, 0, sizeof(sha256));
+    ExpectIntEQ(wc_InitSha256(&sha256), 0);
+    if (WC_ALIGNOF(wc_Sha256) >= 16) {
+        TEST_CTX_MISALIGNED(wc_Sha256,
+            wc_Sha256Copy(&sha256, (wc_Sha256*)ctx),
+            wc_Sha256Free((wc_Sha256*)ctx));
+    }
+    wc_Sha256Free(&sha256);
+#endif
+#ifdef WOLFSSL_SHA224
+    TEST_CTX_MISALIGNED(wc_Sha224, wc_InitSha224((wc_Sha224*)ctx),
+        wc_Sha224Free((wc_Sha224*)ctx));
+    XMEMSET(&sha224, 0, sizeof(sha224));
+    ExpectIntEQ(wc_InitSha224(&sha224), 0);
+    if (WC_ALIGNOF(wc_Sha224) >= 16) {
+        TEST_CTX_MISALIGNED(wc_Sha224,
+            wc_Sha224Copy(&sha224, (wc_Sha224*)ctx),
+            wc_Sha224Free((wc_Sha224*)ctx));
+    }
+    wc_Sha224Free(&sha224);
+#endif
+#ifndef NO_AES
+    TEST_CTX_MISALIGNED(Aes, wc_AesInit((Aes*)ctx, HEAP_HINT, INVALID_DEVID),
+        wc_AesFree((Aes*)ctx));
+#endif
+#ifndef NO_HMAC
+    TEST_CTX_MISALIGNED(Hmac, wc_HmacInit((Hmac*)ctx, HEAP_HINT,
+        INVALID_DEVID), wc_HmacFree((Hmac*)ctx));
+    XMEMSET(&hmac, 0, sizeof(hmac));
+    ExpectIntEQ(wc_HmacInit(&hmac, HEAP_HINT, INVALID_DEVID), 0);
+    if (WC_ALIGNOF(Hmac) >= 16) {
+        TEST_CTX_MISALIGNED(Hmac, wc_HmacCopy(&hmac, (Hmac*)ctx),
+            wc_HmacFree((Hmac*)ctx));
+    }
+    wc_HmacFree(&hmac);
+#endif
+#ifdef HAVE_CURVE25519
+    TEST_CTX_MISALIGNED(curve25519_key,
+        wc_curve25519_init((curve25519_key*)ctx),
+        wc_curve25519_free((curve25519_key*)ctx));
+#endif
+#ifdef HAVE_ED25519
+    TEST_CTX_MISALIGNED(ed25519_key, wc_ed25519_init((ed25519_key*)ctx),
+        wc_ed25519_free((ed25519_key*)ctx));
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* End test_wc_CtxInit_misaligned */
+
 
 /*
  * Testing ToTraditional
@@ -47287,6 +47407,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ForceZero),
 
     TEST_DECL(test_wolfCrypt_Init),
+    TEST_DECL(test_wc_CtxInit_misaligned),
 
     TEST_DECL(test_wc_LoadStaticMemory_ex),
     TEST_DECL(test_wc_LoadStaticMemory_CTX),

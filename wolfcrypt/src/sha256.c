@@ -913,6 +913,10 @@ wc_static_assert(sizeof(Sha256TScratch) == WC_SHA256_TSCRATCH_SIZE);
         int ret = 0;
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha256, wc_Sha256))
+            return BAD_ALIGN_E;
+    #endif
 
         WC_SILABS_CLEAR_HASH_CTX(sha256);
         sha256->heap = heap;
@@ -1125,6 +1129,11 @@ wc_static_assert(sizeof(Sha256TScratch) == WC_SHA256_TSCRATCH_SIZE);
         if (sha256 == NULL) {
             return BAD_FUNC_ARG;
         }
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha256, wc_Sha256)) {
+            return BAD_ALIGN_E;
+        }
+    #endif
         WC_SILABS_CLEAR_HASH_CTX(sha256);
         (void)devId;
 
@@ -1805,6 +1814,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret;
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha256, wc_Sha256))
+            return BAD_ALIGN_E;
+    #endif
         WC_SILABS_CLEAR_HASH_CTX(sha256);
         ret = InitSha256(sha256);
         if (ret != 0)
@@ -1822,6 +1835,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret = 0;
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha256, wc_Sha256))
+            return BAD_ALIGN_E;
+    #endif
         WC_SILABS_CLEAR_HASH_CTX(sha256);
         ret = InitSha256(sha256);
         if (ret != 0)
@@ -2846,6 +2863,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (sha224 == NULL) {
             return BAD_FUNC_ARG;
         }
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha224, wc_Sha224)) {
+            return BAD_ALIGN_E;
+        }
+    #endif
         WC_SILABS_CLEAR_HASH_CTX(sha224);
         (void)devId;
 
@@ -2905,6 +2927,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret;
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha224, wc_Sha224))
+            return BAD_ALIGN_E;
+    #endif
         WC_SILABS_CLEAR_HASH_CTX(sha224);
         ret = InitSha256((wc_Sha256*)sha224);
         if (ret != 0)
@@ -3027,6 +3053,10 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
 
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha224, wc_Sha224))
+            return BAD_ALIGN_E;
+    #endif
 
         WC_SILABS_CLEAR_HASH_CTX(sha224);
         sha224->heap = heap;
@@ -3246,6 +3276,12 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
 
         if (sha224 == NULL)
             return;
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(sha224, wc_Sha224)) {
+            ForceZero(sha224, sizeof(*sha224));
+            return;
+        }
+    #endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -3323,6 +3359,12 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
     if (sha256 == NULL)
         return;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(sha256, wc_Sha256)) {
+        ForceZero(sha256, sizeof(*sha256));
+        return;
+    }
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -3566,6 +3608,11 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         if (src == NULL || dst == NULL || src == dst) {
             return BAD_FUNC_ARG;
         }
+    #ifdef WC_CTX_IS_ALIGNED
+        if (!WC_CTX_IS_ALIGNED(dst, wc_Sha224)) {
+            return BAD_ALIGN_E;
+        }
+    #endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_COPY)
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -3725,6 +3772,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     if (src == NULL || dst == NULL || src == dst) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(dst, wc_Sha256)) {
+        return BAD_ALIGN_E;
+    }
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_COPY)
     #ifndef WOLF_CRYPTO_CB_FIND

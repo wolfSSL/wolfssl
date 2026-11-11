@@ -109,7 +109,8 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
     \brief This function registers the allocation functions used by wolfSSL.
     By default, if the system supports it, malloc/free and realloc are used.
     Using this function allows the user at runtime to install their own
-    memory handlers.
+    memory handlers. On x86_64 the allocator must return 16-byte aligned
+    memory like malloc().
 
     \return Success If successful this function will return 0.
     \return BAD_FUNC_ARG is the error that will be returned if a
