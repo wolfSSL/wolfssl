@@ -6943,6 +6943,12 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (keepContent) {
             #ifdef ASN_BER_TO_DER
                 if (pkcs7->streamOutCb) {
+                    /* refuse if both streamed eContent and caller-supplied
+                     * content are present */
+                    if (pkcs7->content != NULL && pkcs7->contentSz > 0) {
+                        ret = SIG_VERIFY_E;
+                        break;
+                    }
                     ret = wc_HashUpdate(&pkcs7->stream->hashAlg,
                         pkcs7->stream->hashType,
                         msg + *idx, pkcs7->stream->expected);
@@ -7672,7 +7678,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if (keepContent && pkcs7->stream->content &&
                                             pkcs7->stream->contentSz > 0) {
                 /* embedded eContent must match caller-supplied content */
-                if (pkcs7->content != NULL && pkcs7->contentSz > 0 &&
+                if (pkcs7->content != NULL &&
                     (pkcs7->contentSz != pkcs7->stream->contentSz ||
                      XMEMCMP(pkcs7->content, pkcs7->stream->content,
                              pkcs7->stream->contentSz) != 0)) {
@@ -7829,11 +7835,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 content = pkcs7->content;
                 contentSz = pkcs7->contentSz;
             }
-            else if (pkcs7->content != NULL && pkcs7->contentSz > 0 &&
-                     content != NULL && contentSz > 0) {
+            else if (pkcs7->content != NULL && !degenerate) {
                 /* embedded eContent must match caller-supplied content */
-                if ((word32)contentSz != pkcs7->contentSz ||
-                    XMEMCMP(content, pkcs7->content, (word32)contentSz) != 0) {
+                if (pkcs7->contentSz != (word32)contentSz ||
+                    (content != NULL && contentSz > 0 &&
+                     XMEMCMP(content, pkcs7->content, (word32)contentSz) != 0)) {
                     ret = SIG_VERIFY_E;
                     break;
                 }
