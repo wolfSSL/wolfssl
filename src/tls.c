@@ -14764,10 +14764,11 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
         return 0;
     if (ech->state == ECH_WRITE_RETRY_CONFIGS) {
         /* get size then write */
-        ret = GetEchConfigsEx(ech->echConfig, NULL, &configsLen);
+        ret = wolfSSL_local_GetEchConfigsEx(ech->echConfig, NULL, &configsLen);
         if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
             return ret;
-        ret = GetEchConfigsEx(ech->echConfig, writeBuf, &configsLen);
+        ret = wolfSSL_local_GetEchConfigsEx(ech->echConfig, writeBuf,
+                                            &configsLen);
         if (ret != WOLFSSL_SUCCESS)
             return ret;
         *offset += configsLen;
@@ -14895,7 +14896,7 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
     }
     else if (ech->state == ECH_WRITE_RETRY_CONFIGS) {
         /* get the size of the raw configs */
-        ret = GetEchConfigsEx(ech->echConfig, NULL, &size);
+        ret = wolfSSL_local_GetEchConfigsEx(ech->echConfig, NULL, &size);
 
         if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
             return ret;
@@ -15419,7 +15420,7 @@ static int TLSX_ExtractEch(WOLFSSL* ssl, WOLFSSL_ECH* ech,
         }
         /* get the rawConfigLen */
         if (ret == 0)
-            ret = GetEchConfig(echConfig, NULL, &rawConfigLen);
+            ret = wolfSSL_local_GetEchConfig(echConfig, NULL, &rawConfigLen);
         if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E))
             ret = 0;
         /* create info */
@@ -15432,7 +15433,7 @@ static int TLSX_ExtractEch(WOLFSSL* ssl, WOLFSSL_ECH* ech,
             else {
                 XMEMCPY(info, (byte*)TLS_INFO_CONST_STRING,
                     TLS_INFO_CONST_STRING_SZ + 1);
-                ret = GetEchConfig(echConfig, info +
+                ret = wolfSSL_local_GetEchConfig(echConfig, info +
                     TLS_INFO_CONST_STRING_SZ + 1, &rawConfigLen);
             }
         }
@@ -15519,7 +15520,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             return UNSUPPORTED_EXTENSION;
         }
 
-        ret = SetRetryConfigs(ssl, readBuf, (word32)size);
+        ret = wolfSSL_local_SetRetryConfigs(ssl, readBuf, (word32)size);
         if (ret == WC_NO_ERR_TRACE(UNSUPPORTED_SUITE) ||
                 ret == WC_NO_ERR_TRACE(UNSUPPORTED_PROTO_VERSION)) {
             WOLFSSL_MSG("ECH retry configs had 'bad version' or 'bad suite'");
@@ -15529,7 +15530,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         if (ssl->echConfigs == NULL) {
             /* on GREASE connection configs must be checked syntactically and
              * must not be saved (RFC 9849, Section 6.2.1) */
-            FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
+            wolfSSL_local_FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
             ssl->echRetryConfigs = NULL;
         }
 

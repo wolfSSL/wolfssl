@@ -101,7 +101,19 @@ jobs:
            "configure": ["CXX=clang++-19",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
            "check": false,
-           "run": [["make", "dist"]]}
+           "run": [["make", "dist"]]},
+          {"name": "clang-19-unreachable-all", "minutes": 2,
+           "comment": "clang-only -Wunreachable-code-aggressive with --enable-all -- not otherwise tested.",
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19", "--enable-all",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wunreachable-code-aggressive"],
+           "check": false},
+          {"name": "clang-19-unreachable-all-crypto", "minutes": 1.3,
+           "comment": "As clang-19-unreachable-all, but enable-all-crypto instead of enable-all to exclude OPENSSL_EXTRA, adding coverage without WOLFSSL_SP_INT_NEGATIVE and other settings implicit to enable-all but not enable-all-crypto.",
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19", "--enable-all-crypto",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wunreachable-code-aggressive"],
+           "check": false}
           ]
           EOF
           .github/scripts/parallel-make-check.py \

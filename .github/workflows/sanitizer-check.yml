@@ -1,0 +1,80 @@
+name: Sanitized make check
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+# ASAN/LSAN/UBSAN 'make check' on the full test suite.  One runner per config:
+#  - all-sanitizer           : --enable-all under ASAN/LSAN/UBSAN.
+#  - all-callbacks-sanitizer : ditto plus -DWOLFSSL_CALLBACKS (tested only here).
+#
+# NO_WOLFSSL_CIPHER_SUITE_TEST and the *_VERIFY_ONLY trio keep the sanitized
+# runtime within runner budget, matching the nightly's sanitizer scenarios.
+
+jobs:
+  make_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: all-sanitizer
+            extra_configure: ''
+            extra_cppflags: ''
+          - name: all-callbacks-sanitizer
+            # WOLFSSL_QUIC is declared incompatible with WOLFSSL_CALLBACKS
+            # (settings.h #error), and --enable-all enables QUIC.
+            extra_configure: '--disable-quic'
+            extra_cppflags: '-DWOLFSSL_CALLBACKS'
+    name: ${{ matrix.name }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SANITIZE_FLAGS: >-
+        -g -fno-omit-frame-pointer
+        -fsanitize=address,pointer-subtract,leak,undefined,float-cast-overflow,float-divide-by-zero,bounds-strict
+        -fno-sanitize-recover=all
+      ASAN_OPTIONS: 'halt_on_error=1:quarantine_size_mb=0:detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_invalid_pointer_pairs=2'
+      UBSAN_OPTIONS: 'halt_on_error=1:print_stacktrace=1'
+      LSAN_OPTIONS: 'halt_on_error=1'
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      # gcc ASAN's fixed shadow offset can collide with the runner kernel's
+      # high-entropy mmap ASLR, SEGVing at startup; pin the historic entropy.
+      - name: Accommodate ASAN shadow memory vs high-entropy ASLR
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Build and test
+        run: |
+          ./autogen.sh
+          ./configure --enable-all ${{ matrix.extra_configure }} \
+            CFLAGS="$SANITIZE_FLAGS" LDFLAGS="$SANITIZE_FLAGS" \
+            CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -DWOLFSSL_SLHDSA_VERIFY_ONLY -DWOLFSSL_XMSS_VERIFY_ONLY -DWOLFSSL_LMS_VERIFY_ONLY ${{ matrix.extra_cppflags }}"
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log test-suite.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done
