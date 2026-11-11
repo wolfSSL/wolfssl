@@ -12492,7 +12492,6 @@ void bench_dh(int useDeviceID)
         }
     }
 
-
     /* Key Gen */
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
@@ -12512,6 +12511,8 @@ void bench_dh(int useDeviceID)
                     if (!bench_async_handle(&ret,
                                             BENCH_ASYNC_GET_DEV(dhKey[i]),
                                             0, &times, &pending)) {
+                        /* on err we must fall through to next finish
+                         * for restore vector register. */
                         goto exit_dh_gen;
                     }
                 }
@@ -12525,10 +12526,15 @@ void bench_dh(int useDeviceID)
 #endif
        );
 
-    PRIVATE_KEY_LOCK();
 exit_dh_gen:
+    PRIVATE_KEY_LOCK();
     bench_stats_asym_finish("DH", dhKeySz, desc[2],
                             useDeviceID, count, start, ret);
+
+    if (ret < 0) {
+        goto exit;
+    }
+
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     SAVE_VECTOR_REGISTERS(WOLFSSL_DEBUG_PRINTF("ERROR: SAVE_VECTOR_REGISTERS "
                           "failed for benchmark run."); goto exit; );
@@ -12538,16 +12544,13 @@ exit_dh_gen:
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
-    if (ret < 0) {
-        goto exit;
-    }
-
     RESET_MULTI_VALUE_STATS_VARS();
 
     /* Generate key to use as other public */
     PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(dhKey[0], &gRng,
                                priv2, &privSz2, pub2, &pubSz2);
+
     PRIVATE_KEY_LOCK();
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &dhKey[0]->asyncDev, WC_ASYNC_FLAG_NONE);
@@ -12555,6 +12558,10 @@ exit_dh_gen:
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
     RESTORE_VECTOR_REGISTERS();
 #endif
+
+    if (ret < 0) {
+        goto exit;
+    }
 
     /* Key Agree */
     bench_stats_start(&count, &start);
@@ -12571,7 +12578,9 @@ exit_dh_gen:
                                      privSz[i], pub2, pubSz2);
                     if (!bench_async_handle(&ret,
                         BENCH_ASYNC_GET_DEV(dhKey[i]), 0, &times, &pending)) {
-                        goto exit;
+                        /* on err we must fall through to next finish
+                         * for restore vector register. */
+                        goto exit_agree;
                     }
                 }
             } /* for i */
@@ -12584,14 +12593,14 @@ exit_dh_gen:
 #endif
        );
 
+exit_agree:
     PRIVATE_KEY_LOCK();
-
-exit:
     bench_stats_asym_finish("DH", dhKeySz, desc[3],
     useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+exit:
 
     /* cleanup */
     if (WC_ARRAY_OK(dhKey)) {
@@ -15687,8 +15696,10 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
                         ret = wc_ecc_encrypt(userA, userB, msg,
                                 BENCH_ECCENCRYPT_MSG_SIZE, out, &outSz, cliCtx);
                     if (ret != 0) {
+                        /* on err we must fall through to next finish
+                         * for restore vector register. */
                         printf("wc_ecc_encrypt failed! %d\n", ret);
-                        goto exit_ecc_encrypt;
+                        goto ecc_encrypt_exit;
                     }
                     RECORD_MULTI_VALUE_STATS();
                 }
@@ -15698,9 +15709,15 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
                || runs < minimum_runs
 #endif
                );
-exit_ecc_encrypt:
+ecc_encrypt_exit:
             bench_stats_asym_finish(name, keySize * 8, encDesc, useDeviceID,
                                     count, start, ret);
+
+            if (ret != 0) {
+                wc_ecc_ctx_free(cliCtx);
+                wc_ecc_ctx_free(srvCtx);
+                goto exit;
+            }
 #ifdef MULTI_VALUE_STATISTICS
             bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -15718,8 +15735,10 @@ exit_ecc_encrypt:
                         ret = wc_ecc_decrypt(userB, decPubKey, out, outSz,
                                 bench_plain, &bench_plainSz, srvCtx);
                     if (ret != 0) {
+                        /* on err we must fall through to next finish
+                         * for restore vector register. */
                         printf("wc_ecc_decrypt failed! %d\n", ret);
-                        goto exit_ecc_decrypt;
+                        goto ecc_decrypt_exit;
                     }
                     RECORD_MULTI_VALUE_STATS();
                 }
@@ -15729,7 +15748,7 @@ exit_ecc_encrypt:
                || runs < minimum_runs
 #endif
                );
-exit_ecc_decrypt:
+ecc_decrypt_exit:
             bench_stats_asym_finish(name, keySize * 8, decDesc, useDeviceID,
                                     count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
