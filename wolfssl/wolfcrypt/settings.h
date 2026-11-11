@@ -670,6 +670,13 @@
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
+/* FIPS v7: module functions with no _fips wrapper are not exported. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #define WOLFSSL_FIPS_V7_LOCAL WOLFSSL_LOCAL
+#else
+    #define WOLFSSL_FIPS_V7_LOCAL WOLFSSL_API
+#endif
+
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)

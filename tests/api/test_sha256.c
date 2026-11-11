@@ -220,7 +220,10 @@ int test_wc_Sha256Transform(void)
 int test_wc_Sha256HashBlock_unaligned(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+/* FIPS v7: internal to LMS and SLH-DSA and not exported; their sign/verify
+ * tests reach it through the public API. */
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
     wc_Sha256 sha256;
     byte      buf[WC_SHA256_BLOCK_SIZE * 2];
     byte      aligned[WC_SHA256_DIGEST_SIZE];

@@ -65,9 +65,10 @@ enum max_prf {
 WOLFSSL_API int wc_PRF(byte* result, word32 resLen, const byte* secret,
                     word32 secLen, const byte* seed, word32 seedLen,
                     int hash_type, void* heap, int devId);
-WOLFSSL_API int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
-                    word32 secLen, const byte* label, word32 labLen,
-                    const byte* seed, word32 seedLen, void* heap, int devId);
+WOLFSSL_FIPS_V7_LOCAL
+int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
+                 word32 secLen, const byte* label, word32 labLen,
+                 const byte* seed, word32 seedLen, void* heap, int devId);
 WOLFSSL_API int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret,
                     word32 secLen, const byte* label, word32 labLen,
                     const byte* seed, word32 seedLen, int useAtLeastSha256,

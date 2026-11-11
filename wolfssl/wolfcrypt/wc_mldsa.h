@@ -1331,6 +1331,8 @@ WOLFSSL_API int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len);
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Test hooks; ML-DSA calls the encoders directly, so FIPS v7 omits them. */
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_LT(7,0,0)
 #ifndef WOLFSSL_NO_ML_DSA_44
 WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e);
 #endif
@@ -1338,8 +1340,10 @@ WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e);
 WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
 #endif
 #endif
+#endif
 
-#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_LT(7,0,0))
 WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s, byte d,
     byte eta, byte* p);
 WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t, byte d,

@@ -7810,7 +7810,10 @@ exit:
 #undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+/* FIPS v7: wc_Sha256HashBlock() is internal to LMS and SLH-DSA and not
+ * exported; their tests reach it through the public API. */
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
 static wc_test_ret_t sha256_hash_block_test(wc_Sha256* sha)
 {
     byte      hash[WC_SHA256_DIGEST_SIZE];
@@ -8094,7 +8097,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     if ((ret = sha256_large_hash_test(&sha)) != 0)
         return ret;
 #endif
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
     if ((ret = sha256_hash_block_test(&sha)) != 0)
         return ret;
 #endif
