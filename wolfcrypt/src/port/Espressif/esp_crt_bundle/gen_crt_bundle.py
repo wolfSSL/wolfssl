@@ -98,7 +98,10 @@ class CertificateBundle:
                 status('Parsing certificates from %s' % file_path)
                 with open(file_path, 'r', encoding='utf-8') as f:
                     crt_str = f.read()
-                    self.add_from_pem(crt_str)
+                    # cacrt_local.pem may hold no certs; any other empty
+                    # PEM input is a mistake and must fail the build.
+                    self.add_from_pem(crt_str, allow_empty=(
+                        os.path.basename(file_path) == 'cacrt_local.pem'))
                     return True
 
             elif file_path.endswith('.der'):
@@ -114,7 +117,7 @@ class CertificateBundle:
 
         return False
 
-    def add_from_pem(self, crt_str):
+    def add_from_pem(self, crt_str, allow_empty=False):
         """ A single PEM file may have multiple certificates """
 
         crt = ''
@@ -134,9 +137,13 @@ class CertificateBundle:
                 crt += strg
 
         if count == 0:
-            raise InputError('No certificate found')
-
-        status('Successfully added %d certificates' % count)
+            # An empty file is fine where allowed; one with a PEM marker
+            # that was not read is not.
+            if (not allow_empty) or ('-----BEGIN' in crt_str):
+                raise InputError('No certificate found')
+            status('No certificate found')
+        else:
+            status('Successfully added %d certificates' % count)
 
     def add_from_der(self, crt_str):
         self.certificates.append(x509.load_der_x509_certificate(crt_str, default_backend()))
@@ -343,6 +350,9 @@ def main():
             bundle.add_from_path(path)
         else:
             raise InputError('Invalid --input=%s, is neither file nor folder' % args.input)
+
+    if len(bundle.certificates) == 0:
+        raise InputError('No certificates found in any input')
 
     status('Successfully added %d certificates in total' % len(bundle.certificates))
 
