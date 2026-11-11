@@ -28,6 +28,7 @@ and move roots that are no longer in it but have not expired into
 removed-certificates report first: a root removed or distrusted after a
 compromise or compliance failure is excluded instead. The bundle has no
 distrust-after dates, so keeping such a root would fully trust it again.
+Then run `./test_gen_crt_bundle.sh` to check every bundle mode.
 
 These roots are excluded on purpose and must never be re-added to any of the
 files:
