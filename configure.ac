@@ -6622,6 +6622,19 @@ then
     ENABLED_CURVE25519="yes"
 fi
 
+# Cortex-A55/A53: 64-bit multiply latency depends on operand values. Select
+# fixed latency multiply code for the Curve25519/Ed25519 field operations when
+# building for these cores (-mcpu/-mtune, including big.LITTLE e.g.
+# cortex-a76.cortex-a55).
+case "$CC $AM_CFLAGS $CFLAGS $AM_CPPFLAGS $CPPFLAGS $EXTRA_CFLAGS $EXTRA_CPPFLAGS" in
+*cortex-a55*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CORTEX_A55"
+    ;;
+*cortex-a53*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CORTEX_A53"
+    ;;
+esac
+
 
 # ED25519
 AC_ARG_ENABLE([ed25519],
