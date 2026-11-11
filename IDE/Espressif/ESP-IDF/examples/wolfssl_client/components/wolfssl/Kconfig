@@ -202,6 +202,8 @@ menu "wolfSSL"
                 The option relaxes the default strict wolfSSL certificate chain processing. This
                 will typically need to be enabled when loading only a CA file. Typically solves
                 the -188 ASN_NO_SIGNER_E error. Use with caution.
+                Also needed with the certificate bundle for servers that send
+                AAA Certificate Services, which the bundle no longer has.
 
         config WOLFSSL_HAVE_OCSP
             bool "Enable OCSP (Online Certificate Status Protocol) in wolfSSL"
@@ -312,12 +314,13 @@ menu "wolfSSL"
                 depends on WOLFSSL_CERTIFICATE_BUNDLE && ESP_TLS_USING_WOLFSSL && !WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE
                 help
                     Include the deprecated list of root certificates in the bundle.
-                    This list gets updated when a certificate is removed from the Mozilla's
-                    NSS root certificate store. This config can be enabled if you would like
-                    to ensure that none of the certificates that were deployed in the product
-                    are affected because of the update to bundle. In turn, enabling this
-                    config keeps expired, retracted certificates in the bundle and it may
-                    pose a security risk.
+                    These are unexpired roots removed from Mozilla's NSS root certificate
+                    store for age, retirement or at the CA's request. Enable this if a
+                    server's chain needs one of them. Roots removed or distrusted after a
+                    compromise or a compliance failure, such as Entrust's, are never kept,
+                    so this does not restore every root of earlier bundles; see
+                    wolfcrypt/src/port/Espressif/esp_crt_bundle/README.md. Keeping old
+                    roots in the bundle may pose a security risk.
 
                     - Deprecated cert list may grow based based on sync with upstream bundle
                     - Deprecated certs would be be removed in ESP-IDF (next) major release

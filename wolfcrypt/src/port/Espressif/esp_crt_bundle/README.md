@@ -14,6 +14,50 @@ Use the `idf.py menuconfig`,
 
 When in doubt, delete the `./build` directory. This is particularly important when changing Certificate Bundle PEM files.
 
+## Bundle Contents
+
+| File | Contents | Included |
+|---|---|---|
+| `cacrt_all.pem` | Mozilla's trusted TLS roots (curl `cacert.pem`) | FULL; CMN filters it |
+| `cacrt_local.pem` | Extra roots for this port (currently none) | FULL and CMN |
+| `cacrt_deprecated.pem` | Unexpired roots Mozilla removed for age, retirement or at the CA's request | Only with `WOLFSSL_CERTIFICATE_BUNDLE_DEPRECATED_LIST` |
+
+To update the bundle, replace `cacrt_all.pem` with a current curl `cacert.pem`,
+and move roots that are no longer in it but have not expired into
+`cacrt_deprecated.pem`. Check Mozilla's removal reason in the CCADB
+removed-certificates report first: a root removed or distrusted after a
+compromise or compliance failure is excluded instead. The bundle has no
+distrust-after dates, so keeping such a root would fully trust it again.
+
+These roots are excluded on purpose and must never be re-added to any of the
+files:
+
+- `emSign ECC Root CA - G3`: root of the compromised eMudhra G3 intermediates
+  (Mozilla bug 2083449).
+- `Comodo AAA Services root` (`AAA Certificate Services`): Sectigo
+  cross-signed the same intermediates (Mozilla bug 2083449).
+- `E-Tugra Global Root CA RSA v3` and `E-Tugra Global Root CA ECC v3`:
+  removed by Mozilla after E-Tugra's security breach (Mozilla bug 1842928).
+- The Entrust roots (`Entrust Root Certification Authority`, its `- G2`,
+  `- EC1` and `- G4`, and `Entrust.net Premium 2048 Secure Server CA`) and
+  the Entrust-owned `AffirmTrust Commercial`, `Networking`, `Premium` and
+  `Premium ECC`: Mozilla distrusted Entrust for TLS after compliance failures
+  (Mozilla bug 1922387).
+- The 2009 `Autoridad de Certificacion Firmaprofesional CIF A62634068`: its
+  2014 reissue has the same name, and the bundle needs unique names.
+
+When a server's chain ends in a cross-sign whose issuer is not in the bundle,
+the verify callback accepts it if a bundle root has the same subject, public
+key and subject key ID, the root is self-issued with no path length, name or
+policy constraints, and the cross-signed cert is a CA. With
+`WOLFSSL_ALT_CERT_CHAINS` this check is not used: the callback looks for the
+issuer of each cert in the chain instead. For example, Google's `GTS Root R4` cross-signed by the retired
+`GlobalSign Root CA`, or `USERTrust ECC Certification Authority` cross-signed
+by `AAA Certificate Services`, both verify through the bundled self-signed root.
+When the server also sends the root that is not in the bundle, such as
+`AAA Certificate Services` after the USERTrust cross-sign, the chain verifies
+only with `WOLFSSL_ALT_CERT_CHAINS`. Without it, the chain is rejected.
+
 ## Certificate Inspection
 
 The certificates in the bundle are in PEM format. The [gen_crt_bundle.py script](./gen_crt_bundle.py)
