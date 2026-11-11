@@ -5250,10 +5250,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 /* Each SSL object keeps the certificate(s) of its SSL CTX as they were when it
  * was created, even if the CTX replaces or frees them later, as OpenSSL does.
  * The SSL holds a reference to the CTX's buffer, or a copy of it where DER
- * buffers cannot be reference counted (see WOLFSSL_DER_REFCOUNT). If this is
- * not defined then each SSL object shares a pointer to the original
- * certificate buffer owned by the SSL CTX, which must then not be replaced
- * while SSL objects made from it exist. */
+ * buffers cannot be reference counted (see WOLFSSL_DER_REFCOUNT). This also
+ * applies when WOLFSSL_COPY_CERT is not defined. Applications must serialize
+ * CTX certificate updates with SSL creation and other concurrent CTX access. */
 #if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_CERT)
     #undef WOLFSSL_COPY_CERT
     #define WOLFSSL_COPY_CERT

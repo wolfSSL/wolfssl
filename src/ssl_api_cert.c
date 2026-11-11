@@ -1118,12 +1118,14 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
             ssl->ourCert = NULL;
             #endif
             ssl->buffers.weOwnCert = 0;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_CERT;
         }
 
         if (ssl->buffers.weOwnCertChain) {
             WOLFSSL_MSG("Unloading cert chain");
             FreeDer(&ssl->buffers.certChain);
             ssl->buffers.weOwnCertChain = 0;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_CHAIN;
         }
 
         /* FreeKeyDer() zeroes the key when the last holder lets go of it. It
@@ -1136,6 +1138,7 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
             FreeDer(&ssl->buffers.keyMask);
             #endif
             ssl->buffers.weOwnKey = 0;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_KEY;
         }
 
         #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -1146,6 +1149,7 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
             FreeDer(&ssl->buffers.altKeyMask);
             #endif
             ssl->buffers.weOwnAltKey = 0;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_ALT;
         }
         #endif /* WOLFSSL_DUAL_ALG_CERTS */
     }
