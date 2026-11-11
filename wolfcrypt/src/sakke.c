@@ -674,6 +674,42 @@ int wc_MakeSakkePublicKey(SakkeKey* key, ecc_point* pub)
     return err;
 }
 
+/*
+ * Convert the public key from montgomery form.
+ *
+ * The public key is needed in Montgomery form for validation and derivation.
+ *
+ * @param  [in]  key      SAKKE key.
+ * @return  0 on success.
+ * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
+ * @return  Other value when an an internal operation fails.
+ */
+static int sakke_z_from_mont(SakkeKey* key)
+{
+    int err = 0;
+    mp_digit mp;
+    ecc_point* z = &key->ecc.pubkey;
+    mp_int* prime = &key->params.prime;
+
+    if (key->zMont) {
+        err = mp_montgomery_setup(prime, &mp);
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->x, prime, mp);
+        }
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->y, prime, mp);
+        }
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->z, prime, mp);
+        }
+        if (err == 0) {
+            key->zMont = 0;
+        }
+    }
+
+    return err;
+}
+
 /**
  * Export the SAKKE key as encoded public/private ECC key.
  *
@@ -705,6 +741,9 @@ int wc_ExportSakkeKey(SakkeKey* key, byte* data, word32* sz)
     }
     if ((err >= 0) && (*sz < (word32)(3 * key->ecc.dp->size))) {
         err = BUFFER_E;
+    }
+    if (err == 0) {
+        err = sakke_z_from_mont(key);
     }
     if (err == 0) {
         /* Write out the secret value into key size bytes. */
@@ -865,42 +904,6 @@ int wc_ImportSakkePrivateKey(SakkeKey* key, const byte* data, word32 sz)
     }
     if (err == 0) {
         err = ecc_blind_k_rng(&key->ecc, NULL);
-    }
-
-    return err;
-}
-
-/*
- * Convert the public key from montgomery form.
- *
- * The public key is needed in Montgomery form for validation and derivation.
- *
- * @param  [in]  key      SAKKE key.
- * @return  0 on success.
- * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
- * @return  Other value when an an internal operation fails.
- */
-static int sakke_z_from_mont(SakkeKey* key)
-{
-    int err = 0;
-    mp_digit mp;
-    ecc_point* z = &key->ecc.pubkey;
-    mp_int* prime = &key->params.prime;
-
-    if (key->zMont) {
-        err = mp_montgomery_setup(prime, &mp);
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->x, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->y, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->z, prime, mp);
-        }
-        if (err == 0) {
-            key->zMont = 0;
-        }
     }
 
     return err;

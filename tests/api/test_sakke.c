@@ -1196,6 +1196,8 @@ int test_wc_Sakke_KmsKeyAfterClientOp(void)
     int valid = 0;
     byte keyData[384];
     word32 keySz = sizeof(keyData);
+    byte keyData2[384];
+    word32 keySz2 = sizeof(keyData2);
     byte privData[128];
     word32 privSz = sizeof(privData);
 
@@ -1215,6 +1217,8 @@ int test_wc_Sakke_KmsKeyAfterClientOp(void)
 
     ExpectIntEQ(wc_ExportSakkePrivateKey(&key, privData, &privSz), 0);
     ExpectBufEQ(privData, keyData, sizeof(privData));
+    ExpectIntEQ(wc_ExportSakkeKey(&key, keyData2, &keySz2), 0);
+    ExpectBufEQ(keyData2, keyData, sizeof(keyData));
 
     if (rsk != NULL) {
         wc_ecc_forcezero_point(rsk);
