@@ -841,6 +841,28 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
 }
 #endif
 
+/* Value barrier: returns v unchanged, but the compiler can no longer see where
+ * it came from or what range it has.
+ *
+ * Branch-free C is not enough on its own.  When the compiler can prove that a
+ * mask formula is a comparison (e.g. ((word32)b - 1) >> 31 on a byte b is
+ * exactly b == 0), it may emit a compare-and-branch for it, or for a select
+ * built from the mask.  Clang does this for Thumb-1, which has no conditional
+ * select.  Pass the secret through this barrier before the formula (so the
+ * compiler cannot prove the formula equals a comparison) and pass the result
+ * through again before building a mask from it (so the select stays as
+ * arithmetic). */
+WC_MISC_STATIC WC_INLINE word32 ctHide32(word32 v)
+{
+#if defined(__GNUC__) && !defined(__CC_ARM) && !defined(WOLFSSL_NO_ASM)
+    __asm__ ("" : "+r" (v));
+    return v;
+#else
+    volatile word32 t = v;
+    return t;
+#endif
+}
+
 
 #if defined(WOLFSSL_NO_CT_OPS) && (!defined(NO_RSA) || !defined(WOLFCRYPT_ONLY)) \
     && (!defined(WOLFSSL_RSA_VERIFY_ONLY))

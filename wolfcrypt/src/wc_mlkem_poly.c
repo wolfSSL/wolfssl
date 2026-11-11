@@ -6255,7 +6255,10 @@ static int mlkem_cmp_c(const byte* a, const byte* b, int sz)
     for (i = 0; i < sz; i++) {
         r |= a[i] ^ b[i];
     }
-    return (int)(0 - ((0U - (word32)r) >> 31));
+    /* Barriers keep (r != 0) from becoming a branch on ciphertext validity:
+     * the input hides r's byte range, the output hides that the bit is 0/1.
+     * (0 - x) >> 31 is (x != 0) only for x below 2^31, which r is. */
+    return (int)(0U - ctHide32((0U - ctHide32((word32)r)) >> 31));
 }
 #endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif

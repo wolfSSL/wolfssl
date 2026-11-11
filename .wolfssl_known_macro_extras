@@ -1418,6 +1418,7 @@ __MICROBLAZE__
 __MINGW32__
 __MINGW64_VERSION_MAJOR
 __MINGW64__
+__MSP430__
 __MSYS__
 __MWERKS__
 __NT__
@@ -1502,11 +1503,13 @@ __ppc__
 __riscv
 __riscv_mul
 __riscv_xlen
+__riscv_zicond
 __s390x__
 __sparc
 __sparc64__
 __sun
 __svr4__
+__thumb2__
 __thumb__
 __ti__
 __unix__
