@@ -77,8 +77,9 @@
  *     level) key==NULL || rsk==NULL || len==NULL; table==NULL
  *     (LENGTH_ONLY_E); *len != 0 (BUFFER_E)
  * wc_SetSakkeRsk        (sakke.c:2481)  key==NULL || rsk==NULL
- * wc_ValidateSakkeRsk   (sakke.c:2561)
- *     key==NULL||id==NULL||rsk==NULL||valid==NULL
+ * wc_ValidateSakkeRsk   (sakke.c:2706)
+ *     key==NULL||id==NULL||rsk==NULL||valid==NULL;
+ *     idSz > SAKKE_ID_MAX_SIZE
  * wc_GetSakkeAuthSize   (sakke.c:2622)  key==NULL || authSz==NULL
  * wc_SetSakkeIdentity   (sakke.c:6488)
  *     key==NULL || id==NULL || idSz > SAKKE_ID_MAX_SIZE
@@ -236,6 +237,8 @@ int test_wc_Sakke_DecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, 1, rsk, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, data, SAKKE_ID_MAX_SIZE + 1, rsk,
+        &valid), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, 1, rsk, &valid), 0);
     ExpectIntEQ(valid, 1);
 
@@ -1175,6 +1178,50 @@ int test_wc_Sakke_FreeZeroizes(void)
         return TEST_SKIPPED;
     }
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A KMS key object that also runs a client operation keeps its key pair. */
+int test_wc_Sakke_KmsKeyAfterClientOp(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_SAKKE
+    WC_RNG rng;
+    SakkeKey key;
+    ecc_point* rsk = NULL;
+    char mail[] = "test@wolfssl.com";
+    byte* id = (byte*)mail;
+    word16 idSz = (word16)XSTRLEN(mail);
+    int valid = 0;
+    byte keyData[384];
+    word32 keySz = sizeof(keyData);
+    byte privData[128];
+    word32 privSz = sizeof(privData);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(rsk = wc_ecc_new_point());
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_ExportSakkeKey(&key, keyData, &keySz), 0);
+
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(valid, 1);
+
+    ExpectIntEQ(wc_ExportSakkePrivateKey(&key, privData, &privSz), 0);
+    ExpectBufEQ(privData, keyData, sizeof(privData));
+
+    if (rsk != NULL) {
+        wc_ecc_forcezero_point(rsk);
+        wc_ecc_del_point(rsk);
+    }
+    wc_FreeSakkeKey(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
 }

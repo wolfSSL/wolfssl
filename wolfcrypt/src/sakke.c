@@ -2624,11 +2624,23 @@ int wc_SetSakkeRsk(SakkeKey* key, const ecc_point* rsk, byte* table, word32 len)
 static int sakke_compute_point_i(SakkeKey* key, const byte* id, word16 idSz,
         ecc_point* i)
 {
-    int err;
-    mp_int* b = wc_ecc_key_get_priv(&key->ecc);
+    int err = 0;
+    DECL_MP_INT_SIZE_DYN(b, SAKKE_ID_MAX_SIZE * 8, SAKKE_ID_MAX_SIZE * 8);
 
+    NEW_MP_INT_SIZE(b, SAKKE_ID_MAX_SIZE * 8, key->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef MP_INT_SIZE_CHECK_NULL
+    if (b == NULL) {
+        err = MEMORY_E;
+    }
+#endif
+    if (err == 0) {
+        err = INIT_MP_INT_SIZE(b, SAKKE_ID_MAX_SIZE * 8);
+    }
     /* Load b - ID of receiver */
-    err = mp_read_unsigned_bin(b, id, idSz);
+    if (err == 0) {
+        err = mp_read_unsigned_bin(b, id, idSz);
+    }
     if (err == 0) {
         err = sakke_load_base_point(key);
     }
@@ -2643,6 +2655,8 @@ static int sakke_compute_point_i(SakkeKey* key, const byte* id, word16 idSz,
         ecc_point* z = &key->ecc.pubkey;
         err = sakke_mulmod_base_add(key, b, z, i, 1);
     }
+
+    FREE_MP_INT_SIZE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
 }
 
@@ -2660,7 +2674,8 @@ static int sakke_compute_point_i(SakkeKey* key, const byte* id, word16 idSz,
  * @param  [out]  valid  1 indicates RSK is valid for identity.
  *                       0 otherwise.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, id, rsk or valid is NULL.
+ * @return  BAD_FUNC_ARG when key, id, rsk or valid is NULL or
+ *          idSz > SAKKE_ID_MAX_SIZE.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
@@ -2670,7 +2685,8 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
     int err = 0;
     mp_int* a = NULL;
 
-    if ((key == NULL) || (id == NULL) || (rsk == NULL) || (valid == NULL)) {
+    if ((key == NULL) || (id == NULL) || (rsk == NULL) || (valid == NULL) ||
+            (idSz > SAKKE_ID_MAX_SIZE)) {
         err = BAD_FUNC_ARG;
     }
 
@@ -2694,7 +2710,7 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
     if (err == 0) {
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, key->i.i);
-        if ((err == 0) && (idSz <= SAKKE_ID_MAX_SIZE)) {
+        if (err == 0) {
             XMEMCPY(key->i.id, id, idSz);
             key->i.idSz = idSz;
         }

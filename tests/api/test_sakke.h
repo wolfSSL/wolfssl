@@ -27,10 +27,12 @@
 int test_wc_Sakke_DecisionCoverage(void);
 int test_wc_Sakke_FeatureCoverage(void);
 int test_wc_Sakke_FreeZeroizes(void);
+int test_wc_Sakke_KmsKeyAfterClientOp(void);
 
 #define TEST_SAKKE_DECLS                                          \
     TEST_DECL_GROUP("sakke", test_wc_Sakke_DecisionCoverage),     \
     TEST_DECL_GROUP("sakke", test_wc_Sakke_FeatureCoverage),      \
-    TEST_DECL_GROUP("sakke", test_wc_Sakke_FreeZeroizes)
+    TEST_DECL_GROUP("sakke", test_wc_Sakke_FreeZeroizes),         \
+    TEST_DECL_GROUP("sakke", test_wc_Sakke_KmsKeyAfterClientOp)
 
 #endif /* WOLFCRYPT_TEST_SAKKE_H */
