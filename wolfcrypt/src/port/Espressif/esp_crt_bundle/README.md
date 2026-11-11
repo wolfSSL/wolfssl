@@ -22,13 +22,28 @@ When in doubt, delete the `./build` directory. This is particularly important wh
 | `cacrt_local.pem` | Extra roots for this port (currently none) | FULL and CMN |
 | `cacrt_deprecated.pem` | Unexpired roots Mozilla removed for age, retirement or at the CA's request | Only with `WOLFSSL_CERTIFICATE_BUNDLE_DEPRECATED_LIST` |
 
-To update the bundle, replace `cacrt_all.pem` with a current curl `cacert.pem`,
-and move roots that are no longer in it but have not expired into
-`cacrt_deprecated.pem`. Check Mozilla's removal reason in the CCADB
-removed-certificates report first: a root removed or distrusted after a
-compromise or compliance failure is excluded instead. The bundle has no
-distrust-after dates, so keeping such a root would fully trust it again.
-Then run `./test_gen_crt_bundle.sh` to check every bundle mode.
+To update the bundle:
+
+1. Replace `cacrt_all.pem` with a current curl `cacert.pem`.
+2. Move roots that are no longer in it but have not expired into
+   `cacrt_deprecated.pem`, except the excluded roots listed below. Check
+   Mozilla's removal reason in the CCADB removed-certificates report first:
+   a root removed or distrusted after a compromise or compliance failure is
+   excluded instead. The bundle has no distrust-after dates, so keeping such
+   a root would fully trust it again.
+3. Update `cmn_crt_authorities.csv` if a listed root was renamed or removed.
+4. Run `./test_gen_crt_bundle.sh` to check the certificate count of every
+   bundle mode.
+5. From the root of a wolfSSL tree that is not configured in place (a fresh
+   checkout, or after `make distclean`), run `./autogen.sh`, then
+   `wolfcrypt/src/port/Espressif/esp_crt_bundle/test/test_esp_crt_bundle.sh`.
+   It checks that every bundle mode is in the order the verify callback's
+   binary search needs, and that the excluded roots are still rejected.
+
+Both test scripts need python3 with the `cryptography` package.
+`test_gen_crt_bundle.sh` also needs the `openssl` command, and the host test
+needs gcc with AddressSanitizer.
+`test/certs/gen_test_certs.sh` needs OpenSSL 3.4 or later.
 
 These roots are excluded on purpose and must never be re-added to any of the
 files:
