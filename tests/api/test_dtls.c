@@ -16905,8 +16905,8 @@ static int test_dtls13_mask_sni_cb(WOLFSSL* ssl, int* ret, void* arg)
 }
 
 /* An option set while the server parses the ClientHello does not move the
- * version that ClientHello already settled. */
-static int test_dtls13_mask_in_client_hello(void)
+ * version that ClientHello already settled, nor the one a stateful HRR chose. */
+static int test_dtls13_mask_in_client_hello(int hrr)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -16922,6 +16922,10 @@ static int test_dtls13_mask_in_client_hello(void)
         wolfDTLS_client_method, wolfDTLS_server_method), 0);
     ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
         (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+    if (hrr) {
+        ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+    }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_3_VERSION);
     ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_3_VERSION);
@@ -18431,7 +18435,8 @@ int test_dtls13_no_tls13_option(void)
 #endif
     ExpectIntEQ(test_dtls13_ctx_min_proto_zero(), TEST_SUCCESS);
 #ifdef HAVE_SNI
-    ExpectIntEQ(test_dtls13_mask_in_client_hello(), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_in_client_hello(0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_mask_in_client_hello(1), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_mask_max_in_client_hello(0), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_mask_max_in_client_hello(1), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_mask_max_in_client_hello(2), TEST_SUCCESS);

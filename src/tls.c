@@ -7969,7 +7969,10 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
                     continue;
             }
         #ifdef WOLFSSL_DTLS
+            /* The ClientHello after an HRR keeps the version the HRR chose. */
             if (isDtls && ssl->options.downgrade &&
+                    ssl->options.serverState !=
+                        SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
                     DtlsAllowedMinor(ssl, minor, DTLS_MINOR) != minor) {
                 continue;
             }
