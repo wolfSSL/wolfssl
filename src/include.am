@@ -987,10 +987,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c
 
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
-endif
-
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
 
 if BUILD_RSA
@@ -1291,10 +1287,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
 endif
 endif
 
-if BUILD_DH
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dh.c
-endif
-
 if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
 endif
@@ -1480,6 +1472,16 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
 endif
 if BUILD_CURVE448
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve448.c
+endif
+
+# Past wolfcrypt_last.c: the RNG bank calls the module through _fips wrappers.
+if BUILD_RNG_BANK
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
+endif
+
+# Past wolfcrypt_last.c: DH is not a v7 module service.
+if BUILD_DH
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dh.c
 endif
 
 endif BUILD_FIPS_V7_PLUS
