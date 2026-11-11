@@ -7250,6 +7250,24 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
 }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
+#if FIPS_VERSION3_GE(7,0,0)
+/* SP 800-131A Rev. 2 Table 2: ECDSA digital signature generation with
+ * len(n) < 224 is disallowed, while signature verification with those
+ * curves remains legacy use, so only the signing paths are gated.  Every
+ * signing entry point calls this ahead of any crypto-callback or hardware
+ * dispatch, so no backend signs on a too-small curve.  The curve is resolved
+ * from key->dp, never from ecc_sets[key->idx], so a custom-curve key
+ * (idx == ECC_CUSTOM_IDX) cannot index out of range.  A key with no curve
+ * set is left to the caller's own argument checks. */
+static int ecc_fips_sign_curve_allowed(const ecc_key* key)
+{
+    if ((key->dp != NULL) && (key->dp->size < WC_ECC_FIPS_GEN_MIN)) {
+        return SIG_TYPE_E;
+    }
+    return 0;
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) */
+
 /**
  Sign a message digest
  in        The message digest to sign
@@ -7284,6 +7302,13 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     {
         return BAD_LENGTH_E;
     }
+
+#if FIPS_VERSION3_GE(7,0,0)
+    err = ecc_fips_sign_curve_allowed(key);
+    if (err != 0) {
+        return err;
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -7514,6 +7539,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         hashIsZero |= in[zIdx];
     if (hashIsZero == 0)
         return ECC_BAD_ARG_E;
+#endif
+
+#if FIPS_VERSION3_GE(7,0,0)
+    if (ecc_fips_sign_curve_allowed(key) != 0) {
+        return SIG_TYPE_E;
+    }
 #endif
 
     return stm32_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
@@ -7915,12 +7946,9 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    }
 
 #if FIPS_VERSION3_GE(7,0,0)
-   /* SP 800-131A Rev. 2 Table 2: ECDSA digital signature generation with
-    * len(n) < 224 is disallowed, while signature verification with those
-    * curves remains legacy use, so only the signing path is gated.  The
-    * curve is resolved from key->dp, never from ecc_sets[key->idx], so a
-    * custom-curve key (idx == ECC_CUSTOM_IDX) cannot index out of range. */
-   if (key->dp->size < WC_ECC_FIPS_GEN_MIN) {
+   /* wc_ecc_sign_hash_ex() is public, so it is gated as well as
+    * wc_ecc_sign_hash(). */
+   if (ecc_fips_sign_curve_allowed(key) != 0) {
       return SIG_TYPE_E;
    }
 #endif
