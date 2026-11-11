@@ -1126,13 +1126,12 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
             ssl->buffers.weOwnCertChain = 0;
         }
 
+        /* FreeKeyDer() zeroes the key when the last holder lets go of it. It
+         * can be shared with the CTX (WOLFSSL_DER_REFCOUNT), so it must not
+         * be zeroed here. */
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
-            if ((ssl->buffers.key != NULL) &&
-                (ssl->buffers.key->buffer != NULL)) {
-                ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
-            }
-            FreeDer(&ssl->buffers.key);
+            FreeKeyDer(&ssl->buffers.key);
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
             #endif
@@ -1142,12 +1141,7 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
         #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (ssl->buffers.weOwnAltKey) {
             WOLFSSL_MSG("Unloading alt key");
-            if ((ssl->buffers.altKey != NULL) &&
-                    (ssl->buffers.altKey->buffer != NULL)) {
-                ForceZero(ssl->buffers.altKey->buffer,
-                          ssl->buffers.altKey->length);
-            }
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
             #endif
@@ -2114,10 +2108,13 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
              * applications (like nginx OCSP stapling) that use the X509 pointer
              * from SSL_CTX_use_certificate as a lookup key. */
             if ((ssl->ctx != NULL) && (ssl->ctx->ourCert != NULL)) {
-                /* Compare cert buffers to make sure they are the same */
+                /* Compare cert buffers to make sure they are the same. The
+                 * SSL may hold the CTX's own buffer (WOLFSSL_DER_REFCOUNT). */
                 if ((ssl->buffers.certificate == NULL) ||
                     (ssl->buffers.certificate->buffer == NULL) ||
-                   ((ssl->buffers.certificate->length ==
+                    (ssl->buffers.certificate == ssl->ctx->certificate) ||
+                   ((ssl->ctx->certificate != NULL) &&
+                    (ssl->buffers.certificate->length ==
                      ssl->ctx->certificate->length) &&
                     (XMEMCMP(ssl->buffers.certificate->buffer,
                              ssl->ctx->certificate->buffer,

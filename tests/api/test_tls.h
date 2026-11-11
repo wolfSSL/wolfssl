@@ -98,6 +98,7 @@ int test_tls12_declined_ticket_auth_not_reminted(void);
 int test_tls13_session_resumption_sni_mismatch(void);
 int test_tls_cb_ctx_cert_load(void);
 int test_tls_ssl_ctx_certs_check(void);
+int test_tls_ssl_keeps_ctx_certs(void);
 int test_tls13_resumption_with_alpn(void);
 int test_tls12_session_id_resumption_alpn_mismatch(void);
 int test_tls12_old_hello_resumption_binding(void);
@@ -215,6 +216,7 @@ int test_tls_unset_fd_no_stdin_io(void);
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_sni_mismatch),    \
         TEST_DECL_GROUP("tls", test_tls_cb_ctx_cert_load),                     \
         TEST_DECL_GROUP("tls", test_tls_ssl_ctx_certs_check),                  \
+        TEST_DECL_GROUP("tls", test_tls_ssl_keeps_ctx_certs),                  \
         TEST_DECL_GROUP("tls", test_tls13_resumption_with_alpn),              \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_alpn_mismatch),\
         TEST_DECL_GROUP("tls", test_tls12_old_hello_resumption_binding),       \

@@ -6225,6 +6225,163 @@ int test_tls_ssl_ctx_certs_check(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_COPY_CERT) && defined(WOLFSSL_COPY_KEY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    #define TEST_SSL_KEEPS_CTX_CERTS
+#endif
+
+/* The conditions are spelled out again for check-api-guards.py, which reads
+ * the guard around each call site. */
+#if defined(TEST_SSL_KEEPS_CTX_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
+/* Takes a copy of what "der" holds, to compare against later. */
+static int test_ssl_keeps_ctx_certs_save(const DerBuffer* der, byte** copy,
+    word32* copySz)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(der);
+    if (der != NULL) {
+        ExpectNotNull(*copy = (byte*)XMALLOC(der->length, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (*copy != NULL) {
+            XMEMCPY(*copy, der->buffer, der->length);
+            *copySz = der->length;
+        }
+    }
+    return EXPECT_RESULT();
+}
+
+/* Checks "der" still holds what was saved. */
+static int test_ssl_keeps_ctx_certs_check(const DerBuffer* der,
+    const byte* copy, word32 copySz)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(der);
+    ExpectNotNull(copy);
+    if ((der != NULL) && (copy != NULL)) {
+        ExpectIntEQ(der->length, copySz);
+        if (der->length == copySz) {
+            ExpectBufEQ(der->buffer, copy, copySz);
+        }
+    }
+    return EXPECT_RESULT();
+}
+
+static int test_ssl_keeps_ctx_certs_one(method_provider client,
+    method_provider server)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte* cert = NULL;
+    byte* chain = NULL;
+    byte* key = NULL;
+    word32 certSz = 0;
+    word32 chainSz = 0;
+    word32 keySz = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        client, server), 0);
+    /* RSA leaf with its CA as the chain, so the SSL has all three to keep. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/server-cert.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s,
+        "./certs/server-key.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client, server), 0);
+    ExpectNotNull(ssl_s);
+
+    if (ssl_s != NULL) {
+    #ifdef WOLFSSL_DER_REFCOUNT
+        /* Shared with the CTX until the CTX lets go of them. */
+        ExpectTrue(ssl_s->buffers.certificate == ctx_s->certificate);
+        ExpectTrue(ssl_s->buffers.certChain == ctx_s->certChain);
+        #ifndef WOLFSSL_BLIND_PRIVATE_KEY
+        ExpectTrue(ssl_s->buffers.key == ctx_s->privateKey);
+        #endif
+    #endif
+        ExpectIntEQ(test_ssl_keeps_ctx_certs_save(ssl_s->buffers.certificate,
+            &cert, &certSz), TEST_SUCCESS);
+        ExpectIntEQ(test_ssl_keeps_ctx_certs_save(ssl_s->buffers.certChain,
+            &chain, &chainSz), TEST_SUCCESS);
+        ExpectIntEQ(test_ssl_keeps_ctx_certs_save(ssl_s->buffers.key,
+            &key, &keySz), TEST_SUCCESS);
+    }
+    /* Another SSL on the same CTX comes and goes. Letting go of what it held
+     * must leave the buffers it shared with ssl_s alone. */
+    wolfSSL_free(wolfSSL_new(ctx_s));
+
+    /* The CTX moves to an ECC leaf, chain and key, none of which the client
+     * trusts, and the application then lets go of the CTX. The SSL still
+     * holds a reference to it. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/intermediate/server-chain-ecc.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, "./certs/ecc-key.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* What the SSL holds was neither freed (ASan) nor wiped. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(test_ssl_keeps_ctx_certs_check(ssl_s->buffers.certificate,
+            cert, certSz), TEST_SUCCESS);
+        ExpectIntEQ(test_ssl_keeps_ctx_certs_check(ssl_s->buffers.certChain,
+            chain, chainSz), TEST_SUCCESS);
+        ExpectIntEQ(test_ssl_keeps_ctx_certs_check(ssl_s->buffers.key, key,
+            keySz), TEST_SUCCESS);
+    }
+
+    /* And it is what the handshake runs on: the client only trusts the RSA
+     * CA, and the server has to sign with the RSA key. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Freed here, as the checks above are skipped once one fails. */
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_SSL_KEEPS_CTX_CERTS */
+
+/* With WOLFSSL_COPY_CERT and WOLFSSL_COPY_KEY an SSL keeps the certificate,
+ * chain and key its CTX had when the SSL was made, as OpenSSL does, whatever
+ * the CTX does with them afterwards. With WOLFSSL_DER_REFCOUNT the SSL holds
+ * the CTX's own buffers, so this also checks that the CTX replacing them and
+ * being freed neither frees nor wipes them under the SSL. */
+int test_tls_ssl_keeps_ctx_certs(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SSL_KEEPS_CTX_CERTS
+    static const struct {
+        method_provider client;
+        method_provider server;
+    } methods[] = {
+    #ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+    #endif
+    #ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+    #endif
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(methods); i++) {
+        ExpectIntEQ(test_ssl_keeps_ctx_certs_one(methods[i].client,
+            methods[i].server), TEST_SUCCESS);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Regression test for the post-ALPN_Select PSK-head check.
  * When ALPN_Select runs before CheckPreSharedKeys (so the per-PSK
  * binding check has the negotiated ALPN available), TLSX_SetALPN
