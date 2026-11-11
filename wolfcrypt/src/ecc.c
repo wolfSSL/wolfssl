@@ -8232,6 +8232,11 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         }
     }
 
+    if (wc_HmacSizeByType((int)hashType) != (int)hashSz) {
+        WOLFSSL_MSG("hash size does not match hash type");
+        return BAD_FUNC_ARG;
+    }
+
     if (mp_unsigned_bin_size(priv) > MAX_ECC_ORDER_BYTES) {
         WOLFSSL_MSG("private key larger than max expected!");
         return BAD_FUNC_ARG;
