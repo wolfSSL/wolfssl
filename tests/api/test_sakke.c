@@ -1244,3 +1244,78 @@ int test_wc_Sakke_KmsKeyAfterClientOp(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A reused sender key object encapsulates the same bytes as a fresh one. */
+int test_wc_Sakke_PointICache(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_SAKKE
+    WC_RNG rng;
+    SakkeKey key;
+    SakkeKey key2;
+    char mailA[] = "alice@wolfssl.com";
+    char mailB[] = "bob@wolfssl.com";
+    byte* idA = (byte*)mailA;
+    byte* idB = (byte*)mailB;
+    word16 idASz = (word16)XSTRLEN(mailA);
+    word16 idBSz = (word16)XSTRLEN(mailB);
+    byte pubData[256];
+    word32 pubSz = sizeof(pubData);
+    byte* table = NULL;
+    word32 tableLen = 0;
+    byte ssv[16];
+    byte ssv2[16];
+    byte auth[257];
+    byte auth2[257];
+    word16 authSz = sizeof(auth);
+    word16 authSz2 = sizeof(auth2);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(ssv, 0x5A, sizeof(ssv));
+    XMEMSET(ssv2, 0x5A, sizeof(ssv2));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_ExportSakkePublicKey(&key, pubData, &pubSz, 1), 0);
+    wc_FreeSakkeKey(&key);
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key, pubData, pubSz, 1), 0);
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key2, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key2, pubData, pubSz, 1), 0);
+
+    /* Point I table for id A, then point I for id B. */
+    ExpectIntEQ(wc_MakeSakkePointI(&key, idA, idASz), 0);
+    ExpectIntEQ(wc_GenerateSakkePointITable(&key, NULL, &tableLen),
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    if (tableLen > 0) {
+        ExpectNotNull(table = (byte*)XMALLOC(tableLen, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntEQ(wc_GenerateSakkePointITable(&key, table, &tableLen), 0);
+    }
+    ExpectIntEQ(wc_MakeSakkePointI(&key, idB, idBSz), 0);
+
+    ExpectIntEQ(wc_SetSakkeIdentity(&key, idB, idBSz), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA256, ssv,
+        sizeof(ssv), auth, &authSz), 0);
+    ExpectIntEQ(wc_SetSakkeIdentity(&key2, idB, idBSz), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key2, WC_HASH_TYPE_SHA256, ssv2,
+        sizeof(ssv2), auth2, &authSz2), 0);
+    ExpectBufEQ(auth, auth2, sizeof(auth));
+    ExpectBufEQ(ssv, ssv2, sizeof(ssv));
+
+    ExpectIntEQ(wc_ClearSakkePointITable(&key), 0);
+    XFREE(table, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeSakkeKey(&key2);
+    wc_FreeSakkeKey(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

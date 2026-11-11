@@ -2713,6 +2713,9 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
     }
 
     if (err == 0) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, key->i.i);
         if (err == 0) {
@@ -6648,6 +6651,9 @@ int wc_MakeSakkePointI(SakkeKey* key, const byte* id, word16 idSz)
         err = sakke_load_params(key);
     }
     if (err == 0) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, key->i.i);
     }
@@ -6739,6 +6745,9 @@ int wc_SetSakkePointI(SakkeKey* key, const byte* id, word16 idSz,
     }
 
     if (err == 0) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* Read the x value from key size bytes. */
         err = mp_read_unsigned_bin(key->i.i->x, data,
             (word32)key->ecc.dp->size);
