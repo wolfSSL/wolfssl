@@ -159,8 +159,6 @@ typedef struct IntelQaSymCtx {
     /* flags */
     word32 isOpen:1;
     word32 isCopy:1;
-    word32 ownsSymCtxSrc:1; /* symCtxSrc is a private snapshot of the hash
-                             * state taken at copy time; freed with ctx */
 } IntelQaSymCtx;
 #endif
 

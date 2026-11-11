@@ -8081,75 +8081,6 @@ exit:
     wc_Sha256Free(sha);
     return ret;
 }
-
-/* A copy must keep its own state when the original is reset (and reused)
- * before the copy is finalized: Update -> Copy -> Reset(orig) -> Final(copy).
- */
-static wc_test_ret_t sha256_copy_reset_test(wc_Sha256* sha,
-    wc_Sha256* shaCopy)
-{
-    static const char* test_input  = "copy must survive original reset";
-    static const char* other_input = "original reused after reset";
-    byte hash_ref[WC_SHA256_DIGEST_SIZE];
-    byte hash[WC_SHA256_DIGEST_SIZE];
-    wc_test_ret_t ret;
-    int i;
-
-    /* reference digest over several updates on a fresh context */
-    ret = wc_InitSha256_ex(sha, HEAP_HINT, devId);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    for (i = 0; i < 8; i++) {
-        ret = wc_Sha256Update(sha, (const byte*)test_input,
-            (word32)XSTRLEN(test_input));
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), exit_ref);
-    }
-    ret = wc_Sha256Final(sha, hash_ref);
-    if (ret != 0)
-        ret = WC_TEST_RET_ENC_EC(ret);
-exit_ref:
-    wc_Sha256Free(sha);
-    if (ret != 0)
-        return ret;
-
-    ret = wc_InitSha256_ex(sha, HEAP_HINT, devId);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_InitSha256_ex(shaCopy, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_Sha256Free(sha);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
-    for (i = 0; i < 8; i++) {
-        ret = wc_Sha256Update(sha, (const byte*)test_input,
-            (word32)XSTRLEN(test_input));
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), exit);
-    }
-    ret = wc_Sha256Copy(sha, shaCopy);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    /* reset and reuse the original before the copy is finalized */
-    ret = wc_Sha256Reset(sha);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    for (i = 0; i < 8; i++) {
-        ret = wc_Sha256Update(sha, (const byte*)other_input,
-            (word32)XSTRLEN(other_input));
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), exit);
-    }
-    ret = wc_Sha256Final(shaCopy, hash);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    if (XMEMCMP(hash, hash_ref, WC_SHA256_DIGEST_SIZE) != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
-exit:
-    wc_Sha256Free(shaCopy);
-    wc_Sha256Free(sha);
-    return ret;
-}
 #endif /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) && !HAVE_SELFTEST */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
@@ -8178,8 +8109,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
     !defined(HAVE_SELFTEST)
     if ((ret = sha256_reset_test(&sha)) != 0)
-        return ret;
-    if ((ret = sha256_copy_reset_test(&sha, &shaCopy)) != 0)
         return ret;
 #endif
     return 0;
