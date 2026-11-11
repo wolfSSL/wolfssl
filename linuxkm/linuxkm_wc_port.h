@@ -226,6 +226,7 @@
         #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD (25 * 1000 * 1000)
     #endif
     WOLFSSL_API void wc_linuxkm_relax_long_loop(void);
+    WOLFSSL_API void wc_linuxkm_sleep_briefly(void);
 
     #ifndef WC_SIG_IGNORE_BEGIN
         #define WC_SIG_IGNORE_BEGIN() wc_linuxkm_sig_ignore_begin()
@@ -1617,6 +1618,7 @@
         typeof(wc_linuxkm_sig_ignore_end) *wc_linuxkm_sig_ignore_end;
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
         typeof(wc_linuxkm_relax_long_loop) *wc_linuxkm_relax_long_loop;
+        typeof(wc_linuxkm_sleep_briefly) *wc_linuxkm_sleep_briefly;
 
         #ifdef CONFIG_KASAN
             typeof(kasan_disable_current) *kasan_disable_current;
@@ -1924,6 +1926,7 @@
     #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end)
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
     #define wc_linuxkm_relax_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
+    #define wc_linuxkm_sleep_briefly WC_PIE_INDIRECT_SYM(wc_linuxkm_sleep_briefly)
 
     #ifdef CONFIG_KASAN
         #define kasan_disable_current WC_PIE_INDIRECT_SYM(kasan_disable_current)
