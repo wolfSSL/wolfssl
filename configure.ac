@@ -1930,7 +1930,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
 
     # Enable deterministic ECC signing API with variant
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    # FIPS v7 signs per FIPS 186-5 A.3.3, not the RFC 6979 variant
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K"
+    fi
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
@@ -2139,7 +2145,13 @@ then
     fi
 
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    # FIPS v7 signs per FIPS 186-5 A.3.3, not the RFC 6979 variant
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K"
+    fi
 fi
 
 # Support for Tailscale port

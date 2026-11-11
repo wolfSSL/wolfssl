@@ -677,6 +677,16 @@
     #define WOLFSSL_FIPS_V7_LOCAL WOLFSSL_API
 #endif
 
+/* FIPS v7: deterministic ECDSA is FIPS 186-5 A.3.3 (RFC 6979 3.2), which
+ * reduces the hash mod n; the RFC 6979 variant skips that step. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+    #undef WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT
+    #ifndef WOLFSSL_ECDSA_DETERMINISTIC_K
+        #define WOLFSSL_ECDSA_DETERMINISTIC_K
+    #endif
+#endif
+
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)

@@ -5437,6 +5437,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t flags_test(void)
         WCF(FIPS_CAST_AES_CMAC),
         WCF(FIPS_CAST_SHAKE),
         WCF(FIPS_CAST_AES_KW),
+        WCF(FIPS_CAST_ECDSA_DET),
         WCF(FIPS_CAST_COUNT),
         };
         lret = wcflags_check_distinct("FIPS_CAST", FIPS_CAST_tab,

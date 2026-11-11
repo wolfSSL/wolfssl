@@ -110,6 +110,7 @@ static const char* cast_name(int id)
         case FIPS_CAST_AES_CMAC:          return "AES-CMAC";
         case FIPS_CAST_SHAKE:             return "SHAKE";
         case FIPS_CAST_AES_KW:            return "AES-KW";
+        case FIPS_CAST_ECDSA_DET:         return "ECDSA-DET";
         default:                          return "(unknown)";
     }
 }
