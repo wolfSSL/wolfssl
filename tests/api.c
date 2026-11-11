@@ -39420,7 +39420,7 @@ static int test_wc_CryptoCb(void)
  * auth with PEM certificates; Apple's framework rejects id-RSASSA-PSS keys. */
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     defined(WC_RSA_PSS) && defined(HAVE_ECC) && defined(WOLFSSL_PEM_TO_DER) && \
-    !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    !defined(NO_SHA256) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
     !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION) && \
     (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
 #define TEST_TLS_RSA_PSS_PSS_KEY

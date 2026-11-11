@@ -80,6 +80,11 @@ if grep -q -- '-DNO_CODING' config.log 2>/dev/null; then
     echo "skipping because NO_CODING is defined in this build"
     exit 0
 fi
+# The 2048-bit certs/rsapss keys declare SHA-256: nothing here runs without it.
+if grep -q -- '-DNO_SHA256\b' config.log 2>/dev/null; then
+    echo "skipping because NO_SHA256 is defined in this build"
+    exit 0
+fi
 
 # Resolved through cd: make check runs out of tree with an absolute $0.
 CERT_DIR="$(cd "$(dirname "$0")/../certs" && pwd)"
