@@ -214,20 +214,33 @@ jobs:
             echo "(wolfSSL/scripts)."
             exit 1
           fi
-      - name: CHAR_BIT used in every sp_*_from_mp constant-time mask
+      - name: Width-independent mask in every sp_*_from_mp
+        # The read-index mask must not depend on the byte or mp_digit width:
+        # sizeof(mp_digit) * 8 is wrong when CHAR_BIT != 8, and comparing in
+        # mp_digit is wrong when mp_digit is narrower than int (promoted to
+        # int) or 8 bits (index wraps). The comparison is done in word32,
+        # which is 32 bits on every target, with a fixed shift of 31.
         run: |
           defs=$(grep -cE '^static (void|int) sp_[0-9]+_from_mp\(' \
                    wolfcrypt/src/sp_c32.c || true)
-          n=$(grep -c 'sizeof(mp_digit) \* CHAR_BIT - 1' \
-                wolfcrypt/src/sp_c32.c || true)
-          echo "from_mp functions: $defs  CHAR_BIT masks: $n"
-          if grep -q 'sizeof(mp_digit) \* 8 - 1' wolfcrypt/src/sp_c32.c; then
-            echo "::error::sp_c32.c uses sizeof(mp_digit) * 8; must be CHAR_BIT"
+          # Functions whose body uses the word32 mask at least once - a
+          # function may have more than one constant-time conversion path.
+          n=$(awk '/^static (void|int) sp_[0-9]+_from_mp\(/ { f = 1; u = 0 }
+                   f && /\(word32\)a->used\) >> 31\)/ { u = 1 }
+                   f && /^}/ { if (u) c++; f = 0 }
+                   END { print c + 0 }' wolfcrypt/src/sp_c32.c)
+          echo "from_mp functions: $defs  using word32 masks: $n"
+          if grep -qE 'sizeof\(mp_digit\) \* (8|CHAR_BIT) - 1' \
+                  wolfcrypt/src/sp_c32.c; then
+            echo "::error::sp_c32.c: from_mp mask shifts by the mp_digit"
+            echo "width; compare in word32 instead."
             exit 1
           fi
           if [ "$defs" -eq 0 ] || [ "$n" -ne "$defs" ]; then
-            echo "::error::sp_c32.c: every sp_*_from_mp must use"
-            echo "sizeof(mp_digit) * CHAR_BIT - expected $defs, found $n."
+            echo "::error::sp_c32.c: every sp_*_from_mp must compare the"
+            echo "read index in word32 - expected $defs, found $n."
+            echo "Regenerate with the fixed sp/conv.rb templates"
+            echo "(wolfSSL/scripts)."
             exit 1
           fi
 

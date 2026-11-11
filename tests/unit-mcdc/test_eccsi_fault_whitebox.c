@@ -194,6 +194,102 @@ MCDC_FM_MAYBE_UNUSED static int wb_gk_gen_k(WC_RNG* rng, int size, mp_int* k,
 #undef  wc_ecc_gen_k
 #define wc_ecc_gen_k(r, s, k, o)    wb_gk_gen_k((r), (s), (k), (o))
 
+/* --------------------------------------------------------------------------
+ * One-shot, per-operation fault injection for wc_SignEccsiHash() step 5:
+ *
+ *     s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j
+ *
+ * Step 5 runs after the ephemeral private scalar j has been generated. The
+ * inversion is either blinded (wc_ecc_gen_k, mp_mulmod, mp_invmod, mp_mulmod)
+ * and ends with s * j or, with SP assembly, is sp_ModDiv_order_256(). A failure
+ * at any of these must be returned and must leave the blind and j erased.
+ *
+ * wb_s5_arm(op, n) fails the n-th call of that operation only. Every call is
+ * counted while disarmed, so a baseline sign reports how many of each step 5
+ * makes and which inversion path this build takes. Ordering is as for
+ * wb_ea_addmod(): the wrappers are compiled while the names still mean the
+ * (already interposed) real calls, then the names are redefined - so
+ * wb_s5_gen_k() calls through wb_gk_gen_k() above.
+ * ----------------------------------------------------------------------- */
+#include <wolfssl/wolfcrypt/ecc.h>
+#ifdef WOLFSSL_HAVE_SP_ECC
+    #include <wolfssl/wolfcrypt/sp.h>
+#endif
+
+#define WB_S5_OFF       0
+#define WB_S5_GEN_K     1
+#define WB_S5_MULMOD    2
+#define WB_S5_INVMOD    3
+#define WB_S5_SP_INV    4
+#define WB_S5_OPS       5
+
+static int  wb_s5_op = WB_S5_OFF;
+static long wb_s5_at = 0;
+static long wb_s5_cnt[WB_S5_OPS];
+
+static void wb_s5_arm(int op, long n)
+{
+    XMEMSET(wb_s5_cnt, 0, sizeof(wb_s5_cnt));
+    wb_s5_op = op;
+    wb_s5_at = n;
+}
+
+/* Count the call and report whether it is the one to fail. */
+static int wb_s5_hit(int op)
+{
+    wb_s5_cnt[op]++;
+    if ((wb_s5_op == op) && (wb_s5_cnt[op] == wb_s5_at)) {
+        wb_s5_op = WB_S5_OFF;   /* one-shot */
+        return 1;
+    }
+    return 0;
+}
+
+MCDC_FM_MAYBE_UNUSED static int wb_s5_gen_k(WC_RNG* rng, int size, mp_int* k,
+    mp_int* order)
+{
+    if (wb_s5_hit(WB_S5_GEN_K))
+        return MCDC_FM_ERR;   /* not MP_ZERO_E, which is retried */
+    return wc_ecc_gen_k(rng, size, k, order);
+}
+
+MCDC_FM_MAYBE_UNUSED static int wb_s5_mulmod(const mp_int* a, const mp_int* b,
+    const mp_int* m, mp_int* r)
+{
+    if (wb_s5_hit(WB_S5_MULMOD))
+        return MCDC_FM_ERR;
+    return mp_mulmod(a, b, m, r);
+}
+
+MCDC_FM_MAYBE_UNUSED static int wb_s5_invmod(const mp_int* a, const mp_int* m,
+    mp_int* r)
+{
+    if (wb_s5_hit(WB_S5_INVMOD))
+        return MCDC_FM_ERR;
+    return mp_invmod(a, m, r);
+}
+
+#undef  wc_ecc_gen_k
+#define wc_ecc_gen_k(g, sz, k, o)   wb_s5_gen_k((g), (sz), (k), (o))
+#undef  mp_mulmod
+#define mp_mulmod(a, b, c, d)       wb_s5_mulmod((a), (b), (c), (d))
+#undef  mp_invmod
+#define mp_invmod(a, b, c)          wb_s5_invmod((a), (b), (c))
+
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256) && \
+    defined(HAVE_ECC_SIGN) && defined(WOLFCRYPT_HAVE_ECCSI) && \
+    defined(WOLFSSL_SP_ASM)
+MCDC_FM_MAYBE_UNUSED static int wb_s5_sp_div(const mp_int* a, const mp_int* b,
+    mp_int* r, void* heap)
+{
+    if (wb_s5_hit(WB_S5_SP_INV))
+        return MCDC_FM_ERR;
+    return sp_ModDiv_order_256(a, b, r, heap);
+}
+#undef  sp_ModDiv_order_256
+#define sp_ModDiv_order_256(a, b, r, h) wb_s5_sp_div((a), (b), (r), (h))
+#endif
+
 #include <wolfcrypt/src/eccsi.c>
 
 #include "mcdc_fault_alloc.h"
@@ -207,6 +303,9 @@ MCDC_FM_MAYBE_UNUSED static int wb_gk_gen_k(WC_RNG* rng, int size, mp_int* k,
 #endif
 
 static int wb_fail = 0;
+/* An assertion failed - reported as "with failures", which the smoke runner
+ * treats as a failing run. */
+static int wb_error = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if !defined(WOLFCRYPT_HAVE_ECCSI) || !defined(WOLFCRYPT_ECCSI_CLIENT)
@@ -356,11 +455,14 @@ static void wb_gen_sig_reject(WC_RNG* rng)
 
             XMEMSET(sg, 0, sizeof(sg));
             wb_gk_mode = mode;
+            wb_s5_arm(WB_S5_OFF, 0);
             e = wc_SignEccsiHash(&k, rng, WC_HASH_TYPE_SHA256, hash,
                     WC_SHA256_DIGEST_SIZE, sg, &z);
             wb_gk_mode = WB_GK_OFF;
             printf("  [wb] sign blind gen_k mode %d -> %d\n", mode, e);
-            if (e != ((mode == WB_GK_ZERO) ? 0 :
+            /* The SP inversion does not blind: no draw, signing succeeds. */
+            if (e != (((mode == WB_GK_ZERO) ||
+                       (wb_s5_cnt[WB_S5_GEN_K] == 0)) ? 0 :
                     WC_NO_ERR_TRACE(RNG_FAILURE_E))) {
                 WB_NOTE("sign blind gen_k: unexpected result");
                 wb_fail = 1;
@@ -368,6 +470,181 @@ static void wb_gen_sig_reject(WC_RNG* rng)
         }
     }
 
+    mp_free(&ssk);
+    if (pvt != NULL)
+        wc_ecc_del_point_h(pvt, NULL);
+    wc_FreeEccsiKey(&k);
+}
+
+/* ---- wc_SignEccsiHash() step 5 failure paths ----------------------------
+ *
+ * For each operation step 5 performs after j is generated, fail it once and
+ * check that:
+ *   - the error is returned,
+ *   - the blind (in key->tmp) and the ephemeral private scalar j are erased,
+ *   - signing succeeds afterwards and the signature verifies.
+ */
+
+/* Ephemeral private scalar j has been erased from key->pubkey. */
+static int wb_s5_j_erased(EccsiKey* k)
+{
+    int erased = mp_iszero(ecc_get_k_raw(&k->pubkey));
+#ifdef WOLFSSL_ECC_BLIND_K
+    erased = erased && mp_iszero(k->pubkey.kb) && mp_iszero(k->pubkey.ku);
+#endif
+    return erased;
+}
+
+/* Sign and verify with no fault armed. */
+static int wb_s5_sign_verify(EccsiKey* k, WC_RNG* rng, const byte* msg,
+    word32 msgSz)
+{
+    byte   sg[257];
+    word32 z = (word32)sizeof(sg);
+    int    v = 0;
+    int    e;
+
+    wb_s5_arm(WB_S5_OFF, 0);
+    e = wc_SignEccsiHash(k, rng, WC_HASH_TYPE_SHA256, msg, msgSz, sg, &z);
+    if (e == 0) {
+        e = wc_VerifyEccsiHash(k, WC_HASH_TYPE_SHA256, msg, msgSz, sg, z, &v);
+    }
+    if ((e == 0) && (v != 1)) {
+        e = -1;
+    }
+    return e;
+}
+
+static void wb_s5_check(EccsiKey* k, WC_RNG* rng, const byte* msg,
+    word32 msgSz, const char* name, int op, long n, int blinded)
+{
+    byte   sg[257];
+    word32 z = (word32)sizeof(sg);
+    int    e;
+    int    ok = 1;
+
+    wb_s5_arm(op, n);
+    e = wc_SignEccsiHash(k, rng, WC_HASH_TYPE_SHA256, msg, msgSz, sg, &z);
+    if (wb_s5_op != WB_S5_OFF) {
+        printf("  [wb] FAIL step 5 %s: fault not reached\n", name);
+        ok = 0;
+    }
+    wb_s5_arm(WB_S5_OFF, 0);
+    if (e == 0) {
+        printf("  [wb] FAIL step 5 %s: error not returned\n", name);
+        ok = 0;
+    }
+    if (blinded && !mp_iszero(&k->tmp)) {
+        printf("  [wb] FAIL step 5 %s: blind not erased\n", name);
+        ok = 0;
+    }
+    if (!wb_s5_j_erased(k)) {
+        printf("  [wb] FAIL step 5 %s: ephemeral key j not erased\n", name);
+        ok = 0;
+    }
+    e = wb_s5_sign_verify(k, rng, msg, msgSz);
+    if (e != 0) {
+        printf("  [wb] FAIL step 5 %s: sign/verify after fault -> %d\n", name,
+            e);
+        ok = 0;
+    }
+    if (ok) {
+        printf("  [wb] step 5 %s: error returned, secrets erased, "
+               "recovered\n", name);
+    }
+    else {
+        wb_error = 1;
+    }
+}
+
+static void wb_sign_step5_faults(WC_RNG* rng)
+{
+    EccsiKey   k;
+    ecc_point* pvt = NULL;
+    mp_int     ssk;
+    byte       id[] = "eccsi-step5@wolfssl.com";
+    byte       msg[] = "step 5 failure path";
+    word32     msgSz = (word32)sizeof(msg) - 1;
+    byte       hash[WC_MAX_DIGEST_SIZE];
+    byte       hashSz = 0;
+    byte       sg[257];
+    word32     z = (word32)sizeof(sg);
+    long       nGenK;
+    long       nMulmod;
+    long       nInvmod;
+    long       nSpInv;
+    int        e;
+
+    mcdc_fm_disarm();
+    wb_s5_arm(WB_S5_OFF, 0);
+    XMEMSET(&k, 0, sizeof(k));
+    XMEMSET(&ssk, 0, sizeof(ssk));
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (wc_InitEccsiKey(&k, NULL, INVALID_DEVID) != 0) {
+        printf("  [wb] FAIL step 5 fixture: wc_InitEccsiKey\n");
+        wb_error = 1;
+        return;
+    }
+    pvt = wc_ecc_new_point_h(NULL);
+    if ((pvt == NULL) || (mp_init(&ssk) != 0) ||
+            (wc_MakeEccsiKey(&k, rng) != 0) ||
+            (wc_MakeEccsiPair(&k, rng, WC_HASH_TYPE_SHA256, id,
+                (word32)sizeof(id), &ssk, pvt) != 0) ||
+            (wc_SetEccsiPair(&k, &ssk, pvt) != 0) ||
+            (wc_HashEccsiId(&k, WC_HASH_TYPE_SHA256, id, (word32)sizeof(id),
+                pvt, hash, &hashSz) != 0) ||
+            (wc_SetEccsiHash(&k, hash, hashSz) != 0)) {
+        printf("  [wb] FAIL step 5 fixture setup\n");
+        wb_error = 1;
+        goto done;
+    }
+
+    /* Baseline: count each operation and check a good signature also leaves
+     * the blind and j erased. */
+    wb_s5_arm(WB_S5_OFF, 0);
+    e = wc_SignEccsiHash(&k, rng, WC_HASH_TYPE_SHA256, msg, msgSz, sg, &z);
+    nGenK   = wb_s5_cnt[WB_S5_GEN_K];
+    nMulmod = wb_s5_cnt[WB_S5_MULMOD];
+    nInvmod = wb_s5_cnt[WB_S5_INVMOD];
+    nSpInv  = wb_s5_cnt[WB_S5_SP_INV];
+    if (e != 0) {
+        printf("  [wb] FAIL step 5 baseline sign -> %d\n", e);
+        wb_error = 1;
+        goto done;
+    }
+    if (((nInvmod > 0) && !mp_iszero(&k.tmp)) || !wb_s5_j_erased(&k)) {
+        printf("  [wb] FAIL step 5 baseline: secrets not erased\n");
+        wb_error = 1;
+    }
+
+    /* Step 5's calls are the last of their kind in the sign: the final
+     * mp_mulmod is s * j; with blinding the two before it blind and unblind,
+     * and the last wc_ecc_gen_k makes the blind. */
+    if ((nInvmod == 1) && (nGenK >= 1) && (nMulmod >= 3)) {
+        WB_NOTE("step 5: blinded inversion");
+        wb_s5_check(&k, rng, msg, msgSz, "gen blind", WB_S5_GEN_K, nGenK, 1);
+        wb_s5_check(&k, rng, msg, msgSz, "blind", WB_S5_MULMOD, nMulmod - 2,
+            1);
+        wb_s5_check(&k, rng, msg, msgSz, "invert", WB_S5_INVMOD, nInvmod, 1);
+        wb_s5_check(&k, rng, msg, msgSz, "unblind", WB_S5_MULMOD,
+            nMulmod - 1, 1);
+        wb_s5_check(&k, rng, msg, msgSz, "multiply by j", WB_S5_MULMOD,
+            nMulmod, 1);
+    }
+    else if ((nSpInv == 1) && (nInvmod == 0)) {
+        /* One call computes s' = j / s - no separate multiply by j. */
+        WB_NOTE("step 5: SP constant time division");
+        wb_s5_check(&k, rng, msg, msgSz, "divide", WB_S5_SP_INV, nSpInv, 0);
+    }
+    else {
+        printf("  [wb] FAIL step 5: unexpected calls gen_k=%ld mulmod=%ld "
+               "invmod=%ld sp_inv=%ld\n", nGenK, nMulmod, nInvmod, nSpInv);
+        wb_error = 1;
+    }
+
+done:
+    wb_s5_arm(WB_S5_OFF, 0);
     mp_free(&ssk);
     if (pvt != NULL)
         wc_ecc_del_point_h(pvt, NULL);
@@ -674,8 +951,10 @@ int main(int argc, char** argv)
 cleanup:
     mcdc_fa_disarm();
     mcdc_fa_restore();
-    if (do_sweep)
+    if (do_sweep) {
+        wb_sign_step5_faults(&rng);
         wb_mp_sweeps(&rng);
+    }
     if (ptA != NULL) wc_ecc_del_point_h(ptA, NULL);
     if (ptB != NULL) wc_ecc_del_point_h(ptB, NULL);
     if (res != NULL) wc_ecc_del_point_h(res, NULL);
@@ -683,7 +962,8 @@ cleanup:
     wc_FreeEccsiKey(&key);
     wc_FreeRng(&rng);
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_error ? "with failures" :
+                          (wb_fail ? "with skips" : "ok"));
     (void)wb_fail;
     return 0;
 }
