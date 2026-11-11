@@ -1997,18 +1997,23 @@ static int wolfssl_bn_invmod_blind(mp_int* a, const WOLFSSL_BIGNUM* m,
 #ifndef WC_NO_RNG
     int i;
     WOLFSSL_BIGNUM* b = wolfSSL_BN_new();
+    WOLFSSL_BIGNUM* ar = wolfSSL_BN_new();
 
-    if ((t == NULL) || (b == NULL)) {
+    if ((t == NULL) || (b == NULL) || (ar == NULL)) {
         err = MEMORY_E;
     }
     if ((err == MP_OKAY) && (mp_cmp_d(mod, 2) == MP_GT)) {
+        /* Reduce a once, as mp_invmod() would: a*b may not fit when a is much
+         * wider than m. */
+        err = mp_mod(a, mod, (mp_int*)ar->internal);
         for (i = 0; (err == MP_OKAY) && (!found) &&
                 (i < BN_INVMOD_BLIND_TRIES) &&
                 (wolfSSL_BN_rand_range(b, m) == 1); i++) {
             if (mp_iszero((mp_int*)b->internal)) {
                 continue;
             }
-            err = mp_mulmod(a, (mp_int*)b->internal, mod, (mp_int*)t->internal);
+            err = mp_mulmod((mp_int*)ar->internal, (mp_int*)b->internal, mod,
+                (mp_int*)t->internal);
             if (err == MP_OKAY) {
                 err = mp_invmod((mp_int*)t->internal, mod,
                     (mp_int*)t->internal);
@@ -2045,6 +2050,7 @@ static int wolfssl_bn_invmod_blind(mp_int* a, const WOLFSSL_BIGNUM* m,
     }
 
 #ifndef WC_NO_RNG
+    wolfSSL_BN_clear_free(ar);
     wolfSSL_BN_clear_free(b);
 #endif
     wolfSSL_BN_clear_free(t);

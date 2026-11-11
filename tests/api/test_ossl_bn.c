@@ -735,6 +735,13 @@ int test_wolfSSL_BN_math_mod(void)
     BN_ULONG val2;
     BN_ULONG val3;
     int i;
+#ifdef SP_INT_BITS
+    int bits = SP_INT_BITS;
+#elif defined(USE_FAST_MATH)
+    int bits = FP_MAX_BITS / 2;
+#else
+    int bits = 1024;
+#endif
 
     /* Setup */
     XMEMSET(&emptyBN, 0, sizeof(emptyBN));
@@ -861,6 +868,20 @@ int test_wolfSSL_BN_math_mod(void)
     ExpectIntEQ(BN_set_word(a, 11), 1);
     ExpectNotNull(BN_mod_inverse(m, a, m, NULL));
     ExpectIntEQ(BN_is_word(m, 191), 1);
+    /* An operand much wider than the modulus:
+     * 2^(2*bits-64) = 2^(bits-64) mod 2^bits - 1, whose inverse is 2^64. */
+    ExpectIntEQ(BN_set_word(a, 0), 1);
+    ExpectIntEQ(BN_set_bit(a, 2 * bits - 64), 1);
+    ExpectIntEQ(BN_set_word(m, 0), 1);
+    ExpectIntEQ(BN_set_bit(m, bits), 1);
+    ExpectIntEQ(BN_sub_word(m, 1), 1);
+    ExpectNotNull(BN_mod_inverse(r, a, m, NULL));
+    t = NULL;
+    ExpectNotNull(t = BN_new());
+    ExpectIntEQ(BN_set_bit(t, 64), 1);
+    ExpectIntEQ(BN_cmp(r, t), 0);
+    BN_free(t);
+    t = NULL;
     /* Modulus too small to blind with. */
     ExpectIntEQ(BN_set_word(a, 1), 1);
     ExpectIntEQ(BN_set_word(m, 2), 1);
