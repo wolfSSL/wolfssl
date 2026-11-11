@@ -5974,6 +5974,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(HAVE_ECC_ENCRYPT) && !defined(HAVE_ECC)
     #error "ECC encrypt (HAVE_ECC_ENCRYPT) requires ECC (HAVE_ECC)"
 #endif
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && defined(HAVE_ECC_ENCRYPT)
+    #error "ECIES (HAVE_ECC_ENCRYPT) is not available in FIPS v7 builds"
+#endif
 #if defined(HAVE_ECC_ENCRYPT) && !defined(HAVE_HKDF)
     #error "ECC encrypt (HAVE_ECC_ENCRYPT) requires HKDF (HAVE_HKDF)"
 #endif
