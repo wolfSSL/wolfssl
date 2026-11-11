@@ -11458,24 +11458,43 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     }
                     ssl->buffers.keyType = ssl->buffers.altKeyType;
                     ssl->buffers.keySz = ssl->buffers.altKeySz;
-                    /* If we own it, free key before overriding it. */
-                    if (ssl->buffers.weOwnKey) {
-                        FreeKeyDer(&ssl->buffers.key);
-                    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                        FreeDer(&ssl->buffers.keyMask);
-                    #endif
-                    }
-
-                    /* Swap keys */
-                    ssl->buffers.key     = ssl->buffers.altKey;
-                    ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
-                    /* buffers.key is the only owner of the alt key now. */
-                    ssl->buffers.weOwnAltKey = 0;
-
                 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                    ssl->buffers.keyMask = ssl->buffers.altKeyMask;
-                    /* Unblind the alternative key before decoding */
-                    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
+                    {
+                        DerBuffer* alt = wolfssl_priv_der_unblind(
+                            ssl->buffers.altKey, ssl->buffers.altKeyMask);
+                        DerBuffer* mask = NULL;
+                        if (alt == NULL)
+                            ERROR_OUT(MEMORY_E, exit_scv);
+                        ret = AllocCopyDer(&mask, ssl->buffers.altKeyMask->buffer,
+                            ssl->buffers.altKeyMask->length,
+                            ssl->buffers.altKeyMask->type,
+                            ssl->buffers.altKeyMask->heap);
+                        if (ret != 0) {
+                            FreeKeyDer(&alt);
+                            goto exit_scv;
+                        }
+                        if (ssl->buffers.weOwnKey)
+                            FreeKeyDer(&ssl->buffers.key);
+                        FreeDer(&ssl->buffers.keyMask);
+                        ssl->buffers.key = alt;
+                        ssl->buffers.keyMask = mask;
+                        ssl->buffers.weOwnKey = 1;
+                        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_KEY;
+                    }
+                #else
+                    {
+                        DerBuffer* alt = NULL;
+                        ret = ShareDer(&alt, ssl->buffers.altKey);
+                        if (ret != 0)
+                            goto exit_scv;
+                        if (ssl->buffers.weOwnKey)
+                            FreeKeyDer(&ssl->buffers.key);
+                        ssl->buffers.key = alt;
+                        ssl->buffers.weOwnKey = 1;
+                        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_KEY;
+                        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_ALT)
+                            ssl->buffers.retainCtxCreds |= WOLFSSL_RETAIN_CTX_KEY;
+                    }
                 #endif
                 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */

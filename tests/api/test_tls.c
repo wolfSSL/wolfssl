@@ -6122,17 +6122,8 @@ int test_tls_cb_ctx_cert_load(void)
         int retry; /* callback returns its warning or retry value */
         int err;
     } cases[] = {
-    #ifdef WOLFSSL_COPY_CERT
         { CB_LOAD_CTX_CERT, 0, 0 },
-    #else
-        { CB_LOAD_CTX_CERT, 0, WC_NO_ERR_TRACE(BAD_STATE_E) },
-        { CB_LOAD_CTX_CERT, 1, WC_NO_ERR_TRACE(BAD_STATE_E) },
-    #endif
-    #if defined(WOLFSSL_COPY_KEY) || defined(WOLFSSL_BLIND_PRIVATE_KEY)
         { CB_LOAD_CTX_KEY, 0, 0 },
-    #else
-        { CB_LOAD_CTX_KEY, 0, WC_NO_ERR_TRACE(BAD_STATE_E) },
-    #endif
         { CB_LOAD_SSL_CERT, 0, 0 },
     #ifdef OPENSSL_EXTRA
         { CB_SWITCH_CTX, 0, 0 },
@@ -6193,29 +6184,26 @@ int test_tls_ssl_ctx_certs_check(void)
     if (ctx != NULL) {
         ctx->certChainCnt++;
     }
-    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
     if (ctx != NULL) {
         ctx->certChainCnt--;
     }
 
 #ifdef TEST_SSL_CTX_ALT_KEY
-    /* Same swap as SendTls13CertificateVerify with the alternative key. */
-    if (ssl != NULL) {
-        ssl->buffers.key = ssl->buffers.altKey;
-        ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
-        ssl->buffers.weOwnAltKey = 0;
-    }
+    /* Install the alternative key as the SSL's own signing key. */
+    ExpectIntEQ(load_file("./certs/ecc-key.der", &altKey, &altKeySz), 0);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl, altKey, (long)altKeySz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
 
-    /* A new alternative key on the SSL leaves the swapped key with the CTX. */
-    ExpectIntEQ(load_file("./certs/ecc-key.der", &altKey, &altKeySz), 0);
+    /* Replacing the SSL's alternative key leaves its signing key intact. */
     ExpectIntEQ(wolfSSL_use_AltPrivateKey_buffer(ssl, altKey, (long)altKeySz,
         WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
 
     ExpectIntEQ(wolfSSL_CTX_use_AltPrivateKey_file(ctx, eccKeyFile,
         CERT_FILETYPE), WOLFSSL_SUCCESS);
-    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(CheckSSL_CTX_CertsAndKeys(ssl), 0);
     XFREE(altKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -6225,8 +6213,7 @@ int test_tls_ssl_ctx_certs_check(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_COPY_CERT) && defined(WOLFSSL_COPY_KEY) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     defined(WOLFSSL_PEM_TO_DER)
     #define TEST_SSL_KEEPS_CTX_CERTS

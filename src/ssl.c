@@ -8600,6 +8600,7 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     if (ssl == NULL)
         return;
 
+    ssl->buffers.retainCtxCreds = 0;
     /* ctx still owns certificate, certChain, key, dh, and cm */
     if (ssl->buffers.weOwnCert) {
         FreeDer(&ssl->buffers.certificate);

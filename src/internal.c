@@ -8285,17 +8285,14 @@ static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 /* Give the SSL object the certificate, certificate chain and private key of
  * the CTX. The SSL must not hold any of its own yet.
  *
- * With WOLFSSL_COPY_CERT and WOLFSSL_COPY_KEY the SSL keeps what it is given
- * even if the CTX replaces or frees them later, as with OpenSSL: it holds a
- * reference to the CTX's buffer (WOLFSSL_DER_REFCOUNT) or a copy, and owns
- * that. Otherwise it points at the CTX's buffers and owns nothing.
+ * The SSL keeps what it is given even if the CTX replaces it later: it holds
+ * a reference to the CTX's buffer (WOLFSSL_DER_REFCOUNT) or a copy.
  *
  * Returns 0 on success. */
 int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     int ret = 0;
 
-#ifdef WOLFSSL_COPY_CERT
     if (ctx->certificate != NULL) {
         ret = ShareDer(&ssl->buffers.certificate, ctx->certificate);
         if (ret != 0) {
@@ -8303,6 +8300,9 @@ int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
 
         ssl->buffers.weOwnCert = 1;
+#ifndef WOLFSSL_COPY_CERT
+        ssl->buffers.retainCtxCreds |= WOLFSSL_RETAIN_CTX_CERT;
+#endif
     }
     if (ctx->certChain != NULL) {
         ret = ShareDer(&ssl->buffers.certChain, ctx->certChain);
@@ -8311,15 +8311,12 @@ int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
 
         ssl->buffers.weOwnCertChain = 1;
-    }
-#else
-    /* ctx still owns certificate, certChain, key, dh, and cm */
-    ssl->buffers.certificate = ctx->certificate;
-    ssl->buffers.certChain = ctx->certChain;
+#ifndef WOLFSSL_COPY_CERT
+        ssl->buffers.retainCtxCreds |= WOLFSSL_RETAIN_CTX_CHAIN;
 #endif
+    }
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
-#ifdef WOLFSSL_COPY_KEY
     if (ctx->privateKey != NULL) {
         if (ssl->buffers.weOwnKey) {
             FreeKeyDer(&ssl->buffers.key);
@@ -8329,13 +8326,13 @@ int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             return ret;
         }
         ssl->buffers.weOwnKey = 1;
+#ifndef WOLFSSL_COPY_KEY
+        ssl->buffers.retainCtxCreds |= WOLFSSL_RETAIN_CTX_KEY;
+#endif
     }
     else {
         ssl->buffers.key      = ctx->privateKey;
     }
-#else
-    ssl->buffers.key      = ctx->privateKey;
-#endif
 #else
     if (ctx->privateKey != NULL) {
         if (ssl->buffers.key != NULL) {
@@ -8364,7 +8361,13 @@ int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.keyDevId = ctx->privateKeyDevId;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
-    ssl->buffers.altKey   = ctx->altPrivateKey;
+    if (ctx->altPrivateKey != NULL) {
+        ret = ShareDer(&ssl->buffers.altKey, ctx->altPrivateKey);
+        if (ret != 0)
+            return ret;
+        ssl->buffers.weOwnAltKey = 1;
+        ssl->buffers.retainCtxCreds |= WOLFSSL_RETAIN_CTX_ALT;
+    }
 #else
     if (ctx->altPrivateKey != NULL) {
         ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,
@@ -11114,7 +11117,36 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #if !defined(NO_CERTS) && !defined(OPENSSL_EXTRA) && \
     !defined(WOLFSSL_WPAS_SMALL)
     if (ssl->options.side != WOLFSSL_CLIENT_END) {
+        /* CTX-derived buffers now have owned references but, as before,
+         * must survive automatic cleanup for wolfSSL_clear() and reuse.
+         * Explicit wolfSSL_UnloadCertsKeys() still releases them. */
+        byte cert = ssl->buffers.weOwnCert;
+        byte chain = ssl->buffers.weOwnCertChain;
+        byte key = ssl->buffers.weOwnKey;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+        byte alt = ssl->buffers.weOwnAltKey;
+#endif
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_CERT)
+            ssl->buffers.weOwnCert = 0;
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_CHAIN)
+            ssl->buffers.weOwnCertChain = 0;
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_KEY)
+            ssl->buffers.weOwnKey = 0;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_ALT)
+            ssl->buffers.weOwnAltKey = 0;
+#endif
         wolfSSL_UnloadCertsKeys(ssl);
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_CERT)
+            ssl->buffers.weOwnCert = cert;
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_CHAIN)
+            ssl->buffers.weOwnCertChain = chain;
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_KEY)
+            ssl->buffers.weOwnKey = key;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+        if (ssl->buffers.retainCtxCreds & WOLFSSL_RETAIN_CTX_ALT)
+            ssl->buffers.weOwnAltKey = alt;
+#endif
     }
 #endif
 #ifdef HAVE_PK_CALLBACKS
@@ -29959,6 +29991,20 @@ fail:
  *
  * Returns 0 on success
  */
+static int SslCanUseCtxOcspCache(const WOLFSSL* ssl)
+{
+#if !defined(WOLFSSL_COPY_CERT)
+    const DerBuffer* cert = ssl->buffers.certificate;
+    const DerBuffer* ctxCert = ssl->ctx != NULL ? ssl->ctx->certificate : NULL;
+    return cert != NULL && ctxCert != NULL && cert->buffer != NULL &&
+        ctxCert->buffer != NULL &&
+        (cert == ctxCert || (cert->length == ctxCert->length &&
+         XMEMCMP(cert->buffer, ctxCert->buffer, cert->length) == 0));
+#else
+    return !ssl->buffers.weOwnCert;
+#endif
+}
+
 int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
                        buffer* response)
 {
@@ -29984,7 +30030,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
         goto exit_cor;
     }
 
-    if (request == NULL || ssl->buffers.weOwnCert) {
+    if (request == NULL || !SslCanUseCtxOcspCache(ssl)) {
         DerBuffer* der = ssl->buffers.certificate;
             WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
@@ -30012,7 +30058,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
          * Not being able to cache is not an error: all that is lost is the
          * reuse by later connections on this CTX. Failing the handshake over a
          * missed optimization would be the worse outcome. */
-        if (ret == 0 && !ssl->buffers.weOwnCert) {
+        if (ret == 0 && SslCanUseCtxOcspCache(ssl)) {
             wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl->ctx);
             OcspRequest*   cached = NULL;
 
@@ -30901,7 +30947,7 @@ static OcspRequest* GetCtxOcspRequest(WOLFSSL* ssl)
     wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl->ctx);
     OcspRequest*   request  = NULL;
 
-    if (ssl->buffers.weOwnCert) {
+    if (!SslCanUseCtxOcspCache(ssl)) {
         /* Not the certificate the cache was built from. */
     }
     else if (ocspLock == NULL) {
