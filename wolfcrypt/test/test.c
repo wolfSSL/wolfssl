@@ -93178,6 +93178,33 @@ static wc_test_ret_t pkcs7signed_slhdsa_interop_test(void)
         pkcs7 = NULL;
     }
 
+#if !defined(WOLFSSL_SLHDSA_SHA2) || \
+    defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_NO_128S)
+    /* a cert of a parameter set that isn't built still loads */
+    #if !defined(WOLFSSL_SLHDSA_SHA2) || \
+        defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128S)
+    f = XFOPEN(CERT_ROOT "slhdsa" CERT_PATH_SEP "root-slhdsa-sha2-128s.der",
+               "rb");
+    #else
+    f = XFOPEN(CERT_ROOT "slhdsa" CERT_PATH_SEP "root-slhdsa-shake-128s.der",
+               "rb");
+    #endif
+    if (f == XBADFILE)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    inSz = (word32)XFREAD(in, 1, FOURK_BUF * 6, f);
+    XFCLOSE(f);
+    f = XBADFILE;
+    if (inSz == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    ret = wc_PKCS7_InitWithCert(pkcs7, in, inSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+#endif
+
 out_lbl:
     if (f != XBADFILE)
         XFCLOSE(f);
@@ -93502,6 +93529,27 @@ static int pkcs7_slhdsa_verify(byte* in, word32 inSz, int* hashOID)
     return ret;
 }
 
+/* Verify SignedData with a caller-supplied content hash. */
+static int pkcs7_slhdsa_verify_hash(byte* in, word32 inSz)
+{
+    byte hash[WC_SHA256_DIGEST_SIZE];
+    wc_PKCS7* pkcs7;
+    int ret;
+
+    XMEMSET(hash, 0, sizeof(hash));
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        return MEMORY_E;
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+    if (ret == 0)
+        ret = wc_PKCS7_VerifySignedData_ex(pkcs7, hash, sizeof(hash), in,
+            inSz, NULL, 0);
+
+    wc_PKCS7_Free(pkcs7);
+    return ret;
+}
+
 /* Insert insSz bytes at offset pos of the DER encoding in der, growing the
  * length of every constructed TLV whose contents end at or contain pos. Each
  * of those lengths must keep the size of its encoding. Used to build
@@ -93758,6 +93806,10 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
         ret = pkcs7_slhdsa_verify(out, (word32)outSz, NULL);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        /* which doesn't bind a caller-supplied content hash */
+        ret = pkcs7_slhdsa_verify_hash(out, (word32)outSz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out_lbl);
 
         if (params[i].weakHashOID != 0) {
             /* a digest shorter than 2n must be rejected when signed

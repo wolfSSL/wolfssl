@@ -1376,13 +1376,20 @@ static int wc_PKCS7_CheckPublicKeyDer(wc_PKCS7* pkcs7, int keyOID,
              * failed Init set up. */
             XMEMSET(slhdsa, 0, sizeof(*slhdsa));
             ret = wc_PKCS7_SlhDsaParamFromOID((word32)keyOID, &param);
-            if (ret == 0) {
-                ret = wc_SlhDsaKey_Init(slhdsa, param, pkcs7->heap,
-                                        pkcs7->devId);
+            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+                /* still load certs of parameter sets that aren't built, e.g.
+                 * in a certs-only bundle; using them fails later */
+                ret = 0;
             }
-            if (ret == 0) {
-                ret = wc_SlhDsaKey_PublicKeyDecode(key, &scratch, slhdsa,
-                                                   keySz);
+            else {
+                if (ret == 0) {
+                    ret = wc_SlhDsaKey_Init(slhdsa, param, pkcs7->heap,
+                                            pkcs7->devId);
+                }
+                if (ret == 0) {
+                    ret = wc_SlhDsaKey_PublicKeyDecode(key, &scratch, slhdsa,
+                                                       keySz);
+                }
             }
             wc_SlhDsaKey_Free(slhdsa);
             XFREE(slhdsa, pkcs7->heap, DYNAMIC_TYPE_SLHDSA);
@@ -6205,8 +6212,13 @@ static int wc_PKCS7_SlhDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-        if (pkcs7->unknownExtCallback != NULL)
+        if (pkcs7->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(dCert, pkcs7->unknownExtCallback32);
+        }
+
+        if (pkcs7->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+        }
 #endif
 
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
@@ -6803,6 +6815,14 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
                 if (ret != 0) {
                     break;
                 }
+            }
+            else if (hashBuf != NULL) {
+                /* the signature is over the eContent and doesn't bind a
+                 * caller-supplied content hash */
+                WOLFSSL_MSG("Pre-calculated content hash not supported for "
+                            "SLH-DSA without signed attributes");
+                ret = BAD_FUNC_ARG;
+                break;
             }
             ret = wc_PKCS7_BuildPureSigMessage(pkcs7, signedAttrib,
                                                signedAttribSz, &msg, &msgSz,
