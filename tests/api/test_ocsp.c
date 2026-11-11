@@ -6435,6 +6435,26 @@ int test_ocsp_ctx_request_cache(void)
         ssl_s = NULL;
     }
 
+    /* An entry whose certificate does not match must not reuse the marked
+     * request, even if that entry was published after a CTX reload. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(ctx_s->certOcspRequestCert);
+        if (EXPECT_SUCCESS()) {
+            ctx_s->certOcspRequestCert->buffer[0] ^= 0xff;
+            test_ocsp_ctx_request_cache_differs = 1;
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s,
+                &ssl_c, &ssl_s, wolfTLSv1_2_client_method,
+                wolfTLSv1_2_server_method), 0);
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP, 0),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(test_ocsp_ctx_request_cache_cb_cnt, 4);
+            ExpectIntEQ(test_ocsp_ctx_request_cache_differs, 0);
+            ctx_s->certOcspRequestCert->buffer[0] ^= 0xff;
+        }
+    }
+
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);

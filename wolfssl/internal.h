@@ -4849,6 +4849,7 @@ struct WOLFSSL_CTX {
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* certOcspRequest;
+            DerBuffer* certOcspRequestCert; /* Certificate identifying request. */
         #endif
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* chainOcspRequest[MAX_CHAIN_DEPTH];

@@ -3652,6 +3652,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         FreeOcspRequest(ctx->certOcspRequest);
         XFREE(ctx->certOcspRequest, ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     }
+    FreeDer(&ctx->certOcspRequestCert);
 #endif
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -29856,14 +29857,14 @@ static wolfSSL_Mutex* GetCtxOcspLock(WOLFSSL_CTX* ctx)
  *
  * Connections only ever use copies of the cached request, taken under the lock
  * (see CopyCtxOcspRequest()), so freeing it cannot pull it out from under one
- * that is still checking its request. When the lock cannot be taken the
- * request is still dropped: keeping it would be wrong for every connection to
- * come.
+ * that is still checking its request. If locking fails, retain the entry:
+ * readers check its certificate before using it.
  */
 void FreeCtxOcspRequestCache(WOLFSSL_CTX* ctx)
 {
     wolfSSL_Mutex* ocspLock;
     OcspRequest*   request;
+    DerBuffer*     cert;
     int            locked = 0;
 
     if (ctx == NULL)
@@ -29875,11 +29876,14 @@ void FreeCtxOcspRequestCache(WOLFSSL_CTX* ctx)
             locked = 1;
         }
         else {
-            WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, dropping the request");
+            WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, retaining the request");
+            return;
         }
     }
     request = ctx->certOcspRequest;
     ctx->certOcspRequest = NULL;
+    cert = ctx->certOcspRequestCert;
+    ctx->certOcspRequestCert = NULL;
     if (locked) {
         wc_UnLockMutex(ocspLock);
     }
@@ -29888,6 +29892,7 @@ void FreeCtxOcspRequestCache(WOLFSSL_CTX* ctx)
         FreeOcspRequest(request);
         XFREE(request, ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     }
+    FreeDer(&cert);
 }
 #endif
 
@@ -29983,10 +29988,9 @@ fail:
 /* Creates OCSP response and places it in variable "response". Memory
  * management for "buffer* response" is up to the caller.
  *
- * Also creates an OcspRequest in the case that ocspRequest is null or that
- * ssl->buffers.weOwnCert is set, and returns it in "*ocspRequest" for the
- * caller to free. A request created from the CTX certificate is also cached on
- * the CTX, as a copy that only GetCtxOcspRequest() reads (see
+ * Creates an OcspRequest when needed and returns it in "*ocspRequest" for the
+ * caller to free. A request and its certificate may also be cached on the CTX,
+ * as copies that only GetCtxOcspRequest() reads (see
  * CopyCtxOcspRequest()). "*ocspRequest" is only written on success.
  *
  * Returns 0 on success
@@ -29994,12 +29998,7 @@ fail:
 static int SslCanUseCtxOcspCache(const WOLFSSL* ssl)
 {
 #if !defined(WOLFSSL_COPY_CERT)
-    const DerBuffer* cert = ssl->buffers.certificate;
-    const DerBuffer* ctxCert = ssl->ctx != NULL ? ssl->ctx->certificate : NULL;
-    return cert != NULL && ctxCert != NULL && cert->buffer != NULL &&
-        ctxCert->buffer != NULL &&
-        (cert == ctxCert || (cert->length == ctxCert->length &&
-         XMEMCMP(cert->buffer, ctxCert->buffer, cert->length) == 0));
+    return ssl->ctx != NULL && ssl->buffers.certificate != NULL;
 #else
     return !ssl->buffers.weOwnCert;
 #endif
@@ -30051,8 +30050,8 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
                       der->length);
         }
 
-        /* Only a request built from a CTX-held certificate may be cached, since
-         * the cache outlives this connection. The CTX keeps a copy, so this
+        /* Cache a request with the certificate from which it was built. The
+         * CTX keeps copies of both, so this
          * connection still owns, and frees, the request it built.
          *
          * Not being able to cache is not an error: all that is lost is the
@@ -30061,12 +30060,19 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
         if (ret == 0 && SslCanUseCtxOcspCache(ssl)) {
             wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl->ctx);
             OcspRequest*   cached = NULL;
+            DerBuffer*     cacheCert = NULL;
 
             /* SSL_CM(ssl) can resolve through ssl->x509_store_pt, so a stapling
              * object on the CTX manager is not implied by the one checked
              * above. */
             if (ocspLock != NULL) {
                 cached = CopyCtxOcspRequest(request, ssl->ctx->heap);
+                if (cached != NULL && AllocCopyDer(&cacheCert, der->buffer,
+                        der->length, der->type, ssl->ctx->heap) != 0) {
+                    FreeOcspRequest(cached);
+                    XFREE(cached, ssl->ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                    cached = NULL;
+                }
             }
             if (ocspLock == NULL) {
                 WOLFSSL_MSG("No CTX OCSP lock, not caching the request");
@@ -30081,7 +30087,9 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
             else {
                 if (ssl->ctx->certOcspRequest == NULL) {
                     ssl->ctx->certOcspRequest = cached;
+                    ssl->ctx->certOcspRequestCert = cacheCert;
                     cached = NULL;
+                    cacheCert = NULL;
                 }
                 wc_UnLockMutex(ocspLock);
             }
@@ -30090,6 +30098,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
                 FreeOcspRequest(cached);
                 XFREE(cached, ssl->ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
             }
+            FreeDer(&cacheCert);
         }
 
         if (ret != 0) {
@@ -30935,8 +30944,9 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
  * under in CreateOcspResponse() and dropped under in FreeCtxOcspRequestCache(),
  * and the caller only ever uses its copy (see CopyCtxOcspRequest()).
  *
- * The cache is built from the CTX certificate, so it is only used when the
- * connection shares that certificate.
+ * The cache entry includes the certificate it was built from. Compare it with
+ * the SSL's retained certificate while holding the cache lock; the CTX's
+ * current certificate can change independently.
  *
  * Returns the copy, or NULL when there is no cached request, the connection has
  * a certificate of its own, or the copy cannot be made. The caller then builds
@@ -30957,7 +30967,12 @@ static OcspRequest* GetCtxOcspRequest(WOLFSSL* ssl)
         WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, skipping the request cache");
     }
     else {
-        if (ssl->ctx->certOcspRequest != NULL) {
+        const DerBuffer* cert = ssl->buffers.certificate;
+        const DerBuffer* cachedCert = ssl->ctx->certOcspRequestCert;
+        if (ssl->ctx->certOcspRequest != NULL && cert != NULL &&
+                cachedCert != NULL && cert->buffer != NULL &&
+                cachedCert->buffer != NULL && cert->length == cachedCert->length &&
+                XMEMCMP(cert->buffer, cachedCert->buffer, cert->length) == 0) {
             request = CopyCtxOcspRequest(ssl->ctx->certOcspRequest, ssl->heap);
         }
         wc_UnLockMutex(ocspLock);
