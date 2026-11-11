@@ -364,6 +364,9 @@ int test_wc_Des_CbcEncryptDecrypt(void)
     ExpectIntEQ(wc_Des_CbcEncrypt(&des, cipher, NULL, sizeof(vector)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Des_CbcEncrypt(&des, cipher, vector, sizeof(vector)), 0);
+    /* non-block-aligned input rejected with BAD_LENGTH_E */
+    ExpectIntEQ(wc_Des_CbcEncrypt(&des, cipher, vector, DES_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
 
     /* wc_Des_CbcDecrypt: same three operands + round-trip check. */
     ExpectIntEQ(wc_Des_CbcDecrypt(NULL, plain, cipher, sizeof(cipher)),
@@ -375,6 +378,8 @@ int test_wc_Des_CbcEncryptDecrypt(void)
     ExpectIntEQ(wc_Des_SetKey(&des, key, iv, DES_DECRYPTION), 0);
     ExpectIntEQ(wc_Des_CbcDecrypt(&des, plain, cipher, sizeof(cipher)), 0);
     ExpectBufEQ(plain, vector, sizeof(vector));
+    ExpectIntEQ(wc_Des_CbcDecrypt(&des, plain, cipher, DES_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
 
 #ifdef WOLFSSL_DES_ECB
     /* wc_Des_EcbEncrypt: same three operands + a good case. */

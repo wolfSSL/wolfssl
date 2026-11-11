@@ -15342,6 +15342,92 @@ static wc_test_ret_t des_cbc_test(Des* enc, Des* dec)
     return 0;
 }
 
+/* TODO: these DES ports do not carry the IV forward in des->reg between CBC
+ * calls, so split operations do not match a single call. Remove each guard
+ * once its port chains the IV:
+ *  - PIC32MZ: wc_Pic32DesCrypt only loads the IV into the SA.
+ *  - Freescale LTC: LTC_DES_*Cbc takes the IV as const. */
+#if !defined(WOLFSSL_PIC32MZ_CRYPT) && !defined(FREESCALE_LTC_DES)
+    #define DES_CBC_SPLIT_TEST
+#endif
+
+#ifdef DES_CBC_SPLIT_TEST
+/* Encrypting/decrypting in two calls on the same context must match a single
+ * call, so the IV has to chain between calls. */
+static wc_test_ret_t des_cbc_split_test(Des* enc, Des* dec)
+{
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] =
+    {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[] =
+    {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
+    };
+    const word32 piece = 2 * DES_BLOCK_SIZE;
+    byte msg[4 * DES_BLOCK_SIZE];
+    byte one[4 * DES_BLOCK_SIZE];
+    byte two[4 * DES_BLOCK_SIZE];
+    byte plain[4 * DES_BLOCK_SIZE];
+    word32 i;
+    wc_test_ret_t ret;
+
+    for (i = 0; i < (word32)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    /* single call encrypt */
+    ret = wc_Des_SetKey(enc, key, iv, DES_ENCRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des_CbcEncrypt(enc, one, msg, (word32)sizeof(msg));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* split encrypt */
+    ret = wc_Des_SetKey(enc, key, iv, DES_ENCRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des_CbcEncrypt(enc, two, msg, piece);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des_CbcEncrypt(enc, two + piece, msg + piece, piece);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(one, two, sizeof(one)))
+        return WC_TEST_RET_ENC_NC;
+
+    /* split decrypt */
+    ret = wc_Des_SetKey(dec, key, iv, DES_DECRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des_CbcDecrypt(dec, plain, one, piece);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des_CbcDecrypt(dec, plain + piece, one + piece, piece);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(plain, msg, sizeof(plain)))
+        return WC_TEST_RET_ENC_NC;
+
+    /* split decrypt in-place, the next IV must be taken before the input is
+     * overwritten */
+    XMEMCPY(two, one, sizeof(two));
+    ret = wc_Des_SetKey(dec, key, iv, DES_DECRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des_CbcDecrypt(dec, two, two, piece);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des_CbcDecrypt(dec, two + piece, two + piece, piece);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(two, msg, sizeof(two)))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif /* DES_CBC_SPLIT_TEST */
+
 #ifdef WOLFSSL_DES_ECB
 static wc_test_ret_t des_ecb_test(Des* enc, Des* dec)
 {
@@ -15473,6 +15559,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des_test(void)
     ret = des_cbc_test(&enc, &dec);
     if (ret != 0)
         return ret;
+#ifdef DES_CBC_SPLIT_TEST
+    ret = des_cbc_split_test(&enc, &dec);
+    if (ret != 0)
+        return ret;
+#endif
 #ifdef WOLFSSL_DES_ECB
     ret = des_ecb_test(&enc, &dec);
     if (ret != 0)
@@ -15550,13 +15641,9 @@ static wc_test_ret_t des3_cbc_test(Des3* enc, Des3* dec)
  * guard once its port chains the IV:
  *  - Cavium Octeon sync: IV is never read back from the hardware.
  *  - PIC32MZ: wc_Pic32DesCrypt only loads the IV into the SA.
- *  - Freescale LTC: LTC_DES3_*Cbc takes the IV as const.
- *  - STM32 without HAL_V2: saves the last output block, which is plaintext
- *    on decrypt. */
+ *  - Freescale LTC: LTC_DES3_*Cbc takes the IV as const. */
 #if !defined(HAVE_CAVIUM_OCTEON_SYNC) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
-    !defined(FREESCALE_LTC_DES) && \
-    !(defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY) && \
-      !defined(STM32_HAL_V2))
+    !defined(FREESCALE_LTC_DES)
     #define DES3_CBC_SPLIT_TEST
 #endif
 
