@@ -1169,16 +1169,6 @@ static int km_AesGcmSetAuthsize_Rfc4106(struct crypto_aead *tfm, unsigned int au
 
 #ifdef WOLFSSL_AESGCM_STREAM
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
- */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #undef wc_AesGcmDecryptUpdate
-    #undef wc_AesGcmEncryptUpdate
-    typeof(wc_AesGcmDecryptUpdate_fips) wc_AesGcmDecryptUpdate;
-    typeof(wc_AesGcmEncryptUpdate_fips) wc_AesGcmEncryptUpdate;
-#endif
-
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
     #ifndef WC_LINUXKM_GCM_SVR_BATCH
         #define WC_LINUXKM_GCM_SVR_BATCH (16 * 4096)
@@ -1440,11 +1430,6 @@ out:
 
     return err;
 }
-
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #define wc_AesGcmDecryptUpdate wc_AesGcmDecryptUpdate_fips
-    #define wc_AesGcmEncryptUpdate wc_AesGcmEncryptUpdate_fips
-#endif
 
 #else /* !WOLFSSL_AESGCM_STREAM */
 
@@ -2321,16 +2306,6 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
 
 /* see /usr/src/linux/drivers/md/dm-crypt.c */
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
- */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #undef wc_AesXtsDecryptUpdate
-    #undef wc_AesXtsEncryptUpdate
-    typeof(wc_AesXtsDecryptUpdate_fips) wc_AesXtsDecryptUpdate;
-    typeof(wc_AesXtsEncryptUpdate_fips) wc_AesXtsEncryptUpdate;
-#endif
-
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
     !defined(WC_LINUXKM_SVR_NO_BATCHING) && !defined(WC_LINUXKM_XTS_NO_AESNI)
     #ifndef WC_LINUXKM_XTS_SVR_BATCH
@@ -2735,11 +2710,6 @@ out:
 
     return err;
 }
-
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #define wc_AesXtsDecryptUpdate wc_AesXtsDecryptUpdate_fips
-    #define wc_AesXtsEncryptUpdate wc_AesXtsEncryptUpdate_fips
-#endif
 
 static struct skcipher_alg xtsAesAlg = {
     .base.cra_name          = WOLFKM_AESXTS_NAME,
