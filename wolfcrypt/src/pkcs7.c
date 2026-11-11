@@ -8246,6 +8246,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     pkcs7->contentSz = 0;
                 }
                 XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                /* embedded eContent must match caller-supplied content */
+                if (pkcs7->content != NULL && pkcs7->contentSz > 0 &&
+                    (pkcs7->contentSz != pkcs7->stream->contentSz ||
+                     XMEMCMP(pkcs7->content, pkcs7->stream->content,
+                             pkcs7->stream->contentSz) != 0)) {
+                    ret = SIG_VERIFY_E;
+                    break;
+                }
                 pkcs7->contentDynamic = (byte*)XMALLOC(pkcs7->stream->contentSz,
                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if (pkcs7->contentDynamic == NULL) {
@@ -8404,6 +8412,15 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 /* if detached, use content from user in pkcs7 struct */
                 content = pkcs7->content;
                 contentSz = pkcs7->contentSz;
+            }
+            else if (pkcs7->content != NULL && pkcs7->contentSz > 0 &&
+                     content != NULL && contentSz > 0) {
+                /* embedded eContent must match caller-supplied content */
+                if ((word32)contentSz != pkcs7->contentSz ||
+                    XMEMCMP(content, pkcs7->content, (word32)contentSz) != 0) {
+                    ret = SIG_VERIFY_E;
+                    break;
+                }
             }
         #endif /* !NO_PKCS7_STREAM */
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE4);
