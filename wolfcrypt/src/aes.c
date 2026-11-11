@@ -68,13 +68,29 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_AESGCM_STREAM:   Enable streaming AES-GCM API          default: off
  * WC_AESNI_GCM:            x86 AES-GCM asm in use, set by aes.c  (internal)
  * WC_AES_GCM_DEC_AUTH_EARLY: Authenticate tag before decryption  default: off
- * GCM_SMALL:               Small GCM table, saves memory         default: off
+ * GCM_SMALL:               Small GCM table, saves memory         default: see
+ *                           Default when cache resistant on           aes.h
+ *                           Armv4/Armv5 and RISC-V without Zkt.
  * GCM_TABLE:               8-bit (256 entry, 4 KB per key) GCM   default: off
  *                           table, fastest, --enable-aesgcm=table
- * GCM_TABLE_4BIT:          4-bit (16 entry) GCM table, set by    default: off
- *                           ./configure unless another table is
- *                           chosen, and by WOLFSSL_ARMASM
+ * GCM_TABLE_4BIT:          4-bit (16 entry) GCM table. Not        default: see
+ *                           cache-attack resistant. Default when      aes.h
+ *                           cache resistance is off, with
+ *                           Arm/PPC/RISC-V asm and for FIPS
+ *                           before v7.
  * GCM_WORD32:              Use 32-bit word GCM implementation    default: off
+ * GCM_INT_MUL:             Table-free GHASH using integer        default: see
+ *                           multiplies; cache-attack resistant        aes.h
+ *                           when the CPU multiply is constant
+ *                           time. Default when no GHASH is chosen
+ *                           and WC_AES_GCM_GMULT_CACHE_RESIST is
+ *                           set, except on Armv4/Armv5 and RISC-V
+ *                           without Zkt (GCM_SMALL there).
+ *                           --enable-aesgcm=intmul
+ * GCM_INT_MUL_32_ONLY:     GCM_INT_MUL on 32-bit CPUs: use only   default: off
+ *                           32x32->32 multiplies (MUL), not         (on for
+ *                           32x32->64 (UMULL). For cores where      Armv6-M,
+ *                           UMULL is not constant time.             Armv7-M)
  * GCM_GMULT_LEN:           GCM GMULT length optimization         default: off
  *
  * AES-XTS Stream:
@@ -103,6 +119,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  *                           to keep them off the flash read path
  * WC_AES_BITSLICED:        Use bitsliced AES implementation      default: off
  * AES_GCM_GMULT_NCT:       GCM GMULT non-constant-time          default: off
+ * AES_GCM_GMULT_NO_CACHE_RESIST:
+ *                          Turn off WC_AES_GCM_GMULT_CACHE_RESIST: default: off
+ *                           GCM_SMALL/GCM_WORD32 GMULT branch on H
+ *                           and the default GHASH is GCM_TABLE_4BIT.
+ *                           Also implied by WC_NO_CACHE_RESISTANT.
  * NO_WOLFSSL_ALLOC_ALIGN:  Disable aligned memory allocation     default: off
  * WOLFSSL_AES_REQUIRE_KEY_SET:
  *                          Reject mode calls made before a key    default: on,
@@ -175,10 +196,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WC_AES_RESET_LEFT(aes) WC_DO_NOTHING
 #endif
 
-#if defined(HAVE_AESGCM) && (defined(GCM_TABLE) || defined(GCM_TABLE_4BIT))
+#if defined(HAVE_AESGCM) && (defined(GCM_TABLE) || defined(GCM_TABLE_4BIT) || \
+    defined(GCM_INT_MUL))
     #define WC_AES_GCM_WIPE_H(aes) do { \
             ForceZero((aes)->gcm.H, sizeof((aes)->gcm.H)); \
-            ForceZero((aes)->gcm.M0, sizeof((aes)->gcm.M0)); \
+            ForceZero(&(aes)->gcm.M0, sizeof((aes)->gcm.M0)); \
         } while (0)
 #elif defined(HAVE_AESGCM)
     #define WC_AES_GCM_WIPE_H(aes) \
@@ -8975,7 +8997,18 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
     #define ALIGN_GCM_TAG   ALIGN4
 #endif
 
-#if defined(GCM_SMALL) || defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+/* WC_AES_GCM_GMULT_CACHE_RESIST and the default GHASH implementation are
+ * decided in aes.h, as the Gcm layout depends on them. */
+
+#if defined(GCM_INT_MUL) && (defined(GCM_SMALL) || defined(GCM_TABLE) || \
+    defined(GCM_TABLE_4BIT) || defined(GCM_WORD32))
+    #error "GCM_INT_MUL can't be combined with another GHASH implementation:" \
+           " GCM_SMALL, GCM_TABLE, GCM_TABLE_4BIT or GCM_WORD32" \
+           " (WOLFSSL_ARMASM selects GCM_TABLE_4BIT)"
+#endif
+
+#if defined(GCM_SMALL) || defined(GCM_TABLE) || defined(GCM_TABLE_4BIT) || \
+    defined(GCM_INT_MUL)
 
 static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
 {
@@ -8996,6 +9029,9 @@ static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
     buf[7] = WC_OCTET(sz);
 }
 
+#endif /* GCM_SMALL || GCM_TABLE || GCM_TABLE_4BIT || GCM_INT_MUL */
+
+#if defined(GCM_SMALL) || defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
 
 static WC_INLINE void RIGHTSHIFTX(byte* x)
 {
@@ -9256,7 +9292,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     /* do key scheduling so that ECB-only devices can still do GCM */
     if (ret == 0) {
         ret = wc_CryptoCb_AesEcbEncrypt(aes, aes->gcm.H, iv, WC_AES_BLOCK_SIZE);
-#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT) || defined(GCM_INT_MUL)
         if (ret == 0)
             GenerateM0(&aes->gcm);
 #endif
@@ -9312,7 +9348,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             /* Undo the assembly's reflection so the stored H is plain H for the
              * streaming GHASH and GenerateM0; bulk calls reflect their own. */
             GcmReflectH(aes->gcm.H);
-        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT) || \
+            defined(GCM_INT_MUL)
             GenerateM0(&aes->gcm);
         #endif
         }
@@ -9332,7 +9369,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             /* Undo the assembly's reflection so the stored H is plain H for the
              * streaming GHASH and GenerateM0; bulk calls reflect their own. */
             GcmReflectH(aes->gcm.H);
-        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT) || \
+            defined(GCM_INT_MUL)
             GenerateM0(&aes->gcm);
         #endif
         }
@@ -9362,7 +9400,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         {
             AES_ECB_encrypt(iv, aes->gcm.H, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds);
-        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT) || \
+            defined(GCM_INT_MUL)
             GenerateM0(&aes->gcm);
         #endif /* GCM_TABLE */
         }
@@ -9387,7 +9426,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         ret = wc_AesEncrypt(aes, iv, aes->gcm.H);
 
         if (ret == 0) {
-#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT) || defined(GCM_INT_MUL)
     #if defined(WC_AESNI_GCM) && defined(GCM_TABLE_4BIT)
             if (aes->use_aesni) {
         #if defined(WC_C_DYNAMIC_FALLBACK)
@@ -9655,9 +9694,20 @@ static void GMULT(byte* X, byte* Y, GcmScratch* WC_RESTRICT ws)
         byte y = Y[i];
         for (j = 0; j < 8; j++)
         {
+#ifdef WC_AES_GCM_GMULT_CACHE_RESIST
+            /* Y is H: select V with a mask rather than branching on it. */
+            /* Mask to one bit: on WOLFSSL_WIDE_BYTE targets byte is wider
+             * than 8 bits, so y keeps bits shifted above bit 7. */
+            byte mask = (byte)(0U - (byte)((y >> 7) & 1U));
+            int k;
+            for (k = 0; k < WC_AES_BLOCK_SIZE; k++) {
+                Z[k] ^= (byte)(V[k] & mask);
+            }
+#else
             if (y & 0x80) {
                 xorbuf(Z, V, WC_AES_BLOCK_SIZE);
             }
+#endif
 
             RIGHTSHIFTX(V);
             y = y << 1;
@@ -9776,11 +9826,20 @@ static WC_MAYBE_UNUSED void GCM_gmult_len_armasm_C(
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             byte y = h[i];
             for (j = 0; j < 8; j++) {
+            #ifdef WC_AES_GCM_GMULT_CACHE_RESIST
+                /* y is H: select V with a mask rather than branching on it. */
+                byte mask = (byte)(0U - (byte)((y >> 7) & 1U));
+                int k;
+                for (k = 0; k < AES_BLOCK_SIZE; k++) {
+                    Z[k] ^= (byte)(V[k] & mask);
+                }
+            #else
                 if (y & 0x80) {
                     xorbuf(Z, V, AES_BLOCK_SIZE);
                 }
+            #endif
                 RIGHTSHIFTX(V);
-                y = y << 1;
+                y = (byte)(y << 1);
             }
         }
         XMEMCPY(x, Z, AES_BLOCK_SIZE);
@@ -9812,11 +9871,20 @@ static void GCM_gmult_len_armasm_C(
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             byte y = h[i];
             for (j = 0; j < 8; j++) {
+            #ifdef WC_AES_GCM_GMULT_CACHE_RESIST
+                /* y is H: select V with a mask rather than branching on it. */
+                byte mask = (byte)(0U - (byte)((y >> 7) & 1U));
+                int k;
+                for (k = 0; k < AES_BLOCK_SIZE; k++) {
+                    Z[k] ^= (byte)(V[k] & mask);
+                }
+            #else
                 if (y & 0x80) {
                     xorbuf(Z, V, AES_BLOCK_SIZE);
                 }
+            #endif
                 RIGHTSHIFTX(V);
-                y = y << 1;
+                y = (byte)(y << 1);
             }
         }
         XMEMCPY(x, Z, AES_BLOCK_SIZE);
@@ -10683,6 +10751,585 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     while (0)
 #endif
 #endif /* WOLFSSL_AESGCM_STREAM */
+#elif defined(GCM_INT_MUL)
+/* Table-free GHASH multiply using integer multiplies.
+ *
+ * There are no tables and no branches or memory addresses that depend on H or
+ * the GHASH state, so it is cache-attack resistant provided the CPU's integer
+ * multiply runs in constant time.
+ *
+ * A carry-less multiply is done with ordinary multiplies on the operands split
+ * into four interleaved bit-sets (every fourth bit): no result bit gets enough
+ * terms for a carry to reach the next bit of the same set. Values are kept in
+ * GCM's reflected bit order: the 255-bit product is shifted left by one and
+ * reduced modulo x^128 + x^7 + x^2 + x + 1.
+ *
+ * Three variants, all with the same results:
+ *  - 64-bit CPUs: 64x64->64 multiplies; 128x128 product by Karatsuba from
+ *    three 64x64 products, the high halves from bit-reversed operands.
+ *  - 32-bit CPUs: 32x32->64 multiplies (e.g. UMULL); two levels of Karatsuba
+ *    give nine 32x32 products, each computed in full.
+ *  - GCM_INT_MUL_32_ONLY (default on Armv6-M/Armv7-M, whose UMULL is not
+ *    constant time on all cores, and without a 64-bit type): 32x32->32
+ *    multiplies only; high halves from bit-reversed operands.
+ * Not cache-attack resistant where even 32x32->32 MUL timing depends on the
+ * operands (e.g. ARM7TDMI, ARM9TDMI, RISC-V without Zkt): aes.h does not make
+ * it the default there.
+ */
+/* The variant (GCM_IM_64, GCM_IM_32W or GCM_IM_32) is chosen in aes.h, as it
+ * sizes GcmIntMulKey. */
+
+#if !defined(FREESCALE_LTC_AES_GCM)
+/* The GCM_INT_MUL multiply is compiled: AES-GCM-SIV POLYVAL uses it too. */
+#define WC_GCM_INT_MUL_C
+
+#ifdef GCM_IM_64
+typedef word64 GcmImWord;
+/* Octets in a word. */
+#define GCM_IM_OCTETS   8
+#else
+typedef word32 GcmImWord;
+#define GCM_IM_OCTETS   4
+#endif
+/* Number of words in a block. Counted in octets, not sizeof(): on
+ * WOLFSSL_WIDE_BYTE targets a byte cell holds one octet but is wider than 8
+ * bits, so sizeof(word32) is less than 4. */
+#define GCM_IM_WORDS    (WC_AES_BLOCK_SIZE / GCM_IM_OCTETS)
+
+/* Load GCM_IM_OCTETS octets as a big-endian word. */
+static WC_INLINE GcmImWord GcmImLoad(const byte* p)
+{
+    GcmImWord v;
+#ifdef WOLFSSL_WIDE_BYTE
+    /* One octet per byte cell: assemble the word from the octets. */
+    int i;
+    v = 0;
+    for (i = 0; i < GCM_IM_OCTETS; i++) {
+        v = (GcmImWord)((v << 8) | WC_OCTET(p[i]));
+    }
+#else
+    XMEMCPY(&v, p, sizeof(v));
+    #ifdef LITTLE_ENDIAN_ORDER
+        #ifdef GCM_IM_64
+    v = ByteReverseWord64(v);
+        #else
+    v = ByteReverseWord32(v);
+        #endif
+    #endif
+#endif
+    return v;
+}
+
+/* Store a word as GCM_IM_OCTETS big-endian octets. */
+static WC_INLINE void GcmImStore(byte* p, GcmImWord v)
+{
+#ifdef WOLFSSL_WIDE_BYTE
+    /* One octet per byte cell. */
+    int i;
+    for (i = GCM_IM_OCTETS - 1; i >= 0; i--) {
+        p[i] = WC_OCTET(v);
+        v >>= 8;
+    }
+#else
+    #ifdef LITTLE_ENDIAN_ORDER
+        #ifdef GCM_IM_64
+    v = ByteReverseWord64(v);
+        #else
+    v = ByteReverseWord32(v);
+        #endif
+    #endif
+    XMEMCPY(p, &v, sizeof(v));
+#endif
+}
+
+#if defined(WOLFSSL_AESGCM_STREAM) || defined(WOLFSSL_AESGCM_SIV) || \
+    defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+/* Load a block into GHASH state words; x[0] is the first word of the block.
+ * Only needed to resume from a stored state: streaming tag, AES-GCM-SIV
+ * POLYVAL sum and the PPC assembly's GHASH state. */
+static WC_INLINE void GcmImLoadBlock(GcmImWord* x, const byte* p)
+{
+    int i;
+    for (i = 0; i < GCM_IM_WORDS; i++) {
+        x[i] = GcmImLoad(p + i * GCM_IM_OCTETS);
+    }
+}
+#endif
+
+/* Store GHASH state words as a block. */
+static WC_INLINE void GcmImStoreBlock(byte* p, const GcmImWord* x)
+{
+    int i;
+    for (i = 0; i < GCM_IM_WORDS; i++) {
+        GcmImStore(p + i * GCM_IM_OCTETS, x[i]);
+    }
+}
+
+#ifdef GCM_IM_64
+#define GCM_IM_B0   W64LIT(0x1111111111111111)
+#define GCM_IM_B1   W64LIT(0x2222222222222222)
+#define GCM_IM_B2   W64LIT(0x4444444444444444)
+#define GCM_IM_B3   W64LIT(0x8888888888888888)
+
+/* Low 64 bits of the carry-less product of x and y (at most 16 terms per
+ * bit). */
+static WC_INLINE word64 GcmIntMulLo(word64 x, word64 y)
+{
+    word64 x0 = x & GCM_IM_B0;
+    word64 x1 = x & GCM_IM_B1;
+    word64 x2 = x & GCM_IM_B2;
+    word64 x3 = x & GCM_IM_B3;
+    word64 y0 = y & GCM_IM_B0;
+    word64 y1 = y & GCM_IM_B1;
+    word64 y2 = y & GCM_IM_B2;
+    word64 y3 = y & GCM_IM_B3;
+    word64 z0 = (x0 * y0) ^ (x1 * y3) ^ (x2 * y2) ^ (x3 * y1);
+    word64 z1 = (x0 * y1) ^ (x1 * y0) ^ (x2 * y3) ^ (x3 * y2);
+    word64 z2 = (x0 * y2) ^ (x1 * y1) ^ (x2 * y0) ^ (x3 * y3);
+    word64 z3 = (x0 * y3) ^ (x1 * y2) ^ (x2 * y1) ^ (x3 * y0);
+
+    return (z0 & GCM_IM_B0) | (z1 & GCM_IM_B1) | (z2 & GCM_IM_B2) |
+           (z3 & GCM_IM_B3);
+}
+
+/* Reverse the order of the bits in a 64-bit word. */
+static WC_INLINE word64 GcmBitRev(word64 x)
+{
+    x = ((x & W64LIT(0x5555555555555555)) << 1) |
+        ((x >> 1) & W64LIT(0x5555555555555555));
+    x = ((x & W64LIT(0x3333333333333333)) << 2) |
+        ((x >> 2) & W64LIT(0x3333333333333333));
+    x = ((x & W64LIT(0x0f0f0f0f0f0f0f0f)) << 4) |
+        ((x >> 4) & W64LIT(0x0f0f0f0f0f0f0f0f));
+    return ByteReverseWord64(x);
+}
+
+/* Prepare H for GMULT: ws->w64 = { H.hi, H.lo, rev(H.hi), rev(H.lo) }.
+ * Called by GenerateM0() to fill gcm->M0, and for the GCM-SIV POLYVAL key. */
+static WC_INLINE void GcmIntMulSetKey(GcmIntMulKey* WC_RESTRICT ws,
+    const byte* h)
+{
+    ws->w64[0] = GcmImLoad(h);
+    ws->w64[1] = GcmImLoad(h + 8);
+    ws->w64[2] = GcmBitRev(ws->w64[0]);
+    ws->w64[3] = GcmBitRev(ws->w64[1]);
+}
+
+/* x = (x ^ d) * H in GF(2^128).
+ *
+ * @param [in, out] x   GHASH state as two big-endian words.
+ * @param [in]      d   Block of data to XOR in first.
+ * @param [in]      ws  H as prepared by GcmIntMulSetKey().
+ */
+static void GMULT(GcmImWord* x, const byte* d,
+    const GcmIntMulKey* WC_RESTRICT ws)
+{
+    word64 a1 = x[0] ^ GcmImLoad(d);
+    word64 a0 = x[1] ^ GcmImLoad(d + 8);
+    word64 a2 = a0 ^ a1;
+    word64 b1 = ws->w64[0];
+    word64 b0 = ws->w64[1];
+    word64 b2 = b0 ^ b1;
+    word64 b1r = ws->w64[2];
+    word64 b0r = ws->w64[3];
+    word64 b2r = b0r ^ b1r;
+    word64 z0, z1, z2, z0h, z1h, z2h;
+    word64 v0, v1, v2, v3;
+
+    /* Karatsuba: low and high 64 bits of a0*b0, a1*b1, (a0^a1)*(b0^b1). */
+    z0  = GcmIntMulLo(a0, b0);
+    z1  = GcmIntMulLo(a1, b1);
+    z2  = GcmIntMulLo(a2, b2);
+    z0h = GcmBitRev(GcmIntMulLo(GcmBitRev(a0), b0r)) >> 1;
+    z1h = GcmBitRev(GcmIntMulLo(GcmBitRev(a1), b1r)) >> 1;
+    z2h = GcmBitRev(GcmIntMulLo(GcmBitRev(a2), b2r)) >> 1;
+    z2  ^= z0 ^ z1;
+    z2h ^= z0h ^ z1h;
+
+    /* 256-bit product v3:v2:v1:v0. */
+    v0 = z0;
+    v1 = z0h ^ z2;
+    v2 = z1 ^ z2h;
+    v3 = z1h;
+
+    /* Reflected bit order: shift the 255-bit product left by one. */
+    v3 = (v3 << 1) | (v2 >> 63);
+    v2 = (v2 << 1) | (v1 >> 63);
+    v1 = (v1 << 1) | (v0 >> 63);
+    v0 <<= 1;
+
+    /* Reduce: fold v0 then v1 using x^128 = x^7 + x^2 + x + 1. */
+    v2 ^= v0 ^ (v0 >> 1) ^ (v0 >> 2) ^ (v0 >> 7);
+    v1 ^= (v0 << 63) ^ (v0 << 62) ^ (v0 << 57);
+    v3 ^= v1 ^ (v1 >> 1) ^ (v1 >> 2) ^ (v1 >> 7);
+    v2 ^= (v1 << 63) ^ (v1 << 62) ^ (v1 << 57);
+
+    x[0] = v3;
+    x[1] = v2;
+}
+
+#else /* GCM_IM_32W || GCM_IM_32 */
+
+#define GCM_IM_B0   0x11111111U
+#define GCM_IM_B1   0x22222222U
+#define GCM_IM_B2   0x44444444U
+#define GCM_IM_B3   0x88888888U
+
+#ifdef GCM_IM_32W
+/* Full 64-bit carry-less product of x and y (at most 8 terms per bit).
+ * Requires a constant-time 32x32->64 multiply. */
+static WC_INLINE word64 GcmIntMul32(word32 x, word32 y)
+{
+    word32 x0 = x & GCM_IM_B0;
+    word32 x1 = x & GCM_IM_B1;
+    word32 x2 = x & GCM_IM_B2;
+    word32 x3 = x & GCM_IM_B3;
+    word32 y0 = y & GCM_IM_B0;
+    word32 y1 = y & GCM_IM_B1;
+    word32 y2 = y & GCM_IM_B2;
+    word32 y3 = y & GCM_IM_B3;
+    word64 z0 = ((word64)x0 * y0) ^ ((word64)x1 * y3) ^
+                ((word64)x2 * y2) ^ ((word64)x3 * y1);
+    word64 z1 = ((word64)x0 * y1) ^ ((word64)x1 * y0) ^
+                ((word64)x2 * y3) ^ ((word64)x3 * y2);
+    word64 z2 = ((word64)x0 * y2) ^ ((word64)x1 * y1) ^
+                ((word64)x2 * y0) ^ ((word64)x3 * y3);
+    word64 z3 = ((word64)x0 * y3) ^ ((word64)x1 * y2) ^
+                ((word64)x2 * y1) ^ ((word64)x3 * y0);
+
+    return (z0 & W64LIT(0x1111111111111111)) |
+           (z1 & W64LIT(0x2222222222222222)) |
+           (z2 & W64LIT(0x4444444444444444)) |
+           (z3 & W64LIT(0x8888888888888888));
+}
+#else
+/* Low 32 bits of the carry-less product of x and y (at most 8 terms per bit).
+ * Uses only 32x32->32 multiplies. */
+static WC_INLINE word32 GcmIntMulLo(word32 x, word32 y)
+{
+    word32 x0 = x & GCM_IM_B0;
+    word32 x1 = x & GCM_IM_B1;
+    word32 x2 = x & GCM_IM_B2;
+    word32 x3 = x & GCM_IM_B3;
+    word32 y0 = y & GCM_IM_B0;
+    word32 y1 = y & GCM_IM_B1;
+    word32 y2 = y & GCM_IM_B2;
+    word32 y3 = y & GCM_IM_B3;
+    word32 z0 = (x0 * y0) ^ (x1 * y3) ^ (x2 * y2) ^ (x3 * y1);
+    word32 z1 = (x0 * y1) ^ (x1 * y0) ^ (x2 * y3) ^ (x3 * y2);
+    word32 z2 = (x0 * y2) ^ (x1 * y1) ^ (x2 * y0) ^ (x3 * y3);
+    word32 z3 = (x0 * y3) ^ (x1 * y2) ^ (x2 * y1) ^ (x3 * y0);
+
+    return (word32)((z0 & GCM_IM_B0) | (z1 & GCM_IM_B1) | (z2 & GCM_IM_B2) |
+                    (z3 & GCM_IM_B3));
+}
+
+/* Reverse the order of the bits in a 32-bit word. */
+static WC_INLINE word32 GcmBitRev(word32 x)
+{
+    x = ((x & 0x55555555U) << 1) | ((x >> 1) & 0x55555555U);
+    x = ((x & 0x33333333U) << 2) | ((x >> 2) & 0x33333333U);
+    x = ((x & 0x0f0f0f0fU) << 4) | ((x >> 4) & 0x0f0f0f0fU);
+    return ByteReverseWord32(x);
+}
+#endif /* GCM_IM_32W */
+
+/* Nine Karatsuba operands from four words, least significant word first:
+ *   0..3: w0 w1 w2 w3, 4: w0^w1, 5: w2^w3, 6: w0^w2, 7: w1^w3, 8: 6^7 */
+#define GCM_IM_KARATSUBA_OPS(o, w)                                  \
+    do {                                                            \
+        (o)[0] = (w)[0]; (o)[1] = (w)[1];                           \
+        (o)[2] = (w)[2]; (o)[3] = (w)[3];                           \
+        (o)[4] = (w)[0] ^ (w)[1];                                   \
+        (o)[5] = (w)[2] ^ (w)[3];                                   \
+        (o)[6] = (w)[0] ^ (w)[2];                                   \
+        (o)[7] = (w)[1] ^ (w)[3];                                   \
+        (o)[8] = (o)[6] ^ (o)[7];                                   \
+    } while (0)
+
+/* Combine products l, h and middle m (each two words in c) into a 128-bit
+ * product o of a 64x64 multiply. */
+#define GCM_IM_K64(o, c, l, h, m)                                   \
+    do {                                                            \
+        word32 m0_ = (c)[2*(m)]   ^ (c)[2*(l)]   ^ (c)[2*(h)];      \
+        word32 m1_ = (c)[2*(m)+1] ^ (c)[2*(l)+1] ^ (c)[2*(h)+1];    \
+        (o)[0] = (c)[2*(l)];                                        \
+        (o)[1] = (c)[2*(l)+1] ^ m0_;                                \
+        (o)[2] = (c)[2*(h)]   ^ m1_;                                \
+        (o)[3] = (c)[2*(h)+1];                                      \
+    } while (0)
+
+/* Prepare H for GMULT: ws->w32[0..8] = Karatsuba operands of H (words least
+ * significant first) and, for GCM_IM_32, ws->w32[9..17] = those of the
+ * bit-reversed H words. GMULT() then needs no copy of H on its stack.
+ * Called by GenerateM0() to fill gcm->M0, and for the GCM-SIV POLYVAL key. */
+static WC_INLINE void GcmIntMulSetKey(GcmIntMulKey* WC_RESTRICT ws,
+    const byte* h)
+{
+    word32 w[4];
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        w[i] = GcmImLoad(h + 4 * (3 - i));
+    }
+    GCM_IM_KARATSUBA_OPS(ws->w32, w);
+#ifdef GCM_IM_32
+    for (i = 0; i < 4; i++) {
+        w[i] = GcmBitRev(w[i]);
+    }
+    GCM_IM_KARATSUBA_OPS(ws->w32 + 9, w);
+#endif
+    ForceZero(w, sizeof(w));
+}
+
+/* x = (x ^ d) * H in GF(2^128).
+ *
+ * @param [in, out] x   GHASH state as four big-endian words.
+ * @param [in]      d   Block of data to XOR in first.
+ * @param [in]      ws  H as prepared by GcmIntMulSetKey().
+ */
+static void GMULT(GcmImWord* x, const byte* d,
+    const GcmIntMulKey* WC_RESTRICT ws)
+{
+    const word32* b = ws->w32;
+    word32 w[4];
+    word32 a[9];
+    word32 c[18];
+    word32 p0[4];
+    word32 p1[4];
+    word32 p2[4];
+    word32 v[8];
+    int i;
+#ifdef GCM_IM_32
+    const word32* br = ws->w32 + 9;
+    word32 ar[9];
+#endif
+
+    /* Words least significant first: x[3] is the last word of the block. */
+    for (i = 0; i < 4; i++) {
+        w[i] = x[3 - i] ^ GcmImLoad(d + 4 * (3 - i));
+    }
+    GCM_IM_KARATSUBA_OPS(a, w);
+#ifdef GCM_IM_32
+    for (i = 0; i < 4; i++) {
+        w[i] = GcmBitRev(a[i]);
+    }
+    GCM_IM_KARATSUBA_OPS(ar, w);
+#endif
+
+    /* c[2i] = low, c[2i+1] = high word of the 64-bit product of pair i. */
+    for (i = 0; i < 9; i++) {
+    #ifdef GCM_IM_32W
+        word64 p = GcmIntMul32(a[i], b[i]);
+        c[2 * i]     = (word32)p;
+        c[2 * i + 1] = (word32)(p >> 32);
+    #else
+        c[2 * i]     = GcmIntMulLo(a[i], b[i]);
+        c[2 * i + 1] = GcmBitRev(GcmIntMulLo(ar[i], br[i])) >> 1;
+    #endif
+    }
+
+    /* 64x64 products: (w1:w0)(..), (w3:w2)(..), middle (w1^w3:w0^w2)(..). */
+    GCM_IM_K64(p0, c, 0, 1, 4);
+    GCM_IM_K64(p1, c, 2, 3, 5);
+    GCM_IM_K64(p2, c, 6, 7, 8);
+    /* 128x128 Karatsuba: middle term at word 2. */
+    for (i = 0; i < 4; i++) {
+        p2[i] ^= p0[i] ^ p1[i];
+    }
+    v[0] = p0[0];
+    v[1] = p0[1];
+    v[2] = p0[2] ^ p2[0];
+    v[3] = p0[3] ^ p2[1];
+    v[4] = p1[0] ^ p2[2];
+    v[5] = p1[1] ^ p2[3];
+    v[6] = p1[2];
+    v[7] = p1[3];
+
+    /* Reflected bit order: shift the 255-bit product left by one. */
+    for (i = 7; i > 0; i--) {
+        v[i] = (v[i] << 1) | (v[i - 1] >> 31);
+    }
+    v[0] <<= 1;
+
+    /* Reduce: fold words 0..3 (highest degrees) using
+     * x^128 = x^7 + x^2 + x + 1. */
+    for (i = 0; i < 4; i++) {
+        word32 t = v[i];
+        v[i + 4] ^= t ^ (t >> 1) ^ (t >> 2) ^ (t >> 7);
+        v[i + 3] ^= (t << 31) ^ (t << 30) ^ (t << 25);
+    }
+
+    for (i = 0; i < 4; i++) {
+        x[i] = v[7 - i];
+    }
+}
+#undef GCM_IM_KARATSUBA_OPS
+#undef GCM_IM_K64
+#endif /* GCM_IM_64 */
+
+/* XOR a (zero padded) block of data into x and multiply by H.
+ * GMULT does the XOR on the words it loads: doing it here lets the compiler
+ * vectorise it into wide accesses of x that cannot be store-forwarded from
+ * GMULT's word stores, stalling every block. */
+static WC_INLINE void GcmIntMulBlock(GcmImWord* x, const byte* d, word32 sz,
+    const GcmIntMulKey* WC_RESTRICT ws)
+{
+    byte block[WC_AES_BLOCK_SIZE];
+
+    if (sz != WC_AES_BLOCK_SIZE) {
+        XMEMSET(block, 0, WC_AES_BLOCK_SIZE);
+        XMEMCPY(block, d, sz);
+        d = block;
+    }
+    GMULT(x, d, ws);
+}
+
+/* Prepare the GHASH key in gcm->M0 from H.
+ *
+ * The C GHASH reads only gcm->M0: on x86 the AES-NI streaming asm overwrites
+ * gcm->H with H in its own format, and the C code runs on the same object when
+ * the vector registers are unavailable (WC_C_DYNAMIC_FALLBACK).
+ *
+ * @param [in, out] gcm  GCM object with H set.
+ */
+void GenerateM0(Gcm* gcm)
+{
+    GcmIntMulSetKey(&gcm->M0, gcm->H);
+}
+
+/* GHASH of A and C with the key k (H prepared by GcmIntMulSetKey()).
+ *
+ * @param [in] k  Prepared H.
+ */
+static void GcmIntMulGhash(const GcmIntMulKey* k, const byte* a, word32 aSz,
+    const byte* c, word32 cSz, byte* s, word32 sSz)
+{
+    GcmImWord x[GCM_IM_WORDS];
+    /* Lengths in bytes, before the loops below consume aSz and cSz. */
+    word32 aLen = aSz;
+    word32 cLen = cSz;
+    byte out[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(x, 0, sizeof(x));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("GHASH x", x, sizeof(x));
+#endif
+
+    /* Hash in A, the Additional Authentication Data */
+    if (aSz != 0 && a != NULL) {
+        while (aSz >= WC_AES_BLOCK_SIZE) {
+            GcmIntMulBlock(x, a, WC_AES_BLOCK_SIZE, k);
+            a += WC_AES_BLOCK_SIZE;
+            aSz -= WC_AES_BLOCK_SIZE;
+        }
+        if (aSz != 0) {
+            GcmIntMulBlock(x, a, aSz, k);
+        }
+    }
+
+    /* Hash in C, the Ciphertext */
+    if (cSz != 0 && c != NULL) {
+        while (cSz >= WC_AES_BLOCK_SIZE) {
+            GcmIntMulBlock(x, c, WC_AES_BLOCK_SIZE, k);
+            c += WC_AES_BLOCK_SIZE;
+            cSz -= WC_AES_BLOCK_SIZE;
+        }
+        if (cSz != 0) {
+            GcmIntMulBlock(x, c, cSz, k);
+        }
+    }
+
+    /* Hash in the lengths in bits of A and C */
+    FlattenSzInBits(&out[0], aLen);
+    FlattenSzInBits(&out[8], cLen);
+    GcmIntMulBlock(x, out, WC_AES_BLOCK_SIZE, k);
+
+    GcmImStoreBlock(out, x);
+    XMEMCPY(s, out, sSz);
+    ForceZero(out, sizeof(out));
+    ForceZero(x, sizeof(x));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(x, sizeof(x));
+#endif
+}
+
+/* GHASH for callers outside this file, which set gcm->H and may not call
+ * GenerateM0() (e.g. SM4-GCM in wolfSM): the key is prepared from gcm->H.
+ */
+void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
+    word32 cSz, byte* s, word32 sSz)
+{
+    GcmIntMulKey k;
+
+    GcmIntMulSetKey(&k, gcm->H);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("GHASH k", &k, sizeof(k));
+#endif
+    GcmIntMulGhash(&k, a, aSz, c, cSz, s, sSz);
+    ForceZero(&k, sizeof(k));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(&k, sizeof(k));
+#endif
+}
+
+/* AES-GCM in this file uses the key that GenerateM0() put in gcm->M0, as
+ * gcm->H may be in the AES-NI asm's format (see GenerateM0()). */
+#define GHASH(gcm, a, aSz, c, cSz, s, sSz) \
+    GcmIntMulGhash(&(gcm)->M0, a, aSz, c, cSz, s, sSz)
+
+#if defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+/* GHASH whole blocks into x for the PPC assembly AES-GCM.
+ *
+ * @param [in, out] x    GHASH state as a block.
+ * @param [in]      k    Prepared H.
+ * @param [in]      a    Data: whole blocks.
+ * @param [in]      len  Length of data in bytes.
+ */
+static void GcmIntMulGmultLen(byte* x, const GcmIntMulKey* k, const byte* a,
+    unsigned long len)
+{
+    GcmImWord w[GCM_IM_WORDS];
+
+    GcmImLoadBlock(w, x);
+    while (len >= WC_AES_BLOCK_SIZE) {
+        GMULT(w, a, k);
+        a += WC_AES_BLOCK_SIZE;
+        len -= WC_AES_BLOCK_SIZE;
+    }
+    GcmImStoreBlock(x, w);
+    ForceZero(w, sizeof(w));
+}
+#define GCM_GMULT_LEN(gcm, x, a, len) \
+    GcmIntMulGmultLen(x, &(gcm)->M0, a, len)
+#endif /* WOLFSSL_PPC64_ASM || WOLFSSL_PPC32_ASM */
+#endif /* !FREESCALE_LTC_AES_GCM */
+
+#ifdef WOLFSSL_AESGCM_STREAM
+/* No extra initialization: the key in gcm.M0 is used as stored.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
+
+/* GHASH one block of data.
+ *
+ * XOR block into tag and GMULT with H (as prepared in gcm.M0).
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK_SW(aes, block)                                \
+    do {                                                              \
+        GcmImWord x_[GCM_IM_WORDS];                                   \
+        GcmImLoadBlock(x_, AES_TAG(aes));                             \
+        GcmIntMulBlock(x_, block, WC_AES_BLOCK_SIZE, &(aes)->gcm.M0); \
+        GcmImStoreBlock(AES_TAG(aes), x_);                            \
+    }                                                                 \
+    while (0)
+
+#endif /* WOLFSSL_AESGCM_STREAM */
+/* end GCM_INT_MUL */
 #elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
 
 #if !defined(FREESCALE_LTC_AES_GCM)
@@ -11028,6 +11675,21 @@ static void GMULT(word32* X, word32* Y, GcmScratch* WC_RESTRICT ws)
         word32 y = Y[i];
         for (j = 0; j < 32; j++)
         {
+#ifdef WC_AES_GCM_GMULT_CACHE_RESIST
+            /* Branch free: mask on the bit of H and the reduction bit of V. */
+            word32 mask = (word32)0 - (y >> 31);
+            word32 v3;
+            Z[0] ^= V[0] & mask;
+            Z[1] ^= V[1] & mask;
+            Z[2] ^= V[2] & mask;
+            Z[3] ^= V[3] & mask;
+
+            v3 = ((word32)0 - (V[3] & 1)) & 0xE1000000;
+            V[3] = (V[3] >> 1) | (V[2] << 31);
+            V[2] = (V[2] >> 1) | (V[1] << 31);
+            V[1] = (V[1] >> 1) | (V[0] << 31);
+            V[0] = (V[0] >> 1) ^ v3;
+#else
             if (y & 0x80000000) {
                 Z[0] ^= V[0];
                 Z[1] ^= V[1];
@@ -11053,6 +11715,7 @@ static void GMULT(word32* X, word32* Y, GcmScratch* WC_RESTRICT ws)
                 V[1] |= ((V[0] & 0x00000001) ? 0x80000000 : 0);
                 V[0] >>= 1;
             }
+#endif
             y <<= 1;
         }
     }
@@ -21313,9 +21976,9 @@ int wc_AesSivDecrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
 #define AES_GCM_SIV_NONCE_SZ  12
 #define AES_GCM_SIV_TAG_SZ    WC_AES_BLOCK_SIZE
 
-#ifndef GCM_SMALL
+#if !defined(GCM_SMALL) && !defined(WC_GCM_INT_MUL_C)
 /* GF(2^128) reduction table used by the table-based software multiplies; not
- * needed by the table-free GCM_SMALL variant. R[a] is the contribution, to the
+ * needed by the table-free GCM_SMALL and GCM_INT_MUL variants. R[a] is the contribution, to the
  * top two bytes, of reducing a nibble 'a' shifted out past x^127 (the GHASH
  * polynomial x^128+x^7+x^2+x+1). Same table wolfSSL uses for table GHASH. */
 static const byte AES_GCM_SIV_R[16][2] = {
@@ -21353,6 +22016,8 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
  * so the field is the GHASH field with the most-significant bit of byte 0 the
  * x^0 coefficient (see RFC 8452 Appendix A). The key is one of:
  *  - GCM_SMALL: the 16-byte key (table-free, smallest footprint).
+ *  - GCM_INT_MUL: the key prepared for the GCM_INT_MUL multiply (table-free,
+ *               cache-attack resistant; the same multiply as GHASH).
  *  - word64:    a Shoup 4-bit table (256 bytes), word64 multiply - used when a
  *               64-bit type is available and GCM_WORD32 is not requested.
  *  - word32:    the same 4-bit table, word32 multiply - used for GCM_WORD32 or
@@ -21431,7 +22096,8 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
     /* The base (scalar) variant multiplies through the word64 software table
      * poly->m, so it is only available when that table is built. */
     #if defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) && \
-        !defined(GCM_SMALL) && !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
+        !defined(GCM_SMALL) && !defined(WC_GCM_INT_MUL_C) && \
+        !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
         #define WC_POLYVAL_ASM_AARCH64_BASE
     #endif
 #ifdef __cplusplus
@@ -21502,7 +22168,8 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
      * build or the run-time dispatch build) and the table is available. */
     #if (defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
          defined(WOLFSSL_ARM32_AES_DISPATCH)) && defined(WORD64_AVAILABLE) && \
-        !defined(GCM_WORD32) && !defined(GCM_SMALL)
+        !defined(GCM_WORD32) && !defined(GCM_SMALL) && \
+        !defined(WC_GCM_INT_MUL_C)
         #define WC_POLYVAL_ASM_AARCH32_BASE
     #endif
 #ifdef __cplusplus
@@ -21541,7 +22208,8 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
     #define WC_GCMSIV_CTR_ASM
     #define WC_GCMSIV_CTR_ASM_THUMB2
     #endif
-    #if defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) && !defined(GCM_SMALL)
+    #if defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) && \
+        !defined(GCM_SMALL) && !defined(WC_GCM_INT_MUL_C)
         #define WC_POLYVAL_ASM
         #define WC_POLYVAL_ASM_THUMB2
     #endif
@@ -21579,6 +22247,8 @@ typedef struct AesGcmSivPolyval {
 #endif
 #if defined(GCM_SMALL)
     byte   h[WC_AES_BLOCK_SIZE]; /* hash key = mulX_GHASH(ByteReverse(H)) */
+#elif defined(WC_GCM_INT_MUL_C)
+    GcmIntMulKey key;            /* mulX_GHASH(ByteReverse(H)) for GMULT() */
 #elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
     word64 m[16][2];             /* m[i] = i * mulX_GHASH(ByteReverse(H)) */
 #else
@@ -21594,7 +22264,7 @@ typedef struct AesGcmSivPolyval {
  * (mulX_GHASH); the word64/word32 table variants use AesGcmSivMulX64/32, so this
  * is only compiled when one of those two callers is. Placed after the
  * WC_POLYVAL_ASM #defines above so that guard is resolved here. */
-#if defined(GCM_SMALL) || defined(WC_POLYVAL_ASM)
+#if defined(GCM_SMALL) || defined(WC_GCM_INT_MUL_C) || defined(WC_POLYVAL_ASM)
 static WC_INLINE void AesGcmSivMulX(byte* x)
 {
     int i;
@@ -21608,7 +22278,7 @@ static WC_INLINE void AesGcmSivMulX(byte* x)
     }
     x[0] ^= borrow;
 }
-#endif /* GCM_SMALL || WC_POLYVAL_ASM */
+#endif /* GCM_SMALL || WC_GCM_INT_MUL_C || WC_POLYVAL_ASM */
 
 #if defined(GCM_SMALL)
 
@@ -21641,6 +22311,30 @@ static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
     AesGcmSivByteReverse(poly->h, h);
     AesGcmSivMulX(poly->h);
     XMEMSET(poly->s, 0, sizeof(poly->s));
+}
+
+#elif defined(WC_GCM_INT_MUL_C)
+
+/* Prepare the hash key mulX_GHASH(ByteReverse(h)) for the GCM_INT_MUL GMULT();
+ * no table to build. The multiply itself is done in AesGcmSivPolyvalUpdate(),
+ * which keeps the running sum in GMULT's words across blocks. */
+static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
+{
+    byte hk[WC_AES_BLOCK_SIZE];
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(hk, 0, sizeof(hk));
+    wc_MemZero_Add("AesGcmSivPolyvalInitSw hk", hk, sizeof(hk));
+#endif
+    AesGcmSivByteReverse(hk, h);
+    AesGcmSivMulX(hk);
+    GcmIntMulSetKey(&poly->key, hk);
+    XMEMSET(poly->s, 0, sizeof(poly->s));
+    /* hk held the hash key; wipe the stack copy. */
+    ForceZero(hk, sizeof(hk));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(hk, sizeof(hk));
+#endif
 }
 
 #elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
@@ -22180,6 +22874,30 @@ static void AesGcmSivPolyvalUpdate(AesGcmSivPolyval* poly, const byte* data,
     XMEMSET(rev, 0, sizeof(rev));
     wc_MemZero_Add("AesGcmSivPolyvalUpdate rev", rev, sizeof(rev));
 #endif
+#ifdef WC_GCM_INT_MUL_C
+    {
+        /* Keep the running sum in GMULT's words across blocks: GMULT XORs in
+         * each (byte-reversed) block itself. */
+        GcmImWord x[GCM_IM_WORDS];
+
+        (void)k;
+        GcmImLoadBlock(x, poly->s);
+        while (sz >= WC_AES_BLOCK_SIZE) {
+            AesGcmSivByteReverse(rev, data);
+            GMULT(x, rev, &poly->key);
+            data += WC_AES_BLOCK_SIZE;
+            sz   -= WC_AES_BLOCK_SIZE;
+        }
+        if (sz > 0) {
+            XMEMSET(block, 0, sizeof(block));
+            XMEMCPY(block, data, sz);
+            AesGcmSivByteReverse(rev, block);
+            GMULT(x, rev, &poly->key);
+        }
+        GcmImStoreBlock(poly->s, x);
+        ForceZero(x, sizeof(x));
+    }
+#else
     while (sz >= WC_AES_BLOCK_SIZE) {
         AesGcmSivByteReverse(rev, data);
         for (k = 0; k < WC_AES_BLOCK_SIZE; k++) {
@@ -22198,6 +22916,7 @@ static void AesGcmSivPolyvalUpdate(AesGcmSivPolyval* poly, const byte* data,
         }
         AesGcmSivGMult(poly);
     }
+#endif
     /* block/rev held byte-reversed AAD/plaintext blocks; wipe them. */
     ForceZero(block, sizeof(block));
     ForceZero(rev, sizeof(rev));

@@ -4523,7 +4523,11 @@ then
     ENABLED_AESGCM=no
 fi
 
-if test "$ENABLED_AESGCM" = "yes"
+# Default GHASH implementation: none is passed and aes.h chooses (GCM_INT_MUL
+# when cache resistant, otherwise the 4-bit table). FIPS modules before v7
+# don't have GCM_INT_MUL and keep the 4-bit table.
+if test "$ENABLED_AESGCM" = "yes" && test "$ENABLED_FIPS" != "no" &&
+   test "$HAVE_FIPS_VERSION_MAJOR" -lt 7
 then
     ENABLED_AESGCM="4bit"
 fi
@@ -13998,11 +14002,18 @@ then
         ENABLED_AESGCM=yes
     fi
 
+    if test "$ENABLED_AESGCM" = "intmul"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_INT_MUL"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_INT_MUL"
+        ENABLED_AESGCM=yes
+    fi
+
     # The GCM table layout macro must reach assembled (.S) sources too: the
     # PPC asm GCM_gmult_len is a single file with both layouts guarded by
     # GCM_TABLE / GCM_TABLE_4BIT.  Default (no explicit table choice) is 4bit.
     case " $AM_CCASFLAGS " in
-        *" -DGCM_TABLE "*|*" -DGCM_TABLE_4BIT "*|*" -DGCM_SMALL "*|*" -DGCM_WORD32 "*) ;;
+        *" -DGCM_TABLE "*|*" -DGCM_TABLE_4BIT "*|*" -DGCM_SMALL "*|*" -DGCM_WORD32 "*|*" -DGCM_INT_MUL "*) ;;
         *) AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_TABLE_4BIT" ;;
     esac
 
