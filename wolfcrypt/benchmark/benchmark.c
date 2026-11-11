@@ -12541,6 +12541,11 @@ void bench_dh(int useDeviceID)
 exit_dh_gen:
     bench_stats_asym_finish("DH", dhKeySz, desc[2],
                             useDeviceID, count, start, ret);
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    SAVE_VECTOR_REGISTERS(WOLFSSL_DEBUG_PRINTF("ERROR: SAVE_VECTOR_REGISTERS "
+                          "failed for benchmark run."); goto exit; );
+#endif
+
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -12558,6 +12563,9 @@ exit_dh_gen:
     PRIVATE_KEY_LOCK();
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &dhKey[0]->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    RESTORE_VECTOR_REGISTERS();
 #endif
 
     /* Key Agree */
@@ -15692,7 +15700,7 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
                                 BENCH_ECCENCRYPT_MSG_SIZE, out, &outSz, cliCtx);
                     if (ret != 0) {
                         printf("wc_ecc_encrypt failed! %d\n", ret);
-                        goto exit_ecies;
+                        goto exit_ecc_encrypt;
                     }
                     RECORD_MULTI_VALUE_STATS();
                 }
@@ -15702,6 +15710,7 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
                || runs < minimum_runs
 #endif
                );
+exit_ecc_encrypt:
             bench_stats_asym_finish(name, keySize * 8, encDesc, useDeviceID,
                                     count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
@@ -15722,7 +15731,7 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
                                 bench_plain, &bench_plainSz, srvCtx);
                     if (ret != 0) {
                         printf("wc_ecc_decrypt failed! %d\n", ret);
-                        goto exit_ecies;
+                        goto exit_ecc_decrypt;
                     }
                     RECORD_MULTI_VALUE_STATS();
                 }
@@ -15732,6 +15741,7 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
                || runs < minimum_runs
 #endif
                );
+exit_ecc_decrypt:
             bench_stats_asym_finish(name, keySize * 8, decDesc, useDeviceID,
                                     count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
@@ -15740,7 +15750,6 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
             RESET_MULTI_VALUE_STATS_VARS();
         }
 
-exit_ecies:
         wc_ecc_ctx_free(cliCtx);
         wc_ecc_ctx_free(srvCtx);
     }
