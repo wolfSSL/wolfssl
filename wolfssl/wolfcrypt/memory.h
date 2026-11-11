@@ -324,6 +324,9 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
 #ifdef WOLFSSL_MEM_FAIL_COUNT
 WOLFSSL_LOCAL void wc_MemFailCount_Init(void);
 WOLFSSL_LOCAL void wc_MemFailCount_Free(void);
+WOLFSSL_LOCAL int wc_MemFailCount_AllocMem(void);
+WOLFSSL_LOCAL void wc_MemFailCount_AllocFailed(void);
+WOLFSSL_LOCAL void wc_MemFailCount_FreeMem(void);
 #endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
