@@ -637,6 +637,11 @@ int wc_MakeSakkeKey(SakkeKey* key, WC_RNG* rng)
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
         key->zMont = 0;
+#ifdef WOLFCRYPT_SAKKE_CLIENT
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
+#endif
     }
 
     return err;
@@ -823,6 +828,11 @@ int wc_ImportSakkeKey(SakkeKey* key, const byte* data, word32 sz)
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
         key->zMont = 0;
+#ifdef WOLFCRYPT_SAKKE_CLIENT
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
+#endif
     }
 
     return err;
@@ -1278,6 +1288,9 @@ int wc_ImportSakkePublicKey(SakkeKey* key, const byte* data, word32 sz,
     if (err == 0) {
         key->ecc.type = ECC_PUBLICKEY;
         key->zMont = 0;
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
     }
     if ((err == 0) && (!trusted)) {
         err = wc_ecc_check_key(&key->ecc);

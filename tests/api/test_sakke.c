@@ -1261,6 +1261,8 @@ int test_wc_Sakke_PointICache(void)
     word16 idBSz = (word16)XSTRLEN(mailB);
     byte pubData[256];
     word32 pubSz = sizeof(pubData);
+    byte pubData2[256];
+    word32 pubSz2 = sizeof(pubData2);
     byte* table = NULL;
     word32 tableLen = 0;
     byte ssv[16];
@@ -1281,6 +1283,8 @@ int test_wc_Sakke_PointICache(void)
         INVALID_DEVID), 0);
     ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, pubData, &pubSz, 1), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_ExportSakkePublicKey(&key, pubData2, &pubSz2, 1), 0);
     wc_FreeSakkeKey(&key);
     XMEMSET(&key, 0, sizeof(key));
 
@@ -1306,6 +1310,25 @@ int test_wc_Sakke_PointICache(void)
     ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA256, ssv,
         sizeof(ssv), auth, &authSz), 0);
     ExpectIntEQ(wc_SetSakkeIdentity(&key2, idB, idBSz), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key2, WC_HASH_TYPE_SHA256, ssv2,
+        sizeof(ssv2), auth2, &authSz2), 0);
+    ExpectBufEQ(auth, auth2, sizeof(auth));
+    ExpectBufEQ(ssv, ssv2, sizeof(ssv));
+
+    /* Same identity after a new KMS public key, against a new key object. */
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key, pubData2, pubSz2, 1), 0);
+    wc_FreeSakkeKey(&key2);
+    XMEMSET(&key2, 0, sizeof(key2));
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key2, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key2, pubData2, pubSz2, 1), 0);
+    ExpectIntEQ(wc_SetSakkeIdentity(&key2, idB, idBSz), 0);
+    XMEMSET(ssv, 0x5A, sizeof(ssv));
+    XMEMSET(ssv2, 0x5A, sizeof(ssv2));
+    authSz = sizeof(auth);
+    authSz2 = sizeof(auth2);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA256, ssv,
+        sizeof(ssv), auth, &authSz), 0);
     ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key2, WC_HASH_TYPE_SHA256, ssv2,
         sizeof(ssv2), auth2, &authSz2), 0);
     ExpectBufEQ(auth, auth2, sizeof(auth));
