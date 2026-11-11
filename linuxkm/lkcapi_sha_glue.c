@@ -1412,9 +1412,10 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm,
 #if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(6, 0, 0) || \
                            !defined(WC_LINUX_CONFIG_SELFTESTS) || \
                            (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)))
-    #if FIPS_VERSION3_GE(7, 0, 0)
+    #if FIPS_VERSION3_GE(7, 0, 0) && defined(WC_LINUX_CONFIG_SELFTESTS)
     /* The kernel's own HMAC self-tests use keys longer than the v7
-     * HMAC_FIPS_MAX_KEY cap, so let those through. */
+     * HMAC_FIPS_MAX_KEY cap, so let those through.  Without the kernel
+     * self-tests nothing needs the exemption and the cap applies. */
     if (length > HMAC_FIPS_MAX_KEY)
         ret = wc_HmacSetKey_ex(&p_ctx->wc_hmac, type, key, length, 1 /* allowFlag */);
     else
