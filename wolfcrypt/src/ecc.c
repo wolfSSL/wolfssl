@@ -7258,7 +7258,8 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
  * dispatch, so no backend signs on a too-small curve.  The curve is resolved
  * from key->dp, never from ecc_sets[key->idx], so a custom-curve key
  * (idx == ECC_CUSTOM_IDX) cannot index out of range.  A key with no curve
- * set is left to the caller's own argument checks. */
+ * set is left to the caller's own argument checks; wc_ecc_sign_hash()
+ * checks again after a crypto callback has had the chance to resolve it. */
 static int ecc_fips_sign_curve_allowed(const ecc_key* key)
 {
     if ((key->dp != NULL) && (key->dp->size < WC_ECC_FIPS_GEN_MIN)) {
@@ -7316,8 +7317,20 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     #endif
     {
         err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
-        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        #if FIPS_VERSION3_GE(7,0,0)
+            /* A key referenced by id or label has no curve until the
+             * callback resolves it, so it passed the check above.  Check
+             * again and do not release a signature made on a too-small
+             * curve. */
+            if ((err == 0) && (ecc_fips_sign_curve_allowed(key) != 0)) {
+                ForceZero(out, *outlen);
+                *outlen = 0;
+                err = SIG_TYPE_E;
+            }
+        #endif
             return err;
+        }
         /* fall-through when unavailable */
     }
 #endif
