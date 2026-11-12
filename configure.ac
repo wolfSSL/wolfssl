@@ -2615,7 +2615,8 @@ do
 done
 
 if test "$ENABLED_MLDSA_NO_CTX" = "yes" && test "$ENABLED_FIPS" != "no" && \
-   test "$HAVE_FIPS_VERSION" -ge 7
+   test "$HAVE_FIPS_VERSION" -ge 7 && (test "$ENABLED_FIPS_DEV" != "yes" || \
+   test "$ENABLED_EXPERIMENTAL" != "yes")
 then
     AC_MSG_ERROR([ML-DSA no-ctx and draft are not in the FIPS module boundary: drop them from --enable-mldsa (or --enable-dilithium) in a FIPS v7 or later build.])
 fi
@@ -4587,6 +4588,7 @@ then
 fi
 
 if test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 && \
+   test "$ENABLED_FIPS_DEV" != "yes" && \
    { test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_AESEAX" = "yes"; }
 then
     AC_MSG_ERROR([AES-SIV and AES-EAX are not in the FIPS module boundary: drop --enable-aessiv, --enable-aeseax, --enable-chrony or --enable-all-nonfips-crypto from a FIPS v7 build.])
@@ -7860,6 +7862,7 @@ do
 done
 
 if test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 && \
+   test "$ENABLED_FIPS_DEV" != "yes" && \
    { test "$ENABLED_AESGCMSIV" = "yes" || test "$ENABLED_AESCTS" = "yes" || \
      test "$ENABLED_AESKEYWRAP_PADDING" = "yes"; }
 then

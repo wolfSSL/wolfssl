@@ -84,6 +84,7 @@
 
 /* The pre-FIPS 204 no-context API is not in the FIPS module boundary. */
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !(defined(WOLFSSL_FIPS_DEV) && defined(WOLFSSL_EXPERIMENTAL_SETTINGS)) && \
     (defined(WOLFSSL_MLDSA_NO_CTX) || defined(WOLFSSL_MLDSA_FIPS204_DRAFT))
     #error "WOLFSSL_MLDSA_NO_CTX or WOLFSSL_MLDSA_FIPS204_DRAFT is not allowed in FIPS v7 or later."
 #endif
