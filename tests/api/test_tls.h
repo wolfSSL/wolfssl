@@ -56,6 +56,7 @@ int test_dtls_fallback_scsv(void);
 int test_dtls_fallback_scsv_no_downgrade(void);
 int test_tls_fallback_scsv_no_downgrade(void);
 int test_tls_fallback_scsv_no_downgrade_runtime_max(void);
+int test_tls_max_proto_fixed(void);
 int test_tls_no_acceptable_version_alert(void);
 int test_tls_lesser_version_alerts(void);
 int test_tls_version_mask_alert_record(void);
@@ -170,6 +171,7 @@ int test_tls_unset_fd_no_stdin_io(void);
         TEST_DECL_GROUP("tls", test_dtls_fallback_scsv_no_downgrade),          \
         TEST_DECL_GROUP("tls", test_tls_fallback_scsv_no_downgrade),           \
         TEST_DECL_GROUP("tls", test_tls_fallback_scsv_no_downgrade_runtime_max),\
+        TEST_DECL_GROUP("tls", test_tls_max_proto_fixed),                      \
         TEST_DECL_GROUP("tls", test_tls_no_acceptable_version_alert),          \
         TEST_DECL_GROUP("tls", test_tls_lesser_version_alerts),                \
         TEST_DECL_GROUP("tls", test_tls_version_mask_alert_record),            \

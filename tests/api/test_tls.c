@@ -2963,6 +2963,165 @@ int test_tls_fallback_scsv_no_downgrade_runtime_max(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA)
+/* A maximum or minimum past a fixed TLS method fails and never moves it. */
+static int test_tls_max_proto_fixed_case(method_provider method, int ver)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    long mask = 0;
+    long verBit = (ver == TLS1_3_VERSION) ? WOLFSSL_OP_NO_TLSv1_3 :
+        WOLFSSL_OP_NO_TLSv1_2;
+    int minProto = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        method, wolfSSLv23_server_method), 0);
+    if (ctx_c != NULL) {
+        mask = wolfSSL_CTX_get_options(ctx_c);
+        minProto = wolfSSL_CTX_get_min_proto_version(ctx_c);
+    }
+    if (ver == TLS1_3_VERSION) {
+        ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, TLS1_2_VERSION),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_CTX_get_options(ctx_c), mask);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx_c, TLS1_3_VERSION),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_CTX_get_options(ctx_c), mask);
+        ExpectIntEQ(wolfSSL_CTX_get_min_proto_version(ctx_c), minProto);
+    }
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, TLS1_1_VERSION),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_get_options(ctx_c), mask);
+    ExpectIntEQ(wolfSSL_CTX_get_min_proto_version(ctx_c), minProto);
+    ExpectIntEQ(ctx_c != NULL ? ctx_c->method->version.minor : 0, ver & 0xff);
+    ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx_c, ver), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, TLS1_3_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_get_max_proto_version(ctx_c), ver);
+    if (ctx_c != NULL) {
+        wolfSSL_CTX_set_options(ctx_c, verBit);
+        ExpectIntEQ(wolfSSL_CTX_get_max_proto_version(ctx_c), 0);
+        wolfSSL_CTX_clear_options(ctx_c, verBit);
+    }
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method, wolfSSLv23_server_method), 0);
+    if (ssl_c != NULL)
+        mask = wolfSSL_get_options(ssl_c);
+    ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, TLS1_1_VERSION),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_options(ssl_c), mask);
+    if (ver == TLS1_2_VERSION) {
+        ExpectIntEQ(wolfSSL_set_min_proto_version(ssl_c, TLS1_3_VERSION),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_get_options(ssl_c), mask);
+    }
+    ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_version(ssl_c), ver);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_s), ver);
+#ifdef WOLFSSL_TLS13
+    if (ver == TLS1_2_VERSION) {
+        ExpectIntEQ(wolfSSL_CTX_SetMinVersion(ctx_c, WOLFSSL_TLSV1_3),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_get_max_proto_version(ctx_c), 0);
+    }
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT)
+/* require_psk and SetVersion pin a v23 object, so a lower maximum fails. */
+static int test_tls_max_proto_pinned(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+    long mask = 0;
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_require_psk(ctx), 0);
+    if (ctx != NULL)
+        mask = wolfSSL_CTX_get_options(ctx);
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_get_options(ctx), mask);
+    ExpectIntEQ(ctx != NULL ? ctx->method->version.minor : 0, TLSv1_3_MINOR);
+    ExpectIntEQ(wolfSSL_CTX_get_max_proto_version(ctx), TLS1_3_VERSION);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_require_psk(ssl), 0);
+    ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, TLS1_2_VERSION),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_version(ssl), TLS1_3_VERSION);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, TLS1_2_VERSION),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, TLS1_3_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_version(ssl), TLS1_3_VERSION);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+#ifndef WOLFSSL_NO_TLS12
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        mask = wolfSSL_get_options(ssl);
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, TLS1_3_VERSION),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_options(ssl), mask);
+    ExpectIntEQ(wolfSSL_version(ssl), TLS1_2_VERSION);
+    wolfSSL_free(ssl);
+#endif
+    wolfSSL_CTX_free(ctx);
+    (void)mask;
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_tls_max_proto_fixed(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA)
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_tls_max_proto_fixed_case(wolfTLSv1_3_client_method,
+        TLS1_3_VERSION), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_tls_max_proto_fixed_case(wolfTLSv1_2_client_method,
+        TLS1_2_VERSION), TEST_SUCCESS);
+#endif
+#endif
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    ExpectIntEQ(test_tls_max_proto_pinned(), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 5246 Section 7.2.2 and RFC 8446 Section 4.1.3: a server that cannot
  * negotiate any version at or below ClientHello.client_version MUST abort with
  * a fatal protocol_version alert.
