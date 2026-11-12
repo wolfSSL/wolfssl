@@ -90,6 +90,8 @@ int test_dtls13_ch_pool_bucket_cap(void);
 int test_dtls13_ch_pool_peer_key(void);
 int test_dtls13_ch_pool_max_age(void);
 int test_dtls13_ch_pool_ctx_init(void);
+int test_dtls13_ch_pool_max_bytes_api(void);
+int test_dtls13_ch_pool_max_bytes(void);
 int test_dtls_empty_keyshare_with_cookie(void);
 int test_dtls13_missing_finished_client(void);
 int test_dtls13_missing_finished_server(void);
@@ -153,6 +155,8 @@ int test_dtls13_update_keys_want_write(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_peer_key),                  \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_max_age),                   \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_ctx_init),                  \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_max_bytes_api),             \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_max_bytes),                 \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_over_bound),                \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_length_mismatch),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_past_end),                      \

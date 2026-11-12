@@ -4043,8 +4043,32 @@ int wolfSSL_CTX_dtls13_clear_ch_pool(WOLFSSL_CTX* ctx)
         return WOLFSSL_FAILURE;
 #ifndef NO_WOLFSSL_SERVER
     DtlsChPoolClear(&ctx->dtlsChPool, ctx->heap);
-#endif
     return WOLFSSL_SUCCESS;
+#else
+    /* No server, no pool to clear */
+    return WOLFSSL_FAILURE;
+#endif
+}
+
+int wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(WOLFSSL_CTX* ctx,
+    size_t maxBytes)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return WOLFSSL_FAILURE;
+#ifndef NO_WOLFSSL_SERVER
+    /* Only a DTLS context has a pool */
+    if (!ctx->dtlsChPool.ready)
+        return WOLFSSL_FAILURE;
+    if (DtlsChPoolSetMaxBytes(&ctx->dtlsChPool, ctx->heap, maxBytes) != 0)
+        return BAD_FUNC_ARG;
+    return WOLFSSL_SUCCESS;
+#else
+    /* No server, no pool to size */
+    (void)maxBytes;
+    return WOLFSSL_FAILURE;
+#endif
 }
 #endif
 

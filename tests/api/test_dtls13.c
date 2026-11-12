@@ -534,7 +534,7 @@ static int test_dtls13_pool_ok(const DtlsChPool* p)
             return 0;
     }
     return test_dtls13_pool_reserved(p) == test_dtls13_pool_bytes(p) &&
-        test_dtls13_pool_bytes(p) <= TEST_DTLS_RX_UNVERIFIED_LIMIT;
+        test_dtls13_pool_bytes(p) <= (size_t)WOLFSSL_ATOMIC_LOAD(p->maxBytes);
 }
 
 /* Make m look as if it gained no bytes for longer than the pool keeps it */
@@ -6000,6 +6000,146 @@ int test_dtls13_ch_pool_ctx_init(void)
     }
     wolfSSL_CTX_free(tls);
     wolfSSL_CTX_free(dtls);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The budget setter checks its arguments and takes only a DTLS server
+ * context, whose pool starts at the default */
+int test_dtls13_ch_pool_max_bytes_api(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* dtls = NULL;
+    WOLFSSL_CTX* tls = NULL;
+#ifndef NO_WOLFSSL_CLIENT
+    WOLFSSL_CTX* client = NULL;
+#endif
+    size_t bound = WC_MAX_UINT_OF(WC_ATOMIC_UINT_ARG) / 65;
+
+    ExpectNotNull(dtls = wolfSSL_CTX_new(wolfDTLSv1_3_server_method()));
+    ExpectNotNull(tls = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(NULL, 1024),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(dtls, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(dtls, bound + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* A context without a pool has nothing to size */
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(tls, 1024),
+        WOLFSSL_FAILURE);
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectNotNull(client = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(client, 1024),
+        WOLFSSL_FAILURE);
+    wolfSSL_CTX_free(client);
+#endif
+    if (EXPECT_SUCCESS()) {
+        ExpectTrue((size_t)WOLFSSL_ATOMIC_LOAD(dtls->dtlsChPool.maxBytes) ==
+            TEST_DTLS_RX_UNVERIFIED_LIMIT);
+        ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(dtls, 1024),
+            WOLFSSL_SUCCESS);
+        ExpectTrue((size_t)WOLFSSL_ATOMIC_LOAD(dtls->dtlsChPool.maxBytes) ==
+            1024);
+        ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(dtls, bound),
+            WOLFSSL_SUCCESS);
+        ExpectTrue((size_t)WOLFSSL_ATOMIC_LOAD(dtls->dtlsChPool.maxBytes) ==
+            bound);
+        ExpectTrue(test_dtls13_pool_ok(&dtls->dtlsChPool));
+    }
+    wolfSSL_CTX_free(tls);
+    wolfSSL_CTX_free(dtls);
+#elif defined(WOLFSSL_DTLS_CH_FRAG) && defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    /* Without a server there is no pool to size or clear */
+    WOLFSSL_CTX* client = NULL;
+
+    ExpectNotNull(client = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(NULL, 1024),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(client, 1024),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_dtls13_clear_ch_pool(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_clear_ch_pool(client), WOLFSSL_FAILURE);
+    wolfSSL_CTX_free(client);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The budget set at runtime: with room for two entries a third store evicts
+ * the oldest; raised, more get in; lowered below what is held, the oldest go
+ * at once, down to it, and the next store evicts for its own again */
+int test_dtls13_ch_pool_max_bytes(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    DtlsChPool* pool = NULL;
+    byte data[32];
+    const word32 msgSz = 32;
+    const word32 first = 16;
+    size_t entry = sizeof(DtlsMsg) + sizeof(int) + sizeof(DtlsFragBucket) +
+        first;
+    int i;
+
+    XMEMSET(data, 0x5a, sizeof(data));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_3_server_method()));
+    if (EXPECT_FAIL())
+        return EXPECT_RESULT();
+    pool = &ctx->dtlsChPool;
+
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(ctx, 2 * entry),
+        WOLFSSL_SUCCESS);
+    for (i = 1; i <= 3; i++)
+        ExpectIntEQ(test_dtls13_pool_put(pool, i, data, msgSz, 0, first), 0);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 2);
+    ExpectNull(test_dtls13_held_for(pool, 1));
+    ExpectNotNull(test_dtls13_held_for(pool, 2));
+    ExpectNotNull(test_dtls13_held_for(pool, 3));
+    ExpectTrue(test_dtls13_pool_bytes(pool) == 2 * entry);
+    ExpectTrue(test_dtls13_pool_ok(pool));
+
+    /* Raised: two more fit, then the oldest goes again */
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(ctx, 4 * entry),
+        WOLFSSL_SUCCESS);
+    for (i = 4; i <= 5; i++)
+        ExpectIntEQ(test_dtls13_pool_put(pool, i, data, msgSz, 0, first), 0);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 4);
+    ExpectNotNull(test_dtls13_held_for(pool, 2));
+    ExpectIntEQ(test_dtls13_pool_put(pool, 6, data, msgSz, 0, first), 0);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 4);
+    ExpectNull(test_dtls13_held_for(pool, 2));
+    ExpectNotNull(test_dtls13_held_for(pool, 6));
+    ExpectTrue(test_dtls13_pool_bytes(pool) == 4 * entry);
+    ExpectTrue(test_dtls13_pool_ok(pool));
+
+    /* Lowered: the oldest go at once, as many as the budget asks */
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(ctx, 3 * entry),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 3);
+    ExpectNull(test_dtls13_held_for(pool, 3));
+    ExpectTrue(test_dtls13_pool_ok(pool));
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(ctx, 2 * entry),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 2);
+    ExpectNull(test_dtls13_held_for(pool, 4));
+    ExpectNotNull(test_dtls13_held_for(pool, 5));
+    ExpectNotNull(test_dtls13_held_for(pool, 6));
+    ExpectTrue(test_dtls13_pool_bytes(pool) == 2 * entry);
+    ExpectTrue(test_dtls13_pool_ok(pool));
+    /* The same budget again evicts nothing */
+    ExpectIntEQ(wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(ctx, 2 * entry),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 2);
+    /* The next store evicts the oldest for its own */
+    ExpectIntEQ(test_dtls13_pool_put(pool, 7, data, msgSz, 0, first), 0);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 2);
+    ExpectNull(test_dtls13_held_for(pool, 5));
+    ExpectNotNull(test_dtls13_held_for(pool, 7));
+    ExpectTrue(test_dtls13_pool_ok(pool));
+
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

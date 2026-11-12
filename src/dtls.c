@@ -45,12 +45,14 @@
  *     on the complete message (RFC 9147 Section 5.5: a receiver must buffer or
  *     process a fragment). Unverified fragments are held in a pool per
  *     WOLFSSL_CTX, keyed on the remote address and bounded by
- *     WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES, so any stateless server of the
- *     context can complete them. A server without the peer's address holds
- *     nothing. On by default: wolfSSL_CTX_dtls13_reassemble_ch_before_cookie()
- *     turns the holding off, wolfSSL_dtls13_allow_ch_frag() the reassembly,
- *     and wolfSSL_CTX_dtls13_clear_ch_pool() empties the pool. The pool
- *     needs a clock, so not NO_ASN_TIME, and atomics in a threaded build.
+ *     WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES, or the budget
+ *     wolfSSL_CTX_dtls13_set_ch_pool_max_bytes() sets at runtime, so any
+ *     stateless server of the context can complete them. A server without
+ *     the peer's address holds nothing. On by default:
+ *     wolfSSL_CTX_dtls13_reassemble_ch_before_cookie() turns the holding off,
+ *     wolfSSL_dtls13_allow_ch_frag() the reassembly, and
+ *     wolfSSL_CTX_dtls13_clear_ch_pool() empties the pool. The pool needs a
+ *     clock, so not NO_ASN_TIME, and atomics in a threaded build.
  *     Client: send an empty key share when the first ClientHello would not fit
  *     one datagram, at the cost of a HelloRetryRequest round trip.
  *     With the cookie exchange disabled the server is stateful from the first

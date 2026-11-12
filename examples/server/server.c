@@ -1438,6 +1438,8 @@ static void Usage(void)
     printf("--reassemble-before-cookie [n] DTLS 1.3: reassemble a fragmented\n"
            "            ClientHello before its cookie is verified\n"
            "            (default on, n to disable)\n");
+    printf("--ch-pool-max-bytes <n> DTLS 1.3: bytes the context holds for\n"
+           "            ClientHellos before their cookie is verified\n");
 #endif
 }
 
@@ -1570,6 +1572,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #ifdef WOLFSSL_DTLS_CH_FRAG
         { "reassemble-before-cookie", 2, 272 }, /* optional argument */
+        { "ch-pool-max-bytes", 1, 273 },
 #endif
         { 0, 0, 0 }
     };
@@ -1690,6 +1693,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #ifdef WOLFSSL_DTLS_CH_FRAG
     int reassembleBeforeCookie = -1; /* -1 keeps the library default */
+    int chPoolMaxBytes = 0; /* 0 keeps the library default */
 #endif
     byte mcastID = 0;
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
@@ -2471,6 +2475,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             if (myoptarg != NULL && XSTRCMP(myoptarg, "n") == 0)
                 reassembleBeforeCookie = 0;
             break;
+        case 273:
+            chPoolMaxBytes = atoi(myoptarg);
+            if (chPoolMaxBytes <= 0)
+                err_sys("--ch-pool-max-bytes takes a positive number");
+            break;
 #endif /* WOLFSSL_DTLS_CH_FRAG */
         case 264:
 #ifdef HAVE_SUPPORTED_CURVES
@@ -2882,6 +2891,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_SCTP
     if (dtlsSCTP)
         wolfSSL_CTX_dtls_set_sctp(ctx);
+#endif
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (doDTLS && chPoolMaxBytes != 0 &&
+            wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(ctx,
+                (size_t)chPoolMaxBytes) != WOLFSSL_SUCCESS) {
+        err_sys("unable to set the ClientHello pool budget");
+    }
 #endif
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS

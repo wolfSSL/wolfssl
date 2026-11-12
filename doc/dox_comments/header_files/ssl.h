@@ -16436,13 +16436,15 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
 
     The fragments are held before the cookie verifies, so any sender can make
     the server hold memory, within WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES
-    (default 64 KiB) for all servers of the context. The pool belongs to the
-    WOLFSSL_CTX, so any of its stateless servers can complete a ClientHello
-    another one started. Peers are told apart by the address the I/O layer
-    reports or the bytes set with wolfSSL_dtls_set_peer(), an IPv4 or IPv6
-    address by family, port and address. Each peer holds one ClientHello, the
-    newest. The least recently progressed entry is evicted first, and one that
-    gained no bytes for the server's retransmission maximum
+    (default 64 KiB, set at runtime with
+    wolfSSL_CTX_dtls13_set_ch_pool_max_bytes()) for all servers of the
+    context. The pool belongs to the WOLFSSL_CTX, so any of its stateless
+    servers can complete a ClientHello another one started. Peers are told
+    apart by the address the I/O layer reports or the bytes set with
+    wolfSSL_dtls_set_peer(), an IPv4 or IPv6 address by family, port and
+    address. Each peer holds one ClientHello, the newest. The least recently
+    progressed entry is evicted first, and one that gained no bytes for the
+    server's retransmission maximum
     (wolfSSL_dtls_set_timeout_max()) expires. A server that does not know the
     peer's address, as on a connected socket or a custom transport without
     wolfSSL_dtls_set_peer(), holds nothing: it drops such fragments, and still
@@ -16529,7 +16531,8 @@ int wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(WOLFSSL_CTX* ctx,
 
     \return WOLFSSL_SUCCESS if successful
     \return BAD_FUNC_ARG if ctx is NULL
-    \return WOLFSSL_FAILURE if the context is for clients
+    \return WOLFSSL_FAILURE if the context is for clients, or the build has
+    no server (NO_WOLFSSL_SERVER) and so no pool
 
     _Example_
     \code
@@ -16539,8 +16542,48 @@ int wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(WOLFSSL_CTX* ctx,
     \endcode
 
     \sa wolfSSL_CTX_dtls13_reassemble_ch_before_cookie
+    \sa wolfSSL_CTX_dtls13_set_ch_pool_max_bytes
 */
 int wolfSSL_CTX_dtls13_clear_ch_pool(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the most bytes the context's pool holds for
+    ClientHellos whose cookie has not verified yet, metadata included, for
+    all its servers: the budget wolfSSL_dtls13_reassemble_ch_before_cookie()
+    describes, WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES (64 KiB) until set. A
+    server facing the internet sits at the budget, so size it for the memory
+    the pool may take instead of rebuilding. Lowering it evicts the least
+    recently progressed entries down to the new budget before returning; a
+    store in progress on another thread may still leave the pool over it by
+    that one fragment's bound. Raising it takes effect at once. The budget is
+    at most WC_MAX_UINT_OF(WC_ATOMIC_UINT_ARG) / 65, about 66 MB with 32-bit
+    atomics. Safe to call while servers of the context are running. Requires
+    WOLFSSL_DTLS_CH_FRAG.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+    \param [in] maxBytes the budget in bytes, at least 1.
+
+    \return WOLFSSL_SUCCESS if successful
+    \return BAD_FUNC_ARG if ctx is NULL, or maxBytes is 0 or above the bound
+    \return WOLFSSL_FAILURE if the context is for clients or not for DTLS,
+    or the build has no server (NO_WOLFSSL_SERVER) and so no pool
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    ...
+    // hold at most 1 MiB of unverified ClientHellos
+    wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(ctx, 1024 * 1024);
+    \endcode
+
+    \sa wolfSSL_dtls13_reassemble_ch_before_cookie
+    \sa wolfSSL_CTX_dtls13_clear_ch_pool
+*/
+int wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(WOLFSSL_CTX* ctx,
+    size_t maxBytes);
 
 /*!
     \ingroup Setup

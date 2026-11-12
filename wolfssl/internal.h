@@ -3125,6 +3125,7 @@ typedef struct DtlsChPool {
     wolfSSL_Atomic_Uint reserved; /* shard bytes plus a bound per store in
                                    * progress, evicted for before it locks */
     wolfSSL_Atomic_Uint lastProgress; /* last progress value given out */
+    wolfSSL_Atomic_Uint maxBytes; /* the budget, read lock-free by stores */
     byte            ready;    /* initialized: only a DTLS context's is */
 } DtlsChPool;
 #endif
@@ -8337,6 +8338,8 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
             word32 fragSz, word32 msgSz, word32 maxAge, void* outHeap);
     WOLFSSL_TEST_VIS word32 DtlsChPoolShardIdx(const WOLFSSL_SOCKADDR* peer);
     WOLFSSL_TEST_VIS int  DtlsMsgAdopt(DtlsMsg** msg, void* from, void* to);
+    WOLFSSL_LOCAL int DtlsChPoolSetMaxBytes(DtlsChPool* pool, void* heap,
+            size_t maxBytes);
 #endif
     WOLFSSL_TEST_VIS int DtlsMsgStoreFatal(WOLFSSL* ssl, int ret);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item);

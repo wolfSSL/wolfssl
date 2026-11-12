@@ -6731,6 +6731,8 @@ WOLFSSL_API const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg
     WOLFSSL_API int wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(
         WOLFSSL_CTX* ctx, int enabled);
     WOLFSSL_API int wolfSSL_CTX_dtls13_clear_ch_pool(WOLFSSL_CTX* ctx);
+    WOLFSSL_API int wolfSSL_CTX_dtls13_set_ch_pool_max_bytes(WOLFSSL_CTX* ctx,
+        size_t maxBytes);
 #endif
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
     WOLFSSL_API int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL *ssl, int enabled);

@@ -11985,20 +11985,12 @@ static size_t DtlsMsgProjectedBytes(const DtlsMsg* msg, word32 offset,
     return bytes + sizeof(DtlsFragBucket) + (end - offset);
 }
 
-/* The retained bytes a receive list, or the context's ClientHello pool when
- * unverified, may reach when admitting an entry. */
-static size_t DtlsMsgRxLimit(int unverified)
-{
-    return unverified ? WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES :
-                        WOLFSSL_DTLS_RX_MAX_BYTES;
-}
-
 /* Whether the receive list can grow to hold current, or a new entry, at
  * projected retained bytes. */
 static int DtlsMsgRxAdmit(WOLFSSL* ssl, DtlsMsg* current, size_t projected)
 {
     size_t old = current == NULL ? 0 : DtlsMsgRetainedBytes(current);
-    size_t limit = DtlsMsgRxLimit(0);
+    size_t limit = WOLFSSL_DTLS_RX_MAX_BYTES;
 
     if (projected > limit ||
             ssl->dtls_rx_msg_list_bytes - old > limit - projected)
@@ -12161,8 +12153,9 @@ static void DtlsChShardUnlock(DtlsChPoolShard* sh)
 
 /* A store counts the bound of its fragment before it evicts for it, so
  * reserved may pass the budget by one bound per store evicting at once. A
- * bound is below the budget, by the check before it: room for 64. Progress
- * wraps as word32. */
+ * bound is below the budget, by the check before it: room for 64. The
+ * default budget and any set at runtime keep to this. Progress wraps as
+ * word32. */
 wc_static_assert(WC_MAX_UINT_OF(WC_ATOMIC_UINT_ARG) >= WOLFSSL_MAX_32BIT);
 wc_static_assert(WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES <=
     WC_MAX_UINT_OF(WC_ATOMIC_UINT_ARG) / 65);
@@ -12171,8 +12164,10 @@ wc_static_assert(WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES <=
  * taken back when the sum passes the budget. */
 static int DtlsChPoolAdd(DtlsChPool* pool, size_t n)
 {
-    if ((size_t)wolfSSL_Atomic_Uint_AddFetch(&pool->reserved,
-            (WC_ATOMIC_UINT_ARG)n) <= DtlsMsgRxLimit(1))
+    size_t sum = (size_t)wolfSSL_Atomic_Uint_AddFetch(&pool->reserved,
+        (WC_ATOMIC_UINT_ARG)n);
+
+    if (sum <= (size_t)WOLFSSL_ATOMIC_LOAD(pool->maxBytes))
         return 1;
     (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved, (WC_ATOMIC_UINT_ARG)n);
     return 0;
@@ -12205,7 +12200,8 @@ static int DtlsChPoolSettle(DtlsChPool* pool, DtlsMsg* msg, size_t counted)
             (WC_ATOMIC_UINT_ARG)(counted - actual));
         return 0;
     }
-    if (actual <= DtlsMsgRxLimit(1) && DtlsChPoolAdd(pool, actual - counted))
+    if (actual <= (size_t)WOLFSSL_ATOMIC_LOAD(pool->maxBytes) &&
+            DtlsChPoolAdd(pool, actual - counted))
         return 0;
     (void)wolfSSL_Atomic_Uint_SubFetch(&pool->reserved,
         (WC_ATOMIC_UINT_ARG)counted);
@@ -12325,11 +12321,11 @@ static DtlsChPoolShard* DtlsChPoolFindOldest(DtlsChPool* pool,
 }
 
 /* Free need bytes, or until reserved is within the budget, by evicting the
- * oldest entries of any shard, never keep's. The shard holding keep's entry
- * is learned when the scan lands on it: the entry behind it goes then, as
- * the oldest of that shard but keep's, and the shard is judged by the entry
- * behind its head from then on. The caller holds no shard lock: victims'
- * shards are, and two at once deadlock. */
+ * oldest entries of any shard, never keep's; any, when keep is NULL. The
+ * shard holding keep's entry is learned when the scan lands on it: the entry
+ * behind it goes then, as the oldest of that shard but keep's, and the shard
+ * is judged by the entry behind its head from then on. The caller holds no
+ * shard lock: victims' shards are, and two at once deadlock. */
 static int DtlsChPoolEvict(DtlsChPool* pool, void* heap,
         const WOLFSSL_SOCKADDR* keep, size_t need)
 {
@@ -12337,8 +12333,8 @@ static int DtlsChPoolEvict(DtlsChPool* pool, void* heap,
     size_t freed = 0;
     int misses = 0;
 
-    while (freed < need &&
-            (size_t)WOLFSSL_ATOMIC_LOAD(pool->reserved) > DtlsMsgRxLimit(1)) {
+    while (freed < need && (size_t)WOLFSSL_ATOMIC_LOAD(pool->reserved) >
+            (size_t)WOLFSSL_ATOMIC_LOAD(pool->maxBytes)) {
         DtlsChPoolShard* best;
         DtlsMsg* victim;
         word32 oldest = 0;
@@ -12347,7 +12343,8 @@ static int DtlsChPoolEvict(DtlsChPool* pool, void* heap,
         if (best == NULL || DtlsChShardLock(best) != 0)
             return DTLS_MSG_STORE_DROPPED;
         victim = best->head;
-        if (victim != NULL && DtlsMsgPeerEqual(victim, keep)) {
+        if (victim != NULL && keep != NULL &&
+                DtlsMsgPeerEqual(victim, keep)) {
             skip = best;
             victim = victim->next;
         }
@@ -12391,6 +12388,8 @@ int DtlsChPoolInit(DtlsChPool* pool)
     XMEMSET(pool, 0, sizeof(*pool));
     wolfSSL_Atomic_Uint_Init(&pool->reserved, 0U);
     wolfSSL_Atomic_Uint_Init(&pool->lastProgress, 0U);
+    wolfSSL_Atomic_Uint_Init(&pool->maxBytes,
+        (WC_ATOMIC_UINT_ARG)WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES);
     for (i = 0; i < WOLFSSL_DTLS_CH_POOL_SHARDS; i++) {
         wolfSSL_Atomic_Uint_Init(&pool->shard[i].headProgress, 0U);
         wolfSSL_Atomic_Uint_Init(&pool->shard[i].nextProgress, 0U);
@@ -12452,6 +12451,23 @@ void DtlsChPoolClear(DtlsChPool* pool, void* heap)
         DtlsChShardUnlock(sh);
         DtlsMsgListDelete(head, heap);
     }
+}
+
+/* Set the budget, within the bound the static assert above puts on the
+ * default, and evict down to it. Stores in flight may still leave reserved
+ * above it by their bounds: they evict for their own at once. */
+int DtlsChPoolSetMaxBytes(DtlsChPool* pool, void* heap, size_t maxBytes)
+{
+    size_t over;
+
+    if (pool == NULL || !pool->ready || maxBytes == 0 ||
+            maxBytes > WC_MAX_UINT_OF(WC_ATOMIC_UINT_ARG) / 65)
+        return BAD_FUNC_ARG;
+    WOLFSSL_ATOMIC_STORE(pool->maxBytes, (WC_ATOMIC_UINT_ARG)maxBytes);
+    over = (size_t)WOLFSSL_ATOMIC_LOAD(pool->reserved);
+    if (over > maxBytes)
+        (void)DtlsChPoolEvict(pool, heap, NULL, over - maxBytes);
+    return 0;
 }
 
 /* Hand msg, allocated with from, to an owner that frees it with to: rebuilt
@@ -12528,7 +12544,7 @@ int DtlsChPoolStore(DtlsChPool* pool, void* heap,
     DtlsMsg* cur = NULL;
     DtlsMsg* gone = NULL;
     DtlsMsg* detached = NULL;
-    size_t limit = DtlsMsgRxLimit(1);
+    size_t limit;
     size_t overhead;
     size_t before;
     size_t reserve; /* the bound of the fragment, held in pool->reserved */
@@ -12553,6 +12569,7 @@ int DtlsChPoolStore(DtlsChPool* pool, void* heap,
     /* A ClientHello that can never complete is dropped before anything is
      * evicted: its last fragment is reserved as a new entry on top of the
      * entry holding the rest, so the metadata is counted twice. */
+    limit = (size_t)WOLFSSL_ATOMIC_LOAD(pool->maxBytes);
     if (peer->sz > limit)
         return DTLS_MSG_STORE_DROPPED;
     overhead = sizeof(DtlsMsg) + sizeof(DtlsFragBucket) + peer->sz;
@@ -12565,6 +12582,8 @@ int DtlsChPoolStore(DtlsChPool* pool, void* heap,
     reserve = overhead + fragSz;
     sum = (size_t)wolfSSL_Atomic_Uint_AddFetch(&pool->reserved,
         (WC_ATOMIC_UINT_ARG)reserve);
+    /* Read again after reserving, so a budget lowered meanwhile is seen */
+    limit = (size_t)WOLFSSL_ATOMIC_LOAD(pool->maxBytes);
     if (sum > limit) {
         size_t need = sum - limit;
 

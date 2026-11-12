@@ -46,9 +46,10 @@
   5.9.4 note below that the fragments were still dropped; without
   `WOLFSSL_DTLS_CH_FRAG` they still are. The unverified bytes a context holds
   are bounded by `WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES`, 64 KiB by default,
-  metadata included: when the budget is short the least recently progressed
-  entry is evicted, and an entry that gains no bytes for the server's
-  retransmission maximum expires. The pool is split into
+  or the budget `wolfSSL_CTX_dtls13_set_ch_pool_max_bytes()` sets at
+  runtime, metadata included: when the budget is short the least recently
+  progressed entry is evicted, and an entry that gains no bytes for the
+  server's retransmission maximum expires. The pool is split into
   `WOLFSSL_DTLS_CH_POOL_SHARDS` lists (8; 1 with `SINGLE_THREADED` or
   `NO_HASH_WRAPPER`) picked by a hash of the peer address, each with its own
   lock. It needs atomics in a
@@ -56,7 +57,7 @@
   first fragment of a DTLS 1.2 ClientHello whose cookie verifies is now kept
   and the rest of the message taken from the pool, where before it was
   ignored and the client had to resend the message. The example server takes
-  `--reassemble-before-cookie [n]`.
+  `--reassemble-before-cookie [n]` and `--ch-pool-max-bytes <n>`.
 
 * **Behavioral change (the DTLS receive list is bounded by bytes)**: the list
   of out-of-order and fragmented handshake messages was bounded by
