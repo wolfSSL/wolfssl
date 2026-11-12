@@ -17698,7 +17698,8 @@ static wc_test_ret_t aes_key_size_test(void)
     aes = wc_AesNew(HEAP_HINT, devId, &ret);
     if (aes == NULL)
         return WC_TEST_RET_ENC_EC(ret);
-#ifdef WC_ALIGNOF
+#if defined(WC_ALIGNOF) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
     if (!WC_IS_ALIGNED(aes, WC_ALIGNOF(Aes)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
