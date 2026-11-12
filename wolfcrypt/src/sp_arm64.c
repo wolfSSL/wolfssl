@@ -2631,15 +2631,18 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
     sp_digit* zero = z1 + 16;
     sp_digit u;
     sp_digit mask;
-    sp_digit* p1;
-    sp_digit* p2;
+    int i;
 
     XMEMSET(zero, 0, sizeof(sp_digit) * 16);
 
+    /* a1 = |a_lo - a_hi|: negate (invert and add one) when the subtraction
+     * borrowed. Operands are fixed so memory accesses don't depend on the
+     * sign. */
     mask = sp_2048_sub_16(a1, a, &a[16]);
-    p1 = (sp_digit*)(((sp_digit)zero &   mask ) | ((sp_digit)a1 & (~mask)));
-    p2 = (sp_digit*)(((sp_digit)zero & (~mask)) | ((sp_digit)a1 &   mask ));
-    (void)sp_2048_sub_16(a1, p1, p2);
+    for (i = 0; i < 16; i++) {
+        a1[i] ^= mask;
+    }
+    sp_2048_add_word_16(a1, a1, mask & 1);
 
     sp_2048_sqr_16(z2, &a[16]);
     sp_2048_sqr_16(z0, a);
@@ -12022,15 +12025,18 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
     sp_digit* zero = z1 + 24;
     sp_digit u;
     sp_digit mask;
-    sp_digit* p1;
-    sp_digit* p2;
+    int i;
 
     XMEMSET(zero, 0, sizeof(sp_digit) * 24);
 
+    /* a1 = |a_lo - a_hi|: negate (invert and add one) when the subtraction
+     * borrowed. Operands are fixed so memory accesses don't depend on the
+     * sign. */
     mask = sp_3072_sub_24(a1, a, &a[24]);
-    p1 = (sp_digit*)(((sp_digit)zero &   mask ) | ((sp_digit)a1 & (~mask)));
-    p2 = (sp_digit*)(((sp_digit)zero & (~mask)) | ((sp_digit)a1 &   mask ));
-    (void)sp_3072_sub_24(a1, p1, p2);
+    for (i = 0; i < 24; i++) {
+        a1[i] ^= mask;
+    }
+    sp_3072_add_word_24(a1, a1, mask & 1);
 
     sp_3072_sqr_24(z2, &a[24]);
     sp_3072_sqr_24(z0, a);
@@ -18801,15 +18807,18 @@ SP_NOINLINE static void sp_4096_sqr_64(sp_digit* r, const sp_digit* a)
     sp_digit* zero = z1 + 32;
     sp_digit u;
     sp_digit mask;
-    sp_digit* p1;
-    sp_digit* p2;
+    int i;
 
     XMEMSET(zero, 0, sizeof(sp_digit) * 32);
 
+    /* a1 = |a_lo - a_hi|: negate (invert and add one) when the subtraction
+     * borrowed. Operands are fixed so memory accesses don't depend on the
+     * sign. */
     mask = sp_2048_sub_32(a1, a, &a[32]);
-    p1 = (sp_digit*)(((sp_digit)zero &   mask ) | ((sp_digit)a1 & (~mask)));
-    p2 = (sp_digit*)(((sp_digit)zero & (~mask)) | ((sp_digit)a1 &   mask ));
-    (void)sp_2048_sub_32(a1, p1, p2);
+    for (i = 0; i < 32; i++) {
+        a1[i] ^= mask;
+    }
+    sp_4096_add_word_32(a1, a1, mask & 1);
 
     sp_2048_sqr_32(z2, &a[32]);
     sp_2048_sqr_32(z0, a);
@@ -25232,6 +25241,7 @@ static void sp_256_proj_point_add_4(sp_point_256* r,
     sp_digit* t3 = t + 6*4;
     sp_digit* t4 = t + 8*4;
     sp_digit* t5 = t + 10*4;
+    volatile int dbl;
 
     /* U1 = X1*Z2^2 */
     sp_256_mont_sqr_4(t1, q->z, p256_mod, p256_mp_mod);
@@ -25246,10 +25256,13 @@ static void sp_256_proj_point_add_4(sp_point_256* r,
     /* S2 = Y2*Z1^3 */
     sp_256_mont_mul_4(t4, t4, q->y, p256_mod, p256_mp_mod);
 
-    /* Check double */
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_256_cmp_equal_4(t2, t1) &
-            sp_256_cmp_equal_4(t4, t3)) {
+            sp_256_cmp_equal_4(t4, t3));
+    if (dbl) {
         sp_256_proj_point_dbl_4(r, p, t);
     }
     else {
@@ -25775,6 +25788,7 @@ static void sp_256_proj_point_add_qz1_4(sp_point_256* r,
     sp_digit* t6 = t + 4*4;
     sp_digit* t1 = t + 6*4;
     sp_digit* t4 = t + 8*4;
+    volatile int dbl;
 
     /* Calculate values to subtract from P->x and P->y. */
     /* U2 = X2*Z1^2 */
@@ -25784,9 +25798,13 @@ static void sp_256_proj_point_add_qz1_4(sp_point_256* r,
     /* S2 = Y2*Z1^3 */
     sp_256_mont_mul_4(t4, t4, q->y, p256_mod, p256_mp_mod);
 
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_256_cmp_equal_4(p->x, t2) &
-            sp_256_cmp_equal_4(p->y, t4)) {
+            sp_256_cmp_equal_4(p->y, t4));
+    if (dbl) {
         sp_256_proj_point_dbl_4(r, p, t);
     }
     else {
@@ -60612,6 +60630,7 @@ static void sp_384_proj_point_add_6(sp_point_384* r,
     sp_digit* t3 = t + 6*6;
     sp_digit* t4 = t + 8*6;
     sp_digit* t5 = t + 10*6;
+    volatile int dbl;
 
     /* U1 = X1*Z2^2 */
     sp_384_mont_sqr_6(t1, q->z, p384_mod, p384_mp_mod);
@@ -60626,10 +60645,13 @@ static void sp_384_proj_point_add_6(sp_point_384* r,
     /* S2 = Y2*Z1^3 */
     sp_384_mont_mul_6(t4, t4, q->y, p384_mod, p384_mp_mod);
 
-    /* Check double */
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_384_cmp_equal_6(t2, t1) &
-            sp_384_cmp_equal_6(t4, t3)) {
+            sp_384_cmp_equal_6(t4, t3));
+    if (dbl) {
         sp_384_proj_point_dbl_6(r, p, t);
     }
     else {
@@ -60659,8 +60681,14 @@ static void sp_384_proj_point_add_6(sp_point_384* r,
         sp_384_mont_sub_6(y, y, t5, p384_mod);
         {
             int i;
-            sp_digit maskp = (sp_digit)(0 - (q->infinity & (!p->infinity)));
-            sp_digit maskq = (sp_digit)(0 - (p->infinity & (!q->infinity)));
+            /* Masks are read back through volatiles so the compiler cannot
+             * turn the selection into branches on the infinity flags. */
+            volatile sp_digit vmaskp = (sp_digit)0 -
+                (sp_digit)(q->infinity & (!p->infinity));
+            volatile sp_digit vmaskq = (sp_digit)0 -
+                (sp_digit)(p->infinity & (!q->infinity));
+            sp_digit maskp = vmaskp;
+            sp_digit maskq = vmaskq;
             sp_digit maskt = ~(maskp | maskq);
             sp_digit inf = (sp_digit)(p->infinity & q->infinity);
 
@@ -61120,6 +61148,7 @@ static void sp_384_proj_point_add_qz1_6(sp_point_384* r,
     sp_digit* t6 = t + 4*6;
     sp_digit* t1 = t + 6*6;
     sp_digit* t4 = t + 8*6;
+    volatile int dbl;
     sp_digit* t5 = t + 10*6;
 
     /* Calculate values to subtract from P->x and P->y. */
@@ -61130,9 +61159,13 @@ static void sp_384_proj_point_add_qz1_6(sp_point_384* r,
     /* S2 = Y2*Z1^3 */
     sp_384_mont_mul_6(t4, t4, q->y, p384_mod, p384_mp_mod);
 
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_384_cmp_equal_6(p->x, t2) &
-            sp_384_cmp_equal_6(p->y, t4)) {
+            sp_384_cmp_equal_6(p->y, t4));
+    if (dbl) {
         sp_384_proj_point_dbl_6(r, p, t);
     }
     else {
@@ -61161,8 +61194,14 @@ static void sp_384_proj_point_add_qz1_6(sp_point_384* r,
         sp_384_mont_sub_6(y, t3, t1, p384_mod);
         {
             int i;
-            sp_digit maskp = (sp_digit)(0 - (q->infinity & (!p->infinity)));
-            sp_digit maskq = (sp_digit)(0 - (p->infinity & (!q->infinity)));
+            /* Masks are read back through volatiles so the compiler cannot
+             * turn the selection into branches on the infinity flags. */
+            volatile sp_digit vmaskp = (sp_digit)0 -
+                (sp_digit)(q->infinity & (!p->infinity));
+            volatile sp_digit vmaskq = (sp_digit)0 -
+                (sp_digit)(p->infinity & (!q->infinity));
+            sp_digit maskp = vmaskp;
+            sp_digit maskq = vmaskq;
             sp_digit maskt = ~(maskp | maskq);
             sp_digit inf = (sp_digit)(p->infinity & q->infinity);
 
@@ -88887,6 +88926,7 @@ static void sp_521_proj_point_add_9(sp_point_521* r,
     sp_digit* t3 = t + 6*9;
     sp_digit* t4 = t + 8*9;
     sp_digit* t5 = t + 10*9;
+    volatile int dbl;
 
     /* U1 = X1*Z2^2 */
     sp_521_mont_sqr_9(t1, q->z, p521_mod, p521_mp_mod);
@@ -88901,10 +88941,13 @@ static void sp_521_proj_point_add_9(sp_point_521* r,
     /* S2 = Y2*Z1^3 */
     sp_521_mont_mul_9(t4, t4, q->y, p521_mod, p521_mp_mod);
 
-    /* Check double */
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_521_cmp_equal_9(t2, t1) &
-            sp_521_cmp_equal_9(t4, t3)) {
+            sp_521_cmp_equal_9(t4, t3));
+    if (dbl) {
         sp_521_proj_point_dbl_9(r, p, t);
     }
     else {
@@ -88934,8 +88977,14 @@ static void sp_521_proj_point_add_9(sp_point_521* r,
         sp_521_mont_sub_9(y, y, t5, p521_mod);
         {
             int i;
-            sp_digit maskp = (sp_digit)(0 - (q->infinity & (!p->infinity)));
-            sp_digit maskq = (sp_digit)(0 - (p->infinity & (!q->infinity)));
+            /* Masks are read back through volatiles so the compiler cannot
+             * turn the selection into branches on the infinity flags. */
+            volatile sp_digit vmaskp = (sp_digit)0 -
+                (sp_digit)(q->infinity & (!p->infinity));
+            volatile sp_digit vmaskq = (sp_digit)0 -
+                (sp_digit)(p->infinity & (!q->infinity));
+            sp_digit maskp = vmaskp;
+            sp_digit maskq = vmaskq;
             sp_digit maskt = ~(maskp | maskq);
             sp_digit inf = (sp_digit)(p->infinity & q->infinity);
 
@@ -89422,6 +89471,7 @@ static void sp_521_proj_point_add_qz1_9(sp_point_521* r,
     sp_digit* t6 = t + 4*9;
     sp_digit* t1 = t + 6*9;
     sp_digit* t4 = t + 8*9;
+    volatile int dbl;
     sp_digit* t5 = t + 10*9;
 
     /* Calculate values to subtract from P->x and P->y. */
@@ -89432,9 +89482,13 @@ static void sp_521_proj_point_add_qz1_9(sp_point_521* r,
     /* S2 = Y2*Z1^3 */
     sp_521_mont_mul_9(t4, t4, q->y, p521_mod, p521_mp_mod);
 
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_521_cmp_equal_9(p->x, t2) &
-            sp_521_cmp_equal_9(p->y, t4)) {
+            sp_521_cmp_equal_9(p->y, t4));
+    if (dbl) {
         sp_521_proj_point_dbl_9(r, p, t);
     }
     else {
@@ -89463,8 +89517,14 @@ static void sp_521_proj_point_add_qz1_9(sp_point_521* r,
         sp_521_mont_sub_9(y, t3, t1, p521_mod);
         {
             int i;
-            sp_digit maskp = (sp_digit)(0 - (q->infinity & (!p->infinity)));
-            sp_digit maskq = (sp_digit)(0 - (p->infinity & (!q->infinity)));
+            /* Masks are read back through volatiles so the compiler cannot
+             * turn the selection into branches on the infinity flags. */
+            volatile sp_digit vmaskp = (sp_digit)0 -
+                (sp_digit)(q->infinity & (!p->infinity));
+            volatile sp_digit vmaskq = (sp_digit)0 -
+                (sp_digit)(p->infinity & (!q->infinity));
+            sp_digit maskp = vmaskp;
+            sp_digit maskq = vmaskq;
             sp_digit maskt = ~(maskp | maskq);
             sp_digit inf = (sp_digit)(p->infinity & q->infinity);
 
@@ -130408,15 +130468,18 @@ SP_NOINLINE static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
     sp_digit* zero = z1 + 8;
     sp_digit u;
     sp_digit mask;
-    sp_digit* p1;
-    sp_digit* p2;
+    int i;
 
     XMEMSET(zero, 0, sizeof(sp_digit) * 8);
 
+    /* a1 = |a_lo - a_hi|: negate (invert and add one) when the subtraction
+     * borrowed. Operands are fixed so memory accesses don't depend on the
+     * sign. */
     mask = sp_1024_sub_8(a1, a, &a[8]);
-    p1 = (sp_digit*)(((sp_digit)zero &   mask ) | ((sp_digit)a1 & (~mask)));
-    p2 = (sp_digit*)(((sp_digit)zero & (~mask)) | ((sp_digit)a1 &   mask ));
-    (void)sp_1024_sub_8(a1, p1, p2);
+    for (i = 0; i < 8; i++) {
+        a1[i] ^= mask;
+    }
+    sp_1024_add_word_8(a1, a1, mask & 1);
 
     sp_1024_sqr_8(z2, &a[8]);
     sp_1024_sqr_8(z0, a);
@@ -130575,7 +130638,8 @@ static const sp_digit p1024_norm_mod[16] = {
 };
 /* The Montgomery multiplier for modulus of the curve P1024. */
 static sp_digit p1024_mp_mod = 0x290420077c8f2f3d;
-#if defined(WOLFSSL_SP_SMALL) || defined(HAVE_ECC_CHECK_KEY)
+#if defined(WOLFSSL_SP_SMALL) || defined(HAVE_ECC_CHECK_KEY) || \
+    !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 /* The order of the curve P1024. */
 static const sp_digit p1024_order[16] = {
     0xd99b601ebfaa17fbL,0x203177c42b1eb3a1L,0xff38fa08e2615f6cL,
@@ -132873,6 +132937,7 @@ static void sp_1024_proj_point_add_16(sp_point_1024* r,
     sp_digit* t3 = t + 6*16;
     sp_digit* t4 = t + 8*16;
     sp_digit* t5 = t + 10*16;
+    volatile int dbl;
 
     /* U1 = X1*Z2^2 */
     sp_1024_mont_sqr_16(t1, q->z, p1024_mod, p1024_mp_mod);
@@ -132887,10 +132952,13 @@ static void sp_1024_proj_point_add_16(sp_point_1024* r,
     /* S2 = Y2*Z1^3 */
     sp_1024_mont_mul_16(t4, t4, q->y, p1024_mod, p1024_mp_mod);
 
-    /* Check double */
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_1024_cmp_equal_16(t2, t1) &
-            sp_1024_cmp_equal_16(t4, t3)) {
+            sp_1024_cmp_equal_16(t4, t3));
+    if (dbl) {
         sp_1024_proj_point_dbl_16(r, p, t);
     }
     else {
@@ -132920,8 +132988,14 @@ static void sp_1024_proj_point_add_16(sp_point_1024* r,
         sp_1024_mont_sub_16(y, y, t5, p1024_mod);
         {
             int i;
-            sp_digit maskp = (sp_digit)(0 - (q->infinity & (!p->infinity)));
-            sp_digit maskq = (sp_digit)(0 - (p->infinity & (!q->infinity)));
+            /* Masks are read back through volatiles so the compiler cannot
+             * turn the selection into branches on the infinity flags. */
+            volatile sp_digit vmaskp = (sp_digit)0 -
+                (sp_digit)(q->infinity & (!p->infinity));
+            volatile sp_digit vmaskq = (sp_digit)0 -
+                (sp_digit)(p->infinity & (!q->infinity));
+            sp_digit maskp = vmaskp;
+            sp_digit maskq = vmaskq;
             sp_digit maskt = ~(maskp | maskq);
             sp_digit inf = (sp_digit)(p->infinity & q->infinity);
 
@@ -133158,6 +133232,169 @@ static void sp_1024_ecc_recode_7_16(const sp_digit* k, ecc_recode_1024* v)
     }
 }
 
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible point that could be being copied.
+ *
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+SP_NOINLINE static void sp_1024_get_point_65_16(sp_point_1024* r,
+    const sp_point_1024* table, int idx)
+{
+    int i;
+    sp_digit mask;
+    sp_digit x0 = 0;
+    sp_digit x1 = 0;
+    sp_digit x2 = 0;
+    sp_digit x3 = 0;
+    sp_digit x4 = 0;
+    sp_digit x5 = 0;
+    sp_digit x6 = 0;
+    sp_digit x7 = 0;
+    sp_digit x8 = 0;
+    sp_digit x9 = 0;
+    sp_digit x10 = 0;
+    sp_digit x11 = 0;
+    sp_digit x12 = 0;
+    sp_digit x13 = 0;
+    sp_digit x14 = 0;
+    sp_digit x15 = 0;
+    sp_digit y0 = 0;
+    sp_digit y1 = 0;
+    sp_digit y2 = 0;
+    sp_digit y3 = 0;
+    sp_digit y4 = 0;
+    sp_digit y5 = 0;
+    sp_digit y6 = 0;
+    sp_digit y7 = 0;
+    sp_digit y8 = 0;
+    sp_digit y9 = 0;
+    sp_digit y10 = 0;
+    sp_digit y11 = 0;
+    sp_digit y12 = 0;
+    sp_digit y13 = 0;
+    sp_digit y14 = 0;
+    sp_digit y15 = 0;
+    sp_digit z0 = 0;
+    sp_digit z1 = 0;
+    sp_digit z2 = 0;
+    sp_digit z3 = 0;
+    sp_digit z4 = 0;
+    sp_digit z5 = 0;
+    sp_digit z6 = 0;
+    sp_digit z7 = 0;
+    sp_digit z8 = 0;
+    sp_digit z9 = 0;
+    sp_digit z10 = 0;
+    sp_digit z11 = 0;
+    sp_digit z12 = 0;
+    sp_digit z13 = 0;
+    sp_digit z14 = 0;
+    sp_digit z15 = 0;
+
+    for (i = 1; i < 65; i++) {
+        mask = 0 - (i == idx);
+        x0 |= mask & table[i].x[0];
+        x1 |= mask & table[i].x[1];
+        x2 |= mask & table[i].x[2];
+        x3 |= mask & table[i].x[3];
+        x4 |= mask & table[i].x[4];
+        x5 |= mask & table[i].x[5];
+        x6 |= mask & table[i].x[6];
+        x7 |= mask & table[i].x[7];
+        x8 |= mask & table[i].x[8];
+        x9 |= mask & table[i].x[9];
+        x10 |= mask & table[i].x[10];
+        x11 |= mask & table[i].x[11];
+        x12 |= mask & table[i].x[12];
+        x13 |= mask & table[i].x[13];
+        x14 |= mask & table[i].x[14];
+        x15 |= mask & table[i].x[15];
+        y0 |= mask & table[i].y[0];
+        y1 |= mask & table[i].y[1];
+        y2 |= mask & table[i].y[2];
+        y3 |= mask & table[i].y[3];
+        y4 |= mask & table[i].y[4];
+        y5 |= mask & table[i].y[5];
+        y6 |= mask & table[i].y[6];
+        y7 |= mask & table[i].y[7];
+        y8 |= mask & table[i].y[8];
+        y9 |= mask & table[i].y[9];
+        y10 |= mask & table[i].y[10];
+        y11 |= mask & table[i].y[11];
+        y12 |= mask & table[i].y[12];
+        y13 |= mask & table[i].y[13];
+        y14 |= mask & table[i].y[14];
+        y15 |= mask & table[i].y[15];
+        z0 |= mask & table[i].z[0];
+        z1 |= mask & table[i].z[1];
+        z2 |= mask & table[i].z[2];
+        z3 |= mask & table[i].z[3];
+        z4 |= mask & table[i].z[4];
+        z5 |= mask & table[i].z[5];
+        z6 |= mask & table[i].z[6];
+        z7 |= mask & table[i].z[7];
+        z8 |= mask & table[i].z[8];
+        z9 |= mask & table[i].z[9];
+        z10 |= mask & table[i].z[10];
+        z11 |= mask & table[i].z[11];
+        z12 |= mask & table[i].z[12];
+        z13 |= mask & table[i].z[13];
+        z14 |= mask & table[i].z[14];
+        z15 |= mask & table[i].z[15];
+    }
+
+    r->x[0] = x0;
+    r->x[1] = x1;
+    r->x[2] = x2;
+    r->x[3] = x3;
+    r->x[4] = x4;
+    r->x[5] = x5;
+    r->x[6] = x6;
+    r->x[7] = x7;
+    r->x[8] = x8;
+    r->x[9] = x9;
+    r->x[10] = x10;
+    r->x[11] = x11;
+    r->x[12] = x12;
+    r->x[13] = x13;
+    r->x[14] = x14;
+    r->x[15] = x15;
+    r->y[0] = y0;
+    r->y[1] = y1;
+    r->y[2] = y2;
+    r->y[3] = y3;
+    r->y[4] = y4;
+    r->y[5] = y5;
+    r->y[6] = y6;
+    r->y[7] = y7;
+    r->y[8] = y8;
+    r->y[9] = y9;
+    r->y[10] = y10;
+    r->y[11] = y11;
+    r->y[12] = y12;
+    r->y[13] = y13;
+    r->y[14] = y14;
+    r->y[15] = y15;
+    r->z[0] = z0;
+    r->z[1] = z1;
+    r->z[2] = z2;
+    r->z[3] = z3;
+    r->z[4] = z4;
+    r->z[5] = z5;
+    r->z[6] = z6;
+    r->z[7] = z7;
+    r->z[8] = z8;
+    r->z[9] = z9;
+    r->z[10] = z10;
+    r->z[11] = z11;
+    r->z[12] = z12;
+    r->z[13] = z13;
+    r->z[14] = z14;
+    r->z[15] = z15;
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -133265,10 +133502,28 @@ static int sp_1024_ecc_mulmod_win_add_sub_16(sp_point_1024* r, const sp_point_10
         sp_1024_ecc_recode_7_16(k, v);
 
         i = 146;
-        XMEMCPY(rt, &t[v[i].i], sizeof(sp_point_1024));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_1024_get_point_65_16(rt, t, v[i].i);
+            rt->infinity = !v[i].i;
+        }
+        else
+    #endif
+        {
+            XMEMCPY(rt, &t[v[i].i], sizeof(sp_point_1024));
+        }
         for (--i; i>=0; i--) {
             sp_1024_proj_point_dbl_n_16(rt, 7, tmp);
-            XMEMCPY(p, &t[v[i].i], sizeof(sp_point_1024));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_1024_get_point_65_16(p, t, v[i].i);
+                p->infinity = !v[i].i;
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p, &t[v[i].i], sizeof(sp_point_1024));
+            }
             sp_1024_mont_sub_16(negy, p1024_mod, p->y, p1024_mod);
             sp_1024_norm_16(negy);
             sp_1024_cond_copy_16(p->y, negy, (sp_digit)0 - v[i].neg);
@@ -133314,6 +133569,7 @@ static void sp_1024_proj_point_add_qz1_16(sp_point_1024* r,
     sp_digit* t6 = t + 4*16;
     sp_digit* t1 = t + 6*16;
     sp_digit* t4 = t + 8*16;
+    volatile int dbl;
     sp_digit* t5 = t + 10*16;
 
     /* Calculate values to subtract from P->x and P->y. */
@@ -133324,9 +133580,13 @@ static void sp_1024_proj_point_add_qz1_16(sp_point_1024* r,
     /* S2 = Y2*Z1^3 */
     sp_1024_mont_mul_16(t4, t4, q->y, p1024_mod, p1024_mp_mod);
 
-    if ((~p->infinity) & (~q->infinity) &
+    /* Check double. Read the condition back through a volatile so the
+     * compiler cannot split it into branches on its parts: the infinity flags
+     * and comparisons depend on the secret scalar (zero window digits). */
+    dbl = (int)((~p->infinity) & (~q->infinity) &
             sp_1024_cmp_equal_16(p->x, t2) &
-            sp_1024_cmp_equal_16(p->y, t4)) {
+            sp_1024_cmp_equal_16(p->y, t4));
+    if (dbl) {
         sp_1024_proj_point_dbl_16(r, p, t);
     }
     else {
@@ -133355,8 +133615,14 @@ static void sp_1024_proj_point_add_qz1_16(sp_point_1024* r,
         sp_1024_mont_sub_16(y, t3, t1, p1024_mod);
         {
             int i;
-            sp_digit maskp = (sp_digit)(0 - (q->infinity & (!p->infinity)));
-            sp_digit maskq = (sp_digit)(0 - (p->infinity & (!q->infinity)));
+            /* Masks are read back through volatiles so the compiler cannot
+             * turn the selection into branches on the infinity flags. */
+            volatile sp_digit vmaskp = (sp_digit)0 -
+                (sp_digit)(q->infinity & (!p->infinity));
+            volatile sp_digit vmaskq = (sp_digit)0 -
+                (sp_digit)(p->infinity & (!q->infinity));
+            sp_digit maskp = vmaskp;
+            sp_digit maskq = vmaskq;
             sp_digit maskt = ~(maskp | maskq);
             sp_digit inf = (sp_digit)(p->infinity & q->infinity);
 
@@ -133479,6 +133745,121 @@ static int sp_1024_gen_stripe_table_16(const sp_point_1024* a,
 }
 
 #endif /* FP_ECC | !WOLFSSL_SP_SMALL */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_1024_get_entry_256_16(sp_point_1024* r,
+    const sp_table_entry_1024* table, int idx)
+{
+    int i;
+    sp_digit mask;
+    sp_digit x0 = 0;
+    sp_digit x1 = 0;
+    sp_digit x2 = 0;
+    sp_digit x3 = 0;
+    sp_digit x4 = 0;
+    sp_digit x5 = 0;
+    sp_digit x6 = 0;
+    sp_digit x7 = 0;
+    sp_digit x8 = 0;
+    sp_digit x9 = 0;
+    sp_digit x10 = 0;
+    sp_digit x11 = 0;
+    sp_digit x12 = 0;
+    sp_digit x13 = 0;
+    sp_digit x14 = 0;
+    sp_digit x15 = 0;
+    sp_digit y0 = 0;
+    sp_digit y1 = 0;
+    sp_digit y2 = 0;
+    sp_digit y3 = 0;
+    sp_digit y4 = 0;
+    sp_digit y5 = 0;
+    sp_digit y6 = 0;
+    sp_digit y7 = 0;
+    sp_digit y8 = 0;
+    sp_digit y9 = 0;
+    sp_digit y10 = 0;
+    sp_digit y11 = 0;
+    sp_digit y12 = 0;
+    sp_digit y13 = 0;
+    sp_digit y14 = 0;
+    sp_digit y15 = 0;
+
+    for (i = 1; i < 256; i++) {
+        mask = 0 - (i == idx);
+        x0 |= mask & table[i].x[0];
+        x1 |= mask & table[i].x[1];
+        x2 |= mask & table[i].x[2];
+        x3 |= mask & table[i].x[3];
+        x4 |= mask & table[i].x[4];
+        x5 |= mask & table[i].x[5];
+        x6 |= mask & table[i].x[6];
+        x7 |= mask & table[i].x[7];
+        x8 |= mask & table[i].x[8];
+        x9 |= mask & table[i].x[9];
+        x10 |= mask & table[i].x[10];
+        x11 |= mask & table[i].x[11];
+        x12 |= mask & table[i].x[12];
+        x13 |= mask & table[i].x[13];
+        x14 |= mask & table[i].x[14];
+        x15 |= mask & table[i].x[15];
+        y0 |= mask & table[i].y[0];
+        y1 |= mask & table[i].y[1];
+        y2 |= mask & table[i].y[2];
+        y3 |= mask & table[i].y[3];
+        y4 |= mask & table[i].y[4];
+        y5 |= mask & table[i].y[5];
+        y6 |= mask & table[i].y[6];
+        y7 |= mask & table[i].y[7];
+        y8 |= mask & table[i].y[8];
+        y9 |= mask & table[i].y[9];
+        y10 |= mask & table[i].y[10];
+        y11 |= mask & table[i].y[11];
+        y12 |= mask & table[i].y[12];
+        y13 |= mask & table[i].y[13];
+        y14 |= mask & table[i].y[14];
+        y15 |= mask & table[i].y[15];
+    }
+
+    r->x[0] = x0;
+    r->x[1] = x1;
+    r->x[2] = x2;
+    r->x[3] = x3;
+    r->x[4] = x4;
+    r->x[5] = x5;
+    r->x[6] = x6;
+    r->x[7] = x7;
+    r->x[8] = x8;
+    r->x[9] = x9;
+    r->x[10] = x10;
+    r->x[11] = x11;
+    r->x[12] = x12;
+    r->x[13] = x13;
+    r->x[14] = x14;
+    r->x[15] = x15;
+    r->y[0] = y0;
+    r->y[1] = y1;
+    r->y[2] = y2;
+    r->y[3] = y3;
+    r->y[4] = y4;
+    r->y[5] = y5;
+    r->y[6] = y6;
+    r->y[7] = y7;
+    r->y[8] = y8;
+    r->y[9] = y9;
+    r->y[10] = y10;
+    r->y[11] = y11;
+    r->y[12] = y12;
+    r->y[13] = y13;
+    r->y[14] = y14;
+    r->y[15] = y15;
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -133531,8 +133912,15 @@ static int sp_1024_ecc_mulmod_stripe_16(sp_point_1024* r, const sp_point_1024* g
             y |= (int)(((k[x / 64] >> (x % 64)) & 1) << j);
             x += 128;
         }
-        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
-        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_1024_get_entry_256_16(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
         rt->infinity = !y;
         for (i=126; i>=0; i--) {
             y = 0;
@@ -133543,8 +133931,16 @@ static int sp_1024_ecc_mulmod_stripe_16(sp_point_1024* r, const sp_point_1024* g
             }
 
             sp_1024_proj_point_dbl_16(rt, rt, t);
-            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
-            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_1024_get_entry_256_16(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
             p->infinity = !y;
             sp_1024_proj_point_add_qz1_16(rt, rt, p, t);
         }
@@ -137337,10 +137733,10 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
 
 #ifndef WOLFSSL_SP_SMALL
             err = sp_1024_ecc_mulmod_stripe_16(point, point,
-                (const sp_table_entry_1024*)table, k, map, 0, heap);
+                (const sp_table_entry_1024*)table, k, map, 1, heap);
 #else
         (void)table;
-        err = sp_1024_ecc_mulmod_16(point, point, k, map, 0, heap);
+        err = sp_1024_ecc_mulmod_16(point, point, k, map, 1, heap);
 #endif
     }
     if (err == MP_OKAY) {
@@ -137412,7 +137808,8 @@ static void sp_1024_proj_sqr_16(sp_digit* px, sp_digit* py, sp_digit* t)
 #ifdef WOLFSSL_SP_SMALL
 /* Perform the modular exponentiation in Fp* for SAKKE.
  *
- * Simple square and multiply when expontent bit is one algorithm.
+ * Square and multiply always algorithm - exponent is secret.
+ * Iterates over all 1024 bits and conditionally copies in the product.
  * Square and multiply performed in Fp*.
  *
  * @param [in]  base  Base. MP integer.
@@ -137432,21 +137829,26 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
     sp_digit* ty;
     sp_digit* b;
     sp_digit* e;
+    sp_digit* ux;
+    sp_digit* uy;
 #else
     sp_digit t[36 * 2 * 16];
     sp_digit tx[2 * 16];
     sp_digit ty[2 * 16];
     sp_digit b[2 * 16];
     sp_digit e[2 * 16];
+    sp_digit ux[2 * 16];
+    sp_digit uy[2 * 16];
 #endif
     sp_digit* r;
+    sp_digit mask;
     int err = MP_OKAY;
-    int bits;
     int i;
+    int j;
 
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 40 * 16 * 2, NULL,
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 42 * 16 * 2, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -137461,10 +137863,11 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         ty = td + 37 * 16 * 2;
         b  = td + 38 * 16 * 2;
         e  = td + 39 * 16 * 2;
+        ux = td + 40 * 16 * 2;
+        uy = td + 41 * 16 * 2;
 #endif
         r = ty;
 
-        bits = mp_count_bits(exp);
         sp_1024_from_mp(b, 16, base);
         sp_1024_from_mp(e, 16, exp);
 
@@ -137473,34 +137876,53 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         err = sp_1024_mod_16(b, b, p1024_mod);
     }
     if (err == MP_OKAY) {
-        XMEMCPY(ty, b, sizeof(sp_digit) * 16);
+        /* Start with the identity: [1, 0] in Montgomery form. */
+        XMEMSET(ty, 0, sizeof(sp_digit) * 16);
 
-        for (i = bits - 2; i >= 0; i--) {
+        for (i = 1023; i >= 0; i--) {
             sp_1024_proj_sqr_16(tx, ty, t);
-            if ((e[i / 64] >> (i % 64)) & 1) {
-                sp_1024_proj_mul_qx1_16(tx, ty, b, t);
+            XMEMCPY(ux, tx, sizeof(sp_digit) * 16);
+            XMEMCPY(uy, ty, sizeof(sp_digit) * 16);
+            sp_1024_proj_mul_qx1_16(ux, uy, b, t);
+            /* Copy in product when exponent bit is set. Read the mask back
+             * through a volatile so the compiler cannot tell it is only ever
+             * 0 or all ones. Knowing that, it may turn the masking into a
+             * branch on the bit, e.g. by unswitching the loop. */
+            {
+                volatile sp_digit vmask = (sp_digit)0 -
+                    ((e[i / 64] >> (i % 64)) & 1);
+                mask = vmask;
+            }
+            for (j = 0; j < 16; j++) {
+                tx[j] ^= (tx[j] ^ ux[j]) & mask;
+                ty[j] ^= (ty[j] ^ uy[j]) & mask;
             }
         }
     }
 
     if (err == MP_OKAY) {
         sp_1024_mont_inv_16(tx, tx, t);
+        sp_1024_mont_mul_16(r, tx, ty, p1024_mod, p1024_mp_mod);
+        XMEMSET(r + 16, 0, sizeof(sp_digit) * 16);
+        sp_1024_mont_reduce_16(r, p1024_mod, p1024_mp_mod);
 
-        XMEMSET(tx + 16, 0, sizeof(sp_digit) * 16);
-        sp_1024_mont_reduce_16(tx, p1024_mod, p1024_mp_mod);
-        XMEMSET(ty + 16, 0, sizeof(sp_digit) * 16);
-        sp_1024_mont_reduce_16(ty, p1024_mod, p1024_mp_mod);
-
-        sp_1024_mul_16(r, tx, ty);
-        err = sp_1024_mod_16(r, r, p1024_mod);
-    }
-    if (err == MP_OKAY) {
         err = sp_1024_to_mp(r, res);
     }
 
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
+    if (td != NULL) {
+        ForceZero(td, sizeof(sp_digit) * 42 * 16 * 2);
+    }
     XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ForceZero(e, sizeof(e));
+    ForceZero(tx, sizeof(tx));
+    ForceZero(ty, sizeof(ty));
+    ForceZero(ux, sizeof(ux));
+    ForceZero(uy, sizeof(uy));
+    ForceZero(b, sizeof(b));
+    ForceZero(t, sizeof(t));
 #endif
     return err;
 }
@@ -139049,6 +139471,38 @@ static const sp_digit sp_1024_g_table[256][16] = {
       0x8e85437dbe9c7e15L },
 };
 
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table for exponentiating g in constant time.
+ *
+ * Every entry is read so the memory accessed doesn't depend on the index.
+ *
+ * @param [out] r    Entry of table. 16 digits.
+ * @param [in]  idx  Index of entry to get.
+ */
+static void sp_1024_get_g_entry_16(sp_digit* r, int idx)
+{
+    int i;
+    int j;
+    sp_digit mask;
+
+    for (j = 0; j < 16; j++) {
+        r[j] = 0;
+    }
+    for (i = 0; i < 256; i++) {
+        sp_digit gte = (sp_digit)((((sp_uint64)i - (sp_uint64)idx) >> 63) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint64)idx - (sp_uint64)i) >> 63) - 1);
+        /* Read the mask back through a volatile so the compiler cannot turn
+         * the masking into a branch on the secret index. */
+        volatile sp_digit vmask = gte & lte;
+
+        mask = vmask;
+        for (j = 0; j < 16; j++) {
+            r[j] |= mask & sp_1024_g_table[i][j];
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
+
 /* Perform the modular exponentiation in Fp* for SAKKE.
  *
  * Base is fixed to be the g parameter - a precomputed table is used.
@@ -139056,6 +139510,7 @@ static const sp_digit sp_1024_g_table[256][16] = {
  * Striping: 128 points at a distance of 8 combined.
  * Total of 256 points in table.
  * Square and multiply performed in Fp*.
+ * Exponent is secret - table entries are retrieved in constant time.
  *
  * @param [in]  base  Base. MP integer.
  * @param [in]  exp   Exponent. MP integer.
@@ -139073,10 +139528,12 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
     sp_digit* t;
     sp_digit* tx;
     sp_digit* ty;
+    sp_digit* b;
 #else
     sp_digit t[36 * 2 * 16];
     sp_digit tx[2 * 16];
     sp_digit ty[2 * 16];
+    sp_digit b[2 * 16];
 #endif
     sp_digit* r = NULL;
     unsigned char e[128];
@@ -139088,7 +139545,7 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
 
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 38 * 16 * 2, NULL,
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 39 * 16 * 2, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -139101,8 +139558,10 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         t  = td;
         tx = td + 36 * 16 * 2;
         ty = td + 37 * 16 * 2;
+        b  = td + 38 * 16 * 2;
 #endif
         r = ty;
+        (void)b;
 
         (void)mp_to_unsigned_bin_len(exp, e, 128);
 
@@ -139115,7 +139574,11 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         y |= (e[32] >> 7) << 5;
         y |= (e[16] >> 7) << 6;
         y |= (e[0] >> 7) << 7;
+    #ifndef WC_NO_CACHE_RESISTANT
+        sp_1024_get_g_entry_16(ty, y);
+    #else
         XMEMCPY(ty, sp_1024_g_table[y], sizeof(sp_digit) * 16);
+    #endif
         for (i = 126; i >= 0; i--) {
             y  =  (e[127 - (i / 8)] >> (i & 0x7)) & 1;
             y |= ((e[111 - (i / 8)] >> (i & 0x7)) & 1) << 1;
@@ -139127,7 +139590,12 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
             y |= ((e[15 - (i / 8)] >> (i & 0x7)) & 1) << 7;
 
             sp_1024_proj_sqr_16(tx, ty, t);
+        #ifndef WC_NO_CACHE_RESISTANT
+            sp_1024_get_g_entry_16(b, y);
+            sp_1024_proj_mul_qx1_16(tx, ty, b, t);
+        #else
             sp_1024_proj_mul_qx1_16(tx, ty, sp_1024_g_table[y], t);
+        #endif
         }
     }
 
@@ -139140,9 +139608,18 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         err = sp_1024_to_mp(r, res);
     }
 
+    ForceZero(e, sizeof(e));
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
+    if (td != NULL) {
+        ForceZero(td, sizeof(sp_digit) * 39 * 16 * 2);
+    }
     XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ForceZero(tx, sizeof(tx));
+    ForceZero(ty, sizeof(ty));
+    ForceZero(b, sizeof(b));
+    ForceZero(t, sizeof(t));
 #endif
     return err;
 }

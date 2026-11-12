@@ -178,8 +178,39 @@ WB_MAYBE_UNUSED static int wb_am_addmod(const mp_int* a, const mp_int* b,
     return ret;
 }
 
+/* Constant time signing adds with mp_addmod_ct() - same forcing modes. */
+WB_MAYBE_UNUSED static int wb_am_addmod_ct(const mp_int* a, const mp_int* b,
+    const mp_int* m, mp_int* r)
+{
+    int mode = WB_AM_OFF;
+    int ret;
+
+    if ((wb_am_mode != WB_AM_OFF) && (r == wb_am_dst)) {
+        mode = wb_am_mode;
+        wb_am_mode = WB_AM_OFF;
+    }
+    if (mode == WB_AM_FAIL) {
+        return MP_VAL;
+    }
+    ret = mp_addmod_ct((mp_int*)a, (mp_int*)b, (mp_int*)m, r);
+    if (ret == 0) {
+        if (mode == WB_AM_ZERO) {
+            mp_zero(r);
+        }
+        else if (mode == WB_AM_COPY_A) {
+            ret = mp_copy((mp_int*)a, r);
+        }
+        else if (mode == WB_AM_COPY_B) {
+            ret = mp_copy((mp_int*)b, r);
+        }
+    }
+    return ret;
+}
+
 #undef  mp_addmod
 #define mp_addmod(a, b, m, r)   wb_am_addmod((a), (b), (m), (r))
+#undef  mp_addmod_ct
+#define mp_addmod_ct(a, b, m, r)   wb_am_addmod_ct((a), (b), (m), (r))
 
 #endif /* WOLFCRYPT_HAVE_ECCSI */
 
@@ -218,6 +249,14 @@ static void wb_eccsi_retry_loops(void)
     byte       hash[WC_MAX_DIGEST_SIZE];
     int        ready = 0;
     int        ret;
+    mp_digit   ctMp = 0;
+#ifdef ECCSI_SIGN_CT
+    mp_int     ctTmp[ECCSI_CT_CNT];
+    mp_int*    ct = ctTmp;
+    int        ctReady = 0;
+#else
+    mp_int*    ct = NULL;
+#endif
 
     XMEMSET(&rng,  0, sizeof(rng));
     XMEMSET(&key,  0, sizeof(key));
@@ -319,11 +358,20 @@ static void wb_eccsi_retry_loops(void)
         wb_fail = 1;
         goto done;
     }
+#ifdef ECCSI_SIGN_CT
+    /* Constant time signing temporaries, as wc_SignEccsiHash() sets up. */
+    if (eccsi_sign_ct_init(&key, ct, &ctMp) != 0) {
+        WB_NOTE("eccsi constant time setup failed; 1934 vectors skipped");
+        wb_fail = 1;
+        goto done;
+    }
+    ctReady = 1;
+#endif
 
     /* (d) all-false single-pass exit. */
     wb_am_mode = WB_AM_OFF;
     ret = eccsi_gen_sig(&key, &rng, WC_HASH_TYPE_SHA256, msg,
-        (word32)sizeof(msg), &r, &s);
+        (word32)sizeof(msg), &r, &s, ctMp, ct);
     if (ret != 0) {
         WB_NOTE("eccsi_gen_sig baseline (1934 all-false) failed");
         wb_fail = 1;
@@ -333,20 +381,22 @@ static void wb_eccsi_retry_loops(void)
     wb_am_dst  = &s;
     wb_am_mode = WB_AM_ZERO;
     ret = eccsi_gen_sig(&key, &rng, WC_HASH_TYPE_SHA256, msg,
-        (word32)sizeof(msg), &r, &s);
+        (word32)sizeof(msg), &r, &s, ctMp, ct);
     wb_am_mode = WB_AM_OFF;
     if (ret != 0) {
         WB_NOTE("eccsi_gen_sig zero-s retry vector failed");
         wb_fail = 1;
     }
 
-    /* (c) mp_cmp(s, he) == MP_EQ on pass 1, retry, then normal exit.
+    /* (c) s == he on pass 1, retry, then normal exit.
      * Operand a of the 1931 mp_addmod IS he (== &key->tmp), which
-     * eccsi_gen_sig() reloads from the digest on every iteration. */
+     * eccsi_gen_sig() reloads from the digest on every iteration. With
+     * constant time signing, operand a of the mp_addmod_ct() is he mod q and
+     * s is compared with it without an early exit. */
     wb_am_dst  = &s;
     wb_am_mode = WB_AM_COPY_A;
     ret = eccsi_gen_sig(&key, &rng, WC_HASH_TYPE_SHA256, msg,
-        (word32)sizeof(msg), &r, &s);
+        (word32)sizeof(msg), &r, &s, ctMp, ct);
     wb_am_mode = WB_AM_OFF;
     if (ret != 0) {
         WB_NOTE("eccsi_gen_sig s==he retry vector failed");
@@ -357,7 +407,7 @@ static void wb_eccsi_retry_loops(void)
     wb_am_dst  = &s;
     wb_am_mode = WB_AM_FAIL;
     (void)eccsi_gen_sig(&key, &rng, WC_HASH_TYPE_SHA256, msg,
-        (word32)sizeof(msg), &r, &s);
+        (word32)sizeof(msg), &r, &s, ctMp, ct);
     wb_am_mode = WB_AM_OFF;
 
     WB_NOTE("eccsi_gen_sig 1934 retry-loop pairs exercised");
@@ -365,6 +415,13 @@ static void wb_eccsi_retry_loops(void)
 done:
     wb_am_mode = WB_AM_OFF;
     wb_am_dst  = NULL;
+#ifdef ECCSI_SIGN_CT
+    if (ctReady) {
+        eccsi_sign_ct_free(ct);
+    }
+#endif
+    (void)ctMp;
+    (void)ct;
     mp_free(&s);
     mp_free(&r);
     mp_forcezero(&ssk);
