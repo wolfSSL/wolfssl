@@ -111,6 +111,9 @@ This library provides single precision (SP) integer math functions.
  * WC_NO_HARDEN:                Disable timing attack resistance
  * WC_NO_CACHE_RESISTANT:       Disable cache-resistant (constant-address)
  *      operations
+ * WC_NO_MODEXP_TIMING_RESISTANT: Disable hardening of generic modular
+ *      exponentiation against co-resident timing/cache observers (constant
+ *      time Montgomery reduction, fixed length working values)
  * WC_NO_RNG:                   No RNG available, disables functions needing
  *      random numbers
  * WC_PROTECT_ENCRYPTED_MEM:    Enable protection of encrypted memory
@@ -5196,6 +5199,7 @@ WOLFSSL_LOCAL int sp_ModExp_4096(const sp_int* base, const sp_int* exp,
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(OPENSSL_ALL)
 static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct);
+static void _sp_mont_red_sub_ct(sp_int* a, const sp_int* m, unsigned int n);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE) || \
@@ -5973,25 +5977,21 @@ int sp_cmp_ct(const sp_int* a, const sp_int* b, unsigned int n)
  */
 static void sp_clamp_ct(sp_int* a)
 {
-    int i;
-    sp_size_t used = a->used;
-    volatile sp_size_t mask = (sp_size_t)-1;
+    unsigned int i;
+    sp_size_t used = 0;
 
-    for (i = (int)a->used - 1; i >= 0; i--) {
-#if ((SP_WORD_SIZE == 64) && \
-     (defined(_WIN64) || !defined(WOLFSSL_UINT128_T_DEFINED))) || \
-    ((SP_WORD_SIZE == 32) && defined(NO_64BIT))
-        sp_int_digit negVal = ~a->dp[i];
-        sp_int_digit minusOne = a->dp[i] - 1;
-        sp_int_digit zeroMask =
-            (sp_int_digit)((sp_int_sdigit)(negVal & minusOne) >>
-                           (SP_WORD_SIZE - 1));
-#else
-        sp_size_t zeroMask =
-            (sp_size_t)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
-#endif
-        mask &= (sp_size_t)zeroMask;
-        used = (sp_size_t)(used + mask);
+    /* Work up from the least significant digit so that every digit always
+     * contributes - no early exit possible and no volatile dependency chain.
+     */
+    for (i = 0; i < (unsigned int)a->used; i++) {
+        sp_int_digit d = a->dp[i];
+        /* All bits set when digit is non-zero: top bit of (d | -d) is set
+         * only when d is non-zero. */
+        sp_size_t nzMask = (sp_size_t)((sp_size_t)0 -
+            (sp_size_t)((sp_int_digit)(d | ((sp_int_digit)0 - d)) >>
+                (SP_WORD_SIZE - 1)));
+        /* When digit is non-zero, used is this digit's index + 1. */
+        used ^= (sp_size_t)((used ^ (sp_size_t)(i + 1)) & nzMask);
     }
     a->used = used;
 }
@@ -8367,10 +8367,7 @@ int sp_addmod_ct(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 }
 #endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)) || \
-    (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-     defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE) || \
-     defined(OPENSSL_ALL))
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 /* Sub b from a modulo m: r = (a - b) % m
  *
  * Result is always positive.
@@ -9185,12 +9182,17 @@ int sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem)
     }
     if ((err == MP_OKAY) && (rem != NULL)) {
         /* Ensure remainder has enough memory. */
+        /* NOLINTBEGIN(clang-analyzer-core.UndefinedBinaryOperatorResult) */
+        /* clang-tidy falsely believes that rem->size was corrupted by the
+         * _sp_copy() to "Copy base into working variable" in _sp_exptmod_ex().
+         */
         if ((a->used <= d->used) && (rem->size < a->used + 1)) {
             err = MP_VAL;
         }
         else if ((a->used > d->used) && (rem->size < d->used + 1)) {
             err = MP_VAL;
         }
+        /* NOLINTEND(clang-analyzer-core.UndefinedBinaryOperatorResult) */
     }
     if (err == MP_OKAY) {
         if (a->used == SP_INT_DIGITS) {
@@ -9404,7 +9406,6 @@ static int _sp_mul_nxn(const sp_int* a, const sp_int* b, sp_int* r)
         r->dp[k] = l;
         XMEMCPY(r->dp, t, a->used * sizeof(sp_int_digit));
         r->used = (sp_size_t)(k + 1);
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9479,7 +9480,6 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
         t[k] = l;
         r->used = (sp_size_t)(k + 1);
         XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9560,7 +9560,6 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
         t[k] = (sp_int_digit)l;
         r->used = (sp_size_t)(k + 1);
         XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9684,7 +9683,6 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
         r->dp[7] = (sp_int_digit)w[0];
 
         r->used = 8;
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9752,7 +9750,6 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
     r->dp[7] = h;
     XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
     r->used = 8;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -9855,7 +9852,6 @@ static int _sp_mul_6(const sp_int* a, const sp_int* b, sp_int* r)
     r->dp[11] = h;
     XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
     r->used = 12;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -10002,7 +9998,6 @@ static int _sp_mul_8(const sp_int* a, const sp_int* b, sp_int* r)
     r->dp[15] = h;
     XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
     r->used = 16;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -10261,7 +10256,6 @@ static int _sp_mul_12(const sp_int* a, const sp_int* b, sp_int* r)
     r->dp[23] = h;
     XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
     r->used = 24;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -10681,7 +10675,6 @@ static int _sp_mul_16(const sp_int* a, const sp_int* b, sp_int* r)
         r->dp[31] = h;
         XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
         r->used = 32;
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -11487,7 +11480,6 @@ static int _sp_mul_24(const sp_int* a, const sp_int* b, sp_int* r)
         r->dp[47] = h;
         XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
         r->used = 48;
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -11522,6 +11514,8 @@ static int _sp_mul_32(const sp_int* a, const sp_int* b, sp_int* r)
     sp_int* z2;
     sp_int_digit ca;
     sp_int_digit cb;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT_ARRAY(t, 16, 2);
     DECL_SP_INT_ARRAY(z, 33, 2);
 
@@ -11585,28 +11579,30 @@ static int _sp_mul_32(const sp_int* a, const sp_int* b, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 16 */
         z1->dp[32] = ca & cb;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+            mt = b1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 16] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                z1->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[32] += l;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - cb;
         l = 0;
-        if (cb) {
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 16] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[32] += l;
         /* z1 = z1 - z0 - z2 */
@@ -11655,7 +11651,6 @@ static int _sp_mul_32(const sp_int* a, const sp_int* b, sp_int* r)
             h = 0;
         }
         r->used = 64;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -11689,6 +11684,8 @@ static int _sp_mul_48(const sp_int* a, const sp_int* b, sp_int* r)
     sp_int* z2;
     sp_int_digit ca;
     sp_int_digit cb;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT_ARRAY(t, 24, 2);
     DECL_SP_INT_ARRAY(z, 49, 2);
 
@@ -11752,28 +11749,30 @@ static int _sp_mul_48(const sp_int* a, const sp_int* b, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 24 */
         z1->dp[48] = ca & cb;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+            mt = b1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 24] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                z1->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[48] += l;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - cb;
         l = 0;
-        if (cb) {
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 24] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[48] += l;
         /* z1 = z1 - z0 - z2 */
@@ -11822,7 +11821,6 @@ static int _sp_mul_48(const sp_int* a, const sp_int* b, sp_int* r)
             h = 0;
         }
         r->used = 96;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -11856,6 +11854,8 @@ static int _sp_mul_64(const sp_int* a, const sp_int* b, sp_int* r)
     sp_int* z2;
     sp_int_digit ca;
     sp_int_digit cb;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT_ARRAY(t, 32, 2);
     DECL_SP_INT_ARRAY(z, 65, 2);
 
@@ -11919,28 +11919,30 @@ static int _sp_mul_64(const sp_int* a, const sp_int* b, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 32 */
         z1->dp[64] = ca & cb;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+            mt = b1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 32] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                z1->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[64] += l;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - cb;
         l = 0;
-        if (cb) {
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 32] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[64] += l;
         /* z1 = z1 - z0 - z2 */
@@ -11989,7 +11991,6 @@ static int _sp_mul_64(const sp_int* a, const sp_int* b, sp_int* r)
             h = 0;
         }
         r->used = 128;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -12023,6 +12024,8 @@ static int _sp_mul_96(const sp_int* a, const sp_int* b, sp_int* r)
     sp_int* z2;
     sp_int_digit ca;
     sp_int_digit cb;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT_ARRAY(t, 48, 2);
     DECL_SP_INT_ARRAY(z, 97, 2);
 
@@ -12086,28 +12089,30 @@ static int _sp_mul_96(const sp_int* a, const sp_int* b, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 48 */
         z1->dp[96] = ca & cb;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+            mt = b1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 48] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                z1->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[96] += l;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - cb;
         l = 0;
-        if (cb) {
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 48] = l;
+            l = h;
             h = 0;
-            for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[96] += l;
         /* z1 = z1 - z0 - z2 */
@@ -12156,7 +12161,6 @@ static int _sp_mul_96(const sp_int* a, const sp_int* b, sp_int* r)
             h = 0;
         }
         r->used = 192;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -12167,6 +12171,125 @@ static int _sp_mul_96(const sp_int* a, const sp_int* b, sp_int* r)
 
 #endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
 #endif /* !WOLFSSL_SP_SMALL */
+
+/* Internal. Multiply a by b and store in r: r = a * b
+ *
+ * Leading zero digits are not removed: r->used is a->used + b->used.
+ * Assumes a, b and r are not NULL and r is big enough for the result.
+ *
+ * @param [in]  a  SP integer to multiply.
+ * @param [in]  b  SP integer to multiply.
+ * @param [out] r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_nc(const sp_int* a, const sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    sp_uint8 sign = a->sign ^ b->sign;
+#endif
+
+    if ((a->used == 0) || (b->used == 0)) {
+        _sp_zero(r);
+    }
+    else
+#ifndef WOLFSSL_SP_SMALL
+#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
+#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
+    if ((a->used == 4) && (b->used == 4)) {
+        err = _sp_mul_4(a, b, r);
+    }
+    else
+#endif /* SP_WORD_SIZE == 64 */
+#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 384)
+#ifdef SQR_MUL_ASM
+    if ((a->used == 6) && (b->used == 6)) {
+        err = _sp_mul_6(a, b, r);
+    }
+    else
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 64 */
+#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 256)
+#ifdef SQR_MUL_ASM
+    if ((a->used == 8) && (b->used == 8)) {
+        err = _sp_mul_8(a, b, r);
+    }
+    else
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 384)
+#ifdef SQR_MUL_ASM
+    if ((a->used == 12) && (b->used == 12)) {
+        err = _sp_mul_12(a, b, r);
+    }
+    else
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+#if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
+    (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
+    (SP_WORD_SIZE == 64)))
+    #if SP_INT_DIGITS >= 32
+    if ((a->used == 16) && (b->used == 16)) {
+        err = _sp_mul_16(a, b, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 32 */
+#endif /* SQR_MUL_ASM && (WOLFSSL_SP_INT_LARGE_COMBA || !WOLFSSL_SP_MATH &&
+        * WOLFCRYPT_HAVE_SAKKE && SP_WORD_SIZE == 64 */
+#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
+    #if SP_INT_DIGITS >= 48
+    if ((a->used == 24) && (b->used == 24)) {
+        err = _sp_mul_24(a, b, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 48 */
+    #if SP_INT_DIGITS >= 64
+    if ((a->used == 32) && (b->used == 32)) {
+        err = _sp_mul_32(a, b, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 64 */
+    #if SP_INT_DIGITS >= 96
+    if ((a->used == 48) && (b->used == 48)) {
+        err = _sp_mul_48(a, b, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 96 */
+    #if SP_INT_DIGITS >= 128
+    if ((a->used == 64) && (b->used == 64)) {
+        err = _sp_mul_64(a, b, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 128 */
+    #if SP_INT_DIGITS >= 192
+    if ((a->used == 96) && (b->used == 96)) {
+        err = _sp_mul_96(a, b, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 192 */
+#endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
+#endif /* !WOLFSSL_SP_SMALL */
+#ifdef SQR_MUL_ASM
+    if (a->used == b->used) {
+        err = _sp_mul_nxn(a, b, r);
+    }
+    else
+#endif
+    {
+        err = _sp_mul(a, b, r);
+    }
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    if (err == MP_OKAY) {
+        r->sign = (r->used == 0) ? MP_ZPOS : sign;
+    }
+#endif
+
+    return err;
+}
 
 /* Multiply a by b and store in r: r = a * b
  *
@@ -12211,98 +12334,11 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
     #ifdef WOLFSSL_SP_INT_NEGATIVE
         sign = a->sign ^ b->sign;
     #endif
-
-        if ((a->used == 0) || (b->used == 0)) {
-            _sp_zero(r);
-        }
-        else
-#ifndef WOLFSSL_SP_SMALL
-#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
-#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
-        if ((a->used == 4) && (b->used == 4)) {
-            err = _sp_mul_4(a, b, r);
-        }
-        else
-#endif /* SP_WORD_SIZE == 64 */
-#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 384)
-#ifdef SQR_MUL_ASM
-        if ((a->used == 6) && (b->used == 6)) {
-            err = _sp_mul_6(a, b, r);
-        }
-        else
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 64 */
-#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 256)
-#ifdef SQR_MUL_ASM
-        if ((a->used == 8) && (b->used == 8)) {
-            err = _sp_mul_8(a, b, r);
-        }
-        else
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 384)
-#ifdef SQR_MUL_ASM
-        if ((a->used == 12) && (b->used == 12)) {
-            err = _sp_mul_12(a, b, r);
-        }
-        else
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
-#if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
-    (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
-    (SP_WORD_SIZE == 64)))
-    #if SP_INT_DIGITS >= 32
-        if ((a->used == 16) && (b->used == 16)) {
-            err = _sp_mul_16(a, b, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 32 */
-#endif /* SQR_MUL_ASM && (WOLFSSL_SP_INT_LARGE_COMBA || !WOLFSSL_SP_MATH &&
-        * WOLFCRYPT_HAVE_SAKKE && SP_WORD_SIZE == 64 */
-#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
-    #if SP_INT_DIGITS >= 48
-        if ((a->used == 24) && (b->used == 24)) {
-            err = _sp_mul_24(a, b, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 48 */
-    #if SP_INT_DIGITS >= 64
-        if ((a->used == 32) && (b->used == 32)) {
-            err = _sp_mul_32(a, b, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 64 */
-    #if SP_INT_DIGITS >= 96
-        if ((a->used == 48) && (b->used == 48)) {
-            err = _sp_mul_48(a, b, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 96 */
-    #if SP_INT_DIGITS >= 128
-        if ((a->used == 64) && (b->used == 64)) {
-            err = _sp_mul_64(a, b, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 128 */
-    #if SP_INT_DIGITS >= 192
-        if ((a->used == 96) && (b->used == 96)) {
-            err = _sp_mul_96(a, b, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 192 */
-#endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
-#endif /* !WOLFSSL_SP_SMALL */
-
-#ifdef SQR_MUL_ASM
-        if (a->used == b->used) {
-            err = _sp_mul_nxn(a, b, r);
-        }
-        else
-#endif
-        {
-            err = _sp_mul(a, b, r);
-        }
+        err = _sp_mul_nc(a, b, r);
+    }
+    if (err == MP_OKAY) {
+        /* Remove leading zeros. */
+        sp_clamp(r);
     }
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -13421,7 +13457,95 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH))) || \
     defined(OPENSSL_ALL)
 #ifndef WC_NO_HARDEN
+/* Harden generic modular exponentiation against attackers that can observe
+ * fine grained timing or caches (e.g. a co-resident process). Montgomery
+ * reductions are constant time and working values are kept at the length of
+ * the modulus so that operation counts don't depend on secret values.
+ * Costs performance; define WC_NO_MODEXP_TIMING_RESISTANT to disable when no
+ * such attacker exists or when the exponentiation input is blinded.
+ */
+#ifndef WC_NO_MODEXP_TIMING_RESISTANT
+/* Internal. Montgomery reduce a in constant time and keep the working length
+ * fixed at the length of the modulus.
+ *
+ * a must be the result of multiplying or squaring values that have used equal
+ * to m->used. All m->used * 2 digits of the product have been written, so the
+ * used count is set to that before reducing - the clamped used count of the
+ * product is value dependent.
+ *
+ * The constant time reduction writes all m->used digits of the result but
+ * clamps the used count. Leaving the used count at the clamped value would
+ * make the following square/multiply/copy operations depend on the number of
+ * leading zero digits of a secret dependent value.
+ *
+ * The result is NOT clamped and must only be used as an intermediate value of
+ * a Montgomery operation.
+ *
+ * @param [in, out] a   SP integer to Montgomery reduce.
+ * @param [in]      m   SP integer that is the modulus.
+ * @param [in]      mp  SP integer digit that is the bottom digit of inv(-m).
+ *
+ * @return  MP_OKAY on success.
+ */
+static int _sp_mont_red_fixed(sp_int* a, const sp_int* m, sp_int_digit mp)
+{
+    int err;
+
+    a->used = (sp_size_t)(m->used * 2);
+    /* Used is not secret - no constant time masking of input needed. */
+    err = _sp_mont_red(a, m, mp, 2);
+    if (err == MP_OKAY) {
+        a->used = m->used;
+    }
+    return err;
+}
+
+/* Internal. Zero pad a value to the length of the modulus in constant time.
+ *
+ * Value must be less than the modulus. Digits at and above used are zeroed so
+ * that the working length can be fixed at the length of the modulus.
+ *
+ * @param [in, out] a  SP integer to pad.
+ * @param [in]      m  SP integer that is the modulus.
+ */
+static void _sp_pad_to_mod(sp_int* a, const sp_int* m)
+{
+    unsigned int i;
+    volatile sp_int_digit mask = (sp_int_digit)-1;
+
+    for (i = 0; i < m->used; i++) {
+        /* Mask becomes zero from used onwards. */
+        mask += (sp_int_digit)(i == a->used);
+        a->dp[i] &= mask;
+    }
+    a->used = m->used;
+}
+
+/* Montgomery reduction during exponentiation - constant time, fixed length. */
+#define SP_EXPTMOD_RED(a, m, mp)        _sp_mont_red_fixed(a, m, mp)
+/* Final Montgomery reduction - constant time and result clamped. */
+#define SP_EXPTMOD_RED_LAST(a, m, mp)   _sp_mont_red(a, m, mp, 1)
+/* Pad non-secret starting value to length of modulus. */
+#define SP_EXPTMOD_PAD(a, m)            _sp_pad_to_mod(a, m)
+/* Multiply and square without removing leading zeros - number of leading zero
+ * digits is value dependent. Result is reduced with SP_EXPTMOD_RED. */
+#define SP_EXPTMOD_MUL(a, b, r)         _sp_mul_nc(a, b, r)
+#if defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_SMALL)
+#define SP_EXPTMOD_SQR(a, r)            _sp_mul_nc(a, a, r)
+#else
+static int _sp_sqr_nc(const sp_int* a, sp_int* r);
+#define SP_EXPTMOD_SQR(a, r)            _sp_sqr_nc(a, r)
+#endif
+#else
+#define SP_EXPTMOD_RED(a, m, mp)        _sp_mont_red(a, m, mp, 0)
+#define SP_EXPTMOD_RED_LAST(a, m, mp)   _sp_mont_red(a, m, mp, 0)
+#define SP_EXPTMOD_PAD(a, m)            WC_DO_NOTHING
+#define SP_EXPTMOD_MUL(a, b, r)         sp_mul(a, b, r)
+#define SP_EXPTMOD_SQR(a, r)            sp_sqr(a, r)
+#endif /* !WC_NO_MODEXP_TIMING_RESISTANT */
+
 #if !defined(WC_NO_CACHE_RESISTANT)
+
 
 #ifndef WC_PROTECT_ENCRYPTED_MEM
 
@@ -13506,6 +13630,9 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
             err = _sp_div(t[0], m, NULL, t[0], t[0]->used + 1U);
         }
         if (err == MP_OKAY) {
+            /* Base is not secret - pad to modulus length so that all working
+             * values have the same length. */
+            SP_EXPTMOD_PAD(t[0], m);
             /* 4. t[1] = t[0]
              *    Set real working value to base.
              */
@@ -13525,9 +13652,9 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
                                ((size_t)t[1] & sp_off_on_addr[s  ])),
                      t[3]);
 #endif
-            err = sp_sqr(t[3], t[3]);
+            err = SP_EXPTMOD_SQR(t[3], t[3]);
             if (err == MP_OKAY) {
-                err = _sp_mont_red(t[3], m, mp, 0);
+                err = SP_EXPTMOD_RED(t[3], m, mp);
             }
 #ifdef WC_NO_PTR_INT_CAST
             _sp_cond_copy(t[3], s^1, t[0], m->used);
@@ -13556,9 +13683,9 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
                                    ((size_t)t[1] & sp_off_on_addr[j  ])),
                          t[3]);
 #endif
-                err = sp_mul(t[3], t[2], t[3]);
+                err = SP_EXPTMOD_MUL(t[3], t[2], t[3]);
                 if (err == MP_OKAY) {
-                    err = _sp_mont_red(t[3], m, mp, 0);
+                    err = SP_EXPTMOD_RED(t[3], m, mp);
                 }
 #ifdef WC_NO_PTR_INT_CAST
                 _sp_cond_copy(t[3], j^1, t[0], m->used);
@@ -13572,7 +13699,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
         }
         if (err == MP_OKAY) {
             /* 7. t[1] = FromMont(t[1]) */
-            err = _sp_mont_red(t[1], m, mp, 0);
+            err = SP_EXPTMOD_RED_LAST(t[1], m, mp);
             /* Reduction implementation returns number to range: 0..m-1. */
         }
     }
@@ -13664,6 +13791,12 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
              */
             err = sp_mulmod(t[1], t[0], m, t[1]);
         }
+        if (err == MP_OKAY) {
+            /* Values are not secret - pad to modulus length so that all
+             * working values have the same length. */
+            SP_EXPTMOD_PAD(t[0], m);
+            SP_EXPTMOD_PAD(t[1], m);
+        }
 
         /* 4. For i in (bits-1)...0 */
         for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
@@ -13671,9 +13804,9 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
             int y = (e->dp[i >> SP_WORD_SHIFT] >> (i & SP_WORD_MASK)) & 1;
 
             /* 4.2. t[2] = t[0] * t[1] */
-            err = sp_mul(t[0], t[1], t[2]);
+            err = SP_EXPTMOD_MUL(t[0], t[1], t[2]);
             if (err == MP_OKAY) {
-                err = _sp_mont_red(t[2], m, mp, 0);
+                err = SP_EXPTMOD_RED(t[2], m, mp);
             }
             /* 4.3. t[3] = t[y] ^ 2 */
             if (err == MP_OKAY) {
@@ -13685,10 +13818,10 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
                                    ((size_t)t[1] & sp_off_on_addr[y  ])),
                          t[3]);
 #endif
-                err = sp_sqr(t[3], t[3]);
+                err = SP_EXPTMOD_SQR(t[3], t[3]);
             }
             if (err == MP_OKAY) {
-                err = _sp_mont_red(t[3], m, mp, 0);
+                err = SP_EXPTMOD_RED(t[3], m, mp);
             }
             /* 4.4. t[y] = t[3], t[y^1] = t[2] */
             if (err == MP_OKAY) {
@@ -13698,7 +13831,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
 
         if (err == MP_OKAY) {
             /* 5. t[0] = FromMont(t[0]) */
-            err = _sp_mont_red(t[0], m, mp, 0);
+            err = SP_EXPTMOD_RED_LAST(t[0], m, mp);
             /* Reduction implementation returns number to range: 0..m-1. */
         }
     }
@@ -13837,20 +13970,26 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
             /* t[1] = t[1] mod m, temporary size has to be bigger than t[1]. */
             err = _sp_div(t[1], m, NULL, t[1], t[1]->used + 1);
         }
+        if (err == MP_OKAY) {
+            /* Values are not secret - pad to modulus length so that all
+             * working values have the same length. */
+            SP_EXPTMOD_PAD(t[0], m);
+            SP_EXPTMOD_PAD(t[1], m);
+        }
 
         /* 4. For i in 2..(2 ^ w) - 1 */
         for (i = 2; (i < preCnt) && (err == MP_OKAY); i++) {
             /* 4.1 if i[0] == 0 then t[i] = t[i/2] ^ 2 */
             if ((i & 1) == 0) {
-                err = sp_sqr(t[i/2], t[i]);
+                err = SP_EXPTMOD_SQR(t[i/2], t[i]);
             }
             /* 4.2 if i[0] == 1 then t[i] = t[i-1] * t[1] */
             else {
-                err = sp_mul(t[i-1], t[1], t[i]);
+                err = SP_EXPTMOD_MUL(t[i-1], t[1], t[i]);
             }
             /* Montgomery reduce square or multiplication result. */
             if (err == MP_OKAY) {
-                err = _sp_mont_red(t[i], m, mp, 0);
+                err = SP_EXPTMOD_RED(t[i], m, mp);
             }
         }
 
@@ -13909,25 +14048,25 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
 
                 /* 7.2. tr = tr ^ (2 ^ w) */
                 for (j = 0; (j < winBits) && (err == MP_OKAY); j++) {
-                    err = sp_sqr(tr, tr);
+                    err = SP_EXPTMOD_SQR(tr, tr);
                     if (err == MP_OKAY) {
-                        err = _sp_mont_red(tr, m, mp, 0);
+                        err = SP_EXPTMOD_RED(tr, m, mp);
                     }
                 }
 
                 /* 7.3. tr = tr * t[y] */
                 if (err == MP_OKAY) {
-                    err = sp_mul(tr, t[y], tr);
+                    err = SP_EXPTMOD_MUL(tr, t[y], tr);
                 }
                 if (err == MP_OKAY) {
-                    err = _sp_mont_red(tr, m, mp, 0);
+                    err = SP_EXPTMOD_RED(tr, m, mp);
                 }
             }
         }
 
         if (err == MP_OKAY) {
             /* 8. tr = FromMont(tr) */
-            err = _sp_mont_red(tr, m, mp, 0);
+            err = SP_EXPTMOD_RED_LAST(tr, m, mp);
             /* Reduction implementation returns number to range: 0..m-1. */
         }
     }
@@ -13962,6 +14101,129 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
 #endif
 /* Mask is all bits in window set. */
 #define EXP2_MASK           ((1 << EXP2_WINSIZE) - 1)
+
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_MODEXP_TIMING_RESISTANT)
+/* Internal. Double a modulo m in constant time: r = (2 * a) mod m
+ *
+ * a must be less than m and have used equal to m->used.
+ * r has used set to m->used and is NOT clamped.
+ *
+ * @param [in]  a  SP integer to double.
+ * @param [in]  m  SP integer that is the modulus.
+ * @param [out] r  SP integer to hold result. Must not be m.
+ */
+static void _sp_dbl_mod_ct(const sp_int* a, const sp_int* m, sp_int* r)
+{
+    unsigned int i;
+    sp_int_digit c = 0;
+
+    /* r = a << 1 - into m->used + 1 digits. */
+    for (i = 0; i < m->used; i++) {
+        sp_int_digit v = a->dp[i];
+        r->dp[i] = (v << 1) | c;
+        c = v >> (SP_WORD_SIZE - 1);
+    }
+    r->dp[i] = c;
+    /* r = r mod m - result is less than m as r < 2m.
+     * All m->used digits are set - keep working length fixed. */
+    _sp_mont_red_sub_ct(r, m, m->used);
+}
+
+/* Internal. Exponentiates 2 to the power of e modulo m into r: r = 2 ^ e mod m
+ * Process the exponent one bit at a time with result in Montgomery form.
+ * Multiplication by 2 is a modular doubling and is always calculated.
+ * Is constant time and cache attack resistant.
+ *
+ * Modulus must be odd and have more than one digit.
+ *
+ * Algorithm:
+ *  e: exponent, m: modulus, r: result, bits: #bits to use
+ *  1. tr = MontNorm(m) = ToMont(1)
+ *  2. For i in (bits-1)...0
+ *   2.1. tr = tr ^ 2
+ *   2.2. t = (2 * tr) mod m
+ *   2.3. y = e[i]
+ *   2.4. if y == 1 then tr = t (constant time)
+ *  3. tr = FromMont(tr)
+ *  4. r = tr
+ *
+ * @param [in]  e     SP integer that is the exponent.
+ * @param [in]  bits  Number of bits in exponent to use. May be greater than
+ *                    count of bits in e.
+ * @param [in]  m     SP integer that is the modulus.
+ * @param [out] r     SP integer to hold result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_exptmod_base_2_ct(const sp_int* e, int bits, const sp_int* m,
+    sp_int* r)
+{
+    int i;
+    int err = MP_OKAY;
+    sp_int_digit mp = 0;
+    sp_int* tr = NULL;
+    sp_int* t = NULL;
+    DECL_SP_INT_ARRAY(d, m->used * 2 + 1, 2);
+
+    /* Allocate sp_ints for:
+     *  - temporary result
+     *  - doubled result
+     */
+    ALLOC_SP_INT_ARRAY(d, m->used * 2U + 1U, 2, err, NULL);
+    if (err == MP_OKAY) {
+        tr = d[0];
+        t  = d[1];
+        _sp_init_size(tr, (sp_size_t)(m->used * 2 + 1));
+        _sp_init_size(t , (sp_size_t)(m->used * 2 + 1));
+
+        /* Calculate Montgomery multiplier for reduction. */
+        _sp_mont_setup(m, &mp);
+        /* 1. tr = MontNorm(m) = ToMont(1) */
+        err = sp_mont_norm(tr, m);
+    }
+    if (err == MP_OKAY) {
+        /* Not secret - pad to modulus length to fix working length. */
+        _sp_pad_to_mod(tr, m);
+    }
+
+    /* 2. For i in (bits-1)...0 */
+    for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
+        unsigned int j;
+        volatile sp_int_digit mask;
+
+        /* 2.1. tr = tr ^ 2 */
+        err = SP_EXPTMOD_SQR(tr, tr);
+        if (err == MP_OKAY) {
+            err = _sp_mont_red_fixed(tr, m, mp);
+        }
+        if (err == MP_OKAY) {
+            /* 2.2. t = (2 * tr) mod m */
+            _sp_dbl_mod_ct(tr, m, t);
+            /* 2.3. y = e[i] */
+            mask = (sp_int_digit)0 - ((e->dp[i >> SP_WORD_SHIFT] >>
+                (i & (int)SP_WORD_MASK)) & 1);
+            /* 2.4. if y == 1 then tr = t (constant time) */
+            for (j = 0; j < m->used; j++) {
+                tr->dp[j] ^= (tr->dp[j] ^ t->dp[j]) & mask;
+            }
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* 3. tr = FromMont(tr) */
+        err = _sp_mont_red(tr, m, mp, 1);
+        /* Reduction implementation returns number to range: 0..m-1. */
+    }
+    if (err == MP_OKAY) {
+        /* 4. r = tr */
+        _sp_copy(tr, r);
+    }
+
+    FREE_SP_INT_ARRAY(d, NULL);
+    return err;
+}
+#endif /* !WC_NO_HARDEN && !WC_NO_MODEXP_TIMING_RESISTANT */
 
 /* Internal. Exponentiates 2 to the power of e modulo m into r: r = 2 ^ e mod m
  * Is constant time and cache attack resistant.
@@ -14209,7 +14471,10 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
     int done = 0;
     int mBits = sp_count_bits(m);
     int bBits = sp_count_bits(b);
-    int eBits = sp_count_bits(e);
+    /* Exponent may be secret - don't count bits of the top digit.
+     * Bit count rounded up to a whole number of digits is equivalent when
+     * comparing against sizes that are a multiple of the digit size. */
+    int eBits = (e == NULL) ? 0 : (int)e->used * SP_WORD_SIZE;
 
     if ((b == NULL) || (e == NULL) || (m == NULL) || (r == NULL) ||
              (digits < 0)) {
@@ -14327,8 +14592,17 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_ALL)
     if ((!done) && (err == MP_OKAY) && (b->used == 1) && (b->dp[0] == 2) &&
          mp_isodd(m)) {
-        /* Use the generic base 2 implementation. */
-        err = _sp_exptmod_base_2(e, digits, m, r);
+    #if !defined(WC_NO_HARDEN) && !defined(WC_NO_MODEXP_TIMING_RESISTANT)
+        if (m->used > 1) {
+            /* Use constant time base 2 implementation. */
+            err = _sp_exptmod_base_2_ct(e, digits * SP_WORD_SIZE, m, r);
+        }
+        else
+    #endif
+        {
+            /* Use the generic base 2 implementation. */
+            err = _sp_exptmod_base_2(e, digits, m, r);
+        }
     }
     else if ((!done) && (err == MP_OKAY) && ((m->used > 1) && mp_isodd(m))) {
     #ifndef WC_NO_HARDEN
@@ -15222,7 +15496,6 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
 
     if (err == MP_OKAY) {
         r->used = (sp_size_t)(a->used * 2U);
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -15326,7 +15599,6 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
         t[k] = (sp_int_digit)l;
         r->used = (sp_size_t)(k + 1);
         XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -15438,7 +15710,6 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
         r->dp[7] = (sp_int_digit)w[0];
 
         r->used = 8;
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -15499,7 +15770,6 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
     r->dp[7] = h;
     XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
     r->used = 8;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -15594,7 +15864,6 @@ static int _sp_sqr_6(const sp_int* a, sp_int* r)
     r->dp[11] = h;
     XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
     r->used = 12;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -15724,7 +15993,6 @@ static int _sp_sqr_8(const sp_int* a, sp_int* r)
     r->dp[15] = h;
     XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
     r->used = 16;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -15936,7 +16204,6 @@ static int _sp_sqr_12(const sp_int* a, sp_int* r)
     r->dp[23] = h;
     XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
     r->used = 24;
-    sp_clamp(r);
 
     return MP_OKAY;
 }
@@ -16263,7 +16530,6 @@ static int _sp_sqr_16(const sp_int* a, sp_int* r)
         r->dp[31] = h;
         XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
         r->used = 32;
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -16836,7 +17102,6 @@ static int _sp_sqr_24(const sp_int* a, sp_int* r)
         r->dp[47] = h;
         XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
         r->used = 48;
-        sp_clamp(r);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -16867,6 +17132,8 @@ static int _sp_sqr_32(const sp_int* a, sp_int* r)
     sp_int* z1;
     sp_int* z2;
     sp_int_digit ca;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT(a1, 16);
     DECL_SP_INT_ARRAY(z, 33, 2);
 
@@ -16907,23 +17174,18 @@ static int _sp_sqr_32(const sp_int* a, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 16 */
         z1->dp[32] = ca;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
-            l = z1->dp[0 + 16];
-            h = 0;
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            z1->dp[0 + 16] = l;
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 16] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 16; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[32] += l;
         /* z1 = z1 - z0 - z2 */
@@ -16978,7 +17240,6 @@ static int _sp_sqr_32(const sp_int* a, sp_int* r)
             h = 0;
         }
         r->used = 64;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -17008,6 +17269,8 @@ static int _sp_sqr_48(const sp_int* a, sp_int* r)
     sp_int* z1;
     sp_int* z2;
     sp_int_digit ca;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT(a1, 24);
     DECL_SP_INT_ARRAY(z, 49, 2);
 
@@ -17048,23 +17311,18 @@ static int _sp_sqr_48(const sp_int* a, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 24 */
         z1->dp[48] = ca;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
-            l = z1->dp[0 + 24];
-            h = 0;
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            z1->dp[0 + 24] = l;
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 24] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 24; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[48] += l;
         /* z1 = z1 - z0 - z2 */
@@ -17119,7 +17377,6 @@ static int _sp_sqr_48(const sp_int* a, sp_int* r)
             h = 0;
         }
         r->used = 96;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -17149,6 +17406,8 @@ static int _sp_sqr_64(const sp_int* a, sp_int* r)
     sp_int* z1;
     sp_int* z2;
     sp_int_digit ca;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT(a1, 32);
     DECL_SP_INT_ARRAY(z, 65, 2);
 
@@ -17189,23 +17448,18 @@ static int _sp_sqr_64(const sp_int* a, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 32 */
         z1->dp[64] = ca;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
-            l = z1->dp[0 + 32];
-            h = 0;
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            z1->dp[0 + 32] = l;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 32] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 32; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[64] += l;
         /* z1 = z1 - z0 - z2 */
@@ -17260,7 +17514,6 @@ static int _sp_sqr_64(const sp_int* a, sp_int* r)
             h = 0;
         }
         r->used = 128;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -17290,6 +17543,8 @@ static int _sp_sqr_96(const sp_int* a, sp_int* r)
     sp_int* z1;
     sp_int* z2;
     sp_int_digit ca;
+    sp_int_digit m;
+    sp_int_digit mt;
     DECL_SP_INT(a1, 48);
     DECL_SP_INT_ARRAY(z, 97, 2);
 
@@ -17330,23 +17585,18 @@ static int _sp_sqr_96(const sp_int* a, sp_int* r)
         /* r = z0 */
         /* r += (z1 - z0 - z2) << 48 */
         z1->dp[96] = ca;
+        /* Constant time: always add, masked by carry. */
+        m = (sp_int_digit)0 - ca;
         l = 0;
-        if (ca) {
-            l = z1->dp[0 + 48];
-            h = 0;
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            SP_ASM_ADDC(l, h, a1->dp[0]);
-            z1->dp[0 + 48] = l;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+            mt = a1->dp[i] & m;
+            SP_ASM_ADDC_REG(l, h, mt);
+            SP_ASM_ADDC_REG(l, h, mt);
+            z1->dp[i + 48] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 48; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                z1->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
         }
         z1->dp[96] += l;
         /* z1 = z1 - z0 - z2 */
@@ -17401,7 +17651,6 @@ static int _sp_sqr_96(const sp_int* a, sp_int* r)
             h = 0;
         }
         r->used = 192;
-        sp_clamp(r);
     }
 
     FREE_SP_INT_ARRAY(z, NULL);
@@ -17412,6 +17661,120 @@ static int _sp_sqr_96(const sp_int* a, sp_int* r)
 
 #endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
 #endif /* !WOLFSSL_SP_SMALL */
+
+#if defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_SMALL)
+/* Internal. Square a and store in r without removing leading zeros. */
+#define _sp_sqr_nc(a, r)    _sp_mul_nc(a, a, r)
+#else
+/* Internal. Square a and store in r. r = a * a
+ *
+ * Leading zero digits are not removed: r->used is a->used * 2.
+ * Assumes a and r are not NULL and r is big enough for the result.
+ *
+ * @param [in]  a  SP integer to square.
+ * @param [out] r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_nc(const sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+
+    if (a->used == 0) {
+        _sp_zero(r);
+    }
+    else
+#ifndef WOLFSSL_SP_SMALL
+#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
+#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
+    if (a->used == 4) {
+        err = _sp_sqr_4(a, r);
+    }
+    else
+#endif /* SP_WORD_SIZE == 64 */
+#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 384)
+#ifdef SQR_MUL_ASM
+    if (a->used == 6) {
+        err = _sp_sqr_6(a, r);
+    }
+    else
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 64 */
+#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 256)
+#ifdef SQR_MUL_ASM
+    if (a->used == 8) {
+        err = _sp_sqr_8(a, r);
+    }
+    else
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 384)
+#ifdef SQR_MUL_ASM
+    if (a->used == 12) {
+        err = _sp_sqr_12(a, r);
+    }
+    else
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+#if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
+    (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
+    (SP_WORD_SIZE == 64)))
+    #if SP_INT_DIGITS >= 32
+    if (a->used == 16) {
+        err = _sp_sqr_16(a, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 32 */
+#endif /* SQR_MUL_ASM && (WOLFSSL_SP_INT_LARGE_COMBA || !WOLFSSL_SP_MATH &&
+        * WOLFCRYPT_HAVE_SAKKE && SP_WORD_SIZE == 64 */
+#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
+    #if SP_INT_DIGITS >= 48
+    if (a->used == 24) {
+        err = _sp_sqr_24(a, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 48 */
+    #if SP_INT_DIGITS >= 64
+    if (a->used == 32) {
+        err = _sp_sqr_32(a, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 64 */
+    #if SP_INT_DIGITS >= 96
+    if (a->used == 48) {
+        err = _sp_sqr_48(a, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 96 */
+    #if SP_INT_DIGITS >= 128
+    if (a->used == 64) {
+        err = _sp_sqr_64(a, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 128 */
+    #if SP_INT_DIGITS >= 192
+    if (a->used == 96) {
+        err = _sp_sqr_96(a, r);
+    }
+    else
+    #endif /* SP_INT_DIGITS >= 192 */
+#endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
+#endif /* !WOLFSSL_SP_SMALL */
+    {
+        err = _sp_sqr(a, r);
+    }
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    if (err == MP_OKAY) {
+        r->sign = MP_ZPOS;
+    }
+#endif
+
+    return err;
+}
+#endif /* WOLFSSL_SP_MATH && WOLFSSL_SP_SMALL */
 
 /* Square a and store in r. r = a * a
  *
@@ -17445,90 +17808,11 @@ int sp_sqr(const sp_int* a, sp_int* r)
 #endif
 
     if (err == MP_OKAY) {
-        if (a->used == 0) {
-            _sp_zero(r);
-        }
-    else
-#ifndef WOLFSSL_SP_SMALL
-#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
-#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 256)
-        if (a->used == 4) {
-            err = _sp_sqr_4(a, r);
-        }
-        else
-#endif /* SP_WORD_SIZE == 64 */
-#if (SP_WORD_SIZE == 64 && SP_INT_BITS >= 384)
-#ifdef SQR_MUL_ASM
-        if (a->used == 6) {
-            err = _sp_sqr_6(a, r);
-        }
-        else
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 64 */
-#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 256)
-#ifdef SQR_MUL_ASM
-        if (a->used == 8) {
-            err = _sp_sqr_8(a, r);
-        }
-        else
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#if (SP_WORD_SIZE == 32 && SP_INT_BITS >= 384)
-#ifdef SQR_MUL_ASM
-        if (a->used == 12) {
-            err = _sp_sqr_12(a, r);
-        }
-        else
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
-#if defined(SQR_MUL_ASM) && (defined(WOLFSSL_SP_INT_LARGE_COMBA) || \
-    (!defined(WOLFSSL_SP_MATH) && defined(WOLFCRYPT_HAVE_SAKKE) && \
-    (SP_WORD_SIZE == 64)))
-    #if SP_INT_DIGITS >= 32
-        if (a->used == 16) {
-            err = _sp_sqr_16(a, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 32 */
-#endif /* SQR_MUL_ASM && (WOLFSSL_SP_INT_LARGE_COMBA || !WOLFSSL_SP_MATH &&
-        * WOLFCRYPT_HAVE_SAKKE && SP_WORD_SIZE == 64 */
-#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
-    #if SP_INT_DIGITS >= 48
-        if (a->used == 24) {
-            err = _sp_sqr_24(a, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 48 */
-    #if SP_INT_DIGITS >= 64
-        if (a->used == 32) {
-            err = _sp_sqr_32(a, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 64 */
-    #if SP_INT_DIGITS >= 96
-        if (a->used == 48) {
-            err = _sp_sqr_48(a, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 96 */
-    #if SP_INT_DIGITS >= 128
-        if (a->used == 64) {
-            err = _sp_sqr_64(a, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 128 */
-    #if SP_INT_DIGITS >= 192
-        if (a->used == 96) {
-            err = _sp_sqr_96(a, r);
-        }
-        else
-    #endif /* SP_INT_DIGITS >= 192 */
-#endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
-#endif /* !WOLFSSL_SP_SMALL */
-        {
-            err = _sp_sqr(a, r);
-        }
+        err = _sp_sqr_nc(a, r);
+    }
+    if (err == MP_OKAY) {
+        /* Remove leading zeros. */
+        sp_clamp(r);
     }
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -17657,6 +17941,74 @@ int sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r)
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE) || \
     defined(OPENSSL_ALL)
+/* Final subtraction of Montgomery reduction in constant time: a = a mod m
+ *
+ * a is in n digits with the carry in digit n and is less than 2 * m.
+ * Always subtracts m and adds m back when the result is negative.
+ * Sets used to n - caller clamps.
+ *
+ * @param [in, out] a  SP integer reduced in Montgomery form.
+ * @param [in]      m  SP integer that is the modulus.
+ * @param [in]      n  Number of digits in modulus.
+ */
+static void _sp_mont_red_sub_ct(sp_int* a, const sp_int* m, unsigned int n)
+{
+    unsigned int i;
+    volatile sp_int_digit vmask;
+    sp_int_digit mask;
+#ifndef SQR_MUL_ASM
+    sp_int_sword w = 0;
+
+    /* a = a - m */
+    for (i = 0; i < n; i++) {
+        w += a->dp[i];
+        w -= m->dp[i];
+        a->dp[i] = (sp_int_digit)w;
+        w >>= SP_WORD_SIZE;
+    }
+    /* Add in carry digit: all bits set when a < m, otherwise zero. */
+    w += a->dp[n];
+    vmask = (sp_int_digit)w;
+    mask = vmask;
+    /* a = a + (m & mask) */
+    w = 0;
+    for (i = 0; i < n; i++) {
+        w += a->dp[i];
+        w += m->dp[i] & mask;
+        a->dp[i] = (sp_int_digit)w;
+        w >>= SP_WORD_SIZE;
+    }
+#else
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit t;
+
+    /* a = a - m, borrow sign extended into high word. */
+    for (i = 0; i < n; i++) {
+        SP_ASM_ADDC(l, h, a->dp[i]);
+        SP_ASM_SUBB(l, h, m->dp[i]);
+        a->dp[i] = l;
+        l = h;
+        h = (sp_int_digit)0 - (l >> (SP_WORD_SIZE - 1));
+    }
+    /* Add in carry digit: all bits set when a < m, otherwise zero. */
+    SP_ASM_ADDC(l, h, a->dp[n]);
+    vmask = l;
+    mask = vmask;
+    /* a = a + (m & mask) */
+    l = 0;
+    for (i = 0; i < n; i++) {
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[i]);
+        t = m->dp[i] & mask;
+        SP_ASM_ADDC_REG(l, h, t);
+        a->dp[i] = l;
+        l = h;
+    }
+#endif
+    a->used = (sp_size_t)n;
+}
+
 /* Reduce a number in Montgomery form.
  *
  * Assumes a and m are not NULL and m is not 0.
@@ -17679,6 +18031,9 @@ int sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r)
  * @param [in]      m   SP integer that is the modulus.
  * @param [in]      mp  SP integer digit that is the bottom digit of inv(-m).
  * @param [in]      ct  Indicates operation must be constant time.
+ *                      1: constant time.
+ *                      2: constant time, used of a is not secret - a is
+ *                         m->used * 2 digits with all digits set.
  *
  * @return  MP_OKAY on success.
  */
@@ -17700,7 +18055,7 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
 
     /* Adding numbers into m->used * 2 digits - zero out unused digits. */
 #ifndef WOLFSSL_NO_CT_OPS
-    if (ct) {
+    if (ct == 1) {
         for (i = 0; i < (unsigned int)m->used * 2; i++) {
             a->dp[i] &= (sp_int_digit)
                 (sp_int_sdigit)ctMaskIntGTE((int)a->used - 1, (int)i);
@@ -17795,13 +18150,10 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     else {
         /* 3. a >>= NumBits(m) */
         (void)sp_rshb(a, bits, a);
+        /* 4. a = a mod m */
+        _sp_mont_red_sub_ct(a, m, m->used);
         /* Constant time clamping. */
         sp_clamp_ct(a);
-
-        /* 4. a = a mod m
-         * Always subtract but at a too high offset if a is less than m.
-         */
-        _sp_submod_ct(a, m, m, m->used + 1U, a);
     }
 
 
@@ -17827,7 +18179,7 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     mask = ((sp_int_digit)1 << (bits & (SP_WORD_SIZE - 1))) - 1;
 
 #ifndef WOLFSSL_NO_CT_OPS
-    if (ct) {
+    if (ct == 1) {
         for (i = 0; i < (unsigned int)m->used * 2; i++) {
             a->dp[i] &= (sp_int_digit)
                 (sp_int_sdigit)ctMaskIntGTE((int)a->used - 1, (int)i);
@@ -17907,12 +18259,19 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
         a->dp[4] = o2;
         a->used = 5;
 
-        /* Remove leading zeros. */
-        sp_clamp(a);
-
-        /* a = a mod m */
-        if (_sp_cmp_abs(a, m) != MP_LT) {
-            _sp_sub_off(a, m, a, 0);
+        if (ct) {
+            /* a = a mod m - constant time */
+            _sp_mont_red_sub_ct(a, m, 4);
+            /* Remove leading zeros. */
+            sp_clamp_ct(a);
+        }
+        else {
+            /* Remove leading zeros. */
+            sp_clamp(a);
+            /* a = a mod m */
+            if (_sp_cmp_abs(a, m) != MP_LT) {
+                _sp_sub_off(a, m, a, 0);
+            }
         }
 
         return MP_OKAY;
@@ -17972,12 +18331,19 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
         a->dp[6] = o2;
         a->used = 7;
 
-        /* Remove leading zeros. */
-        sp_clamp(a);
-
-        /* a = a mod m */
-        if (_sp_cmp_abs(a, m) != MP_LT) {
-            _sp_sub_off(a, m, a, 0);
+        if (ct) {
+            /* a = a mod m - constant time */
+            _sp_mont_red_sub_ct(a, m, 6);
+            /* Remove leading zeros. */
+            sp_clamp_ct(a);
+        }
+        else {
+            /* Remove leading zeros. */
+            sp_clamp(a);
+            /* a = a mod m */
+            if (_sp_cmp_abs(a, m) != MP_LT) {
+                _sp_sub_off(a, m, a, 0);
+            }
         }
 
         return MP_OKAY;
@@ -18036,12 +18402,19 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
         a->dp[m->used] = o2;
         a->used = m->used + 1;
 
-        /* Remove leading zeros. */
-        sp_clamp(a);
-
-        /* a = a mod m */
-        if (_sp_cmp_abs(a, m) != MP_LT) {
-            _sp_sub_off(a, m, a, 0);
+        if (ct) {
+            /* a = a mod m - constant time */
+            _sp_mont_red_sub_ct(a, m, m->used);
+            /* Remove leading zeros. */
+            sp_clamp_ct(a);
+        }
+        else {
+            /* Remove leading zeros. */
+            sp_clamp(a);
+            /* a = a mod m */
+            if (_sp_cmp_abs(a, m) != MP_LT) {
+                _sp_sub_off(a, m, a, 0);
+            }
         }
 
         return MP_OKAY;
@@ -18122,10 +18495,10 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     }
     else {
         (void)sp_rshb(a, bits, a);
+        /* a = a mod m */
+        _sp_mont_red_sub_ct(a, m, m->used);
         /* Constant time clamping. */
         sp_clamp_ct(a);
-
-        _sp_submod_ct(a, m, m, m->used + 1U, a);
     }
 
 #if 0
@@ -18167,8 +18540,10 @@ int sp_mont_red_ex(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
         err = MP_VAL;
     }
     else {
-        /* Perform Montgomery Reduction. */
-        err = _sp_mont_red(a, m, mp, ct);
+        /* Perform Montgomery Reduction.
+         * Map public ct to 0/1 - internal mode 2 (fixed width) is only for
+         * _sp_mont_red_fixed(). */
+        err = _sp_mont_red(a, m, mp, (ct != 0) ? 1 : 0);
     }
 
     return err;
