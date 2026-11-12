@@ -270,6 +270,7 @@ static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm);
                                          const void *key,
                                          unsigned int keylen);
     static unsigned int km_pkcs1_key_size(struct crypto_sig *tfm);
+    static unsigned int km_pkcs1_digest_size(struct crypto_sig *tfm);
     static int          km_pkcs1_sign(struct crypto_sig *tfm,
                                       const void *src, unsigned int slen,
                                       void *dst, unsigned int dlen);
@@ -280,6 +281,8 @@ static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm);
 #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 /* misc */
     static int          get_hash_enc_len(int hash_oid);
+    static int          km_pkcs1_check_digest_len(const struct km_rsa_ctx * ctx,
+                                                  unsigned int digest_len);
 
 #if defined(LINUXKM_DIRECT_RSA)
 static struct akcipher_alg direct_rsa = {
@@ -456,6 +459,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha224_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -473,6 +477,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha256_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -490,6 +495,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha384_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -507,6 +513,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha512_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -524,6 +531,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha3_256_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -539,6 +547,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha3_384_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -554,6 +563,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha3_512_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -1138,13 +1148,64 @@ static int km_pkcs1_sha3_512_init(struct tfm_type *tfm)
 }
 #endif /* WOLFSSL_SHA3 */
 
+/*
+ * Argument validation common to the pkcs1 sign and verify callbacks, in
+ * both the akcipher and sig_alg editions: the tfm must be keyed,
+ * digest_len must be exactly the digest length of the tfm's hash, and
+ * the encoded, minimally padded digest must fit in the key.
+ *
+ * The callbacks encode the digest in place with wc_EncodeSignature(), and
+ * nothing above them holds the caller to the hash's digest length (the
+ * kernel bounds e.g. a KEYCTL_PKEY_SIGN request only by the size the
+ * driver advertises), so the exact match is required on every path.
+ *
+ * Returns 0 on success, -EINVAL or -EOVERFLOW on error.
+ */
+static int km_pkcs1_check_digest_len(const struct km_rsa_ctx * ctx,
+                                     unsigned int digest_len)
+{
+    int hash_enc_len = 0;
+
+    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
+        /* invalid key state */
+        return -EINVAL;
+    }
+
+    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
+    if (hash_enc_len <= 0) {
+        #ifdef WOLFKM_DEBUG_RSA
+        pr_err("error: %s: bad hash enc len %d\n",
+               WOLFKM_RSA_DRIVER, hash_enc_len);
+        #endif /* WOLFKM_DEBUG_RSA */
+        return -EINVAL;
+    }
+
+    if (digest_len != ctx->digest_len) {
+        #ifdef WOLFKM_DEBUG_RSA
+        pr_err("error: %s: got digest_len %u, expected %u\n",
+               WOLFKM_RSA_DRIVER, digest_len, ctx->digest_len);
+        #endif /* WOLFKM_DEBUG_RSA */
+        return -EINVAL;
+    }
+
+    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA
+     * key. */
+    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ >
+        ctx->key_len)
+    {
+        return -EOVERFLOW;
+    }
+
+    return 0;
+}
+
 #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
 /*
  * Generates a pkcs1 encoded signature.
  *
  * src:
  *   - req->src scatterlist is the digest to be encoded, padded, and signed.
- *   - req->src_len + encoding + min padding must be <= key_size.
+ *   - req->src_len must be the correct digest len.
  *
  * dst:
  *   - req->dst scatterlist is destination signature.
@@ -1161,7 +1222,6 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
     int                      err = 0;
     int                      sig_len = 0;
     int                      enc_len = 0;
-    int                      hash_enc_len = 0;
     byte *                   msg = NULL;
     byte *                   sig = NULL;
     byte *                   work_buffer = NULL;
@@ -1174,22 +1234,9 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, req->src_len);
+    if (err)
         goto pkcs1pad_sign_out;
-    }
-
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        err = -EINVAL;
-        goto pkcs1pad_sign_out;
-    }
-
-    if ((word64)req->src_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
-        goto pkcs1pad_sign_out;
-    }
 
     if (req->dst_len < ctx->key_len) {
         err = -EOVERFLOW;
@@ -1278,7 +1325,6 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     int                      dec_len = 0;
     word32                   msg_len = 0;
     int                      enc_msg_len = 0;
-    int                      hash_enc_len = 0;
     int                      n_diff = 0;
     byte *                   sig = NULL;
     byte *                   msg = NULL;
@@ -1295,35 +1341,13 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     msg_len = req->dst_len;
     sig_len = req->src_len;
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, msg_len);
+    if (err)
         goto pkcs1pad_verify_out;
-    }
 
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: bad hash enc len %d\n",
-               WOLFKM_RSA_DRIVER, hash_enc_len);
-        #endif /* WOLFKM_DEBUG_RSA */
+    if (sig_len != ctx->key_len) {
+        /* invalid src args */
         err = -EINVAL;
-        goto pkcs1pad_verify_out;
-    }
-
-    if (msg_len != ctx->digest_len || sig_len != ctx->key_len) {
-        /* invalid src or dst args */
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: got msg_len %d, expected %d\n",
-               WOLFKM_RSA_DRIVER, msg_len, ctx->digest_len);
-        #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
-        goto pkcs1pad_verify_out;
-    }
-
-    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA key. */
-    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
         goto pkcs1pad_verify_out;
     }
 
@@ -1409,12 +1433,24 @@ static unsigned int km_pkcs1_key_size(struct crypto_sig *tfm)
     #endif /* linux >= 6.15.3 */
 }
 
+/* Returns the digest size in bytes.  The kernel uses it to bound the data
+ * it will pass to km_pkcs1_sign() (see software_key_query()); without it,
+ * the sig core substitutes the key size. */
+static unsigned int km_pkcs1_digest_size(struct crypto_sig *tfm)
+{
+    struct km_rsa_ctx * ctx = NULL;
+
+    ctx = crypto_sig_ctx(tfm);
+
+    return ctx->digest_len;
+}
+
 /*
  * Generates a pkcs1 encoded signature.
  *
  * src:
  *   - src contains the digest to be encoded, padded, and signed.
- *   - slen + encoding + min padding must be <= key_size.
+ *   - slen must be the correct digest len.
  *
  * dst:
  *   - dst is destination signature buffer.
@@ -1435,7 +1471,6 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
     int                      err = 0;
     int                      sig_len = 0;
     int                      enc_msg_len = 0;
-    int                      hash_enc_len = 0;
     byte *                   msg = NULL;
     byte *                   sig = dst; /* reuse dst buffer. we will check
                                          * if it is large enough. */
@@ -1447,22 +1482,9 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
 
     ctx = crypto_sig_ctx(tfm);
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, slen);
+    if (err)
         goto pkcs1_sign_out;
-    }
-
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        err = -EINVAL;
-        goto pkcs1_sign_out;
-    }
-
-    if ((word64)slen + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
-        goto pkcs1_sign_out;
-    }
 
     if (dlen < ctx->key_len) {
         err = -EOVERFLOW;
@@ -1556,7 +1578,6 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
     int                      dec_len = 0;
     word32                   msg_len = 0;
     int                      enc_msg_len = 0;
-    int                      hash_enc_len = 0;
     int                      n_diff = 0;
     byte *                   enc_digest = NULL;
     byte *                   msg = NULL;
@@ -1572,35 +1593,13 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
     msg_len = dlen;
     sig_len = slen;
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, msg_len);
+    if (err)
         goto pkcs1_verify_out;
-    }
 
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: bad hash enc len %d\n",
-               WOLFKM_RSA_DRIVER, hash_enc_len);
-        #endif /* WOLFKM_DEBUG_RSA */
+    if (sig_len != ctx->key_len) {
+        /* invalid src args */
         err = -EINVAL;
-        goto pkcs1_verify_out;
-    }
-
-    if (msg_len != ctx->digest_len || sig_len != ctx->key_len) {
-        /* invalid src or dst args */
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: got msg_len %d, expected %d\n",
-               WOLFKM_RSA_DRIVER, msg_len, ctx->digest_len);
-        #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
-        goto pkcs1_verify_out;
-    }
-
-    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA key. */
-    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
         goto pkcs1_verify_out;
     }
 
@@ -2859,6 +2858,18 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
+    /* a digest length not matching the hash must be rejected, with nothing
+     * written to dst.  sig serves as a long enough source. */
+    sg_init_one(&src, sig, hash_len + 1);
+    akcipher_request_set_crypt(req, &src, &dst, hash_len + 1, key_len);
+    ret = crypto_akcipher_sign(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_sign (oversize digest) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+
     /* now set pub key for verify test. */
     ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24);
     if (ret) {
@@ -3367,8 +3378,10 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     {
         /* The behavior of crypto_sig_Xsize (X= max, key, digest) changed
          * at linux kernel v6.15.3:
-         *   <  6.15.3: all three should return the same value (in bytes).
-         *   >= 6.15.3: keysize is in bits, maxsize and digestsize in bytes. */
+         *   <  6.15.3: maxsize and keysize should return the same value (in
+         *              bytes).
+         *   >= 6.15.3: keysize is in bits, maxsize in bytes.
+         * digestsize is the hash's digest size in bytes throughout. */
         unsigned int maxsize = crypto_sig_maxsize(tfm);
         unsigned int keysize = crypto_sig_keysize(tfm);
         unsigned int digestsize = crypto_sig_digestsize(tfm);
@@ -3385,13 +3398,24 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
 
         if ((int)maxsize != key_len ||
             (int)keysize != key_len ||
-            (int)digestsize != key_len) {
+            digestsize != hash_len) {
             pr_err("error: crypto_sig_{max, key, digest}size "
-                   "returned {%d, %d, %d}, expected %d\n",
-                    maxsize, keysize, digestsize, key_len);
+                   "returned {%d, %d, %d}, expected {%d, %d, %d}\n",
+                    maxsize, keysize, digestsize, key_len, key_len,
+                    (int)hash_len);
             test_rc = BAD_FUNC_ARG;
             goto test_pkcs1_end;
         }
+    }
+
+    /* a digest length not matching the hash must be rejected.  sig serves as a
+     * long enough source. */
+    ret = crypto_sig_sign(tfm, sig, hash_len + 1, km_sig, key_len);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_sign (oversize digest) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
     }
 
     ret = crypto_sig_sign(tfm, hash, hash_len, km_sig, key_len);
