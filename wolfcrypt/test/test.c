@@ -50606,7 +50606,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !NO_SHA256 */
 
 #ifndef NO_SHA
-#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
     /* SP 800-56C Rev. 2 Section 4 approves the HKDF auxiliary function only
      * with an approved hash and the module's key-derivation coverage is
      * SHA-256/384/512, so the generic wrappers refuse SHA-1 (see
@@ -50650,7 +50651,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* FIPS_VERSION3_GE(7,0,0) && !FIPS_NO_WRAPPERS */
+#endif /* FIPS_VERSION3_GE(7,0,0) && WC_HAVE_FIPS_INDICATOR &&
+        * !FIPS_NO_WRAPPERS */
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
