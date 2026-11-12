@@ -49,6 +49,9 @@
  *    multiplies with the sign word of a limb as an operand.
  * Enable with WOLFSSL_CORTEX_A55, WOLFSSL_CORTEX_A53 or directly with
  * WOLFSSL_CURVE25519_FIXED_LATENCY_MUL.
+ * On AArch64 the 32-bit limb form is always used: a generic AArch64 binary
+ * may run on a Cortex-A55/A53 without the build knowing the target CPU. The
+ * 128-bit form is already the default (CURVED25519_128BIT_FOLDED).
  */
 #if (defined(WOLFSSL_CORTEX_A55) || defined(WOLFSSL_CORTEX_A53)) && \
     !defined(WOLFSSL_CURVE25519_FIXED_LATENCY_MUL)
@@ -66,7 +69,7 @@
     #define CURVED25519_128BIT_FOLDED
 #endif
 
-#ifdef WOLFSSL_CURVE25519_FIXED_LATENCY_MUL
+#if defined(WOLFSSL_CURVE25519_FIXED_LATENCY_MUL) || defined(__aarch64__)
     #define FE_MUL32_SMALL(c, v)    ((sword32)((word32)(c) * (word32)(v)))
 #else
     #define FE_MUL32_SMALL(c, v)    ((c) * (v))
