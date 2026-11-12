@@ -794,38 +794,38 @@ static void wb_degenerate_points(void)
         wb_fail = 1;
         goto out;
     }
-    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
+    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp, 0);
 
     /* Q = -P: x and z equal, y differs -> the general add gives Z == 0 */
     (void)mp_sub(&prime, P->y, Q->y);
-    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
+    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp, 0);
 
     /* Q->z == 0: the digit-count operand FALSE with x still equal */
     (void)wc_ecc_copy_point(P, Q);
     (void)mp_set(Q->z, 0);
-    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
+    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp, 0);
 
     /* Q->z differs (non-zero): the z comparison FALSE */
     (void)mp_set(Q->z, 2);
-    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
+    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp, 0);
 
     /* Q->x differs: the first operand FALSE */
     (void)wc_ecc_copy_point(P, Q);
     (void)mp_set(Q->x, 3);
-    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
+    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp, 0);
 
     /* y differs and Q is not -P either: the last operand FALSE */
     (void)wc_ecc_copy_point(P, Q);
     (void)mp_set(Q->y, 5);
-    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp);
+    (void)_ecc_projective_add_point(P, Q, R, &a, &prime, mp, 0);
 
     /* curve coefficient zero -> "modulus - a is zero" TRUE in the doubling
      * formula's coefficient selection; the real a gives the FALSE row. */
-    (void)_ecc_projective_dbl_point(P, R, &zero, &prime, mp);
-    (void)_ecc_projective_dbl_point(P, R, &a, &prime, mp);
+    (void)_ecc_projective_dbl_point(P, R, &zero, &prime, mp, 0);
+    (void)_ecc_projective_dbl_point(P, R, &a, &prime, mp, 0);
     for (n = 1; n <= 10; n++) {
         mcdc_fm_arm(n);
-        (void)_ecc_projective_dbl_point(P, R, &zero, &prime, mp);
+        (void)_ecc_projective_dbl_point(P, R, &zero, &prime, mp, 0);
         mcdc_fm_disarm();
     }
 

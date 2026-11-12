@@ -555,6 +555,9 @@ int fp_cmp(fp_int *a, fp_int *b);
 /* unsigned comparison */
 int fp_cmp_mag(fp_int *a, fp_int *b);
 
+/* unsigned comparison of n digits in constant time */
+int fp_cmp_ct(const fp_int *a, const fp_int *b, int n);
+
 /* power of 2 operations */
 void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
 void fp_mod_2d(fp_int *a, int b, fp_int *c);
@@ -651,6 +654,11 @@ int fp_montgomery_calc_normalization(fp_int *a, fp_int *b);
 /* computes x/R == x (mod N) via Montgomery Reduction */
 int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct);
+#ifdef HAVE_ECC
+/* r = a * b / R mod m - Montgomery multiplication in constant time */
+WOLFSSL_LOCAL int fp_mont_mul_ct(fp_int* a, fp_int* b, fp_int* m, fp_digit mp,
+    fp_int* r);
+#endif
 
 /* d = a**b (mod c) */
 int fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
@@ -853,7 +861,7 @@ MP_API int  mp_2expt(mp_int* a, int b);
 MP_API int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 
 MP_API int  mp_cmp(const mp_int *a, const mp_int *b);
-#define mp_cmp_ct(a, b, n) mp_cmp(a, b)
+MP_API int  mp_cmp_ct(const mp_int *a, const mp_int *b, int n);
 MP_API int  mp_cmp_d(mp_int *a, mp_digit b);
 
 MP_API int  mp_unsigned_bin_size(const mp_int * a);
@@ -889,6 +897,9 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 
 #define mp_montgomery_reduce_ct(a, m, mp) \
     mp_montgomery_reduce_ex(a, m, mp, 1)
+#ifdef HAVE_ECC
+#define mp_mont_mul_ct(a, b, m, mp, r)  fp_mont_mul_ct(a, b, m, mp, r)
+#endif
 MP_API int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 MP_API int mp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct);
 MP_API int mp_montgomery_setup(fp_int *a, fp_digit *rho);
