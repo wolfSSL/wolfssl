@@ -13409,6 +13409,26 @@ ProtocolVersion MakeDTLSv1_3(void)
      */
 #endif /* !NO_ASN_TIME */
 
+#ifndef NO_ASN_TIME
+/* Is a cookie issued at the given time, 4 byte big endian seconds, older
+ * than WOLFSSL_COOKIE_MAX_AGE? A time from the future is rejected too. */
+int CookieExpired(const byte* issued)
+{
+#if WOLFSSL_COOKIE_MAX_AGE > 0
+    word32 at;
+    word32 now = LowResTimer();
+
+    ato32(issued, &at);
+    if (now < at)
+        return 1;
+    return now - at > (word32)WOLFSSL_COOKIE_MAX_AGE;
+#else
+    (void)issued;
+    return 0;
+#endif
+}
+#endif /* !NO_ASN_TIME */
+
 
 #ifndef NO_TLS
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \

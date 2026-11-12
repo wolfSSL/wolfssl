@@ -3990,6 +3990,10 @@ byte SuiteMac(const byte* suite)
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 /* Create Cookie extension using the hash of the first ClientHello.
  *
+ * Cookie = Hash Len | Hash | CS | KeyShare Group | Issue Time | MAC
+ * The issue time, 4 byte big endian seconds, is left out without a clock
+ * (NO_ASN_TIME). The MAC also covers the peer address for DTLS.
+ *
  * ssl     SSL/TLS object.
  * hash    The hash data.
  * hashSz  The size of the hash data in bytes.
@@ -4003,7 +4007,8 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
     WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
     byte cookieType = 0;
     byte macSz = 0;
-    byte cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
+    byte cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2 +
+                OPAQUE32_LEN];
     TLSX* ext;
     word16 cookieSz = 0;
     CookieSecrets cs;
@@ -4012,7 +4017,7 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
         return BAD_FUNC_ARG;
     }
 
-    /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
+    /* Cookie Data = Hash Len | Hash | CS | KeyShare Group | Issue Time */
     cookie[cookieSz++] = (byte)hashSz;
     XMEMCPY(cookie + cookieSz, hash, hashSz);
     cookieSz += hashSz;
@@ -4028,6 +4033,10 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
         c16toa(kse->group, cookie + cookieSz);
         cookieSz += OPAQUE16_LEN;
     }
+#ifndef NO_ASN_TIME
+    c32toa(LowResTimer(), cookie + cookieSz);
+    cookieSz += OPAQUE32_LEN;
+#endif
 
 #ifndef NO_SHA256
     cookieType = WC_SHA256;
@@ -7761,18 +7770,21 @@ static int TlsCheckCookieMac(const WOLFSSL* ssl, const byte* cookie,
     return 0;
 }
 
-/* Check that the Cookie data's integrity.
+/* Check that the Cookie data's integrity, then that the cookie is not older
+ * than WOLFSSL_COOKIE_MAX_AGE (layout in CreateCookieExt()).
  *
  * ssl       SSL/TLS object.
  * cookie    The cookie data - hash and MAC.
  * cookieSz  The length of the cookie data in bytes.
- * returns Length of the hash on success, otherwise failure.
+ * returns Length of the cookie data before the MAC on success, otherwise
+ *         failure: HRR_COOKIE_ERROR for a bad or stale cookie.
  */
 int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
 {
     int  ret;
     byte cookieType = 0;
     byte macSz = 0;
+    word16 minSz;
     CookieSecrets cs;
 
 #ifndef NO_SHA256
@@ -7795,7 +7807,11 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
     if (ret != 0)
         return ret;
 
-    if (cookieSz < ssl->specs.hash_size + macSz) {
+    minSz = (word16)(ssl->specs.hash_size + macSz);
+#ifndef NO_ASN_TIME
+    minSz += OPAQUE32_LEN;
+#endif
+    if (cookieSz < minSz) {
         CookieSecretsClear(&cs);
         return HRR_COOKIE_ERROR;
     }
@@ -7815,6 +7831,14 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
             WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
         return ret;
     }
+#ifndef NO_ASN_TIME
+    /* The issue time ends the cookie data */
+    if (CookieExpired(cookie + cookieSz - OPAQUE32_LEN)) {
+        WOLFSSL_MSG("HRR cookie too old");
+        WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
+        return HRR_COOKIE_ERROR;
+    }
+#endif
 
     return cookieSz;
 }
@@ -7860,6 +7884,10 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     if (ret < 0)
         return ret;
     cookieDataSz = (word16)ret;
+#ifndef NO_ASN_TIME
+    /* The issue time is not part of the HelloRetryRequest */
+    cookieDataSz -= OPAQUE32_LEN;
+#endif
     hashSz = cookie->data[0];
     cookieData = cookie->data;
     idx = OPAQUE8_LEN;

@@ -5337,7 +5337,12 @@ int test_dtls13_ctx_cookie_secret_no_splice(void)
     byte rnd[RAN_LEN];
     byte hvrCh[DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
         OPAQUE16_LEN + RAN_LEN + 1 + 1 + OPAQUE16_LEN + 1 + sizeof(v)];
+    /* The issue time leads the HelloVerifyRequest cookie, with a clock, and
+     * the MAC is cut to make room for it: the rest is left zero here */
+    byte ts[OPAQUE32_LEN];
+    word32 tsSz = 0;
     byte mac[WC_SHA256_DIGEST_SIZE];
+    word32 macSz = sizeof(mac);
     byte ch[TEST_MEMIO_BUF_SZ];
     byte* p;
     word32 chSz = 0;
@@ -5347,9 +5352,14 @@ int test_dtls13_ctx_cookie_secret_no_splice(void)
     word32 cookieSz;
     word16 len16 = 0;
 
+#ifndef NO_ASN_TIME
+    tsSz = OPAQUE32_LEN;
+    macSz -= tsSz;
+#endif
     XMEMSET(&t, 0, sizeof(t));
     XMEMSET(v, 0x56, sizeof(v));
     XMEMSET(rnd, 0x52, sizeof(rnd));
+    XMEMSET(ts, 0, sizeof(ts));
     XMEMSET(mac, 0, sizeof(mac));
     ExpectIntEQ(test_memio_setup(&t, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
@@ -5397,18 +5407,21 @@ int test_dtls13_ctx_cookie_secret_no_splice(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
     idx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN;
-    ExpectIntGE(t.c_len, idx + 1 + sizeof(mac));
+    ExpectIntGE(t.c_len, idx + 1 + tsSz + macSz);
     ExpectIntEQ(t.c_buff[0], handshake);
     ExpectIntEQ(t.c_buff[DTLS_RECORD_HEADER_SZ], hello_verify_request);
-    ExpectIntEQ(t.c_buff[idx], sizeof(mac));
-    if (EXPECT_SUCCESS())
-        XMEMCPY(mac, t.c_buff + idx + 1, sizeof(mac));
+    ExpectIntEQ(t.c_buff[idx], tsSz + macSz);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(ts, t.c_buff + idx + 1, tsSz);
+        XMEMCPY(mac, t.c_buff + idx + 1 + tsSz, macSz);
+    }
     test_memio_clear_buffer(&t, 1);
 
-    /* A real first ClientHello, given the spliced cookie */
+    /* A real first ClientHello, given the spliced cookie: the time first,
+     * as the HelloVerifyRequest MAC took it */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-    cookieSz = sizeof(a) + OPAQUE16_LEN + RAN_LEN + sizeof(mac);
+    cookieSz = tsSz + sizeof(a) + OPAQUE16_LEN + RAN_LEN + sizeof(mac);
     extSz = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN + OPAQUE16_LEN + cookieSz;
     ExpectIntLE(t.s_len + extSz, sizeof(ch));
     if (EXPECT_SUCCESS()) {
@@ -5443,6 +5456,8 @@ int test_dtls13_ctx_cookie_secret_no_splice(void)
         p += OPAQUE16_LEN;
         c16toa((word16)cookieSz, p);
         p += OPAQUE16_LEN;
+        XMEMCPY(p, ts, tsSz);
+        p += tsSz;
         XMEMCPY(p, a, sizeof(a));
         p += sizeof(a);
         *p++ = DTLS_MAJOR;

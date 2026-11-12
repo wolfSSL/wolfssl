@@ -62,6 +62,16 @@
  *     one datagram, at the cost of a HelloRetryRequest round trip.
  *     With the cookie exchange disabled the server is stateful from the first
  *     datagram and reassembles any ClientHello.
+ * WOLFSSL_COOKIE_MAX_AGE
+ *     Both cookies, the DTLS 1.2 HelloVerifyRequest one and the DTLS 1.3
+ *     HelloRetryRequest one, carry their issue time under the MAC and stop
+ *     verifying this many seconds later (RFC 9147 Section 5.1), so a captured
+ *     cookie cannot be replayed once the interval has passed. A stale cookie
+ *     is treated as a bad one: a new HelloVerifyRequest in DTLS 1.2, an
+ *     illegal_parameter alert in DTLS 1.3. Default 60; 0 disables the age
+ *     check. Without a clock (NO_ASN_TIME) no time is sent or checked. The
+ *     DTLS 1.2 cookie stays 32 bytes, the time and a truncated HMAC, since
+ *     clients accept no more than WOLFSSL_COOKIE_LEN.
  * WOLFSSL_DTLS_RX_MAX_BYTES
  *     Bound on the bytes the receive list of one WOLFSSL retains for
  *     out-of-order and fragmented handshake messages, DTLS 1.2 and 1.3,
@@ -211,13 +221,31 @@ void DtlsSetSeqNumForReply(WOLFSSL* ssl)
 
 #if !defined(NO_SHA) && defined(NO_SHA256)
 #define DTLS_COOKIE_TYPE WC_SHA
-#define DTLS_COOKIE_SZ WC_SHA_DIGEST_SIZE
+#define DTLS_COOKIE_MAC_SZ WC_SHA_DIGEST_SIZE
 #endif /* !NO_SHA && NO_SHA256 */
 
 #ifndef NO_SHA256
 #define DTLS_COOKIE_TYPE WC_SHA256
-#define DTLS_COOKIE_SZ WC_SHA256_DIGEST_SIZE
+#define DTLS_COOKIE_MAC_SZ WC_SHA256_DIGEST_SIZE
 #endif /* !NO_SHA256 */
+
+/* DTLS 1.2 cookie = issue time (4 bytes, big endian seconds) | HMAC over the
+ * time, peer address, version, random, session ID, cipher suites and
+ * compression. CreateDtls12Cookie writes both parts. Without a clock
+ * (NO_ASN_TIME) the time is left out and the whole HMAC is sent. */
+#ifndef NO_ASN_TIME
+#ifndef NO_SHA256
+/* Only the leftmost 28 bytes of HMAC-SHA256 go in the cookie (SP 800-107):
+ * clients cap the cookie at WOLFSSL_COOKIE_LEN, 32, and the time takes 4 */
+#define DTLS_COOKIE_MAC_USED_SZ 28
+#else
+#define DTLS_COOKIE_MAC_USED_SZ DTLS_COOKIE_MAC_SZ
+#endif
+#define DTLS_COOKIE_SZ (OPAQUE32_LEN + DTLS_COOKIE_MAC_USED_SZ)
+#else
+#define DTLS_COOKIE_MAC_USED_SZ DTLS_COOKIE_MAC_SZ
+#define DTLS_COOKIE_SZ DTLS_COOKIE_MAC_SZ
+#endif
 
 #if defined(WOLFSSL_DTLS13) && (defined(HAVE_SESSION_TICKET) || \
                                 !defined(NO_PSK))
@@ -244,9 +272,6 @@ typedef struct WolfSSL_CH {
     WolfSSL_ConstVector cookieExt;
     const byte* raw;
     word32 length;
-    /* Store the DTLS 1.2 cookie since we can just compute it once in dtls.c */
-    byte dtls12cookie[DTLS_COOKIE_SZ];
-    byte dtls12cookieSet:1;
 } WolfSSL_CH;
 
 static word32 ReadVector8(const byte* input, WolfSSL_ConstVector* v)
@@ -265,10 +290,14 @@ static word32 ReadVector16(const byte* input, WolfSSL_ConstVector* v)
     return v->size + OPAQUE16_LEN;
 }
 
+/* Write a DTLS_COOKIE_SZ byte cookie: the issue time (with a clock) then the
+ * MAC over it and the ClientHello */
 static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
-                              const byte* secret, word32 secretSz, byte* cookie)
+                              const byte* secret, word32 secretSz,
+                              word32 issued, byte* cookie)
 {
     int ret;
+    byte mac[DTLS_COOKIE_MAC_SZ];
     WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
 
     if (secret == NULL || secretSz == 0) {
@@ -282,6 +311,14 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
     ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(cookieHmac, DTLS_COOKIE_TYPE, secret, secretSz);
+#ifndef NO_ASN_TIME
+        if (ret == 0) {
+            c32toa(issued, cookie);
+            ret = wc_HmacUpdate(cookieHmac, cookie, OPAQUE32_LEN);
+        }
+#else
+        (void)issued;
+#endif
         if (ret == 0) {
             /* peerLock not necessary. Still in handshake phase. */
             ret = wc_HmacUpdate(cookieHmac,
@@ -305,8 +342,12 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
                 ch->compression.size);
         }
         if (ret == 0)
-            ret = wc_HmacFinal(cookieHmac, cookie);
+            ret = wc_HmacFinal(cookieHmac, mac);
         wc_HmacFree(cookieHmac);
+    }
+    if (ret == 0) {
+        XMEMCPY(cookie + DTLS_COOKIE_SZ - DTLS_COOKIE_MAC_USED_SZ, mac,
+                DTLS_COOKIE_MAC_USED_SZ);
     }
 
     WC_FREE_VAR_EX(cookieHmac, ssl->heap, DYNAMIC_TYPE_HMAC);
@@ -340,35 +381,41 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
 #endif
     {
         CookieSecrets cs;
+        byte cookie[DTLS_COOKIE_SZ];
+        word32 issued = 0;
 
         if (ch->cookie.size != DTLS_COOKIE_SZ)
             return 0;
         ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
         if (ret != 0)
             return ret;
-        if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz,
-                                     ch->dtls12cookie);
-            if (ret == 0)
-                ch->dtls12cookieSet = 1;
-        }
+#ifndef NO_ASN_TIME
+        /* Rebuild with the issue time the peer echoes, its age is checked
+         * after */
+        ato32(ch->cookie.elements, &issued);
+#endif
+        ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz, issued, cookie);
         if (ret == 0) {
-            *cookieGood = ConstantCompare(ch->cookie.elements,
-                                          ch->dtls12cookie,
+            *cookieGood = ConstantCompare(ch->cookie.elements, cookie,
                                           DTLS_COOKIE_SZ) == 0;
         }
         /* The secondary, verify only, keeps cookies issued before a rotation
          * of the secret valid */
         if (ret == 0 && !*cookieGood && cs.sec != NULL) {
-            byte altCookie[DTLS_COOKIE_SZ];
-
-            ret = CreateDtls12Cookie(ssl, ch, cs.sec, cs.secSz, altCookie);
+            ret = CreateDtls12Cookie(ssl, ch, cs.sec, cs.secSz, issued,
+                                     cookie);
             if (ret == 0) {
-                *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+                *cookieGood = ConstantCompare(ch->cookie.elements, cookie,
                                               DTLS_COOKIE_SZ) == 0;
             }
         }
         CookieSecretsClear(&cs);
+#ifndef NO_ASN_TIME
+        if (ret == 0 && *cookieGood && CookieExpired(ch->cookie.elements)) {
+            WOLFSSL_MSG("DTLS 1.2 cookie too old");
+            *cookieGood = 0;
+        }
+#endif
     }
     return ret;
 }
@@ -1014,21 +1061,22 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
 #endif
     {
 #if !defined(WOLFSSL_NO_TLS12)
-        if (!ch->dtls12cookieSet) {
-            CookieSecrets cs;
+        CookieSecrets cs;
+        byte cookie[DTLS_COOKIE_SZ];
+        word32 issued = 0;
 
-            ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
-            if (ret == 0) {
-                ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz,
-                                         ch->dtls12cookie);
-                CookieSecretsClear(&cs);
-            }
-            if (ret != 0)
-                return ret;
-            ch->dtls12cookieSet = 1;
+        ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
+        if (ret == 0) {
+#ifndef NO_ASN_TIME
+            issued = LowResTimer();
+#endif
+            ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz, issued,
+                                     cookie);
+            CookieSecretsClear(&cs);
         }
-        ret = SendHelloVerifyRequest((WOLFSSL*)ssl, ch->dtls12cookie,
-                DTLS_COOKIE_SZ);
+        if (ret != 0)
+            return ret;
+        ret = SendHelloVerifyRequest((WOLFSSL*)ssl, cookie, DTLS_COOKIE_SZ);
 #else
         WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
         WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);

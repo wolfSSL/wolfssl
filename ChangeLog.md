@@ -100,6 +100,13 @@
   object, and NULL to either now drops the object's own secret in favour of
   the context's. A DTLS 1.3 cookie is checked before the SNI callback, so a
   `wolfSSL_set_SSL_CTX()` made there cannot change the secret the check uses.
+  Both cookies now carry their issue time under the MAC and are rejected
+  `WOLFSSL_COOKIE_MAX_AGE` seconds later (60 by default, 0 disables the age
+  check), so a captured cookie cannot be replayed once that has passed and
+  the secret need not be rotated for that. The DTLS 1.2 cookie stays 32
+  bytes on the wire: the time and the leftmost 28 bytes of the HMAC, so
+  deployed clients, which accept no more than `WOLFSSL_COOKIE_LEN`, keep
+  working. Without a clock (`NO_ASN_TIME`) no time is sent or checked.
 
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA

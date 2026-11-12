@@ -182,6 +182,9 @@ int test_dtls_cookie_policy_neither_end(void);
 int test_dtls13_hrr_cookie_state_guard(void);
 int test_dtls12_cookie_secret_generate_fail(void);
 int test_dtls13_hrr_cookie_secret_generate_fail(void);
+int test_dtls13_hrr_cookie_age(void);
+int test_dtls12_cookie_age(void);
+int test_tls13_hrr_cookie_age(void);
 int test_dtls_max_fragment_write(void);
 int test_dtls_set_rfd_wfd(void);
 int test_dtls_ctx_cookie_secret_api(void);
@@ -433,6 +436,9 @@ int test_dtls_cs_uses_ctx(const WOLFSSL* s, int type, const byte* p,
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_disabled), \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_generate_fail),      \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_generate_fail),  \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_age),                   \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_age),                       \
+        TEST_DECL_GROUP("tls13", test_tls13_hrr_cookie_age),                   \
         TEST_DECL_GROUP("dtls", test_dtls_max_fragment_write),                 \
         TEST_DECL_GROUP("dtls", test_dtls_set_rfd_wfd),                       \
         TEST_DECL_GROUP("dtls", test_dtls_ctx_cookie_secret_api),              \

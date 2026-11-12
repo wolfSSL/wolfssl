@@ -1522,6 +1522,12 @@ enum {
 #error "WOLFSSL_COOKIE_LEN must be <= 255 per RFC 6347 (opaque<0..2^8-1>)"
 #endif
 
+/* Seconds a HelloVerifyRequest or HelloRetryRequest cookie verifies after it
+ * was issued. 0 disables the age check; the issue time is still sent. */
+#ifndef WOLFSSL_COOKIE_MAX_AGE
+#define WOLFSSL_COOKIE_MAX_AGE 60
+#endif
+
 #if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
 
 #define TLS13_TICKET_NONCE_MAX_SZ 255
@@ -8410,6 +8416,9 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
+#ifndef NO_ASN_TIME
+WOLFSSL_LOCAL int     CookieExpired(const byte* issued);
+#endif
 
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
 WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
