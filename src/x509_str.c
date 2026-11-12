@@ -117,6 +117,8 @@ static int x509ParseCertCM(DecodedCert* cert, const byte* der, word32 derSz,
 {
     InitDecodedCert(cert, der, derSz, cm->heap);
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (cm->unknownExtCallback32 != NULL)
+        wc_SetUnknownExtCallback32(cert, cm->unknownExtCallback32);
     if (cm->unknownExtCallback != NULL)
         wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
 #endif

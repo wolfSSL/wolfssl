@@ -17556,6 +17556,8 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
         ssl->heap);
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     /* Parse it like AddCA() did. */
+    if (SSL_CM(ssl)->unknownExtCallback32 != NULL)
+        wc_SetUnknownExtCallback32(issuer, SSL_CM(ssl)->unknownExtCallback32);
     if (SSL_CM(ssl)->unknownExtCallback != NULL)
         wc_SetUnknownExtCallback(issuer, SSL_CM(ssl)->unknownExtCallback);
 #endif

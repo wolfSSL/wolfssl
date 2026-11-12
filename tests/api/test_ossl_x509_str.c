@@ -5360,9 +5360,21 @@ static int test_cvcb_ctx_ready_verify(WOLFSSL_CTX* ctx)
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
 static ctx_cb test_cvcb_ext_ready;
+static int test_cvcb_ext32; /* use the 32-bit OID callback */
 
 static int test_cvcb_unknown_ext_cb(const word16* oid, word32 oidSz, int crit,
     const unsigned char* der, word32 derSz)
+{
+    (void)oid;
+    (void)oidSz;
+    (void)crit;
+    (void)der;
+    (void)derSz;
+    return 0;
+}
+
+static int test_cvcb_unknown_ext_cb32(const word32* oid, word32 oidSz,
+    int crit, const unsigned char* der, word32 derSz)
 {
     (void)oid;
     (void)oidSz;
@@ -5380,7 +5392,13 @@ static int test_cvcb_ctx_ready_ext(WOLFSSL_CTX* ctx)
     size_t caSz = 0;
     int ret = TEST_FAIL;
 
-    wolfSSL_CertManagerSetUnknownExtCallback(cm, test_cvcb_unknown_ext_cb);
+    if (test_cvcb_ext32) {
+        wolfSSL_CertManagerSetUnknownExtCallback32(cm,
+            test_cvcb_unknown_ext_cb32);
+    }
+    else {
+        wolfSSL_CertManagerSetUnknownExtCallback(cm, test_cvcb_unknown_ext_cb);
+    }
     if (load_file("./certs/test/ca-cert-unknown-crit-ext.pem", &ca, &caSz)
             == 0) {
         /* Loading it as a trusted peer cert too may fail, as that does not use
@@ -5501,17 +5519,20 @@ int test_wolfSSL_verify_cb_trust_anchor(void)
         /* The CA has an unknown critical extension that the CertManager
          * accepts. It is reported, so a pin on another CA rejects it. */
         test_cvcb_ext_ready = ready[i];
-        ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_ext, "",
-            "./certs/server-ecc-rsa.pem", "./certs/ecc-key.pem",
-            "./certs/server-ecc-rsa.pem", 1, -1), TEST_SUCCESS);
-        ExpectIntEQ(test_cvcb_depths, 0x3);
-        ExpectIntEQ(test_cvcb_depth_calls[1], 1);
-        test_cvcb_pin = 1;
-        ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_ext, "",
-            "./certs/server-ecc-rsa.pem", "./certs/ecc-key.pem",
-            "./certs/server-ecc-rsa.pem", 1, -1), -1001);
-        ExpectIntEQ(test_cvcb_verify_result, X509_V_ERR_CERT_REJECTED);
-        test_cvcb_pin = 0;
+        for (test_cvcb_ext32 = 0; test_cvcb_ext32 <= 1; test_cvcb_ext32++) {
+            ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_ext, "",
+                "./certs/server-ecc-rsa.pem", "./certs/ecc-key.pem",
+                "./certs/server-ecc-rsa.pem", 1, -1), TEST_SUCCESS);
+            ExpectIntEQ(test_cvcb_depths, 0x3);
+            ExpectIntEQ(test_cvcb_depth_calls[1], 1);
+            test_cvcb_pin = 1;
+            ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_ext, "",
+                "./certs/server-ecc-rsa.pem", "./certs/ecc-key.pem",
+                "./certs/server-ecc-rsa.pem", 1, -1), -1001);
+            ExpectIntEQ(test_cvcb_verify_result, X509_V_ERR_CERT_REJECTED);
+            test_cvcb_pin = 0;
+        }
+        test_cvcb_ext32 = 0;
     #endif
     }
 #endif
