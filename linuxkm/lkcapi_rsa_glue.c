@@ -660,7 +660,8 @@ static int km_rsa_op_init(const struct km_rsa_ctx *ctx, int need_rng,
  * transient probe decode (capturing the modulus size for key_len), then
  * store a verbatim heap copy.  Destroy-first, per kernel setkey
  * semantics: the previous key material is released up front, so a
- * rejected key leaves the transform keyless. */
+ * rejected key leaves the transform keyless.  A key that fails to decode
+ * is rejected with -EBADMSG, as by the in-tree rsa-generic. */
 static int km_rsa_set_key(struct km_rsa_ctx *ctx, const void *key,
                           unsigned int keylen, int priv)
 {
@@ -669,6 +670,7 @@ static int km_rsa_set_key(struct km_rsa_ctx *ctx, const void *key,
     word32   idx = 0;
     int      key_len = 0;
     int      err;
+    int      ret = 0;
 
     km_rsa_ctx_clear(ctx);
 
@@ -694,10 +696,15 @@ static int km_rsa_set_key(struct km_rsa_ctx *ctx, const void *key,
         if (unlikely(key_len <= 0)) {
             pr_err("error: %s: rsa encrypt size returned: %d\n",
                    WOLFKM_RSA_DRIVER, key_len);
-            err = WC_NO_ERR_TRACE(WC_FAILURE);
+            ret = -EINVAL;
         }
     }
     else {
+        if (err == WC_NO_ERR_TRACE(MEMORY_E))
+            ret = -ENOMEM;
+        else
+            ret = -EBADMSG;
+
         if (priv) {
             if (!disable_setkey_warnings) {
                 pr_err("%s: wc_RsaPrivateKeyDecode failed: %d\n",
@@ -716,8 +723,8 @@ static int km_rsa_set_key(struct km_rsa_ctx *ctx, const void *key,
     ForceZero(probe_key, sizeof(*probe_key));
     free(probe_key);
 
-    if (unlikely(err))
-        return -EINVAL;
+    if (unlikely(ret))
+        return ret;
 
     der_copy = (byte *)malloc(keylen);
     if (unlikely(der_copy == NULL))
@@ -2381,9 +2388,9 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
      * the re-encrypt below reproduces enc byte-for-byte for the
      * cross-checks that follow.) */
     ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24 - 1);
-    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_set_pub_key (truncated) returned "
-               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         goto test_rsa_end;
     }
     ret = crypto_akcipher_encrypt(req);
@@ -2858,16 +2865,20 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    /* a digest length not matching the hash must be rejected, with nothing
-     * written to dst.  sig serves as a long enough source. */
-    sg_init_one(&src, sig, hash_len + 1);
-    akcipher_request_set_crypt(req, &src, &dst, hash_len + 1, key_len);
-    ret = crypto_akcipher_sign(req);
-    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
-        pr_err("error: crypto_akcipher_sign (oversize digest) returned %d, "
-               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
-        test_rc = BAD_FUNC_ARG;
-        goto test_pkcs1_end;
+    /* a digest of any length but the hash's own must be rejected, with
+     * nothing written to dst.  sig serves as a long enough source.  The
+     * in-tree pkcs1pad signs any digest that fits the key, so this is
+     * checked only on the wolfCrypt driver (!optional). */
+    if (! optional) {
+        sg_init_one(&src, sig, hash_len + 1);
+        akcipher_request_set_crypt(req, &src, &dst, hash_len + 1, key_len);
+        ret = crypto_akcipher_sign(req);
+        if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+            pr_err("error: crypto_akcipher_sign (oversize digest) returned "
+                   "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+            test_rc = BAD_FUNC_ARG;
+            goto test_pkcs1_end;
+        }
     }
 
     /* now set pub key for verify test. */
@@ -2914,9 +2925,9 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
      * verification against the previously installed key -- and a
      * restored key must verify again. */
     ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24 - 1);
-    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_set_pub_key (truncated) returned "
-               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
@@ -3381,10 +3392,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
          *   <  6.15.3: maxsize and keysize should return the same value (in
          *              bytes).
          *   >= 6.15.3: keysize is in bits, maxsize in bytes.
-         * digestsize is the hash's digest size in bytes throughout. */
+         * digestsize is the hash's digest size in bytes throughout on the
+         * wolfCrypt driver (!optional).  The in-tree driver has no
+         * .digest_size, and reports the kernel's key-size-based default. */
         unsigned int maxsize = crypto_sig_maxsize(tfm);
         unsigned int keysize = crypto_sig_keysize(tfm);
         unsigned int digestsize = crypto_sig_digestsize(tfm);
+        unsigned int expected_digestsize =
+            optional ? (unsigned int)key_len : (unsigned int)hash_len;
 
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 3)
         keysize = ((keysize + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE);
@@ -3398,24 +3413,26 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
 
         if ((int)maxsize != key_len ||
             (int)keysize != key_len ||
-            digestsize != hash_len) {
+            digestsize != expected_digestsize) {
             pr_err("error: crypto_sig_{max, key, digest}size "
                    "returned {%d, %d, %d}, expected {%d, %d, %d}\n",
                     maxsize, keysize, digestsize, key_len, key_len,
-                    (int)hash_len);
+                    (int)expected_digestsize);
             test_rc = BAD_FUNC_ARG;
             goto test_pkcs1_end;
         }
     }
 
-    /* a digest length not matching the hash must be rejected.  sig serves as a
-     * long enough source. */
-    ret = crypto_sig_sign(tfm, sig, hash_len + 1, km_sig, key_len);
-    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
-        pr_err("error: crypto_sig_sign (oversize digest) returned %d, "
-               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
-        test_rc = BAD_FUNC_ARG;
-        goto test_pkcs1_end;
+    if (! optional) {
+        /* a digest length not matching the hash must be rejected.  sig serves as a
+         * long enough source. */
+        ret = crypto_sig_sign(tfm, sig, hash_len + 1, km_sig, key_len);
+        if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+            pr_err("error: crypto_sig_sign (oversize digest) returned %d, "
+                   "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+            test_rc = BAD_FUNC_ARG;
+            goto test_pkcs1_end;
+        }
     }
 
     ret = crypto_sig_sign(tfm, hash, hash_len, km_sig, key_len);
@@ -3454,9 +3471,9 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
      * verification against the previously installed key -- and a
      * restored key must verify again. */
     ret = crypto_sig_set_pubkey(tfm, pub + 24, pub_len - 24 - 1);
-    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_set_pubkey (truncated) returned %d, "
-               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
