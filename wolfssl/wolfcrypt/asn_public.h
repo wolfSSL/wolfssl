@@ -272,13 +272,11 @@ enum Ctc_Misc {
     WOLF_ENUM_DUMMY_LAST_ELEMENT(Ctc_Misc)
 };
 
-/* DER buffers are reference counted when each SSL object has to keep the
- * certificate and key it was made with even if its CTX replaces them
- * (WOLFSSL_COPY_CERT, WOLFSSL_COPY_KEY). The SSL then holds a reference to the
+/* SSL objects keep their CTX certificates and keys across replacement.
+ * When DER buffers are reference counted, the SSL holds a reference to the
  * CTX's buffer instead of a copy of it. The count needs atomic operations or a
  * single-threaded build; without either, each SSL gets a copy. */
-#if (defined(WOLFSSL_COPY_CERT) || defined(WOLFSSL_COPY_KEY)) && \
-    (defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)) && \
+#if (defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)) && \
     !defined(NO_CERTS)
     #define WOLFSSL_DER_REFCOUNT
 #endif

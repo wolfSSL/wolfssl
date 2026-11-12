@@ -35838,7 +35838,6 @@ static int test_wolfSSL_set_SSL_CTX(void)
 #ifdef WOLFSSL_SESSION_ID_CTX
     ExpectIntEQ(XMEMCMP(ssl->sessionCtx, session_id2, 4), 0);
 #endif
-#ifdef WOLFSSL_COPY_CERT
     /* The SSL holds its own reference to the CTX buffer, or its own copy. */
     if (ctx2 != NULL && ctx2->certificate != NULL) {
     #ifdef WOLFSSL_DER_REFCOUNT
@@ -35856,10 +35855,6 @@ static int test_wolfSSL_set_SSL_CTX(void)
     #endif
         ExpectIntEQ(ssl->buffers.weOwnCertChain, 1);
     }
-#else
-    ExpectTrue(ssl->buffers.certificate == ctx2->certificate);
-    ExpectTrue(ssl->buffers.certChain == ctx2->certChain);
-#endif
 #endif
 
 #ifdef HAVE_SESSION_TICKET
@@ -35877,7 +35872,6 @@ static int test_wolfSSL_set_SSL_CTX(void)
 #endif
     /* MUST change */
 #ifdef WOLFSSL_INT_H
-#ifdef WOLFSSL_COPY_CERT
     if (ctx1 != NULL && ctx1->certificate != NULL) {
     #ifdef WOLFSSL_DER_REFCOUNT
         ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
@@ -35894,10 +35888,6 @@ static int test_wolfSSL_set_SSL_CTX(void)
     #endif
         ExpectIntEQ(ssl->buffers.weOwnCertChain, 1);
     }
-#else
-    ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
-    ExpectTrue(ssl->buffers.certChain == ctx1->certChain);
-#endif
     if (ctx1 != NULL) {
         ExpectIntGT(ctx1->certChainCnt, 0);
         ExpectIntEQ(ssl->buffers.certChainCnt, ctx1->certChainCnt);
@@ -35908,7 +35898,7 @@ static int test_wolfSSL_set_SSL_CTX(void)
         ExpectFalse(ssl->buffers.key == ctx1->privateKey);
         ExpectIntEQ(ssl->buffers.weOwnKey, 1);
     }
-#elif defined(WOLFSSL_COPY_KEY)
+#else
     if (ctx1 != NULL && ctx1->privateKey != NULL) {
     #ifdef WOLFSSL_DER_REFCOUNT
         ExpectTrue(ssl->buffers.key == ctx1->privateKey);
@@ -35917,9 +35907,6 @@ static int test_wolfSSL_set_SSL_CTX(void)
     #endif
         ExpectIntEQ(ssl->buffers.weOwnKey, 1);
     }
-#else
-    ExpectTrue(ssl->buffers.key == ctx1->privateKey);
-    ExpectIntEQ(ssl->buffers.weOwnKey, 0);
 #endif
 #ifdef WOLFSSL_SESSION_ID_CTX
     ExpectIntEQ(XMEMCMP(ssl->sessionCtx, session_id1, 4), 0);
@@ -35975,7 +35962,6 @@ static int test_wolfSSL_set_SSL_CTX(void)
     ExpectNotNull(wolfSSL_set_SSL_CTX(ssl, ctx1));
 #ifdef WOLFSSL_INT_H
     if (ssl != NULL && ctx1 != NULL) {
-    #ifdef WOLFSSL_COPY_CERT
         /* Its own reference to the buffer of ctx1, or its own copy. */
         #ifdef WOLFSSL_DER_REFCOUNT
         ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
@@ -35983,10 +35969,6 @@ static int test_wolfSSL_set_SSL_CTX(void)
         ExpectFalse(ssl->buffers.certificate == ctx1->certificate);
         #endif
         ExpectIntEQ(ssl->buffers.weOwnCert, 1);
-    #else
-        ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
-        ExpectIntEQ(ssl->buffers.weOwnCert, 0);
-    #endif
     #ifdef KEEP_OUR_CERT
         ExpectNull(ssl->ourCertChain);
     #endif
