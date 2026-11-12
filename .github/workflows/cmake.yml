@@ -191,3 +191,43 @@ jobs:
         # clean up
         cd ..
         rm -rf build
+
+  build-armasm:
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ 'ubuntu-24.04-arm', 'macos-latest' ]
+        inline: [ 'no', 'yes' ]
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install cmake
+      if: runner.os == 'Linux'
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: cmake
+        ghcr-debs-tag: ubuntu-24.04-full
+
+# ARM assembly with the CPU defaults of --enable-armasm
+    - name: Build wolfssl with ARM assembly
+      run: |
+        cmake -B build -DWOLFSSL_ARM_ASM=yes \
+            -DWOLFSSL_ARMASM_INLINE=${{ matrix.inline }} -DWOLFSSL_MLDSA=yes \
+            -DWOLFSSL_MLKEM=yes -DWOLFSSL_CURVE25519=yes -DWOLFSSL_ED25519=yes
+        grep -q '^#define WOLFSSL_ARMASM$' build/wolfssl/options.h
+        if [ "$RUNNER_OS" = "macOS" ]; then
+            grep -q '^#define WOLFSSL_ARMASM_CRYPTO_SHA3$' \
+                build/wolfssl/options.h
+        fi
+        missing=$(.github/scripts/cmake-config-defines.sh names build)
+        if [ -n "$missing" ]; then
+            echo "::error::Not exported by cmake/options.h.in:" $missing
+            exit 1
+        fi
+        jobs=$(getconf _NPROCESSORS_ONLN)
+        cmake --build build -j $jobs
+        ctest --test-dir build -j $jobs --output-on-failure
