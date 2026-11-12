@@ -17021,6 +17021,7 @@ static int test_dtls13_ctx_max_proto_fixed(method_provider method, int ver)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    long mask = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
@@ -17037,6 +17038,15 @@ static int test_dtls13_ctx_max_proto_fixed(method_provider method, int ver)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         method, wolfDTLS_server_method), 0);
     ExpectIntEQ(wolfSSL_version(ssl_c), ver);
+    if (ver == DTLS1_2_VERSION) {
+        if (ssl_c != NULL)
+            mask = wolfSSL_get_options(ssl_c);
+        ExpectIntEQ(wolfSSL_set_min_proto_version(ssl_c, DTLS1_3_VERSION),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_set_min_proto_version(ssl_c, TLS1_3_VERSION),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_get_options(ssl_c), mask);
+    }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_version(ssl_s), ver);
 
