@@ -2733,6 +2733,9 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     switch (dns->type) {
                         case ASN_DIR_TYPE:
                             gn->type = dns->type;
+                            /* Free ia5 before using union for dirn */
+                            wolfSSL_ASN1_STRING_free(gn->d.ia5);
+                            gn->d.ia5 = NULL;
                             {
                                 int localIdx = 0;
                                 unsigned char* n = (unsigned char*)XMALLOC(
