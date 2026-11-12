@@ -199,6 +199,7 @@ struct PKCS7State {
     WC_BITFIELD detached:1; /* flag to indicate detached signature is present */
     WC_BITFIELD noContent:1;/* indicates content isn't included in bundle */
     WC_BITFIELD degenerate:1;
+    WC_BITFIELD hasEContent:1; /* eContent present, not an empty OCTET STRING */
     WC_BITFIELD indefLen:1; /* flag to indicate indef-length encoding used */
     WC_BITFIELD indefEci:1;     /* EncryptedContentInfo is indefinite */
     WC_BITFIELD indefContent:1; /* encryptedContent is fragmented */
@@ -289,6 +290,7 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         pkcs7->stream->varTwo   = 0;
         pkcs7->stream->varThree = 0;
         pkcs7->stream->noContent    = 0;
+        pkcs7->stream->hasEContent  = 0;
         pkcs7->stream->indefLen     = 0;
         pkcs7->stream->cntIdfCnt    = 0;
         pkcs7->stream->currContIdx  = 0;
@@ -1568,11 +1570,21 @@ static void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib, void* heap)
 }
 
 
+static void wc_PKCS7_SignerInfoFree(wc_PKCS7* pkcs7)
+{
+    if (pkcs7->signerInfo != NULL) {
+        XFREE(pkcs7->signerInfo->sid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->signerInfo->sid = NULL;
+        XFREE(pkcs7->signerInfo, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->signerInfo = NULL;
+    }
+}
+
+
 /* return 0 on success */
 static int wc_PKCS7_SignerInfoNew(wc_PKCS7* pkcs7)
 {
-    XFREE(pkcs7->signerInfo, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    pkcs7->signerInfo = NULL;
+    wc_PKCS7_SignerInfoFree(pkcs7);
 
     pkcs7->signerInfo = (PKCS7SignerInfo*)XMALLOC(sizeof(PKCS7SignerInfo),
             pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -1582,17 +1594,6 @@ static int wc_PKCS7_SignerInfoNew(wc_PKCS7* pkcs7)
     }
     XMEMSET(pkcs7->signerInfo, 0, sizeof(PKCS7SignerInfo));
     return 0;
-}
-
-
-static void wc_PKCS7_SignerInfoFree(wc_PKCS7* pkcs7)
-{
-    if (pkcs7->signerInfo != NULL) {
-        XFREE(pkcs7->signerInfo->sid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        pkcs7->signerInfo->sid = NULL;
-        XFREE(pkcs7->signerInfo, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        pkcs7->signerInfo = NULL;
-    }
 }
 
 
@@ -3691,6 +3692,12 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
         return BAD_FUNC_ARG;
     }
 
+    /* RFC 5652 5.2: a SignedData without signers must omit eContent */
+    if (pkcs7->sidType == DEGENERATE_SID && pkcs7->contentSz > 0) {
+        WOLFSSL_MSG("PKCS7 degenerate (certs-only) bundle cannot carry content");
+        return BAD_FUNC_ARG;
+    }
+
     /* signature size varies with ECDSA; RSA-PSS signs digest directly like
      * ECDSA. For both, content hash must be known to build ASN.1 before signing.
      * The degenerate (certs-only) path has no signer, so this does not apply
@@ -3811,8 +3818,9 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
         }
     }
 
-    if (pkcs7->detached == 1) {
-        /* do not include content if generating detached signature */
+    if (pkcs7->detached == 1 || pkcs7->sidType == DEGENERATE_SID) {
+        /* do not include content if generating detached signature or a
+         * degenerate (certs-only) bundle */
         esd->innerOctetsSz = 0;
         esd->innerContSeqSz = 0;
         esd->contentInfoSeqSz = SetSequence(pkcs7->contentTypeSz,
@@ -6803,6 +6811,15 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     if (pkcs7 == NULL || in == NULL || idx == NULL)
         return BAD_FUNC_ARG;
 
+    /* free pkcs7->contentDynamic buffer */
+    if (pkcs7->contentDynamic != NULL &&
+            pkcs7->content == pkcs7->contentDynamic) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->contentDynamic = NULL;
+
     /* no content case, do nothing */
     if (pkcs7->stream->noContent) {
         if (pkcs7->content && pkcs7->contentSz > 0) {
@@ -6820,10 +6837,6 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         }
         return 0;
     }
-
-    /* free pkcs7->contentDynamic buffer */
-    XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    pkcs7->contentDynamic = NULL;
 
     while(1) {
         if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
@@ -7043,7 +7056,8 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 }
 #endif /* !NO_PKCS7_STREAM */
 /* Finds the certificates in the message and saves it. By default allows
- * degenerate cases which can have no signer.
+ * degenerate cases which can have no signer, as long as eContent is omitted
+ * or empty.
  *
  * By default expects type SIGNED_DATA (SignedData) which can have any number of
  * elements in signerInfos collection, including zero. (RFC2315 section 9.1)
@@ -7068,7 +7082,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 certIdx, certIdx2;
     byte degenerate = 0;
     byte detached = 0;
-    byte noContent = 0;
+    byte hasEContent = 0;
     byte tag = 0;
     word16 contentIsPkcs7Type = 0;
     byte noDegenerate = 0;
@@ -7365,6 +7379,13 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     contentType = pkiMsg + tmpIdx;
                     contentTypeSz = (word32)length + (idx - tmpIdx);
                     idx += (word32)length;
+                    if (!isIndef &&
+                            (word32)encapContentInfoLen < contentTypeSz) {
+                        ret = ASN_PARSE_E;
+                    }
+                    /* eContent is present if anything follows eContentType */
+                    hasEContent = (byte)(isIndef ||
+                        (word32)encapContentInfoLen > contentTypeSz);
                 }
                 else {
                     ret = ASN_PARSE_E;
@@ -7375,6 +7396,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         ret = ASN_PARSE_E;
                     }
                     else if (pkiMsg[idx] == ASN_EOC && pkiMsg[idx+1] == 0) {
+                        hasEContent = 0;
                         idx += 2; /* skip EOF + zero byte */
             #ifndef NO_PKCS7_STREAM
                         pkcs7->stream->cntIdfCnt--;
@@ -7396,10 +7418,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
             /* Set error state if no more data left in ContentInfo, meaning
              * no content - may be detached. Will recover from error below */
-            if ((encapContentInfoLen != 0) &&
-                ((word32)encapContentInfoLen - contentTypeSz == 0)) {
+            if (!hasEContent) {
                 ret = ASN_PARSE_E;
-                noContent = 1;
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->noContent = 1;
             #endif
@@ -7546,6 +7566,9 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     if (ret == 0 && GetLength_ex(pkiMsg, &localIdx,
                                 &length, pkiMsgSz, NO_USER_CHECK) < 0)
                         ret = ASN_PARSE_E;
+                    /* an empty eContent OCTET STRING counts as omitted */
+                    if (ret == 0 && length == 0)
+                        hasEContent = 0;
                 #ifndef NO_PKCS7_STREAM
                     if (ret == 0) {
                         pkcs7->stream->multi         = (multiPart != 0);
@@ -7588,7 +7611,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                  * The messageDigest signed attribute is checked against the
                  * hash of zero-length content downstream, so a stripped
                  * non-empty eContent still fails. */
-                if (!degenerate && !detached && noContent) {
+                if (!degenerate && !detached && !hasEContent) {
                     WOLFSSL_MSG("Processing as detached signature, no content");
                     detached = 1;
                 }
@@ -7610,6 +7633,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #ifndef NO_PKCS7_STREAM
             /* save detached flag value */
             pkcs7->stream->detached = (detached != 0);
+            pkcs7->stream->hasEContent = (hasEContent != 0);
 
             /* save contentType */
             pkcs7->stream->nonce = (byte*)XMALLOC(contentTypeSz, pkcs7->heap,
@@ -7663,6 +7687,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #endif /* ASN_BER_TO_DER */
 
         /* free pkcs7->stream->content buffer */
+        if (pkcs7->stream->content != NULL &&
+                pkcs7->content == pkcs7->stream->content) {
+            pkcs7->content   = NULL;
+            pkcs7->contentSz = 0;
+        }
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream->content = NULL;
         #endif /* !NO_PKCS7_STREAM */
@@ -7680,6 +7709,12 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* copy content to pkcs7->contentDynamic */
             if (keepContent && pkcs7->stream->content &&
                                             pkcs7->stream->contentSz > 0) {
+                if (pkcs7->contentDynamic != NULL &&
+                        pkcs7->content == pkcs7->contentDynamic) {
+                    pkcs7->content   = NULL;
+                    pkcs7->contentSz = 0;
+                }
+                XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->contentDynamic = (byte*)XMALLOC(pkcs7->stream->contentSz,
                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if (pkcs7->contentDynamic == NULL) {
@@ -7699,8 +7734,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
              * short read here as a successful degenerate end, which also
              * accepted a truncated bundle. Capping the request lets stage
              * 4/5/6's existing bounds checks and noDegenerate enforcement
-             * run instead: a genuine short degenerate end (empty signerInfos
-             * SET) still parses and succeeds, while anything truncated or
+             * run instead: a complete short end (empty signerInfos SET)
+             * still parses through stage 6, while anything truncated or
              * malformed fails there with a real parse error.
              */
             pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
@@ -7727,6 +7762,15 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
 
         #else
+            /* free pkcs7->contentDynamic buffer */
+            if (pkcs7->contentDynamic != NULL &&
+                    pkcs7->content == pkcs7->contentDynamic) {
+                pkcs7->content   = NULL;
+                pkcs7->contentSz = 0;
+            }
+            XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            pkcs7->contentDynamic = NULL;
+
             /* Break out before content because it can be optional in degenerate
              * cases. */
             if (ret != 0 && !degenerate)
@@ -8062,7 +8106,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     #endif
 
                         /* Save dynamic content before freeing PKCS7 struct */
-                        if (pkcs7->contentDynamic != NULL) {
+                        if (pkcs7->contentDynamic != NULL && contentSz > 0) {
                             contentDynamic = (byte*)XMALLOC((word32)contentSz,
                                                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                             if (contentDynamic == NULL) {
@@ -8232,6 +8276,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* restore content type */
             contentType   = pkcs7->stream->nonce;
             contentTypeSz = pkcs7->stream->nonceSz;
+            hasEContent   = pkcs7->stream->hasEContent;
 
             maxIdx = idx + pkcs7->stream->expected;
             if (maxIdx > pkiMsg2Sz) {
@@ -8326,6 +8371,12 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->degenerate = (degenerate != 0);
             #endif
+            }
+
+            /* RFC 5652 5.2: a SignedData without signers must omit eContent */
+            if (ret == 0 && degenerate == 1 && hasEContent == 1) {
+                WOLFSSL_MSG("PKCS#7 SignedData has content but no signer");
+                ret = PKCS7_NO_SIGNER_E;
             }
 
             if (ret != 0)
@@ -10755,7 +10806,7 @@ static int wc_PKCS7_GenerateBlock(wc_PKCS7* pkcs7, WC_RNG* rng, byte* out,
  * overridden via options when adding RecipientInfo type.
  *
  * Using the type DEGENERATE_SID skips over signer information. In degenerate
- * cases there are no signers.
+ * cases there are no signers and no content.
  *
  * pkcs7 - pointer to initialized PKCS7 structure
  * type  - either CMS_ISSUER_AND_SERIAL_NUMBER, CMS_SKID or DEGENERATE_SID

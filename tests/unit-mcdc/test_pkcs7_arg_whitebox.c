@@ -684,6 +684,8 @@ static void wb_encodesigned_shapes(void)
     byte content[32];
     byte hash[32];
     word32 outSz;
+    word32 savedContentSz;
+    int savedSidType;
     int ret;
 
     XMEMSET(content, 0x63, sizeof(content));
@@ -738,17 +740,36 @@ static void wb_encodesigned_shapes(void)
                              NULL, NULL);
     WB_CHECK(ret > 0, ":3649 2nd operand false (hashSz matches)");
 
+    WB_NOTE("PKCS7_EncodeSigned() degenerate SID content guard");
+    savedSidType   = p.sidType;
+    savedContentSz = p.contentSz;
+    p.sidType = DEGENERATE_SID;
+    /* both operands true: degenerate SID carrying content */
+    outSz = (word32)sizeof(out);
+    ret = PKCS7_EncodeSigned(&p, NULL, 0, out, &outSz, NULL, NULL);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+            "degenerate SID with content rejected");
+    /* 2nd operand false: degenerate SID without content */
+    p.contentSz = 0;
+    outSz = (word32)sizeof(out);
+    ret = PKCS7_EncodeSigned(&p, NULL, 0, out, &outSz, NULL, NULL);
+    WB_CHECK(ret > 0, "degenerate SID without content encodes");
+    p.sidType   = savedSidType;
+    p.contentSz = savedContentSz;
+
     WB_NOTE("PKCS7_EncodeSigned() pre-hash-required matrix [:3555]");
 #if defined(HAVE_ECC) || defined(WC_RSA_PSS)
     {
         word32 savedOid = p.publicKeyOID;
         int savedSid = p.sidType;
 
-        /* 1st operand false: degenerate (certs-only) bundle */
+        /* 1st operand false: degenerate (certs-only) bundle, no content */
         p.sidType = DEGENERATE_SID;
+        p.contentSz = 0;
         outSz = (word32)sizeof(out);
         (void)PKCS7_EncodeSigned(&p, NULL, 0, out, &outSz, NULL, NULL);
         p.sidType = savedSid;
+        p.contentSz = savedContentSz;
 
 #ifdef HAVE_ECC
         /* all true: ECDSA signer with no pre-calculated hash -> BAD_FUNC_ARG */
