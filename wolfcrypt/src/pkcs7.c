@@ -6952,6 +6952,12 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (keepContent) {
             #ifdef ASN_BER_TO_DER
                 if (pkcs7->streamOutCb) {
+                    /* refuse if both streamed eContent and caller-supplied
+                     * content are present */
+                    if (pkcs7->content != NULL && pkcs7->contentSz > 0) {
+                        ret = SIG_VERIFY_E;
+                        break;
+                    }
                     ret = wc_HashUpdate(&pkcs7->stream->hashAlg,
                         pkcs7->stream->hashType,
                         msg + *idx, pkcs7->stream->expected);
@@ -7680,6 +7686,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* copy content to pkcs7->contentDynamic */
             if (keepContent && pkcs7->stream->content &&
                                             pkcs7->stream->contentSz > 0) {
+                /* embedded eContent must match caller-supplied content */
+                if (pkcs7->content != NULL &&
+                    (pkcs7->contentSz != pkcs7->stream->contentSz ||
+                     XMEMCMP(pkcs7->content, pkcs7->stream->content,
+                             pkcs7->stream->contentSz) != 0)) {
+                    ret = SIG_VERIFY_E;
+                    break;
+                }
                 pkcs7->contentDynamic = (byte*)XMALLOC(pkcs7->stream->contentSz,
                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if (pkcs7->contentDynamic == NULL) {
@@ -7829,6 +7843,15 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 /* if detached, use content from user in pkcs7 struct */
                 content = pkcs7->content;
                 contentSz = pkcs7->contentSz;
+            }
+            else if (pkcs7->content != NULL && !degenerate) {
+                /* embedded eContent must match caller-supplied content */
+                if (pkcs7->contentSz != (word32)contentSz ||
+                    (content != NULL && contentSz > 0 &&
+                     XMEMCMP(content, pkcs7->content, (word32)contentSz) != 0)) {
+                    ret = SIG_VERIFY_E;
+                    break;
+                }
             }
         #endif /* !NO_PKCS7_STREAM */
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE4);

@@ -839,6 +839,14 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         p7->pkcs7.content = mem;
         p7->pkcs7.contentSz = (word32)memSz;
     }
+    else {
+        /* No detached content supplied: drop any leftover content pointer a
+         * prior verify (e.g. the internal verify in d2i_PKCS7) set to the
+         * decoded eContent, so the bundle's own eContent drives verification
+         * rather than being compared against a stale pointer. */
+        p7->pkcs7.content = NULL;
+        p7->pkcs7.contentSz = 0;
+    }
 
     ret = wc_PKCS7_VerifySignedData(&p7->pkcs7, p7->data, p7->len);
     if (ret != 0)

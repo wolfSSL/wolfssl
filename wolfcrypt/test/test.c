@@ -92442,6 +92442,17 @@ out:
  * the eContent and compute the messageDigest over the empty content; the
  * verifier must accept the absent eContent and check that digest without any
  * caller-supplied content or hash. */
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+static int pkcs7_signed_no_content_streamOutCb(wc_PKCS7* pkcs7,
+        const byte* output, word32 outputSz, void* ctx)
+{
+    (void)pkcs7;
+    (void)output;
+    (void)outputSz;
+    (void)ctx;
+    return 0;
+}
+#endif
 static wc_test_ret_t pkcs7_signed_no_content_test(byte* cert, word32 certSz,
                                                   byte* key, word32 keySz)
 {
@@ -92550,6 +92561,168 @@ static wc_test_ret_t pkcs7_signed_no_content_test(byte* cert, word32 certSz,
     ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
     if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Attached SignedData carrying its own eContent. When the caller also
+     * supplies pkcs7->content for detached verification, the embedded eContent
+     * must equal that content, otherwise a genuinely-signed eContent would
+     * verify arbitrary caller content. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    pkcs7->rng          = &rng;
+    pkcs7->content      = (byte*)content;
+    pkcs7->contentSz    = (word32)XSTRLEN((const char*)content);
+    pkcs7->contentOID   = DATA;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out_lbl);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* caller content equal to the embedded eContent still verifies */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    pkcs7->content   = (byte*)content;
+    pkcs7->contentSz = (word32)XSTRLEN((const char*)content);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* caller content differing from the embedded eContent (same length) must
+     * be rejected, not silently verified against the signed eContent */
+    {
+        byte evil[sizeof(content)];
+        XMEMCPY(evil, content, sizeof(content));
+        evil[0] ^= 0xFF;
+
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+        pkcs7->content   = evil;
+        pkcs7->contentSz = (word32)XSTRLEN((const char*)content);
+        ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+        if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* caller content buffer present but zero-length must not let a non-empty
+     * eContent verify: the length mismatch must be refused */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    pkcs7->content   = (byte*)content;
+    pkcs7->contentSz = 0;
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* With streamOutCb set the eContent is hashed and emitted directly without
+     * being buffered, so the content comparison above never runs on that path.
+     * A caller content differing from the signed eContent must still be
+     * refused there. This can be reached via a cert-less bundle with no signed
+     * attributes (signature directly over the eContent) verified with the
+     * signer certificate preloaded and the content streamed in. */
+    {
+        byte evil[sizeof(content)];
+        int  z2;
+
+        XMEMCPY(evil, content, sizeof(content));
+        evil[0] ^= 0xFF;
+
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+        ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        pkcs7->rng          = &rng;
+        pkcs7->content      = (byte*)content;
+        pkcs7->contentSz    = (word32)XSTRLEN((const char*)content);
+        pkcs7->contentOID   = DATA;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = keySz;
+        ret = wc_PKCS7_SetDefaultSignedAttribs(pkcs7, WOLFSSL_NO_ATTRIBUTES);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        ret = wc_PKCS7_SetNoCerts(pkcs7, 1);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+        if (encSz <= 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out_lbl);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* no caller content: the streamed eContent verifies, confirming this
+         * path is actually reached */
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+        ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        ret = wc_PKCS7_SetStreamMode(pkcs7, 0, NULL,
+                pkcs7_signed_no_content_streamOutCb, NULL);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        for (z2 = 0; z2 < encSz &&
+                ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E); z2++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, out + z2, 1);
+        }
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* differing caller content must be refused, not verified against the
+         * streamed eContent */
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+        ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        ret = wc_PKCS7_SetStreamMode(pkcs7, 0, NULL,
+                pkcs7_signed_no_content_streamOutCb, NULL);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        pkcs7->content   = evil;
+        pkcs7->contentSz = (word32)XSTRLEN((const char*)content);
+        ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        for (z2 = 0; z2 < encSz &&
+                ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E); z2++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, out + z2, 1);
+        }
+        if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif /* ASN_BER_TO_DER && !NO_PKCS7_STREAM */
 
     ret = 0;
 
