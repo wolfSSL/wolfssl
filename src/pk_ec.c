@@ -2365,6 +2365,9 @@ static int ec_mul2add(ecc_point* r, ecc_point* b, mp_int* n, ecc_point* q,
  *
  * r = base point * n + q * m
  *
+ * With both n and q/m given the sum uses Shamir's trick, which is variable
+ * time: do not pass secret scalars that way.
+ *
  * @param [in]  curveIdx  Index of curve in ecc_set.
  * @param [out] r         EC point that is result of operation.
  * @param [in]  n         Scalar to multiply by base point. May be NULL.

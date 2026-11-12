@@ -30,6 +30,11 @@ int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
 /*!
     \ingroup SAKKE_RSK
 */
+int wc_MakeSakkeRsk_ex(SakkeKey* key, const byte* id, word16 idSz,
+        ecc_point* rsk, WC_RNG* rng);
+/*!
+    \ingroup SAKKE_RSK
+*/
 int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
         ecc_point* rsk, int* valid);
 /*!

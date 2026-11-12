@@ -1986,6 +1986,162 @@ int test_wc_ecc_import_private_key(void)
 } /* END test_wc_ecc_import_private_key */
 
 /*
+ * Testing wc_ecc_make_pub_ex() with private key d = n - 1 on secp256k1, whose
+ * public key is -G. The timing-resistant ladder ends by adding two points
+ * that are negatives of each other; the result must still be -G, including
+ * when FP_ECC takes the secret scalar through its cached comb.
+ */
+int test_wc_ecc_make_pub_order_minus_1(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KOBLITZ) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG) && !defined(NO_ECC256) && \
+    !defined(HAVE_SELFTEST) && !defined(NO_ECC_MAKE_PUB) && \
+    !defined(WOLFSSL_NO_ECC_SW) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0))
+    ecc_key key;
+    WC_RNG  rng;
+    /* secp256k1 order n, minus 1. */
+    static const byte d[32] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
+        0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
+        0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x40
+    };
+    /* -G = (Gx, p - Gy). */
+    static const byte expX[32] = {
+        0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC,
+        0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B, 0x07,
+        0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9,
+        0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8, 0x17, 0x98
+    };
+    static const byte expY[32] = {
+        0xB7, 0xC5, 0x25, 0x88, 0xD9, 0x5C, 0x3B, 0x9A,
+        0xA2, 0x5B, 0x04, 0x03, 0xF1, 0xEE, 0xF7, 0x57,
+        0x02, 0xE8, 0x4B, 0xB7, 0x59, 0x7A, 0xAB, 0xE6,
+        0x63, 0xB8, 0x2F, 0x6F, 0x04, 0xEF, 0x27, 0x77
+    };
+    byte    qx[32];
+    byte    qy[32];
+    word32  qxSz = (word32)sizeof(qx);
+    word32  qySz = (word32)sizeof(qy);
+    int     i;
+
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_import_private_key_ex(d, (word32)sizeof(d), NULL, 0,
+        &key, ECC_SECP256K1), 0);
+
+    /* Repeat so an FP_ECC build would have warmed its cache for G. */
+    for (i = 0; (i < 3) && EXPECT_SUCCESS(); i++) {
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ecc_make_pub_ex(&key, NULL, &rng), 0);
+        PRIVATE_KEY_LOCK();
+        qxSz = (word32)sizeof(qx);
+        qySz = (word32)sizeof(qy);
+        ExpectIntEQ(wc_ecc_export_public_raw(&key, qx, &qxSz, qy, &qySz), 0);
+        ExpectIntEQ(qxSz, sizeof(expX));
+        ExpectIntEQ(qySz, sizeof(expY));
+        ExpectBufEQ(qx, expX, sizeof(expX));
+        ExpectBufEQ(qy, expY, sizeof(expY));
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&key);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_make_pub_order_minus_1 */
+
+/*
+ * Testing that FP_ECC gives the same public key once its table is built as
+ * from the first, uncached, multiplications.
+ */
+int test_wc_ecc_fp_cached_matches_uncached(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !defined(HAVE_SELFTEST) && !defined(NO_ECC_MAKE_PUB) && \
+    !defined(WOLFSSL_NO_ECC_SW) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0))
+    ecc_key key;
+    WC_RNG  rng;
+    /* 1, 2, the top bit alone, the P-256 order - 1, and 2^43, for which with
+     * the default FP_LUT the comb's accumulator equals the table entry being
+     * added. */
+    static const byte d[5][32] = {
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2 },
+        { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+          0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
+          0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x50 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0, 0, 0, 0, 0 }
+    };
+    byte    firstX[32];
+    byte    firstY[32];
+    byte    qx[32];
+    byte    qy[32];
+    word32  qxSz;
+    word32  qySz;
+    int     i;
+    int     j;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; (i < 5) && EXPECT_SUCCESS(); i++) {
+        wc_ecc_fp_free();
+        XMEMSET(&key, 0, sizeof(ecc_key));
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_ecc_import_private_key_ex(d[i], (word32)sizeof(d[i]),
+            NULL, 0, &key, ECC_SECP256R1), 0);
+        for (j = 0; (j < 4) && EXPECT_SUCCESS(); j++) {
+            PRIVATE_KEY_UNLOCK();
+            ExpectIntEQ(wc_ecc_make_pub_ex(&key, NULL, &rng), 0);
+            PRIVATE_KEY_LOCK();
+            qxSz = (word32)sizeof(qx);
+            qySz = (word32)sizeof(qy);
+            ExpectIntEQ(wc_ecc_export_public_raw(&key, qx, &qxSz, qy, &qySz),
+                0);
+            if (j == 0) {
+                XMEMCPY(firstX, qx, sizeof(qx));
+                XMEMCPY(firstY, qy, sizeof(qy));
+            }
+            else {
+                ExpectBufEQ(qx, firstX, sizeof(qx));
+                ExpectBufEQ(qy, firstY, sizeof(qy));
+            }
+        }
+        wc_ecc_free(&key);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_fp_free();
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_fp_cached_matches_uncached */
+
+/*
  * Testing wc_ecc_export_private_only()
  */
 int test_wc_ecc_export_private_only(void)

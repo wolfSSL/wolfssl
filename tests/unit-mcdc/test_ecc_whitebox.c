@@ -1200,6 +1200,122 @@ static void wb_fp_cache_internals(void)
 }
 #endif /* FP_ECC && !WOLFSSL_SP_MATH */
 
+#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && \
+    defined(ECC_TIMING_RESISTANT)
+/* ------------------------------------------------------------------------- *
+ * Timing-resistant wc_ecc_mulmod_ex()/wc_ecc_mulmod_ex2() take secret scalars
+ * through fp_comb_ct() once a base point's table is built. The first calls run
+ * the ladder, so each scalar's cached result must equal its uncached one,
+ * including the scalars that make the comb's accumulator or table entry the
+ * point at infinity.
+ * ------------------------------------------------------------------------- */
+static void wb_fp_comb_ct(void)
+{
+    int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    const ecc_set_type* cs;
+    ecc_point *G = NULL, *R = NULL, *L = NULL;
+    mp_int k, a, prime, order;
+    int i, s;
+    int base;
+
+    if (idx == ECC_CURVE_INVALID) {
+        wb_fail = 1;
+        return;
+    }
+    cs = wc_ecc_get_curve_params(idx);
+    if (cs == NULL) {
+        wb_fail = 1;
+        return;
+    }
+    if (mp_init_multi(&k, &a, &prime, &order, NULL, NULL) != MP_OKAY) {
+        wb_fail = 1;
+        return;
+    }
+    G = wc_ecc_new_point();
+    R = wc_ecc_new_point();
+    L = wc_ecc_new_point();
+    if ((G == NULL) || (R == NULL) || (L == NULL) ||
+            (mp_read_radix(&a, cs->Af, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(&prime, cs->prime, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(&order, cs->order, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(G->x, cs->Gx, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(G->y, cs->Gy, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_set(G->z, 1) != MP_OKAY)) {
+        wb_fail = 1;
+        goto out;
+    }
+
+    /* 1, 2, a small value, order - 1, order, the top bit alone, and 2^gap for
+     * which the accumulator equals the table entry being added. */
+    for (s = 0; s < 7; s++) {
+        int ok;
+        if (s == 3 || s == 4) {
+            ok = (mp_copy(&order, &k) == MP_OKAY);
+            if (ok && (s == 3)) {
+                ok = (mp_sub_d(&k, 1, &k) == MP_OKAY);
+            }
+        }
+        else if (s == 5) {
+            mp_zero(&k);
+            ok = (mp_set_bit(&k, 255) == MP_OKAY);
+        }
+        else if (s == 6) {
+            mp_zero(&k);
+            ok = (mp_set_bit(&k, (256 + FP_LUT - 1) / FP_LUT) == MP_OKAY);
+        }
+        else {
+            ok = (mp_set(&k, (s == 2) ? 0x1234567 : (mp_digit)(s + 1)) ==
+                MP_OKAY);
+        }
+        if (!ok) {
+            wb_fail = 1;
+            goto out;
+        }
+
+        wc_ecc_fp_free();
+        for (i = 0; i < 4; i++) {
+            ecc_point* dst = (i == 0) ? L : R;
+            int err = (i & 1) ?
+                wc_ecc_mulmod_ex2(&k, G, dst, &a, &prime, &order, NULL, 1,
+                    NULL) :
+                wc_ecc_mulmod_ex(&k, G, dst, &a, &prime, 1, NULL);
+            if (err != MP_OKAY) {
+                WB_NOTE("timing-resistant mulmod failed");
+                wb_fail = 1;
+            }
+        }
+        base = find_base(G);
+        if (FP_MULMOD_USES_LUT &&
+                ((base < 0) || (!fp_cache[base].LUT_set))) {
+            WB_NOTE("fp_cache table was not built");
+            wb_fail = 1;
+        }
+        if ((mp_cmp(R->x, L->x) != MP_EQ) || (mp_cmp(R->y, L->y) != MP_EQ) ||
+                (mp_cmp(R->z, L->z) != MP_EQ)) {
+            WB_NOTE("fp_comb_ct result differs from the ladder");
+            wb_fail = 1;
+        }
+    }
+    WB_NOTE("timing-resistant fp_comb_ct compared with the ladder");
+
+out:
+    wc_ecc_del_point(G);
+    wc_ecc_del_point(R);
+    wc_ecc_del_point(L);
+    mp_clear(&k);
+    mp_clear(&a);
+    mp_clear(&prime);
+    mp_clear(&order);
+    wc_ecc_fp_free();
+}
+#else
+static void wb_fp_comb_ct(void)
+{
+    WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH, or not timing-resistant); "
+            "fp_comb_ct check skipped");
+}
+#endif /* FP_ECC && !WOLFSSL_SP_MATH && ECC_TIMING_RESISTANT */
+
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ------------------------------------------------------------------------- *
  * Class 18: wc_ecc_export_point_der()/wc_ecc_export_point_der_compressed()
@@ -3855,6 +3971,7 @@ int main(void)
     wb_mul2add_and_bufsize();
     wb_projective_safe_special_cases();
     wb_fp_cache_internals();
+    wb_fp_comb_ct();
     wb_export_point_der();
     wb_export_x963_internal();
     wb_idx_dp_guard_export_paths();

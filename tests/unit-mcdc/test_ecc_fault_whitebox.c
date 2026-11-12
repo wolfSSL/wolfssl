@@ -536,10 +536,10 @@ static void wb_fp_build_lut_and_mul(wb_fp_ctx* c)
     if (add_entry(0, c->G) == MP_OKAY &&
         build_lut(0, &c->a, &c->prime, mp, &c->mu) == MP_OKAY) {
         /* accepting row first, then the fault sweep over the LUT-copy chain */
-        (void)accel_fp_mul(0, &c->k, c->R, &c->a, &c->prime, mp, 1);
+        (void)accel_fp_mul(0, &c->k, c->R, &c->a, &c->prime, mp, NULL, 1);
         for (n = 1; n <= 8; n++) {
             mcdc_fm_arm(n);
-            (void)accel_fp_mul(0, &c->k, c->R, &c->a, &c->prime, mp, 1);
+            (void)accel_fp_mul(0, &c->k, c->R, &c->a, &c->prime, mp, NULL, 1);
             mcdc_fm_disarm();
         }
     }

@@ -1969,9 +1969,101 @@ int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     return ret;
 }
 
+/* Number of random blinding factors to try. A modulus with many small factors
+ * rejects most of them. */
+#define BN_INVMOD_BLIND_TRIES   128
+
+/* Compute r = a^-1 mod m with a blinded by a random factor.
+ *
+ * When a*b has no inverse, the factor b is tested by itself: if it has one then
+ * a has none, otherwise another factor is tried.
+ * Invert directly when there is no random number generator or no factor found:
+ * this API has no way to ask for blinding, so it must not start failing for
+ * lack of it. r may alias a or m.
+ *
+ * @param [in]  a  MP integer to invert.
+ * @param [in]  m  Big number that is the modulus.
+ * @param [out] r  MP integer to hold the result.
+ * @return  MP_OKAY on success.
+ * @return  Other value on error, including when there is no inverse.
+ */
+static int wolfssl_bn_invmod_blind(mp_int* a, const WOLFSSL_BIGNUM* m,
+    mp_int* r)
+{
+    mp_int* mod = (mp_int*)m->internal;
+    int err = MP_OKAY;
+    int found = 0;
+    WOLFSSL_BIGNUM* t = wolfSSL_BN_new();
+#ifndef WC_NO_RNG
+    int i;
+    WOLFSSL_BIGNUM* b = wolfSSL_BN_new();
+    WOLFSSL_BIGNUM* ar = wolfSSL_BN_new();
+
+    if ((t == NULL) || (b == NULL) || (ar == NULL)) {
+        err = MEMORY_E;
+    }
+    if ((err == MP_OKAY) && (mp_cmp_d(mod, 2) == MP_GT)) {
+        /* Reduce a once, as mp_invmod() would: a*b may not fit when a is much
+         * wider than m. */
+        err = mp_mod(a, mod, (mp_int*)ar->internal);
+        for (i = 0; (err == MP_OKAY) && (!found) &&
+                (i < BN_INVMOD_BLIND_TRIES) &&
+                (wolfSSL_BN_rand_range(b, m) == 1); i++) {
+            if (mp_iszero((mp_int*)b->internal)) {
+                continue;
+            }
+            err = mp_mulmod((mp_int*)ar->internal, (mp_int*)b->internal, mod,
+                (mp_int*)t->internal);
+            if (err == MP_OKAY) {
+                err = mp_invmod((mp_int*)t->internal, mod,
+                    (mp_int*)t->internal);
+                if (err == MP_OKAY) {
+                    err = mp_mulmod((mp_int*)t->internal, (mp_int*)b->internal,
+                        mod, (mp_int*)t->internal);
+                    found = (err == MP_OKAY);
+                }
+                else if (err == WC_NO_ERR_TRACE(MP_VAL)) {
+                    /* b has an inverse, so a has none: fail. Otherwise b
+                     * shares a factor with m: try another. */
+                    err = mp_invmod((mp_int*)b->internal, mod,
+                        (mp_int*)t->internal);
+                    if (err == MP_OKAY) {
+                        err = MP_VAL;
+                    }
+                    else if (err == WC_NO_ERR_TRACE(MP_VAL)) {
+                        err = MP_OKAY;
+                    }
+                }
+            }
+        }
+    }
+#else
+    if (t == NULL) {
+        err = MEMORY_E;
+    }
+#endif
+    if ((err == MP_OKAY) && (!found)) {
+        err = mp_invmod(a, mod, (mp_int*)t->internal);
+    }
+    if (err == MP_OKAY) {
+        err = mp_copy((mp_int*)t->internal, r);
+    }
+
+#ifndef WC_NO_RNG
+    wolfSSL_BN_clear_free(ar);
+    wolfSSL_BN_clear_free(b);
+#endif
+    wolfSSL_BN_clear_free(t);
+
+    return err;
+}
+
 /* Calculate the modular inverse of a mod m into r. r = a^-1 mod m
  *
  * A new big number is allocated when r is NULL.
+ *
+ * The operand is blinded when a random blinding factor can be generated, and
+ * inverted unblinded otherwise. BN_FLG_CONSTTIME is not checked.
  *
  * @param [in, out] r    Big number to hold result. May be NULL.
  * @param [in]      a    Big number to invert.
@@ -2009,8 +2101,8 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a,
     }
 
     /* Compute inverse of a modulo n and return in r */
-    if ((!err) && (mp_invmod((mp_int *)a->internal, (mp_int *)m->internal,
-            (mp_int*)r->internal) != MP_OKAY)) {
+    if ((!err) && (wolfssl_bn_invmod_blind((mp_int *)a->internal,
+            (const WOLFSSL_BIGNUM*)m, (mp_int*)r->internal) != MP_OKAY)) {
         WOLFSSL_MSG("mp_invmod() error");
         err = 1;
     }
@@ -2153,6 +2245,9 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
             ret = 0;
         }
         /* Dispose of buffer - no longer needed. */
+        if (buff != NULL) {
+            ForceZero(buff, len);
+        }
         XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         /* Truncate to requested bit length when not a whole number of bytes. */

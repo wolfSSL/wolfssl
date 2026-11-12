@@ -734,6 +734,14 @@ int test_wolfSSL_BN_math_mod(void)
     BN_ULONG val1;
     BN_ULONG val2;
     BN_ULONG val3;
+    int i;
+#ifdef SP_INT_BITS
+    int bits = SP_INT_BITS;
+#elif defined(USE_FAST_MATH)
+    int bits = FP_MAX_BITS / 2;
+#else
+    int bits = 1024;
+#endif
 
     /* Setup */
     XMEMSET(&emptyBN, 0, sizeof(emptyBN));
@@ -846,6 +854,39 @@ int test_wolfSSL_BN_math_mod(void)
     ExpectIntEQ(BN_set_word(a, 3), 1);
     ExpectIntEQ(BN_set_word(m, 9), 1);
     ExpectNull(BN_mod_inverse(r, a, m, NULL));
+    /* Composite modulus with small factors: blinding factors that share one
+     * have no inverse, so the true inverse must still be found. */
+    ExpectIntEQ(BN_set_word(a, 11), 1);
+    ExpectIntEQ(BN_set_word(m, 210), 1);
+    for (i = 0; i < 64; i++) {
+        ExpectNotNull(BN_mod_inverse(r, a, m, NULL));
+        ExpectIntEQ(BN_is_word(r, 191), 1);
+    }
+    /* Result may share storage with the operand or the modulus. */
+    ExpectNotNull(BN_mod_inverse(a, a, m, NULL));
+    ExpectIntEQ(BN_is_word(a, 191), 1);
+    ExpectIntEQ(BN_set_word(a, 11), 1);
+    ExpectNotNull(BN_mod_inverse(m, a, m, NULL));
+    ExpectIntEQ(BN_is_word(m, 191), 1);
+    /* An operand much wider than the modulus:
+     * 2^(2*bits-64) = 2^(bits-64) mod 2^bits - 1, whose inverse is 2^64. */
+    ExpectIntEQ(BN_set_word(a, 0), 1);
+    ExpectIntEQ(BN_set_bit(a, 2 * bits - 64), 1);
+    ExpectIntEQ(BN_set_word(m, 0), 1);
+    ExpectIntEQ(BN_set_bit(m, bits), 1);
+    ExpectIntEQ(BN_sub_word(m, 1), 1);
+    ExpectNotNull(BN_mod_inverse(r, a, m, NULL));
+    t = NULL;
+    ExpectNotNull(t = BN_new());
+    ExpectIntEQ(BN_set_bit(t, 64), 1);
+    ExpectIntEQ(BN_cmp(r, t), 0);
+    BN_free(t);
+    t = NULL;
+    /* Modulus too small to blind with. */
+    ExpectIntEQ(BN_set_word(a, 1), 1);
+    ExpectIntEQ(BN_set_word(m, 2), 1);
+    ExpectNotNull(BN_mod_inverse(r, a, m, NULL));
+    ExpectIntEQ(BN_is_word(r, 1), 1);
 
     BN_free(r);
     BN_free(m);
