@@ -78743,20 +78743,116 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     return ret;
 }
 
+/* Seeded key generation and signing must give the same bytes whether run in
+ * one call or resumed across yields. */
+static wc_test_ret_t mldsa_nonblock_match_test_level(int level)
+{
+    wc_test_ret_t    ret = 0;
+    int              rc = 0;
+    wc_MlDsaKey*     key = NULL;
+    wc_MlDsaKey*     nbKey = NULL;
+    wc_MlDsaNonBlock nb;
+    byte*            sig = NULL;
+    byte*            nbSig = NULL;
+    int              sigSz = 0;
+    word32           sigLen;
+    word32           nbSigLen;
+    int              res;
+    int              i;
+    int              yields = 0;
+    int              minYields = -1;
+    int              maxYields = 0;
+    int              nbInited = 0;
+    int              keyInited = 0;
+    byte             seed[MLDSA_SEED_SZ];
+    byte             msg[32];
+
+    XMEMSET(seed, 0x5a, sizeof(seed));
+    XMEMSET(msg, 0xa5, sizeof(msg));
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    nbKey = (wc_MlDsaKey*)XMALLOC(sizeof(*nbKey), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (nbKey == NULL))
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    NB_STEP(wc_MlDsaKey_Init(key, HEAP_HINT, devId));
+    keyInited = (ret == 0);
+    NB_STEP(wc_MlDsaKey_SetParams(key, (byte)level));
+    NB_STEP(wc_MlDsaKey_Init(nbKey, HEAP_HINT, devId));
+    nbInited = (ret == 0);
+    NB_STEP(wc_MlDsaKey_SetParams(nbKey, (byte)level));
+    NB_STEP(wc_MlDsaKey_set_nonblock(nbKey, &nb));
+    NB_STEP(wc_MlDsaKey_MakeKeyFromSeed(key, seed));
+    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(nbKey, seed));
+    NB_STEP(wc_MlDsaKey_GetSigLen(key, &sigSz));
+    if (ret == 0) {
+        sig = (byte*)XMALLOC((size_t)sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        nbSig = (byte*)XMALLOC((size_t)sigSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if ((sig == NULL) || (nbSig == NULL))
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    for (i = 0; (ret == 0) && (i < 8); i++) {
+        msg[0] = (byte)i;
+        sigLen = (word32)sigSz;
+        nbSigLen = (word32)sigSz;
+        NB_STEP(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg,
+            (word32)sizeof(msg), seed));
+        NB_DRIVE(wc_MlDsaKey_SignCtxWithSeed(nbKey, NULL, 0, nbSig, &nbSigLen,
+            msg, (word32)sizeof(msg), seed));
+        if ((ret == 0) && (rc != 0))
+            ret = WC_TEST_RET_ENC_EC(rc);
+        if (ret == 0) {
+            if ((minYields < 0) || (yields < minYields))
+                minYields = yields;
+            if (yields > maxYields)
+                maxYields = yields;
+        }
+        if ((ret == 0) && ((nbSigLen != sigLen) ||
+                (XMEMCMP(sig, nbSig, sigLen) != 0))) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+        res = 0;
+        NB_RUN(wc_MlDsaKey_VerifyCtx(nbKey, nbSig, nbSigLen, NULL, 0, msg,
+            (word32)sizeof(msg), &res));
+        if ((ret == 0) && (res != 1))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if ((ret == 0) && (maxYields <= minYields))
+        ret = WC_TEST_RET_ENC_NC;
+
+    XFREE(nbSig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (nbInited)
+        wc_MlDsaKey_Free(nbKey);
+    if (keyInited)
+        wc_MlDsaKey_Free(key);
+    XFREE(nbKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
 static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (ret == 0)
         ret = mldsa_nonblock_test_level(WC_ML_DSA_44, rng);
+    if (ret == 0)
+        ret = mldsa_nonblock_match_test_level(WC_ML_DSA_44);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
     if (ret == 0)
         ret = mldsa_nonblock_test_level(WC_ML_DSA_65, rng);
+    if (ret == 0)
+        ret = mldsa_nonblock_match_test_level(WC_ML_DSA_65);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
     if (ret == 0)
         ret = mldsa_nonblock_test_level(WC_ML_DSA_87, rng);
+    if (ret == 0)
+        ret = mldsa_nonblock_match_test_level(WC_ML_DSA_87);
 #endif
     return ret;
 }
