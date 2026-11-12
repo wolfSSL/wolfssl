@@ -20321,6 +20321,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     int holdCrl = 0;
                 #endif
                     int preCbRet;
+                    int preCbHeldCrlRet;
                     int caIsTemp = 0;
 
                     /* select last certificate */
@@ -20675,8 +20676,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     SetRevocationVerifyRet(ssl, ret);
                     /* Do verify callback */
                     preCbRet = ret;
+                    preCbHeldCrlRet = heldCrlRet;
                     ret = DoVerifyCallbackHeldCrl(ssl, args, ret, &heldCrlRet);
-                    if (ret == 0 && preCbRet != 0)
+                    if (ret == 0 && (preCbRet != 0 ||
+                            (preCbHeldCrlRet != 0 && heldCrlRet == 0)))
                         caIsTemp = 1;
                     if (ret == 0 && args->dCert->ca != NULL &&
                             ProcessPeerCertIsWaivedCA(ssl, args->dCert->ca))

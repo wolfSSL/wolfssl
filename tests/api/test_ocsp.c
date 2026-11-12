@@ -2620,14 +2620,14 @@ static WC_MAYBE_UNUSED int test_ocsp_srv_ctx_ready(WOLFSSL_CTX* ctx)
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
-    !defined(NO_RSA) && !defined(NO_SHA)
+    !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM)
 
 static const char* test_ocsp_checkall_staple_crl_file;
 static int test_ocsp_checkall_staple_crl_pin_fail;
+static int test_ocsp_checkall_staple_crl_waive;
 static int test_ocsp_checkall_staple_crl_cb_calls;
 
-/* Passes preverify through, or rejects the intermediate as a failed pin
- * would. */
+/* Passes preverify through, rejects as a failed pin would, or accepts. */
 static int test_ocsp_checkall_staple_crl_verify_cb(int preverify,
     WOLFSSL_X509_STORE_CTX* store)
 {
@@ -2636,6 +2636,8 @@ static int test_ocsp_checkall_staple_crl_verify_cb(int preverify,
     test_ocsp_checkall_staple_crl_cb_calls++;
     if (test_ocsp_checkall_staple_crl_pin_fail)
         return 0;
+    if (test_ocsp_checkall_staple_crl_waive)
+        return 1;
     return preverify;
 }
 
@@ -2703,6 +2705,7 @@ int test_ocsp_checkall_staple_crl_missing(void)
 {
     EXPECT_DECLS;
     struct test_ssl_memio_ctx test_ctx;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
 
     /* Every chain entry carries a staple, so a CRL store holding nothing for
      * the intermediate's issuer must not reject it. */
@@ -2734,6 +2737,20 @@ int test_ocsp_checkall_staple_crl_missing(void)
 #endif
     test_ssl_memio_cleanup(&test_ctx);
     test_ocsp_checkall_staple_crl_pin_fail = 0;
+
+    /* A CA whose missing CRL the callback waived stays out of the CM. */
+    test_ocsp_checkall_staple_crl_waive = 1;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_ocsp_checkall_staple_crl_run(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(test_ctx.c_ctx));
+    ExpectIntEQ(wolfSSL_CertManagerDisableCRL(cm), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerDisableOCSP(cm), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, "./certs/ocsp/server1-cert.pem",
+        WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    test_ssl_memio_cleanup(&test_ctx);
+    test_ocsp_checkall_staple_crl_waive = 0;
 
     /* A CRL that does revoke the intermediate still rejects it, staple or no
      * staple. */
