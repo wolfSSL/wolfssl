@@ -13014,7 +13014,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         }
     }
 
-    if ((ret == 0)
+    if (ret == 0
     #ifdef WC_MLDSA_NONBLOCK
         /* Resuming part way through an attempt: its y is still in the working
          * allocation, so the seed it is expanded from is not needed. */
