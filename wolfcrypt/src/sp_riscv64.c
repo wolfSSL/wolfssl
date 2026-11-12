@@ -40918,24 +40918,6 @@ typedef struct ecc_recode_256 {
     word8 neg;
 } ecc_recode_256;
 
-/* The index into pre-computation table to use. */
-static const word8 recode_index_4_6[66] = {
-     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-    32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-    16, 15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,
-     0,  1,
-};
-
-/* Whether to negate y-ordinate. */
-static const word8 recode_neg_4_6[66] = {
-     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-     0,  0,
-};
-
 /* Recode the scalar for multiplication using pre-computed values and
  * subtraction.
  *
@@ -40947,6 +40929,8 @@ static void sp_256_ecc_recode_6_4(const sp_digit* k, ecc_recode_256* v)
     int i;
     int j;
     word8 y;
+    word8 neg;
+    word8 m;
     int carry = 0;
     int o;
     sp_digit n;
@@ -40975,9 +40959,16 @@ static void sp_256_ecc_recode_6_4(const sp_digit* k, ecc_recode_256* v)
         }
 
         y = (word8)(y + carry);
-        v[i].i = recode_index_4_6[y];
-        v[i].neg = recode_neg_4_6[y];
-        carry = (y >> 6) + v[i].neg;
+        /* Constant time recoding - no secret dependent table lookup.
+         * y in [0, 31]: index y, no negate.
+         * y in [32, 63]: index 64 - y, negate.
+         * y in [64, 65]: index y - 64, no negate.
+         */
+        neg = (word8)((y >> 5) & 1);
+        m = (word8)(0 - neg);
+        v[i].i = (word8)(((y ^ m) + neg) & 0x3f);
+        v[i].neg = neg;
+        carry = (y >> 6) + neg;
     }
 }
 
@@ -51226,24 +51217,6 @@ typedef struct ecc_recode_384 {
     word8 neg;
 } ecc_recode_384;
 
-/* The index into pre-computation table to use. */
-static const word8 recode_index_6_6[66] = {
-     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-    32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-    16, 15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,
-     0,  1,
-};
-
-/* Whether to negate y-ordinate. */
-static const word8 recode_neg_6_6[66] = {
-     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-     0,  0,
-};
-
 /* Recode the scalar for multiplication using pre-computed values and
  * subtraction.
  *
@@ -51255,6 +51228,8 @@ static void sp_384_ecc_recode_6_6(const sp_digit* k, ecc_recode_384* v)
     int i;
     int j;
     word8 y;
+    word8 neg;
+    word8 m;
     int carry = 0;
     int o;
     sp_digit n;
@@ -51283,9 +51258,16 @@ static void sp_384_ecc_recode_6_6(const sp_digit* k, ecc_recode_384* v)
         }
 
         y = (word8)(y + carry);
-        v[i].i = recode_index_6_6[y];
-        v[i].neg = recode_neg_6_6[y];
-        carry = (y >> 6) + v[i].neg;
+        /* Constant time recoding - no secret dependent table lookup.
+         * y in [0, 31]: index y, no negate.
+         * y in [32, 63]: index 64 - y, negate.
+         * y in [64, 65]: index y - 64, no negate.
+         */
+        neg = (word8)((y >> 5) & 1);
+        m = (word8)(0 - neg);
+        v[i].i = (word8)(((y ^ m) + neg) & 0x3f);
+        v[i].neg = neg;
+        carry = (y >> 6) + neg;
     }
 }
 
@@ -61516,24 +61498,6 @@ typedef struct ecc_recode_521 {
     word8 neg;
 } ecc_recode_521;
 
-/* The index into pre-computation table to use. */
-static const word8 recode_index_9_6[66] = {
-     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-    32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-    16, 15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,
-     0,  1,
-};
-
-/* Whether to negate y-ordinate. */
-static const word8 recode_neg_9_6[66] = {
-     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-     0,  0,
-};
-
 /* Recode the scalar for multiplication using pre-computed values and
  * subtraction.
  *
@@ -61545,6 +61509,8 @@ static void sp_521_ecc_recode_6_9(const sp_digit* k, ecc_recode_521* v)
     int i;
     int j;
     word8 y;
+    word8 neg;
+    word8 m;
     int carry = 0;
     int o;
     sp_digit n;
@@ -61573,9 +61539,16 @@ static void sp_521_ecc_recode_6_9(const sp_digit* k, ecc_recode_521* v)
         }
 
         y = (word8)(y + carry);
-        v[i].i = recode_index_9_6[y];
-        v[i].neg = recode_neg_9_6[y];
-        carry = (y >> 6) + v[i].neg;
+        /* Constant time recoding - no secret dependent table lookup.
+         * y in [0, 31]: index y, no negate.
+         * y in [32, 63]: index 64 - y, negate.
+         * y in [64, 65]: index y - 64, no negate.
+         */
+        neg = (word8)((y >> 5) & 1);
+        m = (word8)(0 - neg);
+        v[i].i = (word8)(((y ^ m) + neg) & 0x3f);
+        v[i].neg = neg;
+        carry = (y >> 6) + neg;
     }
 }
 
