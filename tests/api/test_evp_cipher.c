@@ -695,6 +695,14 @@ int test_wolfSSL_EVP_BytesToKey(void)
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
     };
+    const byte expKeyNoSalt[AES_BLOCK_SIZE] = {
+        0x18,0x5f,0x8d,0xb3,0x22,0x71,0xfe,0x25,
+        0xf5,0x61,0xa6,0xfc,0x93,0x8b,0x2e,0x26
+    };
+    const byte expIvNoSalt[AES_BLOCK_SIZE] = {
+        0x43,0x06,0xec,0x30,0x4e,0xda,0x51,0x80,
+        0x07,0xd1,0x76,0x48,0x26,0x38,0x19,0x69
+    };
 
     type = wolfSSL_EVP_get_cipherbynid(NID_aes_128_cbc);
 
@@ -711,6 +719,14 @@ int test_wolfSSL_EVP_BytesToKey(void)
     md = EVP_sha256();
     ExpectIntEQ(EVP_BytesToKey(type, md, salt, data, sz, count, key, iv),
                  16);
+
+    /* NULL salt: key || IV is SHA-256("Hello") */
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+    ExpectIntEQ(EVP_BytesToKey(type, md, NULL, data, sz, count, key, iv),
+                 16);
+    ExpectBufEQ(key, expKeyNoSalt, sizeof(expKeyNoSalt));
+    ExpectBufEQ(iv, expIvNoSalt, sizeof(expIvNoSalt));
 #endif
     return EXPECT_RESULT();
 }
