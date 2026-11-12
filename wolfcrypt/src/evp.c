@@ -7157,6 +7157,7 @@ void wolfSSL_EVP_init(void)
     {
         int ret;
         int hashType = WC_HASH_TYPE_NONE;
+        int saltSz = 0;
         WC_DECLARE_VAR(info, EncryptedInfo, 1, 0);
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -7187,8 +7188,11 @@ void wolfSSL_EVP_init(void)
         if (count <= 0)
             count = 1;
 
+        if (salt != NULL)
+            saltSz = EVP_SALT_SIZE;
+
         ret = wc_PBKDF1_ex(key, (int)info->keySz, iv, (int)info->ivSz, data, sz,
-                           salt, EVP_SALT_SIZE, count, hashType, NULL);
+                           salt, saltSz, count, hashType, NULL);
         if (ret == 0)
             ret = (int)info->keySz;
 
