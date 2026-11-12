@@ -9229,7 +9229,7 @@ int test_tls_unset_fd_no_stdin_io(void)
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     defined(USE_WOLFSSL_IO) && (defined(__unix__) || defined(__APPLE__)) && \
-    !defined(WOLFSSL_LEANPSK)
+    !defined(WOLFSSL_LEANPSK) && !defined(HAVE_VALGRIND)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int sv[2] = { -1, -1 };
