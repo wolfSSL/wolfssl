@@ -8570,6 +8570,78 @@ int test_wc_PKCS7_EncodeSignedData_Degenerate(void)
     return EXPECT_RESULT();
 }
 
+/* A wc_PKCS7 that verified signed content, then verifies a certs-only bundle
+ * without eContent, must report no content. */
+int test_wc_PKCS7_VerifySignedData_ReuseCertsOnly(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte   cert[sizeof(client_cert_der_2048)];
+    byte   key[sizeof(client_key_der_2048)];
+    byte   data[] = "content of the first bundle";
+    byte*  signedDer = NULL;
+    byte*  certsOnly = NULL;
+    int    signedSz = 0;
+    int    certsOnlySz = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMCPY(cert, client_cert_der_2048, sizeof(cert));
+    XMEMCPY(key, client_key_der_2048, sizeof(key));
+    ExpectNotNull(signedDer = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(certsOnly = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)sizeof(cert)), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content      = data;
+        pkcs7->contentSz    = (word32)sizeof(data);
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = (word32)sizeof(key);
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->rng          = &rng;
+    }
+    ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, signedDer,
+        FOURK_BUF), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)sizeof(cert)), 0);
+    ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
+    ExpectIntGT(certsOnlySz = wc_PKCS7_EncodeSignedData(pkcs7, certsOnly,
+        FOURK_BUF), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+        (word32)signedSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, certsOnly,
+        (word32)certsOnlySz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNull(pkcs7->content);
+        ExpectIntEQ(pkcs7->contentSz, 0);
+    }
+    wc_PKCS7_Free(pkcs7);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(certsOnly, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(signedDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
 /* Writes tag, 0x82 and a two-byte length; len must be 256..65535. */
 static word32 test_pkcs7_hdr82(byte* out, byte tag, word32 len)

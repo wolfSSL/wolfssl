@@ -1570,11 +1570,21 @@ static void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib, void* heap)
 }
 
 
+static void wc_PKCS7_SignerInfoFree(wc_PKCS7* pkcs7)
+{
+    if (pkcs7->signerInfo != NULL) {
+        XFREE(pkcs7->signerInfo->sid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->signerInfo->sid = NULL;
+        XFREE(pkcs7->signerInfo, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->signerInfo = NULL;
+    }
+}
+
+
 /* return 0 on success */
 static int wc_PKCS7_SignerInfoNew(wc_PKCS7* pkcs7)
 {
-    XFREE(pkcs7->signerInfo, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    pkcs7->signerInfo = NULL;
+    wc_PKCS7_SignerInfoFree(pkcs7);
 
     pkcs7->signerInfo = (PKCS7SignerInfo*)XMALLOC(sizeof(PKCS7SignerInfo),
             pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -1584,17 +1594,6 @@ static int wc_PKCS7_SignerInfoNew(wc_PKCS7* pkcs7)
     }
     XMEMSET(pkcs7->signerInfo, 0, sizeof(PKCS7SignerInfo));
     return 0;
-}
-
-
-static void wc_PKCS7_SignerInfoFree(wc_PKCS7* pkcs7)
-{
-    if (pkcs7->signerInfo != NULL) {
-        XFREE(pkcs7->signerInfo->sid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        pkcs7->signerInfo->sid = NULL;
-        XFREE(pkcs7->signerInfo, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        pkcs7->signerInfo = NULL;
-    }
 }
 
 
@@ -6803,6 +6802,15 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     if (pkcs7 == NULL || in == NULL || idx == NULL)
         return BAD_FUNC_ARG;
 
+    /* free pkcs7->contentDynamic buffer */
+    if (pkcs7->contentDynamic != NULL &&
+            pkcs7->content == pkcs7->contentDynamic) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->contentDynamic = NULL;
+
     /* no content case, do nothing */
     if (pkcs7->stream->noContent) {
         if (pkcs7->content && pkcs7->contentSz > 0) {
@@ -6820,10 +6828,6 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         }
         return 0;
     }
-
-    /* free pkcs7->contentDynamic buffer */
-    XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    pkcs7->contentDynamic = NULL;
 
     while(1) {
         if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
@@ -7674,6 +7678,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #endif /* ASN_BER_TO_DER */
 
         /* free pkcs7->stream->content buffer */
+        if (pkcs7->stream->content != NULL &&
+                pkcs7->content == pkcs7->stream->content) {
+            pkcs7->content   = NULL;
+            pkcs7->contentSz = 0;
+        }
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream->content = NULL;
         #endif /* !NO_PKCS7_STREAM */
@@ -7691,6 +7700,12 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* copy content to pkcs7->contentDynamic */
             if (keepContent && pkcs7->stream->content &&
                                             pkcs7->stream->contentSz > 0) {
+                if (pkcs7->contentDynamic != NULL &&
+                        pkcs7->content == pkcs7->contentDynamic) {
+                    pkcs7->content   = NULL;
+                    pkcs7->contentSz = 0;
+                }
+                XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->contentDynamic = (byte*)XMALLOC(pkcs7->stream->contentSz,
                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if (pkcs7->contentDynamic == NULL) {
@@ -7738,6 +7753,15 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
 
         #else
+            /* free pkcs7->contentDynamic buffer */
+            if (pkcs7->contentDynamic != NULL &&
+                    pkcs7->content == pkcs7->contentDynamic) {
+                pkcs7->content   = NULL;
+                pkcs7->contentSz = 0;
+            }
+            XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            pkcs7->contentDynamic = NULL;
+
             /* Break out before content because it can be optional in degenerate
              * cases. */
             if (ret != 0 && !degenerate)
@@ -8073,7 +8097,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     #endif
 
                         /* Save dynamic content before freeing PKCS7 struct */
-                        if (pkcs7->contentDynamic != NULL) {
+                        if (pkcs7->contentDynamic != NULL && contentSz > 0) {
                             contentDynamic = (byte*)XMALLOC((word32)contentSz,
                                                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                             if (contentDynamic == NULL) {
