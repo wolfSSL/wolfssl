@@ -592,8 +592,22 @@ static int test_wc_LoadStaticMemory_ex(void)
     !defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_HAVE_FRODOKEM)
     #define TEST_LSM_FIXED_IO
 
+/* Returns 1 when len bytes at p all equal val. */
+static int test_lsm_bytes_eq(const byte* p, word32 len, byte val)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (p[i] != val)
+            return 0;
+    }
+    return 1;
+}
+
 /* A fixed IO buffer can't grow: a request larger than it must fail rather
- * than hand back a buffer that is too small. */
+ * than hand back a buffer that is too small.  XREALLOC_SCRUBBED() of a fixed
+ * IO buffer gets the same block back from XMALLOC(), so it must keep the
+ * data in place and zero only the bytes past the new size. */
 static int test_lsm_fixed_io_malloc(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -603,6 +617,25 @@ static int test_lsm_fixed_io_malloc(WOLFSSL* ssl)
 
     ExpectNull(XMALLOC(WOLFMEM_IO_SZ + 1, heap, tag));
     ExpectNotNull(ioBuf = (byte*)XMALLOC(WOLFMEM_IO_SZ, heap, tag));
+
+    if (ioBuf != NULL) {
+        /* shrink: kept bytes stay in place, the tail is zeroed */
+        XMEMSET(ioBuf, 0xA5, 128);
+        ExpectPtrEq(XREALLOC_SCRUBBED(ioBuf, 128, 64, heap, tag), ioBuf);
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf, 64, 0xA5), 1);
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf + 64, 64, 0x00), 1);
+
+        /* grow within the buffer: data kept in place */
+        XMEMSET(ioBuf, 0x5A, 64);
+        ExpectPtrEq(XREALLOC_SCRUBBED(ioBuf, 64, WOLFMEM_IO_SZ, heap, tag),
+            ioBuf);
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf, 64, 0x5A), 1);
+
+        /* grow past the buffer: fails, original intact and unscrubbed */
+        ExpectNull(XREALLOC_SCRUBBED(ioBuf, 64, WOLFMEM_IO_SZ + 1, heap,
+            tag));
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf, 64, 0x5A), 1);
+    }
     XFREE(ioBuf, heap, tag);
 
     return EXPECT_RESULT();
@@ -616,18 +649,26 @@ static int test_lsm_shared_io_malloc(WOLFSSL_HEAP_HINT* heap)
     const int tag = DYNAMIC_TYPE_IN_BUFFER;
     WOLFSSL_MEM_STATS stats;
     word32 avaIO = 0;
+    word32 tooBig = WOLFMEM_IO_SZ;
+    int i;
     byte* ioBuf = NULL;
     byte* general = NULL;
 
     ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
     avaIO = stats.avaIO;
     ExpectIntGT(avaIO, 0);
+    /* larger than every bucket, whatever WOLFMEM_BUCKETS holds */
+    for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+        if (stats.blockSz[i] > tooBig)
+            tooBig = stats.blockSz[i];
+    }
+    tooBig++;
 
     ExpectNotNull(general = (byte*)XMALLOC(WOLFMEM_IO_SZ + 1, heap, tag));
     ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
     ExpectIntEQ(stats.avaIO, avaIO);
 
-    ExpectNull(XMALLOC(3 * WOLFMEM_IO_SZ, heap, tag));
+    ExpectNull(XMALLOC(tooBig, heap, tag));
     ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
     ExpectIntEQ(stats.avaIO, avaIO);
 
@@ -657,8 +698,9 @@ static int test_wc_LoadStaticMemory_CTX(void)
     WOLFSSL_HEAP_HINT* heap;
     WOLFSSL_CTX *ctx1 = NULL, *ctx2 = NULL;
 #ifdef TEST_LSM_FIXED_IO
-    /* Two IO buffers, each with its management data and alignment padding. */
-    byte ioMemory[2 * (WOLFMEM_IO_SZ + 64)];
+    /* Two IO buffers, each with its management data rounded up to
+     * WOLFSSL_STATIC_ALIGN, plus slack for aligning the start of the array. */
+    byte ioMemory[2 * (WOLFMEM_IO_SZ + 64 + WOLFSSL_STATIC_ALIGN)];
     WOLFSSL* ssl = NULL;
 #endif
 
