@@ -274,6 +274,32 @@ int test_wc_Sha512Transform(void)
         "\x68\x75\xde\x70\x09\x4d\xcd\xfe"
         "\xbe\x11\x20\xd6\xe7\x7c\x49\xd3"
         "\x5b\xd7\x07\x75\x19\xc9\x8a\xfa");
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
+    /* Transform must not modify the caller's block (v5/v6 modules do). */
+    ExpectBufEQ(abcData, abcSha512Data, WC_SHA512_BLOCK_SIZE);
+    /* Transform must keep input pending from an earlier Update. */
+    {
+        wc_Sha512 shaA;
+        wc_Sha512 shaB;
+        byte hashA[WC_SHA512_DIGEST_SIZE];
+        byte hashB[WC_SHA512_DIGEST_SIZE];
+
+        XMEMSET(&shaA, 0, sizeof(shaA));
+        XMEMSET(&shaB, 0, sizeof(shaB));
+        ExpectIntEQ(wc_InitSha512(&shaA), 0);
+        ExpectIntEQ(wc_Sha512Update(&shaA, (const byte*)"ab", 2), 0);
+        ExpectIntEQ(wc_Sha512Transform(&shaA, abcData), 0);
+        ExpectIntEQ(wc_Sha512Update(&shaA, (const byte*)"c", 1), 0);
+        ExpectIntEQ(wc_Sha512Final(&shaA, hashA), 0);
+        ExpectIntEQ(wc_InitSha512(&shaB), 0);
+        ExpectIntEQ(wc_Sha512Transform(&shaB, abcData), 0);
+        ExpectIntEQ(wc_Sha512Update(&shaB, (const byte*)"abc", 3), 0);
+        ExpectIntEQ(wc_Sha512Final(&shaB, hashB), 0);
+        ExpectBufEQ(hashA, hashB, WC_SHA512_DIGEST_SIZE);
+        wc_Sha512Free(&shaA);
+        wc_Sha512Free(&shaB);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -342,6 +368,24 @@ int test_wc_Sha512_224FinalRaw(void)
         "\x73\xe1\x99\x66\x89\xdc\xd4\xd6"
         "\x1d\xfa\xb7\xae\x32\xff\x9c\x82"
         "\x67\x9d\xd5\x14");
+    {
+        /* Hashing continues after FinalRaw: "ab", raw read, "c" is "abc". */
+        wc_Sha512 raw;
+        byte rawHash[WC_SHA512_224_DIGEST_SIZE];
+
+        XMEMSET(&raw, 0, sizeof(raw));
+        ExpectIntEQ(wc_InitSha512_224(&raw), 0);
+        ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"ab", 2), 0);
+        ExpectIntEQ(wc_Sha512_224FinalRaw(&raw, rawHash), 0);
+        ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"c", 1), 0);
+        ExpectIntEQ(wc_Sha512_224Final(&raw, rawHash), 0);
+        ExpectBufEQ(rawHash,
+            "\x46\x34\x27\x0f\x70\x7b\x6a\x54"
+            "\xda\xae\x75\x30\x46\x08\x42\xe2"
+            "\x0e\x37\xed\x26\x5c\xee\xe9\xa4"
+            "\x3e\x89\x24\xaa", WC_SHA512_224_DIGEST_SIZE);
+        wc_Sha512_224Free(&raw);
+    }
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Sha512_224Final */

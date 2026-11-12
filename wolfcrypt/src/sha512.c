@@ -2725,9 +2725,18 @@ static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, word32 digestSz)
     if ((digestSz & 0x7) == 0)
         ByteReverseWords64((word64 *)hash, sha512->digest, digestSz);
     else {
-        ByteReverseWords64(sha512->digest, sha512->digest,
-                           WC_SHA512_DIGEST_SIZE);
-        XMEMCPY(hash, sha512->digest, digestSz);
+        /* Reverse into a copy so the state is never left reversed. */
+        word64 digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
+
+        ByteReverseWords64(digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("Sha512FinalRaw digest", digest, sizeof(digest));
+    #endif
+        XMEMCPY(hash, digest, digestSz);
+        ForceZero(digest, sizeof(digest));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(digest, sizeof(digest));
+    #endif
     }
 #else
     XMEMCPY(hash, sha512->digest, digestSz);
@@ -2886,7 +2895,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
 int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 {
     int ret;
-    /* back up buffer */
+    /* aligned copy of data, or backup of sha->buffer */
     WC_DECLARE_VAR(buffer, word64, WC_SHA512_BLOCK_SIZE  / sizeof(word64),
         0);
 
@@ -2916,28 +2925,34 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     wc_MemZero_Add("wc_Sha512Transform buffer", buffer, WC_SHA512_BLOCK_SIZE);
 #endif
 
+    /* data is const: never modify the caller's block. */
+#if (defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARM_ARCH) && \
+     (WOLFSSL_ARM_ARCH < 6)) || \
+    (defined(WOLFSSL_RISCV_ASM) && defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM))
+    /* ARMv5 LDR and RISC-V vl8re64.v loads need an aligned copy. */
+    XMEMCPY(buffer, data, WC_SHA512_BLOCK_SIZE);
+    ret = Transform_Sha512(sha, (const byte*)buffer);
+#elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+    /* The C CPU step writes sha->buffer, which may hold pending input. */
+    XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
+    ret = Transform_Sha512(sha, data);
+    XMEMCPY(sha->buffer, buffer, WC_SHA512_BLOCK_SIZE);
+#elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM) || \
+      defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+    /* The asm reads data as Sha512Update passes it: unreversed. */
+    ret = Transform_Sha512(sha, data);
+#else
+    XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
+    XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
 #endif
     {
-        ByteReverseWords64((word64*)data, (word64*)data,
-                                                WC_SHA512_BLOCK_SIZE);
+        ByteReverseWords64(sha->buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
     }
-#endif /* LITTLE_ENDIAN_ORDER && !WC_SHA512_RAW_BE_BUFFER */
-
-#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
-    ByteReverseWords64(buffer, (word64*)data, WC_SHA512_BLOCK_SIZE);
-    ret = Transform_Sha512(sha, (const byte*)buffer);
-#elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
-    /* PPC assembly uses the (sha, data) form and reads the block directly
-     * (big-endian native - any little-endian reversal was done above). */
-    (void)buffer;
-    ret = Transform_Sha512(sha, data);
-#else
-    XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
-    XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);
+#endif
 
     ret = Transform_Sha512(sha);
 
