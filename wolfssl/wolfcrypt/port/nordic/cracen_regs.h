@@ -175,6 +175,139 @@
 #define WC_CM_HASH_CFG_HW_PAD           (1UL << 9)
 #define WC_CM_HASH_CFG_FINAL            (1UL << 10) /* clear: export state  */
 
+/* CRACENCORE: public key engine (BA414EP). Registers are documented in the
+ * datasheet (7.8.1.7.43 to .51); operation codes, slot assignments and the
+ * operand placement are microcode facts recorded from Nordic's driver. */
+#define WC_PK_POINTERS                  0x2000UL /* operand pointers A,B,C,N */
+#define WC_PK_COMMAND                   0x2004UL
+#define WC_PK_CONTROL                   0x2008UL
+#define WC_PK_STATUS                    0x200CUL
+#define WC_PK_VERSION                   0x2010UL
+#define WC_PK_TIMER                     0x2014UL
+#define WC_PK_HWCONFIG                  0x2018UL
+#define WC_PK_OPSIZE                    0x201CUL
+#define WC_PK_DATA_RAM                  0x51808000UL /* 16 operand slots     */
+#define WC_PK_UCODE_RAM                 0x5180C000UL
+#define WC_PK_UCODE_MAX_BYTES           5120UL
+#define WC_PK_SLOTS                     16
+
+#define WC_PK_POINTERS_SET(a, b, c) \
+    ((word32)(a) | ((word32)(b) << 8) | ((word32)(c) << 16))
+
+#define WC_PK_CONTROL_START             (1UL << 0)
+#define WC_PK_CONTROL_CLEARIRQ          (1UL << 1)
+
+#define WC_PK_STATUS_ERR_MASK           0x0000FFF0UL
+#define WC_PK_STATUS_NOT_ON_CURVE       (1UL << 4)
+#define WC_PK_STATUS_INVALID_UCODE      (1UL << 5)
+#define WC_PK_STATUS_OUT_OF_RANGE       (1UL << 6)
+#define WC_PK_STATUS_INVALID_MODULUS    (1UL << 7)
+#define WC_PK_STATUS_NOT_IMPLEMENTED    (1UL << 8)
+#define WC_PK_STATUS_INVALID_SIGNATURE  (1UL << 9)
+#define WC_PK_STATUS_INVALID_CURVE      (1UL << 10)
+#define WC_PK_STATUS_NOT_INVERTIBLE     (1UL << 11)
+#define WC_PK_STATUS_COMPOSITE          (1UL << 12)
+#define WC_PK_STATUS_NOT_QUAD_RESIDUE   (1UL << 13)
+#define WC_PK_STATUS_BAD_ORDER          (1UL << 14)
+#define WC_PK_STATUS_EXPIRED            (1UL << 15)
+#define WC_PK_STATUS_BUSY               (1UL << 16)
+#define WC_PK_STATUS_IRQ                (1UL << 17)
+
+#define WC_PK_HWCONFIG_MAXOPSZ(v)       ((v) & 0xFFFUL)   /* bytes           */
+#define WC_PK_HWCONFIG_PRIME_FIELD      (1UL << 16)
+#define WC_PK_HWCONFIG_BINARY_FIELD     (1UL << 17)
+#define WC_PK_HWCONFIG_P256             (1UL << 20)
+#define WC_PK_HWCONFIG_P384             (1UL << 21)
+#define WC_PK_HWCONFIG_P521             (1UL << 22)
+#define WC_PK_HWCONFIG_P192             (1UL << 23)
+#define WC_PK_HWCONFIG_X25519           (1UL << 24)       /* also Ed25519    */
+#define WC_PK_HWCONFIG_CM_DISABLED      (1UL << 31)
+
+/* COMMAND word */
+#define WC_PK_CMD_OPSIZE(n)             (((word32)(n) - 1UL) << 8)
+#define WC_PK_CMD_RANDMOD               (1UL << 19)
+#define WC_PK_CMD_SELCURVE(c)           ((word32)(c) << 20)
+#define WC_PK_CMD_RANDKE                (1UL << 24)
+#define WC_PK_CMD_RANDPROJ              (1UL << 25)
+#define WC_PK_CMD_EDWARDS               (1UL << 26)
+#define WC_PK_CMD_BIGENDIAN             (1UL << 28)
+#define WC_PK_CMD_FLAGA                 (1UL << 29)
+#define WC_PK_CMD_FLAGB                 (1UL << 30)
+#define WC_PK_CMD_CALCR2                (1UL << 31)
+
+#define WC_PK_OP_CLEAR_MEMORY           0x0FUL
+#define WC_PK_OP_MODEXP                 0x10UL
+#define WC_PK_OP_RSA_CRT                0x13UL
+#define WC_PK_OP_ECC_PTMUL              0x22UL
+#define WC_PK_OP_ECC_PTONCURVE          0x26UL
+#define WC_PK_OP_MG_PTMUL               0x28UL
+#define WC_PK_OP_ECC_CHECK_ORDER        0x29UL
+#define WC_PK_OP_ECDSA_SIGN             0x30UL
+#define WC_PK_OP_ECDSA_VERIFY           0x31UL
+#define WC_PK_OP_EDDSA_PTMUL            0x3BUL
+#define WC_PK_OP_EDDSA_SIGN             0x3CUL
+#define WC_PK_OP_EDDSA_VERIFY           0x3DUL
+
+/* Predefined curves (parameters built into the engine) */
+#define WC_PK_CURVE_P256                1
+#define WC_PK_CURVE_P384                2
+#define WC_PK_CURVE_P521                3
+#define WC_PK_CURVE_P192                4
+#define WC_PK_CURVE_X25519              5
+#define WC_PK_CURVE_ED25519             6
+
+/* Operand slots */
+#define WC_PK_SLOT_ECC_P                0
+#define WC_PK_SLOT_ECC_N                1
+#define WC_PK_SLOT_ECC_GX               2
+#define WC_PK_SLOT_ECC_GY               3
+#define WC_PK_SLOT_ECC_A                4
+#define WC_PK_SLOT_ECC_B                5
+#define WC_PK_SLOT_PTR_A                6
+#define WC_PK_SLOT_PTR_B                8
+#define WC_PK_SLOT_PTR_C                10
+#define WC_PK_SLOT_PTR_AA               12
+#define WC_PK_SLOT_BLIND                15
+
+#define WC_PK_SLOT_MODEXP_M             0
+#define WC_PK_SLOT_MODEXP_IN            6
+#define WC_PK_SLOT_MODEXP_EXP           8
+#define WC_PK_SLOT_MODEXP_OUT           10
+
+#define WC_PK_SLOT_CRT_P                2
+#define WC_PK_SLOT_CRT_Q                3
+#define WC_PK_SLOT_CRT_IN               4
+#define WC_PK_SLOT_CRT_OUT              5
+#define WC_PK_SLOT_CRT_DP               10
+#define WC_PK_SLOT_CRT_DQ               11
+#define WC_PK_SLOT_CRT_QINV             12
+
+#define WC_PK_SLOT_ECDSA_D              6
+#define WC_PK_SLOT_ECDSA_K              7
+#define WC_PK_SLOT_ECDSA_QX             8
+#define WC_PK_SLOT_ECDSA_QY             9
+#define WC_PK_SLOT_ECDSA_R              10
+#define WC_PK_SLOT_ECDSA_S              11
+#define WC_PK_SLOT_ECDSA_H              12
+
+#define WC_PK_SLOT_PTMUL_K              8
+#define WC_PK_SLOT_PTMUL_RX             10
+#define WC_PK_SLOT_PTMUL_RY             11
+#define WC_PK_SLOT_PTMUL_PX             12
+#define WC_PK_SLOT_PTMUL_PY             13
+
+#define WC_PK_SLOT_MG_P                 6
+#define WC_PK_SLOT_MG_K                 8
+#define WC_PK_SLOT_MG_R                 10
+
+#define WC_PK_SLOT_EDDSA_K0             6   /* 64-byte scalar: slots 6,7     */
+#define WC_PK_SLOT_EDDSA_R0             8   /* 64-byte scalar: slots 8,9     */
+#define WC_PK_SLOT_EDDSA_AY             9
+#define WC_PK_SLOT_EDDSA_SIGS           10
+#define WC_PK_SLOT_EDDSA_RX             10
+#define WC_PK_SLOT_EDDSA_RY             11
+#define WC_PK_SLOT_EDDSA_S              11
+
 /* CRACENCORE: RNG (BA431) */
 #define WC_RNG_CONTROL                  0x1000UL
 #define WC_RNG_FIFOLEVEL                0x1004UL

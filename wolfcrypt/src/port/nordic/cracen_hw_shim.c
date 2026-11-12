@@ -52,6 +52,19 @@
     #include <wolfssl/wolfcrypt/sha256.h>
     #include <wolfssl/wolfcrypt/sha512.h>
     #include <wolfssl/wolfcrypt/aes.h>
+    #ifdef WOLFSSL_CRACEN_PK
+        #include <wolfssl/wolfcrypt/wolfmath.h>
+        #ifdef HAVE_ECC
+            #include <wolfssl/wolfcrypt/ecc.h>
+        #endif
+        #ifdef HAVE_CURVE25519
+            #include <wolfssl/wolfcrypt/curve25519.h>
+            #include <wolfssl/wolfcrypt/fe_operations.h>
+        #endif
+        #ifdef HAVE_ED25519
+            #include <wolfssl/wolfcrypt/ge_operations.h>
+        #endif
+    #endif
     #ifdef NO_INLINE
         #include <wolfssl/wolfcrypt/misc.h>
     #else
@@ -139,6 +152,99 @@ int wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats)
     return 0;
 }
 
+#ifdef WOLFSSL_CRACEN_PK
+int wc_CracenHw_PkLoadMicrocode(const word32* ucode, word32 words)
+{
+    (void)ucode; (void)words;
+    return gShimInit ? 0 : BAD_STATE_E;
+}
+
+int wc_CracenHw_PkReady(void)
+{
+    return 0;
+}
+
+int wc_CracenHw_EccPtMul(const wc_CracenEcCurve* c, const byte* k,
+    const byte* px, const byte* py, byte* rx, byte* ry, int cm)
+{
+    (void)c; (void)k; (void)px; (void)py; (void)rx; (void)ry; (void)cm;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_EccPtOnCurve(const wc_CracenEcCurve* c, const byte* px,
+    const byte* py)
+{
+    (void)c; (void)px; (void)py;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_EccPtOrder(const wc_CracenEcCurve* c, const byte* px,
+    const byte* py)
+{
+    (void)c; (void)px; (void)py;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_EcdsaSign(const wc_CracenEcCurve* c, const byte* d,
+    const byte* k, const byte* h, byte* r, byte* s)
+{
+    (void)c; (void)d; (void)k; (void)h; (void)r; (void)s;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_EcdsaVerify(const wc_CracenEcCurve* c, const byte* qx,
+    const byte* qy, const byte* r, const byte* s, const byte* h, int* res)
+{
+    (void)c; (void)qx; (void)qy; (void)r; (void)s; (void)h; (void)res;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_ModExp(const byte* base, word32 baseSz, const byte* exp,
+    word32 expSz, const byte* mod, word32 modSz, byte* out, int cm)
+{
+    (void)base; (void)baseSz; (void)exp; (void)expSz; (void)mod; (void)modSz;
+    (void)out; (void)cm;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_RsaCrt(const byte* in, word32 inSz, const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* dP, word32 dPSz, const byte* dQ,
+    word32 dQSz, const byte* qInv, word32 qInvSz, byte* out, word32 outSz,
+    int cm)
+{
+    (void)in; (void)inSz; (void)p; (void)pSz; (void)q; (void)qSz; (void)dP;
+    (void)dPSz; (void)dQ; (void)dQSz; (void)qInv; (void)qInvSz; (void)out;
+    (void)outSz; (void)cm;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_X25519(const byte* k, const byte* u, byte* out)
+{
+    (void)k; (void)u; (void)out;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_Ed25519PtMul(const byte* scalar64, byte* pt32)
+{
+    (void)scalar64; (void)pt32;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_Ed25519Sign(const byte* k64, const byte* r64, const byte* s32,
+    byte* sigS32)
+{
+    (void)k64; (void)r64; (void)s32; (void)sigS32;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int wc_CracenHw_Ed25519Verify(const byte* k64, const byte* a32,
+    const byte* sigS32, const byte* r32)
+{
+    (void)k64; (void)a32; (void)sigS32; (void)r32;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* WOLFSSL_CRACEN_PK */
+
 #else /* WOLFSSL_CRACEN_HOST_EMULATE */
 
 static word32 gEmuRng = 0x2545F491UL;
@@ -169,6 +275,9 @@ int wc_CracenHw_GetInfo(wc_CracenHwInfo* info)
     info->hashCfg  = WC_CM_HASH_ALGO_SHA1 | WC_CM_HASH_ALGO_SHA224 |
                      WC_CM_HASH_ALGO_SHA256 | WC_CM_HASH_ALGO_SHA384 |
                      WC_CM_HASH_ALGO_SHA512 | WC_CM_HW_BA413_HW_PADDING;
+    info->pkCfg    = 0x200UL | WC_PK_HWCONFIG_PRIME_FIELD | WC_PK_HWCONFIG_P256 |
+                     WC_PK_HWCONFIG_P384 | WC_PK_HWCONFIG_P521 |
+                     WC_PK_HWCONFIG_P192 | WC_PK_HWCONFIG_X25519;
     return 0;
 }
 
@@ -509,6 +618,624 @@ int wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats)
     *stats = gEmuTrng;
     return 0;
 }
+
+/* Public key engine, computed with wolfCrypt's own arithmetic. The emulator
+ * is "ready" from init: the microcode load is accepted and ignored. */
+#ifdef WOLFSSL_CRACEN_PK
+
+int wc_CracenHw_PkLoadMicrocode(const word32* ucode, word32 words)
+{
+    if (ucode == NULL || words == 0 || words * 4UL > WC_PK_UCODE_MAX_BYTES)
+        return BAD_FUNC_ARG;
+    return gShimInit ? 0 : BAD_STATE_E;
+}
+
+int wc_CracenHw_PkReady(void)
+{
+    return gShimInit;
+}
+
+static int emu_be(mp_int* a, byte* out, word32 sz)
+{
+    if ((word32)mp_unsigned_bin_size(a) > sz)
+        return MP_VAL;
+    return mp_to_unsigned_bin_len(a, out, (int)sz);
+}
+
+#ifdef HAVE_ECC
+
+typedef struct EmuEcc {
+    mp_int     p, a, b, n, k, t1, t2, t3, t4, t5;
+    ecc_point* P;
+    ecc_point* Q;
+    ecc_point* R;
+    ecc_point* S;
+} EmuEcc;
+
+static void emu_ecc_free(EmuEcc* e)
+{
+    if (e == NULL)
+        return;
+    wc_ecc_del_point(e->P);
+    wc_ecc_del_point(e->Q);
+    wc_ecc_del_point(e->R);
+    wc_ecc_del_point(e->S);
+    mp_forcezero(&e->k);
+    mp_forcezero(&e->t1);
+    mp_forcezero(&e->t2);
+    mp_forcezero(&e->t3);
+    mp_forcezero(&e->t4);
+    mp_forcezero(&e->t5);
+    mp_clear(&e->p);
+    mp_clear(&e->a);
+    mp_clear(&e->b);
+    mp_clear(&e->n);
+    XFREE(e, NULL, DYNAMIC_TYPE_ECC);
+}
+
+static EmuEcc* emu_ecc_new(const wc_CracenEcCurve* c, int* ret)
+{
+    EmuEcc* e;
+
+    if (!gShimInit) {
+        *ret = BAD_STATE_E;
+        return NULL;
+    }
+    if (c == NULL || c->sz == 0 || c->sz > WC_CRACEN_ECC_MAX_SZ ||
+            c->p == NULL || c->a == NULL || c->b == NULL || c->n == NULL) {
+        *ret = BAD_FUNC_ARG;
+        return NULL;
+    }
+    e = (EmuEcc*)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_ECC);
+    if (e == NULL) {
+        *ret = MEMORY_E;
+        return NULL;
+    }
+    XMEMSET(e, 0, sizeof(*e));
+    *ret = mp_init_multi(&e->p, &e->a, &e->b, &e->n, &e->k, &e->t1);
+    if (*ret == 0)
+        *ret = mp_init_multi(&e->t2, &e->t3, &e->t4, &e->t5, NULL, NULL);
+    if (*ret == 0) {
+        e->P = wc_ecc_new_point();
+        e->Q = wc_ecc_new_point();
+        e->R = wc_ecc_new_point();
+        e->S = wc_ecc_new_point();
+        if (e->P == NULL || e->Q == NULL || e->R == NULL || e->S == NULL)
+            *ret = MEMORY_E;
+    }
+    if (*ret == 0)
+        *ret = mp_read_unsigned_bin(&e->p, c->p, c->sz);
+    if (*ret == 0)
+        *ret = mp_read_unsigned_bin(&e->a, c->a, c->sz);
+    if (*ret == 0)
+        *ret = mp_read_unsigned_bin(&e->b, c->b, c->sz);
+    if (*ret == 0)
+        *ret = mp_read_unsigned_bin(&e->n, c->n, c->sz);
+    if (*ret != 0) {
+        emu_ecc_free(e);
+        e = NULL;
+    }
+    return e;
+}
+
+static int emu_pt_set(ecc_point* P, const byte* x, const byte* y, word32 sz)
+{
+    int ret = mp_read_unsigned_bin(P->x, x, sz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(P->y, y, sz);
+    if (ret == 0)
+        ret = mp_set(P->z, 1);
+    return ret;
+}
+
+static int emu_pt_get(ecc_point* P, byte* x, byte* y, word32 sz)
+{
+    int ret = emu_be(P->x, x, sz);
+    if (ret == 0)
+        ret = emu_be(P->y, y, sz);
+    return ret;
+}
+
+/* R = k * P in affine coordinates; ECC_INF_E for the point at infinity. */
+static int emu_pt_mul(EmuEcc* e, mp_int* k, ecc_point* P, ecc_point* R)
+{
+    int ret;
+
+    if (mp_iszero(k))
+        return ECC_INF_E;
+    ret = wc_ecc_mulmod_ex(k, P, R, &e->a, &e->p, 1, NULL);
+    if (ret == 0 && wc_ecc_point_is_at_infinity(R))
+        ret = ECC_INF_E;
+    return ret;
+}
+
+/* (x3, y3) = A + B on affine points, infA/infB flag the point at infinity. */
+static int emu_pt_add(EmuEcc* e, ecc_point* A, int infA, ecc_point* B,
+    int infB, mp_int* x3, mp_int* y3, int* inf3)
+{
+    mp_int* l = &e->t4;
+    mp_int* t = &e->t5;
+    int     ret;
+
+    *inf3 = 0;
+    if (infA && infB) {
+        *inf3 = 1;
+        return 0;
+    }
+    if (infA) {
+        ret = mp_copy(B->x, x3);
+        if (ret == 0)
+            ret = mp_copy(B->y, y3);
+        return ret;
+    }
+    if (infB) {
+        ret = mp_copy(A->x, x3);
+        if (ret == 0)
+            ret = mp_copy(A->y, y3);
+        return ret;
+    }
+
+    if (mp_cmp(A->x, B->x) == MP_EQ) {
+        if (mp_cmp(A->y, B->y) != MP_EQ || mp_iszero(A->y)) {
+            *inf3 = 1;
+            return 0;
+        }
+        /* doubling: l = (3 x^2 + a) / (2 y) */
+        ret = mp_sqrmod(A->x, &e->p, l);
+        if (ret == 0)
+            ret = mp_set(t, 3);
+        if (ret == 0)
+            ret = mp_mulmod(l, t, &e->p, l);
+        if (ret == 0)
+            ret = mp_addmod(l, &e->a, &e->p, l);
+        if (ret == 0)
+            ret = mp_addmod(A->y, A->y, &e->p, t);
+    }
+    else {
+        /* l = (y2 - y1) / (x2 - x1) */
+        ret = mp_submod(B->y, A->y, &e->p, l);
+        if (ret == 0)
+            ret = mp_submod(B->x, A->x, &e->p, t);
+    }
+    if (ret == 0)
+        ret = mp_invmod(t, &e->p, t);
+    if (ret == 0)
+        ret = mp_mulmod(l, t, &e->p, l);
+    /* x3 = l^2 - x1 - x2 */
+    if (ret == 0)
+        ret = mp_sqrmod(l, &e->p, t);
+    if (ret == 0)
+        ret = mp_submod(t, A->x, &e->p, t);
+    if (ret == 0)
+        ret = mp_submod(t, B->x, &e->p, t);
+    /* y3 = l (x1 - x3) - y1 */
+    if (ret == 0)
+        ret = mp_submod(A->x, t, &e->p, y3);
+    if (ret == 0)
+        ret = mp_mulmod(y3, l, &e->p, y3);
+    if (ret == 0)
+        ret = mp_submod(y3, A->y, &e->p, y3);
+    if (ret == 0)
+        ret = mp_copy(t, x3);
+    return ret;
+}
+
+int wc_CracenHw_EccPtMul(const wc_CracenEcCurve* c, const byte* k,
+    const byte* px, const byte* py, byte* rx, byte* ry, int cm)
+{
+    EmuEcc* e;
+    int     ret;
+
+    (void)cm;
+    if (k == NULL || px == NULL || py == NULL || rx == NULL || ry == NULL)
+        return BAD_FUNC_ARG;
+    e = emu_ecc_new(c, &ret);
+    if (e == NULL)
+        return ret;
+    ret = mp_read_unsigned_bin(&e->k, k, c->sz);
+    if (ret == 0)
+        ret = emu_pt_set(e->P, px, py, c->sz);
+    if (ret == 0)
+        ret = emu_pt_mul(e, &e->k, e->P, e->R);
+    if (ret == 0)
+        ret = emu_pt_get(e->R, rx, ry, c->sz);
+    emu_ecc_free(e);
+    return ret;
+}
+
+int wc_CracenHw_EccPtOnCurve(const wc_CracenEcCurve* c, const byte* px,
+    const byte* py)
+{
+    EmuEcc* e;
+    int     ret;
+
+    if (px == NULL || py == NULL)
+        return BAD_FUNC_ARG;
+    e = emu_ecc_new(c, &ret);
+    if (e == NULL)
+        return ret;
+    ret = emu_pt_set(e->P, px, py, c->sz);
+    if (ret == 0) {
+        if (mp_cmp(e->P->x, &e->p) != MP_LT || mp_cmp(e->P->y, &e->p) != MP_LT)
+            ret = ECC_OUT_OF_RANGE_E;
+        else
+            ret = wc_ecc_is_point(e->P, &e->a, &e->b, &e->p);
+    }
+    emu_ecc_free(e);
+    return ret;
+}
+
+int wc_CracenHw_EccPtOrder(const wc_CracenEcCurve* c, const byte* px,
+    const byte* py)
+{
+    EmuEcc* e;
+    int     ret;
+
+    if (px == NULL || py == NULL)
+        return BAD_FUNC_ARG;
+    e = emu_ecc_new(c, &ret);
+    if (e == NULL)
+        return ret;
+    ret = emu_pt_set(e->P, px, py, c->sz);
+    if (ret == 0)
+        ret = wc_ecc_mulmod_ex(&e->n, e->P, e->R, &e->a, &e->p, 1, NULL);
+    if (ret == 0 && !wc_ecc_point_is_at_infinity(e->R))
+        ret = ECC_INF_E;
+    emu_ecc_free(e);
+    return ret;
+}
+
+int wc_CracenHw_EcdsaSign(const wc_CracenEcCurve* c, const byte* d,
+    const byte* k, const byte* h, byte* r, byte* s)
+{
+    EmuEcc* e;
+    int     ret;
+
+    if (d == NULL || k == NULL || h == NULL || r == NULL || s == NULL ||
+            c == NULL || c->gx == NULL || c->gy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    e = emu_ecc_new(c, &ret);
+    if (e == NULL)
+        return ret;
+    ret = mp_read_unsigned_bin(&e->k, k, c->sz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&e->t1, d, c->sz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&e->t2, h, c->sz);
+    if (ret == 0)
+        ret = emu_pt_set(e->P, c->gx, c->gy, c->sz);
+    if (ret == 0)
+        ret = emu_pt_mul(e, &e->k, e->P, e->R);
+    /* r = (kG).x mod n */
+    if (ret == 0)
+        ret = mp_mod(e->R->x, &e->n, &e->t3);
+    if (ret == 0 && mp_iszero(&e->t3))
+        ret = MP_ZERO_E;
+    /* s = k^-1 (h + d r) mod n */
+    if (ret == 0)
+        ret = mp_mulmod(&e->t1, &e->t3, &e->n, &e->t1);
+    if (ret == 0)
+        ret = mp_mod(&e->t2, &e->n, &e->t2);
+    if (ret == 0)
+        ret = mp_addmod(&e->t1, &e->t2, &e->n, &e->t1);
+    if (ret == 0)
+        ret = mp_invmod(&e->k, &e->n, &e->t2);
+    if (ret == 0)
+        ret = mp_mulmod(&e->t1, &e->t2, &e->n, &e->t1);
+    if (ret == 0 && mp_iszero(&e->t1))
+        ret = MP_ZERO_E;
+    if (ret == 0)
+        ret = emu_be(&e->t3, r, c->sz);
+    if (ret == 0)
+        ret = emu_be(&e->t1, s, c->sz);
+    emu_ecc_free(e);
+    return ret;
+}
+
+int wc_CracenHw_EcdsaVerify(const wc_CracenEcCurve* c, const byte* qx,
+    const byte* qy, const byte* r, const byte* s, const byte* h, int* res)
+{
+    EmuEcc* e;
+    int     ret;
+    int     inf1 = 0;
+    int     inf2 = 0;
+    int     inf3 = 0;
+
+    if (qx == NULL || qy == NULL || r == NULL || s == NULL || h == NULL ||
+            res == NULL || c == NULL || c->gx == NULL || c->gy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    *res = 0;
+    e = emu_ecc_new(c, &ret);
+    if (e == NULL)
+        return ret;
+    ret = mp_read_unsigned_bin(&e->t1, r, c->sz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&e->t2, s, c->sz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&e->t3, h, c->sz);
+    if (ret == 0)
+        ret = emu_pt_set(e->P, c->gx, c->gy, c->sz);
+    if (ret == 0)
+        ret = emu_pt_set(e->Q, qx, qy, c->sz);
+    if (ret == 0 && (mp_iszero(&e->t1) || mp_iszero(&e->t2) ||
+            mp_cmp(&e->t1, &e->n) != MP_LT || mp_cmp(&e->t2, &e->n) != MP_LT)) {
+        emu_ecc_free(e);
+        return 0;
+    }
+    /* w = s^-1, u1 = h w, u2 = r w */
+    if (ret == 0)
+        ret = mp_invmod(&e->t2, &e->n, &e->t2);
+    if (ret == 0)
+        ret = mp_mod(&e->t3, &e->n, &e->t3);
+    if (ret == 0)
+        ret = mp_mulmod(&e->t3, &e->t2, &e->n, &e->t3);
+    if (ret == 0)
+        ret = mp_mulmod(&e->t1, &e->t2, &e->n, &e->k);
+    /* X = u1 G + u2 Q */
+    if (ret == 0) {
+        if (mp_iszero(&e->t3))
+            inf1 = 1;
+        else
+            ret = emu_pt_mul(e, &e->t3, e->P, e->R);
+    }
+    if (ret == 0) {
+        if (mp_iszero(&e->k))
+            inf2 = 1;
+        else
+            ret = emu_pt_mul(e, &e->k, e->Q, e->S);
+    }
+    if (ret == 0)
+        ret = emu_pt_add(e, e->R, inf1, e->S, inf2, &e->t3, &e->t2, &inf3);
+    if (ret == 0 && !inf3) {
+        ret = mp_mod(&e->t3, &e->n, &e->t3);
+        if (ret == 0 && mp_cmp(&e->t3, &e->t1) == MP_EQ)
+            *res = 1;
+    }
+    emu_ecc_free(e);
+    return ret;
+}
+#endif /* HAVE_ECC */
+
+typedef struct EmuMp {
+    mp_int v[8];
+} EmuMp;
+
+static EmuMp* emu_mp_new(int* ret)
+{
+    EmuMp* m;
+
+    if (!gShimInit) {
+        *ret = BAD_STATE_E;
+        return NULL;
+    }
+    m = (EmuMp*)XMALLOC(sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (m == NULL) {
+        *ret = MEMORY_E;
+        return NULL;
+    }
+    XMEMSET(m, 0, sizeof(*m));
+    *ret = mp_init_multi(&m->v[0], &m->v[1], &m->v[2], &m->v[3], &m->v[4],
+        &m->v[5]);
+    if (*ret == 0)
+        *ret = mp_init_multi(&m->v[6], &m->v[7], NULL, NULL, NULL, NULL);
+    if (*ret != 0) {
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        m = NULL;
+    }
+    return m;
+}
+
+static void emu_mp_free(EmuMp* m)
+{
+    int i;
+
+    if (m == NULL)
+        return;
+    for (i = 0; i < 8; i++)
+        mp_forcezero(&m->v[i]);
+    XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+}
+
+int wc_CracenHw_ModExp(const byte* base, word32 baseSz, const byte* exp,
+    word32 expSz, const byte* mod, word32 modSz, byte* out, int cm)
+{
+    EmuMp* m;
+    int    ret;
+
+    (void)cm;
+    if (base == NULL || exp == NULL || mod == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+    if (modSz == 0 || baseSz > modSz || expSz > modSz)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    m = emu_mp_new(&ret);
+    if (m == NULL)
+        return ret;
+    ret = mp_read_unsigned_bin(&m->v[0], base, baseSz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&m->v[1], exp, expSz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&m->v[2], mod, modSz);
+    if (ret == 0 && mp_iszero(&m->v[2]))
+        ret = MP_VAL;
+    if (ret == 0)
+        ret = mp_exptmod(&m->v[0], &m->v[1], &m->v[2], &m->v[3]);
+    if (ret == 0)
+        ret = emu_be(&m->v[3], out, modSz);
+    emu_mp_free(m);
+    return ret;
+}
+
+int wc_CracenHw_RsaCrt(const byte* in, word32 inSz, const byte* p, word32 pSz,
+    const byte* q, word32 qSz, const byte* dP, word32 dPSz, const byte* dQ,
+    word32 dQSz, const byte* qInv, word32 qInvSz, byte* out, word32 outSz,
+    int cm)
+{
+    EmuMp*  m;
+    mp_int* c;
+    mp_int* mp;
+    mp_int* mq;
+    mp_int* h;
+    int     ret;
+
+    (void)cm;
+    if (in == NULL || p == NULL || q == NULL || dP == NULL || dQ == NULL ||
+            qInv == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (outSz == 0 || inSz > outSz)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    m = emu_mp_new(&ret);
+    if (m == NULL)
+        return ret;
+    c  = &m->v[0];
+    mp = &m->v[1];
+    mq = &m->v[2];
+    h  = &m->v[3];
+    ret = mp_read_unsigned_bin(c, in, inSz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&m->v[4], p, pSz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&m->v[5], q, qSz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&m->v[6], dP, dPSz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&m->v[7], dQ, dQSz);
+    if (ret == 0 && (mp_iszero(&m->v[4]) || mp_iszero(&m->v[5])))
+        ret = MP_VAL;
+    if (ret == 0)
+        ret = mp_exptmod(c, &m->v[6], &m->v[4], mp);
+    if (ret == 0)
+        ret = mp_exptmod(c, &m->v[7], &m->v[5], mq);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&m->v[6], qInv, qInvSz);
+    /* h = qInv (mp - mq) mod p, out = mq + h q */
+    if (ret == 0)
+        ret = mp_mod(mq, &m->v[4], h);
+    if (ret == 0)
+        ret = mp_submod(mp, h, &m->v[4], h);
+    if (ret == 0)
+        ret = mp_mulmod(h, &m->v[6], &m->v[4], h);
+    if (ret == 0)
+        ret = mp_mul(h, &m->v[5], h);
+    if (ret == 0)
+        ret = mp_add(h, mq, h);
+    if (ret == 0)
+        ret = emu_be(h, out, outSz);
+    emu_mp_free(m);
+    return ret;
+}
+
+#ifdef HAVE_CURVE25519
+int wc_CracenHw_X25519(const byte* k, const byte* u, byte* out)
+{
+    byte kk[CURVE25519_KEYSIZE];
+    byte uu[CURVE25519_KEYSIZE];
+    int  ret;
+
+    if (!gShimInit)
+        return BAD_STATE_E;
+    if (k == NULL || u == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+    XMEMCPY(kk, k, sizeof(kk));
+    XMEMCPY(uu, u, sizeof(uu));
+    kk[0]  &= 0xF8;
+    kk[31]  = (byte)((kk[31] | 0x40) & 0x7F);
+    uu[31] &= 0x7F;
+    fe_init();
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    {
+        /* the blinded ladder with a zero mask and z = 1: same result */
+        byte na[CURVE25519_KEYSIZE];
+        byte a[CURVE25519_KEYSIZE];
+        byte rz[CURVE25519_KEYSIZE];
+        int  i;
+
+        XMEMSET(a, 0, sizeof(a));
+        XMEMSET(rz, 0, sizeof(rz));
+        rz[0] = 1;
+        na[0] = (byte)(kk[0] ^ (byte)(kk[0] << 1));
+        for (i = 1; i < CURVE25519_KEYSIZE; i++) {
+            na[i] = (byte)(kk[i] ^ (byte)(kk[i] << 1) ^
+                           (byte)(kk[i - 1] >> 7));
+        }
+        ret = curve25519_blind(out, na, a, uu, rz);
+        ForceZero(na, sizeof(na));
+    }
+#else
+    ret = curve25519(out, kk, uu);
+#endif
+    ForceZero(kk, sizeof(kk));
+    return ret;
+}
+#endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_ED25519
+int wc_CracenHw_Ed25519PtMul(const byte* scalar64, byte* pt32)
+{
+    byte  s[64];
+    ge_p3 A;
+
+    if (!gShimInit)
+        return BAD_STATE_E;
+    if (scalar64 == NULL || pt32 == NULL)
+        return BAD_FUNC_ARG;
+    XMEMCPY(s, scalar64, sizeof(s));
+    sc_reduce(s);
+    ge_scalarmult_base(&A, s);
+    ge_p3_tobytes(pt32, &A);
+    ForceZero(s, sizeof(s));
+    ForceZero(&A, sizeof(A));
+    return 0;
+}
+
+int wc_CracenHw_Ed25519Sign(const byte* k64, const byte* r64, const byte* s32,
+    byte* sigS32)
+{
+    byte k[64];
+    byte r[64];
+
+    if (!gShimInit)
+        return BAD_STATE_E;
+    if (k64 == NULL || r64 == NULL || s32 == NULL || sigS32 == NULL)
+        return BAD_FUNC_ARG;
+    XMEMCPY(k, k64, sizeof(k));
+    XMEMCPY(r, r64, sizeof(r));
+    sc_reduce(k);
+    sc_reduce(r);
+    sc_muladd(sigS32, k, s32, r);
+    ForceZero(k, sizeof(k));
+    ForceZero(r, sizeof(r));
+    return 0;
+}
+
+int wc_CracenHw_Ed25519Verify(const byte* k64, const byte* a32,
+    const byte* sigS32, const byte* r32)
+{
+    byte  h[64];
+    byte  rc[32];
+    ge_p3 A;
+    ge_p2 R;
+
+    if (!gShimInit)
+        return BAD_STATE_E;
+    if (k64 == NULL || a32 == NULL || sigS32 == NULL || r32 == NULL)
+        return BAD_FUNC_ARG;
+    if (ge_frombytes_negate_vartime(&A, a32) != 0)
+        return SIG_VERIFY_E;
+    XMEMCPY(h, k64, sizeof(h));
+    sc_reduce(h);
+    if (ge_double_scalarmult_vartime(&R, h, &A, sigS32) != 0)
+        return SIG_VERIFY_E;
+    ge_tobytes(rc, &R);
+    if (ConstantCompare(rc, r32, sizeof(rc)) != 0)
+        return SIG_VERIFY_E;
+    return 0;
+}
+#endif /* HAVE_ED25519 */
+
+#endif /* WOLFSSL_CRACEN_PK */
 
 #endif /* WOLFSSL_CRACEN_HOST_EMULATE */
 

@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
@@ -32,6 +33,22 @@
 #include <hal/nrf_gpio.h>
 
 #include "board.h"
+
+/* TAMPC, from the nRF54L15 datasheet (7.8.6.6); the MDK has no register map */
+#define TAMPC_BASE              0x500DC000UL
+#define TAMPC_EVENTS_TAMPER     (*(volatile uint32_t*)(TAMPC_BASE + 0x100UL))
+#define TAMPC_STATUS            (*(volatile uint32_t*)(TAMPC_BASE + 0x400UL))
+#define TAMPC_CRACENTAMP_STATUS (*(volatile uint32_t*)(TAMPC_BASE + 0x93CUL))
+#define TAMPC_INTRESETEN_CTRL   (*(volatile uint32_t*)(TAMPC_BASE + 0x978UL))
+#define TAMPC_CTRL_KEY          (0x50FAUL << 16)
+#define TAMPC_CTRL_WRPROT_CLEAR (0xFUL << 4)
+
+/* TAD (trace and debug control), datasheet 9.7: the DWT lives in the debug
+ * power domain, which stays up only while a power-up request is active */
+#define TAD_BASE                0x50053000UL
+#define TAD_SYSPWRUPREQ         (*(volatile uint32_t*)(TAD_BASE + 0x400UL))
+#define TAD_DBGPWRUPREQ         (*(volatile uint32_t*)(TAD_BASE + 0x404UL))
+#define TAD_ENABLE              (*(volatile uint32_t*)(TAD_BASE + 0x500UL))
 
 #define CONSOLE_UARTE   NRF_UARTE20
 #define CONSOLE_TX_PIN  NRF_GPIO_PIN_MAP(1, 4)
@@ -73,11 +90,36 @@ void board_init(void)
     nrf_uarte_baudrate_set(CONSOLE_UARTE, NRF_UARTE_BAUDRATE_115200);
     nrf_uarte_configure(CONSOLE_UARTE, &cfg);
     nrf_uarte_enable(CONSOLE_UARTE);
+    /* newlib sees no tty and would buffer a kilobyte before writing */
+    setvbuf(stdout, NULL, _IONBF, 0);
 
-    /* DWT cycle counter */
+    /* DWT cycle counter, with the debug domain requested on */
+    TAD_DBGPWRUPREQ = 1;
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+void board_debug_report(void)
+{
+    volatile uint32_t spin = 1000;
+    uint32_t t0 = DWT->CYCCNT;
+    uint32_t t1;
+
+    while (spin-- > 0) {
+    }
+    t1 = DWT->CYCCNT;
+    printf("debug: DEMCR 0x%08lx, DWT_CTRL 0x%08lx, 1000 loops %lu cycles, "
+           "TAD pwrreq %lu/%lu enable %lu, TAMPC DBGEN 0x%02lx NIDEN 0x%02lx "
+           "SPIDEN 0x%02lx SPNIDEN 0x%02lx AP0 0x%02lx\n",
+        (unsigned long)CoreDebug->DEMCR, (unsigned long)DWT->CTRL,
+        (unsigned long)(t1 - t0), (unsigned long)TAD_SYSPWRUPREQ,
+        (unsigned long)TAD_DBGPWRUPREQ, (unsigned long)TAD_ENABLE,
+        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x500UL) & 0xFF),
+        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x508UL) & 0xFF),
+        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x510UL) & 0xFF),
+        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x518UL) & 0xFF),
+        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x700UL) & 0xFF));
 }
 
 uint32_t board_cycles(void)
@@ -135,4 +177,20 @@ void* _sbrk(ptrdiff_t incr)
     prev = brk;
     brk += incr;
     return prev;
+}
+
+void board_tamper_reset_disable(void)
+{
+    /* the write protection is cleared in a separate write, then VALUE = 0 */
+    TAMPC_INTRESETEN_CTRL = TAMPC_CTRL_KEY | TAMPC_CTRL_WRPROT_CLEAR;
+    TAMPC_INTRESETEN_CTRL = TAMPC_CTRL_KEY;
+}
+
+uint32_t board_tamper_status(uint32_t* events, uint32_t* cracenTamp)
+{
+    if (events != NULL)
+        *events = TAMPC_EVENTS_TAMPER;
+    if (cracenTamp != NULL)
+        *cracenTamp = TAMPC_CRACENTAMP_STATUS;
+    return TAMPC_STATUS;
 }

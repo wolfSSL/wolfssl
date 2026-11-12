@@ -71,6 +71,11 @@ static int wc_CracenCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             ret = wc_CracenRng(info);
             break;
 #endif
+#ifdef WOLFSSL_CRACEN_PK
+        case WC_ALGO_TYPE_PK:
+            ret = wc_CracenPk(info);
+            break;
+#endif
         default:
             break;
     }
@@ -124,6 +129,19 @@ void wc_CracenTrngOff(void)
 int wc_CracenTrngGetStats(wc_CracenTrngStats* stats)
 {
     return wc_CracenHw_TrngGetStats(stats);
+}
+
+int wc_CracenPkLoadMicrocode(const word32* ucode, word32 words)
+{
+    int ret = wc_CracenHw_Init();
+    if (ret == 0)
+        ret = wc_CracenHw_PkLoadMicrocode(ucode, words);
+    return ret;
+}
+
+int wc_CracenPkReady(void)
+{
+    return wc_CracenHw_PkReady();
 }
 
 #endif /* WOLFSSL_NRF54L_CRACEN */

@@ -60,6 +60,7 @@ typedef struct wc_CracenHwInfo {
     word32 aesCtrSz;   /* CRYPTMSTRHW.BA411EAESHWCFG2                     */
     word32 hashCfg;    /* CRYPTMSTRHW.BA413HASHHWCFG                      */
     word32 rngCfg;     /* RNGCONTROL.HWCONFIG                             */
+    word32 pkCfg;      /* PK.HWCONFIG, once the microcode is loaded       */
 } wc_CracenHwInfo;
 
 /* TRNG diagnostics, accumulated since init. */
@@ -118,6 +119,78 @@ WOLFSSL_LOCAL int    wc_CracenHw_TrngRead(byte* out, word32 sz);
 /* Power the RNG module down; the next read starts it again. */
 WOLFSSL_LOCAL void   wc_CracenHw_TrngOff(void);
 WOLFSSL_LOCAL int    wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats);
+
+/* Public key engine ------------------------------------------------------ */
+
+#define WC_CRACEN_ECC_MAX_SZ 72 /* largest ECC operand the engine takes */
+
+/* A short Weierstrass curve for the engine. All parameters are big-endian
+ * sz-byte values. For a predefined curve (selCurve != 0) the engine holds
+ * the parameters itself and only gx/gy are read, for the base point. */
+typedef struct wc_CracenEcCurve {
+    word32      sz;
+    word32      selCurve;  /* WC_PK_CURVE_* or 0                           */
+    int         id;        /* wolfCrypt curve id, for the host emulator     */
+    const byte* p;
+    const byte* n;
+    const byte* gx;
+    const byte* gy;
+    const byte* a;
+    const byte* b;
+} wc_CracenEcCurve;
+
+/* The engine runs microcode that the application supplies (it is not part of
+ * wolfSSL). Until it has been loaded every PK request is declined.
+ * wc_CracenHw_PkReady returns 1 once it has. */
+WOLFSSL_LOCAL int    wc_CracenHw_PkLoadMicrocode(const word32* ucode,
+                         word32 words);
+WOLFSSL_LOCAL int    wc_CracenHw_PkReady(void);
+
+/* R = k * P. With cm != 0 the scalar and projective coordinates are
+ * randomised against side channels (costs a TRNG read). */
+WOLFSSL_LOCAL int    wc_CracenHw_EccPtMul(const wc_CracenEcCurve* c,
+                         const byte* k, const byte* px, const byte* py,
+                         byte* rx, byte* ry, int cm);
+/* 0 when P is on the curve, IS_POINT_E otherwise. */
+WOLFSSL_LOCAL int    wc_CracenHw_EccPtOnCurve(const wc_CracenEcCurve* c,
+                         const byte* px, const byte* py);
+/* 0 when n * P is the point at infinity, ECC_INF_E otherwise. */
+WOLFSSL_LOCAL int    wc_CracenHw_EccPtOrder(const wc_CracenEcCurve* c,
+                         const byte* px, const byte* py);
+/* ECDSA with caller-supplied nonce k and digest h (already truncated to the
+ * order size); r and s are sz bytes. */
+WOLFSSL_LOCAL int    wc_CracenHw_EcdsaSign(const wc_CracenEcCurve* c,
+                         const byte* d, const byte* k, const byte* h,
+                         byte* r, byte* s);
+WOLFSSL_LOCAL int    wc_CracenHw_EcdsaVerify(const wc_CracenEcCurve* c,
+                         const byte* qx, const byte* qy, const byte* r,
+                         const byte* s, const byte* h, int* res);
+
+/* out = base ^ exp mod m, all big-endian, out is modSz bytes. */
+WOLFSSL_LOCAL int    wc_CracenHw_ModExp(const byte* base, word32 baseSz,
+                         const byte* exp, word32 expSz, const byte* mod,
+                         word32 modSz, byte* out, int cm);
+/* RSA private operation with CRT parameters; out is outSz (the modulus size)
+ * bytes and every operand is at most that long. */
+WOLFSSL_LOCAL int    wc_CracenHw_RsaCrt(const byte* in, word32 inSz,
+                         const byte* p, word32 pSz, const byte* q, word32 qSz,
+                         const byte* dP, word32 dPSz, const byte* dQ,
+                         word32 dQSz, const byte* qInv, word32 qInvSz,
+                         byte* out, word32 outSz, int cm);
+
+/* X25519: out = k * u, all 32-byte little-endian (k is clamped here). */
+WOLFSSL_LOCAL int    wc_CracenHw_X25519(const byte* k, const byte* u,
+                         byte* out);
+/* Ed25519 primitives on little-endian encodings: pt = (scalar mod L) * B
+ * with a 64-byte scalar; S = r + k * s mod L with 64-byte k and r; and the
+ * verification of S * B == R + k * A, which returns SIG_VERIFY_E on failure. */
+WOLFSSL_LOCAL int    wc_CracenHw_Ed25519PtMul(const byte* scalar64,
+                         byte* pt32);
+WOLFSSL_LOCAL int    wc_CracenHw_Ed25519Sign(const byte* k64,
+                         const byte* r64, const byte* s32, byte* sigS32);
+WOLFSSL_LOCAL int    wc_CracenHw_Ed25519Verify(const byte* k64,
+                         const byte* a32, const byte* sigS32,
+                         const byte* r32);
 
 #ifdef __cplusplus
     }

@@ -19,8 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* wolfCrypt configuration for the nRF54L15 CRACEN test: the symmetric and
- * hash algorithms the port offloads, no public key, no TLS. */
+/* wolfCrypt configuration for the CRACEN test on the nRF54L15 DK: the hash,
+ * cipher, MAC and RNG set the Cryptomaster and TRNG accelerate, and the public
+ * key algorithms the PK engine accelerates. */
 
 #ifndef WOLFSSL_USER_SETTINGS_H
 #define WOLFSSL_USER_SETTINGS_H
@@ -29,10 +30,10 @@
 extern "C" {
 #endif
 
-/* The port under test. WC_USE_DEVID and the TRNG seed source follow. */
+/* the port */
 #define WOLFSSL_NRF54L_CRACEN
 
-/* Platform */
+/* platform: bare metal, one thread, no OS services */
 #define WOLFCRYPT_ONLY
 #define SINGLE_THREADED
 #define NO_FILESYSTEM
@@ -46,14 +47,14 @@ extern "C" {
 #define WOLFSSL_IGNORE_FILE_WARN
 #define NO_ASN_TIME
 
-/* Hashes */
+/* hashes */
 #define WOLFSSL_SHA224
 #define WOLFSSL_SHA384
 #define WOLFSSL_SHA512
 #define NO_MD5
 #define NO_MD4
 
-/* AES */
+/* AES modes and MACs */
 #define HAVE_AES_CBC
 #define HAVE_AES_ECB
 #define WOLFSSL_AES_DIRECT
@@ -62,14 +63,29 @@ extern "C" {
 #define HAVE_AESCCM
 #define WOLFSSL_CMAC
 
-/* RNG: Hash-DRBG seeded from the CRACEN TRNG */
+/* RNG: Hash-DRBG seeded from the TRNG */
 #define HAVE_HASHDRBG
 
-/* Nothing asymmetric, no certificates */
-#define NO_RSA
-#define NO_DH
+/* public key: ECC on the NIST curves the engine accelerates plus two it
+ * takes as generic parameter sets, RSA, DH, X25519 and Ed25519 */
+#define HAVE_ECC
+#define ECC_USER_CURVES
+#define ECC_MIN_KEY_SZ 192
+#define HAVE_ECC192
+#define HAVE_ECC224
+#define HAVE_ECC384
+#define HAVE_ECC521
+#define WOLFSSL_CUSTOM_CURVES
+#define HAVE_ECC_BRAINPOOL
+#define WC_RSA_BLINDING
+#define WOLFSSL_DH_CONST
+#define HAVE_CURVE25519
+#define HAVE_ED25519
+#define USE_CERT_BUFFERS_2048
+#define USE_CERT_BUFFERS_256
+
+/* not needed by the test */
 #define NO_DSA
-#define NO_ASN
 #define NO_CERTS
 #define NO_PWDBASED
 #define NO_PKCS12
@@ -82,10 +98,9 @@ extern "C" {
 #define WOLFSSL_NO_SHAKE128
 #define WOLFSSL_NO_SHAKE256
 
-/* Hardening flags expected by settings.h even without public key */
+/* hardening */
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
-#define WC_RSA_BLINDING
 
 #ifdef __cplusplus
 }
