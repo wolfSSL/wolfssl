@@ -153,7 +153,8 @@ int  wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output,
     returns the index parsed up to in the PKCS7 structure. This index also
     corresponds to the bytes written to the output buffer.
     \return BAD_FUNC_ARG Returned if the PKCS7 structure is missing one or
-    more required elements to generate a signed data packet
+    more required elements to generate a signed data packet, or if the
+    signer identifier type is DEGENERATE_SID and content is set
     \return MEMORY_E Returned if there is an error allocating memory
     \return PUBLIC_KEY_E Returned if there is an error parsing the public key
     \return RSA_BUFFER_E Returned if buffer error, output too small or input
@@ -230,7 +231,8 @@ int  wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7,
 
     \return 0=Success
     \return BAD_FUNC_ARG Returned if the PKCS7 structure is missing one or
-    more required elements to generate a signed data packet
+    more required elements to generate a signed data packet, or if the
+    signer identifier type is DEGENERATE_SID and content is set
     \return MEMORY_E Returned if there is an error allocating memory
     \return PUBLIC_KEY_E Returned if there is an error parsing the public key
     \return RSA_BUFFER_E Returned if buffer error, output too small or input
@@ -333,6 +335,9 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     from the message
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
     \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
+    \return PKCS7_NO_SIGNER_E Returned if the message has no signers and
+    carries non-empty eContent, or has no signers and degenerate messages
+    are not allowed (see wc_PKCS7_AllowDegenerate)
     \return PKCS7_OID_E Returned if the given pkiMsg is not a signed data type
     \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 1
     \return MEMORY_E Returned if there is an error allocating memory
@@ -410,6 +415,9 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     from the message
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
     \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
+    \return PKCS7_NO_SIGNER_E Returned if the message has no signers and
+    carries non-empty eContent, or has no signers and degenerate messages
+    are not allowed (see wc_PKCS7_AllowDegenerate)
     \return PKCS7_OID_E Returned if the given pkiMsg is not a signed data type
     \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 1
     \return MEMORY_E Returned if there is an error allocating memory
