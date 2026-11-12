@@ -2426,6 +2426,74 @@
     #endif /* !XMALLOC_USER && !XMALLOC_OVERRIDE */
 #endif
 
+/* Without a working realloc(), the wc_MallocAlign() shim in types.h is used. */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) && \
+    (defined(USE_KVREALLOC) || !defined(USE_KVMALLOC))
+#if !defined(XMALLOCALIGN) && !defined(WOLFSSL_TRACK_MEMORY) && \
+    !defined(XMALLOC_USER) && !defined(XMALLOC_OVERRIDE)
+    /* Returns the size to allocate for an aligned allocation, or 0 if the
+     * alignment can't be met.  kmalloc() aligns a power-of-2 size to that size
+     * (linux commit 59bb47985c), and malloc() above rounds sizes below 8192 up
+     * to a power of 2, so only larger sizes need rounding here.  There is no
+     * documented alignment for the vmalloc fallback of kvmalloc(), so
+     * alignments above a page are rejected.
+     */
+    static inline size_t wc_linuxkm_align_sz(size_t align, size_t size) {
+        if ((align > PAGE_SIZE) || ((align & (align - 1)) != 0))
+            return 0;
+        if (size < align)
+            size = align;
+        if (size > 8192) {
+            if (size > (~(size_t)0 >> 1) + 1)
+                return 0;
+            size = (size_t)1 << ((sizeof(size) * 8) - __builtin_clzl(size - 1));
+        }
+        return size;
+    }
+
+    #define XMALLOCALIGN(a, s, h, t) __extension__ ({                      \
+        size_t _wc_alloc_sz = wc_linuxkm_align_sz((a), (s));               \
+        (void)(h); (void)(t);                                              \
+        _wc_alloc_sz ? malloc(_wc_alloc_sz) : NULL;                        \
+    })
+    #define XFREEALIGN(p, h, t) do { (void)(h); (void)(t); free(p); } while (0)
+    /* reallocation for aligned allocations.  krealloc() of size 0 doesn't
+     * return NULL, so free directly to keep the XREALLOCALIGN() contract.
+     */
+    #define XREALLOCALIGN(p, align, size, h, t) __extension__ ({           \
+        void *_wc_realloc_p = (p);                                         \
+        size_t _wc_realloc_sz = (size);                                    \
+        void *_wc_realloc_ret = NULL;                                      \
+        (void)(h); (void)(t);                                              \
+        if (_wc_realloc_sz == 0) {                                         \
+            free(_wc_realloc_p);                                           \
+        }                                                                  \
+        else {                                                             \
+            _wc_realloc_sz = wc_linuxkm_align_sz((align), _wc_realloc_sz); \
+            if (_wc_realloc_sz != 0)                                       \
+                _wc_realloc_ret = realloc(_wc_realloc_p, _wc_realloc_sz);  \
+        }                                                                  \
+        _wc_realloc_ret;                                                   \
+    })
+    /* reallocation with scrubbing of lost blocks for aligned allocations */
+    #define XREALLOCALIGN_SCRUBBED(p, align, old_size, size, h, t)         \
+        __extension__ ({                                                   \
+        void *_wc_scrub_p = (p);                                           \
+        size_t _wc_scrub_sz = (size);                                      \
+        void *_wc_scrub_ret = NULL;                                        \
+        if (_wc_scrub_sz != 0)                                             \
+            _wc_scrub_sz = wc_linuxkm_align_sz((align), _wc_scrub_sz);     \
+        else                                                               \
+            _wc_scrub_ret = wc_ReallocScrubbed(_wc_scrub_p, (old_size), 0, \
+                                               (h), (t));                  \
+        if (_wc_scrub_sz != 0)                                             \
+            _wc_scrub_ret = wc_ReallocScrubbed(_wc_scrub_p, (old_size),    \
+                                               _wc_scrub_sz, (h), (t));    \
+        _wc_scrub_ret;                                                     \
+    })
+#endif /* XMALLOCALIGN */
+#endif /* >= 5.4.0 && (USE_KVREALLOC || !USE_KVMALLOC) */
+
     #include <linux/limits.h>
 
     #ifndef INT32_MAX
