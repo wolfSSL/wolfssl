@@ -2985,7 +2985,9 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
 
     /* A DigestInfo holds no more than the largest supported digest.  This
      * also bounds the copy into digArray. */
-    if (digSz > WC_MAX_DIGEST_SIZE) {
+    if ((digSz > WC_MAX_DIGEST_SIZE) ||
+        (digSz > (word32)sizeof(digArray) - MAX_ENCODED_DIG_ASN_SZ))
+    {
         return 0;
     }
 

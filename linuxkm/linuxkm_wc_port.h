@@ -2333,9 +2333,7 @@
         #endif /* !WC_CONTAINERIZE_THIS */
     #endif
 
-    #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && \
-            defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-            defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
+    #ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
         struct crypto_rng;
         WOLFSSL_API int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng);
     #else

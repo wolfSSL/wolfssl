@@ -4311,20 +4311,6 @@ static int linuxkm_put_drbg(struct wc_rng_bank_inst **drbg) {
         return 0;
 }
 
-#if defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG) && !defined(wc_linux_kernel_rng_is_wolfcrypt)
-int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng) {
-    if (rng &&
-        wc_linuxkm_drbg_default_instance_registered &&
-        (rng->base.__crt_alg->cra_init == wc_linuxkm_drbg_init_tfm))
-    {
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG && !wc_linux_kernel_rng_is_wolfcrypt */
-
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && defined(HAVE_HASHDRBG)
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -5402,6 +5388,10 @@ static int wc_get_random_bytes_callbacks_installed = 0;
 
 #elif defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES)
 
+#ifndef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+    #error WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES requires WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG.
+#endif
+
 #ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
     #error WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES requires WOLFSSL_EXPERIMENTAL_SETTINGS.
 #endif
@@ -5624,6 +5614,12 @@ static int wc_linuxkm_drbg_startup(void)
                            "with return code %d.\n", ret);
         return -EINVAL;
     }
+
+/* return early if configuration has no persistent or registered RNG. */
+#if !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && !defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
+    wc_linuxkm_drbg_loaded = 1;
+    return 0;
+#endif
 
 #ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
     ret = crypto_register_rng(&wc_linuxkm_drbg);
@@ -5912,19 +5908,17 @@ static int wc_linuxkm_drbg_startup(void)
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
 
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) || defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
     return 0;
+#else
+    /* not reachable */
+#endif
 }
 
 static int wc_linuxkm_drbg_cleanup(void) {
     if (! wc_linuxkm_drbg_loaded) {
-#if !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && !defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
-        /* this config's startup registers nothing and never sets
-         * wc_linuxkm_drbg_loaded; cold cleanup is nominal. */
-        return 0;
-#else
         pr_err("ERROR: wc_linuxkm_drbg_cleanup called with ! wc_linuxkm_drbg_loaded\n");
         return -EINVAL;
-#endif
     }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
@@ -6043,6 +6037,25 @@ static int wc_linuxkm_drbg_cleanup(void) {
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */
+
+#ifndef wc_linux_kernel_rng_is_wolfcrypt
+int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng) {
+  #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+    if (rng &&
+        wc_linuxkm_drbg_default_instance_registered &&
+        (rng->base.__crt_alg->cra_init == wc_linuxkm_drbg_init_tfm))
+    {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+  #else
+    (void)rng;
+    return 0;
+  #endif
+}
+#endif /* !wc_linux_kernel_rng_is_wolfcrypt */
 
 #ifndef LKCAPI_INITRNG
     #define LKCAPI_INITRNG(rng) wc_InitRng(rng)
