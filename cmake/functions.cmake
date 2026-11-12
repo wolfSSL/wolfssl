@@ -1017,11 +1017,9 @@ function(generate_lib_src_list LIB_SOURCES)
             wolfcrypt/src/wolfmath.c)
     endif()
 
-    # memory.c also holds the aligned/scrubbing allocators (wc_MallocAlign(),
-    # wc_ReallocScrubbed(), ...) that types.h binds unconditionally, so it is
-    # built even without memory callbacks; the callback code inside it is
-    # gated on USE_WOLFSSL_MEMORY.
-    list(APPEND LIB_SOURCES wolfcrypt/src/memory.c)
+    if(BUILD_MEMORY)
+        list(APPEND LIB_SOURCES wolfcrypt/src/memory.c)
+    endif()
 
     if(NOT BUILD_FIPS_RAND)
         if(NOT BUILD_FIPS_V2 AND BUILD_DH)
