@@ -157,7 +157,11 @@ WC_MAYBE_UNUSED static void sp_cond_memcpy(void* r, const void* a, int copy,
 {
     byte* rb = (byte*)r;
     const byte* ab = (const byte*)a;
-    byte mask = (byte)(0U - (unsigned int)(copy != 0));
+    /* Read the mask back through a volatile so the compiler cannot tell it
+     * is only ever 0 or 0xff. Knowing that, it may turn the masking into a
+     * branch on copy, e.g. by unswitching the loop, which leaks copy. */
+    volatile byte vmask = (byte)(0U - (unsigned int)(copy != 0));
+    byte mask = vmask;
     size_t i;
 
     for (i = 0; i < len; i++) {
@@ -173,7 +177,11 @@ WC_MAYBE_UNUSED static void sp_cond_select(void* r, const void* a,
     byte* rb = (byte*)r;
     const byte* ab = (const byte*)a;
     const byte* bb = (const byte*)b;
-    byte mask = (byte)(0U - (unsigned int)(sel != 0));
+    /* Read the mask back through a volatile so the compiler cannot tell it
+     * is only ever 0 or 0xff. Knowing that, it may turn the masking into a
+     * branch on sel, e.g. by unswitching the loop, which leaks sel. */
+    volatile byte vmask = (byte)(0U - (unsigned int)(sel != 0));
+    byte mask = vmask;
     size_t i;
 
     for (i = 0; i < len; i++) {
