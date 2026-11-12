@@ -18918,36 +18918,45 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
         /* Start at the end of the buffer - least significant byte. */
         int j;
         unsigned int i;
-        byte mask = (byte)-1;
         sp_int_digit d;
 
-        /* Put each digit in. */
+        /* Put each digit in.
+         * Digit index advances every iteration independent of a->used so that
+         * the memory access pattern only depends on outSz and a->size (both
+         * public). Digits at or above a->used are masked out in constant time.
+         */
         i = 0;
-        for (j = outSz - 1; j >= 0; ) {
+        for (j = outSz - 1; j >= 0; i++) {
             unsigned int b;
-            volatile byte notFull = ctMaskLT((int)i, (int)a->used - 1);
+            /* Index to load from - limited by allocated size (public). */
+            unsigned int idx = (i < (unsigned int)a->size) ? i :
+                (unsigned int)a->size - 1;
+            volatile byte mask = ctMaskLT((int)i, (int)a->used);
 
-            d = a->dp[i];
+            d = a->dp[idx];
             /* Place each byte of a digit into the buffer. */
             for (b = 0; (j >= 0) && (b < SP_WORD_SIZEOF); b++) {
                 out[j--] = (byte)(d & mask);
                 d >>= 8;
             }
-            mask &= notFull;
-            i += (unsigned int)(1 & mask);
         }
     }
 #else
     if (err == MP_OKAY) {
         int i;
         int j;
-        volatile sp_int_digit mask = (sp_int_digit)-1;
 
+        /* Digit index advances every iteration independent of a->used so that
+         * the memory access pattern only depends on outSz and a->size (both
+         * public). Digits at or above a->used are masked out in constant time.
+         */
         i = 0;
-        for (j = outSz - 1; j >= 0; j--) {
-            out[j] = a->dp[i] & mask;
-            mask &= (sp_int_digit)0 - (i < (int)a->used - 1);
-            i += 1 & mask;
+        for (j = outSz - 1; j >= 0; j--, i++) {
+            /* Index to load from - limited by allocated size (public). */
+            int idx = (i < (int)a->size) ? i : (int)a->size - 1;
+            volatile byte mask = ctMaskLT(i, (int)a->used);
+
+            out[j] = (byte)(a->dp[idx] & mask);
         }
     }
 #endif
