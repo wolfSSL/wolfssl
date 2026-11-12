@@ -152,6 +152,9 @@ typedef struct SakkeKey {
 
     /** Heap hint for dynamic memory allocation. */
     void* heap;
+    /** Random number generator used to blind operations on secrets. Optional.
+     * Not owned by the key. */
+    WC_RNG* rng;
 
     /** Bit indicates Z, public key, is in montgomery form. */
     WC_BITFIELD zMont:1;
@@ -167,6 +170,7 @@ WOLFSSL_API int wc_InitSakkeKey(SakkeKey* key, void* heap, int devId);
 WOLFSSL_API int wc_InitSakkeKey_ex(SakkeKey* key, int keySize, int curveId,
         void* heap, int devId);
 WOLFSSL_API void wc_FreeSakkeKey(SakkeKey* key);
+WOLFSSL_API int wc_SetSakkeRng(SakkeKey* key, WC_RNG* rng);
 
 WOLFSSL_API int wc_MakeSakkeKey(SakkeKey* key, WC_RNG* rng);
 WOLFSSL_API int wc_MakeSakkePublicKey(SakkeKey* key, ecc_point* pub);
