@@ -2393,10 +2393,11 @@ struct Signer {
      */
     WC_BITFIELD extNameConstraintCrit:1;
     WC_BITFIELD extNameConstraintHasUnsupported:1;
-#ifndef NO_SKID
+#endif
+#if !defined(NO_SKID) && \
+    (!defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL))
     WC_BITFIELD authKeyIdSet:1;      /* true when authKeyIdHash holds the
                                       * AKID extension's keyId */
-#endif
 #endif
     const byte* publicKey;
     int     nameLen;
@@ -2417,10 +2418,11 @@ struct Signer {
 #ifndef NO_SKID
     byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
                                     /* sha hash of key in certificate */
-#ifndef IGNORE_NAME_CONSTRAINTS
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
     byte    authKeyIdHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of AKID; locates signer
-                                      * during name-constraint walk */
+                                      * during name-constraint and CRL
+                                      * chain walks */
 #endif
 #endif
 #ifdef HAVE_OCSP

@@ -33,6 +33,7 @@
 #include <wolfssl/ocsp.h>
 #include <tests/api/api.h>
 #include <tests/api/test_certman.h>
+#include <tests/api/test_certman_crl_fixtures.h>
 #include <tests/utils.h>
 #include <testsuite/utils.h>
 
@@ -3716,6 +3717,720 @@ int test_wolfSSL_CRL_unverified_no_evict(void)
     if (tmpDir[0] != '\0')
         (void)rem_dir(tmpDir);
     wolfSSL_X509_STORE_free(store);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(TEST_CRL_UNVERIFIED_NO_EVICT) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_SKID) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
+    !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    #define TEST_CRL_SKIP_UNVERIFIABLE
+/* Fixed clock: 2027-01-01, when every fixture is valid, and 2035-01-01, after
+ * fxCrlOld4Expiring expires (2030). Both fit a 32-bit time_t. */
+#define TEST_CRL_SKIP_NOW   1798761600L
+#define TEST_CRL_SKIP_LATER 2051222400L
+
+static time_t test_crl_skip_time = (time_t)TEST_CRL_SKIP_NOW;
+
+static time_t test_crl_skip_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_crl_skip_time;
+    return test_crl_skip_time;
+}
+#endif
+
+/* A stored CRL that fails verification is skipped, not an error: another CRL
+ * for the issuer still decides, and its date error still shows. On its own, it
+ * leaves the cert with no CRL.
+ *
+ * The bad CRL comes from a store location, which doesn't verify, so it's only
+ * checked when used. It's loaded before the good CRL, because a verified CRL
+ * would block it. The good CRL is checked first and doesn't list the leaf, so
+ * the bad one is still reached. The leaf has no AKID, so every CRL for the name
+ * applies.
+ *
+ * Fixtures (test_certman_crl_fixtures.h): the old root, its leaf with no AKID
+ * (0x60), and old-key CRLs. */
+int test_wolfSSL_CRL_skip_unverifiable(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRL_SKIP_UNVERIFIABLE
+
+    static const struct {
+        const char* bad;        /* Stored unverified; fails when checked. */
+        int caAfterBad;         /* Load the CA after the bad CRL. */
+        const unsigned char* good;
+        int goodSz;
+        int checks;             /* Times the leaf is checked. */
+        int later;              /* Check at TEST_CRL_SKIP_LATER. */
+        int expected;
+    } cases[] = {
+        /* No signer for the bad CRL: the good one decides. */
+        { fxCrlStrayPem, 0, fxCrlOld5, (int)sizeof(fxCrlOld5), 1, 0,
+          WOLFSSL_SUCCESS },
+        /* Lone CRL with no signer: the leaf has no CRL. */
+        { fxCrlStrayPem, 0, NULL, 0, 1, 0, WC_NO_ERR_TRACE(CRL_MISSING) },
+        /* Lone CRL with a bad signature, checked twice: the cached failure is
+         * skipped too. */
+        { fxCrlBadSigPem, 1, NULL, 0, 2, 0, WC_NO_ERR_TRACE(CRL_MISSING) },
+        /* The good CRL expired: the bad one doesn't hide that. */
+        { fxCrlStrayPem, 0, fxCrlOld4Expiring, (int)sizeof(fxCrlOld4Expiring),
+          1, 1, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR) }
+    };
+    char tmpDir[16];
+    char badFile[64];
+    size_t i;
+
+    XMEMSET(tmpDir, 0, sizeof(tmpDir));
+    XMEMSET(badFile, 0, sizeof(badFile));
+
+    /* Own directory per run, so unit.test runs sharing a working directory
+     * do not write over each other's fixture. */
+    ExpectNotNull(create_tmp_dir(tmpDir, (int)sizeof(tmpDir) - 1));
+    ExpectIntGT(XSNPRINTF(badFile, sizeof(badFile), "%s/crl.pem", tmpDir),
+        0);
+
+    for (i = 0; i < XELEM_CNT(cases) && !EXPECT_FAIL(); i++) {
+        WOLFSSL_X509_STORE* store = NULL;
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        XFILE f = XBADFILE;
+        int badSz = (int)XSTRLEN(cases[i].bad);
+        int j;
+
+        test_crl_skip_time = (time_t)TEST_CRL_SKIP_NOW;
+        ExpectIntEQ(wc_SetTimeCb(test_crl_skip_time_cb), 0);
+        ExpectNotNull(store = wolfSSL_X509_STORE_new());
+        if (store != NULL)
+            cm = store->cm;
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        if (!cases[i].caAfterBad) {
+            ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
+                sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+
+        ExpectTrue((f = XFOPEN(badFile, "wb")) != XBADFILE);
+        ExpectIntEQ((int)XFWRITE(cases[i].bad, 1, (size_t)badSz, f), badSz);
+        if (f != XBADFILE)
+            XFCLOSE(f);
+        ExpectIntEQ(wolfSSL_X509_STORE_load_locations(store, badFile, NULL),
+            WOLFSSL_SUCCESS);
+
+        if (cases[i].caAfterBad) {
+            ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
+                sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+        if (cases[i].good != NULL) {
+            ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, cases[i].good,
+                cases[i].goodSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+
+        if (cases[i].later) {
+            test_crl_skip_time = (time_t)TEST_CRL_SKIP_LATER;
+        }
+        for (j = 0; j < cases[i].checks; j++) {
+            ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafNoAkid,
+                (int)sizeof(fxLeafNoAkid)), cases[i].expected);
+        }
+        (void)wc_SetTimeCb(NULL);
+        if (EXPECT_FAIL()) {
+            fprintf(stderr, "CRL skip case %d failed\n", (int)i);
+        }
+
+        wolfSSL_X509_STORE_free(store);
+    }
+
+    if (badFile[0] != '\0')
+        (void)rem_file(badFile);
+    if (tmpDir[0] != '\0')
+        (void)rem_dir(tmpDir);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A CA that rolled its key has one CRL series per key. Loading one key's CRL
+ * doesn't drop or block the other's, in any order or CRL number. Within a key,
+ * a higher CRL number replaces a lower one.
+ *
+ * Fixtures (test_certman_crl_fixtures.h): the old and new roots and a leaf from
+ * each, revoked by its key's CRL. CRL numbers: old 5; new 1 or 6. */
+int test_wolfSSL_CRL_same_name_key_rollover(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && !defined(NO_CERTS) && defined(HAVE_ECC) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256) && !defined(NO_SKID) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    struct {
+        const unsigned char* der;
+        int sz;
+    } crls[3];
+    /* Two CRLs from different keys, loaded in both orders. */
+    static const int rollover[4][2] = {
+        { 0, 1 }, { 1, 0 },     /* old 5, new 1 */
+        { 0, 2 }, { 2, 0 }      /* old 5, new 6 */
+    };
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    int i;
+    int ret;
+
+    crls[0].der = fxCrlOld5; crls[0].sz = (int)sizeof(fxCrlOld5);
+    crls[1].der = fxCrlNew1; crls[1].sz = (int)sizeof(fxCrlNew1);
+    crls[2].der = fxCrlNew6; crls[2].sz = (int)sizeof(fxCrlNew6);
+
+    /* Controls: each CRL on its own revokes its own key's leaf. */
+    for (i = 0; i < 3; i++) {
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
+            sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootNew,
+            sizeof(fxRootNew), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crls[i].der,
+            crls[i].sz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        if (i == 0) {
+            ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafOld,
+                (int)sizeof(fxLeafOld)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+        }
+        else {
+            ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafNew,
+                (int)sizeof(fxLeafNew)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+        }
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    /* Same key: higher CRL number replaces lower, not the reverse. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootNew,
+        sizeof(fxRootNew), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, fxCrlNew1,
+        sizeof(fxCrlNew1), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, fxCrlNew6,
+        sizeof(fxCrlNew6), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, fxCrlNew1,
+        sizeof(fxCrlNew1), WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(DUPE_ENTRY_E));
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafNew,
+        (int)sizeof(fxLeafNew)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* Both keys' CRLs loaded: both leaves revoked. */
+    for (i = 0; i < 4; i++) {
+        const int first = rollover[i][0];
+        const int second = rollover[i][1];
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
+            sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootNew,
+            sizeof(fxRootNew), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crls[first].der,
+            crls[first].sz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        /* Checked after the revocation results. */
+        ret = WOLFSSL_FATAL_ERROR;
+        if (EXPECT_SUCCESS()) {
+            ret = wolfSSL_CertManagerLoadCRLBuffer(cm, crls[second].der,
+                crls[second].sz, WOLFSSL_FILETYPE_ASN1);
+        }
+
+        ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafOld,
+            (int)sizeof(fxLeafOld)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+        ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafNew,
+            (int)sizeof(fxLeafNew)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+        /* Not a duplicate of the other key's CRL. */
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A CA may sign CRLs with a key that signs no certs (RFC 5280 5.2.1). That
+ * key's CRLs cover the CA's certs despite the AKID mismatch. A CRL from a key
+ * that also signs certs still revokes, and covers the cert when the cert's key
+ * has no CRL.
+ *
+ * Fixtures (test_certman_crl_fixtures.h): the old root and its leaf (0x10), the
+ * CRL-only key, and the new root as the dual-use key. Each key has a CRL
+ * revoking the leaf. */
+int test_wolfSSL_CRL_crl_only_signing_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && !defined(NO_CERTS) && defined(HAVE_ECC) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256) && !defined(NO_SKID) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    /* CRL-only key: its CRL covers the leaf. Under IGNORE_KEY_EXTENSIONS it
+     * counts as another key's CRL, which still covers the leaf since the root
+     * has none. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
+        sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxCrlOnlyKey,
+        sizeof(fxCrlOnlyKey), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, fxCrlByCrlOnlyKey,
+        sizeof(fxCrlByCrlOnlyKey), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafOld,
+        (int)sizeof(fxLeafOld)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* Dual-use key: the root has no CRL, so this one is used and revokes the
+     * leaf. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
+        sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootNew,
+        sizeof(fxRootNew), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, fxCrlNew1,
+        sizeof(fxCrlNew1), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafOld,
+        (int)sizeof(fxLeafOld)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_CRL) && !defined(NO_CERTS) && defined(HAVE_ECC) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256) && !defined(NO_SKID) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
+    !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    #define TEST_CRL_OTHER_KEY_FALLBACK
+/* Fixed clock: 2027-01-01, when every fixture is valid, and 2035-01-01, after
+ * fxCrlNew2Expiring expires (2030). */
+#define TEST_CRL_OTHER_KEY_NOW   1798761600L
+#define TEST_CRL_OTHER_KEY_LATER 2051222400L
+
+static time_t test_crl_other_key_time = (time_t)TEST_CRL_OTHER_KEY_NOW;
+
+static time_t test_crl_other_key_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_crl_other_key_time;
+    return test_crl_other_key_time;
+}
+#endif
+
+/* Another key's CRL always revokes, and covers the cert when the cert's key has
+ * no CRL loaded. If it has one, that CRL decides, and a stale CRL from another
+ * key doesn't matter.
+ *
+ * Fixtures (test_certman_crl_fixtures.h): the old and new roots and the old
+ * key's leaf (0x10). The old key's CRL used here doesn't list the leaf. The new
+ * key has one CRL that revokes it and one that expires. */
+int test_wolfSSL_CRL_other_key_fallback(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRL_OTHER_KEY_FALLBACK
+    enum { XK_A, XK_B_REVOKED, XK_B_EXPIRING, XK_NONE };
+    struct {
+        const unsigned char* der;
+        int sz;
+    } crls[XK_NONE];
+    static const struct {
+        int first;
+        int second;
+        int later;      /* Check at TEST_CRL_OTHER_KEY_LATER. */
+        int expected;
+    } cases[] = {
+        /* Control: own-key CRL covers the leaf. */
+        { XK_A, XK_NONE, 0, WOLFSSL_SUCCESS },
+        /* Other key's entry revokes, even with a fresh own-key CRL. */
+        { XK_A, XK_B_REVOKED, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
+        { XK_B_REVOKED, XK_A, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
+        /* No own-key CRL: the other key's covers the leaf. */
+        { XK_B_REVOKED, XK_NONE, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
+        { XK_B_EXPIRING, XK_NONE, 0, WOLFSSL_SUCCESS },
+        /* No own-key CRL and the other key's expired. */
+        { XK_B_EXPIRING, XK_NONE, 1, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR) },
+        /* Fresh own-key CRL: the other key's expired one doesn't matter. */
+        { XK_A, XK_B_EXPIRING, 1, WOLFSSL_SUCCESS },
+        { XK_B_EXPIRING, XK_A, 1, WOLFSSL_SUCCESS }
+    };
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    size_t i;
+
+    crls[XK_A].der = fxCrlOld6;
+    crls[XK_A].sz = (int)sizeof(fxCrlOld6);
+    crls[XK_B_REVOKED].der = fxCrlNew1;
+    crls[XK_B_REVOKED].sz = (int)sizeof(fxCrlNew1);
+    crls[XK_B_EXPIRING].der = fxCrlNew2Expiring;
+    crls[XK_B_EXPIRING].sz = (int)sizeof(fxCrlNew2Expiring);
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        test_crl_other_key_time = (time_t)TEST_CRL_OTHER_KEY_NOW;
+        ExpectIntEQ(wc_SetTimeCb(test_crl_other_key_time_cb), 0);
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
+            sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootNew,
+            sizeof(fxRootNew), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm,
+            crls[cases[i].first].der, crls[cases[i].first].sz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        if (cases[i].second != XK_NONE) {
+            ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm,
+                crls[cases[i].second].der, crls[cases[i].second].sz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+        if (cases[i].later)
+            test_crl_other_key_time = (time_t)TEST_CRL_OTHER_KEY_LATER;
+        ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafOld,
+            (int)sizeof(fxLeafOld)), cases[i].expected);
+        (void)wc_SetTimeCb(NULL);
+        if (EXPECT_FAIL()) {
+            fprintf(stderr, "CRL other key case %d failed\n", (int)i);
+        }
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_CRL) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
+    !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* Fixed clock: 2027-01-01, when every fixture is valid, and 2035-01-01, after
+ * fxCrlOld4Expiring expires (2030). Expired CRLs can't be loaded, so the clock
+ * moves after loading. Both fit a 32-bit time_t. */
+#define TEST_CRL_CHAIN_ROLLOVER_NOW   1798761600L
+#define TEST_CRL_CHAIN_ROLLOVER_LATER 2051222400L
+
+static time_t test_crl_chain_rollover_time =
+    (time_t)TEST_CRL_CHAIN_ROLLOVER_NOW;
+
+static time_t test_crl_chain_rollover_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_crl_chain_rollover_time;
+    return test_crl_chain_rollover_time;
+}
+#endif
+
+/* WOLFSSL_CRL_CHECKALL chain walk with a root that rolled its key. The CA's
+ * AKID picks its signing key's CRL, and another key's CRL doesn't cover for an
+ * expired one. If the signing key has no CRL, another key's covers the cert.
+ *
+ * Fixtures (test_certman_crl_fixtures.h): the old and new roots, the old key's
+ * intermediate (0x30) and its leaf. The server sends only the leaf, so the walk
+ * runs. */
+int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
+    !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    /* Indexes into crls. fxCrlInt is always loaded. */
+    enum { CRL_OLD, CRL_OLD_REVOKED, CRL_OLD_EXPIRING, CRL_NEW, CRL_NONE };
+    struct {
+        const unsigned char* der;
+        int sz;
+    } crls[CRL_NONE];
+    static const struct {
+        int first;
+        int second;
+        int later;      /* Handshake at TEST_CRL_CHAIN_ROLLOVER_LATER. */
+        int expected;
+    } cases[] = {
+        /* Control: each key's CRL covers its own certs. */
+        { CRL_OLD, CRL_NEW, 0, 0 },
+        { CRL_NEW, CRL_OLD, 0, 0 },
+        { CRL_OLD_EXPIRING, CRL_NEW, 0, 0 },
+        /* The old key revoked the intermediate. */
+        { CRL_OLD_REVOKED, CRL_NEW, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
+        { CRL_NEW, CRL_OLD_REVOKED, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
+        /* No old-key CRL: the new key's covers the intermediate. */
+        { CRL_NEW, CRL_NONE, 0, 0 },
+        /* Old-key CRL expired: the new key's doesn't hide that. */
+        { CRL_OLD_EXPIRING, CRL_NEW, 1, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR) },
+        { CRL_NEW, CRL_OLD_EXPIRING, 1, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR) }
+    };
+    size_t i;
+
+    crls[CRL_OLD].der = fxCrlOld5;
+    crls[CRL_OLD].sz = (int)sizeof(fxCrlOld5);
+    crls[CRL_OLD_REVOKED].der = fxCrlOld6;
+    crls[CRL_OLD_REVOKED].sz = (int)sizeof(fxCrlOld6);
+    crls[CRL_OLD_EXPIRING].der = fxCrlOld4Expiring;
+    crls[CRL_OLD_EXPIRING].sz = (int)sizeof(fxCrlOld4Expiring);
+    crls[CRL_NEW].der = fxCrlNew1;
+    crls[CRL_NEW].sz = (int)sizeof(fxCrlNew1);
+
+    for (i = 0; i < XELEM_CNT(cases) && !EXPECT_FAIL(); i++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+        int load[2];
+        int j;
+
+        load[0] = cases[i].first;
+        load[1] = cases[i].second;
+
+        test_crl_chain_rollover_time = (time_t)TEST_CRL_CHAIN_ROLLOVER_NOW;
+        ExpectIntEQ(wc_SetTimeCb(test_crl_chain_rollover_time_cb), 0);
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfSSLv23_client_method, wolfSSLv23_server_method,
+            (byte*)fxRootOld, (int)sizeof(fxRootOld), (byte*)fxLeafInt,
+            (int)sizeof(fxLeafInt), (byte*)fxLeafKey, (int)sizeof(fxLeafKey)),
+            0);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_c, fxRootNew,
+            (long)sizeof(fxRootNew), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_c, fxIntCa,
+            (long)sizeof(fxIntCa), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx_c,
+            WOLFSSL_CRL_CHECK | WOLFSSL_CRL_CHECKALL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_LoadCRLBuffer(ctx_c, fxCrlInt,
+            (long)sizeof(fxCrlInt), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        for (j = 0; j < 2; j++) {
+            if (load[j] == CRL_NONE)
+                continue;
+            /* Different keys' CRLs coexist. */
+            ExpectIntEQ(wolfSSL_CTX_LoadCRLBuffer(ctx_c, crls[load[j]].der,
+                (long)crls[load[j]].sz, WOLFSSL_FILETYPE_ASN1),
+                WOLFSSL_SUCCESS);
+        }
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+        if (cases[i].later) {
+            test_crl_chain_rollover_time =
+                (time_t)TEST_CRL_CHAIN_ROLLOVER_LATER;
+        }
+
+        if (cases[i].expected == 0) {
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+        else {
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), cases[i].expected);
+        }
+        (void)wc_SetTimeCb(NULL);
+        if (EXPECT_FAIL()) {
+            fprintf(stderr, "chain key rollover case %d failed\n", (int)i);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* WOLFSSL_CRL_CHECKALL chain walk with two same-name roots (AKID = SKID). The
+ * walk steps to the root that issued the intermediate, found by its AKID, not
+ * the first root with that name. The new root comes first in the CA table, so a
+ * name lookup would land on it and need its CRL, which isn't loaded.
+ *
+ * Fixtures (test_certman_crl_fixtures.h): the old and new roots, the old key's
+ * intermediate (0x30) and its leaf. Only the old key's CRL is loaded. The
+ * server sends only the leaf, so the walk runs. */
+int test_wolfSSL_CRL_chain_walk_follows_akid(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    static const struct {
+        const unsigned char* crl;   /* Old root key's CRL, or NULL. */
+        int crlSz;
+        int expected;
+    } cases[] = {
+        /* The intermediate's issuer is the old key: its CRL is enough. */
+        { fxCrlOld5, (int)sizeof(fxCrlOld5), 0 },
+        /* The walk reaches the old key's CRL: it sees the revocation. */
+        { fxCrlOld6, (int)sizeof(fxCrlOld6),
+          WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
+        /* No root CRL: the intermediate isn't covered. */
+        { NULL, 0, WC_NO_ERR_TRACE(CRL_MISSING) }
+    };
+    size_t i;
+    int order;
+
+    for (i = 0; i < XELEM_CNT(cases) && !EXPECT_FAIL(); i++) {
+        /* Load the roots in both orders. */
+        for (order = 0; order < 2 && !EXPECT_FAIL(); order++) {
+            struct test_memio_ctx test_ctx;
+            WOLFSSL_CTX* ctx_c = NULL;
+            WOLFSSL_CTX* ctx_s = NULL;
+            WOLFSSL* ssl_c = NULL;
+            WOLFSSL* ssl_s = NULL;
+            const unsigned char* rootA = order ? fxRootNew : fxRootOld;
+            const unsigned char* rootB = order ? fxRootOld : fxRootNew;
+            int rootASz = order ? (int)sizeof(fxRootNew) :
+                (int)sizeof(fxRootOld);
+            int rootBSz = order ? (int)sizeof(fxRootOld) :
+                (int)sizeof(fxRootNew);
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s, wolfSSLv23_client_method, wolfSSLv23_server_method,
+                (byte*)rootA, rootASz, (byte*)fxLeafInt, (int)sizeof(fxLeafInt),
+                (byte*)fxLeafKey, (int)sizeof(fxLeafKey)), 0);
+            ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_c, rootB,
+                (long)rootBSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_c, fxIntCa,
+                (long)sizeof(fxIntCa), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx_c,
+                WOLFSSL_CRL_CHECK | WOLFSSL_CRL_CHECKALL), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_LoadCRLBuffer(ctx_c, fxCrlInt,
+                (long)sizeof(fxCrlInt), WOLFSSL_FILETYPE_ASN1),
+                WOLFSSL_SUCCESS);
+            if (cases[i].crl != NULL) {
+                ExpectIntEQ(wolfSSL_CTX_LoadCRLBuffer(ctx_c, cases[i].crl,
+                    (long)cases[i].crlSz, WOLFSSL_FILETYPE_ASN1),
+                    WOLFSSL_SUCCESS);
+            }
+            wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+
+            if (cases[i].expected == 0) {
+                ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL),
+                    0);
+            }
+            else {
+                ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL),
+                    0);
+                ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), cases[i].expected);
+            }
+            if (EXPECT_FAIL()) {
+                fprintf(stderr, "chain walk case %d order %d failed\n",
+                    (int)i, order);
+            }
+
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* WOLFSSL_CRL_CHECKALL chain walk over CAs that issue each other. A
+ * cross-certified pair (A by B, B by A) is walked once each. A longer cycle (A
+ * by C, C by B, B by A) isn't detected, so the walk stops at
+ * WOLFSSL_MAX_CHAIN_DEPTH with an error.
+ *
+ * Fixtures (test_certman_crl_fixtures.h): CAs CN=crl-cycle-a/b/c for keys A, B
+ * and C, and a leaf from A. The server sends only the leaf, so the walk runs.
+ */
+int test_wolfSSL_CRL_chain_walk_cycle(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    struct {
+        const unsigned char* der;
+        int sz;
+    } cas[3][3], crls[3][3];
+    int expected[3];
+    size_t i;
+    size_t j;
+
+    XMEMSET(cas, 0, sizeof(cas));
+    XMEMSET(crls, 0, sizeof(crls));
+    /* Cross-certified pair: each CA's CRL is checked once. */
+    cas[0][0].der = fxCycleAbyB; cas[0][0].sz = (int)sizeof(fxCycleAbyB);
+    cas[0][1].der = fxCycleBbyA; cas[0][1].sz = (int)sizeof(fxCycleBbyA);
+    crls[0][0].der = fxCycleCrlA;  crls[0][0].sz = (int)sizeof(fxCycleCrlA);
+    crls[0][1].der = fxCycleCrlB;  crls[0][1].sz = (int)sizeof(fxCycleCrlB);
+    expected[0] = 0;
+    /* Same pair: the walk reaches B's CRL, which revokes A. */
+    cas[1][0] = cas[0][0];
+    cas[1][1] = cas[0][1];
+    crls[1][0].der = fxCycleCrlA;
+    crls[1][0].sz = (int)sizeof(fxCycleCrlA);
+    crls[1][1].der = fxCycleCrlBRevoked;
+    crls[1][1].sz = (int)sizeof(fxCycleCrlBRevoked);
+    expected[1] = WC_NO_ERR_TRACE(CRL_CERT_REVOKED);
+    /* Three-CA cycle: bounded by WOLFSSL_MAX_CHAIN_DEPTH. */
+    cas[2][0].der = fxCycleAbyC; cas[2][0].sz = (int)sizeof(fxCycleAbyC);
+    cas[2][1].der = fxCycleBbyA; cas[2][1].sz = (int)sizeof(fxCycleBbyA);
+    cas[2][2].der = fxCycleCbyB; cas[2][2].sz = (int)sizeof(fxCycleCbyB);
+    crls[2][0].der = fxCycleCrlA;  crls[2][0].sz = (int)sizeof(fxCycleCrlA);
+    crls[2][1].der = fxCycleCrlB;  crls[2][1].sz = (int)sizeof(fxCycleCrlB);
+    crls[2][2].der = fxCycleCrlC;  crls[2][2].sz = (int)sizeof(fxCycleCrlC);
+    expected[2] = WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E);
+
+    for (i = 0; i < XELEM_CNT(expected) && !EXPECT_FAIL(); i++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfSSLv23_client_method, wolfSSLv23_server_method,
+            (byte*)cas[i][0].der, cas[i][0].sz, (byte*)fxCycleLeaf,
+            (int)sizeof(fxCycleLeaf), (byte*)fxLeafKey,
+            (int)sizeof(fxLeafKey)), 0);
+        for (j = 1; j < 3; j++) {
+            if (cas[i][j].der == NULL)
+                continue;
+            ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_c, cas[i][j].der,
+                (long)cas[i][j].sz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx_c,
+            WOLFSSL_CRL_CHECK | WOLFSSL_CRL_CHECKALL), WOLFSSL_SUCCESS);
+        for (j = 0; j < 3; j++) {
+            if (crls[i][j].der == NULL)
+                continue;
+            ExpectIntEQ(wolfSSL_CTX_LoadCRLBuffer(ctx_c, crls[i][j].der,
+                (long)crls[i][j].sz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+
+        if (expected[i] == 0) {
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+        else {
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), expected[i]);
+        }
+        if (EXPECT_FAIL()) {
+            fprintf(stderr, "chain walk cycle case %d failed\n", (int)i);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
 #endif
     return EXPECT_RESULT();
 }

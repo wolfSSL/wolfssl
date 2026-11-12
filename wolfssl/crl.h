@@ -47,7 +47,7 @@ WOLFSSL_LOCAL int  BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz,
 WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert);
 WOLFSSL_LOCAL int  CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName);
+        int extCrlInfoSz, void* issuerName, const byte* akid);
 WOLFSSL_LOCAL int  CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_CRL* crl, DecodedCert* cert);
 #ifdef HAVE_CRL_UPDATE_CB

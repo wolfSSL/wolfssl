@@ -103,10 +103,11 @@ static int mcdc_CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
  * answer. */
 static int mcdc_CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName)
+        int extCrlInfoSz, void* issuerName, const byte* akid)
 {
     (void)crl; (void)issuerHash; (void)serial; (void)serialSz;
     (void)serialHash; (void)extCrlInfo; (void)extCrlInfoSz; (void)issuerName;
+    (void)akid;
     g_crlCalls++;
     return g_crlRet;
 }
@@ -121,8 +122,8 @@ static int mcdc_CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
 #endif
 #ifdef HAVE_CRL
     #define CheckCertCRL(a, b)         mcdc_CheckCertCRL((a), (b))
-    #define CheckCertCRL_ex(a, b, c, d, e, f, g, h) \
-        mcdc_CheckCertCRL_ex((a), (b), (c), (d), (e), (f), (g), (h))
+    #define CheckCertCRL_ex(a, b, c, d, e, f, g, h, i) \
+        mcdc_CheckCertCRL_ex((a), (b), (c), (d), (e), (f), (g), (h), (i))
 #endif
 
 #include <src/internal.c>
