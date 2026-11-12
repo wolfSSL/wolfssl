@@ -1144,6 +1144,7 @@ typedef sp_int_digit mp_digit;
     #define sp_invmod wc_sp_invmod
     #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
         #define sp_invmod_mont_ct wc_sp_invmod_mont_ct
+        #define sp_mont_mul_ct wc_sp_mont_mul_ct
     #endif
 
     #define sp_exptmod_ex wc_sp_exptmod_ex
@@ -1300,6 +1301,8 @@ MP_API int sp_invmod(const sp_int* a, const sp_int* m, sp_int* r);
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 MP_API int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
     sp_int_digit mp);
+WOLFSSL_LOCAL int sp_mont_mul_ct(const sp_int* a, const sp_int* b,
+    const sp_int* m, sp_int_digit mp, sp_int* r);
 #endif
 
 MP_API int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits,
@@ -1432,6 +1435,7 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_mul                              sp_mul
 #define mp_invmod                           sp_invmod
 #define mp_invmod_mont_ct                   sp_invmod_mont_ct
+#define mp_mont_mul_ct                      sp_mont_mul_ct
 #define mp_exptmod_ex                       sp_exptmod_ex
 #define mp_exptmod_nct                      sp_exptmod_nct
 #define mp_div_2d                           sp_div_2d
