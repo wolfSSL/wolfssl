@@ -75,6 +75,7 @@
 
     /* map the _Software calls used by kcapi_hmac.c */
     #define wc_HmacSetKey  wc_HmacSetKey_Software
+    #define wc_HmacSetKey_ex wc_HmacSetKey_ex_Software
     #define wc_HmacUpdate  wc_HmacUpdate_Software
     #define wc_HmacFinal   wc_HmacFinal_Software
 #endif
@@ -1740,6 +1741,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 
     /* unmap the _Software calls used by kcapi_hmac.c */
     #undef wc_HmacSetKey
+    #undef wc_HmacSetKey_ex
     #undef wc_HmacUpdate
     #undef wc_HmacFinal
 

@@ -204,6 +204,9 @@ WOLFSSL_API int wc_HmacFinal(Hmac* hmac, byte* hash);
 #ifdef WOLFSSL_KCAPI_HMAC
 WOLFSSL_API int wc_HmacSetKey_Software(Hmac* hmac, int type, const byte* key,
                                        word32 keySz);
+WOLFSSL_API int wc_HmacSetKey_ex_Software(Hmac* hmac, int type,
+                                          const byte* key, word32 keySz,
+                                          int allowFlag);
 WOLFSSL_API int wc_HmacUpdate_Software(Hmac* hmac, const byte* in, word32 sz);
 WOLFSSL_API int wc_HmacFinal_Software(Hmac* hmac, byte* out);
 #endif
