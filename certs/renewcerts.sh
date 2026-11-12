@@ -996,6 +996,17 @@ run_renewcerts(){
     echo "---------------------------------------------------------------------"
 
     ############################################################
+    ########## generate verify callback test certificates ######
+    ############################################################
+    echo "Renewing verify callback test certificates"
+    cd test
+    ./gen-verify-cb-certs.sh
+    check_result $? "Step 1"
+    cd ..
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
     ########## update Raw Public Key certificates ##############
     ############################################################
     echo "Updating  certificates"

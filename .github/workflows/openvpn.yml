@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [ master, release/2.6, v2.6.19 ]
+        ref: [ master, release/2.7, v2.7.8, release/2.6, v2.6.19 ]
     name: ${{ matrix.ref }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
@@ -57,7 +57,9 @@ jobs:
       - name: Checkout wolfSSL CI actions
         uses: actions/checkout@v5
         with:
-          sparse-checkout: .github/actions
+          sparse-checkout: |
+            .github/actions
+            .github/scripts
           fetch-depth: 1
 
       - name: Download lib
@@ -99,3 +101,8 @@ jobs:
       - name: Confirm OpenVPN built with wolfSSL
         working-directory: ./openvpn
         run: ldd src/openvpn/openvpn | grep wolfssl
+
+      - name: Test peer cert verification
+        run: >-
+          .github/scripts/openvpn-cert-verify.sh
+          openvpn/src/openvpn/openvpn
