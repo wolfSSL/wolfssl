@@ -5918,7 +5918,7 @@ static int wc_linuxkm_drbg_startup(void)
 static int wc_linuxkm_drbg_cleanup(void) {
     if (! wc_linuxkm_drbg_loaded) {
 #if !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && !defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
-        /* this config’s startup registers nothing and never sets
+        /* this config's startup registers nothing and never sets
          * wc_linuxkm_drbg_loaded; cold cleanup is nominal. */
         return 0;
 #else
