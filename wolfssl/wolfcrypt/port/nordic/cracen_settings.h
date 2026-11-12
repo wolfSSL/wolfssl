@@ -32,6 +32,11 @@
  *   WOLFSSL_CRACEN_HASH        SHA-1/224/256/384/512 (default when enabled)
  *   WOLFSSL_CRACEN_CIPHER      AES ECB/CBC/CTR/GCM (default when !NO_AES)
  *   WOLFSSL_CRACEN_CMAC        AES-CMAC (default when WOLFSSL_CMAC)
+ *   WOLFSSL_CRACEN_PK          ECC, RSA, DH, X25519, Ed25519 (default when
+ *                              any is built); needs the engine microcode,
+ *                              see wc_CracenPkLoadMicrocode()
+ *   WOLFSSL_CRACEN_PK_NO_CM    turn the PK side channel countermeasures off
+ *   WOLFSSL_CRACEN_PK_TIMEOUT  poll iterations before a PK op is failed
  *   WOLFSSL_CRACEN_DEVID       device id (default 0x4352)
  *   WOLFSSL_CRACEN_NO_SEED     do not make the TRNG the wc_GenerateSeed source
  *   WOLFSSL_CRACEN_RNG_DIRECT  also serve WC_ALGO_TYPE_RNG from the TRNG
@@ -61,7 +66,8 @@
 #if !defined(WOLFSSL_CRACEN_TRNG)   && \
     !defined(WOLFSSL_CRACEN_HASH)   && \
     !defined(WOLFSSL_CRACEN_CIPHER) && \
-    !defined(WOLFSSL_CRACEN_CMAC)
+    !defined(WOLFSSL_CRACEN_CMAC)   && \
+    !defined(WOLFSSL_CRACEN_PK)
     /* Enable each engine only when its wc_CryptoInfo union member exists. */
     #ifndef WC_NO_RNG
         #define WOLFSSL_CRACEN_TRNG
@@ -76,6 +82,17 @@
             #define WOLFSSL_CRACEN_CMAC
         #endif
     #endif
+    #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
+        defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
+        #define WOLFSSL_CRACEN_PK
+    #endif
+#endif
+
+/* Public key countermeasures (scalar/exponent and modulus randomisation,
+ * randomised projective coordinates) are on unless disabled. */
+#if defined(WOLFSSL_CRACEN_PK) && !defined(WOLFSSL_CRACEN_PK_NO_CM) && \
+    !defined(WOLFSSL_CRACEN_PK_CM)
+    #define WOLFSSL_CRACEN_PK_CM
 #endif
 
 #ifndef WOLFSSL_CRACEN_DEVID

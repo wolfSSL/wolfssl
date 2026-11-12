@@ -1,8 +1,10 @@
 # Nordic nRF54L CRACEN port
 
 Crypto callback port for the CRACEN cryptographic accelerator on the nRF54L15,
-nRF54L10 and nRF54L05. It programs the Cryptomaster (AES and hash engines) and
-the TRNG directly through their registers and needs no Nordic SDK.
+nRF54L10 and nRF54L05. It programs the Cryptomaster (AES and hash engines), the
+TRNG and the public key engine directly through their registers and needs no
+Nordic SDK. The public key engine additionally needs its microcode, which the
+application supplies (see below).
 
 ## Enabling
 
@@ -37,9 +39,16 @@ need no maintenance, but every buffer the pusher writes must be in RAM.
 | AES-GCM | BA411E | 96-bit IV, tag 4..16 bytes; other IV sizes go to software |
 | AES-CMAC | BA411E | Multi-part through state export |
 | Seed | BA431 TRNG | Conditioned output feeds the Hash-DRBG; see RNG below |
+| ECDSA sign and verify, ECDH, ECC key generation, public key derivation and validation | BA414EP | P-192/256/384/521 with the engine's own parameters; any other prime curve up to 521 bits (P-224, Brainpool, ...) with parameters loaded per operation |
+| RSA public and private operation | BA414EP | Raw modular exponentiation, CRT for private keys with CRT parameters; padding stays in software |
+| DH agreement | BA414EP | Modular exponentiation |
+| X25519 | BA414EP | Key generation, shared secret, public key derivation |
+| Ed25519, Ed25519ctx, Ed25519ph | BA414EP | Point multiplication and the signature arithmetic; the SHA-512 steps run on the key's devId |
 
-Not offloaded: AES-CCM, AES-CFB/OFB/XTS, ChaCha20-Poly1305, SHA-3, public key.
-Anything the port declines runs in software with no change of result.
+Not offloaded: AES-CCM, AES-CFB/OFB/XTS, ChaCha20-Poly1305, SHA-3, RSA and DH
+key generation, deterministic ECDSA (`WOLFSSL_ECDSA_DETERMINISTIC_K`) and
+signing with a caller-chosen nonce, Ed448/X448. Anything the port declines runs
+in software with no change of result.
 
 Engines absent from `CRYPTMSTRHW.INCLIPSHWCFG`, or modes absent from the AES
 and hash capability registers, are declined at runtime.
@@ -86,12 +95,57 @@ The TRNG stays powered between reads by default; `WOLFSSL_CRACEN_TRNG_ON_DEMAND`
 powers it down after each one, which costs the start-up wait and a new
 conditioning key on every read.
 
+## Public key engine
+
+The BA414EP runs microcode that is not part of the chip's ROM: Nordic's
+drivers copy a 4.9 KB blob (`ba414ep_ucode`, nRF Connect SDK
+`subsys/nrf_security/src/drivers/cracen/common/src/cracen/hardware/microcode_binary.h`,
+LicenseRef-Nordic-5-Clause) into the engine's microcode RAM. The blob is not
+distributed with wolfSSL; the application loads it once after init:
+
+```c
+wc_CracenInit();
+wc_CracenPkLoadMicrocode(ba414ep_ucode, BA414EP_UCODE_SIZE);   /* words */
+```
+
+Until it has been loaded, `wc_CracenPkReady()` returns 0 and every public key
+request is declined to software. Loading enables the PKE/IKG block, waits for
+its RAM zeroisation, reads the engine's capability register (`pkCfg` in
+`wc_CracenHwInfo`) and writes the words. `wc_CracenCleanup()` disables the
+block again; a new `wc_CracenInit()` needs a new load.
+
+Operands are placed in the engine's 16 slots of 512 bytes, big-endian values
+right-aligned, the 25519 values little-endian; the slots that held private
+material or results are cleared after each operation. Keys stay in wolfCrypt's
+objects: the engine sees only the operands of the current operation.
+
+Side channel countermeasures: ECDSA signing, ECC point multiplication with a
+private scalar (key generation, ECDH, public key derivation) and the RSA and DH
+private operations run with the engine's scalar/exponent and projective
+coordinate or modulus randomisation, fed with a 64-bit blinding factor from the
+TRNG. `WOLFSSL_CRACEN_PK_NO_CM` turns this off; it is also skipped when the
+engine reports countermeasures disabled or when the operand is too large to
+leave room for the extra 64 bits (4096-bit RSA).
+
+ECDSA nonces come from `wc_ecc_gen_k()` with the RNG the caller passed, and
+digests are truncated to the order length exactly as the software path does.
+Signatures are produced and consumed in the usual DER form. RSA input range
+checks (`RSA_OUT_OF_RANGE_E`) match the software path, including the
+small-ciphertext check on private decrypt.
+
+The chip's tamper controller (TAMPC) treats some misuse of the PKE/IKG block
+as a tamper event and, with its reset defaults, resets the device. The
+on-target test project can disable that reset and reports the TAMPC status at
+the end of a run; see `IDE/Nordic/nRF54L15/README.md`.
+
 ## Options
 
 | Macro | Default | Meaning |
 |---|---|---|
 | `WOLFSSL_CRACEN_DEVID` | `0x4352` | Device id |
-| `WOLFSSL_CRACEN_HASH`, `_CIPHER`, `_CMAC`, `_TRNG` | all that the build has algorithms for | Engine selection; defining any one disables the others |
+| `WOLFSSL_CRACEN_HASH`, `_CIPHER`, `_CMAC`, `_TRNG`, `_PK` | all that the build has algorithms for | Engine selection; defining any one disables the others |
+| `WOLFSSL_CRACEN_PK_NO_CM` | off | Run public key operations without the engine's side channel countermeasures |
+| `WOLFSSL_CRACEN_PK_TIMEOUT` | `0x4000000` | Poll iterations before a public key operation fails with `WC_HW_E` |
 | `WOLFSSL_CRACEN_NO_SEED` | off | Do not make the TRNG `wc_GenerateSeed()` |
 | `WOLFSSL_CRACEN_RNG_DIRECT` | off | Serve `wc_RNG_GenerateBlock()` straight from the TRNG |
 | `WOLFSSL_CRACEN_TIMEOUT` | `0x400000` | Poll iterations before an operation fails with `WC_HW_E` |
@@ -119,22 +173,30 @@ make check
 
 registers the emulated device as `WC_USE_DEVID`, so `testwolfcrypt` and the
 unit tests run the port's streaming, padding, counter and CMAC logic on a PC.
-Only the register encodings themselves are left to the target.
+The emulated public key engine is ready from init (the microcode load is
+accepted and ignored) and computes each primitive with wolfCrypt's own
+arithmetic, so the key unpacking, digest truncation, DER conversion, Ed25519
+hashing and result handling of the handlers are exercised too. Only the
+register encodings themselves are left to the target.
 
 ## Files
 
 | File | Role |
 |---|---|
-| `cracen_hw_bare.c` | Register driver: Cryptomaster DMA, AES, hash, CMAC, TRNG |
+| `cracen_hw_bare.c` | Register driver: Cryptomaster DMA, AES, hash, CMAC, TRNG, public key engine |
 | `cracen_hw_shim.c` | Host-test stand-in for the above, declining or emulating |
-| `cracen_cryptocb.c` | Device registration and dispatch |
-| `cracen_cb_hash.c`, `cracen_cb_cipher.c`, `cracen_cb_cmac.c`, `cracen_cb_rng.c` | One handler per algorithm type |
-| `wolfssl/wolfcrypt/port/nordic/cracen_regs.h` | Register map and Cryptomaster encodings |
+| `cracen_cryptocb.c` | Device registration, dispatch, microcode load |
+| `cracen_cb_hash.c`, `cracen_cb_cipher.c`, `cracen_cb_cmac.c`, `cracen_cb_rng.c`, `cracen_cb_pk.c` | One handler per algorithm type |
+| `wolfssl/wolfcrypt/port/nordic/cracen_regs.h` | Register map, Cryptomaster and public key engine encodings |
 
 The register offsets come from the nRF54L15 datasheet and the Nordic MDK; the
 descriptor and AES encodings from nrfx (both BSD-3-Clause). The hash
-configuration word and the tag's invalid-byte field are hardware facts observed
-in Nordic's nRF Connect SDK driver; no code from it is used.
+configuration word, the tag's invalid-byte field, and the public key engine's
+operation codes, slot assignments, operand placement and blinding factor format
+are hardware facts observed in Nordic's nRF Connect SDK driver
+(LicenseRef-Nordic-5-Clause); they are recorded in `cracen_regs.h` and
+`cracen_hw_bare.c` in this port's own words and no code from that driver is
+used. The engine microcode itself is Nordic's and is never copied into wolfSSL.
 
 ## On-target test
 

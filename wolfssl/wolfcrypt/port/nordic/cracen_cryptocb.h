@@ -51,6 +51,12 @@ WOLFSSL_API int  wc_CracenTrngRead(byte* out, word32 sz);
 WOLFSSL_API void wc_CracenTrngOff(void);
 WOLFSSL_API int  wc_CracenTrngGetStats(wc_CracenTrngStats* stats);
 
+/* Load the public key engine microcode (Nordic's ba414ep_ucode, supplied by
+ * the application) and enable public key offload. Without it every public
+ * key request runs in software. wc_CracenPkReady returns 1 once loaded. */
+WOLFSSL_API int  wc_CracenPkLoadMicrocode(const word32* ucode, word32 words);
+WOLFSSL_API int  wc_CracenPkReady(void);
+
 /* Marker values kept in an object's devCtx while the port owns it. */
 #define WC_CRACEN_MARK_FRESH ((void*)1) /* fields reset, no hardware state */
 #define WC_CRACEN_MARK_STATE ((void*)2) /* hardware state exported into object */
@@ -60,6 +66,7 @@ WOLFSSL_LOCAL int wc_CracenHash(wc_CryptoInfo* info);
 WOLFSSL_LOCAL int wc_CracenCipher(wc_CryptoInfo* info);
 WOLFSSL_LOCAL int wc_CracenCmac(wc_CryptoInfo* info);
 WOLFSSL_LOCAL int wc_CracenRng(wc_CryptoInfo* info);
+WOLFSSL_LOCAL int wc_CracenPk(wc_CryptoInfo* info);
 
 #ifdef __cplusplus
     }

@@ -27,5 +27,12 @@
 void     board_init(void);
 uint32_t board_cycles(void);
 uint32_t board_clock_hz(void);
+/* One line with the state of the cycle counter and the debug signals. */
+void     board_debug_report(void);
+
+/* TAMPC: stop the automatic chip reset on an internal tamper event, and read
+ * the tamper status (STATUS, EVENTS_TAMPER, PROTECT.CRACENTAMP.STATUS). */
+void     board_tamper_reset_disable(void);
+uint32_t board_tamper_status(uint32_t* events, uint32_t* cracenTamp);
 
 #endif /* BOARD_H */

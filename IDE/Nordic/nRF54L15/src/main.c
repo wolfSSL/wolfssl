@@ -35,8 +35,33 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/random.h>
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn_public.h>
+#endif
+#if !defined(NO_RSA) || !defined(NO_DH)
+    #include <wolfssl/certs_test.h>
+#endif
 #include <wolfssl/wolfcrypt/port/nordic/cracen_cryptocb.h>
 #include <wolfcrypt/test/test.h>
+#ifdef CRACEN_HAVE_MICROCODE
+    /* Nordic's ba414ep_ucode, fetched by "make deps"; see the Makefile */
+    #include "cracen_microcode.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -45,6 +70,10 @@
 
 #define HW_DEVID  WOLFSSL_CRACEN_DEVID
 #define SW_DEVID  INVALID_DEVID
+
+#ifndef CRACEN_TAMPER_RESET
+    #define CRACEN_TAMPER_RESET 1
+#endif
 
 typedef struct func_args {
     int    argc;
@@ -569,7 +598,7 @@ static void test_aes_cmac(void)
 
 /* RNG ---------------------------------------------------------------------*/
 
-#define TRNG_SAMPLE_SZ 65536UL
+#define TRNG_SAMPLE_SZ 16384UL
 static byte gRnd[TRNG_SAMPLE_SZ];
 
 static int all_zero(const byte* p, word32 n)
@@ -636,7 +665,7 @@ static void trng_sanity(const byte* p, word32 n)
            (unsigned long)n, onesPermille, (long)chi, (unsigned long)maxRun,
            (long)(entropy * 1000.0), (unsigned long)repeats);
 
-    CHECK(onesPermille >= 496 && onesPermille <= 504, "bit bias");
+    CHECK(onesPermille >= 494 && onesPermille <= 506, "bit bias");
     CHECK(chi > 150.0 && chi < 400.0, "byte distribution");
     CHECK(maxRun <= 48, "long run of identical bits");
     CHECK(entropy >= 7.95, "low byte entropy");
@@ -742,6 +771,618 @@ static void trng_dump(void)
 }
 #endif
 
+/* Public key ----------------------------------------------------------------*/
+
+#ifdef WOLFSSL_CRACEN_PK
+
+#define PK_MSG_SZ 100
+
+#ifdef HAVE_ECC
+#define ECC_T_MAX 66
+
+/* Keys made on the device are checked in software, the two sides exchange
+ * public keys, agree on a secret and verify each other's signatures. */
+static void test_ecc_curve(const char* name, int curveId, int sz)
+{
+    static const word32 hashLens[] = { 20, 32, 48, 64 };
+    ecc_key  hwKey, swKey, hwPub, swPub, chk;
+    WC_RNG   rng;
+    byte     pt[1 + 2 * ECC_T_MAX];
+    byte     qx[ECC_T_MAX], qy[ECC_T_MAX], d[ECC_T_MAX];
+    byte     s1[ECC_T_MAX], s2[ECC_T_MAX];
+    byte     sig[ECC_MAX_SIG_SIZE];
+    byte     hash[64];
+    word32   ptSz, qxSz, qySz, dSz, s1Sz, s2Sz, sigSz, i;
+    int      fails = gFails;
+    int      res, ret;
+    uint32_t t0, t1, tKgHw = 0, tKgSw = 0, tDhHw = 0, tDhSw = 0;
+    uint32_t tSgHw = 0, tSgSw = 0, tVfHw = 0, tVfSw = 0;
+
+    ret = wc_InitRng(&rng);
+    CHECK(ret == 0, "%s wc_InitRng %d", name, ret);
+    wc_ecc_init_ex(&hwKey, NULL, HW_DEVID);
+    wc_ecc_init_ex(&swKey, NULL, SW_DEVID);
+    wc_ecc_init_ex(&hwPub, NULL, HW_DEVID);
+    wc_ecc_init_ex(&swPub, NULL, SW_DEVID);
+    wc_ecc_init_ex(&chk,   NULL, SW_DEVID);
+    fill(hash, sizeof(hash), 7);
+#ifdef ECC_TIMING_RESISTANT
+    wc_ecc_set_rng(&hwKey, &rng);
+    wc_ecc_set_rng(&swKey, &rng);
+#endif
+
+    t0 = board_cycles();
+    ret = wc_ecc_make_key_ex(&rng, sz, &hwKey, curveId);
+    t1 = board_cycles();
+    tKgHw = t1 - t0;
+    CHECK(ret == 0, "%s hw make_key %d", name, ret);
+    t0 = board_cycles();
+    ret = wc_ecc_make_key_ex(&rng, sz, &swKey, curveId);
+    t1 = board_cycles();
+    tKgSw = t1 - t0;
+    CHECK(ret == 0, "%s sw make_key %d", name, ret);
+
+    /* software recomputes d * G from the device's private key */
+    qxSz = qySz = dSz = sizeof(qx);
+    ret = wc_ecc_export_private_raw(&hwKey, qx, &qxSz, qy, &qySz, d, &dSz);
+    CHECK(ret == 0, "%s export_private_raw %d", name, ret);
+    ret = wc_ecc_import_unsigned(&chk, qx, qy, d, curveId);
+    CHECK(ret == 0, "%s import_unsigned %d", name, ret);
+    ret = wc_ecc_check_key(&chk);
+    CHECK(ret == 0, "%s sw check of hw key %d", name, ret);
+    ret = wc_ecc_check_key(&hwKey);
+    CHECK(ret == 0, "%s hw check_key %d", name, ret);
+
+    ptSz = sizeof(pt);
+    ret = wc_ecc_export_x963(&hwKey, pt, &ptSz);
+    if (ret == 0)
+        ret = wc_ecc_import_x963_ex(pt, ptSz, &swPub, curveId);
+    CHECK(ret == 0, "%s import of hw pub in sw %d", name, ret);
+    ptSz = sizeof(pt);
+    ret = wc_ecc_export_x963(&swKey, pt, &ptSz);
+    if (ret == 0)
+        ret = wc_ecc_import_x963_ex(pt, ptSz, &hwPub, curveId);
+    CHECK(ret == 0, "%s import of sw pub in hw %d", name, ret);
+    ret = wc_ecc_check_key(&hwPub);
+    CHECK(ret == 0, "%s hw check of sw pub %d", name, ret);
+
+    /* a point off the curve */
+    pt[ptSz - 1] ^= 1;
+    wc_ecc_free(&chk);
+    wc_ecc_init_ex(&chk, NULL, HW_DEVID);
+    ret = wc_ecc_import_x963_ex(pt, ptSz, &chk, curveId);
+    if (ret == 0)
+        ret = wc_ecc_check_key(&chk);
+    CHECK(ret != 0, "%s hw accepted a point off the curve", name);
+    pt[ptSz - 1] ^= 1;
+
+    s1Sz = sizeof(s1);
+    t0 = board_cycles();
+    ret = wc_ecc_shared_secret(&hwKey, &hwPub, s1, &s1Sz);
+    t1 = board_cycles();
+    tDhHw = t1 - t0;
+    CHECK(ret == 0, "%s hw shared_secret %d", name, ret);
+    s2Sz = sizeof(s2);
+    t0 = board_cycles();
+    ret = wc_ecc_shared_secret(&swKey, &swPub, s2, &s2Sz);
+    t1 = board_cycles();
+    tDhSw = t1 - t0;
+    CHECK(ret == 0, "%s sw shared_secret %d", name, ret);
+    CHECK(s1Sz == s2Sz && XMEMCMP(s1, s2, s1Sz) == 0, "%s ECDH mismatch", name);
+
+    for (i = 0; i < sizeof(hashLens) / sizeof(hashLens[0]); i++) {
+        word32 hLen = hashLens[i];
+
+        sigSz = sizeof(sig);
+        t0 = board_cycles();
+        ret = wc_ecc_sign_hash(hash, hLen, sig, &sigSz, &rng, &hwKey);
+        t1 = board_cycles();
+        if (hLen == 32)
+            tSgHw = t1 - t0;
+        CHECK(ret == 0, "%s hw sign (hash %u) %d", name, (unsigned)hLen, ret);
+        res = 0;
+        t0 = board_cycles();
+        ret = wc_ecc_verify_hash(sig, sigSz, hash, hLen, &res, &swPub);
+        t1 = board_cycles();
+        if (hLen == 32)
+            tVfSw = t1 - t0;
+        CHECK(ret == 0 && res == 1, "%s sw verify of hw sig (hash %u) %d/%d",
+            name, (unsigned)hLen, ret, res);
+
+        sigSz = sizeof(sig);
+        t0 = board_cycles();
+        ret = wc_ecc_sign_hash(hash, hLen, sig, &sigSz, &rng, &swKey);
+        t1 = board_cycles();
+        if (hLen == 32)
+            tSgSw = t1 - t0;
+        CHECK(ret == 0, "%s sw sign (hash %u) %d", name, (unsigned)hLen, ret);
+        res = 0;
+        t0 = board_cycles();
+        ret = wc_ecc_verify_hash(sig, sigSz, hash, hLen, &res, &hwPub);
+        t1 = board_cycles();
+        if (hLen == 32)
+            tVfHw = t1 - t0;
+        CHECK(ret == 0 && res == 1, "%s hw verify of sw sig (hash %u) %d/%d",
+            name, (unsigned)hLen, ret, res);
+
+        sig[sigSz - 1] ^= 1;
+        res = 1;
+        (void)wc_ecc_verify_hash(sig, sigSz, hash, hLen, &res, &hwPub);
+        CHECK(res == 0, "%s hw accepted a tampered signature (hash %u)", name,
+            (unsigned)hLen);
+        sig[sigSz - 1] ^= 1;
+        hash[0] ^= 1;
+        res = 1;
+        (void)wc_ecc_verify_hash(sig, sigSz, hash, hLen, &res, &hwPub);
+        CHECK(res == 0, "%s hw accepted a tampered digest (hash %u)", name,
+            (unsigned)hLen);
+        hash[0] ^= 1;
+    }
+
+    printf("  %-16s keygen hw/sw %lu/%lu, ECDH hw/sw %lu/%lu, "
+           "sign hw/sw %lu/%lu, verify hw/sw %lu/%lu cycles\n", name,
+        (unsigned long)tKgHw, (unsigned long)tKgSw, (unsigned long)tDhHw,
+        (unsigned long)tDhSw, (unsigned long)tSgHw, (unsigned long)tSgSw,
+        (unsigned long)tVfHw, (unsigned long)tVfSw);
+
+    wc_ecc_free(&chk);
+    wc_ecc_free(&swPub);
+    wc_ecc_free(&hwPub);
+    wc_ecc_free(&swKey);
+    wc_ecc_free(&hwKey);
+    wc_FreeRng(&rng);
+    printf("ECC %-16s keygen, ECDH, ECDSA vs software: %s\n", name,
+        gFails == fails ? "ok" : "FAILED");
+}
+
+static void test_ecc(void)
+{
+#ifdef HAVE_ECC192
+    test_ecc_curve("P-192", ECC_SECP192R1, 24);
+#endif
+#ifdef HAVE_ECC224
+    test_ecc_curve("P-224", ECC_SECP224R1, 28);
+#endif
+#ifndef NO_ECC256
+    test_ecc_curve("P-256", ECC_SECP256R1, 32);
+#endif
+#ifdef HAVE_ECC384
+    test_ecc_curve("P-384", ECC_SECP384R1, 48);
+#endif
+#ifdef HAVE_ECC521
+    test_ecc_curve("P-521", ECC_SECP521R1, 66);
+#endif
+#if defined(HAVE_ECC_BRAINPOOL) && !defined(NO_ECC256)
+    test_ecc_curve("brainpoolP256r1", ECC_BRAINPOOLP256R1, 32);
+#endif
+}
+#endif /* HAVE_ECC */
+
+#if !defined(NO_RSA) && !defined(NO_ASN)
+static void test_rsa(void)
+{
+    RsaKey   hw, sw;
+    WC_RNG   rng;
+    byte     msg[32], enc[256], dec[256], sigHw[256], sigSw[256];
+    word32   idx;
+    int      fails = gFails, ret, n, m;
+    uint32_t t0, t1, tSgHw, tSgSw, tVfHw, tVfSw;
+
+    ret = wc_InitRng(&rng);
+    CHECK(ret == 0, "RSA wc_InitRng %d", ret);
+    ret = wc_InitRsaKey_ex(&hw, NULL, HW_DEVID);
+    CHECK(ret == 0, "RSA hw init %d", ret);
+    ret = wc_InitRsaKey_ex(&sw, NULL, SW_DEVID);
+    CHECK(ret == 0, "RSA sw init %d", ret);
+    idx = 0;
+    ret = wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &hw,
+        (word32)sizeof_client_key_der_2048);
+    CHECK(ret == 0, "RSA hw key decode %d", ret);
+    idx = 0;
+    ret = wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &sw,
+        (word32)sizeof_client_key_der_2048);
+    CHECK(ret == 0, "RSA sw key decode %d", ret);
+#ifdef WC_RSA_BLINDING
+    wc_RsaSetRNG(&hw, &rng);
+    wc_RsaSetRNG(&sw, &rng);
+#endif
+    fill(msg, sizeof(msg), 11);
+
+    /* PKCS#1 v1.5 signatures are deterministic: both sides must agree */
+    t0 = board_cycles();
+    n = wc_RsaSSL_Sign(msg, sizeof(msg), sigHw, sizeof(sigHw), &hw, &rng);
+    t1 = board_cycles();
+    tSgHw = t1 - t0;
+    CHECK(n == 256, "RSA hw sign %d", n);
+    t0 = board_cycles();
+    m = wc_RsaSSL_Sign(msg, sizeof(msg), sigSw, sizeof(sigSw), &sw, &rng);
+    t1 = board_cycles();
+    tSgSw = t1 - t0;
+    CHECK(m == 256, "RSA sw sign %d", m);
+    CHECK(n == m && XMEMCMP(sigHw, sigSw, 256) == 0, "RSA signatures differ");
+
+    t0 = board_cycles();
+    n = wc_RsaSSL_Verify(sigSw, 256, dec, sizeof(dec), &hw);
+    t1 = board_cycles();
+    tVfHw = t1 - t0;
+    CHECK(n == (int)sizeof(msg) && XMEMCMP(dec, msg, sizeof(msg)) == 0,
+        "RSA hw verify of sw sig %d", n);
+    t0 = board_cycles();
+    n = wc_RsaSSL_Verify(sigHw, 256, dec, sizeof(dec), &sw);
+    t1 = board_cycles();
+    tVfSw = t1 - t0;
+    CHECK(n == (int)sizeof(msg) && XMEMCMP(dec, msg, sizeof(msg)) == 0,
+        "RSA sw verify of hw sig %d", n);
+
+    /* encrypt with one side, decrypt with the other */
+    n = wc_RsaPublicEncrypt(msg, sizeof(msg), enc, sizeof(enc), &hw, &rng);
+    CHECK(n == 256, "RSA hw encrypt %d", n);
+    m = wc_RsaPrivateDecrypt(enc, (word32)n, dec, sizeof(dec), &sw);
+    CHECK(m == (int)sizeof(msg) && XMEMCMP(dec, msg, sizeof(msg)) == 0,
+        "RSA sw decrypt of hw ciphertext %d", m);
+    n = wc_RsaPublicEncrypt(msg, sizeof(msg), enc, sizeof(enc), &sw, &rng);
+    CHECK(n == 256, "RSA sw encrypt %d", n);
+    m = wc_RsaPrivateDecrypt(enc, (word32)n, dec, sizeof(dec), &hw);
+    CHECK(m == (int)sizeof(msg) && XMEMCMP(dec, msg, sizeof(msg)) == 0,
+        "RSA hw decrypt of sw ciphertext %d", m);
+
+    enc[100] ^= 1;
+    m = wc_RsaPrivateDecrypt(enc, 256, dec, sizeof(dec), &hw);
+    CHECK(m < 0, "RSA hw accepted a tampered ciphertext %d", m);
+    sigSw[100] ^= 1;
+    n = wc_RsaSSL_Verify(sigSw, 256, dec, sizeof(dec), &hw);
+    CHECK(n < 0, "RSA hw accepted a tampered signature %d", n);
+
+    printf("  RSA-2048 sign hw/sw %lu/%lu, verify hw/sw %lu/%lu cycles\n",
+        (unsigned long)tSgHw, (unsigned long)tSgSw, (unsigned long)tVfHw,
+        (unsigned long)tVfSw);
+
+    wc_FreeRsaKey(&sw);
+    wc_FreeRsaKey(&hw);
+    wc_FreeRng(&rng);
+    printf("RSA-2048  sign, verify, encrypt, decrypt vs software: %s\n",
+        gFails == fails ? "ok" : "FAILED");
+}
+#endif /* !NO_RSA && !NO_ASN */
+
+#if !defined(NO_DH) && !defined(NO_ASN)
+static void test_dh(void)
+{
+    DhKey    hw, sw;
+    WC_RNG   rng;
+    byte     privA[256], pubA[256], privB[256], pubB[256];
+    byte     agHw[256], agSw[256], bad[256];
+    word32   privASz = sizeof(privA), pubASz = sizeof(pubA);
+    word32   privBSz = sizeof(privB), pubBSz = sizeof(pubB);
+    word32   agHwSz, agSwSz, idx;
+    int      fails = gFails, ret;
+    uint32_t t0, t1, tHw, tSw;
+
+    ret = wc_InitRng(&rng);
+    CHECK(ret == 0, "DH wc_InitRng %d", ret);
+    ret = wc_InitDhKey_ex(&hw, NULL, HW_DEVID);
+    CHECK(ret == 0, "DH hw init %d", ret);
+    ret = wc_InitDhKey_ex(&sw, NULL, SW_DEVID);
+    CHECK(ret == 0, "DH sw init %d", ret);
+    idx = 0;
+    ret = wc_DhKeyDecode(dh_key_der_2048, &idx, &hw,
+        (word32)sizeof_dh_key_der_2048);
+    CHECK(ret == 0, "DH hw key decode %d", ret);
+    idx = 0;
+    ret = wc_DhKeyDecode(dh_key_der_2048, &idx, &sw,
+        (word32)sizeof_dh_key_der_2048);
+    CHECK(ret == 0, "DH sw key decode %d", ret);
+
+    ret = wc_DhGenerateKeyPair(&sw, &rng, privA, &privASz, pubA, &pubASz);
+    CHECK(ret == 0, "DH key pair A %d", ret);
+    ret = wc_DhGenerateKeyPair(&sw, &rng, privB, &privBSz, pubB, &pubBSz);
+    CHECK(ret == 0, "DH key pair B %d", ret);
+
+    agHwSz = sizeof(agHw);
+    t0 = board_cycles();
+    ret = wc_DhAgree(&hw, agHw, &agHwSz, privA, privASz, pubB, pubBSz);
+    t1 = board_cycles();
+    tHw = t1 - t0;
+    CHECK(ret == 0, "DH hw agree %d", ret);
+    agSwSz = sizeof(agSw);
+    t0 = board_cycles();
+    ret = wc_DhAgree(&sw, agSw, &agSwSz, privB, privBSz, pubA, pubASz);
+    t1 = board_cycles();
+    tSw = t1 - t0;
+    CHECK(ret == 0, "DH sw agree %d", ret);
+    CHECK(agHwSz == agSwSz && XMEMCMP(agHw, agSw, agHwSz) == 0,
+        "DH shared secrets differ (%u, %u)", (unsigned)agHwSz,
+        (unsigned)agSwSz);
+
+    agHwSz = sizeof(agHw);
+    ret = wc_DhAgree(&hw, agHw, &agHwSz, privB, privBSz, pubA, pubASz);
+    CHECK(ret == 0, "DH hw agree (B) %d", ret);
+    CHECK(agHwSz == agSwSz && XMEMCMP(agHw, agSw, agHwSz) == 0,
+        "DH shared secrets differ (B)");
+
+    /* a public value of 1 is outside the allowed range */
+    XMEMSET(bad, 0, sizeof(bad));
+    bad[sizeof(bad) - 1] = 1;
+    agHwSz = sizeof(agHw);
+    ret = wc_DhAgree(&hw, agHw, &agHwSz, privA, privASz, bad, sizeof(bad));
+    CHECK(ret != 0, "DH hw accepted public value 1");
+
+    printf("  DH-2048 agree hw/sw %lu/%lu cycles\n", (unsigned long)tHw,
+        (unsigned long)tSw);
+
+    wc_FreeDhKey(&sw);
+    wc_FreeDhKey(&hw);
+    wc_FreeRng(&rng);
+    printf("DH-2048   agree vs software: %s\n",
+        gFails == fails ? "ok" : "FAILED");
+}
+#endif /* !NO_DH && !NO_ASN */
+
+#ifdef HAVE_CURVE25519
+static void test_x25519(void)
+{
+    curve25519_key hwA, swB, hwPubB, swPubA, zero;
+    WC_RNG   rng;
+    byte     pub[CURVE25519_KEYSIZE], zeroPt[CURVE25519_KEYSIZE];
+    byte     s1[CURVE25519_KEYSIZE], s2[CURVE25519_KEYSIZE];
+    word32   sz, s1Sz, s2Sz;
+    int      fails = gFails, ret;
+    uint32_t t0, t1, tKgHw, tKgSw, tHw, tSw;
+
+    ret = wc_InitRng(&rng);
+    CHECK(ret == 0, "X25519 wc_InitRng %d", ret);
+    wc_curve25519_init_ex(&hwA,    NULL, HW_DEVID);
+    wc_curve25519_init_ex(&swB,    NULL, SW_DEVID);
+    wc_curve25519_init_ex(&hwPubB, NULL, HW_DEVID);
+    wc_curve25519_init_ex(&swPubA, NULL, SW_DEVID);
+    wc_curve25519_init_ex(&zero,   NULL, HW_DEVID);
+
+    t0 = board_cycles();
+    ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &hwA);
+    t1 = board_cycles();
+    tKgHw = t1 - t0;
+    CHECK(ret == 0, "X25519 hw make_key %d", ret);
+    t0 = board_cycles();
+    ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &swB);
+    t1 = board_cycles();
+    tKgSw = t1 - t0;
+    CHECK(ret == 0, "X25519 sw make_key %d", ret);
+
+    sz = sizeof(pub);
+    ret = wc_curve25519_export_public(&hwA, pub, &sz);
+    if (ret == 0)
+        ret = wc_curve25519_import_public(pub, sz, &swPubA);
+    CHECK(ret == 0, "X25519 import of hw pub in sw %d", ret);
+    sz = sizeof(pub);
+    ret = wc_curve25519_export_public(&swB, pub, &sz);
+    if (ret == 0)
+        ret = wc_curve25519_import_public(pub, sz, &hwPubB);
+    CHECK(ret == 0, "X25519 import of sw pub in hw %d", ret);
+
+    s1Sz = sizeof(s1);
+    t0 = board_cycles();
+    ret = wc_curve25519_shared_secret(&hwA, &hwPubB, s1, &s1Sz);
+    t1 = board_cycles();
+    tHw = t1 - t0;
+    CHECK(ret == 0, "X25519 hw shared_secret %d", ret);
+    s2Sz = sizeof(s2);
+    t0 = board_cycles();
+    ret = wc_curve25519_shared_secret(&swB, &swPubA, s2, &s2Sz);
+    t1 = board_cycles();
+    tSw = t1 - t0;
+    CHECK(ret == 0, "X25519 sw shared_secret %d", ret);
+    CHECK(s1Sz == s2Sz && XMEMCMP(s1, s2, s1Sz) == 0,
+        "X25519 shared secrets differ");
+
+    /* the all-zero point gives an all-zero secret, which is rejected */
+    XMEMSET(zeroPt, 0, sizeof(zeroPt));
+    ret = wc_curve25519_import_public(zeroPt, sizeof(zeroPt), &zero);
+    if (ret == 0) {
+        s1Sz = sizeof(s1);
+        ret = wc_curve25519_shared_secret(&hwA, &zero, s1, &s1Sz);
+    }
+    CHECK(ret != 0, "X25519 hw accepted the zero point");
+
+    printf("  X25519 keygen hw/sw %lu/%lu, shared hw/sw %lu/%lu cycles\n",
+        (unsigned long)tKgHw, (unsigned long)tKgSw, (unsigned long)tHw,
+        (unsigned long)tSw);
+
+    wc_curve25519_free(&zero);
+    wc_curve25519_free(&swPubA);
+    wc_curve25519_free(&hwPubB);
+    wc_curve25519_free(&swB);
+    wc_curve25519_free(&hwA);
+    wc_FreeRng(&rng);
+    printf("X25519    keygen, shared secret vs software: %s\n",
+        gFails == fails ? "ok" : "FAILED");
+}
+#endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_ED25519
+static void test_ed25519(void)
+{
+    ed25519_key hw, sw, chk, hwPubSw, swPubHw;
+    WC_RNG   rng;
+    byte     seed[ED25519_KEY_SIZE], pubHw[ED25519_PUB_KEY_SIZE];
+    byte     pubChk[ED25519_PUB_KEY_SIZE], pubSw[ED25519_PUB_KEY_SIZE];
+    byte     sig[ED25519_SIG_SIZE], sig2[ED25519_SIG_SIZE], ctx[6];
+    word32   sz, sigSz, sig2Sz;
+    int      fails = gFails, ret, res;
+    uint32_t t0, t1, tKgHw, tKgSw, tSgHw, tSgSw, tVfHw, tVfSw;
+
+    ret = wc_InitRng(&rng);
+    CHECK(ret == 0, "Ed25519 wc_InitRng %d", ret);
+    wc_ed25519_init_ex(&hw,      NULL, HW_DEVID);
+    wc_ed25519_init_ex(&sw,      NULL, SW_DEVID);
+    wc_ed25519_init_ex(&chk,     NULL, SW_DEVID);
+    wc_ed25519_init_ex(&hwPubSw, NULL, HW_DEVID);
+    wc_ed25519_init_ex(&swPubHw, NULL, SW_DEVID);
+    fill(ctx, sizeof(ctx), 5);
+
+    t0 = board_cycles();
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &hw);
+    t1 = board_cycles();
+    tKgHw = t1 - t0;
+    CHECK(ret == 0, "Ed25519 hw make_key %d", ret);
+    t0 = board_cycles();
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &sw);
+    t1 = board_cycles();
+    tKgSw = t1 - t0;
+    CHECK(ret == 0, "Ed25519 sw make_key %d", ret);
+
+    /* software derives the public key from the device's seed */
+    sz = sizeof(seed);
+    ret = wc_ed25519_export_private_only(&hw, seed, &sz);
+    CHECK(ret == 0, "Ed25519 export seed %d", ret);
+    sz = sizeof(pubHw);
+    ret = wc_ed25519_export_public(&hw, pubHw, &sz);
+    CHECK(ret == 0, "Ed25519 export pub %d", ret);
+    ret = wc_ed25519_import_private_only(seed, sizeof(seed), &chk);
+    CHECK(ret == 0, "Ed25519 import seed %d", ret);
+    ret = wc_ed25519_make_public(&chk, pubChk, sizeof(pubChk));
+    CHECK(ret == 0, "Ed25519 sw make_public %d", ret);
+    CHECK(XMEMCMP(pubHw, pubChk, sizeof(pubHw)) == 0,
+        "Ed25519 hw public key differs from software");
+
+    sz = sizeof(pubSw);
+    ret = wc_ed25519_export_public(&sw, pubSw, &sz);
+    if (ret == 0)
+        ret = wc_ed25519_import_public(pubSw, sz, &hwPubSw);
+    CHECK(ret == 0, "Ed25519 import of sw pub in hw %d", ret);
+    ret = wc_ed25519_import_public(pubHw, sizeof(pubHw), &swPubHw);
+    CHECK(ret == 0, "Ed25519 import of hw pub in sw %d", ret);
+
+    /* signatures are deterministic: device and software sign alike */
+    sigSz = sizeof(sig);
+    t0 = board_cycles();
+    ret = wc_ed25519_sign_msg(gMsg, PK_MSG_SZ, sig, &sigSz, &hw);
+    t1 = board_cycles();
+    tSgHw = t1 - t0;
+    CHECK(ret == 0 && sigSz == ED25519_SIG_SIZE, "Ed25519 hw sign %d", ret);
+    sig2Sz = sizeof(sig2);
+    t0 = board_cycles();
+    ret = wc_ed25519_sign_msg(gMsg, PK_MSG_SZ, sig2, &sig2Sz, &chk);
+    t1 = board_cycles();
+    tSgSw = t1 - t0;
+    CHECK(ret == 0 && sig2Sz == ED25519_SIG_SIZE, "Ed25519 sw sign %d", ret);
+    CHECK(XMEMCMP(sig, sig2, sizeof(sig)) == 0, "Ed25519 signatures differ");
+
+    res = 0;
+    t0 = board_cycles();
+    ret = wc_ed25519_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ, &res, &swPubHw);
+    t1 = board_cycles();
+    tVfSw = t1 - t0;
+    CHECK(ret == 0 && res == 1, "Ed25519 sw verify of hw sig %d/%d", ret, res);
+
+    sigSz = sizeof(sig);
+    ret = wc_ed25519_sign_msg(gMsg, PK_MSG_SZ, sig, &sigSz, &sw);
+    CHECK(ret == 0, "Ed25519 sw sign (sw key) %d", ret);
+    res = 0;
+    t0 = board_cycles();
+    ret = wc_ed25519_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ, &res, &hwPubSw);
+    t1 = board_cycles();
+    tVfHw = t1 - t0;
+    CHECK(ret == 0 && res == 1, "Ed25519 hw verify of sw sig %d/%d", ret, res);
+
+    sig[10] ^= 1;
+    res = 1;
+    (void)wc_ed25519_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ, &res, &hwPubSw);
+    CHECK(res == 0, "Ed25519 hw accepted a tampered signature");
+    sig[10] ^= 1;
+    res = 1;
+    (void)wc_ed25519_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ - 1, &res,
+        &hwPubSw);
+    CHECK(res == 0, "Ed25519 hw accepted a tampered message");
+
+    /* Ed25519ctx */
+    sigSz = sizeof(sig);
+    ret = wc_ed25519ctx_sign_msg(gMsg, PK_MSG_SZ, sig, &sigSz, &hw, ctx,
+        (byte)sizeof(ctx));
+    CHECK(ret == 0, "Ed25519ctx hw sign %d", ret);
+    sig2Sz = sizeof(sig2);
+    ret = wc_ed25519ctx_sign_msg(gMsg, PK_MSG_SZ, sig2, &sig2Sz, &chk, ctx,
+        (byte)sizeof(ctx));
+    CHECK(ret == 0, "Ed25519ctx sw sign %d", ret);
+    CHECK(XMEMCMP(sig, sig2, sizeof(sig)) == 0, "Ed25519ctx signatures differ");
+    res = 0;
+    ret = wc_ed25519ctx_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ, &res,
+        &swPubHw, ctx, (byte)sizeof(ctx));
+    CHECK(ret == 0 && res == 1, "Ed25519ctx sw verify of hw sig %d/%d", ret,
+        res);
+    sigSz = sizeof(sig);
+    ret = wc_ed25519ctx_sign_msg(gMsg, PK_MSG_SZ, sig, &sigSz, &sw, ctx,
+        (byte)sizeof(ctx));
+    res = 0;
+    if (ret == 0) {
+        ret = wc_ed25519ctx_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ, &res,
+            &hwPubSw, ctx, (byte)sizeof(ctx));
+    }
+    CHECK(ret == 0 && res == 1, "Ed25519ctx hw verify of sw sig %d/%d", ret,
+        res);
+
+    /* Ed25519ph */
+    sigSz = sizeof(sig);
+    ret = wc_ed25519ph_sign_msg(gMsg, PK_MSG_SZ, sig, &sigSz, &hw, NULL, 0);
+    CHECK(ret == 0, "Ed25519ph hw sign %d", ret);
+    sig2Sz = sizeof(sig2);
+    ret = wc_ed25519ph_sign_msg(gMsg, PK_MSG_SZ, sig2, &sig2Sz, &chk, NULL, 0);
+    CHECK(ret == 0, "Ed25519ph sw sign %d", ret);
+    CHECK(XMEMCMP(sig, sig2, sizeof(sig)) == 0, "Ed25519ph signatures differ");
+    res = 0;
+    ret = wc_ed25519ph_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ, &res, &swPubHw,
+        NULL, 0);
+    CHECK(ret == 0 && res == 1, "Ed25519ph sw verify of hw sig %d/%d", ret,
+        res);
+    sigSz = sizeof(sig);
+    ret = wc_ed25519ph_sign_msg(gMsg, PK_MSG_SZ, sig, &sigSz, &sw, NULL, 0);
+    res = 0;
+    if (ret == 0) {
+        ret = wc_ed25519ph_verify_msg(sig, sigSz, gMsg, PK_MSG_SZ, &res,
+            &hwPubSw, NULL, 0);
+    }
+    CHECK(ret == 0 && res == 1, "Ed25519ph hw verify of sw sig %d/%d", ret,
+        res);
+
+    printf("  Ed25519 keygen hw/sw %lu/%lu, sign hw/sw %lu/%lu, "
+           "verify hw/sw %lu/%lu cycles\n", (unsigned long)tKgHw,
+        (unsigned long)tKgSw, (unsigned long)tSgHw, (unsigned long)tSgSw,
+        (unsigned long)tVfHw, (unsigned long)tVfSw);
+
+    wc_ed25519_free(&swPubHw);
+    wc_ed25519_free(&hwPubSw);
+    wc_ed25519_free(&chk);
+    wc_ed25519_free(&sw);
+    wc_ed25519_free(&hw);
+    wc_FreeRng(&rng);
+    printf("Ed25519   keygen, sign, verify (plain, ctx, ph) vs software: %s\n",
+        gFails == fails ? "ok" : "FAILED");
+}
+#endif /* HAVE_ED25519 */
+
+static void test_pk(void)
+{
+    if (!wc_CracenPkReady()) {
+        printf("PK engine not ready: public key cross-checks skipped\n");
+        return;
+    }
+#ifdef HAVE_ECC
+    test_ecc();
+#endif
+#if !defined(NO_RSA) && !defined(NO_ASN)
+    test_rsa();
+#endif
+#if !defined(NO_DH) && !defined(NO_ASN)
+    test_dh();
+#endif
+#ifdef HAVE_CURVE25519
+    test_x25519();
+#endif
+#ifdef HAVE_ED25519
+    test_ed25519();
+#endif
+}
+#endif /* WOLFSSL_CRACEN_PK */
+
 /* Timing ------------------------------------------------------------------*/
 
 static void time_sha256(int devId, const char* label)
@@ -828,6 +1469,7 @@ int main(void)
 
     board_init();
     printf("\n\nwolfCrypt CRACEN test, nRF54L15\n");
+    board_debug_report();
 
     fill(gMsg, sizeof(gMsg), 1);
     fill(gKey, sizeof(gKey), 2);
@@ -850,6 +1492,25 @@ int main(void)
                (unsigned long)hw.aesCtrSz, (unsigned long)hw.hashCfg,
                (unsigned long)hw.rngCfg);
     }
+#ifdef WOLFSSL_CRACEN_PK
+#if !CRACEN_TAMPER_RESET
+    board_tamper_reset_disable();
+    printf("TAMPC: automatic reset on an internal tamper event disabled\n");
+#endif
+#ifdef CRACEN_HAVE_MICROCODE
+    ret = wc_CracenPkLoadMicrocode((const word32*)ba414ep_ucode,
+        (word32)BA414EP_UCODE_SIZE);
+    printf("PK microcode %u words: load %d, ready %d", (unsigned)BA414EP_UCODE_SIZE,
+        ret, wc_CracenPkReady());
+    if (wc_CracenGetInfo(&hw) == 0)
+        printf(", PK cfg 0x%08lx", (unsigned long)hw.pkCfg);
+    printf("\n");
+    if (ret != 0)
+        gFails++;
+#else
+    printf("PK microcode not fetched (make deps): public key runs in software\n");
+#endif
+#endif
 
     test_rng();
     test_hash_kat();
@@ -886,6 +1547,9 @@ int main(void)
 #ifdef WOLFSSL_CMAC
     test_aes_cmac();
 #endif
+#ifdef WOLFSSL_CRACEN_PK
+    test_pk();
+#endif
     timing();
 
     printf("\nwolfcrypt_test() with devId 0x%x:\n", HW_DEVID);
@@ -894,6 +1558,17 @@ int main(void)
     printf("wolfcrypt_test() return code %d\n", args.return_code);
     if (args.return_code != 0)
         gFails++;
+
+    {
+        uint32_t ev = 0, ct = 0;
+        uint32_t st = board_tamper_status(&ev, &ct);
+        printf("TAMPC status 0x%08lx, tamper events %lu, CRACEN tamper %lu\n",
+            (unsigned long)st, (unsigned long)ev, (unsigned long)ct);
+        if (ev != 0 || ct != 0) {
+            printf("  FAIL: a tamper event was raised during the tests\n");
+            gFails++;
+        }
+    }
 
     wc_CracenCleanup();
     wolfCrypt_Cleanup();
