@@ -12022,6 +12022,23 @@ void DtlsMsgRxListFree(WOLFSSL* ssl)
     ssl->dtls_rx_msg_list_bytes = 0;
 }
 
+#ifdef WOLFSSL_DTLS13
+/* Drop the plaintext messages of the receive list. Once a record of the peer
+ * authenticates, what it sent in the clear is stale. */
+void DtlsMsgRxListDropPlaintext(WOLFSSL* ssl)
+{
+    DtlsMsg* cur = ssl->dtls_rx_msg_list;
+
+    while (cur != NULL) {
+        DtlsMsg* next = cur->next;
+
+        if (cur->epoch == 0)
+            DtlsMsgListRemove(ssl, cur);
+        cur = next;
+    }
+}
+#endif
+
 /* Store a fragment of message seq in the receive list. Returns 0 when it is
  * held, DTLS_MSG_STORE_DROPPED when not and that is no error, or an error. */
 int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
@@ -28804,6 +28821,12 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                             return BUFFER_E;
 
                         continue;
+                    }
+                    /* This record authenticated: fragments the peer sent in
+                     * the clear are stale */
+                    if (!w64IsZero(ssl->keys.curEpoch64) &&
+                            ssl->dtls_rx_msg_list != NULL) {
+                        DtlsMsgRxListDropPlaintext(ssl);
                     }
 
                     /* Only update the window once we enter stateful parsing */

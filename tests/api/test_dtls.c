@@ -6849,8 +6849,9 @@ static int test_dtls_stale_partial_head(method_provider method_c,
     ExpectIntLE(test_ctx.s_len + 128, mtu);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    /* Only the entry far ahead may remain */
-    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, highSeq ? 1 : 0);
+    /* The partial copy is purged, and the plaintext entry far ahead goes with
+     * the first record of the server that authenticates */
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);

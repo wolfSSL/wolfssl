@@ -8319,6 +8319,9 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
     WOLFSSL_LOCAL void DtlsMsgRxListInsert(WOLFSSL* ssl, DtlsMsg* msg);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgRxListDetach(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsMsgRxListFree(WOLFSSL* ssl);
+#ifdef WOLFSSL_DTLS13
+    WOLFSSL_LOCAL void DtlsMsgRxListDropPlaintext(WOLFSSL* ssl);
+#endif
 #if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_TEST_VIS int  DtlsChPoolInit(DtlsChPool* pool);
     WOLFSSL_TEST_VIS void DtlsChPoolFree(DtlsChPool* pool, void* heap);

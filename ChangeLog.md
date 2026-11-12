@@ -69,8 +69,10 @@
   peer whose records authenticate exceeding the budget, ends the connection.
   The per-message cap on fragment buckets, `WOLFSSL_DTLS_FRAG_POOL_SZ`, is
   checked before anything is allocated. A buffered DTLS 1.3 message older
-  than the next expected one is dropped instead of stalling the list, and
-  `wolfSSL_clear()` frees the DTLS 1.3 receive list.
+  than the next expected one is dropped instead of stalling the list, a
+  DTLS 1.3 endpoint drops the plaintext handshake fragments it holds once a
+  record from the peer authenticates, and `wolfSSL_clear()` frees the
+  DTLS 1.3 receive list.
 
 * **Behavioral change (the servers of a context share a cookie secret)**:
   cookie secrets were per `WOLFSSL`, so a server could not verify a cookie

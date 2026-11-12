@@ -3964,6 +3964,71 @@ int test_dtls13_frag_ch_ctx_static_memory(void)
     return EXPECT_RESULT();
 }
 
+/* Once a record from the peer authenticates, the plaintext handshake fragments
+ * the connection still holds are stale and dropped. Protected ones stay. */
+int test_dtls13_auth_drops_plaintext_frags(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte data[16];
+    byte buf[8];
+    word32 seq = 0;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(data, 0x5a, sizeof(data));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* Up to the server flight, with or without a cookie exchange. The server
+     * then waits for the client's Finished, the first record it can
+     * authenticate. */
+    for (i = 0; i < 4 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        if (ssl_s->options.dtlsStateful && test_ctx.c_len > 0)
+            break;
+    }
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    ExpectNull(ssl_s->dtls_rx_msg_list);
+
+    /* Two fragments ahead of the next message expected, which the list keeps:
+     * a plaintext one and a protected one */
+    seq = ssl_s->keys.dtls_expected_peer_handshake_number + 1;
+    ExpectIntEQ(DtlsMsgStore(ssl_s, 0, seq, data, (word32)sizeof(data),
+        client_hello, 0, 8, ssl_s->heap), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl_s, DTLS13_EPOCH_TRAFFIC0, seq + 1, data,
+        (word32)sizeof(data), key_update, 0, 8, ssl_s->heap), 0);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 2);
+
+    /* The client's Finished authenticates: the plaintext fragment goes */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(ssl_s->dtls_rx_msg_list);
+    if (ssl_s->dtls_rx_msg_list != NULL) {
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list->epoch, DTLS13_EPOCH_TRAFFIC0);
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list->seq, seq + 1);
+        ExpectNull(ssl_s->dtls_rx_msg_list->next);
+    }
+
+    /* The connection works on */
+    ExpectIntEQ(wolfSSL_write(ssl_c, data, 4), 4);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 4);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Which results of DtlsMsgStore() end the connection: only running out of
  * memory, or an authenticated peer exceeding the receive budget */
 int test_dtls13_frag_store_fatal(void)
