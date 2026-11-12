@@ -18477,18 +18477,56 @@ static int ProcessPeerCertsChainOCSPStatusCheck(WOLFSSL* ssl)
 #endif
 
 #ifdef HAVE_CRL
+
+static Signer* GetCaIssuerFromCa(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
+{
+    Signer* candidateIssuer = NULL;
+
+    /* A root is its own issuer. */
+    if (ca->selfSigned)
+        return ca;
+
+#ifndef NO_SKID
+    if (ca->authKeyIdSet) {
+        candidateIssuer = GetCA(cm, ca->authKeyIdHash);
+        if (candidateIssuer != NULL &&
+                XMEMCMP(candidateIssuer->subjectNameHash, ca->issuerNameHash,
+                        SIGNER_DIGEST_SIZE) != 0) {
+            candidateIssuer = NULL;
+        }
+        /* The AKID decides, as in ParseCertRelative. A name lookup could
+         * find another key's CA, which didn't issue ca. */
+        return candidateIssuer;
+    }
+#endif
+    return GetCAByName(cm, ca->issuerNameHash);
+}
+
 static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
 {
     Signer* prev = NULL;
+    Signer* prevPrev = NULL;
     int ret = 0;
     WOLFSSL_CERT_MANAGER* cm = SSL_CM(ssl);
     Signer* ca = args->dCert->ca;
-    /* End loop if no more issuers found or if we have
-     * found a self signed cert (ca == prev) */
-    for (; ret == 0 && ca != NULL && ca != prev;
-            prev = ca, ca = GetCAByName(cm, ca->issuerNameHash)) {
+    word32 walkIterationCnt = 0;
+    /* Stop when there's no issuer, at a self-signed root (ca == prev), or
+     * when a cross-certified pair loops back (ca == prevPrev). */
+    for (; ret == 0 && ca != NULL && ca != prev && ca != prevPrev;
+            prevPrev = prev, prev = ca, ca = GetCaIssuerFromCa(cm, ca)) {
+        /* ca's AKID selects its issuer's CRL. */
+        const byte* caAkid = NULL;
+
+        if (++walkIterationCnt > WOLFSSL_MAX_CHAIN_DEPTH) {
+            ret = ASN_PATHLEN_SIZE_E;
+            break;
+        }
+    #ifndef NO_SKID
+        if (ca->authKeyIdSet)
+            caAkid = ca->authKeyIdHash;
+    #endif
         ret = CheckCertCRL_ex(cm->crl, ca->issuerNameHash, NULL, 0,
-                ca->serialHash, NULL, 0, NULL);
+                ca->serialHash, NULL, 0, NULL, caAkid);
     #ifdef WOLFSSL_NONBLOCK_OCSP
         if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
             break;

@@ -271,6 +271,7 @@ EXTRA_DIST += tests/api/test_evp_digest.h
 EXTRA_DIST += tests/api/test_evp_cipher.h
 EXTRA_DIST += tests/api/test_evp_pkey.h
 EXTRA_DIST += tests/api/test_certman.h
+EXTRA_DIST += tests/api/test_certman_crl_fixtures.h
 EXTRA_DIST += tests/api/test_tls13.h
 EXTRA_DIST += tests/api/test_tls13_bounds.h
 EXTRA_DIST += tests/api/test_tls13_features.h

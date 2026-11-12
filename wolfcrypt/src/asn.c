@@ -26995,7 +26995,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
     #ifndef NO_SKID
         XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
                 SIGNER_DIGEST_SIZE);
-    #ifndef IGNORE_NAME_CONSTRAINTS
+    #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
         if (cert->extAuthKeyIdSet) {
             XMEMCPY(signer->authKeyIdHash, cert->extAuthKeyId,
                     SIGNER_DIGEST_SIZE);
