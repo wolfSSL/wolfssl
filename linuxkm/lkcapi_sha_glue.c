@@ -5610,7 +5610,9 @@ static struct module_attribute wc_linuxkm_rng_stats_attr =
 static int wc_linuxkm_drbg_startup(void)
 {
     int ret;
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     int local_default_bank_inited = 0;
+#endif
 
     if (wc_linuxkm_drbg_loaded) {
         pr_err("ERROR: wc_linuxkm_drbg_set_default called with wc_linuxkm_drbg_loaded.\n");
