@@ -4993,7 +4993,7 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config.h")
 endif()
 
 # Suppress some warnings about separate compilation, inlining
-add_definitions("-DWOLFSSL_IGNORE_FILE_WARN")
+add_definitions("-DWOLFSSL_IGNORE_FILE_WARN=")
 
 # Generate user options header
 message(STATUS "Generating user options header...")
