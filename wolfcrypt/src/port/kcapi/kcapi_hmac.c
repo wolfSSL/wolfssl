@@ -222,7 +222,12 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
 
 int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 {
+    /* Same default as the software wc_HmacSetKey(). */
+#if defined(HAVE_FIPS)
     return wc_HmacSetKey_ex(hmac, type, key, length, 0);
+#else
+    return wc_HmacSetKey_ex(hmac, type, key, length, 1);
+#endif
 }
 
 int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
