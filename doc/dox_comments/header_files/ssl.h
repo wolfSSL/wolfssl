@@ -11073,7 +11073,11 @@ int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
     before the change fails that handshake and retries. Use
     wolfSSL_CTX_rotate_cookie_secret() to keep them verifying. Does not
     change the secondary secret and does not turn cookies on or off. Safe to
-    call while other threads use objects of the context.
+    call while other threads use objects of the context. Every cookie
+    carries its issue time under the MAC and stops verifying
+    WOLFSSL_COOKIE_MAX_AGE seconds later (60 by default), so a captured
+    cookie cannot be replayed later and the secret need not be rotated for
+    that.
 
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new().
@@ -11164,7 +11168,10 @@ int wolfSSL_CTX_set_cookie_secret_secondary(WOLFSSL_CTX* ctx,
     no primary yet, it sets the primary and clears the secondary. Rotate less
     often than the longest time a client may take between the
     HelloRetryRequest or HelloVerifyRequest and its second ClientHello. Safe
-    to call while other threads use objects of the context.
+    to call while other threads use objects of the context. A cookie expires
+    WOLFSSL_COOKIE_MAX_AGE seconds (60 by default) after it was issued
+    whichever secret made it, so rotating is not needed against replay of a
+    captured cookie.
 
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new().
@@ -16251,7 +16258,11 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     exchange is enabled by default. The Cookie holds a hash of the current
     transcript so that another server process can handle the ClientHello in
     reply.  The secret is used when generating the integrity check on the Cookie
-    data. This replaces or regenerates the HRR secret, then delegates to
+    data. The cookie also carries its issue time and is rejected, as a bad
+    cookie is, WOLFSSL_COOKIE_MAX_AGE seconds (60 by default) after it was
+    issued, so a captured cookie cannot be replayed later. Without a clock
+    (NO_ASN_TIME) no time is sent or checked.
+    This replaces or regenerates the HRR secret, then delegates to
     wolfSSL_enable_cookie(). Changing
     cookie mode after handshake processing starts is unsupported; rotating a
     secret while cookies are already enabled remains supported. DTLS 1.2-only callers
@@ -16427,12 +16438,17 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
     \ingroup Setup
 
     \brief Lets a DTLS 1.3 server reassemble a fragmented ClientHello from a
-    peer whose cookie is not verified yet and run the cookie check on the
-    complete message. On by default with WOLFSSL_DTLS_CH_FRAG, and in effect
-    only while wolfSSL_dtls13_allow_ch_frag() is on. RFC 9147 Section 5.5
-    requires a receiver to buffer or process a fragment: with this off the
-    server drops every fragmented first ClientHello, such as one carrying a
-    post-quantum key share.
+    peer whose cookie is not verified yet. The cookie check runs in place on
+    the contiguous head of the held message, under the pool's lock, as the
+    head grows to sizes that at least double each time, and on the complete
+    message: once it verifies the whole entry, later fragments included,
+    leaves the pool for the server in the same step, and the server is
+    stateful from then on. On by default with WOLFSSL_DTLS_CH_FRAG, and in
+    effect only while wolfSSL_dtls13_allow_ch_frag() is on. RFC 9147 Section
+    5.5 requires a receiver to buffer or process a fragment: with this off
+    the server holds nothing before a cookie verifies, so it checks the
+    cookie on a first fragment as it arrives and drops every other fragment
+    of a first ClientHello, such as one carrying a post-quantum key share.
 
     The fragments are held before the cookie verifies, so any sender can make
     the server hold memory, within WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES
@@ -16447,15 +16463,18 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
     server's retransmission maximum
     (wolfSSL_dtls_set_timeout_max()) expires. A server that does not know the
     peer's address, as on a connected socket or a custom transport without
-    wolfSSL_dtls_set_peer(), holds nothing: it drops such fragments, and still
-    answers a whole ClientHello or one whose cookie is in its first fragment.
+    wolfSSL_dtls_set_peer(), holds nothing either: it drops such fragments,
+    and still answers a whole ClientHello or one whose cookie is in its
+    first fragment.
     A server that completes another server's second ClientHello verifies the
     cookie only when they share the cookie secret: both use the context's
     (wolfSSL_CTX_set_cookie_secret(), the default) or each was given the
-    same secret; otherwise the client gets an illegal_parameter alert. Use one context per
-    local endpoint if clients may reuse a source port across endpoints.
-    Allocator, logging and clock callbacks may run while the pool is locked
-    and must not call into wolfSSL. Requires WOLFSSL_DTLS_CH_FRAG.
+    same secret; otherwise the client gets an illegal_parameter alert. Use
+    one context per local endpoint if clients may reuse a source port across
+    endpoints.
+    Allocator, logging, clock and crypto callbacks may run while the pool is
+    locked, the cookie check included, and must not call into wolfSSL.
+    Requires WOLFSSL_DTLS_CH_FRAG.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using
     wolfSSL_new().

@@ -556,7 +556,7 @@ static int test_dtls13_pool_put(DtlsChPool* pool, int id, const byte* data,
     peer.bufSz = sizeof(id);
     peer.sa = &id;
     ret = DtlsChPoolStore(pool, NULL, &peer, 0, 1, data, sz, client_hello, off,
-        len, DTLS_TIMEOUT_MAX, NULL, &done);
+        len, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL);
     DtlsMsgListDelete(done, NULL);
     return ret;
 }
@@ -1075,11 +1075,11 @@ int test_dtls13_clear_ch_pool_api(void)
     peer.sz = peer.bufSz = (unsigned int)sizeof(peerBuf);
     ExpectIntEQ(DtlsChPoolStore(test_dtls13_ch_pool(ssl_s), ctx_s->heap, &peer,
         0, 0, data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, ssl_s->heap,
-        &done), 0);
+        &done, NULL, NULL, NULL), 0);
     peerBuf[0] = 2;
     ExpectIntEQ(DtlsChPoolStore(test_dtls13_ch_pool(ssl_s), ctx_s->heap, &peer,
         0, 0, data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, ssl_s->heap,
-        &done), 0);
+        &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(test_dtls13_ch_pool(ssl_s)), 2);
     ExpectIntEQ(wolfSSL_CTX_dtls13_clear_ch_pool(ctx_s), WOLFSSL_SUCCESS);
@@ -1090,7 +1090,7 @@ int test_dtls13_clear_ch_pool_api(void)
     /* The pool takes entries again */
     ExpectIntEQ(DtlsChPoolStore(test_dtls13_ch_pool(ssl_s), ctx_s->heap, &peer,
         0, 0, data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, ssl_s->heap,
-        &done), 0);
+        &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(test_dtls13_ch_pool(ssl_s)), 1);
     ExpectIntEQ(wolfSSL_CTX_dtls13_clear_ch_pool(ctx_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_dtls13_pool_count(test_dtls13_ch_pool(ssl_s)), 0);
@@ -1580,8 +1580,9 @@ int test_dtls13_frag_ch2_cookie_frag_last(void)
     return EXPECT_RESULT();
 }
 
-/* A forged first fragment, right length but no cookie, is held. When the
- * genuine one verifies the forged bytes must not replace the verified ones. */
+/* A forged first fragment, right length but no cookie, is held and its head
+ * fails the check. The genuine one contradicts it, replaces it and verifies
+ * from the pool: nothing of the forged bytes reaches the connection. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_ECC) && !defined(NO_ECC256)
@@ -1636,7 +1637,7 @@ static int test_dtls13_frag_ch2_forged_first_frag_ex(int peerId)
     ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
     ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
     ExpectIntEQ(isHrr, 0);
-    /* Nothing of the forged entry lies past the verified fragment: freed */
+    /* The genuine entry moved to the connection, the forged one is gone */
     ExpectIntEQ(test_dtls13_pool_count(test_dtls13_ch_pool(ssl_s)), 0);
     ExpectTrue(test_dtls13_pool_ok(test_dtls13_ch_pool(ssl_s)));
     ExpectNull(ssl_s->dtls_rx_msg_list);
@@ -1662,9 +1663,8 @@ int test_dtls13_frag_ch2_forged_first_frag(void)
     return EXPECT_RESULT();
 }
 
-/* A pooled fragment reaching into the first fragment that then verifies: the
- * bytes past it complete the ClientHello without a resend, the overlap is
- * taken from the verified copy. */
+/* A pooled fragment reaching into the first fragment, which then arrives:
+ * the two complete the ClientHello in the pool and it is checked whole. */
 int test_dtls13_frag_ch2_overlap_handoff(void)
 {
     EXPECT_DECLS;
@@ -1712,7 +1712,7 @@ int test_dtls13_frag_ch2_overlap_handoff(void)
     ExpectIntEQ(test_dtls13_pool_count(&ctx_s->dtlsChPool), 1);
     ExpectIntEQ(test_ctx.c_len, 0);
 
-    /* The first fragment, through the cookie, verifies and completes it */
+    /* The first fragment, through the cookie, completes it */
     ExpectIntGT(fragSz = test_dtls13_frag_range(ch, chSz, 0, (word32)cut, 0,
         frag, (int)sizeof(frag)), 0);
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)frag,
@@ -3542,9 +3542,26 @@ static int test_dtls13_frag_ch2_ctx_second(int secretMode, int mode)
     ExpectIntEQ(test_memio_inject_message(&tB, 0, (const char*)frag, fragSz),
         0);
     if (sharedSecret) {
-        /* The cookie verifies and the held rest completes the message */
+        /* The cookie verifies. Pooled, the fragment completes the held rest
+         * at once. */
         ExpectIntEQ(test_dtls13_server_read_all(&tB, c2), TEST_SUCCESS);
         ExpectIntEQ(c2->options.dtlsStateful, 1);
+        if (mode == 1) {
+            /* With reassembly off c2 checked the datagram and keeps only
+             * that fragment: the held rest is freed, not read, and the
+             * client resends it */
+            ExpectIntEQ(test_dtls13_reply_is_server_hello(&tB, &isHrr), 0);
+            ExpectIntEQ(test_dtls13_pool_count(&ctx_s->dtlsChPool), 0);
+            ExpectNotNull(c2->dtls_rx_msg_list);
+            for (i = 1; i < 3 && EXPECT_SUCCESS(); i++) {
+                ExpectIntGT(fragSz = test_dtls13_frag_range(chB, chBSz,
+                    (word32)off[i], (word32)len[i], (word32)(i + 2), frag,
+                    (int)sizeof(frag)), 0);
+                ExpectIntEQ(test_memio_inject_message(&tB, 0,
+                    (const char*)frag, fragSz), 0);
+            }
+            ExpectIntEQ(test_dtls13_server_read_all(&tB, c2), TEST_SUCCESS);
+        }
         ExpectIntEQ(test_dtls13_reply_is_server_hello(&tB, &isHrr), 1);
         ExpectIntEQ(isHrr, 0);
         ExpectIntEQ(test_dtls13_pool_count(&ctx_s->dtlsChPool), 0);
@@ -3597,9 +3614,9 @@ static int test_dtls13_frag_ch2_ctx_second(int secretMode, int mode)
 }
 #endif
 
-/* The rest of a second ClientHello held by the context is taken by the server
- * that verifies its first fragment: the servers share the context's secret
- * unless given their own. */
+/* The rest of a second ClientHello held by the context completes it at the
+ * server its first fragment reaches: the servers share the context's secret
+ * unless given their own. One with reassembly off reads nothing held. */
 int test_dtls13_frag_ch2_ctx_handoff(void)
 {
     EXPECT_DECLS;
@@ -4147,8 +4164,10 @@ int test_dtls13_clear_frees_rx_list(void)
     return EXPECT_RESULT();
 }
 
-/* A first fragment whose cookie fails is answered with an alert and not held:
- * holding it would cost other peers' entries. The genuine ones complete. */
+/* A first fragment with a bad cookie, pooled and checked from its head: an
+ * illegal_parameter alert, its entry dropped since holding it would cost
+ * other peers' entries, the server still stateless. The genuine fragment
+ * then verifies from the pool and the rest completes it. */
 int test_dtls13_frag_ch2_bad_cookie_dropped(void)
 {
     EXPECT_DECLS;
@@ -4228,7 +4247,8 @@ int test_dtls13_frag_ch2_bad_cookie_dropped(void)
 }
 
 /* A DTLS 1.2 second ClientHello in two fragments at a DTLS 1.3 server: the
- * first carries the cookie and is held, the second completes it. */
+ * first carries the cookie and verifies from the pool, the second completes
+ * it in the connection. */
 int test_dtls13_frag_ch2_dtls12_cookie(void)
 {
     EXPECT_DECLS;
@@ -4279,6 +4299,7 @@ int test_dtls13_frag_ch2_dtls12_cookie(void)
     /* Verified: the server is stateful and holds the fragment */
     ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
     ExpectNotNull(ssl_s->dtls_rx_msg_list);
+    ExpectIntEQ(test_dtls13_pool_count(test_dtls13_ch_pool(ssl_s)), 0);
     ExpectIntEQ(test_ctx.c_len, 0);
 
     ExpectIntGT(fragSz = test_dtls13_frag_range(ch, chSz, cut, bodySz - cut, 1,
@@ -4290,6 +4311,184 @@ int test_dtls13_frag_ch2_dtls12_cookie(void)
     ExpectIntEQ(isHrr, 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_s->version.minor, DTLSv1_2_MINOR);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The cookie in the second of three fragments, delivered in order. The head
+ * is checked when the first arrives, too short, and again when the second
+ * doubles it: the server turns stateful and the entry moves to its receive
+ * list. The third completes the message there. */
+int test_dtls13_frag_ch2_cookie_in_second(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int group = WOLFSSL_ECC_SECP256R1;
+    byte ch[TEST_MEMIO_BUF_SZ];
+    int chSz = (int)sizeof(ch);
+    int cut = 0;
+    int half = 0;
+    int bodySz = 0;
+    int isHrr = 0;
+    DtlsChPool* pool = NULL;
+    DtlsMsg* held = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx, 3),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectNotNull(pool = test_dtls13_ch_pool(ssl_s));
+
+    /* CH1, HRR with cookie, CH2 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx, ssl_c, ch, &chSz),
+        TEST_SUCCESS);
+    bodySz = chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ;
+    ExpectIntGT(cut = test_dtls13_ch_cookie_end(ch, chSz), 0);
+    ExpectIntGT(bodySz - cut, 0);
+    /* The second fragment ends at the cookie and at least doubles the head */
+    half = cut / 2;
+
+    /* The first: held, its head checked and found short */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz, 0,
+        (word32)half, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 1);
+    ExpectNotNull(held = test_dtls13_held_for(pool, 3));
+    ExpectIntEQ(held != NULL ? (int)held->headReportAt : -1, 2 * half);
+    ExpectNull(ssl_s->dtls_rx_msg_list);
+
+    /* The second: the head reaches the cookie and verifies. The entry is the
+     * connection's now, nothing is answered before the message completes. */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz,
+        (word32)half, (word32)(cut - half), 1), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 0);
+    ExpectTrue(test_dtls13_pool_ok(pool));
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(ssl_s->dtls_rx_msg_list);
+    if (ssl_s->dtls_rx_msg_list != NULL) {
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list->bytesReceived, cut);
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list->peer.sz, 0);
+    }
+
+    /* The third completes it in the receive list */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz,
+        (word32)cut, (word32)(bodySz - cut), 2), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 0);
+    ExpectTrue(test_dtls13_nothing_held(ssl_s));
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Four fragments, the cookie in the first: the second and third arrive
+ * first and are held without a head, then the first. One head report covers
+ * all three, the cookie verifies and the whole entry moves to the
+ * connection. The fourth completes it there. */
+int test_dtls13_frag_ch2_cookie_frag_out_of_order(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int group = WOLFSSL_ECC_SECP256R1;
+    byte ch[TEST_MEMIO_BUF_SZ];
+    int chSz = (int)sizeof(ch);
+    int cut = 0;
+    int bodySz = 0;
+    int third = 0;
+    int isHrr = 0;
+    DtlsChPool* pool = NULL;
+    DtlsMsg* held = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx, 4),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectNotNull(pool = test_dtls13_ch_pool(ssl_s));
+
+    /* CH1, HRR with cookie, CH2 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx, ssl_c, ch, &chSz),
+        TEST_SUCCESS);
+    bodySz = chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ;
+    ExpectIntGT(cut = test_dtls13_ch_cookie_end(ch, chSz), 0);
+    /* The bytes past the cookie in three: two go before the first fragment,
+     * the last after it */
+    ExpectIntGE(bodySz - cut, 3);
+    third = (bodySz - cut) / 3;
+
+    /* The second and third fragments: held, no head to check */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz,
+        (word32)(cut + third), (word32)third, 2), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz,
+        (word32)cut, (word32)third, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 1);
+    ExpectNotNull(held = test_dtls13_held_for(pool, 4));
+    ExpectIntEQ(held != NULL ? (int)held->bytesReceived : -1, 2 * third);
+    ExpectIntEQ(held != NULL ? (int)held->headReportAt : -1, 0);
+    ExpectNull(ssl_s->dtls_rx_msg_list);
+
+    /* The first: the head spans all three and verifies */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz, 0,
+        (word32)cut, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 0);
+    ExpectTrue(test_dtls13_pool_ok(pool));
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(ssl_s->dtls_rx_msg_list);
+    if (ssl_s->dtls_rx_msg_list != NULL) {
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list->bytesReceived, cut + 2 * third);
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list->fragBucketListCount, 1);
+    }
+
+    /* The fourth completes it in the receive list */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz,
+        (word32)(cut + 2 * third), (word32)(bodySz - cut - 2 * third), 3),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 0);
+    ExpectTrue(test_dtls13_nothing_held(ssl_s));
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -4362,14 +4561,17 @@ static THREAD_RETURN WOLFSSL_THREAD test_dtls13_ch_pool_worker(void* args)
             DtlsChPoolClear(&test_ch_pool_shared, NULL);
         }
         else if (op < 16) {
-            msg = DtlsChPoolTakeRest(&test_ch_pool_shared, NULL, &peer, 0, 1, 0,
-                TEST_CH_POOL_MSG_SZ, DTLS_TIMEOUT_MAX, NULL);
+            msg = DtlsChPoolTake(&test_ch_pool_shared, NULL, &peer,
+                DTLS_TIMEOUT_MAX);
+            if (msg != NULL && DtlsMsgAdopt(&msg, NULL, NULL) != 0)
+                test_ch_pool_bad[tno]++;
         }
         else {
+            /* No check: the bytes are no ClientHello */
             (void)DtlsChPoolStore(&test_ch_pool_shared, NULL, &peer, 0, 1, data,
                 TEST_CH_POOL_MSG_SZ, client_hello,
                 quarter * (TEST_CH_POOL_MSG_SZ / 4), TEST_CH_POOL_MSG_SZ / 4,
-                DTLS_TIMEOUT_MAX, NULL, &msg);
+                DTLS_TIMEOUT_MAX, NULL, &msg, NULL, NULL, NULL);
         }
         if (msg != NULL) {
             if (!test_ch_pool_msg_ok(msg, peerId, TEST_CH_POOL_MSG_SZ))
@@ -5384,18 +5586,20 @@ int test_dtls13_ch_pool_unit(void)
     XMEMSET(&none, 0, sizeof(none));
 
     ExpectIntEQ(DtlsChPoolStore(NULL, NULL, &peer, 0, 0, data, len,
-        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done),
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, NULL, 0, 0, data, len,
-        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done),
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 4, client_hello,
-        3, 2, DTLS_TIMEOUT_MAX, NULL, &done), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        3, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectNull(done);
 
     /* The peer copy is counted */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len,
-        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectNull(done);
     ExpectNotNull(current = test_dtls13_pool_head(&pool));
     ExpectIntEQ(current != NULL ? (int)current->peer.bufSz : 0,
@@ -5412,7 +5616,8 @@ int test_dtls13_ch_pool_unit(void)
     /* A second peer goes after the first */
     peerBuf[0] = 2;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len,
-        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectNotNull(other = test_dtls13_pool_next(&pool, current));
     bytes = 2 * (base + 1);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
@@ -5421,12 +5626,12 @@ int test_dtls13_ch_pool_unit(void)
 
     /* An empty peer is no key, and a whole message is never held */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &none, 0, 0, data, len,
-        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done),
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &none, 0, 0, 1, len,
-        DTLS_TIMEOUT_MAX, NULL));
+    ExpectNull(DtlsChPoolTake(&pool, NULL, &none, DTLS_TIMEOUT_MAX));
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 4, client_hello,
-        0, 4, DTLS_TIMEOUT_MAX, NULL, &done), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectNull(done);
     ExpectPtrEq(test_dtls13_pool_head(&pool), current);
     ExpectPtrEq(test_dtls13_pool_next(&pool, current), other);
@@ -5439,7 +5644,8 @@ int test_dtls13_ch_pool_unit(void)
     peerBuf[0] = 3;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len + 1,
         client_hello, 0, 1,
-        DTLS_TIMEOUT_MAX, NULL, &done), DTLS_MSG_STORE_DROPPED);
+        DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
+        DTLS_MSG_STORE_DROPPED);
     peerBuf[0] = 1;
     ExpectNull(done);
     ExpectPtrEq(test_dtls13_pool_head(&pool), current);
@@ -5451,10 +5657,12 @@ int test_dtls13_ch_pool_unit(void)
 
     /* A duplicate does not refresh; new bytes do, partial overlaps too */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len,
-        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectPtrEq(test_dtls13_pool_head(&pool), current);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len,
-        client_hello, 0, 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 0, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectPtrEq(test_dtls13_pool_head(&pool), other);
     ExpectPtrEq(test_dtls13_pool_next(&pool, other), current);
     ExpectNull(test_dtls13_pool_next(&pool, current));
@@ -5463,11 +5671,13 @@ int test_dtls13_ch_pool_unit(void)
     /* Refresh other, making current the oldest again */
     peerBuf[0] = 2;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len,
-        client_hello, 1, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 1, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectPtrEq(test_dtls13_pool_head(&pool), current);
     peerBuf[0] = 3;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len,
-        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 3);
     ExpectTrue(test_dtls13_pool_ok(&pool));
 
@@ -5476,7 +5686,8 @@ int test_dtls13_ch_pool_unit(void)
      * its peer. */
     peerBuf[0] = 1;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, len,
-        client_hello, 2, len - 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 2, len - 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectPtrEq(done, current);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 0);
     ExpectIntEQ(test_dtls13_pool_bytes(&pool), 0);
@@ -5497,14 +5708,14 @@ int test_dtls13_ch_pool_unit(void)
     /* One entry per peer, the newest: another message, or a fragment
      * contradicting the one held, replaces it */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     h = test_dtls13_pool_head(&pool);
     ExpectIntEQ(h != NULL ? (int)h->seq : -1, 1);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 5, client_hello,
-        1, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     h = test_dtls13_pool_head(&pool);
     ExpectIntEQ(h != NULL ? (int)h->sz : -1, 5);
@@ -5518,20 +5729,20 @@ int test_dtls13_ch_pool_unit(void)
     XMEMSET(alt, 0xa5, sizeof(alt));
     peerBuf[0] = 2;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 8, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     peerBuf[0] = 1;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 8, client_hello,
-        0, 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 8, client_hello,
-        1, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, alt, 8, client_hello,
-        2, 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        2, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     ExpectNotNull(current = test_dtls13_pool_next(&pool,
         test_dtls13_pool_head(&pool)));
     ExpectIntEQ(current != NULL ? (int)current->bytesReceived : -1, 4);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 8, client_hello,
-        3, 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        3, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     ExpectNotNull(current = test_dtls13_pool_next(&pool,
         test_dtls13_pool_head(&pool)));
@@ -5542,11 +5753,12 @@ int test_dtls13_ch_pool_unit(void)
     /* Every bucket the fragment spans is compared: [4,7) agrees with [3,5)
      * but not with [6,7), so it replaces the entry */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 8, client_hello,
-        6, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        6, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(current != NULL ? (int)current->fragBucketListCount : -1, 2);
     XMEMSET(alt, 0x5a, 6);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, alt + 4, 8,
-        client_hello, 4, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 4, 3, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     ExpectNotNull(current = test_dtls13_pool_next(&pool,
@@ -5557,10 +5769,11 @@ int test_dtls13_ch_pool_unit(void)
     ExpectTrue(test_dtls13_pool_ok(&pool));
     /* The message it completes is all its own */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, alt, 8, client_hello,
-        0, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, alt + 7, 8,
-        client_hello, 7, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        client_hello, 7, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+        NULL), 0);
     ExpectNotNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     if (done != NULL) {
@@ -5582,7 +5795,7 @@ int test_dtls13_ch_pool_unit(void)
     for (i = 0; i < DTLS_FRAG_POOL_SZ && EXPECT_SUCCESS(); i++) {
         ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data,
             2 * DTLS_FRAG_POOL_SZ + 2, client_hello, 2 * i, 1,
-            DTLS_TIMEOUT_MAX, NULL, &done),
+            DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
             0);
     }
     ExpectNotNull(current = test_dtls13_pool_head(&pool));
@@ -5591,19 +5804,20 @@ int test_dtls13_ch_pool_unit(void)
     bytes = test_dtls13_pool_bytes(&pool);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data,
         2 * DTLS_FRAG_POOL_SZ + 2, client_hello, 2 * DTLS_FRAG_POOL_SZ, 1,
-        DTLS_TIMEOUT_MAX, NULL, &done), DTLS_MSG_STORE_DROPPED);
+        DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
+        DTLS_MSG_STORE_DROPPED);
     ExpectPtrEq(test_dtls13_pool_head(&pool), current);
     ExpectIntEQ(current != NULL ? (int)current->fragBucketListCount : -1,
         DTLS_FRAG_POOL_SZ);
     ExpectIntEQ(test_dtls13_pool_bytes(&pool), bytes);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data,
         2 * DTLS_FRAG_POOL_SZ + 2, client_hello, 2 * DTLS_FRAG_POOL_SZ - 1, 1,
-        DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(current != NULL ? (int)current->fragBucketListCount : -1,
         DTLS_FRAG_POOL_SZ);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data,
         2 * DTLS_FRAG_POOL_SZ + 2, client_hello, 1, 1,
-        DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(current != NULL ? (int)current->fragBucketListCount : -1,
         DTLS_FRAG_POOL_SZ - 1);
     ExpectNull(done);
@@ -5616,69 +5830,47 @@ int test_dtls13_ch_pool_unit(void)
     ExpectIntEQ(test_dtls13_pool_bytes(&pool), 0);
     ExpectNull(test_dtls13_pool_head(&pool));
 
-    /* Release: only the rest of the ClientHello whose first fragment
-     * verified is returned, without its peer copy */
+    /* Take: the peer's whole entry leaves, still keyed on the peer until
+     * adopted. Other peers' entries stay. */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 3, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     peerBuf[0] = 2;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     peerBuf[0] = 3;
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 1, 4,
-        DTLS_TIMEOUT_MAX, NULL));
+    ExpectNull(DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     peerBuf[0] = 1;
-    ExpectNotNull(done = DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 1, 4,
-        DTLS_TIMEOUT_MAX, NULL));
+    ExpectNotNull(done = DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     ExpectTrue(test_dtls13_pool_ok(&pool));
     if (done != NULL) {
+        ExpectIntEQ(done->peer.sz, sizeof(peerBuf));
+        ExpectBufEQ(done->peer.sa, peerBuf, sizeof(peerBuf));
+        ExpectIntEQ(DtlsMsgListRetainedBytes(done), base + 3);
+        ExpectNull(done->next);
+        ExpectPtrEq(DtlsMsgFind(done, 0, 1), done);
+        ExpectIntEQ(done->bytesReceived, 3);
+        ExpectNotNull(done->fragBucketList);
+        if (done->fragBucketList != NULL) {
+            ExpectIntEQ(done->fragBucketList->m.m.offset, 1);
+            ExpectIntEQ(done->fragBucketList->m.m.sz, 3);
+            ExpectBufEQ(done->fragBucketList->buf, data + 1, 3);
+        }
+        ExpectIntEQ(DtlsMsgAdopt(&done, NULL, NULL), 0);
         ExpectIntEQ(done->peer.sz, 0);
         ExpectNull(done->peer.sa);
         ExpectIntEQ(DtlsMsgListRetainedBytes(done), base - sizeof(peerBuf) + 3);
-        ExpectNull(done->next);
-        ExpectPtrEq(DtlsMsgFind(done, 0, 1), done);
     }
     DtlsMsgListDelete(done, NULL);
     done = NULL;
-    /* An overlap is cut away: only the bytes past the verified fragment */
+    /* Drop frees the peer's entry and no other */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
-    ExpectNotNull(done = DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 2, 4,
-        DTLS_TIMEOUT_MAX, NULL));
-    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
-    if (done != NULL) {
-        ExpectIntEQ(done->bytesReceived, 2);
-        ExpectIntEQ(done->fragBucketListCount, 1);
-        ExpectNotNull(done->fragBucketList);
-        if (done->fragBucketList != NULL) {
-            ExpectIntEQ(done->fragBucketList->m.m.offset, 2);
-            ExpectIntEQ(done->fragBucketList->m.m.sz, 2);
-            ExpectBufEQ(done->fragBucketList->buf, data + 2, 2);
-            ExpectNull(done->fragBucketList->m.m.next);
-        }
-    }
-    DtlsMsgListDelete(done, NULL);
-    done = NULL;
-    /* Nothing past the verified fragment, another seq or another size: freed */
-    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 4, 4,
-        DTLS_TIMEOUT_MAX, NULL));
-    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
-    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 3, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     DtlsChPoolDrop(&pool, NULL, &peer, DTLS_TIMEOUT_MAX);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
-    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 2, 1, 4,
-        DTLS_TIMEOUT_MAX, NULL));
-    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
-    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 1, 5,
-        DTLS_TIMEOUT_MAX, NULL));
+    ExpectNull(DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     peerBuf[0] = 2;
     ExpectNotNull(test_dtls13_pool_head(&pool));
@@ -5692,13 +5884,12 @@ int test_dtls13_ch_pool_unit(void)
     ExpectIntEQ(DtlsChPoolInit(&pool), 0);
 
     /* Adopting on the same heap keeps the message. A partial one comes from
-     * the pool: no part of it overlaps an empty first fragment. */
+     * the pool with every bucket it held. */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        3, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
-    ExpectNotNull(done = DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 0, 4,
-        DTLS_TIMEOUT_MAX, NULL));
+        3, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
+    ExpectNotNull(done = DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
     saved = done;
     ExpectIntEQ(DtlsMsgAdopt(&done, NULL, NULL), 0);
     ExpectPtrEq(done, saved);
@@ -5730,10 +5921,10 @@ int test_dtls13_ch_pool_unit(void)
     DtlsMsgListDelete(done, (void*)&pool);
     /* and a complete one as a whole */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        2, 2, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        2, 2, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNotNull(done);
     saved = done;
     ExpectIntEQ(DtlsMsgAdopt(&done, NULL, (void*)&pool), 0);
@@ -5754,18 +5945,18 @@ int test_dtls13_ch_pool_unit(void)
     /* Only new bytes restart an entry's clock */
     peerBuf[0] = 1;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNotNull(current = test_dtls13_pool_head(&pool));
     if (current != NULL)
         current->heldAt -= (word32)DTLS_TIMEOUT_MAX / 2;
     saved = current;
     held = current != NULL ? current->heldAt : 0;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectPtrEq(test_dtls13_pool_head(&pool), saved);
     ExpectTrue(current != NULL && current->heldAt == held);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        2, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        2, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectPtrEq(test_dtls13_pool_head(&pool), saved);
     ExpectIntEQ(current != NULL ? (int)current->bytesReceived : -1, 2);
     ExpectTrue(current != NULL && current->heldAt != held);
@@ -5774,7 +5965,7 @@ int test_dtls13_ch_pool_unit(void)
     test_dtls13_age(current);
     XMEMSET(alt, 0xa5, sizeof(alt));
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, alt, 4, client_hello,
-        1, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     ExpectNotNull(current = test_dtls13_pool_head(&pool));
@@ -5782,18 +5973,17 @@ int test_dtls13_ch_pool_unit(void)
     ExpectIntEQ(current != NULL && current->fragBucketList != NULL ?
         (int)current->fragBucketList->m.m.offset : -1, 1);
     ExpectTrue(test_dtls13_pool_ok(&pool));
-    /* A rest whose clock ran out is freed, not returned */
+    /* An entry whose clock ran out is freed, not taken */
     DtlsChPoolClear(&pool, NULL);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 3, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     test_dtls13_age(test_dtls13_pool_head(&pool));
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 1, 4,
-        DTLS_TIMEOUT_MAX, NULL));
+    ExpectNull(DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
     ExpectIntEQ(test_dtls13_pool_count(&pool), 0);
     ExpectIntEQ(test_dtls13_pool_bytes(&pool), 0);
     /* Any store in its shard frees it */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     test_dtls13_age(test_dtls13_pool_head(&pool));
     shard = DtlsChPoolShardIdx(&peer);
     for (i = 2; i < 256; i++) {
@@ -5803,7 +5993,7 @@ int test_dtls13_ch_pool_unit(void)
     }
     ExpectIntLT(i, 256);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     ExpectNotNull(test_dtls13_pool_head(&pool));
     h = test_dtls13_pool_head(&pool);
@@ -5815,12 +6005,12 @@ int test_dtls13_ch_pool_unit(void)
      * age. The store frees the entry, so the fragment starts a new one. */
     peerBuf[0] = 1;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 3, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNotNull(current = test_dtls13_pool_head(&pool));
     if (current != NULL)
         current->heldAt += 3600;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     ExpectNotNull(current = test_dtls13_pool_head(&pool));
@@ -5829,21 +6019,20 @@ int test_dtls13_ch_pool_unit(void)
         (int)current->fragBucketList->m.m.offset : -1, 0);
     ExpectTrue(test_dtls13_pool_ok(&pool));
     DtlsChPoolClear(&pool, NULL);
-    /* A release frees it too: held 10 s before a 1 kHz 32-bit tick count
+    /* A take frees it too: held 10 s before a 1 kHz 32-bit tick count
      * wrapped */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        1, 3, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        1, 3, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNotNull(saved = test_dtls13_pool_head(&pool));
     peerBuf[0] = 2;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     ExpectPtrEq(test_dtls13_pool_head(&pool), saved);
     if (saved != NULL)
         saved->heldAt += (word32)(4294967UL - 10);
     peerBuf[0] = 1;
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 1, 1, 4,
-        DTLS_TIMEOUT_MAX, NULL));
+    ExpectNull(DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     ExpectNotNull(test_dtls13_pool_head(&pool));
     h = test_dtls13_pool_head(&pool);
@@ -5853,16 +6042,468 @@ int test_dtls13_ch_pool_unit(void)
 
     /* Free leaves nothing, and the pool can be set up again */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     DtlsChPoolFree(&pool, NULL);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 0);
     ExpectIntEQ(test_dtls13_pool_reserved(&pool), 0);
     ExpectIntEQ(DtlsChPoolInit(&pool), 0);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, 4, client_hello,
-        0, 1, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 1, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectTrue(test_dtls13_pool_ok(&pool));
     DtlsChPoolFree(&pool, NULL);
     XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The head check: the contiguous bytes from offset 0, checked in place once
+ * they first exist and then once they at least double, so a message of n
+ * bytes is checked O(log n) times whatever its fragments. Bytes that are no
+ * ClientHello keep the entry, and the firings show in headReportAt. A
+ * completed message goes through *done alone. */
+int test_dtls13_ch_pool_head_report(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
+    DtlsChPool pool;
+    byte peerBuf[4];
+    WOLFSSL_SOCKADDR peer;
+    byte data[256];
+    DtlsMsg* done = NULL;
+    DtlsMsg* cur = NULL;
+    DtlsMsg* verified = NULL;
+    byte isTls13 = 0;
+    word32 sz = (word32)sizeof(data);
+    word32 last = 0;
+    word32 reportAt = 0;
+    word32 i;
+
+    for (i = 0; i < sz; i++)
+        data[i] = (byte)i;
+    XMEMSET(peerBuf, 0x09, sizeof(peerBuf));
+    peer.sa = peerBuf;
+    peer.sz = peer.bufSz = (unsigned int)sizeof(peerBuf);
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx, &ssl_c, &ssl,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(DtlsChPoolInit(&pool), 0);
+
+    /* A check needs somewhere to hand a verified entry and its version */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, sz,
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, NULL,
+        &isTls13), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, sz,
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 0);
+
+    /* A fragment past the start leaves no head */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data + 8, sz,
+        client_hello, 8, 4, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectNull(verified);
+    ExpectNotNull(cur = test_dtls13_pool_head(&pool));
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 0);
+
+    /* The first byte of the head is checked, then only from twice the size
+     * last checked */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, sz,
+        client_hello, 0, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 2);
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data + 1, sz,
+        client_hello, 1, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 4);
+    /* Below the threshold: held, not checked */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data + 2, sz,
+        client_hello, 2, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 4);
+    ExpectIntEQ(cur != NULL ? (int)cur->bytesReceived : -1, 7);
+    /* A duplicate grows nothing */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, sz,
+        client_hello, 0, 3, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 4);
+    /* At the threshold: checked */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data + 3, sz,
+        client_hello, 3, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 8);
+    /* The gap closed, the head takes in the bytes held past it */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data + 4, sz,
+        client_hello, 4, 4, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 24);
+    ExpectNull(done);
+    ExpectNull(verified);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+
+    /* The rest byte by byte: a check at 24, 48, 96 and 192, then the whole
+     * message through *done, unchecked */
+    last = 12;
+    reportAt = 24;
+    for (i = 12; i < sz && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data + i, sz,
+            client_hello, i, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+            &isTls13), 0);
+        ExpectNull(verified);
+        if (cur->headReportAt != reportAt) {
+            ExpectIntEQ(cur->headReportAt, 2 * (i + 1));
+            ExpectIntGE(i + 1, 2 * last);
+            ExpectNull(done);
+            last = i + 1;
+            reportAt = cur->headReportAt;
+        }
+        else {
+            ExpectIntLT(i + 1 < sz ? i + 1 : 0, 2 * last);
+        }
+    }
+    ExpectIntEQ(last, 192);
+    ExpectNotNull(done);
+    ExpectIntEQ(done != NULL ? done->ready : 0, 1);
+    ExpectIntEQ(done != NULL ? (int)done->headReportAt : -1, 384);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 0);
+    DtlsMsgListDelete(done, NULL);
+    done = NULL;
+
+    /* A store with no check leaves the threshold alone */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data, sz,
+        client_hello, 0, 3, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL),
+        0);
+    ExpectNotNull(cur = test_dtls13_pool_head(&pool));
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 0);
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, data + 3, sz,
+        client_hello, 3, 1, DTLS_TIMEOUT_MAX, NULL, &done, ssl, &verified,
+        &isTls13), 0);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 8);
+    ExpectNull(done);
+    ExpectNull(verified);
+
+    DtlsChPoolFree(&pool, NULL);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+/* A server past its HRR and the bodies of the two ClientHellos it saw: ch1
+ * without a cookie, ch2 with the one its HRR gave. cut is the offset in ch2
+ * just past the cookie: the head [0, cut) verifies on its own. */
+typedef struct test_dtls13_ch2 {
+    WOLFSSL_CTX* ctx_c;
+    WOLFSSL_CTX* ctx_s;
+    WOLFSSL* ssl_c;
+    WOLFSSL* ssl_s;
+    struct test_memio_ctx test_ctx;
+    byte ch1[2048];
+    byte ch2[2048];
+    word32 ch1Sz;
+    word32 ch2Sz;
+    word32 cut;
+} test_dtls13_ch2;
+
+static int test_dtls13_ch2_setup(test_dtls13_ch2* t)
+{
+    EXPECT_DECLS;
+    const int hdrSz = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ;
+    int group = WOLFSSL_ECC_SECP256R1;
+    byte ch[TEST_MEMIO_BUF_SZ];
+    int chSz = (int)sizeof(ch);
+    int isHrr = 0;
+    int cut = 0;
+
+    XMEMSET(t, 0, sizeof(*t));
+    ExpectIntEQ(test_memio_setup(&t->test_ctx, &t->ctx_c, &t->ctx_s,
+        &t->ssl_c, &t->ssl_s, wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_dtls13_server_peer(t->ssl_s, &t->test_ctx, 2),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(t->ssl_c, &group, 1), WOLFSSL_SUCCESS);
+
+    /* CH1, kept and delivered, then the HRR with the cookie and CH2 */
+    ExpectIntEQ(test_dtls13_take_ch(&t->test_ctx, t->ssl_c, ch, &chSz),
+        TEST_SUCCESS);
+    ExpectIntGT(chSz, hdrSz);
+    ExpectIntLE(chSz - hdrSz, (int)sizeof(t->ch1));
+    if (EXPECT_SUCCESS()) {
+        t->ch1Sz = (word32)(chSz - hdrSz);
+        XMEMCPY(t->ch1, ch + hdrSz, t->ch1Sz);
+    }
+    ExpectIntEQ(test_memio_inject_message(&t->test_ctx, 0, (const char*)ch,
+        chSz), 0);
+    ExpectIntEQ(wolfSSL_accept(t->ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(t->ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&t->test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+    chSz = (int)sizeof(ch);
+    ExpectIntEQ(test_dtls13_take_ch(&t->test_ctx, t->ssl_c, ch, &chSz),
+        TEST_SUCCESS);
+    ExpectIntGT(cut = test_dtls13_ch_cookie_end(ch, chSz), 0);
+    /* Bytes past the cookie: a head of cut bytes is a prefix */
+    ExpectIntGT(chSz - hdrSz, cut + 1);
+    ExpectIntLE(chSz - hdrSz, (int)sizeof(t->ch2));
+    if (EXPECT_SUCCESS()) {
+        t->ch2Sz = (word32)(chSz - hdrSz);
+        t->cut = (word32)cut;
+        XMEMCPY(t->ch2, ch + hdrSz, t->ch2Sz);
+    }
+    return EXPECT_RESULT();
+}
+
+static void test_dtls13_ch2_free(test_dtls13_ch2* t)
+{
+    wolfSSL_free(t->ssl_c);
+    wolfSSL_free(t->ssl_s);
+    wolfSSL_CTX_free(t->ctx_c);
+    wolfSSL_CTX_free(t->ctx_s);
+}
+
+/* A pool with another peer's entry, whose head check will not run */
+static int test_dtls13_head_pool_setup(DtlsChPool* pool, const byte* data,
+        word32 sz)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(DtlsChPoolInit(pool), 0);
+    ExpectIntEQ(test_dtls13_pool_put(pool, 0x77, data, sz, 0, 8), 0);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 1);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A head the server's check verifies: the entry leaves the pool through
+ * *verified in that same store, unlinked and with the counters settled,
+ * still keyed on the peer and holding every fragment, the ones past the
+ * head included */
+int test_dtls13_ch_pool_head_verified(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    test_dtls13_ch2 t;
+    DtlsChPool pool;
+    byte peerBuf[4];
+    WOLFSSL_SOCKADDR peer;
+    DtlsMsg* done = NULL;
+    DtlsMsg* verified = NULL;
+    byte isTls13 = 0;
+    word32 sz = 0;
+    word32 cut = 0;
+
+    ExpectIntEQ(test_dtls13_ch2_setup(&t), TEST_SUCCESS);
+    sz = t.ch2Sz;
+    cut = t.cut;
+    XMEMSET(peerBuf, 0x0a, sizeof(peerBuf));
+    peer.sa = peerBuf;
+    peer.sz = peer.bufSz = (unsigned int)sizeof(peerBuf);
+    ExpectIntEQ(test_dtls13_head_pool_setup(&pool, t.ch2, sz), TEST_SUCCESS);
+
+    /* The bytes past the cookie, short of it by one: held, no head */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2 + cut + 1,
+        sz, client_hello, cut + 1, sz - cut - 1, DTLS_TIMEOUT_MAX, NULL,
+        &done, t.ssl_s, &verified, &isTls13), 0);
+    ExpectNull(verified);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
+
+    /* The head up to the cookie verifies, the gap after it still open */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2, sz,
+        client_hello, 0, cut, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), 0);
+    ExpectNull(done);
+    ExpectNotNull(verified);
+    ExpectIntEQ(isTls13, 1);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+    ExpectIntEQ(test_dtls13_pool_bytes(&pool),
+        DtlsMsgListRetainedBytes(test_dtls13_pool_head(&pool)));
+    if (verified != NULL) {
+        ExpectIntEQ(verified->ready, 0);
+        ExpectIntEQ(verified->sz, sz);
+        ExpectIntEQ(verified->bytesReceived, sz - 1);
+        ExpectIntEQ(verified->fragBucketListCount, 2);
+        ExpectIntEQ(verified->headReportAt, 2 * cut);
+        ExpectNull(verified->next);
+        ExpectIntEQ(verified->peer.sz, sizeof(peerBuf));
+        ExpectNotNull(verified->fragBucketList);
+        if (verified->fragBucketList != NULL)
+            ExpectBufEQ(verified->fragBucketList->buf, t.ch2, cut);
+        /* Handed to a connection like a completed entry */
+        ExpectIntEQ(DtlsMsgAdopt(&verified, NULL, NULL), 0);
+        ExpectIntEQ(verified != NULL ? (int)verified->peer.sz : -1, 0);
+        DtlsMsgListDelete(verified, NULL);
+        verified = NULL;
+    }
+
+    /* The peer starts over in the pool and the same head verifies again */
+    isTls13 = 0;
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2, sz,
+        client_hello, 0, cut, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), 0);
+    ExpectNotNull(verified);
+    ExpectIntEQ(isTls13, 1);
+    ExpectIntEQ(verified != NULL ? (int)verified->bytesReceived : -1,
+        (int)cut);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+    DtlsMsgListDelete(verified, NULL);
+    verified = NULL;
+
+    DtlsChPoolFree(&pool, NULL);
+    test_dtls13_ch2_free(&t);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A head whose cookie fails the server's check: the entry is freed in that
+ * same store, which returns INVALID_PARAMETER, and the peer may start over */
+int test_dtls13_ch_pool_head_bad_cookie(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    test_dtls13_ch2 t;
+    DtlsChPool pool;
+    byte peerBuf[4];
+    WOLFSSL_SOCKADDR peer;
+    DtlsMsg* done = NULL;
+    DtlsMsg* verified = NULL;
+    byte isTls13 = 0;
+    word32 sz = 0;
+    word32 cut = 0;
+
+    ExpectIntEQ(test_dtls13_ch2_setup(&t), TEST_SUCCESS);
+    sz = t.ch2Sz;
+    cut = t.cut;
+    /* The last byte of the cookie changed */
+    if (cut > 0)
+        t.ch2[cut - 1] ^= 0x01;
+    XMEMSET(peerBuf, 0x0b, sizeof(peerBuf));
+    peer.sa = peerBuf;
+    peer.sz = peer.bufSz = (unsigned int)sizeof(peerBuf);
+    ExpectIntEQ(test_dtls13_head_pool_setup(&pool, t.ch2, sz), TEST_SUCCESS);
+
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2 + cut + 1,
+        sz, client_hello, cut + 1, sz - cut - 1, DTLS_TIMEOUT_MAX, NULL,
+        &done, t.ssl_s, &verified, &isTls13), 0);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2, sz,
+        client_hello, 0, cut, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    ExpectNull(done);
+    ExpectNull(verified);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
+    ExpectNull(DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+
+    /* The peer starts over */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2, sz,
+        client_hello, 0, cut, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    ExpectNull(verified);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+
+    DtlsChPoolFree(&pool, NULL);
+    test_dtls13_ch2_free(&t);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A head the server's check cannot judge, short of the cookie or with none:
+ * the entry stays and the next check waits for twice the size. The completed
+ * message goes through *done, unchecked. */
+int test_dtls13_ch_pool_head_kept(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    test_dtls13_ch2 t;
+    DtlsChPool pool;
+    byte peerBuf[4];
+    WOLFSSL_SOCKADDR peer;
+    DtlsMsg* done = NULL;
+    DtlsMsg* cur = NULL;
+    DtlsMsg* verified = NULL;
+    byte isTls13 = 0;
+    word32 sz = 0;
+    word32 cut = 0;
+
+    ExpectIntEQ(test_dtls13_ch2_setup(&t), TEST_SUCCESS);
+    sz = t.ch2Sz;
+    cut = t.cut;
+    XMEMSET(peerBuf, 0x0c, sizeof(peerBuf));
+    peer.sa = peerBuf;
+    peer.sz = peer.bufSz = (unsigned int)sizeof(peerBuf);
+    ExpectIntEQ(test_dtls13_head_pool_setup(&pool, t.ch2, sz), TEST_SUCCESS);
+
+    /* One byte short of the cookie: checked and kept */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2, sz,
+        client_hello, 0, cut - 1, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), 0);
+    ExpectNull(verified);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
+    ExpectNotNull(cur = test_dtls13_held_for(&pool, 0x77));
+    ExpectNotNull(cur = test_dtls13_pool_next(&pool, cur));
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 2 * (cut - 1));
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+
+    /* The cookie completes the head, short of the next size: not checked */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2 + cut - 1,
+        sz, client_hello, cut - 1, 1, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), 0);
+    ExpectNull(verified);
+    ExpectNull(done);
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1, 2 * (cut - 1));
+    ExpectIntEQ(cur != NULL ? (int)cur->bytesReceived : -1, (int)cut);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
+
+    /* Complete: through *done, with no check */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch2 + cut, sz,
+        client_hello, cut, sz - cut, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), 0);
+    ExpectNull(verified);
+    ExpectNotNull(done);
+    ExpectIntEQ(done != NULL ? done->ready : 0, 1);
+    ExpectIntEQ(done != NULL ? (int)done->headReportAt : -1, 2 * (cut - 1));
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+    DtlsMsgListDelete(done, NULL);
+    done = NULL;
+
+    /* The first ClientHello, with no cookie: all but its last byte is
+     * checked and kept */
+    ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 1, t.ch1, t.ch1Sz,
+        client_hello, 0, t.ch1Sz - 1, DTLS_TIMEOUT_MAX, NULL, &done, t.ssl_s,
+        &verified, &isTls13), 0);
+    ExpectNull(verified);
+    ExpectNull(done);
+    ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
+    ExpectNotNull(cur = test_dtls13_held_for(&pool, 0x77));
+    ExpectNotNull(cur = test_dtls13_pool_next(&pool, cur));
+    ExpectIntEQ(cur != NULL ? (int)cur->headReportAt : -1,
+        2 * ((int)t.ch1Sz - 1));
+    ExpectTrue(test_dtls13_pool_ok(&pool));
+
+    DtlsChPoolFree(&pool, NULL);
+    test_dtls13_ch2_free(&t);
 #endif
     return EXPECT_RESULT();
 }
@@ -5893,11 +6534,11 @@ int test_dtls13_ch_pool_peer_key(void)
     pb.sz = pb.bufSz = (unsigned int)sizeof(o2);
     ExpectIntEQ(DtlsChPoolShardIdx(&pa), DtlsChPoolShardIdx(&pb));
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pa, 0, 0, data, 8, client_hello,
-        0, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pb, 0, 0, data, 8, client_hello,
-        4, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        4, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNotNull(done);
     DtlsMsgListDelete(done, NULL);
     done = NULL;
@@ -5906,9 +6547,9 @@ int test_dtls13_ch_pool_peer_key(void)
     /* One byte off is another peer */
     o2[sizeof(o2) - 1] = 0x02;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pa, 0, 0, data, 8, client_hello,
-        0, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pb, 0, 0, data, 8, client_hello,
-        4, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        4, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     ExpectTrue(test_dtls13_pool_ok(&pool));
@@ -5918,9 +6559,9 @@ int test_dtls13_ch_pool_peer_key(void)
     pb.sa = o1;
     pb.sz = pb.bufSz = (unsigned int)sizeof(o1) - 1;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pa, 0, 0, data, 8, client_hello,
-        0, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pb, 0, 0, data, 8, client_hello,
-        4, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        4, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
     ExpectTrue(test_dtls13_pool_ok(&pool));
@@ -5945,9 +6586,11 @@ int test_dtls13_ch_pool_peer_key(void)
         pb.sa = &b4;
         pb.sz = pb.bufSz = (unsigned int)sizeof(b4);
         ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pa, 0, 0, data, 8,
-            client_hello, 0, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+            client_hello, 0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+            NULL), 0);
         ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &pb, 0, 0, data, 8,
-            client_hello, 4, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+            client_hello, 4, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL,
+            NULL), 0);
         ExpectNull(done);
         ExpectIntEQ(test_dtls13_pool_count(&pool), 2);
         ExpectTrue(test_dtls13_pool_ok(&pool));
@@ -5987,15 +6630,16 @@ int test_dtls13_ch_pool_ctx_init(void)
         ExpectNotNull(dtls->cookieSecret.lock);
 #endif
         ExpectIntEQ(DtlsChPoolStore(&tls->dtlsChPool, tls->heap, &peer, 0, 0,
-            data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, NULL, &done),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL,
+            NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectNull(done);
-        ExpectNull(DtlsChPoolTakeRest(&tls->dtlsChPool, tls->heap, &peer, 0, 0,
-            4, 8, DTLS_TIMEOUT_MAX, NULL));
+        ExpectNull(DtlsChPoolTake(&tls->dtlsChPool, tls->heap, &peer,
+            DTLS_TIMEOUT_MAX));
         DtlsChPoolDrop(&tls->dtlsChPool, tls->heap, &peer, DTLS_TIMEOUT_MAX);
         DtlsChPoolClear(&tls->dtlsChPool, tls->heap);
         ExpectIntEQ(DtlsChPoolStore(&dtls->dtlsChPool, dtls->heap, &peer, 0, 0,
-            data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+            data, 8, client_hello, 0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL,
+            NULL, NULL), 0);
         ExpectIntEQ(test_dtls13_pool_count(&dtls->dtlsChPool), 1);
     }
     wolfSSL_CTX_free(tls);
@@ -6166,10 +6810,10 @@ int test_dtls13_ch_pool_max_age(void)
 
     /* Older than the default but within a longer maximum: kept */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 8, client_hello,
-        0, 4, longer, NULL, &done), 0);
+        0, 4, longer, NULL, &done, NULL, NULL, NULL), 0);
     test_dtls13_age(test_dtls13_pool_head(&pool));
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 8, client_hello,
-        4, 4, longer, NULL, &done), 0);
+        4, 4, longer, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNotNull(done);
     DtlsMsgListDelete(done, NULL);
     done = NULL;
@@ -6177,26 +6821,25 @@ int test_dtls13_ch_pool_max_age(void)
 
     /* Older than the maximum: gone, and the fragment starts over */
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 8, client_hello,
-        0, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        0, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     test_dtls13_age(test_dtls13_pool_head(&pool));
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 8, client_hello,
-        4, 4, DTLS_TIMEOUT_MAX, NULL, &done), 0);
+        4, 4, DTLS_TIMEOUT_MAX, NULL, &done, NULL, NULL, NULL), 0);
     ExpectNull(done);
     ExpectIntEQ(test_dtls13_pool_count(&pool), 1);
     DtlsChPoolClear(&pool, NULL);
 
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 8, client_hello,
-        4, 4, longer, NULL, &done), 0);
+        4, 4, longer, NULL, &done, NULL, NULL, NULL), 0);
     test_dtls13_age(test_dtls13_pool_head(&pool));
-    rest = DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 0, 4, 8, longer, NULL);
+    rest = DtlsChPoolTake(&pool, NULL, &peer, longer);
     ExpectNotNull(rest);
     DtlsMsgListDelete(rest, NULL);
     rest = NULL;
     ExpectIntEQ(DtlsChPoolStore(&pool, NULL, &peer, 0, 0, data, 8, client_hello,
-        4, 4, longer, NULL, &done), 0);
+        4, 4, longer, NULL, &done, NULL, NULL, NULL), 0);
     test_dtls13_age(test_dtls13_pool_head(&pool));
-    ExpectNull(DtlsChPoolTakeRest(&pool, NULL, &peer, 0, 0, 4, 8,
-        DTLS_TIMEOUT_MAX, NULL));
+    ExpectNull(DtlsChPoolTake(&pool, NULL, &peer, DTLS_TIMEOUT_MAX));
     ExpectIntEQ(test_dtls13_pool_count(&pool), 0);
 
     DtlsChPoolFree(&pool, NULL);
@@ -6883,14 +7526,17 @@ static THREAD_RETURN WOLFSSL_THREAD test_dtls13_ch_shard_worker(void* args)
         quarter = (rnd >> 24) % 4;
         XMEMSET(data, addr[0] + 1, TEST_CH_SHARD_MSG_SZ);
         if (op < 24) {
-            msg = DtlsChPoolTakeRest(&test_ch_shard_pool, NULL, &peer, 0, 1, 0,
-                TEST_CH_SHARD_MSG_SZ, DTLS_TIMEOUT_MAX, NULL);
+            msg = DtlsChPoolTake(&test_ch_shard_pool, NULL, &peer,
+                DTLS_TIMEOUT_MAX);
+            if (msg != NULL && DtlsMsgAdopt(&msg, NULL, NULL) != 0)
+                test_ch_shard_bad[tno]++;
         }
         else {
+            /* No check: the bytes are no ClientHello */
             (void)DtlsChPoolStore(&test_ch_shard_pool, NULL, &peer, 0, 1, data,
                 TEST_CH_SHARD_MSG_SZ, client_hello,
                 quarter * (TEST_CH_SHARD_MSG_SZ / 4), TEST_CH_SHARD_MSG_SZ / 4,
-                DTLS_TIMEOUT_MAX, NULL, &msg);
+                DTLS_TIMEOUT_MAX, NULL, &msg, NULL, NULL, NULL);
         }
         if (msg != NULL) {
             if (!test_ch_pool_msg_ok(msg, addr[0], TEST_CH_SHARD_MSG_SZ))

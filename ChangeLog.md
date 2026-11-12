@@ -33,11 +33,15 @@
   fragment of a first ClientHello, so a client whose ClientHello does not fit
   one datagram (a post-quantum key share, a small MTU) failed in silence. In a
   `WOLFSSL_DTLS_CH_FRAG` build (`--enable-dtls-frag-ch`, automatic with ML-KEM)
-  the fragments are now held in a pool owned by the `WOLFSSL_CTX` until the
-  ClientHello is complete, and the cookie check runs on the whole message; no
-  key, group or transcript state is kept until a cookie verifies. Any
-  stateless server made from the context can complete a ClientHello another
-  one started. This is on by default: the new
+  the fragments are now held in a pool owned by the `WOLFSSL_CTX`, keyed on
+  the peer address, and the cookie check runs in place on the contiguous
+  head of the held message, under the pool's lock, as the head grows to
+  sizes that at least double each time, and on the complete message; no key,
+  group or transcript state is kept until a cookie verifies, and once it does
+  the whole entry, later fragments included, leaves the pool for the server
+  that verified it in the same step. Any stateless server made
+  from the context can complete a ClientHello another one started. This is
+  on by default: the new
   `wolfSSL_CTX_dtls13_reassemble_ch_before_cookie()` and
   `wolfSSL_dtls13_reassemble_ch_before_cookie()` turn it off, and
   `wolfSSL_CTX_dtls13_clear_ch_pool()` frees what is held. Fragmented
@@ -53,11 +57,12 @@
   `WOLFSSL_DTLS_CH_POOL_SHARDS` lists (8; 1 with `SINGLE_THREADED` or
   `NO_HASH_WRAPPER`) picked by a hash of the peer address, each with its own
   lock. It needs atomics in a
-  threaded build and a clock in any (`NO_ASN_TIME` is not supported). The
-  first fragment of a DTLS 1.2 ClientHello whose cookie verifies is now kept
-  and the rest of the message taken from the pool, where before it was
-  ignored and the client had to resend the message. The example server takes
-  `--reassemble-before-cookie [n]` and `--ch-pool-max-bytes <n>`.
+  threaded build and a clock in any (`NO_ASN_TIME` is not supported). A
+  server that holds nothing, with the reassembly off or without the peer's
+  address, still checks the cookie on a first fragment as it arrives and
+  keeps that fragment, a DTLS 1.2 ClientHello's included, where before it
+  was ignored and the client had to resend the message. The example server
+  takes `--reassemble-before-cookie [n]` and `--ch-pool-max-bytes <n>`.
 
 * **Behavioral change (the DTLS receive list is bounded by bytes)**: the list
   of out-of-order and fragmented handshake messages was bounded by

@@ -1252,7 +1252,8 @@ enum {
     #define WOLFSSL_DTLS_RX_MAX_BYTES (MAX_HANDSHAKE_SZ + 16UL * 1024UL)
 #endif
 /* The most a WOLFSSL_CTX holds for ClientHellos whose cookie has not verified,
- * counted like the above: one budget for all its servers, one entry per peer. */
+ * counted like the above: one budget for all its servers, one entry per
+ * peer. */
 #ifndef WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES
     #define WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES (64UL * 1024UL)
 #endif
@@ -6744,6 +6745,8 @@ typedef struct DtlsMsg {
     word32          heldAt;    /* LowResTimer() when a pooled ClientHello
                                 * last gained bytes */
     word32          progress;  /* pool order of that gain */
+    word32          headReportAt; /* contiguous head size at which the pool
+                                   * next runs the cookie check on it */
 #endif
 } DtlsMsg;
 
@@ -8292,7 +8295,7 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
         #define DtlsChPoolClear wolfSSL_DtlsChPoolClear
         #define DtlsChPoolStore wolfSSL_DtlsChPoolStore
         #define DtlsChPoolDrop wolfSSL_DtlsChPoolDrop
-        #define DtlsChPoolTakeRest wolfSSL_DtlsChPoolTakeRest
+        #define DtlsChPoolTake wolfSSL_DtlsChPoolTake
         #define DtlsChPoolShardIdx wolfSSL_DtlsChPoolShardIdx
         #define DtlsMsgAdopt wolfSSL_DtlsMsgAdopt
     #endif /* WOLFSSL_API_PREFIX_MAP */
@@ -8330,12 +8333,12 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
     WOLFSSL_TEST_VIS int  DtlsChPoolStore(DtlsChPool* pool, void* heap,
             const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq,
             const byte* data, word32 dataSz, byte type, word32 fragOffset,
-            word32 fragSz, word32 maxAge, void* outHeap, DtlsMsg** done);
+            word32 fragSz, word32 maxAge, void* outHeap, DtlsMsg** done,
+            const WOLFSSL* ssl, DtlsMsg** verified, byte* isTls13);
     WOLFSSL_TEST_VIS void DtlsChPoolDrop(DtlsChPool* pool, void* heap,
             const WOLFSSL_SOCKADDR* peer, word32 maxAge);
-    WOLFSSL_TEST_VIS DtlsMsg* DtlsChPoolTakeRest(DtlsChPool* pool, void* heap,
-            const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq,
-            word32 fragSz, word32 msgSz, word32 maxAge, void* outHeap);
+    WOLFSSL_TEST_VIS DtlsMsg* DtlsChPoolTake(DtlsChPool* pool, void* heap,
+            const WOLFSSL_SOCKADDR* peer, word32 maxAge);
     WOLFSSL_TEST_VIS word32 DtlsChPoolShardIdx(const WOLFSSL_SOCKADDR* peer);
     WOLFSSL_TEST_VIS int  DtlsMsgAdopt(DtlsMsg** msg, void* from, void* to);
     WOLFSSL_LOCAL int DtlsChPoolSetMaxBytes(DtlsChPool* pool, void* heap,
@@ -8367,6 +8370,11 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #if !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl,
             const byte* input, word32 fragSz, word32 msgSz);
+    WOLFSSL_LOCAL int ClientHelloStatelessCommit(WOLFSSL* ssl, byte isTls13);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    WOLFSSL_LOCAL int DoClientHelloStatelessHead(const WOLFSSL* ssl,
+            const byte* head, word32 headSz, word32 msgSz, byte* isTls13);
+#endif
 #endif /* !defined(NO_WOLFSSL_SERVER) */
 #if !defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_NO_SOCK) && \
     (defined(USE_WOLFSSL_IO) || defined(WOLFSSL_USER_IO))

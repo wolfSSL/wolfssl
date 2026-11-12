@@ -41,14 +41,19 @@
  *     - Continue like with a normal connection
  * WOLFSSL_DTLS_CH_FRAG
  *     DTLS 1.3 ClientHello fragmentation. Server: reassemble a fragmented
- *     ClientHello, before its cookie is verified too, and run the cookie check
- *     on the complete message (RFC 9147 Section 5.5: a receiver must buffer or
- *     process a fragment). Unverified fragments are held in a pool per
- *     WOLFSSL_CTX, keyed on the remote address and bounded by
- *     WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES, or the budget
+ *     ClientHello, before its cookie is verified too (RFC 9147 Section 5.5: a
+ *     receiver must buffer or process a fragment). Unverified fragments are
+ *     held in a pool per WOLFSSL_CTX, keyed on the remote address and bounded
+ *     by WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES, or the budget
  *     wolfSSL_CTX_dtls13_set_ch_pool_max_bytes() sets at runtime, so any
- *     stateless server of the context can complete them. A server without
- *     the peer's address holds nothing. On by default:
+ *     stateless server of the context can complete them. The cookie check
+ *     runs in place on the contiguous head of the held message, under the
+ *     pool's lock, as the head grows to sizes that at least double each
+ *     time, so the server turns stateful as soon as the head reaches the
+ *     cookie and the whole entry, later fragments included, leaves the pool
+ *     for its receive list in the same step. A server without the peer's
+ *     address holds nothing: it checks the cookie on a first fragment as it
+ *     arrives and keeps only that one. On by default:
  *     wolfSSL_CTX_dtls13_reassemble_ch_before_cookie() turns the holding off,
  *     wolfSSL_dtls13_allow_ch_frag() the reassembly, and
  *     wolfSSL_CTX_dtls13_clear_ch_pool() empties the pool. The pool needs a
@@ -1054,14 +1059,18 @@ static int ClientHelloSanityCheck(WolfSSL_CH* ch, byte isTls13)
     return 0;
 }
 
-static int _DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
-        word32 helloSz, byte isFirstCHFrag)
+/* The stateless verdict on the first helloSz bytes of a ClientHello, a
+ * prefix when isFirstCHFrag. Reads ssl only; ch holds what was parsed.
+ * 0: cookie verified. COOKIE_ERROR: no cookie, or a bad DTLS 1.2 one.
+ * INVALID_PARAMETER: a bad DTLS 1.3 cookie. BUFFER_ERROR: the prefix ends
+ * before a field checked. */
+static int ClientHelloStatelessVerdict(const WOLFSSL* ssl, const byte* input,
+        word32 helloSz, byte isFirstCHFrag, WolfSSL_CH* ch, byte* isTls13)
 {
     int ret;
-    WolfSSL_CH ch;
-    byte isTls13 = 0;
 
-    WOLFSSL_ENTER("DoClientHelloStateless");
+    WOLFSSL_ENTER("ClientHelloStatelessVerdict");
+    *isTls13 = 0;
     if (isFirstCHFrag) {
 #ifdef WOLFSSL_DTLS_CH_FRAG
         WOLFSSL_MSG("\tProcessing fragmented ClientHello");
@@ -1071,21 +1080,20 @@ static int _DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
         return BAD_STATE_E;
 #endif
     }
-    XMEMSET(&ch, 0, sizeof(ch));
+    XMEMSET(ch, 0, sizeof(*ch));
 
-    ssl->options.dtlsStateful = 0;
-    ret = ParseClientHello(input, helloSz, &ch, isFirstCHFrag);
+    ret = ParseClientHello(input, helloSz, ch, isFirstCHFrag);
     if (ret != 0)
         return ret;
 
 #ifdef WOLFSSL_DTLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
-        ret = TlsCheckSupportedVersion(ssl, &ch, &isTls13);
+        ret = TlsCheckSupportedVersion(ssl, ch, isTls13);
         if (ret != 0)
             return ret;
-        if (isTls13) {
+        if (*isTls13) {
             int tlsxFound;
-            ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
+            ret = FindExtByType(&ch->cookieExt, TLSX_COOKIE, ch->extension,
                                  &tlsxFound);
             if (ret != 0) {
                 if (isFirstCHFrag) {
@@ -1098,118 +1106,115 @@ static int _DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
     }
 #endif
 
-    ret = ClientHelloSanityCheck(&ch, isTls13);
+    ret = ClientHelloSanityCheck(ch, *isTls13);
     if (ret != 0)
         return ret;
 
 #ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
-    if (!isTls13 && !isFirstCHFrag) {
+    if (!*isTls13 && !isFirstCHFrag) {
         int resume = FALSE;
-        ret = TlsResumptionIsValid(ssl, &ch, &resume);
+        ret = TlsResumptionIsValid(ssl, ch, &resume);
         if (ret != 0)
             return ret;
-        if (resume) {
-            ssl->options.dtlsStateful = 1;
-            /* Update the window now that we enter the stateful parsing */
-            DtlsUpdateWindow(ssl);
-            /* Set record numbers before current record number as read */
-            XMEMSET(ssl->keys.peerSeq->window, 0xFF,
-                    sizeof(ssl->keys.peerSeq->window));
+        if (resume)
             return 0;
-        }
     }
 #endif
 
-    if (ch.cookie.size == 0 && ch.cookieExt.size == 0) {
-#ifdef WOLFSSL_DTLS_CH_FRAG
-        /* Don't send anything here when processing fragment */
-        if (isFirstCHFrag)
-            ret = COOKIE_ERROR;
-        else
-#endif
-            ret = SendStatelessReply(ssl, &ch, isTls13);
-    }
+    if (ch->cookie.size == 0 && ch->cookieExt.size == 0)
+        return COOKIE_ERROR;
     else {
         byte cookieGood;
-        ret = CheckDtlsCookie(ssl, &ch, isTls13, &cookieGood);
+        ret = CheckDtlsCookie(ssl, ch, *isTls13, &cookieGood);
         if (ret != 0)
             return ret;
         if (!cookieGood) {
 #ifdef WOLFSSL_DTLS13
             /* Invalid cookie for DTLS 1.3 results in an alert. Alert to be sent
              * in DoTls13ClientHello. */
-            if (isTls13)
-                ret = INVALID_PARAMETER;
-            else
+            if (*isTls13)
+                return INVALID_PARAMETER;
 #endif
-#ifdef WOLFSSL_DTLS_CH_FRAG
-            /* Don't send anything here when processing fragment */
-            if (isFirstCHFrag)
-                ret = COOKIE_ERROR;
-            else
-#endif
-                ret = SendStatelessReply(ssl, &ch, isTls13);
-        }
-        else {
-            ssl->options.dtlsStateful = 1;
-            /* Update the window now that we enter the stateful parsing */
-#ifdef WOLFSSL_DTLS13
-            if (isTls13) {
-                /* Set record numbers before current record number as read */
-                Dtls13Epoch* e;
-                ret = Dtls13UpdateWindowRecordRecvd(ssl);
-                e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
-                if (e != NULL)
-                    XMEMSET(e->window, 0xFF, sizeof(e->window));
-            }
-            else
-#endif
-                DtlsUpdateWindow(ssl);
-            /* Set record numbers before current record number as read */
-            XMEMSET(ssl->keys.peerSeq->window, 0xFF,
-                    sizeof(ssl->keys.peerSeq->window));
+            return COOKIE_ERROR;
         }
     }
 
+    return 0;
+}
+
+/* Turn ssl stateful on a verified ClientHello. The record it came in, and
+ * every one before it, counts as read. */
+int ClientHelloStatelessCommit(WOLFSSL* ssl, byte isTls13)
+{
+    int ret = 0;
+
+    (void)isTls13;
+    ssl->options.dtlsStateful = 1;
+#ifdef WOLFSSL_DTLS13
+    if (isTls13) {
+        Dtls13Epoch* e;
+        ret = Dtls13UpdateWindowRecordRecvd(ssl);
+        e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
+        if (e != NULL)
+            XMEMSET(e->window, 0xFF, sizeof(e->window));
+    }
+    else
+#endif
+        DtlsUpdateWindow(ssl);
+    XMEMSET(ssl->keys.peerSeq->window, 0xFF,
+            sizeof(ssl->keys.peerSeq->window));
     return ret;
 }
 
 /* input holds the first fragSz bytes of a msgSz byte ClientHello. They are
- * equal when input is the whole message. */
+ * equal when input is the whole message, which is answered when it has no
+ * cookie or a bad DTLS 1.2 one. A prefix is checked as far as it goes:
+ * BUFFER_ERROR or COOKIE_ERROR when it ends before the cookie, and the
+ * caller decides what becomes of the message it belongs to. */
 int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 fragSz,
         word32 msgSz)
 {
     byte isFrag = fragSz < msgSz;
+    byte isTls13 = 0;
+    WolfSSL_CH ch;
     int ret;
 
     if (fragSz > msgSz)
         return BAD_FUNC_ARG;
-    ret = _DoClientHelloStateless(ssl, input, fragSz, isFrag);
+    ssl->options.dtlsStateful = 0;
+    ret = ClientHelloStatelessVerdict(ssl, input, fragSz, isFrag, &ch,
+        &isTls13);
+    if (ret == 0)
+        ret = ClientHelloStatelessCommit(ssl, isTls13);
+    else if (ret == WC_NO_ERR_TRACE(COOKIE_ERROR) && !isFrag)
+        ret = SendStatelessReply(ssl, &ch, isTls13);
 #ifdef WOLFSSL_DTLS_CH_FRAG
-    /* The verified peer's entry leaves the pool: kept only as the rest of the
-     * ClientHello whose first fragment verified. Other peers' entries stay. */
-    if (ssl->options.dtlsStateful && ssl->buffers.dtlsCtx.peer.sz > 0) {
-        DtlsMsg* rest = NULL;
-
-        if (ret == 0 && isFrag) {
-            rest = DtlsChPoolTakeRest(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
-                &ssl->buffers.dtlsCtx.peer,
-                (word16)w64GetLow32(ssl->keys.curEpoch64),
-                ssl->keys.dtls_peer_handshake_number, fragSz, msgSz,
-                (word32)ssl->dtls_timeout_max, ssl->heap);
-        }
-        else {
-            /* What is held is a copy of the verified message or of an older
-             * attempt, and this object no longer reads the pool */
-            DtlsChPoolDrop(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
-                &ssl->buffers.dtlsCtx.peer, (word32)ssl->dtls_timeout_max);
-        }
-        if (rest != NULL)
-            DtlsMsgRxListInsert(ssl, rest);
+    /* A whole message verified: what the pool holds of this peer is an older
+     * attempt, and this object no longer reads the pool */
+    if (!isFrag && ssl->options.dtlsStateful &&
+            ssl->buffers.dtlsCtx.peer.sz > 0) {
+        DtlsChPoolDrop(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
+            &ssl->buffers.dtlsCtx.peer, (word32)ssl->dtls_timeout_max);
     }
 #endif
     return ret;
 }
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+/* The verdict on the first headSz bytes of a msgSz byte ClientHello, headSz
+ * below msgSz. Nothing is sent, written to ssl or read from the pool, so it
+ * may run with a pool shard locked: it takes only the cookie secret's lock.
+ * On 0, isTls13 is what ClientHelloStatelessCommit() takes. */
+int DoClientHelloStatelessHead(const WOLFSSL* ssl, const byte* head,
+        word32 headSz, word32 msgSz, byte* isTls13)
+{
+    WolfSSL_CH ch;
+
+    if (headSz >= msgSz)
+        return BAD_FUNC_ARG;
+    return ClientHelloStatelessVerdict(ssl, head, headSz, 1, &ch, isTls13);
+}
+#endif
 #endif /* !defined(NO_WOLFSSL_SERVER) */
 
 #if defined(WOLFSSL_DTLS_CID)

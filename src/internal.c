@@ -12528,17 +12528,35 @@ static DtlsMsg* DtlsChPoolFindMsg(DtlsChPool* pool, DtlsChPoolShard* sh,
     return cur;
 }
 
+/* The bytes msg holds from its start without a gap: its first bucket, since
+ * buckets that touch are merged */
+static word32 DtlsMsgHeadSz(const DtlsMsg* msg)
+{
+    const DtlsFragBucket* b = msg->fragBucketList;
+
+    return b != NULL && b->m.m.offset == 0 ? b->m.m.sz : 0;
+}
+
 /* Store a fragment of a ClientHello sent before its cookie verified. One entry
  * per peer, the newest. The entry the fragment completes leaves through *done.
  * Returns 0 when held, DTLS_MSG_STORE_DROPPED when not, or BAD_FUNC_ARG.
  * The most the fragment can add, a new entry with one bucket, is reserved
  * with no lock held and evicted for when it passes the budget. Only then is
  * the shard locked, once, and the reservation settled to the bytes really
- * added. A fragment of what is held evicts for its bound too. */
+ * added. A fragment of what is held evicts for its bound too.
+ * With ssl given, its cookie check runs on the entry's contiguous head, in
+ * place and with the shard locked, once the head grew to headReportAt: from
+ * the first byte, then from twice the size last checked, O(log n) times
+ * whatever the fragments. Verified, 0, the entry leaves the pool through
+ * *verified, still keyed on the peer and allocated with heap, and *isTls13
+ * is what ClientHelloStatelessCommit() takes. INVALID_PARAMETER frees it and
+ * is returned. Any other verdict keeps it pooled. A completed entry is not
+ * checked. */
 int DtlsChPoolStore(DtlsChPool* pool, void* heap,
         const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq,
         const byte* data, word32 dataSz, byte type, word32 fragOffset,
-        word32 fragSz, word32 maxAge, void* outHeap, DtlsMsg** done)
+        word32 fragSz, word32 maxAge, void* outHeap, DtlsMsg** done,
+        const WOLFSSL* ssl, DtlsMsg** verified, byte* isTls13)
 {
     DtlsChPoolShard* sh;
     DtlsMsg* cur = NULL;
@@ -12550,18 +12568,24 @@ int DtlsChPoolStore(DtlsChPool* pool, void* heap,
     size_t reserve; /* the bound of the fragment, held in pool->reserved */
     size_t sum;
     word32 received;
+    word32 headBefore = 0;
+    word32 headAfter = 0;
     word32 now;
     word32 buckets;
     int isNew;
     int progressed;
+    int badCookie = 0;
     int ret = 0;
 
     WOLFSSL_ENTER("DtlsChPoolStore");
     if (done != NULL)
         *done = NULL;
+    if (verified != NULL)
+        *verified = NULL;
     if (pool == NULL || !pool->ready || peer == NULL || done == NULL ||
             data == NULL || fragOffset > dataSz ||
-            fragSz > dataSz - fragOffset)
+            fragSz > dataSz - fragOffset ||
+            (ssl != NULL && (verified == NULL || isTls13 == NULL)))
         return BAD_FUNC_ARG;
     /* No address is no key, and a whole message is processed at once */
     if (peer->sz == 0 || (fragOffset == 0 && fragSz == dataSz))
@@ -12636,9 +12660,11 @@ int DtlsChPoolStore(DtlsChPool* pool, void* heap,
     }
     if (ret == 0) {
         received = cur->bytesReceived;
+        headBefore = DtlsMsgHeadSz(cur);
         /* A pooled ClientHello is always plaintext */
         ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset, fragSz, heap,
             dataSz, 0);
+        headAfter = DtlsMsgHeadSz(cur);
         /* New bytes refresh recency, duplicates do not */
         progressed = ret == 0 && (isNew || cur->bytesReceived > received);
         if (ret != 0 && isNew) {
@@ -12678,11 +12704,36 @@ int DtlsChPoolStore(DtlsChPool* pool, void* heap,
         DtlsChPoolUnlink(pool, sh, cur);
         detached = cur;
     }
+    /* A head that grew to the next check size is checked in place, with the
+     * lock held since another listener may change the entry once released.
+     * Its verdict settles the entry before that. */
+    else if (ret == 0 && ssl != NULL && headAfter > headBefore &&
+            headAfter >= cur->headReportAt) {
+        int verdict;
+
+        cur->headReportAt = 2 * headAfter;
+        /* Lock order: the check runs under the shard lock and takes the
+         * context's cookie secret lock inside it, a leaf lock */
+        verdict = DoClientHelloStatelessHead(ssl, cur->fragBucketList->buf,
+            headAfter, cur->sz, isTls13);
+        if (verdict == 0) {
+            DtlsChPoolUnlink(pool, sh, cur);
+            *verified = cur;
+        }
+        else if (verdict == WC_NO_ERR_TRACE(INVALID_PARAMETER)) {
+            DtlsChPoolUnlink(pool, sh, cur);
+            cur->next = gone;
+            gone = cur;
+            badCookie = 1;
+        }
+    }
     DtlsChShardUnlock(sh);
     DtlsMsgListDelete(gone, heap);
 
     if (ret != 0)
         return DTLS_MSG_STORE_DROPPED;
+    if (badCookie)
+        return INVALID_PARAMETER;
     if (detached != NULL) {
         if (DtlsMsgAdopt(&detached, heap, outHeap) != 0)
             return DTLS_MSG_STORE_DROPPED;
@@ -12692,9 +12743,10 @@ int DtlsChPoolStore(DtlsChPool* pool, void* heap,
 }
 
 /* Take peer's entry out of the pool, unless it has aged out. Only peer's
- * shard is locked. */
-static DtlsMsg* DtlsChPoolTake(DtlsChPool* pool, void* heap,
-                               const WOLFSSL_SOCKADDR* peer, word32 maxAge)
+ * shard is locked. The entry stays keyed on the peer and allocated with heap:
+ * DtlsMsgAdopt() hands it to a connection. */
+DtlsMsg* DtlsChPoolTake(DtlsChPool* pool, void* heap,
+                        const WOLFSSL_SOCKADDR* peer, word32 maxAge)
 {
     DtlsChPoolShard* sh;
     DtlsMsg* held;
@@ -12723,48 +12775,6 @@ void DtlsChPoolDrop(DtlsChPool* pool, void* heap, const WOLFSSL_SOCKADDR* peer,
         DtlsMsgDelete(held, heap);
 }
 
-/* Take peer's entry out of the pool. It is returned, allocated with outHeap,
- * only as the rest of the ClientHello of epoch and seq whose first fragSz of
- * msgSz bytes verified: what it held of those bytes is cut away, since only
- * the verified copy may be used. Nothing past them, or another message:
- * freed. */
-DtlsMsg* DtlsChPoolTakeRest(DtlsChPool* pool, void* heap,
-        const WOLFSSL_SOCKADDR* peer, word16 epoch, word32 seq, word32 fragSz,
-        word32 msgSz, word32 maxAge, void* outHeap)
-{
-    DtlsMsg* held = DtlsChPoolTake(pool, heap, peer, maxAge);
-    DtlsFragBucket* b;
-
-    if (held == NULL)
-        return NULL;
-    if (held->epoch != epoch || held->seq != seq ||
-            held->type != client_hello || held->sz != msgSz) {
-        DtlsMsgDelete(held, heap);
-        return NULL;
-    }
-    /* Buckets are sorted and disjoint: drop those the fragment covers, then
-     * cut the head of one it reaches into */
-    while ((b = held->fragBucketList) != NULL &&
-            b->m.m.offset + b->m.m.sz <= fragSz) {
-        held->fragBucketList = b->m.m.next;
-        held->bytesReceived -= b->m.m.sz;
-        held->fragBucketListCount--;
-        DtlsMsgDestroyFragBucket(b, heap);
-    }
-    if (b != NULL && b->m.m.offset < fragSz) {
-        word32 cut = fragSz - b->m.m.offset;
-
-        XMEMMOVE(b->buf, b->buf + cut, b->m.m.sz - cut);
-        b->m.m.offset = fragSz;
-        b->m.m.sz -= cut;
-        held->bytesReceived -= cut;
-    }
-    if (b == NULL || DtlsMsgAdopt(&held, heap, outHeap) != 0) {
-        DtlsMsgDelete(held, heap);
-        return NULL;
-    }
-    return held;
-}
 #endif /* WOLFSSL_DTLS_CH_FRAG && !NO_WOLFSSL_SERVER */
 
 /* Whether ret, from DtlsMsgStore(), ends the connection: only running out of

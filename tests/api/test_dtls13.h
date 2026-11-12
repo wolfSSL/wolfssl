@@ -71,6 +71,8 @@ int test_dtls13_frag_store_fatal(void);
 int test_dtls13_clear_frees_rx_list(void);
 int test_dtls13_frag_ch2_bad_cookie_dropped(void);
 int test_dtls13_frag_ch2_dtls12_cookie(void);
+int test_dtls13_frag_ch2_cookie_in_second(void);
+int test_dtls13_frag_ch2_cookie_frag_out_of_order(void);
 int test_dtls13_ch_pool_threads(void);
 int test_dtls13_ch_pool_shards_threads(void);
 int test_dtls13_ch_pool_handshake_threads(void);
@@ -80,6 +82,10 @@ int test_dtls13_ctx_cookie_secret_threads(void);
 int test_dtls13_ctx_cookie_secret_no_splice(void);
 int test_dtls13_ctx_cookie_secret_after_random(void);
 int test_dtls13_ch_pool_unit(void);
+int test_dtls13_ch_pool_head_report(void);
+int test_dtls13_ch_pool_head_verified(void);
+int test_dtls13_ch_pool_head_bad_cookie(void);
+int test_dtls13_ch_pool_head_kept(void);
 int test_dtls13_ch_pool_shards(void);
 int test_dtls13_ch_pool_evict_own_shard(void);
 int test_dtls13_ch_pool_evict_behind_own(void);
@@ -145,6 +151,10 @@ int test_dtls13_update_keys_want_write(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_interleaved_peers),         \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_evict_oldest),              \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_unit),                      \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_head_report),               \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_head_verified),             \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_head_bad_cookie),           \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_head_kept),                 \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_shards),                    \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_evict_own_shard),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_evict_behind_own),          \
@@ -183,6 +193,8 @@ int test_dtls13_update_keys_want_write(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_clear_frees_rx_list),              \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_bad_cookie_dropped),      \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_dtls12_cookie),           \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_cookie_in_second),        \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_cookie_frag_out_of_order), \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_threads),                    \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_shards_threads),             \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_handshake_threads),          \
