@@ -192,6 +192,20 @@ jobs:
         cd ..
         rm -rf build
 
+    - name: Build the user_settings.h templates
+      run: |
+        for cfg in tls12 tls13 dtls13 pq rsa_only ca pkcs7; do
+          echo "::group::user_settings_$cfg.h"
+          rm -rf build
+          mkdir build
+          cp examples/configs/user_settings_$cfg.h build/user_settings.h
+          cmake -B build -DWOLFSSL_USER_SETTINGS=yes -DCMAKE_BUILD_TYPE=Debug \
+              -DCMAKE_C_FLAGS="-I$PWD/build" -DWOLFSSL_EXAMPLES=no
+          cmake --build build -j $(nproc)
+          echo "::endgroup::"
+        done
+        rm -rf build
+
   build-armasm:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ${{ matrix.os }}

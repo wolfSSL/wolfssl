@@ -18647,7 +18647,7 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
 }
 #endif /* IGNORE_KEY_EXTENSIONS */
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
 /* Parse a chain certificate as a CA and add it to the pending signers list
  * for Certificate Status Request v2. */
 static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
@@ -18736,7 +18736,7 @@ exit_req_v2:
         DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 && !NO_TLS */
 
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
 /* Perform OCSP/CRL revocation checking on the leaf (peer) certificate.
@@ -19632,7 +19632,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     char* domainName = NULL;
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
     int addToPendingCAs = 0;
 #endif
     WOLFSSL_ENTER("ProcessPeerCerts");
@@ -20451,7 +20451,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         skipAddCA = 1;
                     }
                 #endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
                     if (ret == 0 && addToPendingCAs && !alreadySigner &&
                             !ssl->options.verifyNone && !skipAddCA) {
                         /* The verifyNone and skipAddCA conditions mirror the
@@ -20473,7 +20473,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (ret != 0 && ret != WC_NO_ERR_TRACE(NOT_CA_ERROR))
                             goto exit_ppc;
                     }
-#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 && !NO_TLS */
 
                     /* If valid CA then add to Certificate Manager */
                     if (ret == 0 && args->dCert->isCA &&
