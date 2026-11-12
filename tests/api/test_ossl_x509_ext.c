@@ -1358,6 +1358,94 @@ int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_X509_get_ext_d2i(NID_subject_alt_name) on a certificate whose SAN
+ * carries a directoryName entry. GENERAL_NAME_new() pre-allocates d.ia5, which
+ * shares the union slot with d.dirn; the ASN_DIR_TYPE arm must release it
+ * before storing the parsed X509_NAME, otherwise one ASN1_STRING leaks per
+ * directoryName entry (caught by the memory checkers under make check). */
+int test_wolfSSL_X509_get_ext_d2i_dirname_san(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_ALL)) && !defined(NO_RSA) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SAN_DIR))
+    XFILE f = XBADFILE;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_GENERAL_NAMES* gns = NULL;
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    char buf[64];
+    int crit = 0;
+    int i;
+    int dnsCount = 0;
+    int dirCount = 0;
+
+    /* SAN = DNS:example.com, dirName:{C=US, O=wolfSSL, CN=Dir Name SAN} */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-dirsan.pem", "rb")) !=
+        XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    ExpectNotNull(gns = (WOLFSSL_GENERAL_NAMES*)wolfSSL_X509_get_ext_d2i(x509,
+        NID_subject_alt_name, &crit, NULL));
+    ExpectIntEQ(wolfSSL_sk_GENERAL_NAME_num(gns), 2);
+    /* More than one SAN entry is reported as -2. */
+    ExpectIntEQ(crit, -2);
+
+    for (i = 0; i < wolfSSL_sk_GENERAL_NAME_num(gns); i++) {
+        ExpectNotNull(gn = wolfSSL_sk_GENERAL_NAME_value(gns, i));
+        if (gn == NULL)
+            break;
+        if (gn->type == WOLFSSL_GEN_DNS) {
+            dnsCount++;
+            ExpectNotNull(gn->d.dNSName);
+            ExpectIntEQ(wolfSSL_ASN1_STRING_length(gn->d.dNSName), 11);
+            ExpectIntEQ(XMEMCMP(wolfSSL_ASN1_STRING_data(gn->d.dNSName),
+                "example.com", 11), 0);
+        }
+        else if (gn->type == WOLFSSL_GEN_DIRNAME) {
+            dirCount++;
+            ExpectNotNull(gn->d.dirn);
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_commonName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "Dir Name SAN");
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_organizationName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "wolfSSL");
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_countryName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "US");
+        }
+        else {
+            ExpectIntEQ(gn->type, -1); /* unexpected entry type */
+        }
+    }
+    ExpectIntEQ(dnsCount, 1);
+    ExpectIntEQ(dirCount, 1);
+
+    wolfSSL_GENERAL_NAMES_free(gns);
+    gns = NULL;
+
+    /* Repeated calls must each produce independent, fully-owned results. */
+    for (i = 0; i < 3; i++) {
+        ExpectNotNull(gns = (WOLFSSL_GENERAL_NAMES*)wolfSSL_X509_get_ext_d2i(
+            x509, NID_subject_alt_name, NULL, NULL));
+        ExpectIntEQ(wolfSSL_sk_GENERAL_NAME_num(gns), 2);
+        wolfSSL_GENERAL_NAMES_free(gns);
+        gns = NULL;
+    }
+
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509V3_EXT_san(void)
 {
     EXPECT_DECLS;
