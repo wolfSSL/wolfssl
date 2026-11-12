@@ -72338,6 +72338,261 @@ out:
     return ret;
 }
 #endif
+#if defined(WC_MLKEM_NONBLOCK) || defined(WC_MLDSA_NONBLOCK)
+/* Steps of the non-blocking tests. They expect an int rc for the wolfCrypt
+ * result, an int yields and a wc_test_ret_t ret that stays at the first
+ * failure. */
+/* Call that must succeed in one go. */
+#define NB_STEP(call)                                                      \
+    do {                                                                   \
+        if (ret == 0) {                                                    \
+            rc = (call);                                                   \
+            if (rc != 0)                                                   \
+                ret = WC_TEST_RET_ENC_EC(rc);                              \
+        }                                                                  \
+    } while (0)
+/* Re-invoke until the operation stops yielding; rc is left for the test. */
+#define NB_DRIVE(call)                                                     \
+    do {                                                                   \
+        if (ret == 0) {                                                    \
+            yields = 0;                                                    \
+            while ((rc = (call)) == WC_NO_ERR_TRACE(MP_WOULDBLOCK))        \
+                yields++;                                                  \
+        }                                                                  \
+    } while (0)
+/* Re-invoke until the operation completes, which it must do successfully
+ * after yielding at least once. */
+#define NB_RUN(call)                                                       \
+    do {                                                                   \
+        NB_DRIVE(call);                                                    \
+        if ((ret == 0) && (rc != 0))                                       \
+            ret = WC_TEST_RET_ENC_EC(rc);                                  \
+        else if ((ret == 0) && (yields < 1))                               \
+            ret = WC_TEST_RET_ENC_NC;                                      \
+    } while (0)
+/* Start an operation and leave it in flight: the call must yield. */
+#define NB_START(call)                                                     \
+    do {                                                                   \
+        if (ret == 0) {                                                    \
+            rc = (call);                                                   \
+            if (rc == 0)                                                   \
+                ret = WC_TEST_RET_ENC_NC;                                  \
+            else if (rc != WC_NO_ERR_TRACE(MP_WOULDBLOCK))                 \
+                ret = WC_TEST_RET_ENC_EC(rc);                              \
+        }                                                                  \
+    } while (0)
+#define NB_EXPECT(cond)                                                    \
+    do {                                                                   \
+        if ((ret == 0) && !(cond))                                         \
+            ret = WC_TEST_RET_ENC_NC;                                      \
+    } while (0)
+#endif /* WC_MLKEM_NONBLOCK || WC_MLDSA_NONBLOCK */
+
+#if defined(WC_MLKEM_NONBLOCK) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+/* Drive ML-KEM key generation, encapsulation and decapsulation through the
+ * non-blocking (WC_MLKEM_NONBLOCK) path for one parameter set. Each operation
+ * must hand control back with MP_WOULDBLOCK at least once and produce exactly
+ * what the blocking path does, a tampered ciphertext must be implicitly
+ * rejected, and an operation left in flight must not affect the one started
+ * after it. */
+static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
+{
+    wc_test_ret_t    ret = 0;
+    int              rc = 0;
+    int              yields = 0;
+    MlKemKey         key;
+    MlKemKey         ref;
+    wc_MlKemNonBlock nb;
+    byte*            buf = NULL;
+    byte*            ct = NULL;
+    byte*            ct2 = NULL;
+    byte*            pub = NULL;
+    byte*            pubRef = NULL;
+    byte             ss[WC_ML_KEM_SS_SZ];
+    byte             ssDec[WC_ML_KEM_SS_SZ];
+    byte             seed[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    byte             seed2[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    byte             m[WC_ML_KEM_ENC_RAND_SZ];
+    word32           ctSz = 0;
+    word32           pubSz = 0;
+    int              keyInited = 0;
+    int              refInited = 0;
+
+    rc = wc_MlKemKey_Init(&key, type, HEAP_HINT, devId);
+    if (rc == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+        /* Parameter set not built. */
+        return 0;
+    }
+    if (rc != 0)
+        ret = WC_TEST_RET_ENC_EC(rc);
+    else
+        keyInited = 1;
+    NB_STEP(wc_MlKemKey_Init(&ref, type, HEAP_HINT, devId));
+    if (ret == 0)
+        refInited = 1;
+    NB_STEP(wc_MlKemKey_set_nonblock(&key, &nb));
+    NB_STEP(wc_MlKemKey_CipherTextSize(&key, &ctSz));
+    NB_STEP(wc_MlKemKey_PublicKeySize(&key, &pubSz));
+    NB_STEP(wc_RNG_GenerateBlock(rng, seed, sizeof(seed)));
+    NB_STEP(wc_RNG_GenerateBlock(rng, seed2, sizeof(seed2)));
+    NB_STEP(wc_RNG_GenerateBlock(rng, m, sizeof(m)));
+    if (ret == 0) {
+        buf = (byte*)XMALLOC(2 * (size_t)ctSz + 2 * (size_t)pubSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        else {
+            ct = buf;
+            ct2 = ct + ctSz;
+            pub = ct2 + ctSz;
+            pubRef = pub + pubSz;
+        }
+    }
+
+    /* Each operation yields, and the two secrets agree. */
+    NB_RUN(wc_MlKemKey_MakeKey(&key, rng));
+    NB_RUN(wc_MlKemKey_Encapsulate(&key, ct, ss, rng));
+    NB_RUN(wc_MlKemKey_Decapsulate(&key, ssDec, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
+
+    /* The same seeds give the same key, ciphertext and secret as blocking. */
+    NB_STEP(wc_MlKemKey_MakeKeyWithRandom(&ref, seed, (int)sizeof(seed)));
+    NB_STEP(wc_MlKemKey_EncodePublicKey(&ref, pubRef, pubSz));
+    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed, (int)sizeof(seed)));
+    NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
+    NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
+    NB_STEP(wc_MlKemKey_EncapsulateWithRandom(&ref, ct2, ssDec, m,
+        (int)sizeof(m)));
+    NB_RUN(wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss, m, (int)sizeof(m)));
+    NB_EXPECT(XMEMCMP(ct, ct2, ctSz) == 0);
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
+    NB_STEP(wc_MlKemKey_Decapsulate(&ref, ssDec, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
+
+    /* A tampered ciphertext is implicitly rejected: no error, other secret. */
+    if (ret == 0)
+        ct[0] ^= 0x80;
+    NB_RUN(wc_MlKemKey_Decapsulate(&key, ssDec, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) != 0);
+    if (ret == 0)
+        ct[0] ^= 0x80;
+
+    /* An operation abandoned after its first yield is released by
+     * re-attaching the context, and a fresh operation must then succeed. */
+    NB_START(wc_MlKemKey_Encapsulate(&key, ct2, ssDec, rng));
+    NB_STEP(wc_MlKemKey_set_nonblock(&key, &nb));
+    NB_RUN(wc_MlKemKey_Decapsulate(&key, ssDec, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
+
+    /* Without re-attaching: a decapsulation or encapsulation left in flight
+     * must not leak its state into a key generation, nor one key generation
+     * into the next. */
+    NB_STEP(wc_MlKemKey_MakeKeyWithRandom(&ref, seed2, (int)sizeof(seed2)));
+    NB_STEP(wc_MlKemKey_EncodePublicKey(&ref, pubRef, pubSz));
+    NB_START(wc_MlKemKey_Decapsulate(&key, ssDec, ct, ctSz));
+    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
+    NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
+    NB_START(wc_MlKemKey_EncapsulateWithRandom(&key, ct2, ssDec, m,
+        (int)sizeof(m)));
+    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
+    NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
+    NB_START(wc_MlKemKey_MakeKeyWithRandom(&key, seed, (int)sizeof(seed)));
+    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
+    NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
+
+    /* An encapsulation of a caller's m left in flight, then one from the RNG
+     * into the same buffer: it must not resume on that m. Likewise a key
+     * generation from a caller's seeds, then one from the RNG. */
+    NB_STEP(wc_MlKemKey_EncapsulateWithRandom(&ref, ct2, ssDec, m,
+        (int)sizeof(m)));
+    NB_START(wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss, m,
+        (int)sizeof(m)));
+    NB_RUN(wc_MlKemKey_Encapsulate(&key, ct, ss, rng));
+    NB_EXPECT(XMEMCMP(ct, ct2, ctSz) != 0);
+    NB_STEP(wc_MlKemKey_Decapsulate(&ref, ssDec, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
+    NB_START(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_RUN(wc_MlKemKey_MakeKey(&key, rng));
+    NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
+    NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) != 0);
+    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+
+    /* A decapsulation left in flight, then one of a ciphertext elsewhere. */
+    NB_STEP(wc_MlKemKey_EncapsulateWithRandom(&ref, ct, ss, m,
+        (int)sizeof(m)));
+    if (ret == 0) {
+        XMEMCPY(ct2, ct, ctSz);
+        ct2[1] ^= 0x01;
+    }
+    NB_START(wc_MlKemKey_Decapsulate(&key, ssDec, ct2, ctSz));
+    NB_RUN(wc_MlKemKey_Decapsulate(&key, ssDec, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
+    /* The ciphertext of a decapsulation in flight rewritten in place is
+     * refused, and the context is usable again afterwards. */
+    NB_START(wc_MlKemKey_Decapsulate(&key, ssDec, ct2, ctSz));
+    if (ret == 0)
+        XMEMCPY(ct2, ct, ctSz);
+    NB_DRIVE(wc_MlKemKey_Decapsulate(&key, ssDec, ct2, ctSz));
+    NB_EXPECT(rc == WC_NO_ERR_TRACE(BAD_STATE_E));
+    NB_RUN(wc_MlKemKey_Decapsulate(&key, ssDec, ct2, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
+
+#if !defined(WOLFSSL_MLKEM_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
+    /* Decoding a seed runs to completion with a context attached, and
+     * abandons what was in flight. */
+    if (ret == 0) {
+        byte   der[22 + WC_ML_KEM_MAKEKEY_RAND_SZ];
+        word32 idx = 0;
+        static const byte hdr[22] = {
+            0x30, 0x54, 0x02, 0x01, 0x00, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86,
+            0x48, 0x01, 0x65, 0x03, 0x04, 0x04, 0x00, 0x04, 0x42, 0x80, 0x40
+        };
+
+        XMEMCPY(der, hdr, sizeof(hdr));
+        der[17] = (byte)((type == WC_ML_KEM_512) ? 1 :
+                         (type == WC_ML_KEM_768) ? 2 : 3);
+        XMEMCPY(der + sizeof(hdr), seed2, sizeof(seed2));
+        NB_START(wc_MlKemKey_Decapsulate(&key, ssDec, ct, ctSz));
+        if (ret == 0) {
+            rc = wc_MlKemKey_PrivateKeyDecode(&key, der, (word32)sizeof(der),
+                &idx);
+            if (rc != 0)
+                ret = WC_TEST_RET_ENC_EC(rc);
+        }
+        NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
+        NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
+    }
+#endif
+
+    /* Nothing is left in the context once its operations have completed. */
+    NB_EXPECT((nb.work == NULL) && (nb.decWork == NULL) && (nb.op == 0));
+
+    XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (refInited)
+        wc_MlKemKey_Free(&ref);
+    if (keyInited)
+        wc_MlKemKey_Free(&key);
+    return ret;
+}
+
+static wc_test_ret_t mlkem_nonblock_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret;
+
+    ret = mlkem_nonblock_test_type(WC_ML_KEM_512, rng);
+    if (ret == 0)
+        ret = mlkem_nonblock_test_type(WC_ML_KEM_768, rng);
+    if (ret == 0)
+        ret = mlkem_nonblock_test_type(WC_ML_KEM_1024, rng);
+    return ret;
+}
+#endif /* WC_MLKEM_NONBLOCK && RNG && keygen && encapsulate && decapsulate */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 {
@@ -72743,6 +72998,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         goto out;
 #endif
 #endif
+#endif
+#if defined(WC_MLKEM_NONBLOCK) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    ret = mlkem_nonblock_test(&rng);
+    if (ret != 0)
+        goto out;
 #endif
 
 out:
@@ -78167,6 +78430,338 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
     #define MLDSA_CB_ONLY_LEVEL  WC_ML_DSA_87
 #endif
 
+#if defined(WC_MLDSA_NONBLOCK) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Drive ML-DSA key generation, signing and verification through the
+ * non-blocking (WC_MLDSA_NONBLOCK) path for one parameter set. Each operation
+ * must hand control back with MP_WOULDBLOCK at least once and produce exactly
+ * what the blocking path does, a tampered signature must be rejected, and an
+ * operation left in flight must not affect the one started after it. */
+static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
+{
+    wc_test_ret_t    ret = 0;
+    int              rc = 0;
+    int              yields = 0;
+    wc_MlDsaKey      key;
+    wc_MlDsaKey      ref;
+    wc_MlDsaNonBlock nb;
+    byte*            buf = NULL;
+    byte*            sig = NULL;
+    byte*            sig2 = NULL;
+    byte*            pub = NULL;
+    byte*            pubRef = NULL;
+    int              sigSz = 0;
+    int              pubSz = 0;
+    word32           sigLen = 0;
+    word32           sigLen2 = 0;
+    word32           len = 0;
+    int              res = 0;
+    int              keyInited = 0;
+    int              refInited = 0;
+    byte             seed[MLDSA_SEED_SZ];
+    byte             seed2[MLDSA_SEED_SZ];
+    byte             rnd[MLDSA_RND_SZ];
+    byte             msgBuf[32];
+#ifdef WOLFSSL_SHA512
+    byte             hash[WC_SHA512_DIGEST_SIZE];
+#endif
+    static const byte msg[] = "wolfSSL ML-DSA non-blocking test";
+    static const byte msg2[] = "wolfSSL ML-DSA another message";
+    static const byte ctx[] = { 0x6e, 0x62 };
+
+    rc = wc_MlDsaKey_Init(&key, HEAP_HINT, devId);
+    if (rc != 0)
+        ret = WC_TEST_RET_ENC_EC(rc);
+    else
+        keyInited = 1;
+    NB_STEP(wc_MlDsaKey_Init(&ref, HEAP_HINT, devId));
+    if (ret == 0)
+        refInited = 1;
+    NB_STEP(wc_MlDsaKey_SetParams(&key, (byte)level));
+    NB_STEP(wc_MlDsaKey_SetParams(&ref, (byte)level));
+    NB_STEP(wc_MlDsaKey_set_nonblock(&key, &nb));
+    NB_STEP(wc_MlDsaKey_GetSigLen(&key, &sigSz));
+    NB_STEP(wc_MlDsaKey_GetPubLen(&key, &pubSz));
+    NB_STEP(wc_RNG_GenerateBlock(rng, seed, sizeof(seed)));
+    NB_STEP(wc_RNG_GenerateBlock(rng, seed2, sizeof(seed2)));
+    NB_STEP(wc_RNG_GenerateBlock(rng, rnd, sizeof(rnd)));
+    NB_STEP(wc_RNG_GenerateBlock(rng, msgBuf, sizeof(msgBuf)));
+#ifdef WOLFSSL_SHA512
+    NB_STEP(wc_RNG_GenerateBlock(rng, hash, sizeof(hash)));
+#endif
+    if (ret == 0) {
+        buf = (byte*)XMALLOC(2 * (size_t)sigSz + 2 * (size_t)pubSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        else {
+            sig = buf;
+            sig2 = sig + sigSz;
+            pub = sig2 + sigSz;
+            pubRef = pub + pubSz;
+        }
+    }
+
+    /* Each operation yields - sign even when its first attempt succeeds. */
+    NB_RUN(wc_MlDsaKey_MakeKey(&key, rng));
+    sigLen = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen, msg,
+        (word32)sizeof(msg), rng));
+    NB_RUN(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+    /* A tampered signature must be rejected through the non-blocking path. */
+    if (ret == 0)
+        sig[0] ^= 0x80;
+    NB_DRIVE(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT((rc == 0) && (res == 0));
+
+    /* The same seeds give the same key and signature as blocking. */
+    NB_STEP(wc_MlDsaKey_MakeKeyFromSeed(&ref, seed));
+    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    len = (word32)pubSz;
+    NB_STEP(wc_MlDsaKey_ExportPubRaw(&ref, pubRef, &len));
+    len = (word32)pubSz;
+    NB_STEP(wc_MlDsaKey_ExportPubRaw(&key, pub, &len));
+    NB_EXPECT(XMEMCMP(pub, pubRef, (size_t)pubSz) == 0);
+#endif
+    sigLen2 = (word32)sigSz;
+    NB_STEP(wc_MlDsaKey_SignCtxWithSeed(&ref, ctx, (byte)sizeof(ctx), sig2,
+        &sigLen2, msg, (word32)sizeof(msg), rnd));
+    sigLen = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtxWithSeed(&key, ctx, (byte)sizeof(ctx), sig,
+        &sigLen, msg, (word32)sizeof(msg), rnd));
+    NB_EXPECT((sigLen == sigLen2) && (XMEMCMP(sig, sig2, sigLen) == 0));
+#ifdef WOLFSSL_SHA512
+    sigLen2 = (word32)sigSz;
+    NB_STEP(wc_MlDsaKey_SignCtxHashWithSeed(&ref, ctx, (byte)sizeof(ctx), sig2,
+        &sigLen2, hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA512, rnd));
+    sigLen = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtxHashWithSeed(&key, ctx, (byte)sizeof(ctx), sig,
+        &sigLen, hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA512, rnd));
+    NB_EXPECT((sigLen == sigLen2) && (XMEMCMP(sig, sig2, sigLen) == 0));
+    /* A hedged pre-hash signature with a context verifies both ways. */
+    sigLen = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtxHash(&key, ctx, (byte)sizeof(ctx), sig, &sigLen,
+        hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA512, rng));
+    NB_STEP(wc_MlDsaKey_VerifyCtxHash(&ref, sig, sigLen, ctx,
+        (byte)sizeof(ctx), hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA512,
+        &res));
+    NB_EXPECT(res == 1);
+    NB_RUN(wc_MlDsaKey_VerifyCtxHash(&key, sig, sigLen, ctx, (byte)sizeof(ctx),
+        hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA512, &res));
+    NB_EXPECT(res == 1);
+#endif
+#ifdef WOLFSSL_MLDSA_NO_CTX
+    sigLen = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_Sign(&key, sig, &sigLen, msg, (word32)sizeof(msg),
+        rng));
+    NB_STEP(wc_MlDsaKey_Verify(&ref, sig, sigLen, msg, (word32)sizeof(msg),
+        &res));
+    NB_EXPECT(res == 1);
+    NB_RUN(wc_MlDsaKey_Verify(&key, sig, sigLen, msg, (word32)sizeof(msg),
+        &res));
+    NB_EXPECT(res == 1);
+#endif
+
+    /* An operation abandoned after its first yield is released by
+     * re-attaching the context, and a fresh operation must then succeed. */
+    sigLen = (word32)sigSz;
+    NB_START(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen, msg,
+        (word32)sizeof(msg), rng));
+    NB_STEP(wc_MlDsaKey_set_nonblock(&key, &nb));
+    sigLen = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen, msg,
+        (word32)sizeof(msg), rng));
+    NB_STEP(wc_MlDsaKey_VerifyCtx(&ref, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+
+    /* Without re-attaching. sig holds a good signature of msg. A sign left
+     * in flight, then a sign of another message: it must be over that
+     * message. */
+    sigLen2 = (word32)sigSz;
+    NB_START(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+        (word32)sizeof(msg), rng));
+    sigLen2 = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg2,
+        (word32)sizeof(msg2), rng));
+    NB_STEP(wc_MlDsaKey_VerifyCtx(&ref, sig2, sigLen2, NULL, 0, msg2,
+        (word32)sizeof(msg2), &res));
+    NB_EXPECT(res == 1);
+    /* The message of a sign in flight rewritten in place is refused, and
+     * the context is usable again afterwards. */
+    sigLen2 = (word32)sigSz;
+    NB_START(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msgBuf,
+        (word32)sizeof(msgBuf), rng));
+    if (ret == 0)
+        msgBuf[0] ^= 0x01;
+    NB_DRIVE(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msgBuf,
+        (word32)sizeof(msgBuf), rng));
+    NB_EXPECT(rc == WC_NO_ERR_TRACE(BAD_STATE_E));
+    sigLen2 = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msgBuf,
+        (word32)sizeof(msgBuf), rng));
+    NB_STEP(wc_MlDsaKey_VerifyCtx(&ref, sig2, sigLen2, NULL, 0, msgBuf,
+        (word32)sizeof(msgBuf), &res));
+    NB_EXPECT(res == 1);
+    /* A sign left in flight, then a verify; a verify left in flight, then a
+     * sign. */
+    sigLen2 = (word32)sigSz;
+    NB_START(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+        (word32)sizeof(msg), rng));
+    NB_RUN(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+    NB_START(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    sigLen2 = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg2,
+        (word32)sizeof(msg2), rng));
+    NB_STEP(wc_MlDsaKey_VerifyCtx(&ref, sig2, sigLen2, NULL, 0, msg2,
+        (word32)sizeof(msg2), &res));
+    NB_EXPECT(res == 1);
+    /* A verify left in flight, then a verify of a signature whose z is out
+     * of range: the earlier signature's z must not stand in for it. */
+    if (ret == 0) {
+        XMEMCPY(sig2, sig, sigLen);
+        XMEMSET(sig2 + 64, 0xFF, (size_t)sigLen - 64 - 128);
+    }
+    NB_START(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_DRIVE(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT((rc == 0) && (res == 0));
+    /* The same with the signature rewritten in place, and with another
+     * message at the same address: never accepted. */
+    if (ret == 0)
+        XMEMCPY(sig2, sig, sigLen);
+    NB_START(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    if (ret == 0)
+        XMEMSET(sig2 + 64, 0xFF, (size_t)sigLen - 64 - 128);
+    NB_DRIVE(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT((rc == WC_NO_ERR_TRACE(BAD_STATE_E)) && (res == 0));
+    sigLen2 = (word32)sigSz;
+    NB_STEP(wc_MlDsaKey_SignCtx(&ref, NULL, 0, sig2, &sigLen2, msgBuf,
+        (word32)sizeof(msgBuf), rng));
+    NB_START(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen2, NULL, 0, msgBuf,
+        (word32)sizeof(msgBuf), &res));
+    if (ret == 0)
+        msgBuf[0] ^= 0x01;
+    NB_DRIVE(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen2, NULL, 0, msgBuf,
+        (word32)sizeof(msgBuf), &res));
+    NB_EXPECT((rc == WC_NO_ERR_TRACE(BAD_STATE_E)) && (res == 0));
+    /* A sign with a caller's rnd left in flight, then a hedged sign of the
+     * same message into the same buffer: it must not resume on that rnd.
+     * Likewise a key generation from a caller's seed, then one from the
+     * RNG. */
+    sigLen = (word32)sigSz;
+    NB_STEP(wc_MlDsaKey_SignCtxWithSeed(&ref, NULL, 0, sig, &sigLen, msg,
+        (word32)sizeof(msg), rnd));
+    sigLen2 = (word32)sigSz;
+    NB_START(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig2, &sigLen2, msg,
+        (word32)sizeof(msg), rnd));
+    sigLen2 = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+        (word32)sizeof(msg), rng));
+    NB_EXPECT(XMEMCMP(sig, sig2, sigLen) != 0);
+    NB_STEP(wc_MlDsaKey_VerifyCtx(&ref, sig2, sigLen2, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    NB_START(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
+    NB_RUN(wc_MlDsaKey_MakeKey(&key, rng));
+    len = (word32)pubSz;
+    NB_STEP(wc_MlDsaKey_ExportPubRaw(&key, pub, &len));
+    NB_EXPECT(XMEMCMP(pub, pubRef, (size_t)pubSz) != 0);
+    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
+#endif
+    /* A resumed call that fails before it picks up the working allocation
+     * still releases it. */
+    sigLen2 = (word32)sigSz;
+    NB_START(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+        (word32)sizeof(msg), rng));
+    NB_EXPECT(nb.work != NULL);
+    if (ret == 0) {
+        sigLen2 = 1;
+        rc = wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+            (word32)sizeof(msg), rng);
+    }
+    NB_EXPECT((rc == WC_NO_ERR_TRACE(BUFFER_E)) && (nb.work == NULL));
+    /* A key generation left in flight, then one from another seed. */
+    NB_START(wc_MlDsaKey_MakeKeyFromSeed(&key, seed2));
+    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    len = (word32)pubSz;
+    NB_STEP(wc_MlDsaKey_ExportPubRaw(&key, pub, &len));
+    NB_EXPECT(XMEMCMP(pub, pubRef, (size_t)pubSz) == 0);
+#endif
+
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
+    /* Decoding a seed runs to completion with a context attached, and
+     * abandons what was in flight. */
+    if (ret == 0) {
+        byte   der[22 + MLDSA_SEED_SZ];
+        word32 idx = 0;
+        static const byte hdr[22] = {
+            0x30, 0x34, 0x02, 0x01, 0x00, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86,
+            0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x00, 0x04, 0x22, 0x80, 0x20
+        };
+
+        XMEMCPY(der, hdr, sizeof(hdr));
+        der[17] = (byte)((level == WC_ML_DSA_44) ? 0x11 :
+                         (level == WC_ML_DSA_65) ? 0x12 : 0x13);
+        XMEMCPY(der + sizeof(hdr), seed, sizeof(seed));
+        sigLen2 = (word32)sigSz;
+        NB_START(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+            (word32)sizeof(msg), rng));
+        if (ret == 0) {
+            rc = wc_MlDsaKey_PrivateKeyDecode(&key, der, (word32)sizeof(der),
+                &idx);
+            if (rc != 0)
+                ret = WC_TEST_RET_ENC_EC(rc);
+        }
+        len = (word32)pubSz;
+        NB_STEP(wc_MlDsaKey_ExportPubRaw(&key, pub, &len));
+        NB_EXPECT(XMEMCMP(pub, pubRef, (size_t)pubSz) == 0);
+    }
+#endif
+
+    /* Nothing is left in the context once its operations have completed. */
+    NB_EXPECT((nb.work == NULL) && (nb.op == 0));
+
+    XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (refInited)
+        wc_MlDsaKey_Free(&ref);
+    if (keyInited)
+        wc_MlDsaKey_Free(&key);
+    return ret;
+}
+
+static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+#ifndef WOLFSSL_NO_ML_DSA_44
+    if (ret == 0)
+        ret = mldsa_nonblock_test_level(WC_ML_DSA_44, rng);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    if (ret == 0)
+        ret = mldsa_nonblock_test_level(WC_ML_DSA_65, rng);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    if (ret == 0)
+        ret = mldsa_nonblock_test_level(WC_ML_DSA_87, rng);
+#endif
+    return ret;
+}
+#endif /* WC_MLDSA_NONBLOCK && make-key && sign && verify */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 {
     wc_test_ret_t ret;
@@ -78274,6 +78869,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
     }
 #endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
         * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
+
+#if defined(WC_MLDSA_NONBLOCK) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    ret = mldsa_nonblock_test(&rng);
+    if (ret != 0) {
+        ERROR_OUT(ret, out);
+    }
+#endif
 
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
