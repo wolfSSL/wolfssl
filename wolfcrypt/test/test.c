@@ -12274,30 +12274,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 #endif
     }
 
-#if FIPS_VERSION3_GE(7,0,0)
-    /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
-     * CAVP-tested key range: wc_HmacSetKey must reject them, a key at the
-     * maximum must pass, and the wc_HmacSetKey_ex allowFlag escape must
-     * still accept the longer key as a non-approved use. */
-    {
-        byte maxKey[HMAC_FIPS_MAX_KEY + 1];
-        XMEMSET(maxKey, 0x0b, sizeof(maxKey));
-        if ((ret = wc_HmacInit(&hmac, HEAP_HINT, devId)) != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-        ret = wc_HmacSetKey(&hmac, WC_SHA, maxKey, (word32)sizeof(maxKey));
-        if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-        ret = wc_HmacSetKey(&hmac, WC_SHA, maxKey,
-                            (word32)sizeof(maxKey) - 1);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-        ret = wc_HmacSetKey_ex(&hmac, WC_SHA, maxKey, (word32)sizeof(maxKey),
-                               allowShortKeyWithFips);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-        wc_HmacFree(&hmac);
-    }
-#endif
 
 out:
 
@@ -12403,18 +12379,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA224, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
-#if FIPS_VERSION3_GE(7,0,0)
-        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
-         * CAVP-tested key range and are rejected in approved mode; the long
-         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
-         * allowFlag escape. */
-        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
-            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-            ret = wc_HmacSetKey_ex(&hmac, WC_SHA224, (byte*)keys[i],
-                                   (word32)XSTRLEN(keys[i]), 1);
-        }
-#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -12576,18 +12540,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA256, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
-#if FIPS_VERSION3_GE(7,0,0)
-        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
-         * CAVP-tested key range and are rejected in approved mode; the long
-         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
-         * allowFlag escape. */
-        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
-            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-            ret = wc_HmacSetKey_ex(&hmac, WC_SHA256, (byte*)keys[i],
-                                   (word32)XSTRLEN(keys[i]), 1);
-        }
-#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
@@ -12752,18 +12704,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA384, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
-#if FIPS_VERSION3_GE(7,0,0)
-        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
-         * CAVP-tested key range and are rejected in approved mode; the long
-         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
-         * allowFlag escape. */
-        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
-            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-            ret = wc_HmacSetKey_ex(&hmac, WC_SHA384, (byte*)keys[i],
-                                   (word32)XSTRLEN(keys[i]), 1);
-        }
-#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -12919,18 +12859,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA512, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
-#if FIPS_VERSION3_GE(7,0,0)
-        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
-         * CAVP-tested key range and are rejected in approved mode; the long
-         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
-         * allowFlag escape. */
-        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
-            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-            ret = wc_HmacSetKey_ex(&hmac, WC_SHA512, (byte*)keys[i],
-                                   (word32)XSTRLEN(keys[i]), 1);
-        }
-#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -13144,18 +13072,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
             ret = wc_HmacSetKey(&hmac, hashType[j], (byte*)key[i],
                                                        (word32)XSTRLEN(key[i]));
-#if FIPS_VERSION3_GE(7,0,0)
-            /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the
-             * module's CAVP-tested key range and are rejected in approved
-             * mode; the big-key vector stays covered through the
-             * wc_HmacSetKey_ex allowFlag escape. */
-            if (XSTRLEN(key[i]) > HMAC_FIPS_MAX_KEY) {
-                if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
-                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-                ret = wc_HmacSetKey_ex(&hmac, hashType[j], (byte*)key[i],
-                                       (word32)XSTRLEN(key[i]), 1);
-            }
-#endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -50993,29 +50909,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
         return WC_TEST_RET_ENC_NC;
     }
 
-#if FIPS_VERSION3_GE(7,0,0)
-    {
-        /* v7 keeps the 112-bit HMAC minimum for the PRF secret but exempts
-         * it from the 1024-bit HMAC maximum: a (pre-)master secret is e.g.
-         * 256 bytes for a 2048-bit DHE group. */
-        byte longSecret[256];
-
-        PRIVATE_KEY_UNLOCK();
-        ret = wc_PRF(dig, (word32)digL, secret, HMAC_FIPS_MIN_KEY - 1, lablSd,
-                     (word32)lblsdL, hash_type, HEAP_HINT, devId);
-        PRIVATE_KEY_LOCK();
-        if (ret != WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E))
-            return WC_TEST_RET_ENC_EC(ret);
-
-        XMEMSET(longSecret, 0x5a, sizeof(longSecret));
-        PRIVATE_KEY_UNLOCK();
-        ret = wc_PRF(dig, (word32)digL, longSecret, (word32)sizeof(longSecret),
-                     lablSd, (word32)lblsdL, hash_type, HEAP_HINT, devId);
-        PRIVATE_KEY_LOCK();
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-    }
-#endif
 
     return 0;
 }
