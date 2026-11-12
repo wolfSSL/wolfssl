@@ -2983,6 +2983,12 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
     byte seqArray[MAX_SEQ_SZ];
     word32 encDigSz, algoSz, seqSz;
 
+    /* A DigestInfo holds no more than the largest supported digest.  This
+     * also bounds the copy into digArray. */
+    if (digSz > WC_MAX_DIGEST_SIZE) {
+        return 0;
+    }
+
     encDigSz = SetDigest(digest, digSz, digArray);
     algoSz   = SetAlgoID(hashOID, algoArray, oidHashType, 0);
     seqSz    = SetSequence(encDigSz + algoSz, seqArray);

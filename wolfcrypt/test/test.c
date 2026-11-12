@@ -41104,6 +41104,19 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
 #endif
 
     /* Parameter Validation testing. */
+#ifndef NO_ASN
+    /* A digest longer than WC_MAX_DIGEST_SIZE must be rejected, whether or
+     * not it is encoded in place. */
+    XMEMSET(out, 0, RSA_TEST_BYTES);
+    if (wc_EncodeSignature(out, out, WC_MAX_DIGEST_SIZE + 1,
+                           wc_HashGetOID(WC_HASH_TYPE_SHA256)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_sig);
+    if (wc_EncodeSignature(out + (RSA_TEST_BYTES / 2), out,
+                           WC_MAX_DIGEST_SIZE + 1,
+                           wc_HashGetOID(WC_HASH_TYPE_SHA256)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_sig);
+#endif /* !NO_ASN */
+
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_NONE, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);

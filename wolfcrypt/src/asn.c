@@ -17832,7 +17832,8 @@ enum {
  * @param [in]  digest  Buffer holding digest.
  * @param [in]  digSz   Length of digest in bytes.
  * @return  Encoded data size on success.
- * @return  0 when dynamic memory allocation fails.
+ * @return  0 when digSz is larger than WC_MAX_DIGEST_SIZE or dynamic memory
+ *          allocation fails.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
 word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
@@ -17842,6 +17843,12 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
     int ret = 0;
     word32 sz = 0;
     unsigned char dgst[WC_MAX_DIGEST_SIZE];
+
+    /* A DigestInfo holds no more than the largest supported digest.  This
+     * also bounds the copy into dgst when encoding in place. */
+    if (digSz > (word32)sizeof(dgst)) {
+        ret = BUFFER_E;
+    }
 
     CALLOC_ASNSETDATA(dataASN, digestInfoASN_Length, ret, NULL);
 

@@ -84,6 +84,11 @@ static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte* hash_data,
         *hash_enc_len = (word32)ret;
         ret = 0;
     }
+    else {
+        /* wc_EncodeSignature() returns 0 on failure.  hash_len is a valid
+         * digest size here, leaving allocation failure as the cause. */
+        ret = MEMORY_E;
+    }
 
     return ret;
 }
