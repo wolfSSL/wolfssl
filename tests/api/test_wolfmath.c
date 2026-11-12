@@ -218,6 +218,69 @@ int test_mp_exptmod_even_2k(void)
 }
 
 /*
+ * Testing TFM exponentiation with a modulus of FP_SIZE / 2 digits - the largest
+ * accepted. Constant time exponentiation keeps working values at the length of
+ * the modulus so products use all FP_SIZE digits.
+ */
+int test_mp_exptmod_fp_size_boundary(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_FAST_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(TFM_TIMING_RESISTANT) && !defined(WC_NO_MODEXP_TIMING_RESISTANT)
+    mp_int g, x, p, y, e;
+    int k = (FP_SIZE / 2) * DIGIT_BIT;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&y, 0, sizeof(y));
+    XMEMSET(&e, 0, sizeof(e));
+    ExpectIntEQ(mp_init_multi(&g, &x, &p, &y, &e, NULL), MP_OKAY);
+
+    /* p = 2^k - 1: odd and all FP_SIZE / 2 digits set. */
+    ExpectIntEQ(mp_set(&p, 1), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&p, k, &p), MP_OKAY);
+    ExpectIntEQ(mp_sub_d(&p, 1, &p), MP_OKAY);
+    ExpectIntEQ(p.used, FP_SIZE / 2);
+
+    /* Base 2: 2^(k.2^64 + 7) mod (2^k - 1) = 2^7 as 2^k = 1 mod p. */
+    ExpectIntEQ(mp_set(&g, 2), MP_OKAY);
+    ExpectIntEQ(mp_set_int(&x, (unsigned long)k), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&x, 64, &x), MP_OKAY);
+    ExpectIntEQ(mp_add_d(&x, 7, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 128), MP_EQ);
+
+    /* General base: (p - 1)^x mod p = p - 1 when x odd and 1 when x even.
+     * Full width base and exponent. */
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_sub_d(&p, 2, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&y, &g), MP_EQ);
+    ExpectIntEQ(mp_sub_d(&p, 3, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    /* Exponent processed as a fixed number of digits. */
+    ExpectIntEQ(mp_sub_d(&p, 2, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_ex(&g, &x, x.used, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&y, &g), MP_EQ);
+
+    /* One digit more than the boundary is rejected. */
+    ExpectIntEQ(mp_mul_2d(&p, DIGIT_BIT, &e), MP_OKAY);
+    ExpectIntEQ(mp_add_d(&e, 1, &e), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &e, &y), WC_NO_ERR_TRACE(MP_VAL));
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&y);
+    mp_clear(&e);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
  * Testing wc_export_int
  */
 int test_wc_export_int(void)
