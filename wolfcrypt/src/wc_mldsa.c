@@ -551,7 +551,8 @@ static WC_INLINE cpuid_flags_t mldsa_cpuid_flags(void)
 
 /* Expanding a, s (make key) and y (sign) all squeeze more blocks. */
 #if defined(MLDSA_NEON_EXPAND_A) || !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_MLDSA_NO_SIGN)
+    (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+     !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))
 static void mlkem_sha3_blocksx3(word64* state)
 {
     if (IS_AARCH64_SHA3(mldsa_cpuid_flags())) {
@@ -576,7 +577,9 @@ static void mlkem_shake128_blocksx3_seed(word64* state, byte* seed)
 #endif
 
 /* Only expanding s (make key) and y (sign) use the 64-byte seed. */
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || !defined(WOLFSSL_MLDSA_NO_SIGN)
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+    (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+     !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))
 static void mlkem_shake256_blocksx3_seed_64(word64* state, byte* seed)
 {
     if (IS_AARCH64_SHA3(mldsa_cpuid_flags())) {
@@ -6734,7 +6737,7 @@ static int wc_mldsa_gen_y_avx512(sword32* y, byte* seed, word16 kappa,
     return 0;
 }
 #endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512 */
-#elif defined(MLDSA_ASM_BLOCKSX3)
+#elif defined(MLDSA_ASM_BLOCKSX3) && !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
 /* Decode polynomial with range -(GAMMA1-1)..GAMMA1 inside a gen_y lane.
  *
  * The lane's caller already holds the vector registers, so this calls the
