@@ -3527,11 +3527,29 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "add    r3, r3, r5\n\t"
 #endif
-        "movs   r6, %[d]\n\t"
+        /* Add 1 to result if bottom half of difference is >= d. */
+        "movs   r5, %[d]\n\t"
 #if defined(__clang__) || defined(WOLFSSL_KEIL)
-        "subs   r6, r6, r4\n\t"
+        "subs   r5, r5, r4\n\t"
 #else
-        "sub    r6, r6, r4\n\t"
+        "sub    r5, r5, r4\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r6\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r6\n\t"
+#else
+        "sbc    r6, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r3, r3, r6\n\t"
+#else
+        "sub    r3, r3, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r5, r5, #1\n\t"
+#else
+        "sub    r5, r5, #1\n\t"
 #endif
 #ifdef WOLFSSL_KEIL
         "sbcs   r6, r6, r6\n\t"

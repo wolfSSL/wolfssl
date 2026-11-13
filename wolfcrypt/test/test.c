@@ -96405,6 +96405,9 @@ static wc_test_ret_t mp_test_div_word(mp_int* a, mp_int* r)
     } vec[] = {
         /* Divisor with the top bit set. */
         { 0x4fbdd7d6, 0xba08af90, 0x85c6dbfc, 0x9898a6c6, 0x11f522a8 },
+        /* Exact divisions. */
+        { 0x00008000, 0x00000000, 0x80000000, 0x00010000, 0x00000000 },
+        { 0x7fff7fff, 0x00000000, 0x80008000, 0xfffe0000, 0x00000000 },
     };
     wc_test_ret_t ret;
     mp_digit rem;
