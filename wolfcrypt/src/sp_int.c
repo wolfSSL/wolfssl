@@ -1979,22 +1979,22 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 /* Square va and add double size result into: vh | vl */
 #define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
     __asm__ __volatile__ (                               \
-        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r5, %[a], #16		\n\t"            \
         "uxth	r6, %[a]		\n\t"            \
         /* al * al */                                    \
         "muls	r6, r6			\n\t"            \
         /* ah * ah */                                    \
-        "muls	r6, r6			\n\t"            \
+        "muls	r5, r5			\n\t"            \
         "adds	%[l], %[l], r6		\n\t"            \
-        "adcs	%[h], r6		\n\t"            \
-        "lsrs	r6, %[a], #16		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "lsrs	r5, %[a], #16		\n\t"            \
         "uxth	r6, %[a]		\n\t"            \
         /* 2 * al * ah */                                \
-        "muls	r6, r6			\n\t"            \
-        "lsrs	r6, r6, #15		\n\t"            \
+        "muls	r6, r5			\n\t"            \
+        "lsrs	r5, r6, #15		\n\t"            \
         "lsls	r6, r6, #17		\n\t"            \
         "adds	%[l], %[l], r6		\n\t"            \
-        "adcs	%[h], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
         : [l] "+l" (vl), [h] "+l" (vh)                   \
         : [a] "l" (va)                                   \
         : "r5", "r6", "cc"                               \
