@@ -1163,6 +1163,7 @@ int test_wc_HmacId_CryptoCb(void)
     byte mac[WC_SHA256_DIGEST_SIZE];
 
     XMEMSET(&seen, 0, sizeof(seen));
+    XMEMSET(&hmac, 0, sizeof(hmac));
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_HMAC_CRYPTOCB_DEVID,
         test_hmac_id_cb, &seen), 0);
 

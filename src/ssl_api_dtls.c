@@ -790,8 +790,10 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
 
     if (ret == 0) {
         XMEMCPY(ssl->arrays->preMasterSecret, preMasterSecret, preMasterSz);
-        XMEMSET(ssl->arrays->preMasterSecret + preMasterSz, 0,
-            MAX_PREMASTER_SZ - preMasterSz);
+        if (preMasterSz < MAX_PREMASTER_SZ) {
+            XMEMSET(ssl->arrays->preMasterSecret + preMasterSz, 0,
+                MAX_PREMASTER_SZ - preMasterSz);
+        }
         ssl->arrays->preMasterSz = preMasterSz;
         XMEMCPY(ssl->arrays->clientRandom, clientRandom, RAN_LEN);
         XMEMCPY(ssl->arrays->serverRandom, serverRandom, RAN_LEN);
