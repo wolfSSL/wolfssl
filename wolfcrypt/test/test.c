@@ -97113,9 +97113,11 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
         return WC_TEST_RET_ENC_NC;
     }
 
-    /* Even, multi-word modulus uses the generic exponentiation path for
-     * both mp_exptmod_ex and mp_exptmod_nct.  Verify b^6 mod m against
-     * repeated modular multiplication. */
+    /* Even, multi-word modulus.  Verify b^6 mod m against repeated modular
+     * multiplication.  RSA verify/public only builds reject an even modulus
+     * in mp_exptmod_nct rather than return a wrong Montgomery result.
+     * Without DH, mp_exptmod_ex hands every modulus to mp_exptmod_nct, so it
+     * rejects it too; with DH it uses the generic exponentiation. */
     if ((ret = mp_set(m, 1)) != MP_OKAY ||
             (ret = mp_mul_2d(m, 521, m)) != MP_OKAY ||   /* m = 2^521 (even) */
             (ret = mp_set(b, 7)) != MP_OKAY ||
@@ -97128,18 +97130,33 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
             return WC_TEST_RET_ENC_EC(ret);
         }
     }
+#if (defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)) && \
+    defined(NO_DH)
+    ret = mp_exptmod_ex(b, e, (int)e->used, m, r);
+    if (ret != WC_NO_ERR_TRACE(MP_VAL)) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+#else
     if ((ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
         return WC_TEST_RET_ENC_EC(ret);
     }
     if (mp_cmp(r, t) != MP_EQ) {
         return WC_TEST_RET_ENC_NC;
     }
+#endif
+#if defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    ret = mp_exptmod_nct(b, e, m, r);
+    if (ret != WC_NO_ERR_TRACE(MP_VAL)) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+#else
     if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
         return WC_TEST_RET_ENC_EC(ret);
     }
     if (mp_cmp(r, t) != MP_EQ) {
         return WC_TEST_RET_ENC_NC;
     }
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
 
