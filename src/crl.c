@@ -217,6 +217,11 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         XMEMCPY(crle->crlNumber, dcrl->crlNumber, sizeof(crle->crlNumber));
     }
     crle->verified = verified;
+#if !defined(NO_SKID) && !defined(NO_ASN)
+    crle->extAuthKeyIdSet = dcrl->extAuthKeyIdSet;
+    if (crle->extAuthKeyIdSet)
+        XMEMCPY(crle->extAuthKeyId, dcrl->extAuthKeyId, KEYID_SIZE);
+#endif
     if (!verified) {
         crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
         crle->signatureSz = dcrl->sigLength;
@@ -251,11 +256,6 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     #endif
         XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
         XMEMCPY(crle->signature, dcrl->signature, crle->signatureSz);
-    #ifndef NO_SKID
-        crle->extAuthKeyIdSet = dcrl->extAuthKeyIdSet;
-        if (crle->extAuthKeyIdSet)
-            XMEMCPY(crle->extAuthKeyId, dcrl->extAuthKeyId, KEYID_SIZE);
-    #endif
     }
     else {
         crle->toBeSigned = NULL;
@@ -536,89 +536,176 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
     return ret;
 }
 
+/* Check the cert (issuer name hash + serial) against every stored CRL from
+ * that issuer name.
+ *
+ * akid is the cert's Authority Key Identifier, or NULL if it has none. A CA
+ * that has rolled its key can have several CRLs under the same name, one per
+ * key, so the AKID splits them into:
+ *   own-key CRLs:   signed by the key that signed the cert (CRL AKID == akid),
+ *                   or either side has no AKID.
+ *   other-key CRLs: signed by a different key of the same-name CA.
+ *
+ * A if a cert has an own key CRL we prefer that. Otherwise we check the other
+ * CRLs for the issuer to see if the cert is revoked there.
+ *
+ * CRLs that fail signature verification are skipped entirely.
+ *
+ * Returns CRL_CERT_REVOKED if revoked, CRL_CERT_DATE_ERR if the CRLs that
+ * count are all past their next update, or 0. */
 static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, int *pFoundEntry,
-        WOLFSSL_CERT_MANAGER* cm)
+        WOLFSSL_CERT_MANAGER* cm, const byte* akid)
 {
     CRL_Entry* crle;
-    int        foundEntry = 0;
     int        ret = 0;
+    int        ownSeen = 0; /* found CRL with AKID == Cert AKID + Issuer same */
+    int        ownFresh = 0; /* CRL was not expired */
+    int        otherSeen = 0; /* Found CRL with same Issuer as Cert */
+    int        otherFresh = 0; /* CRL was not expired */
+#if !defined(NO_SKID) && !defined(NO_ASN)
+    /* Trust anchor of the cert's issuer. Only needed for other-key CRLs, so
+     * it is looked up lazily the first time one is found. */
+    Signer*    certAnchor = NULL;
+    int        certAnchorSet = 0;
+#endif
 
     if (wc_LockRwLock_Rd(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Rd failed");
         return BAD_MUTEX_E;
     }
 
+#if defined(NO_SKID) || defined(NO_ASN)
+    (void)akid;
+#endif
+
     for (crle = crl->crlList; crle != NULL; crle = crle->next) {
-        if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) == 0) {
-            int nextDateValid = 1;
+        int nextDateValid = 1;
+        int vret = 0;
+        int ownKey = 1;
+        /* Whether this CRL can count toward coverage. It can always revoke. */
+        int vouches = 1;
 
-            WOLFSSL_MSG("Found CRL Entry on list");
+        if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) != 0) {
+            continue;
+        }
 
-            if (cm != crl->cm) {
-                /* cm is not the owning cm of crl. The cached result is only
-                 * valid for the owning cm. Verify again without caching. */
-                ret = VerifyCRLE(crl, crle, cm, 0);
-                if (ret != 0) {
-                    WOLFSSL_MSG("Cannot use CRL as it didn't verify");
-                    break;
-                }
-            }
-            else {
-                if (crle->verified == 0) {
-                    if (wc_LockMutex(&crle->verifyMutex) != 0) {
-                        WOLFSSL_MSG("wc_LockMutex failed");
-                        break;
-                    }
+    #if !defined(NO_SKID) && !defined(NO_ASN)
+        /* Only an AKID mismatch makes it an other-key CRL. If either the
+         * cert or the CRL has no AKID, treat the CRL as own-key. */
+        if (akid != NULL && crle->extAuthKeyIdSet &&
+                XMEMCMP(crle->extAuthKeyId, akid, KEYID_SIZE) != 0) {
+            ownKey = 0;
+        }
+    #endif
 
-                    /* A different thread may have verified the entry while we
-                     * were waiting for the mutex. */
-                    if (crle->verified == 0)
-                        ret = VerifyCRLE(crl, crle, cm, 1);
+        WOLFSSL_MSG("Found CRL Entry on list");
 
-                    wc_UnLockMutex(&crle->verifyMutex);
-
-                    if (ret != 0)
-                        break;
-                }
-
-                if (crle->verified < 0) {
-                    WOLFSSL_MSG("Cannot use CRL as it didn't verify");
-                    ret = crle->verified;
-                    break;
-                }
+        if (cm != crl->cm) {
+            /* cm is not the owning cm of crl. The cached result is only
+             * valid for the owning cm. Verify again without caching. */
+            vret = VerifyCRLE(crl, crle, cm, 0);
+        }
+        else if (crle->verified == 0) {
+            if (wc_LockMutex(&crle->verifyMutex) != 0) {
+                WOLFSSL_MSG("wc_LockMutex failed");
+                break;
             }
 
-            WOLFSSL_MSG("Checking next date validity");
+            /* A different thread may have verified the entry while we
+             * were waiting for the mutex. */
+            if (crle->verified == 0)
+                vret = VerifyCRLE(crl, crle, cm, 1);
 
-        #ifdef WOLFSSL_NO_CRL_NEXT_DATE
-            if (crle->nextDateFormat != ASN_OTHER_TYPE)
+            wc_UnLockMutex(&crle->verifyMutex);
+        }
+
+        /* A CRL that failed verification (now, or cached from an earlier
+         * check) is skipped rather than failing the whole check, since
+         * another CRL for this issuer may still apply. */
+        if (vret == 0 && cm == crl->cm && crle->verified < 0)
+            vret = crle->verified;
+        if (vret != 0) {
+            WOLFSSL_MSG("Cannot use CRL as it didn't verify");
+            continue;
+        }
+
+    #ifdef WOLFSSL_NO_CRL_NEXT_DATE
+        if (crle->nextDateFormat != ASN_OTHER_TYPE)
+    #endif
+        {
+        #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
+            if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
+                               ASN_AFTER, MAX_DATE_SIZE)) {
+                WOLFSSL_MSG("CRL next date is no longer valid");
+                nextDateValid = 0;
+            }
         #endif
-            {
-            #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
-                if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
-                                   ASN_AFTER, MAX_DATE_SIZE)) {
-                    WOLFSSL_MSG("CRL next date is no longer valid");
-                    nextDateValid = 0;
-                }
-            #endif
+        }
+    #if !defined(NO_SKID) && !defined(NO_ASN)
+        /* RFC 5280 6.3.3(f): We can only trust a CRL to tell us a cert is
+         * not revoked if it comes from the same trust anchor. We can
+         * still use it to revoke however so we track that here by setting
+         * vouches to 0 if the anchors do not match */
+        if (!ownKey) {
+            Signer* crlAnchor;
+
+            if (!certAnchorSet) {
+                certAnchor = GetCATrustAnchor(cm, GetCA(cm, (byte*)akid));
+                certAnchorSet = 1;
             }
-            if (nextDateValid) {
-                foundEntry = 1;
-                ret = FindRevokedSerial(crle->certs, serial, serialSz,
-                        serialHash, crle->totalCerts);
-                if (ret != 0)
-                    break;
-            }
-            else if (foundEntry == 0) {
-                ret = CRL_CERT_DATE_ERR;
+            crlAnchor = GetCATrustAnchor(cm,
+                    GetCA(cm, (byte*)crle->extAuthKeyId));
+            if (certAnchor == NULL || crlAnchor != certAnchor) {
+                WOLFSSL_MSG("CRL issuer chains to another trust anchor");
+                vouches = 0;
             }
         }
+    #endif
+
+        if (ownKey) {
+            ownSeen = 1;
+        } else if (vouches) {
+            otherSeen = 1;
+        }
+
+        if (!nextDateValid) {
+            continue;
+        }
+
+        if (ownKey) {
+            ownFresh = 1;
+        }
+
+        else if (vouches) {
+            otherFresh = 1;
+        }
+
+        /* Issuer name + serial uniquely identify the cert, so any fresh,
+         * verified CRL for this name can revoke it, whichever key signed it
+         * and whichever anchor it chains to. */
+        ret = FindRevokedSerial(crle->certs, serial, serialSz,
+                serialHash, crle->totalCerts);
+        /* Cert was found to be revoked so break out */
+        if (ret != 0)
+            break;
     }
 
     wc_UnLockRwLock(&crl->crlLock);
 
-    *pFoundEntry = foundEntry;
+    if (ret == 0) {
+        /* If a crl for the cert was found we check if the crl was expired and
+         * return our finding. If the CRL was fresh we set pEntryFound to 1. */
+        int seen  = ownSeen ? ownSeen : otherSeen;
+        int fresh = ownSeen ? ownFresh : otherFresh;
+
+        *pFoundEntry = fresh;
+        if (!fresh && seen)
+            ret = CRL_CERT_DATE_ERR;
+    }
+    else {
+        *pFoundEntry = 1;
+    }
 
     return ret;
 }
@@ -629,7 +716,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
         int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm,
-        int canRetry)
+        int canRetry, const byte* akid)
 {
     int        foundEntry = 0;
     int        ret = 0;
@@ -651,7 +738,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 #endif
 
     ret = CheckCertCRLList(crl, issuerHash, serial, serialSz, serialHash,
-            &foundEntry, cm);
+            &foundEntry, cm, akid);
 
 #ifdef HAVE_CRL_IO
     if (foundEntry == 0) {
@@ -665,7 +752,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             else if (cbRet >= 0) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry, cm);
+                        serialHash, &foundEntry, cm, akid);
             }
         }
     }
@@ -684,7 +771,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             if (loadRet == WOLFSSL_SUCCESS) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry, cm);
+                        serialHash, &foundEntry, cm, akid);
             }
         }
     }
@@ -731,10 +818,10 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
 int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName)
+        int extCrlInfoSz, void* issuerName, const byte* akid)
 {
     return CheckCertCRLCm(crl, issuerHash, serial, serialSz, serialHash,
-            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1);
+            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1, akid);
 }
 
 /* Get the issuer X509_NAME of cert to pass to CheckCertCRLCm(). */
@@ -760,7 +847,13 @@ static int CheckDecodedCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
 
     return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
             NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm,
-            canRetry);
+            canRetry,
+        #if !defined(NO_SKID) && !defined(NO_ASN)
+            cert->extAuthKeyIdSet ? cert->extAuthKeyId : NULL
+        #else
+            NULL
+        #endif
+        );
 }
 
 /* Is the cert ok with CRL, return 0 on success */
@@ -903,50 +996,74 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
 #endif
 
     for (curr = crl->crlList; curr != NULL; curr = curr->next) {
-        if (XMEMCMP(curr->issuerHash, crle->issuerHash, CRL_DIGEST_SIZE) == 0) {
-            if ((curr->verified > 0) && (crle->verified == 0)) {
-                WOLFSSL_MSG("Unverified CRL cannot replace a verified entry");
-                wc_UnLockRwLock(&crl->crlLock);
-                return DUPE_ENTRY_E;
-            }
+        if (XMEMCMP(crle->issuerHash, curr->issuerHash, CRL_DIGEST_SIZE) != 0) {
+            prev = curr;
+            continue;
+        }
 
-            ret = CompareCRLnumber(crle, curr);
-            /* Error out if the CRL we're attempting to add isn't more
-             * authoritative than the existing entry */
-            if (ret == MP_LT || ret == MP_EQ) {
-                WOLFSSL_MSG("Same or newer CRL entry already exists");
-                wc_UnLockRwLock(&crl->crlLock);
-                return DUPE_ENTRY_E;
-            }
-            else if (ret < 0) {
-                WOLFSSL_MSG("Error comparing CRL Numbers");
-                wc_UnLockRwLock(&crl->crlLock);
-                return ret;
-            }
+        /* An unverified CRL can't replace a verified one from the same
+         * issuer. */
+        if ((curr->verified > 0) && (crle->verified == 0)) {
+            WOLFSSL_MSG("Cannot replace a verified CRL with an "
+                    "unverified one");
+            wc_UnLockRwLock(&crl->crlLock);
+            return DUPE_ENTRY_E;
+        }
 
-            /* Insert the new entry after the current entry. */
-            crle->next = curr->next;
-            if (prev != NULL) {
-                prev->next = crle;
+#if !defined(NO_SKID) && !defined(NO_ASN)
+        /* Each signing key of a same-name CA keeps its own CRL series, so a
+         * CRL only replaces a stored one signed by the same key. Keep
+         * looking (and add it as a new series if nothing matches) when:
+         *   - both have an AKID and they differ, or
+         *   - the new CRL has no AKID but the stored one does.
+         * A new CRL with an AKID may replace a stored one without. */
+        if (crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
+            if(XMEMCMP(crle->extAuthKeyId, curr->extAuthKeyId,
+                    KEYID_SIZE) != 0) {
+                prev = curr;
+                continue;
             }
-            else {
-                crl->crlList = crle;
-            }
+        }
+        else if (!crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
+            prev = curr;
+            continue;
+        }
+#endif
+        ret = CompareCRLnumber(crle, curr);
+        /* Error out if the CRL we're attempting to add isn't more
+         * authoritative than the existing entry */
+        if (ret == MP_LT || ret == MP_EQ) {
+            WOLFSSL_MSG("Same or newer CRL entry already exists");
+            wc_UnLockRwLock(&crl->crlLock);
+            return DUPE_ENTRY_E;
+        }
+        else if (ret < 0) {
+            WOLFSSL_MSG("Error comparing CRL Numbers");
+            wc_UnLockRwLock(&crl->crlLock);
+            return ret;
+        }
+
+        /* Insert the new entry after the current entry. */
+        crle->next = curr->next;
+        if (prev != NULL) {
+            prev->next = crle;
+        }
+        else {
+            crl->crlList = crle;
+        }
 
 #ifdef HAVE_CRL_UPDATE_CB
-            if (crl->cm && crl->cm->cbUpdateCRL != NULL) {
-                SetCrlInfo(curr, &old);
-                SetCrlInfo(crle, &cnew);
-                crl->cm->cbUpdateCRL(&old, &cnew);
-            }
+        if (crl->cm && crl->cm->cbUpdateCRL != NULL) {
+            SetCrlInfo(curr, &old);
+            SetCrlInfo(crle, &cnew);
+            crl->cm->cbUpdateCRL(&old, &cnew);
+        }
 #endif
 
-            /* Remove the current entry which was replaced */
-            CRL_Entry_free(curr, crl->heap);
+        /* Remove the current entry which was replaced */
+        CRL_Entry_free(curr, crl->heap);
 
-            break;
-        }
-        prev = curr;
+        break;
     }
 
     if (curr == NULL) {
@@ -1547,9 +1664,6 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
 #ifdef WC_RSA_PSS
         dupl->sigParams = NULL;
         dupl->sigParamsSz = 0;
-#endif
-#if !defined(NO_SKID) && !defined(NO_ASN)
-        dupl->extAuthKeyIdSet = 0;
 #endif
     }
 

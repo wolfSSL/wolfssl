@@ -55,6 +55,7 @@
 #include <wolfssl/options.h>
 
 #include <src/crl.c>
+#include <tests/api/test_certman_crl_fixtures.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -62,7 +63,17 @@
 #if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
 
 static int g_checks;
+static int g_fail;
 #define WB_NOTE(what) do { g_checks++; (void)(what); } while (0)
+/* For vectors with a known result: prints FAIL if cond is false. main still
+ * returns 0; run-whitebox-smoke.sh fails on "with failures". */
+#define WB_EXPECT(cond, what) do {                                  \
+        g_checks++;                                                 \
+        if (!(cond)) {                                              \
+            g_fail = 1;                                             \
+            printf("crl white-box: FAIL %s\n", (what));             \
+        }                                                           \
+    } while (0)
 
 /* ------------------------------------------------ CheckCertCRLCm :607 */
 /* `if ((serial == NULL || serialSz == 0) && serialHash == NULL)`
@@ -90,13 +101,13 @@ static void wb_check_cert_crl_ex(WOLFSSL_CERT_MANAGER* cm)
     XMEMSET(issuerHash, 0x22, sizeof(issuerHash));
 
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, NULL, (int)sizeof(serial),
-                           hash, NULL, 0, NULL, cm, 1));
+                           hash, NULL, 0, NULL, cm, 1, NULL));
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, NULL, (int)sizeof(serial),
-                           NULL, NULL, 0, NULL, cm, 1));
+                           NULL, NULL, 0, NULL, cm, 1, NULL));
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, 0,
-                           NULL, NULL, 0, NULL, cm, 1));
+                           NULL, NULL, 0, NULL, cm, 1, NULL));
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
-                           NULL, NULL, 0, NULL, cm, 1));
+                           NULL, NULL, 0, NULL, cm, 1, NULL));
 }
 
 
@@ -154,14 +165,14 @@ static void wb_missing_crl_callbacks(WOLFSSL_CERT_MANAGER* cm)
     /* 1. cm NULL: operand 0 false for both decisions. */
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
                            NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
-                           NULL, 1));
+                           NULL, 1, NULL));
 
     /* 2. real cm, no callbacks: operand 0 true, operand 1 false. */
     cm->cbMissingCRL = NULL;
     cm->crlCb = NULL;
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
                            NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
-                           cm, 1));
+                           cm, 1, NULL));
 
     /* 3. both callbacks installed, error cb returns 0: takes :668 TRUE (the
      * partner that gives operands 0 and 1 their pairs) and :686 to its third
@@ -171,14 +182,14 @@ static void wb_missing_crl_callbacks(WOLFSSL_CERT_MANAGER* cm)
     g_crlCbResult = 0;
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
                            NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
-                           cm, 1));
+                           cm, 1, NULL));
 
     /* 4. error cb returns non-zero: :686 operand 2 true, decision TRUE, which
      * is the override-the-CRL-error path. */
     g_crlCbResult = 1;
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
                            NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
-                           cm, 1));
+                           cm, 1, NULL));
 
     /* 5. a url longer than the 256-byte stack buffer takes the "CRL url too
      * long" arm of the copy guard inside the :668 body, which the short url
@@ -189,7 +200,7 @@ static void wb_missing_crl_callbacks(WOLFSSL_CERT_MANAGER* cm)
         longUrl[sizeof(longUrl) - 1] = '\0';
         WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial,
                                (int)sizeof(serial), NULL, (const byte*)longUrl,
-                               (int)sizeof(longUrl) - 1, NULL, cm, 1));
+                               (int)sizeof(longUrl) - 1, NULL, cm, 1, NULL));
     }
 
     cm->cbMissingCRL = NULL;
@@ -478,6 +489,243 @@ static void wb_store_crl(WOLFSSL_CERT_MANAGER* cm)
     (void)remove(out);
 }
 
+/* ------------------------------------------- AKID: AddCRL, CheckCertCRLList */
+/* A CA with several keys has one CRL series per key, told apart by AKID.
+ * These vectors drive the AKID decisions:
+ *
+ *   AddCRL:
+ *     crle->extAuthKeyIdSet && curr->extAuthKeyIdSet &&
+ *         XMEMCMP(crle AKID, curr AKID) != 0                -> new series
+ *     !crle->extAuthKeyIdSet && curr->extAuthKeyIdSet      -> new series
+ *
+ *   CheckCertCRLList:
+ *     akid != NULL && crle->extAuthKeyIdSet &&
+ *         XMEMCMP(crle AKID, akid) != 0                     -> other-key CRL
+ *     ownSeen ? own : other                                 -> coverage
+ *
+ * The MC/DC vectors above all pass akid == NULL. Here the CRLs are loaded
+ * unverified, then marked verified by hand.
+ *
+ * Fixtures (tests/api/test_certman_crl_fixtures.h): key A is the old root,
+ * key B the new one. A's CRLs are numbers 5 (revokes 0x10), 6 and 7 (no
+ * AKID). B's is number 1 (revokes 0x10 and 0x20). */
+#if !defined(NO_SKID) && !defined(NO_ASN) && defined(HAVE_ECC) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256)
+
+/* Loads der unverified. Returns the list head, or NULL on failure. */
+static CRL_Entry* wb_akid_load(WOLFSSL_CRL* crl, const byte* der, int sz)
+{
+    if (BufferLoadCRL(crl, der, sz, WOLFSSL_FILETYPE_ASN1, NO_VERIFY)
+            != WOLFSSL_SUCCESS)
+        return NULL;
+    return crl->crlList;
+}
+
+static int wb_akid_count(const WOLFSSL_CRL* crl)
+{
+    const CRL_Entry* e;
+    int n = 0;
+    for (e = crl->crlList; e != NULL; e = e->next)
+        n++;
+    return n;
+}
+
+/* Key A's key ID, read from its CRL by wb_akid(). */
+static byte wb_akid_a[KEYID_SIZE];
+static int  wb_akid_a_set;
+
+/* Loads CA A into cm and returns its signer. Load it after the CRLs to keep
+ * them unverified. */
+static Signer* wb_akid_load_ca(WOLFSSL_CERT_MANAGER* cm)
+{
+    if (!wb_akid_a_set ||
+            wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld, sizeof(fxRootOld),
+                WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        return NULL;
+    return GetCA(cm, wb_akid_a);
+}
+
+/* AddCRL's AKID checks: load two CRLs and count entries (1 = replaced or
+ * rejected, 2 = separate series). Each row has its own CertManager. */
+static void wb_akid_add_crl(void)
+{
+    static const struct {
+        int caFirst;            /* Load CA A first: its CRLs are verified. */
+        const byte* first; int firstSz;
+        const byte* second; int secondSz;
+        int count;              /* Entries after both loads. */
+        const char* what;
+    } rows[] = {
+        { 0, fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid),
+          fxCrlOld5, sizeof(fxCrlOld5), 1,
+          "AddCRL: stored entry has no AKID, number 5 < 7 rejected" },
+        { 0, fxCrlOld5, sizeof(fxCrlOld5),
+          fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid), 2,
+          "AddCRL: new entry has no AKID, kept beside the AKID one" },
+        { 0, fxCrlOld5, sizeof(fxCrlOld5), fxCrlOld6, sizeof(fxCrlOld6), 1,
+          "AddCRL: same AKID, replaces by number" },
+        { 0, fxCrlOld5, sizeof(fxCrlOld5), fxCrlNew1, sizeof(fxCrlNew1), 2,
+          "AddCRL: other AKID, new series" },
+        { 1, fxCrlOld5, sizeof(fxCrlOld5), fxCrlNew1, sizeof(fxCrlNew1), 1,
+          "AddCRL: verified entry blocks an unverified new series" },
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+        WOLFSSL_CRL crl;
+
+        if (cm == NULL || InitCRL(&crl, cm) != 0) {
+            printf("crl white-box: no CRL context, skipping AddCRL AKID\n");
+            wolfSSL_CertManagerFree(cm);
+            return;
+        }
+        if (rows[i].caFirst)
+            WB_EXPECT(wb_akid_load_ca(cm) != NULL, rows[i].what);
+        WB_EXPECT(wb_akid_load(&crl, rows[i].first, rows[i].firstSz) != NULL,
+                  rows[i].what);
+        (void)wb_akid_load(&crl, rows[i].second, rows[i].secondSz);
+        WB_EXPECT(wb_akid_count(&crl) == rows[i].count, rows[i].what);
+        FreeCRL(&crl, 0);
+        wolfSSL_CertManagerFree(cm);
+    }
+}
+
+#if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
+    !defined(WOLFSSL_NO_CRL_NEXT_DATE)
+    #define WB_AKID_DATES
+#endif
+
+/* Moves e's next update to 2020-01-01, in place over the fixtures' same-length
+ * 2046-01-01 UTCTime. */
+static void wb_akid_expire(CRL_Entry* e)
+{
+    static const char past[] = "200101000000Z";
+    if (e->nextDateFormat == ASN_UTC_TIME)
+        XMEMCPY(e->nextDate, past, sizeof(past) - 1);
+}
+
+/* CheckCertCRLList with a cert AKID. "Own" CRLs match the cert's AKID, "other"
+ * ones don't. Only CA A is loaded, so key B has no trust anchor. */
+static void wb_akid_check_list(void)
+{
+    /* CRLs loaded: A's 5, B's 1, both, or A's 7 (no AKID). */
+    enum { L_A, L_B, L_A_B, L_NOAKID };
+    static const byte s1[] = { 0x10 };  /* Revoked by A (and B). */
+    static const byte s2[] = { 0x20 };  /* Revoked by B only. */
+    static const byte s3[] = { 0x99 };  /* Revoked by neither. */
+    static const struct {
+        int list;
+        int staleA;
+        int staleB;
+        int akid;           /* Cert's AKID: 0 none, 1 key A, 2 key B. */
+        const byte* serial;
+        int ret;
+        int found;          /* Expected *pFoundEntry. */
+        const char* what;
+    } rows[] = {
+        { L_A_B, 0, 0, 0, s3, 0, 1,
+          "CheckCertCRLList: no cert AKID, every CRL is own" },
+        { L_NOAKID, 0, 0, 1, s3, 0, 1,
+          "CheckCertCRLList: CRL without AKID is own" },
+        { L_A_B, 0, 0, 1, s3, 0, 1,
+          "CheckCertCRLList: own and other fresh, not revoked" },
+        { L_A, 0, 0, 1, s1, WC_NO_ERR_TRACE(CRL_CERT_REVOKED), 1,
+          "CheckCertCRLList: revoked by own key" },
+        { L_A_B, 0, 0, 1, s2, WC_NO_ERR_TRACE(CRL_CERT_REVOKED), 1,
+          "CheckCertCRLList: revoked by other key" },
+        /* Key B's root isn't loaded, so its CRL can't chain to the cert's
+         * trust anchor (RFC 5280 6.3.3(f)) and doesn't count as found. */
+        { L_B, 0, 0, 1, s3, 0, 0,
+          "CheckCertCRLList: no own CRL, other anchor doesn't cover" },
+    #ifdef WB_AKID_DATES
+        { L_B, 0, 1, 1, s3, 0, 0,
+          "CheckCertCRLList: no own CRL, other anchor stale ignored" },
+        { L_A_B, 1, 0, 1, s3, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR), 0,
+          "CheckCertCRLList: own stale, other fresh doesn't cover" },
+        { L_A_B, 0, 1, 1, s3, 0, 1,
+          "CheckCertCRLList: own fresh, other stale ignored" },
+    #endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+        WOLFSSL_CRL crl;
+        CRL_Entry* eA = NULL;
+        CRL_Entry* eB = NULL;
+        CRL_Entry* e;
+        Signer* ca;
+        byte akidB[KEYID_SIZE];
+        byte issuerHash[CRL_DIGEST_SIZE];
+        int found = -1;
+        int ret;
+
+        if (cm == NULL || InitCRL(&crl, cm) != 0) {
+            wolfSSL_CertManagerFree(cm);
+            return;
+        }
+        /* CRLs first so they are stored unverified, then the CA. */
+        if (rows[i].list == L_A || rows[i].list == L_A_B)
+            eA = wb_akid_load(&crl, fxCrlOld5, sizeof(fxCrlOld5));
+        if (rows[i].list == L_B || rows[i].list == L_A_B)
+            eB = wb_akid_load(&crl, fxCrlNew1, sizeof(fxCrlNew1));
+        if (rows[i].list == L_NOAKID)
+            (void)wb_akid_load(&crl, fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid));
+        ca = wb_akid_load_ca(cm);
+        if (crl.crlList == NULL || ca == NULL ||
+                (rows[i].akid == 2 && eB == NULL)) {
+            WB_EXPECT(0, rows[i].what);
+            FreeCRL(&crl, 0);
+            wolfSSL_CertManagerFree(cm);
+            continue;
+        }
+        if (eB != NULL)
+            XMEMCPY(akidB, eB->extAuthKeyId, KEYID_SIZE);
+        XMEMCPY(issuerHash, crl.crlList->issuerHash, CRL_DIGEST_SIZE);
+        /* Use them without a signature check. */
+        for (e = crl.crlList; e != NULL; e = e->next)
+            e->verified = 1;
+        if (rows[i].staleA && eA != NULL)
+            wb_akid_expire(eA);
+        if (rows[i].staleB && eB != NULL)
+            wb_akid_expire(eB);
+
+        ret = CheckCertCRLList(&crl, issuerHash, (byte*)rows[i].serial,
+                (int)sizeof(s1), NULL, &found, cm,
+                rows[i].akid == 1 ? wb_akid_a :
+                rows[i].akid == 2 ? akidB : NULL);
+        WB_EXPECT(ret == rows[i].ret && found == rows[i].found,
+                  rows[i].what);
+
+        FreeCRL(&crl, 0);
+        wolfSSL_CertManagerFree(cm);
+    }
+}
+
+static void wb_akid(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_CRL crl;
+
+    if (InitCRL(&crl, cm) == 0) {
+        CRL_Entry* eA = wb_akid_load(&crl, fxCrlOld5, sizeof(fxCrlOld5));
+        if (eA != NULL && eA->extAuthKeyIdSet) {
+            XMEMCPY(wb_akid_a, eA->extAuthKeyId, KEYID_SIZE);
+            wb_akid_a_set = 1;
+        }
+        FreeCRL(&crl, 0);
+    }
+    if (!wb_akid_a_set) {
+        printf("crl white-box: AKID CRL did not load, AKID vectors "
+               "skipped\n");
+        return;
+    }
+
+    wb_akid_add_crl();
+    wb_akid_check_list();
+}
+#endif /* !NO_SKID && !NO_ASN && HAVE_ECC && !NO_ECC256 && !NO_SHA256 */
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -512,8 +760,13 @@ int main(void)
     wb_buffer_store(cm);
     wb_load_crl(cm);
     wb_store_crl(cm);
+#if !defined(NO_SKID) && !defined(NO_ASN) && defined(HAVE_ECC) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256)
+    wb_akid(cm);
+#endif
 
-    printf("crl white-box: %d vectors driven\n", g_checks);
+    printf("crl white-box: %d vectors driven (%s)\n", g_checks,
+           g_fail ? "with failures" : "ok");
 
 done:
     if (cm != NULL)
