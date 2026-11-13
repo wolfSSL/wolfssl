@@ -3251,10 +3251,13 @@ int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output,
 
     \return Success On successfully writing the encoded signature to output,
     returns the length written to the buffer
+    \return 0 Returned on error, including when digSz is larger than
+    WC_MAX_DIGEST_SIZE
 
     \param out pointer to the buffer where the encoded signature will be written
     \param digest pointer to the digest to use to encode the signature
-    \param digSz the length of the buffer containing the digest
+    \param digSz the length of the buffer containing the digest; at most
+    WC_MAX_DIGEST_SIZE
     \param hashOID OID identifying the hash type used to generate the
     signature. Valid options, depending on build configurations, are: SHAh,
     SHA256h, SHA384h, SHA512h, MD2h, MD5h, DESb, DES3b, CTC_MD5wRSA,

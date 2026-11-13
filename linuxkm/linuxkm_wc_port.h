@@ -803,7 +803,12 @@
             #include <crypto/scatterwalk.h>
             #include <crypto/internal/aead.h>
             #include <crypto/internal/hash.h>
-            #include <crypto/internal/rng.h>
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 5, 0) && !defined(WOLFSSL_LINUXKM_LKCAPI_NO_STDRNG)
+                #define WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+                #include <crypto/internal/rng.h>
+            #else
+                #undef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+            #endif
             #include <crypto/internal/skcipher.h>
             #include <crypto/internal/akcipher.h>
             #include <crypto/internal/kpp.h>
@@ -2328,9 +2333,11 @@
         #endif /* !WC_CONTAINERIZE_THIS */
     #endif
 
-    #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    #ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
         struct crypto_rng;
         WOLFSSL_API int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng);
+    #else
+        #define wc_linux_kernel_rng_is_wolfcrypt(rng) 0
     #endif
 
     /* Undo copied defines from wc_port.h, to avoid redefinition warnings. */

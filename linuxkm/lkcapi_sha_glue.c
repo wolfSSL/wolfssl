@@ -3932,6 +3932,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
 #endif /* !WC_LINUXKM_NO_ENTROPY_DAEMON */
 
+#if defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG) || defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
 static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
 {
     int ret;
@@ -4071,6 +4072,7 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
 
     return ret;
 }
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG || LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
 
 #ifdef WC_RNG_DEBUG_STATS
 /* Dump the default bank's aggregate stats, and (when reachable via the
@@ -4170,6 +4172,7 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
 }
 #endif /* WC_RNG_DEBUG_STATS */
 
+#if defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG) || defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
 static int wc_linuxkm_rng_bank_fini(struct wc_rng_bank *ctx) {
     int ret;
 
@@ -4217,7 +4220,9 @@ static int wc_linuxkm_rng_bank_fini(struct wc_rng_bank *ctx) {
 
     return ret;
 }
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG || LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
 
+#ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
 static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
     return wc_linuxkm_rng_bank_init((struct wc_rng_bank *)crypto_tfm_ctx(tfm));
@@ -4231,7 +4236,9 @@ static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
 }
 
 static int wc_linuxkm_drbg_default_instance_registered = 0;
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG */
 
+#if defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG) || defined(LINUXKM_DRBG_GET_RANDOM_BYTES)
 static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
     int err;
     struct wc_rng_bank_inst *ret;
@@ -4308,20 +4315,9 @@ static int linuxkm_put_drbg(struct wc_rng_bank_inst **drbg) {
     else
         return 0;
 }
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG || LINUXKM_DRBG_GET_RANDOM_BYTES */
 
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && defined(HAVE_HASHDRBG)
-
-int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng) {
-    if (rng &&
-        wc_linuxkm_drbg_default_instance_registered &&
-        (rng->base.__crt_alg->cra_init == wc_linuxkm_drbg_init_tfm))
-    {
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
 
 #ifdef WC_RNG_HAVE_RBGC
 
@@ -4411,6 +4407,7 @@ wc_static_assert(WC_LINUXKM_DRBG_SMALL_LIMIT <= WC_LINUXKM_RNG_POOL_SIZE);
 wc_static_assert(WC_LINUXKM_IN_TREE_RNG_POOL_BYTES <= WC_LINUXKM_RNG_POOL_SIZE);
 #endif
 
+#if defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG) || defined(LINUXKM_DRBG_GET_RANDOM_BYTES)
 static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                     const u8 *src, unsigned int slen,
                                     u8 *dst, unsigned int dlen, int pr)
@@ -4804,7 +4801,9 @@ out:
 
     return ret;
 }
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG || LINUXKM_DRBG_GET_RANDOM_BYTES */
 
+#ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
 static int wc_linuxkm_drbg_generate_tfm(struct crypto_rng *tfm,
                         const u8 *src, unsigned int slen,
                         u8 *dst, unsigned int dlen)
@@ -4896,6 +4895,12 @@ static struct rng_alg wc_linuxkm_drbg = {
         .cra_module      =      THIS_MODULE
     }
 };
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG */
+
+/* if WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG, wc_linuxkm_drbg_loaded follows the
+ * results of crypto_register_rng(), otherwise it follows the results of
+ * wc_linuxkm_rng_bank_init().
+ */
 static int wc_linuxkm_drbg_loaded = 0;
 
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
@@ -5391,6 +5396,10 @@ static int wc_get_random_bytes_callbacks_installed = 0;
 
 #elif defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES)
 
+#ifndef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+    #error WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES requires WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG.
+#endif
+
 #ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
     #error WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES requires WOLFSSL_EXPERIMENTAL_SETTINGS.
 #endif
@@ -5601,6 +5610,9 @@ static struct module_attribute wc_linuxkm_rng_stats_attr =
 static int wc_linuxkm_drbg_startup(void)
 {
     int ret;
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    int local_default_bank_inited = 0;
+#endif
 
     if (wc_linuxkm_drbg_loaded) {
         pr_err("ERROR: wc_linuxkm_drbg_set_default called with wc_linuxkm_drbg_loaded.\n");
@@ -5609,12 +5621,18 @@ static int wc_linuxkm_drbg_startup(void)
 
     ret = random_test();
     if (ret) {
-        pr_err("ERROR: self-test for %s failed "
-                           "with return code %d.\n",
-                           wc_linuxkm_drbg.base.cra_driver_name, ret);
+        pr_err("ERROR: self-test for RNG failed "
+                           "with return code %d.\n", ret);
         return -EINVAL;
     }
 
+/* return early if configuration has no persistent or registered RNG. */
+#if !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && !defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
+    wc_linuxkm_drbg_loaded = 1;
+    return 0;
+#endif
+
+#ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
     ret = crypto_register_rng(&wc_linuxkm_drbg);
     if (ret != 0) {
         pr_err("ERROR: crypto_register_rng: %d\n", ret);
@@ -5704,6 +5722,7 @@ static int wc_linuxkm_drbg_startup(void)
     wc_linuxkm_drbg_loaded = 1;
 
     WOLFKM_INSTALL_NOTICE(wc_linuxkm_drbg);
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     /* for the default RNG, make sure we don't cache an underlying SHA256
@@ -5711,7 +5730,7 @@ static int wc_linuxkm_drbg_startup(void)
      */
     wc_linuxkm_rng_initing_default_bank_flag = 1;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0) && defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
 
     ret = crypto_del_default_rng();
     if (ret) {
@@ -5753,9 +5772,11 @@ static int wc_linuxkm_drbg_startup(void)
 
     crypto_put_default_rng();
 
-#else /* >= 7.1.0 */
+#else /* >= 7.1.0 || !WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG */
 
-#ifdef CONFIG_CRYPTO_FIPS
+#if defined(CONFIG_CRYPTO_FIPS) && defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
+    /* On >=7.1 <7.5, iff fips_enabled, crypto_stdrng_get_bytes() still uses the
+     * top-priority stdrng. */
     if (fips_enabled) {
         char buf[16];
 
@@ -5776,7 +5797,7 @@ static int wc_linuxkm_drbg_startup(void)
         }
     }
     else
-#endif /* CONFIG_CRYPTO_FIPS */
+#endif /* CONFIG_CRYPTO_FIPS && WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG */
     {
         static struct wc_rng_bank local_default_bank;
         ret = wc_linuxkm_rng_bank_init(&local_default_bank);
@@ -5785,6 +5806,10 @@ static int wc_linuxkm_drbg_startup(void)
             pr_err("ERROR: wc_linuxkm_rng_bank_init returned %d\n", ret);
             return ret;
         }
+        local_default_bank_inited = 1;
+#ifndef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+        wc_linuxkm_drbg_loaded = 1;
+#endif
     }
 
 #endif /* >= 7.1.0 */
@@ -5800,19 +5825,24 @@ static int wc_linuxkm_drbg_startup(void)
                 pr_err("ERROR: wc_rng_bank_default_checkin() after wc_rng_bank_default_checkout() returned %d\n", ret);
         }
         if (ret != 0) {
-#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-    (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
-            if (default_bank != NULL) {
-                (void)wc_linuxkm_rng_bank_fini(default_bank);
-            }
+            if (local_default_bank_inited) {
+                ret = wc_linuxkm_rng_bank_fini(default_bank);
+                if (ret != 0)
+                    pr_err("ERROR: wc_linuxkm_rng_bank_fini() for error path cleanup returned %d\n", ret);
+                default_bank = NULL;
+#ifndef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+                wc_linuxkm_drbg_loaded = 0;
 #endif
+            }
             return -ECANCELED;
         }
     }
 
+#ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
     wc_linuxkm_drbg_default_instance_registered = 1;
     pr_info("%s registered as systemwide default stdrng.\n", wc_linuxkm_drbg.base.cra_driver_name);
     pr_info("libwolfssl: to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs\n");
+#endif
 
 #ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
     /* stock-notifier invalidation coverage rides with the registered
@@ -5895,19 +5925,24 @@ static int wc_linuxkm_drbg_startup(void)
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
 
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) || defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
     return 0;
+#else
+    /* not reachable */
+#endif
 }
 
 static int wc_linuxkm_drbg_cleanup(void) {
-    int cur_refcnt;
-
     if (! wc_linuxkm_drbg_loaded) {
         pr_err("ERROR: wc_linuxkm_drbg_cleanup called with ! wc_linuxkm_drbg_loaded\n");
         return -EINVAL;
     }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    if (wc_linuxkm_drbg_default_instance_registered) {
+  #ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+    if (wc_linuxkm_drbg_default_instance_registered)
+  #endif
+    {
         /* These deinstallations are racey, but the kernel doesn't provide any other
          * way.  It's written to be retryable.
          */
@@ -5962,15 +5997,15 @@ static int wc_linuxkm_drbg_cleanup(void) {
 
     #endif /* LINUXKM_DRBG_GET_RANDOM_BYTES */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0) && defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
         ret = crypto_del_default_rng();
         if (ret) {
             pr_err("ERROR: crypto_del_default_rng failed: %d\n", ret);
             return ret;
         }
-#else /* >= 7.1.0 */
+#else /* >= 7.1.0 || !WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG */
 
-#ifdef CONFIG_CRYPTO_FIPS
+#if defined(CONFIG_CRYPTO_FIPS) && defined(WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG)
         if (fips_enabled) {
             ret = crypto_del_default_rng();
             if (ret) {
@@ -5984,26 +6019,34 @@ static int wc_linuxkm_drbg_cleanup(void) {
             ret = wc_linuxkm_rng_bank_fini(default_bank);
             if (ret)
                 pr_err("ERROR: wc_linuxkm_rng_bank_fini in wc_linuxkm_drbg_cleanup failed: %d\n", ret);
+            else
+                default_bank = NULL;
         }
 #endif /* >= 7.1.0 */
 
+#ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
         wc_linuxkm_drbg_default_instance_registered = 0;
+#endif
     }
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
 
-    cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
+#ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+    {
+        int cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
 
-    if (cur_refcnt != 1) {
-        pr_err("ERROR: wc_linuxkm_drbg_cleanup called with refcnt = %d\n", cur_refcnt);
-        return -EBUSY;
+        if (cur_refcnt != 1) {
+            pr_err("ERROR: wc_linuxkm_drbg_cleanup called with refcnt = %d\n", cur_refcnt);
+            return -EBUSY;
+        }
+
+        crypto_unregister_rng(&wc_linuxkm_drbg);
+
+        if (! (wc_linuxkm_drbg.base.cra_flags & CRYPTO_ALG_DEAD)) {
+            pr_warn("WARNING: wc_linuxkm_drbg_cleanup: after crypto_unregister_rng, wc_linuxkm_drbg isn't dead.\n");
+            return -EBUSY;
+        }
     }
-
-    crypto_unregister_rng(&wc_linuxkm_drbg);
-
-    if (! (wc_linuxkm_drbg.base.cra_flags & CRYPTO_ALG_DEAD)) {
-        pr_warn("WARNING: wc_linuxkm_drbg_cleanup: after crypto_unregister_rng, wc_linuxkm_drbg isn't dead.\n");
-        return -EBUSY;
-    }
+#endif /* WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG */
 
     wc_linuxkm_drbg_loaded = 0;
 
@@ -6011,6 +6054,25 @@ static int wc_linuxkm_drbg_cleanup(void) {
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */
+
+#ifndef wc_linux_kernel_rng_is_wolfcrypt
+int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng) {
+  #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+    if (rng &&
+        wc_linuxkm_drbg_default_instance_registered &&
+        (rng->base.__crt_alg->cra_init == wc_linuxkm_drbg_init_tfm))
+    {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+  #else
+    (void)rng;
+    return 0;
+  #endif
+}
+#endif /* !wc_linux_kernel_rng_is_wolfcrypt */
 
 #ifndef LKCAPI_INITRNG
     #define LKCAPI_INITRNG(rng) wc_InitRng(rng)
