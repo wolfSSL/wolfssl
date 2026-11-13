@@ -12344,6 +12344,44 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 
 #ifdef HAVE_ECC_KEY_EXPORT
 
+#if !defined(USE_INTEGER_HEAP_MATH) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+/* Check that a non-negative value fits in sz bytes, without counting its
+ * bits. Counting them, as mp_unsigned_bin_size() does, takes time that
+ * depends on the value's length.
+ *
+ * @param [in] a   Value to check.
+ * @param [in] sz  Number of bytes it is to be encoded in.
+ * @return  1 when the value fits.
+ * @return  0 when it does not.
+ */
+static int ecc_export_fits(const mp_int* a, word32 sz)
+{
+    unsigned int bits = (unsigned int)sz * 8;
+    /* The digit holding the top bit of the encoding, and how many of its bits
+     * the encoding takes. */
+    unsigned int top = (bits - 1) / (unsigned int)DIGIT_BIT;
+    unsigned int topBits = bits - top * (unsigned int)DIGIT_BIT;
+    mp_digit over = 0;
+    mp_digit inUse;
+    unsigned int i;
+
+    /* Digits wholly above the encoding. A value that fits uses none, so the
+     * loop only runs for a value that is too big. */
+    for (i = top + 1; i < (unsigned int)a->used; i++) {
+        over |= a->dp[i];
+    }
+    /* Bits of the top digit above the encoding. The digit is read whatever
+     * the digit count, and masked off when it is not in use. */
+    if (topBits < (unsigned int)DIGIT_BIT) {
+        inUse = (mp_digit)0 - (mp_digit)(ctMaskLT((int)top, (int)a->used) & 1);
+        over |= (a->dp[top] & inUse) >> topBits;
+    }
+
+    return over == 0;
+}
+#endif /* !USE_INTEGER_HEAP_MATH && no private export hardware */
+
 /* Software-only export of ecc key to component form.
  * This internal helper avoids recursion when called from the EXPORT_KEY path. */
 static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
@@ -12411,8 +12449,37 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         else
     #endif
         {
-            err = wc_export_int(ecc_get_k(key), d, dLen,
-                dOrderSz ? ecc_order_size(key->dp) : keySz, encType);
+            word32 dSz = dOrderSz ? ecc_order_size(key->dp) : keySz;
+            mp_int* k = ecc_get_k(key);
+
+        #ifndef USE_INTEGER_HEAP_MATH
+            if (encType == WC_TYPE_UNSIGNED_BIN) {
+                /* Fixed width binary: avoid wc_export_int(), which counts the
+                 * scalar's bits to size it and so leaks its length. */
+                if (*dLen < dSz) {
+                    /* Output buffer too small - the size is public. */
+                    err = BUFFER_E;
+                }
+                else if (!ecc_export_fits(k, dSz)) {
+                    /* Scalar too big for the encoding. Never true for a scalar
+                     * below the order when dSz covers the order. The OpenSSL
+                     * compatibility layer can set a scalar without the import
+                     * range check, so fail rather than drop its high bytes. */
+                    err = BUFFER_E;
+                }
+                else {
+                    /* Encode the fixed width, zero padded, in constant time. */
+                    err = mp_to_unsigned_bin_len_ct(k, d, (int)dSz);
+                }
+                *dLen = dSz;
+            }
+            else
+        #endif
+            {
+                /* Hex string, whose length depends on the value anyway, or
+                 * heap math, which has no constant-time encoder. */
+                err = wc_export_int(k, d, dLen, dSz, encType);
+            }
             ecc_put_k(key);
             if (err != MP_OKAY)
                 return err;

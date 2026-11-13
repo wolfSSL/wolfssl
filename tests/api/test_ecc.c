@@ -2189,6 +2189,74 @@ int test_wc_ecc_export_private_only(void)
 } /* END test_wc_ecc_export_private_only */
 
 /*
+ * Testing wc_ecc_export_private_only() encodes the scalar at the fixed width
+ * of the curve, zero padded at the front, whatever its bit length.
+ */
+int test_wc_ecc_export_private_only_fixed_width(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(NO_ECC_SECP) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    ecc_key key;
+    byte    one[1] = { 0x01 };
+    byte    full[32] = {
+        0x80, 0x35, 0x79, 0xbd, 0x24, 0x68, 0xac, 0xe1,
+        0x17, 0x5b, 0x9f, 0xd3, 0x46, 0x8a, 0xce, 0xf2,
+        0x29, 0x6d, 0xa1, 0xe5, 0x38, 0x7c, 0xb0, 0xf4,
+        0x4a, 0x8e, 0xc2, 0x16, 0x5a, 0x9e, 0xd2, 0x27
+    };
+    byte    expOne[32];
+    byte    fill[40];
+    byte    out[40];
+    word32  outLen;
+
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(expOne, 0, sizeof(expOne));
+    expOne[31] = 0x01;
+    XMEMSET(fill, 0xa5, sizeof(fill));
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    PRIVATE_KEY_UNLOCK();
+
+    /* A scalar of 1 is all padding but the last byte. Only the 32 bytes of
+     * the encoding are written into the larger buffer. */
+    ExpectIntEQ(wc_ecc_import_private_key_ex(one, (word32)sizeof(one), NULL,
+        0, &key, ECC_SECP256R1), 0);
+    XMEMCPY(out, fill, sizeof(out));
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_export_private_only(&key, out, &outLen), 0);
+    ExpectIntEQ(outLen, 32);
+    ExpectBufEQ(out, expOne, sizeof(expOne));
+    ExpectBufEQ(out + 32, fill + 32, sizeof(out) - 32);
+
+    /* A buffer one byte short fails, reports the size needed and is left
+     * alone. */
+    XMEMCPY(out, fill, sizeof(out));
+    outLen = 31;
+    ExpectIntEQ(wc_ecc_export_private_only(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(outLen, 32);
+    ExpectBufEQ(out, fill, sizeof(out));
+
+    /* A full width scalar fills every byte. */
+    ExpectIntEQ(wc_ecc_import_private_key_ex(full, (word32)sizeof(full), NULL,
+        0, &key, ECC_SECP256R1), 0);
+    XMEMCPY(out, fill, sizeof(out));
+    outLen = 32;
+    ExpectIntEQ(wc_ecc_export_private_only(&key, out, &outLen), 0);
+    ExpectIntEQ(outLen, 32);
+    ExpectBufEQ(out, full, sizeof(full));
+
+    PRIVATE_KEY_LOCK();
+    wc_ecc_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_export_private_only_fixed_width */
+
+/*
  * Testing wc_ecc_rs_to_sig()
  */
 int test_wc_ecc_rs_to_sig(void)

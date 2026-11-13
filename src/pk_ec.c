@@ -3686,6 +3686,10 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
         }
     }
 
+    /* A failed encoding into the caller's buffer must not report a length. */
+    if (err) {
+        len = 0;
+    }
     return (int)len;
 }
 
