@@ -511,6 +511,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_keygen_avx2)
 _mlkem_keygen_avx2:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         vmovdqu	mlkem_q(%rip), %ymm14
         vmovdqu	mlkem_v(%rip), %ymm15
         movq	%rdi, %r11
@@ -3178,7 +3179,7 @@ _mlkem_encapsulate_avx2:
         pushq	%rbx
         movq	48(%rsp), %rax
         movq	56(%rsp), %r10
-        movq	64(%rsp), %r11
+        movl	64(%rsp), %r11d
         subq	$48, %rsp
         vmovdqu	mlkem_q(%rip), %ymm14
         vmovdqu	mlkem_v(%rip), %ymm15
@@ -7983,6 +7984,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decapsulate_avx2)
 .p2align	4
 _mlkem_decapsulate_avx2:
 #endif /* __APPLE__ */
+        movl	%r8d, %r8d
         vmovdqu	mlkem_q(%rip), %ymm14
         vmovdqu	mlkem_v(%rip), %ymm15
         movslq	%r8d, %rax
@@ -11047,7 +11049,8 @@ _mlkem_rej_uniform_n_avx2:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rcx, %r8
+        movl	%esi, %esi
+        movl	%ecx, %r8d
         movl	%esi, %eax
         vmovdqu	L_mlkem_rej_q(%rip), %ymm6
         vmovdqu	L_mlkem_rej_ones(%rip), %ymm7
@@ -11664,7 +11667,8 @@ _mlkem_rej_uniform_avx2:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rcx, %r8
+        movl	%esi, %esi
+        movl	%ecx, %r8d
         movl	%esi, %eax
         cmpl	$0x00, %esi
         je	L_mlkem_rej_uniform_avx2_done_64
@@ -12601,6 +12605,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_compress_10_avx2)
 .p2align	4
 _mlkem_compress_10_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu	(%rsi), %ymm0
         vmovdqu	L_mlkem_compress_10_avx2_mask(%rip), %ymm9
         vmovdqu	L_mlkem_compress_10_avx2_shift(%rip), %ymm8
@@ -12992,6 +12997,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decompress_10_avx2)
 .p2align	4
 _mlkem_decompress_10_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu	L_mlkem_decompress_10_avx2_mask(%rip), %ymm4
         vmovdqu	L_mlkem_decompress_10_avx2_q(%rip), %ymm5
         vmovdqu	L_mlkem_decompress_10_avx2_shuf(%rip), %ymm6
@@ -13238,6 +13244,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_compress_11_avx2)
 .p2align	4
 _mlkem_compress_11_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu	(%rsi), %ymm0
         vmovdqu	L_mlkem_compress_11_avx2_v(%rip), %ymm7
         vmovdqu	L_mlkem_compress_11_avx2_off(%rip), %ymm8
@@ -13704,6 +13711,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decompress_11_avx2)
 .p2align	4
 _mlkem_decompress_11_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu	L_mlkem_decompress_11_avx2_q(%rip), %ymm4
         vmovdqu	L_mlkem_decompress_11_avx2_shuf(%rip), %ymm5
         vmovdqu	L_mlkem_decompress_11_avx2_sllv(%rip), %ymm6
@@ -15425,6 +15433,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_cmp_avx2)
 .p2align	4
 _mlkem_cmp_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vpxor	%ymm2, %ymm2, %ymm2
         vpxor	%ymm3, %ymm3, %ymm3
         movl	$0x00, %ecx
@@ -16364,6 +16373,7 @@ _mlkem_keygen_avx512:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%r8d, %r8d
         subq	$0x400, %rsp
         movq	$0xd01, %r14
         vmovd	%r14d, %xmm14
@@ -20024,7 +20034,7 @@ _mlkem_encapsulate_avx512:
         pushq	%rbp
         movq	56(%rsp), %rax
         movq	64(%rsp), %r10
-        movq	72(%rsp), %r11
+        movl	72(%rsp), %r11d
         subq	$56, %rsp
         movq	$0xd01, %r13
         vmovd	%r13d, %xmm14
@@ -26789,6 +26799,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decapsulate_avx512)
 _mlkem_decapsulate_avx512:
 #endif /* __APPLE__ */
         pushq	%r12
+        movl	%r8d, %r8d
         movq	$0xd01, %r12
         vmovd	%r12d, %xmm14
         vpbroadcastw	%xmm14, %zmm14
@@ -30237,6 +30248,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_ptacc_x2_avx512)
 .p2align	4
 _mlkem_ptacc_x2_avx512:
 #endif /* __APPLE__ */
+        movl	%ecx, %ecx
         movq	$0xd01, %r9
         vmovd	%r9d, %xmm12
         vpbroadcastw	%xmm12, %zmm12
@@ -31432,6 +31444,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512)
 _mlkem_rej_uniform_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0
@@ -31569,6 +31583,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512)
 _mlkem_rej_uniform_n_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0
@@ -32201,6 +32217,7 @@ _mlkem_redistribute_8_rand_x8_avx512:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%edx, %edx
         movl	%edx, %r13d
         movq	%rsi, %rax
         addq	%r13, %rax
@@ -32281,6 +32298,7 @@ _mlkem_redistribute_16_rand_x8_avx512:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%edx, %edx
         movl	%edx, %r13d
         movq	%rsi, %rax
         addq	%r13, %rax
@@ -32401,6 +32419,7 @@ _mlkem_redistribute_17_rand_x8_avx512:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%edx, %edx
         movl	%edx, %r13d
         movq	%rsi, %rax
         addq	%r13, %rax
@@ -32537,6 +32556,7 @@ _mlkem_redistribute_21_rand_x8_avx512:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%edx, %edx
         movl	%edx, %r13d
         movq	%rsi, %rax
         addq	%r13, %rax
@@ -32804,6 +32824,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_cmp_avx512)
 .p2align	4
 _mlkem_cmp_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vpxorq	%zmm0, %zmm0, %zmm0
         vpxor	%ymm2, %ymm2, %ymm2
         movl	$0x00, %ecx
@@ -33858,6 +33879,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decompress_10_avx512)
 .p2align	4
 _mlkem_decompress_10_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu64	L_mlkem_decompress_10_avx512_mask(%rip), %zmm0
         vmovdqu64	L_mlkem_decompress_10_avx512_q(%rip), %zmm1
         vmovdqu64	L_mlkem_decompress_10_avx512_shuf(%rip), %zmm2
@@ -34052,6 +34074,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decompress_11_avx512)
 .p2align	4
 _mlkem_decompress_11_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu64	L_mlkem_decompress_11_avx512_q(%rip), %zmm0
         vmovdqu64	L_mlkem_decompress_11_avx512_shuf(%rip), %zmm1
         vmovdqu64	L_mlkem_decompress_11_avx512_srlvd(%rip), %zmm2
@@ -34409,6 +34432,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_compress_10_avx512)
 .p2align	4
 _mlkem_compress_10_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         movq	$0x4ebf, %rax
         vmovd	%eax, %xmm0
         vpbroadcastw	%xmm0, %zmm0
@@ -34727,6 +34751,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_compress_11_avx512)
 .p2align	4
 _mlkem_compress_11_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         movq	$0x4ebf, %rax
         vmovd	%eax, %xmm0
         vpbroadcastw	%xmm0, %zmm0
@@ -35092,6 +35117,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512_vbmi2)
 _mlkem_rej_uniform_avx512_vbmi2:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0
@@ -35217,6 +35244,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512_vbmi2)
 _mlkem_rej_uniform_n_avx512_vbmi2:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0
@@ -35624,6 +35653,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512_vbmi)
 _mlkem_rej_uniform_avx512_vbmi:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0
@@ -35760,6 +35791,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512_vbmi)
 _mlkem_rej_uniform_n_avx512_vbmi:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0
@@ -36185,6 +36218,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_compress_10_avx512_vbmi)
 .p2align	4
 _mlkem_compress_10_avx512_vbmi:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         movq	$0x4ebf, %rax
         vmovd	%eax, %xmm0
         vpbroadcastw	%xmm0, %zmm0
@@ -36452,6 +36486,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decompress_10_avx512_vbmi)
 .p2align	4
 _mlkem_decompress_10_avx512_vbmi:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_mask(%rip), %zmm0
         vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_q(%rip), %zmm1
         vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_sllv(%rip), %zmm2
@@ -36642,6 +36677,7 @@ WC_ASM_ATT_HIDDEN(_mlkem_decompress_11_avx512_vbmi)
 .p2align	4
 _mlkem_decompress_11_avx512_vbmi:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_q(%rip), %zmm0
         vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_srlvd(%rip), %zmm1
         vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_srlvq(%rip), %zmm2
@@ -36788,6 +36824,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512_vbmi_vbmi2)
 _mlkem_rej_uniform_avx512_vbmi_vbmi2:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0
@@ -36912,6 +36950,8 @@ WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512_vbmi_vbmi2)
 _mlkem_rej_uniform_n_avx512_vbmi_vbmi2:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
+        movl	%ecx, %ecx
         movl	%esi, %eax
         movq	$0xd01, %r10
         vmovd	%r10d, %xmm0

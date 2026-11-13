@@ -21028,7 +21028,8 @@ _wc_mldsa_rej_uniform_n_avx2:
         pushq	%r12
         pushq	%r13
         pushq	%r14
-        movq	%rcx, %r8
+        movl	%esi, %esi
+        movl	%ecx, %r8d
         movl	%esi, %eax
         vmovdqu	L_mldsa_rej_q(%rip), %ymm6
         vmovdqu	L_mldsa_rej_mask(%rip), %ymm7
@@ -21568,7 +21569,8 @@ _wc_mldsa_rej_uniform_avx2:
         pushq	%r12
         pushq	%r13
         pushq	%r14
-        movq	%rcx, %r8
+        movl	%esi, %esi
+        movl	%ecx, %r8d
         movl	%esi, %eax
         cmpl	$0x00, %esi
         je	L_mldsa_rej_uniform_avx2_done_64
@@ -21961,6 +21963,7 @@ _wc_mldsa_extract_coeffs_eta2_avx2:
         pushq	%rbx
         pushq	%r12
         pushq	%r13
+        movl	%esi, %esi
         vmovdqu	L_mldsa_extract_coeffs_eta2_mask_nibbles(%rip), %ymm6
         vmovdqu	L_mldsa_extract_coeffs_eta2_mul(%rip), %ymm7
         vmovdqu	L_mldsa_extract_coeffs_eta2_five(%rip), %ymm8
@@ -22601,6 +22604,7 @@ _wc_mldsa_extract_coeffs_eta4_avx2:
         pushq	%rbx
         pushq	%r12
         pushq	%r13
+        movl	%esi, %esi
         vmovdqu	L_mldsa_extract_coeffs_eta4_mask_nibbles(%rip), %ymm6
         vmovdqu	L_mldsa_extract_coeffs_eta4_nine(%rip), %ymm7
         vmovdqu	L_mldsa_extract_coeffs_eta4_four(%rip), %ymm8
@@ -38252,6 +38256,7 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_vec_check_low_avx2)
 .p2align	4
 _wc_mldsa_vec_check_low_avx2:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         subl	$0x01, %edx
         movd	%edx, %xmm2
         negl	%edx
@@ -39042,7 +39047,8 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_rej_uniform_n_avx512)
 _wc_mldsa_rej_uniform_n_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
-        movq	%rcx, %r8
+        movl	%esi, %esi
+        movl	%ecx, %r8d
         movl	%esi, %eax
         vbroadcasti64x4	L_mldsa_rej_q_avx512(%rip), %zmm1
         vbroadcasti64x4	L_mldsa_rej_mask_avx512(%rip), %zmm2
@@ -39120,7 +39126,8 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_rej_uniform_avx512)
 _wc_mldsa_rej_uniform_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
-        movq	%rcx, %r8
+        movl	%esi, %esi
+        movl	%ecx, %r8d
         movl	%esi, %eax
         vbroadcasti64x4	L_mldsa_rej_q_avx512(%rip), %zmm1
         vbroadcasti64x4	L_mldsa_rej_mask_avx512(%rip), %zmm2
@@ -39273,6 +39280,7 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_extract_coeffs_eta2_avx512)
 _wc_mldsa_extract_coeffs_eta2_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
         vmovdqu64	L_mldsa_extract_coeffs_eta2_avx512_dup(%rip), %zmm2
         vmovdqu64	L_mldsa_extract_coeffs_eta2_avx512_shift(%rip), %zmm3
         vmovdqu64	L_mldsa_extract_coeffs_eta2_avx512_mask_nibbles(%rip), %zmm4
@@ -39612,6 +39620,7 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_extract_coeffs_eta4_avx512)
 _wc_mldsa_extract_coeffs_eta4_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%esi, %esi
         vmovdqu64	L_mldsa_extract_coeffs_eta4_avx512_dup(%rip), %zmm2
         vmovdqu64	L_mldsa_extract_coeffs_eta4_avx512_shift(%rip), %zmm3
         vmovdqu64	L_mldsa_extract_coeffs_eta4_avx512_mask_nibbles(%rip), %zmm4
@@ -39936,6 +39945,7 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_make_hint_88_avx512)
 _wc_mldsa_make_hint_88_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%edx, %edx
         vmovdqu64	L_mldsa_make_hint_88_avx512_low(%rip), %zmm3
         vmovdqu64	L_mldsa_make_hint_88_avx512_neg_low(%rip), %zmm4
         vmovdqu64	L_mldsa_make_hint_88_avx512_seq(%rip), %zmm1
@@ -40366,6 +40376,7 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_make_hint_32_avx512)
 _wc_mldsa_make_hint_32_avx512:
 #endif /* __APPLE__ */
         pushq	%rbx
+        movl	%edx, %edx
         vmovdqu64	L_mldsa_make_hint_32_avx512_low(%rip), %zmm3
         vmovdqu64	L_mldsa_make_hint_32_avx512_neg_low(%rip), %zmm4
         vmovdqu64	L_mldsa_make_hint_32_avx512_seq(%rip), %zmm1
@@ -44499,6 +44510,7 @@ _wc_mldsa_redistribute_21_rand_x8_avx512:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%edx, %edx
         movl	%edx, %r13d
         movq	%rsi, %rax
         addq	%r13, %rax
@@ -44699,6 +44711,7 @@ _wc_mldsa_redistribute_17_rand_x8_avx512:
         pushq	%r12
         pushq	%r13
         pushq	%r14
+        movl	%edx, %edx
         movl	%edx, %r13d
         movq	%rsi, %rax
         addq	%r13, %rax
@@ -62643,6 +62656,7 @@ WC_ASM_ATT_HIDDEN(_wc_mldsa_vec_check_low_avx512)
 .p2align	4
 _wc_mldsa_vec_check_low_avx512:
 #endif /* __APPLE__ */
+        movl	%edx, %edx
         subl	$0x01, %edx
         movd	%edx, %xmm2
         negl	%edx

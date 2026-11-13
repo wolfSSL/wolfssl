@@ -106,6 +106,19 @@ typedef word32 cpuid_flags_t;
      * (vpshufb, vpaddw, vpmulhw, vpackusdw, ... on zmm). */
     #define CPUID_AVX512_BW 0x80000
     #define CPUID_SSSE3  0x100000     /* SSSE3 (pshufb etc.) */
+    /* Tuning bits.  These are not instruction-set features: they mark a CPU
+     * on which an implementation that the feature bits allow is measured to
+     * be slower than a narrower one.  Set from the family/model in cpuid.c
+     * (none are set when WC_CPUID_NO_TUNING is defined) and can be changed
+     * with cpuid_set_flag()/cpuid_clear_flag().
+     *   CPUID_SLOW_VAES:      AES using VAES (ymm) is no faster than the
+     *                         AVX2/AES-NI code, so AES (and AES-GCM-SIV's
+     *                         POLYVAL) does not pick it.
+     *   CPUID_SLOW_AVX2_SHA3: the single-stream AVX2 Keccak-f[1600] block is
+     *                         slower than BMI2 and C, so SHA-3 and ML-DSA do
+     *                         not pick it. */
+    #define CPUID_SLOW_VAES      0x200000
+    #define CPUID_SLOW_AVX2_SHA3 0x400000
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -146,6 +159,10 @@ typedef word32 cpuid_flags_t;
     #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
     #define IS_CPU_AMD(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AMD)
     #define IS_INTEL_SSSE3(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SSSE3)
+    #define IS_CPU_SLOW_VAES(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SLOW_VAES)
+    #define IS_CPU_SLOW_AVX2_SHA3(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SLOW_AVX2_SHA3)
 
 #elif defined(HAVE_CPUID_AARCH64)
 

@@ -5156,6 +5156,8 @@ static void print_cpu_features(void)
     if (IS_INTEL_SHA(cpuid_flags))    printf(" sha");
     if (IS_INTEL_VAES(cpuid_flags))   printf(" vaes");
     if (IS_INTEL_AVX512(cpuid_flags)) printf(" avx512");
+    if (IS_CPU_SLOW_VAES(cpuid_flags)) printf(" (slow-vaes)");
+    if (IS_CPU_SLOW_AVX2_SHA3(cpuid_flags)) printf(" (slow-avx2-sha3)");
 #endif
 #ifdef __aarch64__
     printf("Aarch64 -");

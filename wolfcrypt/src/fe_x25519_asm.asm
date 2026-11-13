@@ -314,6 +314,7 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 fe_cmov PROC
         push	r12
+        mov	r8d, r8d
         cmp	r8d, 1
         mov	r9, QWORD PTR [rcx]
         mov	r10, QWORD PTR [rcx+8]

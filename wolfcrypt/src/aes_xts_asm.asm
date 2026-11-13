@@ -60,6 +60,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_XTS_init_aesni PROC
+        mov	r8d, r8d
         movdqu	xmm0, OWORD PTR [rcx]
         ; aes_enc_block
         pxor	xmm0, [rdx]
@@ -131,7 +132,7 @@ AES_XTS_encrypt_aesni PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -471,7 +472,7 @@ AES_XTS_encrypt_update_aesni PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
@@ -776,7 +777,7 @@ AES_XTS_decrypt_aesni PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -1170,7 +1171,7 @@ AES_XTS_decrypt_update_aesni PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
@@ -1524,6 +1525,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_XTS_init_avx1 PROC
+        mov	r8d, r8d
         vmovdqu	xmm0, OWORD PTR [rcx]
         ; aes_enc_block
         vpxor	xmm0, xmm0, [rdx]
@@ -1595,7 +1597,7 @@ AES_XTS_encrypt_avx1 PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -1926,7 +1928,7 @@ AES_XTS_encrypt_update_avx1 PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
@@ -2222,7 +2224,7 @@ AES_XTS_decrypt_avx1 PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -2605,7 +2607,7 @@ AES_XTS_decrypt_update_avx1 PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
@@ -2949,6 +2951,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_XTS_init_vaes PROC
+        mov	r8d, r8d
         vmovdqu	xmm0, OWORD PTR [rcx]
         ; aes_enc_block
         vpxor	xmm0, xmm0, [rdx]
@@ -3067,7 +3070,7 @@ AES_XTS_encrypt_vaes PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -3591,7 +3594,7 @@ AES_XTS_encrypt_update_vaes PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
@@ -4080,7 +4083,7 @@ AES_XTS_decrypt_vaes PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -4678,7 +4681,7 @@ AES_XTS_decrypt_update_vaes PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
@@ -5237,6 +5240,7 @@ ELSE
 _TEXT SEGMENT READONLY PARA
 ENDIF
 AES_XTS_init_avx512 PROC
+        mov	r8d, r8d
         vmovdqu	xmm0, OWORD PTR [rcx]
         ; aes_enc_block
         vpxor	xmm0, xmm0, [rdx]
@@ -5359,7 +5363,7 @@ AES_XTS_encrypt_avx512 PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -5890,7 +5894,7 @@ AES_XTS_encrypt_update_avx512 PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
@@ -6386,7 +6390,7 @@ AES_XTS_decrypt_avx512 PROC
         push	r13
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r12, r9
         mov	r8, QWORD PTR [rsp+72]
         mov	r9, QWORD PTR [rsp+80]
@@ -7001,7 +7005,7 @@ AES_XTS_decrypt_update_avx512 PROC
         push	r12
         mov	rdi, rcx
         mov	rsi, rdx
-        mov	rax, r8
+        mov	eax, r8d
         mov	r10, r9
         mov	r8, QWORD PTR [rsp+64]
         mov	r9d, DWORD PTR [rsp+72]
