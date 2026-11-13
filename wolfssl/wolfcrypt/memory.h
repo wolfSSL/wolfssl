@@ -352,13 +352,12 @@ WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
     #endif
 #endif
 
-#if !defined(WOLFSSL_NO_CONST_CMP) && !defined(WC_NO_CONST_CMP_API)
 /* implementation behind the default XREALLOC_SCRUBBED() (types.h).
  * Unconditional, matching the macro. */
 WOLFSSL_API void *wc_ReallocScrubbed(void *ptr, size_t oldSz,
                                      size_t size, void *heap, int type);
 
-#ifndef WOLFSSL_NO_CONST_CMP
+#if !defined(WOLFSSL_NO_CONST_CMP) && !defined(WC_NO_CONST_CMP_API)
 WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length);
 #endif
 
