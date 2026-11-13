@@ -17944,6 +17944,8 @@ void wolfSSL_CTX_set_psk_client_cs_callback(WOLFSSL_CTX* ctx,
 
     ctx->havePSK = 1;
     ctx->client_psk_cs_cb = cb;
+    /* add PSK to the suites derived before */
+    RefreshCtxSuites(ctx);
 }
 
 /* Set the PSK callback, that is passed the cipher suite, for a client to use
@@ -17996,6 +17998,8 @@ void wolfSSL_CTX_set_psk_client_tls13_callback(WOLFSSL_CTX* ctx,
 
     ctx->havePSK = 1;
     ctx->client_psk_tls13_cb = cb;
+    /* add PSK to the suites derived before */
+    RefreshCtxSuites(ctx);
 }
 
 /* Set the PSK callback that returns the cipher suite for a client to use
@@ -18046,6 +18050,8 @@ void wolfSSL_CTX_set_psk_server_tls13_callback(WOLFSSL_CTX* ctx,
         return;
     ctx->havePSK = 1;
     ctx->server_psk_tls13_cb = cb;
+    /* add PSK to the suites derived before */
+    RefreshCtxSuites(ctx);
 }
 
 /* Set the PSK callback that returns the cipher suite for a server to use

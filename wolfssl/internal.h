@@ -2016,8 +2016,10 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 
 /* minimum Downgrade Minor version */
 #ifndef WOLFSSL_MIN_DOWNGRADE
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
         #define WOLFSSL_MIN_DOWNGRADE TLSv1_MINOR
+    #elif !defined(NO_OLD_TLS)
+        #define WOLFSSL_MIN_DOWNGRADE TLSv1_1_MINOR
     #else
         #define WOLFSSL_MIN_DOWNGRADE TLSv1_2_MINOR
     #endif
@@ -2663,6 +2665,7 @@ struct Suites {
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
     byte   hashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* sig/algo to offer */
     byte   setSuites:1;             /* user set suites from default */
+    byte   setHashSigAlgo:1;        /* user set sigalgs */
 };
 
 typedef struct CipherSuite {
@@ -2683,6 +2686,8 @@ WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                        word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL void RefreshCtxSuites(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL void ResetSuitesHashSigAlgo(Suites* suites);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
@@ -4722,6 +4727,10 @@ struct WOLFSSL_CTX {
     short       minMlDsaKeySz;    /* minimum ML-DSA key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
+#ifdef OPENSSL_EXTRA
+    unsigned long     minProtoMask;     /* SSL_OP_NO_* set by min version */
+    unsigned long     maxProtoMask;     /* SSL_OP_NO_* set by max version */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
     word32            disabledCurves;   /* curves disabled by user */
 #endif
@@ -5878,6 +5887,10 @@ struct Options {
     void*             psk_ctx;
 #endif /* NO_PSK */
     unsigned long     mask; /* store SSL_OP_ flags */
+#ifdef OPENSSL_EXTRA
+    unsigned long     minProtoMask; /* SSL_OP_NO_* set by min version */
+    unsigned long     maxProtoMask; /* SSL_OP_NO_* set by max version */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     word16            minProto:1; /* sets min to min available */
     word16            maxProto:1; /* sets max to max available */
