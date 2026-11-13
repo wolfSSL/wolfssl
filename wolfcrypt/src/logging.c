@@ -1070,6 +1070,16 @@ static struct wc_error_queue* wc_current_node;
 /* heap info currently used for allocation of entries */
 static void* wc_error_heap;
 
+/* Copies of the file and reason strings of the last node peeked or pulled.
+ * Pointers returned to the caller point here rather than into a node, so a
+ * remove or clear from another thread after the mutex is released can not
+ * leave the caller with a pointer to freed memory. The contents are only valid
+ * until the next peek or pull by the same thread. Only written with the mutex
+ * held and the last byte is never written, so the strings are always
+ * terminated. */
+static THREAD_LS_T char wc_errq_file[WOLFSSL_MAX_ERROR_SZ];
+static THREAD_LS_T char wc_errq_reason[WOLFSSL_MAX_ERROR_SZ];
+
 /* mutex for list operation protection */
 static wolfSSL_Mutex wc_error_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wc_error_mutex);
 #define ERRQ_MUTEX_INIT()      wc_InitMutex(&wc_error_mutex)
@@ -1109,6 +1119,21 @@ int wc_LoggingCleanup(void)
     return 0;
 }
 
+/* Copy the node strings asked for to the static buffers and return those.
+ * Must be called with the mutex held. */
+static void exportErrorNodeStrings(const struct wc_error_queue* err,
+        const char **file, const char **reason)
+{
+    if (file != NULL) {
+        XMEMCPY(wc_errq_file, err->file, WOLFSSL_MAX_ERROR_SZ - 1);
+        *file = wc_errq_file;
+    }
+    if (reason != NULL) {
+        XMEMCPY(wc_errq_reason, err->error, WOLFSSL_MAX_ERROR_SZ - 1);
+        *reason = wc_errq_reason;
+    }
+}
+
 static int peekErrorNode(int idx, const char **file, const char **reason,
         int *line)
 {
@@ -1135,12 +1160,7 @@ static int peekErrorNode(int idx, const char **file, const char **reason,
         return BAD_STATE_E;
     }
 
-    if (file != NULL) {
-        *file = err->file;
-    }
-    if (reason != NULL) {
-        *reason = err->error;
-    }
+    exportErrorNodeStrings(err, file, reason);
     if (line != NULL) {
         *line = err->line;
     }
@@ -1153,8 +1173,10 @@ static int peekErrorNode(int idx, const char **file, const char **reason,
  * idx : if -1 then the most recent node is looked at,
  *       otherwise search through queue for node at the given index starting
  *          from the absolute head wc_errors
- * file  : pointer to internal file string
- * reason : pointer to internal error reason
+ * file  : pointer to a copy of the file string, valid until the next peek or
+ *         pull
+ * reason : pointer to a copy of the error reason, valid until the next peek
+ *          or pull
  * line  : line number that error happened at
  *
  * Returns a negative value in error case, on success returns the nodes error
@@ -1185,12 +1207,7 @@ static int pullErrorNode(const char **file, const char **reason, int *line)
         return BAD_STATE_E;
     }
 
-    if (file != NULL) {
-        *file = err->file;
-    }
-    if (reason != NULL) {
-        *reason = err->error;
-    }
+    exportErrorNodeStrings(err, file, reason);
     if (line != NULL) {
         *line = err->line;
     }
@@ -1201,8 +1218,8 @@ static int pullErrorNode(const char **file, const char **reason, int *line)
 }
 
 /* Pulls the current node from error queue and increments current state.
- * Note: this does not delete nodes because input arguments are pointing to
- *       node buffers.
+ * Note: this does not delete nodes. The file and reason pointers returned are
+ *       to copies that are valid until the next peek or pull.
  *
  * file   pointer to file that error was in. Can be NULL to return no file.
  * reason error string giving reason for error. Can be NULL to return no reason.
@@ -1431,25 +1448,14 @@ int wc_SetLoggingHeap(void* h)
  */
 int wc_ERR_remove_state(void)
 {
-    struct wc_error_queue* current;
-    struct wc_error_queue* next;
-
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return BAD_MUTEX_E;
     }
 
-    /* free all nodes from error queue */
-    current = (struct wc_error_queue*)wc_errors;
-    while (current != NULL) {
-        next = current->next;
-        XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-        current = next;
-    }
-
-    wc_errors_count = 0;
-    wc_errors          = NULL;
-    wc_last_node       = NULL;
+    /* free all nodes from error queue and reset all list pointers,
+     * including the wc_current_node cursor */
+    clearErrorNodes();
 
     ERRQ_UNLOCK();
 
@@ -1584,6 +1590,7 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         wc_errors_count = 0;
         wc_errors = NULL;
         wc_last_node = NULL;
+        wc_current_node = NULL;
 
         ERRQ_UNLOCK();
     }
