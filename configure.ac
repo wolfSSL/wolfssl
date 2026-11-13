@@ -9177,7 +9177,7 @@ then
     # base. If none of those is available, hybrids contribute no usable groups
     # for TLS 1.3 key exchange. In that case, auto-enable standalone ML-KEM so
     # TLS 1.3 has a functional KEM.
-    if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_MLKEM" = "yes" && \
+    if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_MLKEM" != "no" && \
        test "$ENABLED_ML_KEM" != "no" && \
        test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && \
        test "x$ENABLED_CURVE448" = "xno"
@@ -10142,7 +10142,7 @@ then
     AC_MSG_ERROR([--enable-dtls13 requires TLS 1.3, but TLS 1.3 was disabled by an earlier prerequisite check (no key-exchange or signature algorithms reachable). Enable at least one of ECC, RSA+DH, Curve25519+Ed25519, Curve448+Ed448, PSK, or ML-KEM.])
 fi
 if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
-    test "$ENABLED_DH" != "no" || test "x$ENABLED_MLKEM" = "xyes")
+    test "$ENABLED_DH" != "no" || test "x$ENABLED_MLKEM" != "xno")
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"
 fi
