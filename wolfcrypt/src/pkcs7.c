@@ -2268,7 +2268,9 @@ static int wc_PKCS7_RsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 
 #ifdef HAVE_ECC
 
-static int wc_PKCS7_ImportECC(wc_PKCS7* pkcs7, ecc_key* privKey)
+/* needPub: derive the public point of a private-only key. The signature
+ * size does not depend on it. */
+static int wc_PKCS7_ImportECC(wc_PKCS7* pkcs7, ecc_key* privKey, int needPub)
 {
     int ret;
     word32 idx;
@@ -2279,9 +2281,24 @@ static int wc_PKCS7_ImportECC(wc_PKCS7* pkcs7, ecc_key* privKey)
             idx = 0;
             ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
                                          pkcs7->privateKeySz);
-            /* verify imported private key is a valid key before using it */
             if (ret == 0) {
-                ret = wc_ecc_check_key(privKey);
+                /* SEC1 makes the public point optional, and
+                 * wc_ecc_check_key() needs it. A build or device without
+                 * derivation now signs with the key private-only, its
+                 * scalar range-checked only at import. Most such builds
+                 * rejected the key before, as the zero point failed the
+                 * check. */
+                if (needPub) {
+                    ret = wc_ecc_derive_pub_if_needed(privKey, pkcs7->rng);
+                    if (ret == WC_NO_ERR_TRACE(ECC_PRIVATEONLY_E)) {
+                        ret = 0;
+                    }
+                }
+                /* verify imported private key is a valid key before using
+                 * it */
+                if ((ret == 0) && (privKey->type != ECC_PRIVATEKEY_ONLY)) {
+                    ret = wc_ecc_check_key(privKey);
+                }
                 if (ret != 0) {
                     WOLFSSL_MSG("Invalid ECC private key, check "
                                 "pkcs7->privateKey");
@@ -2330,7 +2347,7 @@ static int wc_PKCS7_EcdsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
     WC_ALLOC_VAR_EX(privKey, ecc_key, 1, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
-    ret = wc_PKCS7_ImportECC(pkcs7, privKey);
+    ret = wc_PKCS7_ImportECC(pkcs7, privKey, 1);
     if (ret == 0) {
         outSz = esd->encContentDigestBufSz;
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -2519,7 +2536,7 @@ static int wc_PKCS7_GetSignSize(wc_PKCS7* pkcs7)
                 return MEMORY_E;
         #endif
 
-            ret = wc_PKCS7_ImportECC(pkcs7, privKey);
+            ret = wc_PKCS7_ImportECC(pkcs7, privKey, 0);
             if (ret == 0) {
                 ret = wc_ecc_sig_size(privKey);
             }

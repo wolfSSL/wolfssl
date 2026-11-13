@@ -9417,7 +9417,13 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     #ifdef WOLFSSL_STATIC_EPHEMERAL
         ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_ECDH, kse->key);
-        if (ret != 0 || eccKey->dp->id != curveId)
+        if ((ret == 0) && (eccKey->dp->id == curveId)) {
+            /* SEC1 makes the public point optional, and the key share sends
+             * it. A failure fails the handshake rather than generating a key
+             * in place of the configured one. */
+            ret = wc_ecc_derive_pub_if_needed(eccKey, ssl->rng);
+        }
+        else
     #endif
         {
             /* set curve info for EccMakeKey "peer" info */

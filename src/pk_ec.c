@@ -47,6 +47,13 @@
      * define WOLFSSL_HAVE_ECC_KEY_GET_PRIV, so the block above was skipped. */
     #define ecc_get_k_raw(key)        (key)->k
 #endif
+#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    /* FIPS and self-test copies of ecc.h predate ecc_put_k(). */
+    #define pk_ec_put_k(key)          WC_DO_NOTHING
+#else
+    /* Wipe the unblinded copy wc_ecc_key_get_priv() made. */
+    #define pk_ec_put_k(key)          ecc_put_k(key)
+#endif
 
 #if !defined(WOLFSSL_PK_EC_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
@@ -3523,6 +3530,42 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
     return ret;
 }
 
+/* Derive the public point of a decoded private-only key, as OpenSSL does,
+ * so sign, ECDH and export have a full key. RFC 5915 makes the point
+ * optional. A build without derivation keeps the key private-only.
+ *
+ * key  internal key, just decoded or given only its private key
+ *
+ * returns 0 when the key is complete or kept private-only, or an error when
+ *         the derivation failed.
+ */
+int wolfssl_ec_key_derive_pub(ecc_key* key)
+{
+    int ret;
+    int initTmpRng = 0;
+    WC_RNG* rng;
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
+
+    if (key->type != ECC_PRIVATEKEY_ONLY) {
+        return 0;
+    }
+
+    /* The generic multiply blinds with the RNG and runs unblinded without
+     * one. The SP base-point multiply for SP-accelerated curves does not use
+     * it. */
+    rng = wolfssl_make_rng(tmpRng, &initTmpRng);
+    ret = wc_ecc_derive_pub_if_needed(key, rng);
+    if (initTmpRng) {
+        wc_FreeRng(rng);
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
+    }
+    if (ret == WC_NO_ERR_TRACE(ECC_PRIVATEONLY_E)) {
+        ret = 0;
+    }
+
+    return ret;
+}
+
 #ifdef HAVE_ECC_KEY_IMPORT
 /* Create a EC key from the DER encoded private key.
  *
@@ -3566,22 +3609,10 @@ WOLFSSL_EC_KEY* wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY** key,
         /* Internal EC key setup. */
         ret->inSet = 1;
 
-        /* When the RFC 5915 DER encoding omits the optional publicKey field,
-         * wc_EccPrivateKeyDecode leaves type == ECC_PRIVATEKEY_ONLY with the
-         * public point uninitialised.  Derive the public point now so that
-         * all downstream operations (sign, ECDH, export) have a valid key,
-         * matching the behaviour of OpenSSL's d2i_ECPrivateKey.
-         * In builds without HAVE_ECC_MAKE_PUB (e.g. hardware/CB-only),
-         * keep the historical import behaviour and leave the key as
-         * private-only instead of failing import. */
-    #ifdef HAVE_ECC_MAKE_PUB
-        if (((ecc_key*)ret->internal)->type == ECC_PRIVATEKEY_ONLY) {
-            if (wc_ecc_make_pub((ecc_key*)ret->internal, NULL) != 0) {
-                WOLFSSL_MSG("wc_ecc_make_pub error deriving public key");
-                err = 1;
-            }
+        if (wolfssl_ec_key_derive_pub((ecc_key*)ret->internal) != 0) {
+            WOLFSSL_MSG("error deriving public key");
+            err = 1;
         }
-    #endif
     }
 
     if (!err) {
@@ -3726,6 +3757,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     int ret;
     word32 idx = 0;
     word32 algId;
+    word16 pkcs8HeaderSz = 0;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_LoadDer");
 
@@ -3741,16 +3773,13 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     }
 
     if (res == 1) {
-        /* Assume no PKCS#8 header. */
-        key->pkcs8HeaderSz = 0;
-
         /* Check if input buffer has PKCS8 header. In the case that it does not
          * have a PKCS8 header then do not error out.
          */
         if ((ret = ToTraditionalInline_ex((const byte*)derBuf, &idx,
                 (word32)derSz, &algId)) >= 0) {
             WOLFSSL_MSG("Found PKCS8 header");
-            key->pkcs8HeaderSz = (word16)idx;
+            pkcs8HeaderSz = (word16)idx;
             res = 1;
         }
         /* Error out on parsing error. */
@@ -3765,6 +3794,9 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
         if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
             ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
                 (word32)derSz);
+            if (ret == 0) {
+                ret = wolfssl_ec_key_derive_pub((ecc_key*)key->internal);
+            }
         }
         else {
             ret = wc_EccPublicKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
@@ -3800,7 +3832,8 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
         if (ret < 0) {
             /* Error returned from wolfSSL. */
             if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
-                WOLFSSL_MSG("wc_EccPrivateKeyDecode failed");
+                WOLFSSL_MSG("EC private key decode or public key derivation "
+                            "failed");
             }
             else {
                 WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
@@ -3810,6 +3843,9 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 
         /* Internal key updated - update whether it is a valid key. */
         key->inSet = (res == 1);
+        if (res == 1) {
+            key->pkcs8HeaderSz = pkcs8HeaderSz;
+        }
     }
 
     /* Set the external EC key based on value in internal. */
@@ -4232,6 +4268,21 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
         }
     }
 
+    /* A key given only its private key is private-only. Derive the point
+     * so the encoding carries it, as EVP_PKEY_set1_EC_KEY() does. */
+    if ((ret == 1) &&
+            (((ecc_key*)ec->internal)->type == ECC_PRIVATEKEY_ONLY)) {
+        if (wolfssl_ec_key_derive_pub((ecc_key*)ec->internal) != 0) {
+            WOLFSSL_MSG("error deriving public key");
+            ret = 0;
+        }
+        else if ((((ecc_key*)ec->internal)->type != ECC_PRIVATEKEY_ONLY) &&
+                (SetECKeyExternal(ec) != 1)) {
+            WOLFSSL_MSG("SetECKeyExternal failed");
+            ret = 0;
+        }
+    }
+
     if (ret == 1) {
         /* Calculate maximum size of DER encoding.
          * 4 > size of pub, priv + ASN.1 additional information */
@@ -4248,10 +4299,18 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
     }
 
     if (ret == 1) {
-        /* Encode EC private key as DER. */
-        derSz = wc_EccKeyToDer((ecc_key*)ec->internal, derBuf, der_max_len);
+        /* Encode EC private key as DER. Without derivation in the build or
+         * on the device the key stays private-only and has no point. */
+        if (((ecc_key*)ec->internal)->type == ECC_PRIVATEKEY_ONLY) {
+            derSz = wc_EccPrivateKeyToDer((ecc_key*)ec->internal, derBuf,
+                der_max_len);
+        }
+        else {
+            derSz = wc_EccKeyToDer((ecc_key*)ec->internal, derBuf,
+                der_max_len);
+        }
         if (derSz < 0) {
-            WOLFSSL_MSG("wc_EccKeyToDer failed");
+            WOLFSSL_MSG("EC private key DER encode failed");
             ForceZero(derBuf, der_max_len);
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
             ret = 0;
@@ -4491,11 +4550,14 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
         }
 
         /* set the external privkey */
-        if ((ret == 1) && (key->type == ECC_PRIVATEKEY) &&
-                (wolfssl_bn_set_value(&eckey->priv_key,
-                wc_ecc_key_get_priv(key)) != 1)) {
-            WOLFSSL_MSG("ec priv key error");
-            ret = WOLFSSL_FATAL_ERROR;
+        if ((ret == 1) && ((key->type == ECC_PRIVATEKEY) ||
+                (key->type == ECC_PRIVATEKEY_ONLY))) {
+            if (wolfssl_bn_set_value(&eckey->priv_key,
+                    wc_ecc_key_get_priv(key)) != 1) {
+                WOLFSSL_MSG("ec priv key error");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            pk_ec_put_k(key);
         }
 
         /* External values set when operations succeeded. */
@@ -4559,6 +4621,10 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
             if (ret == 1) {
                 /* Set that the internal key is a public key */
                 key->type = ECC_PUBLICKEY;
+                /* EC_KEY_new() allocates pub_key, so a key that only had its
+                 * private key set holds the point at infinity. */
+                pubSet = !(mp_iszero(key->pubkey.x) &&
+                           mp_iszero(key->pubkey.y));
             }
         }
 
@@ -4576,11 +4642,14 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
                 ret = WOLFSSL_FATAL_ERROR;
             }
             /* private key */
-            if ((ret == 1) && (!mp_iszero(wc_ecc_key_get_priv(key)))) {
-                if (pubSet) {
+            if (ret == 1) {
+                int privSet = !mp_iszero(wc_ecc_key_get_priv(key));
+
+                pk_ec_put_k(key);
+                if (privSet && pubSet) {
                     key->type = ECC_PRIVATEKEY;
                 }
-                else {
+                else if (privSet) {
                     key->type = ECC_PRIVATEKEY_ONLY;
                 }
             }
