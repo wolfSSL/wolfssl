@@ -1868,17 +1868,16 @@ int wolfSSL_GetHmacMaxSize(void)
     return WC_MAX_DIGEST_SIZE;
 }
 
-#ifdef HAVE_HKDF
-    /* Wait out an async HMAC sub-op: the HKDF loops cannot resume
-     * mid-chain. QAT/Cavium only (not covered by CI); a crypto callback
-     * pending must instead propagate so the caller can re-invoke. */
+/* Wait out an async HMAC sub-op: the one-shot and HKDF callers cannot resume
+ * mid-chain. QAT/Cavium only (not covered by CI); a crypto callback pending
+ * must instead propagate so the caller can re-invoke. */
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
     (defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
     /* QAT/Cavium only: WOLFSSL_ASYNC_REINVOKE is never defined for these
-     * backends (see internal.h), so an HKDF sub-op can only pend on the
+     * backends (see internal.h), so an HMAC sub-op can only pend on the
      * hardware device, never on a re-invokable crypto callback. Wait
-     * unconditionally: the HKDF loops cannot resume mid-chain. */
-    #define HKDF_HMAC_WAIT(ret, hmac)                                      \
+     * unconditionally: the callers cannot resume mid-chain. */
+    #define HMAC_SUBOP_WAIT(ret, hmac)                                     \
         do {                                                               \
             (ret) = wc_AsyncWait((ret), &(hmac)->asyncDev,                 \
                                  WC_ASYNC_FLAG_NONE);                      \
@@ -1886,8 +1885,158 @@ int wolfSSL_GetHmacMaxSize(void)
 #else
     /* No HMAC device to wait on, or the pending must reach the caller
      * (crypto callback re-invocation); hmac is unevaluated. */
-    #define HKDF_HMAC_WAIT(ret, hmac) WC_DO_NOTHING
+    #define HMAC_SUBOP_WAIT(ret, hmac) WC_DO_NOTHING
 #endif
+
+/* One-shot HMAC using caller provided storage for the context.
+ *
+ * hmac     Storage for the HMAC context. Initialized and freed here.
+ * type     The hash algorithm type.
+ * out      Buffer to hold the tag.
+ * outSz    On input, the size of out (at least the digest size). On output,
+ *          the digest size.
+ * in       The message.
+ * inSz     The size of the message.
+ * key      The HMAC key. May be NULL when keySz is 0.
+ * keySz    The size of the key.
+ * heap     The heap hint.
+ * devId    The device ID.
+ * returns 0 on success, BUFFER_E when out is too small, otherwise failure.
+ */
+int wc_HmacGenerate_ex(Hmac* hmac, int type, byte* out, word32* outSz,
+                       const byte* in, word32 inSz,
+                       const byte* key, word32 keySz,
+                       void* heap, int devId)
+{
+    int    ret;
+    word32 digestSz;
+
+    if (hmac == NULL || out == NULL || outSz == NULL ||
+            (in == NULL && inSz != 0) || (key == NULL && keySz != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_HmacSizeByType(type);
+    if (ret < 0) {
+        return ret;
+    }
+    digestSz = (word32)ret;
+    if (*outSz < digestSz) {
+        return BUFFER_E;
+    }
+
+    ret = wc_HmacInit(hmac, heap, devId);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(hmac, type, key, keySz);
+        if (ret == 0) {
+#ifdef WOLF_CRYPTO_CB
+            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            if (WC_HMAC_USE_CRYPTOCB(hmac)) {
+                ret = wc_CryptoCb_Hmac(hmac, hmac->macType, in, inSz, out);
+            }
+            if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+#endif
+            {
+                ret = wc_HmacUpdate(hmac, in, inSz);
+                HMAC_SUBOP_WAIT(ret, hmac);
+                if (ret == 0) {
+                    ret = wc_HmacFinal(hmac, out);
+                    HMAC_SUBOP_WAIT(ret, hmac);
+                }
+            }
+        }
+        wc_HmacFree(hmac);
+    }
+    if (ret == 0) {
+        *outSz = digestSz;
+    }
+
+    return ret;
+}
+
+int wc_HmacGenerate(int type, byte* out, word32* outSz,
+                    const byte* in, word32 inSz,
+                    const byte* key, word32 keySz)
+{
+    int ret;
+    WC_DECLARE_VAR(hmac, Hmac, 1, 0);
+
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
+        return MEMORY_E);
+
+    ret = wc_HmacGenerate_ex(hmac, type, out, outSz, in, inSz, key, keySz,
+                             NULL, INVALID_DEVID);
+
+    WC_FREE_VAR_EX(hmac, NULL, DYNAMIC_TYPE_HMAC);
+
+    return ret;
+}
+
+/* One-shot HMAC verify using caller provided storage for the context.
+ * checkSz must be the digest size of type.
+ *
+ * returns 0 when the tag matches, MAC_CMP_FAILED_E when it does not,
+ * otherwise failure.
+ */
+int wc_HmacVerify_ex(Hmac* hmac, int type, const byte* check, word32 checkSz,
+                     const byte* in, word32 inSz,
+                     const byte* key, word32 keySz,
+                     void* heap, int devId)
+{
+    int    ret;
+    byte   tag[WC_MAX_DIGEST_SIZE];
+    word32 tagSz = sizeof(tag);
+
+    if (check == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_HmacSizeByType(type);
+    if (ret < 0) {
+        return ret;
+    }
+    if (checkSz != (word32)ret) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(tag, 0, sizeof(tag));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_HmacVerify_ex tag", tag, sizeof(tag));
+#endif
+
+    ret = wc_HmacGenerate_ex(hmac, type, tag, &tagSz, in, inSz, key, keySz,
+                             heap, devId);
+    if (ret == 0 && ConstantCompare(check, tag, (int)checkSz) != 0) {
+        ret = MAC_CMP_FAILED_E;
+    }
+
+    ForceZero(tag, sizeof(tag));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(tag, sizeof(tag));
+#endif
+
+    return ret;
+}
+
+int wc_HmacVerify(int type, const byte* check, word32 checkSz,
+                  const byte* in, word32 inSz,
+                  const byte* key, word32 keySz)
+{
+    int ret;
+    WC_DECLARE_VAR(hmac, Hmac, 1, 0);
+
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
+        return MEMORY_E);
+
+    ret = wc_HmacVerify_ex(hmac, type, check, checkSz, in, inSz, key, keySz,
+                           NULL, INVALID_DEVID);
+
+    WC_FREE_VAR_EX(hmac, NULL, DYNAMIC_TYPE_HMAC);
+
+    return ret;
+}
+
+#ifdef HAVE_HKDF
 
     /* HMAC-KDF-Extract.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
@@ -1951,11 +2100,11 @@ int wolfSSL_GetHmacMaxSize(void)
         #endif
             if (ret == 0) {
                 ret = wc_HmacUpdate(myHmac, inKey, inKeySz);
-                HKDF_HMAC_WAIT(ret, myHmac);
+                HMAC_SUBOP_WAIT(ret, myHmac);
             }
             if (ret == 0) {
                 ret = wc_HmacFinal(myHmac,  out);
-                HKDF_HMAC_WAIT(ret, myHmac);
+                HMAC_SUBOP_WAIT(ret, myHmac);
             }
             wc_HmacFree(myHmac);
         }
@@ -2049,19 +2198,19 @@ int wolfSSL_GetHmacMaxSize(void)
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, tmp, tmpSz);
-            HKDF_HMAC_WAIT(ret, myHmac);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, info, infoSz);
-            HKDF_HMAC_WAIT(ret, myHmac);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, &n, 1);
-            HKDF_HMAC_WAIT(ret, myHmac);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacFinal(myHmac, tmp);
-            HKDF_HMAC_WAIT(ret, myHmac);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
 
@@ -2160,8 +2309,8 @@ int wolfSSL_GetHmacMaxSize(void)
                           outSz, NULL, INVALID_DEVID);
     }
 
-#undef HKDF_HMAC_WAIT
-
 #endif /* HAVE_HKDF */
+
+#undef HMAC_SUBOP_WAIT
 
 #endif /* NO_HMAC */

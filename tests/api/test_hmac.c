@@ -1513,3 +1513,254 @@ int test_wc_Tls13_HKDF_Extract_ZeroLenIkm(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Tls13_HKDF_Extract_ZeroLenIkm */
+
+/*
+ * Testing wc_HmacGenerate(), wc_HmacVerify() and their _ex variants.
+ */
+int test_wc_HmacGenerate(void)
+{
+    EXPECT_DECLS;
+/* The one-shot HMAC API is newer than the frozen FIPS and selftest modules. */
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+    /* RFC 4231 test case 2 */
+    static const byte key[] = "Jefe";
+    static const byte msg[] = "what do ya want for nothing?";
+    static const byte expected[WC_SHA256_DIGEST_SIZE] = {
+        0x5b, 0xdc, 0xc1, 0x46, 0xbf, 0x60, 0x75, 0x4e,
+        0x6a, 0x04, 0x24, 0x26, 0x08, 0x95, 0x75, 0xc7,
+        0x5a, 0x00, 0x3f, 0x08, 0x9d, 0x27, 0x39, 0x83,
+        0x9d, 0xec, 0x58, 0xb9, 0x64, 0xec, 0x38, 0x43
+    };
+    const word32 keySz = (word32)XSTRLEN((const char*)key);
+    const word32 msgSz = (word32)XSTRLEN((const char*)msg);
+    Hmac   hmac;
+    byte   tag[WC_SHA256_DIGEST_SIZE];
+    byte   ref[WC_SHA256_DIGEST_SIZE];
+    byte   big[WC_MAX_DIGEST_SIZE];
+    word32 tagSz;
+
+    /* Known answer, full length. */
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, tag, &tagSz, msg, msgSz, key,
+        keySz), 0);
+    ExpectIntEQ(tagSz, WC_SHA256_DIGEST_SIZE);
+    ExpectBufEQ(tag, expected, WC_SHA256_DIGEST_SIZE);
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, sizeof(expected), msg,
+        msgSz, key, keySz), 0);
+
+    /* A larger buffer is accepted and outSz reports the digest size. */
+    tagSz = sizeof(big);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, big, &tagSz, msg, msgSz, key,
+        keySz), 0);
+    ExpectIntEQ(tagSz, WC_SHA256_DIGEST_SIZE);
+    ExpectBufEQ(big, expected, WC_SHA256_DIGEST_SIZE);
+
+    /* Any flipped bit is rejected. */
+    XMEMCPY(tag, expected, sizeof(expected));
+    tag[sizeof(tag) - 1] ^= 0x01;
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, tag, sizeof(tag), msg, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+    XMEMCPY(tag, expected, sizeof(expected));
+    tag[0] ^= 0x80;
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, tag, sizeof(tag), msg, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+
+    /* A valid tag is rejected under a different key or message. */
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, sizeof(expected), msg,
+        msgSz, (const byte*)"Jefx", keySz),
+        WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, sizeof(expected), msg,
+        msgSz - 1, key, keySz), WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+
+    /* Empty key and empty message match the streaming API. */
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, NULL, 0), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, ref), 0);
+    wc_HmacFree(&hmac);
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, tag, &tagSz, NULL, 0, NULL, 0), 0);
+    ExpectBufEQ(tag, ref, sizeof(ref));
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, ref, sizeof(ref), NULL, 0, NULL, 0),
+        0);
+
+    /* _ex variants with caller provided context storage. */
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+        key, keySz, NULL, INVALID_DEVID), 0);
+    ExpectBufEQ(tag, expected, sizeof(expected));
+    ExpectIntEQ(wc_HmacVerify_ex(&hmac, WC_SHA256, expected, sizeof(expected),
+        msg, msgSz, key, keySz, NULL, INVALID_DEVID), 0);
+
+    /* Bad arguments. */
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, NULL, &tagSz, msg, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, tag, NULL, msg, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, tag, &tagSz, NULL, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, tag, &tagSz, msg, msgSz, NULL,
+        keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacGenerate(WC_HASH_TYPE_NONE, tag, &tagSz, msg, msgSz,
+        key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    tagSz = 0;
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, tag, &tagSz, msg, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(BUFFER_E));
+    tagSz = WC_SHA256_DIGEST_SIZE - 1;
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, tag, &tagSz, msg, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(tagSz, WC_SHA256_DIGEST_SIZE - 1);
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate_ex(NULL, WC_SHA256, tag, &tagSz, msg, msgSz,
+        key, keySz, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, NULL, sizeof(expected), msg, msgSz,
+        key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, 0, msg, msgSz, key, keySz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, WC_SHA256_DIGEST_SIZE - 1,
+        msg, msgSz, key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacVerify(WC_HASH_TYPE_NONE, expected, sizeof(expected),
+        msg, msgSz, key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, WC_SHA256_DIGEST_SIZE + 1,
+        msg, msgSz, key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, sizeof(expected), NULL,
+        msgSz, key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacVerify(WC_SHA256, expected, sizeof(expected), msg,
+        msgSz, NULL, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HmacVerify_ex(NULL, WC_SHA256, expected, sizeof(expected),
+        msg, msgSz, key, keySz, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_HmacGenerate */
+
+/*
+ * Testing wc_HmacGenerate() and wc_HmacVerify() digest sizes beyond SHA-256.
+ */
+int test_wc_HmacGenerate_HashTypes(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_HMAC) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
+    /* RFC 4231 test case 2 */
+    static const byte key[] = "Jefe";
+    static const byte msg[] = "what do ya want for nothing?";
+    const word32 keySz = (word32)XSTRLEN((const char*)key);
+    const word32 msgSz = (word32)XSTRLEN((const char*)msg);
+    byte   tag[WC_MAX_DIGEST_SIZE];
+    word32 tagSz;
+#ifdef WOLFSSL_SHA384
+    static const byte expected384[WC_SHA384_DIGEST_SIZE] = {
+        0xaf, 0x45, 0xd2, 0xe3, 0x76, 0x48, 0x40, 0x31,
+        0x61, 0x7f, 0x78, 0xd2, 0xb5, 0x8a, 0x6b, 0x1b,
+        0x9c, 0x7e, 0xf4, 0x64, 0xf5, 0xa0, 0x1b, 0x47,
+        0xe4, 0x2e, 0xc3, 0x73, 0x63, 0x22, 0x44, 0x5e,
+        0x8e, 0x22, 0x40, 0xca, 0x5e, 0x69, 0xe2, 0xc7,
+        0x8b, 0x32, 0x39, 0xec, 0xfa, 0xb2, 0x16, 0x49
+    };
+#endif
+#ifdef WOLFSSL_SHA512
+    static const byte expected512[WC_SHA512_DIGEST_SIZE] = {
+        0x16, 0x4b, 0x7a, 0x7b, 0xfc, 0xf8, 0x19, 0xe2,
+        0xe3, 0x95, 0xfb, 0xe7, 0x3b, 0x56, 0xe0, 0xa3,
+        0x87, 0xbd, 0x64, 0x22, 0x2e, 0x83, 0x1f, 0xd6,
+        0x10, 0x27, 0x0c, 0xd7, 0xea, 0x25, 0x05, 0x54,
+        0x97, 0x58, 0xbf, 0x75, 0xc0, 0x5a, 0x99, 0x4a,
+        0x6d, 0x03, 0x4f, 0x65, 0xf8, 0xf0, 0xe6, 0xfd,
+        0xca, 0xea, 0xb1, 0xa3, 0x4d, 0x4a, 0x6b, 0x4b,
+        0x63, 0x6e, 0x07, 0x0a, 0x38, 0xbc, 0xe7, 0x37
+    };
+#endif
+
+#ifdef WOLFSSL_SHA384
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA384, tag, &tagSz, msg, msgSz, key,
+        keySz), 0);
+    ExpectIntEQ(tagSz, WC_SHA384_DIGEST_SIZE);
+    ExpectBufEQ(tag, expected384, WC_SHA384_DIGEST_SIZE);
+    ExpectIntEQ(wc_HmacVerify(WC_SHA384, expected384, sizeof(expected384),
+        msg, msgSz, key, keySz), 0);
+    ExpectIntEQ(wc_HmacVerify(WC_SHA384, expected384,
+        WC_SHA384_DIGEST_SIZE - 1, msg, msgSz, key, keySz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    tagSz = WC_SHA384_DIGEST_SIZE - 1;
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA384, tag, &tagSz, msg, msgSz, key,
+        keySz), WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+#ifdef WOLFSSL_SHA512
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA512, tag, &tagSz, msg, msgSz, key,
+        keySz), 0);
+    ExpectIntEQ(tagSz, WC_SHA512_DIGEST_SIZE);
+    ExpectBufEQ(tag, expected512, WC_SHA512_DIGEST_SIZE);
+    ExpectIntEQ(wc_HmacVerify(WC_SHA512, expected512, sizeof(expected512),
+        msg, msgSz, key, keySz), 0);
+    ExpectIntEQ(wc_HmacVerify(WC_SHA512, expected512,
+        WC_SHA512_DIGEST_SIZE - 1, msg, msgSz, key, keySz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_HmacGenerate_HashTypes */
+
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLFSSL_KCAPI_HMAC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#define TEST_HMAC_ONESHOT_DEVID 0x484d4f53 /* "HMOS" */
+
+/* Counts HMAC callbacks, then declines so software computes the tag. */
+static int test_hmac_oneshot_cb(int cbDevId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)cbDevId;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_HMAC)) {
+        (*(int*)ctx)++;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing that wc_HmacGenerate_ex() and wc_HmacVerify_ex() pass devId to a
+ * crypto callback and fall back to software when it declines.
+ */
+int test_wc_HmacGenerate_CryptoCb(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLFSSL_KCAPI_HMAC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    static const byte key[] = "Jefe";
+    static const byte msg[] = "what do ya want for nothing?";
+    const word32 keySz = (word32)XSTRLEN((const char*)key);
+    const word32 msgSz = (word32)XSTRLEN((const char*)msg);
+    Hmac   hmac;
+    byte   sw[WC_SHA256_DIGEST_SIZE];
+    byte   tag[WC_SHA256_DIGEST_SIZE];
+    word32 tagSz;
+    int    calls = 0;
+
+    tagSz = sizeof(sw);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, sw, &tagSz, msg, msgSz, key,
+        keySz), 0);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_HMAC_ONESHOT_DEVID,
+        test_hmac_oneshot_cb, &calls), 0);
+
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+        key, keySz, NULL, TEST_HMAC_ONESHOT_DEVID), 0);
+    ExpectIntGT(calls, 0);
+    ExpectBufEQ(tag, sw, sizeof(sw));
+
+    calls = 0;
+    ExpectIntEQ(wc_HmacVerify_ex(&hmac, WC_SHA256, sw, sizeof(sw), msg, msgSz,
+        key, keySz, NULL, TEST_HMAC_ONESHOT_DEVID), 0);
+    ExpectIntGT(calls, 0);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_HMAC_ONESHOT_DEVID);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_HmacGenerate_CryptoCb */
