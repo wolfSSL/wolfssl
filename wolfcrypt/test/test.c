@@ -50626,7 +50626,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     byte info1[10] ={ 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
                       0xf8, 0xf9 };
 #endif
-#ifndef NO_SHA
+/* SHA-1 HKDF is refused by the v7 module when the approved-mode gates are
+ * active (HkdfDigestAllowed() in fips.c). */
+#if !defined(NO_SHA) && !(defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR))
     byte res1[42] = { 0x0a, 0xc1, 0xaf, 0x70, 0x02, 0xb3, 0xd7, 0x61,
                       0xd1, 0xe5, 0x52, 0x98, 0xda, 0x9d, 0x05, 0x06,
                       0xb9, 0xae, 0x52, 0x05, 0x72, 0x20, 0xa3, 0x06,
@@ -50663,7 +50666,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     XMEMSET(okm1, 0, sizeof(okm1));
     L = (int)sizeof(okm1);
 
-#ifndef NO_SHA
+#if !defined(NO_SHA) && !(defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR))
     PRIVATE_KEY_UNLOCK();
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ret = wc_HKDF_ex(WC_SHA, ikm1, (word32)sizeof(ikm1), NULL, 0, NULL, 0,
@@ -50736,7 +50740,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !HAVE_FIPS */
 #endif /* !NO_SHA256 */
 
-#ifndef NO_SHA
+#if !defined(NO_SHA) && !(defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR))
     PRIVATE_KEY_UNLOCK();
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
@@ -80891,9 +80896,10 @@ static wc_test_ret_t slhdsa_keygen_kat(enum SlhDsaParam param,
 
     ret = wc_SlhDsaKey_MakeKeyWithRandom(key,
         sk_seed, sk_seed_sz, sk_prf, sk_prf_sz, pk_seed, pk_seed_sz);
-    if (ret != 0) {
+    if (ret != SEED_OK) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+    ret = 0;
 
     outLen = WC_SLHDSA_MAX_PRIV_LEN;
     PRIVATE_KEY_UNLOCK();
@@ -82792,9 +82798,10 @@ wc_test_ret_t slhdsa_test(void)
         sk_seed_shake128s, (word32)sizeof(sk_seed_shake128s),
         sk_prf_shake128s, (word32)sizeof(sk_prf_shake128s),
         pk_seed_shake128s, (word32)sizeof(pk_seed_shake128s));
-    if (ret != 0) {
+    if (ret != SEED_OK) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+    ret = 0;
 
     outLen = WC_SLHDSA_MAX_PRIV_LEN;
     PRIVATE_KEY_UNLOCK();
@@ -82848,9 +82855,10 @@ wc_test_ret_t slhdsa_test(void)
     ret = wc_SlhDsaKey_SignWithRandom(key, ctx, 0, msg, (word32)sizeof(msg),
         sig, &outLen, pk_seed_shake128s);
     PRIVATE_KEY_LOCK();
-    if (ret != 0) {
+    if (ret != SEED_OK) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+    ret = 0;
     if (outLen != (word32)sizeof(sig_shake128s)) {
         ERROR_OUT(WC_TEST_RET_ENC_I(outLen), out);
     }
@@ -102621,6 +102629,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     word32 n = info->pk.pqc_sig_kg.seedSz / 3;
                     ret = wc_SlhDsaKey_MakeKeyWithRandom(sk, seed, n,
                         seed + n, n, seed + 2 * n, n);
+                    /* The callback contract has no indicator ride. */
+                    if (ret == SEED_OK)
+                        ret = 0;
                 }
                 else {
                     ret = wc_SlhDsaKey_MakeKey(sk, info->pk.pqc_sig_kg.rng);
@@ -102648,6 +102659,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                             info->pk.pqc_sign.out,
                             info->pk.pqc_sign.outlen,
                             addRnd);
+                        if (ret == SEED_OK)
+                            ret = 0;
                     }
                     else {
                         ret = wc_SlhDsaKey_Sign(sk,
@@ -102671,6 +102684,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                             info->pk.pqc_sign.out,
                             info->pk.pqc_sign.outlen,
                             addRnd);
+                        if (ret == SEED_OK)
+                            ret = 0;
                     }
                     else {
                         ret = wc_SlhDsaKey_SignHash(sk,
@@ -102700,6 +102715,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->pk.pqc_sign.out,
                     info->pk.pqc_sign.outlen,
                     info->pk.pqc_sign.addRnd);
+                if (ret == SEED_OK)
+                    ret = 0;
                 sk->devId = devIdArg;
                 myCtx->exampleVar++;
             }
@@ -106407,15 +106424,23 @@ static wc_test_ret_t cryptocb_pqc_mldsa_test(PqcHashDev* dev)
             ret = wc_MlDsaKey_SetParams(hw, (byte)level);
         if (ret == 0)
             ret = wc_MlDsaKey_MakeKeyFromSeed(sw, seed);
+        if (ret == SEED_OK)
+            ret = 0;
         if (ret == 0)
             ret = wc_MlDsaKey_MakeKeyFromSeed(hw, seed);
+        if (ret == SEED_OK)
+            ret = 0;
         if (ret == 0) {
             ret = wc_MlDsaKey_SignCtxWithSeed(sw, NULL, 0, sigSw, &sigSzSw,
                 msg, sizeof(msg), rnd);
+            if (ret == SEED_OK)
+                ret = 0;
         }
         if (ret == 0) {
             ret = wc_MlDsaKey_SignCtxWithSeed(hw, NULL, 0, sigHw, &sigSzHw,
                 msg, sizeof(msg), rnd);
+            if (ret == SEED_OK)
+                ret = 0;
         }
         if (ret == 0) {
             ret = wc_MlDsaKey_VerifyCtx(hw, sigSw, sigSzSw, NULL, 0, msg,
