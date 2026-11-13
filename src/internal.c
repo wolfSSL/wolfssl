@@ -15451,7 +15451,8 @@ static int PatternHasWildcardInALabel(const char* pattern, word32 patternLen)
  *
  * Returns 1 if the pattern has no wildcard or its wildcard placement is
  * acceptable, 0 otherwise. */
-static int WildcardPlacementOK(const char* pattern, word32 patternLen)
+static int WildcardPlacementOK(const char* pattern, word32 patternLen,
+                               unsigned int flags)
 {
     word32 i;
     int sawWildcard = 0;
@@ -15474,6 +15475,12 @@ static int WildcardPlacementOK(const char* pattern, word32 patternLen)
 
     if (!sawWildcard)
         return 1;
+
+    /* WOLFSSL_NO_PARTIAL_WILDCARDS: the wildcard must be the whole left-most
+     * label, as RFC 9525 sec. 6.3 requires. */
+    if ((flags & WOLFSSL_NO_PARTIAL_WILDCARDS) != 0 &&
+            !(pattern[0] == '*' && (patternLen == 1 || pattern[1] == '.')))
+        return 0;
 
     /* A left-most label that is exactly "*" (a bare wildcard label) requires at
      * least two further labels. This rejects a bare "*" (0 dots) and "*.tld"
@@ -15525,6 +15532,20 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
     if (pattern[patternLen-1] == '.')
         --patternLen;
 
+    /* WOLFSSL_NO_WILDCARDS: compare case-insensitively, no '*' handling. */
+    if ((flags & WOLFSSL_NO_WILDCARDS) != 0) {
+        word32 i;
+
+        if ((word32)patternLen != strLen)
+            return 0;
+        for (i = 0; i < strLen; i++) {
+            if (XTOLOWER((unsigned char)pattern[i]) !=
+                    XTOLOWER((unsigned char)str[i]))
+                return 0;
+        }
+        return 1;
+    }
+
     /* RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3: do not perform wildcard
      * matching when the pattern has a wildcard embedded in an A-label, nor
      * when the reference identifier (hostname) contains any A-label. The
@@ -15545,7 +15566,7 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
      * sec. 3.2.2.6: reject a pattern whose wildcard is not confined to the
      * left-most label, or that has fewer than two labels to the right of the
      * wildcard (e.g. "*", "*.com", "foo.*.example.com"). */
-    if (!WildcardPlacementOK(pattern, (word32)patternLen))
+    if (!WildcardPlacementOK(pattern, (word32)patternLen, flags))
         return 0;
 
     while (patternLen > 0) {
