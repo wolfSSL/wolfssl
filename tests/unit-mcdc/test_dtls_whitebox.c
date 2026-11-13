@@ -79,6 +79,16 @@ static int g_fail;
 
 #define WB_NOTE(what) do {g_checks++; (void)(what);} while (0)
 
+/* The issue time a cookie made now carries */
+static word32 wb_now(void)
+{
+#ifndef NO_ASN_TIME
+    return LowResTimer();
+#else
+    return 0;
+#endif
+}
+
 /* ------------------------------------------------------------------ helpers */
 
 /* A CH whose vectors are all empty and whose pv is caller supplied. Callers
@@ -111,9 +121,11 @@ static void wb_create_dtls12_cookie(WOLFSSL* ssl)
     wb_ch_init(&ch, &pv);
     ch.random = random;
 
-    WB_NOTE(CreateDtls12Cookie(ssl, &ch, NULL, sizeof(secret), cookie));
-    WB_NOTE(CreateDtls12Cookie(ssl, &ch, secret, 0, cookie));
-    WB_NOTE(CreateDtls12Cookie(ssl, &ch, secret, sizeof(secret), cookie));
+    WB_NOTE(CreateDtls12Cookie(ssl, &ch, NULL, sizeof(secret), wb_now(),
+        cookie));
+    WB_NOTE(CreateDtls12Cookie(ssl, &ch, secret, 0, wb_now(), cookie));
+    WB_NOTE(CreateDtls12Cookie(ssl, &ch, secret, sizeof(secret), wb_now(),
+        cookie));
 }
 
 /* ------------------------------------------------- FindExtByType :402 */
@@ -644,8 +656,9 @@ static void wb_cookie_rows(WOLFSSL* ssl)
     byte secret2[32];
     byte hash[32];
     byte mac[32];
-    byte cookie[66];
+    byte cookie[70];
     byte cookie12[DTLS_COOKIE_SZ];
+    word16 dataSz;
     int ret;
 
     pv.major = DTLS_MAJOR;
@@ -671,24 +684,30 @@ static void wb_cookie_rows(WOLFSSL* ssl)
     ssl->buffers.tls13CookieSecret.length = sizeof(secret);
     WB_NOTE(CheckDtlsCookie(ssl, &ch, 1, &cookieGood));
 
-    /* primary secret set, valid cookie -> ret > 0 */
+    /* primary secret set, valid cookie -> ret > 0. The cookie data is the
+     * hash and, with a clock, the issue time; the MAC covers both. */
+    XMEMCPY(cookie + 2, hash, 32);
+    dataSz = 32;
+#ifndef NO_ASN_TIME
+    c32toa(wb_now(), cookie + 2 + dataSz);
+    dataSz += 4;
+#endif
     ret = wc_HmacInit(&hmac, ssl->heap, INVALID_DEVID);
     if (ret == 0) {
         ret = wc_HmacSetKey(&hmac, WC_SHA256, secret, sizeof(secret));
     }
     if (ret == 0) {
-        ret = wc_HmacUpdate(&hmac, hash, sizeof(hash));
+        ret = wc_HmacUpdate(&hmac, cookie + 2, dataSz);
     }
     if (ret == 0) {
         ret = wc_HmacFinal(&hmac, mac);
     }
     wc_HmacFree(&hmac);
     if (ret == 0) {
-        XMEMCPY(cookie + 2, hash, 32);
-        XMEMCPY(cookie + 34, mac, 32);
+        XMEMCPY(cookie + 2 + dataSz, mac, 32);
         cookie[0] = 0;
-        cookie[1] = 64;
-        ch.cookieExt.size = 66;
+        cookie[1] = (byte)(dataSz + 32);
+        ch.cookieExt.size = (word16)(2 + dataSz + 32);
         WB_NOTE(CheckDtlsCookie(ssl, &ch, 1, &cookieGood));
         if (cookieGood == 0)
             g_fail++;
@@ -699,18 +718,17 @@ static void wb_cookie_rows(WOLFSSL* ssl)
     /* -- isTls13 = 0 :330 -- */
     ssl->buffers.dtlsCookieSecret.buffer = secret;
     ssl->buffers.dtlsCookieSecret.length = sizeof(secret);
-    /* good cookie: elements is a SEPARATE buffer from ch.dtls12cookie,
-     * precomputed with the same secret so the constant compare matches */
+    /* good cookie: made with the same secret and time, so the constant
+     * compare matches */
     ch.cookie.elements = cookie12;
     ch.cookie.size = DTLS_COOKIE_SZ;
-    ch.dtls12cookieSet = 0;
-    ret = CreateDtls12Cookie(ssl, &ch, secret, sizeof(secret), cookie12);
+    ret = CreateDtls12Cookie(ssl, &ch, secret, sizeof(secret), wb_now(),
+        cookie12);
     if (ret == 0) {
         WB_NOTE(CheckDtlsCookie(ssl, &ch, 0, &cookieGood));
     }
     /* bad cookie, no secondary: operand 1 false */
     XMEMSET(cookie12, 0, DTLS_COOKIE_SZ);
-    ch.dtls12cookieSet = 0;
     WB_NOTE(CheckDtlsCookie(ssl, &ch, 0, &cookieGood));
     /* bad cookie, secondary length > 0: operand 2 true */
     ssl->buffers.dtlsCookieSecretSecondary.buffer = secret2;
