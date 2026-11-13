@@ -579,15 +579,28 @@ enum {
 #if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS)
     #if defined(_MSC_VER) || defined(__WATCOMC__)
         #define THREAD_LS_T __declspec(thread)
+        #define WC_THREAD_LS_T_IS_REAL
     /* Thread local storage only in FreeRTOS v8.2.1 and higher */
     #elif defined(FREERTOS) || defined(FREERTOS_TCP) || \
                                                         defined(WOLFSSL_ZEPHYR)
         #define THREAD_LS_T
     #else
         #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
     #endif
 #else
     #define THREAD_LS_T
+#endif
+
+/* ERROR_QUEUE_PER_THREAD keeps the error queue in an unlocked THREAD_LS_T
+ * global. In a multi-threaded build where THREAD_LS_T expands to nothing (no
+ * HAVE_THREAD_LS, NO_THREAD_LS, or a platform without compiler TLS) that
+ * global would be shared by every thread with no locking, so fall back to the
+ * mutex protected queue instead. WC_THREAD_LS_T_IS_REAL is set above only
+ * where THREAD_LS_T is a real storage class. */
+#if defined(ERROR_QUEUE_PER_THREAD) && !defined(SINGLE_THREADED) && \
+    !defined(WC_THREAD_LS_T_IS_REAL)
+    #undef ERROR_QUEUE_PER_THREAD
 #endif
 
 #ifndef FALL_THROUGH

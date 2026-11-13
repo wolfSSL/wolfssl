@@ -1431,25 +1431,13 @@ int wc_SetLoggingHeap(void* h)
  */
 int wc_ERR_remove_state(void)
 {
-    struct wc_error_queue* current;
-    struct wc_error_queue* next;
-
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return BAD_MUTEX_E;
     }
 
-    /* free all nodes from error queue */
-    current = (struct wc_error_queue*)wc_errors;
-    while (current != NULL) {
-        next = current->next;
-        XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-        current = next;
-    }
-
-    wc_errors_count = 0;
-    wc_errors          = NULL;
-    wc_last_node       = NULL;
+    /* free all nodes from error queue, also resets wc_current_node */
+    clearErrorNodes();
 
     ERRQ_UNLOCK();
 
@@ -1567,23 +1555,18 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         WOLFSSL_MSG("Lock debug mutex failed");
     }
     else {
-        /* free all nodes from error queue and print them to file */
+        /* print all nodes from error queue, then free them */
         struct wc_error_queue *current;
-        struct wc_error_queue *next;
 
         current = (struct wc_error_queue *)wc_errors;
         while (current != NULL)
         {
-            next = current->next;
             cb(current->error, XSTRLEN(current->error), u);
-            XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-            current = next;
+            current = current->next;
         }
 
-        /* set global pointers to match having been freed */
-        wc_errors_count = 0;
-        wc_errors = NULL;
-        wc_last_node = NULL;
+        /* also resets wc_current_node */
+        clearErrorNodes();
 
         ERRQ_UNLOCK();
     }
