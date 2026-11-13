@@ -96408,6 +96408,10 @@ static wc_test_ret_t mp_test_div_word(mp_int* a, mp_int* r)
         /* Exact divisions. */
         { 0x00008000, 0x00000000, 0x80000000, 0x00010000, 0x00000000 },
         { 0x7fff7fff, 0x00000000, 0x80008000, 0xfffe0000, 0x00000000 },
+        /* Divisors in [2^16, 2^23) and [2^24, 2^31). */
+        { 0x00010002, 0x00000000, 0x00010003, 0xffff0002, 0x0000fffa },
+        { 0x01000000, 0x00000000, 0x01000001, 0xffffff00, 0x00000100 },
+        { 0x40000000, 0x00000000, 0x40000001, 0xfffffffc, 0x00000004 },
     };
     wc_test_ret_t ret;
     mp_digit rem;
@@ -96424,6 +96428,11 @@ static wc_test_ret_t mp_test_div_word(mp_int* a, mp_int* r)
         if (ret != MP_OKAY)
             return WC_TEST_RET_ENC_EC(ret);
         if ((mp_cmp_d(r, vec[i].q) != MP_EQ) || (rem != vec[i].rem))
+            return WC_TEST_RET_ENC_I(i);
+        ret = mp_mod_d(a, vec[i].d, &rem);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (rem != vec[i].rem)
             return WC_TEST_RET_ENC_I(i);
     }
 
