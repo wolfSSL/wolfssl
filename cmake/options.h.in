@@ -668,6 +668,8 @@ extern "C" {
 #cmakedefine HAVE_STACK_SIZE
 #undef HAVE_STACK_SIZE_VERBOSE
 #cmakedefine HAVE_STACK_SIZE_VERBOSE
+#undef HAVE_WC_INTROSPECTION
+#cmakedefine HAVE_WC_INTROSPECTION
 #undef MAX_EX_DATA
 #cmakedefine MAX_EX_DATA @MAX_EX_DATA@
 #undef ECC_MIN_KEY_SZ
@@ -1010,6 +1012,8 @@ extern "C" {
 #cmakedefine WOLFSSL_TSP
 #undef WOLFSSL_VERBOSE_ERRORS
 #cmakedefine WOLFSSL_VERBOSE_ERRORS
+
+@WOLFSSL_OPTIONS_HASH_DEFINE@
 
 #ifdef __cplusplus
 }
