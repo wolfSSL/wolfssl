@@ -12,6 +12,25 @@ int wc_InitSakkeKey_ex(SakkeKey* key, int keySize, int curveId,
     \ingroup SAKKE_Setup
 */
 void wc_FreeSakkeKey(SakkeKey* key);
+/*!
+    \ingroup SAKKE_Setup
+
+    \brief Sets the random number generator used to blind operations on
+    secret values. Recommended for performance: operations on secrets are
+    constant time without an RNG, but blinding allows faster algorithms to be
+    used. It speeds up wc_MakeSakkeRsk() (KMS), which otherwise instantiates
+    an RNG for each call, and, without SP code,
+    wc_MakeSakkeEncapsulatedSSV(), wc_ValidateSakkeRsk() and
+    wc_DeriveSakkeSSV(). The RNG is not owned by the key and must remain valid
+    while set. wc_MakeSakkeKey() uses the RNG passed to it when none is set.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG when key is NULL.
+
+    \param [in] key  SAKKE key.
+    \param [in] rng  Random number generator. NULL to clear.
+*/
+int wc_SetSakkeRng(SakkeKey* key, WC_RNG* rng);
 
 /*!
     \ingroup SAKKE_Setup

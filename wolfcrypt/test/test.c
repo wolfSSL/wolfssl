@@ -84695,6 +84695,13 @@ static wc_test_ret_t sakke_api_test(WC_RNG* rng, SakkeKey* key, ecc_point* rsk)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+    ret = wc_SetSakkeRng(NULL, NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SetSakkeRng(NULL, rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
     ret = wc_MakeSakkeKey(NULL, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
@@ -85871,6 +85878,40 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sakke_test(void)
 
     if (ret == 0) {
         ret = sakke_op_test(priv, pub, &rng, rsk);
+    }
+
+    /* Repeat with blinding by RNG - results must be the same. */
+    if (ret == 0) {
+        ret = wc_SetSakkeRng(pub, &rng);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        ret = wc_SetSakkeRng(priv, &rng);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        ret = sakke_kat_derive_test(pub, rsk);
+    }
+    if (ret == 0) {
+        ret = sakke_kat_encapsulate_test(pub);
+    }
+    if (ret == 0) {
+        ret = sakke_make_key_test(priv, pub, key, &rng, rsk);
+    }
+    if (ret == 0) {
+        ret = sakke_op_test(priv, pub, &rng, rsk);
+    }
+    if (ret == 0) {
+        ret = wc_SetSakkeRng(pub, NULL);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        ret = wc_SetSakkeRng(priv, NULL);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 
     if (rsk != NULL) {

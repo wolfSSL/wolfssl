@@ -76421,7 +76421,8 @@ static const sp_digit p1024_norm_mod[32] = {
 };
 /* The Montgomery multiplier for modulus of the curve P1024. */
 static sp_digit p1024_mp_mod = 0x7c8f2f3d;
-#if defined(WOLFSSL_SP_SMALL) || defined(HAVE_ECC_CHECK_KEY)
+#if defined(WOLFSSL_SP_SMALL) || defined(HAVE_ECC_CHECK_KEY) || \
+    !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 /* The order of the curve P1024. */
 static const sp_digit p1024_order[32] = {
     0xbfaa17fb,0xd99b601e,0x2b1eb3a1,0x203177c4,0xe2615f6c,0xff38fa08,
@@ -80541,6 +80542,216 @@ static void sp_1024_proj_point_add_32(sp_point_1024* r,
     }
 }
 
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible point that could be being copied.
+ *
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_1024_get_point_16_32(sp_point_1024* r, const sp_point_1024* table,
+    int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->x[9] = 0;
+    r->x[10] = 0;
+    r->x[11] = 0;
+    r->x[12] = 0;
+    r->x[13] = 0;
+    r->x[14] = 0;
+    r->x[15] = 0;
+    r->x[16] = 0;
+    r->x[17] = 0;
+    r->x[18] = 0;
+    r->x[19] = 0;
+    r->x[20] = 0;
+    r->x[21] = 0;
+    r->x[22] = 0;
+    r->x[23] = 0;
+    r->x[24] = 0;
+    r->x[25] = 0;
+    r->x[26] = 0;
+    r->x[27] = 0;
+    r->x[28] = 0;
+    r->x[29] = 0;
+    r->x[30] = 0;
+    r->x[31] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    r->y[9] = 0;
+    r->y[10] = 0;
+    r->y[11] = 0;
+    r->y[12] = 0;
+    r->y[13] = 0;
+    r->y[14] = 0;
+    r->y[15] = 0;
+    r->y[16] = 0;
+    r->y[17] = 0;
+    r->y[18] = 0;
+    r->y[19] = 0;
+    r->y[20] = 0;
+    r->y[21] = 0;
+    r->y[22] = 0;
+    r->y[23] = 0;
+    r->y[24] = 0;
+    r->y[25] = 0;
+    r->y[26] = 0;
+    r->y[27] = 0;
+    r->y[28] = 0;
+    r->y[29] = 0;
+    r->y[30] = 0;
+    r->y[31] = 0;
+    r->z[0] = 0;
+    r->z[1] = 0;
+    r->z[2] = 0;
+    r->z[3] = 0;
+    r->z[4] = 0;
+    r->z[5] = 0;
+    r->z[6] = 0;
+    r->z[7] = 0;
+    r->z[8] = 0;
+    r->z[9] = 0;
+    r->z[10] = 0;
+    r->z[11] = 0;
+    r->z[12] = 0;
+    r->z[13] = 0;
+    r->z[14] = 0;
+    r->z[15] = 0;
+    r->z[16] = 0;
+    r->z[17] = 0;
+    r->z[18] = 0;
+    r->z[19] = 0;
+    r->z[20] = 0;
+    r->z[21] = 0;
+    r->z[22] = 0;
+    r->z[23] = 0;
+    r->z[24] = 0;
+    r->z[25] = 0;
+    r->z[26] = 0;
+    r->z[27] = 0;
+    r->z[28] = 0;
+    r->z[29] = 0;
+    r->z[30] = 0;
+    r->z[31] = 0;
+    for (i = 1; i < 16; i++) {
+        mask = (sp_digit)0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->x[9] |= mask & table[i].x[9];
+        r->x[10] |= mask & table[i].x[10];
+        r->x[11] |= mask & table[i].x[11];
+        r->x[12] |= mask & table[i].x[12];
+        r->x[13] |= mask & table[i].x[13];
+        r->x[14] |= mask & table[i].x[14];
+        r->x[15] |= mask & table[i].x[15];
+        r->x[16] |= mask & table[i].x[16];
+        r->x[17] |= mask & table[i].x[17];
+        r->x[18] |= mask & table[i].x[18];
+        r->x[19] |= mask & table[i].x[19];
+        r->x[20] |= mask & table[i].x[20];
+        r->x[21] |= mask & table[i].x[21];
+        r->x[22] |= mask & table[i].x[22];
+        r->x[23] |= mask & table[i].x[23];
+        r->x[24] |= mask & table[i].x[24];
+        r->x[25] |= mask & table[i].x[25];
+        r->x[26] |= mask & table[i].x[26];
+        r->x[27] |= mask & table[i].x[27];
+        r->x[28] |= mask & table[i].x[28];
+        r->x[29] |= mask & table[i].x[29];
+        r->x[30] |= mask & table[i].x[30];
+        r->x[31] |= mask & table[i].x[31];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+        r->y[9] |= mask & table[i].y[9];
+        r->y[10] |= mask & table[i].y[10];
+        r->y[11] |= mask & table[i].y[11];
+        r->y[12] |= mask & table[i].y[12];
+        r->y[13] |= mask & table[i].y[13];
+        r->y[14] |= mask & table[i].y[14];
+        r->y[15] |= mask & table[i].y[15];
+        r->y[16] |= mask & table[i].y[16];
+        r->y[17] |= mask & table[i].y[17];
+        r->y[18] |= mask & table[i].y[18];
+        r->y[19] |= mask & table[i].y[19];
+        r->y[20] |= mask & table[i].y[20];
+        r->y[21] |= mask & table[i].y[21];
+        r->y[22] |= mask & table[i].y[22];
+        r->y[23] |= mask & table[i].y[23];
+        r->y[24] |= mask & table[i].y[24];
+        r->y[25] |= mask & table[i].y[25];
+        r->y[26] |= mask & table[i].y[26];
+        r->y[27] |= mask & table[i].y[27];
+        r->y[28] |= mask & table[i].y[28];
+        r->y[29] |= mask & table[i].y[29];
+        r->y[30] |= mask & table[i].y[30];
+        r->y[31] |= mask & table[i].y[31];
+        r->z[0] |= mask & table[i].z[0];
+        r->z[1] |= mask & table[i].z[1];
+        r->z[2] |= mask & table[i].z[2];
+        r->z[3] |= mask & table[i].z[3];
+        r->z[4] |= mask & table[i].z[4];
+        r->z[5] |= mask & table[i].z[5];
+        r->z[6] |= mask & table[i].z[6];
+        r->z[7] |= mask & table[i].z[7];
+        r->z[8] |= mask & table[i].z[8];
+        r->z[9] |= mask & table[i].z[9];
+        r->z[10] |= mask & table[i].z[10];
+        r->z[11] |= mask & table[i].z[11];
+        r->z[12] |= mask & table[i].z[12];
+        r->z[13] |= mask & table[i].z[13];
+        r->z[14] |= mask & table[i].z[14];
+        r->z[15] |= mask & table[i].z[15];
+        r->z[16] |= mask & table[i].z[16];
+        r->z[17] |= mask & table[i].z[17];
+        r->z[18] |= mask & table[i].z[18];
+        r->z[19] |= mask & table[i].z[19];
+        r->z[20] |= mask & table[i].z[20];
+        r->z[21] |= mask & table[i].z[21];
+        r->z[22] |= mask & table[i].z[22];
+        r->z[23] |= mask & table[i].z[23];
+        r->z[24] |= mask & table[i].z[24];
+        r->z[25] |= mask & table[i].z[25];
+        r->z[26] |= mask & table[i].z[26];
+        r->z[27] |= mask & table[i].z[27];
+        r->z[28] |= mask & table[i].z[28];
+        r->z[29] |= mask & table[i].z[29];
+        r->z[30] |= mask & table[i].z[30];
+        r->z[31] |= mask & table[i].z[31];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -80566,6 +80777,9 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
     SP_DECL_VAR(sp_point_1024, t, 16 + 1);
     SP_DECL_VAR(sp_digit, tmp, 2 * 32 * 37);
     sp_point_1024* rt = NULL;
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_point_1024, p, 1);
+#endif /* !WC_NO_CACHE_RESISTANT */
     sp_digit n;
     int i;
     int c;
@@ -80577,6 +80791,9 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
     (void)heap;
 
     SP_ALLOC_VAR(sp_point_1024, t, 16 + 1, heap, DYNAMIC_TYPE_ECC);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_point_1024, p, 1, heap, DYNAMIC_TYPE_ECC);
+#endif
     SP_ALLOC_VAR(sp_digit, tmp, 2 * 32 * 37, heap, DYNAMIC_TYPE_ECC);
 
     if (err == MP_OKAY) {
@@ -80623,7 +80840,16 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
         n = (sp_uint32)k[i+1] << 0;
         c = 28;
         y = (int)(n >> 28);
-        XMEMCPY(rt, &t[y], sizeof(sp_point_1024));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_1024_get_point_16_32(rt, t, y);
+            rt->infinity = !y;
+        }
+        else
+    #endif
+        {
+            XMEMCPY(rt, &t[y], sizeof(sp_point_1024));
+        }
         n = (sp_uint32)n << (4);
         for (; i>=0 || c>=4; ) {
             if (c < 4) {
@@ -80638,7 +80864,18 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
             sp_1024_proj_point_dbl_32(rt, rt, tmp);
             sp_1024_proj_point_dbl_32(rt, rt, tmp);
             sp_1024_proj_point_dbl_32(rt, rt, tmp);
-            sp_1024_proj_point_add_32(rt, rt, &t[y], tmp);
+
+    #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_1024_get_point_16_32(p, t, y);
+                p->infinity = !y;
+                sp_1024_proj_point_add_32(rt, rt, p, tmp);
+            }
+            else
+    #endif
+            {
+                sp_1024_proj_point_add_32(rt, rt, &t[y], tmp);
+            }
         }
 
         if (map != 0) {
@@ -80651,6 +80888,9 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
 
     SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 32 * 37, heap,
         DYNAMIC_TYPE_ECC);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_point_1024, p, 1, heap, DYNAMIC_TYPE_ECC);
+#endif /* !WC_NO_CACHE_RESISTANT */
     SP_ZEROFREE_VAR(sp_point_1024, t, 16 + 1, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -80940,6 +81180,154 @@ static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
 }
 
 #endif /* FP_ECC || !WOLFSSL_SP_SMALL */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_1024_get_entry_16_32(sp_point_1024* r,
+    const sp_table_entry_1024* table, int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->x[9] = 0;
+    r->x[10] = 0;
+    r->x[11] = 0;
+    r->x[12] = 0;
+    r->x[13] = 0;
+    r->x[14] = 0;
+    r->x[15] = 0;
+    r->x[16] = 0;
+    r->x[17] = 0;
+    r->x[18] = 0;
+    r->x[19] = 0;
+    r->x[20] = 0;
+    r->x[21] = 0;
+    r->x[22] = 0;
+    r->x[23] = 0;
+    r->x[24] = 0;
+    r->x[25] = 0;
+    r->x[26] = 0;
+    r->x[27] = 0;
+    r->x[28] = 0;
+    r->x[29] = 0;
+    r->x[30] = 0;
+    r->x[31] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    r->y[9] = 0;
+    r->y[10] = 0;
+    r->y[11] = 0;
+    r->y[12] = 0;
+    r->y[13] = 0;
+    r->y[14] = 0;
+    r->y[15] = 0;
+    r->y[16] = 0;
+    r->y[17] = 0;
+    r->y[18] = 0;
+    r->y[19] = 0;
+    r->y[20] = 0;
+    r->y[21] = 0;
+    r->y[22] = 0;
+    r->y[23] = 0;
+    r->y[24] = 0;
+    r->y[25] = 0;
+    r->y[26] = 0;
+    r->y[27] = 0;
+    r->y[28] = 0;
+    r->y[29] = 0;
+    r->y[30] = 0;
+    r->y[31] = 0;
+    for (i = 1; i < 16; i++) {
+        sp_digit gte = (sp_digit)((((sp_uint32)i - (sp_uint32)idx) >> 31) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint32)idx - (sp_uint32)i) >> 31) - 1);
+        mask = gte & lte;
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->x[9] |= mask & table[i].x[9];
+        r->x[10] |= mask & table[i].x[10];
+        r->x[11] |= mask & table[i].x[11];
+        r->x[12] |= mask & table[i].x[12];
+        r->x[13] |= mask & table[i].x[13];
+        r->x[14] |= mask & table[i].x[14];
+        r->x[15] |= mask & table[i].x[15];
+        r->x[16] |= mask & table[i].x[16];
+        r->x[17] |= mask & table[i].x[17];
+        r->x[18] |= mask & table[i].x[18];
+        r->x[19] |= mask & table[i].x[19];
+        r->x[20] |= mask & table[i].x[20];
+        r->x[21] |= mask & table[i].x[21];
+        r->x[22] |= mask & table[i].x[22];
+        r->x[23] |= mask & table[i].x[23];
+        r->x[24] |= mask & table[i].x[24];
+        r->x[25] |= mask & table[i].x[25];
+        r->x[26] |= mask & table[i].x[26];
+        r->x[27] |= mask & table[i].x[27];
+        r->x[28] |= mask & table[i].x[28];
+        r->x[29] |= mask & table[i].x[29];
+        r->x[30] |= mask & table[i].x[30];
+        r->x[31] |= mask & table[i].x[31];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+        r->y[9] |= mask & table[i].y[9];
+        r->y[10] |= mask & table[i].y[10];
+        r->y[11] |= mask & table[i].y[11];
+        r->y[12] |= mask & table[i].y[12];
+        r->y[13] |= mask & table[i].y[13];
+        r->y[14] |= mask & table[i].y[14];
+        r->y[15] |= mask & table[i].y[15];
+        r->y[16] |= mask & table[i].y[16];
+        r->y[17] |= mask & table[i].y[17];
+        r->y[18] |= mask & table[i].y[18];
+        r->y[19] |= mask & table[i].y[19];
+        r->y[20] |= mask & table[i].y[20];
+        r->y[21] |= mask & table[i].y[21];
+        r->y[22] |= mask & table[i].y[22];
+        r->y[23] |= mask & table[i].y[23];
+        r->y[24] |= mask & table[i].y[24];
+        r->y[25] |= mask & table[i].y[25];
+        r->y[26] |= mask & table[i].y[26];
+        r->y[27] |= mask & table[i].y[27];
+        r->y[28] |= mask & table[i].y[28];
+        r->y[29] |= mask & table[i].y[29];
+        r->y[30] |= mask & table[i].y[30];
+        r->y[31] |= mask & table[i].y[31];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -80992,8 +81380,15 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
             y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             x += 256;
         }
-        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
-        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_1024_get_entry_16_32(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
         rt->infinity = !y;
         for (i=254; i>=0; i--) {
             y = 0;
@@ -81004,8 +81399,16 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
             }
 
             sp_1024_proj_point_dbl_32(rt, rt, t);
-            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
-            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_1024_get_entry_16_32(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
             p->infinity = !y;
             sp_1024_proj_point_add_qz1_32(rt, rt, p, t);
         }
@@ -81283,6 +81686,154 @@ static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
 }
 
 #endif /* FP_ECC || !WOLFSSL_SP_SMALL */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_1024_get_entry_256_32(sp_point_1024* r,
+    const sp_table_entry_1024* table, int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->x[9] = 0;
+    r->x[10] = 0;
+    r->x[11] = 0;
+    r->x[12] = 0;
+    r->x[13] = 0;
+    r->x[14] = 0;
+    r->x[15] = 0;
+    r->x[16] = 0;
+    r->x[17] = 0;
+    r->x[18] = 0;
+    r->x[19] = 0;
+    r->x[20] = 0;
+    r->x[21] = 0;
+    r->x[22] = 0;
+    r->x[23] = 0;
+    r->x[24] = 0;
+    r->x[25] = 0;
+    r->x[26] = 0;
+    r->x[27] = 0;
+    r->x[28] = 0;
+    r->x[29] = 0;
+    r->x[30] = 0;
+    r->x[31] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    r->y[9] = 0;
+    r->y[10] = 0;
+    r->y[11] = 0;
+    r->y[12] = 0;
+    r->y[13] = 0;
+    r->y[14] = 0;
+    r->y[15] = 0;
+    r->y[16] = 0;
+    r->y[17] = 0;
+    r->y[18] = 0;
+    r->y[19] = 0;
+    r->y[20] = 0;
+    r->y[21] = 0;
+    r->y[22] = 0;
+    r->y[23] = 0;
+    r->y[24] = 0;
+    r->y[25] = 0;
+    r->y[26] = 0;
+    r->y[27] = 0;
+    r->y[28] = 0;
+    r->y[29] = 0;
+    r->y[30] = 0;
+    r->y[31] = 0;
+    for (i = 1; i < 256; i++) {
+        sp_digit gte = (sp_digit)((((sp_uint32)i - (sp_uint32)idx) >> 31) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint32)idx - (sp_uint32)i) >> 31) - 1);
+        mask = gte & lte;
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->x[9] |= mask & table[i].x[9];
+        r->x[10] |= mask & table[i].x[10];
+        r->x[11] |= mask & table[i].x[11];
+        r->x[12] |= mask & table[i].x[12];
+        r->x[13] |= mask & table[i].x[13];
+        r->x[14] |= mask & table[i].x[14];
+        r->x[15] |= mask & table[i].x[15];
+        r->x[16] |= mask & table[i].x[16];
+        r->x[17] |= mask & table[i].x[17];
+        r->x[18] |= mask & table[i].x[18];
+        r->x[19] |= mask & table[i].x[19];
+        r->x[20] |= mask & table[i].x[20];
+        r->x[21] |= mask & table[i].x[21];
+        r->x[22] |= mask & table[i].x[22];
+        r->x[23] |= mask & table[i].x[23];
+        r->x[24] |= mask & table[i].x[24];
+        r->x[25] |= mask & table[i].x[25];
+        r->x[26] |= mask & table[i].x[26];
+        r->x[27] |= mask & table[i].x[27];
+        r->x[28] |= mask & table[i].x[28];
+        r->x[29] |= mask & table[i].x[29];
+        r->x[30] |= mask & table[i].x[30];
+        r->x[31] |= mask & table[i].x[31];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+        r->y[9] |= mask & table[i].y[9];
+        r->y[10] |= mask & table[i].y[10];
+        r->y[11] |= mask & table[i].y[11];
+        r->y[12] |= mask & table[i].y[12];
+        r->y[13] |= mask & table[i].y[13];
+        r->y[14] |= mask & table[i].y[14];
+        r->y[15] |= mask & table[i].y[15];
+        r->y[16] |= mask & table[i].y[16];
+        r->y[17] |= mask & table[i].y[17];
+        r->y[18] |= mask & table[i].y[18];
+        r->y[19] |= mask & table[i].y[19];
+        r->y[20] |= mask & table[i].y[20];
+        r->y[21] |= mask & table[i].y[21];
+        r->y[22] |= mask & table[i].y[22];
+        r->y[23] |= mask & table[i].y[23];
+        r->y[24] |= mask & table[i].y[24];
+        r->y[25] |= mask & table[i].y[25];
+        r->y[26] |= mask & table[i].y[26];
+        r->y[27] |= mask & table[i].y[27];
+        r->y[28] |= mask & table[i].y[28];
+        r->y[29] |= mask & table[i].y[29];
+        r->y[30] |= mask & table[i].y[30];
+        r->y[31] |= mask & table[i].y[31];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -81335,8 +81886,15 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
             y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             x += 128;
         }
-        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
-        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_1024_get_entry_256_32(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
         rt->infinity = !y;
         for (i=126; i>=0; i--) {
             y = 0;
@@ -81347,8 +81905,16 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
             }
 
             sp_1024_proj_point_dbl_32(rt, rt, t);
-            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
-            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_1024_get_entry_256_32(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
             p->infinity = !y;
             sp_1024_proj_point_add_qz1_32(rt, rt, p, t);
         }
@@ -85381,10 +85947,10 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
 
 #ifndef WOLFSSL_SP_SMALL
             err = sp_1024_ecc_mulmod_stripe_32(point, point,
-                (const sp_table_entry_1024*)table, k, map, 0, heap);
+                (const sp_table_entry_1024*)table, k, map, 1, heap);
 #else
         (void)table;
-        err = sp_1024_ecc_mulmod_32(point, point, k, map, 0, heap);
+        err = sp_1024_ecc_mulmod_32(point, point, k, map, 1, heap);
 #endif
     }
     if (err == MP_OKAY) {
@@ -85456,7 +86022,8 @@ static void sp_1024_proj_sqr_32(sp_digit* px, sp_digit* py, sp_digit* t)
 #ifdef WOLFSSL_SP_SMALL
 /* Perform the modular exponentiation in Fp* for SAKKE.
  *
- * Simple square and multiply when expontent bit is one algorithm.
+ * Square and multiply always algorithm - exponent is secret.
+ * Iterates over all 1024 bits and conditionally copies in the product.
  * Square and multiply performed in Fp*.
  *
  * @param [in]  base  Base. MP integer.
@@ -85476,21 +86043,26 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
     sp_digit* ty;
     sp_digit* b;
     sp_digit* e;
+    sp_digit* ux;
+    sp_digit* uy;
 #else
     sp_digit t[36 * 2 * 32];
     sp_digit tx[2 * 32];
     sp_digit ty[2 * 32];
     sp_digit b[2 * 32];
     sp_digit e[2 * 32];
+    sp_digit ux[2 * 32];
+    sp_digit uy[2 * 32];
 #endif
     sp_digit* r;
+    sp_digit mask;
     int err = MP_OKAY;
-    int bits;
     int i;
+    int j;
 
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 40 * 32 * 2, NULL,
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 42 * 32 * 2, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -85505,10 +86077,11 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         ty = td + 37 * 32 * 2;
         b  = td + 38 * 32 * 2;
         e  = td + 39 * 32 * 2;
+        ux = td + 40 * 32 * 2;
+        uy = td + 41 * 32 * 2;
 #endif
         r = ty;
 
-        bits = mp_count_bits(exp);
         sp_1024_from_mp(b, 32, base);
         sp_1024_from_mp(e, 32, exp);
 
@@ -85517,34 +86090,53 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         err = sp_1024_mod_32(b, b, p1024_mod);
     }
     if (err == MP_OKAY) {
-        XMEMCPY(ty, b, sizeof(sp_digit) * 32);
+        /* Start with the identity: [1, 0] in Montgomery form. */
+        XMEMSET(ty, 0, sizeof(sp_digit) * 32);
 
-        for (i = bits - 2; i >= 0; i--) {
+        for (i = 1023; i >= 0; i--) {
             sp_1024_proj_sqr_32(tx, ty, t);
-            if ((e[i / 32] >> (i % 32)) & 1) {
-                sp_1024_proj_mul_qx1_32(tx, ty, b, t);
+            XMEMCPY(ux, tx, sizeof(sp_digit) * 32);
+            XMEMCPY(uy, ty, sizeof(sp_digit) * 32);
+            sp_1024_proj_mul_qx1_32(ux, uy, b, t);
+            /* Copy in product when exponent bit is set. Read the mask back
+             * through a volatile so the compiler cannot tell it is only ever
+             * 0 or all ones. Knowing that, it may turn the masking into a
+             * branch on the bit, e.g. by unswitching the loop. */
+            {
+                volatile sp_digit vmask = (sp_digit)0 -
+                    ((e[i / 32] >> (i % 32)) & 1);
+                mask = vmask;
+            }
+            for (j = 0; j < 32; j++) {
+                tx[j] ^= (tx[j] ^ ux[j]) & mask;
+                ty[j] ^= (ty[j] ^ uy[j]) & mask;
             }
         }
     }
 
     if (err == MP_OKAY) {
         sp_1024_mont_inv_32(tx, tx, t);
+        sp_1024_mont_mul_32(r, tx, ty, p1024_mod, p1024_mp_mod);
+        XMEMSET(r + 32, 0, sizeof(sp_digit) * 32);
+        sp_1024_mont_reduce_32(r, p1024_mod, p1024_mp_mod);
 
-        XMEMSET(tx + 32, 0, sizeof(sp_digit) * 32);
-        sp_1024_mont_reduce_32(tx, p1024_mod, p1024_mp_mod);
-        XMEMSET(ty + 32, 0, sizeof(sp_digit) * 32);
-        sp_1024_mont_reduce_32(ty, p1024_mod, p1024_mp_mod);
-
-        sp_1024_mul_32(r, tx, ty);
-        err = sp_1024_mod_32(r, r, p1024_mod);
-    }
-    if (err == MP_OKAY) {
         err = sp_1024_to_mp(r, res);
     }
 
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
+    if (td != NULL) {
+        ForceZero(td, sizeof(sp_digit) * 42 * 32 * 2);
+    }
     XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ForceZero(e, sizeof(e));
+    ForceZero(tx, sizeof(tx));
+    ForceZero(ty, sizeof(ty));
+    ForceZero(ux, sizeof(ux));
+    ForceZero(uy, sizeof(uy));
+    ForceZero(b, sizeof(b));
+    ForceZero(t, sizeof(t));
 #endif
     return err;
 }
@@ -87349,6 +87941,38 @@ static const sp_digit sp_1024_g_table[256][32] = {
       0xbe9c7e15, 0x8e85437d },
 };
 
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table for exponentiating g in constant time.
+ *
+ * Every entry is read so the memory accessed doesn't depend on the index.
+ *
+ * @param [out] r    Entry of table. 32 digits.
+ * @param [in]  idx  Index of entry to get.
+ */
+static void sp_1024_get_g_entry_32(sp_digit* r, int idx)
+{
+    int i;
+    int j;
+    sp_digit mask;
+
+    for (j = 0; j < 32; j++) {
+        r[j] = 0;
+    }
+    for (i = 0; i < 256; i++) {
+        sp_digit gte = (sp_digit)((((sp_uint32)i - (sp_uint32)idx) >> 31) - 1);
+        sp_digit lte = (sp_digit)((((sp_uint32)idx - (sp_uint32)i) >> 31) - 1);
+        /* Read the mask back through a volatile so the compiler cannot turn
+         * the masking into a branch on the secret index. */
+        volatile sp_digit vmask = gte & lte;
+
+        mask = vmask;
+        for (j = 0; j < 32; j++) {
+            r[j] |= mask & sp_1024_g_table[i][j];
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
+
 /* Perform the modular exponentiation in Fp* for SAKKE.
  *
  * Base is fixed to be the g parameter - a precomputed table is used.
@@ -87356,6 +87980,7 @@ static const sp_digit sp_1024_g_table[256][32] = {
  * Striping: 128 points at a distance of 8 combined.
  * Total of 256 points in table.
  * Square and multiply performed in Fp*.
+ * Exponent is secret - table entries are retrieved in constant time.
  *
  * @param [in]  base  Base. MP integer.
  * @param [in]  exp   Exponent. MP integer.
@@ -87373,10 +87998,12 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
     sp_digit* t;
     sp_digit* tx;
     sp_digit* ty;
+    sp_digit* b;
 #else
     sp_digit t[36 * 2 * 32];
     sp_digit tx[2 * 32];
     sp_digit ty[2 * 32];
+    sp_digit b[2 * 32];
 #endif
     sp_digit* r = NULL;
     unsigned char e[128];
@@ -87388,7 +88015,7 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
 
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 38 * 32 * 2, NULL,
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 39 * 32 * 2, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -87401,8 +88028,10 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         t  = td;
         tx = td + 36 * 32 * 2;
         ty = td + 37 * 32 * 2;
+        b  = td + 38 * 32 * 2;
 #endif
         r = ty;
+        (void)b;
 
         (void)mp_to_unsigned_bin_len(exp, e, 128);
 
@@ -87415,7 +88044,11 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         y |= (e[32] >> 7) << 5;
         y |= (e[16] >> 7) << 6;
         y |= (e[0] >> 7) << 7;
+    #ifndef WC_NO_CACHE_RESISTANT
+        sp_1024_get_g_entry_32(ty, y);
+    #else
         XMEMCPY(ty, sp_1024_g_table[y], sizeof(sp_digit) * 32);
+    #endif
         for (i = 126; i >= 0; i--) {
             y  =  (e[127 - (i / 8)] >> (i & 0x7)) & 1;
             y |= ((e[111 - (i / 8)] >> (i & 0x7)) & 1) << 1;
@@ -87427,7 +88060,12 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
             y |= ((e[15 - (i / 8)] >> (i & 0x7)) & 1) << 7;
 
             sp_1024_proj_sqr_32(tx, ty, t);
+        #ifndef WC_NO_CACHE_RESISTANT
+            sp_1024_get_g_entry_32(b, y);
+            sp_1024_proj_mul_qx1_32(tx, ty, b, t);
+        #else
             sp_1024_proj_mul_qx1_32(tx, ty, sp_1024_g_table[y], t);
+        #endif
         }
     }
 
@@ -87440,9 +88078,18 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
         err = sp_1024_to_mp(r, res);
     }
 
+    ForceZero(e, sizeof(e));
 #if (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_MALLOC)) || \
     defined(WOLFSSL_SP_SMALL_STACK)
+    if (td != NULL) {
+        ForceZero(td, sizeof(sp_digit) * 39 * 32 * 2);
+    }
     XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ForceZero(tx, sizeof(tx));
+    ForceZero(ty, sizeof(ty));
+    ForceZero(b, sizeof(b));
+    ForceZero(t, sizeof(t));
 #endif
     return err;
 }

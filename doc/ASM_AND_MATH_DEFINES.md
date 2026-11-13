@@ -290,25 +290,27 @@ wolfSSL recommends against defining `WC_NO_HARDEN`, `WC_NO_CACHE_RESISTANT` or
 your threat model genuinely excludes an attacker able to observe local timing or
 cache behaviour. The performance gain is small relative to the protection lost.
 
-The cache-resistant modular exponentiation (and the ECC/SAKKE scalar-mult
-ladders) select the working value from one of two objects on each secret
-exponent bit. By default that selection is **address-oblivious**: both objects
-are accessed every iteration through a masked constant-time copy
-(`_sp_cond_copy` in `sp_int.c`, `sp_cond_select`/`sp_cond_memcpy` in the
-specialised `sp_<arch>.c`, `fp_cond_copy` in `tfm.c`, `mp_cond_copy` in
-`sakke.c`), so the touched memory address does not depend on the secret. This
-resists a co-resident attacker that can observe cache-line accesses, for example
-`Prime+Probe` from a sibling SMT thread sharing the L1 data cache. Defining
-`WOLFSSL_SP_FAST_MODEXP_COPY` switches to the older, faster variant that computes
-a single secret-dependent pointer by address masking and copies only the
-selected object; it is a few percent faster on private-key operations but
+The cache-resistant modular exponentiation (and the ECC scalar-mult ladders)
+select the working value from one of two objects on each secret exponent bit.
+By default that selection is **address-oblivious**: both objects are accessed
+every iteration through a masked constant-time copy (`_sp_cond_copy` in
+`sp_int.c`, `sp_cond_select`/`sp_cond_memcpy` in the specialised `sp_<arch>.c`,
+`fp_cond_copy` in `tfm.c`), so the touched memory address does not depend on
+the secret. This resists a co-resident attacker that can observe cache-line
+accesses, for example `Prime+Probe` from a sibling SMT thread sharing the L1
+data cache. Defining `WOLFSSL_SP_FAST_MODEXP_COPY` switches to the older,
+faster variant that computes a single secret-dependent pointer by address
+masking and copies only the selected object; it is a few percent faster on private-key operations but
 discloses the exponent bits at cache-line granularity, so enable it only where a
 co-resident cache observer is outside your threat model. It requires rebuilding a
 pointer from integer arithmetic on two addresses, which capability targets (those
 that define `WC_NO_PTR_INT_CAST`, such as CHERI and Fil-C) cannot do, so the
 option is ignored and the oblivious copy is always used there. It is also a no-op
 for the default windowed `mod_exp` used by the specialised SP assembly back ends,
-which select from a table scanned in full rather than from two objects.
+which select from a table scanned in full rather than from two objects, and
+for the SAKKE `F_p*` exponentiation in `sakke.c`, which performs the same
+operations for every exponent bit and always updates its working value with
+`mp_cond_copy`.
 
 The generated SP back ends (`sp_c32.c`, `sp_c64.c` and the assembly targets
 `sp_x86_64.c`, `sp_arm64.c`, `sp_arm32.c`, `sp_armthumb.c`, `sp_cortexm.c`,

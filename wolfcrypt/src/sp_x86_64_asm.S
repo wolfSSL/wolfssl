@@ -45588,6 +45588,7 @@ L_256_get_point_33_avx2_4_start:
         vmovupd	%ymm0, (%rdi)
         vmovupd	%ymm1, 64(%rdi)
         vmovupd	%ymm2, 128(%rdi)
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	sp_256_get_point_33_avx2_4,.-sp_256_get_point_33_avx2_4
@@ -46306,7 +46307,7 @@ _sp_256_get_entry_64_avx2_4:
         vmovd	%edx, %xmm5
         addq	$0x40, %rsi
         vmovd	%eax, %xmm7
-        movq	$0x40, %rax
+        movq	$63, %rax
         vpxor	%ymm6, %ymm6, %ymm6
         vpermd	%ymm5, %ymm6, %ymm5
         vpermd	%ymm7, %ymm6, %ymm7
@@ -46327,6 +46328,7 @@ L_256_get_entry_64_avx2_4_start:
         jnz	L_256_get_entry_64_avx2_4_start
         vmovupd	%ymm0, (%rdi)
         vmovupd	%ymm1, 64(%rdi)
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	sp_256_get_entry_64_avx2_4,.-sp_256_get_entry_64_avx2_4
@@ -46420,7 +46422,7 @@ _sp_256_get_entry_65_avx2_4:
         vmovd	%edx, %xmm5
         addq	$0x40, %rsi
         vmovd	%eax, %xmm7
-        movq	$0x41, %rax
+        movq	$0x40, %rax
         vpxor	%ymm6, %ymm6, %ymm6
         vpermd	%ymm5, %ymm6, %ymm5
         vpermd	%ymm7, %ymm6, %ymm7
@@ -46441,6 +46443,7 @@ L_256_get_entry_65_avx2_4_start:
         jnz	L_256_get_entry_65_avx2_4_start
         vmovupd	%ymm0, (%rdi)
         vmovupd	%ymm1, 64(%rdi)
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	sp_256_get_entry_65_avx2_4,.-sp_256_get_entry_65_avx2_4
@@ -50037,6 +50040,7 @@ L_384_get_point_33_avx2_6_start:
         vmovdqu	%xmm3, 128(%rdi)
         vmovupd	%ymm4, 192(%rdi)
         vmovdqu	%xmm5, 224(%rdi)
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	sp_384_get_point_33_avx2_6,.-sp_384_get_point_33_avx2_6
@@ -50613,7 +50617,7 @@ _sp_384_get_entry_64_avx2_6:
         vmovd	%edx, %xmm9
         addq	$0x60, %rsi
         vmovd	%eax, %xmm11
-        movq	$0x40, %rax
+        movq	$63, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
         vpermd	%ymm11, %ymm10, %ymm11
@@ -50644,6 +50648,7 @@ L_384_get_entry_64_avx2_6_start:
         vmovdqu	%xmm1, 32(%rdi)
         vmovupd	%ymm2, 96(%rdi)
         vmovdqu	%xmm3, 128(%rdi)
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	sp_384_get_entry_64_avx2_6,.-sp_384_get_entry_64_avx2_6
@@ -50747,7 +50752,7 @@ _sp_384_get_entry_65_avx2_6:
         vmovd	%edx, %xmm9
         addq	$0x60, %rsi
         vmovd	%eax, %xmm11
-        movq	$0x41, %rax
+        movq	$0x40, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
         vpermd	%ymm11, %ymm10, %ymm11
@@ -50778,6 +50783,7 @@ L_384_get_entry_65_avx2_6_start:
         vmovdqu	%xmm1, 32(%rdi)
         vmovupd	%ymm2, 96(%rdi)
         vmovdqu	%xmm3, 128(%rdi)
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	sp_384_get_entry_65_avx2_6,.-sp_384_get_entry_65_avx2_6
@@ -55773,6 +55779,7 @@ L_521_get_point_33_avx2_9_start:
         movq	%r8, 64(%rdi)
         movq	%r9, 208(%rdi)
         movq	%r10, 352(%rdi)
+        vzeroupper
         popq	%r14
         popq	%r13
         popq	%r12
@@ -57462,7 +57469,7 @@ _sp_521_get_entry_64_avx2_9:
         vmovd	%edx, %xmm9
         addq	$0x90, %rsi
         vmovd	%eax, %xmm11
-        movq	$0x40, %rax
+        movq	$63, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
         vpermd	%ymm11, %ymm10, %ymm11
@@ -57508,6 +57515,7 @@ L_521_get_entry_64_avx2_9_start:
         vmovupd	%ymm3, 176(%rdi)
         movq	%r8, 64(%rdi)
         movq	%r9, 208(%rdi)
+        vzeroupper
         popq	%r12
         repz retq
 #ifndef __APPLE__
@@ -57663,7 +57671,7 @@ _sp_521_get_entry_65_avx2_9:
         vmovd	%edx, %xmm9
         addq	$0x90, %rsi
         vmovd	%eax, %xmm11
-        movq	$0x41, %rax
+        movq	$0x40, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
         vpermd	%ymm11, %ymm10, %ymm11
@@ -57709,6 +57717,7 @@ L_521_get_entry_65_avx2_9_start:
         vmovupd	%ymm3, 176(%rdi)
         movq	%r8, 64(%rdi)
         movq	%r9, 208(%rdi)
+        vzeroupper
         popq	%r12
         repz retq
 #ifndef __APPLE__
@@ -66423,6 +66432,115 @@ _sp_1024_mont_div2_16:
 #ifndef __APPLE__
 .size	sp_1024_mont_div2_16,.-sp_1024_mont_div2_16
 #endif /* __APPLE__ */
+#ifndef WC_NO_CACHE_RESISTANT
+#ifdef HAVE_INTEL_AVX2
+/* Touch each possible point that could be being copied.
+ *
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of point to retrieve.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_1024_get_point_65_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_get_point_65_avx2_16)
+.type	sp_1024_get_point_65_avx2_16,@function
+.align	16
+sp_1024_get_point_65_avx2_16:
+#else
+.section	__TEXT,__text
+.globl	_sp_1024_get_point_65_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_get_point_65_avx2_16)
+.p2align	4
+_sp_1024_get_point_65_avx2_16:
+#endif /* __APPLE__ */
+        # From entry 1
+        movq	$0x01, %rax
+        vmovd	%edx, %xmm11
+        addq	$0x308, %rsi
+        vmovd	%eax, %xmm13
+        movq	$0x40, %rax
+        vpxor	%ymm12, %ymm12, %ymm12
+        vpermd	%ymm11, %ymm12, %ymm11
+        vpermd	%ymm13, %ymm12, %ymm13
+        vpxor	%ymm0, %ymm0, %ymm0
+        vpxor	%ymm1, %ymm1, %ymm1
+        vpxor	%ymm2, %ymm2, %ymm2
+        vpxor	%ymm3, %ymm3, %ymm3
+        vpxor	%ymm4, %ymm4, %ymm4
+        vpxor	%ymm5, %ymm5, %ymm5
+        vpxor	%ymm6, %ymm6, %ymm6
+        vpxor	%ymm7, %ymm7, %ymm7
+        vmovdqa	%ymm13, %ymm12
+L_1024_get_point_65_avx2_16_start_0:
+        vpcmpeqd	%ymm11, %ymm12, %ymm10
+        vpaddd	%ymm13, %ymm12, %ymm12
+        vpand	(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm0, %ymm0
+        vpand	32(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm1, %ymm1
+        vpand	64(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm2, %ymm2
+        vpand	96(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm3, %ymm3
+        vpand	256(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm4, %ymm4
+        vpand	288(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm5, %ymm5
+        vpand	320(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm6, %ymm6
+        vpand	352(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm7, %ymm7
+        addq	$0x308, %rsi
+        decq	%rax
+        jnz	L_1024_get_point_65_avx2_16_start_0
+        vmovupd	%ymm0, (%rdi)
+        vmovupd	%ymm1, 32(%rdi)
+        vmovupd	%ymm2, 64(%rdi)
+        vmovupd	%ymm3, 96(%rdi)
+        vmovupd	%ymm4, 256(%rdi)
+        vmovupd	%ymm5, 288(%rdi)
+        vmovupd	%ymm6, 320(%rdi)
+        vmovupd	%ymm7, 352(%rdi)
+        # From entry 1
+        movq	$0x01, %rax
+        vmovd	%edx, %xmm11
+        subq	$0xc200, %rsi
+        vmovd	%eax, %xmm13
+        movq	$0x40, %rax
+        vpxor	%ymm12, %ymm12, %ymm12
+        vpermd	%ymm11, %ymm12, %ymm11
+        vpermd	%ymm13, %ymm12, %ymm13
+        vpxor	%ymm0, %ymm0, %ymm0
+        vpxor	%ymm1, %ymm1, %ymm1
+        vpxor	%ymm2, %ymm2, %ymm2
+        vpxor	%ymm3, %ymm3, %ymm3
+        vmovdqa	%ymm13, %ymm12
+L_1024_get_point_65_avx2_16_start_1:
+        vpcmpeqd	%ymm11, %ymm12, %ymm10
+        vpaddd	%ymm13, %ymm12, %ymm12
+        vpand	512(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm0, %ymm0
+        vpand	544(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm1, %ymm1
+        vpand	576(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm2, %ymm2
+        vpand	608(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm3, %ymm3
+        addq	$0x308, %rsi
+        decq	%rax
+        jnz	L_1024_get_point_65_avx2_16_start_1
+        vmovupd	%ymm0, 512(%rdi)
+        vmovupd	%ymm1, 544(%rdi)
+        vmovupd	%ymm2, 576(%rdi)
+        vmovupd	%ymm3, 608(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	sp_1024_get_point_65_avx2_16,.-sp_1024_get_point_65_avx2_16
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
+#endif /* !WC_NO_CACHE_RESISTANT */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 1024 bits using Montgomery reduction.
  *
@@ -67699,6 +67817,144 @@ _sp_1024_mont_div2_avx2_16:
 .size	sp_1024_mont_div2_avx2_16,.-sp_1024_mont_div2_avx2_16
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+#ifndef WC_NO_CACHE_RESISTANT
+#ifdef HAVE_INTEL_AVX2
+/* Touch each possible entry that could be being copied.
+ *
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_1024_get_entry_256_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_get_entry_256_avx2_16)
+.type	sp_1024_get_entry_256_avx2_16,@function
+.align	16
+sp_1024_get_entry_256_avx2_16:
+#else
+.section	__TEXT,__text
+.globl	_sp_1024_get_entry_256_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_get_entry_256_avx2_16)
+.p2align	4
+_sp_1024_get_entry_256_avx2_16:
+#endif /* __APPLE__ */
+        # From entry 1
+        movq	$0x01, %rax
+        vmovd	%edx, %xmm11
+        addq	$0x100, %rsi
+        vmovd	%eax, %xmm13
+        movq	$0xff, %rax
+        vpxor	%ymm12, %ymm12, %ymm12
+        vpermd	%ymm11, %ymm12, %ymm11
+        vpermd	%ymm13, %ymm12, %ymm13
+        vpxor	%ymm0, %ymm0, %ymm0
+        vpxor	%ymm1, %ymm1, %ymm1
+        vpxor	%ymm2, %ymm2, %ymm2
+        vpxor	%ymm3, %ymm3, %ymm3
+        vpxor	%ymm4, %ymm4, %ymm4
+        vpxor	%ymm5, %ymm5, %ymm5
+        vpxor	%ymm6, %ymm6, %ymm6
+        vpxor	%ymm7, %ymm7, %ymm7
+        vmovdqa	%ymm13, %ymm12
+L_1024_get_entry_256_avx2_16_start_0:
+        vpcmpeqd	%ymm11, %ymm12, %ymm10
+        vpaddd	%ymm13, %ymm12, %ymm12
+        vpand	(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm0, %ymm0
+        vpand	32(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm1, %ymm1
+        vpand	64(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm2, %ymm2
+        vpand	96(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm3, %ymm3
+        vpand	128(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm4, %ymm4
+        vpand	160(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm5, %ymm5
+        vpand	192(%rsi), %ymm10, %ymm8
+        vpor	%ymm8, %ymm6, %ymm6
+        vpand	224(%rsi), %ymm10, %ymm9
+        vpor	%ymm9, %ymm7, %ymm7
+        addq	$0x100, %rsi
+        decq	%rax
+        jnz	L_1024_get_entry_256_avx2_16_start_0
+        vmovupd	%ymm0, (%rdi)
+        vmovupd	%ymm1, 32(%rdi)
+        vmovupd	%ymm2, 64(%rdi)
+        vmovupd	%ymm3, 96(%rdi)
+        vmovupd	%ymm4, 256(%rdi)
+        vmovupd	%ymm5, 288(%rdi)
+        vmovupd	%ymm6, 320(%rdi)
+        vmovupd	%ymm7, 352(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	sp_1024_get_entry_256_avx2_16,.-sp_1024_get_entry_256_avx2_16
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
+#endif /* !WC_NO_CACHE_RESISTANT */
+#ifndef WC_NO_CACHE_RESISTANT
+#ifdef HAVE_INTEL_AVX2
+/* Get an entry from the table for exponentiating g in constant time.
+ *
+ * Every entry is read so the memory accessed doesn't depend on the index.
+ *
+ * @param [out] r      Entry of table. 16 digits.
+ * @param [in]  table  Table of 256 entries.
+ * @param [in]  idx    Index of entry to get.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_1024_get_g_entry_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_get_g_entry_avx2_16)
+.type	sp_1024_get_g_entry_avx2_16,@function
+.align	16
+sp_1024_get_g_entry_avx2_16:
+#else
+.section	__TEXT,__text
+.globl	_sp_1024_get_g_entry_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_get_g_entry_avx2_16)
+.p2align	4
+_sp_1024_get_g_entry_avx2_16:
+#endif /* __APPLE__ */
+        # From entry 0
+        movq	$0x01, %rax
+        vmovd	%edx, %xmm7
+        vmovd	%eax, %xmm9
+        movq	$0x100, %rax
+        vpxor	%ymm8, %ymm8, %ymm8
+        vpermd	%ymm7, %ymm8, %ymm7
+        vpermd	%ymm9, %ymm8, %ymm9
+        vpxor	%ymm0, %ymm0, %ymm0
+        vpxor	%ymm1, %ymm1, %ymm1
+        vpxor	%ymm2, %ymm2, %ymm2
+        vpxor	%ymm3, %ymm3, %ymm3
+L_1024_get_g_entry_avx2_16_start:
+        vpcmpeqd	%ymm7, %ymm8, %ymm6
+        vpaddd	%ymm9, %ymm8, %ymm8
+        vpand	(%rsi), %ymm6, %ymm4
+        vpor	%ymm4, %ymm0, %ymm0
+        vpand	32(%rsi), %ymm6, %ymm5
+        vpor	%ymm5, %ymm1, %ymm1
+        vpand	64(%rsi), %ymm6, %ymm4
+        vpor	%ymm4, %ymm2, %ymm2
+        vpand	96(%rsi), %ymm6, %ymm5
+        vpor	%ymm5, %ymm3, %ymm3
+        addq	$0x80, %rsi
+        decq	%rax
+        jnz	L_1024_get_g_entry_avx2_16_start
+        vmovupd	%ymm0, (%rdi)
+        vmovupd	%ymm1, 32(%rdi)
+        vmovupd	%ymm2, 64(%rdi)
+        vmovupd	%ymm3, 96(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	sp_1024_get_g_entry_avx2_16,.-sp_1024_get_g_entry_avx2_16
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *

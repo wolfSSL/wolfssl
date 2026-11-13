@@ -205,8 +205,12 @@
     The sender must know the identity of the receiver and the KMS Public Key.\n
     The receiver must have obtained a Receiver Secret Key (RSK) for the identity from a KMS in order to derive the secret.
 
+    Setting an RNG on a SAKKE Key with wc_SetSakkeRng() is recommended for
+    performance - it allows operations on secrets to be blinded.
+
     KMS:
       -# Initialize SAKKE Key: wc_InitSakkeKey()
+      -# [Recommended] Set an RNG for blinding: wc_SetSakkeRng()
       -# Make and save or load SAKKE Key:
         -# wc_MakeSakkeKey(), wc_ExportSakkeKey(), wc_ExportSakkePublicKey() or
         -# wc_ImportSakkeKey()
@@ -217,6 +221,7 @@
 
     Key Exchange, Peer A:
       -# Initialize SAKKE Key: wc_InitSakkeKey()
+      -# [Recommended] Set an RNG for blinding: wc_SetSakkeRng()
       -# Load KMS Public Key: wc_ImportSakkePublicKey()
       -# Generate a random SSV: wc_GenerateSakkeSSV()
       -# Set the identity of Peer B: wc_SetSakkeIdentity()
@@ -227,6 +232,7 @@
     Key Exchange, Peer B:
       -# Receive encapsulated data.
       -# Initialize SAKKE Key: wc_InitSakkeKey()
+      -# [Recommended] Set an RNG for blinding: wc_SetSakkeRng()
       -# Load KMS Public Key: wc_ImportSakkePublicKey()
       -# Decode RSK transferred from KMS or stored locally: wc_DecodeSakkeRsk()
       -# [Optional] Validate RSK before first use: wc_ValidateSakkeRsk()
@@ -237,6 +243,7 @@
 
     Transfer secret, Peer A:
       -# Initialize SAKKE Key: wc_InitSakkeKey()
+      -# [Recommended] Set an RNG for blinding: wc_SetSakkeRng()
       -# Load KMS Public Key: wc_ImportSakkePublicKey()
       -# Set the identity of Peer B: wc_SetSakkeIdentity()
       -# Make an encapsulation of the SSV and auth data: wc_MakeSakkeEncapsulatedSSV()
@@ -245,6 +252,7 @@
 
     Transfer secret, Peer B:
       -# Initialize SAKKE Key: wc_InitSakkeKey()
+      -# [Recommended] Set an RNG for blinding: wc_SetSakkeRng()
       -# Load KMS Public Key: wc_ImportSakkePublicKey()
       -# Decode RSK transferred from KMS or stored locally: wc_DecodeSakkeRsk()
       -# [Optional] Validate RSK before first use: wc_ValidateSakkeRsk()

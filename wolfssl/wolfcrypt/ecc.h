@@ -180,7 +180,8 @@ enum {
     ECC_MINSIZE     = ECC_MIN_KEY_SZ/8,   /* MIN Private Key size */
 #ifdef WOLFCRYPT_HAVE_SAKKE
     ECC_MAXSIZE     = 128,  /* MAX Private Key size */
-    ECC_MAXSIZE_GEN = 128,  /* MAX Buffer size required when generating ECC keys*/
+    ECC_MAXSIZE_GEN = 128 + 8, /* MAX Buffer size required when generating
+                                * ECC keys. 8 extra bytes reduce bias. */
 #elif MAX_ECC_BYTES > 66
     ECC_MAXSIZE     = MAX_ECC_BYTES,
     ECC_MAXSIZE_GEN = MAX_ECC_BYTES + 8,
