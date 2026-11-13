@@ -536,32 +536,6 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
     return ret;
 }
 
-#if !defined(NO_SKID) && !defined(NO_ASN)
-/* Returns 1 when the CRL was signed by a same-name CA key that signs CRLs but
- * not certs (RFC 5280 5.2.1). Its CRLs cover the CA's certs from other keys. */
-static int CrlSignedByCrlOnlyKey(WOLFSSL_CERT_MANAGER* cm,
-        const CRL_Entry* crle)
-{
-#ifndef IGNORE_KEY_EXTENSIONS
-    Signer* ca;
-
-    if (!crle->extAuthKeyIdSet)
-        return 0;
-    ca = GetCA(cm, (byte*)crle->extAuthKeyId);
-    return (ca != NULL) &&
-        (XMEMCMP(ca->subjectNameHash, crle->issuerHash,
-                 CRL_DIGEST_SIZE) == 0) &&
-        ((ca->keyUsage & KEYUSE_CRL_SIGN) != 0) &&
-        ((ca->keyUsage & KEYUSE_KEY_CERT_SIGN) == 0);
-#else
-    /* Key usage is ignored in this build. */
-    (void)cm;
-    (void)crle;
-    return 0;
-#endif
-}
-#endif
-
 static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, int *pFoundEntry,
         WOLFSSL_CERT_MANAGER* cm, const byte* akid)
@@ -573,6 +547,11 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     int        ownFresh = 0;
     int        otherSeen = 0;
     int        otherFresh = 0;
+#if !defined(NO_SKID) && !defined(NO_ASN)
+    /* Trust anchor of the cert's issuer, looked up on first use. */
+    Signer*    certAnchor = NULL;
+    int        certAnchorSet = 0;
+#endif
 
     if (wc_LockRwLock_Rd(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Rd failed");
@@ -587,6 +566,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int nextDateValid = 1;
         int vret = 0;
         int ownKey = 1;
+        /* Whether this CRL can vouch for the cert, not just revoke it. */
+        int vouches = 1;
 
         if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) != 0) {
             continue;
@@ -596,8 +577,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         /* Another key's CRL can revoke, but only covers the cert when the
          * cert's key has no CRL loaded. A CRL-only key counts as the cert's. */
         if (akid != NULL && crle->extAuthKeyIdSet &&
-                XMEMCMP(crle->extAuthKeyId, akid, KEYID_SIZE) != 0 &&
-                !CrlSignedByCrlOnlyKey(cm, crle)) {
+                XMEMCMP(crle->extAuthKeyId, akid, KEYID_SIZE) != 0) {
             ownKey = 0;
         }
     #endif
@@ -643,15 +623,35 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             }
         #endif
         }
+    #if !defined(NO_SKID) && !defined(NO_ASN)
+        /* RFC 5280 6.3.3(f): the CRL issuer must chain to the cert's trust
+         * anchor. Another key's CRL from another anchor still revokes, but
+         * does not count as the cert's CRL. */
+        if (!ownKey) {
+            Signer* crlAnchor;
+
+            if (!certAnchorSet) {
+                certAnchor = GetCATrustAnchor(cm, GetCA(cm, (byte*)akid));
+                certAnchorSet = 1;
+            }
+            crlAnchor = GetCATrustAnchor(cm,
+                    GetCA(cm, (byte*)crle->extAuthKeyId));
+            if (certAnchor == NULL || crlAnchor != certAnchor) {
+                WOLFSSL_MSG("CRL issuer chains to another trust anchor");
+                vouches = 0;
+            }
+        }
+    #endif
+
         if (ownKey)
             ownSeen = 1;
-        else
+        else if (vouches)
             otherSeen = 1;
         if (!nextDateValid)
             continue;
         if (ownKey)
             ownFresh = 1;
-        else
+        else if (vouches)
             otherFresh = 1;
 
         /* Name and serial identify the cert, so any key's CRL can revoke. */
@@ -983,9 +983,14 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
 
 #if !defined(NO_SKID) && !defined(NO_ASN)
         /* Another key's CRLs are a separate series. */
-        if (crle->extAuthKeyIdSet && curr->extAuthKeyIdSet &&
-                XMEMCMP(crle->extAuthKeyId, curr->extAuthKeyId,
-                        KEYID_SIZE) != 0) {
+        if (crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
+            if(XMEMCMP(crle->extAuthKeyId, curr->extAuthKeyId,
+                    KEYID_SIZE) != 0) {
+                prev = curr;
+                continue;
+            }
+        }
+        else if (!crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
             prev = curr;
             continue;
         }
