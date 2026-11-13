@@ -49,6 +49,7 @@ int test_wolfSSL_CertManagerVerify_crl_date_callback(void);
 int test_wolfSSL_CRL_reason_extensions_cleanup(void);
 int test_wolfSSL_CRL_static_revoked_list(void);
 int test_wolfSSL_CRL_static_revoked_list_dup(void);
+int test_wolfSSL_CRL_static_revoked_list_add(void);
 int test_wolfSSL_CRL_duplicate_extensions(void);
 int test_wolfSSL_CRL_critical_idp(void);
 int test_wolfSSL_CRL_unknown_critical_ext(void);
@@ -94,6 +95,7 @@ int test_wolfSSL_trust_peer_cert_dates(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_reason_extensions_cleanup), \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_static_revoked_list),      \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_static_revoked_list_dup),  \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CRL_static_revoked_list_add),  \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_duplicate_extensions),      \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_critical_idp),             \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_unknown_critical_ext),     \
