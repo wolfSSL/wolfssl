@@ -32,6 +32,7 @@ int test_mp_addsubmod_ct_heap(void);
 int test_mp_rand(void);
 int test_mp_exptmod_even_2k(void);
 int test_wc_export_int(void);
+int test_mp_invmod_large_odd_modulus(void);
 int test_wc_SpIntSizeDecisionCoverage(void);
 int test_wc_SpIntShiftDecisionCoverage(void);
 int test_wc_SpIntDigitArithDecisionCoverage(void);
@@ -48,6 +49,7 @@ int test_wc_SpIntExptGcdDecisionCoverage(void);
     TEST_DECL_GROUP("wolfmath", test_mp_rand),          \
     TEST_DECL_GROUP("wolfmath", test_mp_exptmod_even_2k), \
     TEST_DECL_GROUP("wolfmath", test_wc_export_int),    \
+    TEST_DECL_GROUP("wolfmath", test_mp_invmod_large_odd_modulus),       \
     TEST_DECL_GROUP("wolfmath", test_wc_SpIntSizeDecisionCoverage),      \
     TEST_DECL_GROUP("wolfmath", test_wc_SpIntShiftDecisionCoverage),     \
     TEST_DECL_GROUP("wolfmath", test_wc_SpIntDigitArithDecisionCoverage),\

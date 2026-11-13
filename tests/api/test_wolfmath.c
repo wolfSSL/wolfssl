@@ -479,6 +479,53 @@ int test_wc_export_int(void)
 } /* End test_wc_export_int */
 
 /*
+ * Testing mp_invmod with an odd modulus of about 8192 bits
+ */
+int test_mp_invmod_large_odd_modulus(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_INTEGER_HEAP_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    mp_int a;
+    mp_int k;
+    mp_int m;
+    mp_int r;
+    mp_int t;
+    WC_RNG rng;
+    int    digits = (4096 + DIGIT_BIT - 1) / DIGIT_BIT;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(mp_init_multi(&a, &k, &m, &r, &t, NULL), MP_OKAY);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* m = 2*a*k + 1 is odd and coprime to a, so the inverse exists. */
+    ExpectIntEQ(mp_rand(&a, digits, &rng), 0);
+    ExpectIntEQ(mp_set_bit(&a, 4095), MP_OKAY);
+    ExpectIntEQ(mp_rand(&k, digits, &rng), 0);
+    ExpectIntEQ(mp_set_bit(&k, 4095), MP_OKAY);
+    ExpectIntEQ(mp_mul(&a, &k, &m), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&m, 1, &m), MP_OKAY);
+    ExpectIntEQ(mp_add_d(&m, 1, &m), MP_OKAY);
+    ExpectIntGE(mp_count_bits(&m), 8192);
+
+    ExpectIntEQ(mp_invmod(&a, &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_isneg(&r), MP_NO);
+    ExpectIntEQ(mp_cmp(&r, &m), MP_LT);
+    ExpectIntEQ(mp_mulmod(&a, &r, &m, &t), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&t, 1), MP_EQ);
+
+    mp_clear(&t);
+    mp_clear(&r);
+    mp_clear(&m);
+    mp_clear(&k);
+    mp_clear(&a);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_invmod_large_odd_modulus */
+
+/*
  * MC/DC coverage for the sp_int.c multi-precision engine (the sp-math
  * module, iso26262/mcdc-per-module). These call the sp_* primitives
  * directly (not just their mp_* macro aliases in sp_int.h) since that is
