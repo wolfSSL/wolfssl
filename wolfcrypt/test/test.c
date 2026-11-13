@@ -1384,6 +1384,11 @@ static wc_test_ret_t keyid_test(void);
     #define SEED_OK  0
 #endif
 
+/* The fips.c wrappers take a caller seed as additional input, never entropy. */
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+    #define WC_TEST_FIPS_SEED_IS_INPUT
+#endif
+
 void wc_test_render_error_message(const char* msg, wc_test_ret_t es)
 {
     (void)msg;
@@ -31216,7 +31221,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                 lret = WC_TEST_RET_ENC_I(ret);
                 break;
             }
-#ifdef HAVE_FIPS
+#ifdef WC_TEST_FIPS_SEED_IS_INPUT
             /* FIPS: a caller seed is never tested or credited as entropy */
             ret = wc_InitRngNonce_UserSeed(&u_seed, u_seed_buf,
                                            (word32)WC_DRBG_SEED_BUF_SIZE,
@@ -31226,7 +31231,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                 lret = WC_TEST_RET_ENC_I(ret);
                 break;
             }
-#elif !defined(WOLFSSL_RNG_USE_FULL_SEED)
+#elif defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
             ret = wc_InitRngNonce_UserSeed(&u_seed, u_seed_buf,
                                            (word32)WC_DRBG_SEED_BUF_SIZE - 1U,
                                            NULL, 0, NULL, 0, HEAP_HINT, devId,
@@ -31243,7 +31248,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                 lret = WC_TEST_RET_ENC_I(ret);
                 break;
             }
-#if defined(WC_RNG_HAVE_RBGC) && !defined(HAVE_FIPS)
+#if defined(WC_RNG_HAVE_RBGC) && !defined(WC_TEST_FIPS_SEED_IS_INPUT)
             /* Under the flag the material is health-tested as the module's
              * own would be: a constant seed trips the repetition count test,
              * and nothing is instantiated. */
@@ -31597,7 +31602,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     {
         WC_RNG c_rng;
         byte c_buf[16];
-#ifdef HAVE_FIPS
+#ifdef WC_TEST_FIPS_SEED_IS_INPUT
         const int c_expect = 0;
 #else
         const int c_expect = WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E);
@@ -32727,7 +32732,7 @@ static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
     else
         rc = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
-    !defined(HAVE_FIPS)
+    !defined(WC_TEST_FIPS_SEED_IS_INPUT)
     /* Non-FIPS refuses a caller seed before the lock wait; FIPS reseeds
      * from the module source, like the useNow leg. */
     if (rc != (useNow ? WC_NO_ERR_TRACE(RNG_FAILURE_E)
@@ -33521,7 +33526,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND)
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
-#ifdef HAVE_FIPS
+#ifdef WC_TEST_FIPS_SEED_IS_INPUT
     /* FIPS: the seed is additional input to a module reseed */
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -34532,7 +34537,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
 
         /* credited reseed resets the counter */
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
-    !defined(HAVE_FIPS)
+    !defined(WC_TEST_FIPS_SEED_IS_INPUT)
         /* user-class credited reseeds of the conformant root are refused;
          * probe the counter reset with a credited primary reseed, with the
          * material as nonce. */
@@ -35831,7 +35836,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
      * generates. */
     {
         WC_RNG u_seed;
-#ifdef HAVE_FIPS
+#ifdef WC_TEST_FIPS_SEED_IS_INPUT
         /* FIPS: the seed is additional input, so the module source seeds it */
         const int u_expect = 0;
 #else
@@ -37711,7 +37716,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
     (void)block;
 
 #ifdef WC_RNG_HAVE_RBGC
-#ifdef HAVE_FIPS
+#ifdef WC_TEST_FIPS_SEED_IS_INPUT
     /* FIPS: a caller seed is not entropy, so a member with no module
      * source cannot be instantiated */
     {
@@ -37851,7 +37856,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         if (api_ret != 0)
             ERROR_OUT(api_ret, out_l); /* encoded at the failure site */
     }
-#endif /* HAVE_FIPS */
+#endif /* WC_TEST_FIPS_SEED_IS_INPUT */
 #endif /* WC_RNG_HAVE_RBGC */
 
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
