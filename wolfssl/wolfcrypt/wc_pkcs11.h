@@ -60,8 +60,12 @@ typedef struct Pkcs11Token {
     CK_SESSION_HANDLE handle;           /* Handle to active session           */
     CK_UTF8CHAR_PTR   userPin;          /* User's PIN to login with           */
     CK_ULONG          userPinSz;        /* Size of user's PIN in bytes        */
-    byte              userPinLogin:1;   /* Login with User's PIN              */
+    CK_UTF8CHAR_PTR   pinCopy;          /* Token's copy of the user's PIN     */
+    CK_ULONG          pinCopySz;        /* Size of the PIN copy in bytes      */
+    WC_BITFIELD       userPinLogin:1;   /* Login with User's PIN              */
+    WC_BITFIELD       pinDropped:1;     /* PIN discarded after logging in     */
     int               version;          /* Pkcs11InterfaceVersionType         */
+    void*             heap;             /* Heap for the copy of the PIN       */
 } Pkcs11Token;
 
 typedef struct Pkcs11Session {
@@ -104,6 +108,8 @@ WOLFSSL_API int wc_Pkcs11Token_InitName_NoLogin(Pkcs11Token* token,
 
 WOLFSSL_API void wc_Pkcs11Token_Final(Pkcs11Token* token);
 WOLFSSL_API int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite);
+WOLFSSL_API int wc_Pkcs11Token_Open_ex(Pkcs11Token* token, int readWrite,
+    int discardPin);
 WOLFSSL_API void wc_Pkcs11Token_Close(Pkcs11Token* token);
 
 WOLFSSL_API int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear,
