@@ -5042,19 +5042,22 @@ static int test_dtls13_cs_sni_cb(WOLFSSL* ssl, int* ad, void* arg)
 #endif
 
 /* wolfSSL_set_SSL_CTX(): an object uses the new context's secret from then
- * on, and the move gives the context one when it has none. The SNI callback
- * runs after the cookie check, so it may move the object and change secrets
- * freely. */
+ * on, and the move gives the context one when it has none. A move that cannot
+ * give it one fails and changes nothing. The SNI callback runs after the
+ * cookie check, so it may move the object and change secrets freely. */
 int test_dtls13_ctx_cookie_secret_set_ssl_ctx(void)
 {
     EXPECT_DECLS;
 #if defined(TEST_DTLS13_CTX_COOKIE) && \
     (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s1 = NULL, *ctx_s2 = NULL, *ctx_s3 = NULL;
+    WOLFSSL_CTX *ctx_s4 = NULL;
     WOLFSSL *ssl_c = NULL, *c1 = NULL, *x = NULL;
     struct test_memio_ctx t;
     byte p1[32];
     byte p2[32];
+    int refOld = 0;
+    int refNew = 0;
 #ifdef HAVE_SNI
     test_dtls13_cs_sni_arg arg;
     int group = WOLFSSL_ECC_SECP256R1;
@@ -5166,10 +5169,53 @@ int test_dtls13_ctx_cookie_secret_set_ssl_ctx(void)
     }
 #endif
 
+    /* (d) A client context cannot hold a secret: a server that needs one is
+     * not moved, and stays as it was */
+    ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s1, p1, sizeof(p1)),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(c1 = wolfSSL_new(ctx_s1));
+    if (EXPECT_SUCCESS()) {
+        refOld = wolfSSL_RefWithMutexCur(ctx_s1->ref);
+        refNew = wolfSSL_RefWithMutexCur(ctx_c->ref);
+    }
+    ExpectNull(wolfSSL_set_SSL_CTX(c1, ctx_c));
+    ExpectNotNull(c1);
+    ExpectPtrEq(c1->ctx, ctx_s1);
+    ExpectIntEQ(wolfSSL_RefWithMutexCur(ctx_s1->ref), refOld);
+    ExpectIntEQ(wolfSSL_RefWithMutexCur(ctx_c->ref), refNew);
+    ExpectTrue(test_dtls13_cs_pri_is(c1, CTX_COOKIE_HRR, p1, sizeof(p1)));
+    ExpectIntEQ(test_dtls13_cs_to_ch2(ctx_c, c1, &t, &ssl_c), TEST_SUCCESS);
+    ExpectNotNull(x = wolfSSL_new(ctx_s1));
+    ExpectIntEQ(test_dtls13_cs_ch2_at(ssl_c, x, &t, 1), TEST_SUCCESS);
+    wolfSSL_free(x);
+    x = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(c1);
+    c1 = NULL;
+
+    /* (e) A server with its own secrets does not need the context's: the
+     * move leaves a context without a secret without one */
+    ExpectIntEQ(test_memio_setup(&t, NULL, &ctx_s4, NULL, NULL, NULL,
+        wolfDTLSv1_3_server_method), 0);
+    ExpectNotNull(c1 = wolfSSL_new(ctx_s1));
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(c1, p1, sizeof(p1)), 0);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(c1, p2, sizeof(p2)), WOLFSSL_SUCCESS);
+    ExpectPtrEq(wolfSSL_set_SSL_CTX(c1, ctx_s4), ctx_s4);
+    ExpectNotNull(ctx_s4);
+    ExpectIntEQ(ctx_s4->cookieSecret.keySz[0], 0);
+    ExpectTrue(test_dtls_cs_resolves(c1, CTX_COOKIE_DTLS12, p1, sizeof(p1),
+        NULL, 0));
+    ExpectTrue(test_dtls_cs_resolves(c1, CTX_COOKIE_HRR, p2, sizeof(p2),
+        NULL, 0));
+    wolfSSL_free(c1);
+    c1 = NULL;
+
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s1);
     wolfSSL_CTX_free(ctx_s2);
     wolfSSL_CTX_free(ctx_s3);
+    wolfSSL_CTX_free(ctx_s4);
 #endif
     return EXPECT_RESULT();
 }

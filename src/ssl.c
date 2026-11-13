@@ -8994,6 +8994,10 @@ int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     int ret;
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    int needCookieSecret = 0;
+#endif
     /* This method requires some explanation. Its sibling is
      *   int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
      * which re-inits the WOLFSSL* with all settings in the new CTX.
@@ -9035,6 +9039,26 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (InitCtxSuitesWithMutex(ctx) != 0)
         return NULL;
 
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    /* A server without a cookie secret of its own uses the new context's.
+     * Made before the move, so a failure leaves the object as it was. */
+    if (ssl->options.sendCookie && ssl->options.side != WOLFSSL_CLIENT_END) {
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
+        if (ssl->buffers.tls13CookieSecret.buffer == NULL)
+            needCookieSecret = 1;
+    #endif
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls && ssl->buffers.dtlsCookieSecret.buffer == NULL)
+            needCookieSecret = 1;
+    #endif
+    }
+    if (needCookieSecret && CookieSecretCtxDefault(ctx) != 0) {
+        WOLFSSL_MSG("Cannot make the cookie secret of the new CTX");
+        return NULL;
+    }
+#endif
+
     wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0) {
@@ -9049,12 +9073,6 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);
     ssl->ctx = ctx;
-#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
-    !defined(NO_WOLFSSL_SERVER)
-    /* A server's cookies now come from this context's secret */
-    if (ssl->options.sendCookie && ssl->options.side != WOLFSSL_CLIENT_END)
-        (void)CookieSecretCtxDefault(ctx);
-#endif
 
 #ifndef NO_CERTS
     /* Release the certificate, chain and keys this SSL owns so that a ctx

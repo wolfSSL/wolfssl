@@ -11059,7 +11059,9 @@ int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
 
     Objects read the secret each time they make or check a cookie, so a
     change applies at once to every object of the context, and
-    wolfSSL_set_SSL_CTX() moves an object to the new context's secret. The
+    wolfSSL_set_SSL_CTX() moves an object to the new context's secret. It
+    gives a context without a secret a random one, and returns NULL without
+    moving the object when that fails. The
     server name callback runs after the cookie check, so a context it moves
     the object to need not share the secret. A
     context without a secret gets a random one when cookies are enabled on
