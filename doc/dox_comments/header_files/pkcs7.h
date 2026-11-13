@@ -329,7 +329,20 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \brief This function takes in a transmitted PKCS7 signed data message,
     extracts the certificate list and certificate revocation list, and then
     verifies the signature. It stores the extracted content in the given
-    PKCS7 structure.
+    PKCS7 structure. For legacy PKCS#7 ANY-typed eContent (a non-OCTET STRING
+    element, e.g. a SEQUENCE as RFC 2315 permits), pkcs7->content is the whole
+    DER element (so contentSz includes the tag and length octets), whereas a
+    CMS OCTET STRING eContent reports the value only. The element shape is
+    enforced only when the signer uses signed attributes: in that case it must
+    be a single DER element spanning the whole eContent, and an element shorter
+    than two octets, trailing bytes after it, an indefinite length, a
+    non-minimal or out-of-range length, the end-of-contents identifier (0x00),
+    or a high-tag-number identifier are
+    rejected with ASN_PARSE_E; with no signed attributes no shape check runs
+    and the signature covers the eContent region as received. pkcs7->content
+    is valid only until the next verify on this structure or wc_PKCS7_Free();
+    when the message is verified from a single input buffer it may point into
+    that buffer, so it is also invalid once the input buffer is freed or reused.
 
     \return 0 Returned on successfully extracting the information
     from the message
@@ -409,7 +422,8 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \brief This function takes in a transmitted PKCS7 signed data message as
     hash/header/footer, then extracts the certificate list and certificate
     revocation list, and then verifies the signature. It stores the extracted
-    content in the given PKCS7 structure.
+    content in the given PKCS7 structure, in the same form as
+    wc_PKCS7_VerifySignedData() reports it.
 
     \return 0 Returned on successfully extracting the information
     from the message

@@ -6033,6 +6033,32 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
         return BAD_FUNC_ARG;
     }
 
+    /* ANY-typed eContent must be a single element spanning content; checked
+     * here so it applies whether or not a precomputed hash is supplied. */
+    if (pkcs7->contentIsPkcs7Type && pkcs7->content != NULL &&
+            pkcs7->contentSz > 0) {
+        word32 spanIdx;
+        int    spanLen = 0; /* set by GetLength_ex below */
+        /* Need an identifier octet and a length. Reject the high-tag-number
+         * form (low five bits all set) so one identifier octet is correct,
+         * the end-of-contents identifier (0x00), which is not an element tag,
+         * and the indefinite length (0x80), which GetLength_ex reads as 0. */
+        if (pkcs7->contentSz < 2 || pkcs7->content[0] == 0x00 ||
+                (pkcs7->content[0] & 0x1F) == 0x1F ||
+                pkcs7->content[1] == ASN_INDEF_LENGTH) {
+            WOLFSSL_MSG("Unsupported PKCS7 eContent element encoding");
+            return ASN_PARSE_E;
+        }
+        spanIdx = 1;
+        if (GetLength_ex(pkcs7->content, &spanIdx, &spanLen,
+                pkcs7->contentSz, 1) < 0)
+            return ASN_PARSE_E;
+        if (spanIdx + (word32)spanLen != pkcs7->contentSz) {
+            WOLFSSL_MSG("PKCS7 eContent has data after the first element");
+            return ASN_PARSE_E;
+        }
+    }
+
     /* build content hash if needed, or use existing hash value */
     if (hashBuf == NULL) {
 
@@ -7138,6 +7164,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
     switch (pkcs7->state) {
         case WC_PKCS7_START:
+            /* per-message flag, clear any value left by a previous verify */
+            pkcs7->contentIsPkcs7Type = 0;
         #ifndef NO_PKCS7_STREAM
             /* The expected size calculation originally assumed digest OID
              * with NULL params, -2 to also accept with absent params */
