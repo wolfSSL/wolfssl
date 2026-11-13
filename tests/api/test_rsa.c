@@ -2819,3 +2819,360 @@ int test_wc_FreeRsaKey_CryptoCb(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* WOLFSSL_NO_RSA_SW_PAD is derived inside rsa.c, so check WOLFSSL_NO_RSA_SW:
+ * these tests need the software OAEP and raw RSA paths. */
+#if !defined(NO_RSA) && !defined(WC_NO_RSA_OAEP) && \
+    !defined(WOLFSSL_NO_RSA_SW) && !defined(NO_HASH_WRAPPER) && \
+    !defined(NO_SHA256) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#define TEST_RSA_OAEP_CRAFT
+#define TEST_RSA_OAEP_HLEN WC_SHA256_DIGEST_SIZE
+
+/* The vectors are 2048-bit blocks. Unpadding works in a scratch buffer sized
+ * for RSA_MAX_SIZE, so skip when the build can't hold a 2048-bit block. */
+#if RSA_MAX_SIZE >= 2048
+#define TEST_RSA_OAEP_SEPARATOR
+#endif
+/* Key generation and the raw RSA operation need software RSA, or with
+ * callback-only RSA, the wc_swdev device to do them. */
+#if defined(WOLFSSL_KEY_GEN) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
+#define TEST_RSA_OAEP_ZEROLEN
+#endif
+#endif /* TEST_RSA_OAEP_CRAFT conditions */
+
+/* Only compile the helpers when a test uses them. */
+#if defined(TEST_RSA_OAEP_SEPARATOR) || defined(TEST_RSA_OAEP_ZEROLEN)
+
+/* MGF1 with SHA-256 (RFC 8017, B.2.1), written independently of the library
+ * so that hand-built encoded messages don't depend on the code under test. */
+static int rsa_oaep_test_mgf1(const byte* seed, word32 seedLen, byte* out,
+    word32 outLen)
+{
+    byte buf[512 + 4];
+    byte h[TEST_RSA_OAEP_HLEN];
+    word32 cnt;
+    word32 o = 0;
+    word32 n;
+    int ret = 0;
+
+    if (seedLen > 512)
+        return BAD_FUNC_ARG;
+    XMEMCPY(buf, seed, seedLen);
+    for (cnt = 0; (ret == 0) && (o < outLen); cnt++) {
+        buf[seedLen + 0] = (byte)(cnt >> 24);
+        buf[seedLen + 1] = (byte)(cnt >> 16);
+        buf[seedLen + 2] = (byte)(cnt >> 8);
+        buf[seedLen + 3] = (byte)cnt;
+        ret = wc_Sha256Hash(buf, seedLen + 4, h);
+        n = outLen - o;
+        if (n > TEST_RSA_OAEP_HLEN)
+            n = TEST_RSA_OAEP_HLEN;
+        if (ret == 0)
+            XMEMCPY(out + o, h, n);
+        o += n;
+    }
+    return ret;
+}
+
+/* Build an OAEP-SHA256 encoded message Y | maskedSeed | maskedDB from a
+ * caller-chosen DB, so that malformed DBs can be produced.
+ * db is blockLen - hLen - 1 bytes. */
+static int rsa_oaep_test_encode(const byte* db, byte* block, word32 blockLen,
+    byte y)
+{
+    byte seed[TEST_RSA_OAEP_HLEN];
+    byte mask[512];
+    word32 dbLen = blockLen - TEST_RSA_OAEP_HLEN - 1;
+    word32 i;
+    int ret;
+
+    if (blockLen > sizeof(mask))
+        return BAD_FUNC_ARG;
+    XMEMSET(seed, 0x3c, sizeof(seed));
+    block[0] = y;
+    ret = rsa_oaep_test_mgf1(seed, TEST_RSA_OAEP_HLEN, mask, dbLen);
+    for (i = 0; (ret == 0) && (i < dbLen); i++)
+        block[1 + TEST_RSA_OAEP_HLEN + i] = db[i] ^ mask[i];
+    if (ret == 0) {
+        ret = rsa_oaep_test_mgf1(block + 1 + TEST_RSA_OAEP_HLEN, dbLen, mask,
+            TEST_RSA_OAEP_HLEN);
+    }
+    for (i = 0; (ret == 0) && (i < TEST_RSA_OAEP_HLEN); i++)
+        block[1 + i] = seed[i] ^ mask[i];
+    return ret;
+}
+
+/* Fill DB as lHash | zeros, then place the separator byte at offset sepOff
+ * of DB (sepOff == 0 means no byte is placed) and the message after it. */
+static void rsa_oaep_test_db(byte* db, word32 dbLen, const byte* lHash,
+    word32 sepOff, byte sepByte, const byte* msg)
+{
+    XMEMSET(db, 0, dbLen);
+    XMEMCPY(db, lHash, TEST_RSA_OAEP_HLEN);
+    if (sepOff != 0) {
+        db[sepOff] = sepByte;
+        XMEMCPY(db + sepOff + 1, msg, dbLen - sepOff - 1);
+    }
+}
+#endif /* TEST_RSA_OAEP_SEPARATOR || TEST_RSA_OAEP_ZEROLEN */
+
+/*
+ * Testing that OAEP unpadding finds the separator at every position and
+ * rejects malformed padding with a zero length and an end-of-block pointer.
+ */
+int test_wc_RsaUnPad_OaepSeparator(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_OAEP_SEPARATOR
+    /* 2048-bit block. DB is lHash (32) | PS | 0x01 | M, from offset 33. */
+    enum {
+        BLK = 256,
+        HL = TEST_RSA_OAEP_HLEN,
+        DBLEN = BLK - HL - 1,
+        DBOFF = HL + 1
+    };
+    byte label[] = { 'l', 'a', 'b', 'e', 'l' };
+    byte badLabel[] = { 'l', 'a', 'b', 'e', 'L' };
+    byte lHash[HL];
+    byte lHashLabel[HL];
+    byte msg[DBLEN];
+    byte db[DBLEN];
+    byte block[BLK];
+    byte* out;
+    word32 sepOff;
+    word32 i;
+    int ret;
+
+    ExpectIntEQ(wc_Sha256Hash(NULL, 0, lHash), 0);
+    ExpectIntEQ(wc_Sha256Hash(label, sizeof(label), lHashLabel), 0);
+
+    /* Message with zero bytes and extra 0x01 bytes, including at its start, so
+     * only the first non-zero byte after lHash may be taken as separator. */
+    for (i = 0; i < DBLEN; i++)
+        msg[i] = (byte)(((i % 3) == 0) ? 0x00 : (((i % 3) == 1) ? 0x01 : i));
+
+    /* Separator at every position, from right after lHash (PS empty, longest
+     * message) to the last byte of the block (empty message). */
+    for (sepOff = HL; EXPECT_SUCCESS() && (sepOff < DBLEN); sepOff++) {
+        word32 mLen = DBLEN - sepOff - 1;
+
+        rsa_oaep_test_db(db, DBLEN, lHash, sepOff, 0x01, msg);
+        ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+        out = NULL;
+        ret = wc_RsaUnPad_ex(block, BLK, &out, RSA_BLOCK_TYPE_2,
+            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, 0,
+            BLK * 8, HEAP_HINT);
+        ExpectIntEQ(ret, (int)mLen);
+        ExpectPtrEq(out, block + BLK - mLen);
+        if (mLen > 0) {
+            ExpectBufEQ(out, msg, mLen);
+        }
+    }
+
+    /* Same encoding with a matching non-empty label. */
+    rsa_oaep_test_db(db, DBLEN, lHashLabel, 100, 0x01, msg);
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+    out = NULL;
+    ExpectIntEQ(wc_RsaUnPad_ex(block, BLK, &out, RSA_BLOCK_TYPE_2,
+        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, label,
+        sizeof(label), 0, BLK * 8, HEAP_HINT), DBLEN - 101);
+    ExpectPtrEq(out, block + DBOFF + 101);
+    ExpectBufEQ(out, msg, DBLEN - 101);
+
+    /* Each malformed block must give length 0 and a pointer to the end of the
+     * block, the same as each other, so the failures look alike. Unpadding
+     * demasks the block in place, so each case encodes it again. */
+#define TEST_OAEP_BAD(lbl, lblLen) do {                                      \
+        out = NULL;                                                          \
+        ExpectIntEQ(wc_RsaUnPad_ex(block, BLK, &out, RSA_BLOCK_TYPE_2,       \
+            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, (lbl),      \
+            (lblLen), 0, BLK * 8, HEAP_HINT), 0);                           \
+        ExpectPtrEq(out, block + BLK);                                       \
+    } while (0)
+
+    /* No separator: only zeros after lHash. */
+    rsa_oaep_test_db(db, DBLEN, lHash, 0, 0, NULL);
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+    TEST_OAEP_BAD(NULL, 0);
+
+    /* First non-zero byte is not 0x01, with a 0x01 right after it and at the
+     * last byte - neither may be taken as the separator. */
+    for (i = 0; i < 3; i++) {
+        static const byte badSep[3] = { 0x02, 0x80, 0xff };
+
+        rsa_oaep_test_db(db, DBLEN, lHash, 100, badSep[i], msg);
+        db[101] = 0x01;
+        db[DBLEN - 1] = 0x01;
+        ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+        TEST_OAEP_BAD(NULL, 0);
+    }
+
+    /* Invalid first byte of the last position: 0x02 instead of 0x01. */
+    rsa_oaep_test_db(db, DBLEN, lHash, DBLEN - 1, 0x02, msg);
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+    TEST_OAEP_BAD(NULL, 0);
+
+    /* Valid separator at the first and last positions, but Y is not zero. */
+    rsa_oaep_test_db(db, DBLEN, lHash, HL, 0x01, msg);
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x01), 0);
+    TEST_OAEP_BAD(NULL, 0);
+    rsa_oaep_test_db(db, DBLEN, lHash, DBLEN - 1, 0x01, msg);
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x80), 0);
+    TEST_OAEP_BAD(NULL, 0);
+
+    /* Valid separator but lHash does not match: one bit flipped, and a block
+     * encoded for a label but decoded with none or with another label. */
+    rsa_oaep_test_db(db, DBLEN, lHash, 100, 0x01, msg);
+    db[HL - 1] ^= 0x01;
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+    TEST_OAEP_BAD(NULL, 0);
+    rsa_oaep_test_db(db, DBLEN, lHashLabel, 100, 0x01, msg);
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+    TEST_OAEP_BAD(NULL, 0);
+    /* Unpadding demasks in place, so encode again before each attempt. */
+    ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+    TEST_OAEP_BAD(badLabel, sizeof(badLabel));
+#undef TEST_OAEP_BAD
+#else
+    return TEST_SKIPPED;
+#endif /* TEST_RSA_OAEP_SEPARATOR */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing the length RSA-OAEP private decrypt returns for an empty message
+ * and for invalid padding: 0 with WOLFSSL_RSA_DECRYPT_TO_0_LEN, otherwise
+ * RSA_BUFFER_E. In both builds the two cases must give the same result.
+ */
+int test_wc_RsaPrivateDecrypt_OaepZeroLen(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_OAEP_ZEROLEN
+    enum {
+        BLK = TEST_RSA_BYTES,
+        HL = TEST_RSA_OAEP_HLEN,
+        DBLEN = BLK - HL - 1
+    };
+    RsaKey key;
+    WC_RNG rng;
+    byte lHash[HL];
+    byte msg[DBLEN];
+    byte db[DBLEN];
+    byte block[BLK];
+    byte cipher[BLK];
+    byte plain[BLK];
+    byte* outPtr;
+    word32 cipherLen;
+    int i;
+#ifdef WOLFSSL_RSA_DECRYPT_TO_0_LEN
+    const int zeroRet = 0;
+#else
+    const int zeroRet = WC_NO_ERR_TRACE(RSA_BUFFER_E);
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(MAKE_RSA_KEY(&key, TEST_RSA_BITS, WC_RSA_EXPONENT, &rng), 0);
+#ifdef WC_RSA_BLINDING
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+#endif
+    ExpectIntEQ(wc_Sha256Hash(NULL, 0, lHash), 0);
+
+    /* 0: empty message (separator in the last byte), 1: no separator,
+     * 2: invalid separator byte, 3: non-empty message as a control. */
+    for (i = 0; i < 4; i++) {
+        if (i == 0)
+            rsa_oaep_test_db(db, DBLEN, lHash, DBLEN - 1, 0x01, msg);
+        else if (i == 1)
+            rsa_oaep_test_db(db, DBLEN, lHash, 0, 0, NULL);
+        else if (i == 2)
+            rsa_oaep_test_db(db, DBLEN, lHash, DBLEN - 9, 0x02, msg);
+        else
+            rsa_oaep_test_db(db, DBLEN, lHash, DBLEN - 9, 0x01, msg);
+        ExpectIntEQ(rsa_oaep_test_encode(db, block, BLK, 0x00), 0);
+        /* Raw RSA public operation: the public encrypt API rejects an empty
+         * message and only produces valid padding. */
+        cipherLen = sizeof(cipher);
+        ExpectIntEQ(wc_RsaFunction(block, BLK, cipher, &cipherLen,
+            RSA_PUBLIC_ENCRYPT, &key, &rng), 0);
+        ExpectIntEQ(cipherLen, BLK);
+
+        XMEMSET(plain, 0xa5, sizeof(plain));
+        ExpectIntEQ(wc_RsaPrivateDecrypt_ex(cipher, cipherLen, plain,
+            sizeof(plain), &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+            WC_MGF1SHA256, NULL, 0), (i == 3) ? 8 : zeroRet);
+        if (i == 3) {
+            ExpectBufEQ(plain, msg, 8);
+        }
+
+        outPtr = NULL;
+        ExpectIntEQ(wc_RsaPrivateDecryptInline_ex(cipher, cipherLen, &outPtr,
+            &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL,
+            0), (i == 3) ? 8 : zeroRet);
+        if (i == 3) {
+            ExpectPtrEq(outPtr, cipher + BLK - 8);
+            ExpectBufEQ(outPtr, msg, 8);
+        }
+    }
+
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#else
+    return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing that OAEP unpadding accepts a block of RSA_MAX_SIZE bits, and that a
+ * longer block is rejected when the scratch buffer is on stack instead of
+ * overrunning it, and is handled when the scratch buffer is allocated.
+ */
+int test_wc_RsaUnPad_OaepBlockLen(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_OAEP_CRAFT
+    const word32 maxLen = RSA_MAX_SIZE / 8;
+    byte* block = NULL;
+    byte* out;
+
+    ExpectNotNull(block = (byte*)XMALLOC(maxLen + 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (block != NULL) {
+        /* Largest block: processed, and all zeros is invalid padding. */
+        XMEMSET(block, 0, maxLen + 1);
+        out = NULL;
+        ExpectIntEQ(wc_RsaUnPad_ex(block, maxLen, &out, RSA_BLOCK_TYPE_2,
+            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, 0,
+            (int)maxLen * 8, HEAP_HINT), 0);
+        ExpectPtrEq(out, block + maxLen);
+
+        XMEMSET(block, 0, maxLen + 1);
+        out = NULL;
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        /* Scratch buffer is allocated per block, so any length is handled. */
+        ExpectIntEQ(wc_RsaUnPad_ex(block, maxLen + 1, &out, RSA_BLOCK_TYPE_2,
+            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, 0,
+            (int)(maxLen + 1) * 8, HEAP_HINT), 0);
+        ExpectPtrEq(out, block + maxLen + 1);
+    #else
+        /* Scratch buffer is on stack: one byte more is rejected before the
+         * block is touched. */
+        ExpectIntEQ(wc_RsaUnPad_ex(block, maxLen + 1, &out, RSA_BLOCK_TYPE_2,
+            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, 0,
+            (int)(maxLen + 1) * 8, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectNull(out);
+    #endif
+    }
+    XFREE(block, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    return TEST_SKIPPED;
+#endif
+    return EXPECT_RESULT();
+}

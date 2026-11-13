@@ -1917,7 +1917,12 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     byte h[WC_MAX_DIGEST_SIZE]; /* max digest size */
     word32 idx;
     word32 i;
-    volatile word32 inc;
+    word32 first;
+    word32 sepIdx;
+    word32 sepVal;
+    volatile word32 byteVal;
+    volatile word32 nzMask;
+    volatile word32 pastSep;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* tmp  = NULL;
@@ -1929,6 +1934,12 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if (optLabel == NULL && labelLen > 0) {
         return BUFFER_E;
     }
+#if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
+    /* tmp holds a whole block and on stack is sized for RSA_MAX_SIZE. */
+    if (pkcsBlockLen > RSA_MAX_SIZE/8) {
+        return BAD_FUNC_ARG;
+    }
+#endif
 
     ret = wc_HashGetDigestSize(hType);
     if ((ret < 0) || (pkcsBlockLen < (2 * (word32)ret + 2))) {
@@ -1985,15 +1996,36 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 #endif
     WC_FREE_VAR_EX(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
 
-    /* advance idx to index of PS and msg separator, account for PS size of 0*/
-    idx = hLen + 1 + hLen;
-    /* Don't reveal length of message: look at every byte. */
-    inc = 1;
-    for (i = hLen + 1 + hLen; i < pkcsBlockLen - 1; i++) {
-        /* Looking for non-zero byte. */
-        inc &= 1 - (((word32)0 - pkcsBlock[i]) >> 31);
-        idx += inc;
+    /* Find the separator: the first non-zero byte after lHash and PS.
+     * Don't reveal length of message: look at every byte, and record the
+     * separator's index and value with masks. Loading the separator by index
+     * afterwards would put its position on the address bus.
+     * The byte and the per-byte mask go through volatiles so the compiler
+     * can't tell the byte is less than 256 or that the mask is either 0 or all
+     * ones. Otherwise it may turn the masking back into a branch on whether
+     * the byte is zero (seen with Clang on PowerPC and Thumb-1). */
+    sepIdx = 0;
+    sepVal = 0;
+    pastSep = 0;
+    for (i = hLen + 1 + hLen; i < pkcsBlockLen; i++) {
+        word32 b;
+
+        byteVal = pkcsBlock[i];
+        b = byteVal;
+        /* All ones when byte is non-zero. */
+        nzMask = (word32)0 - (((word32)0 - b) >> 31);
+        /* All ones only at the first non-zero byte. */
+        first = nzMask & ~pastSep;
+        sepIdx |= first & i;
+        sepVal |= first & b;
+        pastSep |= nzMask;
     }
+    /* The volatiles hold the last decoded byte - plaintext - and whether it
+     * is zero. Clear them before any return so no copy outlives the block. */
+    byteVal = 0;
+    nzMask = 0;
+    /* No non-zero byte leaves sepVal as 0, which fails the check below. */
+    idx = sepIdx + 1;
 
     /* create hash of label for comparison with hash sent */
     ret = wc_Hash(hType, optLabel, labelLen, h, hLen);
@@ -2009,7 +2041,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
      */
     {
         volatile int c = ConstantCompare(pkcsBlock + hLen + 1, h, (int)hLen);
-        c = c + (pkcsBlock[idx++] ^ 0x01); /* separator value is 0x01 */
+        c = c + (int)(sepVal ^ 0x01);      /* separator value is 0x01 */
         c = c + (pkcsBlock[0]     ^ 0x00); /* Y, the first value, should be 0 */
 
         /* Return 0 data length on error. */
