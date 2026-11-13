@@ -32037,17 +32037,21 @@ static int test_sk_X509_CRL_encode(void)
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN) && \
     !defined(NO_ASN_TIME)
+    /* The generated CRLs really revoke server-cert.pem and server-ecc.pem, so
+     * write them to a private directory, not certs/crl/ where the example
+     * client loads every CRL and would then reject the test servers. */
+    char tmpDir[16] = {0};
 #ifndef NO_RSA
-    static const char* crlRsaPemFile = "./certs/crl/crlRsaOut.pem";
-    static const char* crlRsaDerFile = "./certs/crl/crlRsaOut.der";
+    char crlRsaPemFile[64] = {0};
+    char crlRsaDerFile[64] = {0};
     static const char* testRsaKeyFile  = "./certs/ca-key.pem";
     /* Use ca-cert.pem to match ca-key.pem for proper CRL verification */
     static const char* testRsaCertFile = "./certs/ca-cert.pem";
     static const char* revokeRsaCertFile = "./certs/server-cert.pem";
 #endif
 #ifdef HAVE_ECC
-    static const char* crlEccPemFile = "./certs/crl/crlEccOut.pem";
-    static const char* crlEccDerFile = "./certs/crl/crlEccOut.der";
+    char crlEccPemFile[64] = {0};
+    char crlEccDerFile[64] = {0};
     static const char* testEccKeyFile  = "./certs/ca-ecc-key.pem";
     /* Use ca-ecc-cert.pem to match ca-ecc-key.pem for proper CRL
      * verification */
@@ -32055,17 +32059,39 @@ static int test_sk_X509_CRL_encode(void)
     static const char* revokeEccCertFile = "./certs/server-ecc.pem";
 #endif
 
+    XMEMSET(tmpDir, 0, sizeof(tmpDir));
+    ExpectNotNull(create_tmp_dir(tmpDir, (int)sizeof(tmpDir) - 1));
+
 #ifndef NO_RSA
+    ExpectIntGT(XSNPRINTF(crlRsaPemFile, sizeof(crlRsaPemFile),
+        "%s/crlRsaOut.pem", tmpDir), 0);
+    ExpectIntGT(XSNPRINTF(crlRsaDerFile, sizeof(crlRsaDerFile),
+        "%s/crlRsaOut.der", tmpDir), 0);
     /* Generate RSA-signed CRL (PEM and DER) */
     ExpectIntEQ(generate_crl_test(testRsaKeyFile, testRsaCertFile,
         crlRsaDerFile, crlRsaPemFile, revokeRsaCertFile), TEST_SUCCESS);
+    if (crlRsaPemFile[0] != '\0')
+        (void)rem_file(crlRsaPemFile);
+    if (crlRsaDerFile[0] != '\0')
+        (void)rem_file(crlRsaDerFile);
 #endif
 
 #ifdef HAVE_ECC
+    ExpectIntGT(XSNPRINTF(crlEccPemFile, sizeof(crlEccPemFile),
+        "%s/crlEccOut.pem", tmpDir), 0);
+    ExpectIntGT(XSNPRINTF(crlEccDerFile, sizeof(crlEccDerFile),
+        "%s/crlEccOut.der", tmpDir), 0);
     /* Generate ECC-signed CRL (PEM and DER) */
     ExpectIntEQ(generate_crl_test(testEccKeyFile, testEccCertFile,
         crlEccDerFile, crlEccPemFile, revokeEccCertFile), TEST_SUCCESS);
+    if (crlEccPemFile[0] != '\0')
+        (void)rem_file(crlEccPemFile);
+    if (crlEccDerFile[0] != '\0')
+        (void)rem_file(crlEccDerFile);
 #endif
+
+    if (tmpDir[0] != '\0')
+        (void)rem_dir(tmpDir);
 #endif
     return EXPECT_RESULT();
 }

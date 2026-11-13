@@ -3096,6 +3096,63 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 }
 #endif
 
+#ifdef HAVE_CRL
+/* Return the CA that issued ca, ca itself for a root, or NULL when the issuer
+ * is not loaded. */
+Signer* GetCAIssuer(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
+{
+    Signer* candidateIssuer = NULL;
+
+    /* A root is its own issuer. */
+    if (ca->selfSigned)
+        return ca;
+
+#ifndef NO_SKID
+    if (ca->authKeyIdSet) {
+        candidateIssuer = GetCA(cm, ca->authKeyIdHash);
+        if (candidateIssuer != NULL &&
+                XMEMCMP(candidateIssuer->subjectNameHash, ca->issuerNameHash,
+                        SIGNER_DIGEST_SIZE) != 0) {
+            candidateIssuer = NULL;
+        }
+        /* The AKID decides, as in ParseCertRelative. A name lookup could
+         * find another key's CA, which didn't issue ca. */
+        return candidateIssuer;
+    }
+    return GetCAByName(cm, ca->issuerNameHash);
+#else
+    /* Without SKIDs, GetCA looks up by subject name hash. */
+    (void)candidateIssuer;
+    return GetCA(cm, ca->issuerNameHash);
+#endif
+}
+
+/* Return the trust anchor ca chains to: the first CA up the chain that is
+ * self-signed or whose issuer is not loaded. Any loaded CA can be an anchor.
+ * Returns NULL when ca is NULL, or the walk loops or runs too deep, as then
+ * no single anchor can be named. */
+Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
+{
+    Signer* prev = NULL;
+    Signer* issuer;
+    word32  depth = 0;
+
+    while (ca != NULL) {
+        if (++depth > WOLFSSL_MAX_CHAIN_DEPTH)
+            return NULL;
+        issuer = GetCAIssuer(cm, ca);
+        if (issuer == NULL || issuer == ca)
+            return ca;
+        /* Cross-certified pair issuing each other. */
+        if (issuer == prev)
+            return NULL;
+        prev = ca;
+        ca = issuer;
+    }
+    return NULL;
+}
+#endif /* HAVE_CRL */
+
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* add a trusted peer cert to linked list */
 int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)

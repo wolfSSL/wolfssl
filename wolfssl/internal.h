@@ -8077,6 +8077,12 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
         WOLFSSL_LOCAL Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm,
                 byte* hash);
     #endif
+    #ifdef HAVE_CRL
+        WOLFSSL_LOCAL Signer* GetCAIssuer(WOLFSSL_CERT_MANAGER* cm,
+                Signer* ca);
+        WOLFSSL_LOCAL Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm,
+                Signer* ca);
+    #endif
 #endif /* !NO_CERTS */
 WOLFSSL_LOCAL int  BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash,
                                    word32* hashLen);

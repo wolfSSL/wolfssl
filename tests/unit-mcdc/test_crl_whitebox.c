@@ -489,20 +489,18 @@ static void wb_store_crl(WOLFSSL_CERT_MANAGER* cm)
     (void)remove(out);
 }
 
-/* ------------------------------------------- AKID: AddCRL, CheckCertCRLList,
- *                                             CrlSignedByCrlOnlyKey */
+/* ------------------------------------------- AKID: AddCRL, CheckCertCRLList */
 /* A CA with several keys has one CRL series per key under one name. The AKID
  * decisions:
  *
  *   AddCRL:     crle->extAuthKeyIdSet && curr->extAuthKeyIdSet &&
  *               XMEMCMP(crle AKID, curr AKID) != 0          -> new series
+ *               !crle->extAuthKeyIdSet && curr->extAuthKeyIdSet
+ *                                                           -> new series
  *   CheckCertCRLList:
  *               akid != NULL && crle->extAuthKeyIdSet &&
- *               XMEMCMP(crle AKID, akid) != 0 &&
- *               !CrlSignedByCrlOnlyKey(cm, crle)            -> another key
+ *               XMEMCMP(crle AKID, akid) != 0               -> another key
  *               ownSeen ? own : other                       -> coverage
- *   CrlSignedByCrlOnlyKey:
- *               ca != NULL && same name && cRLSign && !keyCertSign
  *
  * The MC/DC calls above all pass akid == NULL. Here the CRLs are loaded
  * unverified, marked verified by hand, and the CA's key usage is set per
@@ -562,8 +560,8 @@ static void wb_akid_add_crl(void)
           fxCrlOld5, sizeof(fxCrlOld5), 1,
           "AddCRL: stored entry has no AKID, number 5 < 7 rejected" },
         { 0, fxCrlOld5, sizeof(fxCrlOld5),
-          fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid), 1,
-          "AddCRL: new entry has no AKID, replaces by number" },
+          fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid), 2,
+          "AddCRL: new entry has no AKID, kept beside the AKID one" },
         { 0, fxCrlOld5, sizeof(fxCrlOld5), fxCrlOld6, sizeof(fxCrlOld6), 1,
           "AddCRL: same AKID, replaces by number" },
         { 0, fxCrlOld5, sizeof(fxCrlOld5), fxCrlNew1, sizeof(fxCrlNew1), 2,
@@ -607,64 +605,6 @@ static void wb_akid_expire(CRL_Entry* e)
         XMEMCPY(e->nextDate, past, sizeof(past) - 1);
 }
 
-/* CrlSignedByCrlOnlyKey: one vector per operand. Each CRL gets its own list,
- * since a same-name CRL with no AKID would replace the others. */
-static void wb_akid_crl_only_key(void)
-{
-    static const struct {
-        const byte* der; int sz;
-        word16 ku;              /* CA A's key usage, 0 for as loaded. */
-        int otherName;          /* Change the CRL's issuer name hash. */
-        int expected;
-        const char* what;
-    } rows[] = {
-        { fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid), KEYUSE_CRL_SIGN, 0, 0,
-          "CrlSignedByCrlOnlyKey: no AKID" },
-        { fxCrlNew1, sizeof(fxCrlNew1), KEYUSE_CRL_SIGN, 0, 0,
-          "CrlSignedByCrlOnlyKey: AKID names no loaded CA" },
-    #ifndef IGNORE_KEY_EXTENSIONS
-        { fxCrlOld5, sizeof(fxCrlOld5), KEYUSE_CRL_SIGN, 0, 1,
-          "CrlSignedByCrlOnlyKey: cRLSign only" },
-        { fxCrlOld5, sizeof(fxCrlOld5), KEYUSE_CRL_SIGN | KEYUSE_KEY_CERT_SIGN,
-          0, 0, "CrlSignedByCrlOnlyKey: cRLSign and keyCertSign" },
-        { fxCrlOld5, sizeof(fxCrlOld5), KEYUSE_KEY_CERT_SIGN, 0, 0,
-          "CrlSignedByCrlOnlyKey: no cRLSign" },
-        { fxCrlOld5, sizeof(fxCrlOld5), KEYUSE_CRL_SIGN, 1, 0,
-          "CrlSignedByCrlOnlyKey: CA of another name" },
-    #else
-        { fxCrlOld5, sizeof(fxCrlOld5), KEYUSE_CRL_SIGN, 0, 0,
-          "CrlSignedByCrlOnlyKey: key usage ignored" },
-    #endif
-    };
-    size_t i;
-
-    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
-        WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
-        WOLFSSL_CRL crl;
-        CRL_Entry* e;
-        Signer* ca;
-
-        if (cm == NULL || InitCRL(&crl, cm) != 0) {
-            wolfSSL_CertManagerFree(cm);
-            return;
-        }
-        e = wb_akid_load(&crl, rows[i].der, rows[i].sz);
-        ca = wb_akid_load_ca(cm);
-        if (e != NULL && ca != NULL) {
-            ca->keyUsage = rows[i].ku;
-            if (rows[i].otherName)
-                e->issuerHash[0] ^= 0xff;
-            WB_EXPECT(CrlSignedByCrlOnlyKey(cm, e) == rows[i].expected,
-                      rows[i].what);
-        }
-        else {
-            WB_EXPECT(0, rows[i].what);
-        }
-        FreeCRL(&crl, 0);
-        wolfSSL_CertManagerFree(cm);
-    }
-}
-
 /* CheckCertCRLList with a non-NULL AKID. */
 static void wb_akid_check_list(void)
 {
@@ -693,19 +633,22 @@ static void wb_akid_check_list(void)
           "CheckCertCRLList: revoked by own key" },
         { L_A_B, 0, 0, 1, 0, s2, CRL_CERT_REVOKED, 1,
           "CheckCertCRLList: revoked by other key" },
-        { L_B, 0, 0, 1, 0, s3, 0, 1,
-          "CheckCertCRLList: no own CRL, other covers" },
+        /* Key B's root isn't loaded, so its CRL can't chain to the cert's
+         * trust anchor (RFC 5280 6.3.3(f)) and doesn't count as found. */
+        { L_B, 0, 0, 1, 0, s3, 0, 0,
+          "CheckCertCRLList: no own CRL, other anchor doesn't cover" },
     #ifdef WB_AKID_DATES
-        { L_B, 0, 1, 1, 0, s3, CRL_CERT_DATE_ERR, 0,
-          "CheckCertCRLList: no own CRL, other stale" },
+        { L_B, 0, 1, 1, 0, s3, 0, 0,
+          "CheckCertCRLList: no own CRL, other anchor stale ignored" },
         { L_A_B, 1, 0, 1, 0, s3, CRL_CERT_DATE_ERR, 0,
           "CheckCertCRLList: own stale, other fresh doesn't cover" },
         { L_A_B, 0, 1, 1, 0, s3, 0, 1,
           "CheckCertCRLList: own fresh, other stale ignored" },
     #ifndef IGNORE_KEY_EXTENSIONS
-        /* Cert under key B. A's CRL counts as own only if A is CRL-only. */
-        { L_A_B, 0, 1, 2, KEYUSE_CRL_SIGN, s3, 0, 1,
-          "CheckCertCRLList: CRL-only key's CRL is own" },
+        /* Cert under key B. A's CRL is another key's whatever A's key
+         * usage, so it doesn't stand in for B's stale one. */
+        { L_A_B, 0, 1, 2, KEYUSE_CRL_SIGN, s3, CRL_CERT_DATE_ERR, 0,
+          "CheckCertCRLList: CRL-only key's CRL is other" },
         { L_A_B, 0, 1, 2, KEYUSE_CRL_SIGN | KEYUSE_KEY_CERT_SIGN, s3,
           CRL_CERT_DATE_ERR, 0,
           "CheckCertCRLList: dual-use key's CRL is other" },
@@ -789,7 +732,6 @@ static void wb_akid(WOLFSSL_CERT_MANAGER* cm)
     }
 
     wb_akid_add_crl();
-    wb_akid_crl_only_key();
     wb_akid_check_list();
 }
 #endif /* !NO_SKID && !NO_ASN && HAVE_ECC && !NO_ECC256 && !NO_SHA256 */

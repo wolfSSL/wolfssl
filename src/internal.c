@@ -18478,30 +18478,6 @@ static int ProcessPeerCertsChainOCSPStatusCheck(WOLFSSL* ssl)
 
 #ifdef HAVE_CRL
 
-static Signer* GetCaIssuerFromCa(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
-{
-    Signer* candidateIssuer = NULL;
-
-    /* A root is its own issuer. */
-    if (ca->selfSigned)
-        return ca;
-
-#ifndef NO_SKID
-    if (ca->authKeyIdSet) {
-        candidateIssuer = GetCA(cm, ca->authKeyIdHash);
-        if (candidateIssuer != NULL &&
-                XMEMCMP(candidateIssuer->subjectNameHash, ca->issuerNameHash,
-                        SIGNER_DIGEST_SIZE) != 0) {
-            candidateIssuer = NULL;
-        }
-        /* The AKID decides, as in ParseCertRelative. A name lookup could
-         * find another key's CA, which didn't issue ca. */
-        return candidateIssuer;
-    }
-#endif
-    return GetCAByName(cm, ca->issuerNameHash);
-}
-
 static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
 {
     Signer* prev = NULL;
@@ -18513,7 +18489,7 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
     /* Stop when there's no issuer, at a self-signed root (ca == prev), or
      * when a cross-certified pair loops back (ca == prevPrev). */
     for (; ret == 0 && ca != NULL && ca != prev && ca != prevPrev;
-            prevPrev = prev, prev = ca, ca = GetCaIssuerFromCa(cm, ca)) {
+            prevPrev = prev, prev = ca, ca = GetCAIssuer(cm, ca)) {
         /* ca's AKID selects its issuer's CRL. */
         const byte* caAkid = NULL;
 
