@@ -12006,6 +12006,28 @@ void DtlsMsgRxListInsert(WOLFSSL* ssl, DtlsMsg* msg)
     ssl->dtls_rx_msg_list_bytes += DtlsMsgRetainedBytes(msg);
 }
 
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+/* Whether the receive list has room for a whole message of sz bytes */
+int DtlsMsgRxListFits(WOLFSSL* ssl, word32 sz)
+{
+    return DtlsMsgRxAdmit(ssl, NULL,
+        sizeof(DtlsMsg) + sizeof(DtlsFragBucket) + (size_t)sz) == 0;
+}
+
+/* Insert a message built outside the receive list. One the list has no room
+ * for is freed: its sender resends it. */
+void DtlsMsgRxListAdmit(WOLFSSL* ssl, DtlsMsg* msg)
+{
+    if (DtlsMsgRxAdmit(ssl, NULL, DtlsMsgRetainedBytes(msg)) == 0) {
+        DtlsMsgRxListInsert(ssl, msg);
+    }
+    else {
+        WOLFSSL_MSG("No room in the receive list, dropping message");
+        DtlsMsgDelete(msg, ssl->heap);
+    }
+}
+#endif
+
 void DtlsMsgRxListFree(WOLFSSL* ssl)
 {
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);

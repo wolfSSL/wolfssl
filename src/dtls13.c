@@ -2055,6 +2055,13 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         int chRet = WC_NO_ERR_TRACE(COOKIE_ERROR);
         int pooled = unverifiedCh && Dtls13ChPooled(ssl);
 
+        /* A ClientHello the receive list has no room for whole could not
+         * complete once stateful: not held, not checked */
+        if (unverifiedCh && !DtlsMsgRxListFits(ssl, messageLength)) {
+            WOLFSSL_MSG("ClientHello does not fit the receive list");
+            *processedSize = idx + fragLength;
+            return 0;
+        }
         /* A server that pools nothing judges a first fragment as it arrives
          * and keeps only that one */
         if (unverifiedCh && !pooled && isFirst) {
@@ -2131,14 +2138,14 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             /* Stateful either way: the client resends what the receive list
              * does not hold */
             if (DtlsMsgAdopt(&verified, ssl->ctx->heap, ssl->heap) == 0)
-                DtlsMsgRxListInsert(ssl, verified);
+                DtlsMsgRxListAdmit(ssl, verified);
             WOLFSSL_MSG("ClientHello verified from its pooled head");
             ret = Dtls13ChGoodCb(ssl);
             if (ret != 0)
                 return ret;
         }
         if (done != NULL)
-            DtlsMsgRxListInsert(ssl, done);
+            DtlsMsgRxListAdmit(ssl, done);
         if (Dtls13NextMessageComplete(ssl))
             return Dtls13ProcessBufferedMessages(ssl);
         return 0;

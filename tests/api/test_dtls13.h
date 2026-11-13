@@ -74,6 +74,7 @@ int test_dtls13_frag_ch2_bad_cookie_dropped(void);
 int test_dtls13_frag_ch2_dtls12_cookie(void);
 int test_dtls13_frag_ch2_cookie_in_second(void);
 int test_dtls13_frag_ch2_cookie_frag_out_of_order(void);
+int test_dtls13_frag_ch2_rx_list_bound(void);
 int test_dtls13_ch_pool_threads(void);
 int test_dtls13_ch_pool_shards_threads(void);
 int test_dtls13_ch_pool_handshake_threads(void);
@@ -197,6 +198,7 @@ int test_dtls13_update_keys_want_write(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_dtls12_cookie),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_cookie_in_second),        \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_cookie_frag_out_of_order), \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_rx_list_bound),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_threads),                    \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_shards_threads),             \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_handshake_threads),          \

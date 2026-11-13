@@ -2053,8 +2053,11 @@ static int test_dtls13_frag_ch1_over_bound_ex(int peerId)
     maxPayload = (word32)(TEST_DTLS_RX_UNVERIFIED_LIMIT - 2 * (sizeof(DtlsMsg) +
         sizeof(DtlsFragBucket) + ssl_s->buffers.dtlsCtx.peer.sz));
     /* A build whose protocol message limit is below the unverified budget
-     * rejects at that limit instead. */
+     * rejects at that limit instead. So does one whose receive list has
+     * room for less. */
     maxPayload = min(maxPayload, MAX_HANDSHAKE_SZ);
+    maxPayload = min(maxPayload, (word32)(WOLFSSL_DTLS_RX_MAX_BYTES -
+        sizeof(DtlsMsg) - sizeof(DtlsFragBucket)));
     c32to24(maxPayload + 1,
         frag + DTLS_RECORD_HEADER_SZ + 1);
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)frag,
@@ -4595,6 +4598,132 @@ int test_dtls13_frag_ch2_cookie_frag_out_of_order(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+/* A server whose receive list is missing bytes short of the room for CH2
+ * whole gets the bytes past the cookie, then the head with it. */
+static int test_dtls13_rx_bound_case(int peerId, size_t missing)
+{
+    EXPECT_DECLS;
+    const size_t base = sizeof(DtlsMsg) + sizeof(DtlsFragBucket);
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int group = WOLFSSL_ECC_SECP256R1;
+    byte ch[TEST_MEMIO_BUF_SZ];
+    int chSz = (int)sizeof(ch);
+    int cut = 0;
+    int bodySz = 0;
+    int isHrr = 0;
+    DtlsChPool* pool = NULL;
+    byte* fill = NULL;
+    word32 fillSz = 0;
+    size_t held = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx, peerId),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectNotNull(pool = test_dtls13_ch_pool(ssl_s));
+
+    /* CH1, HRR with cookie, CH2 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx, ssl_c, ch, &chSz),
+        TEST_SUCCESS);
+    bodySz = chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ;
+    ExpectIntGT(cut = test_dtls13_ch_cookie_end(ch, chSz), 0);
+    ExpectIntGT(bodySz - cut, 1);
+    ExpectIntGT(WOLFSSL_DTLS_RX_MAX_BYTES, 2 * base + (size_t)bodySz);
+
+    /* A message never completed fills the list up to that room */
+    if (EXPECT_SUCCESS()) {
+        held = WOLFSSL_DTLS_RX_MAX_BYTES - base - (size_t)bodySz + missing;
+        fillSz = (word32)(held - base);
+    }
+    ExpectNotNull(fill = (byte*)XMALLOC(fillSz + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (fill != NULL)
+        XMEMSET(fill, 0x5a, fillSz + 1);
+    ExpectIntEQ(DtlsMsgStore(ssl_s, 0, 50, fill, fillSz + 1, certificate, 0,
+        fillSz, ssl_s->heap), 0);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_bytes, held);
+
+    /* The bytes past the cookie, short of it by one */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz,
+        (word32)(cut + 1), (word32)(bodySz - cut - 1), 1), TEST_SUCCESS);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    /* Not held when the list has no room for the whole message */
+    ExpectIntEQ(test_dtls13_pool_count(pool), missing > 0 ? 0 : 1);
+
+    /* The head with the cookie. Verified, the entry holds all but one byte
+     * in two buckets: more than the whole message takes, so it is dropped. */
+    ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz, 0,
+        (word32)cut, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, missing > 0 ? 0 : 1);
+    ExpectIntEQ(test_dtls13_pool_count(pool), 0);
+    ExpectTrue(test_dtls13_pool_ok(pool));
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_bytes, held);
+
+    if (missing > 0) {
+        /* Still stateless: the same ClientHello in one record is answered */
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)ch,
+            chSz), 0);
+        ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s),
+            TEST_SUCCESS);
+    }
+    else {
+        /* Stateful: the resend completes in the list, which is full then */
+        ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz, 0,
+            (word32)cut, 2), TEST_SUCCESS);
+        ExpectIntEQ(test_ctx.c_len, 0);
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 2);
+        ExpectIntEQ(test_dtls13_deliver_range(&test_ctx, ssl_s, ch, chSz,
+            (word32)cut, (word32)(bodySz - cut), 3), TEST_SUCCESS);
+    }
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 0);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_bytes, held);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectTrue(test_dtls13_nothing_held(ssl_s));
+
+    XFREE(fill, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* What the pool hands a connection is admitted against the byte bound of the
+ * receive list. A ClientHello the list has no room for whole is not pooled
+ * and the server stays stateless. One it has just the room for turns the
+ * server stateful, but an entry verified with a gap takes a bucket more and
+ * is dropped: the client resends. */
+int test_dtls13_frag_ch2_rx_list_bound(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    ExpectIntEQ(test_dtls13_rx_bound_case(5, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_rx_bound_case(6, 0), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }

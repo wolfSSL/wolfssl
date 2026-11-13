@@ -87,7 +87,8 @@
  *     A message has at most WOLFSSL_DTLS_FRAG_POOL_SZ disjoint fragment
  *     ranges, since every store walks them. Past either, a plaintext fragment
  *     is dropped without an ACK; an authenticated record past the byte bound
- *     ends the connection.
+ *     ends the connection. A DTLS 1.3 server holds nothing of a fragmented
+ *     ClientHello the bound has no room for whole, and stays stateless.
  */
 
 #ifndef WOLFCRYPT_ONLY
