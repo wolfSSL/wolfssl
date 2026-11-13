@@ -209,13 +209,16 @@ jobs:
         run: python3 scripts/falcon_sm_tables.py --check
 
       # WC_RNG_SEED_CB makes the DRBG reproducible, which is what lets the
-      # deterministic Falcon vector run at all.
+      # deterministic Falcon vector run at all. x86 builds state the baseline
+      # CPU level: Ubuntu's amd64v3 package variant makes gcc default to
+      # x86-64-v3, which would build every backend with AVX2. The avx2 backend
+      # enables AVX2 per function, so it does not need the global flag.
       - name: Build wolfSSL (Falcon ${{ matrix.name }})
         run: |
           ./autogen.sh
           ./configure ${{ matrix.opts }} --enable-experimental --enable-static \
               CPPFLAGS="-DWC_RNG_SEED_CB ${{ matrix.cppflags }}" \
-              CFLAGS="-O2 ${{ matrix.cflags }}"
+              CFLAGS="-O2 ${{ runner.arch == 'X64' && '-march=x86-64' || '' }} ${{ matrix.cflags }}"
           make -j$(nproc)
 
       - name: Run wolfCrypt Falcon self-test
@@ -236,7 +239,8 @@ jobs:
           ar d falcon-wb.a "$(ar t falcon-wb.a | grep -E '_la-falcon\.o$')"
           gcc -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all \
               -fno-omit-frame-pointer -I. -Itests -DHAVE_CONFIG_H \
-              -DWOLFSSL_USE_OPTIONS_H ${{ matrix.cflags }} -o falcon-wb \
+              -DWOLFSSL_USE_OPTIONS_H ${{ matrix.cflags }} \
+              ${{ runner.arch == 'X64' && '-march=x86-64' || '' }} -o falcon-wb \
               tests/unit-mcdc/test_falcon_whitebox.c falcon-wb.a -lm -lpthread
           ./falcon-wb | tee falcon-wb.log
           ! grep -q 'with failures' falcon-wb.log
