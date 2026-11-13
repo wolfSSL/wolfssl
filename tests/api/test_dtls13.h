@@ -44,6 +44,7 @@ int test_dtls13_frag_ch2_cookie_frag_last(void);
 int test_dtls13_frag_ch2_forged_first_frag(void);
 int test_dtls13_frag_ch2_overlap_handoff(void);
 int test_dtls13_frag_ch1_interleaved_peers(void);
+int test_dtls13_frag_ch1_reply_send_fails(void);
 int test_dtls13_frag_ch1_evict_oldest(void);
 int test_dtls13_frag_ch1_over_bound(void);
 int test_dtls13_frag_ch1_length_mismatch(void);
@@ -149,6 +150,7 @@ int test_dtls13_update_keys_want_write(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_forged_first_frag),         \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_overlap_handoff),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_interleaved_peers),         \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_reply_send_fails),          \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_evict_oldest),              \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_unit),                      \
     TEST_DECL_GROUP("dtls13", test_dtls13_ch_pool_head_report),               \

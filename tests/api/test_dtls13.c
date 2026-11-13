@@ -1833,6 +1833,107 @@ int test_dtls13_frag_ch1_interleaved_peers(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+static int test_dtls13_fail_send_cb(WOLFSSL* ssl, char* data, int sz,
+        void* ctx)
+{
+    (void)ssl;
+    (void)data;
+    (void)sz;
+    (void)ctx;
+    return WOLFSSL_CBIO_ERR_GENERAL;
+}
+#endif
+
+/* The reply to a reassembled first ClientHello fails to send. The server is
+ * still stateless and keeps nothing of that ClientHello: the next peer's is
+ * answered once. */
+int test_dtls13_frag_ch1_reply_send_fails(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    WOLFSSL_CTX *ctx_c1 = NULL, *ctx_c2 = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c1 = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx1, test_ctx2;
+    int group = WOLFSSL_ECC_SECP256R1;
+    byte ch1[TEST_MEMIO_BUF_SZ], ch2[TEST_MEMIO_BUF_SZ];
+    byte last[TEST_MEMIO_BUF_SZ];
+    int ch1Sz = (int)sizeof(ch1), ch2Sz = (int)sizeof(ch2);
+    const int hdrSz = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ;
+    int fragSz = 0;
+    int lastSz = 0;
+    int isHrr = 0;
+
+    XMEMSET(&test_ctx1, 0, sizeof(test_ctx1));
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx1, &ctx_c1, &ctx_s, &ssl_c1, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c2, NULL, &ssl_c2, NULL,
+        wolfDTLSv1_3_client_method, NULL), 0);
+    ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c1, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c2, &group, 1), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx1, ssl_c1, ch1, &ch1Sz),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx2, ssl_c2, ch2, &ch2Sz),
+        TEST_SUCCESS);
+    /* three fragments */
+    fragSz = (ch1Sz - hdrSz + 2) / 3;
+
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx1, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx1, ch1, ch1Sz, fragSz, 0), 1);
+    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx1, ch1, ch1Sz, fragSz, 1), 1);
+    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx1, ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_pool_count(&ctx_s->dtlsChPool), 1);
+
+    /* Peer 1's ClientHello completes, the HelloRetryRequest cannot be sent.
+     * A byte after the last fragment's record: the record layer can go on
+     * past the failed message. */
+    lastSz = test_dtls13_frag_record(ch1, ch1Sz, fragSz, 2, last,
+        (int)sizeof(last) - 1);
+    ExpectIntGT(lastSz, 0);
+    if (lastSz > 0)
+        last[lastSz++] = 0;
+    ExpectIntEQ(test_memio_inject_message(&test_ctx1, 0, (const char*)last,
+        lastSz), 0);
+    wolfSSL_SSLSetIOSend(ssl_s, test_dtls13_fail_send_cb);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(SOCKET_ERROR_E));
+    wolfSSL_SSLSetIOSend(ssl_s, test_memio_write_cb);
+    ExpectIntEQ(test_ctx1.c_len, 0);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    ExpectTrue(test_dtls13_nothing_held(ssl_s));
+    ExpectTrue(test_dtls13_pool_ok(&ctx_s->dtlsChPool));
+
+    /* The failed handshake is shut down. Waiting for the close_notify reads
+     * peer 2's whole ClientHello. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx2, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx2, 0, (const char*)ch2,
+        ch2Sz), 0);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntEQ(test_ctx2.s_len, 0);
+    ExpectIntEQ(test_ctx2.c_msg_count, 1);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx2, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    ExpectTrue(test_dtls13_nothing_held(ssl_s));
+
+    wolfSSL_free(ssl_c1);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c1);
+    wolfSSL_CTX_free(ctx_c2);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Exhaust the unverified byte budget with equal-sized partial ClientHellos. A
  * further peer evicts the oldest, while the newest peer is still served. */
 int test_dtls13_frag_ch1_evict_oldest(void)

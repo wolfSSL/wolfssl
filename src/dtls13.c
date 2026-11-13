@@ -431,7 +431,9 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
          * the list, so the entry is out of it meanwhile */
         DtlsMsgRxListDetach(ssl, msg);
         ret = Dtls13ProcessBufferedMsg(ssl, msg, &processed);
-        if (processed) {
+        /* A server still stateless keeps nothing of a ClientHello */
+        if (processed || (ssl->options.side == WOLFSSL_SERVER_END &&
+                !ssl->options.dtlsStateful)) {
             DtlsMsgDelete(msg, ssl->heap);
             DtlsMsgListPurge(ssl);
         }
