@@ -13312,9 +13312,8 @@ static void* ticket_alloc_fail_realloc(void* ptr, size_t size)
 }
 #endif
 
-/* A client that holds a ticket in a dynamic buffer and fails to allocate the
- * buffer for a new one is left without a ticket, not with the old length on
- * the static buffer. */
+/* A client that holds a ticket in a dynamic buffer and fails to allocate a
+ * larger buffer for a new one keeps the old ticket. */
 int test_tls13_ticket_set_alloc_fail(void)
 {
     EXPECT_DECLS;
@@ -13333,6 +13332,9 @@ int test_tls13_ticket_set_alloc_fail(void)
     wolfSSL_Free_cb prevF = NULL;
     wolfSSL_Realloc_cb prevR = NULL;
     char readBuf[64];
+    byte shortTicket[SESSION_TICKET_STATIC_LEN + 1];
+    byte* ticket = NULL;
+    word16 ticketLen = 0;
 
     /* With client authentication the ticket carries the client certificate
      * and needs a dynamic buffer */
@@ -13357,13 +13359,21 @@ int test_tls13_ticket_set_alloc_fail(void)
         ExpectIntGT(ssl_c->session->ticketLen,
             sizeof(ssl_c->session->staticTicket));
         ExpectIntGT(ssl_c->session->ticketLenAlloc, 0);
+        ticketLen = ssl_c->session->ticketLen;
     }
 
-    /* A second ticket of the same length, whose buffer cannot be
+    /* A shorter dynamic ticket, so the next one needs a larger buffer */
+    XMEMSET(shortTicket, 0x5a, sizeof(shortTicket));
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl_c, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl_c, shortTicket,
+        sizeof(shortTicket)), WOLFSSL_SUCCESS);
+
+    /* A second ticket of the first length, whose buffer cannot be
      * allocated */
     ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
     if (EXPECT_SUCCESS()) {
-        ticket_alloc_fail_sz = ssl_c->session->ticketLen;
+        ticket = ssl_c->session->ticket;
+        ticket_alloc_fail_sz = ticketLen;
         ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
         ExpectIntEQ(wolfSSL_SetAllocators(ticket_alloc_fail_malloc,
             ticket_alloc_fail_free, ticket_alloc_fail_realloc), 0);
@@ -13371,12 +13381,13 @@ int test_tls13_ticket_set_alloc_fail(void)
         ticket_alloc_fail_sz = 0;
         (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
         ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
-            WC_NO_ERR_TRACE(MEMORY_E));
+            WC_NO_ERR_TRACE(MEMORY_ERROR));
     }
     if (EXPECT_SUCCESS()) {
-        ExpectPtrEq(ssl_c->session->ticket, ssl_c->session->staticTicket);
-        ExpectIntEQ(ssl_c->session->ticketLenAlloc, 0);
-        ExpectIntEQ(ssl_c->session->ticketLen, 0);
+        ExpectPtrEq(ssl_c->session->ticket, ticket);
+        ExpectIntEQ(ssl_c->session->ticketLen, sizeof(shortTicket));
+        ExpectIntEQ(ssl_c->session->ticketLenAlloc, sizeof(shortTicket));
+        ExpectBufEQ(ssl_c->session->ticket, shortTicket, sizeof(shortTicket));
     }
 
     wolfSSL_free(ssl_c);
