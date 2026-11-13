@@ -2955,7 +2955,9 @@ if(NOT WOLFSSL_TLSV12)
         endif()
     endif()
     # A TLS 1.3-only build without session tickets has no session to cache.
-    if(WOLFSSL_TLS13 AND NOT WOLFSSL_SESSION_TICKET)
+    if(WOLFSSL_TLS13 AND NOT WOLFSSL_SESSION_TICKET AND
+       NOT WOLFSSL_DEFINITIONS MATCHES
+           "-DOPENSSL_ALL|-DWOLFSSL_NGINX|-DWOLFSSL_HAPROXY|-DHAVE_LIGHTY")
         list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE")
     endif()
     # NO_OLD_TLS is already in the list: the check above leaves
