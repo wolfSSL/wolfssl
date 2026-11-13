@@ -13603,6 +13603,8 @@ int wc_ecc_sig_size(const ecc_key* key)
 /** Our FP cache */
 typedef struct {
    ecc_point* g;               /* cached COPY of base point */
+   mp_int     a;               /* copy of curve parameter a of base point */
+   mp_int     modulus;         /* copy of curve modulus of base point */
    ecc_point* LUT[1U<<FP_LUT]; /* fixed point lookup */
    int        LUT_set;         /* flag to determine if the LUT has been computed */
    mp_int     mu;              /* copy of the montgomery constant */
@@ -14177,6 +14179,8 @@ static int find_hole(void)
    /* free entry z */
    if (z >= 0 && fp_cache[z].g) {
       mp_clear(&fp_cache[z].mu);
+      mp_clear(&fp_cache[z].a);
+      mp_clear(&fp_cache[z].modulus);
       wc_ecc_del_point(fp_cache[z].g);
       fp_cache[z].g  = NULL;
       for (x = 0; x < (1<<FP_LUT); x++) {
@@ -14190,12 +14194,19 @@ static int find_hole(void)
 #endif /* !WOLFSSL_NO_MALLOC */
 }
 
-/* determine if a base is already in the cache and if so, where */
-static int find_base(ecc_point* g)
+/* determine if a base is already in the cache and if so, where
+ *
+ * The LUT of an entry holds multiples of the base point computed on one
+ * curve, so an entry only matches when the curve parameter a and the modulus
+ * are the same as well as the point.
+ */
+static int find_base(ecc_point* g, mp_int* a, mp_int* modulus)
 {
    int x;
    for (x = 0; x < FP_ENTRIES; x++) {
       if (fp_cache[x].g != NULL &&
+          mp_cmp(&fp_cache[x].a, a) == MP_EQ &&
+          mp_cmp(&fp_cache[x].modulus, modulus) == MP_EQ &&
           mp_cmp(fp_cache[x].g->x, g->x) == MP_EQ &&
           mp_cmp(fp_cache[x].g->y, g->y) == MP_EQ &&
           mp_cmp(fp_cache[x].g->z, g->z) == MP_EQ) {
@@ -14209,7 +14220,7 @@ static int find_base(ecc_point* g)
 }
 
 /* add a new base to the cache */
-static int add_entry(int idx, ecc_point *g)
+static int add_entry(int idx, ecc_point *g, mp_int* a, mp_int* modulus)
 {
    unsigned x, y;
 
@@ -14228,6 +14239,16 @@ static int add_entry(int idx, ecc_point *g)
       return MP_MEM;
    }
 
+   /* copy the curve the base point is on */
+   if ((mp_init_copy(&fp_cache[idx].a, a) != MP_OKAY) ||
+       (mp_init_copy(&fp_cache[idx].modulus, modulus) != MP_OKAY)) {
+      mp_clear(&fp_cache[idx].a);
+      mp_clear(&fp_cache[idx].modulus);
+      wc_ecc_del_point(fp_cache[idx].g);
+      fp_cache[idx].g = NULL;
+      return MP_MEM;
+   }
+
    for (x = 0; x < (1U<<FP_LUT); x++) {
       fp_cache[idx].LUT[x] = wc_ecc_new_point();
       if (fp_cache[idx].LUT[x] == NULL) {
@@ -14235,6 +14256,8 @@ static int add_entry(int idx, ecc_point *g)
             wc_ecc_del_point(fp_cache[idx].LUT[y]);
             fp_cache[idx].LUT[y] = NULL;
          }
+         mp_clear(&fp_cache[idx].a);
+         mp_clear(&fp_cache[idx].modulus);
          wc_ecc_del_point(fp_cache[idx].g);
          fp_cache[idx].g         = NULL;
          fp_cache[idx].lru_count = 0;
@@ -14403,6 +14426,8 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
    fp_cache[idx].LUT_set   = 0;
    fp_cache[idx].lru_count = 0;
    mp_clear(&fp_cache[idx].mu);
+   mp_clear(&fp_cache[idx].a);
+   mp_clear(&fp_cache[idx].modulus);
 
    return err;
 }
@@ -15111,13 +15136,13 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #endif /* HAVE_THREAD_LS */
 
       /* find point */
-      idx1 = find_base(A);
+      idx1 = find_base(A, a, modulus);
 
       /* no entry? */
       if (idx1 == -1) {
          /* find hole and add it */
          if ((idx1 = find_hole()) >= 0) {
-            err = add_entry(idx1, A);
+            err = add_entry(idx1, A, a, modulus);
          }
       }
       if (err == MP_OKAY && idx1 != -1 && fp_cache[idx1].lru_count < (INT_MAX-1)) {
@@ -15127,13 +15152,13 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
       if (err == MP_OKAY) {
         /* find point */
-        idx2 = find_base(B);
+        idx2 = find_base(B, a, modulus);
 
         /* no entry? */
         if (idx2 == -1) {
            /* find hole and add it */
            if ((idx2 = find_hole()) >= 0)
-              err = add_entry(idx2, B);
+              err = add_entry(idx2, B, a, modulus);
          }
       }
 
@@ -15265,7 +15290,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif /* HAVE_THREAD_LS */
 
       /* find point */
-      idx = find_base(G);
+      idx = find_base(G, a, modulus);
 
       /* no entry? */
       if (idx == -1) {
@@ -15273,7 +15298,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
          idx = find_hole();
 
          if (idx >= 0)
-            err = add_entry(idx, G);
+            err = add_entry(idx, G, a, modulus);
       }
       if (err == MP_OKAY && idx >= 0 && fp_cache[idx].lru_count < (INT_MAX-1)) {
          /* increment LRU */
@@ -15433,7 +15458,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif /* HAVE_THREAD_LS */
 
       /* find point */
-      idx = find_base(G);
+      idx = find_base(G, a, modulus);
 
       /* no entry? */
       if (idx == -1) {
@@ -15441,7 +15466,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
          idx = find_hole();
 
          if (idx >= 0)
-            err = add_entry(idx, G);
+            err = add_entry(idx, G, a, modulus);
       }
       if (err == MP_OKAY && idx >= 0 && fp_cache[idx].lru_count < (INT_MAX-1)) {
          /* increment LRU */
@@ -15556,6 +15581,8 @@ static void wc_ecc_fp_free_cache(void)
          wc_ecc_del_point(fp_cache[x].g);
          fp_cache[x].g         = NULL;
          mp_clear(&fp_cache[x].mu);
+         mp_clear(&fp_cache[x].a);
+         mp_clear(&fp_cache[x].modulus);
          fp_cache[x].LUT_set   = 0;
          fp_cache[x].lru_count = 0;
          fp_cache[x].lock = 0;
