@@ -297,6 +297,127 @@ int test_wolfSSL_get_peer_chain(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+#if defined(HAVE_ECC) && (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 256
+#define TEST_ALT_CHAIN_ECC
+#endif
+#if defined(TEST_ALT_CHAIN_ECC) || !defined(NO_RSA)
+#define TEST_ALT_CHAIN
+
+/* Connect to a server sending chainFile with a client trusting caFile, and
+ * expect the client error expErr, or success when it is 0. */
+static int test_alt_chain_connect(const char* chainFile, const char* keyFile,
+    const char* caFile, int expErr)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, chainFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, keyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+
+    if (expErr == 0) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    #ifdef WOLFSSL_ALT_CERT_CHAINS
+        ExpectIntEQ(wolfSSL_is_peer_alt_cert_chain(ssl_c), 1);
+    #endif
+    }
+    else {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), expErr);
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_ALT_CHAIN_ECC || !NO_RSA */
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && !NO_FILESYSTEM && ... */
+
+/* An extra root with a trusted CA's name, another key and no AKID is skipped
+ * in alternate chain mode. Without it the chain fails on its signature.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_alt_chain_same_dn_root(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ALT_CHAIN_ECC
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+    int sigErr = 0;
+    int oidErr = 0;
+#else
+    int sigErr = WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E);
+    int oidErr = WC_NO_ERR_TRACE(ASN_SIG_OID_E);
+#endif
+
+    ExpectIntEQ(test_alt_chain_connect(
+        "./certs/intermediate/server-chain-alt-same-dn-ecc.pem",
+        "./certs/ecc-key.pem", "./certs/ca-ecc-cert.pem", sigErr),
+        TEST_SUCCESS);
+#ifndef NO_RSA
+    ExpectIntEQ(test_alt_chain_connect(
+        "./certs/intermediate/server-chain-alt-same-dn-rsa.pem",
+        "./certs/ecc-key.pem", "./certs/ca-ecc-cert.pem", oidErr),
+        TEST_SUCCESS);
+#endif
+    (void)oidErr;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Chain CAs that alternate chain mode does not skip still fail on their
+ * signature: a root with a trusted CA's key, roots with an AKID by key id or
+ * by issuer and serial, a CA that is not self-issued and a corrupted copy of a
+ * trusted root.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_alt_chain_bad_sig(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ALT_CHAIN
+#ifdef TEST_ALT_CHAIN_ECC
+    static const char* chains[] = {
+        "./certs/intermediate/server-chain-alt-same-key-ecc.pem",
+        "./certs/intermediate/server-chain-alt-same-dn-akid-ecc.pem",
+        "./certs/intermediate/server-chain-alt-same-dn-akid-name-ecc.pem",
+        "./certs/intermediate/server-chain-alt-same-dn-int-ecc.pem"
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(chains); i++) {
+        ExpectIntEQ(test_alt_chain_connect(chains[i], "./certs/ecc-key.pem",
+            "./certs/ca-ecc-cert.pem", WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E)),
+            TEST_SUCCESS);
+    }
+#endif
+#ifndef NO_RSA
+    ExpectIntEQ(test_alt_chain_connect(
+        "./certs/test/server-cert-rsa-badsig.pem", "./certs/server-key.pem",
+        "./certs/ca-cert.pem", WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E)),
+        TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test getting a peer chain certificate as an X509 object.
  *
  * The object returned is owned by the caller and must be freed.

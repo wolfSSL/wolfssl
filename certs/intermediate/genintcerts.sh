@@ -342,3 +342,43 @@ cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-a
 cp ./certs/intermediate/client-chain-ecc.pem ./certs/intermediate/client-chain-alt-ecc.pem
 openssl x509 -in ./certs/external/ca-google-root.pem          >> ./certs/intermediate/server-chain-alt-ecc.pem
 openssl x509 -in ./certs/external/ca-google-root.pem          >> ./certs/intermediate/client-chain-alt-ecc.pem
+
+echo "Assemble ECC chains with an extra CA named after ca-ecc-cert.pem"
+trap 'rm -f ./certs/intermediate/ca-ecc-same-dn.csr ./certs/intermediate/ca-ecc-same-dn.cnf' EXIT
+# The key identifier value none needs OpenSSL 3.0 or later
+printf "[v3_same_dn]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=none\nauthorityKeyIdentifier=none\n[v3_same_key]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=hash\nauthorityKeyIdentifier=none\n[v3_same_dn_akid_name]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=none\nauthorityKeyIdentifier=issuer:always\n" > ./certs/intermediate/ca-ecc-same-dn.cnf
+skid=$(openssl x509 -in ./certs/ca-ecc-cert.pem -noout -ext subjectKeyIdentifier | tail -1 | tr -d ' ')
+[ -n "$skid" ]
+check_result $?
+skidlen=$(( (${#skid} + 1) / 3 ))
+printf "[v3_same_dn_akid]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=none\nauthorityKeyIdentifier=DER:30:%02X:80:%02X:%s\n" $((skidlen + 2)) $skidlen "$skid" >> ./certs/intermediate/ca-ecc-same-dn.cnf
+openssl x509 -in ./certs/ca-ecc-cert.pem -x509toreq -signkey ./certs/ecc-client-key.pem -out ./certs/intermediate/ca-ecc-same-dn.csr
+check_result $?
+openssl x509 -req -in ./certs/intermediate/ca-ecc-same-dn.csr -signkey ./certs/ecc-client-key.pem -days 7300 -extfile ./certs/intermediate/ca-ecc-same-dn.cnf -extensions v3_same_dn -out ./certs/intermediate/ca-ecc-same-dn-cert.pem
+check_result $?
+openssl x509 -req -in ./certs/intermediate/ca-ecc-same-dn.csr -signkey ./certs/ecc-client-key.pem -force_pubkey ./certs/ca-ecc-key.pem -days 7300 -extfile ./certs/intermediate/ca-ecc-same-dn.cnf -extensions v3_same_key -out ./certs/intermediate/ca-ecc-same-key-cert.pem
+check_result $?
+openssl x509 -req -in ./certs/intermediate/ca-ecc-same-dn.csr -signkey ./certs/ecc-client-key.pem -days 7300 -extfile ./certs/intermediate/ca-ecc-same-dn.cnf -extensions v3_same_dn_akid -out ./certs/intermediate/ca-ecc-same-dn-akid-cert.pem
+check_result $?
+openssl x509 -req -in ./certs/intermediate/ca-ecc-same-dn.csr -signkey ./certs/ecc-client-key.pem -days 7300 -extfile ./certs/intermediate/ca-ecc-same-dn.cnf -extensions v3_same_dn_akid_name -out ./certs/intermediate/ca-ecc-same-dn-akid-name-cert.pem
+check_result $?
+openssl req -new -key ./certs/tsa-ecc-key.pem -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Development/CN=wolfSSL Same DN Issued CA" -out ./certs/intermediate/ca-ecc-same-dn.csr
+check_result $?
+openssl x509 -req -in ./certs/intermediate/ca-ecc-same-dn.csr -CA ./certs/intermediate/ca-ecc-same-dn-cert.pem -CAkey ./certs/ecc-client-key.pem -set_serial 1 -days 7300 -extfile ./certs/intermediate/ca-ecc-same-dn.cnf -extensions v3_same_dn -out ./certs/intermediate/ca-ecc-same-dn-int-cert.pem
+check_result $?
+openssl x509 -in ./certs/ca-ecc-cert.pem -x509toreq -signkey ./certs/client-key.pem -out ./certs/intermediate/ca-ecc-same-dn.csr
+check_result $?
+openssl x509 -req -in ./certs/intermediate/ca-ecc-same-dn.csr -signkey ./certs/client-key.pem -days 7300 -extfile ./certs/intermediate/ca-ecc-same-dn.cnf -extensions v3_same_dn -out ./certs/intermediate/ca-ecc-same-dn-rsa-cert.pem
+check_result $?
+cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-alt-same-dn-ecc.pem
+openssl x509 -in ./certs/intermediate/ca-ecc-same-dn-cert.pem >> ./certs/intermediate/server-chain-alt-same-dn-ecc.pem
+cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-alt-same-dn-rsa.pem
+openssl x509 -in ./certs/intermediate/ca-ecc-same-dn-rsa-cert.pem >> ./certs/intermediate/server-chain-alt-same-dn-rsa.pem
+cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-alt-same-key-ecc.pem
+openssl x509 -in ./certs/intermediate/ca-ecc-same-key-cert.pem >> ./certs/intermediate/server-chain-alt-same-key-ecc.pem
+cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-alt-same-dn-akid-ecc.pem
+openssl x509 -in ./certs/intermediate/ca-ecc-same-dn-akid-cert.pem >> ./certs/intermediate/server-chain-alt-same-dn-akid-ecc.pem
+cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-alt-same-dn-akid-name-ecc.pem
+openssl x509 -in ./certs/intermediate/ca-ecc-same-dn-akid-name-cert.pem >> ./certs/intermediate/server-chain-alt-same-dn-akid-name-ecc.pem
+cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-alt-same-dn-int-ecc.pem
+openssl x509 -in ./certs/intermediate/ca-ecc-same-dn-int-cert.pem >> ./certs/intermediate/server-chain-alt-same-dn-int-ecc.pem

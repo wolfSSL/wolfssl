@@ -18779,6 +18779,19 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
 }
 #endif /* IGNORE_KEY_EXTENSIONS */
 
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+/* Self-issued CA without an AKID whose found issuer has another key. */
+static int SelfIssuedCaKeyDiffers(const DecodedCert* cert)
+{
+    return cert->selfIssued && !cert->extAuthKeyIdPresent &&
+           cert->ca != NULL && cert->ca->publicKey != NULL &&
+           cert->publicKey != NULL &&
+           (cert->ca->pubKeySize != cert->pubKeySize ||
+            XMEMCMP(cert->ca->publicKey, cert->publicKey,
+                    cert->pubKeySize) != 0);
+}
+#endif /* WOLFSSL_ALT_CERT_CHAINS */
+
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 /* Parse a chain certificate as a CA and add it to the pending signers list
  * for Certificate Status Request v2. */
@@ -20208,6 +20221,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     unsigned long peerVerifyRet = ssl->peerVerifyRet;
                 #endif
                     int skipAddCA = 0;
+                #ifdef WOLFSSL_ALT_CERT_CHAINS
+                    int foreignRoot = 0;
+                #endif
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL)
                     int ocspNoUrl = 0;
                     int ocspStapleDeferred = 0;
@@ -20251,6 +20267,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     }
 #endif
+                #ifdef WOLFSSL_ALT_CERT_CHAINS
+                    foreignRoot = (ret == WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) ||
+                                   ret == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) &&
+                                  SelfIssuedCaKeyDiffers(args->dCert);
+                #endif
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                         goto exit_ppc;
@@ -20501,13 +20522,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* IGNORE_KEY_EXTENSIONS */
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
-                    /* For alternate cert chain, its okay for a CA cert to fail
-                        with ASN_NO_SIGNER_E here. The "alternate" certificate
-                        chain mode only requires that the peer certificate
-                        validate to a trusted CA */
+                    /* Alternate chain mode only needs the peer cert to verify
+                     * to a trusted CA, so skip a chain CA that cannot. */
                     if (ret != 0 && args->dCert->isCA) {
                         if (ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
-                            ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) {
+                            ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E) ||
+                            foreignRoot) {
                             if (!ssl->options.usingAltCertChain) {
                                 WOLFSSL_MSG_CERT_LOG(
                                                  "Trying alternate cert chain");
@@ -20525,7 +20545,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                             /* do not add to certificate manager */
                             skipAddCA = 1;
-                        } /* ASN_NO_SIGNER_E || ASN_SELF_SIGNED_E */
+                        }
                     } /* ret != 0 && isCA */
                 #else
                     /* Not defined: WOLFSSL_ALT_CERT_CHAINS
