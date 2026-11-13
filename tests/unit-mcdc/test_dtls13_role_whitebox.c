@@ -548,9 +548,9 @@ static void wb_opts_epoch_rows(WOLFSSL* ssl)
         ssl->options.serverState = 0;
         ssl->dtls13EncryptEpoch = NULL;
         ssl->options.seenUnifiedHdr = 1;
-        WB_NOTE(Dtls13RtxTimeout(ssl));
+        WB_NOTE(Dtls13RtxTimeout(ssl, 0));
         ssl->options.seenUnifiedHdr = 0;
-        WB_NOTE(Dtls13RtxTimeout(ssl));
+        WB_NOTE(Dtls13RtxTimeout(ssl, 0));
         XFREE(seen, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 

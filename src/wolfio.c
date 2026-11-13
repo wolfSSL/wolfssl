@@ -683,6 +683,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
     byte doDtlsTimeout;
+    int running = 0;
     SOCKADDR_S lclPeer;
     SOCKADDR_S* peer;
     XSOCKLENT peerSz = 0;
@@ -736,25 +737,13 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (ret != 0)
         return ret;
 
+    ret = DtlsTimersRunning(ssl, &running, NULL);
+    if (ret != 0)
+        return ret;
     /* Don't use ssl->options.handShakeDone since it is true even if
      * we are in the process of renegotiation */
-    doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE;
-
-#ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
-        doDtlsTimeout = doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL;
-#ifdef WOLFSSL_RW_THREADED
-        ret = wc_LockMutex(&ssl->dtls13Rtx.mutex);
-        if (ret != 0)
-            return ret;
-#endif
-        doDtlsTimeout = doDtlsTimeout ||
-            (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
-#ifdef WOLFSSL_RW_THREADED
-        wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
-#endif
-    }
-#endif /* WOLFSSL_DTLS13 */
+    doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE ||
+        running != 0;
 
     do {
         int ignore = 0;
