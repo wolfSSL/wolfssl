@@ -1,6 +1,41 @@
 /*!
     \ingroup HMAC
 
+    \brief This function initializes an Hmac object, setting the heap hint
+    and the device ID used with crypto callbacks or async hardware. It is up
+    to the user to call wc_HmacFree on the Hmac object when done.
+
+    \return 0 Returned on successfully initializing the Hmac object
+    \return BAD_FUNC_ARG Returned if hmac is NULL
+
+    \param hmac pointer to the Hmac object to initialize
+    \param heap heap hint to use for memory allocation, or NULL
+    \param devId ID to use with crypto callbacks or async hardware. Set to
+    INVALID_DEVID (-2) if not used
+
+    \note On 64-bit CPUs, Hmac has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
+
+    _Example_
+    \code
+    Hmac hmac;
+    byte key[] = { // initialize with key to use for encryption };
+    if (wc_HmacInit(&hmac, NULL, INVALID_DEVID) != 0) {
+        // error initializing Hmac object
+    }
+    else if (wc_HmacSetKey(&hmac, WC_SHA256, key, sizeof(key)) != 0) {
+        // error setting the key
+    }
+    wc_HmacFree(&hmac);
+    \endcode
+
+    \sa wc_HmacSetKey
+*/
+int wc_HmacInit(Hmac* hmac, void* heap, int devId);
+
+/*!
+    \ingroup HMAC
+
     \brief This function initializes an Hmac object, setting its
     encryption type, key and HMAC length.
 
@@ -29,6 +64,7 @@
     }
     \endcode
 
+    \sa wc_HmacInit
     \sa wc_HmacUpdate
     \sa wc_HmacFinal
 */

@@ -153,6 +153,9 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 
     \param [in,out] key Pointer to the curve25519_key structure to initialize.
 
+    \note curve25519_key has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
+
     _Example_
     \code
     curve25519_key key;
@@ -978,6 +981,9 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* priv);
     NULL)
     \param devId Device ID for hardware acceleration (use
     INVALID_DEVID for software only)
+
+    \note curve25519_key has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
