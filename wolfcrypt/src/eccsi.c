@@ -306,80 +306,6 @@ static int eccsi_encode_base(EccsiKey* key, byte* data, word32* dataSz)
     return err;
 }
 
-#ifndef WOLFSSL_HAVE_SP_ECC
-/*
- * Convert the KPAK to montgomery form.
- *
- * The KPAK is needed in Montgomery form for verification.
- *
- * @param  [in]  key      ECCSI key.
- * @return  0 on success.
- * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
- * @return  Other -ve value when an internal operation fails.
- */
-static int eccsi_kpak_to_mont(EccsiKey* key)
-{
-    int err = 0;
-    ecc_point* kpak = &key->ecc.pubkey;
-    mp_int* mu = &key->tmp;
-    mp_int* prime = &key->params.prime;
-
-    if (!key->kpakMont) {
-        err = mp_montgomery_calc_normalization(mu, prime);
-        if (err == 0) {
-            err = mp_mulmod(kpak->x, mu, prime, kpak->x);
-        }
-        if (err == 0) {
-            err = mp_mulmod(kpak->y, mu, prime, kpak->y);
-        }
-        if (err == 0) {
-            err = mp_mulmod(kpak->z, mu, prime, kpak->z);
-        }
-        if (err == 0) {
-            key->kpakMont = 1;
-        }
-    }
-
-    return err;
-}
-#endif
-
-/*
- * Convert the KPAK from montgomery form.
- *
- * The KPAK is needed in Montgomery form for verification.
- *
- * @param  [in]  key      ECCSI key.
- * @return  0 on success.
- * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
- * @return  Other -ve value when an internal operation fails.
- */
-static int eccsi_kpak_from_mont(EccsiKey* key)
-{
-    int err = 0;
-    ecc_point* kpak = &key->ecc.pubkey;
-    mp_digit mp;
-    mp_int* prime = &key->params.prime;
-
-    if (key->kpakMont) {
-        err = mp_montgomery_setup(prime, &mp);
-        if (err == 0) {
-            err = mp_montgomery_reduce(kpak->x, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(kpak->y, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(kpak->z, prime, mp);
-        }
-        if (err == 0) {
-            key->kpakMont = 0;
-        }
-    }
-
-    return err;
-}
-
 /*
  * Compute HS = hash( G | KPAK | ID | PVT )
  *
@@ -415,9 +341,6 @@ static int eccsi_compute_hs(EccsiKey* key, enum wc_HashType hashType,
     }
     if (err == 0) {
         err = wc_HashUpdate(&key->hash, hashType, key->data, dataSz);
-    }
-    if (err == 0) {
-        err = eccsi_kpak_from_mont(key);
     }
     if (err == 0) {
         dataSz = sizeof(key->data);
@@ -470,6 +393,7 @@ static int eccsi_compute_hs(EccsiKey* key, enum wc_HashType hashType,
  *
  * Creates a random private key and multiplies it by the base point to calculate
  * the public key.
+ * Clears the identity hash, as it was computed with the previous KPAK.
  *
  * @param  [in]  key      ECCSI key.
  * @param  [in]  rng      Random number generator.
@@ -487,6 +411,7 @@ int wc_MakeEccsiKey(EccsiKey* key, WC_RNG* rng)
     }
 
     if (err == 0) {
+        key->idHashSz = 0;
         err = wc_ecc_make_key_ex(rng, key->ecc.dp->size, &key->ecc,
                 key->ecc.dp->id);
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -678,9 +603,6 @@ int wc_ExportEccsiKey(EccsiKey* key, byte* data, word32* sz)
         }
     }
     if (err == 0) {
-        err = eccsi_kpak_from_mont(key);
-    }
-    if (err == 0) {
         /* Encode key */
         err = eccsi_encode_key(key, data);
     }
@@ -747,8 +669,6 @@ int wc_ImportEccsiKey(EccsiKey* key, const byte* data, word32 sz)
     }
 
     if (err == 0) {
-        key->kpakMont = 0;
-
         /* Decode key */
         err = eccsi_decode_key(key, data);
     }
@@ -879,9 +799,6 @@ int wc_ExportEccsiPublicKey(EccsiKey* key, byte* data, word32* sz, int raw)
         err = BAD_STATE_E;
     }
 
-    if ((err == 0) && (data != NULL)) {
-        err = eccsi_kpak_from_mont(key);
-    }
     if (err == 0) {
         /* Write out public key. */
         err = eccsi_encode_point(&key->ecc.pubkey, (word32)key->ecc.dp->size,
@@ -1342,8 +1259,6 @@ int wc_ImportEccsiPublicKey(EccsiKey* key, const byte* data, word32 sz,
     }
 
     if (err == 0) {
-        key->kpakMont = 0;
-
         /* Read the public key. */
         err = eccsi_decode_point(&key->ecc.pubkey, (word32)key->ecc.dp->size,
                 data, sz);
@@ -1363,7 +1278,7 @@ int wc_ImportEccsiPublicKey(EccsiKey* key, const byte* data, word32 sz,
  *
  * @param  [in]   key   ECCSI key.
  * @param  [in]   n     MP integer representing scalar to multiply by.
- * @param  [in]   a     ECC point to add.
+ * @param  [in]   a     ECC point to add, in Montgomery form.
  * @param  [out]  res   ECC point representation of the resulting point.
  * @param  [in]   mp    Montgomery reduction multiplier.
  * @param  [in]   map   0 indicates to leave in projective representation.
@@ -1453,7 +1368,7 @@ static int eccsi_mulmod_point(EccsiKey* key, const mp_int* n, ecc_point* point,
  * @param  [in]   key    ECCSI key.
  * @param  [in]   n      MP integer representing scalar to multiply by.
  * @param  [in]   point  ECC point representation of a point on the curve.
- * @param  [in]   a      ECC point to add.
+ * @param  [in]   a      ECC point to add, in normal form.
  * @param  [out]  res    ECC point representation of the resulting point.
  * @param  [in]   mp     Montgomery reduction multiplier.
  * @param  [in]   map    0 indicates to leave in projective representation.
@@ -1465,32 +1380,64 @@ static int eccsi_mulmod_point(EccsiKey* key, const mp_int* n, ecc_point* point,
 static int eccsi_mulmod_point_add(EccsiKey* key, const mp_int* n,
         ecc_point* point, ecc_point* a, ecc_point* res, mp_digit mp, int map)
 {
-#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256)
-    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    int err = 0;
 
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256)
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&
             (ecc_sets[key->ecc.idx].id == ECC_SECP256R1)) {
         err = sp_ecc_mulmod_add_256(n, point, a, 0, res, map, key->heap);
     }
-
-    (void)mp;
-
-    return err;
-#else
-    int err;
-    EccsiKeyParams* params = &key->params;
-
-    err = wc_ecc_mulmod(n, point, res, &params->a, &params->prime, 0);
-    if (err == 0) {
-        err = ecc_projective_add_point(res, a, res, &key->params.a,
-                &params->prime, mp);
-    }
-    if ((err == 0) && map) {
-        err = ecc_map(res, &params->prime, mp);
-    }
-
-    return err;
+    else
 #endif
+#ifndef WOLFSSL_SP_MATH
+    {
+        EccsiKeyParams* params = &key->params;
+        ecc_point* montA;
+
+        montA = wc_ecc_new_point_h(key->heap);
+        if (montA == NULL) {
+            err = MEMORY_E;
+        }
+        if (err == 0) {
+            err = wc_ecc_mulmod(n, point, res, &params->a, &params->prime, 0);
+        }
+        if (err == 0) {
+            err = mp_montgomery_calc_normalization(montA->z, &params->prime);
+        }
+        if (err == 0) {
+            err = mp_mulmod(a->x, montA->z, &params->prime, montA->x);
+        }
+        if (err == 0) {
+            err = mp_mulmod(a->y, montA->z, &params->prime, montA->y);
+        }
+        if (err == 0) {
+            err = mp_mulmod(a->z, montA->z, &params->prime, montA->z);
+        }
+        if (err == 0) {
+            err = ecc_projective_add_point(res, montA, res, &params->a,
+                    &params->prime, mp);
+        }
+        if ((err == 0) && map) {
+            err = ecc_map(res, &params->prime, mp);
+        }
+        if (montA != NULL) {
+            wc_ecc_del_point_h(montA, key->heap);
+        }
+    }
+#else
+    {
+        err = NOT_COMPILED_IN;
+    }
+    (void)key;
+    (void)n;
+    (void)point;
+    (void)a;
+    (void)res;
+    (void)mp;
+    (void)map;
+#endif
+
+    return err;
 }
 
 /**
@@ -1562,7 +1509,6 @@ int wc_ValidateEccsiPair(EccsiKey* key, enum wc_HashType hashType,
     /* Step 2: Compute HS = hash( G | KPAK | ID | PVT ) */
     if (err == 0) {
         hashSz = (byte)sizeof(key->data);
-        /* Converts KPAK from mont. */
         err = eccsi_compute_hs(key, hashType, id, idSz, pvt, key->data,
                 &hashSz);
     }
@@ -1615,7 +1561,7 @@ int wc_ValidateEccsiPvt(EccsiKey* key, const ecc_point* pvt, int* valid)
 {
     int err = 0;
 
-    if ((key == NULL)| (pvt == NULL) || (valid == NULL)) {
+    if ((key == NULL) || (pvt == NULL) || (valid == NULL)) {
         err = BAD_FUNC_ARG;
     }
 
@@ -1627,6 +1573,7 @@ int wc_ValidateEccsiPvt(EccsiKey* key, const ecc_point* pvt, int* valid)
         err = wc_ecc_copy_point(pvt, &key->pubkey.pubkey);
     }
     if (err == 0) {
+        key->pubkey.type = ECC_PUBLICKEY;
         *valid = (wc_ecc_check_key(&key->pubkey) == 0);
     }
 
@@ -2167,15 +2114,7 @@ static int eccsi_calc_y(EccsiKey* key, ecc_point* pvt, mp_digit mp,
     int err;
     mp_int* hs = &key->tmp;
 
-#ifndef WOLFSSL_HAVE_SP_ECC
-    err = eccsi_kpak_to_mont(key);
-    /* Need KPAK in montgomery form. */
-    if (err == 0) {
-        err = mp_read_unsigned_bin(hs, key->idHash, key->idHashSz);
-    }
-#else
     err = mp_read_unsigned_bin(hs, key->idHash, key->idHashSz);
-#endif
     if (err == 0)
     {
         /* [HS]PVT + KPAK */
