@@ -3281,7 +3281,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "sub    %[hi], %[hi], r4\n\t"
 #endif
-        "movs   r4, %[hi]\n\t"
         "mov    %[hi], r9\n\t"
 #ifdef WOLFSSL_KEIL
         "sbcs   %[hi], %[hi], r5\n\t"
