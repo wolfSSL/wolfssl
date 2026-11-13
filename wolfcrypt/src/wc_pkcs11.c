@@ -2464,6 +2464,13 @@ static int Pkcs11FindKeyByTemplate(CK_OBJECT_HANDLE* key,
     return ret;
 }
 
+#endif
+
+#if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
+           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
+           !defined(NO_HMAC) || defined(WOLFSSL_HAVE_MLDSA) || \
+           defined(WOLFSSL_HAVE_MLKEM)
+
 /**
  * Find the PKCS#11 object containing the private key data by label.
  *
