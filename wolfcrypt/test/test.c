@@ -96404,6 +96404,55 @@ static wc_test_ret_t mp_test_mod_d(mp_int* a, WC_RNG* rng)
 }
 #endif
 
+#if defined(WOLFSSL_SP_MATH_ALL) && (DIGIT_BIT >= 32) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+/* Divide hi:lo (two 32-bit words) by a 32-bit divisor larger than 16 bits. */
+static wc_test_ret_t mp_test_div_word(mp_int* a, mp_int* r)
+{
+    static const struct {
+        word32 hi;
+        word32 lo;
+        word32 d;
+        word32 q;
+        word32 rem;
+    } vec[] = {
+        /* Divisor with the top bit set. */
+        { 0x4fbdd7d6, 0xba08af90, 0x85c6dbfc, 0x9898a6c6, 0x11f522a8 },
+        /* Exact divisions. */
+        { 0x00008000, 0x00000000, 0x80000000, 0x00010000, 0x00000000 },
+        { 0x7fff7fff, 0x00000000, 0x80008000, 0xfffe0000, 0x00000000 },
+        /* Divisors in [2^16, 2^23) and [2^24, 2^31). */
+        { 0x00010002, 0x00000000, 0x00010003, 0xffff0002, 0x0000fffa },
+        { 0x01000000, 0x00000000, 0x01000001, 0xffffff00, 0x00000100 },
+        { 0x40000000, 0x00000000, 0x40000001, 0xfffffffc, 0x00000004 },
+    };
+    wc_test_ret_t ret;
+    mp_digit rem;
+    int i;
+
+    for (i = 0; i < (int)(sizeof(vec) / sizeof(vec[0])); i++) {
+        ret = mp_set(a, vec[i].hi);
+        if (ret == MP_OKAY)
+            ret = mp_mul_2d(a, 32, a);
+        if (ret == MP_OKAY)
+            ret = mp_add_d(a, vec[i].lo, a);
+        if (ret == MP_OKAY)
+            ret = mp_div_d(a, vec[i].d, r, &rem);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
+        if ((mp_cmp_d(r, vec[i].q) != MP_EQ) || (rem != vec[i].rem))
+            return WC_TEST_RET_ENC_I(i);
+        ret = mp_mod_d(a, vec[i].d, &rem);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (rem != vec[i].rem)
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+#endif
+
 static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1,
     mp_int* r2, WC_RNG* rng)
 {
@@ -97700,6 +97749,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_EXTRA) ||  \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY))
     if ((ret = mp_test_mod_d(a, &rng)) != 0)
+        goto done;
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && (DIGIT_BIT >= 32) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    if ((ret = mp_test_div_word(a, r1)) != 0)
         goto done;
 #endif
     if ((ret = mp_test_mul_sqr(a, b, r1, r2, &rng)) != 0)
