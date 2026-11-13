@@ -22675,8 +22675,11 @@ static int test_set_groups_fail_hs(int onSsl)
         ExpectNotNull(ext = TLSX_Find(ssl_s->extensions,
             TLSX_SUPPORTED_GROUPS));
     }
-    ExpectIntEQ(((SupportedCurve*)ext->data)->name, WOLFSSL_ECC_SECP384R1);
-    ExpectNull(((SupportedCurve*)ext->data)->next);
+    if (ext != NULL) {
+        ExpectIntEQ(((SupportedCurves*)ext->data)->count, 1);
+        ExpectIntEQ(((SupportedCurves*)ext->data)->name[0],
+            WOLFSSL_ECC_SECP384R1);
+    }
 
     ExpectIntEQ(wolfSSL_set_groups(ssl_c, &p256, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP256R1),
