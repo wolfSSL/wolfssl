@@ -337,23 +337,7 @@ WOLFSSL_LOCAL void wc_MemZero_Add(const char* name, const void* addr,
 WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 #endif
 
-/* wc_compat.h may have declared this first; -Wredundant-decls rejects both */
-#ifndef WC_FORCE_ZERO_DECLARED
-    #define WC_FORCE_ZERO_DECLARED
-    #ifdef WOLFSSL_NO_FORCE_ZERO
-        /* NOLINTNEXTLINE(readability-redundant-declaration) */
-        void ForceZero(void* mem, size_t len);
-        #undef wc_ForceZero
-        #define wc_ForceZero ForceZero
-    #else
-        /* NOLINTNEXTLINE(readability-redundant-declaration) */
-        WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
-    #endif
-#endif
-
-#if !defined(WOLFSSL_NO_CONST_CMP) && !defined(WC_NO_CONST_CMP_API)
-WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length);
-#endif
+/* wc_ForceZero()/wc_ConstantCompare() are declared in wc_port.h. */
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
