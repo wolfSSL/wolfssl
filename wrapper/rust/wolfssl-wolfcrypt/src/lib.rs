@@ -69,6 +69,8 @@ pub mod kdf;
 pub mod lms;
 pub mod mldsa;
 pub mod mlkem;
+#[cfg(slhdsa)]
+pub mod slhdsa;
 #[cfg(all(feature = "kem", mlkem))]
 pub mod mlkem_kem;
 pub mod prf;
