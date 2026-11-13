@@ -1,0 +1,13 @@
+[Unit]
+Description=Require wolfCrypt for dm-crypt before any LUKS volume opens
+DefaultDependencies=no
+Before=cryptsetup-pre.target
+Wants=cryptsetup-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/wolfcrypt-luks-guard
+
+[Install]
+WantedBy=cryptsetup.target
