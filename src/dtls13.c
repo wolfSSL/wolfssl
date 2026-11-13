@@ -427,8 +427,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     DtlsMsgListPurge(ssl);
 
     while ((msg = DtlsMsgListNextReady(ssl)) != NULL) {
-        /* Processing a ClientHello that turns the server stateful empties
-         * the list, so the entry is out of it meanwhile */
+        /* A handler may read records and re-enter this loop (post-handshake
+         * auth runs a connect). The entry must not be found or freed there. */
         DtlsMsgRxListDetach(ssl, msg);
         ret = Dtls13ProcessBufferedMsg(ssl, msg, &processed);
         /* A server still stateless keeps nothing of a ClientHello */
