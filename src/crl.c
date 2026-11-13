@@ -2648,6 +2648,13 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     }
 
     {
+        /* The serial is the bare value octets - no DER tag or length. That is
+         * what wolfSSL_X509_CRL_get_REVOKED() and
+         * wolfSSL_X509_CRL_add_revoked_cert() produce, and the only layout
+         * this function has ever accepted, so it is read without consulting
+         * dataIsRaw. Reading a DER INTEGER here instead would misread a bare
+         * value that happens to form one: the serial 02 02 00 00, for
+         * instance, is a valid DER encoding of zero. */
         const byte* serial = rev->serialNumber->data;
         int serialSz = rev->serialNumber->length;
         int i;
@@ -2791,6 +2798,8 @@ int wolfSSL_X509_CRL_add_revoked_cert(WOLFSSL_X509_CRL* crl,
 
     XMEMCPY(serialInt->data, cert->serial, cert->serialSz);
     serialInt->length = cert->serialSz;
+    /* The certificate's serial is the value, with no DER tag or length. */
+    serialInt->dataIsRaw = 1;
 
     XMEMSET(&revoked, 0, sizeof(revoked));
     revoked.serialNumber = serialInt;
