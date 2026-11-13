@@ -430,6 +430,8 @@
     #define WOLFSSL_STM32_AES_TYPEDEF_ALIAS
 #endif
 
+#endif /* WOLFSSL_STM32_BARE */
+
 /* SAES-only chips (e.g. STM32N6) have the TinyAES register layout but
  * the CMSIS device header only defines SAES_CR_*, SAES_SR_*, SAES_ISR_*,
  * SAES_ICR_* without companion AES_CR_* aliases. The BARE driver in
@@ -455,7 +457,25 @@
     #define AES_SR_CCF         SAES_SR_CCF
     #define AES_ISR_CCF        SAES_ISR_CCF
     #define AES_ICR_CCF        SAES_ICR_CCF
+    #ifdef SAES_CR_GCMPH_Msk
+        #define AES_CR_GCMPH_Msk   SAES_CR_GCMPH_Msk
+        #define AES_CR_GCMPH_0     SAES_CR_GCMPH_0
+        #define AES_CR_GCMPH_1     SAES_CR_GCMPH_1
+    #endif
+    #ifdef SAES_CR_NPBLB_Msk
+        #define AES_CR_NPBLB_Msk   SAES_CR_NPBLB_Msk
+        #define AES_CR_NPBLB_Pos   SAES_CR_NPBLB_Pos
+    #endif
 #endif
+
+/* STM32C5 names the GCM/CCM phase field CPHASE instead of GCMPH. */
+#if !defined(AES_CR_GCMPH_Msk) && defined(AES_CR_CPHASE_Msk)
+    #define AES_CR_GCMPH_Msk   AES_CR_CPHASE_Msk
+    #define AES_CR_GCMPH_0     AES_CR_CPHASE_0
+    #define AES_CR_GCMPH_1     AES_CR_CPHASE_1
+#endif
+
+#ifdef WOLFSSL_STM32_BARE
 
 /* Per-family direct-register clock-enable macro for the PKA peripheral. */
 #if defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32WL)
@@ -670,12 +690,22 @@
 
 #define WOLFSSL_NO_HASH_RAW
 
-#ifdef HASH_DIGEST
+/* STM32C5 keeps the full HR[16] digest inside HASH_TypeDef (offset 0x310)
+ * rather than in a separate HASH_DIGEST block. */
+#if defined(WOLFSSL_STM32C5) && !defined(HASH_DIGEST)
+    #define HASH_DIGEST HASH
+#endif
+
+/* F415/F417 headers declare HASH_DIGEST although that silicon has no SHA-2;
+ * HASH_CR_ALGO_1 is only present on parts that do. */
+#if defined(HASH_DIGEST) && defined(HASH_CR_ALGO_1)
     /* The HASH_DIGEST register indicates SHA224/SHA256 support */
     #define STM32_HASH_SHA2
     #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
-        defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32H5) || \
-        defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32V8)
+        defined(WOLFSSL_STM32N6) || \
+        (defined(WOLFSSL_STM32H5) && defined(HASH_CR_ALGO_3)) || \
+        defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32V8) || \
+        (defined(WOLFSSL_STM32C5) && defined(HASH_CR_ALGO_3))
         #define HASH_CR_SIZE    103
         #define HASH_MAX_DIGEST 64 /* Up to SHA512 */
 
@@ -833,13 +863,16 @@ struct Aes;
 
 #ifndef NO_AES
     #if !defined(STM32_CRYPTO_AES_GCM) && !defined(WOLFSSL_STM32_BARE) && \
-            (defined(WOLFSSL_STM32F4) || \
+            ((defined(WOLFSSL_STM32F4) && !defined(STM32F415xx) && \
+              !defined(STM32F417xx)) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
             defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7) || \
             defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32U3) || \
             defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
             defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32N6) || \
-            defined(WOLFSSL_STM32V8) || defined(WOLFSSL_STM32G0))
+            defined(WOLFSSL_STM32V8) || defined(WOLFSSL_STM32G0) || \
+            defined(WOLFSSL_STM32G4) || defined(WOLFSSL_STM32WB) || \
+            defined(WOLFSSL_STM32WL) || defined(WOLFSSL_STM32WBA))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -858,6 +891,9 @@ struct Aes;
             #define CRYP AES1
         #else
             #define CRYP AES
+        #endif
+        #ifndef CRYP_AES_GCM
+            #define CRYP_AES_GCM CRYP_AES_GCM_GMAC
         #endif
         #define STM32_HAL_V2
     #endif
@@ -887,7 +923,7 @@ struct Aes;
          defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32H5) || \
          defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
          defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32V8) || \
-         defined(WOLFSSL_STM32G0))
+         defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32G4))
         #define STM32_HAL_V2
     #endif
 

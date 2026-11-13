@@ -1375,14 +1375,14 @@ int wc_Stm32_Hmac_GetAlgoInfo(int macType, word32* algo, word32* blockSize,
             if (digestSize) *digestSize = WC_SHA_DIGEST_SIZE;
             break;
     #endif
-    #ifdef WOLFSSL_SHA224
+    #if defined(WOLFSSL_SHA224) && defined(STM32_HASH_SHA2)
         case WC_SHA224:
             if (algo)       *algo = HASH_AlgoSelection_SHA224;
             if (blockSize)  *blockSize = WC_SHA224_BLOCK_SIZE;
             if (digestSize) *digestSize = WC_SHA224_DIGEST_SIZE;
             break;
     #endif
-    #ifndef NO_SHA256
+    #if !defined(NO_SHA256) && defined(STM32_HASH_SHA2)
         case WC_SHA256:
             if (algo)       *algo = HASH_AlgoSelection_SHA256;
             if (blockSize)  *blockSize = WC_SHA256_BLOCK_SIZE;
@@ -2625,6 +2625,9 @@ exit:
  * Each per-block ECB call comes through wc_Stm32_Aes_Ecb above; aes.c manages
  * the counter and the XOR with plaintext. */
 
+/* F415/F417 headers declare the GCM phase field but that silicon has no GCM */
+#if defined(CRYP_CR_GCM_CCMPH_Pos) && !defined(STM32F415xx) && \
+    !defined(STM32F417xx)
 /* === HW GCM (CRYP IP phase machine) ==========================================
  * Native HW GCM for the case the CRYP IP supports directly:
  *   - IV is 96 bits (12 bytes) -- the standard GCM IV
@@ -2865,6 +2868,19 @@ exit:
     wolfSSL_CryptHwMutexUnLock();
     return ret;
 }
+#else /* CRYP without GCM (F2, F415/F417): software GCM over HW AES blocks */
+int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
+                     const byte* iv, word32 ivSz,
+                     byte* tag, word32 tagSz,
+                     const byte* aad, word32 aadSz, int isEnc)
+{
+    (void)aes; (void)out; (void)in; (void)sz;
+    (void)iv;  (void)ivSz;
+    (void)tag; (void)tagSz;
+    (void)aad; (void)aadSz; (void)isEnc;
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif /* CRYP_CR_GCM_CCMPH_Pos */
 
 #else /* TinyAES IP (L4/L5/U5/H5/H573/G0/G4/WB/WL/WBA) */
 
@@ -3446,7 +3462,7 @@ exit:
     return ret;
 }
 
-#else /* AES peripheral without GCM mode (older TinyAES: WB/WL/G0/...) */
+#else /* AES peripheral without GCM mode (e.g. TinyAES on STM32L0) */
 /* No HW GCM on this AES IP variant -- fall back to software GCM (its AES blocks
  * still run on HW via wc_AesEncrypt -> wc_Stm32_Aes_Ecb). */
 int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,

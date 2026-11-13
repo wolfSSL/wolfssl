@@ -2877,6 +2877,46 @@
             #undef STM32_HMAC
         #endif
     #endif
+    /* Same for C5/H5 (e.g. C531, H503/H563 have no AES; C5 parts without
+     * HASH), U5 (U575 has no AES) and F72x/F73x (TinyAES, not the CRYP IP
+     * the F7 port drives). */
+    #if (defined(WOLFSSL_STM32C5) || defined(WOLFSSL_STM32H5)) && \
+        (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
+        #if defined(STM32_CRYPTO) && !defined(RCC_AHB2ENR_AESEN)
+            #undef STM32_CRYPTO
+            #ifdef WC_STM32_AES_192_OFF_BY_HW
+                #undef NO_AES_192
+            #endif
+        #endif
+        #if defined(STM32_HASH) && !defined(RCC_AHB2ENR_HASHEN)
+            #undef STM32_HASH
+            #undef STM32_HMAC
+        #endif
+    #endif
+    #if defined(WOLFSSL_STM32U5) && \
+        (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
+        #if defined(STM32_CRYPTO) && !defined(RCC_AHB2ENR1_AESEN)
+            #undef STM32_CRYPTO
+            #ifdef WC_STM32_AES_192_OFF_BY_HW
+                #undef NO_AES_192
+            #endif
+        #endif
+        #if defined(STM32_HASH) && !defined(RCC_AHB2ENR1_HASHEN)
+            #undef STM32_HASH
+            #undef STM32_HMAC
+        #endif
+    #endif
+    #if (defined(WOLFSSL_STM32C5) || defined(WOLFSSL_STM32H5) || \
+         defined(WOLFSSL_STM32U5)) && defined(WOLFSSL_STM32_PKA) && \
+        !defined(PKA) && \
+        (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
+        #undef WOLFSSL_STM32_PKA
+    #endif
+    #if defined(WOLFSSL_STM32F7) && defined(STM32_CRYPTO) && \
+        !defined(RCC_AHB2ENR_CRYPEN) && \
+        (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
+        #undef STM32_CRYPTO
+    #endif
 #endif /* WOLFSSL_STM32* */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
