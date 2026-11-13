@@ -352,6 +352,7 @@ int test_mp_rand(void)
     mp_int a;
     WC_RNG rng;
     int    digits = 1;
+    byte   wide[5 * sizeof(mp_digit)];
 
     XMEMSET(&a, 0, sizeof(mp_int));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -372,6 +373,13 @@ int test_mp_rand(void)
     ExpectIntNE(mp_rand(&a, 100000, &rng), 0);
 #endif
     ExpectIntEQ(mp_rand(&a, digits, &rng), 0);
+    /* A wider value already in a must not survive into the result. */
+    XMEMSET(wide, 0xff, sizeof(wide));
+    ExpectIntEQ(mp_read_unsigned_bin(&a, wide, (word32)sizeof(wide)),
+        MP_OKAY);
+    ExpectIntEQ(mp_rand(&a, 2, &rng), 0);
+    ExpectIntLE(mp_count_bits(&a), 2 * DIGIT_BIT);
+    ExpectIntGT(mp_count_bits(&a), DIGIT_BIT);
 
     mp_clear(&a);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);

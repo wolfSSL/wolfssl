@@ -2085,6 +2085,30 @@ static void alt_fp_init(mp_int* a)
 }
 #endif /* ALT_ECC_SIZE */
 
+/* Returns 1 when the scalar k has more than bits bits, otherwise 0.
+ *
+ * mp_count_bits() takes time that depends on the position of the top set bit.
+ * This ORs together every bit of k at or above bits instead, so only the
+ * number of digits in k decides the time taken.
+ */
+static WC_MAYBE_UNUSED int ecc_k_too_long(const mp_int* k, int bits)
+{
+    int i;
+    int top = bits / DIGIT_BIT;
+    int n = mp_get_digit_count(k);
+    mp_digit d = 0;
+
+    for (i = top; i < n; i++) {
+        mp_digit v = mp_get_digit(k, i);
+        if (i == top) {
+            v = (mp_digit)(v >> (bits % DIGIT_BIT));
+        }
+        d |= v;
+    }
+
+    return d != 0;
+}
+
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_NO_ECC_SW) && \
@@ -3889,7 +3913,7 @@ static int ecc_sp_mulmod(const mp_int* k, ecc_point* G, ecc_point* R,
      * and y only. It writes the result's digits but not their signs, so the
      * result point's ordinates must not be negative either. Leave anything
      * else to the generic code, which handles them. */
-    if (mp_isneg(k) || (mp_count_bits(k) > bits)) {
+    if (mp_isneg(k) || ecc_k_too_long(k, bits)) {
         return NOT_COMPILED_IN;
     }
     if (mp_isneg(G->x) || mp_isneg(G->y) ||
@@ -3992,7 +4016,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    }
 
    /* k can't be negative or have more bits than modulus count plus 1 */
-   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus) + 1)) {
+   if (mp_isneg(k) || ecc_k_too_long(k, mp_count_bits(modulus) + 1)) {
        err = ECC_OUT_OF_RANGE_E;
        goto exit;
    }
@@ -4096,7 +4120,7 @@ exit:
    /* For supported curves the order is the same length in bits as the modulus.
     * Can't have more than order bits for the scalar.
     */
-   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+   if (mp_isneg(k) || ecc_k_too_long(k, mp_count_bits(modulus))) {
        return ECC_OUT_OF_RANGE_E;
    }
    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
@@ -4224,14 +4248,14 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point* G, ecc_point* R, mp_int* a,
 
 #ifdef HAVE_ECC_CDH
    if (mp_count_bits(modulus) > mp_count_bits(order)) {
-      if (mp_count_bits(k) > mp_count_bits(modulus)) {
+      if (ecc_k_too_long(k, mp_count_bits(modulus))) {
           return ECC_OUT_OF_RANGE_E;
       }
    }
    else
 #endif
    /* k can't have more bits than order */
-   if (mp_count_bits(k) > mp_count_bits(order)) {
+   if (ecc_k_too_long(k, mp_count_bits(order))) {
       WOLFSSL_MSG("Private key length is greater than order in bits.");
       return ECC_OUT_OF_RANGE_E;
    }
@@ -4325,7 +4349,7 @@ exit:
    if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
        return ECC_BAD_ARG_E;
    }
-   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+   if (mp_isneg(k) || ecc_k_too_long(k, mp_count_bits(modulus))) {
        return ECC_OUT_OF_RANGE_E;
    }
    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
@@ -13569,7 +13593,7 @@ int wc_ecc_sig_size(const ecc_key* key)
         #define FP_COMB_MAX_MOD_SZ 126
     #endif
     /* The comb covers the bits of the modulus. An order can be a bit longer. */
-    #define FP_K_FITS_COMB(k, m) ((mp_count_bits(k) <= mp_count_bits(m)) && \
+    #define FP_K_FITS_COMB(k, m) (!ecc_k_too_long(k, mp_count_bits(m)) && \
         (mp_unsigned_bin_size(m) <= FP_COMB_MAX_MOD_SZ))
 #else
     #define FP_MULMOD_USES_LUT   1
@@ -14589,7 +14613,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 #endif
 
    /* if it's smaller than modulus we fine */
-   if (mp_unsigned_bin_size(k) > mp_unsigned_bin_size(modulus)) {
+   if (ecc_k_too_long(k, mp_unsigned_bin_size(modulus) * 8)) {
       /* find order */
        y = (unsigned)mp_unsigned_bin_size(modulus);
       for (x = 0; ecc_sets[x].size; x++) {
@@ -14621,7 +14645,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
    lut_gap = bitlen / FP_LUT;
 
    /* get the k value */
-   if (mp_unsigned_bin_size(tk) > (int)(KB_SIZE - 2)) {
+   if (ecc_k_too_long(tk, (int)(KB_SIZE - 2) * 8)) {
       err = BUFFER_E; goto done;
    }
 #ifdef ECC_TIMING_RESISTANT
@@ -15230,7 +15254,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    }
 
    /* k can't be negative or have more bits than modulus count plus 1 */
-   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus) + 1)) {
+   if (mp_isneg(k) || ecc_k_too_long(k, mp_count_bits(modulus) + 1)) {
       return ECC_OUT_OF_RANGE_E;
    }
 
@@ -15329,7 +15353,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL) {
         return ECC_BAD_ARG_E;
     }
-    if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+    if (mp_isneg(k) || ecc_k_too_long(k, mp_count_bits(modulus))) {
         return ECC_OUT_OF_RANGE_E;
     }
     if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
@@ -15398,7 +15422,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    }
 
    /* k can't be negative or have more bits than order */
-   if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(order))) {
+   if (mp_isneg(k) || ecc_k_too_long(k, mp_count_bits(order))) {
       return ECC_OUT_OF_RANGE_E;
    }
 
@@ -15500,7 +15524,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                                                                 order == NULL) {
         return ECC_BAD_ARG_E;
     }
-    if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+    if (mp_isneg(k) || ecc_k_too_long(k, mp_count_bits(modulus))) {
         return ECC_OUT_OF_RANGE_E;
     }
     if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
