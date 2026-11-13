@@ -3097,40 +3097,42 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 #endif
 
 #ifdef HAVE_CRL
-/* Return the CA that issued ca, ca itself for a root, or NULL when the issuer
- * is not loaded. */
+/* Find the loaded CA that issued ca.
+ * Returns ca itself if ca is self-signed (a root), or NULL if the issuer is
+ * not loaded in cm. */
 Signer* GetCAIssuer(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
 {
     Signer* candidateIssuer = NULL;
 
-    /* A root is its own issuer. */
     if (ca->selfSigned)
         return ca;
 
 #ifndef NO_SKID
     if (ca->authKeyIdSet) {
+        /* Look the issuer up by key (ca's AKID) */
         candidateIssuer = GetCA(cm, ca->authKeyIdHash);
         if (candidateIssuer != NULL &&
                 XMEMCMP(candidateIssuer->subjectNameHash, ca->issuerNameHash,
                         SIGNER_DIGEST_SIZE) != 0) {
             candidateIssuer = NULL;
         }
-        /* The AKID decides, as in ParseCertRelative. A name lookup could
-         * find another key's CA, which didn't issue ca. */
         return candidateIssuer;
     }
+    /* No AKID: the issuer name is all there is to go on. */
     return GetCAByName(cm, ca->issuerNameHash);
 #else
-    /* Without SKIDs, GetCA looks up by subject name hash. */
+    /* No AKID: the issuer name is all there is to go on.
+     * GetCA uses issuer when NO_SKID is set */
     (void)candidateIssuer;
     return GetCA(cm, ca->issuerNameHash);
 #endif
 }
 
-/* Return the trust anchor ca chains to: the first CA up the chain that is
- * self-signed or whose issuer is not loaded. Any loaded CA can be an anchor.
- * Returns NULL when ca is NULL, or the walk loops or runs too deep, as then
- * no single anchor can be named. */
+/* Find the trust anchor that ca chains up to in cm.
+ * Walks issuers with GetCAIssuer() and returns the top of the chain: the first
+ * CA that is self-signed or whose issuer isn't loaded.
+ * Returns NULL if ca is NULL, or if no single anchor exists because the chain
+ * loops or is longer than WOLFSSL_MAX_CHAIN_DEPTH. */
 Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
 {
     Signer* prev = NULL;
@@ -3143,7 +3145,8 @@ Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
         issuer = GetCAIssuer(cm, ca);
         if (issuer == NULL || issuer == ca)
             return ca;
-        /* Cross-certified pair issuing each other. */
+        /* Two CAs that issued each other (cross-certified): no anchor.
+         * Longer loops are caught by the depth limit. */
         if (issuer == prev)
             return NULL;
         prev = ca;

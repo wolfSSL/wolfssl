@@ -3721,39 +3721,44 @@ int test_wolfSSL_CRL_unverified_no_evict(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_CRL) && !defined(NO_CERTS) && defined(HAVE_ECC) && \
+    !defined(NO_ECC256) && !defined(NO_SKID) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
+    !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* Fake clock for the fixture CRLs. NOW (2027) has every CRL current. LATER
+ * (2035) has the *Expiring CRLs (next update 2030) expired. Expired CRLs can't
+ * be loaded, so tests load at NOW and check at LATER. */
+#define TEST_CRL_FIXTURE_NOW   1798761600L
+#define TEST_CRL_FIXTURE_LATER 2051222400L
+
+static time_t test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
+
+static WC_MAYBE_UNUSED time_t test_crl_fixture_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_crl_fixture_time;
+    return test_crl_fixture_time;
+}
+#endif
+
 #if defined(TEST_CRL_UNVERIFIED_NO_EVICT) && !defined(NO_FILESYSTEM) && \
     defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_SKID) && \
     !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
     !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     #define TEST_CRL_SKIP_UNVERIFIABLE
-/* Fixed clock: 2027-01-01, when every fixture is valid, and 2035-01-01, after
- * fxCrlOld4Expiring expires (2030). Both fit a 32-bit time_t. */
-#define TEST_CRL_SKIP_NOW   1798761600L
-#define TEST_CRL_SKIP_LATER 2051222400L
-
-static time_t test_crl_skip_time = (time_t)TEST_CRL_SKIP_NOW;
-
-static time_t test_crl_skip_time_cb(time_t* t)
-{
-    if (t != NULL)
-        *t = test_crl_skip_time;
-    return test_crl_skip_time;
-}
 #endif
 
-/* A stored CRL that fails verification is skipped, not an error: another CRL
- * for the issuer still decides, and its date error still shows. On its own, it
- * leaves the cert with no CRL.
+/* A stored CRL that fails verification is skipped, not an error. If a good CRL
+ * is also loaded, it decides (including its date error); otherwise the result
+ * is CRL_MISSING.
  *
- * The bad CRL comes from a store location, which doesn't verify, so it's only
- * checked when used. It's loaded before the good CRL, because a verified CRL
- * would block it. The good CRL is checked first and doesn't list the leaf, so
- * the bad one is still reached. The leaf has no AKID, so every CRL for the name
- * applies.
+ * The bad CRL is loaded with X509_STORE_load_locations(), which doesn't
+ * verify, and before the good CRL, since a verified CRL would block it. The
+ * leaf has no AKID, so every CRL for the issuer's name applies.
  *
- * Fixtures (test_certman_crl_fixtures.h): the old root, its leaf with no AKID
- * (0x60), and old-key CRLs. */
+ * Fixtures: the old root, its leaf with no AKID (0x60), and old-key CRLs. */
 int test_wolfSSL_CRL_skip_unverifiable(void)
 {
     EXPECT_DECLS;
@@ -3762,21 +3767,20 @@ int test_wolfSSL_CRL_skip_unverifiable(void)
     static const struct {
         const char* bad;        /* Stored unverified; fails when checked. */
         int caAfterBad;         /* Load the CA after the bad CRL. */
-        const unsigned char* good;
+        const unsigned char* good;  /* Loaded after the bad CRL, or NULL. */
         int goodSz;
         int checks;             /* Times the leaf is checked. */
-        int later;              /* Check at TEST_CRL_SKIP_LATER. */
+        int later;              /* Check at TEST_CRL_FIXTURE_LATER. */
         int expected;
     } cases[] = {
-        /* Lone CRL with no signer: the good one decides. */
+        /* No signer for the bad CRL: the good one decides. */
         { fxCrlStrayPem, 0, fxCrlOld5, (int)sizeof(fxCrlOld5), 1, 0,
           WOLFSSL_SUCCESS },
-        /* Lone CRL with no signer: the leaf has no CRL. */
+        /* No signer and no good CRL: missing. */
         { fxCrlStrayPem, 0, NULL, 0, 1, 0, WC_NO_ERR_TRACE(CRL_MISSING) },
-        /* Lone CRL with a bad signature, checked twice: the cached failure is
-         * skipped too. */
+        /* Bad signature, checked twice: the cached failure is skipped too. */
         { fxCrlBadSigPem, 1, NULL, 0, 2, 0, WC_NO_ERR_TRACE(CRL_MISSING) },
-        /* The good CRL expired: the bad one doesn't hide that. */
+        /* Good CRL expired: the bad one doesn't hide that. */
         { fxCrlStrayPem, 0, fxCrlOld4Expiring, (int)sizeof(fxCrlOld4Expiring),
           1, 1, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR) }
     };
@@ -3787,8 +3791,7 @@ int test_wolfSSL_CRL_skip_unverifiable(void)
     XMEMSET(tmpDir, 0, sizeof(tmpDir));
     XMEMSET(fileWithBadCrl, 0, sizeof(fileWithBadCrl));
 
-    /* Own directory per run, so unit.test runs sharing a working directory
-     * do not write over each other's fixture. */
+    /* Per-run directory so concurrent unit.test runs don't collide. */
     ExpectNotNull(create_tmp_dir(tmpDir, (int)sizeof(tmpDir) - 1));
     ExpectIntGT(XSNPRINTF(fileWithBadCrl, sizeof(fileWithBadCrl),
                 "%s/crl.pem", tmpDir), 0);
@@ -3800,8 +3803,8 @@ int test_wolfSSL_CRL_skip_unverifiable(void)
         int badSz = (int)XSTRLEN(cases[i].bad);
         int j;
 
-        test_crl_skip_time = (time_t)TEST_CRL_SKIP_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_skip_time_cb), 0);
+        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
+        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
         ExpectNotNull(store = wolfSSL_X509_STORE_new());
         if (store != NULL)
             cm = store->cm;
@@ -3829,7 +3832,7 @@ int test_wolfSSL_CRL_skip_unverifiable(void)
         }
 
         if (cases[i].later) {
-            test_crl_skip_time = (time_t)TEST_CRL_SKIP_LATER;
+            test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_LATER;
         }
         for (j = 0; j < cases[i].checks; j++) {
             ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafNoAkid,
@@ -3851,12 +3854,12 @@ int test_wolfSSL_CRL_skip_unverifiable(void)
     return EXPECT_RESULT();
 }
 
-/* A CA that rolled its key has one CRL series per key. Loading one key's CRL
- * doesn't drop or block the other's, in any order or CRL number. Within a key,
- * a higher CRL number replaces a lower one.
+/* A CA that rolled its key has one CRL series per key. One key's CRL doesn't
+ * replace or block the other's, in any order or CRL number. Within a key, a
+ * higher CRL number replaces a lower one.
  *
- * Fixtures (test_certman_crl_fixtures.h): the old and new roots and a leaf from
- * each, revoked by its key's CRL. CRL numbers: old 5; new 1 or 6. */
+ * Fixtures: the old and new roots and a leaf from each, revoked by its key's
+ * CRL. CRL numbers: old 5; new 1 or 6. */
 int test_wolfSSL_CRL_same_name_key_rollover(void)
 {
     EXPECT_DECLS;
@@ -3867,7 +3870,8 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
         const unsigned char* der;
         int sz;
     } crls[3];
-    /* Two CRLs from different keys, loaded in a variety of pairs and orders. */
+    /* One CRL per key, both orders. The new key's number is both lower and
+     * higher than the old key's. */
     static const int rollover[4][2] = {
         { 0, 1 }, { 1, 0 },     /* old 5, new 1 */
         { 0, 2 }, { 2, 0 }      /* old 5, new 6 */
@@ -3903,7 +3907,7 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
         cm = NULL;
     }
 
-    /* Same key: higher CRL number replaces lower, not the reverse. */
+    /* Same key: 6 replaces 1, then 1 is rejected as older. */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootNew,
         sizeof(fxRootNew), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -3921,7 +3925,7 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
     wolfSSL_CertManagerFree(cm);
     cm = NULL;
 
-    /* Both keys' CRLs loaded: both leaves revoked. */
+    /* One CRL per key: both leaves revoked. */
     for (i = 0; i < 4; i++) {
         const int first = rollover[i][0];
         const int second = rollover[i][1];
@@ -3935,7 +3939,7 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
             WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crls[first].der,
             crls[first].sz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-        /* Checked after the revocation results. */
+        /* Asserted after the revocation checks. */
         ret = WOLFSSL_FATAL_ERROR;
         if (EXPECT_SUCCESS()) {
             ret = wolfSSL_CertManagerLoadCRLBuffer(cm, crls[second].der,
@@ -3946,7 +3950,7 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
             (int)sizeof(fxLeafOld)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
         ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafNew,
             (int)sizeof(fxLeafNew)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
-        /* Not a duplicate of the other key's CRL. */
+        /* Not rejected as a duplicate of the other key's CRL. */
         ExpectIntEQ(ret, WOLFSSL_SUCCESS);
 
         wolfSSL_CertManagerFree(cm);
@@ -3956,13 +3960,13 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
     return EXPECT_RESULT();
 }
 
-/* A CA may sign CRLs with a key that signs no certs (RFC 5280 5.2.1). That
- * key's CRLs cover the CA's certs despite the AKID mismatch. A CRL from a key
- * that also signs certs still revokes.
+/* A CA may sign CRLs with a key that signs no certs (RFC 5280 5.2.1). Its CRLs
+ * still revoke despite the AKID mismatch, as does a CRL from a same-name key
+ * that also signs certs.
  *
- * Fixtures (test_certman_crl_fixtures.h): the old root and its leaf (0x10), the
- * CRL-only key, and the new root as the dual-use key. Each key has a CRL
- * revoking the leaf. */
+ * Fixtures: the old root and its leaf (0x10), a CRL-only key under the old
+ * root, and the new root as the dual-use key. Each key has a CRL revoking the
+ * leaf. */
 int test_wolfSSL_CRL_crl_only_signing_key(void)
 {
     EXPECT_DECLS;
@@ -3971,28 +3975,26 @@ int test_wolfSSL_CRL_crl_only_signing_key(void)
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
-    /* CRL-only key: its CRL covers the leaf. Under IGNORE_KEY_EXTENSIONS it
-     * counts as another key's CRL, which still covers the leaf since the root
-     * has none. */
+    /* CRL-only key: chains to the leaf's trust anchor, so its CRL covers the
+     * leaf (RFC 5280 6.3.3(f)). */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    /* root for leaf */
+    /* Leaf issuer. */
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
         sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    /* root for CRL */
+    /* CRL signer. */
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxCrlOnlyKey,
         sizeof(fxCrlOnlyKey), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, fxCrlByCrlOnlyKey,
         sizeof(fxCrlByCrlOnlyKey), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    /* CRL catches leaf */
+    /* Revoked. */
     ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafOld,
         (int)sizeof(fxLeafOld)), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
     wolfSSL_CertManagerFree(cm);
     cm = NULL;
 
-    /* Dual-use key: the root has no CRL, so this one is used and revokes the
-     * leaf. */
+    /* Dual-use key: another trust anchor, but its CRL still revokes. */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
         sizeof(fxRootOld), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -4015,33 +4017,20 @@ int test_wolfSSL_CRL_crl_only_signing_key(void)
     !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     #define TEST_CRL_OTHER_KEY_FALLBACK
-/* Fixed clock: 2027-01-01, when every fixture is valid, and 2035-01-01, after
- * fxCrlNew2Expiring expires (2030). */
-#define TEST_CRL_OTHER_KEY_NOW   1798761600L
-#define TEST_CRL_OTHER_KEY_LATER 2051222400L
-
-static time_t test_crl_other_key_time = (time_t)TEST_CRL_OTHER_KEY_NOW;
-
-static time_t test_crl_other_key_time_cb(time_t* t)
-{
-    if (t != NULL)
-        *t = test_crl_other_key_time;
-    return test_crl_other_key_time;
-}
 #endif
 
-/* Another key's CRL always revokes. It doesn't cover the cert here, as the
- * keys are separate roots (RFC 5280 6.3.3(f)), so with no CRL from the cert's
- * key the CRL counts as missing. If the cert's key has one, that CRL decides,
- * and a stale CRL from another key doesn't matter.
+/* Another key's CRL always revokes. The keys here are separate roots (RFC 5280
+ * 6.3.3(f)), so it never covers the cert: with no own-key CRL the result is
+ * CRL_MISSING, and a fresh own-key CRL decides even if the other has expired.
  *
- * Fixtures (test_certman_crl_fixtures.h): the old and new roots and the old
- * key's leaf (0x10). The old key's CRL used here doesn't list the leaf. The new
- * key has one CRL that revokes it and one that expires. */
+ * Fixtures: the old and new roots and the old key's leaf (0x10). The old key's
+ * CRL doesn't list the leaf. The new key has one CRL that revokes it and one
+ * that expires. */
 int test_wolfSSL_CRL_other_key_fallback(void)
 {
     EXPECT_DECLS;
 #ifdef TEST_CRL_OTHER_KEY_FALLBACK
+    /* A: the leaf's own key. B: the other key. */
     enum { XK_A, XK_B_REVOKED, XK_B_EXPIRING, XK_NONE };
     struct {
         const unsigned char* der;
@@ -4050,21 +4039,20 @@ int test_wolfSSL_CRL_other_key_fallback(void)
     static const struct {
         int first;
         int second;
-        int later;      /* Check at TEST_CRL_OTHER_KEY_LATER. */
+        int later;      /* Check at TEST_CRL_FIXTURE_LATER. */
         int expected;
     } cases[] = {
-        /* Control: own-key CRL covers the leaf. */
+        /* Control: A's CRL covers the leaf. */
         { XK_A, XK_NONE, 0, WOLFSSL_SUCCESS },
-        /* Other key's entry revokes, even with a fresh own-key CRL. */
+        /* B revokes, even with A's fresh CRL. */
         { XK_A, XK_B_REVOKED, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
         { XK_B_REVOKED, XK_A, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
-        /* No own-key CRL: the other key's still revokes. */
+        /* B revokes with no A CRL. */
         { XK_B_REVOKED, XK_NONE, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
-        /* The other key is a separate root, another trust anchor, so its CRL
-         * doesn't cover the leaf (RFC 5280 6.3.3(f)), fresh or expired. */
+        /* B alone doesn't cover the leaf, fresh or expired. */
         { XK_B_EXPIRING, XK_NONE, 0, WC_NO_ERR_TRACE(CRL_MISSING) },
         { XK_B_EXPIRING, XK_NONE, 1, WC_NO_ERR_TRACE(CRL_MISSING) },
-        /* Fresh own-key CRL: the other key's expired one doesn't matter. */
+        /* A fresh, B expired: A decides. */
         { XK_A, XK_B_EXPIRING, 1, WOLFSSL_SUCCESS },
         { XK_B_EXPIRING, XK_A, 1, WOLFSSL_SUCCESS }
     };
@@ -4079,8 +4067,8 @@ int test_wolfSSL_CRL_other_key_fallback(void)
     crls[XK_B_EXPIRING].sz = (int)sizeof(fxCrlNew2Expiring);
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-        test_crl_other_key_time = (time_t)TEST_CRL_OTHER_KEY_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_other_key_time_cb), 0);
+        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
+        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
 
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
@@ -4098,7 +4086,7 @@ int test_wolfSSL_CRL_other_key_fallback(void)
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
         }
         if (cases[i].later)
-            test_crl_other_key_time = (time_t)TEST_CRL_OTHER_KEY_LATER;
+            test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_LATER;
         ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, fxLeafOld,
             (int)sizeof(fxLeafOld)), cases[i].expected);
         (void)wc_SetTimeCb(NULL);
@@ -4113,13 +4101,13 @@ int test_wolfSSL_CRL_other_key_fallback(void)
     return EXPECT_RESULT();
 }
 
-/* RFC 5280 6.3.3(f): another key's CRL covers the cert only when its issuer
+/* RFC 5280 6.3.3(f): another key's CRL covers the cert only if that key
  * chains to the cert's trust anchor. From another anchor it can still revoke,
- * but the cert's CRL counts as missing.
+ * but otherwise the CRL counts as missing.
  *
- * Fixtures (test_certman_crl_fixtures.h): two roots, three same-name
- * intermediates (keys 1 and 2 under root 1, key 3 under root 2) and a leaf
- * (0x70) under key 1. No CRL from key 1 is loaded. */
+ * Fixtures: two roots and three same-name intermediates (keys 1 and 2 under
+ * root 1, key 3 under root 2), and a leaf (0x70) under key 1. No key 1 CRL is
+ * loaded. */
 int test_wolfSSL_CRL_other_key_trust_anchor(void)
 {
     EXPECT_DECLS;
@@ -4136,12 +4124,12 @@ int test_wolfSSL_CRL_other_key_trust_anchor(void)
     } cases[] = {
         /* Same anchor: key 2's CRL covers the leaf. */
         { AK_K2, AK_NONE, WOLFSSL_SUCCESS },
-        /* Another anchor: key 3's CRL doesn't. */
+        /* Other anchor: key 3's doesn't. */
         { AK_K3, AK_NONE, WC_NO_ERR_TRACE(CRL_MISSING) },
-        /* Key 2's covers it, whatever key 3's says, in either order. */
+        /* Key 2's covers it either way. */
         { AK_K2, AK_K3, WOLFSSL_SUCCESS },
         { AK_K3, AK_K2, WOLFSSL_SUCCESS },
-        /* Another anchor's CRL still revokes. */
+        /* Other anchor's CRL still revokes. */
         { AK_K3_REVOKED, AK_NONE, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
         { AK_K2, AK_K3_REVOKED, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) }
     };
@@ -4156,8 +4144,8 @@ int test_wolfSSL_CRL_other_key_trust_anchor(void)
     crls[AK_K3_REVOKED].sz = (int)sizeof(fxAnchorCrlK3Revoked);
 
     for (i = 0; i < XELEM_CNT(cases) && !EXPECT_FAIL(); i++) {
-        test_crl_other_key_time = (time_t)TEST_CRL_OTHER_KEY_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_other_key_time_cb), 0);
+        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
+        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
 
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxAnchorRoot1,
@@ -4194,37 +4182,13 @@ int test_wolfSSL_CRL_other_key_trust_anchor(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_CRL) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_SHA256) && \
-    !defined(NO_SKID) && \
-    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
-    !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
-    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
-/* Fixed clock: 2027-01-01, when every fixture is valid, and 2035-01-01, after
- * fxCrlOld4Expiring expires (2030). Expired CRLs can't be loaded, so the clock
- * moves after loading. Both fit a 32-bit time_t. */
-#define TEST_CRL_CHAIN_ROLLOVER_NOW   1798761600L
-#define TEST_CRL_CHAIN_ROLLOVER_LATER 2051222400L
-
-static time_t test_crl_chain_rollover_time =
-    (time_t)TEST_CRL_CHAIN_ROLLOVER_NOW;
-
-static time_t test_crl_chain_rollover_time_cb(time_t* t)
-{
-    if (t != NULL)
-        *t = test_crl_chain_rollover_time;
-    return test_crl_chain_rollover_time;
-}
-#endif
-
-/* WOLFSSL_CRL_CHECKALL chain walk with a root that rolled its key. The CA's
- * AKID picks its signing key's CRL, and another key's CRL doesn't cover for an
- * expired one. The keys are separate roots, so if the signing key has no CRL,
- * the other key's doesn't cover the cert (RFC 5280 6.3.3(f)).
+/* Key rollover during the WOLFSSL_CRL_CHECKALL chain walk. The intermediate's
+ * AKID picks the old key's CRL, and the new key's CRL can't stand in for an
+ * expired or missing one, since the keys are separate roots (RFC 5280
+ * 6.3.3(f)).
  *
- * Fixtures (test_certman_crl_fixtures.h): the old and new roots, the old key's
- * intermediate (0x30) and its leaf. The server sends only the leaf, so the walk
- * runs. */
+ * Fixtures: the old and new roots, the old key's intermediate (0x30) and its
+ * leaf. The server sends only the leaf, so the walk runs. */
 int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
 {
     EXPECT_DECLS;
@@ -4234,7 +4198,7 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
     !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK) && \
     !defined(WOLFSSL_NO_CRL_NEXT_DATE) && \
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
-    /* Indexes into crls. fxCrlInt is always loaded. */
+    /* Root CRLs, as indexes into crls. fxCrlInt is always loaded. */
     enum { CRL_OLD, CRL_OLD_REVOKED, CRL_OLD_EXPIRING, CRL_NEW, CRL_NONE };
     struct {
         const unsigned char* der;
@@ -4243,18 +4207,17 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
     static const struct {
         int first;
         int second;
-        int later;      /* Handshake at TEST_CRL_CHAIN_ROLLOVER_LATER. */
+        int later;      /* Handshake at TEST_CRL_FIXTURE_LATER. */
         int expected;
     } cases[] = {
-        /* Control: each key's CRL covers its own certs. */
+        /* Control: both current, nothing revoked. */
         { CRL_OLD, CRL_NEW, 0, 0 },
         { CRL_NEW, CRL_OLD, 0, 0 },
         { CRL_OLD_EXPIRING, CRL_NEW, 0, 0 },
-        /* The old key revoked the intermediate. */
+        /* Old key revokes the intermediate. */
         { CRL_OLD_REVOKED, CRL_NEW, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
         { CRL_NEW, CRL_OLD_REVOKED, 0, WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
-        /* No old-key CRL: the new key is another trust anchor, so its CRL
-         * doesn't cover the intermediate (RFC 5280 6.3.3(f)). */
+        /* No old-key CRL: the new key's doesn't cover. */
         { CRL_NEW, CRL_NONE, 0, WC_NO_ERR_TRACE(CRL_MISSING) },
         /* Old-key CRL expired: the new key's doesn't hide that. */
         { CRL_OLD_EXPIRING, CRL_NEW, 1, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR) },
@@ -4283,8 +4246,8 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
         load[0] = cases[i].first;
         load[1] = cases[i].second;
 
-        test_crl_chain_rollover_time = (time_t)TEST_CRL_CHAIN_ROLLOVER_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_chain_rollover_time_cb), 0);
+        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
+        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
             &ssl_s, wolfSSLv23_client_method, wolfSSLv23_server_method,
@@ -4309,8 +4272,8 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
         }
         wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
         if (cases[i].later) {
-            test_crl_chain_rollover_time =
-                (time_t)TEST_CRL_CHAIN_ROLLOVER_LATER;
+            test_crl_fixture_time =
+                (time_t)TEST_CRL_FIXTURE_LATER;
         }
 
         if (cases[i].expected == 0) {
@@ -4334,14 +4297,14 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
     return EXPECT_RESULT();
 }
 
-/* WOLFSSL_CRL_CHECKALL chain walk with two same-name roots (AKID = SKID). The
- * walk steps to the root that issued the intermediate, found by its AKID, not
- * the first root with that name. The new root comes first in the CA table, so a
- * name lookup would land on it and need its CRL, which isn't loaded.
+/* WOLFSSL_CRL_CHECKALL chain walk with two same-name roots. The walk steps to
+ * the root matching the intermediate's AKID, not the first root with that
+ * name. Roots are loaded in both orders, so in one a name lookup would land on
+ * the new root, whose CRL isn't loaded.
  *
- * Fixtures (test_certman_crl_fixtures.h): the old and new roots, the old key's
- * intermediate (0x30) and its leaf. Only the old key's CRL is loaded. The
- * server sends only the leaf, so the walk runs. */
+ * Fixtures: the old and new roots, the old key's intermediate (0x30) and its
+ * leaf. Only the old key's CRL is loaded. The server sends only the leaf, so
+ * the walk runs. */
 int test_wolfSSL_CRL_chain_walk_follows_akid(void)
 {
     EXPECT_DECLS;
@@ -4354,9 +4317,9 @@ int test_wolfSSL_CRL_chain_walk_follows_akid(void)
         int crlSz;
         int expected;
     } cases[] = {
-        /* The intermediate's issuer is the old key: its CRL is enough. */
+        /* Old key's CRL is enough. */
         { fxCrlOld5, (int)sizeof(fxCrlOld5), 0 },
-        /* The walk reaches the old key's CRL: it sees the revocation. */
+        /* Old key's CRL revokes the intermediate. */
         { fxCrlOld6, (int)sizeof(fxCrlOld6),
           WC_NO_ERR_TRACE(CRL_CERT_REVOKED) },
         /* No root CRL: the intermediate isn't covered. */
@@ -4425,14 +4388,13 @@ int test_wolfSSL_CRL_chain_walk_follows_akid(void)
     return EXPECT_RESULT();
 }
 
-/* WOLFSSL_CRL_CHECKALL chain walk over CAs that issue each other. A
- * cross-certified pair (A by B, B by A) is walked once each. A longer cycle (A
- * by C, C by B, B by A) isn't detected, so the walk stops at
- * WOLFSSL_MAX_CHAIN_DEPTH with an error.
+/* WOLFSSL_CRL_CHECKALL chain walk over CAs that issue each other. A two-CA
+ * loop (A by B, B by A) is detected and each CA is checked once. A three-CA
+ * loop (A by C, C by B, B by A) isn't, so the walk stops at
+ * WOLFSSL_MAX_CHAIN_DEPTH with ASN_PATHLEN_SIZE_E.
  *
- * Fixtures (test_certman_crl_fixtures.h): CAs CN=crl-cycle-a/b/c for keys A, B
- * and C, and a leaf from A. The server sends only the leaf, so the walk runs.
- */
+ * Fixtures: CAs CN=crl-cycle-a/b/c, their CRLs, and a leaf from A. The server
+ * sends only the leaf, so the walk runs. */
 int test_wolfSSL_CRL_chain_walk_cycle(void)
 {
     EXPECT_DECLS;
@@ -4450,13 +4412,13 @@ int test_wolfSSL_CRL_chain_walk_cycle(void)
 
     XMEMSET(cas, 0, sizeof(cas));
     XMEMSET(crls, 0, sizeof(crls));
-    /* Cross-certified pair: each CA's CRL is checked once. */
+    /* Two-CA loop, nothing revoked. */
     cas[0][0].der = fxCycleAbyB; cas[0][0].sz = (int)sizeof(fxCycleAbyB);
     cas[0][1].der = fxCycleBbyA; cas[0][1].sz = (int)sizeof(fxCycleBbyA);
     crls[0][0].der = fxCycleCrlA;  crls[0][0].sz = (int)sizeof(fxCycleCrlA);
     crls[0][1].der = fxCycleCrlB;  crls[0][1].sz = (int)sizeof(fxCycleCrlB);
     expected[0] = 0;
-    /* Same pair: the walk reaches B's CRL, which revokes A. */
+    /* Same loop: the walk reaches B's CRL, which revokes A. */
     cas[1][0] = cas[0][0];
     cas[1][1] = cas[0][1];
     crls[1][0].der = fxCycleCrlA;
@@ -4464,7 +4426,7 @@ int test_wolfSSL_CRL_chain_walk_cycle(void)
     crls[1][1].der = fxCycleCrlBRevoked;
     crls[1][1].sz = (int)sizeof(fxCycleCrlBRevoked);
     expected[1] = WC_NO_ERR_TRACE(CRL_CERT_REVOKED);
-    /* Three-CA cycle: bounded by WOLFSSL_MAX_CHAIN_DEPTH. */
+    /* Three-CA loop: stopped by the depth limit. */
     cas[2][0].der = fxCycleAbyC; cas[2][0].sz = (int)sizeof(fxCycleAbyC);
     cas[2][1].der = fxCycleBbyA; cas[2][1].sz = (int)sizeof(fxCycleBbyA);
     cas[2][2].der = fxCycleCbyB; cas[2][2].sz = (int)sizeof(fxCycleCbyB);

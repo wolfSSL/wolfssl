@@ -2420,9 +2420,10 @@ struct Signer {
                                     /* sha hash of key in certificate */
 #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
     byte    authKeyIdHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of AKID; locates signer
-                                      * during name-constraint and CRL
-                                      * chain walks */
+                                     /* This CA's AKID, as in DecodedCert's
+                                      * extAuthKeyId. Finds its issuer by key
+                                      * during name-constraint and CRL chain
+                                      * walks */
 #endif
 #endif
 #ifdef HAVE_OCSP

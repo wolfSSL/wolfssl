@@ -536,19 +536,36 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
     return ret;
 }
 
+/* Check the cert (issuer name hash + serial) against every stored CRL from
+ * that issuer name.
+ *
+ * akid is the cert's Authority Key Identifier, or NULL if it has none. A CA
+ * that has rolled its key can have several CRLs under the same name, one per
+ * key, so the AKID splits them into:
+ *   own-key CRLs:   signed by the key that signed the cert (CRL AKID == akid),
+ *                   or either side has no AKID.
+ *   other-key CRLs: signed by a different key of the same-name CA.
+ *
+ * A if a cert has an own key CRL we prefer that. Otherwise we check the other
+ * CRLs for the issuer to see if the cert is revoked there.
+ *
+ * CRLs that fail signature verification are skipped entirely.
+ *
+ * Returns CRL_CERT_REVOKED if revoked, CRL_CERT_DATE_ERR if the CRLs that
+ * count are all past their next update, or 0. */
 static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, int *pFoundEntry,
         WOLFSSL_CERT_MANAGER* cm, const byte* akid)
 {
     CRL_Entry* crle;
     int        ret = 0;
-    /* Verified CRLs seen, and fresh, from the cert's key and from others. */
-    int        ownSeen = 0;
-    int        ownFresh = 0;
-    int        otherSeen = 0;
-    int        otherFresh = 0;
+    int        ownSeen = 0; /* found CRL with AKID == Cert AKID + Issuer same */
+    int        ownFresh = 0; /* CRL was not expired */
+    int        otherSeen = 0; /* Found CRL with same Issuer as Cert */
+    int        otherFresh = 0; /* CRL was not expired */
 #if !defined(NO_SKID) && !defined(NO_ASN)
-    /* Trust anchor of the cert's issuer, looked up on first use. */
+    /* Trust anchor of the cert's issuer. Only needed for other-key CRLs, so
+     * it is looked up lazily the first time one is found. */
     Signer*    certAnchor = NULL;
     int        certAnchorSet = 0;
 #endif
@@ -566,7 +583,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int nextDateValid = 1;
         int vret = 0;
         int ownKey = 1;
-        /* Whether this CRL can vouch for the cert, not just revoke it. */
+        /* Whether this CRL can count toward coverage. It can always revoke. */
         int vouches = 1;
 
         if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) != 0) {
@@ -574,8 +591,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         }
 
     #if !defined(NO_SKID) && !defined(NO_ASN)
-        /* Another key's CRL can revoke, but only covers the cert when the
-         * cert's key has no CRL loaded. A CRL-only key counts as the cert's. */
+        /* Only an AKID mismatch makes it an other-key CRL. If either the
+         * cert or the CRL has no AKID, treat the CRL as own-key. */
         if (akid != NULL && crle->extAuthKeyIdSet &&
                 XMEMCMP(crle->extAuthKeyId, akid, KEYID_SIZE) != 0) {
             ownKey = 0;
@@ -603,7 +620,9 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             wc_UnLockMutex(&crle->verifyMutex);
         }
 
-        /* Skip it: another CRL for this issuer may apply. */
+        /* A CRL that failed verification (now, or cached from an earlier
+         * check) is skipped rather than failing the whole check, since
+         * another CRL for this issuer may still apply. */
         if (vret == 0 && cm == crl->cm && crle->verified < 0)
             vret = crle->verified;
         if (vret != 0) {
@@ -624,9 +643,10 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         #endif
         }
     #if !defined(NO_SKID) && !defined(NO_ASN)
-        /* RFC 5280 6.3.3(f): the CRL issuer must chain to the cert's trust
-         * anchor. Another key's CRL from another anchor still revokes, but
-         * does not count as the cert's CRL. */
+        /* RFC 5280 6.3.3(f): We can only trust a CRL to tell us a cert is
+         * not revoked if it comes from the same trust anchor. We can
+         * still use it to revoke however so we track that here by setting
+         * vouches to 0 if the anchors do not match */
         if (!ownKey) {
             Signer* crlAnchor;
 
@@ -643,20 +663,30 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         }
     #endif
 
-        if (ownKey)
+        if (ownKey) {
             ownSeen = 1;
-        else if (vouches)
+        } else if (vouches) {
             otherSeen = 1;
-        if (!nextDateValid)
-            continue;
-        if (ownKey)
-            ownFresh = 1;
-        else if (vouches)
-            otherFresh = 1;
+        }
 
-        /* Name and serial identify the cert, so any key's CRL can revoke. */
+        if (!nextDateValid) {
+            continue;
+        }
+
+        if (ownKey) {
+            ownFresh = 1;
+        }
+
+        else if (vouches) {
+            otherFresh = 1;
+        }
+
+        /* Issuer name + serial uniquely identify the cert, so any fresh,
+         * verified CRL for this name can revoke it, whichever key signed it
+         * and whichever anchor it chains to. */
         ret = FindRevokedSerial(crle->certs, serial, serialSz,
                 serialHash, crle->totalCerts);
+        /* Cert was found to be revoked so break out */
         if (ret != 0)
             break;
     }
@@ -664,8 +694,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     wc_UnLockRwLock(&crl->crlLock);
 
     if (ret == 0) {
-        /* If the cert's key has a CRL loaded, it decides, so another key's
-         * fresh CRL can't hide a stale one. */
+        /* If a crl for the cert was found we check if the crl was expired and
+         * return our finding. If the CRL was fresh we set pEntryFound to 1. */
         int seen  = ownSeen ? ownSeen : otherSeen;
         int fresh = ownSeen ? ownFresh : otherFresh;
 
@@ -971,9 +1001,8 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
             continue;
         }
 
-        /* Don't let an unverified CRL replace a verified one. Checked before
-         * the AKID, so once a verified CRL exists for the name, unverified
-         * CRLs can't start new series. Load the CA before its CRL. */
+        /* An unverified CRL can't replace a verified one from the same
+         * issuer. */
         if ((curr->verified > 0) && (crle->verified == 0)) {
             WOLFSSL_MSG("Cannot replace a verified CRL with an "
                     "unverified one");
@@ -982,7 +1011,12 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
         }
 
 #if !defined(NO_SKID) && !defined(NO_ASN)
-        /* Another key's CRLs are a separate series. */
+        /* Each signing key of a same-name CA keeps its own CRL series, so a
+         * CRL only replaces a stored one signed by the same key. Keep
+         * looking (and add it as a new series if nothing matches) when:
+         *   - both have an AKID and they differ, or
+         *   - the new CRL has no AKID but the stored one does.
+         * A new CRL with an AKID may replace a stored one without. */
         if (crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
             if(XMEMCMP(crle->extAuthKeyId, curr->extAuthKeyId,
                     KEYID_SIZE) != 0) {
