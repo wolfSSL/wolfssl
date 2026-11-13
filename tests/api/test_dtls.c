@@ -17460,7 +17460,7 @@ int test_dtls_ctx_cookie_secret_api(void)
 #endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_server_method()));
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
@@ -17565,7 +17565,7 @@ int test_dtls_ctx_cookie_secret_api(void)
 
     /* Rotate with no primary clears the secondary */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_server_method()));
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,

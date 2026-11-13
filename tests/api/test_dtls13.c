@@ -3851,7 +3851,7 @@ int test_dtls13_frag_ch1_ctx_stale_partial(void)
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_ECC) && !defined(NO_ECC256) && \
     defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
-    !defined(WOLFSSL_NO_MALLOC)
+    !defined(WOLFSSL_NO_MALLOC) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 #define TEST_DTLS13_STATIC_MEMSZ 400000
 
 /* Hold B's partial ClientHello through one server of a static memory context
@@ -3969,7 +3969,7 @@ int test_dtls13_frag_ch_ctx_static_memory(void)
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_ECC) && !defined(NO_ECC256) && \
     defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
-    !defined(WOLFSSL_NO_MALLOC)
+    !defined(WOLFSSL_NO_MALLOC) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     static byte mem[TEST_DTLS13_STATIC_MEMSZ];
     int lateLoad;
 
