@@ -8417,6 +8417,7 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
 #ifndef NO_ASN_TIME
+WOLFSSL_LOCAL word32  CookieTime(void);
 WOLFSSL_LOCAL int     CookieExpired(const byte* issued);
 #endif
 

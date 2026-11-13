@@ -72,6 +72,11 @@
  *     check. Without a clock (NO_ASN_TIME) no time is sent or checked. The
  *     DTLS 1.2 cookie stays 32 bytes, the time and a truncated HMAC, since
  *     clients accept no more than WOLFSSL_COOKIE_LEN.
+ *     The time is real time, wc_Time(), so servers that share a cookie
+ *     secret can check each other's cookies. Their clocks must agree: a
+ *     cookie from a clock that is ahead is rejected as from the future, one
+ *     from a clock that is behind expires that much sooner. A NO_ASN build
+ *     has no wc_Time() and uses LowResTimer().
  * WOLFSSL_DTLS_RX_MAX_BYTES
  *     Bound on the bytes the receive list of one WOLFSSL retains for
  *     out-of-order and fragmented handshake messages, DTLS 1.2 and 1.3,
@@ -1068,7 +1073,7 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
         ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
         if (ret == 0) {
 #ifndef NO_ASN_TIME
-            issued = LowResTimer();
+            issued = CookieTime();
 #endif
             ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz, issued,
                                      cookie);

@@ -13410,13 +13410,26 @@ ProtocolVersion MakeDTLSv1_3(void)
 #endif /* !NO_ASN_TIME */
 
 #ifndef NO_ASN_TIME
+/* The time, in seconds, a cookie is issued at and its age is measured by.
+ * Real time where the build has it: LowResTimer() counts from boot on many
+ * ports, and servers that share a cookie secret must agree on the time. */
+word32 CookieTime(void)
+{
+#if !defined(NO_ASN) && !defined(HAVE_RTP_SYS)
+    return (word32)wc_Time(0);
+#else
+    /* No wc_Time(), or one that is always 0 */
+    return LowResTimer();
+#endif
+}
+
 /* Is a cookie issued at the given time, 4 byte big endian seconds, older
  * than WOLFSSL_COOKIE_MAX_AGE? A time from the future is rejected too. */
 int CookieExpired(const byte* issued)
 {
 #if WOLFSSL_COOKIE_MAX_AGE > 0
     word32 at;
-    word32 now = LowResTimer();
+    word32 now = CookieTime();
 
     ato32(issued, &at);
     if (now < at)

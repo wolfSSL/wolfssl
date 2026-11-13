@@ -106,7 +106,10 @@
   the secret need not be rotated for that. The DTLS 1.2 cookie stays 32
   bytes on the wire: the time and the leftmost 28 bytes of the HMAC, so
   deployed clients, which accept no more than `WOLFSSL_COOKIE_LEN`, keep
-  working. Without a clock (`NO_ASN_TIME`) no time is sent or checked.
+  working. Without a clock (`NO_ASN_TIME`) no time is sent or checked. The
+  time is real time (`wc_Time()`), so servers that share a secret need clocks
+  that agree: a cookie from a clock that is ahead is rejected, one from a
+  clock that is behind expires that much sooner.
 
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA

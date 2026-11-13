@@ -11079,7 +11079,9 @@ int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
     carries its issue time under the MAC and stops verifying
     WOLFSSL_COOKIE_MAX_AGE seconds later (60 by default), so a captured
     cookie cannot be replayed later and the secret need not be rotated for
-    that.
+    that. The issue time is real time (wc_Time()), so servers that share a
+    secret need clocks that agree: a cookie from a clock that is ahead is
+    rejected, one from a clock that is behind expires that much sooner.
 
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new().
@@ -16263,7 +16265,8 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     data. The cookie also carries its issue time and is rejected, as a bad
     cookie is, WOLFSSL_COOKIE_MAX_AGE seconds (60 by default) after it was
     issued, so a captured cookie cannot be replayed later. Without a clock
-    (NO_ASN_TIME) no time is sent or checked.
+    (NO_ASN_TIME) no time is sent or checked. The issue time is real time
+    (wc_Time()), so servers that share the secret need clocks that agree.
     This replaces or regenerates the HRR secret, then delegates to
     wolfSSL_enable_cookie(). Changing
     cookie mode after handshake processing starts is unsupported; rotating a

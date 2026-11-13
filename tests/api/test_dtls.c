@@ -9578,10 +9578,9 @@ int test_dtls12_cookie_secret_issue_uses_primary(void)
 /*-- cookie age --------------------------------------------------------------*/
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(NO_ASN_TIME) && !defined(NO_ASN) && !defined(USER_TICKS) && \
-    !defined(USE_WINDOWS_API)
-/* The cookie age tests move the clock with wc_SetTimeCb(), which reaches
- * LowResTimer() on the default, POSIX time, build only */
+    !defined(NO_ASN_TIME) && !defined(NO_ASN)
+/* The cookie age tests move the clock with wc_SetTimeCb(): cookies are
+ * timed by wc_Time() where the build has it */
 #define TEST_COOKIE_AGE
 #endif
 

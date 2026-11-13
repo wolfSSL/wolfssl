@@ -83,7 +83,7 @@ static int g_fail;
 static word32 wb_now(void)
 {
 #ifndef NO_ASN_TIME
-    return LowResTimer();
+    return CookieTime();
 #else
     return 0;
 #endif

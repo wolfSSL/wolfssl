@@ -4034,7 +4034,7 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
         cookieSz += OPAQUE16_LEN;
     }
 #ifndef NO_ASN_TIME
-    c32toa(LowResTimer(), cookie + cookieSz);
+    c32toa(CookieTime(), cookie + cookieSz);
     cookieSz += OPAQUE32_LEN;
 #endif
 
