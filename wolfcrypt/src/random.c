@@ -263,6 +263,10 @@ This library contains implementation for the random number generator.
 #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
+#ifdef WOLFSSL_MPFS_ATHENA
+#include <wolfssl/wolfcrypt/port/microchip/mpfs_athena.h>
+#endif
+
 #if FIPS_VERSION3_GE(6,0,0)
     const unsigned int wolfCrypt_FIPS_drbg_ro_sanity[2] =
                                                      { 0x1a2b3c4d, 0x00000011 };
@@ -9956,6 +9960,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
         return silabs_GenerateRand(output, sz);
+    }
+
+#elif defined(WOLFSSL_MPFS_ATHENA) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(WC_MPFS_ATHENA_NO_RNG)
+    /* The Athena NRBG, called directly: it seeds every RNG, whatever its
+     * devId, and needs no crypto callback registered. */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+        return wc_MpfsAthena_GenerateSeed(output, sz);
     }
 
 #elif defined(STM32_RNG)

@@ -19,8 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* SHA-384 and AES-256-CTR on the Athena F5200 "TeraFire" user cryptoprocessor
- * of the PolarFire SoC "S" grade parts, through the wolfCrypt crypto callback.
+/* The Athena F5200 "TeraFire" user cryptoprocessor of the PolarFire SoC "S"
+ * grade parts, through the wolfCrypt crypto callback: SHA-224, SHA-256,
+ * SHA-384, SHA-512 and SHA-512/t; AES-ECB, CBC, CTR and GCM, AES-CMAC and AES
+ * key wrap at every key size, with ECB carrying AES-XTS; the NRBG as the seed
+ * of wolfCrypt's DRBG, and optionally the engine's own DRBG; ECDSA, ECDH and
+ * EC key generation on P-192 to P-521; and the raw RSA public and CRT private
+ * operations.
  *
  * The engine is driven by Microchip's CAL (Crypto Abstraction Library), which
  * is referenced by include path and never vendored: it carries a Mercury
@@ -33,8 +38,15 @@
  *      wc_MpfsAthena_RegisterDevice(WC_MPFS_ATHENA_DEVID);
  *      wc_MpfsAthena_SelfTest();
  *
- * then pass that devId to wc_InitSha384_ex() and wc_AesInit(). Contexts tagged
- * with any other devId stay in software.
+ * then pass that devId to the _ex init of the object: wc_InitSha256_ex(),
+ * wc_AesInit(), wc_ecc_init_ex(), wc_InitRsaKey_ex(), wc_InitRng_ex() and so
+ * on. Objects tagged with any other devId stay in software.
+ *
+ * Each family can be kept in software: WC_MPFS_ATHENA_NO_SHA256 (SHA-224 and
+ * SHA-256), WC_MPFS_ATHENA_NO_SHA512 (SHA-512 and SHA-512/t; SHA-384 follows
+ * WOLFSSL_SHA384), WC_MPFS_ATHENA_NO_CBC, WC_MPFS_ATHENA_NO_GCM,
+ * WC_MPFS_ATHENA_NO_KEYWRAP, WC_MPFS_ATHENA_NO_CMAC, WC_MPFS_ATHENA_NO_RNG,
+ * WC_MPFS_ATHENA_NO_ECC and WC_MPFS_ATHENA_NO_RSA.
  *
  * Both published CAL archives are soft-float lp64, so every object linked
  * against them must be built -mabi=lp64. The port is M-mode bare metal: the
@@ -85,16 +97,45 @@
 #endif
 
 /* iGetBlockLen(SATHASHTYPE_SHA384). A non-final CALHashCtx() call must be a
- * whole number of these. */
+ * whole number of blocks; this is two SHA-256 blocks, so every SHA-2 type is
+ * fed in multiples of it. */
 #ifndef WC_MPFS_ATHENA_BLOCK_SZ
     #define WC_MPFS_ATHENA_BLOCK_SZ 128
 #endif
 
-/* Concurrent wc_Sha384 contexts the port can offload when there is no heap
+/* Concurrent SHA-2 contexts the port can offload when there is no heap
  * (WOLFSSL_NO_MALLOC or WOLFSSL_STATIC_MEMORY). Beyond this, hashing falls back
  * to software. Each slot costs WC_MPFS_ATHENA_CTX_WORDS words plus a block. */
 #ifndef WC_MPFS_ATHENA_HASH_SLOTS
     #define WC_MPFS_ATHENA_HASH_SLOTS 4
+#endif
+
+/* Smallest AES-ECB request the engine serves; shorter ones go to software.
+ * XTS sends its tweak and stealing tail as one-block calls, and a CAL round
+ * trip per block loses to software. Self-test needs twice this as scratch. */
+#ifndef WC_MPFS_ATHENA_AES_MIN_SZ
+    #define WC_MPFS_ATHENA_AES_MIN_SZ 32
+#endif
+
+/* Smallest AES-GCM payload the engine serves; shorter ones go to software. */
+#ifndef WC_MPFS_ATHENA_GCM_MIN_SZ
+    #define WC_MPFS_ATHENA_GCM_MIN_SZ 0
+#endif
+
+/* Largest RSA modulus the engine serves, in bits; larger keys go to software.
+ * The operand scratch for one operation scales with it. */
+#ifndef WC_MPFS_ATHENA_RSA_MAX_BITS
+    #define WC_MPFS_ATHENA_RSA_MAX_BITS 4096
+#endif
+
+/* Define WC_MPFS_ATHENA_RSA_PUBLIC to also serve RSA public operations. They
+ * are left to software by default: with a small public exponent the engine is
+ * slower than software. */
+
+/* With WC_MPFS_ATHENA_RNG_DRBG, generate calls between reseeds of the
+ * engine's DRBG. */
+#ifndef WC_MPFS_ATHENA_DRBG_RESEED
+    #define WC_MPFS_ATHENA_DRBG_RESEED 1024
 #endif
 
 WOLFSSL_API int wc_MpfsAthena_Init(void);
@@ -102,9 +143,16 @@ WOLFSSL_API int wc_MpfsAthena_RegisterDevice(int devId);
 WOLFSSL_API void wc_MpfsAthena_UnRegisterDevice(int devId);
 WOLFSSL_API int wc_MpfsAthena_CryptoDevCb(int devId, wc_CryptoInfo* info,
     void* ctx);
+/* Known-answer tests, compiled only with WC_MPFS_ATHENA_SELFTEST; otherwise
+ * wc_MpfsAthena_SelfTest() returns NOT_COMPILED_IN. */
 WOLFSSL_API int wc_MpfsAthena_SelfTest(void);
 WOLFSSL_API const char* wc_MpfsAthena_SelfTestDesc(void);
 WOLFSSL_API word32 wc_MpfsAthena_GetCbCount(void);
+/* NRBG entropy; random.c's wc_GenerateSeed() calls it for every RNG. */
+#if !defined(WC_NO_RNG) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(WC_MPFS_ATHENA_NO_RNG)
+WOLFSSL_API int wc_MpfsAthena_GenerateSeed(byte* output, word32 sz);
+#endif
 
 #endif /* WOLFSSL_MPFS_ATHENA */
 

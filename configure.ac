@@ -12573,13 +12573,13 @@ fi
 
 if test "x$ENABLED_MPFS_ATHENA" = "xyes"
 then
-    # The port offloads what the ordinary wolfCrypt gates turn on, so without
-    # these it would compile to nothing.
-    if test "x$ENABLED_SHA384" = "xno"; then
-        AC_MSG_ERROR([--with-mpfs-athena needs SHA-384; drop --disable-sha384])
-    fi
-    if test "x$ENABLED_AESCTR" = "xno"; then
-        AC_MSG_ERROR([--with-mpfs-athena needs AES-CTR; add --enable-aesctr])
+    # AES-XTS reaches the engine only through the bulk ECB call that
+    # HAVE_AES_ECB compiles in; without it every XTS block is its own engine
+    # transaction, slower than software.
+    if test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_AESECB" = "xno"; then
+        ENABLED_AESECB=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_ECB"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AES_ECB"
     fi
 fi
 
