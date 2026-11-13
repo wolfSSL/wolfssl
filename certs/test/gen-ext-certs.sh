@@ -1607,3 +1607,32 @@ CN = www.wolfssl.com
 basicConstraints = critical, CA:TRUE
 EOF
 gen_cert
+
+KEY=certs/server-key.der
+OUT=certs/test/cert-ext-dirsan
+CONFIG=certs/test/cert-ext-dirsan.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_req
+
+[ req_distinguished_name ]
+C             = US
+ST            = Montana
+L             = Bozeman
+O             = wolfSSL
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_req ]
+subjectKeyIdentifier = hash
+basicConstraints     = critical, CA:FALSE
+subjectAltName       = DNS:example.com, dirName:dir_san
+
+[ dir_san ]
+C  = US
+O  = wolfSSL
+CN = Dir Name SAN
+EOF
+gen_cert

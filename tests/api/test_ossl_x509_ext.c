@@ -1358,6 +1358,94 @@ int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_X509_get_ext_d2i(NID_subject_alt_name) on a certificate whose SAN
+ * carries a directoryName entry. GENERAL_NAME_new() pre-allocates d.ia5, which
+ * shares the union slot with d.dirn; the ASN_DIR_TYPE arm must release it
+ * before storing the parsed X509_NAME, otherwise one ASN1_STRING leaks per
+ * directoryName entry (caught by the memory checkers under make check). */
+int test_wolfSSL_X509_get_ext_d2i_dirname_san(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_ALL)) && !defined(NO_RSA) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SAN_DIR))
+    XFILE f = XBADFILE;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_GENERAL_NAMES* gns = NULL;
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    char buf[64];
+    int crit = 0;
+    int i;
+    int dnsCount = 0;
+    int dirCount = 0;
+
+    /* SAN = DNS:example.com, dirName:{C=US, O=wolfSSL, CN=Dir Name SAN} */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-dirsan.pem", "rb")) !=
+        XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    ExpectNotNull(gns = (WOLFSSL_GENERAL_NAMES*)wolfSSL_X509_get_ext_d2i(x509,
+        NID_subject_alt_name, &crit, NULL));
+    ExpectIntEQ(wolfSSL_sk_GENERAL_NAME_num(gns), 2);
+    /* More than one SAN entry is reported as -2. */
+    ExpectIntEQ(crit, -2);
+
+    for (i = 0; i < wolfSSL_sk_GENERAL_NAME_num(gns); i++) {
+        ExpectNotNull(gn = wolfSSL_sk_GENERAL_NAME_value(gns, i));
+        if (gn == NULL)
+            break;
+        if (gn->type == WOLFSSL_GEN_DNS) {
+            dnsCount++;
+            ExpectNotNull(gn->d.dNSName);
+            ExpectIntEQ(wolfSSL_ASN1_STRING_length(gn->d.dNSName), 11);
+            ExpectIntEQ(XMEMCMP(wolfSSL_ASN1_STRING_data(gn->d.dNSName),
+                "example.com", 11), 0);
+        }
+        else if (gn->type == WOLFSSL_GEN_DIRNAME) {
+            dirCount++;
+            ExpectNotNull(gn->d.dirn);
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_commonName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "Dir Name SAN");
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_organizationName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "wolfSSL");
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_countryName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "US");
+        }
+        else {
+            ExpectIntEQ(gn->type, -1); /* unexpected entry type */
+        }
+    }
+    ExpectIntEQ(dnsCount, 1);
+    ExpectIntEQ(dirCount, 1);
+
+    wolfSSL_GENERAL_NAMES_free(gns);
+    gns = NULL;
+
+    /* Repeated calls must each produce independent, fully-owned results. */
+    for (i = 0; i < 3; i++) {
+        ExpectNotNull(gns = (WOLFSSL_GENERAL_NAMES*)wolfSSL_X509_get_ext_d2i(
+            x509, NID_subject_alt_name, NULL, NULL));
+        ExpectIntEQ(wolfSSL_sk_GENERAL_NAME_num(gns), 2);
+        wolfSSL_GENERAL_NAMES_free(gns);
+        gns = NULL;
+    }
+
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509V3_EXT_san(void)
 {
     EXPECT_DECLS;
@@ -1429,6 +1517,21 @@ int test_wolfSSL_X509V3_EXT_aia(void)
     wolfSSL_AUTHORITY_INFO_ACCESS_free(aia);
     aia = NULL;
 
+    if (ext != NULL) {
+        wolfSSL_sk_free(ext->ext_sk);
+        ext->ext_sk = NULL;
+    }
+    ExpectNotNull(sk = wolfSSL_sk_new_asn1_obj());
+    if (ext != NULL) {
+        ext->ext_sk = sk;
+        sk = NULL;
+    }
+    ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS *)
+        wolfSSL_X509V3_EXT_d2i(ext));
+    ExpectIntEQ(wolfSSL_sk_num(aia), 0);
+    wolfSSL_AUTHORITY_INFO_ACCESS_free(aia);
+    aia = NULL;
+
     ExpectNotNull(entry = wolfSSL_ASN1_OBJECT_new());
     if (entry != NULL) {
         entry->nid = WC_NID_ad_OCSP;
@@ -1455,6 +1558,95 @@ int test_wolfSSL_X509V3_EXT_aia(void)
     wolfSSL_sk_free(node);
     wolfSSL_ASN1_OBJECT_free(obj);
     wolfSSL_X509_EXTENSION_free(ext);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(WOLFSSL_X509_TINY)
+static int test_X509V3_EXT_d2i_keyid(int nid, const byte* der, int derSz,
+    const byte* keyId, int keyIdSz)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    WOLFSSL_ASN1_STRING* val = NULL;
+    WOLFSSL_ASN1_STRING* str = NULL;
+    WOLFSSL_AUTHORITY_KEYID* akey = NULL;
+    void* d2i = NULL;
+
+    ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
+    ExpectNotNull(obj = wolfSSL_ASN1_OBJECT_new());
+    if (obj != NULL) {
+        obj->type = nid;
+        obj->nid = nid;
+    }
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_object(ext, obj), WOLFSSL_SUCCESS);
+    ExpectNotNull(val = wolfSSL_ASN1_STRING_new());
+    ExpectIntEQ(wolfSSL_ASN1_STRING_set(val, der, derSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, val), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(d2i = wolfSSL_X509V3_EXT_d2i(ext));
+    if (nid == NID_authority_key_identifier) {
+        akey = (WOLFSSL_AUTHORITY_KEYID*)d2i;
+        str = (akey != NULL) ? akey->keyid : NULL;
+    }
+    else {
+        str = (WOLFSSL_ASN1_STRING*)d2i;
+    }
+    ExpectNotNull(str);
+    ExpectIntEQ(wolfSSL_ASN1_STRING_length(str), keyIdSz);
+    ExpectBufEQ(wolfSSL_ASN1_STRING_data(str), keyId, keyIdSz);
+
+    if (akey != NULL)
+        wolfSSL_AUTHORITY_KEYID_free(akey);
+    else
+        wolfSSL_ASN1_STRING_free((WOLFSSL_ASN1_STRING*)d2i);
+    wolfSSL_ASN1_STRING_free(val);
+    wolfSSL_ASN1_OBJECT_free(obj);
+    wolfSSL_X509_EXTENSION_free(ext);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_X509V3_EXT_d2i_keyid(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(WOLFSSL_X509_TINY)
+    static const byte id8[8] = {
+        0x41, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+    };
+    static const byte id33[33] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+        0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+        0x21
+    };
+    byte der[2 + 2 + sizeof(id33)];
+    word32 i;
+    const byte* ids[2];
+    word32 idSzs[2];
+
+    ids[0] = id8;  idSzs[0] = (word32)sizeof(id8);
+    ids[1] = id33; idSzs[1] = (word32)sizeof(id33);
+
+    for (i = 0; i < 2; i++) {
+        der[0] = ASN_OCTET_STRING;
+        der[1] = (byte)idSzs[i];
+        XMEMCPY(der + 2, ids[i], idSzs[i]);
+        ExpectIntEQ(test_X509V3_EXT_d2i_keyid(NID_subject_key_identifier,
+            der, (int)(2 + idSzs[i]), ids[i], (int)idSzs[i]), TEST_SUCCESS);
+
+        der[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+        der[1] = (byte)(2 + idSzs[i]);
+        der[2] = ASN_CONTEXT_SPECIFIC | 0;
+        der[3] = (byte)idSzs[i];
+        XMEMCPY(der + 4, ids[i], idSzs[i]);
+        ExpectIntEQ(test_X509V3_EXT_d2i_keyid(NID_authority_key_identifier,
+            der, (int)(4 + idSzs[i]), ids[i], (int)idSzs[i]), TEST_SUCCESS);
+    }
 #endif
     return EXPECT_RESULT();
 }

@@ -2030,6 +2030,10 @@ static WOLFSSL_AUTHORITY_INFO_ACCESS* wolfssl_x509v3_ext_aia_d2i(
 
         /* Get ASN.1 Object from the stack entry's data. */
         aiaEntry = sk->data.obj;
+        if (aiaEntry == NULL) {
+            sk = sk->next;
+            continue;
+        }
 
         /* ACCESS_DESCRIPTION has two members: method and location.
          *  method: ASN1_OBJECT as either AIA_OCSP_OID or AIA_CA_ISSUER_OID
@@ -2218,8 +2222,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                 break;
             }
-            ret = wolfSSL_ASN1_STRING_set(newString, cert->extSubjKeyId,
-                                          cert->extSubjKeyIdSz);
+            ret = wolfSSL_ASN1_STRING_set(newString, cert->extSubjKeyIdSrc,
+                                          (int)cert->extSubjKeyIdSz);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
@@ -2253,8 +2257,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 break;
             }
 
-            ret = wolfSSL_ASN1_STRING_set(akey->keyid, cert->extAuthKeyId,
-                                          cert->extAuthKeyIdSz);
+            ret = wolfSSL_ASN1_STRING_set(akey->keyid, cert->extAuthKeyIdSrc,
+                                          (int)cert->extAuthKeyIdSz);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_AUTHORITY_KEYID_free(akey);
@@ -2733,6 +2737,9 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     switch (dns->type) {
                         case ASN_DIR_TYPE:
                             gn->type = dns->type;
+                            /* Free ia5 before using union for dirn */
+                            wolfSSL_ASN1_STRING_free(gn->d.ia5);
+                            gn->d.ia5 = NULL;
                             {
                                 int localIdx = 0;
                                 unsigned char* n = (unsigned char*)XMALLOC(

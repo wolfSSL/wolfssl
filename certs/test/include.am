@@ -3,6 +3,9 @@
 #
 
 EXTRA_DIST += \
+         certs/test/cert-ext-dirsan.cfg \
+         certs/test/cert-ext-dirsan.der \
+         certs/test/cert-ext-dirsan.pem \
          certs/test/cert-ext-ia.cfg \
          certs/test/cert-ext-ia.der \
          certs/test/cert-ext-ia.pem \
