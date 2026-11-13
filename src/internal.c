@@ -41384,6 +41384,7 @@ exit_scv:
 
 #ifdef HAVE_SESSION_TICKET
 /* Replace the session's ticket. The session is unchanged on failure.
+ * A dynamic buffer that is large enough is reused.
  *
  * @param [in, out] session  Session to update.
  * @param [in]      ticket   Ticket data, may be NULL when length is 0.
@@ -41399,11 +41400,20 @@ int SetSessionTicket(WOLFSSL_SESSION* session, const byte* ticket,
     word16 staticUsed = length;
 
     if (length > sizeof(session->staticTicket)) {
-        buf = (byte*)XMALLOC(length, session->heap, DYNAMIC_TYPE_SESSION_TICK);
-        if (buf == NULL)
-            return MEMORY_ERROR;
-        allocSz = length;
         staticUsed = 0;
+        if ((session->ticket != session->staticTicket) &&
+                (session->ticket != NULL) &&
+                (session->ticketLenAlloc >= length)) {
+            buf = session->ticket;
+            allocSz = session->ticketLenAlloc;
+        }
+        else {
+            buf = (byte*)XMALLOC(length, session->heap,
+                DYNAMIC_TYPE_SESSION_TICK);
+            if (buf == NULL)
+                return MEMORY_ERROR;
+            allocSz = length;
+        }
     }
 
     /* Copy first, ticket may point at the current ticket. */
@@ -41411,12 +41421,16 @@ int SetSessionTicket(WOLFSSL_SESSION* session, const byte* ticket,
         XMEMMOVE(buf, ticket, length);
     }
 
-    if (session->ticket != session->staticTicket) {
+    if ((session->ticket != session->staticTicket) &&
+            (session->ticket != buf)) {
         if (session->ticket != NULL) {
             ForceZero(session->ticket,
                 min(session->ticketLen, session->ticketLenAlloc));
         }
         XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
+    }
+    if (allocSz > length) {
+        ForceZero(buf + length, (word32)(allocSz - length));
     }
     ForceZero(session->staticTicket + staticUsed,
         sizeof(session->staticTicket) - staticUsed);

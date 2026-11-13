@@ -1167,7 +1167,7 @@ static int test_SessionTicket_check(WOLFSSL* ssl, const byte* expected,
     word32 sz)
 {
     EXPECT_DECLS;
-    byte out[SESSION_TICKET_LEN + 2];
+    byte out[SESSION_TICKET_STATIC_LEN + 3];
     word32 outSz = (word32)sizeof(out);
 
     ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
@@ -1192,12 +1192,13 @@ int test_wolfSSL_SessionTicket_alloc_fail_ext(void)
     wolfSSL_Realloc_cb prevR = NULL;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    byte big[SESSION_TICKET_LEN + 2];
-    const word32 lens[] = { SESSION_TICKET_LEN + 1, SESSION_TICKET_LEN };
+    byte big[SESSION_TICKET_STATIC_LEN + 3];
+    const word32 lens[] = { SESSION_TICKET_STATIC_LEN + 1,
+        SESSION_TICKET_STATIC_LEN };
     int i;
 
     /* A static buffer this size holds every ticket, none are allocated. */
-    if (SESSION_TICKET_LEN + 2 > WOLFSSL_MAX_16BIT) {
+    if (SESSION_TICKET_STATIC_LEN + 3 > WOLFSSL_MAX_16BIT) {
         return TEST_SKIPPED;
     }
 
@@ -1206,23 +1207,34 @@ int test_wolfSSL_SessionTicket_alloc_fail_ext(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, SESSION_TICKET_LEN + 1),
-        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big,
+        SESSION_TICKET_STATIC_LEN + 2), WOLFSSL_SUCCESS);
 
     ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
     if (EXPECT_SUCCESS()) {
         ExpectIntEQ(wolfSSL_SetAllocators(ticketOomMalloc, ticketOomFree,
             ticketOomRealloc), 0);
         ticketOomFailAll = 1;
+        /* A longer ticket needs a new buffer, the previous one is kept. */
         ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big,
-            SESSION_TICKET_LEN + 2), WC_NO_ERR_TRACE(MEMORY_ERROR));
+            SESSION_TICKET_STATIC_LEN + 3), WC_NO_ERR_TRACE(MEMORY_ERROR));
+        ExpectIntEQ(test_SessionTicket_check(ssl, big,
+            SESSION_TICKET_STATIC_LEN + 2), TEST_SUCCESS);
+        /* A shorter ticket is stored in the current buffer. */
+        ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big,
+            SESSION_TICKET_STATIC_LEN + 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_SessionTicket_check(ssl, big,
+            SESSION_TICKET_STATIC_LEN + 1), TEST_SUCCESS);
         ticketOomFailAll = 0;
         (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
     }
 
-    /* The previous ticket is still there. */
-    ExpectIntEQ(test_SessionTicket_check(ssl, big, SESSION_TICKET_LEN + 1),
-        TEST_SUCCESS);
+    /* The rest of the reused buffer is cleared. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(ssl->session->ticketLenAlloc,
+            SESSION_TICKET_STATIC_LEN + 2);
+        ExpectIntEQ(ssl->session->ticket[SESSION_TICKET_STATIC_LEN + 1], 0);
+    }
 
     /* Setting the current ticket again keeps it, dynamic and static. */
     for (i = 0; i < (int)XELEM_CNT(lens) && EXPECT_SUCCESS(); i++) {
