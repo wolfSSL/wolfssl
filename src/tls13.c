@@ -3725,6 +3725,27 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 return BUFFER_E;
             }
 
+            /* Fail instead of wrapping the sequence number */
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                if (ssl->dtls13EncryptEpoch != NULL &&
+                        w64Equal(ssl->dtls13EncryptEpoch->nextSeqNumber,
+                                 TLS13_SEQ_MAX)) {
+                    WOLFSSL_MSG("DTLS 1.3 sequence number would wrap");
+                    WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+                    return SEQUENCE_NUMBER_E;
+                }
+            }
+            else
+#endif /* WOLFSSL_DTLS13 */
+            if (w64Equal(w64From32(ssl->keys.sequence_number_hi,
+                                   ssl->keys.sequence_number_lo),
+                         TLS13_SEQ_MAX)) {
+                WOLFSSL_MSG("TLS 1.3 sequence number would wrap");
+                WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+                return SEQUENCE_NUMBER_E;
+            }
+
             /* Record data length. */
             args->size = (word16)(args->sz - args->headerSz);
             /* Write/update the record header with the new size.

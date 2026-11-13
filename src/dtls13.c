@@ -2143,6 +2143,13 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
     /* if we are here, the message is built */
     ssl->options.buildingMsg = 0;
 
+    /* message_seq cannot wrap otherwise old messages could be received */
+    if (ssl->keys.dtls_handshake_number == WOLFSSL_MAX_16BIT) {
+        WOLFSSL_MSG("DTLS 1.3 handshake message_seq would wrap");
+        WOLFSSL_ERROR_VERBOSE(DTLS_MSG_SEQUENCE_E);
+        return DTLS_MSG_SEQUENCE_E;
+    }
+
     if (!ssl->options.handShakeDone) {
 
         /* during the handshake, if we are sending a new flight, we can flush

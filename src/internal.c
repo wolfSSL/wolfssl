@@ -107,7 +107,8 @@
  *                  Disable peek returning WANT_READ for tickets       default: off
  * WOLFSSL_TLS13_IGNORE_AEAD_LIMITS:
  *                  Ignore AEAD message limits from RFC 9846 5.5, which
- *                  makes observing them a MUST                        default: off
+ *                  makes observing them a MUST. The rekey before the
+ *                  sequence number wraps still applies                default: off
  * WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT:
  *                  Include RFC 9150 integrity-only suites in the
  *                  default cipher suite list (HAVE_NULL_CIPHER)       default: off
@@ -31485,62 +31486,73 @@ void ScrPeerCertFromSession(WOLFSSL* ssl)
 }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-#if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
-    !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+#if !defined(NO_TLS) && defined(WOLFSSL_TLS13)
 /*
  * Enforce limits specified in
  * https://www.rfc-editor.org/rfc/rfc9846#section-5.5
+ * and rekey before the sequence number wraps
+ * https://www.rfc-editor.org/rfc/rfc9846#section-5.3
  */
 static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
 {
     w64wrapper seq;
     w64wrapper limit;
 
+    /* With WOLFSSL_TLS13_IGNORE_AEAD_LIMITS every cipher falls through to the
+     * generic sequence number limit to prevent wrapping */
     switch (ssl->specs.bulk_cipher_algorithm) {
-#ifdef BUILD_AESGCM
+    #ifdef BUILD_AESGCM
         case wolfssl_aes_gcm:
+        #ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
             /* Limit is 2^24.5 */
             limit = AEAD_AES_LIMIT;
             break;
-#endif
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-        case wolfssl_chacha:
-            /* For ChaCha20/Poly1305, the record sequence number would wrap
-             * before the safety limit is reached. */
-            return 0;
-#endif
-#ifdef HAVE_AESCCM
+        #endif
+    #endif
+    #ifdef HAVE_AESCCM
         case wolfssl_aes_ccm:
+        #ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+        #ifdef WOLFSSL_DTLS13
             /* Use the limits calculated in the DTLS 1.3 spec
              * https://www.rfc-editor.org/rfc/rfc9147.html#name-analysis-of-limits-on-ccm-u */
-#ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls)
                 limit = DTLS_AEAD_AES_CCM_LIMIT; /* Limit is 2^23 */
             else
-#endif
+        #endif
                 limit = AEAD_AES_LIMIT; /* Limit is 2^24.5 */
             break;
-#endif
-#ifdef WOLFSSL_SM4_GCM
+        #endif /* WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
+    #endif
+    #ifdef WOLFSSL_SM4_GCM
         case wolfssl_sm4_gcm:
+        #ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
             /* Limit is 2^22 - 1 */
             limit = AEAD_SM4_GCM_LIMIT;
             break;
-#endif
-#ifdef WOLFSSL_SM4_CCM
+        #endif
+    #endif
+    #ifdef WOLFSSL_SM4_CCM
         case wolfssl_sm4_ccm:
+        #ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
             /* Limit is 2^10 - 1 */
             limit = AEAD_SM4_CCM_LIMIT;
             break;
-#endif
+        #endif
+    #endif
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        case wolfssl_chacha:
+            /* For ChaCha20/Poly1305, the record sequence number would wrap
+             * before the safety limit is reached. */
+    #endif
         case wolfssl_cipher_null:
-            /* No encryption being done */
-            return 0;
+            limit = TLS13_SEQ_REKEY_LIMIT;
+            break;
         default:
             WOLFSSL_MSG("Unrecognized ciphersuite for AEAD limit check");
             return BAD_STATE_E;
 
     }
+
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         if (ssl->dtls13EncryptEpoch == NULL) {
@@ -31602,7 +31614,7 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
 
     return 0;
 }
-#endif /* WOLFSSL_TLS13 && !WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
+#endif /* !NO_TLS && WOLFSSL_TLS13 */
 
 #ifdef WOLFSSL_THREADED_CRYPT
 int SendAsyncData(WOLFSSL* ssl)
@@ -31934,8 +31946,14 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         ThreadCrypt* encrypt = NULL;
 #endif
 
-#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
-        if (IsAtLeastTLSv1_3(ssl->version)) {
+#ifdef WOLFSSL_TLS13
+        /* A suspended record already holds its sequence number, wait until it
+         * is finished to do a rekey */
+        if (IsAtLeastTLSv1_3(ssl->version)
+        #ifdef WOLFSSL_ASYNC_CRYPT
+                && !ssl->options.buildArgs13Set
+        #endif
+                ) {
             ret = CheckTLS13AEADSendLimit(ssl);
         #ifdef WOLFSSL_EARLY_DATA
             /* This check runs at the top of every iteration, including the
@@ -31971,7 +31989,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-#endif
+#endif /* WOLFSSL_TLS13 */
 
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls && ssl->options.tls1_3) {
@@ -33349,6 +33367,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SEQUENCE_NUMBER_E:
         return "Record sequence number would wrap";
+
+    case DTLS_MSG_SEQUENCE_E:
+        return "DTLS message_seq would wrap";
 
     case RPK_UNTRUSTED_E:
         return "RFC 7250 Raw Public Key not trusted";
