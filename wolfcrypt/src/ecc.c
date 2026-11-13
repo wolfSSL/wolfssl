@@ -12411,8 +12411,27 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         else
     #endif
         {
-            err = wc_export_int(ecc_get_k(key), d, dLen,
-                dOrderSz ? ecc_order_size(key->dp) : keySz, encType);
+            word32 orderSz = ecc_order_size(key->dp);
+            word32 dSz = dOrderSz ? orderSz : keySz;
+            mp_int* k = ecc_get_k(key);
+
+            /* The scalar is in [1, n-1]: it is range checked on import and
+             * generated in range. When the output covers the order it always
+             * fits, so encode it in constant time. wc_export_int() sizes the
+             * value first, and counting its bits leaks the scalar's length. */
+            if ((encType == WC_TYPE_UNSIGNED_BIN) && (dSz >= orderSz)) {
+                if (*dLen < dSz) {
+                    *dLen = dSz;
+                    err = BUFFER_E;
+                }
+                else {
+                    *dLen = dSz;
+                    err = mp_to_unsigned_bin_len_ct(k, d, (int)dSz);
+                }
+            }
+            else {
+                err = wc_export_int(k, d, dLen, dSz, encType);
+            }
             ecc_put_k(key);
             if (err != MP_OKAY)
                 return err;
