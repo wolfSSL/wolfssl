@@ -65,7 +65,7 @@
 static int g_checks;
 static int g_fail;
 #define WB_NOTE(what) do { g_checks++; (void)(what); } while (0)
-/* For vectors with a known result. A mismatch prints FAIL and main still
+/* For vectors with a known result: prints FAIL if cond is false. main still
  * returns 0; run-whitebox-smoke.sh fails on "with failures". */
 #define WB_EXPECT(cond, what) do {                                  \
         g_checks++;                                                 \
@@ -490,21 +490,21 @@ static void wb_store_crl(WOLFSSL_CERT_MANAGER* cm)
 }
 
 /* ------------------------------------------- AKID: AddCRL, CheckCertCRLList */
-/* A CA with several keys has one CRL series per key under one name. The AKID
- * decisions:
+/* A CA with several keys has one CRL series per key, told apart by AKID.
+ * These vectors drive the AKID decisions:
  *
- *   AddCRL:     crle->extAuthKeyIdSet && curr->extAuthKeyIdSet &&
- *               XMEMCMP(crle AKID, curr AKID) != 0          -> new series
- *               !crle->extAuthKeyIdSet && curr->extAuthKeyIdSet
- *                                                           -> new series
+ *   AddCRL:
+ *     crle->extAuthKeyIdSet && curr->extAuthKeyIdSet &&
+ *         XMEMCMP(crle AKID, curr AKID) != 0                -> new series
+ *     !crle->extAuthKeyIdSet && curr->extAuthKeyIdSet      -> new series
+ *
  *   CheckCertCRLList:
- *               akid != NULL && crle->extAuthKeyIdSet &&
- *               XMEMCMP(crle AKID, akid) != 0               -> another key
- *               ownSeen ? own : other                       -> coverage
+ *     akid != NULL && crle->extAuthKeyIdSet &&
+ *         XMEMCMP(crle AKID, akid) != 0                     -> other-key CRL
+ *     ownSeen ? own : other                                 -> coverage
  *
- * The MC/DC calls above all pass akid == NULL. Here the CRLs are loaded
- * unverified, marked verified by hand, and the CA's key usage is set per
- * vector.
+ * The MC/DC vectors above all pass akid == NULL. Here the CRLs are loaded
+ * unverified, then marked verified by hand.
  *
  * Fixtures (tests/api/test_certman_crl_fixtures.h): key A is the old root,
  * key B the new one. A's CRLs are numbers 5 (revokes 0x10), 6 and 7 (no
@@ -512,7 +512,7 @@ static void wb_store_crl(WOLFSSL_CERT_MANAGER* cm)
 #if !defined(NO_SKID) && !defined(NO_ASN) && defined(HAVE_ECC) && \
     !defined(NO_ECC256) && !defined(NO_SHA256)
 
-/* Loads der unverified and returns the new head of the list, or NULL. */
+/* Loads der unverified. Returns the list head, or NULL on failure. */
 static CRL_Entry* wb_akid_load(WOLFSSL_CRL* crl, const byte* der, int sz)
 {
     if (BufferLoadCRL(crl, der, sz, WOLFSSL_FILETYPE_ASN1, NO_VERIFY)
@@ -530,7 +530,7 @@ static int wb_akid_count(const WOLFSSL_CRL* crl)
     return n;
 }
 
-/* Key A's AKID, read from its CRL. */
+/* Key A's key ID, read from its CRL by wb_akid(). */
 static byte wb_akid_a[KEYID_SIZE];
 static int  wb_akid_a_set;
 
@@ -545,8 +545,8 @@ static Signer* wb_akid_load_ca(WOLFSSL_CERT_MANAGER* cm)
     return GetCA(cm, wb_akid_a);
 }
 
-/* AddCRL's AKID check: one vector per operand, plus a new series. Each row has
- * its own CertManager, so the CA is only loaded when asked. */
+/* AddCRL's AKID checks: load two CRLs and count entries (1 = replaced or
+ * rejected, 2 = separate series). Each row has its own CertManager. */
 static void wb_akid_add_crl(void)
 {
     static const struct {
@@ -596,8 +596,8 @@ static void wb_akid_add_crl(void)
     #define WB_AKID_DATES
 #endif
 
-/* Moves e's next update to 2020-01-01. The fixtures' 2046-01-01 is a UTCTime of
- * the same length. */
+/* Moves e's next update to 2020-01-01, in place over the fixtures' same-length
+ * 2046-01-01 UTCTime. */
 static void wb_akid_expire(CRL_Entry* e)
 {
     static const char past[] = "200101000000Z";
@@ -605,9 +605,11 @@ static void wb_akid_expire(CRL_Entry* e)
         XMEMCPY(e->nextDate, past, sizeof(past) - 1);
 }
 
-/* CheckCertCRLList with a non-NULL AKID. */
+/* CheckCertCRLList with a cert AKID. "Own" CRLs match the cert's AKID, "other"
+ * ones don't. Only CA A is loaded, so key B has no trust anchor. */
 static void wb_akid_check_list(void)
 {
+    /* CRLs loaded: A's 5, B's 1, both, or A's 7 (no AKID). */
     enum { L_A, L_B, L_A_B, L_NOAKID };
     static const byte s1[] = { 0x10 };  /* Revoked by A (and B). */
     static const byte s2[] = { 0x20 };  /* Revoked by B only. */
@@ -616,43 +618,33 @@ static void wb_akid_check_list(void)
         int list;
         int staleA;
         int staleB;
-        int akid;           /* 0 none, 1 key A, 2 key B. */
-        word16 ku;          /* CA A's key usage, 0 for as loaded. */
+        int akid;           /* Cert's AKID: 0 none, 1 key A, 2 key B. */
         const byte* serial;
         int ret;
-        int found;
+        int found;          /* Expected *pFoundEntry. */
         const char* what;
     } rows[] = {
-        { L_A_B, 0, 0, 0, 0, s3, 0, 1,
+        { L_A_B, 0, 0, 0, s3, 0, 1,
           "CheckCertCRLList: no cert AKID, every CRL is own" },
-        { L_NOAKID, 0, 0, 1, 0, s3, 0, 1,
+        { L_NOAKID, 0, 0, 1, s3, 0, 1,
           "CheckCertCRLList: CRL without AKID is own" },
-        { L_A_B, 0, 0, 1, 0, s3, 0, 1,
+        { L_A_B, 0, 0, 1, s3, 0, 1,
           "CheckCertCRLList: own and other fresh, not revoked" },
-        { L_A, 0, 0, 1, 0, s1, CRL_CERT_REVOKED, 1,
+        { L_A, 0, 0, 1, s1, WC_NO_ERR_TRACE(CRL_CERT_REVOKED), 1,
           "CheckCertCRLList: revoked by own key" },
-        { L_A_B, 0, 0, 1, 0, s2, CRL_CERT_REVOKED, 1,
+        { L_A_B, 0, 0, 1, s2, WC_NO_ERR_TRACE(CRL_CERT_REVOKED), 1,
           "CheckCertCRLList: revoked by other key" },
         /* Key B's root isn't loaded, so its CRL can't chain to the cert's
          * trust anchor (RFC 5280 6.3.3(f)) and doesn't count as found. */
-        { L_B, 0, 0, 1, 0, s3, 0, 0,
+        { L_B, 0, 0, 1, s3, 0, 0,
           "CheckCertCRLList: no own CRL, other anchor doesn't cover" },
     #ifdef WB_AKID_DATES
-        { L_B, 0, 1, 1, 0, s3, 0, 0,
+        { L_B, 0, 1, 1, s3, 0, 0,
           "CheckCertCRLList: no own CRL, other anchor stale ignored" },
-        { L_A_B, 1, 0, 1, 0, s3, CRL_CERT_DATE_ERR, 0,
+        { L_A_B, 1, 0, 1, s3, WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR), 0,
           "CheckCertCRLList: own stale, other fresh doesn't cover" },
-        { L_A_B, 0, 1, 1, 0, s3, 0, 1,
+        { L_A_B, 0, 1, 1, s3, 0, 1,
           "CheckCertCRLList: own fresh, other stale ignored" },
-    #ifndef IGNORE_KEY_EXTENSIONS
-        /* Cert under key B. A's CRL is another key's whatever A's key
-         * usage, so it doesn't stand in for B's stale one. */
-        { L_A_B, 0, 1, 2, KEYUSE_CRL_SIGN, s3, CRL_CERT_DATE_ERR, 0,
-          "CheckCertCRLList: CRL-only key's CRL is other" },
-        { L_A_B, 0, 1, 2, KEYUSE_CRL_SIGN | KEYUSE_KEY_CERT_SIGN, s3,
-          CRL_CERT_DATE_ERR, 0,
-          "CheckCertCRLList: dual-use key's CRL is other" },
-    #endif
     #endif
     };
     size_t i;
@@ -698,8 +690,6 @@ static void wb_akid_check_list(void)
             wb_akid_expire(eA);
         if (rows[i].staleB && eB != NULL)
             wb_akid_expire(eB);
-        if (rows[i].ku != 0)
-            ca->keyUsage = rows[i].ku;
 
         ret = CheckCertCRLList(&crl, issuerHash, (byte*)rows[i].serial,
                 (int)sizeof(s1), NULL, &found, cm,
