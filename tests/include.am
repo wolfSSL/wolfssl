@@ -113,6 +113,11 @@ EXTRA_DIST += tests/unit.h \
               tests/freertos-mem-track-repro/semphr.h \
               tests/freertos-mem-track-repro/task.h \
               tests/freertos-mem-track-repro/run.sh \
+              tests/cmsis-rtos-thread-types-repro/user_settings.h \
+              tests/cmsis-rtos-thread-types-repro/repro.c \
+              tests/cmsis-rtos-thread-types-repro/cmsis_os.h \
+              tests/cmsis-rtos-thread-types-repro/cmsis_os2.h \
+              tests/cmsis-rtos-thread-types-repro/run.sh \
               tests/altera-fcs-stub/libfcs_osal_types.h \
               tests/altera-fcs-stub/libfcs.h \
               tests/altera-fcs-stub/libfcs_stub.c \
