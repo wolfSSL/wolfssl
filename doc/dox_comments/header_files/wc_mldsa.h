@@ -470,6 +470,7 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
     \param [in] seed 32-byte seed bytes.
 
     \sa wc_MlDsaKey_VerifyMu
+    \sa wc_MlDsaKey_GenMu
 */
 int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
     const byte* mu, word32 muLen, const byte* seed);
@@ -582,9 +583,71 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     when an error is returned.
 
     \sa wc_MlDsaKey_SignMuWithSeed
+    \sa wc_MlDsaKey_GenMu
 */
 int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* mu, word32 muLen, int* res);
+
+/*!
+    \ingroup ML_DSA
+
+    \brief Computes the 64-byte external mu for a message and context:
+    mu = SHAKE256(tr || 0 || ctxLen || ctx || msg, 64), where
+    tr = SHAKE256(pk, 64) (FIPS 204 Algorithm 2 step 10 and Algorithm 7
+    step 6). The result is the mu taken by wc_MlDsaKey_SignMuWithSeed() and
+    wc_MlDsaKey_VerifyMu(), so a message can be hashed apart from the device
+    that holds the private key and only mu sent to it.
+
+    tr is read from the private key when the key holds one, as signing
+    does, otherwise it is computed from the public key. Only the pure (non
+    pre-hash) FIPS 204 final ML-DSA form is produced. It matches the mu used
+    by wc_MlDsaKey_SignCtx(), wc_MlDsaKey_SignCtxWithSeed() and
+    wc_MlDsaKey_VerifyCtx(). It does not match the legacy no-context
+    wc_MlDsaKey_Sign(), wc_MlDsaKey_SignWithSeed() and wc_MlDsaKey_Verify()
+    (WOLFSSL_MLDSA_NO_CTX), which compute mu as SHAKE256(tr || msg, 64) with
+    no 0 || ctxLen prefix for every parameter set: a signature from
+    wc_MlDsaKey_Sign() does not verify against GenMu's mu, even with an
+    empty context. FIPS 204 draft keys, which sign through that legacy
+    form, are rejected.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key or mu is NULL, ctx is NULL with ctxLen
+    non-zero, msg is NULL with msgLen non-zero, muLen is not 64, the key
+    has neither a public nor a private key set, or the key is a FIPS 204
+    draft key.
+    \return NOT_COMPILED_IN when built with WOLF_CRYPTO_CB_ONLY_MLDSA.
+
+    \param [in,out] key Pointer to a wc_MlDsaKey with a public or private
+    key.
+    \param [in] ctx Optional context string (NULL when ctxLen=0).
+    \param [in] ctxLen Length of ctx; no greater than 255.
+    \param [in] msg Message (may be NULL when msgLen=0).
+    \param [in] msgLen Length of msg in bytes.
+    \param [out] mu Buffer to receive mu.
+    \param [in] muLen Length of mu; must be 64.
+
+    _Example_
+    \code
+    wc_MlDsaKey key;
+    byte mu[MLDSA_MU_SZ];
+    int res = 0;
+
+    wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65);
+    wc_MlDsaKey_ImportPubRaw(&key, pub, pubLen);
+    if (wc_MlDsaKey_GenMu(&key, ctx, ctxLen, msg, msgLen, mu,
+            sizeof(mu)) != 0) {
+        // handle error
+    }
+    // send mu to the signer, which calls wc_MlDsaKey_SignMuWithSeed()
+    wc_MlDsaKey_VerifyMu(&key, sig, sigLen, mu, sizeof(mu), &res);
+    \endcode
+
+    \sa wc_MlDsaKey_SignMuWithSeed
+    \sa wc_MlDsaKey_VerifyMu
+*/
+int wc_MlDsaKey_GenMu(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
+    const byte* msg, word32 msgLen, byte* mu, word32 muLen);
 
 /*!
     \ingroup ML_DSA

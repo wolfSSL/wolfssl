@@ -17226,6 +17226,99 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 }
 #endif /* WOLFSSL_MLDSA_NO_VERIFY */
 
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Compute the external mu value for a message.
+ *
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ *  10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                        ctx) || M
+ * FIPS 204 Section 6.2, Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
+ *   6: mu <- H(BytesToBits(tr)||M', 64)
+ *
+ * The result is the mu that wc_MlDsaKey_SignMuWithSeed() and
+ * wc_MlDsaKey_VerifyMu() take, so a message can be hashed apart from the
+ * holder of the private key.
+ *
+ * tr is H(pk, 64). It is taken from the private key when the key holds one,
+ * as signing does, otherwise it is computed from the public key.
+ *
+ *  key         [in]  ML-DSA key holding a public or private key.
+ *  ctx         [in]  Context of signature. May be NULL when ctxLen is 0.
+ *  ctxLen      [in]  Length of context in bytes.
+ *  msg         [in]  Message. May be NULL when msgLen is 0.
+ *  msgLen      [in]  Length of the message in bytes.
+ *  mu          [out] Buffer to hold mu.
+ *  muLen       [in]  Length of mu buffer in bytes (must be 64).
+ *  returns BAD_FUNC_ARG when key or mu is NULL, ctx or msg is NULL with a
+ *          non-zero length, muLen is not 64, no key is set or the key is a
+ *          FIPS 204 draft key,
+ *          NOT_COMPILED_IN when built with WOLF_CRYPTO_CB_ONLY_MLDSA,
+ *          0 otherwise.
+ */
+int wc_MlDsaKey_GenMu(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
+    const byte* msg, word32 msgLen, byte* mu, word32 muLen)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (mu == NULL) || ((ctx == NULL) && (ctxLen > 0)) ||
+            ((msg == NULL) && (msgLen != 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && ((key->params == NULL) ||
+            (!key->pubKeySet && !key->prvKeySet))) {
+        ret = BAD_FUNC_ARG;
+    }
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    /* GenMu produces the FIPS 204 final mu (with the 0 || ctxLen prefix).
+     * Draft keys sign with H(tr || M), the form the legacy no-context API
+     * uses for all parameter sets; reject rather than guess. */
+    if ((ret == 0) && (key->params->level >= WC_ML_DSA_DRAFT)) {
+        ret = BAD_FUNC_ARG;
+    }
+#endif
+    /* Substitute a non-NULL pointer for an empty message so the hash update
+     * never sees a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte mldsa_empty_msg[] = {0};
+        msg = mldsa_empty_msg;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NOT_COMPILED_IN;
+    }
+#else
+    if (ret == 0) {
+        byte trBuf[MLDSA_TR_SZ];
+        const byte* tr = trBuf;
+
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        if (key->prvKeySet) {
+            /* sk = rho || K || tr || ... - the tr signing uses. */
+            tr = key->k + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ;
+        }
+        else
+    #endif
+        {
+            /* tr <- H(pk, 64) */
+            ret = mldsa_shake256(&key->shake, key->p, key->params->pkSz, trBuf,
+                MLDSA_TR_SZ);
+        }
+        if (ret == 0) {
+            ret = mldsa_hash256_ctx_msg(&key->shake, tr, MLDSA_TR_SZ, 0, ctx,
+                ctxLen, msg, msgLen, mu, MLDSA_MU_SZ);
+        }
+    }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
+
+    return ret;
+}
+#endif /* !WOLFSSL_MLDSA_NO_SIGN || !WOLFSSL_MLDSA_NO_VERIFY */
+
 #ifndef WC_NO_CONSTRUCTORS
 /**
  * Create a new ML-DSA key object.
