@@ -1178,10 +1178,12 @@ int tsip_Tls13DeriveMasterSecret(struct WOLFSSL* ssl)
 /* verify handshake
  * ssl     WOLFSSL object
  * hash    buffer holding decrypted finished message content from server.
+ * hashSz  length of the finished message content.
  *
  */
 static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
-                                    const byte* hash)/*finished message*/
+                                    const byte* hash,/*finished message*/
+                                    word32 hashSz)
 {
     int             ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -1218,6 +1220,14 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
         if (!tuc->internal->HandshakeServerTrafficKey_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    if (ret == 0) {
+        /* TSIP supports SHA-256 cipher suites only */
+        if (hashSz != WC_SHA256_DIGEST_SIZE) {
+            WOLFSSL_MSG("Invalid finished message size");
+            ret = BUFFER_ERROR;
         }
     }
     /* get digest of handshake messages */
@@ -1293,7 +1303,7 @@ int tsip_Tls13HandleFinished(
     }
 
     if (ret == 0) {
-        ret = tsipTls13VerifyHandshake(ssl, input + *inOutIdx);
+        ret = tsipTls13VerifyHandshake(ssl, input + *inOutIdx, size);
     }
 
     if (ret == 0) {
@@ -1904,6 +1914,53 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
 #endif /* WOLFSSL_TLS13 */
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+/*  Convert a DER encoded ECDSA signature into the raw r || s form TSIP uses.
+ *  r and s are each right aligned and zero padded to half of
+ *  R_TSIP_ECDSA_DATA_BYTE_SIZE.
+ *  parameters:
+ *   sig    buffer holding DER encoded ecdsa signature data
+ *   sigSz  signature data size
+ *   out    buffer of R_TSIP_ECDSA_DATA_BYTE_SIZE bytes to hold r || s
+ *  return 0 on success, otherwise negative error code
+ */
+static int tsip_EccSigDerToRaw(const byte* sig, word32 sigSz, byte* out)
+{
+    int         ret;
+    const word32 rs_size = R_TSIP_ECDSA_DATA_BYTE_SIZE / 2;
+    byte        r[R_TSIP_ECDSA_DATA_BYTE_SIZE / 2 + 1];
+    byte        s[R_TSIP_ECDSA_DATA_BYTE_SIZE / 2 + 1];
+    word32      rLen = (word32)sizeof(r);
+    word32      sLen = (word32)sizeof(s);
+    word32      rIdx = 0;
+    word32      sIdx = 0;
+
+    if (sig == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_ecc_sig_to_rs(sig, sigSz, r, &rLen, s, &sLen);
+    if (ret == 0) {
+        while (rIdx < rLen && r[rIdx] == 0) {
+            rIdx++;
+        }
+        while (sIdx < sLen && s[sIdx] == 0) {
+            sIdx++;
+        }
+        if ((rLen - rIdx) > rs_size || (sLen - sIdx) > rs_size) {
+            ret = ASN_PARSE_E;
+        }
+    }
+    if (ret == 0) {
+        XMEMSET(out, 0, R_TSIP_ECDSA_DATA_BYTE_SIZE);
+        XMEMCPY(&out[rs_size - (rLen - rIdx)], &r[rIdx], rLen - rIdx);
+        XMEMCPY(&out[R_TSIP_ECDSA_DATA_BYTE_SIZE - (sLen - sIdx)], &s[sIdx],
+                sLen - sIdx);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >=109)
 
@@ -2104,8 +2161,6 @@ int wc_tsip_EccVerify(
 {
     int         ret = WOLFSSL_FAILURE;
     uint8_t     sigforSCE [R_TSIP_ECDSA_DATA_BYTE_SIZE] = {0};
-    const byte  rs_size = R_TSIP_ECDSA_DATA_BYTE_SIZE/2;
-    byte        offset = 0x3;
 
     WOLFSSL_ENTER("wc_tsip_EccVerify");
 
@@ -2124,30 +2179,11 @@ int wc_tsip_EccVerify(
     }
 
     /* concatenate r and s parts of the signature so that TSIP can handle it */
-    /* r */
-    if (sig[offset] == 0x20) {
-        XMEMCPY(sigforSCE, &sig[offset+1], rs_size);
-
-        offset = 0x25;
-        /* s */
-        if (sig[offset] == 0x20) {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+1], rs_size);
-        }
-        else {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+2], rs_size);
-        }
-    }
-    else {
-        XMEMCPY(sigforSCE, &sig[offset+2], rs_size);
-
-        offset = 0x26;
-        /* s */
-        if (sig[offset] == rs_size) {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+1], rs_size);
-        }
-        else {
-          XMEMCPY(&sigforSCE[rs_size], &sig[offset+2], rs_size);
-        }
+    ret = tsip_EccSigDerToRaw(sig, sigSz, sigforSCE);
+    if (ret != 0) {
+        *result = 0;
+        WOLFSSL_LEAVE("wc_tsip_EccVerify", ret);
+        return ret;
     }
 
     ret = tsip_ServerKeyExVerify(2, ssl, sigforSCE, 64, ctx);
@@ -3527,8 +3563,6 @@ int wc_tsip_tls_CertVerify(
     int ret;
     uint8_t *sigforSCE = NULL;
     uint8_t *pSig = NULL;
-    const byte rs_size = 0x20;
-    byte offset = 0x3;
 
     WOLFSSL_ENTER("wc_tsip_tls_CertVerify");
 
@@ -3556,27 +3590,11 @@ int wc_tsip_tls_CertVerify(
         /* initialization */
         ForceZero(sigforSCE, R_TSIP_ECDSA_DATA_BYTE_SIZE);
 
-        if (signature[offset] == 0x20) {
-            XMEMCPY(sigforSCE, &signature[offset+1], rs_size);
-
-            offset = 0x25;
-            if (signature[offset] == 0x20) {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+1], rs_size);
-            }
-            else {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+2], rs_size);
-            }
-        }
-        else {
-            XMEMCPY(sigforSCE, &signature[offset+2], rs_size);
-            offset = 0x26;
-
-            if (signature[offset] == rs_size) {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+1], rs_size);
-            }
-            else {
-                XMEMCPY(&sigforSCE[rs_size], &signature[offset+2], rs_size);
-            }
+        ret = tsip_EccSigDerToRaw(signature, sigSz, sigforSCE);
+        if (ret != 0) {
+            XFREE(sigforSCE, NULL, DYNAMIC_TYPE_ECC);
+            WOLFSSL_LEAVE("wc_tsip_tls_CertVerify", ret);
+            return ret;
         }
         pSig = sigforSCE;
     }
@@ -4124,6 +4142,8 @@ int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     /* hard coding largest digest size, since WC_MAX_DIGEST_SZ could be 32
      * if using SHA2-256 with ECDSA SECP384R1 */
     uint8_t hash[TSIP_MAX_ECC_BYTES];
+    int     curveSz = 0;
+    int     curveId = ECC_CURVE_INVALID;
 
     WOLFSSL_ENTER("tsip_VerifyEcdsa");
 
@@ -4134,12 +4154,43 @@ int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     XMEMSET(hash, 0, sizeof(hash));
 
     if (ret == 0) {
+        if (info->pk.eccverify.key == NULL ||
+            info->pk.eccverify.key->dp == NULL) {
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    /* the key must be on the curve of the wrapped TSIP key */
+    if (ret == 0) {
+        switch (tuc->wrappedKeyType) {
+        #if !defined(NO_ECC256)
+            case TSIP_KEY_TYPE_ECDSAP256:
+                curveId = ECC_SECP256R1;
+                break;
+        #endif
+        #if defined(HAVE_ECC384)
+            case TSIP_KEY_TYPE_ECDSAP384:
+                curveId = ECC_SECP384R1;
+                break;
+        #endif
+            default:
+                break;
+        }
+        curveSz = info->pk.eccverify.key->dp->size;
+        if (curveId == ECC_CURVE_INVALID ||
+            info->pk.eccverify.key->dp->id != curveId ||
+            curveSz <= 0 || curveSz > (int)sizeof(hash)) {
+            WOLFSSL_MSG("ECC key curve does not match wrapped key");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    if (ret == 0) {
         /* import public key_index from wrapped key */
         ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
     }
 
     if (ret == 0) {
-        int curveSz = info->pk.eccverify.key->dp->size;
         hashData.pdata      = (uint8_t*)hash;
         hashData.data_type  = tuc->keyflgs_crypt.bits.message_type;
         sigData.pdata       = (uint8_t*)info->pk.eccverify.sig;
