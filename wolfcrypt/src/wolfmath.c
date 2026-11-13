@@ -180,7 +180,8 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #ifdef USE_INTEGER_HEAP_MATH
     /* allocate space for digits */
     if (ret == MP_OKAY) {
-        ret = mp_set_bit(a, digits * DIGIT_BIT - 1);
+        /* Zeroed first, so no wider value already in a survives. */
+        ret = mp_2expt(a, digits * DIGIT_BIT - 1);
     }
 #else
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
