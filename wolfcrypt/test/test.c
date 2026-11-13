@@ -3957,7 +3957,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("RTL8735B HUK self-test passed!\n");
 #endif
 
-#if defined(WOLFSSL_MPFS_ATHENA) && !defined(WC_MPFS_ATHENA_NO_SELFTEST)
+#if defined(WOLFSSL_MPFS_ATHENA) && defined(WC_MPFS_ATHENA_SELFTEST)
     if ( (ret = wc_MpfsAthena_SelfTest()) != 0)
         TEST_FAIL("MPFS Athena self-test failed!\n", ret);
     else

@@ -227,8 +227,8 @@ L_SHA256_transform_riscv_vector_len_begin:
 	.section	.rodata
 	.type	L_SHA256_transform_riscv_crypto_len_k, %object
 	.size	L_SHA256_transform_riscv_crypto_len_k, 256
-	# 4-byte aligned, 32-bit aligned
-	.align	2
+	# 8-byte aligned, 64-bit aligned
+	.align	3
 L_SHA256_transform_riscv_crypto_len_k:
 	.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
 	.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
@@ -1313,8 +1313,8 @@ L_SHA256_transform_riscv_crypto_len_inner:
 	.section	.rodata
 	.type	L_SHA256_transform_riscv_len_k, %object
 	.size	L_SHA256_transform_riscv_len_k, 256
-	# 4-byte aligned, 32-bit aligned
-	.align	2
+	# 8-byte aligned, 64-bit aligned
+	.align	3
 L_SHA256_transform_riscv_len_k:
 	.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
 	.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5

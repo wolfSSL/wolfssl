@@ -5344,6 +5344,13 @@ int benchmark_free(void)
         printf("%serror %d with wolfCrypt_Cleanup\n", err_prefix, ret);
     }
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* The next benchmark_init() loads the pool again from its start, which
+     * would partition over this heap's structures if the hint were kept. */
+    wc_UnloadStaticMemory(HEAP_HINT);
+    HEAP_HINT = NULL;
+#endif
+
     return ret;
 }
 
