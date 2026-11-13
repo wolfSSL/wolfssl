@@ -49,6 +49,7 @@ int test_tls13_pq_groups(void);
 int test_tls13_multi_pqc_key_share(void);
 int test_tls13_mlkem_bad_key_share(void);
 int test_tls13_early_data(void);
+int test_tls13_early_data_group_write_retry(void);
 int test_tls13_same_ch(void);
 int test_tls13_hrr_different_cs(void);
 int test_tls13_ch2_different_cs(void);
@@ -74,6 +75,7 @@ int test_tls13_middlebox_compat_server_ccs_retry(void);
 int test_tls13_middlebox_compat_hrr_ccs_retry(void);
 int test_tls13_middlebox_compat_client_ccs_retry(void);
 int test_tls13_middlebox_compat_client_ccs_retry_early_data(void);
+int test_tls13_early_data_write_retry(void);
 int test_tls13_plaintext_alert(void);
 int test_tls13_warning_alert_is_fatal(void);
 int test_tls13_unknown_ext_rejected(void);
@@ -242,6 +244,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_multi_pqc_key_share),   \
     TEST_DECL_GROUP("tls13", test_tls13_mlkem_bad_key_share),   \
     TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_group_write_retry), \
     TEST_DECL_GROUP("tls13", test_tls13_same_ch),               \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_different_cs),      \
     TEST_DECL_GROUP("tls13", test_tls13_ch2_different_cs),      \
@@ -268,6 +271,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_client_ccs_retry), \
     TEST_DECL_GROUP("tls13",                                    \
         test_tls13_middlebox_compat_client_ccs_retry_early_data), \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_write_retry), \
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
     TEST_DECL_GROUP("tls13", test_tls13_warning_alert_is_fatal), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \

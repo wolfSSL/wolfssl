@@ -6023,6 +6023,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->buffers.clearOutputBuffer.length = 0;
         ssl->buffers.inputBuffer.idx = 0;
         ssl->buffers.inputBuffer.length = 0;
+        ssl->buffers.prevSent = 0;
+        ssl->buffers.plainSz = 0;
         /* Recycling the object for a new connection must not carry the
          * previous connection's key material along with it. A freshly
          * created object has all of this zeroed. */
