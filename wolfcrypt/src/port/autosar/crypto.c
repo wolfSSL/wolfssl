@@ -1016,6 +1016,7 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
     if ((job->jobPrimitiveInputOutput.mode & CRYPTO_OPERATIONMODE_UPDATE)
             != 0) {
         Aes* aes = GetAesStruct(job);
+        uint32* outLen = job->jobPrimitiveInputOutput.outputLengthPtr;
 
         if (aes == NULL) {
             WOLFSSL_MSG("Error finding AES structure");
@@ -1026,6 +1027,33 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
          * to send a FINISH, and leaving the slot claimed would both leak it
          * and leave a stale context for the next START with this jobId. A
          * named key the device will not handle fails exactly here. */
+
+        /* outputLengthPtr holds the size of the output buffer on the way in
+         * and the number of bytes produced on the way out */
+        if (job->jobPrimitiveInputOutput.outputPtr == NULL) {
+            WOLFSSL_MSG("No output buffer for AES-CBC");
+            (void)FreeJobSlot(job);
+            return E_NOT_OK;
+        }
+        if (outLen == NULL) {
+            WOLFSSL_MSG("No output length pointer for AES-CBC");
+            (void)FreeJobSlot(job);
+            return E_NOT_OK;
+        }
+
+        if ((job->jobPrimitiveInputOutput.inputLength % WC_AES_BLOCK_SIZE)
+                != 0) {
+            WOLFSSL_MSG("AES-CBC input is not a multiple of the block size");
+            (void)FreeJobSlot(job);
+            return E_NOT_OK;
+        }
+
+        if (*outLen < job->jobPrimitiveInputOutput.inputLength) {
+            WOLFSSL_MSG("AES-CBC output buffer is too small");
+            (void)FreeJobSlot(job);
+            return E_SMALL_BUFFER;
+        }
+
         if (encrypt == AES_ENCRYPTION) {
             if (wc_AesCbcEncrypt(aes, job->jobPrimitiveInputOutput.outputPtr,
                     job->jobPrimitiveInputOutput.inputPtr,
@@ -1044,6 +1072,11 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
                 return E_NOT_OK;
             }
         }
+        *outLen = job->jobPrimitiveInputOutput.inputLength;
+    }
+    else if (job->jobPrimitiveInputOutput.outputLengthPtr != NULL) {
+        /* START and FINISH produce no output of their own. */
+        *job->jobPrimitiveInputOutput.outputLengthPtr = 0;
     }
 
     if ((job->jobPrimitiveInputOutput.mode & CRYPTO_OPERATIONMODE_FINISH)
@@ -1207,8 +1240,7 @@ Std_ReturnType wolfSSL_Crypto_CMAC(Crypto_JobType* job)
             }
             else {
                 XMEMCPY(job->jobPrimitiveInputOutput.outputPtr, tag, tagSz);
-                /* unlike the cipher services, MAC generate does report the
-                 * length produced */
+                /* report the length produced, as the cipher services do */
                 *outLen = tagSz;
             }
         }
