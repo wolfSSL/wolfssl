@@ -115,6 +115,7 @@ void sc_reduce(byte* s)
 {
     sword64 t[24];
     sword64 carry;
+    sword64 mask;
 #ifdef WOLFSSL_WIDE_BYTE
     int i;
 #endif
@@ -273,6 +274,28 @@ void sc_reduce(byte* s)
     carry = t[ 9] >> 21; t[10] += carry; t[ 9] &= MASK_21;
     carry = t[10] >> 21; t[11] += carry; t[10] &= MASK_21;
 
+    /* Add l back when the result is negative. */
+    mask = t[11] >> 63;
+    t[ 0] += ORDER_0 & mask;
+    t[ 1] += ORDER_1 & mask;
+    t[ 2] += ORDER_2 & mask;
+    t[ 3] += ORDER_3 & mask;
+    t[ 4] += ORDER_4 & mask;
+    t[ 5] += ORDER_5 & mask;
+    t[11] += ((sword64)1 << 21) & mask;
+
+    carry = t[ 0] >> 21; t[ 1] += carry; t[ 0] &= MASK_21;
+    carry = t[ 1] >> 21; t[ 2] += carry; t[ 1] &= MASK_21;
+    carry = t[ 2] >> 21; t[ 3] += carry; t[ 2] &= MASK_21;
+    carry = t[ 3] >> 21; t[ 4] += carry; t[ 3] &= MASK_21;
+    carry = t[ 4] >> 21; t[ 5] += carry; t[ 4] &= MASK_21;
+    carry = t[ 5] >> 21; t[ 6] += carry; t[ 5] &= MASK_21;
+    carry = t[ 6] >> 21; t[ 7] += carry; t[ 6] &= MASK_21;
+    carry = t[ 7] >> 21; t[ 8] += carry; t[ 7] &= MASK_21;
+    carry = t[ 8] >> 21; t[ 9] += carry; t[ 8] &= MASK_21;
+    carry = t[ 9] >> 21; t[10] += carry; t[ 9] &= MASK_21;
+    carry = t[10] >> 21; t[11] += carry; t[10] &= MASK_21;
+
     s[ 0] = (byte)(t[ 0] >>  0);
     s[ 1] = (byte)(t[ 0] >>  8);
     s[ 2] = (byte)(t[ 0] >> 16) | (byte)((byte)t[ 1] <<  5);
@@ -327,6 +350,7 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     word32 ad[12], bd[12], cd[12];
     sword64 t[24];
     sword64 carry;
+    sword64 mask;
 #ifdef WOLFSSL_WIDE_BYTE
     int i;
 #endif
@@ -601,6 +625,28 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     carry = t[ 9] >> 21; t[10] += carry; t[ 9] &= MASK_21;
     carry = t[10] >> 21; t[11] += carry; t[10] &= MASK_21;
 
+    /* Add l back when the result is negative. */
+    mask = t[11] >> 63;
+    t[ 0] += ORDER_0 & mask;
+    t[ 1] += ORDER_1 & mask;
+    t[ 2] += ORDER_2 & mask;
+    t[ 3] += ORDER_3 & mask;
+    t[ 4] += ORDER_4 & mask;
+    t[ 5] += ORDER_5 & mask;
+    t[11] += ((sword64)1 << 21) & mask;
+
+    carry = t[ 0] >> 21; t[ 1] += carry; t[ 0] &= MASK_21;
+    carry = t[ 1] >> 21; t[ 2] += carry; t[ 1] &= MASK_21;
+    carry = t[ 2] >> 21; t[ 3] += carry; t[ 2] &= MASK_21;
+    carry = t[ 3] >> 21; t[ 4] += carry; t[ 3] &= MASK_21;
+    carry = t[ 4] >> 21; t[ 5] += carry; t[ 4] &= MASK_21;
+    carry = t[ 5] >> 21; t[ 6] += carry; t[ 5] &= MASK_21;
+    carry = t[ 6] >> 21; t[ 7] += carry; t[ 6] &= MASK_21;
+    carry = t[ 7] >> 21; t[ 8] += carry; t[ 7] &= MASK_21;
+    carry = t[ 8] >> 21; t[ 9] += carry; t[ 8] &= MASK_21;
+    carry = t[ 9] >> 21; t[10] += carry; t[ 9] &= MASK_21;
+    carry = t[10] >> 21; t[11] += carry; t[10] &= MASK_21;
+
     s[ 0] = (byte)(t[ 0] >>  0);
     s[ 1] = (byte)(t[ 0] >>  8);
     s[ 2] = (byte)(t[ 0] >> 16) | (byte)((byte)t[ 1] <<  5);
@@ -685,6 +731,7 @@ void sc_reduce(byte* s)
 {
     __int128_t t[12];
     __int128_t carry;
+    __int128_t mask;
 
     t[ 0] = MASK_42 & (load_6(s +  0) >> 0);
     t[ 1] = MASK_42 & (load_6(s +  5) >> 2);
@@ -747,6 +794,43 @@ void sc_reduce(byte* s)
     carry = t[ 3] >> 42; t[ 4] += carry; t[ 3] &= MASK_42;
     carry = t[ 4] >> 42; t[ 5] += carry; t[ 4] &= MASK_42;
 
+    /* The result is in [-l, 2l). Add l back if it is negative, then
+     * subtract l and add it back if that makes it negative. */
+    mask = t[ 5] >> 127;
+    t[ 0] += ORDER_0 & mask;
+    t[ 1] += ORDER_1 & mask;
+    t[ 2] += ORDER_2 & mask;
+    t[ 5] += ((__int128_t)1 << 42) & mask;
+
+    carry = t[ 0] >> 42; t[ 1] += carry; t[ 0] &= MASK_42;
+    carry = t[ 1] >> 42; t[ 2] += carry; t[ 1] &= MASK_42;
+    carry = t[ 2] >> 42; t[ 3] += carry; t[ 2] &= MASK_42;
+    carry = t[ 3] >> 42; t[ 4] += carry; t[ 3] &= MASK_42;
+    carry = t[ 4] >> 42; t[ 5] += carry; t[ 4] &= MASK_42;
+
+    t[ 0] -= ORDER_0;
+    t[ 1] -= ORDER_1;
+    t[ 2] -= ORDER_2;
+    t[ 5] -= (__int128_t)1 << 42;
+
+    carry = t[ 0] >> 42; t[ 1] += carry; t[ 0] &= MASK_42;
+    carry = t[ 1] >> 42; t[ 2] += carry; t[ 1] &= MASK_42;
+    carry = t[ 2] >> 42; t[ 3] += carry; t[ 2] &= MASK_42;
+    carry = t[ 3] >> 42; t[ 4] += carry; t[ 3] &= MASK_42;
+    carry = t[ 4] >> 42; t[ 5] += carry; t[ 4] &= MASK_42;
+
+    mask = t[ 5] >> 127;
+    t[ 0] += ORDER_0 & mask;
+    t[ 1] += ORDER_1 & mask;
+    t[ 2] += ORDER_2 & mask;
+    t[ 5] += ((__int128_t)1 << 42) & mask;
+
+    carry = t[ 0] >> 42; t[ 1] += carry; t[ 0] &= MASK_42;
+    carry = t[ 1] >> 42; t[ 2] += carry; t[ 1] &= MASK_42;
+    carry = t[ 2] >> 42; t[ 3] += carry; t[ 2] &= MASK_42;
+    carry = t[ 3] >> 42; t[ 4] += carry; t[ 3] &= MASK_42;
+    carry = t[ 4] >> 42; t[ 5] += carry; t[ 4] &= MASK_42;
+
     s[ 0] = (byte)(t[ 0] >>  0);
     s[ 1] = (byte)(t[ 0] >>  8);
     s[ 2] = (byte)(t[ 0] >> 16);
@@ -796,6 +880,7 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     word64 ad[6], bd[6], cd[6];
     __int128_t t[12];
     __int128_t carry;
+    __int128_t mask;
 
     ad[ 0] = MASK_42 & (load_6(a +  0) >> 0);
     ad[ 1] = MASK_42 & (load_6(a +  5) >> 2);
@@ -892,6 +977,43 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     t[ 0] -= t[ 6] * ORDER_0;
     t[ 1] -= t[ 6] * ORDER_1;
     t[ 2] -= t[ 6] * ORDER_2;
+
+    carry = t[ 0] >> 42; t[ 1] += carry; t[ 0] &= MASK_42;
+    carry = t[ 1] >> 42; t[ 2] += carry; t[ 1] &= MASK_42;
+    carry = t[ 2] >> 42; t[ 3] += carry; t[ 2] &= MASK_42;
+    carry = t[ 3] >> 42; t[ 4] += carry; t[ 3] &= MASK_42;
+    carry = t[ 4] >> 42; t[ 5] += carry; t[ 4] &= MASK_42;
+
+    /* The result is in [-l, 2l). Add l back if it is negative, then
+     * subtract l and add it back if that makes it negative. */
+    mask = t[ 5] >> 127;
+    t[ 0] += ORDER_0 & mask;
+    t[ 1] += ORDER_1 & mask;
+    t[ 2] += ORDER_2 & mask;
+    t[ 5] += ((__int128_t)1 << 42) & mask;
+
+    carry = t[ 0] >> 42; t[ 1] += carry; t[ 0] &= MASK_42;
+    carry = t[ 1] >> 42; t[ 2] += carry; t[ 1] &= MASK_42;
+    carry = t[ 2] >> 42; t[ 3] += carry; t[ 2] &= MASK_42;
+    carry = t[ 3] >> 42; t[ 4] += carry; t[ 3] &= MASK_42;
+    carry = t[ 4] >> 42; t[ 5] += carry; t[ 4] &= MASK_42;
+
+    t[ 0] -= ORDER_0;
+    t[ 1] -= ORDER_1;
+    t[ 2] -= ORDER_2;
+    t[ 5] -= (__int128_t)1 << 42;
+
+    carry = t[ 0] >> 42; t[ 1] += carry; t[ 0] &= MASK_42;
+    carry = t[ 1] >> 42; t[ 2] += carry; t[ 1] &= MASK_42;
+    carry = t[ 2] >> 42; t[ 3] += carry; t[ 2] &= MASK_42;
+    carry = t[ 3] >> 42; t[ 4] += carry; t[ 3] &= MASK_42;
+    carry = t[ 4] >> 42; t[ 5] += carry; t[ 4] &= MASK_42;
+
+    mask = t[ 5] >> 127;
+    t[ 0] += ORDER_0 & mask;
+    t[ 1] += ORDER_1 & mask;
+    t[ 2] += ORDER_2 & mask;
+    t[ 5] += ((__int128_t)1 << 42) & mask;
 
     carry = t[ 0] >> 42; t[ 1] += carry; t[ 0] &= MASK_42;
     carry = t[ 1] >> 42; t[ 2] += carry; t[ 1] &= MASK_42;
