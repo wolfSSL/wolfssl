@@ -15445,8 +15445,8 @@ static int PatternHasWildcardInALabel(const char* pattern, word32 patternLen)
  * immediately to the left of a registry/public suffix), and
  * "foo.*.example.com" (wildcard not in the left-most label), while still
  * accepting the legitimate "*.example.com" form. Partial left-most wildcards
- * such as "a*" or "a*b*" retain their existing matching behavior - they are
- * not bare wildcard labels and are not subject to the two-label requirement.
+ * such as "a*" or "a*b*" are rejected under WOLFSSL_NO_PARTIAL_WILDCARDS, the
+ * default; otherwise they are not subject to the two-label requirement.
  * pattern/patternLen must already have any single trailing FQDN dot stripped.
  *
  * Returns 1 if the pattern has no wildcard or its wildcard placement is
@@ -19652,7 +19652,8 @@ static int RpkIsTrusted(WOLFSSL* ssl, const byte* spki, word32 spkiSz)
 /* Match one configured name against the leaf certificate, using the same
  * rules as the wolfSSL_check_domain_name() check in ProcessPeerCerts().
  * Returns 0 on match, DOMAIN_NAME_MISMATCH otherwise. */
-static int CheckPeerHostName(DecodedCert* dCert, const char* name)
+static int CheckPeerHostName(DecodedCert* dCert, const char* name,
+                             unsigned int flags)
 {
     word32 nameLen = (word32)XSTRLEN(name);
 
@@ -19660,14 +19661,14 @@ static int CheckPeerHostName(DecodedCert* dCert, const char* name)
     /* Per RFC 5280 section 4.2.1.6, subject alternative names take
      * precedence over the subject common name. */
     if (dCert->altNames != NULL) {
-        if (CheckForAltNames(dCert, name, nameLen, NULL, 0, 0) != 1) {
+        if (CheckForAltNames(dCert, name, nameLen, NULL, flags, 0) != 1) {
             return DOMAIN_NAME_MISMATCH;
         }
         return 0;
     }
 #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
     if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen, name,
-            nameLen, 0) == 0)
+            nameLen, flags) == 0)
 #endif
     {
         return DOMAIN_NAME_MISMATCH;
@@ -19676,10 +19677,10 @@ static int CheckPeerHostName(DecodedCert* dCert, const char* name)
 #else /* WOLFSSL_ALLOW_NO_CN_IN_SAN */
 #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
     if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen, name,
-            nameLen, 0) == 0)
+            nameLen, flags) == 0)
 #endif
     {
-        if (CheckForAltNames(dCert, name, nameLen, NULL, 0, 0) != 1) {
+        if (CheckForAltNames(dCert, name, nameLen, NULL, flags, 0) != 1) {
             return DOMAIN_NAME_MISMATCH;
         }
     }
@@ -21296,7 +21297,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         (ssl->param != NULL) &&
                         (ssl->param->hostName[0] != '\0')) {
                     if (CheckPeerHostName(args->dCert,
-                            ssl->param->hostName) != 0) {
+                            ssl->param->hostName, ssl->param->hostFlags) != 0) {
                         WOLFSSL_MSG("DomainName match on verify param failed");
                         ret = DOMAIN_NAME_MISMATCH;
                         WOLFSSL_ERROR_VERBOSE(ret);
