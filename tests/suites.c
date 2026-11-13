@@ -1177,6 +1177,18 @@ int SuiteTest(int argc, char** argv)
     }
 #endif
 
+#ifdef WOLFSSL_ALLOW_PARTIAL_WILDCARDS
+    /* partial-label wildcard names, matched only with RFC 6125 behavior */
+    XSTRLCPY(argv0[1], "tests/test-wildcard-partial.conf", sizeof(argv0[1]));
+    printf("starting partial-label wildcard name tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+
 #ifdef WOLFSSL_TLS13
     /* add TLSv13 extra suites */
     XSTRLCPY(argv0[1], "tests/test-tls13.conf", sizeof(argv0[1]));

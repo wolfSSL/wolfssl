@@ -15562,6 +15562,14 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
         }
     }
 
+#ifndef WOLFSSL_ALLOW_PARTIAL_WILDCARDS
+    /* RFC 9525 sec. 6.3 requires the wildcard to be the complete content of
+     * the left-most label. RFC 6125 sec. 6.4.3 rule 3, which it obsoletes,
+     * permitted a partial label such as "baz*.example.net"; define
+     * WOLFSSL_ALLOW_PARTIAL_WILDCARDS to keep matching those. */
+    flags |= WOLFSSL_NO_PARTIAL_WILDCARDS;
+#endif
+
     /* RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3 + CA/Browser Forum BR
      * sec. 3.2.2.6: reject a pattern whose wildcard is not confined to the
      * left-most label, or that has fewer than two labels to the right of the

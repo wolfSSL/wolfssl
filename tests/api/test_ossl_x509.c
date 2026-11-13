@@ -33,6 +33,14 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509.h>
 
+/* RFC 9525 sec. 6.3 rejects a wildcard that is not the complete left-most
+ * label; RFC 6125 sec. 6.4.3 rule 3 matched one. */
+#ifdef WOLFSSL_ALLOW_PARTIAL_WILDCARDS
+    #define PARTIAL_WILDCARD_OK 1
+#else
+    #define PARTIAL_WILDCARD_OK 0
+#endif
+
 int test_x509_get_key_id(void)
 {
     EXPECT_DECLS;
@@ -1558,27 +1566,30 @@ int test_wolfSSL_X509_name_match1(void)
     const char *name5 = "aaaaa";
     int nameLen5 = 6;
     const char badName[] = { 'a', 'a', '\0', 'a', 'a', 'a' };
+    /* The cert's "a*" alt name is a partial-label wildcard. */
+    const int partialExp = PARTIAL_WILDCARD_OK ? WOLFSSL_SUCCESS
+                                               : WOLFSSL_FAILURE;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         cert_der, certSize, WOLFSSL_FILETYPE_ASN1));
 
     /* "a*" matches "aaaaa" only when RFC 6125 matching is restored */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, nameLen1,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* "a*" matches "a" only when RFC 6125 matching is restored */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name2, nameLen2,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* "a*" matches "abbbb" only when RFC 6125 matching is restored */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name3, nameLen3,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* Ensure that "a*" does not match "bbb" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name4, nameLen4,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
     /* OpenSSL-compatible len handling should still accept the positive case. */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name5, 0,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name5, nameLen5,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* Embedded NUL in the compared host name must be rejected. */
     ExpectIntNE(wolfSSL_X509_check_host(x509, badName, 6,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
@@ -1708,19 +1719,22 @@ int test_wolfSSL_X509_name_match2(void)
     int nameLen4 = (int)(XSTRLEN(name4));
     const char *name5 = "acc\0bcc";
     int nameLen5 = 7;
+    /* The cert's "a*b*" alt name is a partial-label wildcard. */
+    const int partialExp = PARTIAL_WILDCARD_OK ? WOLFSSL_SUCCESS
+                                               : WOLFSSL_FAILURE;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         cert_der, certSize, WOLFSSL_FILETYPE_ASN1));
 
     /* "a*b*" matches "ab" only when RFC 6125 matching is restored */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, nameLen1,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* "a*b*" matches "acccbccc" only when RFC 6125 matching is restored */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name2, nameLen2,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* "a*b*" matches "accb" only when RFC 6125 matching is restored */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name3, nameLen3,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* Ensure that "a*b*" does not match "accda" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name4, nameLen4,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
@@ -1744,10 +1758,10 @@ int test_wolfSSL_X509_name_match2(void)
      * OK as it should then use strlen(name1). The verdict must not depend on
      * how the length was supplied. */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, 0,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* Openssl also allows for len to include NULL terminator */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, nameLen1 + 1,
-        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), partialExp);
     /* Ensure that check string with NULL terminator in middle is
      * rejected */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name5, nameLen5,
@@ -2044,7 +2058,7 @@ int test_wolfSSL_MatchDomainName_idn(void)
           "non-A-label x-prefix" },
         /* Control: the A-label gate is not what rejects this one. */
         { "x*.example.com",      "xyz.example.com",          0,
-          1, "partial wildcard non-IDN" },
+          PARTIAL_WILDCARD_OK, "partial wildcard non-IDN" },
 
         /* Trailing-dot normalization: absolute-form FQDN ("example.com.")
          * must match the same FQDN with or without the trailing dot, on
@@ -2202,8 +2216,8 @@ int test_wolfSSL_MatchDomainName_wildcard(void)
           "two labels after wildcard" },
         /* Partial left-most wildcards are rejected per RFC 9525 sec. 6.3
          * unless WOLFSSL_ALLOW_PARTIAL_WILDCARDS restores RFC 6125 rule 3. */
-        { "a*.example.com",      "abc.example.com",     0, 1,
-          "partial left-most wildcard" },
+        { "a*.example.com",      "abc.example.com",     0,
+          PARTIAL_WILDCARD_OK, "partial left-most wildcard" },
         /* A wildcard never spans a label separator. */
         { "*.example.com",       "foo.bar.example.com", 0, 0,
           "wildcard does not cross a dot" },
@@ -2250,15 +2264,15 @@ int test_wolfSSL_MatchDomainName_wildcard(void)
         /* --- Default flags reject every partial-label form; defining
          * WOLFSSL_ALLOW_PARTIAL_WILDCARDS brings RFC 6125 rule 3 back. --- */
         { "foo*.example.com",    "foobar.example.com", 0,
-          1, "partial wildcard" },
+          PARTIAL_WILDCARD_OK, "partial wildcard" },
         { "foo*.example.com",    "foo.example.com",    0,
-          1, "partial wildcard, empty span" },
+          PARTIAL_WILDCARD_OK, "partial wildcard, empty span" },
         { "a*",                  "aaaaa",              0,
-          1, "zero-dot partial wildcard" },
+          PARTIAL_WILDCARD_OK, "zero-dot partial wildcard" },
         { "*localhost",          "localhost",          0,
-          1, "zero-dot partial wildcard 2" },
+          PARTIAL_WILDCARD_OK, "zero-dot partial wildcard 2" },
         { "f*o.example.com",     "fXo.example.com",    0,
-          1, "wildcard inside the left-most label" },
+          PARTIAL_WILDCARD_OK, "wildcard inside the left-most label" },
 
         /* The whole-label form is unaffected by the macro. */
         { "*.example.com",       "foo.example.com",    0, 1,
