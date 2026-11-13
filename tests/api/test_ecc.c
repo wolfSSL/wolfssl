@@ -4428,6 +4428,108 @@ int test_wc_ecc_mulmod_unreduced(void)
 } /* END test_wc_ecc_mulmod_unreduced */
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(NO_ECC_SECP) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(WOLFSSL_NO_ECC_SW)
+    #define TEST_ECC_MULMOD_K_LEN
+#endif
+
+#ifdef TEST_ECC_MULMOD_K_LEN
+/* Set k to 2^bit. */
+static int test_ecc_k_pow2(mp_int* k, int bit)
+{
+    byte buf[80];
+    int len = bit / 8 + 1;
+
+    if ((bit < 0) || (len > (int)sizeof(buf))) {
+        return BAD_FUNC_ARG;
+    }
+    XMEMSET(buf, 0, sizeof(buf));
+    buf[0] = (byte)(1 << (bit % 8));
+    return mp_read_unsigned_bin(k, buf, (word32)len);
+}
+
+/* Check the scalar length limit of wc_ecc_mulmod() on one curve. */
+static int test_ecc_mulmod_k_len_curve(int curveId)
+{
+    EXPECT_DECLS;
+    const ecc_set_type* dp = NULL;
+    ecc_point* g = NULL;
+    ecc_point* r = NULL;
+    mp_int a;
+    mp_int prime;
+    mp_int k;
+    int bits = 0;
+
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(&prime, 0, sizeof(mp_int));
+    XMEMSET(&k, 0, sizeof(mp_int));
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(curveId)));
+    ExpectIntEQ(mp_init_multi(&a, &prime, &k, NULL, NULL, NULL), 0);
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(r = wc_ecc_new_point());
+    if ((dp != NULL) && (g != NULL)) {
+        ExpectIntEQ(mp_read_radix(&a, dp->Af, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_read_radix(&prime, dp->prime, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_read_radix(g->x, dp->Gx, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_read_radix(g->y, dp->Gy, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_set(g->z, 1), 0);
+        bits = mp_count_bits(&prime);
+    }
+
+    /* A scalar one bit shorter than the prime is accepted. */
+    ExpectIntEQ(test_ecc_k_pow2(&k, bits - 1), 0);
+    ExpectIntEQ(wc_ecc_mulmod(&k, g, r, &a, &prime, 1), 0);
+    /* Two bits longer than the prime is rejected. One bit longer is not
+     * checked: some paths allow it. */
+    ExpectIntEQ(test_ecc_k_pow2(&k, bits + 1), 0);
+    ExpectIntEQ(wc_ecc_mulmod(&k, g, r, &a, &prime, 1),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    /* A bit in a digit above the prime's top digit is rejected. */
+    ExpectIntEQ(test_ecc_k_pow2(&k, bits + 64), 0);
+    ExpectIntEQ(wc_ecc_mulmod(&k, g, r, &a, &prime, 1),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+
+    wc_ecc_del_point(r);
+    wc_ecc_del_point(g);
+    mp_free(&k);
+    mp_free(&prime);
+    mp_free(&a);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/*
+ * Testing the scalar length limit of wc_ecc_mulmod() around the bit length of
+ * the prime.
+ */
+int test_wc_ecc_mulmod_k_len(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_MULMOD_K_LEN
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 256) && \
+    (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256))
+    ExpectIntEQ(test_ecc_mulmod_k_len_curve(ECC_SECP256R1), TEST_SUCCESS);
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 521) && \
+    (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521))
+    ExpectIntEQ(test_ecc_mulmod_k_len_curve(ECC_SECP521R1), TEST_SUCCESS);
+#endif
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_k_len */
+
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
     defined(WOLFSSL_PUBLIC_ECC_ADD_DBL) && !defined(WOLFSSL_SP_MATH) && \
     !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
     !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
