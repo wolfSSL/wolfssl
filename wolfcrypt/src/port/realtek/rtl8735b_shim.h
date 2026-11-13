@@ -80,6 +80,9 @@ static inline int hal_crypto_aes_ecb_encrypt(const u8* msg, const u32 msglen,
 static inline int hal_crypto_aes_ecb_decrypt(const u8* msg, const u32 msglen,
         const u8* iv, const u32 ivlen, u8* pResult)
     { (void)msg; (void)msglen; (void)iv; (void)ivlen; (void)pResult; return 0; }
+static inline int hal_crypto_key_storage_writekey(u8* key, u8 keylen,
+        u8 key_num)
+    { (void)key; (void)keylen; (void)key_num; return 0; }
 
 /* ---- Secure-key HMAC-SHA256 (hal_crypto.h) ---- */
 #if !defined(NO_HMAC) && !defined(NO_SHA256)
