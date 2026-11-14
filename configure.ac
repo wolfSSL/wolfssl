@@ -9177,7 +9177,7 @@ then
     # base. If none of those is available, hybrids contribute no usable groups
     # for TLS 1.3 key exchange. In that case, auto-enable standalone ML-KEM so
     # TLS 1.3 has a functional KEM.
-    if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_MLKEM" = "yes" && \
+    if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_MLKEM" != "no" && \
        test "$ENABLED_ML_KEM" != "no" && \
        test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && \
        test "x$ENABLED_CURVE448" = "xno"
@@ -10142,7 +10142,7 @@ then
     AC_MSG_ERROR([--enable-dtls13 requires TLS 1.3, but TLS 1.3 was disabled by an earlier prerequisite check (no key-exchange or signature algorithms reachable). Enable at least one of ECC, RSA+DH, Curve25519+Ed25519, Curve448+Ed448, PSK, or ML-KEM.])
 fi
 if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
-    test "$ENABLED_DH" != "no" || test "x$ENABLED_MLKEM" = "xyes")
+    test "$ENABLED_DH" != "no" || test "x$ENABLED_MLKEM" != "xno")
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"
 fi
@@ -10250,11 +10250,6 @@ then
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EARLY_DATA"
     fi
-fi
-
-if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && test "x$ENABLED_SESSION_TICKET" = "xno"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE"
 fi
 
 # Compile out TLS 1.2 itself, not just its derived settings. Runs after the
@@ -14164,6 +14159,48 @@ AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
          test "x$ENABLED_STRONGSWAN" = "xyes")],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
        ENABLED_DTLS=yes])
+
+# Without a classic key exchange TLS 1.2 and older have no cipher suite.
+if test "$ENABLED_TLS" != "no" && test "$ENABLED_TLS13" = "yes" && \
+   test "$ENABLED_TLSV12" != "no" && test "$ENABLED_CRYPTONLY" != "yes" && \
+   test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && \
+   test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_CURVE448" = "no" && \
+   test "$ENABLED_PSK" = "no" && test "$ENABLED_SNIFFER" = "no" && \
+   test "$ENABLED_MCAST" = "no" && \
+   (test "$ENABLED_DTLS" = "no" || test "$ENABLED_DTLS13" = "yes") && \
+   test "$ENABLED_MLKEM_STANDALONE" = "yes" && \
+   test "$ENABLED_MLKEM_MAKE_KEY" = "yes" && \
+   test "$ENABLED_MLKEM_DECAPSULATE" = "yes"
+then
+    case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS $EXTRA_CPPFLAGS" in
+    *-DWOLFSSL_STATIC_RSA*|*-DWOLFSSL_STATIC_DH*|\
+    *-DWOLFSSL_ALLOW_NO_SUITES*|*-DHAVE_CSHARP*)
+        ;;
+    *)
+        if test "$enable_tlsv12" = "yes" || test "$ENABLED_OLD_TLS" = "yes"
+        then
+            AC_MSG_WARN([TLS 1.2 kept with no cipher suite to negotiate.])
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_NO_SUITES"
+        else
+            AC_MSG_NOTICE([TLS 1.2 has no key exchange; disabling it.])
+            ENABLED_TLSV12=no
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12"
+        fi
+        ;;
+    esac
+fi
+
+if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && \
+   test "x$ENABLED_SESSION_TICKET" = "xno"
+then
+    case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS $EXTRA_CPPFLAGS" in
+    *-DOPENSSL_ALL*|*-DWOLFSSL_NGINX*|*-DWOLFSSL_HAPROXY*|*-DHAVE_LIGHTY*)
+        ;;
+    *)
+        AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE"
+        ;;
+    esac
+fi
 
 # --disable-tlsv12 compiles the pre-TLS-1.3 handshake out, so the versions and
 # features built on top of it cannot be left on, and something has to be left

@@ -111,6 +111,22 @@ jobs:
         cd ..
         rm -rf build
 
+# ML-KEM as the only key exchange
+    - name: Build wolfssl with ML-KEM as the only key exchange
+      run: |
+        mkdir build
+        cd build
+        cmake -DWOLFSSL_ECC:BOOL=no -DWOLFSSL_DH:BOOL=no \
+            -DWOLFSSL_CURVE25519:BOOL=no -DWOLFSSL_ED25519:BOOL=no \
+            -DWOLFSSL_CURVE448:BOOL=no -DWOLFSSL_ED448:BOOL=no \
+            ..
+        cmake --build .
+        ctest -j $(nproc) --output-on-failure
+
+        # clean up
+        cd ..
+        rm -rf build
+
 # Option plumbing: a declared option must reach both the library and
 # options.h, and a -D that is not an option must reach neither.
     - name: Check option to options.h plumbing

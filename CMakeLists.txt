@@ -1264,10 +1264,6 @@ add_option(WOLFSSL_TLS_NO_MLKEM_STANDALONE
     "Disable ML-KEM as standalone TLS key exchange (non-hybrid) (default: enabled, i.e. standalone disabled)"
     "yes" "yes;no")
 
-if (WOLFSSL_TLS_NO_MLKEM_STANDALONE)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TLS_NO_MLKEM_STANDALONE")
-endif()
-
 # PQ/T hybrid combinations
 add_option(WOLFSSL_PQC_HYBRIDS
     "Enable PQ/T hybrid combinations (default: enabled)"
@@ -2884,8 +2880,19 @@ endif()
 if (NOT WOLFSSL_ECC AND
     (NOT WOLFSSL_RSA OR NOT WOLFSSL_DH) AND
     (NOT WOLFSSL_CURVE25519 OR NOT WOLFSSL_ED25519) AND
-    (NOT WOLFSSL_CURVE448 AND NOT WOLFSSL_ED448))
+    (NOT WOLFSSL_CURVE448 AND NOT WOLFSSL_ED448) AND
+    NOT WOLFSSL_MLKEM)
     override_cache(WOLFSSL_TLS13 "no")
+endif()
+# ML-KEM hybrids need an ECC, X25519 or X448 base.
+if(WOLFSSL_TLS13 AND WOLFSSL_MLKEM AND WOLFSSL_TLS_NO_MLKEM_STANDALONE AND
+   NOT WOLFSSL_ECC AND NOT WOLFSSL_CURVE25519 AND NOT WOLFSSL_CURVE448)
+    message(STATUS "No ECC/Curve25519/Curve448 base for ML-KEM hybrids; "
+        "enabling standalone ML-KEM for TLS 1.3")
+    override_cache(WOLFSSL_TLS_NO_MLKEM_STANDALONE "no")
+endif()
+if(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TLS_NO_MLKEM_STANDALONE")
 endif()
 if (WOLFSSL_TLS13)
     list(APPEND WOLFSSL_DEFINITIONS
@@ -2955,7 +2962,9 @@ if(NOT WOLFSSL_TLSV12)
         endif()
     endif()
     # A TLS 1.3-only build without session tickets has no session to cache.
-    if(WOLFSSL_TLS13 AND NOT WOLFSSL_SESSION_TICKET)
+    if(WOLFSSL_TLS13 AND NOT WOLFSSL_SESSION_TICKET AND
+       NOT WOLFSSL_DEFINITIONS MATCHES
+           "-DOPENSSL_ALL|-DWOLFSSL_NGINX|-DWOLFSSL_HAPROXY|-DHAVE_LIGHTY")
         list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE")
     endif()
     # NO_OLD_TLS is already in the list: the check above leaves

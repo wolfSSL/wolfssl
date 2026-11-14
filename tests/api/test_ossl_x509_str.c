@@ -5362,7 +5362,7 @@ static int test_cvcb_ctx_ready_verify(WOLFSSL_CTX* ctx)
     return TEST_SUCCESS;
 }
 
-#ifdef WC_ASN_UNKNOWN_EXT_CB
+#if defined(HAVE_ECC) && !defined(NO_RSA) && defined(WC_ASN_UNKNOWN_EXT_CB)
 static ctx_cb test_cvcb_ext_ready;
 static int test_cvcb_ext32; /* use the 32-bit OID callback */
 

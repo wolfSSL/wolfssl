@@ -4008,6 +4008,21 @@
     #endif
 #endif /* HAVE_CMAC_KDF*/
 
+/* Without a classic key exchange TLS 1.2 and older have no cipher suite. */
+#if defined(WOLFSSL_TLS13) && !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && \
+    defined(NO_DH) && !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && \
+    !defined(HAVE_CURVE448) && defined(NO_PSK) && \
+    !defined(WOLFSSL_STATIC_RSA) && !defined(WOLFSSL_STATIC_DH) && \
+    !defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_MULTICAST) && \
+    !defined(HAVE_CSHARP) && !defined(WOLFSSL_ALLOW_NO_SUITES) && \
+    !defined(WOLFSSL_ALLOW_TLSV10) && !defined(WOLFSSL_ALLOW_SSLV3) && \
+    (!defined(WOLFSSL_DTLS) || defined(WOLFSSL_DTLS13))
+    #undef  WOLFSSL_NO_TLS12
+    #define WOLFSSL_NO_TLS12
+    #undef  NO_OLD_TLS
+    #define NO_OLD_TLS
+#endif
+
 #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
     (!defined(HAVE_AES_CBC) && defined(NO_DES3) && defined(NO_RC4) && \
      !defined(HAVE_CAMELLIA) & !defined(HAVE_NULL_CIPHER))

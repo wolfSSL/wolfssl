@@ -29,6 +29,9 @@
 #ifndef NO_DH
 #include <wolfssl/wolfcrypt/dh.h>
 #endif
+#ifdef WOLFSSL_HAVE_MLKEM
+#include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
 
 /* Several helpers below are called only from test bodies whose feature guards
  * differ, so a configuration can compile in none of their callers. */
@@ -36,6 +39,16 @@
     #define TEST_TLS_PARSE_UNUSED __attribute__((unused))
 #else
     #define TEST_TLS_PARSE_UNUSED
+#endif
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+    #if !defined(WOLFSSL_NO_ML_KEM_768)
+        #define TEST_TLS_PARSE_MLKEM_GROUP WOLFSSL_ML_KEM_768
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024)
+        #define TEST_TLS_PARSE_MLKEM_GROUP WOLFSSL_ML_KEM_1024
+    #elif !defined(WOLFSSL_NO_ML_KEM_512)
+        #define TEST_TLS_PARSE_MLKEM_GROUP WOLFSSL_ML_KEM_512
+    #endif
 #endif
 
 /* Helper to build a server-side WOLFSSL_CTX with a certificate/key loaded,
@@ -262,9 +275,16 @@ static void test_tls_parse_free_kse(WOLFSSL* ssl, KeyShareEntry* kse)
             wc_curve448_free((curve448_key*)kse->key);
 #endif
     }
-    /* ECC is the remaining group. A PQC key is not an ecc_key. */
-    else if (!WOLFSSL_NAMED_GROUP_IS_PQC(kse->group) &&
-             !WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group)) {
+    else if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group)) {
+#ifdef WOLFSSL_HAVE_MLKEM
+        if (kse->key != NULL)
+            wc_MlKemKey_Free((MlKemKey*)kse->key);
+        if (kse->privKey != NULL && kse->privKeyLen > 0)
+            wc_ForceZero(kse->privKey, kse->privKeyLen);
+#endif
+    }
+    /* ECC is the remaining group. */
+    else if (!WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group)) {
 #ifdef HAVE_ECC
         if (kse->key != NULL) {
         #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
@@ -3246,6 +3266,57 @@ int test_TLSX_KeyShare_gen(void)
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT &&
         (!NO_ECC256 || HAVE_ALL_CURVES) && !NO_ECC_SECP &&
         ECC_MIN_KEY_SZ <= 256 */
+
+#if defined(TEST_TLS_PARSE_MLKEM_GROUP) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && defined(HAVE_SUPPORTED_CURVES)
+    /* TLSX_KeyShare_GenPqcKeyClient(): a second call keeps the first key. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        KeyShareEntry* kse = NULL;
+        byte* pubKey = NULL;
+
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = TEST_TLS_PARSE_MLKEM_GROUP;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(pubKey = kse->pubKey);
+            ExpectIntGT(kse->pubKeyLen, 0);
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectPtrEq(kse->pubKey, pubKey);
+            test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
+        }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = TEST_TLS_PARSE_MLKEM_GROUP;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif /* TEST_TLS_PARSE_MLKEM_GROUP && !WOLFSSL_MLKEM_NO_MAKE_KEY &&
+        !WOLFSSL_MLKEM_NO_DECAPSULATE && HAVE_SUPPORTED_CURVES */
+    (void)ctx;
+    (void)ssl;
 #endif
     return EXPECT_RESULT();
 }
