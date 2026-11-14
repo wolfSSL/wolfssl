@@ -15446,13 +15446,14 @@ static int PatternHasWildcardInALabel(const char* pattern, word32 patternLen)
  * immediately to the left of a registry/public suffix), and
  * "foo.*.example.com" (wildcard not in the left-most label), while still
  * accepting the legitimate "*.example.com" form. Partial left-most wildcards
- * such as "a*" or "a*b*" retain their existing matching behavior - they are
- * not bare wildcard labels and are not subject to the two-label requirement.
+ * such as "a*" or "a*b*" are rejected under WOLFSSL_NO_PARTIAL_WILDCARDS, the
+ * default; otherwise they are not subject to the two-label requirement.
  * pattern/patternLen must already have any single trailing FQDN dot stripped.
  *
  * Returns 1 if the pattern has no wildcard or its wildcard placement is
  * acceptable, 0 otherwise. */
-static int WildcardPlacementOK(const char* pattern, word32 patternLen)
+static int WildcardPlacementOK(const char* pattern, word32 patternLen,
+                               unsigned int flags)
 {
     word32 i;
     int sawWildcard = 0;
@@ -15475,6 +15476,12 @@ static int WildcardPlacementOK(const char* pattern, word32 patternLen)
 
     if (!sawWildcard)
         return 1;
+
+    /* WOLFSSL_NO_PARTIAL_WILDCARDS: the wildcard must be the whole left-most
+     * label, as RFC 9525 sec. 6.3 requires. */
+    if ((flags & WOLFSSL_NO_PARTIAL_WILDCARDS) != 0 &&
+            !(pattern[0] == '*' && (patternLen == 1 || pattern[1] == '.')))
+        return 0;
 
     /* A left-most label that is exactly "*" (a bare wildcard label) requires at
      * least two further labels. This rejects a bare "*" (0 dots) and "*.tld"
@@ -15526,6 +15533,20 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
     if (pattern[patternLen-1] == '.')
         --patternLen;
 
+    /* WOLFSSL_NO_WILDCARDS: compare case-insensitively, no '*' handling. */
+    if ((flags & WOLFSSL_NO_WILDCARDS) != 0) {
+        word32 i;
+
+        if ((word32)patternLen != strLen)
+            return 0;
+        for (i = 0; i < strLen; i++) {
+            if (XTOLOWER((unsigned char)pattern[i]) !=
+                    XTOLOWER((unsigned char)str[i]))
+                return 0;
+        }
+        return 1;
+    }
+
     /* RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3: do not perform wildcard
      * matching when the pattern has a wildcard embedded in an A-label, nor
      * when the reference identifier (hostname) contains any A-label. The
@@ -15542,11 +15563,19 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
         }
     }
 
+#ifndef WOLFSSL_ALLOW_PARTIAL_WILDCARDS
+    /* RFC 9525 sec. 6.3 requires the wildcard to be the complete content of
+     * the left-most label. RFC 6125 sec. 6.4.3 rule 3, which it obsoletes,
+     * permitted a partial label such as "baz*.example.net"; define
+     * WOLFSSL_ALLOW_PARTIAL_WILDCARDS to keep matching those. */
+    flags |= WOLFSSL_NO_PARTIAL_WILDCARDS;
+#endif
+
     /* RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3 + CA/Browser Forum BR
      * sec. 3.2.2.6: reject a pattern whose wildcard is not confined to the
      * left-most label, or that has fewer than two labels to the right of the
      * wildcard (e.g. "*", "*.com", "foo.*.example.com"). */
-    if (!WildcardPlacementOK(pattern, (word32)patternLen))
+    if (!WildcardPlacementOK(pattern, (word32)patternLen, flags))
         return 0;
 
     while (patternLen > 0) {
@@ -19624,7 +19653,8 @@ static int RpkIsTrusted(WOLFSSL* ssl, const byte* spki, word32 spkiSz)
 /* Match one configured name against the leaf certificate, using the same
  * rules as the wolfSSL_check_domain_name() check in ProcessPeerCerts().
  * Returns 0 on match, DOMAIN_NAME_MISMATCH otherwise. */
-static int CheckPeerHostName(DecodedCert* dCert, const char* name)
+static int CheckPeerHostName(DecodedCert* dCert, const char* name,
+                             unsigned int flags)
 {
     word32 nameLen = (word32)XSTRLEN(name);
 
@@ -19632,14 +19662,14 @@ static int CheckPeerHostName(DecodedCert* dCert, const char* name)
     /* Per RFC 5280 section 4.2.1.6, subject alternative names take
      * precedence over the subject common name. */
     if (dCert->altNames != NULL) {
-        if (CheckForAltNames(dCert, name, nameLen, NULL, 0, 0) != 1) {
+        if (CheckForAltNames(dCert, name, nameLen, NULL, flags, 0) != 1) {
             return DOMAIN_NAME_MISMATCH;
         }
         return 0;
     }
 #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
     if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen, name,
-            nameLen, 0) == 0)
+            nameLen, flags) == 0)
 #endif
     {
         return DOMAIN_NAME_MISMATCH;
@@ -19648,10 +19678,10 @@ static int CheckPeerHostName(DecodedCert* dCert, const char* name)
 #else /* WOLFSSL_ALLOW_NO_CN_IN_SAN */
 #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
     if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen, name,
-            nameLen, 0) == 0)
+            nameLen, flags) == 0)
 #endif
     {
-        if (CheckForAltNames(dCert, name, nameLen, NULL, 0, 0) != 1) {
+        if (CheckForAltNames(dCert, name, nameLen, NULL, flags, 0) != 1) {
             return DOMAIN_NAME_MISMATCH;
         }
     }
@@ -21196,6 +21226,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 if (!ssl->options.verifyNone && !UsingChainVerifyCb(ssl) &&
                         domainName) {
+                #ifdef OPENSSL_EXTRA
+                    /* Honor X509_VERIFY_PARAM_set_hostflags(). */
+                    unsigned int hostFlags = (ssl->param != NULL) ?
+                        ssl->param->hostFlags : 0;
+                #else
+                    unsigned int hostFlags = 0;
+                #endif
                 #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
                     /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
                      * are to be bound into a certificate, the subject
@@ -21205,7 +21242,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 args->dCert,
                                 domainName,
                                 (word32)XSTRLEN((const char *)domainName),
-                                NULL, 0, 0) != 1) {
+                                NULL, hostFlags, 0) != 1) {
                             WOLFSSL_MSG("DomainName match on alt names failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
@@ -21219,7 +21256,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 args->dCert->subjectCNLen,
                                 domainName,
                                 (word32)XSTRLEN((const char *)domainName),
-                                0) == 0)
+                                hostFlags) == 0)
                     #endif
                         {
                             WOLFSSL_MSG("DomainName match failed");
@@ -21235,14 +21272,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 args->dCert->subjectCNLen,
                                 domainName,
                                 (word32)XSTRLEN((const char *)domainName),
-                                0) == 0)
+                                hostFlags) == 0)
                 #endif
                     {
                         if (CheckForAltNames(
                                 args->dCert,
                                 domainName,
                                 (word32)XSTRLEN((const char *)domainName),
-                                NULL, 0, 0) != 1) {
+                                NULL, hostFlags, 0) != 1) {
                             WOLFSSL_MSG("DomainName match failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
@@ -21261,7 +21298,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         (ssl->param != NULL) &&
                         (ssl->param->hostName[0] != '\0')) {
                     if (CheckPeerHostName(args->dCert,
-                            ssl->param->hostName) != 0) {
+                            ssl->param->hostName, ssl->param->hostFlags) != 0) {
                         WOLFSSL_MSG("DomainName match on verify param failed");
                         ret = DOMAIN_NAME_MISMATCH;
                         WOLFSSL_ERROR_VERBOSE(ret);

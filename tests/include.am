@@ -38,6 +38,7 @@ EXTRA_DIST += tests/unit.h \
               tests/cypress_trng_failure.py \
               tests/weak_entropy_defaults.py \
               tests/test.conf \
+              tests/test-wildcard-partial.conf \
               tests/test-sha2.conf \
               tests/test-tls13.conf \
               tests/test-tls13-down.conf \
