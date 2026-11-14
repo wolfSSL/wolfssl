@@ -969,7 +969,8 @@ int wolfcrypt_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
   }
 
 #ifdef BN_MP_EXPTMOD_BASE_2
-  if (G->used == 1 && G->dp[0] == 2 && mp_isodd(P) == MP_YES) {
+  if (G->used == 1 && G->dp[0] == 2 && G->sign == MP_ZPOS &&
+      mp_isodd(P) == MP_YES) {
     return mp_exptmod_base_2(X, P, Y);
   }
 #endif
