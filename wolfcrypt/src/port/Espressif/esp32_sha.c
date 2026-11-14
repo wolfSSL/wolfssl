@@ -928,12 +928,12 @@ static word32 wc_esp_sha_digest_size(WC_ESP_SHA_TYPE type)
             ret = WC_SHA512_DIGEST_SIZE;
             break;
         #endif
-        #ifndef WOLFSSL_NOSHA512_224
+        #if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
         case SHA2_512224:
             ret = WC_SHA512_224_DIGEST_SIZE;
             break;
         #endif
-        #ifndef WOLFSSL_NOSHA512_256
+        #if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
         case SHA2_512256:
             ret = WC_SHA512_256_DIGEST_SIZE;
             break;
@@ -2318,17 +2318,22 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
 #elif defined(CONFIG_IDF_TARGET_ESP32C5)
     wc_esp_wait_until_idle();
     digestWords = digestSz / sizeof(word32);
+#if !defined(NO_SHA256)
     if (ctx->sha_type == SHA2_224) {
         /* SHA-224 shares the eight-word SHA-256 chaining state. */
         digestWords = WC_SHA256_DIGEST_SIZE / sizeof(word32);
     }
-    else if (ctx->sha_type == SHA2_384 || ctx->sha_type == SHA2_512 ||
+#endif
+#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+    if (ctx->sha_type == SHA2_384 || ctx->sha_type == SHA2_512 ||
         ctx->sha_type == SHA2_512224 || ctx->sha_type == SHA2_512256) {
         /* Capture the full 512-bit chaining state for copies and for
          * truncated SHA-384/SHA-512 variants. */
         digestWords = WC_SHA512_DIGEST_SIZE / sizeof(word32);
     }
+#endif
     sha_ll_read_digest(ctx->sha_type, (void *)hash, digestWords);
+#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
     if (ctx->sha_type == SHA2_384 || ctx->sha_type == SHA2_512 ||
         ctx->sha_type == SHA2_512224 || ctx->sha_type == SHA2_512256) {
         /* Convert the big-endian hardware state to native 64-bit words for
@@ -2336,6 +2341,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
         ByteReverseWords64((word64*)hash, (word64*)hash,
             digestWords * sizeof(word32));
     }
+#endif
 #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
       defined(CONFIG_IDF_TARGET_ESP32C6)
     wc_esp_wait_until_idle();

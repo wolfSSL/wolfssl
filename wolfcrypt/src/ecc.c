@@ -294,7 +294,8 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
 #endif
 
-#if defined(WOLFSSL_ESP32_CRYPT_ECC)
+#if defined(WOLFSSL_ESP32_CRYPT_ECC) || \
+    defined(WOLFSSL_ESP32_CRYPT_ECDSA)
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-ecc.h>
 #endif
 #if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)

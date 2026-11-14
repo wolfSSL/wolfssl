@@ -1216,6 +1216,7 @@
 
     #if defined(CONFIG_IDF_TARGET_ESP32C5) && defined(HAVE_ECC) && \
         defined(CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN) && \
+        !defined(CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT) && \
         !defined(NO_ESP32_CRYPT) && \
         !defined(NO_WOLFSSL_ESP32_CRYPT_ECDSA) && \
         !defined(NO_WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)

@@ -317,6 +317,15 @@ enum {
 
 #include <freertos/FreeRTOS.h>
 
+/* Pre-set a full hardware-acceleration disable from Kconfig before any target
+ * derives its feature flags. This keeps software-only builds from enabling
+ * C5 AES/SHA/MPI/ECC flags that are set below. */
+#ifdef CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT
+    #ifndef NO_ESP32_CRYPT
+        #define NO_ESP32_CRYPT
+    #endif
+#endif
+
 #if defined(CONFIG_IDF_TARGET_ESP32)
     /* there's no SHA-224 HW on the ESP32 */
     #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224
