@@ -666,6 +666,11 @@ struct wc_MlDsaKey {
     byte pubKeySet;
     byte prvKeySet;
     byte level; /* 2,3 or 5 */
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* Set by InitId/InitLabel: the level is a placeholder until the device
+     * says which key it holds. Cleared by wc_MlDsaKey_SetParams(). */
+    byte devLevelOpen;
+#endif
 #if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS)
     word32 kSz; /* allocated size of secret key buffer */
 #endif
@@ -684,7 +689,9 @@ struct wc_MlDsaKey {
 #endif
 
 #if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS)
-    byte* p;    /* heap-allocated, right-sized public key */
+    byte* p;    /* heap-allocated public key, at least the level's size:
+                 * larger after a device sets the level of an InitId or
+                 * InitLabel key. Use key->params->pkSz for its length. */
     byte* k;    /* heap-allocated, right-sized secret key */
 #elif !defined(WOLFSSL_MLDSA_ASSIGN_KEY)
 #ifdef USE_INTEL_SPEEDUP

@@ -687,6 +687,12 @@ typedef struct wc_CryptoInfo {
                 word32      pubKeySz;
                 int         type; /* enum wc_PqcSignatureType */
             } pqc_sig_check;
+            struct {
+                void*       key;
+                byte*       pubOut;   /* may be the key's own storage */
+                word32*     pubOutSz; /* in: buffer size, out: written */
+                int         type; /* enum wc_PqcSignatureType */
+            } pqc_sig_make_pub;
         #endif
         #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
             struct {
@@ -1437,6 +1443,14 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen,
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz);
+
+/* pubOut may be the key's own public key storage. The device must set
+ * *pubOutSz to the size it wrote (ML-DSA fails a size that is not a
+ * parameter set's with BUFFER_E). It must not change the key's parameter set
+ * or free its buffers (ML-DSA fails those it detects with BAD_STATE_E), and
+ * must never deallocate the key object itself. */
+WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureMakePub(void* key, int type,
+    byte* pubOut, word32* pubOutSz);
 #endif /* HAVE_FALCON || WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)

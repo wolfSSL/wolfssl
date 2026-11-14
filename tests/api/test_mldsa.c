@@ -8252,22 +8252,6 @@ static int mldsa_test_key_pair(int level, byte* priv, word32* privSz,
     return EXPECT_RESULT();
 }
 
-/* Whether a failed derivation left the public key buffer zeroed. Only called
- * after MakePublicKey has run, so key->p is allocated. */
-static int mldsa_test_pub_cleared(const wc_MlDsaKey* key)
-{
-    word32 i;
-    byte bits = 0;
-
-    if ((key == NULL) || (key->params == NULL)) {
-        return 0;
-    }
-    for (i = 0; i < key->params->pkSz; i++) {
-        bits |= key->p[i];
-    }
-    return bits == 0;
-}
-
 /* Derive the public key of a private-only key at one level. */
 static int mldsa_make_public_key_level(wc_MlDsaKey* key, int level)
 {
@@ -8404,8 +8388,8 @@ int test_mldsa_make_public_key(void)
         pub[pubSz - 1] ^= 0x01;
 
 #ifdef WOLF_PRIVATE_KEY_ID
-        /* A key that only references a device-held private key has no local
-         * private bytes to derive from. */
+        /* With no device registered to answer, a key that only references a
+         * device-held private key has no local private bytes to derive from. */
         ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId), NULL,
             TEST_MLDSA_MAKEPUB_DEVID), 0);
         ExpectIntEQ(wc_MlDsaKey_SetParams(key, MLDSA_TEST_ANY_LEVEL), 0);
@@ -9014,14 +8998,15 @@ int test_mldsa_verify_cb_before_pubkeyset(void)
     return EXPECT_RESULT();
 }
 
-/* Verify MakePublicKey fails gracefully on OOM. */
+/* Verify MakePublicKey fails gracefully on OOM. The allocator hooks serve the
+ * software derivation and the device path, which needs no native code. */
 #if defined(WOLFSSL_HAVE_MLDSA) && \
     defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
-    defined(WC_MLDSA_HAVE_NATIVE) && \
+    (defined(WC_MLDSA_HAVE_NATIVE) || defined(WOLF_CRYPTO_CB)) && \
     defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_MEM_FAIL_COUNT) && !defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST)
-#define MLDSA_TEST_OOM_ENABLED
+#define MLDSA_TEST_OOM_ALLOC
 
 static wolfSSL_Malloc_cb  mldsa_oom_mf;
 static wolfSSL_Free_cb    mldsa_oom_ff;
@@ -9062,6 +9047,38 @@ static void mldsa_oom_arm(int n)
     mldsa_oom_count = 0;
     mldsa_oom_fail_at = n;
 }
+#endif
+
+#if defined(MLDSA_TEST_OOM_ALLOC) || (defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && defined(WC_MLDSA_HAVE_NATIVE))
+/* Whether a failed derivation left the public key buffer zeroed. Only called
+ * after MakePublicKey has run. With dynamic keys and allowNull, an
+ * unallocated key->p counts as cleared: a failed allocation leaves none. */
+static int mldsa_test_pub_cleared(const wc_MlDsaKey* key, int allowNull)
+{
+    word32 i;
+    byte bits = 0;
+
+    if ((key == NULL) || (key->params == NULL)) {
+        return 0;
+    }
+#ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+    /* No buffer holds no public key. */
+    if (key->p == NULL) {
+        return allowNull;
+    }
+#else
+    (void)allowNull;
+#endif
+    for (i = 0; i < key->params->pkSz; i++) {
+        bits |= key->p[i];
+    }
+    return bits == 0;
+}
+#endif
+
+#if defined(MLDSA_TEST_OOM_ALLOC) && defined(WC_MLDSA_HAVE_NATIVE)
+#define MLDSA_TEST_OOM_ENABLED
 
 #if defined(WC_MLDSA_CACHE_MATRIX_A) && !defined(WC_MLDSA_FIXED_ARRAY) && \
     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)
@@ -9325,6 +9342,892 @@ int test_mldsa_make_public_key_cb_only(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    defined(WOLF_CRYPTO_CB)
+/* Names the device the MakePublicKey callback test registers. */
+#define TEST_MLDSA_MAKEPUB_CB_DEVID 0x4D4C4443
+
+/* How the device answers a make-pub request. */
+#define MLDSA_MAKEPUB_CB_COPY       0 /* copy pub, report pubSz */
+#define MLDSA_MAKEPUB_CB_RELEVEL    1 /* set the key's level, write nothing */
+#define MLDSA_MAKEPUB_CB_FREE       2 /* free the key, write nothing */
+#define MLDSA_MAKEPUB_CB_NOSIZE     3 /* copy pub, leave the size as given */
+#define MLDSA_MAKEPUB_CB_REIMPORT   4 /* set the key's level, import pub */
+
+/* What the device returns, and what it was asked. */
+typedef struct {
+    int mode;         /* MLDSA_MAKEPUB_CB_* */
+    const byte* pub;  /* public key the device holds */
+    word32 pubSz;     /* size it reports */
+    int ret;          /* what the callback returns */
+    int level;        /* level RELEVEL and REIMPORT set on the key */
+    int calls;        /* make-pub requests seen */
+    word32 bufSz;     /* buffer size it was handed */
+} MlDsaMakePubCbCtx;
+
+/* Test device answering make-pub requests as ctx says. Returns ctx's ret,
+ * or CRYPTOCB_UNAVAILABLE for other requests. */
+static int mldsa_make_pub_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    MlDsaMakePubCbCtx* dev = (MlDsaMakePubCbCtx*)ctx;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)devIdArg;
+
+    if ((info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_SIG_MAKE_PUB) &&
+            (info->pk.pqc_sig_make_pub.type == WC_PQC_SIG_TYPE_MLDSA)) {
+        byte* out = info->pk.pqc_sig_make_pub.pubOut;
+        word32* outSz = info->pk.pqc_sig_make_pub.pubOutSz;
+
+        dev->calls++;
+        dev->bufSz = *outSz;
+        /* A misbehaving device: the key's buffers change size or go away,
+         * and out with them, so nothing is written. */
+        if ((dev->mode == MLDSA_MAKEPUB_CB_RELEVEL) ||
+                (dev->mode == MLDSA_MAKEPUB_CB_REIMPORT)) {
+            wc_MlDsaKey* k = (wc_MlDsaKey*)info->pk.pqc_sig_make_pub.key;
+
+            ret = wc_MlDsaKey_SetParams(k, (byte)dev->level);
+            /* Store its key through the API instead, at the new level. */
+            if ((ret == 0) && (dev->mode == MLDSA_MAKEPUB_CB_REIMPORT)) {
+                ret = wc_MlDsaKey_ImportPubRaw(k, dev->pub, dev->pubSz);
+            }
+        }
+        else if (dev->mode == MLDSA_MAKEPUB_CB_FREE) {
+            wc_MlDsaKey_Free((wc_MlDsaKey*)info->pk.pqc_sig_make_pub.key);
+            ret = 0;
+        }
+        else {
+            ret = dev->ret;
+            if (ret == 0) {
+                /* Report pubSz even when it is not what fits. */
+                XMEMCPY(out, dev->pub, (dev->pubSz < *outSz) ? dev->pubSz :
+                    *outSz);
+                if (dev->mode != MLDSA_MAKEPUB_CB_NOSIZE) {
+                    *outSz = dev->pubSz;
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+#ifdef WOLF_CRYPTO_CB_FIND
+#ifdef WOLFSSL_SWDEV
+    #include <tests/swdev/swdev_loader.h>
+#endif
+/* Sends a key that names no device to the test device. */
+static int mldsa_make_pub_find_cb(int devId, int algoType)
+{
+    (void)algoType;
+    return (devId == INVALID_DEVID) ? TEST_MLDSA_MAKEPUB_CB_DEVID : devId;
+}
+#endif
+
+#if defined(MLDSA_TEST_OOM_ALLOC) && defined(USE_WOLFSSL_MEMORY)
+/* Initialize a key for the device: by id with the level left open, or with
+ * the level set. */
+static int mldsa_oom_dev_key_init(wc_MlDsaKey* key, int level, int byId)
+{
+    EXPECT_DECLS;
+#ifdef WOLF_PRIVATE_KEY_ID
+    static const unsigned char keyId[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    if (byId) {
+        ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId), NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        return EXPECT_RESULT();
+    }
+#endif
+    (void)byId;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    return EXPECT_RESULT();
+}
+
+/* Fail each allocation of a device derivation on a key with no private key
+ * held here. With byId the device's key sets the level of an InitId key, and
+ * a failure must leave the InitId level, still open. */
+static int mldsa_oom_make_public_key_dev(int level, MlDsaMakePubCbCtx* dev,
+    int byId)
+{
+    EXPECT_DECLS;
+    wc_MlDsaKey* key;
+    int installed;
+    int allocCount = 0;
+    int i;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    mldsa_oom_arm(0);
+    installed = (wolfSSL_GetAllocators(&mldsa_oom_mf, &mldsa_oom_ff,
+        &mldsa_oom_rf) == 0) &&
+        (wolfSSL_SetAllocators(mldsa_oom_malloc, mldsa_oom_free,
+        mldsa_oom_realloc) == 0);
+    ExpectIntEQ(installed, 1);
+
+    /* Pass 1: count allocations. Only dynamic keys allocate here (key->p);
+     * other builds have none. */
+    EXPECT_TEST(mldsa_oom_dev_key_init(key, level, byId));
+    mldsa_oom_arm(0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    allocCount = mldsa_oom_count;
+#ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+    /* The sweep below must inject at least one failure. */
+    ExpectIntGT(allocCount, 0);
+#endif
+    ExpectIntEQ(key->pubKeySet, 1);
+    wc_MlDsaKey_Free(key);
+
+    /* Pass 2: verify clean MEMORY_E failure for each allocation. */
+    for (i = 1; (i <= allocCount) && EXPECT_SUCCESS(); i++) {
+        EXPECT_TEST(mldsa_oom_dev_key_init(key, level, byId));
+
+        mldsa_oom_arm(i);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+            WC_NO_ERR_TRACE(MEMORY_E));
+        ExpectIntGE(mldsa_oom_count, i);
+        mldsa_oom_arm(0);
+
+        ExpectIntEQ(key->pubKeySet, 0);
+        ExpectIntEQ(mldsa_test_pub_cleared(key, 1), 1);
+    #ifdef WOLF_PRIVATE_KEY_ID
+        if (byId) {
+            ExpectIntEQ(key->level, WC_ML_DSA_87);
+            ExpectIntEQ(key->devLevelOpen, 1);
+        }
+    #endif
+        /* Without injected failures the device's key is stored. */
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+        ExpectIntEQ(key->level, level);
+        ExpectIntEQ(key->pubKeySet, 1);
+        ExpectIntEQ(XMEMCMP(key->p, dev->pub, dev->pubSz), 0);
+        wc_MlDsaKey_Free(key);
+    }
+
+    if (installed) {
+        (void)wolfSSL_SetAllocators(mldsa_oom_mf, mldsa_oom_ff, mldsa_oom_rf);
+    }
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    defined(WOLF_CRYPTO_CB) && defined(WC_MLDSA_HAVE_NATIVE) && \
+    defined(WOLF_PRIVATE_KEY_ID)
+/* Use a key whose level came from the device: its public key, held in a
+ * buffer sized for the placeholder level, is exported and verifies a
+ * signature made with the matching private key. */
+static int mldsa_make_pub_cb_use_key(wc_MlDsaKey* key, int level,
+    const byte* priv, word32 privSz, const byte* pub, word32 pubSz)
+{
+    EXPECT_DECLS;
+    byte* out;
+    word32 outSz = MLDSA_MAX_PUB_KEY_SIZE;
+
+    out = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(out);
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, out, &outSz), 0);
+    ExpectIntEQ(outSz, pubSz);
+    ExpectIntEQ(XMEMCMP(out, pub, pubSz), 0);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    {
+        static const byte msg[] = { 0x6d, 0x73, 0x67 };
+        wc_MlDsaKey* signer;
+        WC_RNG rng;
+        byte* sig;
+        word32 sigSz = MLDSA_MAX_SIG_SIZE;
+        int res = 0;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        signer = (wc_MlDsaKey*)XMALLOC(sizeof(*signer), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(signer);
+        sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(sig);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_Init(signer, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(signer, level), 0);
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(signer, priv, privSz), 0);
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(signer, NULL, 0, sig, &sigSz, msg,
+            (word32)sizeof(msg), &rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigSz, NULL, 0, msg,
+            (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 1);
+        wc_MlDsaKey_Free(signer);
+        wc_FreeRng(&rng);
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(signer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    (void)level;
+    (void)priv;
+    (void)privSz;
+#endif
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test MakePublicKey gets the public key from a device. */
+int test_mldsa_make_public_key_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    defined(WOLF_CRYPTO_CB)
+    wc_MlDsaKey* key;
+    byte* pub;
+    byte* other;
+    word32 pubSz;
+    MlDsaMakePubCbCtx dev;
+    int level;
+#ifdef WC_MLDSA_HAVE_NATIVE
+    byte* priv;
+    word32 privSz = MLDSA_TEST_PRIV_MAX;
+#endif
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    level = WC_ML_DSA_44;
+    pubSz = WC_MLDSA_44_PUB_KEY_SIZE;
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    level = WC_ML_DSA_65;
+    pubSz = WC_MLDSA_65_PUB_KEY_SIZE;
+#else
+    level = WC_ML_DSA_87;
+    pubSz = WC_MLDSA_87_PUB_KEY_SIZE;
+#endif
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    /* One extra byte: a test device reports pubSz + 1 bytes. */
+    pub = (byte*)XMALLOC(WC_MLDSA_87_PUB_KEY_SIZE + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pub);
+    if (pub != NULL) {
+        XMEMSET(pub, 0, WC_MLDSA_87_PUB_KEY_SIZE + 1);
+    }
+    other = (byte*)XMALLOC(WC_MLDSA_87_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(other);
+#ifdef WC_MLDSA_HAVE_NATIVE
+    priv = (byte*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(priv);
+    {
+        word32 sz = WC_MLDSA_87_PUB_KEY_SIZE;
+        EXPECT_TEST(mldsa_test_key_pair(level, priv, &privSz, pub, &sz));
+        ExpectIntEQ(sz, pubSz);
+    }
+#else
+    if (pub != NULL) {
+        XMEMSET(pub, 0xA5, pubSz);
+    }
+#endif
+    if ((pub != NULL) && (other != NULL)) {
+        XMEMCPY(other, pub, pubSz);
+        other[pubSz - 1] ^= 0x01;
+    }
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    dev.pub = pub;
+    dev.pubSz = pubSz;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLDSA_MAKEPUB_CB_DEVID,
+        mldsa_make_pub_cb, &dev), 0);
+
+    /* The device holds the private key, so none is set here. */
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(dev.calls, 1);
+    /* The level was set with SetParams, so the device is held to it. */
+    ExpectIntEQ(dev.bufSz, pubSz);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+
+    /* Asked again, the device is not: it would write over the key set. */
+    dev.pub = other;
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(dev.calls, 1);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+    wc_MlDsaKey_Free(key);
+
+    /* Likewise an imported public key is left as it is. */
+    dev.calls = 0;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pub, pubSz), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(dev.calls, 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+    wc_MlDsaKey_Free(key);
+    dev.pub = pub;
+
+#if !defined(WOLFSSL_NO_ML_DSA_87) && (!defined(WOLFSSL_NO_ML_DSA_44) || \
+    !defined(WOLFSSL_NO_ML_DSA_65))
+    /* A level set with SetParams is kept: a device key of another level is
+     * not taken for this key. */
+    if (other != NULL) {
+        XMEMSET(other + pubSz, 0xA5, WC_MLDSA_87_PUB_KEY_SIZE - pubSz);
+    }
+    dev.pub = other;
+    dev.pubSz = WC_MLDSA_87_PUB_KEY_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(key->level, level);
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+    dev.pub = pub;
+    dev.pubSz = pubSz;
+
+    /* Likewise with the caller's level the largest: a device that writes a
+     * smaller level's key without reporting its size is refused, rather
+     * than leaving a key with a zero tail. */
+    dev.mode = MLDSA_MAKEPUB_CB_NOSIZE;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(key->level, WC_ML_DSA_87);
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+    dev.mode = MLDSA_MAKEPUB_CB_COPY;
+
+    /* A device that changes the key's level fails the call, rather than
+     * the public key being copied at the old level's size. */
+    dev.mode = MLDSA_MAKEPUB_CB_RELEVEL;
+    dev.level = WC_ML_DSA_87;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+
+    /* Likewise when the device then imports its key at the new level: the
+     * failed call doesn't leave a public key set. */
+    dev.mode = MLDSA_MAKEPUB_CB_REIMPORT;
+    dev.level = level;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+    dev.mode = MLDSA_MAKEPUB_CB_COPY;
+#endif
+
+#ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+    /* A device that resets the key at the same level frees key->p: the call
+     * fails rather than reading the freed buffer. */
+    dev.mode = MLDSA_MAKEPUB_CB_RELEVEL;
+    dev.level = level;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+#endif
+
+    /* A device that frees the key fails the call, and nothing is stored
+     * into it. */
+    dev.mode = MLDSA_MAKEPUB_CB_FREE;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectNull(key->params);
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+
+    dev.mode = MLDSA_MAKEPUB_CB_COPY;
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* Keys that name the device's key by id or label. */
+    {
+        static const unsigned char keyId[] = { 0x01, 0x02, 0x03, 0x04 };
+
+        ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId), NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+        ExpectIntEQ(key->pubKeySet, 1);
+        ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+        wc_MlDsaKey_Free(key);
+
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(key, "mldsa-key", NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+        ExpectIntEQ(key->pubKeySet, 1);
+        ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+        wc_MlDsaKey_Free(key);
+
+        /* Left at the level InitId picked, the key takes the level of the
+         * device's key. */
+        ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId), NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+        /* The device is offered room for any public key. */
+        ExpectIntEQ(dev.bufSz, MLDSA_MAX_PUB_KEY_SIZE);
+        ExpectIntEQ(key->level, level);
+        ExpectIntEQ(key->devLevelOpen, 0);
+        ExpectIntEQ(key->pubKeySet, 1);
+        ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+    #ifdef WC_MLDSA_HAVE_NATIVE
+        EXPECT_TEST(mldsa_make_pub_cb_use_key(key, level, priv, privSz, pub,
+            pubSz));
+    #endif
+        wc_MlDsaKey_Free(key);
+        /* Likewise for InitLabel. */
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(key, "mldsa-key", NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+        ExpectIntEQ(key->level, level);
+        ExpectIntEQ(key->pubKeySet, 1);
+    #ifdef WC_MLDSA_HAVE_NATIVE
+        EXPECT_TEST(mldsa_make_pub_cb_use_key(key, level, priv, privSz, pub,
+            pubSz));
+    #endif
+        wc_MlDsaKey_Free(key);
+
+    #if !defined(WOLFSSL_NO_ML_DSA_87) && (!defined(WOLFSSL_NO_ML_DSA_44) || \
+        !defined(WOLFSSL_NO_ML_DSA_65))
+        /* A device key at the placeholder level is taken, whether or not
+         * the device reports its size. */
+        {
+            byte* pub87 = (byte*)XMALLOC(WC_MLDSA_87_PUB_KEY_SIZE, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            int nosize;
+
+            ExpectNotNull(pub87);
+        #ifdef WC_MLDSA_HAVE_NATIVE
+            {
+                byte* priv87 = (byte*)XMALLOC(MLDSA_TEST_PRIV_MAX, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+                word32 priv87Sz = MLDSA_TEST_PRIV_MAX;
+                word32 pub87Sz = WC_MLDSA_87_PUB_KEY_SIZE;
+
+                ExpectNotNull(priv87);
+                EXPECT_TEST(mldsa_test_key_pair(WC_ML_DSA_87, priv87,
+                    &priv87Sz, pub87, &pub87Sz));
+                ExpectIntEQ(pub87Sz, WC_MLDSA_87_PUB_KEY_SIZE);
+                XFREE(priv87, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #else
+            if (pub87 != NULL) {
+                XMEMSET(pub87, 0xA5, WC_MLDSA_87_PUB_KEY_SIZE);
+            }
+        #endif
+            dev.pub = pub87;
+            dev.pubSz = WC_MLDSA_87_PUB_KEY_SIZE;
+            for (nosize = 0; nosize <= 1; nosize++) {
+                dev.mode = nosize ? MLDSA_MAKEPUB_CB_NOSIZE :
+                    MLDSA_MAKEPUB_CB_COPY;
+                ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId),
+                    NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+                ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+                ExpectIntEQ(key->level, WC_ML_DSA_87);
+                ExpectIntEQ(key->devLevelOpen, 0);
+                ExpectIntEQ(key->pubKeySet, 1);
+                ExpectIntEQ(XMEMCMP(key->p, pub87, WC_MLDSA_87_PUB_KEY_SIZE),
+                    0);
+                wc_MlDsaKey_Free(key);
+            }
+            dev.mode = MLDSA_MAKEPUB_CB_COPY;
+            dev.pub = pub;
+            dev.pubSz = pubSz;
+            XFREE(pub87, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+    #if !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_65)
+        /* A device key at a middle level is taken once a smaller level has
+         * not matched. Written without its size into the placeholder level's
+         * buffer, it leaves a zero tail and is refused. */
+        {
+            byte* pub65 = (byte*)XMALLOC(WC_MLDSA_65_PUB_KEY_SIZE, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            byte* priv65 = (byte*)XMALLOC(WC_MLDSA_87_PRV_KEY_SIZE, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            word32 priv65Sz = WC_MLDSA_87_PRV_KEY_SIZE;
+
+            ExpectNotNull(pub65);
+            ExpectNotNull(priv65);
+        #ifdef WC_MLDSA_HAVE_NATIVE
+            {
+                word32 pub65Sz = WC_MLDSA_65_PUB_KEY_SIZE;
+
+                EXPECT_TEST(mldsa_test_key_pair(WC_ML_DSA_65, priv65,
+                    &priv65Sz, pub65, &pub65Sz));
+                ExpectIntEQ(pub65Sz, WC_MLDSA_65_PUB_KEY_SIZE);
+            }
+        #else
+            (void)priv65Sz;
+            if (pub65 != NULL) {
+                XMEMSET(pub65, 0xA5, WC_MLDSA_65_PUB_KEY_SIZE);
+            }
+        #endif
+            dev.pub = pub65;
+            dev.pubSz = WC_MLDSA_65_PUB_KEY_SIZE;
+            ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId),
+                NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+            ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+            ExpectIntEQ(key->level, WC_ML_DSA_65);
+            ExpectIntEQ(key->devLevelOpen, 0);
+            ExpectIntEQ(key->pubKeySet, 1);
+        #ifdef WC_MLDSA_HAVE_NATIVE
+            EXPECT_TEST(mldsa_make_pub_cb_use_key(key, WC_ML_DSA_65, priv65,
+                priv65Sz, pub65, WC_MLDSA_65_PUB_KEY_SIZE));
+        #endif
+            wc_MlDsaKey_Free(key);
+
+            dev.mode = MLDSA_MAKEPUB_CB_NOSIZE;
+            ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId),
+                NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+            ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+                WC_NO_ERR_TRACE(BUFFER_E));
+            ExpectIntEQ(key->level, WC_ML_DSA_87);
+            ExpectIntEQ(key->devLevelOpen, 1);
+            ExpectIntEQ(key->pubKeySet, 0);
+            wc_MlDsaKey_Free(key);
+            dev.mode = MLDSA_MAKEPUB_CB_COPY;
+            dev.pub = pub;
+            dev.pubSz = pubSz;
+            XFREE(priv65, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(pub65, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    #endif
+
+        /* A failing device leaves the level InitId picked. */
+        {
+            static const byte zeros[WC_MLDSA_87_PUB_KEY_SIZE] = { 0 };
+
+            dev.pub = zeros;
+            ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId),
+                NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+            ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+                WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+            ExpectIntEQ(key->level, WC_ML_DSA_87);
+            ExpectIntEQ(key->pubKeySet, 0);
+            wc_MlDsaKey_Free(key);
+            dev.pub = pub;
+        }
+
+        /* A device key of no compiled in level's size leaves the level
+         * open. */
+        dev.pubSz = pubSz - 1;
+        ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId), NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(key->level, WC_ML_DSA_87);
+        ExpectIntEQ(key->devLevelOpen, 1);
+        ExpectIntEQ(key->pubKeySet, 0);
+        wc_MlDsaKey_Free(key);
+        dev.pubSz = pubSz;
+
+        /* A device that writes a smaller level's key without reporting its
+         * size is not taken for the placeholder level. */
+        dev.mode = MLDSA_MAKEPUB_CB_NOSIZE;
+        ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId), NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(key->level, WC_ML_DSA_87);
+        ExpectIntEQ(key->devLevelOpen, 1);
+        ExpectIntEQ(key->pubKeySet, 0);
+        wc_MlDsaKey_Free(key);
+
+    #if defined(WOLFSSL_NO_ML_DSA_44) || defined(WOLFSSL_NO_ML_DSA_65)
+        /* Nor is the key of a level this build lacks: its end is past every
+         * smaller compiled in level's. */
+        {
+        #ifdef WOLFSSL_NO_ML_DSA_65
+            const word32 lackedSz = WC_MLDSA_65_PUB_KEY_SIZE;
+        #else
+            const word32 lackedSz = WC_MLDSA_44_PUB_KEY_SIZE;
+        #endif
+            byte* lacked = (byte*)XMALLOC(lackedSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+
+            ExpectNotNull(lacked);
+            if (lacked != NULL) {
+                XMEMSET(lacked, 0xA5, lackedSz);
+            }
+            dev.pub = lacked;
+            dev.pubSz = lackedSz;
+            ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId),
+                NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+            ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+                WC_NO_ERR_TRACE(BUFFER_E));
+            ExpectIntEQ(key->level, WC_ML_DSA_87);
+            ExpectIntEQ(key->pubKeySet, 0);
+            wc_MlDsaKey_Free(key);
+            dev.pub = pub;
+            dev.pubSz = pubSz;
+            XFREE(lacked, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    #endif
+        dev.mode = MLDSA_MAKEPUB_CB_COPY;
+
+        /* SetParams after InitId makes the level the caller's: the device's
+         * key of another level is refused. */
+        if (other != NULL) {
+            XMEMSET(other + pubSz, 0xA5, WC_MLDSA_87_PUB_KEY_SIZE - pubSz);
+        }
+        dev.pub = other;
+        dev.pubSz = WC_MLDSA_87_PUB_KEY_SIZE;
+        ExpectIntEQ(wc_MlDsaKey_InitId(key, keyId, (int)sizeof(keyId), NULL,
+            TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(key->level, level);
+        ExpectIntEQ(key->pubKeySet, 0);
+        wc_MlDsaKey_Free(key);
+        dev.pub = pub;
+        dev.pubSz = pubSz;
+    #endif
+    }
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+#ifdef WOLF_CRYPTO_CB_FIND
+    /* A key that names no device reaches one through the find callback. */
+    wc_CryptoCb_SetDeviceFindCb(mldsa_make_pub_find_cb);
+    dev.calls = 0;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(dev.calls, 1);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+    wc_MlDsaKey_Free(key);
+    /* Put back the finder the test harness uses */
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
+#endif /* WOLF_CRYPTO_CB_FIND */
+
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    /* Without software the device's key can't be checked against a private
+     * key held here, so the device is not asked. */
+    dev.calls = 0;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    if (key != NULL) {
+        key->prvKeySet = 1;
+    }
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    ExpectIntEQ(dev.calls, 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+#endif
+
+    /* A device key of another size is not this level's public key. */
+    dev.pubSz = pubSz - 1;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(key->pubKeySet, 0);
+#ifdef WC_MLDSA_HAVE_NATIVE
+    ExpectIntEQ(mldsa_test_pub_cleared(key, 0), 1);
+#endif
+    wc_MlDsaKey_Free(key);
+    dev.pubSz = pubSz + 1;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(key->pubKeySet, 0);
+#ifdef WC_MLDSA_HAVE_NATIVE
+    ExpectIntEQ(mldsa_test_pub_cleared(key, 0), 1);
+#endif
+    dev.pubSz = pubSz;
+    wc_MlDsaKey_Free(key);
+
+    /* A device that reports success without a public key gives none. */
+    {
+        static const byte zeros[WC_MLDSA_87_PUB_KEY_SIZE] = { 0 };
+
+        dev.pub = zeros;
+        ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID),
+            0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+            WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        ExpectIntEQ(key->pubKeySet, 0);
+        wc_MlDsaKey_Free(key);
+        dev.pub = pub;
+    }
+
+    /* A device error is returned as is. */
+    dev.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+
+    /* A device that declines leaves nothing to derive from. */
+    dev.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(key->pubKeySet, 0);
+    wc_MlDsaKey_Free(key);
+
+#ifdef WC_MLDSA_HAVE_NATIVE
+    /* With the private key held here the device is never asked: the public
+     * key is derived in software, so the device's differing key, or its
+     * declining, does not matter. */
+    dev.ret = 0;
+    dev.pub = other;
+    dev.calls = 0;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, priv, privSz), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(dev.calls, 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    {
+        static const byte msg[] = { 0x6d, 0x73, 0x67 };
+        WC_RNG rng;
+        byte* sig;
+        word32 sigSz = MLDSA_MAX_SIG_SIZE;
+        int res = 0;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(sig);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigSz, msg,
+            (word32)sizeof(msg), &rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigSz, NULL, 0, msg,
+            (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 1);
+        wc_FreeRng(&rng);
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    wc_MlDsaKey_Free(key);
+
+    /* Both halves set: the set public key is checked against tr, again
+     * without the device. */
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pub, pubSz), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, priv, privSz), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(dev.calls, 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, pub, pubSz), 0);
+    wc_MlDsaKey_Free(key);
+    /* tr does not match the set public key. */
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, other, pubSz), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, priv, privSz), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(dev.calls, 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, other, pubSz), 0);
+    wc_MlDsaKey_Free(key);
+    dev.pub = pub;
+
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    /* A reused key verifies with the device's key, not with t1 cached from
+     * the public key it held before. */
+    {
+        static const byte msg[] = { 0x6d, 0x73, 0x67 };
+        wc_MlDsaKey* keyB;
+        WC_RNG rng;
+        byte seed[MLDSA_SEED_SZ];
+        byte* pubB;
+        byte* sig;
+        word32 pubBSz = WC_MLDSA_87_PUB_KEY_SIZE;
+        word32 sigSz = MLDSA_MAX_SIG_SIZE;
+        int res = 0;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        XMEMSET(seed, 0x33, sizeof(seed));
+        keyB = (wc_MlDsaKey*)XMALLOC(sizeof(*keyB), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(keyB);
+        if (keyB != NULL) {
+            XMEMSET(keyB, 0, sizeof(*keyB));
+        }
+        pubB = (byte*)XMALLOC(pubBSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(pubB);
+        sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(sig);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_Init(keyB, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(keyB, level), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(keyB, seed), 0);
+        ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(keyB, pubB, &pubBSz), 0);
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(keyB, NULL, 0, sig, &sigSz, msg,
+            (word32)sizeof(msg), &rng), 0);
+        wc_MlDsaKey_Free(keyB);
+
+        ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_CB_DEVID),
+            0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+        ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pub, pubSz), 0);
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigSz, NULL, 0, msg,
+            (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 0);
+        if (key != NULL) {
+            /* Clear only the flag: the t1 and A caches built from pub stay,
+             * so only MakePublicKey dropping them lets pubB verify. */
+            key->pubKeySet = 0;
+        }
+        dev.pub = pubB;
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigSz, NULL, 0, msg,
+            (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 1);
+        dev.pub = pub;
+        wc_MlDsaKey_Free(key);
+
+        wc_FreeRng(&rng);
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pubB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+#if defined(MLDSA_TEST_OOM_ALLOC) && defined(USE_WOLFSSL_MEMORY)
+    dev.mode = MLDSA_MAKEPUB_CB_COPY;
+    dev.pub = pub;
+    dev.pubSz = pubSz;
+    dev.ret = 0;
+    EXPECT_TEST(mldsa_oom_make_public_key_dev(level, &dev, 0));
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(WOLFSSL_NO_ML_DSA_87) && \
+    (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_65))
+    /* InitId keys start at ML-DSA-87; the device's key is a lower level. */
+    EXPECT_TEST(mldsa_oom_make_public_key_dev(level, &dev, 1));
+#endif
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_MLDSA_MAKEPUB_CB_DEVID);
+    XFREE(other, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test MakePublicKey rejects 'tr' mismatch. */
 int test_mldsa_make_public_key_tr_mismatch(void)
 {
@@ -9367,7 +10270,7 @@ int test_mldsa_make_public_key_tr_mismatch(void)
         ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
             WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         ExpectIntEQ(key->pubKeySet, 0);
-        ExpectIntEQ(mldsa_test_pub_cleared(key), 1);
+        ExpectIntEQ(mldsa_test_pub_cleared(key, 0), 1);
 
         wc_MlDsaKey_Free(key);
     }
@@ -9424,7 +10327,7 @@ int test_mldsa_make_public_key_t0_mismatch(void)
         ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
             WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         ExpectIntEQ(key->pubKeySet, 0);
-        ExpectIntEQ(mldsa_test_pub_cleared(key), 1);
+        ExpectIntEQ(mldsa_test_pub_cleared(key, 0), 1);
 
         wc_MlDsaKey_Free(key);
     }
