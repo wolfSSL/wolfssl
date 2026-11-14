@@ -1967,6 +1967,9 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                                     DYNAMIC_TYPE_DCERT);
     if (DeCert == NULL) {
         WOLFSSL_MSG("out of memory");
+        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
+        wc_FreeCertList(certList, heap);
         return WOLFSSL_FAILURE;
     }
 #endif
@@ -2073,11 +2076,17 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         }
         InitX509(*cert, 1, heap);
         InitDecodedCert(DeCert, certData, certDataSz, heap);
-        if (ParseCertRelative(DeCert, CERT_TYPE, NO_VERIFY, NULL, NULL) != 0) {
+        ret = ParseCertRelative(DeCert, CERT_TYPE, NO_VERIFY, NULL, NULL);
+        if (ret != 0) {
             WOLFSSL_MSG("Issue with parsing certificate");
         }
-        if (CopyDecodedToX509(*cert, DeCert) != 0) {
-            WOLFSSL_MSG("Failed to copy decoded cert");
+        else {
+            ret = CopyDecodedToX509(*cert, DeCert);
+            if (ret != 0) {
+                WOLFSSL_MSG("Failed to copy decoded cert");
+            }
+        }
+        if (ret != 0) {
             FreeDecodedCert(DeCert);
             XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             if (ca != NULL) {
