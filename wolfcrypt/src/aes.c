@@ -16564,13 +16564,18 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+    /* A and B in one struct, so one wipe clears both. */
+    struct {
 #ifdef WOLFSSL_AESNI
-    ALIGN128 byte A[WC_AES_BLOCK_SIZE * 4];
-    ALIGN128 byte B[WC_AES_BLOCK_SIZE * 4];
+        ALIGN128 byte a[WC_AES_BLOCK_SIZE * 4];
+        ALIGN128 byte b[WC_AES_BLOCK_SIZE * 4];
 #else
-    byte A[WC_AES_BLOCK_SIZE];
-    byte B[WC_AES_BLOCK_SIZE];
+        byte a[WC_AES_BLOCK_SIZE];
+        byte b[WC_AES_BLOCK_SIZE];
 #endif
+    } ab;
+    byte* A = ab.a;
+    byte* B = ab.b;
     byte lenSz;
     word32 i;
     byte mask = 0xFF;
@@ -16628,7 +16633,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return MISSING_KEY;
     }
 
-    XMEMSET(A, 0, sizeof(A));
+    XMEMSET(A, 0, sizeof(ab.a));
     XMEMCPY(B+1, nonce, nonceSz);
 
     B[0] = (byte)((authInSz > 0 ? 64 : 0)
@@ -16641,7 +16646,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(B));
+    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_PUSH;
@@ -16651,7 +16656,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     ret = wc_AesEncrypt(aes, B, A);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     if (ret == 0)
-        wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
+        wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(ab.a));
 #endif
 
     if ((ret == 0) && (authInSz > 0))
@@ -16714,12 +16719,11 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         XMEMCPY(out, A, inSz);
     }
 
-    ForceZero(A, sizeof(A));
-    ForceZero(B, sizeof(B));
+    ForceZero(&ab, sizeof(ab));
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(A, sizeof(A));
-    wc_MemZero_Check(B, sizeof(B));
+    wc_MemZero_Check(A, sizeof(ab.a));
+    wc_MemZero_Check(B, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_POP;
@@ -16734,13 +16738,18 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+    /* A and B in one struct, so one wipe clears both. */
+    struct {
 #ifdef WOLFSSL_AESNI
-    ALIGN128 byte B[WC_AES_BLOCK_SIZE * 4];
-    ALIGN128 byte A[WC_AES_BLOCK_SIZE * 4];
+        ALIGN128 byte a[WC_AES_BLOCK_SIZE * 4];
+        ALIGN128 byte b[WC_AES_BLOCK_SIZE * 4];
 #else
-    byte A[WC_AES_BLOCK_SIZE];
-    byte B[WC_AES_BLOCK_SIZE];
+        byte a[WC_AES_BLOCK_SIZE];
+        byte b[WC_AES_BLOCK_SIZE];
 #endif
+    } ab;
+    byte* A = ab.a;
+    byte* B = ab.b;
     byte* o;
     byte lenSz;
     word32 i, oSz;
@@ -16804,7 +16813,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     o = out;
     oSz = inSz;
-    XMEMSET(A, 0, sizeof A);
+    XMEMSET(A, 0, sizeof ab.a);
     XMEMCPY(B+1, nonce, nonceSz);
 
     B[0] = (byte)(lenSz - 1U);
@@ -16813,8 +16822,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     B[15] = 1;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
-    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(B));
+    wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(ab.a));
+    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_PUSH;
@@ -16909,13 +16918,12 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         }
     }
 
-    ForceZero(A, sizeof(A));
-    ForceZero(B, sizeof(B));
+    ForceZero(&ab, sizeof(ab));
     o = NULL;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(A, sizeof(A));
-    wc_MemZero_Check(B, sizeof(B));
+    wc_MemZero_Check(A, sizeof(ab.a));
+    wc_MemZero_Check(B, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_POP;
