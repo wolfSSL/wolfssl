@@ -5810,6 +5810,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         #endif
         }
 
+#ifndef NO_CERTS
+        /* Trust for the previous peer must not carry into the next. */
+        SslWaivedCAsFree(ssl);
+#endif
+
         /* reset error */
         ssl->error = 0;
 
