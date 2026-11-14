@@ -518,6 +518,9 @@ int wc_curve25519_generic(int public_size, byte* pub,
     return WC_HW_E;
 #else
     int ret;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte pubVal[CURVE25519_KEYSIZE];
+#endif
 
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE) ||
@@ -531,6 +534,19 @@ int wc_curve25519_generic(int public_size, byte* pub,
     ret = curve25519_priv_clamp_check(priv);
     if (ret != 0)
         return ret;
+
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
+    /* avoid implementation fingerprinting - make sure signed bit is not set */
+    if (basepoint[CURVE25519_KEYSIZE-1] & 0x80) {
+        return ECC_BAD_ARG_E;
+    }
+#else
+    /* RFC 7748 section 5: clear the reserved top bit of the u-coordinate.
+     * basepoint is const, and the backends do not allow pub to alias it. */
+    XMEMCPY(pubVal, basepoint, CURVE25519_KEYSIZE);
+    pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+    basepoint = pubVal;
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     /* no key names a device, so offer the scalar to the build default one */
@@ -588,6 +604,9 @@ int wc_curve25519_generic_blind(int public_size, byte* pub,
     return WC_HW_E;
 #else
     int ret;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte pubVal[CURVE25519_KEYSIZE];
+#endif
 
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE) ||
@@ -604,6 +623,19 @@ int wc_curve25519_generic_blind(int public_size, byte* pub,
     ret = curve25519_priv_clamp_check(priv);
     if (ret != 0)
         return ret;
+
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
+    /* avoid implementation fingerprinting - make sure signed bit is not set */
+    if (basepoint[CURVE25519_KEYSIZE-1] & 0x80) {
+        return ECC_BAD_ARG_E;
+    }
+#else
+    /* RFC 7748 section 5: clear the reserved top bit of the u-coordinate.
+     * basepoint is const, and the backends do not allow pub to alias it. */
+    XMEMCPY(pubVal, basepoint, CURVE25519_KEYSIZE);
+    pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+    basepoint = pubVal;
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     /* no key names a device, so offer the scalar to the build default one */
@@ -822,19 +854,32 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             privKey->nb_ctx->ssState = 1;
             break;
         case 1:
+        {
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            const byte* pubVal = pubKey->p.point;
+        #else
+            /* RFC 7748 section 5: curve25519_nb() does not clear the reserved
+             * top bit, so pass a masked copy. curve25519_nb() reads the point
+             * on every resumption but never keeps the pointer, so rebuilding
+             * the copy each call is equivalent. */
+            byte pubVal[CURVE25519_KEYSIZE];
+
+            XMEMCPY(pubVal, pubKey->p.point, CURVE25519_KEYSIZE);
+            pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+        #endif
             /* Write the result directly into the caller's 'out' buffer.
              * curve25519_nb() zeroes the non-blocking context on completion,
              * so any output buffer that lives inside nb_ctx (e.g.
              * nb_ctx->o.point) would be clobbered to zero before we could
              * read it. The output is little-endian; case 2 handles the
              * optional byte-reversal for EC25519_BIG_ENDIAN. */
-            ret = curve25519_nb(out, privKey->k, pubKey->p.point,
-                      privKey->nb_ctx);
+            ret = curve25519_nb(out, privKey->k, pubVal, privKey->nb_ctx);
             if (ret == 0) {
                 ret = FP_WOULDBLOCK;
                 privKey->nb_ctx->ssState = 2;
             }
             break;
+        }
         case 2:
         #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             {
@@ -951,9 +996,20 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         XMEMSET(&o, 0, sizeof(o));
 
 #ifdef FREESCALE_LTC_ECC
-        /* input point P on Curve25519 */
-        ret = nxp_ltc_curve25519(&o, private_key->k, &public_key->p,
-            kLTC_Curve25519);
+        {
+            /* input point P on Curve25519 */
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            const ECPoint* pub = &public_key->p;
+        #else
+            ECPoint pubMasked;
+            const ECPoint* pub = &pubMasked;
+
+            XMEMCPY(&pubMasked, &public_key->p, sizeof(pubMasked));
+            pubMasked.point[CURVE25519_KEYSIZE-1] &= 0x7f;
+        #endif
+            ret = nxp_ltc_curve25519(&o, private_key->k, pub,
+                kLTC_Curve25519);
+        }
 #else
     #ifdef WOLFSSL_SE050
         if (!private_key->privSet) {
