@@ -116,9 +116,7 @@ int wolfSSL_dtls_free_peer(void* addr)
 /* Store a socket address into a socket address holder, resizing as needed.
  *
  * A NULL or zero-length peer frees the holder's buffer. An address that fits
- * the buffer already there is copied over it rather than reallocated:
- * EmbedSendTo reads peer.sa without taking peerLock, so freeing it on every
- * update would widen that race rather than leave it as it is.
+ * the buffer already there is copied over it rather than reallocated.
  *
  * The record layer promotes a pending peer through this while already holding
  * peerLock, so it takes no lock of its own.
@@ -143,15 +141,12 @@ int wolfssl_local_SockAddrSet(WOLFSSL_SOCKADDR* sockAddr, void* peer,
     }
 
     if (peerSz > sockAddr->bufSz) {
+        void* sa = XMALLOC(peerSz, heap, DYNAMIC_TYPE_SOCKADDR);
+        if (sa == NULL)
+            return WOLFSSL_FAILURE;
         if (sockAddr->sa != NULL)
             XFREE(sockAddr->sa, heap, DYNAMIC_TYPE_SOCKADDR);
-        sockAddr->sa =
-                (void*)XMALLOC(peerSz, heap, DYNAMIC_TYPE_SOCKADDR);
-        if (sockAddr->sa == NULL) {
-            sockAddr->sz = 0;
-            sockAddr->bufSz = 0;
-            return WOLFSSL_FAILURE;
-        }
+        sockAddr->sa = sa;
         sockAddr->bufSz = peerSz;
     }
     XMEMCPY(sockAddr->sa, peer, peerSz);
@@ -182,10 +177,9 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 #endif
     ret = wolfssl_local_SockAddrSet(&ssl->buffers.dtlsCtx.peer, peer, peerSz,
             ssl->heap);
-    if (ret == WOLFSSL_SUCCESS && !(peer == NULL || peerSz == 0))
-        ssl->buffers.dtlsCtx.userSet = 1;
-    else
-        ssl->buffers.dtlsCtx.userSet = 0;
+    /* A failed update keeps the previous peer, so it keeps its flag too. */
+    if (ret == WOLFSSL_SUCCESS)
+        ssl->buffers.dtlsCtx.userSet = !(peer == NULL || peerSz == 0);
 #ifdef WOLFSSL_RW_THREADED
     if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
         ret = WOLFSSL_FAILURE;

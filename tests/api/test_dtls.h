@@ -119,6 +119,7 @@ int test_dtls13_seq_wrap_KU_sha256_sha256(void);
 int test_dtls13_seq_wrap_hard_stop(void);
 int test_dtls13_message_seq_hard_stop(void);
 int test_wolfSSL_dtls_get0_peer(void);
+int test_dtls_send_to_peer_migration(void);
 int test_wolfSSL_dtls_set_timeout_init(void);
 int test_wolfSSL_dtls_retransmit(void);
 int test_wolfSSL_DTLSv1_compat_timeouts(void);
@@ -128,6 +129,7 @@ int test_wolfSSL_mcast_peers(void);
 int test_wolfSSL_set_dtls_fd_connected(void);
 int test_wolfSSL_dtls_get_peer(void);
 int test_wolfSSL_dtls_set_peer(void);
+int test_wolfSSL_dtls_set_peer_oom(void);
 int test_wolfSSL_GetDtlsMacSecret(void);
 int test_wolfSSL_dtls_get_using_nonblock(void);
 int test_wolfSSL_dtls_set_using_nonblock(void);
@@ -143,6 +145,7 @@ int test_wolfSSL_mcast_ccs_peer_entry(void);
 /* DTLS tests moved out of tests/api.c. */
 int test_dtls_msg_from_other_peer(void);
 int test_dtls_ipv6_check(void);
+int test_dtls_export_peer_ipv6_not_compiled(void);
 int test_dtls_no_extensions(void);
 int test_dtls_1_0_hvr_downgrade(void);
 int test_dtls_downgrade_scr_server(void);
@@ -301,6 +304,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_WOLFSSL_dtls_version_alert),              \
         TEST_DECL_GROUP("dtls", test_dtls_msg_from_other_peer),                \
         TEST_DECL_GROUP("dtls", test_dtls_ipv6_check),                         \
+        TEST_DECL_GROUP("dtls", test_dtls_export_peer_ipv6_not_compiled),      \
         TEST_DECL_GROUP("dtls", test_dtls_no_extensions),                      \
         TEST_DECL_GROUP("dtls", test_dtls_1_0_hvr_downgrade),                  \
         TEST_DECL_GROUP("dtls", test_dtls_downgrade_scr_server),               \
@@ -375,6 +379,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_dtls13_seq_wrap_hard_stop), \
         TEST_DECL_GROUP("dtls", test_dtls13_message_seq_hard_stop), \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get0_peer),                  \
+        TEST_DECL_GROUP("dtls", test_dtls_send_to_peer_migration),             \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_timeout_init),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_retransmit),                 \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DTLSv1_compat_timeouts),          \
@@ -384,6 +389,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_wolfSSL_set_dtls_fd_connected),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get_peer),                   \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_peer),                   \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_peer_oom),               \
         TEST_DECL_GROUP("dtls", test_wolfSSL_GetDtlsMacSecret),                \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get_using_nonblock),         \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_using_nonblock),         \
