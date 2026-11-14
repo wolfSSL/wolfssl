@@ -36,6 +36,42 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* On some CPUs the latency of a 64-bit multiply depends on the operand
+ * values. Cortex-A55: "64-bit multiplies take two or three cycles, depending
+ * on whether both operands contain '1's in their top 32 bits" (Software
+ * Optimization Guide, section 3.4). The Cortex-A53 is the A55's predecessor
+ * and is treated the same. When enabled, the field code is written so the
+ * compiler only uses fixed latency multiplies on secret limbs:
+ *  - 32-bit limbs: small multiples are computed in unsigned 32-bit so the
+ *    compiler can't widen them into 64-bit multiplies (Clang does).
+ *  - 128-bit: the x19 and x2 multiples are applied to 64-bit limbs so every
+ *    product is a plain signed 64x64->128 multiply. Otherwise Clang emits
+ *    multiplies with the sign word of a limb as an operand.
+ * Enable with WOLFSSL_CORTEX_A55, WOLFSSL_CORTEX_A53 or directly with
+ * WOLFSSL_CURVE25519_FIXED_LATENCY_MUL.
+ */
+#if (defined(WOLFSSL_CORTEX_A55) || defined(WOLFSSL_CORTEX_A53)) && \
+    !defined(WOLFSSL_CURVE25519_FIXED_LATENCY_MUL)
+    #define WOLFSSL_CURVE25519_FIXED_LATENCY_MUL
+#endif
+
+/* 128-bit: apply the x19 and x2 multiples to 64-bit limbs before the
+ * products (fewer 128-bit multiplies). Default as it is faster on x86_64 and
+ * needed for fixed latency multiplies. NO_CURVED25519_128BIT_FOLDED selects the
+ * original form, except when fixed latency multiplies are required.
+ */
+#if (!defined(NO_CURVED25519_128BIT_FOLDED) || \
+     defined(WOLFSSL_CURVE25519_FIXED_LATENCY_MUL)) && \
+    !defined(CURVED25519_128BIT_FOLDED)
+    #define CURVED25519_128BIT_FOLDED
+#endif
+
+#ifdef WOLFSSL_CURVE25519_FIXED_LATENCY_MUL
+    #define FE_MUL32_SMALL(c, v)    ((sword32)((word32)(c) * (word32)(v)))
+#else
+    #define FE_MUL32_SMALL(c, v)    ((c) * (v))
+#endif
+
 #ifdef CURVED25519_X64
 /* Assembly code in fe_x25519_asm.* */
 #elif defined(WOLFSSL_ARMASM)
@@ -300,19 +336,19 @@ void fe_sq(fe h,const fe f)
   sword32 f7 = f[7];
   sword32 f8 = f[8];
   sword32 f9 = f[9];
-  sword32 f0_2 = 2 * f0;
-  sword32 f1_2 = 2 * f1;
-  sword32 f2_2 = 2 * f2;
-  sword32 f3_2 = 2 * f3;
-  sword32 f4_2 = 2 * f4;
-  sword32 f5_2 = 2 * f5;
-  sword32 f6_2 = 2 * f6;
-  sword32 f7_2 = 2 * f7;
-  sword32 f5_38 = 38 * f5; /* 1.959375*2^30 */
-  sword32 f6_19 = 19 * f6; /* 1.959375*2^30 */
-  sword32 f7_38 = 38 * f7; /* 1.959375*2^30 */
-  sword32 f8_19 = 19 * f8; /* 1.959375*2^30 */
-  sword32 f9_38 = 38 * f9; /* 1.959375*2^30 */
+  sword32 f0_2 = FE_MUL32_SMALL(2, f0);
+  sword32 f1_2 = FE_MUL32_SMALL(2, f1);
+  sword32 f2_2 = FE_MUL32_SMALL(2, f2);
+  sword32 f3_2 = FE_MUL32_SMALL(2, f3);
+  sword32 f4_2 = FE_MUL32_SMALL(2, f4);
+  sword32 f5_2 = FE_MUL32_SMALL(2, f5);
+  sword32 f6_2 = FE_MUL32_SMALL(2, f6);
+  sword32 f7_2 = FE_MUL32_SMALL(2, f7);
+  sword32 f5_38 = FE_MUL32_SMALL(38, f5); /* 1.959375*2^30 */
+  sword32 f6_19 = FE_MUL32_SMALL(19, f6); /* 1.959375*2^30 */
+  sword32 f7_38 = FE_MUL32_SMALL(38, f7); /* 1.959375*2^30 */
+  sword32 f8_19 = FE_MUL32_SMALL(19, f8); /* 1.959375*2^30 */
+  sword32 f9_38 = FE_MUL32_SMALL(38, f9); /* 1.959375*2^30 */
   sword64 f0f0    = f0   * (sword64) f0;
   sword64 f0f1_2  = f0_2 * (sword64) f1;
   sword64 f0f2_2  = f0_2 * (sword64) f2;
@@ -841,20 +877,20 @@ void fe_mul(fe h,const fe f,const fe g)
   sword32 g7 = g[7];
   sword32 g8 = g[8];
   sword32 g9 = g[9];
-  sword32 g1_19 = 19 * g1; /* 1.959375*2^29 */
-  sword32 g2_19 = 19 * g2; /* 1.959375*2^30; still ok */
-  sword32 g3_19 = 19 * g3;
-  sword32 g4_19 = 19 * g4;
-  sword32 g5_19 = 19 * g5;
-  sword32 g6_19 = 19 * g6;
-  sword32 g7_19 = 19 * g7;
-  sword32 g8_19 = 19 * g8;
-  sword32 g9_19 = 19 * g9;
-  sword32 f1_2 = 2 * f1;
-  sword32 f3_2 = 2 * f3;
-  sword32 f5_2 = 2 * f5;
-  sword32 f7_2 = 2 * f7;
-  sword32 f9_2 = 2 * f9;
+  sword32 g1_19 = FE_MUL32_SMALL(19, g1); /* 1.959375*2^29 */
+  sword32 g2_19 = FE_MUL32_SMALL(19, g2); /* 1.959375*2^30; still ok */
+  sword32 g3_19 = FE_MUL32_SMALL(19, g3);
+  sword32 g4_19 = FE_MUL32_SMALL(19, g4);
+  sword32 g5_19 = FE_MUL32_SMALL(19, g5);
+  sword32 g6_19 = FE_MUL32_SMALL(19, g6);
+  sword32 g7_19 = FE_MUL32_SMALL(19, g7);
+  sword32 g8_19 = FE_MUL32_SMALL(19, g8);
+  sword32 g9_19 = FE_MUL32_SMALL(19, g9);
+  sword32 f1_2 = FE_MUL32_SMALL(2, f1);
+  sword32 f3_2 = FE_MUL32_SMALL(2, f3);
+  sword32 f5_2 = FE_MUL32_SMALL(2, f5);
+  sword32 f7_2 = FE_MUL32_SMALL(2, f7);
+  sword32 f9_2 = FE_MUL32_SMALL(2, f9);
   sword64 f0g0    = f0   * (sword64) g0;
   sword64 f0g1    = f0   * (sword64) g1;
   sword64 f0g2    = f0   * (sword64) g2;
@@ -1079,6 +1115,7 @@ void fe_cswap(fe f, fe g, int b)
   sword32 x8 = f8 ^ g8;
   sword32 x9 = f9 ^ g9;
   b = -b;
+  FE_CT_BARRIER(b);
   x0 &= b;
   x1 &= b;
   x2 &= b;
@@ -1208,19 +1245,19 @@ void fe_sq2(fe h,const fe f)
   sword32 f7 = f[7];
   sword32 f8 = f[8];
   sword32 f9 = f[9];
-  sword32 f0_2 = 2 * f0;
-  sword32 f1_2 = 2 * f1;
-  sword32 f2_2 = 2 * f2;
-  sword32 f3_2 = 2 * f3;
-  sword32 f4_2 = 2 * f4;
-  sword32 f5_2 = 2 * f5;
-  sword32 f6_2 = 2 * f6;
-  sword32 f7_2 = 2 * f7;
-  sword32 f5_38 = 38 * f5; /* 1.959375*2^30 */
-  sword32 f6_19 = 19 * f6; /* 1.959375*2^30 */
-  sword32 f7_38 = 38 * f7; /* 1.959375*2^30 */
-  sword32 f8_19 = 19 * f8; /* 1.959375*2^30 */
-  sword32 f9_38 = 38 * f9; /* 1.959375*2^30 */
+  sword32 f0_2 = FE_MUL32_SMALL(2, f0);
+  sword32 f1_2 = FE_MUL32_SMALL(2, f1);
+  sword32 f2_2 = FE_MUL32_SMALL(2, f2);
+  sword32 f3_2 = FE_MUL32_SMALL(2, f3);
+  sword32 f4_2 = FE_MUL32_SMALL(2, f4);
+  sword32 f5_2 = FE_MUL32_SMALL(2, f5);
+  sword32 f6_2 = FE_MUL32_SMALL(2, f6);
+  sword32 f7_2 = FE_MUL32_SMALL(2, f7);
+  sword32 f5_38 = FE_MUL32_SMALL(38, f5); /* 1.959375*2^30 */
+  sword32 f6_19 = FE_MUL32_SMALL(19, f6); /* 1.959375*2^30 */
+  sword32 f7_38 = FE_MUL32_SMALL(38, f7); /* 1.959375*2^30 */
+  sword32 f8_19 = FE_MUL32_SMALL(19, f8); /* 1.959375*2^30 */
+  sword32 f9_38 = FE_MUL32_SMALL(38, f9); /* 1.959375*2^30 */
   sword64 f0f0    = f0   * (sword64) f0;
   sword64 f0f1_2  = f0_2 * (sword64) f1;
   sword64 f0f2_2  = f0_2 * (sword64) f2;
@@ -1494,6 +1531,7 @@ void fe_cmov(fe f, const fe g, int b)
   sword32 x8 = f8 ^ g8;
   sword32 x9 = f9 ^ g9;
   b = -b;
+  FE_CT_BARRIER(b);
   x0 &= b;
   x1 &= b;
   x2 &= b;

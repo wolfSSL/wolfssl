@@ -495,9 +495,10 @@ static int prime_msb(const byte *p)
 
 void fprime_select(byte *dst, const byte *zero, const byte *one, byte condition)
 {
-    const byte mask = -condition;
+    byte mask = (byte)-condition;
     int i;
 
+    FE_CT_BARRIER(mask);
     for (i = 0; i < F25519_SIZE; i++)
         dst[i] = zero[i] ^ (mask & (one[i] ^ zero[i]));
 }
@@ -599,9 +600,10 @@ void fe_select(byte *dst,
                const byte *zero, const byte *one,
                byte condition)
 {
-    const byte mask = -condition;
+    byte mask = (byte)-condition;
     int i;
 
+    FE_CT_BARRIER(mask);
     for (i = 0; i < F25519_SIZE; i++)
         dst[i] = zero[i] ^ (mask & (one[i] ^ zero[i]));
 }
