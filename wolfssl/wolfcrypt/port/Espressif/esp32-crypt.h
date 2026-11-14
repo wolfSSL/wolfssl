@@ -285,6 +285,7 @@ enum {
 **   CONFIG_IDF_TARGET_ESP32
 **   CONFIG_IDF_TARGET_ESP32C2
 **   CONFIG_IDF_TARGET_ESP32C3
+**   CONFIG_IDF_TARGET_ESP32C5
 **   CONFIG_IDF_TARGET_ESP32C6
 **   CONFIG_IDF_TARGET_ESP32S2
 **   CONFIG_IDF_TARGET_ESP32S3
@@ -432,7 +433,8 @@ enum {
     #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512
     /***** END CONFIG_IDF_TARGET_ESP32C3 *****/
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     #include <soc/dport_access.h>
     #include <soc/hwcrypto_reg.h>
 
@@ -458,13 +460,24 @@ enum {
 /*  #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256                               */
 /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256  there *is* SHA225 HW on C6   */
 
+#if defined(CONFIG_IDF_TARGET_ESP32C6)
     /* Code will fall back to SW with warning if these are removed:
      * note there is no SHA384/SHA512 HW on C6 */
     #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384
     #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384
     #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512
     #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512
-    /***** END CONFIG_IDF_TARGET_ESP32C6 *****/
+#endif
+    /* C5 additionally supports SHA384/SHA512 and SHA512/224/256. */
+#if defined(CONFIG_IDF_TARGET_ESP32C5) && defined(HAVE_ECC)
+    #ifndef NO_WOLFSSL_ESP32_CRYPT_ECC
+        #define WOLFSSL_ESP32_CRYPT_ECC
+    #endif
+    #ifndef NO_WOLFSSL_ESP32_CRYPT_ECDSA
+        #define WOLFSSL_ESP32_CRYPT_ECDSA
+    #endif
+#endif
+    /***** END CONFIG_IDF_TARGET_ESP32C5/C6 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32H2)
     /*  wolfSSL Hardware Acceleration not yet implemented. Note: no WiFi.  */
@@ -507,6 +520,9 @@ enum {
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #undef  NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    #undef  WOLFSSL_ESP32_CRYPT_ECC
+    #undef  WOLFSSL_ESP32_CRYPT_ECDSA
+    #undef  WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE
 #endif
 
 #ifdef NO_WOLFSSL_ESP32_CRYPT_HASH
@@ -786,6 +802,9 @@ extern "C"
             #define WC_ESP_SHA_TYPE SHA_TYPE
         #elif defined(CONFIG_IDF_TARGET_ESP32C3)
             #include "esp32c3/rom/sha.h"
+            #define WC_ESP_SHA_TYPE SHA_TYPE
+        #elif defined(CONFIG_IDF_TARGET_ESP32C5)
+            #include "esp32c5/rom/sha.h"
             #define WC_ESP_SHA_TYPE SHA_TYPE
         #elif defined(CONFIG_IDF_TARGET_ESP32C6)
             #include "esp32c6/rom/sha.h"

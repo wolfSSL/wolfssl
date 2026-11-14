@@ -41,6 +41,10 @@
 #if defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#if defined(CONFIG_IDF_TARGET_ESP32C5) || \
+    (defined(CONFIG_IDF_TARGET_ESP32C6) && ESP_IDF_VERSION_MAJOR >= 6)
+    #include <esp_crypto_periph_clk.h>
+#endif
 
 /* breadcrumb tag text for ESP_LOG() */
 static const char* TAG = "wolf_hw_aes";
@@ -104,7 +108,12 @@ static int esp_aes_hw_InUse(void)
 
     if (ret == ESP_OK) {
         /* Enable AES hardware */
+#if defined(CONFIG_IDF_TARGET_ESP32C5) || \
+    (defined(CONFIG_IDF_TARGET_ESP32C6) && ESP_IDF_VERSION_MAJOR >= 6)
+        esp_crypto_aes_enable_periph_clk(true);
+#else
         periph_module_enable(PERIPH_AES_MODULE);
+#endif
 
         #if defined(CONFIG_IDF_TARGET_ESP32S2) || \
             defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -115,6 +124,7 @@ static int esp_aes_hw_InUse(void)
             DPORT_REG_WRITE(AES_DMA_ENABLE_REG, 0);
         }
         #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32C5) || \
               defined(CONFIG_IDF_TARGET_ESP32C6)
         {
             /* Select working mode. Can be typical or DMA.
@@ -136,7 +146,12 @@ static void esp_aes_hw_Leave( void )
 {
     ESP_LOGV(TAG, "enter esp_aes_hw_Leave");
     /* Disable AES hardware */
+#if defined(CONFIG_IDF_TARGET_ESP32C5) || \
+    (defined(CONFIG_IDF_TARGET_ESP32C6) && ESP_IDF_VERSION_MAJOR >= 6)
+    esp_crypto_aes_enable_periph_clk(false);
+#else
     periph_module_disable(PERIPH_AES_MODULE);
+#endif
 
     /* unlock */
     esp_CryptHwMutexUnLock(&aes_mutex);
@@ -216,7 +231,8 @@ static int esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
         ESP_LOGE(TAG, "esp_aes_hw_Set_KeyMode unsupported mode: %i", mode_);
         ret = BAD_FUNC_ARG;
     }
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     #define TARGET_AES_KEY_BASE AES_KEY_0_REG
     if (mode_ == 1 || mode_ == 3 || mode_ == 5 || mode_ > 6) {
         /* this should have been detected in aes.c and fall back to SW */
@@ -303,7 +319,8 @@ static void esp_aes_bk(const byte* in, byte* out)
 
     /* read-out blocks */
     esp_dport_access_read_buffer((uint32_t*)outwords, AES_TEXT_OUT_BASE, 4);
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     /* See ESP32-C6 technical reference manual:
     ** 18.4.3 Operation process using CPU working mode.
     ** The ESP32-C6 also supports a DMA mode. (not ywt implemented)
@@ -380,7 +397,8 @@ int wc_esp32AesSupportedKeyLenValue(int keylen)
         ret = ESP_OK; /* keylen 24 (192 bit) not supported */
     }
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     if (keylen == 16 || keylen == 32) {
         ret = 1;
     }

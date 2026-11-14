@@ -1214,11 +1214,20 @@
         #endif
     #endif
 
+    #if defined(CONFIG_IDF_TARGET_ESP32C5) && defined(HAVE_ECC) && \
+        defined(CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN) && \
+        !defined(NO_ESP32_CRYPT) && \
+        !defined(NO_WOLFSSL_ESP32_CRYPT_ECDSA) && \
+        !defined(NO_WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+        #define WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE
+    #endif
+
     #if defined(WOLFSSL_SP_RISCV32)
         #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
             defined(CONFIG_IDF_TARGET_ESP32C3) || \
+            defined(CONFIG_IDF_TARGET_ESP32C5) || \
             defined(CONFIG_IDF_TARGET_ESP32C6)
-            /* ok, only the known C2, C3, C6 chips allowed */
+            /* ok, only the known C2, C3, C5, C6 chips allowed */
         #else
             #error "WOLFSSL_SP_RISCV32 can only be used on RISC-V architecture"
         #endif
@@ -1281,7 +1290,8 @@
             /* Observed: 0x2624B2 @ 80MHz */
             #define ESP_RSA_TIMEOUT_CNT      0x280000
         #endif
-    #elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    #elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+          defined(CONFIG_IDF_TARGET_ESP32C6)
         #ifndef ESP_RSA_TIMEOUT_CNT
             /* Observed: 144323 @ 80MHz */
             #define ESP_RSA_TIMEOUT_CNT      0x160000

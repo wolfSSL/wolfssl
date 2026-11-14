@@ -86,7 +86,8 @@ on the specific device platform.
 /* determine if we are using Espressif SHA hardware acceleration */
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 #if defined(WOLFSSL_ESP32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
+    !defined(CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT)
     /* define a single keyword for simplicity & readability
      *
      * by default the HW acceleration is on for ESP32-WROOM32
@@ -220,6 +221,7 @@ on the specific device platform.
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
+          defined(CONFIG_IDF_TARGET_ESP32C5) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)    \
         ) && \
         defined(WOLFSSL_ESP32_CRYPT) &&         \
@@ -2426,11 +2428,12 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                 sizeof(word32));
 #endif
 
-    /* Only the ESP32-C3 with HW enabled may need pad size byte order reversal
+    /* Espressif RISC-V targets with HW enabled may need pad size byte order
      * depending on HW or SW mode */
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
+          defined(CONFIG_IDF_TARGET_ESP32C5) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)    \
         ) && \
         defined(WOLFSSL_ESP32_CRYPT) &&         \
@@ -3320,6 +3323,12 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         (void)ret;
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
+
+#if defined(WOLFSSL_ESP32) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
+        esp_sha_release_unfinished_lock(&sha224->ctx);
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
         if (sha224->W != NULL) {
