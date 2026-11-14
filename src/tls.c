@@ -169,6 +169,9 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 
 #ifdef HAVE_SUPPORTED_CURVES
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
+#if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
+static int TLSX_PreTls13Reachable(const WOLFSSL* ssl);
+#endif
 #endif
 
 #if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
@@ -5281,15 +5284,15 @@ static int TLSX_DefaultGroupAllowed(const WOLFSSL* ssl, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
         case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
             return IsAtLeastTLSv1_3(ssl->version);
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
         /* RFC 7027 codepoints, also offered by TLS 1.3 when it may fall back
          * to TLS 1.2. */
         case WOLFSSL_ECC_BRAINPOOLP256R1:
         case WOLFSSL_ECC_BRAINPOOLP384R1:
         case WOLFSSL_ECC_BRAINPOOLP512R1:
             return !IsAtLeastTLSv1_3(ssl->version) ||
-                   (ssl->options.downgrade &&
-                    (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
-                     ssl->options.minDowngrade <= DTLSv1_2_MINOR));
+                   TLSX_PreTls13Reachable(ssl);
+    #endif
         default:
             return 1;
     }
@@ -7966,6 +7969,15 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
                 if (versionIsLesser(isDtls, minor, ssl->options.minDowngrade))
                     continue;
             }
+        #ifdef WOLFSSL_DTLS
+            /* The ClientHello after an HRR keeps the version the HRR chose. */
+            if (isDtls && ssl->options.downgrade &&
+                    ssl->options.serverState !=
+                        SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
+                    DtlsAllowedMinor(ssl, minor, DTLS_MINOR) != minor) {
+                continue;
+            }
+        #endif
             if (versionIsGreater(isDtls, minor, clientGreatestMinor))
                 clientGreatestMinor = minor;
 
@@ -16680,6 +16692,58 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
 #ifdef HAVE_SUPPORTED_CURVES
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
+/* Returns 1 when a client's supported_versions would also offer a version
+ * before 1.3. */
+static int TLSX_PreTls13Reachable(const WOLFSSL* ssl)
+{
+    int ret = 0;
+#if defined(WOLFSSL_TLS13) && \
+    (!defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS))
+    byte isDtls = (byte)ssl->options.dtls;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.downgrade) {
+    #ifndef WOLFSSL_NO_TLS12
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade,
+                (byte)(isDtls ? DTLSv1_2_MINOR : TLSv1_2_MINOR))
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+    #endif
+    #ifndef NO_OLD_TLS
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade,
+                (byte)(isDtls ? DTLS_MINOR : TLSv1_1_MINOR))
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+        #ifdef WOLFSSL_ALLOW_TLSV10
+        if (!isDtls && (ssl->options.minDowngrade <= TLSv1_MINOR)
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+        #endif
+    #endif
+    }
+#else
+    (void)ssl;
+#endif
+
+    return ret;
+}
+#endif
+
 /* Populates the default supported groups / curves */
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 {
@@ -16697,6 +16761,51 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 
     return WOLFSSL_SUCCESS;
 }
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_BRAINPOOL)
+/* Gives the ECH outer ClientHello the full default groups list and the inner
+ * one, which offers only TLS 1.3, the list without the pre-1.3 groups. */
+static int TLSX_EchSplitSupportedGroups(WOLFSSL* ssl)
+{
+    int ret;
+    byte downgrade;
+    TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+    TLSX* groupsX = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    TLSX* innerList = NULL;
+    TLSX* innerX = NULL;
+    void* data;
+    WOLFSSL_ECH* ech;
+
+    /* After a HelloRetryRequest the lists stay as the first hello sent them. */
+    if (echX == NULL || echX->data == NULL || groupsX == NULL ||
+            ssl->options.userCurves ||
+            ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE ||
+            !TLSX_PreTls13Reachable(ssl)) {
+        return 0;
+    }
+
+    ech = (WOLFSSL_ECH*)echX->data;
+    ret = TLSX_PopulateSupportedGroups(ssl, &ech->extensions);
+    if (ret == WOLFSSL_SUCCESS) {
+        downgrade = ssl->options.downgrade;
+        ssl->options.downgrade = 0;
+        ret = TLSX_PopulateSupportedGroups(ssl, &innerList);
+        ssl->options.downgrade = downgrade;
+    }
+    if (ret == WOLFSSL_SUCCESS)
+        innerX = TLSX_Find(innerList, TLSX_SUPPORTED_GROUPS);
+    if (innerX != NULL) {
+        /* Swap only the data so the outer hello keeps the GREASE ECH order. */
+        data = groupsX->data;
+        groupsX->data = innerX->data;
+        innerX->data = data;
+    }
+    TLSX_FreeAll(innerList, ssl->heap);
+
+    return (ret == WOLFSSL_SUCCESS) ? 0 : ret;
+}
+#endif
 
 #endif /* HAVE_SUPPORTED_CURVES */
 
@@ -16737,7 +16846,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #if defined(HAVE_SUPPORTED_CURVES)
         if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
             if (TLSX_Find(ssl->ctx->extensions,
-                                               TLSX_SUPPORTED_GROUPS) == NULL) {
+                                               TLSX_SUPPORTED_GROUPS) == NULL &&
+                    TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
                 ret = TLSX_PopulateSupportedGroups(ssl, &ssl->extensions);
                 if (ret != WOLFSSL_SUCCESS)
                     return ret;
@@ -17164,6 +17274,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 else if (ssl->echConfigs != NULL) {
                     ret = ECH_USE(ssl->echConfigs, &(ssl->extensions),
                             ssl->heap, ssl->rng);
+                #if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
+                    defined(HAVE_ECC_BRAINPOOL)
+                    if (ret == 0)
+                        ret = TLSX_EchSplitSupportedGroups(ssl);
+                #endif
                 }
             }
 #endif
@@ -17380,9 +17495,9 @@ static int TLSX_ECH_IsEncodable(word16 type)
  *   2-byte extension_type + 2-byte extension_data length +
  *   1-byte list length    + 2*count bytes of extension types
  */
-static int TLSX_ECH_BuildOuterExtensions(WOLFSSL* ssl, const byte* semaphore,
-    byte msgType, byte* output, word16* pOffset, word16* outCount,
-    byte* encodeMask)
+static int TLSX_ECH_BuildOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
+    const byte* semaphore, byte msgType, byte* output, word16* pOffset,
+    word16* outCount, byte* encodeMask)
 {
     TLSX* list;
     TLSX* extension;
@@ -17419,7 +17534,8 @@ static int TLSX_ECH_BuildOuterExtensions(WOLFSSL* ssl, const byte* semaphore,
             if (!IS_OFF(seen, semIdx))
                 continue;
             TURN_ON(seen, semIdx);
-            if (!TLSX_ECH_IsEncodable(type))
+            if (!TLSX_ECH_IsEncodable(type) ||
+                    TLSX_Find(ech->extensions, (TLSX_Type)type) != NULL)
                 continue;
 
             if (typesStart != NULL)
@@ -17476,7 +17592,7 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
      * `semaphore` is in/out so encodable extensions will later be ignored */
     if (ret == 0 &&
             ech != NULL && ech->type == ECH_TYPE_INNER && ech->writeEncoded) {
-        ret = TLSX_ECH_BuildOuterExtensions(ssl, semaphore, msgType,
+        ret = TLSX_ECH_BuildOuterExtensions(ssl, ech, semaphore, msgType,
             NULL, pLength, &count, semaphore);
     }
     if (ret == 0 && ssl->extensions)
@@ -18035,7 +18151,7 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
 
         XMEMSET(encodeMask, 0, SEMAPHORE_SIZE);
 
-        ret = TLSX_ECH_BuildOuterExtensions(ssl, semaphore, msgType,
+        ret = TLSX_ECH_BuildOuterExtensions(ssl, ech, semaphore, msgType,
             ech->writeEncoded ? output : NULL,
             ech->writeEncoded ? pOffset : NULL,
             &count, mask);
