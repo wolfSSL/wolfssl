@@ -299,6 +299,15 @@ int test_wc_ecc_make_key(void)
     ExpectIntEQ(wc_ecc_make_key(&rng, KEY14, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* v7 refuses key generation on a named curve below 224 bits even when
+     * the requested key size is large enough. */
+    wc_ecc_free(&key);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex(&rng, 32, &key, ECC_SECP192R1),
+        WC_NO_ERR_TRACE(ECC_CURVE_OID_E));
+#endif
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);
 
@@ -599,6 +608,23 @@ int test_wc_ecc_signVerify_hash(void)
         &verify, &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #endif
 #endif /* HAVE_ECC_VERIFY */
+
+#if FIPS_VERSION3_GE(7,0,0) && \
+    (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 192)
+    /* v7 refuses to sign on a curve below 224 bits.  Key generation there is
+     * refused too, so import a P-192 key (d = 1, Q = G). */
+    wc_ecc_free(&key);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_raw_ex(&key,
+        "188DA80EB03090F67CBF20EB43A18800F4FF0AFD82FF1012",
+        "07192B95FFC8DA78631011ED6B24CDD573F977A11E794811",
+        "000000000000000000000000000000000000000000000001",
+        ECC_SECP192R1), 0);
+    siglen = ECC_BUFSIZE;
+    ExpectIntEQ(wc_ecc_sign_hash(digest, digestlen, sig, &siglen, &rng, &key),
+        WC_NO_ERR_TRACE(SIG_TYPE_E));
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);

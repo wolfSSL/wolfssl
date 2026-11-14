@@ -6535,6 +6535,27 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 {
     int err;
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A Rev. 2 Table 2 disallows ECDSA key pair generation
+     * providing fewer than 112 bits of security strength (len(n) < 224), and
+     * SP 800-186 Section 3.2.1.1 retains P-192 for legacy use only, so
+     * refuse to generate on any curve smaller than 224 bits.  The bound
+     * mirrors wc_ecc_set_curve(): an explicit curve_id selects the curve
+     * directly, otherwise keysize selects the smallest compiled curve that
+     * fits, so keysize 0 would land on the smallest compiled curve and is
+     * rejected too.  Signature verification with the small curves stays
+     * available (legacy use per SP 800-131A Rev. 2 Table 2). */
+    if (curve_id > ECC_CURVE_DEF) {
+        if (wc_ecc_get_curve_size_from_id(curve_id) < WC_ECC_FIPS_GEN_MIN) {
+            return ECC_CURVE_OID_E;
+        }
+    }
+    else if (keysize < WC_ECC_FIPS_GEN_MIN) {
+        /* Same code the fips.c keygen wrappers return for this case. */
+        return BAD_FUNC_ARG;
+    }
+#endif
+
     err = _ecc_make_key_ex(rng, keysize, key, curve_id, flags);
 
 #if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
@@ -7232,6 +7253,25 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
 }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
+#if FIPS_VERSION3_GE(7,0,0)
+/* SP 800-131A Rev. 2 Table 2: ECDSA digital signature generation with
+ * len(n) < 224 is disallowed, while signature verification with those
+ * curves remains legacy use, so only the signing paths are gated.  Every
+ * signing entry point calls this ahead of any crypto-callback or hardware
+ * dispatch, so no backend signs on a too-small curve.  The curve is resolved
+ * from key->dp, never from ecc_sets[key->idx], so a custom-curve key
+ * (idx == ECC_CUSTOM_IDX) cannot index out of range.  A key with no curve
+ * set is left to the caller's own argument checks; wc_ecc_sign_hash()
+ * checks again after a crypto callback has had the chance to resolve it. */
+static int ecc_fips_sign_curve_allowed(const ecc_key* key)
+{
+    if ((key->dp != NULL) && (key->dp->size < WC_ECC_FIPS_GEN_MIN)) {
+        return SIG_TYPE_E;
+    }
+    return 0;
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) */
+
 /**
  Sign a message digest
  in        The message digest to sign
@@ -7267,14 +7307,33 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         return BAD_LENGTH_E;
     }
 
+#if FIPS_VERSION3_GE(7,0,0)
+    err = ecc_fips_sign_curve_allowed(key);
+    if (err != 0) {
+        return err;
+    }
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
     #endif
     {
         err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
-        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        #if FIPS_VERSION3_GE(7,0,0)
+            /* A key referenced by id or label has no curve until the
+             * callback resolves it, so it passed the check above.  Check
+             * again and do not release a signature made on a too-small
+             * curve. */
+            if ((err == 0) && (ecc_fips_sign_curve_allowed(key) != 0)) {
+                ForceZero(out, *outlen);
+                *outlen = 0;
+                err = SIG_TYPE_E;
+            }
+        #endif
             return err;
+        }
         /* fall-through when unavailable */
     }
 #endif
@@ -7496,6 +7555,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         hashIsZero |= in[zIdx];
     if (hashIsZero == 0)
         return ECC_BAD_ARG_E;
+#endif
+
+#if FIPS_VERSION3_GE(7,0,0)
+    if (ecc_fips_sign_curve_allowed(key) != 0) {
+        return SIG_TYPE_E;
+    }
 #endif
 
     return stm32_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
@@ -7895,6 +7960,14 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
       return ECC_BAD_ARG_E;
    }
+
+#if FIPS_VERSION3_GE(7,0,0)
+   /* wc_ecc_sign_hash_ex() is public, so it is gated as well as
+    * wc_ecc_sign_hash(). */
+   if (ecc_fips_sign_curve_allowed(key) != 0) {
+      return SIG_TYPE_E;
+   }
+#endif
 
 #if defined(WOLFSSL_SP_MATH)
     if (key->idx == ECC_CUSTOM_IDX || (1

@@ -12390,6 +12390,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 #endif
     }
 
+
 out:
 
     wc_HmacFree(&hmac);
@@ -50737,6 +50738,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !NO_SHA256 */
 
 #ifndef NO_SHA
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* SP 800-56C Rev. 2 Section 4 approves the HKDF auxiliary function only
+     * with an approved hash and the module's key-derivation coverage is
+     * SHA-256/384/512, so the generic wrappers refuse SHA-1 (see
+     * HkdfDigestAllowed in fips.c). */
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
+                             prk, HEAP_HINT, devId);
+    PRIVATE_KEY_LOCK();
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_HKDF_Expand_ex(WC_SHA, prk, WC_SHA_DIGEST_SIZE, NULL, 0,
+                            okm1, (word32)L, HEAP_HINT, devId);
+    PRIVATE_KEY_LOCK();
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#else
     PRIVATE_KEY_UNLOCK();
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
@@ -50762,6 +50783,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif /* FIPS_VERSION3_GE(7,0,0) && WC_HAVE_FIPS_INDICATOR &&
+        * !FIPS_NO_WRAPPERS */
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
@@ -51101,6 +51124,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
         printf("Got unexpected digest\n");
         return WC_TEST_RET_ENC_NC;
     }
+
 
     return 0;
 }
