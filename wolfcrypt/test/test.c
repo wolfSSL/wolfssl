@@ -39063,6 +39063,168 @@ static int simple_mem_test(size_t sz)
     XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+
+static wc_test_ret_t realloc_scrubbed_test(void)
+{
+    wc_test_ret_t ret = 0;
+    byte* p;
+    byte* q;
+    int i;
+
+    /* grow: leading contents preserved. */
+    p = (byte*)XMALLOC(200U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    for (i = 0; i < 200; i++)
+        p[i] = (byte)(255 - i);
+    q = (byte*)XREALLOC_SCRUBBED(p, 200U, 400U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL) {
+        XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    for (i = 0; (ret == 0) && (i < 200); i++) {
+        if (q[i] != (byte)(255 - i))
+            ret = WC_TEST_RET_ENC_I((word32)i);
+    }
+    if (ret != 0) {
+        XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    /* shrink: leading contents preserved. */
+    p = (byte*)XREALLOC_SCRUBBED(q, 400U, 50U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL) {
+        XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    for (i = 0; (ret == 0) && (i < 50); i++) {
+        if (p[i] != (byte)(255 - i))
+            ret = WC_TEST_RET_ENC_I((word32)i);
+    }
+    XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* realloc-to-zero idiom: frees and returns NULL.  A non-NULL return is
+     * a live allocation, so release it rather than leak. */
+    if (ret == 0) {
+        p = (byte*)XMALLOC(96U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (p == NULL)
+            return WC_TEST_RET_ENC_EC(MEMORY_E);
+        q = (byte*)XREALLOC_SCRUBBED(p, 96U, 0U, HEAP_HINT,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+        if (q != NULL) {
+            XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* larger than every bucket: fails, original intact and unscrubbed. */
+    if (ret == 0) {
+        word32 buckets[] = { WOLFMEM_BUCKETS };
+        word32 tooBig = 0;
+
+        for (i = 0; i < (int)(sizeof(buckets) / sizeof(buckets[0])); i++) {
+            if (buckets[i] > tooBig)
+                tooBig = buckets[i];
+        }
+        tooBig++;
+
+        p = (byte*)XMALLOC(64U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (p == NULL)
+            return WC_TEST_RET_ENC_EC(MEMORY_E);
+        for (i = 0; i < 64; i++)
+            p[i] = (byte)(255 - i);
+        q = (byte*)XREALLOC_SCRUBBED(p, 64U, tooBig, HEAP_HINT,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+        if (q != NULL) {
+            /* only a pool can refuse it; p has been released */
+            XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (HEAP_HINT != NULL)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        else {
+            for (i = 0; (ret == 0) && (i < 64); i++) {
+                if (p[i] != (byte)(255 - i))
+                    ret = WC_TEST_RET_ENC_I((word32)i);
+            }
+            XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+#endif
+
+    /* NULL in: degrades to a fresh allocation. */
+    if (ret == 0) {
+        p = (byte*)XREALLOC_SCRUBBED(NULL, 0U, 64U, HEAP_HINT,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+        if (p == NULL)
+            return WC_TEST_RET_ENC_EC(MEMORY_E);
+        XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return ret;
+}
+
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_PRIVATE_TEST_VIS)
+#define REALLOC_SCRUB_PATTERN 0xA5
+/* XREALLOC_SCRUBBED() must zero the old block before releasing it, but the
+ * old block is gone once it returns.  Register it with wc_MemZero_Add()
+ * instead: wolfSSL_Free() checks registered memory is zero at the moment it
+ * is freed, and aborts if not.  On failure the original is intact and still
+ * registered, so it is zeroed by hand before being freed. */
+static wc_test_ret_t realloc_scrubbed_zero_test(void)
+{
+    byte* p;
+    byte* q;
+
+    /* grow */
+    p = (byte*)XMALLOC(200U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(p, REALLOC_SCRUB_PATTERN, 200U);
+    wc_MemZero_Add("realloc_scrubbed_zero_test grow", p, 200U);
+    q = (byte*)XREALLOC_SCRUBBED(p, 200U, 400U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL) {
+        XMEMSET(p, 0, 200U);
+        XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* shrink: all 200 old bytes are zeroed, not just the 50 copied */
+    p = (byte*)XMALLOC(200U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(p, REALLOC_SCRUB_PATTERN, 200U);
+    wc_MemZero_Add("realloc_scrubbed_zero_test shrink", p, 200U);
+    q = (byte*)XREALLOC_SCRUBBED(p, 200U, 50U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL) {
+        XMEMSET(p, 0, 200U);
+        XFREE(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* realloc-to-zero */
+    p = (byte*)XMALLOC(200U, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    XMEMSET(p, REALLOC_SCRUB_PATTERN, 200U);
+    wc_MemZero_Add("realloc_scrubbed_zero_test zero", p, 200U);
+    q = (byte*)XREALLOC_SCRUBBED(p, 200U, 0U, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (q != NULL) {
+        XFREE(q, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_CHECK_MEM_ZERO && USE_WOLFSSL_MEMORY && ... */
 #endif
 
 /* If successful, returns the first letter of the byte array `in`.
@@ -39218,6 +39380,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
     ret = simple_mem_test((size_t)MEM_TEST_SZ);
     if (ret != 0)
         return ret;
+
+    /* XREALLOC_SCRUBBED */
+    ret = realloc_scrubbed_test();
+    if (ret != 0)
+        return ret;
+
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_PRIVATE_TEST_VIS)
+    /* XREALLOC_SCRUBBED zeroes the old block before freeing it */
+    ret = realloc_scrubbed_zero_test();
+    if (ret != 0)
+        return ret;
+#endif
 #endif
 
 #ifdef COMPLEX_MEM_TEST

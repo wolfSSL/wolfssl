@@ -109,6 +109,16 @@ Threading/Mutex options:
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifndef WOLFSSL_NO_FORCE_ZERO
+    /* ForceZero() for the scrubbing reallocator below */
+    #ifdef NO_INLINE
+        #include <wolfssl/wolfcrypt/misc.h>
+    #else
+        #define WOLFSSL_MISC_INCLUDED
+        #include <wolfcrypt/src/misc.c>
+    #endif
+#endif
+
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
 #endif
@@ -802,6 +812,65 @@ WC_NO_INLINE void wc_BarrierDataSink(void* p)
     fn(p);
 }
 #endif /* WC_BARRIER_DATA_USES_SINK */
+
+/* Scrubbing reallocator behind XREALLOC_SCRUBBED() (types.h).  It lives here
+ * rather than in memory.c because types.h binds it unconditionally, and
+ * wc_port.c is built in every configuration, including --disable-memory /
+ * NO_WOLFSSL_MEMORY builds that omit memory.c. */
+
+static void wc_ReallocScrub(void *ptr, size_t len)
+{
+#ifdef WOLFSSL_NO_FORCE_ZERO
+    /* volatile stores: a plain XMEMSET() just ahead of XFREE() is a dead
+     * store the compiler may remove. */
+    volatile byte *p = (volatile byte *)ptr;
+    while (len-- > 0)
+        *p++ = 0;
+#else
+    ForceZero(ptr, len);
+#endif
+}
+
+/* Reallocation that zeroizes the old block before releasing it, composed over
+ * the XMALLOC()/XFREE() macro bindings so that port overrides, wolfSSL memory
+ * callbacks, and static pools are all honored.  Never uses native realloc(),
+ * which may release the old block without clearing it.  On failure (NULL
+ * return) the original allocation is intact and unscrubbed. */
+void *wc_ReallocScrubbed(void *ptr, size_t oldSz, size_t size,
+                         void *heap, int type)
+{
+    void *newPtr;
+
+    (void)heap;
+    (void)type;
+
+    if (ptr == NULL && size != 0)
+        return XMALLOC(size, heap, type);
+    else if (ptr != NULL && size == 0) {
+        /* realloc-to-zero idiom: scrub, free, and return NULL. */
+        wc_ReallocScrub(ptr, oldSz);
+        XFREE(ptr, heap, type);
+        return NULL;
+    }
+    else if (ptr == NULL && size == 0) {
+        return NULL;
+    }
+    newPtr = XMALLOC(size, heap, type);
+    if (newPtr == NULL)
+        return NULL; /* original intact and unscrubbed */
+    if (newPtr == ptr) {
+        /* fixed IO pools hand back the block already in use */
+        if (oldSz > size) {
+            wc_ReallocScrub((byte*)ptr + size, oldSz - size);
+        }
+    }
+    else {
+        XMEMMOVE(newPtr, ptr, (oldSz < size) ? oldSz : size);
+        wc_ReallocScrub(ptr, oldSz);
+    }
+    XFREE(ptr, heap, type);
+    return newPtr;
+}
 
 /* Used to initialize state for wolfcrypt
    return 0 on success

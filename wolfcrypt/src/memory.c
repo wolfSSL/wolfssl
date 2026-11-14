@@ -1209,6 +1209,11 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             if (type == DYNAMIC_TYPE_IN_BUFFER) {
                 pt = hint->inBuf;
             }
+            /* fixed IO buffers can't grow: fail rather than overflow */
+            if ((pt != NULL) && (pt->sz < size)) {
+                WOLFSSL_MSG("Error IO memory was not large enough");
+                pt = NULL;
+            }
         }
         else
     #endif
@@ -1218,7 +1223,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             if (mem->flag & WOLFMEM_IO_POOL &&
                                              (type == DYNAMIC_TYPE_OUT_BUFFER ||
                                               type == DYNAMIC_TYPE_IN_BUFFER)) {
-                if (mem->io != NULL) {
+                /* too large for an IO buffer: try the general memory below */
+                if ((mem->io != NULL) && (size <= mem->io->sz)) {
                     pt      = mem->io;
                     mem->io = pt->next;
                 }

@@ -656,3 +656,42 @@ void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
 int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
             const word32 *sizeList, const word32 *distList,
             byte* buffer, word32 sz, int flag);
+
+/*!
+    \ingroup Memory
+
+    \brief Reallocates memory from XMALLOC(), zeroizing the old block before
+    it is freed. A new block is allocated with XMALLOC(), the leading
+    min(oldSz, size) bytes are copied, oldSz bytes of ptr are zeroized,
+    and ptr is freed with XFREE(). If XMALLOC() returns ptr itself, as fixed IO
+    pools (WOLFMEM_IO_POOL_FIXED) do for IO types, the data stays in place and
+    only the bytes past size are zeroized. Not called directly by wolfSSL, but
+    through macro XREALLOC_SCRUBBED.
+
+    \return pointer to the new block on success.
+    \return NULL when size is 0 (ptr is zeroized and freed), or on failure
+    (ptr is left intact and not zeroized).
+
+    \param ptr NULL, or memory from XMALLOC()/XREALLOC(). A NULL ptr behaves
+    as XMALLOC(size).
+    \param oldSz current size of ptr in bytes. Must not exceed the real
+    allocation size, or the copy and zeroization overrun it.
+    \param size new size in bytes
+    \param heap heap hint. Can be NULL
+    \param type dynamic type
+
+    _Example_
+    \code
+    byte* key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte* tmp;
+    ...
+    tmp = (byte*)wc_ReallocScrubbed(key, 32, 64, NULL,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp != NULL)
+        key = tmp;
+    \endcode
+
+    \sa XREALLOC_SCRUBBED
+*/
+void *wc_ReallocScrubbed(void *ptr, size_t oldSz, size_t size,
+                         void *heap, int type);

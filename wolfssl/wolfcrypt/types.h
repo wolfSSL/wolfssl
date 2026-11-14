@@ -966,6 +966,12 @@ enum {
     #define WC_NO_CONSTRUCTORS
 #endif
 
+/* reallocation with scrubbing of lost blocks */
+#ifndef XREALLOC_SCRUBBED
+    #define XREALLOC_SCRUBBED(p, oldSz, size, h, t) \
+        wc_ReallocScrubbed(p, oldSz, size, h, t)
+#endif
+
 #if defined(WOLFSSL_SMALL_STACK) && defined(WC_NO_CONSTRUCTORS)
     #error WOLFSSL_SMALL_STACK requires constructors.
 #endif

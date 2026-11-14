@@ -143,6 +143,34 @@ void* XREALLOC(void *p, size_t n, void* heap, int type);
 void XFREE(void *p, void* heap, int type);
 
 /*!
+    \ingroup Memory
+
+    \brief This is not actually a function, but rather a preprocessor macro,
+    which reallocates memory from XMALLOC and zeroizes the old block before
+    it is freed. A new block is allocated with XMALLOC, the leading
+    min(oldSz, n) bytes are copied, oldSz bytes of p are zeroized, and p
+    is freed with XFREE. If XMALLOC returns p itself, as fixed IO pools
+    (WOLFMEM_IO_POOL_FIXED) do for IO types, the data stays in place and only
+    the bytes past n are zeroized. By default it maps to wc_ReallocScrubbed().
+
+    \return pointer to the new block on success.
+    \return NULL when n is 0 (p is zeroized and freed), or on failure (p is
+    left intact and not zeroized).
+
+    \param p NULL, or memory from XMALLOC/XREALLOC. A NULL p behaves as
+    XMALLOC.
+    \param oldSz current size of p in bytes. Must not exceed the real
+    allocation size, or the copy and zeroization overrun it.
+    \param n new size in bytes
+    \param h pointer to the heap to use
+    \param t memory allocation type for user hints. See enum in types.h
+
+    \sa wc_ReallocScrubbed
+*/
+void* XREALLOC_SCRUBBED(void *p, size_t oldSz, size_t n, void* heap,
+                        int type);
+
+/*!
     \ingroup Math
 
     \brief This function checks the compile time class settings. It is

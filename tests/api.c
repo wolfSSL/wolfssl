@@ -586,6 +586,108 @@ static int test_wc_LoadStaticMemory_ex(void)
 }
 
 
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    !defined(NO_WOLFSSL_CLIENT) && (WOLFMEM_IO_SZ >= 16384) && \
+    (WOLFMEM_MAX_BUCKETS >= WOLFMEM_DEF_BUCKETS) && \
+    !defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_HAVE_FRODOKEM)
+    #define TEST_LSM_FIXED_IO
+
+/* Returns 1 when len bytes at p all equal val. */
+static int test_lsm_bytes_eq(const byte* p, word32 len, byte val)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (p[i] != val)
+            return 0;
+    }
+    return 1;
+}
+
+/* A fixed IO buffer can't grow: a request larger than it must fail rather
+ * than hand back a buffer that is too small.  XREALLOC_SCRUBBED() of a fixed
+ * IO buffer gets the same block back from XMALLOC(), so it must keep the
+ * data in place and zero only the bytes past the new size. */
+static int test_lsm_fixed_io_malloc(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    const int tag = DYNAMIC_TYPE_IN_BUFFER;
+    void* heap = ssl->heap;
+    byte* ioBuf = NULL;
+
+    ExpectNull(XMALLOC(WOLFMEM_IO_SZ + 1, heap, tag));
+    ExpectNotNull(ioBuf = (byte*)XMALLOC(WOLFMEM_IO_SZ, heap, tag));
+
+    if (ioBuf != NULL) {
+        /* shrink: kept bytes stay in place, the tail is zeroed */
+        XMEMSET(ioBuf, 0xA5, 128);
+        ExpectPtrEq(XREALLOC_SCRUBBED(ioBuf, 128, 64, heap, tag), ioBuf);
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf, 64, 0xA5), 1);
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf + 64, 64, 0x00), 1);
+
+        /* grow within the buffer: data kept in place */
+        XMEMSET(ioBuf, 0x5A, 64);
+        ExpectPtrEq(XREALLOC_SCRUBBED(ioBuf, 64, WOLFMEM_IO_SZ, heap, tag),
+            ioBuf);
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf, 64, 0x5A), 1);
+
+        /* grow past the buffer: fails, original intact and unscrubbed */
+        ExpectNull(XREALLOC_SCRUBBED(ioBuf, 64, WOLFMEM_IO_SZ + 1, heap,
+            tag));
+        ExpectIntEQ(test_lsm_bytes_eq(ioBuf, 64, 0x5A), 1);
+    }
+    XFREE(ioBuf, heap, tag);
+
+    return EXPECT_RESULT();
+}
+
+/* A request too large for a shared IO buffer must not use one up: it comes
+ * from general memory if a bucket is large enough, otherwise it fails. */
+static int test_lsm_shared_io_malloc(WOLFSSL_HEAP_HINT* heap)
+{
+    EXPECT_DECLS;
+    const int tag = DYNAMIC_TYPE_IN_BUFFER;
+    WOLFSSL_MEM_STATS stats;
+    word32 avaIO = 0;
+    word32 tooBig = WOLFMEM_IO_SZ;
+    int i;
+    byte* ioBuf = NULL;
+    byte* general = NULL;
+
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    avaIO = stats.avaIO;
+    ExpectIntGT(avaIO, 0);
+    /* larger than every bucket, whatever WOLFMEM_BUCKETS holds */
+    for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+        if (stats.blockSz[i] > tooBig)
+            tooBig = stats.blockSz[i];
+    }
+    tooBig++;
+
+    ExpectNotNull(general = (byte*)XMALLOC(WOLFMEM_IO_SZ + 1, heap, tag));
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO);
+
+    ExpectNull(XMALLOC(tooBig, heap, tag));
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO);
+
+    ExpectNotNull(ioBuf = (byte*)XMALLOC(WOLFMEM_IO_SZ, heap, tag));
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO - 1);
+
+    /* Each block must go back to the list that it came from. */
+    XFREE(general, heap, tag);
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO - 1);
+    XFREE(ioBuf, heap, tag);
+    ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+    ExpectIntEQ(stats.avaIO, avaIO);
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_STATIC_MEMORY && !WOLFSSL_STATIC_MEMORY_LEAN && ... */
+
 static int test_wc_LoadStaticMemory_CTX(void)
 {
     EXPECT_DECLS;
@@ -595,6 +697,12 @@ static int test_wc_LoadStaticMemory_CTX(void)
     word32 distList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_DIST };
     WOLFSSL_HEAP_HINT* heap;
     WOLFSSL_CTX *ctx1 = NULL, *ctx2 = NULL;
+#ifdef TEST_LSM_FIXED_IO
+    /* Two IO buffers, each with its management data rounded up to
+     * WOLFSSL_STATIC_ALIGN, plus slack for aligning the start of the array. */
+    byte ioMemory[2 * (WOLFMEM_IO_SZ + 64 + WOLFSSL_STATIC_ALIGN)];
+    WOLFSSL* ssl = NULL;
+#endif
 
 
     /* Set the size of the static buffer to exactly the minimum size. */
@@ -620,6 +728,34 @@ static int test_wc_LoadStaticMemory_CTX(void)
         heap)));
     wolfSSL_CTX_free(ctx1);
     wolfSSL_CTX_free(ctx2);
+
+#ifdef TEST_LSM_FIXED_IO
+    /* An SSL object's fixed IO buffers. */
+    ctx1 = NULL;
+    ExpectNotNull((ctx1 = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap)));
+    ExpectIntEQ(wolfSSL_CTX_load_static_memory(&ctx1, NULL, ioMemory,
+        sizeof(ioMemory), WOLFMEM_IO_POOL_FIXED, 0), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx1));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_lsm_fixed_io_malloc(ssl), TEST_SUCCESS);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx1);
+
+    /* Shared IO buffers, with a general bucket larger than an IO buffer. */
+    wc_UnloadStaticMemory(heap);
+    heap = NULL;
+    sizeList[WOLFMEM_DEF_BUCKETS - 1] = 2 * WOLFMEM_IO_SZ;
+    distList[WOLFMEM_DEF_BUCKETS - 1] = 1;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap, WOLFMEM_DEF_BUCKETS, sizeList,
+        distList, staticMemory, sizeof(staticMemory), 0, 0), 0);
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap, WOLFMEM_DEF_BUCKETS, sizeList,
+        distList, ioMemory, sizeof(ioMemory), WOLFMEM_IO_POOL, 0), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_lsm_shared_io_malloc(heap), TEST_SUCCESS);
+    }
+#endif
 
     wc_UnloadStaticMemory(heap);
 #endif /* WOLFSSL_STATIC_MEMORY */
