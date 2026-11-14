@@ -8095,6 +8095,10 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
         WOLFSSL_LOCAL Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm,
                 byte* hash);
     #endif
+    #if !defined(NO_SKID) && !defined(GetCAByNameSkip)
+        WOLFSSL_LOCAL Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm,
+                byte* hash, const Signer* skip);
+    #endif
 #endif /* !NO_CERTS */
 WOLFSSL_LOCAL int  BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash,
                                    word32* hashLen);

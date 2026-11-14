@@ -2402,6 +2402,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.GetCA = GetCA;
 #ifndef NO_SKID
     wolfssl_linuxkm_pie_redirect_table.GetCAByName = GetCAByName;
+    wolfssl_linuxkm_pie_redirect_table.GetCAByNameSkip = GetCAByNameSkip;
 #ifdef HAVE_OCSP
     wolfssl_linuxkm_pie_redirect_table.GetCAByKeyHash = GetCAByKeyHash;
 #endif /* HAVE_OCSP */
