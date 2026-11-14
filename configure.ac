@@ -13974,6 +13974,18 @@ then
         ENABLED_X963KDF="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
     fi
+    # RFC 9814: SHAKE128 is the MUST-support digestAlgorithm for the SLH-DSA
+    # SHAKE-128 parameter sets. SHA-3 is already forced on for SLH-DSA.
+    if test "$ENABLED_SLHDSA" != "no" &&
+       (test "$SLHDSA_PARAM_128S" = "yes" ||
+        test "$SLHDSA_PARAM_128F" = "yes") &&
+       (test "$ENABLED_SHAKE128" = "no" || test "$ENABLED_SHAKE128" = "") &&
+       (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -ge 6)
+    then
+        ENABLED_SHAKE128="yes"
+        AM_CFLAGS=$(echo "$AM_CFLAGS" | sed 's/-DWOLFSSL_NO_SHAKE128//g')
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE128"
+    fi
 fi
 
 if test "x$ENABLED_DES3" = "xno"
