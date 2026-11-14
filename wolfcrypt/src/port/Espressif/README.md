@@ -81,8 +81,10 @@ does not burn eFuse.
 `WOLFSSL_ESP32C5_TEST_SHA_COPY` verifies SHA-224, SHA-384 and SHA-512/224
 active hardware copies by continuing both source and destination contexts and
 comparing known digests. `WOLFSSL_ESP32C5_TEST_SHA_LOCK` repeatedly abandons
-active SHA-224/256/384/512 contexts without finalizing them and verifies that
-later hashes can reacquire the engine. Define
+active SHA-224/256/384/512 contexts without finalizing them and verifies in
+hardware mode that later hashes reacquire the engine. It requires all four hash
+algorithms and their hardware acceleration; other configurations return
+`NOT_COMPILED_IN` instead of passing through software fallback. Define
 `WOLFSSL_ESP32C5_TEST_MULTITHREADED` as well to exercise the FreeRTOS
 same-task owner path instead of the example's default `SINGLE_THREADED` build.
 `WOLFSSL_ESP32C5_TEST_ECC_CURVES` checks SECP192R1, PRIME192V2 and PRIME192V3

@@ -37,7 +37,8 @@
         #if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
             #include <wolfssl/wolfcrypt/port/Espressif/esp32-ecdsa.h>
         #endif
-        #if defined(WOLFSSL_ESP32C5_TEST_SHA_COPY)
+        #if defined(WOLFSSL_ESP32C5_TEST_SHA_COPY) || \
+            defined(WOLFSSL_ESP32C5_TEST_SHA_LOCK)
             #include <wolfssl/wolfcrypt/sha256.h>
             #include <wolfssl/wolfcrypt/sha512.h>
         #endif
@@ -414,6 +415,20 @@ static int esp32c5_sha_copy_selftest(void)
 #endif
 
 #if defined(WOLFSSL_ESP32C5_TEST_SHA_LOCK)
+#if !defined(WOLFSSL_ESP32_CRYPT) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) || \
+    !defined(WOLFSSL_SHA224) || defined(NO_SHA256) || \
+    !defined(WOLFSSL_SHA384) || !defined(WOLFSSL_SHA512)
+static int esp32c5_sha_lock_selftest(void)
+{
+    ESP_LOGE(TAG, "SHA lock self-test requires SHA-224/256/384/512 hardware");
+    return NOT_COMPILED_IN;
+}
+#else
 static int esp32c5_sha_lock_selftest(void)
 {
     byte input[128];
@@ -433,6 +448,11 @@ static int esp32c5_sha_lock_selftest(void)
             initialized = 1;                                                   \
             localRet = UPDATE(&sha, input, sizeof(input));                     \
         }                                                                      \
+        if (localRet == 0 && sha.ctx.mode != ESP32_SHA_HW) {                   \
+            ESP_LOGE(TAG, NAME " baseline did not use SHA hardware: %d",       \
+                sha.ctx.mode);                                                 \
+            localRet = BAD_STATE_E;                                            \
+        }                                                                      \
         if (localRet == 0) {                                                   \
             localRet = FINAL(&sha, expected);                                  \
         }                                                                      \
@@ -447,6 +467,11 @@ static int esp32c5_sha_lock_selftest(void)
                 initialized = 1;                                               \
                 localRet = UPDATE(&sha, input, sizeof(input));                 \
             }                                                                  \
+            if (localRet == 0 && sha.ctx.mode != ESP32_SHA_HW) {               \
+                ESP_LOGE(TAG, NAME " abandoned hash did not use hardware: %d", \
+                    sha.ctx.mode);                                             \
+                localRet = BAD_STATE_E;                                        \
+            }                                                                  \
             if (initialized) {                                                 \
                 FREE(&sha);                                                    \
             }                                                                  \
@@ -459,6 +484,11 @@ static int esp32c5_sha_lock_selftest(void)
             if (localRet == 0) {                                               \
                 initialized = 1;                                               \
                 localRet = UPDATE(&sha, input, sizeof(input));                 \
+            }                                                                  \
+            if (localRet == 0 && sha.ctx.mode != ESP32_SHA_HW) {               \
+                ESP_LOGE(TAG, NAME " next hash did not reacquire hardware: %d",\
+                    sha.ctx.mode);                                             \
+                localRet = BAD_STATE_E;                                        \
             }                                                                  \
             if (localRet == 0) {                                               \
                 localRet = FINAL(&sha, actual);                                \
@@ -490,7 +520,8 @@ static int esp32c5_sha_lock_selftest(void)
 
     return ret;
 }
-#endif
+#endif /* all SHA algorithms and hardware acceleration enabled */
+#endif /* WOLFSSL_ESP32C5_TEST_SHA_LOCK */
 
 #if defined(WOLFSSL_ESP32C5_TEST_ECC_CURVES) && \
     (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
