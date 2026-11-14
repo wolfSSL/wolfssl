@@ -35,6 +35,7 @@ int test_wolfssl_local_MatchUriNameConstraint(void);
 int test_wc_DecodeRsaPssParams(void);
 int test_SerialNumber0_RootCA(void);
 int test_DecodeAltNames_length_underflow(void);
+int test_DecodeAltNames_dup_hw_module_name(void);
 int test_DecodeCertExtensions_dup_certpol(void);
 int test_DecodeCertExtensions_crldp_multiple_uri(void);
 int test_DecodeCertExtensions_empty_certpol(void);
@@ -87,6 +88,7 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_wc_DecodeRsaPssParams),             \
     TEST_DECL_GROUP("asn", test_SerialNumber0_RootCA),              \
     TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow),   \
+    TEST_DECL_GROUP("asn", test_DecodeAltNames_dup_hw_module_name), \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_dup_certpol),  \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_crldp_multiple_uri), \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_empty_certpol), \

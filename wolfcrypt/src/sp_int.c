@@ -5444,26 +5444,25 @@ void sp_zero(sp_int* a)
 
 /* Clear the data from the multi-precision number, set to zero and free.
  *
+ * All digits are zeroized, not only the used ones, as data is not zeroed when
+ * used decreases.
+ *
  * @param [out] a  SP integer.
  */
 void sp_clear(sp_int* a)
 {
-#ifdef HAVE_FIPS
-    sp_forcezero(a);
-#else
-    /* Clear when valid pointer passed in. */
+    /* Zeroize when a valid pointer passed in. */
     if (a != NULL) {
-        unsigned int i;
-
-        /* Only clear the digits being used. */
-        for (i = 0; i < a->used; i++) {
-            a->dp[i] = 0;
-        }
-        /* Set back to zero and free. */
+        /* ForceZero so that the stores are not removed as dead. */
+        ForceZero(a->dp, a->size * (word32)SP_WORD_SIZEOF);
+    #ifdef HAVE_WOLF_BIGINT
+        /* Zeroize the raw data as well. */
+        wc_bigint_zero(&a->raw);
+    #endif
+        /* Make value zero and free. */
         _sp_zero(a);
         sp_free(a);
     }
-#endif
 }
 
 #if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || \
@@ -5476,19 +5475,8 @@ void sp_clear(sp_int* a)
  */
 void sp_forcezero(sp_int* a)
 {
-    /* Zeroize when a valid pointer passed in. */
-    if (a != NULL) {
-        /* Ensure all data zeroized - data not zeroed when used decreases. */
-        ForceZero(a->dp, a->size * (word32)SP_WORD_SIZEOF);
-        /* Set back to zero. */
-    #ifdef HAVE_WOLF_BIGINT
-        /* Zeroize the raw data as well. */
-        wc_bigint_zero(&a->raw);
-    #endif
-        /* Make value zero and free. */
-        _sp_zero(a);
-        sp_free(a);
-    }
+    /* sp_clear() zeroizes all the data. */
+    sp_clear(a);
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 

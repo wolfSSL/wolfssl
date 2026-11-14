@@ -150,35 +150,8 @@ int mp_init (mp_int * a)
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
-#ifdef HAVE_FIPS
+    /* Wipe all allocated digits before the memory is freed. */
     mp_forcezero(a);
-#else
-  int i;
-
-  if (a == NULL)
-      return;
-
-  /* only do anything if a hasn't been freed previously */
-#ifndef HAVE_WOLF_BIGINT
-  /* When HAVE_WOLF_BIGINT then mp_free -> wc_bigint_free needs to be called
-   * because a->raw->buf may be allocated even when a->dp == NULL. This is the
-   * case for when a zero is loaded into the mp_int. */
-  if (a->dp != NULL)
-#endif
-  {
-    /* first zero the digits */
-    for (i = 0; i < a->used; i++) {
-        a->dp[i] = 0;
-    }
-
-    /* free ram */
-    mp_free(a);
-
-    /* reset members to make debugging easier */
-    a->alloc = a->used = 0;
-    a->sign  = MP_ZPOS;
-  }
-#endif
 }
 
 void mp_free (mp_int * a)
@@ -201,9 +174,18 @@ void mp_forcezero(mp_int * a)
         return;
 
     /* only do anything if a hasn't been freed previously */
-    if (a->dp != NULL) {
-      /* force zero the used digits */
-      ForceZero(a->dp, a->used * sizeof(mp_digit));
+#ifndef HAVE_WOLF_BIGINT
+    /* When HAVE_WOLF_BIGINT then mp_free -> wc_bigint_free needs to be called
+     * because a->raw->buf may be allocated even when a->dp == NULL. This is the
+     * case for when a zero is loaded into the mp_int. */
+    if (a->dp != NULL)
+#endif
+    {
+      /* force zero all the allocated digits - digits above used are not
+       * zeroed when used decreases and may hold an earlier, larger value */
+      if (a->dp != NULL) {
+          ForceZero(a->dp, (size_t)a->alloc * sizeof(mp_digit));
+      }
 #ifdef HAVE_WOLF_BIGINT
       wc_bigint_zero(&a->raw);
 #endif
@@ -393,20 +375,29 @@ int mp_grow (mp_int * a, int size)
     /* ensure there are always at least MP_PREC digits extra on top */
     size += (MP_PREC * 2) - (size % MP_PREC);
 
-    /* reallocate the array a->dp
+    /* Allocate a new array rather than XREALLOC() the old one. When realloc()
+     * cannot grow a block in place it copies it and frees the original
+     * without wiping it, leaving a copy of the value, which may be secret, in
+     * freed memory.
      *
      * We store the return in a temporary variable
      * in case the operation failed we don't want
      * to overwrite the dp member of a.
      */
-    tmp = (mp_digit *)XREALLOC (a->dp, sizeof (mp_digit) * size, NULL,
+    tmp = (mp_digit *)XMALLOC (sizeof (mp_digit) * size, NULL,
                                                            DYNAMIC_TYPE_BIGINT);
     if (tmp == NULL) {
-      /* reallocation failed but "a" is still valid [can be freed] */
+      /* allocation failed but "a" is still valid [can be freed] */
       return MP_MEM;
     }
 
-    /* reallocation succeeded so set a->dp */
+    if (a->dp != NULL) {
+      XMEMCPY(tmp, a->dp, sizeof (mp_digit) * (size_t)a->alloc);
+      ForceZero(a->dp, sizeof (mp_digit) * (size_t)a->alloc);
+      XFREE(a->dp, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+
+    /* allocation succeeded so set a->dp */
     a->dp = tmp;
 
     /* zero excess digits */
