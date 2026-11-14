@@ -553,6 +553,9 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
             #elif defined(CONFIG_ESP32C2_DEFAULT_CPU_FREQ_MHZ)
                 #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
                         CONFIG_ESP32C2_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32C3_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32C3_DEFAULT_CPU_FREQ_MHZ
             #elif defined(CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ)
                 #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
                         CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
