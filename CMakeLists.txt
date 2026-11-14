@@ -3191,6 +3191,14 @@ if(APPLE AND CMAKE_OSX_ARCHITECTURES)
         set(WOLFSSL_TARGET_PROCESSOR "")
     endif()
 endif()
+# A 32-bit userland on a 64-bit kernel still reports aarch64.
+if(WOLFSSL_TARGET_PROCESSOR MATCHES "^(aarch64|arm64)$"
+   AND CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT APPLE)
+    check_symbol_exists(__aarch64__ "" WOLFSSL_CC_AARCH64)
+    if(NOT WOLFSSL_CC_AARCH64)
+        set(WOLFSSL_TARGET_PROCESSOR "armv8l")
+    endif()
+endif()
 message(STATUS "Target processor: ${WOLFSSL_TARGET_PROCESSOR}")
 
 if("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "x86_64|AMD64")
@@ -3388,6 +3396,116 @@ add_option("WOLFSSL_USER_SETTINGS"
 add_option("WOLFSSL_USER_SETTINGS_ASM"
     "Enable use of user_settings_asm.h in assembly files (default: disabled)"
     "no" "yes;no")
+
+add_option("WOLFSSL_ARM_ASM"
+    "Enable ARM assembly (default: disabled)"
+    "no" "yes;no")
+add_option("WOLFSSL_ARMASM_THUMB2"
+    "Use the Thumb-2 ARM assembly (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ARM_ASM AND NOT WOLFSSL_ASM)
+    message(WARNING "WOLFSSL_ARM_ASM needs WOLFSSL_ASM; disabling it.")
+    set(WOLFSSL_ARM_ASM "no")
+endif()
+
+if(WOLFSSL_ARM_ASM)
+    string(TOLOWER "${WOLFSSL_TARGET_PROCESSOR}" ARM_ASM_CPU)
+    # Use the compiler's target triple, as configure uses --host.
+    string(TOLOWER "${CMAKE_C_COMPILER_TARGET}" ARM_ASM_TRIPLE)
+    if(ARM_ASM_TRIPLE MATCHES "^(arm|thumb|aarch64)[^-]*")
+        string(REGEX REPLACE "^thumb" "arm" ARM_ASM_CPU "${CMAKE_MATCH_0}")
+    endif()
+    if(WOLFSSL_OSX_ARCH_MIXED OR ARM_ASM_CPU MATCHES
+       "^(x86|amd64|i[3-6]86|riscv|ppc|powerpc|s390|mips|loongarch|sparc)")
+        message(FATAL_ERROR
+            "WOLFSSL_ARM_ASM needs a single ARM target architecture.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM")
+
+    # CPU defaults of --enable-armasm, unless the user picked the CPU.
+    set(ARM_ASM_FIPS_INLINE FALSE)
+    set(ARM_ASM_NO_DEFAULTS FALSE)
+    get_directory_property(ARM_ASM_DIR_FLAGS COMPILE_OPTIONS)
+    set(ARM_ASM_C_FLAGS "${CMAKE_C_FLAGS}")
+    set(ARM_ASM_S_FLAGS "${CMAKE_ASM_FLAGS}")
+    foreach(ARM_ASM_CFG IN LISTS CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
+        string(TOUPPER "${ARM_ASM_CFG}" ARM_ASM_CFG)
+        string(APPEND ARM_ASM_C_FLAGS " ${CMAKE_C_FLAGS_${ARM_ASM_CFG}}")
+        string(APPEND ARM_ASM_S_FLAGS " ${CMAKE_ASM_FLAGS_${ARM_ASM_CFG}}")
+    endforeach()
+    foreach(ARM_ASM_KIND DIR C S)
+        set(ARM_ASM_${ARM_ASM_KIND}_CPU FALSE)
+        if(ARM_ASM_${ARM_ASM_KIND}_FLAGS MATCHES "(^|[ ;:,])-m(cpu|fpu|arch)=")
+            set(ARM_ASM_${ARM_ASM_KIND}_CPU TRUE)
+        endif()
+    endforeach()
+    if(NOT ARM_ASM_DIR_CPU AND NOT ARM_ASM_C_CPU STREQUAL ARM_ASM_S_CPU)
+        message(WARNING "Only one of CMAKE_C_FLAGS and CMAKE_ASM_FLAGS sets "
+            "the CPU; set it in both so the C and assembly code agree.")
+    endif()
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC
+       AND NOT WOLFSSL_USER_SETTINGS AND NOT ARM_ASM_DIR_CPU
+       AND NOT ARM_ASM_C_CPU AND NOT ARM_ASM_S_CPU)
+        if(ARM_ASM_CPU MATCHES "^(aarch64|arm64)")
+            add_compile_options("-mstrict-align")
+            if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+                list(APPEND WOLFSSL_DEFINITIONS
+                    "-DWOLFSSL_ARMASM_CRYPTO_SHA512"
+                    "-DWOLFSSL_ARMASM_CRYPTO_SHA3")
+            elseif(NOT APPLE)
+                add_compile_options("-mcpu=generic+crypto")
+            endif()
+        elseif(ARM_ASM_CPU MATCHES "^armv7-?e?-?m")
+            add_compile_options("-march=armv7-r")
+            override_cache(WOLFSSL_ARMASM_THUMB2 "yes")
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARM_ARCH=7")
+            set(ARM_ASM_FIPS_INLINE TRUE)
+        elseif(ARM_ASM_CPU MATCHES "^armv(5|6s?-?m|7-?r|8(\\.[0-9])?-?[mr])")
+            set(ARM_ASM_NO_DEFAULTS TRUE)
+        elseif(ARM_ASM_CPU MATCHES "^armv7")
+            add_compile_options("-march=armv7-a" "-mfpu=neon" "-marm")
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARM_ARCH=7"
+                "-DWOLFSSL_ARMASM_NO_HW_CRYPTO")
+            set(ARM_ASM_FIPS_INLINE TRUE)
+        elseif(ARM_ASM_CPU MATCHES "^armv(4|6)")
+            add_compile_options("-march=armv${CMAKE_MATCH_1}")
+            list(APPEND WOLFSSL_DEFINITIONS
+                "-DWOLFSSL_ARM_ARCH=${CMAKE_MATCH_1}"
+                "-DWOLFSSL_ARMASM_NO_HW_CRYPTO" "-DWOLFSSL_ARMASM_NO_NEON")
+        elseif(ARM_ASM_CPU MATCHES "^arm")
+            add_compile_options("-march=armv8-a"
+                "-mfpu=crypto-neon-fp-armv8" "-marm")
+        else()
+            set(ARM_ASM_NO_DEFAULTS TRUE)
+        endif()
+    else()
+        message(STATUS "No ARM assembly CPU defaults added; using the "
+            "build's own CPU flags.")
+    endif()
+    if(ARM_ASM_NO_DEFAULTS)
+        message(WARNING "No ARM assembly CPU defaults for "
+            "'${ARM_ASM_CPU}'; set them in CMAKE_C_FLAGS "
+            "and CMAKE_ASM_FLAGS.")
+    endif()
+
+    # The 32-bit ARMv7 .S code has a known issue under FIPS.
+    if(WOLFSSL_FIPS AND ARM_ASM_FIPS_INLINE AND NOT WOLFSSL_ARMASM_INLINE)
+        override_cache(WOLFSSL_ARMASM_INLINE "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_INLINE")
+    endif()
+
+    if(WOLFSSL_ARMASM_THUMB2)
+        if(ARM_ASM_CPU MATCHES "^(aarch64|arm64)")
+            message(FATAL_ERROR
+                "WOLFSSL_ARMASM_THUMB2 needs a 32-bit ARM target.")
+        endif()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_THUMB2"
+            "-DWOLFSSL_ARMASM_NO_HW_CRYPTO" "-DWOLFSSL_ARMASM_NO_NEON")
+    endif()
+else()
+    set(WOLFSSL_ARMASM_THUMB2 "no")  # keeps options.h in step
+endif()
 
 add_option("WOLFSSL_OPTFLAGS"
     "Enable default optimization CFLAGS for the compiler (default: enabled)"
@@ -4883,7 +5001,7 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config.h")
 endif()
 
 # Suppress some warnings about separate compilation, inlining
-add_definitions("-DWOLFSSL_IGNORE_FILE_WARN")
+add_definitions("-DWOLFSSL_IGNORE_FILE_WARN=")
 
 # Generate user options header
 message(STATUS "Generating user options header...")

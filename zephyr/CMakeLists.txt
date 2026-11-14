@@ -90,6 +90,10 @@ if(CONFIG_WOLFSSL)
     set(WOLF_ARM_ASM_sha3 sha3-asm_c)
     set(WOLF_ARM_ASM_ed25519 curve25519_c)
     set(WOLF_ARM_ASM_wc_mlkem_poly mlkem-asm_c)
+    # ML-DSA has no Thumb-2 port.
+    if(WOLF_ARM_ASM_PREFIX MATCHES "^armv8")
+      set(WOLF_ARM_ASM_wc_mldsa mldsa-asm_c)
+    endif()
     set(WOLF_X86_ASM_sha256 sha256_asm)
     set(WOLF_X86_ASM_sha512 sha512_asm)
     set(WOLF_X86_ASM_sha3 sha3_asm)
@@ -244,6 +248,10 @@ if(CONFIG_WOLFSSL)
         # order the integrity test depends on.
         if(CONFIG_ARM64 AND NOT WOLF_BOUNDARY_ASM)
           zephyr_library_sources(${WOLF_ARM_ASM_DIR}/armv8-sha1-asm_c.c)
+        endif()
+        if(WOLF_ARM_ASM_wc_mldsa AND NOT WOLF_BOUNDARY_ASM)
+          zephyr_library_sources(
+            ${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-${WOLF_ARM_ASM_wc_mldsa}.c)
         endif()
       elseif(CONFIG_X86_64 AND NOT CONFIG_WOLFCRYPT_FIPS_PRE_V7_ASM)
         # fe_x25519_asm.S, wc_mlkem_asm.S and wc_mldsa_asm.S are here because
