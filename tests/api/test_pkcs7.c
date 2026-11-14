@@ -3306,6 +3306,71 @@ int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void)
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen() */
 
+/*
+ * Test with malformed input made from a valid EnvelopedData by changing the
+ * keyEncryptionAlgorithm NULL parameters (05 00) into an empty OCTET STRING
+ * (04 00).
+ */
+int test_wc_PKCS7_DecodeEnvelopedData_KTRI_emptyEncryptedKey(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    static const byte rsaEncOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x01, 0x01
+    };
+    PKCS7* pkcs7 = NULL;
+    byte   data[] = "hello";
+    byte   encrypted[FOURK_BUF];
+    byte   decoded[FOURK_BUF];
+    int    encryptedSz = 0;
+    int    found = 0;
+    int    i;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+    }
+    ExpectIntGT(encryptedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7,
+        encrypted, (word32)sizeof(encrypted)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Turn the rsaEncryption NULL parameters into an empty OCTET STRING. */
+    for (i = 0; i + (int)sizeof(rsaEncOid) + 2 <= encryptedSz; i++) {
+        if (XMEMCMP(&encrypted[i], rsaEncOid, sizeof(rsaEncOid)) == 0) {
+            int p = i + (int)sizeof(rsaEncOid);
+            if (encrypted[p] == 0x05 && encrypted[p + 1] == 0x00) {
+                encrypted[p] = 0x04;
+                found = 1;
+            }
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, encrypted,
+        (word32)encryptedSz, decoded, (word32)sizeof(decoded)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_KTRI_emptyEncryptedKey() */
+
 
 #if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
     defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
@@ -9514,5 +9579,47 @@ int test_wc_PKCS7_CertFooterDecisionCoverage(void)
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test on state of PKCS7 when failing to parse input buffer.
+ */
+int test_wc_PKCS7_VerifySignedData_NonSequence(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    PKCS7* pkcs7 = NULL;
+    byte   buf[128];
+    word32 sz;
+
+    XMEMSET(buf, 'A', sizeof(buf));
+
+    for (sz = 1; sz <= (word32)sizeof(buf) && EXPECT_SUCCESS(); sz++) {
+        int ret;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        if (pkcs7 != NULL)
+            wc_PKCS7_AllowDegenerate(pkcs7, 0);
+        ret = wc_PKCS7_VerifySignedData(pkcs7, buf, sz);
+        ExpectIntNE(ret, 0);
+        if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+        }
+        if (pkcs7 != NULL)
+            ExpectNull(pkcs7->verifyCert);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* HAVE_PKCS7 */
     return EXPECT_RESULT();
 }
