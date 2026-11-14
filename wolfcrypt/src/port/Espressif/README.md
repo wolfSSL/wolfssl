@@ -11,9 +11,9 @@ Support for the ESP32 on-board cryptographic hardware acceleration for symmetric
 * ESP32C6 - Supported
 * ESP32H2 - Software only (contact support to request hardware acceleration)
 
-ESP32-C5 hardware acceleration includes SHA384, SHA512, SHA512/224 and
-SHA512/256; these algorithms are not disabled for ESP32-C5 in
-`user_settings.h`.
+ESP32-C5 hardware acceleration requires ESP-IDF 6.x and includes SHA384,
+SHA512, SHA512/224 and SHA512/256; these algorithms are not disabled for
+ESP32-C5 in `user_settings.h`. Older IDF releases build in software-only mode.
 
 ### ESP32-C5 ECC and ECDSA
 
@@ -80,8 +80,16 @@ does not burn eFuse.
 
 `WOLFSSL_ESP32C5_TEST_SHA_COPY` verifies SHA-224, SHA-384 and SHA-512/224
 active hardware copies by continuing both source and destination contexts and
-comparing known digests. It needs no eFuse or Key Manager access. Keep all
-three options disabled except on a dedicated test board.
+comparing known digests. `WOLFSSL_ESP32C5_TEST_SHA_LOCK` repeatedly abandons
+active SHA-224/256/384/512 contexts without finalizing them and verifies that
+later hashes can reacquire the engine. Define
+`WOLFSSL_ESP32C5_TEST_MULTITHREADED` as well to exercise the FreeRTOS
+same-task owner path instead of the example's default `SINGLE_THREADED` build.
+`WOLFSSL_ESP32C5_TEST_ECC_CURVES` checks SECP192R1, PRIME192V2 and PRIME192V3
+key generation, signing and verification; it also requires `HAVE_ECC192`,
+`ECC_MIN_KEY_SZ=192`, `HAVE_ECC_SECPR2` and `HAVE_ECC_SECPR3`. These tests need
+no eFuse or Key Manager access. Keep all optional hardware tests disabled
+except on a dedicated test board.
 
 See the respective project README files. Examples are also available using wolfssl as a [Managed Component](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/).
 

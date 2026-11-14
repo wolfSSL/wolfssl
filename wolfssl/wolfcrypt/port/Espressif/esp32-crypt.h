@@ -317,6 +317,15 @@ enum {
 
 #include <freertos/FreeRTOS.h>
 
+/* The C5 clock/lock APIs used by this port are available from ESP-IDF 6.x.
+ * Keep older IDF releases in software mode instead of failing on missing
+ * esp_crypto_periph_clk.h and related interfaces. */
+#if defined(CONFIG_IDF_TARGET_ESP32C5) && ESP_IDF_VERSION_MAJOR < 6
+    #ifndef NO_ESP32_CRYPT
+        #define NO_ESP32_CRYPT
+    #endif
+#endif
+
 /* Pre-set a full hardware-acceleration disable from Kconfig before any target
  * derives its feature flags. This keeps software-only builds from enabling
  * C5 AES/SHA/MPI/ECC flags that are set below. */

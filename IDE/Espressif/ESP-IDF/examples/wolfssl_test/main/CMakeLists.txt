@@ -9,7 +9,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSION_MAJOR VERSION_LESS "5.0")
     # `driver` component not available for ESP8266
     SET(THIS_PRIV_REQUIRES_DRIVER "")
-elseif(IDF_VERSION_MAJOR VERSION_LESS "5.3")
+elseif("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_LESS "5.3")
     # `esp_driver_uart` was split out in ESP-IDF 5.3.
     SET(THIS_PRIV_REQUIRES_DRIVER "driver")
 else()

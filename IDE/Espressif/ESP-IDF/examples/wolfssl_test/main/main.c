@@ -168,6 +168,10 @@ static int esp32c5_efuse_selftest(void)
 {
     ecc_key key;
     ecc_key copy;
+#ifdef WOLFSSL_CUSTOM_CURVES
+    ecc_key custom;
+    int customInit = 0;
+#endif
     WC_RNG rng;
     byte hash[32];
     byte signature[128];
@@ -220,6 +224,18 @@ static int esp32c5_efuse_selftest(void)
     }
     copy.type = key.type;
 
+    /* An invalid curve change must not destroy the existing opaque binding. */
+    if (ret == 0) {
+        stage = 9;
+        ret = wc_ecc_set_curve(&key, 0, ECC_CURVE_MAX);
+        if (ret == ECC_CURVE_OID_E) {
+            ret = 0;
+        }
+        else if (ret == 0) {
+            ret = -1;
+        }
+    }
+
     /* Exercise repeated operations, including signing after verification. */
     for (i = 0; ret == 0 && i < 2; i++) {
         ecc_key* signingKey = (i == 0) ? &key : &copy;
@@ -262,6 +278,32 @@ static int esp32c5_efuse_selftest(void)
         stage = 43;
         ret = -1;
     }
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+    /* Even a custom alias of a built-in curve must not be bound: its domain
+     * ownership and identity differ from the hardware-backed R1 parameters. */
+    if (ret == 0) {
+        stage = 44;
+        ret = wc_ecc_init(&custom);
+        if (ret == 0) {
+            customInit = 1;
+            ret = wc_ecc_set_custom_curve(&custom, key.dp);
+        }
+        if (ret == 0) {
+            ret = wc_esp32_ecdsa_use_efuse_key(&custom, ECC_SECP256R1,
+                WOLFSSL_ESP32C5_TEST_EFUSE_BLOCK, -1);
+            if (ret == ECC_BAD_ARG_E) {
+                ret = 0;
+            }
+            else if (ret == 0) {
+                ret = -1;
+            }
+        }
+        if (customInit) {
+            wc_ecc_free(&custom);
+        }
+    }
+#endif
 
     if (ret != 0) {
         ESP_LOGE(TAG, "eFuse self-test stage %d failed: %d", stage, ret);
@@ -367,6 +409,148 @@ static int esp32c5_sha_copy_selftest(void)
 
 #undef C5_SHA_COPY_TEST
 
+    return ret;
+}
+#endif
+
+#if defined(WOLFSSL_ESP32C5_TEST_SHA_LOCK)
+static int esp32c5_sha_lock_selftest(void)
+{
+    byte input[128];
+    int ret = 0;
+
+#define C5_SHA_LOCK_TEST(NAME, CTX, INIT, UPDATE, FINAL, FREE, SIZE)           \
+    do {                                                                       \
+        CTX sha;                                                               \
+        byte expected[SIZE];                                                   \
+        byte actual[SIZE];                                                     \
+        int localRet;                                                          \
+        int initialized = 0;                                                   \
+        int i;                                                                 \
+        XMEMSET(input, 'a', sizeof(input));                                    \
+        localRet = INIT(&sha);                                                 \
+        if (localRet == 0) {                                                   \
+            initialized = 1;                                                   \
+            localRet = UPDATE(&sha, input, sizeof(input));                     \
+        }                                                                      \
+        if (localRet == 0) {                                                   \
+            localRet = FINAL(&sha, expected);                                  \
+        }                                                                      \
+        if (initialized) {                                                     \
+            FREE(&sha);                                                        \
+        }                                                                      \
+        for (i = 0; localRet == 0 && i < 8; i++) {                             \
+            /* Abandon an active hardware hash without Final(). */              \
+            initialized = 0;                                                   \
+            localRet = INIT(&sha);                                             \
+            if (localRet == 0) {                                               \
+                initialized = 1;                                               \
+                localRet = UPDATE(&sha, input, sizeof(input));                 \
+            }                                                                  \
+            if (initialized) {                                                 \
+                FREE(&sha);                                                    \
+            }                                                                  \
+            if (localRet != 0) {                                               \
+                break;                                                         \
+            }                                                                  \
+            /* The next hash must be able to acquire the engine again. */       \
+            initialized = 0;                                                   \
+            localRet = INIT(&sha);                                             \
+            if (localRet == 0) {                                               \
+                initialized = 1;                                               \
+                localRet = UPDATE(&sha, input, sizeof(input));                 \
+            }                                                                  \
+            if (localRet == 0) {                                               \
+                localRet = FINAL(&sha, actual);                                \
+            }                                                                  \
+            if (initialized) {                                                 \
+                FREE(&sha);                                                    \
+            }                                                                  \
+            if (localRet == 0 && XMEMCMP(actual, expected, SIZE) != 0) {        \
+                localRet = -1;                                                 \
+            }                                                                  \
+        }                                                                      \
+        if (localRet != 0) {                                                   \
+            ESP_LOGE(TAG, NAME " unfinished-lock self-test failed: %d",        \
+                localRet);                                                     \
+            ret = localRet;                                                    \
+        }                                                                      \
+    } while (0)
+
+    C5_SHA_LOCK_TEST("SHA-224", wc_Sha224, wc_InitSha224, wc_Sha224Update,
+        wc_Sha224Final, wc_Sha224Free, WC_SHA224_DIGEST_SIZE);
+    C5_SHA_LOCK_TEST("SHA-256", wc_Sha256, wc_InitSha256, wc_Sha256Update,
+        wc_Sha256Final, wc_Sha256Free, WC_SHA256_DIGEST_SIZE);
+    C5_SHA_LOCK_TEST("SHA-384", wc_Sha384, wc_InitSha384, wc_Sha384Update,
+        wc_Sha384Final, wc_Sha384Free, WC_SHA384_DIGEST_SIZE);
+    C5_SHA_LOCK_TEST("SHA-512", wc_Sha512, wc_InitSha512, wc_Sha512Update,
+        wc_Sha512Final, wc_Sha512Free, WC_SHA512_DIGEST_SIZE);
+
+#undef C5_SHA_LOCK_TEST
+
+    return ret;
+}
+#endif
+
+#if defined(WOLFSSL_ESP32C5_TEST_ECC_CURVES) && \
+    (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 192 && defined(HAVE_ECC_SECPR2) && \
+    defined(HAVE_ECC_SECPR3)
+static int esp32c5_ecc_curve_selftest(void)
+{
+    static const int curveIds[] = {
+        ECC_SECP192R1, ECC_PRIME192V2, ECC_PRIME192V3
+    };
+    static const char* const curveNames[] = {
+        "SECP192R1", "PRIME192V2", "PRIME192V3"
+    };
+    ecc_key key;
+    WC_RNG rng;
+    byte hash[32];
+    byte signature[128];
+    word32 signatureLen;
+    int verified;
+    int ret;
+    int keyInit;
+    int i;
+
+    XMEMSET(hash, 0x5a, sizeof(hash));
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        return ret;
+    }
+
+    for (i = 0; i < (int)(sizeof(curveIds) / sizeof(curveIds[0])); i++) {
+        keyInit = 0;
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            keyInit = 1;
+            ret = wc_ecc_make_key_ex(&rng, 24, &key, curveIds[i]);
+        }
+        if (ret == 0) {
+            signatureLen = sizeof(signature);
+            ret = wc_ecc_sign_hash(hash, sizeof(hash), signature,
+                &signatureLen, &rng, &key);
+        }
+        if (ret == 0) {
+            verified = 0;
+            ret = wc_ecc_verify_hash(signature, signatureLen, hash,
+                sizeof(hash), &verified, &key);
+        }
+        if (ret == 0 && verified != 1) {
+            ret = -1;
+        }
+        if (keyInit) {
+            wc_ecc_free(&key);
+        }
+        if (ret != 0) {
+            ESP_LOGE(TAG, "%s curve fallback self-test failed: %d",
+                curveNames[i], ret);
+            break;
+        }
+    }
+
+    wc_FreeRng(&rng);
     return ret;
 }
 #endif
@@ -571,6 +755,21 @@ void app_main(void)
         if (ret == 0) {
             ret = esp32c5_sha_copy_selftest();
             ESP_LOGI(TAG, "ESP32-C5 SHA copy self-test: %d", ret);
+        }
+#endif
+#if defined(WOLFSSL_ESP32C5_TEST_SHA_LOCK)
+        if (ret == 0) {
+            ret = esp32c5_sha_lock_selftest();
+            ESP_LOGI(TAG, "ESP32-C5 SHA lock self-test: %d", ret);
+        }
+#endif
+#if defined(WOLFSSL_ESP32C5_TEST_ECC_CURVES) && \
+    (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 192 && defined(HAVE_ECC_SECPR2) && \
+    defined(HAVE_ECC_SECPR3)
+        if (ret == 0) {
+            ret = esp32c5_ecc_curve_selftest();
+            ESP_LOGI(TAG, "ESP32-C5 ECC curve self-test: %d", ret);
         }
 #endif
 #if defined(WOLFSSL_ESP32C5_TEST_EFUSE_BLOCK) && \

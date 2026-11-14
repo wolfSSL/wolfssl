@@ -2038,12 +2038,33 @@ const char* wc_ecc_get_name(int curve_id)
 
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 {
+    int x = 0;
+
     if (key == NULL || (keysize <= 0 && curve_id < 0)) {
         return BAD_FUNC_ARG;
     }
 
     if (keysize > ECC_MAXSIZE) {
         return ECC_BAD_ARG_E;
+    }
+
+    /* Resolve the target before destroying any existing hardware binding. An
+     * invalid curve must leave the original key usable. */
+    if (key->idx != ECC_CUSTOM_IDX) {
+        /* find ecc_set based on curve_id or key size */
+        for (x = 0; ecc_sets[x].size != 0; x++) {
+            if (curve_id > ECC_CURVE_DEF) {
+                if (curve_id == ecc_sets[x].id)
+                  break;
+            }
+            else if (keysize <= ecc_sets[x].size) {
+                break;
+            }
+        }
+        if (ecc_sets[x].size == 0) {
+            WOLFSSL_MSG("ECC Curve not found");
+            return ECC_CURVE_OID_E;
+        }
     }
 
 #ifdef WOLFSSL_SILABS_SE_TYPES
@@ -2067,27 +2088,6 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 
     /* handle custom case */
     if (key->idx != ECC_CUSTOM_IDX) {
-        int x;
-
-        /* default values */
-        key->idx = 0;
-        key->dp = NULL;
-
-        /* find ecc_set based on curve_id or key size */
-        for (x = 0; ecc_sets[x].size != 0; x++) {
-            if (curve_id > ECC_CURVE_DEF) {
-                if (curve_id == ecc_sets[x].id)
-                  break;
-            }
-            else if (keysize <= ecc_sets[x].size) {
-                break;
-            }
-        }
-        if (ecc_sets[x].size == 0) {
-            WOLFSSL_MSG("ECC Curve not found");
-            return ECC_CURVE_OID_E;
-        }
-
         key->idx = x;
         key->dp  = &ecc_sets[x];
     }

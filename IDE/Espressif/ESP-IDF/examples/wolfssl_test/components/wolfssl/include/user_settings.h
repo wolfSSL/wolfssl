@@ -356,8 +356,16 @@
 #endif
 /* See below for chipset detection from sdkconfig.h */
 
+/* Optional multi-threaded C5 lock self-test. This must be selected before the
+ * default threading mode is chosen below. */
+/* #define WOLFSSL_ESP32C5_TEST_MULTITHREADED */
+
 /* when you want to use SINGLE THREAD. Note Default ESP-IDF is FreeRTOS */
-#define SINGLE_THREADED
+#if defined(WOLFSSL_ESP32C5_TEST_MULTITHREADED)
+    #undef SINGLE_THREADED
+#else
+    #define SINGLE_THREADED
+#endif
 
 /* Small session cache saves a lot of RAM for ClientCache and SessionCache.
  * Memory requirement is about 5KB, otherwise 20K is needed when not specified.
@@ -784,6 +792,8 @@
     /* Optional test of an existing throwaway P-256 key in eFuse block 4.
      * Provisioning is separate; the test never writes eFuse. */
     /* #define WOLFSSL_ESP32C5_TEST_SHA_COPY */
+    /* #define WOLFSSL_ESP32C5_TEST_SHA_LOCK */
+    /* #define WOLFSSL_ESP32C5_TEST_ECC_CURVES */
     /* #define WOLFSSL_ESP32C5_TEST_EFUSE_BLOCK 4 */
     /* #define WOLFSSL_ESP32C5_TEST_KM */
     /***** END CONFIG_IDF_TARGET_ESP32C5 *****/

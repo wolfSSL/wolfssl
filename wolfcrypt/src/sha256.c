@@ -3324,7 +3324,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) && \
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
         esp_sha_release_unfinished_lock(&sha224->ctx);
@@ -3413,7 +3413,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) && \
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
     esp_sha_release_unfinished_lock(&sha256->ctx);

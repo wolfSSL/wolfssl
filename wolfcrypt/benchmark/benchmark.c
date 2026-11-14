@@ -583,9 +583,11 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
     #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
           defined(CONFIG_IDF_TARGET_ESP32C5) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)
-        #include <esp_cpu.h>
         #if ESP_IDF_VERSION_MAJOR >= 5
+            #include <esp_cpu.h>
             #include <driver/gptimer.h>
+        #else
+            #include <soc/cpu.h>
         #endif
         #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
             #define RESOLUTION_SCALE 100

@@ -2851,7 +2851,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) && \
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)  && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
     esp_sha_release_unfinished_lock(&sha512->ctx);
@@ -3372,7 +3372,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)  && \
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)  && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384)
     esp_sha_release_unfinished_lock(&sha384->ctx);
 #endif

@@ -468,6 +468,7 @@ int esp_sha_init_ctx(WC_ESP32SHA* ctx)
     CTX_STACK_CHECK(ctx);
 
     ctx->mode = ESP32_SHA_INIT;
+    ctx->initializer = (uintptr_t)ctx;
 
     /* This is a generic init; we don't yet know SHA type. */
     ctx->sha_type = WC_UNKNOWN_SHA;
@@ -592,7 +593,8 @@ int esp_sha_ctx_copy(struct wc_Sha* src, struct wc_Sha* dst)
 #ifndef NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224
 int esp_sha224_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst)
 {
-#if defined(CONFIG_IDF_TARGET_ESP32C5) && defined(WOLFSSL_SHA224)
+#if defined(CONFIG_IDF_TARGET_ESP32C5) && defined(WOLFSSL_SHA224) && \
+    !defined(NO_SHA256) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
     int ret = ESP_OK;
 
     if (src->ctx.mode == ESP32_SHA_HW) {
@@ -1260,13 +1262,8 @@ uintptr_t esp_sha_release_unfinished_lock(WC_ESP32SHA* ctx)
         if (ret == (uintptr_t)ctx) {
             /* found a match for this object */
             if (ret == ctx->initializer) {
-                /* confirmed match*/
-                ESP_LOGW(TAG, "New mutex_ctx_owner = NULL");
-                #ifdef ESP_MONITOR_HW_TASK_LOCK
-                {
-                    esp_sha_mutex_ctx_owner_clear();
-                }
-                #endif
+                /* confirmed match */
+                ESP_LOGV(TAG, "Confirmed unfinished SHA lock owner");
             }
             else {
         #if defined(WOLFSSL_DEBUG_MUTEX) || defined(WOLFSSL_ESP32_HW_LOCK_DEBUG)
@@ -1303,8 +1300,11 @@ uintptr_t esp_sha_release_unfinished_lock(WC_ESP32SHA* ctx)
         #else
             #if defined(ESP_MONITOR_HW_TASK_LOCK)
             {
-                if (ctx->task_owner == xTaskGetCurrentTaskHandle()) {
+                if (mutex_ctx_task == xTaskGetCurrentTaskHandle()) {
                     ESP_LOGV(TAG, "esp_sha_hw_unlock!");
+                    /* Do not clear the owner for a cross-task free: the
+                     * owning task needs it to process ESP32_SHA_FREED. */
+                    esp_sha_mutex_ctx_owner_clear();
                     ret = esp_sha_hw_unlock(ctx);
                 }
                 else {

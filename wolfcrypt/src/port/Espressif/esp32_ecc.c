@@ -255,9 +255,9 @@ static void esp32_ecdsa_release(void)
 #if defined(SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY)
     esp_crypto_key_mgr_enable_periph_clk(false);
 #endif
-#if defined(SOC_KEY_MANAGER_SUPPORTED)
-    esp_crypto_key_manager_lock_release();
-#endif
+    /* Match the IDF ECDSA lock model. In particular, do not hold the Key
+     * Manager lock while acquiring ECDSA/ECC: Key Manager deployment takes
+     * those locks in the opposite order and could deadlock with verification. */
 #if defined(SOC_ECDSA_USES_MPI) && SOC_ECDSA_USES_MPI
     if (ecdsa_ll_is_mpi_required()) {
         esp_crypto_mpi_enable_periph_clk(false);
@@ -274,9 +274,6 @@ static int esp32_ecdsa_hw_verify(ecdsa_curve_t curve, const byte* hash,
     int ret = MP_OKAY;
     int valid = 0;
 
-#if defined(SOC_KEY_MANAGER_SUPPORTED)
-    esp_crypto_key_manager_lock_acquire();
-#endif
     esp32_ecdsa_acquire();
 #if defined(WOLFSSL_HW_METRICS)
     esp32_ecdsa_verify_usage_ct++;
@@ -475,6 +472,13 @@ int esp32_ecc_mulmod(const mp_int* k, ecc_point* G, ecc_point* R,
     }
     if (ret == MP_OKAY) {
         ret = esp32_ecc_hw_point_mul(scalar, x, y, x, y, curveSize);
+        if (ret == IS_POINT_E) {
+            /* VERIFY_THEN_POINT_MUL also identifies points that belong to a
+             * different curve with the same prime and A (PRIME192V2/V3 or a
+             * custom curve). Let the caller use its software implementation
+             * for those curves instead of returning a hardware curve error. */
+            ret = NOT_COMPILED_IN;
+        }
     }
     ForceZero(scalar, sizeof(scalar));
     if (ret != MP_OKAY) {

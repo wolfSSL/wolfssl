@@ -1454,7 +1454,8 @@ void wc_ShaFree(wc_Sha* sha)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) &&  !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     esp_sha_release_unfinished_lock(&sha->ctx);
 #endif
 

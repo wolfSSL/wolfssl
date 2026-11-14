@@ -221,7 +221,8 @@ int wc_esp32_ecdsa_use_efuse_key(ecc_key* key, int curveId,
     WcEsp32EcdsaKeyCtx* ctx;
     int ret;
 
-    if (key == NULL || lowBlock < 0 || lowBlock > 15 || highBlock >= 16) {
+    if (key == NULL || key->idx == ECC_CUSTOM_IDX || lowBlock < 0 ||
+        lowBlock > 15 || highBlock >= 16) {
         return ECC_BAD_ARG_E;
     }
     if (highBlock >= 0 && lowBlock == highBlock) {
@@ -277,7 +278,7 @@ int wc_esp32_ecdsa_use_km_key(ecc_key* key, int curveId,
     WcEsp32EcdsaKeyCtx* ctx;
     int ret;
 
-    if (key == NULL || recovery == NULL) {
+    if (key == NULL || recovery == NULL || key->idx == ECC_CUSTOM_IDX) {
         return ECC_BAD_ARG_E;
     }
 
@@ -391,9 +392,15 @@ int wc_esp32_ecdsa_sign_hash(const byte* in, word32 inLen,
     }
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
+    #ifndef WOLFSSL_NO_MALLOC
+    if (key->sign_k != NULL) {
+        return ECC_BAD_ARG_E;
+    }
+    #else
     if (key->sign_k_set) {
         return ECC_BAD_ARG_E;
     }
+    #endif
 #endif
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)

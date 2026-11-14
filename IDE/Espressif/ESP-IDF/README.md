@@ -3,7 +3,9 @@
 These Espressif examples have been created and tested with the latest stable release branch of
 ESP-IDF v5.2, v5.3 and the master branch
 
-ESP32-C5 support has been verified with ESP-IDF v6.1.
+ESP32-C5 support has been verified with ESP-IDF v6.1. C5 hardware
+acceleration requires ESP-IDF 6.x; older IDF releases build in software-only
+mode because they do not provide the required crypto clock helpers.
 
 The prior version 4.4 ESP-IDF is still supported, however version 5.2 or greater is recommended.
 Espressif has [a list of all ESP-IDF versions](Espressifversions.html).
