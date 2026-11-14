@@ -50,6 +50,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
+          - ref: 0.7.2
+            runner: ubuntu-24.04
           - ref: 0.7.0
             runner: ubuntu-24.04
           - ref: 0.6.0

@@ -18,6 +18,7 @@ clang
 clang-14
 clang-19
 cmake
+flex
 g++-10
 g++-11
 g++-12
@@ -81,6 +82,7 @@ libsqlite3-dev
 libssl-dev
 libtool
 liburcu-dev
+libusb-1.0-0-dev
 libuv1-dev
 linux-libc-dev
 make
@@ -94,6 +96,7 @@ pkg-config
 pkgconf
 psmisc
 python3
+python3-cryptography
 python3-docutils
 python3-impacket
 python3-ldb
