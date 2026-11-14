@@ -636,6 +636,12 @@ int wc_MakeSakkeKey(SakkeKey* key, WC_RNG* rng)
     }
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
+        key->zMont = 0;
+#ifdef WOLFCRYPT_SAKKE_CLIENT
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
+#endif
     }
 
     return err;
@@ -674,6 +680,42 @@ int wc_MakeSakkePublicKey(SakkeKey* key, ecc_point* pub)
     return err;
 }
 
+/*
+ * Convert the public key from montgomery form.
+ *
+ * The public key is needed in Montgomery form for validation and derivation.
+ *
+ * @param  [in]  key      SAKKE key.
+ * @return  0 on success.
+ * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
+ * @return  Other value when an an internal operation fails.
+ */
+static int sakke_z_from_mont(SakkeKey* key)
+{
+    int err = 0;
+    mp_digit mp;
+    ecc_point* z = &key->ecc.pubkey;
+    mp_int* prime = &key->params.prime;
+
+    if (key->zMont) {
+        err = mp_montgomery_setup(prime, &mp);
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->x, prime, mp);
+        }
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->y, prime, mp);
+        }
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->z, prime, mp);
+        }
+        if (err == 0) {
+            key->zMont = 0;
+        }
+    }
+
+    return err;
+}
+
 /**
  * Export the SAKKE key as encoded public/private ECC key.
  *
@@ -705,6 +747,9 @@ int wc_ExportSakkeKey(SakkeKey* key, byte* data, word32* sz)
     }
     if ((err >= 0) && (*sz < (word32)(3 * key->ecc.dp->size))) {
         err = BUFFER_E;
+    }
+    if (err == 0) {
+        err = sakke_z_from_mont(key);
     }
     if (err == 0) {
         /* Write out the secret value into key size bytes. */
@@ -782,6 +827,12 @@ int wc_ImportSakkeKey(SakkeKey* key, const byte* data, word32 sz)
     }
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
+        key->zMont = 0;
+#ifdef WOLFCRYPT_SAKKE_CLIENT
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
+#endif
     }
 
     return err;
@@ -865,42 +916,6 @@ int wc_ImportSakkePrivateKey(SakkeKey* key, const byte* data, word32 sz)
     }
     if (err == 0) {
         err = ecc_blind_k_rng(&key->ecc, NULL);
-    }
-
-    return err;
-}
-
-/*
- * Convert the public key from montgomery form.
- *
- * The public key is needed in Montgomery form for validation and derivation.
- *
- * @param  [in]  key      SAKKE key.
- * @return  0 on success.
- * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
- * @return  Other value when an an internal operation fails.
- */
-static int sakke_z_from_mont(SakkeKey* key)
-{
-    int err = 0;
-    mp_digit mp;
-    ecc_point* z = &key->ecc.pubkey;
-    mp_int* prime = &key->params.prime;
-
-    if (key->zMont) {
-        err = mp_montgomery_setup(prime, &mp);
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->x, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->y, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->z, prime, mp);
-        }
-        if (err == 0) {
-            key->zMont = 0;
-        }
     }
 
     return err;
@@ -1273,6 +1288,9 @@ int wc_ImportSakkePublicKey(SakkeKey* key, const byte* data, word32 sz,
     if (err == 0) {
         key->ecc.type = ECC_PUBLICKEY;
         key->zMont = 0;
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
     }
     if ((err == 0) && (!trusted)) {
         err = wc_ecc_check_key(&key->ecc);
@@ -2624,11 +2642,23 @@ int wc_SetSakkeRsk(SakkeKey* key, const ecc_point* rsk, byte* table, word32 len)
 static int sakke_compute_point_i(SakkeKey* key, const byte* id, word16 idSz,
         ecc_point* i)
 {
-    int err;
-    mp_int* b = wc_ecc_key_get_priv(&key->ecc);
+    int err = 0;
+    DECL_MP_INT_SIZE_DYN(b, SAKKE_ID_MAX_SIZE * 8, SAKKE_ID_MAX_SIZE * 8);
 
+    NEW_MP_INT_SIZE(b, SAKKE_ID_MAX_SIZE * 8, key->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef MP_INT_SIZE_CHECK_NULL
+    if (b == NULL) {
+        err = MEMORY_E;
+    }
+#endif
+    if (err == 0) {
+        err = INIT_MP_INT_SIZE(b, SAKKE_ID_MAX_SIZE * 8);
+    }
     /* Load b - ID of receiver */
-    err = mp_read_unsigned_bin(b, id, idSz);
+    if (err == 0) {
+        err = mp_read_unsigned_bin(b, id, idSz);
+    }
     if (err == 0) {
         err = sakke_load_base_point(key);
     }
@@ -2643,6 +2673,8 @@ static int sakke_compute_point_i(SakkeKey* key, const byte* id, word16 idSz,
         ecc_point* z = &key->ecc.pubkey;
         err = sakke_mulmod_base_add(key, b, z, i, 1);
     }
+
+    FREE_MP_INT_SIZE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
 }
 
@@ -2660,7 +2692,8 @@ static int sakke_compute_point_i(SakkeKey* key, const byte* id, word16 idSz,
  * @param  [out]  valid  1 indicates RSK is valid for identity.
  *                       0 otherwise.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, id, rsk or valid is NULL.
+ * @return  BAD_FUNC_ARG when key, id, rsk or valid is NULL or
+ *          idSz > SAKKE_ID_MAX_SIZE.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
@@ -2670,7 +2703,8 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
     int err = 0;
     mp_int* a = NULL;
 
-    if ((key == NULL) || (id == NULL) || (rsk == NULL) || (valid == NULL)) {
+    if ((key == NULL) || (id == NULL) || (rsk == NULL) || (valid == NULL) ||
+            (idSz > SAKKE_ID_MAX_SIZE)) {
         err = BAD_FUNC_ARG;
     }
 
@@ -2692,16 +2726,19 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
     }
 
     if (err == 0) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, key->i.i);
-        if ((err == 0) && (idSz <= SAKKE_ID_MAX_SIZE)) {
-            XMEMCPY(key->i.id, id, idSz);
-            key->i.idSz = idSz;
-        }
     }
     /* < [a]P + Z, K_(a,T) > = < K_(a,T), [a]P + Z > = < rsk, i >*/
     if (err == 0) {
         err = sakke_pairing(key, rsk, key->i.i, a, NULL, 0);
+    }
+    if (err == 0) {
+        XMEMCPY(key->i.id, id, idSz);
+        key->i.idSz = idSz;
     }
 
     /* Compare pairing result with generator. */
@@ -6656,6 +6693,9 @@ int wc_MakeSakkePointI(SakkeKey* key, const byte* id, word16 idSz)
         err = sakke_load_params(key);
     }
     if (err == 0) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, key->i.i);
     }
@@ -6747,6 +6787,9 @@ int wc_SetSakkePointI(SakkeKey* key, const byte* id, word16 idSz,
     }
 
     if (err == 0) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* Read the x value from key size bytes. */
         err = mp_read_unsigned_bin(key->i.i->x, data,
             (word32)key->ecc.dp->size);
@@ -6915,14 +6958,15 @@ static int sakke_compute_point_r(SakkeKey* key, const byte* id, word16 idSz,
 
     if ((key->i.idSz == 0) || (key->i.idSz != idSz) ||
             (XMEMCMP(id, key->i.id, idSz) != 0)) {
+        key->i.idSz = 0;
+        key->i.table = NULL;
+        key->i.tableLen = 0;
         /* I = [b]P + Z_S */
         err = sakke_compute_point_i(key, id, idSz, i);
         if ((err == 0) && (idSz <= SAKKE_ID_MAX_SIZE)) {
             XMEMCPY(key->i.id, id, idSz);
             key->i.idSz = idSz;
         }
-        key->i.table = NULL;
-        key->i.tableLen = 0;
     }
     /* [r]([b]P + Z_S) */
     if (err == 0) {

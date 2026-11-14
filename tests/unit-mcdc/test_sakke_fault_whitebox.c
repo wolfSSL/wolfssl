@@ -56,7 +56,6 @@
  *   1626/1629/1632 sakke_tplmod  three sequential reductions, same shape
  *   2413 sakke_pairing loop    "(err==0) && (i>=0)"
  *   2433 sakke_pairing         "(err==0) && (i>0) && mp_is_bit_set(..)"
- *   2585 wc_ValidateSakkeRsk   "(err==0) && (idSz<=SAKKE_ID_MAX_SIZE)"
  *   2777 sakke_modexp_loop     "(err==0) && (i>=0)"
  *   6420 sakke_hash_to_range   "(err==0) && (i<n)"
  *   6788 sakke_compute_point_r "(err==0) && (idSz<=SAKKE_ID_MAX_SIZE)"
@@ -65,11 +64,10 @@
  * armed call either returns an error before building anything, or fails a
  * deeper allocation whose error the target's own cleanup absorbs (that cleanup
  * is what is under test). The harness never dereferences a value an armed call
- * returned. sakke_compute_point_i() (reached via ValidateSakkeRsk /
- * compute_point_r) repurposes the ecc private-key mp_int as scratch, so a
- * FRESH fully-prepared key is (re)built while disarmed before each sweep group
- * that needs genuine key state, and the key that a sweep may leave partially
- * mutated is never reused across groups. Runs clean under -fsanitize=address.
+ * returned. A FRESH fully-prepared key is (re)built while disarmed before each
+ * sweep group that needs genuine key state, and the key that a sweep may leave
+ * partially mutated is never reused across groups. Runs clean under
+ * -fsanitize=address.
  *
  * Invocation:
  *   ./test_sakke_fault_whitebox            default: full fault-index sweeps
@@ -691,16 +689,15 @@ int main(int argc, char** argv)
         }
 #endif /* !WOLFSSL_HAVE_SP_ECC */
 
-        /* --- wc_ValidateSakkeRsk (2585, and 2413/2433 in sakke_pairing):
-         * sakke_compute_point_i() runs first (heavy ECC precompute) -- a fault
-         * there sets err != 0 before the 2585 idSz guard, driving its err==0
-         * false half. Faults deeper in the run land inside sakke_pairing's
-         * accumulate-line loop, setting err != 0 so the 2413 loop check and
-         * 2433 inner guard take their err==0 false halves on the next
-         * iteration. Validate does not need the master secret (only the public
-         * key + params), and resets key->i.table = NULL on recompute, so the
-         * shared prepared key is reused; a fault leaves key->i partial but
-         * every subsequent validate call recomputes it. --- */
+        /* --- wc_ValidateSakkeRsk (2413/2433 in sakke_pairing):
+         * sakke_compute_point_i() runs first (heavy ECC precompute). Faults
+         * deeper in the run land inside sakke_pairing's accumulate-line loop,
+         * setting err != 0 so the 2413 loop check and 2433 inner guard take
+         * their err==0 false halves on the next iteration. Validate does not
+         * need the master secret (only the public key + params), and resets
+         * key->i.table = NULL on recompute, so the shared prepared key is
+         * reused; a fault leaves key->i partial but every subsequent validate
+         * call recomputes it. --- */
         for (n = 1; n <= SAKKE_K_VALIDATE; n++) {
             int a = 0;
             wc_ecc_fp_free();   /* cold sakke_compute_point_i mul (FP build) */
