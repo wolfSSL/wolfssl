@@ -1305,6 +1305,7 @@ uintptr_t esp_sha_release_unfinished_lock(WC_ESP32SHA* ctx)
             {
                 if (ctx->task_owner == xTaskGetCurrentTaskHandle()) {
                     ESP_LOGV(TAG, "esp_sha_hw_unlock!");
+                    ret = esp_sha_hw_unlock(ctx);
                 }
                 else {
                     /* We cannot free a SHA object lock from a different task.

@@ -289,10 +289,16 @@ static int esp32c5_sha_copy_selftest(void)
         byte srcHash[SIZE];                                                    \
         byte dstHash[SIZE];                                                    \
         int localRet;                                                          \
+        int srcInit = 0;                                                       \
+        int dstInit = 0;                                                       \
         XMEMSET(input, 'a', sizeof(input));                                    \
         localRet = INIT(&src);                                                 \
         if (localRet == 0) {                                                   \
+            srcInit = 1;                                                       \
             localRet = INIT(&dst);                                             \
+            if (localRet == 0) {                                               \
+                dstInit = 1;                                                   \
+            }                                                                  \
         }                                                                      \
         if (localRet == 0) {                                                   \
             localRet = UPDATE(&src, input, sizeof(input));                     \
@@ -319,8 +325,12 @@ static int esp32c5_sha_copy_selftest(void)
                               XMEMCMP(dstHash, EXP, SIZE) != 0)) {             \
             localRet = -1;                                                     \
         }                                                                      \
-        FREE(&src);                                                            \
-        FREE(&dst);                                                            \
+        if (srcInit) {                                                         \
+            FREE(&src);                                                        \
+        }                                                                      \
+        if (dstInit) {                                                         \
+            FREE(&dst);                                                        \
+        }                                                                      \
         if (localRet != 0) {                                                   \
             ESP_LOGE(TAG, NAME " active-copy self-test failed: %d", localRet); \
             ret = localRet;                                                    \
