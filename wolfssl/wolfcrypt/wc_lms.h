@@ -968,7 +968,7 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
 int wc_hss_sign(LmsState* state, byte* priv_raw, HssPrivKey* priv_key,
     byte* priv_data, const byte* msg, word32 msgSz, byte* sig);
 int wc_hss_sigsleft(const LmsParams* params, const byte* priv_raw);
-WOLFSSL_API
+WOLFSSL_FIPS_V7_LOCAL
 int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
     word32 msgSz, const byte* sig, word32 sigSz);
 #endif /* !WOLF_CRYPTO_CB_ONLY_LMS */

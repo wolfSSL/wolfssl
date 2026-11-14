@@ -1905,7 +1905,8 @@ then
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 7
     then
-        test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
+        test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && \
+            test "$ENABLED_FIPS" = "no" && enable_eccencrypt=yes
         # KMAC and cSHAKE (SP 800-185) are outside the FIPS v7 module boundary,
         # so only non-FIPS and the dev/ready prep builds turn them on here.
         if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS_DEV" = "yes" \
@@ -1929,7 +1930,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
 
     # Enable deterministic ECC signing API with variant
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    # FIPS v7 signs per FIPS 186-5 A.3.3, not the RFC 6979 variant
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K"
+    fi
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
@@ -2087,7 +2094,10 @@ then
     test "$enable_keygen" = "" && enable_keygen=yes
     if test "$enable_ecc" != "no"
     then
-        test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
+        if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+        then
+            test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
+        fi
         test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     fi
     test "$enable_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
@@ -2135,7 +2145,13 @@ then
     fi
 
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    # FIPS v7 signs per FIPS 186-5 A.3.3, not the RFC 6979 variant
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K"
+    fi
 fi
 
 # Support for Tailscale port
@@ -6711,6 +6727,10 @@ then
     if test "$ENABLED_HKDF" = "no"
     then
         AC_MSG_ERROR([cannot enable eccencrypt without enabling hkdf.])
+    fi
+    if test "$ENABLED_FIPS" = "yes" && test "$HAVE_FIPS_VERSION" -ge 7
+    then
+        AC_MSG_ERROR([eccencrypt (ECIES) is not available in FIPS v7 builds.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_ENCRYPT"
     if test "$ENABLED_ECC_ENCRYPT" = "old"

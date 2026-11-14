@@ -670,6 +670,23 @@
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
+/* FIPS v7: module functions with no _fips wrapper are not exported. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #define WOLFSSL_FIPS_V7_LOCAL WOLFSSL_LOCAL
+#else
+    #define WOLFSSL_FIPS_V7_LOCAL WOLFSSL_API
+#endif
+
+/* FIPS v7: deterministic ECDSA is FIPS 186-5 A.3.3 (RFC 6979 3.2), which
+ * reduces the hash mod n; the RFC 6979 variant skips that step. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+    #undef WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT
+    #ifndef WOLFSSL_ECDSA_DETERMINISTIC_K
+        #define WOLFSSL_ECDSA_DETERMINISTIC_K
+    #endif
+#endif
+
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)
@@ -5966,6 +5983,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #endif
 #if defined(HAVE_ECC_ENCRYPT) && !defined(HAVE_ECC)
     #error "ECC encrypt (HAVE_ECC_ENCRYPT) requires ECC (HAVE_ECC)"
+#endif
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && defined(HAVE_ECC_ENCRYPT)
+    #error "ECIES (HAVE_ECC_ENCRYPT) is not available in FIPS v7 builds"
 #endif
 #if defined(HAVE_ECC_ENCRYPT) && !defined(HAVE_HKDF)
     #error "ECC encrypt (HAVE_ECC_ENCRYPT) requires HKDF (HAVE_HKDF)"

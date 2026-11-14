@@ -138,6 +138,43 @@
 #define WOLFKM_AESECB_DRIVER ("ecb-aes" WOLFKM_AES_DRIVER_SUFFIX)
 #define WOLFKM_AESCMAC_DRIVER ("cmac-aes" WOLFKM_AES_DRIVER_SUFFIX)
 
+/* FIPS v7: a module call may wait out a self-test. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #define WC_LINUXKM_AES_MAY_WAIT
+#endif
+
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    !defined(WC_LINUXKM_SVR_NO_BATCHING)
+#ifdef WC_LINUXKM_AES_MAY_WAIT
+/* End an SVR batch, so the next module call may wait out a self-test. */
+static WC_MAYBE_UNUSED void km_SvrBatchEnd(unsigned int *svr_batch_left)
+{
+    if (*svr_batch_left) {
+        RESTORE_VECTOR_REGISTERS();
+        *svr_batch_left = 0;
+    }
+}
+
+/* 1 when the module refused a call inside a batch: no more batching for this
+ * request, and the caller retries the call. */
+static WC_MAYBE_UNUSED int km_SvrBatchRetry(int err,
+    unsigned int *svr_batch_left, int *svr_batch_ok)
+{
+    if ((err != WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E)) || (*svr_batch_left == 0))
+        return 0;
+    km_SvrBatchEnd(svr_batch_left);
+    *svr_batch_ok = 0;
+    return 1;
+}
+
+/* batch only when more data follows the current chunk */
+#define km_SvrBatchMore(nbytes, total) ((nbytes) < (total))
+#else
+#define km_SvrBatchRetry(err, svr_batch_left, svr_batch_ok) 0
+#define km_SvrBatchMore(nbytes, total) 1
+#endif
+#endif
+
 #ifdef HAVE_AES_CBC
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
          defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
@@ -1169,16 +1206,6 @@ static int km_AesGcmSetAuthsize_Rfc4106(struct crypto_aead *tfm, unsigned int au
 
 #ifdef WOLFSSL_AESGCM_STREAM
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
- */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #undef wc_AesGcmDecryptUpdate
-    #undef wc_AesGcmEncryptUpdate
-    typeof(wc_AesGcmDecryptUpdate_fips) wc_AesGcmDecryptUpdate;
-    typeof(wc_AesGcmEncryptUpdate_fips) wc_AesGcmEncryptUpdate;
-#endif
-
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
     #ifndef WC_LINUXKM_GCM_SVR_BATCH
         #define WC_LINUXKM_GCM_SVR_BATCH (16 * 4096)
@@ -1202,7 +1229,11 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     struct crypto_aead * tfm = NULL;
     struct km_AesCtx *   ctx = NULL;
     struct skcipher_walk walk;
+#ifdef WC_LINUXKM_AES_MAY_WAIT
+    u8                   assocbuf[2 * WC_AES_BLOCK_SIZE];
+#else
     struct scatter_walk  assocSgWalk;
+#endif
     u8                   authTag[WC_AES_BLOCK_SIZE];
     int                  err;
     unsigned int         assoclen = req->assoclen;
@@ -1211,6 +1242,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     Aes                  *aes_copy = NULL;
 #if WC_LINUXKM_GCM_SVR_BATCH > 0
     unsigned int svr_batch_left = 0;
+    int svr_batch_ok = 1;
 #endif
 
     tfm = crypto_aead_reqtfm(req);
@@ -1278,6 +1310,14 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         goto out;
     }
 
+#ifdef WC_LINUXKM_AES_MAY_WAIT
+    /* copy out: the module may wait, and scatterwalk_map() is kmap_atomic()
+     * through 6.2 (5.15 include/crypto/scatterwalk.h:73) */
+    if (assoclen <= sizeof(assocbuf)) {
+        assoc = assocbuf;
+        scatterwalk_map_and_copy(assoc, req->src, 0, assoclen, 0);
+    }
+#else
     if (req->src->length >= assoclen && req->src->length) {
         scatterwalk_start(&assocSgWalk, req->src);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
@@ -1295,10 +1335,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             goto out;
         }
     }
+#endif
     else {
-        /* assoc can be any length, so if it's noncontiguous, we have to copy it
-         * to a contiguous heap allocation.
-         */
+        /* copy any other AAD to a contiguous heap allocation. */
         assocmem = malloc(assoclen);
         if (unlikely(assocmem == NULL)) {
             err = -ENOMEM;
@@ -1319,6 +1358,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     if (assocmem)
         free(assocmem);
+#ifndef WC_LINUXKM_AES_MAY_WAIT
     else {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
         scatterwalk_unmap(&assocSgWalk);
@@ -1326,6 +1366,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         scatterwalk_unmap(assoc);
 #endif
     }
+#endif
 
     if (unlikely(err)) {
         pr_err("%s: %s failed: %d\n",
@@ -1338,12 +1379,10 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     while (walk.nbytes) {
 #if WC_LINUXKM_GCM_SVR_BATCH > 0
-        if (svr_batch_left == 0) {
+        if (svr_batch_ok && (svr_batch_left == 0) &&
+            km_SvrBatchMore(walk.nbytes, walk.total)) {
             if (SAVE_VECTOR_REGISTERS2() == 0)
                 svr_batch_left = WC_LINUXKM_GCM_SVR_BATCH;
-            /* else on failure, continue unbatched -- per-Update SVRs still work
-             * (or C fallback engages).
-             */
         }
 #endif
         if (decrypt_p) {
@@ -1364,6 +1403,10 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         }
 
         if (unlikely(err)) {
+#if WC_LINUXKM_GCM_SVR_BATCH > 0
+            if (km_SvrBatchRetry(err, &svr_batch_left, &svr_batch_ok))
+                continue; /* same chunk, outside the batch */
+#endif
             pr_err("%s: %s failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    decrypt_p ? "wc_AesGcmDecryptUpdate" : "wc_AesGcmEncryptUpdate",
@@ -1391,6 +1434,10 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     if (decrypt_p) {
         err = wc_AesGcmDecryptFinal(aes_copy, authTag, tfm->authsize);
+#if WC_LINUXKM_GCM_SVR_BATCH > 0
+        if (km_SvrBatchRetry(err, &svr_batch_left, &svr_batch_ok))
+            err = wc_AesGcmDecryptFinal(aes_copy, authTag, tfm->authsize);
+#endif
         if (unlikely(err)) {
 #ifdef WOLFSSL_LINUXKM_VERBOSE_LKCAPI_DEBUG
             pr_err("%s: wc_AesGcmDecryptFinal failed with return code %d\n",
@@ -1408,6 +1455,10 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     }
     else {
         err = wc_AesGcmEncryptFinal(aes_copy, authTag, tfm->authsize);
+#if WC_LINUXKM_GCM_SVR_BATCH > 0
+        if (km_SvrBatchRetry(err, &svr_batch_left, &svr_batch_ok))
+            err = wc_AesGcmEncryptFinal(aes_copy, authTag, tfm->authsize);
+#endif
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncryptFinal failed with return code %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
@@ -1440,11 +1491,6 @@ out:
 
     return err;
 }
-
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #define wc_AesGcmDecryptUpdate wc_AesGcmDecryptUpdate_fips
-    #define wc_AesGcmEncryptUpdate wc_AesGcmEncryptUpdate_fips
-#endif
 
 #else /* !WOLFSSL_AESGCM_STREAM */
 
@@ -2321,16 +2367,6 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
 
 /* see /usr/src/linux/drivers/md/dm-crypt.c */
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
- */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #undef wc_AesXtsDecryptUpdate
-    #undef wc_AesXtsEncryptUpdate
-    typeof(wc_AesXtsDecryptUpdate_fips) wc_AesXtsDecryptUpdate;
-    typeof(wc_AesXtsEncryptUpdate_fips) wc_AesXtsEncryptUpdate;
-#endif
-
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
     !defined(WC_LINUXKM_SVR_NO_BATCHING) && !defined(WC_LINUXKM_XTS_NO_AESNI)
     #ifndef WC_LINUXKM_XTS_SVR_BATCH
@@ -2359,6 +2395,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
     unsigned int             nbytes = 0;
 #if WC_LINUXKM_XTS_SVR_BATCH > 0
     unsigned int svr_batch_left = 0;
+    int svr_batch_ok = 1;
 #endif
 
     tfm = crypto_skcipher_reqtfm(req);
@@ -2375,7 +2412,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         return err;
     }
 
-#if WC_LINUXKM_XTS_SVR_BATCH > 0
+#if (WC_LINUXKM_XTS_SVR_BATCH > 0) && !defined(WC_LINUXKM_AES_MAY_WAIT)
     if (SAVE_VECTOR_REGISTERS2() == 0) {
         svr_batch_left = WC_LINUXKM_XTS_SVR_BATCH;
         /* all returns henceforth must be via the out: label. */
@@ -2430,7 +2467,16 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             tail = 0;
         }
 
+#if (WC_LINUXKM_XTS_SVR_BATCH > 0) && defined(WC_LINUXKM_AES_MAY_WAIT)
+        /* not a one-shot request: batch from Init on */
+        if (SAVE_VECTOR_REGISTERS2() == 0)
+            svr_batch_left = WC_LINUXKM_XTS_SVR_BATCH;
+#endif
         err = wc_AesXtsEncryptInit(ctx->aesXts, walk.iv, walk.ivsize, &stream);
+#if WC_LINUXKM_XTS_SVR_BATCH > 0
+        if (km_SvrBatchRetry(err, &svr_batch_left, &svr_batch_ok))
+            err = wc_AesXtsEncryptInit(ctx->aesXts, walk.iv, walk.ivsize, &stream);
+#endif
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncryptInit failed: %d\n",
@@ -2447,12 +2493,10 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
                 nbytes &= ~(WC_AES_BLOCK_SIZE - 1);
 
 #if WC_LINUXKM_XTS_SVR_BATCH > 0
-            if (svr_batch_left == 0) {
+            if (svr_batch_ok && (svr_batch_left == 0) &&
+                km_SvrBatchMore(nbytes, walk.total)) {
                 if (SAVE_VECTOR_REGISTERS2() == 0)
                     svr_batch_left = WC_LINUXKM_XTS_SVR_BATCH;
-                /* else on failure, proceed unbatched -- per-Update SVRs still
-                 * work (or C fallback engages).
-                 */
             }
 #endif
             if (nbytes & ((unsigned int)WC_AES_BLOCK_SIZE - 1U))
@@ -2465,6 +2509,10 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
                                              &stream);
 
             if (unlikely(err)) {
+#if WC_LINUXKM_XTS_SVR_BATCH > 0
+                if (km_SvrBatchRetry(err, &svr_batch_left, &svr_batch_ok))
+                    continue; /* same chunk, outside the batch */
+#endif
                 pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
                 err = -EINVAL;
@@ -2487,6 +2535,10 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             }
 #endif
         }
+
+#if (WC_LINUXKM_XTS_SVR_BATCH > 0) && defined(WC_LINUXKM_AES_MAY_WAIT)
+        km_SvrBatchEnd(&svr_batch_left);
+#endif
 
         if (unlikely(tail > 0)) {
             struct scatterlist sg_src[2], sg_dst[2];
@@ -2552,6 +2604,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
     unsigned int             nbytes = 0;
 #if WC_LINUXKM_XTS_SVR_BATCH > 0
     unsigned int svr_batch_left = 0;
+    int svr_batch_ok = 1;
 #endif
 
     tfm = crypto_skcipher_reqtfm(req);
@@ -2568,7 +2621,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         return err;
     }
 
-#if WC_LINUXKM_XTS_SVR_BATCH > 0
+#if (WC_LINUXKM_XTS_SVR_BATCH > 0) && !defined(WC_LINUXKM_AES_MAY_WAIT)
     if (SAVE_VECTOR_REGISTERS2() == 0) {
         svr_batch_left = WC_LINUXKM_XTS_SVR_BATCH;
         /* all returns henceforth must be via the out: label. */
@@ -2624,7 +2677,16 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             tail = 0;
         }
 
+#if (WC_LINUXKM_XTS_SVR_BATCH > 0) && defined(WC_LINUXKM_AES_MAY_WAIT)
+        /* not a one-shot request: batch from Init on */
+        if (SAVE_VECTOR_REGISTERS2() == 0)
+            svr_batch_left = WC_LINUXKM_XTS_SVR_BATCH;
+#endif
         err = wc_AesXtsDecryptInit(ctx->aesXts, walk.iv, walk.ivsize, &stream);
+#if WC_LINUXKM_XTS_SVR_BATCH > 0
+        if (km_SvrBatchRetry(err, &svr_batch_left, &svr_batch_ok))
+            err = wc_AesXtsDecryptInit(ctx->aesXts, walk.iv, walk.ivsize, &stream);
+#endif
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecryptInit failed: %d\n",
@@ -2641,11 +2703,10 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
                 nbytes &= ~(WC_AES_BLOCK_SIZE - 1);
 
 #if WC_LINUXKM_XTS_SVR_BATCH > 0
-            if (svr_batch_left == 0) {
+            if (svr_batch_ok && (svr_batch_left == 0) &&
+                km_SvrBatchMore(nbytes, walk.total)) {
                 if (SAVE_VECTOR_REGISTERS2() == 0)
                     svr_batch_left = WC_LINUXKM_XTS_SVR_BATCH;
-                /* else on failure, continue unbatched -- per-Update SVRs still
-                 * work (or C fallback engages). */
             }
 #endif
             if (nbytes & ((unsigned int)WC_AES_BLOCK_SIZE - 1U))
@@ -2658,6 +2719,10 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
                                              &stream);
 
             if (unlikely(err)) {
+#if WC_LINUXKM_XTS_SVR_BATCH > 0
+                if (km_SvrBatchRetry(err, &svr_batch_left, &svr_batch_ok))
+                    continue; /* same chunk, outside the batch */
+#endif
                 pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
                 err = -EINVAL;
@@ -2680,6 +2745,10 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             }
 #endif
         }
+
+#if (WC_LINUXKM_XTS_SVR_BATCH > 0) && defined(WC_LINUXKM_AES_MAY_WAIT)
+        km_SvrBatchEnd(&svr_batch_left);
+#endif
 
         if (unlikely(tail > 0)) {
             struct scatterlist sg_src[2], sg_dst[2];
@@ -2735,11 +2804,6 @@ out:
 
     return err;
 }
-
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-    #define wc_AesXtsDecryptUpdate wc_AesXtsDecryptUpdate_fips
-    #define wc_AesXtsEncryptUpdate wc_AesXtsEncryptUpdate_fips
-#endif
 
 static struct skcipher_alg xtsAesAlg = {
     .base.cra_name          = WOLFKM_AESXTS_NAME,

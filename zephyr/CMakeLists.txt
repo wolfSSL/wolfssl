@@ -68,7 +68,7 @@ if(CONFIG_WOLFSSL)
     # FIPS Boundary
     if(CONFIG_WOLFCRYPT_FIPS_V7 OR CONFIG_WOLFCRYPT_FIPS_READY)
       # src/include.am BUILD_FIPS_V7_PLUS order; files a build does not select compile empty.
-      set(WOLF_BOUNDARY hmac random kdf rsa ecc aes sha sha256 sha512 sha3 dh cmac
+      set(WOLF_BOUNDARY hmac random kdf rsa ecc aes sha sha256 sha512 sha3 cmac
           ed448 ed25519 pwdbased sp_c32 sp_c64 sp_x86_64
           sp_arm32 sp_armthumb sp_arm64 sp_cortexm wc_mlkem wc_mlkem_poly
           wc_mldsa wc_lms wc_lms_impl wc_xmss wc_xmss_impl wc_slhdsa)
@@ -151,8 +151,8 @@ if(CONFIG_WOLFSSL)
       zephyr_linker_sources(ROM_SECTIONS ${WOLF_FIPS_LD})
     endif()
 
-    # Sources the v7 boundary owns, added here only when outside it.
-    foreach(f curve25519 curve448 ed25519 ed448 pwdbased sp_arm32 sp_arm64
+    # Sources added here only when the boundary list above does not hold them.
+    foreach(f curve25519 curve448 dh ed25519 ed448 pwdbased sp_arm32 sp_arm64
               sp_armthumb sp_c32 sp_c64 sp_cortexm sp_x86_64 wc_lms wc_lms_impl
               wc_mldsa wc_mlkem wc_mlkem_poly wc_slhdsa wc_xmss wc_xmss_impl)
       if(NOT f IN_LIST WOLF_BOUNDARY)
