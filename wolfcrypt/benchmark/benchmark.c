@@ -6582,6 +6582,8 @@ void bench_gmac(int useDeviceID)
     const char* gmacStr = "GMAC Table 4-bit";
 #elif defined(GCM_WORD32)
     const char* gmacStr = "GMAC Word32";
+#elif defined(GCM_INT_MUL)
+    const char* gmacStr = "GMAC IntMul";
 #else
     const char* gmacStr = "GMAC Default";
 #endif

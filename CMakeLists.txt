@@ -1166,7 +1166,7 @@ if(WOLFSSL_HARDEN)
         list(APPEND WOLFSSL_DEFINITIONS "-DWC_RSA_BLINDING")
     endif()
 else()
-    list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN" "-DWC_NO_CACHE_RESISTANT")
 endif()
 
 # AES table cache-line touching: aes.c turns it on for RISC-V by default, and
@@ -1667,15 +1667,24 @@ endif()
 # AES-GCM
 add_option("WOLFSSL_AESGCM"
     "Enable wolfSSL AES-GCM support (default: enabled)"
-    "yes" "yes;no;table;small;word32;4bit")
+    "yes" "yes;no;table;small;word32;4bit;intmul")
 
 # leanpsk and leantls don't need gcm
 if(WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
     override_cache(WOLFSSL_AESGCM "no")
 endif()
 
-if(WOLFSSL_AESGCM AND CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
-    override_cache(WOLFSSL_AESGCM "4bit")
+# Default GHASH implementation, as configure: FIPS modules before v7 don't
+# have GCM_INT_MUL and keep the 4-bit table. Otherwise it is chosen once all
+# options are known (see "Default GHASH implementation" below) and written to
+# options.h, so applications get the library's Gcm layout.
+set(_wolfssl_gcm_default_ghash FALSE)
+if("${WOLFSSL_AESGCM}" STREQUAL "yes")
+    if(WOLFSSL_FIPS AND ("${FIPS_VERSION}" MATCHES "^(v1|v2|rand|v5|v6)"))
+        override_cache(WOLFSSL_AESGCM "4bit")
+    elseif(NOT WOLFSSL_LOW_RESOURCE)
+        set(_wolfssl_gcm_default_ghash TRUE)
+    endif()
 endif()
 
 if(WOLFSSL_AESGCM)
@@ -1696,6 +1705,11 @@ if(WOLFSSL_AESGCM)
 
     if("${WOLFSSL_AESGCM}" STREQUAL "4bit")
         list(APPEND WOLFSSL_DEFINITIONS "-DGCM_TABLE_4BIT")
+        override_cache(WOLFSSL_AESGCM "yes")
+    endif()
+
+    if("${WOLFSSL_AESGCM}" STREQUAL "intmul")
+        list(APPEND WOLFSSL_DEFINITIONS "-DGCM_INT_MUL")
         override_cache(WOLFSSL_AESGCM "yes")
     endif()
 
@@ -4782,6 +4796,53 @@ endif()
 add_option("WOLFSSL_PPC64_ASM" "Enable PowerPC 64-bit assembly acceleration (default: disabled)" "no" "yes;no")
 if(WOLFSSL_PPC64_ASM AND WOLFSSL_ASM)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PPC64_ASM")
+endif()
+
+# Default GHASH implementation, chosen as wolfssl/wolfcrypt/aes.h would:
+# the 4-bit table when cache resistance is off or the Arm/PPC/RISC-V assembly
+# GHASH is used, GCM_SMALL where the multiply may not be constant time,
+# otherwise GCM_INT_MUL. The selector is recorded in options.h:
+# the opt-out macros may only be in the compiler flags, which options.h does
+# not record.
+if(_wolfssl_gcm_default_ghash)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _wolfssl_build_type)
+    set(_wolfssl_gcm_flags "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${_wolfssl_build_type}} ${WOLFSSL_DEFINITIONS}")
+    if(("${_wolfssl_gcm_flags}" MATCHES "(^|[ ;])-DWC_NO_CACHE_RESISTANT([ ;=]|$)") OR
+       ("${_wolfssl_gcm_flags}" MATCHES "(^|[ ;])-DAES_GCM_GMULT_NO_CACHE_RESIST([ ;=]|$)") OR
+       ("${_wolfssl_gcm_flags}" MATCHES "(^|[ ;])-DWOLFSSL_ARMASM([ ;=]|$)") OR
+       (WOLFSSL_ASM AND (WOLFSSL_PPC32_ASM OR WOLFSSL_PPC64_ASM OR WOLFSSL_RISCV_ASM)))
+        list(APPEND WOLFSSL_DEFINITIONS "-DGCM_TABLE_4BIT")
+    else()
+        # Targets whose multiply may take data-dependent time get GCM_SMALL,
+        # as in aes.h. Compiled with the target compiler and flags (e.g.
+        # -march=..._zkt) to see its architecture macros.
+        unset(WOLFSSL_GCM_MUL_CONST_TIME CACHE)
+        check_c_source_compiles("
+#if defined(__arm__) && defined(__ARM_ARCH) && __ARM_ARCH < 6
+#error Armv4/Armv5 multiply terminates early
+#endif
+#if defined(__arm__) && (defined(__ARM_ARCH_4__) || defined(__ARM_ARCH_4T__))
+#error Armv4 multiply terminates early
+#endif
+#if defined(__arm__) && (defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5T__))
+#error Armv5 multiply terminates early
+#endif
+#if defined(__arm__) && (defined(__ARM_ARCH_5E__) || defined(__ARM_ARCH_5TE__))
+#error Armv5 multiply terminates early
+#endif
+#if defined(__arm__) && defined(__ARM_ARCH_5TEJ__)
+#error Armv5 multiply terminates early
+#endif
+#if defined(__riscv) && !defined(__riscv_zkt)
+#error RISC-V multiply is constant time only with Zkt
+#endif
+int main(void) { return 0; }" WOLFSSL_GCM_MUL_CONST_TIME)
+        if(WOLFSSL_GCM_MUL_CONST_TIME)
+            list(APPEND WOLFSSL_DEFINITIONS "-DGCM_INT_MUL")
+        else()
+            list(APPEND WOLFSSL_DEFINITIONS "-DGCM_SMALL")
+        endif()
+    endif()
 endif()
 
 # All options are declared by this point; report any force_option() that no
