@@ -44,6 +44,16 @@ set(VERBOSE_COMPONENT_MESSAGES 1)
 # Optional requires include:
 # set(THIS_ESP_TLS "esp-tls")
 set(THIS_ESP_TLS "")
+if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
+    set(THIS_ESP_SECURITY "esp_security")
+else()
+    set(THIS_ESP_SECURITY "")
+endif()
+if(IDF_VERSION_MAJOR GREATER_EQUAL 5)
+    set(THIS_ESP_GPTIMER "esp_driver_gptimer")
+else()
+    set(THIS_ESP_GPTIMER "")
+endif()
 
 # LIBWOLFSSL_CMAKE_OUTPUT can be printed at runtime
 set(LIBWOLFSSL_CMAKE_OUTPUT "")
@@ -553,6 +563,9 @@ if(CMAKE_BUILD_EARLY_EXPANSION)
     idf_component_register(
                             REQUIRES "${COMPONENT_REQUIRES}"
                             PRIV_REQUIRES # esp_hw_support
+                                          "${THIS_ESP_SECURITY}"
+                                          "mbedtls"
+                                          "${THIS_ESP_GPTIMER}"
                                           "${THIS_ESP_TLS}"
                                           "${THIS_INCLUDE_PTHREAD}"
                                           "${THIS_INCLUDE_TIMER}"
@@ -837,6 +850,18 @@ else()
         "\"${WOLFSSL_ROOT}/src/conf.c\""
         "\"${WOLFSSL_ROOT}/src/misc.c\""
         "\"${WOLFSSL_ROOT}/src/pk.c\""
+        "\"${WOLFSSL_ROOT}/src/pk_rsa.c\""
+        "\"${WOLFSSL_ROOT}/src/pk_ec.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_ech.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_err.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_tsp.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_api_cert.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_api_crl_ocsp.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_api_dtls.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_api_ext.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_api_hs.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_api_pk.c\""
+        "\"${WOLFSSL_ROOT}/src/ssl_api_rw.c\""
         "\"${WOLFSSL_ROOT}/src/ssl_asn1.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_bn.c\""      # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_certman.c\"" # included by ssl.c
@@ -851,6 +876,9 @@ else()
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/ext_kyber.c\""     # external non-wolfssl Kyber disabled by default
         "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/ext_kyber.h\"" # external non-wolfssl Kyber disabled by default
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/evp.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/evp_pk.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/asn_orig.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/asn_tsp.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/misc.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm32.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm64.c\""
@@ -893,6 +921,9 @@ else()
                                 REQUIRES "${COMPONENT_REQUIRES}"
                                 EXCLUDE_SRCS "${COMPONENT_SRCEXCLUDE}"
                                 PRIV_REQUIRES
+                                  "${THIS_ESP_SECURITY}"
+                                  "mbedtls"
+                                  "${THIS_ESP_GPTIMER}"
                                   "${THIS_ESP_TLS}"
                                   "${THIS_INCLUDE_TIMER}"
                                   "${THIS_INCLUDE_DRIVER}" # this will typically only be needed for wolfSSL benchmark

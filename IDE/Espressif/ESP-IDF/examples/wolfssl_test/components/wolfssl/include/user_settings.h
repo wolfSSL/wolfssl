@@ -78,6 +78,7 @@
 **   CONFIG_IDF_TARGET_ESP32S2
 **   CONFIG_IDF_TARGET_ESP32S3
 **   CONFIG_IDF_TARGET_ESP32C3
+**   CONFIG_IDF_TARGET_ESP32C5
 **   CONFIG_IDF_TARGET_ESP32C6
 */
 
@@ -263,6 +264,7 @@
 **   CONFIG_IDF_TARGET_ESP32S2
 **   CONFIG_IDF_TARGET_ESP32S3
 **   CONFIG_IDF_TARGET_ESP32C3
+**   CONFIG_IDF_TARGET_ESP32C5
 **   CONFIG_IDF_TARGET_ESP32C6
 */
 
@@ -763,6 +765,28 @@
     /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
     /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
     /***** END CONFIG_IDF_TARGET_ESP32C3 *****/
+
+#elif defined(CONFIG_IDF_TARGET_ESP32C5)
+    #define WOLFSSL_ESP32
+    /* wolfSSL HW Acceleration supported on ESP32-C5. Uncomment to disable: */
+
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_AES             */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI         */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_ECC             */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_ECDSA           */
+
+    /* Optional test of an existing throwaway P-256 key in eFuse block 4.
+     * Provisioning is separate; the test never writes eFuse. */
+    /* #define WOLFSSL_ESP32C5_TEST_SHA_COPY */
+    /* #define WOLFSSL_ESP32C5_TEST_EFUSE_BLOCK 4 */
+    /* #define WOLFSSL_ESP32C5_TEST_KM */
+    /***** END CONFIG_IDF_TARGET_ESP32C5 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
     #define WOLFSSL_ESP32

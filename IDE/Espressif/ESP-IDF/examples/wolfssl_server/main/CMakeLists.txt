@@ -10,7 +10,13 @@ if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSIO
     # `driver` component not available for ESP8266
     SET(THIS_PRIV_REQUIRES_DRIVER "")
 else()
-    SET(THIS_PRIV_REQUIRES_DRIVER "driver")
+    SET(THIS_PRIV_REQUIRES_DRIVER "esp_driver_uart")
+endif()
+
+if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
+    SET(THIS_ESP_SECURITY "esp_security")
+else()
+    SET(THIS_ESP_SECURITY "")
 endif()
 
 if(WIN32)
@@ -69,6 +75,8 @@ idf_component_register(SRCS main.c
                             "./include"
                        PRIV_REQUIRES "${MAIN_WOLFSSL_COMPONENT_NAME}"
                                      "${THIS_PRIV_REQUIRES_DRIVER}"
+                                     "${THIS_ESP_SECURITY}"
+                                     "mbedtls"
                                      nvs_flash
                                      protocol_examples_common)
 

@@ -16,6 +16,17 @@ permissions:
 # END OF COMMON SECTION
 
 jobs:
+  espressif_v6_1:
+    name: v6.1 Docker container ESP32-C5
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: espressif/idf:release-v6.1
+    steps:
+      - uses: actions/checkout@v5
+      - name: Initialize Espressif IDE and build ESP32-C5 examples
+        run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; IDF_TARGET=esp32c5 IDE/Espressif/ESP-IDF/compileAllExamples.sh
   espressif_latest:
     name: latest Docker container
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
