@@ -313,10 +313,14 @@ int test_tls13_apis(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
+    /* Without a secret of its own the object uses the context's, generated
+     * when first needed */
     ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
     ExpectIntEQ(serverSsl->options.sendCookie, 1);
-    ExpectNotNull(serverSsl->buffers.tls13CookieSecret.buffer);
+    ExpectNull(serverSsl->buffers.tls13CookieSecret.buffer);
+    ExpectIntEQ(serverSsl->ctx->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverSsl, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectNull(serverSsl->buffers.tls13CookieSecret.buffer);
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverSsl, fixedKey, sizeof(fixedKey)),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
@@ -330,7 +334,8 @@ int test_tls13_apis(void)
     ExpectIntEQ(wolfSSL_disable_cookie(serverSsl), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
     ExpectIntEQ(serverSsl->options.sendCookie, 1);
-    ExpectNotNull(serverSsl->buffers.tls13CookieSecret.buffer);
+    ExpectNull(serverSsl->buffers.tls13CookieSecret.buffer);
+    ExpectIntEQ(serverSsl->ctx->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
 #endif
 #endif
 
@@ -11994,13 +11999,12 @@ int test_tls13_hrr_bad_cookie(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
 
-    /* Corrupt the server-side cookie secret after HRR so CH2's cookie no longer
+    /* Corrupt the context's cookie key after HRR so CH2's cookie no longer
      * verifies in TlsCheckCookie(). */
     if (EXPECT_SUCCESS()) {
-        ExpectNotNull(ssl_s->buffers.tls13CookieSecret.buffer);
-        ExpectIntGT(ssl_s->buffers.tls13CookieSecret.length, 0);
-        ssl_s->buffers.tls13CookieSecret.buffer[
-            ssl_s->buffers.tls13CookieSecret.length - 1] ^= 0xFF;
+        ExpectNull(ssl_s->buffers.tls13CookieSecret.buffer);
+        ExpectIntEQ(ctx_s->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
+        ctx_s->cookieSecret.hrrKey[0][0] ^= 0xFF;
     }
 
     /* Step 4: Server processes corrupted CH2 - should fail */
@@ -12012,6 +12016,102 @@ int test_tls13_hrr_bad_cookie(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Erase the context's cookie secret under its lock */
+static void test_tls13_cs_ctx_erase(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return;
+#ifndef SINGLE_THREADED
+    if (wc_LockRwLock_Wr(&ctx->cookieSecretLock) != 0)
+        return;
+#endif
+    ctx->cookieSecret.keySz[0] = 0;
+    ctx->cookieSecret.keySz[1] = 0;
+#ifndef SINGLE_THREADED
+    wc_UnLockRwLock(&ctx->cookieSecretLock);
+#endif
+}
+#endif
+
+/* A TLS 1.3 server context has a cookie secret too, generated when a server
+ * first needs one or set, and every server of the context uses it. Without a
+ * secret anywhere there is no cookie. */
+int test_tls13_ctx_cookie_secret(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *s1 = NULL, *s2 = NULL;
+    struct test_memio_ctx t;
+    byte p[32];
+    int mode;
+
+    XMEMSET(p, 0x11, sizeof(p));
+    for (mode = 0; mode < 3 && EXPECT_SUCCESS(); mode++) {
+        XMEMSET(&t, 0, sizeof(t));
+        ExpectIntEQ(test_memio_setup(&t, &ctx_c, &ctx_s, &ssl_c, &s1,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        if (mode == 1) {
+            ExpectIntEQ(wolfSSL_CTX_set_cookie_secret(ctx_s, p, sizeof(p)),
+                WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(s1, NULL, 0), WOLFSSL_SUCCESS);
+        ExpectNull(s1->buffers.tls13CookieSecret.buffer);
+        ExpectIntEQ(ctx_s->cookieSecret.keySz[0], CTX_COOKIE_KEY_SZ);
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+        if (mode == 2) {
+            /* No secret: no HelloRetryRequest cookie can be made */
+            test_tls13_cs_ctx_erase(ctx_s);
+            ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectIntEQ(wolfSSL_accept(s1), -1);
+            ExpectIntEQ(wolfSSL_get_error(s1, -1),
+                WC_NO_ERR_TRACE(COOKIE_ERROR));
+        }
+        else {
+            byte hash[WC_SHA256_DIGEST_SIZE];
+            TLSX* ext = NULL;
+
+            /* A cookie one server of the context issues verifies at another.
+             * TLS keeps the HelloRetryRequest state on the object, so the
+             * handshake stays with s1 and s2 only issues. */
+            ExpectNotNull(s2 = wolfSSL_new(ctx_s));
+            ExpectIntEQ(wolfSSL_send_hrr_cookie(s2, NULL, 0), WOLFSSL_SUCCESS);
+            XMEMSET(hash, 0x5A, sizeof(hash));
+            ExpectIntEQ(CreateCookieExt(s2, hash, (word16)sizeof(hash),
+                &s2->extensions, 0x13, 0x01), 0);
+            ExpectNotNull(ext = TLSX_Find(s2->extensions, TLSX_COOKIE));
+            if (ext != NULL) {
+                Cookie* cookie = (Cookie*)ext->data;
+
+                ExpectIntGT(TlsCheckCookie(s1, cookie->data, cookie->len), 0);
+                cookie->data[0] ^= 0xFF;
+                ExpectIntEQ(TlsCheckCookie(s1, cookie->data, cookie->len),
+                    WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
+            }
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, s1, 10, NULL), 0);
+        }
+        wolfSSL_free(s2);
+        s2 = NULL;
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(s1);
+        s1 = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
 #endif
     return EXPECT_RESULT();
 }

@@ -1513,18 +1513,21 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(word32 a, word32 b)
 #endif /* WOLFSSL_W64_WRAPPER */
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_CERTS) || \
-    !defined(NO_SESSION_CACHE)
+    !defined(NO_SESSION_CACHE) || \
+    (defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER))
 /* Make a word from the front of random hash */
 WC_MISC_STATIC WC_INLINE word32 MakeWordFromHash(const byte* hashID)
 {
     return ((word32)hashID[0] << 24) | ((word32)hashID[1] << 16) |
            ((word32)hashID[2] <<  8) |  (word32)hashID[3];
 }
-#endif /* HAVE_SESSION_TICKET || !NO_CERTS || !NO_SESSION_CACHE */
+#endif /* HAVE_SESSION_TICKET || !NO_CERTS || !NO_SESSION_CACHE ||
+        * (WOLFSSL_DTLS_CH_FRAG && !NO_WOLFSSL_SERVER) */
 
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_HASH_WRAPPER) && \
-    (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
+    (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET) || \
+     (defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)))
 
 #include <wolfssl/wolfcrypt/hash.h>
 
@@ -1547,7 +1550,8 @@ WC_MISC_STATIC WC_INLINE word32 HashObject(const byte* o, word32 len,
     return *error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
 }
 #endif /* WOLFCRYPT_ONLY && !NO_HASH_WRAPPER &&
-        * (!NO_SESSION_CACHE || HAVE_SESSION_TICKET) */
+        * (!NO_SESSION_CACHE || HAVE_SESSION_TICKET ||
+        *  (WOLFSSL_DTLS_CH_FRAG && !NO_WOLFSSL_SERVER)) */
 
 WC_MISC_STATIC WC_INLINE char* CopyString(const char* src, int srcLen,
         void* heap, int type) {

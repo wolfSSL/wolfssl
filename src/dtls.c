@@ -40,12 +40,49 @@
  *       disable the cookie exchange on resumption
  *     - Continue like with a normal connection
  * WOLFSSL_DTLS_CH_FRAG
- *     Allow a server to process a fragmented second/verified (one containing a
- *     valid cookie response) ClientHello message. The first/unverified (one
- *     without a cookie extension) ClientHello MUST be unfragmented so that the
- *     DTLS server can process it statelessly. This is only implemented for
- *     DTLS 1.3. The user MUST call wolfSSL_dtls13_allow_ch_frag() on the server
- *     to explicitly enable this during runtime.
+ *     DTLS 1.3 ClientHello fragmentation. Server: reassemble a fragmented
+ *     ClientHello, before its cookie is verified too (RFC 9147 Section 5.5: a
+ *     receiver must buffer or process a fragment). Unverified fragments are
+ *     held in a pool per WOLFSSL_CTX, keyed on the remote address and bounded
+ *     by WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES, or the budget
+ *     wolfSSL_CTX_dtls13_set_ch_pool_max_bytes() sets at runtime, so any
+ *     stateless server of the context can complete them. The cookie check
+ *     runs in place on the contiguous head of the held message, under the
+ *     pool's lock, as the head grows to sizes that at least double each
+ *     time, so the server turns stateful as soon as the head reaches the
+ *     cookie and the whole entry, later fragments included, leaves the pool
+ *     for its receive list in the same step. A server without the peer's
+ *     address holds nothing: it checks the cookie on a first fragment as it
+ *     arrives and keeps only that one. On by default:
+ *     wolfSSL_CTX_dtls13_reassemble_ch_before_cookie() turns the holding off,
+ *     wolfSSL_dtls13_allow_ch_frag() the reassembly, and
+ *     wolfSSL_CTX_dtls13_clear_ch_pool() empties the pool. The pool needs a
+ *     clock, so not NO_ASN_TIME, and atomics in a threaded build.
+ *     Client: send an empty key share when the first ClientHello would not fit
+ *     one datagram, at the cost of a HelloRetryRequest round trip.
+ *     With the cookie exchange disabled the server is stateful from the first
+ *     datagram and reassembles any ClientHello.
+ * WOLFSSL_COOKIE_MAX_AGE
+ *     Both cookies, the DTLS 1.2 HelloVerifyRequest one and the DTLS 1.3
+ *     HelloRetryRequest one, carry their issue time under the MAC and stop
+ *     verifying this many seconds later (RFC 9147 Section 5.1), so a captured
+ *     cookie cannot be replayed once the interval has passed. A stale cookie
+ *     is treated as a bad one: a new HelloVerifyRequest in DTLS 1.2, an
+ *     illegal_parameter alert in DTLS 1.3. Default 60; 0 disables the age
+ *     check. Without a clock (NO_ASN_TIME) no time is sent or checked. The
+ *     DTLS 1.2 cookie stays 32 bytes, the time and a truncated HMAC, since
+ *     clients accept no more than WOLFSSL_COOKIE_LEN.
+ * WOLFSSL_DTLS_RX_MAX_BYTES
+ *     Bound on the bytes the receive list of one WOLFSSL retains for
+ *     out-of-order and fragmented handshake messages, DTLS 1.2 and 1.3,
+ *     metadata included. A byte bound rather than a message count because
+ *     MAX_HANDSHAKE_SZ varies a lot between builds, by an order of magnitude
+ *     with post-quantum certificates, while a flight has at most one message
+ *     that large. The default is one such message plus 16 KiB for the rest.
+ *     A message has at most WOLFSSL_DTLS_FRAG_POOL_SZ disjoint fragment
+ *     ranges, since every store walks them. Past either, a plaintext fragment
+ *     is dropped without an ACK; an authenticated record past the byte bound
+ *     ends the connection.
  */
 
 #ifndef WOLFCRYPT_ONLY
@@ -184,13 +221,31 @@ void DtlsSetSeqNumForReply(WOLFSSL* ssl)
 
 #if !defined(NO_SHA) && defined(NO_SHA256)
 #define DTLS_COOKIE_TYPE WC_SHA
-#define DTLS_COOKIE_SZ WC_SHA_DIGEST_SIZE
+#define DTLS_COOKIE_MAC_SZ WC_SHA_DIGEST_SIZE
 #endif /* !NO_SHA && NO_SHA256 */
 
 #ifndef NO_SHA256
 #define DTLS_COOKIE_TYPE WC_SHA256
-#define DTLS_COOKIE_SZ WC_SHA256_DIGEST_SIZE
+#define DTLS_COOKIE_MAC_SZ WC_SHA256_DIGEST_SIZE
 #endif /* !NO_SHA256 */
+
+/* DTLS 1.2 cookie = issue time (4 bytes, big endian seconds) | HMAC over the
+ * time, peer address, version, random, session ID, cipher suites and
+ * compression. CreateDtls12Cookie writes both parts. Without a clock
+ * (NO_ASN_TIME) the time is left out and the whole HMAC is sent. */
+#ifndef NO_ASN_TIME
+#ifndef NO_SHA256
+/* Only the leftmost 28 bytes of HMAC-SHA256 go in the cookie (SP 800-107):
+ * clients cap the cookie at WOLFSSL_COOKIE_LEN, 32, and the time takes 4 */
+#define DTLS_COOKIE_MAC_USED_SZ 28
+#else
+#define DTLS_COOKIE_MAC_USED_SZ DTLS_COOKIE_MAC_SZ
+#endif
+#define DTLS_COOKIE_SZ (OPAQUE32_LEN + DTLS_COOKIE_MAC_USED_SZ)
+#else
+#define DTLS_COOKIE_MAC_USED_SZ DTLS_COOKIE_MAC_SZ
+#define DTLS_COOKIE_SZ DTLS_COOKIE_MAC_SZ
+#endif
 
 #if defined(WOLFSSL_DTLS13) && (defined(HAVE_SESSION_TICKET) || \
                                 !defined(NO_PSK))
@@ -217,9 +272,6 @@ typedef struct WolfSSL_CH {
     WolfSSL_ConstVector cookieExt;
     const byte* raw;
     word32 length;
-    /* Store the DTLS 1.2 cookie since we can just compute it once in dtls.c */
-    byte dtls12cookie[DTLS_COOKIE_SZ];
-    byte dtls12cookieSet:1;
 } WolfSSL_CH;
 
 static word32 ReadVector8(const byte* input, WolfSSL_ConstVector* v)
@@ -238,10 +290,14 @@ static word32 ReadVector16(const byte* input, WolfSSL_ConstVector* v)
     return v->size + OPAQUE16_LEN;
 }
 
+/* Write a DTLS_COOKIE_SZ byte cookie: the issue time (with a clock) then the
+ * MAC over it and the ClientHello */
 static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
-                              const byte* secret, word32 secretSz, byte* cookie)
+                              const byte* secret, word32 secretSz,
+                              word32 issued, byte* cookie)
 {
     int ret;
+    byte mac[DTLS_COOKIE_MAC_SZ];
     WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
 
     if (secret == NULL || secretSz == 0) {
@@ -255,6 +311,14 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
     ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(cookieHmac, DTLS_COOKIE_TYPE, secret, secretSz);
+#ifndef NO_ASN_TIME
+        if (ret == 0) {
+            c32toa(issued, cookie);
+            ret = wc_HmacUpdate(cookieHmac, cookie, OPAQUE32_LEN);
+        }
+#else
+        (void)issued;
+#endif
         if (ret == 0) {
             /* peerLock not necessary. Still in handshake phase. */
             ret = wc_HmacUpdate(cookieHmac,
@@ -278,8 +342,12 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
                 ch->compression.size);
         }
         if (ret == 0)
-            ret = wc_HmacFinal(cookieHmac, cookie);
+            ret = wc_HmacFinal(cookieHmac, mac);
         wc_HmacFree(cookieHmac);
+    }
+    if (ret == 0) {
+        XMEMCPY(cookie + DTLS_COOKIE_SZ - DTLS_COOKIE_MAC_USED_SZ, mac,
+                DTLS_COOKIE_MAC_USED_SZ);
     }
 
     WC_FREE_VAR_EX(cookieHmac, ssl->heap, DYNAMIC_TYPE_HMAC);
@@ -312,33 +380,42 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
     else
 #endif
     {
+        CookieSecrets cs;
+        byte cookie[DTLS_COOKIE_SZ];
+        word32 issued = 0;
+
         if (ch->cookie.size != DTLS_COOKIE_SZ)
             return 0;
-        if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecret.buffer,
-                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
-            if (ret != 0)
-                return ret;
-            ch->dtls12cookieSet = 1;
-        }
-        *cookieGood = ConstantCompare(ch->cookie.elements, ch->dtls12cookie,
-                                      DTLS_COOKIE_SZ) == 0;
-        /* If the primary secret didn't match, try the secondary (verify-only)
-         * secret.  This lets a stateless server keep accepting cookies issued
-         * under the secret it held before an application-driven rotation. */
-        if (!*cookieGood &&
-                ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL &&
-                ssl->buffers.dtlsCookieSecretSecondary.length > 0) {
-            byte altCookie[DTLS_COOKIE_SZ];
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecretSecondary.buffer,
-                    ssl->buffers.dtlsCookieSecretSecondary.length, altCookie);
-            if (ret != 0)
-                return ret;
-            *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+        ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
+        if (ret != 0)
+            return ret;
+#ifndef NO_ASN_TIME
+        /* Rebuild with the issue time the peer echoes, its age is checked
+         * after */
+        ato32(ch->cookie.elements, &issued);
+#endif
+        ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz, issued, cookie);
+        if (ret == 0) {
+            *cookieGood = ConstantCompare(ch->cookie.elements, cookie,
                                           DTLS_COOKIE_SZ) == 0;
         }
+        /* The secondary, verify only, keeps cookies issued before a rotation
+         * of the secret valid */
+        if (ret == 0 && !*cookieGood && cs.sec != NULL) {
+            ret = CreateDtls12Cookie(ssl, ch, cs.sec, cs.secSz, issued,
+                                     cookie);
+            if (ret == 0) {
+                *cookieGood = ConstantCompare(ch->cookie.elements, cookie,
+                                              DTLS_COOKIE_SZ) == 0;
+            }
+        }
+        CookieSecretsClear(&cs);
+#ifndef NO_ASN_TIME
+        if (ret == 0 && *cookieGood && CookieExpired(ch->cookie.elements)) {
+            WOLFSSL_MSG("DTLS 1.2 cookie too old");
+            *cookieGood = 0;
+        }
+#endif
     }
     return ret;
 }
@@ -984,16 +1061,22 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
 #endif
     {
 #if !defined(WOLFSSL_NO_TLS12)
-        if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch,
-                    ssl->buffers.dtlsCookieSecret.buffer,
-                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
-            if (ret != 0)
-                return ret;
-            ch->dtls12cookieSet = 1;
+        CookieSecrets cs;
+        byte cookie[DTLS_COOKIE_SZ];
+        word32 issued = 0;
+
+        ret = CookieSecretGet(ssl, CTX_COOKIE_DTLS12, &cs);
+        if (ret == 0) {
+#ifndef NO_ASN_TIME
+            issued = LowResTimer();
+#endif
+            ret = CreateDtls12Cookie(ssl, ch, cs.pri, cs.priSz, issued,
+                                     cookie);
+            CookieSecretsClear(&cs);
         }
-        ret = SendHelloVerifyRequest((WOLFSSL*)ssl, ch->dtls12cookie,
-                DTLS_COOKIE_SZ);
+        if (ret != 0)
+            return ret;
+        ret = SendHelloVerifyRequest((WOLFSSL*)ssl, cookie, DTLS_COOKIE_SZ);
 #else
         WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
         WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
@@ -1024,14 +1107,18 @@ static int ClientHelloSanityCheck(WolfSSL_CH* ch, byte isTls13)
     return 0;
 }
 
-int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
-        byte isFirstCHFrag, byte* tls13)
+/* The stateless verdict on the first helloSz bytes of a ClientHello, a
+ * prefix when isFirstCHFrag. Reads ssl only; ch holds what was parsed.
+ * 0: cookie verified. COOKIE_ERROR: no cookie, or a bad DTLS 1.2 one.
+ * INVALID_PARAMETER: a bad DTLS 1.3 cookie. BUFFER_ERROR: the prefix ends
+ * before a field checked. */
+static int ClientHelloStatelessVerdict(const WOLFSSL* ssl, const byte* input,
+        word32 helloSz, byte isFirstCHFrag, WolfSSL_CH* ch, byte* isTls13)
 {
     int ret;
-    WolfSSL_CH ch;
-    byte isTls13 = 0;
 
-    WOLFSSL_ENTER("DoClientHelloStateless");
+    WOLFSSL_ENTER("ClientHelloStatelessVerdict");
+    *isTls13 = 0;
     if (isFirstCHFrag) {
 #ifdef WOLFSSL_DTLS_CH_FRAG
         WOLFSSL_MSG("\tProcessing fragmented ClientHello");
@@ -1041,26 +1128,20 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return BAD_STATE_E;
 #endif
     }
-    if (tls13 != NULL)
-        *tls13 = 0;
+    XMEMSET(ch, 0, sizeof(*ch));
 
-    XMEMSET(&ch, 0, sizeof(ch));
-
-    ssl->options.dtlsStateful = 0;
-    ret = ParseClientHello(input, helloSz, &ch, isFirstCHFrag);
+    ret = ParseClientHello(input, helloSz, ch, isFirstCHFrag);
     if (ret != 0)
         return ret;
 
 #ifdef WOLFSSL_DTLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
-        ret = TlsCheckSupportedVersion(ssl, &ch, &isTls13);
+        ret = TlsCheckSupportedVersion(ssl, ch, isTls13);
         if (ret != 0)
             return ret;
-        if (tls13 != NULL)
-            *tls13 = isTls13;
-        if (isTls13) {
+        if (*isTls13) {
             int tlsxFound;
-            ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
+            ret = FindExtByType(&ch->cookieExt, TLSX_COOKIE, ch->extension,
                                  &tlsxFound);
             if (ret != 0) {
                 if (isFirstCHFrag) {
@@ -1073,81 +1154,115 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
     }
 #endif
 
-    ret = ClientHelloSanityCheck(&ch, isTls13);
+    ret = ClientHelloSanityCheck(ch, *isTls13);
     if (ret != 0)
         return ret;
 
 #ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
-    if (!isTls13 && !isFirstCHFrag) {
+    if (!*isTls13 && !isFirstCHFrag) {
         int resume = FALSE;
-        ret = TlsResumptionIsValid(ssl, &ch, &resume);
+        ret = TlsResumptionIsValid(ssl, ch, &resume);
         if (ret != 0)
             return ret;
-        if (resume) {
-            ssl->options.dtlsStateful = 1;
-            /* Update the window now that we enter the stateful parsing */
-            DtlsUpdateWindow(ssl);
-            /* Set record numbers before current record number as read */
-            XMEMSET(ssl->keys.peerSeq->window, 0xFF,
-                    sizeof(ssl->keys.peerSeq->window));
+        if (resume)
             return 0;
-        }
     }
 #endif
 
-    if (ch.cookie.size == 0 && ch.cookieExt.size == 0) {
-#ifdef WOLFSSL_DTLS_CH_FRAG
-        /* Don't send anything here when processing fragment */
-        if (isFirstCHFrag)
-            ret = COOKIE_ERROR;
-        else
-#endif
-            ret = SendStatelessReply(ssl, &ch, isTls13);
-    }
+    if (ch->cookie.size == 0 && ch->cookieExt.size == 0)
+        return COOKIE_ERROR;
     else {
         byte cookieGood;
-        ret = CheckDtlsCookie(ssl, &ch, isTls13, &cookieGood);
+        ret = CheckDtlsCookie(ssl, ch, *isTls13, &cookieGood);
         if (ret != 0)
             return ret;
         if (!cookieGood) {
 #ifdef WOLFSSL_DTLS13
             /* Invalid cookie for DTLS 1.3 results in an alert. Alert to be sent
              * in DoTls13ClientHello. */
-            if (isTls13)
-                ret = INVALID_PARAMETER;
-            else
+            if (*isTls13)
+                return INVALID_PARAMETER;
 #endif
-#ifdef WOLFSSL_DTLS_CH_FRAG
-            /* Don't send anything here when processing fragment */
-            if (isFirstCHFrag)
-                ret = COOKIE_ERROR;
-            else
-#endif
-                ret = SendStatelessReply(ssl, &ch, isTls13);
-        }
-        else {
-            ssl->options.dtlsStateful = 1;
-            /* Update the window now that we enter the stateful parsing */
-#ifdef WOLFSSL_DTLS13
-            if (isTls13) {
-                /* Set record numbers before current record number as read */
-                Dtls13Epoch* e;
-                ret = Dtls13UpdateWindowRecordRecvd(ssl);
-                e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
-                if (e != NULL)
-                    XMEMSET(e->window, 0xFF, sizeof(e->window));
-            }
-            else
-#endif
-                DtlsUpdateWindow(ssl);
-            /* Set record numbers before current record number as read */
-            XMEMSET(ssl->keys.peerSeq->window, 0xFF,
-                    sizeof(ssl->keys.peerSeq->window));
+            return COOKIE_ERROR;
         }
     }
 
+    return 0;
+}
+
+/* Turn ssl stateful on a verified ClientHello. The record it came in, and
+ * every one before it, counts as read. */
+int ClientHelloStatelessCommit(WOLFSSL* ssl, byte isTls13)
+{
+    int ret = 0;
+
+    (void)isTls13;
+    ssl->options.dtlsStateful = 1;
+#ifdef WOLFSSL_DTLS13
+    if (isTls13) {
+        Dtls13Epoch* e;
+        ret = Dtls13UpdateWindowRecordRecvd(ssl);
+        e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
+        if (e != NULL)
+            XMEMSET(e->window, 0xFF, sizeof(e->window));
+    }
+    else
+#endif
+        DtlsUpdateWindow(ssl);
+    XMEMSET(ssl->keys.peerSeq->window, 0xFF,
+            sizeof(ssl->keys.peerSeq->window));
     return ret;
 }
+
+/* input holds the first fragSz bytes of a msgSz byte ClientHello. They are
+ * equal when input is the whole message, which is answered when it has no
+ * cookie or a bad DTLS 1.2 one. A prefix is checked as far as it goes:
+ * BUFFER_ERROR or COOKIE_ERROR when it ends before the cookie, and the
+ * caller decides what becomes of the message it belongs to. */
+int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 fragSz,
+        word32 msgSz)
+{
+    byte isFrag = fragSz < msgSz;
+    byte isTls13 = 0;
+    WolfSSL_CH ch;
+    int ret;
+
+    if (fragSz > msgSz)
+        return BAD_FUNC_ARG;
+    ssl->options.dtlsStateful = 0;
+    ret = ClientHelloStatelessVerdict(ssl, input, fragSz, isFrag, &ch,
+        &isTls13);
+    if (ret == 0)
+        ret = ClientHelloStatelessCommit(ssl, isTls13);
+    else if (ret == WC_NO_ERR_TRACE(COOKIE_ERROR) && !isFrag)
+        ret = SendStatelessReply(ssl, &ch, isTls13);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    /* A whole message verified: what the pool holds of this peer is an older
+     * attempt, and this object no longer reads the pool */
+    if (!isFrag && ssl->options.dtlsStateful &&
+            ssl->buffers.dtlsCtx.peer.sz > 0) {
+        DtlsChPoolDrop(&ssl->ctx->dtlsChPool, ssl->ctx->heap,
+            &ssl->buffers.dtlsCtx.peer, (word32)ssl->dtls_timeout_max);
+    }
+#endif
+    return ret;
+}
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+/* The verdict on the first headSz bytes of a msgSz byte ClientHello, headSz
+ * below msgSz. Nothing is sent, written to ssl or read from the pool, so it
+ * may run with a pool shard locked: it takes only the cookie secret's lock.
+ * On 0, isTls13 is what ClientHelloStatelessCommit() takes. */
+int DoClientHelloStatelessHead(const WOLFSSL* ssl, const byte* head,
+        word32 headSz, word32 msgSz, byte* isTls13)
+{
+    WolfSSL_CH ch;
+
+    if (headSz >= msgSz)
+        return BAD_FUNC_ARG;
+    return ClientHelloStatelessVerdict(ssl, head, headSz, 1, &ch, isTls13);
+}
+#endif
 #endif /* !defined(NO_WOLFSSL_SERVER) */
 
 #if defined(WOLFSSL_DTLS_CID)

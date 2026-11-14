@@ -4011,6 +4011,10 @@ byte SuiteMac(const byte* suite)
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 /* Create Cookie extension using the hash of the first ClientHello.
  *
+ * Cookie = Hash Len | Hash | CS | KeyShare Group | Issue Time | MAC
+ * The issue time, 4 byte big endian seconds, is left out without a clock
+ * (NO_ASN_TIME). The MAC also covers the peer address for DTLS.
+ *
  * ssl     SSL/TLS object.
  * hash    The hash data.
  * hashSz  The size of the hash data in bytes.
@@ -4024,21 +4028,17 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
     WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
     byte cookieType = 0;
     byte macSz = 0;
-    byte cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
+    byte cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2 +
+                OPAQUE32_LEN];
     TLSX* ext;
     word16 cookieSz = 0;
+    CookieSecrets cs;
 
     if (hash == NULL || hashSz == 0) {
         return BAD_FUNC_ARG;
     }
 
-    if (ssl->buffers.tls13CookieSecret.buffer == NULL ||
-            ssl->buffers.tls13CookieSecret.length == 0) {
-        WOLFSSL_MSG("Missing DTLS 1.3 cookie secret");
-        return COOKIE_ERROR;
-    }
-
-    /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
+    /* Cookie Data = Hash Len | Hash | CS | KeyShare Group | Issue Time */
     cookie[cookieSz++] = (byte)hashSz;
     XMEMCPY(cookie + cookieSz, hash, hashSz);
     cookieSz += hashSz;
@@ -4054,6 +4054,10 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
         c16toa(kse->group, cookie + cookieSz);
         cookieSz += OPAQUE16_LEN;
     }
+#ifndef NO_ASN_TIME
+    c32toa(LowResTimer(), cookie + cookieSz);
+    cookieSz += OPAQUE32_LEN;
+#endif
 
 #ifndef NO_SHA256
     cookieType = WC_SHA256;
@@ -4071,15 +4075,16 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
     #error "No digest to available to use with HMAC for cookies."
 #endif /* NO_SHA */
 
+    ret = CookieSecretGet(ssl, CTX_COOKIE_HRR, &cs);
+    if (ret != 0)
+        return ret;
     WC_ALLOC_VAR_EX(cookieHmac, Hmac, 1, ssl->heap, DYNAMIC_TYPE_HMAC,
-                    return MEMORY_E);
+                    { CookieSecretsClear(&cs); return MEMORY_E; });
 
     ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
-    if (ret == 0) {
-        ret = wc_HmacSetKey(cookieHmac, cookieType,
-                            ssl->buffers.tls13CookieSecret.buffer,
-                            ssl->buffers.tls13CookieSecret.length);
-    }
+    if (ret == 0)
+        ret = wc_HmacSetKey(cookieHmac, cookieType, cs.pri, cs.priSz);
+    CookieSecretsClear(&cs);
     if (ret == 0)
         ret = wc_HmacUpdate(cookieHmac, cookie, cookieSz);
 #ifdef WOLFSSL_DTLS13
@@ -7786,18 +7791,22 @@ static int TlsCheckCookieMac(const WOLFSSL* ssl, const byte* cookie,
     return 0;
 }
 
-/* Check that the Cookie data's integrity.
+/* Check that the Cookie data's integrity, then that the cookie is not older
+ * than WOLFSSL_COOKIE_MAX_AGE (layout in CreateCookieExt()).
  *
  * ssl       SSL/TLS object.
  * cookie    The cookie data - hash and MAC.
  * cookieSz  The length of the cookie data in bytes.
- * returns Length of the hash on success, otherwise failure.
+ * returns Length of the cookie data before the MAC on success, otherwise
+ *         failure: HRR_COOKIE_ERROR for a bad or stale cookie.
  */
 int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
 {
     int  ret;
     byte cookieType = 0;
     byte macSz = 0;
+    word16 minSz;
+    CookieSecrets cs;
 
 #ifndef NO_SHA256
     cookieType = WC_SHA256;
@@ -7815,51 +7824,42 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
     #error "No digest to available to use with HMAC for cookies."
 #endif /* NO_SHA */
 
-    if ((ssl->buffers.tls13CookieSecret.buffer == NULL ||
-            ssl->buffers.tls13CookieSecret.length == 0)
-#ifdef WOLFSSL_DTLS13
-        && (ssl->buffers.tls13CookieSecretSecondary.buffer == NULL ||
-            ssl->buffers.tls13CookieSecretSecondary.length == 0)
-#endif
-        ) {
-        WOLFSSL_MSG("Missing DTLS 1.3 cookie secret");
-        return COOKIE_ERROR;
-    }
+    ret = CookieSecretGet(ssl, CTX_COOKIE_HRR, &cs);
+    if (ret != 0)
+        return ret;
 
-    if (cookieSz < ssl->specs.hash_size + macSz)
+    minSz = (word16)(ssl->specs.hash_size + macSz);
+#ifndef NO_ASN_TIME
+    minSz += OPAQUE32_LEN;
+#endif
+    if (cookieSz < minSz) {
+        CookieSecretsClear(&cs);
         return HRR_COOKIE_ERROR;
+    }
     cookieSz -= macSz;
 
-    /* Verify against the primary secret first.  If that fails and a secondary
-     * (verify-only) secret is configured, try that too.  This lets a stateless
-     * DTLS 1.3 server keep accepting cookies issued under the secret it held
-     * before an application-driven secret rotation.  The secondary secret is
-     * DTLS 1.3 only, so its verify path is compiled in only for WOLFSSL_DTLS13. */
-    ret = WC_NO_ERR_TRACE(HRR_COOKIE_ERROR);
-    if (ssl->buffers.tls13CookieSecret.buffer != NULL &&
-            ssl->buffers.tls13CookieSecret.length > 0) {
-        ret = TlsCheckCookieMac(ssl, cookie, cookieSz,
-            ssl->buffers.tls13CookieSecret.buffer,
-            ssl->buffers.tls13CookieSecret.length, cookieType, macSz);
-        if (ret != 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
-            return ret;
+    /* The secondary, verify only, keeps cookies issued before a rotation of
+     * the secret valid */
+    ret = TlsCheckCookieMac(ssl, cookie, cookieSz, cs.pri, cs.priSz,
+        cookieType, macSz);
+    if (ret == WC_NO_ERR_TRACE(HRR_COOKIE_ERROR) && cs.sec != NULL) {
+        ret = TlsCheckCookieMac(ssl, cookie, cookieSz, cs.sec, cs.secSz,
+            cookieType, macSz);
     }
-#ifdef WOLFSSL_DTLS13
-    if (ret == WC_NO_ERR_TRACE(HRR_COOKIE_ERROR) &&
-            ssl->buffers.tls13CookieSecretSecondary.buffer != NULL &&
-            ssl->buffers.tls13CookieSecretSecondary.length > 0) {
-        ret = TlsCheckCookieMac(ssl, cookie, cookieSz,
-            ssl->buffers.tls13CookieSecretSecondary.buffer,
-            ssl->buffers.tls13CookieSecretSecondary.length, cookieType, macSz);
-        if (ret != 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
-            return ret;
-    }
-#endif
-
+    CookieSecretsClear(&cs);
     if (ret != 0) {
+        if (ret == WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
+            WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
+        return ret;
+    }
+#ifndef NO_ASN_TIME
+    /* The issue time ends the cookie data */
+    if (CookieExpired(cookie + cookieSz - OPAQUE32_LEN)) {
+        WOLFSSL_MSG("HRR cookie too old");
         WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
         return HRR_COOKIE_ERROR;
     }
+#endif
 
     return cookieSz;
 }
@@ -7905,6 +7905,10 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     if (ret < 0)
         return ret;
     cookieDataSz = (word16)ret;
+#ifndef NO_ASN_TIME
+    /* The issue time is not part of the HelloRetryRequest */
+    cookieDataSz -= OPAQUE32_LEN;
+#endif
     hashSz = cookie->data[0];
     cookieData = cookie->data;
     idx = OPAQUE8_LEN;
@@ -8282,7 +8286,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (IsDtlsNotSctpMode(ssl) && ssl->options.sendCookie &&
             !ssl->options.dtlsStateful) {
         DtlsSetSeqNumForReply(ssl);
-        ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz, 0, NULL);
+        ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz,
+            helloSz);
         if (ret != 0 || !ssl->options.dtlsStateful) {
             *inOutIdx += helloSz;
             goto exit_dch;
@@ -8588,17 +8593,13 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
-#ifdef HAVE_SNI
-        if ((ret = SNI_Callback(ssl)) != 0)
-            goto exit_dch;
-        ssl->options.side = WOLFSSL_SERVER_END;
-#endif
-
     args->idx += totalExtSz;
     ssl->options.haveSessionId = 1;
     ssl->options.sendVerify = SEND_CERT;
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
+    /* Before the SNI callback: it may move the object to a context with
+     * another cookie secret (wolfSSL_set_SSL_CTX()). */
     ssl->options.cookieGood = 0;
     if (ssl->options.sendCookie &&
             (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE
@@ -8634,6 +8635,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ERROR_OUT(HRR_COOKIE_ERROR, exit_dch);
         }
     }
+#endif
+
+#ifdef HAVE_SNI
+        if ((ret = SNI_Callback(ssl)) != 0)
+            goto exit_dch;
+        ssl->options.side = WOLFSSL_SERVER_END;
 #endif
 
 #ifdef HAVE_SUPPORTED_CURVES
@@ -17344,9 +17351,12 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
  *
  * ssl       SSL/TLS object.
  * secret    Secret to use when generating integrity check for cookie.
- *           A value of NULL indicates to generate a new random secret.
+ *           A value of NULL indicates to use the context's secret on a DTLS
+ *           object whose context has one, and otherwise to generate a new
+ *           random secret.
  * secretSz  Size of secret data in bytes.
- *           Use a value of 0 to indicate use of default size.
+ *           Use a value of 0 to indicate use of default size. Ignored when
+ *           the context's secret is used.
  * returns BAD_FUNC_ARG when ssl is NULL or not using TLS v1.3, SIDE_ERROR when
  * called on a client, BAD_STATE_E when the DTLS handshake has already decided
  * how to process this ClientHello; WOLFSSL_SUCCESS on success and otherwise
