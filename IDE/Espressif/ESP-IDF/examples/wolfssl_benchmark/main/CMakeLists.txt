@@ -9,8 +9,17 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSION_MAJOR VERSION_LESS "5.0")
     # `driver` component not available for ESP8266
     SET(THIS_PRIV_REQUIRES_DRIVER "")
-else()
+elseif("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_LESS "5.3")
+    # `esp_driver_uart` was split out in ESP-IDF 5.3.
     SET(THIS_PRIV_REQUIRES_DRIVER "driver")
+else()
+    SET(THIS_PRIV_REQUIRES_DRIVER "esp_driver_uart")
+endif()
+
+if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
+    SET(THIS_ESP_SECURITY "esp_security")
+else()
+    SET(THIS_ESP_SECURITY "")
 endif()
 
 if(WIN32)
@@ -66,6 +75,8 @@ idf_component_register(SRCS main.c
                             "./include"
                        PRIV_REQUIRES "${THIS_PRIV_REQUIRES_DRIVER}"
                                      "${MAIN_WOLFSSL_COMPONENT_NAME}"
+                                     "${THIS_ESP_SECURITY}"
+                                     "mbedtls"
                        )
 
 #

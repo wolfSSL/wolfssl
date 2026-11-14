@@ -69,7 +69,10 @@
 
 /* determine if we are using Espressif SHA hardware acceleration */
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
-#if defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
+    !defined(CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT) && \
+    (!defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) || \
+     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384))
     #include "sdkconfig.h"
     /* Define a single keyword for simplicity & readability.
      *
@@ -2041,9 +2044,10 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
 int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
 {
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
-   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
-    /* No SHA512/224 HW support is available, set to SW. */
-    sha512->ctx.mode = ESP32_SHA_SW; /* no SHA224 HW, so always SW */
+   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) && \
+   !defined(CONFIG_IDF_TARGET_ESP32C5)
+    /* No SHA512/224 HW support is available on other targets. */
+    sha512->ctx.mode = ESP32_SHA_SW;
 #endif
     return InitSha512_Family(sha512, heap, devId, InitSha512_224);
 }
@@ -2054,8 +2058,9 @@ int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
 int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
 {
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
-   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
-    /* No SHA512/256 HW support is available on ESP32, set to SW. */
+   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) && \
+   !defined(CONFIG_IDF_TARGET_ESP32C5)
+    /* No SHA512/256 HW support is available on other targets. */
     sha512->ctx.mode = ESP32_SHA_SW;
 #endif
     return InitSha512_Family(sha512, heap, devId, InitSha512_256);
@@ -2846,7 +2851,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) && \
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)  && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
     esp_sha_release_unfinished_lock(&sha512->ctx);
@@ -3367,7 +3372,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)  && \
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)  && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384)
     esp_sha_release_unfinished_lock(&sha384->ctx);
 #endif
@@ -3520,7 +3526,8 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
-    #if defined(CONFIG_IDF_TARGET_ESP32)
+    #if defined(CONFIG_IDF_TARGET_ESP32) || \
+        defined(CONFIG_IDF_TARGET_ESP32C5)
     if (ret == 0) {
         ret = esp_sha512_ctx_copy(src, dst);
     }
@@ -3528,7 +3535,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)
-        ESP_LOGV(TAG, "No SHA-512 HW on the ESP32-C3");
+        ESP_LOGV(TAG, "No SHA-512 HW on %s", CONFIG_IDF_TARGET);
 
     #elif defined(CONFIG_IDF_TARGET_ESP32S2) || \
           defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -3975,13 +3982,14 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384)
-    #if defined(CONFIG_IDF_TARGET_ESP32)
-        esp_sha384_ctx_copy(src, dst);
+    #if defined(CONFIG_IDF_TARGET_ESP32) || \
+        defined(CONFIG_IDF_TARGET_ESP32C5)
+        ret = esp_sha384_ctx_copy(src, dst);
     #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)
-        ESP_LOGV(TAG, "No SHA-384 HW on the ESP32-C3");
+        ESP_LOGV(TAG, "No SHA-384 HW on %s", CONFIG_IDF_TARGET);
     #elif defined(CONFIG_IDF_TARGET_ESP32S2) || \
           defined(CONFIG_IDF_TARGET_ESP32S3)
         esp_sha384_ctx_copy(src, dst);

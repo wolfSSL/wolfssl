@@ -205,6 +205,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp32_sha.c \
               wolfcrypt/src/port/Espressif/esp32_util.c \
               wolfcrypt/src/port/Espressif/esp32_mp.c \
+              wolfcrypt/src/port/Espressif/esp32_ecc.c \
+              wolfcrypt/src/port/Espressif/esp32_ecdsa.c \
               wolfcrypt/src/port/Espressif/esp_sdk_mem_lib.c \
               wolfcrypt/src/port/Espressif/esp_sdk_time_lib.c \
               wolfcrypt/src/port/Espressif/esp_sdk_wifi_lib.c \
