@@ -302,10 +302,8 @@ static void wb_ghash_update(void) { WB_NOTE("AESGCM stream off; GHASH_UPDATE ski
  * ------------------------------------------------------------------------- */
 static void wb_release(Aes* aes)
 {
-    if (aes != NULL) {
-        wc_AesFree(aes);
-        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-    }
+    if (aes != NULL)
+        (void)wc_AesDelete(aes, NULL);
 }
 
 static void wb_aesnew_common(void)
