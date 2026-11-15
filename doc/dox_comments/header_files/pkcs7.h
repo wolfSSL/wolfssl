@@ -149,12 +149,19 @@ int  wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output,
     the PKCS7 structure into a buffer containing a parsable PKCS7
     signed data packet. For RSA-PSS signers (WC_RSA_PSS), see \ref PKCS7_RSA_PSS.
 
+    For an SLH-DSA signer (RFC 9814), pkcs7->hashOID may be left at 0. It is
+    then set to the digestAlgorithm RFC 9814 requires for the parameter set
+    (SHA-256 or SHA-512 for the SHA2 sets, SHAKE128 or SHAKE256 for the SHAKE
+    sets) and keeps that value after the call. With signed attributes, the
+    digest must be at least twice the SLH-DSA tree hash size (2n).
+
     \return Success On successfully encoding the PKCS7 data into the buffer,
     returns the index parsed up to in the PKCS7 structure. This index also
     corresponds to the bytes written to the output buffer.
     \return BAD_FUNC_ARG Returned if the PKCS7 structure is missing one or
-    more required elements to generate a signed data packet, or if the
-    signer identifier type is DEGENERATE_SID and content is set
+    more required elements to generate a signed data packet, if the
+    signer identifier type is DEGENERATE_SID and content is set, or if the
+    digestAlgorithm is too short for an SLH-DSA signer
     \return MEMORY_E Returned if there is an error allocating memory
     \return PUBLIC_KEY_E Returned if there is an error parsing the public key
     \return RSA_BUFFER_E Returned if buffer error, output too small or input

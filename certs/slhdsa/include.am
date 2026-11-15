@@ -28,6 +28,9 @@ EXTRA_DIST += \
          certs/slhdsa/root-slhdsa-sha2-128s-priv.der \
          certs/slhdsa/root-slhdsa-sha2-128s.pem \
          certs/slhdsa/root-slhdsa-sha2-128s.der \
+         certs/slhdsa/cms-slhdsa-shake-128s.der \
+         certs/slhdsa/cms-slhdsa-shake-128s-sha224.der \
+         certs/slhdsa/cms-slhdsa-sha2-128s-noattr.der \
          certs/slhdsa/server-mldsa44-sha2.pem \
          certs/slhdsa/client-mldsa44-sha2.pem \
          certs/slhdsa/server-slhdsa-shake-128f-priv.pem \
