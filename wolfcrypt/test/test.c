@@ -46468,6 +46468,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
     ret = wc_DhKeyDecode(tmp, &idx, key2, bytes);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    idx = 0;
+    ret = wc_DhKeyDecode(tmp, &idx, key2, bytes);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif
 
 #ifndef WC_NO_RNG

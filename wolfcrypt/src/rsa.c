@@ -6029,7 +6029,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             mp_copy(tmp1, q);
     }
 
-    /* Setup RsaKey buffers */
+    /* Setup RsaKey buffers: wipe and free what wc_InitRsaKey() or an earlier
+     * decode or generation left, as mp_init_multi() below would drop it. */
+    if (err == MP_OKAY) {
+        RsaForceZeroPriv(key);
+        mp_clear(&key->e);
+        mp_clear(&key->n);
+    }
     if (err == MP_OKAY)
         err = mp_init_multi(&key->n, &key->e, &key->d, &key->p, &key->q, NULL);
     if (err == MP_OKAY)

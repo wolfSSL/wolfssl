@@ -2640,6 +2640,8 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
         if (priv[0] == 0) {
             privSz--; priv++;
         }
+        /* Wipe and free an earlier private key before re-init. */
+        mp_forcezero(&key->priv);
         if (mp_init(&key->priv) != MP_OKAY)
             havePriv = 0;
     }
@@ -2661,6 +2663,8 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
         if (pub[0] == 0) {
             pubSz--; pub++;
         }
+        /* Free an earlier public key before re-init. */
+        mp_clear(&key->pub);
         if (mp_init(&key->pub) != MP_OKAY)
             havePub = 0;
     }
@@ -2753,6 +2757,10 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
             }
         }
 
+        /* Free p and g from wc_InitDhKey() or an earlier load before
+         * re-init; q is freed below only when a new q is set. */
+        mp_clear(&key->p);
+        mp_clear(&key->g);
         if (mp_init(&key->p) != MP_OKAY)
             ret = MP_INIT_E;
     }
@@ -2858,6 +2866,7 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     }
 
     if (ret == 0 && q != NULL) {
+        mp_clear(&key->q);
         if (mp_init(&key->q) != MP_OKAY)
             ret = MP_INIT_E;
     }
@@ -3374,6 +3383,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         /* force even */
         buf[bufSz - 1] &= 0xfe;
 
+        /* Free p, q and g from wc_InitDhKey() or an earlier load before
+         * re-init. */
+        mp_clear(&dh->p);
+        mp_clear(&dh->q);
+        mp_clear(&dh->g);
         if (mp_init_multi(tmp, tmp2, &dh->p, &dh->q, &dh->g, 0)
                 != MP_OKAY) {
             ret = MP_INIT_E;
