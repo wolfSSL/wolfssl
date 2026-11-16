@@ -38,6 +38,8 @@
 #                       fpki-cert.der
 #                       fpki-certpol-cert.der
 #                       rid-cert.der
+#                       bundle-eid-cert.der
+#                       hwname-cert.der
 #                       aia/ca-issuers-cert.pem
 #                       aia/multi-aia-cert.pem
 #                       aia/overflow-aia-cert.pem
@@ -613,6 +615,42 @@ run_renewcerts(){
     openssl x509 -req -in rid-req.pem -extfile wolfssl.cnf -extensions rid_ext -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 7 -out rid-cert.der -outform DER
     check_result $? "Step 2"
     rm rid-req.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign bundle-eid-cert.der ############
+    ###########################################################
+    # RFC 9174 (Bundle Protocol / DTN) leaf cert whose SAN carries an
+    # id-on-bundleEID OtherName (OID 1.3.6.1.5.5.7.8.11) with an IA5String
+    # value, plus a dNSName. ECC leaf signed by the ECC CA. Exercised by the
+    # WOLFSSL_DTN regression test (test_DecodeOtherName_bundleEID).
+    echo "Updating bundle-eid-cert.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nDTN\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes > bundle-eid-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in bundle-eid-req.pem -extfile wolfssl.cnf -extensions bundle_eid_ext -days 1000 -CA ca-ecc-cert.pem -CAkey ca-ecc-key.pem -set_serial 16 -out bundle-eid-cert.der -outform DER
+    check_result $? "Step 2"
+    rm bundle-eid-req.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign hwname-cert.der ################
+    ###########################################################
+    # RFC 4108 Hardware Module Name leaf cert whose SAN carries a
+    # hardwareModuleName OtherName (OID 1.3.6.1.5.5.7.8.4) holding the module
+    # type OID and serial number, plus a dNSName. ECC leaf signed by the ECC
+    # CA. Exercised by the WOLFSSL_SEP test (test_DecodeOtherName_hwModuleName).
+    echo "Updating hwname-cert.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nSEP\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes > hwname-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in hwname-req.pem -extfile wolfssl.cnf -extensions hwname_ext -days 1000 -CA ca-ecc-cert.pem -CAkey ca-ecc-key.pem -set_serial 17 -out hwname-cert.der -outform DER
+    check_result $? "Step 2"
+    rm hwname-req.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ###########################################################
