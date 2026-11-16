@@ -6458,6 +6458,9 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 
         /* setup the key variables */
 #ifndef ALT_ECC_SIZE
+        /* wc_ecc_init() set up key->k; wipe and free any earlier private
+         * scalar before mp_init() below drops it. */
+        mp_forcezero(key->k);
         err = mp_init(key->k);
 #else
         err = 0;
