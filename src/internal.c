@@ -17857,8 +17857,6 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 
         ret = cert_store->get_crl_cb(store, &userCrl, store->current_cert);
         if (ret == 1 && userCrl != NULL) {
-            /* Point to current cm to be able to verify CRL */
-            userCrl->cm = SSL_CM(ssl);
             *outRet = CheckCertCRLFromCm(SSL_CM(ssl), userCrl,
                     args->dCert);
         }

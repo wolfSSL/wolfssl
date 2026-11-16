@@ -10801,8 +10801,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
     }
 
 #if !defined(NO_SKID)
-    if (ret == 0 && crl->crlList->extAuthKeyIdSet &&
-            crl->crlList->extAuthKeyId[0] != 0) {
+    if (ret == 0 && crl->crlList->extAuthKeyIdSet) {
         word32 i;
         char val[5];
         int valSz = 5;
@@ -10827,7 +10826,8 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         }
 
 
-        for (i = 0; i < XSTRLEN((char*)crl->crlList->extAuthKeyId); i++) {
+        /* The key ID is binary and not NUL-terminated. */
+        for (i = 0; i < KEYID_SIZE; i++) {
             /* check if buffer is almost full */
             if (ret == 0 && XSTRLEN(tmp) >= sizeof(tmp) - valSz) {
                 if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {

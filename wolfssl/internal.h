@@ -2840,6 +2840,11 @@ struct CRL_Entry {
     byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
 #endif
     byte    crlNumberSet:1;     /* CRL number set indicator */
+    /* Hash of the public key the signature verified with. Lets a copy that
+     * no longer has the signed data be checked against another
+     * CertManager's signer. */
+    byte    verifierKeySet:1;
+    byte    verifierKeyHash[KEYID_SIZE];
 };
 
 

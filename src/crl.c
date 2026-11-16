@@ -482,14 +482,10 @@ static int FindRevokedSerial(RevokedCert* rc, byte* serial, int serialSz,
     return ret;
 }
 
-/* cacheResult should only be set when cm is the owning cm of crl. A cached
- * result is not valid for other cms because they can trust different CAs. */
-static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
-        WOLFSSL_CERT_MANAGER* cm, int cacheResult)
+/* Find the CA in cm that can sign crle. */
+static Signer* FindCRLSigner(WOLFSSL_CERT_MANAGER* cm, CRL_Entry* crle)
 {
     Signer* ca = NULL;
-    SignatureCtx sigCtx;
-    int ret = 0;
 
 #ifndef NO_SKID
     if (crle->extAuthKeyIdSet)
@@ -510,19 +506,73 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
 #else /* NO_SKID */
     ca = GetCA(cm, crle->issuerHash);
 #endif /* NO_SKID */
+
+    return ca;
+}
+
+/* Hash of the CA's public key */
+static int CRLSignerKeyHash(const Signer* ca, byte* hash)
+{
+    if ((ca->publicKey == NULL) || (ca->pubKeySize == 0))
+        return BAD_FUNC_ARG;
+    return CalcHashId(ca->publicKey, ca->pubKeySize, hash);
+}
+
+/* Record the key that signed the crl entry */
+static void SetCRLVerifierKey(CRL_Entry* crle, const Signer* ca)
+{
+    crle->verifierKeySet = 0;
+    if (CRLSignerKeyHash(ca, crle->verifierKeyHash) == 0)
+        crle->verifierKeySet = 1;
+}
+
+/* cacheResult should only be set when cm is the owning cm of crl.
+ *
+ * We check the hash of the key that signed the crl to the hash
+ * of the CAs keys in out cert manager */
+static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
+        WOLFSSL_CERT_MANAGER* cm, int cacheResult)
+{
+    Signer* ca = NULL;
+    SignatureCtx sigCtx;
+    int ret = 0;
+
+    ca = FindCRLSigner(cm, crle);
     if (ca == NULL) {
         WOLFSSL_MSG("Did NOT find CRL issuer CA");
         return ASN_CRL_NO_SIGNER_E;
     }
 
-    ret = VerifyCRL_Signature(&sigCtx, crle->toBeSigned, crle->tbsSz,
-            crle->signature, crle->signatureSz, crle->signatureOID,
-        #ifdef WC_RSA_PSS
-            crle->sigParams, (int)crle->sigParamsSz,
-        #else
-            NULL, 0,
-        #endif
-            ca, crl->heap);
+    if (crle->toBeSigned == NULL) {
+        byte keyHash[KEYID_SIZE];
+
+        if (!crle->verifierKeySet) {
+            WOLFSSL_MSG("CRL has no signed data or verifier key to check");
+            ret = ASN_CRL_CONFIRM_E;
+        }
+        else {
+            ret = CRLSignerKeyHash(ca, keyHash);
+            if ((ret == 0) && (XMEMCMP(keyHash, crle->verifierKeyHash,
+                    KEYID_SIZE) != 0)) {
+                WOLFSSL_MSG("CRL verified with a different key than the CA's");
+                ret = ASN_CRL_CONFIRM_E;
+            }
+        }
+    }
+    else {
+        ret = VerifyCRL_Signature(&sigCtx, crle->toBeSigned, crle->tbsSz,
+                crle->signature, crle->signatureSz, crle->signatureOID,
+            #ifdef WC_RSA_PSS
+                crle->sigParams, (int)crle->sigParamsSz,
+            #else
+                NULL, 0,
+            #endif
+                ca, crl->heap);
+        /* Save the hash key that verified the crl so we can check later
+         * if our cert manager still has the ca we verified with */
+        if ((ret == 0) && cacheResult)
+            SetCRLVerifierKey(crle, ca);
+    }
 
     if (cacheResult) {
         if (ret == 0) {
@@ -994,10 +1044,7 @@ static int AddCRL_EntryLocked(WOLFSSL_CRL* crl, CRL_Entry* crle)
          * looking (and add it as a new series if nothing matches) when:
          *   - both have an AKID and they differ, or
          *   - only one of them has an AKID.
-         * CRLs without an AKID form one series of their own. They are never
-         * compared with AKID CRLs, so neither kind can evict the other's
-         * revocations whatever the load order. RFC 5280 5.2.1 requires CRL
-         * issuers to include an AKID, but many CRLs in use lack one. */
+         * CRLs without an AKID form one series of their own. */
         if (crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
             if (XMEMCMP(crle->extAuthKeyId, curr->extAuthKeyId,
                     KEYID_SIZE) != 0) {
@@ -1009,9 +1056,7 @@ static int AddCRL_EntryLocked(WOLFSSL_CRL* crl, CRL_Entry* crle)
         }
 #endif
 
-        /* Same series: an unverified CRL can't replace a verified one. This
-         * is checked only within a series, so a verified CRL from one key
-         * doesn't block an unverified one from another. */
+        /* Same series: an unverified CRL can't replace a verified one. */
         if ((curr->verified > 0) && (crle->verified == 0)) {
             WOLFSSL_MSG("Cannot replace a verified CRL with an "
                     "unverified one");
@@ -1082,6 +1127,13 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
     if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
         WOLFSSL_MSG("Init CRL Entry failed");
         return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (verified && (crl->cm != NULL)) {
+        /* ParseCRL() verified with the signer this finds in the same cm. */
+        Signer* ca = FindCRLSigner(crl->cm, crle);
+        if (ca != NULL)
+            SetCRLVerifierKey(crle, ca);
     }
 
     if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
@@ -1625,8 +1677,14 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
         return NULL;
     }
 
+    if (wc_LockMutex((wolfSSL_Mutex*)&ent->verifyMutex) != 0) {
+        WOLFSSL_MSG("wc_LockMutex failed");
+        CRL_Entry_free(dupl, heap);
+        return NULL;
+    }
     XMEMCPY((byte*)dupl + copyOffset, (byte*)ent + copyOffset,
             sizeof(CRL_Entry) - copyOffset);
+    wc_UnLockMutex((wolfSSL_Mutex*)&ent->verifyMutex);
 
     /* certs is not part of the bulk copy above so we copy it explicitly */
     if (DupRevokedCertList(dupl, ent, heap) != 0) {
@@ -1641,7 +1699,10 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
     }
 #endif
 
-    if (!ent->verified) {
+    /* Copy the signed data whenever ent still has it, so the copy can be
+     * verified again by another CertManager. An entry verified when it was
+     * loaded never kept it, and is checked by its verifier key instead. */
+    if (ent->toBeSigned != NULL) {
         dupl->toBeSigned = (byte*)XMALLOC(dupl->tbsSz, heap,
                                           DYNAMIC_TYPE_CRL_ENTRY);
         dupl->signature = (byte*)XMALLOC(dupl->signatureSz, heap,
@@ -1800,7 +1861,48 @@ int wolfSSL_X509_CRL_up_ref(WOLFSSL_X509_CRL* crl)
 }
 #endif
 
-/* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl */
+ /* Check the CRL entry to make sure that only crls that are trusted by the
+  * certmanager passed in make it in to the final list. if an entry is not
+  * trusted we free and drop it.
+  *
+  * Returns 0 on success. */
+static int X509StoreCheckCRLCopies(WOLFSSL_X509_CRL* crl,
+        const WOLFSSL_CERT_MANAGER* srcCm, CRL_Entry** list)
+{
+    CRL_Entry** link = list;
+    int ret = 0;
+
+    while (ret == 0 && *link != NULL) {
+        CRL_Entry* ent = *link;
+
+        if (ent->verified < 0) {
+            *link = ent->next;
+            CRL_Entry_free(ent, crl->heap);
+            continue;
+        }
+        if (ent->verified > 0 && srcCm != crl->cm)
+            ent->verified = 0;
+        if (ent->verified == 0 && crl->cm != NULL) {
+            /* ent is a private copy and crl->cm owns crl, so the result can
+             * be cached on it. */
+            ret = VerifyCRLE(crl, ent, crl->cm, 1);
+            if (ret == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E)) {
+                ret = 0;
+            }
+            else if (ret != 0) {
+                WOLFSSL_MSG("CRL failed to verify against the store's CAs");
+            }
+        }
+        link = &ent->next;
+    }
+
+    return ret;
+}
+
+/* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl
+ *
+ * Entries are checked against the store's CAs, as X509StoreCheckCRLCopies()
+ * describes. If any fails, nothing is added. */
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {
     WOLFSSL_X509_CRL *crl;
@@ -1823,6 +1925,9 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
         }
         ret = DupX509_CRL(crl, newcrl);
         wc_UnLockRwLock(&newcrl->crlLock);
+        /* crl isn't published yet, so its list is checked unlocked. */
+        if (ret == 0)
+            ret = X509StoreCheckCRLCopies(crl, newcrl->cm, &crl->crlList);
         if (ret != 0) {
             FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
@@ -1841,70 +1946,54 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
     if (newcrl->crlList != NULL) {
         CRL_Entry *toAdd;
 
-        if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
-            WOLFSSL_MSG("wc_LockRwLock_Wr failed");
-            return BAD_MUTEX_E;
-        }
-
-        if (crl != newcrl && wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
+        /* Work on a private copy, so only the copy needs newcrl's lock and
+         * the store's lock isn't held while signatures are checked. */
+        if (wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
             WOLFSSL_MSG("wc_LockRwLock_Rd failed");
-            wc_UnLockRwLock(&crl->crlLock);
             return BAD_MUTEX_E;
         }
         toAdd = DupCRL_list(newcrl->crlList, crl->heap);
-        if (crl != newcrl)
-            wc_UnLockRwLock(&newcrl->crlLock);
+        wc_UnLockRwLock(&newcrl->crlLock);
         if (toAdd == NULL) {
             WOLFSSL_MSG("DupCRL_list failed");
-            wc_UnLockRwLock(&crl->crlLock);
             return WOLFSSL_FAILURE;
         }
 
-        /* Merge each entry through the same series rules as a loaded CRL,
-         * so the store keeps one CRL per issuer and signing key. A copy that
-         * is no newer than the stored CRL of its series is dropped. */
-        ret = 0;
-        while (toAdd != NULL) {
-            CRL_Entry* ent = toAdd;
-            int addRet;
+        /* Pass 1: check every entry before any is added, so a bad one fails
+         * the whole add instead of leaving the entries before it merged. */
+        ret = X509StoreCheckCRLCopies(crl, newcrl->cm, &toAdd);
 
-            toAdd = toAdd->next;
-            ent->next = NULL;
-            addRet = 0;
-            /* The copy is usually unverified (d2i has no cm to check it
-             * against). Verify it with the store's cm now, so a newer CRL
-             * can replace a stored one that was verified on use. If the
-             * issuer isn't loaded yet leave it unverified to be checked on
-             * use, as a NO_VERIFY load would. The failure isn't cached:
-             * a negative verified would bypass the replace check. */
-            if (ent->verified == 0 && crl->cm != NULL) {
-                addRet = VerifyCRLE(crl, ent, crl->cm, 0);
-                if (addRet == 0) {
-                    ent->verified = 1;
-                }
-                else if (addRet == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E)) {
-                    addRet = 0;
-                }
-                else {
-                    WOLFSSL_MSG("CRL signature failed to verify");
-                }
+        /* Pass 2: merge each entry through the same series rules as a
+         * loaded CRL, so the store keeps one CRL per issuer and signing key. */
+        if (ret == 0) {
+            if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
+                WOLFSSL_MSG("wc_LockRwLock_Wr failed");
+                ret = BAD_MUTEX_E;
             }
-            if (addRet == 0)
-                addRet = AddCRL_EntryLocked(crl, ent);
-            if (addRet != 0) {
-                CRL_Entry_free(ent, crl->heap);
-                if (addRet != WC_NO_ERR_TRACE(DUPE_ENTRY_E)) {
-                    ret = addRet;
-                    break;
+            else {
+                while (ret == 0 && toAdd != NULL) {
+                    CRL_Entry* ent = toAdd;
+
+                    toAdd = toAdd->next;
+                    ent->next = NULL;
+                    ret = AddCRL_EntryLocked(crl, ent);
+                    if (ret != 0) {
+                        CRL_Entry_free(ent, crl->heap);
+                        if (ret == WC_NO_ERR_TRACE(DUPE_ENTRY_E))
+                            ret = 0;
+                    }
                 }
+                wc_UnLockRwLock(&crl->crlLock);
             }
         }
+
         while (toAdd != NULL) {
             CRL_Entry* ent = toAdd;
             toAdd = toAdd->next;
             CRL_Entry_free(ent, crl->heap);
         }
-        wc_UnLockRwLock(&crl->crlLock);
+        if (ret == WC_NO_ERR_TRACE(BAD_MUTEX_E))
+            return BAD_MUTEX_E;
         if (ret != 0) {
             WOLFSSL_MSG("Error merging CRL into store");
             return WOLFSSL_FAILURE;

@@ -65,8 +65,9 @@
 static int g_checks;
 static int g_fail;
 #define WB_NOTE(what) do { g_checks++; (void)(what); } while (0)
-/* For vectors with a known result: prints FAIL if cond is false. main still
- * returns 0; run-whitebox-smoke.sh fails on "with failures". */
+/* Like WB_NOTE, for vectors with a known result: prints FAIL when cond is
+ * false. main still returns 0; run-whitebox-smoke.sh fails the run when the
+ * summary says "with failures". */
 #define WB_EXPECT(cond, what) do {                                  \
         g_checks++;                                                 \
         if (!(cond)) {                                              \
@@ -550,7 +551,9 @@ static Signer* wb_akid_load_ca(WOLFSSL_CERT_MANAGER* cm)
 static void wb_akid_add_crl(void)
 {
     static const struct {
-        int caFirst;            /* Load CA A first: its CRLs are verified. */
+        int caFirst;            /* 1: load CA A first, so its CRLs are
+                                 * verified. 2: mark the first entry
+                                 * verified by hand. */
         const byte* first; int firstSz;
         const byte* second; int secondSz;
         int count;              /* Entries after both loads. */
@@ -584,6 +587,11 @@ static void wb_akid_add_crl(void)
         /* The verified/unverified check applies only within a series. */
         { 1, fxCrlOld5, sizeof(fxCrlOld5), fxCrlNew1, sizeof(fxCrlNew1), 2,
           "AddCRL: verified entry doesn't block an unverified new series" },
+        /* Within a series it does. Old6 is validly signed, so with CA A
+         * loaded it would be verified as it is parsed; instead the first
+         * entry is marked verified by hand and Old6 stays unverified. */
+        { 2, fxCrlOld5, sizeof(fxCrlOld5), fxCrlOld6, sizeof(fxCrlOld6), 1,
+          "AddCRL: unverified can't replace verified in the same series" },
     };
     size_t i;
 
@@ -596,12 +604,19 @@ static void wb_akid_add_crl(void)
             wolfSSL_CertManagerFree(cm);
             return;
         }
-        if (rows[i].caFirst)
+        if (rows[i].caFirst == 1)
             WB_EXPECT(wb_akid_load_ca(cm) != NULL, rows[i].what);
         WB_EXPECT(wb_akid_load(&crl, rows[i].first, rows[i].firstSz) != NULL,
                   rows[i].what);
+        if (rows[i].caFirst == 2 && crl.crlList != NULL)
+            crl.crlList->verified = 1;
         (void)wb_akid_load(&crl, rows[i].second, rows[i].secondSz);
         WB_EXPECT(wb_akid_count(&crl) == rows[i].count, rows[i].what);
+        if (rows[i].caFirst == 2) {
+            /* The verified entry is the one kept. */
+            WB_EXPECT(crl.crlList != NULL && crl.crlList->verified == 1,
+                      rows[i].what);
+        }
         FreeCRL(&crl, 0);
         wolfSSL_CertManagerFree(cm);
     }
@@ -699,7 +714,7 @@ static void wb_akid_check_list(void)
         if (eB != NULL)
             XMEMCPY(akidB, eB->extAuthKeyId, KEYID_SIZE);
         XMEMCPY(issuerHash, crl.crlList->issuerHash, CRL_DIGEST_SIZE);
-        /* Use them without a signature check. */
+        /* Mark every entry verified so no signature check runs. */
         for (e = crl.crlList; e != NULL; e = e->next)
             e->verified = 1;
         if (rows[i].staleA && eA != NULL)
@@ -719,10 +734,27 @@ static void wb_akid_check_list(void)
     }
 }
 
+#ifndef NO_ASN_TIME
+/* Same fixed 2027 time as TEST_CRL_FIXTURE_NOW in tests/api/test_certman.c.
+ * The fixtures are only valid 2026-01-01 to 2046-01-01, so the vectors must
+ * not depend on the real clock. */
+#define WB_AKID_FIXTURE_NOW 1798761600L
+
+static time_t wb_akid_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = (time_t)WB_AKID_FIXTURE_NOW;
+    return (time_t)WB_AKID_FIXTURE_NOW;
+}
+#endif
+
 static void wb_akid(WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_CRL crl;
 
+#ifndef NO_ASN_TIME
+    (void)wc_SetTimeCb(wb_akid_time_cb);
+#endif
     if (InitCRL(&crl, cm) == 0) {
         CRL_Entry* eA = wb_akid_load(&crl, fxCrlOld5, sizeof(fxCrlOld5));
         if (eA != NULL && eA->extAuthKeyIdSet) {
@@ -734,11 +766,14 @@ static void wb_akid(WOLFSSL_CERT_MANAGER* cm)
     if (!wb_akid_a_set) {
         printf("crl white-box: AKID CRL did not load, AKID vectors "
                "skipped\n");
-        return;
     }
-
-    wb_akid_add_crl();
-    wb_akid_check_list();
+    else {
+        wb_akid_add_crl();
+        wb_akid_check_list();
+    }
+#ifndef NO_ASN_TIME
+    (void)wc_SetTimeCb(NULL);
+#endif
 }
 #endif /* !NO_SKID && !NO_ASN && HAVE_ECC && !NO_ECC256 && !NO_SHA256 */
 
