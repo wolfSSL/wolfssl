@@ -5310,7 +5310,7 @@ static int test_verified_chain_run(const byte* ca1, int ca1Sz,
         issuerDer, issuerSz), TEST_SUCCESS);
 
     if (mode == TEST_VCHAIN_RESUME) {
-        /* Resumed, the peer is not verified again: every check applies */
+        /* Resumed, the verification of the session's handshake applies */
         ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
         wolfSSL_free(ssl_c);
         ssl_c = NULL;
@@ -5325,8 +5325,8 @@ static int test_verified_chain_run(const byte* ca1, int ca1Sz,
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
         ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
         ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
-        ExpectIntEQ(test_verified_chain_check(ssl_c, 0, NULL, 0),
-            TEST_SUCCESS);
+        ExpectIntEQ(test_verified_chain_check(ssl_c, num, issuerDer,
+            issuerSz), TEST_SUCCESS);
     }
 
     wolfSSL_SESSION_free(sess);
@@ -5336,6 +5336,79 @@ static int test_verified_chain_run(const byte* ca1, int ca1Sz,
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+
+/* As nginx with session tickets off: a TLS 1.3 server verifies a client cert
+ * issued by anchorDer, a CA of its cert manager that X509_verify_cert()
+ * rejects, then resumes the session. The verified chain is the client's cert
+ * and anchorDer both times. */
+static int test_verified_chain_server_resume(const byte* anchorDer,
+    int anchorSz, const byte* leafDer, int leafSz)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            NULL, 0, NULL, 0, NULL, 0), 0);
+        if (i == 0) {
+            ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx_s, anchorDer,
+                anchorSz, WOLFSSL_FILETYPE_ASN1, 0,
+                WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_use_certificate_buffer(ssl_c, leafDer, leafSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_c, client_key_der_2048,
+            (long)sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        /* The ticket is an ID of the server's session cache. */
+        ExpectTrue(wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET) != 0);
+        if (i == 1) {
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_s), i);
+        ExpectIntEQ(wolfSSL_get_verify_result(ssl_s), WOLFSSL_X509_V_OK);
+        ExpectIntEQ(test_verified_chain_check(ssl_s, 2, anchorDer, anchorSz),
+            TEST_SUCCESS);
+        if (i == 0) {
+            /* Take delivery of the NewSessionTicket. */
+            ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+        }
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#else
+    (void)anchorDer;
+    (void)anchorSz;
+    (void)leafDer;
+    (void)leafSz;
+#endif
 
     return EXPECT_RESULT();
 }
@@ -5457,7 +5530,8 @@ int test_wolfSSL_session_chain_oversized_cert(void)
 /* Test that the verified chain is the one the handshake verified, also when
  * X509_verify_cert() rejects a CA of the cert manager that has expired or is
  * not a CA, the trust anchor or not. Only those errors of only such a CA, and
- * only after a full handshake that verified the peer, are not failed.
+ * only after a handshake that verified the peer, resumed or not, are not
+ * failed.
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -5572,6 +5646,13 @@ int test_wolfSSL_get0_verified_chain_anchor(void)
     ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
         leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_NONE,
         WOLFSSL_X509_V_ERR_INVALID_CA, 2), TEST_SUCCESS);
+#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE)
+    ExpectIntEQ(test_verified_chain_run(anchorDer, anchorSz, NULL, 0, NULL,
+        leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_RESUME,
+        WOLFSSL_X509_V_ERR_INVALID_CA, 2), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_verified_chain_server_resume(anchorDer, anchorSz,
+        leafDer, leafSz), TEST_SUCCESS);
     ExpectIntEQ(test_verified_chain_run(caDer, caSz, anchorDer, anchorSz,
         NULL, leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_PEER,
         WOLFSSL_X509_V_ERR_INVALID_CA, 3), TEST_SUCCESS);

@@ -3440,9 +3440,9 @@ static int VerifiedChainIsPeer(const WOLFSSL* ssl)
  *
  * Built with wolfSSL_X509_verify_cert() once per peer cert and kept on ssl
  * until a new peer chain or wolfSSL_clear(), as OpenSSL keeps the chain of the
- * handshake. After a full handshake that verified the peer, VerifiedChainCb()
- * applies; else every check does. Without WOLFSSL_SIGNER_DER_CERT a CA of the
- * cert manager cannot go on the chain.
+ * handshake. When the handshake, or the one of a resumed session, verified the
+ * peer, VerifiedChainCb() applies; else every check does. Without
+ * WOLFSSL_SIGNER_DER_CERT a CA of the cert manager cannot go on the chain.
  *
  * @param [in, out] ssl  SSL/TLS object. Declared const, but the verified
  *                       chain is stored into it.
@@ -3505,11 +3505,12 @@ WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
     }
 
     if (!err) {
-        /* A full handshake verified the peer: no error, not even one a
-         * verify callback accepted. */
+        /* The handshake verified the peer: no error, not even one a verify
+         * callback accepted. A resumed session keeps that of its handshake. */
         if ((!ssl->options.verifyNone) &&
                 (ssl->peerVerifyRet == WOLFSSL_X509_V_OK) &&
-                (!wolfSSL_session_reused((WOLFSSL*)ssl))) {
+                ((!wolfSSL_session_reused((WOLFSSL*)ssl)) ||
+                 (ssl->session->peerVerifyRet == WOLFSSL_X509_V_OK))) {
             wolfSSL_X509_STORE_CTX_set_verify_cb(storeCtx, VerifiedChainCb);
         }
         if (wolfSSL_X509_verify_cert(storeCtx) != WOLFSSL_SUCCESS) {
