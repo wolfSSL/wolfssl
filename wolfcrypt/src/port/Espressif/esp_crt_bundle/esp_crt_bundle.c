@@ -1241,7 +1241,7 @@ int esp_crt_verify_callback(void *buf, WOLFSSL_X509 *crt, int depth,
                   (s_crt_bundle.crts[middle][3]);
         /* This is the wolfssl_ssl_conf_verify callback to attach bundle.
          * We'll verify at certificate attachment time. */
-        ESP_LOGV(TAG, "Found key. Len = %d", key_len);
+        ESP_LOGV(TAG, "Found key. Len = %d", (int)key_len);
         /* Optional validation not implemented at this time. */
         /* See wolfssl_ssl_conf_verify_cb() */
     }
@@ -1365,9 +1365,9 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
     if (ret == ESP_OK) {
         bundle_end = x509_bundle + bundle_size;
         /* This is the maximum region that is allowed to access */
-        ESP_LOGCBI(TAG, "Bundle Start 0x%x", (intptr_t)x509_bundle);
-        ESP_LOGCBI(TAG, "Bundle End   0x%x", (intptr_t)bundle_end);
-        ESP_LOGCBI(TAG, "Bundle Size    %u bytes", bundle_size);
+        ESP_LOGCBI(TAG, "Bundle Start %p", (const void*)x509_bundle);
+        ESP_LOGCBI(TAG, "Bundle End   %p", (const void*)bundle_end);
+        ESP_LOGCBI(TAG, "Bundle Size    %u bytes", (unsigned)bundle_size);
         cur_crt = x509_bundle + BUNDLE_HEADER_OFFSET;
 
         for (i = 0; i < num_certs; i++) {
@@ -1389,8 +1389,8 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
             cur_crt = cur_crt + CRT_HEADER_OFFSET + name_len + key_len;
 #else
             cert_len = cur_crt[0] << 8 | cur_crt[1];
-            ESP_LOGCBI(TAG, "- This certificate at 0x%x, length: %u",
-                             (intptr_t)cur_crt, cert_len);
+            ESP_LOGCBI(TAG, "- This certificate at %p, length: %u",
+                             (const void*)cur_crt, (unsigned)cert_len);
 
             if (cur_crt + CRT_HEADER_OFFSET + cert_len > bundle_end) {
                 ESP_LOGE(TAG, "Invalid certificate bundle cert length");
@@ -1454,10 +1454,10 @@ esp_err_t esp_crt_bundle_attach(void *conf)
 #endif
     if (s_crt_bundle.crts == NULL) {
         ESP_LOGCBI(TAG, "No bundle set by user; using the embedded binary.");
-        ESP_LOGCBI(TAG, "x509_crt_imported_bundle_wolfssl_bin_start 0x%x",
-               (intptr_t)x509_crt_imported_bundle_wolfssl_bin_start);
-        ESP_LOGCBI(TAG, "x509_crt_imported_bundle_wolfssl_bin_end   0x%x",
-               (intptr_t)x509_crt_imported_bundle_wolfssl_bin_end);
+        ESP_LOGCBI(TAG, "x509_crt_imported_bundle_wolfssl_bin_start %p",
+               (const void*)x509_crt_imported_bundle_wolfssl_bin_start);
+        ESP_LOGCBI(TAG, "x509_crt_imported_bundle_wolfssl_bin_end   %p",
+               (const void*)x509_crt_imported_bundle_wolfssl_bin_end);
         if ((intptr_t)x509_crt_imported_bundle_wolfssl_bin_end <
             (intptr_t)x509_crt_imported_bundle_wolfssl_bin_start) {
             ESP_LOGE(TAG, "Imported bundle end less than starting address");
@@ -1472,7 +1472,7 @@ esp_err_t esp_crt_bundle_attach(void *conf)
             }
             else {
                 ESP_LOGCBI(TAG, "Importing x509 wolfSSL bundle, %u bytes",
-                                 bundle_size);
+                                 (unsigned)bundle_size);
                 ret = wolfssl_esp_crt_bundle_init(
                                  x509_crt_imported_bundle_wolfssl_bin_start,
                                  bundle_size);
@@ -1480,8 +1480,8 @@ esp_err_t esp_crt_bundle_attach(void *conf)
         }
     }
     else {
-        ESP_LOGCBI(TAG, "Cert bundle set by user at 0x%x.",
-                       (intptr_t)s_crt_bundle.crts);
+        ESP_LOGCBI(TAG, "Cert bundle set by user at %p.",
+                       (const void*)s_crt_bundle.crts);
     }
 
     if (((uintptr_t)x509_crt_imported_bundle_wolfssl_bin_start % 4) == 0) {
