@@ -831,6 +831,36 @@ static int X509StoreVerifyResult(int ret)
         ret == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E);
 }
 
+#ifdef WOLFSSL_SIGNER_DER_CERT
+/* Decodes the DER of a CA of the cert manager as AddCA() did, with its
+ * unknown extension callback. Returns 0 on success. */
+static int X509StoreCmCaToX509(WOLFSSL_CERT_MANAGER* cm, Signer* signer,
+        WOLFSSL_X509** ca)
+{
+    int ret;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
+
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
+        return MEMORY_E);
+    ret = x509ParseCertCM(cert, signer->derCert->buffer,
+        signer->derCert->length, cm);
+    if (ret == 0) {
+        *ca = wolfSSL_X509_new_ex(cm->heap);
+        if (*ca == NULL) {
+            ret = MEMORY_E;
+        }
+        else if (CopyDecodedToX509(*ca, cert) != 0) {
+            wolfSSL_X509_free(*ca);
+            *ca = NULL;
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    FreeDecodedCert(cert);
+    WC_FREE_VAR_EX(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+    return ret;
+}
+#endif
+
 /* Verifies x509, dates aside, with a CA the application loaded into the cert
  * manager, which goes in *issuer when it has its DER and its key signed
  * x509. Returns 0 or the verify error. An internal error is kept in *err. */
@@ -867,8 +897,7 @@ static int X509StoreCmVerify(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_X509* x509,
     if (ret == 0 && issuer != NULL && cert->ca->derCert != NULL) {
         WOLFSSL_X509* ca = NULL;
 
-        if (wolfSSL_X509_d2i_ex(&ca, cert->ca->derCert->buffer,
-                (int)cert->ca->derCert->length, cm->heap) == NULL) {
+        if (X509StoreCmCaToX509(cm, cert->ca, &ca) != 0) {
             (void)X509StoreKeepErr(err, WOLFSSL_FATAL_ERROR);
         }
         else if (X509StoreKeySigned(ca, x509, err)) {
@@ -1099,6 +1128,58 @@ static int X509StoreCheckChainKeys(WOLFSSL_X509_STORE_CTX* ctx,
     return WOLFSSL_SUCCESS;
 }
 
+/* In the handshake, the certs the peer sent above the current cert are
+ * untrusted, as the peer's chain in OpenSSL. Their CAs cached in the cert
+ * manager are not trust anchors.
+ * Returns WOLFSSL_SUCCESS, else the error, also kept in *err. */
+static int X509StorePeerChain(WOLFSSL_X509_STORE_CTX* ctx,
+        WOLF_STACK_OF(WOLFSSL_X509)** sk, int* err)
+{
+    int i;
+
+    *sk = NULL;
+    if (ctx->certs == NULL || ctx->peerCertDepth + 1 >= ctx->totalCerts) {
+        return WOLFSSL_SUCCESS;
+    }
+    *sk = wolfSSL_sk_X509_new_null();
+    if (*sk == NULL) {
+        return X509StoreKeepErr(err, MEMORY_E);
+    }
+    for (i = ctx->peerCertDepth + 1; i < ctx->totalCerts; i++) {
+        WOLFSSL_X509* x509 = wolfSSL_X509_d2i_ex(NULL, ctx->certs[i].buffer,
+            (int)ctx->certs[i].length, ctx->store->cm->heap);
+
+        /* As OpenSSL, a cert that does not decode is not a candidate */
+        if (x509 != NULL && wolfSSL_sk_X509_push(*sk, x509) <= 0) {
+            wolfSSL_X509_free(x509);
+            return X509StoreKeepErr(err, MEMORY_E);
+        }
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+/* In the handshake, X509_verify_cert() runs for each cert of the peer's
+ * chain, top down. As OpenSSL, which verifies the chain once, a cert that
+ * verified is reported once: the current cert, and the CA that signed it when
+ * the peer did not send that CA next. The certs above were reported already.
+ * Returns 1 when the cert at depth i on the chain is not reported. */
+static int X509StorePeerReported(WOLFSSL_X509_STORE_CTX* ctx,
+        WOLFSSL_X509* x509, int i)
+{
+    int next = ctx->peerCertDepth + 1;
+
+    if (ctx->certs == NULL || ctx->totalCerts <= 0 || i == 0) {
+        return 0;
+    }
+    if (i > 1) {
+        return 1;
+    }
+    return x509 != NULL && x509->derCert != NULL && next < ctx->totalCerts &&
+        ctx->certs[next].length == x509->derCert->length &&
+        XMEMCMP(ctx->certs[next].buffer, x509->derCert->buffer,
+            x509->derCert->length) == 0;
+}
+
 /* As OpenSSL's internal_verify(), top down. sigFail holds the certs whose
  * issuer did not sign them. Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE. */
 static int X509StoreCheckChainCerts(WOLFSSL_X509_STORE_CTX* ctx,
@@ -1149,8 +1230,11 @@ static int X509StoreCheckChainCerts(WOLFSSL_X509_STORE_CTX* ctx,
             }
         }
     #endif
+        if (X509StorePeerReported(ctx, x509, i)) {
+            continue;
+        }
         ctx->current_cert = x509;
-        ctx->error_depth = i;
+        ctx->error_depth = i + ctx->peerCertDepth;
         if (verifyCb != NULL && verifyCb(1, ctx) != 1) {
             return WOLFSSL_FAILURE;
         }
@@ -1365,6 +1449,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     WOLFSSL_X509* cmIssuer = NULL;
     WOLFSSL_X509* orig;
     WOLF_STACK_OF(WOLFSSL_X509)* trustedSk;
+    WOLF_STACK_OF(WOLFSSL_X509)* peerSk = NULL;
     WOLFSSL_X509_STORE_CTX_verify_cb verifyCb;
 
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
@@ -1388,6 +1473,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         WOLFSSL_X509_STORE_DEFAULT_MAX_DEPTH;
     orig = ctx->current_cert;
 
+    if (ctx->ctxIntermediates == NULL &&
+            X509StorePeerChain(ctx, &peerSk, &err) != WOLFSSL_SUCCESS) {
+        goto exit;
+    }
+    if (peerSk != NULL) {
+        ctx->ctxIntermediates = peerSk;
+    }
     if (ctx->chain != NULL) {
         wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
     }
@@ -1584,9 +1676,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         ret = X509StoreCheckChainKeys(ctx, verifyCb, num);
     }
 
-    /* Host and IP of the leaf, reported as OpenSSL's check_id_error() */
+    /* Host and IP of the leaf, reported as OpenSSL's check_id_error(). Not
+     * for an intermediate of the peer's chain: the names are the peer
+     * cert's. */
     if (ret == WOLFSSL_SUCCESS && ctx->param != NULL &&
-            ctx->param->hostName[0] != '\0' &&
+            ctx->peerCertDepth == 0 && ctx->param->hostName[0] != '\0' &&
             wolfSSL_X509_check_host(orig, ctx->param->hostName,
                 XSTRLEN(ctx->param->hostName), ctx->param->hostFlags,
                 NULL) != WOLFSSL_SUCCESS &&
@@ -1595,7 +1689,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         ret = WOLFSSL_FAILURE;
     }
     if (ret == WOLFSSL_SUCCESS && ctx->param != NULL &&
-            ctx->param->ipasc[0] != '\0' &&
+            ctx->peerCertDepth == 0 && ctx->param->ipasc[0] != '\0' &&
             wolfSSL_X509_check_ip_asc(orig, ctx->param->ipasc,
                 ctx->param->hostFlags) != WOLFSSL_SUCCESS &&
             !X509StoreReport(ctx, verifyCb, orig,
@@ -1617,6 +1711,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 #endif
 
 exit:
+    if (peerSk != NULL) {
+        ctx->ctxIntermediates = NULL;
+        wolfSSL_sk_X509_pop_free(peerSk, NULL);
+    }
     wolfSSL_X509_free(cmIssuer);
     wolfSSL_sk_X509_free(sigFail);
     if (err != 0) {
