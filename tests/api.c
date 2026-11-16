@@ -22835,6 +22835,27 @@ static int test_wolfSSL_ERR_set_mark_thread(void)
     return EXPECT_RESULT();
 }
 
+/* ERR_R_INTERNAL_ERROR is a reason of its own, like the other fatal ERR_R_*
+ * codes, and comes back from the error queue. */
+static int test_wolfSSL_ERR_R_INTERNAL_ERROR(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_EXTRA
+    ExpectIntNE(ERR_R_INTERNAL_ERROR, ERR_R_MALLOC_FAILURE);
+    ExpectIntNE(ERR_R_INTERNAL_ERROR, ERR_R_PASSED_NULL_PARAMETER);
+    ExpectIntNE(ERR_R_INTERNAL_ERROR, ERR_R_DISABLED);
+    ExpectIntNE(ERR_R_INTERNAL_ERROR, ERR_R_PASSED_INVALID_ARGUMENT);
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+    ERR_clear_error();
+    ERR_put_error(ERR_LIB_SSL, 0, ERR_R_INTERNAL_ERROR, "test", 1);
+    ExpectIntEQ(ERR_GET_REASON(ERR_peek_error()), ERR_R_INTERNAL_ERROR);
+    ExpectIntEQ(ERR_GET_REASON(ERR_get_error()), ERR_R_INTERNAL_ERROR);
+    ExpectIntEQ(ERR_get_error(), 0);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_ERR_GET_REASON_version_mismatch(void)
 {
     EXPECT_DECLS;
@@ -48603,6 +48624,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_ERR_get_error_order),
     TEST_DECL(test_wolfSSL_ERR_set_mark),
     TEST_DECL(test_wolfSSL_ERR_set_mark_thread),
+    TEST_DECL(test_wolfSSL_ERR_R_INTERNAL_ERROR),
     TEST_DECL(test_wolfSSL_ERR_GET_REASON_version_mismatch),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_ERR_print_errors),
