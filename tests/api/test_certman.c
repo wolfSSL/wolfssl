@@ -3719,6 +3719,8 @@ int test_wolfSSL_CRL_unverified_no_evict(void)
     /* Reading a store location does not check signatures, so the newer CRL
      * number alone must not be enough to take the entry's place. */
     for (i = 0; i < XELEM_CNT(bogus); i++) {
+        /* Reset: after a failure ExpectTrue skips the assignment, and f
+         * would still hold the handle closed last iteration. */
         f = XBADFILE;
         ExpectTrue((f = XFOPEN(bogusFile, "wb")) != XBADFILE);
         ExpectIntEQ((int)XFWRITE(bogus[i].pem, 1, (size_t)bogus[i].sz, f),
@@ -3848,8 +3850,7 @@ int test_wolfSSL_CRL_skip_unverifiable(void)
         int badSz = (int)XSTRLEN(cases[i].bad);
         int j;
 
-        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
+        TEST_CRL_FIXTURE_CLOCK_SET();
         ExpectNotNull(store = wolfSSL_X509_STORE_new());
         if (store != NULL)
             cm = store->cm;
@@ -3911,10 +3912,14 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
 #if defined(HAVE_CRL) && !defined(NO_CERTS) && defined(HAVE_ECC) && \
     !defined(NO_ECC256) && !defined(NO_SHA256) && !defined(NO_SKID) && \
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
-    struct {
+    static const struct {
         const unsigned char* der;
         int sz;
-    } crls[3];
+    } crls[] = {
+        { fxCrlOld5, (int)sizeof(fxCrlOld5) },
+        { fxCrlNew1, (int)sizeof(fxCrlNew1) },
+        { fxCrlNew6, (int)sizeof(fxCrlNew6) }
+    };
     /* One CRL per key, both orders. The new key's number is both lower and
      * higher than the old key's. */
     static const int rollover[4][2] = {
@@ -3926,9 +3931,6 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
     int ret;
 
     TEST_CRL_FIXTURE_CLOCK_SET();
-    crls[0].der = fxCrlOld5; crls[0].sz = (int)sizeof(fxCrlOld5);
-    crls[1].der = fxCrlNew1; crls[1].sz = (int)sizeof(fxCrlNew1);
-    crls[2].der = fxCrlNew6; crls[2].sz = (int)sizeof(fxCrlNew6);
 
     /* Controls: each CRL on its own revokes its own key's leaf. */
     for (i = 0; i < XELEM_CNT(crls); i++) {
@@ -3972,7 +3974,7 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
     cm = NULL;
 
     /* One CRL per key: both leaves revoked. */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < XELEM_CNT(rollover); i++) {
         const int first = rollover[i][0];
         const int second = rollover[i][1];
 
@@ -4190,10 +4192,14 @@ int test_wolfSSL_CRL_other_key_fallback(void)
 #ifdef TEST_CRL_OTHER_KEY_FALLBACK
     /* A: the leaf's own key. B: the other key. */
     enum { XK_A, XK_B_REVOKED, XK_B_EXPIRING, XK_NONE };
-    struct {
+    static const struct {
         const unsigned char* der;
         int sz;
-    } crls[XK_NONE];
+    } crls[XK_NONE] = {
+        { fxCrlOld6, (int)sizeof(fxCrlOld6) },                  /* XK_A */
+        { fxCrlNew1, (int)sizeof(fxCrlNew1) },          /* XK_B_REVOKED */
+        { fxCrlNew2Expiring, (int)sizeof(fxCrlNew2Expiring) } /* EXPIRING */
+    };
     static const struct {
         int first;
         int second;
@@ -4217,16 +4223,8 @@ int test_wolfSSL_CRL_other_key_fallback(void)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     size_t i;
 
-    crls[XK_A].der = fxCrlOld6;
-    crls[XK_A].sz = (int)sizeof(fxCrlOld6);
-    crls[XK_B_REVOKED].der = fxCrlNew1;
-    crls[XK_B_REVOKED].sz = (int)sizeof(fxCrlNew1);
-    crls[XK_B_EXPIRING].der = fxCrlNew2Expiring;
-    crls[XK_B_EXPIRING].sz = (int)sizeof(fxCrlNew2Expiring);
-
-    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        TEST_CRL_FIXTURE_CLOCK_SET();
 
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxRootOld,
@@ -4271,10 +4269,14 @@ int test_wolfSSL_CRL_other_key_trust_anchor(void)
     EXPECT_DECLS;
 #ifdef TEST_CRL_OTHER_KEY_FALLBACK
     enum { AK_K2, AK_K3, AK_K3_REVOKED, AK_NONE };
-    struct {
+    static const struct {
         const unsigned char* der;
         int sz;
-    } crls[AK_NONE];
+    } crls[AK_NONE] = {
+        { fxAnchorCrlK2, (int)sizeof(fxAnchorCrlK2) },               /* K2 */
+        { fxAnchorCrlK3, (int)sizeof(fxAnchorCrlK3) },               /* K3 */
+        { fxAnchorCrlK3Revoked, (int)sizeof(fxAnchorCrlK3Revoked) }  /* REV */
+    };
     static const struct {
         int first;
         int second;
@@ -4294,16 +4296,8 @@ int test_wolfSSL_CRL_other_key_trust_anchor(void)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     size_t i;
 
-    crls[AK_K2].der = fxAnchorCrlK2;
-    crls[AK_K2].sz = (int)sizeof(fxAnchorCrlK2);
-    crls[AK_K3].der = fxAnchorCrlK3;
-    crls[AK_K3].sz = (int)sizeof(fxAnchorCrlK3);
-    crls[AK_K3_REVOKED].der = fxAnchorCrlK3Revoked;
-    crls[AK_K3_REVOKED].sz = (int)sizeof(fxAnchorCrlK3Revoked);
-
     for (i = 0; i < XELEM_CNT(cases) && !EXPECT_FAIL(); i++) {
-        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
+        TEST_CRL_FIXTURE_CLOCK_SET();
 
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, fxAnchorRoot1,
@@ -4358,10 +4352,15 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     /* Root CRLs, as indexes into crls. fxCrlInt is always loaded. */
     enum { CRL_OLD, CRL_OLD_REVOKED, CRL_OLD_EXPIRING, CRL_NEW, CRL_NONE };
-    struct {
+    static const struct {
         const unsigned char* der;
         int sz;
-    } crls[CRL_NONE];
+    } crls[CRL_NONE] = {
+        { fxCrlOld5, (int)sizeof(fxCrlOld5) },                  /* OLD */
+        { fxCrlOld6, (int)sizeof(fxCrlOld6) },                  /* REVOKED */
+        { fxCrlOld4Expiring, (int)sizeof(fxCrlOld4Expiring) },  /* EXPIRING */
+        { fxCrlNew1, (int)sizeof(fxCrlNew1) }                   /* NEW */
+    };
     static const struct {
         int first;
         int second;
@@ -4383,15 +4382,6 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
     };
     size_t i;
 
-    crls[CRL_OLD].der = fxCrlOld5;
-    crls[CRL_OLD].sz = (int)sizeof(fxCrlOld5);
-    crls[CRL_OLD_REVOKED].der = fxCrlOld6;
-    crls[CRL_OLD_REVOKED].sz = (int)sizeof(fxCrlOld6);
-    crls[CRL_OLD_EXPIRING].der = fxCrlOld4Expiring;
-    crls[CRL_OLD_EXPIRING].sz = (int)sizeof(fxCrlOld4Expiring);
-    crls[CRL_NEW].der = fxCrlNew1;
-    crls[CRL_NEW].sz = (int)sizeof(fxCrlNew1);
-
     for (i = 0; i < XELEM_CNT(cases) && !EXPECT_FAIL(); i++) {
         struct test_memio_ctx test_ctx;
         WOLFSSL_CTX* ctx_c = NULL;
@@ -4404,8 +4394,7 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
         load[0] = cases[i].first;
         load[1] = cases[i].second;
 
-        test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_NOW;
-        ExpectIntEQ(wc_SetTimeCb(test_crl_fixture_time_cb), 0);
+        TEST_CRL_FIXTURE_CLOCK_SET();
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
             &ssl_s, wolfSSLv23_client_method, wolfSSLv23_server_method,
@@ -4430,8 +4419,7 @@ int test_wolfSSL_CRL_chain_same_name_key_rollover(void)
         }
         wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
         if (cases[i].later) {
-            test_crl_fixture_time =
-                (time_t)TEST_CRL_FIXTURE_LATER;
+            test_crl_fixture_time = (time_t)TEST_CRL_FIXTURE_LATER;
         }
 
         if (cases[i].expected == 0) {

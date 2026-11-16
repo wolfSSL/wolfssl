@@ -18610,7 +18610,6 @@ static int ProcessPeerCertsChainOCSPStatusCheck(WOLFSSL* ssl)
 #endif
 
 #ifdef HAVE_CRL
-
 static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
 {
     Signer* prev = NULL;
@@ -18618,7 +18617,7 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
     int ret = 0;
     WOLFSSL_CERT_MANAGER* cm = SSL_CM(ssl);
     Signer* ca = args->dCert->ca;
-    word32 walkIterationCnt = 0;
+    word32 depth = 0;
     /* Walk up the chain checking each CA against its issuer's CRL. Stop when:
      *   - the issuer isn't loaded (ca == NULL),
      *   - we reach a self-signed root (FindSignerByAkidOrName returns ca, so
@@ -18632,7 +18631,7 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
          * key's CRL when the issuer has several keys under one name. */
         const byte* caAkid = NULL;
 
-        if (++walkIterationCnt > WOLFSSL_MAX_CHAIN_DEPTH) {
+        if (++depth > WOLFSSL_MAX_CHAIN_DEPTH) {
             ret = ASN_PATHLEN_SIZE_E;
             break;
         }

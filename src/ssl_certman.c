@@ -3098,8 +3098,8 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 
 #ifdef HAVE_CRL
 /* Find the trust anchor that ca chains up to in cm.
- * Walks issuers with FindSignerByAkidOrName() and returns the top of the chain: the first
- * CA that is self-signed or whose issuer isn't loaded.
+ * Walks issuers with FindSignerByAkidOrName() and returns the top of the
+ * chain: the first CA that is self-signed or whose issuer isn't loaded.
  * Returns NULL if ca is NULL, or if no single anchor exists because the chain
  * loops or is longer than WOLFSSL_MAX_CHAIN_DEPTH. */
 Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)

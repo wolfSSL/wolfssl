@@ -546,7 +546,7 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
  *                   or either side has no AKID.
  *   other-key CRLs: signed by a different key of the same-name CA.
  *
- * If a cert has an own key CRL we prefer that. Otherwise we check the other
+ * If a cert has an own-key CRL we prefer that. Otherwise we check the other
  * CRLs for the issuer to see if the cert is revoked there.
  *
  * CRLs that fail signature verification are skipped entirely.
@@ -559,10 +559,11 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 {
     CRL_Entry* crle;
     int        ret = 0;
-    int        ownSeen = 0; /* found CRL with AKID == Cert AKID + Issuer same */
-    int        ownFresh = 0; /* CRL was not expired */
-    int        otherSeen = 0; /* Found CRL with same Issuer as Cert */
-    int        otherFresh = 0; /* CRL was not expired */
+    int        ownSeen = 0;    /* Verified own-key CRL found. */
+    int        ownFresh = 0;   /* ...and one of them is not expired. */
+    int        otherSeen = 0;  /* Verified other-key CRL from the cert's
+                                * trust anchor found. */
+    int        otherFresh = 0; /* ...and one of them is not expired. */
 #if !defined(NO_SKID) && !defined(NO_ASN)
     /* Trust anchor of the cert's issuer. Only needed for other-key CRLs, so
      * it is looked up lazily the first time one is found. */
@@ -607,7 +608,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             vret = VerifyCRLE(crl, crle, cm, 0);
         }
         else if (crle->verified == 0) {
-            if (wc_LockMutex(&crle->verifyMutex) != 0) {
+            if ((ret = wc_LockMutex(&crle->verifyMutex)) != 0) {
                 WOLFSSL_MSG("wc_LockMutex failed");
                 break;
             }
@@ -650,6 +651,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         if (!ownKey) {
             Signer* crlAnchor;
 
+            /* GetCA() takes a non-const hash but doesn't modify it. */
             if (!certAnchorSet) {
                 certAnchor = GetCATrustAnchor(cm, GetCA(cm, (byte*)akid));
                 certAnchorSet = 1;
@@ -696,7 +698,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     if (ret == 0) {
         /* If a crl for the cert was found we check if the crl was expired and
          * return our finding. If the CRL was fresh we set pFoundEntry to 1. */
-        int seen  = ownSeen ? ownSeen : otherSeen;
+        int seen  = ownSeen || otherSeen;
         int fresh = ownSeen ? ownFresh : otherFresh;
 
         *pFoundEntry = fresh;
@@ -1834,7 +1836,7 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
         return WOLFSSL_SUCCESS;
     }
 
-    /* find tail of current list and add new list */
+    /* Merge the new CRL's entries into the store's existing list. */
     crl  = store->cm->crl;
     if (newcrl->crlList != NULL) {
         CRL_Entry *toAdd;

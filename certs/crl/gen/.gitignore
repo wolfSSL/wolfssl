@@ -1,0 +1,5 @@
+# Output of test_sk_X509_CRL_encode, checked by scripts/crl-gen-openssl.test.
+# Keep the directory and the fixture script, ignore the rest.
+*
+!.gitignore
+!gen-crl-fixtures.sh
