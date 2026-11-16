@@ -28,6 +28,9 @@
 
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
+    #if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+        #include <wolfssl/wolfcrypt/port/Espressif/esp32-ecdsa.h>
+    #endif
     #ifdef HAVE_SELFTEST
         /* point compression types. */
         #define ECC_POINT_COMP_EVEN 0x02
@@ -3299,6 +3302,12 @@ static int wolfssl_ec_key_int_copy(ecc_key* dst, const ecc_key* src)
         dst->state = src->state;
         dst->flags = src->flags;
     }
+
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    if (ret == 0 && dst != src) {
+        ret = wc_esp32_ecdsa_copy((ecc_key*)src, dst);
+    }
+#endif
 
     return ret;
 }

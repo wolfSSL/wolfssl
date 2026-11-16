@@ -113,7 +113,8 @@
      * with operand length N = 32 * x, where x in {1, 2, 3, . . . , 48}.
      * 32 * (96/2) = 32 * (48/2) = 1536 */
     #define ESP_HW_MULTI_RSAMAX_BITS    1536
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     /* See 22.3.1 Large-number Modular Exponentiation
      *   esp32-c6_technical_reference_manual_en.pdf
      * The RSA accelerator supports operands of length N = (32 * x),
@@ -166,7 +167,10 @@
 #endif
 #define ESP_WAIT_TIMEOUT(cnt)    (cnt >= ESP_RSA_WAIT_TIMEOUT_CNT)
 
-#if defined(CONFIG_IDF_TARGET_ESP32C3)
+#if defined(CONFIG_IDF_TARGET_ESP32C5) || \
+    (defined(CONFIG_IDF_TARGET_ESP32C6) && ESP_IDF_VERSION_MAJOR >= 6)
+    #include <esp_crypto_periph_clk.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
     #include <soc/system_reg.h>
     #include <soc/hwcrypto_reg.h>
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
@@ -207,7 +211,10 @@ struct esp_mp_helper
 #endif
 };
 
+#if !defined(CONFIG_IDF_TARGET_ESP32C5) && \
+    (!defined(CONFIG_IDF_TARGET_ESP32C6) || ESP_IDF_VERSION_MAJOR < 6)
 static portMUX_TYPE wc_rsa_reg_lock = portMUX_INITIALIZER_UNLOCKED;
+#endif
 
 /* usage metrics can be turned on independently of debugging */
 #ifdef WOLFSSL_HW_METRICS
@@ -300,7 +307,9 @@ static int esp_mp_hw_wait_clean(void)
         /*  wait. expected delay 1 to 2 uS  */
         ESP_EM__MP_HW_WAIT_CLEAN
     }
-#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
+      defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     ESP_EM__PRE_MP_HW_WAIT_CLEAN
     while (!ESP_TIMEOUT(++timeout) &&
         DPORT_REG_READ(RSA_QUERY_CLEAN_REG) != 1) {
@@ -464,30 +473,24 @@ static int esp_mp_hw_lock(void)
         }
         portEXIT_CRITICAL_SAFE(&wc_rsa_reg_lock);
     }
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      (defined(CONFIG_IDF_TARGET_ESP32C6) && ESP_IDF_VERSION_MAJOR >= 6)
+    if (ret == ESP_OK) {
+        /* The MPI API also handles power and reset. */
+        esp_crypto_mpi_enable_periph_clk(true);
+    }
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
-    /* See: 21.3 Functional Description
-     *
-     * The RSA accelerator is activated on the ESP32-C6 by:
-     *   setting  the PCR_RSA_CLK_EN bit
-     *      and
-     *   clearing the PCR_RSA_RST_EN bit
-     * in the PCR_RSA_CONF_REG register.
-     *
-     * Additionally, users also need to clear PCR_DS_RST_EN bit to
-     * reset Digital Signature (DS).*/
+    /* ESP-IDF 5.x uses the older peripheral and register APIs. */
     if (ret == ESP_OK) {
         periph_module_enable(PERIPH_RSA_MODULE);
         portENTER_CRITICAL_SAFE(&wc_rsa_reg_lock);
         {
-            /* TODO: When implementing DS (Digital Signature HW), need to
-             * check if it is in use before disabling: */
             DPORT_REG_CLR_BIT((volatile void *)(PCR_DS_CONF_REG),
-                                                PCR_DS_RST_EN );
-
+                                                PCR_DS_RST_EN);
             DPORT_REG_SET_BIT((volatile void *)(PCR_RSA_CONF_REG),
-                                                PCR_RSA_CLK_EN );
+                                                PCR_RSA_CLK_EN);
             DPORT_REG_CLR_BIT((volatile void *)(PCR_RSA_CONF_REG),
-                                                PCR_RSA_RST_EN );
+                                                PCR_RSA_RST_EN);
         }
         portEXIT_CRITICAL_SAFE(&wc_rsa_reg_lock);
     }
@@ -573,10 +576,10 @@ static int esp_mp_hw_unlock(void)
                               SYSTEM_RSA_MEM_PD);
         }
         portEXIT_CRITICAL_SAFE(&wc_rsa_reg_lock);
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      (defined(CONFIG_IDF_TARGET_ESP32C6) && ESP_IDF_VERSION_MAJOR >= 6)
+        esp_crypto_mpi_enable_periph_clk(false);
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
-        /* TODO: When implementing DS (Digital Signature HW), need to
-         * notify RSA HW is available. */
-
         portENTER_CRITICAL_SAFE(&wc_rsa_reg_lock);
         {
             DPORT_REG_SET_BIT((volatile void *)(PCR_RSA_CONF_REG),
@@ -808,7 +811,8 @@ static int wait_until_done(word32 reg)
     }
     ESP_EM__DPORT_FIFO_READ;
 
-#if defined(CONFIG_IDF_TARGET_ESP32C6)
+#if defined(CONFIG_IDF_TARGET_ESP32C5) || \
+    defined(CONFIG_IDF_TARGET_ESP32C6)
     /* Write 1 or 0 to the RSA_INT_ENA_REG register to
      * enable or disable the interrupt function. */
     DPORT_REG_WRITE(RSA_INT_CLR_REG, 1); /* write 1 to clear */
@@ -1203,7 +1207,9 @@ int esp_mp_montgomery_init(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M,
     */
 #if defined(CONFIG_IDF_TARGET_ESP32)
     exp = mph->hwWords_sz << 6;
-#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
+      defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     exp = mph->maxWords_sz * BITS_IN_ONE_WORD * 2;
 #elif defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
     exp = mph->maxWords_sz * BITS_IN_ONE_WORD * 2;
@@ -1644,7 +1650,8 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
         /* 6. read the result form MEM_Z              */
         esp_memblock_to_mpint(RSA_MEM_Z_BLOCK_BASE, Z, resultWords_sz);
     }
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     /* Unlike the ESP32 that is limited to only four operand lengths,
      * the ESP32-C6 The RSA Accelerator supports large-number modular
      * multiplication with operands of 96 different lengths. (1 .. 96 words)
@@ -1967,7 +1974,9 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
+      defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     word32 OperandBits;
     int WordsForOperand;
 #elif defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -2305,7 +2314,8 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
     }
     /* end if CONFIG_IDF_TARGET_ESP32C3 */
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     /* Steps to perform large number modular multiplication.
      * Calculates Z = (X * Y) modulo M.
      * The number of bits in the operands (X, Y) is N. N can be 32x,where
@@ -2695,7 +2705,9 @@ int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
     /* different calc */
-#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
+      defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     word32 OperandBits;
     word32 WordsForOperand;
 #elif defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -2956,7 +2968,8 @@ int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
     }
     /* end if CONFIG_IDF_TARGET_ESP32C3 */
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     OperandBits = max(max(mph->Xs, mph->Ys), mph->Ms);
     if (OperandBits > ESP_HW_MOD_RSAMAX_BITS) {
     #ifdef WOLFSSL_HW_METRICS

@@ -28,7 +28,11 @@ echo "Found IDF_PATH = $IDF_PATH"
 # Note these tests should FAIL if wolfSSL is already installed in ESP-IDF
 #
 for file in "benchmark" "client" "server" "test"; do
-    pushd ${SCRIPT_DIR}/examples/wolfssl_${file}/ && idf.py fullclean build;
+    pushd ${SCRIPT_DIR}/examples/wolfssl_${file}/ || exit 1
+    if [[ -n "${IDF_TARGET}" ]]; then
+        idf.py set-target "${IDF_TARGET}" || exit 1
+    fi
+    idf.py fullclean build
     THIS_ERR=$?
     popd
     if [ $THIS_ERR -ne 0 ]; then

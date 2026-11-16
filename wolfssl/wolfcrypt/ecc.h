@@ -570,6 +570,9 @@ struct ecc_key {
     void* devCtx;
     int devId;
 #endif
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    void* esp32EcdsaCtx;
+#endif
 #ifdef WOLFSSL_SILABS_SE_TYPES
     sl_se_command_context_t  cmd_ctx;
     sl_se_key_descriptor_t   key;

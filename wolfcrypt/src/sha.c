@@ -92,7 +92,8 @@
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 
 #if defined(WOLFSSL_ESP32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
+    !defined(CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT)
     /* define a single keyword for simplicity & readability
      *
      * by default the HW acceleration is on for ESP32-WROOM32
@@ -114,7 +115,8 @@
 
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 #if defined(WOLFSSL_ESP32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
+    !defined(CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT)
     /* define a single keyword for simplicity & readability
      *
      * by default the HW acceleration is on for ESP32-WROOM32
@@ -947,6 +949,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
             #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
                   defined(CONFIG_IDF_TARGET_ESP8684) || \
                   defined(CONFIG_IDF_TARGET_ESP32C3) || \
+                  defined(CONFIG_IDF_TARGET_ESP32C5) || \
                   defined(CONFIG_IDF_TARGET_ESP32C6)    \
                 ) && \
                  defined(WOLFSSL_ESP32_CRYPT) && \
@@ -1042,6 +1045,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP8684) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32C5) || \
               defined(CONFIG_IDF_TARGET_ESP32C6)    \
             ) && \
              defined(WOLFSSL_ESP32_CRYPT) && \
@@ -1104,6 +1108,7 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
+          defined(CONFIG_IDF_TARGET_ESP32C5) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)    \
         ) && \
          defined(WOLFSSL_ESP32_CRYPT) && \
@@ -1187,6 +1192,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP8684) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32C5) || \
               defined(CONFIG_IDF_TARGET_ESP32C6)    \
             ) && \
              defined(WOLFSSL_ESP32_CRYPT) && \
@@ -1243,6 +1249,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
+          defined(CONFIG_IDF_TARGET_ESP32C5) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)    \
         ) && \
          defined(WOLFSSL_ESP32_CRYPT) && \
@@ -1306,6 +1313,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
       defined(CONFIG_IDF_TARGET_ESP8684) || \
       defined(CONFIG_IDF_TARGET_ESP32C3) || \
+      defined(CONFIG_IDF_TARGET_ESP32C5) || \
       defined(CONFIG_IDF_TARGET_ESP32C6)    \
     ) && \
     defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
@@ -1350,6 +1358,7 @@ if (sha->ctx.mode == ESP32_SHA_HW) {
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
+          defined(CONFIG_IDF_TARGET_ESP32C5) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)    \
         ) && \
         defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
@@ -1445,7 +1454,8 @@ void wc_ShaFree(wc_Sha* sha)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
-#if defined(WOLFSSL_ESP32) &&  !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32) && !defined(NO_ESP32_CRYPT) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     esp_sha_release_unfinished_lock(&sha->ctx);
 #endif
 

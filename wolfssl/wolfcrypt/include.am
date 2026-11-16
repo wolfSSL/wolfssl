@@ -139,6 +139,8 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/tropicsquare/tropic01.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
+                         wolfssl/wolfcrypt/port/Espressif/esp32-ecc.h \
+                         wolfssl/wolfcrypt/port/Espressif/esp32-ecdsa.h \
                          wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h \

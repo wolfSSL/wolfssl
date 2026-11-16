@@ -424,6 +424,21 @@
     /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
     /***** END CONFIG_IDF_TARGET_ESP32C3 *****/
 
+#elif defined(CONFIG_IDF_TARGET_ESP32C5)
+    /* wolfSSL HW Acceleration supported on ESP32-C5. Uncomment to disable: */
+
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_AES             */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI         */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_ECC             */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_ECDSA           */
+    /***** END CONFIG_IDF_TARGET_ESP32C5 *****/
+
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
     /* wolfSSL HW Acceleration supported on ESP32-C6. Uncomment to disable: */
 

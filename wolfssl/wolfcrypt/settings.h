@@ -829,6 +829,8 @@
 #endif
 
 #if defined(WOLFSSL_ESPIDF)
+    #include <esp_idf_version.h>
+
     #define SIZEOF_LONG_LONG 8
 
     #ifndef WOLFSSL_MAX_ERROR_SZ
@@ -1204,8 +1206,16 @@
            " not " "NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI"
 #endif
 
+#if defined(CONFIG_IDF_TARGET_ESP32C5) && ESP_IDF_VERSION_MAJOR < 6 && \
+    !defined(NO_ESP32_CRYPT)
+    /* The C5 port uses the ESP-IDF 6.x crypto clock helpers. */
+    #define NO_ESP32_CRYPT
+#endif
+
 #if defined(WOLFSSL_ESP32) || defined(WOLFSSL_ESPWROOM32SE)
-    #ifndef NO_ESP32_CRYPT
+    #if !defined(NO_ESP32_CRYPT) && \
+        (!defined(CONFIG_IDF_TARGET_ESP32C5) || ESP_IDF_VERSION_MAJOR >= 6)
+        /* The C5 port uses the ESP-IDF 6.x crypto clock helpers. */
         #define WOLFSSL_ESP32_CRYPT
         #if defined(ESP32_USE_RSA_PRIMITIVE) && \
             !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
@@ -1214,11 +1224,22 @@
         #endif
     #endif
 
+    #if defined(CONFIG_IDF_TARGET_ESP32C5) && defined(HAVE_ECC) && \
+        ESP_IDF_VERSION_MAJOR >= 6 && \
+        defined(CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN) && \
+        !defined(CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT) && \
+        !defined(NO_ESP32_CRYPT) && \
+        !defined(NO_WOLFSSL_ESP32_CRYPT_ECDSA) && \
+        !defined(NO_WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+        #define WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE
+    #endif
+
     #if defined(WOLFSSL_SP_RISCV32)
         #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
             defined(CONFIG_IDF_TARGET_ESP32C3) || \
+            defined(CONFIG_IDF_TARGET_ESP32C5) || \
             defined(CONFIG_IDF_TARGET_ESP32C6)
-            /* ok, only the known C2, C3, C6 chips allowed */
+            /* ok, only the known C2, C3, C5, C6 chips allowed */
         #else
             #error "WOLFSSL_SP_RISCV32 can only be used on RISC-V architecture"
         #endif
@@ -1281,7 +1302,8 @@
             /* Observed: 0x2624B2 @ 80MHz */
             #define ESP_RSA_TIMEOUT_CNT      0x280000
         #endif
-    #elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    #elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+          defined(CONFIG_IDF_TARGET_ESP32C6)
         #ifndef ESP_RSA_TIMEOUT_CNT
             /* Observed: 144323 @ 80MHz */
             #define ESP_RSA_TIMEOUT_CNT      0x160000

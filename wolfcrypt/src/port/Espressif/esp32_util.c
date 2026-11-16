@@ -30,6 +30,10 @@
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#if defined(WOLFSSL_ESP32_CRYPT_ECC) || \
+    defined(WOLFSSL_ESP32_CRYPT_ECDSA)
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-ecc.h>
+#endif
 
 #if HAVE_LIBWOLFSSL_OUTPUT_HEADER
     /* see wolfssl component CMakeLists.txt that may have generated this: */
@@ -268,8 +272,8 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
     /* TODO find Xthal for C2 */
 #elif CONFIG_IDF_TARGET_ESP32C3
     /* not supported at this time */
-#elif CONFIG_IDF_TARGET_ESP32C6
-    /* TODO find Xthal for C6 */
+#elif CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32C6
+    /* RISC-V targets do not provide Xthal_have_ccount. */
 #elif CONFIG_IDF_TARGET_ESP32H2
     /* TODO find Xthal for H2 */
 #elif CONFIG_IDF_TARGET_ESP32S2
@@ -308,6 +312,8 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
         WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C2.");
     #elif defined(CONFIG_IDF_TARGET_ESP32C3)
         WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C3.");
+    #elif defined(CONFIG_IDF_TARGET_ESP32C5)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C5.");
     #elif defined(CONFIG_IDF_TARGET_ESP32C6)
         WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C6.");
     #elif defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -688,7 +694,8 @@ int ShowExtendedSystemInfo(void)
                    CONFIG_ESP32C3_DEFAULT_CPU_FREQ_MHZ
             );
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C5) || \
+      defined(CONFIG_IDF_TARGET_ESP32C6)
     ESP_LOGI(TAG, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = %u MHz",
                    CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
             );
@@ -760,6 +767,7 @@ esp_err_t esp_DisableWatchdog(void)
             rtc_wdt_disable();
         #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32C5) || \
               defined(CONFIG_IDF_TARGET_ESP32C6) || \
               defined(CONFIG_IDF_TARGET_ESP32H2) || \
               defined(CONFIG_IDF_TARGET_ESP32P4)
@@ -811,6 +819,7 @@ esp_err_t esp_EnabledWatchdog(void)
             rtc_wdt_enable();
         #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32C5) || \
               defined(CONFIG_IDF_TARGET_ESP32C6) || \
               defined(CONFIG_IDF_TARGET_ESP32H2) || \
               defined(CONFIG_IDF_TARGET_ESP32P4)
@@ -990,6 +999,11 @@ esp_err_t esp_hw_show_metrics(void)
                       "HW AES not enabled");
     #else
         esp_hw_show_aes_metrics();
+    #endif
+
+    #if defined(WOLFSSL_ESP32_CRYPT_ECC) || \
+        defined(WOLFSSL_ESP32_CRYPT_ECDSA)
+        esp_hw_show_ecc_metrics();
     #endif
 #else
     ESP_LOGV(TAG, "WOLFSSL_HW_METRICS is not enabled");

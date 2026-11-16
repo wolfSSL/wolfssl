@@ -7,8 +7,46 @@ Support for the ESP32 on-board cryptographic hardware acceleration for symmetric
 * ESP32S3 - Supported
 * ESP32C2 - Software only (contact support to request hardware acceleration)
 * ESP32C3 - Supported
+* ESP32C5 - Supported
 * ESP32C6 - Supported
 * ESP32H2 - Software only (contact support to request hardware acceleration)
+
+ESP32-C5 hardware acceleration requires ESP-IDF 6.x and includes SHA384,
+SHA512, SHA512/224 and SHA512/256; these algorithms are not disabled for
+ESP32-C5 in `user_settings.h`. Older IDF releases build in software-only mode.
+
+### ESP32-C5 ECC and ECDSA
+
+The ESP32-C5 port additionally supports general ECC operations for SECP192R1,
+SECP256R1 and SECP384R1, transparent ECDSA signature verification, and opaque
+ECDSA signing and public-key export using eFuse or Key Manager keys. Private
+keys used by the opaque interface remain in the hardware; only the public key
+is exported.
+
+ECDSA signing with an ordinary wolfCrypt private key is performed by wolfCrypt
+software, with the ECC point multiplication accelerated by the ESP32-C5
+hardware. Transparent ECDSA verification uses the hardware directly.
+
+The following optional macros disable the corresponding ESP32-C5 hardware
+support:
+
+* `NO_WOLFSSL_ESP32_CRYPT_ECC`: disable general ECC point multiplication.
+* `NO_WOLFSSL_ESP32_CRYPT_ECDSA`: disable hardware ECDSA verification and
+  opaque ECDSA support.
+* `NO_WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE`: disable only opaque eFuse and Key
+  Manager support, leaving transparent verification enabled.
+
+Opaque ECDSA support requires the ESP-IDF `esp_security` and `mbedtls`
+components, and both of these ESP-IDF configuration options:
+
+```text
+CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN=y
+CONFIG_MBEDTLS_HARDWARE_ECDSA_VERIFY=y
+```
+
+**wolfSSL never burns eFuses.** eFuse and Key Manager provisioning must be
+performed independently as a separate, deliberate manual step before using
+opaque keys. The library only uses keys that have already been provisioned.
 
 ## ESP32 Acceleration
 
@@ -19,12 +57,42 @@ More details about ESP32 HW Acceleration can be found in:
 * `esp32-s3_technical_reference_manual_en.pdf`
 * `esp8684_technical_reference_manual_en.pdf`
 * `esp32-c3_technical_reference_manual_en.pdf`
+* `esp32-c5_technical_reference_manual_en.pdf`
 * `esp32-c6_technical_reference_manual_en.pdf`
 * `esp32-h2_technical_reference_manual_en.pdf`
 
 ### Building
 
 Simply run `ESP-IDF.py` in any of the [Espressif/ESP-IDF/Examples](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples).
+
+For an optional on-device eFuse ECDSA test, first provision a throwaway
+P-256 key with the `ECDSA_KEY_P256` purpose in a dedicated, empty KEY block,
+then define `WOLFSSL_ESP32C5_TEST_EFUSE_BLOCK` to that block number. The test
+signs and verifies repeatedly with the original and a copied opaque key,
+exports the public key, and checks that private-key export is rejected. It
+never provisions, erases, or write-protects eFuse. Do not use production keys
+for this test.
+
+A separate `WOLFSSL_ESP32C5_TEST_KM` option deploys a random, throwaway P-256
+key through the Key Manager AES mode using a software init key, then checks
+signing, verification and private-export rejection. This test uses no NVS and
+does not burn eFuse.
+
+`WOLFSSL_ESP32C5_TEST_SHA_COPY` verifies SHA-224, SHA-384 and SHA-512/224
+active hardware copies by continuing both source and destination contexts and
+comparing known digests. `WOLFSSL_ESP32C5_TEST_SHA_LOCK` repeatedly abandons
+active SHA-224/256/384/512 contexts without finalizing them and verifies in
+hardware mode that later hashes reacquire the engine. It requires all four hash
+algorithms and their hardware acceleration; other configurations return
+`NOT_COMPILED_IN` instead of passing through software fallback. Define
+`WOLFSSL_ESP32C5_TEST_MULTITHREADED` as well to exercise the FreeRTOS
+same-task owner path instead of the example's default `SINGLE_THREADED` build.
+`WOLFSSL_ESP32C5_TEST_ECC_CURVES` checks SECP192R1, PRIME192V2 and PRIME192V3
+key generation, signing and verification; it also requires `HAVE_ECC192`,
+`ECC_MIN_KEY_SZ=192`, `HAVE_ECC_SECPR2` and `HAVE_ECC_SECPR3`. These tests need
+no eFuse or Key Manager access. Keep all optional hardware tests disabled
+except on a dedicated test board.
+
 See the respective project README files. Examples are also available using wolfssl as a [Managed Component](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/).
 
 Hardware acceleration is enabled by default. All settings should be adjusted in the respective project component

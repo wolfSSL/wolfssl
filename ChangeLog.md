@@ -2,6 +2,11 @@
 
 ## New Features
 
+* Added ESP32-C5 hardware acceleration for AES-128/256, SHA-1/224/256/384/512,
+  SHA-512/224/256, RSA/MPI, SECP192R1/256R1/384R1 point multiplication and
+  transparent ECDSA verification. Also added eFuse and Key Manager opaque
+  ECDSA signing and public-key export using ESP-IDF v6.1.
+
 * Added `WOLFSSL_NO_RSA_SW` and `WOLFSSL_NO_ECC_SW` for hardware-only public-key
   builds on the NXP SE05x and Arm CryptoCell-310 ports. `WOLFSSL_NO_RSA_SW`
   leaves out the software modular exponentiation, the prime search behind

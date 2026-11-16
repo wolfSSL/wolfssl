@@ -1,0 +1,9 @@
+# Note that during the build process, settings from sdkconfig.defaults will not override those already in sdkconfig.
+# See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html#custom-sdkconfig-defaults
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=25500
+
+# ESP32-C5 opaque ECDSA support in the wolfSSL port
+CONFIG_MBEDTLS_HARDWARE_ECDSA_VERIFY=y
+CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN=y
+CONFIG_MBEDTLS_ECDSA_DETERMINISTIC=y

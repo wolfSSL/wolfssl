@@ -294,6 +294,14 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
 #endif
 
+#if defined(WOLFSSL_ESP32_CRYPT_ECC) || \
+    defined(WOLFSSL_ESP32_CRYPT_ECDSA)
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-ecc.h>
+#endif
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-ecdsa.h>
+#endif
+
 #ifdef WOLFSSL_SE050
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
@@ -2030,6 +2038,8 @@ const char* wc_ecc_get_name(int curve_id)
 
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 {
+    int x = 0;
+
     if (key == NULL || (keysize <= 0 && curve_id < 0)) {
         return BAD_FUNC_ARG;
     }
@@ -2038,22 +2048,9 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
         return ECC_BAD_ARG_E;
     }
 
-#ifdef WOLFSSL_SILABS_SE_TYPES
-    /* Every import and keygen path resolves the curve here, so this is where
-     * a key stops representing whatever wc_SilabsSe_EccUse*Key() bound to it.
-     * Leaving the binding set would keep the SE on the old resident key. */
-    ForceZero(key->key_raw, sizeof(key->key_raw));
-    key->silabsKeySet = 0;
-#endif
-
-    /* handle custom case */
+    /* Resolve the target before destroying any existing hardware binding. An
+     * invalid curve must leave the original key usable. */
     if (key->idx != ECC_CUSTOM_IDX) {
-        int x;
-
-        /* default values */
-        key->idx = 0;
-        key->dp = NULL;
-
         /* find ecc_set based on curve_id or key size */
         for (x = 0; ecc_sets[x].size != 0; x++) {
             if (curve_id > ECC_CURVE_DEF) {
@@ -2068,7 +2065,29 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
             WOLFSSL_MSG("ECC Curve not found");
             return ECC_CURVE_OID_E;
         }
+    }
 
+#ifdef WOLFSSL_SILABS_SE_TYPES
+    /* Every import and keygen path resolves the curve here, so this is where
+     * a key stops representing whatever wc_SilabsSe_EccUse*Key() bound to it.
+     * Leaving the binding set would keep the SE on the old resident key. */
+    ForceZero(key->key_raw, sizeof(key->key_raw));
+    key->silabsKeySet = 0;
+#endif
+
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    /* Resolving a new curve starts a new key identity. Drop any opaque
+     * binding and the (already destroyed) software scalar so the key cannot
+     * silently fall back to software signing. */
+    if (wc_esp32_ecdsa_is_opaque(key)) {
+        (void)wc_esp32_ecdsa_free(key);
+        mp_forcezero(key->k);
+        key->type = ECC_PUBLICKEY;
+    }
+#endif
+
+    /* handle custom case */
+    if (key->idx != ECC_CUSTOM_IDX) {
         key->idx = x;
         key->dp  = &ecc_sets[x];
     }
@@ -4006,6 +4025,14 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        goto exit;
    }
 
+#if defined(WOLFSSL_ESP32_CRYPT_ECC) && \
+   !defined(WOLFSSL_SMALL_STACK_CACHE)
+   err = esp32_ecc_mulmod(k, G, R, a, modulus, map, heap);
+   if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+       return err;
+   }
+#endif
+
 #if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_MATH)
    err = ecc_sp_mulmod(k, G, R, a, modulus, map, heap);
    if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
@@ -4244,6 +4271,14 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point* G, ecc_point* R, mp_int* a,
          err = mp_set(R->z, 1);
       return err;
    }
+
+#if defined(WOLFSSL_ESP32_CRYPT_ECC) && \
+   !defined(WOLFSSL_SMALL_STACK_CACHE)
+   err = esp32_ecc_mulmod(k, G, R, a, modulus, map, heap);
+   if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+       return err;
+   }
+#endif
 
    /* init variables */
    tG = NULL;
@@ -5026,6 +5061,12 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
       return ECC_BAD_ARG_E;
    }
 
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+   if (wc_esp32_ecdsa_is_opaque(private_key)) {
+      return NOT_COMPILED_IN;
+   }
+#endif
+
    /* Verify domain params supplied */
    if (wc_ecc_is_valid_idx(private_key->idx) == 0 || private_key->dp == NULL ||
        wc_ecc_is_valid_idx(public_key->idx)  == 0 || public_key->dp == NULL) {
@@ -5089,6 +5130,13 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 {
     int err = MP_OKAY;
     mp_int* k = ecc_get_k(private_key);
+
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    if (wc_esp32_ecdsa_is_opaque(private_key)) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
 #ifdef WOLFSSL_SE050
     /* A key-id handle holds no software private scalar - ECDH for such a key
      * runs on the SE050 - so the identity this function computes from the
@@ -5518,6 +5566,13 @@ static int ecc_shared_secret_point(ecc_key* private_key, ecc_point* point,
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    /* Opaque device keys must never fall back to software ECDH. */
+    if (wc_esp32_ecdsa_is_opaque(private_key)) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     /* type valid? */
     if (private_key->type != ECC_PRIVATEKEY &&
             private_key->type != ECC_PRIVATEKEY_ONLY) {
@@ -5832,7 +5887,7 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 
 static WC_INLINE void wc_ecc_reset(ecc_key* key)
 {
-    /* make sure required key variables are reset */
+    /* Reset only per-operation state, never key ownership metadata. */
     key->state = ECC_STATE_NONE;
 }
 
@@ -6171,6 +6226,11 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     if (key == NULL || rng == NULL) {
         return BAD_FUNC_ARG;
     }
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    if (wc_esp32_ecdsa_is_opaque(key)) {
+        return NOT_COMPILED_IN;
+    }
+#endif
 
     /* make sure required variables are reset */
     wc_ecc_reset(key);
@@ -7896,6 +7956,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
       return ECC_BAD_ARG_E;
    }
 
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+   if (wc_esp32_ecdsa_is_opaque(key)) {
+       return wc_esp32_ecdsa_sign_hash(in, inlen, key, r, s);
+   }
+#endif
+
 #if defined(WOLFSSL_SP_MATH)
     if (key->idx == ECC_CUSTOM_IDX || (1
     #ifndef WOLFSSL_SP_NO_256
@@ -8829,6 +8895,10 @@ int wc_ecc_free(ecc_key* key)
     if (key == NULL) {
         return 0;
     }
+
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    (void)wc_esp32_ecdsa_free(key);
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (key->devId != INVALID_DEVID) {
@@ -10491,6 +10561,17 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       }
       curveLoaded = 1;
   }
+
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA)
+  err = esp32_ecdsa_verify_hash(r, s, hash, hashlen, res, key);
+  if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+      if (curveLoaded) {
+          wc_ecc_curve_free(curve);
+          FREE_CURVE_SPECS();
+      }
+      return err;
+  }
+#endif
 
   err = ecc_verify_hash_sp(r, s, hash, hashlen, res, key);
   if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
@@ -12364,6 +12445,11 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 
     /* private key, d */
     if (d != NULL) {
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+        if (wc_esp32_ecdsa_is_opaque(key)) {
+            return NOT_COMPILED_IN;
+        }
+#endif
         if (dLen == NULL ||
             (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY))
             return BAD_FUNC_ARG;
@@ -12533,6 +12619,11 @@ static int ecc_export_private(ecc_key* key, byte* out, word32* outLen,
 WOLFSSL_ABI
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
 {
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    if (wc_esp32_ecdsa_is_opaque(key)) {
+        return NOT_COMPILED_IN;
+    }
+#endif
     if (out == NULL || outLen == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -12544,6 +12635,11 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
  * encodes it. A NULL out returns LENGTH_ONLY_E with the size needed. */
 int wc_ecc_export_private_order(ecc_key* key, byte* out, word32* outLen)
 {
+#if defined(WOLFSSL_ESP32_CRYPT_ECDSA_OPAQUE)
+    if (wc_esp32_ecdsa_is_opaque(key)) {
+        return NOT_COMPILED_IN;
+    }
+#endif
     if ((key == NULL) || (outLen == NULL)) {
         return BAD_FUNC_ARG;
     }
