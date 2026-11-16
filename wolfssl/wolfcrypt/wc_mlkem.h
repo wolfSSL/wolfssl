@@ -29,6 +29,9 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 #if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
     /* Must come after sha3.h here, unlike the other override sites: sha3.h
     * processes first with SHAKE off, so shake.h's own fallback typedef and
@@ -396,7 +399,12 @@ enum {
  * decapsulation whose cipher text was rewritten in place since it started
  * returns BAD_STATE_E. A key generation from an RNG has no
  * arguments to tell it from the one in flight, so it resumes that one:
- * re-attach the context to start another. */
+ * re-attach the context to start another.
+ *
+ * With the software async device (WOLFSSL_ASYNC_CRYPT_SW) and a key opened on
+ * it, the operation instead returns WC_PENDING_E once and the poll runs it to
+ * completion: finish it with wc_AsyncWait(..., WC_ASYNC_FLAG_NONE) and do not
+ * call it again, as for X25519. */
 typedef struct wc_MlKemNonBlock {
     void*  work;     /* keygen/encapsulate vectors, kept alive across yields */
     void*  decWork;  /* decapsulate scratch: msg and kr for the re-encryption */
@@ -447,6 +455,9 @@ struct MlKemKey {
 #ifdef WC_MLKEM_NONBLOCK
     /* Non-NULL selects resumable (non-blocking) operation. */
     wc_MlKemNonBlock* nb;
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
 #endif
 
 #ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS

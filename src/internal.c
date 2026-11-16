@@ -7712,6 +7712,147 @@ int Ed448Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
 }
 #endif /* HAVE_ED448 */
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_NONBLOCK) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_ASYNC_ENABLE_MLDSA)
+#define WOLFSSL_MLDSA_TLS_NONBLOCK
+/* Attach a non-blocking context for one operation when an async device is
+ * active. Not at key allocation: a key import runs the same resumable code
+ * and cannot pend. */
+static int MlDsaNbAttach(WOLFSSL* ssl, wc_MlDsaKey* key)
+{
+    int ret = 0;
+
+    if (ssl->devId != INVALID_DEVID && key->nb == NULL &&
+            key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLDSA) {
+        wc_MlDsaNonBlock* nb = (wc_MlDsaNonBlock*)XMALLOC(
+            sizeof(wc_MlDsaNonBlock), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (nb == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            ret = wc_MlDsaKey_set_nonblock(key, nb);
+            if (ret != 0) {
+                XFREE(nb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
+    }
+    return ret;
+}
+
+static void MlDsaNbDetach(WOLFSSL* ssl, wc_MlDsaKey* key)
+{
+    wc_MlDsaNonBlock* nb = key->nb;
+
+    if (nb != NULL) {
+        (void)wc_MlDsaKey_set_nonblock(key, NULL);
+        XFREE(nb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+}
+/* Still attached on entry: the operation pended and TLS re-entered after the
+ * poll finished it, so its output is already in place. */
+#define MlDsaNbDone(key) ((key)->nb != NULL)
+#else
+    #define MlDsaNbAttach(ssl, key) ((void)(ssl), (void)(key), 0)
+    #define MlDsaNbDetach(ssl, key) do { (void)(ssl); (void)(key); } while (0)
+    #define MlDsaNbDone(key) 0
+#endif
+
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+int MlDsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
+    word32* outSz, wc_MlDsaKey* key)
+{
+    int ret;
+
+    WOLFSSL_ENTER("MlDsaSign");
+
+    if (MlDsaNbDone(key)) {
+        MlDsaNbDetach(ssl, key);
+        WOLFSSL_LEAVE("MlDsaSign", 0);
+        return 0;
+    }
+
+    ret = MlDsaNbAttach(ssl, key);
+    if (ret != 0)
+        return ret;
+#ifdef WOLFSSL_MLDSA_TLS_NONBLOCK
+    /* initialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0) {
+        MlDsaNbDetach(ssl, key);
+        return ret;
+    }
+#endif
+
+    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, out, outSz, in, inSz, ssl->rng);
+
+    /* Handle async pending response */
+#ifdef WOLFSSL_MLDSA_TLS_NONBLOCK
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
+    }
+    else
+#endif /* WOLFSSL_MLDSA_TLS_NONBLOCK */
+    {
+        MlDsaNbDetach(ssl, key);
+    }
+
+    WOLFSSL_LEAVE("MlDsaSign", ret);
+
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_MLDSA && !WOLFSSL_MLDSA_NO_SIGN */
+
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Returns 0 when the signature verifies, SIG_VERIFY_E when it does not. */
+int MlDsaVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
+    word32 msgSz, wc_MlDsaKey* key)
+{
+    int ret;
+
+    WOLFSSL_ENTER("MlDsaVerify");
+
+    if (MlDsaNbDone(key)) {
+        /* The poll stored the result in ssl->eccVerifyRes. */
+        ret = 0;
+    }
+    else {
+        ret = MlDsaNbAttach(ssl, key);
+        if (ret != 0)
+            return ret;
+    #ifdef WOLFSSL_MLDSA_TLS_NONBLOCK
+        /* initialize event */
+        ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret != 0) {
+            MlDsaNbDetach(ssl, key);
+            return ret;
+        }
+    #endif
+
+        ret = wc_MlDsaKey_VerifyCtx(key, in, inSz, NULL, 0, msg, msgSz,
+            &ssl->eccVerifyRes);
+
+        /* Handle async pending response */
+    #ifdef WOLFSSL_MLDSA_TLS_NONBLOCK
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
+            WOLFSSL_LEAVE("MlDsaVerify", ret);
+            return ret;
+        }
+    #endif
+    }
+
+    MlDsaNbDetach(ssl, key);
+    if ((ret == 0) && (ssl->eccVerifyRes != 1)) {
+        ret = SIG_VERIFY_E;
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
+
+    WOLFSSL_LEAVE("MlDsaVerify", ret);
+
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_MLDSA && !WOLFSSL_MLDSA_NO_VERIFY */
+
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef HAVE_CURVE448
@@ -9800,7 +9941,18 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
         #endif /* HAVE_FALCON */
         #if defined(WOLFSSL_HAVE_MLDSA)
             case DYNAMIC_TYPE_MLDSA:
+            #if defined(WC_MLDSA_NONBLOCK) && \
+                defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_MLDSA)
+                {
+                    /* Free releases its scratch; the context is ours. */
+                    wc_MlDsaNonBlock* nb = ((wc_MlDsaKey*)*pKey)->nb;
+                    wc_MlDsaKey_Free((wc_MlDsaKey*)*pKey);
+                    XFREE(nb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            #else
                 wc_MlDsaKey_Free((wc_MlDsaKey*)*pKey);
+            #endif
                 break;
         #endif /* WOLFSSL_HAVE_MLDSA */
         #if defined(WOLFSSL_HAVE_SLHDSA)
@@ -10247,7 +10399,7 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
     #if defined(WOLFSSL_HAVE_MLDSA)
         case DYNAMIC_TYPE_MLDSA:
             wc_MlDsaKey_Free((wc_MlDsaKey*)pKey);
-            ret = wc_MlDsaKey_Init((wc_MlDsaKey*)pKey, NULL, INVALID_DEVID);
+            ret = wc_MlDsaKey_Init((wc_MlDsaKey*)pKey, ssl->heap, ssl->devId);
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
     #if defined(WOLFSSL_HAVE_SLHDSA)
@@ -10343,7 +10495,7 @@ void FreeKeyExchange(WOLFSSL* ssl)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-     defined(HAVE_ED448))
+     defined(HAVE_ED448) || defined(WOLFSSL_HAVE_MLDSA))
 static void DetachPendingAsyncDev(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
 {
     if (ssl == NULL || asyncDev == NULL)
@@ -10406,6 +10558,10 @@ void FreePeerCertKeys(WOLFSSL* ssl)
     FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
 #endif /* HAVE_FALCON */
 #if defined(WOLFSSL_HAVE_MLDSA)
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->peerMlDsaKey != NULL)
+        DetachPendingAsyncDev(ssl, &ssl->peerMlDsaKey->asyncDev);
+#endif
     ssl->peerMlDsaKeyPresent = 0;
     FreeKey(ssl, DYNAMIC_TYPE_MLDSA, (void**)&ssl->peerMlDsaKey);
 #endif /* WOLFSSL_HAVE_MLDSA */
