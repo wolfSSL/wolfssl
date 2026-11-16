@@ -3476,8 +3476,6 @@ int Dtls13RtxTimeout(WOLFSSL* ssl)
             (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
                     ssl->options.seenUnifiedHdr)) {
         ssl->dtls13Rtx.sendAcks = 0;
-        /* reset fast timeout as we are sending ACKs */
-        ssl->dtls13FastTimeout = 0;
         ret = SendDtls13Ack(ssl);
         if (ret != 0)
             return ret;

@@ -2999,6 +2999,85 @@ int test_dtls_drop_client_ack(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+/* A quick timeout that sends ACKs with nothing to retransmit doesn't back
+ * off, also when the timeout is already at its maximum. */
+static int test_dtls13_quick_timeout_no_backoff_ex(int atMax)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int timeout = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    wolfSSL_dtls13_set_send_more_acks(ssl_s, 0);
+    if (atMax) {
+        ExpectIntEQ(wolfSSL_dtls_set_timeout_max(ssl_s,
+            wolfSSL_dtls_get_current_timeout(ssl_s)), WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* The server only gets the first record of the client's flight. */
+    ExpectIntGE(test_ctx.s_msg_count, 2);
+    while (EXPECT_SUCCESS() && test_ctx.s_msg_count > 1)
+        ExpectIntEQ(test_memio_drop_message(&test_ctx, 0, 1), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_msg_count, 0);
+    ExpectIntEQ(wolfSSL_dtls13_use_quick_timeout(ssl_s), 1);
+    timeout = wolfSSL_dtls_get_current_timeout(ssl_s);
+
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.c_msg_count, 1);
+    ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_s), timeout);
+    ExpectIntEQ(wolfSSL_dtls13_use_quick_timeout(ssl_s), 0);
+
+    if (!atMax) {
+        /* The next full timeout still backs off. */
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_s),
+            timeout * DTLS_TIMEOUT_MULTIPLIER);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_dtls13_quick_timeout_no_backoff(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+    ExpectIntEQ(test_dtls13_quick_timeout_no_backoff_ex(0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_quick_timeout_no_backoff_ex(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls_bogus_finished_epoch_zero(void)
 {
     EXPECT_DECLS;

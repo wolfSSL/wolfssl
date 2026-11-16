@@ -56,6 +56,7 @@ int test_records_span_network_boundaries(void);
 int test_dtls_record_cross_boundaries(void);
 int test_dtls_rtx_across_epoch_change(void);
 int test_dtls_drop_client_ack(void);
+int test_dtls13_quick_timeout_no_backoff(void);
 int test_dtls_bogus_finished_epoch_zero(void);
 int test_dtls_replay(void);
 int test_dtls_timeout(void);
@@ -262,6 +263,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_dtls_record_cross_boundaries),            \
         TEST_DECL_GROUP("dtls", test_dtls_rtx_across_epoch_change),            \
         TEST_DECL_GROUP("dtls", test_dtls_drop_client_ack),                    \
+        TEST_DECL_GROUP("dtls", test_dtls13_quick_timeout_no_backoff),         \
         TEST_DECL_GROUP("dtls", test_dtls_bogus_finished_epoch_zero),          \
         TEST_DECL_GROUP("dtls", test_dtls_replay),                             \
         TEST_DECL_GROUP("dtls", test_dtls_certreq_order),                      \
