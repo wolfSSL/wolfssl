@@ -168,6 +168,13 @@
   now list `WOLFSSL_CRYPTOCELL` alongside the other ports that replace the
   software curve arithmetic.
 
+* **Fix (`XASM_VOLATILE()` on IAR and Keil AC5)**: `WOLF_C99` follows
+  `__STDC_VERSION__`, so it is defined on IAR by default (unless built with
+  `--c89` or `NO_WOLF_C99`), and its arm was checked first.  That handed IAR,
+  and Keil's AC5 armcc under `__KEIL__`, `__asm__`, which neither accepts.
+  Both now get `__asm`, which IAR keeps under `--strict` and both Keil
+  compilers accept.
+
 ## Fixes
 
 * ML-KEM and ML-DSA now keep the key's device id on their internal SHAKE hashing, so a registered crypto callback sees the SHAKE-256 Update and Final calls. by @Frauschi (PR 11544)
