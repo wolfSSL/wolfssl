@@ -1,0 +1,57 @@
+name: ML-KEM encapsulate-only server
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  # A server built with --enable-mlkem=enc has no key generation or
+  # decapsulation, so no single build can be both ends of the handshake:
+  # run its example server, blocking and non-blocking, against a full build's
+  # example client.
+  interop:
+    name: ML-KEM encapsulate-only server interop
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build
+        run: |
+          ./autogen.sh
+          mkdir full enc enc-nonblock
+          (cd full && ../configure --enable-mlkem --enable-tls-mlkem-standalone \
+              --enable-curve25519 --enable-experimental && make -j"$(nproc)")
+          (cd enc && ../configure --enable-mlkem=enc,768 \
+              --enable-tls-mlkem-standalone --enable-curve25519 \
+              --enable-experimental && make -j"$(nproc)")
+          (cd enc-nonblock && ../configure --enable-mlkem=enc,768,nonblock \
+              --enable-tls-mlkem-standalone --enable-curve25519 \
+              --enable-experimental && make -j"$(nproc)")
+
+      - name: Full client against encapsulate-only server
+        run: |
+          for server in enc enc-nonblock; do
+            for group in ML_KEM_768 X25519MLKEM768 SecP256r1MLKEM768; do
+              ready="$PWD/ready.$server.$group"
+              rm -f "$ready"
+              ./$server/examples/server/server -v 4 -p 11111 -R "$ready" &
+              pid=$!
+              for i in $(seq 100); do [ -e "$ready" ] && break; sleep 0.1; done
+              ./full/examples/client/client -v 4 -p 11111 --pqc "$group"
+              wait "$pid"
+            done
+          done

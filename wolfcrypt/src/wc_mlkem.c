@@ -540,6 +540,9 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
     #ifdef WC_MLKEM_NONBLOCK
         key->nb = NULL;
     #endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        XMEMSET(&key->asyncDev, 0, sizeof(key->asyncDev));
+    #endif
 
     #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
         key->priv = NULL;
@@ -563,6 +566,13 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
     if (ret == 0) {
         mlkem_init();
     }
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLKEM) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLKEM_NONBLOCK)
+    if (ret == 0) {
+        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_MLKEM,
+            heap, devId);
+    }
+#endif
 
     (void)devId;
 
@@ -716,6 +726,10 @@ int wc_MlKemKey_Free(MlKemKey* key)
         /* An operation abandoned mid-flight must not leak its scratch. */
         mlkemkey_nb_release(key);
         key->nb = NULL;
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLKEM) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLKEM_NONBLOCK)
+        wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_MLKEM);
 #endif
 #ifdef WOLF_CRYPTO_CB
         /* Mark the key as having no device so a second free does not call
@@ -925,6 +939,19 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         ret = NO_VALID_DEVID;
     }
 #endif
+#endif
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLKEM) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLKEM_NONBLOCK)
+    if ((ret == 0) && (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLKEM) &&
+            (key->nb != NULL)) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_MLKEM_MAKE)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->mlkemMake.key = key;
+            sw->mlkemMake.rng = rng;
+            return WC_PENDING_E;
+        }
+    }
 #endif
 
     if (ret == 0) {
@@ -2117,6 +2144,21 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
         ret = BAD_STATE_E;
     }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLKEM) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLKEM_NONBLOCK)
+    if ((ret == 0) && (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLKEM) &&
+            (key->nb != NULL)) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_MLKEM_ENCAP)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->mlkemEncap.key = key;
+            sw->mlkemEncap.ct = ct;
+            sw->mlkemEncap.ss = ss;
+            sw->mlkemEncap.rng = rng;
+            return WC_PENDING_E;
+        }
+    }
+#endif
+
     if (ret == 0) {
 #ifdef WC_MLKEM_NONBLOCK
         if ((key->nb != NULL) && (key->nb->op == MLKEM_NB_OP_ENCAP) &&
@@ -2752,6 +2794,21 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_PUB_SET) == 0)) {
         ret = BAD_STATE_E;
     }
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLKEM) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLKEM_NONBLOCK) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+    if ((ret == 0) && (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLKEM) &&
+            (key->nb != NULL)) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_MLKEM_DECAP)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->mlkemDecap.key = key;
+            sw->mlkemDecap.ss = ss;
+            sw->mlkemDecap.ct = ct;
+            sw->mlkemDecap.ctLen = len;
+            return WC_PENDING_E;
+        }
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_MLKEM
     if (ret == 0) {

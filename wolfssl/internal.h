@@ -7220,7 +7220,8 @@ struct WOLFSSL {
     word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
     byte*           certHashSigAlgo;    /* peer's cert sig/algo list */
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(WOLFSSL_HAVE_MLDSA)
     int             eccVerifyRes;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || \
@@ -8085,6 +8086,12 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
             word32 inSz, const byte* msg, word32 msgSz, ed448_key* key,
             buffer* keyBufInfo);
     #endif /* HAVE_ED448 */
+    #ifdef WOLFSSL_HAVE_MLDSA
+        WOLFSSL_LOCAL int MlDsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
+            byte* out, word32* outSz, wc_MlDsaKey* key);
+        WOLFSSL_LOCAL int MlDsaVerify(WOLFSSL* ssl, const byte* in,
+            word32 inSz, const byte* msg, word32 msgSz, wc_MlDsaKey* key);
+    #endif /* WOLFSSL_HAVE_MLDSA */
 
 #ifndef NO_CERTS
     #ifdef WOLFSSL_TRUST_PEER_CERT
