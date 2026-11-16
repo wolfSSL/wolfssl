@@ -210,11 +210,34 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
 
         WOLFSSL_ENTER("wolfSSL_ERR_get_next_error_library");
         return (int)wolfSSL_Atomic_Int_FetchAdd(&errLibNext, 1);
-    #else
+    #elif defined(SINGLE_THREADED)
         static int errLibNext = WOLFSSL_ERR_LIB_FIRST_DYNAMIC;
 
         WOLFSSL_ENTER("wolfSSL_ERR_get_next_error_library");
         return errLibNext++;
+    #else
+        static int errLibNext = WOLFSSL_ERR_LIB_FIRST_DYNAMIC;
+        static wolfSSL_Mutex errLibMutex
+            WOLFSSL_MUTEX_INITIALIZER_CLAUSE(errLibMutex);
+        #ifndef WOLFSSL_MUTEX_INITIALIZER
+        static int errLibMutexInit = 0;
+        #endif
+        int lib = 0;
+
+        WOLFSSL_ENTER("wolfSSL_ERR_get_next_error_library");
+        #ifndef WOLFSSL_MUTEX_INITIALIZER
+        if (errLibMutexInit == 0) {
+            if (wc_InitMutex(&errLibMutex) != 0) {
+                return 0;
+            }
+            errLibMutexInit = 1;
+        }
+        #endif
+        if (wc_LockMutex(&errLibMutex) == 0) {
+            lib = errLibNext++;
+            wc_UnLockMutex(&errLibMutex);
+        }
+        return lib;
     #endif
     }
 
