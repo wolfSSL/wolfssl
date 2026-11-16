@@ -1720,6 +1720,11 @@ int test_wolfSSL_X509V3_EXT(void)
     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(
         (WOLFSSL_AUTHORITY_INFO_ACCESS*)ext2, NULL);
     ext2 = NULL;
+    /* Stack of ASN1_OBJECTs borrowing x509 data: must not free that data. */
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509,
+        NID_info_access, NULL, NULL));
+    wolfSSL_AUTHORITY_INFO_ACCESS_free((WOLFSSL_AUTHORITY_INFO_ACCESS*)ext2);
+    ext2 = NULL;
 #if defined(WOLFSSL_QT)
     ExpectIntEQ(OPENSSL_sk_num(aia), 1); /* Only one URI entry for this cert */
 #else
