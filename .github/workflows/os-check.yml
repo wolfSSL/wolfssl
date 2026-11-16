@@ -244,7 +244,7 @@ jobs:
       # refresh later - a stale value only packs the schedule worse. The
       # list is kept sorted by minutes for readability, but the schedule
       # sorts by the values, not list order.
-      # --private-dir=certs stops crl-gen-openssl.test racing on certs/crl/.
+      # --private-dir=certs stops crl-gen-openssl.test racing on certs/crl/gen/.
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         if: ${{ env.SEED_DECLINED != 'true' }}
         run: |

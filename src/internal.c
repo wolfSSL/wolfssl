@@ -18621,11 +18621,13 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
     word32 walkIterationCnt = 0;
     /* Walk up the chain checking each CA against its issuer's CRL. Stop when:
      *   - the issuer isn't loaded (ca == NULL),
-     *   - we reach a self-signed root (GetCAIssuer returns ca, so ca == prev),
+     *   - we reach a self-signed root (FindSignerByAkidOrName returns ca, so
+     *     ca == prev),
      *   - two cross-certified CAs point back at each other (ca == prevPrev).
      * Longer loops are stopped by the WOLFSSL_MAX_CHAIN_DEPTH limit. */
     for (; ret == 0 && ca != NULL && ca != prev && ca != prevPrev;
-            prevPrev = prev, prev = ca, ca = GetCAIssuer(cm, ca)) {
+            prevPrev = prev, prev = ca,
+            ca = FindSignerByAkidOrName(cm, NULL, ca)) {
         /* ca's AKID identifies the key that signed ca, which picks out that
          * key's CRL when the issuer has several keys under one name. */
         const byte* caAkid = NULL;

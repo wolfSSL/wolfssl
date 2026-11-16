@@ -31,6 +31,14 @@ if [ ! -x "$UNIT_TEST" ]; then
     exit 77
 fi
 
+crl_rsa="certs/crl/gen/crlRsaOut.pem"
+crl_ecc="certs/crl/gen/crlEccOut.pem"
+
+# Remove outputs from earlier runs so a stale file is never checked in place of
+# one this run should have produced.
+rm -f "$crl_rsa" "$crl_ecc" certs/crl/gen/crlRsaOut.der \
+    certs/crl/gen/crlEccOut.der
+
 # Run the CRL unit test to generate the CRL files and avoid race conditions
 # with the full unit test run.
 echo "Generating CRLs with: $UNIT_TEST --api -$CRL_GEN_SUBTEST"
@@ -139,9 +147,6 @@ check_crl() {
         fi
     fi
 }
-
-crl_rsa="certs/crl/crlRsaOut.pem"
-crl_ecc="certs/crl/crlEccOut.pem"
 
 if [ ! -f "$crl_rsa" ] && [ ! -f "$crl_ecc" ]; then
     echo "skipping crl-gen-openssl.test: CRL outputs not found"

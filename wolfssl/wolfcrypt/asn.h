@@ -2686,6 +2686,11 @@ WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* findSignerByKeyHash(Signer *list, byte *hash);
 WOLFSSL_LOCAL Signer* findSignerByName(Signer *list, byte *hash);
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
+WOLFSSL_LOCAL Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                                             Signer* extraCAList,
+                                             Signer* cert);
+#endif
 WOLFSSL_TEST_VIS int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der);
 WOLFSSL_TEST_VIS Signer* MakeSigner(void* heap);
 WOLFSSL_TEST_VIS void    FreeSigner(Signer* signer, void* heap);

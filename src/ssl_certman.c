@@ -3097,39 +3097,8 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 #endif
 
 #ifdef HAVE_CRL
-/* Find the loaded CA that issued ca.
- * Returns ca itself if ca is self-signed (a root), or NULL if the issuer is
- * not loaded in cm. */
-Signer* GetCAIssuer(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
-{
-    Signer* candidateIssuer = NULL;
-
-    if (ca->selfSigned)
-        return ca;
-
-#ifndef NO_SKID
-    if (ca->authKeyIdSet) {
-        /* Look the issuer up by key (ca's AKID) */
-        candidateIssuer = GetCA(cm, ca->authKeyIdHash);
-        if (candidateIssuer != NULL &&
-                XMEMCMP(candidateIssuer->subjectNameHash, ca->issuerNameHash,
-                        SIGNER_DIGEST_SIZE) != 0) {
-            candidateIssuer = NULL;
-        }
-        return candidateIssuer;
-    }
-    /* No AKID: the issuer name is all there is to go on. */
-    return GetCAByName(cm, ca->issuerNameHash);
-#else
-    /* No AKID: the issuer name is all there is to go on.
-     * GetCA uses issuer when NO_SKID is set */
-    (void)candidateIssuer;
-    return GetCA(cm, ca->issuerNameHash);
-#endif
-}
-
 /* Find the trust anchor that ca chains up to in cm.
- * Walks issuers with GetCAIssuer() and returns the top of the chain: the first
+ * Walks issuers with FindSignerByAkidOrName() and returns the top of the chain: the first
  * CA that is self-signed or whose issuer isn't loaded.
  * Returns NULL if ca is NULL, or if no single anchor exists because the chain
  * loops or is longer than WOLFSSL_MAX_CHAIN_DEPTH. */
@@ -3142,7 +3111,7 @@ Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
     while (ca != NULL) {
         if (++depth > WOLFSSL_MAX_CHAIN_DEPTH)
             return NULL;
-        issuer = GetCAIssuer(cm, ca);
+        issuer = FindSignerByAkidOrName(cm, NULL, ca);
         if (issuer == NULL || issuer == ca)
             return ca;
         /* Two CAs that issued each other (cross-certified): no anchor.

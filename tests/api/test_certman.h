@@ -61,6 +61,7 @@ int test_wolfSSL_CRL_cross_ca_akid(void);
 int test_wolfSSL_CRL_unverified_no_evict(void);
 int test_wolfSSL_CRL_skip_unverifiable(void);
 int test_wolfSSL_CRL_same_name_key_rollover(void);
+int test_wolfSSL_CRL_store_add_same_series(void);
 int test_wolfSSL_CRL_chain_same_name_key_rollover(void);
 int test_wolfSSL_CRL_crl_only_signing_key(void);
 int test_wolfSSL_CRL_other_key_fallback(void);
@@ -118,6 +119,7 @@ int test_wolfSSL_trust_peer_cert_dates(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_unverified_no_evict),       \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_skip_unverifiable),         \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_same_name_key_rollover),    \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CRL_store_add_same_series),     \
     TEST_DECL_GROUP("certman",                                              \
         test_wolfSSL_CRL_chain_same_name_key_rollover),                     \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_crl_only_signing_key),      \

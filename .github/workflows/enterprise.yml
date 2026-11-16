@@ -82,7 +82,7 @@ jobs:
       # run's step summary (one whose ccache hit), or omit it for a new
       # config (defaults to 1) and refresh later.
       # --private-dir=certs gives every build dir its own certs/ copy:
-      # crl-gen-openssl.test writes generated CRLs under certs/crl/, which
+      # crl-gen-openssl.test writes generated CRLs under certs/crl/gen/, which
       # would race through the shared VPATH certs symlink.
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |

@@ -507,8 +507,8 @@ static void wb_store_crl(WOLFSSL_CERT_MANAGER* cm)
  * unverified, then marked verified by hand.
  *
  * Fixtures (tests/api/test_certman_crl_fixtures.h): key A is the old root,
- * key B the new one. A's CRLs are numbers 5 (revokes 0x10), 6 and 7 (no
- * AKID). B's is number 1 (revokes 0x10 and 0x20). */
+ * key B the new one. A's CRLs are numbers 5 (revokes 0x10), 6, 7 (no
+ * AKID), 8 and 9 (no AKID). B's is number 1 (revokes 0x10 and 0x20). */
 #if !defined(NO_SKID) && !defined(NO_ASN) && defined(HAVE_ECC) && \
     !defined(NO_ECC256) && !defined(NO_SHA256)
 
@@ -556,18 +556,34 @@ static void wb_akid_add_crl(void)
         int count;              /* Entries after both loads. */
         const char* what;
     } rows[] = {
+        /* A CRL without an AKID and one with an AKID are separate series
+         * in every load order, whichever has the higher number. */
         { 0, fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid),
-          fxCrlOld5, sizeof(fxCrlOld5), 1,
-          "AddCRL: stored entry has no AKID, number 5 < 7 rejected" },
+          fxCrlOld5, sizeof(fxCrlOld5), 2,
+          "AddCRL: stored no AKID, new lower AKID, separate series" },
         { 0, fxCrlOld5, sizeof(fxCrlOld5),
           fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid), 2,
-          "AddCRL: new entry has no AKID, kept beside the AKID one" },
+          "AddCRL: stored AKID, new higher no AKID, separate series" },
+        { 0, fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid),
+          fxCrlOld8, sizeof(fxCrlOld8), 2,
+          "AddCRL: stored no AKID, new higher AKID, separate series" },
+        { 0, fxCrlOld8, sizeof(fxCrlOld8),
+          fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid), 2,
+          "AddCRL: stored AKID, new lower no AKID, separate series" },
+        /* Two CRLs without an AKID are one series. */
+        { 0, fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid),
+          fxCrlOld9NoAkid, sizeof(fxCrlOld9NoAkid), 1,
+          "AddCRL: neither has an AKID, higher number replaces" },
+        { 0, fxCrlOld9NoAkid, sizeof(fxCrlOld9NoAkid),
+          fxCrlOld7NoAkid, sizeof(fxCrlOld7NoAkid), 1,
+          "AddCRL: neither has an AKID, lower number rejected" },
         { 0, fxCrlOld5, sizeof(fxCrlOld5), fxCrlOld6, sizeof(fxCrlOld6), 1,
           "AddCRL: same AKID, replaces by number" },
         { 0, fxCrlOld5, sizeof(fxCrlOld5), fxCrlNew1, sizeof(fxCrlNew1), 2,
           "AddCRL: other AKID, new series" },
-        { 1, fxCrlOld5, sizeof(fxCrlOld5), fxCrlNew1, sizeof(fxCrlNew1), 1,
-          "AddCRL: verified entry blocks an unverified new series" },
+        /* The verified/unverified check applies only within a series. */
+        { 1, fxCrlOld5, sizeof(fxCrlOld5), fxCrlNew1, sizeof(fxCrlNew1), 2,
+          "AddCRL: verified entry doesn't block an unverified new series" },
     };
     size_t i;
 

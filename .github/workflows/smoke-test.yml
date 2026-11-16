@@ -151,7 +151,7 @@ jobs:
       # two build-only configs at the end, all-Og and savesession, are the
       # PRB single-flag entries behind the September 2026 misses.
       # --private-dir=certs gives every build dir its own certs/
-      # copy: crl-gen-openssl.test writes generated CRLs under certs/crl/,
+      # copy: crl-gen-openssl.test writes generated CRLs under certs/crl/gen/,
       # which would race through the shared VPATH certs symlink.
       #
       # List order is schedule order: the worker threads take configs from

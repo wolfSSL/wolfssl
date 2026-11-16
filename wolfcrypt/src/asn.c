@@ -25876,12 +25876,13 @@ Signer* findSignerByName(Signer *list, byte *hash)
     return NULL;
 }
 
-#ifndef IGNORE_NAME_CONSTRAINTS
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
 /* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
  * with name-hash validation. Fall back to name-only when AKID is
- * absent. */
-static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
-                                      Signer* extraCAList, Signer* cert)
+ * absent. extraCAList may be NULL.
+ * Returns cert itself if it is self-signed, or NULL if no issuer is found. */
+Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                               Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -25891,6 +25892,9 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 #else
     (void)extraCAList;
 #endif
+
+    if (cert->selfSigned == 1)
+        return cert;
 
 #ifndef NO_SKID
     if (cert->authKeyIdSet) {
@@ -25939,7 +25943,7 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 
     return signer;
 }
-#endif /* !IGNORE_NAME_CONSTRAINTS */
+#endif /* !IGNORE_NAME_CONSTRAINTS || HAVE_CRL */
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 /* Build the PreTBS used to verify an alternative signature, allocating the

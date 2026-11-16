@@ -546,7 +546,7 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
  *                   or either side has no AKID.
  *   other-key CRLs: signed by a different key of the same-name CA.
  *
- * A if a cert has an own key CRL we prefer that. Otherwise we check the other
+ * If a cert has an own key CRL we prefer that. Otherwise we check the other
  * CRLs for the issuer to see if the cert is revoked there.
  *
  * CRLs that fail signature verification are skipped entirely.
@@ -665,7 +665,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
         if (ownKey) {
             ownSeen = 1;
-        } else if (vouches) {
+        }
+        else if (vouches) {
             otherSeen = 1;
         }
 
@@ -676,7 +677,6 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         if (ownKey) {
             ownFresh = 1;
         }
-
         else if (vouches) {
             otherFresh = 1;
         }
@@ -695,7 +695,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
     if (ret == 0) {
         /* If a crl for the cert was found we check if the crl was expired and
-         * return our finding. If the CRL was fresh we set pEntryFound to 1. */
+         * return our finding. If the CRL was fresh we set pFoundEntry to 1. */
         int seen  = ownSeen ? ownSeen : otherSeen;
         int fresh = ownSeen ? ownFresh : otherFresh;
 
@@ -961,53 +961,29 @@ static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
     return ret;
 }
 
-/* Add or replace a decoded CRL, 0 on success */
-static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
-                  const byte* buff, int verified)
+/* Insert crle into crl's list, replacing the stored CRL of the same series
+ * (same issuer name and, when SKID support is built in, the same signing key)
+ * if crle is more authoritative. Caller must hold crl->crlLock for writing.
+ *
+ * On success (0) crl takes ownership of crle. On failure (DUPE_ENTRY_E when
+ * the stored CRL is the same or newer, or a CRL number compare error) the
+ * list is unchanged and the caller still owns crle. */
+static int AddCRL_EntryLocked(WOLFSSL_CRL* crl, CRL_Entry* crle)
 {
-    CRL_Entry* curr = NULL;
+    CRL_Entry* curr;
     CRL_Entry* prev = NULL;
 #if defined(OPENSSL_EXTRA)
-    CRL_Entry* oldHead;
+    CRL_Entry* oldHead = crl->crlList;
 #endif
 #ifdef HAVE_CRL_UPDATE_CB
     CrlInfo old;
     CrlInfo cnew;
 #endif
-    int ret = 0;
+    int ret;
 
-    WOLFSSL_ENTER("AddCRL");
-
-    if (crl == NULL)
-        return WOLFSSL_FATAL_ERROR;
-
-    if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
-        WOLFSSL_MSG("Init CRL Entry failed");
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
-        WOLFSSL_MSG("wc_LockRwLock_Wr failed");
-        return BAD_MUTEX_E;
-    }
-
-#if defined(OPENSSL_EXTRA)
-    oldHead = crl->crlList;
-#endif
-
-    for (curr = crl->crlList; curr != NULL; curr = curr->next) {
+    for (curr = crl->crlList; curr != NULL; prev = curr, curr = curr->next) {
         if (XMEMCMP(crle->issuerHash, curr->issuerHash, CRL_DIGEST_SIZE) != 0) {
-            prev = curr;
             continue;
-        }
-
-        /* An unverified CRL can't replace a verified one from the same
-         * issuer. */
-        if ((curr->verified > 0) && (crle->verified == 0)) {
-            WOLFSSL_MSG("Cannot replace a verified CRL with an "
-                    "unverified one");
-            wc_UnLockRwLock(&crl->crlLock);
-            return DUPE_ENTRY_E;
         }
 
 #if !defined(NO_SKID) && !defined(NO_ASN)
@@ -1015,35 +991,44 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
          * CRL only replaces a stored one signed by the same key. Keep
          * looking (and add it as a new series if nothing matches) when:
          *   - both have an AKID and they differ, or
-         *   - the new CRL has no AKID but the stored one does.
-         * A new CRL with an AKID may replace a stored one without. */
+         *   - only one of them has an AKID.
+         * CRLs without an AKID form one series of their own. They are never
+         * compared with AKID CRLs, so neither kind can evict the other's
+         * revocations whatever the load order. RFC 5280 5.2.1 requires CRL
+         * issuers to include an AKID, but many CRLs in use lack one. */
         if (crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
-            if(XMEMCMP(crle->extAuthKeyId, curr->extAuthKeyId,
+            if (XMEMCMP(crle->extAuthKeyId, curr->extAuthKeyId,
                     KEYID_SIZE) != 0) {
-                prev = curr;
                 continue;
             }
         }
-        else if (!crle->extAuthKeyIdSet && curr->extAuthKeyIdSet) {
-            prev = curr;
+        else if (crle->extAuthKeyIdSet != curr->extAuthKeyIdSet) {
             continue;
         }
 #endif
+
+        /* Same series: an unverified CRL can't replace a verified one. This
+         * is checked only within a series, so a verified CRL from one key
+         * doesn't block an unverified one from another. */
+        if ((curr->verified > 0) && (crle->verified == 0)) {
+            WOLFSSL_MSG("Cannot replace a verified CRL with an "
+                    "unverified one");
+            return DUPE_ENTRY_E;
+        }
+
         ret = CompareCRLnumber(crle, curr);
         /* Error out if the CRL we're attempting to add isn't more
          * authoritative than the existing entry */
         if (ret == MP_LT || ret == MP_EQ) {
             WOLFSSL_MSG("Same or newer CRL entry already exists");
-            wc_UnLockRwLock(&crl->crlLock);
             return DUPE_ENTRY_E;
         }
         else if (ret < 0) {
             WOLFSSL_MSG("Error comparing CRL Numbers");
-            wc_UnLockRwLock(&crl->crlLock);
             return ret;
         }
 
-        /* Insert the new entry after the current entry. */
+        /* Put the new entry in place of the one it replaces. */
         crle->next = curr->next;
         if (prev != NULL) {
             prev->next = crle;
@@ -1060,9 +1045,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
         }
 #endif
 
-        /* Remove the current entry which was replaced */
         CRL_Entry_free(curr, crl->heap);
-
         break;
     }
 
@@ -1080,8 +1063,34 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
     }
 #endif
 
-    wc_UnLockRwLock(&crl->crlLock);
     return 0;
+}
+
+/* Add or replace a decoded CRL, 0 on success */
+static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
+                  const byte* buff, int verified)
+{
+    int ret;
+
+    WOLFSSL_ENTER("AddCRL");
+
+    if (crl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
+        WOLFSSL_MSG("Init CRL Entry failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
+        WOLFSSL_MSG("wc_LockRwLock_Wr failed");
+        return BAD_MUTEX_E;
+    }
+
+    ret = AddCRL_EntryLocked(crl, crle);
+
+    wc_UnLockRwLock(&crl->crlLock);
+    return ret;
 }
 
 
@@ -1828,7 +1837,6 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
     /* find tail of current list and add new list */
     crl  = store->cm->crl;
     if (newcrl->crlList != NULL) {
-        CRL_Entry **tail;
         CRL_Entry *toAdd;
 
         if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
@@ -1850,11 +1858,55 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
             return WOLFSSL_FAILURE;
         }
 
-        tail = &crl->crlList;
-        while (*tail != NULL)
-            tail = &(*tail)->next;
-        *tail = toAdd;
+        /* Merge each entry through the same series rules as a loaded CRL,
+         * so the store keeps one CRL per issuer and signing key. A copy that
+         * is no newer than the stored CRL of its series is dropped. */
+        ret = 0;
+        while (toAdd != NULL) {
+            CRL_Entry* ent = toAdd;
+            int addRet;
+
+            toAdd = toAdd->next;
+            ent->next = NULL;
+            addRet = 0;
+            /* The copy is usually unverified (d2i has no cm to check it
+             * against). Verify it with the store's cm now, so a newer CRL
+             * can replace a stored one that was verified on use. If the
+             * issuer isn't loaded yet leave it unverified to be checked on
+             * use, as a NO_VERIFY load would. The failure isn't cached:
+             * a negative verified would bypass the replace check. */
+            if (ent->verified == 0 && crl->cm != NULL) {
+                addRet = VerifyCRLE(crl, ent, crl->cm, 0);
+                if (addRet == 0) {
+                    ent->verified = 1;
+                }
+                else if (addRet == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E)) {
+                    addRet = 0;
+                }
+                else {
+                    WOLFSSL_MSG("CRL signature failed to verify");
+                }
+            }
+            if (addRet == 0)
+                addRet = AddCRL_EntryLocked(crl, ent);
+            if (addRet != 0) {
+                CRL_Entry_free(ent, crl->heap);
+                if (addRet != WC_NO_ERR_TRACE(DUPE_ENTRY_E)) {
+                    ret = addRet;
+                    break;
+                }
+            }
+        }
+        while (toAdd != NULL) {
+            CRL_Entry* ent = toAdd;
+            toAdd = toAdd->next;
+            CRL_Entry_free(ent, crl->heap);
+        }
         wc_UnLockRwLock(&crl->crlLock);
+        if (ret != 0) {
+            WOLFSSL_MSG("Error merging CRL into store");
+            return WOLFSSL_FAILURE;
+        }
     }
 
     if (wolfSSL_CertManagerEnableCRL(store->cm, WOLFSSL_CRL_CHECKALL)
