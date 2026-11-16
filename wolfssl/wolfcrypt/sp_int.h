@@ -60,9 +60,9 @@ extern "C" {
     typedef          char  sp_int7;
 #elif UCHAR_MAX == 65535
     /* CHAR_BIT == 16 (e.g. TI C28x): the smallest addressable type is 16-bit,
-     * so there is no native 8-bit type.  An "8-bit" SP value is a 16-bit char
-     * cell holding an octet (0..255); byte I/O masks to an octet (the same
-     * CHAR_BIT!=8 handling used elsewhere - see WOLFSSL_WIDE_BYTE). */
+     * so there is no native 8-bit type. sp_uint8 is a 16-bit char used for
+     * small values such as the sign; it cannot be a digit, so SP_WORD_SIZE 8
+     * is not supported (see below). */
     #define SP_UCHAR_BITS    16
 
     typedef unsigned char sp_uint8;
@@ -339,6 +339,16 @@ extern "C" {
 #else
     #error Word size not defined
 #endif
+
+/* sp_int_digit must have exactly SP_WORD_SIZE bits: the code relies on a cast
+ * to sp_int_digit truncating to SP_WORD_SIZE bits, and on all the bits of a
+ * digit being used, e.g. when filling digits with random data. Where a char is
+ * wider than 8 bits (e.g. TI C28x) there is no 8-bit type, so SP_WORD_SIZE 8
+ * is not supported. */
+#if (SP_WORD_SIZE == 8) && (SP_UCHAR_BITS != 8)
+    #error SP_WORD_SIZE 8 is not supported where a char is wider than 8 bits
+#endif
+wc_static_assert(sizeof(sp_int_digit) * CHAR_BIT == SP_WORD_SIZE);
 
 /* SP_WORD_SIZEOF: deprecated, same as SP_WORD_OCTETS. Kept mainly for FIPS
  * test code that is maintained outside of the wolfSSL repository and still uses
