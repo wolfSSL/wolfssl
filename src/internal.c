@@ -20676,6 +20676,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     SetRevocationVerifyRet(ssl, ret);
                     /* Do verify callback */
                     preCbRet = ret;
+                    if (heldCrlRet != 0)
+                        caIsTemp = 1;
                     ret = DoVerifyCallbackHeldCrl(ssl, args, ret, &heldCrlRet);
                     if (ret == 0 && preCbRet != 0)
                         caIsTemp = 1;
