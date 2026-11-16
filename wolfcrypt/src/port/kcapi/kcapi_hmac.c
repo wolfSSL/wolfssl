@@ -92,7 +92,12 @@ void wc_HmacFree(Hmac* hmac)
     }
 }
 
-int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
+/* KCAPI counterpart of the software wc_HmacSetKey_ex(): callers that pass
+ * allowFlag (the TLS PRF, HKDF, PBKDF2) then use wc_HmacUpdate() and
+ * wc_HmacFinal() from this file, so the key has to be set on the same
+ * backend. */
+int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
+                     int allowFlag)
 {
     int ret = 0;
     const char* ciphername = NULL;
@@ -107,15 +112,20 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 #endif
 
 #ifdef HAVE_FIPS
-    if (length < HMAC_FIPS_MIN_KEY)
-        return HMAC_MIN_KEYLEN_E;
+    if (!allowFlag) {
+        if (length < HMAC_FIPS_MIN_KEY)
+            return HMAC_MIN_KEYLEN_E;
+    }
+#else
+    (void)allowFlag;
 #endif
 
     if (ret == 0) {
         switch (type) {
         #ifndef NO_MD5
             case WC_MD5:
-                return wc_HmacSetKey_Software(hmac, type, key, length);
+                return wc_HmacSetKey_ex_Software(hmac, type, key, length,
+                                                 allowFlag);
         #endif
         #ifndef NO_SHA
             case WC_SHA:
@@ -123,7 +133,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 ciphername = WC_NAME_HMAC_SHA1;
                 break;
             #else
-                return wc_HmacSetKey_Software(hmac, type, key, length);
+                return wc_HmacSetKey_ex_Software(hmac, type, key, length,
+                                                 allowFlag);
             #endif
         #endif
         #ifdef WOLFSSL_SHA224
@@ -132,7 +143,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 ciphername = WC_NAME_HMAC_SHA224;
                 break;
             #else
-                return wc_HmacSetKey_Software(hmac, type, key, length);
+                return wc_HmacSetKey_ex_Software(hmac, type, key, length,
+                                                 allowFlag);
             #endif
         #endif
         #ifndef NO_SHA256
@@ -141,7 +153,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 ciphername = WC_NAME_HMAC_SHA256;
                 break;
             #else
-                return wc_HmacSetKey_Software(hmac, type, key, length);
+                return wc_HmacSetKey_ex_Software(hmac, type, key, length,
+                                                 allowFlag);
             #endif
         #endif
         #ifdef WOLFSSL_SHA384
@@ -150,7 +163,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 ciphername = WC_NAME_HMAC_SHA384;
                 break;
             #else
-                return wc_HmacSetKey_Software(hmac, type, key, length);
+                return wc_HmacSetKey_ex_Software(hmac, type, key, length,
+                                                 allowFlag);
             #endif
         #endif
         #ifdef WOLFSSL_SHA512
@@ -159,7 +173,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 ciphername = WC_NAME_HMAC_SHA512;
                 break;
             #else
-                return wc_HmacSetKey_Software(hmac, type, key, length);
+                return wc_HmacSetKey_ex_Software(hmac, type, key, length,
+                                                 allowFlag);
             #endif
         #endif
     #ifdef WOLFSSL_SHA3
@@ -175,7 +190,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     #ifndef WOLFSSL_NOSHA3_512
         case WC_SHA3_512:
     #endif
-            return wc_HmacSetKey_Software(hmac, type, key, length);
+            return wc_HmacSetKey_ex_Software(hmac, type, key, length,
+                                                 allowFlag);
     #endif
             default:
                 ret = BAD_FUNC_ARG;
@@ -202,6 +218,16 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     }
 
     return ret;
+}
+
+int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
+{
+    /* Same default as the software wc_HmacSetKey(). */
+#if defined(HAVE_FIPS)
+    return wc_HmacSetKey_ex(hmac, type, key, length, 0);
+#else
+    return wc_HmacSetKey_ex(hmac, type, key, length, 1);
+#endif
 }
 
 int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
