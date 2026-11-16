@@ -747,6 +747,7 @@ static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
     struct k_thread*  tid = NULL;
     k_thread_stack_t* threadStack = NULL;
     unsigned char*    myStack = NULL;
+    void*             heap = wolfsslThreadHeapHint;
 
 #ifdef HAVE_STACK_SIZE_VERBOSE
     struct stack_size_debug_context shim_args;
@@ -754,7 +755,7 @@ static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
 
     tid = (struct k_thread*)XMALLOC(
             Z_KERNEL_STACK_SIZE_ADJUST(sizeof(struct k_thread)),
-            wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+            heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tid == NULL) {
         printf("error: XMALLOC tid failed\n");
         ret = MEMORY_E;
@@ -767,7 +768,7 @@ static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
 
     threadStack = (void*)XMALLOC(
                 Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ),
-                wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+                heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (threadStack == NULL) {
         printf("error: XMALLOC threadStack failed\n");
         ret = MEMORY_E;
@@ -825,8 +826,8 @@ static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
 #endif
 
 out:
-    XFREE(tid, wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(threadStack, wolfsslThreadHeapHint,
+    XFREE(tid, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(threadStack, heap,
           DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;

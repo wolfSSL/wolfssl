@@ -5926,9 +5926,12 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 
         XMEMSET(thread, 0, sizeof(*thread));
 
+        /* Read the hint once. Join frees with the same heap. */
+        thread->heap = wolfsslThreadHeapHint;
+
         thread->tid = (struct k_thread*)XMALLOC(
                 Z_KERNEL_STACK_SIZE_ADJUST(sizeof(struct k_thread)),
-                wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+                thread->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (thread->tid == NULL) {
             WOLFSSL_MSG("error: XMALLOC thread->tid failed");
             return MEMORY_E;
@@ -5941,9 +5944,9 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
          */
         thread->threadStack = (void*)XMALLOC(
                 Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ),
-                wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+                thread->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (thread->threadStack == NULL) {
-            XFREE(thread->tid, wolfsslThreadHeapHint,
+            XFREE(thread->tid, thread->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
             thread->tid = NULL;
 
@@ -5970,7 +5973,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
         if (err != 0)
             ret = MEMORY_E;
 
-        XFREE(thread.tid, wolfsslThreadHeapHint,
+        XFREE(thread.tid, thread.heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
         thread.tid = NULL;
 
@@ -5980,7 +5983,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
          * if (err != 0)
          *     ret = MEMORY_E;
          */
-        XFREE(thread.threadStack, wolfsslThreadHeapHint,
+        XFREE(thread.threadStack, thread.heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
         thread.threadStack = NULL;
 

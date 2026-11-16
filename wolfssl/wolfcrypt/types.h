@@ -2195,6 +2195,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         /* Zephyr k_thread can be large, > 128 bytes. */
         struct k_thread* tid;
         k_thread_stack_t* threadStack;
+        void* heap;
     } THREAD_TYPE;
     #define WOLFSSL_THREAD
     extern void* wolfsslThreadHeapHint;
