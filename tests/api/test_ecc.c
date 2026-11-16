@@ -293,6 +293,14 @@ int test_wc_ecc_make_key(void)
 #endif
     ExpectIntEQ(ret, 0);
 
+    /* Generate again into the same key; the first private scalar and public
+     * point must be released, not orphaned. */
+    ret = wc_ecc_make_key(&rng, KEY14, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
     /* Pass in bad args. */
     ExpectIntEQ(wc_ecc_make_key(NULL, KEY14, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
