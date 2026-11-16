@@ -35287,6 +35287,12 @@ struct sig_algs {
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
     { sm2_sa_algo,     "SM2" },
 #endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    /* Hash is implied: written without a digest suffix. */
+    { mldsa_44_sa_algo, "MLDSA44" },
+    { mldsa_65_sa_algo, "MLDSA65" },
+    { mldsa_87_sa_algo, "MLDSA87" },
+#endif
 };
 #define SIG_NAMES_SZ    (int)(sizeof(sig_names)/sizeof(*sig_names))
 
@@ -35305,6 +35311,20 @@ static byte GetSigAlgFromName(const char* name, int len)
     }
 
     return alg;
+}
+
+/* Whether the signature algorithm has its hash implied, i.e. is written in the
+ * list without a "+<digest>" suffix. */
+static int SigAlgHasImpliedHash(byte sigAlg)
+{
+    if (sigAlg == ed25519_sa_algo || sigAlg == ed448_sa_algo)
+        return 1;
+#ifdef WOLFSSL_HAVE_MLDSA
+    if (sigAlg == mldsa_44_sa_algo || sigAlg == mldsa_65_sa_algo ||
+            sigAlg == mldsa_87_sa_algo)
+        return 1;
+#endif
+    return 0;
 }
 
 /* Set the hash/signature algorithms that are supported for certificate signing.
@@ -35332,15 +35352,23 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                 ret = 0;
                 break;
             }
+        #ifdef WOLFSSL_HAVE_MLDSA
+            /* ML-DSA has no digest: reject e.g. "MLDSA44+SHA256". */
+            if (sig_alg == mldsa_44_sa_algo || sig_alg == mldsa_65_sa_algo ||
+                    sig_alg == mldsa_87_sa_algo) {
+                ret = 0;
+                break;
+            }
+        #endif
             s = list + 1;
         }
         else if (*list == ':' || *list == '\0') {
             if (sig_alg == 0) {
                 /* No signature algorithm set yet.
-                 * Ed25519 and Ed448 have implied MAC algorithm.
+                 * Ed25519, Ed448 and ML-DSA have implied MAC algorithm.
                  */
                 sig_alg = GetSigAlgFromName(s, (int)(list - s));
-                if (sig_alg != ed25519_sa_algo && sig_alg != ed448_sa_algo) {
+                if (!SigAlgHasImpliedHash(sig_alg)) {
                     ret = 0;
                     break;
                 }
