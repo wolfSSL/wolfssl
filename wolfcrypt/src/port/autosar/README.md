@@ -28,10 +28,18 @@ CSM_UNSUPPORTED_ALGS with no driver implementation:
 
 Two deviations worth noting:
 
-- resultLengthPtr is in/out in the AutoSAR specification, but this port never
-  writes back through it for encrypt or decrypt. For CBC the output length
-  equals the input length. Csm_RandomGenerate reads it as the number of bytes
-  wanted and likewise does not update it. Csm_MacGenerate does update it.
+- resultLengthPtr is in/out, as the AutoSAR specification defines it, for
+  Csm_Encrypt and Csm_Decrypt (and their WithKey variants). Before every call
+  that includes UPDATE (SINGLECALL included) set it to the space available at
+  resultPtr; it must not be NULL. If that is less than dataLength the call
+  fails with E_SMALL_BUFFER (CSM_E_SMALL_BUFFER), nothing is written, and the
+  job is released, so start it again. On success it is replaced with the number
+  of bytes produced, which for CBC equals dataLength. Do not reuse the value
+  returned by one call as the capacity for the next without resetting it. A call
+  without UPDATE produces nothing making resultLengthPtr be 0.
+  The deviation is Csm_RandomGenerate, which reads resultLengthPtr as the
+  number of bytes wanted and does not update it. Csm_MacGenerate does update
+  it.
 - MAC lengths: Csm_MacVerify's macLength is in BITS, as the specification
   defines it, and Csm_MacGenerate's macLengthPtr is in BYTES. The asymmetry is
   the specification's, not this port's invention, but it is a footgun: passing
