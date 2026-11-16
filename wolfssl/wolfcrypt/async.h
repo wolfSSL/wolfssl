@@ -86,6 +86,16 @@ struct WC_ASYNC_DEV;
         ASYNC_SW_X25519_MAKE = 15,
         ASYNC_SW_X25519_SHARED_SEC = 16,
 #endif /* HAVE_CURVE25519 */
+#ifdef WOLFSSL_HAVE_MLDSA
+        ASYNC_SW_MLDSA_MAKE = 17,
+        ASYNC_SW_MLDSA_SIGN = 18,
+        ASYNC_SW_MLDSA_VERIFY = 19,
+#endif /* WOLFSSL_HAVE_MLDSA */
+#ifdef WOLFSSL_HAVE_MLKEM
+        ASYNC_SW_MLKEM_MAKE = 20,
+        ASYNC_SW_MLKEM_ENCAP = 21,
+        ASYNC_SW_MLKEM_DECAP = 22,
+#endif /* WOLFSSL_HAVE_MLKEM */
     };
 
 #ifdef HAVE_ECC
@@ -199,6 +209,52 @@ struct WC_ASYNC_DEV;
     };
 #endif /* HAVE_CURVE25519 */
 
+#ifdef WOLFSSL_HAVE_MLDSA
+    struct AsyncCryptSwMlDsaMake {
+        void* key; /* wc_MlDsaKey */
+        void* rng; /* WC_RNG */
+    };
+    struct AsyncCryptSwMlDsaSign {
+        void* key; /* wc_MlDsaKey */
+        const byte* ctx;
+        byte* sig;
+        word32* sigLen;
+        const byte* msg;
+        word32 msgLen;
+        void* rng; /* WC_RNG */
+        byte ctxLen;
+    };
+    struct AsyncCryptSwMlDsaVerify {
+        void* key; /* wc_MlDsaKey */
+        const byte* sig;
+        word32 sigLen;
+        const byte* ctx;
+        const byte* msg;
+        word32 msgLen;
+        int* res;
+        byte ctxLen;
+    };
+#endif /* WOLFSSL_HAVE_MLDSA */
+
+#ifdef WOLFSSL_HAVE_MLKEM
+    struct AsyncCryptSwMlKemMake {
+        void* key; /* MlKemKey */
+        void* rng; /* WC_RNG */
+    };
+    struct AsyncCryptSwMlKemEncap {
+        void* key; /* MlKemKey */
+        byte* ct;
+        byte* ss;
+        void* rng; /* WC_RNG */
+    };
+    struct AsyncCryptSwMlKemDecap {
+        void* key; /* MlKemKey */
+        byte* ss;
+        const byte* ct;
+        word32 ctLen;
+    };
+#endif /* WOLFSSL_HAVE_MLKEM */
+
     #ifdef __CC_ARM
         #pragma push
         #pragma anon_unions
@@ -235,6 +291,16 @@ struct WC_ASYNC_DEV;
         struct AsyncCryptX25519Make x25519Make;
         struct AsyncCryptX25519SharedSec x25519SharedSec;
     #endif /* HAVE_CURVE25519 */
+    #ifdef WOLFSSL_HAVE_MLDSA
+        struct AsyncCryptSwMlDsaMake mldsaMake;
+        struct AsyncCryptSwMlDsaSign mldsaSign;
+        struct AsyncCryptSwMlDsaVerify mldsaVerify;
+    #endif /* WOLFSSL_HAVE_MLDSA */
+    #ifdef WOLFSSL_HAVE_MLKEM
+        struct AsyncCryptSwMlKemMake mlkemMake;
+        struct AsyncCryptSwMlKemEncap mlkemEncap;
+        struct AsyncCryptSwMlKemDecap mlkemDecap;
+    #endif /* WOLFSSL_HAVE_MLKEM */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         }; /* union */
     #endif
@@ -315,6 +381,12 @@ struct WC_ASYNC_DEV;
     #ifndef WC_ASYNC_NO_X25519
         #define WC_ASYNC_ENABLE_X25519
     #endif
+    #ifndef WC_ASYNC_NO_MLDSA
+        #define WC_ASYNC_ENABLE_MLDSA
+    #endif
+    #ifndef WC_ASYNC_NO_MLKEM
+        #define WC_ASYNC_ENABLE_MLKEM
+    #endif
 #endif /* WC_ASYNC_NO_PKI */
 #ifndef WC_ASYNC_NO_HASH
     #ifndef WC_ASYNC_NO_SHA512
@@ -365,6 +437,8 @@ struct WC_ASYNC_DEV;
 #define WOLFSSL_ASYNC_MARKER_DH     0xBEEF000E
 #define WOLFSSL_ASYNC_MARKER_SHA3   0xBEEF000F
 #define WOLFSSL_ASYNC_MARKER_X25519 0xBEEF0010
+#define WOLFSSL_ASYNC_MARKER_MLDSA  0xBEEF0011
+#define WOLFSSL_ASYNC_MARKER_MLKEM  0xBEEF0012
 
 
 /* event flags (bit mask) */

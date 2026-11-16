@@ -72644,6 +72644,25 @@ out:
         if ((ret == 0) && !(cond))                                         \
             ret = WC_TEST_RET_ENC_NC;                                      \
     } while (0)
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CRYPT_SW)
+/* Software async: the call pends once and the poll runs it to completion, so
+ * it is waited on and not called again. */
+#define NB_ASYNC(dev, call)                                                \
+    do {                                                                   \
+        if (ret == 0) {                                                    \
+            rc = (call);                                                   \
+            if (rc == 0)                                                   \
+                ret = WC_TEST_RET_ENC_NC;                                  \
+            else if (rc != WC_NO_ERR_TRACE(WC_PENDING_E))                  \
+                ret = WC_TEST_RET_ENC_EC(rc);                              \
+            else {                                                         \
+                rc = wc_AsyncWait(rc, (dev), WC_ASYNC_FLAG_NONE);          \
+                if (rc != 0)                                               \
+                    ret = WC_TEST_RET_ENC_EC(rc);                          \
+            }                                                              \
+        }                                                                  \
+    } while (0)
+#endif
 #endif /* WC_MLKEM_NONBLOCK || WC_MLDSA_NONBLOCK */
 
 #if defined(WC_MLKEM_NONBLOCK) && !defined(WC_NO_RNG) && \
@@ -72679,7 +72698,8 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     int              keyInited = 0;
     int              refInited = 0;
 
-    rc = wc_MlKemKey_Init(&key, type, HEAP_HINT, devId);
+    /* No device: the test drives the MP_WOULDBLOCK loop. */
+    rc = wc_MlKemKey_Init(&key, type, HEAP_HINT, INVALID_DEVID);
     if (rc == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
         /* Parameter set not built. */
         return 0;
@@ -72839,6 +72859,49 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     return ret;
 }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_MLKEM)
+/* Each operation through the software async device, against the blocking
+ * decapsulation of the same cipher text. */
+static wc_test_ret_t mlkem_async_sw_test_type(int type, WC_RNG* rng)
+{
+    wc_test_ret_t    ret = 0;
+    int              rc = 0;
+    MlKemKey         key;
+    wc_MlKemNonBlock nb;
+    byte             ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte             ss[WC_ML_KEM_SS_SZ];
+    byte             ss2[WC_ML_KEM_SS_SZ];
+    byte             ss3[WC_ML_KEM_SS_SZ];
+    word32           ctSz = 0;
+    int              keyInited = 0;
+
+    if (devId == INVALID_DEVID)
+        return 0;
+    rc = wc_MlKemKey_Init(&key, type, HEAP_HINT, devId);
+    if (rc == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        return 0;
+    if (rc != 0)
+        ret = WC_TEST_RET_ENC_EC(rc);
+    else
+        keyInited = 1;
+    NB_STEP(wc_MlKemKey_CipherTextSize(&key, &ctSz));
+    NB_STEP(wc_MlKemKey_set_nonblock(&key, &nb));
+    NB_ASYNC(&key.asyncDev, wc_MlKemKey_MakeKey(&key, rng));
+    NB_ASYNC(&key.asyncDev, wc_MlKemKey_Encapsulate(&key, ct, ss, rng));
+    NB_ASYNC(&key.asyncDev, wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ss2, sizeof(ss)) == 0);
+    /* The blocking path gets the same secret from the cipher text. */
+    NB_STEP(wc_MlKemKey_set_nonblock(&key, NULL));
+    NB_STEP(wc_MlKemKey_Decapsulate(&key, ss3, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ss3, sizeof(ss)) == 0);
+
+    if (keyInited)
+        wc_MlKemKey_Free(&key);
+    return ret;
+}
+#endif
+
 static wc_test_ret_t mlkem_nonblock_test(WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -72848,6 +72911,15 @@ static wc_test_ret_t mlkem_nonblock_test(WC_RNG* rng)
         ret = mlkem_nonblock_test_type(WC_ML_KEM_768, rng);
     if (ret == 0)
         ret = mlkem_nonblock_test_type(WC_ML_KEM_1024, rng);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_MLKEM)
+    if (ret == 0)
+        ret = mlkem_async_sw_test_type(WC_ML_KEM_512, rng);
+    if (ret == 0)
+        ret = mlkem_async_sw_test_type(WC_ML_KEM_768, rng);
+    if (ret == 0)
+        ret = mlkem_async_sw_test_type(WC_ML_KEM_1024, rng);
+#endif
     return ret;
 }
 #endif /* WC_MLKEM_NONBLOCK && RNG && keygen && encapsulate && decapsulate */
@@ -78727,7 +78799,8 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     static const byte msg2[] = "wolfSSL ML-DSA another message";
     static const byte ctx[] = { 0x6e, 0x62 };
 
-    rc = wc_MlDsaKey_Init(&key, HEAP_HINT, devId);
+    /* No device: the test drives the MP_WOULDBLOCK loop. */
+    rc = wc_MlDsaKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (rc != 0)
         ret = WC_TEST_RET_ENC_EC(rc);
     else
@@ -79037,7 +79110,8 @@ static wc_test_ret_t mldsa_nonblock_match_test_level(int level)
     NB_STEP(wc_MlDsaKey_Init(key, HEAP_HINT, devId));
     keyInited = (ret == 0);
     NB_STEP(wc_MlDsaKey_SetParams(key, (byte)level));
-    NB_STEP(wc_MlDsaKey_Init(nbKey, HEAP_HINT, devId));
+    /* No device: the test drives the MP_WOULDBLOCK loop. */
+    NB_STEP(wc_MlDsaKey_Init(nbKey, HEAP_HINT, INVALID_DEVID));
     nbInited = (ret == 0);
     NB_STEP(wc_MlDsaKey_SetParams(nbKey, (byte)level));
     NB_STEP(wc_MlDsaKey_set_nonblock(nbKey, &nb));
@@ -79092,7 +79166,7 @@ static wc_test_ret_t mldsa_nonblock_match_test_level(int level)
 }
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && !defined(WOLFSSL_ASYNC_CRYPT_SW)
 #define MLDSA_NB_FREE_DEVID 0x4d4c4e42
 #if defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && !defined(WOLFSSL_SWDEV) && \
     !defined(WOLFSSL_MLDSA_VERIFY_PRECOMP_A)
@@ -79248,6 +79322,81 @@ static wc_test_ret_t mldsa_nonblock_free_test_level(int level)
 }
 #endif
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_MLDSA)
+/* Each operation through the software async device; the signature also
+ * verifies on the blocking path. */
+static wc_test_ret_t mldsa_async_sw_test_level(int level, WC_RNG* rng)
+{
+    wc_test_ret_t    ret = 0;
+    int              rc = 0;
+    wc_MlDsaKey*     key = NULL;
+    wc_MlDsaNonBlock nb;
+    byte*            sig = NULL;
+    int              sigSz = 0;
+    word32           sigLen = 0;
+    int              res = 0;
+    int              keyInited = 0;
+    static const byte msg[] = "wolfSSL ML-DSA software async test";
+
+    if (devId == INVALID_DEVID)
+        return 0;
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    NB_STEP(wc_MlDsaKey_Init(key, HEAP_HINT, devId));
+    keyInited = (ret == 0);
+    NB_STEP(wc_MlDsaKey_SetParams(key, (byte)level));
+    NB_STEP(wc_MlDsaKey_set_nonblock(key, &nb));
+    NB_ASYNC(&key->asyncDev, wc_MlDsaKey_MakeKey(key, rng));
+    NB_STEP(wc_MlDsaKey_GetSigLen(key, &sigSz));
+    if (ret == 0) {
+        sig = (byte*)XMALLOC((size_t)sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sig == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        sigLen = (word32)sigSz;
+    }
+    NB_ASYNC(&key->asyncDev, wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen,
+        msg, (word32)sizeof(msg), rng));
+    NB_ASYNC(&key->asyncDev, wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0,
+        msg, (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+    /* An operation that fails in the poll leaves the next one pending. */
+    if (ret == 0) {
+        rc = wc_MlDsaKey_VerifyCtx(key, sig, sigLen - 1, NULL, 0, msg,
+            (word32)sizeof(msg), &res);
+        if (rc != WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = WC_TEST_RET_ENC_EC(rc);
+        else if (wc_AsyncWait(rc, &key->asyncDev, WC_ASYNC_FLAG_NONE) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    NB_ASYNC(&key->asyncDev, wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0,
+        msg, (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+    /* A tampered signature is rejected through the same path. */
+    if (ret == 0)
+        sig[0] ^= 0x01;
+    res = 1;
+    NB_ASYNC(&key->asyncDev, wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0,
+        msg, (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 0);
+    if (ret == 0)
+        sig[0] ^= 0x01;
+    res = 0;
+    NB_STEP(wc_MlDsaKey_set_nonblock(key, NULL));
+    NB_STEP(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyInited)
+        wc_MlDsaKey_Free(key);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
+
 static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
@@ -79257,9 +79406,14 @@ static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_44);
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && !defined(WOLFSSL_ASYNC_CRYPT_SW)
     if (ret == 0)
         ret = mldsa_nonblock_free_test_level(WC_ML_DSA_44);
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_MLDSA)
+    if (ret == 0)
+        ret = mldsa_async_sw_test_level(WC_ML_DSA_44, rng);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
@@ -79268,9 +79422,14 @@ static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_65);
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && !defined(WOLFSSL_ASYNC_CRYPT_SW)
     if (ret == 0)
         ret = mldsa_nonblock_free_test_level(WC_ML_DSA_65);
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_MLDSA)
+    if (ret == 0)
+        ret = mldsa_async_sw_test_level(WC_ML_DSA_65, rng);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
@@ -79279,9 +79438,14 @@ static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_87);
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && !defined(WOLFSSL_ASYNC_CRYPT_SW)
     if (ret == 0)
         ret = mldsa_nonblock_free_test_level(WC_ML_DSA_87);
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_MLDSA)
+    if (ret == 0)
+        ret = mldsa_async_sw_test_level(WC_ML_DSA_87, rng);
 #endif
 #endif
     return ret;

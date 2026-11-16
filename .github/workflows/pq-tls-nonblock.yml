@@ -1,0 +1,79 @@
+name: PQ TLS non-blocking
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Weekday-morning cron seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '14 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  # TLS 1.3 builds that drive non-blocking ML-DSA and ML-KEM, kept out of
+  # pq-all so they do not lengthen its shards. Each config builds in its own
+  # out-of-tree directory and checks on a pool of one-per-CPU workers;
+  # bubblewrap gives every test script its own network namespace.
+  make_check:
+    name: make check
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: pq-tls-nonblock
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 250M
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # The config list lives in .github/configs/pq-tls-nonblock.json.
+      - name: Build and make check all configs (parallel, out-of-tree)
+        run: |
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --private-dir=certs \
+            .github/configs/pq-tls-nonblock.json
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: pq-tls-nonblock-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore
