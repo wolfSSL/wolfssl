@@ -7281,6 +7281,9 @@ struct WOLFSSL {
     int             dtls_timeout;       /* current timeout value, changes */
 #ifndef NO_ASN_TIME
     word32          dtls_start_timeout;
+    word32          dtls_timer_start;   /* LowResTimer() when started */
+    word32          dtls_timer_len;     /* seconds, 0 when idle */
+    word16          dtls_timer_seq;     /* tx handshake seq when started */
 #endif /* !NO_ASN_TIME */
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
