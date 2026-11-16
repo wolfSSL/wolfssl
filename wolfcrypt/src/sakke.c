@@ -58,8 +58,31 @@
 
 /* SAKKE Build Options:
  * WOLFSSL_SAKKE_SMALL:          Small code size version of SAKKE.
+ *                               WOLFCRYPT_SAKKE_SMALL (--enable-sakke=small)
+ *                               is an alias.
  * WOLFSSL_SAKKE_SMALL_MODEXP:   Small code size for just SAKKE modexp.
  */
+
+#if defined(WOLFCRYPT_SAKKE_SMALL) && !defined(WOLFSSL_SAKKE_SMALL)
+    #define WOLFSSL_SAKKE_SMALL
+#endif
+
+/* Inversion of a secret value in the field: constant time when available. */
+#if defined(USE_FAST_MATH) || defined(WOLFSSL_SP_INVMOD_MONT_CT)
+    #define SAKKE_INVMOD_MONT_CT
+#endif
+
+/* Modular addition of secret values: constant time when available. */
+#if defined(USE_FAST_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #define SAKKE_HAVE_ADDMOD_CT
+#endif
+
+/* Montgomery reduction of secret values: constant time when available. */
+#ifdef mp_montgomery_reduce_ct
+    #define sakke_mont_red(a, m, mp)    mp_montgomery_reduce_ct(a, m, mp)
+#else
+    #define sakke_mont_red(a, m, mp)    mp_montgomery_reduce(a, m, mp)
+#endif
 
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -433,6 +456,52 @@ static int sakke_mulmod_base_add(SakkeKey* key, const mp_int* n,
 }
 #else
 /*
+ * Scalar multiply a point, mapping the result in constant time.
+ *
+ * The scalar is secret. wc_ecc_mulmod() maps to affine coordinates with an
+ * inversion that is not constant time - map here with ecc_map_ex() instead.
+ * When an RNG is set, the projective coordinates are randomized and the
+ * faster inversion is used.
+ *
+ * @param  [in]   key   SAKKE key.
+ * @param  [in]   n     MP integer that is the scalar.
+ * @param  [in]   p     ECC point to multiply.
+ * @param  [out]  res   ECC point to hold the result.
+ * @param  [in]   map   Map the result to affine coordinates.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int sakke_mulmod_ct_map(SakkeKey* key, const mp_int* n, ecc_point* p,
+        ecc_point* res, int map)
+{
+    int err;
+    mp_digit mp = 0;
+    SakkeKeyParams* params = &key->params;
+
+    if (key->rng != NULL) {
+        /* Projective coordinates randomized - z is blinded when mapping. */
+        err = wc_ecc_mulmod_ex2(n, p, res, &params->a, &params->prime,
+            &params->q, key->rng, map, key->heap);
+    }
+    else if (mp_iszero(n)) {
+        /* Point at infinity - nothing to map. */
+        err = wc_ecc_mulmod(n, p, res, &params->a, &params->prime, map);
+    }
+    else {
+        /* Leaves ordinates in Montgomery form. */
+        err = wc_ecc_mulmod(n, p, res, &params->a, &params->prime, 0);
+        if ((err == 0) && map) {
+            err = mp_montgomery_setup(&params->prime, &mp);
+            if (err == 0) {
+                err = ecc_map_ex(res, &params->prime, mp, 1);
+            }
+        }
+    }
+
+    return err;
+}
+
+/*
  * Scalar multiply the base point.
  *
  * @param  [in]   key   SAKKE key.
@@ -445,12 +514,7 @@ static int sakke_mulmod_base_add(SakkeKey* key, const mp_int* n,
 static int sakke_mulmod_base(SakkeKey* key, const mp_int* n, ecc_point* res,
         int map)
 {
-    int err;
-    SakkeKeyParams* params = &key->params;
-
-    err = wc_ecc_mulmod(n, params->base, res, &params->a, &params->prime, map);
-
-    return err;
+    return sakke_mulmod_ct_map(key, n, key->params.base, res, map);
 }
 
 /*
@@ -543,15 +607,130 @@ static int sakke_mulmod_point(SakkeKey* key, const mp_int* n,
 static int sakke_mulmod_point(SakkeKey* key, const mp_int* n, ecc_point* p,
         const byte* table, ecc_point* res, int map)
 {
-    int err;
-    SakkeKeyParams* params = &key->params;
-
-    err = wc_ecc_mulmod(n, p, res, &params->a, &params->prime, map);
-
     (void)table;
-    return err;
+    return sakke_mulmod_ct_map(key, n, p, res, map);
 }
 #endif
+
+/**
+ * Set the random number generator to use to blind operations on secrets.
+ *
+ * Recommended: operations on secrets are constant time without an RNG but
+ * blinding allows faster algorithms to be used.
+ *
+ * When set, secret values are multiplied by a random value before inversion
+ * so that a faster, variable time, inversion can be used. Without SP code,
+ * scalar multiplication also randomizes the projective coordinates and the
+ * pairing randomizes the projective coordinates of the RSK so that faster,
+ * variable time, reductions can be used.
+ * When not set, constant time inversion and reduction are used, except that
+ * wc_MakeSakkeRsk() blinds with an RNG it instantiates.
+ *
+ * Benefits: wc_MakeSakkeRsk() (KMS), which otherwise instantiates an RNG for
+ * each call, and without SP code, wc_MakeSakkeEncapsulatedSSV(),
+ * wc_ValidateSakkeRsk() and wc_DeriveSakkeSSV().
+ *
+ * The RNG is not owned by the key and must remain valid while it is set.
+ * wc_MakeSakkeKey() uses the RNG passed to it when none is set.
+ *
+ * @param  [in]  key  SAKKE key.
+ * @param  [in]  rng  Random number generator. NULL to clear.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ */
+int wc_SetSakkeRng(SakkeKey* key, WC_RNG* rng)
+{
+    int err = 0;
+
+    if (key == NULL) {
+        err = BAD_FUNC_ARG;
+    }
+    else {
+        key->rng = rng;
+    }
+
+    return err;
+}
+
+/*
+ * Calculate r = y / x mod m, or r = 1 / x mod m when y is NULL, with blinding.
+ *
+ * x is multiplied by a random value, b, before inversion so that the value
+ * inverted is independent of x. Multiplications are performed with constant
+ * time Montgomery reduction. mont(u, v) = u.v / R mod m.
+ *   s = mont(mont(R^2, b), y) = b.y  (s = b when y is NULL)
+ *   t = mont(x, b) = x.b / R
+ *   t = t^-1 = R / (x.b)
+ *   r = mont(t, s) = y / x  (1 / x when y is NULL)
+ *
+ * @param  [in]   rng  Random number generator.
+ * @param  [in]   x    MP integer to invert. Less than m.
+ * @param  [in]   y    MP integer to multiply by. Less than m. May be NULL.
+ * @param  [in]   m    MP integer that is the prime modulus.
+ * @param  [in]   mp   Montgomery multiplier for m.
+ * @param  [out]  r    MP integer that is the result. May be x.
+ * @param  [in]   b    Temporary MP integer.
+ * @param  [in]   s    Temporary MP integer. Not used when y is NULL.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other -ve value on internal failure.
+ */
+static int sakke_blind_div(WC_RNG* rng, mp_int* x, mp_int* y, mp_int* m,
+        mp_digit mp, mp_int* r, mp_int* b, mp_int* s)
+{
+    int err;
+
+    err = wc_ecc_gen_k(rng, mp_unsigned_bin_size(m), b, m);
+    if ((err == 0) && (y != NULL)) {
+        /* s = R^2 mod m - public */
+        err = mp_montgomery_calc_normalization(s, m);
+        if (err == 0) {
+            err = mp_sqrmod(s, m, s);
+        }
+        /* s = mont(R^2, b) = b.R */
+        if (err == 0) {
+            err = mp_mul(s, b, s);
+        }
+        if (err == 0) {
+            err = sakke_mont_red(s, m, mp);
+        }
+        /* s = mont(b.R, y) = b.y */
+        if (err == 0) {
+            err = mp_mul(s, y, s);
+        }
+        if (err == 0) {
+            err = sakke_mont_red(s, m, mp);
+        }
+    }
+    else if (err == 0) {
+        s = b;
+    }
+    /* r = mont(x, b) = x.b / R */
+    if (err == 0) {
+        err = mp_mul(x, b, r);
+    }
+    if (err == 0) {
+        err = sakke_mont_red(r, m, mp);
+    }
+    /* r = R / (x.b) - value inverted is blinded. */
+    if (err == 0) {
+        err = mp_invmod(r, m, r);
+    }
+    /* r = mont(R / (x.b), s) */
+    if (err == 0) {
+        err = mp_mul(r, s, r);
+    }
+    if (err == 0) {
+        err = sakke_mont_red(r, m, mp);
+    }
+
+    mp_forcezero(b);
+    if (s != b) {
+        mp_forcezero(s);
+    }
+
+    return err;
+}
 
 #ifdef WOLFCRYPT_SAKKE_KMS
 /**
@@ -630,12 +809,21 @@ int wc_MakeSakkeKey(SakkeKey* key, WC_RNG* rng)
         }
     }
     if (err == 0) {
+        WC_RNG* keyRng = key->rng;
+
+        /* Blind with the RNG passed in when none set. */
+        if (keyRng == NULL) {
+            key->rng = rng;
+        }
         /* Calculate public key by multiply master secret by base point. */
         err = sakke_mulmod_base(key, wc_ecc_key_get_priv(&key->ecc),
             &key->ecc.pubkey, 1);
+        key->rng = keyRng;
     }
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
+        /* New public key is not in Montgomery form. */
+        key->zMont = 0;
     }
 
     return err;
@@ -674,6 +862,42 @@ int wc_MakeSakkePublicKey(SakkeKey* key, ecc_point* pub)
     return err;
 }
 
+/*
+ * Convert the public key from montgomery form.
+ *
+ * The public key is needed in Montgomery form for validation and derivation.
+ *
+ * @param  [in]  key      SAKKE key.
+ * @return  0 on success.
+ * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
+ * @return  Other value when an an internal operation fails.
+ */
+static int sakke_z_from_mont(SakkeKey* key)
+{
+    int err = 0;
+    mp_digit mp;
+    ecc_point* z = &key->ecc.pubkey;
+    mp_int* prime = &key->params.prime;
+
+    if (key->zMont) {
+        err = mp_montgomery_setup(prime, &mp);
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->x, prime, mp);
+        }
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->y, prime, mp);
+        }
+        if (err == 0) {
+            err = mp_montgomery_reduce(z->z, prime, mp);
+        }
+        if (err == 0) {
+            key->zMont = 0;
+        }
+    }
+
+    return err;
+}
+
 /**
  * Export the SAKKE key as encoded public/private ECC key.
  *
@@ -705,6 +929,10 @@ int wc_ExportSakkeKey(SakkeKey* key, byte* data, word32* sz)
     }
     if ((err >= 0) && (*sz < (word32)(3 * key->ecc.dp->size))) {
         err = BUFFER_E;
+    }
+    /* Public key may be in Montgomery form after an operation. */
+    if (err == 0) {
+        err = sakke_z_from_mont(key);
     }
     if (err == 0) {
         /* Write out the secret value into key size bytes. */
@@ -782,6 +1010,8 @@ int wc_ImportSakkeKey(SakkeKey* key, const byte* data, word32 sz)
     }
     if (err == 0) {
         key->ecc.type = ECC_PRIVATEKEY;
+        /* Imported public key is not in Montgomery form. */
+        key->zMont = 0;
     }
 
     return err;
@@ -865,42 +1095,6 @@ int wc_ImportSakkePrivateKey(SakkeKey* key, const byte* data, word32 sz)
     }
     if (err == 0) {
         err = ecc_blind_k_rng(&key->ecc, NULL);
-    }
-
-    return err;
-}
-
-/*
- * Convert the public key from montgomery form.
- *
- * The public key is needed in Montgomery form for validation and derivation.
- *
- * @param  [in]  key      SAKKE key.
- * @return  0 on success.
- * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
- * @return  Other value when an an internal operation fails.
- */
-static int sakke_z_from_mont(SakkeKey* key)
-{
-    int err = 0;
-    mp_digit mp;
-    ecc_point* z = &key->ecc.pubkey;
-    mp_int* prime = &key->params.prime;
-
-    if (key->zMont) {
-        err = mp_montgomery_setup(prime, &mp);
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->x, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->y, prime, mp);
-        }
-        if (err == 0) {
-            err = mp_montgomery_reduce(z->z, prime, mp);
-        }
-        if (err == 0) {
-            key->zMont = 0;
-        }
     }
 
     return err;
@@ -1058,8 +1252,8 @@ int wc_ExportSakkePublicKey(SakkeKey* key, byte* data, word32* sz, int raw)
  *
  * RSK = [ (a + z_T) ^ -1 modulo q ]P\n
  * RSK is required by receiver to derive SSV.
- *
- * The inverse is blinded with a random value from a random number generator
+ * The inverse is blinded with a random value from the RNG set with
+ * wc_SetSakkeRng(). When none is set, a random number generator is
  * instantiated for each call. Use wc_MakeSakkeRsk_ex() to pass an existing
  * WC_RNG instead.
  *
@@ -1089,8 +1283,9 @@ int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz, ecc_point* rsk)
  * RSK = [ (a + z_T) ^ -1 modulo q ]P\n
  * RSK is required by receiver to derive SSV.
  *
- * The inverse is blinded with a random value from rng. When rng is NULL, a
- * random number generator is instantiated for the call.
+ * The inverse is blinded with a random value from rng. When rng is NULL, the
+ * RNG set with wc_SetSakkeRng() is used. When neither is available, a random
+ * number generator is instantiated for the call.
  *
  * @param  [in]   key   SAKKE key.
  * @param  [in]   id    Identity to create hash for.
@@ -1103,8 +1298,8 @@ int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz, ecc_point* rsk)
  * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
  * @return  RNG_FAILURE_E when no non-zero blinding factor is drawn within
  *          SAKKE_MAX_GEN_COUNT attempts.
- * @return  RNG error when rng is NULL and a random number generator cannot be
- *          instantiated.
+ * @return  RNG error when no RNG is available and a random number generator
+ *          cannot be instantiated.
  * @return  Other value when an internal operation fails.
  */
 int wc_MakeSakkeRsk_ex(SakkeKey* key, const byte* id, word16 idSz,
@@ -1131,52 +1326,61 @@ int wc_MakeSakkeRsk_ex(SakkeKey* key, const byte* id, word16 idSz,
         a = &key->tmp.m1;
         err = mp_read_unsigned_bin(a, id, idSz);
     }
-    /* a + z_T */
+    /* a is public - reduce so that it is less than q. */
     if (err == 0) {
+        err = mp_mod(a, &key->params.q, a);
+    }
+    /* a + z_T - z_T is secret. */
+    if (err == 0) {
+    #ifdef SAKKE_HAVE_ADDMOD_CT
+        err = mp_addmod_ct(a, wc_ecc_key_get_priv(&key->ecc), &key->params.q,
+            a);
+    #else
         err = mp_addmod(a, wc_ecc_key_get_priv(&key->ecc), &key->params.q, a);
+    #endif
     }
     /* Zero has no inverse. */
     if ((err == 0) && mp_iszero(a)) {
         err = MP_VAL;
     }
-    /* Invert with multiplicative blinding for constant-time operation. */
+    /* An RNG passed in is used in preference to the one set on the key. */
     if ((err == 0) && (rng == NULL)) {
-        WC_ALLOC_VAR_EX(localRng, WC_RNG, 1, key->heap, DYNAMIC_TYPE_RNG,
-                        err = MEMORY_E);
-        if (err == 0) {
-        #ifdef WOLF_CRYPTO_CB
-            err = wc_InitRng_ex(localRng, key->heap, key->ecc.devId);
-        #else
-            err = wc_InitRng_ex(localRng, key->heap, INVALID_DEVID);
-        #endif
-            if (err != 0) {
-                WC_FREE_VAR_EX(localRng, key->heap, DYNAMIC_TYPE_RNG);
+        rng = key->rng;
+    }
+    /* Invert with multiplicative blinding for constant-time operation. */
+    if (err == 0) {
+        mp_digit mp = 0;
+
+        if (rng == NULL) {
+            WC_ALLOC_VAR_EX(localRng, WC_RNG, 1, key->heap, DYNAMIC_TYPE_RNG,
+                            err = MEMORY_E);
+            if (err == 0) {
+            #ifdef WOLF_CRYPTO_CB
+                err = wc_InitRng_ex(localRng, key->heap, key->ecc.devId);
+            #else
+                err = wc_InitRng_ex(localRng, key->heap, INVALID_DEVID);
+            #endif
+                if (err != 0) {
+                    WC_FREE_VAR_EX(localRng, key->heap, DYNAMIC_TYPE_RNG);
+                }
+            }
+            if (err == 0) {
+                localRngInit = 1;
+                rng = localRng;
             }
         }
         if (err == 0) {
-            localRngInit = 1;
-            rng = localRng;
+            err = mp_montgomery_setup(&key->params.q, &mp);
         }
-    }
-    /* Random non-zero blinding factor b modulo q. */
-    if (err == 0) {
-        err = sakke_rand_nonzero_mod_q(key, &key->tmp.m2, rng);
-    }
-    if (localRngInit) {
-        wc_FreeRng(localRng);
-        WC_FREE_VAR_EX(localRng, key->heap, DYNAMIC_TYPE_RNG);
-    }
-    /* Blind: a = (a * b) mod q */
-    if (err == 0) {
-        err = mp_mulmod(a, &key->tmp.m2, &key->params.q, a);
-    }
-    /* Invert: a = (a * b)^-1 mod q */
-    if (err == 0) {
-        err = mp_invmod(a, &key->params.q, a);
-    }
-    /* Unblind: a = (a * b)^-1 * b mod q = (a + z_T)^-1 mod q */
-    if (err == 0) {
-        err = mp_mulmod(a, &key->tmp.m2, &key->params.q, a);
+        /* a = (a + z_T) ^ -1 mod q - random non-zero blinding factor b. */
+        if (err == 0) {
+            err = sakke_blind_div(rng, a, NULL, &key->params.q, mp, a,
+                &key->tmp.m2, NULL);
+        }
+        if (localRngInit) {
+            wc_FreeRng(localRng);
+            WC_FREE_VAR_EX(localRng, key->heap, DYNAMIC_TYPE_RNG);
+        }
     }
 
     /* [ (a + z_T) ^ -1 modulo q ]P */
@@ -1398,54 +1602,6 @@ static int sakke_load_pairing_base(SakkeKey* key)
     return err;
 }
 
-#if defined(WOLFCRYPT_SAKKE_CLIENT) && !defined(WOLFSSL_HAVE_SP_ECC)
-/*
- * Convert a value from PF_p[q] to F_p: r = y / x.
- *
- * The ordinates are derived from secrets, so invert with Fermat's little
- * theorem over the public prime when the math library has it.
- *
- * @param  [in]   v      Value in PF_p[q] with ordinates in Montgomery form.
- *                       y ordinate is modified.
- * @param  [in]   prime  Prime modulus.
- * @param  [in]   mp     Montgomery multiplier.
- * @param  [out]  r      MP integer to hold the result.
- * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
- * @return  Other -ve value on internal failure.
- */
-static int sakke_proj_to_fp(mp_proj* v, mp_int* prime, mp_digit mp, mp_int* r)
-{
-    int err = 0;
-
-#if defined(ECC_TIMING_RESISTANT) && (defined(USE_FAST_MATH) || \
-                defined(WOLFSSL_SP_MATH_ALL))
-    /* Not every math library's constant time inversion rejects zero. */
-    if (mp_iszero(v->x)) {
-        err = MP_VAL;
-    }
-    if (err == 0) {
-        err = mp_invmod_mont_ct(v->x, prime, r, mp);
-    }
-    if (err == 0) {
-        err = mp_montgomery_reduce(r, prime, mp);
-    }
-    if (err == 0) {
-        err = mp_montgomery_reduce(v->y, prime, mp);
-    }
-#else
-    (void)mp;
-    /* The Montgomery factors of x and y cancel. */
-    err = mp_invmod(v->x, prime, r);
-#endif
-    if (err == 0) {
-        err = mp_mulmod(r, v->y, prime, r);
-    }
-
-    return err;
-}
-#endif
-
 #ifndef WOLFSSL_HAVE_SP_ECC
 /*
  * Put point into Montgomery form.
@@ -1493,12 +1649,12 @@ static int sakke_point_from_mont(ecc_point* p, mp_int* prime, mp_digit mp)
 {
     int err;
 
-    err = mp_montgomery_reduce(p->x, prime, mp);
+    err = sakke_mont_red(p->x, prime, mp);
     if (err == 0) {
-        err = mp_montgomery_reduce(p->y, prime, mp);
+        err = sakke_mont_red(p->y, prime, mp);
     }
     if (err == 0) {
-        err = mp_montgomery_reduce(p->z, prime, mp);
+        err = sakke_mont_red(p->z, prime, mp);
     }
 
     return err;
@@ -1653,23 +1809,50 @@ int wc_GenerateSakkeRskTable(const SakkeKey* key, const ecc_point* rsk,
 }
 
 /*
+ * Montgomery reduction - constant time when requested and available.
+ *
+ * @param  [in, out]  a   MP integer to reduce.
+ * @param  [in]       m   MP integer that is modulus.
+ * @param  [in]       mp  Multiplier to use when converting from Montgomery
+ *                        form.
+ * @param  [in]       ct  Reduce in constant time when not 0.
+ * @return  0 on success.
+ * @return  Other -ve value on internal failure.
+ */
+static int sakke_mont_red_ex(mp_int* a, mp_int* m, mp_digit mp, int ct)
+{
+    int err;
+
+    if (ct) {
+        err = sakke_mont_red(a, m, mp);
+    }
+    else {
+        err = mp_montgomery_reduce(a, m, mp);
+    }
+
+    return err;
+}
+
+/*
  * Square a modulo m in Montgomery.
  *
  * @param  [in]   a   MP integer that is number to square.
  * @param  [in]   m   MP integer that is modulus.
  * @param  [out]  r   MP integer that is the result.
  * @param  [in]   mp  Multiplier to use when converting from Montgomery form.
+ * @param  [in]   ct  Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
-static int sakke_mont_sqrmod(mp_int* a, mp_int* m, mp_int* r, mp_digit mp)
+static int sakke_mont_sqrmod(mp_int* a, mp_int* m, mp_int* r, mp_digit mp,
+        int ct)
 {
     int err;
 
     err = mp_sqr(a, r);
     if (err == 0) {
-        err = mp_montgomery_reduce(r, m, mp);
+        err = sakke_mont_red_ex(r, m, mp, ct);
     }
 
     return err;
@@ -1683,18 +1866,73 @@ static int sakke_mont_sqrmod(mp_int* a, mp_int* m, mp_int* r, mp_digit mp)
  * @param  [in]   m   MP integer that is modulus.
  * @param  [out]  r   MP integer that is the result.
  * @param  [in]   mp  Multiplier to use when converting from Montgomery form.
+ * @param  [in]   ct  Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_mont_mulmod(mp_int* a, mp_int* b, mp_int* m, mp_int* r,
-        mp_digit mp)
+        mp_digit mp, int ct)
 {
     int err;
 
     err = mp_mul(a, b, r);
     if (err == 0) {
-        err = mp_montgomery_reduce(r, m, mp);
+        err = sakke_mont_red_ex(r, m, mp, ct);
+    }
+
+    return err;
+}
+
+/*
+ * Convert a projective number in PF_p[q] to F_p: r = p.y / p.x mod m.
+ *
+ * The ordinates may be in Montgomery form or not - the ratio is the same.
+ * The ordinates are derived from secret values. When an RNG is set, the
+ * inversion is blinded. Otherwise, when available, the inverse is calculated
+ * in constant time: (p.x)^(m-2) mod m.
+ *
+ * @param  [in]   key  SAKKE key.
+ * @param  [in]   p    MP projective number to convert.
+ * @param  [in]   m    MP integer that is the prime modulus.
+ * @param  [in]   mp   Multiplier to use when converting from Montgomery form.
+ * @param  [out]  r    MP integer that is the result.
+ * @param  [in]   t    Temporary MP projective number.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other -ve value on internal failure.
+ */
+static int sakke_proj_to_fp(SakkeKey* key, mp_proj* p, mp_int* m,
+        mp_digit mp, mp_int* r, mp_proj* t)
+{
+    int err;
+
+    if (key->rng != NULL) {
+        /* r = p.y / p.x with blinded inversion. */
+        err = sakke_blind_div(key->rng, p->x, p->y, m, mp, r, t->x, t->y);
+    }
+    else {
+    #ifdef SAKKE_INVMOD_MONT_CT
+        /* Not every math library's constant time inversion rejects zero. */
+        err = mp_iszero(p->x) ? MP_VAL : 0;
+        /* r = R^2 / p.x  (p.x treated as Montgomery form of p.x / R) */
+        if (err == 0) {
+            err = mp_invmod_mont_ct(p->x, m, r, mp);
+        }
+        /* r = R * p.y / p.x */
+        if (err == 0) {
+            err = sakke_mont_mulmod(r, p->y, m, r, mp, 1);
+        }
+        /* r = p.y / p.x */
+        if (err == 0) {
+            err = sakke_mont_red(r, m, mp);
+        }
+    #else
+        err = mp_invmod(p->x, m, r);
+        if (err == 0) {
+            err = mp_mulmod(r, p->y, m, r);
+        }
+    #endif
     }
 
     return err;
@@ -1715,10 +1953,15 @@ static int sakke_addmod(mp_int* a, mp_int* b, mp_int* m, mp_int* r)
 {
     int err;
 
+#ifdef SAKKE_HAVE_ADDMOD_CT
+    /* Values may be secret - a and b are less than m. */
+    err = mp_addmod_ct(a, b, m, r);
+#else
     err = mp_add(a, b, r);
     if ((err == 0) && (mp_cmp(r, m) != MP_LT)) {
         err = mp_sub(r, m, r);
     }
+#endif
 
     return err;
 }
@@ -1727,15 +1970,25 @@ static int sakke_addmod(mp_int* a, mp_int* b, mp_int* m, mp_int* r)
  * Triple a modulo m. r = 3.a % m
  *
  * @param  [in]   a   MP integer that is number to triple
- * @param  [out]  m   MP integer that is modulus.
- * @param  [in]   r   MP integer that is the result.
+ * @param  [in]   m   MP integer that is modulus.
+ * @param  [out]  r   MP integer that is the result.
+ * @param  [in]   t   MP integer that is a temporary. Not a or r.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
-static int sakke_tplmod(mp_int* a, mp_int* m, mp_int* r)
+static int sakke_tplmod(mp_int* a, mp_int* m, mp_int* r, mp_int* t)
 {
     int err;
+
+#ifdef SAKKE_HAVE_ADDMOD_CT
+    /* Value may be secret - a is less than m. */
+    err = mp_addmod_ct(a, a, m, t);
+    if (err == 0) {
+        err = mp_addmod_ct(t, a, m, r);
+    }
+#else
+    (void)t;
 
     err = mp_mul_d(a, 3, r);
     if ((err == 0) && (mp_cmp(r, m) != MP_LT)) {
@@ -1747,6 +2000,7 @@ static int sakke_tplmod(mp_int* a, mp_int* m, mp_int* r)
     if ((err == 0) && (mp_cmp(r, m) != MP_LT)) {
         err = mp_sub(r, m, r);
     }
+#endif
 
     return err;
 }
@@ -1766,13 +2020,14 @@ static int sakke_submod(mp_int* a, mp_int* b, mp_int* m, mp_int* r)
 {
     int err;
 
-#if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+#ifdef SAKKE_HAVE_ADDMOD_CT
+    /* Values may be secret - a and b are less than m. */
+    err = mp_submod_ct(a, b, m, r);
+#else
     err = mp_sub(a, b, r);
     if ((err == 0) && mp_isneg(r)) {
         err = mp_add(r, m, r);
     }
-#else
-    err = sp_submod_ct(a, b, m, r);
 #endif
 
     return err;
@@ -1791,12 +2046,13 @@ static int sakke_submod(mp_int* a, mp_int* b, mp_int* m, mp_int* r)
  * @param  [out]  r      MP projective integer - Result of square.
  * @param  [in]   t1     MP integer temporary.
  * @param  [in]   t2     MP integer temporary.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_proj_sqr(mp_proj* p, mp_int* prime, mp_digit mp, mp_proj* r,
-        mp_int* t1, mp_int* t2)
+        mp_int* t1, mp_int* t2, int ct)
 {
     int err;
 
@@ -1808,11 +2064,11 @@ static int sakke_proj_sqr(mp_proj* p, mp_int* prime, mp_digit mp, mp_proj* r,
     }
     /* r.y = p.x * p.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->x, p->y, prime, r->y, mp);
+        err = sakke_mont_mulmod(p->x, p->y, prime, r->y, mp, ct);
     }
     /* r.x = (p.x + p.y) * (p.x - p.y) */
     if (err == 0) {
-        err = sakke_mont_mulmod(t1, t2, prime, r->x, mp);
+        err = sakke_mont_mulmod(t1, t2, prime, r->x, mp, ct);
     }
     /* r.y = (p.x * p.y) * 2 */
     if (err == 0) {
@@ -1837,24 +2093,25 @@ static int sakke_proj_sqr(mp_proj* p, mp_int* prime, mp_digit mp, mp_proj* r,
  * @param  [out]  r      Result of operation.
  * @param  [in]   t1     MP integer temporary.
  * @param  [in]   t2     MP integer temporary.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_proj_mul(mp_proj* p, mp_proj* q, mp_int* prime, mp_digit mp,
-        mp_proj* r, mp_int* t1, mp_int* t2)
+        mp_proj* r, mp_int* t1, mp_int* t2, int ct)
 {
     int err;
 
     /* t1 = p.x * q.y */
-    err = sakke_mont_mulmod(p->x, q->y, prime, t1, mp);
+    err = sakke_mont_mulmod(p->x, q->y, prime, t1, mp, ct);
     /* r->x = p.x * q.x */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->x, q->x, prime, r->x, mp);
+        err = sakke_mont_mulmod(p->x, q->x, prime, r->x, mp, ct);
     }
     /* t2 = p.y * q.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->y, q->y, prime, t2, mp);
+        err = sakke_mont_mulmod(p->y, q->y, prime, t2, mp, ct);
     }
     /* r.x = (p.x * q.x) - (p.y * q.y) */
     if (err == 0) {
@@ -1862,7 +2119,7 @@ static int sakke_proj_mul(mp_proj* p, mp_proj* q, mp_int* prime, mp_digit mp,
     }
     /* r.y = p.y * q.x */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->y, q->x, prime, r->y, mp);
+        err = sakke_mont_mulmod(p->y, q->x, prime, r->y, mp, ct);
     }
     /* r.y = (p.x * q.y) + (p.y * q.x) */
     if (err == 0) {
@@ -1890,20 +2147,21 @@ static int sakke_proj_mul(mp_proj* p, mp_proj* q, mp_int* prime, mp_digit mp,
  * @param  [out]  r      Result of operation.
  * @param  [in]   t1     MP integer temporary.
  * @param  [in]   t2     MP integer temporary.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_proj_mul_qx1(mp_proj* p, mp_int* q, mp_int* prime, mp_digit mp,
-        mp_proj* r, mp_int* t1, mp_int* t2)
+        mp_proj* r, mp_int* t1, mp_int* t2, int ct)
 {
     int err;
 
     /* t1 = p.x * q.y */
-    err = sakke_mont_mulmod(p->x, q, prime, t1, mp);
+    err = sakke_mont_mulmod(p->x, q, prime, t1, mp, ct);
     /* t2 = p.y * q.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->y, q, prime, t2, mp);
+        err = sakke_mont_mulmod(p->y, q, prime, t2, mp, ct);
     }
     /* r.x = p.x - (p.y * q.y) */
     if (err == 0) {
@@ -1926,15 +2184,16 @@ static int sakke_proj_mul_qx1(mp_proj* p, mp_int* q, mp_int* prime, mp_digit mp,
  * @param  [in]   mp     Multiplier to use when converting from Montgomery form.
  * @param  [out]  l      MP integer representing gradient.
  * @param  [out]  z2     MP integer representing p.z^2.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  */
 static int sakke_calc_dbl_rx(ecc_point* p, ecc_point* q, mp_int* prime,
-        mp_digit mp, mp_proj* r, mp_int* l, mp_int* z2)
+        mp_digit mp, mp_proj* r, mp_int* l, mp_int* z2, int ct)
 {
     int err;
     mp_int* t = r->y;
 
     /* z2 = p.z^2 */
-    err = sakke_mont_sqrmod(p->z, prime, z2, mp);
+    err = sakke_mont_sqrmod(p->z, prime, z2, mp, ct);
     /* t = p.x + p.z^2 */
     if (err == 0) {
         err = sakke_addmod(p->x, z2, prime, l);
@@ -1945,15 +2204,15 @@ static int sakke_calc_dbl_rx(ecc_point* p, ecc_point* q, mp_int* prime,
     }
     /* l = ((p.x - p.z^2) * (p.x + p.z^2) = p.x ^ 2 - p.z^4  */
     if (err == 0) {
-        err = sakke_mont_mulmod(l, t, prime, l, mp);
+        err = sakke_mont_mulmod(l, t, prime, l, mp, ct);
     }
     /* l = ((p.x ^ 2) - p.z^4) * 3 */
     if (err == 0) {
-        err = sakke_tplmod(l, prime, l);
+        err = sakke_tplmod(l, prime, l, t);
     }
     /* t = q.x * p.z^2 */
     if (err == 0) {
-        err = sakke_mont_mulmod(q->x, z2, prime, t, mp);
+        err = sakke_mont_mulmod(q->x, z2, prime, t, mp, ct);
     }
     /* t = p.x + q.x * p.z^2 */
     if (err == 0) {
@@ -1961,7 +2220,7 @@ static int sakke_calc_dbl_rx(ecc_point* p, ecc_point* q, mp_int* prime,
     }
     /* r.x = l * (p.x + q.x * p.z^2) */
     if (err == 0) {
-        err = sakke_mont_mulmod(l, t, prime, r->x, mp);
+        err = sakke_mont_mulmod(l, t, prime, r->x, mp, ct);
     }
 
     return err;
@@ -1983,12 +2242,13 @@ static int sakke_calc_dbl_rx(ecc_point* p, ecc_point* q, mp_int* prime,
  * @param  [in]   mp     Multiplier to use when converting from Montgomery form.
  * @param  [out]  r      MP projective integer - gradient in PF_p[q].
  * @param  [in]   t1     MP integer temporary.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
-        mp_int* prime, mp_digit mp, mp_proj* r, mp_int** t)
+        mp_int* prime, mp_digit mp, mp_proj* r, mp_int** t, int ct)
 {
     int err;
     mp_int* t1 = t[0];
@@ -1997,14 +2257,14 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
     mp_int* l = t1;
 
     /* v = v^2 */
-    err = sakke_proj_sqr(v, prime, mp, v, t1, t2);
+    err = sakke_proj_sqr(v, prime, mp, v, t1, t2, ct);
     /* l = 3 * (p.x^2 - p.z^4), z2 = p.z^2, rx = l * (p.x + q.x * p.z^2) */
     if (err == 0) {
-        err = sakke_calc_dbl_rx(p, q, prime, mp, r, l, z2);
+        err = sakke_calc_dbl_rx(p, q, prime, mp, r, l, z2, ct);
     }
     /* t1 = p.y ^ 2 */
     if (err == 0) {
-        err = sakke_mont_sqrmod(p->y, prime, t1, mp);
+        err = sakke_mont_sqrmod(p->y, prime, t1, mp, ct);
     }
     /* t1 = 2 * (p.y ^ 2) */
     if (err == 0) {
@@ -2020,19 +2280,19 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
     }
     /* r.y = (p.y * 2) * q.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(r->y, q->y, prime, r->y, mp);
+        err = sakke_mont_mulmod(r->y, q->y, prime, r->y, mp, ct);
     }
     /* t2 = p.z^3 */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->z, z2, prime, t2, mp);
+        err = sakke_mont_mulmod(p->z, z2, prime, t2, mp, ct);
     }
     /* r.y *= p.z^3 */
     if (err == 0) {
-        err = sakke_mont_mulmod(r->y, t2, prime, r->y, mp);
+        err = sakke_mont_mulmod(r->y, t2, prime, r->y, mp, ct);
     }
     /* v = v^2 * r */
     if (err == 0) {
-        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2);
+        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2, ct);
     }
 
     return err;
@@ -2053,12 +2313,14 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
  * @param  [in]   mp     Multiplier to use when converting from Montgomery form.
  * @param  [out]  r      Resulting gradient in PF_p[q].
  * @param  [in]   t      MP integer temporary.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
-        ecc_point* p, ecc_point* q, ecc_point* c, mp_proj* r, mp_int* t1)
+        ecc_point* p, ecc_point* q, ecc_point* c, mp_proj* r, mp_int* t1,
+        int ct)
 {
     int err;
     mp_int* t2 = r->z;
@@ -2066,35 +2328,35 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
     /* r.x = (q.x + p.x) * c.y */
     err = sakke_addmod(q->x, p->x, prime, r->x);
     if (err == 0) {
-        err = sakke_mont_mulmod(r->x, c->y, prime, r->x, mp);
+        err = sakke_mont_mulmod(r->x, c->y, prime, r->x, mp, ct);
     }
     /* t2 = c.z^2 */
     if (err == 0) {
-        err = sakke_mont_sqrmod(c->z, prime, t2, mp);
+        err = sakke_mont_sqrmod(c->z, prime, t2, mp, ct);
     }
     /* t = q.x * c.z^2 */
     if (err == 0) {
-        err = sakke_mont_mulmod(q->x, t2, prime, t1, mp);
+        err = sakke_mont_mulmod(q->x, t2, prime, t1, mp, ct);
     }
     /* t = q.x * c.z^2 + c.x */
     if (err == 0) {
         err = sakke_addmod(t1, c->x, prime, t1);
     }
-    /* t = (q.x * c.z^2 + c.x) * p.y */
+    /* t = (q.x * c.z^2 + c.x) * p.y - p not blinded: always constant time */
     if (err == 0) {
-        err = sakke_mont_mulmod(t1, p->y, prime, t1, mp);
+        err = sakke_mont_mulmod(t1, p->y, prime, t1, mp, 1);
     }
     /* t *= c.z */
     if (err == 0) {
-        err = sakke_mont_mulmod(t1, c->z, prime, t1, mp);
+        err = sakke_mont_mulmod(t1, c->z, prime, t1, mp, ct);
     }
     /* r.x -= t */
     if (err == 0) {
         err = sakke_submod(r->x, t1, prime, r->x);
     }
-    /* t = p.x * c.z^2 */
+    /* t = p.x * c.z^2 - p is not blinded: always constant time */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->x, t2, prime, t1, mp);
+        err = sakke_mont_mulmod(p->x, t2, prime, t1, mp, 1);
     }
     /* r.y = c.x - p.x * c.z^2 */
     if (err == 0) {
@@ -2102,15 +2364,15 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
     }
     /* r.y = (c.x - p.x) * q.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(r->y, q->y, prime, r->y, mp);
+        err = sakke_mont_mulmod(r->y, q->y, prime, r->y, mp, ct);
     }
     /* r.y = c.x - p.x) * q.y * c.z */
     if (err == 0) {
-        err = sakke_mont_mulmod(r->y, c->z, prime, r->y, mp);
+        err = sakke_mont_mulmod(r->y, c->z, prime, r->y, mp, ct);
     }
     /* v = v * r */
     if (err == 0) {
-        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2);
+        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2, ct);
     }
 
     return err;
@@ -2135,12 +2397,13 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
  * @param  [in]   mp     Multiplier to use when converting from Montgomery form.
  * @param  [out]  r      MP projective integer - gradient in PF_p[q].
  * @param  [in]   t1     MP integer temporary.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
-        mp_int* prime, mp_digit mp, mp_proj* r, mp_int** t)
+        mp_int* prime, mp_digit mp, mp_proj* r, mp_int** t, int ct)
 {
     int err = 0;
     mp_int* t1 = t[0];
@@ -2169,15 +2432,15 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
 
     /* v = v^2 */
     if (err == 0) {
-        err = sakke_proj_sqr(v, prime, mp, v, t1, t2);
+        err = sakke_proj_sqr(v, prime, mp, v, t1, t2, ct);
     }
     /* l = 3 * (p.x^2 - p.z^4), z2 = p.z^2, rx = l * (p.x + q.x * p.z^2) */
     if (err == 0) {
-        err = sakke_calc_dbl_rx(p, q, prime, mp, r, l, z2);
+        err = sakke_calc_dbl_rx(p, q, prime, mp, r, l, z2, ct);
     }
     /* ty = p.y ^ 2 */
     if (err == 0) {
-        err = sakke_mont_sqrmod(p->y, prime, ty, mp);
+        err = sakke_mont_sqrmod(p->y, prime, ty, mp, ct);
     }
     /* ty = 2 * (p.y ^ 2) */
     if (err == 0) {
@@ -2193,19 +2456,19 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
     }
     /* r.y = p.y * 2 * p.z */
     if (err == 0) {
-        err = sakke_mont_mulmod(r->y, p->z, prime, p->z, mp);
+        err = sakke_mont_mulmod(r->y, p->z, prime, p->z, mp, ct);
     }
     /* r.y = p.y * 2 * p.z^3 */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->z, z2, prime, r->y, mp);
+        err = sakke_mont_mulmod(p->z, z2, prime, r->y, mp, ct);
     }
     /* r.y = (p.y * 2 * p.z^3) * q.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(r->y, q->y, prime, r->y, mp);
+        err = sakke_mont_mulmod(r->y, q->y, prime, r->y, mp, ct);
     }
     /* v = v^2 * r */
     if (err == 0) {
-        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2);
+        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2, ct);
     }
 
     /* Double point using previously calculated values
@@ -2219,7 +2482,7 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
     }
     /* T2 = 4 * Y^4 */
     if (err == 0) {
-        err = sakke_mont_sqrmod(ty, prime, t2, mp);
+        err = sakke_mont_sqrmod(ty, prime, t2, mp, ct);
     }
     /* T2 = 8 * Y^4 */
     if (err == 0) {
@@ -2227,11 +2490,11 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
     }
     /* Y = Y * X */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->y, p->x, prime, p->y, mp);
+        err = sakke_mont_mulmod(p->y, p->x, prime, p->y, mp, ct);
     }
     /* X = l * l */
     if (err == 0) {
-        err = sakke_mont_sqrmod(l, prime, p->x, mp);
+        err = sakke_mont_sqrmod(l, prime, p->x, mp, ct);
     }
     /* X = X - Y */
     if (err == 0) {
@@ -2247,7 +2510,7 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
     }
     /* Y = Y * l */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->y, l, prime, p->y, mp);
+        err = sakke_mont_mulmod(p->y, l, prime, p->y, mp, ct);
     }
     /* Y = Y - T2 */
     if (err == 0) {
@@ -2291,12 +2554,14 @@ static int sakke_accumulate_line_dbl(mp_proj* v, ecc_point* p, ecc_point* q,
  * @param  [in]   mp     Multiplier to use when converting from Montgomery form.
  * @param  [out]  r      Resulting gradient in PF_p[q].
  * @param  [in]   t      MP integer temporary.
+ * @param  [in]   ct     Reduce in constant time when not 0.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
 static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
-        ecc_point* p, ecc_point* q, ecc_point* c, mp_proj* r, mp_int** t)
+        ecc_point* p, ecc_point* q, ecc_point* c, mp_proj* r, mp_int** t,
+        int ct)
 {
     int err = 0;
     mp_int* t1 = t[0];
@@ -2344,35 +2609,35 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
         err = sakke_addmod(q->x, p->x, prime, r->x);
     }
     if (err == 0) {
-        err = sakke_mont_mulmod(r->x, c->y, prime, r->x, mp);
+        err = sakke_mont_mulmod(r->x, c->y, prime, r->x, mp, ct);
     }
     /* tz = c.z^2 */
     if (err == 0) {
-        err = sakke_mont_sqrmod(c->z, prime, tz, mp);
+        err = sakke_mont_sqrmod(c->z, prime, tz, mp, ct);
     }
     /* t = q.x * c.z^2 */
     if (err == 0) {
-        err = sakke_mont_mulmod(q->x, tz, prime, t1, mp);
+        err = sakke_mont_mulmod(q->x, tz, prime, t1, mp, ct);
     }
     /* t = q.x * c.z^2 + c.x */
     if (err == 0) {
         err = sakke_addmod(t1, c->x, prime, t1);
     }
-    /* ty = p.y * c.z */
+    /* ty = p.y * c.z - p is not blinded: always constant time */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->y, c->z, prime, ty, mp);
+        err = sakke_mont_mulmod(p->y, c->z, prime, ty, mp, 1);
     }
     /* t = (q.x * c.z^2 + c.x) * p.y * c.z */
     if (err == 0) {
-        err = sakke_mont_mulmod(t1, ty, prime, t1, mp);
+        err = sakke_mont_mulmod(t1, ty, prime, t1, mp, ct);
     }
     /* r.x -= t */
     if (err == 0) {
         err = sakke_submod(r->x, t1, prime, r->x);
     }
-    /* t = p.x * c.z^2 */
+    /* t = p.x * c.z^2 - p is not blinded: always constant time */
     if (err == 0) {
-        err = sakke_mont_mulmod(p->x, tz, prime, t1, mp);
+        err = sakke_mont_mulmod(p->x, tz, prime, t1, mp, 1);
     }
     /* h = c.x - p.x * c.z^2 */
     if (err == 0) {
@@ -2380,15 +2645,15 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
     }
     /* t3 = (c.x - p.x * c.z^2 ) * c.z*/
     if (err == 0) {
-        err = sakke_mont_mulmod(h, c->z, prime, t3, mp);
+        err = sakke_mont_mulmod(h, c->z, prime, t3, mp, ct);
     }
     /* r.y = (c.x - p.x * c.z^2) * c.z * q.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(t3, q->y, prime, r->y, mp);
+        err = sakke_mont_mulmod(t3, q->y, prime, r->y, mp, ct);
     }
     /* v = v * r */
     if (err == 0) {
-        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2);
+        err = sakke_proj_mul(v, r, prime, mp, v, t1, t2, ct);
     }
 
     /* Add p to c using previously calculated values.
@@ -2400,7 +2665,7 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
 
     /* R = p.y * c.z^3 - c.y */
     if (err == 0) {
-        err = sakke_mont_mulmod(ty, tz, prime, ty, mp);
+        err = sakke_mont_mulmod(ty, tz, prime, ty, mp, ct);
     }
     if (err == 0) {
         err = sakke_submod(ty, c->y, prime, ty);
@@ -2411,16 +2676,16 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
     }
     /* c'.x = R^2 + H^3 - 2 * c.x * H^2 */
     if (err == 0) {
-        err = sakke_mont_sqrmod(ty, prime, t1, mp);
+        err = sakke_mont_sqrmod(ty, prime, t1, mp, ct);
     }
     if (err == 0) {
-        err = sakke_mont_sqrmod(h, prime, t2, mp);
+        err = sakke_mont_sqrmod(h, prime, t2, mp, ct);
     }
     if (err == 0) {
-        err = sakke_mont_mulmod(c->x, t2, prime, t3, mp);
+        err = sakke_mont_mulmod(c->x, t2, prime, t3, mp, ct);
     }
     if (err == 0) {
-        err = sakke_mont_mulmod(t2, h, prime, t2, mp);
+        err = sakke_mont_mulmod(t2, h, prime, t2, mp, ct);
     }
     if (err == 0) {
         err = sakke_addmod(t1, t2, prime, c->x);
@@ -2436,10 +2701,10 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
         err = sakke_submod(t3, c->x, prime, t3);
     }
     if (err == 0) {
-        err = sakke_mont_mulmod(t3, ty, prime, t3, mp);
+        err = sakke_mont_mulmod(t3, ty, prime, t3, mp, ct);
     }
     if (err == 0) {
-        err = sakke_mont_mulmod(t2, c->y, prime, t2, mp);
+        err = sakke_mont_mulmod(t2, c->y, prime, t2, mp, ct);
     }
     if (err == 0) {
         err = sakke_addmod(t3, t2, prime, c->y);
@@ -2474,9 +2739,101 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
 #endif /* WOLFSSL_SAKKE_SMALL */
 
 /*
+ * Put a point with secret ordinates into Montgomery form in constant time.
+ *
+ * x * R = mont(x, R^2) with a constant time reduction.
+ *
+ * @param  [in, out]  p      ECC point.
+ * @param  [in]       prime  Prime modulus.
+ * @param  [in]       mp     Multiplier to use when converting from Montgomery
+ *                           form.
+ * @param  [in]       t      Temporary MP integer.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other -ve value on internal failure.
+ */
+static int sakke_point_to_mont_ct(ecc_point* p, mp_int* prime, mp_digit mp,
+        mp_int* t)
+{
+    int err;
+
+    /* t = R^2 mod prime - public */
+    err = mp_montgomery_calc_normalization(t, prime);
+    if (err == 0) {
+        err = mp_sqrmod(t, prime, t);
+    }
+    if (err == 0) {
+        err = sakke_mont_mulmod(p->x, t, prime, p->x, mp, 1);
+    }
+    if (err == 0) {
+        err = sakke_mont_mulmod(p->y, t, prime, p->y, mp, 1);
+    }
+    if (err == 0) {
+        err = sakke_mont_mulmod(p->z, t, prime, p->z, mp, 1);
+    }
+
+    return err;
+}
+
+/*
+ * Randomize the Jacobian coordinates of a point in Montgomery form.
+ *
+ * (X, Y, Z) -> (L^2.X, L^3.Y, L.Z) for random L. Same point.
+ * In the pairing, line values are scaled by powers of L in F_p which do not
+ * change the value in PF_p[q]. Intermediate values become independent of the
+ * secret point.
+ *
+ * @param  [in]       key    SAKKE key with RNG set.
+ * @param  [in, out]  c      ECC point in Jacobian coordinates.
+ * @param  [in]       prime  Prime modulus.
+ * @param  [in]       mp     Multiplier to use when converting from Montgomery
+ *                           form.
+ * @param  [in]       l      Temporary MP integer.
+ * @param  [in]       ln     Temporary MP integer.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other -ve value on internal failure.
+ */
+static int sakke_proj_blind(SakkeKey* key, ecc_point* c, mp_int* prime,
+        mp_digit mp, mp_int* l, mp_int* ln)
+{
+    int err;
+
+    /* Random L in [1, prime-1] - taken as being in Montgomery form. */
+    err = wc_ecc_gen_k(key->rng, mp_unsigned_bin_size(prime), l, prime);
+    /* Z = L.Z */
+    if (err == 0) {
+        err = sakke_mont_mulmod(c->z, l, prime, c->z, mp, 1);
+    }
+    /* X = L^2.X */
+    if (err == 0) {
+        err = sakke_mont_sqrmod(l, prime, ln, mp, 1);
+    }
+    if (err == 0) {
+        err = sakke_mont_mulmod(c->x, ln, prime, c->x, mp, 1);
+    }
+    /* Y = L^3.Y */
+    if (err == 0) {
+        err = sakke_mont_mulmod(ln, l, prime, ln, mp, 1);
+    }
+    if (err == 0) {
+        err = sakke_mont_mulmod(c->y, ln, prime, c->y, mp, 1);
+    }
+
+    mp_forcezero(l);
+    mp_forcezero(ln);
+
+    return err;
+}
+
+/*
  * Calculate r = pairing <P, Q>.
  *
  * That is, multiply base in PF_p[q] by the scalar s, such that s.P = Q.
+ *
+ * P is secret (RSK). When an RNG is set, the working point is blinded and
+ * the pairing uses faster, variable time, reductions. Otherwise reductions
+ * are constant time.
  *
  * @param  [in]   key  SAKKE key.
  * @param  [in]   p    First point on E(F_p)[q].
@@ -2499,6 +2856,7 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
     int i;
     mp_digit mp = 0;
     SakkeKeyParams* params = &key->params;
+    int ct = 1;
 
     t[0] = &key->tmp.m1;
     t[1] = t3;
@@ -2506,12 +2864,26 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
     (void)table;
     (void)len;
 
-    err = sakke_point_to_mont(p, prime, &key->tmp.m1, 0);
+    err = mp_montgomery_setup(prime, &mp);
+    /* Q is public. */
     if (err == 0) {
-        err = sakke_point_to_mont(q, prime, &key->tmp.m1, 1);
+        err = sakke_point_to_mont(q, prime, &key->tmp.m1, 0);
+    }
+    /* P is secret. */
+    if (err == 0) {
+        err = sakke_point_to_mont_ct(p, prime, mp, &key->tmp.m1);
     }
     if (err == 0) {
         err = wc_ecc_copy_point(p, c);
+    }
+    if ((err == 0) && (key->rng != NULL)) {
+        err = sakke_proj_blind(key, c, prime, mp, t2->x, t2->y);
+        if (err == 0) {
+            /* C and values derived from it are blinded - variable time
+             * reduction is safe. Products with P, which is not blinded, are
+             * always reduced in constant time. */
+            ct = 0;
+        }
     }
     /* Set v to 1. */
     if (err == 0) {
@@ -2521,14 +2893,11 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
     if (err == 0) {
         err = mp_set(v->y, 0);
     }
-    if (err == 0) {
-        err = mp_montgomery_setup(prime, &mp);
-    }
 
     for (i = mp_count_bits(&params->q) - 2; (err == 0) && (i >= 0); i--) {
 #ifdef WOLFSSL_SAKKE_SMALL
         /* Accumulate line into v and double point. */
-        err = sakke_accumulate_line_dbl(v, c, q, prime, mp, t2, t);
+        err = sakke_accumulate_line_dbl(v, c, q, prime, mp, t2, t, ct);
         if (err == 0) {
             err = ecc_projective_dbl_point(c, c, NULL, prime, mp);
         }
@@ -2536,32 +2905,33 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
         if ((err == 0) && (i > 0) && mp_is_bit_set(&params->q, i)) {
             /* Accumulate line into v and add P into C. */
             err = sakke_accumulate_line_add_one(v, prime, mp, p, q, c, t2,
-                    &key->tmp.m1);
+                    &key->tmp.m1, ct);
             if (err == 0) {
                 err = ecc_projective_add_point(p, c, c, NULL, prime, mp);
             }
         }
 #else
         /* Accumulate line into v and double point. */
-        err = sakke_accumulate_line_dbl(v, c, q, prime, mp, t2, t);
+        err = sakke_accumulate_line_dbl(v, c, q, prime, mp, t2, t, ct);
 
         if ((err == 0) && (i > 0) && mp_is_bit_set(&params->q, i)) {
             /* Accumulate line into v and add P into C. */
-            err = sakke_accumulate_line_add_one(v, prime, mp, p, q, c, t2, t);
+            err = sakke_accumulate_line_add_one(v, prime, mp, p, q, c, t2, t,
+                    ct);
         }
 #endif /* WOLFSSL_SAKKE_SMALL */
     }
 
     /* Final exponentiation */
     if (err == 0) {
-        err = sakke_proj_sqr(v, prime, mp, v, &key->tmp.m1, t3);
+        err = sakke_proj_sqr(v, prime, mp, v, &key->tmp.m1, t3, ct);
     }
     if (err == 0) {
-        err = sakke_proj_sqr(v, prime, mp, v, &key->tmp.m1, t3);
+        err = sakke_proj_sqr(v, prime, mp, v, &key->tmp.m1, t3, ct);
     }
-    /* Convert from PF_p[q] to F_p */
+    /* Convert from PF_p[q] to F_p: r = v.y / v.x */
     if (err == 0) {
-        err = sakke_proj_to_fp(v, prime, mp, r);
+        err = sakke_proj_to_fp(key, v, prime, mp, r, t2);
     }
 
     if (err == 0) {
@@ -2652,6 +3022,8 @@ static int sakke_compute_point_i(SakkeKey* key, const byte* id, word16 idSz,
  * RFC 6508, Section 6.1.2
  *
  * A receiving client should validate an RSK before use.
+ *
+ * Set an RNG with wc_SetSakkeRng() for better performance.
  *
  * @param  [in]   key    SAKKE key.
  * @param  [in]   id     Identity to use.
@@ -2777,9 +3149,17 @@ static int sakke_modexp(const SakkeKey* key, const mp_int* b, mp_int* e,
     return err;
 }
 #else
-#ifdef WOLFSSL_SAKKE_SMALL
+#if defined(WOLFSSL_SAKKE_SMALL) || defined(WOLFSSL_SAKKE_SMALL_MODEXP) || \
+    !defined(USE_FAST_MATH)
+
 /*
  * Modular exponentiate the value in F_p*.
+ *
+ * The exponent is secret: the same operations are performed for every bit.
+ * The identity has a zero y ordinate. A zero MP integer changes the timing of
+ * the following operations. Instead, until the first set bit, the working
+ * value holds a non-zero dummy value and is replaced by the base on the first
+ * set bit.
  *
  * @param  [in]   key  SAKKE key.
  * @param  [in]   b    MP integer that is the base to exponentiate.
@@ -2797,149 +3177,69 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* c,
     mp_int* t1 = &key->tmp.m1;
     mp_int* t2 = &key->tmp.m2;
     mp_int* by = key->tmp.p1->z;
+    mp_proj* d = key->tmp.p2;
+    mp_int* one = key->tmp.p3->x;
+    mp_int* zero = key->tmp.p3->y;
     mp_int* prime = &key->params.prime;
+    WC_DECLARE_VAR(eb, unsigned char, SAKKE_EB_BUF_SIZE, key->heap);
     int i;
+    int j;
+    int started = 0;
 
-    /* Set the working value to the base in PF_p[q] */
-    err = mp_montgomery_calc_normalization(c->x, prime);
-    /* Set c->y as montgomery form of b - base */
+    WC_ALLOC_VAR_EX(eb, unsigned char, SAKKE_EB_BUF_SIZE, key->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+
+    /* Fixed length encoding of exponent - bits read without branching. */
+    err = mp_to_unsigned_bin_len(e, eb, SAKKE_EB_BUF_SIZE);
+    /* one = Montgomery form of 1. */
     if (err == 0) {
-        err = mp_mulmod(b, c->x, prime, by);
+        err = mp_montgomery_calc_normalization(one, prime);
     }
-    /* Set by as montgomery form of b - base */
+    if (err == 0) {
+        mp_zero(zero);
+        /* Set 'by' to montgomery form of 'b' - base */
+        err = mp_mulmod(b, one, prime, by);
+    }
+    /* Dummy non-zero working value: [one, by]. */
+    if (err == 0) {
+        err = mp_copy(one, c->x);
+    }
     if (err == 0) {
         err = mp_copy(by, c->y);
     }
-    /* Simple non-constant time exponentiation over a field. */
-    for (i = mp_count_bits(e) - 2; (err == 0) && (i >= 0); i--) {
-        err = sakke_proj_sqr(c, prime, mp, c, t1, t2);
-        if (err == 0) {
-            if (mp_is_bit_set(e, i)) {
-                err = sakke_proj_mul_qx1(c, by, prime, mp, c, t1, t2);
-            }
-        }
-    }
-
-    return err;
-}
-
-#elif defined(WOLFSSL_SAKKE_SMALL_MODEXP) || !defined(USE_FAST_MATH)
-
-/* The cache-resistant SAKKE modexp ladder selects the working point from c[0]
- * or c[1] on each exponent bit. By default this is done with mp_cond_copy(),
- * which accesses both objects every iteration so the touched address does not
- * depend on the secret bit (resists co-resident L1D cache attacks such as
- * Prime+Probe between SMT siblings).
- *
- * Defining WOLFSSL_SP_FAST_MODEXP_COPY (the same opt-in used by the SP math
- * backends) selects the faster variant that instead computes a single
- * secret-dependent pointer with wc_off_on_addr masking and copies only the
- * selected point. It is faster but leaks the exponent at cache-line
- * granularity, so only enable it where a co-resident cache observer is outside
- * the threat model. The fast variant rebuilds a pointer from integer arithmetic
- * on two addresses, which capability targets cannot do, so it is forced off
- * when WC_NO_PTR_INT_CAST is defined. */
-#if defined(WOLFSSL_SP_FAST_MODEXP_COPY) && !defined(WC_NO_PTR_INT_CAST)
-    #define WC_SAKKE_MODEXP_PTR_COPY
-#endif
-
-/*
- * Modular exponentiate the value in F_p*.
- *
- * @param  [in]   key  SAKKE key.
- * @param  [in]   b    MP integer that is the base to exponentiate.
- * @param  [in]   e    MP integer that is the exponent.
- * @param  [out]  r    Result of exponentiation.
- * @param  [in]   mp   Multiplier to use when converting from Montgomery form.
- * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
- * @return  Other -ve value on internal failure.
- */
-static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
-        mp_digit mp)
-{
-    int err;
-#ifdef WC_NO_CACHE_RESISTANT
-    mp_proj* c[2];
-#else
-    mp_proj* c[3];
-#endif
-    mp_int* t1 = &key->tmp.m1;
-    mp_int* t2 = &key->tmp.m2;
-    mp_int* by = key->tmp.p1->z;
-    mp_int* prime = &key->params.prime;
-    int i;
-    /* Local address mask only when the pointer-copy opt-in is active and global
-     * object pointers are unavailable; the default oblivious copy never uses
-     * it, so declaring it unconditionally is an unused variable. */
-#if defined(WC_NO_GLOBAL_OBJECT_POINTERS) && defined(WC_SAKKE_MODEXP_PTR_COPY)
-    static const wc_ptr_t wc_off_on_addr[2] =
-    {
-    #if defined(WC_64BIT_CPU)
-        W64LIT(0x0000000000000000),
-        W64LIT(0xffffffffffffffff)
-    #elif defined(WC_16BIT_CPU)
-        0x0000U,
-        0xffffU
-    #else
-        /* 32 bit */
-        0x00000000U,
-        0xffffffffU
-    #endif
-    };
-#endif
-
-#ifdef WC_NO_CACHE_RESISTANT
-    c[0] = r;
-    c[1] = key->tmp.p2;
-#else
-    c[0] = r;
-    c[1] = key->tmp.p3;
-    c[2] = key->tmp.p2;
-#endif
-
-    /* Set the working value to the base in PF_p[q] */
-    err = mp_montgomery_calc_normalization(c[0]->x, prime);
-    /* Set c[0] to [mont_one, zero] */
-    if (err == 0) {
-        mp_zero(c[0]->y);
-
-        /* Set 'by' to montgomery form of 'b' - base */
-        err = mp_mulmod(b, c[0]->x, prime, by);
-    }
     for (i = mp_count_bits(&key->params.q) - 1; (err == 0) && (i >= 0); i--) {
-        int j = mp_is_bit_set(e, i);
-        err = sakke_proj_sqr(c[0], prime, mp, c[0], t1, t2);
+        j = (eb[SAKKE_EB_BUF_SIZE - 1 - (i / 8)] >> (i & 0x7)) & 1;
+
+        err = sakke_proj_sqr(c, prime, mp, c, t1, t2, 1);
         if (err == 0) {
-#ifdef WC_NO_CACHE_RESISTANT
-            err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[j^1], t1, t2);
-#else
-            err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[2], t1, t2);
-#ifndef WC_SAKKE_MODEXP_PTR_COPY
-            /* Guard each copy on err so a failure in the multiply above or in
-             * an earlier copy is preserved rather than overwritten. err does
-             * not depend on the secret bit, so all four copies still run (and
-             * touch both c[0] and c[1]) on the success path. */
-            if (err == 0)
-                err = mp_cond_copy(c[2]->x, j,   c[0]->x);
-            if (err == 0)
-                err = mp_cond_copy(c[2]->x, j^1, c[1]->x);
-            if (err == 0)
-                err = mp_cond_copy(c[2]->y, j,   c[0]->y);
-            if (err == 0)
-                err = mp_cond_copy(c[2]->y, j^1, c[1]->y);
-#else
-            mp_copy(c[2]->x,
-            (mp_int*) ( ((wc_ptr_t)c[0]->x & wc_off_on_addr[j]) +
-                        ((wc_ptr_t)c[1]->x & wc_off_on_addr[j^1]) ) );
-            mp_copy(c[2]->y,
-            (mp_int*) ( ((wc_ptr_t)c[0]->y & wc_off_on_addr[j]) +
-                        ((wc_ptr_t)c[1]->y & wc_off_on_addr[j^1]) ) );
-#endif
-#endif
+            err = sakke_proj_mul_qx1(c, by, prime, mp, d, t1, t2, 1);
         }
+        /* Started and bit set: c = c^2 * b */
+        if (err == 0) {
+            err = mp_cond_copy(d->x, started & j, c->x);
+        }
+        if (err == 0) {
+            err = mp_cond_copy(d->y, started & j, c->y);
+        }
+        /* Not started and bit set: c = [one, b] */
+        if (err == 0) {
+            err = mp_cond_copy(one, (started ^ 1) & j, c->x);
+        }
+        if (err == 0) {
+            err = mp_cond_copy(by, (started ^ 1) & j, c->y);
+        }
+        started |= j;
+    }
+    /* Exponent of zero: result is the identity [one, 0]. */
+    if (err == 0) {
+        err = mp_cond_copy(one, started ^ 1, c->x);
+    }
+    if (err == 0) {
+        err = mp_cond_copy(zero, started ^ 1, c->y);
     }
 
+    ForceZero(eb, SAKKE_EB_BUF_SIZE);
+    WC_FREE_VAR_EX(eb, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
 }
 
@@ -6278,9 +6578,68 @@ static const byte sakke_1024_g_table[256][128] = {
 };
 
 /*
+ * Select an entry from the table.
+ *
+ * Cache attack resistant: all entries are read so the memory accessed doesn't
+ * depend on the index. Define WC_NO_CACHE_RESISTANT to read only the entry.
+ *
+ * @param  [in]   y    Index of entry to select. Secret.
+ * @param  [out]  out  Buffer to hold entry. 128 bytes.
+ */
+static void sakke_g_table_select(int y, byte* out)
+{
+#ifndef WC_NO_CACHE_RESISTANT
+    int i;
+    int j;
+
+    XMEMSET(out, 0, 128);
+    for (i = 0; i < 256; i++) {
+        byte mask = ctMaskEq(i, y);
+        for (j = 0; j < 128; j++) {
+            out[j] |= (byte)(sakke_1024_g_table[i][j] & mask);
+        }
+    }
+#else
+    XMEMCPY(out, sakke_1024_g_table[y], 128);
+#endif
+}
+
+/*
+ * Get the stripe of bits of the exponent at bit index i.
+ *
+ * @param  [in]  eb  Exponent as a 128 byte big-endian array.
+ * @param  [in]  i   Bit index into each 128-bit stripe.
+ * @return  Stripe of 8 bits as an index into the table.
+ */
+static int sakke_eb_stripe(const byte* eb, int i)
+{
+    int y;
+
+    y  =  (eb[127 -  i / 8       ] >> (i & 0x7)) & 1;
+    y |= ((eb[127 - (i / 8 +  16)] >> (i & 0x7)) & 1) << 1;
+    y |= ((eb[127 - (i / 8 +  32)] >> (i & 0x7)) & 1) << 2;
+    y |= ((eb[127 - (i / 8 +  48)] >> (i & 0x7)) & 1) << 3;
+    y |= ((eb[127 - (i / 8 +  64)] >> (i & 0x7)) & 1) << 4;
+    y |= ((eb[127 - (i / 8 +  80)] >> (i & 0x7)) & 1) << 5;
+    y |= ((eb[127 - (i / 8 +  96)] >> (i & 0x7)) & 1) << 6;
+    y |= ((eb[127 - (i / 8 + 112)] >> (i & 0x7)) & 1) << 7;
+
+    return y;
+}
+
+/*
  * Loop for modular exponentiate the value in F_p*.
  *
  * Using 8-bit stripe table.
+ *
+ * The exponent is secret: table entries are selected in constant time and the
+ * same operations are performed for every stripe.
+ * Entry 0 is the identity, which has a zero y ordinate. A zero MP integer
+ * changes the timing of the following operations. Instead, the working value
+ * is always multiplied by a non-zero entry and the result is conditionally
+ * copied in. Until the first non-zero stripe the working value holds a non-zero
+ * dummy value and is replaced by the selected entry on the first non-zero
+ * stripe.
  *
  * @param  [in]   key  SAKKE key.
  * @param  [in]   b    MP integer that is the base to exponentiate.
@@ -6298,54 +6657,81 @@ static int sakke_modexp_loop(SakkeKey* key, const mp_int* b, mp_int* e,
     mp_int* t1 = &key->tmp.m1;
     mp_int* t2 = &key->tmp.m2;
     mp_int* by = key->tmp.p1->z;
+    mp_proj* d = key->tmp.p2;
+    mp_int* one = key->tmp.p3->x;
+    mp_int* zero = key->tmp.p3->y;
     mp_int* prime = &key->params.prime;
-    WC_DECLARE_VAR(eb, unsigned char, SAKKE_EB_BUF_SIZE, key->heap);
+    WC_DECLARE_VAR(eb, unsigned char, 2 * SAKKE_EB_BUF_SIZE, key->heap);
+    byte* tb;
     int i;
     int y;
+    int nz;
+    int started = 0;
 
-    WC_ALLOC_VAR_EX(eb, unsigned char, SAKKE_EB_BUF_SIZE, key->heap,
+    WC_ALLOC_VAR_EX(eb, unsigned char, 2 * SAKKE_EB_BUF_SIZE, key->heap,
                     DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+    tb = eb + SAKKE_EB_BUF_SIZE;
 
     /* Use table for values of b exponentiated. */
     (void)b;
 
-    (void)mp_to_unsigned_bin_len(e, eb, SAKKE_EB_BUF_SIZE);
+    err = mp_to_unsigned_bin_len(e, eb, SAKKE_EB_BUF_SIZE);
 
-    /* Set the working value to the base in PF_p[q] */
-    err = mp_montgomery_calc_normalization(c->x, prime);
+    /* one = Montgomery form of 1. */
     if (err == 0) {
-        y  =  (eb[112] >> 7) & 1;
-        y |= ((eb[ 96] >> 7) & 1) << 1;
-        y |= ((eb[ 80] >> 7) & 1) << 2;
-        y |= ((eb[ 64] >> 7) & 1) << 3;
-        y |= ((eb[ 48] >> 7) & 1) << 4;
-        y |= ((eb[ 32] >> 7) & 1) << 5;
-        y |= ((eb[ 16] >> 7) & 1) << 6;
-        y |= ((eb[  0] >> 7) & 1) << 7;
-
-        (void)mp_read_unsigned_bin(c->y, sakke_1024_g_table[y], 128);
+        err = mp_montgomery_calc_normalization(one, prime);
     }
-    for (i = 128 - 2; (err == 0) && (i >= 0); i--) {
-        y  =  (eb[127 -  i / 8       ] >> (i & 0x7)) & 1;
-        y |= ((eb[127 - (i / 8 +  16)] >> (i & 0x7)) & 1) << 1;
-        y |= ((eb[127 - (i / 8 +  32)] >> (i & 0x7)) & 1) << 2;
-        y |= ((eb[127 - (i / 8 +  48)] >> (i & 0x7)) & 1) << 3;
-        y |= ((eb[127 - (i / 8 +  64)] >> (i & 0x7)) & 1) << 4;
-        y |= ((eb[127 - (i / 8 +  80)] >> (i & 0x7)) & 1) << 5;
-        y |= ((eb[127 - (i / 8 +  96)] >> (i & 0x7)) & 1) << 6;
-        y |= ((eb[127 - (i / 8 + 112)] >> (i & 0x7)) & 1) << 7;
+    if (err == 0) {
+        mp_zero(zero);
+        /* Dummy non-zero working value: [one, table[1]]. */
+        err = mp_copy(one, c->x);
+    }
+    if (err == 0) {
+        err = mp_read_unsigned_bin(c->y, sakke_1024_g_table[1], 128);
+    }
+    for (i = 128 - 1; (err == 0) && (i >= 0); i--) {
+        y = sakke_eb_stripe(eb, i);
+        /* nz = 1 when y is not zero. */
+        nz = (int)(((word32)0 - (word32)y) >> 31);
+        /* Use entry 1 in place of the identity. */
+        sakke_g_table_select(y | (nz ^ 1), tb);
 
-        err = sakke_proj_sqr(c, prime, mp, c, t1, t2);
+        err = mp_read_unsigned_bin(by, tb, 128);
         if (err == 0) {
-            (void)mp_read_unsigned_bin(by, sakke_1024_g_table[y], 128);
-            err = sakke_proj_mul_qx1(c, by, prime, mp, c, t1, t2);
+            err = sakke_proj_sqr(c, prime, mp, c, t1, t2, 1);
         }
+        if (err == 0) {
+            err = sakke_proj_mul_qx1(c, by, prime, mp, d, t1, t2, 1);
+        }
+        /* Started and stripe not zero: c = c^2 * table[y] */
+        if (err == 0) {
+            err = mp_cond_copy(d->x, started & nz, c->x);
+        }
+        if (err == 0) {
+            err = mp_cond_copy(d->y, started & nz, c->y);
+        }
+        /* Not started and stripe not zero: c = [one, table[y]] */
+        if (err == 0) {
+            err = mp_cond_copy(one, (started ^ 1) & nz, c->x);
+        }
+        if (err == 0) {
+            err = mp_cond_copy(by, (started ^ 1) & nz, c->y);
+        }
+        started |= nz;
+    }
+    /* Exponent of zero: result is the identity [one, 0]. */
+    if (err == 0) {
+        err = mp_cond_copy(one, started ^ 1, c->x);
+    }
+    if (err == 0) {
+        err = mp_cond_copy(zero, started ^ 1, c->y);
     }
 
+    ForceZero(eb, 2 * SAKKE_EB_BUF_SIZE);
     WC_FREE_VAR_EX(eb, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
 }
-#endif /* WOLFSSL_SAKKE_SMALL */
+#endif /* WOLFSSL_SAKKE_SMALL || WOLFSSL_SAKKE_SMALL_MODEXP || !USE_FAST_MATH */
 
 /*
  * Modular exponentiate the value in F_p*.
@@ -6372,9 +6758,9 @@ static int sakke_modexp(SakkeKey* key, mp_int* b, mp_int* e, mp_int* r)
         err = sakke_modexp_loop(key, b, e, c, mp);
     }
 
-    /* Convert value back from PF_p[q] to F_p* */
+    /* Convert value back from PF_p[q] to F_p*: r = c.y / c.x */
     if (err == 0) {
-        err = sakke_proj_to_fp(c, prime, mp, r);
+        err = sakke_proj_to_fp(key, c, prime, mp, r, key->tmp.p2);
     }
 
     return err;
@@ -6586,19 +6972,69 @@ static int sakke_hash_to_range_int(SakkeKey* key, enum wc_HashType hashType,
 {
     int err;
     byte* rb = key->data;
+    byte* qb = key->data + n;
+    int qBits;
+    int shift = 0;
+    int k;
+    word32 i;
 
     /* Make all zeros so that hash output can be XORed in. */
     XMEMSET(rb, 0, n);
 
     /* Steps 1-4 */
     err = sakke_hash_to_range(key, hashType, a, rb, n);
+
+    /* Steps 5 and 6: v = (v_1 | ... | v_l) mod q
+     *
+     * v' is derived from secret data and mp_mod() is not constant time.
+     * v' < 2^(8n) and q >= 2^(qBits-1), so v' < 2^(shift+1) * q where
+     * shift = 8n - qBits. Conditionally subtract q * 2^k for k = shift..0 in
+     * constant time. The number of iterations depends only on public sizes.
+     */
     if (err == 0) {
-        /* Steps 5 v' = v_1 | ...  | v_l */
-        err = mp_read_unsigned_bin(r, rb, n);
+        qBits = mp_count_bits(q);
+        shift = (int)(n * 8) - qBits;
+        if ((qBits == 0) || (shift < 0)) {
+            err = BAD_FUNC_ARG;
+        }
     }
     if (err == 0) {
-        /* Steps 6 v = v' mod n */
-        err = mp_mod(r, q, r);
+        err = mp_to_unsigned_bin_len(q, qb, (int)n);
+    }
+    if (err == 0) {
+        /* qb = q * 2^shift - fits in n bytes. */
+        for (k = 0; k < shift; k++) {
+            for (i = 0; i < n - 1; i++) {
+                qb[i] = (byte)((qb[i] << 1) | (qb[i + 1] >> 7));
+            }
+            qb[n - 1] = (byte)(qb[n - 1] << 1);
+        }
+
+        for (k = shift; k >= 0; k--) {
+            word32 borrow = 0;
+            byte mask;
+
+            /* Determine whether rb < qb. */
+            for (i = n; i > 0; i--) {
+                borrow = (((word32)rb[i - 1] - qb[i - 1] - borrow) >> 8) & 1;
+            }
+            /* Subtract qb when rb >= qb. */
+            mask = (byte)(borrow - 1);
+            borrow = 0;
+            for (i = n; i > 0; i--) {
+                word32 d = (word32)rb[i - 1] - (qb[i - 1] & mask) - borrow;
+                rb[i - 1] = (byte)d;
+                borrow = (d >> 8) & 1;
+            }
+
+            /* qb = qb / 2 */
+            for (i = n - 1; i > 0; i--) {
+                qb[i] = (byte)((qb[i] >> 1) | (qb[i - 1] << 7));
+            }
+            qb[0] = (byte)(qb[0] >> 1);
+        }
+
+        err = mp_read_unsigned_bin(r, rb, n);
     }
 
     return err;
@@ -6948,6 +7384,8 @@ static int sakke_compute_point_r(SakkeKey* key, const byte* id, word16 idSz,
  *
  * Call wc_SetSakkeIdentity() to set the identity to use with operation.
  *
+ * Set an RNG with wc_SetSakkeRng() for better performance.
+ *
  * @param  [in]      key       SAKKE key.
  * @param  [in,out]  ssv       On in, Shared Secret Value (SSV) data.
  *                             On out, encrypted Shared Secret Value (SSV) data.
@@ -7126,6 +7564,8 @@ int wc_GenerateSakkeSSV(SakkeKey* key, WC_RNG* rng, byte* ssv, word16* ssvSz)
  *
  * Call wc_SetSakkeRSK() to set the Receiver Secret Key (RSK) to use with
  * operation.
+ *
+ * Set an RNG with wc_SetSakkeRng() for better performance.
  *
  * @param  [in]      key       SAKKE key.
  * @param  [in]      hashType  Hash algorithm to use.

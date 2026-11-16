@@ -2986,9 +2986,8 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
         #if defined(ECC_TIMING_RESISTANT) && (defined(USE_FAST_MATH) || \
                         defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
             if (ct) {
+                /* 1/z in Montgomery form. */
                 err = mp_invmod_mont_ct(z, modulus, t1, mp);
-                if (err == MP_OKAY)
-                    err = mp_montgomery_reduce(t1, modulus, mp);
             }
             else
         #endif
@@ -3000,25 +2999,60 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
             }
         }
 
-        /* get 1/z^2 and 1/z^3 */
-        if (err == MP_OKAY)
-            err = mp_sqr(t1, t2);
-        if (err == MP_OKAY)
-            err = mp_mod(t2, modulus, t2);
-        if (err == MP_OKAY)
-            err = mp_mul(t1, t2, t1);
-        if (err == MP_OKAY)
-            err = mp_mod(t1, modulus, t1);
+    #if defined(ECC_TIMING_RESISTANT) && (defined(USE_FAST_MATH) || \
+                    defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+        if (ct) {
+            /* Stay in Montgomery form - mp_mod() is not constant time. */
+            /* get 1/z^2 and 1/z^3 */
+            if (err == MP_OKAY)
+                err = mp_sqr(t1, t2);
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce_ct(t2, modulus, mp);
+            if (err == MP_OKAY)
+                err = mp_mul(t1, t2, t1);
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce_ct(t1, modulus, mp);
+        }
+        else
+    #endif
+        {
+            /* get 1/z^2 and 1/z^3 */
+            if (err == MP_OKAY)
+                err = mp_sqr(t1, t2);
+            if (err == MP_OKAY)
+                err = mp_mod(t2, modulus, t2);
+            if (err == MP_OKAY)
+                err = mp_mul(t1, t2, t1);
+            if (err == MP_OKAY)
+                err = mp_mod(t1, modulus, t1);
+        }
 
         /* multiply against x/y */
         if (err == MP_OKAY)
             err = mp_mul(x, t2, x);
         if (err == MP_OKAY)
-            err = mp_montgomery_reduce(x, modulus, mp);
-        if (err == MP_OKAY)
             err = mp_mul(y, t1, y);
-        if (err == MP_OKAY)
-            err = mp_montgomery_reduce(y, modulus, mp);
+    #if defined(ECC_TIMING_RESISTANT) && (defined(USE_FAST_MATH) || \
+                    defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+        if (ct) {
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce_ct(x, modulus, mp);
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce_ct(y, modulus, mp);
+            /* 1/z^2 and 1/z^3 were in Montgomery form - x and y still are. */
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce_ct(x, modulus, mp);
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce_ct(y, modulus, mp);
+        }
+        else
+    #endif
+        {
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce(x, modulus, mp);
+            if (err == MP_OKAY)
+                err = mp_montgomery_reduce(y, modulus, mp);
+        }
 
         if (err == MP_OKAY)
             err = mp_set(z, 1);

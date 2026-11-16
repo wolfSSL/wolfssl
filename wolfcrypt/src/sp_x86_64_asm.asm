@@ -44235,6 +44235,7 @@ L_256_get_point_33_avx2_4_start:
         vmovupd	YMMWORD PTR [rcx], ymm0
         vmovupd	YMMWORD PTR [rcx+64], ymm1
         vmovupd	YMMWORD PTR [rcx+128], ymm2
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         vmovdqu	xmm8, OWORD PTR [rsp+40]
@@ -44908,7 +44909,7 @@ sp_256_get_entry_64_avx2_4 PROC
         vmovd	xmm5, r8d
         add	rdx, 64
         vmovd	xmm7, eax
-        mov	rax, 64
+        mov	rax, 63
         vpxor	ymm6, ymm6, ymm6
         vpermd	ymm5, ymm6, ymm5
         vpermd	ymm7, ymm6, ymm7
@@ -44929,6 +44930,7 @@ L_256_get_entry_64_avx2_4_start:
         jnz	L_256_get_entry_64_avx2_4_start
         vmovupd	YMMWORD PTR [rcx], ymm0
         vmovupd	YMMWORD PTR [rcx+64], ymm1
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         add	rsp, 40
@@ -45016,7 +45018,7 @@ sp_256_get_entry_65_avx2_4 PROC
         vmovd	xmm5, r8d
         add	rdx, 64
         vmovd	xmm7, eax
-        mov	rax, 65
+        mov	rax, 64
         vpxor	ymm6, ymm6, ymm6
         vpermd	ymm5, ymm6, ymm5
         vpermd	ymm7, ymm6, ymm7
@@ -45037,6 +45039,7 @@ L_256_get_entry_65_avx2_4_start:
         jnz	L_256_get_entry_65_avx2_4_start
         vmovupd	YMMWORD PTR [rcx], ymm0
         vmovupd	YMMWORD PTR [rcx+64], ymm1
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         add	rsp, 40
@@ -48314,6 +48317,7 @@ L_384_get_point_33_avx2_6_start:
         vmovdqu	OWORD PTR [rcx+128], xmm3
         vmovupd	YMMWORD PTR [rcx+192], ymm4
         vmovdqu	OWORD PTR [rcx+224], xmm5
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         vmovdqu	xmm8, OWORD PTR [rsp+40]
@@ -48875,7 +48879,7 @@ sp_384_get_entry_64_avx2_6 PROC
         vmovd	xmm9, r8d
         add	rdx, 96
         vmovd	xmm11, eax
-        mov	rax, 64
+        mov	rax, 63
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
         vpermd	ymm11, ymm10, ymm11
@@ -48906,6 +48910,7 @@ L_384_get_entry_64_avx2_6_start:
         vmovdqu	OWORD PTR [rcx+32], xmm1
         vmovupd	YMMWORD PTR [rcx+96], ymm2
         vmovdqu	OWORD PTR [rcx+128], xmm3
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         vmovdqu	xmm8, OWORD PTR [rsp+40]
@@ -49019,7 +49024,7 @@ sp_384_get_entry_65_avx2_6 PROC
         vmovd	xmm9, r8d
         add	rdx, 96
         vmovd	xmm11, eax
-        mov	rax, 65
+        mov	rax, 64
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
         vpermd	ymm11, ymm10, ymm11
@@ -49050,6 +49055,7 @@ L_384_get_entry_65_avx2_6_start:
         vmovdqu	OWORD PTR [rcx+32], xmm1
         vmovupd	YMMWORD PTR [rcx+96], ymm2
         vmovdqu	OWORD PTR [rcx+128], xmm3
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         vmovdqu	xmm8, OWORD PTR [rsp+40]
@@ -53751,6 +53757,7 @@ ENDIF
         mov	QWORD PTR [rcx+64], r10
         mov	QWORD PTR [rcx+208], r11
         mov	QWORD PTR [rcx+352], r12
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
@@ -55418,7 +55425,7 @@ sp_521_get_entry_64_avx2_9 PROC
         vmovd	xmm9, r8d
         add	rdx, 144
         vmovd	xmm11, eax
-        mov	rax, 64
+        mov	rax, 63
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
         vpermd	ymm11, ymm10, ymm11
@@ -55464,6 +55471,7 @@ L_521_get_entry_64_avx2_9_start:
         vmovupd	YMMWORD PTR [rcx+176], ymm3
         mov	QWORD PTR [rcx+64], r10
         mov	QWORD PTR [rcx+208], r11
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
@@ -55635,7 +55643,7 @@ sp_521_get_entry_65_avx2_9 PROC
         vmovd	xmm9, r8d
         add	rdx, 144
         vmovd	xmm11, eax
-        mov	rax, 65
+        mov	rax, 64
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
         vpermd	ymm11, ymm10, ymm11
@@ -55681,6 +55689,7 @@ L_521_get_entry_65_avx2_9_start:
         vmovupd	YMMWORD PTR [rcx+176], ymm3
         mov	QWORD PTR [rcx+64], r10
         mov	QWORD PTR [rcx+208], r11
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
@@ -64035,6 +64044,120 @@ sp_1024_mont_div2_16 PROC
         ret
 sp_1024_mont_div2_16 ENDP
 _TEXT ENDS
+IFNDEF WC_NO_CACHE_RESISTANT
+IFDEF HAVE_INTEL_AVX2
+; /* Touch each possible point that could be being copied.
+;  *
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of point to retrieve.
+;  */
+_TEXT SEGMENT READONLY PARA
+sp_1024_get_point_65_avx2_16 PROC
+        sub	rsp, 136
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        ; From entry 1
+        mov	rax, 1
+        vmovd	xmm11, r8d
+        add	rdx, 776
+        vmovd	xmm13, eax
+        mov	rax, 64
+        vpxor	ymm12, ymm12, ymm12
+        vpermd	ymm11, ymm12, ymm11
+        vpermd	ymm13, ymm12, ymm13
+        vpxor	ymm0, ymm0, ymm0
+        vpxor	ymm1, ymm1, ymm1
+        vpxor	ymm2, ymm2, ymm2
+        vpxor	ymm3, ymm3, ymm3
+        vpxor	ymm4, ymm4, ymm4
+        vpxor	ymm5, ymm5, ymm5
+        vpxor	ymm6, ymm6, ymm6
+        vpxor	ymm7, ymm7, ymm7
+        vmovdqa	ymm12, ymm13
+L_1024_get_point_65_avx2_16_start_0:
+        vpcmpeqd	ymm10, ymm12, ymm11
+        vpaddd	ymm12, ymm12, ymm13
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx]
+        vpor	ymm0, ymm0, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+32]
+        vpor	ymm1, ymm1, ymm9
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+64]
+        vpor	ymm2, ymm2, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+96]
+        vpor	ymm3, ymm3, ymm9
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+256]
+        vpor	ymm4, ymm4, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+288]
+        vpor	ymm5, ymm5, ymm9
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+320]
+        vpor	ymm6, ymm6, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+352]
+        vpor	ymm7, ymm7, ymm9
+        add	rdx, 776
+        dec	rax
+        jnz	L_1024_get_point_65_avx2_16_start_0
+        vmovupd	YMMWORD PTR [rcx], ymm0
+        vmovupd	YMMWORD PTR [rcx+32], ymm1
+        vmovupd	YMMWORD PTR [rcx+64], ymm2
+        vmovupd	YMMWORD PTR [rcx+96], ymm3
+        vmovupd	YMMWORD PTR [rcx+256], ymm4
+        vmovupd	YMMWORD PTR [rcx+288], ymm5
+        vmovupd	YMMWORD PTR [rcx+320], ymm6
+        vmovupd	YMMWORD PTR [rcx+352], ymm7
+        ; From entry 1
+        mov	rax, 1
+        vmovd	xmm11, r8d
+        sub	rdx, 49664
+        vmovd	xmm13, eax
+        mov	rax, 64
+        vpxor	ymm12, ymm12, ymm12
+        vpermd	ymm11, ymm12, ymm11
+        vpermd	ymm13, ymm12, ymm13
+        vpxor	ymm0, ymm0, ymm0
+        vpxor	ymm1, ymm1, ymm1
+        vpxor	ymm2, ymm2, ymm2
+        vpxor	ymm3, ymm3, ymm3
+        vmovdqa	ymm12, ymm13
+L_1024_get_point_65_avx2_16_start_1:
+        vpcmpeqd	ymm10, ymm12, ymm11
+        vpaddd	ymm12, ymm12, ymm13
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+512]
+        vpor	ymm0, ymm0, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+544]
+        vpor	ymm1, ymm1, ymm9
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+576]
+        vpor	ymm2, ymm2, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+608]
+        vpor	ymm3, ymm3, ymm9
+        add	rdx, 776
+        dec	rax
+        jnz	L_1024_get_point_65_avx2_16_start_1
+        vmovupd	YMMWORD PTR [rcx+512], ymm0
+        vmovupd	YMMWORD PTR [rcx+544], ymm1
+        vmovupd	YMMWORD PTR [rcx+576], ymm2
+        vmovupd	YMMWORD PTR [rcx+608], ymm3
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        add	rsp, 136
+        ret
+sp_1024_get_point_65_avx2_16 ENDP
+_TEXT ENDS
+ENDIF
+ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 1024 bits using Montgomery reduction.
 ;  *
@@ -65253,6 +65376,146 @@ sp_1024_mont_div2_avx2_16 PROC
         ret
 sp_1024_mont_div2_avx2_16 ENDP
 _TEXT ENDS
+ENDIF
+IFNDEF WC_NO_CACHE_RESISTANT
+IFDEF HAVE_INTEL_AVX2
+; /* Touch each possible entry that could be being copied.
+;  *
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
+;  */
+_TEXT SEGMENT READONLY PARA
+sp_1024_get_entry_256_avx2_16 PROC
+        sub	rsp, 136
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        ; From entry 1
+        mov	rax, 1
+        vmovd	xmm11, r8d
+        add	rdx, 256
+        vmovd	xmm13, eax
+        mov	rax, 255
+        vpxor	ymm12, ymm12, ymm12
+        vpermd	ymm11, ymm12, ymm11
+        vpermd	ymm13, ymm12, ymm13
+        vpxor	ymm0, ymm0, ymm0
+        vpxor	ymm1, ymm1, ymm1
+        vpxor	ymm2, ymm2, ymm2
+        vpxor	ymm3, ymm3, ymm3
+        vpxor	ymm4, ymm4, ymm4
+        vpxor	ymm5, ymm5, ymm5
+        vpxor	ymm6, ymm6, ymm6
+        vpxor	ymm7, ymm7, ymm7
+        vmovdqa	ymm12, ymm13
+L_1024_get_entry_256_avx2_16_start_0:
+        vpcmpeqd	ymm10, ymm12, ymm11
+        vpaddd	ymm12, ymm12, ymm13
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx]
+        vpor	ymm0, ymm0, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+32]
+        vpor	ymm1, ymm1, ymm9
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+64]
+        vpor	ymm2, ymm2, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+96]
+        vpor	ymm3, ymm3, ymm9
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+128]
+        vpor	ymm4, ymm4, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+160]
+        vpor	ymm5, ymm5, ymm9
+        vpand	ymm8, ymm10, YMMWORD PTR [rdx+192]
+        vpor	ymm6, ymm6, ymm8
+        vpand	ymm9, ymm10, YMMWORD PTR [rdx+224]
+        vpor	ymm7, ymm7, ymm9
+        add	rdx, 256
+        dec	rax
+        jnz	L_1024_get_entry_256_avx2_16_start_0
+        vmovupd	YMMWORD PTR [rcx], ymm0
+        vmovupd	YMMWORD PTR [rcx+32], ymm1
+        vmovupd	YMMWORD PTR [rcx+64], ymm2
+        vmovupd	YMMWORD PTR [rcx+96], ymm3
+        vmovupd	YMMWORD PTR [rcx+256], ymm4
+        vmovupd	YMMWORD PTR [rcx+288], ymm5
+        vmovupd	YMMWORD PTR [rcx+320], ymm6
+        vmovupd	YMMWORD PTR [rcx+352], ymm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        add	rsp, 136
+        ret
+sp_1024_get_entry_256_avx2_16 ENDP
+_TEXT ENDS
+ENDIF
+ENDIF
+IFNDEF WC_NO_CACHE_RESISTANT
+IFDEF HAVE_INTEL_AVX2
+; /* Get an entry from the table for exponentiating g in constant time.
+;  *
+;  * Every entry is read so the memory accessed doesn't depend on the index.
+;  *
+;  * @param [out] r      Entry of table. 16 digits.
+;  * @param [in]  table  Table of 256 entries.
+;  * @param [in]  idx    Index of entry to get.
+;  */
+_TEXT SEGMENT READONLY PARA
+sp_1024_get_g_entry_avx2_16 PROC
+        sub	rsp, 72
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        ; From entry 0
+        mov	rax, 1
+        vmovd	xmm7, r8d
+        vmovd	xmm9, eax
+        mov	rax, 256
+        vpxor	ymm8, ymm8, ymm8
+        vpermd	ymm7, ymm8, ymm7
+        vpermd	ymm9, ymm8, ymm9
+        vpxor	ymm0, ymm0, ymm0
+        vpxor	ymm1, ymm1, ymm1
+        vpxor	ymm2, ymm2, ymm2
+        vpxor	ymm3, ymm3, ymm3
+L_1024_get_g_entry_avx2_16_start:
+        vpcmpeqd	ymm6, ymm8, ymm7
+        vpaddd	ymm8, ymm8, ymm9
+        vpand	ymm4, ymm6, YMMWORD PTR [rdx]
+        vpor	ymm0, ymm0, ymm4
+        vpand	ymm5, ymm6, YMMWORD PTR [rdx+32]
+        vpor	ymm1, ymm1, ymm5
+        vpand	ymm4, ymm6, YMMWORD PTR [rdx+64]
+        vpor	ymm2, ymm2, ymm4
+        vpand	ymm5, ymm6, YMMWORD PTR [rdx+96]
+        vpor	ymm3, ymm3, ymm5
+        add	rdx, 128
+        dec	rax
+        jnz	L_1024_get_g_entry_avx2_16_start
+        vmovupd	YMMWORD PTR [rcx], ymm0
+        vmovupd	YMMWORD PTR [rcx+32], ymm1
+        vmovupd	YMMWORD PTR [rcx+64], ymm2
+        vmovupd	YMMWORD PTR [rcx+96], ymm3
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        add	rsp, 72
+        ret
+sp_1024_get_g_entry_avx2_16 ENDP
+_TEXT ENDS
+ENDIF
 ENDIF
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
