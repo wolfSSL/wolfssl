@@ -5517,13 +5517,12 @@ void wolfSSL_sk_ACCESS_DESCRIPTION_free(WOLFSSL_STACK* sk)
 }
 
 
-/* AUTHORITY_INFO_ACCESS object is a stack of ACCESS_DESCRIPTION objects.
- * Free the entries and the stack, as OpenSSL does. */
+/* Free the entries by stack type and the stack. */
 void wolfSSL_AUTHORITY_INFO_ACCESS_free(
         WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION)* sk)
 {
     WOLFSSL_ENTER("wolfSSL_AUTHORITY_INFO_ACCESS_free");
-    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk, wolfSSL_ACCESS_DESCRIPTION_free);
+    wolfSSL_sk_pop_free(sk, NULL);
 }
 
 void wolfSSL_AUTHORITY_INFO_ACCESS_pop_free(
