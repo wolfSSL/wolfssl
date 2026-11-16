@@ -4,11 +4,13 @@
 #  server-self-issued-cert.pem: server cert with the CA's name as subject and
 #    issuer, signed by the CA.
 #  ca-cert-unknown-crit-ext.pem: the CA with an unknown critical extension.
+#    It keeps the CA's serial, which the AKID of certs the CA signed names.
 
 ext=$(mktemp) || exit 1
 csr=$(mktemp) || exit 1
 subj=$(openssl x509 -in ../ca-cert.pem -noout -subject -nameopt compat | \
     sed 's/^subject=//')
+serial=$(openssl x509 -in ../ca-cert.pem -noout -serial | sed 's/^serial=//')
 
 cat > "$ext" <<EOT
 basicConstraints = critical, CA:FALSE
@@ -33,7 +35,7 @@ authorityKeyIdentifier = keyid
 EOT
     openssl req -new -key ../ca-key.pem -subj "$subj" -out "$csr" &&
     openssl x509 -req -in "$csr" -signkey ../ca-key.pem \
-        -set_serial 0x5e1fca -days 3650 -sha256 -extfile "$ext" \
+        -set_serial 0x"$serial" -days 3650 -sha256 -extfile "$ext" \
         -out ca-cert-unknown-crit-ext.pem
     ret=$?
 fi
