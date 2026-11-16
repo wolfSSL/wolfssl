@@ -14457,11 +14457,11 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (*idx > pkiMsgSz || (word32)length > pkiMsgSz - *idx)
                 return ASN_PARSE_E;
 
-            #ifndef NO_AES
-                direction = AES_DECRYPTION;
-            #else
-                direction = DES_DECRYPTION;
-            #endif
+        #ifndef NO_AES
+            direction = AES_DECRYPTION;
+        #else
+            direction = DES_DECRYPTION;
+        #endif
 
             /* decrypt CEK with KEK */
             if (pkcs7->wrapCEKCb) {
