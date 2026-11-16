@@ -5996,6 +5996,13 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
            ECC_PRIVATEKEY_ONLY */
         pub = &key->pubkey;
         key->type = ECC_PRIVATEKEY_ONLY;
+    #ifndef ALT_ECC_SIZE
+        /* wc_ecc_init() set up key->pubkey; free any digits a previous call
+         * grew before mp_init_multi() below drops them. */
+        mp_clear(pub->x);
+        mp_clear(pub->y);
+        mp_clear(pub->z);
+    #endif
     }
 
     if (err == MP_OKAY) {
