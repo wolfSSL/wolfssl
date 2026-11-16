@@ -9924,7 +9924,8 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DH");
 
-    if (pkey == NULL || key == NULL)
+    /* DER encoding needs a generator. */
+    if (pkey == NULL || key == NULL || key->g == NULL)
         return WOLFSSL_FAILURE;
 
     clearEVPPkeyKeys(pkey);
