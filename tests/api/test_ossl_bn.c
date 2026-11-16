@@ -552,6 +552,30 @@ int test_wolfSSL_BN_bits(void)
     ExpectIntEQ(BN_get_word(a), 0xf);
     ExpectIntEQ(BN_mask_bits(a, 0), 1);
     ExpectIntEQ(BN_is_zero(a), 1);
+#if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
+                                               defined(WOLFSSL_SP_INT_NEGATIVE))
+    /* Negative: magnitude is masked and sign kept. -31 -> -15. */
+    {
+        BIGNUM* b = NULL;
+
+        ExpectNotNull(b = BN_new());
+        ExpectIntEQ(BN_set_word(b, 31), 1);
+        ExpectIntEQ(BN_set_word(a, 0), 1);
+        ExpectIntEQ(BN_sub(a, a, b), 1);
+        ExpectIntEQ(BN_is_negative(a), 1);
+        ExpectIntEQ(BN_mask_bits(a, 4), 1);
+        ExpectIntEQ(BN_is_negative(a), 1);
+        ExpectIntEQ(BN_get_word(a), 15);
+        /* Zero result is not negative. */
+        ExpectIntEQ(BN_set_word(b, 16), 1);
+        ExpectIntEQ(BN_set_word(a, 0), 1);
+        ExpectIntEQ(BN_sub(a, a, b), 1);
+        ExpectIntEQ(BN_mask_bits(a, 4), 1);
+        ExpectIntEQ(BN_is_zero(a), 1);
+        ExpectIntEQ(BN_is_negative(a), 0);
+        BN_free(b);
+    }
+#endif
 #endif
 
     BN_free(a);
