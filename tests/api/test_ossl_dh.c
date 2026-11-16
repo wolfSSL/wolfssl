@@ -103,6 +103,17 @@ int test_wolfSSL_DH(void)
             /* Encoding and duplicating parameters still need g. */
             ExpectIntEQ(i2d_DHparams(dh3, NULL), 0);
             ExpectNull(DHparams_dup(dh3));
+        #if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+             defined(WOLFSSL_OPENSSH)) && defined(WOLFSSL_DH_EXTRA) && \
+            !defined(NO_FILESYSTEM)
+            {
+                EVP_PKEY* pkey = NULL;
+
+                ExpectNotNull(pkey = EVP_PKEY_new());
+                ExpectIntEQ(EVP_PKEY_set1_DH(pkey, dh3), WOLFSSL_FAILURE);
+                EVP_PKEY_free(pkey);
+            }
+        #endif
             /* Adding g afterwards must give a usable key pair. */
             if (dh3 != NULL) {
                 ExpectNotNull(dh3->g = BN_dup(dh->g));
