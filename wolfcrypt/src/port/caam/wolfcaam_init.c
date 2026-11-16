@@ -230,6 +230,11 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
 
         case WC_ALGO_TYPE_HMAC:
         #if defined(WOLFSSL_CAAM_HMAC)
+            /* Decline the one-shot call and take the update and final calls
+             * that follow it. */
+            if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
+                break;
+            }
             ret = wc_CAAM_Hmac(info->hmac.hmac,
                         info->hmac.macType,
                         info->hmac.in, info->hmac.inSz,

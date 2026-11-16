@@ -397,7 +397,8 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             GetAlgoTypeStr(info->algo_type),
             GetHashTypeStr(info->hmac.macType),
             info->hmac.macType, (void*)info->hmac.hmac,
-            (info->hmac.in != NULL) ? "Update" : "Final");
+            WC_CRYPTOCB_HMAC_IS_ONESHOT(info) ? "Generate" :
+            ((info->hmac.in != NULL) ? "Update" : "Final"));
     }
 #endif
 #ifdef WOLFSSL_CMAC
@@ -4045,8 +4046,8 @@ int wc_CryptoCb_Sm3Hash(wc_Sm3* sm3, const byte* in,
 #endif /* WOLFSSL_SM3 */
 
 #ifndef NO_HMAC
-int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
-    byte* digest)
+int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* key, word32 keySz,
+    const byte* in, word32 inSz, byte* digest)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -4061,6 +4062,8 @@ int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_HMAC;
         cryptoInfo.hmac.macType = macType;
+        cryptoInfo.hmac.key = key;
+        cryptoInfo.hmac.keySz = keySz;
         cryptoInfo.hmac.in = in;
         cryptoInfo.hmac.inSz = inSz;
         cryptoInfo.hmac.digest = digest;

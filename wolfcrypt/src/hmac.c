@@ -1224,7 +1224,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 
 #ifdef WOLF_CRYPTO_CB
     if (WC_HMAC_USE_CRYPTOCB(hmac)) {
-        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, msg, length, NULL);
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, msg, length, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -1370,7 +1370,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 
 #ifdef WOLF_CRYPTO_CB
     if (WC_HMAC_USE_CRYPTOCB(hmac)) {
-        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, hash);
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, NULL, 0, hash);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -1829,7 +1829,8 @@ void wc_HmacFree(Hmac* hmac)
     if (WC_HMAC_USE_CRYPTOCB(hmac) && hmac->devCtx != NULL) {
         int  ret;
         byte finalHash[WC_HMAC_BLOCK_SIZE];
-        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, NULL, 0,
+                               finalHash);
         (void)ret; /* must ignore return code here */
         (void)finalHash;
     }
@@ -1874,16 +1875,27 @@ int wolfSSL_GetHmacMaxSize(void)
     #define HMAC_SUBOP_WAIT(ret, hmac) WC_DO_NOTHING
 #endif
 
-/* One-shot HMAC using caller provided storage for the context.
+/* One-shot HMAC for use with a crypto callback device. Without one, use
+ * wc_HmacGenerate().
  *
- * hmac     Storage for the HMAC context. Initialized and freed here.
+ * The device is offered the whole operation in one call, with the key in the
+ * call. If it declines, the key is set and the device gets the update and
+ * final calls.
+ *
+ * With a NULL key, hmac must be initialized by the caller. A NULL key is only
+ * for a key on the device, which hmac then names, see wc_HmacInit_Id() and
+ * wc_HmacInit_Label().
+ *
+ * hmac     Storage for the HMAC context. Initialized and freed here, unless
+ *          key is NULL. Then the caller initializes it and frees it.
  * type     The hash algorithm type.
  * out      Buffer to hold the tag.
  * outSz    On input, the size of out (at least the digest size). On output,
  *          the digest size.
  * in       The message.
  * inSz     The size of the message.
- * key      The HMAC key. May be NULL when keySz is 0.
+ * key      The HMAC key, or NULL to use the key on the device. For a key of
+ *          zero length, give a key pointer and a keySz of 0.
  * keySz    The size of the key.
  * heap     The heap hint.
  * devId    The device ID.
@@ -1896,6 +1908,11 @@ int wc_HmacGenerate_ex(Hmac* hmac, int type, byte* out, word32* outSz,
 {
     int    ret;
     word32 digestSz;
+    /* With no key, the caller initialized the context. */
+    int    callerCtx = (key == NULL);
+#ifdef WOLF_CRYPTO_CB
+    const byte noInput = 0;
+#endif
 
     if (hmac == NULL || out == NULL || outSz == NULL ||
             (in == NULL && inSz != 0) || (key == NULL && keySz != 0)) {
@@ -1911,27 +1928,45 @@ int wc_HmacGenerate_ex(Hmac* hmac, int type, byte* out, word32* outSz,
         return BUFFER_E;
     }
 
-    ret = wc_HmacInit(hmac, heap, devId);
+#ifdef WOLF_CRYPTO_CB
+    /* The device ID of the call is used, not the one of the context. */
+    hmac->devId = devId;
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (devId != INVALID_DEVID)
+    #endif
+    {
+        /* Offer the whole operation before the context is set up. The call
+         * always has an input pointer, so that it differs from a final. */
+        ret = wc_CryptoCb_Hmac(hmac, type, key, keySz,
+                               (in != NULL) ? in : &noInput, inSz, out);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0) {
+                *outSz = digestSz;
+            }
+            return ret;
+        }
+        /* fall-through when unavailable */
+    }
+#endif
+
+    ret = 0;
+    if (!callerCtx) {
+        ret = wc_HmacInit(hmac, heap, devId);
+    }
     if (ret == 0) {
         ret = wc_HmacSetKey(hmac, type, key, keySz);
         if (ret == 0) {
-#ifdef WOLF_CRYPTO_CB
-            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
-            if (WC_HMAC_USE_CRYPTOCB(hmac)) {
-                ret = wc_CryptoCb_Hmac(hmac, hmac->macType, in, inSz, out);
-            }
-            if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
-#endif
-            {
-                ret = wc_HmacUpdate(hmac, in, inSz);
-                HMAC_SUBOP_WAIT(ret, hmac);
-                if (ret == 0) {
-                    ret = wc_HmacFinal(hmac, out);
-                    HMAC_SUBOP_WAIT(ret, hmac);
-                }
-            }
+            ret = wc_HmacUpdate(hmac, in, inSz);
+            HMAC_SUBOP_WAIT(ret, hmac);
         }
-        wc_HmacFree(hmac);
+        if (ret == 0) {
+            ret = wc_HmacFinal(hmac, out);
+            HMAC_SUBOP_WAIT(ret, hmac);
+        }
+        /* The caller frees a context that it initialized. */
+        if (!callerCtx) {
+            wc_HmacFree(hmac);
+        }
     }
     if (ret == 0) {
         *outSz = digestSz;
@@ -1945,7 +1980,14 @@ int wc_HmacGenerate(int type, byte* out, word32* outSz,
                     const byte* key, word32 keySz)
 {
     int ret;
+    const byte emptyKey = 0;
     WC_DECLARE_VAR(hmac, Hmac, 1, 0);
+
+    /* No context from the caller here, so a NULL key is a key of zero
+     * length. */
+    if (key == NULL && keySz == 0) {
+        key = &emptyKey;
+    }
 
     WC_ALLOC_VAR_EX(hmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
         return MEMORY_E);
@@ -1958,7 +2000,9 @@ int wc_HmacGenerate(int type, byte* out, word32* outSz,
     return ret;
 }
 
-/* One-shot HMAC verify using caller provided storage for the context.
+/* One-shot HMAC verify for use with a crypto callback device. Without one, use
+ * wc_HmacVerify(). hmac and key are used as in wc_HmacGenerate_ex(): with a
+ * NULL key, hmac must be initialized by the caller.
  * checkSz must be the digest size of type.
  *
  * returns 0 when the tag matches, MAC_CMP_FAILED_E when it does not,
@@ -2009,7 +2053,14 @@ int wc_HmacVerify(int type, const byte* check, word32 checkSz,
                   const byte* key, word32 keySz)
 {
     int ret;
+    const byte emptyKey = 0;
     WC_DECLARE_VAR(hmac, Hmac, 1, 0);
+
+    /* No context from the caller here, so a NULL key is a key of zero
+     * length. */
+    if (key == NULL && keySz == 0) {
+        key = &emptyKey;
+    }
 
     WC_ALLOC_VAR_EX(hmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
         return MEMORY_E);

@@ -30,7 +30,7 @@
 
 /* Defines the Crypto Callback interface version, for compatibility */
 /* Increment this when Crypto Callback interface changes are made */
-#define CRYPTO_CB_VER   4
+#define CRYPTO_CB_VER   5
 
 
 #ifdef WOLF_CRYPTO_CB
@@ -917,6 +917,9 @@ typedef struct wc_CryptoInfo {
         word32 inSz;
         byte* digest;
         Hmac* hmac;
+        /* Set only for the one-shot call, see WC_CRYPTOCB_HMAC_IS_ONESHOT */
+        const byte* key;
+        word32 keySz;
     } hmac;
 #endif
 #ifndef WC_NO_RNG
@@ -1192,6 +1195,14 @@ typedef struct wc_CryptoInfo {
 #endif
 } wc_CryptoInfo;
 
+#ifndef NO_HMAC
+/* True for the one-shot HMAC call from wc_HmacGenerate_ex(), which has both
+ * an input pointer and a digest. With hmac.key set, only the devId of
+ * hmac.hmac is set. Without it, the caller initialized hmac.hmac and it names
+ * the key. */
+#define WC_CRYPTOCB_HMAC_IS_ONESHOT(info)                              \
+    (((info)->hmac.in != NULL) && ((info)->hmac.digest != NULL))
+#endif
 
 typedef int (*CryptoDevCallbackFunc)(int devId, struct wc_CryptoInfo* info, void* ctx);
 
@@ -1612,8 +1623,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sm3Hash(wc_Sm3* sm3, const byte* in,
 #endif /* WOLFSSL_SM3 */
 
 #ifndef NO_HMAC
-WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
-    word32 inSz, byte* digest);
+WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* key,
+    word32 keySz, const byte* in, word32 inSz, byte* digest);
 #endif /* !NO_HMAC */
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)

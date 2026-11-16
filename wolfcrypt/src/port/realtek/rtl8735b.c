@@ -1451,9 +1451,9 @@ cleanup:
 
 /* Route an HMAC request to the HUK backend. Handles only HMAC-SHA256 keyed by a
  * 32-byte HUK seed (the seed is the wc_HmacSetKey key, read from hmac->keyRaw);
- * anything else returns CRYPTOCB_UNAVAILABLE for software fallback. Any input is
- * accumulated; when digest != NULL the MAC is then produced and the buffer
- * freed. The HmacFree cleanup callback also arrives as a final
+ * anything else returns CRYPTOCB_UNAVAILABLE for software fallback. Update calls
+ * (digest == NULL) accumulate; the final call (digest != NULL) produces the MAC
+ * and frees the buffer. The HmacFree cleanup callback also arrives as a final
  * call with a throwaway digest; computing into it is harmless. */
 static int Rtl8735bHuk_HmacCb(struct wc_CryptoInfo* info)
 {
@@ -1465,6 +1465,11 @@ static int Rtl8735bHuk_HmacCb(struct wc_CryptoInfo* info)
     int ret;
 
     if (hmac == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    /* Decline the one-shot call and take the update and final calls that
+     * follow it. */
+    if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
         return CRYPTOCB_UNAVAILABLE;
     }
     if (info->hmac.macType != WC_SHA256 ||
@@ -1481,9 +1486,9 @@ static int Rtl8735bHuk_HmacCb(struct wc_CryptoInfo* info)
     }
     seed = hmac->keyRaw;
 
-    ret = Rtl8735bHuk_HmacAccumulate(hmac, info->hmac.in, info->hmac.inSz);
-    if (ret != 0 || info->hmac.digest == NULL) {
-        return ret;
+    if (info->hmac.digest == NULL) {
+        return Rtl8735bHuk_HmacAccumulate(hmac, info->hmac.in,
+                                           info->hmac.inSz);
     }
     ctx = (Rtl8735bHmacCtx*)hmac->hash.sha256.devCtx;
     if (ctx != NULL) {

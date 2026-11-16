@@ -103267,6 +103267,29 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         if (info->hmac.hmac == NULL)
             return NOT_COMPILED_IN;
 
+        if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
+    #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+            /* one-shot call with the key: compute the HMAC in software.
+             * The context is not set up, so it is not used. */
+            if (info->hmac.key != NULL) {
+                word32 digestSz;
+
+                ret = wc_HmacSizeByType(info->hmac.macType);
+                if (ret < 0)
+                    return ret;
+                digestSz = (word32)ret;
+                myCtx->hmacOneShotCount++;
+                return wc_HmacGenerate(info->hmac.macType,
+                    info->hmac.digest, &digestSz,
+                    info->hmac.in, info->hmac.inSz,
+                    info->hmac.key, info->hmac.keySz);
+            }
+    #endif
+            /* otherwise decline and take the update and final calls that
+             * follow it */
+            return NOT_COMPILED_IN;
+        }
+
         /* set devId to invalid, so software is used */
         info->hmac.hmac->devId = INVALID_DEVID;
 
@@ -103275,12 +103298,6 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 info->hmac.hmac,
                 info->hmac.in,
                 info->hmac.inSz);
-            if (ret == 0 && info->hmac.digest != NULL) {
-                myCtx->hmacOneShotCount++;
-                ret = wc_HmacFinal(
-                    info->hmac.hmac,
-                    info->hmac.digest);
-            }
         }
         else if (info->hmac.digest != NULL) {
             ret = wc_HmacFinal(
