@@ -3611,8 +3611,10 @@ WOLFSSL_API unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int
 WOLFSSL_API unsigned long wolfSSL_ERR_get_error(void);
 WOLFSSL_API void          wolfSSL_ERR_clear_error(void);
 
-#ifdef OPENSSL_EXTRA
-/* Error string of an error library registered by the application. */
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ERR_STRING_DATA_DECLARED)
+#define WOLFSSL_ERR_STRING_DATA_DECLARED
+/* Error string of an error library registered by the application. Declared
+ * in ssl.h and openssl/err.h, whichever is included first. */
 typedef struct WOLFSSL_ERR_STRING_DATA {
     unsigned long error;
     const char*   string;
