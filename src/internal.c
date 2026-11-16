@@ -12480,9 +12480,9 @@ ProtocolVersion MakeDTLSv1_3(void)
 
     #include "include/task.h"
 
-    unsigned int LowResTimer(void)
+    word32 LowResTimer(void)
     {
-        return (unsigned int)(((float)xTaskGetTickCount())/configTICK_RATE_HZ);
+        return (word32)(xTaskGetTickCount() / configTICK_RATE_HZ);
     }
 
 #elif defined(FREERTOS)
@@ -12494,9 +12494,9 @@ ProtocolVersion MakeDTLSv1_3(void)
         #include "task.h"
     #endif
 
-    unsigned int LowResTimer(void)
+    word32 LowResTimer(void)
     {
-        return (unsigned int)(((float)xTaskGetTickCount())/configTICK_RATE_HZ);
+        return (word32)(xTaskGetTickCount() / configTICK_RATE_HZ);
     }
 
 #elif defined(FREESCALE_KSDK_BM)
