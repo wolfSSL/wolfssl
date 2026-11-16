@@ -2337,6 +2337,100 @@ int test_DecodeAltNames_length_underflow(void)
     return EXPECT_RESULT();
 }
 
+/* Only one HardwareModuleName otherName (RFC 4108 Section 5) is kept, in
+ * cert->hwType and cert->hwSerialNum. A subjectAltName carrying a second one
+ * must be rejected with ASN_PARSE_E by both the template and the original
+ * parser, rather than the second overwriting and leaking the first's
+ * buffers. */
+int test_DecodeAltNames_dup_hw_module_name(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SEP) && !defined(NO_CERTS) && !defined(NO_ASN)
+    /* GeneralNames holding one otherName:
+     *   [0] { type-id id-on-hardwareModuleName (1.3.6.1.5.5.7.8.4),
+     *         [0] EXPLICIT SEQUENCE { hwType OID 1.2.3.4,
+     *                                 hwSerialNum OCTET STRING 01020304 } }
+     */
+    static const byte oneHwName[] = {
+        0x30, 0x1B,
+        0xA0, 0x19,
+            0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x04,
+            0xA0, 0x0D,
+                0x30, 0x0B,
+                    0x06, 0x03, 0x2A, 0x03, 0x04,
+                    0x04, 0x04, 0x01, 0x02, 0x03, 0x04
+    };
+    /* The same GeneralNames with a second HardwareModuleName otherName
+     * (hwType 1.2.3.5, hwSerialNum 05060708) appended. */
+    static const byte twoHwNames[] = {
+        0x30, 0x36,
+        0xA0, 0x19,
+            0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x04,
+            0xA0, 0x0D,
+                0x30, 0x0B,
+                    0x06, 0x03, 0x2A, 0x03, 0x04,
+                    0x04, 0x04, 0x01, 0x02, 0x03, 0x04,
+        0xA0, 0x19,
+            0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x04,
+            0xA0, 0x0D,
+                0x30, 0x0B,
+                    0x06, 0x03, 0x2A, 0x03, 0x05,
+                    0x04, 0x04, 0x05, 0x06, 0x07, 0x08
+    };
+    /* A different otherName whose value is also a SEQUENCE, not shaped like
+     * a HardwareModuleName: id-on-permanentIdentifier (1.3.6.1.5.5.7.8.3,
+     * RFC 4043) with SEQUENCE { UTF8String "abc", OID 1.2.3.4 }. */
+    static const byte permId[] = {
+        0x30, 0x1A,
+        0xA0, 0x18,
+            0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x03,
+            0xA0, 0x0C,
+                0x30, 0x0A,
+                    0x0C, 0x03, 0x61, 0x62, 0x63,
+                    0x06, 0x03, 0x2A, 0x03, 0x04
+    };
+    static const byte hwType[] = { 0x2A, 0x03, 0x04 };
+    static const byte hwSerial[] = { 0x01, 0x02, 0x03, 0x04 };
+    DecodedCert cert;
+    int isUnknown;
+
+    /* A single HardwareModuleName is decoded into hwType/hwSerialNum. */
+    isUnknown = 0;
+    wc_InitDecodedCert(&cert, oneHwName, (word32)sizeof(oneHwName), NULL);
+    ExpectIntEQ(DecodeExtensionType(oneHwName, (word32)sizeof(oneHwName),
+        ALT_NAMES_OID, 0, &cert, &isUnknown), 0);
+    ExpectNotNull(cert.hwType);
+    ExpectIntEQ(cert.hwTypeSz, (int)sizeof(hwType));
+    if (cert.hwType != NULL) {
+        ExpectBufEQ(cert.hwType, hwType, sizeof(hwType));
+    }
+    ExpectNotNull(cert.hwSerialNum);
+    ExpectIntEQ(cert.hwSerialNumSz, (int)sizeof(hwSerial));
+    if (cert.hwSerialNum != NULL) {
+        ExpectBufEQ(cert.hwSerialNum, hwSerial, sizeof(hwSerial));
+    }
+    wc_FreeDecodedCert(&cert);
+
+    /* A second HardwareModuleName is rejected. */
+    isUnknown = 0;
+    wc_InitDecodedCert(&cert, twoHwNames, (word32)sizeof(twoHwNames), NULL);
+    ExpectIntEQ(DecodeExtensionType(twoHwNames, (word32)sizeof(twoHwNames),
+        ALT_NAMES_OID, 0, &cert, &isUnknown), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_FreeDecodedCert(&cert);
+
+    /* Another otherName with a SEQUENCE value is not decoded as a
+     * HardwareModuleName. */
+    isUnknown = 0;
+    wc_InitDecodedCert(&cert, permId, (word32)sizeof(permId), NULL);
+    ExpectIntEQ(DecodeExtensionType(permId, (word32)sizeof(permId),
+        ALT_NAMES_OID, 0, &cert, &isUnknown), 0);
+    ExpectNull(cert.hwType);
+    ExpectNull(cert.hwSerialNum);
+    wc_FreeDecodedCert(&cert);
+#endif /* WOLFSSL_SEP && !NO_CERTS && !NO_ASN */
+    return EXPECT_RESULT();
+}
+
 /* A certificate must not carry two certificatePolicies extensions
  * (non-repeatable per RFC 5280 4.2). DecodeCertExtensions calls
  * DecodeExtensionType once per extension; a second certificatePolicies
