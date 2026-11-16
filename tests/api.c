@@ -3461,6 +3461,8 @@ static int test_count_tls13_only(const Suites* suites)
     return cnt;
 }
 
+#if defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA)
 /* Count the suites that are not TLS 1.3 suites. */
 static int test_count_tls12(const Suites* suites)
 {
@@ -3473,6 +3475,7 @@ static int test_count_tls12(const Suites* suites)
     }
     return cnt;
 }
+#endif
 #endif
 
 /* "-ALL" and "!ALL" drop every TLS 1.2 and lower suite and keep TLS 1.3.

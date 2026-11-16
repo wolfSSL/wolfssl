@@ -1144,6 +1144,66 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
     __builtin_choose_expr(WOLFSSL_ASN1_IS_INTEGER(x), \
         wolfSSL_ASN1_INTEGER_get_type(WOLFSSL_ASN1_INTEGER_ARG(x)), \
         wolfSSL_ASN1_STRING_type(WOLFSSL_ASN1_STRING_ARG(x)))
+#elif defined(__cplusplus)
+/* C++: overloads pick the function by the argument type. A NULL that is not
+ * a pointer only matches the ASN1_STRING function. */
+extern "C++" {
+static inline int wolfSSL_ASN1_len_cxx(const WOLFSSL_ASN1_STRING* s)
+{
+    return wolfSSL_ASN1_STRING_length(s);
+}
+static inline int wolfSSL_ASN1_len_cxx(const WOLFSSL_ASN1_INTEGER* i)
+{
+    return wolfSSL_ASN1_INTEGER_get_length(i);
+}
+static inline const unsigned char* wolfSSL_ASN1_data_cxx(
+    const WOLFSSL_ASN1_STRING* s)
+{
+    return wolfSSL_ASN1_STRING_get0_data(s);
+}
+static inline const unsigned char* wolfSSL_ASN1_data_cxx(
+    const WOLFSSL_ASN1_INTEGER* i)
+{
+    return wolfSSL_ASN1_INTEGER_get0_data(i);
+}
+static inline int wolfSSL_ASN1_type_cxx(const WOLFSSL_ASN1_STRING* s)
+{
+    return wolfSSL_ASN1_STRING_type(s);
+}
+static inline int wolfSSL_ASN1_type_cxx(const WOLFSSL_ASN1_INTEGER* i)
+{
+    return wolfSSL_ASN1_INTEGER_get_type(i);
+}
+template <typename T> static inline int wolfSSL_ASN1_STRING_length_cxx(T* x)
+{
+    return wolfSSL_ASN1_len_cxx(x);
+}
+static inline int wolfSSL_ASN1_STRING_length_cxx(const WOLFSSL_ASN1_STRING* s)
+{
+    return wolfSSL_ASN1_STRING_length(s);
+}
+template <typename T> static inline const unsigned char*
+    wolfSSL_ASN1_STRING_get0_data_cxx(T* x)
+{
+    return wolfSSL_ASN1_data_cxx(x);
+}
+static inline const unsigned char* wolfSSL_ASN1_STRING_get0_data_cxx(
+    const WOLFSSL_ASN1_STRING* s)
+{
+    return wolfSSL_ASN1_STRING_get0_data(s);
+}
+template <typename T> static inline int wolfSSL_ASN1_STRING_type_cxx(T* x)
+{
+    return wolfSSL_ASN1_type_cxx(x);
+}
+static inline int wolfSSL_ASN1_STRING_type_cxx(const WOLFSSL_ASN1_STRING* s)
+{
+    return wolfSSL_ASN1_STRING_type(s);
+}
+}
+#define ASN1_STRING_length(x)       wolfSSL_ASN1_STRING_length_cxx(x)
+#define ASN1_STRING_get0_data(x)    wolfSSL_ASN1_STRING_get0_data_cxx(x)
+#define ASN1_STRING_type(x)         wolfSSL_ASN1_STRING_type_cxx(x)
 #else
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_get0_data
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length

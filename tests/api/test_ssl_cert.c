@@ -1453,7 +1453,8 @@ int test_wolfSSL_get0_verified_chain(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(SESSION_CERTS) && \
     defined(OPENSSL_EXTRA) && defined(KEEP_PEER_CERT) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && !defined(NO_TLS)
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;

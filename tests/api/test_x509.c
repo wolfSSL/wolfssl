@@ -1609,10 +1609,11 @@ int test_x509_REQ_i2d_stored_der(void)
 int test_x509_REQ_add_extensions_parsed(void)
 {
     EXPECT_DECLS;
+/* csr.ext.der has a 1024-bit RSA key, which WOLFSSL_SP_MATH cannot verify. */
 #if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
     !defined(NO_BIO) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(WOLFSSL_SP_MATH)
     byte buf[1024];
     int bufSz = 0;
     XFILE f = XBADFILE;
@@ -1873,17 +1874,30 @@ int test_x509_REQ_setters_reencode(void)
     req = NULL;
 
 #ifndef NO_DSA
-    /* A DSA request cannot be encoded again: the change stands and no
-     * encoding out of date is kept */
     ExpectNotNull(bio = wolfSSL_BIO_new_file("./certs/csr.dsa.der", "rb"));
     ExpectNotNull(req = wolfSSL_d2i_X509_REQ_bio(bio, NULL));
     wolfSSL_BIO_free(bio);
     bio = NULL;
     ExpectNotNull(wolfSSL_X509_get_der(req, &derSz));
     ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
-    ExpectNull(wolfSSL_X509_get_der(req, &derSz));
     ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+#ifdef WOLFSSL_ASN_TEMPLATE
+    /* A DSA request cannot be encoded again: the change stands and no
+     * encoding out of date is kept */
+    ExpectNull(wolfSSL_X509_get_der(req, &derSz));
     ExpectIntEQ(wolfSSL_i2d_X509_REQ_bio(bio, req), WOLFSSL_FAILURE);
+#else
+    /* The original ASN code encodes a DSA key */
+    ExpectNotNull(wolfSSL_X509_get_der(req, &derSz));
+    ExpectIntEQ(wolfSSL_i2d_X509_REQ_bio(bio, req), WOLFSSL_SUCCESS);
+    ExpectNotNull(parsed = wolfSSL_d2i_X509_REQ_bio(bio, NULL));
+    ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(
+        wolfSSL_X509_get_subject_name(parsed), WC_NID_commonName, cn,
+        (int)sizeof(cn)), 0);
+    ExpectStrEQ(cn, "changed");
+    wolfSSL_X509_free(parsed);
+    parsed = NULL;
+#endif
     wolfSSL_BIO_free(bio);
     bio = NULL;
     wolfSSL_X509_free(req);

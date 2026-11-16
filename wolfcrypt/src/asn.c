@@ -42446,9 +42446,10 @@ static int _RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         return ASN_GETINT_E;
     }
 #ifdef HAVE_WOLF_BIGINT
+    /* Only fails to allocate */
     if ((int)nSz > 0 && wc_bigint_from_unsigned_bin(&key->n.raw, n, nSz) != 0) {
         mp_clear(&key->n);
-        return ASN_GETINT_E;
+        return MEMORY_E;
     }
 #endif /* HAVE_WOLF_BIGINT */
 
@@ -42466,7 +42467,7 @@ static int _RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
     if ((int)eSz > 0 && wc_bigint_from_unsigned_bin(&key->e.raw, e, eSz) != 0) {
         mp_clear(&key->n);
         mp_clear(&key->e);
-        return ASN_GETINT_E;
+        return MEMORY_E;
     }
 #endif /* HAVE_WOLF_BIGINT */
 

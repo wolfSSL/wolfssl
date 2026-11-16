@@ -1445,6 +1445,19 @@ static int wolfssl_asn1_int_transfer_to_int(WOLFSSL_ASN1_INTEGER* dest,
     return 0;
 }
 
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+/* Is the data of the INTEGER a DER encoding, not only the value? */
+static int wolfssl_asn1_integer_is_der(const WOLFSSL_ASN1_INTEGER* a)
+{
+    word32 idx = 1;
+    int len = 0;
+
+    return (a->length > 0) && (a->data[0] == ASN_INTEGER) &&
+        (GetLength(a->data, &idx, &len, (word32)a->length) >= 0) &&
+        (idx + (word32)len == (word32)a->length);
+}
+#endif
+
 /* Encode ASN.1 INTEGER as DER without tag.
  *
  * When out points to NULL, a new buffer is allocated and returned.
@@ -1457,6 +1470,10 @@ static int wolfssl_asn1_int_transfer_to_int(WOLFSSL_ASN1_INTEGER* dest,
  */
 int wolfSSL_i2d_ASN1_INTEGER(const WOLFSSL_ASN1_INTEGER* a, unsigned char** pp)
 {
+    byte hdr[1 + MAX_LENGTH_SZ + 1];
+    int hdrSz = 0;
+    int sz;
+
     WOLFSSL_ENTER("wolfSSL_i2d_ASN1_INTEGER");
 
     /* Validate parameters. */
@@ -1465,38 +1482,53 @@ int wolfSSL_i2d_ASN1_INTEGER(const WOLFSSL_ASN1_INTEGER* a, unsigned char** pp)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+    /* X509_get_serialNumber() keeps only the value: add the header. */
+    if (!wolfssl_asn1_integer_is_der(a)) {
+        int pad = (a->data[0] & 0x80) ? 1 : 0;
+
+        hdr[hdrSz++] = ASN_INTEGER;
+        hdrSz += (int)SetLength((word32)(a->length + pad), hdr + hdrSz);
+        if (pad)
+            hdr[hdrSz++] = 0x00;
+    }
+#endif
+    sz = hdrSz + a->length;
+
     if (pp != NULL) {
         byte* buf;
 
         if (*pp != NULL)
             buf = *pp;
         else {
-            buf = (byte*)XMALLOC((size_t)a->length, NULL, DYNAMIC_TYPE_ASN1);
+            buf = (byte*)XMALLOC((size_t)sz, NULL, DYNAMIC_TYPE_ASN1);
             if (buf == NULL)
                 return WOLFSSL_FATAL_ERROR;
         }
 
         /* Copy the data (including tag and length) into output buffer. */
-        XMEMCPY(buf, a->data, (size_t)a->length);
+        if (hdrSz > 0)
+            XMEMCPY(buf, hdr, (size_t)hdrSz);
+        XMEMCPY(buf + hdrSz, a->data, (size_t)a->length);
         /* Only magnitude of the number stored (i.e. the sign isn't encoded).
          * The "negative" field is 1 if the value must be interpreted as
          * negative and we need to output the 2's complement of the value in
          * the DER output.
          */
         if (a->negative &&
-                wolfssl_asn1_int_twos_compl(buf, a->length, NULL) != 0) {
+                wolfssl_asn1_int_twos_compl(buf, sz, NULL) != 0) {
             if (*pp == NULL)
                 XFREE(buf, NULL, DYNAMIC_TYPE_ASN1);
             return WOLFSSL_FATAL_ERROR;
         }
 
         if (*pp != NULL)
-            *pp += a->length;
+            *pp += sz;
         else
             *pp = buf;
     }
 
-    return a->length;
+    return sz;
 }
 
 /* Decode DER encoding of ASN.1 INTEGER.
@@ -1753,6 +1785,15 @@ int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
          err = 1;
     }
 
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+    /* X509_get_serialNumber() keeps only the value. */
+    if ((!err) && (a->data != NULL) && (a->length > 0) &&
+            !wolfssl_asn1_integer_is_der(a)) {
+        idx = 0;
+        len = a->length;
+    }
+    else
+#endif
     if (!err) {
         /* Read DER length - must be at least 1 byte. */
         if (GetLength(a->data, &idx, &len, (word32)a->length) <= 0) {

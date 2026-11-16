@@ -6349,10 +6349,14 @@ static int x509_vfy_run(const x509_vfy_case* c)
     if (c->opts & VO_ADD1999)
         wc_SetTimeCb(NULL);
 #endif
+#ifndef NO_RSA
     if ((c->opts & VO_MINRSA) && store != NULL)
         store->cm->minRsaKeySz = 4096 / 8;
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     if ((c->opts & VO_MINECC) && store != NULL)
         store->cm->minEccKeySz = 384 / 8;
+#endif
 #ifdef HAVE_CRL
     if (c->crls != NULL) {
         ExpectIntEQ(x509_vfy_add_crls(c, store, &crls), TEST_SUCCESS);
@@ -6718,7 +6722,7 @@ int test_X509_check_issued_akid(void)
 int test_X509_verify_cert_oom(void)
 {
     EXPECT_DECLS;
-#ifdef TEST_X509_VERIFY_CERT_OOM
+#if defined(TEST_X509_VERIFY_CERT_OOM) && defined(USE_WOLFSSL_MEMORY)
     static const struct {
         const char* leaf;
         const char* untrusted;  /* NULL: none */

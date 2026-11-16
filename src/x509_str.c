@@ -592,10 +592,12 @@ static WOLFSSL_X509_STORE_CTX_verify_cb X509StoreGetVerifyCb(
         return ctx->verify_cb;
 #endif
 
+#ifndef NO_WOLFSSL_CM_VERIFY
     /* A CertManager callback, as of an SSL_CTX's store, is used instead. */
     if (ctx->store != NULL && ctx->store->cm != NULL &&
             ctx->store->cm->verifyCallback != NULL)
         return ctx->store->cm->verifyCallback;
+#endif
 
     if (ctx->verify_cb != NULL)
         return ctx->verify_cb;
@@ -618,10 +620,13 @@ static int X509StoreChainPush(WOLF_STACK_OF(WOLFSSL_X509)* chain,
 
     if (x509 == NULL || wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS)
         return ret;
-    ret = wolfSSL_sk_X509_push(chain, x509) > 0 ? WOLFSSL_SUCCESS :
-        WC_NO_ERR_TRACE(MEMORY_E);
-    if (ret != WOLFSSL_SUCCESS)
+    if (wolfSSL_sk_X509_push(chain, x509) > 0) {
+        ret = WOLFSSL_SUCCESS;
+    }
+    else {
+        ret = WC_NO_ERR_TRACE(MEMORY_E);
         wolfSSL_X509_free(x509);
+    }
     return ret;
 }
 
@@ -2807,8 +2812,10 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                     if (result > 0) {
                         /* OpenSSL picks among certs of a name in the order
                          * they were added. */
-                        result = (wolfSSL_sk_X509_push(store->added, x509) > 0)
-                            ? WOLFSSL_SUCCESS : WOLFSSL_FATAL_ERROR;
+                        if (wolfSSL_sk_X509_push(store->added, x509) > 0)
+                            result = WOLFSSL_SUCCESS;
+                        else
+                            result = WOLFSSL_FATAL_ERROR;
                     }
                     else {
                         result = WOLFSSL_FATAL_ERROR;
@@ -2824,8 +2831,10 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                 if (result == WOLFSSL_SUCCESS) {
                     result = wolfSSL_sk_X509_push(store->certs, x509);
                     if (result > 0) {
-                        result = (wolfSSL_sk_X509_push(store->added, x509) > 0)
-                            ? WOLFSSL_SUCCESS : WOLFSSL_FATAL_ERROR;
+                        if (wolfSSL_sk_X509_push(store->added, x509) > 0)
+                            result = WOLFSSL_SUCCESS;
+                        else
+                            result = WOLFSSL_FATAL_ERROR;
                     }
                     else {
                         result = WOLFSSL_FATAL_ERROR;
