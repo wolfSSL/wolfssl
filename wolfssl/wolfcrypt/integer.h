@@ -278,6 +278,7 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
    #define PRIME_SIZE      256
 #endif
 
+/* Minimum pass limit for fast_mp_invmod() */
 #ifndef MAX_INVMOD_SZ
     #if defined(WOLFSSL_MYSQL_COMPATIBLE)
         #define MAX_INVMOD_SZ 8192
