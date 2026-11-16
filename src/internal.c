@@ -37610,12 +37610,8 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 }
 #endif
 
-#if defined(WOLFSSL_TLS13) && \
-    ((!defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-      !defined(WOLFSSL_NO_TLS12)) || \
-     (!defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)))
 /* Is this one of the cipher suites that can only be negotiated at TLS 1.3? */
-static int IsTls13CipherSuite(byte first, byte second)
+int IsTls13CipherSuite(byte first, byte second)
 {
     (void)second;
 
@@ -37637,7 +37633,6 @@ static int IsTls13CipherSuite(byte first, byte second)
 
     return 0;
 }
-#endif
 
 /* client only parts */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)

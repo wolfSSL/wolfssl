@@ -3435,8 +3435,8 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
              * OpenSSL. */
             suites->suiteSz = 0;
             for (i = 0; i < suitesCpySz; i += 2) {
-                if (suitesCpy[i] == TLS13_BYTE || (suitesCpy[i] == CIPHER_BYTE
-                        && suitesCpy[i + 1] ==
+                if (IsTls13CipherSuite(suitesCpy[i], suitesCpy[i + 1]) ||
+                        (suitesCpy[i] == CIPHER_BYTE && suitesCpy[i + 1] ==
                         TLS_EMPTY_RENEGOTIATION_INFO_SCSV)) {
                     suites->suites[suites->suiteSz++] = suitesCpy[i];
                     suites->suites[suites->suiteSz++] = suitesCpy[i + 1];

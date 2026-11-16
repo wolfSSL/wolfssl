@@ -5938,7 +5938,8 @@ int test_wolfSSL_CertManagerNameConstraint_orphan_chain_ca(void)
 int test_wolfSSL_CertManager_akid_issuer_serial(void)
 {
     EXPECT_DECLS;
-#if defined(TEST_AKID_SERIAL) && !defined(NO_WOLFSSL_CM_VERIFY)
+#if defined(TEST_AKID_SERIAL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CM_VERIFY)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     const char* root = AKID_SERIAL_DIR "root-cert.pem";
     const char* ca = AKID_SERIAL_DIR "ca-cert.pem";

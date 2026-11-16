@@ -1811,7 +1811,7 @@ static void* test_i2d_ecdsa_sig_malloc(size_t size)
 int test_wolfSSL_i2d_ECDSA_SIG_oom(void)
 {
     EXPECT_DECLS;
-#ifdef TEST_I2D_ECDSA_SIG_OOM
+#if defined(TEST_I2D_ECDSA_SIG_OOM) && defined(USE_WOLFSSL_MEMORY)
     WOLFSSL_ECDSA_SIG* sig = NULL;
     const unsigned char* cp = NULL;
     unsigned char* p = NULL;

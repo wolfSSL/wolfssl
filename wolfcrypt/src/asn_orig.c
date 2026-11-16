@@ -1622,6 +1622,16 @@ static int GetCertHeader(DecodedCert* cert)
     if (cert->sigIndex > cert->maxIdx)
         return ASN_PARSE_E;
 
+#ifdef WOLFSSL_CERT_REQ
+    /* A request has a plain version and no serial number. */
+    if (cert->isCSR) {
+        if (GetMyVersion(cert->source, &cert->srcIdx, &cert->version,
+                cert->sigIndex) < 0)
+            return ASN_PARSE_E;
+        return 0;
+    }
+#endif
+
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version,
                                                             cert->sigIndex) < 0)
         return ASN_PARSE_E;
@@ -7729,17 +7739,18 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte pub[2*(ECC_MAXSIZE+1)]; /* public key has two parts plus header */
 #endif
     word32 algId = 0;
+    word32 eccOid = 0;
     byte* pubData = NULL;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
 
     /* if has pkcs8 header skip it */
-    if (ToTraditionalInline_ex(input, inOutIdx, inSz, &algId) < 0) {
+    if (ToTraditionalInline_ex2(input, inOutIdx, inSz, &algId, &eccOid) < 0) {
         /* ignore error, did not have pkcs8 header */
     }
     else {
-        curve_id = wc_ecc_get_oid(algId, NULL, NULL);
+        curve_id = wc_ecc_get_oid(eccOid, NULL, NULL);
     }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)

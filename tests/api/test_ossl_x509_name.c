@@ -972,7 +972,7 @@ int test_wolfSSL_sk_X509_NAME_ENTRY_sort(void)
     static const char* sorted[] = { "a1", "a2", "b", "c1", "c2", "d" };
     X509_NAME_ENTRY* ents[6];
     STACK_OF(X509_NAME_ENTRY)* sk = NULL;
-    X509_NAME_ENTRY* e;
+    X509_NAME_ENTRY* e = NULL;
     int i;
 
     XMEMSET(ents, 0, sizeof(ents));

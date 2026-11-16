@@ -649,7 +649,8 @@ int test_wolfSSL_RSA_padding_PKCS1_OAEP(void)
         (int)sizeof(msg), NULL, 0), 1);
     ExpectBufNE(em, out, sizeof(em));
 
-#ifdef WC_RSA_NO_PADDING
+/* RSA_private_decrypt has only PKCS#1 v1.5 padding with FIPS. */
+#if defined(WC_RSA_NO_PADDING) && !defined(HAVE_FIPS)
     {
         /* msg encrypted by OpenSSL to client_key_der_2048 with the label. */
         static const unsigned char ct[] = {
@@ -783,7 +784,7 @@ int test_wolfSSL_RSA_padding_PKCS1_OAEP_mgf1(void)
     }
 #endif
 
-#ifdef WC_RSA_NO_PADDING
+#if defined(WC_RSA_NO_PADDING) && !defined(HAVE_FIPS)
     {
         /* msg encrypted by OpenSSL to client_key_der_2048 with OAEP SHA-256,
          * MGF1-SHA-1 and the label. */

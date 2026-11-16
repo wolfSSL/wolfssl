@@ -297,6 +297,7 @@ int test_wolfSSL_EVP_PKEY_bits(void)
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
+    (void)pkey;
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
@@ -2642,6 +2643,8 @@ int test_wolfSSL_EVP_PKEY_sign_verify_dsa_der(void)
     EVP_PKEY_CTX* ctx = NULL;
     DSA* dsa = NULL;
     DSA_SIG* dsaSig = NULL;
+    /* dsa_key_der_2048 has a 160-bit q */
+    int signQ160 = (WC_MIN_DIGEST_SIZE_FOR_SIGN <= 20);
 
     ExpectNotNull(SHA256((const unsigned char*)in, XSTRLEN(in), hash));
     ExpectNotNull(dsa = DSA_new());
@@ -2699,23 +2702,32 @@ int test_wolfSSL_EVP_PKEY_sign_verify_dsa_der(void)
     sigLen = (size_t)DSA_size(dsa) - 1;
     ExpectIntNE(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)), 1);
     sigLen = sizeof(sig);
-    ExpectIntEQ(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)), 1);
-    ExpectIntLE((int)sigLen, DSA_size(dsa));
-    ExpectIntEQ(sig[0], 0x30);
-    p = sig;
-    ExpectNotNull(dsaSig = d2i_DSA_SIG(NULL, &p, (long)sigLen));
-    ExpectPtrEq(p, sig + sigLen);
-    ExpectIntEQ(DSA_do_verify(hash, (int)sizeof(hash), dsaSig, dsa), 1);
-    DSA_SIG_free(dsaSig);
-    dsaSig = NULL;
+    if (signQ160) {
+        ExpectIntEQ(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)), 1);
+        ExpectIntLE((int)sigLen, DSA_size(dsa));
+        ExpectIntEQ(sig[0], 0x30);
+        p = sig;
+        ExpectNotNull(dsaSig = d2i_DSA_SIG(NULL, &p, (long)sigLen));
+        ExpectPtrEq(p, sig + sigLen);
+        ExpectIntEQ(DSA_do_verify(hash, (int)sizeof(hash), dsaSig, dsa), 1);
+        DSA_SIG_free(dsaSig);
+        dsaSig = NULL;
+    }
+    else {
+        /* The digest cut to a 160-bit q is too short to sign, as in FIPS
+         * 186-5. */
+        ExpectIntNE(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)), 1);
+    }
     EVP_PKEY_CTX_free(ctx);
     ctx = NULL;
 
-    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
-    ExpectIntEQ(EVP_PKEY_verify_init(ctx), 1);
-    ExpectIntEQ(EVP_PKEY_verify(ctx, sig, sigLen, hash, sizeof(hash)), 1);
-    EVP_PKEY_CTX_free(ctx);
-    ctx = NULL;
+    if (signQ160) {
+        ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+        ExpectIntEQ(EVP_PKEY_verify_init(ctx), 1);
+        ExpectIntEQ(EVP_PKEY_verify(ctx, sig, sigLen, hash, sizeof(hash)), 1);
+        EVP_PKEY_CTX_free(ctx);
+        ctx = NULL;
+    }
     EVP_PKEY_free(pkey);
     pkey = NULL;
     DSA_free(dsa);
