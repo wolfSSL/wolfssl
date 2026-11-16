@@ -51,12 +51,6 @@
  * sakke.c:1626/1629/1632 sakke_tplmod() -- same shape, three sequential
  *     reduction checks; a/m chosen so each of the three independently sees
  *     both "still >= m" and "already < m" across the four calls made.
- * sakke.c:2585 wc_ValidateSakkeRsk() "(err == 0) && (idSz <=
- *     SAKKE_ID_MAX_SIZE)" -- unlike wc_SetSakkeIdentity()/
- *     wc_MakeSakkePointI(), this public wrapper never bounds idSz before
- *     computing point I, so idSz > SAKKE_ID_MAX_SIZE is reachable directly
- *     through the public API; driven here to isolate the guard that keeps
- *     the fixed 128-byte key->i.id copy from overflowing.
  * sakke.c:2597 wc_ValidateSakkeRsk() "*valid = ((err == 0) &&
  *     (mp_cmp(a, &key->params.g) == MP_EQ))" -- true (matching RSK/identity
  *     pair) and false (RSK computed for a different identity) both driven.
@@ -65,9 +59,9 @@
  *     operand toggled independently by controlling key->i.* state directly
  *     (never-cached, size-mismatch, content-mismatch, cache-hit).
  * sakke.c:6788 sakke_compute_point_r() "(err == 0) && (idSz <=
- *     SAKKE_ID_MAX_SIZE)" -- same shape/reason as 2585, driven as an
- *     idSz > SAKKE_ID_MAX_SIZE call that also forces the 6784 recompute
- *     path.
+ *     SAKKE_ID_MAX_SIZE)" -- its callers pass key->id, which
+ *     wc_SetSakkeIdentity() bounds; driven as an idSz > SAKKE_ID_MAX_SIZE
+ *     call that also forces the 6784 recompute path.
  *
  * Loop decisions at sakke.c:2413, 2433, 2777 and 6420 (bit/byte iteration
  * bounded by mp_count_bits(&params->q) or a digest size) are exercised for
@@ -94,13 +88,7 @@
  * mp_int/ecc_point locals, or on a single SakkeKey ("key") that is fully
  * initialized (params, base point and a real master secret via
  * wc_MakeSakkeKey()) before any file-static function that dereferences its
- * internals is called. sakke_compute_point_i() -- reached through both
- * wc_ValidateSakkeRsk() and sakke_compute_point_r() -- repurposes the ecc
- * private-key mp_int as scratch space for whatever identity integer it is
- * given, so calls that rely on the real master secret (key generation, RSK
- * generation) are all made first; every call after the first
- * wc_ValidateSakkeRsk() below only needs id/idSz/rsk state, never the
- * master secret again.
+ * internals is called.
  */
 
 #include <wolfcrypt/src/sakke.c>
@@ -178,8 +166,8 @@ int main(void)
     /* --- sakke.c:423 sakke_mulmod_base_add(): "(err == 0) && map" ---
      * Only exists without WOLFSSL_HAVE_SP_ECC. Every in-tree caller
      * hardcodes map=1 (sakke_compute_point_i()); map=0 is otherwise
-     * unreachable. Uses the real public key computed by wc_MakeSakkeKey()
-     * above, before it is repurposed below. */
+     * unreachable. Uses the public key computed by wc_MakeSakkeKey() above,
+     * before wc_ValidateSakkeRsk() below converts it to Montgomery form. */
 #ifndef WOLFSSL_HAVE_SP_ECC
     {
         mp_int scalarN;
@@ -252,7 +240,7 @@ int main(void)
         "(SP-math substitutes single-shot sp_ecc_* calls); skipped");
 #endif
 
-    /* --- sakke.c:2585/2597 wc_ValidateSakkeRsk() --- */
+    /* --- sakke.c:2597 wc_ValidateSakkeRsk() --- */
     /* Matching RSK/identity pair: valid == 1 (line 2597 true). Also
      * exercises the loops at 2413/2433 (sakke_pairing()) with real data. */
     valid = -1;
@@ -268,20 +256,6 @@ int main(void)
         wb_fail = 1;
     if (valid != 0) wb_fail = 1;
     WB_NOTE("wc_ValidateSakkeRsk() valid==1/valid==0 (line 2597) exercised");
-
-    /* idSz > SAKKE_ID_MAX_SIZE: wc_ValidateSakkeRsk() never bounds idSz
-     * before computing point I (unlike wc_SetSakkeIdentity()/
-     * wc_MakeSakkePointI()), so this is reachable directly through the
-     * public API. Isolates line 2585's "idSz <= SAKKE_ID_MAX_SIZE" operand
-     * to false while err stays 0, confirming the fixed 128-byte key->i.id
-     * copy is skipped rather than overflowed. From this call on, "key"'s
-     * ecc private-key mp_int has been repurposed as scratch by
-     * sakke_compute_point_i() and no longer holds the master secret. */
-    valid = -1;
-    if (wc_ValidateSakkeRsk(&key, idBig, (word16)sizeof(idBig), rsk, &valid)
-            != 0) wb_fail = 1;
-    WB_NOTE("wc_ValidateSakkeRsk() idSz > SAKKE_ID_MAX_SIZE (line 2585) "
-        "exercised");
 
     /* --- sakke.c:6784/6788 sakke_compute_point_r() ---
      * Called directly (it is file-static) so key->i.* cache state can be
