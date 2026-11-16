@@ -103,8 +103,6 @@ typedef struct EccsiKey {
 #endif
     /** Heap hint for dynamic memory allocation. */
     void* heap;
-    /** Bit indicates KPAK (public key) is in montgomery form. */
-    WC_BITFIELD kpakMont:1;
 } EccsiKey;
 
 #ifdef __cplusplus

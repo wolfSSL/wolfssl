@@ -84642,12 +84642,12 @@ static wc_test_ret_t eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RN
     if (!verified)
         return WC_TEST_RET_ENC_NC;
 
-    /* Check that the KPAK is converted from montgomery form. */
+    /* Check that the key exports and imports after verifying. */
     ret = eccsi_imp_exp_key_test(priv);
     if (ret != 0)
         return ret;
 
-    /* Check that KPAK can converted to Montgomery form again. */
+    /* Check that verifying still works afterwards. */
     ret = wc_VerifyEccsiHash(priv, WC_HASH_TYPE_SHA256, msg, msgSz, sig, sigSz,
             &verified);
     if (ret != 0)
@@ -84655,7 +84655,7 @@ static wc_test_ret_t eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RN
     if (!verified)
         return WC_TEST_RET_ENC_NC;
 
-    /* Check that the KPAK is converted from montgomery form. */
+    /* Check that the pair still validates after verifying. */
     ret = wc_ValidateEccsiPair(pub, WC_HASH_TYPE_SHA256, id, idSz, ssk, pvt,
             &valid);
     if (ret != 0)
@@ -84663,7 +84663,7 @@ static wc_test_ret_t eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RN
     if (!valid)
         return WC_TEST_RET_ENC_NC;
 
-    /* Check that KPAK can converted to Montgomery form again. */
+    /* Check that verifying still works afterwards. */
     ret = wc_VerifyEccsiHash(priv, WC_HASH_TYPE_SHA256, msg, msgSz, sig, sigSz,
             &verified);
     if (ret != 0)
@@ -84671,7 +84671,7 @@ static wc_test_ret_t eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RN
     if (!verified)
         return WC_TEST_RET_ENC_NC;
 
-    /* Check that the KPAK is converted from montgomery form. */
+    /* Check that the public key exports and imports after verifying. */
     ret = eccsi_imp_exp_pubkey_test(priv, pub);
     if (ret != 0)
         return ret;
