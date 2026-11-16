@@ -7291,7 +7291,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->degenerate = (degenerate != 0);
         #endif /* !NO_PKCS7_STREAM */
-            if (pkcs7->noDegenerate == 1 && degenerate != 0) {
+            if (ret == 0 && pkcs7->noDegenerate == 1 && degenerate != 0) {
                 ret = PKCS7_NO_SIGNER_E;
             }
 
