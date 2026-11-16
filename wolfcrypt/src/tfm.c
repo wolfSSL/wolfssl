@@ -3027,7 +3027,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       return FP_VAL;
 #endif /* POSITIVE_EXP_ONLY check */
    }
-   else if (G->used == 1 && G->dp[0] == 2) {
+   else if (G->used == 1 && G->dp[0] == 2 && G->sign == FP_ZPOS) {
       return _fp_exptmod_base_2(X, X->used, P, Y);
    }
    else {
