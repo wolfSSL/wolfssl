@@ -1924,7 +1924,7 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
  *   out    buffer of R_TSIP_ECDSA_DATA_BYTE_SIZE bytes to hold r || s
  *  return 0 on success, otherwise negative error code
  */
-static int tsip_EccSigDerToRaw(const byte* sig, word32 sigSz, byte* out)
+WOLFSSL_LOCAL int tsip_EccSigDerToRaw(const byte* sig, word32 sigSz, byte* out)
 {
     int         ret;
     const word32 rs_size = R_TSIP_ECDSA_DATA_BYTE_SIZE / 2;
