@@ -22659,6 +22659,182 @@ static int test_wolfSSL_ERR_get_error_order(void)
     return EXPECT_RESULT();
 }
 
+/* ERR_set_mark() and ERR_pop_to_mark() work as in OpenSSL. */
+static int test_wolfSSL_ERR_set_mark(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA)
+    int errA = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int errB = WC_NO_ERR_TRACE(BUFFER_E);
+    int errC = WC_NO_ERR_TRACE(MEMORY_E);
+
+    ERR_clear_error();
+
+    /* Empty queue: nothing to mark and no mark to pop to. */
+    ExpectIntEQ(ERR_set_mark(), 0);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* No mark: the whole queue is popped. */
+    ERR_put_error(0, 0, errA, "test", 1);
+    ERR_put_error(0, 0, errB, "test", 2);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* The entries after the mark are popped. The marked one stays. */
+    ERR_put_error(0, 0, errA, "test", 3);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ERR_put_error(0, 0, errB, "test", 4);
+    ERR_put_error(0, 0, errC, "test", 5);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ExpectIntEQ(ERR_peek_last_error(), -errA);
+    /* The mark is gone, so popping again empties the queue. */
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+
+    /* Nested marks on different entries. */
+    ERR_put_error(0, 0, errA, "test", 6);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ERR_put_error(0, 0, errB, "test", 7);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ERR_put_error(0, 0, errC, "test", 8);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ExpectIntEQ(ERR_peek_last_error(), -errB);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ExpectIntEQ(ERR_peek_last_error(), -errA);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* Nested marks on the same entry are counted. */
+    ERR_put_error(0, 0, errA, "test", 9);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ERR_put_error(0, 0, errB, "test", 10);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ERR_put_error(0, 0, errC, "test", 11);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ExpectIntEQ(ERR_peek_last_error(), -errA);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* Nothing after the mark: only the mark is removed. */
+    ERR_put_error(0, 0, errA, "test", 12);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ExpectIntEQ(ERR_get_error(), -errA);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* Reading from the front of the queue keeps a later mark. */
+    ERR_put_error(0, 0, errA, "test", 13);
+    ERR_put_error(0, 0, errB, "test", 14);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ExpectIntEQ(ERR_get_error(), -errA);
+    ERR_put_error(0, 0, errC, "test", 15);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ExpectIntEQ(ERR_get_error(), -errB);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* A mark goes with its entry. */
+    ERR_put_error(0, 0, errA, "test", 16);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ExpectIntEQ(ERR_get_error(), -errA);
+    ERR_put_error(0, 0, errB, "test", 17);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* ERR_clear_error() removes the marks. */
+    ERR_put_error(0, 0, errA, "test", 18);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ERR_clear_error();
+    ERR_put_error(0, 0, errB, "test", 19);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    /* An entry read with ERR_get_error_line() is out of the queue. */
+    ERR_put_error(0, 0, errA, "test", 20);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ExpectIntEQ(ERR_get_error_line(NULL, NULL), -errA);
+    ExpectIntEQ(ERR_set_mark(), 0);
+    ERR_put_error(0, 0, errB, "test", 21);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    ERR_clear_error();
+#elif defined(OPENSSL_EXTRA)
+    /* No error queue: it is always empty. */
+    ExpectIntEQ(ERR_set_mark(), 0);
+    ExpectIntEQ(ERR_pop_to_mark(), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(ERROR_QUEUE_PER_THREAD) && !defined(SINGLE_THREADED)
+static int test_err_mark_thread_ok;
+
+/* Uses the error queue of its own thread only. */
+static THREAD_RETURN WOLFSSL_THREAD test_err_mark_thread(void* args)
+{
+    int ok = 1;
+
+    (void)args;
+
+    /* The queue and the mark of the main thread are not seen. */
+    if ((ERR_peek_error() != 0) || (ERR_pop_to_mark() != 0))
+        ok = 0;
+    ERR_put_error(0, 0, WC_NO_ERR_TRACE(BUFFER_E), "thread", 1);
+    if (ERR_set_mark() != 1)
+        ok = 0;
+    ERR_put_error(0, 0, WC_NO_ERR_TRACE(MEMORY_E), "thread", 2);
+    if (ERR_pop_to_mark() != 1)
+        ok = 0;
+    if (ERR_peek_last_error() !=
+            (unsigned long)-WC_NO_ERR_TRACE(BUFFER_E)) {
+        ok = 0;
+    }
+    /* No mark left: this empties this thread's queue only. */
+    if (ERR_pop_to_mark() != 0)
+        ok = 0;
+    if (ERR_get_error() != 0)
+        ok = 0;
+    ERR_put_error(0, 0, WC_NO_ERR_TRACE(MEMORY_E), "thread", 3);
+
+    test_err_mark_thread_ok = ok;
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* The errors and marks of another thread do not change this thread's. */
+static int test_wolfSSL_ERR_set_mark_thread(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(ERROR_QUEUE_PER_THREAD) && !defined(SINGLE_THREADED)
+    THREAD_TYPE thread;
+    int errA = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int errB = WC_NO_ERR_TRACE(BUFFER_E);
+
+    ERR_clear_error();
+    ERR_put_error(0, 0, errA, "test", 1);
+    ExpectIntEQ(ERR_set_mark(), 1);
+    ERR_put_error(0, 0, errB, "test", 2);
+
+    test_err_mark_thread_ok = 0;
+    start_thread(test_err_mark_thread, NULL, &thread);
+    join_thread(thread);
+    ExpectIntEQ(test_err_mark_thread_ok, 1);
+
+    ExpectIntEQ(ERR_peek_last_error(), -errB);
+    ExpectIntEQ(ERR_pop_to_mark(), 1);
+    ExpectIntEQ(ERR_get_error(), -errA);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+    ERR_clear_error();
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_ERR_GET_REASON_version_mismatch(void)
 {
     EXPECT_DECLS;
@@ -48425,6 +48601,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_error_queue_per_thread),
     TEST_DECL(test_wolfSSL_ERR_put_error),
     TEST_DECL(test_wolfSSL_ERR_get_error_order),
+    TEST_DECL(test_wolfSSL_ERR_set_mark),
+    TEST_DECL(test_wolfSSL_ERR_set_mark_thread),
     TEST_DECL(test_wolfSSL_ERR_GET_REASON_version_mismatch),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_ERR_print_errors),
