@@ -201,8 +201,6 @@ typedef struct crt_bundle_t {
     size_t x509_crt_bundle_wolfssl_len;
 } crt_bundle_t;
 
-static WOLFSSL_X509* store_cert = NULL; /* will point to existing param values*/
-
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
     static const uint8_t **crts = NULL;
     static uint16_t num_certs = 0;
@@ -806,6 +804,9 @@ static CB_INLINE int wolfssl_ssl_conf_verify_cb_no_signer(int preverify,
 {
     char subjectName[X509_MAX_SUBJECT_LEN + 1];
 
+    /* With alt cert chains, a copy this callback frees; otherwise the
+     * store's current cert, which wolfSSL frees after the callback. */
+    WOLFSSL_X509* store_cert = NULL;
     WOLFSSL_X509_NAME* store_cert_subject = NULL; /* part of store_cert*/
     /* the bundle cert being looked at */
     WC_DECLARE_VAR(bundle_dcert, DecodedCert, 1, NULL);
@@ -1004,11 +1005,10 @@ static CB_INLINE int wolfssl_ssl_conf_verify_cb_no_signer(int preverify,
 
     /* Clean up and exit */
     WC_FREE_VAR_EX(bundle_dcert, NULL, DYNAMIC_TYPE_DCERT);
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ALT_CERT_CHAINS)
+    wolfSSL_X509_free(store_cert);
+#endif
 
-    /* We don't clean up the store_cert and x509 as we are in a callback,
-     * and it is just a pointer into the actual ctx store cert.
-     *
-     * See wolfSSL_bundle_cleanup() called after connection completed. */
     ESP_LOGCBI(TAG, "Exit wolfssl_ssl_conf_verify_cb ret = %d", ret);
 
     WOLFSSL_LEAVE( "wolfssl_ssl_conf_verify_cb complete", ret);
@@ -1564,14 +1564,6 @@ esp_err_t wolfSSL_bundle_cleanup(void)
      * ESP-IDF in the esp-tls component, call at cleanup time: */
     esp_tls_free_global_ca_store();
 #endif
-
-    if (store_cert != NULL) {
-#ifdef DEBUG_WOLFSSL_MALLOC
-        ESP_LOGI(TAG, "Free store_cert in wolfSSL_bundle_cleanup");
-#endif
-        wolfSSL_X509_free(store_cert);
-        store_cert = NULL;
-    }
 
     memset(&s_crt_bundle, 0, sizeof(s_crt_bundle));
 
