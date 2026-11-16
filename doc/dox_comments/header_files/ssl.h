@@ -16603,8 +16603,9 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     wolfSSL context in order of preference. The list is a null-terminated text
     string and a colon-delimited list, where each element is of the form
     "<public-key>+<digest>" (for example "RSA-PSS+SHA256:ECDSA+SHA384"). The
-    Edwards-curve algorithms "ED25519" and "ED448" are written without a digest
-    suffix, since the hash is implied by the algorithm. The previous list
+    Edwards-curve algorithms "ED25519" and "ED448" and the ML-DSA algorithms
+    "MLDSA44", "MLDSA65" and "MLDSA87" are written without a digest suffix,
+    since the hash is implied by the algorithm. The previous list
     stored in the context is replaced.
 
     Recognized public-key tokens and digest tokens, together with the build
@@ -16622,6 +16623,9 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     | ED448             | HAVE_ED448   (no digest suffix)                    |
     | DSA               | !NO_DSA                                            |
     | SM2               | WOLFSSL_SM2 and WOLFSSL_SM3 (digest is SM3)        |
+    | MLDSA44           | WOLFSSL_HAVE_MLDSA (no digest suffix)              |
+    | MLDSA65           | WOLFSSL_HAVE_MLDSA (no digest suffix)              |
+    | MLDSA87           | WOLFSSL_HAVE_MLDSA (no digest suffix)              |
 
     Digest tokens:
 
@@ -16645,7 +16649,8 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created with
     wolfSSL_CTX_new().
     \param [in] list a colon-delimited list of "<public-key>+<digest>"
-    elements (or "ED25519" / "ED448" without a digest).
+    elements (or "ED25519" / "ED448" / "MLDSA44" / "MLDSA65" / "MLDSA87"
+    without a digest).
 
     \return WOLFSSL_SUCCESS if successful.
     \return WOLFSSL_FAILURE if a pointer parameter is NULL, allocation of the
@@ -16682,7 +16687,8 @@ int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list);
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using
     wolfSSL_new().
     \param [in] list a colon-delimited list of "<public-key>+<digest>"
-    elements (or "ED25519" / "ED448" without a digest).
+    elements (or "ED25519" / "ED448" / "MLDSA44" / "MLDSA65" / "MLDSA87"
+    without a digest).
 
     \return WOLFSSL_SUCCESS if successful.
     \return WOLFSSL_FAILURE if a pointer parameter is NULL, allocation of the
