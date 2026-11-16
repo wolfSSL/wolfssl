@@ -2450,6 +2450,8 @@ WOLFSSL_API int  wolfSSL_num_locks(void);
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                         WOLFSSL_X509_STORE_CTX* ctx);
+WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_current_cert(
+                              WOLFSSL_X509_STORE_CTX* ctx, WOLFSSL_X509* x509);
 WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,

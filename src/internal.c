@@ -17340,7 +17340,7 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 
 int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,
-        int cert_err, void* heap, int* x509Free)
+        int cert_err, void* heap, WOLFSSL_X509** x509Owned)
 {
     WOLFSSL_X509_STORE_CTX* store = NULL;
     char* domain = NULL;
@@ -17348,7 +17348,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
     WOLFSSL_X509* x509 = NULL;
 #endif
 
-    *x509Free = 0;
+    *x509Owned = NULL;
 
     store = wolfSSL_X509_STORE_CTX_new_ex(heap);
     if (store == NULL)
@@ -17464,7 +17464,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
                 goto mem_error;
             if (CopyDecodedToX509(x509, args->dCert) == 0) {
                 store->current_cert = x509;
-                *x509Free = 1;
+                *x509Owned = x509;
             }
             else {
                 goto mem_error;
@@ -17491,10 +17491,10 @@ mem_error:
 }
 
 void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
-        WOLFSSL* ssl, void* heap, int x509Free)
+        WOLFSSL* ssl, void* heap, WOLFSSL_X509* x509Owned)
 {
     (void)ssl;
-    (void)x509Free;
+    (void)x509Owned;
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     wolfSSL_sk_X509_pop_free(store->chain, NULL);
@@ -17512,8 +17512,8 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
     XFREE(store->domain, heap, DYNAMIC_TYPE_STRING);
     store->domain = NULL;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (x509Free)
-        wolfSSL_X509_free(store->current_cert);
+    /* A callback may have set another current cert. */
+    wolfSSL_X509_free(x509Owned);
     store->current_cert = NULL;
 #endif
     wolfSSL_X509_STORE_CTX_free(store);
@@ -17580,9 +17580,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         ) {
         int verifyFail = 0;
         WOLFSSL_X509_STORE_CTX* store = NULL;
-        int x509Free = 0;
+        WOLFSSL_X509* x509Owned = NULL;
         int setupRet = SetupStoreCtxCallback(&store, ssl, cm, args, cert_err,
-                heap, &x509Free);
+                heap, &x509Owned);
 
         if (setupRet != 0)
             return setupRet;
@@ -17685,7 +17685,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
             /* mark as verify error */
             args->verifyErr = 1;
         }
-        CleanupStoreCtxCallback(store, ssl, heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, heap, x509Owned);
     }
 
     (void)heap;
@@ -17746,7 +17746,7 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
 {
     int ret;
     int verifyFail = 0;
-    int x509Free = 0;
+    WOLFSSL_X509* x509Owned = NULL;
     int certIdx = args->certIdx;
     DecodedCert* dCert = args->dCert;
     Signer* ca;
@@ -17804,7 +17804,7 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
         args->dCert = issuer;
         args->certIdx = certIdx + 1;
         ret = SetupStoreCtxCallback(&store, ssl, SSL_CM(ssl), args, 0,
-            ssl->heap, &x509Free);
+            ssl->heap, &x509Owned);
         args->dCert = dCert;
         args->certIdx = certIdx;
     }
@@ -17818,7 +17818,7 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
             verifyFail = 1;
         }
 #endif
-        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Owned);
         if (verifyFail) {
             WOLFSSL_MSG("Verify callback rejected issuer");
             ret = VERIFY_CERT_ERROR;
@@ -17846,10 +17846,10 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
     if (cert_store != NULL && cert_store->get_crl_cb != NULL) {
         WOLFSSL_CRL* userCrl = NULL;
         WOLFSSL_X509_STORE_CTX* store = NULL;
-        int x509Free = 0;
+        WOLFSSL_X509* x509Owned = NULL;
 
         ret = SetupStoreCtxCallback(&store, ssl, cm, args, 0, heap,
-                &x509Free);
+                &x509Owned);
         if (ret != 0) {
             *outRet = ret;
             return;
@@ -17867,7 +17867,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 
         if (userCrl != NULL)
             wolfSSL_X509_CRL_free(userCrl);
-        CleanupStoreCtxCallback(store, ssl, heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, heap, x509Owned);
     }
 #else
     (void)cm;
