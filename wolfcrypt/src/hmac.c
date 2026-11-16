@@ -1884,7 +1884,8 @@ int wolfSSL_GetHmacMaxSize(void)
  *
  * With a NULL key, hmac must be initialized by the caller. A NULL key is only
  * for a key on the device, which hmac then names, see wc_HmacInit_Id() and
- * wc_HmacInit_Label().
+ * wc_HmacInit_Label(). If no device computes the tag, the call fails with
+ * MISSING_KEY. A NULL key is never used as a key of zero length.
  *
  * hmac     Storage for the HMAC context. Initialized and freed here, unless
  *          key is NULL. Then the caller initializes it and frees it.
@@ -1948,6 +1949,17 @@ int wc_HmacGenerate_ex(Hmac* hmac, int type, byte* out, word32* outSz,
         /* fall-through when unavailable */
     }
 #endif
+
+    if (callerCtx) {
+        /* No device computed the tag. Without a key named by id or label,
+         * fail here so that an empty key is never set. */
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+        if ((hmac->idLen <= 0) && (hmac->labelLen <= 0))
+    #endif
+        {
+            return MISSING_KEY;
+        }
+    }
 
     ret = 0;
     if (!callerCtx) {

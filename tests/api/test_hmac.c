@@ -1603,6 +1603,16 @@ int test_wc_HmacGenerate(void)
     ExpectIntEQ(wc_HmacVerify_ex(&hmac, WC_SHA256, ref, sizeof(ref), NULL, 0,
         key, 0, NULL, INVALID_DEVID), 0);
 
+    /* A NULL key is not an empty key for the _ex variants. With no device
+     * to compute the tag, they fail. */
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, NULL, 0,
+        NULL, 0, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_HmacVerify_ex(&hmac, WC_SHA256, ref, sizeof(ref), NULL, 0,
+        NULL, 0, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(MISSING_KEY));
+    wc_HmacFree(&hmac);
+
     /* Bad arguments. */
     tagSz = sizeof(tag);
     ExpectIntEQ(wc_HmacGenerate(WC_SHA256, NULL, &tagSz, msg, msgSz, key,
@@ -1782,9 +1792,11 @@ int test_wc_HmacGenerate_CryptoCb(void)
 /* What the one-shot test device is told to do and what it saw. */
 typedef struct {
     int         handle;   /* compute the one-shot call, else decline it */
+    int         takeKey;  /* keep the key of a SetKey call on the device */
     int         oneShots; /* one-shot calls */
     int         updates;  /* update calls */
     int         finals;   /* final calls */
+    int         setKeys;  /* SetKey calls */
     const byte* key;      /* arguments of the last one-shot call */
     word32      keySz;
     const byte* in;
@@ -1795,7 +1807,8 @@ typedef struct {
 /* The key the test device uses for a context that gives no key. */
 static const byte test_hmac_oneshot_dev_key[] = "key held by the device";
 
-/* Takes or declines the one-shot call. Always declines update and final. */
+/* Takes or declines the one-shot call. Always declines update and final.
+ * Counts the SetKey calls and keeps the key on the device when told to. */
 static int test_hmac_oneshot_dev_cb(int cbDevId, wc_CryptoInfo* info,
     void* ctx)
 {
@@ -1806,6 +1819,16 @@ static int test_hmac_oneshot_dev_cb(int cbDevId, wc_CryptoInfo* info,
 
     (void)cbDevId;
 
+#ifdef WOLF_CRYPTO_CB_SETKEY
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_SETKEY) &&
+            (info->setkey.type == WC_SETKEY_HMAC)) {
+        dev->setKeys++;
+        if (dev->takeKey) {
+            return wc_CryptoCb_SetKeyLocation(info, WC_KEY_HW_STORED);
+        }
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+#endif
     if ((info == NULL) || (info->algo_type != WC_ALGO_TYPE_HMAC)) {
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
@@ -2126,11 +2149,70 @@ int test_wc_HmacGenerate_CryptoCb_OneShot(void)
 #endif /* WOLF_CRYPTO_CB_FIND */
 #endif /* WOLF_PRIVATE_KEY_ID */
 
-    /* A context from the caller that names no key means an empty key. */
+    /* A context from the caller that names no key leaves software with no key
+     * to use. The call fails and does not use an empty key. ref is the tag
+     * of an empty key. */
     tagSz = sizeof(ref);
     ExpectIntEQ(wc_HmacGenerate(WC_SHA256, ref, &tagSz, msg, msgSz, NULL, 0),
         0);
     XMEMSET(&dev, 0, sizeof(dev));
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, TEST_HMAC_ONESHOT_DEVID), 0);
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+        NULL, 0, NULL, TEST_HMAC_ONESHOT_DEVID),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(tagSz, (word32)sizeof(tag));
+    ExpectIntEQ(wc_HmacVerify_ex(&hmac, WC_SHA256, ref, sizeof(ref), msg,
+        msgSz, NULL, 0, NULL, TEST_HMAC_ONESHOT_DEVID),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    /* The device is offered both calls and gets nothing else. */
+    ExpectIntEQ(dev.oneShots, 2);
+    ExpectIntEQ(dev.setKeys + dev.updates + dev.finals, 0);
+    wc_HmacFree(&hmac);
+
+    /* A key that is already set in the context is kept. */
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, key, keySz), 0);
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+        NULL, 0, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_HmacVerify_ex(&hmac, WC_SHA256, ref, sizeof(ref), msg,
+        msgSz, NULL, 0, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, msgSz), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, tag), 0);
+    ExpectBufEQ(tag, sw, sizeof(sw));
+    wc_HmacFree(&hmac);
+
+#if defined(WOLF_CRYPTO_CB_SETKEY) && !defined(WOLFSSL_NO_HMAC_KEY_LOCATION)
+    /* So is a key that the device took in SetKey. The device does not get a
+     * second SetKey with an empty key, and software still has no key. */
+    XMEMSET(&dev, 0, sizeof(dev));
+    dev.takeKey = 1;
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, TEST_HMAC_ONESHOT_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, key, keySz), 0);
+    ExpectIntEQ(dev.setKeys, 1);
+    tagSz = sizeof(tag);
+    ExpectIntEQ(wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+        NULL, 0, NULL, TEST_HMAC_ONESHOT_DEVID),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_HmacVerify_ex(&hmac, WC_SHA256, ref, sizeof(ref), msg,
+        msgSz, NULL, 0, NULL, TEST_HMAC_ONESHOT_DEVID),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(dev.oneShots, 2);
+    ExpectIntEQ(dev.setKeys, 1);
+    ExpectIntEQ(hmac.keyLocation, WC_KEY_HW_STORED);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, msgSz),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    wc_HmacFree(&hmac);
+#endif
+
+    /* The device can still take the call, with a key that it has. */
+    tagSz = sizeof(ref);
+    ExpectIntEQ(wc_HmacGenerate(WC_SHA256, ref, &tagSz, msg, msgSz,
+        test_hmac_oneshot_dev_key, (word32)sizeof(test_hmac_oneshot_dev_key)),
+        0);
+    XMEMSET(&dev, 0, sizeof(dev));
+    dev.handle = 1;
     ExpectIntEQ(wc_HmacInit(&hmac, NULL, TEST_HMAC_ONESHOT_DEVID), 0);
     XMEMSET(tag, 0, sizeof(tag));
     tagSz = sizeof(tag);
@@ -2138,8 +2220,6 @@ int test_wc_HmacGenerate_CryptoCb_OneShot(void)
         NULL, 0, NULL, TEST_HMAC_ONESHOT_DEVID), 0);
     ExpectBufEQ(tag, ref, sizeof(ref));
     ExpectIntEQ(dev.oneShots, 1);
-    ExpectIntEQ(dev.updates, 1);
-    ExpectIntEQ(dev.finals, 1);
     wc_HmacFree(&hmac);
 
     wc_CryptoCb_UnRegisterDevice(TEST_HMAC_ONESHOT_DEVID);

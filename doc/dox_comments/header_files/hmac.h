@@ -185,13 +185,13 @@ int wc_HmacGenerate(int type, byte* out, word32* outSz,
     free it manually.
 
     With a NULL key, hmac must always be initialized by the caller. A NULL key
-    is only for a key that is stored on the crypto callback device. For a key
-    of zero length, pass a non-NULL key with a keySz of 0, or use
-    wc_HmacGenerate.
+    is only for a key that is stored on the crypto callback device. If no
+    device computes the tag, the call fails with MISSING_KEY. A NULL key is
+    never used as a key of zero length. For a key of zero length, pass a
+    non-NULL key with a keySz of 0, or use wc_HmacGenerate.
 
     \return see wc_HmacGenerate; also BAD_FUNC_ARG if hmac is NULL
-    \return MISSING_KEY if the key is named by id or label and no device
-    computed the tag
+    \return MISSING_KEY if key is NULL and no device computed the tag
     \return WC_PENDING_E if a crypto callback device returned pending; no tag
     was produced. The caller may call again, which starts a new operation.
 
@@ -284,11 +284,12 @@ int wc_HmacVerify(int type, const byte* check, word32 checkSz,
     wc_HmacGenerate_ex.
 
     With a NULL key, hmac must always be initialized by the caller. A NULL key
-    is only for a key that is stored on the crypto callback device.
+    is only for a key that is stored on the crypto callback device. If no
+    device computes the tag, the call fails with MISSING_KEY. A NULL key is
+    never used as a key of zero length.
 
     \return see wc_HmacVerify; also BAD_FUNC_ARG if hmac is NULL
-    \return MISSING_KEY if the key is named by id or label and no device
-    computed the tag
+    \return MISSING_KEY if key is NULL and no device computed the tag
     \return WC_PENDING_E if a crypto callback device returned pending; the
     tag was not checked. The caller may call again, which starts a new
     operation.
