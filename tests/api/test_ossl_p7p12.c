@@ -2053,6 +2053,7 @@ int test_wolfSSL_PKCS12_create_mac(void)
     !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
     !defined(NO_SHA) && defined(HAVE_PKCS12) && defined(WOLFSSL_AES_256) && \
+    defined(HAVE_PBKDF2) && \
     defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
     !defined(WOLFSSL_STATIC_MEMORY)
 #define TEST_PKCS12_PARSE_OOM
