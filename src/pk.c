@@ -4989,7 +4989,8 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     /* Calculate shared secret from private and public keys. */
     if (ret == 0) {
         word32 padded_keySz = keySz;
-#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_KCAPI_DH)
         if (ct) {
             if (wc_DhAgree_ct((DhKey*)dh->internal, key, &keySz, priv,
                            (word32)privSz, pub, (word32)pubSz) < 0) {
@@ -4998,7 +4999,8 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
             }
         }
         else
-#endif /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
+#endif /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST &&
+        * !WOLFSSL_KCAPI_DH */
         {
             if (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv,
                            (word32)privSz, pub, (word32)pubSz) < 0) {
