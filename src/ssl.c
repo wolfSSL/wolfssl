@@ -9141,6 +9141,33 @@ static void* OSSL_Realloc(void *ptr, size_t size)
     #define OSSL_DEF_MALLOC(s)      XMALLOC(s, NULL, DYNAMIC_TYPE_OPENSSL)
     #define OSSL_DEF_REALLOC(p, s)  XREALLOC(p, s, NULL, DYNAMIC_TYPE_OPENSSL)
     #define OSSL_DEF_FREE(p)        XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL)
+#elif !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_DEBUG_MEMORY)
+    #define OSSL_SAVE_DEFAULTS
+/* wolfSSL's allocators from before CRYPTO_set_mem_functions. Memory they
+ * allocated stays valid to free after it. */
+static wolfSSL_Malloc_cb  ossl_def_malloc  = NULL;
+static wolfSSL_Free_cb    ossl_def_free    = NULL;
+static wolfSSL_Realloc_cb ossl_def_realloc = NULL;
+
+static void OSSL_SaveDefaults(void)
+{
+    if (ossl_malloc == NULL) {
+        (void)wolfSSL_GetAllocators(&ossl_def_malloc, &ossl_def_free,
+            &ossl_def_realloc);
+    }
+}
+
+    #define OSSL_DEF_MALLOC(s)                                              \
+        ((ossl_def_malloc != NULL) ? ossl_def_malloc(s) : malloc(s))
+    #define OSSL_DEF_REALLOC(p, s)                                          \
+        ((ossl_def_realloc != NULL) ? ossl_def_realloc(p, s) : realloc(p, s))
+    #define OSSL_DEF_FREE(p)                                                \
+        do {                                                                \
+            if (ossl_def_free != NULL)                                      \
+                ossl_def_free(p);                                           \
+            else                                                            \
+                free(p);                                                    \
+        } while (0)
 #elif !defined(WOLFSSL_NO_MALLOC)
     #define OSSL_DEF_MALLOC(s)      malloc(s) /* native heap */
     #define OSSL_DEF_REALLOC(p, s)  realloc(p, s) /* native heap */
@@ -9189,6 +9216,9 @@ int wolfSSL_CRYPTO_set_mem_functions(
     WOLFSSL_MSG("wolfSSL was compiled without WOLFSSL_DEBUG_MEMORY mem "
                 "functions will receive a NULL file name and 0 for the "
                 "line number.");
+#ifdef OSSL_SAVE_DEFAULTS
+    OSSL_SaveDefaults();
+#endif
     if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)OSSL_Malloc,
            (wolfSSL_Free_cb)OSSL_Free, (wolfSSL_Realloc_cb)OSSL_Realloc) == 0) {
         ossl_malloc = m;
@@ -9234,6 +9264,11 @@ void wolfSSL_CRYPTO_get_mem_functions(
         rf = ossl_realloc;
         ff = ossl_free;
     }
+#ifdef OSSL_SAVE_DEFAULTS
+    else {
+        OSSL_SaveDefaults();
+    }
+#endif
 #elif defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     {
         wolfSSL_Malloc_cb  wmf = NULL;
