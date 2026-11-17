@@ -3401,6 +3401,10 @@ int test_wolfssl_EVP_sm4_iv(void)
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
     };
+    static const byte iv2[SM4_BLOCK_SIZE] = {
+        0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87,
+        0x78, 0x69, 0x5a, 0x4b, 0x3c, 0x2d, 0x1e, 0x0f
+    };
     static const byte plainText[SM4_BLOCK_SIZE * 3] = {
         0xaa, 0xaa, 0xaa, 0xaa, 0xbb, 0xbb, 0xbb, 0xbb,
         0xcc, 0xcc, 0xcc, 0xcc, 0xdd, 0xdd, 0xdd, 0xdd,
@@ -3449,6 +3453,28 @@ int test_wolfssl_EVP_sm4_iv(void)
     ExpectBufEQ(cipherText, expected, sizeof(expected));
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
+
+    /* wolfSSL_SetInternalIV loads a replaced ctx->iv into the cipher. */
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv2), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, expected, plainText,
+        sizeof(plainText)), 0);
+    wc_Sm4Free(&sm4);
+
+    XMEMSET(cipherText, 0, sizeof(cipherText));
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_sm4_ctr(), key, iv, 1),
+        WOLFSSL_SUCCESS);
+    if (ctx != NULL) {
+        XMEMCPY(ctx->iv, iv2, sizeof(iv2));
+    }
+    ExpectIntEQ(wolfSSL_SetInternalIV(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_Cipher(ctx, cipherText, (byte*)plainText,
+        sizeof(plainText)), sizeof(plainText));
+    ExpectBufEQ(cipherText, expected, sizeof(expected));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
 #endif
 
 #ifdef WOLFSSL_SM4_CBC
@@ -3469,6 +3495,28 @@ int test_wolfssl_EVP_sm4_iv(void)
         (byte*)plainText + SM4_BLOCK_SIZE,
         sizeof(plainText) - SM4_BLOCK_SIZE),
         sizeof(plainText) - SM4_BLOCK_SIZE);
+    ExpectBufEQ(cipherText, expected, sizeof(expected));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* wolfSSL_SetInternalIV loads a replaced ctx->iv into the cipher. */
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv2), 0);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, expected, plainText,
+        sizeof(plainText)), 0);
+    wc_Sm4Free(&sm4);
+
+    XMEMSET(cipherText, 0, sizeof(cipherText));
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_sm4_cbc(), key, iv, 1),
+        WOLFSSL_SUCCESS);
+    if (ctx != NULL) {
+        XMEMCPY(ctx->iv, iv2, sizeof(iv2));
+    }
+    ExpectIntEQ(wolfSSL_SetInternalIV(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_Cipher(ctx, cipherText, (byte*)plainText,
+        sizeof(plainText)), sizeof(plainText));
     ExpectBufEQ(cipherText, expected, sizeof(expected));
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
