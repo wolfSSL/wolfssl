@@ -1121,6 +1121,9 @@ static int _Rehandshake(WOLFSSL* ssl)
     if (ssl == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    else if (HandshakeEndedByFatalAlert(ssl)) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
     else if (IsAtLeastTLSv1_3(ssl->version)) {
         WOLFSSL_MSG("Secure Renegotiation not supported in TLS 1.3");
         ret = SECURE_RENEGOTIATION_E;

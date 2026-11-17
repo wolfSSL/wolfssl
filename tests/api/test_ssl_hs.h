@@ -33,6 +33,7 @@ int test_wolfSSL_set_connect_accept_state(void);
 int test_wolfSSL_SSL_do_handshake(void);
 int test_wolfSSL_SSL_in_init_hs(void);
 int test_wolfSSL_is_init_finished(void);
+int test_wolfSSL_fatal_alert_ends_hs(void);
 int test_wolfSSL_SetHsDoneCb(void);
 int test_wolfSSL_pk_callback_ctx(void);
 int test_wolfSSL_set_accept_state_reinit(void);
@@ -60,6 +61,7 @@ int test_wolfSSL_hs_info_cb(void);
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_do_handshake),              \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_in_init_hs),                \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_is_init_finished),              \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_fatal_alert_ends_hs),           \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SetHsDoneCb),                   \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_pk_callback_ctx),               \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_set_accept_state_reinit),       \

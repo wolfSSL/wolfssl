@@ -481,6 +481,294 @@ int test_wolfSSL_is_init_finished(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+/* Check that the handshake of an object that sent or received a fatal alert
+ * is over: it is not finished, and a handshake call fails without asking to
+ * be called again and without sending anything.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] out  Length of the memio buffer ssl sends into.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_hs_ended_by_alert(WOLFSSL* ssl, const int* out)
+{
+    EXPECT_DECLS;
+    int sent = *out;
+    int err = WOLFSSL_ERROR_NONE;
+
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl), WOLFSSL_FATAL_ERROR);
+    if (ssl != NULL) {
+        err = wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR);
+    }
+    ExpectIntNE(err, WOLFSSL_ERROR_NONE);
+    ExpectIntNE(err, WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(err, WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntNE(err, WOLFSSL_ERROR_ZERO_RETURN);
+#ifdef OPENSSL_EXTRA
+    ExpectIntEQ(wolfSSL_SSL_in_init(ssl), 1);
+    ExpectIntEQ(wolfSSL_SSL_do_handshake(ssl), WOLFSSL_FATAL_ERROR);
+#endif
+    ExpectIntEQ(*out, sent);
+
+    return EXPECT_RESULT();
+}
+
+/* The client can't verify the server's certificate, so it sends a fatal alert
+ * during the handshake and the server receives it. Neither can carry on with
+ * the handshake. Both can be reused after wolfSSL_clear().
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_fatal_alert_in_hs(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(FATAL_ERROR));
+
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_c, &test_ctx.s_len), TEST_SUCCESS);
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_s, &test_ctx.c_len), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* The server requires a certificate the client doesn't have, so it sends a
+ * fatal alert and the client receives it. With TLS 1.3 the client finished its
+ * handshake first and receives the alert when it reads.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @param [in] tls13     Whether TLS 1.3 is negotiated.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_fatal_alert_from_server(method_provider method_c,
+    method_provider method_s, int tls13)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (tls13) {
+        ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+            WOLFSSL_FATAL_ERROR);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    }
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(FATAL_ERROR));
+
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_s, &test_ctx.c_len), TEST_SUCCESS);
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_c, &test_ctx.s_len), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* After the handshake, the server gets a record that fails authentication. It
+ * sends a fatal alert, which the client receives. The handshake of neither is
+ * finished any more, and it can't be run again.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_fatal_alert_after_hs(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "fatal alert";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    if (EXPECT_SUCCESS()) {
+        /* The last byte is part of the tag or MAC. */
+        test_ctx.s_buff[test_ctx.s_len - 1] ^= 0x01;
+    }
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(FATAL_ERROR));
+
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_s, &test_ctx.c_len), TEST_SUCCESS);
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_c, &test_ctx.s_len), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* Waiting to read or write, a close_notify and, with TLS 1.3, a user_canceled
+ * alert don't end the handshake. Data sent after the close_notify is still
+ * read.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @param [in] tls13     Whether TLS 1.3 is negotiated.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_no_fatal_alert(method_provider method_c,
+    method_provider method_s, int tls13)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "not fatal";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), WOLFSSL_SUCCESS);
+
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        (int)sizeof(msg));
+
+    if (tls13) {
+        ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_c),
+            WOLFSSL_SHUTDOWN_NOT_DONE);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    }
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_ZERO_RETURN);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A fatal alert, sent or received, during or after the handshake, ends the
+ * handshake, as in OpenSSL. Other alerts and retryable errors don't.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_fatal_alert_ends_hs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_fatal_alert_in_hs(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+    ExpectIntEQ(test_fatal_alert_from_server(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_fatal_alert_after_hs(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+    ExpectIntEQ(test_no_fatal_alert(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_fatal_alert_in_hs(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+    ExpectIntEQ(test_fatal_alert_from_server(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_fatal_alert_after_hs(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+    ExpectIntEQ(test_no_fatal_alert(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_HANDSHAKE_DONE_CB) && !defined(NO_TLS) && \
     !defined(WOLFSSL_NO_TLS12)

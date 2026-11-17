@@ -813,6 +813,28 @@ int IsWriteClosed(const WOLFSSL* ssl)
     return ssl->options.sentNotify || ssl->options.fatalAlert;
 }
 
+/* A fatal alert ends the connection (RFC 5246 7.2.2, RFC 8446 6.2), so the
+ * handshake can't continue or run again once one was sent or received.
+ * Returns 1, with ssl->error set, when a handshake call must fail. */
+int HandshakeEndedByFatalAlert(WOLFSSL* ssl)
+{
+    if (!ssl->options.fatalAlert)
+        return 0;
+
+    WOLFSSL_MSG("Fatal alert sent or received, handshake ended");
+    /* Keep the reason the connection failed, but not a result that would
+     * have the caller try again. */
+    if ((ssl->error == 0) ||
+            (ssl->error == WC_NO_ERR_TRACE(WANT_READ)) ||
+            (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) ||
+            (ssl->error == WOLFSSL_ERROR_WANT_READ) ||
+            (ssl->error == WOLFSSL_ERROR_WANT_WRITE) ||
+            (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN))) {
+        ssl->error = SOCKET_PEER_CLOSED_E;
+    }
+    return 1;
+}
+
 int IsEncryptionOn(const WOLFSSL* ssl, int isSend)
 {
     if (ssl == NULL) {
