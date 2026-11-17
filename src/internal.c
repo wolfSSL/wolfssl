@@ -17927,13 +17927,15 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 #ifndef NO_ASN
 /* Parse a chain certificate as a CA and return it as a filled signer. */
 static int ProcessPeerCertMakeChainSigner(WOLFSSL* ssl, buffer* cert, int type,
-                                          Signer* extraCa, Signer** out)
+                                          Signer** out)
 {
     int ret = 0;
     WC_DECLARE_VAR(dCertAdd, DecodedCert, 1, 0);
     int dCertAdd_inited = 0;
     DerBuffer* derBuffer = NULL;
     Signer* s = NULL;
+    Signer* extraCa = NULL;
+    Signer* waivedTail = NULL;
 
     *out = NULL;
 
@@ -17958,7 +17960,15 @@ static int ProcessPeerCertMakeChainSigner(WOLFSSL* ssl, buffer* cert, int type,
     if (SSL_CM(ssl)->unknownExtCallback != NULL)
         wc_SetUnknownExtCallback(dCertAdd, SSL_CM(ssl)->unknownExtCallback);
 #endif
+    /* The issuer can be in either pool, and only it carries the path length
+     * this signer has to respect. */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
+    if (TLSX_CSR2_IsMulti(ssl->extensions))
+        extraCa = TLSX_CSR2_GetPendingSigners(ssl->extensions);
+#endif
+    extraCa = SslWaivedCAsJoin(ssl, extraCa, &waivedTail);
     ret = ParseCertEx(dCertAdd, CA_TYPE, NO_VERIFY, SSL_CM(ssl), extraCa);
+    SslWaivedCAsSplit(waivedTail);
     if (ret != 0)
         goto exit_mcs;
 
@@ -18037,8 +18047,7 @@ static int ProcessPeerCertAddWaivedCA(WOLFSSL* ssl, buffer* cert)
     Signer* s = NULL;
     int ret;
 
-    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_TEMP_CA,
-                                         ssl->waivedCAs, &s);
+    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_TEMP_CA, &s);
     if (ret == 0 && s != NULL) {
         if (ProcessPeerCertIsDupWaivedCA(ssl, s)) {
             FreeSigner(s, SSL_CM(ssl)->heap);
@@ -18993,8 +19002,7 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
      * promotes this signer into the certificate manager, and the unload path
      * (wolfSSL_CertManagerUnloadIntermediateCerts()) selects entries by that
      * type. AddCA() records chain CAs the same way. */
-    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_CHAIN_CA,
-                                         NULL, &s);
+    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_CHAIN_CA, &s);
     if (ret == 0 && s != NULL) {
         ret = TLSX_CSR2_AddPendingSigner(ssl->extensions, s);
         if (ret != 0)
