@@ -19572,6 +19572,8 @@ static int test_wolfSSL_Tls13_ECH_ch2_decrypt_error(void)
         if (EXPECT_SUCCESS()) {
             (void)wolfSSL_accept(test_ctx.s_ssl);
             ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, 0),
+                TEST_RECORD_ERR(WC_NO_ERR_TRACE(DECRYPT_ERROR)));
+            ExpectIntEQ(wolfSSL_state(test_ctx.s_ssl),
                 WC_NO_ERR_TRACE(DECRYPT_ERROR));
         }
     }
