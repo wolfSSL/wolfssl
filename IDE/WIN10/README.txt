@@ -41,9 +41,13 @@ build the C implementations only.
 # Selecting the FIPS version
 
 The wolfssl-fips project does not put HAVE_FIPS on the compiler command line.
-It defines only WOLFSSL_USER_SETTINGS (plus BUILDING_WOLFSSL and WOLFSSL_DLL
+It defines only WOLFSSL_USER_SETTINGS and BUILDING_WOLFSSL (plus WOLFSSL_DLL
 for the DLL configurations) and picks everything else up from
 IDE/WIN10/user_settings.h.
+
+BUILDING_WOLFSSL must be defined for every library configuration, static as
+well as DLL, and must not be added to user_settings.h or to application
+projects.
 
 The top of user_settings.h has one block per module version. All of them are
 disabled as shipped, so a version must be enabled before the library will
