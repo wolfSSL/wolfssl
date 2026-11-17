@@ -18613,15 +18613,29 @@ static int ProcessPeerCertsChainOCSPStatusCheck(WOLFSSL* ssl)
 static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
 {
     Signer* prev = NULL;
+    Signer* prevPrev = NULL;
     int ret = 0;
     WOLFSSL_CERT_MANAGER* cm = SSL_CM(ssl);
     Signer* ca = args->dCert->ca;
-    /* End loop if no more issuers found or if we have
-     * found a self signed cert (ca == prev) */
-    for (; ret == 0 && ca != NULL && ca != prev;
-            prev = ca, ca = GetCAByName(cm, ca->issuerNameHash)) {
+    word32 depth = 0;
+    /* Walk up the chain checking each CA against its issuer's CRL. */
+    for (; ret == 0 && ca != NULL && ca != prev && ca != prevPrev;
+            prevPrev = prev, prev = ca,
+            ca = FindSignerByAkidOrName(cm, NULL, ca)) {
+        /* ca's AKID identifies the key that signed ca, which picks out that
+         * key's CRL when the issuer has several keys under one name. */
+        byte* caAkid = NULL;
+
+        if (++depth > WOLFSSL_MAX_CHAIN_DEPTH) {
+            ret = ASN_PATHLEN_SIZE_E;
+            break;
+        }
+    #ifndef NO_SKID
+        if (ca->authKeyIdSet)
+            caAkid = ca->authKeyIdHash;
+    #endif
         ret = CheckCertCRL_ex(cm->crl, ca->issuerNameHash, NULL, 0,
-                ca->serialHash, NULL, 0, NULL);
+                ca->serialHash, NULL, 0, NULL, caAkid);
     #ifdef WOLFSSL_NONBLOCK_OCSP
         if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
             break;

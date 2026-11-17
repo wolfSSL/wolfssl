@@ -216,6 +216,13 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     if (crle->crlNumberSet) {
         XMEMCPY(crle->crlNumber, dcrl->crlNumber, sizeof(crle->crlNumber));
     }
+#ifndef NO_SKID
+    /* Keep the AKID even when verified at load: it picks the CRL of the key
+     * that issued a cert when an issuer has more than one signing key. */
+    crle->extAuthKeyIdSet = dcrl->extAuthKeyIdSet;
+    if (crle->extAuthKeyIdSet)
+        XMEMCPY(crle->extAuthKeyId, dcrl->extAuthKeyId, KEYID_SIZE);
+#endif
     crle->verified = verified;
     if (!verified) {
         crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
@@ -251,11 +258,6 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     #endif
         XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
         XMEMCPY(crle->signature, dcrl->signature, crle->signatureSz);
-    #ifndef NO_SKID
-        crle->extAuthKeyIdSet = dcrl->extAuthKeyIdSet;
-        if (crle->extAuthKeyIdSet)
-            XMEMCPY(crle->extAuthKeyId, dcrl->extAuthKeyId, KEYID_SIZE);
-    #endif
     }
     else {
         crle->toBeSigned = NULL;
@@ -536,13 +538,154 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
     return ret;
 }
 
+
+/* Find the trust anchor that ca chains up to in cm.
+ * Walks issuers with FindSignerByAkidOrName() and returns the top of the
+ * chain: the first CA that is self-signed or whose issuer isn't loaded.
+ * Returns NULL if ca is NULL, or if no single anchor exists because the chain
+ * loops or is longer than WOLFSSL_MAX_CHAIN_DEPTH. */
+static Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
+{
+    Signer* prev = NULL;
+    Signer* issuer;
+    word32  depth = 0;
+
+    while (ca != NULL) {
+        if (++depth > WOLFSSL_MAX_CHAIN_DEPTH)
+            return NULL;
+        issuer = FindSignerByAkidOrName(cm, NULL, ca);
+        if (issuer == NULL || issuer == ca)
+            return ca;
+        /* Two CAs that issued each other (cross-certified): no anchor.
+         * Longer loops are caught by the depth limit. */
+        if (issuer == prev)
+            return NULL;
+        prev = ca;
+        ca = issuer;
+    }
+    return NULL;
+}
+
+#ifndef NO_ASN_TIME
+/* Compare thisUpdate of two CRL entries.
+ * Returns 1 if a is newer, -1 if b is newer, 0 if equal, <0 error. */
+static int CompareCRLlastDate(const CRL_Entry* a, const CRL_Entry* b)
+{
+    struct tm ta, tb;
+    int idx;
+
+    XMEMSET(&ta, 0, sizeof(ta));
+    XMEMSET(&tb, 0, sizeof(tb));
+
+    idx = 0;
+    if (!ExtractDate(a->lastDate, a->lastDateFormat, &ta, &idx, MAX_DATE_SIZE))
+        return ASN_TIME_E;
+    idx = 0;
+    if (!ExtractDate(b->lastDate, b->lastDateFormat, &tb, &idx, MAX_DATE_SIZE))
+        return ASN_TIME_E;
+
+    if (DateGreaterThan(&ta, &tb))
+        return 1;
+    if (DateGreaterThan(&tb, &ta))
+        return -1;
+    return 0;
+}
+#endif
+
+/* Returns MP_GT if prev crlNumber is smaller
+ *         MP_EQ if equal
+ *         MP_LT if prev crlNumber is larger */
+static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
+{
+    int ret = 0;
+    DECL_MP_INT_SIZE_DYN(prev_num, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+    DECL_MP_INT_SIZE_DYN(curr_num, CRL_MAX_NUM_SZ_BITS,
+                                   CRL_MAX_NUM_SZ_BITS);
+
+    NEW_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS, NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+    NEW_MP_INT_SIZE(curr_num, CRL_MAX_NUM_SZ_BITS, NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef MP_INT_SIZE_CHECK_NULL
+    if ((prev_num == NULL) || (curr_num == NULL)) {
+        ret = MEMORY_E;
+    }
+#endif
+
+    if (ret == 0 && ((INIT_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS)
+                != MP_OKAY) || (INIT_MP_INT_SIZE(curr_num,
+                CRL_MAX_NUM_SZ_BITS)) != MP_OKAY)) {
+        ret = MP_INIT_E;
+    }
+
+    if (ret == 0 && (mp_read_radix(prev_num, (char*)prev->crlNumber,
+                MP_RADIX_HEX) != MP_OKAY ||
+                mp_read_radix(curr_num, (char*)curr->crlNumber,
+                MP_RADIX_HEX) != MP_OKAY)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0)
+        ret = mp_cmp(prev_num, curr_num);
+
+    FREE_MP_INT_SIZE(prev_num, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    FREE_MP_INT_SIZE(curr_num, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* Returns 1 when a and b are CRLs from the same issuer and signing key. */
+static int CRL_SameSeries(const CRL_Entry* a, const CRL_Entry* b)
+{
+    if (XMEMCMP(a->issuerHash, b->issuerHash, CRL_DIGEST_SIZE) != 0)
+        return 0;
+#if !defined(NO_SKID) && !defined(NO_ASN)
+    if (a->extAuthKeyIdSet != b->extAuthKeyIdSet)
+        return 0;
+    if (a->extAuthKeyIdSet &&
+            XMEMCMP(a->extAuthKeyId, b->extAuthKeyId, KEYID_SIZE) != 0)
+        return 0;
+#endif
+    return 1;
+}
+
+/* Returns 1 if crle supersedes curr, 0 if it does not, < 0 on error.
+ * Uses the CRL number when either has one (a missing number counts as 0, so
+ * a numbered CRL beats an unnumbered one). thisUpdate is only used when
+ * neither has a number. */
+static int CRL_Supersedes(CRL_Entry* crle, CRL_Entry* curr)
+{
+    int ret;
+
+#ifndef NO_ASN_TIME
+    if (!crle->crlNumberSet && !curr->crlNumberSet) {
+        ret = CompareCRLlastDate(crle, curr);
+        if (ret < -1)
+            return ret;
+        return ret == 1;
+    }
+#endif
+    ret = CompareCRLnumber(crle, curr);
+    if (ret == MP_GT)
+        return 1;
+    if (ret == MP_LT || ret == MP_EQ)
+        return 0;
+    return ret;
+}
+
 static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
-        int serialSz, byte* serialHash, int *pFoundEntry,
+        int serialSz, byte* serialHash, byte* akid, int *pFoundEntry,
         WOLFSSL_CERT_MANAGER* cm)
 {
     CRL_Entry* crle;
-    int        foundEntry = 0;
+    CRL_Entry* bestFitCrle = NULL;
+    Signer* certTrustAnchor = NULL;
     int        ret = 0;
+
+#if defined(NO_SKID) || defined(NO_ASN)
+    (void)akid;
+#endif
 
     if (wc_LockRwLock_Rd(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Rd failed");
@@ -550,75 +693,120 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     }
 
     for (crle = crl->crlList; crle != NULL; crle = crle->next) {
-        if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) == 0) {
-            int nextDateValid = 1;
+        Signer* crlTrustAnchor = NULL;
+        int verifyRet = 0;
+        /* check issuer hash */
+        if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) != 0) {
+            continue;
+        }
 
-            WOLFSSL_MSG("Found CRL Entry on list");
 
-            if (cm != crl->cm) {
-                /* cm is not the owning cm of crl. The cached result is only
-                 * valid for the owning cm. Verify again without caching. */
-                ret = VerifyCRLE(crl, crle, cm, 0);
-                if (ret != 0) {
-                    WOLFSSL_MSG("Cannot use CRL as it didn't verify");
-                    break;
+        /* A different thread may have verified the entry while we
+         * were waiting for the mutex. */
+        if (crl->cm == cm) {
+            if (crle->verified == 0) {
+                /* verifiy the crle */
+                if (wc_LockMutex(&crle->verifyMutex) != 0) {
+                    WOLFSSL_MSG("wc_LockMutex failed");
+                    continue;
                 }
+                verifyRet = VerifyCRLE(crl, crle, cm, 1);
+                wc_UnLockMutex(&crle->verifyMutex);
             }
-            else {
-                if (crle->verified == 0) {
-                    if (wc_LockMutex(&crle->verifyMutex) != 0) {
-                        WOLFSSL_MSG("wc_LockMutex failed");
-                        break;
-                    }
+        }
+        else {
+            verifyRet = VerifyCRLE(crl, crle, cm, 0);
+        }
 
-                    /* A different thread may have verified the entry while we
-                     * were waiting for the mutex. */
-                    if (crle->verified == 0)
-                        ret = VerifyCRLE(crl, crle, cm, 1);
 
-                    wc_UnLockMutex(&crle->verifyMutex);
+        if (verifyRet != 0) {
+            WOLFSSL_MSG("Cannot use CRL as it didn't verify");
+            verifyRet = 0;
+            continue;
+        }
 
-                    if (ret != 0)
-                        break;
-                }
+        if (crle->verified < 0) {
+            WOLFSSL_MSG("Cannot use CRL as it didn't verify");
+            continue;
+        }
 
-                if (crle->verified < 0) {
-                    WOLFSSL_MSG("Cannot use CRL as it didn't verify");
-                    ret = crle->verified;
-                    break;
-                }
+    /* check that the CRL is still valid skip otherwise */
+    #ifdef WOLFSSL_NO_CRL_NEXT_DATE
+        if (crle->nextDateFormat != ASN_OTHER_TYPE)
+    #endif
+        {
+        #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
+            if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
+                               ASN_AFTER, MAX_DATE_SIZE)) {
+                WOLFSSL_MSG("CRL next date is no longer valid");
+                ret = CRL_CERT_DATE_ERR;
+                continue;
             }
-
-            WOLFSSL_MSG("Checking next date validity");
-
-        #ifdef WOLFSSL_NO_CRL_NEXT_DATE
-            if (crle->nextDateFormat != ASN_OTHER_TYPE)
         #endif
-            {
-            #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
-                if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
-                                   ASN_AFTER, MAX_DATE_SIZE)) {
-                    WOLFSSL_MSG("CRL next date is no longer valid");
-                    nextDateValid = 0;
+        }
+
+        /* check Akid */
+#if !defined(NO_SKID) && !defined(NO_ASN)
+        /* try to skip the trust anchor check if akids do not match
+         * walk the chain to check trust anchors */
+        if (crle->extAuthKeyIdSet && akid &&
+                XMEMCMP(crle->extAuthKeyId, akid, SIGNER_DIGEST_SIZE) != 0)
+#endif
+        /* check that the trust achor is the same by walking the list */
+        {
+            if (certTrustAnchor == NULL) {
+            #if !defined(NO_SKID) && !defined(NO_ASN)
+                if (akid == NULL) {
+                    certTrustAnchor = GetCATrustAnchor(cm,
+                            GetCAByName(cm, issuerHash));
                 }
+                else {
+                    certTrustAnchor = GetCATrustAnchor(cm, GetCA(cm, akid));
+                }
+            #else
+                certTrustAnchor = GetCATrustAnchor(cm, GetCA(cm, issuerHash));
             #endif
             }
-            if (nextDateValid) {
-                foundEntry = 1;
-                ret = FindRevokedSerial(crle->certs, serial, serialSz,
-                        serialHash, crle->totalCerts);
-                if (ret != 0)
-                    break;
+
+            #if !defined(NO_SKID) && !defined(NO_ASN)
+                if (crle->extAuthKeyIdSet == 1) {
+                    crlTrustAnchor = GetCATrustAnchor(cm,
+                            GetCA(cm, crle->extAuthKeyId));
+                }
+                else {
+                    crlTrustAnchor = GetCATrustAnchor(cm,
+                            GetCAByName(cm, crle->issuerHash));
+                }
+            #else
+                crlTrustAnchor = GetCATrustAnchor(cm, GetCA(cm, issuerHash));
+            #endif
+
+            /* NULL means no single anchor was found (issuer not loaded, a
+             * loop, or too deep), so it can't show the anchors match. */
+            if (crlTrustAnchor == NULL || crlTrustAnchor != certTrustAnchor) {
+                WOLFSSL_MSG("Cannot use CRL as it didn't have the same trust "
+                        "anchor as cert");
+                continue;
             }
-            else if (foundEntry == 0) {
-                ret = CRL_CERT_DATE_ERR;
-            }
+        }
+
+        /* An AKID match beats a trust anchor match. Within the same score,
+         * keep the newest CRL using the same ordering AddCRL() dedups with,
+         * so the choice doesn't depend on load order. */
+        if (bestFitCrle == NULL ||
+                CRL_Supersedes(crle, bestFitCrle) == 1) {
+            bestFitCrle = crle;
         }
     }
 
-    wc_UnLockRwLock(&crl->crlLock);
 
-    *pFoundEntry = foundEntry;
+    if (bestFitCrle != NULL) {
+        *pFoundEntry = 1;
+        ret = FindRevokedSerial(bestFitCrle->certs, serial, serialSz,
+                serialHash, bestFitCrle->totalCerts);
+    }
+
+    wc_UnLockRwLock(&crl->crlLock);
 
     return ret;
 }
@@ -629,7 +817,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
         int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm,
-        int canRetry)
+        int canRetry, byte* akid)
 {
     int        foundEntry = 0;
     int        ret = 0;
@@ -650,7 +838,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     }
 #endif
 
-    ret = CheckCertCRLList(crl, issuerHash, serial, serialSz, serialHash,
+    ret = CheckCertCRLList(crl, issuerHash, serial, serialSz, serialHash, akid,
             &foundEntry, cm);
 
 #ifdef HAVE_CRL_IO
@@ -665,7 +853,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             else if (cbRet >= 0) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry, cm);
+                        serialHash, akid, &foundEntry, cm);
             }
         }
     }
@@ -684,7 +872,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             if (loadRet == WOLFSSL_SUCCESS) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry, cm);
+                        serialHash, akid, &foundEntry, cm);
             }
         }
     }
@@ -731,10 +919,10 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
 int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName)
+        int extCrlInfoSz, void* issuerName, byte* akid)
 {
     return CheckCertCRLCm(crl, issuerHash, serial, serialSz, serialHash,
-            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1);
+            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1, akid);
 }
 
 /* Get the issuer X509_NAME of cert to pass to CheckCertCRLCm(). */
@@ -760,7 +948,11 @@ static int CheckDecodedCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
 
     return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
             NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm,
-            canRetry);
+            canRetry,
+        #if !defined(NO_SKID) && !defined(NO_ASN)
+            cert->extAuthKeyIdSet ? cert->extAuthKeyId :
+        #endif
+            NULL);
 }
 
 /* Is the cert ok with CRL, return 0 on success */
@@ -825,63 +1017,89 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
 }
 #endif
 
-/* Returns MP_GT if prev crlNumber is smaller
- *         MP_EQ if equal
- *         MP_LT if prev crlNumber is larger */
-static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
+
+/* Insert crle into crl's list. Caller holds the crlLock write lock.
+ * Several CRLs can share an issuer name (e.g. after a CA key rollover), so a
+ * CRL is only deduplicated against verified CRLs of the same issuer and
+ * signing key (CRL_SameSeries): a newer one replaces the entry, an equal or
+ * older one is rejected with DUPE_ENTRY_E. Otherwise it is prepended.
+ * An unverified CRL can't be trusted to name its key or number, so it never
+ * replaces anything and is always prepended. It is verified when first used
+ * (CheckCertCRLList) and skipped if that fails, so it can't hide a CRL.
+ * Returns 0 when crl now owns crle, otherwise crle is left to the caller. */
+static int AddCRL_EntryLocked(WOLFSSL_CRL* crl, CRL_Entry* crle)
 {
-    int ret = 0;
-    DECL_MP_INT_SIZE_DYN(prev_num, CRL_MAX_NUM_SZ_BITS,
-                                   CRL_MAX_NUM_SZ_BITS);
-    DECL_MP_INT_SIZE_DYN(curr_num, CRL_MAX_NUM_SZ_BITS,
-                                   CRL_MAX_NUM_SZ_BITS);
-
-    NEW_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS, NULL,
-                                   DYNAMIC_TYPE_TMP_BUFFER);
-    NEW_MP_INT_SIZE(curr_num, CRL_MAX_NUM_SZ_BITS, NULL,
-                                   DYNAMIC_TYPE_TMP_BUFFER);
-#ifdef MP_INT_SIZE_CHECK_NULL
-    if ((prev_num == NULL) || (curr_num == NULL)) {
-        ret = MEMORY_E;
-    }
-#endif
-
-    if (ret == 0 && ((INIT_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ_BITS)
-                != MP_OKAY) || (INIT_MP_INT_SIZE(curr_num,
-                CRL_MAX_NUM_SZ_BITS)) != MP_OKAY)) {
-        ret = MP_INIT_E;
-    }
-
-    if (ret == 0 && (mp_read_radix(prev_num, (char*)prev->crlNumber,
-                MP_RADIX_HEX) != MP_OKAY ||
-                mp_read_radix(curr_num, (char*)curr->crlNumber,
-                MP_RADIX_HEX) != MP_OKAY)) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    if (ret == 0)
-        ret = mp_cmp(prev_num, curr_num);
-
-    FREE_MP_INT_SIZE(prev_num, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    FREE_MP_INT_SIZE(curr_num, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-    return ret;
-}
-
-/* Add or replace a decoded CRL, 0 on success */
-static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
-                  const byte* buff, int verified)
-{
-    CRL_Entry* curr = NULL;
-    CRL_Entry* prev = NULL;
 #if defined(OPENSSL_EXTRA)
-    CRL_Entry* oldHead;
+    CRL_Entry* oldHead = crl->crlList;
 #endif
+    CRL_Entry* curr;
+    CRL_Entry* prev = NULL;
+    int ret;
 #ifdef HAVE_CRL_UPDATE_CB
     CrlInfo old;
     CrlInfo cnew;
 #endif
-    int ret = 0;
+
+    for (curr = crl->crlList; curr != NULL; prev = curr, curr = curr->next) {
+        if (XMEMCMP(crle->issuerHash, curr->issuerHash, CRL_DIGEST_SIZE) != 0)
+            continue;
+
+        if (crle->verified <= 0)
+            continue;
+
+        if (curr->verified <= 0 || !CRL_SameSeries(crle, curr))
+            continue;
+
+        ret = CRL_Supersedes(crle, curr);
+        if (ret < 0) {
+            WOLFSSL_MSG("Error comparing CRLs");
+            return ret;
+        }
+        if (ret == 0) {
+            WOLFSSL_MSG("Same or newer CRL from this key already loaded");
+            return DUPE_ENTRY_E;
+        }
+
+        /* Replace curr with the newer CRL from the same key. */
+        crle->next = curr->next;
+        if (prev != NULL)
+            prev->next = crle;
+        else
+            crl->crlList = crle;
+
+#ifdef HAVE_CRL_UPDATE_CB
+        if (crl->cm != NULL && crl->cm->cbUpdateCRL != NULL) {
+            SetCrlInfo(curr, &old);
+            SetCrlInfo(crle, &cnew);
+            crl->cm->cbUpdateCRL(&old, &cnew);
+        }
+#endif
+        CRL_Entry_free(curr, crl->heap);
+        break;
+    }
+
+    if (curr == NULL) {
+        /* No entry replaced: a new issuer, key, or unverified CRL. */
+        crle->next = crl->crlList;
+        crl->crlList = crle;
+    }
+
+#if defined(OPENSSL_EXTRA)
+    /* Cached STACK_OF(X509_REVOKED) is built from the head entry only */
+    if ((crl->crlList != oldHead) && (crl->revokedStack != NULL)) {
+        wolfSSL_sk_pop_free(crl->revokedStack, NULL);
+        crl->revokedStack = NULL;
+    }
+#endif
+
+    return 0;
+}
+
+/* Add a decoded CRL, 0 on success. See AddCRL_EntryLocked() for dedup. */
+static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
+                  const byte* buff, int verified)
+{
+    int ret;
 
     WOLFSSL_ENTER("AddCRL");
 
@@ -897,74 +1115,10 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
         WOLFSSL_MSG("wc_LockRwLock_Wr failed");
         return BAD_MUTEX_E;
     }
-
-#if defined(OPENSSL_EXTRA)
-    oldHead = crl->crlList;
-#endif
-
-    for (curr = crl->crlList; curr != NULL; curr = curr->next) {
-        if (XMEMCMP(curr->issuerHash, crle->issuerHash, CRL_DIGEST_SIZE) == 0) {
-            if ((curr->verified > 0) && (crle->verified == 0)) {
-                WOLFSSL_MSG("Unverified CRL cannot replace a verified entry");
-                wc_UnLockRwLock(&crl->crlLock);
-                return DUPE_ENTRY_E;
-            }
-
-            ret = CompareCRLnumber(crle, curr);
-            /* Error out if the CRL we're attempting to add isn't more
-             * authoritative than the existing entry */
-            if (ret == MP_LT || ret == MP_EQ) {
-                WOLFSSL_MSG("Same or newer CRL entry already exists");
-                wc_UnLockRwLock(&crl->crlLock);
-                return DUPE_ENTRY_E;
-            }
-            else if (ret < 0) {
-                WOLFSSL_MSG("Error comparing CRL Numbers");
-                wc_UnLockRwLock(&crl->crlLock);
-                return ret;
-            }
-
-            /* Insert the new entry after the current entry. */
-            crle->next = curr->next;
-            if (prev != NULL) {
-                prev->next = crle;
-            }
-            else {
-                crl->crlList = crle;
-            }
-
-#ifdef HAVE_CRL_UPDATE_CB
-            if (crl->cm && crl->cm->cbUpdateCRL != NULL) {
-                SetCrlInfo(curr, &old);
-                SetCrlInfo(crle, &cnew);
-                crl->cm->cbUpdateCRL(&old, &cnew);
-            }
-#endif
-
-            /* Remove the current entry which was replaced */
-            CRL_Entry_free(curr, crl->heap);
-
-            break;
-        }
-        prev = curr;
-    }
-
-    if (curr == NULL) {
-        /* No replacement occurred, prepend the new entry. */
-        crle->next = crl->crlList;
-        crl->crlList = crle;
-    }
-
-#if defined(OPENSSL_EXTRA)
-    /* Cached STACK_OF(X509_REVOKED) is built from the head entry only */
-    if ((crl->crlList != oldHead) && (crl->revokedStack != NULL)) {
-        wolfSSL_sk_pop_free(crl->revokedStack, NULL);
-        crl->revokedStack = NULL;
-    }
-#endif
-
+    ret = AddCRL_EntryLocked(crl, crle);
     wc_UnLockRwLock(&crl->crlLock);
-    return 0;
+
+    return ret;
 }
 
 
@@ -1548,9 +1702,6 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
         dupl->sigParams = NULL;
         dupl->sigParamsSz = 0;
 #endif
-#if !defined(NO_SKID) && !defined(NO_ASN)
-        dupl->extAuthKeyIdSet = 0;
-#endif
     }
 
     return dupl;
@@ -1676,9 +1827,53 @@ int wolfSSL_X509_CRL_up_ref(WOLFSSL_X509_CRL* crl)
 #endif
 
 /* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl */
+/* Try to verify the unverified entries of a private copy against cm.
+ * Entries from d2i_X509_CRL() etc. were parsed without a cm and are
+ * unverified. This allows for more de-duping */
+static void StoreVerifyCRL_List(const WOLFSSL_X509_CRL* crl, CRL_Entry* list,
+                                WOLFSSL_CERT_MANAGER* cm)
+{
+    CRL_Entry* ent;
+
+    for (ent = list; ent != NULL; ent = ent->next) {
+        if (ent->verified == 0 && VerifyCRLE(crl, ent, cm, 0) == 0)
+            ent->verified = 1;
+    }
+}
+
+/* Insert the entries of list into crl, deduplicating like a CRL load.
+ * Caller holds crl's write lock. Takes ownership of every entry in list.
+ * Like OpenSSL, a duplicate is not an error. 0 on success. */
+static int StoreAddCRL_List(WOLFSSL_X509_CRL* crl, CRL_Entry* list)
+{
+    CRL_Entry* ent;
+    int ret = 0;
+
+    while (list != NULL) {
+        ent = list;
+        list = list->next;
+        ent->next = NULL;
+
+        if (ret != 0) {
+            /* earlier failure: drop the rest */
+            CRL_Entry_free(ent, crl->heap);
+            continue;
+        }
+        ret = AddCRL_EntryLocked(crl, ent);
+        if (ret != 0) {
+            CRL_Entry_free(ent, crl->heap);
+            if (ret == WC_NO_ERR_TRACE(DUPE_ENTRY_E))
+                ret = 0;
+        }
+    }
+
+    return ret;
+}
+
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {
     WOLFSSL_X509_CRL *crl;
+    CRL_Entry *toAdd = NULL;
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_add_crl");
@@ -1702,45 +1897,50 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
             FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
         }
-        store->crl = store->cm->crl = crl;
-        if (wolfSSL_CertManagerEnableCRL(store->cm, WOLFSSL_CRL_CHECKALL)
-                != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("wolfSSL_CertManagerEnableCRL error");
+        /* Re-insert the copied entries so they get verified and deduped
+         * the same way as when adding to an existing store. crl isn't
+         * published yet, so no lock is needed. */
+        toAdd = crl->crlList;
+        crl->crlList = NULL;
+        StoreVerifyCRL_List(crl, toAdd, store->cm);
+        if (StoreAddCRL_List(crl, toAdd) != 0) {
+            FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
         }
-        return WOLFSSL_SUCCESS;
+        store->crl = store->cm->crl = crl;
     }
+    else if (newcrl->crlList != NULL) {
+        crl = store->cm->crl;
 
-    /* find tail of current list and add new list */
-    crl  = store->cm->crl;
-    if (newcrl->crlList != NULL) {
-        CRL_Entry **tail;
-        CRL_Entry *toAdd;
-
-        if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
-            WOLFSSL_MSG("wc_LockRwLock_Wr failed");
-            return BAD_MUTEX_E;
-        }
-
-        if (crl != newcrl && wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
+        /* Copy and verify the entries before taking the write lock, so CRL
+         * checks aren't blocked while signatures are verified. */
+        if (wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
             WOLFSSL_MSG("wc_LockRwLock_Rd failed");
-            wc_UnLockRwLock(&crl->crlLock);
             return BAD_MUTEX_E;
         }
         toAdd = DupCRL_list(newcrl->crlList, crl->heap);
-        if (crl != newcrl)
-            wc_UnLockRwLock(&newcrl->crlLock);
+        wc_UnLockRwLock(&newcrl->crlLock);
         if (toAdd == NULL) {
             WOLFSSL_MSG("DupCRL_list failed");
-            wc_UnLockRwLock(&crl->crlLock);
             return WOLFSSL_FAILURE;
         }
+        StoreVerifyCRL_List(crl, toAdd, store->cm);
 
-        tail = &crl->crlList;
-        while (*tail != NULL)
-            tail = &(*tail)->next;
-        *tail = toAdd;
+        if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
+            WOLFSSL_MSG("wc_LockRwLock_Wr failed");
+            while (toAdd != NULL) {
+                CRL_Entry* next = toAdd->next;
+                CRL_Entry_free(toAdd, crl->heap);
+                toAdd = next;
+            }
+            return BAD_MUTEX_E;
+        }
+        ret = StoreAddCRL_List(crl, toAdd);
         wc_UnLockRwLock(&crl->crlLock);
+        if (ret != 0) {
+            WOLFSSL_MSG("Adding CRL entries failed");
+            return WOLFSSL_FAILURE;
+        }
     }
 
     if (wolfSSL_CertManagerEnableCRL(store->cm, WOLFSSL_CRL_CHECKALL)

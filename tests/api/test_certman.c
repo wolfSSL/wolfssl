@@ -3692,9 +3692,10 @@ int test_wolfSSL_CRL_unverified_no_evict(void)
     if (f != XBADFILE)
         XFCLOSE(f);
 
-    /* Reading a store location does not check signatures, so the newer CRL
-     * number alone must not be enough to take the entry's place. */
-    ExpectIntNE(wolfSSL_X509_STORE_load_locations(store, bogusFile, NULL),
+    /* Reading a store location does not check signatures. The unverified
+     * CRL is kept beside the verified one but must not take its place: it
+     * fails verification when used and is skipped. */
+    ExpectIntEQ(wolfSSL_X509_STORE_load_locations(store, bogusFile, NULL),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, crl_test_leaf_a,
         (int)sizeof(crl_test_leaf_a)), WOLFSSL_SUCCESS);

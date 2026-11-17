@@ -2393,10 +2393,11 @@ struct Signer {
      */
     WC_BITFIELD extNameConstraintCrit:1;
     WC_BITFIELD extNameConstraintHasUnsupported:1;
-#ifndef NO_SKID
+#endif
+#if !defined(NO_SKID) && \
+    (!defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL))
     WC_BITFIELD authKeyIdSet:1;      /* true when authKeyIdHash holds the
                                       * AKID extension's keyId */
-#endif
 #endif
     const byte* publicKey;
     int     nameLen;
@@ -2417,10 +2418,11 @@ struct Signer {
 #ifndef NO_SKID
     byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
                                     /* sha hash of key in certificate */
-#ifndef IGNORE_NAME_CONSTRAINTS
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
     byte    authKeyIdHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of AKID; locates signer
-                                      * during name-constraint walk */
+                                      * during name-constraint and CRL
+                                      * issuer walks */
 #endif
 #endif
 #ifdef HAVE_OCSP
@@ -2683,6 +2685,11 @@ WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* findSignerByKeyHash(Signer *list, byte *hash);
 WOLFSSL_LOCAL Signer* findSignerByName(Signer *list, byte *hash);
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
+WOLFSSL_LOCAL Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                                             Signer* extraCAList,
+                                             Signer* cert);
+#endif
 WOLFSSL_TEST_VIS int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der);
 WOLFSSL_TEST_VIS Signer* MakeSigner(void* heap);
 WOLFSSL_TEST_VIS void    FreeSigner(Signer* signer, void* heap);

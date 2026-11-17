@@ -25876,11 +25876,11 @@ Signer* findSignerByName(Signer *list, byte *hash)
     return NULL;
 }
 
-#ifndef IGNORE_NAME_CONSTRAINTS
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
 /* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
  * with name-hash validation. Fall back to name-only when AKID is
  * absent. */
-static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
                                       Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
@@ -25891,6 +25891,9 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 #else
     (void)extraCAList;
 #endif
+
+    if (cert->selfSigned == 1)
+        return cert;
 
 #ifndef NO_SKID
     if (cert->authKeyIdSet) {
@@ -27002,7 +27005,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
     #ifndef NO_SKID
         XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
                 SIGNER_DIGEST_SIZE);
-    #ifndef IGNORE_NAME_CONSTRAINTS
+    #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(HAVE_CRL)
         if (cert->extAuthKeyIdSet) {
             XMEMCPY(signer->authKeyIdHash, cert->extAuthKeyId,
                     SIGNER_DIGEST_SIZE);
