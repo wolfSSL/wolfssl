@@ -54,6 +54,7 @@ EXTRA_DIST += \
 	     certs/intermediate/server-int-cert.der \
 	     certs/intermediate/server-int-cert.pem \
 	     certs/intermediate/server-int-ecc-cert.der \
+	     certs/intermediate/server-int-ecc-cert.pem \
 	     certs/intermediate/ca_false_intermediate/gentestcert.sh \
          certs/intermediate/ca_false_intermediate/int_ca.key \
 	     certs/intermediate/ca_false_intermediate/server.key \
