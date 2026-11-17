@@ -33,6 +33,9 @@
 #include <tests/api/api.h>
 #include <tests/utils.h>
 #include <tests/api/test_tls13.h>
+#ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
 
 #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
     (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
@@ -11168,7 +11171,8 @@ int test_tls13_pqc_hybrid_async_server(void)
      * ECDH shared-secret derivation suspends (the QAT "B-first" ordering). */
     wolfAsync_SwForceSyncType(ASYNC_SW_ECC_MAKE);
 
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    /* A non-blocking ML-KEM build pends once per chunk. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 100, NULL), 0);
 
     /* Server selected and completed the hybrid group end-to-end. */
     ExpectIntEQ(ssl_s->namedGroup, WOLFSSL_SECP256R1MLKEM768);
@@ -19281,3 +19285,326 @@ int test_tls13_exporter_suite_decision_coverage(void)
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
     return EXPECT_RESULT();
 } /* END test_tls13_exporter_suite_decision_coverage */
+
+#if defined(WC_MLDSA_NONBLOCK) && defined(WC_ASYNC_ENABLE_MLDSA) && \
+    defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(NO_FILESYSTEM)
+    #define TEST_TLS13_PQ_NONBLOCK_MLDSA
+#endif
+#if defined(WC_MLKEM_NONBLOCK) && defined(WC_ASYNC_ENABLE_MLKEM) && \
+    defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WOLFSSL_WC_ML_KEM_768) && \
+    !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY) && \
+    !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #define TEST_TLS13_PQ_NONBLOCK_MLKEM
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(TEST_TLS13_PQ_NONBLOCK_MLDSA)
+/* Only exact ML-DSA and ML-KEM markers count: the low bits of the others,
+ * such as AES-GCM's, overlap them. */
+#define TEST_PQ_NB_BIT(m)                                                  \
+    (((m) == WOLFSSL_ASYNC_MARKER_MLDSA) ? 1U :                            \
+     ((m) == WOLFSSL_ASYNC_MARKER_MLKEM) ? 2U : 0U)
+
+/* Drive the handshake, polling pending operations and counting each
+ * side's pends. */
+static int test_tls13_pq_nonblock_handshake(WOLFSSL* ssl_c, WOLFSSL* ssl_s,
+    int* pendC, int* pendS, word32* markersC, word32* markersS, int stopAfter)
+{
+    int ret;
+    int err;
+    int doneC = 0;
+    int doneS = 0;
+    int rounds = 0;
+
+    *pendC = 0;
+    *pendS = 0;
+    *markersC = 0;
+    *markersS = 0;
+    while ((!doneC || !doneS) && (rounds++ < 2000)) {
+        if (!doneC) {
+            ret = wolfSSL_connect(ssl_c);
+            if (ret == WOLFSSL_SUCCESS) {
+                doneC = 1;
+            }
+            else {
+                err = wolfSSL_get_error(ssl_c, ret);
+                if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                    (*pendC)++;
+                    if (ssl_c->asyncDev != NULL) {
+                        *markersC |= TEST_PQ_NB_BIT(
+                            ssl_c->asyncDev->marker);
+                    }
+                    if ((stopAfter > 0) && (*pendC + *pendS >= stopAfter))
+                        return 1;
+                    if (wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW) < 0)
+                        return -1;
+                }
+                else if (err != WOLFSSL_ERROR_WANT_READ &&
+                         err != WOLFSSL_ERROR_WANT_WRITE) {
+                    return err;
+                }
+            }
+        }
+        if (!doneS) {
+            ret = wolfSSL_accept(ssl_s);
+            if (ret == WOLFSSL_SUCCESS) {
+                doneS = 1;
+            }
+            else {
+                err = wolfSSL_get_error(ssl_s, ret);
+                if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                    (*pendS)++;
+                    if (ssl_s->asyncDev != NULL) {
+                        *markersS |= TEST_PQ_NB_BIT(
+                            ssl_s->asyncDev->marker);
+                    }
+                    if ((stopAfter > 0) && (*pendC + *pendS >= stopAfter))
+                        return 1;
+                    if (wolfSSL_AsyncPoll(ssl_s, WOLF_POLL_FLAG_CHECK_HW) < 0)
+                        return -1;
+                }
+                else if (err != WOLFSSL_ERROR_WANT_READ &&
+                         err != WOLFSSL_ERROR_WANT_WRITE) {
+                    return err;
+                }
+            }
+        }
+    }
+
+    return (doneC && doneS) ? 0 : -1;
+}
+
+/* One handshake with an ML-DSA-44 certificate and, if group is not 0, that
+ * key share. With an async device the PQ operations must pend on both
+ * sides; without one they block. */
+#if defined(HAVE_SESSION_TICKET) && defined(TEST_TLS13_PQ_NONBLOCK_MLKEM)
+/* Resume with a session ticket and the same group: the server sets up its key
+ * share on the PSK path, which also has to finish a pended encapsulation. */
+static int test_tls13_pq_nonblock_resume(WOLFSSL_CTX* ctx_c,
+    WOLFSSL_CTX* ctx_s, WOLFSSL* ssl_c, WOLFSSL* ssl_s, int devId, int group)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    byte msg[1] = { 0 };
+    int pendC = 0;
+    int pendS = 0;
+    word32 markersC = 0;
+    word32 markersS = 0;
+    int ret;
+
+    /* Deliver the NewSessionTicket; record protection can pend too. */
+    do {
+        ret = wolfSSL_write(ssl_s, msg, (int)sizeof(msg));
+    } while ((ret < 0) &&
+             (wolfSSL_get_error(ssl_s, ret) == WC_NO_ERR_TRACE(WC_PENDING_E)) &&
+             (wolfSSL_AsyncPoll(ssl_s, WOLF_POLL_FLAG_CHECK_HW) >= 0));
+    ExpectIntEQ(ret, (int)sizeof(msg));
+    do {
+        ret = wolfSSL_read(ssl_c, msg, (int)sizeof(msg));
+    } while ((ret < 0) &&
+             (wolfSSL_get_error(ssl_c, ret) == WC_NO_ERR_TRACE(WC_PENDING_E)) &&
+             (wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW) >= 0));
+    ExpectIntEQ(ret, (int)sizeof(msg));
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c2 = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s2 = wolfSSL_new(ctx_s));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SSLSetIORecv(ssl_c2, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_c2, test_memio_write_cb);
+        wolfSSL_SSLSetIORecv(ssl_s2, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_s2, test_memio_write_cb);
+        wolfSSL_SetIOReadCtx(ssl_c2, &test_ctx);
+        wolfSSL_SetIOWriteCtx(ssl_c2, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s2, &test_ctx);
+        wolfSSL_SetIOWriteCtx(ssl_s2, &test_ctx);
+    }
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c2, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s2, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_tls13_pq_nonblock_handshake(ssl_c2, ssl_s2, &pendC,
+        &pendS, &markersC, &markersS, 0), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 1);
+    ExpectIntEQ(ssl_s2->namedGroup, group);
+    if (devId != INVALID_DEVID) {
+        ExpectIntNE(markersC &
+            TEST_PQ_NB_BIT(WOLFSSL_ASYNC_MARKER_MLKEM), 0);
+        ExpectIntNE(markersS &
+            TEST_PQ_NB_BIT(WOLFSSL_ASYNC_MARKER_MLKEM), 0);
+    }
+    else {
+        ExpectIntEQ(pendC, 0);
+        ExpectIntEQ(pendS, 0);
+    }
+
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_SESSION_free(sess);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_tls13_pq_nonblock_once(int devId, int group, int stopAfter)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int pendC = 0;
+    int pendS = 0;
+    word32 markersC = 0;
+    word32 markersS = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Set the device id first so the key and SSL objects inherit it. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_c, devId), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_s, devId), WOLFSSL_SUCCESS);
+
+    /* Self-signed: the server certificate is also the client's trust anchor. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s,
+        "./certs/mldsa/mldsa44-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s,
+        "./certs/mldsa/mldsa44-key.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/mldsa/mldsa44-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SSLSetIORecv(ssl_c, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_c, test_memio_write_cb);
+        wolfSSL_SSLSetIORecv(ssl_s, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_s, test_memio_write_cb);
+        wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    }
+
+    if (group != 0) {
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(test_tls13_pq_nonblock_handshake(ssl_c, ssl_s, &pendC,
+        &pendS, &markersC, &markersS, stopAfter), (stopAfter > 0) ? 1 : 0);
+    if ((group != 0) && (stopAfter == 0)) {
+        ExpectIntEQ(ssl_s->namedGroup, group);
+    }
+    if ((stopAfter == 0) && (devId != INVALID_DEVID)) {
+        /* Client: ML-KEM keygen and decapsulation, ML-DSA verify.
+         * Server: ML-KEM encapsulation, ML-DSA sign. */
+        ExpectIntGT(pendC, 0);
+        ExpectIntGT(pendS, 0);
+        ExpectIntNE(markersC &
+            TEST_PQ_NB_BIT(WOLFSSL_ASYNC_MARKER_MLDSA), 0);
+        ExpectIntNE(markersS &
+            TEST_PQ_NB_BIT(WOLFSSL_ASYNC_MARKER_MLDSA), 0);
+    #ifdef TEST_TLS13_PQ_NONBLOCK_MLKEM
+        if (group != 0) {
+            ExpectIntNE(markersC &
+                TEST_PQ_NB_BIT(WOLFSSL_ASYNC_MARKER_MLKEM), 0);
+            ExpectIntNE(markersS &
+                TEST_PQ_NB_BIT(WOLFSSL_ASYNC_MARKER_MLKEM), 0);
+        }
+    #endif
+    }
+    else if (stopAfter == 0) {
+        ExpectIntEQ(pendC, 0);
+        ExpectIntEQ(pendS, 0);
+    }
+#if defined(HAVE_SESSION_TICKET) && defined(TEST_TLS13_PQ_NONBLOCK_MLKEM)
+    if ((group != 0) && (stopAfter == 0)) {
+        ExpectIntEQ(test_tls13_pq_nonblock_resume(ctx_c, ctx_s, ssl_c, ssl_s,
+            devId, group), TEST_SUCCESS);
+    }
+#endif
+
+    /* With stopAfter, operations are still in flight: freeing must release
+     * what the keys and key shares have parked. */
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* TLS 1.3 handshakes driving non-blocking ML-DSA and ML-KEM through the
+ * software async device. */
+int test_tls13_pq_nonblock_async(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(TEST_TLS13_PQ_NONBLOCK_MLDSA)
+    int devId = INVALID_DEVID;
+    int groups[4];
+    int numGroups = 0;
+    int i;
+
+    /* 0: the default groups (an ML-DSA-only run when ML-KEM is not built). */
+    groups[numGroups++] = 0;
+#ifdef TEST_TLS13_PQ_NONBLOCK_MLKEM
+    groups[numGroups++] = WOLFSSL_ML_KEM_768;
+#endif
+#if defined(WC_MLKEM_NONBLOCK) && defined(WOLFSSL_PQC_HYBRIDS) && \
+    defined(WOLFSSL_WC_ML_KEM_768) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && !defined(WC_ECC_NONBLOCK) && \
+    !defined(WOLFSSL_SP_NONBLOCK)
+    /* Non-blocking ECC math livelocks the hybrid async re-drive. */
+    #ifdef TEST_HAVE_SECP256R1
+    groups[numGroups++] = WOLFSSL_SECP256R1MLKEM768;
+    #endif
+    #if defined(HAVE_CURVE25519) && !defined(WC_X25519_NONBLOCK)
+    groups[numGroups++] = WOLFSSL_X25519MLKEM768;
+    #endif
+#endif
+
+    for (i = 0; i < numGroups; i++) {
+        ExpectIntEQ(test_tls13_pq_nonblock_once(INVALID_DEVID, groups[i], 0),
+            TEST_SUCCESS);
+    }
+
+    ExpectIntEQ(wolfAsync_DevOpen(&devId), 0);
+    for (i = 0; i < numGroups; i++) {
+        ExpectIntEQ(test_tls13_pq_nonblock_once(devId, groups[i], 0),
+            TEST_SUCCESS);
+    }
+    /* Abandon handshakes with an operation in flight at several points. */
+    for (i = 0; i < numGroups; i++) {
+        int stop;
+        for (stop = 1; stop <= 16; stop *= 4) {
+            ExpectIntEQ(test_tls13_pq_nonblock_once(devId, groups[i], stop),
+                TEST_SUCCESS);
+        }
+    }
+    wolfAsync_DevClose(&devId);
+#endif
+    return EXPECT_RESULT();
+}

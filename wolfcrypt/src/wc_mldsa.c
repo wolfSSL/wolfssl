@@ -16011,6 +16011,19 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     #endif
 #endif
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLDSA) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLDSA_NONBLOCK)
+    if ((ret == 0) && (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLDSA) &&
+            (key->nb != NULL)) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_MLDSA_MAKE)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->mldsaMake.key = key;
+            sw->mldsaMake.rng = rng;
+            return WC_PENDING_E;
+        }
+    }
+#endif
+
 #ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
     if (ret == 0) {
         ret = NO_VALID_DEVID;
@@ -16539,6 +16552,24 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
         ret = NO_VALID_DEVID;
     }
 #else
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLDSA) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLDSA_NONBLOCK)
+    if ((ret == 0) && (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLDSA) &&
+            (key->nb != NULL)) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_MLDSA_SIGN)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->mldsaSign.key = key;
+            sw->mldsaSign.ctx = ctx;
+            sw->mldsaSign.ctxLen = ctxLen;
+            sw->mldsaSign.sig = sig;
+            sw->mldsaSign.sigLen = sigLen;
+            sw->mldsaSign.msg = msg;
+            sw->mldsaSign.msgLen = msgLen;
+            sw->mldsaSign.rng = rng;
+            return WC_PENDING_E;
+        }
+    }
+#endif
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_ctx_msg(key, rng, ctx, ctxLen, msg, msgLen, sig,
@@ -16979,6 +17010,24 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         ret = NO_VALID_DEVID;
     }
 #else
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLDSA) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLDSA_NONBLOCK)
+    if ((ret == 0) && (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLDSA) &&
+            (key->nb != NULL)) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_MLDSA_VERIFY)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->mldsaVerify.key = key;
+            sw->mldsaVerify.sig = sig;
+            sw->mldsaVerify.sigLen = sigLen;
+            sw->mldsaVerify.ctx = ctx;
+            sw->mldsaVerify.ctxLen = ctxLen;
+            sw->mldsaVerify.msg = msg;
+            sw->mldsaVerify.msgLen = msgLen;
+            sw->mldsaVerify.res = res;
+            return WC_PENDING_E;
+        }
+    }
+#endif
     if (ret == 0) {
         /* Verify message with signature. */
         ret = mldsa_verify_ctx_msg(key, ctx, ctxLen, msg, msgLen, sig,
@@ -17325,6 +17374,13 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
         ret = wc_InitShake128(&key->shake, heap, devId);
     }
 #endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLDSA) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLDSA_NONBLOCK)
+    if (ret == 0) {
+        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_MLDSA,
+            heap, devId);
+    }
+#endif
 
     return ret;
 }
@@ -17635,6 +17691,10 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
         if (key->p != NULL) {
             XFREE(key->p, key->heap, DYNAMIC_TYPE_MLDSA);
         }
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MLDSA) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_MLDSA_NONBLOCK)
+        wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_MLDSA);
 #endif
         /* Ensure all private data is zeroized. */
         ForceZero(key, sizeof(*key));
