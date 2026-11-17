@@ -8971,15 +8971,17 @@ static void OSSL_SaveDefaults(void)
 }
 
     #define OSSL_DEF_MALLOC(s)                                              \
-        ((ossl_def_malloc != NULL) ? ossl_def_malloc(s) : malloc(s))
+        ((ossl_def_malloc != NULL) ? ossl_def_malloc(s) :                   \
+            malloc(s)) /* native heap */
     #define OSSL_DEF_REALLOC(p, s)                                          \
-        ((ossl_def_realloc != NULL) ? ossl_def_realloc(p, s) : realloc(p, s))
+        ((ossl_def_realloc != NULL) ? ossl_def_realloc(p, s) :              \
+            realloc(p, s)) /* native heap */
     #define OSSL_DEF_FREE(p)                                                \
         do {                                                                \
             if (ossl_def_free != NULL)                                      \
                 ossl_def_free(p);                                           \
             else                                                            \
-                free(p);                                                    \
+                free(p); /* native heap */                                  \
         } while (0)
 #elif !defined(WOLFSSL_NO_MALLOC)
     #define OSSL_DEF_MALLOC(s)      malloc(s) /* native heap */
