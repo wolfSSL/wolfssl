@@ -2871,6 +2871,7 @@ int test_wolfssl_EVP_aria_gcm_cipher_aad(void)
     byte ivs[2][GCM_NONCE_MID_SZ];
     byte cipherText[2][sizeof(plainText) + ARIA_BLOCK_SIZE];
     byte tags[2][ARIA_BLOCK_SIZE];
+    byte badTag[ARIA_BLOCK_SIZE];
     byte calcPlainText[sizeof(plainText) + ARIA_BLOCK_SIZE];
     EVP_CIPHER_CTX* encCtx = NULL;
     EVP_CIPHER_CTX* decCtx = NULL;
@@ -2918,6 +2919,25 @@ int test_wolfssl_EVP_aria_gcm_cipher_aad(void)
         EVP_CIPHER_CTX_free(decCtx);
         decCtx = NULL;
     }
+
+    /* A rejected one-shot open keeps its AAD for the retry. */
+    XMEMCPY(badTag, tags[0], sizeof(badTag));
+    badTag[0] ^= 0x01;
+    ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(decCtx, EVP_aria_128_gcm(), key, ivs[0], 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherUpdate(decCtx, NULL, &outl, aad, sizeof(aad)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+        ARIA_BLOCK_SIZE, badTag), WOLFSSL_SUCCESS);
+    ExpectIntLT(EVP_Cipher(decCtx, calcPlainText, cipherText[0],
+        sizeof(plainText)), 0);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+        ARIA_BLOCK_SIZE, tags[0]), WOLFSSL_SUCCESS);
+    ExpectIntGE(EVP_Cipher(decCtx, calcPlainText, cipherText[0],
+        sizeof(plainText)), 0);
+    ExpectBufEQ(calcPlainText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(decCtx);
 
     EVP_CIPHER_CTX_free(encCtx);
     res = EXPECT_RESULT();

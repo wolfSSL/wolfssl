@@ -9325,11 +9325,13 @@ void wolfSSL_EVP_init(void)
                     /* The advanced nonce has not sealed a record yet. */
                     ctx->authIvUsed = 0;
                 }
-                /* AAD belongs to this record only. */
-                if (ctx->authIn != NULL) {
-                    XMEMSET(ctx->authIn, 0, (size_t)ctx->authInSz);
+                /* AAD belongs to this record only; keep it for a retry. */
+                if (ret == 0) {
+                    if (ctx->authIn != NULL) {
+                        XMEMSET(ctx->authIn, 0, (size_t)ctx->authInSz);
+                    }
+                    ctx->authInSz = 0;
                 }
-                ctx->authInSz = 0;
                 break;
 #endif /* HAVE_ARIA&& ((!HAVE_FIPS && !HAVE_SELFTEST) ||
         * HAVE_FIPS_VERSION >= 2 */
