@@ -19467,10 +19467,6 @@ int test_tls13_psk_cb_no_cipher_name(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES128-GCM-SHA256"),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "TLS13-AES128-GCM-SHA256"),
-        WOLFSSL_SUCCESS);
     wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
     wolfSSL_set_psk_client_tls13_callback(ssl_c,
@@ -19479,7 +19475,7 @@ int test_tls13_psk_cb_no_cipher_name(void)
         test_tls13_psk_no_name_server_cb);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_current_cipher_suite(ssl_c),
-        (TLS13_BYTE << 8) | TLS_AES_128_GCM_SHA256);
+        (TLS13_BYTE << 8) | WOLFSSL_DEF_PSK_CIPHER);
     ExpectIntEQ(ssl_s->options.pskNegotiated, 1);
 
     wolfSSL_free(ssl_c);
@@ -19497,7 +19493,16 @@ int test_tls13_psk_cb_no_cipher_name(void)
         wolfTLSv1_3_client_method, NULL), 0);
     wolfSSL_set_psk_client_tls13_callback(ssl_c,
         test_tls13_psk_none_client_cb);
-    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+#ifdef OPENSSL_EXTRA
+    /* A zero length key means no PSK, so the ClientHello is sent without
+     * one and the client waits for the server. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+#else
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);

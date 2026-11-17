@@ -13053,7 +13053,7 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL_CTX構造体のclient_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)が使用されます。鍵長0を返すことはPSKが無いことを示します。この関数はWOLFSSL_CTX構造体のclient_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
     \param [in] cb TLS 1.3クライアント用の事前共有鍵(PSK)コールバック。
@@ -13075,7 +13075,7 @@ void wolfSSL_CTX_set_psk_client_tls13_callback(WOLFSSL_CTX* ctx,
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL構造体のoptionsフィールドのclient_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)が使用されます。鍵長0を返すことはPSKが無いことを示します。この関数はWOLFSSL構造体のoptionsフィールドのclient_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] cb TLS 1.3クライアント用の事前共有鍵(PSK)コールバック。
@@ -13097,7 +13097,7 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL_CTX構造体のserver_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが0以外の鍵長を返し暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)でPSKが受け入れられ、TLS 1.3以外のサーバーPSKコールバックは呼び出されません。鍵長0を返すことはアイデンティティが不明であることを示します。この関数はWOLFSSL_CTX構造体のserver_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
     \param [in] cb TLS 1.3サーバー用の事前共有鍵(PSK)コールバック。
@@ -13119,7 +13119,7 @@ void wolfSSL_CTX_set_psk_server_tls13_callback(WOLFSSL_CTX* ctx,
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL構造体のoptionsフィールドのserver_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが0以外の鍵長を返し暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)でPSKが受け入れられ、TLS 1.3以外のサーバーPSKコールバックは呼び出されません。鍵長0を返すことはアイデンティティが不明であることを示します。この関数はWOLFSSL構造体のoptionsフィールドのserver_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] cb TLS 1.3サーバー用の事前共有鍵(PSK)コールバック。
