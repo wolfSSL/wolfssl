@@ -2845,6 +2845,86 @@ int test_wolfssl_EVP_aria_gcm_iv_gen(void)
     return res;
 }
 
+/* EVP_Cipher must authenticate the ARIA-GCM AAD of its own record and must not
+ * carry it into the next record sealed with a generated IV. */
+int test_wolfssl_EVP_aria_gcm_cipher_aad(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && !defined(WC_NO_RNG) && \
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
+    EXPECT_DECLS;
+    static const byte key[ARIA_128_KEY_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    static const byte fixedIv[GCM_NONCE_MID_SZ] = {
+        0xa1, 0xb2, 0xc3, 0xd4, 0x00, 0x01, 0x02, 0x03,
+        0x04, 0x05, 0x06, 0x07
+    };
+    static const byte aad[] = { 0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad };
+    static const byte plainText[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
+    };
+    byte ivs[2][GCM_NONCE_MID_SZ];
+    byte cipherText[2][sizeof(plainText) + ARIA_BLOCK_SIZE];
+    byte tags[2][ARIA_BLOCK_SIZE];
+    byte calcPlainText[sizeof(plainText) + ARIA_BLOCK_SIZE];
+    EVP_CIPHER_CTX* encCtx = NULL;
+    EVP_CIPHER_CTX* decCtx = NULL;
+    int i, outl, rec, withAad;
+
+    ExpectNotNull(encCtx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(encCtx, EVP_aria_128_gcm(), key, NULL, 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+        (void*)fixedIv), WOLFSSL_SUCCESS);
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
+            ivs[i]), WOLFSSL_SUCCESS);
+        if (i == 0) {
+            ExpectIntEQ(EVP_CipherUpdate(encCtx, NULL, &outl, aad,
+                sizeof(aad)), WOLFSSL_SUCCESS);
+        }
+        ExpectIntGE(EVP_Cipher(encCtx, cipherText[i], (byte*)plainText,
+            sizeof(plainText)), 0);
+        if (encCtx != NULL) {
+            ExpectIntEQ(encCtx->authInSz, 0);
+        }
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_GET_TAG,
+            ARIA_BLOCK_SIZE, tags[i]), WOLFSSL_SUCCESS);
+    }
+    ExpectBufNE(ivs[0], ivs[1], GCM_NONCE_MID_SZ);
+
+    /* Record 0 opens only with its AAD, record 1 only without any. */
+    for (i = 0; i < 4; i++) {
+        rec = i / 2;
+        withAad = i % 2;
+        ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(decCtx, EVP_aria_128_gcm(), key, ivs[rec],
+            0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+            ARIA_BLOCK_SIZE, tags[rec]), WOLFSSL_SUCCESS);
+        if (withAad) {
+            ExpectIntEQ(EVP_CipherUpdate(decCtx, NULL, &outl, aad,
+                sizeof(aad)), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl,
+            cipherText[rec], sizeof(plainText)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherFinal(decCtx, calcPlainText, &outl),
+            (withAad == (rec == 0)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
+        EVP_CIPHER_CTX_free(decCtx);
+        decCtx = NULL;
+    }
+
+    EVP_CIPHER_CTX_free(encCtx);
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
 int test_wolfssl_EVP_sm4_ecb(void)
 {
     int res = TEST_SKIPPED;
