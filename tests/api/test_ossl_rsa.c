@@ -586,7 +586,7 @@ int test_wolfSSL_RSA_padding_PKCS1_OAEP(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(WOLFSSL_RSA_OAEP_COMPAT) && \
-    !defined(WC_NO_RNG)
+    !defined(WC_NO_RNG) && !defined(NO_SHA)
     static const unsigned char msg[16] = {
         'O', 'A', 'E', 'P', ' ', 'l', 'a', 'b', 'e', 'l', ' ', 't', 'e', 's',
         't', '!'
@@ -711,7 +711,7 @@ int test_wolfSSL_RSA_padding_PKCS1_OAEP_mgf1(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(WOLFSSL_RSA_OAEP_COMPAT) && \
-    !defined(WC_NO_RNG) && !defined(NO_SHA256)
+    !defined(WC_NO_RNG) && !defined(NO_SHA) && !defined(NO_SHA256)
     static const unsigned char msg[16] = {
         'O', 'A', 'E', 'P', ' ', 'l', 'a', 'b', 'e', 'l', ' ', 't', 'e', 's',
         't', '!'
