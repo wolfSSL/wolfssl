@@ -1298,7 +1298,7 @@ static void wb_fp_comb_ct(void)
                 wb_fail = 1;
             }
         }
-        base = find_base(G);
+        base = find_base(G, &a, &prime);
         if (FP_MULMOD_USES_LUT &&
                 ((base < 0) || (!fp_cache[base].LUT_set))) {
             WB_NOTE("fp_cache table was not built");
