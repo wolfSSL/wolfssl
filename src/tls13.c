@@ -4752,15 +4752,17 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
             }
         }
         else if (ssl->options.client_psk_tls13_cb != NULL) {
-            byte cipherSuite0;
-            byte cipherSuite;
+            byte cipherSuite0 = TLS13_BYTE;
+            byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
             int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
 
             ssl->arrays->psk_keySz = ssl->options.client_psk_tls13_cb(ssl,
                     ssl->arrays->server_hint, ssl->arrays->client_identity,
                     MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
                     &cipherName);
-            if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+            /* No name from the callback keeps the default suite. */
+            if (cipherName != NULL &&
+                GetCipherSuiteFromName(cipherName, &cipherSuite0,
                             &cipherSuite, NULL, NULL, &cipherSuiteFlags) != 0) {
                 WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
                 return PSK_KEY_ERROR;
@@ -6899,7 +6901,9 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
              (char*)psk->identity, psk_key, MAX_PSK_KEY_LEN, &cipherName);
          if (*psk_keySz != 0) {
              int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
-             *found = (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+             /* No name from the callback keeps the default suite. */
+             *found = (cipherName == NULL) ||
+                 (GetCipherSuiteFromName(cipherName, &cipherSuite0,
                  &cipherSuite, NULL, NULL, &cipherSuiteFlags) == 0);
              (void)cipherSuiteFlags;
          }

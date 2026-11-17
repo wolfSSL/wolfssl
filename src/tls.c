@@ -17042,7 +17042,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl, ssl->arrays->server_hint,
                         ssl->arrays->client_identity, MAX_PSK_ID_LEN,
                         ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
-                    if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+                    /* No name from the callback keeps the default suite. */
+                    if (cipherName != NULL &&
+                        GetCipherSuiteFromName(cipherName, &cipherSuite0,
                             &cipherSuite, NULL, NULL, &cipherSuiteFlags) != 0) {
                         return PSK_KEY_ERROR;
                     }
