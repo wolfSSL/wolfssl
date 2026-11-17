@@ -2925,6 +2925,61 @@ int test_wolfssl_EVP_aria_gcm_cipher_aad(void)
     return res;
 }
 
+/* An ARIA-GCM nonce sealed without EVP_CTRL_GCM_IV_GEN is not advanced, so
+ * IV_GEN must not hand it out again. */
+int test_wolfssl_EVP_aria_gcm_used_iv(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && !defined(WC_NO_RNG) && \
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
+    EXPECT_DECLS;
+    static const byte key[ARIA_128_KEY_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    static const byte fixedIv[GCM_NONCE_MID_SZ] = {
+        0xa1, 0xb2, 0xc3, 0xd4, 0x00, 0x01, 0x02, 0x03,
+        0x04, 0x05, 0x06, 0x07
+    };
+    static const byte plainText[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f
+    };
+    byte iv[GCM_NONCE_MID_SZ];
+    byte cipherText[sizeof(plainText) + ARIA_BLOCK_SIZE];
+    EVP_CIPHER_CTX* ctx = NULL;
+    int t, outl;
+
+    /* t == 0 seals with EVP_CipherUpdate/Final, t == 1 with EVP_Cipher. */
+    for (t = 0; t < 2; t++) {
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(ctx, EVP_aria_128_gcm(), key, NULL, 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+            (void*)fixedIv), WOLFSSL_SUCCESS);
+        if (t == 0) {
+            ExpectIntEQ(EVP_CipherUpdate(ctx, cipherText, &outl, plainText,
+                sizeof(plainText)), WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CipherFinal(ctx, cipherText, &outl),
+                WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntGE(EVP_Cipher(ctx, cipherText, (byte*)plainText,
+                sizeof(plainText)), 0);
+        }
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1, iv),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
 int test_wolfssl_EVP_sm4_ecb(void)
 {
     int res = TEST_SKIPPED;

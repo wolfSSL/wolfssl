@@ -1515,10 +1515,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBuffer = NULL;
                 ctx->authBufferLen = 0;
 
-                if (ctx->authIncIv) {
+                if ((ret == WOLFSSL_SUCCESS) && ctx->authIncIv) {
                     IncCtr((byte*)ctx->cipher.aria.nonce,
                            ctx->cipher.aria.nonceSz);
-                    ctx->authIncIv = 0;
                 }
             }
             else {
@@ -1526,7 +1525,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
             }
             if (ret == WOLFSSL_SUCCESS) {
                 if (ctx->authIncIv) {
+                    /* The advanced nonce has not sealed a record yet. */
                     ctx->authIncIv = 0;
+                    ctx->authIvUsed = 0;
                 }
                 else {
                     /* Clear IV since ARIA GCM must not reuse an IV. */
@@ -6929,6 +6930,10 @@ void wolfSSL_EVP_init(void)
                         WOLFSSL_MSG("Key or IV not set");
                         break;
                     }
+                    if (ctx->authIvUsed) {
+                        WOLFSSL_MSG("ARIA-GCM IV already used");
+                        break;
+                    }
                 }
                 else
             #endif
@@ -6969,8 +6974,6 @@ void wolfSSL_EVP_init(void)
                  * after the next cipher operation.
                  */
                 ctx->authIncIv = 1;
-                /* The nonce just handed out has not sealed a record yet. */
-                ctx->authIvUsed = 0;
                 ret = WOLFSSL_SUCCESS;
                 break;
 #endif /* (HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM) &&
@@ -9319,6 +9322,8 @@ void wolfSSL_EVP_init(void)
                     IncCtr((byte*)ctx->cipher.aria.nonce,
                            ctx->cipher.aria.nonceSz);
                     ctx->authIncIv = 0;
+                    /* The advanced nonce has not sealed a record yet. */
+                    ctx->authIvUsed = 0;
                 }
                 /* AAD belongs to this record only. */
                 if (ctx->authIn != NULL) {
