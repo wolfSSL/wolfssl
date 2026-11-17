@@ -20787,10 +20787,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 cert->buffer, cert->length);
                         }
                     #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
-                        if (caIsTemp) {
+                        if (caIsTemp && !alreadySigner) {
                             ret = ProcessPeerCertAddWaivedCA(ssl, cert);
                         }
-                        else if (!alreadySigner) {
+                        else if (!caIsTemp && !alreadySigner) {
                             DerBuffer* add = NULL;
                             ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
                             if (ret < 0)
