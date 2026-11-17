@@ -234,6 +234,8 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 
         /* Extract all public fields. */
         for (i = 0; i < RSA_INT_CNT; i++) {
+            /* Wipe and free an earlier value; GetInt() inits it again. */
+            mp_forcezero(GetRsaInt(key, i));
             if (GetInt(GetRsaInt(key, i),  input, inOutIdx, inSz) < 0) {
                 for (i--; i >= 0; i--) {
                     mp_clear(GetRsaInt(key, i));
@@ -929,6 +931,10 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     temp = *inOutIdx;
     #endif
 #endif
+    /* Free p and g from wc_InitDhKey() or an earlier load; GetInt() inits
+     * them again. */
+    mp_clear(&key->p);
+    mp_clear(&key->g);
     /* Assume input started after 1.2.840.113549.1.3.1 dhKeyAgreement */
     if (GetInt(&key->p, input, inOutIdx, inSz) < 0) {
         ret = ASN_DH_KEY_E;
@@ -975,6 +981,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     ret = (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) == 0);
     if (ret > 0) {
         /* Found Bit String */
+        mp_clear(&key->pub);
         if (GetInt(&key->pub, input, inOutIdx, inSz) == 0) {
             WOLFSSL_MSG("Found Public Key");
             ret = 0;
@@ -984,6 +991,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         ret = (GetOctetString(input, inOutIdx, &length, inSz) >= 0);
         if (ret > 0) {
             /* Found Octet String */
+            mp_forcezero(&key->priv);
             if (GetInt(&key->priv, input, inOutIdx, inSz) == 0) {
                 WOLFSSL_MSG("Found Private Key");
 
@@ -1197,6 +1205,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 {
     int    length;
     int    ret = 0;
+    int    i;
     word32 oid;
     word32 maxIdx;
 
@@ -1206,6 +1215,11 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    /* Free p, q, g and y from wc_InitDsaKey() or an earlier decode; GetInt()
+     * inits them again. */
+    for (i = 0; i < DSA_INTS - 1; i++) {
+        mp_clear(GetDsaInt(key, i));
+    }
     maxIdx = (word32)(*inOutIdx + (word32)length);
     if (GetInt(&key->p,  input, inOutIdx, maxIdx) < 0 ||
         GetInt(&key->q,  input, inOutIdx, maxIdx) < 0 ||
@@ -1246,11 +1260,18 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                            word32 inSz)
 {
     int length, version, ret = 0, temp = 0;
+    int i;
     word32 algId = 0;
 
     /* Sanity checks on input */
     if (input == NULL || inOutIdx == NULL || key == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    /* Wipe and free values from wc_InitDsaKey() or an earlier decode;
+     * GetInt() inits them again. */
+    for (i = 0; i < DSA_INTS; i++) {
+        mp_forcezero(GetDsaInt(key, i));
     }
 
     /* if has pkcs8 header skip it */

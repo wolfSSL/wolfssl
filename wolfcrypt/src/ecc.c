@@ -5842,11 +5842,7 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
  */
 static WC_INLINE void ecc_free_key_ints(ecc_key* key)
 {
-    mp_forcezero(key->k);
-#ifdef WOLFSSL_ECC_BLIND_K
-    mp_forcezero(key->kb);
-    mp_forcezero(key->ku);
-#endif
+    ecc_forcezero_k(key);
     mp_clear(key->pubkey.x);
     mp_clear(key->pubkey.y);
     mp_clear(key->pubkey.z);
@@ -6474,10 +6470,10 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
 
         /* setup the key variables */
-#ifndef ALT_ECC_SIZE
         /* wc_ecc_init() set up key->k; wipe and free any earlier private
-         * scalar before mp_init() below drops it. */
-        mp_forcezero(key->k);
+         * scalar and its blind before the init below drops them. */
+        ecc_forcezero_k(key);
+#ifndef ALT_ECC_SIZE
         err = mp_init(key->k);
 #else
         err = 0;
