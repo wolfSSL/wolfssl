@@ -1247,6 +1247,26 @@ if (WOLFSSL_MLKEM)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
 endif()
 
+add_option(WOLFSSL_MLKEM_SMALL_MEM
+    "Use the small memory ML-KEM implementation (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_MLKEM_SMALL_MEM AND NOT WOLFSSL_MLKEM)
+    message(WARNING "ML-KEM is disabled - ignoring WOLFSSL_MLKEM_SMALL_MEM")
+elseif (WOLFSSL_MLKEM_SMALL_MEM)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM")
+
+    # wc_mlkem.c rejects the small memory paths with x86_64 or AArch64 asm.
+    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" MLKEM_SYSTEM_PROCESSOR)
+    if (WOLFSSL_INTEL_ASM OR CMAKE_C_FLAGS MATCHES "USE_INTEL_SPEEDUP" OR
+        (MLKEM_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$" AND
+         (WOLFSSL_ARM_ASM OR CMAKE_C_FLAGS MATCHES "WOLFSSL_ARMASM")))
+        message(WARNING "ML-KEM small memory has no assembly; building all of ML-KEM without it")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_MLKEM_NO_ASM")
+    endif()
+endif()
+
 # When MLKEM and DTLS 1.3 are both enabled, DTLS ClientHello fragmenting is
 # required (PQC keys in ClientHello can exceed MTU), so enable it automatically.
 if(WOLFSSL_MLKEM AND WOLFSSL_DTLS13 AND NOT WOLFSSL_DTLS_CH_FRAG)
@@ -1300,6 +1320,23 @@ if (WOLFSSL_MLDSA OR WOLFSSL_DILITHIUM)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
 endif()
 
+add_option(WOLFSSL_MLDSA_SMALL_MEM
+    "Use the small or smallest memory ML-DSA implementation (default: disabled)"
+    "no" "yes;no;small-mem;smallest;smallest-mem")
+
+if (WOLFSSL_MLDSA_SMALL_MEM AND NOT (WOLFSSL_MLDSA OR WOLFSSL_DILITHIUM))
+    message(WARNING "ML-DSA is disabled - ignoring WOLFSSL_MLDSA_SMALL_MEM")
+elseif (WOLFSSL_MLDSA_SMALL_MEM)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM")
+    if (WOLFSSL_MLDSA_SMALL_MEM MATCHES "^smallest")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MLDSA_VERIFY_SMALLEST_MEM")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MLDSA_SIGN_SMALL_MEM")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MLDSA_VERIFY_SMALL_MEM")
+    endif()
+endif()
+
 # Native Falcon. Native implementation: no liboqs dependency. Needs SHA-3 /
 # SHAKE256 for hash-to-point.
 add_option(WOLFSSL_FALCON
@@ -1314,6 +1351,19 @@ if (WOLFSSL_FALCON)
     set_wolfssl_definitions("HAVE_FALCON" RESULT)
     set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
+endif()
+
+add_option(WOLFSSL_FALCON_SMALL_MEM
+    "Use the small or smallest memory Falcon signer (default: disabled)"
+    "no" "yes;no;small-mem;smallest;smallest-mem")
+
+if (WOLFSSL_FALCON_SMALL_MEM AND NOT WOLFSSL_FALCON)
+    message(WARNING "Falcon is disabled - ignoring WOLFSSL_FALCON_SMALL_MEM")
+elseif (WOLFSSL_FALCON_SMALL_MEM)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_FALCON_SIGN_SMALL_MEM")
+    if (WOLFSSL_FALCON_SMALL_MEM MATCHES "^smallest")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_FALCON_SIGN_SMALLEST_MEM")
+    endif()
 endif()
 
 # LMS
@@ -1623,6 +1673,10 @@ add_option(WOLFSSL_SLHDSAVERIFYONLY
     "Enable the SLH-DSA verify-only implementation (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_SLHDSA_SMALL_MEM
+    "Use the small memory SLH-DSA implementation (default: disabled)"
+    "no" "yes;no")
+
 if (WOLFSSL_SLHDSA)
     message(STATUS "Automatically set related requirements for SLH-DSA")
     add_definitions("-DWOLFSSL_HAVE_SLHDSA")
@@ -1639,7 +1693,13 @@ if (WOLFSSL_SLHDSA)
         set_wolfssl_definitions("WOLFSSL_SLHDSA_VERIFY_ONLY" RESULT)
     endif()
 
+    if (WOLFSSL_SLHDSA_SMALL_MEM)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WC_SLHDSA_SMALL_MEM")
+    endif()
+
     message(STATUS "Looking for WOLFSSL_SLHDSA - found")
+elseif (WOLFSSL_SLHDSA_SMALL_MEM)
+    message(WARNING "SLH-DSA is disabled - ignoring WOLFSSL_SLHDSA_SMALL_MEM")
 endif()
 
 # TODO: - Lean PSK

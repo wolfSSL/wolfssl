@@ -111,6 +111,42 @@ jobs:
         cd ..
         rm -rf build
 
+# build wolfssl with the PQC small memory options
+    - name: Build wolfssl with PQC small memory options
+      run: |
+        mkdir build
+        cd build
+        cmake -DWOLFSSL_MLKEM_SMALL_MEM:BOOL=yes \
+            -DWOLFSSL_MLDSA:BOOL=yes -DWOLFSSL_MLDSA_SMALL_MEM:STRING=smallest \
+            -DWOLFSSL_SLHDSA:BOOL=yes -DWOLFSSL_SLHDSA_SMALL_MEM:BOOL=yes \
+            -DWOLFSSL_EXPERIMENTAL:BOOL=yes -DWOLFSSL_FALCON:BOOL=yes \
+            -DWOLFSSL_FALCON_SMALL_MEM:STRING=smallest-mem \
+            ..
+        for m in WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM \
+                 WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM \
+                 WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM WOLFSSL_MLDSA_SIGN_SMALLEST_MEM \
+                 WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM WOLFSSL_WC_SLHDSA_SMALL_MEM \
+                 HAVE_FALCON WOLFSSL_FALCON_SIGN_SMALL_MEM \
+                 WOLFSSL_FALCON_SIGN_SMALLEST_MEM; do
+            grep -q "^#define $m\$" wolfssl/options.h
+        done
+        cmake --build .
+
+        cmake -DWOLFSSL_MLDSA_SMALL_MEM:STRING=yes \
+            -DWOLFSSL_FALCON_SMALL_MEM:STRING=yes ..
+        for m in WOLFSSL_MLDSA_SIGN_SMALL_MEM WOLFSSL_MLDSA_VERIFY_SMALL_MEM \
+                 WOLFSSL_FALCON_SIGN_SMALL_MEM; do
+            grep -q "^#define $m\$" wolfssl/options.h
+        done
+        if grep -q "^#define WOLFSSL_.*_SMALLEST_MEM\$" wolfssl/options.h; then
+            exit 1
+        fi
+        cmake --build .
+
+        # clean up
+        cd ..
+        rm -rf build
+
 # Option plumbing: a declared option must reach both the library and
 # options.h, and a -D that is not an option must reach neither.
     - name: Check option to options.h plumbing
