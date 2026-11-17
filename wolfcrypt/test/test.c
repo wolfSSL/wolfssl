@@ -46141,7 +46141,10 @@ static wc_test_ret_t dh_agree_ct_test(DhKey* key, DhKey* key2,
 exit_dh_agree_ct:
     return ret;
 }
-#ifndef WOLFSSL_KCAPI_DH
+#endif
+
+#if !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+            !defined(HAVE_SELFTEST)
 /* wc_DhAgree rejects an invalid peer public value, whichever backend it uses. */
 static wc_test_ret_t dh_agree_bad_pub_test(DhKey* key, const byte* priv,
     word32 privSz, word32 pubSz, byte* y, byte* agree, word32 bufSize)
@@ -46173,7 +46176,6 @@ static wc_test_ret_t dh_agree_bad_pub_test(DhKey* key, const byte* priv,
 
     return 0;
 }
-#endif
 #endif /* !WC_NO_RNG && (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
 
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
@@ -46507,13 +46509,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
         priv2, privSz2, pub2, pubSz2, agree, agree2, DH_TEST_BUF_SIZE);
     if (ret != 0)
         ERROR_OUT(ret, done);
+#endif
 
-#ifndef WOLFSSL_KCAPI_DH
+#if !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+            !defined(HAVE_SELFTEST)
     ret = dh_agree_bad_pub_test(key, priv, privSz, pubSz, agree2, agree,
         DH_TEST_BUF_SIZE);
     if (ret != 0)
         ERROR_OUT(ret, done);
-#endif
 #endif /* !WC_NO_RNG && (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
 
     /* Test DH key import / export */
