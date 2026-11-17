@@ -38192,20 +38192,38 @@ static Signer *OcspFindSigner(OcspResponse *resp, WOLFSSL_CERT_MANAGER *cm)
 
     if (resp->responderIdType == OCSP_RESPONDER_ID_NAME) {
         s = findSignerByName(resp->pendingCAs, resp->responderId.nameHash);
-        if (s)
+        if (s) {
+            resp->pendingSigner = 1;
             return s;
+        }
     }
     else if (KEYID_SIZE >= OCSP_RESPONDER_ID_KEY_SZ) {
         byte keyHash[KEYID_SIZE];
         XMEMSET(keyHash, 0, KEYID_SIZE);
         XMEMCPY(keyHash, resp->responderId.keyHash, OCSP_RESPONDER_ID_KEY_SZ);
         s = findSignerByKeyHash(resp->pendingCAs, keyHash);
-        if (s)
+        if (s) {
+            resp->pendingSigner = 1;
             return s;
+        }
     }
 #endif
     return NULL;
 }
+
+#ifndef NO_CERTS
+static int OcspSignerInList(const Signer* list, const Signer* signer)
+{
+    const Signer* s;
+
+    for (s = list; s != NULL; s = s->next) {
+        if (s == signer)
+            return 1;
+    }
+
+    return 0;
+}
+#endif
 
 static int OcspCheckCert(OcspResponse *resp, int noVerify,
     int noVerifySignature, WOLFSSL_CERT_MANAGER *cm, void *heap)
@@ -38231,6 +38249,11 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
     if (ret < 0) {
         WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
     }
+#ifndef NO_CERTS
+    if (ret == 0 && OcspSignerInList(resp->pendingCAs, cert->ca)) {
+        resp->pendingSigner = 1;
+    }
+#endif
 
     if (ret == 0 &&
             OcspRespIdMatch(resp,

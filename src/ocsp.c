@@ -421,6 +421,17 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         validated = 1;
     }
 
+#ifndef NO_CERTS
+    /* A status reached through a signer only this connection trusts must not
+     * get into the manager-wide cache, otherwise later connections reuse it
+     * without trusting the signer. */
+    if (ocspResponse->pendingSigner) {
+        WOLFSSL_MSG("OCSP status not cached, signer is connection local");
+        status = NULL;
+        entry = NULL;
+    }
+#endif
+
     if (wc_LockMutex(&ocsp->ocspLock) != 0) {
         ret = BAD_MUTEX_E;
         goto end;

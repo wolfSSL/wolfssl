@@ -3185,6 +3185,7 @@ struct OcspResponse {
     byte*   source;          /* pointer to source buffer, not owned */
     word32  maxIdx;          /* max offset based on init size */
     Signer* pendingCAs;
+    byte    pendingSigner;   /* verified through pendingCAs, not through cm */
     void*  heap;
 };
 
