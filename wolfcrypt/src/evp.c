@@ -1598,7 +1598,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBuffer = NULL;
                 ctx->authBufferLen = 0;
 
-                /* SM4 AEAD nonce is ctx->iv; StoreExternalIV mirrors it. */
+                /* SM4 AEAD nonce lives only in ctx->iv. */
                 if ((ret == WOLFSSL_SUCCESS) && ctx->authIncIv) {
                     IncCtr(ctx->iv, (word32)ctx->ivSz);
                 }
@@ -1649,7 +1649,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBuffer = NULL;
                 ctx->authBufferLen = 0;
 
-                /* SM4 AEAD nonce is ctx->iv; StoreExternalIV mirrors it. */
+                /* SM4 AEAD nonce lives only in ctx->iv. */
                 if ((ret == WOLFSSL_SUCCESS) && ctx->authIncIv) {
                     IncCtr(ctx->iv, (word32)ctx->ivSz);
                 }
@@ -6969,6 +6969,8 @@ void wolfSSL_EVP_init(void)
                  * after the next cipher operation.
                  */
                 ctx->authIncIv = 1;
+                /* The nonce just handed out has not sealed a record yet. */
+                ctx->authIvUsed = 0;
                 ret = WOLFSSL_SUCCESS;
                 break;
 #endif /* (HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM) &&
@@ -9301,14 +9303,16 @@ void wolfSSL_EVP_init(void)
                     if (ctx->cipher.aria.nonceSz == 0 || ctx->authIvUsed)
                         return WC_NO_ERR_TRACE(BAD_STATE_E);
                     ret = wc_AriaEncrypt(&ctx->cipher.aria, dst, src, len,
-                                         ctx->iv, ctx->ivSz, NULL, 0,
+                                         ctx->iv, ctx->ivSz, ctx->authIn,
+                                         (word32)ctx->authInSz,
                                          ctx->authTag, ctx->authTagSz);
                     if (ret == 0)
                         ctx->authIvUsed = 1;
                 }
                 else {
                     ret = wc_AriaDecrypt(&ctx->cipher.aria, dst, src, len,
-                                         ctx->iv, ctx->ivSz, NULL, 0,
+                                         ctx->iv, ctx->ivSz, ctx->authIn,
+                                         (word32)ctx->authInSz,
                                          ctx->authTag, ctx->authTagSz);
                 }
                 if ((ret == 0) && ctx->authIncIv) {
@@ -9316,6 +9320,11 @@ void wolfSSL_EVP_init(void)
                            ctx->cipher.aria.nonceSz);
                     ctx->authIncIv = 0;
                 }
+                /* AAD belongs to this record only. */
+                if (ctx->authIn != NULL) {
+                    XMEMSET(ctx->authIn, 0, (size_t)ctx->authInSz);
+                }
+                ctx->authInSz = 0;
                 break;
 #endif /* HAVE_ARIA&& ((!HAVE_FIPS && !HAVE_SELFTEST) ||
         * HAVE_FIPS_VERSION >= 2 */
