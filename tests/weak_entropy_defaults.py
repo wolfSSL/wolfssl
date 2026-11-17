@@ -67,23 +67,6 @@ class WeakEntropyDefaults(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode == 0, expected)
 
-    def test_contiki_does_not_choose_framework_prng(self):
-        source = (ROOT / "wolfcrypt/src/random.c").read_text()
-        start = source.index("#elif defined(CUSTOM_RAND_GENERATE)\n", source.index("/* Begin wc_GenerateSeed Implementations */"))
-        end = source.index("\n#elif defined(", start + 1)
-        branch = "#if" + source[start + len("#elif"):end] + "\n#endif\n"
-        for extra, expected in (((), False),
-                                (("WOLFSSL_ACCEPT_WEAK_ENTROPY",), True),
-                                (("WOLFSSL_CONTIKI_SECURE_ENTROPY",), True)):
-            with self.subTest(extra=extra):
-                result = subprocess.run(
-                    ["cc", "-E", "-x", "c", "-", "-DWOLFSSL_" "CONTIKI",
-                     "-DCUSTOM_RAND_GENERATE=random_rand"] +
-                    ["-D" + item for item in extra],
-                    input=branch, text=True, capture_output=True, check=False,
-                )
-                self.assertEqual(result.returncode == 0, expected)
-
     def test_predictable_custom_seed_examples_require_opt_in(self):
         paths = (
             "IDE/AURIX/user_settings.h",

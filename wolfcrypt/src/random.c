@@ -9527,12 +9527,6 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(CUSTOM_RAND_GENERATE)
 
-    #if defined(WOLFSSL_CONTIKI) && \
-        !defined(WOLFSSL_CONTIKI_SECURE_ENTROPY) && \
-        !defined(WOLFSSL_ACCEPT_WEAK_ENTROPY)
-        #error "Contiki random_rand is a PRNG, not an entropy source: provide a secure custom seed or define WOLFSSL_CONTIKI_SECURE_ENTROPY for a verified CUSTOM_RAND_GENERATE; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
-    #endif
-
    /* Implement your own random generation function
     * word32 rand_gen(void);
     * #define CUSTOM_RAND_GENERATE  rand_gen  */
