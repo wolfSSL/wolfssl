@@ -453,6 +453,117 @@ static void test_SrpGetProofAndVerify(void)
     wc_SrpTerm(&srv);
 }
 
+#define SRP_TEST_CAPTURE_DONE (-7777)
+
+static word32 srp_captured_size;
+static byte   srp_captured_lead;
+
+static int srp_capture_secret(Srp* srp, byte* secret, word32 size)
+{
+    (void)srp;
+    srp_captured_size = size;
+    srp_captured_lead = (size > 0) ? secret[0] : 0xFF;
+    return SRP_TEST_CAPTURE_DONE;
+}
+
+static void srp_setup_pair(Srp* cli, Srp* srv)
+{
+    AssertIntEQ(0, wc_SrpInit(cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(0, wc_SrpInit(srv, SRP_TYPE_SHA, SRP_SERVER_SIDE));
+    AssertIntEQ(0, wc_SrpSetUsername(cli, username, usernameSz));
+    AssertIntEQ(0, wc_SrpSetUsername(srv, username, usernameSz));
+    AssertIntEQ(0, wc_SrpSetParams(cli, srp_N,    sizeof(srp_N),
+                                        srp_g,    sizeof(srp_g),
+                                        srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(0, wc_SrpSetParams(srv, srp_N,    sizeof(srp_N),
+                                        srp_g,    sizeof(srp_g),
+                                        srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(0, wc_SrpSetPassword(cli, password, passwordSz));
+    AssertIntEQ(0, wc_SrpSetVerifier(srv, srp_verifier,
+                                     sizeof(srp_verifier)));
+    AssertIntEQ(0, wc_SrpSetPrivate(cli, srp_a, sizeof(srp_a)));
+}
+
+/* Secret S with a leading zero byte must reach the KDF with a fixed width
+ * when WOLFSSL_SRP_CT_SECRET is set, and minimal width otherwise. */
+static void test_SrpComputeKeyLeadingZeroSecret(void)
+{
+    Srp cli, srv;
+    byte b[sizeof(srp_b)];
+    byte clientPubKey[sizeof(srp_N)];
+    byte serverPubKey[sizeof(srp_N)];
+    word32 clientPubKeySz = sizeof(clientPubKey);
+    word32 serverPubKeySz = sizeof(serverPubKey);
+    byte clientProof[SRP_MAX_DIGEST_SIZE];
+    byte serverProof[SRP_MAX_DIGEST_SIZE];
+    word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
+    word32 serverProofSz = SRP_MAX_DIGEST_SIZE;
+    word32 expectedSz;
+    word32 tail;
+    int found = 0;
+
+#ifdef WOLFSSL_SRP_CT_SECRET
+    expectedSz = sizeof(srp_N);
+#else
+    expectedSz = sizeof(srp_N) - 1;
+#endif
+
+    XMEMCPY(b, srp_b, sizeof(b));
+    srp_setup_pair(&cli, &srv);
+    AssertIntEQ(0, wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz));
+
+    /* Search for a server private value giving S a zero top byte. */
+    srv.keyGenFunc_cb = srp_capture_secret;
+    for (tail = 0; (tail < 0x10000) && !found; tail++) {
+        b[sizeof(b) - 2] = (byte)(tail >> 8);
+        b[sizeof(b) - 1] = (byte)tail;
+        serverPubKeySz = sizeof(serverPubKey);
+        AssertIntEQ(0, wc_SrpSetPrivate(&srv, b, sizeof(b)));
+        AssertIntEQ(0, wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz));
+        AssertIntEQ(SRP_TEST_CAPTURE_DONE, wc_SrpComputeKey(&srv,
+                                           clientPubKey, clientPubKeySz,
+                                           serverPubKey, serverPubKeySz));
+        AssertIntLE(srp_captured_size, sizeof(srp_N));
+        if ((srp_captured_size < sizeof(srp_N)) || (srp_captured_lead == 0))
+            found = 1;
+    }
+    AssertIntEQ(1, found);
+    AssertIntEQ(expectedSz, srp_captured_size);
+
+    /* Client derives the same S and must see the same width. */
+    cli.keyGenFunc_cb = srp_capture_secret;
+    srp_captured_size = 0;
+    AssertIntEQ(SRP_TEST_CAPTURE_DONE, wc_SrpComputeKey(&cli,
+                                       clientPubKey, clientPubKeySz,
+                                       serverPubKey, serverPubKeySz));
+    AssertIntEQ(expectedSz, srp_captured_size);
+
+    wc_SrpTerm(&cli);
+    wc_SrpTerm(&srv);
+
+    /* Full exchange with the default KDF at this private value. */
+    srp_setup_pair(&cli, &srv);
+    clientPubKeySz = sizeof(clientPubKey);
+    serverPubKeySz = sizeof(serverPubKey);
+    AssertIntEQ(0, wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz));
+    AssertIntEQ(0, wc_SrpSetPrivate(&srv, b, sizeof(b)));
+    AssertIntEQ(0, wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz));
+    AssertIntEQ(0, wc_SrpComputeKey(&cli, clientPubKey, clientPubKeySz,
+                                          serverPubKey, serverPubKeySz));
+    AssertIntEQ(0, wc_SrpComputeKey(&srv, clientPubKey, clientPubKeySz,
+                                          serverPubKey, serverPubKeySz));
+    AssertIntEQ(cli.keySz, srv.keySz);
+    AssertIntEQ(0, XMEMCMP(cli.key, srv.key, cli.keySz));
+
+    AssertIntEQ(0, wc_SrpGetProof(&cli, clientProof, &clientProofSz));
+    AssertIntEQ(0, wc_SrpVerifyPeersProof(&srv, clientProof, clientProofSz));
+    AssertIntEQ(0, wc_SrpGetProof(&srv, serverProof, &serverProofSz));
+    AssertIntEQ(0, wc_SrpVerifyPeersProof(&cli, serverProof, serverProofSz));
+
+    wc_SrpTerm(&cli);
+    wc_SrpTerm(&srv);
+}
+
 #endif /* !NO_SHA */
 
 static int sha512_key_gen(Srp* srp, byte* secret, word32 size)
@@ -858,6 +969,7 @@ void SrpTest(void)
     test_SrpGetPublic();
     test_SrpComputeKey();
     test_SrpGetProofAndVerify();
+    test_SrpComputeKeyLeadingZeroSecret();
 #endif /* !NO_SHA */
     test_SrpKeyGenFunc_cb();
     wolfCrypt_Cleanup();

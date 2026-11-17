@@ -969,10 +969,18 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     /* building session key from secret */
 
+#ifdef WOLFSSL_SRP_CT_SECRET
+    /* Fixed width so the KDF work does not depend on leading zeros of S. */
+    if ((r = mp_to_unsigned_bin_len_ct(s, secret, (int)secretSz)))
+        goto out;
+    if ((r = srp->keyGenFunc_cb(srp, secret, secretSz)))
+        goto out;
+#else
     if ((r = mp_to_unsigned_bin(s, secret)))
         goto out;
     if ((r = srp->keyGenFunc_cb(srp, secret, (word32)mp_unsigned_bin_size(s))))
         goto out;
+#endif
 
     /* updating client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
 

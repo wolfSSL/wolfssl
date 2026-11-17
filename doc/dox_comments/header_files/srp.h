@@ -434,7 +434,12 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size);
     \ingroup SRP
 
     \brief Computes the session key.  The key can be accessed at
-    srp->key after success.
+    srp->key after success.  By default the shared secret S is passed to
+    keyGenFunc_cb with leading zero bytes removed.  When built with
+    WOLFSSL_SRP_CT_SECRET, S is serialized in constant time and passed
+    zero padded to the length of N, so the key derivation work does not
+    depend on S.  This changes the session key whenever S has a leading
+    zero byte, so both peers must be built the same way.
 
     \return 0 Success
     \return BAD_FUNC_ARG Returned if srp, clientPubKey, or serverPubKey
