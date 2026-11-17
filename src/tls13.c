@@ -15327,7 +15327,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     if (!ssl->options.dtls) {
         maxFrag = wolfssl_local_GetMaxPlaintextSize(ssl);
         if (maxFrag <= 0)
-            return (maxFrag < 0) ? maxFrag : BUFFER_E;
+            return BUFFER_E;
         hsSz = HANDSHAKE_HEADER_SZ + length;
         if (hsSz > (word32)maxFrag) {
             fragRoom = hsSz + ((hsSz + (word32)maxFrag - 1) /
