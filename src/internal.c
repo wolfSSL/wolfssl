@@ -18006,6 +18006,26 @@ exit_mcs:
     return ret;
 }
 
+/* Is a CA with the same name and key already on the connection's list? */
+static int ProcessPeerCertIsDupWaivedCA(const WOLFSSL* ssl, const Signer* s)
+{
+    const Signer* o;
+
+    if (s->publicKey == NULL)
+        return 0;
+
+    for (o = ssl->waivedCAs; o != NULL; o = o->next) {
+        if ((o->publicKey != NULL) && (o->pubKeySize == s->pubKeySize) &&
+                (XMEMCMP(o->subjectNameHash, s->subjectNameHash,
+                    SIGNER_DIGEST_SIZE) == 0) &&
+                (XMEMCMP(o->publicKey, s->publicKey, s->pubKeySize) == 0)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 /* Add a chain CA the verify callback accepted to the connection's list. */
 static int ProcessPeerCertAddWaivedCA(WOLFSSL* ssl, buffer* cert)
 {
@@ -18015,8 +18035,13 @@ static int ProcessPeerCertAddWaivedCA(WOLFSSL* ssl, buffer* cert)
     ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_TEMP_CA,
                                          ssl->waivedCAs, &s);
     if (ret == 0 && s != NULL) {
-        s->next = ssl->waivedCAs;
-        ssl->waivedCAs = s;
+        if (ProcessPeerCertIsDupWaivedCA(ssl, s)) {
+            FreeSigner(s, SSL_CM(ssl)->heap);
+        }
+        else {
+            s->next = ssl->waivedCAs;
+            ssl->waivedCAs = s;
+        }
     }
 
     return ret;
@@ -19940,6 +19965,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         XMEMSET(args, 0, sizeof(ProcPeerCertArgs));
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
+        /* A new certificate list; the previous one's CAs are not signers for
+         * it. */
+        SslWaivedCAsFree(ssl);
     #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                               defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
         /* A new certificate list; never apply the previous one's verdicts. */
