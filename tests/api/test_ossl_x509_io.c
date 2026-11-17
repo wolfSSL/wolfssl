@@ -136,6 +136,66 @@ int test_wolfSSL_d2i_X509_concatenated(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_d2i_X509_fp_bio_concatenated(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    /* server-cert.der followed by ca-cert.der */
+    const char* fname = "./certs/server-cert-chain.der";
+    const int srvSz = (int)sizeof_server_cert_der_2048;
+    const int caSz = (int)sizeof_ca_cert_der_2048;
+    XFILE f = XBADFILE;
+    X509* cert = NULL;
+    const byte* der = NULL;
+    int derSz = 0;
+#ifndef NO_BIO
+    BIO* bio = NULL;
+#endif
+
+    /* Each call decodes one certificate and leaves the file after it. */
+    ExpectTrue((f = XFOPEN(fname, "rb")) != XBADFILE);
+    ExpectNotNull(cert = d2i_X509_fp(f, NULL));
+    ExpectIntEQ((int)XFTELL(f), srvSz);
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, srvSz);
+    ExpectBufEQ(der, server_cert_der_2048, srvSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNotNull(cert = d2i_X509_fp(f, NULL));
+    ExpectIntEQ((int)XFTELL(f), srvSz + caSz);
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, caSz);
+    ExpectBufEQ(der, ca_cert_der_2048, caSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNull(d2i_X509_fp(f, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+#ifndef NO_BIO
+    ExpectNotNull(bio = BIO_new_file(fname, "rb"));
+    ExpectNotNull(cert = d2i_X509_bio(bio, NULL));
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, srvSz);
+    ExpectBufEQ(der, server_cert_der_2048, srvSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNotNull(cert = d2i_X509_bio(bio, NULL));
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, caSz);
+    ExpectBufEQ(der, ca_cert_der_2048, caSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNull(d2i_X509_bio(bio, NULL));
+    BIO_free(bio);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_get_der_length_guards(void)
 {
     EXPECT_DECLS;

@@ -9919,6 +9919,7 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
     void *newx509 = NULL;
     byte *fileBuffer = NULL;
     long sz = 0;
+    long start = 0;
 
     /* init variable */
     if (x509)
@@ -9929,16 +9930,11 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
         return NULL;
     }
 
-    /* determine file size */
-    if (XFSEEK(file, 0, XSEEK_END) != 0) {
-        return NULL;
+    /* Read from the current position. */
+    if (wolfssl_file_len(file, &sz) == 0) {
+        start = XFTELL(file);
     }
-    sz = XFTELL(file);
-    if (XFSEEK(file, 0, XSEEK_SET) != 0) {
-        return NULL;
-    }
-
-    if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
+    if (sz <= 0 || start < 0) {
         WOLFSSL_MSG("d2i_X509_fp_ex file size error");
         return NULL;
     }
@@ -9950,7 +9946,16 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
             goto err_exit;
         }
         if (type == CERT_TYPE) {
-            newx509 = (void *)wolfSSL_X509_d2i(NULL, fileBuffer, (int)sz);
+            const byte* p = fileBuffer;
+
+            /* Decode one certificate and leave the file after it. */
+            newx509 = (void *)wolfSSL_d2i_X509(NULL, &p, (int)sz);
+            if (newx509 != NULL &&
+                    XFSEEK(file, start + (long)(p - fileBuffer), XSEEK_SET)
+                    != 0) {
+                wolfSSL_X509_free((WOLFSSL_X509*)newx509);
+                newx509 = NULL;
+            }
         }
     #ifdef HAVE_CRL
         else if (type == CRL_TYPE) {
