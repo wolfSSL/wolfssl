@@ -1200,12 +1200,23 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
 
 #endif
 #ifndef NO_DSA
+/* Free p, q, g and y, filled by wc_InitDsaKey(), an earlier decode or a
+ * partly failed parse, before GetInt() inits them again.
+ */
+static void DsaFreePublicInts(DsaKey* key)
+{
+    int i;
+
+    for (i = 0; i < DSA_INTS - 1; i++) {
+        mp_clear(GetDsaInt(key, i));
+    }
+}
+
 int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                           word32 inSz)
 {
     int    length;
     int    ret = 0;
-    int    i;
     word32 oid;
     word32 maxIdx;
 
@@ -1215,11 +1226,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    /* Free p, q, g and y from wc_InitDsaKey() or an earlier decode; GetInt()
-     * inits them again. */
-    for (i = 0; i < DSA_INTS - 1; i++) {
-        mp_clear(GetDsaInt(key, i));
-    }
+    DsaFreePublicInts(key);
     maxIdx = (word32)(*inOutIdx + (word32)length);
     if (GetInt(&key->p,  input, inOutIdx, maxIdx) < 0 ||
         GetInt(&key->q,  input, inOutIdx, maxIdx) < 0 ||
@@ -1238,6 +1245,8 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
 
+        /* The simple form above may have filled some of them. */
+        DsaFreePublicInts(key);
         if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
             GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
             GetInt(&key->g,  input, inOutIdx, inSz) < 0)
