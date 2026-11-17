@@ -3734,7 +3734,7 @@ int test_wolfSSL_CRL_same_name_key_rollover(void)
     EXPECT_DECLS;
 #if defined(HAVE_CRL) && !defined(NO_CERTS) && defined(HAVE_ECC) && \
     !defined(NO_ECC256) && !defined(NO_SHA256) && !defined(NO_SKID) && \
-    !defined(NO_ASN_TIME)
+     !defined(NO_ASN_TIME) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     /* Old key of "crl-rollover-ca", self-signed. */
     static const unsigned char caOld[] = {
         0x30, 0x82, 0x01, 0x77, 0x30, 0x82, 0x01, 0x1d, 0xa0, 0x03, 0x02,

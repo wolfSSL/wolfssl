@@ -566,7 +566,7 @@ static Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
     return NULL;
 }
 
-#if !defined(NO_ASN_TIME) && defined(USE_WOLF_VALIDATE)
+#if !defined(NO_ASN_TIME) && defined(USE_WOLF_VALIDDATE)
 /* Compare thisUpdate of two CRL entries.
  * Returns 1 if a is newer, -1 if b is newer, 0 if equal, <0 error. */
 static int CompareCRLlastDate(const CRL_Entry* a, const CRL_Entry* b)
@@ -658,7 +658,7 @@ static int CRL_Supersedes(CRL_Entry* crle, CRL_Entry* curr)
 {
     int ret;
 
-#if !defined(NO_ASN_TIME) && defined(USE_WOLF_VALIDATE)
+#if !defined(NO_ASN_TIME) && defined(USE_WOLF_VALIDDATE)
     if (!crle->crlNumberSet && !curr->crlNumberSet) {
         ret = CompareCRLlastDate(crle, curr);
         if (ret < -1)
@@ -703,16 +703,15 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             continue;
         }
 
-
-        /* A different thread may have verified the entry while we
-         * were waiting for the mutex. */
         if (crl->cm == cm) {
             if (crle->verified == 0) {
-                /* verifiy the crle */
+                /* verify the crle */
                 if (wc_LockMutex(&crle->verifyMutex) != 0) {
                     WOLFSSL_MSG("wc_LockMutex failed");
                     continue;
                 }
+                /* A different thread may have verified the entry while we
+                 * were waiting for the mutex. */
                 if (crle->verified == 0) {
                     verifyRet = VerifyCRLE(crl, crle, cm, 1);
                 }
@@ -723,31 +722,14 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             verifyRet = VerifyCRLE(crl, crle, cm, 0);
         }
 
-
         if (verifyRet != 0) {
             WOLFSSL_MSG("Cannot use CRL as it didn't verify");
-            verifyRet = 0;
             continue;
         }
 
-        if (crle->verified < 0) {
+        if (crl->cm == cm && crle->verified < 0) {
             WOLFSSL_MSG("Cannot use CRL as it didn't verify");
             continue;
-        }
-
-    /* check that the CRL is still valid skip otherwise */
-    #ifdef WOLFSSL_NO_CRL_NEXT_DATE
-        if (crle->nextDateFormat != ASN_OTHER_TYPE)
-    #endif
-        {
-        #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
-            if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
-                               ASN_AFTER, MAX_DATE_SIZE)) {
-                WOLFSSL_MSG("CRL next date is no longer valid");
-                ret = CRL_CERT_DATE_ERR;
-                continue;
-            }
-        #endif
         }
 
         /* check Akid */
@@ -759,7 +741,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             sameAkid = 1;
         } else
 #endif
-        /* check that the trust achor is the same by walking the list */
+        /* check that the trust anchor is the same by walking the list */
         {
             if (certTrustAnchor == NULL) {
             #if !defined(NO_SKID) && !defined(NO_ASN)
@@ -797,16 +779,31 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             }
         }
 
+    /* check that the CRL is still valid skip otherwise */
+    #ifdef WOLFSSL_NO_CRL_NEXT_DATE
+        if (crle->nextDateFormat != ASN_OTHER_TYPE)
+    #endif
+        {
+        #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
+            if (!XVALIDATE_DATE(crle->nextDate, crle->nextDateFormat,
+                               ASN_AFTER, MAX_DATE_SIZE)) {
+                WOLFSSL_MSG("CRL next date is no longer valid");
+                ret = CRL_CERT_DATE_ERR;
+                continue;
+            }
+        #endif
+        }
+
         /* An AKID match beats a trust anchor match. Within the same score,
          * keep the newest CRL using the same ordering AddCRL() dedups with,
          * so the choice doesn't depend on load order. */
         if (bestFitCrle == NULL || (sameAkid > bestFitCrleSameAkid) ||
-                CRL_Supersedes(crle, bestFitCrle) == 1) {
+                (sameAkid == bestFitCrleSameAkid &&
+                 CRL_Supersedes(crle, bestFitCrle) == 1)) {
             bestFitCrle = crle;
             bestFitCrleSameAkid = sameAkid;
         }
     }
-
 
     if (bestFitCrle != NULL) {
         *pFoundEntry = 1;
@@ -1834,7 +1831,6 @@ int wolfSSL_X509_CRL_up_ref(WOLFSSL_X509_CRL* crl)
 }
 #endif
 
-/* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl */
 /* Try to verify the unverified entries of a private copy against cm.
  * Entries from d2i_X509_CRL() etc. were parsed without a cm and are
  * unverified. This allows for more de-duping */
@@ -1878,6 +1874,7 @@ static int StoreAddCRL_List(WOLFSSL_X509_CRL* crl, CRL_Entry* list)
     return ret;
 }
 
+/* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl */
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {
     WOLFSSL_X509_CRL *crl;

@@ -25942,7 +25942,7 @@ Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 
     return signer;
 }
-#endif /* !IGNORE_NAME_CONSTRAINTS */
+#endif /* !IGNORE_NAME_CONSTRAINTS || HAVE_CRL */
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 /* Build the PreTBS used to verify an alternative signature, allocating the
