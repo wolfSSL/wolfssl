@@ -196,6 +196,102 @@ int test_wolfSSL_d2i_X509_fp_bio_concatenated(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    (defined(HAVE_CRL) || defined(WOLFSSL_CERT_REQ) || \
+     (!defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)))
+static long test_file_sz(const char* fname)
+{
+    long sz = -1;
+    XFILE f = XFOPEN(fname, "rb");
+
+    if (f != XBADFILE) {
+        if (XFSEEK(f, 0, XSEEK_END) == 0)
+            sz = (long)XFTELL(f);
+        XFCLOSE(f);
+    }
+    return sz;
+}
+#endif
+
+int test_wolfSSL_d2i_fp_concatenated(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    XFILE f = XBADFILE;
+    long sz1 = 0;
+    long sz2 = 0;
+
+#ifdef HAVE_CRL
+    {
+        X509_CRL* crl = NULL;
+
+        /* crl-chain.der is crl.der followed by crl2.der */
+        ExpectIntGT(sz1 = test_file_sz("./certs/crl/crl.der"), 0);
+        ExpectIntGT(sz2 = test_file_sz("./certs/crl/crl2.der"), 0);
+        ExpectTrue((f = XFOPEN("./certs/crl/crl-chain.der", "rb")) !=
+            XBADFILE);
+        ExpectNotNull(crl = d2i_X509_CRL_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        X509_CRL_free(crl);
+        crl = NULL;
+        ExpectNotNull(crl = d2i_X509_CRL_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1 + sz2);
+        X509_CRL_free(crl);
+        crl = NULL;
+        ExpectNull(d2i_X509_CRL_fp(f, NULL));
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
+#endif
+#ifdef WOLFSSL_CERT_REQ
+    {
+        X509_REQ* req = NULL;
+
+        /* csr-chain.der is csr.signed.der followed by csr.ext.der */
+        ExpectIntGT(sz1 = test_file_sz("./certs/csr.signed.der"), 0);
+        ExpectIntGT(sz2 = test_file_sz("./certs/csr.ext.der"), 0);
+        ExpectTrue((f = XFOPEN("./certs/csr-chain.der", "rb")) != XBADFILE);
+        ExpectNotNull(req = d2i_X509_REQ_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        X509_REQ_free(req);
+        req = NULL;
+        ExpectNotNull(req = d2i_X509_REQ_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1 + sz2);
+        X509_REQ_free(req);
+        req = NULL;
+        ExpectNull(d2i_X509_REQ_fp(f, NULL));
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
+#endif
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+    {
+        WOLFSSL_X509_PKCS12* p12 = NULL;
+
+        ExpectIntGT(sz1 = test_file_sz("./certs/ecc-rsa-server.p12"), 0);
+        ExpectTrue((f = XFOPEN("./certs/ecc-rsa-server.p12", "rb")) !=
+            XBADFILE);
+        ExpectNotNull(p12 = wolfSSL_d2i_PKCS12_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        wc_PKCS12_free(p12);
+        ExpectNull(wolfSSL_d2i_PKCS12_fp(f, NULL));
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
+#endif
+    (void)sz1;
+    (void)sz2;
+    (void)f;
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_get_der_length_guards(void)
 {
     EXPECT_DECLS;

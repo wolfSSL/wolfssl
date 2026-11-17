@@ -27,6 +27,7 @@
 int test_wolfSSL_i2d_X509(void);
 int test_wolfSSL_d2i_X509_concatenated(void);
 int test_wolfSSL_d2i_X509_fp_bio_concatenated(void);
+int test_wolfSSL_d2i_fp_concatenated(void);
 int test_wolfSSL_X509_get_der_length_guards(void);
 int test_wolfSSL_i2d_X509_der_length_guards(void);
 int test_wolfSSL_PEM_read_X509(void);
@@ -38,6 +39,7 @@ int test_wolfSSL_PEM_write_bio_X509(void);
         test_wolfSSL_d2i_X509_concatenated),                            \
     TEST_DECL_GROUP("ossl_x509_io",                                     \
         test_wolfSSL_d2i_X509_fp_bio_concatenated),                     \
+    TEST_DECL_GROUP("ossl_x509_io", test_wolfSSL_d2i_fp_concatenated),  \
     TEST_DECL_GROUP("ossl_x509_io",                                     \
         test_wolfSSL_X509_get_der_length_guards),                       \
     TEST_DECL_GROUP("ossl_x509_io",                                     \
