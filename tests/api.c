@@ -42982,11 +42982,32 @@ static int test_override_alt_cert_chain(void)
 
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_ALT_CERT_CHAINS)
+/* Check if err is "no signer", also accounting for OPENSSL_EXTRA */
+static int test_chain_ca_no_persist_is_no_signer(int err)
+{
+    if (err == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E))
+        return 1;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    if (err == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+        return 1;
+#endif
+    return 0;
+}
+
+static int test_chain_ca_no_persist_waived; /* CAs the callback let through */
+
 static int test_chain_ca_no_persist_verify_cb(int preverify,
         WOLFSSL_X509_STORE_CTX* store)
 {
-    (void)preverify;
-    (void)store;
+    if (preverify)
+        return 1;
+    /* The peer cert has to verify through the CAs above it, not via callback,
+     * so the handshake only succeeds when those CAs are usable as signers. */
+    if (store->error_depth == 0)
+        return 0;
+    if (!test_chain_ca_no_persist_is_no_signer(store->error))
+        return 0;
+    test_chain_ca_no_persist_waived++;
     return 1;
 }
 
@@ -43018,7 +43039,13 @@ static int test_chain_ca_no_persist_result(WOLFSSL* ssl)
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
     ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(wolfSSL_get_SSL_CTX(ssl)));
-    /* The CA trusted via callback must not be usable as a signer afterwards */
+    /* Exactly one CA needed waiving: the one whose issuer is not loaded */
+    ExpectIntEQ(test_chain_ca_no_persist_waived, 1);
+    /* The CA the callback let through must not be usable as a signer */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm,
+        "./certs/intermediate/ca-int-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    /* Nor the one below it, which only verified because of that */
     ExpectIntNE(wolfSSL_CertManagerVerify(cm,
         "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM),
         WOLFSSL_SUCCESS);
@@ -43039,6 +43066,7 @@ static int test_chain_ca_no_persist(void)
     XMEMSET(&client_cbs, 0, sizeof(client_cbs));
     XMEMSET(&server_cbs, 0, sizeof(server_cbs));
 
+    test_chain_ca_no_persist_waived = 0;
     client_cbs.ctx_ready = test_chain_ca_no_persist_client_ctx;
     client_cbs.on_result = test_chain_ca_no_persist_result;
     server_cbs.ctx_ready = test_chain_ca_no_persist_server_ctx;
@@ -43048,8 +43076,86 @@ static int test_chain_ca_no_persist(void)
 
     return EXPECT_RESULT();
 }
+
+/* The CAs a verify callback let through belong to one connection. After
+ * wolfSSL_clear() a reused object must not still treat them as signers, so a
+ * peer that sends only its leaf no longer verifies. */
+static int test_chain_ca_no_persist_clear(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL_CTX* ctx_s2 = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl_s2 = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_chain_ca_no_persist_waived = 0;
+
+    /* The client trusts nothing, so the top of the chain needs waiving. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(
+        wolfSSL_CTX_GetCertManager(ctx_c)), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_PEER,
+        test_chain_ca_no_persist_verify_cb);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    /* First peer sends the whole chain. */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/intermediate/server-chain.pem"), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_chain_ca_no_persist_waived, 1);
+
+    /* Second peer sends its leaf only, so it verifies only if the CAs from
+     * the first handshake are still signers. */
+    ExpectNotNull(ctx_s2 = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s2, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s2,
+        "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s2, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s2, test_memio_write_cb);
+    ExpectNotNull(ssl_s2 = wolfSSL_new(ctx_s2));
+    wolfSSL_SetIOReadCtx(ssl_s2, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s2, &test_ctx);
+
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s2, 10, NULL), 0);
+    /* The leaf was refused on its own, not forgiven at depth 0. */
+    ExpectIntEQ(test_chain_ca_no_persist_waived, 1);
+
+    wolfSSL_free(ssl_s2);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s2);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
 #else
 static int test_chain_ca_no_persist(void)
+{
+    return TEST_SKIPPED;
+}
+static int test_chain_ca_no_persist_clear(void)
 {
     return TEST_SKIPPED;
 }
@@ -49068,6 +49174,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_harden_no_secure_renegotiation),
     TEST_DECL(test_override_alt_cert_chain),
     TEST_DECL(test_chain_ca_no_persist),
+    TEST_DECL(test_chain_ca_no_persist_clear),
     TEST_DECL(test_rpk_set_xxx_cert_type),
     TEST_DECL(test_short_session_id),
     /* Can't memory test as client/server hangs. */
@@ -49156,6 +49263,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_dtls13_nonblock_ocsp_unfragmented_cert),
     TEST_DECL_GROUP("ocsp", test_ocsp_status_verify_cb_would_block),
     TEST_DECL_GROUP("ocsp", test_dtls12_nonblock_ocsp),
+    TEST_DECL_GROUP("ocsp", test_ocsp_staple_signed_by_waived_ca),
     TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache),
     TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache_cert_change),
     TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache_drop_in_use),
