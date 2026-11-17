@@ -64,10 +64,19 @@
     #include "../../bsdkm/bsdkm_wc_port.h"
 #endif /* WOLFSSL_LINUXKM */
 
+#ifndef WC_HAS_ATTRIBUTE
+    #ifdef __has_attribute
+        #define WC_HAS_ATTRIBUTE(x) __has_attribute(x)
+    #else
+        #define WC_HAS_ATTRIBUTE(x) 0
+    #endif
+#endif
+
 #ifndef WARN_UNUSED_RESULT
     #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
         #define WARN_UNUSED_RESULT __must_check
-    #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+    #elif WC_HAS_ATTRIBUTE(warn_unused_result) || \
+        (defined(__GNUC__) && (__GNUC__ >= 4)) || \
         (defined(__IAR_SYSTEMS_ICC__) && (__VER__ >= 9040001))
         #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
     #else
@@ -76,7 +85,8 @@
 #endif /* !WARN_UNUSED_RESULT */
 
 #ifndef WC_MAYBE_UNUSED
-    #if (defined(__GNUC__) && (__GNUC__ >= 3)) || defined(__clang__) || \
+    #if WC_HAS_ATTRIBUTE(unused) || \
+            (defined(__GNUC__) && (__GNUC__ >= 3)) || defined(__clang__) || \
             defined(__IAR_SYSTEMS_ICC__)
         #define WC_MAYBE_UNUSED __attribute__((unused))
     #else
@@ -89,7 +99,7 @@
         #define WC_DEPRECATED(msg) /* null expansion */
     #elif ((defined(__GNUC__) && \
             ((__GNUC__ >= 5) || \
-            ((__GNUC__ == 4) && (__GNUC_MINOR__ > 5))))) ||  \
+            ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 5))))) ||  \
           defined(__clang__)
         #define WC_DEPRECATED(msg) __attribute__((deprecated(msg)))
     #elif defined(__WATCOMC__)
@@ -98,7 +108,8 @@
     #elif (defined(_MSC_VER) && _MSC_VER >= 1400) || defined(__MINGW32__) || \
           defined(__CYGWIN__) || defined(_WIN32_WCE)
         #define WC_DEPRECATED(msg) __declspec(deprecated(msg))
-    #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+    #elif WC_HAS_ATTRIBUTE(deprecated) || \
+          (defined(__GNUC__) && (__GNUC__ >= 4)) || \
           defined(__IAR_SYSTEMS_ICC__)
         #define WC_DEPRECATED(msg) __attribute__((deprecated))
     #else
@@ -146,6 +157,25 @@
 #endif
 #endif
 
+#if defined(WC_NO_TAIL_CALL)
+    #undef WC_TAIL_CALL
+    #undef WC_HAVE_TAIL_CALL
+    #define WC_TAIL_CALL /* plain call: stack growth not bounded */
+#elif defined(WC_TAIL_CALL)
+    #define WC_HAVE_TAIL_CALL
+#elif WC_HAS_ATTRIBUTE(musttail)
+    /* clang >= 13, gcc >= 15: a statement attribute on the return --
+     * usage is "WC_TAIL_CALL return f(x);" -- guaranteed tail call
+     * at every optimization level, hard compile error if the target
+     * or the call shape can't honor it.
+     */
+    #define WC_TAIL_CALL __attribute__((musttail))
+    #define WC_HAVE_TAIL_CALL
+#else
+    #define WC_TAIL_CALL /* plain call: stack growth not bounded */
+    #undef WC_HAVE_TAIL_CALL
+#endif
+
 /* Restrict-qualified pointer parameter: a promise to the compiler that, within
  * the callee, no object modified through this pointer is accessed through any
  * other pointer.  Lets the callee keep values loaded through other pointers in
@@ -184,7 +214,8 @@
         #define WC_NO_INLINE __declspec(noinline)
     #elif defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         #define WC_NO_INLINE _Pragma("inline = never")
-    #elif defined(__GNUC__) || defined(__KEIL__) || defined(__DCC__)
+    #elif WC_HAS_ATTRIBUTE(noinline) || \
+          defined(__GNUC__) || defined(__KEIL__) || defined(__DCC__)
         #define WC_NO_INLINE __attribute__((noinline))
     #else
         #define WC_NO_INLINE
@@ -192,8 +223,12 @@
 #endif
 
 #ifndef WC_OMIT_FRAME_POINTER
-    #if defined(__GNUC__) && !defined(__clang__)
-        #define WC_OMIT_FRAME_POINTER  \
+    /* gcc's optimize attribute wholesale-replaced, rather than merged with, the
+     * command-line -f flags before gcc 12 (dropping e.g. -fno-strict-aliasing
+     * for the attributed function), and clang doesn't implement it at all.
+     */
+    #if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ >= 12)
+        #define WC_OMIT_FRAME_POINTER \
             __attribute__((optimize("-fomit-frame-pointer")))
     #else
         #define WC_OMIT_FRAME_POINTER
@@ -205,12 +240,17 @@
  * reference to the function: without this, -flto decides the definition is
  * unreachable, drops the body, and the branch is left with nothing to bind to
  * at link time. Costs nothing in a non-LTO build. */
-#ifndef WC_KEEP_FOR_ASM
-    #if defined(__GNUC__) || defined(__clang__)
-        #define WC_KEEP_FOR_ASM __attribute__((used))
+#ifndef WC_USED
+    #if WC_HAS_ATTRIBUTE(used) || \
+        defined(__GNUC__) || defined(__clang__)
+        #define WC_USED __attribute__((used))
     #else
-        #define WC_KEEP_FOR_ASM
+        #define WC_USED
     #endif
+#endif
+
+#ifndef WC_KEEP_FOR_ASM
+    #define WC_KEEP_FOR_ASM WC_USED
 #endif
 
 /* THREADING/MUTEX SECTION */
