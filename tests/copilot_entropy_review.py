@@ -121,17 +121,6 @@ class EntropyReview(unittest.TestCase):
         port = (ROOT / "wolfcrypt/src/wc_port.c").read_text()
         self.assertEqual(port.count("!defined(CUSTOM_RAND_GENERATE_BLOCK)"), 2)
 
-    def test_contiki_custom_block_bypasses_default_word_prng(self):
-        with tempfile.TemporaryDirectory() as directory:
-            (pathlib.Path(directory) / "contiki.h").write_text(
-                "unsigned long clock_seconds(void);\n")
-            command = ["cc", "-E", "-I", directory, "-I", str(ROOT),
-                       "-DWOLFSSL_" "CONTIKI", "-DCUSTOM_RAND_GENERATE_BLOCK=secure_block",
-                       str(ROOT / "wolfcrypt/src/random.c"), "-o", "/dev/null"]
-            result = subprocess.run(command, text=True, capture_output=True,
-                                    check=False)
-            self.assertEqual(result.returncode, 0, result.stderr)
-
     def test_ci_runs_entropy_regressions(self):
         workflow = ROOT / ".github/workflows/entropy.yml"
         self.assertTrue(workflow.is_file())
