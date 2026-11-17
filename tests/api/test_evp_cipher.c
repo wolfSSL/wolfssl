@@ -3022,6 +3022,11 @@ int test_evp_cipher_aead_iv_gen_state(void)
         0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80,
         0x90, 0xa0, 0xb0, 0xc0
     };
+    static const byte wrapIv[NONCE_SZ] = {
+        0xa1, 0xb2, 0xc3, 0xd4, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff
+    };
+    static const byte zeros[8] = { 0 };
     static const byte aad[] = { 0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad };
     static const byte plainText[] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
@@ -3082,6 +3087,26 @@ int test_evp_cipher_aead_iv_gen_state(void)
             (void*)iv), WOLFSSL_SUCCESS);
         ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1, ivs[0]),
             WOLFSSL_SUCCESS);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        /* The invocation field wraps without carrying into the fixed field. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(ctx, ciphers[c], key, NULL, 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+            (void*)wrapIv), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1, ivs[0]),
+            WOLFSSL_SUCCESS);
+        ExpectBufEQ(ivs[0], wrapIv, NONCE_SZ);
+        ExpectIntEQ(EVP_CipherUpdate(ctx, cipherText[0], &outl, plainText,
+            sizeof(plainText)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherFinal(ctx, cipherText[0], &outl),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1, ivs[1]),
+            WOLFSSL_SUCCESS);
+        ExpectBufEQ(ivs[1], wrapIv, NONCE_SZ - 8);
+        ExpectBufEQ(ivs[1] + NONCE_SZ - 8, zeros, sizeof(zeros));
         EVP_CIPHER_CTX_free(ctx);
         ctx = NULL;
 

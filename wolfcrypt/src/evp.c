@@ -1305,10 +1305,13 @@ static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *buff)
      defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
      defined(HAVE_ARIA)) && \
     ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || FIPS_VERSION_GE(2,0))
+/* Advance only the 64-bit invocation field so a wrap never alters the fixed
+ * field, as OpenSSL does for EVP_CTRL_GCM_IV_GEN. */
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
-    for (i = (int)ctrSz-1; i >= 0; i--) {
+    int end = (ctrSz > 8) ? (int)ctrSz - 8 : 0;
+    for (i = (int)ctrSz-1; i >= end; i--) {
         if (++ctr[i])
             break;
     }
