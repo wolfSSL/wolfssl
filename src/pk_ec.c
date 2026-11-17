@@ -5024,7 +5024,22 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         }
         if (res == 1) {
 #endif
-        ret  = wc_ecc_make_key_ex(rng, 0, ecKey, eccEnum);
+        /* Free a key already held. make_key re-initializes the integers, which
+         * leaks the old values with heap math. */
+        {
+            void* heap = ecKey->heap;
+        #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+            int devId = ecKey->devId;
+        #else
+            int devId = INVALID_DEVID;
+        #endif
+
+            wc_ecc_free(ecKey);
+            ret = wc_ecc_init_ex(ecKey, heap, devId);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_make_key_ex(rng, 0, ecKey, eccEnum);
+        }
 #if FIPS_VERSION3_GE(6,0,0)
         }
 #endif
