@@ -10941,14 +10941,13 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 #endif
 #ifdef WOLFSSL_SM4_GCM
             case WC_SM4_GCM_TYPE:
+                /* SM4 AEAD nonce lives only in ctx->iv; sm4.iv is unused. */
                 WOLFSSL_MSG("SM4 GCM");
-                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 #ifdef WOLFSSL_SM4_CCM
             case WC_SM4_CCM_TYPE:
                 WOLFSSL_MSG("SM4 CCM");
-                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 
@@ -11074,13 +11073,13 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 #ifdef WOLFSSL_SM4_GCM
             case WC_SM4_GCM_TYPE:
                 WOLFSSL_MSG("SM4 GCM");
-                XMEMCPY(ctx->iv, &ctx->cipher.sm4.iv, ctx->ivSz);
+                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 #ifdef WOLFSSL_SM4_CCM
             case WC_SM4_CCM_TYPE:
                 WOLFSSL_MSG("SM4 CCM");
-                XMEMCPY(ctx->iv, &ctx->cipher.sm4.iv, ctx->ivSz);
+                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 
