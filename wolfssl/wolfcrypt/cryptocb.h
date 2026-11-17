@@ -1223,7 +1223,8 @@ WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
 /* Poll completion for bulk cipher ops: on WC_PENDING_E the callback saves
  * the output pointers; wolfSSL_AsyncPoll() re-enters it with
- * WC_ALGO_TYPE_ASYNC_POLL to finish the job and fill the buffer. */
+ * WC_ALGO_TYPE_ASYNC_POLL to finish the job and fill the buffer. The event
+ * queue lock is held for that call, so the callback must not use the queue. */
 WOLFSSL_LOCAL int wc_CryptoCb_Poll(int devId);
 #endif
 
