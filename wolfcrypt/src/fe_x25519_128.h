@@ -210,6 +210,7 @@ void fe_cswap(fe f, fe g, int b)
 
     /* Convert conditional into mask. */
     m = -m;
+    FE_CT_BARRIER(m);
     t0 = m & (f[0] ^ g[0]);
     t1 = m & (f[1] ^ g[1]);
     t2 = m & (f[2] ^ g[2]);
@@ -265,6 +266,7 @@ void fe_add(fe r, const fe a, const fe b)
  * a  A field element.
  * b  A field element.
  */
+#ifndef CURVED25519_128BIT_FOLDED
 void fe_mul(fe r, const fe a, const fe b)
 {
     const __int128_t k19 = 19;
@@ -311,12 +313,65 @@ void fe_mul(fe r, const fe a, const fe b)
     r[4] = t4 & 0x7ffffffffffff;
 }
 
+#else
+void fe_mul(fe r, const fe a, const fe b)
+{
+    const __int128_t k19 = 19;
+    /* Pre-multiply by 19 in 64-bit (unsigned so the compiler cannot widen
+     * it) so that every product below is a plain signed 64x64->128 multiply.
+     * Avoids 128-bit multiplies that use the sign word of a limb as an
+     * operand - operand dependent latency on some CPUs (e.g. Cortex-A55).
+     */
+    sword64 b1_19 = (sword64)((word64)b[1] * 19);
+    sword64 b2_19 = (sword64)((word64)b[2] * 19);
+    sword64 b3_19 = (sword64)((word64)b[3] * 19);
+    sword64 b4_19 = (sword64)((word64)b[4] * 19);
+    __int128_t t0 = ((__int128_t)a[0]) * b[0]
+                  + ((__int128_t)a[1]) * b4_19
+                  + ((__int128_t)a[2]) * b3_19
+                  + ((__int128_t)a[3]) * b2_19
+                  + ((__int128_t)a[4]) * b1_19;
+    __int128_t t1 = ((__int128_t)a[0]) * b[1]
+                  + ((__int128_t)a[1]) * b[0]
+                  + ((__int128_t)a[2]) * b4_19
+                  + ((__int128_t)a[3]) * b3_19
+                  + ((__int128_t)a[4]) * b2_19;
+    __int128_t t2 = ((__int128_t)a[0]) * b[2]
+                  + ((__int128_t)a[1]) * b[1]
+                  + ((__int128_t)a[2]) * b[0]
+                  + ((__int128_t)a[3]) * b4_19
+                  + ((__int128_t)a[4]) * b3_19;
+    __int128_t t3 = ((__int128_t)a[0]) * b[3]
+                  + ((__int128_t)a[1]) * b[2]
+                  + ((__int128_t)a[2]) * b[1]
+                  + ((__int128_t)a[3]) * b[0]
+                  + ((__int128_t)a[4]) * b4_19;
+    __int128_t t4 = ((__int128_t)a[0]) * b[4]
+                  + ((__int128_t)a[1]) * b[3]
+                  + ((__int128_t)a[2]) * b[2]
+                  + ((__int128_t)a[3]) * b[1]
+                  + ((__int128_t)a[4]) * b[0];
+
+    /* Normalize to 51-bits of data per word. */
+    t0 += (t4 >> 51) * k19; t4 &= 0x7ffffffffffff;
+
+    t1 += t0 >> 51; r[0] = t0 & 0x7ffffffffffff;
+    t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
+    t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
+    t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
+    r[0] += (sword64)((t4 >> 51) * k19);
+    r[4] = t4 & 0x7ffffffffffff;
+}
+
+#endif /* CURVED25519_128BIT_FOLDED */
+
 /* Square a and put result in r. (r = a * a)
  *
  * r  A field element.
  * a  A field element.
  * b  A field element.
  */
+#ifndef CURVED25519_128BIT_FOLDED
 void fe_sq(fe r, const fe a)
 {
     const __int128_t k19 = 19;
@@ -353,6 +408,47 @@ void fe_sq(fe r, const fe a)
     r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
+
+#else
+void fe_sq(fe r, const fe a)
+{
+    const __int128_t k19 = 19;
+    /* Small multiples in 64-bit (unsigned so the compiler cannot widen them)
+     * so that every product is a plain signed 64x64->128 multiply. */
+    sword64 a0_2  = (sword64)((word64)a[0] * 2);
+    sword64 a1_2  = (sword64)((word64)a[1] * 2);
+    sword64 a2_2  = (sword64)((word64)a[2] * 2);
+    sword64 a3_2  = (sword64)((word64)a[3] * 2);
+    sword64 a3_19 = (sword64)((word64)a[3] * 19);
+    sword64 a4_19 = (sword64)((word64)a[4] * 19);
+    __int128_t t0 = ((__int128_t)a[0]) * a[0]
+                  + ((__int128_t)a1_2) * a4_19
+                  + ((__int128_t)a2_2) * a3_19;
+    __int128_t t1 = ((__int128_t)a0_2) * a[1]
+                  + ((__int128_t)a2_2) * a4_19
+                  + ((__int128_t)a[3]) * a3_19;
+    __int128_t t2 = ((__int128_t)a0_2) * a[2]
+                  + ((__int128_t)a[1]) * a[1]
+                  + ((__int128_t)a3_2) * a4_19;
+    __int128_t t3 = ((__int128_t)a0_2) * a[3]
+                  + ((__int128_t)a1_2) * a[2]
+                  + ((__int128_t)a[4]) * a4_19;
+    __int128_t t4 = ((__int128_t)a0_2) * a[4]
+                  + ((__int128_t)a1_2) * a[3]
+                  + ((__int128_t)a[2]) * a[2];
+
+    /* Normalize to 51-bits of data per word. */
+    t0 += (t4 >> 51) * k19; t4 &= 0x7ffffffffffff;
+
+    t1 += t0 >> 51; r[0] = t0 & 0x7ffffffffffff;
+    t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
+    t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
+    t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
+    r[0] += (sword64)((t4 >> 51) * k19);
+    r[4] = t4 & 0x7ffffffffffff;
+}
+
+#endif /* CURVED25519_128BIT_FOLDED */
 
 /* Multiply a by 121666 and put result in r. (r = 121666 * a)
  *
@@ -586,6 +682,7 @@ void fe_cmov(fe f, const fe g, int b)
 
     /* Convert conditional into mask. */
     m = -m;
+    FE_CT_BARRIER(m);
     t0 = m & (f[0] ^ g[0]);
     t1 = m & (f[1] ^ g[1]);
     t2 = m & (f[2] ^ g[2]);
@@ -627,6 +724,7 @@ void fe_pow22523(fe r, const fe a)
  * a  A field element.
  * b  A field element.
  */
+#ifndef CURVED25519_128BIT_FOLDED
 void fe_sq2(fe r, const fe a)
 {
     const __int128_t k2 = 2;
@@ -663,6 +761,48 @@ void fe_sq2(fe r, const fe a)
     r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
+
+#else
+void fe_sq2(fe r, const fe a)
+{
+    const __int128_t k2 = 2;
+    const __int128_t k19 = 19;
+    /* Small multiples in 64-bit (unsigned so the compiler cannot widen them)
+     * so that every product is a plain signed 64x64->128 multiply. */
+    sword64 a0_2  = (sword64)((word64)a[0] * 2);
+    sword64 a1_2  = (sword64)((word64)a[1] * 2);
+    sword64 a2_2  = (sword64)((word64)a[2] * 2);
+    sword64 a3_2  = (sword64)((word64)a[3] * 2);
+    sword64 a3_19 = (sword64)((word64)a[3] * 19);
+    sword64 a4_19 = (sword64)((word64)a[4] * 19);
+    __int128_t t0 = k2 * (((__int128_t)a[0]) * a[0]
+                        + ((__int128_t)a1_2) * a4_19
+                        + ((__int128_t)a2_2) * a3_19);
+    __int128_t t1 = k2 * (((__int128_t)a0_2) * a[1]
+                        + ((__int128_t)a2_2) * a4_19
+                        + ((__int128_t)a[3]) * a3_19);
+    __int128_t t2 = k2 * (((__int128_t)a0_2) * a[2]
+                        + ((__int128_t)a[1]) * a[1]
+                        + ((__int128_t)a3_2) * a4_19);
+    __int128_t t3 = k2 * (((__int128_t)a0_2) * a[3]
+                        + ((__int128_t)a1_2) * a[2]
+                        + ((__int128_t)a[4]) * a4_19);
+    __int128_t t4 = k2 * (((__int128_t)a0_2) * a[4]
+                        + ((__int128_t)a1_2) * a[3]
+                        + ((__int128_t)a[2]) * a[2]);
+
+    /* Normalize to 51-bits of data per word. */
+    t0 += (t4 >> 51) * k19; t4 &= 0x7ffffffffffff;
+
+    t1 += t0 >> 51; r[0] = t0 & 0x7ffffffffffff;
+    t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
+    t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
+    t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
+    r[0] += (sword64)((t4 >> 51) * k19);
+    r[4] = t4 & 0x7ffffffffffff;
+}
+
+#endif /* CURVED25519_128BIT_FOLDED */
 
 /* Load 3 little endian bytes into a 64-bit word.
  *

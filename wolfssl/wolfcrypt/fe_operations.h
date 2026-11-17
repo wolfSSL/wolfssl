@@ -29,6 +29,18 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+/* Hide a secret-derived mask from the optimizer so that masked selection is
+ * not converted into a conditional branch or conditional loads (seen with
+ * GCC -O3 on PPC64 and Clang -O1/-O2/-Os on x86_64, AArch64 and RV64).
+ */
+#ifndef FE_CT_BARRIER
+    #if defined(__GNUC__) && !defined(WOLFSSL_NO_ASM_BARRIER)
+        #define FE_CT_BARRIER(v)    __asm__ __volatile__ ("" : "+r" (v))
+    #else
+        #define FE_CT_BARRIER(v)    (void)(v)
+    #endif
+#endif
+
 /* CURVED25519_X64, CURVED25519_128BIT, CURVED25519_ASM[_32BIT|_64BIT] and
  * WOLFSSL_CURVE25519_USE_ED25519 are derived in settings.h, so that the
  * generated assembly - which only ever sees settings.h - is guarded by the
