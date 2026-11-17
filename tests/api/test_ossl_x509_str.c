@@ -4786,6 +4786,7 @@ static STACK_OF(X509_CRL)* test_set0_crls_stack;
 static int test_set0_crls_preverify; /* preverify_ok seen at depth 0 */
 static int test_set0_crls_error;     /* error seen when preverify_ok == 0 */
 static int test_set0_crls_reject_peer; /* verify cb rejects the peer cert */
+static int test_set0_crls_chain_local; /* chain CAs on the connection's list */
 
 /* Mimics OpenVPN's cert_verify_callback. */
 static int test_set0_crls_cert_verify_cb(X509_STORE_CTX* ctx, void* arg)
@@ -4800,6 +4801,7 @@ static int test_set0_crls_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
 {
     if (X509_STORE_CTX_get_error_depth(ctx) == 0) {
         test_set0_crls_preverify = preverify_ok;
+        test_set0_crls_chain_local = (ctx->extraCa != NULL);
         if (test_set0_crls_reject_peer)
             return 0;
     }
@@ -4823,13 +4825,13 @@ static int test_set0_crls_ctx_ready(WOLFSSL_CTX* ctx)
     return EXPECT_RESULT();
 }
 
-static int test_set0_crls_chain_cached; /* chain CAs kept in the store */
+static int test_set0_crls_chain_cached; /* chain CAs left in the store */
 
 static int test_set0_crls_ctx_cleanup(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_CERT_MANAGER* cm = wolfSSL_CTX_GetCertManager(ctx);
 
-    /* The peer cert only verifies when the chain CAs were kept. */
+    /* A chain CA left in the store would let the peer cert verify on its own. */
     (void)wolfSSL_CertManagerDisableCRL(cm);
     test_set0_crls_chain_cached = (wolfSSL_CertManagerVerify(cm,
         "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM) ==
@@ -4904,7 +4906,8 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void)
     test_set0_crls_stack = NULL;
 
     /* The server presents intermediates. Their CRLs are only in the stack. The
-     * handshake succeeds and the chain CAs are kept. */
+     * handshake succeeds, and the chain CAs are kept for this connection only:
+     * the callback cleared the error wolfSSL reported for them. */
     XMEMSET(&client_cbs, 0, sizeof(client_cbs));
     XMEMSET(&server_cbs, 0, sizeof(server_cbs));
     client_cbs.ctx_ready = test_set0_crls_ctx_ready;
@@ -4920,10 +4923,12 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void)
     test_set0_crls_preverify = -1;
     test_set0_crls_error = 0;
     test_set0_crls_chain_cached = 0;
+    test_set0_crls_chain_local = 0;
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
         &server_cbs, NULL), TEST_SUCCESS);
     ExpectIntEQ(test_set0_crls_preverify, 1);
-    ExpectIntEQ(test_set0_crls_chain_cached, 1);
+    ExpectIntEQ(test_set0_crls_chain_local, 1);
+    ExpectIntEQ(test_set0_crls_chain_cached, 0);
     sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
     test_set0_crls_stack = NULL;
 

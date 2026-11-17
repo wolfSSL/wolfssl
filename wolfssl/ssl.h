@@ -741,6 +741,9 @@ struct WOLFSSL_X509_STORE_CTX {
 #endif
     int   peerCertDepth;         /* depth of current_cert in the peer's chain,
                                   * set by the handshake */
+    struct Signer* extraCa;      /* chain CAs the connection's verify callback
+                                  * accepted, set by the handshake. Not owned
+                                  * by this ctx. */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 };
 

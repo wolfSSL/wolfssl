@@ -256,6 +256,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         ctx->crls = NULL;
 #endif
         ctx->peerCertDepth = 0;
+        ctx->extraCa = NULL;
         if (ctx->chain != NULL) {
             wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
             ctx->chain = NULL;
@@ -563,7 +564,8 @@ static int X509StoreCheckCtxCrls(WOLFSSL_X509_STORE_CTX* ctx)
                 continue;
             /* Use the store's cm to verify the CRL. The caller-owned crl is
              * not modified. */
-            ret = CheckCertCRLFromCm(ctx->store->cm, crl, cert);
+            ret = CheckCertCRLFromCm(ctx->store->cm, crl, cert,
+                    ctx->extraCa);
             if (ret == 0)
                 found = 1;
             else if (ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))
@@ -636,7 +638,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
 
     if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
         ret = CM_VerifyBuffer_ex(ctx->store->cm,
-                    ctx->current_cert->derCert->buffer,
+                    ctx->current_cert->derCert->buffer, ctx->extraCa,
                     ctx->current_cert->derCert->length,
                     WOLFSSL_FILETYPE_ASN1, 0, &crlRet);
         datesChecked = (ret == WOLFSSL_SUCCESS) ||

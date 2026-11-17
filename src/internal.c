@@ -17422,6 +17422,8 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
     store->error_depth = args->certIdx;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     store->peerCertDepth = args->certIdx;
+    /* An X509_verify_cert() from the callback resolves the chain as we do. */
+    store->extraCa = (ssl != NULL) ? ssl->waivedCAs : NULL;
 #endif
     store->discardSessionCerts = 0;
     store->domain = domain;
@@ -17904,7 +17906,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
             /* Point to current cm to be able to verify CRL */
             userCrl->cm = SSL_CM(ssl);
             *outRet = CheckCertCRLFromCm(SSL_CM(ssl), userCrl,
-                    args->dCert);
+                    args->dCert, ssl->waivedCAs);
         }
         else
             *outRet = CRL_MISSING;
@@ -18790,7 +18792,7 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
     for (; ret == 0 && ca != NULL && ca != prev;
             prev = ca, ca = GetCAByName(cm, ca->issuerNameHash)) {
         ret = CheckCertCRL_ex(cm->crl, ca->issuerNameHash, NULL, 0,
-                ca->serialHash, NULL, 0, NULL);
+                ca->serialHash, NULL, 0, NULL, ssl->waivedCAs);
     #ifdef WOLFSSL_NONBLOCK_OCSP
         if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
             break;
@@ -19092,7 +19094,7 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
         int crlRet;
 
         WOLFSSL_MSG("Taking deferred Leaf CRL check");
-        crlRet = CheckCertCRL(SSL_CM(ssl)->crl, args->dCert);
+        crlRet = CheckCertCRL(SSL_CM(ssl)->crl, args->dCert, ssl->waivedCAs);
     #ifdef WOLFSSL_NONBLOCK_OCSP
         if (crlRet == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
             *pRet = crlRet;
@@ -19148,7 +19150,7 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
     if ((ret == 0 || ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN))
             && doLookup && SSL_CM(ssl)->crlEnabled) {
         WOLFSSL_MSG("Doing Leaf CRL check");
-        ret = CheckCertCRL(SSL_CM(ssl)->crl, args->dCert);
+        ret = CheckCertCRL(SSL_CM(ssl)->crl, args->dCert, ssl->waivedCAs);
     #ifdef WOLFSSL_NONBLOCK_OCSP
         /* The CRL lookup I/O callback is using the
          * same WOULD_BLOCK error code as OCSP's I/O
@@ -20507,7 +20509,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             if (doCrlLookup) {
                                 WOLFSSL_MSG("Doing Non Leaf CRL check");
                                 ret = CheckCertCRL(SSL_CM(ssl)->crl,
-                                        args->dCert);
+                                        args->dCert, ssl->waivedCAs);
                             #ifdef WOLFSSL_NONBLOCK_OCSP
                                 /* The CRL lookup I/O callback is using the
                                  * same WOULD_BLOCK error code as OCSP's I/O
@@ -46675,7 +46677,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             #ifdef HAVE_CRL
                 if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
                     ret = CheckCertCRLFromCm(SSL_CM(ssl), SSL_CM(ssl)->crl,
-                            dCert);
+                            dCert, ssl->waivedCAs);
                 }
             #endif
                 if (ret == 0) {
