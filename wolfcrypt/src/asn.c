@@ -25977,11 +25977,13 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 #ifndef NO_SKID
     if (cert->authKeyIdSet) {
         signer = GetCA(cm, cert->authKeyIdHash);
+    #ifndef WOLFSSL_ALLOW_AKID_SKID_MATCH
         if (signer != NULL &&
                 XMEMCMP(signer->subjectNameHash, cert->issuerNameHash,
                         SIGNER_DIGEST_SIZE) != 0) {
             signer = NULL;
         }
+    #endif
         /* AKID is authoritative; do not fall back to name when AKID
          * is set (could substitute a same-DN sibling). */
     }
@@ -27142,7 +27144,14 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
         XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
                 SIGNER_DIGEST_SIZE);
     #ifndef IGNORE_NAME_CONSTRAINTS
-        if (cert->extAuthKeyIdSet) {
+        /* Prefer the issuer ParseCertRelative() resolved, which may have
+         * been found by AKID issuer and serial. */
+        if (cert->ca != NULL) {
+            XMEMCPY(signer->authKeyIdHash, cert->ca->subjectKeyIdHash,
+                    SIGNER_DIGEST_SIZE);
+            signer->authKeyIdSet = 1;
+        }
+        else if (cert->extAuthKeyIdSet) {
             XMEMCPY(signer->authKeyIdHash, cert->extAuthKeyId,
                     SIGNER_DIGEST_SIZE);
             signer->authKeyIdSet = 1;

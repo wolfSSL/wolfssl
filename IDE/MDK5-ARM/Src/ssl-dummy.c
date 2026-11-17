@@ -37,3 +37,8 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
     return NULL;
 }
 
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip)
+{
+    return NULL;
+}
