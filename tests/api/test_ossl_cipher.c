@@ -607,22 +607,32 @@ int test_wolfSSL_AES_cbc_encrypt(void)
         wc_AesFree((Aes*)&aes);
 
     #ifdef HAVE_AES_DECRYPT
-        /* decrypting the same length reads the whole final block but writes
-         * only len bytes */
+      {
+        byte zeroTail[AES_BLOCK_SIZE - 1];
+
+        XMEMSET(zeroTail, 0, sizeof(zeroTail));
         ExpectIntEQ(wolfSSL_AES_set_decrypt_key(cbcKey, 128, &aes), 0);
+
+        /* a partial decrypt length is rejected: nothing written, IV kept */
         XMEMSET(buf, 0xDD, sizeof(buf));
         XMEMCPY(ivw, cbcIv, AES_BLOCK_SIZE);
         wolfSSL_AES_cbc_encrypt(ct17, buf, 17, &aes, ivw, AES_DECRYPT);
-        ExpectBufEQ(buf, pt, 17);
-        ExpectIntEQ(buf[17], 0xDD);
-        ExpectBufEQ(ivw, ct17 + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        ExpectIntEQ(buf[0], 0xDD);
+        ExpectIntEQ(XMEMCMP(buf, buf + 1, sizeof(buf) - 1), 0);
+        ExpectBufEQ(ivw, cbcIv, AES_BLOCK_SIZE);
 
-        /* in place */
+        /* the padded ciphertext decrypts whole, in place */
+        XMEMSET(buf, 0xDD, sizeof(buf));
         XMEMCPY(buf, ct17, sizeof(ct17));
         XMEMCPY(ivw, cbcIv, AES_BLOCK_SIZE);
-        wolfSSL_AES_cbc_encrypt(buf, buf, 17, &aes, ivw, AES_DECRYPT);
+        wolfSSL_AES_cbc_encrypt(buf, buf, sizeof(ct17), &aes, ivw,
+            AES_DECRYPT);
         ExpectBufEQ(buf, pt, 17);
+        ExpectBufEQ(buf + 17, zeroTail, sizeof(zeroTail));
+        ExpectIntEQ(buf[sizeof(ct17)], 0xDD);
+        ExpectBufEQ(ivw, ct17 + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
         wc_AesFree((Aes*)&aes);
+      }
     #endif
     }
 

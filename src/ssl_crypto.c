@@ -3358,9 +3358,12 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         Aes* aes = (Aes*)key;
         word32 whole = (word32)len & ~(word32)(WC_AES_BLOCK_SIZE - 1);
         word32 rem = (word32)len - whole;
-        byte blk[WC_AES_BLOCK_SIZE];
 
-        if ((ret = wc_AesSetIV(aes, (const byte*)iv)) != 0) {
+        if ((enc != AES_ENCRYPTION) && (rem > 0)) {
+            ret = BAD_LENGTH_E;
+            WOLFSSL_MSG("AES CBC decrypt length not a block multiple");
+        }
+        else if ((ret = wc_AesSetIV(aes, (const byte*)iv)) != 0) {
             WOLFSSL_MSG("Error with setting iv");
         }
         else if (enc == AES_ENCRYPTION) {
@@ -3371,9 +3374,12 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
             /* A partial final block is zero-padded and written as
              * a whole block, so out must have room up to the block end. */
             if ((ret == 0) && (rem > 0)) {
+                byte blk[WC_AES_BLOCK_SIZE];
+
                 XMEMSET(blk, 0, sizeof(blk));
                 XMEMCPY(blk, in + whole, rem);
                 ret = wc_AesCbcEncrypt(aes, out + whole, blk, sizeof(blk));
+                ForceZero(blk, sizeof(blk));
             }
             if (ret != 0) {
                 WOLFSSL_MSG("Error with AES CBC encrypt");
@@ -3381,23 +3387,9 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         }
         else {
             /* Decrypt with wolfCrypt AES object. */
-            if (whole > 0) {
-                ret = wc_AesCbcDecrypt(aes, out, in, whole);
-            }
-            /* The whole final block is read and only the
-             * remaining bytes are written. */
-            if ((ret == 0) && (rem > 0)) {
-                ret = wc_AesCbcDecrypt(aes, blk, in + whole, sizeof(blk));
-                if (ret == 0) {
-                    XMEMCPY(out + whole, blk, rem);
-                }
-            }
-            if (ret != 0) {
+            if ((ret = wc_AesCbcDecrypt(aes, out, in, whole)) != 0) {
                 WOLFSSL_MSG("Error with AES CBC decrypt");
             }
-        }
-        if (rem > 0) {
-            ForceZero(blk, sizeof(blk));
         }
 
         if (ret == 0) {
