@@ -5003,7 +5003,7 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         * !WOLFSSL_KCAPI_DH */
         {
             if (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv,
-                           (word32)privSz, pub, (word32)pubSz) < 0) {
+                           (word32)privSz, pub, (word32)pubSz) != 0) {
                 WOLFSSL_ERROR_MSG("wc_DhAgree failed");
                 ret = WOLFSSL_FATAL_ERROR;
             }

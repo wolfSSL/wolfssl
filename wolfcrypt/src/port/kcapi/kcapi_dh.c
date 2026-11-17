@@ -68,7 +68,11 @@ static int KcapiDh_SetParams(DhKey* key)
     }
     if (ret == 0) {
         ret = kcapi_kpp_dh_setparam_pkcs3(key->handle, pkcs3, len);
-        if (ret != 0) {
+        /* Success returns the maximum KPP output size. */
+        if (ret >= 0) {
+            ret = 0;
+        }
+        else {
             WOLFSSL_MSG("KcapiDh_SetParams: Failed to set");
         }
     }
