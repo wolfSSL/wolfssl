@@ -26556,30 +26556,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
         if (!cert->selfIssued || (verify != NO_VERIFY && type != CA_TYPE &&
                                                    type != TRUSTED_PEER_TYPE)) {
             cert->ca = NULL;
-            if (extraCAList != NULL) {
-        #ifndef NO_SKID
-                if (cert->extAuthKeyIdSet) {
-                    Signer* exCa;
-
-                    for (exCa = extraCAList; exCa != NULL; exCa = exCa->next) {
-                        if (XMEMCMP(exCa->subjectKeyIdHash,
-                                    cert->extAuthKeyId,
-                                    SIGNER_DIGEST_SIZE) == 0 &&
-                            XMEMCMP(exCa->subjectNameHash, cert->issuerHash,
-                                    SIGNER_DIGEST_SIZE) == 0) {
-                            cert->ca = exCa;
-                            break;
-                        }
-                    }
-                    /* AKID is authoritative; do not fall back to name. */
-                }
-                else
-        #endif
-                {
-                    cert->ca = findSignerByName(extraCAList,
-                                                cert->issuerHash);
-                }
-            }
     #ifndef NO_SKID
             if (cert->ca == NULL && cert->extAuthKeyIdSet) {
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
@@ -26638,6 +26614,31 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             if (cert->ca == NULL)
                 cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
+
+            if (cert->ca == NULL && extraCAList != NULL) {
+        #ifndef NO_SKID
+                if (cert->extAuthKeyIdSet) {
+                    Signer* exCa;
+
+                    for (exCa = extraCAList; exCa != NULL; exCa = exCa->next) {
+                        if (XMEMCMP(exCa->subjectKeyIdHash,
+                                    cert->extAuthKeyId,
+                                    SIGNER_DIGEST_SIZE) == 0 &&
+                            XMEMCMP(exCa->subjectNameHash, cert->issuerHash,
+                                    SIGNER_DIGEST_SIZE) == 0) {
+                            cert->ca = exCa;
+                            break;
+                        }
+                    }
+                    /* AKID is authoritative; do not fall back to name. */
+                }
+                else
+        #endif
+                {
+                    cert->ca = findSignerByName(extraCAList,
+                                                cert->issuerHash);
+                }
+            }
 
             if (cert->ca) {
                 WOLFSSL_MSG("CA found");
