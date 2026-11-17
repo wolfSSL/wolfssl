@@ -6755,7 +6755,7 @@ void wolfSSL_EVP_init(void)
                                     int arg, void *ptr)
     {
         int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
         int authTagSz;
@@ -6817,7 +6817,7 @@ void wolfSSL_EVP_init(void)
                 ret = wolfSSL_EVP_CIPHER_CTX_set_iv_length(ctx, arg);
                 break;
 
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
             case WOLFSSL_EVP_CTRL_AEAD_SET_IV_FIXED:
@@ -6871,7 +6871,8 @@ void wolfSSL_EVP_init(void)
                 }
 #ifndef WC_NO_RNG
             #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-                defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+                defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
+                defined(HAVE_ARIA)
                 if (ret == WOLFSSL_SUCCESS) {
                     /*
                      * OpenSSL requires that a EVP_CTRL_AEAD_SET_IV_FIXED
@@ -6887,7 +6888,7 @@ void wolfSSL_EVP_init(void)
                 break;
 #endif /* HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM ||
         * (HAVE_CHACHA && HAVE_POLY1305) */
-#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
      defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
     !defined(_WIN32) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(2,0))
@@ -9088,7 +9089,7 @@ void wolfSSL_EVP_init(void)
     }
 #endif
 
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
     /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */

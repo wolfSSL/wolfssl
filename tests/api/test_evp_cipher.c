@@ -2742,9 +2742,7 @@ int test_wolfssl_EVP_aria_gcm_iv_gen(void)
 {
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && !defined(WC_NO_RNG) && \
-    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
-    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     EXPECT_DECLS;
     enum {
         NUM_RECORDS = 3
@@ -2851,9 +2849,7 @@ int test_wolfssl_EVP_aria_gcm_cipher_aad(void)
 {
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && !defined(WC_NO_RNG) && \
-    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
-    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     EXPECT_DECLS;
     static const byte key[ARIA_128_KEY_SIZE] = {
         0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -2951,9 +2947,7 @@ int test_wolfssl_EVP_aria_gcm_used_iv(void)
 {
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && !defined(WC_NO_RNG) && \
-    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
-    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     EXPECT_DECLS;
     static const byte key[ARIA_128_KEY_SIZE] = {
         0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -3008,7 +3002,7 @@ int test_evp_cipher_aead_iv_gen_state(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && !defined(WC_NO_RNG) && !defined(_WIN32) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
-    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
      defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
     EXPECT_DECLS;
     enum {
