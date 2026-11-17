@@ -5564,6 +5564,10 @@ static int test_verified_chain_run(const byte* ca1, int ca1Sz,
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+#define TEST_VCHAIN_SERVER_RESUME
 /* As nginx with session tickets off: a TLS 1.3 server verifies a client cert
  * issued by anchorDer, a CA of its cert manager that X509_verify_cert()
  * rejects, then resumes the session. The verified chain is the client's cert
@@ -5572,9 +5576,6 @@ static int test_verified_chain_server_resume(const byte* anchorDer,
     int anchorSz, const byte* leafDer, int leafSz)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
-    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
-    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX* ctx_c = NULL;
     WOLFSSL_CTX* ctx_s = NULL;
     WOLFSSL* ssl_c = NULL;
@@ -5627,15 +5628,10 @@ static int test_verified_chain_server_resume(const byte* anchorDer,
     wolfSSL_SESSION_free(sess);
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
-#else
-    (void)anchorDer;
-    (void)anchorSz;
-    (void)leafDer;
-    (void)leafSz;
-#endif
 
     return EXPECT_RESULT();
 }
+#endif
 #endif /* !NO_FILESYSTEM && WOLFSSL_SIGNER_DER_CERT */
 #endif /* session chain slot test dependencies */
 
@@ -5875,8 +5871,10 @@ int test_wolfSSL_get0_verified_chain_anchor(void)
         leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_RESUME,
         WOLFSSL_X509_V_ERR_INVALID_CA, 2), TEST_SUCCESS);
 #endif
+#ifdef TEST_VCHAIN_SERVER_RESUME
     ExpectIntEQ(test_verified_chain_server_resume(anchorDer, anchorSz,
         leafDer, leafSz), TEST_SUCCESS);
+#endif
     ExpectIntEQ(test_verified_chain_run(caDer, caSz, anchorDer, anchorSz,
         NULL, leafDer, leafSz, anchorDer, anchorSz, TEST_VCHAIN_PEER,
         WOLFSSL_X509_V_ERR_INVALID_CA, 3), TEST_SUCCESS);
