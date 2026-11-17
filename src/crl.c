@@ -539,11 +539,7 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
 }
 
 
-/* Find the trust anchor that ca chains up to in cm.
- * Walks issuers with FindSignerByAkidOrName() and returns the top of the
- * chain: the first CA that is self-signed or whose issuer isn't loaded.
- * Returns NULL if ca is NULL, or if no single anchor exists because the chain
- * loops or is longer than WOLFSSL_MAX_CHAIN_DEPTH. */
+/* Find the trust anchor that the ca chains up to in cm. */
 static Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
 {
     Signer* prev = NULL;
@@ -651,9 +647,7 @@ static int CRL_SameSeries(const CRL_Entry* a, const CRL_Entry* b)
 }
 
 /* Returns 1 if crle supersedes curr, 0 if it does not, < 0 on error.
- * Uses the CRL number when either has one (a missing number counts as 0, so
- * a numbered CRL beats an unnumbered one). thisUpdate is only used when
- * neither has a number. */
+ * If possible check last date otherwise fallback to CRL number. */
 static int CRL_Supersedes(CRL_Entry* crle, CRL_Entry* curr)
 {
     int ret;
@@ -741,7 +735,6 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             sameAkid = 1;
         } else
 #endif
-        /* check that the trust anchor is the same by walking the list */
         {
             if (certTrustAnchor == NULL) {
             #if !defined(NO_SKID) && !defined(NO_ASN)
@@ -794,9 +787,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         #endif
         }
 
-        /* An AKID match beats a trust anchor match. Within the same score,
-         * keep the newest CRL using the same ordering AddCRL() dedups with,
-         * so the choice doesn't depend on load order. */
+        /* An AKID match beats a trust anchor match. */
         if (bestFitCrle == NULL || (sameAkid > bestFitCrleSameAkid) ||
                 (sameAkid == bestFitCrleSameAkid &&
                  CRL_Supersedes(crle, bestFitCrle) == 1)) {
@@ -1023,15 +1014,7 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
 #endif
 
 
-/* Insert crle into crl's list. Caller holds the crlLock write lock.
- * Several CRLs can share an issuer name (e.g. after a CA key rollover), so a
- * CRL is only deduplicated against verified CRLs of the same issuer and
- * signing key (CRL_SameSeries): a newer one replaces the entry, an equal or
- * older one is rejected with DUPE_ENTRY_E. Otherwise it is prepended.
- * An unverified CRL can't be trusted to name its key or number, so it never
- * replaces anything and is always prepended. It is verified when first used
- * (CheckCertCRLList) and skipped if that fails, so it can't hide a CRL.
- * Returns 0 when crl now owns crle, otherwise crle is left to the caller. */
+/* Insert crle into crl's list. Caller holds the crlLock write lock. */
 static int AddCRL_EntryLocked(WOLFSSL_CRL* crl, CRL_Entry* crle)
 {
 #if defined(OPENSSL_EXTRA)

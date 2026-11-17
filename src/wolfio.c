@@ -2601,7 +2601,8 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     ret = wolfIO_HttpProcessResponse(sfd, appStrList,
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
     if (ret >= 0) {
-        ret = BufferLoadCRL(crl, respBuf, ret, WOLFSSL_FILETYPE_ASN1, 0);
+        ret = BufferLoadCRL(crl, respBuf, ret, WOLFSSL_FILETYPE_ASN1,
+                VERIFY_SKIP_DATE);
     }
     XFREE(respBuf, crl->heap, DYNAMIC_TYPE_CRL);
 
