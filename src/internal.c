@@ -6110,10 +6110,13 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
             x509->key.pkey = NULL;
         }
     #endif
-    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
+    #if (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)) && \
+        (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
         if (x509->reqAttributes) {
             wolfSSL_sk_pop_free(x509->reqAttributes, NULL);
         }
+    #endif
+    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
     #ifdef WOLFSSL_CUSTOM_OID
         for (idx = 0; idx < x509->customExtCount; idx++) {
             XFREE(x509->custom_exts[idx].oid, x509->heap,
