@@ -164,6 +164,204 @@ int wolfSSL_GetHmacMaxSize(void);
 /*!
     \ingroup HMAC
 
+    \brief Single shot function for generating an HMAC. Initializes, keys,
+    hashes the message and finalizes in one call. The full digest size tag of
+    the hash type is always written.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if out or outSz is NULL, in is NULL with a non-zero
+    inSz, key is NULL with a non-zero keySz, or type is invalid
+    \return BUFFER_E if *outSz is smaller than the digest size of type
+    \return MEMORY_E if allocating the HMAC context fails
+    \return HMAC_MIN_KEYLEN_E may be returned in FIPS builds when the key is
+    shorter than the FIPS minimum
+
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param out buffer to hold the tag
+    \param outSz on input the size of out, at least the digest size of type
+    (WC_MAX_DIGEST_SIZE always fits); on output the digest size
+    \param in message to authenticate
+    \param inSz length of the message
+    \param key HMAC key; may be NULL when keySz is 0
+    \param keySz length of the key
+
+    _Example_
+    \code
+    byte   tag[WC_SHA256_DIGEST_SIZE];
+    word32 tagSz = sizeof(tag);
+    ret = wc_HmacGenerate(WC_SHA256, tag, &tagSz, msg, msgSz, key, keySz);
+    \endcode
+
+    \sa wc_HmacGenerate_ex
+    \sa wc_HmacVerify
+*/
+int wc_HmacGenerate(int type, byte* out, word32* outSz,
+                    const byte* in, word32 inSz,
+                    const byte* key, word32 keySz);
+
+/*!
+    \ingroup HMAC
+
+    \brief Single shot HMAC for use with a crypto callback device. Use this
+    function only with crypto callbacks; otherwise use wc_HmacGenerate. It
+    works like wc_HmacGenerate, but uses caller provided storage for the HMAC
+    context and takes a heap hint and device ID. Unless key is NULL, the
+    context is initialized with wc_HmacInit and released with wc_HmacFree
+    inside this call, so it must not hold a live HMAC operation on entry.
+
+    If a devId is specified, the crypto callback is immediately dispatched to,
+    with all arguments passed in and no context initialization. If the one-shot
+    operation is declined, the HMAC context is then initialized with the
+    supplied key (if present) and offload to the device will again be attempted,
+    but through the streaming interface (update/final).
+
+    To use a key that is stored on the device, initialize hmac with
+    wc_HmacInit_Id or wc_HmacInit_Label and pass a NULL key. The context is
+    then not initialized or freed by this call, and the caller is expected to
+    free it manually.
+
+    With a NULL key, hmac must always be initialized by the caller. A NULL key
+    is only for a key that is stored on the crypto callback device. If no
+    device computes the tag, the call fails with MISSING_KEY. A NULL key is
+    never used as a key of zero length. For a key of zero length, pass a
+    non-NULL key with a keySz of 0, or use wc_HmacGenerate.
+
+    \return see wc_HmacGenerate; also BAD_FUNC_ARG if hmac is NULL
+    \return MISSING_KEY if key is NULL and no device computed the tag
+    \return WC_PENDING_E if a crypto callback device returned pending; no tag
+    was produced. The caller may call again, which starts a new operation.
+
+    \param hmac storage for the HMAC context, or an initialized context that
+    names a key on the device
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param out buffer to hold the tag
+    \param outSz on input the size of out; on output the digest size
+    \param in message to authenticate
+    \param inSz length of the message
+    \param key HMAC key, or NULL to use the key on the device that hmac names.
+    With a NULL key, hmac must be initialized by the caller
+    \param keySz length of the key
+    \param heap heap hint for dynamic memory, or NULL
+    \param devId device ID for crypto callbacks or async, or INVALID_DEVID
+
+    _Example_
+    \code
+    Hmac   hmac;
+    byte   tag[WC_SHA256_DIGEST_SIZE];
+    word32 tagSz = sizeof(tag);
+    ret = wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+                             key, keySz, NULL, devId);
+
+    // key stored on the device
+    ret = wc_HmacInit_Id(&hmac, id, idLen, NULL, devId);
+    if (ret == 0) {
+        tagSz = sizeof(tag);
+        ret = wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+                                 NULL, 0, NULL, devId);
+        wc_HmacFree(&hmac);
+    }
+    \endcode
+
+    \sa wc_HmacGenerate
+    \sa wc_HmacVerify_ex
+*/
+int wc_HmacGenerate_ex(Hmac* hmac, int type, byte* out, word32* outSz,
+                       const byte* in, word32 inSz,
+                       const byte* key, word32 keySz,
+                       void* heap, int devId);
+
+/*!
+    \ingroup HMAC
+
+    \brief Single shot function for validating an HMAC. Computes the tag over
+    the message and compares it against check in constant time. Only full
+    length tags are accepted.
+
+    \return 0 if the tag matches
+    \return MAC_CMP_FAILED_E if the tag does not match
+    \return BAD_FUNC_ARG if check is NULL, checkSz is not the digest size of
+    type, or any wc_HmacGenerate argument check fails
+    \return MEMORY_E if allocating the HMAC context fails
+    \return HMAC_MIN_KEYLEN_E may be returned in FIPS builds when the key is
+    shorter than the FIPS minimum
+
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param check expected tag
+    \param checkSz length of the expected tag; must equal the digest size of
+    type
+    \param in message that was authenticated
+    \param inSz length of the message
+    \param key HMAC key; may be NULL when keySz is 0
+    \param keySz length of the key
+
+    _Example_
+    \code
+    ret = wc_HmacVerify(WC_SHA256, tag, tagSz, msg, msgSz, key, keySz);
+    if (ret == MAC_CMP_FAILED_E) {
+        // reject the message
+    }
+    \endcode
+
+    \sa wc_HmacVerify_ex
+    \sa wc_HmacGenerate
+*/
+int wc_HmacVerify(int type, const byte* check, word32 checkSz,
+                  const byte* in, word32 inSz,
+                  const byte* key, word32 keySz);
+
+/*!
+    \ingroup HMAC
+
+    \brief Single shot HMAC verify for use with a crypto callback device. Use
+    this function only with crypto callbacks; otherwise use wc_HmacVerify. It
+    works like wc_HmacVerify, but uses caller provided storage for the HMAC
+    context and takes a heap hint and device ID. The context, the crypto
+    callback device and a key stored on the device are used as in
+    wc_HmacGenerate_ex.
+
+    With a NULL key, hmac must always be initialized by the caller. A NULL key
+    is only for a key that is stored on the crypto callback device. If no
+    device computes the tag, the call fails with MISSING_KEY. A NULL key is
+    never used as a key of zero length.
+
+    \return see wc_HmacVerify; also BAD_FUNC_ARG if hmac is NULL
+    \return MISSING_KEY if key is NULL and no device computed the tag
+    \return WC_PENDING_E if a crypto callback device returned pending; the
+    tag was not checked. The caller may call again, which starts a new
+    operation.
+
+    \param hmac storage for the HMAC context, or an initialized context that
+    names a key on the device
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param check expected tag
+    \param checkSz length of the expected tag; must equal the digest size of
+    type
+    \param in message that was authenticated
+    \param inSz length of the message
+    \param key HMAC key, or NULL to use the key on the device that hmac names.
+    With a NULL key, hmac must be initialized by the caller
+    \param keySz length of the key
+    \param heap heap hint for dynamic memory, or NULL
+    \param devId device ID for crypto callbacks or async, or INVALID_DEVID
+
+    _Example_
+    \code
+    Hmac hmac;
+    ret = wc_HmacVerify_ex(&hmac, WC_SHA256, tag, tagSz, msg, msgSz,
+                           key, keySz, NULL, devId);
+    \endcode
+
+    \sa wc_HmacVerify
+    \sa wc_HmacGenerate_ex
+*/
+int wc_HmacVerify_ex(Hmac* hmac, int type, const byte* check, word32 checkSz,
+                     const byte* in, word32 inSz,
+                     const byte* key, word32 keySz,
+                     void* heap, int devId);
+
+/*!
+    \ingroup HMAC
+
     \brief This function provides access to a HMAC Key Derivation Function
     (HKDF). It utilizes HMAC to convert inKey, with an optional salt and
     optional info into a derived key, which it stores in out. The hash type

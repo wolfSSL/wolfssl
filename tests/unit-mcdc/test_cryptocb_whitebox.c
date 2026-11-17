@@ -859,7 +859,7 @@ int main(void)
         Hmac hmac;
         XMEMSET(&hmac, 0, sizeof(hmac));
         WB_DRIVE3(hmac.devId, wc_CryptoCb_Hmac(&hmac, WC_HASH_TYPE_SHA256,
-            in, sizeof(in), out));
+            NULL, 0, in, sizeof(in), out));
         WB_NOTE("HMAC: Hmac dev&&dev->cb driven");
     }
 #else

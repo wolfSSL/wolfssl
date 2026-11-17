@@ -1893,7 +1893,12 @@ int wolfSSL_MAXQ10XX_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     }
 #ifdef WOLFSSL_MAXQ108X
     else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
-        if (info->hmac.in != NULL && info->hmac.digest == NULL) {
+        if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
+            /* Decline the one-shot call and take the update and final calls
+             * that follow it. */
+            rc = CRYPTOCB_UNAVAILABLE;
+        }
+        else if (info->hmac.in != NULL && info->hmac.digest == NULL) {
             rc = 0;
             if (mac_comp_active == 0) {
                 rc = wc_MAXQ10XX_HmacSetKey(info->hmac.macType);

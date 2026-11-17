@@ -6978,9 +6978,14 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #ifndef NO_HMAC
             Hmac* hmac = info->hmac.hmac;
 
+            /* Decline the one-shot call and take the update and final calls
+             * that follow it. */
+            if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
+                ret = NOT_COMPILED_IN;
+            }
             /* Sign ops are session-scoped; cache the session across
              * multi-call HMAC dispatches. */
-            if (hmac != NULL && hmac->devCtx != NULL) {
+            else if (hmac != NULL && hmac->devCtx != NULL) {
                 session.func    = token->func;
                 session.slotId  = token->slotId;
                 session.version = token->version;

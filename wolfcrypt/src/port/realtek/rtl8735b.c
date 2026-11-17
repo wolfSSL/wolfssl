@@ -1837,6 +1837,11 @@ static int Rtl8735bHuk_HmacCb(struct wc_CryptoInfo* info)
     if (hmac == NULL) {
         return CRYPTOCB_UNAVAILABLE;
     }
+    /* Decline the one-shot call and take the update and final calls that
+     * follow it. */
+    if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
     if (info->hmac.macType != WC_SHA256 ||
             hmac->keyLen != WC_RTL8735B_KEYLEN || hmac->keyRaw == NULL) {
         /* Not our op. If this is a final/cleanup call (digest != NULL) and an

@@ -215,6 +215,12 @@ static int wc_AsuHmacCompute(wc_CryptoInfo* info)
         return BAD_FUNC_ARG;
     }
 
+    /* Decline the one-shot call and take the update and final calls that
+     * follow it. */
+    if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
     ret = wc_AsuHmacResolve(info->hmac.macType, &shaType, &shaMode, &hmacLen);
     if (ret != 0) {
         WC_ASU_PRINTF("[ASU] hmac decline: macType=%d unsupported\r\n",
