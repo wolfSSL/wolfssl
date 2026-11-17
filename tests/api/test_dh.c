@@ -651,6 +651,33 @@ int test_wc_DhGenerateKeyPair_and_Agree(void)
     return EXPECT_RESULT();
 }
 
+/* KCAPI DH has no constant-time agreement or public-key-only generation. */
+int test_wc_DhKcapi_not_compiled_in(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(WOLFSSL_KCAPI_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    DhKey key;
+    byte priv[TEST_DH_BUF_SIZE];
+    byte pub[TEST_DH_BUF_SIZE];
+    byte agree[TEST_DH_BUF_SIZE];
+    word32 pubSz = (word32)sizeof(pub);
+    word32 agreeSz = (word32)sizeof(agree);
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(priv, 0x01, sizeof(priv));
+    XMEMSET(pub, 0x02, sizeof(pub));
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhGeneratePublic(&key, priv, (word32)sizeof(priv), pub,
+        &pubSz), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(wc_DhAgree_ct(&key, agree, &agreeSz, priv,
+        (word32)sizeof(priv), pub, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    wc_FreeDhKey(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * WC_DH_NONBLOCK: drives the incremental sp_DhExp_*_nb state machine in
  * wc_DhAgree_Sync (both the cached-pubkey-validation branch and the nb
