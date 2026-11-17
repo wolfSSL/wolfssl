@@ -17950,6 +17950,11 @@ static int ProcessPeerCertMakeChainSigner(WOLFSSL* ssl, buffer* cert, int type,
     dCertAdd->noX509Name = 1;
 #endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    /* Parse it like AddCA() did. */
+    if (SSL_CM(ssl)->unknownExtCallback32 != NULL) {
+        wc_SetUnknownExtCallback32(dCertAdd,
+            SSL_CM(ssl)->unknownExtCallback32);
+    }
     if (SSL_CM(ssl)->unknownExtCallback != NULL)
         wc_SetUnknownExtCallback(dCertAdd, SSL_CM(ssl)->unknownExtCallback);
 #endif
