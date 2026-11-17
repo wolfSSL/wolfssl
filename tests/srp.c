@@ -23,6 +23,7 @@
 
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/srp.h>
+#include <wolfssl/wolfcrypt/dh.h>
 
 #if defined(WOLFCRYPT_HAVE_SRP) && defined(WOLFSSL_SHA512)
 
@@ -564,6 +565,75 @@ static void test_SrpComputeKeyLeadingZeroSecret(void)
     wc_SrpTerm(&srv);
 }
 
+static void srp_narrow_private_exchange(const byte* n, word32 nSz,
+                                        const byte* g, word32 gSz)
+{
+    Srp cli, srv;
+    byte a[32];
+    byte b[32];
+    byte verifier[512];
+    word32 verifierSz = sizeof(verifier);
+    byte clientPubKey[512];
+    byte serverPubKey[512];
+    word32 clientPubKeySz = sizeof(clientPubKey);
+    word32 serverPubKeySz = sizeof(serverPubKey);
+    byte clientProof[SRP_MAX_DIGEST_SIZE];
+    byte serverProof[SRP_MAX_DIGEST_SIZE];
+    word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
+    word32 serverProofSz = SRP_MAX_DIGEST_SIZE;
+
+    /* Privates with only the lowest bytes set, a single limb wide. */
+    XMEMSET(a, 0, sizeof(a));
+    XMEMSET(b, 0, sizeof(b));
+    XMEMSET(a + sizeof(a) - 4, 0x5A, 4);
+    XMEMSET(b + sizeof(b) - 4, 0xA5, 4);
+
+    AssertIntEQ(0, wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(0, wc_SrpInit(&srv, SRP_TYPE_SHA, SRP_SERVER_SIDE));
+    AssertIntEQ(0, wc_SrpSetUsername(&cli, username, usernameSz));
+    AssertIntEQ(0, wc_SrpSetUsername(&srv, username, usernameSz));
+    AssertIntEQ(0, wc_SrpSetParams(&cli, n, nSz, g, gSz,
+                                   srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srv, n, nSz, g, gSz,
+                                   srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(0, wc_SrpSetPassword(&cli, password, passwordSz));
+    AssertIntEQ(0, wc_SrpGetVerifier(&cli, verifier, &verifierSz));
+    AssertIntEQ(0, wc_SrpSetVerifier(&srv, verifier, verifierSz));
+
+    AssertIntEQ(0, wc_SrpSetPrivate(&cli, a, sizeof(a)));
+    AssertIntEQ(0, wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz));
+    AssertIntEQ(0, wc_SrpSetPrivate(&srv, b, sizeof(b)));
+    AssertIntEQ(0, wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz));
+
+    AssertIntEQ(0, wc_SrpComputeKey(&cli, clientPubKey, clientPubKeySz,
+                                          serverPubKey, serverPubKeySz));
+    AssertIntEQ(0, wc_SrpComputeKey(&srv, clientPubKey, clientPubKeySz,
+                                          serverPubKey, serverPubKeySz));
+    AssertIntEQ(cli.keySz, srv.keySz);
+    AssertIntEQ(0, XMEMCMP(cli.key, srv.key, cli.keySz));
+
+    AssertIntEQ(0, wc_SrpGetProof(&cli, clientProof, &clientProofSz));
+    AssertIntEQ(0, wc_SrpVerifyPeersProof(&srv, clientProof, clientProofSz));
+    AssertIntEQ(0, wc_SrpGetProof(&srv, serverProof, &serverProofSz));
+    AssertIntEQ(0, wc_SrpVerifyPeersProof(&cli, serverProof, serverProofSz));
+
+    wc_SrpTerm(&cli);
+    wc_SrpTerm(&srv);
+}
+
+/* Narrow private values must still produce matching keys and proofs. */
+static void test_SrpNarrowPrivate(void)
+{
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    const DhParams* dh = wc_Dh_ffdhe2048_Get();
+#endif
+
+    srp_narrow_private_exchange(srp_N, sizeof(srp_N), srp_g, sizeof(srp_g));
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    srp_narrow_private_exchange(dh->p, dh->p_len, dh->g, dh->g_len);
+#endif
+}
+
 #endif /* !NO_SHA */
 
 static int sha512_key_gen(Srp* srp, byte* secret, word32 size)
@@ -970,6 +1040,7 @@ void SrpTest(void)
     test_SrpComputeKey();
     test_SrpGetProofAndVerify();
     test_SrpComputeKeyLeadingZeroSecret();
+    test_SrpNarrowPrivate();
 #endif /* !NO_SHA */
     test_SrpKeyGenFunc_cb();
     wolfCrypt_Cleanup();

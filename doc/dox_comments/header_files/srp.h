@@ -385,6 +385,9 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size);
 
     Caller must observe value of size upon return to know the actual size.
 
+    Without WOLFSSL_SRP_CT_SECRET the exponentiation time depends on the
+    width of the private value, see wc_SrpComputeKey.
+
     \return 0 Success
     \return BAD_FUNC_ARG Returned if srp, pub, or size is null.
     \return SRP_CALL_ORDER_E Returned if wc_SrpGetPublic is called out
@@ -440,6 +443,12 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size);
     zero padded to the length of N, so the key derivation work does not
     depend on S.  This changes the session key whenever S has a leading
     zero byte, so both peers must be built the same way.
+    WOLFSSL_SRP_CT_SECRET also makes every modular exponentiation with a
+    secret exponent run over the full width of N, in this function as well
+    as in wc_SrpGetPublic and wc_SrpGetVerifier.  The results do not change,
+    but exponentiation is slower when the private value is much shorter
+    than N.  Heap math builds (--enable-heapmath) ignore the fixed width,
+    so their exponentiation time still depends on how wide the exponent is.
 
     \return 0 Success
     \return BAD_FUNC_ARG Returned if srp, clientPubKey, or serverPubKey

@@ -517,6 +517,43 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
     return r;
 }
 
+/* res = b ^ e % N, with a secret exponent e < 2 * N. */
+static int SrpExptMod(Srp* srp, mp_int* b, mp_int* e, mp_int* res)
+{
+#ifdef WOLFSSL_SRP_CT_SECRET
+    WC_DECLARE_VAR(t, mp_int, 1, 0);
+    int digits;
+    int r;
+
+    /* Public digit count covering N + 1 bits so work is independent of e. */
+    digits = (mp_count_bits(&srp->N) + DIGIT_BIT) / DIGIT_BIT;
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((t = (mp_int *)XMALLOC(sizeof(*t), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        return MEMORY_E;
+#endif
+
+    r = mp_init(t);
+    if (r != MP_OKAY) {
+        r = MP_INIT_E;
+    }
+    else {
+        /* Words above used are read, so start from an all zero copy. */
+        mp_forcezero(t);
+        r = mp_copy(e, t);
+        if (r == MP_OKAY)
+            r = mp_exptmod_ex(b, t, digits, &srp->N, res);
+        mp_forcezero(t);
+    }
+
+    WC_FREE_VAR_EX(t, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return r;
+#else
+    return mp_exptmod(b, e, &srp->N, res);
+#endif
+}
+
 int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
 {
     WC_DECLARE_VAR(v, mp_int, 1, 0);
@@ -537,7 +574,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (r != MP_OKAY)
         r = MP_INIT_E;
     /* v = g ^ x % N */
-    if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, v);
+    if (!r) r = SrpExptMod(srp, &srp->g, &srp->auth, v);
     if (!r) r = *size < (word32)mp_unsigned_bin_size(v) ? BUFFER_E : MP_OKAY;
     if (!r) r = mp_to_unsigned_bin(v, verifier);
     if (!r) *size = (word32)mp_unsigned_bin_size(v);
@@ -637,7 +674,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
 
     /* client side: A = g ^ a % N */
     if (srp->side == SRP_CLIENT_SIDE) {
-        if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, pubkey);
+        if (!r) r = SrpExptMod(srp, &srp->g, &srp->priv, pubkey);
 
     /* server side: B = (k * v + (g ^ b % N)) % N */
     } else {
@@ -663,7 +700,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
             }
             if (!r) r = mp_read_unsigned_bin(i, srp->k, (word32)hashSize);
             if (!r) r = mp_iszero(i) == MP_YES ? SRP_BAD_KEY_E : 0;
-            if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, pubkey);
+            if (!r) r = SrpExptMod(srp, &srp->g, &srp->priv, pubkey);
             if (!r) r = mp_mulmod(i, &srp->auth, &srp->N, j);
             if (!r) r = mp_add(j, pubkey, i);
             if (!r) r = mp_mod(i, &srp->N, pubkey);
@@ -902,7 +939,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
             r = SRP_BAD_KEY_E;
             goto out;
         }
-        if ((r = mp_exptmod(&srp->g, &srp->auth, &srp->N, temp2)))
+        if ((r = SrpExptMod(srp, &srp->g, &srp->auth, temp2)))
             goto out;
         if ((r = mp_mulmod(temp1, temp2, &srp->N, s)))
             goto out;
@@ -926,7 +963,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
             goto out;
 
         /* secret = temp1 ^ temp2 % N */
-        if ((r = mp_exptmod(temp1, temp2, &srp->N, s)))
+        if ((r = SrpExptMod(srp, temp1, temp2, s)))
             goto out;
 
     } else if (srp->side == SRP_SERVER_SIDE) {
@@ -963,7 +1000,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         }
 
         /* secret = temp2 * b % N */
-        if ((r = mp_exptmod(temp2, &srp->priv, &srp->N, s)))
+        if ((r = SrpExptMod(srp, temp2, &srp->priv, s)))
             goto out;
     }
 
