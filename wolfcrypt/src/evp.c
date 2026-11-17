@@ -1451,9 +1451,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBuffer = NULL;
                 ctx->authBufferLen = 0;
 
-                if (ctx->authIncIv) {
+                if ((ret == WOLFSSL_SUCCESS) && ctx->authIncIv) {
                     IncCtr((byte*)ctx->cipher.aes.reg, ctx->cipher.aes.nonceSz);
-                    ctx->authIncIv = 0;
                 }
             }
             else {
@@ -7637,10 +7636,17 @@ void wolfSSL_EVP_init(void)
                         (word32)ctx->authTagSz, ctx->authIn,
                         (word32)ctx->authInSz);
             }
-            if (ctx->authIncIv) {
+            if ((ret == 0) && ctx->authIncIv) {
                 IncCtr((byte*)ctx->cipher.aes.reg,
                        ctx->cipher.aes.nonceSz);
                 ctx->authIncIv = 0;
+            }
+            /* A CCM record is complete; keep its AAD only for a retry. */
+            if (ret == 0) {
+                if (ctx->authIn != NULL) {
+                    XMEMSET(ctx->authIn, 0, (size_t)ctx->authInSz);
+                }
+                ctx->authInSz = 0;
             }
         }
         if (src == NULL) {
@@ -7741,6 +7747,10 @@ void wolfSSL_EVP_init(void)
         if (iv && wc_AriaGcmSetExtIV(&ctx->cipher.aria, iv, ctx->ivSz)) {
             WOLFSSL_MSG("wc_AriaGcmSetIV() failed");
             return WOLFSSL_FAILURE;
+        }
+        /* As for AES: a keyless init disarms EVP_CTRL_GCM_IV_GEN. */
+        if (key == NULL) {
+            ctx->authIvGenEnable = 0;
         }
 
         return WOLFSSL_SUCCESS;
@@ -8753,6 +8763,10 @@ void wolfSSL_EVP_init(void)
             if ((iv != NULL) && (iv != ctx->iv)) {
                 XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
             }
+            /* As for AES: a keyless init disarms EVP_CTRL_GCM_IV_GEN. */
+            if (key == NULL) {
+                ctx->authIvGenEnable = 0;
+            }
         }
 #endif
 #ifdef WOLFSSL_SM4_CCM
@@ -8782,6 +8796,10 @@ void wolfSSL_EVP_init(void)
             }
             if ((iv != NULL) && (iv != ctx->iv)) {
                 XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
+            }
+            /* As for AES: a keyless init disarms EVP_CTRL_GCM_IV_GEN. */
+            if (key == NULL) {
+                ctx->authIvGenEnable = 0;
             }
         }
 #endif
@@ -9443,6 +9461,13 @@ void wolfSSL_EVP_init(void)
                         ctx->authIncIv = 0;
                     }
                 }
+                if (src == NULL) {
+                    /* Final call: drop the completed record's AAD. */
+                    if (ctx->authIn != NULL) {
+                        XMEMSET(ctx->authIn, 0, (size_t)ctx->authInSz);
+                    }
+                    ctx->authInSz = 0;
+                }
                 if ((ret == 0) && (src != NULL)) {
                     ret = (int)len;
                 }
@@ -9471,6 +9496,14 @@ void wolfSSL_EVP_init(void)
                     if ((ret == 0) && ctx->authIncIv) {
                         IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
+                    }
+                    /* A CCM record is complete; keep its AAD only for a
+                     * retry. */
+                    if (ret == 0) {
+                        if (ctx->authIn != NULL) {
+                            XMEMSET(ctx->authIn, 0, (size_t)ctx->authInSz);
+                        }
+                        ctx->authInSz = 0;
                     }
                 }
                 if (src == NULL) {
