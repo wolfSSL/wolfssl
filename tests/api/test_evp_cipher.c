@@ -3033,9 +3033,10 @@ int test_evp_cipher_aead_iv_gen_state(void)
     int numCiphers = 0;
     byte ivs[2][NONCE_SZ];
     byte expIv[NONCE_SZ];
-    byte cipherText[2][sizeof(plainText)];
+    /* ARIA's one-shot writes the tag after both src and dst. */
+    byte cipherText[2][sizeof(plainText) + TAG_SZ];
     byte tags[2][TAG_SZ];
-    byte calcPlainText[sizeof(plainText)];
+    byte calcPlainText[sizeof(plainText) + TAG_SZ];
     EVP_CIPHER_CTX* ctx = NULL;
     int c, i, k, rec, withAad, outl;
 
@@ -3084,6 +3085,58 @@ int test_evp_cipher_aead_iv_gen_state(void)
         EVP_CIPHER_CTX_free(ctx);
         ctx = NULL;
 
+        /* A failed open keeps the IV pending (i == 0 Update/Final,
+         * i == 1 EVP_Cipher); the retry succeeds and the next IV follows. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(ctx, ciphers[c], key, iv, 1),
+            WOLFSSL_SUCCESS);
+        /* ARIA's EVP_Cipher returns 0, not the length, on success. */
+        ExpectIntEQ(EVP_Cipher(ctx, cipherText[1], (byte*)plainText,
+            sizeof(plainText)), oneShot[c] ? (int)sizeof(plainText) : 0);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, TAG_SZ,
+            tags[1]), WOLFSSL_SUCCESS);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+        for (i = 0; i < 2; i++) {
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_CipherInit(ctx, ciphers[c], key, NULL, 0),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+                (void*)iv), WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1,
+                ivs[0]), WOLFSSL_SUCCESS);
+            ExpectBufEQ(ivs[0], iv, NONCE_SZ);
+            for (k = 0; k < 2; k++) {
+                tags[1][0] ^= 0x01;
+                ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+                    TAG_SZ, tags[1]), WOLFSSL_SUCCESS);
+                if (i == 0) {
+                    ExpectIntEQ(EVP_CipherUpdate(ctx, calcPlainText, &outl,
+                        cipherText[1], sizeof(plainText)), WOLFSSL_SUCCESS);
+                    ExpectIntEQ(EVP_CipherFinal(ctx, calcPlainText, &outl),
+                        (k == 0) ? WOLFSSL_FAILURE : WOLFSSL_SUCCESS);
+                }
+                else if (k == 0) {
+                    ExpectIntLT(EVP_Cipher(ctx, calcPlainText, cipherText[1],
+                        sizeof(plainText)), 0);
+                }
+                else {
+                    ExpectIntEQ(EVP_Cipher(ctx, calcPlainText, cipherText[1],
+                        sizeof(plainText)),
+                        oneShot[c] ? (int)sizeof(plainText) : 0);
+                }
+                if (k == 0) {
+                    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN,
+                        -1, ivs[0]), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+                }
+            }
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1,
+                ivs[0]), WOLFSSL_SUCCESS);
+            ExpectBufEQ(ivs[0], expIv, NONCE_SZ);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
         if (!oneShot[c])
             continue;
 
@@ -3129,56 +3182,6 @@ int test_evp_cipher_aead_iv_gen_state(void)
                 cipherText[rec], sizeof(plainText)), WOLFSSL_SUCCESS);
             ExpectIntEQ(EVP_CipherFinal(ctx, calcPlainText, &outl),
                 (withAad == (rec == 0)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
-            EVP_CIPHER_CTX_free(ctx);
-            ctx = NULL;
-        }
-
-        /* A failed open keeps the IV pending (i == 0 Update/Final,
-         * i == 1 EVP_Cipher); the retry succeeds and the next IV follows. */
-        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
-        ExpectIntEQ(EVP_CipherInit(ctx, ciphers[c], key, iv, 1),
-            WOLFSSL_SUCCESS);
-        ExpectIntEQ(EVP_Cipher(ctx, cipherText[1], (byte*)plainText,
-            sizeof(plainText)), (int)sizeof(plainText));
-        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, TAG_SZ,
-            tags[1]), WOLFSSL_SUCCESS);
-        EVP_CIPHER_CTX_free(ctx);
-        ctx = NULL;
-        for (i = 0; i < 2; i++) {
-            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
-            ExpectIntEQ(EVP_CipherInit(ctx, ciphers[c], key, NULL, 0),
-                WOLFSSL_SUCCESS);
-            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
-                (void*)iv), WOLFSSL_SUCCESS);
-            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1,
-                ivs[0]), WOLFSSL_SUCCESS);
-            ExpectBufEQ(ivs[0], iv, NONCE_SZ);
-            for (k = 0; k < 2; k++) {
-                tags[1][0] ^= 0x01;
-                ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
-                    TAG_SZ, tags[1]), WOLFSSL_SUCCESS);
-                if (i == 0) {
-                    ExpectIntEQ(EVP_CipherUpdate(ctx, calcPlainText, &outl,
-                        cipherText[1], sizeof(plainText)), WOLFSSL_SUCCESS);
-                    ExpectIntEQ(EVP_CipherFinal(ctx, calcPlainText, &outl),
-                        (k == 0) ? WOLFSSL_FAILURE : WOLFSSL_SUCCESS);
-                }
-                else if (k == 0) {
-                    ExpectIntLT(EVP_Cipher(ctx, calcPlainText, cipherText[1],
-                        sizeof(plainText)), 0);
-                }
-                else {
-                    ExpectIntEQ(EVP_Cipher(ctx, calcPlainText, cipherText[1],
-                        sizeof(plainText)), (int)sizeof(plainText));
-                }
-                if (k == 0) {
-                    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN,
-                        -1, ivs[0]), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
-                }
-            }
-            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1,
-                ivs[0]), WOLFSSL_SUCCESS);
-            ExpectBufEQ(ivs[0], expIv, NONCE_SZ);
             EVP_CIPHER_CTX_free(ctx);
             ctx = NULL;
         }
