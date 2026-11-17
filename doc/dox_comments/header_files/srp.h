@@ -449,6 +449,8 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size);
     but exponentiation is slower when the private value is much shorter
     than N.  Heap math builds (--enable-heapmath) ignore the fixed width,
     so their exponentiation time still depends on how wide the exponent is.
+    The ESP32 fastmath exponentiation accelerator is not supported with
+    WOLFSSL_SRP_CT_SECRET; define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD.
 
     \return 0 Success
     \return BAD_FUNC_ARG Returned if srp, clientPubKey, or serverPubKey

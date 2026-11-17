@@ -95709,9 +95709,9 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     ret = mp_set(a, 0xfb);
     if (ret != MP_OKAY)
         return WC_TEST_RET_ENC_EC(ret);
-    ret = mp_set(b, 1);
+    ret = mp_set(b, 0);
     if (ret == MP_OKAY)
-        ret = mp_lshd(b, 1);
+        ret = mp_set_bit(b, DIGIT_BIT);
     if (ret != MP_OKAY)
         return WC_TEST_RET_ENC_EC(ret);
     ret = mp_exptmod_ex(a, b, -1, a, r);

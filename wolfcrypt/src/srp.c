@@ -33,6 +33,19 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(WOLFSSL_SRP_CT_SECRET) && defined(WOLFSSL_ESPIDF)
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#endif
+
+/* The ESP32 fastmath exponentiation accelerator ignores the fixed digit
+ * count and picks hardware or software from the exponent's actual width. */
+#if defined(WOLFSSL_SRP_CT_SECRET) && defined(USE_FAST_MATH) && \
+    defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD)
+    #error "WOLFSSL_SRP_CT_SECRET needs NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD"
+#endif
+
 /** Computes the session key using the Mask Generation Function 1. */
 static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size);
 
@@ -522,30 +535,53 @@ static int SrpExptMod(Srp* srp, mp_int* b, mp_int* e, mp_int* res)
 {
 #ifdef WOLFSSL_SRP_CT_SECRET
     WC_DECLARE_VAR(t, mp_int, 1, 0);
+    byte* buf = NULL;
+    int bits;
     int digits;
-    int r;
+    int bufSz;
+    int tInited = 0;
+    int r = MP_OKAY;
 
-    /* Public digit count covering N + 1 bits so work is independent of e. */
-    digits = (mp_count_bits(&srp->N) + DIGIT_BIT) / DIGIT_BIT;
+    /* Public sizes covering N + 1 bits so work is independent of e. */
+    bits = mp_count_bits(&srp->N) + 1;
+    digits = (bits + DIGIT_BIT - 1) / DIGIT_BIT;
+    bufSz = (bits + 7) / 8;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((t = (mp_int *)XMALLOC(sizeof(*t), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
-        return MEMORY_E;
+    t = (mp_int*)XMALLOC(sizeof(*t), srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (t == NULL)
+        r = MEMORY_E;
 #endif
-
-    r = mp_init(t);
-    if (r != MP_OKAY) {
-        r = MP_INIT_E;
+    if (r == MP_OKAY) {
+        buf = (byte*)XMALLOC((size_t)bufSz, srp->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL)
+            r = MEMORY_E;
     }
-    else {
-        /* Words above used are read, so start from an all zero copy. */
-        mp_forcezero(t);
-        r = mp_copy(e, t);
-        if (r == MP_OKAY)
-            r = mp_exptmod_ex(b, t, digits, &srp->N, res);
-        mp_forcezero(t);
+    if (r == MP_OKAY) {
+        if (mp_init(t) != MP_OKAY)
+            r = MP_INIT_E;
+        else
+            tInited = 1;
     }
+    if (r == MP_OKAY) {
+        /* Words above used are read, so start from an all zero value. */
+        mp_forcezero(t);
+        /* Copy e through a fixed width encoding. mp_copy() would copy
+         * e->used words, which depends on the secret. */
+        r = mp_to_unsigned_bin_len_ct(e, buf, bufSz);
+    }
+    if (r == MP_OKAY)
+        r = mp_read_unsigned_bin(t, buf, (word32)bufSz);
+    if (r == MP_OKAY)
+        r = mp_exptmod_ex(b, t, digits, &srp->N, res);
 
+    if (tInited)
+        mp_forcezero(t);
+    if (buf != NULL) {
+        ForceZero(buf, (word32)bufSz);
+        XFREE(buf, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     WC_FREE_VAR_EX(t, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return r;
