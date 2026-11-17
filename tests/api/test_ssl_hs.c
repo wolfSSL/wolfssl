@@ -535,6 +535,8 @@ static int test_fatal_alert_in_hs(method_provider method_c,
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         method_c, method_s), 0);
+    /* OpenSSL compatible defaults don't verify the peer. */
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
     ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
 
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
