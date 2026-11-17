@@ -41453,8 +41453,10 @@ int SetSessionTicket(WOLFSSL_SESSION* session, const byte* ticket,
     if (allocSz > length) {
         ForceZero(buf + length, (word32)(allocSz - length));
     }
-    ForceZero(session->staticTicket + staticUsed,
+    if (sizeof(session->staticTicket) > staticUsed) {
+        ForceZero(session->staticTicket + staticUsed,
         sizeof(session->staticTicket) - staticUsed);
+    }
 
     session->ticket = buf;
     session->ticketLen = length;
