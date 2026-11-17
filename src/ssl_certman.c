@@ -1441,6 +1441,10 @@ static int cm_restore_signer(WOLFSSL_CERT_MANAGER* cm, const byte* derBuf,
 
         InitDecodedCert(cert, der->buffer, der->length, cm->heap);
     #ifdef WC_ASN_UNKNOWN_EXT_CB
+        /* Parse it like AddCA() did. */
+        if (cm->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(cert, cm->unknownExtCallback32);
+        }
         if (cm->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
         }
@@ -2187,10 +2191,19 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         }
     }
     if (ret == WOLFSSL_SUCCESS) {
+        /* Each entry holds its prefix and at least one byte of DER, so the
+         * buffer bounds the count and the sum cannot overflow. */
+        int maxSigners = (int)(end - current) / (cm_cache_entry_prefix() + 1);
+
         for (i = 0; i < CA_TABLE_SIZE; ++i) {
             if (hdr->columns[i] < 0) {
                 WOLFSSL_MSG("Row header corrupted, negative value");
                 ret = PARSE_ERROR;
+                break;
+            }
+            if (hdr->columns[i] > maxSigners - signerCount) {
+                WOLFSSL_MSG("Row header corrupted, too many entries");
+                ret = BUFFER_E;
                 break;
             }
             signerCount += hdr->columns[i];

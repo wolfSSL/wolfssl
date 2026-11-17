@@ -5371,6 +5371,62 @@ int test_wolfSSL_CertManagerNameConstraint_cert_cache(void)
     return EXPECT_RESULT();
 }
 
+/* A cache header whose row counts add up past INT_MAX is rejected. Without the
+ * bound the sum wraps below the real count, the array of saved path lengths
+ * is undersized, and restoring the real entry writes past it. */
+int test_wolfSSL_CertManager_cert_cache_bad_count(void)
+{
+    EXPECT_DECLS;
+#if defined(PERSIST_CERT_CACHE) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CTX* ctx = NULL;
+    byte* cache = NULL;
+    int cacheSz = 0;
+    int used = 0;
+    int emptySz = 0;
+    int* columns;
+    int row;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntGT(emptySz = wolfSSL_CTX_get_cert_cache_memsize(ctx), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, "./certs/ca-cert.pem",
+                NULL), WOLFSSL_SUCCESS);
+    ExpectIntGT(cacheSz = wolfSSL_CTX_get_cert_cache_memsize(ctx), 0);
+    ExpectNotNull(cache = (byte*)XMALLOC((size_t)cacheSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wolfSSL_CTX_memsave_cert_cache(ctx, cache, cacheSz, &used),
+                WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    if (EXPECT_SUCCESS()) {
+        /* The header is the version, the row count, then one count per row.
+         * Entries are stored in row order, so moving the one real entry to
+         * row 0 restores it first. 1 + INT_MAX + INT_MAX + 1 wraps to 0. */
+        ExpectIntGE(CA_TABLE_SIZE, 4);
+        columns = (int*)(cache + 2 * sizeof(int));
+        for (row = 0; row < CA_TABLE_SIZE; row++) {
+            columns[row] = 0;
+        }
+        columns[0] = 1;
+        columns[1] = INT_MAX;
+        columns[2] = INT_MAX;
+        columns[3] = 1;
+    }
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_memrestore_cert_cache(ctx, cache, used),
+                WC_NO_ERR_TRACE(BUFFER_E));
+    /* Nothing was restored. */
+    ExpectIntEQ(wolfSSL_CTX_get_cert_cache_memsize(ctx), emptySz);
+
+    wolfSSL_CTX_free(ctx);
+    XFREE(cache, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(PERSIST_CERT_CACHE) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
