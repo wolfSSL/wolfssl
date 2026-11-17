@@ -372,6 +372,91 @@ int test_http_connect_blocking_mode(void)
 #endif
 }
 
+#if defined(HAVE_OCSP) && defined(HAVE_HTTP_CLIENT) && \
+    defined(HAVE_SOCKADDR) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_LWIP) && !defined(WOLFSSL_NO_SOCK) && \
+    defined(SO_RCVTIMEO) && defined(SO_SNDTIMEO) && \
+    (defined(__unix__) || defined(__APPLE__)) && !defined(SINGLE_THREADED)
+#define TEST_HTTP_DRIP_BODY_SZ 4
+
+static THREAD_RETURN WOLFSSL_THREAD test_http_drip_server(void* arg)
+{
+    static const char hdr[] = "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/ocsp-response\r\n"
+        "Content-Length: 4\r\n\r\n";
+    SOCKET_T listener = *(SOCKET_T*)arg;
+    SOCKET_T conn;
+    char req[512];
+    int i;
+
+    conn = (SOCKET_T)accept(listener, NULL, NULL);
+    if (conn != SOCKET_INVALID) {
+        (void)recv(conn, req, sizeof(req), 0);
+        (void)send(conn, hdr, sizeof(hdr) - 1, 0);
+        for (i = 0; i < TEST_HTTP_DRIP_BODY_SZ; i++) {
+            XSLEEP_MS(800);
+            (void)send(conn, "R", 1, 0);
+        }
+        CloseSocket(conn);
+    }
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* A response that keeps arriving must outlive the per-stall timeout. */
+int test_http_fetch_slow_progress(void)
+{
+#if defined(HAVE_OCSP) && defined(HAVE_HTTP_CLIENT) && \
+    defined(HAVE_SOCKADDR) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_LWIP) && !defined(WOLFSSL_NO_SOCK) && \
+    defined(SO_RCVTIMEO) && defined(SO_SNDTIMEO) && \
+    (defined(__unix__) || defined(__APPLE__)) && !defined(SINGLE_THREADED)
+    EXPECT_DECLS;
+    SOCKET_T listener = SOCKET_INVALID;
+    SOCKADDR_IN addr;
+    XSOCKLENT addrSz = (XSOCKLENT)sizeof(addr);
+    THREAD_TYPE tid;
+    int started = 0;
+    char url[64];
+    byte ocspReq[16];
+    byte* httpResp = NULL;
+
+    XMEMSET(ocspReq, 0x30, sizeof(ocspReq));
+    listener = (SOCKET_T)socket(AF_INET, SOCK_STREAM, 0);
+    ExpectTrue(listener != SOCKET_INVALID);
+    XMEMSET(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    ExpectIntEQ(XSOCKET_BIND(listener, (SOCKADDR*)&addr, sizeof(addr)), 0);
+    ExpectIntEQ(XSOCKET_LISTEN(listener, 1), 0);
+    ExpectIntEQ(getsockname(listener, (SOCKADDR*)&addr, &addrSz), 0);
+    ExpectIntGT(XSNPRINTF(url, sizeof(url), "http://127.0.0.1:%d/",
+        (int)ntohs(addr.sin_port)), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_NewThread(&tid, test_http_drip_server, &listener),
+            0);
+        started = EXPECT_SUCCESS();
+    }
+
+    /* Body arrives over ~3.2s with 0.8s gaps; the stall timeout is 2s. */
+    wolfIO_SetTimeout(2);
+    if (started) {
+        ExpectIntEQ(EmbedOcspLookup(NULL, url, (int)XSTRLEN(url), ocspReq,
+            (int)sizeof(ocspReq), &httpResp), TEST_HTTP_DRIP_BODY_SZ);
+        ExpectIntEQ(wolfSSL_JoinThread(tid), 0);
+    }
+    wolfIO_SetTimeout(10);
+
+    if (httpResp != NULL)
+        XFREE(httpResp, NULL, DYNAMIC_TYPE_OCSP);
+    if (listener != SOCKET_INVALID)
+        CloseSocket(listener);
+    return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
+}
+
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA) && \
     !defined(WOLFSSL_NO_OCSP_ISSUER_CHECK)
 int test_ocsp_ancestor_responder_rejected(void)

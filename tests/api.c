@@ -49044,6 +49044,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_ocsp_responder_keyhash_binding),
     TEST_DECL_GROUP("ocsp", test_ocsp_response_parsing),
     TEST_DECL_GROUP("ocsp", test_http_connect_blocking_mode),
+    TEST_DECL_GROUP("ocsp", test_http_fetch_slow_progress),
     TEST_DECL_GROUP("ocsp", test_ocsp_certid_enc_dec),
     TEST_DECL_GROUP("ocsp", test_ocsp_check_validity),
     TEST_DECL_GROUP("ocsp", test_ocsp_certid_dup),

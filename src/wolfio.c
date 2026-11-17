@@ -1338,6 +1338,10 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
         #endif
     #endif
 
+#if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(WOLFSSL_HTTP_FETCH_MAX_SEC)
+    #define WOLFSSL_HTTP_FETCH_MAX_SEC 120
+#endif
+
 #if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
     static int io_timeout_sec = DEFAULT_TIMEOUT_SEC;
 #else
@@ -1474,13 +1478,17 @@ typedef struct WolfIoHttpFetchCtx {
     SOCKET_T sfd;
     int timeoutSec;
     word32 startTime;
+    word32 lastIoTime;
 } WolfIoHttpFetchCtx;
 
 #ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
 static int wolfIO_HttpFetchSetTimeout(WolfIoHttpFetchCtx* fetch,
     int option)
 {
-    word32 elapsed;
+    word32 now;
+    word32 idle;
+    word32 total;
+    word32 maxSec;
     word32 remaining;
 #ifdef USE_WINDOWS_API
     DWORD timeout;
@@ -1491,10 +1499,18 @@ static int wolfIO_HttpFetchSetTimeout(WolfIoHttpFetchCtx* fetch,
     if (fetch->timeoutSec <= 0)
         return 0;
 
-    elapsed = LowResTimer() - fetch->startTime;
-    if (elapsed >= (word32)fetch->timeoutSec)
+    /* timeoutSec bounds each stall; the total cap still bounds a slow drip. */
+    maxSec = (word32)fetch->timeoutSec;
+    if (maxSec < (word32)WOLFSSL_HTTP_FETCH_MAX_SEC)
+        maxSec = (word32)WOLFSSL_HTTP_FETCH_MAX_SEC;
+    now = LowResTimer();
+    idle = now - fetch->lastIoTime;
+    total = now - fetch->startTime;
+    if (idle >= (word32)fetch->timeoutSec || total >= maxSec)
         return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
-    remaining = (word32)fetch->timeoutSec - elapsed;
+    remaining = (word32)fetch->timeoutSec - idle;
+    if (remaining > maxSec - total)
+        remaining = maxSec - total;
     if (remaining > 86400U)
         remaining = 86400U;
 
@@ -1530,6 +1546,9 @@ static int wolfIO_HttpFetchSend(WolfIoHttpFetchCtx* fetch, char* buf, int sz)
         if (ret == 0)
             return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL);
         sent += ret;
+#ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+        fetch->lastIoTime = LowResTimer();
+#endif
     }
     return sent;
 }
@@ -1546,6 +1565,10 @@ static int wolfIO_HttpFetchRecv(char* buf, int sz, void* ctx)
     ret = wolfIO_Recv(fetch->sfd, buf, sz, 0);
     if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ))
         ret = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+#ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+    if (ret > 0)
+        fetch->lastIoTime = LowResTimer();
+#endif
     return ret;
 }
 #endif /* WOLFSSL_HTTP_REVOCATION_FETCH */
@@ -2687,6 +2710,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         fetch.timeoutSec = io_timeout_sec;
 #ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
         fetch.startTime = LowResTimer();
+        fetch.lastIoTime = fetch.startTime;
 #endif
         if (httpBuf == NULL) {
             WOLFSSL_MSG("Unable to create OCSP response buffer");
@@ -2820,6 +2844,7 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
         fetch.timeoutSec = io_timeout_sec;
 #ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
         fetch.startTime = LowResTimer();
+        fetch.lastIoTime = fetch.startTime;
 #endif
         if (httpBuf == NULL) {
             WOLFSSL_MSG("Unable to create CRL response buffer");
