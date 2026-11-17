@@ -1390,6 +1390,9 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
     int wolfIO_Select(SOCKET_T sockfd, int to_sec)
     {
         fd_set wfds;
+#ifdef USE_WINDOWS_API
+        fd_set efds;
+#endif
 #if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(USE_WINDOWS_API)
         struct pollfd pfd;
 #endif
@@ -1435,13 +1438,26 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
         FD_ZERO(&wfds);
         FD_SET(sockfd, &wfds);
 
+    #ifdef USE_WINDOWS_API
+        /* Winsock reports a failed non-blocking connect in exceptfds. */
+        FD_ZERO(&efds);
+        FD_SET(sockfd, &efds);
+        ret = select(nfds, NULL, &wfds, &efds, &timeout);
+    #else
         ret = select(nfds, NULL, &wfds, NULL, &timeout);
+    #endif
         if (ret == 0) {
     #ifdef DEBUG_HTTP
             fprintf(stderr, "Timeout: %d\n", ret);
     #endif
             return HTTP_TIMEOUT;
         }
+    #ifdef USE_WINDOWS_API
+        else if (ret > 0 && FD_ISSET(sockfd, &efds)) {
+            WOLFSSL_MSG("Select connect failed");
+            return SOCKET_ERROR_E;
+        }
+    #endif
         else if (ret > 0 && FD_ISSET(sockfd, &wfds)) {
             if (XSOCKET_GETSOCKOPT(sockfd, SOL_SOCKET, SO_ERROR,
                     (char*)&soErr, &soErrSz) == 0 && soErr == 0)
