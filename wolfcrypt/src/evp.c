@@ -1470,6 +1470,10 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     /* Clear IV, since IV reuse is not recommended
                      * for AES CCM. */
                     XMEMSET(ctx->iv, 0, WC_AES_BLOCK_SIZE);
+                    /* IV_GEN must not reissue this sealed nonce. */
+                    if (ctx->enc) {
+                        ctx->authIvUsed = 1;
+                    }
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -1618,6 +1622,10 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     /* Clear IV, since IV reuse is not recommended for SM4 GCM.
                      */
                     XMEMSET(ctx->iv, 0, SM4_BLOCK_SIZE);
+                    /* IV_GEN must not reissue this sealed nonce. */
+                    if (ctx->enc) {
+                        ctx->authIvUsed = 1;
+                    }
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -1669,6 +1677,10 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     /* Clear IV, since IV reuse is not recommended
                      * for SM4 CCM. */
                     XMEMSET(ctx->iv, 0, SM4_BLOCK_SIZE);
+                    /* IV_GEN must not reissue this sealed nonce. */
+                    if (ctx->enc) {
+                        ctx->authIvUsed = 1;
+                    }
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -6885,6 +6897,7 @@ void wolfSSL_EVP_init(void)
                     ctx->authIvGenEnable = 1;
                     /* A new IV supersedes any generated one not yet used. */
                     ctx->authIncIv = 0;
+                    ctx->authIvUsed = 0;
                 }
             #endif
 #endif /* !WC_NO_RNG */
@@ -6934,10 +6947,6 @@ void wolfSSL_EVP_init(void)
                         WOLFSSL_MSG("Key or IV not set");
                         break;
                     }
-                    if (ctx->authIvUsed) {
-                        WOLFSSL_MSG("ARIA-GCM IV already used");
-                        break;
-                    }
                 }
                 else
             #endif
@@ -6954,6 +6963,10 @@ void wolfSSL_EVP_init(void)
             #endif
                 if (ptr == NULL) {
                     WOLFSSL_MSG("Destination buffer for IV bytes NULL.");
+                    break;
+                }
+                if (ctx->authIvUsed) {
+                    WOLFSSL_MSG("IV already used to seal a record");
                     break;
                 }
                 if (ctx->authIncIv) {
@@ -7645,6 +7658,10 @@ void wolfSSL_EVP_init(void)
                 IncCtr((byte*)ctx->cipher.aes.reg,
                        ctx->cipher.aes.nonceSz);
                 ctx->authIncIv = 0;
+            }
+            else if ((ret == 0) && ctx->enc) {
+                /* IV_GEN must not reissue this sealed nonce. */
+                ctx->authIvUsed = 1;
             }
             /* A CCM record is complete; keep its AAD only for a retry. */
             if (ret == 0) {
@@ -9465,6 +9482,10 @@ void wolfSSL_EVP_init(void)
                         IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
                     }
+                    else if ((ret == 0) && ctx->enc) {
+                        /* IV_GEN must not reissue this sealed nonce. */
+                        ctx->authIvUsed = 1;
+                    }
                 }
                 if (src == NULL) {
                     /* Final call: drop the completed record's AAD. */
@@ -9501,6 +9522,10 @@ void wolfSSL_EVP_init(void)
                     if ((ret == 0) && ctx->authIncIv) {
                         IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
+                    }
+                    else if ((ret == 0) && ctx->enc) {
+                        /* IV_GEN must not reissue this sealed nonce. */
+                        ctx->authIvUsed = 1;
                     }
                     /* A CCM record is complete; keep its AAD only for a
                      * retry. */

@@ -3110,6 +3110,34 @@ int test_evp_cipher_aead_iv_gen_state(void)
         EVP_CIPHER_CTX_free(ctx);
         ctx = NULL;
 
+        /* IV_GEN refuses a nonce sealed without it (i == 0 Update/Final,
+         * i == 1 EVP_Cipher) until SET_IV_FIXED installs a new one. */
+        for (i = 0; i < 2; i++) {
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_CipherInit(ctx, ciphers[c], key, NULL, 1),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+                (void*)iv), WOLFSSL_SUCCESS);
+            if (i == 0) {
+                ExpectIntEQ(EVP_CipherUpdate(ctx, cipherText[0], &outl,
+                    plainText, sizeof(plainText)), WOLFSSL_SUCCESS);
+                ExpectIntEQ(EVP_CipherFinal(ctx, cipherText[0], &outl),
+                    WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntGE(EVP_Cipher(ctx, cipherText[0], (byte*)plainText,
+                    sizeof(plainText)), 0);
+            }
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1,
+                ivs[0]), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+                (void*)iv), WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1,
+                ivs[0]), WOLFSSL_SUCCESS);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
         /* A failed open keeps the IV pending (i == 0 Update/Final,
          * i == 1 EVP_Cipher); the retry succeeds and the next IV follows. */
         ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
