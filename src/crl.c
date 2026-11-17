@@ -566,7 +566,7 @@ static Signer* GetCATrustAnchor(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
     return NULL;
 }
 
-#ifndef NO_ASN_TIME
+#if !defined(NO_ASN_TIME) && defined(USE_WOLF_VALIDATE)
 /* Compare thisUpdate of two CRL entries.
  * Returns 1 if a is newer, -1 if b is newer, 0 if equal, <0 error. */
 static int CompareCRLlastDate(const CRL_Entry* a, const CRL_Entry* b)
@@ -658,7 +658,7 @@ static int CRL_Supersedes(CRL_Entry* crle, CRL_Entry* curr)
 {
     int ret;
 
-#ifndef NO_ASN_TIME
+#if !defined(NO_ASN_TIME) && defined(USE_WOLF_VALIDATE)
     if (!crle->crlNumberSet && !curr->crlNumberSet) {
         ret = CompareCRLlastDate(crle, curr);
         if (ret < -1)
@@ -680,6 +680,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 {
     CRL_Entry* crle;
     CRL_Entry* bestFitCrle = NULL;
+    int bestFitCrleSameAkid = 0;
+
     Signer* certTrustAnchor = NULL;
     int        ret = 0;
 
@@ -695,6 +697,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     for (crle = crl->crlList; crle != NULL; crle = crle->next) {
         Signer* crlTrustAnchor = NULL;
         int verifyRet = 0;
+        int sameAkid = 0;
         /* check issuer hash */
         if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) != 0) {
             continue;
@@ -710,7 +713,9 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
                     WOLFSSL_MSG("wc_LockMutex failed");
                     continue;
                 }
-                verifyRet = VerifyCRLE(crl, crle, cm, 1);
+                if (crle->verified == 0) {
+                    verifyRet = VerifyCRLE(crl, crle, cm, 1);
+                }
                 wc_UnLockMutex(&crle->verifyMutex);
             }
         }
@@ -750,7 +755,9 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         /* try to skip the trust anchor check if akids do not match
          * walk the chain to check trust anchors */
         if (crle->extAuthKeyIdSet && akid &&
-                XMEMCMP(crle->extAuthKeyId, akid, SIGNER_DIGEST_SIZE) != 0)
+                XMEMCMP(crle->extAuthKeyId, akid, SIGNER_DIGEST_SIZE) == 0) {
+            sameAkid = 1;
+        } else
 #endif
         /* check that the trust achor is the same by walking the list */
         {
@@ -793,9 +800,10 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         /* An AKID match beats a trust anchor match. Within the same score,
          * keep the newest CRL using the same ordering AddCRL() dedups with,
          * so the choice doesn't depend on load order. */
-        if (bestFitCrle == NULL ||
+        if (bestFitCrle == NULL || (sameAkid > bestFitCrleSameAkid) ||
                 CRL_Supersedes(crle, bestFitCrle) == 1) {
             bestFitCrle = crle;
+            bestFitCrleSameAkid = sameAkid;
         }
     }
 

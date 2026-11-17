@@ -59,6 +59,7 @@ int test_wolfSSL_CRL_unknown_ext_cb_positive_return_fails_load(void);
 int test_wolfSSL_CRL_unknown_ext_cb_noctx(void);
 int test_wolfSSL_CRL_cross_ca_akid(void);
 int test_wolfSSL_CRL_unverified_no_evict(void);
+int test_wolfSSL_CRL_same_name_key_rollover(void);
 int test_wolfSSL_cert_critical_policy_constraints(void);
 int test_wolfSSL_CRL_unknown_ext_cb_32_preferred(void);
 int test_wolfSSL_CertManagerCheckOCSPResponse(void);
@@ -108,6 +109,7 @@ int test_wolfSSL_trust_peer_cert_dates(void);
         test_wolfSSL_CRL_unknown_ext_cb_noctx),                             \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_cross_ca_akid),             \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_unverified_no_evict),       \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CRL_same_name_key_rollover),    \
     TEST_DECL_GROUP("certman", test_wolfSSL_cert_critical_policy_constraints), \
     TEST_DECL_GROUP("certman",                                              \
         test_wolfSSL_CRL_unknown_ext_cb_32_preferred),                      \
