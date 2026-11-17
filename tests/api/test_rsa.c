@@ -94,6 +94,10 @@ int test_wc_RsaPrivateKeyDecode(void)
     }
 
     ExpectIntEQ(wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes), 0);
 
     /* Test bad args. */
     ExpectIntEQ(wc_RsaPrivateKeyDecode(NULL, &idx, &key, (word32)bytes),
@@ -181,6 +185,10 @@ int test_wc_RsaPublicKeyDecode(void)
     #endif
     }
 
+    ExpectIntEQ(wc_RsaPublicKeyDecode(tmp, &idx, &keyPub, (word32)bytes), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    idx = 0;
     ExpectIntEQ(wc_RsaPublicKeyDecode(tmp, &idx, &keyPub, (word32)bytes), 0);
 
     /* Pass in bad args. */
@@ -395,6 +403,9 @@ int test_wc_MakeRsaKey(void)
 
     ExpectIntEQ(wc_InitRsaKey(&genKey, HEAP_HINT), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, &rng), 0);
+    /* Generate again into the same key; the first key must be wiped and
+     * released, not orphaned. */
     ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, &rng), 0);
     DoExpectIntEQ(wc_FreeRsaKey(&genKey), 0);
 

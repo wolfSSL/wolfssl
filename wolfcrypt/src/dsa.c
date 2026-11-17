@@ -284,6 +284,10 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
          * backend's own error (MP_MEM from the heap backends) and, on failure,
          * leaves every argument either cleared or never touched, so the
          * cleanup must not mp_clear() any of them. */
+        /* Wipe and free x and y from wc_InitDsaKey() or an earlier key
+         * before re-init. */
+        mp_forcezero(&dsa->x);
+        mp_clear(&dsa->y);
         err = mp_init_multi(&dsa->x, &dsa->y, tmpQ, NULL, NULL, NULL);
         if (err != MP_OKAY)
             err = MP_INIT_E;
@@ -436,6 +440,11 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
          * that code to skip mp_clear() on objects the failed init never
          * constructed, but mp_init_multi() returns the backend's own error
          * (MP_MEM from the heap backends), so the guard never fired. */
+        /* Free p, q and g from wc_InitDsaKey() or earlier parameters before
+         * re-init. */
+        mp_clear(&dsa->p);
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->g);
         err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, &dsa->g, 0);
         if (err != MP_OKAY)
             err = MP_INIT_E;

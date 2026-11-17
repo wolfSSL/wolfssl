@@ -179,6 +179,10 @@ int test_wc_DsaPublicPrivateKeyDecode(void)
 
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
     ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    idx = 0;
+    ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_DsaPrivateKeyDecode(NULL, &idx, &key, bytes), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, NULL, &key, bytes), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -189,6 +193,10 @@ int test_wc_DsaPublicPrivateKeyDecode(void)
 
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
     idx = 0; /* Reset */
+    ExpectIntEQ(wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    idx = 0;
     ExpectIntEQ(wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_DsaPublicKeyDecode(NULL, &idx, &key, bytes), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -219,12 +227,18 @@ int test_wc_MakeDsaKey(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF, &genKey), 0);
+    /* Generate again into the same key; the first values must be released,
+     * not orphaned. */
+    ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF, &genKey), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_MakeDsaParameters(NULL, ONEK_BUF, &genKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF + 1, &genKey),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    ExpectIntEQ(wc_MakeDsaKey(&rng, &genKey), 0);
+    /* Generate again into the same key; the first key must be wiped and
+     * released, not orphaned. */
     ExpectIntEQ(wc_MakeDsaKey(&rng, &genKey), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_MakeDsaKey(NULL, &genKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));

@@ -938,8 +938,16 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     \code
     DhKey key;
     byte priv[256], pub[256];
-    int ret = wc_DhImportKeyPair(&key, priv, sizeof(priv), pub,
-                                sizeof(pub));
+    int ret2;
+    int ret = wc_InitDhKey(&key);
+    if (ret == 0) {
+        ret = wc_DhImportKeyPair(&key, priv, sizeof(priv), pub,
+                                 sizeof(pub));
+        ret2 = wc_FreeDhKey(&key);
+        if (ret == 0) {
+            ret = ret2;
+        }
+    }
     \endcode
 
     \sa wc_DhExportKeyPair

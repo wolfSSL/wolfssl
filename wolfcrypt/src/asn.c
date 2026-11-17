@@ -9284,6 +9284,8 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
             int i;
             /* Extract all public fields. */
             for (i = 0; i < RSA_ASN_INTS; i++) {
+                /* Wipe and free an earlier value; GetASN_MP() inits again. */
+                mp_forcezero(GetRsaInt(key, i));
                 GetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i],
                     GetRsaInt(key, i));
             }
@@ -12432,6 +12434,11 @@ int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    /* Free p, g and pub from wc_InitDhKey() or an earlier load; GetInt()
+     * inits them again. */
+    mp_clear(&key->p);
+    mp_clear(&key->g);
+    mp_clear(&key->pub);
     if (GetInt(&key->p, input, inOutIdx, inSz) < 0)
         return ASN_DH_KEY_E;
 
@@ -12582,6 +12589,10 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     if (ret == 0) {
         /* Initialize data and set mp_ints to hold p and g. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * dhParamASN_Length);
+        /* Free p and g from wc_InitDhKey() or an earlier load; GetASN_MP()
+         * inits them again. */
+        mp_clear(&key->p);
+        mp_clear(&key->g);
         GetASN_MP(&dataASN[DHPARAMASN_IDX_PRIME], &key->p);
         GetASN_MP(&dataASN[DHPARAMASN_IDX_BASE], &key->g);
         /* Try simple PKCS #3 template. */
@@ -12596,6 +12607,10 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
             XMEMSET(dataASN, 0, sizeof(*dataASN) * dhKeyPkcs8ASN_Length);
             GetASN_ExpBuffer(&dataASN[DHKEYPKCS8ASN_IDX_PKEYALGO_OID],
                     keyDhOid, sizeof(keyDhOid));
+            /* Wipe and free q, priv and pub from an earlier load. */
+            mp_clear(&key->q);
+            mp_forcezero(&key->priv);
+            mp_clear(&key->pub);
             GetASN_MP(&dataASN[DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_P], &key->p);
             GetASN_MP(&dataASN[DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_G], &key->g);
             GetASN_MP(&dataASN[DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_Q], &key->q);
@@ -12928,8 +12943,11 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         /* seq
          *   p, q, g, y
          * Start DSA ints from DSAKEYASN_IDX_VER instead of DSAKEYASN_IDX_P */
-        for (i = 0; i < DSA_INTS - 1; i++)
+        for (i = 0; i < DSA_INTS - 1; i++) {
+            /* Free an earlier value; GetASN_MP() inits it again. */
+            mp_clear(GetDsaInt(key, i));
             GetASN_MP(&dataASN[(int)DSAKEYASN_IDX_VER + i], GetDsaInt(key, i));
+        }
         /* Parse as simple form. */
         ret = GetASN_Items(dsaKeyASN, dataASN, dsaPublicKeyASN_Length, 0, input,
                            inOutIdx, inSz);
@@ -12939,11 +12957,14 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
             /* Set DSA OID to expect. */
             GetASN_ExpBuffer(&dataASN[DSAPUBKEYASN_IDX_ALGOID_OID],
                     keyDsaOid, sizeof(keyDsaOid));
-            /* p, q, g */
-            for (i = 0; i < DSA_INTS - 2; i++)
+            /* p, q, g; the simple form above may have filled them. */
+            for (i = 0; i < DSA_INTS - 2; i++) {
+                mp_clear(GetDsaInt(key, i));
                 GetASN_MP(&dataASN[(int)DSAPUBKEYASN_IDX_ALGOID_PARAMS_P + i],
                         GetDsaInt(key, i));
+            }
             /* y */
+            mp_clear(GetDsaInt(key, i));
             GetASN_MP(&dataASN[DSAPUBKEYASN_IDX_PUBKEY_Y], GetDsaInt(key, i));
             /* Parse as SubjectPublicKeyInfo. */
             ret = GetASN_Items(dsaPubKeyASN, dataASN, dsaPubKeyASN_Length, 1,
@@ -12973,6 +12994,11 @@ int wc_DsaParamsDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         return ASN_PARSE_E;
 
     maxIdx = (word32)(*inOutIdx + (word32)length);
+    /* Free p, q and g from wc_InitDsaKey() or earlier parameters; GetInt()
+     * inits them again. */
+    mp_clear(&key->p);
+    mp_clear(&key->q);
+    mp_clear(&key->g);
     if (GetInt(&key->p, input, inOutIdx, maxIdx) < 0 ||
         GetInt(&key->q, input, inOutIdx, maxIdx) < 0 ||
         GetInt(&key->g, input, inOutIdx, maxIdx) < 0)
@@ -13044,6 +13070,11 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (ret == 0) {
         int i;
 
+        /* Wipe and free values from wc_InitDsaKey() or an earlier decode;
+         * GetASN_MP() inits them again. */
+        for (i = 0; i < DSA_INTS; i++) {
+            mp_forcezero(GetDsaInt(key, i));
+        }
         /* Try dsaKeyOctASN */
         /* Initialize key data and set mp_ints for params */
         for (i = 0; i < DSA_INTS - 2; i++) {
@@ -42206,6 +42237,9 @@ static int _RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 
     key->type = RSA_PUBLIC;
 
+    /* Free n and e from wc_InitRsaKey() or an earlier decode before re-init. */
+    mp_clear(&key->n);
+    mp_clear(&key->e);
     if (mp_init(&key->n) != MP_OKAY) {
         return MP_INIT_E;
     }

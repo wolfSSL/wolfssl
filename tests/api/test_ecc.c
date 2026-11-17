@@ -293,6 +293,14 @@ int test_wc_ecc_make_key(void)
 #endif
     ExpectIntEQ(ret, 0);
 
+    /* Generate again into the same key; the first private scalar and public
+     * point must be released, not orphaned. */
+    ret = wc_ecc_make_key(&rng, KEY14, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
     /* Pass in bad args. */
     ExpectIntEQ(wc_ecc_make_key(NULL, KEY14, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -1504,6 +1512,9 @@ int test_wc_ecc_import_x963(void)
     PRIVATE_KEY_LOCK();
 
     ExpectIntEQ(wc_ecc_import_x963(x963, x963Len, &pubKey), 0);
+    /* Import again into the same key; the first values must be released,
+     * not orphaned. */
+    ExpectIntEQ(wc_ecc_import_x963(x963, x963Len, &pubKey), 0);
 
     /* Test bad args. */
     ExpectIntEQ(wc_ecc_import_x963(NULL, x963Len, &pubKey),
@@ -2392,6 +2403,9 @@ int test_wc_ecc_import_raw(void)
 
     /* Test good import */
     ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, d, curveName), 0);
+    /* Import again into the same key; the first values must be released,
+     * not orphaned. */
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, d, curveName), 0);
 
     /* Test bad args. */
     ExpectIntEQ(wc_ecc_import_raw(NULL, qx, qy, d, curveName),
@@ -2479,6 +2493,10 @@ int test_wc_ecc_import_unsigned(void)
 
     ExpectIntEQ(wc_ecc_init(&key), 0);
 
+    ExpectIntEQ(wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d,
+        curveId), 0);
+    /* Import again into the same key; the first values must be released,
+     * not orphaned. */
     ExpectIntEQ(wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d,
         curveId), 0);
     /* Test bad args. */

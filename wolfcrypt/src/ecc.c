@@ -5836,6 +5836,19 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
     key->state = ECC_STATE_NONE;
 }
 
+#ifndef ALT_ECC_SIZE
+/* Wipe and free the private scalar and public point that wc_ecc_init() set up
+ * or an earlier import filled, before an import initializes them again.
+ */
+static WC_INLINE void ecc_free_key_ints(ecc_key* key)
+{
+    ecc_forcezero_k(key);
+    mp_clear(key->pubkey.x);
+    mp_clear(key->pubkey.y);
+    mp_clear(key->pubkey.z);
+}
+#endif
+
 
 #if defined(HAVE_ECC_MAKE_PUB) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 /* compute the public key Q = d*G in software.
@@ -5996,6 +6009,13 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
            ECC_PRIVATEKEY_ONLY */
         pub = &key->pubkey;
         key->type = ECC_PRIVATEKEY_ONLY;
+    #ifndef ALT_ECC_SIZE
+        /* wc_ecc_init() set up key->pubkey; free any digits a previous call
+         * grew before mp_init_multi() below drops them. */
+        mp_clear(pub->x);
+        mp_clear(pub->y);
+        mp_clear(pub->z);
+    #endif
     }
 
     if (err == MP_OKAY) {
@@ -6450,6 +6470,9 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
 
         /* setup the key variables */
+        /* wc_ecc_init() set up key->k; wipe and free any earlier private
+         * scalar and its blind before the init below drops them. */
+        ecc_forcezero_k(key);
 #ifndef ALT_ECC_SIZE
         err = mp_init(key->k);
 #else
@@ -11967,6 +11990,7 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         alt_fp_init(key->ku);
     #endif
     #else
+        ecc_free_key_ints(key);
         err = mp_init_multi(key->k, key->pubkey.x, key->pubkey.y, key->pubkey.z,
     #ifndef WOLFSSL_ECC_BLIND_K
                                                                       NULL, NULL
@@ -13161,6 +13185,7 @@ static int _ecc_import_raw_private(ecc_key* key, const char* qx,
     alt_fp_init(key->ku);
 #endif
 #else
+    ecc_free_key_ints(key);
     err = mp_init_multi(key->k, key->pubkey.x, key->pubkey.y, key->pubkey.z,
 #ifndef WOLFSSL_ECC_BLIND_K
                                                                       NULL, NULL

@@ -78,6 +78,11 @@ int test_wc_DhPublicKeyDecode(void)
     inOutIdx = 0;
     ExpectIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
         sizeof_dh_pub_key_der_2048), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    inOutIdx = 0;
+    ExpectIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
+        sizeof_dh_pub_key_der_2048), 0);
     ExpectIntNE(key.p.used, 0);
     ExpectIntNE(key.g.used, 0);
     ExpectIntEQ(key.q.used, 0);
@@ -274,6 +279,10 @@ int test_wc_DhSetKey(void)
     if (params != NULL) {
         /* valid: known FFDHE prime, short-circuits the primality test */
         ExpectIntEQ(wc_InitDhKey(&key), 0);
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
+            params->g_len), 0);
+        /* Set again on the same key; the first values must be released,
+         * not orphaned. */
         ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
             params->g_len), 0);
         wc_FreeDhKey(&key);
@@ -762,6 +771,9 @@ int test_wc_DhImportExportKeyPair(void)
     /* both */
     ExpectIntEQ(wc_InitDhKey(&key), 0);
     ExpectIntEQ(wc_DhImportKeyPair(&key, priv, privSz, pub, pubSz), 0);
+    /* Import again into the same key; the first values must be released,
+     * not orphaned. */
+    ExpectIntEQ(wc_DhImportKeyPair(&key, priv, privSz, pub, pubSz), 0);
 
     /* export bad args */
     privOutSz = sizeof(privOut);
@@ -1032,6 +1044,9 @@ int test_wc_DhGenerateParams_and_ExportRaw(void)
     ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, &dh), 0);
+    /* Generate again into the same key; the first values must be released,
+     * not orphaned. */
     ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, &dh), 0);
 
     /* bad args */

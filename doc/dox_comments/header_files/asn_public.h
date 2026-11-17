@@ -2154,7 +2154,11 @@ int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
     \code
     DsaKey key;
     word32 idx = 0;
-    int ret = wc_DsaParamsDecode(derBuf, &idx, &key, derSz);
+    int ret = wc_InitDsaKey(&key);
+    if (ret == 0) {
+        ret = wc_DsaParamsDecode(derBuf, &idx, &key, derSz);
+        wc_FreeDsaKey(&key);
+    }
     \endcode
 
     \sa wc_DsaKeyToParamsDer
