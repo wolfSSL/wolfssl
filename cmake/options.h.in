@@ -497,6 +497,9 @@ extern "C" {
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 #cmakedefine WOLFSSL_SLHDSA_VERIFY_ONLY
 #endif
+#ifndef HAVE_FALCON
+#cmakedefine HAVE_FALCON
+#endif
 #undef WOLFSSL_PQC_HYBRIDS
 #cmakedefine WOLFSSL_PQC_HYBRIDS
 #undef WOLFSSL_EXTRA_PQC_HYBRIDS
