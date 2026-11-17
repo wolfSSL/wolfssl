@@ -1169,14 +1169,18 @@ static int km_AesGcmSetAuthsize_Rfc4106(struct crypto_aead *tfm, unsigned int au
 
 #ifdef WOLFSSL_AESGCM_STREAM
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
+/* Don't incur the FIPS check overhead inside the loop (intermediate
+ * computation) on old FIPS -- the Final() call captures and propagates the
+ * error if the module entered degraded state during the loop.  (On FIPS >=v7,
+ * inlining and tail calls eliminate wrapper cost.)
  */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS) && \
+    FIPS_VERSION3_LT(7,0,0) && !defined(LINUXKM_LKCAPI_KEEP_FIPS_WRAPPERS)
     #undef wc_AesGcmDecryptUpdate
     #undef wc_AesGcmEncryptUpdate
     typeof(wc_AesGcmDecryptUpdate_fips) wc_AesGcmDecryptUpdate;
     typeof(wc_AesGcmEncryptUpdate_fips) wc_AesGcmEncryptUpdate;
+    #define WC_LKCAPI_FIPS_AES_GCM_UPDATE_UNWRAPPED
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
@@ -1441,9 +1445,10 @@ out:
     return err;
 }
 
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#ifdef WC_LKCAPI_FIPS_AES_GCM_UPDATE_UNWRAPPED
     #define wc_AesGcmDecryptUpdate wc_AesGcmDecryptUpdate_fips
     #define wc_AesGcmEncryptUpdate wc_AesGcmEncryptUpdate_fips
+    #undef WC_LKCAPI_FIPS_AES_GCM_UPDATE_UNWRAPPED
 #endif
 
 #else /* !WOLFSSL_AESGCM_STREAM */
@@ -2321,14 +2326,18 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
 
 /* see /usr/src/linux/drivers/md/dm-crypt.c */
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
+/* Don't incur the FIPS check overhead inside the loop (intermediate
+ * computation) on old FIPS -- the Final() call captures and propagates the
+ * error if the module entered degraded state during the loop.  (On FIPS >=v7,
+ * inlining and tail calls eliminate wrapper cost.)
  */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS) && \
+    FIPS_VERSION3_LT(7,0,0) && !defined(LINUXKM_LKCAPI_KEEP_FIPS_WRAPPERS)
     #undef wc_AesXtsDecryptUpdate
     #undef wc_AesXtsEncryptUpdate
     typeof(wc_AesXtsDecryptUpdate_fips) wc_AesXtsDecryptUpdate;
     typeof(wc_AesXtsEncryptUpdate_fips) wc_AesXtsEncryptUpdate;
+    #define WC_LKCAPI_FIPS_AES_XTS_UPDATE_UNWRAPPED
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
@@ -2736,9 +2745,10 @@ out:
     return err;
 }
 
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#ifdef WC_LKCAPI_FIPS_AES_XTS_UPDATE_UNWRAPPED
     #define wc_AesXtsDecryptUpdate wc_AesXtsDecryptUpdate_fips
     #define wc_AesXtsEncryptUpdate wc_AesXtsEncryptUpdate_fips
+    #undef WC_LKCAPI_FIPS_AES_XTS_UPDATE_UNWRAPPED
 #endif
 
 static struct skcipher_alg xtsAesAlg = {
