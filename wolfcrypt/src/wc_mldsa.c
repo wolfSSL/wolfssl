@@ -1620,7 +1620,7 @@ static int mldsa_squeeze128(wc_Shake* shake128, const byte* in,
 }
 #endif /* WOLFSSL_MLDSA_SMALL */
 
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
     (!defined(WOLFSSL_MLDSA_SMALL) && \
      !defined(WOLFSSL_MLDSA_NO_MAKE_KEY))
 /* 256-bit hash using SHAKE-256.
@@ -1636,8 +1636,8 @@ static int mldsa_squeeze128(wc_Shake* shake128, const byte* in,
  * @return  0 on success.
  * @return  Negative on hash error.
  */
-static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
-    word32 inLen, byte* out, word32 outBlocks)
+WC_MAYBE_UNUSED static int mldsa_squeeze256(wc_Shake* shake256,
+    const byte* in, word32 inLen, byte* out, word32 outBlocks)
 {
     int ret;
 #ifdef USE_INTEL_SPEEDUP
@@ -7422,18 +7422,17 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
     /* Set polynomial to all zeros. */
     XMEMSET(c, 0, MLDSA_POLY_SIZE);
 
-    /* Generate a block of data from seed. */
+    /* Absorb once and squeeze, so a refill below continues the same
+     * SHAKE256 context: FIPS 204 Algorithm 29 steps 2-4, 7 and 9. */
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (level >= WC_ML_DSA_DRAFT) {
-        ret = mldsa_shake256(shake256, seed, MLDSA_SEED_SZ, block,
-            MLDSA_GEN_C_BLOCK_BYTES);
+        ret = mldsa_squeeze256(shake256, seed, MLDSA_SEED_SZ, block, 1);
     }
     else
 #endif
     {
         (void)level;
-        ret = mldsa_shake256(shake256, seed, seedLen, block,
-            MLDSA_GEN_C_BLOCK_BYTES);
+        ret = mldsa_squeeze256(shake256, seed, seedLen, block, 1);
     }
     if (ret == 0) {
         /* Copy first 8 bytes of first hash block as random sign bits. */
