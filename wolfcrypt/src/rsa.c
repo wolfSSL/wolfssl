@@ -675,6 +675,26 @@ int wc_FreeRsaKey(RsaKey* key)
     return ret;
 }
 
+#if FIPS_VERSION3_GE(7,0,0)
+/* Even modulus bit length (FIPS 186-5 sec 5.1) and an odd e with
+ * 65537 <= e < 2^256 (FIPS 186-5 sec 5.4 (e), SP 800-56B Rev2 sec 6.2.1). */
+WC_MAYBE_UNUSED static int RsaCheckPublicParams(RsaKey* key)
+{
+    int ret = 0;
+
+    if ((mp_count_bits(&key->n) & 1) != 0) {
+        ret = WC_KEY_SIZE_E;
+    }
+    /* An odd e of 17 to 256 bits is in range: 65536 is the only smaller
+     * 17-bit value and it is even. Bit counts avoid narrow mp digits. */
+    else if (mp_iseven(&key->e) || (mp_count_bits(&key->e) < 17) ||
+             (mp_count_bits(&key->e) > 256)) {
+        ret = MP_EXPTMOD_E;
+    }
+    return ret;
+}
+#endif
+
 #if defined(WOLFSSL_RSA_KEY_CHECK) || \
     (defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* r = |p - q|, without relying on signed math support. */
@@ -866,22 +886,14 @@ int wc_CheckRsaKey(RsaKey* key)
         int nBits = mp_count_bits(&key->n);
         int isPrime = 0;
 
-        /* Modulus: even number of bits (item D, step 3c) and at least 2048
-         * (FIPS 186-5 sec 5.1).  Spelled out rather than using RSA_MIN_SIZE,
+        /* Modulus at least 2048 bits (FIPS 186-5 sec 5.1), not RSA_MIN_SIZE,
          * which drops to 1024 under HAVE_WOLFENGINE / HAVE_WOLFPROVIDER. */
-        if ((nBits < 2048) || ((nBits & 1) != 0)) {
+        if (nBits < 2048) {
             ret = WC_KEY_SIZE_E;
         }
-
-        /* Public exponent: odd, and 65537 <= e < 2^256 (item B).  Bounds are
-         * bit counts, not mp_cmp_d: a digit can be 8 or 16 bits wide
-         * (sp_int.h), and 65537 would truncate there.  An odd e of at least
-         * 17 bits is >= 65537, because 65536 is the only 17-bit value below
-         * it and that one is even. */
-        if ((ret == 0) && (mp_iseven(&key->e) ||
-                (mp_count_bits(&key->e) < 17) ||
-                (mp_count_bits(&key->e) > 256))) {
-            ret = MP_EXPTMOD_E;
+        /* Even modulus length (item D, step 3c) and e in range (item B). */
+        if (ret == 0) {
+            ret = RsaCheckPublicParams(key);
         }
 
         /* Primes: right size, coprime to e, far enough apart, and actually
@@ -3700,6 +3712,15 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #elif defined(WOLF_CRYPTO_CB_ONLY_RSA)
     return NO_VALID_DEVID;
 #else /* !WOLF_CRYPTO_CB_ONLY_RSA */
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Every operation refuses a key that no FIPS 186-5 or SP 800-56B scheme
+     * allows, whatever path imported it. */
+    ret = RsaCheckPublicParams(key);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
     !defined(NO_RSA_BOUNDS_CHECK)
