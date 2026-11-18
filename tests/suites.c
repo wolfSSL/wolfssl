@@ -1061,7 +1061,7 @@ static void test_harness(void* vargs)
                                   cliArgsSz, cliArgs, 1, 0, 0, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
                                   cliArgsSz, cliArgs, 1, 1, 0, 0, 0);
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
                 execute_test_case(svrArgsSz, svrArgs,
                                   cliArgsSz, cliArgs, 0, 0, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,

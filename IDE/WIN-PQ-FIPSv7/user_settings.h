@@ -234,6 +234,7 @@
         #define WOLFSSL_SLHDSA_PARAM_SHA2_256S
         #define WOLFSSL_SLHDSA_PARAM_SHA2_256F
         #define WOLFSSL_DRBG_SHA512        /* SHA-512 Hash_DRBG (SP 800-90A) */
+        #define HAVE_EXTENDED_MASTER       /* TLS 1.2 needs EMS: IG D.Q */
 
     #endif /* FIPS v7 */
 #else

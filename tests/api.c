@@ -6304,7 +6304,7 @@ static int test_wolfSSL_CTX_enable_disable(void)
     #endif
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
-    #ifdef HAVE_EXTENDED_MASTER
+    #if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
     ExpectIntEQ(wolfSSL_CTX_DisableExtendedMasterSecret(ctx), WOLFSSL_SUCCESS);
     #endif
 
@@ -22662,9 +22662,11 @@ static int test_wolfSSL_ERR_get_error_order(void)
 static int test_wolfSSL_ERR_GET_REASON_version_mismatch(void)
 {
     EXPECT_DECLS;
+    /* A FIPS v7 TLS 1.2 server refuses the EMS-less hello first. */
 #if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -48767,6 +48769,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls_ems_clear_reuse),
     TEST_DECL(test_tls_ems_disable_v23),
     TEST_DECL(test_tls_require_ems),
+    TEST_DECL(test_tls_fips_ems_required),
     TEST_DECL(test_tls_require_ems_resumption),
     TEST_DECL(test_tls_require_ems_secret_cb),
     TEST_DECL(test_tls_ems_server_disable_secret_cb),
