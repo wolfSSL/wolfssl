@@ -47,6 +47,7 @@ int test_wc_ecc_export_x963(void);
 int test_wc_ecc_export_x963_ex(void);
 int test_wc_ecc_import_x963(void);
 int test_wc_ecc_import_compressed_sqrt(void);
+int test_wc_ecc_import_compressed_custom(void);
 int test_wc_ecc_import_x963_off_curve(void);
 int test_wc_ecc_import_x963_oversized(void);
 int test_wc_ecc_import_x963_non_canonical(void);
@@ -81,6 +82,7 @@ int test_wc_ecc_mulmod_unreduced(void);
 int test_wc_ecc_mulmod_k_len(void);
 int test_wc_ecc_mulmod_zero(void);
 int test_wc_ecc_mulmod_negative(void);
+int test_wc_ecc_map_curves(void);
 int test_wc_ecc_mulmod_curves(void);
 int test_wc_ecc_mulmod_projective(void);
 int test_wc_ecc_is_valid_idx(void);
@@ -121,6 +123,7 @@ int test_wc_ecc_fp_cache_curve_binding(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_export_x963_ex),                 \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963),                    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_compressed_sqrt),         \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_import_compressed_custom),       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963_off_curve),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963_oversized),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_x963_non_canonical),      \
@@ -155,6 +158,7 @@ int test_wc_ecc_fp_cache_curve_binding(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_k_len),                   \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_zero),                    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_negative),                \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_map_curves),                     \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_curves),                  \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_projective),              \
     TEST_DECL_GROUP("ecc", test_wc_ecc_is_valid_idx),                   \
