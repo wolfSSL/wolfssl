@@ -316,6 +316,20 @@ static void sp_cortexm_whitebox_drive(void)
     (void)mp_sub(&wb2_p256_prime, &wb_gy, &wb2_gy_neg); /* -Gy = p - Gy */
     (void)mp_sub_d(&wb_n, 1, &wb2_rlarge);              /* order - 1 */
 
+    /* --- sp_ecc_is_point_256 range pre-checks: a 2048-bit ordinate trips
+     * mp_count_bits(pX/pY) > 256; an ordinate equal to the field prime passes
+     * the bit-length guard and trips sp_256_cmp_8(pub->x/y, p256_mod) >= 0.
+     * (The mp_isneg operands are unreachable: the SP math back end has no
+     * negative support, so a negative mp_int cannot be constructed. */
+    ret = sp_ecc_is_point_256(&wb2_mm2048, &wb_gy);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+    ret = sp_ecc_is_point_256(&wb_gx, &wb2_mm2048);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+    ret = sp_ecc_is_point_256(&wb2_p256_prime, &wb_gy);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+    ret = sp_ecc_is_point_256(&wb_gx, &wb2_p256_prime);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+
     /* --- sp_RsaPublic_2048 guard: mp_count_bits(em)>32 || inLen>256 ||
      * mp_count_bits(mm)!=2048. All-false baseline is already exercised by
      * the KAT's real RSA-2048 sign/verify; each call below flips one
