@@ -34,6 +34,7 @@
     #include <wolfssl/openssl/x509_vfy.h>
     #include <wolfssl/openssl/pem.h>
 #endif
+#include <tests/utils.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_str.h>
 
@@ -5764,6 +5765,76 @@ int test_wolfSSL_X509_STORE_CTX_set_current_cert_handshake(void)
 
     test_set_cur_cert_x509 = NULL;
     X509_free(cert);
+    X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+static int test_set_cur_cert_ssl_calls;
+
+/* Called first. Sets another cert and accepts the cert. */
+static int test_set_cur_cert_cm_cb(int ok, X509_STORE_CTX* ctx)
+{
+    (void)ok;
+    test_set_cur_cert_calls++;
+    X509_STORE_CTX_set_current_cert(ctx, test_set_cur_cert_x509);
+    return 1;
+}
+
+/* Called next. Must see the cert being verified. */
+static int test_set_cur_cert_ssl_cb(int ok, X509_STORE_CTX* ctx)
+{
+    (void)ok;
+    test_set_cur_cert_ssl_calls++;
+    if (X509_STORE_CTX_get_current_cert(ctx) == test_set_cur_cert_x509)
+        test_set_cur_cert_bad = 1;
+    return 1;
+}
+#endif
+
+/* A cert set by one verify callback of the handshake is not seen by the next
+ * one. */
+int test_wolfSSL_X509_STORE_CTX_set_current_cert_cbs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    X509* cert = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(cert = X509_load_certificate_file(cliCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    /* Without the CA, the SSL callback is called for every cert. */
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx_c),
+        test_set_cur_cert_cm_cb);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_set_cur_cert_ssl_cb);
+
+    test_set_cur_cert_x509 = cert;
+    test_set_cur_cert_calls = 0;
+    test_set_cur_cert_ssl_calls = 0;
+    test_set_cur_cert_bad = 0;
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntGT(test_set_cur_cert_calls, 0);
+    ExpectIntGT(test_set_cur_cert_ssl_calls, 0);
+    ExpectIntEQ(test_set_cur_cert_bad, 0);
+
+    test_set_cur_cert_x509 = NULL;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
     X509_free(cert);
 #endif
     return EXPECT_RESULT();
