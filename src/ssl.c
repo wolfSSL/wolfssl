@@ -5271,8 +5271,7 @@ static void CtxVersionSave(const WOLFSSL_CTX* ctx, CtxVersionState* st)
 static int CtxVersionRestore(WOLFSSL_CTX* ctx, const CtxVersionState* st,
     int ret)
 {
-    if (ret != WOLFSSL_SUCCESS && (ctx->method->version.major == DTLS_MAJOR ||
-            !ctx->method->downgrade)) {
+    if (ret != WOLFSSL_SUCCESS) {
         ctx->mask = st->mask;
         ctx->method->version = st->version;
         ctx->minDowngrade = st->minDowngrade;

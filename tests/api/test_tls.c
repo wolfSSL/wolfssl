@@ -3169,6 +3169,50 @@ static int test_tls_max_proto_pinned(void)
 }
 #endif
 
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_TLS12)
+/* A failed minimum or maximum on a v23 CTX keeps its version settings. */
+static int test_tls_ctx_proto_failed_keeps_options(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx = NULL;
+    long mask = 0;
+    int minProto = 0;
+    int i;
+    static const int badMax[] = {
+        TLS1_3_VERSION + 1,
+#ifdef WOLFSSL_DTLS
+        DTLS1_2_VERSION,
+#endif
+#ifndef WOLFSSL_ALLOW_SSLV3
+        SSL3_VERSION,
+#endif
+    };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    if (ctx != NULL) {
+        mask = wolfSSL_CTX_get_options(ctx);
+        minProto = wolfSSL_CTX_get_min_proto_version(ctx);
+    }
+    for (i = 0; i < (int)(sizeof(badMax) / sizeof(badMax[0])); i++) {
+        ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, badMax[i]),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_CTX_get_options(ctx), mask);
+        ExpectIntEQ(ctx != NULL ? ctx->method->version.minor : 0,
+            TLSv1_2_MINOR);
+        ExpectIntEQ(wolfSSL_CTX_get_max_proto_version(ctx), TLS1_2_VERSION);
+    }
+    ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION + 1),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_get_options(ctx), mask);
+    ExpectIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), minProto);
+    ExpectIntEQ(wolfSSL_CTX_get_max_proto_version(ctx), TLS1_2_VERSION);
+    wolfSSL_CTX_free(ctx);
+    return EXPECT_RESULT();
+}
+#endif
+
 int test_tls_max_proto_fixed(void)
 {
     EXPECT_DECLS;
@@ -3185,6 +3229,9 @@ int test_tls_max_proto_fixed(void)
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT)
     ExpectIntEQ(test_tls_max_proto_pinned(), TEST_SUCCESS);
+#endif
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_TLS12)
+    ExpectIntEQ(test_tls_ctx_proto_failed_keeps_options(), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
