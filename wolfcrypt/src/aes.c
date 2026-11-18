@@ -3748,9 +3748,9 @@ static void bs_ke_transform(unsigned char* out, unsigned char *in, word8 i) {
     /* Rotate left 8 bits. The key schedule is a byte array, so use the
      * unaligned accessors. */
 #ifdef LITTLE_ENDIAN_ORDER
-    (void)writeUnalignedWord32(out, rotrFixed(readUnalignedWord32(in), 8));
+    writeUnalignedWord32(out, rotrFixed(readUnalignedWord32(in), 8));
 #else
-    (void)writeUnalignedWord32(out, rotlFixed(readUnalignedWord32(in), 8));
+    writeUnalignedWord32(out, rotlFixed(readUnalignedWord32(in), 8));
 #endif
     bs_ke_sub_bytes(out, out);
     /* On just the first byte, add 2^i to the byte */
@@ -3761,8 +3761,7 @@ static void bs_ke_transform(unsigned char* out, unsigned char *in, word8 i) {
 static void bs_ke_xor(unsigned char* r, const unsigned char* a,
     const unsigned char* b)
 {
-    (void)writeUnalignedWord32(r,
-        readUnalignedWord32(a) ^ readUnalignedWord32(b));
+    writeUnalignedWord32(r, readUnalignedWord32(a) ^ readUnalignedWord32(b));
 }
 
 static void bs_expand_key(unsigned char *in, word32 sz) {
@@ -19232,13 +19231,13 @@ int wc_AesXtsInit(XtsAes* aes, void* heap, int devId)
         return ret;
     }
     if ((ret = wc_AesInit(&aes->aes, heap, devId)) != 0) {
-        (void)wc_AesFree(&aes->tweak);
+        wc_AesFree(&aes->tweak);
         return ret;
     }
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     if ((ret = wc_AesInit(&aes->aes_decrypt, heap, devId)) != 0) {
-        (void)wc_AesFree(&aes->tweak);
-        (void)wc_AesFree(&aes->aes);
+        wc_AesFree(&aes->tweak);
+        wc_AesFree(&aes->aes);
         return ret;
     }
 #endif
@@ -19379,8 +19378,12 @@ int wc_AesXtsSetKey(XtsAes* aes, const byte* key, word32 len, int dir,
 
     ret = wc_AesXtsSetKeyNoInit(aes, key, len, dir);
 
-    if (ret != 0)
-        wc_AesXtsFree(aes);
+    /* A failed wipe outranks the SetKey error. */
+    if (ret != 0) {
+        int freeRet = wc_AesXtsFree(aes);
+        if (freeRet != 0)
+            ret = freeRet;
+    }
 
     return ret;
 }
@@ -23173,15 +23176,20 @@ int wc_AesEaxDecryptFinal(AesEax* eax,
  */
 int wc_AesEaxFree(AesEax* eax)
 {
+    int ret;
+    int freeRet;
+
     if (eax == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    (void)wc_CmacFree(&eax->ciphertextCmac);
-    (void)wc_CmacFree(&eax->aadCmac);
+    ret = wc_CmacFree(&eax->ciphertextCmac);
+    freeRet = wc_CmacFree(&eax->aadCmac);
+    if (ret == 0)
+        ret = freeRet;
     wc_AesFree(&eax->aes);
 
-    return 0;
+    return ret;
 }
 
 #endif /* WOLFSSL_AES_EAX */

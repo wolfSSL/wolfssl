@@ -83,6 +83,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     int iterations, int hashType, void* heap)
 {
     int  err;
+    int  freeErr;
     int  keyLeft, ivLeft, i;
     int  store;
     int  keyOutput = 0;
@@ -184,7 +185,10 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         }
     }
 
-    wc_HashFree(hash, hashT);
+    /* A failed wipe outranks an earlier error. */
+    freeErr = wc_HashFree(hash, hashT);
+    if (freeErr != 0)
+        err = freeErr;
 
     WC_FREE_VAR_EX(hash, heap, DYNAMIC_TYPE_HASHCTX);
 
@@ -399,6 +403,7 @@ static int DoPKCS12Hash(enum wc_HashType hashT, byte* buffer, word32 totalLen,
 {
     int i;
     int ret = 0;
+    int freeRet;
     WC_DECLARE_VAR(hash, wc_HashAlg, 1, 0);
 
     /* initialize hash */
@@ -418,7 +423,9 @@ static int DoPKCS12Hash(enum wc_HashType hashT, byte* buffer, word32 totalLen,
                 ret = wc_HashFinal(hash, hashT, Ai);
         }
 
-        wc_HashFree(hash, hashT);
+        freeRet = wc_HashFree(hash, hashT);
+        if (freeRet != 0)
+            ret = freeRet;
     }
 
     WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHCTX);

@@ -11567,7 +11567,8 @@ static void mldsa_shake_wipe(wc_Shake* shake)
     ForceZero(shake->t, sizeof(shake->t));
     shake->i = 0;
 #else
-    (void)wc_Shake256_Reset(shake);
+    if (wc_Shake256_Reset(shake) != 0)
+        WOLFSSL_MSG("ML-DSA SHAKE wipe failed");
 #endif
 }
 #endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
@@ -12028,7 +12029,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
     #ifdef WC_MLDSA_NONBLOCK
-        (void)mldsa_nb_begin(key, MLDSA_NB_OP_MAKE, seed, 0, MLDSA_SEED_SZ,
+        mldsa_nb_begin(key, MLDSA_NB_OP_MAKE, seed, 0, MLDSA_SEED_SZ,
             NULL);
         if ((key->nb != NULL) && (key->nb->work != NULL)) {
             /* Resume: reuse the working allocation from the previous call. */
@@ -12959,7 +12960,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #endif
 #ifdef WC_MLDSA_NONBLOCK
     /* Resume only the sign of this rnd||mu into this buffer. */
-    (void)mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
+    mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
         MLDSA_RND_SZ + MLDSA_MU_SZ, sig);
 #endif
     /* Check the signature buffer isn't too small. */
@@ -13735,7 +13736,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #endif
 #ifdef WC_MLDSA_NONBLOCK
     /* Resume only the sign of this rnd||mu into this buffer. */
-    (void)mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
+    mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
         MLDSA_RND_SZ + MLDSA_MU_SZ, sig);
 #endif
     /* Check the signature buffer isn't too small. */
