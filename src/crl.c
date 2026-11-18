@@ -673,8 +673,6 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         WOLFSSL_CERT_MANAGER* cm)
 {
     CRL_Entry* crle;
-    CRL_Entry* bestFitCrle = NULL;
-    int bestFitCrleSameAkid = 0;
 
     Signer* certTrustAnchor = NULL;
     int        ret = 0;
@@ -691,7 +689,6 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     for (crle = crl->crlList; crle != NULL; crle = crle->next) {
         Signer* crlTrustAnchor = NULL;
         int verifyRet = 0;
-        int sameAkid = 0;
         /* check issuer hash */
         if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) != 0) {
             continue;
@@ -732,7 +729,6 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
          * walk the chain to check trust anchors */
         if (crle->extAuthKeyIdSet && akid &&
                 XMEMCMP(crle->extAuthKeyId, akid, SIGNER_DIGEST_SIZE) == 0) {
-            sameAkid = 1;
         } else
 #endif
         {
@@ -787,20 +783,13 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         #endif
         }
 
-        /* An AKID match beats a trust anchor match. */
-        if (bestFitCrle == NULL || (sameAkid > bestFitCrleSameAkid) ||
-                (sameAkid == bestFitCrleSameAkid &&
-                 CRL_Supersedes(crle, bestFitCrle) == 1)) {
-            bestFitCrle = crle;
-            bestFitCrleSameAkid = sameAkid;
-        }
+        *pFoundEntry = 1;
+        ret = FindRevokedSerial(crle->certs, serial, serialSz,
+                serialHash, crle->totalCerts);
+        if (ret != 0)
+            break;
     }
 
-    if (bestFitCrle != NULL) {
-        *pFoundEntry = 1;
-        ret = FindRevokedSerial(bestFitCrle->certs, serial, serialSz,
-                serialHash, bestFitCrle->totalCerts);
-    }
 
     wc_UnLockRwLock(&crl->crlLock);
 
