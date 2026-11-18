@@ -879,6 +879,8 @@ function(generate_lib_src_list LIB_SOURCES)
             if(BUILD_SP_ARM_CORTEX)
                 list(APPEND LIB_SOURCES wolfcrypt/src/sp_cortexm.c)
             endif()
+
+            list(APPEND LIB_SOURCES wolfcrypt/src/sp_p256_small.c)
         endif()
         if(BUILD_SP_INT)
             list(APPEND LIB_SOURCES wolfcrypt/src/sp_int.c)
