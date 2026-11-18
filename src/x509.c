@@ -625,6 +625,23 @@ err:
 }
 #endif /* OPENSSL_ALL || WOLFSSL_WPAS_SMALL */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+/* Create an ASN.1 INTEGER object holding a 32-bit value.
+ *
+ * @param [in] v  Value.
+ * @return  ASN.1 INTEGER object on success.
+ * @return  NULL on failure.
+ */
+static WOLFSSL_ASN1_INTEGER* x509_asn1_integer_new_word32(word32 v)
+{
+    byte buf[OPAQUE32_LEN];
+
+    c32toa(v, buf);
+
+    return wolfssl_asn1_integer_new_mag(buf, (int)sizeof(buf));
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
 {
@@ -929,7 +946,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     break;
 
                 /* Set pathlength */
-                a = wolfSSL_ASN1_INTEGER_new();
+                a = x509_asn1_integer_new_word32(x509->pathLength);
 
                 /* Set the data */
                 ret = GetObjectId(input, &dataIdx, &dummyOid, oidCertExtType,
@@ -962,8 +979,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                  * absent no limit is imposed, and pathlen must remain NULL so
                  * it is distinguishable from a pathLenConstraint of 0. */
                 if (x509->basicConstPlSet) {
-                    a->length = (int)x509->pathLength;
-
                     /* Save ASN1_INTEGER in x509 extension */
                     ext->obj->pathlen = a;
                 }
@@ -1639,7 +1654,14 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
             x509->isCa = (byte)ext->obj->ca;
             x509->basicConstCrit = (byte)ext->crit;
             if (ext->obj->pathlen) {
-                x509->pathLength = (word32)ext->obj->pathlen->length;
+                long pathLen = wolfSSL_ASN1_INTEGER_get(ext->obj->pathlen);
+
+                /* Path length is a non-negative 32-bit value. */
+                if ((pathLen < 0) || ((long)(word32)pathLen != pathLen)) {
+                    WOLFSSL_MSG("Invalid basic constraints path length");
+                    return WOLFSSL_FAILURE;
+                }
+                x509->pathLength = (word32)pathLen;
                 x509->basicConstPlSet = 1;
                 x509->pathLengthSet = 1;
             }
@@ -2192,9 +2214,10 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
              *   "A pathLenConstraint of zero indicates that no non-self-issued
              *    intermediate CA certificates may follow in a valid
              *    certification path."
-             * Check for length of 0 or greater.
+             * Check for a value of 0 or greater.
              */
-            if ((object->pathlen != NULL) && (object->pathlen->length >= 0)) {
+            if ((object->pathlen != NULL) &&
+                    (wolfSSL_ASN1_INTEGER_get(object->pathlen) >= 0)) {
                 bc->pathlen = wolfSSL_ASN1_INTEGER_dup(object->pathlen);
                 if (bc->pathlen == NULL) {
                     WOLFSSL_MSG("Failed to duplicate ASN1_INTEGER");
@@ -2681,13 +2704,13 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                  * is imposed and pathlen must remain NULL so it is
                  * distinguishable from a pathLenConstraint of 0. */
                 if (x509->basicConstPlSet) {
-                    WOLFSSL_ASN1_INTEGER* a = wolfSSL_ASN1_INTEGER_new();
+                    WOLFSSL_ASN1_INTEGER* a =
+                        x509_asn1_integer_new_word32(x509->pathLength);
                     if (a == NULL) {
                         WOLFSSL_MSG("wolfSSL_ASN1_INTEGER_new error");
                         wolfSSL_BASIC_CONSTRAINTS_free(bc);
                         return NULL;
                     }
-                    a->length = (int)x509->pathLength;
                     bc->pathlen = a;
                 }
 
@@ -11949,24 +11972,12 @@ static WOLFSSL_X509_REVOKED* RevokedCertToRevoked(RevokedCert* rc, int seq)
     }
     XMEMSET(rev, 0, sizeof(WOLFSSL_X509_REVOKED));
 
-    /* Serial number */
-    serial = wolfSSL_ASN1_INTEGER_new();
+    /* Serial number - left empty when the size is not valid. */
+    serial = wolfssl_asn1_integer_new_mag(rc->serialNumber,
+        (rc->serialSz <= EXTERNAL_SERIAL_SIZE) ? rc->serialSz : 0);
     if (serial == NULL) {
         XFREE(rev, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
-    }
-    if (rc->serialSz > 0 && rc->serialSz <= EXTERNAL_SERIAL_SIZE) {
-        serial->data = (unsigned char*)XMALLOC((size_t)rc->serialSz, NULL,
-                                               DYNAMIC_TYPE_OPENSSL);
-        if (serial->data == NULL) {
-            wolfSSL_ASN1_INTEGER_free(serial);
-            XFREE(rev, NULL, DYNAMIC_TYPE_OPENSSL);
-            return NULL;
-        }
-        XMEMCPY(serial->data, rc->serialNumber, (size_t)rc->serialSz);
-        serial->length = rc->serialSz;
-        serial->dataMax = rc->serialSz;
-        serial->isDynamic = 1;
     }
     rev->serialNumber = serial;
 
@@ -12095,7 +12106,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_REVOKED_get_ext(
 WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 {
     WOLFSSL_ASN1_INTEGER* a;
-    int i = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_serialNumber");
 
@@ -12112,37 +12122,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
         return NULL;
     }
 
-    a = wolfSSL_ASN1_INTEGER_new();
+    /* The serial number is positive. Left empty when not set. */
+    a = wolfssl_asn1_integer_new_mag(x509->serial, x509->serialSz);
     if (a == NULL)
         return NULL;
-
-    /* Make sure there is space for the data, ASN.1 type and length. */
-    if (x509->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
-        /* dynamically create data buffer, +2 for type and length */
-        a->data = (unsigned char*)XMALLOC(x509->serialSz + 2, NULL,
-                DYNAMIC_TYPE_OPENSSL);
-        if (a->data == NULL) {
-            wolfSSL_ASN1_INTEGER_free(a);
-            return NULL;
-        }
-        a->dataMax   = (unsigned int)x509->serialSz + 2;
-        a->isDynamic = 1;
-    }
-    else {
-        /* Use array instead of dynamic memory */
-        a->data    = a->intData;
-        a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
-    }
-
-    #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-        XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
-        a->length = x509->serialSz;
-    #else
-        a->data[i++] = ASN_INTEGER;
-        i += SetLength(x509->serialSz, a->data + i);
-        XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
-        a->length = x509->serialSz + 2;
-    #endif
 
     x509->serialNumber = a;
 
@@ -13249,9 +13232,9 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
      * this define the function will error out below */
     #ifdef OPENSSL_EXTRA
     if (x509->serialSz == 0 && x509->serialNumber != NULL &&
-            /* Check if the buffer contains more than just the
-             * ASN tag and length */
-            x509->serialNumber->length > 2) {
+            /* Check if a value was set in the object returned by
+             * wolfSSL_X509_get_serialNumber() */
+            x509->serialNumber->length > 0) {
         if (wolfSSL_X509_set_serialNumber(x509, x509->serialNumber)
                 != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Failed to set serial number");
@@ -13859,7 +13842,8 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
                 (cert->serialSz <= EXTERNAL_SERIAL_SIZE) &&
                 (cert->serialSz > 0)) {
         #if defined(OPENSSL_EXTRA)
-            WOLFSSL_ASN1_INTEGER *i = wolfSSL_ASN1_INTEGER_new();
+            WOLFSSL_ASN1_INTEGER *i = wolfssl_asn1_integer_new_mag(
+                cert->serial, cert->serialSz);
 
             if (i == NULL) {
                 WOLFSSL_MSG("wolfSSL_ASN1_INTEGER_new error");
@@ -13867,10 +13851,6 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
                 goto cleanup;
             }
             else {
-                i->length = cert->serialSz + 2;
-                i->data[0] = ASN_INTEGER;
-                i->data[1] = (unsigned char)cert->serialSz;
-                XMEMCPY(i->data + 2, cert->serial, cert->serialSz);
                 if (wolfSSL_X509_set_serialNumber(x509, i) != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Issue setting generated serial number");
                     wolfSSL_ASN1_INTEGER_free(i);
@@ -17929,18 +17909,13 @@ int wolfSSL_X509_set1_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME *t)
 int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_serialNumber");
-    if (x509 == NULL || s == NULL || s->data == NULL ||
+    if (x509 == NULL || s == NULL || s->data == NULL || s->length <= 0 ||
             s->length >= EXTERNAL_SERIAL_SIZE)
         return WOLFSSL_FAILURE;
 
-    /* WOLFSSL_ASN1_INTEGER has type | size | data
-     * Sanity check that the data is actually in ASN format */
-    if (s->length < 3 || s->data[0] != ASN_INTEGER ||
-            s->data[1] != s->length - 2) {
-        return WOLFSSL_FAILURE;
-    }
-    XMEMCPY(x509->serial, s->data + 2, s->length - 2);
-    x509->serialSz = s->length - 2;
+    /* The value bytes are the serial number. */
+    XMEMCPY(x509->serial, s->data, (size_t)s->length);
+    x509->serialSz = s->length;
     x509->serial[x509->serialSz] = 0;
 
     return WOLFSSL_SUCCESS;

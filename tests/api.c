@@ -27913,9 +27913,46 @@ static int test_wolfSSL_OCSP_id_get0_info(void)
 
     /* compare serial number to one in cert, should be equal */
     ExpectNotNull(x509Int = X509_get_serialNumber(cert));
+    ExpectIntEQ(x509Int->type, serial->type);
     ExpectIntEQ(x509Int->length, serial->length);
     ExpectIntEQ(XMEMCMP(x509Int->data, serial->data, serial->length), 0);
     ExpectNotNull(x509Int = X509_get_serialNumber(cert));
+
+    /* A serial with the top bit set: the same value bytes as
+     * X509_get_serialNumber(), with no tag, length or 0x00 pad byte. */
+    {
+        X509* hbCert = NULL;
+        X509* hbIssuer = NULL;
+        OCSP_CERTID* hbId = NULL;
+        ASN1_INTEGER* hbSerial = NULL;
+        ASN1_INTEGER* hbX509Int = NULL;
+        static const byte hbExp[] = {
+            0x8a, 0x52, 0xb7, 0x59, 0x89, 0x1f, 0xf8, 0x8d
+        };
+
+        ExpectNotNull(hbCert = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/untrusted_anchor/leaf-cert.pem",
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(hbIssuer = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/untrusted_anchor/int-ca-cert.pem",
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(hbId = OCSP_cert_to_id(NULL, hbCert, hbIssuer));
+        ExpectIntEQ(OCSP_id_get0_info(NULL, NULL, NULL, &hbSerial, hbId), 1);
+        ExpectNotNull(hbSerial);
+        ExpectNotNull(hbX509Int = X509_get_serialNumber(hbCert));
+        if ((hbSerial != NULL) && (hbX509Int != NULL)) {
+            ExpectIntEQ(hbSerial->type, hbX509Int->type);
+            ExpectIntEQ(hbSerial->length, hbX509Int->length);
+            ExpectBufEQ(hbSerial->data, hbX509Int->data, hbX509Int->length);
+            ExpectIntEQ(hbSerial->length, (int)sizeof(hbExp));
+            ExpectBufEQ(hbSerial->data, hbExp, (int)sizeof(hbExp));
+        }
+        ExpectIntEQ(ASN1_INTEGER_cmp(hbSerial, hbX509Int), 0);
+
+        OCSP_CERTID_free(hbId);
+        X509_free(hbIssuer);
+        X509_free(hbCert);
+    }
 
     /* test OCSP_id_cmp */
     ExpectIntNE(OCSP_id_cmp(NULL, NULL), 0);
@@ -32112,6 +32149,54 @@ static int test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date(void)
     revoked.revocationDate = &revDate;
     revoked.reason = CRL_REASON_NONE;
 
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &revoked), BAD_FUNC_ARG);
+
+    wolfSSL_ASN1_INTEGER_free(serial);
+    wolfSSL_X509_CRL_free(crl);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+#if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
+    defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+/* Leading zero bytes of a serial are dropped so that it matches the serial
+ * of a parsed certificate. */
+static int test_wolfSSL_X509_CRL_add_revoked_leading_zero(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_ASN1_INTEGER* serial = NULL;
+    WOLFSSL_X509_REVOKED revoked;
+    RevokedCert* rc = NULL;
+
+    XMEMSET(&revoked, 0, sizeof(revoked));
+
+    ExpectNotNull(crl = wolfSSL_X509_CRL_new());
+    ExpectNotNull(serial = wolfSSL_ASN1_INTEGER_new());
+    if (serial != NULL) {
+        serial->data[0] = 0x00;
+        serial->data[1] = 0x00;
+        serial->data[2] = 0x05;
+        serial->length = 3;
+    }
+    revoked.serialNumber = serial;
+    revoked.reason = CRL_REASON_NONE;
+
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &revoked), WOLFSSL_SUCCESS);
+    if ((crl != NULL) && (crl->crlList != NULL)) {
+        rc = crl->crlList->certs;
+    }
+    ExpectNotNull(rc);
+    if (rc != NULL) {
+        ExpectIntEQ(rc->serialSz, 1);
+        ExpectIntEQ(rc->serialNumber[0], 0x05);
+    }
+
+    /* All zero bytes is still rejected. */
+    if (serial != NULL) {
+        serial->data[2] = 0x00;
+    }
     ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &revoked), BAD_FUNC_ARG);
 
     wolfSSL_ASN1_INTEGER_free(serial);
@@ -48377,6 +48462,7 @@ TEST_CASE testCases[] = {
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
     TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date),
+    TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_leading_zero),
 #endif
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
     !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \

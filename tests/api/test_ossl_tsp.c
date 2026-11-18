@@ -243,8 +243,8 @@ static WOLFSSL_ASN1_INTEGER* test_tsp_serial_cb(WOLFSSL_TS_RESP_CTX* ctx,
 }
 
 /* Serial callback returning a positive INTEGER whose top byte has the high
- * bit set. Its DER encoding carries a leading 0x00 pad which the responder
- * must strip before encoding the TSTInfo serial. */
+ * bit set. Its value has no 0x00 pad - the responder must add one when
+ * encoding the TSTInfo serial. */
 static WOLFSSL_ASN1_INTEGER* test_tsp_serial_cb_highbit(
     WOLFSSL_TS_RESP_CTX* ctx, void* data)
 {
@@ -269,11 +269,9 @@ static WOLFSSL_ASN1_INTEGER* test_tsp_serial_cb_neg(WOLFSSL_TS_RESP_CTX* ctx,
     (void)ctx;
     (void)data;
     if (serial != NULL) {
-        serial->data[0] = ASN_INTEGER;
-        serial->data[1] = 0x01;
-        serial->data[2] = 0x05;
-        serial->length = 3;
-        serial->negative = 1;
+        /* Magnitude in data, sign in type. */
+        serial->data[0] = 0x05;
+        serial->length = 1;
         serial->type = WOLFSSL_V_ASN1_NEG_INTEGER;
     }
     return serial;
@@ -320,12 +318,9 @@ static WOLFSSL_TS_REQ* test_tsp_create_req(void)
     /* Nonce. */
     ExpectNotNull(nonce = ASN1_INTEGER_new());
     if (EXPECT_SUCCESS()) {
-        word32 i;
-        nonce->data[0] = ASN_INTEGER;
-        nonce->data[1] = (unsigned char)sizeof(tsOsslNonce);
-        for (i = 0; i < (word32)sizeof(tsOsslNonce); i++)
-            nonce->data[2 + i] = tsOsslNonce[i];
-        nonce->length = 2 + (int)sizeof(tsOsslNonce);
+        /* data holds only the value bytes, as in OpenSSL. */
+        XMEMCPY(nonce->data, tsOsslNonce, sizeof(tsOsslNonce));
+        nonce->length = (int)sizeof(tsOsslNonce);
     }
     ExpectIntEQ(TS_REQ_set_nonce(req, nonce), 1);
     ExpectIntEQ(TS_REQ_set_cert_req(req, 1), 1);
@@ -427,7 +422,7 @@ int test_wolfSSL_TS_REQ(void)
     ExpectIntEQ(TS_MSG_IMPRINT_set_algo(TS_REQ_get_msg_imprint(req),
         TS_MSG_IMPRINT_get_algo(TS_REQ_get_msg_imprint(req))), 1);
 
-    /* set_nonce rejects a malformed ASN1_INTEGER (no DER value bytes). */
+    /* set_nonce rejects an ASN1_INTEGER with no value bytes. */
     {
         WOLFSSL_ASN1_INTEGER* badNonce = NULL;
         ExpectNotNull(badNonce = ASN1_INTEGER_new());
@@ -466,13 +461,13 @@ int test_wolfSSL_TS_REQ(void)
     /* set_nonce rejects a nonce value longer than the maximum. */
     {
         WOLFSSL_ASN1_INTEGER bigNonce;
-        unsigned char nbuf[2 + MAX_TS_NONCE_SZ + 1];
+        unsigned char nbuf[MAX_TS_NONCE_SZ + 1];
         XMEMSET(&bigNonce, 0, sizeof(bigNonce));
-        nbuf[0] = 0x02;                                 /* INTEGER */
-        nbuf[1] = (unsigned char)(MAX_TS_NONCE_SZ + 1); /* > max, no pad */
-        XMEMSET(nbuf + 2, 0x55, MAX_TS_NONCE_SZ + 1);
+        /* Value one byte longer than the maximum. */
+        XMEMSET(nbuf, 0x55, sizeof(nbuf));
         bigNonce.data = nbuf;
-        bigNonce.length = 2 + MAX_TS_NONCE_SZ + 1;
+        bigNonce.length = (int)sizeof(nbuf);
+        bigNonce.type = WOLFSSL_V_ASN1_INTEGER;
         ExpectIntEQ(TS_REQ_set_nonce(req, &bigNonce), 0);
     }
 
@@ -515,9 +510,10 @@ int test_wolfSSL_TS_REQ_long_nonce(void)
     ExpectNotNull(reqDec = d2i_TS_REQ(NULL, &cp, (long)encSz));
     ExpectNotNull(nonce = TS_REQ_get_nonce(reqDec));
     if (EXPECT_SUCCESS()) {
-        /* Type, one length byte then the number. */
-        ExpectIntEQ(nonce->length, 2 + (int)sizeof(longNonce));
-        ExpectBufEQ(nonce->data + 2, longNonce, (int)sizeof(longNonce));
+        /* Only the value bytes, as in OpenSSL. */
+        ExpectIntEQ(nonce->type, WOLFSSL_V_ASN1_INTEGER);
+        ExpectIntEQ(nonce->length, (int)sizeof(longNonce));
+        ExpectBufEQ(nonce->data, longNonce, (int)sizeof(longNonce));
     }
     p = buf;
     ExpectIntEQ(i2d_TS_REQ(reqDec, &p), (int)encSz);
@@ -532,24 +528,20 @@ int test_wolfSSL_TS_REQ_long_nonce(void)
         ExpectNotNull(req2 = TS_REQ_new());
         ExpectNotNull(neg = ASN1_INTEGER_new());
         if (EXPECT_SUCCESS()) {
-            neg->data[0] = ASN_INTEGER;
-            neg->data[1] = 0x01;
-            neg->data[2] = 0x05;
-            neg->length = 3;
-            neg->negative = 1;
+            /* Magnitude in data, sign in type. */
+            neg->data[0] = 0x05;
+            neg->length = 1;
             neg->type = WOLFSSL_V_ASN1_NEG_INTEGER;
         }
         ExpectIntEQ(TS_REQ_set_nonce(req2, neg), 0);
         /* The same magnitude as a positive nonce is accepted. */
         if (EXPECT_SUCCESS()) {
-            neg->negative = 0;
             neg->type = WOLFSSL_V_ASN1_INTEGER;
         }
         ExpectIntEQ(TS_REQ_set_nonce(req2, neg), 1);
-        /* A malformed length encoding is rejected. */
+        /* No value bytes is rejected. */
         if (EXPECT_SUCCESS()) {
-            neg->data[1] = 0x82;   /* long form: two length bytes follow... */
-            neg->length = 3;       /* ...but the encoding is truncated. */
+            neg->length = 0;
         }
         ExpectIntEQ(TS_REQ_set_nonce(req2, neg), 0);
 
@@ -651,10 +643,10 @@ int test_wolfSSL_TS_RESP(void)
     /* Serial number. */
     ExpectNotNull(num = TS_TST_INFO_get_serial(tstInfo));
     if (EXPECT_SUCCESS()) {
-        /* Top bit of first byte set - 0x00 pad keeps the INTEGER positive. */
-        ExpectIntEQ(num->length, 3 + (int)sizeof(tsOsslSerial));
-        ExpectIntEQ(num->data[2], 0x00);
-        ExpectBufEQ(num->data + 3, tsOsslSerial, (int)sizeof(tsOsslSerial));
+        /* Top bit of first byte set - no 0x00 pad in the value. */
+        ExpectIntEQ(num->type, WOLFSSL_V_ASN1_INTEGER);
+        ExpectIntEQ(num->length, (int)sizeof(tsOsslSerial));
+        ExpectBufEQ(num->data, tsOsslSerial, (int)sizeof(tsOsslSerial));
     }
     /* Time of time-stamp. */
     ExpectNotNull(genTime = TS_TST_INFO_get_time(tstInfo));
@@ -673,10 +665,10 @@ int test_wolfSSL_TS_RESP(void)
     /* Nonce. */
     ExpectNotNull(num = TS_TST_INFO_get_nonce(tstInfo));
     if (EXPECT_SUCCESS()) {
-        /* Top bit of first byte set - 0x00 pad keeps the INTEGER positive. */
-        ExpectIntEQ(num->length, 3 + (int)sizeof(tsOsslNonce));
-        ExpectIntEQ(num->data[2], 0x00);
-        ExpectBufEQ(num->data + 3, tsOsslNonce, (int)sizeof(tsOsslNonce));
+        /* Top bit of first byte set - no 0x00 pad in the value. */
+        ExpectIntEQ(num->type, WOLFSSL_V_ASN1_INTEGER);
+        ExpectIntEQ(num->length, (int)sizeof(tsOsslNonce));
+        ExpectBufEQ(num->data, tsOsslNonce, (int)sizeof(tsOsslNonce));
     }
     /* Message imprint. */
     ExpectNotNull(imprint = TS_TST_INFO_get_msg_imprint(tstInfo));
@@ -1252,7 +1244,7 @@ int test_wolfSSL_TS_RESP_CTX(void)
     }
 
     /* A serial whose top byte has the high bit set is encoded successfully -
-     * the responder strips the leading 0x00 pad from the DER content. */
+     * the responder adds the 0x00 pad when encoding. */
     {
         WOLFSSL_BIO* hbBio = NULL;
         WOLFSSL_TS_RESP* hbResp = NULL;
@@ -1266,12 +1258,11 @@ int test_wolfSSL_TS_RESP_CTX(void)
         ExpectNotNull(hbTst = TS_RESP_get_tst_info(hbResp));
         ExpectNotNull(hbSerial = TS_TST_INFO_get_serial(hbTst));
         if (EXPECT_SUCCESS()) {
-            /* A positive high-bit value keeps a 0x00 pad in the ASN1_INTEGER
-             * view: INTEGER, length 2, 0x00 pad, 0x80. */
-            ExpectIntEQ(hbSerial->length, 4);
-            ExpectIntEQ(hbSerial->data[0], ASN_INTEGER);
-            ExpectIntEQ(hbSerial->data[2], 0x00);
-            ExpectIntEQ(hbSerial->data[3], 0x80);
+            /* The ASN1_INTEGER view holds only the value, as in OpenSSL. */
+            ExpectIntEQ(hbSerial->type, WOLFSSL_V_ASN1_INTEGER);
+            ExpectIntEQ(hbSerial->length, 1);
+            ExpectIntEQ(hbSerial->data[0], 0x80);
+            ExpectIntEQ(ASN1_INTEGER_get(hbSerial), 0x80);
         }
         BIO_free(hbBio);
         TS_RESP_free(hbResp);
@@ -1894,13 +1885,11 @@ int test_wolfSSL_TS_view_cache(void)
     ExpectNotNull(req = TS_REQ_new());
     ExpectNotNull(nonce = ASN1_INTEGER_new());
     if (EXPECT_SUCCESS()) {
-        nonce->data[0] = ASN_INTEGER;
-        nonce->data[1] = 4;
-        nonce->data[2] = 0x12;
-        nonce->data[3] = 0x34;
-        nonce->data[4] = 0x56;
-        nonce->data[5] = 0x78;
-        nonce->length = 6;
+        nonce->data[0] = 0x12;
+        nonce->data[1] = 0x34;
+        nonce->data[2] = 0x56;
+        nonce->data[3] = 0x78;
+        nonce->length = 4;
     }
     ExpectIntEQ(TS_REQ_set_nonce(req, nonce), 1);
     ExpectNotNull(TS_REQ_get_nonce(req));         /* build the cached view */

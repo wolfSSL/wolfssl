@@ -2648,27 +2648,25 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     }
 
     {
+        /* The value bytes are the serial number. */
         const byte* serial = rev->serialNumber->data;
         int serialSz = rev->serialNumber->length;
-        int i;
-        int allZero = 1;
 
         if (serial == NULL || serialSz <= 0) {
             return BAD_FUNC_ARG;
         }
 
-        if (serialSz > EXTERNAL_SERIAL_SIZE) {
+        /* Drop leading zeros so the serial matches a parsed one. */
+        while ((serialSz > 0) && (serial[0] == 0)) {
+            serial++;
+            serialSz--;
+        }
+        /* All zero serial numbers are invalid per rfc5280 and not supported */
+        if (serialSz == 0) {
             return BAD_FUNC_ARG;
         }
 
-        /* All zero serial numbers are invalid per rfc5280 and not supported */
-        for (i = 0; i < serialSz; i++) {
-            if (serial[i] != 0) {
-                allZero = 0;
-                break;
-            }
-        }
-        if (allZero) {
+        if (serialSz > EXTERNAL_SERIAL_SIZE) {
             return BAD_FUNC_ARG;
         }
 
@@ -2765,32 +2763,12 @@ int wolfSSL_X509_CRL_add_revoked_cert(WOLFSSL_X509_CRL* crl,
         return ret;
     }
 
-    serialInt = wolfSSL_ASN1_INTEGER_new();
+    serialInt = wolfssl_asn1_integer_new_mag(cert->serial, cert->serialSz);
     if (serialInt == NULL) {
         FreeDecodedCert(cert);
         XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
         return MEMORY_E;
     }
-
-    if (cert->serialSz > WOLFSSL_ASN1_INTEGER_MAX) {
-        serialInt->data = (unsigned char*)XMALLOC(cert->serialSz, NULL,
-            DYNAMIC_TYPE_OPENSSL);
-        if (serialInt->data == NULL) {
-            wolfSSL_ASN1_INTEGER_free(serialInt);
-            FreeDecodedCert(cert);
-            XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
-            return MEMORY_E;
-        }
-        serialInt->dataMax = (unsigned int)cert->serialSz;
-        serialInt->isDynamic = 1;
-    }
-    else {
-        serialInt->data = serialInt->intData;
-        serialInt->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
-    }
-
-    XMEMCPY(serialInt->data, cert->serial, cert->serialSz);
-    serialInt->length = cert->serialSz;
 
     XMEMSET(&revoked, 0, sizeof(revoked));
     revoked.serialNumber = serialInt;

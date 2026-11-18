@@ -191,81 +191,108 @@ int test_wolfSSL_ASN1_INTEGER_BN(void)
     ExpectNull(bn = ASN1_INTEGER_to_BN(NULL, NULL));
     ExpectNull(ai2 = BN_to_ASN1_INTEGER(NULL, NULL));
 
-    /* at the moment hard setting since no set function */
+    /* data holds only the value bytes, as in OpenSSL. */
     if (ai != NULL) {
-        ai->data[0] = 0xff; /* No DER encoding. */
+        ai->data[0] = 0xff;
         ai->length = 1;
     }
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#else
-    ExpectNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#endif
+    ExpectIntEQ(BN_get_word(bn), 0xff);
     BN_free(bn);
     bn = NULL;
 
+    /* Bytes that look like a DER header are part of the value. */
     if (ai != NULL) {
-        ai->data[0] = 0x02; /* tag for ASN_INTEGER */
-        ai->data[1] = 0x04; /* bad length of integer */
+        ai->data[0] = 0x02;
+        ai->data[1] = 0x04;
         ai->data[2] = 0x03;
         ai->length = 3;
     }
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-    /* Interpreted as a number 0x020403. */
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#else
-    ExpectNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#endif
+    ExpectIntEQ(BN_get_word(bn), 0x020403);
     BN_free(bn);
     bn = NULL;
 
     if (ai != NULL) {
-        ai->data[0] = 0x02; /* tag for ASN_INTEGER */
-        ai->data[1] = 0x01; /* length of integer */
-        ai->data[2] = 0x03;
-        ai->length = 3;
+        ai->data[0] = 0x03;
+        ai->length = 1;
     }
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
     ExpectNotNull(ai2 = BN_to_ASN1_INTEGER(bn, NULL));
     ExpectIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    if (ai2 != NULL) {
+        ExpectIntEQ(ai2->type, V_ASN1_INTEGER);
+        ExpectIntEQ(ai2->length, 1);
+        ExpectIntEQ(ai2->data[0], 0x03);
+    }
     ExpectNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
     ExpectIntEQ(BN_cmp(bn, bn2), 0);
 
+    /* Top bit set: no 0x00 pad byte is stored. */
     if (ai != NULL) {
-        ai->data[0] = 0x02; /* tag for ASN_INTEGER */
-        ai->data[1] = 0x02; /* length of integer */
-        ai->data[2] = 0x00; /* padding byte to ensure positive */
-        ai->data[3] = 0xff;
-        ai->length = 4;
+        ai->data[0] = 0xff;
+        ai->length = 1;
     }
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
     ExpectNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
     ExpectIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    if (ai2 != NULL) {
+        ExpectIntEQ(ai2->type, V_ASN1_INTEGER);
+        ExpectIntEQ(ai2->length, 1);
+        ExpectIntEQ(ai2->data[0], 0xff);
+    }
     ExpectNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
     ExpectIntEQ(BN_cmp(bn, bn2), 0);
 
+    /* Zero is the single byte 0x00. */
     if (ai != NULL) {
-        ai->data[0] = 0x02; /* tag for ASN_INTEGER */
-        ai->data[1] = 0x01; /* length of integer */
-        ai->data[2] = 0x00;
-        ai->length = 3;
+        ai->data[0] = 0x00;
+        ai->length = 1;
     }
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    ExpectIntEQ(BN_is_zero(bn), 1);
     ExpectNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
     ExpectIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    if (ai2 != NULL) {
+        ExpectIntEQ(ai2->type, V_ASN1_INTEGER);
+        ExpectIntEQ(ai2->length, 1);
+        ExpectIntEQ(ai2->data[0], 0x00);
+    }
     ExpectNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
     ExpectIntEQ(BN_cmp(bn, bn2), 0);
 
+    /* Multi-byte value round trips byte for byte. */
     if (ai != NULL) {
-        ai->data[0] = 0x02; /* tag for ASN_INTEGER */
-        ai->data[1] = 0x01; /* length of integer */
+        ai->data[0] = 0x80;
+        ai->data[1] = 0x00;
         ai->data[2] = 0x01;
         ai->length = 3;
-        ai->negative = 1;
+        ai->type = V_ASN1_INTEGER;
     }
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
     ExpectNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
     ExpectIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    if (ai2 != NULL) {
+        ExpectIntEQ(ai2->type, V_ASN1_INTEGER);
+        ExpectIntEQ(ai2->length, 3);
+        ExpectBufEQ(ai2->data, ai->data, 3);
+    }
+
+    /* Negative: magnitude in data and sign in type. */
+    if (ai != NULL) {
+        ai->data[0] = 0x01;
+        ai->length = 1;
+        ai->type = V_ASN1_NEG_INTEGER;
+    }
+    ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    ExpectIntEQ(BN_is_negative(bn), 1);
+    ExpectNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    ExpectIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    if (ai2 != NULL) {
+        ExpectIntEQ(ai2->type, V_ASN1_NEG_INTEGER);
+        ExpectIntEQ(ai2->length, 1);
+        ExpectIntEQ(ai2->data[0], 0x01);
+    }
     ExpectNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
     ExpectIntEQ(BN_cmp(bn, bn2), 0);
 
@@ -274,6 +301,7 @@ int test_wolfSSL_ASN1_INTEGER_BN(void)
     ExpectNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
     if (ai2 != NULL) {
         ExpectIntEQ(ai2->negative, 0);
+        ExpectIntEQ(ai2->type, V_ASN1_INTEGER);
     }
     ExpectIntEQ(ASN1_INTEGER_get(ai2), 1);
 
@@ -295,11 +323,8 @@ int test_wolfSSL_ASN1_INTEGER_get_set(void)
     ExpectNotNull(a = ASN1_INTEGER_new());
     /* Invalid parameter testing. */
     ExpectIntEQ(ASN1_INTEGER_get(NULL), 0);
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-    ExpectIntEQ(ASN1_INTEGER_get(a), 0);
-#else
+    /* No value set. */
     ExpectIntEQ(ASN1_INTEGER_get(a), -1);
-#endif
     ASN1_INTEGER_free(a);
     a = NULL;
 
@@ -645,6 +670,7 @@ int test_wolfSSL_a2i_ASN1_INTEGER(void)
     const char expected2[] = "112345678912345678901234567890";
     char longStr[] = "123456781234567812345678123456781234567812345678\n"
         "123456781234567812345678123456781234567812345678\\\n12345678\n";
+    char padStr[] = "0080\n";
 
     ExpectNotNull(out = BIO_new(BIO_s_mem()));
     ExpectNotNull(ai = ASN1_INTEGER_new());
@@ -705,6 +731,29 @@ int test_wolfSSL_a2i_ASN1_INTEGER(void)
     XMEMSET(tmp, 0, sizeof(tmp));
     tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 56);
+    BIO_free(bio);
+    bio = NULL;
+
+    /* A leading 00 is dropped: the value has no pad byte, as in OpenSSL. */
+    ExpectNotNull(bio = BIO_new_mem_buf(padStr, -1));
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
+    if (ai != NULL) {
+        ExpectIntEQ(ai->type, V_ASN1_INTEGER);
+        ExpectIntEQ(ai->length, 1);
+        ExpectIntEQ(ai->data[0], 0x80);
+    }
+    ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 2);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    ExpectIntEQ(BIO_read(out, tmp, sizeof(tmp)), 2);
+    ExpectStrEQ(tmp, "80");
+
+    /* A negative value is written with its sign, as in OpenSSL. */
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(ai, -0x1234), 1);
+    ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 5);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    ExpectIntEQ(BIO_read(out, tmp, sizeof(tmp)), 5);
+    ExpectStrEQ(tmp, "-1234");
+
     ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(ai, 1), 1);
     BIO_free(bio);
     BIO_free(out);
@@ -742,9 +791,8 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* 40 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 1;
-        a->intData[2] = 40;
+        a->intData[0] = 40;
+        a->length = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -761,9 +809,8 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* 128 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 1;
-        a->intData[2] = 128;
+        a->intData[0] = 128;
+        a->length = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -781,10 +828,9 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* -40 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 1;
-        a->intData[2] = 40;
-        a->negative = 1;
+        a->intData[0] = 40;
+        a->length = 1;
+        a->type = V_ASN1_NEG_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -801,10 +847,9 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* -128 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 1;
-        a->intData[2] = 128;
-        a->negative = 1;
+        a->intData[0] = 128;
+        a->length = 1;
+        a->type = V_ASN1_NEG_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -821,10 +866,9 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* -200 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 1;
-        a->intData[2] = 200;
-        a->negative = 1;
+        a->intData[0] = 200;
+        a->length = 1;
+        a->type = V_ASN1_NEG_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -842,9 +886,8 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* Empty */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 0;
-        a->negative = 0;
+        a->length = 0;
+        a->type = V_ASN1_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -861,10 +904,9 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* 0 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 1;
-        a->intData[2] = 0;
-        a->negative = 1;
+        a->intData[0] = 0;
+        a->length = 1;
+        a->type = V_ASN1_NEG_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -881,11 +923,10 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* 0x100 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 2;
-        a->intData[2] = 0x01;
-        a->intData[3] = 0x00;
-        a->negative = 0;
+        a->intData[0] = 0x01;
+        a->intData[1] = 0x00;
+        a->length = 2;
+        a->type = V_ASN1_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -903,11 +944,10 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* -0x8000 => 0x8000 */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 2;
-        a->intData[2] = 0x80;
-        a->intData[3] = 0x00;
-        a->negative = 1;
+        a->intData[0] = 0x80;
+        a->intData[1] = 0x00;
+        a->length = 2;
+        a->type = V_ASN1_NEG_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -925,11 +965,10 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     /* -0x8001 => 0xFF7FFF */
     if (a != NULL) {
-        a->intData[0] = ASN_INTEGER;
-        a->intData[1] = 2;
-        a->intData[2] = 0x80;
-        a->intData[3] = 0x01;
-        a->negative = 1;
+        a->intData[0] = 0x80;
+        a->intData[1] = 0x01;
+        a->length = 2;
+        a->type = V_ASN1_NEG_INTEGER;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 3);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -947,6 +986,175 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
 
     wolfSSL_ASN1_INTEGER_free(a);
 #endif /* OPENSSL_EXTRA && !NO_ASN */
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+typedef struct ASN1IntLayoutVector {
+    long value;
+    int  neg;
+    byte val[4];
+    int  valSz;
+    byte der[6];
+    int  derSz;
+} ASN1IntLayoutVector;
+#endif
+/* ASN1_INTEGER is stored as in OpenSSL: data holds only the big-endian
+ * magnitude and type holds the sign. */
+int test_wolfSSL_ASN1_INTEGER_value_layout(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+    static const ASN1IntLayoutVector vectors[] = {
+        {    0, 0, { 0x00 }, 1, { 0x02, 0x01, 0x00 }, 3 },
+        {    1, 0, { 0x01 }, 1, { 0x02, 0x01, 0x01 }, 3 },
+        {  127, 0, { 0x7f }, 1, { 0x02, 0x01, 0x7f }, 3 },
+        {  128, 0, { 0x80 }, 1, { 0x02, 0x02, 0x00, 0x80 }, 4 },
+        {  255, 0, { 0xff }, 1, { 0x02, 0x02, 0x00, 0xff }, 4 },
+        {  256, 0, { 0x01, 0x00 }, 2, { 0x02, 0x02, 0x01, 0x00 }, 4 },
+        {   -1, 1, { 0x01 }, 1, { 0x02, 0x01, 0xff }, 3 },
+        { -128, 1, { 0x80 }, 1, { 0x02, 0x01, 0x80 }, 3 },
+        { -129, 1, { 0x81 }, 1, { 0x02, 0x02, 0xff, 0x7f }, 4 },
+        { -256, 1, { 0x01, 0x00 }, 2, { 0x02, 0x02, 0xff, 0x00 }, 4 },
+        { 0x7fffffffL, 0, { 0x7f, 0xff, 0xff, 0xff }, 4,
+          { 0x02, 0x04, 0x7f, 0xff, 0xff, 0xff }, 6 },
+        { -0x7fffffffL - 1, 1, { 0x80, 0x00, 0x00, 0x00 }, 4,
+          { 0x02, 0x04, 0x80, 0x00, 0x00, 0x00 }, 6 },
+    };
+    static const byte minDer[] = { 0x02, 0x01, 0x05 };
+    byte bigDer[2 + 1 + 32];
+    size_t i;
+    ASN1_INTEGER* a = NULL;
+    ASN1_INTEGER* b = NULL;
+    ASN1_INTEGER* c = NULL;
+    BIGNUM* bn = NULL;
+    unsigned char* der = NULL;
+    const unsigned char* p = NULL;
+
+    for (i = 0; i < sizeof(vectors) / sizeof(vectors[0]); i++) {
+        const ASN1IntLayoutVector* v = &vectors[i];
+        int expType = v->neg ? V_ASN1_NEG_INTEGER : V_ASN1_INTEGER;
+
+        /* Set from a long. */
+        ExpectNotNull(a = ASN1_INTEGER_new());
+        ExpectIntEQ(ASN1_INTEGER_set(a, v->value), 1);
+        if (a != NULL) {
+            ExpectIntEQ(a->type, expType);
+            ExpectIntEQ(a->length, v->valSz);
+            ExpectBufEQ(a->data, v->val, v->valSz);
+            ExpectIntEQ(wolfSSL_ASN1_INTEGER_get_length(a), v->valSz);
+            ExpectPtrEq(wolfSSL_ASN1_INTEGER_get0_data(a), a->data);
+        }
+        ExpectTrue(ASN1_INTEGER_get(a) == v->value);
+
+        /* Encoders add the tag, length, pad and two's complement. */
+        ExpectIntEQ(i2d_ASN1_INTEGER(a, &der), v->derSz);
+        ExpectBufEQ(der, v->der, v->derSz);
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, NULL), v->derSz - 2);
+
+        /* Decoder stores the same value bytes and sign. */
+        p = v->der;
+        ExpectNotNull(b = d2i_ASN1_INTEGER(NULL, &p, v->derSz));
+        ExpectPtrEq(p, v->der + v->derSz);
+        if (b != NULL) {
+            ExpectIntEQ(b->type, expType);
+            ExpectIntEQ(b->length, v->valSz);
+            ExpectBufEQ(b->data, v->val, v->valSz);
+        }
+        ExpectIntEQ(ASN1_INTEGER_cmp(a, b), 0);
+
+        /* Big number round trip. */
+        ExpectNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
+        ExpectIntEQ(BN_is_negative(bn), v->neg);
+        ExpectNotNull(c = BN_to_ASN1_INTEGER(bn, NULL));
+        if (c != NULL) {
+            ExpectIntEQ(c->type, expType);
+            ExpectIntEQ(c->length, v->valSz);
+            ExpectBufEQ(c->data, v->val, v->valSz);
+        }
+        ASN1_INTEGER_free(c);
+        c = NULL;
+        BN_free(bn);
+        bn = NULL;
+        XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+        der = NULL;
+
+        /* Built the way an OpenSSL application does. */
+        ExpectNotNull(c = ASN1_INTEGER_new());
+        if (c != NULL) {
+            XMEMCPY(c->data, v->val, (size_t)v->valSz);
+            c->length = v->valSz;
+            c->type = expType;
+        }
+        ExpectTrue(ASN1_INTEGER_get(c) == v->value);
+        ExpectIntEQ(i2d_ASN1_INTEGER(c, &der), v->derSz);
+        ExpectBufEQ(der, v->der, v->derSz);
+        ExpectIntEQ(ASN1_INTEGER_cmp(a, c), 0);
+
+        XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+        der = NULL;
+        ASN1_INTEGER_free(c);
+        c = NULL;
+        ASN1_INTEGER_free(b);
+        b = NULL;
+        ASN1_INTEGER_free(a);
+        a = NULL;
+    }
+
+    /* A value longer than the fixed buffer round trips. */
+    bigDer[0] = 0x02;
+    bigDer[1] = 33;
+    bigDer[2] = 0x00;
+    XMEMSET(bigDer + 3, 0xa5, 32);
+    p = bigDer;
+    ExpectNotNull(a = d2i_ASN1_INTEGER(NULL, &p, (long)sizeof(bigDer)));
+    if (a != NULL) {
+        ExpectIntEQ(a->type, V_ASN1_INTEGER);
+        ExpectIntEQ(a->length, 32);
+        ExpectBufEQ(a->data, bigDer + 3, 32);
+    }
+    ExpectIntEQ(i2d_ASN1_INTEGER(a, &der), (int)sizeof(bigDer));
+    ExpectBufEQ(der, bigDer, (int)sizeof(bigDer));
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+    der = NULL;
+    ASN1_INTEGER_free(a);
+    a = NULL;
+
+#ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
+    /* Non-minimal DER is rejected, as in OpenSSL. */
+    {
+        static const byte nonMinDer[][5] = {
+            { 0x02, 0x02, 0x00, 0x01, 0x00 },
+            { 0x02, 0x02, 0x00, 0x7f, 0x00 },
+            { 0x02, 0x02, 0xff, 0x80, 0x00 },
+            { 0x02, 0x02, 0xff, 0xff, 0x00 },
+            { 0x02, 0x03, 0x00, 0x00, 0x05 }
+        };
+
+        for (i = 0; i < sizeof(nonMinDer) / sizeof(nonMinDer[0]); i++) {
+            p = nonMinDer[i];
+            ExpectNull(d2i_ASN1_INTEGER(NULL, &p, (long)sizeof(nonMinDer[i])));
+            ExpectPtrEq(p, nonMinDer[i]);
+        }
+    }
+#endif
+
+    /* Leading zero bytes set by an application do not change the value. */
+    ExpectNotNull(a = ASN1_INTEGER_new());
+    if (a != NULL) {
+        a->data[0] = 0x00;
+        a->data[1] = 0x00;
+        a->data[2] = 0x05;
+        a->length = 3;
+    }
+    ExpectIntEQ(ASN1_INTEGER_get(a), 5);
+    ExpectIntEQ(i2d_ASN1_INTEGER(a, &der), (int)sizeof(minDer));
+    ExpectBufEQ(der, minDer, (int)sizeof(minDer));
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+    der = NULL;
+    ASN1_INTEGER_free(a);
+    a = NULL;
+#endif
     return EXPECT_RESULT();
 }
 
@@ -981,16 +1189,12 @@ int test_wolfSSL_ASN1_OBJECT(void)
     s.ca = 1;
     s.pathlen = wolfSSL_ASN1_INTEGER_new();
     ExpectNotNull(s.pathlen);
-    if (s.pathlen != NULL) {
-        s.pathlen->length = 5;
-    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(s.pathlen, 5), 1);
     ExpectNotNull(a = wolfSSL_ASN1_OBJECT_dup(&s));
     if (a != NULL) {
         ExpectIntEQ(a->ca, 1);
         ExpectNotNull(a->pathlen);
-        if (a->pathlen != NULL) {
-            ExpectIntEQ(a->pathlen->length, 5);
-        }
+        ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(a->pathlen), 5);
     }
     ASN1_OBJECT_free(a);
     a = NULL;

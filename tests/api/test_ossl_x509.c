@@ -1162,10 +1162,9 @@ int test_wolfSSL_X509_get_serialNumber(void)
 
     ExpectNotNull(a = wolfSSL_ASN1_INTEGER_new());
     if (a != NULL) {
-        a->data[0] = ASN_INTEGER;
-        a->data[1] = sizeof(serial);
-        XMEMCPY(&a->data[2], serial, sizeof(serial));
-        a->length = sizeof(serial) + 2;
+        /* data holds only the value bytes, as in OpenSSL. */
+        XMEMCPY(a->data, serial, sizeof(serial));
+        a->length = sizeof(serial);
     }
     ExpectIntEQ(X509_set_serialNumber(x509, a), WOLFSSL_SUCCESS);
 
@@ -1200,6 +1199,83 @@ int test_wolfSSL_X509_get_serialNumber(void)
         a->isDynamic = 1;
         ASN1_INTEGER_free(a);
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The serial number is stored as in OpenSSL: data holds only the value, with
+ * no tag, length or 0x00 pad byte. Applications such as HAProxy and Qt copy
+ * data/length directly. */
+int test_wolfSSL_X509_get_serialNumber_layout(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+    X509* x509 = NULL;
+    X509* copy = NULL;
+    ASN1_INTEGER* a = NULL;
+    ASN1_INTEGER* b = NULL;
+    unsigned char* der = NULL;
+    byte serial[EXTERNAL_SERIAL_SIZE];
+    int serialSz = (int)sizeof(serial);
+    /* openssl x509 -serial: F4D0EFDA0892FE9A - top bit set. */
+    static const byte hbSerial[] = {
+        0xf4, 0xd0, 0xef, 0xda, 0x08, 0x92, 0xfe, 0x9a
+    };
+    static const byte hbDer[] = {
+        0x02, 0x09, 0x00, 0xf4, 0xd0, 0xef, 0xda, 0x08, 0x92, 0xfe, 0x9a
+    };
+
+    /* openssl x509 -serial: 01 */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(a = X509_get_serialNumber(x509));
+    if (a != NULL) {
+        ExpectIntEQ(a->type, V_ASN1_INTEGER);
+        ExpectIntEQ(a->length, 1);
+        ExpectIntEQ(a->data[0], 0x01);
+    }
+    X509_free(x509);
+    x509 = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/untrusted_anchor/int-ca-cert.pem",
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(a = X509_get_serialNumber(x509));
+    if (a != NULL) {
+        ExpectIntEQ(a->type, V_ASN1_INTEGER);
+        ExpectIntEQ(a->length, (int)sizeof(hbSerial));
+        ExpectBufEQ(a->data, hbSerial, (int)sizeof(hbSerial));
+    }
+    ExpectIntEQ(wolfSSL_X509_get_serial_number(x509, serial, &serialSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(serialSz, (int)sizeof(hbSerial));
+    ExpectBufEQ(serial, hbSerial, (int)sizeof(hbSerial));
+    /* The DER encoding has the pad byte. */
+    ExpectIntEQ(i2d_ASN1_INTEGER(a, &der), (int)sizeof(hbDer));
+    ExpectBufEQ(der, hbDer, (int)sizeof(hbDer));
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+
+    /* Setting the serial on another certificate gives the same bytes. */
+    ExpectNotNull(copy = X509_new());
+    ExpectIntEQ(X509_set_serialNumber(copy, a), WOLFSSL_SUCCESS);
+    ExpectNotNull(b = X509_get_serialNumber(copy));
+    if (b != NULL) {
+        ExpectIntEQ(b->type, V_ASN1_INTEGER);
+        ExpectIntEQ(b->length, (int)sizeof(hbSerial));
+        ExpectBufEQ(b->data, hbSerial, (int)sizeof(hbSerial));
+    }
+    ExpectIntEQ(ASN1_INTEGER_cmp(a, b), 0);
+    X509_free(copy);
+    X509_free(x509);
+
+    /* No serial number set gives an empty integer. */
+    ExpectNotNull(x509 = X509_new());
+    ExpectNotNull(a = X509_get_serialNumber(x509));
+    if (a != NULL) {
+        ExpectIntEQ(a->length, 0);
+    }
+    X509_free(x509);
 #endif
     return EXPECT_RESULT();
 }

@@ -1740,12 +1740,6 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
                 #ifdef MP_NEG
                     data->data.mp->sign = MP_NEG;
                 #else
-                    #ifdef OPENSSL_EXTRA
-                        /* public API wolfSSL_ASN1_INTEGER_get() depends
-                         * indirectly on negative bignum handling here.
-                         */
-                        #error OPENSSL_EXTRA requires negative bignum support.
-                    #endif
                     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
                     WOLFSSL_MSG_VSNPRINTF("ASN negative integer without bignum support.");
                     #endif
