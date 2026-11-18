@@ -124,6 +124,17 @@ WOLFSSL_API int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst,
 
 #ifdef WOLFSSL_WOLFSSH
 
+/* How wc_SSH_KDF_ex() encodes K: RFC 4251 sec 5 mpint or string. */
+enum {
+    WC_SSH_KDF_K_MPINT  = 0,
+    WC_SSH_KDF_K_STRING = 1
+};
+
+WOLFSSL_API int wc_SSH_KDF_ex(byte hashId, byte keyId,
+        byte* key, word32 keySz,
+        const byte* k, word32 kSz, int kEncoding,
+        const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz);
 WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
         byte* key, word32 keySz,
         const byte* k, word32 kSz,
