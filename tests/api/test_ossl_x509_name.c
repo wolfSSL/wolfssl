@@ -1370,3 +1370,107 @@ int test_wolfSSL_X509_NAME_oneline_escape(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Embedded NUL in a name entry value is escaped by X509_NAME_oneline(). */
+int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    static const unsigned char nulCn[] = {
+        'a', 'd', 'm', 'i', 'n', 0x00, '.', 'e', 'v', 'i', 'l', '.', 'c', 'o',
+        'm'
+    };
+    static const unsigned char plainCn[] = "admin";
+    /* Literal "\x00", not a NUL. */
+    static const unsigned char litCn[] = "admin\\x00.evil.com";
+    static const unsigned char country[] = "US";
+    static const unsigned char org[] = "Corp";
+    X509_NAME* legit = NULL;
+    X509_NAME* spoof = NULL;
+    X509_NAME* escaped = NULL;
+    /* oneline() does not allocate under WOLFSSL_STATIC_MEMORY. */
+    char legitBuf[64];
+    char spoofBuf[64];
+    char escapedBuf[64];
+    char* legitLine = NULL;
+    char* spoofLine = NULL;
+    char* escapedLine = NULL;
+
+    ExpectNotNull(legit = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_commonName,
+        V_ASN1_UTF8STRING, plainCn, 5, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(spoof = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_commonName,
+        V_ASN1_UTF8STRING, nulCn, (int)sizeof(nulCn), -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(legitLine = X509_NAME_oneline(legit, legitBuf,
+        (int)sizeof(legitBuf)));
+    ExpectNotNull(spoofLine = X509_NAME_oneline(spoof, spoofBuf,
+        (int)sizeof(spoofBuf)));
+    ExpectStrEQ(legitLine, "/C=US/CN=admin/O=Corp");
+    ExpectStrNE(spoofLine, legitLine);
+    ExpectStrEQ(spoofLine, "/C=US/CN=admin\\x00.evil.com/O=Corp");
+    ExpectNotNull(XSTRSTR(spoofLine, ".evil.com"));
+    ExpectIntNE(X509_NAME_cmp(legit, spoof), 0);
+
+    /* Backslash is escaped, so a literal "\x00" differs from a NUL. */
+    ExpectNotNull(escaped = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_commonName,
+        V_ASN1_UTF8STRING, litCn, (int)sizeof(litCn) - 1, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(escapedLine = X509_NAME_oneline(escaped, escapedBuf,
+        (int)sizeof(escapedBuf)));
+    ExpectStrNE(escapedLine, spoofLine);
+    ExpectStrEQ(escapedLine, "/C=US/CN=admin\\\\x00.evil.com/O=Corp");
+    ExpectIntNE(X509_NAME_cmp(escaped, spoof), 0);
+
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    /* The certificate parser's flat subject escapes the NUL too. The subject
+     * CN "www.wolfssl.com" is overwritten in place with a value of the same
+     * length; the signature is not checked. */
+    {
+        static const byte cnHdr[] = {
+            0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0f
+        };
+        byte der[sizeof_server_cert_der_2048];
+        DecodedCert dCert;
+        word32 i;
+        int seen = 0;
+
+        XMEMCPY(der, server_cert_der_2048, sizeof(der));
+        /* Issuer CN first, subject CN second. */
+        for (i = 0; i + sizeof(cnHdr) + sizeof(nulCn) <= sizeof(der); i++) {
+            if ((XMEMCMP(der + i, cnHdr, sizeof(cnHdr)) == 0) &&
+                    (++seen == 2)) {
+                XMEMCPY(der + i + sizeof(cnHdr), nulCn, sizeof(nulCn));
+                break;
+            }
+        }
+        ExpectIntEQ(seen, 2);
+
+        wc_InitDecodedCert(&dCert, der, (word32)sizeof(der), NULL);
+        ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+        ExpectNotNull(XSTRSTR(dCert.subject, "/CN=admin\\x00.evil.com/"));
+        wc_FreeDecodedCert(&dCert);
+    }
+#endif
+
+    X509_NAME_free(legit);
+    X509_NAME_free(spoof);
+    X509_NAME_free(escaped);
+#endif
+    return EXPECT_RESULT();
+}

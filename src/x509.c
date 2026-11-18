@@ -406,12 +406,14 @@ static WOLFSSL_STACK* generateExtStack(const WOLFSSL_X509 *x)
 }
 
 /**
+ * The returned stack is owned by the X509 and stays valid until the X509 is
+ * freed or its DER encoding is replaced (e.g. by wolfSSL_X509_sign).
+ *
  * @param x Certificate to extract extensions from
  * @return STACK_OF(X509_EXTENSION)*
  */
 const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x)
 {
-    int numOfExt;
     WOLFSSL_X509 *x509 = (WOLFSSL_X509*)x;
     WOLFSSL_ENTER("wolfSSL_X509_get0_extensions");
 
@@ -420,10 +422,9 @@ const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x)
         return NULL;
     }
 
-    numOfExt = wolfSSL_X509_get_ext_count(x509);
-
-    if (numOfExt != wolfSSL_sk_num(x509->ext_sk_full)) {
-        wolfSSL_sk_pop_free(x509->ext_sk_full, NULL);
+    /* Only build the stack once. Freeing and rebuilding it here would leave
+     * the caller of a previous call holding a dangling pointer. */
+    if (x509->ext_sk_full == NULL) {
         x509->ext_sk_full = generateExtStack(x);
     }
 
@@ -1155,15 +1156,13 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
         tmpIdx = idx + length;
 
         /* Get CRITICAL. If not present, defaults to false.
-         * It present, must be a valid TRUE */
+         * Accept any one byte value like the certificate parser does. */
         if ((tmpIdx < (word32)sz) &&
             (input[tmpIdx] == ASN_BOOLEAN))
         {
             if (((tmpIdx + 2) >= (word32)sz) ||
                 /* Check bool length */
-                (input[tmpIdx+1] != 1) ||
-                /* Assert true if CRITICAL present */
-                (input[tmpIdx+2] != 0xff))
+                (input[tmpIdx+1] != 1))
             {
                 WOLFSSL_MSG("Error decoding unknown extension data");
                 wolfSSL_X509_EXTENSION_free(ext);
@@ -1172,7 +1171,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 return NULL;
             }
 
-            ext->crit = 1;
+            ext->crit = (input[tmpIdx+2] != 0);
             tmpIdx += 3;
         }
 
@@ -1189,25 +1188,24 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
         tmpIdx++;
 
-        if (GetLength(input, &tmpIdx, &length, (word32)sz) <= 0) {
+        /* An empty OCTET STRING is accepted by the certificate parser. */
+        if (GetLength(input, &tmpIdx, &length, (word32)sz) < 0) {
             WOLFSSL_MSG("Error: Invalid Input Length.");
             wolfSSL_X509_EXTENSION_free(ext);
             FreeDecodedCert(cert);
             WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
             return NULL;
         }
-        ext->value.data = (char*)XMALLOC(length, NULL,
-            DYNAMIC_TYPE_ASN1);
-        ext->value.isDynamic = 1;
-        if (ext->value.data == NULL) {
-            WOLFSSL_MSG("Failed to malloc ASN1_STRING data");
+        /* Copy with wolfSSL_ASN1_STRING_set() so the data is NUL terminated
+         * like every other ASN1_STRING. */
+        if (wolfSSL_ASN1_STRING_set(&ext->value, input + tmpIdx, length)
+                != 1) {
+            WOLFSSL_MSG("Failed to set ASN1_STRING data");
             wolfSSL_X509_EXTENSION_free(ext);
             FreeDecodedCert(cert);
             WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
             return NULL;
         }
-        XMEMCPY(ext->value.data,input+tmpIdx,length);
-        ext->value.length = length;
 
         break; /* Got the Extension. Now exit while loop. */
 
@@ -1737,8 +1735,31 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
             sk = ext->ext_sk;
             while (sk != NULL) {
                 if (sk->type == STACK_TYPE_GEN_NAME && sk->data.gn) {
+                    /* Only the string backed GENERAL_NAME types hold a
+                     * WOLFSSL_ASN1_STRING in the union. otherName, dirName
+                     * and registeredID carry other objects there. */
+                    switch (sk->data.gn->type) {
+                        case WOLFSSL_GEN_EMAIL:
+                        case WOLFSSL_GEN_DNS:
+                        case WOLFSSL_GEN_URI:
+                        case WOLFSSL_GEN_IPADD:
+                        case WOLFSSL_GEN_IA5:
+                            break;
+                        default:
+                            WOLFSSL_MSG("Unsupported GENERAL_NAME type");
+                            sk = sk->next;
+                            continue;
+                    }
                     /* str is GENERAL_NAME for subject alternative name ext */
                     str = sk->data.gn->d.ia5;
+                    if (str == NULL) {
+                        /* Skip it like an unsupported type above: a name
+                         * built through the API can carry the type without
+                         * the string. */
+                        WOLFSSL_MSG("NULL GENERAL_NAME string");
+                        sk = sk->next;
+                        continue;
+                    }
                     len = str->length + 2; /* + 2 for NULL char and "," */
                     if (len > tmpSz) {
                         WOLFSSL_MSG("len greater than buffer size");
@@ -14175,6 +14196,12 @@ cleanup:
         ClearX509NameRaw(&x509->issuer);
         ClearX509NameRaw(&x509->subject);
     #endif
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+        /* Extension stack cached by wolfSSL_X509_get0_extensions() was built
+         * from the old encoding. */
+        wolfSSL_sk_pop_free(x509->ext_sk_full, NULL);
+        x509->ext_sk_full = NULL;
+    #endif
         type = CERT_TYPE;
     #ifdef WOLFSSL_CERT_REQ
         if (req) {
@@ -15875,7 +15902,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 
                 data = wolfSSL_ASN1_STRING_data(e->value);
                 if (data != NULL) {
-                    sz = (int)XSTRLEN((const char*)data);
+                    sz = wolfSSL_ASN1_STRING_length(e->value);
                     if ((fullNameSz - (word32)*idx) >=
                             X509CertEscapeName(NULL, (const char*)data,
                                 (word32)sz)) {
@@ -15926,10 +15953,12 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 if (data == NULL) {
                     continue;
                 }
+                if (wolfSSL_ASN1_STRING_length(e->value) < 0)
+                    return BUFFER_E;
                 /* Certain characters need to be escaped, so ask for the
                  * length of the value once escaped. */
                 intermediateVal = X509CertEscapeName(NULL, data,
-                    (word32)XSTRLEN(data));
+                    (word32)wolfSSL_ASN1_STRING_length(e->value));
                 if (intermediateVal > (word32)INT_MAX - 1 - totalLen)
                     return BUFFER_E;
                 totalLen += intermediateVal;
@@ -18592,6 +18621,10 @@ static int regenX509REQDerBuffer(WOLFSSL_X509* x509)
         ClearX509NameRaw(&x509->issuer);
         ClearX509NameRaw(&x509->subject);
     #endif
+        /* Extension stack cached by wolfSSL_X509_get0_extensions() was built
+         * from the old encoding. */
+        wolfSSL_sk_pop_free(x509->ext_sk_full, NULL);
+        x509->ext_sk_full = NULL;
         if (AllocDer(&x509->derCert, (word32)derSz, CERT_TYPE,
                                                              x509->heap) == 0) {
             XMEMCPY(x509->derCert->buffer, der, derSz);
