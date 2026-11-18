@@ -707,5 +707,11 @@
 {"name": "aesgcm-word32-opensslextra",
  "comment": "As aesgcm-word-opensslextra, with the 32-bit word GHASH.",
  "configure": ["--enable-aesgcm=word32", "--enable-opensslextra", "--enable-opensslall",
-  "--enable-aesgcm-stream"]}
+  "--enable-aesgcm-stream"]},
+{"name": "sp-p256-small", "minutes": 4,
+ "comment": "Size-first constant-time P-256 (sp_p256_small.c) in place of the generated x86_64 P-256, with P-384 and RSA/DH still on the generated SP code.",
+ "configure": ["--enable-sp", "--enable-sp-p256-small", "--enable-compkey", "--enable-eccsi"]},
+{"name": "sp-p256-small-c32", "minutes": 4,
+ "comment": "Small P-256 with restricted SP math on the portable 32-bit C build, the embedded configuration it targets, plus the public point add/double/map paths.",
+ "configure": ["--enable-sp=small", "--enable-sp-math", "--disable-sp-asm", "--enable-sp-p256-small", "--enable-compkey", "--enable-opensslextra", "CPPFLAGS=-DSP_WORD_SIZE=32 -DWOLFSSL_PUBLIC_ECC_ADD_DBL -DWOLFSSL_PUBLIC_MP"]}
 ]
