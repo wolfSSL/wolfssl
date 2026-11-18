@@ -690,6 +690,9 @@ static int test_no_fatal_alert(method_provider method_c,
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         method_c, method_s), 0);
+    /* Some builds free the server's key after the handshake. The server needs
+     * it to call wolfSSL_accept() again. */
+    ExpectIntEQ(wolfSSL_KeepHandshakeResources(ssl_s), 0);
 
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
