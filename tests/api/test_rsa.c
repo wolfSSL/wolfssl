@@ -2826,6 +2826,22 @@ int test_wc_FreeRsaKey_CryptoCb(void)
         ExpectTrue(mp_iszero(&key.e));
     }
 
+#ifndef WC_NO_CONSTRUCTORS
+    {
+        /* wc_DeleteRsaKey reports the device's free failure too. */
+        RsaKey* newKey = NULL;
+        int newRet = -1;
+
+        seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+        ExpectNotNull(newKey = wc_NewRsaKey(HEAP_HINT, TEST_RSA_CB_FREE_DEVID,
+            &newRet));
+        ExpectIntEQ(newRet, 0);
+        ExpectIntEQ(wc_DeleteRsaKey(newKey, &newKey),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectNull(newKey);
+    }
+#endif
+
     wc_CryptoCb_UnRegisterDevice(TEST_RSA_CB_FREE_DEVID);
 #endif
     return EXPECT_RESULT();
