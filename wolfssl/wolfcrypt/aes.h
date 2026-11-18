@@ -48,6 +48,42 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define GCM_TABLE_4BIT
 #endif
 
+/* Cache-attack resistant C GHASH: no branches on, and no table indices
+ * derived from, H or the running GHASH state. Opt out with
+ * WC_NO_CACHE_RESISTANT (e.g. --disable-harden) or
+ * AES_GCM_GMULT_NO_CACHE_RESIST. */
+#if !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(AES_GCM_GMULT_NO_CACHE_RESIST)
+    #define WC_AES_GCM_GMULT_CACHE_RESIST
+#endif
+
+/* Default GHASH implementation when none is chosen: the table-free
+ * GCM_INT_MUL when cache resistant, otherwise the faster 4-bit table. The
+ * PPC and RISC-V assembly GHASH is built on the 4-bit table.
+ * GCM_INT_MUL is only as constant time as the CPU multiply, so it is not the
+ * default where MUL may take data-dependent time: Armv4/Armv5 (e.g. ARM7TDMI
+ * and ARM9TDMI multiplies terminate early on the operand's top bits) and
+ * RISC-V without Zkt (data-independent latency is not guaranteed). They get
+ * the masked GCM_SMALL, which uses no multiplies or tables. Choosing
+ * GCM_INT_MUL explicitly asserts the CPU's multiply is constant time. */
+#if defined(HAVE_AESGCM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
+    !defined(GCM_TABLE_4BIT) && !defined(GCM_WORD32) && !defined(GCM_INT_MUL)
+    #if !defined(WC_AES_GCM_GMULT_CACHE_RESIST) || \
+        defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM) || \
+        defined(WOLFSSL_RISCV_ASM)
+        #define GCM_TABLE_4BIT
+    #elif (defined(__arm__) && ((defined(__ARM_ARCH) && __ARM_ARCH < 6) || \
+            defined(__ARM_ARCH_4__) || defined(__ARM_ARCH_4T__) || \
+            defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5T__) || \
+            defined(__ARM_ARCH_5E__) || defined(__ARM_ARCH_5TE__) || \
+            defined(__ARM_ARCH_5TEJ__))) || \
+          (defined(__riscv) && !defined(__riscv_zkt))
+        #define GCM_SMALL
+    #else
+        #define GCM_INT_MUL
+    #endif
+#endif
+
 /* WOLFSSL_ARM32_AES_HW_FLAGS - whether the Aes object carries the run-time
  * implementation-selection flags on 32-bit Arm.
  *
@@ -76,6 +112,34 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #if !defined(NO_AES) || defined(WOLFSSL_SM4)
 
+#ifdef GCM_INT_MUL
+/* GCM_INT_MUL multiply variant (see aes.c): 64x64 multiplies, 32x32->64
+ * multiplies, or 32x32->32 multiplies only. */
+#if defined(WC_64BIT_CPU) && defined(WORD64_AVAILABLE)
+    #define GCM_IM_64
+#elif !defined(GCM_INT_MUL_32_ONLY) && defined(WORD64_AVAILABLE) && \
+      !defined(WC_16BIT_CPU) && !defined(__ARM_ARCH_6M__) && \
+      !defined(__ARM_ARCH_7M__)
+    #define GCM_IM_32W
+#else
+    #define GCM_IM_32
+#endif
+
+/* H prepared for the GCM_INT_MUL GHASH multiply by GenerateM0(): 64-bit
+ * CPUs use words and bit-reversed words, 32-bit CPUs Karatsuba operands (and,
+ * for GCM_IM_32, those of the bit-reversed words). Sized for the variant:
+ * keeps sizeof(Aes) small for fixed-size wrappers like mcapi. */
+typedef union GcmIntMulKey {
+#if defined(GCM_IM_64)
+    word64 w64[4];
+#elif defined(GCM_IM_32W)
+    word32 w32[9];
+#else
+    word32 w32[18];
+#endif
+} GcmIntMulKey;
+#endif
+
 typedef struct Gcm {
     ALIGN16 byte H[16];
 #ifdef OPENSSL_EXTRA
@@ -91,6 +155,10 @@ typedef struct Gcm {
     #else
         ALIGN16 byte M0[32][16];
     #endif
+#elif defined(GCM_INT_MUL)
+    /* The C GHASH reads only this, not H: x86 AES-NI streaming asm stores H
+     * in its own format. */
+    ALIGN16 GcmIntMulKey M0;
 #endif /* GCM_TABLE */
 } Gcm;
 
