@@ -18899,7 +18899,6 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail(void)
     test_ssl_memio_ctx test_ctx;
     byte retryConfigs[ECH_CONFIG_LEN];
     word32 retryConfigsLen = sizeof(retryConfigs);
-    const char* badPublicName = "ech-public-name.com";
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
@@ -18916,7 +18915,7 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail(void)
         /* generate mismatched ECH configs so retry_configs are sent
          * and use a bad public name so auth fails in outer hello */
         ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-        ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, badPublicName,
+        ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, echOtherName,
             0, 0, 0), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(tempCtx, badConfigs,
             &badConfigsLen), WOLFSSL_SUCCESS);
@@ -18933,10 +18932,9 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail(void)
     wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
     wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
 
-    /* use badPublicName so ECH public name matches */
+    /* use echOtherName so ECH public name matches */
     ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
-        badPublicName, (word16)XSTRLEN(badPublicName)),
-        WOLFSSL_SUCCESS);
+        echOtherName, (word16)XSTRLEN(echOtherName)), WOLFSSL_SUCCESS);
 
     /* auth failure in outer handshake, not ech_required */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
@@ -19702,8 +19700,9 @@ static int test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex(const char* publicName,
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
     /* a TLS 1.2 server cannot match the public name, it does not serve ECH */
-    wolfSSL_SNI_SetOptions(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
-        WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
+    if (wolfSSL_GetVersion(test_ctx.s_ssl) == WOLFSSL_TLSV1_2)
+        wolfSSL_SNI_SetOptions(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
+            WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
 
     /* Server has its own ECH config with the given public_name */
     ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(test_ctx.s_ctx, publicName,
@@ -19777,9 +19776,6 @@ static int test_wolfSSL_Tls13_ECH_tls12_downgrade(void)
     EXPECT_DECLS;
 #ifndef WOLFSSL_NO_TLS12
     test_ssl_memio_ctx test_ctx;
-    byte echConfigs[ECH_CONFIG_LEN];
-    word32 echConfigsLen = sizeof(echConfigs);
-    const char* publicName = "example.com";
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     word32 ticketLen = 0;
 #endif
@@ -19791,6 +19787,11 @@ static int test_wolfSSL_Tls13_ECH_tls12_downgrade(void)
 
     test_ctx.s_cb.method = wolfTLSv1_2_server_method;
     test_ctx.c_cb.method = wolfSSLv23_client_method;
+    /* Generate the ECH configs on the server. Leave ECH enabled - since the
+     * server is TLS 1.2 it should not support ECH */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && defined(HAVE_ED25519)
     /* client credential with no signature algorithm in the CertificateRequest
      * must not fail the handshake before the empty Certificate is sent */
@@ -19808,19 +19809,6 @@ static int test_wolfSSL_Tls13_ECH_tls12_downgrade(void)
     wolfSSL_CTX_set_cert_cb(test_ctx.c_ctx, test_ech_cert_setup_cb,
         &certSetupCalls);
 #endif
-
-    /* Generate the ECH configs on the server. Leave ECH enabled - since the
-     * server is TLS 1.2 it should not support ECH */
-    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(test_ctx.s_ctx, publicName,
-        0, 0, 0), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(test_ctx.s_ctx, echConfigs,
-        &echConfigsLen), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echConfigs,
-        echConfigsLen), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
-        "ech-private.com", (word16)XSTRLEN("ech-private.com")),
-        WOLFSSL_SUCCESS);
-    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     ExpectIntEQ(wolfSSL_UseSessionTicket(test_ctx.c_ssl), WOLFSSL_SUCCESS);
 #endif
@@ -19828,10 +19816,9 @@ static int test_wolfSSL_Tls13_ECH_tls12_downgrade(void)
     /* request a client cert, the client must respond with an empty one */
     wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_PEER, NULL);
 
-    /* set sni to the public name so it matches the presented cert, and so the
-     * client is not rejected based on SNI */
-    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
-        publicName, (word16)XSTRLEN(publicName)), WOLFSSL_SUCCESS);
+    /* a TLS 1.2 server cannot match the public name, it does not serve ECH */
+    wolfSSL_SNI_SetOptions(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
+        WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
@@ -19870,25 +19857,16 @@ static int test_wolfSSL_Tls13_ECH_tls12_client(void)
     EXPECT_DECLS;
 #ifndef WOLFSSL_NO_TLS12
     test_ssl_memio_ctx test_ctx;
-    byte echConfigs[ECH_CONFIG_LEN];
-    word32 echConfigsLen = sizeof(echConfigs);
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     test_ctx.s_cb.method = wolfSSLv23_server_method;
     test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
-
-    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(test_ctx.s_ctx, "example.com",
-        0, 0, 0), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(test_ctx.s_ctx, echConfigs,
-        &echConfigsLen), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echConfigs,
-        echConfigsLen), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
-        "ech-private.com", (word16)XSTRLEN("ech-private.com")),
-        WOLFSSL_SUCCESS);
 
     ExpectIntEQ(wolfSSL_connect(test_ctx.c_ssl), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, WOLFSSL_FATAL_ERROR),
@@ -20058,18 +20036,24 @@ static int test_wolfSSL_Tls13_ECH_rejected_client_cert_cb_ex(
     test_ctx.c_cb.certPemFile = "";
     test_ctx.c_cb.keyPemFile = "";
     test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
-    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
     wolfSSL_CTX_set_client_cert_cb(test_ctx.c_ctx, test_ech_client_cert_cb);
-    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+    /* a TLS 1.2 server cannot match the public name, it does not serve ECH */
+    if (wolfSSL_GetVersion(test_ctx.s_ssl) == WOLFSSL_TLSV1_2)
+        wolfSSL_SNI_SetOptions(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
+            WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
 
-    /* request a client cert, reject ECH and match the server SNI to the
-     * public name */
+    /* bad config derived from the server's real one to force ECH rejection */
+    ExpectIntEQ(test_ech_set_bad_echconfigs(test_ctx.s_ctx, test_ctx.c_ssl),
+        TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echPrivateName, (word16)XSTRLEN(echPrivateName)), WOLFSSL_SUCCESS);
+
+    /* Server requests client cert, on reject the client returns an empty one */
     wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_PEER, NULL);
-    wolfSSL_SetEchEnable(test_ctx.s_ssl, 0);
-    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
-        echPublicName, (word16)XSTRLEN(echPublicName)), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),

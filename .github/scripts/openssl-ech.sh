@@ -221,7 +221,8 @@ openssl_server(){
 
     if [ "$REJECT" -ne 0 ]; then
         grep -q "ech_success=0" "$TMP_LOG" && \
-            grep -q "ECH status: rejected" "$TMP_LOG"
+            grep -q "ECH status: rejected" "$TMP_LOG" && \
+            grep -q "ECH offered but rejected by server" "$TMP_LOG"
     else
         grep -q "ech_success=1" "$TMP_LOG" && \
             grep -q "ECH status: accepted" "$TMP_LOG"
