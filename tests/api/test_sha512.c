@@ -376,7 +376,7 @@ int test_wc_Sha512_224FinalRaw(void)
         XMEMSET(&raw, 0, sizeof(raw));
         ExpectIntEQ(wc_InitSha512_224(&raw), 0);
         ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"ab", 2), 0);
-        ExpectIntEQ(wc_Sha512_224FinalRaw(&raw, rawHash), 0);
+        ExpectIntEQ(wc_Sha512_224FinalRaw(&raw, rawHash), UNAPPROVED_OK);
         ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"c", 1), 0);
         ExpectIntEQ(wc_Sha512_224Final(&raw, rawHash), 0);
         ExpectBufEQ(rawHash,

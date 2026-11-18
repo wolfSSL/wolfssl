@@ -1378,14 +1378,15 @@ static wc_test_ret_t keyid_test(void);
 /* Not all unexpected conditions are actually errors .*/
 #define WARNING_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
 
-/* Success from a caller-seeded PQ service: FIPS v7 returns the
- * non-approved indicator (same definition as tests/api/api.h). */
+/* Success from a service the FIPS v7 module reports as not approved
+ * (same definition as tests/api/api.h). */
 #if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
     FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
-    #define SEED_OK  WC_FIPS_NOT_APPROVED
+    #define UNAPPROVED_OK  WC_FIPS_NOT_APPROVED
 #else
-    #define SEED_OK  0
+    #define UNAPPROVED_OK  0
 #endif
+#define SEED_OK  UNAPPROVED_OK
 
 void wc_test_render_error_message(const char* msg, wc_test_ret_t es)
 {
@@ -12486,6 +12487,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
             /* Now use the ex and allow short keys with FIPS option */
             ret = wc_HmacSetKey_ex(&hmac, WC_SHA, (byte*) keys[i],
                                (word32)XSTRLEN(keys[i]), allowShortKeyWithFips);
+        #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+            !defined(FIPS_NO_WRAPPERS)
+            /* A key under 112 bits is keyed but reported non-approved. */
+            if (ret != WC_FIPS_NOT_APPROVED)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = 0;
+        #endif
         }
 #endif
         if (ret != 0)
@@ -12874,7 +12882,7 @@ out:
         return WC_TEST_RET_ENC_EC(ret);
 #if FIPS_VERSION3_GE(6,0,0) && \
     !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR)) && \
-    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    !defined(WOLFSSL_FIPS_DEV_NO_POST) && !defined(FIPS_NO_WRAPPERS)
     if ((ret = wc_HmacSizeByType(21)) != WC_NO_ERR_TRACE(HMAC_KAT_FIPS_E))
 #else
     if ((ret = wc_HmacSizeByType(21)) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -30626,6 +30634,21 @@ static wc_test_ret_t rng_drbg_flavor_flags_test(void)
 #define rng_drbg_flavor_flags_test() ((wc_test_ret_t)0)
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
+/* The v7 module reports services on caller-seeded DRBGs as non-approved. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    #define TEST_USER_SEED_OK WC_FIPS_NOT_APPROVED
+#else
+    #define TEST_USER_SEED_OK 0
+#endif
+/* The v7 Reseed service takes its own entropy, so module instances accept. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    #define TEST_CREDITED_RESEED_RET 0
+#else
+    #define TEST_CREDITED_RESEED_RET WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)
+#endif
+
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND)
 
@@ -30864,7 +30887,6 @@ out:
     return ret;
 }
 #endif /* WC_TEST_RNG_SEED_KAT */
-
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 {
@@ -31439,13 +31461,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                                            (word32)WC_DRBG_SEED_BUF_SIZE,
                                            NULL, 0, NULL, 0, HEAP_HINT, devId,
                                            WC_RNG_INIT_FLAG_TEST_USER_SEED);
-            if (ret != 0) {
+            if (ret != TEST_USER_SEED_OK) {
                 lret = WC_TEST_RET_ENC_EC(ret);
                 break;
             }
             ret = wc_RNG_GenerateBlock(&u_seed, u_seed_buf,
                                        (word32)WC_DRBG_SEED_BUF_SIZE);
-            if (ret != 0)
+            if (ret != TEST_USER_SEED_OK)
                 lret = WC_TEST_RET_ENC_EC(ret);
             ret = wc_FreeRng(&u_seed);
             if ((ret != 0) && (lret == 0))
@@ -31768,8 +31790,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 
     /* WC_RNG_RBGC_STRATUM_IMMUTABLE freezes RBGCStratum at birth, so
      * credited user-class reseeds of conformant (sub-sentinel) instances
-     * are refused with WRONG_TYPE_OBJECT_E.  The refusal precedes length
-     * handling (zero-length probe below), and generation is unaffected.
+     * are refused with WRONG_TYPE_OBJECT_E (the v7 indicator module's
+     * Reseed service takes module entropy instead).  The refusal precedes
+     * length handling (zero-length probe below), and generation is unaffected.
      * The acceptance counterpart -- a user reseed of a born-user-seeded
      * instance -- is exercised in rng_drbg_rbgc_test(). */
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
@@ -31783,12 +31806,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
             return WC_TEST_RET_ENC_EC(ret);
         XMEMSET(c_buf, 0x3c, sizeof(c_buf));
         ret = wc_RNG_DRBG_Reseed(&c_rng, c_buf, (word32)sizeof(c_buf));
-        if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+        if (ret != TEST_CREDITED_RESEED_RET) {
             (void)wc_FreeRng(&c_rng);
             return WC_TEST_RET_ENC_I(ret);
         }
         ret = wc_RNG_DRBG_Reseed(&c_rng, c_buf, 0);
-        if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+        if (ret != TEST_CREDITED_RESEED_RET) {
             (void)wc_FreeRng(&c_rng);
             return WC_TEST_RET_ENC_I(ret);
         }
@@ -32901,7 +32924,9 @@ static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
         rc = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
     else
         rc = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
-#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
+    !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+      !defined(FIPS_NO_WRAPPERS))
     /* The user-reseed class refusal precedes the lock wait, so the !useNow
      * leg reports WRONG_TYPE_OBJECT_E before condemnation can surface;
      * condemnation reporting stays covered by the useNow leg. */
@@ -34701,11 +34726,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
 
         /* credited reseed resets the counter */
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
-        /* user-class credited reseeds of the conformant root are refused;
-         * probe the counter reset with a credited primary reseed, with the
-         * material as nonce. */
+        /* User-class reseeds of the root are refused (module entropy in the
+         * v7 indicator module); probe the counter with a primary reseed. */
         api_ret = wc_RNG_DRBG_Reseed(root, matter, sizeof(matter));
-        if (api_ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        if (api_ret != TEST_CREDITED_RESEED_RET)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_DRBG_Reseed_Now(root, matter, sizeof(matter));
         if (api_ret != 0)
@@ -36012,7 +36036,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
                                            NULL, 0,
                                            NULL, 0, HEAP_HINT, RNG_DRBG_DEVID,
                                            WC_RNG_INIT_FLAG_NONE);
-        if (api_ret != 0)
+        if (api_ret != TEST_USER_SEED_OK)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_DRBG_GetRBGCStratum(&u_seed);
         if (api_ret != WC_RNG_RBGC_USER_SEED_STRATUM) {
@@ -36020,7 +36044,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
         }
         api_ret = wc_RNG_DRBG_Reseed(&u_seed, matter, 16);
-        if (api_ret != 0) {
+        if (api_ret != TEST_USER_SEED_OK) {
             (void)wc_FreeRng(&u_seed);
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         }
@@ -36030,7 +36054,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
         }
         api_ret = wc_RNG_GenerateBlock(&u_seed, buf, (word32)sizeof(buf));
-        if (api_ret != 0) {
+        if (api_ret != TEST_USER_SEED_OK) {
             (void)wc_FreeRng(&u_seed);
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         }
@@ -37898,8 +37922,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                            NULL, 0, NULL, 0, HEAP_HINT,
                                            RNG_DRBG_DEVID,
                                            WC_RNG_INIT_FLAG_NO_PRIMARY_SEED);
-        if (api_ret != 0)
+        if (api_ret != TEST_USER_SEED_OK)
             api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        else
+            api_ret = 0;
         if (api_ret == 0) {
             u_inited = 1;
             if (wc_RNG_DRBG_GetRBGCStratum(&u) !=
@@ -37910,8 +37936,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         }
         if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(&u, block, (word32)sizeof(block));
-            if (api_ret != 0)
+            if (api_ret != TEST_USER_SEED_OK)
                 api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            else
+                api_ret = 0;
         }
 #ifdef WC_RNG_HAVE_LOCK
         if (api_ret == 0) {
@@ -37932,8 +37960,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             if (fb != NULL) {
                 api_ret = wc_RNG_GenerateBlock(&u, block,
                                                (word32)sizeof(block));
-                if (api_ret != 0)
+                if (api_ret != TEST_USER_SEED_OK)
                     api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                else
+                    api_ret = 0;
                 if ((api_ret == 0) &&
                     (wc_RNG_DRBG_GetRBGCStratum(&u) !=
                      RBGC_RESEED_STRATUM(wc_RNG_DRBG_GetRBGCStratum(fb) + 1,
@@ -37963,15 +37993,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
 #endif
         if (api_ret == 0) {
             XMEMSET(user_seed, 0xa5, WC_DRBG_SEED_SZ);
+        #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+            !defined(FIPS_NO_WRAPPERS)
+            /* The v7 Reseed takes module entropy; AddIn credits the caller. */
+            api_ret = wc_RNG_DRBG_Reseed_AddIn(&u, user_seed, WC_DRBG_SEED_SZ,
+                                               NULL, 0);
+        #else
             api_ret = wc_RNG_DRBG_Reseed(&u, user_seed, WC_DRBG_SEED_SZ);
-            if (api_ret != 0)
+        #endif
+            if (api_ret != TEST_USER_SEED_OK)
                 api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            else
+                api_ret = 0;
         }
         WC_FREE_VAR(user_seed, HEAP_HINT);
         if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(&u, block, (word32)sizeof(block));
-            if (api_ret != 0)
+            if (api_ret != TEST_USER_SEED_OK)
                 api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            else
+                api_ret = 0;
         }
         if (api_ret == 0) {
             api_ret = wc_RNG_entropy_needs_recovery(&u); /* discharged */
@@ -50825,12 +50866,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
                       0xf8, 0xf9 };
 #endif
 #ifndef NO_SHA
+#if !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+      !defined(FIPS_NO_WRAPPERS))
     byte res1[42] = { 0x0a, 0xc1, 0xaf, 0x70, 0x02, 0xb3, 0xd7, 0x61,
                       0xd1, 0xe5, 0x52, 0x98, 0xda, 0x9d, 0x05, 0x06,
                       0xb9, 0xae, 0x52, 0x05, 0x72, 0x20, 0xa3, 0x06,
                       0xe0, 0x7b, 0x6b, 0x87, 0xe8, 0xdf, 0x21, 0xd0,
                       0xea, 0x00, 0x03, 0x3d, 0xe0, 0x39, 0x84, 0xd3,
                       0x49, 0x18 };
+#endif
 #ifndef HAVE_FIPS
     byte res2[42] = { 0x08, 0x5a, 0x01, 0xea, 0x1b, 0x10, 0xf3, 0x69,
                       0x33, 0x06, 0x8b, 0x56, 0xef, 0xa5, 0xad, 0x81,
@@ -50871,11 +50915,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
                   okm1, (word32)L);
 #endif
     PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* The v7 module refuses HKDF with SHA-1. */
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+#else
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
@@ -51371,6 +51422,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
             (const byte*)label, (word32)XSTRLEN(label), seed, seedSz,
             1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* A master secret without EMS is derived but flagged: IG D.Q. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret != 0) {
         if (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
@@ -55782,9 +55839,10 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #endif
 #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
     !defined(FIPS_NO_WRAPPERS)
-    /* v7 refuses ECDH outside P-256, P-384 and P-521: expect the refusal and
-     * skip only the shared secret steps for this curve. */
+    /* v7 refuses ECDH outside P-224, P-256, P-384 and P-521: expect the
+     * refusal and skip only the shared secret steps for this curve. */
     if (userA->dp != NULL &&
+        userA->dp->id != ECC_SECP224R1 &&
         userA->dp->id != ECC_SECP256R1 &&
         userA->dp->id != ECC_SECP384R1 &&
         userA->dp->id != ECC_SECP521R1) {
@@ -55799,8 +55857,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     }
 #endif
 
-    if (doEcdh)
-    {
+    if (doEcdh) {
     x = ECC_SHARED_SIZE;
     PRIVATE_KEY_UNLOCK();
     do {
@@ -55909,8 +55966,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100)
 #ifdef HAVE_ECC_DHE
-    if (doEcdh)
-    {
+    if (doEcdh) {
     y = ECC_SHARED_SIZE;
     PRIVATE_KEY_UNLOCK();
     do {
@@ -55965,8 +56021,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
     #ifdef HAVE_ECC_DHE
-        if (doEcdh)
-        {
+        if (doEcdh) {
         y = ECC_SHARED_SIZE;
         PRIVATE_KEY_UNLOCK();
         do {
@@ -93965,8 +94020,10 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
                 cert, &certSz);
         keySz = 0;
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             keySz = wc_SlhDsaKey_PrivateKeyToDer(slhdsa, key,
                 SLHDSA_PKCS7_KEY_SZ);
+            PRIVATE_KEY_LOCK();
             if (keySz <= 0)
                 ret = WC_TEST_RET_ENC_EC(keySz);
         }
@@ -106395,7 +106452,8 @@ static wc_test_ret_t shake_cb_xof_test(myCryptoDevCtx* myCtx, int decline,
 
 #if defined(WOLFSSL_SHA3) && \
     (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)) && \
-    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE))
+    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE)) && \
+    !defined(HAVE_FIPS)
 /* Round-trip one SHAKE variant through Update/Final/Copy/Free with the
  * callback registered and assert Copy/Free dispatched expectType. */
 static wc_test_ret_t shake_cb_copy_free_test(myCryptoDevCtx* myCtx,
@@ -109988,7 +110046,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif /* WOLFSSL_CMAC && WOLF_CRYPTO_CB_FREE */
 
 #if defined(WOLFSSL_SHA3) && \
-    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE))
+    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE)) && \
+    !defined(HAVE_FIPS)
 #ifdef WOLFSSL_SHAKE128
     if (ret == 0)
         ret = shake_cb_copy_free_test(&myCtx, WC_HASH_TYPE_SHAKE128,
@@ -110001,7 +110060,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             wc_InitShake256, wc_Shake256_Update, wc_Shake256_Final,
             wc_Shake256_Copy, wc_Shake256_Free);
 #endif
-#endif /* WOLFSSL_SHA3 && (CB_COPY || CB_FREE) */
+#endif /* WOLFSSL_SHA3 && (CB_COPY || CB_FREE) && !HAVE_FIPS */
 
 #if defined(WOLFSSL_SHA3) && defined(WOLF_CRYPTO_CB_SHAKE_XOF) && \
     !defined(HAVE_FIPS)
