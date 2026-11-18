@@ -2331,13 +2331,15 @@ static int ec_mul2add(ecc_point* r, ecc_point* b, mp_int* n, ecc_point* q,
         ret = 0;
     }
     /* r = base point * n */
-    if ((ret == 1) && (wc_ecc_mulmod(n, b, r, a, prime, 0) !=
-            MP_OKAY)) {
+    if ((ret == 1) && (wc_FipsAcceptUnapproved(
+            wc_ecc_mulmod(n, b, r, a, prime, 0), "EC point mul") != MP_OKAY)) {
         WOLFSSL_MSG("wc_ecc_mulmod nqm error");
         ret = 0;
     }
     /* tmp = q * m */
-    if ((ret == 1) && (wc_ecc_mulmod(m, q, tmp, a, prime, 0) != MP_OKAY)) {
+    if ((ret == 1) && (wc_FipsAcceptUnapproved(
+            wc_ecc_mulmod(m, q, tmp, a, prime, 0), "EC point mul") !=
+            MP_OKAY)) {
         WOLFSSL_MSG("wc_ecc_mulmod nqm error");
         ret = 0;
     }
@@ -2459,7 +2461,8 @@ static int wolfssl_ec_point_mul(int curveIdx, ecc_point* r, mp_int* n,
     /* Not all values present, see if we are only doing base point * n. */
     else if ((ret == 1) && (n != NULL)) {
         /* r = base point * n */
-        if (wc_ecc_mulmod(n, r, r, a, prime, 1) != MP_OKAY) {
+        if (wc_FipsAcceptUnapproved(wc_ecc_mulmod(n, r, r, a, prime, 1),
+                "EC point mul") != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_mulmod gn error");
             ret = 0;
         }
@@ -2467,7 +2470,8 @@ static int wolfssl_ec_point_mul(int curveIdx, ecc_point* r, mp_int* n,
     /* Not all values present, see if we are only doing q * m. */
     else if ((ret == 1) && (q != NULL) && (m != NULL)) {
         /* r = q * m */
-        if (wc_ecc_mulmod(m, q, r, a, prime, 1) != MP_OKAY) {
+        if (wc_FipsAcceptUnapproved(wc_ecc_mulmod(m, q, r, a, prime, 1),
+                "EC point mul") != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_mulmod qm error");
             ret = 0;
         }

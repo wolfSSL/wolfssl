@@ -288,11 +288,11 @@ int test_wc_Sha512Transform(void)
         XMEMSET(&shaB, 0, sizeof(shaB));
         ExpectIntEQ(wc_InitSha512(&shaA), 0);
         ExpectIntEQ(wc_Sha512Update(&shaA, (const byte*)"ab", 2), 0);
-        ExpectIntEQ(wc_Sha512Transform(&shaA, abcData), 0);
+        ExpectIntEQ(wc_Sha512Transform(&shaA, abcData), UNAPPROVED_OK);
         ExpectIntEQ(wc_Sha512Update(&shaA, (const byte*)"c", 1), 0);
         ExpectIntEQ(wc_Sha512Final(&shaA, hashA), 0);
         ExpectIntEQ(wc_InitSha512(&shaB), 0);
-        ExpectIntEQ(wc_Sha512Transform(&shaB, abcData), 0);
+        ExpectIntEQ(wc_Sha512Transform(&shaB, abcData), UNAPPROVED_OK);
         ExpectIntEQ(wc_Sha512Update(&shaB, (const byte*)"abc", 3), 0);
         ExpectIntEQ(wc_Sha512Final(&shaB, hashB), 0);
         ExpectBufEQ(hashA, hashB, WC_SHA512_DIGEST_SIZE);

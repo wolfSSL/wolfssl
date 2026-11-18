@@ -85,6 +85,13 @@ int test_wc_PBKDF1DecisionCoverage(void)
                                    0x5d, 0x63, 0xcb, 0x06 };
     byte derived[16] = {0};
     int  prevMax;
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* PBKDF1 is not approved: SP 800-132 sec 5.3 approves PBKDF2 only. */
+    const int okRet = WC_FIPS_NOT_APPROVED;
+#else
+    const int okRet = 0;
+#endif
 
     /* argument-check OR: key==NULL || keyLen<0 || passwdLen<0 || saltLen<0 ||
      * ivLen<0 -- vary each operand alone (others valid). */
@@ -125,7 +132,7 @@ int test_wc_PBKDF1DecisionCoverage(void)
     /* valid derivation (keyLen spanning >1 digest block) */
     ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
                     passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
-                    2, WC_SHA, HEAP_HINT), 0);
+                    2, WC_SHA, HEAP_HINT), okRet);
         /* salt == NULL with saltLen > 0 must be rejected, not treated as no salt */
     ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
                     passwd, (int)sizeof(passwd), NULL, (int)sizeof(salt),
@@ -133,7 +140,7 @@ int test_wc_PBKDF1DecisionCoverage(void)
     /* salt == NULL with saltLen == 0 is still allowed */
     ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
                     passwd, (int)sizeof(passwd), NULL, 0,
-                    2, WC_SHA, HEAP_HINT), 0);
+                    2, WC_SHA, HEAP_HINT), okRet);
 
     /* `if (ivLeft && digestLeft)` independence pairs. keyLen == digestLen
      * (20 for SHA-1) with ivLen > 0: the first D-iteration exactly
@@ -149,7 +156,7 @@ int test_wc_PBKDF1DecisionCoverage(void)
 
         ExpectIntEQ(wc_PBKDF1_ex(key20, (int)sizeof(key20), iv8,
                         (int)sizeof(iv8), passwd, (int)sizeof(passwd),
-                        salt, (int)sizeof(salt), 2, WC_SHA, HEAP_HINT), 0);
+                        salt, (int)sizeof(salt), 2, WC_SHA, HEAP_HINT), okRet);
     }
 #endif
     return EXPECT_RESULT();

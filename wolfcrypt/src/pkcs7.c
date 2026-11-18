@@ -9778,8 +9778,11 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
     };
 
 #ifdef HAVE_X963_KDF
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(kdfType, secret, secretSz, kari->sharedInfo,
                       kari->sharedInfoSz, kari->kek, kari->kekSz);
+    PRIVATE_KEY_LOCK();
+    ret = wc_FipsAcceptUnapproved(ret, "X9.63 KDF");
 #else
     (void)kdfType;
     ret = NOT_COMPILED_IN;
@@ -10706,6 +10709,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
                 #else
                     ret = wc_AesGcmEncryptInit(aes, key, (word32)keySz, iv,
                         (word32)ivSz);
+                    ret = wc_FipsAcceptUnapproved(ret, "AES-GCM short IV");
                     if (ret == 0) {
                         ret = wc_AesGcmEncryptUpdate(aes, NULL, NULL, 0, aad,
                             aadSz);
@@ -11027,6 +11031,7 @@ static int wc_PKCS7_DecryptContentEx(wc_PKCS7* pkcs7, word32 encryptOID,
             ret = wc_AesGcmDecrypt(pkcs7->decryptKey.aes, out, in,
                     (word32)inSz, iv, (word32)ivSz, authTag, authTagSz,
                     aad, aadSz);
+            ret = wc_FipsAcceptUnapproved(ret, "AES-GCM short IV");
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* async decrypt not available here, so block till done */
             ret = wc_AsyncWait(ret, &pkcs7->decryptKey.aes->asyncDev,

@@ -299,7 +299,9 @@ int wolfSSL_SHA_Transform(WOLFSSL_SHA_CTX* sha, const unsigned char* data)
     }
 #endif
     /* Transform block of data with wolfCrypt SHA object. */
-    return wc_ShaTransform((wc_Sha*)sha, data) == 0;
+    return wc_FipsAcceptUnapproved(
+        wc_ShaTransform((wc_Sha*)sha, data),
+        "SHA-1 Transform") == 0;
 }
 #endif
 
@@ -521,7 +523,9 @@ int wolfSSL_SHA256_Transform(WOLFSSL_SHA256_CTX* sha256,
     }
 #endif
     /* Transform block of data with wolfCrypt SHA-256 object. */
-    return wc_Sha256Transform((wc_Sha256*)sha256, data) == 0;
+    return wc_FipsAcceptUnapproved(
+        wc_Sha256Transform((wc_Sha256*)sha256, data),
+        "SHA-256 Transform") == 0;
 }
 #endif
 #endif /* !NO_SHA256 */
@@ -671,7 +675,9 @@ int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha512,
     WOLFSSL_ENTER("SHA512_Transform");
 
     /* Transform block of data with wolfCrypt SHA-512 object. */
-    return wc_Sha512Transform((wc_Sha512*)sha512, data) == 0;
+    return wc_FipsAcceptUnapproved(
+        wc_Sha512Transform((wc_Sha512*)sha512, data),
+        "SHA-512 Transform") == 0;
 }
 #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
           (HAVE_FIPS_VERSION > 2)) && !WOLFSSL_KCAPI_HASH */
@@ -753,7 +759,9 @@ int wolfSSL_SHA512_224_Transform(WOLFSSL_SHA512_CTX* sha512,
     WOLFSSL_ENTER("SHA512_224_Transform");
 
     /* Transform block of data with wolfCrypt SHA-512-224 object. */
-    return wc_Sha512_224Transform((wc_Sha512*)sha512, data) == 0;
+    return wc_FipsAcceptUnapproved(
+        wc_Sha512_224Transform((wc_Sha512*)sha512, data),
+        "SHA-512/224 Transform") == 0;
 }
 #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
           (HAVE_FIPS_VERSION > 2)) */
@@ -837,7 +845,9 @@ int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX* sha512,
     WOLFSSL_ENTER("SHA512_256_Transform");
 
     /* Transform block of data with wolfCrypt SHA-512-256 object. */
-    return wc_Sha512_256Transform((wc_Sha512*)sha512, data) == 0;
+    return wc_FipsAcceptUnapproved(
+        wc_Sha512_256Transform((wc_Sha512*)sha512, data),
+        "SHA-512/256 Transform") == 0;
 }
 #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
           (HAVE_FIPS_VERSION > 2)) */

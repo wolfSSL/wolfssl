@@ -1342,10 +1342,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                             ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
                             ctx->authIn, ctx->authInSz);
                 else
-                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
+                    ret = wc_FipsAcceptUnapproved(
+                            wc_AesGcmDecrypt(&ctx->cipher.aes, out,
                             ctx->authBuffer, ctx->authBufferLen,
                             ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                            ctx->authIn, ctx->authInSz);
+                            ctx->authIn, ctx->authInSz), "AES-GCM short IV");
 
                 if (ret == 0) {
                     ret = WOLFSSL_SUCCESS;
@@ -1389,10 +1390,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ret = WOLFSSL_FAILURE;
 
             /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
-            if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
-                              (byte*)ctx->cipher.aes.reg,
-                              (word32)ctx->ivSz) != 0)
-            {
+            if (wc_FipsAcceptUnapproved(
+                    wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
+                                  (byte*)ctx->cipher.aes.reg,
+                                  (word32)ctx->ivSz),
+                    "AES-GCM short IV") != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit failed");
                 ret = WOLFSSL_FAILURE;
             }
@@ -7191,8 +7193,12 @@ void wolfSSL_EVP_init(void)
         if (salt != NULL)
             saltSz = EVP_SALT_SIZE;
 
+        PRIVATE_KEY_UNLOCK();
         ret = wc_PBKDF1_ex(key, (int)info->keySz, iv, (int)info->ivSz, data, sz,
                            salt, saltSz, count, hashType, NULL);
+        PRIVATE_KEY_LOCK();
+        /* FIPS v7 does not approve PBKDF1 (SP 800-132 sec 5.3). */
+        ret = wc_FipsAcceptUnapproved(ret, "PBKDF1");
         if (ret == 0)
             ret = (int)info->keySz;
 
@@ -7309,7 +7315,9 @@ void wolfSSL_EVP_init(void)
         }
     #endif /* !WOLFSSL_AESGCM_STREAM */
         if (ret == WOLFSSL_SUCCESS && iv &&
-            wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, (word32)ctx->ivSz)) {
+            wc_FipsAcceptUnapproved(
+                wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, (word32)ctx->ivSz),
+                "AES-GCM short IV") != 0) {
             WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
             ret = WOLFSSL_FAILURE;
         }
@@ -7320,9 +7328,11 @@ void wolfSSL_EVP_init(void)
          */
         if (ret == WOLFSSL_SUCCESS &&
             (key || (iv && ctx->cipher.aes.gcmKeySet)) &&
-            wc_AesGcmInit(&ctx->cipher.aes, key,
-                          (key == NULL) ? 0 : (word32)ctx->keyLen, iv,
-                          (iv == NULL) ? 0 : (word32)ctx->ivSz) != 0) {
+            wc_FipsAcceptUnapproved(
+                wc_AesGcmInit(&ctx->cipher.aes, key,
+                              (key == NULL) ? 0 : (word32)ctx->keyLen, iv,
+                              (iv == NULL) ? 0 : (word32)ctx->ivSz),
+                "AES-GCM short IV") != 0) {
             WOLFSSL_MSG("wc_AesGcmInit() failed");
             ret = WOLFSSL_FAILURE;
         }
@@ -7358,10 +7368,11 @@ void wolfSSL_EVP_init(void)
                         ctx->authInSz);
             }
             else {
-                ret = wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src,
+                ret = wc_FipsAcceptUnapproved(
+                        wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src,
                         len, ctx->iv, ctx->ivSz, ctx->authTag,
                         ctx->authTagSz, ctx->authIn,
-                        ctx->authInSz);
+                        ctx->authInSz), "AES-GCM short IV");
             }
             if (ctx->authIncIv) {
                 IncCtr((byte*)ctx->cipher.aes.reg,
@@ -7421,9 +7432,11 @@ void wolfSSL_EVP_init(void)
                 }
             }
             /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
-            if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
-                              (byte*)ctx->cipher.aes.reg,
-                              (word32)ctx->ivSz) != 0) {
+            if (wc_FipsAcceptUnapproved(
+                    wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
+                                  (byte*)ctx->cipher.aes.reg,
+                                  (word32)ctx->ivSz),
+                    "AES-GCM short IV") != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit failed");
                 return WOLFSSL_FAILURE;
             }

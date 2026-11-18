@@ -5964,7 +5964,7 @@ int test_wc_EccDecisionCoverage4(void)
             NULL, 0, out, outLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_SHA256
         ExpectIntEQ(wc_X963_KDF(WC_HASH_TYPE_SHA256, secret, sizeof(secret),
-            NULL, 0, out, outLen), 0);
+            NULL, 0, out, outLen), UNAPPROVED_OK);
 #endif
     }
     #endif

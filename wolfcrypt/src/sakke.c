@@ -449,6 +449,7 @@ static int sakke_mulmod_base(SakkeKey* key, const mp_int* n, ecc_point* res,
     SakkeKeyParams* params = &key->params;
 
     err = wc_ecc_mulmod(n, params->base, res, &params->a, &params->prime, map);
+    err = wc_FipsAcceptUnapproved(err, "EC point mul");
 
     return err;
 }
@@ -474,6 +475,7 @@ static int sakke_mulmod_base_add(SakkeKey* key, const mp_int* n, ecc_point* a,
 
     /* Scalar multiply base by n - leaves ordinates in Montgomery form. */
     err = wc_ecc_mulmod(n, params->base, res, &params->a, &params->prime, 0);
+    err = wc_FipsAcceptUnapproved(err, "EC point mul");
     if (err == 0) {
         err = mp_montgomery_setup(&params->prime, &mp);
     }
@@ -547,6 +549,7 @@ static int sakke_mulmod_point(SakkeKey* key, const mp_int* n, ecc_point* p,
     SakkeKeyParams* params = &key->params;
 
     err = wc_ecc_mulmod(n, p, res, &params->a, &params->prime, map);
+    err = wc_FipsAcceptUnapproved(err, "EC point mul");
 
     (void)table;
     return err;

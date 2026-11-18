@@ -50596,11 +50596,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void)
     wc_test_ret_t ret;
     WOLFSSL_ENTER("pbkdf1_test");
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PBKDF1_ex(derived, kLen, NULL, 0, (byte*)passwd,
              (int)XSTRLEN(passwd), salt, (int)sizeof(salt), iterations, WC_SHA,
              HEAP_HINT);
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* PBKDF1 is not approved: SP 800-132 sec 5.3 approves PBKDF2 only. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+#else
     if (ret != 0)
         return ret;
+#endif
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return WC_TEST_RET_ENC_NC;
@@ -52250,9 +52259,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
     WOLFSSL_ENTER("x963kdf_test");
 
 #ifndef NO_SHA
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA, Z, sizeof(Z), NULL, 0,
                       kek, sizeof(verify));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify, kek, sizeof(verify)) != 0)
@@ -52260,9 +52271,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifndef NO_SHA256
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, Z2, sizeof(Z2), NULL, 0,
                       kek, sizeof(verify2));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify2, kek, sizeof(verify2)) != 0)
@@ -52270,17 +52283,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifdef WOLFSSL_SHA512
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z3, sizeof(Z3), NULL, 0,
                       kek, sizeof(verify3));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify3, kek, sizeof(verify3)) != 0)
         return WC_TEST_RET_ENC_NC;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z4, sizeof(Z4), info4,
                       sizeof(info4), kek, sizeof(verify4));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify4, kek, sizeof(verify4)) != 0)
