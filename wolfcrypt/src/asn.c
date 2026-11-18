@@ -24003,6 +24003,9 @@ int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
 #ifdef WOLFSSL_CERT_EVENTS
 /* Set the validation event callback on a decoded certificate.
  *
+ * Use this when parsing without a certificate manager. The certificate
+ * manager sets it for certificates it verifies.
+ *
  * @param [in, out] cert  Decoded certificate.
  * @param [in]      cb    Event callback. NULL turns events off.
  * @param [in]      ctx   Context passed to the callback.

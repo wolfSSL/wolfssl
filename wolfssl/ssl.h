@@ -2607,6 +2607,11 @@ WOLFSSL_API WOLFSSL_X509_STORE_CTX *wolfSSL_X509_STORE_CTX_get0_parent_ctx(
                                                    WOLFSSL_X509_STORE_CTX *ctx);
 WOLFSSL_API int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store,
                                                             unsigned long flag);
+#ifdef WOLFSSL_CERT_EVENTS
+/* Register a validation event callback on the store, for X509_verify_cert(). */
+WOLFSSL_API int wolfSSL_X509_STORE_SetCertEventCb(WOLFSSL_X509_STORE* store,
+                                   WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+#endif
 WOLFSSL_API int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx,
                     int idx, WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_CTX_get0_param(
