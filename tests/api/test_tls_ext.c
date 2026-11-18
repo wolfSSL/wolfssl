@@ -114,6 +114,7 @@ int test_tls_ems_resumption_downgrade(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE)
     struct test_memio_ctx test_ctx;
@@ -326,6 +327,7 @@ int test_tls_ems_server_disable(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     struct test_memio_ctx test_ctx;
@@ -358,6 +360,7 @@ int test_tls_ems_server_disable(void)
 
 
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE)
@@ -441,6 +444,7 @@ int test_tls_ems_server_disable_resumption(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE)
@@ -460,6 +464,7 @@ int test_tls_ems_client_disable_resumption(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE)
@@ -557,6 +562,7 @@ int test_tls_ems_clear_reuse(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     struct test_memio_ctx test_ctx;
@@ -634,6 +640,7 @@ int test_tls_ems_upgrade_resumption(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE) && defined(HAVE_SESSION_TICKET) && \
@@ -780,18 +787,23 @@ int test_tls_require_ems(void)
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     /* Client requires EMS, server supports it -> success. */
     ExpectIntEQ(test_tls_require_ems_ex(0, 0), TEST_SUCCESS);
+#ifndef WOLFSSL_EMS_ALWAYS_REQUIRED
     /* Client requires EMS, server disabled it -> abort. */
     ExpectIntEQ(test_tls_require_ems_ex(0, 1), TEST_SUCCESS);
+#endif
     /* Server requires EMS, client offers it -> success. */
     ExpectIntEQ(test_tls_require_ems_ex(1, 0), TEST_SUCCESS);
+#ifndef WOLFSSL_EMS_ALWAYS_REQUIRED
     /* Server requires EMS, client disabled it -> abort. */
     ExpectIntEQ(test_tls_require_ems_ex(1, 1), TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }
 
 
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE)
@@ -881,11 +893,88 @@ int test_tls_require_ems_resumption(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE)
     ExpectIntEQ(test_tls_require_ems_resumption_ex(1), TEST_SUCCESS);
     ExpectIntEQ(test_tls_require_ems_resumption_ex(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+/* Stand in for a peer without EMS: this build refuses the public disable. */
+static void test_ems_legacy_peer(WOLFSSL* ssl)
+{
+    ssl->options.requireEMS = 0;
+    ssl->options.disableEMS = 1;
+    ssl->options.haveEMS = 0;
+}
+
+/* serverSide selects the side under test; its peer has no EMS. */
+static int test_tls_fips_ems_required_ex(int serverSide)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (EXPECT_SUCCESS())
+        test_ems_legacy_peer(serverSide ? ssl_c : ssl_s);
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    ExpectIntNE(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(serverSide ? ssl_s : ssl_c, ret),
+            WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* FIPS v7 refuses TLS 1.2 without EMS (FIPS 140-3 IG D.Q, RFC 7627 5.2):
+ * required by default, the disable is refused and both sides abort. */
+int test_tls_fips_ems_required(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(ctx->requireEMS, 1);
+    ExpectIntEQ(wolfSSL_CTX_DisableExtendedMasterSecret(ctx),
+            WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+    ExpectIntEQ(wolfSSL_CTX_EnableExtendedMasterSecret(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->requireEMS, 1);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(ssl->options.requireEMS, 1);
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl),
+            WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+    ExpectIntEQ(wolfSSL_EnableExtendedMasterSecret(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.requireEMS, 1);
+    ExpectIntEQ(ssl->options.haveEMS, 1);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    /* Server refuses a client without EMS, client refuses such a server. */
+    ExpectIntEQ(test_tls_fips_ems_required_ex(1), TEST_SUCCESS);
+    ExpectIntEQ(test_tls_fips_ems_required_ex(0), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -898,6 +987,7 @@ int test_tls_ems_disable_v23(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         defined(OPENSSL_EXTRA)
@@ -951,6 +1041,7 @@ int test_tls_ems_disable_v23(void)
 
 
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE) && defined(HAVE_SECRET_CALLBACK) && \
@@ -1051,6 +1142,7 @@ int test_tls_require_ems_secret_cb(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE) && defined(HAVE_SECRET_CALLBACK) && \
@@ -1069,6 +1161,7 @@ int test_tls_ems_server_disable_secret_cb(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
         !defined(NO_SESSION_CACHE) && defined(HAVE_SECRET_CALLBACK) && \
@@ -2098,6 +2191,7 @@ int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
     !defined(NO_TLS)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL     *ssl = NULL;
@@ -2124,6 +2218,7 @@ int test_wolfSSL_RequireExtendedMasterSecret(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
+        !defined(WOLFSSL_EMS_ALWAYS_REQUIRED) && \
     !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL     *ssl = NULL;

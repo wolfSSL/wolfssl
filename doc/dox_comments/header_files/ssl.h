@@ -19130,6 +19130,7 @@ int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ctx is NULL.
+    \return EXT_MASTER_SECRET_NEEDED_E in a FIPS v7 build, which requires EMS.
 
     \param ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new().
@@ -19157,6 +19158,7 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ssl is NULL.
     \return BAD_STATE_E if the handshake has started.
+    \return EXT_MASTER_SECRET_NEEDED_E in a FIPS v7 build, which requires EMS.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -19175,8 +19177,8 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
     \ingroup Setup
     \brief Re-enables the TLS Extended Master Secret extension (RFC 7627) on
     the context (the default): EMS is used when the peer supports it but is
-    not mandatory. Undoes a previous disable or require. Requires
-    HAVE_EXTENDED_MASTER.
+    not mandatory. Undoes a previous disable or require. A FIPS v7 build keeps
+    EMS mandatory. Requires HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ctx is NULL.
@@ -19199,8 +19201,9 @@ int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx);
     \ingroup Setup
     \brief Re-enables the TLS Extended Master Secret extension (RFC 7627) on
     the SSL object (the default): EMS is used when the peer supports it but
-    is not mandatory. Undoes a previous disable or require. Call before the
-    handshake starts, or after wolfSSL_clear. Requires HAVE_EXTENDED_MASTER.
+    is not mandatory. Undoes a previous disable or require. A FIPS v7 build
+    keeps EMS mandatory. Call before the handshake starts, or after
+    wolfSSL_clear. Requires HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ssl is NULL.
