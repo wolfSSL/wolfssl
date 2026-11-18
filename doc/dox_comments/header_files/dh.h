@@ -984,7 +984,9 @@ int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz,
 
 /*!
     \ingroup Diffie-Hellman
-    \brief Validates public key value.
+    \brief Validates public key value. Rejects 0, 1, prime - 1 and values
+    greater than or equal to prime. Leading zero bytes in either the prime or
+    the public key are ignored.
 
     \return 0 if public key is valid
     \return BAD_FUNC_ARG if parameters are invalid

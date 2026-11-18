@@ -45717,7 +45717,13 @@ static wc_test_ret_t dh_test_check_pubvalue(void)
 {
     wc_test_ret_t ret;
     word32 i;
+    word32 j;
     WOLFSSL_SMALL_STACK_STATIC const byte prime[] = {0x01, 0x00, 0x01};
+    /* Same prime with leading zero padding, as from a DER INTEGER. */
+    WOLFSSL_SMALL_STACK_STATIC const byte primePad1[] =
+        {0x00, 0x01, 0x00, 0x01};
+    WOLFSSL_SMALL_STACK_STATIC const byte primePad2[] =
+        {0x00, 0x00, 0x01, 0x00, 0x01};
     WOLFSSL_SMALL_STACK_STATIC const byte pubValZero[] = { 0x00 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValZeroLong[] = { 0x00, 0x00, 0x00 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValOne[] = { 0x01 };
@@ -45735,6 +45741,7 @@ static wc_test_ret_t dh_test_check_pubvalue(void)
     WOLFSSL_SMALL_STACK_STATIC const byte pubValGoodLong[] = { 0x00, 0x00, 0x12, 0x34 };
     dh_pubvalue_test dh_pubval_fail[11];
     dh_pubvalue_test dh_pubval_pass[5];
+    dh_pubvalue_test dh_primes[3];
 
     #define INIT_PUBVAL_FAIL(i,y) dh_pubval_fail[i].data = y; dh_pubval_fail[i].len = sizeof(y)
     #define INIT_PUBVAL_PASS(i,y) dh_pubval_pass[i].data = y; dh_pubval_pass[i].len = sizeof(y)
@@ -45757,21 +45764,32 @@ static wc_test_ret_t dh_test_check_pubvalue(void)
     INIT_PUBVAL_PASS(3, pubValGoodLen);
     INIT_PUBVAL_PASS(4, pubValGoodLong);
 
+    dh_primes[0].data = prime;
+    dh_primes[0].len = sizeof(prime);
+    dh_primes[1].data = primePad1;
+    dh_primes[1].len = sizeof(primePad1);
+    dh_primes[2].data = primePad2;
+    dh_primes[2].len = sizeof(primePad2);
+
     #undef INIT_PUBVAL_FAIL
     #undef INIT_PUBVAL_PASS
 
-    for (i = 0; i < sizeof(dh_pubval_fail) / sizeof(*dh_pubval_fail); i++) {
-        ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_fail[i].data,
-                                                         dh_pubval_fail[i].len);
-        if (ret != WC_NO_ERR_TRACE(MP_VAL))
-            return WC_TEST_RET_ENC_I(i);
-    }
+    for (j = 0; j < sizeof(dh_primes) / sizeof(*dh_primes); j++) {
+        for (i = 0; i < sizeof(dh_pubval_fail) / sizeof(*dh_pubval_fail);
+                i++) {
+            ret = wc_DhCheckPubValue(dh_primes[j].data, dh_primes[j].len,
+                dh_pubval_fail[i].data, dh_pubval_fail[i].len);
+            if (ret != WC_NO_ERR_TRACE(MP_VAL))
+                return WC_TEST_RET_ENC_I(j * 100 + i);
+        }
 
-    for (i = 0; i < sizeof(dh_pubval_pass) / sizeof(*dh_pubval_pass); i++) {
-        ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_pass[i].data,
-                                                         dh_pubval_pass[i].len);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_I(i);
+        for (i = 0; i < sizeof(dh_pubval_pass) / sizeof(*dh_pubval_pass);
+                i++) {
+            ret = wc_DhCheckPubValue(dh_primes[j].data, dh_primes[j].len,
+                dh_pubval_pass[i].data, dh_pubval_pass[i].len);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(j * 100 + i);
+        }
     }
 
     return 0;
