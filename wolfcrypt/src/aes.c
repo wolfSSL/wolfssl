@@ -13398,7 +13398,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
      * handed back.  The hardware backends above return before this point. */
 #if !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2) && \
       defined(ACVP_VECTOR_TESTING))
-    if (ret == WC_NO_ERR_TRACE(AES_GCM_AUTH_E) && out != NULL && sz > 0) {
+    if (ret == WC_NO_ERR_TRACE(AES_GCM_AUTH_E) && sz > 0) {
         ForceZero(out, sz);
     }
 #endif

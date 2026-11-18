@@ -41,16 +41,25 @@
  *   Class 11 AES_USE_VAES / CPUID_SLOW_VAES fallback (x86_64 VAES
  *            builds): forced on any host, dispatch counted, outputs
  *            compared with the fallback ................. 2 conditions
+ *   Class 12 GcmCountInvocation() overflow guard ........ 2 conditions
+ *   Class 13 wc_AesGetKeySize() claimed-key fast path
+ *            (WOLF_CRYPTO_CB, context corruption) ....... 2 conditions
+ *   Class 14 wc_AesGcmSetIV() carry-field scan, deterministic
+ *            RNG device (WOLF_CRYPTO_CB) ................. 2 conditions
+ *   Class 15 AesCfbDecrypt_C() main-loop ret guard (ARMASM
+ *            lanes) ...................................... 1 condition
+ *   Class 16 ARMASM arm local AesSetKey() key-length guard, static
+ *            called directly (ARMASM lanes) .............. 4 conditions
  * Classes 4, 5 and 10 only compile in the qemu-aarch64 emulator lane (see
  * iso26262/mcdc-per-module suite, db/lanes.json); on every other build
  * they reduce to a no-op stub so this file still compiles+runs natively.
- * The remaining union residuals are structurally uncoverable even here
- * (complementary-operand decisions where unique-cause MC/DC is unsatisfiable,
- * a dead defensive branch on a provably-bounded loop index, the Class 10
- * loop above, and AesCfbDecrypt_C's `ret == 0` loop guard: the only build
- * axis that compiles that block, WOLFSSL_ARMASM, also selects a
- * wc_AesEncrypt() with no failure path). Those stay justified in
- * the exclusion record + the exclusion record and reports/aes/RESIDUALS.md.
+ * Classes 15-16 compile in the ARMASM lanes (qemu-aarch64 / m33mu); on the
+ * host builds they reduce to no-op stubs. The remaining union residuals are
+ * structurally uncoverable even here: the complementary-operand decisions in
+ * wc_AesGcmInit/wc_AesGcmSetIV (ivSz>0 / ivFixed!=NULL negate their own
+ * leading operand) and the CTR leftover-drain loop whose unconditional
+ * pre-drain leaves only (F,T) and (T,F) vectors. Those stay justified in
+ * the exclusion record.
  */
 
 /* Class 11 (CPUID_SLOW_VAES) call hooks.
@@ -1719,6 +1728,306 @@ static void wb_slow_vaes(void)
 { WB_NOTE("x86_64 VAES AES not built in this variant; SLOW_VAES skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Class 12: GcmCountInvocation()'s overflow guard (aes.c ~8916, idx0+idx1).
+ *
+ *   if (aes->invokeCtr[0] == 0xFFFFFFFF && aes->invokeCtr[1] == 0xFFFFFFFF)
+ *       return AES_GCM_OVERFLOW_E;
+ *
+ * The saturated counter is 2^32 invocations away from any public flow, so
+ * the counter fields are preloaded directly; wc_AesGcmEncrypt_ex() calls
+ * GcmCountInvocation() on every call, which is enough to drive all three
+ * operand rows.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
+static void wb_gcm_count_invocation(void)
+{
+    Aes    aes;
+    WC_RNG rng;
+    byte   key[16];
+    byte   in[8];
+    byte   out[8];
+    byte   iv[12];
+    byte   ivOut[12];
+    byte   tag[16];
+    int    ret;
+
+    XMEMSET(key, 0x61, sizeof(key));
+    XMEMSET(in,  0x62, sizeof(in));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0 ||
+        wc_InitRng(&rng) != 0 ||
+        wc_AesGcmSetKey(&aes, key, sizeof(key)) != 0 ||
+        wc_AesGcmSetIV(&aes, sizeof(iv), NULL, 0, &rng) != 0) {
+        WB_NOTE("GCM setup failed (GcmCountInvocation skipped)");
+        wb_fail = 1;
+        if (rng.status == 0)
+            wc_FreeRng(&rng);
+        return;
+    }
+
+    /* idx0 T, idx1 T: both counter halves saturated -> overflow. */
+    aes.invokeCtr[0] = 0xFFFFFFFF;
+    aes.invokeCtr[1] = 0xFFFFFFFF;
+    ret = wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in), ivOut,
+        sizeof(ivOut), tag, sizeof(tag), NULL, 0);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E),
+        "saturated counter row expected AES_GCM_OVERFLOW_E");
+
+    /* idx0 T, idx1 F: the low half wraps and carries. */
+    aes.invokeCtr[0] = 0xFFFFFFFF;
+    aes.invokeCtr[1] = 0;
+    ret = wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in), ivOut,
+        sizeof(ivOut), tag, sizeof(tag), NULL, 0);
+    WB_CHECK(ret == 0, "low-wrap row expected 0");
+    WB_CHECK(aes.invokeCtr[0] == 0 && aes.invokeCtr[1] == 1,
+        "low-wrap row expected a carry into the high half");
+
+    /* idx0 F, idx1 T: the low half increments beside a saturated high half. */
+    aes.invokeCtr[0] = 1;
+    aes.invokeCtr[1] = 0xFFFFFFFF;
+    ret = wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in), ivOut,
+        sizeof(ivOut), tag, sizeof(tag), NULL, 0);
+    WB_CHECK(ret == 0, "high-saturated row expected 0");
+    WB_CHECK(aes.invokeCtr[0] == 2, "high-saturated row expected an increment");
+
+    wc_AesFree(&aes);
+    wc_FreeRng(&rng);
+    WB_NOTE("GcmCountInvocation overflow guard pairs exercised");
+}
+#else
+static void wb_gcm_count_invocation(void)
+{ WB_NOTE("AESGCM off; GcmCountInvocation guard skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 13: wc_AesGetKeySize()'s claimed-key fast path (aes.c ~17329,
+ * idx0+idx1).
+ *
+ *   if ((aes->rounds == 0) && (aes->keylen != 0))
+ *       *keySize = (word32)aes->keylen;
+ * A device-claimed key (WOLF_CRYPTO_CB_AES_SETKEY) carries a length with no
+ * rounds; the same state is reached by corrupting a software context
+ * (rounds = 0, keylen intact). The block is gated on plain WOLF_CRYPTO_CB,
+ * so no fault device is needed here.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLF_CRYPTO_CB)
+static void wb_getkeysize_claimed(void)
+{
+    Aes      aes;
+    byte     key[16];
+    word32   sz = 0;
+
+    XMEMSET(key, 0x81, sizeof(key));
+
+    /* idx0 T, idx1 F: no key at all -> rounds switch default. */
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) == 0) {
+        (void)wc_AesGetKeySize(&aes, &sz);
+        WB_CHECK(sz == 0, "unkeyed context expected size 0");
+        wc_AesFree(&aes);
+    }
+    /* idx0 F, idx1 T: a normal software key. */
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) == 0 &&
+        wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION) == 0) {
+        sz = 0;
+        WB_CHECK(wc_AesGetKeySize(&aes, &sz) == 0 && sz == 16,
+            "software key expected size 16");
+        /* idx0 T, idx1 T: claimed-key state (length, no rounds). */
+        aes.rounds = 0;
+        sz = 0;
+        WB_CHECK(wc_AesGetKeySize(&aes, &sz) == 0 && sz == 16,
+            "claimed-key state expected size 16");
+        /* idx0 F, idx1 F: a schedule with a zeroed keylen. */
+        aes.rounds = 10;
+        aes.keylen = 0;
+        sz = 0;
+        WB_CHECK(wc_AesGetKeySize(&aes, &sz) == 0 && sz == 16,
+            "rounds-only key expected size 16");
+        wc_AesFree(&aes);
+    }
+    WB_NOTE("claimed-key wc_AesGetKeySize pairs exercised");
+}
+#else
+static void wb_getkeysize_claimed(void)
+{ WB_NOTE("WOLF_CRYPTO_CB off; wc_AesGetKeySize fast path skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 14: wc_AesGcmSetIV()'s carry-field scan (aes.c ~16032, idx0+idx1).
+ *
+ *   while (i < last && field[i] == 0xFF)
+ *       i++;
+ *
+ * Only a 128-bit IV with an 8-byte fixed field reaches the scan (last == 4),
+ * and the field bytes are RNG output, so a deterministic RNG device fills
+ * them: all 0xFF runs the scan to the end (idx0 T...F, idx1 T), a non-0xFF
+ * first byte stops it at i == 0 (idx0 T, idx1 F).
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
+    defined(WOLF_CRYPTO_CB)
+static byte wb_rng_fill;
+
+static int wb_rng_fill_cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+    if (info->algo_type == WC_ALGO_TYPE_RNG) {
+        XMEMSET(info->rng.out, wb_rng_fill, info->rng.sz);
+        return 0;
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+static void wb_gcm_setiv_carry(void)
+{
+    Aes    aes;
+    WC_RNG rng;
+    byte   fixed[AES_IV_FIXED_SZ];
+    int    ret;
+
+    XMEMSET(fixed, 0xA1, sizeof(fixed));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (GcmSetIV carry scan skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    if (wc_CryptoCb_RegisterDevice(MCDC_CB_DEVID, wb_rng_fill_cb, NULL)
+            != 0 ||
+        wc_InitRng_ex(&rng, NULL, MCDC_CB_DEVID) != 0) {
+        WB_NOTE("RNG device setup failed (GcmSetIV carry scan skipped)");
+        wb_fail = 1;
+        wc_CryptoCb_UnRegisterDevice(MCDC_CB_DEVID);
+        wc_AesFree(&aes);
+        return;
+    }
+
+    /* field all 0xFF: the scan runs to the end, then the counter loads from
+     * the last four field bytes. */
+    wb_rng_fill = 0xFF;
+    ret = wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, fixed, sizeof(fixed), &rng);
+    WB_CHECK(ret == 0, "0xFF field row expected 0");
+
+    /* field[0] != 0xFF: the scan stops at i == 0. */
+    wb_rng_fill = 0x00;
+    ret = wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, fixed, sizeof(fixed), &rng);
+    WB_CHECK(ret == 0, "0x00 field row expected 0");
+
+    wc_FreeRng(&rng);
+    wc_CryptoCb_UnRegisterDevice(MCDC_CB_DEVID);
+    wc_AesFree(&aes);
+    WB_NOTE("GcmSetIV carry-field scan pairs exercised");
+}
+#else
+static void wb_gcm_setiv_carry(void)
+{ WB_NOTE("AESGCM/WOLF_CRYPTO_CB off; GcmSetIV carry scan skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 15: AesCfbDecrypt_C()'s main loop ret guard (aes.c ~17963, idx0).
+ *
+ *   while ((ret == 0) && (sz >= 2 * WC_AES_BLOCK_SIZE))
+ * The loop compiles under USE_INTEL_SPEEDUP or WOLFSSL_ARMASM with
+ * HAVE_AES_ECB; only the ARMASM lane is in the matrix. A zero-round context
+ * makes the first block-cipher call fail (KEYUSAGE_E) with sz >= 2 blocks,
+ * so the loop's ret == 0 operand is false.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_CFB) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+static void wb_cfb_decrypt_loop(void)
+{
+    Aes  aes;
+    byte key[16];
+    byte iv[WC_AES_BLOCK_SIZE];
+    byte in[WC_AES_BLOCK_SIZE * 2];
+    byte out[WC_AES_BLOCK_SIZE * 2];
+    int  ret;
+
+    XMEMSET(key, 0x91, sizeof(key));
+    XMEMSET(iv,  0x92, sizeof(iv));
+    XMEMSET(in,  0x93, sizeof(in));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (CFB decrypt loop skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    /* idx0 T: a healthy key, two blocks. */
+    if (wc_AesSetKey(&aes, key, sizeof(key), iv, AES_DECRYPTION) == 0) {
+        ret = wc_AesCfbDecrypt(&aes, out, in, sizeof(in));
+        WB_CHECK(ret == 0, "CFB decrypt baseline expected 0");
+    }
+    /* idx0 F: a zero-round context fails the first block cipher call. */
+    aes.rounds = 0;
+    ret = wc_AesCfbDecrypt(&aes, out, in, sizeof(in));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(KEYUSAGE_E),
+        "corrupt-rounds CFB decrypt row expected KEYUSAGE_E");
+
+    wc_AesFree(&aes);
+    WB_NOTE("CFB decrypt main-loop ret guard pair exercised");
+}
+#else
+static void wb_cfb_decrypt_loop(void)
+{ WB_NOTE("CFB decrypt main loop not compiled in this variant; skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 16: the ARMASM arm's local AesSetKey() key-length guard (aes.c
+ * ~5289, idx0..idx3), driven by calling the static directly.
+ *
+ *   if (userKey == NULL || (keylen != 16 && keylen != 24 && keylen != 32))
+ * The shared AesSetKeyLocal_body() rejects userKey == NULL and validates
+ * keylen before dispatch, so the arm-local re-check is only reachable by
+ * calling the static AesSetKey() itself (this white-box includes aes.c).
+ * The three valid lengths plus one invalid one pair every operand.
+ * ------------------------------------------------------------------------- */
+#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WC_AES_TOUCH_LINES_C_CORE) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_128)
+static void wb_armasm_setkey_direct(void)
+{
+    Aes  aes;
+    byte k16[16];
+    byte k24[24];
+    byte k32[32];
+    byte iv[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(k16, 0xC1, sizeof(k16));
+    XMEMSET(k24, 0xC2, sizeof(k24));
+    XMEMSET(k32, 0xC3, sizeof(k32));
+    XMEMSET(iv,  0xC4, sizeof(iv));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (ARMASM AesSetKey direct skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    /* idx0 T: absent key. */
+    WB_CHECK(AesSetKey(&aes, NULL, 16, iv, AES_ENCRYPTION) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG), "NULL key expected BAD_FUNC_ARG");
+    /* idx1 F (base row); pairs with the 24-byte row for idx1, the 32-byte
+     * row for idx2, and the 17-byte row for idx3. */
+    WB_CHECK(AesSetKey(&aes, k16, 16, iv, AES_ENCRYPTION) == 0,
+        "16-byte key expected 0");
+    WB_CHECK(AesSetKey(&aes, k24, 24, iv, AES_ENCRYPTION) == 0,
+        "24-byte key expected 0");
+    WB_CHECK(AesSetKey(&aes, k32, 32, iv, AES_ENCRYPTION) == 0,
+        "32-byte key expected 0");
+    WB_CHECK(AesSetKey(&aes, k16, 17, iv, AES_ENCRYPTION) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG), "17-byte key expected BAD_FUNC_ARG");
+
+    wc_AesFree(&aes);
+    WB_NOTE("ARMASM AesSetKey key-length guard pairs exercised");
+}
+#else
+static void wb_armasm_setkey_direct(void)
+{ WB_NOTE("non-ARMASM wc_AesSetKey arm; direct AesSetKey skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -1743,6 +2052,11 @@ int main(void)
     wb_aarch64_ctr_leftover();
     wb_gcmccm_pending();
     wb_slow_vaes();
+    wb_gcm_count_invocation();
+    wb_getkeysize_claimed();
+    wb_gcm_setiv_carry();
+    wb_cfb_decrypt_loop();
+    wb_armasm_setkey_direct();
     printf("done (%s)\n", wb_err ? "with failures" :
                           wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the harness

@@ -5367,7 +5367,101 @@ int test_wc_AesGcmStream_ReinitAfterFinal(void)
 #endif
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_AesGcmStream_ReinitAfterFinal */
+}
+/*
+ * MC/DC for the stream wc_AesGcmEncryptFinal() invocation-count guard
+ * (aes.c, stream builds):
+ *
+ *   if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0))
+ *       ret = GcmCountInvocation(aes);
+ *
+ * State model (verified against the source):
+ *   - wc_AesGcmInit() with an IV sets gcmKeySet and nonceSet only.
+ *   - wc_AesGcmSetIV() sets ctrSet and nonceSz only, not nonceSet.
+ *   - clang-21's MC/DC pair analysis only pairs a vector with another one
+ *     when every operand not varied is evaluated in at least one of the two
+ *     vectors, so each operand below is paired against a row where the rest
+ *     of the chain is fully evaluated.
+ *
+ * Vectors:
+ *   A (T,T,T,T): IV at init + SetIV, no AAD, no data -> guard counts.
+ *   B (T,T,F,T): same, AAD only.
+ *   C (T,T,T,F): same, data only.
+ *   D (F,-,-,-): same, bad tag size -> BAD_FUNC_ARG before the guard body.
+ *   E (F,-,-,-): key only + SetIV (no nonceSet) -> MISSING_IV.
+ *   F (T,F,-,-): IV at init, no SetIV -> ctrSet still 0, guard skipped.
+ */
+int test_wc_AesGcmStreamMcdc(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AESGCM_STREAM)
+    WC_RNG rng[1];
+    Aes aes[1];
+    byte key[AES_128_KEY_SIZE] = { 0 };
+    byte iv[AES_IV_SIZE] = { 1 };
+    byte in[WC_AES_BLOCK_SIZE] = { 0 };
+    byte out[WC_AES_BLOCK_SIZE];
+    byte aad[8] = { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11 };
+    byte tag[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(rng, 0, sizeof(WC_RNG));
+    XMEMSET(aes, 0, sizeof(Aes));
+    ExpectIntEQ(wc_InitRng(rng), 0);
+
+    /* A (T,T,T,T): IV at init, SetIV for ctrSet, no AAD, no data -> the
+     * guard counts the invocation. */
+    ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    wc_AesFree(aes);
+
+    /* B (T,T,F,T): AAD only, no data. */
+    ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(aes, NULL, NULL, 0, aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    wc_AesFree(aes);
+
+    /* C (T,T,T,F): data only, no AAD. */
+    ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(aes, out, in, sizeof(in), NULL, 0),
+        0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    wc_AesFree(aes);
+
+    /* D (F,-,-,-): an invalid tag size fails before the guard body. */
+    ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, 5),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_AesFree(aes);
+
+    /* E (F,-,-,-): no IV at init, SetIV does not set nonceSet -> MISSING_IV. */
+    ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), NULL, 0), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(MISSING_IV));
+    wc_AesFree(aes);
+
+    /* F (T,F,-,-): IV at init but no SetIV: ret is 0, ctrSet is still 0,
+     * the guard is skipped and the tag is produced. */
+    ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    wc_AesFree(aes);
+
+    wc_FreeRng(rng);
+#endif
+    return EXPECT_RESULT();
+}
 
 int test_wc_AesGcmStream_BadAuthTag(void)
 {
@@ -5722,6 +5816,14 @@ int test_wc_AesGcmDecrypt_WipeOnAuthFail(void)
     ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, ct, sizeof(ct), iv, sizeof(iv),
         tag, sizeof(tag), NULL, 0), 0);
     ExpectBufEQ(dec, pt, sizeof(pt));
+
+    /* GMAC (sz == 0) with a bad tag: the wipe guard's "sz > 0" operand
+     * takes its false half (in/out are don't-cares for a zero-size decrypt,
+     * so the argument check accepts them). */
+    tag[0] ^= 0x01;
+    ExpectIntEQ(wc_AesGcmDecrypt(&aes, NULL, NULL, 0, iv, sizeof(iv),
+        tag, sizeof(tag), NULL, 0), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    tag[0] ^= 0x01;
     wc_AesFree(&aes);
 #endif
     return EXPECT_RESULT();
@@ -10764,6 +10866,12 @@ int test_wc_AesCcmArgMcdc(void)
         XMEMSET(&aes, 0, sizeof(aes));
         ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+
+        /* wc_AesCcmSetKey() "aes != NULL" operand, false half: the NULL
+         * context is rejected by the wc_AesSetKey() it forwards to, so the
+         * call is safe in every build. */
+        ExpectIntEQ(wc_AesCcmSetKey(NULL, key, sizeof(key)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* ---- wc_AesCcmEncrypt(): authTagSz > WC_AES_BLOCK_SIZE cond. */
         ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
