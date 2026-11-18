@@ -156,6 +156,38 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 
+/* Aligned allocation for heap contexts whose members carry alignment
+ * attributes (Aes, Cmac): on 32-bit Arm, malloc may only return an
+ * 8-byte-aligned pointer, so over-allocate, align, and keep the original
+ * pointer for XFREE. Lives here because aes.c is compiled exactly where
+ * the WC_ALLOC_* macros can be active: WOLFSSL_CMAC implies AES, so every
+ * consumer (cmac.c, kdf.c, ssl_crypto.c, test.c) has this object linked. */
+#if defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
+    !defined(WOLFSSL_TI_CRYPT)
+WOLFSSL_API
+void* wc_alloc_aligned(void* heap, size_t size, size_t align, int type)
+{
+    byte* raw = (byte*)XMALLOC(size + align - 1 + sizeof(void*), heap, type);
+    wc_ptr_t p;
+
+    if (raw == NULL)
+        return NULL;
+    p = ((wc_ptr_t)(raw + sizeof(void*)) + align - 1) &
+        ~((wc_ptr_t)align - 1);
+    ((void**)p)[-1] = raw;
+    return (void*)p;
+}
+
+WOLFSSL_API
+void wc_free_aligned(void* p, void* heap, int type)
+{
+    (void)heap;
+    (void)type;
+    if (p != NULL)
+        XFREE(((void**)p)[-1], heap, type);
+}
+#endif
+
 /* aarch64 claim for the NEON GHASH and the XTS block routine.  Other builds
  * expand these to nothing. */
 /* gcmKeySet and nonceSet gate streaming GCM; both go off with the key, or
@@ -17013,7 +17045,7 @@ static Aes* _AesNew_common(void* heap, int devId, int *result_code,
                             int idLen, const char* label)
 {
     int ret;
-    Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
+    Aes* aes = WC_ALLOC_AES(heap);
     if (aes == NULL) {
         ret = MEMORY_E;
     }
@@ -17047,7 +17079,7 @@ static Aes* _AesNew_common(void* heap, int devId, int *result_code,
             break;
         }
         if (ret != 0) {
-            XFREE(aes, heap, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, heap);
             aes = NULL;
         }
     }
@@ -17092,7 +17124,7 @@ int wc_AesDelete(Aes *aes, Aes** aes_p)
         return BAD_FUNC_ARG;
     heap = aes->heap;
     wc_AesFree(aes);
-    XFREE(aes, heap, DYNAMIC_TYPE_AES);
+    WC_FREE_AES(aes, heap);
     if (aes_p != NULL)
         *aes_p = NULL;
     return 0;
@@ -18680,8 +18712,7 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -18700,7 +18731,9 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     wc_AesFree(aes);
 
   out:
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -18875,8 +18908,7 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -18896,7 +18928,9 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     wc_AesFree(aes);
 
   out:
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -19007,7 +19041,10 @@ int wc_AesKeyWrap_Pad(const byte* key, word32 keySz, const byte* in,
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_AES, return MEMORY_E);
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
+        return MEMORY_E;
+#endif
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret != 0) {
@@ -19025,7 +19062,9 @@ int wc_AesKeyWrap_Pad(const byte* key, word32 keySz, const byte* in,
     wc_AesFree(aes);
 
   out:
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -19180,7 +19219,10 @@ int wc_AesKeyUnWrap_Pad(const byte* key, word32 keySz, const byte* in,
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_AES, return MEMORY_E);
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
+        return MEMORY_E;
+#endif
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret != 0) {
@@ -19198,7 +19240,9 @@ int wc_AesKeyUnWrap_Pad(const byte* key, word32 keySz, const byte* in,
     wc_AesFree(aes);
 
   out:
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -21156,8 +21200,10 @@ static WARN_UNUSED_RESULT int S2V(
     if (ret == 0) {
         if (dataSz >= WC_AES_BLOCK_SIZE) {
 
-            WC_ALLOC_VAR_EX(cmac, Cmac, 1, NULL, DYNAMIC_TYPE_CMAC,
-                ret=MEMORY_E);
+#ifdef WOLFSSL_SMALL_STACK
+            if ((cmac = WC_ALLOC_CMAC(NULL)) == NULL)
+                ret = MEMORY_E;
+#endif
             if (WC_VAR_OK(cmac))
             {
             #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -21180,7 +21226,7 @@ static WARN_UNUSED_RESULT int S2V(
                 }
             }
         #ifdef WOLFSSL_SMALL_STACK
-            XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
+            WC_FREE_CMAC(cmac, NULL);
         #elif defined(WOLFSSL_CHECK_MEM_ZERO)
             wc_MemZero_Check(cmac, sizeof(Cmac));
         #endif

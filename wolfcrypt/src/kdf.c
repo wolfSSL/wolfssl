@@ -1670,7 +1670,7 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
 #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-    cmac = (Cmac*)XMALLOC(sizeof(Cmac), heap, DYNAMIC_TYPE_CMAC);
+    cmac = WC_ALLOC_CMAC(heap);
     if (cmac == NULL) {
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(Key_kdk, sizeof(Key_kdk));
@@ -1699,7 +1699,7 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
         ForceZero(cmac, sizeof(Cmac));
-        XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
+        WC_FREE_CMAC(cmac, heap);
         cmac = NULL;
     }
     #endif /* WOLFSSL_SMALL_STACK */
@@ -1777,7 +1777,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     }
 
     #ifdef WOLFSSL_SMALL_STACK
-    cmac = (Cmac*)XMALLOC(sizeof(Cmac), heap, DYNAMIC_TYPE_CMAC);
+    cmac = WC_ALLOC_CMAC(heap);
     if (cmac == NULL) {
         return MEMORY_E;
     }
@@ -1878,7 +1878,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
         ForceZero(cmac, sizeof(Cmac));
-        XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
+        WC_FREE_CMAC(cmac, heap);
         cmac = NULL;
     }
     #endif /* WOLFSSL_SMALL_STACK */
