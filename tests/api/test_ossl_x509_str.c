@@ -5793,11 +5793,11 @@ static void x509_vfy_path(const char* name, const char* suffix, char* path,
     base[n] = '\0';
     for (i = 0; i < XELEM_CNT(x509VfyFiles); i++) {
         if (XSTRCMP(base, x509VfyFiles[i].name) == 0) {
-            XSNPRINTF(path, (size_t)pathSz, "%s", x509VfyFiles[i].file);
+            (void)XSNPRINTF(path, (size_t)pathSz, "%s", x509VfyFiles[i].file);
             return;
         }
     }
-    XSNPRINTF(path, (size_t)pathSz, "%s%s%s", TA_CERT_DIR, base, suffix);
+    (void)XSNPRINTF(path, (size_t)pathSz, "%s%s%s", TA_CERT_DIR, base, suffix);
 }
 
 /* Keeps x509 under name */
