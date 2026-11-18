@@ -3355,6 +3355,8 @@ struct DecodedCRL {
     void*   heap;
 #ifndef NO_SKID
     byte        extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID */
+    word32      extAuthKeyIdRawIdx;      /* offset of encoded key id in CRL */
+    word32      extAuthKeyIdRawSz;       /* length of encoded key id */
     WC_BITFIELD extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
 #endif
     WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */

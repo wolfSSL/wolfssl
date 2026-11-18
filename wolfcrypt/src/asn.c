@@ -4737,7 +4737,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 #if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
 static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx, DecodedCRL* dcrl, word32 maxIdx);
 #ifndef NO_SKID
-static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl);
+static int ParseCRL_AuthKeyIdExt(const byte* input, word32 inputIdx, int sz,
+    DecodedCRL* dcrl);
 #endif
 static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutIdx, word32 sz);
 #endif
@@ -39866,7 +39867,8 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* sigParams,
 
 #ifndef NO_SKID
 #ifdef WOLFSSL_ASN_TEMPLATE
-static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
+static int ParseCRL_AuthKeyIdExt(const byte* input, word32 inputIdx, int sz,
+    DecodedCRL* dcrl)
 {
     DECL_ASNGETDATA(dataASN, authKeyIdASN_Length);
     int ret = 0;
@@ -39888,6 +39890,10 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
         }
         else {
             dcrl->extAuthKeyIdSet = 1;
+            dcrl->extAuthKeyIdRawIdx = inputIdx + (word32)
+                (dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data - input);
+            dcrl->extAuthKeyIdRawSz =
+                dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length;
 
             /* Get the hash or hash of the hash if wrong size. */
             ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
@@ -39969,7 +39975,8 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                 #ifndef NO_SKID
                     /* Parse Authority Key Id extension.
                      * idx is at start of OCTET_STRING data. */
-                    ret = ParseCRL_AuthKeyIdExt(buf + localIdx, length, dcrl);
+                    ret = ParseCRL_AuthKeyIdExt(buf + localIdx, localIdx,
+                        length, dcrl);
                     if (ret != 0) {
                         WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
                     }

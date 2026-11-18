@@ -9605,7 +9605,8 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
 }
 
 #ifndef NO_SKID
-static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
+static int ParseCRL_AuthKeyIdExt(const byte* input, word32 inputIdx, int sz,
+    DecodedCRL* dcrl)
 {
     word32 idx = 0;
     int length = 0, ret = 0;
@@ -9633,6 +9634,8 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
     }
 
     dcrl->extAuthKeyIdSet = 1;
+    dcrl->extAuthKeyIdRawIdx = inputIdx + idx;
+    dcrl->extAuthKeyIdRawSz = (word32)length;
 
     /* Get the hash or hash of the hash if wrong size. */
     ret = GetHashId(input + idx, length, dcrl->extAuthKeyId,
@@ -9717,7 +9720,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 
         if (oid == AUTH_KEY_OID) {
         #ifndef NO_SKID
-            ret = ParseCRL_AuthKeyIdExt(buf + idx, length, dcrl);
+            ret = ParseCRL_AuthKeyIdExt(buf + idx, idx, length, dcrl);
             if (ret < 0) {
                 WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
                 return ret;

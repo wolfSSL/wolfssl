@@ -10802,12 +10802,26 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
 
 #if !defined(NO_SKID)
     if (ret == 0 && crl->crlList->extAuthKeyIdSet &&
-            crl->crlList->extAuthKeyId[0] != 0) {
+            crl->crlList->extAuthKeyIdRawSz > 0) {
         word32 i;
         char val[5];
         int valSz = 5;
+        const byte* keyId = NULL;
+        word32 keyIdSz = crl->crlList->extAuthKeyIdRawSz;
 
-        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s", indent + 4, "",
+        /* extAuthKeyId is a normalized lookup key; print the encoded id. */
+        if (crl->crlList->toBeSigned == NULL ||
+                crl->crlList->extAuthKeyIdRawIdx > crl->crlList->tbsSz ||
+                keyIdSz > crl->crlList->tbsSz -
+                          crl->crlList->extAuthKeyIdRawIdx) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            keyId = crl->crlList->toBeSigned +
+                    crl->crlList->extAuthKeyIdRawIdx;
+        }
+
+        if (ret == 0 && XSNPRINTF(tmp, MAX_WIDTH, "%*s%s", indent + 4, "",
                     "X509v3 Authority Key Identifier:") >= MAX_WIDTH) {
             ret = WOLFSSL_FAILURE;
         }
@@ -10827,7 +10841,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         }
 
 
-        for (i = 0; i < XSTRLEN((char*)crl->crlList->extAuthKeyId); i++) {
+        for (i = 0; ret == 0 && i < keyIdSz; i++) {
             /* check if buffer is almost full */
             if (ret == 0 && XSTRLEN(tmp) >= sizeof(tmp) - valSz) {
                 if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
@@ -10836,7 +10850,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
                 tmp[0] = '\0';
             }
             if (ret == 0 && XSNPRINTF(val, (size_t)valSz, ":%02X",
-                    crl->crlList->extAuthKeyId[i]) >= valSz) {
+                    keyId[i]) >= valSz) {
                 WOLFSSL_MSG("buffer overrun");
                 ret = WOLFSSL_FAILURE;
             }
