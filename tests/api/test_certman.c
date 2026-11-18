@@ -5362,7 +5362,8 @@ int test_wolfSSL_CertManagerNameConstraint_selfissued_chain_ca(void)
     !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
     !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
-    (defined(WOLFSSL_AKID_NAME) || defined(WOLFSSL_ALLOW_AKID_SKID_MATCH))
+    ((defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE)) || \
+     defined(WOLFSSL_ALLOW_AKID_SKID_MATCH))
 /* Peer-chain CA issued by the strict CA; leaves must meet its constraints. */
 static int test_nc_chain_ca_under_strict(const char* chain_ca_cert,
     const char* valid_leaf_cert, const char* attacker_leaf_cert)
@@ -5408,7 +5409,7 @@ int test_wolfSSL_CertManagerNameConstraint_akid_name_chain_ca(void)
     !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
     !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
-    defined(WOLFSSL_AKID_NAME)
+    defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE)
     ExpectIntEQ(test_nc_chain_ca_under_strict(
                 "./certs/test/nc-ancestor/02-akid-name-ca-cert.pem",
                 "./certs/test/nc-ancestor/03-akid-name-valid-leaf-cert.pem",
