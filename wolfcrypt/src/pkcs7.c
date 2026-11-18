@@ -163,6 +163,7 @@ struct PKCS7State {
     byte* aad;      /* additional data for AEAD algos */
     byte* tag;      /* tag data for AEAD algos */
     byte* content;
+    byte* callerContent; /* pkcs7->content set by the caller */
     byte* buffer;   /* main internal read buffer */
 
     wc_HashAlg  hashAlg;
@@ -190,6 +191,7 @@ struct PKCS7State {
     word32 fragCarrySz; /* bytes held in fragCarry */
     word32 contentCap;  /* allocated size of reassembled content */
     word32 contentSz;
+    word32 callerContentSz;
     word32 currContIdx;   /* index of current content */
     word32 currContSz;    /* size of current content */
     word32 currContRmnSz; /* remaining size of current content */
@@ -211,6 +213,7 @@ struct PKCS7State {
     WC_BITFIELD indefLen:1; /* flag to indicate indef-length encoding used */
     WC_BITFIELD indefEci:1;     /* EncryptedContentInfo is indefinite */
     WC_BITFIELD indefContent:1; /* encryptedContent is fragmented */
+    WC_BITFIELD certSetOverflow:1; /* certs set exceeds MAX_PKCS7_CERTS */
 };
 
 
@@ -282,6 +285,9 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         pkcs7->stream->buffer   = NULL;
         pkcs7->stream->bufferPt = NULL;
         pkcs7->stream->key      = NULL;
+        pkcs7->stream->aadSz    = 0;
+        pkcs7->stream->tagSz    = 0;
+        pkcs7->stream->nonceSz  = 0;
 
         /* reset values, note that content and tmpCert are saved */
         pkcs7->stream->maxLen   = 0;
@@ -300,6 +306,7 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         pkcs7->stream->noContent    = 0;
         pkcs7->stream->hasEContent  = 0;
         pkcs7->stream->indefLen     = 0;
+        pkcs7->stream->certSetOverflow = 0;
         pkcs7->stream->cntIdfCnt    = 0;
         pkcs7->stream->currContIdx  = 0;
         pkcs7->stream->currContSz   = 0;
@@ -7342,15 +7349,6 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     if (pkcs7 == NULL || in == NULL || idx == NULL)
         return BAD_FUNC_ARG;
 
-    /* free pkcs7->contentDynamic buffer */
-    if (pkcs7->contentDynamic != NULL &&
-            pkcs7->content == pkcs7->contentDynamic) {
-        pkcs7->content   = NULL;
-        pkcs7->contentSz = 0;
-    }
-    XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    pkcs7->contentDynamic = NULL;
-
     /* no content case, do nothing */
     if (pkcs7->stream->noContent) {
         if (pkcs7->content && pkcs7->contentSz > 0) {
@@ -7586,6 +7584,23 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     return ret;
 }
 #endif /* !NO_PKCS7_STREAM */
+
+/* Drop content that a previous verify left in pkcs7->content. keepSz keeps
+ * contentSz, which a header/footer verify takes from the caller. */
+static void wc_PKCS7_DropVerifyContent(wc_PKCS7* pkcs7, int keepSz)
+{
+    if (pkcs7->content != NULL &&
+            (pkcs7->content == pkcs7->verifyContent ||
+             pkcs7->content == pkcs7->contentDynamic)) {
+        pkcs7->content = NULL;
+        if (!keepSz)
+            pkcs7->contentSz = 0;
+    }
+    pkcs7->verifyContent = NULL;
+    XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->contentDynamic = NULL;
+}
+
 /* Finds the certificates in the message and saves it. By default allows
  * degenerate cases which can have no signer, as long as eContent is omitted
  * or empty.
@@ -7612,6 +7627,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 localIdx, start;
     word32 certIdx, certIdx2;
     byte degenerate = 0;
+    byte certSetOverflow = 0;
     byte detached = 0;
     byte hasEContent = 0;
     byte tag = 0;
@@ -7621,6 +7637,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     byte* der;
 #endif
     int multiPart = 0, keepContent;
+    int hasFooter, hashedFooter;
     int contentLen = 0;
 
     byte* pkiMsg    = in;
@@ -7631,7 +7648,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     enum wc_HashType hashType = WC_HASH_TYPE_NONE;
     byte*   src = NULL;
     word32  srcSz;
+#else
+    word32 callerContentSz = 0;
 #endif
+    byte* callerContent = NULL;
+    byte  restoreContent = 1;
     byte* pkiMsg2 = in2;
     word32 pkiMsg2Sz = in2Sz;
     (void)keepContent;
@@ -7651,6 +7672,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     if ((hashSz > 0 && hashBuf == NULL) || (pkiMsg2Sz > 0 && pkiMsg2 == NULL)) {
         return BAD_FUNC_ARG;
     }
+    hasFooter = (in2 != NULL && in2Sz > 0);
+    hashedFooter = (hasFooter && hashBuf != NULL && hashSz > 0);
     idx = 0;
 
 #ifdef ASN_BER_TO_DER
@@ -7669,7 +7692,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
     switch (pkcs7->state) {
         case WC_PKCS7_START:
-        #ifndef NO_PKCS7_STREAM
+            wc_PKCS7_DropVerifyContent(pkcs7, hashedFooter);
+        #ifdef NO_PKCS7_STREAM
+            callerContent   = pkcs7->content;
+            callerContentSz = pkcs7->contentSz;
+        #else
+            pkcs7->stream->callerContent   = pkcs7->content;
+            pkcs7->stream->callerContentSz = pkcs7->contentSz;
+
             /* The expected size calculation originally assumed digest OID
              * with NULL params, -2 to also accept with absent params */
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, (MAX_SEQ_SZ +
@@ -7696,7 +7726,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
             /* determine total message size */
             totalSz = pkiMsgSz;
-            if (pkiMsg2 && pkiMsg2Sz > 0) {
+            if (hashedFooter) {
                 totalSz += pkiMsg2Sz + pkcs7->contentSz;
             }
 
@@ -7740,7 +7770,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                                                         inSz;
 
                 totalSz = pkiMsgSz;
-                if (pkiMsg2 && pkiMsg2Sz > 0) {
+                if (hashedFooter) {
                     totalSz += pkiMsg2Sz + pkcs7->contentSz;
                 }
 
@@ -7855,7 +7885,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &stateIdx, &idx)) != 0) {
                 break;
             }
-            if (pkiMsg2 && pkiMsg2Sz > 0) {
+            if (hashedFooter) {
                 pkcs7->stream->maxLen += pkiMsg2Sz + pkcs7->contentSz;
             }
             wc_PKCS7_StreamStoreVar(pkcs7, totalSz, 0, 0);
@@ -8114,7 +8144,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* update idx if successful */
             if (ret == 0) {
                 /* support using header and footer without content */
-                if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
+                if (hashedFooter) {
                     localIdx = 0;
             #ifndef NO_PKCS7_STREAM
                     pkcs7->stream->noContent = 1;
@@ -8187,7 +8217,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 if (multiPart) {
                     idx = pkcs7->stream->currContIdx;
                 }
-                if (in2Sz > 0 && hashSz > 0) {
+                if (hashedFooter) {
                     /* seems no content included */
                     pkcs7->stream->expected = + ASN_TAG_SZ + MAX_LENGTH_SZ;
                 }
@@ -8218,11 +8248,6 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #endif /* ASN_BER_TO_DER */
 
         /* free pkcs7->stream->content buffer */
-        if (pkcs7->stream->content != NULL &&
-                pkcs7->content == pkcs7->stream->content) {
-            pkcs7->content   = NULL;
-            pkcs7->contentSz = 0;
-        }
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream->content = NULL;
         #endif /* !NO_PKCS7_STREAM */
@@ -8230,7 +8255,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             FALL_THROUGH;
 
         case WC_PKCS7_VERIFY_STAGE3:
-            keepContent = !(pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0);
+            keepContent = !hashedFooter;
         #ifndef NO_PKCS7_STREAM
             ret = wc_PKCS7_HandleOctetStrings(pkcs7, in, inSz,
                                                 &stateIdx, &idx, keepContent);
@@ -8240,12 +8265,6 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* copy content to pkcs7->contentDynamic */
             if (keepContent && pkcs7->stream->content &&
                                             pkcs7->stream->contentSz > 0) {
-                if (pkcs7->contentDynamic != NULL &&
-                        pkcs7->content == pkcs7->contentDynamic) {
-                    pkcs7->content   = NULL;
-                    pkcs7->contentSz = 0;
-                }
-                XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->contentDynamic = (byte*)XMALLOC(pkcs7->stream->contentSz,
                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if (pkcs7->contentDynamic == NULL) {
@@ -8293,15 +8312,6 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
 
         #else
-            /* free pkcs7->contentDynamic buffer */
-            if (pkcs7->contentDynamic != NULL &&
-                    pkcs7->content == pkcs7->contentDynamic) {
-                pkcs7->content   = NULL;
-                pkcs7->contentSz = 0;
-            }
-            XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            pkcs7->contentDynamic = NULL;
-
             /* Break out before content because it can be optional in degenerate
              * cases. */
             if (ret != 0 && !degenerate)
@@ -8310,8 +8320,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* get parts of content */
             if (ret == 0 && multiPart) {
                 int i = 0;
-                keepContent = !(pkiMsg2 && pkiMsg2Sz > 0 && hashBuf &&
-                                                                hashSz > 0);
+                keepContent = !hashedFooter;
 
                 if (keepContent) {
                     /* Create a buffer to hold content of OCTET_STRINGs. */
@@ -8353,7 +8362,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 contentSz = length;
 
                 /* support using header and footer without content */
-                if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
+                if (hashedFooter) {
                     /* Content not provided, use provided pkiMsg2 footer */
                     content = NULL;
                     localIdx = 0;
@@ -8412,7 +8421,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
        case WC_PKCS7_VERIFY_STAGE4:
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;
@@ -8511,7 +8520,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 break;
             }
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0 && hashBuf && hashSz > 0) {
+            if (hashedFooter) {
                 stateIdx = idx; /* case where all data was read from in2 */
             }
 
@@ -8536,7 +8545,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE5:
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;
@@ -8571,7 +8580,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* store current index to get the signerInfo index later  */
             certIdx2 = idx;
             /* store certificate if needed */
-            if (length > 0 && in2Sz == 0) {
+            if (length > 0 && !hasFooter) {
                 /* free tmpCert if not NULL */
                 XFREE(pkcs7->stream->tmpCert, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->stream->tmpCert = (byte*)XMALLOC((word32)length,
@@ -8688,16 +8697,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     if (ret == 0 && MAX_PKCS7_CERTS > 0) {
                         int sz = 0;
                         int i;
-                        /* Absolute end of the certificate set within pkiMsg2.
-                         * idx is the start of the set, so the set spans
-                         * [idx, idx + length). In non-streaming mode idx is the
-                         * absolute offset into the message; in streaming mode it
-                         * is typically 0 (the set was copied to a standalone
-                         * buffer). Bounding the loop with the relative length
-                         * alone stops short by idx bytes in non-streaming mode
-                         * and can drop the last certificate. Clamp to pkiMsg2Sz
-                         * to guard against overflow/over-long length (reads stay
-                         * bounded by the certIdx + 1 < pkiMsg2Sz check below). */
+                        /* End of the set in pkiMsg2, clamped to pkiMsg2Sz
+                         * against an overlong or wrapping length. */
                         word32 certSetEnd = idx + (word32)length;
                         if (certSetEnd < idx || certSetEnd > pkiMsg2Sz)
                             certSetEnd = pkiMsg2Sz;
@@ -8705,32 +8706,37 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         pkcs7->cert[0]   = cert;
                         pkcs7->certSz[0] = (word32)certSz;
                         certIdx = idx + (word32)certSz;
+                        i = (cert != NULL) ? 1 : 0;
 
-                        for (i = 1; i < MAX_PKCS7_CERTS &&
-                                certIdx + 1 < pkiMsg2Sz &&
-                                certIdx + 1 < certSetEnd; i++) {
+                        while (certIdx < certSetEnd) {
                             localIdx = certIdx;
 
-                            if (ret == 0 && GetASNTag(pkiMsg2, &certIdx, &tag,
-                                        pkiMsg2Sz) < 0) {
+                            if (GetASNTag(pkiMsg2, &certIdx, &tag,
+                                        certSetEnd) < 0 ||
+                                    GetLength(pkiMsg2, &certIdx, &sz,
+                                        certSetEnd) < 0 ||
+                                    (sz == 0 && pkiMsg2[certIdx - 1] ==
+                                        ASN_INDEF_LENGTH)) {
                                 ret = ASN_PARSE_E;
                                 break;
                             }
 
-                            if (ret == 0 &&
-                                    tag == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
-                                if (GetLength(pkiMsg2, &certIdx, &sz,
-                                            pkiMsg2Sz) < 0) {
-                                    ret = ASN_PARSE_E;
+                            /* other CertificateChoices are skipped */
+                            if (tag == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                                if (i == MAX_PKCS7_CERTS) {
+                                    certSetOverflow = 1;
                                     break;
                                 }
-
                                 pkcs7->cert[i]   = &pkiMsg2[localIdx];
                                 pkcs7->certSz[i] = (word32)sz +
                                                    (certIdx - localIdx);
-                                certIdx += (word32)sz;
+                                i++;
                             }
+                            certIdx += (word32)sz;
                         }
+                    #ifndef NO_PKCS7_STREAM
+                        pkcs7->stream->certSetOverflow = (certSetOverflow != 0);
+                    #endif
                     }
                 }
                 idx += (word32)length;
@@ -8784,7 +8790,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         case WC_PKCS7_VERIFY_STAGE6:
         #ifndef NO_PKCS7_STREAM
 
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;
@@ -8901,6 +8907,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 degenerate = (length == 0) ? 1 : 0;
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->degenerate = (degenerate != 0);
+                certSetOverflow = pkcs7->stream->certSetOverflow;
             #endif
             }
 
@@ -8908,6 +8915,15 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if (ret == 0 && degenerate == 1 && hasEContent == 1) {
                 WOLFSSL_MSG("PKCS#7 SignedData has content but no signer");
                 ret = PKCS7_NO_SIGNER_E;
+            }
+            else if (ret == 0 && degenerate && certSetOverflow &&
+                    !pkcs7->noDegenerate) {
+                WOLFSSL_MSG("Certificates-only bundle holds more than "
+                            "MAX_PKCS7_CERTS certificates");
+                ret = BUFFER_E;
+            }
+            else if (ret == 0 && certSetOverflow) {
+                WOLFSSL_MSG("Certificates past MAX_PKCS7_CERTS are not stored");
             }
 
             if (ret != 0)
@@ -8921,7 +8937,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
             wc_PKCS7_StreamStoreVar(pkcs7, pkiMsg2Sz, 0, length);
 
-            if (in2 && in2Sz > 0 && hashBuf && hashSz > 0) {
+            if (hashedFooter) {
                 if (length > 0) {
                     pkcs7->stream->expected = (word32)length;
                 }
@@ -8950,7 +8966,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE7:
         #ifndef NO_PKCS7_STREAM
-            if (in2 && in2Sz > 0) {
+            if (hasFooter) {
                 src     = in2;
                 srcSz   = in2Sz;
                 pkiMsg2 = in2;
@@ -9005,6 +9021,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                 pkcs7->content = content;
                 pkcs7->contentSz = (word32)contentSz;
+            #ifndef NO_PKCS7_STREAM
+                /* restore the caller's content for a detached signature */
+                if (pkcs7->stream->detached &&
+                        pkcs7->stream->callerContent != NULL) {
+                    pkcs7->content   = pkcs7->stream->callerContent;
+                    pkcs7->contentSz = pkcs7->stream->callerContentSz;
+                }
+            #endif
 
                 if (ret == 0) {
                 #if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
@@ -9069,13 +9093,31 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         default:
             WOLFSSL_MSG("PKCS7 Unknown verify state");
             ret = BAD_FUNC_ARG;
+            restoreContent = 0;
     }
 
     if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+        /* a failed verify leaves the caller's content as it was */
+        if (restoreContent && ret != WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK)) {
+        #ifndef NO_PKCS7_STREAM
+            pkcs7->content   = pkcs7->stream->callerContent;
+            pkcs7->contentSz = pkcs7->stream->callerContentSz;
+        #else
+            pkcs7->content   = callerContent;
+            pkcs7->contentSz = callerContentSz;
+        #endif
+        }
     #ifndef NO_PKCS7_STREAM
         wc_PKCS7_ResetStream(pkcs7);
     #endif
         wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
+    }
+    if (ret == 0 || ret == WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK)) {
+    #ifndef NO_PKCS7_STREAM
+        callerContent = pkcs7->stream->callerContent;
+    #endif
+        if (pkcs7->content != callerContent)
+            pkcs7->verifyContent = pkcs7->content;
     }
     return ret;
 }
@@ -14346,11 +14388,11 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (*idx > pkiMsgSz || (word32)length > pkiMsgSz - *idx)
                 return ASN_PARSE_E;
 
-            #ifndef NO_AES
-                direction = AES_DECRYPTION;
-            #else
-                direction = DES_DECRYPTION;
-            #endif
+        #ifndef NO_AES
+            direction = AES_DECRYPTION;
+        #else
+            direction = DES_DECRYPTION;
+        #endif
 
             /* decrypt CEK with KEK */
             if (pkcs7->wrapCEKCb) {
@@ -17768,11 +17810,12 @@ authenv_atrbend:
         }
     }
 
-#ifndef NO_PKCS7_STREAM
     if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+    #ifndef NO_PKCS7_STREAM
         wc_PKCS7_ResetStream(pkcs7);
+    #endif
+        wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
     }
-#endif
 
     return ret;
 

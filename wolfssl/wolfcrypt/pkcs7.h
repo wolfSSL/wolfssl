@@ -52,7 +52,7 @@
 #ifdef OPENSSL_ALL
     #define MAX_PKCS7_CERTS 15
 #else
-    #define MAX_PKCS7_CERTS 4
+    #define MAX_PKCS7_CERTS 8
 #endif
 #endif
 
@@ -428,6 +428,8 @@ struct wc_PKCS7 {
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback32 unknownExtCallback32;
 #endif
+    byte* verifyContent; /* pkcs7->content set by the last verify */
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
