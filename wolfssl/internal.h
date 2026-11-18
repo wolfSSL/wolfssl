@@ -2836,6 +2836,8 @@ struct CRL_Entry {
 #endif
     word32  signatureOID;
 #if !defined(NO_SKID) && !defined(NO_ASN)
+    word32  extAuthKeyIdRawIdx; /* offset of encoded key id in toBeSigned */
+    word32  extAuthKeyIdRawSz;  /* length of encoded key id */
     byte    extAuthKeyId[KEYID_SIZE];
     byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
 #endif

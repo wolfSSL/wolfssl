@@ -35093,7 +35093,50 @@ static int test_wolfSSL_X509_CRL_print(void)
 
     X509_NAME_free(name);
     X509_CRL_free(crl);
+    crl = NULL;
     BIO_free(bio);
+    bio = NULL;
+
+#ifndef NO_SKID
+    /* The encoded key id is printed whatever the internal KEYID_SIZE. An
+     * 8 octet id with leading, interior and trailing zeros. */
+    ExpectTrue((fp = XFOPEN("./certs/crl/extra-crls/akid_zero_octets.pem",
+        "rb")) != XBADFILE);
+    ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
+        NULL, NULL));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_CRL_print(bio, crl), SSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf, "keyid:00:01:00:03:04:05:06:00\n"));
+
+    X509_CRL_free(crl);
+    crl = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+#if defined(HAVE_ECC) && !defined(NO_SHA256)
+    /* 20 octet id with no zero octets. */
+    ExpectTrue((fp = XFOPEN("./certs/crl/caEccCrl.pem", "rb")) != XBADFILE);
+    ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
+        NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_CRL_print(bio, crl), SSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf, "keyid:56:8E:9A:C3:F0:42:DE:18:B9:45:55:"
+        "6E:F9:93:CF:EA:C3:F3:A5:21\n"));
+
+    X509_CRL_free(crl);
+    BIO_free(bio);
+#endif /* HAVE_ECC && !NO_SHA256 */
+#endif /* !NO_SKID */
 #endif
     return EXPECT_RESULT();
 }

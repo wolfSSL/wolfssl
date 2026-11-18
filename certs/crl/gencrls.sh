@@ -351,4 +351,42 @@ check_result $?
 mv tmp crl_reason.pem
 cp blank.index.txt demoCA/index.txt
 
+# CRL whose 8 octet authority key id has leading, interior and trailing zeros
+echo "Step 40 zero octet authority key id CRL"
+cat > akid.cnf <<'EOF'
+[ ca ]
+default_ca = CA_default
+[ CA_default ]
+database = ./demoCA/index.txt
+crlnumber = ./crlnumber
+default_md = sha256
+crl_extensions = crl_ext
+[ crl_ext ]
+authorityKeyIdentifier = keyid:always
+[ req ]
+distinguished_name = dn
+prompt = no
+[ dn ]
+CN = wolfSSL AKID Zero Octets CA
+[ akid_ca ]
+basicConstraints = critical,CA:true
+keyUsage = critical,cRLSign,keyCertSign
+subjectKeyIdentifier = 00:01:00:03:04:05:06:00
+EOF
+echo "01" > crlnumber
+openssl req -new -x509 -config akid.cnf -extensions akid_ca \
+    -key ../ca-key.pem -days 3650 -out akid-ca.pem
+check_result $?
+openssl ca -config akid.cnf -gencrl -crldays 3650 -keyfile ../ca-key.pem \
+    -cert akid-ca.pem -out extra-crls/akid_zero_octets.pem
+check_result $?
+
+# metadata
+echo "Step 41"
+openssl crl -in extra-crls/akid_zero_octets.pem -text > tmp
+check_result $?
+mv tmp extra-crls/akid_zero_octets.pem
+rm -f akid.cnf akid-ca.pem
+cp blank.index.txt demoCA/index.txt
+
 exit 0

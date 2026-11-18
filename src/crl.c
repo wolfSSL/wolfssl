@@ -253,8 +253,15 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         XMEMCPY(crle->signature, dcrl->signature, crle->signatureSz);
     #ifndef NO_SKID
         crle->extAuthKeyIdSet = dcrl->extAuthKeyIdSet;
-        if (crle->extAuthKeyIdSet)
+        if (crle->extAuthKeyIdSet) {
             XMEMCPY(crle->extAuthKeyId, dcrl->extAuthKeyId, KEYID_SIZE);
+            /* Key id lies within the TBS, keep its position for printing. */
+            if (dcrl->extAuthKeyIdRawIdx >= dcrl->certBegin) {
+                crle->extAuthKeyIdRawIdx =
+                    dcrl->extAuthKeyIdRawIdx - dcrl->certBegin;
+                crle->extAuthKeyIdRawSz = dcrl->extAuthKeyIdRawSz;
+            }
+        }
     #endif
     }
     else {
@@ -3212,6 +3219,11 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
             entry->signature = newSignature;
             entry->signatureSz = newSignatureSz;
             entry->signatureOID = newSignatureOid;
+        #if !defined(NO_SKID) && !defined(NO_ASN)
+            /* Re-encoded TBS has no authority key id extension. */
+            entry->extAuthKeyIdRawIdx = 0;
+            entry->extAuthKeyIdRawSz = 0;
+        #endif
         }
         else {
             if (newToBeSigned != NULL) {
