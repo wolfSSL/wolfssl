@@ -948,6 +948,11 @@ static void wb_confirm_name_constraints(void)
     cert.subjectCNLen = 11;
     WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
             "IPv6 CN excluded by zero-length dNSName");
+    /* A UTF-8 CN may match a UTF-8 host name from the application. */
+    cert.subjectCN = "intran\xc3\xa9t";
+    cert.subjectCNLen = 9;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "UTF-8 CN excluded by zero-length dNSName");
 
     /* Under a permitted dNSName subtree, a single-label or IPv6 CN is
      * outside it and rejected. */
@@ -961,6 +966,14 @@ static void wb_confirm_name_constraints(void)
     cert.subjectCNLen = 11;
     WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
             "IPv6 CN outside permitted dNSName");
+    cert.subjectCN = "\xc3\xa9t.example.org";
+    cert.subjectCNLen = 15;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "UTF-8 CN outside permitted dNSName");
+    cert.subjectCN = "\xc3\xa9t.example.com";
+    cert.subjectCNLen = 15;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
+            "UTF-8 CN inside permitted dNSName");
     cert.subjectCN = "www.example.com";
     cert.subjectCNLen = 15;
     WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
@@ -978,6 +991,8 @@ static void wb_confirm_name_constraints(void)
             "IPv4-mapped IPv6 literal");
     WB_CHECK(CnMayBeHostName("10.0.0.1", 8) == 1, "IPv4 literal");
     WB_CHECK(CnMayBeHostName("a..com", 6) == 1, "malformed but matchable");
+    WB_CHECK(CnMayBeHostName("\xc3\xa9t.example", 11) == 1, "UTF-8 U-label");
+    WB_CHECK(CnMayBeHostName("\xff", 1) == 1, "high byte");
     WB_CHECK(CnMayBeHostName(NULL, 3) == 0, "NULL");
     WB_CHECK(CnMayBeHostName("a.b", 0) == 0, "zero length");
     WB_CHECK(CnMayBeHostName("John Doe", 8) == 0, "space");

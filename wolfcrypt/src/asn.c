@@ -20780,10 +20780,11 @@ static int NameConstraintListHasType(Base_entry* list, byte nameType)
 }
 
 /* Return 1 if hostname verification could match a subject CN, so the CN
- * must stay subject to DNS constraints. Any CN made only of letters, digits
- * and "-._*:" qualifies: that covers single-label names such as "localhost",
- * wildcards, and IP literals that MatchDomainName also accepts. A CN holding
- * any other byte, such as the space in "John Doe", is not a host name. */
+ * must stay subject to DNS constraints. Any CN made only of letters, digits,
+ * "-._*:" and bytes >= 0x80 qualifies: that covers single-label names such as
+ * "localhost", wildcards, IP literals and UTF-8 U-labels, all of which
+ * MatchDomainName can match byte for byte. A CN holding any other byte, such
+ * as the space in "John Doe", is not a host name. */
 static int CnMayBeHostName(const char* cn, int cnLen)
 {
     int i;
@@ -20797,7 +20798,7 @@ static int CnMayBeHostName(const char* cn, int cnLen)
 
         if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
                 (c >= '0' && c <= '9') || c == '-' || c == '.' ||
-                c == '_' || c == '*' || c == ':')) {
+                c == '_' || c == '*' || c == ':' || c >= 0x80)) {
             return 0;
         }
     }
