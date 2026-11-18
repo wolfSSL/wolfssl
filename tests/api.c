@@ -43155,12 +43155,76 @@ static int test_chain_ca_no_persist_clear(void)
 
     return EXPECT_RESULT();
 }
+
+/* A CRL whose issuer is a chain CA the verify callback let through. Neither
+ * issuing CA is in the certificate manager. Verify that the CRLs load
+ * unverified and only verify at check time if the connection's CA list is
+ * searched for their signer. */
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+static int test_chain_ca_crl_client_ctx(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_X509_LOOKUP* lookup = NULL;
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(wolfSSL_CTX_GetCertManager(ctx)),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER,
+        test_chain_ca_no_persist_verify_cb);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(store = wolfSSL_CTX_get_cert_store(ctx));
+    ExpectNotNull(lookup = wolfSSL_X509_STORE_add_lookup(store,
+        wolfSSL_X509_LOOKUP_file()));
+    /* This load does not verify, which is what leaves the entries for the
+     * handshake to verify against the CAs it holds. ca-int.pem is issued by
+     * the intermediate the callback let through, ca-int2.pem by the one below
+     * it. */
+    ExpectIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup,
+        "./certs/crl/ca-int.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup,
+        "./certs/crl/ca-int2.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_chain_ca_crl(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    test_chain_ca_no_persist_waived = 0;
+    client_cbs.ctx_ready = test_chain_ca_crl_client_ctx;
+    server_cbs.ctx_ready = test_chain_ca_no_persist_server_ctx;
+
+    /* Both CRL checks have to find their issuer on the connection's waived CA
+     * list for the handshake to get this far. */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_chain_ca_no_persist_waived, 1);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_chain_ca_crl(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
 #else
 static int test_chain_ca_no_persist(void)
 {
     return TEST_SKIPPED;
 }
 static int test_chain_ca_no_persist_clear(void)
+{
+    return TEST_SKIPPED;
+}
+static int test_chain_ca_crl(void)
 {
     return TEST_SKIPPED;
 }
@@ -49180,6 +49244,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_override_alt_cert_chain),
     TEST_DECL(test_chain_ca_no_persist),
     TEST_DECL(test_chain_ca_no_persist_clear),
+    TEST_DECL(test_chain_ca_crl),
     TEST_DECL(test_rpk_set_xxx_cert_type),
     TEST_DECL(test_short_session_id),
     /* Can't memory test as client/server hangs. */
