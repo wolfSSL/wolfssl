@@ -1243,47 +1243,49 @@ static void wb_healthtest512_uninstantiate_fault(void)
  * ----------------------------------------------------------------------- */
 static void wb_free_uninstantiate_fault(void)
 {
-#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && !defined(WC_NO_RNG)
-    WC_RNG rng;
-    XMEMSET(&rng, 0, sizeof(rng));
-    if (wc_InitRng_ex(&rng, NULL, INVALID_DEVID) != 0) {
-        WB_NOTE("free-uninst: init failed");
-        wb_fail = 1;
-        return;
-    }
-    mcdc_fz_arm(sizeof(DRBG_internal));
-    (void)wc_FreeRng(&rng);
-    mcdc_fz_disarm();
-    WB_NOTE("free uninstantiate-fault rows driven (SHA-256)");
-#endif
-#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG)
-    WC_RNG rng512;
-    XMEMSET(&rng512, 0, sizeof(rng512));
-    if (wc_InitRng_ex(&rng512, NULL, INVALID_DEVID) != 0) {
-        WB_NOTE("free-uninst: 512 init failed");
-        wb_fail = 1;
-        return;
-    }
-    mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
-    (void)wc_FreeRng(&rng512);
-    mcdc_fz_disarm();
-    WB_NOTE("free uninstantiate-fault rows driven (SHA-512)");
-#endif
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG)
+#ifndef NO_SHA256
+    {
+        WC_RNG rng;
+        int ret;
 
-    /* _InitRng() cleanup uninst chains: a failed Instantiate (first Hash_df
-     * faulted) that then faulted the cleanup Uninstantiate. Drives the
-     * (ret != 0) && (uninst_ret != 0) / (ret == 0) && (uninst_ret != 0)
-     * rows in the init-failure teardown. */
-#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && !defined(WC_NO_RNG) \
-    && defined(MCDC_FH_HAVE_SHA256)
-    WC_RNG rnf;
-    XMEMSET(&rnf, 0, sizeof(rnf));
-    mcdc_fh_arm(1);
-    mcdc_fz_arm(sizeof(DRBG_internal));
-    (void)wc_InitRng_ex(&rnf, NULL, INVALID_DEVID);
-    mcdc_fz_disarm();
-    mcdc_fh_disarm();
-    WB_NOTE("init-failure uninst-fault rows driven");
+        XMEMSET(&rng, 0, sizeof(rng));
+        if (wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                          WC_RNG_INIT_FLAG_DRBG_SHA256) != 0) {
+            WB_NOTE("free-uninst: SHA-256 init failed");
+            wb_fail = 1;
+            return;
+        }
+        mcdc_fz_arm(sizeof(DRBG_internal));
+        ret = wc_FreeRng(&rng);
+        mcdc_fz_disarm();
+        if (ret != RNG_FAILURE_E) {
+            WB_NOTE("free-uninst: SHA-256 wipe fault did not return RNG_FAILURE_E");
+            wb_fail = 1;
+        }
+    }
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    {
+        WC_RNG rng;
+        int ret;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        if (wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                          WC_RNG_INIT_FLAG_DRBG_SHA512) != 0) {
+            WB_NOTE("free-uninst: SHA-512 init failed");
+            wb_fail = 1;
+            return;
+        }
+        mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
+        ret = wc_FreeRng(&rng);
+        mcdc_fz_disarm();
+        if (ret != RNG_FAILURE_E) {
+            WB_NOTE("free-uninst: SHA-512 wipe fault did not return RNG_FAILURE_E");
+            wb_fail = 1;
+        }
+    }
+#endif
 #endif
 }
 
@@ -1298,8 +1300,11 @@ static void wb_free_uninstantiate_fault(void)
 static void wb_recovery_reseed_fault(void)
 {
     WC_RNG rng;
+    int ret;
+
     XMEMSET(&rng, 0, sizeof(rng));
-    if (wc_InitRng_ex(&rng, NULL, INVALID_DEVID) != 0) {
+    if (wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                      WC_RNG_INIT_FLAG_DRBG_SHA256) != 0) {
         WB_NOTE("recovery-reseed: init failed");
         wb_fail = 1;
         return;
@@ -1307,7 +1312,11 @@ static void wb_recovery_reseed_fault(void)
     /* Invalidate the entropy so the next reseed takes the recovery path. */
     (void)wc_RNG_invalidate_entropy(&rng);
     mcdc_fh_arm(1);
-    (void)wc_RNG_DRBG_Reseed_Now(&rng, NULL, 0);
+    ret = wc_RNG_DRBG_Reseed_Now(&rng, NULL, 0);
+    if (ret == 0 || mcdc_fh_seen() == 0) {
+        WB_NOTE("recovery-reseed: expected a faulted hash to fail");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)wc_FreeRng(&rng);
     WB_NOTE("recovery reseed-fault rows driven");

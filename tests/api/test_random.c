@@ -2080,7 +2080,7 @@ int test_wc_RngExtrasDecisionCoverage(void)
     }
 #endif
 
-#ifdef WC_RNG_HAVE_RBGC
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_HAVE_LOCK)
     /* wc_RNG_SetFlags seed-source policy: the check sits behind the policy
      * lock precondition, so both rows run on a LOCK_REQUIRED, held root.
      * NO_PRIMARY on a root (no parent to defer to) is MISSING_RNG_E; on a
@@ -2088,14 +2088,16 @@ int test_wc_RngExtrasDecisionCoverage(void)
      * rejected. */
     {
         WC_RNG root;
+#ifndef WC_NO_CONSTRUCTORS
         WC_RNG *child = NULL;
+#endif
         XMEMSET(&root, 0, sizeof(root));
-#ifdef WC_RNG_HAVE_LOCK
         ExpectIntEQ(wc_InitRng_ex2(&root, HEAP_HINT, INVALID_DEVID,
                                    WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
         ExpectIntEQ(wc_RNG_lock_get(&root, 0), 0);
         ExpectIntEQ(wc_RNG_SetFlags(&root, WC_RNG_FLAG_NO_PRIMARY_SEED),
                     WC_NO_ERR_TRACE(MISSING_RNG_E));
+#ifndef WC_NO_CONSTRUCTORS
         ExpectIntEQ(wc_InitRngRBGC_New(&child, &root,
                                        WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
         if (child != NULL) {
@@ -2107,18 +2109,26 @@ int test_wc_RngExtrasDecisionCoverage(void)
             ExpectIntEQ(wc_RNG_lock_put(child, 0), 0);
             wc_rng_free(child);
         }
-        ExpectIntEQ(wc_RNG_lock_put(&root, 0), 0);
-#else
-        (void)root;
-        (void)child;
 #endif
+        ExpectIntEQ(wc_RNG_lock_put(&root, 0), 0);
         ExpectIntEQ(wc_FreeRng(&root), 0);
     }
 #endif
 
-    /* _InitRng() argument guards: the userSeed/nonce/perso NULL-with-size
-     * clauses and the userSeed+seedRng mutual exclusion, driven through the
-     * public UserSeed entry point. */
+    /* _InitRng() rejects a NULL nonce or personalization buffer with a
+     * nonzero length. wc_InitRngNonce_ex2 passes the arguments through. */
+    {
+        WC_RNG r;
+        byte nonce[16] = { 0 };
+
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRngNonce_ex2(&r, NULL, 16, NULL, 0,
+                    HEAP_HINT, INVALID_DEVID, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_InitRngNonce_ex2(&r, nonce, sizeof(nonce), NULL, 16,
+                    HEAP_HINT, INVALID_DEVID, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* Argument validation in the public user-seed wrapper. */
     {
         byte   seed[64];
         byte   nonce[16];
@@ -2351,13 +2361,17 @@ int test_wc_RngExtrasStateMachines(void)
      * credit/stratum/pid clauses. */
     {
         WC_RNG root;
+#ifndef WC_NO_CONSTRUCTORS
         WC_RNG *child = NULL;
         word32 child_flags = 0;
+#endif
         XMEMSET(&root, 0, sizeof(root));
 #ifdef WC_RNG_HAVE_LOCK
         ExpectIntEQ(wc_InitRng_ex2(&root, HEAP_HINT, INVALID_DEVID,
                                    WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+#ifndef WC_NO_CONSTRUCTORS
         child_flags = WC_RNG_INIT_FLAG_LOCK_REQUIRED;
+#endif
         ExpectIntEQ(wc_RNG_lock_get(&root, 0), 0);
 #else
         ExpectIntEQ(wc_InitRng_ex(&root, HEAP_HINT, INVALID_DEVID), 0);
@@ -2373,6 +2387,7 @@ int test_wc_RngExtrasStateMachines(void)
             ExpectIntEQ(wc_InitRngRBGC(&tmp, &tmp, 0),
                         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         }
+#ifndef WC_NO_CONSTRUCTORS
         ExpectIntEQ(wc_InitRngRBGC_New(&child, &root, child_flags), 0);
         if (child != NULL) {
             /* ReseedRBGC / StirRBGC guard clause: rng == NULL, root == NULL,
@@ -2401,6 +2416,7 @@ int test_wc_RngExtrasStateMachines(void)
 #endif
             wc_rng_free(child);
         }
+#endif
 #ifdef WC_RNG_HAVE_LOCK
         ExpectIntEQ(wc_RNG_lock_put(&root, 0), 0);
 #endif
