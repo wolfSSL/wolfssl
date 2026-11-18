@@ -2329,7 +2329,19 @@ int test_wolfSSL_write_dup_max_fragment(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    ((!defined(WOLFSSL_NO_TLS12) && \
+      (defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) || \
+       defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) || \
+       defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256))) || \
+     (defined(WOLFSSL_TLS13) && \
+      (defined(BUILD_TLS_AES_128_GCM_SHA256) || \
+       defined(BUILD_TLS_AES_128_CCM_SHA256) || \
+       defined(BUILD_TLS_CHACHA20_POLY1305_SHA256))))
+    #define TEST_BAD_RECORD_MEMIO
+#endif
+
+#ifdef TEST_BAD_RECORD_MEMIO
 /* The server reads a record from the client that fails authentication or
  * decryption, and reports err.
  *
@@ -2469,7 +2481,7 @@ int test_wolfSSL_get_error_bad_record(void)
 #endif
 #endif
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+#ifdef TEST_BAD_RECORD_MEMIO
 #if !defined(WOLFSSL_NO_TLS12) && \
     defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
     /* TLS 1.2 reports an AEAD tag failure as VERIFY_MAC_ERROR. */
