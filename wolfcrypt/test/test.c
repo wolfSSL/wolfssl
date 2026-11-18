@@ -79096,6 +79096,163 @@ static wc_test_ret_t mldsa_nonblock_match_test_level(int level)
     return ret;
 }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+#define MLDSA_NB_FREE_DEVID 0x4d4c4e42
+#if defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && !defined(WOLFSSL_SWDEV) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_PRECOMP_A)
+    #define MLDSA_NB_FREE_CASES 5
+#else
+    #define MLDSA_NB_FREE_CASES 4
+#endif
+
+/* SHAKE objects freed through the device, other than the key's own. */
+typedef struct {
+    const void* keyShake;
+    int frees;
+} MlDsaNbFreeCtx;
+
+static int mldsa_nb_free_cb(int id, wc_CryptoInfo* info, void* ctx)
+{
+    MlDsaNbFreeCtx* seen = (MlDsaNbFreeCtx*)ctx;
+
+    (void)id;
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_HASH) &&
+            (info->free.obj != seen->keyShake)) {
+        seen->frees++;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+/* The smallest memory verify's own w1 hash is freed once, whether the verify
+ * completes, fails or is abandoned after a yield. */
+static wc_test_ret_t mldsa_nonblock_free_test_level(int level)
+{
+    wc_test_ret_t    ret = 0;
+    int              rc = 0;
+    int              yields = 0;
+    int              res = 0;
+    int              i;
+    wc_MlDsaKey*     key = NULL;
+    wc_MlDsaKey*     vKey = NULL;
+    wc_MlDsaNonBlock nb;
+    MlDsaNbFreeCtx   seen;
+    byte*            sig = NULL;
+    byte*            pub = NULL;
+    int              sigSz = 0;
+    int              pubSz = 0;
+    word32           sigLen = 0;
+    word32           pubLen = 0;
+    int              keyInited = 0;
+    int              vKeyInited = 0;
+    byte             seed[MLDSA_SEED_SZ];
+    byte             msg[32];
+    byte             msg2[32];
+
+    XMEMSET(&seen, 0, sizeof(seen));
+    XMEMSET(seed, 0x3c, sizeof(seed));
+    XMEMSET(msg, 0xc3, sizeof(msg));
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    vKey = (wc_MlDsaKey*)XMALLOC(sizeof(*vKey), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (vKey == NULL))
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    NB_STEP(wc_CryptoCb_RegisterDevice(MLDSA_NB_FREE_DEVID, mldsa_nb_free_cb,
+        &seen));
+    NB_STEP(wc_MlDsaKey_Init(key, HEAP_HINT, INVALID_DEVID));
+    keyInited = (ret == 0);
+    NB_STEP(wc_MlDsaKey_SetParams(key, (byte)level));
+    NB_STEP(wc_MlDsaKey_MakeKeyFromSeed(key, seed));
+    NB_STEP(wc_MlDsaKey_GetSigLen(key, &sigSz));
+    NB_STEP(wc_MlDsaKey_GetPubLen(key, &pubSz));
+    if (ret == 0) {
+        sig = (byte*)XMALLOC((size_t)sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        pub = (byte*)XMALLOC((size_t)pubSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if ((sig == NULL) || (pub == NULL))
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    sigLen = (word32)sigSz;
+    pubLen = (word32)pubSz;
+    NB_STEP(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg,
+        (word32)sizeof(msg), seed));
+    NB_STEP(wc_MlDsaKey_ExportPubRaw(key, pub, &pubLen));
+
+    for (i = 0; (ret == 0) && (i < MLDSA_NB_FREE_CASES); i++) {
+        NB_STEP(wc_MlDsaKey_Init(vKey, HEAP_HINT, MLDSA_NB_FREE_DEVID));
+        vKeyInited = (ret == 0);
+        if (ret == 0)
+            seen.keyShake = &vKey->shake;
+        NB_STEP(wc_MlDsaKey_SetParams(vKey, (byte)level));
+        NB_STEP(wc_MlDsaKey_ImportPubRaw(vKey, pub, pubLen));
+        NB_STEP(wc_MlDsaKey_set_nonblock(vKey, &nb));
+        seen.frees = 0;
+        if (i == 0) {
+            NB_RUN(wc_MlDsaKey_VerifyCtx(vKey, sig, sigLen, NULL, 0, msg,
+                (word32)sizeof(msg), &res));
+            NB_EXPECT(res == 1);
+            NB_EXPECT(seen.frees == 1);
+        }
+        else {
+            /* Leave the verify in flight once it has hashed a row of w1. */
+            rc = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+            while ((ret == 0) && (rc == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) &&
+                    (nb.row == 0)) {
+                rc = wc_MlDsaKey_VerifyCtx(vKey, sig, sigLen, NULL, 0, msg,
+                    (word32)sizeof(msg), &res);
+            }
+            NB_EXPECT((rc == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) && (nb.row > 0));
+            NB_EXPECT(seen.frees == 0);
+        }
+        if (i == 2) {
+            /* Abandoned by detaching the context. */
+            NB_STEP(wc_MlDsaKey_set_nonblock(vKey, NULL));
+            NB_EXPECT(seen.frees == 1);
+        }
+        else if (i == 3) {
+            /* Abandoned by verifying another message, which completes. */
+            XMEMCPY(msg2, msg, sizeof(msg2));
+            msg2[0] ^= 1;
+            NB_RUN(wc_MlDsaKey_VerifyCtx(vKey, sig, sigLen, NULL, 0, msg2,
+                (word32)sizeof(msg2), &res));
+            NB_EXPECT(res == 0);
+            NB_EXPECT(seen.frees == 2);
+        }
+    #if MLDSA_NB_FREE_CASES > 4
+        else if ((ret == 0) && (i == 4)) {
+            /* Failed by sampling A on a later row. */
+            (void)wc_mldsa_test_rej_ntt_fail(1);
+            do {
+                rc = wc_MlDsaKey_VerifyCtx(vKey, sig, sigLen, NULL, 0, msg,
+                    (word32)sizeof(msg), &res);
+            } while (rc == WC_NO_ERR_TRACE(MP_WOULDBLOCK));
+            (void)wc_mldsa_test_rej_ntt_fail(0);
+            NB_EXPECT(rc == WC_NO_ERR_TRACE(BAD_STATE_E));
+            NB_EXPECT(seen.frees == 1);
+        }
+    #endif
+        if (vKeyInited) {
+            wc_MlDsaKey_Free(vKey);
+            vKeyInited = 0;
+        }
+        NB_EXPECT(seen.frees == ((i == 3) ? 2 : 1));
+    }
+
+    wc_CryptoCb_UnRegisterDevice(MLDSA_NB_FREE_DEVID);
+    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (vKeyInited)
+        wc_MlDsaKey_Free(vKey);
+    if (keyInited)
+        wc_MlDsaKey_Free(key);
+    XFREE(vKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
+
 static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
@@ -79104,18 +79261,33 @@ static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
         ret = mldsa_nonblock_test_level(WC_ML_DSA_44, rng);
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_44);
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    if (ret == 0)
+        ret = mldsa_nonblock_free_test_level(WC_ML_DSA_44);
+#endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
     if (ret == 0)
         ret = mldsa_nonblock_test_level(WC_ML_DSA_65, rng);
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_65);
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    if (ret == 0)
+        ret = mldsa_nonblock_free_test_level(WC_ML_DSA_65);
+#endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
     if (ret == 0)
         ret = mldsa_nonblock_test_level(WC_ML_DSA_87, rng);
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_87);
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    if (ret == 0)
+        ret = mldsa_nonblock_free_test_level(WC_ML_DSA_87);
+#endif
 #endif
     return ret;
 }

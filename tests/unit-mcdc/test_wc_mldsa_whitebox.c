@@ -417,7 +417,210 @@ static void wb_poly_checksum(void)
 
     WB_OK("mldsa_poly_checksum change detection exercised");
 }
+
+/* ------------------------------------------------------------------ *
+ * mldsa_make_hint_r24: the smallest memory signer makes hints from ct0 and
+ * the decomposition of w - cs2 held as 24-bit values. Same compound as
+ * mldsa_make_hint_88/_32, with r0 = 0 and the high bits set or not.
+ * ------------------------------------------------------------------ */
+static void wb_make_hint_r24_level(sword32 low, byte omega, const char* name)
+{
+    sword32 ct0[MLDSA_N];
+    byte    w[MLDSA_W24_POLY_SIZE];
+    byte    h[256];
+    byte    idx;
+    int     valid;
+    unsigned int j;
+
+    for (j = 0; j < MLDSA_N; j++) {
+        ct0[j] = 0;
+        mldsa_w24_set(w, j, mldsa_hint_r(0, 0, low));
+    }
+
+    idx = 0;
+    mldsa_make_hint_r24(ct0, w, low, omega, h, &idx, &valid);
+    if ((idx != 0) || (valid != 1)) {
+        WB_NOTE("mldsa_make_hint_r24(no-hint) unexpected");
+    }
+
+    idx = 0;
+    ct0[1] = low + 1;
+    mldsa_make_hint_r24(ct0, w, low, omega, h, &idx, &valid);
+    if ((idx != 1) || (h[0] != 1)) {
+        WB_NOTE("mldsa_make_hint_r24(v>LOW) unexpected");
+    }
+
+    idx = 0;
+    ct0[1] = 0;
+    ct0[2] = -low - 1;
+    mldsa_make_hint_r24(ct0, w, low, omega, h, &idx, &valid);
+    if ((idx != 1) || (h[0] != 2)) {
+        WB_NOTE("mldsa_make_hint_r24(v<-LOW) unexpected");
+    }
+
+    /* v == -LOW with high bits 1 gives a hint, with high bits 0 none. */
+    idx = 0;
+    ct0[2] = 0;
+    ct0[3] = -low;
+    mldsa_w24_set(w, 3, mldsa_hint_r(0, 1, low));
+    mldsa_make_hint_r24(ct0, w, low, omega, h, &idx, &valid);
+    if ((idx != 1) || (h[0] != 3)) {
+        WB_NOTE("mldsa_make_hint_r24(v==-LOW,w1!=0) unexpected");
+    }
+    idx = 0;
+    mldsa_w24_set(w, 3, mldsa_hint_r(0, 0, low));
+    mldsa_make_hint_r24(ct0, w, low, omega, h, &idx, &valid);
+    if (idx != 0) {
+        WB_NOTE("mldsa_make_hint_r24(v==-LOW,w1==0) unexpected");
+    }
+
+    idx = 0;
+    for (j = 0; j < MLDSA_N; j++) {
+        ct0[j] = low + 1;
+    }
+    mldsa_make_hint_r24(ct0, w, low, omega, h, &idx, &valid);
+    if ((valid != 0) || (idx != omega)) {
+        WB_NOTE("mldsa_make_hint_r24(too-many) expected valid = 0");
+    }
+    WB_OK(name);
+}
+
+static void wb_make_hint_r24(void)
+{
+#ifndef WOLFSSL_NO_ML_DSA_44
+    wb_make_hint_r24_level((sword32)MLDSA_Q_LOW_88, PARAMS_ML_DSA_44_OMEGA,
+        "mldsa_make_hint_r24 GAMMA2 (q-1)/88 operand + overflow pairs");
+#endif
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+    wb_make_hint_r24_level((sword32)MLDSA_Q_LOW_32, 55,
+        "mldsa_make_hint_r24 GAMMA2 (q-1)/32 operand + overflow pairs");
+#endif
+}
+
+/* ------------------------------------------------------------------ *
+ * mldsa_expand_mask_poly_add: regenerating y a block at a time must add the
+ * values mldsa_expand_mask_poly() decodes and return their checksum.
+ * ------------------------------------------------------------------ */
+static void wb_expand_mask_poly_add(void)
+{
+    wc_Shake shake;
+    byte seed[MLDSA_Y_SEED_SZ];
+    byte v[MLDSA_MAX_V_BLOCKS * WC_SHA3_256_COUNT * 8];
+    byte blk[WC_SHA3_256_COUNT * 8];
+    sword32 y[MLDSA_N];
+    sword32 z[MLDSA_N];
+    word64 chk = 0;
+    unsigned int j;
+    int b;
+    int nbits = 0;
+    byte bits[2];
+
+    if (wc_InitShake256(&shake, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mldsa_expand_mask_poly_add: SHAKE init failed");
+        return;
+    }
+#ifndef WOLFSSL_NO_ML_DSA_44
+    bits[nbits++] = MLDSA_GAMMA1_BITS_17;
+#endif
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+    bits[nbits++] = MLDSA_GAMMA1_BITS_19;
+#endif
+    for (j = 0; j < sizeof(seed); j++) {
+        seed[j] = (byte)(j * 3 + 1);
+    }
+    for (b = 0; b < nbits; b++) {
+        for (j = 0; j < MLDSA_N; j++) {
+            z[j] = (sword32)j;
+        }
+        if ((mldsa_expand_mask_poly(&shake, seed, 7, bits[b], y, v) != 0) ||
+                (mldsa_expand_mask_poly_add(&shake, seed, 7, bits[b], z, blk,
+                    &chk) != 0)) {
+            WB_NOTE("mldsa_expand_mask_poly_add: expansion failed");
+            continue;
+        }
+        for (j = 0; j < MLDSA_N; j++) {
+            if (z[j] != y[j] + (sword32)j) {
+                WB_NOTE("mldsa_expand_mask_poly_add: values differ");
+                break;
+            }
+        }
+        if (chk != mldsa_poly_checksum(y)) {
+            WB_NOTE("mldsa_expand_mask_poly_add: checksum differs");
+        }
+    }
+    wc_Shake256_Free(&shake);
+    WB_OK("mldsa_expand_mask_poly_add matches mldsa_expand_mask_poly");
+}
 #endif /* WOLFSSL_MLDSA_SIGN_SMALLEST_MEM */
+
+#if ((!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+      defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)) || \
+     (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+      defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM))) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+/* ------------------------------------------------------------------ *
+ * mldsa_rej_ntt_poly_mul_acc: sampling A straight into the multiply must
+ * give the sums of mldsa_rej_ntt_poly_ex() followed by the multiply.
+ * ------------------------------------------------------------------ */
+static void wb_rej_ntt_poly_mul_acc(void)
+{
+    wc_Shake shake;
+    byte seed[MLDSA_GEN_A_SEED_SZ];
+    byte h[MLDSA_REJ_NTT_POLY_H_SIZE];
+    sword32 a[MLDSA_N];
+    sword32 y[MLDSA_N];
+    sword32 ref[MLDSA_N];
+    sword32 w[MLDSA_N];
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
+    byte w24[MLDSA_W24_POLY_SIZE];
+#endif
+    unsigned int j;
+    int bad = 0;
+
+    if (wc_InitShake128(&shake, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mldsa_rej_ntt_poly_mul_acc: SHAKE init failed");
+        return;
+    }
+    for (j = 0; j < sizeof(seed); j++) {
+        seed[j] = (byte)(j + 5);
+    }
+    for (j = 0; j < MLDSA_N; j++) {
+        y[j] = (sword32)((j * 7919U) % MLDSA_Q) - (MLDSA_Q / 2);
+        w[j] = (sword32)j;
+    }
+    if ((mldsa_rej_ntt_poly_ex(&shake, seed, a, h) != 0) ||
+            (mldsa_rej_ntt_poly_mul_acc(&shake, seed, y, w, NULL, 0, h) !=
+             0)) {
+        WB_NOTE("mldsa_rej_ntt_poly_mul_acc: sampling failed");
+        wc_Shake128_Free(&shake);
+        return;
+    }
+    for (j = 0; j < MLDSA_N; j++) {
+        ref[j] = (sword32)j + mldsa_mont_red((sword64)a[j] * y[j]);
+        bad |= (w[j] != ref[j]);
+    }
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
+    /* First column, then a second accumulated onto it, mod Q. */
+    if ((mldsa_rej_ntt_poly_mul_acc(&shake, seed, y, NULL, w24, 1, h) != 0) ||
+        (mldsa_rej_ntt_poly_mul_acc(&shake, seed, y, NULL, w24, 0, h) != 0)) {
+        bad = 1;
+    }
+    for (j = 0; (!bad) && (j < MLDSA_N); j++) {
+        sword32 t = mldsa_mont_red((sword64)a[j] * y[j]);
+        sword32 e = (sword32)(((sword64)t + t + 2 * (sword64)MLDSA_Q) %
+            MLDSA_Q);
+        bad |= (mldsa_w24_get(w24, j) != e);
+    }
+#endif
+    if (bad) {
+        WB_NOTE("mldsa_rej_ntt_poly_mul_acc: sums differ");
+    }
+    wc_Shake128_Free(&shake);
+    WB_OK("mldsa_rej_ntt_poly_mul_acc matches sample then multiply");
+}
+#endif
 
 /* ------------------------------------------------------------------ *
  * mldsa_check_hint: two inner loop decisions that the 3-outcome test
@@ -486,6 +689,7 @@ static void wb_check_hint_inner_loops(void)
  * gamma2 dispatch (88 arm / 32 arm / neither).
  * ------------------------------------------------------------------ */
 #ifndef WOLFSSL_MLDSA_NO_SIGN
+#ifndef WOLFSSL_MLDSA_SIGN_SMALLEST_MEM
 #ifndef WOLFSSL_NO_ML_DSA_44
 static void wb_make_hint_88(void)
 {
@@ -632,6 +836,7 @@ static void wb_make_hint_32(void)
     WB_OK("mldsa_make_hint_32 operand + overflow pairs exercised");
 }
 #endif /* ML_DSA_65 || ML_DSA_87 */
+#endif /* !WOLFSSL_MLDSA_SIGN_SMALLEST_MEM */
 
 #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
 static void wb_make_hint_dispatch(void)
@@ -1743,12 +1948,24 @@ int main(void)
     defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
     wb_poly_checksum();
 #endif
+#if ((!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+      defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)) || \
+     (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+      defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM))) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    wb_rej_ntt_poly_mul_acc();
+#endif
 #ifndef WOLFSSL_MLDSA_NO_SIGN
+#ifdef WOLFSSL_MLDSA_SIGN_SMALLEST_MEM
+    wb_make_hint_r24();
+    wb_expand_mask_poly_add();
+#else
 #ifndef WOLFSSL_NO_ML_DSA_44
     wb_make_hint_88();
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
     wb_make_hint_32();
+#endif
 #endif
 #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
     wb_make_hint_dispatch();

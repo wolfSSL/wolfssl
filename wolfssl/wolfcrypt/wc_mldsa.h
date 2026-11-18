@@ -627,6 +627,12 @@ typedef struct wc_MlDsaParams MlDsaParams;
     !defined(WC_MLDSA_CACHE_PUB_VECTORS)
     #define MLDSA_VERIFY_SPARSE_C
 #endif
+/* POLY64 applies to the small memory verify but not the smallest. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+    defined(WOLFSSL_MLDSA_SMALL_MEM_POLY64) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    #define MLDSA_VERIFY_POLY64
+#endif
 
 #ifdef WC_MLDSA_NONBLOCK
 /* Resumable state for a non-blocking ML-DSA operation. Attach one to a key with
@@ -657,6 +663,7 @@ typedef struct wc_MlDsaNonBlock {
     /* What the operation is bound to. keygen: seed. sign: rnd||mu.
      * verify: digest of the signature||mu. */
     byte   seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    wc_Shake* shake; /* verify: w1 hash in work that is set up, or NULL */
 } wc_MlDsaNonBlock;
 #endif /* WC_MLDSA_NONBLOCK */
 
@@ -762,14 +769,19 @@ struct wc_MlDsaKey {
     sword32 c[MLDSA_N];
 #endif
     sword32 w[MLDSA_N];
+#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+    wc_Shake w1Shake;                    /* hashes mu and w1 a poly at a time */
+    byte h[MLDSA_GEN_A_BLOCK_BYTES];
+#else
     /* One t1 polynomial, also used for a polynomial of A. Not named t1 as
      * WC_MLDSA_CACHE_PUB_VECTORS already has a member of that name. */
     sword32 vt1[MLDSA_N];
     byte w1e[MLDSA_MAX_W1_ENC_SZ];
-#ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+#ifdef MLDSA_VERIFY_POLY64
     sword64 t64[MLDSA_N];
 #endif
     byte h[MLDSA_REJ_NTT_POLY_H_SIZE];
+#endif
 #endif /* WOLFSSL_MLDSA_VERIFY_NO_MALLOC &&
         * WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
 };
