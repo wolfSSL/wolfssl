@@ -1228,6 +1228,96 @@ static void wb_healthtest512_uninstantiate_fault(void)
 #endif
 
 /* --------------------------------------------------------------------------
+ * 9b. wc_FreeRng() / RngInitWipe() uninstantiate-fault chains:
+ *      :8139  (ret == 0) && (uninst_ret != 0)   and the sibling (uninst_ret
+ *             != 0) && (ret == 0) forms across the SHA-256 / SHA-512 DRBG
+ *             and scratch-buffer free paths.
+ *
+ * The public boundary always succeeds on the non-DRBG steps of a free, so
+ * ret == 0 there; the only way uninst_ret goes nonzero is a failed
+ * Uninstantiate, whose single cause is the ForceZero() zero-check. The
+ * faultable ForceZero armed for the DRBG-struct size skips exactly that
+ * wipe, so Uninstantiate reports DRBG_FAILURE deterministically. The false
+ * side (uninst_ret == 0) is driven by every clean free elsewhere in this
+ * whitebox; this drives the true side.
+ * ----------------------------------------------------------------------- */
+static void wb_free_uninstantiate_fault(void)
+{
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && !defined(WC_NO_RNG)
+    WC_RNG rng;
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng_ex(&rng, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("free-uninst: init failed");
+        wb_fail = 1;
+        return;
+    }
+    mcdc_fz_arm(sizeof(DRBG_internal));
+    (void)wc_FreeRng(&rng);
+    mcdc_fz_disarm();
+    WB_NOTE("free uninstantiate-fault rows driven (SHA-256)");
+#endif
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG)
+    WC_RNG rng512;
+    XMEMSET(&rng512, 0, sizeof(rng512));
+    if (wc_InitRng_ex(&rng512, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("free-uninst: 512 init failed");
+        wb_fail = 1;
+        return;
+    }
+    mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
+    (void)wc_FreeRng(&rng512);
+    mcdc_fz_disarm();
+    WB_NOTE("free uninstantiate-fault rows driven (SHA-512)");
+#endif
+
+    /* _InitRng() cleanup uninst chains: a failed Instantiate (first Hash_df
+     * faulted) that then faulted the cleanup Uninstantiate. Drives the
+     * (ret != 0) && (uninst_ret != 0) / (ret == 0) && (uninst_ret != 0)
+     * rows in the init-failure teardown. */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && !defined(WC_NO_RNG) \
+    && defined(MCDC_FH_HAVE_SHA256)
+    WC_RNG rnf;
+    XMEMSET(&rnf, 0, sizeof(rnf));
+    mcdc_fh_arm(1);
+    mcdc_fz_arm(sizeof(DRBG_internal));
+    (void)wc_InitRng_ex(&rnf, NULL, INVALID_DEVID);
+    mcdc_fz_disarm();
+    mcdc_fh_disarm();
+    WB_NOTE("init-failure uninst-fault rows driven");
+#endif
+}
+
+/* --------------------------------------------------------------------------
+ * 9c. Recovery reseed fault rows: wc_RNG_DRBG_Reseed_Now() on an
+ *     entropy-invalidated instance with the reseed hash faulted, so the
+ *     recovery path reports a nonzero verdict (the (ret != 0) && (ret !=
+ *     NEEDS_RECOVERY_E) / (ret != 0) && (rng->status == DRBG_OK) rows).
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && !defined(WC_NO_RNG) \
+    && defined(MCDC_FH_HAVE_SHA256)
+static void wb_recovery_reseed_fault(void)
+{
+    WC_RNG rng;
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng_ex(&rng, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("recovery-reseed: init failed");
+        wb_fail = 1;
+        return;
+    }
+    /* Invalidate the entropy so the next reseed takes the recovery path. */
+    (void)wc_RNG_invalidate_entropy(&rng);
+    mcdc_fh_arm(1);
+    (void)wc_RNG_DRBG_Reseed_Now(&rng, NULL, 0);
+    mcdc_fh_disarm();
+    (void)wc_FreeRng(&rng);
+    WB_NOTE("recovery reseed-fault rows driven");
+}
+#else
+static void wb_recovery_reseed_fault(void)
+{ WB_NOTE("recovery reseed fault: not compiled in this variant; skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
  * 10. wc_RNG_DRBG_GetReseedCtr() DRBG-type rows:
  *      :1354  (rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)
  *      :1360  (rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)
@@ -1354,6 +1444,8 @@ int main(void)
     wb_init_flags();
     wb_healthtest_uninstantiate_fault();
     wb_healthtest512_uninstantiate_fault();
+    wb_free_uninstantiate_fault();
+    wb_recovery_reseed_fault();
     wb_drbg_reseedctr_type_rows();
     wb_stir_nonce_null_rng();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
