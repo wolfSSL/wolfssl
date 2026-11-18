@@ -44,6 +44,7 @@ int test_wc_Sha224_other(void);
 int test_wc_Sha224Copy(void);
 int test_wc_Sha224GetHash(void);
 int test_wc_Sha224_Flags(void);
+int test_wc_Sha224_Sha256_MixedFinal(void);
 
 #define TEST_SHA256_DECLS                               \
     TEST_DECL_GROUP("sha256", test_wc_InitSha256),      \
@@ -66,6 +67,7 @@ int test_wc_Sha224_Flags(void);
     TEST_DECL_GROUP("sha224", test_wc_Sha224_other),    \
     TEST_DECL_GROUP("sha224", test_wc_Sha224Copy),      \
     TEST_DECL_GROUP("sha224", test_wc_Sha224GetHash),   \
-    TEST_DECL_GROUP("sha224", test_wc_Sha224_Flags)
+    TEST_DECL_GROUP("sha224", test_wc_Sha224_Flags),    \
+    TEST_DECL_GROUP("sha224", test_wc_Sha224_Sha256_MixedFinal)
 
 #endif /* WOLFCRYPT_TEST_SHA256_H */
