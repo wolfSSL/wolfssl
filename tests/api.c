@@ -42980,8 +42980,13 @@ static int test_override_alt_cert_chain(void)
 }
 #endif
 
+/* WOLFSSL_ALT_CERT_CHAINS and Apple native validation both clear a chain CA's
+ * missing-issuer error before the verify callback runs, so there is nothing
+ * for it to let through. */
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_ALT_CERT_CHAINS)
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_ALT_CERT_CHAINS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION)
 /* Check if err is "no signer", also accounting for OPENSSL_EXTRA */
 static int test_chain_ca_no_persist_is_no_signer(int err)
 {

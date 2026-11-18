@@ -6473,6 +6473,7 @@ static int test_ocsp_ctx_request_rotate_cert(WOLFSSL_CTX* ctx,
     return EXPECT_RESULT();
 }
 
+#ifndef WOLFSSL_ALT_CERT_CHAINS
 /* A stapled OCSP response signed by a CA that only this connection holds,
  * because the verify callback let it through. The responder is not in the
  * certificate manager, so the staple verifies only when the connection's own
@@ -6578,6 +6579,12 @@ int test_ocsp_staple_signed_by_waived_ca(void)
 
     return EXPECT_RESULT();
 }
+#else
+int test_ocsp_staple_signed_by_waived_ca(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* !WOLFSSL_ALT_CERT_CHAINS */
 
 /* The cached leaf request is built from the CTX certificate, so it has to go
  * when that certificate is replaced. Otherwise every later connection asks the
