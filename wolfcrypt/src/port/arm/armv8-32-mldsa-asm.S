@@ -187,7 +187,7 @@ L_mldsa_arm32_ntt_consts:
 	.p2align	3
 #endif /* __APPLE__ */
 L_mldsa_arm32_ntt_zetas_p:
-	.long	L_mldsa_arm32_ntt_zetas
+	.long	L_mldsa_arm32_ntt_zetas - L_mldsa_arm32_ntt_zetas_p
 	.text
 	.align	4
 	.globl	mldsa_ntt_neon
@@ -199,7 +199,8 @@ mldsa_ntt_neon:
 	vld1.8	{q0}, [r1]
 	vdup.32	q1, d0[1]
 	adr	r2, L_mldsa_arm32_ntt_zetas_p
-	ldr	r2, [r2]
+	ldr	r1, [r2]
+	add	r2, r2, r1
 	add	r2, r2, #4
 	# len = 128
 	ldr	r1, [r2], #4
@@ -4060,7 +4061,7 @@ L_mldsa_arm32_invntt_consts:
 	.p2align	3
 #endif /* __APPLE__ */
 L_mldsa_arm32_invntt_zetas_p:
-	.long	L_mldsa_arm32_invntt_zetas
+	.long	L_mldsa_arm32_invntt_zetas - L_mldsa_arm32_invntt_zetas_p
 	.text
 	.align	4
 	.globl	mldsa_invntt_neon
@@ -4072,7 +4073,8 @@ mldsa_invntt_neon:
 	vld1.8	{q0}, [r1]
 	vdup.32	q1, d0[1]
 	adr	r2, L_mldsa_arm32_invntt_zetas_p
-	ldr	r2, [r2]
+	ldr	r1, [r2]
+	add	r2, r2, r1
 	# len = 1
 	add	r3, r0, #0
 	vld1.8	{q4}, [r3]
