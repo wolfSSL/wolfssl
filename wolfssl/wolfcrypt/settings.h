@@ -670,6 +670,12 @@
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
+/* dh.c is module code before FIPS v7 and outside the v7 module. */
+#if defined(_WC_BUILDING_DH_C) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_LT(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)
