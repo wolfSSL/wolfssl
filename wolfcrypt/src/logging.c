@@ -1520,6 +1520,10 @@ int wc_PopErrorNodesToMark(void)
         }
         removeErrorNode(-1);
     }
+    if (ret == 0) {
+        /* Also drop the entries that were already read. */
+        clearErrorNodes();
+    }
 
     ERRQ_UNLOCK();
     return ret;

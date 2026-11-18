@@ -22760,6 +22760,7 @@ static int test_wolfSSL_ERR_set_mark(void)
     ExpectIntEQ(ERR_set_mark(), 0);
     ERR_put_error(0, 0, errB, "test", 21);
     ExpectIntEQ(ERR_pop_to_mark(), 0);
+    ExpectIntEQ(ERR_peek_last_error(), 0);
     ExpectIntEQ(ERR_get_error(), 0);
 
     ERR_clear_error();
