@@ -330,6 +330,9 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->len  = 0;
     sha256->used = 0;
 #endif
+#ifdef WC_HASH_CHECK_VARIANT
+    sha256->digestSz = WC_SHA256_DIGEST_SIZE;
+#endif
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
@@ -2524,6 +2527,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (sha256 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
+    #ifdef WC_HASH_CHECK_VARIANT
+        if (sha256->digestSz != WC_SHA256_DIGEST_SIZE) {
+            return BAD_STATE_E;
+        }
+    #endif
     #if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(LITTLE_ENDIAN_ORDER) && \
         !defined(WOLFSSL_WIDE_BYTE)
         wc_MemZero_Add("wc_Sha256FinalRaw digest", digest, sizeof(digest));
@@ -2557,6 +2565,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (sha256 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
+    #ifdef WC_HASH_CHECK_VARIANT
+        if (sha256->digestSz != WC_SHA256_DIGEST_SIZE) {
+            return BAD_STATE_E;
+        }
+    #endif
 
     #ifdef WOLF_CRYPTO_CB
         #ifndef WOLF_CRYPTO_CB_FIND
@@ -2995,6 +3008,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         XMEMSET(sha224->buffer, 0, sizeof(sha224->buffer));
         sha224->loLen   = 0;
         sha224->hiLen   = 0;
+    #ifdef WC_HASH_CHECK_VARIANT
+        sha224->digestSz = WC_SHA224_DIGEST_SIZE;
+    #endif
 
     #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
@@ -3180,6 +3196,11 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         if (sha224 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
+    #ifdef WC_HASH_CHECK_VARIANT
+        if (sha224->digestSz != WC_SHA224_DIGEST_SIZE) {
+            return BAD_STATE_E;
+        }
+    #endif
     #ifdef WOLF_CRYPTO_CB
         #ifndef WOLF_CRYPTO_CB_FIND
         if (sha224->devId != INVALID_DEVID)

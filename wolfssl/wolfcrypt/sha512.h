@@ -221,6 +221,9 @@ struct wc_Sha512 {
 #if defined(WOLFSSL_SHA512_HASHTYPE)
     int hashType; /* used to determine which SHA512 is used */
 #endif /* WOLFSSL_SHA512_HASHTYPE */
+#ifdef WC_HASH_CHECK_VARIANT
+    word32 digestSz; /* digest size of the variant set by Init */
+#endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };
 

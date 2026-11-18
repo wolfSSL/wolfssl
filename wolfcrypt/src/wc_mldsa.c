@@ -1699,6 +1699,12 @@ WC_MAYBE_UNUSED static int mldsa_squeeze256(wc_Shake* shake256,
         ret = wc_Shake256_SqueezeBlocks(shake256, out, outBlocks);
     }
 #endif
+#if defined(WC_HASH_CHECK_VARIANT) && \
+    (defined(USE_INTEL_SPEEDUP) || defined(MLDSA_SHAKE_DIRECT))
+    /* State above is absorbed at the SHAKE256 rate, so a refill may squeeze. */
+    shake256->count = WC_SHA3_256_COUNT;
+    shake256->absorbed = 1;
+#endif
 
     return ret;
 }

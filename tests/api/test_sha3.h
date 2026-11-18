@@ -69,6 +69,7 @@ int test_wc_Kmac_Copy(void);
 int test_wc_Cshake128(void);
 int test_wc_Cshake256(void);
 int test_wc_Cshake_Copy(void);
+int test_wc_Sha3_MixedRate(void);
 
 #define TEST_SHA3_DECLS                             \
     TEST_DECL_GROUP("sha3", test_wc_InitSha3),      \
@@ -81,7 +82,8 @@ int test_wc_Cshake_Copy(void);
     TEST_DECL_GROUP("sha3", test_wc_Sha3_other),    \
     TEST_DECL_GROUP("sha3", test_wc_Sha3_Copy),     \
     TEST_DECL_GROUP("sha3", test_wc_Sha3_GetHash),  \
-    TEST_DECL_GROUP("sha3", test_wc_Sha3_Flags)
+    TEST_DECL_GROUP("sha3", test_wc_Sha3_Flags),    \
+    TEST_DECL_GROUP("sha3", test_wc_Sha3_MixedRate)
 
 #define TEST_SHAKE128_DECLS                                         \
     TEST_DECL_GROUP("shake128", test_wc_InitShake128),              \

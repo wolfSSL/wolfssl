@@ -303,6 +303,9 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
+#ifdef WC_HASH_CHECK_VARIANT
+    word32 digestSz; /* digest size of the variant set by Init */
+#endif
 };
 
 #ifndef WC_SHA256_TYPE_DEFINED
