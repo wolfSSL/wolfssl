@@ -351,6 +351,9 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
 #endif
     int           ret;
     int           validated      = 0;    /* ocsp validation flag */
+#ifndef NO_CERTS
+    Signer*       waivedTail     = NULL;
+#endif
 
     (void)heap;
 
@@ -377,9 +380,12 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     if (ssl != NULL && TLSX_CSR2_IsMulti(ssl->extensions)) {
         ocspResponse->pendingCAs = TLSX_CSR2_GetPendingSigners(ssl->extensions);
     }
-#else
-    (void)ssl;
 #endif
+#ifndef NO_CERTS
+    ocspResponse->pendingCAs = SslWaivedCAsJoin(ssl, ocspResponse->pendingCAs,
+                                                &waivedTail);
+#endif
+    (void)ssl;
     ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0, 0);
     if (ret != 0) {
         ocsp->error = ret;
@@ -414,6 +420,17 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     if (ret == 0) {
         validated = 1;
     }
+
+#ifndef NO_CERTS
+    /* A status reached through a signer only this connection trusts must not
+     * get into the manager-wide cache, otherwise later connections reuse it
+     * without trusting the signer. */
+    if (ocspResponse->pendingSigner) {
+        WOLFSSL_MSG("OCSP status not cached, signer is connection local");
+        status = NULL;
+        entry = NULL;
+    }
+#endif
 
     if (wc_LockMutex(&ocsp->ocspLock) != 0) {
         ret = BAD_MUTEX_E;
@@ -455,6 +472,9 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     wc_UnLockMutex(&ocsp->ocspLock);
 
 end:
+#ifndef NO_CERTS
+    SslWaivedCAsSplit(waivedTail);
+#endif
     if (ret == 0 && validated == 1) {
         WOLFSSL_MSG("New OcspResponse validated");
     }

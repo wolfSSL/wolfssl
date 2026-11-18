@@ -888,6 +888,7 @@ static int cm_verify_err_overridable(int err)
  * @param [in] format    Format of encoding. Valid values:
  *                         WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] prev_err  Previous error. Passed to callback.
+ * @param [in] extraCa   Signers to search besides the manager's. May be NULL.
  * @param [out] crlErr   CRL result, not merged into the return value. May be
  *                       NULL.
  * @return  WOLFSSL_SUCCESS on success.
@@ -896,7 +897,7 @@ static int cm_verify_err_overridable(int err)
  *          the wolfSSL build.
  */
 int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
-    long sz, int format, int prev_err, int* crlErr)
+    Signer* extraCa, long sz, int format, int prev_err, int* crlErr)
 {
     int ret = 0;
     int crlRet = 0;
@@ -954,14 +955,14 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
         /* Parse DER into decoded certificate fields and verify signature
          * against a known CA. */
-        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, NULL);
+        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, extraCa);
      }
 
 #ifdef HAVE_CRL
     if (cm->crlEnabled && ((ret == 0) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
-        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert);
+        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert, extraCa);
         if (crlRet != 0) {
             WOLFSSL_MSG("CheckCertCRL failed");
         }
@@ -1097,7 +1098,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
     }
     else {
         /* No previous error. */
-        ret = CM_VerifyBuffer_ex(cm, buff, sz, format, 0, NULL);
+        ret = CM_VerifyBuffer_ex(cm, buff, NULL, sz, format, 0, NULL);
     }
 
     return ret;
@@ -2145,7 +2146,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
                 /* A date error is returned only after the parse completed,
                  * so still answer the revocation question that was asked. */
                 ret = cm_crl_merge(ret,
-                    CheckCertCRLFromCm(cm, cm->crl, cert));
+                    CheckCertCRLFromCm(cm, cm->crl, cert, NULL));
             }
 
             /* Dispose of dynamically allocated memory. */

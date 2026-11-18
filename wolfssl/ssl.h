@@ -741,6 +741,9 @@ struct WOLFSSL_X509_STORE_CTX {
 #endif
     int   peerCertDepth;         /* depth of current_cert in the peer's chain,
                                   * set by the handshake */
+    struct Signer* extraCa;      /* chain CAs the connection's verify callback
+                                  * accepted, set by the handshake. Not owned
+                                  * by this ctx. */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 };
 
@@ -4198,8 +4201,9 @@ enum {
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2,          /* added to cache from trusted chain */
-    WOLFSSL_TEMP_CA  = 3,          /* Temp intermediate CA, only for use by
-                                    * X509_STORE */
+    WOLFSSL_TEMP_CA  = 3,          /* Temp intermediate CA, scoped to a single
+                                    * X509_STORE verification or Certificate
+                                    * message */
     WOLFSSL_USER_INTER = 4         /* user added intermediate cert */
 };
 

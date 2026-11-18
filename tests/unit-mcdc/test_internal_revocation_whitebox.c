@@ -91,9 +91,10 @@ static int mcdc_OcspNoUrlPolicy(WOLFSSL_CERT_MANAGER* cm)
 #endif
 
 #ifdef HAVE_CRL
-static int mcdc_CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+static int mcdc_CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
+        Signer* extraCa)
 {
-    (void)crl; (void)cert;
+    (void)crl; (void)cert; (void)extraCa;
     g_crlCalls++;
     return g_crlRet;
 }
@@ -103,10 +104,11 @@ static int mcdc_CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
  * answer. */
 static int mcdc_CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName)
+        int extCrlInfoSz, void* issuerName, Signer* extraCa)
 {
     (void)crl; (void)issuerHash; (void)serial; (void)serialSz;
     (void)serialHash; (void)extCrlInfo; (void)extCrlInfoSz; (void)issuerName;
+    (void)extraCa;
     g_crlCalls++;
     return g_crlRet;
 }
@@ -120,9 +122,9 @@ static int mcdc_CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
     #define OcspNoUrlPolicy(a)         mcdc_OcspNoUrlPolicy((a))
 #endif
 #ifdef HAVE_CRL
-    #define CheckCertCRL(a, b)         mcdc_CheckCertCRL((a), (b))
-    #define CheckCertCRL_ex(a, b, c, d, e, f, g, h) \
-        mcdc_CheckCertCRL_ex((a), (b), (c), (d), (e), (f), (g), (h))
+    #define CheckCertCRL(a, b, c)      mcdc_CheckCertCRL((a), (b), (c))
+    #define CheckCertCRL_ex(a, b, c, d, e, f, g, h, i) \
+        mcdc_CheckCertCRL_ex((a), (b), (c), (d), (e), (f), (g), (h), (i))
 #endif
 
 #include <src/internal.c>

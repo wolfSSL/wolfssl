@@ -25178,7 +25178,8 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
 
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
-int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
+int ParseCertEx(DecodedCert* cert, int type, int verify,
+                WOLFSSL_CERT_MANAGER* cm, Signer* extraCa)
 {
     int   ret;
 #if (!defined(WC_ASN_NO_HEAP) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
@@ -25186,7 +25187,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
     char* ptr;
 #endif
 
-    ret = ParseCertRelative(cert, type, verify, cm, NULL);
+    ret = ParseCertRelative(cert, type, verify, cm, extraCa);
     if (ret < 0)
         return ret;
 
@@ -25227,6 +25228,11 @@ int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
 #endif
 
     return ret;
+}
+
+int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
+{
+    return ParseCertEx(cert, type, verify, cm, NULL);
 }
 
 int wc_ParseCert(DecodedCert* cert, int type, int verify,
@@ -25952,12 +25958,8 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
                                       Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-    #ifndef NO_SKID
+#ifndef NO_SKID
     Signer* exCaSigner;
-    #endif
-#else
-    (void)extraCAList;
 #endif
 
 #ifndef NO_SKID
@@ -25978,7 +25980,6 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
     signer = GetCA(cm, cert->issuerNameHash);
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     if (signer == NULL && extraCAList != NULL) {
     #ifndef NO_SKID
         if (cert->authKeyIdSet) {
@@ -26003,7 +26004,6 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
         signer = findSignerByName(extraCAList, cert->issuerNameHash);
     #endif
     }
-#endif
 
     return signer;
 }
@@ -26587,11 +26587,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
         if (!cert->selfIssued || (verify != NO_VERIFY && type != CA_TYPE &&
                                                    type != TRUSTED_PEER_TYPE)) {
             cert->ca = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-        if (extraCAList != NULL) {
-            cert->ca = findSignerByName(extraCAList, cert->issuerHash);
-        }
-#endif
     #ifndef NO_SKID
             if (cert->ca == NULL && cert->extAuthKeyIdSet) {
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
@@ -26647,8 +26642,34 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             }
         #endif /* WOLFSSL_NO_TRUSTED_CERTS_VERIFY */
     #else
-            cert->ca = GetCA(cm, cert->issuerHash);
+            if (cert->ca == NULL)
+                cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
+
+            if (cert->ca == NULL && extraCAList != NULL) {
+        #ifndef NO_SKID
+                if (cert->extAuthKeyIdSet) {
+                    Signer* exCa;
+
+                    for (exCa = extraCAList; exCa != NULL; exCa = exCa->next) {
+                        if (XMEMCMP(exCa->subjectKeyIdHash,
+                                    cert->extAuthKeyId,
+                                    SIGNER_DIGEST_SIZE) == 0 &&
+                            XMEMCMP(exCa->subjectNameHash, cert->issuerHash,
+                                    SIGNER_DIGEST_SIZE) == 0) {
+                            cert->ca = exCa;
+                            break;
+                        }
+                    }
+                    /* AKID is authoritative; do not fall back to name. */
+                }
+                else
+        #endif
+                {
+                    cert->ca = findSignerByName(extraCAList,
+                                                cert->issuerHash);
+                }
+            }
 
             if (cert->ca) {
                 WOLFSSL_MSG("CA found");
@@ -38197,26 +38218,44 @@ static Signer *OcspFindSigner(OcspResponse *resp, WOLFSSL_CERT_MANAGER *cm)
         if (s)
             return s;
     }
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#ifndef NO_CERTS
     if (resp->pendingCAs == NULL)
         return NULL;
 
     if (resp->responderIdType == OCSP_RESPONDER_ID_NAME) {
         s = findSignerByName(resp->pendingCAs, resp->responderId.nameHash);
-        if (s)
+        if (s) {
+            resp->pendingSigner = 1;
             return s;
+        }
     }
     else if (KEYID_SIZE >= OCSP_RESPONDER_ID_KEY_SZ) {
         byte keyHash[KEYID_SIZE];
         XMEMSET(keyHash, 0, KEYID_SIZE);
         XMEMCPY(keyHash, resp->responderId.keyHash, OCSP_RESPONDER_ID_KEY_SZ);
         s = findSignerByKeyHash(resp->pendingCAs, keyHash);
-        if (s)
+        if (s) {
+            resp->pendingSigner = 1;
             return s;
+        }
     }
 #endif
     return NULL;
 }
+
+#ifndef NO_CERTS
+static int OcspSignerInList(const Signer* list, const Signer* signer)
+{
+    const Signer* s;
+
+    for (s = list; s != NULL; s = s->next) {
+        if (s == signer)
+            return 1;
+    }
+
+    return 0;
+}
+#endif
 
 static int OcspCheckCert(OcspResponse *resp, int noVerify,
     int noVerifySignature, WOLFSSL_CERT_MANAGER *cm, void *heap)
@@ -38242,6 +38281,11 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
     if (ret < 0) {
         WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
     }
+#ifndef NO_CERTS
+    if (ret == 0 && OcspSignerInList(resp->pendingCAs, cert->ca)) {
+        resp->pendingSigner = 1;
+    }
+#endif
 
     if (ret == 0 &&
             OcspRespIdMatch(resp,

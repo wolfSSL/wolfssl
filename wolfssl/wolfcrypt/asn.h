@@ -2653,6 +2653,8 @@ WOLFSSL_ASN_API int AddSignature(byte* buf, int bodySz, const byte* sig, int sig
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert* cert, int type, int verify,
                                     WOLFSSL_CERT_MANAGER* cm,
                                     Signer *extraCa);
+WOLFSSL_LOCAL int ParseCertEx(DecodedCert* cert, int type, int verify,
+                              WOLFSSL_CERT_MANAGER* cm, Signer* extraCa);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert* cert, int verify);
 #ifdef WOLFSSL_ASN_TEMPLATE
 WOLFSSL_LOCAL int DecodeCert(DecodedCert* cert, int verify, int* criticalExt);
@@ -3183,6 +3185,7 @@ struct OcspResponse {
     byte*   source;          /* pointer to source buffer, not owned */
     word32  maxIdx;          /* max offset based on init size */
     Signer* pendingCAs;
+    byte    pendingSigner;   /* verified through pendingCAs, not through cm */
     void*  heap;
 };
 

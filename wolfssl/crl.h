@@ -44,12 +44,13 @@ WOLFSSL_LOCAL int  BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz,
                                  int type, int verify);
 WOLFSSL_LOCAL int  BufferStoreCRL(WOLFSSL_CRL* crl, byte* buff, long* inOutSz,
                                   int type);
-WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert);
+WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
+        Signer* extraCa);
 WOLFSSL_LOCAL int  CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName);
+        int extCrlInfoSz, void* issuerName, Signer* extraCa);
 WOLFSSL_LOCAL int  CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm,
-        WOLFSSL_CRL* crl, DecodedCert* cert);
+        WOLFSSL_CRL* crl, DecodedCert* cert, Signer* extraCa);
 #ifdef HAVE_CRL_UPDATE_CB
 WOLFSSL_LOCAL int  GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
         long sz, int type);
