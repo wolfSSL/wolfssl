@@ -514,6 +514,7 @@ static int test_hs_ended_by_alert(WOLFSSL* ssl, const int* out)
     return EXPECT_RESULT();
 }
 
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 /* The client can't verify the server's certificate, so it sends a fatal alert
  * during the handshake and the server receives it. Neither can carry on with
  * the handshake. Both can be reused after wolfSSL_clear().
@@ -563,7 +564,9 @@ static int test_fatal_alert_in_hs(method_provider method_c,
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+#endif
 
+#ifndef WOLFSSL_NO_CLIENT_AUTH
 /* The server requires a certificate the client doesn't have, so it sends a
  * fatal alert and the client receives it. With TLS 1.3 the client finished its
  * handshake first and receives the alert when it reads.
@@ -611,6 +614,7 @@ static int test_fatal_alert_from_server(method_provider method_c,
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+#endif
 
 /* After the handshake, the server gets a record that fails authentication. It
  * sends a fatal alert, which the client receives. The handshake of neither is
@@ -748,20 +752,28 @@ int test_wolfSSL_fatal_alert_ends_hs(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
 #ifndef WOLFSSL_NO_TLS12
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
     ExpectIntEQ(test_fatal_alert_in_hs(wolfTLSv1_2_client_method,
         wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     ExpectIntEQ(test_fatal_alert_from_server(wolfTLSv1_2_client_method,
         wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
+#endif
     ExpectIntEQ(test_fatal_alert_after_hs(wolfTLSv1_2_client_method,
         wolfTLSv1_2_server_method), TEST_SUCCESS);
     ExpectIntEQ(test_no_fatal_alert(wolfTLSv1_2_client_method,
         wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
 #endif
 #ifdef WOLFSSL_TLS13
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
     ExpectIntEQ(test_fatal_alert_in_hs(wolfTLSv1_3_client_method,
         wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     ExpectIntEQ(test_fatal_alert_from_server(wolfTLSv1_3_client_method,
         wolfTLSv1_3_server_method, 1), TEST_SUCCESS);
+#endif
     ExpectIntEQ(test_fatal_alert_after_hs(wolfTLSv1_3_client_method,
         wolfTLSv1_3_server_method), TEST_SUCCESS);
     ExpectIntEQ(test_no_fatal_alert(wolfTLSv1_3_client_method,
