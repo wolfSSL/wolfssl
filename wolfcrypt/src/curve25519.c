@@ -544,13 +544,21 @@ int wc_curve25519_generic(int public_size, byte* pub,
 #ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
     return NO_VALID_DEVID;
 #elif !defined(WOLFSSL_CURVE25519_BLINDING)
-    fe_init();
+    {
+        byte bp[CURVE25519_KEYSIZE];
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        /* RFC 7748 sec 5: X25519 masks the top bit of the u-coordinate. */
+        XMEMCPY(bp, basepoint, CURVE25519_KEYSIZE);
+        bp[CURVE25519_KEYSIZE - 1] &= 0x7f;
 
-    ret = curve25519(pub, priv, basepoint);
+        fe_init();
 
-    RESTORE_VECTOR_REGISTERS();
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
+        ret = curve25519(pub, priv, bp);
+
+        RESTORE_VECTOR_REGISTERS();
+    }
 
     return ret;
 #else

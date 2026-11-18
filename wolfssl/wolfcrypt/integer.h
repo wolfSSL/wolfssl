@@ -430,7 +430,9 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     MP_API int mp_read_radix(mp_int* a, const char* str, int radix);
 #endif
 
-#if defined(WOLFSSL_KEY_GEN) || !defined(NO_RSA) || !defined(NO_DSA) || !defined(NO_DH)
+#if defined(WOLFSSL_KEY_GEN) || !defined(NO_RSA) || !defined(NO_DSA) || \
+    !defined(NO_DH) || (defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(HAVE_COMP_KEY))
     MP_API int mp_prime_is_prime (mp_int * a, int t, int *result);
     MP_API int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG* rng);
 #endif /* WOLFSSL_KEY_GEN NO_RSA NO_DSA NO_DH */
