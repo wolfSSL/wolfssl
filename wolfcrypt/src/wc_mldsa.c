@@ -1891,8 +1891,8 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s, byte d,
-    byte eta, byte* p)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s,
+    byte d, byte eta, byte* p)
 {
     return mldsa_vec_encode_eta_bits(s, d, eta, p);
 }
@@ -2367,8 +2367,8 @@ static int mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t, byte d,
-    byte* t0, byte* t1)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t,
+    byte d, byte* t0, byte* t1)
 {
     return mldsa_vec_encode_t0_t1(t, d, t0, t1);
 }
@@ -3442,7 +3442,8 @@ static int mldsa_encode_w1_88(const sword32* w1, byte* w1e)
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1,
+    byte* w1e)
 {
     return mldsa_encode_w1_88(w1, w1e);
 }
@@ -3539,7 +3540,8 @@ static int mldsa_encode_w1_32(const sword32* w1, byte* w1e)
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1,
+    byte* w1e)
 {
     return mldsa_encode_w1_32(w1, w1e);
 }

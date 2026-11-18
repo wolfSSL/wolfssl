@@ -31720,7 +31720,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 }
 
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
-    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WC_FIPS_V7_HIDDEN_APIS)
 #define MLDSA_TEST_ENC_MAX_K    8
 #define MLDSA_TEST_ENC_GUARD    32
 #define MLDSA_TEST_ENC_SZ       \
@@ -31769,7 +31769,7 @@ int test_mldsa_vec_encode_exact_len(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
-    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WC_FIPS_V7_HIDDEN_APIS)
     static const byte etas[] = {
     #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
         2,
@@ -31880,7 +31880,7 @@ int test_mldsa_encode_w1_large_values(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
-     !defined(WOLFSSL_MLDSA_NO_VERIFY))
+     !defined(WOLFSSL_MLDSA_NO_VERIFY)) && !defined(WC_FIPS_V7_HIDDEN_APIS)
 
     sword32 w1[MLDSA_N];
     unsigned int j, k;

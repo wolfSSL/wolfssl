@@ -4090,6 +4090,18 @@
     #define WOLFSSL_FIPS_EXPORT_LOCAL_APIS
 #endif
 
+/* FIPS v7 module functions that are not module services: hidden from
+ * applications unless WOLFSSL_FIPS_EXPORT_LOCAL_APIS. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_EXPORT_LOCAL_APIS)
+    #define WC_FIPS_V7_HIDDEN_APIS
+    #define WC_FIPS_V7_LOCAL          WOLFSSL_LOCAL
+    #define WC_FIPS_V7_LOCAL_TEST_VIS WOLFSSL_LOCAL
+#else
+    #define WC_FIPS_V7_LOCAL          WOLFSSL_API
+    #define WC_FIPS_V7_LOCAL_TEST_VIS WOLFSSL_TEST_VIS
+#endif
+
 /* FIPS v7: a hash state remembers its variant and refuses another one. */
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
     #undef  WC_HASH_CHECK_VARIANT

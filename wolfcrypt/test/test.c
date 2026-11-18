@@ -7890,7 +7890,8 @@ exit:
 #undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    (!defined(WC_FIPS_V7_HIDDEN_APIS) || defined(TEST_FIPS_PRIVATE_APIS))
 static wc_test_ret_t sha256_hash_block_test(wc_Sha256* sha)
 {
     byte      hash[WC_SHA256_DIGEST_SIZE];
@@ -8174,7 +8175,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     if ((ret = sha256_large_hash_test(&sha)) != 0)
         return ret;
 #endif
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    (!defined(WC_FIPS_V7_HIDDEN_APIS) || defined(TEST_FIPS_PRIVATE_APIS))
     if ((ret = sha256_hash_block_test(&sha)) != 0)
         return ret;
 #endif

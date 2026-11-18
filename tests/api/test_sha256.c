@@ -220,7 +220,7 @@ int test_wc_Sha256Transform(void)
 int test_wc_Sha256HashBlock_unaligned(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && !defined(WC_FIPS_V7_HIDDEN_APIS)
     wc_Sha256 sha256;
     byte      buf[WC_SHA256_BLOCK_SIZE * 2];
     byte      aligned[WC_SHA256_DIGEST_SIZE];

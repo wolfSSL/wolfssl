@@ -334,8 +334,8 @@ WOLFSSL_API int wc_Sha256Reset(wc_Sha256* sha256);
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
 #ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
-WOLFSSL_API int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
-    unsigned char* hash);
+WC_FIPS_V7_LOCAL int wc_Sha256HashBlock(wc_Sha256* sha,
+    const unsigned char* data, unsigned char* hash);
 #endif
 
 /* Multi-buffer SHA-256: compress several independent message blocks at once,

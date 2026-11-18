@@ -44,9 +44,11 @@ AES_CBC_encrypt_AESNI (const unsigned char *in,
 */
 #ifndef __APPLE__
 .globl AES_CBC_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_AESNI)
 AES_CBC_encrypt_AESNI:
 #else
 .globl _AES_CBC_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_AESNI)
 _AES_CBC_encrypt_AESNI:
 #endif
         # parameter 1: stack[4] => %edi
@@ -123,9 +125,11 @@ AES_CBC_decrypt_AESNI_by4 (const unsigned char *in,
 */
 #ifndef __APPLE__
 .globl AES_CBC_decrypt_AESNI_by4
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_AESNI_by4)
 AES_CBC_decrypt_AESNI_by4:
 #else
 .globl _AES_CBC_decrypt_AESNI_by4
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_AESNI_by4)
 _AES_CBC_decrypt_AESNI_by4:
 #endif
 # parameter 1: stack[4] => %edi
@@ -320,9 +324,11 @@ AES_ECB_encrypt_AESNI (const unsigned char *in,
 */
 #ifndef __APPLE__
 .globl AES_ECB_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_AESNI)
 AES_ECB_encrypt_AESNI:
 #else
 .globl _AES_ECB_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_AESNI)
 _AES_ECB_encrypt_AESNI:
 #endif
 # parameter 1: stack[4] => %edi
@@ -497,9 +503,11 @@ AES_ECB_decrypt_AESNI (const unsigned char *in,
 */
 #ifndef __APPLE__
 .globl AES_ECB_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_AESNI)
 AES_ECB_decrypt_AESNI:
 #else
 .globl _AES_ECB_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_AESNI)
 _AES_ECB_decrypt_AESNI:
 #endif
 # parameter 1: stack[4] => %edi
@@ -672,10 +680,12 @@ void AES_128_Key_Expansion_AESNI(const unsigned char* userkey,
 */
 #ifndef __APPLE__
 .globl AES_128_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_128_Key_Expansion_AESNI)
 .align  16,0x90
 AES_128_Key_Expansion_AESNI:
 #else
 .globl _AES_128_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_128_Key_Expansion_AESNI)
 .p2align  4
 _AES_128_Key_Expansion_AESNI:
 #endif
@@ -742,9 +752,11 @@ void AES_192_Key_Expansion_AESNI (const unsigned char *userkey,
 */
 #ifndef __APPLE__
 .globl AES_192_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_192_Key_Expansion_AESNI)
 AES_192_Key_Expansion_AESNI:
 #else
 .globl _AES_192_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_192_Key_Expansion_AESNI)
 _AES_192_Key_Expansion_AESNI:
 #endif
         # parameter 1: stack[4] => %eax
@@ -835,9 +847,11 @@ void AES_256_Key_Expansion_AESNI (const unsigned char *userkey,
 */
 #ifndef __APPLE__
 .globl AES_256_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_256_Key_Expansion_AESNI)
 AES_256_Key_Expansion_AESNI:
 #else
 .globl _AES_256_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_256_Key_Expansion_AESNI)
 _AES_256_Key_Expansion_AESNI:
 #endif
         # parameter 1: stack[4] => %eax
