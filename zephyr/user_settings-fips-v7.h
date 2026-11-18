@@ -35,7 +35,6 @@
 /* RNG */
 #define HAVE_HASHDRBG
 #define WOLFSSL_DRBG_SHA512
-#define WC_RNG_EXTRAS
 #define WC_RNG_SEED_CB
 
 /* Hashes and KDFs */

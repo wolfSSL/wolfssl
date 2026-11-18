@@ -4110,6 +4110,11 @@
     #define WC_HASH_CHECK_VARIANT
 #endif
 
+/* FIPS v7 user space has no RNG bank. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_LINUXKM)
+    #undef HAVE_WC_RNG_BANK
+#endif
+
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12

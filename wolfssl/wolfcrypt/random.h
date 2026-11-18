@@ -89,6 +89,21 @@
 
 /***** Setup for RNG extra features *****/
 
+/* FIPS v7 user space has no RNG extras. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_LINUXKM)
+    #undef  WC_RNG_EXTRAS
+    #undef  WC_RNG_NO_LOCK
+    #define WC_RNG_NO_LOCK
+    #undef  WC_RNG_NO_RBGC
+    #define WC_RNG_NO_RBGC
+    #undef  WC_RNG_NO_NEXT_SEED
+    #define WC_RNG_NO_NEXT_SEED
+    #undef  WC_RNG_NO_POOL
+    #define WC_RNG_NO_POOL
+    #undef  WC_RNG_NO_FREE_HOOK
+    #define WC_RNG_NO_FREE_HOOK
+#endif
+
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_LOCK)) && \
     !defined(WC_RNG_NO_LOCK) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_LOCK
