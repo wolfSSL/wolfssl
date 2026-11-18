@@ -555,6 +555,7 @@ static WC_MAYBE_UNUSED WC_INLINE int rng_lock_required_check(const WC_RNG* rng)
 #endif /* WC_RNG_HAVE_LOCK */
 }
 
+#if !FIPS_VERSION3_GE(7,0,0)
 /* Read-only accessor for the RNG health status (enum wc_RngHealthState).
  * Returns the status, or BAD_FUNC_ARG for a NULL rng. */
 int wc_RNG_GetStatus(const WC_RNG* rng)
@@ -563,9 +564,10 @@ int wc_RNG_GetStatus(const WC_RNG* rng)
         return BAD_FUNC_ARG;
     return (int)rng->status;
 }
+#endif
 
-/* Like wc_RNG_GetStatus(), but precomputes an appropriate return code. */
-int wc_RNG_Status(const WC_RNG *rng) {
+/* Return code for the RNG health status: 0 only when the DRBG is in service. */
+static int RngStatus(const WC_RNG *rng) {
     if (rng == NULL)
         return BAD_FUNC_ARG;
     switch (rng->status) {
@@ -583,10 +585,17 @@ int wc_RNG_Status(const WC_RNG *rng) {
     /* not reached */
 }
 
+#if !FIPS_VERSION3_GE(7,0,0)
+int wc_RNG_Status(const WC_RNG *rng)
+{
+    return RngStatus(rng);
+}
+#endif
+
 /* Returns 1 if rng has an instantiated DRBG, else 0.  An in-service WC_RNG can
  * lack one: _InitRng() in HAVE_INTEL_RDRAND configurations bypasses DRBG
  * instantiation when the CPU has RDRAND (). */
-int wc_RNG_DRBG_Present(const WC_RNG* rng)
+static int RngDrbgPresent(const WC_RNG* rng)
 {
     if (rng == NULL)
         return 0;
@@ -599,6 +608,12 @@ int wc_RNG_DRBG_Present(const WC_RNG* rng)
         return 1;
 #endif
     return 0;
+}
+
+#if !FIPS_VERSION3_GE(7,0,0)
+int wc_RNG_DRBG_Present(const WC_RNG* rng)
+{
+    return RngDrbgPresent(rng);
 }
 
 /* Post-init flag policy, shared by wc_RNG_{Set,Clear}Flags(): a flag RMW is
@@ -672,6 +687,7 @@ int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags)
     *flags = rng->flags;
     return 0;
 }
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
 
 #ifdef WC_RNG_HAVE_POOL
 static WARN_UNUSED_RESULT int PoolPurge(WC_RNG* rng);
@@ -695,7 +711,13 @@ static WARN_UNUSED_RESULT int PoolPurge(WC_RNG* rng);
 
 #endif
 
+#if !FIPS_VERSION3_GE(7,0,0)
 static WC_MAYBE_UNUSED int rng_entropy_event_propagate(WC_RNG* rng);
+#endif
+static int RngNeedsRecovery(WC_RNG* rng);
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+static int RngReseedNow(WC_RNG* rng, const byte* addIn, word32 addInSz);
+#endif
 
 /* A seeding operation captures the PID before acquiring material, as it does
  * the entropy epoch, and stamps the captured value at completion: a fork in
@@ -911,8 +933,8 @@ static void RngAutoLockFree(WC_RNG* rng)
     wc_ForkLock_Free(&rng->autoLock);
 }
 
-/* The child's stale DRBG state is dealt with by wc_RNG_entropy_needs_recovery()
- * on the generate path, which the fork handlers require. */
+/* The child's stale DRBG state is dealt with by RngNeedsRecovery() on the
+ * generate path, which the fork handlers require. */
 static int RngAutoLockEnter(WC_RNG* rng)
 {
     return wc_ForkLock_Enter(rng->autoLock);
@@ -1393,7 +1415,7 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
 
     /* Never allow an undersized seed to clear an invalidated state. */
     if ((seedSz < WC_DRBG_SEED_SZ) &&
-        (wc_RNG_entropy_needs_recovery(rng) != 0))
+        (RngNeedsRecovery(rng) != 0))
     {
         return BAD_LENGTH_E;
     }
@@ -1649,6 +1671,7 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
     return ret;
 }
 
+#if !FIPS_VERSION3_GE(7,0,0)
 int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
                              const byte *addIn, word32 addInSz)
 {
@@ -1754,8 +1777,16 @@ int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
     return ret;
 }
 
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
+
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz) {
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Entropy comes from the module's own source; seed is additional input
+     * only (SP 800-90Ar1 sec 9.2). */
+    return RngReseedNow(rng, seed, seedSz);
+#else
     return wc_RNG_DRBG_Reseed_AddIn(rng, seed, seedSz, NULL, 0);
+#endif
 }
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -1771,10 +1802,10 @@ int wc_RNG_DRBG_GetRBGCStratum(const WC_RNG* rng)
 #ifdef WC_RNG_HAVE_NEXT_SEED
 int wc_RNG_DRBG_GetNextSeedRBGCStratum(const WC_RNG* rng)
 {
-    int ret = wc_RNG_Status(rng);
+    int ret = RngStatus(rng);
     if (ret != 0)
         return ret;
-    if (! wc_RNG_DRBG_Present(rng))
+    if (! RngDrbgPresent(rng))
         return WRONG_TYPE_OBJECT_E;
 
     /* Race-free via the NextSeed aperture protocol.  If called with rng locked,
@@ -1808,7 +1839,7 @@ int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
 {
     if ((rng == NULL) || (reseedCtr == NULL))
         return BAD_FUNC_ARG;
-    if (! wc_RNG_DRBG_Present(rng))
+    if (! RngDrbgPresent(rng))
         return WRONG_TYPE_OBJECT_E;
     if (rng->status != DRBG_OK)
         return BAD_STATE_E;
@@ -1825,6 +1856,7 @@ int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
     wc_static_assert((WC_RESEED_INTERVAL) <= 0xFFFFFFFFUL);
 #endif
 
+#if !FIPS_VERSION3_GE(7,0,0)
 /* Mark rng due for reseed: the next generate operation reseeds from the
  * module's built-in or registered seed source before producing output (see also
  * wc_RNG_DRBG_Reseed_Now()).  This can only shorten the current seed's
@@ -1842,13 +1874,13 @@ int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
  */
 static WARN_UNUSED_RESULT int wc_RNG_DRBG_ScheduleReseed_local(WC_RNG* rng)
 {
-    int ret = wc_RNG_Status(rng);
+    int ret = RngStatus(rng);
     if (ret != 0)
         return ret;
     /* No DRBG (RDRAND et al.): nothing to schedule, and success without
      * action, as for every seed operation on such an instance --
      * wc_RNG_DRBG_Present() is the caller's disambiguator. */
-    if (! wc_RNG_DRBG_Present(rng))
+    if (! RngDrbgPresent(rng))
         return 0;
     rng->reseedCtr = (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL;
     return 0;
@@ -1870,6 +1902,7 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng)
     RngAutoLockExit(rng);
     return ret;
 }
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
 
 /* Generic byte-array helper -- shared by both SHA-256 and SHA-512 DRBG
  * cores. Lives outside the NO_SHA256 guard so SHA-512-only builds
@@ -2949,6 +2982,7 @@ static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg)
 
 #endif /* WOLFSSL_DRBG_SHA512 */
 
+#if !FIPS_VERSION3_GE(7,0,0)
 /* Uncredited stirring, per SP 800-90A 10.1.1.4 generate with additional_input
  * (step 2: V += Hash(0x02 || V || additional_input)).  The generate is
  * zero-length: Hash_gen() and Hash512_gen() run one Hashgen iteration and
@@ -2968,14 +3002,14 @@ static WARN_UNUSED_RESULT int Hash_DRBG_StirGenerate(WC_RNG* rng,
 {
     int ret;
 
-    ret = wc_RNG_entropy_needs_recovery(rng);
+    ret = RngNeedsRecovery(rng);
     if (ret != 0)
         return ret;
 
 #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
     /* As in Hash_DRBG_Reseed(): an RDRAND instantiation has no DRBG state, so
      * the material is dropped and success returned. */
-    if ((! wc_RNG_DRBG_Present(rng)) && IS_INTEL_RDRAND(intel_flags))
+    if ((! RngDrbgPresent(rng)) && IS_INTEL_RDRAND(intel_flags))
         return 0;
 #endif
 
@@ -3054,6 +3088,7 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
     return wc_RNG_DRBG_Stir_AddIn(rng, seed, seedSz, NULL, 0);
 }
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
 
 /* SP800-90B 4.4 health tests run over conditioned seed material, which makes
  * them the developer-defined additional tests 4.3 Req 1c allows: 4.2 puts the
@@ -4448,7 +4483,8 @@ void wc_rng_free(WC_RNG* rng)
     }
 }
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && \
+    (!FIPS_VERSION3_GE(7,0,0) || defined(WC_RNG_HAVE_GLOBAL_FALLBACK_RNG))
 /* The strength floor on caller-supplied seed material at the public user-seed
  * entry points.  Without WC_RNG_INIT_FLAG_TEST_USER_SEED every supplied byte
  * is DRBG input (the copy offset is the instantiate offset), so the floor is
@@ -4465,7 +4501,7 @@ static WC_INLINE word32 UserSeedSzFloor(word32 flags)
 #endif
     return (word32)WC_DRBG_SEED_SZ;
 }
-#endif /* HAVE_HASHDRBG */
+#endif /* HAVE_HASHDRBG && (!FIPS v7 || GLOBAL_FALLBACK_RNG) */
 
 #if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG)
 /* Start a WC_RNG from a fixed seed so a known answer test gets the same answer
@@ -4488,7 +4524,7 @@ int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed, word32 seedSz)
     /* Backstop: an RDRAND host is refused by _InitRng() itself, but a build
      * with another DRBG-less source (CUSTOM_RAND_GENERATE_BLOCK) returns 0
      * with no DRBG and would then generate without the seed. */
-    if ((ret == 0) && !wc_RNG_DRBG_Present(rng)) {
+    if ((ret == 0) && !RngDrbgPresent(rng)) {
         ret = wc_FreeRng(rng);
         if (ret == 0)
             ret = WRONG_TYPE_OBJECT_E;
@@ -4540,6 +4576,7 @@ int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                     heap, devId, NULL, flags);
 }
 
+#if !FIPS_VERSION3_GE(7,0,0)
 int wc_InitRngNonce_UserSeed(WC_RNG* rng,
                              const byte* seed, word32 seedSz,
                              const byte* nonce, word32 nonceSz,
@@ -4572,10 +4609,11 @@ int wc_InitRngNonce_UserSeed(WC_RNG* rng,
                     heap, devId, NULL, flags);
 #endif
 }
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
 
 static WC_MAYBE_UNUSED int RngGenerateFailure(WC_RNG* rng, int ret)
 {
-    if (! wc_RNG_DRBG_Present(rng)) {
+    if (! RngDrbgPresent(rng)) {
         if (ret < 0)
             return ret;
         else if (ret > 0)
@@ -4731,7 +4769,7 @@ WOLFSSL_API int wc_RNG_global_fallback_get(WC_RNG **rng) {
     int ret;
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    ret = wc_RNG_Status(&global_fallback_rng);
+    ret = RngStatus(&global_fallback_rng);
     if (ret != 0)
         return ret;
     *rng = &global_fallback_rng;
@@ -5288,6 +5326,7 @@ int wc_RNG_lock_clear_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
 }
 #endif /* WC_RNG_HAVE_LOCK */
 
+#if !FIPS_VERSION3_GE(7,0,0)
 WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
     int ret = 0;
     word32 status_at_start;
@@ -5463,7 +5502,7 @@ only_mark_lock_word:
 static WC_MAYBE_UNUSED int rng_entropy_event_propagate(WC_RNG* rng)
 {
     int ret = 0;
-    if (! wc_RNG_DRBG_Present(rng))
+    if (! RngDrbgPresent(rng))
         return 0;
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
     if (rng->entropy_epoch != current_entropy_epoch())
@@ -5483,15 +5522,16 @@ static WC_MAYBE_UNUSED int rng_entropy_event_propagate(WC_RNG* rng)
     else
         return ret;
 }
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
 
-WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng) {
+static int RngNeedsRecovery(WC_RNG* rng) {
     int ret;
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    ret = wc_RNG_Status(rng);
+    ret = RngStatus(rng);
     if ((ret != 0) && (ret != WC_NO_ERR_TRACE(NOT_READY_E)))
         return ret;
-    if (! wc_RNG_DRBG_Present(rng))
+    if (! RngDrbgPresent(rng))
         return 0;
 #if defined(WC_RNG_HAVE_ENTROPY_EPOCH) || \
     (defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID))
@@ -5524,6 +5564,12 @@ WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng) {
 
     return 0;
 }
+
+#if !FIPS_VERSION3_GE(7,0,0)
+WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng) {
+    return RngNeedsRecovery(rng);
+}
+#endif
 
 #ifdef WC_RNG_HAVE_FREE_HOOK
 /* This routine is used for mitigation of RNG cloning events, particularly by
@@ -5993,7 +6039,7 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
     /* Fail closed: no serving output on behalf of an out-of-service DRBG, and
      * its pooled output is unusable material at rest.  A writer mid-fill sees
      * the epoch move and abandons rather than publishing. */
-    if (wc_RNG_DRBG_Present(rng) && (rng->status != DRBG_OK)) {
+    if (RngDrbgPresent(rng) && (rng->status != DRBG_OK)) {
         ret = PoolPurge(rng);
         if (ret != 0)
             return ret;
@@ -6309,15 +6355,15 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_ReseedRBGC_local(
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_RNG_Status(root);
+    ret = RngStatus(root);
     if (ret != 0)
         return ret;
 
-    ret = wc_RNG_Status(rng);
+    ret = RngStatus(rng);
     if (ret != 0)
         return ret;
 
-    if (! wc_RNG_DRBG_Present(rng)) {
+    if (! RngDrbgPresent(rng)) {
         return 0;
     }
 
@@ -6412,11 +6458,24 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
     devId = rng->devId;
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* A forked or VM-restored copy of the state has no reseed runway: if
+     * this reseed fails, the instance is condemned. */
+  #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    if (rng->pid != my_pid)
+        rng->reseedCtr = (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL;
+  #endif
+  #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+    if (rng->entropy_epoch != cur_epoch)
+        rng->reseedCtr = (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL;
+  #endif
+#else
     ret = rng_entropy_event_propagate(rng);
     if ((ret != 0) && (ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)))
         return ret;   /* delivery failed: condemned, verdict via
                          wc_RNG_Status() */
     /* NEEDS_RECOVERY_E is what we're here to discharge. */
+#endif
 
     ret = wc_RNG_HealthTestLocal(rng, 1, rng->heap, devId);
 
@@ -6424,7 +6483,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
     if ((ret == 0) && (rng->RBGCStratum > 0) &&
         (! (rng->flags & WC_RNG_FLAG_ONLY_PRIMARY_SEED)))
     {
-        if ((wc_RNG_Status(rng->RBGC_parent) == 0) &&
+        if ((RngStatus(rng->RBGC_parent) == 0) &&
             (wc_RNG_lock_get(rng->RBGC_parent, 0) == 0))
         {
             int put_ret;
@@ -6439,7 +6498,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                 ret = DRBG_NEED_RESEED;
             }
         }
-        if ((wc_RNG_Status(&global_fallback_rng) == 0) &&
+        if ((RngStatus(&global_fallback_rng) == 0) &&
 #ifdef HAVE_FIPS
             /* SP-800-90C requires that an alternative randomness source be "a
              * sibling of the parent, an ancestor, or the initial randomness
@@ -6658,7 +6717,7 @@ out:
  *
  * The caller must hold exclusive access to rng, as for all WC_RNG operations.
  */
-int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn, word32 addInSz)
+static int RngReseedNow(WC_RNG* rng, const byte* addIn, word32 addInSz)
 {
     int ret;
 
@@ -6677,11 +6736,11 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn, word32 addInSz)
         return ret;
 
     /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
-    ret = wc_RNG_Status(rng);
+    ret = RngStatus(rng);
     if (ret != 0)
         goto out;
 
-    if (! wc_RNG_DRBG_Present(rng)) {
+    if (! RngDrbgPresent(rng)) {
         /* No DRBG instantiated -- nothing to reseed (RDRAND et al.). */
         ret = 0;
         goto out;
@@ -6695,6 +6754,12 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn, word32 addInSz)
 
     RngAutoLockExit(rng);
     return ret;
+}
+
+#if !FIPS_VERSION3_GE(7,0,0)
+int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn, word32 addInSz)
+{
+    return RngReseedNow(rng, addIn, addInSz);
 }
 
 /* wc_RNG_DRBG_Reseed_Now_Primary() allows SP 800-90A prediction resistant
@@ -6738,6 +6803,7 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
     return ret;
 #endif /* WC_RNG_HAVE_LOCK || SINGLE_THREADED */
 }
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
 
@@ -6801,7 +6867,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
     if ((rng == NULL) || (n == 0) || (rng == root))
         return BAD_FUNC_ARG;
 
-    if (! wc_RNG_DRBG_Present(rng))
+    if (! RngDrbgPresent(rng))
         return WRONG_TYPE_OBJECT_E;
 
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
@@ -7158,7 +7224,7 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n) {
          * bank root or the static global fallback, satisfying this by
          * construction. */
         WC_RNG * const parent = rng->RBGC_parent;
-        if ((wc_RNG_Status(parent) == 0) &&
+        if ((RngStatus(parent) == 0) &&
             (wc_RNG_lock_get(parent, 0) == 0))
         {
             ret = wc_RNG_DRBG_NextSeedGenerate_local(rng, parent, n);
@@ -7179,7 +7245,7 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n) {
                     ret = put_ret;
             }
         }
-        if ((wc_RNG_Status(&global_fallback_rng) == 0) &&
+        if ((RngStatus(&global_fallback_rng) == 0) &&
 #ifdef HAVE_FIPS
             /* SP-800-90C requires that an alternative randomness source be "a
              * sibling of the parent, an ancestor, or the initial randomness
@@ -7282,14 +7348,14 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
         return ret;
 
     /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
-    ret = wc_RNG_Status(rng);
+    ret = RngStatus(rng);
     if (ret != 0)
         return ret;
 
     /* No DRBG (RDRAND et al.): no bank ever opens, so this is a refusal,
      * not a not-yet -- a consumer polling NOT_READY_E would wait forever.
      * (Matches the producer, wc_RNG_DRBG_NextSeedGenerate().) */
-    if (! wc_RNG_DRBG_Present(rng))
+    if (! RngDrbgPresent(rng))
         return WRONG_TYPE_OBJECT_E;
 
 #ifdef WC_RNG_HAVE_LOCK
@@ -7602,11 +7668,11 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextStirNow_local(WC_RNG* rng)
         return ret;
 
     /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
-    ret = wc_RNG_Status(rng);
+    ret = RngStatus(rng);
     if (ret != 0)
         return ret;
 
-    ret = wc_RNG_entropy_needs_recovery(rng);
+    ret = RngNeedsRecovery(rng);
     if (ret != 0)
         return ret;
 
@@ -7665,7 +7731,7 @@ int wc_RNG_DRBG_NextStirNow(WC_RNG* rng)
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 /* The WC_RNG_FLAG_FAIL_FAST verdict in place of an in-line reseed: the
  * recovery conditions keep NEEDS_RECOVERY_E, the budget reports NOT_READY_E.
- * wc_RNG_entropy_needs_recovery() has already delivered any pending epoch
+ * RngNeedsRecovery() has already delivered any pending epoch
  * event (under the lock facility, into the latch), so the latch is
  * authoritative there. */
 static WC_INLINE int RngFailFastVerdict(const WC_RNG* rng)
@@ -7775,7 +7841,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_RNG_Status(rng);
+    ret = RngStatus(rng);
     if (ret != 0) {
         RngAutoLockExit(rng);
         return ret;
@@ -7834,14 +7900,12 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
-    ret = wc_RNG_entropy_needs_recovery(rng);
+    ret = RngNeedsRecovery(rng);
     if (ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) {
         int reseed_ret;
         if (rng->flags & WC_RNG_FLAG_FAIL_FAST) {
-            /* No implicit reseed: report the condition and leave the DRBG as it
-             * is.  Not condemned -- it needs a reseed, but it's already wiped
-             * by the propagation in wc_RNG_entropy_needs_recovery(), and it's
-             * otherwise healthy. */
+            /* No implicit reseed: report it; not condemned.  Only lock builds
+             * have already wiped the DRBG, in RngNeedsRecovery(). */
             RngAutoLockExit(rng);
             return RngFailFastVerdict(rng);
         }

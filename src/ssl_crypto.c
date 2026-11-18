@@ -4403,14 +4403,19 @@ int wolfSSL_RAND_poll(void)
 
 #ifdef HAVE_HASHDRBG
 
-  #ifdef WC_RNG_HAVE_RESEED_NOW
+  #if defined(WC_RNG_HAVE_RESEED_NOW) || FIPS_VERSION3_GE(7,0,0)
 
+    #ifdef WC_RNG_HAVE_RESEED_NOW
     ret = wc_RNG_DRBG_Reseed_Now(&globalRNG, NULL, 0);
+    #else
+    /* FIPS v7 wc_RNG_DRBG_Reseed() reseeds from the module's own source. */
+    ret = wc_RNG_DRBG_Reseed(&globalRNG, NULL, 0);
+    #endif
     if (ret == 0) {
         ret = WOLFSSL_SUCCESS;
     }
     else {
-        WOLFSSL_MSG("Bad wc_RNG_DRBG_Reseed_Now");
+        WOLFSSL_MSG("Bad DRBG reseed");
         ret = WOLFSSL_FAILURE;
     }
 

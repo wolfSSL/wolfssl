@@ -34,6 +34,7 @@ int test_wc_InitRngNonce_ex(void);
 int test_wc_GenerateSeed(void);
 int test_wc_rng_new(void);
 int test_wc_RNG_DRBG_Reseed(void);
+int test_wc_RNG_EntropyEpoch(void);
 int test_wc_RNG_TestSeed(void);
 int test_wc_RNG_HealthTest(void);
 int test_wc_RNG_HealthTest_SHA512(void);
@@ -60,6 +61,7 @@ int test_wc_Entropy_Get(void);
     TEST_DECL_GROUP("random", test_wc_GenerateSeed),                \
     TEST_DECL_GROUP("random", test_wc_rng_new),                     \
     TEST_DECL_GROUP("random", test_wc_RNG_DRBG_Reseed),             \
+    TEST_DECL_GROUP("random", test_wc_RNG_EntropyEpoch),            \
     TEST_DECL_GROUP("random", test_wc_RNG_TestSeed),                \
     TEST_DECL_GROUP("random", test_wc_RNG_HealthTest),              \
     TEST_DECL_GROUP("random", test_wc_RNG_HealthTest_SHA512),       \

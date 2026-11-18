@@ -570,6 +570,14 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
     RNG_FAILURE_E: recovery is wc_FreeRng() then wc_InitRng*(), not in-place
     resurrection.
 
+    FIPS v7 module builds differ (SP 800-90Ar1 section 9.2): the reseed
+    always takes fresh entropy from the module's own seed source, which is
+    health tested as for any reseed, and seed is used only as additional
+    input.  seed may be NULL when seedSz is 0.  The BAD_LENGTH_E and
+    WRONG_TYPE_OBJECT_E rules above do not apply, and a failure of the
+    seed source returns its error (for example ENTROPY_RT_E or
+    ENTROPY_APT_E).
+
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.  (Refusals below take
     precedence.)

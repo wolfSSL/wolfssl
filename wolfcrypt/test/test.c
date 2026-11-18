@@ -1046,7 +1046,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
 
@@ -1068,7 +1068,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
 #endif
 #if defined(WC_RNG_HAVE_ENTROPY_EPOCH) && defined(HAVE_HASHDRBG) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_INTEL_RDRAND) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_epoch_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
@@ -2940,7 +2940,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("NOISESRC test passed!\n");
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if ((ret = rng_drbg_svc_test()) != 0)
         TEST_FAIL("RNGSVC   test failed!\n", ret);
     else
@@ -2977,7 +2977,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 #if defined(WC_RNG_HAVE_ENTROPY_EPOCH) && defined(HAVE_HASHDRBG) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_INTEL_RDRAND) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     if ((ret = rng_epoch_test()) != 0)
         TEST_FAIL("RNGEPOCH test failed!\n", ret);
     else
@@ -31357,7 +31357,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     /* wc_InitRngNonce_UserSeed() strict-contract error handling.  The happy
      * path (born-sentinel marking, user reseed acceptance, generation) is
      * covered in rng_drbg_rbgc_test(). */
-#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     {
         WC_RNG u_seed;
         wc_test_ret_t lret = 0;
@@ -32590,6 +32590,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
             if (ret != 0)
                 break;
         }
+#if !FIPS_VERSION3_GE(7,0,0)
         /* Stir runs against the generates too, so a thread checker sees any
          * future unlocking of it as a race.  A credited reseed may be due
          * at this point, in which case Stir cannot consume uncredited input. */
@@ -32603,6 +32604,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
             if (ret != 0)
                 break;
         }
+#endif
     }
     args->ret = ret;
     WOLFSSL_RETURN_FROM_THREAD(0);
@@ -32850,6 +32852,8 @@ static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng, int op)
     if (write(gfd[1], &go, 1) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     /* Whichever entry point this round is checking, it must wait. */
+    (void)op;
+#if !FIPS_VERSION3_GE(7,0,0)
     if (op == WC_RNG_LOCK_OP_STIR) {
         byte mix[16];
         XMEMSET(mix, 0x3c, sizeof(mix));
@@ -32858,7 +32862,9 @@ static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng, int op)
     else if (op == WC_RNG_LOCK_OP_SCHEDULE) {
         ret = wc_RNG_DRBG_ScheduleReseed(rng);
     }
-    else {
+    else
+#endif
+    {
         ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
     }
     (void)clock_gettime(CLOCK_MONOTONIC, &t1);
@@ -32920,9 +32926,12 @@ static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
 
     /* Still healthy here, and condemned by the time the lock is free. */
+    (void)useNow;
+#if !FIPS_VERSION3_GE(7,0,0)
     if (useNow)
         rc = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
     else
+#endif
         rc = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
     !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
@@ -33145,6 +33154,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         ret = rng_lock_wait_test(rng, WC_RNG_LOCK_OP_GENERATE);
         if (ret != 0)
             goto out_free;
+#if !FIPS_VERSION3_GE(7,0,0)
         /* The DRBG management entries lock too, on their own instance so
          * the checks after this are not disturbed. */
         {
@@ -33161,6 +33171,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
                 wc_rng_free(mut);
             }
         }
+#endif
         if (ret != 0)
             goto out_free;
         /* One throwaway instance per reseed entry: each ends up condemned,
@@ -33259,7 +33270,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         /* Reseed_Now rather than Reseed: the user-reseed class refusal
          * in WC_RNG_RBGC_STRATUM_IMMUTABLE builds precedes the lock, and
          * this probe is about the lock. */
+#if FIPS_VERSION3_GE(7,0,0)
+        ret = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
+#else
         ret = wc_RNG_DRBG_Reseed_Now(rng, seed, (word32)sizeof(seed));
+#endif
         wc_ForkLock_SetBroken(rng->autoLock, 0);
         if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
             ERROR_OUT(ret == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret),
@@ -34619,7 +34634,7 @@ out:
 #endif /* HAVE_WC_RNG_BANK */
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 /* Is generate serviced by the local DRBG rather than a crypto callback? */
 static int rng_test_generate_is_local(const WC_RNG* rng)
 {
@@ -34899,8 +34914,7 @@ out:
     return ret;
 }
 
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && */
-       /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_FIPS */
 
 #if defined(HAVE_WC_RNG_BANK) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
@@ -37181,7 +37195,7 @@ out_l:
 
 #if defined(WC_RNG_HAVE_ENTROPY_EPOCH) && defined(HAVE_HASHDRBG) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_INTEL_RDRAND) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 
 #if defined(WC_RNG_SEED_CB) && defined(WC_RNG_HAVE_LOCK)
 /* Gather for real, then advance the global entropy epoch: the material
