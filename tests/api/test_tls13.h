@@ -198,6 +198,7 @@ int test_tls13_ticket_psk_modes(void);
 int test_tls13_psk_mode_mismatch_falls_back(void);
 int test_tls13_ticket_psk_modes_uses_policy(void);
 int test_tls13_ecdsa_scheme_curve_binding(void);
+int test_tls13_new_session_ticket_max_fragment(void);
 int test_tls13_send_session_ticket_psk_modes(void);
 int test_tls13_new_session_ticket_ext_framing(void);
 int test_tls13_new_session_ticket_keeps_ems(void);
@@ -418,6 +419,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_update_keys_want_write), \
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KeyUpdate_want_write), \
     TEST_DECL_GROUP("tls13", test_tls13_exporter_suite_decision_coverage), \
-    TEST_DECL_GROUP("tls13", test_tls13_ecdsa_scheme_curve_binding)
+    TEST_DECL_GROUP("tls13", test_tls13_ecdsa_scheme_curve_binding), \
+    TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_max_fragment)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
