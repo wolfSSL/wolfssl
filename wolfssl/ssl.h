@@ -4677,6 +4677,16 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm);
 
+#ifdef WOLFSSL_CERT_EVENTS
+    /* Register a callback that observes certificate validation events: one
+     * DEFECT event per failed check, and one RESULT event when a verification
+     * finishes. Events never change the verification result. */
+    WOLFSSL_API int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
+        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+    WOLFSSL_API int wolfSSL_CTX_SetCertEventCb(WOLFSSL_CTX* ctx,
+        WOLFSSL_CERT_EVENT_CB cb, void* cbCtx);
+#endif
+
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     /* Register a callback invoked for each certificate extension whose OID
      * the parser does not recognize.  Returning 0 accepts the extension; a
