@@ -5367,7 +5367,8 @@ int test_wc_AesGcmStream_ReinitAfterFinal(void)
 #endif
 #endif
     return EXPECT_RESULT();
-}
+} /* END test_wc_AesGcmStream_ReinitAfterFinal */
+
 /*
  * MC/DC for the stream wc_AesGcmEncryptFinal() invocation-count guard
  * (aes.c, stream builds):
@@ -5395,7 +5396,7 @@ int test_wc_AesGcmStreamMcdc(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM) && \
-    defined(WOLFSSL_AESGCM_STREAM)
+    defined(WOLFSSL_AESGCM_STREAM) && !defined(WC_NO_RNG)
     WC_RNG rng[1];
     Aes aes[1];
     byte key[AES_128_KEY_SIZE] = { 0 };
@@ -5439,7 +5440,7 @@ int test_wc_AesGcmStreamMcdc(void)
     ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
     ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
-    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, 5),
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, WC_AES_BLOCK_SIZE + 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     wc_AesFree(aes);
 
@@ -5461,7 +5462,7 @@ int test_wc_AesGcmStreamMcdc(void)
     wc_FreeRng(rng);
 #endif
     return EXPECT_RESULT();
-}
+} /* END test_wc_AesGcmStreamMcdc */
 
 int test_wc_AesGcmStream_BadAuthTag(void)
 {

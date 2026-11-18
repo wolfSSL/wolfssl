@@ -1309,10 +1309,6 @@ static void wb_gcmccm_pending(void)
         return;
     }
 
-    /* Zero the device table (a zeroed slot has devId==0, not INVALID_DEVID,
-     * so registration finds no free slot until this runs). */
-    wc_CryptoCb_Init();
-
     /* GCM: baseline (ret==0) then PENDING. */
     mcdc_cb_uninstall();
     if (wc_AesInit(&aes, NULL, MCDC_CB_DEVID) == 0 &&
@@ -1739,7 +1735,8 @@ static void wb_slow_vaes(void)
  * GcmCountInvocation() on every call, which is enough to drive all three
  * operand rows.
  * ------------------------------------------------------------------------- */
-#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
+    !defined(WC_NO_RNG)
 static void wb_gcm_count_invocation(void)
 {
     Aes    aes;
@@ -1755,14 +1752,23 @@ static void wb_gcm_count_invocation(void)
     XMEMSET(key, 0x61, sizeof(key));
     XMEMSET(in,  0x62, sizeof(in));
 
-    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0 ||
-        wc_InitRng(&rng) != 0 ||
-        wc_AesGcmSetKey(&aes, key, sizeof(key)) != 0 ||
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (GcmCountInvocation skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed (GcmCountInvocation skipped)");
+        wb_fail = 1;
+        wc_AesFree(&aes);
+        return;
+    }
+    if (wc_AesGcmSetKey(&aes, key, sizeof(key)) != 0 ||
         wc_AesGcmSetIV(&aes, sizeof(iv), NULL, 0, &rng) != 0) {
         WB_NOTE("GCM setup failed (GcmCountInvocation skipped)");
         wb_fail = 1;
-        if (rng.status == 0)
-            wc_FreeRng(&rng);
+        wc_FreeRng(&rng);
+        wc_AesFree(&aes);
         return;
     }
 
@@ -1797,7 +1803,7 @@ static void wb_gcm_count_invocation(void)
 }
 #else
 static void wb_gcm_count_invocation(void)
-{ WB_NOTE("AESGCM off; GcmCountInvocation guard skipped"); }
+{ WB_NOTE("GcmCountInvocation prerequisites unavailable"); }
 #endif
 
 /* ------------------------------------------------------------------------- *
@@ -1864,7 +1870,7 @@ static void wb_getkeysize_claimed(void)
  * first byte stops it at i == 0 (idx0 T, idx1 F).
  * ------------------------------------------------------------------------- */
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
-    defined(WOLF_CRYPTO_CB)
+    defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG)
 static byte wb_rng_fill;
 
 static int wb_rng_fill_cb(int devId, wc_CryptoInfo* info, void* ctx)
@@ -1921,7 +1927,7 @@ static void wb_gcm_setiv_carry(void)
 }
 #else
 static void wb_gcm_setiv_carry(void)
-{ WB_NOTE("AESGCM/WOLF_CRYPTO_CB off; GcmSetIV carry scan skipped"); }
+{ WB_NOTE("GcmSetIV carry scan prerequisites unavailable"); }
 #endif
 
 /* ------------------------------------------------------------------------- *
@@ -2036,6 +2042,9 @@ int main(void)
     printf("  NO_AES defined; nothing to exercise\n");
     return 0;
 #else
+#ifdef WOLF_CRYPTO_CB
+    wc_CryptoCb_Init();
+#endif
     wb_ghash_classic();
     wb_ghash_update();
     wb_aesnew_common();
