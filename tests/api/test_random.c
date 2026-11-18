@@ -1975,7 +1975,8 @@ int test_wc_RngInitFlagsDecisionCoverage(void)
  * rbgc campaign variants. New post-v4.1.0 APIs, hence the frozen-module
  * guard.
  */
-#if defined(WC_RNG_HAVE_ENTROPY_EPOCH)
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    defined(WC_RNG_HAVE_ENTROPY_EPOCH)
 static wc_RNG_entropy_epoch_t test_random_epoch_handler(void *arg)
 {
     (void)arg;
@@ -2104,7 +2105,7 @@ int test_wc_RngExtrasDecisionCoverage(void)
             ExpectIntEQ(wc_RNG_SetFlags(child, WC_RNG_FLAG_NO_PRIMARY_SEED),
                         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
             ExpectIntEQ(wc_RNG_lock_put(child, 0), 0);
-            ExpectIntEQ(wc_FreeRng(child), 0);
+            wc_rng_free(child);
         }
         ExpectIntEQ(wc_RNG_lock_put(&root, 0), 0);
 #else
@@ -2398,7 +2399,7 @@ int test_wc_RngExtrasStateMachines(void)
 #ifdef WC_RNG_HAVE_LOCK
             ExpectIntEQ(wc_RNG_lock_put(child, 0), 0);
 #endif
-            ExpectIntEQ(wc_FreeRng(child), 0);
+            wc_rng_free(child);
         }
 #ifdef WC_RNG_HAVE_LOCK
         ExpectIntEQ(wc_RNG_lock_put(&root, 0), 0);
