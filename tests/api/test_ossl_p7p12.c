@@ -2054,7 +2054,8 @@ int test_wolfSSL_PKCS12_alias_keyid(void)
 #if defined(OPENSSL_EXTRA) && defined(HAVE_PKCS12) && !defined(HAVE_FIPS) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_ECC) && \
     defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
-    !defined(NO_SHA256) && !defined(NO_HMAC) && !defined(NO_BIO)
+    defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC) && \
+    !defined(NO_BIO)
     /* certs/ecc-key.pem, certs/server-ecc.pem and certs/ca-ecc-cert.pem
      * exported by OpenSSL with friendlyName "wolfSSL e-acute euro", CA
      * friendlyName "wolfSSL CA" and password "wolfSSL test". */
