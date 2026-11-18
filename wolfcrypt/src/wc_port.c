@@ -3099,12 +3099,13 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
     }
 
     for (;;) {
-        expected = 0;
-        if (wolfSSL_Atomic_Uint_CompareExchange(flag, &expected, 1) == 1) {
-            /* Won the race. On failure reset to 0 so a later call retries. */
+        expected = WC_MUTEX_UNINIT_ONCE;
+        if (wolfSSL_Atomic_Uint_CompareExchange(flag, &expected,
+                WC_MUTEX_BUSY_ONCE) == 1) {
+            /* Won the race. On failure reset so a later call retries. */
             ret = wc_InitMutex(m);
             WOLFSSL_ATOMIC_STORE(*flag,
-                (ret == 0) ? WC_MUTEX_READY_ONCE : 0U);
+                (ret == 0) ? WC_MUTEX_READY_ONCE : WC_MUTEX_UNINIT_ONCE);
             break;
         }
         if (expected == WC_MUTEX_READY_ONCE) {

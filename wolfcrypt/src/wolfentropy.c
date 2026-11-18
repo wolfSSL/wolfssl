@@ -579,7 +579,8 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
  */
 static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mutex);
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-static wc_MutexOnceFlag entropy_mutex_init = WOLFSSL_ATOMIC_INITIALIZER(0);
+static wc_MutexOnceFlag entropy_mutex_init =
+    WOLFSSL_ATOMIC_INITIALIZER(WC_MUTEX_UNINIT_ONCE);
 #endif
 
 /* Lock the mutex, creating it and the SHA-3 object on first use. Does not run
@@ -1132,8 +1133,14 @@ void Entropy_Final(void)
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
     /* Free the mutex if created, even if SHA-3 setup failed. */
     if (WOLFSSL_ATOMIC_LOAD(entropy_mutex_init) == WC_MUTEX_READY_ONCE) {
-        wc_FreeMutex(&entropy_mutex);
-        WOLFSSL_ATOMIC_STORE(entropy_mutex_init, 0);
+        /* On failure the mutex may still be live: keep it marked ready so it
+         * is reused, not initialized again. */
+        if (wc_FreeMutex(&entropy_mutex) == 0) {
+            WOLFSSL_ATOMIC_STORE(entropy_mutex_init, WC_MUTEX_UNINIT_ONCE);
+        }
+        else {
+            WOLFSSL_MSG("Entropy_Final: failed to free mutex");
+        }
     }
 #endif
 }

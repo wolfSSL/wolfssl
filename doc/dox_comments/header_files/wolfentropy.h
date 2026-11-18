@@ -35,14 +35,17 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
     and returns its error on failure rather than retrying.
 
     \return 0 On success
-    \return BAD_FUNC_ARG If entropy is NULL
+    \return BAD_FUNC_ARG If bits is not 1 to MAX_ENTROPY_BITS (256), or
+    entropy is NULL and len is not 0
     \return ENTROPY_RT_E or ENTROPY_APT_E Health test failed
     \return BAD_MUTEX_E Unable to lock mutex
     \return Negative Other failure
 
     \param bits Entropy bits required
     \param entropy Buffer for entropy
-    \param len Buffer size
+    \param len Buffer size.  When 0, entropy may be NULL: nothing is
+    written, but setup and the startup health test still run, so the call
+    can prime the source and check its health.
 
     _Example_
     \code
