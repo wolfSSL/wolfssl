@@ -98,7 +98,6 @@ struct Cmac {
 };
 
 
-
 /* Reasonable defaults */
 #ifndef WC_CMAC_TAG_MAX_SZ
     #define WC_CMAC_TAG_MAX_SZ 16
@@ -206,6 +205,26 @@ int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz);
     } /* extern "C" */
 #endif
 
+/* Heap allocation for Cmac contexts: Cmac members carry alignment
+ * attributes, so route through the aligned allocator where available.
+ * WC_ALLOC_AES marks the non-frozen aes.h, which carries the
+ * wc_alloc_aligned/wc_free_aligned declarations: in FIPS bundle builds the
+ * aes.h (and aes.c) are the frozen module versions, so the aligned branch
+ * must fall back there. The cast keeps the macro valid in C++. The fallback
+ * is a macro, not a function, so plain builds pay no indirection. */
+#if defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
+    !defined(WOLFSSL_TI_CRYPT) && defined(WC_ALLOC_AES)
+#define WC_ALLOC_CMAC(heap) ((Cmac*)wc_alloc_aligned((heap), sizeof(Cmac), \
+                                                     WC_ALIGNOF(Cmac), \
+                                                     DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    wc_free_aligned((cmac), (heap), DYNAMIC_TYPE_CMAC)
+#else
+#define WC_ALLOC_CMAC(heap) \
+    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
+#endif
 
 #endif /* WOLFSSL_CMAC */
 #endif /* WOLF_CRYPT_CMAC_H */

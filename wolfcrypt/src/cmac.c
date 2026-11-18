@@ -634,8 +634,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((cmac = (Cmac *)XMALLOC(sizeof *cmac, NULL,
-                                DYNAMIC_TYPE_CMAC)) == NULL) {
+    if ((cmac = WC_ALLOC_CMAC(NULL)) == NULL) {
         return MEMORY_E;
     }
 #endif
@@ -658,7 +657,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     ForceZero(cmac, sizeof(Cmac));
-    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
+    WC_FREE_CMAC(cmac, NULL);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif
@@ -737,8 +736,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((cmac = (Cmac *)XMALLOC(sizeof *cmac, NULL,
-                                DYNAMIC_TYPE_CMAC)) == NULL) {
+    if ((cmac = WC_ALLOC_CMAC(NULL)) == NULL) {
         return MEMORY_E;
     }
 #endif
@@ -760,7 +758,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     ForceZero(cmac, sizeof(Cmac));
-    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
+    WC_FREE_CMAC(cmac, NULL);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif

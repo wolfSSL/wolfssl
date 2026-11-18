@@ -1482,10 +1482,36 @@ WOLFSSL_LOCAL void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #endif /* WOLFSSL_PPC32_ASM */
 
+/* Aligned allocation for heap contexts whose members carry alignment
+ * attributes (Aes, Cmac). Declared unconditionally: memory.h is included
+ * mid-types.h, before WOLFSSL_USE_ALIGN exists in ARMASM/AESNI builds, so a
+ * guarded declaration there is invisible exactly where it is needed. Must
+ * stay inside the extern "C" block: a C++-linked declaration would mangle
+ * the definition in aes.c. */
+WOLFSSL_API
+void* wc_alloc_aligned(void* heap, size_t size, size_t align, int type);
+WOLFSSL_API
+void wc_free_aligned(void* p, void* heap, int type);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
+/* Heap allocation for Aes contexts: Aes members carry alignment attributes,
+ * so route through the aligned allocator where available. The fallback is a
+ * macro, not a function, so plain builds pay no indirection. */
+#if defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
+    !defined(WOLFSSL_TI_CRYPT)
+#define WC_ALLOC_AES(heap) ((Aes*)wc_alloc_aligned((heap), sizeof(Aes), \
+                                                   WC_ALIGNOF(Aes), \
+                                                   DYNAMIC_TYPE_AES))
+#define WC_FREE_AES(aes, heap) wc_free_aligned((aes), (heap), DYNAMIC_TYPE_AES)
+#else
+#define WC_ALLOC_AES(heap) \
+    ((Aes*)XMALLOC(sizeof(Aes), (heap), DYNAMIC_TYPE_AES))
+#define WC_FREE_AES(aes, heap) \
+    do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
+#endif
 
 #endif /* NO_AES */
 #endif /* WOLF_CRYPT_AES_H */

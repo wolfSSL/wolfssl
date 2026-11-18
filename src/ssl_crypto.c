@@ -27,6 +27,15 @@
     #endif
 #else
 
+/* FIPS builds validate cmac.h without the aligned-allocation macros; the
+ * plain allocation path is what they expect. */
+#ifndef WC_ALLOC_CMAC
+#define WC_ALLOC_CMAC(heap) \
+    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
+#endif
+
 /* Check a size_t/unsigned long length can be passed to wolfCrypt as a word32
  * without being truncated. */
 #define WOLFSSL_CRYPTO_LEN_FITS_WORD32(len) \
@@ -2254,7 +2263,7 @@ WOLFSSL_CMAC_CTX* wolfSSL_CMAC_CTX_new(void)
         /* Allocate memory for EVP cipher context object. */
         ctx->cctx = wolfSSL_EVP_CIPHER_CTX_new();
         if (ctx->cctx == NULL) {
-            XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+            WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
             XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
             ctx = NULL;
         }
@@ -2277,7 +2286,7 @@ void wolfSSL_CMAC_CTX_free(WOLFSSL_CMAC_CTX *ctx)
 #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
             wc_CmacFree((Cmac*)ctx->internal);
 #endif
-            XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+            WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
         }
         if (ctx->cctx != NULL) {
             wolfSSL_EVP_CIPHER_CTX_cleanup(ctx->cctx);
@@ -2363,7 +2372,7 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
     }
     else if (ret == 1) {
         /* Allocate memory for wolfSSL CMAC object. */
-        ctx->internal = (Cmac*)XMALLOC(sizeof(Cmac), NULL, DYNAMIC_TYPE_CMAC);
+        ctx->internal = WC_ALLOC_CMAC(NULL);
         if (ctx->internal == NULL)
             ret = 0;
     }
@@ -2372,7 +2381,7 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
     if ((ret == 1) && (wc_InitCmac((Cmac*)ctx->internal, (const byte*)key,
             (word32)keySz, WC_CMAC_AES, NULL) != 0)) {
         WOLFSSL_MSG("wolfSSL_CMAC_Init: wc_InitCmac() failed");
-        XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+        WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
         ctx->internal = NULL;
         ret = 0;
     }
@@ -2469,7 +2478,7 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len)
             *len = (size_t)len32;
         }
 
-        XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+        WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
         ctx->internal = NULL;
     }
 

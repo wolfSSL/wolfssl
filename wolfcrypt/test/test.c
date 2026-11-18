@@ -396,6 +396,15 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/cmac.h>
+
+/* FIPS builds validate cmac.h without the aligned-allocation macros; the
+ * plain allocation path is what they expect. */
+#ifndef WC_ALLOC_CMAC
+#define WC_ALLOC_CMAC(heap) \
+    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
+#endif
 #ifdef WOLF_CRYPTO_CB_KEYSTORE
     #include <wolfssl/wolfcrypt/wc_keystore.h>
 #endif
@@ -17887,6 +17896,11 @@ static wc_test_ret_t aes_key_size_test(void)
     aes = wc_AesNew(HEAP_HINT, devId, &ret);
     if (aes == NULL)
         return WC_TEST_RET_ENC_EC(ret);
+#if defined(WC_ALIGNOF) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    if (!WC_IS_ALIGNED(aes, WC_ALIGNOF(Aes)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 #else
     ret = wc_AesInit(aes, HEAP_HINT, devId);
     /* 0 check OK for FIPSv1 */
@@ -27093,9 +27107,8 @@ typedef struct keywrapVector {
  * byte alignment through its ALIGN16 members, which XMALLOC does not guarantee
  * on 32-bit targets, where malloc only promises 8 -- and wc_AesSetIV() lowers
  * to an alignment-qualified NEON store when building for armv8-a+crypto, which
- * faults on an under-aligned object. Neither a plain local nor a plain XMALLOC
- * (wc_AesNew() included) satisfies both, so allocate with headroom, align by
- * hand, and keep the base pointer for XFREE. */
+ * faults on an under-aligned object. Allocate with headroom, align by hand,
+ * and keep the base pointer for XFREE. */
 #define AESKEYWRAP_AES_ALIGN 16
 static wc_test_ret_t aeskeywrap_caller_aes_test(const keywrapVector* v,
                                                 byte* output, word32 outputSz,
@@ -86279,8 +86292,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
     WOLFSSL_ENTER("cmac_test");
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((cmac = (Cmac *)XMALLOC(sizeof *cmac, HEAP_HINT, DYNAMIC_TYPE_CMAC)) == NULL)
+    if ((cmac = WC_ALLOC_CMAC(HEAP_HINT)) == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#if defined(WC_ALIGNOF) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    if (!WC_IS_ALIGNED(cmac, WC_ALIGNOF(Cmac)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 #endif
 
     for (i = 0, tc = testCases;
@@ -86399,7 +86417,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(cmac, HEAP_HINT, DYNAMIC_TYPE_CMAC);
+    WC_FREE_CMAC(cmac, HEAP_HINT);
 #endif
 
     return ret;
