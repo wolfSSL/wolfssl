@@ -4390,24 +4390,25 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
         ecc_key_a = (ecc_key*)a->ecc->internal;
         ecc_key_b = (ecc_key*)b->ecc->internal;
 
-        /* If a key was imported as private-only (e.g. RFC 5915 without the
-         * optional public key), the pubkey point will not be populated.
-         * Derive it from the private key so the comparison can succeed. */
-        if (ecc_key_a->type == ECC_PRIVATEKEY_ONLY) {
-            if (wc_ecc_make_pub(ecc_key_a, NULL) != MP_OKAY) {
-                return ret;
-            }
-            ecc_key_a->type = ECC_PRIVATEKEY;
-        }
-        if (ecc_key_b->type == ECC_PRIVATEKEY_ONLY) {
-            if (wc_ecc_make_pub(ecc_key_b, NULL) != MP_OKAY) {
-                return ret;
-            }
-            ecc_key_b->type = ECC_PRIVATEKEY;
-        }
-
         /* check curve */
         if (a->ecc->group->curve_idx != b->ecc->group->curve_idx) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+
+        /* If a key was imported as private-only (e.g. RFC 5915 without the
+         * optional public key), the pubkey point will not be populated.
+         * Derive it from the private key so the comparison can succeed, and
+         * give the EC_KEY the point too. */
+        if ((ecc_key_a->type == ECC_PRIVATEKEY_ONLY) &&
+                ((wolfssl_ec_key_derive_pub(ecc_key_a) != 0) ||
+                 (ecc_key_a->type == ECC_PRIVATEKEY_ONLY) ||
+                 (SetECKeyExternal(a->ecc) != 1))) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+        if ((ecc_key_b->type == ECC_PRIVATEKEY_ONLY) &&
+                ((wolfssl_ec_key_derive_pub(ecc_key_b) != 0) ||
+                 (ecc_key_b->type == ECC_PRIVATEKEY_ONLY) ||
+                 (SetECKeyExternal(b->ecc) != 1))) {
             return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
         }
 
@@ -10088,6 +10089,16 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 
     ecc = (ecc_key*)key->internal;
     if (ecc->type == ECC_PRIVATEKEY || ecc->type == ECC_PRIVATEKEY_ONLY) {
+        /* Reconstruct public key from private scalar, e.g. when only
+         * EC_KEY_set_private_key was called, and give the EC_KEY the point
+         * too. Both encodings below carry the point. */
+        if ((ecc->type == ECC_PRIVATEKEY_ONLY) &&
+                ((wolfssl_ec_key_derive_pub(ecc) != 0) ||
+                 (ecc->type == ECC_PRIVATEKEY_ONLY) ||
+                 (SetECKeyExternal(key) != 1))) {
+            return WOLFSSL_FAILURE;
+        }
+
 #ifdef HAVE_PKCS8
         if (key->pkcs8HeaderSz) {
             /* when key has pkcs8 header the pkey should too */
@@ -10124,21 +10135,6 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
         else
 #endif /* HAVE_PKCS8 */
         {
-            if (ecc->type == ECC_PRIVATEKEY_ONLY ||
-                    (ecc->type == ECC_PRIVATEKEY &&
-                     mp_iszero(ecc->pubkey.x) &&
-                     mp_iszero(ecc->pubkey.y))) {
-                /* Reconstruct public key from private scalar.  This covers
-                 * both ECC_PRIVATEKEY_ONLY keys and ECC_PRIVATEKEY keys whose
-                 * public-key point was never populated (e.g. when only
-                 * EC_KEY_set_private_key was called, SetECKeyInternal copies
-                 * the zero-initialized pub_key point and marks the type as
-                 * ECC_PRIVATEKEY, leaving pubkey.x == 0). */
-                if (wc_ecc_make_pub(ecc, NULL) != MP_OKAY) {
-                    return WOLFSSL_FAILURE;
-                }
-            }
-
             /* if not, the pkey will be traditional ecc key */
             if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,

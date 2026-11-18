@@ -39,6 +39,8 @@ int test_wolfSSL_get_peer_signature_nid(void);
 int test_wolfSSL_get_peer_signature_type_nid(void);
 int test_wolfSSL_SSL_CTX_set_tmp_ecdh(void);
 int test_wolfSSL_CTX_set_dh_auto(void);
+int test_wolfSSL_StaticEphemeralKeyLoad_priv_only(void);
+int test_wolfSSL_StaticEphemeralKeyLoad_no_derive(void);
 
 #define TEST_SSL_PK_DECLS                                                      \
         TEST_DECL_GROUP("ssl_pk", test_wolfSSL_CTX_SetMinEccKey_Sz),           \
@@ -57,6 +59,10 @@ int test_wolfSSL_CTX_set_dh_auto(void);
         TEST_DECL_GROUP("ssl_pk", test_wolfSSL_get_peer_signature_nid),       \
         TEST_DECL_GROUP("ssl_pk", test_wolfSSL_get_peer_signature_type_nid),  \
         TEST_DECL_GROUP("ssl_pk", test_wolfSSL_SSL_CTX_set_tmp_ecdh),         \
-        TEST_DECL_GROUP("ssl_pk", test_wolfSSL_CTX_set_dh_auto)
+        TEST_DECL_GROUP("ssl_pk", test_wolfSSL_CTX_set_dh_auto),              \
+        TEST_DECL_GROUP("ssl_pk",                                             \
+            test_wolfSSL_StaticEphemeralKeyLoad_priv_only),                   \
+        TEST_DECL_GROUP("ssl_pk",                                             \
+            test_wolfSSL_StaticEphemeralKeyLoad_no_derive)
 
 #endif /* TESTS_API_SSL_PK_H */
