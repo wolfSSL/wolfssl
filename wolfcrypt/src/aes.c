@@ -6616,7 +6616,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
-        /* This function allows key sizes that are not 128/192/256 bits */
+        /* Accepts the same key sizes as wc_AesSetKey */
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                            const byte* iv, int dir)
     {

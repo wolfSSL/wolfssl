@@ -16028,9 +16028,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
 #endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     /* No key-pair test here: mldsa_key_from_seed_checked(), reached from
-     * mldsa_make_key() above, already runs it on every generation path.
-     * Guarded on the version, not HAVE_FIPS: src/include.am only compiles
-     * this file under BUILD_FIPS_V7_PLUS, so the two are equivalent here. */
+     * mldsa_make_key() above, runs it whenever the build tests key pairs. */
 
     return ret;
 }

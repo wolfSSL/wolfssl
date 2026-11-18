@@ -1709,9 +1709,9 @@ int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
      * Historically, wc_RNG_DRBG_Reseed() has never imposed wc_RNG_TestSeed(),
      * i.e. it has always succeeded deterministically when passed valid
      * arguments.  wc_RNG_DRBG_Reseed_AddIn() continues that semantic whether
-     * called directly or via wc_RNG_DRBG_Reseed().  Novel enforcement here is
-     * frivolous in any case because wc_InitRngNonce_UserSeed() imposes no
-     * wc_RNG_TestSeed().
+     * called directly or via wc_RNG_DRBG_Reseed().  wc_InitRngNonce_UserSeed()
+     * likewise runs wc_RNG_TestSeed() only with
+     * WC_RNG_INIT_FLAG_TEST_USER_SEED.
      */
     {
         if ((seedSz < WC_DRBG_SEED_SZ) &&
@@ -4457,7 +4457,7 @@ static WC_INLINE word32 UserSeedSzFloor(word32 flags)
 
 #if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG)
 /* Start a WC_RNG from a fixed seed so a known answer test gets the same answer
- * every time.  Library internal; the FIPS self tests are the only caller.  The
+ * every time.  Library internal, for known answer tests.  The
  * seed is health-tested and laid out exactly as module-gathered material
  * (WC_RNG_INIT_FLAG_TEST_USER_SEED), and is bound by no strength floor: the
  * only requirement is something beyond the test block. */
