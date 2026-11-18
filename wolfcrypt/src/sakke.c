@@ -2548,7 +2548,7 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
         /* Accumulate line into v and double point. */
         err = sakke_accumulate_line_dbl(v, c, q, prime, mp, t2, t);
         if (err == 0) {
-            err = ecc_projective_dbl_point(c, c, NULL, prime, mp);
+            err = ecc_projective_dbl_point(c, c, &params->a, prime, mp);
         }
 
         if ((err == 0) && (i > 0) && mp_is_bit_set(&params->q, i)) {
@@ -2556,7 +2556,8 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
             err = sakke_accumulate_line_add_one(v, prime, mp, p, q, c, t2,
                     &key->tmp.m1);
             if (err == 0) {
-                err = ecc_projective_add_point(p, c, c, NULL, prime, mp);
+                err = ecc_projective_add_point(p, c, c, &params->a, prime,
+                        mp);
             }
         }
 #else
