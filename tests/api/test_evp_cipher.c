@@ -3036,11 +3036,11 @@ int test_evp_cipher_aead_iv_gen_state(void)
     int isGcm[MAX_CIPHERS];
     int oneShot[MAX_CIPHERS];
     int numCiphers = 0;
-    byte ivs[2][NONCE_SZ];
+    byte ivs[2][NONCE_SZ] = {{0}};
     byte expIv[NONCE_SZ];
     /* ARIA's one-shot writes the tag after both src and dst. */
-    byte cipherText[2][sizeof(plainText) + TAG_SZ];
-    byte tags[2][TAG_SZ];
+    byte cipherText[2][sizeof(plainText) + TAG_SZ] = {{0}};
+    byte tags[2][TAG_SZ] = {{0}};
     byte calcPlainText[sizeof(plainText) + TAG_SZ];
     EVP_CIPHER_CTX* ctx = NULL;
     int c, i, k, rec, withAad, outl;
