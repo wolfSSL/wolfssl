@@ -30,6 +30,7 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 #ifdef WOLFSSL_RISCV_ASM
 #ifndef WOLFSSL_RISCV_ASM_INLINE
+#ifndef NO_AES
 #ifdef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM
 	.text
 	.globl	AES_set_key_RISCV64
@@ -80060,6 +80061,7 @@ L_AES_GCM_decrypt_final_RISCV64_check_tag:
 #endif /* HAVE_AESGCM */
 #endif /* WOLFSSL_RISCV_SCALAR_CRYPTO_ASM */
 #endif /* WOLFSSL_RISCV_VECTOR_CRYPTO_ASM */
+#endif /* NO_AES */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
