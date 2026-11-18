@@ -1914,11 +1914,16 @@ static void wb_gcm_setiv_carry(void)
     wb_rng_fill = 0xFF;
     ret = wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, fixed, sizeof(fixed), &rng);
     WB_CHECK(ret == 0, "0xFF field row expected 0");
+    WB_CHECK(aes.invokeCtr[0] == 0xFFFFFFFF &&
+        aes.invokeCtr[1] == 0xFFFFFFFF,
+        "0xFF field row expected a saturated invocation counter");
 
     /* field[0] != 0xFF: the scan stops at i == 0. */
     wb_rng_fill = 0x00;
     ret = wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, fixed, sizeof(fixed), &rng);
     WB_CHECK(ret == 0, "0x00 field row expected 0");
+    WB_CHECK(aes.invokeCtr[0] == 0 && aes.invokeCtr[1] == 0xFFFFFFFF,
+        "0x00 field row expected a fresh 32-bit invocation counter");
 
     wc_FreeRng(&rng);
     wc_CryptoCb_UnRegisterDevice(MCDC_CB_DEVID);

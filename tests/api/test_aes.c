@@ -5415,7 +5415,9 @@ int test_wc_AesGcmStreamMcdc(void)
     ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
     ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
+    ExpectIntEQ(aes->invokeCtr[0], 0);
     ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    ExpectIntEQ(aes->invokeCtr[0], 1);
     wc_AesFree(aes);
 
     /* B (T,T,F,T): AAD only, no data. */
@@ -5424,7 +5426,9 @@ int test_wc_AesGcmStreamMcdc(void)
     ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
     ExpectIntEQ(wc_AesGcmEncryptUpdate(aes, NULL, NULL, 0, aad,
         sizeof(aad)), 0);
+    ExpectIntEQ(aes->invokeCtr[0], 1);
     ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    ExpectIntEQ(aes->invokeCtr[0], 1);
     wc_AesFree(aes);
 
     /* C (T,T,T,F): data only, no AAD. */
@@ -5433,7 +5437,9 @@ int test_wc_AesGcmStreamMcdc(void)
     ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, rng), 0);
     ExpectIntEQ(wc_AesGcmEncryptUpdate(aes, out, in, sizeof(in), NULL, 0),
         0);
+    ExpectIntEQ(aes->invokeCtr[0], 1);
     ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    ExpectIntEQ(aes->invokeCtr[0], 1);
     wc_AesFree(aes);
 
     /* D (F,-,-,-): an invalid tag size fails before the guard body. */
@@ -5457,6 +5463,7 @@ int test_wc_AesGcmStreamMcdc(void)
     ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmInit(aes, key, sizeof(key), iv, sizeof(iv)), 0);
     ExpectIntEQ(wc_AesGcmEncryptFinal(aes, tag, sizeof(tag)), 0);
+    ExpectIntEQ(aes->invokeCtr[0], 0);
     wc_AesFree(aes);
 
     wc_FreeRng(rng);
