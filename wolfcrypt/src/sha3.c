@@ -913,11 +913,8 @@ static word64 Load64BitLittleEndian(const byte* a)
 }
 #endif
 
-/* Initialize the state for a SHA3-224 hash operation.
- *
- * sha3   wc_Sha3 object holding state.
- * returns 0 on success.
- */
+/* Reset the sponge state of sha3 for any SHA-3 or SHAKE operation.
+ * Returns 0 on success. */
 
 static int InitSha3(wc_Sha3* sha3)
 {
@@ -1879,16 +1876,8 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 
 #if !(defined(WOLFSSL_NOSHA3_224) && defined(WOLFSSL_NOSHA3_256) && \
       defined(WOLFSSL_NOSHA3_384) && defined(WOLFSSL_NOSHA3_512))
-/* Calculate the SHA3-224 hash based on all the message data so far.
- * More message data can be added, after this operation, using the current
- * state.
- *
- * sha3  wc_Sha3 object holding state.
- * hash  Buffer to hold the hash result. Must be at least 28 bytes.
- * p     Number of 64-bit numbers in a block of data to process.
- * len   Number of bytes in output.
- * returns 0 on success.
- */
+/* Write the len-byte SHA-3 hash, block count p, of the data so far to hash;
+ * more data may follow. Returns 0 on success. */
 static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
 {
     int ret;
@@ -2414,7 +2403,8 @@ int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
  * The state is initialized ready for a new message to hash.
  *
  * shake  wc_Shake object holding state.
- * hash  Buffer to hold the hash result. Must be at least 64 bytes.
+ * hash  Buffer to hold the hash result. Must be at least hashLen bytes.
+ * hashLen Size of hash in bytes.
  * returns 0 on success.
  */
 int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen)
@@ -2612,12 +2602,7 @@ int wc_Shake128_Reset(wc_Shake* shake) {
     return ret;
 }
 
-/* Copy the state of the SHA3-512 operation.
- *
- * src  wc_Shake object holding state top copy.
- * dst  wc_Shake object to copy into.
- * returns 0 on success.
- */
+/* Copy the SHAKE128 state in src to dst. Returns 0 on success. */
 int wc_Shake128_Copy(wc_Shake* src, wc_Shake* dst)
 {
     return wc_Sha3Copy(src, dst);
@@ -2785,7 +2770,7 @@ int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
  * The state is initialized ready for a new message to hash.
  *
  * shake  wc_Shake object holding state.
- * hash  Buffer to hold the hash result. Must be at least 64 bytes.
+ * hash  Buffer to hold the hash result. Must be at least hashLen bytes.
  * hashLen Size of hash in bytes.
  * returns 0 on success.
  */
@@ -2976,12 +2961,7 @@ int wc_Shake256_Reset(wc_Shake* shake) {
     return ret;
 }
 
-/* Copy the state of the SHA3-512 operation.
- *
- * src  wc_Shake object holding state top copy.
- * dst  wc_Shake object to copy into.
- * returns 0 on success.
- */
+/* Copy the SHAKE256 state in src to dst. Returns 0 on success. */
 int wc_Shake256_Copy(wc_Shake* src, wc_Shake* dst)
 {
     return wc_Sha3Copy(src, dst);
