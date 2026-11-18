@@ -12522,6 +12522,156 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
         VerifyCallback verify_callback);
 
 /*!
+    \ingroup CertManager
+    \brief Sets a callback that observes certificate validation events in the
+    Certificate Manager. Requires WOLFSSL_CERT_EVENTS (--enable-cert-events).
+
+    Each failed certificate check raises a WC_CEV_KIND_DEFECT event that says
+    which certificate failed (role and chain depth), which field failed and
+    why. Checks on the connection rather than the certificate,
+    such as the host name and OCSP, are reported in the WC_CEV_KIND_RESULT
+    event's error only.
+    Each verification ends with a WC_CEV_KIND_RESULT event that holds the
+    final error, or 0 when the certificate was accepted. A defect followed by
+    a passed result means the verify callback allowed the failure. A TLS 1.2
+    client that asked for the server's certificate status sends it once the
+    status was checked at ServerHelloDone, as revocation can still fail
+    there; that RESULT has no subject, issuer or serial.
+    The condition field holds a stable value for each kind of failure.
+
+    The fields of WOLFSSL_CERT_EVENT, all defined in
+    wolfssl/wolfcrypt/asn_public.h:
+
+    - size: sizeof(WOLFSSL_CERT_EVENT). Fields are only ever added at the
+      end, so check size before reading a newer one.
+    - kind: DEFECT or RESULT (enum wc_CertEventKind).
+    - category: a certificate or a CRL (enum wc_CertEventCategory).
+    - error: the wolfSSL error code, such as ASN_AFTER_DATE_E. 0 on a RESULT
+      that passed.
+    - role and depth: which object it is about (enum wc_CertEventRole) and
+      where it sits in the chain: 0 for the peer's certificate, 1 for the CA
+      that signed it, and so on. -1 when not known.
+    - field and reason: which part failed, by its RFC 5280 name, and why
+      (enum wc_CertEventField, enum wc_CertEventReason).
+    - condition: the stable key to map to your own codes (enum
+      wc_CertEventCondition). The values are named after the IEC 62351-9 and
+      IEC 62351-3 audit events and never change.
+    - extOID, extOidData, extOidSz and critical: the extension, when the field
+      is an extension. extOID is wolfSSL's OID sum and depends on the build;
+      extOidData holds the OID's content octets, the same in every build.
+    - der and derSz: the encoded certificate.
+    - subject, issuer, serial and serialSz: which certificate it is, as far
+      as it was decoded. The names are one-line strings. NULL when not known,
+      such as on a certificate that could not be decoded, and on the RESULT
+      of X509_verify_cert().
+    - ssl: the WOLFSSL object whose handshake raised the event, so that the
+      application can tell which peer it was. NULL outside a handshake.
+
+    The callback only observes: it cannot change the result. Use
+    wolfSSL_CertManagerSetVerify() to override a failure. The event and the
+    data it points to are only valid during the call and come from untrusted
+    input. The callback must not call back into this Certificate Manager and
+    may be called from several threads at once.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG when cm is NULL.
+
+    \param cm a pointer to a WOLFSSL_CERT_MANAGER structure, created using
+    wolfSSL_CertManagerNew().
+    \param cb the event callback. NULL turns events off.
+    \param ctx a pointer passed to the callback with each event.
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    static void myCertEvent(const WOLFSSL_CERT_EVENT* ev, void* ctx)
+    {
+        if (ev->kind == WC_CEV_KIND_DEFECT) {
+            // log ev->error, ev->role, ev->depth, ev->field and ev->reason
+        }
+        else {
+            // ev->error is 0 when the certificate was accepted
+        }
+    }
+
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+    ...
+    wolfSSL_CertManagerSetCertEventCb(cm, myCertEvent, myLogger);
+
+    \endcode
+
+    \sa wolfSSL_CTX_SetCertEventCb
+    \sa wolfSSL_X509_STORE_SetCertEventCb
+    \sa wc_SetCertEventCallback
+    \sa wolfSSL_CertManagerSetVerify
+*/
+int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
+        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+
+/*!
+    \ingroup CertManager
+    \brief Sets the certificate validation event callback in the
+    Certificate Manager of an SSL/TLS context. Requires WOLFSSL_CERT_EVENTS.
+    See wolfSSL_CertManagerSetCertEventCb() for what the callback receives.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG when ctx is NULL or has no Certificate Manager.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+    \param cb the event callback. NULL turns events off.
+    \param cbCtx a pointer passed to the callback with each event.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLS_client_method());
+    ...
+    wolfSSL_CTX_SetCertEventCb(ctx, myCertEvent, myLogger);
+    \endcode
+
+    \sa wolfSSL_CertManagerSetCertEventCb
+*/
+int wolfSSL_CTX_SetCertEventCb(WOLFSSL_CTX* ctx, WOLFSSL_CERT_EVENT_CB cb,
+        void* cbCtx);
+
+/*!
+    \ingroup CertManager
+    \brief Sets the certificate validation event callback in the Certificate
+    Manager of an X509 store, so that X509_verify_cert() raises events.
+    Requires WOLFSSL_CERT_EVENTS and OPENSSL_EXTRA. See
+    wolfSSL_CertManagerSetCertEventCb() for what the callback receives.
+
+    X509_verify_cert() sends a RESULT for each certificate it tries while
+    building the chain, so one verification can send several, and a chain
+    check after the last one, such as the chain length, can still fail it.
+    Use X509_verify_cert()'s return value for the verdict. These RESULT
+    events have no subject, issuer or serial: use the X509 store context.
+    When a TLS verify callback calls X509_verify_cert(), the events name the
+    connection in ssl and give the depth in the peer's chain, the same depth
+    X509_STORE_CTX_get_error_depth() gives. A date failure found with the
+    time set by X509_STORE_CTX_set_time() is reported as a DEFECT too.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG when store is NULL or has no Certificate Manager.
+
+    \param store a pointer to a WOLFSSL_X509_STORE structure.
+    \param cb the event callback. NULL turns events off.
+    \param ctx a pointer passed to the callback with each event.
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    ...
+    wolfSSL_X509_STORE_SetCertEventCb(store, myCertEvent, myLogger);
+    \endcode
+
+    \sa wolfSSL_CertManagerSetCertEventCb
+*/
+int wolfSSL_X509_STORE_SetCertEventCb(WOLFSSL_X509_STORE* store,
+        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+
+/*!
     \brief Check CRL if the option is enabled and compares the cert to the
     CRL list.
 

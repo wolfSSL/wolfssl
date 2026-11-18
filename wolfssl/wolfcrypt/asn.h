@@ -2322,6 +2322,19 @@ struct DecodedCert {
     void*                     unknownExtCallbackExCtx;
     void*                     unknownExtCallback32ExCtx;
 #endif
+#ifdef WOLFSSL_CERT_EVENTS
+    WOLFSSL_CERT_EVENT_CB     certEventCb;     /* Validation event callback */
+    void*                     certEventCtx;    /* Callback context */
+    int                       certEventRole;   /* enum wc_CertEventRole */
+    int                       certEventDepth;  /* Chain depth, -1 unknown */
+    int                       certEventReported; /* Error of the last
+                                                  * DEFECT sent, 0 if none */
+    byte                      certEventNotCaSet; /* certEventNotCa is set */
+    byte                      certEventNotCa[KEYID_SIZE]; /* Subject hash
+                                                  * of a certificate the peer
+                                                  * sent that is not a CA */
+    void*                     certEventSsl;      /* TLS connection, or NULL */
+#endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     /* Subject Alternative Public Key Info */
     byte *sapkiDer;
@@ -2604,6 +2617,28 @@ WOLFSSL_API int wc_SetUnknownExtCallback32(DecodedCert* cert,
 WOLFSSL_API int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
                                                wc_UnknownExtCallback32Ex cb,
                                                void *ctx);
+#endif
+
+#ifdef WOLFSSL_CERT_EVENTS
+WOLFSSL_API int wc_SetCertEventCallback(DecodedCert* cert,
+                                        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+WOLFSSL_LOCAL void wc_CertEventSetConnection(DecodedCert* cert, void* ssl,
+                                             const byte* notCaHash);
+WOLFSSL_LOCAL void wc_CertEventIdentity(const DecodedCert* cert,
+                                        WOLFSSL_CERT_EVENT* ev);
+WOLFSSL_LOCAL void wc_CertEventSetPosition(DecodedCert* cert, int role,
+                                           int depth);
+WOLFSSL_LOCAL void wc_CertEventSend(WOLFSSL_CERT_EVENT_CB cb, void* ctx,
+                                    WOLFSSL_CERT_EVENT* ev);
+WOLFSSL_LOCAL void wc_CertEventDefect(DecodedCert* cert, int error,
+                                      int field, int reason, word32 extOID,
+                                      byte critical);
+WOLFSSL_LOCAL void wc_CertEventField(DecodedCert* cert, int error, int field);
+WOLFSSL_LOCAL void wc_CertEventFailure(DecodedCert* cert, int error,
+                                       int field, int reason);
+WOLFSSL_LOCAL void wc_CertEventFailureCond(DecodedCert* cert, int error,
+                                           int field, int reason,
+                                           int condition);
 #endif
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,
