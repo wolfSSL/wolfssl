@@ -11081,7 +11081,11 @@ int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
     cookie cannot be replayed later and the secret need not be rotated for
     that. The issue time is real time (wc_Time()), so servers that share a
     secret need clocks that agree: a cookie from a clock that is ahead is
-    rejected, one from a clock that is behind expires that much sooner.
+    rejected, one from a clock that is behind expires that much sooner. A
+    cookie's MAC is computed on the object's device (wolfSSL_SetDevId()). A
+    device that leaves it pending (WC_PENDING_E) is not supported on a DTLS
+    server: until a cookie verifies the server keeps no state to resume
+    from, and the ClientHello is dropped without a reply.
 
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new().
