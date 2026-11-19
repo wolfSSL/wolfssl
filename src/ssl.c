@@ -5862,13 +5862,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.acceptState  = ACCEPT_BEGIN;
         ssl->options.handShakeState  = NULL_STATE;
         ssl->options.handShakeDone = 0;
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CERT_YIELD)
-        /* A per-certificate yield (WOLFSSL_ASYNC_CERT_YIELD) sets this and it is
-         * normally cleared on the next ProcessPeerCerts re-entry. Clear it here
-         * so reusing this object after abandoning a yielded handshake cannot
-         * skip the ProcessPeerCerts state reset on the next fresh entry. */
-        ssl->options.certYieldPending = 0;
-#endif
         ssl->recordSzOverhead = 0;
 #ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
         /* Drop any half-sent streamed CertificateVerify. Left in place, the
@@ -5949,8 +5942,56 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_CURVE448
         ssl->peerX448KeyPresent = 0;
     #endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* An abandoned handshake can leave a queued event, whose key is freed
+         * below, and a handler's resume state. */
+        if (ssl->asyncDev != NULL) {
+            if (ssl->asyncDev->event.state == WOLF_EVENT_STATE_PENDING &&
+                    ssl->ctx != NULL) {
+                (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
+                                            &ssl->asyncDev->event);
+            }
+            XMEMSET(&ssl->asyncDev->event, 0, sizeof(WOLF_EVENT));
+            ssl->asyncDev = NULL;
+        }
+        #ifdef WOLFSSL_TLS13
+        ssl->options.buildArgs13Set = 0;
+        ssl->options.chHashInput = 0;
+        ssl->options.asyncReplayMsg = 0;
+        #endif
+        #ifdef WOLFSSL_ASYNC_CERT_YIELD
+        ssl->options.certYieldPending = 0;
+        #endif
+    #endif
+    #ifdef WOLFSSL_ASYNC_IO
+        FreeAsyncCtx(ssl, 1);
+    #endif
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
         /* Drop the peer certificate public key left by an abandoned handshake. */
         FreePeerCertKeys(ssl);
+    #ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->buffers.peerEccDsaKey.buffer = NULL;
+        ssl->buffers.peerEccDsaKey.length = 0;
+    #endif
+    #ifndef NO_RSA
+        XFREE(ssl->buffers.peerRsaKey.buffer, ssl->heap, DYNAMIC_TYPE_RSA);
+        ssl->buffers.peerRsaKey.buffer = NULL;
+        ssl->buffers.peerRsaKey.length = 0;
+    #endif
+    #ifdef HAVE_ED25519
+        XFREE(ssl->buffers.peerEd25519Key.buffer, ssl->heap,
+            DYNAMIC_TYPE_ED25519);
+        ssl->buffers.peerEd25519Key.buffer = NULL;
+        ssl->buffers.peerEd25519Key.length = 0;
+    #endif
+    #ifdef HAVE_ED448
+        XFREE(ssl->buffers.peerEd448Key.buffer, ssl->heap, DYNAMIC_TYPE_ED448);
+        ssl->buffers.peerEd448Key.buffer = NULL;
+        ssl->buffers.peerEd448Key.length = 0;
+    #endif
+    #endif /* HAVE_PK_CALLBACKS */
         FreeEphemeralKeys(ssl);
 
         ssl->pssAlgo = 0;
@@ -5977,22 +6018,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->kdfMsgType = 0;
         #if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
         Tls13FreeHsHmac(ssl);
-        #endif
-        #ifdef WOLFSSL_ASYNC_CRYPT
-        ssl->options.buildArgs13Set = 0;
-        /* An abandoned handshake can leave a mid-flight handler resume
-         * state and a queued key-schedule event behind; a reused object
-         * must start fresh. */
-        ssl->options.asyncState = TLS_ASYNC_BEGIN;
-        if (ssl->asyncDev == &ssl->kdfAsyncDev) {
-            if (ssl->kdfAsyncDev.event.state == WOLF_EVENT_STATE_PENDING &&
-                    ssl->ctx != NULL) {
-                (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
-                                            &ssl->kdfAsyncDev.event);
-            }
-            XMEMSET(&ssl->kdfAsyncDev.event, 0, sizeof(WOLF_EVENT));
-            ssl->asyncDev = NULL;
-        }
         #endif
     #endif
     #ifdef HAVE_SESSION_TICKET
@@ -6073,9 +6098,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->buffers.plainSz = 0;
         ssl->pendingAlert.code = 0;
         ssl->pendingAlert.level = alert_none;
-    #ifdef WOLFSSL_ASYNC_IO
-        FreeAsyncCtx(ssl, 1);
-    #endif
         /* Recycling the object for a new connection must not carry the
          * previous connection's key material along with it. A freshly
          * created object has all of this zeroed. */

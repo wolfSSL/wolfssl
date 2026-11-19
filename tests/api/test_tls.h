@@ -87,6 +87,7 @@ int test_tls12_resume_ticket_client_auth_ok(void);
 int test_tls12_reuse_clears_use_ticket(void);
 int test_tls_clear_resets_state(void);
 int test_tls12_scr_fresh_state(void);
+int test_tls12_clear_pending_key(void);
 int test_tls12_resume_ticket_decline_fallback(void);
 int test_tls12_ticket_dropped_on_bad_finished(void);
 int test_tls12_ticket_cached_after_finished(void);
@@ -208,6 +209,7 @@ int test_tls_unset_fd_no_stdin_io(void);
         TEST_DECL_GROUP("tls", test_tls12_reuse_clears_use_ticket),            \
         TEST_DECL_GROUP("tls", test_tls_clear_resets_state),                   \
         TEST_DECL_GROUP("tls", test_tls12_scr_fresh_state),                    \
+        TEST_DECL_GROUP("tls", test_tls12_clear_pending_key),                  \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_decline_fallback),     \
         TEST_DECL_GROUP("tls", test_tls12_ticket_dropped_on_bad_finished),     \
         TEST_DECL_GROUP("tls", test_tls12_ticket_cached_after_finished),       \

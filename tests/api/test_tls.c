@@ -5803,6 +5803,61 @@ int test_tls12_scr_fresh_state(void)
     return EXPECT_RESULT();
 }
 
+/* Clearing a server whose key generation is still pending leaves no event
+ * queued for the freed key, and the object can be used again. */
+int test_tls12_clear_pending_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_ASYNC_ENABLE_ECC) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ECC) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_c2 = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLF_EVENT* events[4];
+    int count = -1;
+    int devId = INVALID_DEVID;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+    ExpectIntGE(wolfAsync_DevOpen(&devId), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_s, devId), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->asyncDev);
+        ExpectNotNull(ssl_s->eccTempKey);
+    }
+
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    if (ssl_s != NULL)
+        ExpectNull(ssl_s->asyncDev);
+    ExpectIntEQ(wolfSSL_CTX_AsyncPoll(ctx_s, events, 4,
+        WOLF_POLL_FLAG_CHECK_HW, &count), 0);
+    ExpectIntEQ(count, 0);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c2, NULL,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfAsync_DevClose(&devId);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A ticket the server can't honor must fall back to a full handshake (RFC 5077
  * 3.4), even under a different suite than the cached ticket session - the
  * F-5811 suite check must not abort it. The second handshake uses a fresh
