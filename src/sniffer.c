@@ -6376,7 +6376,8 @@ static int FindNextRecordInAssembly(SnifferSession* session,
     while (curr != NULL) {
         *expected = curr->end + 1;
 
-        if (curr->data[0] == application_data &&
+        if ((curr->end - curr->begin + 1) >= (word32)(ENUM_LEN + VERSION_SZ) &&
+            curr->data[0] == application_data &&
             curr->data[1] == pv.major &&
             curr->data[2] == pv.minor) {
 
