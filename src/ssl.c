@@ -5983,6 +5983,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->earlyData = no_early_data;
         ssl->earlyDataSz = 0;
     #endif
+    #ifdef HAVE_TLS_EXTENSIONS
+        /* The group a HelloRetryRequest of the previous connection asked
+         * for. DoTls13ClientHello takes a non-zero value to mean that this
+         * connection sent one, and holds the first ClientHello to it. */
+        ssl->hrr_keyshare_group = 0;
+    #endif
     #ifdef HAVE_RPK
         /* Drop the negotiated cert types so one peer's choice cannot carry into
          * the next handshake. Clearing the counts is enough: every read of the
