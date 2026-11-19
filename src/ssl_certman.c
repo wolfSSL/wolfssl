@@ -968,11 +968,10 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, extraCa);
      }
 #ifdef WOLFSSL_CHAIN_CA_DATES
-    if ((ret == 0) || (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
-            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
-        /* A CA cached from a peer's chain may have expired since. A date
-         * error on cert does not hide that one: the callback is asked about
-         * it after it accepts the error on cert. */
+    if (wolfssl_local_ChainCADateErrApplies(ret)) {
+        /* A CA cached from a peer's chain may have expired since. An error
+         * on cert does not hide that one: the callback is asked about it
+         * after it accepts the error on cert. */
         caDateRet = wolfssl_local_CheckChainCADates(cm, cert->ca, NULL, NULL);
         if (ret == 0) {
             ret = caDateRet;
@@ -3145,6 +3144,23 @@ int wolfssl_local_SetChainCADates(WOLFSSL_CERT_MANAGER* cm, const byte* hash,
     return ret;
 }
 
+/* ParseCertRelative() returns these only after ConfirmSignature() has passed.
+ * The walk over cached chain CAs still runs, and the verify callback is asked
+ * about its result after it accepts this error.
+ *
+ * @param [in] ret  Result of parsing the certificate.
+ * @return  1 when the walk applies to ret.
+ */
+int wolfssl_local_ChainCADateErrApplies(int ret)
+{
+    return ret == 0 ||
+        ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
+        ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E) ||
+        ret == WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) ||
+        ret == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E) ||
+        ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E);
+}
+
 /* Decide whether cert renews the CA cached from a peer's chain under hash.
  * The cached CA must be a WOLFSSL_CHAIN_CA with the same public key and other
  * dates. The issuer of the cached CA must have signed cert: cert names the
@@ -3193,6 +3209,64 @@ int wolfssl_local_IsChainCARenewal(WOLFSSL_CERT_MANAGER* cm,
     wc_UnLockMutex(&cm->caLock);
 
     return ret;
+}
+
+/* Decide whether cert is a verified certificate for the cached chain CA under
+ * hash, signed by a different issuer. The walk uses its dates for this
+ * handshake. They are not stored: the cached certificate is a different one,
+ * and a later handshake that does not send cert must keep the cached dates.
+ * The key that verified cert must not be the cached CA's key, so the holder
+ * of that key cannot extend its own dates.
+ *
+ * @param [in] cm        Certificate manager.
+ * @param [in] hash      Hash identifying the CA, as AddCA() files it.
+ * @param [in] keyHash   CalcHashId() of the public key of cert.
+ * @param [in] cert      Verified certificate from the peer's chain.
+ * @param [in] validity  Dates of cert.
+ * @return  1 when the walk should use the dates of cert.
+ * @return  0 when it should not.
+ * @return  BAD_MUTEX_E when the CA lock cannot be taken.
+ */
+int wolfssl_local_IsChainCAPathDate(WOLFSSL_CERT_MANAGER* cm,
+    const byte* hash, const byte* keyHash, const DecodedCert* cert,
+    const SignerValidity* validity)
+{
+#if defined(HAVE_OCSP) || defined(HAVE_CRL) || \
+    defined(WOLFSSL_AKID_NAME) || !defined(IGNORE_NAME_CONSTRAINTS)
+    int ret = 0;
+    Signer* signer;
+    const Signer* issuer = cert->ca;
+
+    if (cert->selfSigned || issuer == NULL || issuer->publicKey == NULL)
+        return 0;
+
+    if (wc_LockMutex(&cm->caLock) != 0)
+        return BAD_MUTEX_E;
+    signer = cm_find_signer_locked(cm, hash);
+    if (signer != NULL && signer != issuer &&
+            signer->type == WOLFSSL_CHAIN_CA && signer->validity != NULL &&
+            XMEMCMP(signer->validity, validity, sizeof(*validity)) != 0 &&
+            cm_signer_key_is(signer, keyHash) &&
+            !(issuer->pubKeySize == signer->pubKeySize &&
+              XMEMCMP(issuer->publicKey, signer->publicKey,
+                  signer->pubKeySize) == 0) &&
+            XMEMCMP(signer->issuerNameHash, cert->issuerHash,
+                SIGNER_DIGEST_SIZE) != 0) {
+        ret = 1;
+    }
+    wc_UnLockMutex(&cm->caLock);
+
+    return ret;
+#else
+    /* The issuer name is not stored, so a different issuer cannot be told
+     * from a renewal. wolfssl_local_IsChainCARenewal() covers that case. */
+    (void)cm;
+    (void)hash;
+    (void)keyHash;
+    (void)cert;
+    (void)validity;
+    return 0;
+#endif
 }
 #endif /* WOLFSSL_CHAIN_CA_DATES */
 

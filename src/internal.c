@@ -10981,7 +10981,7 @@ void wolfssl_local_CommitChainCADates(WOLFSSL* ssl)
         return;
 
     for (entry = ssl->chainCaDates; entry != NULL; entry = entry->next) {
-        if (!entry->waived &&
+        if (!entry->waived && entry->store &&
                 wolfssl_local_SetChainCAValidity(SSL_CM(ssl), entry->hash,
                     entry->keyHash, &entry->validity) != 0) {
             WOLFSSL_MSG("Could not store dates of renewed chain CA");
@@ -19028,10 +19028,10 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
 #ifdef WOLFSSL_CHAIN_CA_DATES
 /* Record the dates of the chain CA in cert for this handshake. A waived
  * entry is a CA whose date error the verify callback accepted, and the walk
- * over cached CAs does not report that error again. Otherwise cert renews a
- * cached CA, and the walk uses its dates. The renewed dates are stored on the
- * cached CA by wolfssl_local_CommitChainCADates() when the handshake verifies
- * the peer.
+ * over cached CAs does not report that error again. A renewal is stored on
+ * the cached CA by wolfssl_local_CommitChainCADates() when the handshake
+ * verifies the peer. A verified certificate for the same key with a different
+ * issuer is used for this handshake only and is not stored.
  * Returns 0, MEMORY_E, BAD_MUTEX_E or a CalcHashId() or date error. */
 static int AddChainCADate(WOLFSSL* ssl, const DecodedCert* cert, int waived)
 {
@@ -19061,11 +19061,21 @@ static int AddChainCADate(WOLFSSL* ssl, const DecodedCert* cert, int waived)
             entry->keyHash, cert, &entry->validity);
         if (ret == 1) {
             WOLFSSL_MSG("Peer sent a renewed cached chain CA");
+            entry->store = 1;
             ret = 0;
         }
         else if (ret == 0) {
-            /* Not a renewal, so there is nothing to record. */
-            ret = 1;
+            ret = wolfssl_local_IsChainCAPathDate(SSL_CM(ssl), entry->hash,
+                entry->keyHash, cert, &entry->validity);
+            if (ret == 1) {
+                WOLFSSL_MSG("Peer sent a cross-signed cached chain CA");
+                ret = 0;
+            }
+            else if (ret == 0) {
+                /* Not a renewal and not a cross-signed certificate, so there
+                 * is nothing to record. */
+                ret = 1;
+            }
         }
     }
     if (ret != 0) {
@@ -19079,6 +19089,18 @@ static int AddChainCADate(WOLFSSL* ssl, const DecodedCert* cert, int waived)
     return 0;
 }
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
+/* The renewed dates stay off the cached CA until the stapled status of the
+ * pending chain CAs is accepted. That pending list is built only for a TLS
+ * client whose peer acknowledged Certificate Status Request v2 multi. */
+static int ChainCADatesAwaitStatus(const WOLFSSL* ssl)
+{
+    return ssl->options.side == WOLFSSL_CLIENT_END &&
+        ssl->status_request_v2 &&
+        TLSX_CSR2_IsMulti(ssl->extensions);
+}
+#endif
+
 /* Check the cached chain CAs on the path above the leaf, with the dates this
  * handshake decided. */
 static int CheckPeerChainCADates(WOLFSSL* ssl, Signer* ca)
@@ -19086,7 +19108,7 @@ static int CheckPeerChainCADates(WOLFSSL* ssl, Signer* ca)
     Signer* pending = NULL;
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
-    if (TLSX_CSR2_IsMulti(ssl->extensions))
+    if (ChainCADatesAwaitStatus(ssl))
         pending = TLSX_CSR2_GetPendingSigners(ssl->extensions);
 #endif
 
@@ -21079,10 +21101,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif
             #ifdef WOLFSSL_CHAIN_CA_DATES
                 /* A CA cached from an earlier peer chain may have expired
-                 * since. A date error on the leaf does not hide that one: the
-                 * callback is asked about it after it accepts the leaf's. */
-                if ((ret == 0 || ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
-                        ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) &&
+                 * since. An error on the leaf that is raised after its
+                 * signature check does not hide that one: the callback is
+                 * asked about it after it accepts the leaf's error. */
+                if (wolfssl_local_ChainCADateErrApplies(ret) &&
                         !ssl->options.verifyNone && !UsingChainVerifyCb(ssl)
                     #ifdef WOLFSSL_TRUST_PEER_CERT
                         && !args->haveTrustPeer
@@ -21701,7 +21723,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 wolfssl_local_FreeChainCADates(ssl);
             }
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
-            else if (TLSX_CSR2_IsMulti(ssl->extensions)) {
+            else if (ChainCADatesAwaitStatus(ssl)) {
                 /* The stapled status of the chain CAs is checked later.
                  * TLSX_CSR2_MergePendingCA() stores the renewed dates and
                  * TLSX_CSR2_ClearPendingCA() drops them. */

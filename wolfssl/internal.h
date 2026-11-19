@@ -3017,15 +3017,18 @@ WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 
 #ifdef WOLFSSL_CHAIN_CA_DATES
 /* Dates of a CA cached from a peer's chain, decided in this handshake. A
- * waived entry is a CA whose date error the verify callback accepted. Other
- * entries hold the dates of a renewed CA, stored on the cached CA only when
- * the handshake verifies the peer. */
+ * waived entry is a CA whose date error the verify callback accepted. An
+ * entry with store set holds the dates of a renewed CA. Those dates are
+ * written to the cached CA only when the handshake verifies the peer. An
+ * entry with store clear holds dates for this handshake only: the peer sent
+ * a verified certificate for the same key, issued by a different CA. */
 typedef struct ChainCADate {
     struct ChainCADate* next;
     byte hash[SIGNER_DIGEST_SIZE];   /* hash AddCA() files the CA under */
     byte keyHash[KEYID_SIZE];        /* CalcHashId() of its public key */
     SignerValidity validity;
     byte waived;
+    byte store;
 } ChainCADate;
 #endif
 
@@ -5111,6 +5114,10 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL int wolfssl_local_IsChainCARenewal(WOLFSSL_CERT_MANAGER* cm,
         const byte* hash, const byte* keyHash, const DecodedCert* cert,
         const SignerValidity* validity);
+    WOLFSSL_LOCAL int wolfssl_local_IsChainCAPathDate(WOLFSSL_CERT_MANAGER* cm,
+        const byte* hash, const byte* keyHash, const DecodedCert* cert,
+        const SignerValidity* validity);
+    WOLFSSL_LOCAL int wolfssl_local_ChainCADateErrApplies(int ret);
     WOLFSSL_LOCAL void wolfssl_local_CommitChainCADates(WOLFSSL* ssl);
     WOLFSSL_LOCAL void wolfssl_local_FreeChainCADates(WOLFSSL* ssl);
 #endif

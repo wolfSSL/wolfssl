@@ -4695,6 +4695,8 @@ int test_wolfSSL_chain_ca_cached_dates(void)
     byte* noAkidDer = NULL;
     byte* subDer = NULL;
     byte* subLeafDer = NULL;
+    byte* rootBDer = NULL;
+    byte* crossDer = NULL;
     int oldCaSz = 0;
     int newCaSz = 0;
     int leafSz = 0;
@@ -4703,6 +4705,8 @@ int test_wolfSSL_chain_ca_cached_dates(void)
     int noAkidSz = 0;
     int subSz = 0;
     int subLeafSz = 0;
+    int rootBSz = 0;
+    int crossSz = 0;
     int hsRet = -1;
     time_t now = wc_Time(NULL);
     /* The old CA expires in 100 days. The leaf and the renewed CA are valid
@@ -4725,6 +4729,10 @@ int test_wolfSSL_chain_ca_cached_dates(void)
     ExpectNotNull(subDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(subLeafDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(rootBDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(crossDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
@@ -4785,6 +4793,12 @@ int test_wolfSSL_chain_ca_cached_dates(void)
         NULL)), 0);
     ExpectIntGT((subLeafSz = test_eku_gen_leaf(subLeafDer,
         TEST_EKU_CERT_BUF_SZ, &caKey, subDer, subSz, &leafKey, &rng)), 0);
+    /* A second root, and the old CA's key cross-signed by that root. */
+    ExpectIntGT((rootBSz = test_ca_date_gen_ca(rootBDer, TEST_EKU_CERT_BUF_SZ,
+        &leafKey, NULL, 0, NULL, &rng, "CA Date Root B", 0)), 0);
+    ExpectIntGT((crossSz = test_eku_gen_ca(crossDer, TEST_EKU_CERT_BUF_SZ,
+        &intKey, rootBDer, rootBSz, &leafKey, &rng, NULL, "CA Date Inter", 0,
+        NULL)), 0);
 
     /* The first handshake sends the old CA and the client caches it. */
     ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
@@ -4826,9 +4840,13 @@ int test_wolfSSL_chain_ca_cached_dates(void)
 
     /* An expired CA that the callback accepts at depth 1 is not reported
      * again at depth 0. The cached copy keeps its old dates, so a leaf sent
-     * alone later fails at depth 0. */
+     * alone later fails at depth 0. The CA must already be cached: a CA the
+     * callback accepted is not stored for a later connection. */
     if (EXPECT_SUCCESS())
         XMEMCPY(chainDer + leafSz, oldCaDer, (size_t)oldCaSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
     ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
         leafSz + oldCaSz, later, test_ca_date_accept_depth1_cb, &hsRet),
         TEST_SUCCESS);
@@ -4898,6 +4916,53 @@ int test_wolfSSL_chain_ca_cached_dates(void)
         WOLFSSL_USER_CA, NULL, 0, 0, chainDer, leafSz, later, NULL),
         WOLFSSL_SUCCESS);
 
+    /* A cross-signed certificate for the cached key is the certificate in
+     * this path. Its dates are used for the handshake and are not stored, so
+     * a later leaf sent alone still fails on the cached dates. */
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, oldCaDer, (size_t)oldCaSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_c, rootBDer, rootBSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        XMEMCPY(chainDer + leafSz, crossDer, (size_t)crossSz);
+    }
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + crossSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_WOLFSSL_CLIENT)
+    /* Requesting Certificate Status Request v2 multi, when the server does
+     * not acknowledge it, must still store a renewed CA. */
+    if (EXPECT_SUCCESS())
+        XMEMCPY(chainDer + leafSz, oldCaDer, (size_t)oldCaSz);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + oldCaSz, now, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(ctx_c,
+            WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+        XMEMCPY(chainDer + leafSz, newCaDer, (size_t)newCaSz);
+    }
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz + newCaSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    ExpectIntEQ(test_ca_date_connect(&ctx_c, rootDer, rootSz, chainDer,
+        leafSz, later, NULL, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+#endif
+
     if (rngInit)  wc_FreeRng(&rng);
     if (caInit)   wc_FreeRsaKey(&caKey);
     if (intInit)  wc_FreeRsaKey(&intKey);
@@ -4910,6 +4975,8 @@ int test_wolfSSL_chain_ca_cached_dates(void)
     XFREE(noAkidDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(subDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(subLeafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rootBDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(crossDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
