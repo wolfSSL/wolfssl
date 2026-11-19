@@ -3829,7 +3829,7 @@ static void FreeCiphersSide(Ciphers *cipher, void* heap)
     /* See: InitKeys() in keys.c on addition of BUILD_AESGCM check (enc->aes,
      * dec->aes) */
     wc_AesFree(cipher->aes);
-    XFREE(cipher->aes, heap, DYNAMIC_TYPE_CIPHER);
+    WC_FREE_AES(cipher->aes, heap);
     cipher->aes = NULL;
 #endif
 #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
@@ -47432,7 +47432,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
     (void)heap;
 
 #ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_TMP_BUFFER);
+    aes = WC_ALLOC_AES(heap);
     if (aes == NULL)
         return MEMORY_E;
     hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_TMP_BUFFER);

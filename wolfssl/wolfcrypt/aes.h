@@ -1506,10 +1506,18 @@ void wc_free_aligned(void* p, void* heap, int type);
                                                    WC_ALIGNOF(Aes), \
                                                    DYNAMIC_TYPE_AES))
 #define WC_FREE_AES(aes, heap) wc_free_aligned((aes), (heap), DYNAMIC_TYPE_AES)
+#define WC_ALLOC_XTS(heap) ((XtsAes*)wc_alloc_aligned((heap), sizeof(XtsAes), \
+                                                      WC_ALIGNOF(XtsAes), \
+                                                      DYNAMIC_TYPE_AES))
+#define WC_FREE_XTS(aes, heap) wc_free_aligned((aes), (heap), DYNAMIC_TYPE_AES)
 #else
 #define WC_ALLOC_AES(heap) \
     ((Aes*)XMALLOC(sizeof(Aes), (heap), DYNAMIC_TYPE_AES))
 #define WC_FREE_AES(aes, heap) \
+    do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
+#define WC_ALLOC_XTS(heap) \
+    ((XtsAes*)XMALLOC(sizeof(XtsAes), (heap), DYNAMIC_TYPE_AES))
+#define WC_FREE_XTS(aes, heap) \
     do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
 #endif
 

@@ -2258,8 +2258,7 @@ static int Dtls13InitAesCipher(WOLFSSL* ssl, RecordNumberCiphers* cipher,
 {
     int ret;
     if (cipher->aes == NULL) {
-        cipher->aes =
-            (Aes*)XMALLOC(sizeof(Aes), ssl->heap, DYNAMIC_TYPE_CIPHER);
+        cipher->aes = WC_ALLOC_AES(ssl->heap);
         if (cipher->aes == NULL)
             return MEMORY_E;
     }
@@ -2271,7 +2270,7 @@ static int Dtls13InitAesCipher(WOLFSSL* ssl, RecordNumberCiphers* cipher,
 
     ret = wc_AesInit(cipher->aes, ssl->heap, INVALID_DEVID);
     if (ret != 0) {
-        XFREE(cipher->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        WC_FREE_AES(cipher->aes, ssl->heap);
         cipher->aes = NULL;
         return ret;
     }
@@ -2279,7 +2278,7 @@ static int Dtls13InitAesCipher(WOLFSSL* ssl, RecordNumberCiphers* cipher,
     ret = wc_AesSetKey(cipher->aes, key, keySize, NULL, AES_ENCRYPTION);
     if (ret != 0) {
         wc_AesFree(cipher->aes);
-        XFREE(cipher->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        WC_FREE_AES(cipher->aes, ssl->heap);
         cipher->aes = NULL;
     }
 

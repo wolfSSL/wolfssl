@@ -1532,14 +1532,14 @@ static void myFipsCb(int ok, int err, const char* hash)
 static WC_MAYBE_UNUSED Aes* wc_AesNew(void* heap, int thisDevId, int *result_code)
 {
     int ret;
-    Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
+    Aes* aes = WC_ALLOC_AES(heap);
     if (aes == NULL) {
         ret = MEMORY_E;
     }
     else {
         ret = wc_AesInit(aes, heap, thisDevId);
         if (ret != 0) {
-            XFREE(aes, heap, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, heap);
             aes = NULL;
         }
     }
@@ -1566,14 +1566,14 @@ static WC_MAYBE_UNUSED Aes* wc_AesNew_Id(unsigned char* id, int len,
                                           int *result_code)
 {
     int ret;
-    Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
+    Aes* aes = WC_ALLOC_AES(heap);
     if (aes == NULL) {
         ret = MEMORY_E;
     }
     else {
         ret = wc_AesInit_Id(aes, id, len, heap, thisDevId);
         if (ret != 0) {
-            XFREE(aes, heap, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, heap);
             aes = NULL;
         }
     }
@@ -21218,7 +21218,7 @@ static wc_test_ret_t aes_xts_128_test(void)
     wc_test_ret_t ret = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_XTS(HEAP_HINT)) == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
 #endif
 
@@ -21286,7 +21286,7 @@ static wc_test_ret_t aes_xts_128_test(void)
         wc_AesXtsFree(aes);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+    WC_FREE_XTS(aes, HEAP_HINT);
 #endif
 
     return ret;
@@ -21590,7 +21590,7 @@ static wc_test_ret_t aes_xts_192_test(void)
     wc_test_ret_t ret = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_XTS(HEAP_HINT)) == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
 #endif
 
@@ -21624,7 +21624,7 @@ static wc_test_ret_t aes_xts_192_test(void)
         wc_AesXtsFree(aes);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+    WC_FREE_XTS(aes, HEAP_HINT);
 #endif
 
     return ret;
@@ -21976,7 +21976,7 @@ static wc_test_ret_t aes_xts_256_test(void)
     wc_test_ret_t ret = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_XTS(HEAP_HINT)) == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
 #endif
 
@@ -22048,7 +22048,7 @@ static wc_test_ret_t aes_xts_256_test(void)
         wc_AesXtsFree(aes);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+    WC_FREE_XTS(aes, HEAP_HINT);
 #endif
 
     return ret;
@@ -22350,7 +22350,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
     wc_test_ret_t ret = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_XTS(HEAP_HINT)) == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
 #endif
 
@@ -22376,7 +22376,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
         wc_AesXtsFree(aes);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+    WC_FREE_XTS(aes, HEAP_HINT);
 #endif
 
     return ret;
@@ -22418,7 +22418,7 @@ static wc_test_ret_t aes_xts_args_test(void)
     word64 s1 = 141;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_XTS(HEAP_HINT)) == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
 #endif
 
@@ -22488,7 +22488,7 @@ static wc_test_ret_t aes_xts_args_test(void)
         wc_AesXtsFree(aes);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+    WC_FREE_XTS(aes, HEAP_HINT);
 #endif
 
     return ret;
@@ -27780,7 +27780,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
     /* Drive wc_AesKeyWrap_Pad_ex/wc_AesKeyUnWrap_Pad_ex directly with a caller
      * Aes; the KAT loop above already covers every vector via the wrappers. */
     {
-        Aes* aes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
+        Aes* aes = WC_ALLOC_AES(HEAP_HINT);
         if (aes == NULL)
             return WC_TEST_RET_ENC_NC;
 
@@ -27788,13 +27788,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
         XMEMSET(plain,  0, sizeof(plain));
 
         if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, HEAP_HINT);
             return WC_TEST_RET_ENC_NC;
         }
         if (wc_AesSetKey(aes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
                          AES_ENCRYPTION) != 0) {
             wc_AesFree(aes);
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, HEAP_HINT);
             return WC_TEST_RET_ENC_NC;
         }
         wrapSz = wc_AesKeyWrap_Pad_ex(aes, test_kwp[0].data, test_kwp[0].dataLen,
@@ -27802,24 +27802,24 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
         wc_AesFree(aes);
         if ( (wrapSz < 0) || (wrapSz != (int)test_kwp[0].verifyLen) ||
              XMEMCMP(output, test_kwp[0].verify, test_kwp[0].verifyLen) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, HEAP_HINT);
             return WC_TEST_RET_ENC_NC;
         }
 
         if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, HEAP_HINT);
             return WC_TEST_RET_ENC_NC;
         }
         if (wc_AesSetKey(aes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
                          AES_DECRYPTION) != 0) {
             wc_AesFree(aes);
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(aes, HEAP_HINT);
             return WC_TEST_RET_ENC_NC;
         }
         plainSz = wc_AesKeyUnWrap_Pad_ex(aes, output, (word32)wrapSz,
                                          plain, sizeof(plain), NULL);
         wc_AesFree(aes);
-        XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+        WC_FREE_AES(aes, HEAP_HINT);
         if ( (plainSz < 0) || (plainSz != (int)test_kwp[0].dataLen) ||
              XMEMCMP(plain, test_kwp[0].data, test_kwp[0].dataLen) != 0)
             return WC_TEST_RET_ENC_NC;
@@ -27851,7 +27851,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
     /* Forge decrypted blocks AIV(8)|P(8) to drive unwrap checks 2 (MLI range)
      * and 3 (nonzero pad); ECB-encrypting a chosen block fixes what unwrap sees. */
     {
-        Aes* faes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
+        Aes* faes = WC_ALLOC_AES(HEAP_HINT);
         byte forgeBlk[WC_AES_BLOCK_SIZE];
         byte forged[WC_AES_BLOCK_SIZE];
         int  fr;
@@ -27874,13 +27874,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
             wc_AesFree(faes);
         }
         if (fr != 0) {
-            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(faes, HEAP_HINT);
             return WC_TEST_RET_ENC_EC(fr);
         }
         if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, forged, 16,
                 plain, sizeof(plain), NULL)
                 != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E)) {
-            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(faes, HEAP_HINT);
             return WC_TEST_RET_ENC_NC;
         }
 
@@ -27901,17 +27901,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
             wc_AesFree(faes);
         }
         if (fr != 0) {
-            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(faes, HEAP_HINT);
             return WC_TEST_RET_ENC_EC(fr);
         }
         if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, forged, 16,
                 plain, sizeof(plain), NULL)
                 != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E)) {
-            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            WC_FREE_AES(faes, HEAP_HINT);
             return WC_TEST_RET_ENC_NC;
         }
 
-        XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+        WC_FREE_AES(faes, HEAP_HINT);
     }
 #endif /* !HAVE_FIPS && !HAVE_SELFTEST */
 
@@ -88402,7 +88402,7 @@ static int myDecryptionFunc(wc_PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (Aes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+    if ((aes = WC_ALLOC_AES(HEAP_HINT)) == NULL)
         return WC_TEST_RET_ENC_ERRNO;
 #endif
 
@@ -88484,7 +88484,7 @@ static int myDecryptionFunc(wc_PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_AES(aes, HEAP_HINT);
 #endif
 
     (void)aad;

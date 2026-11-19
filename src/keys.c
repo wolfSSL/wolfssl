@@ -2622,7 +2622,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (enc) {
             if (enc->aes == NULL) {
-                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+                enc->aes = WC_ALLOC_AES(heap);
                 if (enc->aes == NULL)
                     return MEMORY_E;
             } else {
@@ -2633,7 +2633,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         if (dec) {
             if (dec->aes == NULL) {
-                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+                dec->aes = WC_ALLOC_AES(heap);
                 if (dec->aes == NULL)
                     return MEMORY_E;
             } else {
@@ -2707,7 +2707,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (enc) {
             if (enc->aes == NULL) {
-                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+                enc->aes = WC_ALLOC_AES(heap);
                 if (enc->aes == NULL)
                     return MEMORY_E;
             } else {
@@ -2718,7 +2718,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         if (dec) {
             if (dec->aes == NULL) {
-                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+                dec->aes = WC_ALLOC_AES(heap);
                 if (dec->aes == NULL)
                     return MEMORY_E;
             } else {
@@ -2815,7 +2815,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (enc) {
             if (enc->aes == NULL) {
-                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+                enc->aes = WC_ALLOC_AES(heap);
                 if (enc->aes == NULL)
                     return MEMORY_E;
             } else {
@@ -2826,7 +2826,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         if (dec) {
             if (dec->aes == NULL) {
-                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+                dec->aes = WC_ALLOC_AES(heap);
                 if (dec->aes == NULL)
                     return MEMORY_E;
             } else {

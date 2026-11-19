@@ -10649,8 +10649,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
                 return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_AES)) == NULL)
+            if ((aes = WC_ALLOC_AES(NULL)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, heap, devId);
@@ -10662,7 +10661,9 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
                 }
                 wc_AesFree(aes);
             }
-            WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+            WC_FREE_AES(aes, NULL);
+#endif
             break;
     #endif /* HAVE_AES_CBC */
     #ifdef HAVE_AESGCM
@@ -10681,8 +10682,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
                 return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_AES)) == NULL)
+            if ((aes = WC_ALLOC_AES(NULL)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, heap, devId);
@@ -10723,7 +10723,9 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
                 }
                 wc_AesFree(aes);
             }
-            WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+            WC_FREE_AES(aes, NULL);
+#endif
             break;
         #endif
     #endif /* HAVE_AESGCM */
@@ -10748,8 +10750,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
             }
 
 #ifdef WOLFSSL_SMALL_STACK
-            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_AES)) == NULL)
+            if ((aes = WC_ALLOC_AES(NULL)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, heap, devId);
@@ -10766,7 +10767,9 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
                 }
                 wc_AesFree(aes);
             }
-            WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+            WC_FREE_AES(aes, NULL);
+#endif
             break;
         #endif
     #endif /* HAVE_AESCCM */
@@ -10873,8 +10876,7 @@ static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, word32 encryptOID,
                     (ivSz  != WC_AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
-            pkcs7->decryptKey.aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_AES);
+            pkcs7->decryptKey.aes = WC_ALLOC_AES(NULL);
             aes = pkcs7->decryptKey.aes;
             if (aes == NULL)
                 return MEMORY_E;
@@ -10897,8 +10899,7 @@ static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, word32 encryptOID,
         #endif
         #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
             defined(WOLFSSL_AES_256)
-            pkcs7->decryptKey.aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_AES);
+            pkcs7->decryptKey.aes = WC_ALLOC_AES(NULL);
             aes = pkcs7->decryptKey.aes;
             if (aes == NULL)
                 return MEMORY_E;
@@ -10921,8 +10922,7 @@ static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, word32 encryptOID,
         #endif
         #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
             defined(WOLFSSL_AES_256)
-            pkcs7->decryptKey.aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_AES);
+            pkcs7->decryptKey.aes = WC_ALLOC_AES(NULL);
             aes = pkcs7->decryptKey.aes;
             if (aes == NULL)
                 return MEMORY_E;
@@ -11130,7 +11130,7 @@ static void wc_PKCS7_DecryptContentFree(wc_PKCS7* pkcs7, word32 encryptOID,
     #endif /* HAVE_AESCCM */
             if (pkcs7->decryptKey.aes != NULL) {
                 wc_AesFree(pkcs7->decryptKey.aes);
-                XFREE(pkcs7->decryptKey.aes, heap, DYNAMIC_TYPE_AES);
+                WC_FREE_AES(pkcs7->decryptKey.aes, heap);
                 pkcs7->decryptKey.aes = NULL;
             }
             break;
