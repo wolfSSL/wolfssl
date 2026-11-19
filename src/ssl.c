@@ -6005,6 +6005,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
         ssl->extensions = NULL;
+      #ifdef HAVE_SUPPORTED_CURVES
+        /* The supported_groups extension set on this object went with the
+         * list above; the flag that says the user supplied one must go too,
+         * or the next ClientHello is built without supported_groups. */
+        ssl->options.userCurves = ssl->ctx->userCurves;
+      #endif
       #if defined(HAVE_SECURE_RENEGOTIATION) \
        || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         ssl->secure_renegotiation = NULL;
