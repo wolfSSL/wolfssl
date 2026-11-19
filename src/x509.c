@@ -10175,12 +10175,13 @@ static int X509GetVerifyKey(WOLFSSL_EVP_PKEY* pkey, X509VerifyKey* key)
     #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
         case WC_EVP_PKEY_ED448:
             /* As Ed25519: the raw public key of the ed448_key, made from
-             * the private key when it was decoded without one */
-            if (pkey->ed448 == NULL ||
-                    (wc_ed448_export_public(pkey->ed448, key->ed448PubKey,
-                        &ed448PubKeySz) != 0 &&
+             * the private key when it was decoded without one. Older FIPS
+             * modules export an unset public key. */
+            if (pkey->ed448 == NULL || (pkey->ed448->pubKeySet ?
+                    wc_ed448_export_public(pkey->ed448, key->ed448PubKey,
+                        &ed448PubKeySz) :
                     wc_ed448_make_public(pkey->ed448, key->ed448PubKey,
-                        (word32)sizeof(key->ed448PubKey)) != 0)) {
+                        (word32)sizeof(key->ed448PubKey))) != 0) {
                 WOLFSSL_MSG("Unable to export Ed448 public key");
                 return WOLFSSL_FATAL_ERROR;
             }
