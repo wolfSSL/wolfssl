@@ -34,8 +34,8 @@ RTL8735B / AmebaPro2 security blocks used by this port (from the
 - Secure TRNG (`hal_trng_sec.h`, `hal_trng_sec_init` / `hal_trng_sec_get_rand`) exposed as the
   crypto-callback SEED source. The plain TRNG (`hal_trng.h`) is also available; the
   `ameba-zephyr-pro2-platform` repo provides a Zephyr entropy driver
-  (`entropy_rtl8735b.c`, DT `realtek,amebapro2-trng`) that feeds wolfCrypt's
-  `wc_GenerateSeed` via `sys_rand_get`.
+  (`entropy_amebapro2.c`, DT `realtek,amebapro2-trng`) on the same secure TRNG,
+  which `wc_GenerateSeed` reads; on Zephyr use it rather than `WC_HUK_DEVID`.
 
 ## Enabling
 
