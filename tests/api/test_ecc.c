@@ -1749,8 +1749,13 @@ int test_wc_ecc_import_compressed_custom(void)
     defined(WOLFSSL_CUSTOM_CURVES) && !defined(SQRTMOD_USE_MOD_EXP) && \
     !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(WOLFSSL_NO_ECC_SW) && (MAX_ECC_BYTES >= 32) && \
     (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+#ifdef WOLFSSL_ECC_CURVE_STATIC
+    #define TEST_ECC_NO_OID {0}
+#else
+    #define TEST_ECC_NO_OID NULL
+#endif
     /* y^2 = x^3 - x over a 256-bit prime whose least quadratic non-residue
      * is 23; the order is the group order, so validated import passes. */
     static const ecc_set_type lnr23 = {
@@ -1761,7 +1766,7 @@ int test_wc_ecc_import_compressed_custom(void)
         "931CE83420946C77FB67C035C250A3D8A057B88F434FFAF9D598ABF639657C40",
         "4E034F15CCF7EAEF092AE2A3B064C32B3249EADC7BD0B1492CFE0B60C1D128DD",
         "05E651506201A64E692AB516D01BD64B64D78B72FEC5F68A663AAE55D464E866",
-        0, 0, 0, 1
+        TEST_ECC_NO_OID, 0, 0, 1
     };
     static const byte lnr23G[] = {
         0x02,
@@ -1783,7 +1788,7 @@ int test_wc_ecc_import_compressed_custom(void)
         "8236F50CFBFFB0314218733852BA59173C6961B7456BD24D58D1671119CBDB01",
         "17A8FCBC0FCCE79C67D8E6FC43B92C454136CE93F92B3EA2A9E84DA9E757F3B7",
         "17A8FCBC0FCCE79C67D8E6FC43B92C454136CE93F92B3EA2A9E84DA9E757F3B7",
-        0, 0, 0, 1
+        TEST_ECC_NO_OID, 0, 0, 1
     };
     static const byte squareG[] = {
         0x02,
@@ -4850,7 +4855,10 @@ static int test_ecc_map_curve(int id)
     }
 
     ExpectIntEQ(wc_ecc_mulmod_ex(&k, g, r1, &a, &prime, 0, NULL), 0);
+#ifndef WOLFSSL_SP_MATH
+    /* SP math ecc_map() does not use mp. */
     ExpectIntEQ(mp_montgomery_setup(&prime, &mp), 0);
+#endif
     if (r1 != NULL) {
         ExpectIntEQ(ecc_map(r1, &prime, mp), 0);
     }
@@ -4878,11 +4886,13 @@ int test_wc_ecc_map_curves(void)
 #ifdef TEST_ECC_MAP_CURVES
     ExpectIntEQ(test_ecc_map_curve(ECC_SECP256R1), TEST_SUCCESS);
 #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
-    ECC_MIN_KEY_SZ <= 384
+    ECC_MIN_KEY_SZ <= 384 && \
+    (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
     ExpectIntEQ(test_ecc_map_curve(ECC_SECP384R1), TEST_SUCCESS);
 #endif
 #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
-    ECC_MIN_KEY_SZ <= 521
+    ECC_MIN_KEY_SZ <= 521 && \
+    (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521))
     ExpectIntEQ(test_ecc_map_curve(ECC_SECP521R1), TEST_SUCCESS);
 #endif
 #endif
