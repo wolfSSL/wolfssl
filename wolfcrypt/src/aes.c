@@ -12538,6 +12538,7 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     word32 tagExpected[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 partialBlock[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 ctr[WC_AES_BLOCK_SIZE/sizeof(word32)];
+    word32 ctrInit[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
     word32 authPadSz;
@@ -12602,12 +12603,7 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     #endif
     ) {
         GHASH(&aes->gcm, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
-        ret = wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
-        if (ret != 0) {
-            wc_Stm32_Aes_Cleanup();
-            return ret;
-        }
-        xorbuf(tag, partialBlock, sizeof(tag));
+        XMEMCPY(ctrInit, ctr, sizeof(ctr));
         tagComputed = 1;
     }
 
@@ -12762,8 +12758,19 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     wolfSSL_CryptHwMutexUnLock();
     wc_Stm32_Aes_Cleanup();
 
+    if (ret == 0 && tagComputed) {
+        /* E(K, J0) only after the HAL GCM run: the single-block AES call does
+         * its own init/cleanup, which gates the AES clock under
+         * STM32_HW_CLOCK_AUTO */
+        ret = wc_AesEncrypt(aes, (byte*)ctrInit, (byte*)partialBlock);
+        if (ret == 0) {
+            xorbuf(tag, partialBlock, sizeof(tag));
+        }
+    }
+
     /* Check authentication tag */
-    if (ConstantCompare((const byte*)tagExpected, (byte*)tag, authTagSz) != 0) {
+    if (ret == 0 &&
+            ConstantCompare((const byte*)tagExpected, (byte*)tag, authTagSz) != 0) {
         ret = AES_GCM_AUTH_E;
     }
 
