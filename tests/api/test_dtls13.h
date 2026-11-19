@@ -68,6 +68,8 @@ int test_dtls13_frag_ch_ctx_set_ssl_ctx(void);
 int test_dtls13_frag_ch1_ctx_stale_partial(void);
 int test_dtls13_frag_ch_ctx_static_memory(void);
 int test_dtls13_auth_drops_plaintext_frags(void);
+int test_dtls13_sh_drops_plaintext(void);
+int test_dtls13_downgrade_keeps_plaintext(void);
 int test_dtls13_frag_store_fatal(void);
 int test_dtls13_clear_frees_rx_list(void);
 int test_dtls13_frag_ch2_bad_cookie_dropped(void);
@@ -192,6 +194,8 @@ int test_dtls13_update_keys_want_write(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_ctx_stale_partial),        \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch_ctx_static_memory),          \
     TEST_DECL_GROUP("dtls13", test_dtls13_auth_drops_plaintext_frags),       \
+    TEST_DECL_GROUP("dtls13", test_dtls13_sh_drops_plaintext),               \
+    TEST_DECL_GROUP("dtls13", test_dtls13_downgrade_keeps_plaintext),        \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_store_fatal),                 \
     TEST_DECL_GROUP("dtls13", test_dtls13_clear_frees_rx_list),              \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_bad_cookie_dropped),      \

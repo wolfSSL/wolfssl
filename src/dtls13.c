@@ -345,6 +345,14 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
     if (ssl->options.dtlsStateful)
         ssl->keys.dtls_expected_peer_handshake_number++;
 
+    /* After a DTLS 1.3 ServerHello the server sends nothing more in the
+     * clear. Not so after a HelloRetryRequest or a downgrade. */
+    if (hs == server_hello && ssl->options.side == WOLFSSL_CLIENT_END &&
+            IsAtLeastTLSv1_3(ssl->version) &&
+            ssl->options.serverState == SERVER_HELLO_COMPLETE) {
+        DtlsMsgRxListDropPlaintext(ssl);
+    }
+
 #ifdef WOLFSSL_RW_THREADED
     if (wc_LockMutex(&ssl->dtls13Rtx.mutex) == 0)
 #endif

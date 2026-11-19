@@ -12037,8 +12037,9 @@ void DtlsMsgRxListFree(WOLFSSL* ssl)
 }
 
 #ifdef WOLFSSL_DTLS13
-/* Drop the plaintext messages of the receive list. Once a record of the peer
- * authenticates, what it sent in the clear is stale. */
+/* Drop the plaintext messages of the receive list. What the peer sent in the
+ * clear is stale once a record of it authenticates, and for a client once a
+ * DTLS 1.3 ServerHello is processed. */
 void DtlsMsgRxListDropPlaintext(WOLFSSL* ssl)
 {
     DtlsMsg* cur = ssl->dtls_rx_msg_list;

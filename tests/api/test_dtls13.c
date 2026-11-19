@@ -621,8 +621,7 @@ static int test_dtls13_server_peer(WOLFSSL* ssl_s,
 #endif
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
-    defined(HAVE_ECC) && !defined(NO_ECC256)
+    && defined(HAVE_ECC) && !defined(NO_ECC256)
 /* Write body bytes [fragOff, fragOff + fragLen) of the message in record rec
  * as a record of its own, seq + recSeqAdd. Returns its size, or -1. */
 static int test_dtls13_frag_range(const byte* rec, int recSz, word32 fragOff,
@@ -652,7 +651,11 @@ static int test_dtls13_frag_range(const byte* rec, int recSz, word32 fragOff,
     XMEMCPY(out + hdrSz, hs + DTLS_HANDSHAKE_HEADER_SZ + fragOff, fragLen);
     return hdrSz + (int)fragLen;
 }
+#endif
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
 /* Write fragment fragIdx of the message in rec, fragSz body bytes at most, as
  * test_dtls13_frag_range(). Returns the size, 0 past the end, or -1. */
 static int test_dtls13_frag_record(const byte* rec, int recSz, int fragSz,
@@ -4140,6 +4143,314 @@ int test_dtls13_auth_drops_plaintext_frags(void)
     ExpectIntEQ(wolfSSL_write(ssl_c, data, 4), 4);
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 4);
     ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && ((defined(HAVE_ECC) && !defined(NO_ECC256)) || \
+        !defined(WOLFSSL_NO_TLS12))
+/* Take the datagrams queued for the client. They are written back to back to
+ * flight, their sizes to sizes[]. Returns how many, or -1. */
+static int test_dtls13_take_flight(struct test_memio_ctx* test_ctx,
+        char* flight, int flightSz, int* sizes)
+{
+    int count = test_ctx->c_msg_count;
+    int off = 0;
+    int i;
+
+    for (i = 0; i < count; i++) {
+        sizes[i] = flightSz - off;
+        if (test_memio_copy_message(test_ctx, 1, flight + off, &sizes[i],
+                i) != 0)
+            return -1;
+        off += sizes[i];
+    }
+    test_memio_clear_buffer(test_ctx, 1);
+    return count;
+}
+
+/* Size of the plaintext record at rec, or -1 when sz bytes do not hold it */
+static int test_dtls13_plain_record_sz(const char* rec, int sz)
+{
+    word16 len;
+
+    if (sz < DTLS_RECORD_HEADER_SZ)
+        return -1;
+    ato16((const byte*)rec + DTLS_RECORD_HEADER_SZ - 2, &len);
+    if (DTLS_RECORD_HEADER_SZ + (int)len > sz)
+        return -1;
+    return DTLS_RECORD_HEADER_SZ + (int)len;
+}
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(HAVE_ECC) && !defined(NO_ECC256)
+/* Write a plaintext record that holds a whole EncryptedExtensions with no
+ * extensions, numbered msgSeq, far ahead in record sequence. Anyone who can
+ * send the client a datagram can send this. Returns its size. */
+static int test_dtls13_plain_ee_record(word16 msgSeq, byte* out)
+{
+    const byte body[OPAQUE16_LEN] = { 0, 0 };
+    int idx = 0;
+
+    out[idx++] = handshake;
+    out[idx++] = DTLS_MAJOR;
+    out[idx++] = DTLSv1_2_MINOR;
+    /* epoch 0, record sequence 2^30 */
+    XMEMSET(out + idx, 0, 8);
+    out[idx + 4] = 0x40;
+    idx += 8;
+    c16toa((word16)(DTLS_HANDSHAKE_HEADER_SZ + sizeof(body)), out + idx);
+    idx += 2;
+    out[idx++] = encrypted_extensions;
+    c32to24((word32)sizeof(body), out + idx);
+    idx += 3;
+    c16toa(msgSeq, out + idx);
+    idx += 2;
+    /* fragment_offset and fragment_length: the whole message */
+    c32to24(0, out + idx);
+    idx += 3;
+    c32to24((word32)sizeof(body), out + idx);
+    idx += 3;
+    XMEMCPY(out + idx, body, sizeof(body));
+    return idx + (int)sizeof(body);
+}
+
+/* hrr: a HelloRetryRequest comes first, 1 for a cookie, 2 for a key share.
+ * fragSh: the ServerHello comes in two fragments, the second one first, so it
+ * is processed from the receive list. */
+static int test_dtls13_sh_drops_plaintext_ex(int hrr, int fragSh)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static char flight[TEST_MEMIO_BUF_SZ];
+    static byte frag[TEST_MEMIO_BUF_SZ];
+    int sizes[TEST_MEMIO_MAX_MSGS];
+    byte planted[DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+        OPAQUE16_LEN];
+    byte data[4];
+    byte buf[8];
+    int group = WOLFSSL_ECC_SECP256R1;
+    /* A HelloRetryRequest takes message_seq 0 */
+    word16 shSeq = (word16)(hrr ? 1 : 0);
+    word32 shBody = 0;
+    int count = 0;
+    int shSz = 0;
+    int off = 0;
+    int n = 0;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(data, 0x5a, sizeof(data));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+    if (hrr == 2)
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+    else
+        ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, (word16)group), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (hrr != 1)
+        ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+#endif
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Before the ServerHello the client can not tell that the message after
+     * it has to be protected: it holds the planted one */
+    n = test_dtls13_plain_ee_record((word16)(shSeq + 1), planted);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)planted,
+        n), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(ssl_c->dtls_rx_msg_list);
+    if (ssl_c->dtls_rx_msg_list != NULL) {
+        ExpectIntEQ(ssl_c->dtls_rx_msg_list->epoch, 0);
+        ExpectIntEQ(ssl_c->dtls_rx_msg_list->seq, shSeq + 1);
+        ExpectIntEQ(ssl_c->dtls_rx_msg_list->type, encrypted_extensions);
+        ExpectIntEQ(ssl_c->dtls_rx_msg_list->ready, 1);
+    }
+
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    if (hrr) {
+        /* The ServerHello to come is plaintext too: nothing is dropped */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(ssl_c->options.serverState,
+            SERVER_HELLO_RETRY_REQUEST_COMPLETE);
+        ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 1);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    }
+    ExpectIntEQ(ssl_c->msgsReceived.got_hello_retry_request, hrr != 0);
+
+    /* The server's flight. Its first record is the ServerHello. */
+    ExpectIntGT(count = test_dtls13_take_flight(&test_ctx, flight,
+        (int)sizeof(flight), sizes), 0);
+    ExpectIntGT(shSz = test_dtls13_plain_record_sz(flight, sizes[0]),
+        DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ);
+    ExpectIntEQ((byte)flight[0], handshake);
+    ExpectIntEQ((byte)flight[DTLS_RECORD_HEADER_SZ], server_hello);
+    if (EXPECT_SUCCESS()) {
+        shBody = (word32)(shSz - DTLS_RECORD_HEADER_SZ -
+            DTLS_HANDSHAKE_HEADER_SZ);
+    }
+
+    /* Only the ServerHello for now */
+    if (fragSh) {
+        ExpectIntGT(n = test_dtls13_frag_range((const byte*)flight, shSz,
+            shBody / 2, shBody - shBody / 2, 1, frag, (int)sizeof(frag)), 0);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)frag,
+            n), 0);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        /* The planted message and half a ServerHello */
+        ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 2);
+        ExpectIntEQ(ssl_c->msgsReceived.got_server_hello, 0);
+        ExpectIntGT(n = test_dtls13_frag_range((const byte*)flight, shSz, 0,
+            shBody / 2, 0, frag, (int)sizeof(frag)), 0);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)frag,
+            n), 0);
+    }
+    else {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, flight, shSz), 0);
+    }
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* The ServerHello is done: the planted message is gone, unprocessed */
+    ExpectIntEQ(ssl_c->options.serverState, SERVER_HELLO_COMPLETE);
+    ExpectIntEQ(ssl_c->msgsReceived.got_encrypted_extensions, 0);
+    ExpectNull(ssl_c->dtls_rx_msg_list);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_bytes, 0);
+
+    /* The rest of the flight */
+    if (EXPECT_SUCCESS() && sizes[0] > shSz) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, flight + shSz,
+            sizes[0] - shSz), 0);
+    }
+    off = sizes[0];
+    for (i = 1; EXPECT_SUCCESS() && i < count; i++) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, flight + off,
+            sizes[i]), 0);
+        off += sizes[i];
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, data, (int)sizeof(data)),
+        (int)sizeof(data));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        (int)sizeof(data));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* After a DTLS 1.3 ServerHello the server sends nothing more in the clear. A
+ * plaintext message a client still holds then, numbered as the one after the
+ * ServerHello, is dropped and not processed. A HelloRetryRequest drops
+ * nothing. */
+int test_dtls13_sh_drops_plaintext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(HAVE_ECC) && !defined(NO_ECC256)
+    int fragSh;
+
+    for (fragSh = 0; fragSh <= 1; fragSh++) {
+        EXPECT_TEST(test_dtls13_sh_drops_plaintext_ex(0, fragSh));
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+        EXPECT_TEST(test_dtls13_sh_drops_plaintext_ex(1, fragSh));
+#endif
+        EXPECT_TEST(test_dtls13_sh_drops_plaintext_ex(2, fragSh));
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A ServerHello that takes a DTLS 1.3 capable client down to DTLS 1.2 drops
+ * nothing: the DTLS 1.2 flight goes on in the clear. Here the messages after
+ * the ServerHello arrive before it. */
+int test_dtls13_downgrade_keeps_plaintext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static char flight[TEST_MEMIO_BUF_SZ];
+    int sizes[TEST_MEMIO_MAX_MSGS];
+    int count = 0;
+    int total = 0;
+    int shSz = 0;
+    int held = 0;
+    int off;
+    int n;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLS_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* Up to the server's flight, past a HelloVerifyRequest */
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntGT(test_ctx.c_len, DTLS_RECORD_HEADER_SZ);
+        if (test_ctx.c_buff[DTLS_RECORD_HEADER_SZ] == server_hello)
+            break;
+    }
+    ExpectIntGT(count = test_dtls13_take_flight(&test_ctx, flight,
+        (int)sizeof(flight), sizes), 0);
+    for (i = 0; i < count; i++)
+        total += sizes[i];
+    ExpectIntGT(shSz = test_dtls13_plain_record_sz(flight, total), 0);
+    ExpectIntEQ((byte)flight[0], handshake);
+    ExpectIntEQ((byte)flight[DTLS_RECORD_HEADER_SZ], server_hello);
+
+    /* What follows the ServerHello first, a record per datagram */
+    for (off = shSz; EXPECT_SUCCESS() && off < total; off += n) {
+        ExpectIntGT(n = test_dtls13_plain_record_sz(flight + off,
+            total - off), 0);
+        ExpectIntEQ((byte)flight[off], handshake);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, flight + off, n),
+            0);
+        held++;
+    }
+    ExpectIntGT(held, 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, held);
+
+    /* The ServerHello: the messages held are processed after it */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, flight, shSz), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c->version.minor, DTLSv1_2_MINOR);
+    ExpectIntEQ(ssl_c->options.serverState, SERVER_HELLODONE_COMPLETE);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
