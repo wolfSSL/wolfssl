@@ -678,6 +678,13 @@ fn scan_cfg() -> Result<()> {
         println!("cargo::metadata=FIPS_V5=1");
     }
 
+    // FIPS v6 accepts a caller supplied seed in wc_RNG_DRBG_Reseed, newer
+    // modules refuse it, and the bindings look the same either way.
+    println!("cargo::rustc-check-cfg=cfg(fips_v6)");
+    if fips && version("HAVE_FIPS_VERSION_MAJOR").or_else(|| version("HAVE_FIPS_VERSION")) == Some(6) {
+        println!("cargo::rustc-cfg=fips_v6");
+    }
+
     /* hkdf */
     check_cfg(&binding, "wc_HKDF_Extract", "hkdf");
     check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf_ex");
@@ -738,7 +745,12 @@ fn scan_cfg() -> Result<()> {
      * unable to do OAEP.  Require the OAEP sentinel from headers.h too. */
     check_cfg_if(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep",
                  has_symbol(&binding, "WOLFSSL_RUST_HAVE_RSA_OAEP"));
-    check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
+    // Builds without RSA blinding, such as FIPS v5 and v6, have no
+    // wc_RsaSetRNG. Crates that depend on this one see it as
+    // DEP_WOLFSSL_RSA_SETRNG.
+    if check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng") {
+        println!("cargo::metadata=RSA_SETRNG=1");
+    }
     /* The RSA "only" build options subtract API, so each cfg names what is
      * left rather than the C macro: rsa_private is !WOLFSSL_RSA_PUBLIC_ONLY,
      * rsa_sign is !WOLFSSL_RSA_VERIFY_ONLY and rsa_ssl_verify is

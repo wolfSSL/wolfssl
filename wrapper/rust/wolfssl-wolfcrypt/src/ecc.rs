@@ -975,6 +975,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1363,6 +1368,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1418,6 +1428,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1474,6 +1489,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;

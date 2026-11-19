@@ -1266,13 +1266,13 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// }
     /// ```
-    #[cfg(all(rsa_pss, any(rsa_const_api, fips_v5)))]
+    #[cfg(rsa_pss)]
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let digest_size = crate::buffer_len_to_u32(digest.len())?;
         let rc = unsafe {
-            // FIPS v5 declares the input non const but only reads it.
+            // Older modules such as FIPS v5 and v6 declare the input non const but only read it.
             sys::wc_RsaPSS_VerifyCheck(din.as_ptr().cast_mut(), din_size,
                 dout.as_mut_ptr(), dout_size, digest.as_ptr(), digest_size,
                 hash_algo, mgf, &mut self.wc_rsakey)
