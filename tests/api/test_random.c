@@ -2407,10 +2407,12 @@ int test_wc_RngExtrasStateMachines(void)
             /* A credited child reseed drives the credit/stratum clauses. */
             (void)wc_RNG_DRBG_ReseedRBGC(child, &root, out, sizeof(out));
             (void)wc_RNG_DRBG_StirRBGC(child, &root, out, sizeof(out));
+#ifdef WC_RNG_HAVE_NEXT_SEED
             /* NextSeedGenerate_RBGC: the root == NULL clause. */
             ExpectIntEQ(wc_RNG_DRBG_NextSeedGenerate_RBGC(child, NULL, 1),
                         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
             (void)wc_RNG_DRBG_NextSeedGenerate_RBGC(child, &root, 1);
+#endif
 #ifdef WC_RNG_HAVE_LOCK
             ExpectIntEQ(wc_RNG_lock_put(child, 0), 0);
 #endif
