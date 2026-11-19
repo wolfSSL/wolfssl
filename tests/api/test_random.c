@@ -1964,3 +1964,470 @@ int test_wc_RngInitFlagsDecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the WC_RNG_WANT_* "extras" machinery added on
+ * master (2026-11): the entropy-epoch handler pair, the post-init flag
+ * policy, the next-seed aperture state machine, the RBGC stratum entry
+ * points, and the lock CAS front doors. Each section is guarded by the
+ * feature macro it needs, so the function compiles (as a no-op body) in the
+ * plain variants and only the matching sections run in the full_mutex /
+ * rbgc campaign variants. New post-v4.1.0 APIs, hence the frozen-module
+ * guard.
+ */
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    defined(WC_RNG_HAVE_ENTROPY_EPOCH)
+static wc_RNG_entropy_epoch_t test_random_epoch_handler(void *arg)
+{
+    (void)arg;
+    return 1;
+}
+
+static void test_random_epoch_inv_handler(word64 epoch, void *arg)
+{
+    (void)epoch;
+    (void)arg;
+}
+#endif
+
+int test_wc_RngExtrasDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    WC_RNG rng;
+    byte   out[16];
+    word32 flags;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+
+#if defined(WC_RNG_HAVE_ENTROPY_EPOCH)
+    {
+        wc_RNG_extra_entropy_epoch_get_handler_t h;
+        wc_RNG_entropy_epoch_extra_inv_handler_t ih;
+        void *arg;
+        void *iarg;
+
+        /* extra_entropy_epoch_init: NULL-handler clause, the happy install,
+         * and the already-installed clause. */
+        ExpectIntEQ(wc_RNG_extra_entropy_epoch_init(NULL, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_extra_entropy_epoch_init(test_random_epoch_handler,
+                                                    NULL), 0);
+        ExpectIntEQ(wc_RNG_extra_entropy_epoch_init(test_random_epoch_handler,
+                                                    NULL),
+                    WC_NO_ERR_TRACE(ALREADY_E));
+
+        /* extra_entropy_epoch_reset: the (handler == NULL) / (arg == NULL)
+         * pair, then a clean restore to the no-handler state. */
+        ExpectIntEQ(wc_RNG_extra_entropy_epoch_reset(NULL, &arg),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_extra_entropy_epoch_reset(&h, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_extra_entropy_epoch_reset(&h, &arg), 0);
+        ExpectIntEQ(wc_RNG_extra_entropy_epoch_reset(&h, &arg),
+                    WC_NO_ERR_TRACE(BAD_STATE_E));
+
+        /* entropy_epoch_extra_inv_init/reset: NULL clauses + install +
+         * already-installed, then a clean restore. */
+        ExpectIntEQ(wc_RNG_entropy_epoch_extra_inv_init(NULL, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_entropy_epoch_extra_inv_init(
+                        test_random_epoch_inv_handler, NULL), 0);
+        ExpectIntEQ(wc_RNG_entropy_epoch_extra_inv_init(
+                        test_random_epoch_inv_handler, NULL),
+                    WC_NO_ERR_TRACE(ALREADY_E));
+        ExpectIntEQ(wc_RNG_entropy_epoch_extra_inv_reset(NULL, &iarg),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_entropy_epoch_extra_inv_reset(&ih, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_entropy_epoch_extra_inv_reset(&ih, &iarg), 0);
+        ExpectIntEQ(wc_RNG_entropy_epoch_extra_inv_reset(&ih, &iarg),
+                    WC_NO_ERR_TRACE(BAD_STATE_E));
+    }
+#endif
+
+    /* wc_RNG_GetFlags: the (rng == NULL) / (flags == NULL) pair, then a
+     * clean read on a live instance. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_RNG_GetFlags(NULL, &flags), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_RNG_GetFlags(&rng, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_GetFlags(&rng, &flags), 0);
+
+    /* wc_RNG_SetFlags / wc_RNG_ClearFlags: the (flags == 0) and
+     * (flags & ~allowed) halves of the shared policy check. */
+    ExpectIntEQ(wc_RNG_SetFlags(&rng, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_SetFlags(&rng, (word32)~WC_RNG_FLAGS_SETTABLE),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_ClearFlags(&rng, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_ClearFlags(&rng, (word32)~WC_RNG_FLAGS_CLEARABLE),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef WC_RNG_HAVE_LOCK
+    /* The policy check's lock precondition: a LOCK_REQUIRED instance that is
+     * not held answers OBJECT_NOT_LOCKED_E from both Set and Clear. */
+    {
+        WC_RNG locked;
+        XMEMSET(&locked, 0, sizeof(locked));
+        ExpectIntEQ(wc_InitRng_ex2(&locked, HEAP_HINT, INVALID_DEVID,
+                                   WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+        ExpectIntEQ(wc_RNG_SetFlags(&locked, WC_RNG_FLAG_FAIL_FAST),
+                    WC_NO_ERR_TRACE(OBJECT_NOT_LOCKED_E));
+        ExpectIntEQ(wc_RNG_ClearFlags(&locked, WC_RNG_FLAG_FAIL_FAST),
+                    WC_NO_ERR_TRACE(OBJECT_NOT_LOCKED_E));
+        ExpectIntEQ(wc_FreeRng(&locked), 0);
+    }
+#endif
+
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_HAVE_LOCK)
+    /* wc_RNG_SetFlags seed-source policy: the check sits behind the policy
+     * lock precondition, so both rows run on a LOCK_REQUIRED, held root.
+     * NO_PRIMARY on a root (no parent to defer to) is MISSING_RNG_E; on a
+     * child it is legal, and pairing it with an already-set ONLY_PRIMARY is
+     * rejected. */
+    {
+        WC_RNG root;
+#ifndef WC_NO_CONSTRUCTORS
+        WC_RNG *child = NULL;
+#endif
+        XMEMSET(&root, 0, sizeof(root));
+        ExpectIntEQ(wc_InitRng_ex2(&root, HEAP_HINT, INVALID_DEVID,
+                                   WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+        ExpectIntEQ(wc_RNG_lock_get(&root, 0), 0);
+        ExpectIntEQ(wc_RNG_SetFlags(&root, WC_RNG_FLAG_NO_PRIMARY_SEED),
+                    WC_NO_ERR_TRACE(MISSING_RNG_E));
+#ifndef WC_NO_CONSTRUCTORS
+        ExpectIntEQ(wc_InitRngRBGC_New(&child, &root,
+                                       WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+        if (child != NULL) {
+            ExpectIntEQ(wc_RNG_lock_get(child, 0), 0);
+            ExpectIntEQ(wc_RNG_SetFlags(child, WC_RNG_FLAG_ONLY_PRIMARY_SEED),
+                        0);
+            ExpectIntEQ(wc_RNG_SetFlags(child, WC_RNG_FLAG_NO_PRIMARY_SEED),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_RNG_lock_put(child, 0), 0);
+            wc_rng_free(child);
+        }
+#endif
+        ExpectIntEQ(wc_RNG_lock_put(&root, 0), 0);
+        ExpectIntEQ(wc_FreeRng(&root), 0);
+    }
+#endif
+
+    /* _InitRng() rejects a NULL nonce or personalization buffer with a
+     * nonzero length. wc_InitRngNonce_ex2 passes the arguments through. */
+    {
+        WC_RNG r;
+        byte nonce[16] = { 0 };
+
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRngNonce_ex2(&r, NULL, 16, NULL, 0,
+                    HEAP_HINT, INVALID_DEVID, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_InitRngNonce_ex2(&r, nonce, sizeof(nonce), NULL, 16,
+                    HEAP_HINT, INVALID_DEVID, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* Argument validation in the public user-seed wrapper. */
+    {
+        byte   seed[64];
+        byte   nonce[16];
+        word32 i;
+        WC_RNG r;
+
+        for (i = 0; i < sizeof(seed); i++)
+            seed[i] = (byte)i;
+        for (i = 0; i < sizeof(nonce); i++)
+            nonce[i] = (byte)(i + 1);
+
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRngNonce_UserSeed(&r, NULL, 16, nonce,
+                                            sizeof(nonce), NULL, 0,
+                                            HEAP_HINT, INVALID_DEVID, 0),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRngNonce_UserSeed(&r, seed, sizeof(seed),
+                                            NULL, 16, NULL, 0,
+                                            HEAP_HINT, INVALID_DEVID, 0),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRngNonce_UserSeed(&r, seed, sizeof(seed), nonce,
+                                            sizeof(nonce), NULL, 16,
+                                            HEAP_HINT, INVALID_DEVID, 0),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(HAVE_HASHDRBG)
+        /* userSeedSz <= SEED_BLOCK_SZ is rejected (the health-test block
+         * would be the whole seed); Hash_DRBG-only check. */
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRngNonce_UserSeed(&r, seed, 16, nonce,
+                                            sizeof(nonce), NULL, 0,
+                                            HEAP_HINT, INVALID_DEVID, 0),
+                    WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
+    }
+
+    /* _InitRng() NO_PRIMARY_SEED with no credited source. */
+#ifdef WC_RNG_HAVE_RBGC
+    {
+        WC_RNG r;
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRng_ex2(&r, HEAP_HINT, INVALID_DEVID,
+                                   WC_RNG_INIT_FLAG_NO_PRIMARY_SEED),
+                    WC_NO_ERR_TRACE(MISSING_RNG_E));
+    }
+#endif
+
+    /* wc_RNG_DRBG_GetReseedCtr: the (rng == NULL) / (reseedCtr == NULL)
+     * pair, then a clean read on a live instance. WOLFSSL_LOCAL, so the
+     * WOLFSSL_TEST_STATIC_BUILD guard keeps shared builds linkable; the
+     * declaration itself needs HAVE_HASHDRBG (absent in the
+     * CUSTOM_RAND_GENERATE_BLOCK variant). */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_HASHDRBG)
+    {
+        WC_RNG r;
+        wc_drbg_reseed_ctr_t ctr;
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(NULL, &ctr),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_InitRng_ex(&r, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&r, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&r, &ctr), 0);
+        ExpectIntEQ(wc_FreeRng(&r), 0);
+    }
+#endif
+
+    /* wc_RNG_TestSeed on a long seed: the cutoff > window/2 clause's true
+     * side (the short-seed false side is driven by
+     * test_wc_RngInitFlagsDecisionCoverage). HAVE_HASHDRBG: the declaration
+     * is absent where the Hash_DRBG is not compiled. */
+#if defined(HAVE_HASHDRBG)
+    {
+        byte   longseed[512];
+        word32 i;
+        for (i = 0; i < sizeof(longseed); i++)
+            longseed[i] = (byte)(i * 3U + 1U);
+        (void)wc_RNG_TestSeed(longseed, sizeof(longseed));
+    }
+#endif
+
+    /* wc_RNG_invalidate_entropy / wc_RNG_entropy_needs_recovery on a live
+     * instance: the invalidate-then-query pair. */
+    {
+        WC_RNG r;
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_InitRng_ex(&r, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_RNG_invalidate_entropy(NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_invalidate_entropy(&r), 0);
+        ExpectIntEQ(wc_RNG_entropy_needs_recovery(NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        (void)wc_RNG_entropy_needs_recovery(&r);
+        ExpectIntEQ(wc_FreeRng(&r), 0);
+    }
+
+#ifdef WC_RNG_HAVE_POOL
+    /* wc_RNG_Pool_Current NULL-argument pair. */
+    {
+        WC_RNG r;
+        word32 n = 0;
+        XMEMSET(&r, 0, sizeof(r));
+        ExpectIntEQ(wc_RNG_Pool_Current(NULL, &n),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_InitRng_ex(&r, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_RNG_Pool_Current(&r, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        (void)wc_RNG_Pool_Current(&r, &n);
+        ExpectIntEQ(wc_FreeRng(&r), 0);
+    }
+#endif
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC decision coverage for the next-seed aperture state machine, the RBGC
+ * stratum entry points, and the lock CAS front doors (master 2026-11). These
+ * are the stateful halves of the extras machinery; the argument-guard halves
+ * live in test_wc_RngExtrasDecisionCoverage(). Guarded by the feature macros
+ * so each section runs only in the campaign variant that compiles it
+ * (rbgc / rbgc_lock / full_mutex). New post-v4.1.0 APIs: frozen-module guard.
+ */
+int test_wc_RngExtrasStateMachines(void)
+{
+    EXPECT_DECLS;
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if defined(WC_RNG_HAVE_NEXT_SEED) || defined(WC_RNG_HAVE_RBGC) \
+    || defined(WC_RNG_HAVE_LOCK)
+    WC_RNG rng;
+    byte   out[16];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+
+#ifdef WC_RNG_HAVE_LOCK
+    /* wc_RNG_lock_get / wc_RNG_lock_put / wc_RNG_lock_read: the basic
+     * acquire-release cycle on a LOCK_REQUIRED instance, plus the
+     * lock_read NULL-argument pair. */
+    {
+        WC_RNG locked;
+        WC_RNG_lock_arg_t state;
+        XMEMSET(&locked, 0, sizeof(locked));
+        ExpectIntEQ(wc_InitRng_ex2(&locked, HEAP_HINT, INVALID_DEVID,
+                                   WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+        ExpectIntEQ(wc_RNG_lock_get(&locked, 0), 0);
+        ExpectIntEQ(wc_RNG_lock_get(&locked, 0),
+                    WC_NO_ERR_TRACE(BUSY_E));
+        ExpectIntEQ(wc_RNG_lock_read(&locked, &state), 0);
+        ExpectIntEQ(wc_RNG_lock_put(&locked, 0), 0);
+        ExpectIntEQ(wc_RNG_lock_read(NULL, &state),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_lock_read(&locked, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_FreeRng(&locked), 0);
+    }
+
+    /* wc_RNG_lock_get_conditional: the (rng == NULL) clause, then a clean
+     * conditional acquire on a free lease. */
+    {
+        WC_RNG locked;
+        XMEMSET(&locked, 0, sizeof(locked));
+        ExpectIntEQ(wc_InitRng_ex2(&locked, HEAP_HINT, INVALID_DEVID,
+                                   WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+        ExpectIntEQ(wc_RNG_lock_get_conditional(NULL, 0, 0),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_lock_get_conditional(&locked, 0, 0), 0);
+        ExpectIntEQ(wc_RNG_lock_put(&locked, 0), 0);
+        ExpectIntEQ(wc_FreeRng(&locked), 0);
+    }
+
+    /* rng_lock_required_check's OBJECT_NOT_LOCKED_E arm: a LOCK_REQUIRED
+     * instance that is not held rejects a locked-only public call. */
+    {
+        WC_RNG locked;
+        XMEMSET(&locked, 0, sizeof(locked));
+        ExpectIntEQ(wc_InitRng_ex2(&locked, HEAP_HINT, INVALID_DEVID,
+                                   WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&locked, out, sizeof(out)),
+                    WC_NO_ERR_TRACE(OBJECT_NOT_LOCKED_E));
+        ExpectIntEQ(wc_FreeRng(&locked), 0);
+    }
+#endif
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* The next-seed aperture state machine: produce, read, consume, stir,
+     * then invalidate-entropy to force a purge and produce again. Drives the
+     * NextSeedPurge state clauses and the NextSeedGenerate_local /
+     * NextSeedNow_AddIn_local state checks. */
+    {
+        WC_RNG ns;
+        WC_ATOMIC_INT_ARG n = 0;
+        XMEMSET(&ns, 0, sizeof(ns));
+        /* A plain (non-LOCK_REQUIRED) instance: rng_lock_required_check is a
+         * no-op, so the next-seed aperture is reachable without a lease. */
+        ExpectIntEQ(wc_InitRng_ex(&ns, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_RNG_DRBG_NextSeedGenerate(NULL, 1),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        (void)wc_RNG_DRBG_NextSeedGenerate(&ns, 1);
+        ExpectIntEQ(wc_RNG_DRBG_NextSeedCurrent(NULL, &n),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_DRBG_NextSeedCurrent(&ns, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_DRBG_NextSeedCurrent(&ns, &n), 0);
+        /* Consume the ready bank (NOT_READY_E is the legal empty answer). */
+        (void)wc_RNG_DRBG_NextSeedNow(&ns);
+        (void)wc_RNG_DRBG_NextSeedNow_AddIn(&ns, out, sizeof(out));
+        /* Stir store: NULL-arg pair + a clean store. */
+        ExpectIntEQ(wc_RNG_DRBG_NextStirStore(NULL, out, sizeof(out)),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RNG_DRBG_NextStirStore(&ns, NULL, sizeof(out)),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        (void)wc_RNG_DRBG_NextStirStore(&ns, out, sizeof(out));
+        (void)wc_RNG_DRBG_NextStirNow(NULL);
+        (void)wc_RNG_DRBG_NextStirNow(&ns);
+        /* Invalidate the entropy (purges the aperture) and produce again. */
+        (void)wc_RNG_invalidate_entropy(&ns);
+        (void)wc_RNG_DRBG_NextSeedGenerate(&ns, 1);
+        (void)wc_RNG_DRBG_NextSeedCurrent(&ns, &n);
+        ExpectIntEQ(wc_FreeRng(&ns), 0);
+    }
+#endif
+
+#ifdef WC_RNG_HAVE_RBGC
+    /* The RBGC stratum entry points: the shared (child/root) guard clause,
+     * the reseed/stir guards, and a credited child reseed that drives the
+     * credit/stratum/pid clauses. */
+    {
+        WC_RNG root;
+#ifndef WC_NO_CONSTRUCTORS
+        WC_RNG *child = NULL;
+        word32 child_flags = 0;
+#endif
+        XMEMSET(&root, 0, sizeof(root));
+#ifdef WC_RNG_HAVE_LOCK
+        ExpectIntEQ(wc_InitRng_ex2(&root, HEAP_HINT, INVALID_DEVID,
+                                   WC_RNG_INIT_FLAG_LOCK_REQUIRED), 0);
+#ifndef WC_NO_CONSTRUCTORS
+        child_flags = WC_RNG_INIT_FLAG_LOCK_REQUIRED;
+#endif
+        ExpectIntEQ(wc_RNG_lock_get(&root, 0), 0);
+#else
+        ExpectIntEQ(wc_InitRng_ex(&root, HEAP_HINT, INVALID_DEVID), 0);
+#endif
+        /* Shared guard clause: NULL child, NULL root, child == root. */
+        ExpectIntEQ(wc_InitRngRBGC(NULL, &root, 0),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        {
+            WC_RNG tmp;
+            XMEMSET(&tmp, 0, sizeof(tmp));
+            ExpectIntEQ(wc_InitRngRBGC(&tmp, NULL, 0),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_InitRngRBGC(&tmp, &tmp, 0),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+#ifndef WC_NO_CONSTRUCTORS
+        ExpectIntEQ(wc_InitRngRBGC_New(&child, &root, child_flags), 0);
+        if (child != NULL) {
+            /* ReseedRBGC / StirRBGC guard clause: rng == NULL, root == NULL,
+             * rng == root, and nonce-NULL-with-size (all before the lock
+             * check, so no lease is needed). */
+            ExpectIntEQ(wc_RNG_DRBG_ReseedRBGC(NULL, &root, NULL, 0),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_RNG_DRBG_ReseedRBGC(&root, &root, NULL, 0),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_RNG_DRBG_ReseedRBGC(child, &root, NULL, 16),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_RNG_DRBG_StirRBGC(NULL, &root, NULL, 0),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WC_RNG_HAVE_LOCK
+            ExpectIntEQ(wc_RNG_lock_get(child, 0), 0);
+#endif
+            /* A credited child reseed drives the credit/stratum clauses. */
+            (void)wc_RNG_DRBG_ReseedRBGC(child, &root, out, sizeof(out));
+            (void)wc_RNG_DRBG_StirRBGC(child, &root, out, sizeof(out));
+#ifdef WC_RNG_HAVE_NEXT_SEED
+            /* NextSeedGenerate_RBGC: the root == NULL clause. */
+            ExpectIntEQ(wc_RNG_DRBG_NextSeedGenerate_RBGC(child, NULL, 1),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            (void)wc_RNG_DRBG_NextSeedGenerate_RBGC(child, &root, 1);
+#endif
+#ifdef WC_RNG_HAVE_LOCK
+            ExpectIntEQ(wc_RNG_lock_put(child, 0), 0);
+#endif
+            wc_rng_free(child);
+        }
+#endif
+#ifdef WC_RNG_HAVE_LOCK
+        ExpectIntEQ(wc_RNG_lock_put(&root, 0), 0);
+#endif
+        ExpectIntEQ(wc_FreeRng(&root), 0);
+    }
+#endif
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
