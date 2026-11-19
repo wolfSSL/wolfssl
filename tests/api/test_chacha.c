@@ -484,7 +484,7 @@ int test_wc_Chacha_CounterOverflow(void)
     ChaCha enc;
     static const byte key[CHACHA_MAX_KEY_SZ] = { 0 };
     static const byte nonce[CHACHA_IV_BYTES] = { 0 };
-    static const byte plain[128] = { 0 };
+    static const byte plain[3 * CHACHA_CHUNK_BYTES] = { 0 };
     /* Wycheproof tcId 39: keystream block 0xFFFFFFFF, all-zero key/nonce. */
     static const byte lastBlock[CHACHA_CHUNK_BYTES] = {
         0xac, 0xe4, 0xcd, 0x09, 0xe2, 0x94, 0xd1, 0x91,
@@ -497,8 +497,8 @@ int test_wc_Chacha_CounterOverflow(void)
         0x45, 0x93, 0x93, 0x70, 0x23, 0xb5, 0x8b, 0x1d
     };
     static const word32 badLens[] = { 65, 127, 128 };
-    byte out[128];
-    byte untouched[128];
+    byte out[3 * CHACHA_CHUNK_BYTES];
+    byte untouched[3 * CHACHA_CHUNK_BYTES];
     word32 i;
 
     XMEMSET(&enc, 0, sizeof(enc));
