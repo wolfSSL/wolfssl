@@ -8202,7 +8202,6 @@ int InitSSL_Suites(WOLFSSL* ssl)
    writeDup flag indicating this is a write dup only
 
    WOLFSSL_SUCCESS return value on success */
-#ifdef OPENSSL_EXTRA
 /* Apply the protocol version mask and downgrade rules. Returns VERSION_ERROR
  * when the requested options are inconsistent, 0 otherwise. */
 int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
@@ -8271,7 +8270,6 @@ int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     return 0;
 }
-#endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
 /* Give the SSL object the certificate, certificate chain and private key of
@@ -9023,6 +9021,13 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     }
     (void)ctx;
+
+    /* Called on every connect/accept, so only when a connection starts. */
+    if (!ssl->options.handShakeDone &&
+            (((ssl->options.side == WOLFSSL_CLIENT_END) ?
+              ssl->options.connectState : ssl->options.acceptState) == 0)) {
+        ResetPeerResults(ssl);
+    }
 
     ssl->options.shutdownDone = 0;
     if (ssl->session != NULL)
@@ -10949,6 +10954,19 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     /* last, as everything above may still free through ssl->heap */
     FreeSSL_StaticMemory(ssl);
 #endif /* WOLFSSL_STATIC_MEMORY */
+}
+
+/* Drop what the application could query about the previous connection. */
+void ResetPeerResults(WOLFSSL* ssl)
+{
+    ssl->alert_history.last_rx.code  = -1;
+    ssl->alert_history.last_rx.level = -1;
+    ssl->alert_history.last_tx.code  = -1;
+    ssl->alert_history.last_tx.level = -1;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(OPENSSL_ALL)
+    ssl->peerVerifyRet = 0;
+#endif
 }
 
 /* Free any handshake resources no longer needed */

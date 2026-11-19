@@ -5273,6 +5273,12 @@ static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
     int clCiphersNum = 0;
     const char* cipherName = NULL;
 #endif
+#if defined(OPENSSL_EXTRA) && defined(SESSION_CERTS)
+    WOLF_STACK_OF(WOLFSSL_X509)* peerChain = NULL;
+    int peerChainNum = 0;
+#endif
+    const char* verC = NULL;
+    const char* verS = NULL;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
@@ -5371,9 +5377,13 @@ static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
         /* Fill what the accessors cache. */
     #if defined(OPENSSL_EXTRA) && defined(SESSION_CERTS)
-        if (!(flags & TEST_CLEAR_PSK))
-            ExpectNotNull(wolfSSL_get_peer_cert_chain(ssl_c));
+        if (!(flags & TEST_CLEAR_PSK)) {
+            ExpectNotNull(peerChain = wolfSSL_get_peer_cert_chain(ssl_c));
+            ExpectIntGT(peerChainNum = wolfSSL_sk_X509_num(peerChain), 0);
+        }
     #endif
+        verC = wolfSSL_get_version(ssl_c);
+        verS = wolfSSL_get_version(ssl_s);
     #ifdef OPENSSL_ALL
         ExpectNotNull(clCiphers = wolfSSL_get_client_ciphers(ssl_s));
         clCiphersNum = wolfSSL_sk_SSL_CIPHER_num(clCiphers);
@@ -5394,6 +5404,15 @@ static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
         ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)), 0);
         ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+        /* Still queryable after the shutdown, until the clear. */
+        ExpectStrEQ(wolfSSL_get_version(ssl_c), verC);
+        ExpectStrEQ(wolfSSL_get_version(ssl_s), verS);
+    #if defined(OPENSSL_EXTRA) && defined(SESSION_CERTS)
+        if (peerChain != NULL) {
+            ExpectPtrEq(wolfSSL_get_peer_cert_chain(ssl_c), peerChain);
+            ExpectIntEQ(wolfSSL_sk_X509_num(peerChain), peerChainNum);
+        }
+    #endif
     }
 
     /* Created after the connection so the CTXs are fully configured. */
@@ -5452,6 +5471,110 @@ static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
+/* A version the application turned off stays off on reuse. */
+static int test_clear_keeps_version_mask(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    if (ssl_s != NULL)
+        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_3);
+    for (i = 0; i < 2; i++) {
+        /* A new client each time, so none offers a TLS 1.2 session. */
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, NULL,
+            wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        if (ssl_s != NULL)
+            ExpectIntEQ(ssl_s->version.minor, TLSv1_2_MINOR);
+        ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+        if (ssl_s != NULL)
+            ExpectIntEQ(ssl_s->version.minor, TLSv1_2_MINOR);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_TLS12)
+static int test_clear_verify_accept(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    return 1;
+}
+
+/* The shutdown keeps the verify result and alert history for the
+ * application, and the next connection starts without them. */
+static int test_shutdown_keeps_peer_results(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_s2 = NULL;
+    WOLFSSL_ALERT_HISTORY h;
+    long verifyRet = 0;
+    char buf[1];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    /* Self-signed, so the client finds no signer. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, cliCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, cliKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_PEER,
+        test_clear_verify_accept);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntNE(verifyRet = wolfSSL_get_verify_result(ssl_c), X509_V_OK);
+
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), verifyRet);
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, close_notify);
+    ExpectIntEQ(h.last_rx.code, close_notify);
+
+    /* Reused without wolfSSL_clear(), with a server the client trusts. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s2, NULL, &ssl_s2,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), X509_V_OK);
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, -1);
+    ExpectIntEQ(h.last_rx.code, -1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_s2);
+    return EXPECT_RESULT();
+}
 #endif
 
 /* Catches per-connection state that wolfSSL_clear() forgets, rather than one
@@ -5492,6 +5615,7 @@ int test_tls_clear_resets_state(void)
 #endif
 #endif
 #ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_clear_keeps_version_mask(), TEST_SUCCESS);
     /* Each side with a peer that only does TLS 1.2. */
     ExpectIntEQ(test_clear_reuse(wolfSSLv23_client_method,
         wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
@@ -5509,6 +5633,10 @@ int test_tls_clear_resets_state(void)
 #ifndef NO_RSA
     ExpectIntEQ(test_clear_reuse(wolfSSLv23_client_method,
         wolfSSLv23_server_method, TEST_CLEAR_BAD_CA), TEST_SUCCESS);
+#endif
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_TLS12)
+    ExpectIntEQ(test_shutdown_keeps_peer_results(), TEST_SUCCESS);
 #endif
 #endif
     return EXPECT_RESULT();

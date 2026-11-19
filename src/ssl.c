@@ -5777,7 +5777,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     defined(HAVE_CURL)
 #endif
 
-    int wolfSSL_clear(WOLFSSL* ssl)
+    /* keepResults: wolfSSL_shutdown() leaves what the application can still
+     * query about the ended connection. */
+    int ClearSSL(WOLFSSL* ssl, byte keepResults)
     {
         WOLFSSL_ENTER("wolfSSL_clear");
 
@@ -5815,29 +5817,34 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         SslWaivedCAsFree(ssl);
 #endif
 
-        /* The peer's version is not the limit for the next connection. */
-        if (ssl->options.downgrade) {
-            ssl->version.minor = ssl->options.versionSet ?
-                ssl->options.maxVersionMinor : ssl->ctx->method->version.minor;
-        #ifdef OPENSSL_EXTRA
-            /* The version mask only covers TLS. */
-            if (!ssl->options.dtls &&
-                    (SetSSL_CTX_CheckVersion(ssl, ssl->ctx) != 0)) {
-                return WOLFSSL_FAILURE;
+        if (!keepResults) {
+            /* The peer's version is not the limit for the next connection. */
+            if (ssl->options.downgrade) {
+                ssl->version.minor = ssl->options.versionSet ?
+                    ssl->options.maxVersionMinor :
+                    ssl->ctx->method->version.minor;
+                /* The version mask only covers TLS. */
+                if (!ssl->options.dtls &&
+                        (SetSSL_CTX_CheckVersion(ssl, ssl->ctx) != 0)) {
+                    return WOLFSSL_FAILURE;
+                }
             }
+
+            ResetPeerResults(ssl);
+        #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+            wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+            ssl->peer_ca_names = NULL;
+        #endif
+        #ifdef OPENSSL_EXTRA
+            wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
+            ssl->peerCertChain = NULL;
+            wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+            ssl->verifiedChain = NULL;
         #endif
         }
 
         /* reset error */
         ssl->error = 0;
-        ssl->alert_history.last_rx.code  = -1;
-        ssl->alert_history.last_rx.level = -1;
-        ssl->alert_history.last_tx.code  = -1;
-        ssl->alert_history.last_tx.level = -1;
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-        defined(OPENSSL_ALL)
-        ssl->peerVerifyRet = 0;
-    #endif
 
         /* reset option bits */
         ssl->options.isClosed = 0;
@@ -6028,16 +6035,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
         ssl->ws_peer_ca_names = NULL;
     #endif
-    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
-        wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
-        ssl->peer_ca_names = NULL;
-    #endif
-    #ifdef OPENSSL_EXTRA
-        wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
-        ssl->peerCertChain = NULL;
-        wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
-        ssl->verifiedChain = NULL;
-    #endif
     #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ALPN)
         XFREE(ssl->alpn_peer_requested, ssl->heap, DYNAMIC_TYPE_ALPN);
         ssl->alpn_peer_requested = NULL;
@@ -6198,6 +6195,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #endif
 #endif
         return WOLFSSL_SUCCESS;
+    }
+
+    int wolfSSL_clear(WOLFSSL* ssl)
+    {
+        return ClearSSL(ssl, 0);
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
