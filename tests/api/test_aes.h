@@ -72,6 +72,7 @@ int test_wc_AesFeatureCoverage(void);
 int test_wc_AesSetKeyArgMcdc(void);
 int test_wc_AesModesArgMcdc(void);
 int test_wc_AesGcmArgMcdc(void);
+int test_wc_AesGcmStreamMcdc(void);
 int test_wc_AesGmacArgMcdc(void);
 int test_wc_AesCcmArgMcdc(void);
 int test_wc_AesXtsArgMcdc(void);
@@ -273,6 +274,7 @@ int test_wc_CryptoCb_AesNoSwKey(void);
     TEST_DECL_GROUP("aes", test_wc_AesSetKeyArgMcdc),           \
     TEST_DECL_GROUP("aes", test_wc_AesModesArgMcdc),            \
     TEST_DECL_GROUP("aes", test_wc_AesGcmArgMcdc),              \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmStreamMcdc),           \
     TEST_DECL_GROUP("aes", test_wc_AesGmacArgMcdc),             \
     TEST_DECL_GROUP("aes", test_wc_AesCcmArgMcdc),              \
     TEST_DECL_GROUP("aes", test_wc_AesXtsArgMcdc),              \
