@@ -816,6 +816,19 @@ WC_NO_INLINE void wc_BarrierDataSink(void* p)
 }
 #endif /* WC_BARRIER_DATA_USES_SINK */
 
+/* Make sure we zero memory even when we do not have ForceZero. */
+static void wc_ReallocScrub(void* mem, size_t len)
+{
+#ifndef WOLFSSL_NO_FORCE_ZERO
+    ForceZero(mem, len);
+#else
+    volatile byte* z = (volatile byte*)mem;
+    while (len--) {
+        *z++ = 0;
+    }
+#endif
+}
+
 /* Allocates a new buffer on allocation success we copy over the data
  * to the new buffer and zero the old one we return NULL on failure leaving
  * original data untouched */
@@ -840,12 +853,12 @@ void *wc_ReallocScrubbed(void *ptr, size_t oldSz, size_t size,
     if (newPtr == ptr) {
         /* fixed IO pools hand back the block already in use */
         if (oldSz > size) {
-            ForceZero((byte*)ptr + size, oldSz - size);
+            wc_ReallocScrub((byte*)ptr + size, oldSz - size);
         }
     }
     else {
         XMEMCPY(newPtr, ptr, (oldSz < size) ? oldSz : size);
-        ForceZero(ptr, oldSz);
+        wc_ReallocScrub(ptr, oldSz);
     }
     XFREE(ptr, heap, type);
     return newPtr;
