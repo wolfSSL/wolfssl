@@ -116,6 +116,7 @@
 #include <stdio.h>
 
 static int wb_fail = 0;
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 /* Crafted-input driver shared with the SP host-backend white-boxes. The four
@@ -1840,14 +1841,14 @@ static void wb_run_mod_inv(void)
 
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(HAVE_SELFTEST) && \
-    !defined(HAVE_FIPS)
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 static void wb_expect_range(int ret, const char* what)
 {
     if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) {
         printf("  [wb][FAIL] %s did not return ECC_OUT_OF_RANGE_E (got %d)\n",
             what, ret);
-        wb_fail = 1;
+        wb_bad = 1;
     }
 }
 
@@ -2048,8 +2049,8 @@ int main(void)
     defined(WOLFSSL_HAVE_SP_DH)
     wb_run_cache_mutex();
     wb_run_ecc();
-#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(HAVE_SELFTEST) && \
-    !defined(HAVE_FIPS)
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     wb_run_point_specials_all();
 #endif
     wb_run_rsa();
@@ -2063,10 +2064,11 @@ int main(void)
     wb_run_mod_inv();
     wb_spc_all();
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_bad ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
 #else
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
-    return 0;
+    return wb_bad ? 1 : 0;
 }
