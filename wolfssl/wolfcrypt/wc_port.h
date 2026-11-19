@@ -223,11 +223,7 @@
 #endif
 
 #ifndef WC_OMIT_FRAME_POINTER
-    /* gcc's optimize attribute wholesale-replaced, rather than merged with, the
-     * command-line -f flags before gcc 12 (dropping e.g. -fno-strict-aliasing
-     * for the attributed function), and clang doesn't implement it at all.
-     */
-    #if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ >= 12)
+    #if defined(__GNUC__) && !defined(__clang__)
         #define WC_OMIT_FRAME_POINTER \
             __attribute__((optimize("-fomit-frame-pointer")))
     #else
