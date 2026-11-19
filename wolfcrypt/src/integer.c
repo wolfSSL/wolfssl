@@ -5231,7 +5231,8 @@ LBL_B:mp_clear (&b);
 
 #endif /* (WOLFSSL_KEY_GEN && !NO_RSA) || !NO_DH || !NO_DSA || custom curves */
 
-#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA))
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || \
+    !defined(NO_DSA))
 
 static const int USE_BBS = 1;
 
