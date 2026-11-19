@@ -43,6 +43,9 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
     input argument
     \return MISSING_KEY returned if wc_Chacha_SetKey was not called to set a
     key before processing
+    \return CHACHA_POLY_OVERFLOW returned, with no output written, if msglen
+    needs keystream past block counter 0xFFFFFFFF of the current IV (past
+    2^64 - 1 for XChaCha, whose 64-bit counter carries into the nonce word)
 
     \param ctx pointer to the ChaCha structure on which to set the iv
     \param output pointer to a buffer in which to store the output ciphertext

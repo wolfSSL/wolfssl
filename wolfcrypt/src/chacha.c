@@ -151,6 +151,9 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
         return BAD_FUNC_ARG;
 
     ctx->left = 0; /* resets state */
+    ctx->nextBlock = counter;
+    ctx->cntExhausted = 0;
+    ctx->isXChacha = 0;
 
 #ifdef WOLFSSL_ARM_CHACHA_NEON_FALLBACK
     if (chacha_use_neon())
@@ -471,18 +474,9 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
 #endif /* !USE_INTEL_CHACHA_SPEEDUP */
 
 
-/**
-  * API to encrypt/decrypt a message of any size.
-  */
-int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
-                      word32 msglen)
+static int Chacha_ProcessInternal(ChaCha* ctx, byte* output,
+                                  const byte* input, word32 msglen)
 {
-    if (ctx == NULL || input == NULL || output == NULL)
-        return BAD_FUNC_ARG;
-
-    if (!ctx->keySet)
-        return MISSING_KEY;
-
 #ifdef USE_INTEL_CHACHA_SPEEDUP
     /* handle left overs */
     if (msglen > 0 && ctx->left > 0) {
@@ -635,6 +629,67 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     return 0;
 #endif
 }
+
+/**
+  * API to encrypt/decrypt a message of any size.
+  */
+int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
+                      word32 msglen)
+{
+    int ret = 0;
+    word32 need = 0;
+    word32 blocks;
+    word32 avail;
+    word32 firstSz;
+
+    if (ctx == NULL || input == NULL || output == NULL)
+        return BAD_FUNC_ARG;
+
+    if (!ctx->keySet)
+        return MISSING_KEY;
+
+    if (msglen > ctx->left) {
+        need = msglen - ctx->left;
+    }
+    blocks = (need / CHACHA_CHUNK_BYTES) +
+             (((need % CHACHA_CHUNK_BYTES) != 0) ? 1U : 0U);
+    /* An unused counter of 0 leaves 2^32 blocks, more than one call needs. */
+    avail = ctx->cntExhausted ? 0U : (0U - ctx->nextBlock);
+    if ((ctx->cntExhausted || (ctx->nextBlock != 0)) && (blocks > avail)) {
+        if (!ctx->isXChacha ||
+                (ctx->X[CHACHA_MATRIX_CNT_IV + 1] == 0xFFFFFFFFU)) {
+            ret = CHACHA_POLY_OVERFLOW;
+        }
+        else {
+            /* XChaCha has a 64-bit counter: use up this word, then carry. */
+            firstSz = ctx->left + (avail * CHACHA_CHUNK_BYTES);
+            ret = Chacha_ProcessInternal(ctx, output, input, firstSz);
+            if (ret == 0) {
+                ctx->X[CHACHA_MATRIX_CNT_IV] = 0;
+                ctx->X[CHACHA_MATRIX_CNT_IV + 1] += 1;
+                ctx->nextBlock = 0;
+                ctx->cntExhausted = 0;
+                output += firstSz;
+                input += firstSz;
+                msglen -= firstSz;
+                blocks -= avail;
+            }
+        }
+    }
+
+    if (ret == 0) {
+        ret = Chacha_ProcessInternal(ctx, output, input, msglen);
+    }
+    if ((ret == 0) && (blocks > 0)) {
+        ctx->nextBlock += blocks;
+        /* Wrapping to 0 means block 0xFFFFFFFF was just used. */
+        if (ctx->nextBlock == 0) {
+            ctx->cntExhausted = 1;
+        }
+    }
+
+    return ret;
+}
 #endif /* HAVE_CHACHA */
 /* END ChaCha C implementation */
 
@@ -751,6 +806,7 @@ int wc_XChacha_SetKey(ChaCha *ctx,
     #endif
         return ret;
     }
+    ctx->isXChacha = 1;
 
     ForceZero(k, sizeof k);
     ForceZero(iv, sizeof iv);
