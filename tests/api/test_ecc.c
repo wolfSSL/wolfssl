@@ -461,7 +461,7 @@ int test_wc_ecc_check_key_invalid_pubkey(void)
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_KCAPI_ECC) && \
-    !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+    !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 #define TEST_ECC_SP_PUBKEY_RANGE
 static int ecc_check_raw(const char* curve, const char* x, const char* y)
 {
