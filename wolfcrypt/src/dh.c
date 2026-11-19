@@ -1770,6 +1770,8 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
  *   - Public key not equal to prime or prime - 1
  *   - Public key not bigger than prime.
  *
+ * Leading zero bytes in either prime or pub are ignored.
+ *
  * prime    Big-endian encoding of prime in bytes.
  * primeSz  Size of prime in bytes.
  * pub      Big-endian encoding of public key in bytes.
@@ -1783,6 +1785,12 @@ int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
 
     if (prime == NULL || pub == NULL)
         return BAD_FUNC_ARG;
+
+    /* Strip leading zeros from both so the length comparison is valid. */
+    for (i = 0; i < primeSz && prime[i] == 0; i++) {
+    }
+    primeSz -= i;
+    prime += i;
 
     for (i = 0; i < pubSz && pub[i] == 0; i++) {
     }
