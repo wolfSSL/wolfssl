@@ -2206,7 +2206,7 @@ int test_wc_RngExtrasDecisionCoverage(void)
         byte   longseed[512];
         word32 i;
         for (i = 0; i < sizeof(longseed); i++)
-            longseed[i] = (byte)(i * 3u + 1u);
+            longseed[i] = (byte)(i * 3U + 1U);
         (void)wc_RNG_TestSeed(longseed, sizeof(longseed));
     }
 #endif

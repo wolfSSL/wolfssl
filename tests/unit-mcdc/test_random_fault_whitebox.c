@@ -1259,7 +1259,7 @@ static void wb_free_uninstantiate_fault(void)
         mcdc_fz_arm(sizeof(DRBG_internal));
         ret = wc_FreeRng(&rng);
         mcdc_fz_disarm();
-        if (ret != RNG_FAILURE_E) {
+        if (ret != WC_NO_ERR_TRACE(RNG_FAILURE_E)) {
             WB_NOTE("free-uninst: SHA-256 wipe fault did not return RNG_FAILURE_E");
             wb_fail = 1;
         }
@@ -1280,7 +1280,7 @@ static void wb_free_uninstantiate_fault(void)
         mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
         ret = wc_FreeRng(&rng);
         mcdc_fz_disarm();
-        if (ret != RNG_FAILURE_E) {
+        if (ret != WC_NO_ERR_TRACE(RNG_FAILURE_E)) {
             WB_NOTE("free-uninst: SHA-512 wipe fault did not return RNG_FAILURE_E");
             wb_fail = 1;
         }
