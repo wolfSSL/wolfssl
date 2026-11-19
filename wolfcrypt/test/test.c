@@ -50842,9 +50842,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
                       0xf8, 0xf9 };
 #endif
 /* SHA-1 HKDF is refused by the v7 module when the approved-mode gates are
- * active (HkdfDigestAllowed() in fips.c). */
+ * active (HkdfDigestAllowed() in fips.c) -- but only through the wrappers,
+ * so unwrapped builds (FIPS_NO_WRAPPERS, e.g. dev-no-post) still run it
+ * and still need res1. */
 #if !defined(NO_SHA) && !(defined(HAVE_FIPS) && \
-    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR))
+    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS))
     byte res1[42] = { 0x0a, 0xc1, 0xaf, 0x70, 0x02, 0xb3, 0xd7, 0x61,
                       0xd1, 0xe5, 0x52, 0x98, 0xda, 0x9d, 0x05, 0x06,
                       0xb9, 0xae, 0x52, 0x05, 0x72, 0x20, 0xa3, 0x06,
@@ -50882,7 +50885,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     L = (int)sizeof(okm1);
 
 #if !defined(NO_SHA) && !(defined(HAVE_FIPS) && \
-    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR))
+    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS))
     PRIVATE_KEY_UNLOCK();
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ret = wc_HKDF_ex(WC_SHA, ikm1, (word32)sizeof(ikm1), NULL, 0, NULL, 0,
