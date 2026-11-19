@@ -455,7 +455,7 @@ int test_wc_ecc_check_key_invalid_pubkey(void)
  * Runs on SP builds (the arm lanes) and is harmless elsewhere.
  */
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
