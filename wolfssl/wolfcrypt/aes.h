@@ -381,6 +381,8 @@ struct Aes {
 #ifdef WC_AESGCM_IV_LOCK
     byte gcmIvDet;  /* IV is SP 800-38D 8.2.1 fixed || invocation field */
     byte gcmIvLock; /* an IV was generated under the current key */
+    byte gcmIvMasked; /* gcmIvMask is XORed into each 8.2.1 IV used */
+    byte gcmIvMask[GCM_NONCE_MID_SZ];
 #endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
@@ -784,6 +786,10 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
  WOLFSSL_API int  wc_AesGcmSetIV(Aes* aes, word32 ivSz,
                                    const byte* ivFixed, word32 ivFixedSz,
                                    WC_RNG* rng);
+#ifdef WC_AESGCM_IV_LOCK
+ WOLFSSL_API int  wc_AesGcmSetIVCounter(Aes* aes, const byte* iv,
+                                   word32 ivSz, word32 ctrSz, const byte* mask);
+#endif
  WOLFSSL_API int  wc_AesGcmEncrypt_ex(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    byte* ivOut, word32 ivOutSz,

@@ -2847,8 +2847,8 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz);
 
     With a fixed part the IV is the SP 800-38D 8.2.1 construction; without
     one it is the 8.2.2 RBG-based construction. A key takes one IV from this
-    function: a second one returns BAD_STATE_E until wc_AesGcmSetKey() is
-    called again (SP 800-38D 8.2, 8.3).
+    function or wc_AesGcmSetIVCounter(): a second one returns BAD_STATE_E
+    until wc_AesGcmSetKey() is called again (SP 800-38D 8.2, 8.3).
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes or rng is NULL, or if parameters are invalid.
@@ -2884,6 +2884,55 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz);
 */
 int wc_AesGcmSetIV(Aes* aes, word32 ivSz, const byte* ivFixed,
                    word32 ivFixedSz, WC_RNG* rng);
+
+/*!
+    \ingroup AES
+    \brief Sets an SP 800-38D 8.2.1 IV whose last ctrSz bytes are a counter
+    kept by this object. The caller gives the fixed field and the counter's
+    starting value in iv. Each wc_AesGcmEncrypt_ex() uses the next counter
+    value, and returns AES_GCM_OVERFLOW_E instead of letting the counter
+    wrap into the fixed field, so the all-ones counter value is never used.
+    If mask is not NULL it is XORed into every IV used and returned, as the
+    SRTP salt is in RFC 7714 8.1; the counter itself is kept unmasked.
+    A key takes one IV from this function or wc_AesGcmSetIV(): a second one
+    returns BAD_STATE_E until wc_AesGcmSetKey() is called again. A masked IV is
+    used only by wc_AesGcmEncrypt_ex(); wc_AesGcmInit() refuses it.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If aes or iv is NULL, ivSz is not 8 or 12, or ctrSz
+    is less than 4 or leaves a fixed field shorter than 4 bytes.
+    \return BAD_STATE_E If an IV was already generated under the current key.
+
+    \param aes pointer to the AES structure
+    \param iv fixed field followed by the counter's starting value
+    \param ivSz length of iv in bytes: 8 or 12
+    \param ctrSz length of the counter in bytes: 4 to ivSz - 4
+    \param mask ivSz bytes XORed into each IV used, or NULL
+
+    _Example_
+    \code
+    Aes aes;
+    byte key[16] = { }; // SRTP session key
+    byte salt[12] = { }; // SRTP session salt
+    byte iv[12] = { }; // 00 00 || SSRC || ROC || SEQ
+    byte ivOut[12];
+    byte tag[16];
+
+    wc_AesInit(&aes, NULL, INVALID_DEVID);
+    wc_AesGcmSetKey(&aes, key, 16);
+    int ret = wc_AesGcmSetIVCounter(&aes, iv, 12, 6, salt);
+    if (ret == 0) {
+        ret = wc_AesGcmEncrypt_ex(&aes, out, in, inSz, ivOut, 12,
+                                  tag, 16, aad, aadSz);
+    }
+    wc_AesFree(&aes);
+    \endcode
+
+    \sa wc_AesGcmSetIV
+    \sa wc_AesGcmEncrypt_ex
+*/
+int wc_AesGcmSetIVCounter(Aes* aes, const byte* iv, word32 ivSz,
+                          word32 ctrSz, const byte* mask);
 
 /*!
     \ingroup AES

@@ -23573,6 +23573,109 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     return ret;
 }
 
+/* 48-bit fixed || 48-bit counter IV with the SRTP salt mask, from the
+ * RFC 7714 16.1.1 vector; the count stops before the field wraps. */
+static wc_test_ret_t aesgcm_ivctr_test(Aes* enc)
+{
+    wc_test_ret_t ret = 0;
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+    WOLFSSL_SMALL_STACK_STATIC const byte key[16] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    /* Pad || SSRC || ROC || SEQ */
+    WOLFSSL_SMALL_STACK_STATIC const byte start[GCM_NONCE_MID_SZ] = {
+        0x00, 0x00, 0x55, 0x01, 0xa0, 0xb2, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x7b
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte last[GCM_NONCE_MID_SZ] = {
+        0x00, 0x00, 0x55, 0x01, 0xa0, 0xb2, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[GCM_NONCE_MID_SZ] = {
+        0x51, 0x75, 0x69, 0x64, 0x20, 0x70, 0x72, 0x6f, 0x20, 0x71, 0x75, 0x6f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv1[GCM_NONCE_MID_SZ] = {
+        0x51, 0x75, 0x3c, 0x65, 0x80, 0xc2, 0x72, 0x6f, 0x20, 0x71, 0x84, 0x14
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv2[GCM_NONCE_MID_SZ] = {
+        0x51, 0x75, 0x3c, 0x65, 0x80, 0xc2, 0x72, 0x6f, 0x20, 0x71, 0x84, 0x13
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte aad[12] = {
+        0x80, 0x40, 0xf1, 0x7b, 0x80, 0x41, 0xf8, 0xd3, 0x55, 0x01, 0xa0, 0xb2
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte pt[38] = {
+        0x47, 0x61, 0x6c, 0x6c, 0x69, 0x61, 0x20, 0x65, 0x73, 0x74, 0x20, 0x6f,
+        0x6d, 0x6e, 0x69, 0x73, 0x20, 0x64, 0x69, 0x76, 0x69, 0x73, 0x61, 0x20,
+        0x69, 0x6e, 0x20, 0x70, 0x61, 0x72, 0x74, 0x65, 0x73, 0x20, 0x74, 0x72,
+        0x65, 0x73
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ct[38 + 16] = {
+        0xf2, 0x4d, 0xe3, 0xa3, 0xfb, 0x34, 0xde, 0x6c, 0xac, 0xba, 0x86, 0x1c,
+        0x9d, 0x7e, 0x4b, 0xca, 0xbe, 0x63, 0x3b, 0xd5, 0x0d, 0x29, 0x4e, 0x6f,
+        0x42, 0xa5, 0xf4, 0x7a, 0x51, 0xc7, 0xd1, 0x9b, 0x36, 0xde, 0x3a, 0xdf,
+        0x88, 0x33, 0x89, 0x9d, 0x7f, 0x27, 0xbe, 0xb1, 0x6a, 0x91, 0x52, 0xcf,
+        0x76, 0x5e, 0xe4, 0x39, 0x0c, 0xce
+    };
+    byte out[sizeof(pt)];
+    byte tag[16];
+    byte iv[GCM_NONCE_MID_SZ];
+
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIVCounter(enc, start, sizeof(start), 6, salt);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                                  tag, sizeof(tag), aad, sizeof(aad));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(iv, iv1, sizeof(iv)) != 0 ||
+            XMEMCMP(out, ct, sizeof(out)) != 0 ||
+            XMEMCMP(tag, ct + sizeof(out), sizeof(tag)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* SEQ f17c XOR salt; a second IV under the same key is refused. */
+    ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                              tag, sizeof(tag), aad, sizeof(aad));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(iv, iv2, sizeof(iv)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* Streaming cannot apply the mask, so it refuses the masked IV. */
+    ret = wc_AesGcmInit(enc, NULL, 0, NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    ret = wc_AesGcmSetIVCounter(enc, start, sizeof(start), 6, salt);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* ROC||SEQ fffffffffffe is the last value; all ones would wrap. */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIVCounter(enc, last, sizeof(last), 6, NULL);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                              tag, sizeof(tag), NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    /* Leave enc with a fresh count for the tests that follow. */
+    ret = wc_AesGcmSetExtIV(enc, start, sizeof(start));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+  out:
+#else
+    (void)enc;
+#endif
+
+    return ret;
+}
+
 static wc_test_ret_t aesgcm_stream_test(Aes* enc)
 {
     wc_test_ret_t ret = 0;
@@ -25192,6 +25295,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         ERROR_OUT(ret, out);
 
     ret = aesgcm_det_iv_test(enc);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+
+    ret = aesgcm_ivctr_test(enc);
     if (ret != 0)
         ERROR_OUT(ret, out);
 

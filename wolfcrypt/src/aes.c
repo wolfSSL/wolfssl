@@ -15376,6 +15376,12 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             ((ivSz > 0) && (iv == NULL))) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* A masked IV is applied by wc_AesGcmEncrypt_ex() only. */
+    else if ((iv == NULL) && aes->gcmIvDet && aes->gcmIvMasked) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
     if ((ret == 0) && (aes->streamData == NULL)) {
@@ -15957,6 +15963,18 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
  * functions */
 #ifndef WC_NO_RNG
 
+/* Set invokeCtr to 2^64 - 2^s + field, s = 8 * fieldSz, so the count stops
+ * before the invocation field wraps into the fixed field. (SP 800-38D 8.2.1) */
+static void GcmSeedInvokeCtr(Aes* aes, const byte* field, word32 fieldSz)
+{
+    byte cnt[8];
+
+    XMEMSET(cnt, 0xFF, sizeof(cnt) - fieldSz);
+    XMEMCPY(cnt + sizeof(cnt) - fieldSz, field, fieldSz);
+    ato32(cnt, &aes->invokeCtr[1]);
+    ato32(cnt + 4, &aes->invokeCtr[0]);
+}
+
 static WARN_UNUSED_RESULT WC_INLINE int CheckAesGcmIvSize(int ivSz) {
     return (ivSz == GCM_NONCE_MIN_SZ ||
             ivSz == GCM_NONCE_MID_SZ ||
@@ -16030,6 +16048,7 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
                             0 : 0xFFFFFFFF;
     #ifdef WC_AESGCM_IV_LOCK
         aes->gcmIvDet = (byte)(ivFixedSz != 0);
+        aes->gcmIvMasked = 0;
         aes->gcmIvLock = 1;
     #endif
         if (ivFixedSz != 0) {
@@ -16038,11 +16057,8 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
             const byte* field = (const byte*)aes->reg + ivFixedSz;
             word32 i;
 
-            if (ivSz == GCM_NONCE_MID_SZ) {
-                for (i = 0; i < 4; i++) {
-                    aes->invokeCtr[1] = (aes->invokeCtr[1] << 8) | field[i];
-                    aes->invokeCtr[0] = (aes->invokeCtr[0] << 8) | field[i + 4];
-                }
+            if (ivSz != GCM_NONCE_MAX_SZ) {
+                GcmSeedInvokeCtr(aes, field, ivSz - ivFixedSz);
             }
             else {
                 /* Within 2^32 calls a carry reaches the fixed field only when
@@ -16066,6 +16082,42 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
 
     return ret;
 }
+
+#ifdef WC_AESGCM_IV_LOCK
+/* SP 800-38D 8.2.1 IV: caller's fixed field and start, last ctrSz bytes counted
+ * here; mask (the SRTP salt, RFC 7714 8.1) is XORed into each IV used. */
+int wc_AesGcmSetIVCounter(Aes* aes, const byte* iv, word32 ivSz, word32 ctrSz,
+                          const byte* mask)
+{
+    int ret = 0;
+
+    if (aes == NULL || iv == NULL ||
+        (ivSz != GCM_NONCE_MIN_SZ && ivSz != GCM_NONCE_MID_SZ) ||
+        ctrSz < 4 || ctrSz > ivSz - AES_IV_FIXED_SZ) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
+
+    if (ret == 0) {
+        XMEMCPY((byte*)aes->reg, iv, ivSz);
+        GcmSeedInvokeCtr(aes, iv + ivSz - ctrSz, ctrSz);
+        aes->gcmIvMasked = (byte)(mask != NULL);
+        if (mask != NULL) {
+            XMEMCPY(aes->gcmIvMask, mask, ivSz);
+        }
+        aes->gcmIvDet = 1;
+        aes->gcmIvLock = 1;
+    #ifdef WOLFSSL_AESGCM_STREAM
+        aes->ctrSet = 1;
+    #endif
+        aes->nonceSz = ivSz;
+    }
+
+    return ret;
+}
+#endif /* WC_AESGCM_IV_LOCK */
 
 
 int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -16097,6 +16149,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
          * keeps the pointer until the operation completes, so aes->reg is not
          * a stable place to hold the nonce being consumed. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
+    #ifdef WC_AESGCM_IV_LOCK
+        if (aes->gcmIvDet && aes->gcmIvMasked) {
+            xorbuf(ivOut, aes->gcmIvMask, ivOutSz);
+        }
+    #endif
         ret = wc_AesGcmEncrypt(aes, out, in, sz,
                                ivOut, ivOutSz,
                                authTag, authTagSz,
@@ -16105,6 +16162,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
          * data in aes->reg - so a failed encrypt leaves the counter on the
          * nonce it did not consume rather than on backend leftovers. */
         XMEMCPY(aes->reg, ivOut, ivOutSz);
+    #ifdef WC_AESGCM_IV_LOCK
+        if (aes->gcmIvDet && aes->gcmIvMasked) {
+            xorbuf(aes->reg, aes->gcmIvMask, ivOutSz);
+        }
+    #endif
         /* A nonce handed to an asynchronous backend has been consumed even
          * though the operation has not finished yet - the counter must still
          * advance or the next record would reuse this nonce. */
