@@ -541,12 +541,14 @@ MODULE_PARM_DESC(rodata_dump_path,
 
 #endif /* WC_LINUXKM_SUPPORT_DUMP_TO_FILE */
 
-#ifdef HAVE_FIPS
+/* No self-test machinery exists in dev-no-post builds, so the rerun
+ * node must not either. */
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
     static struct module_attribute FIPS_rerun_self_test_attr = __ATTR(FIPS_rerun_self_test, 0220, NULL, FIPS_rerun_self_test_handler);
     static int installed_sysfs_FIPS_files = 0;
-#endif
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef LINUXKM_LKCAPI_REGISTER
     #include "linuxkm/lkcapi_glue.c"
@@ -951,6 +953,9 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 #ifdef FIPS_OPTEST
     #ifndef HAVE_FIPS
         #error FIPS_OPTEST requires HAVE_FIPS.
+    #endif
+    #ifdef WOLFSSL_FIPS_DEV_NO_POST
+        #error FIPS_OPTEST is incompatible with WOLFSSL_FIPS_DEV_NO_POST (no POST machinery to exercise).
     #endif
     extern int linuxkm_op_test_1(int argc, const char* argv[]);
     extern int linuxkm_op_test_wrapper(void);
@@ -1745,9 +1750,9 @@ static int wolfssl_init(void)
 #endif /* !LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND */
 #endif /* LINUXKM_LKCAPI_REGISTER */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     (void)linuxkm_sysfs_install_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
-#endif
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
     #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
@@ -1795,7 +1800,7 @@ static int wolfssl_init(void)
 module_init(wolfssl_init);
 
 static void wc_linuxkm_deinstall(void) {
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
 #ifdef FIPS_OPTEST
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
@@ -2731,7 +2736,7 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
 
 #endif /* CONFIG_HAVE_KPROBES */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
 
 static wolfSSL_Atomic_Int in_fips_test = WOLFSSL_ATOMIC_INITIALIZER(-1);
 
@@ -3108,4 +3113,4 @@ static ssize_t FIPS_optest_trig_audit_c_handler(WC_MODULE_ATTR_CONST struct modu
 
 #endif /* FIPS_OPTEST */
 
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
