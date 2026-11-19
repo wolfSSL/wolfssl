@@ -5465,14 +5465,16 @@ static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
         WOLFSSL* next_s = reuseS ? ssl_s : fresh_s2;
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-        test_clear_cfg(NULL, next_s, flags & TEST_CLEAR_PSK);
+        test_clear_cfg(NULL, next_s,
+            flags & (TEST_CLEAR_PSK | TEST_CLEAR_DHE));
         ExpectIntEQ(test_memio_do_handshake(ssl_c, next_s, 10, NULL), 0);
     }
 #ifdef OPENSSL_ALL
     if (cipherName != NULL) {
         /* What a never-connected server reports for the same client. */
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-        test_clear_cfg(NULL, fresh_s, flags & TEST_CLEAR_PSK);
+        test_clear_cfg(NULL, fresh_s,
+            flags & (TEST_CLEAR_PSK | TEST_CLEAR_DHE));
         ExpectIntEQ(wolfSSL_set_cipher_list(fresh_c, cipherName),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(test_memio_do_handshake(fresh_c, fresh_s, 10, NULL), 0);
