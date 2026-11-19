@@ -84,6 +84,7 @@ int test_wolfSSL_session_chain_tls13_pha(void);
 int test_wolfSSL_session_chain_resume_declined(void);
 int test_wolfSSL_clear_peer_cert_key(void);
 int test_wolfSSL_SESSION_get0_peer_full_chain(void);
+int test_wolfSSL_use_rsa_cert_on_ecc_ctx(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_mode),             \
@@ -159,6 +160,7 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_from_fifo),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_more_guards),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep), \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_use_rsa_cert_on_ecc_ctx),     \
         TEST_DECL_GROUP("ssl_cert", test_ssl_cert_decision_coverage)
 
 #endif /* TESTS_API_SSL_CERT_H */
