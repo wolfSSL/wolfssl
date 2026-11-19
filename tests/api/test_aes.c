@@ -5391,12 +5391,18 @@ int test_wc_AesGcmStream_ReinitAfterFinal(void)
  *   D (F,-,-,-): same, bad tag size -> BAD_FUNC_ARG before the guard body.
  *   E (F,-,-,-): key only + SetIV (no nonceSet) -> MISSING_IV.
  *   F (T,F,-,-): IV at init, no SetIV -> ctrSet still 0, guard skipped.
+ *
+ * FIPS builds before v7 and the --enable-selftest build compile the
+ * boundary aes.c, whose stream wc_AesGcmEncryptFinal() path never calls
+ * the invocation-count guard, so the counter vectors do not hold there.
  */
 int test_wc_AesGcmStreamMcdc(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM) && \
-    defined(WOLFSSL_AESGCM_STREAM) && !defined(WC_NO_RNG)
+    defined(WOLFSSL_AESGCM_STREAM) && !defined(WC_NO_RNG) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
     WC_RNG rng[1];
     Aes aes[1];
     byte key[AES_128_KEY_SIZE] = { 0 };
