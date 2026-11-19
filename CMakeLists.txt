@@ -1260,10 +1260,6 @@ add_option(WOLFSSL_TLS_NO_MLKEM_STANDALONE
     "Disable ML-KEM as standalone TLS key exchange (non-hybrid) (default: enabled, i.e. standalone disabled)"
     "yes" "yes;no")
 
-if (WOLFSSL_TLS_NO_MLKEM_STANDALONE)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TLS_NO_MLKEM_STANDALONE")
-endif()
-
 # PQ/T hybrid combinations
 add_option(WOLFSSL_PQC_HYBRIDS
     "Enable PQ/T hybrid combinations (default: enabled)"
@@ -2880,8 +2876,19 @@ endif()
 if (NOT WOLFSSL_ECC AND
     (NOT WOLFSSL_RSA OR NOT WOLFSSL_DH) AND
     (NOT WOLFSSL_CURVE25519 OR NOT WOLFSSL_ED25519) AND
-    (NOT WOLFSSL_CURVE448 AND NOT WOLFSSL_ED448))
+    (NOT WOLFSSL_CURVE448 AND NOT WOLFSSL_ED448) AND
+    NOT WOLFSSL_MLKEM)
     override_cache(WOLFSSL_TLS13 "no")
+endif()
+# ML-KEM hybrids need an ECC, X25519 or X448 base.
+if(WOLFSSL_TLS13 AND WOLFSSL_MLKEM AND WOLFSSL_TLS_NO_MLKEM_STANDALONE AND
+   NOT WOLFSSL_ECC AND NOT WOLFSSL_CURVE25519 AND NOT WOLFSSL_CURVE448)
+    message(STATUS "No ECC/Curve25519/Curve448 base for ML-KEM hybrids; "
+        "enabling standalone ML-KEM for TLS 1.3")
+    override_cache(WOLFSSL_TLS_NO_MLKEM_STANDALONE "no")
+endif()
+if(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TLS_NO_MLKEM_STANDALONE")
 endif()
 if (WOLFSSL_TLS13)
     list(APPEND WOLFSSL_DEFINITIONS
@@ -2923,6 +2930,25 @@ else()
     override_cache(WOLFSSL_SESSION_CACHE_REF "no")
 endif()
 
+# Without a classic key exchange TLS 1.2 and older have no cipher suite.
+set(_wolfssl_kex_flags "${WOLFSSL_DEFINITIONS} ${CMAKE_C_FLAGS}")
+if(WOLFSSL_TLS AND NOT WOLFSSL_CRYPT_ONLY AND WOLFSSL_TLSV12 AND
+   WOLFSSL_TLS13 AND WOLFSSL_MLKEM AND NOT WOLFSSL_DH AND NOT WOLFSSL_ECC AND
+   NOT WOLFSSL_CURVE25519 AND NOT WOLFSSL_CURVE448 AND NOT WOLFSSL_PSK AND
+   NOT WOLFSSL_LEAN_PSK AND NOT WOLFSSL_STUNNEL AND NOT WOLFSSL_MCAST AND
+   (NOT WOLFSSL_DTLS OR WOLFSSL_DTLS13) AND
+   NOT _wolfssl_kex_flags MATCHES
+       "-DWOLFSSL_STATIC_RSA|-DWOLFSSL_STATIC_DH|-DWOLFSSL_ALLOW_NO_SUITES|-DHAVE_CSHARP")
+    wolfssl_option_user_set(WOLFSSL_TLSV12 _wolfssl_user_tlsv12)
+    if(_wolfssl_user_tlsv12 OR WOLFSSL_OLD_TLS)
+        message(WARNING "TLS 1.2 kept with no cipher suite to negotiate.")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALLOW_NO_SUITES")
+    else()
+        message(STATUS "TLS 1.2 has no key exchange; disabling it.")
+        override_cache(WOLFSSL_TLSV12 "no")
+    endif()
+endif()
+
 if(NOT WOLFSSL_TLSV12)
     # A wolfCrypt-only build has no handshake to be left without, so only a
     # build that keeps TLS has to agree on which versions remain.
@@ -2949,10 +2975,6 @@ if(NOT WOLFSSL_TLSV12)
                 "WOLFSSL_TLSV12=no with WOLFSSL_DTLS=yes needs "
                 "WOLFSSL_DTLS13=yes: DTLS 1.2 uses the TLS 1.2 handshake.")
         endif()
-    endif()
-    # A TLS 1.3-only build without session tickets has no session to cache.
-    if(WOLFSSL_TLS13 AND NOT WOLFSSL_SESSION_TICKET)
-        list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE")
     endif()
     # NO_OLD_TLS is already in the list: the check above leaves
     # WOLFSSL_OLD_TLS off, which is what adds it.
@@ -3483,6 +3505,13 @@ if(WOLFSSL_CLU)
     list(APPEND WOLFSSL_DEFINITIONS "-DOPENSSL_ALL")
     # Remove NO_DES3 from WOLFSSL_DEFINITIONS to ensure DES3 is enabled
     list(REMOVE_ITEM WOLFSSL_DEFINITIONS "-DNO_DES3")
+endif()
+
+# A TLS 1.3-only build without session tickets has no session to cache.
+if(NOT WOLFSSL_TLSV12 AND WOLFSSL_TLS13 AND NOT WOLFSSL_SESSION_TICKET AND
+   NOT WOLFSSL_DEFINITIONS MATCHES
+       "-DOPENSSL_ALL|-DWOLFSSL_NGINX|-DWOLFSSL_HAPROXY|-DHAVE_LIGHTY")
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE")
 endif()
 
 # SHA-512 handshake transcript for TLS v1.3. Settled here rather than beside

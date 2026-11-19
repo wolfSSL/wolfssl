@@ -1186,7 +1186,8 @@ int test_wolfSSL_SESSION(void)
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA) && !defined(NO_SHA256) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(HAVE_SESSION_TICKET))
     WOLFSSL*     ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_SESSION* sess = NULL;
