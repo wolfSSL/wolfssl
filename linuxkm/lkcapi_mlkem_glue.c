@@ -364,6 +364,7 @@ static int km_mlkem_set_secret(struct crypto_kpp *tfm, const void *buffer,
         /* Decapsulation role: deterministic keygen from the d||z seed. */
         err = wc_MlKemKey_MakeKeyWithRandom(wc_key, (const byte *)buffer,
                                             (int)len);
+        LKCAPI_ABSORB_SEED_INDICATOR(err);
         if (err == 0) {
             PRIVATE_KEY_UNLOCK();
             err = wc_MlKemKey_EncodePrivateKey(wc_key, ctx->dk, dk_len);
@@ -874,6 +875,7 @@ static int linuxkm_test_mlkem_driver(const char * driver, int type)
     /* The local wolfCrypt keypair, from the same seed the glue will use. */
     ret = wc_MlKemKey_MakeKeyWithRandom(wc_key, seed,
                                         (int)sizeof(seed));
+    LKCAPI_ABSORB_SEED_INDICATOR(ret);
     if (ret != 0) {
         pr_err("error: wc_MlKemKey_MakeKeyWithRandom returned: %d\n",
                ret);

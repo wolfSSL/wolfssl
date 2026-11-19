@@ -126,6 +126,30 @@
     #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but CAN_SAVE_VECTOR_REGISTERS is missing.
 #endif
 
+/* The FIPS v7 approved-mode gates (see the WC_HAVE_FIPS_INDICATOR comment in
+ * fips.c) change what the glue sees at the module boundary: refused services
+ * must not be registered, and the WC_FIPS_NOT_APPROVED indicator must be
+ * absorbed where the LKCAPI calling contract has no ride for it. */
+#if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define LKCAPI_FIPS_APPROVED_MODE_GATES
+#endif
+
+/* Success from a caller-seeded PQ keygen service: FIPS v7 returns the
+ * WC_FIPS_NOT_APPROVED indicator (CallerSeedResult() in fips.c), and the
+ * LKCAPI calling contract has no ride for it -- absorb it.  This can't mask
+ * a failure: the indicator is the only positive return from these services.
+ */
+#ifdef LKCAPI_FIPS_APPROVED_MODE_GATES
+    #define LKCAPI_ABSORB_SEED_INDICATOR(err)      \
+        do {                                       \
+            if ((err) == WC_FIPS_NOT_APPROVED)     \
+                (err) = 0;                         \
+        } while (0)
+#else
+    #define LKCAPI_ABSORB_SEED_INDICATOR(err) WC_DO_NOTHING
+#endif
+
 WC_MAYBE_UNUSED static int check_skcipher_driver_masking(struct crypto_skcipher *tfm, const char *alg_name, const char *expected_driver_name) {
 #ifdef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
     (void)tfm; (void)alg_name; (void)expected_driver_name;
@@ -240,6 +264,14 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
 #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
     (ECC_MIN_KEY_SZ <= 521) && !defined(LINUXKM_ECC521)
     #define LINUXKM_ECC521
+#endif
+
+/* With the approved-mode gates active, wc_ecc_shared_secret() refuses P-192
+ * (EccCurveAllowed() in fips.c admits only P-256/384/521 for ECDH), so the
+ * ECDH P-192 glue cannot work -- leave it out.  ECDSA P-192 stays
+ * registered: P-192 verify is allowed for legacy use. */
+#if defined(LINUXKM_ECC192) && !defined(LKCAPI_FIPS_APPROVED_MODE_GATES)
+    #define LINUXKM_ECDH_ECC192
 #endif
 
 #include "lkcapi_aes_glue.c"
@@ -921,15 +953,15 @@ static int linuxkm_lkcapi_register(void)
     */
     #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(WC_LINUX_CONFIG_SELFTESTS)
-        #if defined(LINUXKM_ECC192)
+        #if defined(LINUXKM_ECDH_ECC192)
         REGISTER_ALG_OPTIONAL(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
-        #endif /* LINUXKM_ECC192 */
+        #endif /* LINUXKM_ECDH_ECC192 */
         REGISTER_ALG_OPTIONAL(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
         REGISTER_ALG_OPTIONAL(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
     #else
-        #if defined(LINUXKM_ECC192)
+        #if defined(LINUXKM_ECDH_ECC192)
         REGISTER_ALG(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
-        #endif /* LINUXKM_ECC192 */
+        #endif /* LINUXKM_ECDH_ECC192 */
         REGISTER_ALG(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
         REGISTER_ALG(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
     #endif /* CONFIG_CRYPTO_FIPS && etc.. */
@@ -1477,9 +1509,9 @@ static int linuxkm_lkcapi_unregister(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_MLKEM */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
-    #if defined(LINUXKM_ECC192)
+    #if defined(LINUXKM_ECDH_ECC192)
         UNREGISTER_ALG(ecdh_nist_p192, kpp);
-    #endif /* LINUXKM_ECC192 */
+    #endif /* LINUXKM_ECDH_ECC192 */
     UNREGISTER_ALG(ecdh_nist_p256, kpp);
     UNREGISTER_ALG(ecdh_nist_p384, kpp);
     #ifdef LINUXKM_ECC521

@@ -494,6 +494,7 @@ static int km_mldsa_set_priv(struct mldsa_tfm_type *tfm, const void *key,
         /* Seed form: expand, then normalize the context to the raw
          * private key, and install the derived public key too. */
         err = wc_MlDsaKey_MakeKeyFromSeed(tmp_key, (const byte *)key);
+        LKCAPI_ABSORB_SEED_INDICATOR(err);
         if (err == 0) {
             out_len = priv_len;
             PRIVATE_KEY_UNLOCK();
