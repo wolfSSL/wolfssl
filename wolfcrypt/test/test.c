@@ -23479,6 +23479,100 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
     return ret;
 }
 
+/* SP 800-38D 8.2.1 IV: fixed field || invocation field, one per key. */
+static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
+{
+    wc_test_ret_t ret = 0;
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    WC_RNG rng;
+    int rngInited = 0;
+    int tries;
+    WOLFSSL_SMALL_STACK_STATIC const byte key[16] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte fixed[AES_IV_FIXED_SZ] = {
+        0x77, 0x6f, 0x6c, 0x66
+    };
+    byte p[16];
+    byte c[16];
+    byte tag[16];
+    byte iv1[GCM_NONCE_MIN_SZ];
+    byte iv2[GCM_NONCE_MIN_SZ];
+    word32 ctr1;
+    word32 ctr2;
+
+    XMEMSET(p, 0, sizeof(p));
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    rngInited = 1;
+
+    /* The invocation field is random: redraw it when it starts within two of
+     * the 2^32 cap, where an encrypt is refused. */
+    for (tries = 0; tries < 3; tries++) {
+        ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+        if (ret == 0)
+            ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+        if (ret == 0)
+            ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv1, sizeof(iv1),
+                                      tag, sizeof(tag), NULL, 0);
+        if (ret == 0)
+            ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv2, sizeof(iv2),
+                                      tag, sizeof(tag), NULL, 0);
+        if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E))
+            break;
+    }
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* The fixed field stays and the invocation field counts up by one. */
+    if (XMEMCMP(iv1, fixed, sizeof(fixed)) != 0 ||
+            XMEMCMP(iv2, fixed, sizeof(fixed)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ctr1 = ((word32)iv1[4] << 24) | ((word32)iv1[5] << 16) |
+           ((word32)iv1[6] << 8) | iv1[7];
+    ctr2 = ((word32)iv2[4] << 24) | ((word32)iv2[5] << 16) |
+           ((word32)iv2[6] << 8) | iv2[7];
+    if (ctr2 != ctr1 + 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* One IV per key, either construction first: a new key allows one.
+     * (SP 800-38D 8.2, 8.3) */
+    ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+  out:
+    if (rngInited)
+        wc_FreeRng(&rng);
+#else
+    (void)enc;
+#endif
+
+    return ret;
+}
+
 static wc_test_ret_t aesgcm_stream_test(Aes* enc)
 {
     wc_test_ret_t ret = 0;
@@ -25094,6 +25188,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 #endif
 
     ret = aesgcm_setiv_test(enc, dec);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+
+    ret = aesgcm_det_iv_test(enc);
     if (ret != 0)
         ERROR_OUT(ret, out);
 

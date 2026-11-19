@@ -6546,6 +6546,15 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define HAVE_DH
 #endif
 
+/* One generated GCM IV per key (SP 800-38D 8.2, 8.3). Ports with their own
+ * wc_AesGcmSetKey() never release the lock, so software GCM only. */
+#if defined(HAVE_AESGCM) && !defined(NO_AES) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI_AES) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES) && !defined(WOLFSSL_TI_CRYPT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    #define WC_AESGCM_IV_LOCK
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

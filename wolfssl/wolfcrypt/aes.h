@@ -378,6 +378,10 @@ struct Aes {
 #endif
 #ifdef HAVE_AESGCM
     Gcm gcm;
+#ifdef WC_AESGCM_IV_LOCK
+    byte gcmIvDet;  /* IV is SP 800-38D 8.2.1 fixed || invocation field */
+    byte gcmIvLock; /* an IV was generated under the current key */
+#endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
     int ctxInitDone;

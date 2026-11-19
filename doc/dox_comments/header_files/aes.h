@@ -2845,16 +2845,21 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz);
     generation. It can generate part of the IV using an RNG, which is
     useful for ensuring IV uniqueness.
 
+    With a fixed part the IV is the SP 800-38D 8.2.1 construction; without
+    one it is the 8.2.2 RBG-based construction. A key takes one IV from this
+    function: a second one returns BAD_STATE_E until wc_AesGcmSetKey() is
+    called again (SP 800-38D 8.2, 8.3).
+
     \return 0 On success.
-    \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return BAD_FUNC_ARG If aes or rng is NULL, or if parameters are invalid.
+    \return BAD_STATE_E If an IV was already generated under the current key.
     \return Other negative values on RNG or other errors.
 
     \param aes pointer to the AES structure
-    \param ivSz total length of the IV/nonce in bytes
+    \param ivSz total length of the IV/nonce in bytes: 8, 12 or 16
     \param ivFixed pointer to the fixed part of the IV (can be NULL)
-    \param ivFixedSz length of the fixed part in bytes
-    \param rng pointer to initialized RNG for generating random part
-    (can be NULL if ivFixedSz equals ivSz)
+    \param ivFixedSz length of the fixed part: 0, or AES_IV_FIXED_SZ (4)
+    \param rng pointer to initialized RNG for generating the rest of the IV
 
     _Example_
     \code

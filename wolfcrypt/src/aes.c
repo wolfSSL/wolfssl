@@ -9260,6 +9260,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
     WC_AES_GCM_UNKEY(aes);
+#ifdef WC_AESGCM_IV_LOCK
+    aes->gcmIvLock = 0;
+#endif
     /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
     if (aes->nonceSz != 0) {
         XMEMCPY(nonce, aes->reg, sizeof(nonce));
@@ -15395,6 +15398,11 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             (!aes->gcmKeySet)) {
         ret = MISSING_KEY;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    if ((ret == 0) && (iv != NULL)) {
+        aes->gcmIvDet = 0;
+    }
+#endif
 
 #if defined(WOLFSSL_ARM32_AES_DISPATCH) && defined(WOLFSSL_AESGCM_STREAM)
     /* Streaming AES-GCM drives the counter through the base AES_ECB_encrypt,
@@ -15966,6 +15974,9 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
 
     if (ret == 0) {
         XMEMCPY((byte*)aes->reg, iv, ivSz);
+    #ifdef WC_AESGCM_IV_LOCK
+        aes->gcmIvDet = 0;
+    #endif
 
         /* If the IV is 96, allow for a 2^64 invocation counter.
          * For any other size for the nonce, limit the invocation
@@ -15994,6 +16005,13 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
 
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* One generated IV per key: no second construction and no restart of the
+     * invocation count. (SP 800-38D 8.2, 8.3) */
+    else if (aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     if (ret == 0) {
         byte* iv = (byte*)aes->reg;
@@ -16010,6 +16028,10 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
         aes->invokeCtr[0] = 0;
         aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ && ivFixedSz != 0) ?
                             0 : 0xFFFFFFFF;
+    #ifdef WC_AESGCM_IV_LOCK
+        aes->gcmIvDet = (byte)(ivFixedSz != 0);
+        aes->gcmIvLock = 1;
+    #endif
         if (ivFixedSz != 0) {
             /* Count from the random invocation field so the limit is hit
              * before a carry can change the fixed field. (SP 800-38D 8.2.1) */
