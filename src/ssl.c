@@ -6142,6 +6142,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
+    #ifdef OPENSSL_EXTRA
+        /* Compat builds keep the client's offered suites after the handshake
+         * for wolfSSL_get_client_ciphers(); they belong to that client. */
+        XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+        ssl->clSuites = NULL;
+    #endif
+
         /* Discard any partial handshake-message reassembly on reuse. */
         XFREE(ssl->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
         ssl->pendingMsg = NULL;
