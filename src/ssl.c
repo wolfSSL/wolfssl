@@ -6002,6 +6002,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->ws_peer_ca_names = NULL;
     #endif
 
+    #if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13)
+        /* wolfSSL_set_groups() keeps the groups twice: in the supported_groups
+         * extension freed below and in ssl->group[]. Put the list back to the
+         * context's as well, so both agree on the next connection. */
+        XMEMCPY(ssl->group, ssl->ctx->group, sizeof(ssl->group));
+        ssl->numGroups = ssl->ctx->numGroups;
+    #endif
+
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
         ssl->extensions = NULL;
