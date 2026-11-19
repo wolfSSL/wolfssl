@@ -13446,7 +13446,9 @@ word32 CookieTime(void)
 }
 
 /* Is a cookie issued at the given time, 4 byte big endian seconds, older
- * than WOLFSSL_COOKIE_MAX_AGE? A time from the future is rejected too. */
+ * than WOLFSSL_COOKIE_MAX_AGE? A time more than WOLFSSL_COOKIE_MAX_SKEW
+ * ahead of the clock is rejected too: the issuer may be another server,
+ * whose clock runs a little ahead. */
 int CookieExpired(const byte* issued)
 {
 #if WOLFSSL_COOKIE_MAX_AGE > 0
@@ -13455,7 +13457,7 @@ int CookieExpired(const byte* issued)
 
     ato32(issued, &at);
     if (now < at)
-        return 1;
+        return at - now > (word32)WOLFSSL_COOKIE_MAX_SKEW;
     return now - at > (word32)WOLFSSL_COOKIE_MAX_AGE;
 #else
     (void)issued;

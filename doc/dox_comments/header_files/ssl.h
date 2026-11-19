@@ -11080,7 +11080,8 @@ int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
     WOLFSSL_COOKIE_MAX_AGE seconds later (60 by default), so a captured
     cookie cannot be replayed later and the secret need not be rotated for
     that. The issue time is real time (wc_Time()), so servers that share a
-    secret need clocks that agree: a cookie from a clock that is ahead is
+    secret need clocks that agree: a cookie from a clock that is more than
+    WOLFSSL_COOKIE_MAX_SKEW seconds ahead (5 by default, 0 allows none) is
     rejected, one from a clock that is behind expires that much sooner. A
     cookie's MAC is computed on the object's device (wolfSSL_SetDevId()). A
     device that leaves it pending (WC_PENDING_E) is not supported on a DTLS
@@ -16270,7 +16271,9 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     cookie is, WOLFSSL_COOKIE_MAX_AGE seconds (60 by default) after it was
     issued, so a captured cookie cannot be replayed later. Without a clock
     (NO_ASN_TIME) no time is sent or checked. The issue time is real time
-    (wc_Time()), so servers that share the secret need clocks that agree.
+    (wc_Time()), so servers that share the secret need clocks that agree: an
+    issue time more than WOLFSSL_COOKIE_MAX_SKEW seconds (5 by default) ahead
+    of the clock is rejected.
     This replaces or regenerates the HRR secret, then delegates to
     wolfSSL_enable_cookie(). Changing
     cookie mode after handshake processing starts is unsupported; rotating a

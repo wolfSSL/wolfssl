@@ -9579,52 +9579,71 @@ int test_dtls12_cookie_secret_issue_uses_primary(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_ASN_TIME) && !defined(NO_ASN)
-/* The cookie age tests move the clock with wc_SetTimeCb(): cookies are
+/* The cookie age tests set the clock with wc_SetTimeCb(): cookies are
  * timed by wc_Time() where the build has it */
 #define TEST_COOKIE_AGE
 #endif
 
 #ifdef TEST_COOKIE_AGE
+static time_t test_cookie_clock_base = 0;
 static time_t test_cookie_clock_skew = 0;
 
 static time_t test_cookie_clock_cb(time_t* t)
 {
-    time_t now = XTIME(NULL) + test_cookie_clock_skew;
+    time_t now = test_cookie_clock_base + test_cookie_clock_skew;
     if (t != NULL)
         *t = now;
     return now;
 }
 
-/* Seconds past the limit: with the age check disabled, an hour */
-static time_t test_cookie_skew(void)
+/* Stop the clock before the cookie is issued: a tick between the issue and
+ * the check would change the age the bounds are tested at */
+static int test_cookie_clock_stop(void)
 {
-#if WOLFSSL_COOKIE_MAX_AGE > 0
-    return (time_t)WOLFSSL_COOKIE_MAX_AGE + 1;
-#else
-    return 3601;
-#endif
+    test_cookie_clock_base = XTIME(NULL);
+    test_cookie_clock_skew = 0;
+    return wc_SetTimeCb(test_cookie_clock_cb);
 }
 
 /* Run the server over the second ClientHello with the clock moved skew
- * seconds, so its cookie is that much older, or newer when negative */
+ * seconds, so its cookie is that much older, or issued that far ahead when
+ * negative. Restarts the clock. */
 static int test_cookie_age_accept(WOLFSSL* ssl_s, time_t skew)
 {
     EXPECT_DECLS;
     int ret;
 
     test_cookie_clock_skew = skew;
-    ExpectIntEQ(wc_SetTimeCb(test_cookie_clock_cb), 0);
     ret = wolfSSL_accept(ssl_s);
     ExpectIntEQ(wc_SetTimeCb(NULL), 0);
     test_cookie_clock_skew = 0;
     ExpectIntEQ(ret, -1);
     return EXPECT_RESULT();
 }
+
+/* run(skew, stale) checks that a cookie is rejected, or not, once the clock
+ * has moved skew seconds. With the age check disabled every cookie verifies. */
+static int test_cookie_age_cases(int (*run)(time_t skew, int stale))
+{
+    EXPECT_DECLS;
+#if WOLFSSL_COOKIE_MAX_AGE > 0
+    /* Past the age limit */
+    ExpectIntEQ(run((time_t)WOLFSSL_COOKIE_MAX_AGE + 1, 1), TEST_SUCCESS);
+    /* Issued ahead of the clock: by all the skew allowed, and a second more.
+     * With no skew allowed the first is a cookie of this second. */
+    ExpectIntEQ(run(-(time_t)WOLFSSL_COOKIE_MAX_SKEW, 0), TEST_SUCCESS);
+    ExpectIntEQ(run(-(time_t)WOLFSSL_COOKIE_MAX_SKEW - 1, 1), TEST_SUCCESS);
+#else
+    ExpectIntEQ(run(3601, 0), TEST_SUCCESS);
+    ExpectIntEQ(run(-3601, 0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
 #endif
 
 #if defined(TEST_COOKIE_AGE) && defined(WOLFSSL_DTLS13) && \
     defined(WOLFSSL_SEND_HRR_COOKIE)
-static int test_dtls13_hrr_cookie_age_ex(time_t skew)
+static int test_dtls13_hrr_cookie_age_ex(time_t skew, int stale)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL;
@@ -9637,32 +9656,34 @@ static int test_dtls13_hrr_cookie_age_ex(time_t skew)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(s1, 0x5A, sizeof(s1));
+    ExpectIntEQ(test_cookie_clock_stop(), 0);
     ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
         &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
 
     ExpectIntEQ(test_cookie_age_accept(ssl_s, skew), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-#if WOLFSSL_COOKIE_MAX_AGE > 0
-    /* A stale cookie is a bad one: a fatal illegal_parameter alert and the
-     * server stays stateless, ready for the next ClientHello */
-    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
-    ExpectIntGT(test_ctx.c_len, DTLS_RECORD_HEADER_SZ + 1);
-    ExpectIntEQ(test_ctx.c_buff[0], alert);
-    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], alert_fatal);
-    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ + 1], illegal_parameter);
-    test_memio_clear_buffer(&test_ctx, 1);
-    wolfSSL_free(ssl_c);
-    ssl_c = NULL;
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, NULL,
-        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
-#else
-    /* The age check is disabled: the cookie verifies */
-    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
-    ExpectIntEQ(test_ctx.c_len > DTLS_RECORD_HEADER_SZ &&
-        test_ctx.c_buff[0] == alert, 0);
-#endif
-    (void)group;
+    if (stale) {
+        /* A stale cookie is a bad one: a fatal illegal_parameter alert and
+         * the server stays stateless, ready for the next ClientHello */
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+        ExpectIntGT(test_ctx.c_len, DTLS_RECORD_HEADER_SZ + 1);
+        ExpectIntEQ(test_ctx.c_buff[0], alert);
+        ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], alert_fatal);
+        ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ + 1],
+            illegal_parameter);
+        test_memio_clear_buffer(&test_ctx, 1);
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, NULL,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    }
+    else {
+        /* The cookie verifies */
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+        ExpectIntEQ(test_ctx.c_len > DTLS_RECORD_HEADER_SZ &&
+            test_ctx.c_buff[0] == alert, 0);
+    }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
@@ -9674,22 +9695,21 @@ static int test_dtls13_hrr_cookie_age_ex(time_t skew)
 #endif
 
 /* A DTLS 1.3 HelloRetryRequest cookie older than WOLFSSL_COOKIE_MAX_AGE, or
- * from the future, is rejected like a forged one. */
+ * issued more than WOLFSSL_COOKIE_MAX_SKEW ahead of the clock, is rejected
+ * like a forged one. */
 int test_dtls13_hrr_cookie_age(void)
 {
     EXPECT_DECLS;
 #if defined(TEST_COOKIE_AGE) && defined(WOLFSSL_DTLS13) && \
     defined(WOLFSSL_SEND_HRR_COOKIE)
-    ExpectIntEQ(test_dtls13_hrr_cookie_age_ex(test_cookie_skew()),
-        TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_hrr_cookie_age_ex(-test_cookie_skew()),
+    ExpectIntEQ(test_cookie_age_cases(test_dtls13_hrr_cookie_age_ex),
         TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
 
 #if defined(TEST_COOKIE_AGE) && !defined(WOLFSSL_NO_TLS12)
-static int test_dtls12_cookie_age_ex(time_t skew)
+static int test_dtls12_cookie_age_ex(time_t skew, int stale)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL;
@@ -9701,6 +9721,7 @@ static int test_dtls12_cookie_age_ex(time_t skew)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(s1, 0x5A, sizeof(s1));
+    ExpectIntEQ(test_cookie_clock_stop(), 0);
     ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
         &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
 
@@ -9708,21 +9729,23 @@ static int test_dtls12_cookie_age_ex(time_t skew)
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
     ExpectIntGT(test_ctx.c_len, DTLS_RECORD_HEADER_SZ);
     ExpectIntEQ(test_ctx.c_buff[0], handshake);
-#if WOLFSSL_COOKIE_MAX_AGE > 0
-    /* A stale cookie is a bad one: a new HelloVerifyRequest and the server
-     * stays stateless. A fresh client gets a fresh cookie. */
-    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
-    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], hello_verify_request);
-    test_memio_clear_buffer(&test_ctx, 1);
-    wolfSSL_free(ssl_c);
-    ssl_c = NULL;
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, NULL,
-        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
-#else
-    /* The age check is disabled: the cookie verifies */
-    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
-    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], server_hello);
-#endif
+    if (stale) {
+        /* A stale cookie is a bad one: a new HelloVerifyRequest and the
+         * server stays stateless. A fresh client gets a fresh cookie. */
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+        ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ],
+            hello_verify_request);
+        test_memio_clear_buffer(&test_ctx, 1);
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, NULL,
+            wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    }
+    else {
+        /* The cookie verifies */
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+        ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], server_hello);
+    }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
@@ -9739,8 +9762,8 @@ int test_dtls12_cookie_age(void)
 {
     EXPECT_DECLS;
 #if defined(TEST_COOKIE_AGE) && !defined(WOLFSSL_NO_TLS12)
-    ExpectIntEQ(test_dtls12_cookie_age_ex(test_cookie_skew()), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls12_cookie_age_ex(-test_cookie_skew()), TEST_SUCCESS);
+    ExpectIntEQ(test_cookie_age_cases(test_dtls12_cookie_age_ex),
+        TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -9748,7 +9771,7 @@ int test_dtls12_cookie_age(void)
 #if defined(TEST_COOKIE_AGE) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_SEND_HRR_COOKIE) && defined(HAVE_ECC) && \
     !defined(NO_ECC256)
-static int test_tls13_hrr_cookie_age_ex(time_t skew)
+static int test_tls13_hrr_cookie_age_ex(time_t skew, int stale)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL;
@@ -9761,6 +9784,7 @@ static int test_tls13_hrr_cookie_age_ex(time_t skew)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(s1, 0x5A, sizeof(s1));
+    ExpectIntEQ(test_cookie_clock_stop(), 0);
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
     ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
@@ -9778,19 +9802,20 @@ static int test_tls13_hrr_cookie_age_ex(time_t skew)
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
     ExpectIntEQ(test_cookie_age_accept(ssl_s, skew), TEST_SUCCESS);
-#if WOLFSSL_COOKIE_MAX_AGE > 0
-    /* A stale cookie is a bad one: a fatal illegal_parameter alert */
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
-        WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
-    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ + 1);
-    ExpectIntEQ(test_ctx.c_buff[0], alert);
-    ExpectIntEQ(test_ctx.c_buff[RECORD_HEADER_SZ], alert_fatal);
-    ExpectIntEQ(test_ctx.c_buff[RECORD_HEADER_SZ + 1], illegal_parameter);
-#else
-    /* The age check is disabled: the cookie verifies */
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-#endif
+    if (stale) {
+        /* A stale cookie is a bad one: a fatal illegal_parameter alert */
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+            WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
+        ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ + 1);
+        ExpectIntEQ(test_ctx.c_buff[0], alert);
+        ExpectIntEQ(test_ctx.c_buff[RECORD_HEADER_SZ], alert_fatal);
+        ExpectIntEQ(test_ctx.c_buff[RECORD_HEADER_SZ + 1], illegal_parameter);
+    }
+    else {
+        /* The cookie verifies */
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -9808,9 +9833,7 @@ int test_tls13_hrr_cookie_age(void)
 #if defined(TEST_COOKIE_AGE) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_SEND_HRR_COOKIE) && defined(HAVE_ECC) && \
     !defined(NO_ECC256)
-    ExpectIntEQ(test_tls13_hrr_cookie_age_ex(test_cookie_skew()),
-        TEST_SUCCESS);
-    ExpectIntEQ(test_tls13_hrr_cookie_age_ex(-test_cookie_skew()),
+    ExpectIntEQ(test_cookie_age_cases(test_tls13_hrr_cookie_age_ex),
         TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();

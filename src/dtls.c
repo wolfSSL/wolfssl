@@ -74,9 +74,16 @@
  *     clients accept no more than WOLFSSL_COOKIE_LEN.
  *     The time is real time, wc_Time(), so servers that share a cookie
  *     secret can check each other's cookies. Their clocks must agree: a
- *     cookie from a clock that is ahead is rejected as from the future, one
- *     from a clock that is behind expires that much sooner. A NO_ASN build
- *     has no wc_Time() and uses LowResTimer().
+ *     cookie from a clock that is more than WOLFSSL_COOKIE_MAX_SKEW ahead is
+ *     rejected as from the future, one from a clock that is behind expires
+ *     that much sooner. A NO_ASN build has no wc_Time() and uses
+ *     LowResTimer().
+ * WOLFSSL_COOKIE_MAX_SKEW
+ *     Seconds the issue time of a cookie may be ahead of the clock of the
+ *     server that checks it: servers that share a cookie secret do not have
+ *     equal clocks. Such a cookie verifies that much longer. Not added to
+ *     WOLFSSL_COOKIE_MAX_AGE: raise that for a clock that is behind.
+ *     Default 5; 0 allows none. Not used when WOLFSSL_COOKIE_MAX_AGE is 0.
  * WOLFSSL_DTLS_RX_MAX_BYTES
  *     Bound on the bytes the receive list of one WOLFSSL retains for
  *     out-of-order and fragmented handshake messages, DTLS 1.2 and 1.3,

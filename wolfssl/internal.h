@@ -1528,6 +1528,13 @@ enum {
 #define WOLFSSL_COOKIE_MAX_AGE 60
 #endif
 
+/* Seconds a cookie's issue time may be ahead of the clock: servers that
+ * share a cookie secret do not have equal clocks. 0 allows none. Not used
+ * with the age check disabled. */
+#ifndef WOLFSSL_COOKIE_MAX_SKEW
+#define WOLFSSL_COOKIE_MAX_SKEW 5
+#endif
+
 #if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
 
 #define TLS13_TICKET_NONCE_MAX_SZ 255

@@ -108,8 +108,9 @@
   deployed clients, which accept no more than `WOLFSSL_COOKIE_LEN`, keep
   working. Without a clock (`NO_ASN_TIME`) no time is sent or checked. The
   time is real time (`wc_Time()`), so servers that share a secret need clocks
-  that agree: a cookie from a clock that is ahead is rejected, one from a
-  clock that is behind expires that much sooner.
+  that agree: a cookie from a clock that is more than
+  `WOLFSSL_COOKIE_MAX_SKEW` seconds ahead (5 by default, 0 allows none) is
+  rejected, one from a clock that is behind expires that much sooner.
 
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
