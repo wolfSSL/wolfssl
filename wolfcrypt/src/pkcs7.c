@@ -7685,6 +7685,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             localIdx = 0;
             if (GetSequence_ex(pkiMsg, &localIdx, &length, pkiMsgSz,
                                         NO_USER_CHECK) < 0) {
+                ret = ASN_PARSE_E;
                 break;
             }
             if (ret == 0 && length > 0)
@@ -7844,7 +7845,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->degenerate = (degenerate != 0);
         #endif /* !NO_PKCS7_STREAM */
-            if (pkcs7->noDegenerate == 1 && degenerate != 0) {
+            if (ret == 0 && pkcs7->noDegenerate == 1 && degenerate != 0) {
                 ret = PKCS7_NO_SIGNER_E;
             }
 
@@ -13002,6 +13003,10 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 return ASN_PARSE_E;
 
             if (GetLength(pkiMsg, idx, &encryptedKeySz, pkiMsgSz) < 0) {
+                return ASN_PARSE_E;
+            }
+            if (encryptedKeySz <= 0) {
+                WOLFSSL_MSG("KTRI encryptedKey is empty");
                 return ASN_PARSE_E;
             }
             if (encryptedKeySz > MAX_ENCRYPTED_KEY_SZ) {
