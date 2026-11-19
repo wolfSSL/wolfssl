@@ -1840,6 +1840,8 @@ static void wb_run_mod_inv(void)
 
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
 static void wb_expect_range(int ret, const char* what)
 {
     if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) {
@@ -2034,6 +2036,7 @@ static void wb_run_point_specials_all(void)
     WB_NOTE("WOLFSSL_SP_521 not defined; P-521 point specials skipped");
 #endif
 }
+#endif
 
 int main(void)
 {
@@ -2045,7 +2048,10 @@ int main(void)
     defined(WOLFSSL_HAVE_SP_DH)
     wb_run_cache_mutex();
     wb_run_ecc();
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
     wb_run_point_specials_all();
+#endif
     wb_run_rsa();
     wb_run_dh();
     wb_run_rsa_bounds();
