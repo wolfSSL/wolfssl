@@ -5324,7 +5324,7 @@ static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
             wolfSSL_load_client_CA_file(caCertFile));
     }
 #endif
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (flags & TEST_CLEAR_BAD_CA) {
         /* Self-signed, so the client finds no signer. */
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, cliCertFile,
@@ -5511,7 +5511,8 @@ static int test_clear_keeps_version_mask(void)
 #endif
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(WOLFSSL_NO_TLS12)
 static int test_clear_verify_accept(int preverify,
     WOLFSSL_X509_STORE_CTX* store)
@@ -5630,12 +5631,12 @@ int test_tls_clear_resets_state(void)
 #endif
     ExpectIntEQ(test_clear_reuse(wolfSSLv23_client_method,
         wolfSSLv23_server_method, TEST_CLEAR_STOP_C), TEST_SUCCESS);
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     ExpectIntEQ(test_clear_reuse(wolfSSLv23_client_method,
         wolfSSLv23_server_method, TEST_CLEAR_BAD_CA), TEST_SUCCESS);
 #endif
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(NO_CERTS) && !defined(WOLFSSL_NO_TLS12)
     ExpectIntEQ(test_shutdown_keeps_peer_results(), TEST_SUCCESS);
 #endif
 #endif
@@ -5867,6 +5868,54 @@ int test_tls13_clear_full_handshake_session(void)
     wolfSSL_SESSION_free(after);
     wolfSSL_free(ssl_c3);
     wolfSSL_free(ssl_s3);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_s2);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An external PSK handshake on a reused client is not a resumption of the
+ * last connection's session, so its ticket must not stay beside the new
+ * secret. */
+int test_tls13_clear_external_psk_session(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_PSK)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_s2 = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Takes the server's ticket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    if (ssl_c != NULL)
+        ExpectIntGT(ssl_c->session->ticketLen, 0);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+
+    /* A server with other ticket keys, whose ticket is not read. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s2, NULL, &ssl_s2,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_psk_client_callback(ssl_c, my_psk_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s2, my_psk_server_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s2, 10, NULL), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.pskNegotiated, 1);
+        ExpectIntEQ(ssl_c->session->ticketLen, 0);
+        ExpectIntEQ(ssl_c->session->sessionIDSz, 0);
+    }
+
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_free(ssl_s2);

@@ -9439,18 +9439,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
 
-#ifndef WOLFSSL_AEAD_ONLY
-    #ifndef NO_OLD_TLS
-        ssl->hmac = SSL_hmac; /* default to SSLv3 */
-    #elif !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
-      #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
-          !defined(WOLFSSL_RENESAS_TSIP_TLS)
-        ssl->hmac = TLS_hmac;
-      #else
-        ssl->hmac = Renesas_cmn_TLS_hmac;
-      #endif
-    #endif
-#endif /* WOLFSSL_AEAD_ONLY */
+    SetDefaultHmac(ssl);
 
 #if defined(WOLFSSL_OPENVPN) && defined(HAVE_KEYING_MATERIAL)
     /* Save arrays by default for OpenVPN */
@@ -10337,6 +10326,40 @@ void FreeKeyExchange(WOLFSSL* ssl)
 #endif
 }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+/* Take the object's event off the CTX queue before its owner is freed. A
+ * completed event can still be queued, and a removed one keeps stale links, so
+ * look it up in the queue rather than trusting its state. */
+int AsyncDetachEvent(WOLFSSL* ssl)
+{
+    WOLF_EVENT* event;
+    WOLF_EVENT* cur;
+
+    if (ssl->asyncDev == NULL)
+        return 0;
+    event = &ssl->asyncDev->event;
+    if (ssl->ctx != NULL) {
+        WOLF_EVENT_QUEUE* queue = &ssl->ctx->event_queue;
+    #ifndef SINGLE_THREADED
+        if (wc_LockMutex(&queue->lock) != 0)
+            return BAD_MUTEX_E;
+    #endif
+        for (cur = queue->head; cur != NULL; cur = cur->next) {
+            if (cur == event) {
+                (void)wolfEventQueue_Remove(queue, event);
+                break;
+            }
+        }
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&queue->lock);
+    #endif
+    }
+    XMEMSET(event, 0, sizeof(*event));
+    ssl->asyncDev = NULL;
+    return 0;
+}
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_ED448))
@@ -10345,17 +10368,8 @@ static void DetachPendingAsyncDev(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
     if (ssl == NULL || asyncDev == NULL)
         return;
 
-    /* asyncDev is set when the event is queued. Init alone sets PENDING and
-     * leaves the event unlinked, so do not remove in that window. */
-    if (ssl->asyncDev == asyncDev) {
-        if (asyncDev->event.state == WOLF_EVENT_STATE_PENDING &&
-                ssl->ctx != NULL) {
-            (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
-                                        &asyncDev->event);
-        }
-        XMEMSET(&asyncDev->event, 0, sizeof(asyncDev->event));
-        ssl->asyncDev = NULL;
-    }
+    if (ssl->asyncDev == asyncDev)
+        (void)AsyncDetachEvent(ssl);
 }
 #endif
 
@@ -10954,6 +10968,24 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     /* last, as everything above may still free through ssl->heap */
     FreeSSL_StaticMemory(ssl);
 #endif /* WOLFSSL_STATIC_MEMORY */
+}
+
+/* The MAC function a new object starts with. */
+void SetDefaultHmac(WOLFSSL* ssl)
+{
+#ifndef WOLFSSL_AEAD_ONLY
+    #ifndef NO_OLD_TLS
+        ssl->hmac = SSL_hmac; /* default to SSLv3 */
+    #elif !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+      #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
+          !defined(WOLFSSL_RENESAS_TSIP_TLS)
+        ssl->hmac = TLS_hmac;
+      #else
+        ssl->hmac = Renesas_cmn_TLS_hmac;
+      #endif
+    #endif
+#endif /* WOLFSSL_AEAD_ONLY */
+    (void)ssl;
 }
 
 /* Drop what the application could query about the previous connection. */

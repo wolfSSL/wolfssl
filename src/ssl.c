@@ -5945,15 +5945,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* An abandoned handshake can leave a queued event, whose key is freed
          * below, and a handler's resume state. */
-        if (ssl->asyncDev != NULL) {
-            if (ssl->asyncDev->event.state == WOLF_EVENT_STATE_PENDING &&
-                    ssl->ctx != NULL) {
-                (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
-                                            &ssl->asyncDev->event);
-            }
-            XMEMSET(&ssl->asyncDev->event, 0, sizeof(WOLF_EVENT));
-            ssl->asyncDev = NULL;
-        }
+        if (AsyncDetachEvent(ssl) != 0)
+            return WOLFSSL_FAILURE;
         #ifdef WOLFSSL_TLS13
         ssl->options.buildArgs13Set = 0;
         ssl->options.chHashInput = 0;
@@ -6194,6 +6187,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         FreeCiphers(ssl);
         InitCiphers(ssl);
+        SetDefaultHmac(ssl);
         ssl->encrypt.state = CIPHER_STATE_BEGIN;
         ssl->decrypt.state = CIPHER_STATE_BEGIN;
         InitCipherSpecs(&ssl->specs);

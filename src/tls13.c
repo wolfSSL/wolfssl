@@ -6523,6 +6523,10 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if ((ret = SetupPskKey(ssl, psk, 0)) != 0)
                 return ret;
             ssl->options.pskNegotiated = 1;
+            if (!psk->resumption &&
+                    ((ret = ResetSessionForFullHandshake(ssl)) != 0)) {
+                return ret;
+            }
         }
 #else
         /* no resumption possible */
