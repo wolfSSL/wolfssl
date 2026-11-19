@@ -1894,9 +1894,8 @@ int test_dtls13_frag_ch1_reply_send_fails(void)
     /* Peer 1's ClientHello completes, the HelloRetryRequest cannot be sent.
      * A byte after the last fragment's record: the record layer can go on
      * past the failed message. */
-    lastSz = test_dtls13_frag_record(ch1, ch1Sz, fragSz, 2, last,
-        (int)sizeof(last) - 1);
-    ExpectIntGT(lastSz, 0);
+    ExpectIntGT(lastSz = test_dtls13_frag_record(ch1, ch1Sz, fragSz, 2, last,
+        (int)sizeof(last) - 1), 0);
     if (lastSz > 0)
         last[lastSz++] = 0;
     ExpectIntEQ(test_memio_inject_message(&test_ctx1, 0, (const char*)last,
