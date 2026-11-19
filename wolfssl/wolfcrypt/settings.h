@@ -676,8 +676,11 @@
  * non-frozen aes.h are missing there. Provide the plain-allocator
  * fallback for those builds only; the v7 boundary matches master and
  * non-FIPS builds take the real definitions from aes.h, so there is no
- * redefinition. Macro bodies resolve Aes/XtsAes/XMALLOC/DYNAMIC_TYPE_AES
- * at expansion time, so no forward declarations are needed here. */
+ * redefinition. The WC_ALIGNED_ALLOC marker is deliberately not defined:
+ * it means the aligned allocator exists, which is false here, so cmac.h
+ * takes its plain fallback. Macro bodies resolve Aes/XtsAes/XMALLOC/
+ * DYNAMIC_TYPE_AES at expansion time, so no forward declarations are
+ * needed here. */
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && !FIPS_VERSION3_GE(7,0,0)
 #define WC_ALLOC_AES(heap) \
     ((Aes*)XMALLOC(sizeof(Aes), (heap), DYNAMIC_TYPE_AES))

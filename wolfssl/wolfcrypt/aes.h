@@ -1497,11 +1497,17 @@ void wc_free_aligned(void* p, void* heap, int type);
     } /* extern "C" */
 #endif
 
-/* Heap allocation for Aes contexts: Aes members carry alignment attributes,
- * so route through the aligned allocator where available. The fallback is a
- * macro, not a function, so plain builds pay no indirection. */
+/* Heap allocation for Aes contexts: Aes members carry alignment
+ * attributes, so route through the aligned allocator where available.
+ * WC_ALIGNED_ALLOC marks that wc_alloc_aligned/wc_free_aligned are
+ * declared here and defined in aes.c: non-frozen consumers (cmac.h)
+ * must guard on it, not on defined(WC_ALLOC_AES), because settings.h
+ * defines plain-allocator WC_ALLOC_AES fallbacks in FIPS bundle builds
+ * where the aligned allocator is absent. The fallback is a macro, not
+ * a function, so plain builds pay no indirection. */
 #if defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
     !defined(WOLFSSL_TI_CRYPT)
+#define WC_ALIGNED_ALLOC
 #define WC_ALLOC_AES(heap) ((Aes*)wc_alloc_aligned((heap), sizeof(Aes), \
                                                    WC_ALIGNOF(Aes), \
                                                    DYNAMIC_TYPE_AES))
