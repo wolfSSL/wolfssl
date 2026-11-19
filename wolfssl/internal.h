@@ -7057,6 +7057,9 @@ struct WOLFSSL {
                              * object needs separate instance of suites use
                              * AllocateSuites(). */
     Suites*         clSuites;
+    Suites*         suitesBeforeRefine; /* caller-set suites as they were
+                                         * before a PSK ClientHello refined
+                                         * them in place */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher

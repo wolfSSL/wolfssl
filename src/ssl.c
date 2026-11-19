@@ -6160,6 +6160,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         InitCiphers(ssl);
         InitCipherSpecs(&ssl->specs);
 
+        if (ssl->suitesBeforeRefine != NULL) {
+            if (ssl->suites != NULL)
+                XMEMCPY(ssl->suites, ssl->suitesBeforeRefine, sizeof(Suites));
+            XFREE(ssl->suitesBeforeRefine, ssl->heap, DYNAMIC_TYPE_SUITES);
+            ssl->suitesBeforeRefine = NULL;
+        }
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
 
