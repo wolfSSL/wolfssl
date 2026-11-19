@@ -5652,9 +5652,12 @@ static int test_scr_server_pub(WOLFSSL* ssl, byte* pub, word32* pubSz)
     ExpectNotNull(ssl);
     if (ssl == NULL)
         return EXPECT_RESULT();
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
     if (ssl->specs.kea == ecc_diffie_hellman_kea) {
-        ExpectIntEQ(wc_ecc_export_x963(ssl->eccTempKey, pub, pubSz), 0);
+        /* The client offers only P-256. */
+        ExpectIntEQ(ssl->eccTempKeyPresent, DYNAMIC_TYPE_ECC);
+        if (EXPECT_SUCCESS())
+            ExpectIntEQ(wc_ecc_export_x963(ssl->eccTempKey, pub, pubSz), 0);
     }
     else
 #endif
@@ -5694,8 +5697,10 @@ static int test_scr_no_ephemeral(WOLFSSL* ssl)
     return EXPECT_RESULT();
 }
 
-/* first lists two suites, second one of them. */
-static int test_tls12_scr_fresh_state_ex(const char* first, const char* second)
+/* first lists two suites, second one of them. keep retains the handshake
+ * resources, so only a new handshake can free the keys. */
+static int test_tls12_scr_fresh_state_ex(const char* first, const char* second,
+    byte keep)
 {
     EXPECT_DECLS;
     struct test_memio_ctx test_ctx;
@@ -5715,8 +5720,15 @@ static int test_tls12_scr_fresh_state_ex(const char* first, const char* second)
     ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl_s, dhParamFile, CERT_FILETYPE),
         WOLFSSL_SUCCESS);
 #endif
+#if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl_c, WOLFSSL_ECC_SECP256R1),
+        WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    if (keep)
+        ExpectIntEQ(wolfSSL_KeepHandshakeResources(ssl_s), 0);
 
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
@@ -5726,7 +5738,8 @@ static int test_tls12_scr_fresh_state_ex(const char* first, const char* second)
         WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(test_scr_server_pub(ssl_s, pub1, &pub1Sz), TEST_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(test_scr_no_ephemeral(ssl_s), TEST_SUCCESS);
+    if (!keep)
+        ExpectIntEQ(test_scr_no_ephemeral(ssl_s), TEST_SUCCESS);
 #ifdef OPENSSL_ALL
     ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(wolfSSL_get_client_ciphers(ssl_s)),
         2);
@@ -5742,7 +5755,8 @@ static int test_tls12_scr_fresh_state_ex(const char* first, const char* second)
         WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(test_scr_server_pub(ssl_s, pub2, &pub2Sz), TEST_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(test_scr_no_ephemeral(ssl_s), TEST_SUCCESS);
+    if (!keep)
+        ExpectIntEQ(test_scr_no_ephemeral(ssl_s), TEST_SUCCESS);
 #ifdef OPENSSL_ALL
     /* The renegotiating hello's list, not the first one's. */
     ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(wolfSSL_get_client_ciphers(ssl_s)),
@@ -5766,19 +5780,24 @@ int test_tls12_scr_fresh_state(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12)
-#if defined(HAVE_ECC) && \
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
     defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
     defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
     ExpectIntEQ(test_tls12_scr_fresh_state_ex(
         "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384",
-        "ECDHE-RSA-AES256-GCM-SHA384"), TEST_SUCCESS);
+        "ECDHE-RSA-AES256-GCM-SHA384", 0), TEST_SUCCESS);
+    ExpectIntEQ(test_tls12_scr_fresh_state_ex(
+        "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384", 1), TEST_SUCCESS);
 #endif
 #if !defined(NO_DH) && !defined(NO_FILESYSTEM) && \
     defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) && \
     defined(BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384)
     ExpectIntEQ(test_tls12_scr_fresh_state_ex(
         "DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384",
-        "DHE-RSA-AES256-GCM-SHA384"), TEST_SUCCESS);
+        "DHE-RSA-AES256-GCM-SHA384", 0), TEST_SUCCESS);
 #endif
 #endif
     return EXPECT_RESULT();

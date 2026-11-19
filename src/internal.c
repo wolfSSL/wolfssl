@@ -22779,6 +22779,7 @@ static int ResetHandshakeStateForReneg(WOLFSSL* ssl)
     ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
     ssl->options.handShakeState = NULL_STATE;
     ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+    FreeEphemeralKeys(ssl);
     /* Reset for the renegotiation_info presence check below. */
     ssl->secure_renegotiation->renegInfoSeen = 0;
 
