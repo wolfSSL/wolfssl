@@ -141,6 +141,13 @@ static WC_INLINE void curve25519_copy_point(byte* out, const byte* point,
     }
 }
 
+/* RFC 7748 sec 5: copy a u-coordinate and mask its top bit. */
+static WC_INLINE void curve25519_mask_u(byte* out, const byte* u)
+{
+    XMEMCPY(out, u, CURVE25519_KEYSIZE);
+    out[CURVE25519_KEYSIZE - 1] &= 0x7f;
+}
+
 #if defined(WOLFSSL_CURVE25519_BLINDING) && !defined(FREESCALE_LTC_ECC) && \
     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
 static int curve25519_make_pub_blind_sw(int public_size, byte* pub,
@@ -547,9 +554,7 @@ int wc_curve25519_generic(int public_size, byte* pub,
     {
         byte bp[CURVE25519_KEYSIZE];
 
-        /* RFC 7748 sec 5: X25519 masks the top bit of the u-coordinate. */
-        XMEMCPY(bp, basepoint, CURVE25519_KEYSIZE);
-        bp[CURVE25519_KEYSIZE - 1] &= 0x7f;
+        curve25519_mask_u(bp, basepoint);
 
         fe_init();
 
@@ -830,19 +835,23 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             privKey->nb_ctx->ssState = 1;
             break;
         case 1:
+        {
+            byte pubVal[CURVE25519_KEYSIZE];
+
+            curve25519_mask_u(pubVal, pubKey->p.point);
             /* Write the result directly into the caller's 'out' buffer.
              * curve25519_nb() zeroes the non-blocking context on completion,
              * so any output buffer that lives inside nb_ctx (e.g.
              * nb_ctx->o.point) would be clobbered to zero before we could
              * read it. The output is little-endian; case 2 handles the
              * optional byte-reversal for EC25519_BIG_ENDIAN. */
-            ret = curve25519_nb(out, privKey->k, pubKey->p.point,
-                      privKey->nb_ctx);
+            ret = curve25519_nb(out, privKey->k, pubVal, privKey->nb_ctx);
             if (ret == 0) {
                 ret = FP_WOULDBLOCK;
                 privKey->nb_ctx->ssState = 2;
             }
             break;
+        }
         case 2:
         #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             {
@@ -976,8 +985,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         #else
             byte pubVal[CURVE25519_KEYSIZE];
 
-            XMEMCPY(pubVal, public_key->p.point, CURVE25519_KEYSIZE);
-            pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+            curve25519_mask_u(pubVal, public_key->p.point);
         #endif
 
 #ifndef WOLFSSL_CURVE25519_BLINDING
