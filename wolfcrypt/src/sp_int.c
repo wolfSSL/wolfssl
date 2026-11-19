@@ -6145,7 +6145,8 @@ int sp_count_bits(const sp_int* a)
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(FP_ECC)) || \
-    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
+    defined(WOLFSSL_SP_PRIME_GEN)
 
 /* Number of entries in array of number of least significant zero bits. */
 #define SP_LNZ_CNT      16
@@ -6197,7 +6198,8 @@ int sp_cnt_lsb(const sp_int* a)
 
     return (int)bc;
 }
-#endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
+#endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || (HAVE_ECC && FP_ECC) ||
+        * WOLFSSL_KEY_GEN || WOLFSSL_SP_PRIME_GEN */
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_ASN_TEMPLATE) || \
     (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_ASN))
