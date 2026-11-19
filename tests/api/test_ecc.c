@@ -454,6 +454,15 @@ int test_wc_ecc_check_key_invalid_pubkey(void)
  * wc_ecc_import_raw itself, before check_key, so they are not driven here.)
  * Runs on SP builds (the arm lanes) and is harmless elsewhere.
  */
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+#define TEST_ECC_SP_PUBKEY_RANGE
 static int ecc_check_raw(const char* curve, const char* x, const char* y)
 {
     ecc_key key;
@@ -470,17 +479,12 @@ static int ecc_check_raw(const char* curve, const char* x, const char* y)
     return ret;
 }
 
+#endif
+
 int test_wc_ecc_sp_pubkey_range(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    !defined(HAVE_SELFTEST) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && \
-    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_KCAPI_ECC) && \
-    !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+#ifdef TEST_ECC_SP_PUBKEY_RANGE
     /* P-256 field prime and generator. */
     static const char* p256 =
         "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF";
@@ -508,24 +512,25 @@ int test_wc_ecc_sp_pubkey_range(void)
         "E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769"
         "FD16650";
 
-    /* In-range generator: the true side of every range condition. */
-    ExpectIntEQ(ecc_check_raw("SECP256R1", g256x, g256y), 0);
-    ExpectIntEQ(ecc_check_raw("SECP384R1", g384x, g384y), 0);
-    ExpectIntEQ(ecc_check_raw("SECP521R1", g521x, g521y), 0);
-
-    /* X == p: passes the bit-length check, trips cmp(pX, p) >= 0. (P-521 is
-     * left to the white-box: its 521-bit prime hits an sp_521_from_mp edge on
-     * the ARM back ends that returns MP_VAL before the range reject. */
-    ExpectIntEQ(ecc_check_raw("SECP256R1", p256, g256y),
-        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
-    ExpectIntEQ(ecc_check_raw("SECP384R1", p384, g384y),
-        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
-
-    /* Y == p: passes the bit-length check, trips cmp(pY, p) >= 0. */
-    ExpectIntEQ(ecc_check_raw("SECP256R1", g256x, p256),
-        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
-    ExpectIntEQ(ecc_check_raw("SECP384R1", g384x, p384),
-        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    /* A generator is in range. A coordinate equal to p passes the
+     * bit-length check but fails the field range check. */
+    if (wc_ecc_get_curve_idx(ECC_SECP256R1) >= 0) {
+        ExpectIntEQ(ecc_check_raw("SECP256R1", g256x, g256y), 0);
+        ExpectIntEQ(ecc_check_raw("SECP256R1", p256, g256y),
+            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        ExpectIntEQ(ecc_check_raw("SECP256R1", g256x, p256),
+            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    }
+    if (wc_ecc_get_curve_idx(ECC_SECP384R1) >= 0) {
+        ExpectIntEQ(ecc_check_raw("SECP384R1", g384x, g384y), 0);
+        ExpectIntEQ(ecc_check_raw("SECP384R1", p384, g384y),
+            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        ExpectIntEQ(ecc_check_raw("SECP384R1", g384x, p384),
+            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    }
+    /* The ARM white-box covers the P-521 out-of-range cases. */
+    if (wc_ecc_get_curve_idx(ECC_SECP521R1) >= 0)
+        ExpectIntEQ(ecc_check_raw("SECP521R1", g521x, g521y), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_sp_pubkey_range */
