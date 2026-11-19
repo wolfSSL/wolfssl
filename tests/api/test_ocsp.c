@@ -840,6 +840,67 @@ int test_ocsp_d2i_reuse_clears_refs(void)
 }
 #endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
 
+#if defined(HAVE_OCSP) && defined(OPENSSL_ALL)
+/* A nonce is present only when its size is non-zero. The request's nonce is
+ * an array, so it never tests NULL. */
+int test_ocsp_check_nonce(void)
+{
+    EXPECT_DECLS;
+    OcspRequest req;
+    OcspResponse bs;
+    static const byte n1[] = { 0x01, 0x02, 0x03, 0x04 };
+    static const byte n2[] = { 0x05, 0x06, 0x07, 0x08 };
+
+    XMEMSET(&req, 0, sizeof(req));
+    XMEMSET(&bs, 0, sizeof(bs));
+
+    /* Absent in both. */
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), 2);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(NULL, NULL), 2);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, NULL), 2);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(NULL, &bs), 2);
+
+    /* Response only. */
+    bs.nonce = n1;
+    bs.nonceSz = (int)sizeof(n1);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), 3);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(NULL, &bs), 3);
+
+    /* An empty response nonce is absent. */
+    bs.nonceSz = 0;
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), 2);
+
+    /* Request only. */
+    XMEMCPY(req.nonce, n1, sizeof(n1));
+    req.nonceSz = (int)sizeof(n1);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), WOLFSSL_FATAL_ERROR);
+    bs.nonce = NULL;
+    bs.nonceSz = (int)sizeof(n1);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, NULL), WOLFSSL_FATAL_ERROR);
+
+    /* Both, equal. */
+    bs.nonce = n1;
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), 1);
+
+    /* Both, different content. */
+    bs.nonce = n2;
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), 0);
+
+    /* Both, different length. */
+    bs.nonce = n1;
+    bs.nonceSz = (int)sizeof(n1) - 1;
+    ExpectIntEQ(wolfSSL_OCSP_check_nonce(&req, &bs), 0);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_check_nonce(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP && OPENSSL_ALL */
+
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     defined(HAVE_OCSP) && \

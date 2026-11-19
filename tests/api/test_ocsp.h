@@ -31,6 +31,7 @@ int test_ocsp_status_callback(void);
 int test_ocsp_status_request_scr(void);
 int test_ocsp_basic_verify(void);
 int test_ocsp_d2i_reuse_clears_refs(void);
+int test_ocsp_check_nonce(void);
 int test_ocsp_d2i_reuse_frees_single_chain(void);
 int test_ocsp_ctx_stapling_nonce_per_connection(void);
 int test_ocsp_ctx_stapling_v2_nonce_per_connection(void);
