@@ -44,6 +44,9 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
+    #include <wolfssl/internal.h>
+#endif
 WOLFSSL_API int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx);
 
 #ifdef FREERTOS
@@ -103,12 +106,11 @@ typedef struct tagInfo
     tsip_aes_key_index_t aes_key;
 } Info;
 
-#ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
  static TsipUserCtx userContext;
 
  void Clr_CallbackCtx(TsipUserCtx *g)
  {
-    #ifndef NO_RSA
+    #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY) && !defined(NO_RSA)
      #if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
         XFREE(g->rsa1024pri_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(g->rsa1024pub_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -170,7 +172,6 @@ typedef struct tagInfo
 
     return 0;
  }
-#endif
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 static int tsip_aes128_cbc_test(int prnt, int devId)
@@ -1851,6 +1852,192 @@ out:
 }
 #endif /* !NO_SHA && !NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH */
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && defined(HAVE_ECC) && \
+    (WOLFSSL_RENESAS_TSIP_VER >= 109)
+#define TSIP_RS_SZ      (R_TSIP_ECDSA_DATA_BYTE_SIZE / 2)
+#define TSIP_DER_MAX    (2 + 2 * (2 + TSIP_RS_SZ + 1))
+
+/* Write an INTEGER body: optional 0x00 sign pad, then valSz value bytes.
+ * Top bit of the first value byte follows pad so the DER stays minimal.
+ */
+static word32 tsip_fill_int(byte* buf, byte* val, word32 valSz, int pad,
+                            byte seed)
+{
+    word32 i;
+    word32 idx = 0;
+
+    for (i = 0; i < valSz; i++) {
+        val[i] = (byte)(seed + i);
+    }
+    val[0] = pad ? (byte)(0x80 | seed) : (byte)(seed & 0x7F);
+    if (pad) {
+        buf[idx++] = 0x00;
+    }
+    XMEMCPY(&buf[idx], val, valSz);
+    return idx + valSz;
+}
+
+/* Build DER SEQUENCE { INTEGER r, INTEGER s } */
+static word32 tsip_build_der_sig(byte* out, const byte* r, word32 rSz,
+                                 const byte* s, word32 sSz)
+{
+    word32 idx = 0;
+
+    out[idx++] = 0x30;
+    out[idx++] = (byte)(2 + rSz + 2 + sSz);
+    out[idx++] = 0x02;
+    out[idx++] = (byte)rSz;
+    XMEMCPY(&out[idx], r, rSz);
+    idx += rSz;
+    out[idx++] = 0x02;
+    out[idx++] = (byte)sSz;
+    XMEMCPY(&out[idx], s, sSz);
+    idx += sSz;
+    return idx;
+}
+
+/* Parse failure must come back from both TSIP verify entry points with the
+ * converter's error code, i.e. before any TSIP driver call.
+ */
+static int tsip_ecc_sig_entry_reject(WOLFSSL* ssl, const byte* sig,
+                                     word32 sigSz)
+{
+    byte    raw[R_TSIP_ECDSA_DATA_BYTE_SIZE];
+    byte    hash[WC_SHA256_DIGEST_SIZE];
+    byte    cert[16];
+    byte    encKeyIdx[16];
+    int     expected;
+    int     ret;
+    int     result = 1;
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(cert, 0, sizeof(cert));
+
+    expected = tsip_EccSigDerToRaw(sig, sigSz, raw);
+    if (expected >= 0)
+        return -(int)__LINE__;
+
+    /* ctx NULL: even if parsing were skipped, no driver call follows */
+    ret = wc_tsip_EccVerify(ssl, sig, sigSz, hash, sizeof(hash), NULL, 0,
+                            &result, NULL);
+    if (ret != expected || result != 0)
+        return -(int)__LINE__;
+
+    /* driver errors are positive TSIP codes, so a match proves early exit */
+    ret = wc_tsip_tls_CertVerify(cert, sizeof(cert), sig, sigSz, 0, 0, 0, 0,
+                                 encKeyIdx);
+    if (ret != expected)
+        return -(int)__LINE__;
+
+    return 0;
+}
+
+static int tsip_ecc_sig_der_to_raw_test(void)
+{
+    /* r value size, r sign pad, s value size, s sign pad */
+    static const struct {
+        word32 rSz; int rPad; word32 sSz; int sPad;
+    } ok[] = {
+        { 32, 0, 32, 0 },   /* 32/32 byte                */
+        { 32, 1, 32, 1 },   /* 33/33 byte with sign pad  */
+        { 31, 0, 31, 0 },   /* 31/31 byte, right aligned */
+        { 31, 1, 31, 1 },   /* 31 byte value + sign pad  */
+        { 31, 0, 32, 1 },
+        { 32, 1, 31, 0 },
+    };
+    byte     der[TSIP_DER_MAX];
+    byte     rBuf[TSIP_RS_SZ + 1], sBuf[TSIP_RS_SZ + 1];
+    byte     rVal[TSIP_RS_SZ + 1], sVal[TSIP_RS_SZ + 1];
+    byte     raw[R_TSIP_ECDSA_DATA_BYTE_SIZE];
+    byte     expect[R_TSIP_ECDSA_DATA_BYTE_SIZE];
+    byte     encKeyIdx[16];
+    word32   rLen, sLen, derSz, validSz, i;
+    WOLFSSL* ssl = NULL;
+    int      ret = 0;
+
+    /* valid inputs: exact raw r || s output */
+    for (i = 0; ret == 0 && i < sizeof(ok) / sizeof(ok[0]); i++) {
+        rLen = tsip_fill_int(rBuf, rVal, ok[i].rSz, ok[i].rPad, 0x11);
+        sLen = tsip_fill_int(sBuf, sVal, ok[i].sSz, ok[i].sPad, 0x22);
+        derSz = tsip_build_der_sig(der, rBuf, rLen, sBuf, sLen);
+
+        XMEMSET(expect, 0, sizeof(expect));
+        XMEMCPY(&expect[TSIP_RS_SZ - ok[i].rSz], rVal, ok[i].rSz);
+        XMEMCPY(&expect[sizeof(expect) - ok[i].sSz], sVal, ok[i].sSz);
+
+        XMEMSET(raw, 0xA5, sizeof(raw));
+        if (tsip_EccSigDerToRaw(der, derSz, raw) != 0 ||
+            XMEMCMP(raw, expect, sizeof(raw)) != 0) {
+            printf("(case %u) ", (unsigned)i);
+            ret = -(int)__LINE__;
+        }
+    }
+
+    if (ret == 0) {
+        if (tsip_EccSigDerToRaw(NULL, 8, raw) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)
+         || tsip_EccSigDerToRaw(der, derSz, NULL)
+                != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            ret = -(int)__LINE__;
+        }
+    }
+
+    /* fixture that passes tsip_usable() for a TLS 1.2 ECDSA suite */
+    if (ret == 0) {
+        ssl = (WOLFSSL*)XMALLOC(sizeof(WOLFSSL), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (ssl == NULL)
+            ret = MEMORY_E;
+    }
+    if (ret == 0) {
+        XMEMSET(ssl, 0, sizeof(WOLFSSL));
+        ssl->options.side         = WOLFSSL_CLIENT_END;
+        ssl->options.cipherSuite0 = ECC_BYTE;
+        ssl->options.cipherSuite  = l_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+        ssl->version.major        = SSLv3_MAJOR;
+        ssl->version.minor        = TLSv1_2_MINOR;
+        ssl->peerSceTsipEncRsaKeyIndex = encKeyIdx;
+
+        /* route wc_tsip_tls_CertVerify to its ECDSA P-256 path */
+        tsip_inform_user_keys_ex(NULL, NULL, NULL,
+                                 R_TSIP_TLS_PUBLIC_KEY_TYPE_ECDSA_P256);
+    }
+
+    /* truncated DER: every prefix of a valid 32/32 signature */
+    if (ret == 0) {
+        rLen = tsip_fill_int(rBuf, rVal, TSIP_RS_SZ, 0, 0x11);
+        sLen = tsip_fill_int(sBuf, sVal, TSIP_RS_SZ, 0, 0x22);
+        validSz = tsip_build_der_sig(der, rBuf, rLen, sBuf, sLen);
+        for (i = 0; ret == 0 && i < validSz; i++) {
+            ret = tsip_ecc_sig_entry_reject(ssl, der, i);
+            if (ret != 0)
+                printf("(len %u) ", (unsigned)i);
+        }
+    }
+
+    /* 33 byte r without sign pad does not fit */
+    if (ret == 0) {
+        rLen = tsip_fill_int(rBuf, rVal, TSIP_RS_SZ + 1, 0, 0x01);
+        sLen = tsip_fill_int(sBuf, sVal, TSIP_RS_SZ, 0, 0x22);
+        derSz = tsip_build_der_sig(der, rBuf, rLen, sBuf, sLen);
+        ret = tsip_ecc_sig_entry_reject(ssl, der, derSz);
+    }
+
+    /* 33 byte s without sign pad does not fit */
+    if (ret == 0) {
+        rLen = tsip_fill_int(rBuf, rVal, TSIP_RS_SZ, 0, 0x11);
+        sLen = tsip_fill_int(sBuf, sVal, TSIP_RS_SZ + 1, 0, 0x01);
+        derSz = tsip_build_der_sig(der, rBuf, rLen, sBuf, sLen);
+        ret = tsip_ecc_sig_entry_reject(ssl, der, derSz);
+    }
+
+    if (ssl != NULL) {
+        tsip_inform_user_keys_ex(NULL, NULL, NULL, 0);
+        XFREE(ssl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_TLS && HAVE_ECC && TSIP_VER >= 109 */
+
 int tsip_crypt_test(void)
 {
     int ret = 0;
@@ -1949,6 +2136,17 @@ int tsip_crypt_test(void)
             RESULT_STR(ret);
         }
         #endif
+    #endif
+
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && defined(HAVE_ECC) && \
+        (WOLFSSL_RENESAS_TSIP_VER >= 109)
+        if (ret == 0) {
+            printf(" tsip_ecc_sig_der_to_raw_test()");
+            ret = tsip_ecc_sig_der_to_raw_test();
+            if (ret != 0)
+                printf("(code=%d) ", ret);
+            RESULT_STR(ret)
+        }
     #endif
 
     #if defined(WOLFSSL_KEY_GEN) && \
