@@ -78,8 +78,8 @@
   than the next expected one is dropped instead of stalling the list, a
   DTLS 1.3 endpoint drops the plaintext handshake fragments it holds once a
   record from the peer authenticates, a client already once it has processed
-  a DTLS 1.3 ServerHello, and `wolfSSL_clear()` frees the DTLS 1.3 receive
-  list.
+  a DTLS 1.3 ServerHello, a server once it has processed a DTLS 1.3
+  ClientHello, and `wolfSSL_clear()` frees the DTLS 1.3 receive list.
 
 * **Behavioral change (the servers of a context share a cookie secret)**:
   cookie secrets were per `WOLFSSL`, so a server could not verify a cookie

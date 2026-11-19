@@ -352,6 +352,12 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
             ssl->options.serverState == SERVER_HELLO_COMPLETE) {
         DtlsMsgRxListDropPlaintext(ssl);
     }
+    /* A client sends nothing after a DTLS 1.3 ClientHello before it is
+     * answered: what a server holds once it is processed is stale. */
+    if (hs == client_hello && ssl->options.side == WOLFSSL_SERVER_END &&
+            ssl->options.dtlsStateful && IsAtLeastTLSv1_3(ssl->version)) {
+        DtlsMsgRxListDropPlaintext(ssl);
+    }
 
 #ifdef WOLFSSL_RW_THREADED
     if (wc_LockMutex(&ssl->dtls13Rtx.mutex) == 0)
