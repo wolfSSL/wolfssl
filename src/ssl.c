@@ -5822,6 +5822,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.isClosed = 0;
         ssl->options.fatalAlert = 0;
         ssl->options.connReset = 0;
+#ifdef HAVE_SESSION_TICKET
+        /* Set when a ServerHello carries a session_ticket extension (TLS 1.2),
+         * cleared when the NewSessionTicket arrives. A handshake that stopped
+         * in between would make the next one fail with
+         * SESSION_TICKET_EXPECT_E when no ticket is requested. */
+        ssl->expect_session_ticket = 0;
+#endif
         ssl->options.sentNotify = 0;
         ssl->options.closeNotify = 0;
         /* Per-connection budgets, not cumulative across a reused object. */
