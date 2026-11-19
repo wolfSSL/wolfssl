@@ -1486,7 +1486,11 @@ static int wolfssl_init(void)
 #endif
 
     if (ret != 0) {
-        pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
+        if (ret < 0)
+            pr_err("ERROR: wc_RunAllCast_fips() refused: %s\n",
+                   wc_GetErrorString(ret));
+        else
+            pr_err("ERROR: wc_RunAllCast_fips(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
@@ -1538,7 +1542,10 @@ static int wolfssl_init(void)
         }
 
         if (ret != 0) {
-            pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            if (ret < 0)
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d: %s.\n", ret, wc_GetErrorString(ret));
+            else
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
             (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
@@ -1818,9 +1825,10 @@ static void wolfssl_exit(void)
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     {
         int ret = wc_RunAllCast_fips();
-        if (ret != 0) {
-            pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d\n", ret);
-        }
+        if (ret < 0)
+            pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d: %s\n", ret, wc_GetErrorString(ret));
+        else if (ret > 0)
+            pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown: %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
         else
             pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.\n");
     }
@@ -2813,8 +2821,17 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     ret = wc_RunAllCast_fips();
     if (ret != 0) {
         WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-        pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
-        return -EINVAL;
+        if (ret < 0) {
+            pr_err("ERROR: wc_RunAllCast_fips() refused: %s\n", wc_GetErrorString(ret));
+            if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+                return -EAGAIN;
+            else
+                return -EINVAL;
+        }
+        else {
+            pr_err("ERROR: wc_RunAllCast_fips(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
+            return -EINVAL;
+        }
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
@@ -2838,7 +2855,10 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
 
         if (ret != 0) {
             WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-            pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            if (ret < 0)
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() refused: %s\n", wc_GetErrorString(ret));
+            else
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
             return -EINVAL;
         }
     }
