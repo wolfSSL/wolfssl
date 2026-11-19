@@ -670,6 +670,25 @@
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
+/* FIPS bundle builds (v5/v6 and selftest) overlay the frozen module
+ * files: their aes.h predates the aligned Aes allocator, so the
+ * WC_ALLOC_AES/WC_FREE_AES/WC_ALLOC_XTS/WC_FREE_XTS macros from the
+ * non-frozen aes.h are missing there. Provide the plain-allocator
+ * fallback for those builds only; the v7 boundary matches master and
+ * non-FIPS builds take the real definitions from aes.h, so there is no
+ * redefinition. Macro bodies resolve Aes/XtsAes/XMALLOC/DYNAMIC_TYPE_AES
+ * at expansion time, so no forward declarations are needed here. */
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && !FIPS_VERSION3_GE(7,0,0)
+#define WC_ALLOC_AES(heap) \
+    ((Aes*)XMALLOC(sizeof(Aes), (heap), DYNAMIC_TYPE_AES))
+#define WC_FREE_AES(aes, heap) \
+    do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
+#define WC_ALLOC_XTS(heap) \
+    ((XtsAes*)XMALLOC(sizeof(XtsAes), (heap), DYNAMIC_TYPE_AES))
+#define WC_FREE_XTS(aes, heap) \
+    do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
+#endif
+
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)
