@@ -334,9 +334,9 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* RNG */
 /* wolfCrypt Hash-DRBG (SHA2-256). On Zephyr its seed comes from wc_GenerateSeed()
- * (wolfcrypt/src/random.c), which draws from the hardware entropy driver when one
- * is present and falls back to sys_rand_get() otherwise -- so no seed callback is
- * registered. The v5 bundles' random.c has only the fallback, so the FIPS block
+ * (wolfcrypt/src/random.c), which reads the zephyr,entropy device and fails the
+ * build without one, so no seed callback is registered. The v5 bundles'
+ * random.c has only the sys_rand_get() fallback, so the FIPS block
  * above registers the callback in zephyr_init.c for them instead.
  * Guarded by WC_NO_HASHDRBG so a PSA-RNG build (CONFIG_MBEDTLS_PSA_CRYPTO_C
  * above) can still disable the internal DRBG and route randomness through the

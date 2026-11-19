@@ -2638,7 +2638,9 @@
     #endif
     #define NO_DEV_RANDOM
     #define NO_WOLFSSL_DIR
-    #ifndef NO_STM32_RNG
+    /* A Zephyr entropy driver owns the RNG; seed from zephyr,entropy */
+    #if !defined(NO_STM32_RNG) && \
+        !(defined(WOLFSSL_ZEPHYR) && defined(CONFIG_ENTROPY_HAS_DRIVER))
         #undef  STM32_RNG
         #define STM32_RNG
         #ifdef WOLFSSL_STM32F427_RNG
