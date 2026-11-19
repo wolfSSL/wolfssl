@@ -3281,8 +3281,7 @@ int wc_tsip_generateSessionKey(
 
             if (enc) {
                 if (enc->aes == NULL) {
-                    enc->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap,
-                                                    DYNAMIC_TYPE_CIPHER);
+                    enc->aes = WC_ALLOC_AES(ssl->heap);
                     if (enc->aes == NULL) {
                         tsip_hw_unlock();
                         return MEMORY_E;
@@ -3293,11 +3292,11 @@ int wc_tsip_generateSessionKey(
             }
             if (dec) {
                 if (dec->aes == NULL) {
-                    dec->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap,
-                                                    DYNAMIC_TYPE_CIPHER);
+                    dec->aes = WC_ALLOC_AES(ssl->heap);
                     if (dec->aes == NULL) {
                         if (enc) {
-                            XFREE(enc->aes, NULL, DYNAMIC_TYPE_CIPHER);
+                            WC_FREE_AES(enc->aes, ssl->heap);
+                            enc->aes = NULL;
                         }
                         tsip_hw_unlock();
                         return MEMORY_E;

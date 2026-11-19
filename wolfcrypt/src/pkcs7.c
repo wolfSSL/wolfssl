@@ -10876,7 +10876,7 @@ static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, word32 encryptOID,
                     (ivSz  != WC_AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
-            pkcs7->decryptKey.aes = WC_ALLOC_AES(NULL);
+            pkcs7->decryptKey.aes = WC_ALLOC_AES(heap);
             aes = pkcs7->decryptKey.aes;
             if (aes == NULL)
                 return MEMORY_E;
@@ -10899,7 +10899,7 @@ static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, word32 encryptOID,
         #endif
         #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
             defined(WOLFSSL_AES_256)
-            pkcs7->decryptKey.aes = WC_ALLOC_AES(NULL);
+            pkcs7->decryptKey.aes = WC_ALLOC_AES(heap);
             aes = pkcs7->decryptKey.aes;
             if (aes == NULL)
                 return MEMORY_E;
@@ -10922,7 +10922,7 @@ static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, word32 encryptOID,
         #endif
         #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
             defined(WOLFSSL_AES_256)
-            pkcs7->decryptKey.aes = WC_ALLOC_AES(NULL);
+            pkcs7->decryptKey.aes = WC_ALLOC_AES(heap);
             aes = pkcs7->decryptKey.aes;
             if (aes == NULL)
                 return MEMORY_E;

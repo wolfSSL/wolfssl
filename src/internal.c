@@ -3889,8 +3889,8 @@ void FreeCiphers(WOLFSSL* ssl)
 #ifdef BUILD_AES
     wc_AesFree(ssl->dtlsRecordNumberEncrypt.aes);
     wc_AesFree(ssl->dtlsRecordNumberDecrypt.aes);
-    XFREE(ssl->dtlsRecordNumberEncrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->dtlsRecordNumberDecrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    WC_FREE_AES(ssl->dtlsRecordNumberEncrypt.aes, ssl->heap);
+    WC_FREE_AES(ssl->dtlsRecordNumberDecrypt.aes, ssl->heap);
     ssl->dtlsRecordNumberEncrypt.aes = NULL;
     ssl->dtlsRecordNumberDecrypt.aes = NULL;
 #endif /* BUILD_AES */
@@ -47437,7 +47437,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
         return MEMORY_E;
     hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (hmac == NULL) {
-        XFREE(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_AES(aes, heap);
         return MEMORY_E;
     }
 #endif
@@ -47506,7 +47506,9 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
     wc_HmacFree(hmac);
 
     WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    WC_FREE_VAR_EX(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, heap);
+#endif
 
     *outLen = inLen;
 
@@ -47582,8 +47584,11 @@ static int TicketEncDec(const byte* key, int keyLen, const byte* iv, const byte*
 
     (void)heap;
 
-    WC_ALLOC_VAR_EX(aes, Aes, 1, heap, DYNAMIC_TYPE_TMP_BUFFER,
-        return MEMORY_E);
+#ifdef WOLFSSL_SMALL_STACK
+    aes = WC_ALLOC_AES(heap);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
 
     if (enc) {
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -47608,7 +47613,9 @@ static int TicketEncDec(const byte* key, int keyLen, const byte* iv, const byte*
         wc_AesFree(aes);
     }
 
-    WC_FREE_VAR_EX(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, heap);
+#endif
 
     *outLen = inLen;
 
