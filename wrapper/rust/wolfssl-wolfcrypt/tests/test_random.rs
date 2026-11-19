@@ -113,11 +113,12 @@ fn test_rng_generate_block_large() {
 fn test_rng_reseed() {
     let rng = RNG::new().expect("Failed to create RNG");
     let seed = [1u8, 2, 3, 4];
-    if cfg!(fips) {
-        // FIPS refuses a caller supplied seed on an RNG seeded from the
-        // approved entropy source.
+    if cfg!(all(fips, not(fips_v6))) {
+        // Newer FIPS modules refuse a caller supplied seed on an RNG seeded
+        // from the approved entropy source, FIPS v6 accepts it.
         assert_eq!(
             rng.reseed(&seed),
+
             Err(wolfssl_wolfcrypt::sys::wolfCrypt_ErrorCodes_WRONG_TYPE_OBJECT_E)
         );
     } else {

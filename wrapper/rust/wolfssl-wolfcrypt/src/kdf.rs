@@ -68,6 +68,11 @@ pub const SRTCP_INDEX_LEN: usize = sys::WC_SRTCP_INDEX_LEN as usize;
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_pbkdf2))]
 /// {
 /// use wolfssl_wolfcrypt::kdf::pbkdf2;
@@ -112,6 +117,11 @@ pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_pbkdf2))]
 /// {
 /// use wolfssl_wolfcrypt::kdf::pbkdf2_ex;
@@ -396,6 +406,11 @@ pub fn scrypt_ex(password: &[u8], salt: &[u8], iterations: u32,
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -432,6 +447,11 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -500,6 +520,11 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -557,6 +582,11 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -689,6 +719,11 @@ pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key:
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;
@@ -741,6 +776,11 @@ pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_INDEX_L
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;
@@ -789,6 +829,11 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_I
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;
@@ -841,6 +886,11 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTCP_INDEX
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;

@@ -119,6 +119,15 @@ pub(crate) fn buffer_len_to_i32(len: usize) -> Result<i32, i32> {
     i32::try_from(len).map_err(|_| sys::wolfCrypt_ErrorCodes_BUFFER_E)
 }
 
+/// Pass a read only value to a C call as a mutable pointer.
+///
+/// Some FIPS modules declare an argument non const in calls that only read
+/// it, newer wolfSSL declares it const. A mutable pointer fits both. Use it
+/// only for calls that never write through the pointer.
+pub(crate) fn ptr_for_read<T>(value: &T) -> *mut T {
+    core::ptr::from_ref(value).cast_mut()
+}
+
 /// Initialize resources used by wolfCrypt.
 ///
 /// # Returns
