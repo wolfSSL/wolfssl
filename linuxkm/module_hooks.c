@@ -955,6 +955,9 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     extern int linuxkm_op_test_1(int argc, const char* argv[]);
     extern int linuxkm_op_test_wrapper(void);
     static wolfSSL_Atomic_Int *conTestFailure_ptr = NULL;
+  #if FIPS_VERSION3_GE(7,0,0)
+    static wolfSSL_Atomic_Int *fipsMode_ptr = NULL;
+  #endif
     #ifdef HAVE_WC_FIPS_OPTEST_CONTESTFAILURE_EXPORT
         WOLFSSL_API extern wolfSSL_Atomic_Int wc_fips_optest_conTestFailure;
     #endif
@@ -1365,7 +1368,11 @@ static int wolfssl_init(void)
         svr_disallowed_snapshot = wc_svr_disallowed_count_current();
     #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+        ret = wolfCrypt_IntegrityRetest_fips();
+#else
         ret = wolfCrypt_IntegrityTest_fips();
+#endif
 
         REENABLE_VECTOR_REGISTERS();
 
@@ -1585,6 +1592,15 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
     #endif
+
+  #if FIPS_VERSION3_GE(7,0,0)
+    fipsMode_ptr = (wolfSSL_Atomic_Int *)my_kallsyms_lookup_name("fipsMode");
+    if (fipsMode_ptr == NULL) {
+        pr_err("ERROR: couldn't obtain fipsMode_ptr.\n");
+        (void)libwolfssl_cleanup();
+        return -ECANCELED;
+    }
+  #endif
 
     ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
     if (ret != 0) {
@@ -2741,17 +2757,47 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     pr_info("wolfCrypt: rerunning FIPS self-test on command.\n");
 
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
+#if FIPS_VERSION3_GE(7,0,0)
+        int cur_fipsMode = wolfCrypt_GetMode_fips();
+        switch ((enum FipsModeId)cur_fipsMode) {
+        case FIPS_MODE_INIT:
+        case FIPS_MODE_DEGRADED:
+        case FIPS_MODE_DEGRADED_PENDING:
+            ret = wolfCrypt_IntegrityTest_fips();
+            break;
+        case FIPS_MODE_NORMAL:
+            ret = wolfCrypt_IntegrityRetest_fips();
+            break;
+        case FIPS_MODE_FAILED:
+            pr_crit("ERROR: fipsMode is _FAILED -- restart required.\n");
+            ret = FIPS_NOT_ALLOWED_E;
+            break;
+        case FIPS_MODE_UNENTERED:
+        case FIPS_MODE_IN_ENTRY_SETUP:
+            pr_warn("warning: FIPS self-test triggered before initial setup completed.\n");
+            ret = NOT_READY_E;
+            break;
+        default:
+            pr_err("ERROR: fipsMode has unexpected value %d.\n", cur_fipsMode);
+            ret = BAD_STATE_E;
+            break;
+        }
+#else
         ret = wolfCrypt_IntegrityTest_fips();
+#endif
         (void)WC_SIG_IGNORE_END();
     }
     else {
         pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
-        ret = -1;
+        ret = WC_FAILURE;
     }
     if (ret != 0) {
-        pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d\n", ret);
+        pr_err("ERROR: FIPS self-test: error %d: %s\n", ret, wc_GetErrorString(ret));
         WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-        return -EINVAL;
+        if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+            return -EAGAIN;
+        else
+            return -EINVAL;
     }
 
     ret = wolfCrypt_GetStatus_fips();
@@ -2967,10 +3013,18 @@ out:
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
     for (i = 0; i < FIPS_CAST_COUNT; ++i)
         fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+  #if FIPS_VERSION3_GE(7,0,0)
+    /* The reload-only doctrine: fipsEntry()'s entry exchange refuses a
+     * module latched FIPS_MODE_FAILED, so the power-cycle equivalent
+     * must itself reset the mode -- from outside the boundary, like
+     * conTestFailure.  fipsEntry() then re-establishes posStatus and
+     * posReturn as on a fresh insmod. */
+    WOLFSSL_ATOMIC_STORE(*fipsMode_ptr, FIPS_MODE_UNENTERED);
     /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
      * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
      * anymore.
      */
+  #endif
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
         fipsEntry();
         (void)WC_SIG_IGNORE_END();
