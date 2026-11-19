@@ -9026,7 +9026,7 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (!ssl->options.handShakeDone &&
             (((ssl->options.side == WOLFSSL_CLIENT_END) ?
               ssl->options.connectState : ssl->options.acceptState) == 0)) {
-        ResetPeerResults(ssl);
+        ResetAlertHistory(ssl);
     }
 
     ssl->options.shutdownDone = 0;
@@ -10988,17 +10988,13 @@ void SetDefaultHmac(WOLFSSL* ssl)
     (void)ssl;
 }
 
-/* Drop what the application could query about the previous connection. */
-void ResetPeerResults(WOLFSSL* ssl)
+/* Drop the previous connection's alerts. */
+void ResetAlertHistory(WOLFSSL* ssl)
 {
     ssl->alert_history.last_rx.code  = -1;
     ssl->alert_history.last_rx.level = -1;
     ssl->alert_history.last_tx.code  = -1;
     ssl->alert_history.last_tx.level = -1;
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(OPENSSL_ALL)
-    ssl->peerVerifyRet = 0;
-#endif
 }
 
 /* Free any handshake resources no longer needed */
@@ -11009,7 +11005,7 @@ void FreeEphemeralKeys(WOLFSSL* ssl)
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
     /* Present holds the type; only an ECC key is left allocated without it. */
     FreeKey(ssl, (ssl->eccTempKeyPresent != 0) ? ssl->eccTempKeyPresent :
-        DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
+        (int)DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
     ssl->eccTempKeyPresent = 0;
 #endif
 #ifndef NO_DH
@@ -20044,6 +20040,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* A new certificate list; the previous one's CAs are not signers for
          * it. */
         SslWaivedCAsFree(ssl);
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        /* Errors are recorded only while this is X509_V_OK. */
+        ssl->peerVerifyRet = WOLFSSL_X509_V_OK;
+    #endif
     #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                               defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
         /* A new certificate list; never apply the previous one's verdicts. */
@@ -37460,6 +37460,12 @@ static int IsTls13CipherSuite(byte first, byte second)
         session->sessionIDSz = 0;
         ForceZero(session->altSessionID, ID_LEN);
         session->haveAltSessionID = 0;
+        /* Complete again once this handshake sets it up. */
+        ForceZero(session->masterSecret, SECRET_LEN);
+        session->isSetup = 0;
+    #ifdef SESSION_CERTS
+        ResetSessionCertChain(ssl);
+    #endif
     #ifdef HAVE_SESSION_TICKET
         return SetSessionTicket(session, NULL, 0);
     #else
