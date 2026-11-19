@@ -2940,7 +2940,7 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 #undef WINSIZE
 #endif
 
-/* Y = (G * X) mod P */
+/* Y = (G ** X) mod P */
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
 #if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD)
