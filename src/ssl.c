@@ -5817,6 +5817,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         /* reset error */
         ssl->error = 0;
+    #if !defined(NO_CLIENT_CACHE) && !defined(NO_SESSION_CACHE_REF)
+        /* The client cache reference wolfSSL_get_session() returned for the
+         * previous connection. */
+        ssl->clientSession = NULL;
+    #endif
 
         /* reset option bits */
         ssl->options.isClosed = 0;
