@@ -5068,6 +5068,8 @@ static int rng_lock_put_result(WC_RNG* rng, WC_RNG_lock_arg_t new_lock)
 {
     int ret = 0;
 
+    (void)rng;
+
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
         ret = wc_UnLockMutex(&rng->mutex);

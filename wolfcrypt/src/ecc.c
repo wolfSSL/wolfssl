@@ -8455,7 +8455,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
          * byte truncation above can leave up to 7 extra low bits */
         if ((ret == 0) &&
                 (((WOLFSSL_BIT_SIZE) * hashSz) > (word32)qbits)) {
-            mp_rshb(z1, (int)((WOLFSSL_BIT_SIZE * hashSz) - (word32)qbits));
+            ret = ecc_rshb(z1,
+                (int)((WOLFSSL_BIT_SIZE * hashSz) - (word32)qbits));
         }
     #endif
     }
@@ -8552,7 +8553,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
             if ((ret == 0) && ((xSz * WOLFSSL_BIT_SIZE) != (word32)qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
                  *  k = bits2int(T) in section 3.2 h.3 */
-                mp_rshb(k, ((int)xSz * WOLFSSL_BIT_SIZE) - qbits);
+                ret = ecc_rshb(k, ((int)xSz * WOLFSSL_BIT_SIZE) - qbits);
             }
 
             /* 3.2 step h.3 the key should be smaller than the order of base
@@ -17485,7 +17486,10 @@ static int mp_jacobi(mp_int* a, mp_int* n, int* c)
         /* Divide by 2 until odd. */
         k = mp_cnt_lsb(t[0]);
         if (k > 0) {
-            mp_rshb(t[0], k);
+            res = ecc_rshb(t[0], k);
+            if (res != MP_OKAY) {
+                goto done;
+            }
 
             /* Negate s each time we divide by 2 if t[1] mod 8 == 3 or 5.
              * Odd number of divides results in a negate.
