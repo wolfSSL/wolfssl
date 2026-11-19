@@ -2830,6 +2830,11 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
             pr_err("ERROR: wc_RunAllCast_fips() refused: %s\n", wc_GetErrorString(ret));
             if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
                 return -EAGAIN;
+            else if (ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+                /* FAILED is reload-only: until a power cycle the
+                 * module is gone as a service, which in kernel idiom
+                 * is -ENODEV, not an argument problem. */
+                return -ENODEV;
             else
                 return -EINVAL;
         }
