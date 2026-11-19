@@ -2830,3 +2830,82 @@ int test_wc_FreeRsaKey_CryptoCb(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && !defined(NO_RSA) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+/* OAEP encrypt, or verify when verify is set, with a raw-imported public key:
+ * n of nSz bytes, top byte top. */
+static int test_rsa_params_op(WC_RNG* rng, word32 nSz, byte top,
+    const byte* e, word32 eSz, int verify)
+{
+    RsaKey key;
+    byte   n[384];
+    byte   in[32];
+    byte   out[384];
+    int    ret;
+    int    ret2;
+
+    XMEMSET(n, 0xc5, sizeof(n));
+    XMEMSET(in, 0x01, sizeof(in));
+    n[0] = top;
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
+    if (ret == 0) {
+        ret = wc_RsaPublicKeyDecodeRaw(n, nSz, e, eSz, &key);
+        if ((ret == 0) && verify) {
+            XMEMSET(out, 0x01, sizeof(out));
+            ret = wc_RsaSSL_Verify(out, nSz, n, sizeof(n), &key);
+        }
+        else if (ret == 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out),
+                &key, rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                NULL, 0);
+        }
+        ret2 = wc_FreeRsaKey(&key);
+        if ((ret >= 0) && (ret2 != 0)) {
+            ret = ret2;
+        }
+    }
+    return ret;
+}
+#endif
+
+/* FIPS v7 refuses an operation on a key with an odd modulus length or an e
+ * outside FIPS 186-5 sec 5.4 (e). */
+int test_wc_RsaPublicParams(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && !defined(NO_RSA) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+    WC_RNG rng;
+    const byte e65537[] = { 0x01, 0x00, 0x01 };
+    const byte e3[] = { 0x03 };
+    const byte e65536[] = { 0x01, 0x00, 0x00 };
+    byte       e257[33];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e65537,
+        sizeof(e65537), 0), 256);
+    /* 2049 and 3071 bits */
+    ExpectIntEQ(test_rsa_params_op(&rng, 257, 0x01, e65537,
+        sizeof(e65537), 0), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 384, 0x45, e65537,
+        sizeof(e65537), 0), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 257, 0x01, e65537,
+        sizeof(e65537), 1), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e3, sizeof(e3), 0),
+        WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e65536,
+        sizeof(e65536), 0), WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+    /* 2^256 + 1: odd but 257 bits */
+    XMEMSET(e257, 0, sizeof(e257));
+    e257[0] = 0x01;
+    e257[sizeof(e257) - 1] = 0x01;
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e257, sizeof(e257), 0),
+        WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
