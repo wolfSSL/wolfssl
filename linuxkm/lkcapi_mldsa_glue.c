@@ -544,7 +544,10 @@ static int km_mldsa_set_priv(struct mldsa_tfm_type *tfm, const void *key,
         ctx->priv_set = 0;
         if (keylen == MLDSA_SEED_SZ)
             ctx->pub_set = 0;
-        return -EINVAL;
+        if (err == WC_NO_ERR_TRACE(FIPS_UNAPPROVED_E))
+            return -EOPNOTSUPP;
+        else
+            return -EINVAL;
     }
 
     #ifdef WOLFKM_DEBUG_MLDSA

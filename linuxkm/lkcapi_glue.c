@@ -141,10 +141,14 @@
  * a failure: the indicator is the only positive return from these services.
  */
 #ifdef LKCAPI_FIPS_APPROVED_MODE_GATES
-    #define LKCAPI_ABSORB_SEED_INDICATOR(err)      \
-        do {                                       \
-            if ((err) == WC_FIPS_NOT_APPROVED)     \
-                (err) = 0;                         \
+    #define LKCAPI_ABSORB_SEED_INDICATOR(err)                            \
+        do {                                                             \
+            if ((err) == WC_FIPS_NOT_APPROVED) {                         \
+                if (WOLFSSL_ATOMIC_LOAD(linuxkm_lkcapi_registering_now)) \
+                    (err) = 0;                                           \
+                else                                                     \
+                    (err) = FIPS_UNAPPROVED_E;                           \
+            }                                                            \
         } while (0)
 #else
     #define LKCAPI_ABSORB_SEED_INDICATOR(err) WC_DO_NOTHING

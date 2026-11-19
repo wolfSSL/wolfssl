@@ -405,7 +405,10 @@ out:
         #ifdef WOLFKM_DEBUG_MLKEM
         pr_err("error: km_mlkem_set_secret (len %u): %d\n", len, err);
         #endif
-        return (err > 0) ? -err : -EINVAL;
+        if (err == WC_NO_ERR_TRACE(FIPS_UNAPPROVED_E))
+            return -EOPNOTSUPP;
+        else
+            return (err > 0) ? -err : -EINVAL;
     }
 
     #ifdef WOLFKM_DEBUG_MLKEM
