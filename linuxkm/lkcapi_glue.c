@@ -141,14 +141,20 @@
  * a failure: the indicator is the only positive return from these services.
  */
 #ifdef LKCAPI_FIPS_APPROVED_MODE_GATES
-    #define LKCAPI_ABSORB_SEED_INDICATOR(err)                            \
-        do {                                                             \
-            if ((err) == WC_FIPS_NOT_APPROVED) {                         \
-                if (WOLFSSL_ATOMIC_LOAD(linuxkm_lkcapi_registering_now)) \
-                    (err) = 0;                                           \
-                else                                                     \
-                    (err) = FIPS_UNAPPROVED_E;                           \
-            }                                                            \
+    #define LKCAPI_ABSORB_SEED_INDICATOR(err)              \
+        do {                                               \
+            if ((err) == WC_FIPS_NOT_APPROVED) {           \
+                int lkcapi_asi_pid_ =                      \
+                    (int)WOLFSSL_ATOMIC_LOAD(              \
+                        linuxkm_lkcapi_registering_pid);   \
+                if ((lkcapi_asi_pid_ !=                    \
+                     LINUXKM_LKCAPI_REGISTERING_NO_PID) && \
+                    (lkcapi_asi_pid_ ==                    \
+                     (int)task_pid_nr(current)))           \
+                    (err) = 0;                             \
+                else                                       \
+                    (err) = FIPS_UNAPPROVED_E;             \
+            }                                              \
         } while (0)
 #else
     #define LKCAPI_ABSORB_SEED_INDICATOR(err) WC_DO_NOTHING
@@ -253,7 +259,17 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 #endif
 }
 
-static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIALIZER(0);
+/* The pid of the task holding the registration claim,
+ * LINUXKM_LKCAPI_REGISTERING_NO_PID when none (the in_fips_test
+ * idiom): one atomic serves as both the mutual exclusion (claim by
+ * compare-exchange from the empty value) and the scope of the
+ * seed-indicator absorb, so a concurrent kernel thread's seed-form
+ * service call during the registration window gets the honest
+ * refusal -- another thread's service is not this module's
+ * self-test. */
+#define LINUXKM_LKCAPI_REGISTERING_NO_PID (-1)
+static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_pid =
+    WOLFSSL_ATOMIC_INITIALIZER(LINUXKM_LKCAPI_REGISTERING_NO_PID);
 
 /* Default builds define HAVE_ALL_CURVES rather than the individual HAVE_ECC192
  * and HAVE_ECC521, so keying on HAVE_ECC192 and HAVE_ECC521 alone would leave
@@ -440,7 +456,8 @@ static int linuxkm_lkcapi_register(void)
 {
     int ret = -1;
     int seen_err = 0;
-    int current_linuxkm_lkcapi_registering_now = 0;
+    int current_linuxkm_lkcapi_registering_pid =
+        LINUXKM_LKCAPI_REGISTERING_NO_PID;
 
 #if defined(CONFIG_CRYPTO_FIPS) && !defined(HAVE_FIPS)
     if (fips_enabled) {
@@ -450,9 +467,9 @@ static int linuxkm_lkcapi_register(void)
 #endif
 
     if (! wolfSSL_Atomic_Int_CompareExchange(
-            &linuxkm_lkcapi_registering_now,
-            &current_linuxkm_lkcapi_registering_now,
-            1))
+            &linuxkm_lkcapi_registering_pid,
+            &current_linuxkm_lkcapi_registering_pid,
+            task_pid_nr(current)))
     {
         return -EDEADLK;
     }
@@ -1148,7 +1165,8 @@ out:
 
 out_without_sig_ignored:
 
-    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                         LINUXKM_LKCAPI_REGISTERING_NO_PID);
 
     return ret;
 }
@@ -1158,12 +1176,13 @@ static int linuxkm_lkcapi_unregister(void)
     int seen_err = 0;
     int n_deregistered = 0;
     int ret;
-    int current_linuxkm_lkcapi_registering_now = 0;
+    int current_linuxkm_lkcapi_registering_pid =
+        LINUXKM_LKCAPI_REGISTERING_NO_PID;
 
     if (! wolfSSL_Atomic_Int_CompareExchange(
-            &linuxkm_lkcapi_registering_now,
-            &current_linuxkm_lkcapi_registering_now,
-            1))
+            &linuxkm_lkcapi_registering_pid,
+            &current_linuxkm_lkcapi_registering_pid,
+            task_pid_nr(current)))
     {
         return -EDEADLK;
     }
@@ -1655,7 +1674,8 @@ out:
 
 out_without_sig_ignored:
 
-    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                         LINUXKM_LKCAPI_REGISTERING_NO_PID);
 
     return ret;
 }

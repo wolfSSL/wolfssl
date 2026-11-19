@@ -2923,18 +2923,20 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
 
 #ifdef LINUXKM_LKCAPI_REGISTER
     {
-        int current_linuxkm_lkcapi_registering_now = 0;
+        int current_linuxkm_lkcapi_registering_pid =
+            LINUXKM_LKCAPI_REGISTERING_NO_PID;
 
         if (! wolfSSL_Atomic_Int_CompareExchange(
-                &linuxkm_lkcapi_registering_now,
-                &current_linuxkm_lkcapi_registering_now,
-                1)) {
+                &linuxkm_lkcapi_registering_pid,
+                &current_linuxkm_lkcapi_registering_pid,
+                task_pid_nr(current))) {
             pr_err("ERROR: FIPS_optest_trig_handler() with linuxkm_lkcapi_registered: before running optest, echo 1 > /sys/module/libwolfssl/deinstall_algs.\n");
             return -EBUSY;
         }
 
         if (linuxkm_lkcapi_registered) {
-            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                                 LINUXKM_LKCAPI_REGISTERING_NO_PID);
             pr_err("ERROR: FIPS_optest_trig_handler() with linuxkm_lkcapi_registered: before running optest, echo 1 > /sys/module/libwolfssl/deinstall_algs.\n");
             return -EBUSY;
         }
@@ -2947,7 +2949,8 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
                 &in_fips_test, &expected_in_fips_test, task_pid_nr(current)))
         {
 #ifdef LINUXKM_LKCAPI_REGISTER
-            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                                 LINUXKM_LKCAPI_REGISTERING_NO_PID);
 #endif
             pr_err("ERROR: %s called by pid %d while pid %d is running a FIPS test in another thread.\n",
                    __func__, task_pid_nr(current), expected_in_fips_test);
@@ -2969,7 +2972,8 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
     if (svr_dynamic_auditing) {
         /* The audits treat wc_svr_disallowed_count as ours alone: in_fips_test
          * excludes the other trigger nodes, and getting
-         * linuxkm_lkcapi_registering_now then checking linuxkm_lkcapi_registered
+         * linuxkm_lkcapi_registering_pid then checking
+         * linuxkm_lkcapi_registered
          * excludes registered-algorithm consumers.  Optests entail transient
          * degradation states, necessitating the registered-algorithm exclusion
          * bidirectionally.
@@ -3059,7 +3063,8 @@ out:
 
     WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
 #ifdef LINUXKM_LKCAPI_REGISTER
-    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                         LINUXKM_LKCAPI_REGISTERING_NO_PID);
 #endif
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
