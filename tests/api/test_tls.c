@@ -5803,6 +5803,80 @@ int test_tls12_scr_fresh_state(void)
     return EXPECT_RESULT();
 }
 
+/* A full handshake on an object reused with wolfSSL_clear() makes a new
+ * session. The last connection's ticket must not stay beside the new secret,
+ * and a session held from before the clear must still resume. */
+int test_tls13_clear_full_handshake_session(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_s2 = NULL;
+    WOLFSSL *ssl_c3 = NULL, *ssl_s3 = NULL;
+    WOLFSSL_SESSION* held = NULL;
+    WOLFSSL_SESSION* after = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Takes the server's ticket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(held = wolfSSL_get1_session(ssl_c));
+    if (held != NULL)
+        ExpectIntNE(held->ticketLen, 0);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+
+    /* A server with other ticket keys, whose ticket is not read. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s2, NULL, &ssl_s2,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->session->ticketLen, 0);
+        ExpectIntEQ(ssl_c->session->sessionIDSz, 0);
+    }
+    ExpectNotNull(after = wolfSSL_get1_session(ssl_c));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c3, &ssl_s3,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c3, held), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c3, ssl_s3, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c3), 1);
+    wolfSSL_free(ssl_c3);
+    ssl_c3 = NULL;
+    wolfSSL_free(ssl_s3);
+    ssl_s3 = NULL;
+
+    /* Nothing to resume, so a full handshake rather than a failed one. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c3, &ssl_s3,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c3, after), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c3, ssl_s3, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c3), 0);
+
+    wolfSSL_SESSION_free(held);
+    wolfSSL_SESSION_free(after);
+    wolfSSL_free(ssl_c3);
+    wolfSSL_free(ssl_s3);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_s2);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Clearing a server whose key generation is still pending leaves no event
  * queued for the freed key, and the object can be used again. */
 int test_tls12_clear_pending_key(void)

@@ -8151,6 +8151,7 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_LOCAL int HaveUniqueSessionObj(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int ResetSessionForFullHandshake(WOLFSSL* ssl);
     WOLFSSL_LOCAL int SendClientHello(WOLFSSL* ssl);
     WOLFSSL_LOCAL int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word32 size);

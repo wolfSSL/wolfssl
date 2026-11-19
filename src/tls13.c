@@ -6495,6 +6495,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->options.resuming = 0;
             ssl->arrays->psk_keySz = 0;
             XMEMSET(ssl->arrays->psk_key, 0, MAX_PSK_KEY_LEN);
+            if ((ret = ResetSessionForFullHandshake(ssl)) != 0)
+                return ret;
         }
         else {
 #if defined(HAVE_ECH)
@@ -6525,6 +6527,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #else
         /* no resumption possible */
         ssl->options.resuming = 0;
+        if ((ret = ResetSessionForFullHandshake(ssl)) != 0)
+            return ret;
 #endif
 
         /* sanity check on PSK / KSE */

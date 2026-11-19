@@ -37407,6 +37407,34 @@ static int IsTls13CipherSuite(byte first, byte second)
         return 1;
     }
 
+    /* A full handshake makes a new session. Drop what would resume the
+     * previous one, so it is not kept beside this handshake's secret. */
+    int ResetSessionForFullHandshake(WOLFSSL* ssl)
+    {
+        WOLFSSL_SESSION* session = ssl->session;
+
+        if ((session->sessionIDSz == 0) && !session->haveAltSessionID
+        #ifdef HAVE_SESSION_TICKET
+                && (session->ticketLen == 0)
+        #endif
+                ) {
+            return 0;
+        }
+        if (!HaveUniqueSessionObj(ssl))
+            return MEMORY_ERROR;
+        session = ssl->session;
+
+        ForceZero(session->sessionID, ID_LEN);
+        session->sessionIDSz = 0;
+        ForceZero(session->altSessionID, ID_LEN);
+        session->haveAltSessionID = 0;
+    #ifdef HAVE_SESSION_TICKET
+        return SetSessionTicket(session, NULL, 0);
+    #else
+        return 0;
+    #endif
+    }
+
 #ifndef WOLFSSL_NO_TLS12
 
     /* handle generation of client_hello (1) */
@@ -38382,6 +38410,9 @@ static int IsTls13CipherSuite(byte first, byte second)
                 ssl->options.resuming = 0; /* server denied resumption try */
             }
         }
+        ret = ResetSessionForFullHandshake(ssl);
+        if (ret != 0)
+            return ret;
         return SetCipherSpecs(ssl);
     }
 
