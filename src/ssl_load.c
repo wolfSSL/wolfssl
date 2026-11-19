@@ -1616,6 +1616,12 @@ static void wolfssl_set_have_from_key_oid(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         #endif
             if (ssl != NULL) {
                 ssl->options.haveRSA = 1;
+                /* An RSA key replaces whatever the context had: withdraw
+                 * the ECC capability a server inherited from an ECC key in
+                 * the context, or the suites would offer ECDHE-ECDSA that
+                 * this key cannot sign. */
+                if (ssl->options.side == WOLFSSL_SERVER_END)
+                    ssl->options.haveECC = 0;
             }
             else {
                 ctx->haveRSA = 1;
