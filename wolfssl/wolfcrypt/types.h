@@ -585,10 +585,10 @@ enum {
     #elif defined(WOLFSSL_ZEPHYR) && defined(CONFIG_THREAD_LOCAL_STORAGE)
         #define THREAD_LS_T __thread
         #define WC_THREAD_LS_T_IS_REAL
-    /* FreeRTOS switches the TLS block per task: FreeRTOS-Kernel 11.1.0
-     * include/FreeRTOS.h configUSE_C_RUNTIME_TLS_SUPPORT */
-    #elif defined(FREERTOS) && defined(configUSE_C_RUNTIME_TLS_SUPPORT) && \
-          (configUSE_C_RUNTIME_TLS_SUPPORT == 1)
+    /* FreeRTOS switches the compiler TLS pointer per task only with picolibc:
+     * FreeRTOS-Kernel 11.1.0 include/picolibc-freertos.h configSET_TLS_BLOCK */
+    #elif defined(FREERTOS) && defined(configUSE_PICOLIBC_TLS) && \
+          (configUSE_PICOLIBC_TLS == 1)
         #define THREAD_LS_T __thread
         #define WC_THREAD_LS_T_IS_REAL
     /* Other FreeRTOS and Zephyr builds: compiler TLS is not per task. */
