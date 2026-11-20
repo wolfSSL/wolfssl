@@ -99,6 +99,17 @@ This library provides big integer math functions.
 MP_API int mp_get_digit_count(const mp_int* a);
 MP_API mp_digit mp_get_digit(const mp_int* a, int n);
 MP_API int mp_get_rand_digit(WC_RNG* rng, mp_digit* d);
+/* Fill memory with random bits, e.g. the digits of an mp_int. sz is in bytes,
+ * i.e. in units of sizeof(). */
+#if CHAR_BIT == 8
+    /* A byte is an octet, so the random octets fill the memory directly. A
+     * macro rather than a function, so that the call is to
+     * wc_RNG_GenerateBlock() itself, e.g. for tests that interpose it. */
+    #define mp_rand_mem(rng, mem, sz) \
+        wc_RNG_GenerateBlock((rng), (byte*)(mem), (sz))
+#else
+WOLFSSL_LOCAL int mp_rand_mem(WC_RNG* rng, void* mem, word32 sz);
+#endif
 WOLFSSL_LOCAL void mp_reverse(unsigned char *s, int len);
 
 #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)

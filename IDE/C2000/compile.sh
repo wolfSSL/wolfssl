@@ -42,7 +42,7 @@ CFLAGS="-v28 --abi=eabi --float_support=fpu32 --tmu_support=tmu1 -O2 \
 # regression surface for this port, plus hash.c, which HashML-DSA
 # (wc_MlDsaKey_VerifyCtxHash) calls for the digest size and OID.
 SRCS="error wc_port memory logging misc coding hash \
-  sha sha256 sha512 sha3 wc_mldsa random rng_noisesrc ecc sp_int sp_c32 \
+  sha sha256 sha512 sha3 wc_mldsa random rng_noisesrc ecc sp_int sp_c32 wolfmath \
   aes cmac chacha poly1305 cryptocb \
   curve25519 ed25519 fe_operations ge_operations \
   curve448 ed448 fe_448 ge_448"

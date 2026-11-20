@@ -95701,6 +95701,498 @@ static wc_test_ret_t mp_test_set_int(mp_int* a)
 }
 #endif
 
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#define MP_TEST_CANARY_AVAILABLE
+
+/* Regression tests for the length of memory operations on SP digits.
+ *
+ * Check, using a canary after the allocated digits, that XMEMCPY(), XMEMMOVE(),
+ * XMEMSET() and ForceZero() in the tested functions cover exactly the intended
+ * digits on targets where a char is not 8 bits (e.g. TI C28x, where a char is
+ * 16 bits).
+ * Where a char is 8 bits, a length in octets is the same as the correct length,
+ * so these tests can only detect the bug on targets where a char is not 8 bits.
+ */
+
+/* Number of digits (sp_int_digit) in the SP integer used by the tests. */
+#define MP_TEST_CANARY_DIGITS   4
+/* Value of the first char of the canary, incremented for each following
+ * char. */
+#define MP_TEST_CANARY_VALUE    0x5a
+/* Size of the byte arrays holding the test values, in octets. The largest test
+ * value has one digit more than the SP integer used by the tests (see
+ * mp_test_canary_rshb() and mp_test_canary_mod_2d()). */
+#define MP_TEST_CANARY_OCTETS   ((MP_TEST_CANARY_DIGITS + 1) * SP_WORD_OCTETS)
+
+/* SP integer with MP_TEST_CANARY_DIGITS digits followed by a canary:
+ *
+ *   | used | size | ... | dp[0] ... dp[MP_TEST_CANARY_DIGITS - 1] | canary |
+ *   |<------------------------- sp_int -------------------------->|
+ *
+ * The canary (MP_TEST_CANARY_DIGITS digits) is long enough to catch all of an
+ * overrun: where a char is 16 bits, a length in octets is twice the correct
+ * length, so it writes at most MP_TEST_CANARY_DIGITS digits past the sp_int.
+ * align is only for aligning the union as an sp_int.
+ */
+typedef union mp_test_canary_int {
+    sp_int_minimal align;
+    byte           mem[MP_INT_SIZEOF(MP_TEST_CANARY_DIGITS) +
+                       MP_TEST_CANARY_DIGITS * sizeof(sp_int_digit)];
+} mp_test_canary_int;
+
+/* mp_test_canary_int is smaller than an sp_int and is used through an sp_int
+ * pointer. As in sp_int.c, disable warnings of sp_int being partly outside
+ * array bounds of the variable. */
+PRAGMA_GCC_DIAG_PUSH
+PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
+
+/* Initialize the SP integer in buf and fill the canary after its digits.
+ *
+ * Returns the SP integer, or NULL on failure.
+ */
+static sp_int* mp_test_canary_init(mp_test_canary_int* buf)
+{
+    sp_int* a = (sp_int*)buf;
+    byte* end = (byte*)buf + sizeof(*buf);
+    byte* canary;
+    size_t i;
+
+    XMEMSET(buf, 0, sizeof(*buf));
+    if (mp_init_size(a, MP_TEST_CANARY_DIGITS) != MP_OKAY)
+        return NULL;
+
+    canary = (byte*)&a->dp[MP_TEST_CANARY_DIGITS];
+    if ((canary >= end) || ((size_t)(end - canary) <
+            MP_TEST_CANARY_DIGITS * sizeof(sp_int_digit))) {
+        return NULL;
+    }
+    for (i = 0; i < (size_t)(end - canary); i++)
+        canary[i] = (byte)(MP_TEST_CANARY_VALUE + i);
+
+    return a;
+}
+
+/* Check that the canary after the digits of the SP integer in buf is
+ * unchanged.
+ *
+ * Returns 1 when unchanged, 0 otherwise.
+ */
+static int mp_test_canary_ok(mp_test_canary_int* buf)
+{
+    sp_int* a = (sp_int*)buf;
+    const byte* end = (const byte*)buf + sizeof(*buf);
+    const byte* canary = (const byte*)&a->dp[MP_TEST_CANARY_DIGITS];
+    size_t i;
+
+    for (i = 0; i < (size_t)(end - canary); i++) {
+        if (canary[i] != (byte)(MP_TEST_CANARY_VALUE + i))
+            return 0;
+    }
+    return 1;
+}
+
+/* Set a to the non-negative value encoded in the first digits * SP_WORD_OCTETS
+ * octets of in. mp_read_unsigned_bin() keeps the sign, so zero a first. */
+static int mp_test_canary_set(mp_int* a, const byte* in, int digits)
+{
+    mp_zero(a);
+    return mp_read_unsigned_bin(a, in, (word32)(digits * SP_WORD_OCTETS));
+}
+
+/* sp_clear(): ForceZero() of all allocated digits. */
+static wc_test_ret_t mp_test_canary_clear(const byte* pat)
+{
+    mp_test_canary_int buf;
+    sp_int* r;
+    int i;
+    int ret;
+
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_test_canary_set(r, pat, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r->used != MP_TEST_CANARY_DIGITS)
+        return WC_TEST_RET_ENC_NC;
+
+    mp_clear(r);
+
+    if (r->used != 0)
+        return WC_TEST_RET_ENC_NC;
+    for (i = 0; i < MP_TEST_CANARY_DIGITS; i++) {
+        if (r->dp[i] != 0)
+            return WC_TEST_RET_ENC_I(i);
+    }
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+#if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || \
+    !defined(NO_DSA) || defined(WOLFSSL_SP_PRIME_GEN)
+/* sp_forcezero(): ForceZero() of all allocated digits. */
+static wc_test_ret_t mp_test_canary_forcezero(const byte* pat)
+{
+    mp_test_canary_int buf;
+    sp_int* r;
+    int i;
+    int ret;
+
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_test_canary_set(r, pat, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r->used != MP_TEST_CANARY_DIGITS)
+        return WC_TEST_RET_ENC_NC;
+
+    mp_forcezero(r);
+
+    if (r->used != 0)
+        return WC_TEST_RET_ENC_NC;
+    for (i = 0; i < MP_TEST_CANARY_DIGITS; i++) {
+        if (r->dp[i] != 0)
+            return WC_TEST_RET_ENC_I(i);
+    }
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif
+
+/* sp_copy(): XMEMCPY() of all allocated digits. */
+static wc_test_ret_t mp_test_canary_copy(mp_int* a, const byte* pat)
+{
+    mp_test_canary_int buf;
+    sp_int* r;
+    int ret;
+
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_test_canary_set(a, pat, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = mp_copy(a, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (mp_cmp(a, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+/* Same as mp_test_canary_set() but with the least significant digit set to zero.
+ * This is the expected result of shifting the first (digits - 1) digits of pat
+ * left by one digit.
+ */
+static int mp_test_canary_set_lshd(mp_int* exp, const byte* pat, int digits)
+{
+    byte in[MP_TEST_CANARY_OCTETS];
+    int sz = (digits - 1) * SP_WORD_OCTETS;
+
+    XMEMCPY(in, pat, (size_t)sz);
+    XMEMSET(in + sz, 0, SP_WORD_OCTETS);
+    return mp_test_canary_set(exp, in, digits);
+}
+
+#if !defined(NO_DH) || defined(HAVE_ECC) || (!defined(NO_RSA) && \
+    defined(WC_RSA_BLINDING) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+/* sp_lshd(): XMEMMOVE() up to the last allocated digit and XMEMSET(). */
+static wc_test_ret_t mp_test_canary_lshd(mp_int* exp, const byte* pat)
+{
+    mp_test_canary_int buf;
+    sp_int* r;
+    int ret;
+
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_test_canary_set(r, pat, MP_TEST_CANARY_DIGITS - 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_test_canary_set_lshd(exp, pat, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = mp_lshd(r, 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (mp_cmp(exp, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif
+
+/* sp_mul_2d() by whole digits, which uses sp_lshb(): XMEMMOVE() up to the last
+ * allocated digit and XMEMSET(). */
+static wc_test_ret_t mp_test_canary_mul_2d(mp_int* a, mp_int* exp,
+    const byte* pat)
+{
+    mp_test_canary_int buf;
+    sp_int* r;
+    int ret;
+
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_test_canary_set(a, pat, MP_TEST_CANARY_DIGITS - 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_test_canary_set_lshd(exp, pat, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = mp_mul_2d(a, SP_WORD_SIZE, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (mp_cmp(exp, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+/* sp_rshb() by whole digits: XMEMCPY() of all allocated digits when the result
+ * is a different SP integer, and XMEMMOVE() when it is the same.
+ * sp_rshb() is called directly as mp_rshb() only shifts in place. */
+static wc_test_ret_t mp_test_canary_rshb(mp_int* a, mp_int* exp,
+    const byte* pat)
+{
+    mp_test_canary_int buf;
+    sp_int* r;
+    int ret;
+
+    /* Different SP integer: shifting a value of MP_TEST_CANARY_DIGITS + 1
+     * digits right by one digit copies MP_TEST_CANARY_DIGITS digits into r. */
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_test_canary_set(a, pat, MP_TEST_CANARY_DIGITS + 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_test_canary_set(exp, pat, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = sp_rshb(a, SP_WORD_SIZE, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (mp_cmp(exp, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    /* Same SP integer: move digits down within r. */
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_test_canary_set(r, pat, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_test_canary_set(exp, pat, MP_TEST_CANARY_DIGITS - 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = sp_rshb(r, SP_WORD_SIZE, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (mp_cmp(exp, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+/* sp_mod_2d() with all allocated digits of the result: XMEMCPY() of all
+ * allocated digits. */
+static wc_test_ret_t mp_test_canary_mod_2d(mp_int* a, mp_int* exp,
+    const byte* pat)
+{
+    mp_test_canary_int buf;
+    byte in[MP_TEST_CANARY_OCTETS];
+    sp_int* r;
+    int ret;
+
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+    /* A value of MP_TEST_CANARY_DIGITS + 1 digits, so that the result keeps
+     * MP_TEST_CANARY_DIGITS digits and the top digit is dropped. */
+    ret = mp_test_canary_set(a, pat, MP_TEST_CANARY_DIGITS + 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* Expected: the low MP_TEST_CANARY_DIGITS digits with the top bit
+     * cleared. */
+    XMEMCPY(in, pat + SP_WORD_OCTETS, MP_TEST_CANARY_DIGITS * SP_WORD_OCTETS);
+    in[0] &= 0x7f;
+    ret = mp_test_canary_set(exp, in, MP_TEST_CANARY_DIGITS);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = mp_mod_2d(a, MP_TEST_CANARY_DIGITS * SP_WORD_SIZE - 1, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (mp_cmp(exp, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || \
+    !defined(NO_DSA)) && !defined(WC_NO_RNG)
+/* sp_rand_prime(): the random data fills only the octets requested, and the
+ * prime has the number of bits requested. Where a char is wider than 8 bits,
+ * random data generated with wc_RNG_GenerateBlock() directly into the digits
+ * covers more memory than the digits needed and the top bits are set outside
+ * of them. */
+static wc_test_ret_t mp_test_canary_rand_prime(WC_RNG* rng)
+{
+    mp_test_canary_int buf;
+    sp_int* r;
+    int len = MP_TEST_CANARY_DIGITS * SP_WORD_OCTETS;
+    int ret;
+
+    r = mp_test_canary_init(&buf);
+    if (r == NULL)
+        return WC_TEST_RET_ENC_NC;
+
+    ret = mp_rand_prime(r, len, rng, NULL);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (mp_count_bits(r) != len * 8)
+        return WC_TEST_RET_ENC_NC;
+    if (!mp_test_canary_ok(&buf))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif
+
+/* Run all memory operation length tests. a and exp are work SP integers. */
+static wc_test_ret_t mp_test_canary(mp_int* a, mp_int* exp)
+{
+    byte pat[MP_TEST_CANARY_OCTETS];
+    wc_test_ret_t ret;
+    int i;
+
+    /* Non-zero octets, so that every value has its full number of digits. */
+    for (i = 0; i < (int)sizeof(pat); i++)
+        pat[i] = (byte)(0xa0 + i);
+
+    if ((ret = mp_test_canary_clear(pat)) != 0)
+        return ret;
+#if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || \
+    !defined(NO_DSA) || defined(WOLFSSL_SP_PRIME_GEN)
+    if ((ret = mp_test_canary_forcezero(pat)) != 0)
+        return ret;
+#endif
+    if ((ret = mp_test_canary_copy(a, pat)) != 0)
+        return ret;
+#if !defined(NO_DH) || defined(HAVE_ECC) || (!defined(NO_RSA) && \
+    defined(WC_RSA_BLINDING) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    if ((ret = mp_test_canary_lshd(exp, pat)) != 0)
+        return ret;
+#endif
+    if ((ret = mp_test_canary_mul_2d(a, exp, pat)) != 0)
+        return ret;
+    if ((ret = mp_test_canary_rshb(a, exp, pat)) != 0)
+        return ret;
+    if ((ret = mp_test_canary_mod_2d(a, exp, pat)) != 0)
+        return ret;
+
+    return 0;
+}
+
+PRAGMA_GCC_DIAG_POP
+#endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY */
+
+#if !defined(WC_NO_RNG) && !defined(USE_INTEGER_HEAP_MATH)
+/* Number of digits generated by mp_test_rand(). */
+#define MP_TEST_RAND_DIGITS     4
+/* Number of times random data is generated by mp_test_rand(). The chance that
+ * an octet position never has a bit set is 2^-(8 * MP_TEST_RAND_CNT). */
+#define MP_TEST_RAND_CNT        16
+
+/* Check that every octet position of the digits has a bit set.
+ *
+ * Returns 1 when every octet position has a bit set, 0 otherwise.
+ */
+static int mp_test_rand_all_octets(const mp_digit* acc, int digits)
+{
+    int i;
+    unsigned int j;
+
+    for (i = 0; i < digits; i++) {
+        for (j = 0; j < (unsigned int)sizeof(mp_digit) * WC_OCTETS_PER_BYTE;
+                j++) {
+            if (((acc[i] >> (8 * j)) & 0xff) == 0)
+                return 0;
+        }
+    }
+    return 1;
+}
+
+/* mp_rand() and mp_get_rand_digit(): every bit of the digits is random.
+ * Where a char is wider than 8 bits, random data generated with
+ * wc_RNG_GenerateBlock() directly into the digits leaves the upper bits of
+ * each char zero. */
+static wc_test_ret_t mp_test_rand(mp_int* a, WC_RNG* rng)
+{
+    mp_digit acc[MP_TEST_RAND_DIGITS];
+    mp_digit d;
+    int i;
+    int j;
+    int ret;
+
+    XMEMSET(acc, 0, sizeof(acc));
+    for (i = 0; i < MP_TEST_RAND_CNT; i++) {
+        ret = mp_rand(a, MP_TEST_RAND_DIGITS, rng);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (a->used != MP_TEST_RAND_DIGITS)
+            return WC_TEST_RET_ENC_NC;
+        for (j = 0; j < MP_TEST_RAND_DIGITS; j++)
+            acc[j] |= a->dp[j];
+    }
+    if (!mp_test_rand_all_octets(acc, MP_TEST_RAND_DIGITS))
+        return WC_TEST_RET_ENC_NC;
+
+    acc[0] = 0;
+    for (i = 0; i < MP_TEST_RAND_CNT; i++) {
+        ret = mp_get_rand_digit(rng, &d);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
+        acc[0] |= d;
+    }
+    if (!mp_test_rand_all_octets(acc, 1))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif /* !WC_NO_RNG && !USE_INTEGER_HEAP_MATH */
+
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
 {
@@ -95783,7 +96275,7 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     ret = mp_read_unsigned_bin(a, NULL, sizeof(buffer));
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
-    ret = mp_read_unsigned_bin(a, buffer, SP_INT_DIGITS * SP_WORD_SIZEOF + 1);
+    ret = mp_read_unsigned_bin(a, buffer, SP_INT_DIGITS * SP_WORD_OCTETS + 1);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -97948,12 +98440,36 @@ static wc_test_ret_t mp_test_exch(mp_int* a, mp_int* b, mp_int* r1,
     return 0;
 }
 
-/* Testing mp_to_unsigned_bin_len_ct against the variable-time export. */
+/* Testing mp_to_unsigned_bin_len_ct against the variable-time export and
+ * against the expected octets. */
 static wc_test_ret_t mp_test_to_unsigned_bin_len_ct(mp_int* a)
 {
     int ret;
+    int i;
+    byte in[20];
     byte buf[40];
     byte buf2[40];
+
+    /* The output must be exactly the octets read in, front padded with
+     * zeros. Every octet is non-zero, so that an octet that is not
+     * truncated (e.g. where a char is wider than 8 bits) changes the
+     * output. */
+    for (i = 0; i < (int)sizeof(in); i++)
+        in[i] = (byte)(0xa0 + i);
+    mp_zero(a);
+    ret = mp_read_unsigned_bin(a, in, (word32)sizeof(in));
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    XMEMSET(buf, 0xff, sizeof(buf));
+    ret = mp_to_unsigned_bin_len_ct(a, buf, (int)sizeof(in) + 4);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    for (i = 0; i < 4; i++) {
+        if (buf[i] != 0)
+            return WC_TEST_RET_ENC_I(i);
+    }
+    if (XMEMCMP(buf + 4, in, sizeof(in)) != 0)
+        return WC_TEST_RET_ENC_NC;
 
     /* mp_to_unsigned_bin_len_ct must match the variable-time export. */
     ret = mp_set(a, 1);
@@ -98859,6 +99375,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
         goto done;
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     if ((ret = mp_test_set_int(a)) != 0)
+        goto done;
+#endif
+#ifdef MP_TEST_CANARY_AVAILABLE
+    if ((ret = mp_test_canary(a, b)) != 0)
+        goto done;
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || \
+    !defined(NO_DSA)) && !defined(WC_NO_RNG)
+    if ((ret = mp_test_canary_rand_prime(&rng)) != 0)
+        goto done;
+#endif
+#endif
+#if !defined(WC_NO_RNG) && !defined(USE_INTEGER_HEAP_MATH)
+    if ((ret = mp_test_rand(a, &rng)) != 0)
         goto done;
 #endif
     if ((ret = mp_test_cmp(a, r1)) != 0)
