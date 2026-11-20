@@ -50,11 +50,19 @@
     /* in NO_TLS builds, WOLFSSL_NO_TLS12 must be defined in the TLS layer, but
      * must not be defined in the crypto layer, to allow building the TLS12
      * KDFs.  Similarly for WOLFSSL_TLS13.
+     *
+     * The *_BY_SSL_H markers record each change, so that build_check.h can
+     * fingerprint the crypto-layer values whether or not this header was
+     * included first.
      */
     #ifndef WOLFSSL_NO_TLS12
         #define WOLFSSL_NO_TLS12
+        #define WOLFSSL_NO_TLS12_SET_BY_SSL_H
     #endif
-    #undef WOLFSSL_TLS13
+    #ifdef WOLFSSL_TLS13
+        #undef WOLFSSL_TLS13
+        #define WOLFSSL_TLS13_UNSET_BY_SSL_H
+    #endif
 #endif
 
 /* For the types */

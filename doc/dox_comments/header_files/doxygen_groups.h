@@ -329,6 +329,7 @@
 
     \defgroup ASN ASN.1
     \defgroup Base_Encoding Base Encoding
+    \defgroup BuildCheck Build Configuration Check
     \defgroup CertManager CertManager API
     \defgroup Compression Compression
     \defgroup DSP Hexagon DSP Offload

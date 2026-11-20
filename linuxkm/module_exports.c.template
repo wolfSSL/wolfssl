@@ -141,6 +141,13 @@
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
+#ifdef HAVE_WC_INTROSPECTION
+    /* Build configuration check (wc_GetBuildConfig(),
+     * wc_CompareBuildConfig(), wc_BuildConfigMismatchString(), ...): lets
+     * modules built against libwolfssl.ko check that their configuration
+     * matches it. */
+    #include <wolfssl/wolfcrypt/build_check.h>
+#endif
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif

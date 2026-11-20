@@ -798,6 +798,9 @@ static const char* wc_GetErrorStringIdx(int error)
     case WC_SPAN2_TO_IDX(HWPUF_ZEROIZE_E):
         return "HWPUF zeroize failed";
 
+    case WC_SPAN2_TO_IDX(BUILD_CONFIG_MISMATCH_E):
+        return "Application and library build configurations do not match";
+
     default:
         return wc_unknown_error_str;
     }
@@ -1060,6 +1063,7 @@ static WC_MAYBE_UNUSED void wc_ErrorStringsCheck(int error)
     case HWPUF_GENERATE_KEY_E:
     case HWPUF_GET_KEY_E:
     case HWPUF_ZEROIZE_E:
+    case BUILD_CONFIG_MISMATCH_E:
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

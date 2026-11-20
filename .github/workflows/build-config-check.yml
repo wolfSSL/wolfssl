@@ -1,0 +1,92 @@
+name: Build Config Check
+
+# Guards wc_CheckBuildConfig(), the run-time check that an application was
+# built with the same wolfSSL configuration as the library it loaded.
+#
+# list:     static check that wolfssl/wolfcrypt/build_check_list.h still
+#           covers every public struct whose layout depends on the
+#           configuration (fast; no build).
+# match:    builds the library in configurations where headers derive
+#           fingerprinted macros differently depending on what was
+#           included (math backends, OpenSSL compat, wolfCrypt only) and
+#           checks that an application including every public header (and
+#           the unit test, where built) still matches the library.
+# mismatch: builds two differently configured libraries and checks that an
+#           application built against one detects, and names, the
+#           differences when run with the other.
+#
+# Runs on drafts (the list check is a fast static check).
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ master, main ]
+
+concurrency:
+  group: build-config-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    # Only run from the wolfssl org to avoid burning forks' CI minutes.
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check build_check_list.h against the public headers
+        run: python3 .github/scripts/check-build-config-list.py --verbose
+
+  mismatch:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      - name: autogen
+        run: ./autogen.sh
+
+      - name: Detect mismatched library at run time
+        run: ./.github/scripts/build-config-mismatch.sh "$RUNNER_TEMP/build-config"
+
+  match:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - '--enable-fastmath --enable-opensslextra'
+          - '--enable-heapmath --enable-opensslextra'
+          - '--enable-cryptonly --enable-opensslextra'
+          - '--disable-tls --enable-opensslall'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      - name: autogen
+        run: ./autogen.sh
+
+      - name: Library and application fingerprints match
+        run: |
+          ./.github/scripts/build-config-match.sh "$RUNNER_TEMP/build-config" \
+              ${{ matrix.config }}
