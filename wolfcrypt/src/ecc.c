@@ -14517,13 +14517,18 @@ static void fp_lut_select(mp_int* dst, mp_int* src, int n, word32 sel)
     int i;
     /* volatile so that the compiler can't turn the mask back into a branch. */
     volatile mp_digit mask;
+    mp_digit dst_masked;
+    mp_digit src_masked;
 
     mask = (mp_digit)0 - (mp_digit)(((sel | (0U - sel)) >> 31) & 1U);
     for (i = 0; i < n; i++) {
-        dst->dp[i] = (dst->dp[i] & ~mask) | (mp_get_digit(src, i) & mask);
+        dst_masked = dst->dp[i] & ~mask;
+        src_masked = mp_get_digit(src, i) & mask;
+        dst->dp[i] = dst_masked | src_masked;
     }
-    dst->used = (wc_mp_size_t)(((mp_digit)dst->used & ~mask) |
-        ((mp_digit)src->used & mask));
+    dst_masked = (mp_digit)dst->used & ~mask;
+    src_masked = (mp_digit)src->used & mask;
+    dst->used = (wc_mp_size_t)(dst_masked | src_masked);
 }
 
 /* Double and always add over the comb, reading every table entry each step.
@@ -14590,8 +14595,11 @@ static int fp_comb_ct(int idx, const unsigned char* kb, unsigned lut_gap,
         if (err == MP_OKAY) {
             for (j = 1; j < (1U << FP_LUT); j++) {
                 volatile word32 sel = (word32)(j ^ z);
+                word32 sel_nz;
                 /* 1 when j == z, or for the dummy when z is zero */
-                sel = (((sel | (0U - sel)) >> 31) ^ 1U) |
+                sel_nz = 0U - sel;
+                sel_nz |= sel;
+                sel = ((sel_nz >> 31) ^ 1U) |
                     (zeroDigit & (word32)(j == 1));
                 fp_lut_select(Q->x, fp_cache[idx].LUT[j]->x, n, sel);
                 fp_lut_select(Q->y, fp_cache[idx].LUT[j]->y, n, sel);
