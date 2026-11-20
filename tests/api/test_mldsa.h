@@ -61,6 +61,7 @@ int test_mldsa_make_public_key_keeps_cache(void);
 int test_mldsa_make_public_key_tr_mismatch(void);
 int test_mldsa_make_public_key_t0_mismatch(void);
 int test_mldsa_make_public_key_cb_only(void);
+int test_mldsa_make_public_key_cb(void);
 int test_mldsa_sig_kats(void);
 int test_mldsa_sign_ctx_kats(void);
 int test_mldsa_verify_ctx_kats(void);
@@ -124,6 +125,7 @@ int test_mldsa_make_key_id_dev(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_tr_mismatch),          \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_t0_mismatch),          \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_cb_only),              \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_cb),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_sig_kats),                             \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_ctx_kats),                        \
     TEST_DECL_GROUP("mldsa", test_mldsa_verify_ctx_kats),                      \
