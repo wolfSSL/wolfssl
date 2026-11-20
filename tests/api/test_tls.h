@@ -121,6 +121,7 @@ int test_tls13_chain_verify_cb_reject(void);
 int test_tls13_chain_verify_cb_success_rejects(void);
 int test_tls12_chain_verify_cb_bad_der(void);
 int test_tls12_chain_verify_cb_bad_chain(void);
+int test_tls12_chain_verify_cb_serial0(void);
 int test_tls13_chain_verify_cb_postauth(void);
 int test_chain_verify_cb_min_key(void);
 int test_chain_verify_cb_dtls(void);
@@ -249,6 +250,7 @@ int test_tls_unset_fd_no_stdin_io(void);
         TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_success_rejects),    \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_der),            \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_chain),          \
+        TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_serial0),            \
         TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_postauth),           \
         TEST_DECL_GROUP("tls", test_chain_verify_cb_min_key),                  \
         TEST_DECL_GROUP("tls", test_chain_verify_cb_dtls),                     \

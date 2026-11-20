@@ -8476,6 +8476,84 @@ int test_tls12_chain_verify_cb_bad_chain(void)
     return EXPECT_RESULT();
 }
 
+/* A root with serial number 0 in the peer's chain reaches the callback: the
+ * chain decode runs each certificate through ParseCert() as CERT_TYPE, whose
+ * zero-serial rule admits a self-issued CA (issue #11952). A serial-0
+ * certificate that is not a self-issued CA still fails to decode, so the
+ * handshake fails before the callback is consulted. */
+int test_tls12_chain_verify_cb_serial0(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_NO_PEM) && \
+    !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+    const char* leafChain = "./certs/test-serial0/ee_normal_chain.pem";
+    const char* leafOnly  = "./certs/test-serial0/ee_normal.pem";
+    const char* leafKey   = "./certs/test-serial0/ee_normal_key.pem";
+    const char* interCert = "./certs/test-serial0/intermediate_serial0.pem";
+    byte*  leafPem  = NULL;
+    size_t leafSz   = 0;
+    byte*  interPem = NULL;
+    size_t interSz  = 0;
+    byte*  chainPem = NULL;
+
+    /* The leaf followed by its serial-0 root: both decode, so the callback
+     * sees the whole chain. */
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, leafChain),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, leafKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_chain_verify_cb_set_leaf(&cbCtx,
+        ssl_s->buffers.certificate), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(cbCtx.calls, 1);
+    ExpectIntEQ(cbCtx.certsSeen, 2);
+    ExpectIntEQ(cbCtx.leafMatched, 1);
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+
+    /* The leaf followed by a serial-0 intermediate, a CA that is not
+     * self-issued. The server's own-chain loader copies chain entries
+     * without decoding them, so it takes the chain; the client's decode
+     * refuses the intermediate and the callback never runs. */
+    ExpectIntEQ(load_file(leafOnly, &leafPem, &leafSz), 0);
+    ExpectIntEQ(load_file(interCert, &interPem, &interSz), 0);
+    ExpectNotNull(chainPem = (byte*)XMALLOC(leafSz + interSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chainPem, leafPem, leafSz);
+        XMEMCPY(chainPem + leafSz, interPem, interSz);
+    }
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(ssl_s, chainPem,
+        (long)(leafSz + interSz)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, leafKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_chain_verify_cb_expect_fail(&cbCtx, ssl_c, ssl_c, ssl_s,
+        WC_NO_ERR_TRACE(ASN_PARSE_E)), TEST_SUCCESS);
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+
+    XFREE(chainPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(interPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_chain_verify_cb_postauth(void)
 {
     EXPECT_DECLS;
