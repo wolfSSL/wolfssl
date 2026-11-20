@@ -3628,6 +3628,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
             int strLen;
             word32 lenStartIdx = idx;
+            word32 otherNameEnd;
             word32 oid = 0;
             int    ret = 0;
 
@@ -3640,6 +3641,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
             length -= (int)(((word32)strLen + idx - lenStartIdx));
+            otherNameEnd = idx + (word32)strLen;
 
         #ifndef IGNORE_NAME_CONSTRAINTS
             /* Store the raw OtherName encoding (OID || [0] EXPLICIT value)
@@ -3697,19 +3699,17 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 
                 default:
                     WOLFSSL_MSG("\tUnsupported other name type, skipping");
-                    if (GetLength(input, &idx, &strLen, sz) < 0) {
-                        /* check to skip constructed other names too */
-                        if (DecodeConstructedOtherName(cert, input, &idx, sz,
-                                    (int)oid) != 0) {
-                            WOLFSSL_MSG("\tfail: unsupported other name length");
-                            return ASN_PARSE_E;
-                        }
-                    }
-                    else {
-                        idx += (word32)strLen;
+                    if (DecodeConstructedOtherName(cert, input, &idx, sz,
+                                (int)oid) != 0) {
+                        WOLFSSL_MSG("\tfail: unsupported other name length");
+                        return ASN_PARSE_E;
                     }
             }
             (void)ret;
+            if (idx != otherNameEnd) {
+                WOLFSSL_MSG("\tData after other name value");
+                return ASN_PARSE_E;
+            }
         }
         else {
             int strLen;
