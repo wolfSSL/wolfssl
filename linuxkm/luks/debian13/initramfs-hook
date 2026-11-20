@@ -1,0 +1,10 @@
+#!/bin/sh
+# Add libwolfssl, the guard and its settings to the initramfs.
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+. /usr/share/initramfs-tools/hook-functions
+manual_add_modules libwolfssl
+copy_file script /usr/local/sbin/wolfcrypt-luks-guard
+copy_file config /etc/wolfcrypt-luks.conf
+copy_exec /usr/bin/gawk /usr/bin/awk
