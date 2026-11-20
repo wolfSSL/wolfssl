@@ -58,6 +58,13 @@
     #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
 #endif
 
+/* Seconds since the epoch. May be set wider than time_t; XTIME and XGMTIME
+ * must then take it. */
+#ifndef WC_TIME_T
+    #define WC_TIME_T time_t
+    #define WC_TIME_T_IS_TIME_T
+#endif
+
 #ifdef WOLFSSL_LINUXKM
     #include "../../linuxkm/linuxkm_wc_port.h"
 #elif defined(WOLFSSL_BSDKM)
@@ -1745,7 +1752,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XTIME(t1)       xilinx_time((t1))
     #endif
     #include <time.h>
-    time_t xilinx_time(time_t * timer);
+    WC_TIME_T xilinx_time(WC_TIME_T * timer);
 
 #elif defined(HAVE_RTP_SYS)
     #include "os.h"           /* dc_rtc_api needs    */
@@ -1758,7 +1765,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(WOLFSSL_DEOS) || defined(WOLFSSL_DEOS_RTEMS)
     #include <time.h>
         #ifndef XTIME
-            extern time_t deos_time(time_t* timer);
+            extern WC_TIME_T deos_time(WC_TIME_T* timer);
             #define XTIME(t1) deos_time((t1))
         #endif
 #elif defined(WOLFSSL_OPTEE)
@@ -1769,7 +1776,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
      * for freshness, not for certificate validity. Hence NO_ASN_TIME in the
      * WOLFSSL_OPTEE settings block. */
     #ifndef XTIME
-        extern time_t optee_time(time_t* timer);
+        extern WC_TIME_T optee_time(WC_TIME_T* timer);
         #define XTIME(t1)   optee_time((t1))
     #endif
     #define WOLFSSL_GMTIME
@@ -1783,7 +1790,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
-    extern time_t pic32_time(time_t* timer);
+    extern WC_TIME_T pic32_time(WC_TIME_T* timer);
     #define XTIME(t1)       pic32_time((t1))
     #define XGMTIME(c, t)   gmtime((c))
 
@@ -1796,14 +1803,14 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(FREESCALE_SNVS_RTC)
     #include <time.h>
     #include "fsl_snvs_hp.h"
-    time_t fsl_time(time_t* t);
+    WC_TIME_T fsl_time(WC_TIME_T* t);
     #ifndef XTIME
         #define XTIME(t1) fsl_time((t1))
     #endif
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #ifdef FREESCALE_MQX_4_0
         #include <time.h>
-        extern time_t mqx_time(time_t* timer);
+        extern WC_TIME_T mqx_time(WC_TIME_T* timer);
     #else
         #define HAVE_GMTIME_R
     #endif
@@ -1825,7 +1832,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(WOLFSSL_WICED)
     #include <time.h>
-    time_t wiced_pseudo_unix_epoch_time(time_t * timer);
+    WC_TIME_T wiced_pseudo_unix_epoch_time(WC_TIME_T * timer);
     #define XTIME(t1)       wiced_pseudo_unix_epoch_time((t1))
     #define HAVE_GMTIME_R
 
@@ -1842,7 +1849,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
     #include <stdlib.h> /* For file system */
 
-    time_t windows_time(time_t* timer);
+    WC_TIME_T windows_time(WC_TIME_T* timer);
 
     #define FindNextFileA(h, d) FindNextFile(h, (LPWIN32_FIND_DATAW) d)
     #define FindFirstFileA(fn, d) FindFirstFile((LPCWSTR) fn, \
@@ -1891,17 +1898,17 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         extern "C" {
     #endif
 
-    time_t z_time(time_t *timer);
+    WC_TIME_T z_time(WC_TIME_T *timer);
 
     #define XTIME(tl)       z_time((tl))
     #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(WOLFSSL_TELIT_M2MB)
     typedef long time_t;
-    extern time_t m2mb_xtime(time_t * timer);
+    extern WC_TIME_T m2mb_xtime(WC_TIME_T * timer);
     #define XTIME(tl)       m2mb_xtime((tl))
     #ifdef WOLFSSL_TLS13
-        extern long long m2mb_xtime_ms(time_t * timer);
+        extern long long m2mb_xtime_ms(WC_TIME_T * timer);
         #define XTIME_MS(tl)    m2mb_xtime_ms((tl))
     #endif
     #ifndef NO_CRYPT_BENCHMARK
@@ -1922,7 +1929,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(HAL_RTC_MODULE_ENABLED)
     #include <time.h>
-    WOLFSSL_LOCAL time_t stm32_hal_time(time_t* t1);
+    WOLFSSL_LOCAL WC_TIME_T stm32_hal_time(WC_TIME_T* t1);
     #define XTIME(t1) stm32_hal_time(t1)
     #define WOLFSSL_GMTIME
 #else
@@ -1934,7 +1941,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 
     /* PowerPC time_t is int */
-    #if defined(__PPC__) || defined(__ppc__)
+    #if (defined(__PPC__) || defined(__ppc__)) && defined(WC_TIME_T_IS_TIME_T)
         #define TIME_T_NOT_64BIT
     #endif
 
@@ -1942,7 +1949,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XDIFFTIME(to, from) difftime(to, from)
 #endif
 
-#ifdef SIZEOF_TIME_T
+#if defined(SIZEOF_TIME_T) && defined(WC_TIME_T_IS_TIME_T)
     /* check if size of time_t from autoconf is less than 8 bytes (64bits) */
     #if SIZEOF_TIME_T < 8
         #undef  TIME_T_NOT_64BIT
@@ -1961,6 +1968,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifdef TEST_BEFORE_DATE
     #define XTIME(tl)       946681200UL /* Jan 1, 2000 */
     #else
+        #ifndef WC_TIME_T_IS_TIME_T
+            #error "WC_TIME_T override requires an XTIME taking WC_TIME_T*"
+        #endif
     #define XTIME(tl)       time((tl))
     #endif
 #endif
@@ -1970,6 +1980,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
+    #if !defined(WC_TIME_T_IS_TIME_T) && !defined(WOLFSSL_GMTIME)
+        #error "WC_TIME_T override requires XGMTIME or WOLFSSL_GMTIME"
+    #endif
     /* Always use gmtime_r if available. */
     #if defined(HAVE_GMTIME_S)
         /* reentrant version */
@@ -2019,8 +2032,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
     /* forward declarations */
 #if defined(USER_TIME)
-    struct tm* gmtime(const time_t* timer);
-    extern time_t XTIME(time_t * timer);
+    struct tm* gmtime(const WC_TIME_T* timer);
+    extern WC_TIME_T XTIME(WC_TIME_T * timer);
 
     #ifdef STACK_TRAP
         /* for stack trap tracking, don't call os gmtime on OS X/linux,
@@ -2030,11 +2043,11 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif /* STACK_TRAP */
 
 #elif defined(TIME_OVERRIDES)
-    extern time_t XTIME(time_t * timer);
-    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
+    extern WC_TIME_T XTIME(WC_TIME_T * timer);
+    extern struct tm* XGMTIME(const WC_TIME_T* timer, struct tm* tmp);
 #elif defined(WOLFSSL_GMTIME)
-    struct tm* gmtime(const time_t* timer);
-    struct tm* gmtime_r(const time_t* timer, struct tm *ret);
+    struct tm* gmtime(const WC_TIME_T* timer);
+    struct tm* gmtime_r(const WC_TIME_T* timer, struct tm *ret);
 #endif
 #endif /* !NO_ASN_TIME */
 

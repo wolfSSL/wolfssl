@@ -11457,7 +11457,7 @@ int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
 
 /* Sets the verification time and makes verification use it. */
 void wolfSSL_X509_VERIFY_PARAM_set_time(WOLFSSL_X509_VERIFY_PARAM *param,
-        time_t t)
+        WC_TIME_T t)
 {
     if (param != NULL) {
         param->check_time = t;
@@ -11880,10 +11880,10 @@ int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
  * and 1 otherwise
  * return 0 on error
  */
-int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
+int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, WC_TIME_T* cmpTime)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-    time_t tmpTime, *pTime = &tmpTime;
+    WC_TIME_T tmpTime, *pTime = &tmpTime;
     struct tm ts, *tmpTs, *ct;
 #if defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
@@ -11929,15 +11929,15 @@ int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
 #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
     !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
 WOLFSSL_ASN1_TIME *wolfSSL_X509_time_adj_ex(WOLFSSL_ASN1_TIME *asnTime,
-    int offset_day, long offset_sec, time_t *in_tm)
+    int offset_day, long offset_sec, WC_TIME_T *in_tm)
 {
     /* get current time if in_tm is null */
-    time_t t = in_tm ? *in_tm : wc_Time(0);
+    WC_TIME_T t = in_tm ? *in_tm : wc_Time(0);
     return wolfSSL_ASN1_TIME_adj(asnTime, t, offset_day, offset_sec);
 }
 
 WOLFSSL_ASN1_TIME *wolfSSL_X509_time_adj(WOLFSSL_ASN1_TIME *asnTime,
-    long offset_sec, time_t *in_tm)
+    long offset_sec, WC_TIME_T *in_tm)
 {
     return wolfSSL_X509_time_adj_ex(asnTime, 0, offset_sec, in_tm);
 }

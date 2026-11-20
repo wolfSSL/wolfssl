@@ -13321,7 +13321,7 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
     unsigned char* spki2 = NULL;
     int spkiSz = 0;
     int spki2Sz = 0;
-    time_t t = 0;
+    WC_TIME_T t = 0;
 
     /* (1) Generate an Ed25519 key purely through the EVP API. */
     ExpectNotNull(ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL));
@@ -13963,7 +13963,7 @@ static int test_set_x509_badversion(WOLFSSL_CTX* ctx)
     long keySz;
     XFILE fp = XBADFILE;
     WOLFSSL_ASN1_TIME *notBefore = NULL, *notAfter = NULL;
-    time_t t;
+    WC_TIME_T t;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
                 WOLFSSL_FILETYPE_PEM));
@@ -26512,7 +26512,7 @@ static int test_wolfSSL_X509_set_authority_key_id_roundtrip(void)
     int derSz = 0;
     int extIdx = -1;
     XFILE fp = XBADFILE;
-    time_t t;
+    WC_TIME_T t;
 
     /* Raw 20-byte key identifier */
     byte akid[20] = {
@@ -26641,7 +26641,7 @@ static int test_wolfSSL_X509_set_authority_key_id_ex_roundtrip(void)
     int derSz = 0;
     int extIdx = -1;
     XFILE fp = XBADFILE;
-    time_t t;
+    WC_TIME_T t;
 
     /* SKID on the issuer. The AKID on the built cert should match this. */
     byte issuerSkid[20] = {
@@ -26764,7 +26764,7 @@ static int test_wolfSSL_X509_set_authority_key_id_overwrite(void)
     int derSz = 0;
     int extIdx = -1;
     XFILE fp = XBADFILE;
-    time_t t;
+    WC_TIME_T t;
 
     byte akid1[20] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,
@@ -28307,7 +28307,7 @@ static int test_wolfIO_OcspDestAllowed_fallback(void)
     defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN_TIME) && \
     !defined(WOLFSSL_SM2) && !defined(WOLFSSL_SM3)
-static time_t test_wolfSSL_OCSP_REQ_CTX_time_cb(time_t* t)
+static WC_TIME_T test_wolfSSL_OCSP_REQ_CTX_time_cb(WC_TIME_T* t)
 {
     if (t != NULL) {
         *t = 1722006780;
@@ -35186,7 +35186,7 @@ static int test_openssl_make_self_signed_certificate(EVP_PKEY* pkey,
     X509* x509 = NULL;
     BIGNUM* serial_number = NULL;
     X509_NAME* name = NULL;
-    time_t epoch_off = 0;
+    WC_TIME_T epoch_off = 0;
     ASN1_INTEGER* asn1_serial_number = NULL;
     long not_before, not_after;
     int derSz;

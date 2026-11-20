@@ -2747,7 +2747,7 @@ WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType,
                                   int len);
 #ifndef NO_ASN_TIME
 WOLFSSL_LOCAL int wc_ValidateDateWithTime(const byte* date, byte format,
-    int dateType, time_t checkTime, int len);
+    int dateType, WC_TIME_T checkTime, int len);
 #endif
 WOLFSSL_TEST_VIS int wc_AsnSetSkipDateCheck(int skip_p);
 WOLFSSL_LOCAL int wc_AsnGetSkipDateCheck(void);

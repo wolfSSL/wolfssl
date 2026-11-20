@@ -1504,7 +1504,7 @@ int test_wc_TspTstInfo_GetSetGenTimeAsTime(void)
     byte buf[ASN_GENERALIZED_TIME_SIZE];
     const byte* out = NULL;
     word32 outSz = 0;
-    time_t t = 0;
+    WC_TIME_T t = 0;
 
     ExpectIntEQ(wc_TspTstInfo_Init(&tst), 0);
 
@@ -1529,7 +1529,7 @@ int test_wc_TspTstInfo_GetSetGenTimeAsTime(void)
     ExpectIntEQ((long)t, 0);
 
     /* A later time round trips through set then get. */
-    ExpectIntEQ(wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ExpectIntEQ(wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         (word32)sizeof(buf)), 0);
     ExpectIntEQ(wc_TspTstInfo_GetGenTimeAsTime(&tst, &t), 0);
     ExpectIntEQ((long)t, 1700000000L);

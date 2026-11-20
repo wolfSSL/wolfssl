@@ -115,7 +115,7 @@ int test_wolfSSL_X509_cmp_time(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) \
 && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
     WOLFSSL_ASN1_TIME asn_time;
-    time_t t;
+    WC_TIME_T t;
 
     ExpectIntEQ(0, wolfSSL_X509_cmp_time(NULL, &t));
     XMEMSET(&asn_time, 0, sizeof(WOLFSSL_ASN1_TIME));
@@ -136,9 +136,9 @@ int test_wolfSSL_X509_time_adj(void)
     defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && \
     !defined(NO_ASN_TIME)
     X509*  x509 = NULL;
-    time_t t;
-    time_t not_before;
-    time_t not_after;
+    WC_TIME_T t;
+    WC_TIME_T not_before;
+    WC_TIME_T not_after;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         client_cert_der_2048, sizeof_client_cert_der_2048,
@@ -954,7 +954,7 @@ int test_wolfSSL_X509_set_notAfterBefore(void)
 
     /* --- notBefore: set, get, validate, print --- */
     {
-        time_t t = (time_t)49 * year + 125 * day + 20 * hour +
+        WC_TIME_T t = (WC_TIME_T)49 * year + 125 * day + 20 * hour +
                    30 * mini + 7 * day;
         asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, 7, 0);
     }
@@ -979,7 +979,7 @@ int test_wolfSSL_X509_set_notAfterBefore(void)
     /* --- notAfter: set, get, validate, print (needs 64-bit time_t) --- */
 #if !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
     {
-        time_t t = (time_t)107 * year + 31 * day + 34 * hour +
+        WC_TIME_T t = (WC_TIME_T)107 * year + 31 * day + 34 * hour +
                    30 * mini + 7 * day;
         asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, 7, 0);
     }

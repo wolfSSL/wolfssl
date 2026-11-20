@@ -151,8 +151,11 @@
 static int wbGmtimeMode = 0; /* 0 passthrough, 1 NULL, 2 invalid tm, 3 huge year */
 static struct tm wbFakeTm;
 
-static struct tm* wbXGMTIME(const time_t* clock, struct tm* tmpBuf)
+/* void* as WC_TIME_T is not defined until tsp.c's headers. */
+static struct tm* wbXGMTIME(const void* clockArg, struct tm* tmpBuf)
 {
+    const time_t* clock = (const time_t*)clockArg;
+
     (void)tmpBuf;
     if (wbGmtimeMode == 1) {
         /* 797 idx0 true: XGMTIME "fails". */
@@ -287,7 +290,7 @@ static void wb_gentime_as_time_guards(void)
     /* all-false baseline: real clock, in range, fits bufSz - closes 797
      * idx0/idx1 FALSE and 808 idx0/idx1 FALSE rows. */
     wbGmtimeMode = 0;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     if (ret != 0) {
         WB_NOTE("SetGenTimeAsTime baseline misbehaved");
@@ -296,7 +299,7 @@ static void wb_gentime_as_time_guards(void)
 
     /* 797 idx0 true. */
     wbGmtimeMode = 1;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbGmtimeMode = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -306,7 +309,7 @@ static void wb_gentime_as_time_guards(void)
 
     /* 797 idx1 true, idx0 false. */
     wbGmtimeMode = 2;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbGmtimeMode = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -316,7 +319,7 @@ static void wb_gentime_as_time_guards(void)
 
     /* 808 idx1 true, 797 false. */
     wbGmtimeMode = 3;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbGmtimeMode = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -327,7 +330,7 @@ static void wb_gentime_as_time_guards(void)
     /* 808 idx0 true, 797 false: the formatting call itself reports an
      * encoding error. See the XSNPRINTF mock at the top of this file. */
     wbSnprintfFail = 1;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbSnprintfFail = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -354,7 +357,7 @@ static void wb_check_gentime_bounds(void)
 {
     TspTstInfo tst;
     byte genTime[ASN_GENERALIZED_TIME_SIZE];
-    time_t now;
+    WC_TIME_T now;
     int ret;
 
     XMEMSET(&tst, 0, sizeof(tst));

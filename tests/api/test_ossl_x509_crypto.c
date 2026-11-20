@@ -662,7 +662,7 @@ int test_wolfSSL_X509_sign2(void)
     const int day  = 24*60*60;
     const int hour = 60*60;
     const int mini = 60;
-    time_t t;
+    WC_TIME_T t;
 #endif
 
     const unsigned char expected[] = {
@@ -791,7 +791,7 @@ int test_wolfSSL_X509_sign2(void)
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
 
 #ifndef NO_ASN_TIME
-    t = (time_t)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;
+    t = (WC_TIME_T)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;
     ExpectNotNull(notBefore = wolfSSL_ASN1_TIME_adj(NULL, t, 0, 0));
     ExpectNotNull(notAfter = wolfSSL_ASN1_TIME_adj(NULL, t, 365, 0));
     ExpectIntEQ(notAfter->length, 13);

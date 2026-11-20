@@ -12374,7 +12374,7 @@ ProtocolVersion MakeDTLSv1_3(void)
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
-    extern time_t XTIME(time_t * timer);
+    extern WC_TIME_T XTIME(WC_TIME_T * timer);
 
     word32 LowResTimer(void)
     {

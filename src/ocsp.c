@@ -794,8 +794,8 @@ int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
 {
 #ifndef NO_ASN_TIME
     int ret = WOLFSSL_SUCCESS;
-    time_t now = wc_Time(0);
-    time_t cmp;
+    WC_TIME_T now = wc_Time(0);
+    WC_TIME_T cmp;
 
     /* Same semantics as OpenSSL's OCSP_check_validity: sec is the allowed
      * clock skew and maxsec, when non-negative, the maximum age of thisUpdate.
@@ -2655,7 +2655,7 @@ static OcspResponderCa* FindCaBySubject(OcspResponder* responder,
 int wc_OcspResponder_SetCertStatus(OcspResponder* responder,
     const char* caSubject, word32 caSubjectSz,
     const byte* serial, word32 serialSz, enum Ocsp_Cert_Status status,
-    time_t revocationTime, enum WC_CRL_Reason revocationReason,
+    WC_TIME_T revocationTime, enum WC_CRL_Reason revocationReason,
     word32 validityPeriod)
 {
     OcspResponderCa* ca = NULL;
@@ -2752,7 +2752,7 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     CertStatus status;
     OcspEntry entry;
     int ret = 0;
-    time_t now;
+    WC_TIME_T now;
     RsaKey* rsaKey = NULL;
     ecc_key* eccKey = NULL;
     int respInited = 0;
@@ -2802,7 +2802,7 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
 
     /* Set nextUpdate if validity period is specified (for CERT_GOOD) */
     if (certStatus->status == CERT_GOOD && certStatus->validityPeriod > 0) {
-        time_t nextTime = now + (time_t)certStatus->validityPeriod;
+        WC_TIME_T nextTime = now + (WC_TIME_T)certStatus->validityPeriod;
         ret = GetFormattedTime_ex(&nextTime, status.nextDate,
                 sizeof(status.nextDate), ASN_GENERALIZED_TIME);
         if (ret <= 0) {

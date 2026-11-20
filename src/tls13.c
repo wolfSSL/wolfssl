@@ -2151,7 +2151,7 @@ end:
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
-    extern time_t XTIME(time_t * timer);
+    extern WC_TIME_T XTIME(WC_TIME_T * timer);
 
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -2449,7 +2449,7 @@ end:
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
-    extern time_t XTIME(time_t * timer);
+    extern WC_TIME_T XTIME(WC_TIME_T * timer);
 
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when

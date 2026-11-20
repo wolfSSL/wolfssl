@@ -550,7 +550,7 @@ int wc_TspTstInfo_Encode(const TspTstInfo* tstInfo, byte* out, word32* outSz)
         #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
             !defined(TIME_OVERRIDES)
             /* Format the current time as a GeneralizedTime string. */
-            time_t now = wc_Time(0);
+            WC_TIME_T now = wc_Time(0);
             int len = GetFormattedTime_ex(&now, timeBuf, sizeof(timeBuf),
                 ASN_GENERALIZED_TIME);
             if (len <= 0) {

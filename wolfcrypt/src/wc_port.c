@@ -4858,7 +4858,7 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
 
 #ifndef NO_ASN_TIME
 #if defined(_WIN32_WCE)
-time_t windows_time(time_t* timer)
+WC_TIME_T windows_time(WC_TIME_T* timer)
 {
     SYSTEMTIME     sysTime;
     FILETIME       fTime;
@@ -4877,12 +4877,12 @@ time_t windows_time(time_t* timer)
     if (timer != NULL)
         *timer = (time_t)intTime.QuadPart;
 
-    return (time_t)intTime.QuadPart;
+    return (WC_TIME_T)intTime.QuadPart;
 }
 #endif /*  _WIN32_WCE */
 
 #if defined(WOLFSSL_GMTIME)
-struct tm* gmtime_r(const time_t* timer, struct tm *ret)
+struct tm* gmtime_r(const WC_TIME_T* timer, struct tm *ret)
 {
     #define YEAR0          1900
     #define EPOCH_YEAR     1970
@@ -4896,7 +4896,7 @@ struct tm* gmtime_r(const time_t* timer, struct tm *ret)
         {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
     };
 
-    time_t secs = *timer;
+    WC_TIME_T secs = *timer;
     unsigned long dayclock, dayno;
     int year = EPOCH_YEAR;
 
@@ -4930,7 +4930,7 @@ struct tm* gmtime_r(const time_t* timer, struct tm *ret)
     return ret;
 }
 
-struct tm* gmtime(const time_t* timer) {
+struct tm* gmtime(const WC_TIME_T* timer) {
     static struct tm st_time;
     return gmtime_r(timer, &st_time);
 }
@@ -4941,7 +4941,8 @@ struct tm* gmtime(const time_t* timer) {
 #if defined(HAVE_RTP_SYS)
 #define YEAR0          1900
 
-struct tm* rtpsys_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
+/* has a gmtime() but hangs */
+struct tm* rtpsys_gmtime(const WC_TIME_T* timer)
 {
     static struct tm st_time;
     struct tm* ret = &st_time;
@@ -4968,7 +4969,7 @@ struct tm* rtpsys_gmtime(const time_t* timer)       /* has a gmtime() but hangs 
  * time() is just a stub in Microchip libraries. We need our own
  * implementation. Use SNTP client to get seconds since epoch.
  */
-time_t pic32_time(time_t* timer)
+WC_TIME_T pic32_time(WC_TIME_T* timer)
 {
 #ifdef MICROCHIP_TCPIP_V5
     DWORD sec = 0;
@@ -4985,18 +4986,18 @@ time_t pic32_time(time_t* timer)
     if (timer != NULL)
         *timer = (time_t)sec;
 
-    return (time_t)sec;
+    return (WC_TIME_T)sec;
 }
 
 #endif /* MICROCHIP_TCPIP || MICROCHIP_TCPIP_V5 */
 
 #if defined(WOLFSSL_DEOS) || defined(WOLFSSL_DEOS_RTEMS)
 
-time_t deos_time(time_t* timer)
+WC_TIME_T deos_time(WC_TIME_T* timer)
 {
     const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
     const volatile word32 *systemTickPtr = systemTickPointer();
-    time_t now = (time_t)(*systemTickPtr / systemTickTimeInHz);
+    WC_TIME_T now = (WC_TIME_T)(*systemTickPtr / systemTickTimeInHz);
 
     #if defined(CURRENT_UNIX_TIMESTAMP)
         /* CURRENT_UNIX_TIMESTAMP is seconds since Jan 01 1970. (UTC) */
@@ -5010,9 +5011,9 @@ time_t deos_time(time_t* timer)
 
 #if defined(FREESCALE_RTC)
 #include "fsl_rtc.h"
-time_t fsl_time(time_t* t)
+WC_TIME_T fsl_time(WC_TIME_T* t)
 {
-    time_t now = (time_t)RTC_GetSecondsTimerCount(RTC);
+    WC_TIME_T now = (WC_TIME_T)RTC_GetSecondsTimerCount(RTC);
 
     if (t != NULL)
         *t = now;
@@ -5021,10 +5022,10 @@ time_t fsl_time(time_t* t)
 #endif
 
 #if defined(FREESCALE_SNVS_RTC)
-time_t fsl_time(time_t* t)
+WC_TIME_T fsl_time(WC_TIME_T* t)
 {
     struct tm tm_time;
-    time_t ret;
+    WC_TIME_T ret;
 
     snvs_hp_rtc_datetime_t rtcDate;
     snvs_hp_rtc_config_t snvsRtcConfig;
@@ -5053,7 +5054,7 @@ time_t fsl_time(time_t* t)
  * that mapping is excluded. */
 #if defined(WOLFSSL_OPTEE) && !defined(NO_ASN_TIME)
 
-time_t optee_time(time_t* timer)
+WC_TIME_T optee_time(WC_TIME_T* timer)
 {
     TEE_Time reeTime;
 
@@ -5061,16 +5062,16 @@ time_t optee_time(time_t* timer)
     TEE_GetREETime(&reeTime);
 
     if (timer != NULL)
-        *timer = (time_t)reeTime.seconds;
+        *timer = (WC_TIME_T)reeTime.seconds;
 
-    return (time_t)reeTime.seconds;
+    return (WC_TIME_T)reeTime.seconds;
 }
 
 #endif /* WOLFSSL_OPTEE && !NO_ASN_TIME */
 
 #if defined(MICRIUM)
 
-time_t micrium_time(time_t* timer)
+WC_TIME_T micrium_time(WC_TIME_T* timer)
 {
     CLK_TS_SEC sec;
 
@@ -5079,14 +5080,14 @@ time_t micrium_time(time_t* timer)
     if (timer != NULL)
         *timer = sec;
 
-    return (time_t) sec;
+    return (WC_TIME_T) sec;
 }
 
 #endif /* MICRIUM */
 
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
-time_t mqx_time(time_t* timer)
+WC_TIME_T mqx_time(WC_TIME_T* timer)
 {
     TIME_STRUCT time_s;
 
@@ -5095,7 +5096,7 @@ time_t mqx_time(time_t* timer)
     if (timer != NULL)
         *timer = (time_t)time_s.SECONDS;
 
-    return (time_t)time_s.SECONDS;
+    return (WC_TIME_T)time_s.SECONDS;
 }
 
 #endif /* FREESCALE_MQX || FREESCALE_KSDK_MQX */
@@ -5106,11 +5107,11 @@ time_t mqx_time(time_t* timer)
 
 #if defined(WOLFSSL_TIRTOS) && defined(USER_TIME)
 
-time_t XTIME(time_t * timer)
+WC_TIME_T XTIME(WC_TIME_T * timer)
 {
-    time_t sec = 0;
+    WC_TIME_T sec = 0;
 
-    sec = (time_t) Seconds_get();
+    sec = (WC_TIME_T) Seconds_get();
 
     if (timer != NULL)
         *timer = sec;
@@ -5123,16 +5124,16 @@ time_t XTIME(time_t * timer)
 #if defined(WOLFSSL_XILINX)
 #include "xrtcpsu.h"
 
-time_t xilinx_time(time_t * timer)
+WC_TIME_T xilinx_time(WC_TIME_T * timer)
 {
-    time_t sec = 0;
+    WC_TIME_T sec = 0;
     XRtcPsu_Config* con;
     XRtcPsu         rtc;
 
     con = XRtcPsu_LookupConfig(XPAR_XRTCPSU_0_DEVICE_ID);
     if (con != NULL) {
         if (XRtcPsu_CfgInitialize(&rtc, con, con->BaseAddr) == XST_SUCCESS) {
-            sec = (time_t)XRtcPsu_GetCurrentTime(&rtc);
+            sec = (WC_TIME_T)XRtcPsu_GetCurrentTime(&rtc);
         }
         else {
             WOLFSSL_MSG("Unable to initialize RTC");
@@ -5149,7 +5150,7 @@ time_t xilinx_time(time_t * timer)
 
 #if defined(WOLFSSL_ZEPHYR)
 
-time_t z_time(time_t * timer)
+WC_TIME_T z_time(WC_TIME_T * timer)
 {
     #if defined(CONFIG_BOARD_NATIVE_POSIX) || defined(CONFIG_BOARD_NATIVE_SIM)
 
@@ -5182,7 +5183,7 @@ time_t z_time(time_t * timer)
         int ret = rtc_get_time(rtc, &rtc_time);
 
         if (ret == 0) {
-            time_t epochTime = mktime(tm_time);
+            WC_TIME_T epochTime = mktime(tm_time);
 
             if (timer != NULL)
                 *timer = epochTime;
@@ -5215,9 +5216,9 @@ time_t z_time(time_t * timer)
         #error Please define WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME at build time.
     #endif /* WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME */
 
-time_t wiced_pseudo_unix_epoch_time(time_t * timer)
+WC_TIME_T wiced_pseudo_unix_epoch_time(WC_TIME_T * timer)
 {
-    time_t epoch_time;
+    WC_TIME_T epoch_time;
     /* The time() function return uptime on WICED platform. */
     epoch_time = time(NULL) + WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME;
 
@@ -5229,9 +5230,9 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
 #endif /* WOLFSSL_WICED */
 
 #ifdef WOLFSSL_TELIT_M2MB
-    time_t m2mb_xtime(time_t * timer)
+    WC_TIME_T m2mb_xtime(WC_TIME_T * timer)
     {
-        time_t myTime = 0;
+        WC_TIME_T myTime = 0;
         INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
         if (fd != -1) {
             M2MB_RTC_TIMEVAL_T timeval;
@@ -5245,7 +5246,7 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
         return myTime;
     }
     #ifdef WOLFSSL_TLS13
-    long long m2mb_xtime_ms(time_t * timer)
+    long long m2mb_xtime_ms(WC_TIME_T * timer)
     {
         long long myTime = 0;
         INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
@@ -5287,10 +5288,10 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
 
 #ifdef HAL_RTC_MODULE_ENABLED
 extern RTC_HandleTypeDef hrtc;
-time_t stm32_hal_time(time_t *t1)
+WC_TIME_T stm32_hal_time(WC_TIME_T *t1)
 {
     struct tm tm_time;
-    time_t ret;
+    WC_TIME_T ret;
     RTC_TimeTypeDef time;
     RTC_DateTypeDef date;
 

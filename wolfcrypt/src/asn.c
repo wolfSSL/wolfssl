@@ -16926,7 +16926,7 @@ int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
             format != ASN_GENERALIZED_TIME))
         return BAD_FUNC_ARG;
 
-    ts = (struct tm *)XGMTIME((time_t*)currTime, tmpTime);
+    ts = (struct tm *)XGMTIME((WC_TIME_T*)currTime, tmpTime);
     if (ValidateGmtime(ts)) {
         WOLFSSL_MSG("failed to get time data.");
         return ASN_TIME_E;
@@ -17036,9 +17036,9 @@ int wc_ValidateDate(const byte* date, byte format, int dateType, int len)
 }
 
 int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
-    time_t checkTime, int len)
+    WC_TIME_T checkTime, int len)
 {
-    time_t ltime;
+    WC_TIME_T ltime;
     struct tm  certTime;
     struct tm* localTime;
     struct tm* tmpTime;
@@ -17105,7 +17105,7 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
         return 0;
     }
 
-    ltime -= (time_t)timeDiff;
+    ltime -= (WC_TIME_T)timeDiff;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (ValidateGmtime(localTime)) {
@@ -17132,13 +17132,13 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
 
 int wc_GetTime(void* timePtr, word32 timeSize)
 {
-    time_t* ltime = (time_t*)timePtr;
+    WC_TIME_T* ltime = (WC_TIME_T*)timePtr;
 
     if (timePtr == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if ((word32)sizeof(time_t) > timeSize) {
+    if ((word32)sizeof(WC_TIME_T) > timeSize) {
         return BUFFER_E;
     }
 
@@ -17151,7 +17151,7 @@ int wc_GetTime(void* timePtr, word32 timeSize)
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
-    extern time_t XTIME(time_t* t);
+    extern WC_TIME_T XTIME(WC_TIME_T* t);
 #endif
 
 static wc_time_cb timeFunc = NULL;
@@ -17162,7 +17162,7 @@ int wc_SetTimeCb(wc_time_cb f)
     return 0;
 }
 
-time_t wc_Time(time_t* t)
+WC_TIME_T wc_Time(WC_TIME_T* t)
 {
     if (timeFunc != NULL) {
         return timeFunc(t);
@@ -29943,7 +29943,7 @@ static int SetValidityTimes(byte* before, word32* beforeSz, byte* after,
     word32* afterSz, int daysValid)
 {
     int ret = 0;
-    time_t now;
+    WC_TIME_T now;
     struct tm* ts = NULL;
     struct tm* tmpTime;
     struct tm nowTm;
@@ -29956,7 +29956,7 @@ static int SetValidityTimes(byte* before, word32* beforeSz, byte* after,
     (void)tmpTime;
 
     now = wc_Time(0);
-    if (now == (time_t)-1) {
+    if (now == (WC_TIME_T)-1) {
         WOLFSSL_MSG("Current time not available");
         return DATE_E;
     }

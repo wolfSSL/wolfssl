@@ -2426,7 +2426,7 @@ int test_wc_PKCS7_VerifySignedData_RSA(void)
     byte dateFormat;
     const byte* datePart = NULL;
     struct tm timearg;
-    time_t now;
+    WC_TIME_T now;
     struct tm* nowTm = NULL;
 #ifdef NEED_TMP_TIME
     struct tm tmpTimeStorage;
@@ -2516,7 +2516,7 @@ int test_wc_PKCS7_VerifySignedData_RSA(void)
 
     /* Get current time and compare year/month/day against attribute value */
     ExpectIntEQ(wc_GetTime(&now, sizeof(now)), 0);
-    nowTm = (struct tm*)XGMTIME((time_t*)&now, tmpTime);
+    nowTm = (struct tm*)XGMTIME((WC_TIME_T*)&now, tmpTime);
     ExpectNotNull(nowTm);
 
     ExpectIntEQ(timearg.tm_year, nowTm->tm_year);

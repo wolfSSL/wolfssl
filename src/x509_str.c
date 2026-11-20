@@ -478,7 +478,7 @@ static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
             }
             else if ((param->flags & WOLFSSL_USE_CHECK_TIME) != 0 &&
                 (param->check_time != 0)) {
-                time_t checkTime = param->check_time;
+                WC_TIME_T checkTime = param->check_time;
                 ret = WOLFSSL_SUCCESS; /* override date error and use custom set
                                         time for validating certificate dates */
                 WOLFSSL_MSG("Override date validation, WOLFSSL_USE_CHECK_TIME");
@@ -1541,7 +1541,7 @@ WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
 void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
                                     unsigned long flags,
-                                    time_t t)
+                                    WC_TIME_T t)
 {
     (void)flags;
 

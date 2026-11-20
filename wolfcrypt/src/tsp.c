@@ -721,7 +721,7 @@ int wc_TspTstInfo_SetGenTime(TspTstInfo* tstInfo, const byte* genTime,
  * @param [in] sec   Second of minute. 0-60.
  * @return  Seconds since 00:00:00 UTC, 1 January 1970.
  */
-static time_t TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
+static WC_TIME_T TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
     int sec)
 {
     /* Cumulative days before each month in a non-leap year. */
@@ -733,7 +733,7 @@ static time_t TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
     int leapDays = y / 4 - y / 100 + y / 400 -
                    (1969 / 4 - 1969 / 100 + 1969 / 400);
 
-    return (time_t)(((((time_t)(year - 1970) * 365 + leapDays +
+    return (WC_TIME_T)(((((WC_TIME_T)(year - 1970) * 365 + leapDays +
         monthDays[mon - 1] + day - 1) * 24 + hour) * 60 + min) * 60 + sec);
 }
 
@@ -751,7 +751,7 @@ static time_t TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
  * @return  BAD_FUNC_ARG when tstInfo, its genTime or t is NULL.
  * @return  ASN_PARSE_E when the genTime string is not valid.
  */
-int wc_TspTstInfo_GetGenTimeAsTime(const TspTstInfo* tstInfo, time_t* t)
+int wc_TspTstInfo_GetGenTimeAsTime(const TspTstInfo* tstInfo, WC_TIME_T* t)
 {
     int ret = 0;
     const byte* g;
@@ -802,7 +802,7 @@ int wc_TspTstInfo_GetGenTimeAsTime(const TspTstInfo* tstInfo, time_t* t)
  * @return  BUFFER_E when bufSz is too small for the GeneralizedTime string.
  * @return  ASN_TIME_E when the time could not be converted.
  */
-int wc_TspTstInfo_SetGenTimeAsTime(TspTstInfo* tstInfo, time_t t, byte* buf,
+int wc_TspTstInfo_SetGenTimeAsTime(TspTstInfo* tstInfo, WC_TIME_T t, byte* buf,
     word32 bufSz)
 {
     int ret = 0;
@@ -1119,8 +1119,8 @@ int wc_TspTstInfo_SetFromRequest(TspTstInfo* tstInfo, const TspRequest* req,
 int wc_TspTstInfo_CheckGenTime(const TspTstInfo* tstInfo, word32 tolerance)
 {
     int ret = 0;
-    time_t now;
-    time_t bound;
+    WC_TIME_T now;
+    WC_TIME_T bound;
     byte lo[ASN_GENERALIZED_TIME_SIZE];
     byte hi[ASN_GENERALIZED_TIME_SIZE];
 
@@ -1138,12 +1138,12 @@ int wc_TspTstInfo_CheckGenTime(const TspTstInfo* tstInfo, word32 tolerance)
     if (ret == 0) {
         /* Format the bounds of the acceptable period. */
         now = wc_Time(0);
-        bound = now - (time_t)tolerance;
+        bound = now - (WC_TIME_T)tolerance;
         if (GetFormattedTime_ex(&bound, lo, sizeof(lo),
                 ASN_GENERALIZED_TIME) <= 0) {
             ret = ASN_TIME_E;
         }
-        bound = now + (time_t)tolerance;
+        bound = now + (WC_TIME_T)tolerance;
         if ((ret == 0) && (GetFormattedTime_ex(&bound, hi, sizeof(hi),
                 ASN_GENERALIZED_TIME) <= 0)) {
             ret = ASN_TIME_E;

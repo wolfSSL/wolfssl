@@ -299,10 +299,10 @@ WOLFSSL_API int wc_TspTstInfo_SetGenTime(TspTstInfo* tstInfo,
 #ifndef NO_ASN_TIME
 #if defined(WOLFSSL_TSP_RESPONDER) || defined(WOLFSSL_TSP_VERIFIER)
 WOLFSSL_API int wc_TspTstInfo_GetGenTimeAsTime(const TspTstInfo* tstInfo,
-    time_t* t);
+    WC_TIME_T* t);
 #endif /* WOLFSSL_TSP_RESPONDER || WOLFSSL_TSP_VERIFIER */
 #ifdef WOLFSSL_TSP_RESPONDER
-WOLFSSL_API int wc_TspTstInfo_SetGenTimeAsTime(TspTstInfo* tstInfo, time_t t,
+WOLFSSL_API int wc_TspTstInfo_SetGenTimeAsTime(TspTstInfo* tstInfo, WC_TIME_T t,
     byte* buf, word32 bufSz);
 #endif /* WOLFSSL_TSP_RESPONDER */
 #endif /* !NO_ASN_TIME */

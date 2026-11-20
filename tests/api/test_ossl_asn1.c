@@ -2058,12 +2058,12 @@ int test_wolfSSL_ASN1_TIME_adj(void)
     int offset_day;
     long offset_sec;
     char date_str[CTC_DATE_SIZE + 1];
-    time_t t;
+    WC_TIME_T t;
 
     ExpectNotNull(s = wolfSSL_ASN1_TIME_new());
     /* UTC notation test */
     /* 2000/2/15 20:30:00 */
-    t = (time_t)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;
+    t = (WC_TIME_T)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;
     offset_day = 7;
     offset_sec = 45 * mini;
     /* offset_sec = -45 * min;*/
@@ -2107,7 +2107,7 @@ int test_wolfSSL_ASN1_TIME_adj(void)
                                     DYNAMIC_TYPE_OPENSSL);
     /* GeneralizedTime notation test */
     /* 2055/03/01 09:00:00 */
-    t = (time_t)85 * year + 59 * day + 9 * hour + 21 * day;
+    t = (WC_TIME_T)85 * year + 59 * day + 9 * hour + 21 * day;
         offset_day = 12;
         offset_sec = 10 * mini;
     ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day,
@@ -2132,7 +2132,7 @@ int test_wolfSSL_ASN1_TIME_adj(void)
     /* if WOLFSSL_ASN1_TIME struct is not allocated */
     s = NULL;
 
-    t = (time_t)30 * year + 45 * day + 20 * hour + 30 * mini + 15 + 7 * day;
+    t = (WC_TIME_T)30 * year + 45 * day + 20 * hour + 30 * mini + 15 + 7 * day;
     offset_day = 7;
     offset_sec = 45 * mini;
     ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day,
@@ -2169,7 +2169,7 @@ int test_wolfSSL_ASN1_TIME_to_tm(void)
       defined(OPENSSL_ALL)) && !defined(NO_ASN_TIME)
     ASN1_TIME asnTime;
     struct tm tm;
-    time_t testTime = 1683926567; /* Fri May 12 09:22:47 PM UTC 2023 */
+    WC_TIME_T testTime = 1683926567; /* Fri May 12 09:22:47 PM UTC 2023 */
 
     XMEMSET(&tm, 0, sizeof(struct tm));
 
