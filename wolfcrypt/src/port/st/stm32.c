@@ -248,6 +248,12 @@ static void Stm32Pka_EnsureInit(void)
     }
 #endif
     if (needInit) {
+#ifdef PKA_SR_INITOK
+        /* INITOK needs the RNG clock. Set EN first: Zephyr's entropy driver
+         * stops gating the RNG clock once the PKA is enabled. */
+        hpka.Instance->CR = PKA_CR_EN;
+        __HAL_RCC_RNG_CLK_ENABLE();
+#endif
         (void)HAL_PKA_Init(&hpka);
     }
 }
@@ -531,6 +537,8 @@ static HAL_StatusTypeDef HAL_PKA_Init(PKA_HandleTypeDef *hpkah)
      * shared with the SAES self-init path. */
 #ifdef WC_STM32_HAS_RNG_READY
     (void)wc_stm32_rng_ensure_ready();
+#elif defined(WC_STM32_RNG_CLK_ENABLE)
+    WC_STM32_RNG_CLK_ENABLE();
 #endif
     t = 0;
     while ((hpkah->Instance->SR & PKA_SR_INITOK) == 0U) {
