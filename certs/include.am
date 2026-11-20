@@ -75,6 +75,7 @@ EXTRA_DIST += \
              certs/test-servercert.p12 \
              certs/test-servercert-rc2.p12 \
              certs/ecc-rsa-server.p12 \
+             certs/ecc-rsa-server-ber.p12 \
              certs/dsaparams.der \
              certs/dsaparams.pem \
              certs/ecc-privOnlyKey.pem \

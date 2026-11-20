@@ -196,9 +196,7 @@ int test_wolfSSL_d2i_X509_fp_bio_concatenated(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
-    (defined(HAVE_CRL) || defined(WOLFSSL_CERT_REQ) || \
-     (!defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)))
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
 static long test_file_sz(const char* fname)
 {
     long sz = -1;
@@ -221,6 +219,29 @@ int test_wolfSSL_d2i_fp_concatenated(void)
     long sz1 = 0;
     long sz2 = 0;
 
+    {
+        /* Bad headers are rejected without moving the file position. */
+        ExpectIntGT(sz1 = test_file_sz("./certs/server-cert.der"), 0);
+        ExpectTrue((f = XFOPEN("./certs/server-cert.der", "rb")) != XBADFILE);
+        ExpectIntEQ(XFSEEK(f, 1, XSEEK_SET), 0);
+        ExpectNull(d2i_X509_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), 1);
+        ExpectIntEQ(XFSEEK(f, sz1 - 1, XSEEK_SET), 0);
+        ExpectNull(d2i_X509_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1 - 1);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+        ExpectTrue((f = XFOPEN("./certs/ecc-rsa-server-ber.p12", "rb")) !=
+            XBADFILE);
+        ExpectNull(d2i_X509_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), 0);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
 #ifdef HAVE_CRL
     {
         X509_CRL* crl = NULL;
@@ -278,7 +299,20 @@ int test_wolfSSL_d2i_fp_concatenated(void)
         ExpectNotNull(p12 = wolfSSL_d2i_PKCS12_fp(f, NULL));
         ExpectIntEQ((long)XFTELL(f), sz1);
         wc_PKCS12_free(p12);
+        p12 = NULL;
         ExpectNull(wolfSSL_d2i_PKCS12_fp(f, NULL));
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+
+        /* Indefinite length: the rest of the file is read. */
+        ExpectIntGT(sz1 = test_file_sz("./certs/ecc-rsa-server-ber.p12"), 0);
+        ExpectTrue((f = XFOPEN("./certs/ecc-rsa-server-ber.p12", "rb")) !=
+            XBADFILE);
+        ExpectNotNull(p12 = wolfSSL_d2i_PKCS12_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        wc_PKCS12_free(p12);
         if (f != XBADFILE) {
             XFCLOSE(f);
             f = XBADFILE;
