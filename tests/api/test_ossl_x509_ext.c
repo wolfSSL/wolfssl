@@ -268,9 +268,7 @@ static int test_X509_add_basic_constraints(WOLFSSL_X509* x509)
         obj->type = NID_basic_constraints;
     }
     ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
-    if (pathLen != NULL) {
-        pathLen->length = 2;
-    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(pathLen, 2), 1);
     if (obj != NULL) {
         obj->ca = 0;
     }
@@ -1328,16 +1326,14 @@ int test_wolfSSL_X509V3_EXT_bc(void)
      * end-entity certificates). It must be preserved, not conflated with an
      * absent constraint. */
     ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
-    if (pathLen != NULL) {
-        pathLen->length = 0;
-    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(pathLen, 0), 1);
     if ((ext != NULL) && (ext->obj != NULL)) {
         ext->obj->pathlen = pathLen;
         pathLen = NULL;
     }
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 0);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 0);
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     bc = NULL;
 
@@ -1347,16 +1343,14 @@ int test_wolfSSL_X509V3_EXT_bc(void)
         ext->obj->pathlen = NULL;
     }
     ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
-    if (pathLen != NULL) {
-        pathLen->length = 2;
-    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(pathLen, 2), 1);
     if ((ext != NULL) && (ext->obj != NULL)) {
         ext->obj->pathlen = pathLen;
         pathLen = NULL;
     }
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 2);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 2);
 
     wolfSSL_ASN1_INTEGER_free(pathLen);
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
@@ -1403,7 +1397,13 @@ int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509_get_ext_d2i(
         x509, NID_basic_constraints, &crit, NULL));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 1);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 1);
+    /* Value bytes only, as in OpenSSL. */
+    if (bc != NULL && bc->pathlen != NULL) {
+        ExpectIntEQ(bc->pathlen->type, WOLFSSL_V_ASN1_INTEGER);
+        ExpectIntEQ(bc->pathlen->length, 1);
+        ExpectIntEQ(bc->pathlen->data[0], 0x01);
+    }
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     bc = NULL;
     wolfSSL_X509_free(x509);
@@ -1423,7 +1423,12 @@ int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509_get_ext_d2i(
         x509, NID_basic_constraints, &crit, NULL));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 0);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 0);
+    /* Zero is the single byte 0x00. */
+    if (bc != NULL && bc->pathlen != NULL) {
+        ExpectIntEQ(bc->pathlen->length, 1);
+        ExpectIntEQ(bc->pathlen->data[0], 0x00);
+    }
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     bc = NULL;
     wolfSSL_X509_free(x509);

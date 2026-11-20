@@ -385,19 +385,20 @@ typedef struct EncryptedInfo {
 
 
 #define WOLFSSL_ASN1_INTEGER_MAX 20
+/* Stored as OpenSSL does: data is the big-endian magnitude, with no tag, length
+ * or pad byte. Zero is the single byte 0x00. The sign is in type. */
 typedef struct WOLFSSL_ASN1_INTEGER {
-    /* size can be increased set at 20 for tag, length then to hold at least 16
-     * byte type */
+    /* Fixed buffer for values up to 20 bytes, such as any X.509 serial. */
     unsigned char  intData[WOLFSSL_ASN1_INTEGER_MAX];
-    /* ASN_INTEGER | LENGTH | hex of number */
-    unsigned char  negative;   /* negative number flag */
+    /* Set to match type when wolfSSL writes the value. Never read. */
+    unsigned char  negative;
 
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
     WC_BITFIELD    isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 
-    int length;   /* Length of DER encoding. */
-    int type;     /* ASN.1 type. Includes negative flag. */
+    int length;   /* Number of bytes in data. */
+    int type;     /* V_ASN1_INTEGER or V_ASN1_NEG_INTEGER. */
 } WOLFSSL_ASN1_INTEGER;
 
 
