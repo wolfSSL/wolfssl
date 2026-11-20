@@ -2548,7 +2548,7 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
         /* Accumulate line into v and double point. */
         err = sakke_accumulate_line_dbl(v, c, q, prime, mp, t2, t);
         if (err == 0) {
-            err = ecc_projective_dbl_point(c, c, NULL, prime, mp);
+            err = ecc_projective_dbl_point(c, c, &params->a, prime, mp);
         }
 
         if ((err == 0) && (i > 0) && mp_is_bit_set(&params->q, i)) {
@@ -2556,7 +2556,8 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
             err = sakke_accumulate_line_add_one(v, prime, mp, p, q, c, t2,
                     &key->tmp.m1);
             if (err == 0) {
-                err = ecc_projective_add_point(p, c, c, NULL, prime, mp);
+                err = ecc_projective_add_point(p, c, c, &params->a, prime,
+                        mp);
             }
         }
 #else
@@ -2814,53 +2815,8 @@ static int sakke_modexp(const SakkeKey* key, const mp_int* b, mp_int* e,
     return err;
 }
 #else
-#ifdef WOLFSSL_SAKKE_SMALL
-/*
- * Modular exponentiate the value in F_p*.
- *
- * @param  [in]   key  SAKKE key.
- * @param  [in]   b    MP integer that is the base to exponentiate.
- * @param  [in]   e    MP integer that is the exponent.
- * @param  [out]  c    Result of exponentiation.
- * @param  [in]   mp   Multiplier to use when converting from Montgomery form.
- * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
- * @return  Other -ve value on internal failure.
- */
-static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* c,
-        mp_digit mp)
-{
-    int err;
-    mp_int* t1 = &key->tmp.m1;
-    mp_int* t2 = &key->tmp.m2;
-    mp_int* by = key->tmp.p1->z;
-    mp_int* prime = &key->params.prime;
-    int i;
-
-    /* Set the working value to the base in PF_p[q] */
-    err = mp_montgomery_calc_normalization(c->x, prime);
-    /* Set c->y as montgomery form of b - base */
-    if (err == 0) {
-        err = mp_mulmod(b, c->x, prime, by);
-    }
-    /* Set by as montgomery form of b - base */
-    if (err == 0) {
-        err = mp_copy(by, c->y);
-    }
-    /* Simple non-constant time exponentiation over a field. */
-    for (i = mp_count_bits(e) - 2; (err == 0) && (i >= 0); i--) {
-        err = sakke_proj_sqr(c, prime, mp, c, t1, t2);
-        if (err == 0) {
-            if (mp_is_bit_set(e, i)) {
-                err = sakke_proj_mul_qx1(c, by, prime, mp, c, t1, t2);
-            }
-        }
-    }
-
-    return err;
-}
-
-#elif defined(WOLFSSL_SAKKE_SMALL_MODEXP) || !defined(USE_FAST_MATH)
+#if defined(WOLFSSL_SAKKE_SMALL) || defined(WOLFSSL_SAKKE_SMALL_MODEXP) || \
+    !defined(USE_FAST_MATH)
 
 /* The cache-resistant SAKKE modexp ladder selects the working point from c[0]
  * or c[1] on each exponent bit. By default this is done with mp_cond_copy(),
@@ -6382,7 +6338,7 @@ static int sakke_modexp_loop(SakkeKey* key, const mp_int* b, mp_int* e,
     WC_FREE_VAR_EX(eb, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
 }
-#endif /* WOLFSSL_SAKKE_SMALL */
+#endif /* WOLFSSL_SAKKE_SMALL || WOLFSSL_SAKKE_SMALL_MODEXP || !USE_FAST_MATH */
 
 /*
  * Modular exponentiate the value in F_p*.

@@ -602,6 +602,28 @@ int test_wc_curve25519_make_pub(void)
     return EXPECT_RESULT();
 } /* END test_wc_curve25519_make_pub */
 
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+/* RFC 7748 sec 5.2 vector 2, scalar clamped as in sec 5 (little endian). */
+static const byte x25519_k2[CURVE25519_KEYSIZE] = {
+    0x48, 0x66, 0xe9, 0xd4, 0xd1, 0xb4, 0x67, 0x3c,
+    0x5a, 0xd2, 0x26, 0x91, 0x95, 0x7d, 0x6a, 0xf5,
+    0xc1, 0x1b, 0x64, 0x21, 0xe0, 0xea, 0x01, 0xd4,
+    0x2c, 0xa4, 0x16, 0x9e, 0x79, 0x18, 0xba, 0x4d
+};
+static const byte x25519_u2[CURVE25519_KEYSIZE] = {
+    0xe5, 0x21, 0x0f, 0x12, 0x78, 0x68, 0x11, 0xd3,
+    0xf4, 0xb7, 0x95, 0x9d, 0x05, 0x38, 0xae, 0x2c,
+    0x31, 0xdb, 0xe7, 0x10, 0x6f, 0xc0, 0x3c, 0x3e,
+    0xfc, 0x4c, 0xd5, 0x49, 0xc7, 0x15, 0xa4, 0x93
+};
+static const byte x25519_r2[CURVE25519_KEYSIZE] = {
+    0x95, 0xcb, 0xde, 0x94, 0x76, 0xe8, 0x90, 0x7d,
+    0x7a, 0xad, 0xe4, 0x5c, 0xb4, 0xb8, 0x73, 0xf8,
+    0x8b, 0x59, 0x5a, 0x68, 0x79, 0x9f, 0xa1, 0x52,
+    0xe6, 0xf8, 0xf7, 0x64, 0x7a, 0xac, 0x79, 0x57
+};
+#endif
+
 /*
  * Positive cross-check of the make_pub, generic and keygen paths (and the
  * crypto-callback dispatch for each under WOLF_CRYPTO_CB_ONLY_CURVE25519):
@@ -657,6 +679,16 @@ int test_wc_curve25519_make_pub_generic(void)
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&keyB, &keyA, ssBA, &ssBALen,
         EC25519_LITTLE_ENDIAN), 0);
     ExpectBufEQ(ssBA, ssAB, CURVE25519_KEYSIZE);
+
+    /* RFC 7748 sec 5.2 vector 2: bit 255 of u is set and must be masked. */
+    {
+        byte out2[CURVE25519_KEYSIZE];
+
+        ExpectIntEQ(wc_curve25519_generic((int)sizeof(out2), out2,
+            (int)sizeof(x25519_k2), x25519_k2, (int)sizeof(x25519_u2),
+            x25519_u2), 0);
+        ExpectBufEQ(out2, x25519_r2, sizeof(x25519_r2));
+    }
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_curve25519_free(&keyA);
@@ -1422,6 +1454,38 @@ int test_wc_curve25519_nonblock(void)
         ExpectIntEQ(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
 
         wc_curve25519_free(&zero_key);
+    }
+#endif
+
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT) && !defined(WOLFSSL_X25519_NO_MASK_PEER)
+    /* RFC 7748 sec 5.2 vector 2 through the nb shared secret: bit 255 of the
+     * peer u is masked. */
+    {
+        curve25519_key  k2_key;
+        curve25519_key  u2_key;
+        x25519_nb_ctx_t ctx3;
+
+        ExpectIntEQ(wc_curve25519_init(&k2_key), 0);
+        ExpectIntEQ(wc_curve25519_init(&u2_key), 0);
+        ExpectIntEQ(wc_curve25519_import_private_ex(x25519_k2,
+            sizeof(x25519_k2), &k2_key, EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(wc_curve25519_import_public_ex(x25519_u2,
+            sizeof(x25519_u2), &u2_key, EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(wc_curve25519_set_nonblock(&k2_key, &ctx3), 0);
+
+        outLen = sizeof(out);
+        iters = 0;
+        do {
+            ret = wc_curve25519_shared_secret_ex(&k2_key, &u2_key, out,
+                &outLen, EC25519_LITTLE_ENDIAN);
+            iters++;
+        } while ((ret == FP_WOULDBLOCK) && (iters < 100000));
+        ExpectIntEQ(ret, 0);
+        ExpectBufEQ(out, x25519_r2, sizeof(x25519_r2));
+
+        wc_curve25519_free(&u2_key);
+        wc_curve25519_free(&k2_key);
     }
 #endif
 

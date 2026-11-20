@@ -1743,6 +1743,88 @@ int test_wc_ecc_import_compressed_sqrt(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_import_compressed_sqrt */
 
+/* Custom curves with p = 1 mod 8: a prime whose least non-residue is 23
+ * decompresses, and a perfect-square modulus is refused. */
+int test_wc_ecc_import_compressed_custom(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_COMP_KEY) && \
+    defined(WOLFSSL_CUSTOM_CURVES) && !defined(SQRTMOD_USE_MOD_EXP) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_NO_ECC_SW) && (MAX_ECC_BYTES >= 32) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+#ifdef WOLFSSL_ECC_CURVE_STATIC
+    #define TEST_ECC_NO_OID {0}
+#else
+    #define TEST_ECC_NO_OID NULL
+#endif
+    /* y^2 = x^3 - x over a 256-bit prime whose least quadratic non-residue
+     * is 23; the order is the group order, so validated import passes. */
+    static const ecc_set_type lnr23 = {
+        32, ECC_CURVE_CUSTOM, "LNR23",
+        "931CE83420946C77FB67C035C250A3D727269D1E42014F758464DCCF95DEFD31",
+        "931CE83420946C77FB67C035C250A3D727269D1E42014F758464DCCF95DEFD30",
+        "0",
+        "931CE83420946C77FB67C035C250A3D8A057B88F434FFAF9D598ABF639657C40",
+        "4E034F15CCF7EAEF092AE2A3B064C32B3249EADC7BD0B1492CFE0B60C1D128DD",
+        "05E651506201A64E692AB516D01BD64B64D78B72FEC5F68A663AAE55D464E866",
+        TEST_ECC_NO_OID, 0, 0, 1
+    };
+    static const byte lnr23G[] = {
+        0x02,
+        0x4e, 0x03, 0x4f, 0x15, 0xcc, 0xf7, 0xea, 0xef, 0x09, 0x2a, 0xe2,
+        0xa3, 0xb0, 0x64, 0xc3, 0x2b, 0x32, 0x49, 0xea, 0xdc, 0x7b, 0xd0,
+        0xb1, 0x49, 0x2c, 0xfe, 0x0b, 0x60, 0xc1, 0xd1, 0x28, 0xdd
+    };
+    static const byte lnr23Gy[] = {
+        0x05, 0xe6, 0x51, 0x50, 0x62, 0x01, 0xa6, 0x4e, 0x69, 0x2a, 0xb5,
+        0x16, 0xd0, 0x1b, 0xd6, 0x4b, 0x64, 0xd7, 0x8b, 0x72, 0xfe, 0xc5,
+        0xf6, 0x8a, 0x66, 0x3a, 0xae, 0x55, 0xd4, 0x64, 0xe8, 0x66
+    };
+    /* y^2 = x^3 - 3x + b over n = q^2 for a 128-bit prime q. */
+    static const ecc_set_type square = {
+        32, ECC_CURVE_CUSTOM, "SQUARE",
+        "8236F50CFBFFB0314218733852BA59173C6961B7456BD24D58D1671119CBDB01",
+        "8236F50CFBFFB0314218733852BA59173C6961B7456BD24D58D1671119CBDAFE",
+        "6D643E27217AFFEE9CF0477602C6783747F27F76AC8BC87580B4DAF8FC970B48",
+        "8236F50CFBFFB0314218733852BA59173C6961B7456BD24D58D1671119CBDB01",
+        "17A8FCBC0FCCE79C67D8E6FC43B92C454136CE93F92B3EA2A9E84DA9E757F3B7",
+        "17A8FCBC0FCCE79C67D8E6FC43B92C454136CE93F92B3EA2A9E84DA9E757F3B7",
+        TEST_ECC_NO_OID, 0, 0, 1
+    };
+    static const byte squareG[] = {
+        0x02,
+        0x17, 0xa8, 0xfc, 0xbc, 0x0f, 0xcc, 0xe7, 0x9c, 0x67, 0xd8, 0xe6,
+        0xfc, 0x43, 0xb9, 0x2c, 0x45, 0x41, 0x36, 0xce, 0x93, 0xf9, 0x2b,
+        0x3e, 0xa2, 0xa9, 0xe8, 0x4d, 0xa9, 0xe7, 0x57, 0xf3, 0xb7
+    };
+    ecc_key key;
+    byte out[ECC_ASN963_MAX_BUF_SZ];
+    word32 outLen;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_set_custom_curve(&key, &lnr23), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(lnr23G, (word32)sizeof(lnr23G), &key,
+        ECC_CURVE_CUSTOM), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_export_x963(&key, out, &outLen), 0);
+    ExpectIntEQ(outLen, 1 + 2 * (word32)sizeof(lnr23Gy));
+    ExpectBufEQ(out + 1 + sizeof(lnr23Gy), lnr23Gy, sizeof(lnr23Gy));
+    wc_ecc_free(&key);
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_set_custom_curve(&key, &square), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(squareG, (word32)sizeof(squareG), &key,
+        ECC_CURVE_CUSTOM), WC_NO_ERR_TRACE(MP_VAL));
+    wc_ecc_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_import_compressed_custom */
+
 /*
  * testing wc_ecc_import_x963() rejects an off-curve public point.
  *
@@ -4732,6 +4814,94 @@ int test_wc_ecc_mulmod_negative(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_mulmod_negative */
+
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(WOLFSSL_PUBLIC_ECC_ADD_DBL) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256)) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(FREESCALE_LTC_ECC) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+#define TEST_ECC_MAP_CURVES
+
+/* ecc_map() of an unmapped k*G must equal the mapped k*G on curve id. */
+static int test_ecc_map_curve(int id)
+{
+    EXPECT_DECLS;
+    const ecc_set_type* dp = NULL;
+    ecc_point* g = NULL;
+    ecc_point* r1 = NULL;
+    ecc_point* r2 = NULL;
+    mp_int     k;
+    mp_int     a;
+    mp_int     prime;
+    mp_digit   mp = 0;
+
+    XMEMSET(&k, 0, sizeof(mp_int));
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(&prime, 0, sizeof(mp_int));
+    ExpectNotNull(dp = wc_ecc_get_curve_params(wc_ecc_get_curve_idx(id)));
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(r1 = wc_ecc_new_point());
+    ExpectNotNull(r2 = wc_ecc_new_point());
+    ExpectIntEQ(mp_init_multi(&k, &a, &prime, NULL, NULL, NULL), 0);
+    ExpectIntEQ(mp_read_radix(&k, "1234567890ABCDEF1234567890ABCDEF",
+        MP_RADIX_HEX), 0);
+    if ((dp != NULL) && (g != NULL)) {
+        ExpectIntEQ(mp_read_radix(&a, dp->Af, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_read_radix(&prime, dp->prime, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_read_radix(g->x, dp->Gx, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_read_radix(g->y, dp->Gy, MP_RADIX_HEX), 0);
+        ExpectIntEQ(mp_set(g->z, 1), 0);
+    }
+
+    ExpectIntEQ(wc_ecc_mulmod_ex(&k, g, r1, &a, &prime, 0, NULL), 0);
+#ifndef WOLFSSL_SP_MATH
+    /* SP math ecc_map() does not use mp. */
+    ExpectIntEQ(mp_montgomery_setup(&prime, &mp), 0);
+#endif
+    if (r1 != NULL) {
+        ExpectIntEQ(ecc_map(r1, &prime, mp), 0);
+    }
+    ExpectIntEQ(wc_ecc_mulmod_ex(&k, g, r2, &a, &prime, 1, NULL), 0);
+    if ((r1 != NULL) && (r2 != NULL)) {
+        ExpectIntEQ(mp_cmp(r1->x, r2->x), MP_EQ);
+        ExpectIntEQ(mp_cmp(r1->y, r2->y), MP_EQ);
+        ExpectIntEQ(mp_cmp_d(r1->z, 1), MP_EQ);
+    }
+
+    mp_clear(&k);
+    mp_clear(&a);
+    mp_clear(&prime);
+    wc_ecc_del_point(r2);
+    wc_ecc_del_point(r1);
+    wc_ecc_del_point(g);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Testing that ecc_map() maps a point on every curve size the build has. */
+int test_wc_ecc_map_curves(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_MAP_CURVES
+    ExpectIntEQ(test_ecc_map_curve(ECC_SECP256R1), TEST_SUCCESS);
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 384 && \
+    (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
+    ExpectIntEQ(test_ecc_map_curve(ECC_SECP384R1), TEST_SUCCESS);
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 521 && \
+    (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521))
+    ExpectIntEQ(test_ecc_map_curve(ECC_SECP521R1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_map_curves */
 
 /*
  * Testing that wc_ecc_mulmod() of the private key and the base point gives

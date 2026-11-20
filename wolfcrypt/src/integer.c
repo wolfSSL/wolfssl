@@ -4875,7 +4875,10 @@ int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
 
 #endif /* WOLFSSL_KEY_GEN || HAVE_COMP_KEY || HAVE_ECC || DEBUG_WOLFSSL */
 
-#if (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || !defined(NO_DH) || !defined(NO_DSA)
+#if (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || !defined(NO_DH) || \
+    !defined(NO_DSA) || \
+    (defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+     defined(HAVE_COMP_KEY))
 
 const FLASH_QUALIFIER mp_digit ltm_prime_tab[PRIME_SIZE] = {
   0x0002, 0x0003, 0x0005, 0x0007, 0x000B, 0x000D, 0x0011, 0x0013,
@@ -5226,7 +5229,7 @@ LBL_B:mp_clear (&b);
   return err;
 }
 
-#endif /* (WOLFSSL_KEY_GEN && !NO_RSA) || !NO_DH || !NO_DSA */
+#endif /* (WOLFSSL_KEY_GEN && !NO_RSA) || !NO_DH || !NO_DSA || custom curves */
 
 #if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA))
 
