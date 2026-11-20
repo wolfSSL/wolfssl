@@ -3829,9 +3829,7 @@ int test_ParseCert_unknownExtCallback32(void)
         for (i = 0; i < XELEM_CNT(oid2); i++) {
             ExpectIntEQ((int)unkExt32NoCtx.rec[1].oid[i], (int)oid2[i]);
         }
-        /* The criticality argument carries the DER BOOLEAN byte (0xFF), not
-         * a normalised 1. */
-        ExpectIntNE(unkExt32NoCtx.rec[1].crit, 0);
+        ExpectIntEQ(unkExt32NoCtx.rec[1].crit, 1);
         ExpectIntEQ((int)unkExt32NoCtx.rec[1].derSz, (int)sizeof(val2));
         ExpectBufEQ(unkExt32NoCtx.rec[1].der, val2, sizeof(val2));
     }
@@ -3853,7 +3851,7 @@ int test_ParseCert_unknownExtCallback32(void)
         for (i = 0; i < XELEM_CNT(oid2); i++) {
             ExpectIntEQ((int)exCtx.rec[1].oid[i], (int)oid2[i]);
         }
-        ExpectIntNE(exCtx.rec[1].crit, 0);
+        ExpectIntEQ(exCtx.rec[1].crit, 1);
         ExpectBufEQ(exCtx.rec[1].der, val2, sizeof(val2));
     }
     wc_FreeDecodedCert(&cert);

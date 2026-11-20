@@ -24149,7 +24149,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
         /* Ensure OID is an extension type. */
         GetASN_OID(&dataASN[CERTEXTASN_IDX_OID], oidCertExtType);
         /* Set criticality variable. */
-        GetASN_Int8Bit(&dataASN[CERTEXTASN_IDX_CRIT], &critical);
+        GetASN_Boolean(&dataASN[CERTEXTASN_IDX_CRIT], &critical);
         /* Parse extension wrapper. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, input,
                            &idx, (word32)sz);
@@ -25534,7 +25534,7 @@ static int GetAKIHash(const byte* input, word32 maxIdx, word32 sigOID,
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
         GetASN_OID(&dataASN[CERTEXTASN_IDX_OID], oidCertExtType);
         /* Set criticality variable. */
-        GetASN_Int8Bit(&dataASN[CERTEXTASN_IDX_CRIT], &critical);
+        GetASN_Boolean(&dataASN[CERTEXTASN_IDX_CRIT], &critical);
         /* Parse an extension. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, input,
                 &idx, extEndIdx);
@@ -40086,7 +40086,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
         /* Ensure OID is an extension type. */
         GetASN_OID(&dataASN[CERTEXTASN_IDX_OID], oidCertExtType);
         /* Set criticality variable. */
-        GetASN_Int8Bit(&dataASN[CERTEXTASN_IDX_CRIT], &critical);
+        GetASN_Boolean(&dataASN[CERTEXTASN_IDX_CRIT], &critical);
         /* Parse extension wrapper. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, buf, &idx,
                 maxIdx);
