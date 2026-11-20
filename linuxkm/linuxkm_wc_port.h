@@ -1176,6 +1176,9 @@
         #ifndef NO_SKID
             struct Signer *GetCAByName(struct WOLFSSL_CERT_MANAGER *cm,
                                        unsigned char *hash);
+            struct Signer *GetCAByNameSkip(struct WOLFSSL_CERT_MANAGER *cm,
+                                           unsigned char *hash,
+                                           const struct Signer *skip);
             #ifdef HAVE_OCSP
                 struct Signer* GetCAByKeyHash(struct WOLFSSL_CERT_MANAGER *cm,
                                               const unsigned char* keyHash);
@@ -1551,6 +1554,7 @@
         typeof(GetCA) *GetCA;
         #ifndef NO_SKID
         typeof(GetCAByName) *GetCAByName;
+        typeof(GetCAByNameSkip) *GetCAByNameSkip;
         #ifdef HAVE_OCSP
         typeof(GetCAByKeyHash) *GetCAByKeyHash;
         #endif /* HAVE_OCSP */
@@ -1847,6 +1851,7 @@
         #define GetCA WC_PIE_INDIRECT_SYM(GetCA)
         #ifndef NO_SKID
             #define GetCAByName WC_PIE_INDIRECT_SYM(GetCAByName)
+            #define GetCAByNameSkip WC_PIE_INDIRECT_SYM(GetCAByNameSkip)
             #ifdef HAVE_OCSP
                 #define GetCAByKeyHash WC_PIE_INDIRECT_SYM(GetCAByKeyHash)
             #endif /* HAVE_OCSP */
