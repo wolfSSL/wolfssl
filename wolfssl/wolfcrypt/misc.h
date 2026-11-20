@@ -82,6 +82,9 @@ WOLFSSL_LOCAL
 int ConstantCompare(const byte* a, const byte* b, int length);
 
 WOLFSSL_LOCAL
+word32 ctHide32(word32 v);
+
+WOLFSSL_LOCAL
 word16 readUnalignedWord16(const byte *in);
 WOLFSSL_LOCAL
 word16 writeUnalignedWord16(void *out, word16 in);

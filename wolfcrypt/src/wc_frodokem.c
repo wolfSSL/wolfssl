@@ -1323,8 +1323,11 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         }
 
         kPrime = seedSEk + 1 + p->lenSE;
-        /* isEq is 1 when diff == 0, else 0. */
-        isEq = (word32)(((word32)diff - 1) >> 31);
+        /* isEq is 1 when diff == 0, else 0.  Barriers keep this from becoming
+         * a branch on ciphertext validity: the input hides diff's 16-bit
+         * range, the output hides that isEq is 0/1 so the mask select below
+         * stays arithmetic. */
+        isEq = ctHide32((ctHide32((word32)diff) - 1U) >> 31);
         mask = (byte)(0 - isEq);
 
         /* kHat = k' if ciphertext valid, else s (implicit rejection). Selected

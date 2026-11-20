@@ -87,6 +87,11 @@ This library contains implementation for the random number generator.
  * WC_RNG_SEED_APT_CUTOFF:  Adaptive proportion test cutoff      default: auto
  * WC_RNG_SEED_APT_WINDOW:  Adaptive proportion test window size  default: auto
  * WC_RNG_SEED_RCT_CUTOFF:  Repetition count test cutoff         default: auto
+ * WC_RNG_SEED_CT_BARRIER:  Optimization barriers in the tests    default: auto
+ *                            On for targets with no conditional select
+ *                            (Thumb-1, RISC-V without Zicond, MSP430, AVR),
+ *                            where the compiler otherwise branches on seed
+ *                            bytes.  Define to force on for other targets.
  *
  * Hardware RNG:
  * STM32_RNG:                STM32 hardware RNG                   default: off
@@ -3094,6 +3099,11 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 #if WC_RNG_SEED_APT_WINDOW < 1
     #error WC_RNG_SEED_APT_WINDOW must be at least 1
 #endif
+/* Per-window counts (votes, matches) stay below 2^31, which the
+ * constant-time helpers in wc_RNG_TestSeed() rely on. */
+#if WC_RNG_SEED_APT_WINDOW > 0x7fffffff
+    #error WC_RNG_SEED_APT_WINDOW must be below 2^31
+#endif
 #ifndef WC_RNG_SEED_APT_CUTOFF
     /* No caller-supplied cutoff: take one per window size from the table. */
     #define WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
@@ -3207,6 +3217,65 @@ static const byte aptAllCutoffDelta[512] = {
     #define WC_RNG_SEED_APT_ALL_CUTOFF_FOR(w) ((word32)WC_RNG_SEED_APT_CUTOFF)
 #endif
 
+/* Constant-time helpers for the seed health tests.  Writing (a == b) as an
+ * integer is not enough on a target with no conditional select: there Clang
+ * lowers it, or a mask select built from it, to a compare-and-branch, leaking
+ * where seed bytes repeat.  On those targets RNG_SEED_HIDE() is ctHide32():
+ * inputs are hidden so the compiler cannot prove that a formula equals a
+ * comparison (each is exact only for values below 2^31), and results are
+ * hidden so a mask built from them stays arithmetic.  Targets with a
+ * conditional select (cmov, csel, IT blocks, movz) keep it branch-free without
+ * the barriers, which cost speed by blocking vectorization. */
+#if !defined(WC_RNG_SEED_CT_BARRIER) && \
+    ((defined(__thumb__) && !defined(__thumb2__)) || \
+     (defined(__riscv) && !defined(__riscv_zicond)) || \
+     defined(__MSP430__) || defined(__AVR__))
+    #define WC_RNG_SEED_CT_BARRIER
+#endif
+#ifdef WC_RNG_SEED_CT_BARRIER
+#define RNG_SEED_HIDE(v) ctHide32(v)
+
+/* 1 when v is zero, else 0; v must be below 2^31. */
+static WC_INLINE word32 RngSeedCtIsZero(word32 v)
+{
+    return ctHide32((ctHide32(v) - 1U) >> 31);
+}
+
+/* 1 when a == b, else 0. */
+static WC_INLINE word32 RngSeedCtEq(byte a, byte b)
+{
+    return RngSeedCtIsZero((word32)a ^ (word32)b);
+}
+
+/* 1 when b equals the byte value held in h, else 0.  h must already have
+ * passed through RNG_SEED_HIDE(): with h opaque, (b ^ h) has no known range,
+ * so the compiler cannot prove the formula is a comparison.  That makes one
+ * barrier per reference value enough, and the loops that use this can be
+ * vectorized. */
+static WC_INLINE word32 RngSeedCtEqHidden(byte b, word32 h)
+{
+    return (((word32)b ^ h) - 1U) >> 31;
+}
+
+/* 1 when a >= b, else 0, for any word32 a and b: the result is the inverse
+ * of the borrow out of a - b.  Full range because the cutoffs compared
+ * against are configurable with no upper bound. */
+static WC_INLINE word32 RngSeedCtGTE(word32 a, word32 b)
+{
+    word32 h = ctHide32(a);
+    word32 borrow = ((~h & b) | (~(h ^ b) & (h - b))) >> 31;
+    return ctHide32(borrow ^ 1U);
+}
+#else
+/* With a conditional select available, plain comparisons compile to
+ * cmov/csel/IT/movz and stay branch-free; the bit tricks above are slower. */
+#define RNG_SEED_HIDE(v) (v)
+#define RngSeedCtIsZero(v)         ((word32)((v) == 0U))
+#define RngSeedCtEq(a, b)          ((word32)((a) == (b)))
+#define RngSeedCtEqHidden(b, h)    ((word32)((word32)(b) == (h)))
+#define RngSeedCtGTE(a, b)         ((word32)((a) >= (b)))
+#endif
+
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 {
     int ret = 0;
@@ -3228,18 +3297,23 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
      * failure status without early exit to prevent timing side-channels.
      */
     {
-        int repCount = 1;
+        word32 repCount = 1;
         byte prevByte = seed[0];
 
         for (i = 1; i < seedSz; i++) {
-            /* Constant-time: always evaluate both branches effects */
-            int match = (seed[i] == prevByte);
+            /* All ones on a repeat, zero otherwise. */
+            word32 mask = 0U - RngSeedCtEq(seed[i], prevByte);
             /* If match, increment count, if not, reset to 1 */
-            repCount = (match * (repCount + 1)) + (!match * 1);
-            /* Update prevByte only when not matching (new value) */
-            prevByte = (byte) ((match * prevByte) + (!match * seed[i]));
-            /* Accumulate failure flag - once set, stays set */
-            rctFailed |= (repCount >= WC_RNG_SEED_RCT_CUTOFF);
+            repCount = ((repCount + 1U) & mask) | (1U & ~mask);
+            /* A repeat leaves prevByte unchanged, so always take the byte. */
+            prevByte = seed[i];
+            /* Accumulate failure flag - once set, stays set.  repCount
+             * cannot exceed seedSz, a word32, so a wider cutoff is never
+             * reached and must not be truncated into a reachable one. */
+#if WC_RNG_SEED_RCT_CUTOFF <= 0xffffffffU
+            rctFailed |= (int)RngSeedCtGTE(repCount,
+                                           (word32)WC_RNG_SEED_RCT_CUTOFF);
+#endif
         }
         ForceZero(&prevByte, sizeof(prevByte));
     }
@@ -3263,19 +3337,19 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             /* Constant time: every window is scanned in full, no early exit. */
             for (start = 0; start < seedSz; start += window) {
                 word32 matches = 1;
-                byte refByte;
+                word32 refByte;
 
                 /* A trailing piece shorter than the window slides back to a
                  * full window instead of forming a short one. */
                 if ((seedSz - start) < window)
                     start = seedSz - window;
 
-                refByte = seed[start];
+                refByte = RNG_SEED_HIDE((word32)seed[start]);
                 for (i = 1; i < window; i++) {
-                    matches += (word32)(seed[start + i] == refByte);
+                    matches += RngSeedCtEqHidden(seed[start + i], refByte);
                 }
 
-                aptFailed |= (matches >= cutoff);
+                aptFailed |= (int)RngSeedCtGTE(matches, cutoff);
                 ForceZero(&refByte, sizeof(refByte));
             }
         }
@@ -3294,6 +3368,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         if ((cutoff <= window) && (cutoff > (window / 2))) {
             for (start = 0; start < seedSz; start += window) {
                 byte cand = 0;
+                word32 hCand;
                 word32 votes = 0;
                 word32 count = 0;
 
@@ -3303,21 +3378,28 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                 /* A count above half the window makes that value the window's
                  * majority, which this vote finds without a histogram. */
                 for (i = 0; i < window; i++) {
-                    word32 take = (word32)(votes == 0);
-                    word32 same;
+                    /* 1 when there is no candidate yet, so this byte is
+                     * taken, and taking it is itself a match.  Comparing
+                     * against the old candidate lets both run in parallel
+                     * rather than chaining the compare after the select. */
+                    word32 take = RngSeedCtIsZero(votes);
+                    word32 same = take | RngSeedCtEq(seed[start + i], cand);
+                    word32 takeMask = 0U - take;
 
-                    cand = (byte)((take * seed[start + i]) +
-                                  ((1 - take) * cand));
-                    same = (word32)(seed[start + i] == cand);
-                    votes = (same * (votes + 1)) + ((1 - same) * (votes - 1));
+                    cand = (byte)(((word32)seed[start + i] & takeMask) |
+                                  ((word32)cand & ~takeMask));
+                    /* A match adds a vote, a mismatch takes one away. */
+                    votes = votes + (same << 1) - 1U;
                 }
 
+                hCand = RNG_SEED_HIDE((word32)cand);
                 for (i = 0; i < window; i++) {
-                    count += (word32)(seed[start + i] == cand);
+                    count += RngSeedCtEqHidden(seed[start + i], hCand);
                 }
 
-                aptFailed |= (count >= cutoff);
+                aptFailed |= (int)RngSeedCtGTE(count, cutoff);
                 ForceZero(&cand, sizeof(cand));
+                ForceZero(&hCand, sizeof(hCand));
             }
         }
     }
