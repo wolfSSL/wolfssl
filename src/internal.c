@@ -9434,18 +9434,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
 
-#ifndef WOLFSSL_AEAD_ONLY
-    #ifndef NO_OLD_TLS
-        ssl->hmac = SSL_hmac; /* default to SSLv3 */
-    #elif !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
-      #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
-          !defined(WOLFSSL_RENESAS_TSIP_TLS)
-        ssl->hmac = TLS_hmac;
-      #else
-        ssl->hmac = Renesas_cmn_TLS_hmac;
-      #endif
-    #endif
-#endif /* WOLFSSL_AEAD_ONLY */
+    SetDefaultHmac(ssl);
 
 #if defined(WOLFSSL_OPENVPN) && defined(HAVE_KEYING_MATERIAL)
     /* Save arrays by default for OpenVPN */
@@ -10332,6 +10321,40 @@ void FreeKeyExchange(WOLFSSL* ssl)
 #endif
 }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+/* Take the object's event off the CTX queue before its owner is freed. A
+ * completed event can still be queued, and a removed one keeps stale links, so
+ * look it up in the queue rather than trusting its state. */
+int AsyncDetachEvent(WOLFSSL* ssl)
+{
+    WOLF_EVENT* event;
+    WOLF_EVENT* cur;
+
+    if (ssl->asyncDev == NULL)
+        return 0;
+    event = &ssl->asyncDev->event;
+    if (ssl->ctx != NULL) {
+        WOLF_EVENT_QUEUE* queue = &ssl->ctx->event_queue;
+    #ifndef SINGLE_THREADED
+        if (wc_LockMutex(&queue->lock) != 0)
+            return BAD_MUTEX_E;
+    #endif
+        for (cur = queue->head; cur != NULL; cur = cur->next) {
+            if (cur == event) {
+                (void)wolfEventQueue_Remove(queue, event);
+                break;
+            }
+        }
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&queue->lock);
+    #endif
+    }
+    XMEMSET(event, 0, sizeof(*event));
+    ssl->asyncDev = NULL;
+    return 0;
+}
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_ED448))
@@ -10340,17 +10363,8 @@ static void DetachPendingAsyncDev(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
     if (ssl == NULL || asyncDev == NULL)
         return;
 
-    /* asyncDev is set when the event is queued. Init alone sets PENDING and
-     * leaves the event unlinked, so do not remove in that window. */
-    if (ssl->asyncDev == asyncDev) {
-        if (asyncDev->event.state == WOLF_EVENT_STATE_PENDING &&
-                ssl->ctx != NULL) {
-            (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
-                                        &asyncDev->event);
-        }
-        XMEMSET(&asyncDev->event, 0, sizeof(asyncDev->event));
-        ssl->asyncDev = NULL;
-    }
+    if (ssl->asyncDev == asyncDev)
+        (void)AsyncDetachEvent(ssl);
 }
 #endif
 
@@ -10951,7 +10965,77 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_STATIC_MEMORY */
 }
 
+/* The MAC function a new object starts with. */
+void SetDefaultHmac(WOLFSSL* ssl)
+{
+#ifndef WOLFSSL_AEAD_ONLY
+    #ifndef NO_OLD_TLS
+        ssl->hmac = SSL_hmac; /* default to SSLv3 */
+    #elif !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+      #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
+          !defined(WOLFSSL_RENESAS_TSIP_TLS)
+        ssl->hmac = TLS_hmac;
+      #else
+        ssl->hmac = Renesas_cmn_TLS_hmac;
+      #endif
+    #endif
+#endif /* WOLFSSL_AEAD_ONLY */
+    (void)ssl;
+}
+
+/* Drop the previous connection's alerts. */
+void ResetAlertHistory(WOLFSSL* ssl)
+{
+    ssl->alert_history.last_rx.code  = -1;
+    ssl->alert_history.last_rx.level = -1;
+    ssl->alert_history.last_tx.code  = -1;
+    ssl->alert_history.last_tx.level = -1;
+}
+
+/* Called on every connect/accept entry; acts only when a connection starts. */
+void StartConnection(WOLFSSL* ssl)
+{
+    if (ssl->options.handShakeDone ||
+            (((ssl->options.side == WOLFSSL_CLIENT_END) ?
+              ssl->options.connectState : ssl->options.acceptState) != 0)) {
+        return;
+    }
+    ResetAlertHistory(ssl);
+    /* Negotiation may lower it; wolfSSL_clear() restores this. */
+    if (!ssl->options.cfgVersionSaved) {
+        ssl->options.cfgVersionMinor = ssl->version.minor;
+        ssl->options.cfgVersionSaved = 1;
+    }
+}
+
 /* Free any handshake resources no longer needed */
+/* Free the ephemeral key exchange material. Each handshake, a renegotiation
+ * included, makes its own. */
+void FreeEphemeralKeys(WOLFSSL* ssl)
+{
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+    /* Present holds the type; only an ECC key is left allocated without it. */
+    FreeKey(ssl, (ssl->eccTempKeyPresent != 0) ? ssl->eccTempKeyPresent :
+        (int)DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
+    ssl->eccTempKeyPresent = 0;
+#endif
+#ifndef NO_DH
+    if (ssl->buffers.serverDH_Priv.buffer != NULL) {
+        ForceZero(ssl->buffers.serverDH_Priv.buffer,
+            ssl->buffers.serverDH_Priv.length);
+    }
+    XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap,
+        DYNAMIC_TYPE_PRIVATE_KEY);
+    ssl->buffers.serverDH_Priv.buffer = NULL;
+    ssl->buffers.serverDH_Priv.length = 0;
+    XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    ssl->buffers.serverDH_Pub.buffer = NULL;
+    ssl->buffers.serverDH_Pub.length = 0;
+    FreeKey(ssl, DYNAMIC_TYPE_DH, (void**)&ssl->buffers.serverDH_Key);
+#endif
+    (void)ssl;
+}
+
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("FreeHandshakeResources");
@@ -10974,6 +11058,8 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
     }
 #endif
+
+    FreeEphemeralKeys(ssl);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     /* advertiseOnly clients never renegotiate, so do not retain (and leave
@@ -11048,35 +11134,6 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
     ssl->peerEccKeyPresent = 0;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-    {
-        int dtype;
-    #ifdef HAVE_ECC
-        dtype = DYNAMIC_TYPE_ECC;
-    #elif defined(HAVE_CURVE25519)
-        dtype = DYNAMIC_TYPE_CURVE25519;
-    #else
-        dtype = DYNAMIC_TYPE_CURVE448;
-    #endif
-    #if defined(HAVE_ECC) && defined(HAVE_CURVE25519)
-        if (ssl->peerX25519KeyPresent ||
-                              ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE25519)
-         {
-            dtype = DYNAMIC_TYPE_CURVE25519;
-         }
-    #endif
-    #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-                                                          defined(HAVE_CURVE448)
-        if (ssl->peerX448KeyPresent ||
-                                ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE448)
-         {
-            dtype = DYNAMIC_TYPE_CURVE448;
-         }
-    #endif
-        FreeKey(ssl, dtype, (void**)&ssl->eccTempKey);
-        ssl->eccTempKeyPresent = 0;
-    }
-#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 #ifdef HAVE_CURVE25519
     FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
     ssl->peerX25519KeyPresent = 0;
@@ -11087,14 +11144,6 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif
 
 #ifndef NO_DH
-    if (ssl->buffers.serverDH_Priv.buffer) {
-        ForceZero(ssl->buffers.serverDH_Priv.buffer,
-                                             ssl->buffers.serverDH_Priv.length);
-    }
-    XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-    ssl->buffers.serverDH_Priv.buffer = NULL;
-    XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    ssl->buffers.serverDH_Pub.buffer = NULL;
     /* Release the parameters (p,g) back here rather than hold them for
      * the life of the connection. */
     if (ssl->buffers.weOwnDH) {
@@ -20012,6 +20061,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* A new certificate list; the previous one's CAs are not signers for
          * it. */
         SslWaivedCAsFree(ssl);
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        /* Errors are recorded only while this is X509_V_OK. */
+        ssl->peerVerifyRet = WOLFSSL_X509_V_OK;
+    #endif
     #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                               defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
         /* A new certificate list; never apply the previous one's verdicts. */
@@ -22779,6 +22832,7 @@ static int ResetHandshakeStateForReneg(WOLFSSL* ssl)
     ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
     ssl->options.handShakeState = NULL_STATE;
     ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+    FreeEphemeralKeys(ssl);
     /* Reset for the renegotiation_info presence check below. */
     ssl->secure_renegotiation->renegInfoSeen = 0;
 
@@ -37409,6 +37463,40 @@ static int IsTls13CipherSuite(byte first, byte second)
         return 1;
     }
 
+    /* A full handshake makes a new session. Drop what would resume the
+     * previous one, so it is not kept beside this handshake's secret. */
+    int ResetSessionForFullHandshake(WOLFSSL* ssl)
+    {
+        WOLFSSL_SESSION* session = ssl->session;
+
+        if ((session->sessionIDSz == 0) && !session->haveAltSessionID
+        #ifdef HAVE_SESSION_TICKET
+                && (session->ticketLen == 0)
+        #endif
+                ) {
+            return 0;
+        }
+        if (!HaveUniqueSessionObj(ssl))
+            return MEMORY_ERROR;
+        session = ssl->session;
+
+        ForceZero(session->sessionID, ID_LEN);
+        session->sessionIDSz = 0;
+        ForceZero(session->altSessionID, ID_LEN);
+        session->haveAltSessionID = 0;
+        /* Complete again once this handshake sets it up. */
+        ForceZero(session->masterSecret, SECRET_LEN);
+        session->isSetup = 0;
+    #ifdef SESSION_CERTS
+        ResetSessionCertChain(ssl);
+    #endif
+    #ifdef HAVE_SESSION_TICKET
+        return SetSessionTicket(session, NULL, 0);
+    #else
+        return 0;
+    #endif
+    }
+
 #ifndef WOLFSSL_NO_TLS12
 
     /* handle generation of client_hello (1) */
@@ -38384,6 +38472,9 @@ static int IsTls13CipherSuite(byte first, byte second)
                 ssl->options.resuming = 0; /* server denied resumption try */
             }
         }
+        ret = ResetSessionForFullHandshake(ssl);
+        if (ret != 0)
+            return ret;
         return SetCipherSpecs(ssl);
     }
 
@@ -45084,6 +45175,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
         XMEMCPY(ssl->clSuites->suites, input + i, ssl->clSuites->suiteSz);
+    #ifdef OPENSSL_EXTRA
+        /* Built from the previous hello's list. */
+        wolfSSL_sk_SSL_CIPHER_free(ssl->clSuitesStack);
+        ssl->clSuitesStack = NULL;
+    #endif
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */

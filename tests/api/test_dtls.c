@@ -5479,6 +5479,8 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
 #endif
     sslCopy.keys.dtls_peer_handshake_number = 0;
     XMEMSET(&sslCopy.alert_history, 0, sizeof(sslCopy.alert_history));
+    sslCopy.options.cfgVersionMinor = 0;
+    sslCopy.options.cfgVersionSaved = 0;
     sslCopy.hsHashes = NULL;
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
     ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
