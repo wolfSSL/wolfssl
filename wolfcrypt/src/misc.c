@@ -1037,7 +1037,9 @@ WC_MISC_STATIC WC_INLINE void* ctMaskSelPtr(byte mask, void* a, void* b)
 #if !defined(WOLFSSL_NO_CT_OPS) && !defined(WOLFSSL_NO_CT_MAX_MIN) && \
     defined(WORD64_AVAILABLE)
         volatile word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
-        return (a & gte_mask) | (b & ~gte_mask);
+        word32 a_masked = (a & gte_mask);
+        word32 b_masked = (b & ~gte_mask);
+        return a_masked | b_masked;
 #else /* WOLFSSL_NO_CT_OPS */
         return a > b ? a : b;
 #endif /* WOLFSSL_NO_CT_OPS */
