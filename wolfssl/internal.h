@@ -8244,8 +8244,15 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
         !defined(NO_PSK) || defined(WOLFSSL_DTLS13))
-/* Tick sources that need no wall clock. */
+/* Tick sources that need no wall clock. A USER_TICKS port may define
+ * WOLFSSL_HAVE_MILLI_TIME and supply TimeNowInMilliseconds() as declared
+ * below. */
 #if defined(WOLFSSL_NO_MILLI_TIME)
+    #ifdef WOLFSSL_HAVE_MILLI_TIME
+        #error Define only one of WOLFSSL_NO_MILLI_TIME and \
+               WOLFSSL_HAVE_MILLI_TIME
+    #endif
+#elif defined(WOLFSSL_HAVE_MILLI_TIME)
 #elif !defined(NO_ASN_TIME) || (!defined(USER_TICKS) && \
     (defined(XTIME_MS) || \
     defined(WOLFSSL_OPTEE) || defined(WOLFSSL_DEOS) || defined(MICRIUM) || \
@@ -8256,6 +8263,12 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
     defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_UTASKER) || \
     defined(WOLFSSL_ZEPHYR) || defined(FREERTOS)))
     #define WOLFSSL_HAVE_MILLI_TIME
+#endif
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_HAVE_MILLI_TIME) && \
+    !defined(WOLFSSL_NO_MILLI_TIME)
+    #error DTLS 1.3 retransmission limiting needs TimeNowInMilliseconds(): \
+           define XTIME_MS, USER_TICKS with WOLFSSL_HAVE_MILLI_TIME, \
+           or WOLFSSL_NO_MILLI_TIME to build without it
 #endif
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);
