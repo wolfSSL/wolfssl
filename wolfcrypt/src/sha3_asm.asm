@@ -15389,7 +15389,7 @@ L_sha3_xmss_blocksx4_avx2_prf:
         vpbroadcastq	ymm5, QWORD PTR [r8+16]
         vmovdqu	ymm6, YMMWORD PTR L_sha3_xmss_blocksx4_avx2_not_chain
         vpand	ymm5, ymm5, ymm6
-        vpmovzxdq	ymm6, [r9]
+        vpmovzxdq	ymm6, OWORD PTR [r9]
         vpsllq	ymm6, ymm6, 56
         vpor	ymm5, ymm5, ymm6
         vmovdqu	YMMWORD PTR [r12+-64], ymm5
@@ -15397,7 +15397,7 @@ L_sha3_xmss_blocksx4_avx2_prf:
         vpbroadcastq	ymm5, QWORD PTR [r8+24]
         vmovdqu	ymm6, YMMWORD PTR L_sha3_xmss_blocksx4_avx2_not_hash
         vpand	ymm5, ymm5, ymm6
-        vpmovzxdq	ymm6, [r9+16]
+        vpmovzxdq	ymm6, OWORD PTR [r9+16]
         vpsllq	ymm6, ymm6, 24
         vpor	ymm5, ymm5, ymm6
         vmovdqu	YMMWORD PTR [r12+-32], ymm5
@@ -20843,7 +20843,7 @@ sha3_lms_blocksx4_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+-96], ymm5
         vpbroadcastq	ymm5, QWORD PTR [rdx+16]
         ; The chain index as a big-endian u16 over bytes 20 and 21
-        vpmovzxdq	ymm6, [r8]
+        vpmovzxdq	ymm6, OWORD PTR [r8]
         vpsllq	ymm7, ymm6, 40
         vmovdqu	ymm0, YMMWORD PTR L_sha3_lms_blocksx4_avx2_idx_lo
         vpand	ymm7, ymm7, ymm0
@@ -20853,7 +20853,7 @@ sha3_lms_blocksx4_avx2 PROC
         vpand	ymm7, ymm7, ymm0
         vpor	ymm5, ymm5, ymm7
         ; j in byte 22
-        vpmovzxdq	ymm6, [r9]
+        vpmovzxdq	ymm6, OWORD PTR [r9]
         vpsllq	ymm6, ymm6, 48
         vpor	ymm5, ymm5, ymm6
         ; tmp from byte 23 on: the chain value shifted up seven bytes
@@ -20910,7 +20910,7 @@ L_sha3_lms_blocksx4_avx2_seed:
         vmovdqu	YMMWORD PTR [rcx+-96], ymm5
         vpbroadcastq	ymm5, QWORD PTR [rdx+16]
         ; The chain index as a big-endian u16 over bytes 20 and 21
-        vpmovzxdq	ymm6, [r8]
+        vpmovzxdq	ymm6, OWORD PTR [r8]
         vpsllq	ymm7, ymm6, 40
         vmovdqu	ymm0, YMMWORD PTR L_sha3_lms_blocksx4_avx2_idx_lo
         vpand	ymm7, ymm7, ymm0
@@ -26383,7 +26383,7 @@ L_sha3_lms_chainx4_avx2_loop:
         vmovdqu	YMMWORD PTR [rcx+-96], ymm5
         vpbroadcastq	ymm5, QWORD PTR [rdx+16]
         ; The chain index as a big-endian u16 over bytes 20 and 21
-        vpmovzxdq	ymm6, [r8]
+        vpmovzxdq	ymm6, OWORD PTR [r8]
         vpsllq	ymm7, ymm6, 40
         vmovdqu	ymm0, YMMWORD PTR L_sha3_lms_chainx4_avx2_idx_lo
         vpand	ymm7, ymm7, ymm0
@@ -59466,14 +59466,14 @@ L_sha3_xmss_blocksx8_avx512_prf:
         vpbroadcastq	zmm10, QWORD PTR [r8+16]
         vmovdqu64	zmm31, ZMMWORD PTR L_sha3_xmss_blocksx8_avx512_not_chain
         vpandq	zmm10, zmm10, zmm31
-        vpmovzxdq	zmm30, [r9]
+        vpmovzxdq	zmm30, YMMWORD PTR [r9]
         vpsllq	zmm30, zmm30, 56
         vporq	zmm10, zmm10, zmm30
         ; Word 11 carries the hash address in its fourth byte
         vpbroadcastq	zmm11, QWORD PTR [r8+24]
         vmovdqu64	zmm31, ZMMWORD PTR L_sha3_xmss_blocksx8_avx512_not_hash
         vpandq	zmm11, zmm11, zmm31
-        vpmovzxdq	zmm30, [r9+32]
+        vpmovzxdq	zmm30, YMMWORD PTR [r9+32]
         vpsllq	zmm30, zmm30, 24
         vporq	zmm11, zmm11, zmm30
 L_sha3_xmss_blocksx8_avx512_tail:
@@ -62400,7 +62400,7 @@ sha3_lms_blocksx8_avx512 PROC
         vpbroadcastq	zmm1, QWORD PTR [rdx+8]
         vpbroadcastq	zmm2, QWORD PTR [rdx+16]
         ; The chain index as a big-endian u16 over bytes 20 and 21
-        vpmovzxdq	zmm29, [r8]
+        vpmovzxdq	zmm29, YMMWORD PTR [r8]
         vpsllq	zmm30, zmm29, 40
         vmovdqu64	zmm31, ZMMWORD PTR L_sha3_lms_blocksx8_avx512_idx_lo
         vpandq	zmm30, zmm30, zmm31
@@ -62410,7 +62410,7 @@ sha3_lms_blocksx8_avx512 PROC
         vpandq	zmm30, zmm30, zmm31
         vporq	zmm2, zmm2, zmm30
         ; j in byte 22
-        vpmovzxdq	zmm30, [r9]
+        vpmovzxdq	zmm30, YMMWORD PTR [r9]
         vpsllq	zmm30, zmm30, 48
         vporq	zmm2, zmm2, zmm30
         ; tmp from byte 23 on: the chain value shifted up seven bytes
@@ -62459,7 +62459,7 @@ L_sha3_lms_blocksx8_avx512_seed:
         vpbroadcastq	zmm1, QWORD PTR [rdx+8]
         vpbroadcastq	zmm2, QWORD PTR [rdx+16]
         ; The chain index as a big-endian u16 over bytes 20 and 21
-        vpmovzxdq	zmm29, [r8]
+        vpmovzxdq	zmm29, YMMWORD PTR [r8]
         vpsllq	zmm30, zmm29, 40
         vmovdqu64	zmm31, ZMMWORD PTR L_sha3_lms_blocksx8_avx512_idx_lo
         vpandq	zmm30, zmm30, zmm31
@@ -65409,7 +65409,7 @@ L_sha3_lms_chainx8_avx512_loop:
         vpbroadcastq	zmm1, QWORD PTR [rdx+8]
         vpbroadcastq	zmm2, QWORD PTR [rdx+16]
         ; The chain index as a big-endian u16 over bytes 20 and 21
-        vpmovzxdq	zmm29, [r8]
+        vpmovzxdq	zmm29, YMMWORD PTR [r8]
         vpsllq	zmm30, zmm29, 40
         vmovdqu64	zmm31, ZMMWORD PTR L_sha3_lms_chainx8_avx512_idx_lo
         vpandq	zmm30, zmm30, zmm31

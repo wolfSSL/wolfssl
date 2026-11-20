@@ -12990,13 +12990,13 @@ Transform_Sha512_x8_XmssPrf_AVX512 PROC
         vpbroadcastq	zmm10, QWORD PTR [r8+16]
         vpbroadcastq	zmm25, QWORD PTR L_avx512_sha512_x8_hi32
         vpandq	zmm10, zmm10, zmm25
-        vpmovzxdq	zmm24, [r9]
+        vpmovzxdq	zmm24, YMMWORD PTR [r9]
         vporq	zmm10, zmm10, zmm24
         ; Word 3: the key-and-mask word, then the hash address over it
         vpbroadcastq	zmm11, QWORD PTR [r8+24]
         vpbroadcastq	zmm25, QWORD PTR L_avx512_sha512_x8_lo32
         vpandq	zmm11, zmm11, zmm25
-        vpmovzxdq	zmm24, [r10]
+        vpmovzxdq	zmm24, YMMWORD PTR [r10]
         vpsllq	zmm24, zmm24, 32
         vporq	zmm11, zmm11, zmm24
         ; Padding for a 160-byte message, the last 128 of it this block
