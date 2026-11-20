@@ -1292,7 +1292,7 @@ static int Rtl8735bKs_KeyUnwrap(int devId, const byte* seed, const byte* blob,
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes;
 
-    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
+    aes = WC_ALLOC_AES(NULL);
     if (aes == NULL) {
         return MEMORY_E;
     }
@@ -1314,7 +1314,7 @@ static int Rtl8735bKs_KeyUnwrap(int devId, const byte* seed, const byte* blob,
         ret = 0;
     }
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    WC_FREE_AES(aes, NULL);
 #endif
     return ret;
 }

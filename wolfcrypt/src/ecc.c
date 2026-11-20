@@ -16687,8 +16687,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             {
         #if !defined(NO_AES) && defined(HAVE_AES_CBC)
             #ifdef WOLFSSL_SMALL_STACK
-                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
-                                          DYNAMIC_TYPE_AES);
+                Aes *aes = WC_ALLOC_AES(ctx->heap);
                 if (aes == NULL) {
                     ret = MEMORY_E;
                     break;
@@ -16710,7 +16709,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     }
                     wc_AesFree(aes);
                 }
-                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+            #ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(aes, ctx->heap);
+            #endif
         #else
                 ret = NOT_COMPILED_IN;
         #endif
@@ -16724,8 +16725,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #ifndef WOLFSSL_SMALL_STACK
                 Aes aes[1];
             #else
-                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
-                                            DYNAMIC_TYPE_AES);
+                Aes *aes = WC_ALLOC_AES(ctx->heap);
                 if (aes == NULL) {
                     ret = MEMORY_E;
                     break;
@@ -16751,7 +16751,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     }
                     wc_AesFree(aes);
                 }
-                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+            #ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(aes, ctx->heap);
+            #endif
         #else
                 ret = NOT_COMPILED_IN;
         #endif
@@ -16762,8 +16764,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             case ecAES_256_GCM:
             {
             #ifdef WOLFSSL_SMALL_STACK
-                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
-                                          DYNAMIC_TYPE_AES);
+                Aes *aes = WC_ALLOC_AES(ctx->heap);
                 if (aes == NULL) {
                     ret = MEMORY_E;
                     break;
@@ -16790,7 +16791,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     }
                     wc_AesFree(aes);
                 }
-                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+            #ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(aes, ctx->heap);
+            #endif
                 break;
             }
         #endif
@@ -17259,8 +17262,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             case ecAES_256_CBC:
             {
             #ifdef WOLFSSL_SMALL_STACK
-                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
-                                          DYNAMIC_TYPE_AES);
+                Aes *aes = WC_ALLOC_AES(ctx->heap);
                 if (aes == NULL) {
                     ret = MEMORY_E;
                     break;
@@ -17282,7 +17284,9 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     }
                     wc_AesFree(aes);
                 }
-                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+            #ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(aes, ctx->heap);
+            #endif
                 break;
             }
         #endif
@@ -17291,8 +17295,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             case ecAES_256_CTR:
             {
             #ifdef WOLFSSL_SMALL_STACK
-                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
-                                          DYNAMIC_TYPE_AES);
+                Aes *aes = WC_ALLOC_AES(ctx->heap);
                 if (aes == NULL) {
                     ret = MEMORY_E;
                     break;
@@ -17319,7 +17322,9 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     }
                     wc_AesFree(aes);
                 }
-                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+            #ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(aes, ctx->heap);
+            #endif
                 break;
             }
         #endif
@@ -17328,8 +17333,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             case ecAES_256_GCM:
             {
             #ifdef WOLFSSL_SMALL_STACK
-                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
-                                          DYNAMIC_TYPE_AES);
+                Aes *aes = WC_ALLOC_AES(ctx->heap);
                 if (aes == NULL) {
                     ret = MEMORY_E;
                     break;
@@ -17355,7 +17359,9 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     }
                     wc_AesFree(aes);
                 }
-                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+            #ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(aes, ctx->heap);
+            #endif
                 break;
             }
         #endif
