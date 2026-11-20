@@ -1551,10 +1551,14 @@ static WC_MAYBE_UNUSED Aes* wc_AesNew(void* heap, int thisDevId, int *result_cod
 }
 static WC_MAYBE_UNUSED int wc_AesDelete(Aes *aes, Aes** aes_p)
 {
+    void* heap;
+
     if (aes == NULL)
         return BAD_FUNC_ARG;
+    heap = aes->heap;
+    (void)heap;
     wc_AesFree(aes);
-    XFREE(aes, aes->heap, DYNAMIC_TYPE_AES);
+    WC_FREE_AES(aes, heap);
     if (aes_p != NULL)
         *aes_p = NULL;
     return 0;
