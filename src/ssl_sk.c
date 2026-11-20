@@ -962,6 +962,7 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
  * @param [in, out] sk    Stack of objects.
  * @param [in]      func  Function to use to free objects.
  */
+WC_NO_SANITIZE_FUNCTION
 void wolfSSL_sk_pop_free(WOLFSSL_STACK* stack, wolfSSL_sk_freefunc func)
 {
     WOLFSSL_ENTER("wolfSSL_sk_pop_free");
