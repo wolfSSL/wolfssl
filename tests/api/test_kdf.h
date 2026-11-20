@@ -27,6 +27,7 @@
 int test_wc_KdfDecisionCoverage(void);
 int test_wc_KdfFeatureCoverage(void);
 int test_wc_SshKdfReuse(void);
+int test_wc_SshKdfStringK(void);
 int test_wc_Tls13_HybridSharedSecret(void);
 int test_wc_CryptoCbDispatchDecisionCoverage(void);
 
@@ -34,6 +35,7 @@ int test_wc_CryptoCbDispatchDecisionCoverage(void);
     TEST_DECL_GROUP("kdf", test_wc_KdfDecisionCoverage),      \
     TEST_DECL_GROUP("kdf", test_wc_KdfFeatureCoverage),     \
     TEST_DECL_GROUP("kdf", test_wc_SshKdfReuse), \
+    TEST_DECL_GROUP("kdf", test_wc_SshKdfStringK), \
     TEST_DECL_GROUP("kdf", test_wc_Tls13_HybridSharedSecret), \
     TEST_DECL_GROUP("kdf", test_wc_CryptoCbDispatchDecisionCoverage)
 

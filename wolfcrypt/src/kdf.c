@@ -847,8 +847,10 @@ void _HashFree(byte hashId, _hash* hash)
 
 #define LENGTH_SZ 4
 
-int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
-        const byte* k, word32 kSz, const byte* h, word32 hSz,
+/* SP 800-135r1 sec 5.2 SSH KDF; K is an RFC 4251 sec 5 mpint (RFC 4253) or
+ * string (RFC 10042 sec 2.5), as kEncoding says. */
+int wc_SSH_KDF_ex(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, int kEncoding, const byte* h, word32 hSz,
         const byte* sessionId, word32 sessionIdSz)
 {
     word32 blocks, remainder;
@@ -863,7 +865,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     if (key == NULL || keySz == 0 ||
         k == NULL || kSz == 0 ||
         h == NULL || hSz == 0 ||
-        sessionId == NULL || sessionIdSz == 0) {
+        sessionId == NULL || sessionIdSz == 0 ||
+        (kEncoding != WC_SSH_KDF_K_MPINT &&
+         kEncoding != WC_SSH_KDF_K_STRING)) {
 
         return BAD_FUNC_ARG;
     }
@@ -874,7 +878,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     }
     digestSz = (word32)ret;
 
-    if (k[0] & 0x80) kPad = 1;
+    /* An mpint gets a zero byte when its top bit is set; a string never. */
+    if ((kEncoding == WC_SSH_KDF_K_MPINT) && (k[0] & 0x80))
+        kPad = 1;
     c32toa(kSz + kPad, kSzFlat);
 
     blocks = keySz / digestSz;
@@ -983,6 +989,14 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     }
 
     return ret;
+}
+
+int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz)
+{
+    return wc_SSH_KDF_ex(hashId, keyId, key, keySz, k, kSz,
+        WC_SSH_KDF_K_MPINT, h, hSz, sessionId, sessionIdSz);
 }
 
 #endif /* WOLFSSL_WOLFSSH */

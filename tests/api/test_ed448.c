@@ -1551,6 +1551,25 @@ int test_wc_Ed448DecisionCoverage(void)
     ExpectIntEQ(verify, 1);
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* A type other than Ed448 or Ed448ph is refused on every entry point. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key, 2, ctx,
+        ctxLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(hash, sizeof(hash), sig, &sigLen, &key,
+        255, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key,
+        (byte)Ed448, ctx, ctxLen), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg_ex(sig, sigLen, msg, msgLen, &verify, &key,
+        2, ctx, ctxLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify, 0);
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, 2, ctx, ctxLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
     /* type == Ed448ph && inLen != ED448_PREHASH_SIZE -> BAD_LENGTH_E
      * (sign_hash forwards hashLen as inLen with type Ed448ph). */
     sigLen = sizeof(sig);
