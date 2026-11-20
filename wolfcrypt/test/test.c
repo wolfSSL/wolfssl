@@ -79097,7 +79097,7 @@ static wc_test_ret_t mldsa_nonblock_match_test_level(int level)
 }
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
 #define MLDSA_NB_FREE_DEVID 0x4d4c4e42
 #if defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && !defined(WOLFSSL_SWDEV) && \
     !defined(WOLFSSL_MLDSA_VERIFY_PRECOMP_A)
@@ -79125,7 +79125,7 @@ static int mldsa_nb_free_cb(int id, wc_CryptoInfo* info, void* ctx)
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
 
-/* The smallest memory verify's own w1 hash is freed once, whether the verify
+/* The small memory verify's own w1 hash is freed once, whether the verify
  * completes, fails or is abandoned after a yield. */
 static wc_test_ret_t mldsa_nonblock_free_test_level(int level)
 {
@@ -79262,7 +79262,7 @@ static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_44);
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
     if (ret == 0)
         ret = mldsa_nonblock_free_test_level(WC_ML_DSA_44);
 #endif
@@ -79273,7 +79273,7 @@ static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_65);
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
     if (ret == 0)
         ret = mldsa_nonblock_free_test_level(WC_ML_DSA_65);
 #endif
@@ -79284,7 +79284,7 @@ static wc_test_ret_t mldsa_nonblock_test(WC_RNG* rng)
     if (ret == 0)
         ret = mldsa_nonblock_match_test_level(WC_ML_DSA_87);
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
-    defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
     if (ret == 0)
         ret = mldsa_nonblock_free_test_level(WC_ML_DSA_87);
 #endif
