@@ -11,10 +11,25 @@ void wc_Pkcs11_Finalize(Pkcs11Dev* dev);
 
 /*!
     \ingroup PKCS11
+
+    \brief Sets up a token by slot id or name. A user PIN is copied into
+    memory the token owns, which wc_Pkcs11Token_Final zeroizes and frees.
+    Call wc_Pkcs11Token_Final before initializing the token again.
 */
 int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev,
     int slotId, const char* tokenName, const unsigned char *userPin,
     int userPinSz);
+
+/*!
+    \ingroup PKCS11
+
+    \brief Sets up a token by name. A user PIN is copied as by
+    wc_Pkcs11Token_Init. Call wc_Pkcs11Token_Final before initializing the
+    token again.
+*/
+int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
+    const char* tokenName, int tokenNameSz,
+    const unsigned char* userPin, int userPinSz);
 
 /*!
     \ingroup PKCS11
@@ -29,19 +44,63 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token);
     with an id or label on the token return BAD_STATE_E, and a key with
     neither is generated in software.
 
+    Calling this again while the session is open does nothing and keeps the
+    session's read/write mode.
+
     \return 0 on success.
     \return BAD_FUNC_ARG when token is NULL.
-    \return WC_HW_E when opening the session fails.
+    \return BAD_STATE_E when wc_Pkcs11Token_Open_ex discarded the PIN and its
+    session was closed.
+    \return WC_HW_E when opening the session or logging in fails. A session
+    whose login failed is closed again.
 
     \param token Token to open the session on.
     \param readWrite 1 for a read-write session, 0 for read-only.
 
+    \sa wc_Pkcs11Token_Open_ex
     \sa wc_Pkcs11Token_Close
  */
 int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite);
 
 /*!
     \ingroup PKCS11
+
+    \brief Opens a session as wc_Pkcs11Token_Open does. With discardPin set,
+    the token's copy of the user PIN is zeroized and freed once this call has
+    opened the session and logged it in, by its own login or because another
+    token already logged the application in. A session that was already open
+    keeps the PIN. The login then lasts while a session of the
+    application is open. After wc_Pkcs11Token_Close, opening again returns
+    BAD_STATE_E until wc_Pkcs11Token_Final and a new init with the PIN, and
+    operations open sessions without logging in. Discarding the PIN is not
+    safe while other threads use the token.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG when token is NULL.
+    \return BAD_STATE_E when an earlier open discarded the PIN and its session
+    was closed.
+    \return WC_HW_E when opening the session or logging in fails. A session
+    whose login failed is closed again.
+
+    \param token Token to open the session on.
+    \param readWrite 1 for a read-write session, 0 for read-only.
+    \param discardPin 1 to discard the PIN once the session is logged in.
+
+    \sa wc_Pkcs11Token_Open
+    \sa wc_Pkcs11Token_Final
+ */
+int wc_Pkcs11Token_Open_ex(Pkcs11Token* token, int readWrite, int discardPin);
+
+/*!
+    \ingroup PKCS11
+
+    \brief Closes the session opened with wc_Pkcs11Token_Open. It does not log
+    out, so the application stays logged in while another of its sessions on
+    the token is open.
+
+    \param token Token whose session to close.
+
+    \sa wc_Pkcs11Token_Open
  */
 void wc_Pkcs11Token_Close(Pkcs11Token* token);
 
