@@ -376,7 +376,8 @@ int test_http_connect_blocking_mode(void)
     defined(HAVE_SOCKADDR) && !defined(NO_ASN_TIME) && \
     !defined(WOLFSSL_LWIP) && !defined(WOLFSSL_NO_SOCK) && \
     defined(SO_RCVTIMEO) && defined(SO_SNDTIMEO) && \
-    (defined(__unix__) || defined(__APPLE__)) && !defined(SINGLE_THREADED)
+    (defined(__unix__) || defined(__APPLE__)) && !defined(SINGLE_THREADED) && \
+    !defined(WOLFSSL_OCSP_SCREEN_RESPONDER)
 #define TEST_HTTP_DRIP_BODY_SZ 4
 
 static THREAD_RETURN WOLFSSL_THREAD test_http_drip_server(void* arg)
@@ -410,13 +411,17 @@ int test_http_fetch_slow_progress(void)
     defined(HAVE_SOCKADDR) && !defined(NO_ASN_TIME) && \
     !defined(WOLFSSL_LWIP) && !defined(WOLFSSL_NO_SOCK) && \
     defined(SO_RCVTIMEO) && defined(SO_SNDTIMEO) && \
-    (defined(__unix__) || defined(__APPLE__)) && !defined(SINGLE_THREADED)
+    (defined(__unix__) || defined(__APPLE__)) && !defined(SINGLE_THREADED) && \
+    !defined(WOLFSSL_OCSP_SCREEN_RESPONDER)
     EXPECT_DECLS;
     SOCKET_T listener = SOCKET_INVALID;
+    SOCKET_T unblock = SOCKET_INVALID;
     SOCKADDR_IN addr;
     XSOCKLENT addrSz = (XSOCKLENT)sizeof(addr);
     THREAD_TYPE tid;
     int started = 0;
+    int lookupRet = 0;
+    int joinRet;
     char url[64];
     byte ocspReq[16];
     byte* httpResp = NULL;
@@ -441,11 +446,22 @@ int test_http_fetch_slow_progress(void)
     /* Body arrives over ~3.2s with 0.8s gaps; the stall timeout is 2s. */
     wolfIO_SetTimeout(2);
     if (started) {
-        ExpectIntEQ(EmbedOcspLookup(NULL, url, (int)XSTRLEN(url), ocspReq,
-            (int)sizeof(ocspReq), &httpResp), TEST_HTTP_DRIP_BODY_SZ);
-        ExpectIntEQ(wolfSSL_JoinThread(tid), 0);
+        lookupRet = EmbedOcspLookup(NULL, url, (int)XSTRLEN(url), ocspReq,
+            (int)sizeof(ocspReq), &httpResp);
+        ExpectIntEQ(lookupRet, TEST_HTTP_DRIP_BODY_SZ);
+        /* A lookup that never connected leaves the server in accept(). */
+        if (lookupRet != TEST_HTTP_DRIP_BODY_SZ &&
+                wolfIO_TcpConnect(&unblock, "127.0.0.1",
+                    ntohs(addr.sin_port), 1) == 0) {
+            (void)send(unblock, "x", 1, 0);
+        }
+        joinRet = wolfSSL_JoinThread(tid);
+        ExpectIntEQ(joinRet, 0);
     }
     wolfIO_SetTimeout(10);
+
+    if (unblock != SOCKET_INVALID)
+        CloseSocket(unblock);
 
     if (httpResp != NULL)
         XFREE(httpResp, NULL, DYNAMIC_TYPE_OCSP);
