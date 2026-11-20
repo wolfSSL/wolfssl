@@ -14306,8 +14306,8 @@ static int test_wc_SetAcmeIdentifierExt(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_ACME_OID) && defined(WOLFSSL_CERT_GEN) && \
-    defined(HAVE_ECC) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
-    !defined(WC_NO_RNG) && !defined(NO_RSA)
+    defined(WOLFSSL_CERT_EXT) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    !defined(NO_ASN_TIME) && !defined(WC_NO_RNG) && !defined(NO_RSA)
     Cert         cert;
     DecodedCert  decoded;
     WC_RNG       rng;
@@ -33708,7 +33708,7 @@ static int test_wc_CheckPrivateKey_RSA_pub_only(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
-    !defined(NO_CHECK_PRIVATE_KEY) && \
+    !defined(NO_CHECK_PRIVATE_KEY) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
     (defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY))
     /* With RSA public-only or verify-only, wc_CheckPrivateKey should return
      * NOT_COMPILED_IN for RSA key types since private key operations are not

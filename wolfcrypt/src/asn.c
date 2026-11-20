@@ -31413,7 +31413,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     CERTEXTSASN_IDX_CRLINFO_STR);
         }
 
-    #ifdef WOLFSSL_ACME_OID
+    #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ACME_OID)
         /* id-pe-acmeIdentifier (TLS-ALPN-01 challenge cert).
          * Always critical=TRUE. */
         if (cert->acmeIdentifierSz == WC_SHA256_DIGEST_SIZE) {
@@ -31424,7 +31424,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     cert->acmeIdentifier, (word32)cert->acmeIdentifierSz);
         }
         else
-    #endif /* WOLFSSL_ACME_OID */
+    #endif /* WOLFSSL_CERT_EXT && WOLFSSL_ACME_OID */
         {
             /* Don't write out the ACME identifier extension. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_ACMEID_SEQ,
