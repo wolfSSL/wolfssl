@@ -23502,6 +23502,7 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     byte iv2[GCM_NONCE_MIN_SZ];
     byte ext[GCM_NONCE_MID_SZ];
     byte ext2[GCM_NONCE_MID_SZ];
+    byte blk[WC_AES_BLOCK_SIZE];
     word32 ctr1;
     word32 ctr2;
 
@@ -23609,7 +23610,8 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
-    /* A stream on the generated IV uses it up. (SP 800-38D 8) */
+    /* A stream on the generated IV uses it up, and another mode cannot set
+     * the next one. (SP 800-38D 8, 9.1) */
     ret = wc_AesGcmSetKey(enc, key, sizeof(key));
     if (ret == 0)
         ret = wc_AesGcmSetIV(enc, sizeof(ext), NULL, 0, &rng);
@@ -23626,6 +23628,14 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
+    XMEMSET(blk, 0x33, sizeof(blk));
+    ret = wc_AesSetIV(enc, blk);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = 0;
 
   out:
     if (rngInited)

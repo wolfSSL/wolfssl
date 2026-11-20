@@ -8920,11 +8920,29 @@ static WARN_UNUSED_RESULT WC_INLINE int GcmCountInvocation(Aes* aes)
     return 0;
 }
 
-/* Move the internal IV to the next value. */
+/* Move the internal IV to the next value, keeping the module's copy. */
 static WC_INLINE void GcmIncIv(Aes* aes)
 {
     IncCtr((byte*)aes->reg, aes->nonceSz);
+#ifdef WC_AESGCM_IV_LOCK
+    if (aes->gcmIvLock) {
+        XMEMCPY(aes->gcmIvNext, aes->reg, aes->nonceSz);
+    }
+#endif
 }
+
+#ifdef WC_AESGCM_IV_LOCK
+/* A generated IV is refused once another call has written aes->reg, so the
+ * caller cannot choose it. (SP 800-38D 9.1) */
+static WARN_UNUSED_RESULT WC_INLINE int GcmCheckIv(const Aes* aes)
+{
+    if (aes->gcmIvLock &&
+            (XMEMCMP(aes->reg, aes->gcmIvNext, aes->nonceSz) != 0)) {
+        return BAD_STATE_E;
+    }
+    return 0;
+}
+#endif
 #endif /* HAVE_AESGCM */
 
 
@@ -15470,7 +15488,10 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             /* A stream on the generated IV uses it up here, so no other call
              * is given the same IV. (SP 800-38D 8) */
             if ((iv != NULL) && aes->gcmIvLock && aes->gcmKeySet) {
-                ret = GcmCountInvocation(aes);
+                ret = GcmCheckIv(aes);
+                if (ret == 0) {
+                    ret = GcmCountInvocation(aes);
+                }
                 if (ret != 0) {
                     iv = NULL;
                 } else {
@@ -16117,6 +16138,9 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
         aes->ctrSet = 1;
     #endif
         aes->nonceSz = ivSz;
+    #ifdef WC_AESGCM_IV_LOCK
+        XMEMCPY(aes->gcmIvNext, aes->reg, ivSz);
+    #endif
     }
 
     return ret;
@@ -16151,6 +16175,7 @@ int wc_AesGcmSetIVCounter(Aes* aes, const byte* iv, word32 ivSz, word32 ctrSz,
         aes->ctrSet = 1;
     #endif
         aes->nonceSz = ivSz;
+        XMEMCPY(aes->gcmIvNext, aes->reg, ivSz);
     }
 
     return ret;
@@ -16177,6 +16202,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = FIPS_BAD_VALUE_E;
 #endif
 
+#ifdef WC_AESGCM_IV_LOCK
+    if (ret == 0) {
+        ret = GcmCheckIv(aes);
+    }
+#endif
     if (ret == 0) {
         ret = GcmCountInvocation(aes);
     }

@@ -383,6 +383,7 @@ struct Aes {
     byte gcmIvLock; /* an IV was generated under the current key */
     byte gcmIvMasked; /* gcmIvMask is XORed into each 8.2.1 IV used */
     byte gcmIvMask[GCM_NONCE_MID_SZ];
+    byte gcmIvNext[GCM_NONCE_MAX_SZ]; /* the next generated IV */
 #endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
