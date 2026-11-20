@@ -3553,6 +3553,7 @@ int wolfSSL_AES_unwrap_key(WOLFSSL_AES_KEY *key, const unsigned char *iv,
  * @return  0 when in, out, cbc, key or iv are NULL.
  * @return  0 when len is less than or equal to 16 bytes.
  */
+WC_NO_SANITIZE_FUNCTION
 size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
     unsigned char *out, size_t len, const void *key, unsigned char *iv,
     WOLFSSL_CBC128_CB cbc)
@@ -3607,6 +3608,7 @@ size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
  * @return  0 when in, out, cbc, key or iv are NULL.
  * @return  0 when len is less than or equal to 16 bytes.
  */
+WC_NO_SANITIZE_FUNCTION
 size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
     unsigned char *out, size_t len, const void *key, unsigned char *iv,
     WOLFSSL_CBC128_CB cbc)

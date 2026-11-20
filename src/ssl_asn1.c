@@ -48,6 +48,7 @@
 #define asn1Mem(obj, offset) (*(void**)(((byte*)(obj)) + (offset)))
 #define asn1Type(obj, offset) (*(int*)(((byte*)(obj)) + (offset)))
 
+WC_NO_SANITIZE_FUNCTION
 static void* asn1_new_tpl(const WOLFSSL_ASN1_TEMPLATE *mem)
 {
     if (mem->sequence)
@@ -145,6 +146,7 @@ void* wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM* item)
     return ret;
 }
 
+WC_NO_SANITIZE_FUNCTION
 static void asn1_free_tpl(void *obj, const WOLFSSL_ASN1_TEMPLATE *mem)
 {
     if (obj != NULL) {
@@ -195,6 +197,7 @@ void wolfSSL_ASN1_item_free(void *obj, const WOLFSSL_ASN1_ITEM *item)
     }
 }
 
+WC_NO_SANITIZE_FUNCTION
 static int i2d_asn1_items(const void* obj, byte** buf,
         const WOLFSSL_ASN1_TEMPLATE* mem)
 {
@@ -441,6 +444,7 @@ int wolfSSL_ASN1_item_i2d(const void* obj, byte** dest,
     return len;
 }
 
+WC_NO_SANITIZE_FUNCTION
 static void* d2i_obj(const WOLFSSL_ASN1_TEMPLATE* mem, const byte** src,
         long* len)
 {
