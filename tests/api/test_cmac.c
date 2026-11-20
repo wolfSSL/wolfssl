@@ -36,6 +36,14 @@
 #include <tests/api/api.h>
 #include <tests/api/test_cmac.h>
 
+/* Frozen module headers do not provide the CMAC allocation helpers. */
+#ifndef WC_ALLOC_CMAC
+#define WC_ALLOC_CMAC(heap) \
+    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
+#endif
+
 /*
  * Testing wc_InitCmac()
  */
@@ -844,8 +852,8 @@ int test_wc_CryptoCb_CmacFree(void)
     word32 tagSz = (word32)sizeof(tag);
     WC_DECLARE_VAR(cmac, Cmac, 1, HEAP_HINT);
 
-    WC_ALLOC_VAR(cmac, Cmac, 1, HEAP_HINT);
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    cmac = WC_ALLOC_CMAC(HEAP_HINT);
     ExpectNotNull(cmac);
 #endif
 
@@ -871,7 +879,9 @@ int test_wc_CryptoCb_CmacFree(void)
 
     wc_CryptoCb_UnRegisterDevice(devId);
 
-    WC_FREE_VAR(cmac, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_CMAC(cmac, HEAP_HINT);
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCb_CmacFree */

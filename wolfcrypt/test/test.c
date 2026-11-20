@@ -109979,8 +109979,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         word32 cmacTagSz = (word32)sizeof(cmacTag);
         WC_DECLARE_VAR(cmac, Cmac, 1, HEAP_HINT);
 
-        WC_ALLOC_VAR_EX(cmac, Cmac, 1, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        cmac = WC_ALLOC_CMAC(HEAP_HINT);
+        if (cmac == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+#endif
 
         if (ret == 0) {
             ret = wc_InitCmac_ex(cmac, cmacKey, (word32)sizeof(cmacKey),
@@ -110003,7 +110006,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         if (ret == 0 && myCtx.cmacFreeCount == 0)
             ret = WC_TEST_RET_ENC_NC;
 
-        WC_FREE_VAR_EX(cmac, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        WC_FREE_CMAC(cmac, HEAP_HINT);
+#endif
     }
 #endif /* WOLFSSL_CMAC && WOLF_CRYPTO_CB_FREE */
 
