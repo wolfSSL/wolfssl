@@ -31,6 +31,7 @@ int test_wc_DhSetKey_ex_pseudoprime(void);
 int test_wc_DhSetNamedKey_and_helpers(void);
 int test_wc_DhGenerateKeyPair_bad_args(void);
 int test_wc_DhGenerateKeyPair_and_Agree(void);
+int test_wc_DhKcapi_not_compiled_in(void);
 int test_wc_DhAgree_nonblock(void);
 int test_wc_DhImportExportKeyPair(void);
 int test_wc_DhCheckPubKey(void);
@@ -48,6 +49,7 @@ int test_dh_decision_coverage(void);
     TEST_DECL_GROUP("dh", test_wc_DhSetNamedKey_and_helpers),       \
     TEST_DECL_GROUP("dh", test_wc_DhGenerateKeyPair_bad_args),      \
     TEST_DECL_GROUP("dh", test_wc_DhGenerateKeyPair_and_Agree),     \
+    TEST_DECL_GROUP("dh", test_wc_DhKcapi_not_compiled_in),         \
     TEST_DECL_GROUP("dh", test_wc_DhAgree_nonblock),                \
     TEST_DECL_GROUP("dh", test_wc_DhImportExportKeyPair),           \
     TEST_DECL_GROUP("dh", test_wc_DhCheckPubKey),                   \
