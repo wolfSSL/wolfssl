@@ -1320,6 +1320,18 @@ function(generate_lib_src_list LIB_SOURCES)
         if(BUILD_MLDSA)
             list(APPEND LIB_SOURCES wolfcrypt/src/wc_mldsa.c)
 
+            if(BUILD_ARMASM)
+                if(BUILD_ARMASM_INLINE)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-mldsa-asm_c.c
+                        wolfcrypt/src/port/arm/armv8-32-mldsa-asm_c.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-mldsa-asm.S
+                        wolfcrypt/src/port/arm/armv8-32-mldsa-asm.S)
+                endif()
+            endif()
+
             if(BUILD_INTELASM)
                 list(APPEND LIB_SOURCES wolfcrypt/src/wc_mldsa_asm.S)
             endif()
