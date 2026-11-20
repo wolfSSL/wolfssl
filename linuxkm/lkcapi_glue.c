@@ -169,6 +169,43 @@
     #define LKCAPI_ABSORB_SEED_INDICATOR(err) WC_DO_NOTHING
 #endif
 
+/* Map a wolfCrypt return to the errno an LKCAPI op callback reports,
+ * preserving the FIPS v7 refusal taxonomy (see CastClassify() in
+ * fips_test.c).  FIPS_NOT_ALLOWED_E means a FAILED module --
+ * reload-only, so the module is gone as a service, which in kernel
+ * idiom is -ENODEV (matching FIPS_rerun_self_test_handler() in
+ * module_hooks.c).  NOT_READY_E is a transient -- a self-test in
+ * flight, or an infrastructure transient -- but the errno that says
+ * "retry" is context-dependent, so those call sites pass it:
+ *   -EAGAIN  where repeating the same call is sound: setkey, one-shot
+ *            crypt/digest/sign/verify/KEM ops, import probes;
+ *   -EBUSY   from tfm-init callbacks ONLY -- never from a request op,
+ *            where crypto_wait_req() treats -EBUSY as backlogged and
+ *            sleeps on a completion that never fires -- because
+ *            -EAGAIN at tfm init makes
+ *            __crypto_alloc_tfm()/crypto_create_tfm_node() call
+ *            crypto_shoot_alg() (CRYPTO_ALG_DYING), killing the
+ *            registration so the alloc retry resolves to the
+ *            next-priority (unvalidated) implementation;
+ *   -EIO     from streaming update/final arms that destroy the
+ *            operation state on the way out: the instance is dead, and
+ *            -EAGAIN would invite a retry that silently computes on a
+ *            fresh (empty) state.
+ * Anything else maps to the caller's fallback, -EINVAL at most call
+ * sites. */
+WC_MAYBE_UNUSED static WC_INLINE int lkcapi_wc_errno_ex(int wc_ret,
+                                                        int transient,
+                                                        int fallback)
+{
+    if (wc_ret == WC_NO_ERR_TRACE(NOT_READY_E))
+        return transient;
+    if (wc_ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+        return -ENODEV;
+    return fallback;
+}
+#define lkcapi_wc_errno(wc_ret, fallback) \
+    lkcapi_wc_errno_ex(wc_ret, -EAGAIN, fallback)
+
 WC_MAYBE_UNUSED static int check_skcipher_driver_masking(struct crypto_skcipher *tfm, const char *alg_name, const char *expected_driver_name) {
 #ifdef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
     (void)tfm; (void)alg_name; (void)expected_driver_name;
