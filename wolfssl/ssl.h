@@ -5415,16 +5415,6 @@ WOLFSSL_API int wolfSSL_CTX_add_client_custom_ext(WOLFSSL_CTX* ctx,
         wolfSSL_custom_ext_parse_cb parse_cb, void* parse_arg);
 #endif /* OPENSSL_EXTRA && HAVE_TLS_EXTENSIONS */
 
-/* FIPS v7 refuses TLS 1.2 without the extended master secret: FIPS 140-3
- * IG D.Q, RFC 7627 sec 5.2. */
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
-    !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
-    #ifndef HAVE_EXTENDED_MASTER
-        #error "FIPS v7 TLS 1.2 needs HAVE_EXTENDED_MASTER"
-    #endif
-    #define WOLFSSL_EMS_ALWAYS_REQUIRED
-#endif
-
 /* TLS Extended Master Secret Extension */
 WOLFSSL_API int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);

@@ -46855,11 +46855,13 @@ static int test_sniffer_hello_session_id_len(void)
     char err[WOLFSSL_MAX_ERROR_SZ];
     byte tail[40];
     byte cliTail[SNIFFER_TEST_ID_SZ + 6];
-    byte srvTail[SNIFFER_TEST_ID_SZ + 3];
+    byte srvTail[SNIFFER_TEST_ID_SZ + 9];
     byte cliTailFull[ID_LEN + 6];
-    byte srvTailFull[ID_LEN + 3];
+    byte srvTailFull[ID_LEN + 9];
     /* cipher suite list of one, then one compression method */
     static const byte validTail[6] = { 0x00, 0x02, 0x00, 0x2f, 0x01, 0x00 };
+    /* extensions holding only EMS, which a FIPS v7 sniffer requires */
+    static const byte emsExt[6] = { 0x00, 0x04, 0x00, 0x17, 0x00, 0x00 };
 
     XMEMSET(tail, 0, sizeof(tail));
     XMEMSET(err, 0, sizeof(err));
@@ -46901,6 +46903,7 @@ static int test_sniffer_hello_session_id_len(void)
     srvTail[SNIFFER_TEST_ID_SZ + 0] = 0x00;
     srvTail[SNIFFER_TEST_ID_SZ + 1] = 0x2f;
     srvTail[SNIFFER_TEST_ID_SZ + 2] = 0x00;
+    XMEMCPY(srvTail + SNIFFER_TEST_ID_SZ + 3, emsExt, sizeof(emsExt));
 
     /* Both hellos carry a session id shorter than ID_LEN, and the record holds
      * no more than that. The ids differ, so no resumption is attempted. */
@@ -46931,6 +46934,7 @@ static int test_sniffer_hello_session_id_len(void)
     srvTailFull[ID_LEN + 0] = 0x00;
     srvTailFull[ID_LEN + 1] = 0x2f;
     srvTailFull[ID_LEN + 2] = 0x00;
+    XMEMCPY(srvTailFull + ID_LEN + 3, emsExt, sizeof(emsExt));
     ExpectIntEQ(SnifferTestTcp(40007, 10000, 1, SNIFFER_TEST_SYN, err), 0);
     ExpectIntEQ(SnifferTestTcp(40007, 11000, 0,
         SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
