@@ -67915,7 +67915,6 @@ static wc_test_ret_t mlkem512_kat(void)
         sizeof(kyber512enc_rand));
     if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = 0;
 
     if (XMEMCMP(ct, ml_kem_512_ct, sizeof(ml_kem_512_ct)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -69391,7 +69390,6 @@ static wc_test_ret_t mlkem768_kat(void)
         sizeof(kyber768enc_rand));
     if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = 0;
 
     if (XMEMCMP(ct, ml_kem_768_ct, sizeof(ml_kem_768_ct)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -71249,7 +71247,6 @@ static wc_test_ret_t mlkem1024_kat(void)
         sizeof(kyber1024enc_rand));
     if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = 0;
 
     if (XMEMCMP(ct, ml_kem_1024_ct, sizeof(ml_kem_1024_ct)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
