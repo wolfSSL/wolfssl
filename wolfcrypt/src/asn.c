@@ -24798,8 +24798,10 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
      * is intentionally narrow: when extensions are not parsed
      * (stopAtPubKey/stopAfterPubKey) isCA is not populated, so the
      * exemption never fires and serial-0 is always rejected on those
-     * paths. */
-    if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+     * paths. A date error does not skip the check: a verify callback may
+     * accept the date error, but not the serial. */
+    if (((ret == 0) || (ret == badDate)) && (cert->serialSz == 1) &&
+            (cert->serial[0] == 0)) {
         if (!ZERO_SERIAL_ALLOWED(cert)) {
             WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
             ret = ASN_PARSE_E;
@@ -26556,8 +26558,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
          * be in the CA store. In WOLFSSL_ASN_TEMPLATE builds DecodeCert()
          * above has already applied the same rule, so this check can only
          * fire in original-ASN builds, whose decoder carries no serial
-         * check. */
-        if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+         * check. A date error kept for the caller (ret == cert->badDate)
+         * does not skip the check. */
+        if (((ret == 0) || (ret == cert->badDate)) &&
+                (cert->serialSz == 1) && (cert->serial[0] == 0)) {
             if (!ZERO_SERIAL_ALLOWED(cert)) {
                 WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
                 return ASN_PARSE_E;

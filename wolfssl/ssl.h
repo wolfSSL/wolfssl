@@ -1800,8 +1800,9 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  * wolfSSL still owns the parsing. Every certificate is decoded before the
  * callback runs, and malformed DER fails the handshake without the callback
  * ever seeing it. So does a certificate the parser refuses regardless of the
- * verify mode, such as a non-root certificate with a zero serial number
- * (unless WOLFSSL_ASN_ALLOW_0_SERIAL is defined), or one that stops the
+ * verify mode, such as a certificate with a zero serial number that is not a
+ * self-issued CA certificate (unless WOLFSSL_ASN_ALLOW_0_SERIAL is defined),
+ * whatever its validity dates, or one that stops the
  * decode part way through, such as an unsupported key algorithm or mismatched
  * signature algorithm identifiers. Content found once the whole certificate
  * decoded - an unknown critical extension, a key usage inconsistent with the

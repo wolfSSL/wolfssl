@@ -68,7 +68,7 @@
  *     whose header+length sum wraps word32 -- impossible for an initialised
  *     signature-sized mp_int; the _Bin variant uses plain buffers, a path
  *     with no error return at all.
- *   - ParseCertRelative() :26501 both operands: see the argument at the
+ *   - ParseCertRelative() :26503 both operands: see the argument at the
  *     wb_parse_cert_relative_bad_date() section below.
  */
 
@@ -1789,7 +1789,7 @@ static void wb_parse_cert_relative_matrix(void)
     int ret;
 
     WB_NOTE("ParseCertRelative(): verify x type x CA-presence matrix "
-            "[:26497-:26992]");
+            "[:26499-:26996]");
 
     cm = wolfSSL_CertManagerNew();
     WB_CHECK(cm != NULL, "wolfSSL_CertManagerNew");
@@ -1838,20 +1838,20 @@ static void wb_parse_cert_relative_matrix(void)
 
 /* ------------------------------------------------------------------------- *
  * ParseCertRelative()'s bad-date forgiveness gate.
- *   :26501  if ((verify == VERIFY_SKIP_DATE) || AsnSkipDateCheck)
+ *   :26503  if ((verify == VERIFY_SKIP_DATE) || AsnSkipDateCheck)
  * Only entered when DecodeCert() reports a date error, which none of the
  * corpus certificates produce. A private copy of the client certificate has
  * its notBefore UTCTime rewritten to 2049 (UTCTime two-digit years below 50
  * mean 20xx), so the cert is permanently "not yet valid" for any clock.
  *
- * RESIDUAL -- both operands of :26501 are structurally unreachable, and this
+ * RESIDUAL -- both operands of :26503 are structurally unreachable, and this
  * fixture is what shows it. DecodeCertInternal() only assigns
  * badDate = ASN_BEFORE_DATE_E / ASN_AFTER_DATE_E under
  *     (verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE) &&
  *     (! AsnSkipDateCheck)
  * (asn.c:24584 and :24596), and DecodeCert() can return one of those two
  * codes only by returning that badDate. So on every path that reaches
- * :26501, `verify == VERIFY_SKIP_DATE` is already known false and
+ * :26503, `verify == VERIFY_SKIP_DATE` is already known false and
  * AsnSkipDateCheck is already known 0: the decision can never be true and
  * neither operand can be paired. Driving it under VERIFY_SKIP_DATE or with
  * the runtime skip flag set (both issued below) simply does not enter the
@@ -1866,7 +1866,7 @@ static void wb_parse_cert_relative_bad_date(void)
     DecodedCert dc;
     int ret;
 
-    WB_NOTE("ParseCertRelative(): bad-date forgiveness gate [:26501]");
+    WB_NOTE("ParseCertRelative(): bad-date forgiveness gate [:26503]");
 
     if (sz > sizeof(patched)) {
         WB_NOTE("client cert larger than the patch buffer; skipped");
@@ -1911,11 +1911,15 @@ static void wb_parse_cert_relative_bad_date(void)
 }
 /* ------------------------------------------------------------------------- *
  * ParseCertRelative()'s RFC 5280 zero-serial guard.
- *   :26560  if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0))
- *   :26561  if (!ZERO_SERIAL_ALLOWED(cert))
+ *   :26563  if (((ret == 0) || (ret == cert->badDate)) &&
+ *                   (cert->serialSz == 1) && (cert->serial[0] == 0))
+ *   :26565  if (!ZERO_SERIAL_ALLOWED(cert))
+ * (ret == cert->badDate) lets a date error kept for the caller (verify=VERIFY)
+ * reach the guard; without it a verify callback that accepts date errors
+ * would also accept an expired non-exempt serial-0 certificate.
  * ZERO_SERIAL_ALLOWED() (asn.c:17307) is `(isCA && selfIssued) || isCSR`,
  * the isCSR operand only under WOLFSSL_CERT_REQ; DecodeCertInternal() applies
- * the same macro (asn.c:24803).
+ * the same macro (asn.c:24805).
  * The parse type is not an operand (issue #11952): a self-issued CA with
  * serial 0 is accepted whether it is loaded as a trust anchor or received
  * from a peer, so every type takes the same arm of the decision.
@@ -1926,19 +1930,21 @@ static void wb_parse_cert_relative_bad_date(void)
  * and an intermediate CA whose issuer differs from its subject).
  *
  * RESIDUAL in WOLFSSL_ASN_TEMPLATE builds -- the certificate operands of
- * :26561 (cert->isCA, cert->selfIssued) can only be seen true. Driving one
- * false needs a certificate that reaches :26560 with a zero serial and with
+ * :26565 (cert->isCA, cert->selfIssued) can only be seen true. Driving one
+ * false needs a certificate that reaches :26563 with a zero serial and with
  * cA FALSE, or with a subject that differs from its issuer, and
- * DecodeCertInternal() rejects exactly those at asn.c:24803 before
- * ParseCertRelative() gets to :26560 (it returns on a negative DecodeCert()).
+ * DecodeCertInternal() rejects exactly those at asn.c:24805 before
+ * ParseCertRelative() gets to :26563 (it returns on any other negative
+ * DecodeCert(), and DecodeCertInternal() applies the rule even when it also
+ * has a date error to report).
  * The zero-serial leaf and intermediate fixtures below show it: both fail at
  * the DecodeCert() call. The llvm-cov test-vector dump taken for the earlier,
  * type-gated form of this decision agrees, recording isCA and selfIssued only
  * as true. The false side is reachable only in original-ASN builds, whose
  * decoder carries no serial check. The isCSR operand is driven by
  * wb_zero_serial_csr(): DecodeCertReq() never applies the rule, so a request
- * carrying a PKCS#9 serialNumber attribute of 0x00 (asn.c:24936) reaches
- * :26561 with isCA and selfIssued both false and isCSR true.
+ * carrying a PKCS#9 serialNumber attribute of 0x00 (asn.c:24938) reaches
+ * :26565 with isCA and selfIssued both false and isCSR true.
  * ------------------------------------------------------------------------- */
 static int wb_zero_serial(byte* buf, word32* sz)
 {
@@ -1981,10 +1987,12 @@ static void wb_parse_cert_relative_zero_serial(void)
 {
     static byte root[4096];
     word32 rootSz;
+    word32 i;
+    int found = 0;
     DecodedCert dc;
     int ret;
 
-    WB_NOTE("ParseCertRelative(): RFC 5280 zero-serial guard [:26560,:26561]");
+    WB_NOTE("ParseCertRelative(): RFC 5280 zero-serial guard [:26563,:26565]");
 
     rootSz = (word32)sizeof_ca_cert_der_2048;
     if (rootSz > sizeof(root)) {
@@ -2021,6 +2029,31 @@ static void wb_parse_cert_relative_zero_serial(void)
     WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
             "self-issued CA as CHAIN_CERT_TYPE (both operands true)");
     wc_FreeDecodedCert(&dc);
+
+    /* A date error kept for the caller does not skip the guard. With
+     * notBefore moved to 2049 and verify=VERIFY, DecodeCert() returns
+     * ASN_BEFORE_DATE_E and ParseCertRelative() keeps it in ret, so :26563
+     * is entered through its (ret == cert->badDate) operand with ret != 0.
+     * The self-issued CA exemption still holds. */
+    for (i = 0; i + 15 < rootSz; i++) {
+        if ((root[i] == ASN_UTC_TIME) && (root[i + 1] == 13) &&
+                (root[i + 14] == 'Z')) {
+            XMEMCPY(root + i + 2, "490101000000Z", 13);
+            found = 1;
+            break;
+        }
+    }
+    WB_CHECK(found, "notBefore UTCTime located in the zero-serial root");
+    if (found) {
+        wc_InitDecodedCert(&dc, root, rootSz, NULL);
+        ret = ParseCertRelative(&dc, CA_TYPE, VERIFY, NULL, NULL);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+                "not-yet-valid self-issued CA (ret == cert->badDate, "
+                "ret != 0; exemption holds)");
+        WB_CHECK(dc.badDate == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
+                "date error recorded, so the guard saw a non-zero ret");
+        wc_FreeDecodedCert(&dc);
+    }
 }
 #else
 static void wb_parse_cert_relative_bad_date(void)
@@ -2495,7 +2528,7 @@ static void wb_zero_serial_csr(void)
     if ((ret == 0) && (mcdc_der_grow(req, &sz, cap, attrsOff, serialAttr,
             (word32)sizeof(serialAttr)) != 0)) {
         WB_NOTE("splicing the serialNumber attribute was refused; "
-                ":26561 isCSR-operand row skipped");
+                ":26565 isCSR-operand row skipped");
         ret = -1;
     }
 
@@ -2504,11 +2537,11 @@ static void wb_zero_serial_csr(void)
         ret = ParseCertRelative(dc, CERTREQ_TYPE, NO_VERIFY, NULL, NULL);
         /* The spliced attribute invalidates the signature, and a CSR is
          * always self-verified, so the call ends in a signature failure --
-         * long after :26560/:26561. What is asserted is that the serial
+         * long after :26563/:26565. What is asserted is that the serial
          * attribute was picked up at all; without it the guard is not even
          * entered. */
         WB_CHECK(dc->serialSz == 1 && dc->serial[0] == 0 && dc->isCSR == 1,
-                ":26561 isCSR operand true (CSR with a zero serialNumber "
+                ":26565 isCSR operand true (CSR with a zero serialNumber "
                 "attribute)");
         wc_FreeDecodedCert(dc);
     }
@@ -2521,7 +2554,7 @@ static void wb_zero_serial_csr(void)
 #else
 static void wb_zero_serial_csr(void)
 {
-    WB_NOTE("WOLFSSL_CERT_REQ off; :26561 isCSR-operand row skipped");
+    WB_NOTE("WOLFSSL_CERT_REQ off; :26565 isCSR-operand row skipped");
 }
 #endif
 
@@ -2889,8 +2922,8 @@ static void wb_fixture_parse_matrix(void)
     };
 
     WB_NOTE("ParseCertRelative(): manufactured-fixture sweep "
-            "[:26560,:26561,:26575,:26587,:26614,:26628,:26651,:26715,"
-            ":26742,:26992]");
+            "[:26563,:26565,:26579,:26591,:26618,:26632,:26655,:26719,"
+            ":26746,:26996]");
 
     wb_build_fixtures();
     if (!wbFixturesOk) {
@@ -2914,7 +2947,7 @@ static void wb_fixture_parse_matrix(void)
     (void)wb_load_ca(cm, &wbInterNoKU,
             "load the keyUsage-less intermediate");
 
-    /* ---- zero-serial guard and its self-issued CA exemption [:26560,:26561]
+    /* ---- zero-serial guard and its self-issued CA exemption [:26563,:26565]
      * A zero serial is only tolerated for a self-issued CA, under every parse
      * type (issue #11952): every type takes the same arm, and the rows below
      * vary the type and verify mode to show it. */
@@ -2928,18 +2961,19 @@ static void wb_fixture_parse_matrix(void)
     wb_parse_one(&wbZeroSerialSubCA, CA_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbZeroSerialSubCA, TRUSTED_PEER_TYPE, VERIFY, cm, NULL);
 
-    /* ---- :26561 `!ZERO_SERIAL_ALLOWED(cert)`, the isCSR operand -------- *
+    /* ---- :26565 `!ZERO_SERIAL_ALLOWED(cert)`, the isCSR operand -------- *
      * A certificate can never take the isCSR arm and no certificate can
      * make isCA or selfIssued false here: DecodeCertInternal()
-     * (asn.c:24803) already applies the same ZERO_SERIAL_ALLOWED() rule, and
-     * ParseCertRelative() returns immediately on a negative DecodeCert(), so
-     * `ret == 0` at :26560 implies the exemption held.
+     * (asn.c:24805) already applies the same ZERO_SERIAL_ALLOWED() rule, and
+     * ParseCertRelative() returns immediately on any other negative
+     * DecodeCert(), so reaching :26565 with a certificate implies the
+     * exemption held, whether ret is 0 or a kept date error.
      *
      * A certificate REQUEST is the exception, and the only one. It is parsed
      * by DecodeCertReq(), which does not carry that check, and it CAN carry a
      * serial number: DecodeCertReqAttrValue()'s SERIAL_NUMBER_OID arm
-     * (asn.c:24936) copies a serialNumber ATTRIBUTE into cert->serial. A CSR
-     * whose attribute value is a single 0x00 byte therefore reaches :26560
+     * (asn.c:24938) copies a serialNumber ATTRIBUTE into cert->serial. A CSR
+     * whose attribute value is a single 0x00 byte therefore reaches :26563
      * with serialSz == 1, serial[0] == 0, isCA == 0 and selfIssued == 0
      * (DecodeCertReq() sets neither) and isCSR == 1.
      *
@@ -2950,24 +2984,24 @@ static void wb_fixture_parse_matrix(void)
      *     SEQUENCE { OID 2.5.4.5, SET { UTF8String 0x00 } }
      * in at the START of that set's content, rewriting the enclosing
      * CertificationRequest / CertificationRequestInfo / [0] lengths. The
-     * signature is invalidated by the edit, which does not matter: :26561 is
+     * signature is invalidated by the edit, which does not matter: :26565 is
      * evaluated well before the CERTREQ_TYPE ConfirmSignature() call. */
     wb_zero_serial_csr();
 
-    /* ---- basicConstraints / keyUsage consistency [:26575] ------------- */
+    /* ---- basicConstraints / keyUsage consistency [:26579] ------------- */
     wb_parse_one(&wbLeafKuCertSign, CERT_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbLeafKuCertSign, CA_TYPE, NO_VERIFY, cm, NULL);
     wb_parse_one(&wbLeafKuNoCertSign, CERT_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbLeafNoSkid, CERT_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbInter, CERT_TYPE, VERIFY, cm, NULL);
 
-    /* ---- recompute the SKID when the extension is absent [:26587] ----- */
+    /* ---- recompute the SKID when the extension is absent [:26591] ----- */
     wb_parse_one(&wbLeafNoSkid, CERT_TYPE, NO_VERIFY, cm, NULL);
     wb_parse_one(&wbLeafNoSkid, CA_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbLeafUnderMism, CERT_TYPE, VERIFY, cm, NULL);
 
-    /* ---- CA lookup: key id hit with a disagreeing name [:26628],
-     *      name hit while an AKID is present [:26651] ------------------- */
+    /* ---- CA lookup: key id hit with a disagreeing name [:26632],
+     *      name hit while an AKID is present [:26655] ------------------- */
     wb_parse_one(&wbLeafBadName, CERT_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbLeafBadName, CERT_TYPE, VERIFY_NAME, cm, NULL);
     wb_parse_one(&wbLeafBadAkid, CERT_TYPE, VERIFY, cm, NULL);
@@ -2976,7 +3010,7 @@ static void wb_fixture_parse_matrix(void)
 
     /* ---- path-length block: CA with and without a keyUsage extension,
      *      and the self-issued trust-anchor public-key comparison
-     *      [:26715,:26742]. A self-signed certificate only gets a CA
+     *      [:26719,:26746]. A self-signed certificate only gets a CA
      *      lookup at all when the type is neither CA_TYPE nor
      *      TRUSTED_PEER_TYPE, hence CHAIN_CERT_TYPE here. */
     wb_parse_one(&wbInterNoKU, CA_TYPE, VERIFY, cm, NULL);
@@ -3120,7 +3154,7 @@ static void wb_fixture_parse_matrix(void)
             FreeSigner(interSigner, NULL);
         }
 
-        /* ---- issuer known, but with no public key attached [:26742].
+        /* ---- issuer known, but with no public key attached [:26746].
          * A Signer only carries a public key when the DecodedCert it was
          * filled from owned one; the trust store always supplies one, so
          * the "issuer has no key" operand of the trust-anchor comparison

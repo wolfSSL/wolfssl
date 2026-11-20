@@ -30096,6 +30096,8 @@ static int test_PathLenNoKeyUsage(void)
  *   intermediate_serial0.pem         1    0          reject
  *   selfsigned_nonca_serial0.pem     0    1          reject
  *   ee_serial0.pem                   0    0          reject
+ *   ee_serial0_expired.pem           0    0          reject, under VERIFY
+ *                                                    too (no date error)
  */
 static int test_ParseSerial0FixtureMatrix(void)
 {
@@ -30211,6 +30213,33 @@ static int test_ParseSerial0FixtureMatrix(void)
         XFREE(pemBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+
+    /* A date error must not hide the serial-0 rejection. An expired serial-0
+     * end-entity certificate parsed with VERIFY has to fail with ASN_PARSE_E,
+     * not with ASN_AFTER_DATE_E, which a verify callback may accept. */
+    {
+        byte*  pemBuf = NULL;
+        size_t pemSz  = 0;
+        byte*  derBuf = NULL;
+        int    derSz  = 0;
+        DecodedCert dc;
+
+        ExpectIntEQ(load_file("./certs/test-serial0/ee_serial0_expired.pem",
+            &pemBuf, &pemSz), 0);
+        ExpectNotNull(derBuf = (byte*)XMALLOC(pemSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntGE(derSz = wc_CertPemToDer(pemBuf, (int)pemSz, derBuf,
+            (int)pemSz, CERT_TYPE), 0);
+        for (t = 0; EXPECT_SUCCESS() && t < sizeof(types) / sizeof(types[0]);
+                ++t) {
+            wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
+            ExpectIntEQ(wc_ParseCert(&dc, types[t], VERIFY, NULL),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+            wc_FreeDecodedCert(&dc);
+        }
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pemBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
     return EXPECT_RESULT();
 }
