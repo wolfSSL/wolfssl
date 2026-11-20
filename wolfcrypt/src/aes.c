@@ -16095,8 +16095,7 @@ int wc_AesGcmSetIVCounter(Aes* aes, const byte* iv, word32 ivSz, word32 ctrSz,
         (ivSz != GCM_NONCE_MIN_SZ && ivSz != GCM_NONCE_MID_SZ) ||
         ctrSz < 4 || ctrSz > ivSz - AES_IV_FIXED_SZ) {
         ret = BAD_FUNC_ARG;
-    }
-    else if (aes->gcmIvLock) {
+    } else if (aes->gcmIvLock) {
         ret = BAD_STATE_E;
     }
 

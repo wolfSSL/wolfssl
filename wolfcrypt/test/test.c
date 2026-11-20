@@ -33067,11 +33067,12 @@ static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng, int op)
     else if (op == WC_RNG_LOCK_OP_SCHEDULE) {
         ret = wc_RNG_DRBG_ScheduleReseed(rng);
     }
-    else
-#endif
-    {
+    else {
         ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
     }
+#else
+    ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
+#endif
     (void)clock_gettime(CLOCK_MONOTONIC, &t1);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);

@@ -2871,8 +2871,7 @@ static int test_rsa_params_op(WC_RNG* rng, word32 nSz, byte top,
         if ((ret == 0) && verify) {
             XMEMSET(out, 0x01, sizeof(out));
             ret = wc_RsaSSL_Verify(out, nSz, n, sizeof(n), &key);
-        }
-        else if (ret == 0) {
+        } else if (ret == 0) {
             ret = wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out),
                 &key, rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
                 NULL, 0);
