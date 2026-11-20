@@ -5888,8 +5888,12 @@ static int test_tls13_tamper_key_share(struct test_memio_ctx* ctx, int client,
     idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN;
     idx += OPAQUE8_LEN + buf[idx];
     if (isCh) {
+        if (idx + OPAQUE16_LEN > *len)
+            return -1;
         ato16(buf + idx, &v16);
         idx += OPAQUE16_LEN + v16;
+        if (idx >= *len)
+            return -1;
         idx += OPAQUE8_LEN + buf[idx];
     }
     else {
