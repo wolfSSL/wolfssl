@@ -1010,8 +1010,11 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     if (context->seq == WC_MAX_SINT_OF(int))
         return SEQ_OVERFLOW_E;
 
-    WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
-        return MEMORY_E);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(hpke->heap);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
     ret = wc_AesInit(aes, hpke->heap, INVALID_DEVID);
     if (ret == 0) {
         /* compute nonce */
@@ -1029,7 +1032,9 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
         }
         wc_AesFree(aes);
     }
-    WC_FREE_VAR_EX(aes, hpke->heap, DYNAMIC_TYPE_AES);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, hpke->heap);
+#endif
     return ret;
 }
 
@@ -1454,8 +1459,11 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
         return SEQ_OVERFLOW_E;
 
     XMEMSET(nonce, 0, sizeof(nonce));
-    WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
-        return MEMORY_E);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(hpke->heap);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
     /* compute nonce */
     ret = wc_HpkeContextComputeNonce(hpke, context, nonce);
     if (ret == 0)
@@ -1472,7 +1480,9 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
         }
         wc_AesFree(aes);
     }
-    WC_FREE_VAR_EX(aes, hpke->heap, DYNAMIC_TYPE_AES);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, hpke->heap);
+#endif
     return ret;
 }
 

@@ -4484,11 +4484,15 @@ int test_wc_AesGcmEncrypt_ex_NonceUnique(void)
     WC_DECLARE_VAR(plainOut, byte, TEST_AES_NONCE_SZ, NULL);
 #endif
 
-    WC_ALLOC_VAR(aes, Aes, 1, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(NULL);
+#endif
     WC_ALLOC_VAR(plain, byte, TEST_AES_NONCE_SZ, NULL);
     WC_ALLOC_VAR(cipher, byte, TEST_AES_NONCE_SZ, NULL);
 #ifdef HAVE_AES_DECRYPT
-    WC_ALLOC_VAR(dec, Aes, 1, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    dec = WC_ALLOC_AES(NULL);
+#endif
     WC_ALLOC_VAR(plainOut, byte, TEST_AES_NONCE_SZ, NULL);
 #endif
 
@@ -4615,10 +4619,14 @@ out:
 #endif
     WC_FREE_VAR(plain, NULL);
     WC_FREE_VAR(cipher, NULL);
-    WC_FREE_VAR(aes, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, NULL);
+#endif
 #ifdef HAVE_AES_DECRYPT
     WC_FREE_VAR(plainOut, NULL);
-    WC_FREE_VAR(dec, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(dec, NULL);
+#endif
 #endif
 #endif /* !NO_AES && HAVE_AESGCM && WOLFSSL_AES_128 && !WC_NO_RNG */
     return EXPECT_RESULT();
@@ -13215,7 +13223,7 @@ int test_wc_CryptoCb_AesSetKey(void)
     int ret;
 
 #ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    aes = WC_ALLOC_AES(NULL);
     key = (byte*)XMALLOC(AES_128_KEY_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     iv = (byte*)XMALLOC(GCM_NONCE_MID_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     plain = (byte*)XMALLOC(16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -13407,7 +13415,7 @@ int test_wc_CryptoCb_AesSetKey(void)
 
 #ifdef WOLFSSL_SMALL_STACK
 out:
-    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_AES(aes, NULL);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(iv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -13649,7 +13657,7 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void)
     int hasNonZero = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    aes = WC_ALLOC_AES(NULL);
     key = (byte*)XMALLOC(AES_128_KEY_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     iv = (byte*)XMALLOC(GCM_NONCE_MID_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     aad = (byte*)XMALLOC(16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -13795,7 +13803,7 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void)
 
 #ifdef WOLFSSL_SMALL_STACK
 out:
-    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_AES(aes, NULL);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(iv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(aad, NULL, DYNAMIC_TYPE_TMP_BUFFER);

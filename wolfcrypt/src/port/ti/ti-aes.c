@@ -991,8 +991,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -1007,7 +1006,9 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -1028,8 +1029,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -1042,7 +1042,9 @@ int wc_GmacVerify(const byte* key, word32 keySz,
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 #else
     (void)key;
     (void)keySz;

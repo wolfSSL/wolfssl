@@ -5882,6 +5882,46 @@ static WC_MAYBE_UNUSED int bench_EccInit_Pair(ecc_key* key, int keySize,
 
 #ifndef NO_AES
 
+#if defined(HAVE_AES_CBC) || defined(HAVE_AESGCM) || defined(HAVE_AES_ECB) || \
+    (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+static void bench_free_aes_array(Aes** aes)
+{
+    int i;
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        WC_FREE_AES(aes[i], HEAP_HINT);
+        aes[i] = NULL;
+    }
+}
+
+static int bench_alloc_aes_array(Aes** aes)
+{
+    int i;
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        aes[i] = WC_ALLOC_AES(HEAP_HINT);
+        if (aes[i] == NULL) {
+            bench_free_aes_array(aes);
+            return MEMORY_E;
+        }
+        XMEMSET(aes[i], 0, sizeof(Aes));
+    }
+    return 0;
+}
+
+#define BENCH_DECLARE_AES_ARRAY(aes) Aes* aes[BENCH_MAX_PENDING] = { NULL }
+#define BENCH_ALLOC_AES_ARRAY(aes) bench_alloc_aes_array(aes)
+#define BENCH_AES_ARRAY_OK(aes) ((aes)[0] != NULL)
+#define BENCH_FREE_AES_ARRAY(aes) bench_free_aes_array(aes)
+#else
+#define BENCH_DECLARE_AES_ARRAY(aes) Aes aes[BENCH_MAX_PENDING][1]
+#define BENCH_ALLOC_AES_ARRAY(aes) (XMEMSET((aes), 0, sizeof(aes)), 0)
+#define BENCH_AES_ARRAY_OK(aes) 1
+#define BENCH_FREE_AES_ARRAY(aes) WC_DO_NOTHING
+#endif
+#endif
+
 #ifdef HAVE_AES_CBC
 static void bench_aescbc_internal(int useDeviceID,
                                   const byte* key, word32 keySz,
@@ -5891,15 +5931,15 @@ static void bench_aescbc_internal(int useDeviceID,
     const byte* in = bench_cipher;
     byte* out = bench_plain;
     int    ret = 0, i, count = 0, times, pending = 0;
-    WC_DECLARE_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    BENCH_DECLARE_AES_ARRAY(enc);
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_prepare();
 
-    WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    ret = BENCH_ALLOC_AES_ARRAY(enc);
+    if (ret != 0)
+        goto exit;
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -5960,16 +6000,17 @@ exit_aes_enc:
 
 #ifdef HAVE_AES_DECRYPT
 
-    if (WC_ARRAY_OK(enc)) {
+    if (BENCH_AES_ARRAY_OK(enc)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
             wc_AesFree(enc[i]);
         }
-        WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
+        BENCH_FREE_AES_ARRAY(enc);
     }
 
     bench_stats_prepare();
-    WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    ret = BENCH_ALLOC_AES_ARRAY(enc);
+    if (ret != 0)
+        goto exit;
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -6027,11 +6068,11 @@ exit_aes_dec:
     (void)decLabel;
 exit:
 
-    if (WC_ARRAY_OK(enc)) {
+    if (BENCH_AES_ARRAY_OK(enc)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
             wc_AesFree(enc[i]);
         }
-        WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
+        BENCH_FREE_AES_ARRAY(enc);
     }
 }
 
@@ -6070,11 +6111,9 @@ static void bench_aesgcm_internal(int useDeviceID,
                                   const char* encLabel, const char* decLabel)
 {
     int    ret = 0, i, count = 0, times, pending = 0;
-    WC_DECLARE_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    BENCH_DECLARE_AES_ARRAY(enc);
 #ifdef HAVE_AES_DECRYPT
-    WC_DECLARE_ARRAY(dec, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    BENCH_DECLARE_AES_ARRAY(dec);
 #endif
     const byte* in = bench_plain;
     byte* out = bench_cipher;
@@ -6087,8 +6126,9 @@ static void bench_aesgcm_internal(int useDeviceID,
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-    WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                  sizeof(Aes), HEAP_HINT);
+    ret = BENCH_ALLOC_AES_ARRAY(enc);
+    if (ret != 0)
+        goto exit;
 
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
@@ -6176,8 +6216,9 @@ exit_aes_gcm:
     RESET_MULTI_VALUE_STATS_VARS();
 
     bench_stats_prepare();
-    WC_CALLOC_ARRAY(dec, Aes, BENCH_MAX_PENDING,
-                  sizeof(Aes), HEAP_HINT);
+    ret = BENCH_ALLOC_AES_ARRAY(dec);
+    if (ret != 0)
+        goto exit;
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -6249,18 +6290,18 @@ exit:
         printf("bench_aesgcm failed: %d\n", ret);
     }
 #ifdef HAVE_AES_DECRYPT
-    if (WC_ARRAY_OK(dec)) {
+    if (BENCH_AES_ARRAY_OK(dec)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
             wc_AesFree(dec[i]);
         }
-        WC_FREE_ARRAY(dec, BENCH_MAX_PENDING, HEAP_HINT);
+        BENCH_FREE_AES_ARRAY(dec);
     }
 #endif
-    if (WC_ARRAY_OK(enc)) {
+    if (BENCH_AES_ARRAY_OK(enc)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
             wc_AesFree(enc[i]);
         }
-        WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
+        BENCH_FREE_AES_ARRAY(enc);
     }
 
     WC_FREE_VAR(bench_additional, HEAP_HINT);
@@ -6273,11 +6314,9 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
     const char* encLabel, const char* decLabel)
 {
     int    ret = 0, i, count = 0, times, pending = 0;
-    WC_DECLARE_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    BENCH_DECLARE_AES_ARRAY(enc);
 #ifdef HAVE_AES_DECRYPT
-    WC_DECLARE_ARRAY(dec, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    BENCH_DECLARE_AES_ARRAY(dec);
 #endif
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -6290,11 +6329,13 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
-    WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                  sizeof(Aes), HEAP_HINT);
+    ret = BENCH_ALLOC_AES_ARRAY(enc);
+    if (ret != 0)
+        goto exit;
 #ifdef HAVE_AES_DECRYPT
-    WC_CALLOC_ARRAY(dec, Aes, BENCH_MAX_PENDING,
-                  sizeof(Aes), HEAP_HINT);
+    ret = BENCH_ALLOC_AES_ARRAY(dec);
+    if (ret != 0)
+        goto exit;
 #endif
 
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -6425,18 +6466,18 @@ exit:
         printf("bench_aesgcm failed: %d\n", ret);
     }
 #ifdef HAVE_AES_DECRYPT
-    if (WC_ARRAY_OK(dec)) {
+    if (BENCH_AES_ARRAY_OK(dec)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
             wc_AesFree(dec[i]);
         }
-        WC_FREE_ARRAY(dec, BENCH_MAX_PENDING, HEAP_HINT);
+        BENCH_FREE_AES_ARRAY(dec);
     }
 #endif
-    if (WC_ARRAY_OK(enc)) {
+    if (BENCH_AES_ARRAY_OK(enc)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
             wc_AesFree(enc[i]);
         }
-        WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
+        BENCH_FREE_AES_ARRAY(enc);
     }
 
     WC_FREE_VAR(bench_additional, HEAP_HINT);
@@ -6608,8 +6649,7 @@ static void bench_aesecb_internal(int useDeviceID,
                                   const char* encLabel, const char* decLabel)
 {
     int    ret = 0, i, count = 0, times, pending = 0;
-    WC_DECLARE_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    BENCH_DECLARE_AES_ARRAY(enc);
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef HAVE_FIPS
@@ -6620,8 +6660,9 @@ static void bench_aesecb_internal(int useDeviceID,
 
     bench_stats_prepare();
 
-    WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
-                     sizeof(Aes), HEAP_HINT);
+    ret = BENCH_ALLOC_AES_ARRAY(enc);
+    if (ret != 0)
+        goto exit;
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -6748,11 +6789,11 @@ exit_aes_dec:
 
 exit:
 
-    if (WC_ARRAY_OK(enc)) {
+    if (BENCH_AES_ARRAY_OK(enc)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
             wc_AesFree(enc[i]);
         }
-        WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
+        BENCH_FREE_AES_ARRAY(enc);
     }
 }
 
@@ -7018,7 +7059,13 @@ static void bench_aesxts_key(const byte* key, word32 keySz, const char* encLbl,
 
     bench_stats_prepare();
 
-    WC_ALLOC_VAR(aes, XtsAes, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_XTS(HEAP_HINT);
+    if (aes == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
 
     ret = wc_AesXtsSetKey(aes, key, keySz, AES_ENCRYPTION,
@@ -7192,7 +7239,9 @@ static void bench_aesxts_key(const byte* key, word32 keySz, const char* encLbl,
 exit:
 
     wc_AesXtsFree(aes);
-    WC_FREE_VAR(aes, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_XTS(aes, HEAP_HINT);
+#endif
 }
 
 void bench_aesxts(void)

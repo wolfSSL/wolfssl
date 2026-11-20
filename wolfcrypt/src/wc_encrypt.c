@@ -50,8 +50,11 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-        return MEMORY_E);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(NULL);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
@@ -62,7 +65,9 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         wc_AesFree(aes);
     }
 
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -78,8 +83,11 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-        return MEMORY_E);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(NULL);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
@@ -90,7 +98,9 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
         wc_AesFree(aes);
     }
 
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -639,7 +649,7 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
 
             #ifdef WOLFSSL_SMALL_STACK
                 Aes *aes;
-                aes = (Aes *)XMALLOC(sizeof *aes, NULL, DYNAMIC_TYPE_AES);
+                aes = WC_ALLOC_AES(NULL);
                 if (aes == NULL) {
                     ret = MEMORY_E;
                     break;
@@ -675,7 +685,9 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
                 if (free_aes)
                     wc_AesFree(aes);
                 ForceZero(aes, sizeof(Aes));
-                WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+            #ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(aes, NULL);
+            #endif
                 break;
             }
     #endif /* !NO_AES && HAVE_AES_CBC && (WOLFSSL_AES_256 || WOLFSSL_AES_128) */

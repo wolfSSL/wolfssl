@@ -844,8 +844,8 @@ int test_wc_CryptoCb_CmacFree(void)
     word32 tagSz = (word32)sizeof(tag);
     WC_DECLARE_VAR(cmac, Cmac, 1, HEAP_HINT);
 
-    WC_ALLOC_VAR(cmac, Cmac, 1, HEAP_HINT);
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    cmac = WC_ALLOC_CMAC(HEAP_HINT);
     ExpectNotNull(cmac);
 #endif
 
@@ -871,7 +871,9 @@ int test_wc_CryptoCb_CmacFree(void)
 
     wc_CryptoCb_UnRegisterDevice(devId);
 
-    WC_FREE_VAR(cmac, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_CMAC(cmac, HEAP_HINT);
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCb_CmacFree */

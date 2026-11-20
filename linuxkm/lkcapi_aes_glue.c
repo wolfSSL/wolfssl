@@ -4132,7 +4132,7 @@ static int aes_xts_128_test(void)
         0x3F, 0xED, 0x11, 0x37, 0xCB, 0x4D, 0xAD, 0xA4
     };
 
-    if ((aes = (XtsAes *)XMALLOC(sizeof(*aes), NULL, DYNAMIC_TYPE_AES))
+    if ((aes = WC_ALLOC_XTS(NULL))
         == NULL)
     {
         ret = MEMORY_E;
@@ -4613,7 +4613,7 @@ static int aes_xts_128_test(void)
 
     XFREE(buf, NULL, DYNAMIC_TYPE_AES);
     XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    WC_FREE_XTS(aes, NULL);
 
 #undef AES_XTS_128_TEST_BUF_SIZ
 
@@ -4717,7 +4717,7 @@ static int aes_xts_256_test(void)
         0xc3, 0xea, 0xd8, 0x10, 0xe9, 0xc0, 0xaf, 0x92
     };
 
-    if ((aes = (XtsAes *)XMALLOC(sizeof(*aes), NULL, DYNAMIC_TYPE_AES))
+    if ((aes = WC_ALLOC_XTS(NULL))
         == NULL)
     {
         ret = MEMORY_E;
@@ -5110,7 +5110,7 @@ static int aes_xts_256_test(void)
     XFREE(buf, NULL, DYNAMIC_TYPE_AES);
     XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
 
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    WC_FREE_XTS(aes, NULL);
 
 #undef AES_XTS_256_TEST_BUF_SIZ
 

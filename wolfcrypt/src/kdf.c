@@ -1129,7 +1129,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1178,7 +1178,9 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 }
 
@@ -1233,7 +1235,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1281,7 +1283,9 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 }
 
@@ -1333,7 +1337,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1365,7 +1369,9 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 
 }
@@ -1409,7 +1415,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1441,7 +1447,9 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 
 }

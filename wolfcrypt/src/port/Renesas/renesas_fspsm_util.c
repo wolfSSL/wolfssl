@@ -798,8 +798,7 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
 
             if (enc) {
                 if (enc->aes == NULL) {
-                    enc->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap,
-                                                    DYNAMIC_TYPE_CIPHER);
+                    enc->aes = WC_ALLOC_AES(ssl->heap);
                     if (enc->aes == NULL) {
                         XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
                         XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);
@@ -812,7 +811,7 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                                             (sizeof(FSPSM_AES_WKEY),
                                             ssl->heap, DYNAMIC_TYPE_AES);
                 if (enc->aes->ctx.wrapped_key == NULL) {
-                    XFREE(enc->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+                    WC_FREE_AES(enc->aes, ssl->heap);
                     enc->aes = NULL;
                     XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
                     XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);
@@ -822,13 +821,12 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             }
             if (dec) {
                 if (dec->aes == NULL) {
-                    dec->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap,
-                                                    DYNAMIC_TYPE_CIPHER);
+                    dec->aes = WC_ALLOC_AES(ssl->heap);
                     if (dec->aes == NULL) {
                         if (enc) {
                             XFREE(enc->aes->ctx.wrapped_key, ssl->heap,
                                                         DYNAMIC_TYPE_AES);
-                            XFREE(enc->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+                            WC_FREE_AES(enc->aes, ssl->heap);
                             enc->aes = NULL;
                         }
                         XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
@@ -845,10 +843,10 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                         if (enc) {
                             XFREE(enc->aes->ctx.wrapped_key, ssl->heap,
                                                         DYNAMIC_TYPE_AES);
-                            XFREE(enc->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+                            WC_FREE_AES(enc->aes, ssl->heap);
                             enc->aes = NULL;
                         }
-                        XFREE(dec->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+                        WC_FREE_AES(dec->aes, ssl->heap);
                         dec->aes = NULL;
                         XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
                         XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);

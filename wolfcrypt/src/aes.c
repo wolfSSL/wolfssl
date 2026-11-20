@@ -1293,15 +1293,16 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
                 return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-            if ((temp_key = (Aes *)XMALLOC(sizeof *aes, aes->heap,
-                                           DYNAMIC_TYPE_AES)) == NULL)
+            if ((temp_key = WC_ALLOC_AES(aes->heap)) == NULL)
                 return MEMORY_E;
 #endif
 
             if (AES_set_encrypt_key_AESNI(userKey,bits,temp_key)
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
                 ForceZero(temp_key, sizeof(Aes));
-                WC_FREE_VAR_EX(temp_key, aes->heap, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+                WC_FREE_AES(temp_key, aes->heap);
+#endif
                 return BAD_FUNC_ARG;
             }
 
@@ -1337,7 +1338,9 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
             /* temp_key holds the expanded key schedule
              * (ISO/IEC 19790:2012 7.9.7). */
             ForceZero(temp_key, sizeof(Aes));
-            WC_FREE_VAR_EX(temp_key, aes->heap, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+            WC_FREE_AES(temp_key, aes->heap);
+#endif
 
             return 0;
         }
