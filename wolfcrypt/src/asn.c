@@ -17590,30 +17590,123 @@ word32 SetExplicit(byte number, word32 len, byte* output, byte isIndef)
 }
 
 #if defined(OPENSSL_EXTRA)
+#define OTHERNAME_MAX_DEPTH 16
+
+/* Read a DER header at *idx before end; returns the content length or -1. */
+static int OthernameHeader(const byte* in, word32* idx, word32 end,
+    byte* constructed)
+{
+    word32 i = *idx;
+    int len = 0;
+
+    if ((i >= end) || (in[i] == 0))
+        return -1;
+    *constructed = (byte)(in[i] & ASN_CONSTRUCTED);
+    if ((in[i] & 0x1F) == 0x1F) {
+        /* High tag number: minimal base-128 digits for a number above 30. */
+        i++;
+        if ((i >= end) || (in[i] == 0x80) || (in[i] < 0x1F))
+            return -1;
+        while ((i < end) && ((in[i] & 0x80) != 0))
+            i++;
+    }
+    i++;
+    if ((i >= end) || (in[i] == ASN_INDEF_LENGTH) ||
+            (GetLength(in, &i, &len, end) < 0))
+        return -1;
+    *idx = i;
+    return len;
+}
+
+/* Check that in holds one DER element, with valid nested elements. */
+static int OthernameIsOneElement(const byte* in, word32 sz)
+{
+    word32 ends[OTHERNAME_MAX_DEPTH];
+    word32 idx = 0;
+    int depth = 0;
+    int len;
+    byte cons = 0;
+
+    len = OthernameHeader(in, &idx, sz, &cons);
+    if ((len < 0) || (idx + (word32)len != sz))
+        return 0;
+    if (!cons)
+        return 1;
+    ends[0] = sz;
+    while (depth >= 0) {
+        if (idx == ends[depth]) {
+            depth--;
+            continue;
+        }
+        len = OthernameHeader(in, &idx, ends[depth], &cons);
+        if (len < 0)
+            return 0;
+        if (cons && (len > 0)) {
+            if (depth + 1 >= OTHERNAME_MAX_DEPTH)
+                return 0;
+            ends[++depth] = idx + (word32)len;
+        }
+        else {
+            idx += (word32)len;
+        }
+    }
+    return 1;
+}
+
 /* Encode an Othername into DER.
  *
  * @param [in]  name    Pointer to the WOLFSSL_ASN1_OTHERNAME to be encoded.
  * @param [out] output  Buffer to encode into. If NULL, don't encode.
- * @return  Number of bytes encoded or WOLFSSL_FAILURE if name parameter is bad.
+ * @return  Number of bytes encoded.
+ * @return  WOLFSSL_FAILURE when name is incomplete, its value type is not
+ *          supported or a SEQUENCE value is not one DER element.
  */
 word32 SetOthername(void *name, byte *output)
 {
     WOLFSSL_ASN1_OTHERNAME *nm = (WOLFSSL_ASN1_OTHERNAME *)name;
     char *nameStr = NULL;
     word32 nameSz = 0;
+    word32 strSz;
+    int isRaw = 0;
 
-    if ((nm == NULL) || (nm->value == NULL)) {
+    if ((nm == NULL) || (nm->type_id == NULL) || (nm->value == NULL)) {
         WOLFSSL_MSG("otherName value is NULL");
         return WOLFSSL_FAILURE;
     }
+    switch (nm->value->type) {
+        case WOLFSSL_V_ASN1_UTF8STRING:
+        case WOLFSSL_V_ASN1_IA5STRING:
+        case WOLFSSL_V_ASN1_PRINTABLESTRING:
+        case WOLFSSL_V_ASN1_OCTET_STRING:
+            break;
+        case WOLFSSL_V_ASN1_SEQUENCE:
+            isRaw = 1;
+            break;
+        default:
+            WOLFSSL_MSG("otherName value type not supported");
+            return WOLFSSL_FAILURE;
+    }
+    if (nm->value->value.asn1_string == NULL) {
+        WOLFSSL_MSG("otherName value is NULL");
+        return WOLFSSL_FAILURE;
+    }
+    nameStr = nm->value->value.asn1_string->data;
+    nameSz = (word32)nm->value->value.asn1_string->length;
 
-    nameStr = nm->value->value.utf8string->data;
-    nameSz = (word32)nm->value->value.utf8string->length;
+    /* A SEQUENCE value is the DER of one element, written as is. */
+    if (isRaw && !OthernameIsOneElement((const byte*)nameStr, nameSz)) {
+        WOLFSSL_MSG("otherName value is not one DER element");
+        return WOLFSSL_FAILURE;
+    }
+
+    strSz = nameSz;
+    if (!isRaw)
+        strSz += SetHeader((byte)nm->value->type, nameSz, NULL, 0);
 
     if (output == NULL) {
         return nm->type_id->objSz +
-            SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2, NULL, 0) +
-            SetHeader(CTC_UTF8, nameSz, NULL, 0) + nameSz;
+            SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, strSz, NULL, 0) +
+            strSz;
     }
     else {
         const byte *output_start = output;
@@ -17621,16 +17714,18 @@ word32 SetOthername(void *name, byte *output)
         XMEMCPY(output, nm->type_id->obj, nm->type_id->objSz);
         output += nm->type_id->objSz;
 
-        output += SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2,
+        output += SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, strSz,
                             output, 0);
 
-        /* work around false positive from -fstack-protector */
-        PRAGMA_GCC_DIAG_PUSH
-        PRAGMA_GCC("GCC diagnostic ignored \"-Wstringop-overflow\"")
+        if (!isRaw) {
+            /* work around false positive from -fstack-protector */
+            PRAGMA_GCC_DIAG_PUSH
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wstringop-overflow\"")
 
-        output += SetHeader(CTC_UTF8, nameSz, output, 0);
+            output += SetHeader((byte)nm->value->type, nameSz, output, 0);
 
-        PRAGMA_GCC_DIAG_POP
+            PRAGMA_GCC_DIAG_POP
+        }
 
         XMEMCPY(output, nameStr, nameSz);
 

@@ -2837,3 +2837,375 @@ int test_wolfSSL_X509_set_ext_oid_collision(void)
         * !WOLFSSL_OLD_OID_SUM */
     return EXPECT_RESULT();
 }
+
+/* An otherName UTF8String of 128 bytes or more needs a long-form length. */
+int test_wolfSSL_X509_add_ext_othername_long(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WC_NO_RNG) && !defined(NO_PWDBASED) && \
+    (!defined(WC_CTC_MAX_ALT_SIZE) || (WC_CTC_MAX_ALT_SIZE >= 1024))
+    /* UPN type-id 1.3.6.1.4.1.311.20.2.3 */
+    static const byte upnOid[] = {
+        0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37, 0x14, 0x02, 0x03
+    };
+    static const byte valueHdr[] = { 0xA0, 0x81, 0xCB, 0x0C, 0x81, 0xC8 };
+    char upn[201];
+    X509* x509 = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_OBJECT* oid = NULL;
+    ASN1_UTF8STRING* str = NULL;
+    ASN1_TYPE* value = NULL;
+    X509_EXTENSION* ext = NULL;
+    EVP_PKEY* priv = NULL;
+    const byte* der = NULL;
+    const unsigned char* pt;
+    byte* key = NULL;
+    size_t keySz = 0;
+    int derSz = 0;
+    char* big = NULL;
+    int i;
+    int found = 0;
+
+    XMEMSET(upn, 'u', sizeof(upn) - 1);
+    upn[sizeof(upn) - 1] = '\0';
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/server-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    ExpectNotNull(oid = OBJ_txt2obj("1.3.6.1.4.1.311.20.2.3", 1));
+    ExpectNotNull(str = ASN1_UTF8STRING_new());
+    ExpectIntEQ(ASN1_STRING_set(str, upn, -1), 1);
+    ExpectNotNull(value = ASN1_TYPE_new());
+    if (value != NULL) {
+        ASN1_TYPE_set(value, V_ASN1_UTF8STRING, str);
+        str = NULL;
+    }
+    ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+    if (EXPECT_SUCCESS()) {
+        value = NULL;
+    }
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    if (EXPECT_SUCCESS()) {
+        gn = NULL;
+    }
+    ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), 1);
+
+    ExpectIntEQ(load_file("./certs/server-key.der", &key, &keySz), 0);
+    pt = key;
+    ExpectNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &pt,
+        (long)keySz));
+    ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull(der = wolfSSL_X509_get_der(x509, &derSz));
+
+    for (i = 0; (der != NULL) && (i + (int)(sizeof(upnOid) +
+            sizeof(valueHdr) + sizeof(upn) - 1) <= derSz); i++) {
+        if (XMEMCMP(der + i, upnOid, sizeof(upnOid)) == 0) {
+            ExpectBufEQ(der + i + sizeof(upnOid), valueHdr, sizeof(valueHdr));
+            ExpectBufEQ(der + i + sizeof(upnOid) + sizeof(valueHdr), upn,
+                sizeof(upn) - 1);
+            found = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    /* SANs that do not fit in CTC_MAX_ALT_SIZE make signing fail. */
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    gns = NULL;
+    ExpectNotNull(big = (char*)XMALLOC(CTC_MAX_ALT_SIZE + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (big != NULL) {
+        XMEMSET(big, 'b', CTC_MAX_ALT_SIZE);
+        big[CTC_MAX_ALT_SIZE] = '\0';
+    }
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    ExpectNotNull(str = ASN1_UTF8STRING_new());
+    ExpectIntEQ(ASN1_STRING_set(str, big, -1), 1);
+    ExpectNotNull(value = ASN1_TYPE_new());
+    if (value != NULL) {
+        ASN1_TYPE_set(value, V_ASN1_UTF8STRING, str);
+        str = NULL;
+    }
+    ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+    if (EXPECT_SUCCESS()) {
+        value = NULL;
+    }
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    if (EXPECT_SUCCESS()) {
+        gn = NULL;
+    }
+    ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), 1);
+    ExpectIntLE(X509_sign(x509, priv, EVP_sha256()), 0);
+
+    XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_EXTENSION_free(ext);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    GENERAL_NAME_free(gn);
+    ASN1_OBJECT_free(oid);
+    ASN1_TYPE_free(value);
+    ASN1_UTF8STRING_free(str);
+    EVP_PKEY_free(priv);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* otherName values other than UTF8String keep their own encoding. */
+int test_wolfSSL_X509_add_ext_othername_types(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WC_NO_RNG) && !defined(NO_PWDBASED) && \
+    (!defined(WC_CTC_MAX_ALT_SIZE) || (WC_CTC_MAX_ALT_SIZE >= 1024))
+    /* HardwareModuleName { 1.3.6.1.4.1.99999.1, "SN-0001" }, as decoded. */
+    static const byte hmn[] = {
+        0x30, 0x14, 0x06, 0x09, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x86, 0x8D,
+        0x1F, 0x01, 0x04, 0x07, 'S', 'N', '-', '0', '0', '0', '1'
+    };
+    static const byte hmnEnc[] = {
+        0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x04, 0xA0, 0x16
+    };
+    /* SRVName (RFC 4985) IA5String "_sip.example.com" */
+    static const char srv[] = "_sip.example.com";
+    static const byte srvEnc[] = {
+        0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x07, 0xA0, 0x12,
+        0x16, 0x10
+    };
+    /* OCTET STRING value under a private type-id 1.2.3.4 */
+    static const byte oct[] = { 0x00, 0x01, 0xFE, 0xFF };
+    static const byte octEnc[] = {
+        0x06, 0x03, 0x2A, 0x03, 0x04, 0xA0, 0x06, 0x04, 0x04
+    };
+    /* [32] "A", a high tag number, under a private type-id 1.2.3.5 */
+    static const byte ctx32[] = { 0x9F, 0x20, 0x01, 'A' };
+    static const byte ctx32Enc[] = { 0x06, 0x03, 0x2A, 0x03, 0x05, 0xA0, 0x04 };
+    static const byte twoElems[] = { 0x30, 0x00, 0x05, 0x00 };
+    static const byte eoc[] = { 0x00, 0x00 };
+    static const byte highTag[] = { 0x1F, 0x81 };
+    static const byte indef[] = { 0x30, 0x80 };
+    /* SEQUENCE holding an OCTET STRING that is missing its content */
+    static const byte badInner[] = { 0x30, 0x02, 0x04, 0x01 };
+    byte deep[40];
+    const byte* badVals[6];
+    int badSzs[6];
+    const char* oids[4] = { "1.3.6.1.5.5.7.8.4", "1.3.6.1.5.5.7.8.7",
+        "1.2.3.4", "1.2.3.5" };
+    const byte* vals[4];
+    int valSzs[4];
+    int types[4] = { V_ASN1_SEQUENCE, V_ASN1_IA5STRING, V_ASN1_OCTET_STRING,
+        V_ASN1_SEQUENCE };
+    const byte* encs[4];
+    int encSzs[4];
+    X509* x509 = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAME* dns = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_STRING* dnsStr = NULL;
+    DNS_entry* entry;
+    int altCnt = 0;
+    int cnt;
+    ASN1_OBJECT* oid = NULL;
+    ASN1_STRING* str = NULL;
+    ASN1_TYPE* value = NULL;
+    X509_EXTENSION* ext = NULL;
+    EVP_PKEY* priv = NULL;
+    const byte* der = NULL;
+    const unsigned char* pt;
+    byte* key = NULL;
+    size_t keySz = 0;
+    int derSz = 0;
+    int i;
+    int k;
+    int found;
+
+    vals[0] = hmn;
+    valSzs[0] = (int)sizeof(hmn);
+    vals[1] = (const byte*)srv;
+    valSzs[1] = (int)sizeof(srv) - 1;
+    encs[0] = hmnEnc;
+    encSzs[0] = (int)sizeof(hmnEnc);
+    encs[1] = srvEnc;
+    encSzs[1] = (int)sizeof(srvEnc);
+    vals[2] = oct;
+    valSzs[2] = (int)sizeof(oct);
+    badVals[0] = twoElems;
+    badSzs[0] = (int)sizeof(twoElems);
+    badVals[1] = eoc;
+    badSzs[1] = (int)sizeof(eoc);
+    badVals[2] = highTag;
+    badSzs[2] = (int)sizeof(highTag);
+    badVals[3] = indef;
+    badSzs[3] = (int)sizeof(indef);
+    badVals[4] = badInner;
+    badSzs[4] = (int)sizeof(badInner);
+    /* 20 nested SEQUENCEs, deeper than SetOthername() walks */
+    for (i = 0; i < (int)sizeof(deep) / 2; i++) {
+        deep[2 * i] = 0x30;
+        deep[2 * i + 1] = (byte)(sizeof(deep) - 2 - 2 * i);
+    }
+    badVals[5] = deep;
+    badSzs[5] = (int)sizeof(deep);
+    encs[2] = octEnc;
+    encSzs[2] = (int)sizeof(octEnc);
+    vals[3] = ctx32;
+    valSzs[3] = (int)sizeof(ctx32);
+    encs[3] = ctx32Enc;
+    encSzs[3] = (int)sizeof(ctx32Enc);
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/server-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    for (k = 0; k < 4; k++) {
+        ExpectNotNull(gn = GENERAL_NAME_new());
+        ExpectNotNull(oid = OBJ_txt2obj(oids[k], 1));
+        ExpectNotNull(str = ASN1_STRING_type_new(types[k]));
+        ExpectIntEQ(ASN1_STRING_set(str, vals[k], valSzs[k]), 1);
+        ExpectNotNull(value = ASN1_TYPE_new());
+        if (value != NULL) {
+            ASN1_TYPE_set(value, types[k], str);
+            str = NULL;
+        }
+        ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+        if (EXPECT_SUCCESS()) {
+            value = NULL;
+        }
+        ASN1_OBJECT_free(oid);
+        oid = NULL;
+        ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), k + 1);
+        if (EXPECT_SUCCESS()) {
+            gn = NULL;
+        }
+        ASN1_STRING_free(str);
+        str = NULL;
+        ASN1_TYPE_free(value);
+        value = NULL;
+    }
+    ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), 1);
+
+    ExpectIntEQ(load_file("./certs/server-key.der", &key, &keySz), 0);
+    pt = key;
+    ExpectNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &pt,
+        (long)keySz));
+    ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull(der = wolfSSL_X509_get_der(x509, &derSz));
+
+    for (k = 0; k < 4; k++) {
+        found = 0;
+        for (i = 0; (der != NULL) && (i + encSzs[k] + valSzs[k] <= derSz);
+                i++) {
+            if (XMEMCMP(der + i, encs[k], (size_t)encSzs[k]) == 0) {
+                ExpectBufEQ(der + i + encSzs[k], vals[k], valSzs[k]);
+                found = 1;
+                break;
+            }
+        }
+        ExpectIntEQ(found, 1);
+    }
+
+    /* A SEQUENCE value must hold exactly one definite-length element, and a
+     * DNS name before the bad entry is not added either. */
+    for (entry = (x509 != NULL) ? x509->altNames : NULL; entry != NULL;
+            entry = entry->next) {
+        altCnt++;
+    }
+    ExpectNotNull(oid = OBJ_txt2obj(oids[0], 1));
+    for (k = 0; k < 6; k++) {
+        X509_EXTENSION_free(ext);
+        ext = NULL;
+        sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+        gns = NULL;
+        ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+        ExpectNotNull(dns = GENERAL_NAME_new());
+        ExpectNotNull(dnsStr = ASN1_STRING_type_new(V_ASN1_IA5STRING));
+        ExpectIntEQ(ASN1_STRING_set(dnsStr, "dropped.example.com", -1), 1);
+        if ((dns != NULL) && (dnsStr != NULL)) {
+            GENERAL_NAME_set0_value(dns, GEN_DNS, dnsStr);
+            dnsStr = NULL;
+        }
+        ExpectIntEQ(sk_GENERAL_NAME_push(gns, dns), 1);
+        if (EXPECT_SUCCESS()) {
+            dns = NULL;
+        }
+        ExpectNotNull(gn = GENERAL_NAME_new());
+        ExpectNotNull(str = ASN1_STRING_type_new(V_ASN1_SEQUENCE));
+        ExpectIntEQ(ASN1_STRING_set(str, badVals[k], badSzs[k]), 1);
+        ExpectNotNull(value = ASN1_TYPE_new());
+        if (value != NULL) {
+            ASN1_TYPE_set(value, V_ASN1_SEQUENCE, str);
+            str = NULL;
+        }
+        ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+        if (EXPECT_SUCCESS()) {
+            value = NULL;
+        }
+        ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 2);
+        if (EXPECT_SUCCESS()) {
+            gn = NULL;
+        }
+        ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+        ExpectIntEQ(X509_add_ext(x509, ext, -1), 0);
+        cnt = 0;
+        for (entry = (x509 != NULL) ? x509->altNames : NULL; entry != NULL;
+                entry = entry->next) {
+            cnt++;
+        }
+        ExpectIntEQ(cnt, altCnt);
+        ASN1_STRING_free(str);
+        str = NULL;
+        ASN1_TYPE_free(value);
+        value = NULL;
+    }
+
+    /* A NULL value is not a supported otherName type. */
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    gns = NULL;
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    ExpectNotNull(value = ASN1_TYPE_new());
+    if (value != NULL) {
+        ASN1_TYPE_set(value, V_ASN1_NULL, NULL);
+    }
+    ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+    if (EXPECT_SUCCESS()) {
+        value = NULL;
+    }
+    ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    if (EXPECT_SUCCESS()) {
+        gn = NULL;
+    }
+    ExpectNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+
+    X509_EXTENSION_free(ext);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    GENERAL_NAME_free(gn);
+    GENERAL_NAME_free(dns);
+    ASN1_STRING_free(dnsStr);
+    ASN1_OBJECT_free(oid);
+    ASN1_TYPE_free(value);
+    ASN1_STRING_free(str);
+    EVP_PKEY_free(priv);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
