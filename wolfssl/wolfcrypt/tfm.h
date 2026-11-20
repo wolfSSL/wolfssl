@@ -640,7 +640,8 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp);
 /* c = [a, b] */
 /*int fp_lcm(fp_int *a, fp_int *b, fp_int *c);*/
 
-/* setups the montgomery reduction */
+/* setups the montgomery reduction
+ * The modulus must be odd: returns FP_VAL if it is even. */
 int fp_montgomery_setup(fp_int *a, fp_digit *rho);
 
 /* computes a = B**n mod b without division or multiplication useful for
@@ -652,7 +653,10 @@ int fp_montgomery_calc_normalization(fp_int *a, fp_int *b);
 int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct);
 
-/* d = a**b (mod c) */
+/* Y = G**X (mod P)
+ * Only odd moduli are supported (Montgomery reduction is used). An even P
+ * results in FP_VAL being returned, except for the trivial cases P == 1,
+ * X == 0 and G == 0, which return the mathematically correct result. */
 int fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
 int fp_exptmod_ex(fp_int *G, fp_int *X, int minDigits, fp_int *P, fp_int *Y);
 int fp_exptmod_nct(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
@@ -702,6 +706,7 @@ enum {
 
 /* non-blocking version of timing resistant fp_exptmod function */
 /* supports cache resistance */
+/* P must be odd: returns FP_VAL if it is even. */
 int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y);
 
 #endif /* WC_RSA_NONBLOCK */
@@ -843,6 +848,8 @@ MP_API int  mp_addmod_ct (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
 MP_API int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 MP_API int  mp_invmod_mont_ct(mp_int *a, mp_int *b, mp_int *c, fp_digit mp);
+/* mp_exptmod*: modulus p must be odd; an even p returns MP_VAL (see
+ * fp_exptmod). */
 MP_API int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
 MP_API int  mp_exptmod_ex (mp_int * g, mp_int * x, int minDigits, mp_int * p,
                            mp_int * y);
