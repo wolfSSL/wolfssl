@@ -17472,6 +17472,10 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
     for TLS v1.3 connections.
     The callback is used to find a PSK identity and return its key and
     the name of the cipher to use for the handshake.
+    The callback may leave the cipher name unset (NULL), in which case the
+    default PSK cipher suite TLS13-AES128-GCM-SHA256
+    (WOLFSSL_DEF_PSK_CIPHER) is used. Returning a key length of 0 means no
+    PSK is available.
     The function sets the client_psk_tls13_cb member of the
     WOLFSSL_CTX structure.
 
@@ -17500,6 +17504,10 @@ void wolfSSL_CTX_set_psk_client_tls13_callback(WOLFSSL_CTX* ctx,
     for TLS v1.3 connections.
     The callback is used to find a PSK identity and return its key and
     the name of the cipher to use for the handshake.
+    The callback may leave the cipher name unset (NULL), in which case the
+    default PSK cipher suite TLS13-AES128-GCM-SHA256
+    (WOLFSSL_DEF_PSK_CIPHER) is used. Returning a key length of 0 means no
+    PSK is available.
     The function sets the client_psk_tls13_cb member of the options field in
     WOLFSSL structure.
 
@@ -17527,6 +17535,11 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
     for TLS v1.3 connections.
     The callback is used to find a PSK identity and return its key and
     the name of the cipher to use for the handshake.
+    If the callback returns a non-zero key length and leaves the cipher
+    name unset (NULL), the PSK is accepted with the default PSK cipher suite
+    TLS13-AES128-GCM-SHA256 (WOLFSSL_DEF_PSK_CIPHER) and the non-TLS 1.3
+    server PSK callback is not called. Returning a key length of 0 means the
+    identity is not known.
     The function sets the server_psk_tls13_cb member of the
     WOLFSSL_CTX structure.
 
@@ -17555,6 +17568,11 @@ void wolfSSL_CTX_set_psk_server_tls13_callback(WOLFSSL_CTX* ctx,
     for TLS v1.3 connections.
     The callback is used to find a PSK identity and return its key and
     the name of the cipher to use for the handshake.
+    If the callback returns a non-zero key length and leaves the cipher
+    name unset (NULL), the PSK is accepted with the default PSK cipher suite
+    TLS13-AES128-GCM-SHA256 (WOLFSSL_DEF_PSK_CIPHER) and the non-TLS 1.3
+    server PSK callback is not called. Returning a key length of 0 means the
+    identity is not known.
     The function sets the server_psk_tls13_cb member of the options field in
     WOLFSSL structure.
 

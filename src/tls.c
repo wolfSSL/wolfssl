@@ -17042,7 +17042,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl, ssl->arrays->server_hint,
                         ssl->arrays->client_identity, MAX_PSK_ID_LEN,
                         ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
-                    if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+                    /* No name from the callback keeps the default suite. */
+                    if (cipherName != NULL &&
+                        GetCipherSuiteFromName(cipherName, &cipherSuite0,
                             &cipherSuite, NULL, NULL, &cipherSuiteFlags) != 0) {
                         return PSK_KEY_ERROR;
                     }
@@ -17053,9 +17055,10 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
                 }
                 if (
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_PSK_ONE_ID)
                     /* OpenSSL treats a PSK key length of 0
-                     * to indicate no PSK available.
+                     * to indicate no PSK available. With one PSK ID this is
+                     * the only check before the key is offered.
                      */
                     ssl->arrays->psk_keySz == 0 ||
                 #endif

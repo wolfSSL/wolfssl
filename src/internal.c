@@ -34545,6 +34545,9 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
     (void)major;
     (void)minor;
 
+    if (name == NULL)
+        return ret;
+
     /* Support trailing : */
     nameDelim = XSTRSTR(name, ":");
     if (nameDelim)

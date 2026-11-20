@@ -19391,3 +19391,121 @@ int test_tls13_new_session_ticket_max_fragment(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && !defined(NO_SHA256) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+static const unsigned char test_tls13_psk_no_name_key[32] = {
+    0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A,
+    0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A,
+    0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A,
+    0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A
+};
+
+/* Supplies a key but leaves the cipher suite name unset. */
+static unsigned int test_tls13_psk_no_name_client_cb(WOLFSSL* ssl,
+    const char* hint, char* identity, unsigned int id_max_len,
+    unsigned char* key, unsigned int key_max_len, const char** ciphersuite)
+{
+    (void)ssl;
+    (void)hint;
+    (void)ciphersuite;
+    if (id_max_len == 0 || key_max_len < sizeof(test_tls13_psk_no_name_key))
+        return 0;
+    XSTRNCPY(identity, "no_name_client", id_max_len);
+    XMEMCPY(key, test_tls13_psk_no_name_key,
+        sizeof(test_tls13_psk_no_name_key));
+    return (unsigned int)sizeof(test_tls13_psk_no_name_key);
+}
+
+/* Declines to supply a PSK and leaves the cipher suite name unset. */
+static unsigned int test_tls13_psk_none_client_cb(WOLFSSL* ssl,
+    const char* hint, char* identity, unsigned int id_max_len,
+    unsigned char* key, unsigned int key_max_len, const char** ciphersuite)
+{
+    (void)ssl;
+    (void)hint;
+    (void)identity;
+    (void)id_max_len;
+    (void)key;
+    (void)key_max_len;
+    (void)ciphersuite;
+    return 0;
+}
+
+static unsigned int test_tls13_psk_no_name_server_cb(WOLFSSL* ssl,
+    const char* id, unsigned char* key, unsigned int key_max_len,
+    const char** ciphersuite)
+{
+    (void)ssl;
+    (void)ciphersuite;
+    if (key_max_len < sizeof(test_tls13_psk_no_name_key) || id == NULL)
+        return 0;
+    if (XSTRCMP(id, "no_name_client") != 0)
+        return 0;
+    XMEMCPY(key, test_tls13_psk_no_name_key,
+        sizeof(test_tls13_psk_no_name_key));
+    return (unsigned int)sizeof(test_tls13_psk_no_name_key);
+}
+#endif
+
+int test_tls13_psk_cb_no_cipher_name(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && !defined(NO_SHA256) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* Both callbacks omit the suite name, so the default suite is used. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_psk_client_tls13_callback(ssl_c,
+        test_tls13_psk_no_name_client_cb);
+    wolfSSL_set_psk_server_tls13_callback(ssl_s,
+        test_tls13_psk_no_name_server_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_current_cipher_suite(ssl_c),
+        (TLS13_BYTE << 8) | WOLFSSL_DEF_PSK_CIPHER);
+    ExpectIntEQ(ssl_s->options.pskNegotiated, 1);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* A client callback returning 0 must not fault on the unset name. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfTLSv1_3_client_method, NULL), 0);
+    wolfSSL_set_psk_client_tls13_callback(ssl_c,
+        test_tls13_psk_none_client_cb);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+#ifdef OPENSSL_EXTRA
+    /* A zero length key means no PSK, so the ClientHello is sent without
+     * one and the client waits for the server. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+#else
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
