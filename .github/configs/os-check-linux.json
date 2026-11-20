@@ -663,5 +663,11 @@
 {"name": "sp-math-sakke",
  "comment": "SAKKE on WOLFSSL_SP_MATH without RSA, DH, or ECCSI: its blinded RSK inverse needs sp_mulmod, which nothing else builds in this shape.",
  "configure": ["--enable-cryptonly", "--enable-sp-math", "--enable-sp",
-  "--disable-rsa", "--disable-dh", "--enable-sakke"]}
+  "--disable-rsa", "--disable-dh", "--enable-sakke"]},
+{"name": "sp-p256-small", "minutes": 4,
+ "comment": "Size-first constant-time P-256 (sp_p256_small.c) in place of the generated x86_64 P-256, with P-384 and RSA/DH still on the generated SP code.",
+ "configure": ["--enable-sp", "--enable-sp-p256-small", "--enable-compkey", "--enable-eccsi"]},
+{"name": "sp-p256-small-c32", "minutes": 4,
+ "comment": "Small P-256 with restricted SP math on the portable 32-bit C build, the embedded configuration it targets, plus the public point add/double/map paths.",
+ "configure": ["--enable-sp=small", "--enable-sp-math", "--disable-sp-asm", "--enable-sp-p256-small", "--enable-compkey", "--enable-opensslextra", "CPPFLAGS=-DSP_WORD_SIZE=32 -DWOLFSSL_PUBLIC_ECC_ADD_DBL -DWOLFSSL_PUBLIC_MP"]}
 ]

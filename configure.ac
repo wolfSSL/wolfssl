@@ -1152,6 +1152,12 @@ AC_ARG_ENABLE([sp],
     [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
     )
 
+AC_ARG_ENABLE([sp-p256-small],
+    [AS_HELP_STRING([--enable-sp-p256-small],[Enable the size-first constant-time P-256 in place of the generated SP P-256 code, not for FIPS (default: disabled)])],
+    [ ENABLED_SP_P256_SMALL=$enableval ],
+    [ ENABLED_SP_P256_SMALL=no ],
+    )
+
 AC_ARG_ENABLE([sp-math-all],
     [AS_HELP_STRING([--enable-sp-math-all],[Enable Single Precision math implementation for full algorithm suite (default: enabled)])],
     [ ENABLED_SP_MATH_ALL=$enableval ],
@@ -12123,6 +12129,11 @@ if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
         ;;
     esac
 fi
+if test "$ENABLED_SP_P256_SMALL" = "yes" && \
+   { test "$ENABLED_ECC" = "no" || test "$ENABLED_SP_ECC" != "yes" || \
+     test "$ENABLED_SP_EC_256" = "no"; }; then
+    AC_MSG_ERROR([--enable-sp-p256-small needs ECC and --enable-sp with P-256.])
+fi
 if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     ENABLED_SP=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
@@ -12130,6 +12141,10 @@ if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     if test "$ENABLED_SP_EC_256" = "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_256"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_256"
+    fi
+    if test "$ENABLED_SP_P256_SMALL" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_P256_SMALL"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_P256_SMALL"
     fi
     if test "$ENABLED_SP_EC_384" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC384 -DWOLFSSL_SP_384"
@@ -12408,6 +12423,13 @@ fi
 
 if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
+fi
+
+if test "$ENABLED_SP_P256_SMALL" = "yes" && \
+   { test "$ENABLED_ECC" = "nonblock" || \
+     { test "$ENABLED_SP_MATH" != "yes" && \
+       test "$ENABLED_SP_MATH_ALL" != "yes"; }; }; then
+    AC_MSG_ERROR([--enable-sp-p256-small needs sp-math or sp-math-all and blocking ECC.])
 fi
 
 ################################################################################
