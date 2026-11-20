@@ -137,8 +137,16 @@
 
 /* Success from a caller-seeded PQ keygen service: FIPS v7 returns the
  * WC_FIPS_NOT_APPROVED indicator (CallerSeedResult() in fips.c), and the
- * LKCAPI calling contract has no ride for it -- absorb it.  This can't mask
- * a failure: the indicator is the only positive return from these services.
+ * LKCAPI calling contract has no ride for it.  Inside the registration
+ * claim -- same pid, task context -- the call is this module's own KAT
+ * work and the indicator is absorbed; any other caller gets the honest
+ * FIPS_UNAPPROVED_E refusal.  The in_task() conjunct is load-bearing:
+ * an interrupt handler that fires on top of the registering task would
+ * otherwise match its pid and see self-test semantics for a runtime
+ * call.  (Registration is always a regular task -- an insmod -- by
+ * design and structural constraint, so in_task() can never wrongly
+ * refuse the claimant.)  This can't mask a failure: the indicator is
+ * the only positive return from these services.
  */
 #ifdef LKCAPI_FIPS_APPROVED_MODE_GATES
     #define LKCAPI_ABSORB_SEED_INDICATOR(err)              \
@@ -149,6 +157,7 @@
                         linuxkm_lkcapi_registering_pid);   \
                 if ((lkcapi_asi_pid_ !=                    \
                      LINUXKM_LKCAPI_REGISTERING_NO_PID) && \
+                    in_task() &&                           \
                     (lkcapi_asi_pid_ ==                    \
                      (int)task_pid_nr(current)))           \
                     (err) = 0;                             \
