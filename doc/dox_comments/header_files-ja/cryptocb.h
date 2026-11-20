@@ -7,6 +7,8 @@
 
     TPMベースの暗号コールバックの例については、wolfTPM src/tpm2_wrap.cのwolfTPM2_CryptoDevCb関数を参照してください。
 
+    WOLFSSL_ASYNC_CRYPTとWOLF_CRYPTO_CB_ASYNC_POLLが定義されている場合、保留中の操作を完了させるために、wolfSSL_AsyncPollおよびwolfSSL_CTX_AsyncPollからWC_ALGO_TYPE_ASYNC_POLLでコールバックが呼び出されます。この呼び出しの間、イベントキューのロックは保持されています。ハンドラは、同じWOLFSSL_CTXに対してポーリングやTLS操作を行ってはならず、同じWOLF_EVENT_QUEUEを他のいかなる方法でも使用してはなりません。デッドロックが発生します。
+
     \return CRYPTOCB_UNAVAILABLE ソフトウェア暗号の使用にフォールバックする場合
     \return 0 成功時
     \return 負の値 失敗時
