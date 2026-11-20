@@ -1901,7 +1901,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     extern time_t m2mb_xtime(time_t * timer);
     #define XTIME(tl)       m2mb_xtime((tl))
     #ifdef WOLFSSL_TLS13
-        extern time_t m2mb_xtime_ms(time_t * timer);
+        extern long long m2mb_xtime_ms(time_t * timer);
         #define XTIME_MS(tl)    m2mb_xtime_ms((tl))
     #endif
     #ifndef NO_CRYPT_BENCHMARK

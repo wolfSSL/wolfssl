@@ -4996,16 +4996,15 @@ time_t deos_time(time_t* timer)
 {
     const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
     const volatile word32 *systemTickPtr = systemTickPointer();
-
-    if (timer != NULL)
-        *timer = *systemTickPtr/systemTickTimeInHz;
+    time_t now = (time_t)(*systemTickPtr / systemTickTimeInHz);
 
     #if defined(CURRENT_UNIX_TIMESTAMP)
         /* CURRENT_UNIX_TIMESTAMP is seconds since Jan 01 1970. (UTC) */
-        return (time_t) (*systemTickPtr/systemTickTimeInHz) + CURRENT_UNIX_TIMESTAMP;
-    #else
-        return (time_t) *systemTickPtr/systemTickTimeInHz;
+        now += CURRENT_UNIX_TIMESTAMP;
     #endif
+    if (timer != NULL)
+        *timer = now;
+    return now;
 }
 #endif /* WOLFSSL_DEOS || WOLFSSL_DEOS_RTEMS */
 
@@ -5013,8 +5012,11 @@ time_t deos_time(time_t* timer)
 #include "fsl_rtc.h"
 time_t fsl_time(time_t* t)
 {
-    *t = RTC_GetSecondsTimerCount(RTC);
-    return *t;
+    time_t now = (time_t)RTC_GetSecondsTimerCount(RTC);
+
+    if (t != NULL)
+        *t = now;
+    return now;
 }
 #endif
 
@@ -5032,8 +5034,9 @@ time_t fsl_time(time_t* t)
 
     SNVS_HP_RTC_GetDatetime(SNVS, &rtcDate);
 
-    tm_time.tm_year  = rtcDate.year;
-    tm_time.tm_mon   = rtcDate.month;
+    XMEMSET(&tm_time, 0, sizeof(tm_time));
+    tm_time.tm_year  = rtcDate.year - 1900;
+    tm_time.tm_mon   = rtcDate.month - 1;
     tm_time.tm_mday  = rtcDate.day;
     tm_time.tm_hour  = rtcDate.hour;
     tm_time.tm_min   = rtcDate.minute;
@@ -5242,16 +5245,16 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
         return myTime;
     }
     #ifdef WOLFSSL_TLS13
-    time_t m2mb_xtime_ms(time_t * timer)
+    long long m2mb_xtime_ms(time_t * timer)
     {
-        time_t myTime = 0;
+        long long myTime = 0;
         INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
         if (fd != -1) {
             M2MB_RTC_TIMEVAL_T timeval;
 
             m2mb_rtc_ioctl(fd, M2MB_RTC_IOCTL_GET_TIMEVAL, &timeval);
 
-            myTime = timeval.sec + timeval.msec;
+            myTime = (long long)timeval.sec * 1000 + timeval.msec;
 
             m2mb_rtc_close(fd);
         }

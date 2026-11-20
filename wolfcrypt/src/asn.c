@@ -16843,8 +16843,7 @@ int ValidateGmtime(struct tm* inTime)
     return ret;
 }
 
-#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
-    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
+#if !defined(NO_ASN_TIME) && (defined(OPENSSL_EXTRA) || \
             defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER) || \
             defined(WOLFSSL_TSP))
 /* Set current time string, either UTC or GeneralizedTime.
@@ -16985,8 +16984,8 @@ int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
     return ret;
 }
 
-#endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES &&
-        * (OPENSSL_EXTRA || HAVE_PKCS7) */
+#endif /* !NO_ASN_TIME && (OPENSSL_EXTRA || HAVE_PKCS7 ||
+        * HAVE_OCSP_RESPONDER || WOLFSSL_TSP) */
 
 #if defined(USE_WOLF_VALIDDATE)
 
